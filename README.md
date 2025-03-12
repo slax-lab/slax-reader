@@ -36,7 +36,7 @@ We don’t just store content; we help you *understand* it.
 
 # 🌟 Main Features
 - [x] **Save Once, Keep Forever**
-  - Cache web pages, X threads, and YouTube videos are **indefinitely**.
+  - Cache web pages, X threads, and YouTube videos **indefinitely**.
   - Coming soon: PDF, newsletters, and more.
 
 - [x] **AI That Works While You Read**
@@ -90,7 +90,7 @@ WIP
 The heart of open source beats because of people like you. Whether you’re fixing bugs, improving docs, or brainstorming ideas—**every contribution matters**.
 
 **How to Get Started**:  
-1.🛠️ Read our guide: [Contribution Guidelines](./public/HOW-TO-CONTRIBUTION-CN.md)  
+1.🛠️ Read our guide: [Contribution Guidelines](https://github.com/slax-lab/slax-reader-api/blob/main/public/HOW-TO-CONTRIBUTION-EN.md)  
 2.💡 Pick an issue labeled `good first issue`.  
 3.🚀 Submit your PR – we’ll review it as soon as possible.
 
