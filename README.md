@@ -4,8 +4,9 @@
 <h1>Slax Reader: Start Reading Smarter   
 </h1>
 
-[![Twitter](https://img.shields.io/twitter/url/https/twitter.com/cloudposse.svg?style=social&label=Follow%20%40SlaxReader)](https://twitter.com/SlaxReader) [![GitHub pull requests](https://img.shields.io/github/issues-pr/slax-lab/slax-reader-api?style=flat)](https://github.com/slax-lab/slax-reader-api/pulls) [![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed/slax-lab/slax-reader-api?style=flat)](https://github.com/slax-lab/slax-reader-api/pulls?q=is%3Apr+is%3Aclosed) [![GitHub issues](https://img.shields.io/github/issues/slax-lab/slax-reader-api?style=flat)](https://github.com/slax-lab/slax-reader-api/issues) [![GitHub closed issues](https://img.shields.io/github/issues-closed/slax-lab/slax-reader-api?style=flat)](https://github.com/slax-lab/slax-reader-api/issues?q=is%3Aissue+is%3Aclosed) ![Stars](https://img.shields.io/github/stars/slax-lab/slax-reader-api?style=flat) ![Forks](https://img.shields.io/github/forks/slax-lab/slax-reader-api?style=flat)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/slax-lab/slax-reader-api?style=flat)](https://github.com/slax-lab/slax-reader-api/pulls) [![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed/slax-lab/slax-reader-api?style=flat)](https://github.com/slax-lab/slax-reader-api/pulls?q=is%3Apr+is%3Aclosed) [![GitHub issues](https://img.shields.io/github/issues/slax-lab/slax-reader-api?style=flat)](https://github.com/slax-lab/slax-reader-api/issues) [![GitHub closed issues](https://img.shields.io/github/issues-closed/slax-lab/slax-reader-api?style=flat)](https://github.com/slax-lab/slax-reader-api/issues?q=is%3Aissue+is%3Aclosed) ![Stars](https://img.shields.io/github/stars/slax-lab/slax-reader-api?style=flat) ![Forks](https://img.shields.io/github/forks/slax-lab/slax-reader-api?style=flat)
 
+[![Twitter](https://img.shields.io/twitter/url/https/twitter.com/cloudposse.svg?style=social&label=Follow%20%40SlaxReader)](https://twitter.com/SlaxReader)
 
 </div>
 
@@ -98,12 +99,11 @@ The heart of open source beats because of people like you. Whether you’re fixi
 💖 [Thank you to every contributor who helps make Slax Reader better](https://github.com/slax-lab/slax-reader-api/graphs/contributors) 💖
 
 <img src="https://contrib.rocks/image?repo=slax-lab/slax-reader-api" alt="contributors">
-</a>
 
 # 🎉 Shoutouts
 Slax Reader is made possible by the remarkable open-source projects and tools crafted by developers worldwide. We deeply appreciate the maintainers and contributors behind:  
-●🚀 [Cloudflare Workers](https://developers.cloudflare.com/workers/)   
-●📖 [readability](https://github.com/mozilla/readability) 
+- 🚀 [Cloudflare Workers](https://developers.cloudflare.com/workers/)
+- 📖 [readability](https://github.com/mozilla/readability)
 
 
 # 📝 License
