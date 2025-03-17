@@ -4,9 +4,7 @@
 <h1>Slax Reader: Start Reading Smarter   
 </h1>
 
-[![GitHub pull requests](https://img.shields.io/github/issues-pr/slax-lab/slax-reader-api?style=flat)](https://github.com/slax-lab/slax-reader-api/pulls) [![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed/slax-lab/slax-reader-api?style=flat)](https://github.com/slax-lab/slax-reader-api/pulls?q=is%3Apr+is%3Aclosed) [![GitHub issues](https://img.shields.io/github/issues/slax-lab/slax-reader-api?style=flat)](https://github.com/slax-lab/slax-reader-api/issues) [![GitHub closed issues](https://img.shields.io/github/issues-closed/slax-lab/slax-reader-api?style=flat)](https://github.com/slax-lab/slax-reader-api/issues?q=is%3Aissue+is%3Aclosed) ![Stars](https://img.shields.io/github/stars/slax-lab/slax-reader-api?style=flat) ![Forks](https://img.shields.io/github/forks/slax-lab/slax-reader-api?style=flat)
-
-[![Twitter](https://img.shields.io/twitter/url/https/twitter.com/cloudposse.svg?style=social&label=Follow%20%40SlaxReader)](https://twitter.com/SlaxReader)
+![Stars](https://img.shields.io/github/stars/slax-lab/slax-reader?style=flat)  [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/cloudposse.svg?style=social&label=Follow%20%40SlaxReader)](https://twitter.com/SlaxReader)
 
 </div>
 
@@ -82,8 +80,15 @@ We don’t just store content; we help you *understand* it.
   - iOS/Android/Desktop apps (under active development).
 
 # 🚀 Self-Deploy
+To deploy the **Slax Reader web version** on your own server, please refer to the following two repositories:
 
-WIP
+1. [Slax Reader API](https://github.com/slax-lab/slax-reader-api) 
+This repository contains the backend API for Slax Reader.
+
+2. [Slax Reader Web](https://github.com/slax-lab/slax-reader-web) 
+This repository hosts the frontend code for Slax Reader.
+
+Note: The Slax Reader app version is currently in development and will be released soon. Stay tuned for updates!
 
 # 🤝 How to Contribute
 
