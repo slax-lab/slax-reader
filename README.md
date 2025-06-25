@@ -73,7 +73,7 @@ We don’t just store content; we help you *understand* it.
 
 #### Read on mobile
 
-  - [Slax Reader Bot](https://t.me/slaxreaderbot): save articles directly from your phone.
+  - [Slax Reader Bot](https://t.me/slax_reader_bot): save articles directly from your phone.
 
 #### Coming soon
 
