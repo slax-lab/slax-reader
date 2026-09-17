@@ -1,0 +1,13 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm 11 runs an implicit deps-status install before `pnpm exec`; a blocked
+# optional build script turns that check into a hard failure. CI installs
+# explicitly with --frozen-lockfile, so the auto-check buys nothing.
+verifyDepsBeforeRun: false
+
+# tldjs (rulesync dependency) ships an optional build script we do not need;
+# acknowledge skipping it so pnpm stops failing deps-status checks.
+ignoredBuiltDependencies:
+  - tldjs

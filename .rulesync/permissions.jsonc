@@ -1,0 +1,11 @@
+{
+  "$schema": "https://github.com/dyoshikawa/rulesync/releases/latest/download/permissions-schema.json",
+  "permission": {
+    "read": {
+      "**/.env": "deny",
+      "**/.env.*": "deny",
+      "**/.dev.vars": "deny",
+      "**/.dev.vars.*": "deny"
+    }
+  }
+}

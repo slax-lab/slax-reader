@@ -1,0 +1,9 @@
+# Generated agent configuration: committed to git (so agents and humans see it
+# on checkout / GitHub) but collapsed in PR diffs. Source of truth:
+# .rulesync/ (rules, permissions) and openspec/ (spec workflow). Never hand-edit.
+AGENTS.md linguist-generated
+CLAUDE.md linguist-generated
+.claude/** linguist-generated
+.codex/** linguist-generated
+.agents/** linguist-generated
+.kimi-code/** linguist-generated

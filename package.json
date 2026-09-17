@@ -1,0 +1,17 @@
+{
+  "name": "slax-reader",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "agent:sync": "rulesync generate",
+    "agent:check": "rulesync doctor --strict && rulesync generate --check && openspec validate --all --strict"
+  },
+  "devDependencies": {
+    "@fission-ai/openspec": "1.13.0",
+    "rulesync": "16.34.1"
+  }
+}

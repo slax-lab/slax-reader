@@ -31,3 +31,13 @@ logs/
 
 # Kimi Code CLI Tower mode local tooling state
 .tower/
+
+# Agent tooling: personal/local files (generated artifacts ARE committed on purpose)
+rulesync.local.jsonc
+.rulesync.local/
+.rulesync/rules/.curated/
+.rulesync/rules/*.local.md
+AGENTS.local.md
+CLAUDE.local.md
+.claude/settings.local.json
+.kimi-code/local.toml
