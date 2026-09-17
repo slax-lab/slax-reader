@@ -1,0 +1,33 @@
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.idea/
+.vscode/
+
+# Node dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# Logs
+*.log
+logs/
+
+# Env files / secrets -- never commit these, this repo is public
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+!.env.example
+!.env.sample
+
+# Tower local tooling state
+.tower/
