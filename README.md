@@ -97,7 +97,8 @@ The heart of open source beats because of people like you. Whether you’re fixi
 **How to Get Started**:  
 1.🛠️ Read our guide: [Contribution Guidelines](https://github.com/slax-lab/slax-reader-api/blob/main/public/HOW-TO-CONTRIBUTION-EN.md)  
 2.💡 Pick an issue labeled `good first issue`.  
-3.🚀 Submit your PR – we’ll review it as soon as possible.
+3.🚀 Submit your PR – we’ll review it as soon as possible.  
+4.📜 Follow our [Code of Conduct](CODE_OF_CONDUCT.md) in every interaction with the community.
 
 
 # 💖 Contributors
@@ -114,3 +115,5 @@ Slax Reader is made possible by the remarkable open-source projects and tools cr
 # 📝 License
 
 `Slax Reader` is licensed under the [Apache License 2.0](LICENSE). The community version is completely free, open-source, and will remain so forever.
+
+Copyright is held by The Slax Reader Contributors; see [NOTICE](NOTICE) for details.
