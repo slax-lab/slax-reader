@@ -21,9 +21,11 @@ coverage/
 *.log
 logs/
 
-# Env files -- never commit secrets, this repo is public
+# Env files / secrets -- never commit these, this repo is public
 .env
 .env.*
+.dev.vars
+.dev.vars.*
 !.env.example
 !.env.sample
 
