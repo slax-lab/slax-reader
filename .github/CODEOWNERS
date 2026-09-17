@@ -3,7 +3,11 @@
 
 # Future monorepo layout. Uncomment a rule once the directory exists, and replace the owner
 # with the right user or team (org teams: @slax-lab/reader-dev, @slax-lab/doc-maintainers).
-# /apps/api/**   @boxcounter
-# /apps/web/**   @boxcounter
-# /packages/**   @boxcounter
-# /docs/**       @boxcounter
+# /apps/web/**        @boxcounter
+# /apps/extension/**  @boxcounter
+# /apps/backend/**    @boxcounter
+# /apps/cli/**        @boxcounter
+# /packages/**        @boxcounter
+# /tooling/**         @boxcounter
+# /tests/**           @boxcounter
+# /docs/**            @boxcounter
