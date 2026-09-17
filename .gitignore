@@ -29,5 +29,5 @@ logs/
 !.env.example
 !.env.sample
 
-# Tower local tooling state
+# Kimi Code CLI Tower mode local tooling state
 .tower/
