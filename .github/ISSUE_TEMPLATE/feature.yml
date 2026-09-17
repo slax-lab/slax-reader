@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest an idea or improvement for Slax Reader.
+title: "[Feature]: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What are you trying to do, and what gets in the way today?
+      placeholder: I'm trying to ... but ...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Desired solution
+      description: What would you like to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds or other approaches you have thought about.
+    validations:
+      required: true

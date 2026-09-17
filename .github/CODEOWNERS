@@ -1,0 +1,9 @@
+# Default owner: every file is owned by @boxcounter.
+* @boxcounter
+
+# Future monorepo layout. Uncomment a rule once the directory exists, and replace the owner
+# with the right user or team (org teams: @slax-lab/reader-dev, @slax-lab/doc-maintainers).
+# /apps/api/**   @boxcounter
+# /apps/web/**   @boxcounter
+# /packages/**   @boxcounter
+# /docs/**       @boxcounter
