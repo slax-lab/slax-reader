@@ -16,7 +16,7 @@ body:
       label: Platform
       description: Where did you hit the bug?
       options:
-        - Web PWA
+        - Web
         - Browser Extension
         - Android
         - iOS
