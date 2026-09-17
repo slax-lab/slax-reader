@@ -36,9 +36,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at TODO: <ADD A REAL REPORTING CONTACT HERE>. All complaints will be reviewed and investigated promptly and fairly.
-
-> **TODO before this repository is made public:** replace `TODO: <ADD A REAL REPORTING CONTACT HERE>` above with a real, monitored reporting contact (for example, a shared mailbox such as `conduct@<your-domain>`, or a private report form). Do not publish this repository while the placeholder is still in place.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at reader@slax.com. All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the reporter of any incident.
 
