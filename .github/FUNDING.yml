@@ -1,0 +1,6 @@
+# Slax Reader funding channels. Nothing is enabled yet: every entry below is pre-laid as a comment.
+# Uncomment whichever channel gets enabled, and replace any placeholder value with the real one.
+
+# github: [slax-lab]
+# open_collective: <collective-slug>
+# custom: ["<url-of-your-donation-page>"]

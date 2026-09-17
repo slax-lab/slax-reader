@@ -1,0 +1,43 @@
+name: Bug report
+description: Report something that is broken or not working as expected.
+title: "[Bug]: "
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Which version of Slax Reader are you running?
+      placeholder: "e.g. 0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Where did you hit the bug?
+      options:
+        - Web PWA
+        - Browser Extension
+        - Android
+        - iOS
+        - CLI
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the exact steps so we can reproduce the problem.
+      placeholder: |
+        1. Go to ...
+        2. Click on ...
+        3. See error ...
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues and this has not been reported yet.
+          required: true
