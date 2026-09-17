@@ -7,7 +7,9 @@ packages:
 # explicitly with --frozen-lockfile, so the auto-check buys nothing.
 verifyDepsBeforeRun: false
 
-# tldjs (rulesync dependency) ships an optional build script we do not need;
-# acknowledge skipping it so pnpm stops failing deps-status checks.
-ignoredBuiltDependencies:
-  - tldjs
+# pnpm 11 defaults strictDepBuilds to true: any dependency with an UNREVIEWED
+# build script fails the install (ERR_PNPM_IGNORED_BUILDS). tldjs (a rulesync
+# dependency) ships an optional build script we do not need — this explicit
+# denial marks it reviewed; the build stays blocked.
+allowBuilds:
+  tldjs: false
