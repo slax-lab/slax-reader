@@ -132,6 +132,7 @@ if: vars.PR_REVIEW_ENABLED != 'false'
 
 - Setting `PR_REVIEW_ENABLED=false` stops every new run before the agent job: the run reports as skipped, no model request is made, and nothing is published. Removing the variable (or setting any other value) restores reviews.
 - The reason this must be a variable rather than "just turn the workflow off" is the interaction with D4: a **skipped** job reports "Success" and does not block a merge even when its check is required, whereas a workflow **disabled in the Actions UI** reports nothing at all — so once the gate is required, disabling it would leave every pull request stuck on `Expected — Waiting for status to be reported`.
+- Pausing is deliberately quiet: no comment is posted on paused pull requests. The accepted signal that no review happened is the check's skipped state, visible in the pull request's checks list, the Actions run conclusion, and `gh aw status`. The trade-off — a skipped check does not block a merge and can be misread as "review passed" — is accepted; `REVIEW.md`'s "Automated review" section (task 6.1) documents how to read it.
 
 Alternatives considered: disabling the workflow (rejected once the gate lands, for the reason above; still fine during the pre-gate phase); removing the check from the ruleset (kept as break-glass, too blunt for a routine one-day pause); revoking `DEEPSEEK_API_KEY` (rejected: the run fails instead of skipping, which wedges the check and produces a confusing error); gh-aw's `stop-after` (rejected: no run is created at all, same wedge, and extending it needs a recompile).
 
@@ -157,6 +158,7 @@ Two properties matter operationally:
 - **Reviewing untrusted content** from public PRs → AWF sandbox with read-only permissions, no secrets in the agent container, safe-outputs validation, threat detection before any write, and `min-integrity: approved` applied automatically for public repositories.
 - **Review noise / false Important findings** → the workflow lands before the gate, so the team can calibrate `REVIEW.md` and the prompt on real PRs first.
 - **Pausing the wrong way would block every merge** → the pause switch (D10) is a repository variable implemented from day one and documented in `REVIEW.md`; disabling the workflow is explicitly forbidden once the required check is live, and the pause/resume drill (task 5.4) proves the check still passes while paused.
+- **A paused run is easy to misread as a passing review** (the check reports as skipped, which does not block a merge) → accepted deliberately: no notification is posted while paused, and `REVIEW.md` documents that "skipped" means "not reviewed" plus how to confirm the pause state (task 6.1); the merge gate's own verdict remains the only thing that blocks.
 - **AI-credit caps can disagree with the real DeepSeek bill** (catalog-unknown model priced at a conservative fallback rate; daily cap is per workflow and `/review` runs bypass it) → treat the caps as fuses rather than accounting, reconcile actual spend in task 4.5, and use the pause switch when the goal is "spend nothing today".
 
 ## Migration Plan

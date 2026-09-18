@@ -36,10 +36,10 @@
 - [ ] 5.1 Take the exact status-check name from a completed run and record it in the change's PR description
 - [ ] 5.2 Repository admin adds that check to the `protect` ruleset's required status checks (on top of the existing `guard` check); record the ruleset JSON before and after
 - [ ] 5.3 Verify gating on two pull requests: one with an Important finding shows a failing required check that blocks merge, and one with only nits shows a passing check that allows merge
-- [ ] 5.4 Run the pause/resume drill with the gate live: with `PR_REVIEW_ENABLED=false`, verify the required check reports a passing result and an un-reviewed pull request can still merge; with the control restored, verify the next pull request is reviewed and the check reflects its verdict
+- [ ] 5.4 Run the pause/resume drill with the gate live: with `PR_REVIEW_ENABLED=false`, verify the required check reports a passing result and an un-reviewed pull request can still merge, and record what the pull request actually shows while paused (check state, absence of any review comment) so the documented signal matches reality; with the control restored, verify the next pull request is reviewed and the check reflects its verdict
 
 ## 6. Wrap-up
 
-- [ ] 6.1 Add an "Automated review" section to `REVIEW.md` documenting how to re-run the review (`/review`), what the status check means, how to pause and resume automated review (`PR_REVIEW_ENABLED`), the budget caps in force, and how to bypass the gate in an emergency; verify the file still passes `pnpm exec rulesync doctor --strict`
+- [ ] 6.1 Add an "Automated review" section to `REVIEW.md` documenting how to re-run the review (`/review`), what the status check means, how to pause and resume automated review (`PR_REVIEW_ENABLED`), what a paused pull request looks like (the review check reports as skipped rather than as a passing review, so "skipped" must not be read as "reviewed and clean") and how to confirm the pause state from the Actions run or `gh aw status`, the budget caps in force, and how to bypass the gate in an emergency; verify the file still passes `pnpm exec rulesync doctor --strict`
 - [ ] 6.2 Open the pull request with an `OpenSpec: add-agentic-pr-review` line in its body and verify `pnpm exec openspec validate --all --strict` passes
 - [ ] 6.3 After merge, archive the change with `openspec archive add-agentic-pr-review` and verify the new capability spec appears under `openspec/specs/agentic-pr-review/spec.md`

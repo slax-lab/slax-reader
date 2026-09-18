@@ -143,7 +143,7 @@ The repository MUST keep the review workflow's Markdown source and its compiled 
 
 ### Requirement: Automated review can be paused without blocking merges
 
-The system SHALL provide a settings-only pause control that an operator can use to stop automated reviews for a period without editing repository files. While reviews are paused the system MUST NOT execute the review agent, MUST NOT make model-provider requests, and MUST NOT request or publish any review. The merge gate MUST still report a passing result for pull requests opened while reviews are paused, so that pausing never blocks a merge. Restoring the control MUST resume normal reviews for pull requests opened afterwards.
+The system SHALL provide a settings-only pause control that an operator can use to stop automated reviews for a period without editing repository files. While reviews are paused the system MUST NOT execute the review agent, MUST NOT make model-provider requests, and MUST NOT request or publish any review. The merge gate MUST still report a passing result for pull requests opened while reviews are paused — reported as a skipped check rather than as a completed review — so that pausing never blocks a merge while remaining distinguishable from a review that actually ran. Restoring the control MUST resume normal reviews for pull requests opened afterwards.
 
 #### Scenario: Pause stops execution and spend
 
@@ -164,3 +164,8 @@ The system SHALL provide a settings-only pause control that an operator can use 
 
 - **WHEN** an operator pauses automated review for a day and later restores it
 - **THEN** no commit, recompilation, or workflow edit was required
+
+#### Scenario: A paused review is distinguishable from a completed review
+
+- **WHEN** a pull request is opened while reviews are paused
+- **THEN** the review's check reports as skipped and no review is published, so the pull request record distinguishes "not reviewed" from "reviewed and clean"
