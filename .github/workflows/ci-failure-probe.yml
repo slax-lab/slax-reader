@@ -1,0 +1,20 @@
+name: ci-failure-probe
+
+# Temporary probe, used once to verify the "CI failed" notification reaches the
+# pull request author. Deleted immediately afterwards; never merged.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fail:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail on purpose
+        run: |
+          echo "Deliberate failure: verifying the CI-failure notification."
+          exit 1
