@@ -128,8 +128,8 @@ Triggered once per readiness plus manual re-runs, so an active PR typically cost
 
 ### D9. Reproducibility and drift
 
-- Pin `engine.version` and the gh-aw release reference used by the compiled workflow.
-- Commit the Markdown source, its `.lock.yml`, and the centralized dispatcher; run `gh aw init` once so `.gitattributes` marks compiled files correctly.
+- Pin `engine.version` and the gh-aw release reference used by the compiled workflow. The author-side CLI is pinned to the latest stable release, **`v0.88.7`** (2026-09-08) — chosen over the v0.89.x pre-releases so the lock file stays reproducible (applied in task 1.1).
+- Commit the Markdown source, its `.lock.yml`, and the centralized dispatcher; run `gh aw init` once so `.gitattributes` marks compiled files correctly. Initialized with `gh aw init --engine copilot --no-mcp --no-skill --no-agent`, which touched only `.gitattributes` (adding `*.lock.yml linguist-generated=true`) — no extra scaffolding entered the repository (applied in task 1.2).
 - Extend the existing `agent-config` guard job: after `pnpm install`, install the pinned gh-aw version and recompile, then fail if the working tree changes (this mirrors the existing rulesync drift check and satisfies the spec requirement).
 - Upgrade gh-aw only in dedicated PRs, matching the repository's existing pinning policy for rulesync/OpenSpec tooling.
 
@@ -183,5 +183,4 @@ Two properties matter operationally:
 
 - Do job-level `skipped` checks satisfy the required check for fork pull requests, or is the companion gate workflow needed? Answered by the fork-PR validation task, which runs before the ruleset change.
 - Does DeepSeek's default thinking mode add unacceptable latency for PR feedback? Answerable from the first real runs; tuning it does not change the specs.
-- Which gh-aw version to pin first, given the tool is in technical preview.
 - Which concrete per-run and daily AI-credit caps to adopt: task 2.6 sets provisional values, and tuning them later changes neither the specs nor the approach.

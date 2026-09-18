@@ -1,7 +1,7 @@
 ## 1. Preparation and spikes
 
-- [ ] 1.1 Install the `gh-aw` CLI extension at a pinned version and record `gh aw version` output in the change's PR description
-- [ ] 1.2 Run `gh aw init` in the repository and verify it only adds `.gitattributes` entries (plus its own scaffolding) — `pnpm exec rulesync doctor --strict` and `git status --short` still show no changes to rulesync-generated files
+- [x] 1.1 Install the `gh-aw` CLI extension at a pinned version — installed `v0.88.7` (latest stable, 2026-09-08) and recorded the pin in design D9; the version goes into the PR description with task 6.2
+- [x] 1.2 Run `gh aw init` in the repository and verify it only adds `.gitattributes` entries (plus its own scaffolding) — `pnpm exec rulesync doctor --strict` and `git status --short` still show no changes to rulesync-generated files
 - [ ] 1.3 Store the provider credential as the repository secret `DEEPSEEK_API_KEY` and verify `gh secret list` shows it while the value appears nowhere in the working tree (`git grep -i deepseek` finds only non-secret references)
 - [ ] 1.4 Spike: add a throwaway workflow that runs the Copilot engine in BYOK mode against `deepseek-flash` and verify with `gh aw run` that the agent completes a tool-using turn; record wall-clock time, token usage (`gh aw logs`) and whether `sandbox.agent.model-fallback: false` is required to avoid a 404
 - [ ] 1.5 Spike: decide the verdict mechanism from design D4 by building both candidates (deterministic verdict job reading the agent output vs `create-check-run` plus a companion gate) and verify which one reports a check that can fail a required status check; record the decision in `design.md` before continuing
@@ -42,5 +42,5 @@
 ## 6. Wrap-up
 
 - [ ] 6.1 Add an "Automated review" section to `REVIEW.md` documenting how to re-run the review (`/review`), what the status check means, how to pause and resume reviews (`PR_REVIEW_ENABLED`), what a paused pull request looks like (automatic runs leave only a skipped check — so "skipped" must not be read as "reviewed and clean" — while a `/review` comment is answered with a single "reviews are paused" reply) and how to confirm the pause state from the Actions run or `gh aw status`, the budget caps in force, and how to bypass the gate in an emergency; verify the file still passes `pnpm exec rulesync doctor --strict`
-- [ ] 6.2 Open the pull request with an `OpenSpec: add-agentic-pr-review` line in its body and verify `pnpm exec openspec validate --all --strict` passes
+- [ ] 6.2 Open the pull request with an `OpenSpec: add-agentic-pr-review` line in its body, include the pinned `gh-aw` version (`v0.88.7`) and the verdict-check name, and verify `pnpm exec openspec validate --all --strict` passes
 - [ ] 6.3 After merge, archive the change with `openspec archive add-agentic-pr-review` and verify the new capability spec appears under `openspec/specs/agentic-pr-review/spec.md`
