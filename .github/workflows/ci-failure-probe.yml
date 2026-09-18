@@ -1,0 +1,20 @@
+name: ci-failure-probe
+
+# Temporary probe: produces a real failed workflow_run linked to a pull request,
+# so the CI-failure direct message can be verified. Deleted straight after.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fail:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail on purpose
+        run: |
+          echo "Deliberate failure: verifying the CI-failure notification."
+          exit 1
