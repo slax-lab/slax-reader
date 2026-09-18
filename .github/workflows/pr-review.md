@@ -89,8 +89,6 @@ safe-outputs:
           type: string
       steps:
         - name: Fail the gate when Important findings exist
-          env:
-            GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           run: |
             set -euo pipefail
             if [ ! -f "${GH_AW_AGENT_OUTPUT:-}" ]; then
