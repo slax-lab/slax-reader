@@ -41,7 +41,7 @@ This repo uses OpenSpec for spec-driven development. Living specs live in `opens
 
 ## Generated Files — Do Not Hand-Edit
 
-`AGENTS.md`, `CLAUDE.md`, `.claude/`, `.codex/`, and `.agents/` are GENERATED artifacts. Hand edits will be overwritten and are rejected by CI.
+`AGENTS.md`, `CLAUDE.md`, `.claude/`, `.codex/`, and `.agents/` are GENERATED artifacts. Hand edits are blocked by a pre-commit hook (lefthook, auto-installed via the root `prepare` script on `pnpm install`), rejected by CI, and overwritten on the next sync.
 
 - To change agent rules or permissions: edit `.rulesync/`, then run `pnpm agent:sync`, and commit the source and the regenerated files in the same commit.
 - To change the spec workflow: edit `openspec/config.yaml`.

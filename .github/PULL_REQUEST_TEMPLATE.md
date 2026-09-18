@@ -15,3 +15,4 @@
 - [ ] Self-tested the change
 - [ ] No new secrets or environment variables added
 - [ ] Documentation updated
+- [ ] Agent rules/permissions changes (if any) were made in `.rulesync/` and regenerated with `pnpm agent:sync` — never hand-edit `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.codex/`, or `.agents/`
