@@ -77,21 +77,24 @@ gh-aw cannot combine an inline `slash_command` trigger with `pull_request` (the 
 - The command path also defaults to `reaction: eyes` and `status-comment: true`. Keep the reaction as the acknowledgement, but set `status-comment: false`: a generic started/completed comment would fire on every `/review`, and the dispatcher is not gated by the pause switch (D10), so such a comment would also break the pause guarantee.
 - `workflow_dispatch` only works when the workflow file exists on the default branch, so a workflow that lives only on a feature branch cannot be dispatched — verified while building the spike, which had to fall back to a branch-scoped `push` trigger. Consequence for this change: the `/review` path is triggered by dispatch from the centralized dispatcher, so it can only be verified end to end once the review workflow is on `main`; task 4.1 must account for that ordering.
 
-Rejected: splitting automatic and manual review into two workflows (duplicated prompt and policy, two lock files to keep in sync).
+Chosen instead of a single workflow: **splitting automatic and manual review into two workflows** (`pr-review.md` for `pull_request`, `pr-review-command.md` for the inline `slash_command`), sharing one `shared/pr-review-core.md` import. The single-workflow variant with the centralized dispatcher was implemented first and had to be abandoned: gh-aw also applies the command-position check to the **pull request body**, so the first real run skipped the entire automatic review (`None of the commands [/review] matched the first word (found: '##')`, PR #18). The split costs one wrapper per path while the policy, prompt, outputs and budgets stay in the shared import; `agentic_commands.yml` was purged.
 
 ### D4. Merge gate: a deterministic verdict, reported as a job-level status
 
 Requirements demand both "fails on Important findings" and "never leaves a check unreported". A check run created by the agent fails the second property — if the agent crashes or the provider is unreachable, nothing is posted and a required check would stay pending forever, blocking every merge.
 
-Chosen approach: the required check is the **job-level status** of a deterministic verdict job inside the review workflow:
+First attempt (rejected by evidence): make the required check the **job-level status** of a gh-aw custom safe-output job (`review-verdict`) that reads the agent's verdict from `$GH_AW_AGENT_OUTPUT` and exits non-zero when Important findings exist. The implementation proved it cannot be the gate on its own: gh-aw gates every custom safe-output job on the agent's emitted output types (`contains(needs.agent.outputs.output_types, 'review_verdict')`), a user-supplied `if:` is merely **ANDed** with that condition (verified in the compiled lock file), and a **skipped** job reports as passing for a required check. So a run in which the agent never emitted a verdict — model non-compliance, a no-op run, or a cut-off agent — would leave the gate green with no review ever produced, contradicting the spec's "Review failure is reported, not silent". The first real review of this change found exactly this hole.
 
-- The agent's findings are emitted through `safe-outputs` with a machine-readable verdict.
-- A deterministic post-processing job (gh-aw custom job, e.g. `review-verdict`) reads the agent output artifact, exits non-zero when the verdict says "Important findings present", and succeeds otherwise. Run not created → no check; run created but job skipped → status "skipped", which GitHub treats as passing for required checks.
-- The ruleset is updated to require this check **only after** one real run confirms its exact name in the Actions UI.
+Chosen approach: the required check is reported by a **companion gate workflow** (the fallback this section originally documented) that always reports, whatever the review run did:
 
-Fallback if reading the agent output from a deterministic job proves impractical: use `safe-outputs.create-check-run` (fixed `name`, agent-chosen `conclusion`) for the verdict and add a small companion workflow that always reports the required check, mapping "no review produced" to a failure. The implementation task starts with a spike that decides between these two, and the ruleset change is sequenced after that decision.
+- The review workflow still emits a machine-readable verdict and its `review-verdict` job still fails when Important findings exist.
+- A small plain-Actions workflow, triggered by `workflow_run: [completed]` on the review workflows, reports one required check per pull request: the agent job skipped (pause, fork, budget cap) → success; agent succeeded and `review_verdict` succeeded → success; agent succeeded without a verdict, `review_verdict` failed, or the agent failed → **failure** (fail closed, with a message distinguishing "findings" from "no review produced"), so the check can never be silently absent.
+- Because `cancelled` is not a passing required check, the review workflows must not cancel superseded runs: `cancel-in-progress` is dropped in favour of plain serialisation (`group` only).
+- The ruleset is updated to require **only** this companion check, after one real run confirms its exact name — not the review workflow's job checks, whose skip semantics are exactly what made the first attempt unsound.
 
 Rejected: blocking via a `REQUEST_CHANGES` review. It depends on the agent choosing an event, interacts badly with our existing required-approval and last-push-approval rules, and does not produce a status check anyone can require.
+
+Rejected: `safe-outputs.create-check-run` as the gate. It is agent-driven, so a run that produces no check run leaves the required check pending forever — the property D4 exists to avoid.
 
 ### D5. Fork pull requests: skipped, using gh-aw's default
 
