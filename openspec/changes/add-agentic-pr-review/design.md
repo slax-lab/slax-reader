@@ -124,13 +124,13 @@ Triggered once per readiness plus manual re-runs, so an active PR typically cost
 
 ### D10. Pause switch: a repository variable, not a disabled workflow
 
-An operator must be able to stop automated review for a day without coordinating a pull request. Chosen mechanism: a repository variable consulted from the workflow's top-level `if:`.
+An operator must be able to stop reviews for a day without coordinating a pull request. Chosen mechanism: a repository variable consulted from the workflow's top-level `if:`.
 
 ```yaml
 if: vars.PR_REVIEW_ENABLED != 'false'
 ```
 
-- Setting `PR_REVIEW_ENABLED=false` stops every new run before the agent job: the run reports as skipped, no model request is made, and nothing is published. Removing the variable (or setting any other value) restores reviews.
+- Setting `PR_REVIEW_ENABLED=false` stops every new run before the agent job — including `/review` re-runs dispatched through the centralized command path, because the switch gates the workflow as a whole — so the run reports as skipped, no model request is made, and no review artifact is created. Removing the variable (or setting any other value) restores reviews on both paths.
 - The reason this must be a variable rather than "just turn the workflow off" is the interaction with D4: a **skipped** job reports "Success" and does not block a merge even when its check is required, whereas a workflow **disabled in the Actions UI** reports nothing at all — so once the gate is required, disabling it would leave every pull request stuck on `Expected — Waiting for status to be reported`.
 - Pausing is deliberately quiet: no comment is posted on paused pull requests. The accepted signal that no review happened is the check's skipped state, visible in the pull request's checks list, the Actions run conclusion, and `gh aw status`. The trade-off — a skipped check does not block a merge and can be misread as "review passed" — is accepted; `REVIEW.md`'s "Automated review" section (task 6.1) documents how to read it.
 

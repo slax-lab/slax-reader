@@ -19,7 +19,7 @@ So we run the review ourselves: a GitHub Agentic Workflows (`gh-aw`) workflow wh
 - **Gating**: the workflow exposes a required status check that fails when the review reports at least one Important finding and passes otherwise — including when the review is skipped (non-skippable skip path, so fork PRs and forks never leave the check pending).
 - **Repo settings**: the `protect` ruleset gains that required check (performed by a repo admin, not by this change's code).
 - **Config corrections specific to DeepSeek**: `sandbox.agent.model-fallback: false` (AWF's model catalog would otherwise rewrite the unrecognized `deepseek-flash` and return 404) and `api.deepseek.com` in `network.allowed` (required because the provider URL is passed via a secret expression).
-- **Pause switch**: a repository variable `PR_REVIEW_ENABLED` gates the whole workflow, so an operator can stop automated review for a day with one settings change — no commit, no recompile, no new run. While paused the merge gate still reports a passing result, so merges keep flowing.
+- **Pause switch**: a repository variable `PR_REVIEW_ENABLED` gates the whole workflow — automatic reviews and `/review` re-runs alike — so an operator can stop reviews for a day with one settings change: no commit, no recompile, no new run. While paused the merge gate still reports a passing result, so merges keep flowing.
 - **Budget guardrails**: explicit per-run and daily AI-credit caps (`max-ai-credits`, `max-daily-ai-credits`) bound what a runaway loop or a busy day can spend. Hitting a cap skips the agent job rather than leaving the required check unreported.
 
 ## Capabilities
