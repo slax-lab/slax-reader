@@ -1,6 +1,9 @@
 ---
 name: PR Review
 description: Automated, policy-driven pull request review on our own DeepSeek key.
+# The gate workflow parses "#<n>" from this run name to find the reviewed pull
+# request (design D4).
+run-name: "PR review for #${{ github.event.pull_request.number || github.run_id }}"
 on:
   pull_request:
     # `reopened` is included so a reopened pull request is reviewed again.

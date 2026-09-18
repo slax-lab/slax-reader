@@ -1,19 +1,22 @@
 name: PR review gate
 
-# Companion gate (design D4, task 7.2).
+# Companion gate (design D4, tasks 7.2/7.11).
 #
 # The review workflow cannot report a reliable required check on its own: gh-aw
 # gates its verdict job on the agent having emitted a verdict, and a *skipped* job
 # counts as passing for a required check — so a run that produced no verdict would
-# silently pass the gate. This workflow is therefore the single required check: it
-# runs after any review workflow completes and always reports one status per
-# reviewed commit, failing closed when no verdict exists.
+# silently pass. This workflow is the single required check: it runs after any
+# review workflow completes and always reports one status, failing closed when no
+# verdict exists.
+#
+# Which commit the status belongs to: the automatic review runs on the pull request
+# head, but the on-demand one is triggered by `issue_comment` and therefore runs
+# from the default branch, where `workflow_run.head_sha` is main's tip. Both review
+# workflows set a `run-name` containing the pull request number ("… for #<n>"), so
+# the gate resolves the reviewed pull request from the run's display title and uses
+# that pull request's head SHA, falling back to `head_sha` when it cannot.
 #
 # Required check context: "Agentic PR review" (task 5.2).
-#
-# Known limitation (task 7.9): statuses are attached to the reviewed commit, so a
-# later push to the same pull request has no status until a new review runs. The
-# intended path is `/review`; tightening this is tracked as a follow-up.
 
 on:
   workflow_run:
@@ -23,6 +26,7 @@ on:
 permissions:
   actions: read
   contents: read
+  pull-requests: read
   statuses: write
 
 jobs:
@@ -33,7 +37,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PAYLOAD_SHA: ${{ github.event.workflow_run.head_sha }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -72,8 +76,25 @@ jobs:
               ;;
           esac
 
-          echo "agent=$agent verdict=$verdict -> state=$state ($desc)"
-          gh api -X POST "repos/$REPO/statuses/$HEAD_SHA" \
+          # Resolve the reviewed commit: prefer the pull request named in the run's
+          # display title (correct for both trigger paths), else the payload SHA.
+          SHA="$PAYLOAD_SHA"
+          TITLE=$(gh api "repos/$REPO/actions/runs/$RUN_ID" --jq '.display_title // ""' 2>/dev/null || echo "")
+          PR_NUMBER=$(sed -n 's/.*#\([0-9][0-9]*\).*/\1/p' <<<"$TITLE" | head -1)
+          if [ -n "${PR_NUMBER:-}" ]; then
+            RESOLVED=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.head.sha' 2>/dev/null || echo "")
+            if [ -n "$RESOLVED" ]; then
+              SHA="$RESOLVED"
+              echo "Resolved pull request #$PR_NUMBER (from \"$TITLE\") to head $SHA"
+            else
+              echo "::warning::Could not resolve pull request #$PR_NUMBER; falling back to payload SHA $SHA"
+            fi
+          else
+            echo "No pull request number in run title \"$TITLE\"; using payload SHA $SHA"
+          fi
+
+          echo "agent=$agent verdict=$verdict -> state=$state ($desc) on $SHA"
+          gh api -X POST "repos/$REPO/statuses/$SHA" \
             -f state="$state" \
             -f context="$CONTEXT" \
             -f description="$desc" \

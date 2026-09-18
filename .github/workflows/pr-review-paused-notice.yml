@@ -16,6 +16,9 @@ on:
     types: [created]
 
 permissions:
+  # `gh pr comment` posts to the issues comments endpoint, so it needs issues: write
+  # even though the target is a pull request.
+  issues: write
   pull-requests: write
 
 jobs:

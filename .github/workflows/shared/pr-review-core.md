@@ -39,7 +39,6 @@ tools:
 safe-outputs:
   # Review failures must surface as a failing status check, never as repository issues.
   report-failure-as-issue: false
-  report-failed-jobs: false
   noop:
     report-as-issue: false
   # Findings are published through review surfaces only: at most one review whose
