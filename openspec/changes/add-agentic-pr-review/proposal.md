@@ -19,6 +19,8 @@ So we run the review ourselves: a GitHub Agentic Workflows (`gh-aw`) workflow wh
 - **Gating**: the workflow exposes a required status check that fails when the review reports at least one Important finding and passes otherwise — including when the review is skipped (non-skippable skip path, so fork PRs and forks never leave the check pending).
 - **Repo settings**: the `protect` ruleset gains that required check (performed by a repo admin, not by this change's code).
 - **Config corrections specific to DeepSeek**: `sandbox.agent.model-fallback: false` (AWF's model catalog would otherwise rewrite the unrecognized `deepseek-flash` and return 404) and `api.deepseek.com` in `network.allowed` (required because the provider URL is passed via a secret expression).
+- **Pause switch**: a repository variable `PR_REVIEW_ENABLED` gates the whole workflow, so an operator can stop automated review for a day with one settings change — no commit, no recompile, no new run. While paused the merge gate still reports a passing result, so merges keep flowing.
+- **Budget guardrails**: explicit per-run and daily AI-credit caps (`max-ai-credits`, `max-daily-ai-credits`) bound what a runaway loop or a busy day can spend. Hitting a cap skips the agent job rather than leaving the required check unreported.
 
 ## Capabilities
 
@@ -35,6 +37,6 @@ None — `openspec/specs/` is still empty, so this change introduces the first c
 - **New files**: `.github/workflows/pr-review.md`, `.github/workflows/pr-review.lock.yml`.
 - **New secret**: `DEEPSEEK_API_KEY` (repository secret; the key itself is never committed).
 - **External dependency**: the `gh-aw` CLI (author-side authoring/compile tool) and, at runtime, the `@github/copilot` CLI + AWF containers installed by the lock file.
-- **Settings**: `protect` ruleset gains one required status check; without it the gate has no effect (and with it, a stuck check would block all merges — hence the mandatory "always reports" skip path).
-- **Cost**: DeepSeek tokens per review (off-peak $0.15/M cache-miss input, $0.6/M output) plus Actions minutes, which are free for this public repository.
-- **Risks**: `deepseek-flash` is absent from AWF's model catalog; the Copilot CLI requires tool calling and streaming from the provider; a required check that is never reported would block all merges; running the review on untrusted PR content is only safe because the agent is sandboxed with read-only permissions and writes through `safe-outputs`.
+- **Settings**: repository variable `PR_REVIEW_ENABLED` (the pause switch), and the `protect` ruleset gains one required status check; without the ruleset change the gate has no effect, and with it the check must always report — hence the pause switch rather than disabling the workflow.
+- **Cost**: DeepSeek tokens per review (off-peak $0.15/M cache-miss input, $0.6/M output) plus Actions minutes, which are free for this public repository; per-run and daily AI-credit caps bound the worst case.
+- **Risks**: `deepseek-flash` is absent from AWF's model catalog; the Copilot CLI requires tool calling and streaming from the provider; a required check that is never reported would block all merges; running the review on untrusted PR content is only safe because the agent is sandboxed with read-only permissions and writes through `safe-outputs`; AI-credit accounting is an estimate and can differ from the provider's real bill.

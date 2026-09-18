@@ -120,6 +120,31 @@ Triggered once per readiness plus manual re-runs, so an active PR typically cost
 - Extend the existing `agent-config` guard job: after `pnpm install`, install the pinned gh-aw version and recompile, then fail if the working tree changes (this mirrors the existing rulesync drift check and satisfies the spec requirement).
 - Upgrade gh-aw only in dedicated PRs, matching the repository's existing pinning policy for rulesync/OpenSpec tooling.
 
+### D10. Pause switch: a repository variable, not a disabled workflow
+
+An operator must be able to stop automated review for a day without coordinating a pull request. Chosen mechanism: a repository variable consulted from the workflow's top-level `if:`.
+
+```yaml
+if: vars.PR_REVIEW_ENABLED != 'false'
+```
+
+- Setting `PR_REVIEW_ENABLED=false` stops every new run before the agent job: the run reports as skipped, no model request is made, and nothing is published. Removing the variable (or setting any other value) restores reviews.
+- The reason this must be a variable rather than "just turn the workflow off" is the interaction with D4: a **skipped** job reports "Success" and does not block a merge even when its check is required, whereas a workflow **disabled in the Actions UI** reports nothing at all — so once the gate is required, disabling it would leave every pull request stuck on `Expected — Waiting for status to be reported`.
+
+Alternatives considered: disabling the workflow (rejected once the gate lands, for the reason above; still fine during the pre-gate phase); removing the check from the ruleset (kept as break-glass, too blunt for a routine one-day pause); revoking `DEEPSEEK_API_KEY` (rejected: the run fails instead of skipping, which wedges the check and produces a confusing error); gh-aw's `stop-after` (rejected: no run is created at all, same wedge, and extending it needs a recompile).
+
+### D11. Budget guardrails
+
+Two explicit caps, both of which skip the agent rather than leaving the gate unreported:
+
+- `max-ai-credits` — per-run budget (gh-aw default 1000 AIC = $10; threat detection has its own 400 AIC cap).
+- `max-daily-ai-credits` — daily budget for **this workflow**, summed over its own runs in a rolling 24-hour window, regardless of who triggered them (gh-aw default 5000 AIC = $50, and `-1` disables it). It is per workflow file — not per repository, per user, or per pull request — so any future agentic workflow gets its own budget.
+
+Two properties matter operationally:
+
+- Manual `/review` runs go through the centralized dispatcher (`workflow_dispatch` carrying `aw_context`) and are **exempt** from the daily guardrail by specification. The daily cap therefore throttles automatic reviews only; the pause switch (D10) is the control that covers both paths.
+- AIC is a derived estimate (tokens × catalog pricing; 1 AIC = $0.01). A model absent from AWF's catalog is priced from a conservative fallback rate, so a cap can trip earlier than the provider's real charges, and the accounting is best-effort by design. These caps are fuses, not accounting: task 4.5 reconciles `gh aw logs` AIC against the DeepSeek dashboard, and the pause switch remains the deterministic lever.
+
 ## Risks / Trade-offs
 
 - **DeepSeek rejects the Copilot CLI's request shape** (tool calling/streaming/thinking-mode quirks) → smoke-test the workflow with `gh aw run` before touching any ruleset; the whole gate is inert until the ruleset change lands.
@@ -129,16 +154,19 @@ Triggered once per readiness plus manual re-runs, so an active PR typically cost
 - **gh-aw is a technical preview** and lock files churn between releases → pinned versions, dedicated upgrade PRs, and the compile-drift check make churn visible and reviewable.
 - **Reviewing untrusted content** from public PRs → AWF sandbox with read-only permissions, no secrets in the agent container, safe-outputs validation, threat detection before any write, and `min-integrity: approved` applied automatically for public repositories.
 - **Review noise / false Important findings** → the workflow lands before the gate, so the team can calibrate `REVIEW.md` and the prompt on real PRs first.
+- **Pausing the wrong way would block every merge** → the pause switch (D10) is a repository variable implemented from day one and documented in `REVIEW.md`; disabling the workflow is explicitly forbidden once the required check is live, and the pause/resume drill (task 5.4) proves the check still passes while paused.
+- **AI-credit caps can disagree with the real DeepSeek bill** (catalog-unknown model priced at a conservative fallback rate; daily cap is per workflow and `/review` runs bypass it) → treat the caps as fuses rather than accounting, reconcile actual spend in task 4.5, and use the pause switch when the goal is "spend nothing today".
 
 ## Migration Plan
 
-1. Land the workflow source, compiled workflows, secret, and the CI drift check. Reviews run and comment, but nothing gates (no ruleset change).
-2. Observe a handful of real PRs; tune the prompt and `REVIEW.md` interpretation. Revert is a plain `git revert` or disabling the workflow.
+1. Land the workflow source, compiled workflows, secret, pause variable, budget caps, and the CI drift check. Reviews run and comment, but nothing gates (no ruleset change).
+2. Observe a handful of real PRs; tune the prompt, the budget values, and the `REVIEW.md` interpretation. Revert is a plain `git revert`, or pause via `PR_REVIEW_ENABLED=false`.
 3. After the verdict check's exact name is confirmed and a fork pull request has been verified, add the required check to the `protect` ruleset (repository admin action).
-4. Rollback: remove the required check from the ruleset (immediate), then disable or revert the workflow. The secret can be revoked independently.
+4. Rollback: first pause with `PR_REVIEW_ENABLED=false` (keeps merges flowing), then remove the required check from the ruleset, then disable or revert the workflow. Never disable the workflow while the check is required. The secret can be revoked independently.
 
 ## Open Questions
 
 - Do job-level `skipped` checks satisfy the required check for fork pull requests, or is the companion gate workflow needed? Answered by the fork-PR validation task, which runs before the ruleset change.
 - Does DeepSeek's default thinking mode add unacceptable latency for PR feedback? Answerable from the first real runs; tuning it does not change the specs.
 - Which gh-aw version to pin first, given the tool is in technical preview.
+- Which concrete per-run and daily AI-credit caps to adopt: task 2.5 sets provisional values, and tuning them later changes neither the specs nor the approach.
