@@ -1,0 +1,137 @@
+## Purpose
+
+Automated, policy-driven review of pull requests: it decides when a review runs, which repository policy it must apply, how its findings are published on the pull request, and when its verdict blocks a merge.
+
+## ADDED Requirements
+
+### Requirement: Review runs on pull request readiness and on demand
+
+The system SHALL request exactly one review per pull request when the pull request is opened or marked ready for review, and SHALL accept an explicit `/review` comment as a request to re-run the review. It MUST NOT start a new review on ordinary pushes to an open pull request. `/review` requests from actors without write access to the repository MUST be ignored.
+
+#### Scenario: New pull request is reviewed once
+
+- **WHEN** a pull request targeting the default branch is opened (or a draft is marked ready for review)
+- **THEN** exactly one review run starts for that pull request
+
+#### Scenario: Push does not trigger a new review
+
+- **WHEN** commits are pushed to a pull request that has already been reviewed
+- **THEN** no new review run starts
+
+#### Scenario: Comment re-runs the review
+
+- **WHEN** a user with write access comments `/review` on the pull request
+- **THEN** a new review run starts for that pull request
+
+#### Scenario: Unauthorized comment is ignored
+
+- **WHEN** a user without write access comments `/review`
+- **THEN** no review run starts
+
+### Requirement: Reviews are skipped for fork pull requests
+
+The system MUST NOT execute the review agent for pull requests whose head branch lives in a fork, and MUST NOT require repository secrets for those pull requests. For a skipped review the merge gate MUST still report a non-pending, passing result, so an un-reviewed fork pull request is never blocked by a permanently missing check.
+
+#### Scenario: Fork pull request is skipped cleanly
+
+- **WHEN** a pull request is opened from a fork of this repository
+- **THEN** no agent execution occurs, no repository secret is used, and the gate reports a passing result for that commit
+
+### Requirement: Findings follow the repository review policy
+
+Every review MUST apply `REVIEW.md` at the repository root as its review policy: the `Bugs`, `Security`, and `Compliance` passes, the Important-versus-Nit calibration, the cap of at most five Nits per review, the `[REPEAT]` tagging rule for patterns listed as recurring, and the "Do not report" exclusions.
+
+#### Scenario: Nit-only review is summarized, not blocking
+
+- **WHEN** a review finds only style, naming, or refactoring suggestions
+- **THEN** the review reports at most five Nits, leads its summary with "No blocking issues", and produces no Important finding
+
+#### Scenario: Recurring pattern is tagged
+
+- **WHEN** a finding matches a pattern listed in the "Recurring findings" table of `REVIEW.md`
+- **THEN** that finding is tagged `[REPEAT]`
+
+#### Scenario: Excluded subjects are not reported
+
+- **WHEN** the only candidate findings concern generated agent files, OpenSpec structural validity, `pnpm-lock.yaml`, or other subjects `REVIEW.md` excludes
+- **THEN** no finding is reported for them
+
+### Requirement: Compliance findings reference the linked OpenSpec change
+
+For pull requests that change behavior, the review MUST locate the `OpenSpec: <change-id>` line in the pull request body, read the referenced change under `openspec/changes/<change-id>/`, and verify the implementation against that change's stated intent. A pull request that touches `apps/**` or `packages/**` without an `OpenSpec:` line MUST be reported as an Important Compliance finding. Divergence between implementation and the referenced change's intent, or a task marked complete that is not implemented, MUST be reported as a Compliance finding.
+
+#### Scenario: Missing change reference on a behavior change
+
+- **WHEN** a pull request touches `apps/**` or `packages/**` and its body has no `OpenSpec:` line
+- **THEN** the review reports an Important Compliance finding naming the missing reference
+
+#### Scenario: Divergence from the referenced change
+
+- **WHEN** the pull request body names a change id and the implementation diverges from that change's artifacts
+- **THEN** the review reports a Compliance finding describing the divergence
+
+#### Scenario: Non-behavioral change opts out
+
+- **WHEN** a pull request body states `OpenSpec: n/a` and the pull request touches neither `apps/**` nor `packages/**`
+- **THEN** no Compliance finding is reported for the change reference
+
+### Requirement: Findings are published through GitHub review surfaces
+
+The system SHALL publish at most one consolidated review per run on the pull request, containing the summary and, when applicable, inline comments on specific lines. The review event MUST be `COMMENT`; the system MUST NOT submit `APPROVE` or `REQUEST_CHANGES` reviews. Comments and reviews MUST be authored only through validated write operations; the agent itself MUST NOT hold write permission.
+
+#### Scenario: One consolidated review per run
+
+- **WHEN** a review run completes with a summary and inline findings
+- **THEN** the pull request shows one review containing that summary and those inline comments
+
+#### Scenario: No approval is ever submitted
+
+- **WHEN** a review run finds no problems at all
+- **THEN** the review is published as a comment review and the pull request is left unapproved
+
+#### Scenario: Agent cannot write directly
+
+- **WHEN** the agent attempts any repository write that is not a configured review output
+- **THEN** the write does not occur
+
+### Requirement: The merge gate reflects Important findings
+
+The system SHALL expose a status check whose name is stable across runs. That check MUST report failure when the review produced at least one Important finding, and success when the review produced none. The check MUST report a result for every pull request it applies to, including a review that was skipped and a run that could not produce a review; it MUST NOT leave a pull request waiting on an unreported check.
+
+#### Scenario: Important finding blocks merge
+
+- **WHEN** a review reports one or more Important findings
+- **THEN** the stable status check reports failure for the reviewed commit
+
+#### Scenario: No Important finding allows merge
+
+- **WHEN** a review reports only Nits or nothing at all
+- **THEN** the stable status check reports success for the reviewed commit
+
+#### Scenario: Review failure is reported, not silent
+
+- **WHEN** a run ends without producing a review (for example the model endpoint is unreachable)
+- **THEN** the status check reports failure with an infrastructure message distinguishable from a findings verdict, and a subsequent `/review` request can replace it with a real verdict
+
+### Requirement: Reviews use the project's own model credentials
+
+Reviews MUST be executed against the project's configured model provider using a repository secret, not a GitHub-hosted model. The real credential MUST NOT be present in the agent's execution environment or in any published artifact, log, or comment; only an intermediary trusted by the workflow may hold it.
+
+#### Scenario: Credential is isolated from the agent
+
+- **WHEN** a review run executes
+- **THEN** the agent process runs without the real provider credential while the request to the model provider is still authenticated by the workflow's intermediary
+
+#### Scenario: Credential never leaks into output
+
+- **WHEN** a review run finishes, successfully or not
+- **THEN** no workflow artifact, log, or pull request comment contains the provider credential
+
+### Requirement: Workflow source and compiled workflow stay in sync
+
+The repository MUST keep the review workflow's Markdown source and its compiled GitHub Actions workflow consistent. Continuous integration MUST fail when the compiled workflow does not match what the current source compiles to.
+
+#### Scenario: Stale compiled workflow fails CI
+
+- **WHEN** a pull request changes the review workflow's Markdown frontmatter without regenerating the compiled workflow
+- **THEN** the repository's configuration guard job fails
