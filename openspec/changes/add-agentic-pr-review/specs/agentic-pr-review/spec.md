@@ -39,31 +39,36 @@ The system MUST NOT execute the review agent for pull requests whose head branch
 
 ### Requirement: Findings follow the repository review policy
 
-Every review MUST apply `REVIEW.md` at the repository root as its review policy: the `Bugs`, `Security`, and `Compliance` passes, the Important-versus-Nit calibration, the cap of at most five Nits per review, the `[REPEAT]` tagging rule for patterns listed as recurring, and the "Do not report" exclusions.
+Every review MUST apply `REVIEW.md` at the repository root, as it exists on the pull request's head branch, as its review policy. The review MUST group findings by the passes that policy defines, MUST respect the severities and the per-review finding limits it allows, MUST apply the recurring-pattern tag it defines, and MUST omit the subjects it excludes. This specification does not restate the policy's contents: `REVIEW.md` remains their single source of truth.
+
+#### Scenario: The policy file drives the review
+
+- **WHEN** a pull request edits `REVIEW.md` — a pass name, a finding limit, or the excluded subjects — and the review runs for that pull request
+- **THEN** the review follows the edited policy rather than any value fixed in the workflow
 
 #### Scenario: Nit-only review is summarized, not blocking
 
-- **WHEN** a review finds only style, naming, or refactoring suggestions
-- **THEN** the review reports at most five Nits, leads its summary with "No blocking issues", and produces no Important finding
+- **WHEN** a review finds only suggestions that the policy classifies as Nits
+- **THEN** the review reports at most the policy's nit limit, leads its summary with "No blocking issues", and produces no Important finding
 
-#### Scenario: Recurring pattern is tagged
+#### Scenario: Recurring patterns carry the policy's tag
 
-- **WHEN** a finding matches a pattern listed in the "Recurring findings" table of `REVIEW.md`
-- **THEN** that finding is tagged `[REPEAT]`
+- **WHEN** a finding matches a pattern that the policy lists as recurring
+- **THEN** the finding carries the tag the policy defines for it
 
 #### Scenario: Excluded subjects are not reported
 
-- **WHEN** the only candidate findings concern generated agent files, OpenSpec structural validity, `pnpm-lock.yaml`, or other subjects `REVIEW.md` excludes
-- **THEN** no finding is reported for them
+- **WHEN** every candidate finding concerns a subject that the policy excludes
+- **THEN** no finding is reported for it
 
 ### Requirement: Compliance findings reference the linked OpenSpec change
 
-For pull requests that change behavior, the review MUST locate the `OpenSpec: <change-id>` line in the pull request body, read the referenced change under `openspec/changes/<change-id>/`, and verify the implementation against that change's stated intent. A pull request that touches `apps/**` or `packages/**` without an `OpenSpec:` line MUST be reported as an Important Compliance finding. Divergence between implementation and the referenced change's intent, or a task marked complete that is not implemented, MUST be reported as a Compliance finding.
+For pull requests that change behavior, the review MUST perform the compliance pass that `REVIEW.md` defines: locate the `OpenSpec: <change-id>` line in the pull request body, read the referenced change under `openspec/changes/<change-id>/`, and verify the implementation against that change's stated intent. A missing reference and any divergence the pass detects MUST be reported as findings at the severity the policy assigns to them; which pull requests count as behavior-changing also comes from the policy.
 
 #### Scenario: Missing change reference on a behavior change
 
-- **WHEN** a pull request touches `apps/**` or `packages/**` and its body has no `OpenSpec:` line
-- **THEN** the review reports an Important Compliance finding naming the missing reference
+- **WHEN** a pull request that the policy counts as behavior-changing has no `OpenSpec:` line in its body
+- **THEN** the review reports a compliance finding for the missing reference at the policy's severity
 
 #### Scenario: Divergence from the referenced change
 
@@ -72,7 +77,7 @@ For pull requests that change behavior, the review MUST locate the `OpenSpec: <c
 
 #### Scenario: Non-behavioral change opts out
 
-- **WHEN** a pull request body states `OpenSpec: n/a` and the pull request touches neither `apps/**` nor `packages/**`
+- **WHEN** a pull request body states `OpenSpec: n/a` and the pull request is not behavior-changing under the policy
 - **THEN** no Compliance finding is reported for the change reference
 
 ### Requirement: Findings are published through GitHub review surfaces

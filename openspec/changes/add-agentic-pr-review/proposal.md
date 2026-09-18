@@ -2,7 +2,7 @@
 
 ## Why
 
-PR review is currently 100% manual, even though `REVIEW.md` now pins down the review policy (three passes, Important-vs-Nit calibration, capped nits, OpenSpec compliance pass). Nothing executes that policy automatically, so reviewers re-derive it on every PR (e.g. #8, #9) and the compliance pass against `openspec/changes/<id>/` is easy to skip.
+PR review is currently 100% manual, even though `REVIEW.md` now pins down the review policy (passes, severity calibration, finding limits, compliance pass against the PR's linked OpenSpec change). Nothing executes that policy automatically, so reviewers re-derive it on every PR (e.g. #8, #9) and the compliance pass is easy to skip.
 
 GitHub-hosted Copilot code review is not a viable executor for us: the org is on the **Free** plan (org rulesets unavailable), Copilot Business has **0 seats**, and the repository's only ruleset (`protect`) has no `copilot_code_review` rule — and even if it did, that product uses a fixed GitHub-tuned model mix and **does not support BYOK**, so our own key could never back it.
 
@@ -14,7 +14,7 @@ So we run the review ourselves: a GitHub Agentic Workflows (`gh-aw`) workflow wh
 - **Engine**: `engine: copilot` with BYOK — `COPILOT_PROVIDER_BASE_URL: https://api.deepseek.com`, `COPILOT_MODEL: deepseek-flash`, `COPILOT_PROVIDER_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}`.
 - **Triggers**: automatically once per PR on `opened` / `ready_for_review`, plus a manual `/review` slash command for re-runs. No run on every push.
 - **Fork PRs are skipped** (gh-aw's default inbound-fork behavior). Fork PRs still must not be blocked by the required check this change introduces.
-- **Review content is policy-driven**: the prompt requires reading `REVIEW.md` and emitting its three passes (`Bugs`, `Security`, `Compliance`), its Important-vs-Nit calibration, its five-nit cap, and its `[REPEAT]` tagging; the compliance pass reads `openspec/changes/<change-id>/` from the `OpenSpec:` line in the PR body.
+- **Review content is policy-driven**: the prompt reads `REVIEW.md` from the pull request's head branch and applies it as the review policy (passes, severity calibration, finding limits, recurring patterns, exclusions), then performs that policy's compliance pass against `openspec/changes/<change-id>/` using the `OpenSpec:` line in the PR body. The policy's contents stay in `REVIEW.md`; this change does not restate them.
 - **Output**: exactly one PR review comment via `safe-outputs` (no direct write access for the agent, no PR approvals, no code suggestions applied automatically).
 - **Gating**: the workflow exposes a required status check that fails when the review reports at least one Important finding and passes otherwise — including when the review is skipped (non-skippable skip path, so fork PRs and forks never leave the check pending).
 - **Repo settings**: the `protect` ruleset gains that required check (performed by a repo admin, not by this change's code).

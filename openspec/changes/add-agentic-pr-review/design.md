@@ -103,7 +103,9 @@ safe-outputs:
   noop:
 ```
 
-`allowed-events: [COMMENT]` is infrastructure-level enforcement: the agent cannot approve or request changes even if its output says so. Blocking is the gate's job (D4). Inline comments are capped at 10 and the summary at 1, which also bounds the review's verbosity; `REVIEW.md`'s five-nit cap is enforced by the prompt.
+`allowed-events: [COMMENT]` is infrastructure-level enforcement: the agent cannot approve or request changes even if its output says so. Blocking is the gate's job (D4). Inline comments are capped at 10 and the summary at 1, which bounds the review's verbosity; the policy's own finding limits are enforced by the prompt, not by this frontmatter.
+
+The policy is not repeated anywhere in this change: the prompt instructs the agent to read `REVIEW.md` from the checked-out pull request head branch and apply it, so a pull request can test its own policy edits (for example a changed pass name or nit limit) and nothing in the workflow hard-codes policy values. The prompt names the policy's *sections to consult*, never their contents — duplicating the contents would create a second source of truth that silently drifts from `REVIEW.md`, whose whole purpose is to be the only one.
 
 ### D7. Cost profile
 
@@ -169,4 +171,4 @@ Two properties matter operationally:
 - Do job-level `skipped` checks satisfy the required check for fork pull requests, or is the companion gate workflow needed? Answered by the fork-PR validation task, which runs before the ruleset change.
 - Does DeepSeek's default thinking mode add unacceptable latency for PR feedback? Answerable from the first real runs; tuning it does not change the specs.
 - Which gh-aw version to pin first, given the tool is in technical preview.
-- Which concrete per-run and daily AI-credit caps to adopt: task 2.5 sets provisional values, and tuning them later changes neither the specs nor the approach.
+- Which concrete per-run and daily AI-credit caps to adopt: task 2.6 sets provisional values, and tuning them later changes neither the specs nor the approach.
