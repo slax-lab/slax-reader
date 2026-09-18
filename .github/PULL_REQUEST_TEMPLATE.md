@@ -22,3 +22,5 @@ OpenSpec:
 - [ ] No new secrets or environment variables added
 - [ ] Documentation updated
 - [ ] Agent rules/permissions changes (if any) were made in `.rulesync/` and regenerated with `pnpm agent:sync` — never hand-edit `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.codex/`, or `.agents/`
+- [ ] Read `REVIEW.md` — this PR is written to its Bugs/Security/Compliance passes and its Important-vs-Nit calibration
+- [ ] Every Important finding from an earlier review round on this PR is fixed or explicitly answered
