@@ -42,7 +42,7 @@
 
 ## 6. Wrap-up
 
-- [ ] 6.1 Add an "Automated review" section to `REVIEW.md` documenting how to re-run the review (`/review`), what the status check means, how to pause and resume reviews (`PR_REVIEW_ENABLED`), what a paused pull request looks like (automatic runs leave only a skipped check — so "skipped" must not be read as "reviewed and clean" — while a `/review` comment is answered with a single "reviews are paused" reply) and how to confirm the pause state from the Actions run or `gh aw status`, the budget caps in force, and how to bypass the gate in an emergency; verify the file still passes `pnpm exec rulesync doctor --strict`
+- [x] 6.1 Add an "Automated review" section to `REVIEW.md` — documents when the review runs, what the `Agentic PR review` status means (including fail-closed), how to pause and resume (`PR_REVIEW_ENABLED`, and why disabling the workflow is forbidden), the push → `/review` flow (task 7.9), the budget caps, the emergency bypass, and that `[aw] …` issues are automation noise (task 7.8); `pnpm exec rulesync doctor --strict` verified
 - [ ] 6.2 Open the pull request with an `OpenSpec: add-agentic-pr-review` line in its body, include the pinned `gh-aw` version (`v0.88.7`), the verdict-check name, and gh-aw's security-review note for the compilation (list the newly introduced secret `DEEPSEEK_API_KEY` and the pinned actions and containers from the lock manifest, confirming each was reviewed), and verify `pnpm exec openspec validate --all --strict` passes
 - [ ] 6.3 After merge, archive the change with `openspec archive add-agentic-pr-review` and verify the new capability spec appears under `openspec/specs/agentic-pr-review/spec.md`
 
