@@ -45,16 +45,26 @@ engine:
 sandbox:
   agent:
     model-fallback: false
+models:
+  # The AWF API proxy must be able to price every model it accounts for; see below.
+  default-ai-credits-pricing:
+    input: 0.3
+    output: 1.2
+    cache_read: 0.006
 network:
   allowed:
     - defaults
     - api.deepseek.com
 ```
 
-- `model-fallback: false` is required: AWF's API proxy resolves unknown model names against its built-in catalog and would rewrite `deepseek-flash`, producing an HTTP 404 `model_not_found`.
+- **`models.default-ai-credits-pricing` is required, not optional.** The AWF API proxy computes AI credits for every request in order to enforce `max-ai-credits`, and `deepseek-flash` is absent from its built-in pricing table. Without a fallback rate the proxy rejects the request before it ever reaches DeepSeek: `400 Model "deepseek-flash" has no AI credits pricing and no default pricing is configured` (observed in spike run 35329370946, with **0** tokens consumed). This was the blocking failure the spike existed to find, and it is not the failure `model-fallback` addresses.
+- The values are DeepSeek V4.1-Flash **peak** rates in USD per 1M tokens (input 0.3, output 1.2, cache-read 0.006), so AIC over-estimates off-peak usage instead of under-estimating it; gh-aw maps `cache_read` to AWF's `cachedInput`.
+- `model-fallback: false` keeps AWF from rewriting the model name through its built-in catalog — the documented requirement for BYOK deployments whose model ids the catalog does not know.
 - `api.deepseek.com` must be listed explicitly because the provider URL travels through a secret-backed variable; gh-aw's automatic allowlist derivation only applies to literal URLs.
-- `COPILOT_PROVIDER_TYPE` stays at its `openai` default (Chat Completions). DeepSeek also exposes an Anthropic-format endpoint, but the OpenAI path is the better-tested one for the Copilot CLI.
+- `COPILOT_PROVIDER_TYPE` stays at its `openai` default (Chat Completions). DeepSeek also exposes an Anthropic-format endpoint, but the OpenAI path is the one verified end to end.
 - Rejected: `deepseek-v4-pro` (higher price, and DeepSeek's own V4.1-Flash benchmark claims supersede it) and `sandbox.agent.token-steering: false` is **not** set initially — only changed if AWF interferes with the configured provider/model.
+
+**Spike evidence (task 1.4, throwaway branch `spike/gh-aw-byok`).** With the wiring above all six jobs succeeded (run 35329927208): the agent ran shell commands (`git log`, read `README.md`, `git ls-files`), reported the correct newest commit subject, README heading and root-file count, and identified `deepseek-flash` as its model — so tool calling works through AWF against DeepSeek. That run consumed 82,370 tokens → **AIC 0.639 (≈$0.0064)** in 4.2 minutes, with firewall 25/25 requests allowed and 0 blocked. The earlier failing variant consumed 0 tokens, which confirms rejections happen at the proxy, not at the provider.
 
 ### D3. Triggers, and the slash-command complication
 
@@ -65,6 +75,7 @@ gh-aw cannot combine an inline `slash_command` trigger with `pull_request` (the 
 - The compiler emits an additional `agentic_commands.yml` dispatcher workflow that must be committed too.
 - Centralized routing enables a built-in `/help` command by default; set `help_command: false` in `.github/workflows/aw.json` so the bot does not advertise commands we have not curated.
 - The command path also defaults to `reaction: eyes` and `status-comment: true`. Keep the reaction as the acknowledgement, but set `status-comment: false`: a generic started/completed comment would fire on every `/review`, and the dispatcher is not gated by the pause switch (D10), so such a comment would also break the pause guarantee.
+- `workflow_dispatch` only works when the workflow file exists on the default branch, so a workflow that lives only on a feature branch cannot be dispatched — verified while building the spike, which had to fall back to a branch-scoped `push` trigger. Consequence for this change: the `/review` path is triggered by dispatch from the centralized dispatcher, so it can only be verified end to end once the review workflow is on `main`; task 4.1 must account for that ordering.
 
 Rejected: splitting automatic and manual review into two workflows (duplicated prompt and policy, two lock files to keep in sync).
 
@@ -158,10 +169,13 @@ Two properties matter operationally:
 
 - Manual `/review` runs go through the centralized dispatcher (`workflow_dispatch` carrying `aw_context`) and are **exempt** from the daily guardrail by specification. The daily cap therefore throttles automatic reviews only; the pause switch (D10) is the control that covers both paths.
 - AIC is a derived estimate (tokens × catalog pricing; 1 AIC = $0.01). A model absent from AWF's catalog is priced from a conservative fallback rate, so a cap can trip earlier than the provider's real charges, and the accounting is best-effort by design. These caps are fuses, not accounting: task 4.5 reconciles `gh aw logs` AIC against the DeepSeek dashboard, and the pause switch remains the deterministic lever.
+- The guardrail only functions if every model it accounts for can be priced at all, which is why D2's fallback pricing is load-bearing rather than cosmetic: with it, the spike's probe run reported AIC 0.639 for 82,370 tokens; without it the proxy refuses to serve the model with HTTP 400 before `max-ai-credits` can even be consulted.
 
 ## Risks / Trade-offs
 
-- **DeepSeek rejects the Copilot CLI's request shape** (tool calling/streaming/thinking-mode quirks) → smoke-test the workflow with `gh aw run` before touching any ruleset; the whole gate is inert until the ruleset change lands.
+- **DeepSeek rejects the Copilot CLI's request shape** (tool calling/streaming/thinking-mode quirks) → **resolved by the task 1.4 spike**: the agent completed real shell tool calls and correctly identified its model. The gate is still inert until the ruleset change lands.
+- **A BYOK model the API proxy cannot price is refused outright** (HTTP 400 for `deepseek-flash`, before any request reaches DeepSeek) → D2's `models.default-ai-credits-pricing` fallback; the failed spike run stands as the regression evidence that this setting must stay in place.
+- **gh-aw's framework issues would pollute the repository** — the spike opened `[aw] No-Op Runs` and `[aw] Detection Runs`, both since closed → task 1.8 identifies the suppressing settings and task 2.1 applies them, so review runs can never open repository issues.
 - **`deepseek-flash` is absent from AWF's catalog** → `model-fallback: false` plus `api.deepseek.com` in the allowlist; if AWF still rewrites the model, add `sandbox.agent.targets.copilot` overrides.
 - **A required check that never reports blocks every merge** → the gate is designed to always report; a fork pull request test is a required validation step; the ruleset change is the last step and is reverted in one click if wrong.
 - **Fail-closed on provider outage** blocks merges until a re-run succeeds → accepted deliberately (`/review` re-runs; the `protect` ruleset's repository-role bypass remains available for emergencies).
