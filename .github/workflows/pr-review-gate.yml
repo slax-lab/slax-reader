@@ -1,22 +1,16 @@
 name: PR review gate
 
-# Companion gate (design D4, tasks 7.2/7.11).
+# Companion gate (design D4, tasks 7.2/7.11/7.13/7.14/7.15).
 #
-# The review workflow cannot report a reliable required check on its own: gh-aw
-# gates its verdict job on the agent having emitted a verdict, and a *skipped* job
-# counts as passing for a required check — so a run that produced no verdict would
-# silently pass. This workflow is the single required check: it runs after any
-# review workflow completes and always reports one status, failing closed when no
-# verdict exists.
+# This is the single required check (context "Agentic PR review"). gh-aw's own job
+# checks cannot serve: it gates its verdict job on the agent having emitted a
+# verdict, and a *skipped* job counts as passing for a required check — so a run
+# that produced no verdict would silently pass. This workflow therefore always
+# reports exactly one status for each review that was supposed to happen, and fails
+# closed whenever it cannot see a published review.
 #
-# Which commit the status belongs to: the automatic review runs on the pull request
-# head, but the on-demand one is triggered by `issue_comment` and therefore runs
-# from the default branch, where `workflow_run.head_sha` is main's tip. Both review
-# workflows set a `run-name` containing the pull request number ("… for #<n>"), so
-# the gate resolves the reviewed pull request from the run's display title and uses
-# that pull request's head SHA, falling back to `head_sha` when it cannot.
-#
-# Required check context: "Agentic PR review" (task 5.2).
+# Only possible after merge: `workflow_run` — like `workflow_dispatch` and
+# `issue_comment` — only triggers workflows that exist on the default branch.
 
 on:
   workflow_run:
@@ -37,17 +31,63 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
-          PAYLOAD_SHA: ${{ github.event.workflow_run.head_sha }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           CONTEXT="Agentic PR review"
+          RUN=$(gh api "repos/$REPO/actions/runs/$RUN_ID")
+          WF=$(jq -r '.name' <<<"$RUN")
+          EVENT=$(jq -r '.event' <<<"$RUN")
+          REVIEWED_SHA=$(jq -r '.head_sha' <<<"$RUN")
+          TITLE=$(jq -r '.display_title // ""' <<<"$RUN")
+          PR_NUMBER=$(sed -n 's/.*#\([0-9][0-9]*\).*/\1/p' <<<"$TITLE" | head -1)
 
-          JOBS=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100" --jq '[.jobs[] | {name: .name, conclusion: .conclusion}]')
+          # Only runs that were supposed to review may touch the status. The
+          # on-demand wrapper also carries a pull_request trigger (opened/edited/
+          # reopened), and those runs skip their agent: reporting success for them
+          # would let a body edit clear a failing verdict.
+          case "$WF" in
+            "PR Review")
+              if [ "$EVENT" != "pull_request" ]; then
+                echo "Run $RUN_ID is $WF on '$EVENT', not a review. Leaving the status untouched."
+                exit 0
+              fi
+              ;;
+            "PR Review (on demand)")
+              case "$EVENT" in
+                issue_comment|pull_request_review_comment) ;;
+                *)
+                  echo "Run $RUN_ID is $WF on '$EVENT', not a command. Leaving the status untouched."
+                  exit 0
+                  ;;
+              esac
+              ;;
+            *)
+              echo "Unexpected workflow '$WF' for run $RUN_ID. Leaving the status untouched."
+              exit 0
+              ;;
+          esac
+
+          JOBS=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100" \
+            --jq '[.jobs[] | {name: .name, conclusion: .conclusion}]')
           agent=$(jq -r '.[] | select(.name == "agent") | .conclusion' <<<"$JOBS" | head -1)
           verdict=$(jq -r '.[] | select(.name == "review_verdict") | .conclusion' <<<"$JOBS" | head -1)
           agent=${agent:-missing}
           verdict=${verdict:-missing}
+
+          # Which commit the result belongs to. For `pull_request` runs the run's
+          # head SHA *is* the reviewed commit; a comment-triggered run executes from
+          # the default branch, so there the reviewed commit is the pull request head
+          # and it has to be resolved (and named in the run title by the wrapper).
+          if [ "$EVENT" = "pull_request" ]; then
+            SHA="$REVIEWED_SHA"
+          else
+            if [ -z "${PR_NUMBER:-}" ]; then
+              echo "::warning::Run $RUN_ID has no pull request number in its title; not reporting."
+              exit 0
+            fi
+            SHA=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.head.sha')
+          fi
 
           case "$agent" in
             skipped)
@@ -76,24 +116,24 @@ jobs:
               ;;
           esac
 
-          # Resolve the reviewed commit: prefer the pull request named in the run's
-          # display title (correct for both trigger paths), else the payload SHA.
-          SHA="$PAYLOAD_SHA"
-          TITLE=$(gh api "repos/$REPO/actions/runs/$RUN_ID" --jq '.display_title // ""' 2>/dev/null || echo "")
-          PR_NUMBER=$(sed -n 's/.*#\([0-9][0-9]*\).*/\1/p' <<<"$TITLE" | head -1)
-          if [ -n "${PR_NUMBER:-}" ]; then
-            RESOLVED=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.head.sha' 2>/dev/null || echo "")
-            if [ -n "$RESOLVED" ]; then
-              SHA="$RESOLVED"
-              echo "Resolved pull request #$PR_NUMBER (from \"$TITLE\") to head $SHA"
+          # A green result must mean a review was actually published for this commit:
+          # an agent that only called the verdict tool without submitting a review
+          # would otherwise pass.
+          if [ "$state" = "success" ] && [ "$agent" = "success" ]; then
+            if [ -z "${PR_NUMBER:-}" ]; then
+              state=failure
+              desc="Cannot confirm a published review (no pull request in run title); failing closed"
             else
-              echo "::warning::Could not resolve pull request #$PR_NUMBER; falling back to payload SHA $SHA"
+              PUBLISHED=$(gh api "repos/$REPO/pulls/$PR_NUMBER/reviews" --paginate \
+                --jq "[.[] | select(.commit_id == \"$SHA\") | select(.user.login | test(\"github-actions\"))] | length")
+              if [ "${PUBLISHED:-0}" -lt 1 ]; then
+                state=failure
+                desc="No review published for this commit; failing closed"
+              fi
             fi
-          else
-            echo "No pull request number in run title \"$TITLE\"; using payload SHA $SHA"
           fi
 
-          echo "agent=$agent verdict=$verdict -> state=$state ($desc) on $SHA"
+          echo "workflow=$WF event=$EVENT agent=$agent verdict=$verdict -> $state ($desc) on $SHA"
           gh api -X POST "repos/$REPO/statuses/$SHA" \
             -f state="$state" \
             -f context="$CONTEXT" \
