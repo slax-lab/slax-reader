@@ -2,6 +2,12 @@
 
 <!-- What does this PR change, and why? -->
 
+## OpenSpec change
+
+<!-- Behavior changes: the change id from openspec/changes/<id>. Refactors, docs, and tooling: write "n/a". -->
+
+OpenSpec: 
+
 ## Linked issue
 
 <!-- e.g. Closes #123 -->
