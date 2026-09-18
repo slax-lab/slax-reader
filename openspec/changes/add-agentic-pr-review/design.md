@@ -64,6 +64,7 @@ gh-aw cannot combine an inline `slash_command` trigger with `pull_request` (the 
 
 - The compiler emits an additional `agentic_commands.yml` dispatcher workflow that must be committed too.
 - Centralized routing enables a built-in `/help` command by default; set `help_command: false` in `.github/workflows/aw.json` so the bot does not advertise commands we have not curated.
+- The command path also defaults to `reaction: eyes` and `status-comment: true`. Keep the reaction as the acknowledgement, but set `status-comment: false`: a generic started/completed comment would fire on every `/review`, and the dispatcher is not gated by the pause switch (D10), so such a comment would also break the pause guarantee.
 
 Rejected: splitting automatic and manual review into two workflows (duplicated prompt and policy, two lock files to keep in sync).
 
@@ -109,7 +110,7 @@ For reference while reading the specs, these are the distinct GitHub objects inv
 
 | GitHub object | What it is | Effect on merging | Used here as |
 |---|---|---|---|
-| Conversation comment | An ordinary comment in the pull request's discussion | None | `add-comment` (max 1) — the review summary |
+| Conversation comment | An ordinary comment in the pull request's discussion | None | `add-comment` (max 1) — the review summary; the paused reply (D10) is also a conversation comment |
 | Submitted review | A review with a state: `Comment`, `Approve`, or `Request changes` | `Request changes` blocks a merge while a required-approval rule applies; `Approve` can satisfy one | `submit-pull-request-review`, restricted by `allowed-events: [COMMENT]` |
 | Inline review comment | A comment anchored to a line of the diff | Not blocking by itself, but unresolved threads block under this repository's `required_review_thread_resolution` rule | `create-pull-request-review-comment` (max 10) |
 | Reviewer request | Adding an account to the pull request's Reviewers list (a notification, not content) | Not blocking | Not used; `add-reviewer` is deliberately left out |
@@ -140,9 +141,9 @@ An operator must be able to stop reviews for a day without coordinating a pull r
 if: vars.PR_REVIEW_ENABLED != 'false'
 ```
 
-- Setting `PR_REVIEW_ENABLED=false` stops every new run before the agent job — including `/review` re-runs dispatched through the centralized command path, because the switch gates the workflow as a whole — so the run reports as skipped, no model request is made, and nothing is written to the pull request. Removing the variable (or setting any other value) restores reviews on both paths.
+- Setting `PR_REVIEW_ENABLED=false` stops every new run before the agent job — including `/review` re-runs dispatched through the centralized command path, because the switch gates the workflow as a whole — so the run reports as skipped, no model request is made, and no review content is written. Removing the variable (or setting any other value) restores reviews on both paths.
 - The reason this must be a variable rather than "just turn the workflow off" is the interaction with D4: a **skipped** job reports "Success" and does not block a merge even when its check is required, whereas a workflow **disabled in the Actions UI** reports nothing at all — so once the gate is required, disabling it would leave every pull request stuck on `Expected — Waiting for status to be reported`.
-- Pausing is deliberately quiet: no comment is posted on paused pull requests. The accepted signal that no review happened is the check's skipped state, visible in the pull request's checks list, the Actions run conclusion, and `gh aw status`. The trade-off — a skipped check does not block a merge and can be misread as "review passed" — is accepted; `REVIEW.md`'s "Automated review" section (task 6.1) documents how to read it.
+- Pausing is quiet, but not mute. **Automatic** runs stay silent: the accepted signal that no review happened is the check's skipped state, visible in the pull request's checks list, the Actions run conclusion, and `gh aw status`; the trade-off — a skipped check does not block a merge and can be misread as "review passed" — is accepted and documented in `REVIEW.md` (task 6.1). An explicit `/review`, by contrast, is answered with a one-line reply saying reviews are paused: someone who asked and got silence cannot tell a paused system from a broken one. That reply must be produced deterministically (the agent is not running and no model request is allowed) and must not appear on the automatic path, so gh-aw's own `status-comment` cannot serve as the mechanism — its text is fixed and it is not event-scoped or pause-aware (D3). Candidate mechanisms, decided by a spike (task 1.7): a pre-activation step that posts the reply (requires `on.permissions: pull-requests: write`) and exposes a `paused` output that the top-level `if:` consumes; or a separate minimal Actions workflow that listens for the `/review` comment and replies only while paused.
 
 Alternatives considered: disabling the workflow (rejected once the gate lands, for the reason above; still fine during the pre-gate phase); removing the check from the ruleset (kept as break-glass, too blunt for a routine one-day pause); revoking `DEEPSEEK_API_KEY` (rejected: the run fails instead of skipping, which wedges the check and produces a confusing error); gh-aw's `stop-after` (rejected: no run is created at all, same wedge, and extending it needs a recompile).
 
@@ -168,7 +169,7 @@ Two properties matter operationally:
 - **Reviewing untrusted content** from public PRs → AWF sandbox with read-only permissions, no secrets in the agent container, safe-outputs validation, threat detection before any write, and `min-integrity: approved` applied automatically for public repositories.
 - **Review noise / false Important findings** → the workflow lands before the gate, so the team can calibrate `REVIEW.md` and the prompt on real PRs first.
 - **Pausing the wrong way would block every merge** → the pause switch (D10) is a repository variable implemented from day one and documented in `REVIEW.md`; disabling the workflow is explicitly forbidden once the required check is live, and the pause/resume drill (task 5.4) proves the check still passes while paused.
-- **A paused run is easy to misread as a passing review** (the check reports as skipped, which does not block a merge) → accepted deliberately: no notification is posted while paused, and `REVIEW.md` documents that "skipped" means "not reviewed" plus how to confirm the pause state (task 6.1); the merge gate's own verdict remains the only thing that blocks.
+- **A paused run is easy to misread as a passing review** (the check reports as skipped, which does not block a merge) → accepted for automatic runs, where `REVIEW.md` documents that "skipped" means "not reviewed" and how to confirm the pause state (task 6.1); an explicit `/review` is answered with the paused reply so a human asking for a review is never left guessing (D10); the merge gate's own verdict remains the only thing that blocks.
 - **AI-credit caps can disagree with the real DeepSeek bill** (catalog-unknown model priced at a conservative fallback rate; daily cap is per workflow and `/review` runs bypass it) → treat the caps as fuses rather than accounting, reconcile actual spend in task 4.5, and use the pause switch when the goal is "spend nothing today".
 
 ## Migration Plan
