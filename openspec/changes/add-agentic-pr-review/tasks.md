@@ -57,3 +57,4 @@ The review workflow's first run reviewed its own implementation pull request and
 - [ ] 7.5 Gate the paused-notice companion on the commenter's repository role, so an unauthorized `/review` cannot make the bot write a comment (the spec requires such requests to be ignored)
 - [ ] 7.6 Reconcile the spec's trigger list with the implementation: `reopened` is implemented but not specified
 - [ ] 7.7 Correct the PR body and task 5.2 so they name the single required check the companion reports, not the review workflow's job checks
+- [ ] 7.8 Finish suppressing framework issues: the first real review run (`pr-review`, failed verdict) still opened `[aw] Failed jobs: PR Review` (#19, closed) even with `report-failure-as-issue: false`, `report-failed-jobs: false` and `noop.report-as-issue: false`, so another reporting path exists; find and set the switch that covers it and re-verify with a failing run
