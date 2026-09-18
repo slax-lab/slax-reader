@@ -12,4 +12,6 @@ verifyDepsBeforeRun: false
 # dependency) ships an optional build script we do not need — this explicit
 # denial marks it reviewed; the build stays blocked.
 allowBuilds:
+  # lefthook's postinstall downloads the platform binary the git hooks invoke.
+  lefthook: true
   tldjs: false

@@ -8,10 +8,12 @@
   },
   "scripts": {
     "agent:sync": "rulesync generate",
-    "agent:check": "rulesync doctor --strict && rulesync generate --check && openspec validate --all --strict"
+    "agent:check": "rulesync doctor --strict && rulesync generate --check && openspec validate --all --strict",
+    "prepare": "lefthook install"
   },
   "devDependencies": {
     "@fission-ai/openspec": "1.13.0",
+    "lefthook": "^2.1.14",
     "rulesync": "16.34.1"
   }
 }

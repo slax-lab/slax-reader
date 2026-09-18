@@ -1,0 +1,9 @@
+# Guards generated agent files at commit time — the same drift check CI runs.
+# To change these rules: edit this file, not .git/hooks/ (hooks are installed
+# by `lefthook install`, which runs via the root `prepare` script on pnpm install).
+pre-commit:
+  commands:
+    rulesync-drift:
+      glob: "{AGENTS.md,CLAUDE.md,.claude/**,.codex/**,.agents/**,.rulesync/**}"
+      run: pnpm exec rulesync generate --check
+      fail_text: "Generated agent files drift from .rulesync/ sources. Edit .rulesync/, run `pnpm agent:sync`, and commit both."
