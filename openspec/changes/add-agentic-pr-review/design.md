@@ -123,6 +123,8 @@ safe-outputs:
 
 The three reporting switches keep a review run from opening repository issues (both `[aw] No-Op Runs` and `[aw] Detection Runs` were created by the spike runs before these were set). `noop.report-as-issue` and `report-failure-as-issue` are documented per handler; v0.88.7 has no `threat-detection.report-as-issue` yet (the compiler rejects it), which is why the broader `report-failed-jobs: false` is used as well — task 1.8, to be confirmed by observing a failing or no-op run produce no issue.
 
+Observation settled that question the hard way: even with `report-failure-as-issue: false`, `report-failed-jobs: false` (rejected at the top level; accepted under `safe-outputs` but ineffective) and `noop.report-as-issue: false`, a failing run still emitted `GH_AW_REPORT_FAILED_JOBS: "true"` in the compiled lock file and opened `[aw] Failed jobs: PR Review` issues (#19, #20, #21 — all closed by hand). Since the frontmatter cannot suppress that path in v0.88.7, the chosen mitigation is a deterministic companion, `agentic-noise-cleanup.yml`, which closes bot-created `[aw] ` issues that carry the `agentic-workflows` label and leaves a comment pointing at the run, so the detail stays available while the issue list stays clean (tasks 7.8/7.16). `REVIEW.md` tells reviewers the same thing.
+
 For reference while reading the specs, these are the distinct GitHub objects involved, and why the workflow uses each safe output:
 
 | GitHub object | What it is | Effect on merging | Used here as |
