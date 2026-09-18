@@ -45,6 +45,12 @@ Worker 不需要改代码，只要在目标仓库加一个 webhook：
 
 `open_id` 是**按飞书应用隔离**的——同一个人在不同应用下值不同，因此不能从别处复制。它由 `slax-notify-bridge` 仓库的维护者维护。
 
+## 这个功能的规格与实现记录在哪
+
+本仓库**不保存**该通知服务的规格与规划产物。它们随实现一起放在
+[`slax-notify-bridge`](https://github.com/slax-lab/slax-notify-bridge) 的 `openspec/` 下，
+因为后续变更都属于那个仓库 —— 两份副本必然漂移，所以这里只留这份说明。
+
 ## 排查
 
 通知没到时的检查顺序：
