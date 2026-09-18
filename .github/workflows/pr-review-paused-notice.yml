@@ -23,7 +23,8 @@ jobs:
     if: >-
       vars.PR_REVIEW_ENABLED == 'false' &&
       github.event.issue.pull_request &&
-      startsWith(github.event.comment.body, '/review')
+      startsWith(github.event.comment.body, '/review') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
     steps:
       - name: Tell the requester that reviews are paused

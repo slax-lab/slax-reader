@@ -5,6 +5,9 @@ on:
   pull_request:
     # `reopened` is included so a reopened pull request is reviewed again.
     types: [opened, ready_for_review, reopened]
+    # Drafts are excluded: `opened` also fires for drafts, which would review the
+    # same pull request twice (once as a draft, once at ready_for_review).
+    draft: false
 
 permissions:
   contents: read
@@ -18,8 +21,9 @@ permissions:
 if: vars.PR_REVIEW_ENABLED != 'false'
 
 concurrency:
+  # No cancel-in-progress: a cancelled run is not a passing required check, so a
+  # superseded run must be allowed to finish rather than being cancelled.
   group: pr-review-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: true
 
 timeout-minutes: 20
 

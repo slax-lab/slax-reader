@@ -6,7 +6,7 @@ Automated, policy-driven review of pull requests: it decides when a review runs,
 
 ### Requirement: Review runs on pull request readiness and on demand
 
-The system SHALL request exactly one review per pull request when the pull request is opened or marked ready for review, and SHALL accept an explicit `/review` comment as a request to re-run the review. It MUST NOT start a new review on ordinary pushes to an open pull request. `/review` requests from actors without write access to the repository MUST be ignored.
+The system SHALL request exactly one review per pull request when the pull request is opened, reopened, or marked ready for review; a pull request opened as a draft MUST NOT be reviewed until it is marked ready. It SHALL accept an explicit `/review` comment as a request to re-run the review. It MUST NOT start a new review on ordinary pushes to an open pull request. `/review` requests from actors without write access to the repository MUST be ignored.
 
 #### Scenario: New pull request is reviewed once
 

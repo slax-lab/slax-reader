@@ -36,7 +36,7 @@
 ## 5. Merge gate rollout
 
 - [ ] 5.1 Take the exact status-check name from a completed run and record it in the change's PR description
-- [ ] 5.2 Repository admin adds that check to the `protect` ruleset's required status checks (on top of the existing `guard` check); record the ruleset JSON before and after
+- [ ] 5.2 Repository admin adds the single companion check — context `Agentic PR review`, reported by `pr-review-gate.yml` (design D4) — to the `protect` ruleset's required status checks, on top of the existing `guard` check; record the ruleset JSON before and after. Do **not** require the review workflows' own job checks: a skipped job is not a result this gate can rely on
 - [ ] 5.3 Verify gating on two pull requests: one with an Important finding shows a failing required check that blocks merge, and one with only nits shows a passing check that allows merge
 - [ ] 5.4 Run the pause/resume drill with the gate live: with `PR_REVIEW_ENABLED=false`, verify the required check reports a passing result and an un-reviewed pull request can still merge, that an opened pull request stays silent while a `/review` comment gets the eyes reaction plus the paused reply, and record what the pull request actually shows so the documented signal matches reality; with the control restored, verify the next pull request is reviewed and the check reflects its verdict
 
@@ -51,10 +51,12 @@
 The review workflow's first run reviewed its own implementation pull request and reported two Important findings plus three Nits. They are tracked here because they are all still actionable:
 
 - [x] 7.1 Fix the gate so a run producing no verdict cannot pass silently — attempted by overriding the custom job's `if:`, which the compiler merely **ANDs** with its own output-types gate (verified in the compiled lock file), so the verdict job alone cannot be the gate; the companion workflow from design D4 is required instead
-- [ ] 7.2 Implement the companion gate workflow (design D4): `workflow_run`-triggered, always reporting one required check — agent skipped (pause/fork/budget) → success, `review_verdict` succeeded → success, missing verdict or agent failure → failure with a message distinguishing findings from "no review produced"
-- [ ] 7.3 Drop `cancel-in-progress` from both review workflows: a cancelled run is not a passing required check, so superseding a run must not happen
-- [ ] 7.4 Skip draft pull requests (`github.event.pull_request.draft == false`) so a pull request is not reviewed twice (on open and again on ready_for_review)
-- [ ] 7.5 Gate the paused-notice companion on the commenter's repository role, so an unauthorized `/review` cannot make the bot write a comment (the spec requires such requests to be ignored)
-- [ ] 7.6 Reconcile the spec's trigger list with the implementation: `reopened` is implemented but not specified
-- [ ] 7.7 Correct the PR body and task 5.2 so they name the single required check the companion reports, not the review workflow's job checks
-- [ ] 7.8 Finish suppressing framework issues: the first real review run (`pr-review`, failed verdict) still opened `[aw] Failed jobs: PR Review` (#19, closed) even with `report-failure-as-issue: false`, `report-failed-jobs: false` and `noop.report-as-issue: false`, so another reporting path exists; find and set the switch that covers it and re-verify with a failing run
+- [x] 7.2 Implement the companion gate workflow (design D4): `pr-review-gate.yml` is `workflow_run`-triggered, always reports a single status with context `Agentic PR review`, maps agent skipped → success, `review_verdict` succeeded → success, and missing verdict or agent failure → failure with a description distinguishing findings from "no review produced"; empirical verification is task 4.6
+- [x] 7.3 Drop `cancel-in-progress` from both review workflows: a cancelled run is not a passing required check, so superseding a run must not happen
+- [x] 7.4 Skip draft pull requests (`github.event.pull_request.draft == false`) so a pull request is not reviewed twice; verified in the compiled condition
+- [x] 7.5 Gate the paused-notice companion on the commenter's repository role (`OWNER`/`MEMBER`/`COLLABORATOR`), so an unauthorized `/review` cannot make the bot write a comment
+- [x] 7.6 Reconcile the spec's trigger list with the implementation: `reopened` is now specified, and draft pull requests are excluded by requirement
+- [ ] 7.7 Correct the PR body so it names the single required check the companion reports; task 5.2 has been updated
+- [ ] 7.8 Finish suppressing framework issues: the first real review run still opened `[aw] Failed jobs: PR Review` (#19, closed) — and the compiled lock shows `GH_AW_REPORT_FAILED_JOBS: "true"` and `GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: "true"` despite `report-failure-as-issue: false` and `report-failed-jobs: false`, so those frontmatter switches did not take effect in v0.88.7; find the correct knob (or override the env vars) and re-verify with a failing run
+- [ ] 7.9 Decide how a push after a review is handled: the companion's status is attached to the reviewed commit, so a new commit has no status until a review re-runs (today that means `/review`). Either accept and document that flow, or add a `synchronize`-triggered carry-forward of the previous verdict
+- [ ] 4.6 Verify the companion gate empirically: a clean review reports `Agentic PR review` success; a run with Important findings reports failure; a run whose agent produced no verdict (simulate by removing the mandatory verdict call) reports the fail-closed failure; and a fork pull request reports success without wedging

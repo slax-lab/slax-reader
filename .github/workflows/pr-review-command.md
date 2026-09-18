@@ -22,8 +22,8 @@ permissions:
 if: vars.PR_REVIEW_ENABLED != 'false'
 
 concurrency:
+  # No cancel-in-progress: a cancelled run is not a passing required check.
   group: pr-review-command-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: true
 
 timeout-minutes: 20
 
