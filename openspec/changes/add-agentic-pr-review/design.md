@@ -72,7 +72,7 @@ Automation: `pull_request: types: [opened, ready_for_review]`. Manual: `/review`
 
 gh-aw cannot combine an inline `slash_command` trigger with `pull_request` (the compiler rejects the conflict), so this workflow uses `on.slash_command.strategy: centralized`. Consequences to handle in implementation:
 
-- The compiler emits an additional `agentic_commands.yml` dispatcher workflow that must be committed too.
+- The compiler emits an additional `agentic_commands.yml` dispatcher workflow that must be committed too — but **only a full `gh aw compile` (without a workflow argument) generates it**; compiling a single workflow leaves it absent, which the CI drift check (D9) must account for. The generated dispatcher listens on `issue_comment`/`pull_request` and routes `/review → pr-review` with `reaction=eyes`; verified in the compiled file.
 - Centralized routing enables a built-in `/help` command by default; set `help_command: false` in `.github/workflows/aw.json` so the bot does not advertise commands we have not curated.
 - The command path also defaults to `reaction: eyes` and `status-comment: true`. Keep the reaction as the acknowledgement, but set `status-comment: false`: a generic started/completed comment would fire on every `/review`, and the dispatcher is not gated by the pause switch (D10), so such a comment would also break the pause guarantee.
 - `workflow_dispatch` only works when the workflow file exists on the default branch, so a workflow that lives only on a feature branch cannot be dispatched — verified while building the spike, which had to fall back to a branch-scoped `push` trigger. Consequence for this change: the `/review` path is triggered by dispatch from the centralized dispatcher, so it can only be verified end to end once the review workflow is on `main`; task 4.1 must account for that ordering.
@@ -105,23 +105,26 @@ Open consequence (see Open Questions): whether a skipped job satisfies the requi
 
 ```yaml
 safe-outputs:
-  add-comment:
-    max: 1
   create-pull-request-review-comment:
     max: 10
   submit-pull-request-review:
     allowed-events: [COMMENT]
     max: 1
   noop:
+    report-as-issue: false
+  report-failure-as-issue: false
+  report-failed-jobs: false
 ```
 
-`allowed-events: [COMMENT]` is infrastructure-level enforcement: the agent cannot approve or request changes even if its output says so. Blocking is the gate's job (D4). Inline comments are capped at 10 and the summary at 1, which bounds the review's verbosity; the policy's own finding limits are enforced by the prompt, not by this frontmatter.
+`allowed-events: [COMMENT]` is infrastructure-level enforcement: the agent cannot approve or request changes even if its output says so. Blocking is the gate's job (D4). One review per run with at most 10 inline comments bounds verbosity, and the summary travels as that review's body (the prompt requires it), so the workflow writes **no conversation comments at all** — the only ones it ever produces come from the paused-notice companion (D10).
+
+The three reporting switches keep a review run from opening repository issues (both `[aw] No-Op Runs` and `[aw] Detection Runs` were created by the spike runs before these were set). `noop.report-as-issue` and `report-failure-as-issue` are documented per handler; v0.88.7 has no `threat-detection.report-as-issue` yet (the compiler rejects it), which is why the broader `report-failed-jobs: false` is used as well — task 1.8, to be confirmed by observing a failing or no-op run produce no issue.
 
 For reference while reading the specs, these are the distinct GitHub objects involved, and why the workflow uses each safe output:
 
 | GitHub object | What it is | Effect on merging | Used here as |
 |---|---|---|---|
-| Conversation comment | An ordinary comment in the pull request's discussion | None | `add-comment` (max 1) — the review summary; the paused reply (D10) is also a conversation comment |
+| Conversation comment | An ordinary comment in the pull request's discussion | None | Not used by the review itself — the summary is the review body; only the paused-notice companion (D10) writes one |
 | Submitted review | A review with a state: `Comment`, `Approve`, or `Request changes` | `Request changes` blocks a merge while a required-approval rule applies; `Approve` can satisfy one | `submit-pull-request-review`, restricted by `allowed-events: [COMMENT]` |
 | Inline review comment | A comment anchored to a line of the diff | Not blocking by itself, but unresolved threads block under this repository's `required_review_thread_resolution` rule | `create-pull-request-review-comment` (max 10) |
 | Reviewer request | Adding an account to the pull request's Reviewers list (a notification, not content) | Not blocking | Not used; `add-reviewer` is deliberately left out |
@@ -154,7 +157,7 @@ if: vars.PR_REVIEW_ENABLED != 'false'
 
 - Setting `PR_REVIEW_ENABLED=false` stops every new run before the agent job — including `/review` re-runs dispatched through the centralized command path, because the switch gates the workflow as a whole — so the run reports as skipped, no model request is made, and no review content is written. Removing the variable (or setting any other value) restores reviews on both paths.
 - The reason this must be a variable rather than "just turn the workflow off" is the interaction with D4: a **skipped** job reports "Success" and does not block a merge even when its check is required, whereas a workflow **disabled in the Actions UI** reports nothing at all — so once the gate is required, disabling it would leave every pull request stuck on `Expected — Waiting for status to be reported`.
-- Pausing is quiet, but not mute. **Automatic** runs stay silent: the accepted signal that no review happened is the check's skipped state, visible in the pull request's checks list, the Actions run conclusion, and `gh aw status`; the trade-off — a skipped check does not block a merge and can be misread as "review passed" — is accepted and documented in `REVIEW.md` (task 6.1). An explicit `/review`, by contrast, is answered with a one-line reply saying reviews are paused: someone who asked and got silence cannot tell a paused system from a broken one. That reply must be produced deterministically (the agent is not running and no model request is allowed) and must not appear on the automatic path, so gh-aw's own `status-comment` cannot serve as the mechanism — its text is fixed and it is not event-scoped or pause-aware (D3). Candidate mechanisms, decided by a spike (task 1.7): a pre-activation step that posts the reply (requires `on.permissions: pull-requests: write`) and exposes a `paused` output that the top-level `if:` consumes; or a separate minimal Actions workflow that listens for the `/review` comment and replies only while paused.
+- Pausing is quiet, but not mute. **Automatic** runs stay silent: the accepted signal that no review happened is the check's skipped state, visible in the pull request's checks list, the Actions run conclusion, and `gh aw status`; the trade-off — a skipped check does not block a merge and can be misread as "review passed" — is accepted and documented in `REVIEW.md` (task 6.1). An explicit `/review`, by contrast, is answered with a one-line reply saying reviews are paused: someone who asked and got silence cannot tell a paused system from a broken one. That reply must be produced deterministically (the agent is not running and no model request is allowed) and must not appear on the automatic path, so gh-aw's own `status-comment` cannot serve as the mechanism — its text is fixed and it is not event-scoped or pause-aware (D3). Candidate mechanisms were a gh-aw `on.steps` pre-activation step (needs `on.permissions: pull-requests: write` plus a `paused` output the top-level `if:` consumes) or a separate minimal Actions workflow. **Chosen (task 1.7): the separate workflow**, `pr-review-paused-notice.yml`, which listens for `issue_comment` and replies only while paused — it depends on no gh-aw internals, costs no agent run, and cannot be broken by a change in gh-aw's step/output wiring; the price is one more workflow file. Because `issue_comment` workflows run from the default-branch version of the file, it only takes effect after merge, so its end-to-end check rides along with task 5.4.
 
 Alternatives considered: disabling the workflow (rejected once the gate lands, for the reason above; still fine during the pre-gate phase); removing the check from the ruleset (kept as break-glass, too blunt for a routine one-day pause); revoking `DEEPSEEK_API_KEY` (rejected: the run fails instead of skipping, which wedges the check and produces a confusing error); gh-aw's `stop-after` (rejected: no run is created at all, same wedge, and extending it needs a recompile).
 
