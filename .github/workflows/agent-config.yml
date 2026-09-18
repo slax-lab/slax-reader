@@ -2,9 +2,11 @@
 # 1. rulesync: committed generated files (AGENTS.md, CLAUDE.md, .claude/, .codex/)
 #    must match their .rulesync/ sources — hand edits fail the build.
 # 2. openspec: specs and in-flight changes must stay structurally valid.
+# 3. gh-aw: compiled agentic workflows (*.lock.yml) must match their Markdown
+#    sources — the drift check runs a full `gh aw compile --purge`.
 # Tool versions are pinned in package.json devDependencies on purpose; bump them
 # only in dedicated upgrade PRs (and note pnpm's minimumReleaseAge policy will
-# hold back day-old releases anyway).
+# hold back day-old releases anyway). The gh-aw CLI version is pinned here.
 name: agent-config
 
 on:
@@ -37,3 +39,29 @@ jobs:
         env:
           OPENSPEC_TELEMETRY: "0"
           OPENSPEC_NO_UPDATE_CHECK: "1"
+
+      - name: Install gh-aw CLI (pinned)
+        uses: github/gh-aw/actions/setup-cli@v0.88.7
+        with:
+          version: v0.88.7
+
+      - name: gh-aw compile drift check
+        run: |
+          set -euo pipefail
+          # A *full* compile is required: compiling a single workflow neither
+          # regenerates the shared command dispatcher nor purges orphaned lock
+          # files, so a per-file check would miss exactly the drift that matters.
+          gh aw compile --strict --purge --no-check-update
+          # Only generated paths are inspected: hand-edited workflow sources (this
+          # file, the review wrappers, the paused-notice companion) are not drift.
+          DRIFT=$(git status --porcelain -- \
+            '.github/workflows/*.lock.yml' \
+            '.github/workflows/agentic_commands.yml' \
+            '.github/aw')
+          if [ -n "$DRIFT" ]; then
+            echo "::error::Compiled agentic workflows are out of date."
+            echo "Run 'gh aw compile --strict --purge' and commit the result."
+            echo "$DRIFT"
+            exit 1
+          fi
+          echo "Compiled workflows match their sources."
