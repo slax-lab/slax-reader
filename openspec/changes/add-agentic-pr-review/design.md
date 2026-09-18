@@ -105,6 +105,16 @@ safe-outputs:
 
 `allowed-events: [COMMENT]` is infrastructure-level enforcement: the agent cannot approve or request changes even if its output says so. Blocking is the gate's job (D4). Inline comments are capped at 10 and the summary at 1, which bounds the review's verbosity; the policy's own finding limits are enforced by the prompt, not by this frontmatter.
 
+For reference while reading the specs, these are the distinct GitHub objects involved, and why the workflow uses each safe output:
+
+| GitHub object | What it is | Effect on merging | Used here as |
+|---|---|---|---|
+| Conversation comment | An ordinary comment in the pull request's discussion | None | `add-comment` (max 1) — the review summary |
+| Submitted review | A review with a state: `Comment`, `Approve`, or `Request changes` | `Request changes` blocks a merge while a required-approval rule applies; `Approve` can satisfy one | `submit-pull-request-review`, restricted by `allowed-events: [COMMENT]` |
+| Inline review comment | A comment anchored to a line of the diff | Not blocking by itself, but unresolved threads block under this repository's `required_review_thread_resolution` rule | `create-pull-request-review-comment` (max 10) |
+| Reviewer request | Adding an account to the pull request's Reviewers list (a notification, not content) | Not blocking | Not used; `add-reviewer` is deliberately left out |
+| Status check | A check run in the pull request's Checks area (`success`, `failure`, `skipped`) | This is the only thing the merge gate requires | The gate's own job status (D4) |
+
 The policy is not repeated anywhere in this change: the prompt instructs the agent to read `REVIEW.md` from the checked-out pull request head branch and apply it, so a pull request can test its own policy edits (for example a changed pass name or nit limit) and nothing in the workflow hard-codes policy values. The prompt names the policy's *sections to consult*, never their contents — duplicating the contents would create a second source of truth that silently drifts from `REVIEW.md`, whose whole purpose is to be the only one.
 
 ### D7. Cost profile
@@ -130,7 +140,7 @@ An operator must be able to stop reviews for a day without coordinating a pull r
 if: vars.PR_REVIEW_ENABLED != 'false'
 ```
 
-- Setting `PR_REVIEW_ENABLED=false` stops every new run before the agent job — including `/review` re-runs dispatched through the centralized command path, because the switch gates the workflow as a whole — so the run reports as skipped, no model request is made, and no review artifact is created. Removing the variable (or setting any other value) restores reviews on both paths.
+- Setting `PR_REVIEW_ENABLED=false` stops every new run before the agent job — including `/review` re-runs dispatched through the centralized command path, because the switch gates the workflow as a whole — so the run reports as skipped, no model request is made, and nothing is written to the pull request. Removing the variable (or setting any other value) restores reviews on both paths.
 - The reason this must be a variable rather than "just turn the workflow off" is the interaction with D4: a **skipped** job reports "Success" and does not block a merge even when its check is required, whereas a workflow **disabled in the Actions UI** reports nothing at all — so once the gate is required, disabling it would leave every pull request stuck on `Expected — Waiting for status to be reported`.
 - Pausing is deliberately quiet: no comment is posted on paused pull requests. The accepted signal that no review happened is the check's skipped state, visible in the pull request's checks list, the Actions run conclusion, and `gh aw status`. The trade-off — a skipped check does not block a merge and can be misread as "review passed" — is accepted; `REVIEW.md`'s "Automated review" section (task 6.1) documents how to read it.
 

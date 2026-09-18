@@ -15,7 +15,7 @@
 - [ ] 2.4 Implement the verdict output chosen in 1.5 and verify on a real pull request that the submitted review event is `Commented` (never Approved or Changes requested) and that the pull request shows exactly one consolidated review
 - [ ] 2.5 Disable the generated `/help` command via `.github/workflows/aw.json` and commit the centralized dispatcher workflow that gh-aw generates; verify `gh aw status` lists the review workflow and the dispatcher as enabled
 - [ ] 2.6 Set the budget guardrails per design D11 (`max-ai-credits`, `max-daily-ai-credits`), recompile, and verify the compiled workflow carries both; then verify a deliberately tiny daily cap skips the agent job and reports the exceeded-budget context instead of failing silently
-- [ ] 2.7 Add the pause switch per design D10 (`if: vars.PR_REVIEW_ENABLED != 'false'`) and verify with the repository variable set to `false` that both a newly opened pull request and a `/review` comment produce skipped runs with no agent execution and no review artifact, and with the variable unset or `true` that both paths review normally
+- [ ] 2.7 Add the pause switch per design D10 (`if: vars.PR_REVIEW_ENABLED != 'false'`) and verify with the repository variable set to `false` that both a newly opened pull request and a `/review` comment produce skipped runs with no agent execution and nothing written to the pull request, and with the variable unset or `true` that both paths review normally
 - [ ] 2.8 Commit the compiled `.github/workflows/pr-review.lock.yml` together with its Markdown source and the `.gitattributes` change; verify `gh aw compile` afterwards leaves `git status` clean
 
 ## 3. CI guard for compiled workflows
