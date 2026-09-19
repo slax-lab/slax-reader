@@ -55,10 +55,11 @@ safe-outputs:
   report-failure-as-issue: false
   # Threat detection flags output that looks like a hijack attempt. By default it
   # only warns: the review is published with a caution banner and a human has to
-  # notice. We chose **blocking** instead (drill PR #47), so a flagged output
-  # fails the run and nothing is published; the gate then fails closed. The cost
-  # is accepted deliberately: a false positive drops that review rather than
-  # showing it with a warning banner.
+  # notice — that is what warn-mode drill PR #47 produced. We chose **blocking**
+  # instead, so a flagged output fails the run and nothing is published; the gate
+  # then fails closed. Blocking drill PR #59 is the run that shows the difference.
+  # The cost is accepted deliberately: a false positive drops that review rather
+  # than showing it with a warning banner.
   threat-detection:
     continue-on-error: false
   noop:

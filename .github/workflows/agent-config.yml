@@ -59,7 +59,6 @@ jobs:
           # file, the review wrappers, the paused-notice companion) are not drift.
           DRIFT=$(git status --porcelain -- \
             '.github/workflows/*.lock.yml' \
-            '.github/workflows/agentic_commands.yml' \
             '.github/aw')
           if [ -n "$DRIFT" ]; then
             echo "::error::Compiled agentic workflows are out of date."
