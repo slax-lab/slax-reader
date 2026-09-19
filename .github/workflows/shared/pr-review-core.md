@@ -97,7 +97,7 @@ safe-outputs:
 
 # Budget guardrails: bound what a runaway loop or a busy day can spend. Hitting a
 # cap skips the agent job, which still reports a passing required check.
-max-ai-credits: 300
+max-ai-credits: 301
 max-daily-ai-credits: 2000
 ---
 
