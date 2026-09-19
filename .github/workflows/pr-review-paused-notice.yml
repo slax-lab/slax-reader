@@ -4,8 +4,9 @@ name: PR review paused notice
 #
 # `pr-review` is gated by the repository variable PR_REVIEW_ENABLED. Automatic
 # runs stay silent while paused, but somebody who explicitly asks for a review
-# with `/review` must be told that reviews are paused — otherwise a paused system
-# is indistinguishable from a broken one. This workflow is plain GitHub Actions
+# with `/review` must be told that the **automated** review is paused — otherwise
+# a paused system is indistinguishable from a broken one, and "reviews are paused"
+# reads as human review being unavailable. This workflow is plain GitHub Actions
 # rather than gh-aw so that answering costs no agent run and no model request.
 #
 # Note: GitHub runs `issue_comment` workflows from the default branch, so this
@@ -30,7 +31,7 @@ jobs:
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
     steps:
-      - name: Tell the requester that reviews are paused
+      - name: Tell the requester that the automated review is paused
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.issue.number }}
@@ -41,13 +42,13 @@ jobs:
           # out of context: which review is paused, that nothing is broken, and
           # that people are not affected.
           #
-          # The trailing marker is a **contract** with the notification bridge, not
-          # a fact about it: the bridge lives outside this repository
-          # (`slax-lab/slax-notify-bridge`, where it matches this marker so a pause
-          # notice is never confused with a review result). Until that bridge ships
-          # the marker check it falls back to the word "paused", which this body
-          # still contains — so the wording below is what makes the notice honest,
-          # not the marker.
+          # The trailing marker is a **contract** with the notification bridge,
+          # which lives in another repository (`slax-lab/slax-notify-bridge`): that
+          # bridge matches this marker so a pause notice can never be confused with
+          # a review result. It shipped the marker check in its PR #2; the word
+          # "paused" it used before is still present in the body below as a fallback
+          # for notices posted earlier, so the wording — not the marker — is what
+          # makes the notice honest.
           BODY=$(cat <<'EOF'
           ⏸ **The automated (AI) review is paused** — the repository variable `PR_REVIEW_ENABLED` is set to `false`, so this `/review` request ran no review. Nothing is broken: the pause is a deliberate operator switch.
 
