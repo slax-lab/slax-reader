@@ -31,7 +31,21 @@ network:
 
 tools:
   github:
-    toolsets: [repos, pull_requests]
+    # `actions` is what lets a review that touches CI read workflow runs, which the
+    # `repos`/`pull_requests` toolsets do not cover. Without it the agent reaches
+    # for `curl https://api.github.com/...`, the firewall blocks it, and the run
+    # carries a "Firewall blocked 1 domain" warning into its published review.
+    #
+    # The widening was considered on purpose: `actions` also brings `get_job_logs`,
+    # which pulls arbitrary job logs from this repository into the agent's context,
+    # and the agent's output is published as a public review. The agent token is
+    # read-only, GitHub masks secrets in logs, and this repository's CI logs must
+    # not carry secrets — the narrower alternative the framework itself suggested
+    # (adding api.github.com to network.allowed, or `tools.github.mode: gh-proxy`
+    # for a pre-authenticated `gh`) would widen more: the first opens the network,
+    # the second hands the agent a working GitHub client and weakens the
+    # safe-outputs write boundary.
+    toolsets: [repos, pull_requests, actions]
   # The review needs to inspect files and diffs; the agent runs sandboxed with a
   # read-only token and an allowlisted network, which is the boundary that matters.
   bash: [":*"]
@@ -97,10 +111,14 @@ You review **one** pull request and publish exactly one consolidated review.
 
 ## What to review
 
-1. Identify the pull request that triggered this run and read its diff (the GitHub pull request tools or `git diff` against the base branch).
+1. Identify the pull request that triggered this run and read its **full** diff with the GitHub pull request tools. They are the reliable source of the diff and of every changed file — including `.github/**`, `.agents/**` and `AGENTS.md`, which are restored from the **base** branch in the worktree and therefore cannot be read from disk. Do not assume anything about the worktree's topology: if you use git, resolve the range explicitly (for example `git diff "$(git merge-base origin/main HEAD)"..HEAD`) and check it against the tools' file list before relying on it. Never review a partial diff silently: if you cannot obtain the whole diff, say so in the review instead of reviewing what you happen to have.
 2. Run the passes `REVIEW.md` defines over the changed code, reading surrounding files whenever the diff alone is not enough to judge a change.
 3. Run the compliance pass `REVIEW.md` defines: find the `OpenSpec:` line in the pull request body and, when the policy counts this pull request as behavior-changing, read the referenced change under `openspec/changes/<change-id>/` and compare it with what the pull request actually implements. Report a missing reference or a divergence at the severity the policy assigns.
 4. Respect the policy's exclusions. Do not report anything it tells you to leave to CI.
+
+## How to reach GitHub (sandbox)
+
+All GitHub reads go through the GitHub tools above. The sandbox has no network route to GitHub — the `gh` CLI, `curl https://api.github.com/…` and `git fetch` from a remote fail — so never spend a turn on them: a blocked attempt only adds a "Firewall blocked …" warning to the review you publish. If a tool does not answer a question (for example a workflow-run detail), say in the review that you could not check it rather than guessing.
 
 ## How to publish
 

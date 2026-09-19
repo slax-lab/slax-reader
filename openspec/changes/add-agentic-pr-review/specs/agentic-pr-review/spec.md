@@ -145,7 +145,7 @@ The repository MUST keep the review workflow's Markdown source and its compiled 
 
 The system SHALL provide a settings-only pause control that an operator can use to stop reviews for a period without editing repository files. The subject of the prohibitions below is this change's review system — the review agent, its deterministic jobs, and the command path that triggers it. They do not constrain people, who remain free to comment, approve, request reviews, or merge; they do not constrain GitHub; and they do not apply to other workflows.
 
-While reviews are paused, the system MUST NOT execute the review agent, MUST NOT make model-provider requests, and MUST NOT write review content to the pull request: no submitted review, no review summary, no inline review comment, and no reviewer request. The one permitted output is a short reply to an explicit on-demand request (`/review`) stating that reviews are paused; automatic runs stay silent. A status check is not written content, so the merge gate MUST still report a passing result (as a skipped check rather than as a completed review), and the pause itself MUST NOT add or dismiss approvals or block a merge. The pause covers on-demand runs as well as automatic ones, and restoring the control MUST resume reviews for pull requests opened or re-requested afterwards.
+While reviews are paused, the system MUST NOT execute the review agent, MUST NOT make model-provider requests, and MUST NOT write review content to the pull request: no submitted review, no review summary, no inline review comment, and no reviewer request. The one permitted output is a short reply to an explicit on-demand request (`/review`) that names the paused subject as the automated review, says the pause is deliberate rather than a failure, and states that human review is unaffected; automatic runs stay silent. A status check is not written content, so the merge gate MUST still report a passing result (as a skipped check rather than as a completed review), and the pause itself MUST NOT add or dismiss approvals or block a merge. The pause covers on-demand runs as well as automatic ones, and restoring the control MUST resume reviews for pull requests opened or re-requested afterwards.
 
 #### Scenario: Pause stops execution and spend
 
@@ -155,7 +155,7 @@ While reviews are paused, the system MUST NOT execute the review agent, MUST NOT
 #### Scenario: A paused on-demand request is answered without a review
 
 - **WHEN** a user comments `/review` while reviews are paused
-- **THEN** no review agent executes, no review is published, and the only output is a reply stating that reviews are paused
+- **THEN** no review agent executes, no review is published, and the only output is a reply saying that the automated review is paused, that the pause is deliberate, and that human review is unaffected
 
 #### Scenario: People are unaffected by the pause
 
