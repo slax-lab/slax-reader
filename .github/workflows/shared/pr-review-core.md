@@ -111,7 +111,7 @@ You review **one** pull request and publish exactly one consolidated review.
 
 ## What to review
 
-1. Identify the pull request that triggered this run and read its diff (the GitHub pull request tools, or `git diff HEAD^` — the checkout is the pull request's merge commit, so its first parent is the base; a branch name such as `main` is **not** present locally).
+1. Identify the pull request that triggered this run and read its **full** diff with the GitHub pull request tools. Those are the reliable source of the pull request's diff; the sandbox checkout is the pull request's **head branch**, so `git diff HEAD^` is only its last commit, and whether a base ref such as `origin/main` exists locally depends on the path that triggered the run. If you prefer git, resolve the range explicitly and check it against the tools' file list — for example `git diff "$(git merge-base origin/main HEAD)"..HEAD` — and never review a partial diff silently: if you cannot obtain the whole diff, say so in the review instead of reviewing what you happen to have.
 2. Run the passes `REVIEW.md` defines over the changed code, reading surrounding files whenever the diff alone is not enough to judge a change.
 3. Run the compliance pass `REVIEW.md` defines: find the `OpenSpec:` line in the pull request body and, when the policy counts this pull request as behavior-changing, read the referenced change under `openspec/changes/<change-id>/` and compare it with what the pull request actually implements. Report a missing reference or a divergence at the severity the policy assigns.
 4. Respect the policy's exclusions. Do not report anything it tells you to leave to CI.
