@@ -1,0 +1,140 @@
+name: PR review gate
+
+# Companion gate (design D4, tasks 7.2/7.11/7.13/7.14/7.15).
+#
+# This is the single required check (context "Agentic PR review"). gh-aw's own job
+# checks cannot serve: it gates its verdict job on the agent having emitted a
+# verdict, and a *skipped* job counts as passing for a required check — so a run
+# that produced no verdict would silently pass. This workflow therefore always
+# reports exactly one status for each review that was supposed to happen, and fails
+# closed whenever it cannot see a published review.
+#
+# Only possible after merge: `workflow_run` — like `workflow_dispatch` and
+# `issue_comment` — only triggers workflows that exist on the default branch.
+
+on:
+  workflow_run:
+    workflows: ["PR Review", "PR Review (on demand)"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report the gate status for the reviewed commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          CONTEXT="Agentic PR review"
+          RUN=$(gh api "repos/$REPO/actions/runs/$RUN_ID")
+          WF=$(jq -r '.name' <<<"$RUN")
+          EVENT=$(jq -r '.event' <<<"$RUN")
+          REVIEWED_SHA=$(jq -r '.head_sha' <<<"$RUN")
+          TITLE=$(jq -r '.display_title // ""' <<<"$RUN")
+          PR_NUMBER=$(sed -n 's/.*#\([0-9][0-9]*\).*/\1/p' <<<"$TITLE" | head -1)
+
+          # Only runs that were supposed to review may touch the status. The
+          # on-demand wrapper also carries a pull_request trigger (opened/edited/
+          # reopened), and those runs skip their agent: reporting success for them
+          # would let a body edit clear a failing verdict.
+          case "$WF" in
+            "PR Review")
+              if [ "$EVENT" != "pull_request" ]; then
+                echo "Run $RUN_ID is $WF on '$EVENT', not a review. Leaving the status untouched."
+                exit 0
+              fi
+              ;;
+            "PR Review (on demand)")
+              case "$EVENT" in
+                issue_comment|pull_request_review_comment) ;;
+                *)
+                  echo "Run $RUN_ID is $WF on '$EVENT', not a command. Leaving the status untouched."
+                  exit 0
+                  ;;
+              esac
+              ;;
+            *)
+              echo "Unexpected workflow '$WF' for run $RUN_ID. Leaving the status untouched."
+              exit 0
+              ;;
+          esac
+
+          JOBS=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100" \
+            --jq '[.jobs[] | {name: .name, conclusion: .conclusion}]')
+          agent=$(jq -r '.[] | select(.name == "agent") | .conclusion' <<<"$JOBS" | head -1)
+          verdict=$(jq -r '.[] | select(.name == "review_verdict") | .conclusion' <<<"$JOBS" | head -1)
+          agent=${agent:-missing}
+          verdict=${verdict:-missing}
+
+          # Which commit the result belongs to. `pull_request` runs are checked out
+          # as the merge commit (`refs/pull/N/merge`), which is NOT the commit a
+          # published review is pinned to (that is the pull request head). The
+          # authoritative answer is therefore the review this very run published:
+          # take its `commit_id`. When the run published none (skipped, or the
+          # agent produced nothing), fall back to the pull request head, and fail
+          # closed unless the skip is a legitimate one.
+          if [ -z "${PR_NUMBER:-}" ]; then
+            echo "::warning::Run $RUN_ID has no pull request number in its title; not reporting."
+            exit 0
+          fi
+          PR_HEAD=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.head.sha')
+          RUN_STARTED=$(jq -r '.run_started_at // .created_at' <<<"$RUN")
+          REVIEW_SHA=$(gh api "repos/$REPO/pulls/$PR_NUMBER/reviews" --paginate \
+            --jq "[.[] | select(.user.login | test(\"github-actions\")) | select(.submitted_at >= \"$RUN_STARTED\")] | last | .commit_id // \"\"")
+          if [ -n "$REVIEW_SHA" ]; then
+            SHA="$REVIEW_SHA"
+          else
+            SHA="$PR_HEAD"
+          fi
+          echo "pull request #$PR_NUMBER: head=$PR_HEAD reviewed=$REVIEW_SHA reporting on $SHA"
+
+          case "$agent" in
+            skipped)
+              state=success
+              desc="Review skipped (paused, fork pull request, or budget cap)"
+              ;;
+            success)
+              case "$verdict" in
+                success)
+                  state=success
+                  desc="Reviewed: no Important findings"
+                  ;;
+                failure)
+                  state=failure
+                  desc="Review reported Important findings"
+                  ;;
+                *)
+                  state=failure
+                  desc="Review ran but produced no verdict; failing closed"
+                  ;;
+              esac
+              ;;
+            *)
+              state=failure
+              desc="Review did not complete (agent job: $agent); failing closed"
+              ;;
+          esac
+
+          # A green result must mean a review was actually published by this run.
+          # Otherwise an agent that only called the verdict tool would pass, and a
+          # run that published nothing would look like a clean review.
+          if [ "$state" = "success" ] && [ "$agent" = "success" ] && [ -z "$REVIEW_SHA" ]; then
+            state=failure
+            desc="No review published for this run; failing closed"
+          fi
+
+          echo "workflow=$WF event=$EVENT agent=$agent verdict=$verdict -> $state ($desc) on $SHA"
+          gh api -X POST "repos/$REPO/statuses/$SHA" \
+            -f state="$state" \
+            -f context="$CONTEXT" \
+            -f description="$desc" \
+            -f target_url="https://github.com/$REPO/actions/runs/$RUN_ID" > /dev/null

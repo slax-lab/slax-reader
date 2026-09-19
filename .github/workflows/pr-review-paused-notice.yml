@@ -1,0 +1,40 @@
+name: PR review paused notice
+
+# Deterministic companion to the review workflow (design D10, task 1.7).
+#
+# `pr-review` is gated by the repository variable PR_REVIEW_ENABLED. Automatic
+# runs stay silent while paused, but somebody who explicitly asks for a review
+# with `/review` must be told that reviews are paused — otherwise a paused system
+# is indistinguishable from a broken one. This workflow is plain GitHub Actions
+# rather than gh-aw so that answering costs no agent run and no model request.
+#
+# Note: GitHub runs `issue_comment` workflows from the default branch, so this
+# only takes effect once merged to `main`.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  # `gh pr comment` posts to the issues comments endpoint, so it needs issues: write
+  # even though the target is a pull request.
+  issues: write
+  pull-requests: write
+
+jobs:
+  notice:
+    if: >-
+      vars.PR_REVIEW_ENABLED == 'false' &&
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/review') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tell the requester that reviews are paused
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+            "Automated review is paused (\`PR_REVIEW_ENABLED=false\`), so this request ran no review. An operator can resume reviews by setting that repository variable to \`true\` or removing it."

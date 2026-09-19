@@ -1,0 +1,40 @@
+name: Agentic noise cleanup
+
+# gh-aw opens bookkeeping issues for its own runs ("[aw] No-Op Runs",
+# "[aw] Detection Runs", "[aw] Failed jobs: …"). They are automation noise: the
+# real signal for a failed review is the `Agentic PR review` status check, and
+# REVIEW.md says so. gh-aw v0.88.7 has no frontmatter switch that suppresses the
+# failed-job path (`GH_AW_REPORT_FAILED_JOBS` stays "true" even with
+# `safe-outputs.report-failure-as-issue: false` and `report-failed-jobs: false` —
+# tasks 1.8/7.8/7.16), so this deterministic workflow closes those issues as they
+# appear, leaving a comment that points at the run for anyone who wants the detail.
+#
+# Scope is deliberately narrow: only issues labelled `agentic-workflows` that were
+# opened by the GitHub Actions bot AND titled with the `[aw] ` prefix.
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  close:
+    if: >-
+      github.event.issue.user.login == 'github-actions[bot]' &&
+      startsWith(github.event.issue.title, '[aw] ') &&
+      contains(github.event.issue.labels.*.name, 'agentic-workflows')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close the automation issue and point at the run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason "not planned" --comment \
+            "Closing automatically: this is gh-aw automation bookkeeping, not a project issue. The status check \`Agentic PR review\` is the signal that matters (see REVIEW.md → Automated review). Run: $RUN_URL"
+          echo "Closed $ISSUE_URL"
