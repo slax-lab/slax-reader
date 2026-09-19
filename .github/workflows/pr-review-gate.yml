@@ -2,7 +2,7 @@ name: PR review gate
 
 # Companion gate (design D4, tasks 7.2/7.11/7.13/7.14/7.15).
 #
-# This is the single required check (context "Agentic PR review"). gh-aw's own job
+# This is the single required check (context "PR review gate"). gh-aw's own job
 # checks cannot serve: it gates its verdict job on the agent having emitted a
 # verdict, and a *skipped* job counts as passing for a required check — so a run
 # that produced no verdict would silently pass. This workflow therefore always
@@ -34,7 +34,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          CONTEXT="Agentic PR review"
+          CONTEXT="PR review gate"
           RUN=$(gh api "repos/$REPO/actions/runs/$RUN_ID")
           # `.name` and `.display_title` both carry the run *name* (our wrappers set
           # `run-name`), so workflow identity must come from the workflow file path.

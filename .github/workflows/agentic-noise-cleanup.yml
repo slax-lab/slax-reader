@@ -2,7 +2,7 @@ name: Agentic noise cleanup
 
 # gh-aw opens bookkeeping issues for its own runs ("[aw] No-Op Runs",
 # "[aw] Detection Runs", "[aw] Failed jobs: …"). They are automation noise: the
-# real signal for a failed review is the `Agentic PR review` status check, and
+# real signal for a failed review is the `PR review gate` status check, and
 # REVIEW.md says so. gh-aw v0.88.7 has no frontmatter switch that suppresses the
 # failed-job path (`GH_AW_REPORT_FAILED_JOBS` stays "true" even with
 # `safe-outputs.report-failure-as-issue: false` and `report-failed-jobs: false` —
@@ -56,7 +56,7 @@ jobs:
             local number="$1" detail
             detail=$(failing_run_url "$number")
             if gh issue close "$number" --repo "$GITHUB_REPOSITORY" --reason "not planned" --comment \
-              "Closing automatically: this is gh-aw automation bookkeeping, not a project issue. The status check \`Agentic PR review\` is the signal that matters (see REVIEW.md → Automated review). Run: $detail"; then
+              "Closing automatically: this is gh-aw automation bookkeeping, not a project issue. The status check \`PR review gate\` is the signal that matters (see REVIEW.md → Automated review). Run: $detail"; then
               echo "Closed #${number}"
               return 0
             fi

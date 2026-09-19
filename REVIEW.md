@@ -57,7 +57,7 @@ Pull requests are reviewed automatically by a GitHub Agentic Workflow (`gh-aw`) 
 
 **When it runs.** Once when a pull request is opened, reopened, or marked ready for review (drafts are skipped until they are ready), and on demand whenever somebody with write access comments `/review`. Ordinary pushes do not trigger a review.
 
-**The `Agentic PR review` status check.** This is the single required check; it is reported by a companion workflow (`pr-review-gate.yml`) after each review run:
+**The `PR review gate` status check.** This is the single required check for the automated review; it is reported by the companion workflow of the same name (`pr-review-gate.yml`) after each review run:
 
 | Status | Meaning |
 | --- | --- |
@@ -70,6 +70,6 @@ Pull requests are reviewed automatically by a GitHub Agentic Workflow (`gh-aw`) 
 
 **Budget.** Each run is capped at `max-ai-credits` and each rolling 24 hours at `max-daily-ai-credits` for this workflow (`pr-review`); hitting a cap skips the run rather than blocking. `/review` runs are exempt from the daily cap.
 
-**If the gate is wrong.** Findings are advice produced by a model: read the review, and if a finding is mistaken, say so on the pull request. To unblock an emergency merge, a repository admin can bypass the check or temporarily remove `Agentic PR review` from the `protect` ruleset — pause with the variable instead whenever pausing is enough.
+**If the gate is wrong.** Findings are advice produced by a model: read the review, and if a finding is mistaken, say so on the pull request. To unblock an emergency merge, a repository admin can bypass the check or temporarily remove `PR review gate` from the `protect` ruleset — pause with the variable instead whenever pausing is enough.
 
 **Automation noise.** The framework may open issues titled `[aw] No-Op Runs`, `[aw] Detection Runs` or `[aw] Failed jobs: …` when a run fails or produces nothing. They are automation bookkeeping, not project issues: the failing status check above is the real signal, and closing those issues is safe.
