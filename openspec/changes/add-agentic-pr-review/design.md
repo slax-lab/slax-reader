@@ -171,11 +171,11 @@ Alternatives considered: disabling the workflow (rejected once the gate lands, f
 Two explicit caps, both of which skip the agent rather than leaving the gate unreported:
 
 - `max-ai-credits` — per-run budget (gh-aw default 1000 AIC = $10; threat detection has its own 400 AIC cap).
-- `max-daily-ai-credits` — daily budget for **this workflow**, summed over its own runs in a rolling 24-hour window, regardless of who triggered them (gh-aw default 5000 AIC = $50, and `-1` disables it). It is per workflow file — not per repository, per user, or per pull request — so any future agentic workflow gets its own budget.
+- `max-daily-ai-credits` — intended as a daily budget for **this workflow**, summed over its own runs in a rolling 24-hour window, regardless of who triggered them. **It does not work here**: verified on the drill pull request #46 with the cap set to 1, where the agent still ran because gh-aw v0.88.7's activation guardrail computes `aic: 0` for these fallback-priced runs (task 2.6 records the log lines). It stays in the frontmatter with a comment saying so, and task 8.5 decides the replacement (report upstream, implement a deterministic daily guard, or rely on the per-run cap alone).
 
 Two properties matter operationally:
 
-- Manual `/review` runs go through the centralized dispatcher (`workflow_dispatch` carrying `aw_context`) and are **exempt** from the daily guardrail by specification. The daily cap therefore throttles automatic reviews only; the pause switch (D10) is the control that covers both paths.
+- The daily guardrail, were it working, would have applied to the automatic workflow only: the on-demand path uses the inline `/review` command, not a centralized dispatcher (task 2.5 — that dispatcher no longer exists), and exemption semantics for command runs are gh-aw's. As it stands the daily cap throttles nothing (above), so the pause switch (D10) and the per-run cap are the controls that cover both paths.
 - AIC is a derived estimate (tokens × catalog pricing; 1 AIC = $0.01). A model absent from AWF's catalog is priced from a conservative fallback rate, so a cap can trip earlier than the provider's real charges, and the accounting is best-effort by design. These caps are fuses, not accounting: task 4.5 reconciles `gh aw logs` AIC against the DeepSeek dashboard, and the pause switch remains the deterministic lever.
 - The guardrail only functions if every model it accounts for can be priced at all, which is why D2's fallback pricing is load-bearing rather than cosmetic: with it, the spike's probe run reported AIC 0.639 for 82,370 tokens; without it the proxy refuses to serve the model with HTTP 400 before `max-ai-credits` can even be consulted.
 
