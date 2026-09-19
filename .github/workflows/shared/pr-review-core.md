@@ -31,7 +31,11 @@ network:
 
 tools:
   github:
-    toolsets: [repos, pull_requests]
+    # `actions` is what lets a review that touches CI read workflow runs, which the
+    # `repos`/`pull_requests` toolsets do not cover. Without it the agent reaches
+    # for `curl https://api.github.com/...`, the firewall blocks it, and the run
+    # carries a "Firewall blocked 1 domain" warning into its published review.
+    toolsets: [repos, pull_requests, actions]
   # The review needs to inspect files and diffs; the agent runs sandboxed with a
   # read-only token and an allowlisted network, which is the boundary that matters.
   bash: [":*"]
@@ -101,6 +105,10 @@ You review **one** pull request and publish exactly one consolidated review.
 2. Run the passes `REVIEW.md` defines over the changed code, reading surrounding files whenever the diff alone is not enough to judge a change.
 3. Run the compliance pass `REVIEW.md` defines: find the `OpenSpec:` line in the pull request body and, when the policy counts this pull request as behavior-changing, read the referenced change under `openspec/changes/<change-id>/` and compare it with what the pull request actually implements. Report a missing reference or a divergence at the severity the policy assigns.
 4. Respect the policy's exclusions. Do not report anything it tells you to leave to CI.
+
+## How to reach GitHub (sandbox)
+
+All GitHub reads go through the GitHub tools above. The sandbox has no network route to GitHub — the `gh` CLI, `curl https://api.github.com/…` and `git fetch` from a remote fail — so never spend a turn on them: a blocked attempt only adds a "Firewall blocked …" warning to the review you publish. If a tool does not answer a question (for example a workflow-run detail), say in the review that you could not check it rather than guessing.
 
 ## How to publish
 

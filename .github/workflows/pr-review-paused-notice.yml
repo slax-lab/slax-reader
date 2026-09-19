@@ -36,5 +36,19 @@ jobs:
           PR_NUMBER: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
-          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
-            "Automated review is paused (\`PR_REVIEW_ENABLED=false\`), so this request ran no review. An operator can resume reviews by setting that repository variable to \`true\` or removing it."
+          # The reply has to say three things, because the notification surfaces
+          # that carry it (the pull request and the team's Feishu bridge) are read
+          # out of context: which review is paused, that nothing is broken, and
+          # that people are not affected. The trailing marker is what the Feishu
+          # bridge keys on, so this notice is never confused with a review result.
+          BODY=$(cat <<'EOF'
+          ⏸ **The automated (AI) review is paused** — the repository variable `PR_REVIEW_ENABLED` is set to `false`, so this `/review` request ran no review. Nothing is broken: the pause is a deliberate operator switch.
+
+          Human review is unaffected — reviewers can still comment, approve, request changes and merge as usual.
+
+          To resume AI reviews, a maintainer sets `PR_REVIEW_ENABLED` to `true` (or deletes the variable).
+
+          <!-- slax-notify:review-paused -->
+          EOF
+          )
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$BODY"
