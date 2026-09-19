@@ -39,8 +39,15 @@ jobs:
           # The reply has to say three things, because the notification surfaces
           # that carry it (the pull request and the team's Feishu bridge) are read
           # out of context: which review is paused, that nothing is broken, and
-          # that people are not affected. The trailing marker is what the Feishu
-          # bridge keys on, so this notice is never confused with a review result.
+          # that people are not affected.
+          #
+          # The trailing marker is a **contract** with the notification bridge, not
+          # a fact about it: the bridge lives outside this repository
+          # (`slax-lab/slax-notify-bridge`, where it matches this marker so a pause
+          # notice is never confused with a review result). Until that bridge ships
+          # the marker check it falls back to the word "paused", which this body
+          # still contains — so the wording below is what makes the notice honest,
+          # not the marker.
           BODY=$(cat <<'EOF'
           ⏸ **The automated (AI) review is paused** — the repository variable `PR_REVIEW_ENABLED` is set to `false`, so this `/review` request ran no review. Nothing is broken: the pause is a deliberate operator switch.
 

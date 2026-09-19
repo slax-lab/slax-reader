@@ -35,6 +35,16 @@ tools:
     # `repos`/`pull_requests` toolsets do not cover. Without it the agent reaches
     # for `curl https://api.github.com/...`, the firewall blocks it, and the run
     # carries a "Firewall blocked 1 domain" warning into its published review.
+    #
+    # The widening was considered on purpose: `actions` also brings `get_job_logs`,
+    # which pulls arbitrary job logs from this repository into the agent's context,
+    # and the agent's output is published as a public review. The agent token is
+    # read-only, GitHub masks secrets in logs, and this repository's CI logs must
+    # not carry secrets — the narrower alternative the framework itself suggested
+    # (adding api.github.com to network.allowed, or `tools.github.mode: gh-proxy`
+    # for a pre-authenticated `gh`) would widen more: the first opens the network,
+    # the second hands the agent a working GitHub client and weakens the
+    # safe-outputs write boundary.
     toolsets: [repos, pull_requests, actions]
   # The review needs to inspect files and diffs; the agent runs sandboxed with a
   # read-only token and an allowlisted network, which is the boundary that matters.
@@ -101,7 +111,7 @@ You review **one** pull request and publish exactly one consolidated review.
 
 ## What to review
 
-1. Identify the pull request that triggered this run and read its diff (the GitHub pull request tools or `git diff` against the base branch).
+1. Identify the pull request that triggered this run and read its diff (the GitHub pull request tools, or `git diff HEAD^` — the checkout is the pull request's merge commit, so its first parent is the base; a branch name such as `main` is **not** present locally).
 2. Run the passes `REVIEW.md` defines over the changed code, reading surrounding files whenever the diff alone is not enough to judge a change.
 3. Run the compliance pass `REVIEW.md` defines: find the `OpenSpec:` line in the pull request body and, when the policy counts this pull request as behavior-changing, read the referenced change under `openspec/changes/<change-id>/` and compare it with what the pull request actually implements. Report a missing reference or a divergence at the severity the policy assigns.
 4. Respect the policy's exclusions. Do not report anything it tells you to leave to CI.
