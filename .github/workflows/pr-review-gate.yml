@@ -36,7 +36,9 @@ jobs:
           set -euo pipefail
           CONTEXT="Agentic PR review"
           RUN=$(gh api "repos/$REPO/actions/runs/$RUN_ID")
-          WF=$(jq -r '.name' <<<"$RUN")
+          # `.name` and `.display_title` both carry the run *name* (our wrappers set
+          # `run-name`), so workflow identity must come from the workflow file path.
+          WF=$(basename "$(jq -r '.path' <<<"$RUN")")
           EVENT=$(jq -r '.event' <<<"$RUN")
           REVIEWED_SHA=$(jq -r '.head_sha' <<<"$RUN")
           TITLE=$(jq -r '.display_title // ""' <<<"$RUN")
@@ -47,13 +49,13 @@ jobs:
           # reopened), and those runs skip their agent: reporting success for them
           # would let a body edit clear a failing verdict.
           case "$WF" in
-            "PR Review")
+            "pr-review.lock.yml")
               if [ "$EVENT" != "pull_request" ]; then
                 echo "Run $RUN_ID is $WF on '$EVENT', not a review. Leaving the status untouched."
                 exit 0
               fi
               ;;
-            "PR Review (on demand)")
+            "pr-review-command.lock.yml")
               case "$EVENT" in
                 issue_comment|pull_request_review_comment) ;;
                 *)
