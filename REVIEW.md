@@ -6,7 +6,7 @@ This file is the single source of truth for review policy in this repo. It is re
 
 Run three passes and tag each finding with its pass:
 
-- **Bugs**: logic errors, broken edge cases, subtle regressions
+- **Bugs (renamed by the policy-indirection drill)**: logic errors, broken edge cases, subtle regressions
 - **Security**: injection risks, authentication gaps, secrets or PII in logs and error messages
 - **Compliance**: the change matches its linked OpenSpec change artifacts (see below)
 
