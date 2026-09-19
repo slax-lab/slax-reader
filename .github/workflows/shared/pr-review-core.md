@@ -53,6 +53,14 @@ tools:
 safe-outputs:
   # Review failures must surface as a failing status check, never as repository issues.
   report-failure-as-issue: false
+  # Threat detection flags output that looks like a hijack attempt. By default it
+  # only warns: the review is published with a caution banner and a human has to
+  # notice. We chose **blocking** instead (drill PR #47), so a flagged output
+  # fails the run and nothing is published; the gate then fails closed. The cost
+  # is accepted deliberately: a false positive drops that review rather than
+  # showing it with a warning banner.
+  threat-detection:
+    continue-on-error: false
   noop:
     report-as-issue: false
   # Findings are published through review surfaces only: at most one review whose
