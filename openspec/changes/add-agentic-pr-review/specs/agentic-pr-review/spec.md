@@ -94,6 +94,12 @@ The system SHALL publish at most one consolidated review per run on the pull req
 - **WHEN** a review run finds no problems at all
 - **THEN** the review is published as a comment review and the pull request is left unapproved
 
+#### Scenario: A flagged review is not published
+
+- **WHEN** threat detection flags the agent's output as a possible prompt-injection or hijack attempt
+- **THEN** the run fails before any review is published, the pull request gains no review from that
+  run, and the required check fails closed instead of reporting a review nobody can read
+
 #### Scenario: Agent cannot write directly
 
 - **WHEN** the agent attempts any repository write that is not a configured review output
@@ -112,6 +118,13 @@ The system SHALL expose a status check whose name is stable across runs. That ch
 
 - **WHEN** a review reports only Nits or nothing at all
 - **THEN** the stable status check reports success for the reviewed commit
+
+#### Scenario: An unpublished run is described as unpublished
+
+- **WHEN** a run ends without publishing a review, whether it was blocked by threat detection or the
+  agent produced nothing
+- **THEN** the status check's description says that no review was published rather than quoting a
+  verdict about a review that does not exist
 
 #### Scenario: Review failure is reported, not silent
 
