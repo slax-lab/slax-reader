@@ -95,8 +95,12 @@ safe-outputs:
             fi
             echo "No Important findings; the gate passes."
 
-# Budget guardrails: bound what a runaway loop or a busy day can spend. Hitting a
-# cap skips the agent job, which still reports a passing required check.
+# Budget guardrails. `max-ai-credits` is enforced by the API proxy per run (it
+# prices every request) and skips the rest of a run when hit. `max-daily-ai-credits`
+# is configured but inert for this BYOK model: gh-aw v0.88.7's activation guardrail
+# computes zero AI credits for these runs, verified on the drill PR #46 where the
+# agent ran with the cap set to 1. Do not rely on it; see REVIEW.md → Budget and
+# task 8.5 of the change.
 max-ai-credits: 300
 max-daily-ai-credits: 2000
 ---
