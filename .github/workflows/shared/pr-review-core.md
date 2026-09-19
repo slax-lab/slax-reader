@@ -98,7 +98,10 @@ safe-outputs:
 # Budget guardrails: bound what a runaway loop or a busy day can spend. Hitting a
 # cap skips the agent job, which still reports a passing required check.
 max-ai-credits: 300
-max-daily-ai-credits: 2000
+# DRILL (temporary, never merged): a deliberately tiny daily cap so the next
+# review run must exceed it and skip the agent job. Restored by closing this
+# pull request.
+max-daily-ai-credits: 1
 ---
 
 # Pull request review
