@@ -54,11 +54,17 @@ jobs:
         run: |
           set -euo pipefail
 
+          # A failed close must not abort the sweep: the point is to drain a
+          # backlog, and one rate limit or concurrently-closed issue would
+          # otherwise leave the rest open for another six hours.
           close_issue() {
             local number="$1"
-            gh issue close "$number" --repo "$GITHUB_REPOSITORY" --reason "not planned" --comment \
-              "Closing automatically: this is gh-aw automation bookkeeping, not a project issue. The status check \`Agentic PR review\` is the signal that matters (see REVIEW.md → Automated review). Run: $RUN_URL"
-            echo "Closed #${number}"
+            if gh issue close "$number" --repo "$GITHUB_REPOSITORY" --reason "not planned" --comment \
+              "Closing automatically: this is gh-aw automation bookkeeping, not a project issue. The status check \`Agentic PR review\` is the signal that matters (see REVIEW.md → Automated review). Run: $RUN_URL"; then
+              echo "Closed #${number}"
+            else
+              echo "::warning::could not close #${number}"
+            fi
           }
 
           if [ "$EVENT_NAME" = "issues" ]; then
@@ -67,15 +73,29 @@ jobs:
           fi
 
           # Sweep: the same filter as the job condition, expressed as a search.
-          mapfile -t numbers < <(
-            gh issue list --repo "$GITHUB_REPOSITORY" --state open --label agentic-workflows \
-              --limit 200 --json number,title,author \
-              --jq '.[] | select(.author.login == "github-actions[bot]") | select(.title | startswith("[aw] ")) | .number'
-          )
-          if [ "${#numbers[@]}" -eq 0 ]; then
+          # The search must be allowed to fail loudly — "nothing matched" and
+          # "could not look" are different outcomes, and this workflow exists
+          # precisely because a cleanup that silently does nothing is invisible.
+          # (A process substitution would hide the exit status here, so the
+          # result is captured into a variable first.)
+          if ! listing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+                --label agentic-workflows --limit 1000 --json number,title,author \
+                --jq '.[] | select(.author.login == "github-actions[bot]") | select(.title | startswith("[aw] ")) | .number'); then
+            echo "::error::issue search failed; the sweep did not run"
+            exit 1
+          fi
+          if [ -z "$listing" ]; then
             echo "No open automation issues."
             exit 0
           fi
-          for number in "${numbers[@]}"; do
+
+          # A plain `while read` loop rather than `mapfile`: it works on any bash
+          # (including the 3.2 a maintainer may have locally, which makes this
+          # step testable outside a runner).
+          swept=0
+          while IFS= read -r number; do
+            [ -n "$number" ] || continue
             close_issue "$number"
-          done
+            swept=$((swept + 1))
+          done <<<"$listing"
+          echo "Swept ${swept} issue(s)."
