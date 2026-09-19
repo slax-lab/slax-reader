@@ -6,8 +6,18 @@ name: Agentic noise cleanup
 # REVIEW.md says so. gh-aw v0.88.7 has no frontmatter switch that suppresses the
 # failed-job path (`GH_AW_REPORT_FAILED_JOBS` stays "true" even with
 # `safe-outputs.report-failure-as-issue: false` and `report-failed-jobs: false` —
-# tasks 1.8/7.8/7.16), so this deterministic workflow closes those issues as they
-# appear, leaving a comment that points at the run for anyone who wants the detail.
+# tasks 1.8/7.8/7.16), so this deterministic workflow closes those issues,
+# leaving a comment that points at the run for anyone who wants the detail.
+#
+# The `issues: [opened]` trigger alone does **not** work: gh-aw creates the issue
+# with the workflow's own `GITHUB_TOKEN`, and GitHub suppresses workflow runs
+# caused by that token (only `workflow_dispatch` and `repository_dispatch` are
+# exempt) to stop recursion. The first version of this workflow therefore never
+# ran for a single bot-created issue — issues #30–#32 sat open while the only run
+# on record was a human-created drill that was correctly skipped. The `schedule`
+# trigger is the reliable path; `workflow_dispatch` exists so the sweep can be
+# run on demand, and the `issues` trigger is kept for issues a human files while
+# impersonating the bot's shape (it is a no-op otherwise).
 #
 # Scope is deliberately narrow: only issues labelled `agentic-workflows` that were
 # opened by the GitHub Actions bot AND titled with the `[aw] ` prefix.
@@ -15,26 +25,57 @@ name: Agentic noise cleanup
 on:
   issues:
     types: [opened]
+  schedule:
+    # Every six hours, at :41 so it does not pile up with the top-of-hour runs.
+    - cron: '41 */6 * * *'
+  workflow_dispatch:
 
 permissions:
   issues: write
 
 jobs:
   close:
+    # On `issues` the event names one issue, so the filter runs here. On the
+    # sweep triggers there is no issue in the payload: the filter is the search
+    # below, and this condition must not short-circuit the job.
     if: >-
-      github.event.issue.user.login == 'github-actions[bot]' &&
+      github.event_name != 'issues' ||
+      (github.event.issue.user.login == 'github-actions[bot]' &&
       startsWith(github.event.issue.title, '[aw] ') &&
-      contains(github.event.issue.labels.*.name, 'agentic-workflows')
+      contains(github.event.issue.labels.*.name, 'agentic-workflows'))
     runs-on: ubuntu-latest
     steps:
-      - name: Close the automation issue and point at the run
+      - name: Close the automation issues and point at the run
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-          ISSUE_URL: ${{ github.event.issue.html_url }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason "not planned" --comment \
-            "Closing automatically: this is gh-aw automation bookkeeping, not a project issue. The status check \`Agentic PR review\` is the signal that matters (see REVIEW.md → Automated review). Run: $RUN_URL"
-          echo "Closed $ISSUE_URL"
+
+          close_issue() {
+            local number="$1"
+            gh issue close "$number" --repo "$GITHUB_REPOSITORY" --reason "not planned" --comment \
+              "Closing automatically: this is gh-aw automation bookkeeping, not a project issue. The status check \`Agentic PR review\` is the signal that matters (see REVIEW.md → Automated review). Run: $RUN_URL"
+            echo "Closed #${number}"
+          }
+
+          if [ "$EVENT_NAME" = "issues" ]; then
+            close_issue "$ISSUE_NUMBER"
+            exit 0
+          fi
+
+          # Sweep: the same filter as the job condition, expressed as a search.
+          mapfile -t numbers < <(
+            gh issue list --repo "$GITHUB_REPOSITORY" --state open --label agentic-workflows \
+              --limit 200 --json number,title,author \
+              --jq '.[] | select(.author.login == "github-actions[bot]") | select(.title | startswith("[aw] ")) | .number'
+          )
+          if [ "${#numbers[@]}" -eq 0 ]; then
+            echo "No open automation issues."
+            exit 0
+          fi
+          for number in "${numbers[@]}"; do
+            close_issue "$number"
+          done
