@@ -168,7 +168,7 @@ Alternatives considered: disabling the workflow (rejected once the gate lands, f
 
 ### D11. Budget guardrails
 
-Two explicit caps, both of which skip the agent rather than leaving the gate unreported:
+One working cap, one configured but inert (see the bullet below — verified on the drill pull request #46), both intended to skip the agent rather than leaving the gate unreported:
 
 - `max-ai-credits` — per-run budget (gh-aw default 1000 AIC = $10; threat detection has its own 400 AIC cap).
 - `max-daily-ai-credits` — intended as a daily budget for **this workflow**, summed over its own runs in a rolling 24-hour window, regardless of who triggered them. **It does not work here**: verified on the drill pull request #46 with the cap set to 1, where the agent still ran because gh-aw v0.88.7's activation guardrail computes `aic: 0` for these fallback-priced runs (task 2.6 records the log lines). It stays in the frontmatter with a comment saying so, and task 8.5 decides the replacement (report upstream, implement a deterministic daily guard, or rely on the per-run cap alone).
@@ -192,7 +192,7 @@ Two properties matter operationally:
 - **Review noise / false Important findings** → the workflow lands before the gate, so the team can calibrate `REVIEW.md` and the prompt on real PRs first.
 - **Pausing the wrong way would block every merge** → the pause switch (D10) is a repository variable implemented from day one and documented in `REVIEW.md`; disabling the workflow is explicitly forbidden once the required check is live, and the pause/resume drill (task 5.4) proves the check still passes while paused.
 - **A paused run is easy to misread as a passing review** (the check reports as skipped, which does not block a merge) → accepted for automatic runs, where `REVIEW.md` documents that "skipped" means "not reviewed" and how to confirm the pause state (task 6.1); an explicit `/review` is answered with the paused reply so a human asking for a review is never left guessing (D10); the merge gate's own verdict remains the only thing that blocks.
-- **AI-credit caps can disagree with the real DeepSeek bill** (catalog-unknown model priced at a conservative fallback rate; daily cap is per workflow and `/review` runs bypass it) → treat the caps as fuses rather than accounting, reconcile actual spend in task 4.5, and use the pause switch when the goal is "spend nothing today".
+- **AI-credit accounting can disagree with the real DeepSeek bill** (catalog-unknown model priced at a conservative fallback rate, so AIC over-counts; task 4.5 measured ≈1.9×) and **the daily cap does not fire at all** (task 2.6) → treat the per-run cap as a fuse rather than as accounting, rely on the pause switch when the goal is "spend nothing today", and let task 8.5 decide whether to replace the daily guard.
 
 ## Migration Plan
 
