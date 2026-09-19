@@ -1,13 +1,17 @@
-# Default owner: every file is owned by @boxcounter.
-* @boxcounter
+# Catch-all owner: the reader-core team (admin access on this repository). Any member
+# can satisfy the required code-owner review, so normal merges stay possible — an
+# author cannot approve their own pull request, and a single named owner left nobody
+# able to approve the pull requests that person authored.
+* @slax-lab/reader-core
 
-# Future monorepo layout. Uncomment a rule once the directory exists, and replace the owner
-# with the right user or team (org teams: @slax-lab/reader-dev, @slax-lab/doc-maintainers).
-# /apps/web/**        @boxcounter
-# /apps/extension/**  @boxcounter
-# /apps/backend/**    @boxcounter
-# /apps/cli/**        @boxcounter
-# /packages/**        @boxcounter
-# /tooling/**         @boxcounter
-# /tests/**           @boxcounter
-# /docs/**            @boxcounter
+# Path-level ownership lands together with the code. CODEOWNERS is LAST-MATCH-WINS,
+# so keep the catch-all first and add more specific rules below as directories fill
+# up (available org teams: @slax-lab/reader-core, @slax-lab/doc-maintainers).
+# /apps/web/**        @slax-lab/reader-core
+# /apps/extension/**  @slax-lab/reader-core
+# /apps/backend/**    @slax-lab/reader-core
+# /apps/cli/**        @slax-lab/reader-core
+# /packages/**        @slax-lab/reader-core
+# /tooling/**         @slax-lab/reader-core
+# /tests/**           @slax-lab/reader-core
+# /docs/**            @slax-lab/doc-maintainers
