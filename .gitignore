@@ -7,7 +7,10 @@ Thumbs.db
 .vscode/
 
 # Node dependencies
-node_modules/
+# A trailing slash matches directories only, so a symlink named node_modules
+# (e.g. one created inside a git worktree to reuse the main checkout's deps)
+# would be committed and then break `pnpm install` in CI.
+node_modules
 
 # Build output
 dist/
