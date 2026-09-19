@@ -42,13 +42,13 @@ jobs:
           # out of context: which review is paused, that nothing is broken, and
           # that people are not affected.
           #
-          # The trailing marker is a **contract** with the notification bridge,
-          # which lives in another repository (`slax-lab/slax-notify-bridge`): that
-          # bridge matches this marker so a pause notice can never be confused with
-          # a review result. It shipped the marker check in its PR #2; the word
-          # "paused" it used before is still present in the body below as a fallback
-          # for notices posted earlier, so the wording — not the marker — is what
-          # makes the notice honest.
+          # The trailing marker is the **protocol** the notification bridge parses
+          # (`slax-lab/slax-notify-bridge`, private): `<!-- notify: kind=paused -->`
+          # declares what this comment *is*, so the bridge never guesses from
+          # prose. Notification policy — which card is sent and to whom — lives in
+          # that bridge; this repository only states the intent. Deprecated
+          # product-specific markers were accepted by the bridge only while this
+          # switch was pending.
           BODY=$(cat <<'EOF'
           ⏸ **The automated (AI) review is paused** — the repository variable `PR_REVIEW_ENABLED` is set to `false`, so this `/review` request ran no review. Nothing is broken: the pause is a deliberate operator switch.
 
@@ -56,7 +56,7 @@ jobs:
 
           To resume AI reviews, a maintainer sets `PR_REVIEW_ENABLED` to `true` (or deletes the variable).
 
-          <!-- slax-notify:review-paused -->
+          <!-- notify: kind=paused -->
           EOF
           )
           gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$BODY"
