@@ -51,9 +51,9 @@ jobs:
       - name: gh-aw compile drift check
         run: |
           set -euo pipefail
-          # A *full* compile is required: compiling a single workflow neither
-          # regenerates the shared command dispatcher nor purges orphaned lock
-          # files, so a per-file check would miss exactly the drift that matters.
+          # A *full* compile is required: compiling a single workflow does not
+          # purge orphaned lock files, so a per-file check would miss exactly the
+          # drift that matters.
           gh aw compile --strict --purge --no-check-update
           # Only generated paths are inspected: hand-edited workflow sources (this
           # file, the review wrappers, the paused-notice companion) are not drift.
