@@ -7,24 +7,21 @@ name: Agentic noise cleanup
 # failed-job path (`GH_AW_REPORT_FAILED_JOBS` stays "true" even with
 # `safe-outputs.report-failure-as-issue: false` and `report-failed-jobs: false` —
 # tasks 1.8/7.8/7.16), so this deterministic workflow closes those issues,
-# leaving a comment that points at the run for anyone who wants the detail.
+# leaving a comment that points at the failing run for anyone who wants the detail.
 #
-# The `issues: [opened]` trigger alone does **not** work: gh-aw creates the issue
-# with the workflow's own `GITHUB_TOKEN`, and GitHub suppresses workflow runs
-# caused by that token (only `workflow_dispatch` and `repository_dispatch` are
-# exempt) to stop recursion. The first version of this workflow therefore never
-# ran for a single bot-created issue — issues #30–#32 sat open while the only run
-# on record was a human-created drill that was correctly skipped. The `schedule`
-# trigger is the reliable path; `workflow_dispatch` exists so the sweep can be
-# run on demand, and the `issues` trigger is kept for issues a human files while
-# impersonating the bot's shape (it is a no-op otherwise).
+# There is deliberately **no `issues: [opened]` trigger**. The first version had
+# one and never ran: gh-aw creates these issues with the workflow's own
+# `GITHUB_TOKEN`, and GitHub suppresses workflow runs caused by that token (only
+# `workflow_dispatch` and `repository_dispatch` are exempt) to stop recursion.
+# Issues #30–#32 sat open while the only run on record was a human-created drill
+# that was correctly skipped — the negative case verified, the positive one never.
+# A trigger that cannot fire is worse than no trigger, so the sweep is driven by
+# `schedule` and can be run on demand with `workflow_dispatch`.
 #
 # Scope is deliberately narrow: only issues labelled `agentic-workflows` that were
 # opened by the GitHub Actions bot AND titled with the `[aw] ` prefix.
 
 on:
-  issues:
-    types: [opened]
   schedule:
     # Every six hours, at :41 so it does not pile up with the top-of-hour runs.
     - cron: '41 */6 * * *'
@@ -35,49 +32,43 @@ permissions:
 
 jobs:
   close:
-    # On `issues` the event names one issue, so the filter runs here. On the
-    # sweep triggers there is no issue in the payload: the filter is the search
-    # below, and this condition must not short-circuit the job.
-    if: >-
-      github.event_name != 'issues' ||
-      (github.event.issue.user.login == 'github-actions[bot]' &&
-      startsWith(github.event.issue.title, '[aw] ') &&
-      contains(github.event.issue.labels.*.name, 'agentic-workflows'))
     runs-on: ubuntu-latest
     steps:
-      - name: Close the automation issues and point at the run
+      - name: Close the automation issues and point at each failing run
         env:
           GH_TOKEN: ${{ github.token }}
-          EVENT_NAME: ${{ github.event_name }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
 
-          # A failed close must not abort the sweep: the point is to drain a
-          # backlog, and one rate limit or concurrently-closed issue would
-          # otherwise leave the rest open for another six hours.
-          close_issue() {
-            local number="$1"
-            if gh issue close "$number" --repo "$GITHUB_REPOSITORY" --reason "not planned" --comment \
-              "Closing automatically: this is gh-aw automation bookkeeping, not a project issue. The status check \`Agentic PR review\` is the signal that matters (see REVIEW.md → Automated review). Run: $RUN_URL"; then
-              echo "Closed #${number}"
-            else
-              echo "::warning::could not close #${number}"
-            fi
+          # The issue body already carries the run that failed, so the comment can
+          # point at it; the cleanup run itself holds no detail about the issue.
+          failing_run_url() {
+            local number="$1" body url
+            body=$(gh issue view "$number" --repo "$GITHUB_REPOSITORY" --json body --jq .body 2>/dev/null || true)
+            url=$(printf '%s\n' "$body" | grep -oE 'https://[^ )]*/actions/runs/[0-9]+' | head -1 || true)
+            printf '%s' "${url:-$RUN_URL}"
           }
 
-          if [ "$EVENT_NAME" = "issues" ]; then
-            close_issue "$ISSUE_NUMBER"
-            exit 0
-          fi
+          # A failed close is reported and counted, not fatal: the point is to
+          # drain a backlog, so one rate limit must not strand the rest.
+          close_issue() {
+            local number="$1" detail
+            detail=$(failing_run_url "$number")
+            if gh issue close "$number" --repo "$GITHUB_REPOSITORY" --reason "not planned" --comment \
+              "Closing automatically: this is gh-aw automation bookkeeping, not a project issue. The status check \`Agentic PR review\` is the signal that matters (see REVIEW.md → Automated review). Run: $detail"; then
+              echo "Closed #${number}"
+              return 0
+            fi
+            echo "::warning::could not close #${number}"
+            return 1
+          }
 
-          # Sweep: the same filter as the job condition, expressed as a search.
-          # The search must be allowed to fail loudly — "nothing matched" and
+          # The search must be allowed to fail loudly: "nothing matched" and
           # "could not look" are different outcomes, and this workflow exists
           # precisely because a cleanup that silently does nothing is invisible.
-          # (A process substitution would hide the exit status here, so the
-          # result is captured into a variable first.)
+          # (A process substitution would hide the exit status here, so the result
+          # is captured into a variable first.)
           if ! listing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
                 --label agentic-workflows --limit 1000 --json number,title,author \
                 --jq '.[] | select(.author.login == "github-actions[bot]") | select(.title | startswith("[aw] ")) | .number'); then
@@ -89,13 +80,24 @@ jobs:
             exit 0
           fi
 
-          # A plain `while read` loop rather than `mapfile`: it works on any bash
-          # (including the 3.2 a maintainer may have locally, which makes this
+          # A portable `while read` loop rather than `mapfile`: it works on any
+          # bash (including the 3.2 a maintainer may have locally, which makes this
           # step testable outside a runner).
-          swept=0
+          closed=0
+          failed=0
           while IFS= read -r number; do
             [ -n "$number" ] || continue
-            close_issue "$number"
-            swept=$((swept + 1))
+            if close_issue "$number"; then
+              closed=$((closed + 1))
+            else
+              failed=$((failed + 1))
+            fi
           done <<<"$listing"
-          echo "Swept ${swept} issue(s)."
+
+          echo "Swept ${closed} issue(s); ${failed} failed."
+          # Closing nothing while something failed is exactly the invisible outcome
+          # this workflow exists to prevent, so it must not end green.
+          if [ "$closed" -eq 0 ] && [ "$failed" -gt 0 ]; then
+            echo "::error::every close failed; the sweep achieved nothing"
+            exit 1
+          fi
