@@ -126,10 +126,15 @@ jobs:
               ;;
           esac
 
-          # A green result must mean a review was actually published by this run.
-          # Otherwise an agent that only called the verdict tool would pass, and a
-          # run that published nothing would look like a clean review.
-          if [ "$state" = "success" ] && [ "$agent" = "success" ] && [ -z "$REVIEW_SHA" ]; then
+          # The description must match reality. A green result has to mean a review
+          # was actually published by this run — otherwise an agent that only called
+          # the verdict tool would pass and a run that published nothing would look
+          # like a clean review. The same holds for a failure: when nothing was
+          # published there is no review for the author to read, so the verdict is
+          # not the explanation. That is what detection blocking looks like
+          # (drill #59: detection failed, the publish job was skipped, and the
+          # earlier message wrongly blamed findings nobody could read).
+          if [ "$agent" = "success" ] && [ -z "$REVIEW_SHA" ]; then
             state=failure
             desc="No review published for this run; failing closed"
           fi
