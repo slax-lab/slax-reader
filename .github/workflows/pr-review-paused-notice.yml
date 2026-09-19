@@ -42,13 +42,12 @@ jobs:
           # out of context: which review is paused, that nothing is broken, and
           # that people are not affected.
           #
-          # The trailing marker is the **protocol** the notification bridge parses
-          # (`slax-lab/slax-notify-bridge`, private): `<!-- notify: kind=paused -->`
-          # declares what this comment *is*, so the bridge never guesses from
+          # The trailing marker is the **protocol** the notification bridge parses:
+          # it declares what this comment *is*, so the bridge never guesses from
           # prose. Notification policy — which card is sent and to whom — lives in
-          # that bridge; this repository only states the intent. Deprecated
-          # product-specific markers were accepted by the bridge only while this
-          # switch was pending.
+          # the bridge (`slax-lab/slax-notify-bridge`); this repository only states
+          # its intent. What older markers the bridge still accepts is its business,
+          # tracked by its change `per-repo-notification-policy`.
           BODY=$(cat <<'EOF'
           ⏸ **The automated (AI) review is paused** — the repository variable `PR_REVIEW_ENABLED` is set to `false`, so this `/review` request ran no review. Nothing is broken: the pause is a deliberate operator switch.
 
