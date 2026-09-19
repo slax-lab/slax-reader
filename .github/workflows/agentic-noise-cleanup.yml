@@ -69,9 +69,16 @@ jobs:
           # precisely because a cleanup that silently does nothing is invisible.
           # (A process substitution would hide the exit status here, so the result
           # is captured into a variable first.)
-          if ! listing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
-                --label agentic-workflows --limit 1000 --json number,title,author \
-                --jq '.[] | select(.author.login == "github-actions[bot]") | select(.title | startswith("[aw] ")) | .number'); then
+          #
+          # The REST API, not `gh issue list`: the two disagree about the author of
+          # a workflow-created issue. REST reports `github-actions[bot]`, while the
+          # GraphQL-backed listing reports `app/github-actions` — which is why the
+          # first version of this search matched nothing and the sweep reported
+          # "No open automation issues." over three open ones. `--paginate` also
+          # removes the page-size ceiling the `--limit` version had.
+          if ! listing=$(gh api --paginate \
+                "repos/${GITHUB_REPOSITORY}/issues?state=open&labels=agentic-workflows&per_page=100" \
+                --jq '.[] | select(.pull_request == null) | select(.user.login == "github-actions[bot]") | select(.title | startswith("[aw] ")) | .number'); then
             echo "::error::issue search failed; the sweep did not run"
             exit 1
           fi
