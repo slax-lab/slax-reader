@@ -16,6 +16,9 @@ on:
 
 jobs:
   guard:
+    # Display name shown as the required status check on pull requests; the
+    # `protect` ruleset must name this exact string.
+    name: agent-config drift check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
