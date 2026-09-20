@@ -39,6 +39,18 @@ This repo uses OpenSpec for spec-driven development. Living specs live in `opens
 - Implementation-only changes (refactors, typos, comment/doc tweaks) MAY skip the proposal.
 - After editing specs or changes, run `openspec validate --all --strict`; it must pass before merge.
 
+## Parallel Work — Worktree Convention
+
+Every task — human- or agent-driven — gets its own git worktree on its own branch. Nothing is edited directly in the main checkout on `main`.
+
+- Location: `.worktree/<task-name>` inside this repository (gitignored); branch: `feat/<task-name>` cut from `origin/main`.
+- Before the first file edit of a session, check where you are: if `git rev-parse --show-toplevel` is the main checkout and `git branch --show-current` is `main`, STOP. Ask the human to create a task worktree — or, with the human's approval, create it yourself: `git worktree add .worktree/<task-name> -b feat/<task-name> origin/main`, then `cd` into it and run `pnpm install` before building or testing.
+- One task = one worktree = one branch = one PR. Use the task name as the OpenSpec change-id (when a change is required) so worktree, branch, change, and PR stay aligned.
+- Parallel tasks MUST NOT carry delta specs for the same capability (`openspec/specs/<capability>/`); sequence such tasks instead. Archive a merged change promptly, via its own small PR.
+- Work only inside your own task's worktree: other directories under `.worktree/` are other tasks' live checkouts — reading across is fine, editing across is not.
+- Finishing: after the PR merges, remove the worktree (`git worktree remove .worktree/<task-name>`) and delete the merged branch.
+- Trivial fixes (typo scale, single file) MAY skip the worktree, but still go through a branch + PR — direct pushes to `main` are rejected by the repository's ruleset.
+
 ## Code Review
 
 `REVIEW.md` at the repo root is the single source of truth for review policy: review passes, Important-vs-Nit calibration, and the compliance pass against the PR's linked OpenSpec change. Any agent asked to review code or a PR MUST read and follow it. Behavior-changing PRs must name their change via an `OpenSpec: <change-id>` line in the PR body. `REVIEW.md` carries review instructions only — when editing it, never add operational documentation (triggers, gates, pausing, budget, troubleshooting); that belongs next to the workflows or in `docs/`.

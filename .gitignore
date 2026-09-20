@@ -35,6 +35,9 @@ logs/
 # Kimi Code CLI Tower mode local tooling state
 .tower/
 
+# Task worktrees (parallel-work convention, see AGENTS.md)
+.worktree/
+
 # Agent tooling: personal/local files (generated artifacts ARE committed on purpose)
 rulesync.local.jsonc
 .rulesync.local/
