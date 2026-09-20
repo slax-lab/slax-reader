@@ -9,14 +9,14 @@ importers:
   .:
     devDependencies:
       '@fission-ai/openspec':
-        specifier: 1.13.0
-        version: 1.13.0
+        specifier: 1.13.1
+        version: 1.13.1
       lefthook:
         specifier: ^2.1.14
         version: 2.1.14
       rulesync:
-        specifier: 16.34.1
-        version: 16.34.1(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jose@6.2.12)(openapi-types@12.1.3)(valibot@1.5.0)
+        specifier: 16.39.1
+        version: 16.39.1(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jose@6.2.12)(openapi-types@12.1.3)(valibot@1.5.0)
 
 packages:
 
@@ -39,8 +39,8 @@ packages:
   '@borewit/text-codec@0.2.2':
     resolution: {integrity: sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ==}
 
-  '@fission-ai/openspec@1.13.0':
-    resolution: {integrity: sha512-1b1VbjELIUHPz8BLnkVxqPu4pAYS6BhfrLcmUIM7Bd0iJXQDvE+e/LBofE1kydegfxmG7R1xCMRXsl5VtZD+0w==}
+  '@fission-ai/openspec@1.13.1':
+    resolution: {integrity: sha512-UHJSV2n6ohjfRaJLvi526avOohFS/orCjM+7JPgvDzuEJbCCkykKfP2fp3gcsvthDLeWolMRT5JAE08MSPnr8Q==}
     engines: {node: '>=20.19.0'}
     hasBin: true
 
@@ -396,6 +396,10 @@ packages:
 
   chardet@2.2.0:
     resolution: {integrity: sha512-rddelWYNPRrXq6PtNEN2S3f6t9ILzvqaN5pVgi4kqt9jHQaXIial9PznB5iSPVlQSLNaaH22ItWz3EJtQ10+OA==}
+
+  chokidar@5.0.0:
+    resolution: {integrity: sha512-TQMmc3w+5AxjpL8iIiwebF73dRDF4fBIieAqGn9RGCWaEVwQ6Fb2cGe31Yns0RRIzii5goJ1Y7xbMwo1TxMplw==}
+    engines: {node: '>= 20.19.0'}
 
   cli-cursor@5.0.0:
     resolution: {integrity: sha512-aCj4O5wKyszjMmDT4tZj93kxyydN/K5zPWSCe6/0AV/AA1pqe5ZBIw0a2ZfPQV7lL5/yb5HsUreJ6UFAF1tEQw==}
@@ -1078,6 +1082,10 @@ packages:
     resolution: {integrity: sha512-K5zQjDllxWkf7Z5xJdV0/B0WTNqx6vxG70zJE4N0kBs4LovmEYWJzQGxC9bS9RAKu3bgM40lrd5zoLJ12MQ5BA==}
     engines: {node: '>= 0.10'}
 
+  readdirp@5.1.1:
+    resolution: {integrity: sha512-Kko+Y5XQ6fM+Ce3dq3m9YGxnacYZYl9cA1wZjaF3Vbry2L3i1qVg8+CAgNPsXRArPMUMCaOR7oa9Nqntc43JKA==}
+    engines: {node: '>= 20.19.0'}
+
   require-from-string@2.0.2:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
@@ -1094,8 +1102,8 @@ packages:
     resolution: {integrity: sha512-nLTrUKm2UyiL7rlhapu/Zl45FwNgkZGaCpZbIHajDYgwlJCOzLSk+cIPAnsEqV955GjILJnKbdQC1nVPz+gAYQ==}
     engines: {node: '>= 18'}
 
-  rulesync@16.34.1:
-    resolution: {integrity: sha512-ERsSeN2EVeJXUCySnU4mV9FqJJ9tJrBpnSvM6PHFJ/BGIIhLYP5UQZJP2ZKaKnneyYoctKSIoD3IYaCw0bICDA==}
+  rulesync@16.39.1:
+    resolution: {integrity: sha512-cf9+AMKIsBR2suo6wwe9/ur7jY/jCk4GIQhExO4ANEiFWDa6rUPfNEmGvGHTYnR+Ilkawgd12odGsdUBgaZjgA==}
     engines: {node: '>=22.0.0', pnpm: '>=10'}
     hasBin: true
 
@@ -1354,7 +1362,7 @@ snapshots:
 
   '@borewit/text-codec@0.2.2': {}
 
-  '@fission-ai/openspec@1.13.0':
+  '@fission-ai/openspec@1.13.1':
     dependencies:
       '@inquirer/core': 11.2.1
       '@inquirer/prompts': 8.7.2
@@ -1482,11 +1490,11 @@ snapshots:
       eventsource-parser: 3.1.1
       jose: 6.2.12
       pkce-challenge: 5.0.1
-      zod: 4.6.2
+      zod: 4.6.5
 
   '@modelcontextprotocol/core@2.0.0':
     dependencies:
-      zod: 4.6.2
+      zod: 4.6.5
 
   '@modelcontextprotocol/sdk@1.30.0(zod@4.6.2)':
     dependencies:
@@ -1510,10 +1518,32 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@modelcontextprotocol/sdk@1.30.0(zod@4.6.5)':
+    dependencies:
+      '@hono/node-server': 2.1.1(hono@4.13.8)
+      ajv: 8.20.0
+      ajv-formats: 3.0.1(ajv@8.20.0)
+      content-type: 1.0.5
+      cors: 2.8.6
+      cross-spawn: 7.0.6
+      eventsource: 3.0.7
+      eventsource-parser: 3.1.1
+      express: 5.2.1
+      express-rate-limit: 8.7.0(express@5.2.1)
+      hono: 4.13.8
+      jose: 6.2.12
+      json-schema-typed: 8.0.2
+      pkce-challenge: 5.0.1
+      raw-body: 3.0.2
+      zod: 4.6.5
+      zod-to-json-schema: 3.25.2(zod@4.6.5)
+    transitivePeerDependencies:
+      - supports-color
+
   '@modelcontextprotocol/server@2.0.0':
     dependencies:
       '@modelcontextprotocol/core': 2.0.0
-      zod: 4.6.2
+      zod: 4.6.5
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
@@ -1709,6 +1739,10 @@ snapshots:
   chalk@5.6.2: {}
 
   chardet@2.2.0: {}
+
+  chokidar@5.0.0:
+    dependencies:
+      readdirp: 5.1.1
 
   cli-cursor@5.0.0:
     dependencies:
@@ -1921,7 +1955,7 @@ snapshots:
   fastmcp@4.20.11(@valibot/to-json-schema@1.7.1(valibot@1.5.0))(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(effect@3.22.2)(jose@6.2.12)(openapi-types@12.1.3)(sury@10.0.4):
     dependencies:
       '@apidevtools/swagger-parser': 12.1.0(openapi-types@12.1.3)
-      '@modelcontextprotocol/sdk': 1.30.0(zod@4.6.2)
+      '@modelcontextprotocol/sdk': 1.30.0(zod@4.6.5)
       '@standard-schema/spec': 1.1.0
       execa: 9.6.1
       file-type: 21.3.4
@@ -1930,10 +1964,10 @@ snapshots:
       mcp-proxy: 6.7.18
       strict-event-emitter-types: 2.0.0
       uri-templates: 0.2.0
-      xsschema: 0.4.4(@valibot/to-json-schema@1.7.1(valibot@1.5.0))(effect@3.22.2)(sury@10.0.4)(zod-to-json-schema@3.25.2(zod@4.6.2))(zod@4.6.2)
+      xsschema: 0.4.4(@valibot/to-json-schema@1.7.1(valibot@1.5.0))(effect@3.22.2)(sury@10.0.4)(zod-to-json-schema@3.25.2(zod@4.6.5))(zod@4.6.5)
       yargs: 18.1.0
-      zod: 4.6.2
-      zod-to-json-schema: 3.25.2(zod@4.6.2)
+      zod: 4.6.5
+      zod-to-json-schema: 3.25.2(zod@4.6.5)
     optionalDependencies:
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
@@ -2390,6 +2424,8 @@ snapshots:
       iconv-lite: 0.7.3
       unpipe: 1.0.0
 
+  readdirp@5.1.1: {}
+
   require-from-string@2.0.2: {}
 
   restore-cursor@5.1.0:
@@ -2409,7 +2445,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  rulesync@16.34.1(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jose@6.2.12)(openapi-types@12.1.3)(valibot@1.5.0):
+  rulesync@16.39.1(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jose@6.2.12)(openapi-types@12.1.3)(valibot@1.5.0):
     dependencies:
       '@inquirer/checkbox': 5.2.5
       '@modelcontextprotocol/sdk': 1.30.0(zod@4.6.2)
@@ -2417,6 +2453,7 @@ snapshots:
       '@octokit/rest': 22.0.1
       '@toon-format/toon': 4.1.1
       '@valibot/to-json-schema': 1.7.1(valibot@1.5.0)
+      chokidar: 5.0.0
       commander: 15.0.0
       effect: 3.22.2
       es-toolkit: 1.52.0
@@ -2606,13 +2643,13 @@ snapshots:
 
   wrappy@1.0.2: {}
 
-  xsschema@0.4.4(@valibot/to-json-schema@1.7.1(valibot@1.5.0))(effect@3.22.2)(sury@10.0.4)(zod-to-json-schema@3.25.2(zod@4.6.2))(zod@4.6.2):
+  xsschema@0.4.4(@valibot/to-json-schema@1.7.1(valibot@1.5.0))(effect@3.22.2)(sury@10.0.4)(zod-to-json-schema@3.25.2(zod@4.6.5))(zod@4.6.5):
     optionalDependencies:
       '@valibot/to-json-schema': 1.7.1(valibot@1.5.0)
       effect: 3.22.2
       sury: 10.0.4
-      zod: 4.6.2
-      zod-to-json-schema: 3.25.2(zod@4.6.2)
+      zod: 4.6.5
+      zod-to-json-schema: 3.25.2(zod@4.6.5)
 
   y18n@5.0.8: {}
 
@@ -2634,6 +2671,10 @@ snapshots:
   zod-to-json-schema@3.25.2(zod@4.6.2):
     dependencies:
       zod: 4.6.2
+
+  zod-to-json-schema@3.25.2(zod@4.6.5):
+    dependencies:
+      zod: 4.6.5
 
   zod@4.6.2: {}
 
