@@ -36,12 +36,12 @@ This repo uses OpenSpec for spec-driven development. Living specs live in `opens
 
 Every task — human- or agent-driven — gets its own git worktree on its own branch. Nothing is edited directly in the main checkout on `main`.
 
-- Location: `.worktree/<task-name>` inside this repository (gitignored); branch: `feat/<task-name>` cut from `origin/main`.
-- Before the first file edit of a session, check where you are: if `git rev-parse --show-toplevel` is the main checkout and `git branch --show-current` is `main`, STOP. Ask the human to create a task worktree — or, with the human's approval, create it yourself: `git worktree add .worktree/<task-name> -b feat/<task-name> origin/main`, then `cd` into it and run `pnpm install` before building or testing.
-- One task = one worktree = one branch = one PR. Use the task name as the OpenSpec change-id (when a change is required) so worktree, branch, change, and PR stay aligned.
+- Location: `.worktrees/<task-name>` inside this repository (gitignored); branch: `<type>/<task-name>` cut from `origin/main`, where `<type>` is the commit type of the work, e.g. `feat`, `fix`, `docs`, `chore`, `ci`.
+- Before the first file edit of a session, check where you are: if `git rev-parse --show-toplevel` is the main checkout and `git branch --show-current` is `main`, STOP. Ask the human to create a task worktree — or, with the human's approval, create it yourself: `git worktree add .worktrees/<task-name> -b <type>/<task-name> --no-track origin/main`, then `cd` into it and run `pnpm install` before building or testing.
+- One task = one worktree = one branch = one PR: `<task-name>` is one string, used verbatim for the worktree directory, the branch suffix, and — when a change is required — the OpenSpec change-id.
 - Parallel tasks MUST NOT carry delta specs for the same capability (`openspec/specs/<capability>/`); sequence such tasks instead. Archive a merged change promptly, via its own small PR.
-- Work only inside your own task's worktree: other directories under `.worktree/` are other tasks' live checkouts — reading across is fine, editing across is not.
-- Finishing: after the PR merges, remove the worktree (`git worktree remove .worktree/<task-name>`) and delete the merged branch.
+- Work only inside your own task's worktree: other directories under `.worktrees/` are other tasks' live checkouts — reading across is fine, editing across is not.
+- Finishing: after the PR merges, remove the worktree (`git worktree remove .worktrees/<task-name>`) and delete the merged branch.
 - Trivial fixes (typo scale, single file) MAY skip the worktree, but still go through a branch + PR — direct pushes to `main` are rejected by the repository's ruleset.
 
 ## Code Review

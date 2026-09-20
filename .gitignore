@@ -44,6 +44,10 @@ logs/
 .tower/
 
 # Task worktrees (parallel-work convention, see AGENTS.md)
+.worktrees/
+# Legacy singular path, kept until the last old-path worktree is removed: an
+# unignored worktree directory is staged by `git add -A` as an embedded
+# repository, so this line has to outlive the rename.
 .worktree/
 
 # Agent tooling: personal/local files (generated artifacts ARE committed on purpose)
