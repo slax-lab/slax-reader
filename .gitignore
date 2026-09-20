@@ -12,6 +12,14 @@ Thumbs.db
 # would be committed and then break `pnpm install` in CI.
 node_modules
 
+# pnpm's in-project fallback store. When the home store is not writable — an
+# agent sandbox that grants write access only to the project, or a container
+# with just the project bind-mounted — pnpm creates its store inside the project
+# instead (see pnpm's storeDir setting). A `pnpm install` in a worktree then
+# leaves a ~165 MB store at the repository root. `node_modules/.pnpm-store`,
+# pnpm's other fallback location, is already covered by `node_modules` above.
+.pnpm-store/
+
 # Build output
 dist/
 build/
