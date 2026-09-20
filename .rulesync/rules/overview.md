@@ -22,7 +22,7 @@ Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comme
 
 ## Local Development
 
-- Package manager: **pnpm** (pinned via `packageManager` in `package.json`; Node.js >= 20.19 required)
+- Package manager: **pnpm** (pinned via `packageManager` in `package.json`; Node.js >= 22.13 required, because pnpm 11.25 itself requires it)
 - Install dependencies: `pnpm install`
 - Per-app dev/test/build commands live in each app's own `package.json` — read it before inventing commands.
 
