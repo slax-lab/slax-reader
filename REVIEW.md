@@ -2,6 +2,8 @@
 
 This file is the single source of truth for review policy in this repo. It is read by automated review services, by agents asked to review code, and by human reviewers.
 
+Scope: this file carries review instructions only. Operational documentation for the review automation (triggers, gates, pausing, budget, troubleshooting) does not belong here; keep it next to the workflows or in `docs/`. Report pull requests that add such content to this file as a Compliance finding.
+
 In CI this file is read **from the pull request's head branch**, so a pull request can adjust the policy it is reviewed under — call out any change to this file that weakens the policy as a finding.
 
 ## Passes
