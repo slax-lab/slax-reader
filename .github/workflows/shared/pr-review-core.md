@@ -28,6 +28,14 @@ network:
   allowed:
     - defaults
     - api.deepseek.com
+    # Package metadata. A review that has to judge a dependency bump otherwise
+    # has only the pull request body's word for what an upstream package
+    # declares: on #79 the review could not confirm that pnpm@11.25.0 itself
+    # requires Node 22.13, and had to publish that gap. Unlike the GitHub case
+    # below there is no structured tool for this, so an allowlist entry is the
+    # narrow fix rather than a widening one — one read-only public host, no write
+    # path, and nothing from this repository is sent to it.
+    - registry.npmjs.org
 
 tools:
   github:
