@@ -2,7 +2,7 @@
 
 ### Requirement: The merge gate reflects Important findings
 
-The system SHALL expose a status check whose name is stable across runs. That check MUST report failure when the review produced at least one Important finding, and success when the review produced none. A passing result MUST rest on positive evidence about the run's own stages: either the review system declined to activate the run — the pause, a fork pull request, and the other conditions its activation decision is compiled from — or the run was activated and its agent executed. A run that stopped for any other reason, including a configuration failure in a stage before the agent, MUST report failure whose description names the stage that stopped it. A description MUST NOT name a cause the check has not verified: a skip says that no review was produced unless the check can confirm the cause. The check MUST report a result for every pull request it applies to, including a review that was skipped and a run that could not produce a review; it MUST NOT leave a pull request waiting on an unreported check, and a run whose stages end in a combination the gate does not recognize as a decline MUST fail closed rather than pass as a skip.
+The system SHALL expose a status check whose name is stable across runs. That check MUST report failure when the review produced at least one Important finding, and success when the review produced none. A passing result MUST rest on positive evidence about the run's own stages: the review system declined to activate the run — the pause, a fork pull request, and the other conditions its activation decision is compiled from — or the run was activated and its agent either executed or was deliberately not started by a configured guardrail (a budget cap). A run that stopped for any other reason, including a configuration failure in a stage before the agent, MUST report failure whose description names the stage that stopped it. A description MUST NOT name a cause the check has not verified: a skip says that no review was produced unless the check can confirm the cause. The check MUST report a result for every pull request it applies to, including a review that was skipped and a run that could not produce a review; it MUST NOT leave a pull request waiting on an unreported check, and a run whose stages end in a combination the gate does not recognize as a decline or a guardrail stop MUST fail closed rather than pass as a skip.
 
 #### Scenario: Important finding blocks merge
 
@@ -45,3 +45,8 @@ The system SHALL expose a status check whose name is stable across runs. That ch
 
 - **WHEN** a review run is declined and the status check reports the passing skip
 - **THEN** the description states that no review was produced, and names a cause only where the check can confirm one for that run
+
+#### Scenario: An activated run whose agent a guardrail stopped still passes
+
+- **WHEN** the review run is activated but its agent is deliberately not started because a configured guardrail (a budget cap) stopped it
+- **THEN** the status check reports a passing skip, and the pull request is not blocked by the absent review
