@@ -36,7 +36,7 @@ logs/
 .tower/
 
 # Task worktrees (parallel-work convention, see AGENTS.md)
-.worktree/
+.worktrees/
 
 # Agent tooling: personal/local files (generated artifacts ARE committed on purpose)
 rulesync.local.jsonc
