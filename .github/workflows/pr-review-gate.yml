@@ -208,16 +208,28 @@ jobs:
                 ;;
             esac
           else
-            # Which stage stopped the run: whichever pre-agent stage is not part of
-            # the passing shapes, preferring the earlier one. This is the same test
-            # the passing branches above use, kept in one place for the description.
+            # Which stage stopped the run: the earliest pre-agent stage that is
+            # neither part of the passing shapes nor a success, using the same test
+            # the passing branches above use. When both stages read as success or
+            # skipped in a combination those branches rejected, no stage stopped the
+            # run — naming one would contradict itself ("activation: success") — so
+            # the description reports the shapes instead. Unreachable in both
+            # compiled workflows today, because a skipped `pre_activation` forces
+            # `activated != 'true'` and therefore skips `activation` too, but the
+            # message must not claim what the conclusions deny.
             if [ "$pre" != "success" ] && [ "$pre" != "skipped" ]; then
               stopped_stage=pre_activation
-            else
+            elif [ "$activation" != "success" ] && [ "$activation" != "skipped" ]; then
               stopped_stage=activation
+            else
+              stopped_stage=""
             fi
             state=failure
-            desc="Review did not start ($(describe_stopped_stage "$stopped_stage")); failing closed"
+            if [ -n "$stopped_stage" ]; then
+              desc="Review did not start ($(describe_stopped_stage "$stopped_stage")); failing closed"
+            else
+              desc="Review did not start (pre_activation: $pre, activation: $activation); failing closed"
+            fi
           fi
 
           # The description must match reality. A green result has to mean a review
