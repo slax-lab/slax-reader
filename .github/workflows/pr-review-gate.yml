@@ -136,14 +136,11 @@ jobs:
           # reader what to do ("Check workflow lock file" is the stale-lock check
           # whose E009 message is the reason this rule exists); when there is no
           # single failed step, the stage and its conclusion are all the API can
-          # support, so the message degrades rather than the verdict.
+          # support, so the message degrades rather than the verdict. The caller
+          # decides which stage that is, so the rule for choosing it lives in one
+          # place instead of being repeated here.
           describe_stopped_stage() {
-            local stage failed_step step_conclusion
-            if [ "$pre" != "success" ] && [ "$pre" != "skipped" ]; then
-              stage=pre_activation
-            else
-              stage=activation
-            fi
+            local stage="$1" failed_step step_conclusion
             failed_step=$(jq -r --arg s "$stage" \
               '[.[] | select(.name == $s) | .steps[]? | select(.conclusion == "failure") | .name] | if length == 1 then .[0] else "" end' <<<"$JOBS")
             if [ -n "$failed_step" ]; then
@@ -180,9 +177,14 @@ jobs:
           elif [ "$pre" = "success" ] && [ "$activation" = "success" ]; then
             case "$agent" in
               skipped)
-                # The only condition gating `agent` is the budget guardrail.
+                # Shape only. The gate can see that activation succeeded and the
+                # agent did not start; *why* is `daily_ai_credits_exceeded`, which
+                # the compiled `if:` gates `agent` on and which this workflow cannot
+                # read (it is a job output, not a conclusion). Naming the guardrail
+                # here would be the same inference the skip descriptions just
+                # stopped making.
                 state=success
-                desc="Review not run (budget cap)"
+                desc="Review not run (agent not started)"
                 ;;
               success)
                 case "$verdict" in
@@ -206,8 +208,16 @@ jobs:
                 ;;
             esac
           else
+            # Which stage stopped the run: whichever pre-agent stage is not part of
+            # the passing shapes, preferring the earlier one. This is the same test
+            # the passing branches above use, kept in one place for the description.
+            if [ "$pre" != "success" ] && [ "$pre" != "skipped" ]; then
+              stopped_stage=pre_activation
+            else
+              stopped_stage=activation
+            fi
             state=failure
-            desc="Review did not start ($(describe_stopped_stage)); failing closed"
+            desc="Review did not start ($(describe_stopped_stage "$stopped_stage")); failing closed"
           fi
 
           # The description must match reality. A green result has to mean a review
