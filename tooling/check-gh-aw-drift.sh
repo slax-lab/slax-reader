@@ -22,8 +22,27 @@ if ! gh aw --version >/dev/null 2>&1; then
   exit 1
 fi
 
+# The compiled output pins the CLI version that produced it, so a mismatched
+# local gh-aw would emit different hashes. That would fail here and then tell the
+# developer to stage exactly that output — which fails CI instead. Fail before
+# compiling, with a diagnosis that names the real problem.
+PINNED=$(sed -n 's/^[[:space:]]*version:[[:space:]]*\(v[0-9][0-9.]*\)[[:space:]]*$/\1/p' .github/workflows/agent-config.yml | head -n 1)
+LOCAL=$(gh aw --version 2>&1 | sed -n 's/.*\(v[0-9][0-9.]*\).*/\1/p' | head -n 1)
+if [ -z "$PINNED" ]; then
+  echo "Could not read the pinned gh-aw version from .github/workflows/agent-config.yml." >&2
+  exit 1
+fi
+if [ "$LOCAL" != "$PINNED" ]; then
+  echo "gh-aw version mismatch: this checkout has ${LOCAL:-an unrecognized version}, CI pins $PINNED." >&2
+  echo "Install the pinned version before recompiling, otherwise the hashes you generate will not match CI:" >&2
+  echo "  gh extension remove gh-aw && gh extension install github/gh-aw --pin $PINNED" >&2
+  exit 1
+fi
+
 # A *full* compile is required: compiling single files does not purge orphaned
 # lock files, so a per-file check would miss exactly the drift that matters.
+# Mirrors the "gh-aw compile drift check" step of agent-config.yml — same flags,
+# same path list, kept in step by hand.
 gh aw compile --strict --purge --no-check-update
 
 DRIFT=$(
