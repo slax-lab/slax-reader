@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Fails when the compiled agentic workflows (*.lock.yml) no longer match their
-# Markdown sources. CI enforces the same invariant in agent-config.yml; this
-# copy exists because `pnpm agent:check` and the lefthook pre-commit hook have
-# to see the drift locally, where otherwise the only signal was a red PR.
+# Fails when the agentic workflows in a commit cannot be reproduced from the
+# sources committed alongside them: the compiled *.lock.yml — and the actions lock
+# gh-aw maintains — must match what those sources compile to. CI enforces the same
+# invariant in agent-config.yml; this copy exists because `pnpm agent:check` and
+# the lefthook pre-commit hook have to see the drift locally, where otherwise the
+# only signal was a red PR.
 #
 # Why not `gh aw compile --check`: gh-aw has no read-only mode, so the check has
 # to compile and then compare. CI compares the result against HEAD (its checkout
@@ -16,7 +18,21 @@ cd "$(git rev-parse --show-toplevel)"
 # agent-config.yml pins the CLI that CI compiles with, and that pin is the only
 # version whose output matches what CI expects. Read it first: both failure
 # messages below need it, and an unreadable pin must not silently skip the check.
-PINNED=$(sed -n 's/^[[:space:]]*version:[[:space:]]*\(v[0-9][0-9.]*\)[[:space:]]*$/\1/p' .github/workflows/agent-config.yml | head -n 1)
+#
+# The pin has to come from the `github/gh-aw/actions/setup-cli` step itself, not
+# from whichever `version:` line happens to appear first: another action's version
+# input placed earlier in the file would be read as the gh-aw pin, and a wrong pin
+# rejects the correct CLI (or accepts a wrong one) before any comparison runs.
+PINNED=$(awk '
+  /^[[:space:]]*-[[:space:]]/ { in_step = 0 }
+  /^[[:space:]]*uses:[[:space:]]*github\/gh-aw\/actions\/setup-cli([@[:space:]]|$)/ { in_step = 1; next }
+  in_step && /^[[:space:]]*version:[[:space:]]*v[0-9]/ {
+    sub(/^[[:space:]]*version:[[:space:]]*/, "")
+    sub(/[[:space:]]+$/, "")
+    print
+    exit
+  }
+' .github/workflows/agent-config.yml)
 if [ -z "$PINNED" ]; then
   echo "Could not read the pinned gh-aw version from .github/workflows/agent-config.yml." >&2
   exit 1
@@ -56,19 +72,45 @@ fi
 
 # A *full* compile is required: compiling single files does not purge orphaned
 # lock files, so a per-file check would miss exactly the drift that matters.
-# Mirrors the "gh-aw compile drift check" step of agent-config.yml — same flags,
-# same path list, kept in step by hand.
+# Mirrors the "gh-aw compile drift check" step of agent-config.yml — same flags.
+# CI compares only the generated files, because its checkout is clean and the
+# sources it compiles are therefore the committed ones; this script does not have
+# that guarantee, so its path list reaches the compile inputs as well.
 gh aw compile --strict --purge --no-check-update
 
+# Both sides of the compile are compared against the index, not just the compiled
+# output. Generated files alone leave a half-staged change undetected: keep a
+# source edit in the worktree, stage only the recompiled lock, and the lock shows
+# no diff — yet that commit pairs a new lock with the old source, so CI fails on
+# exactly the drift this guard exists to catch.
+#
+# The comparison is worktree-vs-index, so an unstaged compile input is reported
+# even when the staged sources and locks agree with each other. That is
+# deliberate: a false alarm costs one commit retry, a missed one costs a red CI
+# run plus a recompile, and only the second is silent at commit time.
+GUARDED=(
+  # compile inputs
+  '.github/workflows/*.md'
+  '.github/workflows/shared/**'
+  '.github/workflows/*.json'
+  # compile output
+  '.github/workflows/*.lock.yml'
+  # the actions lock gh-aw maintains
+  '.github/aw'
+)
+
 DRIFT=$(
-  git diff --name-only -- '.github/workflows/*.lock.yml' '.github/aw'
-  git ls-files --others --exclude-standard -- '.github/workflows/*.lock.yml' '.github/aw'
+  git diff --name-only -- "${GUARDED[@]}"
+  git ls-files --others --exclude-standard -- "${GUARDED[@]}"
 )
 
 if [ -n "$DRIFT" ]; then
-  echo "Compiled agentic workflows are out of date:" >&2
+  echo "The staged content of this commit would fail the CI drift check:" >&2
   echo "$DRIFT" >&2
-  echo "Stage the regenerated files above." >&2
+  echo "Each path above differs from the index or is untracked, so the sources and" >&2
+  echo "what they compile to are not being committed together. Stage the sources," >&2
+  echo "recompile with 'gh aw compile --strict --purge --no-check-update', and stage" >&2
+  echo "the regenerated files as well." >&2
   exit 1
 fi
 
