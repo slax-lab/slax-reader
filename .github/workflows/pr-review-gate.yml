@@ -1,6 +1,7 @@
 name: PR review gate
 
-# Companion gate (design D4, tasks 7.2/7.11/7.13/7.14/7.15).
+# Companion gate (design D4, tasks 7.2/7.11/7.13/7.14/7.15; the pre-agent stage
+# rule is change fail-gate-when-review-did-not-start, design D1/D3/D5).
 #
 # This is the single required check (context "PR review gate"). gh-aw's own job
 # checks cannot serve: it gates its verdict job on the agent having emitted a
@@ -8,6 +9,25 @@ name: PR review gate
 # that produced no verdict would silently pass. This workflow therefore always
 # reports exactly one status for each review that was supposed to happen, and fails
 # closed whenever it cannot see a published review.
+#
+# A passing result rests on positive evidence about the run's own stages, so the
+# gate reads `pre_activation` and `activation` as well as `agent`:
+#
+#   * `activation: skipped` — the run was *declined*, not stopped. gh-aw compiles
+#     the pause switch, the fork check, and the draft and stack checks onto
+#     `pre_activation`, and its membership decision onto `activation` itself, so
+#     every deliberate skip lands here. Passes, as a skip.
+#   * `pre_activation` and `activation` both `success` — the run started, and the
+#     agent/verdict jobs below decide the outcome.
+#   * anything else — fail closed. That includes the case this rule was written
+#     for: a stale lock fails `activation` (ERR_CONFIG E009 CONFIG_HASH_MISMATCH),
+#     every later job skips, and the old `agent: skipped` reading reported success
+#     for a review that never ran (run 35490678495).
+#
+# Reading the stage conclusions rather than a list of known-bad ones means a shape
+# this gate has never seen — a run cancelled before activation, a stage that threw,
+# a conclusion a future gh-aw release adds — fails closed instead of passing as an
+# unrecognized skip.
 #
 # Only possible after merge: `workflow_run` — like `workflow_dispatch` and
 # `issue_comment` — only triggers workflows that exist on the default branch.
@@ -32,6 +52,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
           REPO: ${{ github.repository }}
+          # Read here rather than inferred, because the stage conclusions cannot
+          # tell a paused run from a fork, a draft, or a request gh-aw declined —
+          # all four are the same all-skipped shape. This is the same evaluation
+          # GitHub performs for the review workflow's own `if:`.
+          PAUSED: ${{ vars.PR_REVIEW_ENABLED == 'false' }}
         run: |
           set -euo pipefail
           CONTEXT="PR review gate"
@@ -71,11 +96,18 @@ jobs:
           esac
 
           JOBS=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100" \
-            --jq '[.jobs[] | {name: .name, conclusion: .conclusion}]')
-          agent=$(jq -r '.[] | select(.name == "agent") | .conclusion' <<<"$JOBS" | head -1)
-          verdict=$(jq -r '.[] | select(.name == "review_verdict") | .conclusion' <<<"$JOBS" | head -1)
+            --jq '[.jobs[] | {name: .name, conclusion: .conclusion, steps: [.steps[]? | {name: .name, conclusion: .conclusion}]}]')
+          conclusion() {
+            jq -r --arg n "$1" '.[] | select(.name == $n) | .conclusion' <<<"$JOBS" | head -1
+          }
+          agent=$(conclusion agent)
+          verdict=$(conclusion review_verdict)
+          pre=$(conclusion pre_activation)
+          activation=$(conclusion activation)
           agent=${agent:-missing}
           verdict=${verdict:-missing}
+          pre=${pre:-missing}
+          activation=${activation:-missing}
 
           # Which commit the result belongs to. `pull_request` runs are checked out
           # as the merge commit (`refs/pull/N/merge`), which is NOT the commit a
@@ -99,32 +131,94 @@ jobs:
           fi
           echo "pull request #$PR_NUMBER: head=$PR_HEAD reviewed=$REVIEW_SHA reporting on $SHA"
 
-          case "$agent" in
-            skipped)
-              state=success
-              desc="Review skipped (paused, fork pull request, or budget cap)"
-              ;;
-            success)
-              case "$verdict" in
-                success)
-                  state=success
-                  desc="Reviewed: no Important findings"
-                  ;;
-                failure)
-                  state=failure
-                  desc="Review reported Important findings"
-                  ;;
-                *)
-                  state=failure
-                  desc="Review ran but produced no verdict; failing closed"
-                  ;;
-              esac
-              ;;
-            *)
-              state=failure
-              desc="Review did not complete (agent job: $agent); failing closed"
-              ;;
-          esac
+          # Name the stage that stopped the run, and the step inside it when the jobs
+          # response carries exactly one failure. The step name is what tells a
+          # reader what to do ("Check workflow lock file" is the stale-lock check
+          # whose E009 message is the reason this rule exists); when there is no
+          # single failed step, the stage and its conclusion are all the API can
+          # support, so the message degrades rather than the verdict. The caller
+          # decides which stage that is, so the rule for choosing it lives in one
+          # place instead of being repeated here.
+          describe_stopped_stage() {
+            local stage="$1" failed_step step_conclusion
+            failed_step=$(jq -r --arg s "$stage" \
+              '[.[] | select(.name == $s) | .steps[]? | select(.conclusion == "failure") | .name] | if length == 1 then .[0] else "" end' <<<"$JOBS")
+            if [ -n "$failed_step" ]; then
+              # Mark the cut, so a truncated name cannot read as a whole one.
+              if [ "${#failed_step}" -gt 50 ]; then
+                failed_step="${failed_step:0:47}..."
+              fi
+              printf "%s failed at '%s'" "$stage" "$failed_step"
+              return
+            fi
+            step_conclusion=$(jq -r --arg s "$stage" '.[] | select(.name == $s) | .conclusion // "did not run"' <<<"$JOBS" | head -1)
+            printf '%s: %s' "$stage" "${step_conclusion:-did not run}"
+          }
+
+          # A passing result needs positive evidence: either the run was declined
+          # (`activation: skipped`), or it started and the agent/verdict jobs decide.
+          # Everything else is a run that stopped, and it fails closed — including
+          # combinations this gate has never seen, which is the point of asking for
+          # evidence of a pass rather than for a known-bad conclusion.
+          if [ "$activation" = "skipped" ] && { [ "$pre" = "success" ] || [ "$pre" = "skipped" ]; }; then
+            state=success
+            # Only the pause is named, because only the pause can be verified here;
+            # a fork, a draft, a stacked pull request and a declined request are the
+            # same shape, and the old three-way string claimed all of them at once.
+            # The variable is read when *this* workflow runs, seconds after the
+            # observed run was declined, so the wording is about the current setting
+            # rather than about what stopped that run — the one way a cause named
+            # here could be true now and false at decline time.
+            if [ "${PAUSED:-}" = "true" ]; then
+              desc="Review not run (reviews are currently paused)"
+            else
+              desc="Review not run (not activated for this run)"
+            fi
+          elif [ "$pre" = "success" ] && [ "$activation" = "success" ]; then
+            case "$agent" in
+              skipped)
+                # Shape only. The gate can see that activation succeeded and the
+                # agent did not start; *why* is `daily_ai_credits_exceeded`, which
+                # the compiled `if:` gates `agent` on and which this workflow cannot
+                # read (it is a job output, not a conclusion). Naming the guardrail
+                # here would be the same inference the skip descriptions just
+                # stopped making.
+                state=success
+                desc="Review not run (agent not started)"
+                ;;
+              success)
+                case "$verdict" in
+                  success)
+                    state=success
+                    desc="Reviewed: no Important findings"
+                    ;;
+                  failure)
+                    state=failure
+                    desc="Review reported Important findings"
+                    ;;
+                  *)
+                    state=failure
+                    desc="Review ran but produced no verdict; failing closed"
+                    ;;
+                esac
+                ;;
+              *)
+                state=failure
+                desc="Review did not complete (agent job: $agent); failing closed"
+                ;;
+            esac
+          else
+            # Which stage stopped the run: whichever pre-agent stage is not part of
+            # the passing shapes, preferring the earlier one. This is the same test
+            # the passing branches above use, kept in one place for the description.
+            if [ "$pre" != "success" ] && [ "$pre" != "skipped" ]; then
+              stopped_stage=pre_activation
+            else
+              stopped_stage=activation
+            fi
+            state=failure
+            desc="Review did not start ($(describe_stopped_stage "$stopped_stage")); failing closed"
+          fi
 
           # The description must match reality. A green result has to mean a review
           # was actually published by this run — otherwise an agent that only called
@@ -139,7 +233,7 @@ jobs:
             desc="No review published for this run; failing closed"
           fi
 
-          echo "workflow=$WF event=$EVENT agent=$agent verdict=$verdict -> $state ($desc) on $SHA"
+          echo "workflow=$WF event=$EVENT pre=$pre activation=$activation agent=$agent verdict=$verdict -> $state ($desc) on $SHA"
           gh api -X POST "repos/$REPO/statuses/$SHA" \
             -f state="$state" \
             -f context="$CONTEXT" \
