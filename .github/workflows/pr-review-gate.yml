@@ -147,7 +147,11 @@ jobs:
             failed_step=$(jq -r --arg s "$stage" \
               '[.[] | select(.name == $s) | .steps[]? | select(.conclusion == "failure") | .name] | if length == 1 then .[0] else "" end' <<<"$JOBS")
             if [ -n "$failed_step" ]; then
-              printf "%s failed at '%s'" "$stage" "${failed_step:0:50}"
+              # Mark the cut, so a truncated name cannot read as a whole one.
+              if [ "${#failed_step}" -gt 50 ]; then
+                failed_step="${failed_step:0:47}..."
+              fi
+              printf "%s failed at '%s'" "$stage" "$failed_step"
               return
             fi
             step_conclusion=$(jq -r --arg s "$stage" '.[] | select(.name == $s) | .conclusion // "did not run"' <<<"$JOBS" | head -1)
@@ -164,8 +168,12 @@ jobs:
             # Only the pause is named, because only the pause can be verified here;
             # a fork, a draft, a stacked pull request and a declined request are the
             # same shape, and the old three-way string claimed all of them at once.
+            # The variable is read when *this* workflow runs, seconds after the
+            # observed run was declined, so the wording is about the current setting
+            # rather than about what stopped that run — the one way a cause named
+            # here could be true now and false at decline time.
             if [ "${PAUSED:-}" = "true" ]; then
-              desc="Review not run (reviews are paused)"
+              desc="Review not run (reviews are currently paused)"
             else
               desc="Review not run (not activated for this run)"
             fi
