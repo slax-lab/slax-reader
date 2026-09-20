@@ -45,10 +45,12 @@ logs/
 
 # Task worktrees (parallel-work convention, see AGENTS.md)
 .worktrees/
-# Legacy singular path, kept until the last old-path worktree is removed: an
-# unignored worktree directory is staged by `git add -A` as an embedded
-# repository, so this line has to outlive the rename.
-.worktree/
+
+# Local-only content: tutorials, drafts, scratch notes and other material that
+# is useful on one machine but must never be published. Keep such files here
+# instead of adding one-off names to .git/info/exclude, so the ignore list stays
+# reviewable in the repository rather than living in each clone.
+.local/
 
 # Agent tooling: personal/local files (generated artifacts ARE committed on purpose)
 rulesync.local.jsonc
