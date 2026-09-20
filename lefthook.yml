@@ -1,5 +1,5 @@
-# Guards generated files at commit time — the same two drift checks CI runs in
-# the agent-config workflow.
+# Guards generated artifacts at commit time, plus OpenSpec validity — the same
+# checks CI runs in the agent-config workflow, kept in step by hand.
 # To change these rules: edit this file, not .git/hooks/ (hooks are installed
 # by `lefthook install`, which runs via the root `prepare` script on pnpm install).
 pre-commit:
@@ -20,3 +20,13 @@ pre-commit:
       glob: "{.github/workflows/*.md,.github/workflows/*.lock.yml,.github/workflows/*.json,.github/workflows/shared/**,.github/aw/**}"
       run: bash tooling/check-gh-aw-drift.sh
       fail_text: "Compiled agentic workflows drift from their Markdown sources. Run `gh aw compile --strict --purge --no-check-update` and stage the result."
+    openspec-validate:
+      # Specs and in-flight changes must stay structurally valid. AGENTS.md
+      # requires `openspec validate --all --strict` to pass before merge, and CI
+      # runs exactly this command, so a spec edit that would go red on the PR can
+      # no longer be committed locally. Globbed to openspec/** because the check
+      # is repo-wide: without the glob, unrelated commits would be blocked by
+      # unrelated spec or change state.
+      glob: "openspec/**"
+      run: pnpm exec openspec validate --all --strict
+      fail_text: "OpenSpec specs or changes are invalid. Run `pnpm exec openspec validate --all --strict` and fix the findings."
