@@ -1,6 +1,6 @@
 ---
 # Shared core for the PR review workflows (auto + on demand). Wrappers declare the
-# trigger, permissions and pause switch; everything below is identical for both.
+# trigger, permissions and pause switch; everything below is identical for both. Drill.
 engine:
   id: copilot
   env:
