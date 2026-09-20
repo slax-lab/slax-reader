@@ -15,7 +15,8 @@ pre-commit:
       # Deliberately narrower than .github/workflows/**: the hand-written
       # workflows there (this file's neighbours, pr-review-gate.yml, the paused
       # notice, agentic-noise-cleanup.yml) are never compiled and cannot drift,
-      # so they must not require a pinned gh-aw to commit.
-      glob: "{.github/workflows/*.md,.github/workflows/*.lock.yml,.github/workflows/shared/**,.github/aw/**}"
+      # so they must not require a pinned gh-aw to commit. aw.json is here
+      # because it *is* a compile input (it sets `strict` and `help_command`).
+      glob: "{.github/workflows/*.md,.github/workflows/*.lock.yml,.github/workflows/*.json,.github/workflows/shared/**,.github/aw/**}"
       run: bash tooling/check-gh-aw-drift.sh
       fail_text: "Compiled agentic workflows drift from their Markdown sources. Run `gh aw compile --strict --purge --no-check-update` and stage the result."
