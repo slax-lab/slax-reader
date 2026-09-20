@@ -1,4 +1,5 @@
-# Guards generated agent files at commit time — the same drift check CI runs.
+# Guards generated files at commit time — the same two drift checks CI runs in
+# the agent-config workflow.
 # To change these rules: edit this file, not .git/hooks/ (hooks are installed
 # by `lefthook install`, which runs via the root `prepare` script on pnpm install).
 pre-commit:
@@ -7,3 +8,15 @@ pre-commit:
       glob: "{AGENTS.md,CLAUDE.md,.claude/**,.codex/**,.agents/**,.rulesync/**}"
       run: pnpm exec rulesync generate --check
       fail_text: "Generated agent files drift from .rulesync/ sources. Edit .rulesync/, run `pnpm agent:sync`, and commit both."
+    gh-aw-drift:
+      # Compiled agentic workflows. gh-aw hashes the whole normalized frontmatter
+      # text — comments included — so editing a comment inside the frontmatter of
+      # a .md source still invalidates the lock files and needs a recompile.
+      # Deliberately narrower than .github/workflows/**: the hand-written
+      # workflows there (this file's neighbours, pr-review-gate.yml, the paused
+      # notice, agentic-noise-cleanup.yml) are never compiled and cannot drift,
+      # so they must not require a pinned gh-aw to commit. aw.json is here
+      # because it *is* a compile input (it sets `strict` and `help_command`).
+      glob: "{.github/workflows/*.md,.github/workflows/*.lock.yml,.github/workflows/*.json,.github/workflows/shared/**,.github/aw/**}"
+      run: bash tooling/check-gh-aw-drift.sh
+      fail_text: "Compiled agentic workflows drift from their Markdown sources. Run `gh aw compile --strict --purge --no-check-update` and stage the result."
