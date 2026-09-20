@@ -12,8 +12,8 @@
     "prepare": "lefthook install"
   },
   "devDependencies": {
-    "@fission-ai/openspec": "1.13.0",
+    "@fission-ai/openspec": "1.13.1",
     "lefthook": "^2.1.14",
-    "rulesync": "16.34.1"
+    "rulesync": "16.39.1"
   }
 }
