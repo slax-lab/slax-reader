@@ -59,6 +59,7 @@ The root receives only the minimum changes required for the workspace: package m
 - `apps/extension` must prepare, compile, test, build, and package independently through its package scripts.
 - Shared packages must resolve through pnpm workspace links and preserve their current import boundaries.
 - Backend-connected acceptance is deferred to final verification after all migration stages, as requested by the user. It does not gate individual import stages and must not be reported as passed before it is actually run. Full dependency installation remains a separate required check.
+- The user also deferred investigation of the macOS Xcode license / `better-sqlite3` installation failure until all migration stages are complete. Track it under final verification task 6.2 without blocking the next import stage or treating it as resolved.
 - The source repository's status must be unchanged before and after every migration operation.
 - `openspec validate --all --strict` must pass after the change is fully authored.
 

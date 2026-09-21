@@ -119,6 +119,16 @@ license. This does not add an iOS application or require contributors on other p
 to use Xcode. Full installation remains unverified; passing tests and the Web build after
 linking with scripts disabled do not resolve that separate installation issue.
 
+### Deferred installation follow-up
+
+At the user's request, revisit this issue after all migration stages (task 6.2), rather
+than blocking Extension migration. Record the affected macOS/CPU/Node combination,
+why a prebuilt `better-sqlite3` binary was not used, and whether Command Line Tools alone
+suffice for local compilation. Then verify a clean install with dependency scripts enabled.
+Do not accept Apple's license on the user's behalf or make full Xcode an onboarding
+requirement for all contributors. Non-programmers using hosted previews, reporting issues,
+or editing documentation online should not need a local native compilation toolchain.
+
 Type-checking exposed the source lock's split Vue peer contexts (TypeScript 5 and 6).
 pnpm recomputed peer connections without introducing any package version absent from the
 source and v2 lockfiles. Source `hasBin` metadata was retained when pnpm's lock repair

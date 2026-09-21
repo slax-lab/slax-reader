@@ -36,7 +36,7 @@
 ## 6. Final verification
 
 - [ ] 6.1 Confirm the source `slax_reader` repository remains clean and unchanged.
-- [ ] 6.2 Run workspace install and all applicable checks from the v2 worktree.
+- [ ] 6.2 Run workspace install and all applicable checks from the v2 worktree. Revisit the macOS Xcode license / `better-sqlite3` native installation issue after all migration stages, as requested by the user; do not count installation with scripts disabled as a full-install pass.
 - [ ] 6.3 Run `openspec validate --all --strict`.
 - [ ] 6.4 Summarize known limitations, especially the external backend requirement, for reviewers and new contributors.
 - [ ] 6.5 After all migration stages are complete, run Web and Extension against the existing development backend and verify login, bookmarks, article reading, highlights/comments, and the extension bridge. Record results before the final pull request is merged into `dev`.
@@ -50,5 +50,7 @@ At the user's request, backend-connected smoke testing moves to task 6.5 after a
 migration stages; it is not an individual stage acceptance gate. It remains required
 before final integration into `dev` through a pull request.
 Full installation is still blocked by the host Xcode license when `better-sqlite3`
-runs its native compilation; that separate task 6.2 issue has not been resolved or waived.
-Stage 2 has not been merged into the integration branch. See the migration record for evidence.
+runs its native compilation. The user deferred this separate task 6.2 issue to final
+verification; it is unresolved but no longer blocks progression to the Extension stage.
+The Web stage is ready to merge into the integration branch before creating the Extension
+stage branch. See the migration record for evidence.
