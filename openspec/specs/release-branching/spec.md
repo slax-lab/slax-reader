@@ -48,6 +48,20 @@ Feature work SHALL flow `feature branch → dev → beta → main`: task branche
 - **WHEN** changes on `dev` are ready for beta, or changes on `beta` are ready for production
 - **THEN** a pull request from `dev` to `beta` (or `beta` to `main`) carries them, subject to the same protection rules as any other pull request
 
+### Requirement: Promotion pull requests merge with rebase
+
+Promotion pull requests (`dev` → `beta` and `beta` → `main`) MUST be merged with the rebase merge method and MUST NOT be squash-merged. Rebase replays onto the target branch only the patches it does not already have, keeping the landed commits' patches and messages identical to what was reviewed on the source branch; a squash merge forges one new commit per promotion and diverges the branches' histories further with every promotion.
+
+#### Scenario: Rebase replay keeps landed commits faithful
+
+- **WHEN** a promotion pull request is merged with rebase
+- **THEN** the commits landing on the target branch carry the same patches and commit messages as the reviewed commits on the source branch
+
+#### Scenario: Squash is never used for a promotion
+
+- **WHEN** a promotion pull request between long-lived branches is merged
+- **THEN** the merge method is rebase, not squash — even though the ruleset allows both methods
+
 ### Requirement: Task branches live in isolated worktrees
 
 Every task — human- or agent-driven — SHALL get its own git worktree inside the repository's `.worktrees/` directory on its own branch cut from `origin/dev`, with one task mapping to one worktree, one branch, and one pull request. Work MUST NOT be edited directly in the main checkout, and a task MUST NOT edit files in another task's worktree.
