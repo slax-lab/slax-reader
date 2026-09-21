@@ -9,4 +9,4 @@
 ## 2. Validation and PR
 
 - [x] 2.1 Run `pnpm exec openspec validate --all --strict` and confirm the change passes
-- [ ] 2.2 Open the pull request targeting `dev` with an `OpenSpec: sync-back-merge-rule` line in the body — verify the PR passes the drift check and review gate
+- [x] 2.2 Open the pull request targeting `dev` with an `OpenSpec: sync-back-merge-rule` line in the body — verify the PR passes the drift check and review gate
