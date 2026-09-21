@@ -120,6 +120,6 @@ Copyright is held by The Slax Reader Contributors; see [NOTICE](NOTICE) for deta
 
 ## v2 development
 
-The Web application is being migrated into this monorepo. Start with
-[the Web development guide](apps/web/README.md). The browser extension and backend
-are not yet migrated. See [migration progress](docs/migrations/slax-reader-web-extension.md).
+The Web application and browser extension are available in this monorepo. Start with
+[the Web guide](apps/web/README.md) or [the Extension guide](apps/extension/README.md).
+The backend remains external. See [migration progress](docs/migrations/slax-reader-web-extension.md).

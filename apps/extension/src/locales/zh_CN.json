@@ -1,0 +1,179 @@
+{
+  "click_to_view": "点击查看",
+  "collect_page": "收藏页面",
+  "collected": "已收藏",
+  "collection_failed": "收藏失败",
+  "collection_in_progress": "收藏中",
+  "collection_not_supported": "该网页暂不支持收藏",
+  "collection_successful": "收藏成功",
+  "common": {
+    "operate": {
+      "chatbot": "Chat",
+      "comment": "评论",
+      "copy": "复制",
+      "delete_line": "删除划线",
+      "line": "划线",
+      "reply": "回复",
+      "submit": "提交",
+      "summary_refresh": "重新生成"
+    },
+    "tips": {
+      "copy_content_success": "内容复制成功",
+      "share_failed": "创建分享失败",
+      "sidebar_tips": "网页已收藏～\n你可通过这里快捷体验 Slax Reader 核心功能"
+    }
+  },
+  "component": {
+    "ai_summaries": {
+      "analyzed_title": "全文解析",
+      "click_to_expand": "点击彩色圆点可展开/收起节点",
+      "click_to_interpret": "点击按钮解读此文章",
+      "copy_content_success": "内容复制成功",
+      "interpret": "解读此文章",
+      "mindmap": "思维导图",
+      "processing": "内容解析中",
+      "title": "解析结果"
+    },
+    "article_selection": {
+      "comment_deleted": "评论已删除",
+      "comment_failed": "评论失败",
+      "comment_placeholder": "回复 $1",
+      "comments": {
+        "placeholder": "你怎么看？\n请在下方留言评论",
+        "title": "评论列表"
+      },
+      "hours_ago": "小时前",
+      "just_now": "刚刚",
+      "minutes_ago": "分钟前",
+      "perceptions": "看法",
+      "placeholder": "发表你的观点",
+      "reply": "回复...",
+      "stroke_failed": "划线失败",
+      "title": "发表评论"
+    },
+    "bookmark_tags": {
+      "add": "添加标签",
+      "add_placeholder": "增加：$1",
+      "placeholder": "输入新标签 (按 Enter 确认)"
+    },
+    "chat_bot": {
+      "access_complete": "访问完成",
+      "access_failed": "访问失败",
+      "accessing_token": "访问中",
+      "alias_placeholder": "请输入你的问题（$1 + enter 可以换行）",
+      "discover": "了解更多关于这篇文章的信息\n有什么想问的，尽管问我吧",
+      "generating_question": "生成问题中...",
+      "hello": "你好，我是 Slax Reader AI 助手：",
+      "now_accessing": "正在访问中...",
+      "search_bookmark_complete": "资料库搜索完成",
+      "search_bookmark_failed": "资料库搜索失败",
+      "search_complete": "搜索完成",
+      "search_failed": "搜索失败",
+      "searching_token": "搜索中",
+      "selected_image": "[已选中 $1 张图片]",
+      "tips_accessing": "\"$1\" 访问中...",
+      "tips_searching": "\"$1\" 搜索中...",
+      "tips_searching_bookmark": "\"$1\" 搜索资料库..."
+    },
+    "chat_bubble_message": {
+      "bookmarks_source": "书签来源：",
+      "links_source": "信息来源：",
+      "related_questions": "相关的："
+    },
+    "chat_tips_message": {
+      "generate_question_title": "读者最关心："
+    },
+    "copy_button": {
+      "copy_content": "复制内容"
+    },
+    "feedback": {
+      "follow_up": "允许通过 $1 跟进",
+      "name": "反馈",
+      "placeholder": "请描述你遇到的问题......",
+      "title": "你的反馈将帮助我们变得更好"
+    },
+    "overview": {
+      "retry": "点击重新获取",
+      "text_content_title": "全文概要："
+    },
+    "panel": {
+      "auto_toggle": {
+        "on": "ON",
+        "off": "OFF",
+        "tips": "边栏自动收起",
+        "enabled_tips": "点击外部自动关闭",
+        "disabled_tips": "手动关闭: 'X' 或 $1"
+      },
+      "close_tips": "展开/收缩快捷键"
+    },
+    "plan_card": {
+      "one_time_purchase": "试用 1 个月",
+      "plan": {
+        "free_features": {
+          "one": "包含免费版所有功能"
+        },
+        "operate_title": "按月订阅",
+        "period": "/ 月",
+        "pro_features": {
+          "five": "新功能抢先体验",
+          "four": "专属优先支持",
+          "one": "交互式 AI 对话",
+          "three": "高级语义搜索",
+          "two": "自动标签归类"
+        },
+        "title": "专业版"
+      },
+      "subscribe_month_rule": "不会自动续期"
+    },
+    "share_modal": {
+      "copy_link": "复制链接",
+      "copy_success": "复制成功!",
+      "options": {
+        "first": "显示划线和评论",
+        "second": "显示我的头像和昵称",
+        "third": "允许访客划线和评论"
+      },
+      "revoke_tips": "分享链接已撤销",
+      "title": "分享"
+    },
+    "sidebar": {
+      "about": "关于",
+      "ai": "AI",
+      "archieve": "归档",
+      "archieved": "取消归档",
+      "chat": "Chat",
+      "collect_content": "收藏内容",
+      "collecting": "收藏中",
+      "comments": "评论",
+      "feedback": "反馈",
+      "more": "更多",
+      "outline": "提纲",
+      "share": "分享文章",
+      "star": "文章加星",
+      "starred": "取消加星",
+      "view_collection_detail": "查看收藏"
+    }
+  },
+  "extended_settings": "扩展设置",
+  "not_collected": "未收藏",
+  "recollection": "重新收藏",
+  "removal": "撤销收藏",
+  "removal_failed": "移除失败",
+  "removal_in_progress": "移除中",
+  "removal_successful": "已移除",
+  "shortcut_settings": "快捷键设置",
+  "slax_collection_list": "Slax 收件箱 ↗",
+  "util": {
+    "chatbot": {
+      "browser_finished": "访问完成",
+      "error_not_subscription": "请订阅以解锁此功能",
+      "generate_question": "问题生成中",
+      "generate_question_finished": "生成完成",
+      "search_bookmark": "搜索资料库",
+      "search_bookmark_failed": "资料库搜索失败",
+      "search_bookmark_finished": "资料库搜索完成",
+      "search_finished": "搜索完成"
+    }
+  },
+  "open_labs_in_settings": "去网页设置打开 ↗"
+}

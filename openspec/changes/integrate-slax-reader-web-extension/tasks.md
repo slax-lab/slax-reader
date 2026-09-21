@@ -13,10 +13,10 @@
 
 ## 3. Extension application import
 
-- [ ] 3.1 Copy the tracked browser extension into `apps/extension` without copying Git metadata or local-only files.
-- [ ] 3.2 Keep manifest, entrypoints, assets, vendor shims, and Extension-specific build configuration below `apps/extension`.
-- [ ] 3.3 Make the Extension package resolve the new workspace package locations without changing product behavior.
-- [ ] 3.4 Run Extension prepare, compile, tests, build, zip, and a Chromium load smoke test.
+- [x] 3.1 Copy the tracked browser extension into `apps/extension` without copying Git metadata or local-only files.
+- [x] 3.2 Keep manifest, entrypoints, assets, vendor shims, and Extension-specific build configuration below `apps/extension`.
+- [x] 3.3 Make the Extension package resolve the new workspace package locations without changing product behavior.
+- [x] 3.4 Run Extension prepare, compile, tests, build, zip, and a Chromium load smoke test.
 
 ## 4. Shared package import
 
@@ -24,13 +24,13 @@
 - [x] 4.2 Copy `commons/types-pro` to `packages/types-pro` and preserve its augmentation behavior.
 - [x] 4.3 Copy `commons/utils` to `packages/utils` and preserve its subpath exports.
 - [x] 4.4 Copy `commons/selection` to `packages/selection` and preserve its adapter and build boundaries.
-- [ ] 4.5 Update workspace globs, package names, and imports only as needed for the new locations; do not create a catch-all package.
+- [x] 4.5 Update workspace globs, package names, and imports only as needed for the new locations; do not create a catch-all package.
 
 ## 5. Onboarding and root hygiene
 
-- [ ] 5.1 Add focused READMEs for `apps/web`, `apps/extension`, and each migrated shared package.
+- [x] 5.1 Add focused READMEs for `apps/web`, `apps/extension`, and each migrated shared package.
 - [ ] 5.2 Move long-form development, contribution, architecture, and migration guidance into `docs/` subdirectories.
-- [ ] 5.3 Add minimal root commands for Web and Extension development, testing, and builds while keeping app scripts authoritative.
+- [x] 5.3 Add minimal root commands for Web and Extension development, testing, and builds while keeping app scripts authoritative.
 - [ ] 5.4 Confirm the root contains no copied application source, app-specific long-form docs, secrets, generated local state, or dependency directories.
 
 ## 6. Final verification
@@ -52,5 +52,16 @@ before final integration into `dev` through a pull request.
 Full installation is still blocked by the host Xcode license when `better-sqlite3`
 runs its native compilation. The user deferred this separate task 6.2 issue to final
 verification; it is unresolved but no longer blocks progression to the Extension stage.
-The Web stage is ready to merge into the integration branch before creating the Extension
-stage branch. See the migration record for evidence.
+The Web stage was merged into the integration branch at `f100570`; Extension migration
+continues in `feat/import-slax-reader-extension`, created from that commit. See the migration record for evidence.
+
+
+## Phase 3 checkpoint
+
+Extension import tasks 3.1–3.4, workspace linking task 4.5, app/package README task 5.1,
+and root command task 5.3 are complete on `feat/import-slax-reader-extension`.
+WXT prepare, vue-tsc, 14 unit tests, Chrome build/zip, vendor prebuild and Chromium loading
+pass. The 17-scenario offscreen suite also passes using local fixtures. Runtime Extension
+source remains the pinned snapshot. Remaining work is contributor-wide onboarding and
+final verification, including the explicitly deferred native install issue and real backend
+integration. See the migration record for validation scope and source-fidelity evidence.

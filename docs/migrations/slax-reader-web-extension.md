@@ -146,3 +146,66 @@ The staged paths contain no environment files, dependency directories, build out
 The current source branch/HEAD remain `codex/fix-ci-env-before-install` / `ddcf9bc6`
 and its worktree remains clean after this stage. Source paths in this document describe
 provenance, not dependencies of the migrated application.
+
+
+## Phase 3 — Extension import checkpoint
+
+The Web stage merged into `feat/integrate-slax-reader-web-extension` at `f100570`.
+The Extension stage uses `feat/import-slax-reader-extension`, created from that integration
+commit. The final integration into `dev` still requires a pull request.
+
+### Imported content and adaptations
+
+- Imported 188 of the 189 tracked Extension files from the same pinned `8a983148` snapshot;
+  excluded only `.vscode/settings.json` because v2 keeps editor settings local.
+- 181 imported files are byte-identical. The seven adapted files are the README, manifest
+  of package dependencies/scripts, environment type declaration, WXT/UnoCSS/ESLint config,
+  and `tests/offscreen-fault-injection.mjs`. All files under `src/` are unchanged.
+- Manifest public keys, extension IDs, icons, permissions, entrypoints, vendor shims and
+  Web bridge protocol are retained. Environment loading now resolves below `apps/extension`.
+- Environment schema/loader and UnoCSS/ESLint bases live under the Extension app. They do
+  not import from the Web app or introduce root-level configuration. Configuration
+  consolidation can be considered separately; this import keeps app setup independent.
+- Replaced the stale `SlaxEnv` type import (which the source config does not export) with
+  a type inferred from the local environment schema. Runtime configuration is unchanged.
+- Declared previously root-provided tool/config dependencies in the Extension manifest.
+  The lockfile adds 193 source-locked package records, preserves existing Web/library
+  importer and package records, and retains CLI `hasBin` metadata.
+- Added small root commands: `dev:extension`, `typecheck:extension`, `test:extension`,
+  `build:extension`, and `zip:extension`. App scripts remain authoritative and automatically
+  prepare selection and WXT where needed; development also prepares vendor assets.
+- Retained the source's explicit `@wxt-dev/analytics` postinstall opt-out under pnpm 11
+  `allowBuilds`. No general disabling of install scripts is committed.
+- Updated the offscreen test's Web source path to `apps/web`. In Chrome for Testing 151,
+  a CDP-loaded unpacked extension was absent after browser restart; the test now also passes
+  its unpacked path at browser startup. This changes the test harness, not extension behavior.
+- App setup and architecture guidance are in `docs/apps/extension`; root, Web and shared
+  package READMEs now link to the imported extension. Contributor-wide onboarding remains
+  the next stage.
+
+### Validation
+
+- Frozen dependency resolution/linking with scripts disabled: passed. Full installation
+  remains the separate deferred Xcode / `better-sqlite3` item in task 6.2.
+- selection build, WXT prepare and Extension `vue-tsc`: passed.
+- Extension Vitest: 4 files / 14 tests passed.
+- Chrome MV3 build and zip with local placeholder public values and the default development
+  profile: passed. This does not validate production configuration or publish an extension.
+- Vendor prebuild: passed; both normal bundling and the existing vendor path were exercised.
+- Chromium load smoke: passed using a temporary browser profile and local article page.
+  Service worker listeners, injected modal/sidebar, and the content readiness reply worked
+  without page errors. Development extension ID: `jgaccepfhchlnpggghoodnklcfcbhhlh`.
+- Existing offscreen fault-injection suite: all 17 scenarios passed with an isolated local
+  fixture, including concurrent calls, 20 worker stop/wake cycles, session switching,
+  logout, 50 tabs, disconnection, extension reload, and browser restart. These fixtures
+  do not replace the deferred real backend acceptance test.
+- Strict OpenSpec validation and generated rulesync drift check: passed.
+- Source checkout remained clean on `codex/fix-ci-env-before-install` / `ddcf9bc6`.
+
+Generated `.wxt`, `.vendor`, `build`, browser profiles, dependency directories and environment
+files are excluded from the stage commit. The native installation follow-up and real
+backend testing remain open until final verification, as requested by the user.
+
+The stage diff retains three source trailing-whitespace lines in
+`apps/extension/src/components/Tips/SidebarTips.vue`; `git diff --check` reports only
+these inherited lines. They were not reformatted during the snapshot import.

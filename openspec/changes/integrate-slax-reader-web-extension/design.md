@@ -69,3 +69,8 @@ Stage branches originate from `feat/integrate-slax-reader-web-extension` and mer
 there after verification. The integration branch originates from `dev` and will return to
 `dev` only through a pull request. Phase 2 uses `feat/import-slax-reader-web` and imports
 Web plus its already shared dependencies; it does not start the Extension import.
+
+Phase 3 uses `feat/import-slax-reader-extension`, based on integration commit `f100570`
+after the Web-stage merge. Extension-specific environment, UnoCSS and ESLint configuration
+is local to `apps/extension/config`; shared runtime libraries retain their four existing
+package boundaries. No new root configuration file or application source is introduced.

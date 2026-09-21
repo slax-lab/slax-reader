@@ -38,4 +38,5 @@ pnpm build:web
 - 详细架构：[Web 架构](../../docs/apps/web/architecture.md)
 - 来源和许可证：[迁移记录](../../docs/migrations/slax-reader-web-extension.md)
 
-扩展尚未迁入。Web 现有的 `/x/ext-bridge` 协议保留，以便下一阶段联调。
+扩展位于 [`apps/extension`](../extension/README.md)。Web 现有的 `/x/ext-bridge` 协议保留，
+真实 backend 联调留到所有迁移阶段完成后的最终验收。
