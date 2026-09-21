@@ -43,7 +43,7 @@ The four `packages` entries are justified by the source manifests: both applicat
 5. Add app-level READMEs and route long-form guidance into `docs/`.
 6. Add minimal root commands that delegate to the app packages.
 7. Install dependencies and run type generation, type checks, tests, and production builds for both applications.
-8. Verify the extension in a Chromium-based browser and run a Web smoke test against the existing backend integration.
+8. Verify the extension can load in a Chromium-based browser. After all migration stages are complete, perform the combined Web/Extension smoke test against the existing development backend before merging the final pull request into `dev`.
 
 ## Environment and backend boundary
 
@@ -58,6 +58,7 @@ The root receives only the minimum changes required for the workspace: package m
 - `apps/web` must install, prepare, type-check, test, and build independently through its package scripts.
 - `apps/extension` must prepare, compile, test, build, and package independently through its package scripts.
 - Shared packages must resolve through pnpm workspace links and preserve their current import boundaries.
+- Backend-connected acceptance is deferred to final verification after all migration stages, as requested by the user. It does not gate individual import stages and must not be reported as passed before it is actually run. Full dependency installation remains a separate required check.
 - The source repository's status must be unchanged before and after every migration operation.
 - `openspec validate --all --strict` must pass after the change is fully authored.
 

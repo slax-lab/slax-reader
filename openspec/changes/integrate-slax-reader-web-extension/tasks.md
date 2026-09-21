@@ -9,7 +9,7 @@
 - [x] 2.1 Copy the tracked DWeb application into `apps/web` without copying Git metadata or local-only files.
 - [x] 2.2 Move or adapt Web-specific configuration and documentation so it stays below `apps/web` or `docs/apps/web`.
 - [x] 2.3 Make the Web package resolve the new workspace package locations without changing product behavior.
-- [ ] 2.4 Run Web prepare, type-check, tests, build, and a backend-connected smoke test where local configuration permits.
+- [x] 2.4 Run Web prepare, type-check, tests, and build. Backend-connected smoke testing is tracked separately in final verification task 6.5.
 
 ## 3. Extension application import
 
@@ -39,12 +39,16 @@
 - [ ] 6.2 Run workspace install and all applicable checks from the v2 worktree.
 - [ ] 6.3 Run `openspec validate --all --strict`.
 - [ ] 6.4 Summarize known limitations, especially the external backend requirement, for reviewers and new contributors.
+- [ ] 6.5 After all migration stages are complete, run Web and Extension against the existing development backend and verify login, bookmarks, article reading, highlights/comments, and the extension bridge. Record results before the final pull request is merged into `dev`.
 
 ## Phase 2 checkpoint
 
 Web and its four pre-existing shared dependencies have been imported on
 `feat/import-slax-reader-web`. Web prepare/typecheck, selection build/typecheck,
-1754 Web tests and the Nuxt build pass. Task 2.4 remains open for a backend-connected
-smoke test. Full installation is also blocked by the host Xcode license when
-`better-sqlite3` runs its native compilation. Stage 2 is not merged into the integration
-branch until these acceptance items are resolved. See the migration record for evidence.
+1754 Web tests and the Nuxt build pass. Task 2.4 is complete for these checks.
+At the user's request, backend-connected smoke testing moves to task 6.5 after all
+migration stages; it is not an individual stage acceptance gate. It remains required
+before final integration into `dev` through a pull request.
+Full installation is still blocked by the host Xcode license when `better-sqlite3`
+runs its native compilation; that separate task 6.2 issue has not been resolved or waived.
+Stage 2 has not been merged into the integration branch. See the migration record for evidence.

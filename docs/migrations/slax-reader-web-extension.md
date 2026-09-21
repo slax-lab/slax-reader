@@ -107,8 +107,17 @@ a sibling backend source checkout; RPC names and runtime calls are unchanged.
   profile; generated client assets and the Cloudflare Pages Worker. This is not a production
   environment validation or deployment. ReSVG fell back to WASM because its native binding
   was unavailable.
-- Real backend-connected smoke test: pending developer-supplied configuration; no source
-  environment files are read or copied and no backend is started here.
+- Real backend-connected smoke test: deferred by the user until all migration stages are
+  complete (task 6.5). It remains required before merging the final pull request into `dev`,
+  but does not gate each stage. No source environment files are read or copied and no
+  backend is started here.
+
+The Xcode message concerns macOS's C/C++ compiler and SDK, which native Node.js addons
+also use. The recorded install ran `node-gyp rebuild` for the existing `better-sqlite3`
+dependency and `make` exited with code 69 because the host had not accepted the Xcode
+license. This does not add an iOS application or require contributors on other platforms
+to use Xcode. Full installation remains unverified; passing tests and the Web build after
+linking with scripts disabled do not resolve that separate installation issue.
 
 Type-checking exposed the source lock's split Vue peer contexts (TypeScript 5 and 6).
 pnpm recomputed peer connections without introducing any package version absent from the
