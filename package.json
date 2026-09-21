@@ -13,7 +13,12 @@
     "dev:web": "pnpm --filter @apps/slax-reader-dweb dev",
     "build:web": "pnpm --filter @apps/slax-reader-dweb build",
     "test:web": "pnpm --filter @apps/slax-reader-dweb test",
-    "typecheck:web": "pnpm --filter @apps/slax-reader-dweb typecheck"
+    "typecheck:web": "pnpm --filter @apps/slax-reader-dweb typecheck",
+    "dev:extension": "pnpm --filter @apps/slax-reader-extensions dev",
+    "build:extension": "pnpm --filter @apps/slax-reader-extensions build",
+    "test:extension": "pnpm --filter @apps/slax-reader-extensions test",
+    "typecheck:extension": "pnpm --filter @apps/slax-reader-extensions compile",
+    "zip:extension": "pnpm --filter @apps/slax-reader-extensions zip"
   },
   "devDependencies": {
     "@fission-ai/openspec": "1.13.1",

@@ -15,8 +15,10 @@ allowBuilds:
   # lefthook's postinstall downloads the platform binary the git hooks invoke.
   lefthook: true
   tldjs: false
+  # Preserve the source extension's explicit analytics postinstall opt-out.
+  '@wxt-dev/analytics': false
 
-  # Native build scripts already required by the imported Web toolchain.
+  # Native build scripts already required by the imported frontend toolchain.
   '@firebase/util': true
   '@parcel/watcher': true
   '@swc/core': true
