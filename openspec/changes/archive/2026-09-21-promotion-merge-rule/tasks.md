@@ -8,4 +8,4 @@
 ## 2. Validation
 
 - [x] 2.1 Run `openspec validate --all --strict` and verify it passes
-- [ ] 2.2 Open the PR to `dev` with `OpenSpec: promotion-merge-rule` in the body and verify both required checks report
+- [x] 2.2 Open the PR to `dev` with `OpenSpec: promotion-merge-rule` in the body and verify both required checks report
