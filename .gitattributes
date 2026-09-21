@@ -6,6 +6,5 @@ CLAUDE.md linguist-generated
 .claude/** linguist-generated
 .codex/** linguist-generated
 .agents/** linguist-generated
-.kimi-code/** linguist-generated
 
 .github/workflows/*.lock.yml linguist-generated=true
