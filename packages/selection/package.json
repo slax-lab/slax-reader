@@ -1,0 +1,47 @@
+{
+  "name": "@slax-reader/selection",
+  "version": "0.1.0",
+  "description": "Selection模块核心逻辑",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./adapters": {
+      "types": "./dist/adapters/index.d.ts",
+      "import": "./dist/adapters/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    }
+  },
+  "scripts": {
+    "postinstall": "tsup",
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "selection",
+    "mark",
+    "highlight",
+    "annotation"
+  ],
+  "author": "Slax Reader Team",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/node": "^26.4.0",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "@commons/types": "workspace:*",
+    "@commons/utils": "workspace:*",
+    "vue": "^3.5.42"
+  }
+}

@@ -1,0 +1,39 @@
+# Slax Reader  
+
+Slax Reader is a simple yet powerful web-based service and browser extension that helps users save, annotate, and process web articles for a relaxed reading and advanced knowledge management experience. It works seamlessly with Slax Reader API and Slax Reader App, providing a complete "read later" and reading workflow solution suitable for productivity enthusiasts, researchers, and everyday readers.
+
+## How to Use
+
+- **Web:** [Slax Reader](https://r.slax.com) — Free registration, instant use in browser.
+- **Browser Extension:** [Chrome Web Store](https://chromewebstore.google.com/detail/slax-reader/gdnhaajlomjkhahnmiijphnodkcfikfd) — Save articles in one click.
+- **Telegram Bot:** [@slaxreaderbot](https://t.me/slaxreaderbot) — Save and manage readings directly from your phone.
+
+## Key Features
+
+- Save articles/webpages via URL, browser extension, or Telegram
+- Annotate, underline, comment, reply, share, star, and archive content
+- AI-powered: automatic summarization, tag extraction, dialogue based on highlights
+- Semantic and keyword search in all saved content
+- Import bookmarks (e.g., from Omnivore)
+- WebSocket/browser push notifications for instant updates
+- Server-side rendering and fully-responsive web app
+
+## Guides & Resources
+
+- **Project Homepage:** [Github Web Page](https://github.com/slax-lab/slax-reader-web)
+- **API Service:** [Github Api](https://github.com/slax-lab/slax-reader-api)
+- **Self-hosting:** [Self Deploy Guide](https://github.com/slax-lab/slax-reader-web/blob/main/docs/DEPLOY-EN.md)
+- **Development:** [Developer Documentation (CN)](https://github.com/slax-lab/slax-reader-web/blob/main/docs/DEVELOPMENT-DOCUMENT-CN.md)
+
+## Acknowledgements
+
+Slax Reader is powered by a wide range of open-source projects, including Vue, Nuxt, UnoCSS, VueUse, Pinia, Vite, Sass, markdown-it, VitePWA, Markmap, TypeScript, ESLint, Prettier, Workbox, and more.  
+Huge thanks to all project contributors and the open-source community!
+
+## Trademark Notice
+
+"Slax Reader" and its logo are trademarks of Slax Lab. Use of the name, logo, or related trademarks for commercial purposes requires prior written permission. See the project’s [trademark policy](https://github.com/slax-lab/slax-reader-web/blob/main/docs/TRADEMARK.md) for more.
+
+## License
+
+Slax Reader is open-sourced under the [Apache License 2.0](https://github.com/slax-lab/slax-reader-web/blob/main/LICENSE).

@@ -1,15 +1,15 @@
 ## 1. Migration baseline
 
-- [ ] 1.1 Record the source repository URL, source commit, inspection date, and read-only rule in `docs/migrations/slax-reader-web-extension.md`.
-- [ ] 1.2 Inventory the Web app, Extension app, shared packages, configs, scripts, docs, generated files, local-only files, and backend integration points.
-- [ ] 1.3 Define the target mapping and explicitly exclude backend code, secrets, dependency directories, build outputs, caches, and local state.
+- [x] 1.1 Record the source repository URL, source commit, inspection date, and read-only rule in `docs/migrations/slax-reader-web-extension.md`.
+- [x] 1.2 Inventory the Web app, Extension app, shared packages, configs, scripts, docs, generated files, local-only files, and backend integration points.
+- [x] 1.3 Define the target mapping and explicitly exclude backend code, secrets, dependency directories, build outputs, caches, and local state.
 
 ## 2. Web application import
 
-- [ ] 2.1 Copy the tracked DWeb application into `apps/web` without copying Git metadata or local-only files.
-- [ ] 2.2 Move or adapt Web-specific configuration and documentation so it stays below `apps/web` or `docs/apps/web`.
-- [ ] 2.3 Make the Web package resolve the new workspace package locations without changing product behavior.
-- [ ] 2.4 Run Web prepare, type-check, tests, build, and a backend-connected smoke test where local configuration permits.
+- [x] 2.1 Copy the tracked DWeb application into `apps/web` without copying Git metadata or local-only files.
+- [x] 2.2 Move or adapt Web-specific configuration and documentation so it stays below `apps/web` or `docs/apps/web`.
+- [x] 2.3 Make the Web package resolve the new workspace package locations without changing product behavior.
+- [x] 2.4 Run Web prepare, type-check, tests, and build. Backend-connected smoke testing is tracked separately in final verification task 6.5.
 
 ## 3. Extension application import
 
@@ -20,10 +20,10 @@
 
 ## 4. Shared package import
 
-- [ ] 4.1 Copy `commons/types` to `packages/types` and preserve its public exports.
-- [ ] 4.2 Copy `commons/types-pro` to `packages/types-pro` and preserve its augmentation behavior.
-- [ ] 4.3 Copy `commons/utils` to `packages/utils` and preserve its subpath exports.
-- [ ] 4.4 Copy `commons/selection` to `packages/selection` and preserve its adapter and build boundaries.
+- [x] 4.1 Copy `commons/types` to `packages/types` and preserve its public exports.
+- [x] 4.2 Copy `commons/types-pro` to `packages/types-pro` and preserve its augmentation behavior.
+- [x] 4.3 Copy `commons/utils` to `packages/utils` and preserve its subpath exports.
+- [x] 4.4 Copy `commons/selection` to `packages/selection` and preserve its adapter and build boundaries.
 - [ ] 4.5 Update workspace globs, package names, and imports only as needed for the new locations; do not create a catch-all package.
 
 ## 5. Onboarding and root hygiene
@@ -36,6 +36,21 @@
 ## 6. Final verification
 
 - [ ] 6.1 Confirm the source `slax_reader` repository remains clean and unchanged.
-- [ ] 6.2 Run workspace install and all applicable checks from the v2 worktree.
+- [ ] 6.2 Run workspace install and all applicable checks from the v2 worktree. Revisit the macOS Xcode license / `better-sqlite3` native installation issue after all migration stages, as requested by the user; do not count installation with scripts disabled as a full-install pass.
 - [ ] 6.3 Run `openspec validate --all --strict`.
 - [ ] 6.4 Summarize known limitations, especially the external backend requirement, for reviewers and new contributors.
+- [ ] 6.5 After all migration stages are complete, run Web and Extension against the existing development backend and verify login, bookmarks, article reading, highlights/comments, and the extension bridge. Record results before the final pull request is merged into `dev`.
+
+## Phase 2 checkpoint
+
+Web and its four pre-existing shared dependencies have been imported on
+`feat/import-slax-reader-web`. Web prepare/typecheck, selection build/typecheck,
+1754 Web tests and the Nuxt build pass. Task 2.4 is complete for these checks.
+At the user's request, backend-connected smoke testing moves to task 6.5 after all
+migration stages; it is not an individual stage acceptance gate. It remains required
+before final integration into `dev` through a pull request.
+Full installation is still blocked by the host Xcode license when `better-sqlite3`
+runs its native compilation. The user deferred this separate task 6.2 issue to final
+verification; it is unresolved but no longer blocks progression to the Extension stage.
+The Web stage is ready to merge into the integration branch before creating the Extension
+stage branch. See the migration record for evidence.

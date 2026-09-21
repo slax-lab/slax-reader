@@ -1,0 +1,301 @@
+/// 文章内容通用样式 mixin，供 article 和 tweet-content 复用
+@use 'custom-classes' as *;
+
+@mixin content-styles {
+  * {
+    --style: 'whitespace-normal';
+  }
+
+  video,
+  section,
+  pre,
+  code,
+  p,
+  hr,
+  h1,
+  h2,
+  h3,
+  h4,
+  figure,
+  p,
+  :not(li) > ul,
+  :not(li) > ol {
+    --style: '!mt-24px';
+  }
+
+  /* 文本元素后紧跟的 div 补间距 */
+  :is(span, strong, em, b, i, a, code, h1, h2, h3, h4, h5, h6, p) + div {
+    --style: '!mt-24px';
+  }
+
+  /* 后随内联文本的 div 补下边距（内联元素吃不到 margin-top） */
+  div:has(+ :is(span, strong, em, b, i, a, code)) {
+    --style: '!mb-24px';
+  }
+
+  /* 容器内首尾元素去掉上下外边距，
+     避免被 blockquote 等包裹时多余空隙 */
+  :first-child,
+  :first-child:empty + * {
+    --style: '!mt-0';
+  }
+
+  /* 空白容器由 processor 标记，
+     直接隐藏，不参与布局 */
+  :has(> .oc-blank-flag) {
+    --style: 'hidden !mt-0 !mb-0';
+  }
+
+  div:not(:has(> .oc-blank-flag)):not(:empty) + div {
+    --style: '!mt-24px';
+  }
+
+  /* 首个可见元素去上边距，
+     可见 = 非空白、非空、非 img */
+  $visible-content-child: ':not(:has(> .oc-blank-flag)):not(:empty):not(img)';
+
+  #{$visible-content-child}:not(#{$visible-content-child} ~ *) {
+    --style: '!mt-0';
+  }
+
+  /* 末尾用 last-child 兜底，
+     :has() 不能嵌套 */
+  #{$visible-content-child}:last-child {
+    --style: '!mb-0';
+  }
+
+  /* 引用类 */
+  blockquote {
+    --style: border-l-(3px solid border) pl-3 line-height-24px;
+    color: var(--slax-text-muted);
+  }
+
+  /* 表格类 */
+  table {
+    --style: '!w-full my-24px';
+    border-collapse: separate; // separate 模型下圆角才生效
+    border-spacing: 0; // 去掉间距，避免双线缝隙
+    border: 1px solid var(--slax-border);
+    border-radius: var(--slax-radius-sm);
+    background: var(--slax-surface-solid);
+    box-shadow: var(--slax-shadow-sm); // 轻微抬升；eink 下 token 为 none
+    font-size: var(--slax-fs-meta);
+    line-height: 1.6;
+    overflow: hidden;
+  }
+
+  // 表格标题：居中弱化
+  table caption {
+    padding-bottom: 8px;
+    color: var(--slax-text-light);
+    font-size: var(--slax-fs-aux);
+    text-align: center;
+  }
+
+  // 单元格只画下/右内线，外框交给 table，避免双线
+  th,
+  td {
+    --style: text-align-left;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--slax-border);
+    border-right: 1px solid var(--slax-border);
+    color: var(--slax-text-muted);
+    vertical-align: top;
+    font-variant-numeric: tabular-nums; // 数字等宽便于对齐
+  }
+
+  th:last-child,
+  td:last-child {
+    border-right: none;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  // 表头：浅底加重，用更实的下边线与正文分隔
+  th {
+    background: var(--slax-surface);
+    border-bottom-width: 2px;
+    color: var(--slax-text);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+
+  // 行首列加重，作横向阅读锚点
+  tbody td:first-child {
+    color: var(--slax-text);
+    font-weight: 500;
+  }
+
+  // 斑马纹：偶数行淡底，便于逐行扫描
+  tbody tr:nth-child(even) td {
+    background: var(--slax-accent-bg);
+  }
+
+  // separate 模型下手动补四角圆角，让底色贴合外框
+  thead tr:first-child th:first-child,
+  tr:first-child td:first-child {
+    border-top-left-radius: var(--slax-radius-sm);
+  }
+  thead tr:first-child th:last-child,
+  tr:first-child td:last-child {
+    border-top-right-radius: var(--slax-radius-sm);
+  }
+  tr:last-child td:first-child {
+    border-bottom-left-radius: var(--slax-radius-sm);
+  }
+  tr:last-child td:last-child {
+    border-bottom-right-radius: var(--slax-radius-sm);
+  }
+
+  /* 链接：日夜强调色，E-ink 蓝 + ↗︎ */
+  a {
+    --style: underline-none border-none decoration-none cursor-pointer;
+    color: var(--slax-link);
+
+    &::after {
+      content: var(--slax-link-suffix, '');
+    }
+  }
+
+  /* 媒体类 */
+  div > img,
+  section > img,
+  figure > img,
+  picture,
+  picture > img,
+  video {
+    --style: '!w-full';
+  }
+
+  img {
+    --style: max-w-full h-auto bg-surface object-contain;
+    & + img {
+      --style: '!mt-10px';
+    }
+
+    &.slax-image-loading {
+      // from-#f5f5f3 to-#99999950 图片加载灰渐变占位，保留
+      --style: bg-gradient-to-br from-#f5f5f3 to-#99999950;
+      background-size: 400% 400%;
+      animation: imageLoading 3s ease infinite;
+    }
+
+    &[onerror="this.style.display='none'"],
+    &:not([src]):not([srcset]) {
+      --style: hidden;
+    }
+  }
+
+  /* 代码块；!important 压内联字体 */
+  pre {
+    --style: p-4 max-w-full rounded text-left whitespace-pre-wrap;
+    background: var(--slax-surface);
+    border: 1px solid var(--slax-border);
+    font-family: var(--slax-font-mono) !important;
+
+    code {
+      --style: max-w-full block whitespace-pre;
+      background: transparent;
+      border: none; // pre 内的 code 不需要边框
+      border-radius: 0;
+      padding: 0;
+      font-family: var(--slax-font-mono) !important;
+
+      * {
+        font-family: var(--slax-font-mono) !important;
+      }
+
+      span p {
+        --style: inline;
+      }
+    }
+  }
+
+  /* inline code 与 pre 同口径 */
+  code {
+    --style: text-left whitespace-pre;
+    background: var(--slax-surface);
+    border: 1px solid var(--slax-border);
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 0.9em;
+    font-family: var(--slax-font-mono) !important;
+    color: var(--slax-text-muted);
+
+    * {
+      font-family: var(--slax-font-mono) !important;
+    }
+  }
+
+  /* 标题类 */
+  h1 {
+    --style: text-h2 line-height-36px font-bold;
+  }
+
+  h2,
+  h3,
+  h4,
+  h5 {
+    --style: text-brand line-height-30px font-semibold;
+  }
+
+  /* 列表类 */
+  ul {
+    /* 覆盖上方 pre-line，
+       否则换行渲染成空行 */
+    --style: 'list-none !whitespace-normal';
+
+    &.has-li {
+      --style: pl-26px;
+    }
+
+    & > li {
+      --style: relative;
+    }
+
+    & > li::before {
+      --style: 'content-empty !absolute bg-txt w-4px h-4px rounded-full top-11px -left-20px';
+    }
+  }
+
+  ol {
+    --style: 'pl-26px list-none !whitespace-normal';
+    counter-reset: list-counter;
+
+    & > li {
+      --style: relative;
+      counter-increment: list-counter;
+      &::marker {
+        --style: content-empty;
+      }
+
+      &::before {
+        --style: 'content-empty !absolute rounded-full top-1px -left-26px';
+        content: counter(list-counter) '. '; /* 显示计数器 */
+      }
+    }
+  }
+
+  li li::before {
+    --style: content-none;
+  }
+
+  /* 动画 */
+  @keyframes imageLoading {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  /* 注入 / 自定义 class 样式，见 _custom-classes.scss */
+  @include custom-classes;
+}

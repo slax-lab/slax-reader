@@ -1,0 +1,44 @@
+@import './theme.tokens.css';
+
+/* 全局兜底：未显式声明的元素自动跟随主题（仅主站，禁止注入 iframe 原网页） */
+html,
+body {
+  background: var(--slax-bg);
+  color: var(--slax-text);
+  font-family: var(--slax-font-sans);
+}
+
+/* H5 移动模式（< 768px）：把 --slax-header-height 切到 mobile 档（48px）。
+ * 仅作用主站；iframe 注入的是 theme.tokens.css，没有 @media，原网页不受影响。
+ * 设计系统 §5.5：H5 模式 topbar 高度 48px，对应 --slax-header-h-mobile。
+ */
+@media (max-width: 768px) {
+  :root {
+    --slax-header-height: var(--slax-header-h-mobile);
+  }
+}
+
+/* E-ink 防残影：禁用一切动画 / 过渡 / 毛玻璃 */
+[data-slax-theme='eink'] *,
+[data-slax-theme='eink'] *::before,
+[data-slax-theme='eink'] *::after {
+  transition: none !important;
+  animation: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* E-ink source hover */
+html[data-slax-theme='eink'] .article-card .article-source:hover {
+  color: var(--slax-text) !important;
+  background-color: #b8b8b8 !important;
+}
+
+/* E-ink 关闭 Nuxt View Transition（::view-transition-* 挂在 transition root，
+   不被普通 * 选择器覆盖，必须显式禁用） */
+:root[data-slax-theme='eink']::view-transition-old(*),
+:root[data-slax-theme='eink']::view-transition-new(*),
+:root[data-slax-theme='eink']::view-transition-group(*),
+:root[data-slax-theme='eink']::view-transition-image-pair(*) {
+  animation: none !important;
+}
