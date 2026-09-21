@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-Slax Reader DWeb 是基于 Nuxt 4 的阅读 Web 应用（"Read It Later"产品）。项目完全开源，是一个自包含的单一 Nuxt 项目，不依赖任何子模块。
+Slax Reader DWeb 是基于 Nuxt 4 的阅读 Web 应用（"Read It Later"产品）。前端源码集中在 `apps/web`，通过 workspace 使用共享库，不依赖 Git 子模块。业务运行仍需要外部 backend。
 
 ## 项目结构
 
@@ -85,31 +85,8 @@ apps/web/
 
 ## 开发指南
 
-### 环境要求
-
-- **Node.js** ^22.22.2 或 ^24.15.0 或 >= 26
-- **pnpm** 11.25.0（仓库固定版本）
-
-### 快速开始
-
-```bash
-# 在仓库根目录安装依赖
-pnpm install
-
-# 启动 dweb 开发服务器
-pnpm dev:web
-
-# 构建生产版本
-pnpm build:web
-
-# 运行测试
-pnpm test:web
-pnpm --filter @apps/slax-reader-dweb test:coverage
-```
-
-### 本地 Cloudflare Worker 调试
-
-项目通过 `wrangler.local.toml` 绑定本地 backend worker，开发时会自动代理 API 请求。详见 `wrangler.toml` / `wrangler.local.toml` 中的 `services` 绑定配置。
+命令、环境配置和后端要求见[本地开发与验证](development.md)，首次参与见[开发者入门](../../contributing/development.md)。
+应用的 `server` 目录属于 Nuxt，独立 backend 仍通过现有 service binding 和 API 协作。
 
 ### 环境 Profile
 
@@ -148,12 +125,12 @@ util.[工具名].[描述]            // util.request.error
 common.[大类名].[描述]          // common.tips.success
 ```
 
-## 注意事项
+## 调试入口
 
-- **Local-First 调试**：改动 PowerSync schema 后需清除 IndexedDB 重新同步
-- **自动引入**：如 IDE 类型提示失效，运行 `npx nuxt prepare`
-- **selection 包**：改动 `packages/selection/src` 后须 `tsup` rebuild dist，否则运行时不生效
+类型提示缺失时运行 `pnpm --filter @apps/slax-reader-dweb type`。
+修改 `packages/selection/src` 后运行 `pnpm --filter @slax-reader/selection build`，或使用自动准备它的 app 命令。
+本地同步存储应在开发账户中调试；清空 IndexedDB 会丢失尚未同步的数据，先确认同步状态。
 
 ## 许可证
 
-`Slax Reader` 基于 [Apache License 2.0](../../LICENSE) 许可，社区版 100% 免费且开源。
+仓库许可见 [LICENSE](../../../LICENSE)，导入代码的原始许可和来源见[迁移记录](../../migrations/slax-reader-web-extension.md)。
