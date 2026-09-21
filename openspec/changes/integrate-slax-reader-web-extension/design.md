@@ -38,7 +38,7 @@ The four `packages` entries are justified by the source manifests: both applicat
 
 1. Capture the source inventory and verify the source worktree is clean.
 2. Copy only tracked, non-secret source files into their target directories.
-3. Rename package names and workspace references only where required by the v2 layout; keep runtime behavior unchanged.
+3. Retain package names and exports; adapt workspace paths. Import the four existing shared libraries with Web because they are prerequisites for its build, then connect Extension in the next stage.
 4. Move source-level configuration that is specific to the two applications below the relevant app directory. Keep root configuration limited to workspace orchestration and repository governance.
 5. Add app-level READMEs and route long-form guidance into `docs/`.
 6. Add minimal root commands that delegate to the app packages.
@@ -60,3 +60,10 @@ The root receives only the minimum changes required for the workspace: package m
 - Shared packages must resolve through pnpm workspace links and preserve their current import boundaries.
 - The source repository's status must be unchanged before and after every migration operation.
 - `openspec validate --all --strict` must pass after the change is fully authored.
+
+## Stage branches and pull requests
+
+Stage branches originate from `feat/integrate-slax-reader-web-extension` and merge back
+there after verification. The integration branch originates from `dev` and will return to
+`dev` only through a pull request. Phase 2 uses `feat/import-slax-reader-web` and imports
+Web plus its already shared dependencies; it does not start the Extension import.

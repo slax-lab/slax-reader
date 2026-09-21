@@ -117,3 +117,9 @@ Slax Reader is made possible by the remarkable open-source projects and tools cr
 `Slax Reader` is licensed under the [Apache License 2.0](LICENSE). The community version is completely free, open-source, and will remain so forever.
 
 Copyright is held by The Slax Reader Contributors; see [NOTICE](NOTICE) for details.
+
+## v2 development
+
+The Web application is being migrated into this monorepo. Start with
+[the Web development guide](apps/web/README.md). The browser extension and backend
+are not yet migrated. See [migration progress](docs/migrations/slax-reader-web-extension.md).

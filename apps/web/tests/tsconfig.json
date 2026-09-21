@@ -1,0 +1,14 @@
+{
+  // 让 IDE 的 tsserver 能解析 tests/ 下用例里的 `~~`/`~` 路径别名和 `.vue` 组件。
+  // 生成的 .nuxt/tsconfig.app.json 自带这些别名 + Vue SFC 编译插件，但它的 include
+  // 只覆盖 tests/nuxt/**，不含 tests/unit/**，导致这些 spec 落入 tsserver 的
+  // inferred project（无别名、无 .vue 支持）报 ts(2307)。这里 extends 它并把 include
+  // 指向 tests/ 自身即可。运行时由 Vite 解析别名，本文件只服务编辑器/类型检查。
+  //
+  // 注意：extends 会「替换」而非「合并」基础配置的 include，所以必须把 ../.nuxt/nuxt.d.ts
+  // 显式加回来——它 /// <reference> 了 imports.d.ts / types/imports.d.ts，声明了
+  // ref/computed/PropType/request 等 Nuxt 自动导入全局。漏掉它会让 spec 里 import 的 .vue
+  // 组件丢失全部全局，报一堆 ts(2304) Cannot find name。
+  "extends": "../.nuxt/tsconfig.app.json",
+  "include": ["./**/*.ts", "./**/*.vue", "../.nuxt/nuxt.d.ts"]
+}

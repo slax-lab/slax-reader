@@ -1,0 +1,1237 @@
+{
+  "common": {
+    "app": {
+      "name": "Slax Reader",
+      "seo_title": "Slax Reader: Read Smarter, Save Forever. Your AI read-it-later app for deep insights.",
+      "short_name": "Slax Reader",
+      "description": "Slax Reader is the open-source read-later app for deep thinkers. Archive the web permanently, read smarter with AI instant summaries, interactive outline and deep-dive chat.",
+      "pro": "Slax Reader Pro",
+      "pro_token": "Pro",
+      "trail_pro": "Slax Reader Trail Pro"
+    },
+    "collection": {
+      "no_more": "No more",
+      "period": "/ Month",
+      "subscribers": "Subscribers"
+    },
+    "country": {
+      "AT": "Austria",
+      "AU": "Australia",
+      "BE": "Belgium",
+      "CA": "Canada",
+      "CH": "Switzerland",
+      "DE": "Germany",
+      "DK": "Denmark",
+      "ES": "Spain",
+      "FI": "Finland",
+      "FR": "France",
+      "GB": "United Kingdom",
+      "HK": "Hong Kong",
+      "IE": "Ireland",
+      "IT": "Italy",
+      "JP": "Japan",
+      "LU": "Luxembourg",
+      "NL": "Netherlands",
+      "NO": "Norway",
+      "NZ": "New Zealand",
+      "PT": "Portugal",
+      "SE": "Sweden",
+      "SG": "Singapore",
+      "US": "United States"
+    },
+    "operate": {
+      "add": "Add",
+      "archive": "Archive",
+      "archived": "Archived",
+      "cancel": "Cancel",
+      "cancel_edit_title": "Cancel Edit",
+      "cancel_line": "Unhighlight",
+      "chatbot": "Chat",
+      "comment": "Comment",
+      "confirm": "Confirm",
+      "copy": "Copy",
+      "delete": "Delete",
+      "delete_line": "Clear",
+      "download": "Download",
+      "edit": "Edit",
+      "edit_title": "Edit title",
+      "feedback": "Feedback",
+      "report_issue": "Report an issue",
+      "forward": "Forward",
+      "like": "Like",
+      "line": "Highlight",
+      "loading": "Loading...",
+      "login": "Login",
+      "menu_trash": "Trash",
+      "off": "OFF",
+      "on": "ON",
+      "payment": {
+        "completed": "Payment Completed",
+        "confirm_desc": "Have you completed the payment?",
+        "confirm_title": "Payment Confirmation",
+        "not_completed": "Payment Not Completed"
+      },
+      "refetch": "Re-fetch",
+      "remove_subscribe": "Remove",
+      "reply": "Reply",
+      "resubscribe": "Re-subscribe",
+      "revert_to_inbox": "Restore to Inbox",
+      "save": "Save",
+      "search": "Search",
+      "share": "Share",
+      "snapshot": "Snapshot",
+      "starred": "Starred",
+      "submit": "Submit",
+      "subscribe": "Subscribe",
+      "summary_refresh": "Re-generate",
+      "top": "Top",
+      "trashed": "Trash",
+      "unarchive": "Unarchive",
+      "unsubscribe": "Unsubscribe",
+      "use": "Use",
+      "view_source": "Source",
+      "view_source_all": "View all",
+      "close": "Close",
+      "star": "Star",
+      "collapse": "Collapse",
+      "confirm_delete": "Confirm delete",
+      "copy_link": "Copy Link",
+      "more": "More",
+      "send": "Send",
+      "share_twitter": "Share on X"
+    },
+    "payment": {
+      "completed": "Payment Completed",
+      "confirm_desc": "Have you completed the payment?",
+      "confirm_title": "Whether to complete the payment",
+      "loading": "Loading...",
+      "not_completed": "Payment Not Completed",
+      "stripestatus": {
+        "action_required_requested_capabilities": "Need to apply for account permissions",
+        "listed": "Account at risk",
+        "normal": "Normal",
+        "rejected_fraud": "Fraudulent",
+        "rejected_incomplete_verification": "Incomplete verification",
+        "rejected_listed": "Risk list marked",
+        "rejected_other": "Rejected",
+        "rejected_terms_of_service": "Violation of terms of service",
+        "requirements_past_due": "Need to supplement verification materials",
+        "requirements_pending_verification": "Material under review",
+        "under_review": "Account security check"
+      }
+    },
+    "tips": {
+      "access_unavailable": {
+        "bookmark_footer": "(Content page upper right corner - Share - Copy link)",
+        "desc": "Please contact the publisher to get the correct sharing address",
+        "title": "This is private content and cannot be viewed",
+        "web_footer": "(Web page side panel - Share - Copy link)"
+      },
+      "add_tag_failed": "Add tag failed",
+      "add_url_success": "Link added",
+      "cancel_line_success": "Highlight removed",
+      "ai_response_language": "When talking to ChatBot, the language it uses to answer the content",
+      "archive_success": "Content has been Archived",
+      "copy_content_success": "Content copied successfully",
+      "delete_tag_failed": "Delete tag failed",
+      "editname_success": "Title edited successfully",
+      "fetch_error": "Request failed",
+      "get_tag_list_failed": "Get tag list failed",
+      "invalid_invite_code": "Invalid invitation code",
+      "operate_failed": "Operation failed",
+      "refetch_success": "Re-fetch started",
+      "save_failed": "Save failed",
+      "save_success": "Save successful",
+      "share_failed": "Create share failed",
+      "share_success": "Share link copied to clipboard",
+      "star_success": "Content has been starred",
+      "subscribe_success": "Subscription successful!",
+      "transfer_save_success": "Collect Link successful",
+      "trash_success": "Bookmark moved to trash",
+      "unarchive_success": "Content has been Unarchive",
+      "unstar_success": "Content has been unstarred",
+      "unsubscribe_success": "Unsubscribe successful!",
+      "delete_comment_success": "Comment deleted",
+      "lab_open": "Turn on"
+    },
+    "error": {
+      "network": "Network error, please try again later"
+    },
+    "theme": {
+      "dark": "Dark",
+      "eink": "E-ink",
+      "light": "Light"
+    }
+  },
+  "component": {
+    "add_url_top_modal": {
+      "add_url": {
+        "button": "Add",
+        "placeholder": "Paste the link you want to add here",
+        "title": "Add URL",
+        "invalid_url": "Please enter a valid URL starting with http:// or https://"
+      }
+    },
+    "ai_summaries": {
+      "click_to_expand": "Click any circle to explore more details",
+      "click_to_interpret": "Click the button to interpret this article",
+      "copy_content_success": "Content copied successfully",
+      "interpret": "Interpret this article",
+      "mindmap": "Mind Map",
+      "processing": "Analyzing",
+      "title": "Analysis Results"
+    },
+    "article_ce_tweet": {
+      "followers": "Followers",
+      "followings": "Following",
+      "location": "Location: ",
+      "website": "Website: ",
+      "quote_avatar_alt": "Quote Tweet Avatar",
+      "quote_image_alt": "Quote Tweet Image"
+    },
+    "article_selection": {
+      "comment_deleted": "Comment deleted",
+      "comment_failed": "Comment failed",
+      "comment_placeholder": "Reply to {username}",
+      "hours_ago": "hours ago",
+      "just_now": "Just now",
+      "minutes_ago": "minutes ago",
+      "placeholder": "Post your opinion",
+      "reply": "Reply to...",
+      "stroke_failed": "Highlight failed",
+      "title": "Post a comment",
+      "user_deleted": "Deleted"
+    },
+    "bookmark_article": {
+      "no_title": "No Title",
+      "video_not_support_tips": ">>> Video cannot be played, please visit the original article <<<"
+    },
+    "bookmark_cell": {
+      "add_tag": "Add tag",
+      "edit_title_placeholder": "Enter title",
+      "no_title": "No Title",
+      "shortcut": "link to:"
+    },
+    "bookmark_tags": {
+      "create": "Create “{name}”",
+      "confirm": "Done ({n})",
+      "by_ai": "Added by AI",
+      "group_mine": "My tags",
+      "group_auto": "Auto tags",
+      "placeholder": "Enter new tag (press Enter to confirm)",
+      "more": "More tags"
+    },
+    "cancel_collection_modal": {
+      "removecollection": "Remove from my collections",
+      "subtitle": "You'll have access until {date}. After that, you won't be charged",
+      "title": "Unsubscribe from collection {name} ?"
+    },
+    "chat_bot": {
+      "access_complete": "Access complete",
+      "access_failed": "Access failed:",
+      "accessing_token": "Accessing",
+      "generating_question": "Generating question...",
+      "hello": "Hello, I am the Slax Reader AI assistant:",
+      "now_accessing": "Accessing...",
+      "{alias}_placeholder": "Enter your question ({alias} + enter to line break)",
+      "{tips}_accessing": "\"{tips}\" Accessing...",
+      "{tips}_searching": "\"{tips}\" Searching...",
+      "bookmark_no_content": "No Content",
+      "bookmark_no_title": "No Title",
+      "empty_desc": "Chat with AI to deeply understand the article.",
+      "panel_title": "Chat",
+      "search_bookmark_complete": "Knowledge base search completed",
+      "search_bookmark_failed": "Knowledge base search failed",
+      "search_bookmark_token": "Searching knowledge base",
+      "search_complete": "Search completed",
+      "search_failed": "Search failed",
+      "searching_token": "searching",
+      "{tips}_searching_bookmark": "\"{tips}\" Searching knowledge base..."
+    },
+    "chat_bubble_message": {
+      "links_source": "Information source:",
+      "related_questions": "Related:",
+      "bookmarks_source": "Bookmark source:"
+    },
+    "snapshot_article_source": {
+      "label": "Source:"
+    },
+    "chat_tips_message": {
+      "generate_question_title": "You might want to ask..."
+    },
+    "collection_header": {
+      "filter_collection_title": "Content of \"{title}\":",
+      "loading": "Collections loading...",
+      "no_collects": "No subscription collections",
+      "subscribe_url": "Subscription link: "
+    },
+    "copy_button": {
+      "copy_content": "Copy content"
+    },
+    "edit_name_modal": {
+      "placeholder": "Enter title",
+      "title": "Edit title"
+    },
+    "edit_tag": {
+      "delete_confirm": "Delete this tag? This cannot be undone.",
+      "delete": "Delete tag",
+      "title": "Edit tag"
+    },
+    "feedback": {
+      "follow_up": "Allow follow-up at {email}",
+      "name": "Feedback",
+      "placeholder": "Please describe the problem you are experiencing...",
+      "title": "Your feedback will help us improve"
+    },
+    "install_extension_tips": {
+      "descript": "Save anything with one click, free and forever. Unlock Pro AI to master long articles in seconds.",
+      "install": "Get Free Extension",
+      "title": "Save Once. Read Forever."
+    },
+    "login_koc_banner": {
+      "invited_by": "invited you to join",
+      "invited_generic": "You're invited to join",
+      "perk": "60 Free Days of Pro"
+    },
+    "login_view": {
+      "google_login": "Google Login",
+      "share_page_login_tips": "You are not logged in, please log in first",
+      "title": "Sign up to start your reading journey",
+      "apple_login": "Sign in with Apple",
+      "tos_and": "and",
+      "tos_prefix": "By signing in, you agree to our"
+    },
+    "notification_cell": {
+      "comment_title": "{username} commented:",
+      "reply_title": "{username} replied to you:"
+    },
+    "notification_header": {
+      "title": "All notifications"
+    },
+    "owner_setting": {
+      "charge_percent": "(Including service management fee ratio: {value})",
+      "period": "/ Month",
+      "placeholder": {
+        "name": "Enter name"
+      },
+      "share": {
+        "1": "Show Marks/Comments",
+        "2": "Allow Marks/Comments",
+        "3": "Show My User Info"
+      },
+      "share_disabled": "Sharing disabled",
+      "share_enabled": "Sharing enabled",
+      "share_option": "Share Option",
+      "tips": {
+        "price_cant_changed": "Currently does not support paid to free",
+        "price_unavailable": "Need to complete Stripe account information first"
+      },
+      "title": {
+        "enable_sharing": "Enable collection sharing",
+        "link": "Subscription Link (Users can subscribe to your collection through this link)",
+        "name": "Name Setting",
+        "price": "Subscription price",
+        "share": "Share Option",
+        "subscribe": "Subscription Setting"
+      }
+    },
+    "payment": {
+      "redeem_placeholder": "Please enter the invitation code",
+      "subscribe_successful": "Subscription successful!",
+      "successful": "Payment successful"
+    },
+    "plan_card": {
+      "one_time_purchase": "Buy 1 Month",
+      "one_time_purchase_rule": "One-time purchase • No auto-renewal",
+      "plans": {
+        "1": {
+          "discount": "",
+          "free_features": {
+            "1": "Unlimited bookmarks",
+            "2": "Content backup",
+            "3": "Unlimited highlighting and notes",
+            "4": "Bookmark sharing",
+            "5": "Basic text search",
+            "6": "Import from Pocket and Omnivore"
+          },
+          "one_month": "month",
+          "operate_title": "Current Plan",
+          "period": "/ Month",
+          "tip_title": "",
+          "title": "Free Reader",
+          "two_month": "2 months"
+        },
+        "2": {
+          "discount": "Save 40% with monthly subscription",
+          "free_features": {
+            "1": "Includes all features of the free version"
+          },
+          "operate_title": "Subscribe Monthly",
+          "period": "/ Month",
+          "period_unit": "Month",
+          "pro_features": {
+            "1": "Interactive AI chat",
+            "2": "AI summaries & insights",
+            "3": "Auto-tagging",
+            "4": "Advanced semantic search",
+            "5": "Priority support",
+            "6": "Early access to new features"
+          },
+          "tip_title": "MOST POPULAR",
+          "title": "Pro Reader"
+        }
+      },
+      "subscribe_month_rule": "Auto-renewing • Cancel anytime",
+      "wip": " (More coming soon) "
+    },
+    "plan_payment": {
+      "choose_plan": "Selected plan",
+      "one_time_price": "$9.99",
+      "pay": "Pay",
+      "pay_now": "(bill now)",
+      "period": "/ Month",
+      "plan_price": "$5.99",
+      "stripe_error": "Stripe payment environment error",
+      "tips": "UnionPay cards without the Visa or MasterCard logo are not currently accepted.",
+      "title_trail": "7-day Trial"
+    },
+    "pro_icon": {
+      "processing": "Processing"
+    },
+    "remove_collection_modal": {
+      "title": "Remove from collection {name} ?"
+    },
+    "search_header": {
+      "empty": "No related content found",
+      "empty_desc": "Try a different keyword or a broader search.",
+      "placeholder": "Enter what you want to find",
+      "semantic_relative": "Semantic related {value}%",
+      "found_count": "Found {count} results for"
+    },
+    "share_bubble_tips": {
+      "text": "Share with friends"
+    },
+    "share_modal": {
+      "copy_link": "Copy link",
+      "copy_success": "Copied!",
+      "options": {
+        "1": "Show highlights and comments",
+        "2": "Show my avatar and nickname",
+        "3": "Allow visitors to add highlights and comments"
+      },
+      "revoke_tips": "Shared link access been revoked",
+      "title": "Share"
+    },
+    "stripe_pay_setting": {
+      "country_select": {
+        "subtitle": "Cannot be changed after selection",
+        "title": "Select country，"
+      },
+      "guideline": {
+        "create_title": "Create Stripe account",
+        "status": {
+          "active": "Active",
+          "filling": "Filling",
+          "pending": "Pending",
+          "reviewing": "Reviewing"
+        },
+        "title": "Stripe Merchant Settings Process",
+        "update_title": "Complete Stripe merchant information"
+      },
+      "receive": {
+        "available": "Available for receiving payment",
+        "unavailable": "Unavailable for receiving payment"
+      },
+      "withdraw": {
+        "available": "Available for withdrawal",
+        "unavailable": "Unavailable for withdrawal"
+      }
+    },
+    "subscribe": {
+      "cancel": "Cancel",
+      "confirm": "Claim Now",
+      "confirm_message": "🎁 Activate {month} of free Pro now!",
+      "confirm_message_new_user": "🎉 Almost there! Activate your free Pro {month} now.",
+      "index_confirm": "Claim Now",
+      "index_message": "Limited Time Offer: Get 1 Month FREE Pro!",
+      "receive_result_error": "Claim failed, please try again later",
+      "skip": "Skip",
+      "successful": "🎉Claim successful🎉"
+    },
+    "subscribe_collection_button": {
+      "processing": "Status updating"
+    },
+    "subscription": {
+      "description": "Unlock full AI capabilities — content analysis, chat assistant, semantic search.",
+      "title": "Upgrade to Pro",
+      "cycle_monthly": "Monthly",
+      "cycle_monthly_tag": "Save 40%",
+      "cycle_oneoff": "One-time",
+      "current_plan": "Current plan",
+      "badge_popular": "Most popular",
+      "cta_subscribe": "Subscribe",
+      "secure_payment": "Secure payment · Cancel anytime",
+      "secure_payment_oneoff": "Secure payment · No auto-renewal"
+    },
+    "tags_header": {
+      "mine": "My tags",
+      "auto": "Auto tags",
+      "mine_hint": "AI picks these first when tagging",
+      "promote": "Add to my tags",
+      "demote": "Remove from my tags",
+      "empty_mine": "Pick a few words you actually use",
+      "empty_mine_desc": "Picked words move to the top and AI prefers them when tagging. You can also create a new one.",
+      "untagged": "Untagged articles",
+      "add_filter": "Add another tag",
+      "result_count": "{n} articles",
+      "no_candidates": "No more tags to add",
+      "add_tag": "Add new tag",
+      "add_tag_placeholder": "Enter new tag",
+      "filter_tag_title": "Content under the \"{title}\" tag:",
+      "loading": "Tags loading..."
+    },
+    "user_notification": {
+      "no_message": "No message",
+      "title": "New message"
+    },
+    "user_operate_icon": {
+      "logout": "Logout",
+      "personal_info": "Setting"
+    },
+    "ai_panel": {
+      "outline_label": "Outline",
+      "overview_label": "Overview",
+      "retry": "Failed to load, click to retry"
+    },
+    "article_ce_social_post": {
+      "followers": "Followers",
+      "followings": "Following",
+      "location": "Location: ",
+      "score": "Score",
+      "website": "Website: "
+    },
+    "snapshot_chat": {
+      "copied": "Copied",
+      "empty_desc": "Or select text to ask about a specific part",
+      "empty_title": "Ask AI anything about this article",
+      "scroll_to_bottom": "Jump to latest"
+    },
+    "snapshot_comment": {
+      "empty_desc": "No comments yet.\nSelect text in this article to leave one."
+    },
+    "snapshot_status_modal": {
+      "dont_remind_again": "Don't remind me again",
+      "failed_content": "Try clicking the article title to read the original page, or use our browser extension to re-save this article",
+      "failed_title": "Snapshot unavailable",
+      "pending_content": "This usually takes a few minutes. You can read the original article while you wait",
+      "pending_title": "Creating snapshot..."
+    },
+    "transcript_panel": {
+      "empty": "No transcript available",
+      "title": "Transcript"
+    }
+  },
+  "docs": {
+    "title": {
+      "delete_account_notice": "Delete Account Notice",
+      "how_do_i_delete_account": "How Do I Delete Account",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service"
+    }
+  },
+  "page": {
+    "dashboard": {
+      "eyebrow": "Dashboard",
+      "title": "Reader activity snapshot",
+      "description": "A polished overview of product momentum, activation and platform engagement for the selected period.",
+      "tab_aria_label": "Dashboard view switcher",
+      "tab_today": "Today's data",
+      "tab_today_hint": "Current snapshot and platform mix",
+      "tab_history": "History",
+      "tab_history_hint": "Range trends and structural shifts",
+      "range_label": "Range",
+      "range_start": "Start",
+      "range_end": "End",
+      "refresh": "Apply",
+      "reset": "Reset",
+      "loading": "Loading dashboard preview…",
+      "retry": "Retry",
+      "quick_insights_eyebrow": "Quick insights",
+      "quick_insights_title": "Where momentum is concentrating",
+      "top_platform_badge": "Top platform",
+      "top_platform_meta": "{activeUsers} active users · {activeShare} of total activity",
+      "stat_total_active": "Total active users",
+      "stat_total_new": "Total new users",
+      "stat_platform_count": "Platform count",
+      "chip_core": "Core",
+      "chip_growth": "Growth",
+      "chip_depth": "Depth",
+      "platform_mix_eyebrow": "Platform mix",
+      "platform_mix_title": "New and active users by platform",
+      "legend_active": "Active users",
+      "legend_new": "New users",
+      "row_numbers": "{activeUsers} active · {newUsers} new",
+      "platform_web": "Web",
+      "platform_ios": "iOS",
+      "platform_android": "Android",
+      "platform_extension": "Extension",
+      "platform_desktop": "Desktop",
+      "platform_unknown": "Unknown",
+      "platform_total": "Total",
+      "history_eyebrow": "Historical data",
+      "history_title": "",
+      "history_range_aria_label": "History range selector",
+      "range_7d": "7 days",
+      "range_30d": "30 days",
+      "range_90d": "90 days",
+      "range_365d": "365 days",
+      "history_total": "Range total",
+      "history_vs_start": "vs range start",
+      "history_summary_active": "Ending active users",
+      "history_summary_active_hint": "Combined active footprint across platforms",
+      "history_summary_new": "Ending new users",
+      "history_summary_new_hint": "Latest observed acquisition point",
+      "history_summary_retention": "Retention rate",
+      "history_summary_retention_hint": "Return reading remains steady",
+      "history_summary_ai": "AI sessions",
+      "history_summary_ai_hint": "Power usage keeps climbing",
+      "history_chart_growth": "Growth",
+      "history_chart_acquisition": "Acquisition",
+      "history_chart_quality": "Quality",
+      "history_chart_depth": "Depth",
+      "history_chart_engagement": "Engagement",
+      "history_chart_ai": "AI",
+      "history_expand": "Expand",
+      "history_expand_aria_label": "Expand {title}",
+      "history_chart_active_platform_title": "Active users",
+      "history_chart_active_platform_desc": "Users who performed at least one of the following actions on the day: opened or refreshed the Web client, or brought the App to the foreground (i.e. sent a heartbeat). Broken down by platform.",
+      "history_chart_new_users_platform_title": "New users",
+      "history_chart_new_users_platform_desc": "Users who completed registration on the day, broken down by platform.",
+      "history_chart_new_users_title": "New users trend",
+      "history_chart_new_users_desc": "Shows whether acquisition pace is building consistently alongside campaigns or launches.",
+      "history_chart_retention_title": "Retention rate trend",
+      "history_chart_retention_desc": "Measures whether users keep coming back after their first complete reading flow.",
+      "history_chart_bookmarks_title": "Bookmarks per user trend",
+      "history_chart_bookmarks_desc": "Reflects whether activated readers continue turning content into durable library value.",
+      "history_chart_share_title": "Share conversion trend",
+      "history_chart_share_desc": "Highlights how efficiently shared content leads to registration or meaningful return visits.",
+      "history_chart_ai_title": "AI sessions trend",
+      "history_chart_ai_desc": "Monitors whether high-value AI features are gaining sustained adoption.",
+      "history_metric_retention": "Retention rate",
+      "history_metric_bookmarks_per_user": "Bookmarks per user",
+      "history_metric_share_rate": "Share conversion",
+      "card_new_users_title": "New users",
+      "card_new_users_desc": "Users who completed registration on the day.",
+      "card_active_users_title": "Active users",
+      "card_active_users_desc": "Users who performed at least one of the following actions on the day: opened or refreshed the Web client, or brought the App to the foreground (i.e. sent a heartbeat).",
+      "card_new_bookmarks_title": "New bookmarks",
+      "card_new_bookmarks_desc": "Total number of new bookmarks saved by users on the day.",
+      "card_bookmark_users_title": "Bookmarking users",
+      "card_bookmark_users_desc": "Users who saved at least 1 new bookmark on the day.",
+      "card_new_subscriptions_title": "New Pro subscribers",
+      "card_new_subscriptions_desc": "Users who completed a Pro subscription on the day (including first-time subscriptions and renewals after expiry), excluding refunds. Note: subscription ≠ payment — for example, iOS users are charged in the following month.",
+      "card_archive_users_title": "Archive users",
+      "card_archive_users_desc": "Users who archived at least 1 bookmark on the day.",
+      "card_activated_users_title": "Activated new users",
+      "card_activated_users_desc": "Users who completed their first bookmark within 24 hours of registration, counted by bookmark time.",
+      "card_ai_power_users_title": "AI users",
+      "card_ai_power_users_desc": "Users who used an AI feature on the day. The three sub-metrics, in order, are:\n· Chat: users with ≥ 2 conversation rounds on the day.\n· Overview: users who used the feature ≥ 1 time on the day.\n· Outline: users who used the feature ≥ 1 time on the day.",
+      "ai_label_chat": "Chat",
+      "ai_label_overview": "Overview",
+      "ai_label_summary": "Outline"
+    },
+    "auth": {
+      "authenticating": "Authenticating"
+    },
+    "bookmarks_detail": {
+      "ai_analyze": "Analysis",
+      "chat": "Chat",
+      "loading": "Content loading...",
+      "notes_count": "{ count } notes",
+      "notes_by": "{ author } · { count } notes",
+      "no_more": "The End",
+      "no_title": "No Title",
+      "not_exists": "Bookmark does not exist",
+      "processing": "Content is being processed, please wait...",
+      "share_bookmark_tips": "Shared by { user } on { date }",
+      "trash_bookmark_restore": "Restore to Inbox",
+      "trash_bookmark_tips": "Bookmark have been moved to trash { date }. It will automatically be deleted in 7 days.",
+      "og_title_with_notes": "{title} — Reading notes by {author}",
+      "error_not_found": "Not Found",
+      "error_generic": "Something went wrong",
+      "cancel_quote": "Cancel quote",
+      "comment_all": "Comment on article",
+      "comment_placeholder": "Write your thoughts...",
+      "comments": "Comments",
+      "from_collection": "From the collection",
+      "from_collection_short": "From",
+      "send_hint": "Enter to send · Shift+Enter for newline",
+      "share_to_twitter": "Share to X / Twitter",
+      "shared_via": "Shared via",
+      "try_free": "Try free"
+    },
+    "bookmarks_index": {
+      "untagged": "Untagged",
+      "Trash": "Trash",
+      "add_url": "Add",
+      "archive": "Archive",
+      "collections": "Collections",
+      "content_deleted": "Original content has been deleted",
+      "empty": "No content here yet",
+      "empty_highlights_title": "No highlights yet",
+      "empty_highlights_desc": "Select text in any article to highlight it — they'll appear here.",
+      "empty_starred_title": "No starred articles yet",
+      "empty_starred_desc": "Click the star icon on any article and it'll appear here.",
+      "empty_archive_title": "No archived articles yet",
+      "empty_archive_desc": "Archived articles leave your inbox but stay searchable.",
+      "empty_trash_title": "No deleted articles yet",
+      "empty_trash_desc": "Articles you delete stay here for 7 days, then they're permanently deleted.",
+      "highlights": "Highlights",
+      "inbox": "Inbox",
+      "more": "Load more",
+      "new_topic": "Input tag (less than 30 characters)...",
+      "no_more": "You've reached the end",
+      "starred": "Starred",
+      "source_filter_site": "Site",
+      "topics": "Tags",
+      "trash_no_more": "Articles in the trash are permanently deleted after 7 days.",
+      "view_original": "View original",
+      "collection_feed": {
+        "closed": "Closed",
+        "expired_days": "Expired {count} days ago",
+        "subscribed_today": "Subscribed today",
+        "subscribed_since": "Subscribed since {date}",
+        "view_home": "View collection",
+        "renew": "Renew",
+        "closed_title": "The curator closed this collection",
+        "closed_desc": "If the author reopens it, new picks will return here.",
+        "expired_title": "Your subscription to {name} has expired",
+        "expired_desc": "Renew to keep seeing this collection's recommendations.",
+        "highlight_count": "{count} highlights",
+        "open_article": "Open {title}",
+        "my_inbox": "My Inbox"
+      },
+      "starred_share": {
+        "title": "Your stars can help others discover great content",
+        "desc": "Once enabled, your starred articles automatically become your recommendations page — share the link and others can subscribe.",
+        "enable": "Enable collection",
+        "dismiss": "Not now",
+        "status_enabled": "Collection enabled",
+        "subscriber_count": "{count} subscribers",
+        "share": "Share collection",
+        "copied": "Link copied",
+        "view_collection": "View collection",
+        "mini_copy": "Your stars can help others discover great content",
+        "mini_cta": "Enable collection",
+        "enable_modal": {
+          "title": "Enable starred collection",
+          "desc": "Once enabled, your current and future starred articles automatically become your recommendations page.",
+          "note": "Your collection page will be public. You can close or reopen it anytime.",
+          "submit": "Enable collection",
+          "success_title": "Your collection is now live",
+          "success_desc": "Everything you star will be automatically added to your collection.",
+          "success_cta": "View my collection"
+        }
+      },
+      "local_sync": {
+        "title": "Initializing…",
+        "subtitle": "Syncing your library to this device",
+        "preparing": "Preparing…"
+      },
+      "date_group_format": "{monthName} {year}",
+      "days_ago": "{n} days ago",
+      "hours_ago": "{n} hours ago",
+      "just_now": "just now",
+      "last_updated_at": "Updated {time}",
+      "minutes_ago": "{n} minutes ago",
+      "months_ago": "{n} months ago",
+      "years_ago": "{n} years ago",
+      "add_article": "Add article",
+      "empty_collections_desc": "Select a collection to view its articles",
+      "empty_collections_title": "No collection content",
+      "empty_inbox_desc": "Open any page you want to read and click the Slax Reader icon in your browser toolbar.",
+      "empty_inbox_prompt": {
+        "desc": "Install the browser extension to save any page in one click.",
+        "install": "Install Browser Extension",
+        "note": "Setup takes about a minute",
+        "title": "Your saved articles will show up here"
+      },
+      "empty_inbox_title": "Save your first article",
+      "empty_topics_desc": "Tag your saved articles and they will be grouped into topics automatically",
+      "empty_topics_title": "No topics yet",
+      "layout_card": "Card view",
+      "layout_text": "Text view",
+      "search_back": "Back",
+      "search_history_clear": "Clear",
+      "search_history_title": "Recent searches",
+      "search_placeholder": "Search articles…",
+      "sidebar_collapse": "Collapse sidebar",
+      "sidebar_expand": "Expand sidebar"
+    },
+    "c_detail": {
+      "subscribe_text": "Originally collected by {user}"
+    },
+    "c_index": {
+      "badge": "Starred Collection",
+      "stat_articles": "Starred",
+      "stat_subscribers": "Subscribers",
+      "note_visitor": "Once you subscribe, new picks sync to your home automatically.",
+      "note_subscriber": "Synced to your Inbox — new picks will keep coming.",
+      "goto_inbox": "Go to Inbox →",
+      "manage": "Manage collection",
+      "subscribe": "Subscribe",
+      "subscribed": "Subscribed",
+      "unsubscribe": "Unsubscribe",
+      "share": "Share collection",
+      "copy_link": "Copy link",
+      "share_twitter": "Share to Twitter",
+      "toast_copied": "Collection link copied",
+      "toast_subscribed": "Subscribed",
+      "toast_unsubscribed": "Unsubscribed",
+      "list_end": "— You've reached the end —",
+      "pager_label": "Pagination",
+      "pager_prev": "Previous page",
+      "pager_next": "Next page",
+      "pager_jump_prev": "Previous page group",
+      "pager_jump_next": "Next page group",
+      "highlight_count": "{count} highlights",
+      "month_label": "{month} {year}",
+      "not_found_title": "Collection not found",
+      "not_found_desc": "This collection may have been removed, or the link is incorrect.",
+      "seo_desc_fallback": "{count} articles curated by {name}",
+      "seo_desc_updated": " · last updated {month}",
+      "empty_title": "Nothing here yet",
+      "empty_desc": "The author hasn't starred any articles yet. Check back later.",
+      "closed_visitor_title": "{name} was closed by its curator",
+      "closed_visitor_desc": "Save your own articles with Slax Reader.",
+      "closed_visitor_cta": "Try Slax Reader for free",
+      "closed_subscriber_title": "{name} was closed by its curator",
+      "closed_subscriber_desc": "If the curator reopens it, new picks will return to your Inbox.",
+      "closed_unsubscribe": "Unsubscribe",
+      "closed_owner_desc": "Your collection is no longer public — subscribers will see it as closed.",
+      "closed_owner_cta": "Manage collection"
+    },
+    "collection_manage": {
+      "back_to_collection": "Back to collection",
+      "back_to_starred": "Back to starred",
+      "title": "Manage collection",
+      "status_open": "Public",
+      "status_closed": "Closed",
+      "page_desc": "Edit your collection's name and description, and adjust its public status.",
+      "closed_notice": "Your collection is no longer public — subscribers will see it as closed.",
+      "reopen": "Reopen",
+      "link_label": "Collection link",
+      "link_hint": "Auto-generated and can't be changed — share it and anyone can visit your collection.",
+      "link_hint_closed": "Inactive while your collection is closed.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "name_label": "Name",
+      "optional": "Optional",
+      "name_placeholder": "Give your collection a name (optional)",
+      "desc_label": "Description",
+      "desc_placeholder": "Describe this collection (optional)",
+      "save": "Save changes",
+      "danger_title": "Danger zone",
+      "danger_desc": "Closing your collection makes it inaccessible — subscribers will see it as closed in their Inbox. Your stars are unaffected, and you can reopen anytime.",
+      "close_collection": "Close collection",
+      "confirm_title": "Close collection?",
+      "confirm_desc": "Closing your collection makes it inaccessible — subscribers will see it as closed in their Inbox. Your stars are unaffected, and you can reopen anytime.",
+      "confirm_cancel": "Cancel",
+      "confirm_close": "Confirm close",
+      "overview_articles": "Articles",
+      "overview_articles_hint": "From your currently starred content.",
+      "overview_subscribers": "Subscribers",
+      "overview_subscribers_hint": "They'll keep receiving your updates.",
+      "toast_saved": "Changes saved",
+      "toast_copied": "Collection link copied",
+      "toast_closed": "Collection closed",
+      "toast_reopened": "Collection reopened",
+      "default_name": "{name}'s Reading Picks"
+    },
+    "guide": {
+      "guides": {
+        "1": {
+          "title": "Pin the \"Slax Reader\" extension icon"
+        },
+        "2": {
+          "title": "Click the icon to collect content after opening the URL (checkmark indicates collection completion)"
+        },
+        "3": {
+          "title": "Log in to your account to see collected content in Inbox"
+        }
+      },
+      "operate_title": "Get started:",
+      "subtitle": "The following details will help you better use the product",
+      "title": "Welcome to Slax Reader",
+      "use": "Get started"
+    },
+    "index": {
+      "cards": {
+        "1": {
+          "content": "Collect links, content backed up in your account to ensure good content is not lost",
+          "title": "Backup Content"
+        },
+        "2": {
+          "content": "Clear and generous layout, comfortable reading experience, easy and natural operation",
+          "title": "Simple and practical"
+        },
+        "3": {
+          "content": "A great helper for reading long articles, with AI assistance for understanding, supports outputting content summaries and mind maps",
+          "title": "Reading assistant"
+        },
+        "4": {
+          "content": "AI-assisted questioning and step-by-step inquiry deepen understanding of articles and truly grasp knowledge",
+          "title": "AI Q&A"
+        },
+        "5": {
+          "content": "Automatically generates usable tags and categories without user intervention, simplifying content organization",
+          "title": "Automatic tagging"
+        },
+        "6": {
+          "content": "Collect content via browser extensions, iOS and Android apps, Telegram plugins, etc.",
+          "title": "Convenient bookmarking"
+        }
+      },
+      "faq": "FAQ",
+      "faqs": {
+        "1": {
+          "content": "Slax Reader is not only a read-later tool, but also a reader's AI assistant, learning community, and knowledge base.",
+          "title": "What is Slax Reader?"
+        },
+        "2": {
+          "content": "You can email us at hi{'@'}slax.com or find us on Twitter {'@'}SlaxHQ.",
+          "title": "How can I provide feedback on issues?"
+        },
+        "3": {
+          "content": "We all love reading, continuous learning, and have paid to use various Read it later products over the years, but none have ever fully met our expectations.",
+          "title": "How is our development team?"
+        },
+        "4": {
+          "content": "AI has shown potential in assisting learning, which may be a variable that could lead to breakthroughs. Therefore, we plan to experiment and iterate this product over the long term (in terms of decades).",
+          "title": "Why create this software?"
+        },
+        "5": {
+          "content": "This is currently just an initial preview version, and our differences include:\n · AI Priority: Increased use of AI technology to assist learning\n · Content Backup: Internet link content often gets lost; here, a link once saved is backed up long-term\n\nIn the future, we will implement more differentiated capabilities, such as:\n · Multi-agent discussions to deepen understanding\n · Establishing a unique learning community where everyone can discuss and exchange ideas\n · Content Square: Breaking the homogenization problem brought by algorithmic recommendations\n · Content Subscription: Subscribe to people, content, and tags you are interested in",
+          "title": "What makes Slax Reader different from other read-later products?"
+        },
+        "6": {
+          "content": "We aim to provide exceptional services at the lowest possible price, hence, you can use features for free including unlimited bookmarks, unlimited content caching (free permanently for early users), unlimited devices, unlimited highlighted comments (coming soon), bookmark imports (coming soon), sharing bookmarks, full-text search, and clients across all platforms.\n\nHowever, due to the computational demands of AI and the need for sustainable business operations, we also offer a paid professional version. If you need to use features such as AI analysis, AI Q&A, and automatic tagging, a monthly subscription is required.",
+          "title": "Is your product free?"
+        }
+      },
+      "features": "Free and paid features",
+      "history": "Update history",
+      "history_notes": {
+        "1": {
+          "1": "Support web page collection and search",
+          "2": "Bookmark snapshot page supports AI summary",
+          "3": "Bookmark snapshot page supports AI Chat",
+          "version": "v1.0"
+        },
+        "2": {
+          "1": "Bookmark sharing",
+          "2": "Bookmark snapshot page supports highlighting and commenting",
+          "3": "Bookmark snapshot page supports selecting content for AI Chat",
+          "4": "Added bookmark tag function",
+          "5": "User language synchronization",
+          "version": "v1.1"
+        },
+        "3": {
+          "1": "Support for ominivore.app website import",
+          "2": "Added trash can function",
+          "3": "AI summary supports re-generation",
+          "4": "Added positioning of highlights and comments in articles",
+          "5": "Added release note",
+          "version": "v1.2"
+        },
+        "4": {
+          "1": "Star subscription",
+          "2": "Support search",
+          "3": "Added message notification",
+          "4": "Support Alipay/WeChat one-time payment",
+          "5": "AI analysis is free",
+          "version": "v1.3"
+        },
+        "5": {
+          "1": "Slax Reader is now open source! 🎉",
+          "version": "v1.4"
+        },
+        "6": {
+          "1": "[Feature] Browser Extension Highlighting, Commenting, and AI Chatting on original web page",
+          "2": "[Feature] Language settings for AI features",
+          "3": "[Feature] Subscription via Invite Codes",
+          "version": "v1.5"
+        },
+        "head": "Current Version ({version})"
+      },
+      "posters": {
+        "1": {
+          "subtitle": "Open collected links in Slax Reader, suitable for reading on computers, tablets, and phones, with just the right AI tools to assist learning",
+          "title": "Snapshot page and toolbar"
+        },
+        "2": {
+          "subtitle": "Presents long and complex texts in a structured format, with clickable links to jump to corresponding paragraphs",
+          "title": "AI Analysis"
+        },
+        "3": {
+          "subtitle": "She is a gentle inquirer, a well-read scholar, and a challenger full of personality",
+          "title": "AI Assistant"
+        }
+      },
+      "slogan": "AI smart learning and social assistant, making knowledge accessible",
+      "slogan_left_bracket": " ",
+      "slogan_right_bracket": " "
+    },
+    "share_detail": {
+      "share_text": "{user} shared on {date}",
+      "transfer_save": "Collect Link",
+      "transfered_save": "Collected",
+      "marks_visible": "Show highlights"
+    },
+    "slug": {
+      "back_home": "Go back home",
+      "title": "Page not found"
+    },
+    "subscription_mobile_me": {
+      "auto_renew_tips": "Automatically renews after trial ends",
+      "cancel_subscription": "Unsubscribe",
+      "start_trial": "Start Trail",
+      "subscribed_auto_renew_date": "({date} automatically renews)",
+      "subscribed_renew_date": "Renews on {date}",
+      "subscribed_status": {
+        "active_on_google": "Active via Google Play",
+        "active_via": "Active via {source}",
+        "available": "Available",
+        "cancel_tips": "If you wish to cancel, please do so through {source}"
+      },
+      "subscribed_trail_end_date": "Trial ends in $1 days. ",
+      "subscribed_trail_end_tips": "Subscribe to Keep Pro",
+      "trail_tips": "1 month free trial, then $5.99 / month.",
+      "unsupported_description": "This page is only accessible through the Slax Reader app",
+      "unsupported_title": "Access Not Supported"
+    },
+    "user": {
+      "ai_response_language": "AI Response Language:",
+      "batches_progress": "Progress",
+      "business_name": "Business name:",
+      "business_type": "Business type",
+      "capabilities": "Account capabilities:",
+      "choose_sharing_type": "Choose sharing type",
+      "collect_share_settings": "Share settings",
+      "collect_share_url": "Subscription link",
+      "company_name": "Company name",
+      "complete_stripe_info": "Complete account information",
+      "connect_slax_payment": "Connect Slax Payment",
+      "connect_stripe": "Connect Stripe",
+      "count": "Count",
+      "country": "Country/Region",
+      "create_account_error": "Create account failed",
+      "create_stripe_account": "Create Stripe account",
+      "delete_account": {
+        "section_title": "Delete account",
+        "description": "Want to delete your Slax Reader account?",
+        "delete_button": "Delete account",
+        "dialog_title": "Account deletion notice",
+        "confirm_button": "I have read the above and confirm to delete",
+        "cancel_button": "Cancel",
+        "second_confirm_title": "Final confirmation",
+        "second_confirm_description": "This action is irreversible. Are you sure you want to permanently delete your account?",
+        "second_confirm_button": "Confirm deletion",
+        "deleting": "Deleting account...",
+        "delete_success": "Your account has been deleted",
+        "delete_failed": "Failed to delete account, please try again later"
+      },
+      "edit": "Edit",
+      "email": "Email",
+      "fetch_stripe_info_failed": "Failed to fetch Stripe account information",
+      "goto_stripe_board": "Go to Stripe dashboard",
+      "help_and_support": "Help and support",
+      "import_description": "Export your bookmarks from the other app, then upload the file here. Choose CSV when the app offers it (Pinboard: JSON). One file at a time, up to 25 MiB and 10,000 bookmarks.",
+      "import_preview_title": "Confirm import",
+      "import_include_feed": "Include feed articles",
+      "import_preview_counts": "{eligible} bookmarks to import · {feeds} feed rows excluded · {duplicates} duplicates merged · {invalid} invalid rows skipped",
+      "import_date_warning": "{count} dates could not be read. These bookmarks will use the import date.",
+      "import_start": "Start import",
+      "import_cancel": "Cancel",
+      "import_size_limit": "Choose a file smaller than 25 MiB.",
+      "import_preview_failed": "Could not preview this export. Check the product and format; exports are limited to 25 MiB and 10,000 bookmarks.",
+      "import_upload_failed": "The upload did not finish. Check import progress before trying again.",
+      "import_note1": "Due to our re-fetching and re-analyzing of imported data, the time required will be proportional to the amount of data.",
+      "import_note2": "Note that we only support basic metadata and re-analyze websites as much as possible. If your data is missing, different, or changed, it is recommended to use our APP/browser extension to re-collect to ensure data completeness.",
+      "import_progress": "Import progress",
+      "export_title": "Export saved links",
+      "export_description": "Export your saved links, titles, tags, saved dates, and reading states. Includes archived links. Excludes Trash.",
+      "export_format": "Format",
+      "export_csv": "CSV (spreadsheets)",
+      "export_json": "JSON (complete metadata)",
+      "export_start": "Export",
+      "export_cancel": "Cancel",
+      "export_retry": "Retry",
+      "export_progress": "{count} links prepared",
+      "export_empty": "No saved links to export.",
+      "export_failed": "Export failed. Please check your connection and sign in, then retry.",
+      "export_cancelled": "Export cancelled.",
+      "export_complete": "Downloaded {count} saved links.",
+      "import_third_party_data": "Import third-party data",
+      "import_time": "Import time",
+      "no_import_records": "No import records yet",
+      "import_network_error": "Network error",
+      "import_status_pending": "Pending",
+      "import_status_processing": "Processing",
+      "import_status_processing_percent": "Processing ({percentage}%)",
+      "import_status_failed": "Failed",
+      "import_status_complete": "Complete",
+      "import_status_unknown": "Unknown",
+      "import_unzipping": "Unzipping file...",
+      "import_uploading": "Uploading file...",
+      "import_uploading_progress": "Uploading file {current} of {total}...",
+      "import_file_invalid": "File not found or is not a {type} file",
+      "import_upload_success": "{type} data imported successfully, please wait a moment",
+      "import_submitted": "File received. {count} bookmarks are importing in the background. You can leave this page and check Import progress later.",
+      "import_submitted_no_count": "File received. Your bookmarks are importing in the background. You can leave this page and check Import progress later.",
+      "import_active_summary": "{count} imports in progress, newest at {percentage}%",
+      "import_too_many": "Up to {max} imports can run at a time. Wait for one to finish and try again.",
+      "language": "Language:",
+      "language_en": "English",
+      "language_zh": "Chinese",
+      "my_subscriptions": "My subscriptions",
+      "personal_info": "Personal information",
+      "platform": "Platform",
+      "save": "Save",
+      "select_country": "Select country",
+      "setup_completed": "Setup completed",
+      "setup_progress": "Setup Progress",
+      "setup_step1": "Basic Info",
+      "setup_step2": "Identity",
+      "setup_step3": "Bank Account",
+      "setup_step4": "Complete",
+      "share_my_collection": "Share my collection",
+      "share_my_collection_description": "Share your \"starred\" content to make knowledge accessible",
+      "show_name": "Show name",
+      "status": "Status",
+      "stripe_capabilities": "Stripe Capabilities",
+      "stripe_onboarding": "Stripe Onboarding",
+      "stripe_section_title": "Stripe Merchant Settings",
+      "stripe_setup_notice": "Slax Reader will use your Stripe account for payment, withdrawal, etc., and you need to complete your Stripe account information",
+      "stripe_status": "Stripe status:",
+      "subscribe": {
+        "expired": "Expires",
+        "first": "Started",
+        "next_payment": "Next Payment",
+        "no": "No Subscripted",
+        "processing_notice": "You've successfully subscribed to Pro. Your order is being processed and should take a few minutes.",
+        "subscripted_pro": "Subscribed to Pro",
+        "subscripted_trail_pro": "Pro Trial Active"
+      },
+      "subscription_description": "After subscribing, you will gain access to all AI features.",
+      "subscription_preferences": "Subscription preferences",
+      "api_key": "API Key",
+      "skills_cli_title": "Skills + CLI",
+      "api_key_description": "For AI Agent access via Skill + CLI. The full key is shown only once upon generation. Please keep it safe.",
+      "api_key_value": "Current key",
+      "api_key_created_at": "Created at",
+      "api_key_generate": "Generate API Key",
+      "api_key_generate_and_copy": "Generate and copy",
+      "api_key_generated_and_copied": "API Key generated and copied",
+      "api_key_regenerated_and_copied": "API Key regenerated and copied",
+      "api_key_view_failed": "Unable to load the full API Key",
+      "api_key_subscribe_to_generate": "Subscribe to generate your API Key.",
+      "api_key_view_all_and_copy": "Copy",
+      "api_key_full_unavailable": "Full key is no longer available. Regenerate to get a new one.",
+      "api_key_view_all": "View all",
+      "api_key_hide": "Hide",
+      "api_key_regenerate": "Regenerate",
+      "api_key_regenerate_tip": "Regenerating will immediately invalidate your previous key.",
+      "api_key_regenerate_confirm": "Regenerating will invalidate the current key immediately. Confirm to continue.",
+      "api_key_new_key": "New API Key",
+      "api_key_once_hint": "This full key is only shown once. Copy and save it now.",
+      "api_key_cli_manual": "Manual Installation",
+      "api_key_cli_ai_agent": "Install via AI Agent",
+      "api_key_cli_copy": "Copy",
+      "api_key_cli_manual_hint": "Copy the command below and run it in your terminal to install",
+      "api_key_cli_ai_hint": "Copy the prompt below and send it to your AI assistant (Claude Code, Codex, Cursor, Trae, etc.) — it will handle the installation automatically.",
+      "api_key_cli_ai_prompt": "Help me install Slax Reader CLI: {url}",
+      "api_key_cli_copy_prompt": "Copy Prompt",
+      "api_key_cli_completion_hint": "After configuration, restart your AI Agent to start using it",
+      "api_key_cli_open_source": "Open Source",
+      "api_key_cli_availability_hint": "Slax Reader Skill + CLI is now available to everyone. Basic features like add, list, and get will stay free, and some advanced features we add later may be included in the Pro plan.",
+      "subscription_redeem": "Use invitation code",
+      "subscription_stripe_portal": "Stripe Customer Portal",
+      "telegram": "Telegram",
+      "twitter": "Twitter",
+      "telegram_channel": "Telegram Channel",
+      "third_party_binding": "Third-party binding",
+      "update_account_error": "Update account failed",
+      "update_share_status_failed": "Failed to update sharing status",
+      "update_stripe_info": "Update Stripe info",
+      "url_count": "Total",
+      "view_import_progress": "View import progress",
+      "failed": "Failed",
+      "success": "Success",
+      "labs": {
+        "intro": "These features are still rough. They may have bugs and may be removed at any time. If something breaks after you turn one on, tell us in the Telegram group.",
+        "status_active": "In Labs",
+        "status_graduated": "Released",
+        "title": "Labs",
+        "youtube": {
+          "name": "YouTube videos",
+          "desc": "Save a YouTube link and read along with its transcript. English captions are preferred for now, and the app does not follow the transcript yet.",
+          "blocked": "YouTube videos are still in Labs. Turn it on in Settings, then save again"
+        }
+      },
+      "navigation": {
+        "account": "Account",
+        "connections": "Connections",
+        "data": "Data",
+        "features": "Features",
+        "preferences": "Preferences",
+        "support": "Support",
+        "title": "Settings"
+      }
+    },
+    "bookmarks_onboarding": {
+      "skip": "Maybe later",
+      "step1": {
+        "install": "Install Browser Extension",
+        "setupTime": "Setup takes about a minute",
+        "title": "Save any page with one click",
+        "toast": "Collected"
+      },
+      "step2": {
+        "confirm": "I've pinned it, continue",
+        "copy": "Click the puzzle icon to the right of the address bar, find Slax Reader, then click the pin next to it.",
+        "extensionsMenu": "Extensions",
+        "title": "Pin Slax Reader to your toolbar"
+      },
+      "step3": {
+        "button": "Open the article we prepared",
+        "copy": "Open the article we prepared, then save it with the extension icon you just pinned.",
+        "title": "Try saving your first article"
+      }
+    },
+    "import_failures": {
+      "batch_delete": "Batch Delete",
+      "batch_delete_error": "Batch delete failed",
+      "batch_delete_success": "Batch delete successful",
+      "delete_all": "Delete All",
+      "empty": "No failed import items",
+      "load_error": "Error loading failed items",
+      "loading_more": "Loading more...",
+      "no_more": "No more failed items",
+      "select_all": "Select All",
+      "selected_count": "{count} selected",
+      "title": "Import Failures"
+    }
+  },
+  "util": {
+    "chatbot": {
+      "browser_finished": "Access complete",
+      "error_not_subscription": "Please Unlock this feature with a subscription",
+      "generate_question": "Generating question",
+      "generate_question_finished": "Finished",
+      "search_finished": "Search complete",
+      "search_bookmark_failed": "Knowledge base search failed",
+      "search_bookmark_finished": "Knowledge base search complete"
+    }
+  }
+}
