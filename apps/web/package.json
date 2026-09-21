@@ -47,7 +47,6 @@
     "@vueuse/components": "14.4.0",
     "@vueuse/core": "14.4.0",
     "@vueuse/integrations": "14.4.0",
-    "better-sqlite3": "^13.0.3",
     "canvas-confetti": "^1.9.4",
     "firebase": "^12.18.0",
     "highlight.js": "^11.12.0",
