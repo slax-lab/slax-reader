@@ -1,119 +1,43 @@
-<div align="center">
-<img src="https://r-beta.slax.com/icon.png" />
-<h1> <a href="https://slax.com/slax-reader.html">Slax Reader </a> </h1>
-<h1>Slax Reader: Start Reading Smarter   
-</h1>
+# Slax Reader
 
-![Stars](https://img.shields.io/github/stars/slax-lab/slax-reader?style=flat)  [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/cloudposse.svg?style=social&label=Follow%20%40SlaxReader)](https://twitter.com/SlaxReader)
+Open-source, AI-powered read-it-later — save web pages, highlight, and discuss.
 
-</div>
+![Slax Reader web app](docs/assets/web-inbox.jpeg)
 
-<div align="center">
-    <a href="https://r.slax.com">Official Website</a>
- |
-    <a href="https://t.me/slax_app">Join Our Community</a> 
-</div>
-</br>
+## Get Slax Reader
 
-We don’t just store content; we help you *understand* it.
+- **Website**: [slax.com/reader](https://slax.com/reader/)
+- **Web**: [r.slax.com](https://r.slax.com/)
+- **iOS**: [App Store](https://apps.apple.com/us/app/slax-reader-ai-read-later/id6596730998)
+- **Android**: [Google Play](https://play.google.com/store/apps/details?id=com.slax.reader)
+- **Chrome Extension**: [Chrome Web Store](https://chromewebstore.google.com/detail/slax-reader/gdnhaajlomjkhahnmiijphnodkcfikfd) (works on Edge too)
 
-[Slax Reader](https://r.slax.com) is more than just a "read-it-later" app—it's your free, AI-powered research companion. Save web pages, highlight, comment, and discuss with others. Use the AI assistant to instantly clarify confusing concepts or explore topics in more depth. It's also a knowledge base where you can follow your favorite creators and track their saved content.
+Follow [@SlaxReader](https://x.com/SlaxReader) on X for updates.
 
-<img width="1440" alt="Screen Shot 2025-03-12 at 2 49 03 PM" src="https://github.com/user-attachments/assets/87fd0c17-b60b-4461-a7d6-d516832a53b6" /> <br>
+## What it does
 
+- **Permanent snapshots** — saved pages stay readable even after the original link dies.
+- **AI reading aids** — outlines, summaries, and in-context answers while you read.
+- **Highlight and discuss** — annotate any passage, then share the page; anyone with the link can join the discussion.
 
->This project is at its beginning, so it can be shaped and improved with your feedback and help! If you like it, star it 🌟! If you want a feature or find a bug, open an issue.
+## Repository structure
 
+This monorepo hosts all non-mobile Slax Reader code:
 
-<div align="center">
+| Path | Description |
+| --- | --- |
+| `apps/web` | Web frontend ([r.slax.com](https://r.slax.com/)) |
+| `apps/extension` | Browser extension (Chrome/Edge) |
+| `apps/backend` | API server (Cloudflare Workers) |
+| `apps/cli` | Command-line client |
+| `packages/contracts` | Shared API contracts and types |
 
-</div>
-</br>
+> Code is currently being migrated in from the legacy per-app repositories — expect directories to fill in over the coming days.
 
+## Contributing
 
+Bug reports, features, and docs are all welcome. Open an issue, or pick one labeled `good first issue`. Please follow our [Code of Conduct](CODE_OF_CONDUCT.md).
 
-# 🌟 Main Features
-- [x] **Save Once, Keep Forever**
-  - Cache web pages, X threads, and YouTube videos **indefinitely**.
-  - Coming soon: PDF, newsletters, and more.
+## License
 
-- [x] **AI That Works While You Read**
-  - **Instant Explanations**
-    - Highlight a confusing phrase or paragraph? Slax explains it in context.
-  - **Big-Picture Breakdowns**
-    - Summaries on Demand: Request a summary of any long read.
-    - Interactive mind maps
-    - Structured outlines (click any section to jump to the full text)
-  - **Deeper Learning**
-    - Engage with the AI assistant to debate ideas or explore complex topics deeper.
-
-- [x] **Organize Smarter**
-  - **Auto-tagging**
-  - **Improved search**:
-    - By keyword (“blockchain”)
-    - By semantic meaning (“articles debunking climate myths”)
-
-- [x] **Spark Conversations**
-  - **Collaborative Reading**:
-    - Highlight, comment, and share insights with one URL.
-    - Anyone with the link can comment or reply—turn reading into dialogue.
-  - **Shared Knowledge**:
-    - Follow favorite creators to track their saved content.
-    - Curate team libraries for collaborative research.
-
-- [x] **Importing Libraries**
-  - Slax Reader lets you import your Omnivore data directly, with support for other platforms currently in development.
-
-# ✨ Get Slax Reader
-#### Read on web
-
-  - Web: visit [Slax Reader](https://r.slax.com) to create your free account (no downloads needed).
-
-  - Browser Extensions (save links in one click): [Chrome Web Store](https://chromewebstore.google.com/detail/slax-reader/gdnhaajlomjkhahnmiijphnodkcfikfd) (also works on Edge)
-
-#### Read on mobile
-
-  - [Slax Reader Bot](https://t.me/slax_reader_bot): save articles directly from your phone.
-
-#### Coming soon
-
-  - iOS/Android/Desktop apps (under active development).
-
-# 🚀 Self-Deploy
-To deploy the **Slax Reader web version** on your own server, please refer to the following two repositories:
-
-1. [Slax Reader API](https://github.com/slax-lab/slax-reader-api) 
-This repository contains the backend API for Slax Reader.
-
-2. [Slax Reader Web](https://github.com/slax-lab/slax-reader-web) 
-This repository hosts the frontend code for Slax Reader.
-
-Note: The Slax Reader app version is currently in development and will be released soon. Stay tuned for updates!
-
-# 🤝 How to Contribute
-
-The heart of open source beats because of people like you. Whether you’re fixing bugs, improving docs, or brainstorming ideas—**every contribution matters**.
-
-**How to Get Started**:  
-1.🛠️ Read our guide: [Contribution Guidelines](https://github.com/slax-lab/slax-reader-api/blob/main/public/HOW-TO-CONTRIBUTION-EN.md)  
-2.💡 Pick an issue labeled `good first issue`.  
-3.🚀 Submit your PR – we’ll review it as soon as possible.  
-4.📜 Follow our [Code of Conduct](CODE_OF_CONDUCT.md) in every interaction with the community.
-
-
-# 💖 Contributors
-💖 [Thank you to every contributor who helps make Slax Reader better](https://github.com/slax-lab/slax-reader-api/graphs/contributors) 💖
-
-<img src="https://contrib.rocks/image?repo=slax-lab/slax-reader-api" alt="contributors">
-
-# 🎉 Shoutouts
-Slax Reader is made possible by the remarkable open-source projects and tools crafted by developers worldwide. We deeply appreciate the maintainers and contributors behind:  
-- 🚀 [Cloudflare Workers](https://developers.cloudflare.com/workers/)
-- 📖 [readability](https://github.com/mozilla/readability)
-
-
-# 📝 License
-
-`Slax Reader` is licensed under the [Apache License 2.0](LICENSE). The community version is completely free, open-source, and will remain so forever.
-
-Copyright is held by The Slax Reader Contributors; see [NOTICE](NOTICE) for details.
+[Apache License 2.0](LICENSE). Copyright is held by The Slax Reader Contributors — see [NOTICE](NOTICE) for details.
