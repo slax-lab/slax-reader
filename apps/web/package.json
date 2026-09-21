@@ -19,6 +19,7 @@
     "ssr:dev": "pnpm build && rm -f .wrangler/deploy/config.json && SD=\"$(pnpm exec jiti ./config/backend-path.ts stateDir)\" && pnpm wrangler pages dev --port 3000 --inspector-port 9333 --persist-to \"$SD\"",
     "typecheck": "nuxt prepare && vue-tsc --noEmit -p .nuxt/tsconfig.app.json",
     "lint": "eslint .",
+    "pretypecheck": "pnpm --filter @slax-reader/selection build",
     "predev": "pnpm --filter @slax-reader/selection build",
     "prebuild": "pnpm --filter @slax-reader/selection build",
     "pretest": "pnpm --filter @slax-reader/selection build"

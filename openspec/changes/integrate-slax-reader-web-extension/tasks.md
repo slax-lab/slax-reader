@@ -75,3 +75,18 @@ Extension development, documents GitHub web editing and issue feedback, links th
 files, and records the external backend, absent PR preview/demo, and deferred native install
 limitations. Root navigation points to these entries while application source remains below
 `apps/` and shared libraries remain below `packages/`.
+
+## Final verification checkpoint
+
+OpenSpec and rulesync checks pass. In the final worktree, Web prepare/type-check, Web server
+type-check, 164 Web test files / 1754 tests, the Web development-profile build, Extension WXT
+prepare/type-check, 4 Extension test files / 14 tests, and the Chrome MV3 build pass. The
+Phase 3 Chromium load and offscreen suites remain the recorded Extension browser evidence.
+A manual zip of the final MV3 directory was structurally verified because the sandbox could
+not rewrite the generated WXT directory during the final rerun. `apps/web` now builds
+selection before `typecheck`, so that command works from a fresh linked workspace.
+
+The final full-install rerun could not write pnpm's temporary lock file under the restricted
+worktree, and `xcodebuild -checkFirstLaunchStatus` still returned 69. The earlier native
+`better-sqlite3` failure therefore remains open under task 6.2. Real development backend
+acceptance remains open under task 6.5.

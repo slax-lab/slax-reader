@@ -16,6 +16,16 @@ Web, Extension and their shared packages are imported on the integration branch.
 Xcode 不应成为在线文档、反馈或翻译贡献的前置条件；其他平台使用各自的编译工具。
 Earlier installs with scripts disabled validated resolution/linking only. Xcode is not a requirement for online documentation, feedback or translation contributions; native build tools are platform-specific.
 
+最终验收工作树中的普通权限安装还被沙箱拒绝写入临时锁文件；本机
+`xcodebuild -checkFirstLaunchStatus` 返回 69，未接受许可的状态仍存在。此前完整安装已
+观察到 `better-sqlite3` 的 `node-gyp rebuild` / `make` 因相同许可失败。这里不把沙箱失败
+当成新的依赖问题，也不替使用者接受许可；需要在具备正常文件权限、由使用者自行处理许可
+后重新完成干净安装。/ The final worktree's normal-permission install was also blocked by
+the sandbox refusing pnpm's temporary lock file; `xcodebuild -checkFirstLaunchStatus` returned
+69. The earlier full install observed `better-sqlite3` `node-gyp rebuild` / `make` failing on
+the same license state. Do not treat the sandbox error as a new dependency issue or accept the
+license on the user's behalf; rerun a clean install with normal permissions after the user handles it.
+
 ## 真实开发 backend 联调 / Real development backend
 
 按用户要求，全部迁移阶段完成后统一进行。使用开发测试账户和开发者提供的配置，不复制旧仓库环境文件，不部署生产服务。
@@ -31,6 +41,19 @@ As requested, run these checks after the migration stages using development acco
 
 以上五项目前均待真实环境验收。记录环境、提交号、操作步骤、实际结果和待修问题；不在记录中保存 token 或账户私密信息。
 All five require real-environment verification. Record the environment, commit, steps, results and remaining issues without storing tokens or private account data.
+
+### Checks completed without a live backend
+
+- OpenSpec strict validation and rulesync drift check pass.
+- Web prepare/type-check, Web server type-check, 164 test files / 1754 tests, and the
+  development-profile build pass with local placeholder public configuration.
+- Extension WXT prepare/type-check, 4 test files / 14 tests, and the Chrome MV3 build pass.
+- The Phase 3 Chromium load and 17-scenario offscreen suite remain the recorded Extension
+  browser evidence. The final MV3 output was manually zipped and structurally checked after
+  the WXT zip rerun was blocked from rewriting the generated directory by sandbox permissions.
+
+None of these checks proves login, bookmark synchronization, article saving, comments, or the
+Web/Extension bridge against the real development backend.
 
 ## 合入前收尾 / Before the final PR merges
 
