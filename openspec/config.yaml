@@ -22,11 +22,7 @@ schema: spec-driven
 # Per-operation guidance (optional)
 # Add advisory guidance for how apply and archive work should be conducted.
 # This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+operations:
+  apply:
+    guidance:
+      - "When all tasks are checked off, run the local pre-push review defined in REVIEW.md (all three passes) and resolve Important findings before suggesting archive or a pull request."
