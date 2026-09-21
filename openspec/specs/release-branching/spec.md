@@ -17,7 +17,7 @@ The repository SHALL maintain exactly three long-lived branches: `dev` (integrat
 
 ### Requirement: Uniform protection on all long-lived branches
 
-All three long-lived branches MUST be protected identically: changes arrive only through pull requests (direct pushes are rejected), deletion and non-fast-forward updates are rejected, history is linear, and merging requires one approving review including a code-owner review plus the required status checks `agent-config drift check` and `PR review gate`. Protection MUST be defined in a branch ruleset whose name identifies the release branches, applied to all three refs.
+All three long-lived branches MUST be protected identically: changes arrive only through pull requests (direct pushes are rejected), deletion and non-fast-forward updates are rejected, and merging requires one approving review including a code-owner review plus the required status checks `agent-config drift check` and `PR review gate`. Squash, rebase, and merge-commit merging MUST all be permitted, so that promotion and sync-back pull requests can use the merge method the branching model requires. Protection MUST be defined in a branch ruleset whose name identifies the release branches, applied to all three refs.
 
 #### Scenario: Direct push is rejected on every long-lived branch
 
@@ -48,20 +48,6 @@ Feature work SHALL flow `feature branch → dev → beta → main`: task branche
 - **WHEN** changes on `dev` are ready for beta, or changes on `beta` are ready for production
 - **THEN** a pull request from `dev` to `beta` (or `beta` to `main`) carries them, subject to the same protection rules as any other pull request
 
-### Requirement: Promotion pull requests merge with rebase
-
-Promotion pull requests (`dev` → `beta` and `beta` → `main`) MUST be merged with the rebase merge method and MUST NOT be squash-merged. Rebase replays onto the target branch only the patches it does not already have, keeping the landed commits' patches and messages identical to what was reviewed on the source branch; a squash merge forges one new commit per promotion and diverges the branches' histories further with every promotion.
-
-#### Scenario: Rebase replay keeps landed commits faithful
-
-- **WHEN** a promotion pull request is merged with rebase
-- **THEN** the commits landing on the target branch carry the same patches and commit messages as the reviewed commits on the source branch
-
-#### Scenario: Squash is never used for a promotion
-
-- **WHEN** a promotion pull request between long-lived branches is merged
-- **THEN** the merge method is rebase, not squash — even though the ruleset allows both methods
-
 ### Requirement: Task branches live in isolated worktrees
 
 Every task — human- or agent-driven — SHALL get its own git worktree inside the repository's `.worktrees/` directory on its own branch cut from `origin/dev`, with one task mapping to one worktree, one branch, and one pull request. Work MUST NOT be edited directly in the main checkout, and a task MUST NOT edit files in another task's worktree.
@@ -75,3 +61,17 @@ Every task — human- or agent-driven — SHALL get its own git worktree inside 
 
 - **WHEN** a task's pull request has merged
 - **THEN** its worktree is removed and its merged branch is deleted
+
+### Requirement: Promotion pull requests merge with a merge commit
+
+Promotion pull requests (`dev` → `beta` and `beta` → `main`) MUST be merged with the merge-commit method and MUST NOT be rebase- or squash-merged. Rebase and squash both forge new commits for patches the source branch already carries, leaving source and target with different SHAs for identical content; GitHub's mergeable gate evaluates a trial merge, and once histories have diverged that gate blocks every merge method until a sync-back merge re-converges them. A merge commit makes the target branch contain the source branch's actual commits, so histories converge and subsequent promotions stay mergeable.
+
+#### Scenario: Target branch lands the reviewed commits
+
+- **WHEN** a promotion pull request is merged with a merge commit
+- **THEN** the target branch's history contains the exact commits that were reviewed on the source branch, and the source branch tip becomes an ancestor of the target branch
+
+#### Scenario: Diverged histories need a sync-back first
+
+- **WHEN** a promotion pull request reports conflicts because an earlier rebase or squash forged duplicate SHAs for the same patches
+- **THEN** the target branch is merged back into the source branch first (resolving in favor of the source branch's content), and only then is the promotion merged
