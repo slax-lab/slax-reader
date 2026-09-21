@@ -2,6 +2,8 @@
 
 基于 Nuxt 4 / Vue 3 的 Web 阅读器，来自迁移记录中固定的源码快照。
 
+[参与指南](../../docs/contributing/README.md) · [Developer setup in English](../../docs/contributing/development.en.md) · [文档导航](../../docs/README.md)
+
 ## 开始开发
 
 在仓库根执行（Node.js 22.22.2+、24.15.0+ 或 26+，使用仓库固定的 pnpm 11.25.0）：

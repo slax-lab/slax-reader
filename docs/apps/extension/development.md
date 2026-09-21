@@ -1,10 +1,13 @@
 # 扩展本地开发与验证
 
+[开发者入门](../../contributing/development.md) · [Developer setup in English](../../contributing/development.en.md)
+
 ## 配置位置
 
 扩展配置在 `apps/extension/config`，schema 在 `apps/extension/env.schema.ts`。
 环境文件加载位置从旧仓库根调整为 `apps/extension`；顺序仍是 `.env`、`.env.<SLAX_ENV>`、
-`.env.<SLAX_ENV>.local`，进程中设置的变量优先。自行配置，不从旧仓库复制，不提交环境文件。
+`.env.<SLAX_ENV>.local`，进程中设置的变量优先。loader 未开启 `override`，文件之间也是先读到的同名值保留；
+`.local` 后缀不会自动覆盖前面文件。自行配置，不从旧仓库复制，不提交环境文件。
 
 | 变量 | 用途 |
 | --- | --- |

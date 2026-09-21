@@ -15,6 +15,8 @@
 </div>
 </br>
 
+[参与指南（无需开发环境）](docs/contributing/README.md) · [Contributing](docs/contributing/README.en.md) · [Documentation](docs/README.md)
+
 We don’t just store content; we help you *understand* it.
 
 [Slax Reader](https://r.slax.com) is more than just a "read-it-later" app—it's your free, AI-powered research companion. Save web pages, highlight, comment, and discuss with others. Use the AI assistant to instantly clarify confusing concepts or explore topics in more depth. It's also a knowledge base where you can follow your favorite creators and track their saved content.
@@ -79,27 +81,18 @@ We don’t just store content; we help you *understand* it.
 
   - iOS/Android/Desktop apps (under active development).
 
-# 🚀 Self-Deploy
-To deploy the **Slax Reader web version** on your own server, please refer to the following two repositories:
+# 🚀 Development and self-hosting
 
-1. [Slax Reader API](https://github.com/slax-lab/slax-reader-api) 
-This repository contains the backend API for Slax Reader.
-
-2. [Slax Reader Web](https://github.com/slax-lab/slax-reader-web) 
-This repository hosts the frontend code for Slax Reader.
-
-Note: The Slax Reader app version is currently in development and will be released soon. Stay tuned for updates!
+Web and Extension source now live in this repository. Start with the
+[developer setup guide](docs/contributing/development.en.md) or [中文开发指南](docs/contributing/development.md).
+The backend remains external during this migration; local business flows require its development configuration.
+See [migration status and remaining verification](docs/migrations/final-verification.md) before planning deployment.
 
 # 🤝 How to Contribute
 
-The heart of open source beats because of people like you. Whether you’re fixing bugs, improving docs, or brainstorming ideas—**every contribution matters**.
-
-**How to Get Started**:  
-1.🛠️ Read our guide: [Contribution Guidelines](https://github.com/slax-lab/slax-reader-api/blob/main/public/HOW-TO-CONTRIBUTION-EN.md)  
-2.💡 Pick an issue labeled `good first issue`.  
-3.🚀 Submit your PR – we’ll review it as soon as possible.  
-4.📜 Follow our [Code of Conduct](CODE_OF_CONDUCT.md) in every interaction with the community.
-
+You can report a problem, suggest an improvement, edit documentation, or improve translations without installing a development environment.
+Start with [Contributing](docs/contributing/README.en.md) / [参与指南（中文）](docs/contributing/README.md),
+and follow our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 # 💖 Contributors
 💖 [Thank you to every contributor who helps make Slax Reader better](https://github.com/slax-lab/slax-reader-api/graphs/contributors) 💖
@@ -120,6 +113,8 @@ Copyright is held by The Slax Reader Contributors; see [NOTICE](NOTICE) for deta
 
 ## v2 development
 
-The Web application and browser extension are available in this monorepo. Start with
-[the Web guide](apps/web/README.md) or [the Extension guide](apps/extension/README.md).
-The backend remains external. See [migration progress](docs/migrations/slax-reader-web-extension.md).
+[Documentation / 文档导航](docs/README.md) · [Repository map / 目录说明](docs/architecture/frontend.md) ·
+[Web guide](apps/web/README.md) · [Extension guide](apps/extension/README.md)
+
+Shared libraries live in [packages](packages); a library belongs there when at least two apps use it.
+See [migration progress](docs/migrations/slax-reader-web-extension.md). The backend remains external.

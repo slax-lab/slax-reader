@@ -29,16 +29,16 @@
 ## 5. Onboarding and root hygiene
 
 - [x] 5.1 Add focused READMEs for `apps/web`, `apps/extension`, and each migrated shared package.
-- [ ] 5.2 Move long-form development, contribution, architecture, and migration guidance into `docs/` subdirectories.
+- [x] 5.2 Move long-form development, contribution, architecture, and migration guidance into `docs/` subdirectories.
 - [x] 5.3 Add minimal root commands for Web and Extension development, testing, and builds while keeping app scripts authoritative.
-- [ ] 5.4 Confirm the root contains no copied application source, app-specific long-form docs, secrets, generated local state, or dependency directories.
+- [x] 5.4 Confirm the root contains no copied application source, app-specific long-form docs, secrets, generated local state, or dependency directories.
 
 ## 6. Final verification
 
-- [ ] 6.1 Confirm the source `slax_reader` repository remains clean and unchanged.
+- [x] 6.1 Confirm the source `slax_reader` repository remains clean and unchanged.
 - [ ] 6.2 Run workspace install and all applicable checks from the v2 worktree. Revisit the macOS Xcode license / `better-sqlite3` native installation issue after all migration stages, as requested by the user; do not count installation with scripts disabled as a full-install pass.
-- [ ] 6.3 Run `openspec validate --all --strict`.
-- [ ] 6.4 Summarize known limitations, especially the external backend requirement, for reviewers and new contributors.
+- [x] 6.3 Run `openspec validate --all --strict`.
+- [x] 6.4 Summarize known limitations, especially the external backend requirement, for reviewers and new contributors.
 - [ ] 6.5 After all migration stages are complete, run Web and Extension against the existing development backend and verify login, bookmarks, article reading, highlights/comments, and the extension bridge. Record results before the final pull request is merged into `dev`.
 
 ## Phase 2 checkpoint
@@ -65,3 +65,13 @@ pass. The 17-scenario offscreen suite also passes using local fixtures. Runtime 
 source remains the pinned snapshot. Remaining work is contributor-wide onboarding and
 final verification, including the explicitly deferred native install issue and real backend
 integration. See the migration record for validation scope and source-fidelity evidence.
+
+
+## Phase 4 checkpoint
+
+Contributor-facing onboarding is now under `docs/README.md`, `docs/contributing`, and
+`docs/architecture/frontend.md`. It separates no-install participation from local Web and
+Extension development, documents GitHub web editing and issue feedback, links the translation
+files, and records the external backend, absent PR preview/demo, and deferred native install
+limitations. Root navigation points to these entries while application source remains below
+`apps/` and shared libraries remain below `packages/`.

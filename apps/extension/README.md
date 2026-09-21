@@ -2,6 +2,8 @@
 
 基于 WXT 0.21 / Vue 3 的 Chrome、Edge 扩展，沿用固定源码快照的 Manifest V3 和功能。
 
+[参与指南](../../docs/contributing/README.md) · [Developer setup in English](../../docs/contributing/development.en.md) · [文档导航](../../docs/README.md)
+
 ## 开始开发
 
 在仓库根执行，使用 Node.js 22.22.2+、24.15.0+ 或 26+，以及仓库固定的 pnpm 11.25.0：
