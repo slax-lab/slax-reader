@@ -23,8 +23,7 @@ Monorepo 的含义是把这些项目放在同一个仓库里协作，并不意�
 | [`deploy`](../../deploy/README.md) | 各应用的本地环境配置及公开示例 | Web 与 Extension 已接入 |
 
 这些共享库并不是本次为凑目录抽出来的：原 Web 和扩展都已经在用。跨前后端传输的类型、API 路由和事件放在
-`contracts`；只服务浏览器端实现的本地存储、扩展面板等类型放在 `frontend-types`。当前迁移仍保留少量历史
-领域类型中的 local-first 可选字段，等 backend 接入后再按真实响应拆成 DTO 和本地模型。旧仓库的 `types-pro`
+`contracts`；只服务浏览器端实现的本地存储、扩展面板等类型放在 `frontend-types`。前端的标记树、标签显示状态和 `tag_ids` 等本地字段已拆入 `frontend-types/models`；历史 DTO 的 wire shape 保持兼容。旧仓库的 `types-pro`
 已并入 `contracts` 或 `frontend-types` 的对应职责，避免长期保留职责重叠的类型包；旧仓库的 `utils` 则明确改名为
 `frontend-utils`，避免将来与 Backend 或 CLI 的工具库混淆。以后也是至少两个 app 使用的库才放进 `packages`，
 单个 app 的专用模块留在自己的目录。

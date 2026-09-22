@@ -1,3 +1,4 @@
+import { pnpmInvocation } from './pnpm-command.mjs'
 import { spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -19,8 +20,8 @@ if (!Object.hasOwn(manifest.scripts, command)) {
 // Arguments are passed as data; shell syntax in a user argument is never evaluated here.
 // A parent smoke harness may already own the entire process group.
 const grouped = process.platform !== 'win32' && process.env.SLAX_API_INHERIT_PROCESS_GROUP !== '1'
-const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
-const child = spawn(pnpmCommand, ['--filter', manifest.name, 'run', command, ...forwarded], {
+const invocation = pnpmInvocation(['--filter', manifest.name, 'run', command, ...forwarded])
+const child = spawn(invocation.program, invocation.args, {
   cwd: root, stdio: 'inherit', detached: grouped
 })
 let interrupted

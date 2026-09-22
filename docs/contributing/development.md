@@ -116,7 +116,7 @@ pnpm --filter @apps/slax-reader-dweb exec vue-tsc --noEmit -p .nuxt/tsconfig.ser
 ```
 
 根目录目前没有统一的 `dev`、`test`、`lint` 或 `format` 命令。现有 CI 的配置校验也不等于应用测试已运行，
-请在 PR 列出你实际做过的检查。Web 构建可能按环境修改 `wrangler.toml`，提交前检查 diff。
+请在 PR 列出你实际做过的检查。Web 构建将绑定配置生成到 `deploy/local_web/.generated` 与 `apps/web/dist`，不会改写跟踪中的 `wrangler.toml`。
 
 ## 提交与评审
 

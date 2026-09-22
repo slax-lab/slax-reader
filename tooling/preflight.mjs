@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { pnpmInvocation } from './pnpm-command.mjs'
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -194,8 +195,13 @@ function checkRuntime(root = REPO_ROOT) {
 
   const packageManager = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')).packageManager || ''
   const expectedPnpm = packageManager.startsWith('pnpm@') ? packageManager.slice('pnpm@'.length) : null
-  const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
-  const result = spawnSync(pnpmCommand, ['--version'], { cwd: root, encoding: 'utf8' })
+  let result
+  try {
+    const invocation = pnpmInvocation(['--version'])
+    result = spawnSync(invocation.program, invocation.args, { cwd: root, encoding: 'utf8' })
+  } catch (error) {
+    result = { error }
+  }
   if (result.error || result.status !== 0) {
     issues.push({ level: 'error', message: '找不到 pnpm，请安装项目要求的 pnpm 版本' })
   } else {

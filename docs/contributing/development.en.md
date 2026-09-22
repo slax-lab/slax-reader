@@ -51,7 +51,7 @@ cp deploy/local_extension/.env.example deploy/local_extension/.env
 ```
 
 The profile is selected from the process `SLAX_ENV`, then the app's deploy `.env`, with `development` as the default. Other supported profiles use `.env.preview`, `.env.beta`, or `.env.production`. A profile file cannot switch the selected profile itself. All root commands, including `dev`, `build`, type checks and tests, use this rule. `pnpm preflight --env preview` explicitly checks preview configuration.
-Direct app package commands retain the previous app-local loader as a compatibility fallback; use the root dispatchers to load deploy configuration.
+Direct app package commands use the same deploy configuration. App-local environment files are no longer loaded.
 
 In `preflight`, `（必填）` means the variable must have a non-empty, valid value. `（可选）` means the related feature is disabled when the value is absent or empty and does not block frontend checks. Web requires `GOOGLE_OAUTH_CLIENT_ID`; `APPLE_OAUTH_CLIENT_ID` and `TURNSTILE_SITE_KEY` are optional. See the [Web development guide](../apps/web/development.md#创建-google-oauth-客户端-id) for the Google OAuth Client ID creation steps. `SLAX_API_CONFIG` / `deploy/local/api.toml` is required only when running `pnpm web -- dev` for a real backend integration; it does not block other frontend checks.
 

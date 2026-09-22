@@ -1,3 +1,4 @@
+import { pnpmInvocation } from './pnpm-command.mjs'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { readFileSync } from 'node:fs'
@@ -78,12 +79,12 @@ function runApp({ commandName, appLabel, packageName, packagePath, environmentAp
     return process.exitCode
   }
 
-  const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
   const forwardedArgs = args.slice(1)
   const childArgs = ['--filter', packageName, 'run', command]
   if (forwardedArgs.length) childArgs.push(...forwardedArgs)
   const grouped = process.platform !== 'win32' && process.env.SLAX_APP_INHERIT_PROCESS_GROUP !== '1'
-  const child = spawn(pnpmCommand, childArgs, {
+  const invocation = pnpmInvocation(childArgs)
+  const child = spawn(invocation.program, invocation.args, {
     cwd: REPO_ROOT,
     env: childEnvironment,
     stdio: 'inherit',
