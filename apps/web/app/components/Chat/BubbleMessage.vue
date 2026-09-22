@@ -82,7 +82,7 @@
 </template>
 
 <script lang="ts" setup>
-import { copyText } from '@commons/utils/string'
+import { copyText } from '@commons/frontend-utils/string'
 
 import { type BubbleMessageItem, type QuoteData } from './type'
 import Toast, { ToastType } from '~/components/Toast'

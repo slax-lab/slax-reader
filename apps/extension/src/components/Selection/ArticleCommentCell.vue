@@ -60,7 +60,7 @@
 <script setup lang="ts">
 import ArticleCommentInput from './ArticleCommentInput.vue'
 
-import { formatDate } from '@commons/utils/date'
+import { formatDate } from '@commons/frontend-utils/date'
 
 import type { MarkCommentInfo } from './type'
 import type { PropType } from 'vue'

@@ -70,7 +70,7 @@ export enum ShareModalType {
 <script lang="ts" setup>
 import SwitchToggle from '~/components/SwitchToggle.vue'
 
-import { copyText } from '@commons/utils/string'
+import { copyText } from '@commons/frontend-utils/string'
 
 import { RESTMethodPath } from '@commons/types/const'
 import type { ShareDetailInfo } from '@commons/types/interface'

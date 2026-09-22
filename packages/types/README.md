@@ -1,6 +1,6 @@
 # @commons/types
 
-从旧前端 `commons/types` 迁入的共享库，保留原包名及导出。
+从旧前端 `commons/types` 迁入的共享库；旧 `commons/types-pro` 的应用扩展类型、常量和埋点类型也已统一并入此包。
 Web（`apps/web`）与 Extension（`apps/extension`）均通过 workspace 使用此库。
 
 在使用它的 app 的 `package.json` 中声明 `"@commons/types": "workspace:*"`。

@@ -176,10 +176,10 @@ import SubscribeCollectionButton from '@/components/Collection/SubscribeCollecti
 import ThemeSwitcher from '~/components/global/ThemeSwitcher.vue'
 
 import { eventLog } from '@/utils/analytics'
-import { copyText } from '@commons/utils/string'
+import { copyText } from '@commons/frontend-utils/string'
 
 import type { UserShareCollectInfoResp, UserShareCollectListItem, UserSubscribeStatus } from '@commons/types/interface'
-import { RESTMethodPath } from '@commons/types-pro'
+import { RESTMethodPath } from '@commons/types'
 import { ClientOnly } from '#components'
 import Toast, { ToastType } from '~/components/Toast'
 import { useUserStore } from '~/stores/user'

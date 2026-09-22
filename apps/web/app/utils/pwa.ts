@@ -1,4 +1,4 @@
-import { isUrl } from '@commons/utils/is'
+import { isUrl } from '@commons/frontend-utils/is'
 
 // 测试 seam：pwa.ts 内的 useNuxtApp().$pwa.isPWAInstalled 在 nuxt-test-utils 下是 configurable: false
 // 不可被 defineProperty 替换，且 ESM 同模块 helper 在 vi.mock 后无法改写本地绑定。

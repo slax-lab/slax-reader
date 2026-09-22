@@ -40,7 +40,7 @@
 </template>
 
 <script lang="ts" setup>
-import { formatDate } from '@commons/utils/date'
+import { formatDate } from '@commons/frontend-utils/date'
 
 const props = defineProps({
   href: {

@@ -77,7 +77,7 @@ vi.mock('@slax-reader/selection', () => {
   }
 })
 
-vi.mock('@commons/utils/dom', () => ({
+vi.mock('@commons/frontend-utils/dom', () => ({
   createStyleWithSearchRules: vi.fn(async () => document.createElement('style')),
   getElementFullSelector: vi.fn((el: HTMLElement) => `${el.tagName.toLowerCase()}`)
 }))

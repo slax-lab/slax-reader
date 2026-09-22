@@ -22,8 +22,7 @@ The source remote is `https://github.com/unnoo/slax_reader_frontend.git`. This i
 apps/web/                 <- source apps/slax-reader-dweb
 apps/extension/           <- source apps/slax-reader-extensions
 packages/types/           <- source commons/types
-packages/types-pro/       <- source commons/types-pro
-packages/utils/           <- source commons/utils
+packages/frontend-utils/  <- source commons/utils, renamed for frontend scope
 packages/selection/       <- source commons/selection
 docs/apps/web/            <- Web-specific development material
 docs/apps/extension/      <- Extension-specific development material
@@ -32,13 +31,13 @@ docs/architecture/        <- repository and integration explanations
 docs/migrations/          <- provenance and migration records
 ```
 
-The four `packages` entries are justified by the source manifests: both applications depend on all four libraries, while `selection` itself depends on `types` and `utils`. `packages/contracts` remains reserved for a future explicit API-contract library; this change does not force existing domain types into that name.
+The three `packages` entries are justified by the source manifests: both applications depend on these libraries, while `selection` itself depends on `types` and `frontend-utils`. The source's `types-pro` package is folded into `types` because the v2 repository has a single open-source type surface. `packages/contracts` remains reserved for a future explicit API-contract library; this change does not force existing domain types into that name.
 
 ## Migration sequence
 
 1. Capture the source inventory and verify the source worktree is clean.
 2. Copy only tracked, non-secret source files into their target directories.
-3. Retain package names and exports; adapt workspace paths. Import the four existing shared libraries with Web because they are prerequisites for its build, then connect Extension in the next stage.
+3. Preserve source exports while adapting workspace paths. Merge `types-pro` exports and augmentations into `types`, expose the frontend-only `utils` code as `@commons/frontend-utils`, and import the three shared libraries with Web because they are prerequisites for its build, then connect Extension in the next stage.
 4. Move source-level configuration that is specific to the two applications below the relevant app directory. Keep root configuration limited to workspace orchestration and repository governance.
 5. Add app-level READMEs and route long-form guidance into `docs/`.
 6. Add minimal root commands that delegate to the app packages.
@@ -51,7 +50,7 @@ The source uses local environment files and `SLAX_BACKEND_DIR` to find a separat
 
 ## Root cleanliness
 
-The root receives only the minimum changes required for the workspace: package manager metadata, small delegating scripts, and navigation documentation. DWeb and Extension build files, manifests, assets, tests, and runtime code remain in their app directories. Shared source remains in the four narrowly named packages above.
+The root receives only the minimum changes required for the workspace: package manager metadata, small delegating scripts, and navigation documentation. DWeb and Extension build files, manifests, assets, tests, and runtime code remain in their app directories. Shared source remains in the three narrowly named packages above.
 
 ## Validation boundaries
 
@@ -72,5 +71,5 @@ Web plus its already shared dependencies; it does not start the Extension import
 
 Phase 3 uses `feat/import-slax-reader-extension`, based on integration commit `f100570`
 after the Web-stage merge. Extension-specific environment, UnoCSS and ESLint configuration
-is local to `apps/extension/config`; shared runtime libraries retain their four existing
+is local to `apps/extension/config`; shared runtime libraries retain the three focused
 package boundaries. No new root configuration file or application source is introduced.

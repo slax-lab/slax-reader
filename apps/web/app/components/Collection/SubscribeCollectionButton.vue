@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { RESTMethodPath } from '@commons/types-pro'
+import { RESTMethodPath } from '@commons/types'
 import { showLoginModal } from '~/components/Modal'
 import Toast, { ToastType } from '~/components/Toast'
 import { useUserStore } from '~/stores/user'

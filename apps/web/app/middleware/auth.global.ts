@@ -1,4 +1,4 @@
-import { isServer } from '@commons/utils/is'
+import { isServer } from '@commons/frontend-utils/is'
 
 import { useCookies } from '@vueuse/integrations/useCookies'
 

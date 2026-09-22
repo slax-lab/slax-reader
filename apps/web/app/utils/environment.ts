@@ -1,4 +1,4 @@
-import { isClient } from '@commons/utils/is'
+import { isClient } from '@commons/frontend-utils/is'
 
 /**
  * 获取浏览器的 Accept-Language 头信息

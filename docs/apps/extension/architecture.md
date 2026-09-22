@@ -24,7 +24,7 @@ Slax Reader 浏览器扩展的完整源码，包含开源社区基础能力与 P
   - `entrypoints/offscreen/` —— offscreen document，内部挂一个指向网页 `/x/ext-bridge` 的隐藏 iframe，通过 `postMessage` 与网页侧 PowerSync 通信。
   - `bridge/request.ts`、`bridge/selectionAdapters.ts` —— 请求层适配：自动把 `bookmark_id` 占位符换成真实 `bookmark_uid`，并为划线标注引擎提供基于书签桥的数据源适配。
   - `entrypoints/background/index.ts` 中的 `notifySenderTabWhenReady` —— 收藏/取消收藏后，带退避轮询等待桥数据同步落地，再通知对应 tab 刷新侧边栏，避免"数据还没同步就查"的竞态。
-- **指标埋点服务**：`entrypoints/background/metricService.ts` —— 心跳与 Dashboard 行为埋点（节流上报），依赖 `@commons/types-pro`。
+- **指标埋点服务**：`entrypoints/background/metricService.ts` —— 心跳与 Dashboard 行为埋点（节流上报），依赖 `@commons/types`。
 - **消息协议扩展**：`config/message.ts` 里 `RecordBookmark`、`QueryBookmarkChange`、`BookmarkStatusRefresh`、`TrackDashboardMetric` 等 action，以及书签桥用到的 `BookmarkActionType`/`BookmarkLookupResult` 类型。
 
 ## 项目结构
@@ -78,4 +78,4 @@ Slax Reader 浏览器扩展的完整源码，包含开源社区基础能力与 P
 ```
 
 
-配置与命令见[本地开发指南](development.md)。源码位于 `apps/extension`；四个共享库位于 `packages`。
+配置与命令见[本地开发指南](development.md)。源码位于 `apps/extension`；三个前端共享库位于 `packages`。

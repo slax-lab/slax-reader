@@ -1,7 +1,7 @@
 {
-  "name": "@commons/utils",
+  "name": "@commons/frontend-utils",
   "version": "1.0.0",
-  "description": "存放可复用方法的工具库",
+  "description": "Web 与 Extension 共用的前端工具库",
   "exports": {
     "./axios": "./src/axios/index.ts",
     "./request": "./src/request.ts",

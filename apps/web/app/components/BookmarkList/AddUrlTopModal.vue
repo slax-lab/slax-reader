@@ -54,7 +54,7 @@
 <script setup lang="ts">
 // add-url 支持 local-first
 // 启用时本地写入，否则走 REST
-import { isClient } from '@commons/utils/is'
+import { isClient } from '@commons/frontend-utils/is'
 import { haveRequestToken } from '~/utils/request'
 
 import { useLocalBookmarks } from '@/composables/bookmark/useLocalBookmarks'

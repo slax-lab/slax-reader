@@ -122,7 +122,7 @@ import { type BookmarkLookupResult, type BridgeBookmarkPayload, type MessageType
 import { Images, type PanelItem, PanelItemType } from '@/config/panel'
 
 import { checkUserSubscribedIsExpired } from '@/utils/examine'
-import { RequestError } from '@commons/utils/request'
+import { RequestError } from '@commons/frontend-utils/request'
 
 import { setBridgeBookmarkUid } from '@/bridge/request'
 import { BridgeBookmarkProvider, BridgeHttpClient } from '@/bridge/selectionAdapters'

@@ -49,7 +49,7 @@
 
 <script lang="ts" setup>
 import { fireworks, pride, star } from '@/components/PaymentModal/confetti'
-import { RESTMethodPath } from '@commons/types-pro'
+import { RESTMethodPath } from '@commons/types'
 import Toast, { ToastType } from '~/components/Toast'
 
 const emits = defineEmits(['close', 'dismiss', 'confirm'])

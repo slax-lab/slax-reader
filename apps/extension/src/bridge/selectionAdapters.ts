@@ -1,5 +1,5 @@
 import { getCurrentSessionToken, requireInteractiveLogin } from '@/utils/session'
-import type { FetchOptions } from '@commons/utils/request'
+import type { FetchOptions } from '@commons/frontend-utils/request'
 
 import { request } from './request'
 import { RESTMethodPath } from '@commons/types/const'

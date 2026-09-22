@@ -1,4 +1,4 @@
-import { parseMarkdownText } from '@commons/utils/parse'
+import { parseMarkdownText } from '@commons/frontend-utils/parse'
 
 import { describe, expect, it } from 'vitest'
 

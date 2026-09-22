@@ -120,7 +120,7 @@ describe('saved-link export', () => {
 
 describe('export request transport', () => {
   it('keeps session authorization and the abort signal through async interceptors', async () => {
-    const { FetchRequest } = await import('@commons/utils/request')
+    const { FetchRequest } = await import('@commons/frontend-utils/request')
     const controller = new AbortController()
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
@@ -142,7 +142,7 @@ describe('export request transport', () => {
     }
   })
   it('aborts an in-flight HTTP request and propagates session expiry', async () => {
-    const { FetchRequest } = await import('@commons/utils/request')
+    const { FetchRequest } = await import('@commons/frontend-utils/request')
     const controller = new AbortController()
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementationOnce(
       async (_url, options) =>

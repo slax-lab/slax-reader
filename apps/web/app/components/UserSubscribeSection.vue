@@ -95,7 +95,7 @@
 import { showRedeemModal } from './PaymentModal'
 import Subscription from '@/components/SubscriptionModal'
 import { type InAppPurchaseStatus, SubscriptionType, type UserDetailInfo } from '@commons/types/interface'
-import { RESTMethodPath } from '@commons/types-pro'
+import { RESTMethodPath } from '@commons/types'
 import Toast from '~/components/Toast'
 
 const { t } = useI18n()

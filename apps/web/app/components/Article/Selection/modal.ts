@@ -3,8 +3,8 @@ import { defineCustomElement } from 'vue'
 import ArticleSelectionMenus from './ArticleSelectionMenus.ce.vue'
 import ArticleSelectionPanel from './ArticleSelectionPanel.ce.vue'
 
-import { createStyleWithSearchRules } from '@commons/utils/dom'
-import { isClient } from '@commons/utils/is'
+import { createStyleWithSearchRules } from '@commons/frontend-utils/dom'
+import { isClient } from '@commons/frontend-utils/is'
 
 import { DwebEnvironmentAdapter } from './adapters'
 import { Base, type IMarkModal } from '@slax-reader/selection'

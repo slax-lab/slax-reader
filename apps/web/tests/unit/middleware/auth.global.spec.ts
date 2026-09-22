@@ -23,7 +23,7 @@ vi.mock('@vueuse/integrations/useCookies', () => ({
   })
 }))
 
-vi.mock('@commons/utils/is', () => ({
+vi.mock('@commons/frontend-utils/is', () => ({
   get isServer() {
     return mockIsServer.value
   }

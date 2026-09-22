@@ -1,6 +1,6 @@
 import { getClientEventHeaders, getUserToken } from '~/utils/request'
 
-import type { WebAnalyticsEvent } from '@commons/types-pro'
+import type { WebAnalyticsEvent } from '@commons/types'
 
 type FirstPartyEvent = {
   event_name: string

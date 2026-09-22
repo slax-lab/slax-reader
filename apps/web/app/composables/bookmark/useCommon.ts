@@ -1,7 +1,7 @@
 import { ref, watch } from 'vue'
 
-import { isClient } from '@commons/utils/is'
-import { MouseTrack } from '@commons/utils/mouse'
+import { isClient } from '@commons/frontend-utils/is'
+import { MouseTrack } from '@commons/frontend-utils/mouse'
 
 import type { CommonBookmarkOptions } from './type'
 

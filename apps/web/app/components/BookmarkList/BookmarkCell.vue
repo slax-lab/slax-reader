@@ -127,7 +127,7 @@ import { inject } from 'vue'
 
 import BookmarkTags from '~/components/BookmarkTags.vue'
 
-import { urlHttpString } from '@commons/utils/string'
+import { urlHttpString } from '@commons/frontend-utils/string'
 import { getBookmarkSourceDomain } from '~/utils/bookmarkSource'
 import { truncateTitle } from '~/utils/string'
 

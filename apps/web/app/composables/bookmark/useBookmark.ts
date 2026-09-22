@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 
-import { isClient } from '@commons/utils/is'
+import { isClient } from '@commons/frontend-utils/is'
 
 import type { CommonBookmarkOptions } from './type'
 import { useResize } from './useCommon'

@@ -40,7 +40,7 @@ describe('useBookmark — isClient=false', () => {
   it('C2: non-client 路径 — useScroll 不被调用，y 走 ref(0) 兜底', async () => {
     // 修订 4：vi.resetModules + vi.doMock 必须在 setActivePinia 之前
     vi.resetModules()
-    vi.doMock('@commons/utils/is', () => ({ isClient: false }))
+    vi.doMock('@commons/frontend-utils/is', () => ({ isClient: false }))
 
     // ref() 调用必须放 it 内（vue 已 import）
     mockUseUserSubscribe.mockReturnValue({

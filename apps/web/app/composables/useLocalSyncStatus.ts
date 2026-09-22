@@ -1,4 +1,4 @@
-import { isClient } from '@commons/utils/is'
+import { isClient } from '@commons/frontend-utils/is'
 
 import { useStatus } from '@powersync/vue'
 

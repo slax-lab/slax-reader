@@ -1,7 +1,7 @@
 // MarkdownText.vue 单测 —— 第五期 Sprint C.1
 // 覆盖：基本渲染 / parseMarkdownText 调用 / parseHTML anchor 转换 / handleAnchors click → emit / watch text 变化触发 update
 // 关键约束：
-//  - parseMarkdownText 是 nuxt auto-import? 不，是显式 import from '@commons/utils/parse'，用 vi.mock
+//  - parseMarkdownText 是 nuxt auto-import? 不，是显式 import from '@commons/frontend-utils/parse'，用 vi.mock
 //  - 'highlight.js/styles/atom-one-dark.css' 副作用 mock noop
 import { mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,7 +10,7 @@ const { mockParseMarkdownText } = vi.hoisted(() => ({
   mockParseMarkdownText: vi.fn((text: string) => `<p>${text}</p>`)
 }))
 
-vi.mock('@commons/utils/parse', () => ({
+vi.mock('@commons/frontend-utils/parse', () => ({
   parseMarkdownText: mockParseMarkdownText
 }))
 

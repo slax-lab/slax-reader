@@ -1,5 +1,5 @@
-import { isClient } from '@commons/utils/is'
-import { FetchRequest, type FetchResult } from '@commons/utils/request'
+import { isClient } from '@commons/frontend-utils/is'
+import { FetchRequest, type FetchResult } from '@commons/frontend-utils/request'
 
 import { LocalStorageKey } from '@commons/types/const'
 import { NOT_LOGIN_ERROR } from '@commons/types/error'

@@ -39,7 +39,7 @@
 <script lang="ts" setup>
 import DotLoading from '~/components/DotLoading.vue'
 
-import { RESTMethodPath } from '@commons/types-pro'
+import { RESTMethodPath } from '@commons/types'
 import { loadStripe, type Stripe, type StripeElements, type StripePaymentElement } from '@stripe/stripe-js'
 import Toast, { ToastType } from '~/components/Toast'
 import { useUserStore } from '~/stores/user'

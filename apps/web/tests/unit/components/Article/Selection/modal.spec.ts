@@ -11,8 +11,8 @@ import { flushPromises } from '@vue/test-utils'
 import { MarkModal } from '~~/app/components/Article/Selection/modal'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// 1) Mock @commons/utils/dom 避免 createStyleWithSearchRules 真实读 stylesheet
-vi.mock('@commons/utils/dom', () => ({
+// 1) Mock @commons/frontend-utils/dom 避免 createStyleWithSearchRules 真实读 stylesheet
+vi.mock('@commons/frontend-utils/dom', () => ({
   createStyleWithSearchRules: vi.fn(async () => {
     const el = document.createElement('style')
     el.textContent = ''

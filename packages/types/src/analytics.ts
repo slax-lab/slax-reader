@@ -186,6 +186,15 @@ export interface HomepageClaimFreeTrialEvent {
   referral_code?: string
 }
 
+/**
+ * 打开订阅入口
+ * 上报渠道：Web
+ */
+export interface SubscriptionViewEvent {
+  event: 'subscription_view'
+  presentation: 'dialog' | 'screen'
+}
+
 // ==================== 联合类型 ====================
 
 /**
@@ -216,6 +225,7 @@ export type AnalyticsEvent =
   | HomepageViewEvent
   | HomepageDownloadEvent
   | HomepageClaimFreeTrialEvent
+  | SubscriptionViewEvent
 
 /**
  * Web 端埋点事件类型
@@ -247,12 +257,16 @@ export type WebAnalyticsEvent =
   | HomepageViewEvent
   | HomepageDownloadEvent
   | HomepageClaimFreeTrialEvent
+  | SubscriptionViewEvent
 
 /**
  * Extension 端埋点事件类型
  */
 export type ExtensionAnalyticsEvent =
   BookmarkArchiveEvent | BookmarkStarEvent | BookmarkChatInteractEvent | BookmarkOverviewInteractEvent | BookmarkOutlineInteractEvent | FeedbackSubmitStartEvent | BookmarkViewEvent
+
+/** Dashboard and heartbeat actions shared by Web and Extension. */
+export type MetricActionType = 'heartbeat' | 'ai_overview' | 'ai_summary'
 
 // ==================== 工具类型 ====================
 

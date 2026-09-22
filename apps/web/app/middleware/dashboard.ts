@@ -1,4 +1,4 @@
-import { RESTMethodPath } from '@commons/types-pro'
+import { RESTMethodPath } from '@commons/types'
 
 export default defineNuxtRouteMiddleware(async () => {
   if (import.meta.client) {

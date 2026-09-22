@@ -145,9 +145,9 @@ import SnapshotSharePopover from '~/components/Snapshot/SnapshotSharePopover.vue
 import SnapshotTopBar from '~/components/Snapshot/SnapshotTopBar.vue'
 import TopTips from '~/components/Tips/TopTips.vue'
 
-import { formatDate } from '@commons/utils/date'
-import { isClient, isServer } from '@commons/utils/is'
-import { extractHTMLTextContent } from '@commons/utils/parse'
+import { formatDate } from '@commons/frontend-utils/date'
+import { isClient, isServer } from '@commons/frontend-utils/is'
+import { extractHTMLTextContent } from '@commons/frontend-utils/parse'
 
 import { RESTMethodPath } from '@commons/types/const'
 import type { BookmarkExistsResp, MarkDetail, ShareBookmarkDetail } from '@commons/types/interface'

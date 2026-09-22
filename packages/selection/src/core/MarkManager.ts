@@ -1,6 +1,6 @@
-import { trimRangeEnd } from '@commons/utils/dom'
-import { HighlightRange, type HighlightRangeInfo } from '@commons/utils/range'
-import { getRangeTextWithNewlines } from '@commons/utils/string'
+import { trimRangeEnd } from '@commons/frontend-utils/dom'
+import { HighlightRange, type HighlightRangeInfo } from '@commons/frontend-utils/range'
+import { getRangeTextWithNewlines } from '@commons/frontend-utils/string'
 import { RESTMethodPath } from '@commons/types/const'
 import {
   type MarkDetail,

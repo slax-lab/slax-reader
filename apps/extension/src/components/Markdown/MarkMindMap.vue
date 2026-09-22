@@ -13,7 +13,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { base64toBlob } from '@commons/utils/data'
+import { base64toBlob } from '@commons/frontend-utils/data'
 
 import dom2Img, { AutoFitByRatio } from 'easy-dom2img'
 import { type INode } from 'markmap-common'

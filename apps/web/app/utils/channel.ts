@@ -1,4 +1,4 @@
-import { isClient, isFunction, isPromise } from '@commons/utils/is'
+import { isClient, isFunction, isPromise } from '@commons/frontend-utils/is'
 
 export interface ChannelMessageData {
   archive: {

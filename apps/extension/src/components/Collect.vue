@@ -36,7 +36,7 @@ import DotLoading from './DotLoading.vue'
 
 import { BookmarkActionType, type MessageType, MessageTypeAction } from '@/config/message'
 
-import { RequestError } from '@commons/utils/request'
+import { RequestError } from '@commons/frontend-utils/request'
 
 import { RESTMethodPath } from '@commons/types/const'
 import type { AddBookmarkReq, AddBookmarkResp, EmptyBookmarkResp } from '@commons/types/interface'

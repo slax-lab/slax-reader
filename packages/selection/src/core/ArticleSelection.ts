@@ -1,4 +1,4 @@
-import { removeOuterTag } from '@commons/utils/dom'
+import { removeOuterTag } from '@commons/frontend-utils/dom'
 import type { MarkDetail, MarkPathItem, MarkSelectContent, MarkPathApprox } from '@commons/types/interface'
 
 import { Base } from './Base'

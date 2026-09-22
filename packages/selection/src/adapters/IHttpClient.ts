@@ -1,4 +1,4 @@
-import type { FetchOptions } from '@commons/utils/request'
+import type { FetchOptions } from '@commons/frontend-utils/request'
 
 /**
  * HTTP客户端适配器接口

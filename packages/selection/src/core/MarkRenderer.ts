@@ -1,5 +1,5 @@
-import { fixCssSelector, getTextNodesInRange, removeOuterTag } from '@commons/utils/dom'
-import { HighlightRange } from '@commons/utils/range'
+import { fixCssSelector, getTextNodesInRange, removeOuterTag } from '@commons/frontend-utils/dom'
+import { HighlightRange } from '@commons/frontend-utils/range'
 import type { MarkPathItem } from '@commons/types/interface'
 
 import { Base } from './Base'

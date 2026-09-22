@@ -2,7 +2,7 @@
 // 行为差异经 adapters 注入
 import { computed, type Ref, ref, shallowRef, toValue, watch } from 'vue'
 
-import { urlHttpString } from '@commons/utils/string'
+import { urlHttpString } from '@commons/frontend-utils/string'
 
 import { type MarkDetail, MarkType } from '@commons/types/interface'
 import type { SelectionConfig } from '@slax-reader/selection'

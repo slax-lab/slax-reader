@@ -1,4 +1,4 @@
-import type { FetchOptions } from '@commons/utils/request'
+import type { FetchOptions } from '@commons/frontend-utils/request'
 
 import { type AddMarkBody,useLocalMarks } from '@/composables/bookmark/useLocalMarks'
 import { RESTMethodPath } from '@commons/types/const'

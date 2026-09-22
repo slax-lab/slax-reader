@@ -1,5 +1,5 @@
 import type { UserShareCollectInfo } from '@commons/types/interface'
-import { RESTMethodPath } from '@commons/types-pro'
+import { RESTMethodPath } from '@commons/types'
 
 // 模块级单例缓存，跨组件复用
 const info = ref<UserShareCollectInfo | null>(null)

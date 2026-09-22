@@ -19,7 +19,7 @@
     "type": "wxt prepare",
     "compile": "vue-tsc --noEmit",
     "lint:fix": "eslint .  --fix",
-    "update:utils": "pnpm install @commons/utils",
+    "update:frontend-utils": "pnpm install @commons/frontend-utils",
     "build:vendor": "tsx scripts/build-vendor.script.ts",
     "prebuild": "pnpm --filter @slax-reader/selection build",
     "prebuild:firefox": "pnpm --filter @slax-reader/selection build",
@@ -36,8 +36,7 @@
   },
   "dependencies": {
     "@commons/types": "workspace:*",
-    "@commons/types-pro": "workspace:*",
-    "@commons/utils": "workspace:*",
+    "@commons/frontend-utils": "workspace:*",
     "@slax-lab/readability": "^0.6.4",
     "@slax-reader/selection": "workspace:*",
     "@vscode/markdown-it-katex": "^1.1.2",

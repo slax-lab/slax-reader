@@ -15,7 +15,7 @@ const { mockCopyText, mockShowToast, mockPwaOpen } = vi.hoisted(() => ({
   mockPwaOpen: vi.fn()
 }))
 
-vi.mock('@commons/utils/string', () => ({
+vi.mock('@commons/frontend-utils/string', () => ({
   copyText: mockCopyText
 }))
 

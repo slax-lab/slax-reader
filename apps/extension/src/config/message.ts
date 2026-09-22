@@ -1,4 +1,4 @@
-import type { MetricActionType } from '@commons/types-pro'
+import type { MetricActionType } from '@commons/types'
 
 export interface BridgeBookmarkTag {
   id: string

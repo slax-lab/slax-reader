@@ -2,7 +2,7 @@
 
 ## Why
 
-The v2 repository is the stable monorepo skeleton intended to make Slax Reader easier for non-programmers and third-party developers to understand and contribute to. The existing `slax_reader` repository already contains the DWeb application, the browser extension, and four workspace libraries used by both applications, but those projects are not yet present in v2.
+The v2 repository is the stable monorepo skeleton intended to make Slax Reader easier for non-programmers and third-party developers to understand and contribute to. The existing `slax_reader` repository already contains the DWeb application, the browser extension, and shared workspace libraries used by both applications, but those projects are not yet present in v2.
 
 This change establishes the migration boundary and moves those frontend projects into v2 without changing the source repository. The migration is a one-way snapshot import: preserving Git history is optional and is deliberately out of scope for the first pass.
 
@@ -10,7 +10,7 @@ This change establishes the migration boundary and moves those frontend projects
 
 - Add the DWeb application under `apps/web`.
 - Add the browser extension under `apps/extension`.
-- Add the four existing cross-app libraries under `packages/types`, `packages/types-pro`, `packages/utils`, and `packages/selection`.
+- Add the shared libraries under `packages/types`, `packages/frontend-utils`, and `packages/selection`. The source's `types-pro` definitions are merged into `packages/types`, and its broad `utils` package is renamed to `frontend-utils` to reserve clearer naming for future Backend and CLI packages.
 - Move relevant development and contribution documentation into `docs/apps`, `docs/architecture`, `docs/contributing`, and `docs/migrations` without adding application implementation files to the v2 root.
 - Add only the minimum workspace scripts and configuration needed to install, develop, build, type-check, and test the two migrated applications.
 - Keep the existing backend outside this change; the migrated frontend applications continue to use their existing backend integration until a separate backend migration is planned.

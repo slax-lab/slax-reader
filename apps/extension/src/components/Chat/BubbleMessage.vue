@@ -77,7 +77,7 @@
 </template>
 
 <script lang="ts" setup>
-import { copyText } from '@commons/utils/string'
+import { copyText } from '@commons/frontend-utils/string'
 
 import Toast, { ToastType } from './../Toast'
 import { type BubbleMessageItem, type QuoteData } from './type'

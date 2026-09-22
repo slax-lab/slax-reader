@@ -1,11 +1,15 @@
-// Augments `@commons/types/interface` with paid-only fields and adds new
-// paid-only interface exports via TypeScript module augmentation.
+// Augments `@commons/types/interface` with the fields and interfaces that are
+// shared by the current Web and Extension applications.
 //
-// Importing `@commons/types-pro` once anywhere in the program (e.g. via
+// Importing `@commons/types` once anywhere in the program (e.g. via
 // the app's `index.d.ts`) makes every `from '@commons/types/interface'`
 // import see the augmented and added types.
 
 import type { BookmarkParseStatus, CollectionInfo, SubscriptionType } from '@commons/types/interface'
+
+// Keep these imported names visible to package-level noUnusedLocals checks;
+// they are consumed inside the module augmentation below.
+export type { BookmarkParseStatus, CollectionInfo, SubscriptionType }
 
 declare module '@commons/types/interface' {
   // ─── Field augmentations on upstream interfaces ─────────────────────
@@ -39,7 +43,7 @@ declare module '@commons/types/interface' {
     subscription_end_at: Date
   }
 
-  // ─── New paid-only exports ──────────────────────────────────────────
+  // ─── Additional shared exports ─────────────────────────────────────
 
   export interface CollectionBookmarkDetail extends BaseBookmarkDetail {
     bookmark_id?: number

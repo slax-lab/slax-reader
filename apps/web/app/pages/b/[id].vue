@@ -159,8 +159,8 @@ import SnapshotTranscriptPanel from '~/components/Snapshot/SnapshotTranscriptPan
 import { eventLog } from '@/utils/analytics'
 import { extractFirstContentImage } from '@/utils/ogImage'
 import { sortBookmarkTags } from '@/utils/tags'
-import { isClient, isServer } from '@commons/utils/is'
-import { extractHTMLTextContent } from '@commons/utils/parse'
+import { isClient, isServer } from '@commons/frontend-utils/is'
+import { extractHTMLTextContent } from '@commons/frontend-utils/parse'
 
 import { useLocalBookmarks } from '@/composables/bookmark/useLocalBookmarks'
 import { useLocalMarks } from '@/composables/bookmark/useLocalMarks'

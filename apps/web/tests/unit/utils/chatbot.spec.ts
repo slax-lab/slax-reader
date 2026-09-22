@@ -14,7 +14,7 @@
 // 6. 每个 it 必须重置 hoisted holder + mock 调用记录（codex 第 1 轮 P2 第 5 条修订）：
 //    vi.restoreAllMocks 不清独立 vi.fn，需手动 mockReset / 手动清 holder。
 
-import { RequestMethodType } from '@commons/utils/request'
+import { RequestMethodType } from '@commons/frontend-utils/request'
 
 import { RESTMethodPath } from '@commons/types/const'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
@@ -45,9 +45,9 @@ const { mockRequest } = vi.hoisted(() => ({
 
 mockNuxtImport('request', () => mockRequest)
 
-vi.mock('@commons/utils/json', () => ({ partialParse: partialParseMock }))
+vi.mock('@commons/frontend-utils/json', () => ({ partialParse: partialParseMock }))
 
-// 注意：不 mock @commons/utils/decoder（spec §3.2 决议直接用真实 LineDecoder + SSEDecoder）
+// 注意：不 mock @commons/frontend-utils/decoder（spec §3.2 决议直接用真实 LineDecoder + SSEDecoder）
 
 import { ChatBot, ChatParamsType, ChatResponseType } from '~~/app/utils/chatbot'
 

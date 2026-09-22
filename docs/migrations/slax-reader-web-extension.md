@@ -16,8 +16,8 @@
 | `apps/slax-reader-dweb` | `apps/web` | DWeb application |
 | `apps/slax-reader-extensions` | `apps/extension` | Browser extension |
 | `commons/types` | `packages/types` | Used by Web and Extension |
-| `commons/types-pro` | `packages/types-pro` | Used by Web and Extension |
-| `commons/utils` | `packages/utils` | Used by Web and Extension |
+| `commons/types-pro` | `packages/types` | Merged into the unified type package used by Web and Extension |
+| `commons/utils` | `packages/frontend-utils` | Renamed to make its frontend-only scope explicit |
 | `commons/selection` | `packages/selection` | Used by Web and Extension |
 | `docs/DEVELOPMENT-DOCUMENT-*` | `docs/apps` and `docs/architecture` | Long-form onboarding and architecture material |
 | `docs/HOW-TO-CONTRIBUTION-*` | `docs/contributing` | Contributor onboarding |
@@ -25,7 +25,17 @@
 
 ## Observed workspace facts
 
-The source root currently uses pnpm workspace globs for `apps/*` and `commons/*`. Both application manifests depend on all four shared packages. `commons/selection` additionally depends on `types` and `utils`. The source root also contains shared configuration under `configs/`, `scripts/`, and root TypeScript/environment files; these require an explicit app-by-app placement decision during implementation rather than blind copying to the v2 root.
+The source root currently uses pnpm workspace globs for `apps/*` and `commons/*`. Both application manifests depend on four source libraries. In v2, `types-pro` is merged into `types`, and `commons/utils` is exposed as `frontend-utils`; `selection` depends on `types` and `frontend-utils`. The source root also contains shared configuration under `configs/`, `scripts/`, and root TypeScript/environment files; these require an explicit app-by-app placement decision during implementation rather than blind copying to the v2 root.
+
+## Review of later source changes
+
+After the pinned snapshot, source `develop` merged PR #1601 (`50de9f64`), which adjusts the
+legacy `push.yml` environment generation and adds deployment notes for Cloudflare-only Web
+configuration. v2 currently has no equivalent legacy workflow or deployment document, so this
+PR is recorded as a follow-up rather than copied into the migration. When v2 adds its own CI or
+deployment pipeline, it should carry over the behavior: Web-only OAuth/Turnstile values may be
+empty during checks, shared and Extension variables remain required, and the temporary `.env`
+must exist before dependency installation. The source repository remains unchanged.
 
 ## Exclusions
 
@@ -52,11 +62,11 @@ source checkout is touched.
 | --- | --- |
 | DWeb: 596 tracked files | Import into `apps/web`, retaining Nuxt app/server/content/tests |
 | Extension: 189 tracked files | Leave for the next stage; `apps/extension` stays a placeholder |
-| types: 8; types-pro: 6; utils: 25; selection: 20 tracked files | Import into corresponding `packages` as Web prerequisites; preserve package names and exports |
+| types: 8; types-pro: 6; utils: 25; selection: 20 tracked files | Import into three v2 packages as Web prerequisites; merge `types-pro` into `types` and rename `utils` to `frontend-utils` |
 | `configs/env.ts`, `configs/backend-path.ts` | `apps/web/config`, resolve environment files under `apps/web` |
 | `env.schema.ts` | `apps/web/env.schema.ts`, schema definitions only |
 | root UnoCSS and ESLint bases | `apps/web/config/uno.base.ts` and `eslint.base.ts` |
-| root TypeScript base used by types-pro | `packages/types-pro/tsconfig.base.json` |
+| root TypeScript base used by types-pro | absorbed into `packages/types` |
 | root dependencies used implicitly by Web | Declare in the app/library that uses them; do not add app dependencies at v2 root |
 | source pnpm lock | Merge locked entries with v2, adapt importer paths and pnpm 11 override specifiers |
 | `scripts/start.script.ts`, `configs/cmd.ts` | Do not import interactive launcher; use small root delegating commands |
@@ -65,10 +75,11 @@ source checkout is touched.
 | source agent rules, hooks, CI, editor workspace, graph output, planning notes | Do not import; retain v2 governance and hooks |
 | source LICENSE and trademark text | Preserve under `docs/migrations/source-license.txt` and `source-trademark.md` |
 
-The original four packages already have both app consumers in the pinned source. They are
+The original four source packages already have both app consumers in the pinned source. They are
 migrated ahead of the Extension so Web can resolve its existing workspace dependencies;
-this is not an extraction of new abstractions. Package names stay `@commons/*` and
-`@slax-reader/selection` during this phase, including the broad but pre-existing utils package.
+this is not an extraction of new abstractions. The v2 workspace exposes three packages:
+`@commons/types`, `@commons/frontend-utils`, and `@slax-reader/selection`. The old `types-pro`
+surface is unified with `types`, while the broad but frontend-only utils package gets a scope-specific name.
 No API-contract conversion or OpenAPI generation is performed.
 
 ### Coupling that remains
@@ -133,10 +144,11 @@ Type-checking exposed the source lock's split Vue peer contexts (TypeScript 5 an
 pnpm recomputed peer connections without introducing any package version absent from the
 source and v2 lockfiles. Source `hasBin` metadata was retained when pnpm's lock repair
 removed it, so clean installations retain Nuxt, ESLint, Vitest, and OpenSpec commands.
-The utils manifest now declares its existing Vue dependency; Web declares h3, vue-i18n,
+The frontend-utils manifest now declares its existing Vue dependency; Web declares h3, vue-i18n,
 and vue-eslint-parser instead of relying on source-root hoisting.
 
-Source-fidelity check: all 655 tracked files across DWeb and the four libraries are present.
+Source-fidelity check: all 655 tracked files across DWeb and the four source libraries are present;
+the v2 package layout consolidates those source libraries into three packages.
 645 are byte-identical to the source snapshot; 10 differ only in the documented config,
 manifest, declaration, ignore, and README adaptations. Original trailing whitespace in
 `useReadingPosition.ts`, `public/llms.txt`, and generated `worker-configuration.d.ts` was

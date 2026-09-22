@@ -36,12 +36,9 @@ importers:
       "@commons/types":
         specifier: workspace:*
         version: link:../../packages/types
-      "@commons/types-pro":
+      "@commons/frontend-utils":
         specifier: workspace:*
-        version: link:../../packages/types-pro
-      "@commons/utils":
-        specifier: workspace:*
-        version: link:../../packages/utils
+        version: link:../../packages/frontend-utils
       "@slax-lab/readability":
         specifier: ^0.6.4
         version: 0.6.5
@@ -210,12 +207,9 @@ importers:
       "@commons/types":
         specifier: workspace:*
         version: link:../../packages/types
-      "@commons/types-pro":
+      "@commons/frontend-utils":
         specifier: workspace:*
-        version: link:../../packages/types-pro
-      "@commons/utils":
-        specifier: workspace:*
-        version: link:../../packages/utils
+        version: link:../../packages/frontend-utils
       "@iconify-json/ic":
         specifier: ^1.2.4
         version: 1.2.4
@@ -549,9 +543,9 @@ importers:
       "@commons/types":
         specifier: workspace:*
         version: link:../types
-      "@commons/utils":
+      "@commons/frontend-utils":
         specifier: workspace:*
-        version: link:../utils
+        version: link:../frontend-utils
       vue:
         specifier: 3.5.42
         version: 3.5.42(typescript@6.0.3)
@@ -585,12 +579,7 @@ importers:
       typescript-eslint:
         specifier: ^8.68.0
         version: 8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
-  packages/types-pro:
-    dependencies:
-      "@commons/types":
-        specifier: workspace:*
-        version: link:../types
-  packages/utils:
+  packages/frontend-utils:
     dependencies:
       "@vscode/markdown-it-katex":
         specifier: ^1.1.2

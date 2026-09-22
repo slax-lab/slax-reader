@@ -50,7 +50,7 @@ export enum UserNotificationIconStyle {
 // 用 alias，否则绕过 fork 覆盖
 import NotificationCell, { NotificationCellStyle } from '~/components/Notification/NotificationCell.vue'
 
-import { isSafari } from '@commons/utils/is'
+import { isSafari } from '@commons/frontend-utils/is'
 
 import { RESTMethodPath } from '@commons/types/const'
 import type { UserNotificationMessageItem } from '@commons/types/interface'
