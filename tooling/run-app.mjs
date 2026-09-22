@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
+import { loadDeployEnvironment } from './env-files.mjs'
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -35,7 +36,7 @@ function resolveCommand(requestedCommand, aliases) {
   return aliases[requestedCommand] || requestedCommand
 }
 
-function runApp({ commandName, appLabel, packageName, packagePath, commands, aliases = {}, argumentsList = process.argv.slice(2) }) {
+function runApp({ commandName, appLabel, packageName, packagePath, environmentApp = commandName, commands, aliases = {}, argumentsList = process.argv.slice(2) }) {
   const args = forwardedArguments(argumentsList)
   const requestedCommand = args[0]
 
@@ -64,9 +65,25 @@ function runApp({ commandName, appLabel, packageName, packagePath, commands, ali
     return process.exitCode
   }
 
+  let childEnvironment
+  try {
+    childEnvironment = loadDeployEnvironment({
+      appName: environmentApp,
+      root: REPO_ROOT
+    }).environment
+  } catch (error) {
+    console.error(appLabel + ' 环境变量加载失败：' + (error instanceof Error ? error.message : String(error)))
+    process.exitCode = 1
+    return process.exitCode
+  }
+
   const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
-  const child = spawn(pnpmCommand, ['--filter', packageName, 'run', command, '--', ...args.slice(1)], {
+  const forwardedArgs = args.slice(1)
+  const childArgs = ['--filter', packageName, 'run', command]
+  if (forwardedArgs.length) childArgs.push(...forwardedArgs)
+  const child = spawn(pnpmCommand, childArgs, {
     cwd: REPO_ROOT,
+    env: childEnvironment,
     stdio: 'inherit'
   })
 

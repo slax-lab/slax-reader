@@ -3,16 +3,17 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { dirname, relative, resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
+import { DEPLOY_DIRECTORIES, ENV_NAMES, loadDeployEnvironment, parseEnvironmentText as parseEnvText, profileFileName, readEnvSources } from './env-files.mjs'
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const ENV_NAMES = new Set(['development', 'preview', 'beta', 'production'])
-const ENV_FILE_NAMES = env => ['.env', `.env.${env}`, `.env.${env}.local`]
 
 const APP_CHECKS = {
   web: {
     label: 'Web',
+    environmentApp: 'web',
     directory: 'apps/web',
+    deployDirectory: DEPLOY_DIRECTORIES.web,
     command: 'nuxt',
     workspaceDependencies: [
       '@commons/contracts',
@@ -34,7 +35,9 @@ const APP_CHECKS = {
   },
   extension: {
     label: 'Extension',
+    environmentApp: 'extension',
     directory: 'apps/extension',
+    deployDirectory: DEPLOY_DIRECTORIES.extension,
     command: 'wxt',
     workspaceDependencies: [
       '@commons/contracts',
@@ -66,7 +69,8 @@ const ANSI = {
 }
 
 function parseArgs(argv) {
-  const options = { app: 'all', env: process.env.SLAX_ENV || 'development', help: false, color: undefined }
+  const options = { app: 'all', env: undefined, help: false, color: undefined }
+  if (argv[0] === '--') argv = argv.slice(1)
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index]
@@ -76,6 +80,9 @@ function parseArgs(argv) {
       options.app = argv[++index]
     } else if (argument === '--env') {
       options.env = argv[++index]
+      if (!ENV_NAMES.has(options.env)) {
+        throw new Error('--env 只能是 development、preview、beta 或 production')
+      }
     } else if (argument === '--color') {
       options.color = true
     } else if (argument === '--no-color') {
@@ -87,9 +94,6 @@ function parseArgs(argv) {
 
   if (!['all', ...Object.keys(APP_CHECKS)].includes(options.app)) {
     throw new Error(`--app 只能是 all、web 或 extension，收到：${options.app}`)
-  }
-  if (!ENV_NAMES.has(options.env)) {
-    throw new Error(`环境名只能是 development、preview、beta 或 production，收到：${options.env}`)
   }
 
   return options
@@ -104,54 +108,6 @@ function shouldUseColor(explicit) {
 
 function paint(value, style, colorEnabled = shouldUseColor()) {
   return colorEnabled ? `${ANSI[style]}${value}${ANSI.reset}` : value
-}
-
-function parseEnvText(text) {
-  const values = {}
-
-  for (const line of text.split(/\r?\n/)) {
-    const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/)
-    if (!match) continue
-
-    const [, name, rawValue] = match
-    let value = rawValue.trim()
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1)
-    }
-    values[name] = value
-  }
-
-  return values
-}
-
-function readEnvSources(appDirectory, envName, processEnvironment = process.env) {
-  const values = {}
-  const sources = {}
-  const files = ENV_FILE_NAMES(envName)
-
-  for (const file of files) {
-    const path = resolve(appDirectory, file)
-    if (!existsSync(path)) continue
-
-    const parsed = parseEnvText(readFileSync(path, 'utf8'))
-    for (const [name, value] of Object.entries(parsed)) {
-      // dotenv is called without override in the app loaders: the first file wins.
-      if (!(name in values)) {
-        values[name] = value
-        sources[name] = relative(REPO_ROOT, path)
-      }
-    }
-  }
-
-  // The process environment wins over every env file, matching dotenv's behavior.
-  for (const [name, value] of Object.entries(processEnvironment)) {
-    if (value !== undefined) {
-      values[name] = value
-      sources[name] = 'process environment'
-    }
-  }
-
-  return { values, sources, files: files.filter(file => existsSync(resolve(appDirectory, file))) }
 }
 
 function validateVariable(variable, values) {
@@ -267,7 +223,8 @@ function printAppHeading(app, colorEnabled) {
 }
 
 function environmentSetupHint(app, envName) {
-  return `未检测到可用的 ${app.label} 环境变量。请创建 ${app.directory}/.env 或 ${app.directory}/.env.${envName}.local，并参考 ${app.directory}/.env.example 中的变量名和占位值。`
+  const profileFile = profileFileName(envName)
+  return `未检测到可用的 ${app.label} 环境变量。请参考 ${app.deployDirectory}/.env.example，创建并填写 ${app.deployDirectory}/.env；需要覆盖当前环境的配置时，可使用 ${app.deployDirectory}/${profileFile}。`
 }
 
 function printHelp({ color = undefined } = {}) {
@@ -280,12 +237,12 @@ ${paint('不会输出环境变量值，也不会检查或启动 backend。', 'mu
 选项：
   --app web|extension|all   只检查一个前端应用（默认 all）
   --env development|preview|beta|production
-                            检查指定环境（默认读取 SLAX_ENV，未设置时为 development）
+                            检查指定环境（默认按进程、deploy .env 中的 SLAX_ENV 选择，未设置时为 development）
   --color / --no-color      强制开启 / 关闭终端颜色
   -h, --help                显示帮助`)
 }
 
-function run(options, root = REPO_ROOT) {
+function run(options, root = REPO_ROOT, processEnvironment = process.env) {
   const issues = []
   const colorEnabled = shouldUseColor(options.color)
   const add = issue => {
@@ -298,7 +255,7 @@ function run(options, root = REPO_ROOT) {
   for (const issue of checkRuntime(root)) add(issue)
 
   if (existsSync(resolve(root, '.env'))) {
-    const issue = { level: 'warn', message: '发现根目录 .env；当前 Web/Extension loader 不会自动读取它，请将配置放到对应 app 目录或通过进程环境传入' }
+    const issue = { level: 'warn', message: '发现根目录 .env；当前 Web/Extension loader 不会自动读取它，请将配置放到 deploy/local_web/.env 或 deploy/local_extension/.env，也可以通过进程环境传入' }
     issues.push(issue)
     printIssue(issue, '', colorEnabled)
   }
@@ -315,16 +272,25 @@ function run(options, root = REPO_ROOT) {
 
   printSection('环境变量', options.env, colorEnabled)
   for (const app of selectedApps) {
-    const appDirectory = resolve(root, app.directory)
-    const env = readEnvSources(appDirectory, options.env)
     printAppHeading(app, colorEnabled)
-    console.log(`  ${paint(env.files.length ? `读取：${env.files.join('、')}` : '未找到 app 环境文件（也可能来自进程环境）', 'muted', colorEnabled)}`)
+    let env
+    try {
+      env = loadDeployEnvironment({ appName: app.environmentApp, root, envName: options.env, processEnvironment })
+    } catch (error) {
+      const issue = { level: 'error', message: error.message }
+      issues.push(issue)
+      printIssue(issue, '  ', colorEnabled)
+      continue
+    }
+    const loadedFiles = env.files.map(file => app.deployDirectory + '/' + file).join('、')
+    console.log('  ' + paint(`环境：${env.envName} · ` + (loadedFiles ? '读取：' + loadedFiles : '未找到 deploy 环境文件（也可能来自进程环境）'), 'muted', colorEnabled))
+
     const hasConfiguredVariable = app.variables.some(variable => {
       const value = env.values[variable.name]
       return value !== undefined && value !== ''
     })
     if (!hasConfiguredVariable) {
-      printIssue({ level: 'info', message: environmentSetupHint(app, options.env) }, '  ', colorEnabled)
+      printIssue({ level: 'info', message: environmentSetupHint(app, env.envName) }, '  ', colorEnabled)
     }
     for (const variable of app.variables) {
       const issue = validateVariable(variable, env.values)

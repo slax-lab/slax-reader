@@ -20,6 +20,7 @@ Monorepo 的含义是把这些项目放在同一个仓库里协作，并不意�
 | [`docs`](../README.md) | 贡献、开发、架构和迁移记录 | 在这里查阅 |
 | [`tests/e2e`](../../tests/e2e) | 为跨应用测试预留的位置 | 当前占位；已迁入的测试在各 app 的 `tests` 内 |
 | [`tooling`](../../tooling) | 仓库内部工具 | 保留骨架现有职责 |
+| [`deploy`](../../deploy/README.md) | 各应用的本地环境配置及公开示例 | Web 与 Extension 已接入 |
 
 这些共享库并不是本次为凑目录抽出来的：原 Web 和扩展都已经在用。跨前后端传输的类型、API 路由和事件放在
 `contracts`；只服务浏览器端实现的本地存储、扩展面板等类型放在 `frontend-types`。当前迁移仍保留少量历史
@@ -58,6 +59,7 @@ flowchart LR
 应用的 `nuxt.config.ts`、`wxt.config.ts`、`env.schema.ts` 和 `config` 都在自己的 app 内。
 两端当前各有一份环境加载、UnoCSS 和 ESLint 基础配置，优先保证应用目录自洽；没有让扩展依赖 Web 的配置。
 根目录只保留 workspace 编排、仓库治理和导航。
+本地环境文件集中在 `deploy/local_web`、`deploy/local_extension`，由 `tooling/env-files.mjs` 为根命令和 preflight 统一加载；真实配置不纳入 Git。
 
 贡献者长文档放在 `docs/contributing`、`docs/apps`、`docs/architecture`、`docs/migrations`。
 [`apps/web/open_docs`](../../apps/web/open_docs) 是产品读取的条款、隐私等页面内容。

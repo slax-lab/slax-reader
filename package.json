@@ -10,7 +10,7 @@
     "agent:sync": "rulesync generate",
     "agent:check": "rulesync doctor --strict && rulesync generate --check && openspec validate --all --strict && bash tooling/check-gh-aw-drift.sh",
     "preflight": "node tooling/preflight.mjs",
-    "test:preflight": "node --test tooling/preflight.test.mjs",
+    "test:preflight": "node --test tooling/preflight.test.mjs tooling/env-files.test.mjs tooling/app-command.test.mjs",
     "web": "node tooling/web.mjs",
     "extension": "node tooling/extension.mjs",
     "prepare": "lefthook install"

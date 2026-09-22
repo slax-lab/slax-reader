@@ -23,7 +23,7 @@ function backendDir(): string {
       '[backend] 环境变量 SLAX_BACKEND_DIR 未设置。\n' +
         '  它必须指向本地 slax_reader_backend 检出目录（绝对路径），例如：\n' +
         '    SLAX_BACKEND_DIR=/absolute/path/to/slax_reader_backend\n' +
-        `  请在apps/web 下的 .env.${slaxEnv}.local 中声明（该文件已被 gitignore，每台机器各自配置）。`
+        '  请在 deploy/local_web/.env 中声明，再从根目录运行 pnpm web -- dev（环境文件已被 gitignore）。'
     )
   }
   const abs = path.resolve(dir)

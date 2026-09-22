@@ -16,10 +16,10 @@ pnpm extension -- dev
 先按[配置与验证说明](../../docs/apps/extension/development.md)设置本地公开配置。
 登录、收藏同步及划线评论需要 Web 和 backend；扩展能构建并加载，不代表这些业务已联调通过。
 
-首次配置可以从 `.env.example` 开始：
+首次配置请从 deploy 示例开始：
 
 ```sh
-cp apps/extension/.env.example apps/extension/.env
+cp deploy/local_extension/.env.example deploy/local_extension/.env
 ```
 
 ## 常用命令

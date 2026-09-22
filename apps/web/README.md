@@ -18,10 +18,10 @@ pnpm web -- dev
 [配置与验证说明](../../docs/apps/web/development.md)。缺少 `SLAX_BACKEND_DIR` 时会明确报错；
 本阶段没有无需后端的演示模式。不要把旧仓库的环境文件复制进来。
 
-首次配置可以从 `.env.example` 开始：
+首次配置请从 deploy 示例开始：
 
 ```sh
-cp apps/web/.env.example apps/web/.env
+cp deploy/local_web/.env.example deploy/local_web/.env
 ```
 
 ## 常用命令
