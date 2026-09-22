@@ -1,5 +1,6 @@
 import { API_ROOT } from '../../script/root'
 import { spawn, spawnSync } from 'node:child_process'
+import fs from 'node:fs'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { resolve } from 'node:path'
@@ -15,6 +16,7 @@ export class LocalResources {
   private processGroups = new Set<number>()
   private interrupted = () => {
     this.cleanup()
+    this.removeWorkspace()
     process.exit(130)
   }
 
@@ -70,14 +72,13 @@ export class LocalResources {
     })
   }
 
-  async container(image: 'postgres:17-alpine' | 'redis:7-alpine', options: { name?: string; port?: number } = {}) {
+  async container(image: 'postgres:17-alpine', options: { name?: string; port?: number } = {}) {
     this.command('docker', ['image', 'inspect', image, '--format', '{{.Id}}'])
-    const name = options.name ?? `slax-root-tooling-${image.startsWith('postgres') ? 'pg' : 'redis'}-${this.workspace.split('-').at(-1)}`
+    const name = options.name ?? `slax-root-tooling-pg-${this.workspace.split('-').at(-1)}`
     const existing = this.command('docker', ['ps', '-a', '--format', '{{.Names}}']).split('\n')
     if (existing.includes(name)) throw new Error(`Container ${name} already exists; refusing reuse or deletion`)
     if (options.port) await this.portAvailable(options.port)
-    const postgres = image.startsWith('postgres')
-    const args = [
+    const id = this.command('docker', [
       'run',
       '--pull=never',
       '--detach',
@@ -86,20 +87,18 @@ export class LocalResources {
       '--label',
       `slax.root-tooling=${this.workspace}`,
       '--publish',
-      `127.0.0.1:${options.port ?? ''}:${postgres ? 5432 : 6379}`
-    ]
-    if (postgres) args.push('--env', 'POSTGRES_HOST_AUTH_METHOD=trust')
-    args.push(image)
-    if (!postgres) args.push('redis-server', '--save', '', '--appendonly', 'no')
-    const id = this.command('docker', args)
+      `127.0.0.1:${options.port ?? ''}:5432`,
+      '--env',
+      'POSTGRES_HOST_AUTH_METHOD=trust',
+      image
+    ])
     this.containers.push(id)
-    const mapping = this.command('docker', ['port', id, postgres ? '5432/tcp' : '6379/tcp'])
+    const mapping = this.command('docker', ['port', id, '5432/tcp'])
     if (!/^127\.0\.0\.1:\d+$/.test(mapping)) throw new Error(`Unexpected Docker port mapping: ${mapping}`)
     for (let i = 0; i < 60; i++) {
       try {
         // The image's temporary init server only listens on a Unix socket. Wait for the final TCP server.
-        if (postgres) this.command('docker', ['exec', id, 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres'])
-        else this.command('docker', ['exec', id, 'redis-cli', 'ping'])
+        this.command('docker', ['exec', id, 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres'])
         return { id, name, port: Number(mapping.split(':')[1]) }
       } catch {
         await delay(500)
@@ -119,6 +118,10 @@ export class LocalResources {
     return this.run(label, 'pnpm', ['exec', 'prisma', 'migrate', 'deploy', '--config', `prisma/${kind}.config.ts`], {
       SLAX_API_ENV_FILE: envFile
     })
+  }
+
+  removeWorkspace() {
+    fs.rmSync(this.workspace, { recursive: true, force: true })
   }
 
   cleanup() {

@@ -227,4 +227,17 @@ describe('API build and deployment processes', () => {
     expect(call.args).toContain('SELECT 1')
     expect(call.args.slice(-2)).toEqual(['--persist-to', path.join(root, 'deploy/local/.wrangler/state')])
   })
+  test('the Wrangler wrapper refuses direct deployment and never invokes Wrangler', () => {
+    const root = fixture()
+    for (const args of [
+      ['edge', 'deploy'],
+      ['edge', 'deploy', '--dry-run'],
+      ['core', 'publish']
+    ]) {
+      const result = run(root, 'wrangler', args)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('use pnpm api -- deploy')
+    }
+    expect(calls(root)).toEqual([])
+  })
 })

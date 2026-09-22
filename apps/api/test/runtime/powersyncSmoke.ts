@@ -71,6 +71,7 @@ async function main() {
       if (readable(composeFile)) resources.command('docker', [...compose, 'down', '--volumes', '--remove-orphans'])
     } finally {
       resources.cleanup()
+      resources.removeWorkspace()
     }
   }
 }

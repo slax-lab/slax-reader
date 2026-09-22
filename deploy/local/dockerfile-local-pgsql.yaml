@@ -15,7 +15,7 @@ services:
       retries: 30
     command: ["postgres", "-c", "wal_level=logical"]
     ports:
-      - "0.0.0.0:15432:5432"
+      - "127.0.0.1:15432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d

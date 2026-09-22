@@ -19,6 +19,9 @@ for (let i = 0; i < args.length; i++) {
     if (!environment) throw new Error('--env requires a name')
   }
 }
+const subcommand = args.find(arg => !arg.startsWith('-'))
+if (['deploy', 'publish', 'versions'].includes(subcommand ?? ''))
+  throw new Error('Deployment is not available through the Wrangler wrapper; use pnpm api -- deploy so the remote preflight checks run')
 const config = readConfig(CONFIG_PATH, environment, local)
 loadApiEnv()
 if (args.includes('--remote')) checkRemote(config)

@@ -327,7 +327,9 @@ async function main() {
     resources.cleanup()
     writeFileSync(resolve(resources.workspace, 'worker.log'), workerLog)
     writeFileSync(resolve(resources.workspace, 'http-results.json'), JSON.stringify(evidence, null, 2))
-    console.log(`HTTP acceptance: ${evidence.status}; evidence: ${resources.workspace}`)
+    console.log(`HTTP acceptance: ${evidence.status}`)
+    console.log(JSON.stringify(evidence, null, 2))
+    resources.removeWorkspace()
   }
 }
 void main()

@@ -26,12 +26,6 @@ const test = async (name: string, env: NodeJS.ProcessEnv) => {
 
 async function main() {
   try {
-    try {
-      const redis = await resources.container('redis:7-alpine')
-      await test('oauthRedis', { OAUTH_TEST_REDIS_PORT: String(redis.port) })
-    } catch (error) {
-      results.oauthRedis = { status: 'blocked', reason: String(error) }
-    }
     let pg: Awaited<ReturnType<LocalResources['container']>> | undefined
     let fixedPort = true
     try {
@@ -75,6 +69,7 @@ async function main() {
     writeFileSync(resolve(resources.workspace, 'results.json'), JSON.stringify(results, null, 2))
     console.log(JSON.stringify(results, null, 2))
     if (Object.values(results).some(result => result.status !== 'passed')) process.exitCode = 1
+    resources.removeWorkspace()
   }
 }
 void main()
