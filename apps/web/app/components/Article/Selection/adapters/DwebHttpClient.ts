@@ -1,7 +1,7 @@
 import type { FetchOptions } from '@commons/frontend-utils/request'
 import { request } from '~/utils/request'
 
-import { RESTMethodPath } from '@commons/types/const'
+import { RESTMethodPath } from '@commons/contracts/const'
 import type { IHttpClient } from '@slax-reader/selection/adapters'
 
 /**

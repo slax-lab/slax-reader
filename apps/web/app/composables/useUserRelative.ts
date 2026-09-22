@@ -1,5 +1,5 @@
 import Subscription from '@/components/SubscriptionModal'
-import { type UserInfo } from '@commons/types/interface'
+import { type UserInfo } from '@commons/contracts/interface'
 
 export const useUserSubscribe = () => {
   const isSubscriptionExpired = ref(true)

@@ -1,4 +1,4 @@
-import { SubscriptionType, type UserInfo } from '@commons/types/interface'
+import { SubscriptionType, type UserInfo } from '@commons/contracts/interface'
 
 export const examineSideBarAction = async (type: string, userInfo: UserInfo | null) => {
   if (type === 'chat' || type === 'ai') {

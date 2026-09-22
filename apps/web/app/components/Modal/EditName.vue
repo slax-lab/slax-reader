@@ -27,7 +27,7 @@
 </template>
 
 <script lang="ts" setup>
-import { RESTMethodPath } from '@commons/types/const'
+import { RESTMethodPath } from '@commons/contracts/const'
 
 const props = defineProps({
   bookmarkId: Number,

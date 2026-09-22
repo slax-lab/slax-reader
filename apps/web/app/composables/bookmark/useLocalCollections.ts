@@ -2,7 +2,7 @@ import { computed, type MaybeRef, toValue } from 'vue'
 
 import { toUtcDate } from '@/utils/date'
 
-import type { BookmarkItem } from '@commons/types/interface'
+import type { BookmarkItem } from '@commons/contracts/interface'
 import { useQuery } from '@powersync/vue'
 import type { PowerSyncDatabase } from '@powersync/web'
 

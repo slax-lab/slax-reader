@@ -1,5 +1,5 @@
-import type { BookmarkFunnel, DashboardMetricsQuery, TopArticleItem, VisitOverview } from '@commons/types/interface'
-import { RESTMethodPath } from '@commons/types'
+import type { BookmarkFunnel, DashboardMetricsQuery, TopArticleItem, VisitOverview } from '@commons/contracts/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
 
 export type KindStatsPeriod = 'day' | 'week' | 'month'
 

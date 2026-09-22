@@ -38,8 +38,8 @@ import { BookmarkActionType, type MessageType, MessageTypeAction } from '@/confi
 
 import { RequestError } from '@commons/frontend-utils/request'
 
-import { RESTMethodPath } from '@commons/types/const'
-import type { AddBookmarkReq, AddBookmarkResp, EmptyBookmarkResp } from '@commons/types/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
+import type { AddBookmarkReq, AddBookmarkResp, EmptyBookmarkResp } from '@commons/contracts/interface'
 import { vOnClickOutside } from '@vueuse/components'
 import type { PropType } from 'vue'
 import type { WxtBrowser } from 'wxt/browser'

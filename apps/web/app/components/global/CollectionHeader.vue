@@ -56,8 +56,8 @@
 import DotsMenu from '~/components/DotsMenu.vue'
 
 import CollectionModal from '@/components/Collection/CollectionModal/index'
-import type { UserSubscribeCollectionItem } from '@commons/types/interface'
-import { RESTMethodPath } from '@commons/types'
+import type { UserSubscribeCollectionItem } from '@commons/contracts/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
 import Toast, { ToastType } from '~/components/Toast'
 
 const { t } = useI18n()

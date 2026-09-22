@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 
-import { RESTMethodPath } from '@commons/types/const'
+import { RESTMethodPath } from '@commons/contracts/const'
 
 export const useArticleDetail = (detail: Ref<BookmarkArticleDetail>) => {
   const { t } = useI18n()

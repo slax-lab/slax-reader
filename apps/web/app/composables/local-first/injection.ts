@@ -1,4 +1,4 @@
-import type { BookmarkTag, UserNotificationMessageItem } from '@commons/types/interface'
+import type { BookmarkTag, UserNotificationMessageItem } from '@commons/contracts/interface'
 import type { ComputedRef, InjectionKey, MaybeRef, Ref } from 'vue'
 
 // local-first 行为注入契约

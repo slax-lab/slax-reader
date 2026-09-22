@@ -64,8 +64,8 @@
 </template>
 
 <script lang="ts" setup>
-import { RESTMethodPath } from '@commons/types/const'
-import type { BookmarkTag } from '@commons/types/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
+import type { BookmarkTag } from '@commons/contracts/interface'
 import { vOnClickOutside, vOnKeyStroke } from '@vueuse/components'
 
 interface BookmarkTagItem extends BookmarkTag {

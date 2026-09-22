@@ -18,7 +18,7 @@
 <script lang="ts" setup>
 import TagChip from '~/components/BookmarkList/TagChip.vue'
 
-import type { BookmarkTag } from '@commons/types/interface'
+import type { BookmarkTag } from '@commons/contracts/interface'
 import { vOnClickOutside } from '@vueuse/components'
 
 const props = defineProps<{

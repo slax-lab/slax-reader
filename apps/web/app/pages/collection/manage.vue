@@ -168,8 +168,8 @@ import ThemeSwitcher from '~/components/global/ThemeSwitcher.vue'
 
 import { copyText } from '@commons/frontend-utils/string'
 
-import { RESTMethodPath } from '@commons/types/const'
-import type { UserEnableCollectShare, UserShareCollectInfo } from '@commons/types/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
+import type { UserEnableCollectShare, UserShareCollectInfo } from '@commons/contracts/interface'
 import Toast, { ToastType } from '~/components/Toast'
 import { useUserStore } from '~/stores/user'
 

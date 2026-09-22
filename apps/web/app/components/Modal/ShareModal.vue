@@ -72,8 +72,8 @@ import SwitchToggle from '~/components/SwitchToggle.vue'
 
 import { copyText } from '@commons/frontend-utils/string'
 
-import { RESTMethodPath } from '@commons/types/const'
-import type { ShareDetailInfo } from '@commons/types/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
+import type { ShareDetailInfo } from '@commons/contracts/interface'
 import CursorToast from '~/components/CursorToast'
 import Toast, { ToastType } from '~/components/Toast'
 

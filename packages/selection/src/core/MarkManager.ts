@@ -1,7 +1,7 @@
 import { trimRangeEnd } from '@commons/frontend-utils/dom'
 import { HighlightRange, type HighlightRangeInfo } from '@commons/frontend-utils/range'
 import { getRangeTextWithNewlines } from '@commons/frontend-utils/string'
-import { RESTMethodPath } from '@commons/types/const'
+import { RESTMethodPath } from '@commons/contracts/const'
 import {
   type MarkDetail,
   type MarkInfo,
@@ -11,7 +11,7 @@ import {
   MarkType as BackendMarkType,
   type MarkUserInfo,
   type UserList
-} from '@commons/types/interface'
+} from '@commons/contracts/interface'
 import type { Ref } from 'vue'
 
 import { Base } from './Base'

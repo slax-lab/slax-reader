@@ -1,6 +1,7 @@
 import { haveRequestToken } from '~/utils/request'
 
-import { type MetricActionType, RESTMethodPath } from '@commons/types'
+import { type MetricActionType } from '@commons/contracts/analytics'
+import { RESTMethodPath } from '@commons/contracts/const'
 
 export const useTrackMetric = () => {
   const config = useRuntimeConfig()

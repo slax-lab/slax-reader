@@ -1,5 +1,5 @@
 import type { SessionService } from './sessionService'
-import type { UserInfo } from '@commons/types/interface'
+import type { UserInfo } from '@commons/contracts/interface'
 
 export class AuthService {
   constructor(

@@ -23,7 +23,7 @@
 <script lang="ts" setup>
 import { formatDate } from '@commons/frontend-utils/date'
 
-import type { UserShareCollectListItem } from '@commons/types/interface'
+import type { UserShareCollectListItem } from '@commons/contracts/interface'
 
 const props = defineProps({
   bookmark: {

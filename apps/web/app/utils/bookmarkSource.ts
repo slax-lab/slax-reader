@@ -1,4 +1,4 @@
-import type { BookmarkItem } from '@commons/types/interface'
+import type { BookmarkItem } from '@commons/contracts/interface'
 
 type BookmarkSource = Pick<BookmarkItem, 'host_url' | 'target_url'>
 

@@ -22,8 +22,8 @@ import UserApiKeySection from '../UserApiKeySection.vue'
 import UserSubscribeSection from '../UserSubscribeSection.vue'
 import NavigateStyleButton from '~/components/NavigateStyleButton.vue'
 
-import { RESTMethodPath } from '@commons/types/const'
-import type { BindedPlatformInfo, UserDetailInfo } from '@commons/types/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
+import type { BindedPlatformInfo, UserDetailInfo } from '@commons/contracts/interface'
 
 const emits = defineEmits(['update'])
 const props = defineProps({

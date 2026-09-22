@@ -44,8 +44,8 @@
 import { formatDate } from '@commons/frontend-utils/date'
 import { RequestError } from '@commons/frontend-utils/request'
 
-import type { UserSubscribeStatus } from '@commons/types/interface'
-import { RESTMethodPath } from '@commons/types'
+import type { UserSubscribeStatus } from '@commons/contracts/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
 import Toast, { ToastType } from '~/components/Toast'
 import { useUserStore } from '~/stores/user'
 

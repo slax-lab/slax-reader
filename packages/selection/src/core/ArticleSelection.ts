@@ -1,5 +1,5 @@
 import { removeOuterTag } from '@commons/frontend-utils/dom'
-import type { MarkDetail, MarkPathItem, MarkSelectContent, MarkPathApprox } from '@commons/types/interface'
+import type { MarkDetail, MarkPathItem, MarkSelectContent, MarkPathApprox } from '@commons/contracts/interface'
 
 import { Base } from './Base'
 import { MarkManager, type IMarkModal, type Ref } from './MarkManager'

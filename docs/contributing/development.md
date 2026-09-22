@@ -81,7 +81,7 @@ Web 默认开发端口为 3000；它要求 `SLAX_BACKEND_DIR` 指向开发 backe
 | 文档 | 检查链接、Markdown 预览、命令和路径是否存在；无需启动应用 |
 | 翻译 | 检查 JSON 和占位符，运行对应 app 的检查并观察界面；无环境时在 PR 标明需协助验收 |
 | Web 或扩展代码 | 对应 app 的类型检查、相关测试和构建；交互修改补充人工验证 |
-| 三个共享包 | 两个 app 都要验证；selection 还要运行 `pnpm --filter @slax-reader/selection typecheck` |
+| 共享包 | 修改 `contracts`、`frontend-types` 或 `frontend-utils` 时验证 Web 与 Extension；修改 selection 时再运行 `pnpm --filter @slax-reader/selection typecheck` |
 | OpenSpec 文档 | `pnpm exec openspec validate --all --strict` |
 
 根命令只是入口，具体行为以 [Web package.json](../../apps/web/package.json)、

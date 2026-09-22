@@ -1,4 +1,4 @@
-import type { MarkPathApprox, MarkPathItem } from '@commons/types/interface'
+import type { MarkPathApprox, MarkPathItem } from '@commons/contracts/interface'
 import type { QuoteData } from '~/components/Chat/type'
 
 export enum MenuType {

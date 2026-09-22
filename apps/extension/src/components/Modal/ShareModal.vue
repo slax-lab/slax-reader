@@ -41,8 +41,8 @@
 import { copyText } from '@commons/frontend-utils/string'
 
 import Toast, { ToastType } from '../Toast'
-import { RESTMethodPath } from '@commons/types/const'
-import type { ShareDetailInfo } from '@commons/types/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
+import type { ShareDetailInfo } from '@commons/contracts/interface'
 import { onKeyStroke, useScrollLock } from '@vueuse/core'
 
 const props = defineProps({

@@ -1,4 +1,4 @@
-import { SubscriptionType, type UserInfo } from '@commons/types/interface'
+import { SubscriptionType, type UserInfo } from '@commons/contracts/interface'
 
 export const checkUserSubscribedIsExpired = (user: UserInfo) => {
   if (!user || !user.subscription_end_at) {

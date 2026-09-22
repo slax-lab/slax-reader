@@ -19,8 +19,8 @@
 <script setup lang="ts">
 import { bookmarkExportFilename, type BookmarkExportFormat, downloadBookmarkExport, prepareBookmarkExport } from '~/utils/bookmarkExport'
 
-import { RESTMethodPath } from '@commons/types/const'
-import type { BookmarkExportPage } from '@commons/types/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
+import type { BookmarkExportPage } from '@commons/contracts/interface'
 
 const { t } = useI18n()
 const format = ref<BookmarkExportFormat>('csv')

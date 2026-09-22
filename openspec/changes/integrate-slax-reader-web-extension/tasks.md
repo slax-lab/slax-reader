@@ -20,8 +20,8 @@
 
 ## 4. Shared package import
 
-- [x] 4.1 Copy `commons/types` to `packages/types` and preserve its public exports.
-- [x] 4.2 Merge the source `commons/types-pro` exports and augmentations into `packages/types`.
+- [x] 4.1 Split the source type surface into `packages/contracts` for API/domain/event/route contracts and `packages/frontend-types` for browser-only/local-first implementation types.
+- [x] 4.2 Merge the source `commons/types-pro` exports and augmentations into the package matching each type's boundary; remove the overlapping `packages/types` package.
 - [x] 4.3 Rename the source `commons/utils` package to `packages/frontend-utils` and preserve its subpath exports.
 - [x] 4.4 Copy `commons/selection` to `packages/selection` and preserve its adapter and build boundaries.
 - [x] 4.5 Update workspace globs, package names, and imports only as needed for the new locations; do not create a catch-all package.
@@ -43,7 +43,7 @@
 
 ## Phase 2 checkpoint
 
-Web and its three focused shared dependencies have been imported on
+Web and its four focused shared dependencies have been imported on
 `feat/import-slax-reader-web`. Web prepare/typecheck, selection build/typecheck,
 1754 Web tests and the Nuxt build pass. Task 2.4 is complete for these checks.
 At the user's request, backend-connected smoke testing moves to task 6.5 after all

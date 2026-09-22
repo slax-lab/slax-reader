@@ -1,4 +1,4 @@
-import type { BookmarkTag } from '@commons/types/interface'
+import type { BookmarkTag } from '@commons/contracts/interface'
 
 const time = (v?: string | null) => (v ? Date.parse(v) || 0 : 0)
 

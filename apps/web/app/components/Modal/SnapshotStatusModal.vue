@@ -28,7 +28,7 @@
 </template>
 
 <script lang="ts" setup>
-import { BookmarkParseStatus } from '@commons/types/interface'
+import { BookmarkParseStatus } from '@commons/contracts/interface'
 
 export interface SnapshotStatusModalProps {
   status: BookmarkParseStatus

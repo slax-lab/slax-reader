@@ -1,6 +1,6 @@
 import { fixCssSelector, getTextNodesInRange, removeOuterTag } from '@commons/frontend-utils/dom'
 import { HighlightRange } from '@commons/frontend-utils/range'
-import type { MarkPathItem } from '@commons/types/interface'
+import type { MarkPathItem } from '@commons/contracts/interface'
 
 import { Base } from './Base'
 import type { DrawMarkBaseInfo, MarkItemInfo, SelectionConfig } from '../types'
