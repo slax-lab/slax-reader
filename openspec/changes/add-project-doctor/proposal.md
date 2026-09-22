@@ -1,4 +1,4 @@
-# Add a frontend setup check command
+# Add a frontend preflight check command
 
 ## Why
 
@@ -6,7 +6,7 @@ Contributors currently discover missing dependency installation and environment 
 
 ## What Changes
 
-- Add the `setup:check` root script, invoked as `pnpm run setup:check`, backed by `tooling/doctor.mjs`.
+- Add the `preflight` root script, invoked as `pnpm preflight`, backed by `tooling/preflight.mjs`.
 - Check the supported Node.js and pinned pnpm versions, the pnpm workspace installation marker, and the workspace links needed by Web and Extension.
 - Check required Web and Extension variables for the selected `SLAX_ENV`, following the existing app-local dotenv file order and process-environment precedence.
 - Report missing or malformed variables by name without printing values. Treat `SLAX_BACKEND_DIR` as an informational backend-integration note because backend setup is deferred.

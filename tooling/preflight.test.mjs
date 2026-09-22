@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { parseEnvText, readEnvSources, validateVariable } from './doctor.mjs'
+import { parseEnvText, readEnvSources, validateVariable } from './preflight.mjs'
 
 test('parseEnvText reads export syntax and quoted values without exposing values', () => {
   const values = parseEnvText(`\n# comment\nexport PUBLIC_BASE_URL="http://localhost:3000"\nCOOKIE_DOMAIN=localhost\n`)
@@ -16,7 +16,7 @@ test('parseEnvText reads export syntax and quoted values without exposing values
 })
 
 test('readEnvSources follows app loader precedence and process variables win', () => {
-  const appDirectory = mkdtempSync(join(tmpdir(), 'slax-reader-doctor-'))
+  const appDirectory = mkdtempSync(join(tmpdir(), 'slax-reader-preflight-'))
   writeFileSync(join(appDirectory, '.env'), 'COOKIE_DOMAIN=from-base\nFIRST_FILE=base\n')
   writeFileSync(join(appDirectory, '.env.development'), 'COOKIE_DOMAIN=from-profile\nPROFILE_ONLY=profile\n')
   writeFileSync(join(appDirectory, '.env.development.local'), 'COOKIE_DOMAIN=from-local\nLOCAL_ONLY=local\n')
