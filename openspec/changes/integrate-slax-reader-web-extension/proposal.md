@@ -26,6 +26,6 @@ This change establishes the migration boundary and moves those frontend projects
 ## Impact
 
 - New frontend applications and workspace libraries become part of the v2 pnpm workspace.
-- Root-level workspace configuration and scripts may need small changes to expose stable entry points such as `dev:web` and `dev:extension`.
+- Root-level workspace configuration exposes stable `web` and `extension` entry points; app scripts remain authoritative behind those wrappers.
 - Existing v2 CI and OpenSpec checks remain the repository-level quality gates.
 - Backend remains an external dependency during this change; no backend files or repository are modified.

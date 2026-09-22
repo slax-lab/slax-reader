@@ -11,7 +11,7 @@
 ```sh
 pnpm install --frozen-lockfile
 pnpm --filter @apps/slax-reader-dweb type
-pnpm dev:web
+pnpm web -- dev
 ```
 
 开发服务器需要独立的本地 backend 和公开前端配置。先阅读
@@ -21,9 +21,9 @@ pnpm dev:web
 ## 常用命令
 
 ```sh
-pnpm typecheck:web
-pnpm test:web
-pnpm build:web
+pnpm web -- typecheck
+pnpm web -- test
+pnpm web -- build
 ```
 
 `dev`、`test`、`build` 会先构建划线引擎 `@slax-reader/selection`。

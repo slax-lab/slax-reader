@@ -11,16 +11,9 @@
     "agent:check": "rulesync doctor --strict && rulesync generate --check && openspec validate --all --strict && bash tooling/check-gh-aw-drift.sh",
     "setup:check": "node tooling/doctor.mjs",
     "test:setup-check": "node --test tooling/doctor.test.mjs",
-    "prepare": "lefthook install",
-    "dev:web": "pnpm --filter @apps/slax-reader-dweb dev",
-    "build:web": "pnpm --filter @apps/slax-reader-dweb build",
-    "test:web": "pnpm --filter @apps/slax-reader-dweb test",
-    "typecheck:web": "pnpm --filter @apps/slax-reader-dweb typecheck",
-    "dev:extension": "pnpm --filter @apps/slax-reader-extensions dev",
-    "build:extension": "pnpm --filter @apps/slax-reader-extensions build",
-    "test:extension": "pnpm --filter @apps/slax-reader-extensions test",
-    "typecheck:extension": "pnpm --filter @apps/slax-reader-extensions compile",
-    "zip:extension": "pnpm --filter @apps/slax-reader-extensions zip"
+    "web": "node tooling/web.mjs",
+    "extension": "node tooling/extension.mjs",
+    "prepare": "lefthook install"
   },
   "devDependencies": {
     "@fission-ai/openspec": "1.13.1",

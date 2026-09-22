@@ -63,11 +63,11 @@ pnpm run setup:check
 
 | 操作 | Web | Extension |
 | --- | --- | --- |
-| 开发 | `pnpm dev:web` | `pnpm dev:extension` |
-| 类型检查 | `pnpm typecheck:web` | `pnpm typecheck:extension` |
-| 单元测试 | `pnpm test:web` | `pnpm test:extension` |
-| 构建 | `pnpm build:web` | `pnpm build:extension` |
-| 扩展压缩包 | — | `pnpm zip:extension` |
+| 开发 | `pnpm web -- dev` | `pnpm extension -- dev` |
+| 类型检查 | `pnpm web -- typecheck` | `pnpm extension -- typecheck` |
+| 单元测试 | `pnpm web -- test` | `pnpm extension -- test` |
+| 构建 | `pnpm web -- build` | `pnpm extension -- build` |
+| 扩展压缩包 | — | `pnpm extension -- zip` |
 
 首次 Web 检查先执行：
 
@@ -80,7 +80,7 @@ Web 默认开发端口为 3000；它要求 `SLAX_BACKEND_DIR` 指向开发 backe
 无需启动真实 backend；可复制的占位值见 [Web 验证说明](../apps/web/development.md)。
 开发服务器没有免后端演示模式。
 
-扩展开发服务器使用 3001，`dev:extension` 自动构建 selection 和 vendor；类型检查及单元测试也会先生成 WXT 类型。
+扩展开发服务器使用 3001，`pnpm extension -- dev` 自动构建 selection 和 vendor；类型检查及单元测试也会先生成 WXT 类型。
 普通构建完成后，在 Chrome / Edge 扩展管理页开启开发者模式并加载 `apps/extension/build/chrome-mv3`；
 开发模式用 `build/chrome-mv3-dev`。真实业务依赖 Web 的 `/x/ext-bridge` 与 backend。
 环境主机名、cookie 配置和扩展环境要一致，详见[扩展指南](../apps/extension/development.md)。

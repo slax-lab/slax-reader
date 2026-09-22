@@ -26,7 +26,7 @@ Web 配置集中在 `apps/web/config`，环境 schema 在 `apps/web/env.schema.t
 
 ## 后端边界
 
-`pnpm dev:web` 延续原实现：需要 backend 已生成 `config/.wrangler/state/v3`，
+`pnpm web -- dev` 延续原实现：需要 backend 已生成 `config/.wrangler/state/v3`，
 并通过 `wrangler.local.toml` 的 `BACKEND` service binding 调用本地 Worker。
 常规 Nuxt prepare、类型检查和 build 不需要该后端路径。本文不承诺登录、书签同步或保存
 可以在没有 backend 的情况下工作。
@@ -63,14 +63,14 @@ export TURNSTILE_SITE_KEY=
 pnpm install --frozen-lockfile
 pnpm --filter @apps/slax-reader-dweb type
 pnpm --filter @slax-reader/selection typecheck
-pnpm typecheck:web
-pnpm test:web
-pnpm build:web
+pnpm web -- typecheck
+pnpm web -- test
+pnpm web -- build
 ```
 
 以上测试沿用原项目 Vitest 用例。测试和构建不等于真实后端联调成功。
 
-取得本地联调配置后，运行 `pnpm dev:web`，验收登录、书签列表、文章、高亮和评论，
+取得本地联调配置后，运行 `pnpm web -- dev`，验收登录、书签列表、文章、高亮和评论，
 并检查 `/x/ext-bridge` 与扩展的配合。联调仅使用开发测试账户。
 
 `build` 延续原 Nuxt hook：按 `SLAX_ENV` 更新 `apps/web/wrangler.toml` 的 service 名称；

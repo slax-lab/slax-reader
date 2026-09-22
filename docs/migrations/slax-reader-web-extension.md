@@ -184,8 +184,8 @@ commit. The final integration into `dev` still requires a pull request.
 - Declared previously root-provided tool/config dependencies in the Extension manifest.
   The lockfile adds 193 source-locked package records, preserves existing Web/library
   importer and package records, and retains CLI `hasBin` metadata.
-- Added small root commands: `dev:extension`, `typecheck:extension`, `test:extension`,
-  `build:extension`, and `zip:extension`. App scripts remain authoritative and automatically
+- Added root `web` and `extension` dispatchers. They expose app scripts through commands such as
+  `pnpm web -- build` and `pnpm extension -- zip`; app scripts remain authoritative and automatically
   prepare selection and WXT where needed; development also prepares vendor assets.
 - Retained the source's explicit `@wxt-dev/analytics` postinstall opt-out under pnpm 11
   `allowBuilds`. No general disabling of install scripts is committed.

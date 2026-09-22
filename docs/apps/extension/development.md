@@ -30,14 +30,14 @@
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm typecheck:extension
-pnpm test:extension
-pnpm build:extension
-pnpm zip:extension
+pnpm extension -- typecheck
+pnpm extension -- test
+pnpm extension -- build
+pnpm extension -- zip
 ```
 
-`typecheck:extension` 会构建 selection、运行 `wxt prepare`，再执行 `vue-tsc`。
-`test:extension` 同样自动完成 selection 和 WXT 准备。`build`、`zip` 会先构建 selection。
+`pnpm extension -- typecheck` 会构建 selection、运行 `wxt prepare`，再执行 `vue-tsc`。
+`pnpm extension -- test` 同样自动完成 selection 和 WXT 准备。`build`、`zip` 会先构建 selection。
 各命令以 `apps/extension/package.json` 为准。
 
 只验证构建时，可在当前终端导出以下本地占位配置（不包含真实账户或密钥）：
@@ -50,7 +50,7 @@ export SHARE_BASE_URL=http://localhost:3000
 export EXTENSIONS_API_BASE_URL=http://localhost:8787
 export COOKIE_DOMAIN=localhost
 export COOKIE_TOKEN_NAME=slax_test
-pnpm build:extension
+pnpm extension -- build
 ```
 
 这些占位值不会启动 backend，不代表登录或同步可以工作。
@@ -59,9 +59,9 @@ pnpm build:extension
 
 ## 加载与开发
 
-`pnpm dev:extension` 使用端口 3001，自动生成 `.vendor/vendor.js` 加速开发。
+`pnpm extension -- dev` 使用端口 3001，自动生成 `.vendor/vendor.js` 加速开发。
 在 Chrome / Edge 的扩展管理页开启开发者模式，加载 `apps/extension/build/chrome-mv3-dev`。
-若只使用 `pnpm build:extension`，加载 `apps/extension/build/chrome-mv3`，重建后手动刷新扩展。
+若只使用 `pnpm extension -- build`，加载 `apps/extension/build/chrome-mv3`，重建后手动刷新扩展。
 扩展各环境保留原 public manifest key，因此扩展 ID 及 Web 允许列表不因目录迁移而变化。
 
 `.wxt`、`.vendor`、`build` 都是本地生成目录，不提交。zip 包也生成在 `build` 下。
@@ -77,7 +77,7 @@ Chromium 或 Chrome for Testing，然后通过 `CHROME_PATH` 指定可执行文�
 CHROME_PATH=/absolute/path/to/chromium HEADLESS=1 pnpm --filter @apps/slax-reader-extensions test:offscreen:e2e
 ```
 
-该命令会重新构建带测试插桩的扩展。完成后重新运行 `pnpm build:extension`，
+该命令会重新构建带测试插桩的扩展。完成后重新运行 `pnpm extension -- build`，
 再把普通构建用于人工体验或打包。长时间测试另见 app 中的 `test:offscreen:401-soak`
 和 `test:offscreen:timing`，它们不替代最终业务联调。
 
