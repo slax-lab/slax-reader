@@ -5,15 +5,15 @@
 ## 配置归属
 
 Web 配置集中在 `apps/web/config`，环境 schema 在 `apps/web/env.schema.ts`。
-加载位置从旧仓库根移动到 `apps/web`；加载顺序仍为 `.env`、`.env.<SLAX_ENV>`、
-`.env.<SLAX_ENV>.local`。进程中已设置的同名变量优先；loader 未开启 `override`，文件之间同名值也是先读到的保留。
-`.local` 后缀不代表会覆盖前面文件。
+根目录的 `pnpm web -- ...` 会从 `deploy/local_web` 加载 `.env` 和 profile 文件；development profile 使用 `.env.dev`，其他 profile 使用 `.env.<SLAX_ENV>`。
+`.env.dev` 覆盖 `.env`，进程中已设置的同名变量优先。直接运行 app 包时，`apps/web` 内的 loader 仍保留作为兼容 fallback。
+环境名称按终端 `SLAX_ENV` → deploy `.env` 中的 `SLAX_ENV` → `development` 选择，profile 文件不能再切换它。所有根命令（包括 `dev` 和 `build`）都使用这套规则；根目录 `.env` 不会自动加载。
 环境文件由开发者自行配置，不提交，也不从旧仓库复制。
 
-可先复制 [`apps/web/.env.example`](../../../apps/web/.env.example) 作为起点：
+可先复制 [`deploy/local_web/.env.example`](../../../deploy/local_web/.env.example) 作为起点：
 
 ```sh
-cp apps/web/.env.example apps/web/.env
+cp deploy/local_web/.env.example deploy/local_web/.env
 ```
 
 示例中的值只适合本地占位；Google OAuth 是 Web 登录必需配置，Apple OAuth 和 Turnstile 是可选能力。
@@ -46,7 +46,7 @@ Google 登录必须使用 Web 应用类型的 OAuth 客户端 ID。创建流程�
 6. 在 **Authorized redirect URIs** 中填写 `${AUTH_BASE_URL}/auth`，例如 `http://localhost:3000/auth`。
 7. 复制生成的 **Client ID** 到 `GOOGLE_OAUTH_CLIENT_ID`。
 
-这里只需要公开的 Client ID。Client Secret 属于服务端凭据，不要放进 `apps/web/.env`、`.env.example` 或浏览器产物。
+这里只需要公开的 Client ID。Client Secret 属于服务端凭据，不要放进前端环境文件、`deploy/local_web/.env.example` 或浏览器产物。
 
 ## 后端边界
 

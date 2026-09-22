@@ -44,19 +44,26 @@ pnpm install --frozen-lockfile
 pnpm preflight
 ```
 
-它只检查前端，不会读取或显示环境变量值，也不会启动 backend。检查单个应用或指定环境时可使用
+它只检查前端，会读取配置用于校验，但不会显示环境变量值，也不会启动 backend。检查单个应用或指定环境时可使用
 `pnpm preflight --app web`、`pnpm preflight --app extension` 或 `pnpm preflight --env preview`。
-当前 loader 读取的是各 app 目录中的 `.env`、`.env.<SLAX_ENV>` 和 `.env.<SLAX_ENV>.local`；根目录 `.env`
+根目录的 `pnpm web -- ...` 和 `pnpm extension -- ...` 会分别读取 `deploy/local_web` 与 `deploy/local_extension` 中的 `.env` 和 profile 文件；development profile 使用 `.env.dev`，根目录 `.env`
 不会自动生效，preflight 会对此给出提醒。
 交互式终端会用颜色区分通过、提醒和阻塞项目；需要纯文本时使用 `pnpm preflight --no-color`。
 
 安装整个 workspace 可能包含另一个 app 的工具依赖；按应用运行命令不等于依赖安装完全隔离。
 配置字段见 [Web](../apps/web/development.md) 或 [Extension](../apps/extension/development.md)，schema 分别在
 [`apps/web/env.schema.ts`](../../apps/web/env.schema.ts) 和 [`apps/extension/env.schema.ts`](../../apps/extension/env.schema.ts)。
-环境文件由你在对应 app 目录自行配置，或在终端提供变量。不从旧仓库复制环境文件，不提交凭据。
+环境文件由你在对应 deploy 目录自行配置，或在终端提供变量。不从旧仓库复制环境文件，不提交凭据。
 
-加载顺序是 `.env` → `.env.<SLAX_ENV>` → `.env.<SLAX_ENV>.local`。当前 loader 没有开启 dotenv 的 `override`，
-因此进程变量优先，其后先读到的同名值保留；不能因为文件名带 `.local` 就假定它会覆盖前面文件。
+根命令加载顺序是 `.env` → `.env.dev`（或 `.env.<SLAX_ENV>`）；profile 文件覆盖基础文件，进程变量优先。开发环境示例位于 `deploy/local_web/.env.example` 和 `deploy/local_extension/.env.example`。
+
+```sh
+cp deploy/local_web/.env.example deploy/local_web/.env
+cp deploy/local_extension/.env.example deploy/local_extension/.env
+```
+
+环境名称优先读取终端中的 `SLAX_ENV`，其次读取各自 deploy `.env` 中的 `SLAX_ENV`，未设置时为 `development`。
+profile 文件本身不用于切换环境。`dev`、`build`、类型检查和测试等根命令都使用相同的规则；`preflight --env preview` 可显式检查 preview 配置。
 
 `preflight` 中的 `（必填）` 表示该变量必须有非空且格式正确的值；`（可选）` 表示该能力未配置时会被关闭，不会阻塞前端检查。
 Web 的 `GOOGLE_OAUTH_CLIENT_ID` 必须配置，`APPLE_OAUTH_CLIENT_ID` 和 `TURNSTILE_SITE_KEY` 可选；Google OAuth Client ID 的创建步骤见 [Web 开发说明](../apps/web/development.md#创建-google-oauth-客户端-id)。

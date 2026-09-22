@@ -37,13 +37,21 @@ pnpm preflight
 
 It checks frontend setup only, never prints environment values, and does not start the backend. Use
 `pnpm preflight --app web`, `pnpm preflight --app extension`, or `pnpm preflight --env preview` to narrow the check.
-The loaders read `.env`, `.env.<SLAX_ENV>`, and `.env.<SLAX_ENV>.local` inside each app directory; a root `.env`
+The root `pnpm web -- ...` and `pnpm extension -- ...` dispatchers read `.env` and the selected profile from `deploy/local_web` and `deploy/local_extension`; development uses `.env.dev`. A root `.env`
 is not loaded automatically and the preflight check will warn about it.
 Interactive terminals use colors to distinguish passing, warning, and blocking checks; use `pnpm preflight --no-color` for plain text.
 
-Workspace installation may include tools from the other app; app-specific commands do not imply isolated dependency installation. Configuration schemas are in [Web](../../apps/web/env.schema.ts) and [Extension](../../apps/extension/env.schema.ts). Create your own configuration under the relevant app or supply process environment variables. Do not copy environment files from the old repository or commit credentials.
+Workspace installation may include tools from the other app; app-specific commands do not imply isolated dependency installation. Configuration schemas are in [Web](../../apps/web/env.schema.ts) and [Extension](../../apps/extension/env.schema.ts). Create your own configuration under `deploy/local_web` or `deploy/local_extension`, or supply process environment variables. Do not copy environment files from the old repository or commit credentials.
 
-The loaders read `.env`, `.env.<SLAX_ENV>`, then `.env.<SLAX_ENV>.local`. They do not enable dotenv's `override`: process values take precedence, then the first file to define a value wins. A `.local` suffix does not currently make a value override earlier files.
+The root dispatchers load `.env` first and the profile file second; `.env.dev` is the development profile, profile values override base values, and process values take precedence.
+
+```sh
+cp deploy/local_web/.env.example deploy/local_web/.env
+cp deploy/local_extension/.env.example deploy/local_extension/.env
+```
+
+The profile is selected from the process `SLAX_ENV`, then the app's deploy `.env`, with `development` as the default. Other supported profiles use `.env.preview`, `.env.beta`, or `.env.production`. A profile file cannot switch the selected profile itself. All root commands, including `dev`, `build`, type checks and tests, use this rule. `pnpm preflight --env preview` explicitly checks preview configuration.
+Direct app package commands retain the previous app-local loader as a compatibility fallback; use the root dispatchers to load deploy configuration.
 
 In `preflight`, `（必填）` means the variable must have a non-empty, valid value. `（可选）` means the related feature is disabled when the value is absent or empty and does not block frontend checks. Web requires `GOOGLE_OAUTH_CLIENT_ID`; `APPLE_OAUTH_CLIENT_ID` and `TURNSTILE_SITE_KEY` are optional. See the [Web development guide](../apps/web/development.md#创建-google-oauth-客户端-id) for the Google OAuth Client ID creation steps. `SLAX_BACKEND_DIR` is required only when running `pnpm web -- dev` for a real backend integration; it does not block other frontend checks.
 

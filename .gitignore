@@ -54,8 +54,12 @@ logs/
 .env.*
 .dev.vars
 .dev.vars.*
+# Deploy examples are tracked; real local deploy files stay ignored.
+deploy/*/.env
+deploy/*/.env.*
 !.env.example
 !.env.sample
+!deploy/*/.env.example
 
 # Kimi Code CLI Tower mode local tooling state
 .tower/
