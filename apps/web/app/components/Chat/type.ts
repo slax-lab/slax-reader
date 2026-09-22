@@ -1,4 +1,4 @@
-import type { MarkPathItem } from '@slax-reader/contracts/interface'
+import type { SelectionMarkPathItem as MarkPathItem } from '@commons/frontend-types/selection'
 
 // 每一个消息的基本结构
 export interface MessageBaseItem {

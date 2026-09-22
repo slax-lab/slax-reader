@@ -1,4 +1,4 @@
-import type { MarkPathApprox, MarkPathItem } from '@slax-reader/contracts/interface'
+import type { SelectionMarkPathApprox as MarkPathApprox, SelectionMarkPathItem as MarkPathItem } from '@commons/frontend-types/selection'
 import type { QuoteData } from '~/components/Chat/type'
 
 export enum MenuType {

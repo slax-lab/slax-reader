@@ -1,7 +1,7 @@
 import TagChip from '~/components/BookmarkList/TagChip.vue'
 
 import { mountWithApp } from '../../../setup/mount'
-import type { BookmarkTag } from '@slax-reader/contracts/interface'
+import type { BookmarkTag } from '@commons/frontend-types/models'
 import { describe, expect, it, vi } from 'vitest'
 
 const tag: BookmarkTag = { id: 1, name: '创业', show_name: '创业', source: 'mine' }

@@ -1,5 +1,6 @@
 import type { QuoteData } from '../Chat/type'
-import type { MarkPathApprox, MarkPathItem, UserInfo } from '@slax-reader/contracts/interface'
+import type { SelectionMarkPathApprox as MarkPathApprox, SelectionMarkPathItem as MarkPathItem } from '@commons/frontend-types/selection'
+import type { UserInfo } from '@slax-reader/contracts/interface'
 
 export enum MenuType {
   Copy = 'copy',

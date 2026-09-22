@@ -1,11 +1,11 @@
 import { removeOuterTag } from '@commons/frontend-utils/dom'
-import type { MarkDetail, MarkPathItem, MarkSelectContent, MarkPathApprox } from '@slax-reader/contracts/interface'
+import type { MarkDetail } from '@commons/frontend-types/models'
 
 import { Base } from './Base'
 import { MarkManager, type IMarkModal, type Ref } from './MarkManager'
 import { MarkRenderer } from './MarkRenderer'
 import { SelectionMonitor } from './SelectionMonitor'
-import type { SelectionConfig, StrokeSelectionMeta, QuoteData, MarkItemInfo } from '../types'
+import type { MarkPathApprox, MarkPathItem, MarkSelectContent, SelectionConfig, StrokeSelectionMeta, QuoteData, MarkItemInfo } from '../types'
 import type { SelectionDependencies } from '../adapters'
 
 // 重新导出IMarkModal供外部使用

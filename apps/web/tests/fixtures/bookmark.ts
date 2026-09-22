@@ -11,20 +11,8 @@
 // PII 标准值：bookmark_id=1000001 / user_id=1（与 baseUser 对齐）/ mark.id=2000001
 // 时间戳：'2026-01-01T00:00:00.000Z' 字符串 或 new Date(...) Date（按 type 区分）
 
-import type {
-  BookmarkBriefDetail,
-  BookmarkDetail,
-  BookmarkItem,
-  BookmarkTag,
-  InlineBookmarkDetail,
-  MarkDetail,
-  MarkInfo,
-  MarkPathApprox,
-  MarkPathItem,
-  MarkUserInfo,
-  ShareBookmarkDetail,
-  ShareInfo
-} from '@slax-reader/contracts/interface'
+import type { MarkPathApprox, MarkPathItem, MarkUserInfo, ShareInfo } from '@slax-reader/contracts/interface'
+import type { BookmarkBriefDetail, BookmarkDetail, BookmarkItem, BookmarkTag, InlineBookmarkDetail, MarkDetail, MarkInfo, ShareBookmarkDetail } from '@commons/frontend-types/models'
 import { BookmarkParseStatus, MarkType } from '@slax-reader/contracts/interface'
 
 // 固定时间戳（避免随机时间引入 flaky）

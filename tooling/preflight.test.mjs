@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { APP_CHECKS, environmentSetupHint, formatIssue, parseArgs, parseEnvText, readEnvSources, run, validateVariable } from './preflight.mjs'
+import { isSupportedNode, APP_CHECKS, environmentSetupHint, formatIssue, parseArgs, parseEnvText, readEnvSources, run, validateVariable } from './preflight.mjs'
 
 test('parseEnvText reads export syntax and quoted values without exposing values', () => {
   const values = parseEnvText(`\n# comment\nexport PUBLIC_BASE_URL="http://localhost:3000"\nCOOKIE_DOMAIN=localhost\n`)
@@ -66,7 +66,7 @@ test('app environment examples include each required frontend variable', () => {
   const web = parseEnvText(readFileSync(new URL('../deploy/local_web/.env.example', import.meta.url), 'utf8'))
   const extension = parseEnvText(readFileSync(new URL('../deploy/local_extension/.env.example', import.meta.url), 'utf8'))
 
-  for (const name of ['SLAX_ENV', 'PUBLIC_BASE_URL', 'AUTH_BASE_URL', 'SHARE_BASE_URL', 'DWEB_API_BASE_URL', 'COOKIE_DOMAIN', 'COOKIE_TOKEN_NAME', 'GOOGLE_OAUTH_CLIENT_ID', 'APPLE_OAUTH_CLIENT_ID', 'TURNSTILE_SITE_KEY', 'SLAX_BACKEND_DIR']) {
+  for (const name of ['SLAX_ENV', 'PUBLIC_BASE_URL', 'AUTH_BASE_URL', 'SHARE_BASE_URL', 'DWEB_API_BASE_URL', 'COOKIE_DOMAIN', 'COOKIE_TOKEN_NAME', 'GOOGLE_OAUTH_CLIENT_ID', 'APPLE_OAUTH_CLIENT_ID', 'TURNSTILE_SITE_KEY']) {
     assert.ok(name in web, `Web example is missing ${name}`)
   }
   for (const name of ['SLAX_ENV', 'PUBLIC_BASE_URL', 'AUTH_BASE_URL', 'SHARE_BASE_URL', 'EXTENSIONS_API_BASE_URL', 'COOKIE_DOMAIN', 'COOKIE_TOKEN_NAME', 'GOOGLE_ANALYTICS_MEASUREMENT_ID', 'GOOGLE_ANALYTICS_API_SECRET', 'UNINSTALL_FEEDBACK_URL']) {
@@ -135,4 +135,10 @@ test('preflight selects the same profile as dispatch and continues after one app
   assert.match(output, /环境：preview.*local_extension\/\.env\.preview/)
   assert.match(output, /COOKIE_DOMAIN（必填） 已配置/)
   assert.doesNotMatch(output, /not-to-be-logged|example\.test/)
+})
+
+
+test('Node check respects the supported LTS ranges rather than a minimum only', () => {
+  for (const version of ['22.22.2', '22.23.0', '24.15.0', '26.0.0']) assert.equal(isSupportedNode(version), true, version)
+  for (const version of ['22.13.0', '22.22.1', '23.0.0', '24.14.9', '25.0.0']) assert.equal(isSupportedNode(version), false, version)
 })

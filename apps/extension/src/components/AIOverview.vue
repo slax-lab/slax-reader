@@ -43,7 +43,7 @@ import { RequestMethodType } from '@commons/frontend-utils/request'
 
 import Toast, { ToastType } from './Toast'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
-import type { BookmarkBriefDetail, BookmarkTag } from '@slax-reader/contracts/interface'
+import type { BookmarkBriefDetail, BookmarkTag } from '@commons/frontend-types/models'
 
 type OverviewSocketData =
   | {

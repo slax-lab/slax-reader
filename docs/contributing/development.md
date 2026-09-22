@@ -67,7 +67,7 @@ profile 文件本身不用于切换环境。`dev`、`build`、类型检查和测
 
 `preflight` 中的 `（必填）` 表示该变量必须有非空且格式正确的值；`（可选）` 表示该能力未配置时会被关闭，不会阻塞前端检查。
 Web 的 `GOOGLE_OAUTH_CLIENT_ID` 必须配置，`APPLE_OAUTH_CLIENT_ID` 和 `TURNSTILE_SITE_KEY` 可选；Google OAuth Client ID 的创建步骤见 [Web 开发说明](../apps/web/development.md#创建-google-oauth-客户端-id)。
-`SLAX_BACKEND_DIR` 只在运行 `pnpm web -- dev` 做真实 backend 联调时必填，其他前端检查不会因此失败。
+`SLAX_API_CONFIG` / `deploy/local/api.toml` 只在运行 `pnpm web -- dev` 做真实 backend 联调时必填，其他前端检查不会因此失败。
 
 ## 运行一个应用
 
@@ -87,9 +87,9 @@ Web 的 `GOOGLE_OAUTH_CLIENT_ID` 必须配置，`APPLE_OAUTH_CLIENT_ID` 和 `TUR
 pnpm --filter @apps/slax-reader-dweb type
 ```
 
-Web 默认开发端口为 3000；它要求 `SLAX_BACKEND_DIR` 指向开发 backend，且该 backend 已有
-`config/.wrangler/state/v3`。Nuxt prepare、类型检查、单元测试和构建可先使用公开占位配置，
-无需启动真实 backend；可复制的占位值见 [Web 验证说明](../apps/web/development.md)。
+Web 默认开发端口为 3000；它使用 `SLAX_API_CONFIG` / `deploy/local/api.toml` 里的公开 Edge 与 OSS 配置，
+并与 API 共用 `deploy/local/.wrangler/state/v3`。Nuxt prepare、类型检查、单元测试和构建可先使用公开占位配置，
+无需启动真实 API；可复制的占位值见 [Web 验证说明](../apps/web/development.md)。
 开发服务器没有免后端演示模式。
 
 扩展开发服务器使用 3001，`pnpm extension -- dev` 自动构建 selection 和 vendor；类型检查及单元测试也会先生成 WXT 类型。
@@ -139,6 +139,6 @@ pnpm --filter @apps/slax-reader-dweb exec vue-tsc --noEmit -p .nuxt/tsconfig.ser
 | --- | --- |
 | 找不到 `.nuxt` 或 `.wxt` 类型 | Web 运行 `pnpm --filter @apps/slax-reader-dweb type`；扩展运行 `pnpm --filter @apps/slax-reader-extensions type` |
 | 找不到 selection 的 `dist` | 运行 `pnpm --filter @slax-reader/selection build`，或使用会自动准备它的 app 命令 |
-| Web 提示缺少 backend 路径或本地状态 | 按 Web 指南配置独立 backend；没有环境时先做不依赖它的检查 |
+| Web 提示缺少 API 配置或本地状态 | 运行 `pnpm api -- config:init` 并准备 `deploy/local/api.toml`；没有环境时先做不依赖它的检查 |
 | macOS 安装停在 `better-sqlite3` / Xcode 许可 | 保留 Node、系统和安装错误信息，查看[已记录事项](../migrations/final-verification.md)；不要把跳过脚本当作安装成功 |
 | 想在线预览 PR | 当前没有自动 PR 预览部署，向作者索取可用的测试环境或对应构建 |

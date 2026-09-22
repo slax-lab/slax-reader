@@ -1,4 +1,5 @@
-import type { BookmarkTag, UserNotificationMessageItem } from '@slax-reader/contracts/interface'
+import type { UserNotificationMessageItem } from '@slax-reader/contracts/interface'
+import type { BookmarkTag } from '@commons/frontend-types/models'
 import type { ComputedRef, InjectionKey, MaybeRef, Ref } from 'vue'
 
 // local-first 行为注入契约

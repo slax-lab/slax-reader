@@ -7,7 +7,7 @@
 import BookmarkArticle from '~/components/Article/BookmarkArticle.vue'
 
 import { LocalFirstHttpClient } from './Selection/adapters/LocalFirstHttpClient'
-import type { MarkDetail } from '@slax-reader/contracts/interface'
+import type { MarkDetail } from '@commons/frontend-types/models'
 import { DwebHttpClient } from '~/components/Article/Selection/adapters'
 import { ArticleSelectionAdaptersKey } from '~/components/Article/Selection/injection'
 import type { QuoteData } from '~/components/Chat/type'

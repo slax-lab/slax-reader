@@ -90,3 +90,6 @@ deploy/local/api.toml
 deploy/cloudflare/api.toml
 deploy/cloudflare/.generated/
 proxy
+# Frontend binding projections and local build metadata
+/deploy/local_web/.generated/
+/deploy/local_extension/.generated/

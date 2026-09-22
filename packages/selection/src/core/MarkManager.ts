@@ -2,22 +2,25 @@ import { trimRangeEnd } from '@commons/frontend-utils/dom'
 import { HighlightRange, type HighlightRangeInfo } from '@commons/frontend-utils/range'
 import { getRangeTextWithNewlines } from '@commons/frontend-utils/string'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
-import {
-  type MarkDetail,
-  type MarkInfo,
-  type MarkPathApprox,
-  type MarkPathItem,
-  type MarkSelectContent,
-  MarkType as BackendMarkType,
-  type MarkUserInfo,
-  type UserList
-} from '@slax-reader/contracts/interface'
+import { MarkType as BackendMarkType, type MarkUserInfo, type UserList } from '@slax-reader/contracts/interface'
+import type { MarkDetail, MarkInfo } from '@commons/frontend-types/models'
 import type { Ref } from 'vue'
 
 import { Base } from './Base'
 import type { MarkRenderer } from './MarkRenderer'
 import { copyText, getUUID, objectDeepEqual } from './utils'
-import { type MarkCommentInfo, type MarkItemInfo, MenuType, type SelectionConfig, type SelectTextInfo, type StrokeSelectionMeta, type QuoteData } from '../types'
+import {
+  type MarkCommentInfo,
+  type MarkItemInfo,
+  type MarkPathApprox,
+  type MarkPathItem,
+  type MarkSelectContent,
+  MenuType,
+  type SelectionConfig,
+  type SelectTextInfo,
+  type StrokeSelectionMeta,
+  type QuoteData
+} from '../types'
 import type { IEnvironmentAdapter, IUserProvider, IHttpClient, IToastService, II18nService, IBookmarkProvider, ToastType } from '../adapters'
 
 // 重新导出 Ref 类型供外部使用

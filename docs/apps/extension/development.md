@@ -28,7 +28,7 @@ cp deploy/local_extension/.env.example deploy/local_extension/.env
 | `UNINSTALL_FEEDBACK_URL` | 可选 | 卸载反馈入口 |
 
 其余可选字段以 schema 为准。扩展中的配置会进入客户端产物，不要放入服务端凭据。
-扩展不需要 `SLAX_BACKEND_DIR`，但其业务仍需要可访问的 Web 和 backend。
+扩展不需要 `SLAX_API_CONFIG` / `deploy/local/api.toml`，但其业务仍需要可访问的 Web 和 backend。
 开发配置会把 `http://127.0.0.1:3000` 的 Web/分享地址规范为 `http://localhost:3000`，
 并相应调整 cookie domain；这是原有行为。联调时统一使用一致的主机名。
 

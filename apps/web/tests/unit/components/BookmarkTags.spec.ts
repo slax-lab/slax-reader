@@ -9,7 +9,7 @@ import { computed, ref } from 'vue'
 
 import BookmarkTags from '~~/app/components/BookmarkTags.vue'
 
-import type { BookmarkTag } from '@slax-reader/contracts/interface'
+import type { BookmarkTag } from '@commons/frontend-types/models'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { DOMWrapper, flushPromises } from '@vue/test-utils'
 import { LocalFirstAdapterKey, SharedUserTagsKey } from '~~/app/composables/local-first/injection'

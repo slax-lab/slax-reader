@@ -121,9 +121,24 @@ function loadDeployEnvironment({ appName, root, envName, processEnvironment = pr
   }
 }
 
+/**
+ * Load the canonical environment for an app invocation into process.env.
+ * This is used by direct app commands (for example `pnpm --filter ... dev`)
+ * as well as by the root dispatchers. It deliberately reads only deploy/
+ * local_* files, so a stale apps/<name>/.env can never override them.
+ */
+function applyDeployEnvironment({ appName, root, envName, processEnvironment = process.env } = {}) {
+  const result = loadDeployEnvironment({ appName, root, envName, processEnvironment })
+  for (const [name, value] of Object.entries(result.environment)) {
+    if (value !== undefined) process.env[name] = value
+  }
+  return result
+}
+
 export {
   DEPLOY_DIRECTORIES,
   ENV_NAMES,
+  applyDeployEnvironment,
   deployDirectory,
   environmentFileNames,
   loadDeployEnvironment,

@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-Slax Reader DWeb 是基于 Nuxt 4 的阅读 Web 应用（"Read It Later"产品）。前端源码集中在 `apps/web`，通过 workspace 使用共享库，不依赖 Git 子模块。业务运行仍需要外部 backend。
+Slax Reader DWeb 是基于 Nuxt 4 的阅读 Web 应用（"Read It Later"产品）。前端源码集中在 `apps/web`，通过 workspace 使用共享库，不依赖 Git 子模块。业务运行仍需要apps/api backend。
 
 ## 项目结构
 

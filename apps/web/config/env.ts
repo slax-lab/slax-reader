@@ -1,26 +1,14 @@
 import { dwebEnvSchema, extensionsEnvSchema } from '../env.schema'
-import dotenv from 'dotenv'
-import fs from 'fs'
 import { fileURLToPath } from 'node:url'
-;(() => {
-  console.log('加载环境变量文件...')
-  const env = process.env.SLAX_ENV || 'development'
-  const envFiles = ['.env', `.env.${env}`, `.env.${env}.local`]
+import { applyDeployEnvironment } from '../../../tooling/env-files.mjs'
 
-  envFiles.forEach(file => {
-    const envPath = fileURLToPath(new URL(`../${file}`, import.meta.url))
-
-    if (fs.existsSync(envPath)) {
-      const envConfig = dotenv.config({ path: envPath })
-
-      if (envConfig.error) {
-        console.warn(`加载环境变量文件失败：${file}:`, envConfig.error)
-      } else {
-        console.log(`已加载环境变量文件：${file}`)
-      }
-    }
-  })
-})()
+// Keep direct app commands consistent with `pnpm web` and `pnpm extension`.
+// The shared loader intentionally reads only deploy/local_web, never the old
+// apps/web/.env files.
+applyDeployEnvironment({
+  appName: 'web',
+  root: fileURLToPath(new URL('../../../', import.meta.url))
+})
 
 type EnvTypes = 'production' | 'beta' | 'preview' | 'development'
 

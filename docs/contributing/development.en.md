@@ -53,7 +53,7 @@ cp deploy/local_extension/.env.example deploy/local_extension/.env
 The profile is selected from the process `SLAX_ENV`, then the app's deploy `.env`, with `development` as the default. Other supported profiles use `.env.preview`, `.env.beta`, or `.env.production`. A profile file cannot switch the selected profile itself. All root commands, including `dev`, `build`, type checks and tests, use this rule. `pnpm preflight --env preview` explicitly checks preview configuration.
 Direct app package commands retain the previous app-local loader as a compatibility fallback; use the root dispatchers to load deploy configuration.
 
-In `preflight`, `（必填）` means the variable must have a non-empty, valid value. `（可选）` means the related feature is disabled when the value is absent or empty and does not block frontend checks. Web requires `GOOGLE_OAUTH_CLIENT_ID`; `APPLE_OAUTH_CLIENT_ID` and `TURNSTILE_SITE_KEY` are optional. See the [Web development guide](../apps/web/development.md#创建-google-oauth-客户端-id) for the Google OAuth Client ID creation steps. `SLAX_BACKEND_DIR` is required only when running `pnpm web -- dev` for a real backend integration; it does not block other frontend checks.
+In `preflight`, `（必填）` means the variable must have a non-empty, valid value. `（可选）` means the related feature is disabled when the value is absent or empty and does not block frontend checks. Web requires `GOOGLE_OAUTH_CLIENT_ID`; `APPLE_OAUTH_CLIENT_ID` and `TURNSTILE_SITE_KEY` are optional. See the [Web development guide](../apps/web/development.md#创建-google-oauth-客户端-id) for the Google OAuth Client ID creation steps. `SLAX_API_CONFIG` / `deploy/local/api.toml` is required only when running `pnpm web -- dev` for a real backend integration; it does not block other frontend checks.
 
 | Variable | Used by | Purpose |
 | --- | --- | --- |
@@ -64,7 +64,7 @@ In `preflight`, `（必填）` means the variable must have a non-empty, valid v
 | `GOOGLE_OAUTH_CLIENT_ID` | Web | Required Google Web OAuth client ID |
 | `APPLE_OAUTH_CLIENT_ID` | Web | Optional Apple OAuth client ID; empty hides Apple login |
 | `TURNSTILE_SITE_KEY` | Web | Optional Turnstile site key; empty disables Turnstile |
-| `SLAX_BACKEND_DIR` | Web dev server | Absolute path to a separately prepared backend checkout |
+| `SLAX_API_CONFIG` / `deploy/local/api.toml` | Web dev server | Path to the API TOML configuration; defaults to deploy/local/api.toml |
 | `SLAX_ENV` | Both | development (default), preview, beta or production |
 
 App schemas define other optional fields. Client configuration goes into public bundles; do not put server credentials there.
@@ -108,7 +108,7 @@ Prepare Web types before its first checks:
 pnpm --filter @apps/slax-reader-dweb type
 ```
 
-Web development uses port 3000 and requires `SLAX_BACKEND_DIR` with existing `config/.wrangler/state/v3`. Prepare, type checks, unit tests and builds can run with placeholder public configuration without a live backend. The development server has no backend-free demo mode.
+Web development uses port 3000 and projects its Edge and OSS bindings from `SLAX_API_CONFIG` / `deploy/local/api.toml`, sharing `deploy/local/.wrangler/state/v3` with the API. Prepare, type checks, unit tests and builds can run with placeholder public configuration without a live API. The development server has no backend-free demo mode.
 
 Extension development uses port 3001. Its dev command builds the shared selection engine and vendor assets; type checking and unit tests generate WXT types automatically. Load `apps/extension/build/chrome-mv3` using developer mode in `chrome://extensions` or `edge://extensions`; use `build/chrome-mv3-dev` for the dev server. Rebuilds of the ordinary build require a manual extension reload. Real features need Web's `/x/ext-bridge` and the backend.
 
@@ -130,7 +130,7 @@ The [Web](../../apps/web/package.json) and [Extension](../../apps/extension/pack
 pnpm --filter @apps/slax-reader-dweb exec vue-tsc --noEmit -p .nuxt/tsconfig.server.json
 ```
 
-There is currently no root `dev`, `test`, `lint` or `format` command. Existing configuration CI does not imply app tests ran; list actual results in the PR. Web builds can update the service name in `wrangler.toml`; inspect the diff before committing.
+There is currently no root `dev`, `test`, `lint` or `format` command. Existing configuration CI does not imply app tests ran; list actual results in the PR. Web binding metadata is projected to deploy/local_web/.generated and does not rewrite tracked wrangler.toml.
 
 ## Submit a change
 

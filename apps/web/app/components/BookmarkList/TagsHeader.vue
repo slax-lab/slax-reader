@@ -127,7 +127,7 @@ import TagChip from '~/components/BookmarkList/TagChip.vue'
 import TagSection from '~/components/BookmarkList/TagSection.vue'
 
 import { RESTMethodPath } from '@slax-reader/contracts/const'
-import type { BookmarkTag } from '@slax-reader/contracts/interface'
+import type { BookmarkTag } from '@commons/frontend-types/models'
 import { vOnKeyStroke } from '@vueuse/components'
 import { showEditTagModal } from '~/components/Modal'
 import Toast, { ToastType } from '~/components/Toast'

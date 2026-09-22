@@ -1,5 +1,5 @@
 import { useTrackMetric } from './useTrackMetric'
-import { type BookmarkDetail, type CollectionBookmarkDetail, type ShareBookmarkDetail, type SnapshotBookmarkDetail } from '@slax-reader/contracts/interface'
+import type { BookmarkDetail, CollectionBookmarkDetail, ShareBookmarkDetail, SnapshotBookmarkDetail } from '@commons/frontend-types/models'
 import { showFeedbackModal } from '~/components/Modal'
 import { DESIGN_ICONS, type DesignIcon } from '~/constants/designIcons'
 import { useUserStore } from '~/stores/user'

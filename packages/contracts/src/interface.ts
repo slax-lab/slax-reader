@@ -32,7 +32,6 @@ export interface MarkInfo {
   comment: string
   created_at: Date
   is_deleted: boolean
-  children: MarkInfo[]
 }
 
 export interface MarkUserInfo {
@@ -101,8 +100,6 @@ export interface BookmarkItem {
   type: 'shortcut' | 'article'
   /** 列表接口带回的标签（REST）或本地拼出来的标签（local-first） */
   tags?: BookmarkTag[]
-  /** local-first 行：metadata.tags 里的 uuid */
-  tag_ids?: string[]
 }
 
 export interface BookmarkBriefDetail {
@@ -192,9 +189,8 @@ export interface BookmarkDetail extends BaseBookmarkDetail {
 export interface BookmarkTag {
   name: string
   show_name: string
-  // REST 下是 hashid 字符串，local-first 下是 uuid；两者都是 string，靠 id_kind 区分
+  // Historical REST hashid type; local-first identity belongs to frontend models.
   id: number
-  id_kind?: 'hashid' | 'uuid'
   /** 词表所有权：mine = 用户确认过，auto = 没确认过 */
   source?: 'auto' | 'mine'
   last_used_at?: string | null
@@ -202,7 +198,6 @@ export interface BookmarkTag {
   added_by?: 'user' | 'ai' | ''
   /** 只在筛选页 “+” 候选里有：加上它以后还剩几篇 */
   count?: number
-  display?: boolean
   /** @deprecated 接口早已不返回；用 source / added_by */
   system?: boolean
 }

@@ -17,6 +17,6 @@ pnpm preflight
 
 环境名称取终端或基础 `.env` 中的 `SLAX_ENV`，默认 `development`；preview、beta、production 对应 `.env.preview`、`.env.beta`、`.env.production`。profile 文件本身不能切换环境。所有 `pnpm web -- ...` 和 `pnpm extension -- ...` 命令都遵循此规则，包括构建与类型检查。
 
-只提交公开的 `.env.example`。真实环境文件已被 Git 忽略，前端配置可能进入浏览器产物，不要放入服务端密钥。已有 app 内环境文件保留兼容读取，迁移配置请自行处理；建议使用上述 deploy 入口，preflight 只检查 deploy 和进程配置。
+只提交公开的 `.env.example`。真实环境文件已被 Git 忽略，前端配置可能进入浏览器产物，不要放入服务端密钥。环境文件统一由上述 deploy 目录或进程环境提供；preflight 只检查 deploy 和进程配置。
 
 详细说明：[Web 配置](../docs/apps/web/development.md) · [Extension 配置](../docs/apps/extension/development.md)。

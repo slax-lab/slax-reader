@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import {
   deployDirectory,
   environmentFileNames,
+  applyDeployEnvironment,
   loadDeployEnvironment,
   parseEnvironmentText,
   profileFileName,
@@ -87,6 +88,23 @@ test('loading does not mutate the parent process environment', () => {
   assert.equal(result.environment.CHILD_ONLY, 'child')
   assert.equal(process.env.CHILD_ONLY, undefined)
   rmSync(root, { recursive: true, force: true })
+})
+
+test('applyDeployEnvironment exposes only the selected deploy files to a direct app', t => {
+  const root = temporaryDirectory()
+  t.after(() => {
+    delete process.env.DEPLOY_ONLY
+    delete process.env.SLAX_ENV
+    rmSync(root, { recursive: true, force: true })
+  })
+  const directory = deployDirectory('web', root)
+  mkdirSync(directory, { recursive: true })
+  writeFileSync(join(directory, '.env'), 'DEPLOY_ONLY=deploy\nSLAX_ENV=development\n')
+
+  const result = applyDeployEnvironment({ appName: 'web', root, processEnvironment: {} })
+  assert.equal(result.environment.DEPLOY_ONLY, 'deploy')
+  assert.equal(process.env.DEPLOY_ONLY, 'deploy')
+  assert.equal(process.env.SLAX_ENV, 'development')
 })
 
 test('base SLAX_ENV selects a profile and a process override selects a different one', t => {

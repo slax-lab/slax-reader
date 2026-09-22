@@ -95,7 +95,7 @@ import TagChip from '~/components/BookmarkList/TagChip.vue'
 import { computeVisibleTagCount } from '~/utils/tagOverflow'
 
 import { RESTMethodPath } from '@slax-reader/contracts/const'
-import type { BookmarkTag } from '@slax-reader/contracts/interface'
+import type { BookmarkTag } from '@commons/frontend-types/models'
 import { vOnClickOutside, vOnKeyStroke } from '@vueuse/components'
 import Toast, { ToastType } from '~/components/Toast'
 import { type BookmarkTagActions, LocalFirstAdapterKey, SharedUserTagsKey } from '~/composables/local-first/injection'

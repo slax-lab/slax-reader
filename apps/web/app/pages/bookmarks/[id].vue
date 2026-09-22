@@ -4,7 +4,7 @@
 
 <script lang="ts" setup>
 import { RESTMethodPath } from '@slax-reader/contracts/const'
-import type { BookmarkDetail } from '@slax-reader/contracts/interface'
+import type { BookmarkDetail } from '@commons/frontend-types/models'
 
 definePageMeta({
   middleware: [

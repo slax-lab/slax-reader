@@ -8,9 +8,13 @@
     ".": "./src/index.ts",
     "./const": "./src/const.ts",
     "./error": "./src/error.ts",
-    "./frontend": "./src/frontend.ts"
+    "./frontend": "./src/frontend.ts",
+    "./selection": "./src/selection.ts",
+    "./models": "./src/models.ts"
   },
-  "scripts": {},
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json"
+  },
   "keywords": [],
   "author": "",
   "license": "Apache-2.0",
@@ -22,5 +26,8 @@
     "eslint": "^10.9.1",
     "typescript": "^6.0.3",
     "jiti": "^2.7.0"
+  },
+  "dependencies": {
+    "@slax-reader/contracts": "workspace:*"
   }
 }

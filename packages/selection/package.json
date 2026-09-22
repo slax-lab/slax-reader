@@ -40,6 +40,7 @@
     "typescript": "^6.0.3"
   },
   "dependencies": {
+    "@commons/frontend-types": "workspace:*",
     "@slax-reader/contracts": "workspace:*",
     "@commons/frontend-utils": "workspace:*",
     "vue": "^3.5.42"

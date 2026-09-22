@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { spawn, spawnSync } from 'node:child_process'
+import { once } from 'node:events'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -85,3 +86,38 @@ test('malformed config stops the dispatcher before spawn but never blocks help',
   assert.equal(run('web', ['--help']).status, 0)
   assert.equal(run('web', ['unknown-command']).status, 2)
 })
+
+for (const [signal, expectedStatus] of [['SIGINT', 130], ['SIGTERM', 143]]) {
+  test(`dispatcher forwards ${signal} to the app process and reports ${expectedStatus}`, { skip: process.platform === 'win32', timeout: 15000 }, async t => {
+    const { root } = dispatcherFixture(t)
+    const signalFile = join(root, 'received-signal')
+    writeFileSync(join(root, 'fixture.mjs'), `
+      import { writeFileSync } from 'node:fs'
+      for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => {
+        writeFileSync(${JSON.stringify(signalFile)}, signal)
+        process.exit(0)
+      })
+      console.log('READY')
+      setInterval(() => {}, 1000)
+    `)
+    const wrapper = spawn(process.execPath, [join(root, 'tooling/web.mjs'), 'dev'], {
+      cwd: tmpdir(), stdio: ['ignore', 'pipe', 'pipe'],
+      env: { PATH: process.env.PATH, HOME: process.env.HOME, SLAX_ENV: 'development' }
+    })
+    t.after(() => { if (wrapper.exitCode === null) wrapper.kill('SIGTERM') })
+    const closed = once(wrapper, 'close')
+    await new Promise((resolve, reject) => {
+      let output = ''
+      wrapper.stdout.on('data', chunk => {
+        output += chunk
+        if (output.includes('READY')) resolve()
+      })
+      wrapper.on('error', reject)
+      wrapper.on('close', () => reject(new Error('Dispatcher exited before app was ready')))
+    })
+    wrapper.kill(signal)
+    const [code] = await closed
+    assert.equal(code, expectedStatus)
+    assert.equal(readFileSync(signalFile, 'utf8'), signal)
+  })
+}

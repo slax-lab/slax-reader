@@ -177,13 +177,19 @@ function compareVersions(actual, expected) {
   return true
 }
 
+function isSupportedNode(version) {
+  const major = Number(version.split('.')[0])
+  return (major === 22 && compareVersions(version, '22.22.2')) ||
+    (major === 24 && compareVersions(version, '24.15.0')) || major >= 26
+}
+
 function checkRuntime(root = REPO_ROOT) {
   const issues = []
   const nodeVersion = process.versions.node
-  if (compareVersions(nodeVersion, '22.22.2')) {
+  if (isSupportedNode(nodeVersion)) {
     issues.push({ level: 'ok', message: `Node.js ${nodeVersion}` })
   } else {
-    issues.push({ level: 'error', message: `Node.js ${nodeVersion} 过低，前端要求至少 22.22.2` })
+    issues.push({ level: 'error', message: `Node.js ${nodeVersion} 不受支持，前端要求 ^22.22.2 || ^24.15.0 || >=26.0.0` })
   }
 
   const packageManager = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')).packageManager || ''
@@ -298,7 +304,7 @@ function run(options, root = REPO_ROOT, processEnvironment = process.env) {
       printIssue(issue, '  ', colorEnabled)
     }
     if (app.label === 'Web') {
-      const issue = { level: 'info', message: 'SLAX_BACKEND_DIR（Web 开发联调时必填）仅用于真实 backend 联调；当前 preflight 不将它视为前端配置失败' }
+      const issue = { level: 'info', message: 'Web 的 ContentEntry 与 OSS 绑定由 apps/api 的公开配置投影生成；真实联调前请运行 pnpm api -- config:init 并准备后端本地配置' }
       issues.push(issue)
       printIssue(issue, '  ', colorEnabled)
     }
@@ -321,7 +327,7 @@ function run(options, root = REPO_ROOT, processEnvironment = process.env) {
   return errors ? 1 : 0
 }
 
-export { APP_CHECKS, checkInstalledDependencies, checkRuntime, environmentSetupHint, formatIssue, parseArgs, parseEnvText, paint, readEnvSources, run, shouldUseColor, validateVariable }
+export { isSupportedNode, APP_CHECKS, checkInstalledDependencies, checkRuntime, environmentSetupHint, formatIssue, parseArgs, parseEnvText, paint, readEnvSources, run, shouldUseColor, validateVariable }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {

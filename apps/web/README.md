@@ -14,8 +14,8 @@ pnpm --filter @apps/slax-reader-dweb type
 pnpm web -- dev
 ```
 
-开发服务器需要独立的本地 backend 和公开前端配置。先阅读
-[配置与验证说明](../../docs/apps/web/development.md)。缺少 `SLAX_BACKEND_DIR` 时会明确报错；
+开发服务器需要 API 的本地公开配置和公开前端配置。先阅读
+[配置与验证说明](../../docs/apps/web/development.md)。首次联调请运行 `pnpm api -- config:init`；
 本阶段没有无需后端的演示模式。不要把旧仓库的环境文件复制进来。
 
 首次配置请从 deploy 示例开始：

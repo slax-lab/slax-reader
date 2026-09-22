@@ -4,7 +4,9 @@ import { computed, type MaybeRef, ref, toValue, watchEffect } from 'vue'
 
 import { toUtcDate } from '@/utils/date'
 
-import type { HighlightItem, MarkDetail, MarkInfo, MarkPathApprox, MarkPathItem, MarkSelectContent, MarkUserInfo } from '@slax-reader/contracts/interface'
+import type { HighlightItem, MarkUserInfo } from '@slax-reader/contracts/interface'
+import type { MarkDetail, MarkInfo } from '@commons/frontend-types/models'
+import type { SelectionMarkContent as MarkSelectContent, SelectionMarkPathApprox as MarkPathApprox, SelectionMarkPathItem as MarkPathItem } from '@commons/frontend-types/selection'
 import { useQuery } from '@powersync/vue'
 import type { PowerSyncDatabase } from '@powersync/web'
 import { useUserStore } from '~/stores/user'

@@ -18,7 +18,7 @@
 <script lang="ts" setup>
 import TagChip from '~/components/BookmarkList/TagChip.vue'
 
-import type { BookmarkTag } from '@slax-reader/contracts/interface'
+import type { BookmarkTag } from '@commons/frontend-types/models'
 import { vOnClickOutside } from '@vueuse/components'
 
 const props = defineProps<{

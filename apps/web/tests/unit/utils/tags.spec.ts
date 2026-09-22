@@ -1,7 +1,7 @@
 /* eslint-disable camelcase */
 import { sortBookmarkTags } from '~~/app/utils/tags'
 
-import type { BookmarkTag } from '@slax-reader/contracts/interface'
+import type { BookmarkTag } from '@commons/frontend-types/models'
 import { describe, expect, it } from 'vitest'
 
 const tag = (id: string, source: 'auto' | 'mine', last_used_at: string | null = null): BookmarkTag => ({

@@ -37,7 +37,7 @@ flowchart LR
     web["apps/web：阅读器"]
     ext["apps/extension：浏览器扩展"]
     bridge["Web /x/ext-bridge 页面"]
-    backend["外部 backend / 同步服务"]
+    backend["apps/api backend / 同步服务"]
     shared --> web
     shared --> ext
     ext -->|"后台 → 离屏页面中的 iframe"| bridge
@@ -72,5 +72,5 @@ Nuxt 还在 [`content.config.ts`](../../apps/web/content.config.ts) 中配置了
 ## 当前能做什么
 
 文案反馈和文档修订可以在线参与。本地类型检查、单元测试和构建已有阶段验证；
-真实业务仍需要开发配置与外部 backend。当前没有自动 PR 预览、统一一键启动器或免后端演示环境。
+真实业务仍需要开发配置与apps/api backend。当前没有自动 PR 预览、统一一键启动器或免后端演示环境。
 Xcode / `better-sqlite3` 完整安装问题与真实业务联调留在[最终验收清单](../migrations/final-verification.md)。

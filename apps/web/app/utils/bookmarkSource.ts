@@ -1,4 +1,4 @@
-import type { BookmarkItem } from '@slax-reader/contracts/interface'
+import type { BookmarkItem } from '@commons/frontend-types/models'
 
 type BookmarkSource = Pick<BookmarkItem, 'host_url' | 'target_url'>
 

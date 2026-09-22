@@ -3,7 +3,7 @@
 </template>
 
 <script lang="ts" setup>
-import { type CollectionBookmarkDetail } from '@slax-reader/contracts/interface'
+import type { CollectionBookmarkDetail } from '@commons/frontend-types/models'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 
 definePageMeta({

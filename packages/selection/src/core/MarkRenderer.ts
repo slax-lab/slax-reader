@@ -1,9 +1,8 @@
 import { fixCssSelector, getTextNodesInRange, removeOuterTag } from '@commons/frontend-utils/dom'
 import { HighlightRange } from '@commons/frontend-utils/range'
-import type { MarkPathItem } from '@slax-reader/contracts/interface'
 
 import { Base } from './Base'
-import type { DrawMarkBaseInfo, MarkItemInfo, SelectionConfig } from '../types'
+import type { DrawMarkBaseInfo, MarkItemInfo, MarkPathItem, SelectionConfig } from '../types'
 import type { IEnvironmentAdapter, IUserProvider } from '../adapters'
 
 /**

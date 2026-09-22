@@ -58,7 +58,7 @@ pnpm api -- setup:api
 pnpm api -- dev
 ```
 
-Web and Extension configuration lives in `deploy/local_web/` and `deploy/local_extension/` when those directories are present. The API uses the public template [`deploy/cloudflare/api.toml.example`](deploy/cloudflare/api.toml.example) and ignored local configuration under `deploy/local/`. Secrets belong in ignored local environment files or platform secret stores; do not put them in tracked templates or browser bundles.
+Web and Extension configuration lives in `deploy/local_web/` and `deploy/local_extension/`. The API uses the public template [`deploy/cloudflare/api.toml.example`](deploy/cloudflare/api.toml.example) and ignored local configuration under `deploy/local/`. Secrets belong in ignored local environment files or platform secret stores; do not put them in tracked templates or browser bundles.
 
 API commands and API-specific configuration belong to [`apps/api/`](apps/api/), including Prisma configs under `prisma/` and deployment code under `script/deploy/`. The root `api` command forwards to the scripts declared by `apps/api/package.json`. Validation commands include:
 

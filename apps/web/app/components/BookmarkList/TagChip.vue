@@ -29,7 +29,7 @@
 <script lang="ts" setup>
 import { getCurrentInstance } from 'vue'
 
-import type { BookmarkTag } from '@slax-reader/contracts/interface'
+import type { BookmarkTag } from '@commons/frontend-types/models'
 
 const props = defineProps<{
   tag: BookmarkTag

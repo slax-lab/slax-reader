@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { readFileSync } from 'node:fs'
+import { constants } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import { loadDeployEnvironment } from './env-files.mjs'
 
@@ -81,18 +82,37 @@ function runApp({ commandName, appLabel, packageName, packagePath, environmentAp
   const forwardedArgs = args.slice(1)
   const childArgs = ['--filter', packageName, 'run', command]
   if (forwardedArgs.length) childArgs.push(...forwardedArgs)
+  const grouped = process.platform !== 'win32' && process.env.SLAX_APP_INHERIT_PROCESS_GROUP !== '1'
   const child = spawn(pnpmCommand, childArgs, {
     cwd: REPO_ROOT,
     env: childEnvironment,
-    stdio: 'inherit'
+    stdio: 'inherit',
+    detached: grouped
   })
 
+  let interrupted
+  const stop = signal => {
+    interrupted = signal
+    if (!child.pid) return
+    try {
+      grouped ? process.kill(-child.pid, signal) : child.kill(signal)
+    } catch (error) {
+      if (error?.code !== 'ESRCH') throw error
+    }
+  }
+  const interrupt = () => stop('SIGINT')
+  const terminate = () => stop('SIGTERM')
+  process.on('SIGINT', interrupt)
+  process.on('SIGTERM', terminate)
   child.on('error', error => {
     console.error(`${appLabel} 命令启动失败：${error.message}`)
     process.exitCode = 1
   })
-  child.on('exit', (code, signal) => {
-    process.exitCode = code ?? (signal ? 1 : 0)
+  child.on('close', (code, signal) => {
+    process.removeListener('SIGINT', interrupt)
+    process.removeListener('SIGTERM', terminate)
+    const reason = interrupted || signal
+    process.exitCode = reason ? 128 + (constants.signals[reason] || 1) : code ?? 1
   })
   return undefined
 }

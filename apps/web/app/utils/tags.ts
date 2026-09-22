@@ -1,4 +1,4 @@
-import type { BookmarkTag } from '@slax-reader/contracts/interface'
+import type { BookmarkTag } from '@commons/frontend-types/models'
 
 const time = (v?: string | null) => (v ? Date.parse(v) || 0 : 0)
 

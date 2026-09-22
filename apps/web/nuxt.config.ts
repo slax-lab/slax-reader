@@ -1,9 +1,9 @@
+import { ensureWebWranglerConfig, warnIfApiConfigMissing, writeWebBuildConfig } from './config/backend-binding'
 import { backendStateV3 } from './config/backend-path'
 import { getDWebConfig, getEnv } from './config/env'
 import { POWER_SYNC_WORKER_GENERATION } from './app/local-first/version'
 import pkg from './package.json'
 import replace from '@rollup/plugin-replace'
-import fs from 'fs'
 import { fileURLToPath } from 'url'
 import wasm from 'vite-plugin-wasm'
 
@@ -12,9 +12,12 @@ console.log('Current env is:', env)
 
 const envConfig = getDWebConfig()
 
-// 仅 dev 需要后端状态；非 dev 置空，
-// 避免 CI 因缺 SLAX_BACKEND_DIR 报错
-const isDevServer = process.argv.includes('dev')
+// Generate an isolated projection of the API's public bindings. This keeps Web
+// builds independent from a sibling backend checkout and never mutates tracked config.
+const isDevServer = process.argv.includes('dev') || process.argv.includes('ssr:dev')
+const useLocalApiBindings = isDevServer || process.env.SLAX_WEB_LOCAL_BINDINGS === '1'
+const webBinding = ensureWebWranglerConfig({ local: useLocalApiBindings })
+warnIfApiConfigMissing(webBinding, isDevServer)
 const backendPersistDir = isDevServer ? backendStateV3() : undefined
 const enableDevServiceWorker = isDevServer && ['1', 'true'].includes(`${process.env.ENABLE_DEV_SW || ''}`.toLowerCase())
 
@@ -25,8 +28,6 @@ if (isDevServer) {
 type SlaxEnv = 'development' | 'preview' | 'beta' | 'production'
 
 interface EnvProfile {
-  /** wrangler 顶层 [[services]].service 绑定名 */
-  backendService: string
   /** favicon：测试环境用带 .d 的图标做区分 */
   favicon: string
   /** 是否生成 sourcemap */
@@ -55,7 +56,6 @@ interface EnvProfile {
 // 新增环境只需补一列；config 主体只引用 profile.xxx，不再出现 isDev/isPreview 派生布尔。
 const ENV_PROFILES: Record<SlaxEnv, EnvProfile> = {
   development: {
-    backendService: 'reader-backend-dev',
     favicon: '/favicon.d.ico',
     sourcemap: true,
     minify: false,
@@ -67,7 +67,6 @@ const ENV_PROFILES: Record<SlaxEnv, EnvProfile> = {
     extensionBridgeId: 'jgaccepfhchlnpggghoodnklcfcbhhlh'
   },
   preview: {
-    backendService: 'reader-backend',
     favicon: '/favicon.d.ico',
     sourcemap: true,
     minify: false,
@@ -79,7 +78,6 @@ const ENV_PROFILES: Record<SlaxEnv, EnvProfile> = {
     extensionBridgeId: 'nkgkjnjkolpeiodphchpjiggkiciinik'
   },
   beta: {
-    backendService: 'slax-read-backend-beta',
     favicon: '/favicon.ico',
     sourcemap: true,
     minify: true,
@@ -91,7 +89,6 @@ const ENV_PROFILES: Record<SlaxEnv, EnvProfile> = {
     extensionBridgeId: 'bfkggphckdjelkonpoaepppkcecikclp'
   },
   production: {
-    backendService: 'slax-read-backend',
     favicon: '/favicon.ico',
     sourcemap: false,
     minify: true,
@@ -126,35 +123,6 @@ const homeStructuredData = JSON.stringify({
     }
   ]
 })
-
-const resolveBackendService = () => process.env.BACKEND_SERVICE_NAME || profile.backendService
-
-const syncBackendServiceBinding = () => {
-  const wranglerPath = fileURLToPath(new URL('./wrangler.toml', import.meta.url))
-  const service = resolveBackendService()
-  const original = fs.readFileSync(wranglerPath, 'utf8')
-  const envIdx = original.search(/^\[\[?env\./m)
-  const head = envIdx === -1 ? original : original.slice(0, envIdx)
-  const tail = envIdx === -1 ? '' : original.slice(envIdx)
-
-  const servicePattern = /(\[\[services\]\][\s\S]*?service\s*=\s*")[^"]*(")/
-  if (!servicePattern.test(head)) {
-    throw new Error('[backend-binding] 未在顶层找到 [[services]].service，wrangler.toml 结构可能已变，请检查')
-  }
-  const newHead = head.replace(servicePattern, `$1${service}$2`)
-
-  const written = (newHead.match(/\[\[services\]\][\s\S]*?service\s*=\s*"([^"]*)"/) || [])[1]
-  if (written !== service) {
-    throw new Error(`[backend-binding] 替换后校验失败：期望 "${service}"，实际 "${written}"`)
-  }
-
-  if (newHead !== head) {
-    fs.writeFileSync(wranglerPath, newHead + tail)
-    console.log(`[backend-binding] top-level service -> "${service}" (SLAX_ENV=${env})`)
-  } else {
-    console.log(`[backend-binding] top-level service already "${service}" (SLAX_ENV=${env})`)
-  }
-}
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -359,8 +327,7 @@ export default defineNuxtConfig({
   },
   nitro: {
     cloudflareDev: {
-      configPath: fileURLToPath(new URL('./wrangler.local.toml', import.meta.url)),
-      environment: 'local',
+      configPath: webBinding.generatedConfigPath,
       persistDir: backendPersistDir
     },
     publicAssets: [
@@ -448,7 +415,7 @@ export default defineNuxtConfig({
       '/c/:id/:cid': { ssr: true, prerender: false, streaming: false }
     },
     cloudflare: {
-      // 使用仓库里的 wrangler.toml，避免生成式 deploy config 指向不存在的产物。
+      // Write the selected public bindings to dist/wrangler.toml in nitro:compiled.
       deployConfig: false,
       // 关闭 Nitro 的 unenv hybrid node 兼容：开启时 Nitro 会向生成的
       // dist/_worker.js/wrangler.json 强制写入 `no_nodejs_compat_v2`，
@@ -594,8 +561,8 @@ export default defineNuxtConfig({
     }
   },
   hooks: {
-    'build:before': () => {
-      syncBackendServiceBinding()
+    'nitro:compiled': () => {
+      writeWebBuildConfig(webBinding)
     },
     'vite:extendConfig': (config, { isClient }) => {
       // @nuxtjs/mdc 仍生成 pnpm 的 `parent > child` optimizeDeps 语法，Vite 8 无法解析。

@@ -29,7 +29,7 @@ cp deploy/local_web/.env.example deploy/local_web/.env
 | `GOOGLE_OAUTH_CLIENT_ID` | 必填 | Google Web OAuth 客户端 ID |
 | `APPLE_OAUTH_CLIENT_ID` | 可选 | 配置后显示 Apple 登录按钮；留空时不显示 |
 | `TURNSTILE_SITE_KEY` | 可选 | 配置后启用 Turnstile；留空时跳过相关验证 |
-| `SLAX_BACKEND_DIR` | 仅 Web dev 必填 | 独立 backend 检出目录的绝对路径，仅本地 Worker 联调需要 |
+| `SLAX_API_CONFIG` / `deploy/local/api.toml` | 仅 Web dev 必填 | API 配置文件路径；默认使用 deploy/local/api.toml，仅本地 Worker 联调需要 |
 | `SLAX_ENV` | 可选，默认 development | development、preview、beta、production |
 
 其他可选项以 `env.schema.ts` 为准。不要把服务端密钥放入前端公开配置。
@@ -50,8 +50,8 @@ Google 登录必须使用 Web 应用类型的 OAuth 客户端 ID。创建流程�
 
 ## 后端边界
 
-`pnpm web -- dev` 延续原实现：需要 backend 已生成 `config/.wrangler/state/v3`，
-并通过 `wrangler.local.toml` 的 `BACKEND` service binding 调用本地 Worker。
+`pnpm web -- dev` 延续原实现：需要 API 已生成 `deploy/local/.wrangler/state/v3`，
+并通过生成于 `deploy/local_web/.generated/wrangler.toml` 的配置中的 `BACKEND` service binding 调用本地 Worker。
 常规 Nuxt prepare、类型检查和 build 不需要该后端路径。本文不承诺登录、书签同步或保存
 可以在没有 backend 的情况下工作。
 
@@ -100,8 +100,7 @@ pnpm web -- build
 取得本地联调配置后，运行 `pnpm web -- dev`，验收登录、书签列表、文章、高亮和评论，
 并检查 `/x/ext-bridge` 与扩展的配合。联调仅使用开发测试账户。
 
-`build` 延续原 Nuxt hook：按 `SLAX_ENV` 更新 `apps/web/wrangler.toml` 的 service 名称；
-检查构建后的 diff，不要把一次验证产生的环境切换当成迁移改动提交。
+`build` 延续原 Nuxt hook：从 API 的公开 TOML 投影生成 `deploy/local_web/.generated/wrangler.toml`，不会改写 apps/web/wrangler.toml。
 
 ## 迁移时的目录约定
 
