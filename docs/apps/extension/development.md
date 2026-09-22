@@ -9,6 +9,14 @@
 `.env.<SLAX_ENV>.local`，进程中设置的变量优先。loader 未开启 `override`，文件之间也是先读到的同名值保留；
 `.local` 后缀不会自动覆盖前面文件。自行配置，不从旧仓库复制，不提交环境文件。
 
+可先复制 [`apps/extension/.env.example`](../../../apps/extension/.env.example) 作为起点：
+
+```sh
+cp apps/extension/.env.example apps/extension/.env
+```
+
+示例中的值只适合本地占位；扩展构建会把部分配置带入客户端产物，不要填写服务端密钥。
+
 | 变量 | 用途 |
 | --- | --- |
 | `PUBLIC_BASE_URL` | Web 地址，也是 `/x/ext-bridge` 所属 origin |
