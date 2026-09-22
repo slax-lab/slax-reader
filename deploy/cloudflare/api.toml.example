@@ -1,0 +1,202 @@
+# Copy to api.toml, then configure YOUR resources. Never put secrets here.
+# Native Wrangler configuration; named environments use [env.dev], [env.preview], etc.
+# Local commands select env.dev when present; --env selects an environment explicitly.
+name = "reader-core"
+main = "../../apps/api/src/entry/core/index.ts"
+workers_dev = false
+compatibility_date = "2025-05-05"
+compatibility_flags = ["nodejs_compat_v2", "global_fetch_strictly_public"]
+
+[browser]
+binding = "BROWSER"
+[ai]
+binding = "AI"
+[observability]
+enabled = true
+[limits]
+cpu_ms = 300000
+
+[vars]
+# Local defaults. For remote deployment set RUN_ENV = "prod".
+# RUN_TYPE = "prod" selects live payments; beta/dev selects sandbox behavior.
+RUN_ENV = "development"
+RUN_TYPE = "dev"
+# Comma-separated allowlist for the beta host and the /m/ dashboard. These are operator and
+# internal tester addresses; replace them with your own. Empty denies every gated request.
+WHITE_EMAILS = "operator@example.com"
+JWT_ALGORITHMS = "HS256"
+JWT_EXPIRES = "2592000"
+JWT_ISSUER = "slax-reader"
+FRONT_END_URL = "http://localhost:3000"
+BACKEND_API_PREFIX = "http://localhost:8787"
+IMAGE_PREFIX = "http://localhost:8787/"
+PROXY_IMAGE_PREFIX = "http://localhost:8787/"
+POWERSYNC_SG_API_URL = "http://localhost:18080"
+STRIPE_SUBSCRIPTION_HOME = "http://localhost:3000"
+GEMINI_BATCH_API_URL = "https://generativelanguage.googleapis.com"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "00000000000000000000000000000001"
+
+# Native service bindings also identify the corresponding deployment entries.
+[[services]]
+binding = "CORE"
+service = "reader-core"
+[[services]]
+binding = "EDGE"
+service = "reader-edge"
+[[services]]
+binding = "AIGC"
+service = "reader-ai"
+[[services]]
+binding = "VECTOR"
+service = "reader-ai"
+entrypoint = "AiEntry"
+[[services]]
+binding = "SlaxBrowser"
+service = "reader-browser"
+[[services]]
+binding = "SlaxTwitterFxembed"
+service = "fxembed"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "slax-reader-backend"
+database_id = "00000000-0000-0000-0000-000000000001"
+migrations_dir = "../../apps/api/prisma/d1_migrations"
+[[d1_databases]]
+binding = "DB_FULLTEXT"
+database_name = "slax-reader-backend-fulltext"
+database_id = "00000000-0000-0000-0000-000000000002"
+migrations_dir = "../../apps/api/prisma/d1_migrations/fulltext"
+
+[[r2_buckets]]
+binding = "OSS"
+bucket_name = "slax-reader-backend"
+preview_bucket_name = "slax-reader-backend-preview"
+
+[[vectorize]]
+binding = "VECTORIZE1"
+index_name = "bookmark-1"
+[[vectorize]]
+binding = "VECTORIZE2"
+index_name = "bookmark-2"
+[[vectorize]]
+binding = "VECTORIZE3"
+index_name = "bookmark-3"
+[[vectorize]]
+binding = "VECTORIZE4"
+index_name = "bookmark-4"
+[[vectorize]]
+binding = "VECTORIZE5"
+index_name = "bookmark-5"
+
+[[durable_objects.bindings]]
+name = "SLAX_JIEBA"
+class_name = "SlaxJieba"
+[[durable_objects.bindings]]
+name = "WEBSOCKET_SERVER"
+class_name = "SlaxWebSocketServer"
+[[durable_objects.bindings]]
+name = "MCP_OBJECT"
+class_name = "SlaxMcpServer"
+[[durable_objects.bindings]]
+name = "SLAX_BROWSER"
+class_name = "SlaxBrowser"
+[[durable_objects.bindings]]
+name = "SCREENSHOT_BROWSER"
+class_name = "ScreenshotBrowser"
+
+[[rules]]
+type = "CompiledWasm"
+globs = ["**/*.wasm"]
+fallthrough = true
+[[migrations]]
+tag = "v1"
+new_classes = ["SlaxJieba", "SlaxWebSocketServer", "ScreenshotBrowser"]
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["SlaxMcpServer"]
+
+[[queues.producers]]
+queue = "slax-reader-parser-twitter"
+binding = "TWITTER_PARSER"
+[[queues.producers]]
+queue = "slax-reader-parser-fetch-retry-prod"
+binding = "FETCH_RETRY_PARSER"
+[[queues.producers]]
+queue = "slax-reader-parser-stripe"
+binding = "STRIPE_QUEUE"
+[[queues.producers]]
+queue = "slax-reader-import-other"
+binding = "IMPORT_OTHER"
+[[queues.producers]]
+queue = "slax-reader-import-other-slow"
+binding = "IMPORT_OTHER_SLOW"
+[[queues.producers]]
+queue = "slax-reader-user-deletion"
+binding = "USER_DELETION_QUEUE"
+[[queues.consumers]]
+queue = "slax-reader-parser-twitter"
+max_batch_size = 10
+max_concurrency = 2
+max_batch_timeout = 5
+max_retries = 0
+[[queues.consumers]]
+queue = "slax-reader-parser-fetch-retry-prod"
+max_batch_size = 12
+max_batch_timeout = 6
+max_retries = 0
+[[queues.consumers]]
+queue = "slax-reader-parser-stripe"
+max_batch_size = 1
+max_retries = 3
+[[queues.consumers]]
+queue = "slax-reader-import-other"
+max_batch_size = 1
+max_retries = 3
+dead_letter_queue = "slax-reader-import-other-dql"
+[[queues.consumers]]
+queue = "slax-reader-import-other-slow"
+max_batch_size = 1
+max_retries = 3
+[[queues.consumers]]
+queue = "slax-reader-import-other-dql"
+max_batch_size = 1
+max_retries = 0
+[[queues.consumers]]
+queue = "slax-reader-user-deletion"
+max_batch_size = 1
+max_retries = 3
+
+[[workflows]]
+binding = "CRAWL_WORKFLOW"
+name = "crawl-workflow"
+class_name = "CrawlWorkflow"
+[[workflows]]
+binding = "CONTENT_VALIDATION_WORKFLOW"
+name = "content-validation-workflow"
+class_name = "ContentValidationWorkflow"
+[[workflows]]
+binding = "IMPORT_PARSE_WORKFLOW"
+name = "import-parse-workflow"
+class_name = "ImportParseWorkflow"
+
+[triggers]
+crons = ["*/1 * * * *", "*/2 * * * *", "*/5 * * * *", "*/30 * * * *", "0 */1 * * *"]
+
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "00000000000000000000000000000002"
+localConnectionString = "postgresql://admin:admin@localhost:15432/slax-reader-backend-internal"
+[[hyperdrive]]
+binding = "HYPERDRIVE_LOGS"
+id = "00000000000000000000000000000003"
+localConnectionString = "postgresql://admin:admin@localhost:15432/slax-reader-logs"
+
+[[ratelimits]]
+name = "BOOKMARK_ADD_RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 30, period = 60 }
+

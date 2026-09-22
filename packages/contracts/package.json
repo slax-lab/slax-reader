@@ -1,0 +1,52 @@
+{
+  "name": "@slax-reader/contracts",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./http": {
+      "types": "./src/http.ts",
+      "default": "./src/http.ts"
+    },
+    "./errors": {
+      "types": "./src/errors.ts",
+      "default": "./src/errors.ts"
+    },
+    "./bookmarks": {
+      "types": "./src/bookmarks.ts",
+      "default": "./src/bookmarks.ts"
+    },
+    "./marks": {
+      "types": "./src/marks.ts",
+      "default": "./src/marks.ts"
+    },
+    "./tags": {
+      "types": "./src/tags.ts",
+      "default": "./src/tags.ts"
+    },
+    "./collections": {
+      "types": "./src/collections.ts",
+      "default": "./src/collections.ts"
+    },
+    "./api-keys": {
+      "types": "./src/api-keys.ts",
+      "default": "./src/api-keys.ts"
+    },
+    "./events": {
+      "types": "./src/events.ts",
+      "default": "./src/events.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

@@ -13,7 +13,10 @@ Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comme
 
 - `apps/web` — web frontend (the reader at r.slax.com)
 - `apps/extension` — browser extension (Chrome/Edge)
-- `apps/backend` — API server (Cloudflare Workers)
+- `apps/api` — API server (Cloudflare Workers: Core, Edge, AI, Browser)
+- `apps/api/script/deploy` — backend deployment, setup, and resource provisioning commands
+- `deploy/cloudflare` — public Cloudflare Worker template
+- `deploy/local` — local api.toml/.env/.dev.vars, PostgreSQL / PowerSync Compose and shared Wrangler state
 - `apps/cli` — command-line client (reader-cli)
 - `packages/contracts` — shared API contracts and types used across apps
 - `docs/` — documentation
@@ -22,9 +25,15 @@ Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comme
 
 ## Local Development
 
-- Package manager: **pnpm** (pinned via `packageManager` in `package.json`; Node.js >= 22.13 required, because pnpm 11.25 itself requires it)
-- Install dependencies: `pnpm install`
-- Per-app dev/test/build commands live in each app's own `package.json` — read it before inventing commands.
+- Package manager: **pnpm** (pinned via `packageManager` in `package.json`; Node.js >= 22.13.0 required)
+- Install dependencies once at the repository root: `pnpm install --frozen-lockfile`.
+- Per-app scripts live with their app. The backend exposes its concrete commands from `apps/api/package.json`; the repository root provides the abstract entry `pnpm api -- <command>` so users do not need to change directories.
+- Reusable repository tooling stays at the root. API-specific configuration, Prisma schemas and migrations, generated runtime types, source and tests stay in `apps/api/`; deployment templates and local infrastructure remain in `deploy/`.
+- The only public API template is `deploy/cloudflare/api.toml.example`; initialize ignored `deploy/local/api.toml` with `pnpm api -- config:init`. Dev, deploy, build and runtime types use that native Wrangler configuration (name/services/env, no custom workers tables). Local commands select env.dev if present; --env or SLAX_API_ENV explicitly selects a named environment. API-specific Prisma configs live in `apps/api/prisma/`.
+- Prisma and Cloudflare operational tools automatically load ignored `deploy/local/.env` (database URLs and CLI credentials). Existing process values take precedence; setup pins local database URLs. `SLAX_API_ENV_FILE` selects an explicit file relative to the repository root or by absolute path. Build/types and dry-run plans do not load this file. Worker runtime secrets belong in ignored `deploy/local/.dev.vars` or Worker secrets, never TOML or generated Env types.
+- `pnpm api -- setup:api` validates operator-provided native Wrangler configuration and keys, runs pnpm exec wrangler login once in apps/api, then runs local infrastructure setup/migrations/generation, waits for PowerSync health and exits. Start Workers separately with pnpm api -- dev; setup never launches them. setup:backend aliases setup:api; the combined dev:full command is removed. setup never writes, migrates or backs up configuration or generates keys; missing files must be supplied by the operator. The local PowerSync public key is derived from POWERSYNC_JWK_PRIVATE_KEY in .dev.vars and passed to Compose in memory; obsolete separate key files are not required or rewritten. Invalid signing keys and service failures stop startup. `--check` is read-only and does not invoke login. Cloud services still require dedicated development resources. All deployment tools honor `SLAX_API_CONFIG` (root-relative or absolute), including types, D1 and resource tools; config:init only creates the default local file. CI may check out an independent configuration repository and use the manual/reusable API deploy workflow.
+- Backend validation and deployment commands must be documented through the root abstraction and preserve the distinction between local setup, offline checks and explicitly authorized remote operations.
+- The runtime Worker type generator may use an isolated temporary directory to prevent secret/configuration discovery; this is an internal safety boundary, not a developer-facing working-directory requirement.
 
 ## Development Workflow — OpenSpec Required
 

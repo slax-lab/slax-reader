@@ -1,0 +1,12 @@
+generator logs_client {
+    provider        = "prisma-client-js"
+    engineType      = "client"
+    runtime         = "cloudflare"
+    previewFeatures = ["driverAdapters"]
+    output          = "../node_modules/@prisma/logs-client"
+}
+
+datasource logs {
+    provider     = "postgresql"
+    relationMode = "prisma"
+}

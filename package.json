@@ -9,7 +9,8 @@
   "scripts": {
     "agent:sync": "rulesync generate",
     "agent:check": "rulesync doctor --strict && rulesync generate --check && openspec validate --all --strict && bash tooling/check-gh-aw-drift.sh",
-    "prepare": "lefthook install"
+    "prepare": "lefthook install",
+    "api": "node tooling/api.mjs"
   },
   "devDependencies": {
     "@fission-ai/openspec": "1.13.1",

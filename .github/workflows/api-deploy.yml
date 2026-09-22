@@ -1,0 +1,132 @@
+name: API deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      config-repository:
+        description: 'Configuration repository (owner/repository)'
+        required: true
+        type: string
+      config-ref:
+        description: 'Configuration commit SHA, tag or branch (prefer immutable SHA)'
+        required: true
+        type: string
+      config-path:
+        description: 'api.toml path within the configuration repository'
+        required: true
+        default: api.toml
+        type: string
+      environment:
+        description: 'GitHub deployment environment'
+        required: true
+        type: choice
+        options: [dev, beta, prod]
+      wrangler-environment:
+        description: 'Optional native Wrangler environment; empty uses top-level configuration'
+        type: string
+        default: ''
+      bootstrap:
+        description: 'First installation only: initialize circular Worker bindings'
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      config-repository:
+        required: true
+        type: string
+      config-ref:
+        required: true
+        type: string
+      config-path:
+        type: string
+        default: api.toml
+      environment:
+        required: true
+        type: string
+      wrangler-environment:
+        type: string
+        default: ''
+      bootstrap:
+        type: boolean
+        default: false
+    secrets:
+      CONFIG_REPO_TOKEN:
+        description: 'Read-only token for the configuration repository'
+        required: true
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.environment }}
+    env:
+      SLAX_API_ENV: ${{ inputs.wrangler-environment }}
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: 'false'
+      HYPERDRIVE_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:1/generation_only
+      LOGS_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:1/logs_generation_only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check out operator configuration
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.config-repository }}
+          ref: ${{ inputs.config-ref }}
+          token: ${{ secrets.CONFIG_REPO_TOKEN }}
+          path: .local/deployment-config
+          persist-credentials: false
+      - name: Select configuration without copying or displaying its contents
+        env:
+          CONFIG_FILE: ${{ inputs.config-path }}
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          if os.environ['DEPLOY_ENVIRONMENT'] not in ('dev', 'beta', 'prod'):
+              raise SystemExit('environment must be dev, beta or prod')
+          root = Path('.local/deployment-config').resolve()
+          selected = (root / os.environ['CONFIG_FILE']).resolve()
+          if not selected.is_relative_to(root) or not selected.is_file() or '\n' in str(selected) or '\r' in str(selected):
+              raise SystemExit('config-path must identify a file inside the configuration checkout')
+          empty = Path(os.environ['RUNNER_TEMP']) / 'api-empty.env-file'
+          empty.write_text('')
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'SLAX_API_CONFIG={selected}\nSLAX_API_ENV_FILE={empty}\n')
+          PY
+          git -C .local/deployment-config rev-parse HEAD
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm api -- gen:all
+      - run: pnpm api -- lint
+      - run: pnpm api -- typecheck
+      - run: pnpm api -- test
+      - run: pnpm api -- build
+      - name: Deploy configured Workers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BOOTSTRAP: ${{ inputs.bootstrap }}
+        run: |
+          if [ "$BOOTSTRAP" = "true" ]; then
+            pnpm api -- deploy --bootstrap
+          else
+            pnpm api -- deploy
+          fi
