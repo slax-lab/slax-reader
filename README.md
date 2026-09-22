@@ -31,6 +31,9 @@ This monorepo hosts all non-mobile Slax Reader code:
 | `apps/backend` | API server (Cloudflare Workers) |
 | `apps/cli` | Command-line client |
 | `packages/contracts` | Shared API contracts and types |
+| `packages/frontend-types` | Shared Web/Extension implementation types |
+| `packages/frontend-utils` | Shared frontend utilities |
+| `packages/selection` | Shared highlighting and annotation engine |
 
 Shared libraries belong in `packages` when at least two apps use them. See the
 [repository map](docs/architecture/frontend.md) for the current application and package boundaries.
@@ -39,6 +42,7 @@ Shared libraries belong in `packages` when at least two apps use them. See the
 
 Web and Extension source now live in this repository. Start with the
 [developer setup guide](docs/contributing/development.en.md) or [中文开发指南](docs/contributing/development.md).
+After installing dependencies, run `pnpm run doctor` to check the local runtime, workspace links, and required frontend environment variables.
 The backend remains external during this migration; local business flows require its development configuration.
 See [migration status and remaining verification](docs/migrations/final-verification.md) before planning deployment.
 

@@ -29,6 +29,17 @@ In the task worktree root, confirm `node --version` and `pnpm --version`, then r
 pnpm install --frozen-lockfile
 ```
 
+After installation, run the Doctor command to check the local runtime, workspace links, and required frontend environment variables:
+
+```sh
+pnpm run doctor
+```
+
+It checks frontend setup only, never prints environment values, and does not start the backend. Use
+`pnpm run doctor --app web`, `pnpm run doctor --app extension`, or `pnpm run doctor --env preview` to narrow the check.
+The loaders read `.env`, `.env.<SLAX_ENV>`, and `.env.<SLAX_ENV>.local` inside each app directory; a root `.env`
+is not loaded automatically and Doctor will warn about it.
+
 Workspace installation may include tools from the other app; app-specific commands do not imply isolated dependency installation. Configuration schemas are in [Web](../../apps/web/env.schema.ts) and [Extension](../../apps/extension/env.schema.ts). Create your own configuration under the relevant app or supply process environment variables. Do not copy environment files from the old repository or commit credentials.
 
 The loaders read `.env`, `.env.<SLAX_ENV>`, then `.env.<SLAX_ENV>.local`. They do not enable dotenv's `override`: process values take precedence, then the first file to define a value wins. A `.local` suffix does not currently make a value override earlier files.
