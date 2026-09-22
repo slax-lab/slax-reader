@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -46,4 +46,16 @@ test('formatIssue colors statuses only when requested', () => {
 test('parseArgs supports explicit color controls', () => {
   assert.equal(parseArgs(['--color']).color, true)
   assert.equal(parseArgs(['--no-color']).color, false)
+})
+
+test('app environment examples include each required frontend variable', () => {
+  const web = parseEnvText(readFileSync(new URL('../apps/web/.env.example', import.meta.url), 'utf8'))
+  const extension = parseEnvText(readFileSync(new URL('../apps/extension/.env.example', import.meta.url), 'utf8'))
+
+  for (const name of ['SLAX_ENV', 'PUBLIC_BASE_URL', 'AUTH_BASE_URL', 'SHARE_BASE_URL', 'DWEB_API_BASE_URL', 'COOKIE_DOMAIN', 'COOKIE_TOKEN_NAME', 'GOOGLE_OAUTH_CLIENT_ID', 'APPLE_OAUTH_CLIENT_ID', 'TURNSTILE_SITE_KEY', 'SLAX_BACKEND_DIR']) {
+    assert.ok(name in web, `Web example is missing ${name}`)
+  }
+  for (const name of ['SLAX_ENV', 'PUBLIC_BASE_URL', 'AUTH_BASE_URL', 'SHARE_BASE_URL', 'EXTENSIONS_API_BASE_URL', 'COOKIE_DOMAIN', 'COOKIE_TOKEN_NAME', 'GOOGLE_ANALYTICS_MEASUREMENT_ID', 'GOOGLE_ANALYTICS_API_SECRET', 'UNINSTALL_FEEDBACK_URL']) {
+    assert.ok(name in extension, `Extension example is missing ${name}`)
+  }
 })

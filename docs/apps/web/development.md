@@ -10,6 +10,14 @@ Web 配置集中在 `apps/web/config`，环境 schema 在 `apps/web/env.schema.t
 `.local` 后缀不代表会覆盖前面文件。
 环境文件由开发者自行配置，不提交，也不从旧仓库复制。
 
+可先复制 [`apps/web/.env.example`](../../../apps/web/.env.example) 作为起点：
+
+```sh
+cp apps/web/.env.example apps/web/.env
+```
+
+示例中的值只适合本地占位；真实 OAuth、Turnstile、Push 或 Stripe 配置需要由开发者自行填写。
+
 下表只有变量名和用途，不含真实环境值：
 
 | 变量 | 用途 |
