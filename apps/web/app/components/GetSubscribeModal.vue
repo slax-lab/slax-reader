@@ -18,7 +18,7 @@
             <div class="form-state" v-if="!success">
               <p class="modal-message">{{ props.subTitle }}</p>
 
-              <div class="turnstile-wrap">
+              <div v-if="turnstileEnabled" class="turnstile-wrap">
                 <NuxtTurnstile :key="turnstileKey" ref="turnstileRef" v-model="turnstileToken" :options="{ theme: 'auto', appearance: 'always' }" />
               </div>
 
@@ -26,7 +26,7 @@
                 <button class="btn-cancel" type="button" :disabled="loading" @click="closeModal">
                   {{ props.cancelText }}
                 </button>
-                <button class="btn-confirm" type="button" :disabled="loading || !turnstileToken" :class="{ 'btn-confirm--loading': loading }" @click="handleConfirm">
+                <button class="btn-confirm" type="button" :disabled="loading || (turnstileEnabled && !turnstileToken)" :class="{ 'btn-confirm--loading': loading }" @click="handleConfirm">
                   <span v-if="!loading">{{ props.confirmText }}</span>
                   <span v-else class="btn-spinner" />
                 </button>
@@ -65,6 +65,7 @@ const receiveResult = ref({
 })
 const turnstileRef = ref()
 const turnstileKey = ref(0)
+const turnstileEnabled = Boolean(useRuntimeConfig().public.TURNSTILE_SITE_KEY)
 
 const props = defineProps<{
   subTitle: string
@@ -83,7 +84,7 @@ onMounted(() => {
 })
 
 const handleConfirm = async () => {
-  if (!turnstileToken.value) {
+  if (turnstileEnabled && !turnstileToken.value) {
     return
   }
 

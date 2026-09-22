@@ -15,12 +15,12 @@
       <p class="auth-subtitle">{{ $t('component.login_view.title') }}</p>
 
       <!-- Turnstile（仅邀请码流程） -->
-      <NuxtTurnstile v-if="!!affcode" v-model="turnstileCallbackToken" class="turnstile" :options="{ theme: 'light' }" />
+      <NuxtTurnstile v-if="turnstileEnabled && !!affcode" v-model="turnstileCallbackToken" class="turnstile" :options="{ theme: 'light' }" />
 
       <!-- 登录按钮 -->
       <div v-if="showLoginBtn" class="auth-btns">
         <GoogleLoginButton ref="googleLoginBtn" :redirect="redirect" :affcode="affcode" />
-        <AppleLoginButton ref="appleLoginBtn" :redirect="redirect" :affcode="affcode" />
+        <AppleLoginButton v-if="appleLoginEnabled" :redirect="redirect" :affcode="affcode" />
       </div>
 
       <!-- 服务条款 -->
@@ -55,11 +55,14 @@ const props = defineProps({
 })
 
 const route = useRoute()
+const runtimeConfig = useRuntimeConfig().public
+const appleLoginEnabled = Boolean(runtimeConfig.APPLE_OAUTH_CLIENT_ID)
+const turnstileEnabled = Boolean(runtimeConfig.TURNSTILE_SITE_KEY)
 
 const turnstileCallbackToken = ref('')
 const isAffUser = !!props.affcode
 const showLoginBtn = computed(() => {
-  return !isAffUser || (isAffUser && turnstileCallbackToken.value)
+  return !isAffUser || !turnstileEnabled || Boolean(turnstileCallbackToken.value)
 })
 
 const googleLoginBtn = ref<InstanceType<typeof GoogleLoginButton>>()

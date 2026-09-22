@@ -16,7 +16,8 @@ Web 配置集中在 `apps/web/config`，环境 schema 在 `apps/web/env.schema.t
 cp apps/web/.env.example apps/web/.env
 ```
 
-示例中的值只适合本地占位；真实 OAuth、Turnstile、Push 或 Stripe 配置需要由开发者自行填写。
+示例中的值只适合本地占位；Google OAuth 是 Web 登录必需配置，Apple OAuth 和 Turnstile 是可选能力。
+真实 OAuth、Turnstile、Push 或 Stripe 配置需要由开发者自行填写。
 
 下表只有变量名和用途，不含真实环境值：
 
@@ -25,11 +26,27 @@ cp apps/web/.env.example apps/web/.env
 | `PUBLIC_BASE_URL`, `AUTH_BASE_URL`, `SHARE_BASE_URL` | 必填 | 本地 Web / 登录 / 分享入口 |
 | `DWEB_API_BASE_URL` | 必填 | 独立 backend API 地址 |
 | `COOKIE_DOMAIN`, `COOKIE_TOKEN_NAME` | 必填 | 本地登录 cookie 配置 |
-| `GOOGLE_OAUTH_CLIENT_ID`, `APPLE_OAUTH_CLIENT_ID`, `TURNSTILE_SITE_KEY` | 需声明，可留空 | OAuth / Turnstile 公共配置；本地占位构建可留空 |
+| `GOOGLE_OAUTH_CLIENT_ID` | 必填 | Google Web OAuth 客户端 ID |
+| `APPLE_OAUTH_CLIENT_ID` | 可选 | 配置后显示 Apple 登录按钮；留空时不显示 |
+| `TURNSTILE_SITE_KEY` | 可选 | 配置后启用 Turnstile；留空时跳过相关验证 |
 | `SLAX_BACKEND_DIR` | 仅 Web dev 必填 | 独立 backend 检出目录的绝对路径，仅本地 Worker 联调需要 |
 | `SLAX_ENV` | 可选，默认 development | development、preview、beta、production |
 
 其他可选项以 `env.schema.ts` 为准。不要把服务端密钥放入前端公开配置。
+
+## 创建 Google OAuth 客户端 ID
+
+Google 登录必须使用 Web 应用类型的 OAuth 客户端 ID。创建流程如下：
+
+1. 打开 [Google Cloud Console](https://console.cloud.google.com/)，创建或选择项目。
+2. 进入 **APIs & Services → OAuth consent screen**，完成应用名称、支持邮箱和必要的授权范围配置。
+3. 进入 **APIs & Services → Credentials → Create Credentials → OAuth client ID**。
+4. 应用类型选择 **Web application**。
+5. 在 **Authorized JavaScript origins** 中填写 `PUBLIC_BASE_URL`，例如 `http://localhost:3000`。
+6. 在 **Authorized redirect URIs** 中填写 `${AUTH_BASE_URL}/auth`，例如 `http://localhost:3000/auth`。
+7. 复制生成的 **Client ID** 到 `GOOGLE_OAUTH_CLIENT_ID`。
+
+这里只需要公开的 Client ID。Client Secret 属于服务端凭据，不要放进 `apps/web/.env`、`.env.example` 或浏览器产物。
 
 ## 后端边界
 
@@ -53,8 +70,11 @@ export SHARE_BASE_URL=http://localhost:3000
 export DWEB_API_BASE_URL=http://localhost:8787
 export COOKIE_DOMAIN=localhost
 export COOKIE_TOKEN_NAME=slax_test
-export GOOGLE_OAUTH_CLIENT_ID=
+# Google OAuth Client ID 必填；创建方法见上文。
+export GOOGLE_OAUTH_CLIENT_ID=your-google-client-id
+# Apple 登录可选；留空时不显示 Apple 登录按钮。
 export APPLE_OAUTH_CLIENT_ID=
+# Turnstile 可选；留空时跳过相关验证。
 export TURNSTILE_SITE_KEY=
 ```
 

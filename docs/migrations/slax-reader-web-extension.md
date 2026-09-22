@@ -33,9 +33,10 @@ After the pinned snapshot, source `develop` merged PR #1601 (`50de9f64`), which 
 legacy `push.yml` environment generation and adds deployment notes for Cloudflare-only Web
 configuration. v2 currently has no equivalent legacy workflow or deployment document, so this
 PR is recorded as a follow-up rather than copied into the migration. When v2 adds its own CI or
-deployment pipeline, it should carry over the behavior: Web-only OAuth/Turnstile values may be
-empty during checks, shared and Extension variables remain required, and the temporary `.env`
-must exist before dependency installation. The source repository remains unchanged.
+deployment pipeline, it should carry over the behavior: the Web Google OAuth client ID is required,
+while Apple OAuth and Turnstile may be empty during checks; shared and Extension variables remain
+required, and the temporary `.env` must exist before dependency installation. The source repository
+remains unchanged.
 
 ## Exclusions
 

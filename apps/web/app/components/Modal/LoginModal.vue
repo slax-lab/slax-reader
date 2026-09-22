@@ -19,7 +19,7 @@
 
           <div class="auth-btns">
             <GoogleLoginButton :redirect="redirect" />
-            <AppleLoginButton :redirect="redirect" />
+            <AppleLoginButton v-if="appleLoginEnabled" :redirect="redirect" />
           </div>
 
           <p class="auth-tos">
@@ -46,6 +46,8 @@ defineProps({
 })
 
 const emits = defineEmits(['close', 'dismiss', 'success'])
+const runtimeConfig = useRuntimeConfig().public
+const appleLoginEnabled = Boolean(runtimeConfig.APPLE_OAUTH_CLIENT_ID)
 
 const isLocked = useScrollLock(window)
 const appear = ref(false)

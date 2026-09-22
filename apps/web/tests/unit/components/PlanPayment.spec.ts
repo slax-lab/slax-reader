@@ -4,7 +4,7 @@
 // 依赖 mock 策略：
 //   - @stripe/stripe-js：全局 mock 已在 tests/setup/fork.ts 提供（once('ready') 同步 fire）
 //   - request()：PlanPayment 内 auto-import，通过 mockNuxtImport 覆盖
-//   - NuxtTurnstile：全局注册组件，通过 global.components stub
+//   - NuxtTurnstile：全局注册组件，通过 global.stubs stub
 //   - useNuxtApp().$config：runtimeConfig mock
 import { mountWithApp } from '../../setup/mount'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
@@ -20,7 +20,8 @@ const runtimeConfig = {
     STRIPE_PUBLIC_KEY: 'pk_test',
     STRIPE_SUB_PRICE_ID: 'price_sub',
     STRIPE_ONCE_PRICE_ID: 'price_once',
-    STRIPE_ONTIME_PRICE_ID: 'price_ontime'
+    STRIPE_ONTIME_PRICE_ID: 'price_ontime',
+    TURNSTILE_SITE_KEY: 'turnstile-site-key'
   }
 }
 mockNuxtImport('useRuntimeConfig', () => () => runtimeConfig)
@@ -37,13 +38,14 @@ describe('PlanPayment', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockPost.mockResolvedValue({ client_secret: 'cs_test_secret' })
+    runtimeConfig.public.TURNSTILE_SITE_KEY = 'turnstile-site-key'
   })
 
   it('默认渲染：.plan-payment + .order-summary + .payment-form-wrap 区块', async () => {
     const PlanPayment = await import('~~/app/components/PlanPayment.vue')
     const wrapper = mountWithApp(PlanPayment.default, {
       props: { type: 'sub', priceId: 'price_sub' },
-      global: { components: { NuxtTurnstile: NuxtTurnstileStub } }
+      global: { stubs: { NuxtTurnstile: NuxtTurnstileStub } }
     })
 
     expect(wrapper.find('.plan-payment').exists()).toBe(true)
@@ -55,7 +57,7 @@ describe('PlanPayment', () => {
     const PlanPayment = await import('~~/app/components/PlanPayment.vue')
     const wrapper = mountWithApp(PlanPayment.default, {
       props: { type: 'once', priceId: 'price_once' },
-      global: { components: { NuxtTurnstile: NuxtTurnstileStub } }
+      global: { stubs: { NuxtTurnstile: NuxtTurnstileStub } }
     })
 
     expect(wrapper.find('.order-tip').exists()).toBe(false)
@@ -65,7 +67,7 @@ describe('PlanPayment', () => {
     const PlanPayment = await import('~~/app/components/PlanPayment.vue')
     const wrapper = mountWithApp(PlanPayment.default, {
       props: { type: 'sub', priceId: 'price_sub' },
-      global: { components: { NuxtTurnstile: NuxtTurnstileStub } }
+      global: { stubs: { NuxtTurnstile: NuxtTurnstileStub } }
     })
     // 等 onMounted 内 loadStripe 异步完成，stripe.value 才非 null
     await flushPromises()
@@ -77,11 +79,24 @@ describe('PlanPayment', () => {
     expect(mockPost).toHaveBeenCalled()
   })
 
+  it('Turnstile 未配置时不渲染组件并自动加载支付表单', async () => {
+    runtimeConfig.public.TURNSTILE_SITE_KEY = ''
+    const PlanPayment = await import('~~/app/components/PlanPayment.vue')
+    const wrapper = mountWithApp(PlanPayment.default, {
+      props: { type: 'sub', priceId: 'price_sub' },
+      global: { stubs: { NuxtTurnstile: NuxtTurnstileStub } }
+    })
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'NuxtTurnstile' }).exists()).toBe(false)
+    expect(mockPost).toHaveBeenCalled()
+  })
+
   it('paymentElement ready 后 isReady 为 true', async () => {
     const PlanPayment = await import('~~/app/components/PlanPayment.vue')
     const wrapper = mountWithApp(PlanPayment.default, {
       props: { type: 'sub', priceId: 'price_sub' },
-      global: { components: { NuxtTurnstile: NuxtTurnstileStub } }
+      global: { stubs: { NuxtTurnstile: NuxtTurnstileStub } }
     })
     // 等 onMounted 内 loadStripe 完成
     await flushPromises()
