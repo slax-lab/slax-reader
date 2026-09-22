@@ -54,9 +54,19 @@ const APP_CHECKS = {
 }
 
 const ICONS = { ok: '✓', warn: '⚠', error: '✗', info: '•' }
+const ANSI = {
+  title: '\u001b[1;36m',
+  heading: '\u001b[1m',
+  muted: '\u001b[2m',
+  ok: '\u001b[32m',
+  warn: '\u001b[33m',
+  error: '\u001b[31m',
+  info: '\u001b[36m',
+  reset: '\u001b[0m'
+}
 
 function parseArgs(argv) {
-  const options = { app: 'all', env: process.env.SLAX_ENV || 'development', help: false }
+  const options = { app: 'all', env: process.env.SLAX_ENV || 'development', help: false, color: undefined }
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index]
@@ -66,6 +76,10 @@ function parseArgs(argv) {
       options.app = argv[++index]
     } else if (argument === '--env') {
       options.env = argv[++index]
+    } else if (argument === '--color') {
+      options.color = true
+    } else if (argument === '--no-color') {
+      options.color = false
     } else {
       throw new Error(`未知参数：${argument}`)
     }
@@ -79,6 +93,17 @@ function parseArgs(argv) {
   }
 
   return options
+}
+
+function shouldUseColor(explicit) {
+  if (explicit !== undefined) return explicit
+  if (process.env.FORCE_COLOR !== undefined && process.env.FORCE_COLOR !== '0') return true
+  if (process.env.NO_COLOR !== undefined || process.env.FORCE_COLOR === '0') return false
+  return Boolean(process.stdout.isTTY)
+}
+
+function paint(value, style, colorEnabled = shouldUseColor()) {
+  return colorEnabled ? `${ANSI[style]}${value}${ANSI.reset}` : value
 }
 
 function parseEnvText(text) {
@@ -220,75 +245,110 @@ function checkRuntime(root = REPO_ROOT) {
   return issues
 }
 
-function printIssue(issue) {
-  console.log(`${ICONS[issue.level]} ${issue.message}`)
+function formatIssue(issue, colorEnabled = shouldUseColor()) {
+  const icon = paint(ICONS[issue.level], issue.level, colorEnabled)
+  const message = paint(issue.message, issue.level, colorEnabled)
+  return `${icon} ${message}`
 }
 
-function printHelp() {
-  console.log(`用法：pnpm preflight [选项]
+function printIssue(issue, indent = '', colorEnabled = shouldUseColor()) {
+  console.log(`${indent}${formatIssue(issue, colorEnabled)}`)
+}
 
-检查 Node.js、pnpm、workspace 依赖和 Web/Extension 的必要环境变量。
-不会输出环境变量值，也不会检查或启动 backend。
+function printSection(title, detail, colorEnabled) {
+  const suffix = detail ? ` ${paint(`· ${detail}`, 'muted', colorEnabled)}` : ''
+  console.log(`\n${paint(`▸ ${title}`, 'title', colorEnabled)}${suffix}`)
+}
+
+function printAppHeading(app, colorEnabled) {
+  console.log(`\n  ${paint(app.label, 'heading', colorEnabled)} ${paint(`(${app.directory})`, 'muted', colorEnabled)}`)
+}
+
+function printHelp({ color = undefined } = {}) {
+  const colorEnabled = shouldUseColor(color)
+  console.log(`${paint('用法：pnpm preflight [选项]', 'title', colorEnabled)}
+
+${paint('检查 Node.js、pnpm、workspace 依赖和 Web/Extension 的必要环境变量。', 'muted', colorEnabled)}
+${paint('不会输出环境变量值，也不会检查或启动 backend。', 'muted', colorEnabled)}
 
 选项：
   --app web|extension|all   只检查一个前端应用（默认 all）
   --env development|preview|beta|production
                             检查指定环境（默认读取 SLAX_ENV，未设置时为 development）
+  --color / --no-color      强制开启 / 关闭终端颜色
   -h, --help                显示帮助`)
 }
 
 function run(options, root = REPO_ROOT) {
   const issues = []
+  const colorEnabled = shouldUseColor(options.color)
   const add = issue => {
     issues.push(issue)
-    printIssue(issue)
+    printIssue(issue, '', colorEnabled)
   }
 
-  console.log('Slax Reader preflight check\n')
-  console.log('运行环境')
+  console.log(`${paint('Slax Reader preflight', 'title', colorEnabled)}\n${paint('检查本机是否已经准备好运行前端应用。', 'muted', colorEnabled)}`)
+  printSection('运行环境', undefined, colorEnabled)
   for (const issue of checkRuntime(root)) add(issue)
 
   if (existsSync(resolve(root, '.env'))) {
-    add({ level: 'warn', message: '发现根目录 .env；当前 Web/Extension loader 不会自动读取它，请将配置放到对应 app 目录或通过进程环境传入' })
+    const issue = { level: 'warn', message: '发现根目录 .env；当前 Web/Extension loader 不会自动读取它，请将配置放到对应 app 目录或通过进程环境传入' }
+    issues.push(issue)
+    printIssue(issue, '', colorEnabled)
   }
 
-  console.log('\n依赖安装')
+  printSection('依赖安装', undefined, colorEnabled)
   const selectedApps = options.app === 'all' ? Object.values(APP_CHECKS) : [APP_CHECKS[options.app]]
   for (const app of selectedApps) {
-    console.log(`\n${app.label}`)
-    for (const issue of checkInstalledDependencies(app, root)) add(issue)
+    printAppHeading(app, colorEnabled)
+    for (const issue of checkInstalledDependencies(app, root)) {
+      issues.push(issue)
+      printIssue(issue, '  ', colorEnabled)
+    }
   }
 
-  console.log(`\n环境变量（${options.env}）`)
+  printSection('环境变量', options.env, colorEnabled)
   for (const app of selectedApps) {
     const appDirectory = resolve(root, app.directory)
     const env = readEnvSources(appDirectory, options.env)
-    console.log(`\n${app.label}：${env.files.length ? env.files.join('、') : '未找到 app 环境文件（也可能来自进程环境）'}`)
+    printAppHeading(app, colorEnabled)
+    console.log(`  ${paint(env.files.length ? `读取：${env.files.join('、')}` : '未找到 app 环境文件（也可能来自进程环境）', 'muted', colorEnabled)}`)
     for (const variable of app.variables) {
       const issue = validateVariable(variable, env.values)
-      add(issue)
+      issues.push(issue)
+      printIssue(issue, '  ', colorEnabled)
     }
     if (app.label === 'Web') {
-      add({ level: 'info', message: 'SLAX_BACKEND_DIR 仅用于真实 backend 联调；当前 preflight 不将它视为前端配置失败' })
+      const issue = { level: 'info', message: 'SLAX_BACKEND_DIR 仅用于真实 backend 联调；当前 preflight 不将它视为前端配置失败' }
+      issues.push(issue)
+      printIssue(issue, '  ', colorEnabled)
     }
   }
 
   const errors = issues.filter(issue => issue.level === 'error').length
   const warnings = issues.filter(issue => issue.level === 'warn').length
-  console.log(`\n结果：${errors ? `${errors} 个阻塞问题` : '没有阻塞问题'}${warnings ? `，${warnings} 个提醒` : ''}`)
+  const summary = errors
+    ? `结果：${errors} 个阻塞问题${warnings ? `，${warnings} 个提醒` : ''}`
+    : warnings
+      ? `结果：检查通过，${warnings} 个提醒`
+      : '结果：所有前端检查通过'
+  const summaryLevel = errors ? 'error' : warnings ? 'warn' : 'ok'
+  console.log(`\n${paint(summary, summaryLevel, colorEnabled)}`)
   if (errors) {
-    console.log('请先处理标记为 ✗ 的项目，再运行 pnpm preflight。')
+    console.log(paint('建议：先处理标记为 ✗ 的项目，再运行 pnpm preflight。', 'muted', colorEnabled))
+  } else if (warnings) {
+    console.log(paint('提醒不会阻止本地前端命令，但请在真实联调前确认配置。', 'muted', colorEnabled))
   }
   return errors ? 1 : 0
 }
 
-export { APP_CHECKS, checkInstalledDependencies, checkRuntime, parseArgs, parseEnvText, readEnvSources, run, validateVariable }
+export { APP_CHECKS, checkInstalledDependencies, checkRuntime, formatIssue, parseArgs, parseEnvText, paint, readEnvSources, run, shouldUseColor, validateVariable }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const options = parseArgs(process.argv.slice(2))
     if (options.help) {
-      printHelp()
+      printHelp(options)
       process.exitCode = 0
     } else {
       process.exitCode = run(options)

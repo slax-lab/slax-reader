@@ -4,6 +4,7 @@
 - [x] 1.2 Implement runtime, workspace dependency, and app-local environment checks in `tooling/preflight.mjs`.
 - [x] 1.3 Add unit tests for environment parsing, precedence, and validation.
 - [x] 1.4 Rename the public setup check to `preflight` and verify no old command or tooling filename remains in active documentation.
+- [x] 1.5 Add readable section hierarchy and optional terminal colors; verify colored and plain-text output paths.
 
 ## 2. Onboarding
 
