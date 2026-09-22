@@ -37,3 +37,19 @@ The preflight check SHALL inspect `.env`, `.env.<SLAX_ENV>`, and `.env.<SLAX_ENV
 - **WHEN** a contributor passes `--app web`, `--app extension`, or `--env <profile>`
 - **THEN** the preflight check checks only the selected app or profile
 - **AND** it does not rewrite any environment file
+
+### Requirement: Preflight output distinguishes check states
+
+The preflight command SHALL group its report into readable sections, distinguish successful, warning, blocking, and informational states, and omit terminal control sequences when color is disabled or output is non-interactive.
+
+#### Scenario: Contributor runs the check in an interactive terminal
+
+- **WHEN** a contributor runs `pnpm preflight` in a terminal that supports color
+- **THEN** section headings and check states use distinct visual styling
+- **AND** the report keeps the app, dependency, and environment checks visually separate
+
+#### Scenario: Contributor redirects or disables colored output
+
+- **WHEN** a contributor runs `pnpm preflight --no-color` or redirects output to a non-interactive stream
+- **THEN** the report remains readable as plain text
+- **AND** it contains no ANSI escape sequences

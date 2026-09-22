@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { parseEnvText, readEnvSources, validateVariable } from './preflight.mjs'
+import { formatIssue, parseArgs, parseEnvText, readEnvSources, validateVariable } from './preflight.mjs'
 
 test('parseEnvText reads export syntax and quoted values without exposing values', () => {
   const values = parseEnvText(`\n# comment\nexport PUBLIC_BASE_URL="http://localhost:3000"\nCOOKIE_DOMAIN=localhost\n`)
@@ -36,4 +36,14 @@ test('validateVariable distinguishes missing, invalid, placeholder, and valid va
   assert.equal(validateVariable({ name: 'PUBLIC_BASE_URL', kind: 'url' }, { PUBLIC_BASE_URL: 'localhost' }).level, 'error')
   assert.equal(validateVariable({ name: 'GOOGLE_OAUTH_CLIENT_ID', kind: 'text', emptyIsPlaceholder: true }, { GOOGLE_OAUTH_CLIENT_ID: '' }).level, 'warn')
   assert.equal(validateVariable({ name: 'COOKIE_TOKEN_NAME', kind: 'cookie-name' }, { COOKIE_TOKEN_NAME: 'slax_test' }).level, 'ok')
+})
+
+test('formatIssue colors statuses only when requested', () => {
+  assert.equal(formatIssue({ level: 'ok', message: 'ready' }, false), '✓ ready')
+  assert.match(formatIssue({ level: 'error', message: 'missing' }, true), /\u001b\[31m✗\u001b\[0m \u001b\[31mmissing\u001b\[0m/)
+})
+
+test('parseArgs supports explicit color controls', () => {
+  assert.equal(parseArgs(['--color']).color, true)
+  assert.equal(parseArgs(['--no-color']).color, false)
 })

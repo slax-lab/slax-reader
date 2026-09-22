@@ -39,6 +39,7 @@ It checks frontend setup only, never prints environment values, and does not sta
 `pnpm preflight --app web`, `pnpm preflight --app extension`, or `pnpm preflight --env preview` to narrow the check.
 The loaders read `.env`, `.env.<SLAX_ENV>`, and `.env.<SLAX_ENV>.local` inside each app directory; a root `.env`
 is not loaded automatically and the preflight check will warn about it.
+Interactive terminals use colors to distinguish passing, warning, and blocking checks; use `pnpm preflight --no-color` for plain text.
 
 Workspace installation may include tools from the other app; app-specific commands do not imply isolated dependency installation. Configuration schemas are in [Web](../../apps/web/env.schema.ts) and [Extension](../../apps/extension/env.schema.ts). Create your own configuration under the relevant app or supply process environment variables. Do not copy environment files from the old repository or commit credentials.
 

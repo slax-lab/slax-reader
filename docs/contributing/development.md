@@ -48,6 +48,7 @@ pnpm preflight
 `pnpm preflight --app web`、`pnpm preflight --app extension` 或 `pnpm preflight --env preview`。
 当前 loader 读取的是各 app 目录中的 `.env`、`.env.<SLAX_ENV>` 和 `.env.<SLAX_ENV>.local`；根目录 `.env`
 不会自动生效，preflight 会对此给出提醒。
+交互式终端会用颜色区分通过、提醒和阻塞项目；需要纯文本时使用 `pnpm preflight --no-color`。
 
 安装整个 workspace 可能包含另一个 app 的工具依赖；按应用运行命令不等于依赖安装完全隔离。
 配置字段见 [Web](../apps/web/development.md) 或 [Extension](../apps/extension/development.md)，schema 分别在
