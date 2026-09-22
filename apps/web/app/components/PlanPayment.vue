@@ -16,7 +16,7 @@
       <form id="payment-form">
         <div :id="paymentId"></div>
         <Transition name="opacity">
-          <NuxtTurnstile class="turnstile-overlay" v-show="showTurnstile" v-model="turnstileCallbackToken" :options="{ theme: 'light' }" />
+          <NuxtTurnstile v-if="turnstileEnabled" class="turnstile-overlay" v-show="showTurnstile" v-model="turnstileCallbackToken" :options="{ theme: 'light' }" />
         </Transition>
         <Transition name="opacity">
           <button id="submit" v-show="isReady" type="button" @click.prevent="handleSubmit">
@@ -54,7 +54,8 @@ const stripe = ref<Stripe | null>(null)
 const elements = ref<StripeElements>()
 const paymentElement = ref<StripePaymentElement>()
 const paymentId = 'payment-element'
-const showTurnstile = ref(true)
+const turnstileEnabled = Boolean(useRuntimeConfig().public.TURNSTILE_SITE_KEY)
+const showTurnstile = ref(turnstileEnabled)
 const paymentSuccess = ref(false)
 const turnstileCallbackToken = ref('')
 const props = defineProps({
@@ -79,6 +80,9 @@ watch(
 onMounted(async () => {
   const $config = useNuxtApp().$config.public
   stripe.value = await loadStripe($config.STRIPE_PUBLIC_KEY as string)
+  if (!turnstileEnabled) {
+    await loadPayment('')
+  }
 })
 
 onUnmounted(() => {

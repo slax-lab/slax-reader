@@ -58,7 +58,8 @@ pnpm preflight
 加载顺序是 `.env` → `.env.<SLAX_ENV>` → `.env.<SLAX_ENV>.local`。当前 loader 没有开启 dotenv 的 `override`，
 因此进程变量优先，其后先读到的同名值保留；不能因为文件名带 `.local` 就假定它会覆盖前面文件。
 
-`preflight` 中的 `（必填）` 表示该变量必须有非空且格式正确的值；`（需声明，可留空）` 表示 Web 的 OAuth / Turnstile 变量必须声明，但本地构建可以留空。
+`preflight` 中的 `（必填）` 表示该变量必须有非空且格式正确的值；`（可选）` 表示该能力未配置时会被关闭，不会阻塞前端检查。
+Web 的 `GOOGLE_OAUTH_CLIENT_ID` 必须配置，`APPLE_OAUTH_CLIENT_ID` 和 `TURNSTILE_SITE_KEY` 可选；Google OAuth Client ID 的创建步骤见 [Web 开发说明](../apps/web/development.md#创建-google-oauth-客户端-id)。
 `SLAX_BACKEND_DIR` 只在运行 `pnpm web -- dev` 做真实 backend 联调时必填，其他前端检查不会因此失败。
 
 ## 运行一个应用

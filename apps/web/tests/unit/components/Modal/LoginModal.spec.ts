@@ -9,8 +9,15 @@ import { ref } from 'vue'
 
 import LoginModal from '~~/app/components/Modal/LoginModal.vue'
 
+import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const runtimeConfig = {
+  app: { baseURL: '/' },
+  public: { APPLE_OAUTH_CLIENT_ID: 'apple-client-id' }
+}
+mockNuxtImport('useRuntimeConfig', () => () => runtimeConfig)
 
 vi.mock('@vueuse/core', async () => {
   const actual = await vi.importActual<any>('@vueuse/core')
@@ -23,6 +30,7 @@ vi.mock('@vueuse/core', async () => {
 describe('Modal/LoginModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    runtimeConfig.public.APPLE_OAUTH_CLIENT_ID = 'apple-client-id'
   })
 
   afterEach(() => {
@@ -45,6 +53,19 @@ describe('Modal/LoginModal', () => {
     const wrapper = mountWithApp(LoginModal, { props: { redirect: '/bar' } })
     const btn = wrapper.findComponent({ name: 'GoogleLoginButton' })
     expect(btn.props('redirect')).toBe('/bar')
+  })
+
+  it('未配置 Apple OAuth 时隐藏 AppleLoginButton', () => {
+    runtimeConfig.public.APPLE_OAUTH_CLIENT_ID = ''
+    const wrapper = mountWithApp(LoginModal, { props: { redirect: '/foo' } })
+
+    expect(wrapper.findComponent({ name: 'AppleLoginButton' }).exists()).toBe(false)
+  })
+
+  it('配置 Apple OAuth 时显示 AppleLoginButton', () => {
+    const wrapper = mountWithApp(LoginModal, { props: { redirect: '/foo' } })
+
+    expect(wrapper.findComponent({ name: 'AppleLoginButton' }).exists()).toBe(true)
   })
 
   it('close button click → appear=false', async () => {

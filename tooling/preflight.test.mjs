@@ -31,11 +31,24 @@ test('readEnvSources follows app loader precedence and process variables win', (
   rmSync(appDirectory, { recursive: true, force: true })
 })
 
-test('validateVariable distinguishes missing, invalid, placeholder, and valid values', () => {
+test('validateVariable distinguishes required and optional configuration states', () => {
   assert.match(validateVariable({ name: 'PUBLIC_BASE_URL', kind: 'url', required: true }, {}).message, /PUBLIC_BASE_URL（必填）\s+未配置/)
   assert.match(validateVariable({ name: 'PUBLIC_BASE_URL', kind: 'url', required: true }, { PUBLIC_BASE_URL: 'localhost' }).message, /PUBLIC_BASE_URL（必填）\s+不是有效的 http\/https 地址/)
-  assert.match(validateVariable({ name: 'GOOGLE_OAUTH_CLIENT_ID', kind: 'text', required: true, declarationOnly: true, emptyIsPlaceholder: true }, { GOOGLE_OAUTH_CLIENT_ID: '' }).message, /GOOGLE_OAUTH_CLIENT_ID（需声明，可留空）\s+为空/)
+  assert.match(validateVariable({ name: 'GOOGLE_OAUTH_CLIENT_ID', kind: 'text', required: true }, { GOOGLE_OAUTH_CLIENT_ID: '' }).message, /GOOGLE_OAUTH_CLIENT_ID（必填）\s+为空/)
+  assert.equal(validateVariable({ name: 'APPLE_OAUTH_CLIENT_ID', kind: 'text', required: false }, {}).level, 'info')
+  assert.match(validateVariable({ name: 'TURNSTILE_SITE_KEY', kind: 'text', required: false }, { TURNSTILE_SITE_KEY: '' }).message, /TURNSTILE_SITE_KEY（可选）\s+未配置/)
   assert.match(validateVariable({ name: 'COOKIE_TOKEN_NAME', kind: 'cookie-name', required: true }, { COOKIE_TOKEN_NAME: 'slax_test' }).message, /COOKIE_TOKEN_NAME（必填）\s+已配置/)
+})
+
+test('Web preflight classifies Google as required and Apple/Turnstile as optional', () => {
+  const variables = Object.fromEntries(APP_CHECKS.web.variables.map(variable => [variable.name, variable]))
+
+  assert.equal(variables.GOOGLE_OAUTH_CLIENT_ID.required, true)
+  assert.equal(variables.APPLE_OAUTH_CLIENT_ID.required, false)
+  assert.equal(variables.TURNSTILE_SITE_KEY.required, false)
+  assert.equal(validateVariable(variables.GOOGLE_OAUTH_CLIENT_ID, {}).level, 'error')
+  assert.equal(validateVariable(variables.APPLE_OAUTH_CLIENT_ID, {}).level, 'info')
+  assert.equal(validateVariable(variables.TURNSTILE_SITE_KEY, {}).level, 'info')
 })
 
 test('formatIssue colors statuses only when requested', () => {

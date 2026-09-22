@@ -27,9 +27,9 @@ const APP_CHECKS = {
       { name: 'DWEB_API_BASE_URL', kind: 'url', required: true },
       { name: 'COOKIE_DOMAIN', kind: 'text', required: true },
       { name: 'COOKIE_TOKEN_NAME', kind: 'cookie-name', required: true },
-      { name: 'GOOGLE_OAUTH_CLIENT_ID', kind: 'text', required: true, declarationOnly: true, emptyIsPlaceholder: true },
-      { name: 'APPLE_OAUTH_CLIENT_ID', kind: 'text', required: true, declarationOnly: true, emptyIsPlaceholder: true },
-      { name: 'TURNSTILE_SITE_KEY', kind: 'text', required: true, declarationOnly: true, emptyIsPlaceholder: true }
+      { name: 'GOOGLE_OAUTH_CLIENT_ID', kind: 'text', required: true },
+      { name: 'APPLE_OAUTH_CLIENT_ID', kind: 'text', required: false },
+      { name: 'TURNSTILE_SITE_KEY', kind: 'text', required: false }
     ]
   },
   extension: {
@@ -155,7 +155,7 @@ function readEnvSources(appDirectory, envName, processEnvironment = process.env)
 }
 
 function validateVariable(variable, values) {
-  const label = `${variable.name}${variable.declarationOnly ? '（需声明，可留空）' : variable.required === false ? '' : '（必填）'}`
+  const label = `${variable.name}${variable.required === false ? '（可选）' : '（必填）'}`
   const value = values[variable.name]
   if (value === undefined) {
     if (variable.required === false) return { level: 'info', message: `${label} 未配置` }
@@ -163,9 +163,7 @@ function validateVariable(variable, values) {
   }
 
   if (value === '') {
-    if (variable.emptyIsPlaceholder) {
-      return { level: 'warn', message: `${label} 为空（允许用于无真实服务的本地构建）` }
-    }
+    if (variable.required === false) return { level: 'info', message: `${label} 未配置（空值视为未启用）` }
     return { level: 'error', message: `${label} 为空` }
   }
 

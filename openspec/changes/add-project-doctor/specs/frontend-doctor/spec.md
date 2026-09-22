@@ -36,7 +36,7 @@ The repository SHALL provide a root `preflight` script, invoked as `pnpm preflig
 
 ### Requirement: Preflight explains required configuration
 
-The preflight report SHALL label the shared URLs, cookie settings, and app-specific API URLs as `（必填）`. Web OAuth client IDs and the Turnstile site key SHALL be labeled `（需声明，可留空）`. Labels SHALL remain visible without color, and optional fields SHALL NOT be presented as universally required.
+The preflight report SHALL label the shared URLs, cookie settings, app-specific API URLs, and Web's Google OAuth client ID as `（必填）`. Web's Apple OAuth client ID and Turnstile site key SHALL be labeled `（可选）`. Labels SHALL remain visible without color, and optional fields SHALL NOT be presented as universally required.
 
 #### Scenario: Required value is missing or invalid
 
@@ -44,12 +44,17 @@ The preflight report SHALL label the shared URLs, cookie settings, and app-speci
 - **THEN** its message includes the variable name and `（必填）`
 - **AND** it remains a blocking error without printing its value
 
-#### Scenario: Web service configuration is absent or empty
+#### Scenario: Google OAuth configuration is absent or empty
 
-- **WHEN** a Web OAuth client ID or Turnstile site key is checked
-- **THEN** its message includes `（需声明，可留空）`
-- **AND** an absent variable remains a blocking error with guidance to declare it
-- **AND** an explicitly empty value remains a warning allowed for local builds
+- **WHEN** `GOOGLE_OAUTH_CLIENT_ID` is absent or empty
+- **THEN** its message includes `（必填）`
+- **AND** it remains a blocking error without printing its value
+
+#### Scenario: Optional Web service configuration is absent or empty
+
+- **WHEN** `APPLE_OAUTH_CLIENT_ID` or `TURNSTILE_SITE_KEY` is absent or empty
+- **THEN** its message includes `（可选）`
+- **AND** it is informational and does not block local frontend checks
 
 #### Scenario: Backend path is needed for development
 

@@ -45,7 +45,7 @@ Workspace installation may include tools from the other app; app-specific comman
 
 The loaders read `.env`, `.env.<SLAX_ENV>`, then `.env.<SLAX_ENV>.local`. They do not enable dotenv's `override`: process values take precedence, then the first file to define a value wins. A `.local` suffix does not currently make a value override earlier files.
 
-In `preflight`, `（必填）` means the variable must have a non-empty, valid value. `（需声明，可留空）` means Web OAuth / Turnstile variables must be declared, but may be empty for local builds. `SLAX_BACKEND_DIR` is required only when running `pnpm web -- dev` for a real backend integration; it does not block other frontend checks.
+In `preflight`, `（必填）` means the variable must have a non-empty, valid value. `（可选）` means the related feature is disabled when the value is absent or empty and does not block frontend checks. Web requires `GOOGLE_OAUTH_CLIENT_ID`; `APPLE_OAUTH_CLIENT_ID` and `TURNSTILE_SITE_KEY` are optional. See the [Web development guide](../apps/web/development.md#创建-google-oauth-客户端-id) for the Google OAuth Client ID creation steps. `SLAX_BACKEND_DIR` is required only when running `pnpm web -- dev` for a real backend integration; it does not block other frontend checks.
 
 | Variable | Used by | Purpose |
 | --- | --- | --- |
@@ -53,7 +53,9 @@ In `preflight`, `（必填）` means the variable must have a non-empty, valid v
 | `COOKIE_DOMAIN`, `COOKIE_TOKEN_NAME` | Both | Matching development session-cookie settings |
 | `DWEB_API_BASE_URL` | Web | Backend API URL |
 | `EXTENSIONS_API_BASE_URL` | Extension | Backend API URL |
-| `GOOGLE_OAUTH_CLIENT_ID`, `APPLE_OAUTH_CLIENT_ID`, `TURNSTILE_SITE_KEY` | Web | Public client configuration |
+| `GOOGLE_OAUTH_CLIENT_ID` | Web | Required Google Web OAuth client ID |
+| `APPLE_OAUTH_CLIENT_ID` | Web | Optional Apple OAuth client ID; empty hides Apple login |
+| `TURNSTILE_SITE_KEY` | Web | Optional Turnstile site key; empty disables Turnstile |
 | `SLAX_BACKEND_DIR` | Web dev server | Absolute path to a separately prepared backend checkout |
 | `SLAX_ENV` | Both | development (default), preview, beta or production |
 
@@ -70,8 +72,11 @@ export DWEB_API_BASE_URL=http://localhost:8787
 export EXTENSIONS_API_BASE_URL=http://localhost:8787
 export COOKIE_DOMAIN=localhost
 export COOKIE_TOKEN_NAME=slax_test
-export GOOGLE_OAUTH_CLIENT_ID=
+# Required Google OAuth Client ID; see the Web development guide.
+export GOOGLE_OAUTH_CLIENT_ID=your-google-client-id
+# Optional: leave empty to hide Apple login.
 export APPLE_OAUTH_CLIENT_ID=
+# Optional: leave empty to disable Turnstile.
 export TURNSTILE_SITE_KEY=
 ```
 
