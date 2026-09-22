@@ -80,11 +80,11 @@ Run these commands from the task worktree root:
 
 | Operation | Web | Extension |
 | --- | --- | --- |
-| Development | `pnpm dev:web` | `pnpm dev:extension` |
-| Type check | `pnpm typecheck:web` | `pnpm typecheck:extension` |
-| Unit tests | `pnpm test:web` | `pnpm test:extension` |
-| Build | `pnpm build:web` | `pnpm build:extension` |
-| Package | — | `pnpm zip:extension` |
+| Development | `pnpm web -- dev` | `pnpm extension -- dev` |
+| Type check | `pnpm web -- typecheck` | `pnpm extension -- typecheck` |
+| Unit tests | `pnpm web -- test` | `pnpm extension -- test` |
+| Build | `pnpm web -- build` | `pnpm extension -- build` |
+| Package | — | `pnpm extension -- zip` |
 
 Prepare Web types before its first checks:
 

@@ -10,7 +10,7 @@
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm dev:extension
+pnpm extension -- dev
 ```
 
 先按[配置与验证说明](../../docs/apps/extension/development.md)设置本地公开配置。
@@ -19,10 +19,10 @@ pnpm dev:extension
 ## 常用命令
 
 ```sh
-pnpm typecheck:extension
-pnpm test:extension
-pnpm build:extension
-pnpm zip:extension
+pnpm extension -- typecheck
+pnpm extension -- test
+pnpm extension -- build
+pnpm extension -- zip
 ```
 
 命令自动构建共享划线引擎；类型检查和测试也会先生成 WXT 类型。
