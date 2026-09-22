@@ -40,11 +40,11 @@ pnpm web -- build
 
 - 页面与交互：`app/pages`、`app/components`、`app/composables`
 - 翻译：`i18n/locales`
-- Web 服务端渲染：`server`（属于 Web，独立 backend 不在此处）
+- Web 服务端渲染：`server`（属于 Web，API 业务代码在 `apps/api`）
 - 应用配置：`config`、`nuxt.config.ts`、`uno.config.ts`
 - 自动测试：`tests`
 - 详细架构：[Web 架构](../../docs/apps/web/architecture.md)
 - 来源和许可证：[迁移记录](../../docs/migrations/slax-reader-web-extension.md)
 
 扩展位于 [`apps/extension`](../extension/README.md)。Web 现有的 `/x/ext-bridge` 协议保留，
-真实 backend 联调留到所有迁移阶段完成后的最终验收。
+真实 API 联调留到所有迁移阶段完成后的最终验收。

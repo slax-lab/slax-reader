@@ -61,9 +61,9 @@ export COOKIE_TOKEN_NAME=slax_test
 pnpm extension -- build
 ```
 
-这些占位值不会启动 backend，不代表登录或同步可以工作。
+这些占位值不会启动 API，不代表登录或同步可以工作。
 默认 `SLAX_ENV=development` 的 `wxt build` 会输出可加载的构建，但不是线上环境配置验收。
-真实 backend 联调统一留到所有迁移阶段完成后的最终验收。
+真实 API 联调统一留到所有迁移阶段完成后的最终验收。
 
 ## 加载与开发
 
@@ -77,7 +77,7 @@ pnpm extension -- build
 
 ## 可选的隔离浏览器测试
 
-现有 offscreen 测试使用本地测试服务，不需要真实 backend。先准备可用于自动化加载扩展的
+现有 offscreen 测试使用本地测试服务，不需要真实 API。先准备可用于自动化加载扩展的
 Chromium 或 Chrome for Testing，然后通过 `CHROME_PATH` 指定可执行文件；
 脚本保留旧项目的 macOS 默认缓存路径，其他机器应显式指定。
 
