@@ -11,9 +11,9 @@ Monorepo 的含义是把这些项目放在同一个仓库里协作，并不意�
 | --- | --- | --- |
 | [`apps/web`](../../apps/web/README.md) | Nuxt 阅读器：页面、组件、本地同步、Web 服务端渲染 | 已迁入 |
 | [`apps/extension`](../../apps/extension/README.md) | WXT 浏览器扩展：后台、网页侧边栏、离屏页面 | 已迁入 |
-| [`apps/backend`](../../apps/backend) | 为 API 服务预留的位置 | 当前占位；实际 backend 仍在外部仓库 |
+| [`apps/api`](../../apps/api) | Cloudflare Workers API 服务 | 已迁入；根命令通过 `pnpm api -- <command>` 转发 |
 | [`apps/cli`](../../apps/cli) | 为命令行应用预留的位置 | 当前占位；不属于本次前端迁移 |
-| [`packages/contracts`](../../packages/contracts/README.md) | 前后端共享的 API、领域数据、事件和路由契约，包名 `@slax-reader/contracts` | Web、Extension，以及后续 backend 使用 |
+| [`packages/contracts`](../../packages/contracts/README.md) | 前后端共享的 API、领域数据、事件和路由契约，包名 `@slax-reader/contracts` | Web、Extension、API 使用 |
 | [`packages/frontend-types`](../../packages/frontend-types/README.md) | Web/Extension 的浏览器端和 local-first 实现类型，包名 `@commons/frontend-types` | 两个前端 app 使用 |
 | [`packages/frontend-utils`](../../packages/frontend-utils/README.md) | 现有公共工具，包名 `@commons/frontend-utils` | 两个 app 使用 |
 | [`packages/selection`](../../packages/selection/README.md) | 划线和标注引擎，包名 `@slax-reader/selection` | 两个 app 使用 |
@@ -50,8 +50,8 @@ flowchart LR
 扩展的后台负责浏览器事件和消息，内容脚本在网页中挂载界面，离屏页面中嵌入 Web 的 `/x/ext-bridge`，
 用它访问 Web 的本地书签数据与会话。仅能加载扩展，不能证明登录或收藏同步已经可用。
 
-`apps/web/server` 属于 Nuxt 的服务端渲染和请求处理，不是迁进来的独立 backend。
-本次没有移动 backend 代码，扩展 ID、消息协议、后端调用和用户功能以原快照为基准保留。
+`apps/web/server` 属于 Nuxt 的服务端渲染和请求处理，API 业务代码位于 `apps/api`。
+Web 与 Extension 通过 `packages/contracts` 使用共享的 API 契约；扩展 ID、消息协议、后端调用和用户功能以迁移快照为基准保留。
 细节分别见 [Web 架构](../apps/web/architecture.md) 与 [Extension 架构](../apps/extension/architecture.md)。
 
 ## 配置和文档放在哪里
@@ -72,5 +72,5 @@ Nuxt 还在 [`content.config.ts`](../../apps/web/content.config.ts) 中配置了
 ## 当前能做什么
 
 文案反馈和文档修订可以在线参与。本地类型检查、单元测试和构建已有阶段验证；
-真实业务仍需要开发配置与apps/api backend。当前没有自动 PR 预览、统一一键启动器或免后端演示环境。
+真实业务仍需要开发配置与 `apps/api` 的联调环境。当前没有自动 PR 预览、统一一键启动器或免后端演示环境。
 Xcode / `better-sqlite3` 完整安装问题与真实业务联调留在[最终验收清单](../migrations/final-verification.md)。

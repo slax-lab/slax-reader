@@ -194,7 +194,8 @@ function checkRuntime(root = REPO_ROOT) {
 
   const packageManager = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')).packageManager || ''
   const expectedPnpm = packageManager.startsWith('pnpm@') ? packageManager.slice('pnpm@'.length) : null
-  const result = spawnSync('pnpm', ['--version'], { cwd: root, encoding: 'utf8' })
+  const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
+  const result = spawnSync(pnpmCommand, ['--version'], { cwd: root, encoding: 'utf8' })
   if (result.error || result.status !== 0) {
     issues.push({ level: 'error', message: '找不到 pnpm，请安装项目要求的 pnpm 版本' })
   } else {

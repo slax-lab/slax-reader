@@ -2,7 +2,7 @@
 
 [中文](development.md) · [Contributing](README.en.md) · [Documentation](../README.md)
 
-Choose one app first: `apps/web` is the Nuxt reader; `apps/extension` is the WXT browser extension. You can work on either without taking on backend migration, but login and bookmark synchronization still need a working development backend and configuration.
+Choose one app first: `apps/web` is the Nuxt reader, `apps/extension` is the WXT browser extension, and `apps/api` is the Cloudflare Workers API. You can work on either frontend app independently, but login and bookmark synchronization still need a working development API and configuration.
 
 ## Create a task worktree
 
@@ -146,6 +146,6 @@ Generated files such as `AGENTS.md`, `CLAUDE.md`, `.agents` and `.codex` must no
 | --- | --- |
 | Missing `.nuxt` / `.wxt` types | Run `pnpm --filter @apps/slax-reader-dweb type` or `pnpm --filter @apps/slax-reader-extensions type` |
 | Missing selection `dist` | Run `pnpm --filter @slax-reader/selection build`, or use an app command that prepares it |
-| Missing backend path/local state | Prepare the external development backend; without it, run checks that do not need the dev server |
+| Missing API path/local state | Run `pnpm api -- config:init` and prepare `deploy/local/api.toml`; without it, run checks that do not need the dev server |
 | macOS install stops at `better-sqlite3` / Xcode license | Record Node/system versions and the error; see [remaining verification](../migrations/final-verification.md). Skipping scripts is not a full-install pass |
 | Need a PR preview | No automatic PR preview deployment is configured; ask the author for a test environment or matching build |
