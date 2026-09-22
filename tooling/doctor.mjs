@@ -225,7 +225,7 @@ function printIssue(issue) {
 }
 
 function printHelp() {
-  console.log(`用法：pnpm run doctor [选项]
+  console.log(`用法：pnpm run setup:check [选项]
 
 检查 Node.js、pnpm、workspace 依赖和 Web/Extension 的必要环境变量。
 不会输出环境变量值，也不会检查或启动 backend。
@@ -244,7 +244,7 @@ function run(options, root = REPO_ROOT) {
     printIssue(issue)
   }
 
-  console.log('Slax Reader doctor\n')
+  console.log('Slax Reader setup check\n')
   console.log('运行环境')
   for (const issue of checkRuntime(root)) add(issue)
 
@@ -269,7 +269,7 @@ function run(options, root = REPO_ROOT) {
       add(issue)
     }
     if (app.label === 'Web') {
-      add({ level: 'info', message: 'SLAX_BACKEND_DIR 仅用于真实 backend 联调；当前 doctor 不将它视为前端配置失败' })
+      add({ level: 'info', message: 'SLAX_BACKEND_DIR 仅用于真实 backend 联调；当前 setup check 不将它视为前端配置失败' })
     }
   }
 
@@ -277,7 +277,7 @@ function run(options, root = REPO_ROOT) {
   const warnings = issues.filter(issue => issue.level === 'warn').length
   console.log(`\n结果：${errors ? `${errors} 个阻塞问题` : '没有阻塞问题'}${warnings ? `，${warnings} 个提醒` : ''}`)
   if (errors) {
-    console.log('请先处理标记为 ✗ 的项目，再运行 pnpm run doctor。')
+    console.log('请先处理标记为 ✗ 的项目，再运行 pnpm run setup:check。')
   }
   return errors ? 1 : 0
 }
@@ -294,7 +294,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       process.exitCode = run(options)
     }
   } catch (error) {
-    console.error(`doctor 无法运行：${error instanceof Error ? error.message : String(error)}`)
+    console.error(`setup check 无法运行：${error instanceof Error ? error.message : String(error)}`)
     process.exitCode = 2
   }
 }

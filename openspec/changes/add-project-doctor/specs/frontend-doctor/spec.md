@@ -4,13 +4,13 @@ Provide a safe root command that explains whether a contributor can start fronte
 
 ## ADDED Requirements
 
-### Requirement: Root doctor command reports frontend setup
+### Requirement: Root setup check reports frontend setup
 
-The repository SHALL provide a root `doctor` script, invoked as `pnpm run doctor`, backed by a script under `tooling/`, that checks the frontend runtime, pnpm workspace installation, and required Web and Extension environment variables without starting or modifying the backend. Documentation SHALL explain that `pnpm doctor` is pnpm's separate built-in command.
+The repository SHALL provide a root `setup:check` script, invoked as `pnpm run setup:check`, backed by a script under `tooling/`, that checks the frontend runtime, pnpm workspace installation, and required Web and Extension environment variables without starting or modifying the backend.
 
 #### Scenario: Dependencies are not installed
 
-- **WHEN** a contributor runs `pnpm run doctor` before installing the workspace
+- **WHEN** a contributor runs `pnpm run setup:check` before installing the workspace
 - **THEN** the command reports that the pnpm installation marker or required workspace links are missing
 - **AND** it suggests running `pnpm install`
 - **AND** it exits with a non-zero status
@@ -28,7 +28,7 @@ The repository SHALL provide a root `doctor` script, invoked as `pnpm run doctor
 - **THEN** the command reports backend integration as informational
 - **AND** it does not fail the frontend setup check
 
-### Requirement: Doctor follows the existing environment boundary
+### Requirement: Setup check follows the existing environment boundary
 
 The doctor SHALL inspect `.env`, `.env.<SLAX_ENV>`, and `.env.<SLAX_ENV>.local` inside each selected app directory in the same order as the current loaders. Process environment values SHALL take precedence. A root `.env` SHALL be reported as a reminder because the current app loaders do not automatically read it.
 
