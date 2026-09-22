@@ -45,6 +45,8 @@ Workspace installation may include tools from the other app; app-specific comman
 
 The loaders read `.env`, `.env.<SLAX_ENV>`, then `.env.<SLAX_ENV>.local`. They do not enable dotenv's `override`: process values take precedence, then the first file to define a value wins. A `.local` suffix does not currently make a value override earlier files.
 
+In `preflight`, `（必填）` means the variable must have a non-empty, valid value. `（需声明，可留空）` means Web OAuth / Turnstile variables must be declared, but may be empty for local builds. `SLAX_BACKEND_DIR` is required only when running `pnpm web -- dev` for a real backend integration; it does not block other frontend checks.
+
 | Variable | Used by | Purpose |
 | --- | --- | --- |
 | `PUBLIC_BASE_URL`, `AUTH_BASE_URL`, `SHARE_BASE_URL` | Both | Web, login and sharing origins |

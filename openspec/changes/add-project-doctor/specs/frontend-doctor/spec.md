@@ -34,6 +34,29 @@ The repository SHALL provide a root `preflight` script, invoked as `pnpm preflig
 - **THEN** the command reports backend integration as informational
 - **AND** it does not fail the frontend preflight
 
+### Requirement: Preflight explains required configuration
+
+The preflight report SHALL label the shared URLs, cookie settings, and app-specific API URLs as `（必填）`. Web OAuth client IDs and the Turnstile site key SHALL be labeled `（需声明，可留空）`. Labels SHALL remain visible without color, and optional fields SHALL NOT be presented as universally required.
+
+#### Scenario: Required value is missing or invalid
+
+- **WHEN** a shared URL, cookie setting, or app API URL is absent, empty, or malformed
+- **THEN** its message includes the variable name and `（必填）`
+- **AND** it remains a blocking error without printing its value
+
+#### Scenario: Web service configuration is absent or empty
+
+- **WHEN** a Web OAuth client ID or Turnstile site key is checked
+- **THEN** its message includes `（需声明，可留空）`
+- **AND** an absent variable remains a blocking error with guidance to declare it
+- **AND** an explicitly empty value remains a warning allowed for local builds
+
+#### Scenario: Backend path is needed for development
+
+- **WHEN** the Web preflight report explains `SLAX_BACKEND_DIR`
+- **THEN** it identifies the path as required for `pnpm web -- dev`
+- **AND** it remains informational for this frontend check
+
 ### Requirement: Preflight follows the existing environment boundary
 
 The preflight check SHALL inspect `.env`, `.env.<SLAX_ENV>`, and `.env.<SLAX_ENV>.local` inside each selected app directory in the same order as the current loaders. Process environment values SHALL take precedence. A root `.env` SHALL be reported as a reminder because the current app loaders do not automatically read it.

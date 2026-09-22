@@ -17,15 +17,15 @@ cp apps/extension/.env.example apps/extension/.env
 
 示例中的值只适合本地占位；扩展构建会把部分配置带入客户端产物，不要填写服务端密钥。
 
-| 变量 | 用途 |
-| --- | --- |
-| `PUBLIC_BASE_URL` | Web 地址，也是 `/x/ext-bridge` 所属 origin |
-| `AUTH_BASE_URL` | 登录入口 |
-| `SHARE_BASE_URL` | 分享入口 |
-| `EXTENSIONS_API_BASE_URL` | backend API 地址 |
-| `COOKIE_DOMAIN`, `COOKIE_TOKEN_NAME` | 与 Web 开发环境一致的登录 cookie 配置 |
-| `SLAX_ENV` | development（默认）、preview、beta、production；控制图标、扩展 ID 和构建设置 |
-| `UNINSTALL_FEEDBACK_URL` | 可选的卸载反馈入口 |
+| 变量 | 必填性 | 用途 |
+| --- | --- | --- |
+| `PUBLIC_BASE_URL` | 必填 | Web 地址，也是 `/x/ext-bridge` 所属 origin |
+| `AUTH_BASE_URL` | 必填 | 登录入口 |
+| `SHARE_BASE_URL` | 必填 | 分享入口 |
+| `EXTENSIONS_API_BASE_URL` | 必填 | backend API 地址 |
+| `COOKIE_DOMAIN`, `COOKIE_TOKEN_NAME` | 必填 | 与 Web 开发环境一致的登录 cookie 配置 |
+| `SLAX_ENV` | 可选，默认 development | development、preview、beta、production；控制图标、扩展 ID 和构建设置 |
+| `UNINSTALL_FEEDBACK_URL` | 可选 | 卸载反馈入口 |
 
 其余可选字段以 schema 为准。扩展中的配置会进入客户端产物，不要放入服务端凭据。
 扩展不需要 `SLAX_BACKEND_DIR`，但其业务仍需要可访问的 Web 和 backend。
