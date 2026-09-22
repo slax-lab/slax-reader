@@ -1,0 +1,529 @@
+generator client {
+  provider        = "prisma-client-js"
+  runtime         = "cloudflare"
+  previewFeatures = ["tracing"]
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model slax_user {
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  name          String    @default("")
+  picture       String    @default("")
+  given_name    String    @default("")
+  family_name   String    @default("")
+  lang          String    @default("")
+  ai_lang       String    @default("")
+  country       String    @default("")
+  city          String    @default("")
+  region        String    @default("")
+  latitude      Float     @default(0)
+  longitude     Float     @default(0)
+  timezone      String    @default("")
+  account       String    @default("")
+  last_login_at DateTime
+  last_login_ip String    @default("")
+  last_read_at  DateTime?
+  invite_code   String    @default("")
+  created_at    DateTime
+
+  subscription slax_user_subscription?
+
+  @@index([account])
+  @@index([invite_code])
+}
+
+model user_device_alias {
+  device_id   String
+  user_id     Int
+  bound_at    DateTime @default(now())
+  bind_source String
+
+  @@unique([device_id, user_id])
+  @@index([user_id, bound_at])
+}
+
+model slax_bookmark {
+  id                     Int                      @id @default(autoincrement())
+  title                  String                   @default("")
+  host_url               String                   @default("")
+  target_url             String                   @default("")
+  site_name              String                   @default("")
+  content_icon           String                   @default("")
+  content_cover          String                   @default("")
+  content_key            String                   @default("")
+  content_md_key         String                   @default("")
+  content_word_count     Int                      @default(0)
+  description            String                   @default("")
+  byline                 String                   @default("")
+  private_user           Int                      @default(0)
+  status                 String                   @default("pending")
+  created_at             DateTime
+  updated_at             DateTime
+  published_at           DateTime
+  userBookmarks          slax_user_bookmark[]
+  slax_user_bookmark_tag slax_user_bookmark_tag[]
+
+  @@unique([target_url, private_user])
+}
+
+model slax_user_bookmark {
+  id                     Int                        @id @default(autoincrement())
+  user_id                Int                        @default(0)
+  bookmark_id            Int                        @default(0)
+  is_read                Boolean                    @default(false)
+  archive_status         Int                        @default(0)
+  is_starred             Boolean                    @default(false)
+  created_at             DateTime                   @default(now())
+  updated_at             DateTime
+  bookmark               slax_bookmark              @relation(fields: [bookmark_id], references: [id])
+  alias_title            String                     @default("")
+  // 0- 文章 1- URL快捷方式
+  type                   Int                        @default(0)
+  slax_user_bookmark_tag slax_user_bookmark_tag[]
+  slax_bookmark_delete   slax_user_delete_bookmark?
+  deleted_at             DateTime?
+
+  @@unique([user_id, bookmark_id])
+  @@index([user_id, deleted_at, archive_status, updated_at])
+  @@index([user_id, deleted_at, is_starred, updated_at])
+}
+
+model slax_queue_parse_info {
+  id           Int      @id @default(autoincrement())
+  target_url   String   @default("")
+  content_key  String   @default("")
+  server_parse Boolean  @default(false)
+  is_privated  Boolean  @default(false)
+  bookmark_id  Int      @default(0)
+  created_at   DateTime
+  updated_at   DateTime
+  status       String   @default("pending")
+}
+
+model slax_bookmark_summary {
+  id          Int       @id @default(autoincrement())
+  content     String    @default("")
+  ai_name     String    @default("")
+  ai_model    String    @default("")
+  created_at  DateTime
+  updated_at  DateTime?
+  lang        String    @default("")
+  user_id     Int       @default(0)
+  bookmark_id Int       @default(0)
+
+  @@unique([bookmark_id, lang, user_id])
+}
+
+model slax_user_report {
+  id          Int      @id @default(autoincrement())
+  user_id     Int      @default(0)
+  type        String   @default("")
+  content     String   @default("")
+  bookmark_id Int      @default(0)
+  created_at  DateTime @default(now())
+}
+
+model slax_platform_bind {
+  id          Int      @id @default(autoincrement())
+  user_id     Int      @default(0)
+  platform    String   @default("")
+  platform_id String   @default("")
+  user_name   String   @default("")
+  created_at  DateTime @default(now())
+
+  @@unique([user_id, platform])
+  @@index([platform, platform_id])
+}
+
+model slax_user_subscription_period {
+  id             Int      @id @default(autoincrement())
+  user_id        Int      @default(0)
+  type           Int      @default(0)
+  source         String   @default("")
+  interval       String   @default("")
+  interval_count Int      @default(0)
+  created_at     DateTime @default(now())
+
+  @@index([user_id])
+  @@index([source])
+}
+
+model slax_user_invite {
+  id             Int      @id @default(autoincrement())
+  user_id        Int      @default(0)
+  code           String   @default("")
+  invite_user_id Int      @default(0)
+  source         String   @default("")
+  is_valid       Boolean  @default(true)
+  created_at     DateTime @default(now())
+
+  @@index([user_id])
+}
+
+model slax_user_subscription {
+  id                      Int      @id @default(autoincrement())
+  user_id                 Int      @unique @default(0)
+  stripe_subscription_id  String   @default("")
+  stripe_customer_id      String   @default("")
+  stripe_stripe_currency  String   @default("")
+  first_subscription_time DateTime
+  subscription_end_time   DateTime
+  next_invoice_time       DateTime
+  auto_renew              Boolean  @default(false)
+  stripe_credit           Int      @default(0)
+  subscribed              Boolean  @default(false)
+  created_at              DateTime @default(now())
+
+  user slax_user @relation(fields: [user_id], references: [id])
+}
+
+model slax_stripe_event {
+  id                  Int      @id @default(autoincrement())
+  event_id            String   @default("")
+  event_type          String   @default("")
+  event_data          String   @default("")
+  event_account       String   @default("")
+  previous_event_data String   @default("")
+  live_mode           Boolean  @default(false)
+  created_at          DateTime @default(now())
+}
+
+model slax_mark_comment {
+  id          Int @id @default(autoincrement())
+  user_id     Int @default(0)
+  bookmark_id Int @default(0)
+  // 1- 划线 2- 评论 3- 评论回复
+  type        Int @default(0)
+
+  // type in [1,2]，Source是path， type in [3]
+  source  String @default("")
+  comment String @default("")
+
+  root_id   Int @default(0)
+  parent_id Int @default(0)
+
+  // 模糊匹配来源
+  approx_source String @default("")
+
+  // 划线/评论的内容
+  content String @default("")
+
+  // 评论来源
+  source_type String @default("")
+  source_id   String @default("")
+
+  is_deleted Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime
+
+  @@index([user_id, created_at, is_deleted])
+  @@index([bookmark_id, root_id, is_deleted])
+  @@index([bookmark_id, type, is_deleted])
+}
+
+model slax_bookmark_share {
+  id   Int    @id @default(autoincrement())
+  uuid String @unique @default(dbgenerated("gen_random_uuid()"))
+
+  share_code    String   @default("")
+  user_id       Int      @default(0)
+  bookmark_id   Int      @default(0)
+  show_line     Boolean  @default(false)
+  show_comment  Boolean  @default(false)
+  show_userinfo Boolean  @default(false)
+  allow_comment Boolean  @default(false)
+  allow_line    Boolean  @default(false)
+  is_enable     Boolean  @default(true)
+  created_at    DateTime @default(now())
+
+  @@unique([bookmark_id, user_id])
+  @@index([share_code])
+}
+
+model slax_user_tag {
+  id         Int      @id @default(autoincrement())
+  user_id    Int      @default(0)
+  tag_name   String   @default("")
+  display    Boolean  @default(true)
+  created_at DateTime @default(now())
+
+  @@unique([user_id, tag_name])
+}
+
+model slax_user_bookmark_tag {
+  id          Int      @id @default(autoincrement())
+  user_id     Int      @default(0)
+  bookmark_id Int      @default(0)
+  tag_name    String   @default("")
+  tag_id      Int      @default(0)
+  created_at  DateTime @default(now())
+  is_deleted  Boolean  @default(false)
+
+  user_bookmark slax_user_bookmark? @relation(fields: [user_id, bookmark_id], references: [user_id, bookmark_id])
+  bookmark      slax_bookmark?      @relation(fields: [bookmark_id], references: [id])
+
+  @@unique([bookmark_id, user_id, tag_id])
+  @@index([tag_id, user_id, is_deleted])
+  @@index([bookmark_id, user_id, is_deleted])
+}
+
+model slax_bookmark_import {
+  id          Int    @id @default(autoincrement())
+  user_id     Int    @default(0)
+  type        String @default("")
+  object_key  String @default("")
+  // 0- 未开始 1- 进行中 2- 失败 3- 完成
+  status      Int    @default(0)
+  // 成功or失败原因
+  reason      String @default("")
+  // 需要导入的总数
+  total_count Int    @default(0)
+  // 分片处理总数
+  batch_count Int    @default(0)
+
+  // success total
+  success_total Int @default(0)
+  // failed total
+  failed_total  Int @default(0)
+
+  created_at DateTime @default(now())
+
+  @@index([user_id])
+}
+
+model slax_bookmark_import_relation {
+  id          Int      @id @default(autoincrement())
+  user_id     Int      @default(0)
+  bookmark_id Int      @default(0)
+  import_id   Int      @default(0)
+  // 1-success, 2-failed
+  status      Int      @default(0)
+  created_at  DateTime @default(now())
+
+  @@index([user_id, import_id, bookmark_id])
+}
+
+model slax_aigc_batch_task {
+  id               Int       @id @default(autoincrement())
+  user_id          Int       @default(0)
+  bookmark_id      Int       @default(0)
+  task_type        String    @default("") // tags_overview, summary, etc.
+  // pending, submitted, completed, failed
+  status           String    @default("pending")
+  // 重试次数
+  retry_count      Int       @default(0)
+  // gemini batch request id
+  batch_request_id String    @default("")
+  // 错误信息
+  error_message    String    @default("")
+  // AI 生成的结果 JSON
+  result_data      String    @default("")
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @default(now())
+  submitted_at     DateTime?
+  completed_at     DateTime?
+
+  @@unique([batch_request_id])
+  @@index([task_type, status, batch_request_id])
+}
+
+model slax_user_delete_bookmark {
+  id                 Int                @id @default(autoincrement())
+  user_id            Int                @default(0)
+  bookmark_id        Int                @default(0)
+  deleted_at         DateTime?
+  slax_user_bookmark slax_user_bookmark @relation(fields: [user_id, bookmark_id], references: [user_id, bookmark_id])
+
+  @@unique([user_id, bookmark_id])
+}
+
+model slax_bookmark_fetch_retry {
+  id            Int       @id @default(autoincrement())
+  user_id       Int       @default(0)
+  bookmark_id   Int       @default(0)
+  retry_count   Int       @default(0)
+  created_at    DateTime  @default(now())
+  last_retry_at DateTime?
+  status        String    @default("pending")
+  trace_id      String    @default("")
+
+  @@unique([bookmark_id, user_id])
+  @@index([status])
+}
+
+model slax_bookmark_vector_shard {
+  id          Int      @id @default(autoincrement())
+  bookmark_id Int      @default(0)
+  bucket_idx  Int      @default(0)
+  created_at  DateTime @default(now())
+
+  @@unique([bookmark_id])
+}
+
+model slax_user_notification {
+  id      Int @id @default(autoincrement())
+  user_id Int @default(0)
+
+  // type: comment | reply | subscribe / cancel_subscribe | follow / cancel_follow
+  type String @default("")
+
+  // source: share | profile (预留)
+  source String @default("")
+
+  // xxx 评论了你 | xxx 回复了你 | xxx 关注了你 | xxx 订阅了你
+  title String @default("")
+
+  // 对应title，供列表直接使用
+  body String @default("")
+
+  // JSON结构，针对不同场景供给解析
+  // comment_id 用于点击后跳转到指定位置标记用
+  // comment: { "share_code": "xxx", "content": "xxx", "comment_id": xxx }
+  // reply: { "share_code": "xxx", "content": "xxx", "parent_content": "xxx", "comment_id": xxx  }
+  details String @default("")
+
+  is_read Boolean @default(false)
+
+  created_at DateTime @default(now())
+
+  @@index([user_id, created_at])
+}
+
+model slax_user_notice_device {
+  id         Int      @id @default(autoincrement())
+  user_id    Int      @default(0)
+  // Push api / Apple Push / Websocket
+  type       String   @default("")
+  // JSON，保存对应的标记位
+  // 例如：Websocket，会保存DO的大洲位置、DO中缓存的session
+  data       String   @default("")
+  created_at DateTime @default(now())
+
+  @@index([user_id, type])
+}
+
+model slax_user_collection {
+  id Int @id @default(autoincrement())
+
+  // 0- unknonw , 1- free, 2- paid 
+  type Int @default(0)
+
+  owner_id           Int    @default(0)
+  display_name       String @default("")
+  amount             Int    @default(0)
+  currency           String @default("")
+
+  collection_code String @default("")
+
+  show_marks   Boolean @default(false)
+  allow_marks  Boolean @default(false)
+  show_profile Boolean @default(false)
+
+  // 0- 暂停（无法继续订阅新的、续订，但是旧的可以继续看，price变为0）, 1- 正常
+  status Int @default(0)
+
+  created_at DateTime @default(now())
+  updated_at DateTime
+
+  @@unique([owner_id])
+  @@unique([collection_code])
+}
+
+model slax_user_collection_subscriber_period {
+  id             Int      @id @default(autoincrement())
+  user_id        Int      @default(0)
+  collection_id  Int      @default(0)
+  // (stripe对应的subscrption/paid 事件id)
+  source         String   @default("")
+  // STRIPE = 1, TRIAL = 2, APPLE = 3, INVITE = 4, INVITE_CONSUMPTION = 5, STRIPE_ROLLBACK = 6
+  type           Int      @default(0)
+  interval       String   @default("")
+  interval_count Int      @default(0)
+  created_at     DateTime @default(now())
+
+  @@index([user_id, collection_id])
+  @@index([source])
+}
+
+model slax_user_collection_subscriber {
+  id            Int @id @default(autoincrement())
+  user_id       Int @default(0)
+  collection_id Int @default(0)
+  owner_id      Int @default(0)
+
+  // cus_<xxxx>
+  // slax_<id>, 免费
+  stripe_customer_id String @default("")
+
+  // UTC
+  // 免费： 2999年到期
+  // 付费： 根据period 实际计算
+  subscription_end_time DateTime
+
+  // 免费： 2999年
+  // 付费： 根据period 实际计算
+  next_invoice_time DateTime
+
+  // 免费：true
+  // 付费：根据是否一次性购买来区分
+  auto_renew Boolean @default(false)
+
+  created_at DateTime @default(now())
+  updated_at DateTime
+
+  is_cancelled Boolean @default(false)
+  is_deleted   Boolean @default(false)
+
+  @@unique([user_id, collection_id])
+  @@index([collection_id, subscription_end_time])
+}
+
+model slax_user_redeem_code {
+  id Int @id @default(autoincrement())
+
+  creator_id Int    @default(0)
+  code       String @default("")
+  user_id    Int    @default(0)
+
+  created_at DateTime  @default(now())
+  updated_at DateTime?
+
+  @@unique([code])
+}
+
+model slax_user_bookmark_change {
+  id          Int      @id @default(autoincrement())
+  user_id     Int      @default(0)
+  target_url  String   @default("")
+  bookmark_id Int      @default(0)
+  action      String   @default("")
+  created_at  DateTime @default(now())
+
+  @@index([user_id, created_at])
+}
+
+model slax_user_receive_activity_record {
+  id Int @id @default(autoincrement())
+
+  user_id       Int      @default(0)
+  activity_type String   @default("")
+  created_at    DateTime @default(now())
+
+  @@unique([user_id, activity_type])
+}
+
+model slax_user_bookmark_overview {
+  id Int @id @default(autoincrement())
+
+  user_id     Int      @default(0)
+  bookmark_id Int      @default(0)
+  overview    String   @default("")
+  content     String   @default("") // 新增 JSON 字段
+  created_at  DateTime @default(now())
+
+  @@index([bookmark_id, user_id])
+}

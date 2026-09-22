@@ -1,0 +1,52 @@
+name: API CI
+
+on:
+  pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'packages/contracts/**'
+      - 'tooling/api.mjs'
+      - 'deploy/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/api-ci.yml'
+      - '.github/workflows/api-deploy.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/**'
+      - 'packages/contracts/**'
+      - 'tooling/api.mjs'
+      - 'deploy/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/api-ci.yml'
+      - '.github/workflows/api-deploy.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      HYPERDRIVE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ci_generation_only
+      LOGS_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ci_logs_generation_only
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm api -- config:init
+      - run: pnpm api -- gen:all
+      - run: pnpm api -- lint
+      - run: pnpm api -- typecheck
+      - run: pnpm api -- test
+      - name: Bundle all four Workers without deployment
+        run: pnpm api -- build

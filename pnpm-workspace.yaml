@@ -7,6 +7,10 @@ packages:
 # explicitly with --frozen-lockfile, so the auto-check buys nothing.
 verifyDepsBeforeRun: false
 
+# Reconcile dependency links after moving tooling between workspace packages;
+# pnpm's optimistic check can retain the previous importer layout.
+optimisticRepeatInstall: false
+
 # pnpm 11 defaults strictDepBuilds to true: any dependency with an UNREVIEWED
 # build script fails the install (ERR_PNPM_IGNORED_BUILDS). tldjs (a rulesync
 # dependency) ships an optional build script we do not need — this explicit
@@ -15,3 +19,24 @@ allowBuilds:
   # lefthook's postinstall downloads the platform binary the git hooks invoke.
   lefthook: true
   tldjs: false
+  prisma: true
+  '@prisma/engines': true
+  esbuild: true
+  workerd: true
+  '@google/genai': false
+  core-js-pure: false
+  protobufjs: false
+  sharp: false
+
+overrides:
+  '@prisma/dev@0.17.0>hono': 4.13.8
+  '@prisma/dev@0.17.0>@hono/node-server': 1.19.17
+  '@prisma/dev@0.17.0>valibot': 1.4.2
+  '@prisma/config@7.2.0>effect': 3.22.2
+  'prisma@7.2.0>mysql2': 3.23.1
+  'lodash@4.17.21': 4.18.1
+  'serve-handler@6.1.6>minimatch': 3.1.5
+  'vitest@3.2.7>vite': 6.4.3
+  'vite-node@3.2.4>vite': 6.4.3
+  'ws@8.18.0': 8.21.3
+  'sharp@0.35.2': 0.35.4
