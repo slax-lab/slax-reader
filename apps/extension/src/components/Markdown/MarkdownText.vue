@@ -7,7 +7,7 @@
 <script lang="ts" setup>
 import { ref, watch } from 'vue'
 
-import { parseMarkdownText } from '@commons/utils/parse'
+import { parseMarkdownText } from '@commons/frontend-utils/parse'
 
 import 'highlight.js/styles/atom-one-dark.css'
 

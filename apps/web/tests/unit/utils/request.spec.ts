@@ -6,7 +6,7 @@
 //    全部预先 mock 好 —— task 2/3 直接复用，不再二次改 spec 顶层。
 // 3. 客户端 / 服务端两个 describe 块各自跑 vi.resetModules + 动态 import，
 //    用来对抗 request.ts 顶层 `let requestInstance` 单例缓存以及 isClient/isServer
-//    顶层常量被 import 时固化的副作用；服务端块用 vi.doMock 覆盖 @commons/utils/is。
+//    顶层常量被 import 时固化的副作用；服务端块用 vi.doMock 覆盖 @commons/frontend-utils/is。
 //
 // 本 task（1.1）仅落客户端 getUserToken / haveRequestToken 4 用例，
 // 服务端块写 it.todo 占位避免空 describe 失败 —— 8 个真用例由 task 1.3 补。
@@ -16,8 +16,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 // FetchRequest mock：继承真实 class 以保留 combineUrlWithQuery 等方法，
 // constructor 把传入的 config 暴露到 lastConfig，供 task 1.2 直接调拦截器。
 const lastConfig = vi.hoisted(() => ({ value: null as any }))
-vi.mock('@commons/utils/request', async () => {
-  const actual = await vi.importActual<typeof import('@commons/utils/request')>('@commons/utils/request')
+vi.mock('@commons/frontend-utils/request', async () => {
+  const actual = await vi.importActual<typeof import('@commons/frontend-utils/request')>('@commons/frontend-utils/request')
 
   class FetchRequestMock extends actual.FetchRequest {
     constructor(options: any) {
@@ -69,7 +69,7 @@ const { requestHeadersMock } = vi.hoisted(() => ({ requestHeadersMock: vi.fn(() 
 mockNuxtImport('useRequestHeaders', () => requestHeadersMock)
 
 describe('客户端环境', () => {
-  // happy-dom 默认 isClient=true（@commons/utils/is.ts 用 typeof window），
+  // happy-dom 默认 isClient=true（@commons/frontend-utils/is.ts 用 typeof window），
   // 因此本 describe 块不需要再 vi.doMock —— 直接动态 import 即可看到客户端分支。
   let requestModule: typeof import('~~/app/utils/request')
 
@@ -227,7 +227,7 @@ describe('客户端环境', () => {
     it('RequestError 且带 message → Toast 展示 error.message', async () => {
       requestModule.request()
       // §3.1 mock 用了 ...actual spread，这里 import 拿到的仍是真实 RequestError class，instanceof 判定有效
-      const { RequestError } = await import('@commons/utils/request')
+      const { RequestError } = await import('@commons/frontend-utils/request')
       const err = new RequestError({ message: 'biz error', name: 'BIZ', code: 1001 })
       lastConfig.value.errorInterceptors(err)
       expect(showToast).toHaveBeenCalledTimes(1)
@@ -253,10 +253,10 @@ describe('客户端环境', () => {
 describe('服务端环境', () => {
   // vi.doMock 不会被 hoist，配合下方 beforeEach 的 vi.resetModules 让本 describe 单独看到 isServer=true
   beforeAll(() => {
-    vi.doMock('@commons/utils/is', () => ({ isClient: false, isServer: true }))
+    vi.doMock('@commons/frontend-utils/is', () => ({ isClient: false, isServer: true }))
   })
   afterAll(() => {
-    vi.doUnmock('@commons/utils/is')
+    vi.doUnmock('@commons/frontend-utils/is')
   })
 
   let requestModule: typeof import('~~/app/utils/request')

@@ -1,6 +1,6 @@
 import { haveRequestToken } from '~/utils/request'
 
-import { RESTMethodPath } from '@commons/types-pro'
+import { RESTMethodPath } from '@commons/types'
 
 const DASHBOARD_PATH_PREFIX = '/dashboard'
 const ACTION_TYPE_HEADER = 'heartbeat'

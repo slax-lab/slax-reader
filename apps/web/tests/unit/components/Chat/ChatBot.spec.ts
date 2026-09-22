@@ -53,11 +53,11 @@ mockNuxtImport('ChatParamsType', () => ({ CONTENT: 'CONTENT', QUESTIONS: 'QUESTI
 mockNuxtImport('useI18n', () => mockUseI18n)
 mockNuxtImport('analyticsLog', () => mockAnalyticsLog)
 
-vi.mock('@commons/utils/parse', () => ({
+vi.mock('@commons/frontend-utils/parse', () => ({
   parseMarkdownText: mockParseMarkdownText
 }))
 
-vi.mock('@commons/utils/random', () => ({
+vi.mock('@commons/frontend-utils/random', () => ({
   getUUID: mockGetUUID
 }))
 

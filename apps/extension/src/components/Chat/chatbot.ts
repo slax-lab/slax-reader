@@ -1,7 +1,7 @@
 import { $t } from '@/utils/locale'
-import { LineDecoder, SSEDecoder } from '@commons/utils/decoder'
-import { partialParse } from '@commons/utils/json'
-import { RequestMethodType } from '@commons/utils/request'
+import { LineDecoder, SSEDecoder } from '@commons/frontend-utils/decoder'
+import { partialParse } from '@commons/frontend-utils/json'
+import { RequestMethodType } from '@commons/frontend-utils/request'
 
 import { request } from '@/bridge/request'
 import { RESTMethodPath } from '@commons/types/const'

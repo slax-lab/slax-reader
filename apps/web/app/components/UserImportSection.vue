@@ -54,7 +54,7 @@ import ImportLoadingModal from '~/components/ThirdPartyImport/ImportLoadingModal
 import ImportPreviewModal, { type ImportPreview } from '~/components/ThirdPartyImport/ImportPreviewModal.vue'
 import ImportProgressModal from '~/components/ThirdPartyImport/ImportProgressModal.vue'
 
-import { RequestError } from '@commons/utils/request'
+import { RequestError } from '@commons/frontend-utils/request'
 
 import { RESTMethodPath } from '@commons/types/const'
 import Toast from '~/components/Toast'

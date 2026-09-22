@@ -30,14 +30,14 @@ const { mockUseScrollLock, mockUseDebounceFn, mockMouseTrack, mouseTrackInstance
 mockNuxtImport('useScrollLock', () => mockUseScrollLock)
 mockNuxtImport('useDebounceFn', () => mockUseDebounceFn)
 
-vi.mock('@commons/utils/mouse', () => ({
+vi.mock('@commons/frontend-utils/mouse', () => ({
   MouseTrack: mockMouseTrack
 }))
 
 describe('useCommon — isClient=false', () => {
   it('C23: non-client 路径 — useScrollLock 不被调用，isLocked 是 ref(false)', async () => {
     vi.resetModules()
-    vi.doMock('@commons/utils/is', () => ({ isClient: false }))
+    vi.doMock('@commons/frontend-utils/is', () => ({ isClient: false }))
 
     mockUseDebounceFn.mockReturnValue(vi.fn())
 

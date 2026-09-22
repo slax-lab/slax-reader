@@ -32,7 +32,7 @@ const { mockGet, mockPost, mockRequest, mockCopyText, mockToastShowToast, mockCu
   }
 })
 
-vi.mock('@commons/utils/string', () => ({ copyText: mockCopyText }))
+vi.mock('@commons/frontend-utils/string', () => ({ copyText: mockCopyText }))
 vi.mock('~/components/Toast', () => ({
   default: { showToast: mockToastShowToast },
   ToastType: { Success: 1, Error: 2, Warning: 3, Info: 4 }

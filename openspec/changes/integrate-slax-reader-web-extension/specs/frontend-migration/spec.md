@@ -22,7 +22,7 @@ The repository SHALL place the migrated DWeb application under `apps/web` and th
 
 ### Requirement: Shared libraries are narrowly scoped
 
-The repository SHALL place a library under `packages/` only when at least two applications use it. The initial frontend migration SHALL preserve the four source libraries used by both applications as separate packages: `types`, `types-pro`, `utils`, and `selection`. It SHALL NOT introduce a catch-all shared package solely for convenience.
+The repository SHALL place a library under `packages/` only when at least two applications use it. The frontend migration SHALL provide the three shared packages used by both applications: `types`, `frontend-utils`, and `selection`. The source's `types-pro` definitions SHALL be part of `types`; the source's `utils` library SHALL use the `frontend-utils` name so future Backend and CLI libraries can use their own scoped packages. The repository SHALL NOT introduce a catch-all shared package solely for convenience.
 
 #### Scenario: Both applications use a shared library
 

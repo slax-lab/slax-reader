@@ -1,6 +1,6 @@
-import { LineDecoder, SSEDecoder } from '@commons/utils/decoder'
-import { partialParse } from '@commons/utils/json'
-import { RequestMethodType } from '@commons/utils/request'
+import { LineDecoder, SSEDecoder } from '@commons/frontend-utils/decoder'
+import { partialParse } from '@commons/frontend-utils/json'
+import { RequestMethodType } from '@commons/frontend-utils/request'
 
 import { RESTMethodPath } from '@commons/types/const'
 import { type ChatCompletionChunk } from '@commons/types/openai'

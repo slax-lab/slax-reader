@@ -351,7 +351,7 @@ export default defineNuxtConfig({
         // 支付组件 PlanPayment.vue 用到；不预置会在 dev 首次 warmup 中途被运行时发现，
         // 触发依赖重新预构建 + 整页 reload，把已 transform 的成果冲掉重来。
         '@stripe/stripe-js',
-        // commons/utils/src/parse.ts 用到；同样会被运行时发现触发 reload。
+        // packages/frontend-utils/src/parse.ts 用到；同样会被运行时发现触发 reload。
         'markdown-it-cjk-friendly'
       ],
       exclude: ['@journeyapps/wa-sqlite', '@powersync/web']

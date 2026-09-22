@@ -9,7 +9,7 @@ import { vi } from 'vitest'
 //      自动拿到下面 vi.hoisted 里造的 mock 实例
 //   2. 共享的方法名 reference 与本文件的 spy 句柄（仅"显式 import 路径"测试可消费）
 //
-// 方法名以 commons/utils/src/request.ts 的 FetchRequest 为准：
+// 方法名以 packages/frontend-utils/src/request.ts 的 FetchRequest 为准：
 //   - 标准动词：get / post / put / delete（注意是 delete，不是 del）
 //   - 流式与文件：stream / upgrade / uploadFile
 

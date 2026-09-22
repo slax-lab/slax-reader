@@ -1,5 +1,5 @@
 import { plainRequest as request } from '@/utils/request'
-import type { FetchOptions } from '@commons/utils/request'
+import type { FetchOptions } from '@commons/frontend-utils/request'
 
 import type { IHttpClient } from '@slax-reader/selection/adapters'
 

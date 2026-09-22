@@ -38,7 +38,7 @@
 </template>
 
 <script lang="ts" setup>
-import { copyText } from '@commons/utils/string'
+import { copyText } from '@commons/frontend-utils/string'
 
 import Toast, { ToastType } from '../Toast'
 import { RESTMethodPath } from '@commons/types/const'

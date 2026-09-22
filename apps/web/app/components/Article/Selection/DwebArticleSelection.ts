@@ -1,4 +1,4 @@
-import { getElementFullSelector } from '@commons/utils/dom'
+import { getElementFullSelector } from '@commons/frontend-utils/dom'
 
 import type { MarkModal } from './modal'
 import { getUUID } from './tools'

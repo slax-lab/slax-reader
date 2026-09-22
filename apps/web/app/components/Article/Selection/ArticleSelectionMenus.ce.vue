@@ -22,7 +22,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ClickOutside } from '@commons/utils/directive'
+import { ClickOutside } from '@commons/frontend-utils/directive'
 
 import { MenuType } from './type'
 import { showLoginModal } from '~/components/Modal'

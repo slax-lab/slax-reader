@@ -1,6 +1,6 @@
 // BookmarkCell 点击/跳转编排
 // 快照走 seam，fork 可覆盖
-import { urlHttpString } from '@commons/utils/string'
+import { urlHttpString } from '@commons/frontend-utils/string'
 
 import { type BookmarkItem, BookmarkParseStatus } from '@commons/types/interface'
 import { showSnapshotStatusModal } from '~/components/Modal'

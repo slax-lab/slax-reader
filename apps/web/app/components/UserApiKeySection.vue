@@ -84,10 +84,10 @@
 </template>
 
 <script setup lang="ts">
-import { copyText } from '@commons/utils/string'
+import { copyText } from '@commons/frontend-utils/string'
 
 import { type UserApiKey, type UserApiKeyCreated, type UserDetailInfo } from '@commons/types/interface'
-import { RESTMethodPath } from '@commons/types-pro'
+import { RESTMethodPath } from '@commons/types'
 import Toast from '~/components/Toast'
 
 const { t } = useI18n()

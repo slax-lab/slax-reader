@@ -67,8 +67,8 @@ import BubbleMessage from './BubbleMessage.vue'
 import QuestionMessage from './QuestionMessage.vue'
 import TipsMessage from './TipsMessage.vue'
 
-import { parseMarkdownText } from '@commons/utils/parse'
-import { getUUID } from '@commons/utils/random'
+import { parseMarkdownText } from '@commons/frontend-utils/parse'
+import { getUUID } from '@commons/frontend-utils/random'
 
 import 'highlight.js/styles/base16/equilibrium-gray-light.css'
 import { ChatBot, type ChatBotParams, ChatParamsType, type ChatResponseCallback, type ChatResponseData, ChatResponseType } from './chatbot'

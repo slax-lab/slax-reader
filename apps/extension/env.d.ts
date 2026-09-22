@@ -1,4 +1,4 @@
-import '@commons/types-pro'
+import '@commons/types'
 import type { z } from 'zod'
 import type { extensionsEnvSchema } from './env.schema'
 

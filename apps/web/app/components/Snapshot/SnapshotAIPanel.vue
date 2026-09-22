@@ -70,9 +70,9 @@ import DotLoading from '~/components/DotLoading.vue'
 import ListEndHint from '~/components/ListEndHint.vue'
 import MarkdownText from '~/components/Markdown/MarkdownText.vue'
 
-import { extractMarkdownFromText } from '@commons/utils/parse'
-import { RequestMethodType } from '@commons/utils/request'
-import { findMatchingElement, queryMarkdownAnchorQuote, querySimularMarkdownAnchorQuote } from '@commons/utils/search'
+import { extractMarkdownFromText } from '@commons/frontend-utils/parse'
+import { RequestMethodType } from '@commons/frontend-utils/request'
+import { findMatchingElement, queryMarkdownAnchorQuote, querySimularMarkdownAnchorQuote } from '@commons/frontend-utils/search'
 
 import { RESTMethodPath } from '@commons/types/const'
 import type { SummaryItemModel } from '@commons/types/interface'

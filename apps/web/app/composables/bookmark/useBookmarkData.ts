@@ -2,7 +2,7 @@
 // 其余走 REST；未登录或无 PowerSync 整体回退 REST。highlights 暂走 REST。
 import { computed, nextTick, onActivated, onDeactivated, onMounted, onUnmounted, ref, toValue, watch } from 'vue'
 
-import { isClient } from '@commons/utils/is'
+import { isClient } from '@commons/frontend-utils/is'
 import { bookmarkMatchesSourceDomain } from '~/utils/bookmarkSource'
 import type { ChannelMessageData } from '~/utils/channel'
 

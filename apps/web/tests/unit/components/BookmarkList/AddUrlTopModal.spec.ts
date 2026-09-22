@@ -9,7 +9,7 @@ import { nextTick } from 'vue'
 
 import AddUrlTopModal from '~~/app/components/BookmarkList/AddUrlTopModal.vue'
 
-import { RequestError } from '@commons/utils/request'
+import { RequestError } from '@commons/frontend-utils/request'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'

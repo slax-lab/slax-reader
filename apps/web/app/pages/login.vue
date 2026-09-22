@@ -15,7 +15,7 @@ import LoginView from '~/components/global/LoginView.vue'
 import LoginKocBanner from '~/components/Login/LoginKocBanner.vue'
 
 import type { BloggerInfo } from '@commons/types/interface'
-import { RESTMethodPath } from '@commons/types-pro'
+import { RESTMethodPath } from '@commons/types'
 
 const route = useRoute()
 const redirect = `${route.query.redirect || ''}`

@@ -36,7 +36,7 @@ const { mockUseScrollLock, mockUseDebounceFn, debouncedSpy, mockMouseTrack, mous
 mockNuxtImport('useScrollLock', () => mockUseScrollLock)
 mockNuxtImport('useDebounceFn', () => mockUseDebounceFn)
 
-vi.mock('@commons/utils/mouse', () => ({
+vi.mock('@commons/frontend-utils/mouse', () => ({
   MouseTrack: mockMouseTrack
 }))
 

@@ -1,5 +1,5 @@
 import type { DashboardMetricsDailyItem, DashboardMetricsQuery } from '@commons/types/interface'
-import { RESTMethodPath } from '@commons/types-pro'
+import { RESTMethodPath } from '@commons/types'
 
 const DASHBOARD_DAILY_RANGE_DAYS = 365
 const PLATFORM_KEYS = ['web', 'ios', 'android', 'extension'] as const

@@ -15,7 +15,7 @@ vi.mock('~/components/Toast', () => ({
 }))
 
 // copyText from commons utils
-vi.mock('@commons/utils/string', () => ({
+vi.mock('@commons/frontend-utils/string', () => ({
   copyText: vi.fn().mockResolvedValue(undefined)
 }))
 

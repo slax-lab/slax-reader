@@ -126,8 +126,8 @@ vi.mock('~/stores/user', () => ({
   })
 }))
 
-vi.mock('@commons/utils/is', async () => {
-  const actual = await vi.importActual<any>('@commons/utils/is')
+vi.mock('@commons/frontend-utils/is', async () => {
+  const actual = await vi.importActual<any>('@commons/frontend-utils/is')
   return { ...actual, isSafari: mockIsSafari }
 })
 

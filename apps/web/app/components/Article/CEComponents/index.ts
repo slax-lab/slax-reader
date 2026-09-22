@@ -9,7 +9,7 @@ import UnsupportedVideo from './UnsupportedVideo.ce.vue'
 import WechatVideoInfo from './WechatVideoInfo.ce.vue'
 import YoutubePlayer from './youtube/YoutubePlayer.ce.vue'
 
-import { isClient } from '@commons/utils/is'
+import { isClient } from '@commons/frontend-utils/is'
 
 /**
  * 注册自定义组件方法，用于在客户端环境下注册自定义组件

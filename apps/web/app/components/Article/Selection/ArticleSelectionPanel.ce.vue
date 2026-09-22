@@ -61,8 +61,8 @@
 <script lang="ts" setup>
 import ArticleCommentCell from './ArticleCommentCell.ce.vue'
 
-import { ClickOutside } from '@commons/utils/directive'
-import { type Position, useDraggable } from '@commons/utils/draggable'
+import { ClickOutside } from '@commons/frontend-utils/directive'
+import { type Position, useDraggable } from '@commons/frontend-utils/draggable'
 
 import { type MarkCommentInfo, type MarkItemInfo, MenuType } from './type'
 import { vOnKeyStroke, vResizeObserver } from '@vueuse/components'

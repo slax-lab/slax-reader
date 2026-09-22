@@ -166,11 +166,10 @@
 <script lang="ts" setup>
 import ThemeSwitcher from '~/components/global/ThemeSwitcher.vue'
 
-import { copyText } from '@commons/utils/string'
+import { copyText } from '@commons/frontend-utils/string'
 
 import { RESTMethodPath } from '@commons/types/const'
 import type { UserEnableCollectShare, UserShareCollectInfo } from '@commons/types/interface'
-import { RESTMethodPath as RESTMethodPathPro } from '@commons/types-pro'
 import Toast, { ToastType } from '~/components/Toast'
 import { useUserStore } from '~/stores/user'
 
@@ -219,7 +218,7 @@ const applyModel = (info: UserShareCollectInfo) => {
 
 const loadInfo = async () => {
   try {
-    const info = await request().get<UserShareCollectInfo>({ url: RESTMethodPathPro.COLLECT_MINE })
+    const info = await request().get<UserShareCollectInfo>({ url: RESTMethodPath.COLLECT_MINE })
     // 无 code→未开启，回引导
     if (!info?.collection_code) {
       navigateTo('/bookmarks', { replace: true })
@@ -261,7 +260,7 @@ const saveSettings = async () => {
   const description = descInput.value.trim()
   try {
     const res = await request().post({
-      url: RESTMethodPathPro.COLLECT_OWNER_SHARE_SETTING,
+      url: RESTMethodPath.COLLECT_OWNER_SHARE_SETTING,
       body: { name, description }
     })
     if (!res) throw new Error('save failed')

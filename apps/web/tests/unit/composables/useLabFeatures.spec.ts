@@ -1,7 +1,7 @@
 // useLabFeatures 组合函数单测
 // fetch → useState；toggle 乐观切换 + 失败回滚；isBlocked 只在拉过列表后才拦；
 // handleSaveError 只认 LAB_FEATURE_DISABLED，弹带“去打开”的 toast
-import { RequestError } from '@commons/utils/request'
+import { RequestError } from '@commons/frontend-utils/request'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { useLabFeatures } from '~~/app/composables/useLabFeatures'

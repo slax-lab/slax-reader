@@ -38,8 +38,8 @@ import BookmarkTags from './BookmarkTags.vue'
 import DotLoading from './DotLoading.vue'
 import MarkdownText from './Markdown/MarkdownText.vue'
 
-import { Resize } from '@commons/utils/directive'
-import { RequestMethodType } from '@commons/utils/request'
+import { Resize } from '@commons/frontend-utils/directive'
+import { RequestMethodType } from '@commons/frontend-utils/request'
 
 import Toast, { ToastType } from './Toast'
 import { RESTMethodPath } from '@commons/types/const'

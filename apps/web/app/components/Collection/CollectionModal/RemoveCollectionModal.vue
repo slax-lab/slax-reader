@@ -20,7 +20,7 @@
 </template>
 
 <script lang="ts" setup>
-import { RESTMethodPath } from '@commons/types-pro'
+import { RESTMethodPath } from '@commons/types'
 import Toast, { ToastType } from '~/components/Toast'
 
 const props = defineProps({

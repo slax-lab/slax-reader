@@ -1,4 +1,4 @@
-import { getElementFullSelector } from '@commons/utils/dom'
+import { getElementFullSelector } from '@commons/frontend-utils/dom'
 
 import { getUUID } from './tools'
 import { ArticleSelection as BaseArticleSelection, type IMarkModal } from '@slax-reader/selection'

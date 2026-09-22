@@ -4,7 +4,7 @@
 
 <script lang="ts" setup>
 import { type CollectionBookmarkDetail } from '@commons/types/interface'
-import { RESTMethodPath as RESTMethodPathPro } from '@commons/types-pro'
+import { RESTMethodPath } from '@commons/types'
 
 definePageMeta({
   middleware: [
@@ -15,7 +15,7 @@ definePageMeta({
 
       const detail = await request()
         .get<CollectionBookmarkDetail>({
-          url: RESTMethodPathPro.COLLECT_BOOKMARK_DETAIL,
+          url: RESTMethodPath.COLLECT_BOOKMARK_DETAIL,
           query: { collection_code: collectionCode, cb_id: cbId },
           errorInterceptors: () => {}
         })

@@ -171,11 +171,11 @@ describe('客户端环境', () => {
 describe('服务端环境', () => {
   // vi.doMock 不会被 hoist，配合 beforeEach 的 vi.resetModules 让本 describe 单独看到 isClient=false
   beforeAll(() => {
-    vi.doMock('@commons/utils/is', () => ({ isClient: false, isServer: true }))
+    vi.doMock('@commons/frontend-utils/is', () => ({ isClient: false, isServer: true }))
   })
 
   afterAll(() => {
-    vi.doUnmock('@commons/utils/is')
+    vi.doUnmock('@commons/frontend-utils/is')
   })
 
   beforeEach(() => {

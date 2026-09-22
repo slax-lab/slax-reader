@@ -1,6 +1,6 @@
 // Labs: per-user switches for features still being tried out.
 // State lives in useState (not the persisted user store) so a stale switch never comes back from localStorage.
-import { RequestError } from '@commons/utils/request'
+import { RequestError } from '@commons/frontend-utils/request'
 
 import { RESTMethodPath } from '@commons/types/const'
 import type { LabFeature } from '@commons/types/interface'

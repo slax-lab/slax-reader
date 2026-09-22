@@ -1,5 +1,5 @@
 import { expireCurrentSession, getCurrentSessionToken, getExtensionEventHeaders, requireInteractiveLogin } from '@/utils/session'
-import { type FetchOptions, FetchRequest } from '@commons/utils/request'
+import { type FetchOptions, FetchRequest } from '@commons/frontend-utils/request'
 
 import { RESTMethodPath } from '@commons/types/const'
 import { NOT_LOGIN_ERROR } from '@commons/types/error'

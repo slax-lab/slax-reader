@@ -39,7 +39,7 @@ export type BookmarkTypeOptions =
       targetUrl?: string
     }
 
-// 详情类型已迁移至 types-pro
+// 详情类型已迁移至 types
 export type BookmarkArticleDetail = BookmarkDetail | ShareBookmarkDetail | CollectionBookmarkDetail | SnapshotBookmarkDetail
 
 export const isBookmarkDetail = (detail: BookmarkArticleDetail): detail is BookmarkDetail => 'bookmark_id' in detail && 'starred' in detail && 'archived' in detail

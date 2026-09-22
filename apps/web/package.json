@@ -26,8 +26,7 @@
   },
   "dependencies": {
     "@commons/types": "workspace:*",
-    "@commons/types-pro": "workspace:*",
-    "@commons/utils": "workspace:*",
+    "@commons/frontend-utils": "workspace:*",
     "@nuxt/content": "^3.16.0",
     "@nuxtjs/i18n": "^10.6.0",
     "@nuxtjs/robots": "^6.2.0",

@@ -148,8 +148,8 @@ import TipsMessage from '~/components/Chat/TipsMessage.vue'
 import DotLoading from '~/components/DotLoading.vue'
 import OptionsBar from '~/components/OptionsBar.vue'
 
-import { parseMarkdownText } from '@commons/utils/parse'
-import { getUUID } from '@commons/utils/random'
+import { parseMarkdownText } from '@commons/frontend-utils/parse'
+import { getUUID } from '@commons/frontend-utils/random'
 import type { ChatBotParams } from '~/utils/chatbot'
 
 import { vOnKeyStroke } from '@vueuse/components'

@@ -60,10 +60,10 @@
 
 <script lang="ts" setup>
 import { useAppBridge } from '@/utils/appBridge'
-import { formatDate } from '@commons/utils/date'
+import { formatDate } from '@commons/frontend-utils/date'
 
 import type { InAppPurchaseOrderIdData, InAppPurchaseStatus } from '@commons/types/interface'
-import { RESTMethodPath } from '@commons/types-pro'
+import { RESTMethodPath } from '@commons/types'
 import Toast from '~/components/Toast'
 
 const { t } = useI18n()

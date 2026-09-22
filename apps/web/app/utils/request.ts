@@ -1,5 +1,5 @@
-import { isClient, isServer } from '@commons/utils/is'
-import { type FetchOptions, FetchRequest, type FetchResult, RequestError, RequestMethodType } from '@commons/utils/request'
+import { isClient, isServer } from '@commons/frontend-utils/is'
+import { type FetchOptions, FetchRequest, type FetchResult, RequestError, RequestMethodType } from '@commons/frontend-utils/request'
 
 import { useCookies } from '@vueuse/integrations/useCookies'
 import Toast, { ToastType } from '~/components/Toast'

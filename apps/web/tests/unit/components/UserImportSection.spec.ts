@@ -6,7 +6,7 @@
 // 真正测试：UI 渲染 + popupImportProgress 切换 + 子按钮点击触发 chooseFile（DOM input 注入）
 import UserImportSection from '~~/app/components/UserImportSection.vue'
 
-import { RequestError } from '@commons/utils/request'
+import { RequestError } from '@commons/frontend-utils/request'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'

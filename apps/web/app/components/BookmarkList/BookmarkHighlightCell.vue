@@ -29,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { formatDate } from '@commons/utils/date'
+import { formatDate } from '@commons/frontend-utils/date'
 
 import type { HighlightItem } from '@commons/types/interface'
 import type { PropType } from 'vue'

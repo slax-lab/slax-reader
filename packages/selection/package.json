@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@commons/types": "workspace:*",
-    "@commons/utils": "workspace:*",
+    "@commons/frontend-utils": "workspace:*",
     "vue": "^3.5.42"
   }
 }

@@ -6,7 +6,7 @@
 </template>
 
 <script setup lang="ts">
-import { isClient } from '@commons/utils/is'
+import { isClient } from '@commons/frontend-utils/is'
 import { getPreferredLanguage, isSlaxReaderApp } from '~/utils/environment'
 
 import { useUserStore } from '~/stores/user'

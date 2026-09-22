@@ -4,7 +4,7 @@
 
 <script lang="ts" setup>
 import type { BloggerInfo } from '@commons/types/interface'
-import { RESTMethodPath } from '@commons/types-pro'
+import { RESTMethodPath } from '@commons/types'
 import { useCookies } from '@vueuse/integrations/useCookies'
 
 const route = useRoute()

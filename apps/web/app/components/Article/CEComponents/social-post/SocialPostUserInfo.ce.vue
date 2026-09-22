@@ -47,7 +47,7 @@
 </template>
 
 <script lang="ts" setup>
-import { formatDate } from '@commons/utils/date'
+import { formatDate } from '@commons/frontend-utils/date'
 
 // 字段均为 dataset string，
 // 缺省（空/undefined）则隐藏

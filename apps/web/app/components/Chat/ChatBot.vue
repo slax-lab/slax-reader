@@ -72,8 +72,8 @@ import QuestionMessage from './QuestionMessage.vue'
 import TipsMessage from './TipsMessage.vue'
 import DotLoading from '~/components/DotLoading.vue'
 
-import { parseMarkdownText } from '@commons/utils/parse'
-import { getUUID } from '@commons/utils/random'
+import { parseMarkdownText } from '@commons/frontend-utils/parse'
+import { getUUID } from '@commons/frontend-utils/random'
 import type { ChatBotParams } from '~/utils/chatbot'
 
 import 'highlight.js/styles/base16/equilibrium-gray-light.css'

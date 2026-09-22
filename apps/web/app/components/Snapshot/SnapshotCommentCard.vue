@@ -94,7 +94,7 @@
 </template>
 
 <script lang="ts" setup>
-import { formatDate } from '@commons/utils/date'
+import { formatDate } from '@commons/frontend-utils/date'
 
 import type { MarkCommentInfo, MarkItemInfo } from '@slax-reader/selection/types'
 

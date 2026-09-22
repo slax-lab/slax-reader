@@ -85,7 +85,7 @@
 <script lang="ts" setup>
 import EnableCollectionModal from '~/components/Collection/CollectionModal/EnableCollectionModal.vue'
 
-import { copyText } from '@commons/utils/string'
+import { copyText } from '@commons/frontend-utils/string'
 
 import { useStorage } from '@vueuse/core'
 import CursorToast from '~/components/CursorToast'

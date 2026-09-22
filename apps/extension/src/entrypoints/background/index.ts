@@ -9,7 +9,7 @@ import { MetricService } from '@/entrypoints/background/metricService'
 import { SessionService } from '@/entrypoints/background/sessionService'
 import { StorageService } from '@/entrypoints/background/storageService'
 import type { UserInfo } from '@commons/types/interface'
-import type { MetricActionType } from '@commons/types-pro'
+import type { MetricActionType } from '@commons/types'
 
 export default defineBackground(() => {
   const storageService = new StorageService()

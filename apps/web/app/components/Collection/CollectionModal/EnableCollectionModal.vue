@@ -76,11 +76,10 @@
 </template>
 
 <script lang="ts" setup>
-import { RequestError } from '@commons/utils/request'
+import { RequestError } from '@commons/frontend-utils/request'
 
 import { RESTMethodPath } from '@commons/types/const'
 import type { UserEnableCollectShare } from '@commons/types/interface'
-import { RESTMethodPath as RESTMethodPathPro } from '@commons/types-pro'
 import Toast, { ToastType } from '~/components/Toast'
 
 // current-name 已有名；default-name 兜底
@@ -138,7 +137,7 @@ const submit = async () => {
     // 两步非事务：命名失败仍已开启，重试幂等
     const name = nameInput.value.trim() || props.defaultName
     const description = descInput.value.trim()
-    await request().post({ url: RESTMethodPathPro.COLLECT_OWNER_SHARE_SETTING, body: { name, description } })
+    await request().post({ url: RESTMethodPath.COLLECT_OWNER_SHARE_SETTING, body: { name, description } })
 
     emits('success') // 通知父组件刷新合集信息
     step.value = 'success'

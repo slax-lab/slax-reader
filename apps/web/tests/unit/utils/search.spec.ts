@@ -1,4 +1,4 @@
-import { findBestMatch } from '@commons/utils/search'
+import { findBestMatch } from '@commons/frontend-utils/search'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
