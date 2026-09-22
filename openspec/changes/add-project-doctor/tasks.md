@@ -5,6 +5,7 @@
 - [x] 1.3 Add unit tests for environment parsing, precedence, and validation.
 - [x] 1.4 Rename the public setup check to `preflight` and verify no old command or tooling filename remains in active documentation.
 - [x] 1.5 Add readable section hierarchy and optional terminal colors; verify colored and plain-text output paths.
+- [x] 1.6 Add app-local environment file guidance when no variables are configured; verify the message names both the target file and `.env.example`.
 
 ## 2. Onboarding
 

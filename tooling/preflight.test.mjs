@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { formatIssue, parseArgs, parseEnvText, readEnvSources, validateVariable } from './preflight.mjs'
+import { APP_CHECKS, environmentSetupHint, formatIssue, parseArgs, parseEnvText, readEnvSources, validateVariable } from './preflight.mjs'
 
 test('parseEnvText reads export syntax and quoted values without exposing values', () => {
   const values = parseEnvText(`\n# comment\nexport PUBLIC_BASE_URL="http://localhost:3000"\nCOOKIE_DOMAIN=localhost\n`)
@@ -58,4 +58,11 @@ test('app environment examples include each required frontend variable', () => {
   for (const name of ['SLAX_ENV', 'PUBLIC_BASE_URL', 'AUTH_BASE_URL', 'SHARE_BASE_URL', 'EXTENSIONS_API_BASE_URL', 'COOKIE_DOMAIN', 'COOKIE_TOKEN_NAME', 'GOOGLE_ANALYTICS_MEASUREMENT_ID', 'GOOGLE_ANALYTICS_API_SECRET', 'UNINSTALL_FEEDBACK_URL']) {
     assert.ok(name in extension, `Extension example is missing ${name}`)
   }
+})
+
+test('environment setup hints point to the app file and example', () => {
+  const hint = environmentSetupHint(APP_CHECKS.web, 'preview')
+  assert.match(hint, /apps\/web\/\.env/)
+  assert.match(hint, /apps\/web\/\.env\.preview\.local/)
+  assert.match(hint, /apps\/web\/\.env\.example/)
 })
