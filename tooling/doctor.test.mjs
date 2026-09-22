@@ -1,0 +1,39 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+import { parseEnvText, readEnvSources, validateVariable } from './doctor.mjs'
+
+test('parseEnvText reads export syntax and quoted values without exposing values', () => {
+  const values = parseEnvText(`\n# comment\nexport PUBLIC_BASE_URL="http://localhost:3000"\nCOOKIE_DOMAIN=localhost\n`)
+
+  assert.deepEqual(values, {
+    PUBLIC_BASE_URL: 'http://localhost:3000',
+    COOKIE_DOMAIN: 'localhost'
+  })
+})
+
+test('readEnvSources follows app loader precedence and process variables win', () => {
+  const appDirectory = mkdtempSync(join(tmpdir(), 'slax-reader-doctor-'))
+  writeFileSync(join(appDirectory, '.env'), 'COOKIE_DOMAIN=from-base\nFIRST_FILE=base\n')
+  writeFileSync(join(appDirectory, '.env.development'), 'COOKIE_DOMAIN=from-profile\nPROFILE_ONLY=profile\n')
+  writeFileSync(join(appDirectory, '.env.development.local'), 'COOKIE_DOMAIN=from-local\nLOCAL_ONLY=local\n')
+
+  const result = readEnvSources(appDirectory, 'development', { PUBLIC_BASE_URL: 'https://process.example' })
+
+  assert.equal(result.values.PUBLIC_BASE_URL, 'https://process.example')
+  assert.equal(result.sources.PUBLIC_BASE_URL, 'process environment')
+  assert.equal(result.values.COOKIE_DOMAIN, 'from-base')
+  assert.equal(result.values.PROFILE_ONLY, 'profile')
+  assert.equal(result.values.LOCAL_ONLY, 'local')
+  rmSync(appDirectory, { recursive: true, force: true })
+})
+
+test('validateVariable distinguishes missing, invalid, placeholder, and valid values', () => {
+  assert.equal(validateVariable({ name: 'PUBLIC_BASE_URL', kind: 'url' }, {}).level, 'error')
+  assert.equal(validateVariable({ name: 'PUBLIC_BASE_URL', kind: 'url' }, { PUBLIC_BASE_URL: 'localhost' }).level, 'error')
+  assert.equal(validateVariable({ name: 'GOOGLE_OAUTH_CLIENT_ID', kind: 'text', emptyIsPlaceholder: true }, { GOOGLE_OAUTH_CLIENT_ID: '' }).level, 'warn')
+  assert.equal(validateVariable({ name: 'COOKIE_TOKEN_NAME', kind: 'cookie-name' }, { COOKIE_TOKEN_NAME: 'slax_test' }).level, 'ok')
+})

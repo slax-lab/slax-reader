@@ -38,6 +38,17 @@ cd .worktrees/fix-reader-wording
 pnpm install --frozen-lockfile
 ```
 
+安装后可以先运行 Doctor 检查本机是否完成依赖安装，以及 Web 和 Extension 的必要前端环境变量：
+
+```sh
+pnpm run doctor
+```
+
+它只检查前端，不会读取或显示环境变量值，也不会启动 backend。检查单个应用或指定环境时可使用
+`pnpm run doctor --app web`、`pnpm run doctor --app extension` 或 `pnpm run doctor --env preview`。
+当前 loader 读取的是各 app 目录中的 `.env`、`.env.<SLAX_ENV>` 和 `.env.<SLAX_ENV>.local`；根目录 `.env`
+不会自动生效，Doctor 会对此给出提醒。
+
 安装整个 workspace 可能包含另一个 app 的工具依赖；按应用运行命令不等于依赖安装完全隔离。
 配置字段见 [Web](../apps/web/development.md) 或 [Extension](../apps/extension/development.md)，schema 分别在
 [`apps/web/env.schema.ts`](../../apps/web/env.schema.ts) 和 [`apps/extension/env.schema.ts`](../../apps/extension/env.schema.ts)。

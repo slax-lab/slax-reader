@@ -9,6 +9,8 @@
   "scripts": {
     "agent:sync": "rulesync generate",
     "agent:check": "rulesync doctor --strict && rulesync generate --check && openspec validate --all --strict && bash tooling/check-gh-aw-drift.sh",
+    "doctor": "node tooling/doctor.mjs",
+    "test:doctor": "node --test tooling/doctor.test.mjs",
     "prepare": "lefthook install",
     "dev:web": "pnpm --filter @apps/slax-reader-dweb dev",
     "build:web": "pnpm --filter @apps/slax-reader-dweb build",
