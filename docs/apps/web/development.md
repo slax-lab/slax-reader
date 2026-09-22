@@ -24,7 +24,7 @@ cp deploy/local_web/.env.example deploy/local_web/.env
 | 变量 | 必填性 | 用途 |
 | --- | --- | --- |
 | `PUBLIC_BASE_URL`, `AUTH_BASE_URL`, `SHARE_BASE_URL` | 必填 | 本地 Web / 登录 / 分享入口 |
-| `DWEB_API_BASE_URL` | 必填 | 独立 backend API 地址 |
+| `DWEB_API_BASE_URL` | 必填 | API 服务地址（本地联调通常由 `apps/api` 提供） |
 | `COOKIE_DOMAIN`, `COOKIE_TOKEN_NAME` | 必填 | 本地登录 cookie 配置 |
 | `GOOGLE_OAUTH_CLIENT_ID` | 必填 | Google Web OAuth 客户端 ID |
 | `APPLE_OAUTH_CLIENT_ID` | 可选 | 配置后显示 Apple 登录按钮；留空时不显示 |
@@ -53,10 +53,10 @@ Google 登录必须使用 Web 应用类型的 OAuth 客户端 ID。创建流程�
 `pnpm web -- dev` 延续原实现：需要 API 已生成 `deploy/local/.wrangler/state/v3`，
 并通过生成于 `deploy/local_web/.generated/wrangler.toml` 的配置中的 `BACKEND` service binding 调用本地 Worker。
 常规 Nuxt prepare、类型检查和 build 不需要该后端路径。本文不承诺登录、书签同步或保存
-可以在没有 backend 的情况下工作。
+可以在没有 API 联调环境的情况下工作。
 
-不要为了验证本次迁移去启动、安装或修改旧前端仓库或 backend 仓库。
-连接已有联调环境前由开发者提供适用的配置。本次不部署 Cloudflare，也不修改线上绑定。
+不要为了验证本次迁移去启动、安装或修改旧前端仓库。
+连接 API 联调环境前由开发者提供适用的配置。本次不部署 Cloudflare，也不修改线上绑定。
 
 ## 无真实服务时的检查配置
 

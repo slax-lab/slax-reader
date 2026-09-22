@@ -19,12 +19,14 @@ if (!Object.hasOwn(manifest.scripts, command)) {
 // Arguments are passed as data; shell syntax in a user argument is never evaluated here.
 // A parent smoke harness may already own the entire process group.
 const grouped = process.platform !== 'win32' && process.env.SLAX_API_INHERIT_PROCESS_GROUP !== '1'
-const child = spawn('pnpm', ['--filter', manifest.name, 'run', command, ...forwarded], {
+const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
+const child = spawn(pnpmCommand, ['--filter', manifest.name, 'run', command, ...forwarded], {
   cwd: root, stdio: 'inherit', detached: grouped
 })
 let interrupted
 const stop = signal => {
   interrupted = signal
+  if (!child.pid) return
   try { grouped ? process.kill(-child.pid, signal) : child.kill(signal) } catch (error) {
     if (error.code !== 'ESRCH') throw error
   }

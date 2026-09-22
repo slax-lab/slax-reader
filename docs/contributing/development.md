@@ -2,14 +2,14 @@
 
 [English](development.en.md) · [参与指南](README.md) · [目录与应用关系](../architecture/frontend.md)
 
-先选择一个应用：阅读器页面在 `apps/web`，浏览器扩展在 `apps/extension`。你可以先了解和修改其中一端，
-不必参与 backend 迁移；但登录、收藏同步等功能需要可用的开发 backend 和相应配置。
+先选择一个应用：阅读器页面在 `apps/web`，浏览器扩展在 `apps/extension`，API 服务在 `apps/api`。
+你可以先了解和修改其中一端；登录、收藏同步等功能需要可用的开发 API 和相应配置。
 
 ## 准备自己的工作目录
 
 使用 Git、符合 app 要求的 Node.js（`^22.22.2 || ^24.15.0 || >=26.0.0`），以及固定的 pnpm 11.25.0。
 根包的 Node 最低要求较低，运行前端请以 app 的 `engines` 为准。macOS 不是必需条件；
-部分脚本使用 POSIX shell，Windows 贡献者可使用 WSL2，并留意浏览器与 backend 路径。
+部分脚本使用 POSIX shell，Windows 贡献者可使用 WSL2，并留意浏览器与 API 路径。
 本迁移尚未完成各操作系统的干净安装验收。
 
 没有写入权限时先 Fork，克隆自己的副本，把官方仓库设置为 `upstream`，并获取它的 `dev`：
@@ -44,7 +44,7 @@ pnpm install --frozen-lockfile
 pnpm preflight
 ```
 
-它只检查前端，会读取配置用于校验，但不会显示环境变量值，也不会启动 backend。检查单个应用或指定环境时可使用
+它只检查前端，会读取配置用于校验，但不会显示环境变量值，也不会启动 API。检查单个应用或指定环境时可使用
 `pnpm preflight --app web`、`pnpm preflight --app extension` 或 `pnpm preflight --env preview`。
 根目录的 `pnpm web -- ...` 和 `pnpm extension -- ...` 会分别读取 `deploy/local_web` 与 `deploy/local_extension` 中的 `.env` 和 profile 文件；development profile 使用 `.env.dev`，根目录 `.env`
 不会自动生效，preflight 会对此给出提醒。
@@ -67,7 +67,7 @@ profile 文件本身不用于切换环境。`dev`、`build`、类型检查和测
 
 `preflight` 中的 `（必填）` 表示该变量必须有非空且格式正确的值；`（可选）` 表示该能力未配置时会被关闭，不会阻塞前端检查。
 Web 的 `GOOGLE_OAUTH_CLIENT_ID` 必须配置，`APPLE_OAUTH_CLIENT_ID` 和 `TURNSTILE_SITE_KEY` 可选；Google OAuth Client ID 的创建步骤见 [Web 开发说明](../apps/web/development.md#创建-google-oauth-客户端-id)。
-`SLAX_API_CONFIG` / `deploy/local/api.toml` 只在运行 `pnpm web -- dev` 做真实 backend 联调时必填，其他前端检查不会因此失败。
+`SLAX_API_CONFIG` / `deploy/local/api.toml` 只在运行 `pnpm web -- dev` 做真实 API 联调时必填，其他前端检查不会因此失败。
 
 ## 运行一个应用
 
@@ -94,7 +94,7 @@ Web 默认开发端口为 3000；它使用 `SLAX_API_CONFIG` / `deploy/local/api
 
 扩展开发服务器使用 3001，`pnpm extension -- dev` 自动构建 selection 和 vendor；类型检查及单元测试也会先生成 WXT 类型。
 普通构建完成后，在 Chrome / Edge 扩展管理页开启开发者模式并加载 `apps/extension/build/chrome-mv3`；
-开发模式用 `build/chrome-mv3-dev`。真实业务依赖 Web 的 `/x/ext-bridge` 与 backend。
+开发模式用 `build/chrome-mv3-dev`。真实业务依赖 Web 的 `/x/ext-bridge` 与 API。
 环境主机名、cookie 配置和扩展环境要一致，详见[扩展指南](../apps/extension/development.md)。
 
 ## 修改后验证什么
