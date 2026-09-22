@@ -58,6 +58,9 @@ pnpm preflight
 加载顺序是 `.env` → `.env.<SLAX_ENV>` → `.env.<SLAX_ENV>.local`。当前 loader 没有开启 dotenv 的 `override`，
 因此进程变量优先，其后先读到的同名值保留；不能因为文件名带 `.local` 就假定它会覆盖前面文件。
 
+`preflight` 中的 `（必填）` 表示该变量必须有非空且格式正确的值；`（需声明，可留空）` 表示 Web 的 OAuth / Turnstile 变量必须声明，但本地构建可以留空。
+`SLAX_BACKEND_DIR` 只在运行 `pnpm web -- dev` 做真实 backend 联调时必填，其他前端检查不会因此失败。
+
 ## 运行一个应用
 
 以下命令都在任务工作树根执行：

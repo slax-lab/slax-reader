@@ -20,15 +20,14 @@ cp apps/web/.env.example apps/web/.env
 
 下表只有变量名和用途，不含真实环境值：
 
-| 变量 | 用途 |
-| --- | --- |
-| `PUBLIC_BASE_URL`, `AUTH_BASE_URL`, `SHARE_BASE_URL` | 本地 Web / 登录 / 分享入口 |
-| `DWEB_API_BASE_URL` | 独立 backend API 地址 |
-| `COOKIE_DOMAIN`, `COOKIE_TOKEN_NAME` | 本地登录 cookie 配置 |
-| `GOOGLE_OAUTH_CLIENT_ID`, `APPLE_OAUTH_CLIENT_ID` | OAuth 公共客户端标识 |
-| `TURNSTILE_SITE_KEY` | Turnstile 公共 site key |
-| `SLAX_BACKEND_DIR` | 独立 backend 检出目录的绝对路径，仅本地 Worker 联调需要 |
-| `SLAX_ENV` | development（默认）、preview、beta、production |
+| 变量 | 必填性 | 用途 |
+| --- | --- | --- |
+| `PUBLIC_BASE_URL`, `AUTH_BASE_URL`, `SHARE_BASE_URL` | 必填 | 本地 Web / 登录 / 分享入口 |
+| `DWEB_API_BASE_URL` | 必填 | 独立 backend API 地址 |
+| `COOKIE_DOMAIN`, `COOKIE_TOKEN_NAME` | 必填 | 本地登录 cookie 配置 |
+| `GOOGLE_OAUTH_CLIENT_ID`, `APPLE_OAUTH_CLIENT_ID`, `TURNSTILE_SITE_KEY` | 需声明，可留空 | OAuth / Turnstile 公共配置；本地占位构建可留空 |
+| `SLAX_BACKEND_DIR` | 仅 Web dev 必填 | 独立 backend 检出目录的绝对路径，仅本地 Worker 联调需要 |
+| `SLAX_ENV` | 可选，默认 development | development、preview、beta、production |
 
 其他可选项以 `env.schema.ts` 为准。不要把服务端密钥放入前端公开配置。
 

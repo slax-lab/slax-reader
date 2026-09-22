@@ -32,10 +32,10 @@ test('readEnvSources follows app loader precedence and process variables win', (
 })
 
 test('validateVariable distinguishes missing, invalid, placeholder, and valid values', () => {
-  assert.equal(validateVariable({ name: 'PUBLIC_BASE_URL', kind: 'url' }, {}).level, 'error')
-  assert.equal(validateVariable({ name: 'PUBLIC_BASE_URL', kind: 'url' }, { PUBLIC_BASE_URL: 'localhost' }).level, 'error')
-  assert.equal(validateVariable({ name: 'GOOGLE_OAUTH_CLIENT_ID', kind: 'text', emptyIsPlaceholder: true }, { GOOGLE_OAUTH_CLIENT_ID: '' }).level, 'warn')
-  assert.equal(validateVariable({ name: 'COOKIE_TOKEN_NAME', kind: 'cookie-name' }, { COOKIE_TOKEN_NAME: 'slax_test' }).level, 'ok')
+  assert.match(validateVariable({ name: 'PUBLIC_BASE_URL', kind: 'url', required: true }, {}).message, /PUBLIC_BASE_URL（必填）\s+未配置/)
+  assert.match(validateVariable({ name: 'PUBLIC_BASE_URL', kind: 'url', required: true }, { PUBLIC_BASE_URL: 'localhost' }).message, /PUBLIC_BASE_URL（必填）\s+不是有效的 http\/https 地址/)
+  assert.match(validateVariable({ name: 'GOOGLE_OAUTH_CLIENT_ID', kind: 'text', required: true, declarationOnly: true, emptyIsPlaceholder: true }, { GOOGLE_OAUTH_CLIENT_ID: '' }).message, /GOOGLE_OAUTH_CLIENT_ID（需声明，可留空）\s+为空/)
+  assert.match(validateVariable({ name: 'COOKIE_TOKEN_NAME', kind: 'cookie-name', required: true }, { COOKIE_TOKEN_NAME: 'slax_test' }).message, /COOKIE_TOKEN_NAME（必填）\s+已配置/)
 })
 
 test('formatIssue colors statuses only when requested', () => {

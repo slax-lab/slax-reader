@@ -21,15 +21,15 @@ const APP_CHECKS = {
       '@slax-reader/selection'
     ],
     variables: [
-      { name: 'PUBLIC_BASE_URL', kind: 'url' },
-      { name: 'AUTH_BASE_URL', kind: 'url' },
-      { name: 'SHARE_BASE_URL', kind: 'url' },
-      { name: 'DWEB_API_BASE_URL', kind: 'url' },
-      { name: 'COOKIE_DOMAIN', kind: 'text' },
-      { name: 'COOKIE_TOKEN_NAME', kind: 'cookie-name' },
-      { name: 'GOOGLE_OAUTH_CLIENT_ID', kind: 'text', emptyIsPlaceholder: true },
-      { name: 'APPLE_OAUTH_CLIENT_ID', kind: 'text', emptyIsPlaceholder: true },
-      { name: 'TURNSTILE_SITE_KEY', kind: 'text', emptyIsPlaceholder: true }
+      { name: 'PUBLIC_BASE_URL', kind: 'url', required: true },
+      { name: 'AUTH_BASE_URL', kind: 'url', required: true },
+      { name: 'SHARE_BASE_URL', kind: 'url', required: true },
+      { name: 'DWEB_API_BASE_URL', kind: 'url', required: true },
+      { name: 'COOKIE_DOMAIN', kind: 'text', required: true },
+      { name: 'COOKIE_TOKEN_NAME', kind: 'cookie-name', required: true },
+      { name: 'GOOGLE_OAUTH_CLIENT_ID', kind: 'text', required: true, declarationOnly: true, emptyIsPlaceholder: true },
+      { name: 'APPLE_OAUTH_CLIENT_ID', kind: 'text', required: true, declarationOnly: true, emptyIsPlaceholder: true },
+      { name: 'TURNSTILE_SITE_KEY', kind: 'text', required: true, declarationOnly: true, emptyIsPlaceholder: true }
     ]
   },
   extension: {
@@ -43,12 +43,12 @@ const APP_CHECKS = {
       '@slax-reader/selection'
     ],
     variables: [
-      { name: 'PUBLIC_BASE_URL', kind: 'url' },
-      { name: 'AUTH_BASE_URL', kind: 'url' },
-      { name: 'SHARE_BASE_URL', kind: 'url' },
-      { name: 'EXTENSIONS_API_BASE_URL', kind: 'url' },
-      { name: 'COOKIE_DOMAIN', kind: 'text' },
-      { name: 'COOKIE_TOKEN_NAME', kind: 'cookie-name' }
+      { name: 'PUBLIC_BASE_URL', kind: 'url', required: true },
+      { name: 'AUTH_BASE_URL', kind: 'url', required: true },
+      { name: 'SHARE_BASE_URL', kind: 'url', required: true },
+      { name: 'EXTENSIONS_API_BASE_URL', kind: 'url', required: true },
+      { name: 'COOKIE_DOMAIN', kind: 'text', required: true },
+      { name: 'COOKIE_TOKEN_NAME', kind: 'cookie-name', required: true }
     ]
   }
 }
@@ -155,14 +155,18 @@ function readEnvSources(appDirectory, envName, processEnvironment = process.env)
 }
 
 function validateVariable(variable, values) {
+  const label = `${variable.name}${variable.declarationOnly ? '（需声明，可留空）' : variable.required === false ? '' : '（必填）'}`
   const value = values[variable.name]
-  if (value === undefined) return { level: 'error', message: `${variable.name} 未配置` }
+  if (value === undefined) {
+    if (variable.required === false) return { level: 'info', message: `${label} 未配置` }
+    return { level: 'error', message: `${label} 未配置` }
+  }
 
   if (value === '') {
     if (variable.emptyIsPlaceholder) {
-      return { level: 'warn', message: `${variable.name} 为空（允许用于无真实服务的本地构建）` }
+      return { level: 'warn', message: `${label} 为空（允许用于无真实服务的本地构建）` }
     }
-    return { level: 'error', message: `${variable.name} 为空` }
+    return { level: 'error', message: `${label} 为空` }
   }
 
   if (variable.kind === 'url') {
@@ -170,15 +174,15 @@ function validateVariable(variable, values) {
       const url = new URL(value)
       if (!['http:', 'https:'].includes(url.protocol)) throw new Error('unsupported protocol')
     } catch {
-      return { level: 'error', message: `${variable.name} 不是有效的 http/https 地址` }
+      return { level: 'error', message: `${label} 不是有效的 http/https 地址` }
     }
   }
 
   if (variable.kind === 'cookie-name' && value.length < 5) {
-    return { level: 'error', message: `${variable.name} 长度不能少于 5 个字符` }
+    return { level: 'error', message: `${label} 长度不能少于 5 个字符` }
   }
 
-  return { level: 'ok', message: `${variable.name} 已配置` }
+  return { level: 'ok', message: `${label} 已配置` }
 }
 
 function checkInstalledDependencies(app, root = REPO_ROOT) {
@@ -330,7 +334,7 @@ function run(options, root = REPO_ROOT) {
       printIssue(issue, '  ', colorEnabled)
     }
     if (app.label === 'Web') {
-      const issue = { level: 'info', message: 'SLAX_BACKEND_DIR 仅用于真实 backend 联调；当前 preflight 不将它视为前端配置失败' }
+      const issue = { level: 'info', message: 'SLAX_BACKEND_DIR（Web 开发联调时必填）仅用于真实 backend 联调；当前 preflight 不将它视为前端配置失败' }
       issues.push(issue)
       printIssue(issue, '  ', colorEnabled)
     }
