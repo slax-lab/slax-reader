@@ -6,7 +6,7 @@
 
 Web 配置集中在 `apps/web/config`，环境 schema 在 `apps/web/env.schema.ts`。
 根目录的 `pnpm web -- ...` 会从 `deploy/local_web` 加载 `.env` 和 profile 文件；development profile 使用 `.env.dev`，其他 profile 使用 `.env.<SLAX_ENV>`。
-`.env.dev` 覆盖 `.env`，进程中已设置的同名变量优先。直接运行 app 包时，`apps/web` 内的 loader 仍保留作为兼容 fallback。
+`.env.dev` 覆盖 `.env`，进程中已设置的同名变量优先。直接运行 app 包也使用同一 deploy 配置，不再读取 app 目录的环境文件。
 环境名称按终端 `SLAX_ENV` → deploy `.env` 中的 `SLAX_ENV` → `development` 选择，profile 文件不能再切换它。所有根命令（包括 `dev` 和 `build`）都使用这套规则；根目录 `.env` 不会自动加载。
 环境文件由开发者自行配置，不提交，也不从旧仓库复制。
 
@@ -78,7 +78,7 @@ export APPLE_OAUTH_CLIENT_ID=
 export TURNSTILE_SITE_KEY=
 ```
 
-这些值不会启动 backend，也不能用于验收真实登录、同步或生产部署。
+这些值不会启动 API，也不能用于验收真实登录、同步或生产部署。
 默认 development profile 的构建通过不等于 production 配置已经验证。
 完整依赖安装的已知问题见[最终验收清单](../../migrations/final-verification.md)。
 

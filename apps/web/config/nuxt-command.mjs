@@ -7,6 +7,7 @@
  * loaded by tooling/env-files.mjs first, with process > profile > base
  * precedence.
  */
+import { pnpmInvocation } from '../../../tooling/pnpm-command.mjs'
 import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -37,11 +38,11 @@ for (let index = 0; index < commandArgs.length; index += 1) {
   forwarded.push(argument)
 }
 
+const invocation = pnpmInvocation(['exec', 'nuxt', command])
 const tempDirectory = mkdtempSync(resolve(tmpdir(), 'slax-reader-nuxt-'))
 const emptyEnvFile = resolve(tempDirectory, '.env')
 writeFileSync(emptyEnvFile, '')
-const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
-const child = spawn(pnpm, ['exec', 'nuxt', command, '--dotenv', emptyEnvFile, ...forwarded], {
+const child = spawn(invocation.program, [...invocation.args, '--dotenv', emptyEnvFile, ...forwarded], {
   cwd: appRoot,
   env: process.env,
   stdio: 'inherit'

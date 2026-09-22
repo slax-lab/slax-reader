@@ -31,7 +31,7 @@ function dispatcherFixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'slax-reader-run-app-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   mkdirSync(join(root, 'tooling'))
-  for (const file of ['web.mjs', 'extension.mjs', 'run-app.mjs', 'env-files.mjs']) {
+  for (const file of ['web.mjs', 'extension.mjs', 'run-app.mjs', 'env-files.mjs', 'pnpm-command.mjs']) {
     copyFileSync(new URL(file, import.meta.url), join(root, 'tooling', file))
   }
   writeFileSync(join(root, 'package.json'), JSON.stringify({ private: true, packageManager: 'pnpm@11.25.0' }))

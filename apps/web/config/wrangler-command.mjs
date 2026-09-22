@@ -2,18 +2,23 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
+import { constants } from 'node:os'
 import { createJiti } from 'jiti'
+import { applyDeployEnvironment } from '../../../tooling/env-files.mjs'
+import { pnpmInvocation } from '../../../tooling/pnpm-command.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
+applyDeployEnvironment({ appName: 'web', root: path.resolve(root, '../..') })
 const jiti = createJiti(import.meta.url)
 const bindings = await jiti.import('./backend-binding.ts')
 
-const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
-
-function command(program, args) {
+function command(args) {
   return new Promise((resolve, reject) => {
-    const child = spawn(program, args, { cwd: root, stdio: 'inherit', shell: false, detached: false })
+    const invocation = pnpmInvocation(args)
+    const child = spawn(invocation.program, invocation.args, { cwd: root, stdio: 'inherit', shell: false, detached: false })
+    let interrupted
     const forward = signal => {
+      interrupted = signal
       if (child.pid) child.kill(signal)
     }
     const onInterrupt = () => forward('SIGINT')
@@ -28,9 +33,10 @@ function command(program, args) {
       cleanup()
       reject(error)
     })
-    child.once('exit', (code, signal) => {
+    child.once('close', (code, signal) => {
       cleanup()
-      resolve(code ?? (signal ? 128 : 1))
+      const reason = interrupted || signal
+      resolve(reason ? 128 + (constants.signals[reason] || 1) : code ?? 1)
     })
   })
 }
@@ -38,14 +44,15 @@ function command(program, args) {
 const mode = process.argv[2]
 if (mode === 'types') {
   const config = bindings.ensureWebWranglerConfig({ local: false }).generatedConfigPath
-  process.exitCode = await command(pnpm, ['exec', 'wrangler', 'types', '-c', config])
+  process.exitCode = await command(['exec', 'wrangler', 'types', '-c', config])
 } else if (mode === 'ssr-dev') {
-  const buildCode = await command(pnpm, ['build'])
+  const buildCode = await command(['build'])
   if (buildCode !== 0) process.exitCode = buildCode
   else {
     fs.rmSync(path.join(root, '.wrangler', 'deploy', 'config.json'), { force: true })
     const selection = bindings.ensureWebWranglerConfig({ local: true })
-    process.exitCode = await command(pnpm, [
+    bindings.warnIfApiConfigMissing(selection, true)
+    process.exitCode = await command([
       'exec', 'wrangler', 'pages', 'dev', '--config', selection.generatedConfigPath,
       '--port', '3000', '--inspector-port', '9333', '--persist-to', selection.stateDir
     ])
