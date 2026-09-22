@@ -24,8 +24,8 @@ import type {
   MarkUserInfo,
   ShareBookmarkDetail,
   ShareInfo
-} from '@commons/types/interface'
-import { BookmarkParseStatus, MarkType } from '@commons/types/interface'
+} from '@commons/contracts/interface'
+import { BookmarkParseStatus, MarkType } from '@commons/contracts/interface'
 
 // 固定时间戳（避免随机时间引入 flaky）
 const FIXED_ISO = '2026-01-01T00:00:00.000Z'

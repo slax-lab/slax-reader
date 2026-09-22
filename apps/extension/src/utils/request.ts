@@ -1,8 +1,8 @@
 import { isClient } from '@commons/frontend-utils/is'
 import { FetchRequest, type FetchResult } from '@commons/frontend-utils/request'
 
-import { LocalStorageKey } from '@commons/types/const'
-import { NOT_LOGIN_ERROR } from '@commons/types/error'
+import { LocalStorageKey } from '@commons/frontend-types/const'
+import { NOT_LOGIN_ERROR } from '@commons/frontend-types/error'
 import { storage } from '@wxt-dev/storage'
 
 // 命名为 plainRequest（而非 request）：避免与 bridge/request.ts 导出的全局自动导入 `request`

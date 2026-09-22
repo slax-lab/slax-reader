@@ -1,5 +1,5 @@
 import { mountWithApp } from '../../../setup/mount'
-import type { UserShareCollectListItem } from '@commons/types/interface'
+import type { UserShareCollectListItem } from '@commons/contracts/interface'
 import { describe, expect, it } from 'vitest'
 
 describe('Collection/BookmarkCell', () => {

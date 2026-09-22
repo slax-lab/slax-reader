@@ -1,7 +1,7 @@
 // 路由 seam 汇总：统一跳 /b/
 import { type BookmarkOpenedFrom, eventEntryUrl } from '@/utils/eventAttribution'
 
-import type { HighlightItem } from '@commons/types/interface'
+import type { HighlightItem } from '@commons/contracts/interface'
 
 export type BookmarkSnapshotSource = {
   id?: number

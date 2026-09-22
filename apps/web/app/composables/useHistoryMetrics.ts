@@ -1,5 +1,5 @@
 import { buildDashboardMetricsDailyQuery, fetchDashboardMetricsDaily, getDashboardMetricsDailyLabel } from './useDashboardMetricsDailySource'
-import type { DashboardMetricsDailyItem, DashboardMetricsQuery } from '@commons/types/interface'
+import type { DashboardMetricsDailyItem, DashboardMetricsQuery } from '@commons/contracts/interface'
 
 export type HistoryRangeKey = 7 | 30 | 90 | 365
 

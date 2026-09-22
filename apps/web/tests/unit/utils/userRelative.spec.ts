@@ -3,7 +3,7 @@
 // subscription_type 判断真实订阅是否过期。
 import { checkUserSubscribedIsExpired } from '~~/app/utils/userRelative'
 
-import { SubscriptionType, type UserInfo } from '@commons/types/interface'
+import { SubscriptionType, type UserInfo } from '@commons/contracts/interface'
 import { describe, expect, it } from 'vitest'
 
 const baseUser: UserInfo = {

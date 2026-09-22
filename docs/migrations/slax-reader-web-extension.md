@@ -15,8 +15,8 @@
 | --- | --- | --- |
 | `apps/slax-reader-dweb` | `apps/web` | DWeb application |
 | `apps/slax-reader-extensions` | `apps/extension` | Browser extension |
-| `commons/types` | `packages/types` | Used by Web and Extension |
-| `commons/types-pro` | `packages/types` | Merged into the unified type package used by Web and Extension |
+| `commons/types` | `packages/contracts` | API, domain, event, and route contracts used by Web and Extension and reserved for the future backend |
+| `commons/types-pro` | `packages/contracts` and `packages/frontend-types` | Split by boundary: transport contracts stay shared with backend; browser-only/local-first types stay frontend-only |
 | `commons/utils` | `packages/frontend-utils` | Renamed to make its frontend-only scope explicit |
 | `commons/selection` | `packages/selection` | Used by Web and Extension |
 | `docs/DEVELOPMENT-DOCUMENT-*` | `docs/apps` and `docs/architecture` | Long-form onboarding and architecture material |
@@ -25,7 +25,7 @@
 
 ## Observed workspace facts
 
-The source root currently uses pnpm workspace globs for `apps/*` and `commons/*`. Both application manifests depend on four source libraries. In v2, `types-pro` is merged into `types`, and `commons/utils` is exposed as `frontend-utils`; `selection` depends on `types` and `frontend-utils`. The source root also contains shared configuration under `configs/`, `scripts/`, and root TypeScript/environment files; these require an explicit app-by-app placement decision during implementation rather than blind copying to the v2 root.
+The source root currently uses pnpm workspace globs for `apps/*` and `commons/*`. Both application manifests depend on four source libraries. In v2, the source type surface is split into `contracts` and `frontend-types`, and `commons/utils` is exposed as `frontend-utils`; `selection` depends on `contracts` and `frontend-utils`. The source root also contains shared configuration under `configs/`, `scripts/`, and root TypeScript/environment files; these require an explicit app-by-app placement decision during implementation rather than blind copying to the v2 root.
 
 ## Review of later source changes
 
@@ -62,11 +62,11 @@ source checkout is touched.
 | --- | --- |
 | DWeb: 596 tracked files | Import into `apps/web`, retaining Nuxt app/server/content/tests |
 | Extension: 189 tracked files | Leave for the next stage; `apps/extension` stays a placeholder |
-| types: 8; types-pro: 6; utils: 25; selection: 20 tracked files | Import into three v2 packages as Web prerequisites; merge `types-pro` into `types` and rename `utils` to `frontend-utils` |
+| types: 8; types-pro: 6; utils: 25; selection: 20 tracked files | Import into four v2 packages as Web prerequisites; split `types-pro` by shared-contract versus frontend-only responsibility and rename `utils` to `frontend-utils` |
 | `configs/env.ts`, `configs/backend-path.ts` | `apps/web/config`, resolve environment files under `apps/web` |
 | `env.schema.ts` | `apps/web/env.schema.ts`, schema definitions only |
 | root UnoCSS and ESLint bases | `apps/web/config/uno.base.ts` and `eslint.base.ts` |
-| root TypeScript base used by types-pro | absorbed into `packages/types` |
+| root TypeScript base used by types-pro | absorbed into `packages/contracts` and `packages/frontend-types` as needed |
 | root dependencies used implicitly by Web | Declare in the app/library that uses them; do not add app dependencies at v2 root |
 | source pnpm lock | Merge locked entries with v2, adapt importer paths and pnpm 11 override specifiers |
 | `scripts/start.script.ts`, `configs/cmd.ts` | Do not import interactive launcher; use small root delegating commands |
@@ -77,9 +77,10 @@ source checkout is touched.
 
 The original four source packages already have both app consumers in the pinned source. They are
 migrated ahead of the Extension so Web can resolve its existing workspace dependencies;
-this is not an extraction of new abstractions. The v2 workspace exposes three packages:
-`@commons/types`, `@commons/frontend-utils`, and `@slax-reader/selection`. The old `types-pro`
-surface is unified with `types`, while the broad but frontend-only utils package gets a scope-specific name.
+this is not an extraction of new abstractions. The v2 workspace exposes four focused packages:
+`@commons/contracts`, `@commons/frontend-types`, `@commons/frontend-utils`, and
+`@slax-reader/selection`. API routes, domain payloads, events, and shared enums live in
+`contracts`; browser-only and local-first implementation types live in `frontend-types`.
 No API-contract conversion or OpenAPI generation is performed.
 
 ### Coupling that remains
@@ -148,7 +149,7 @@ The frontend-utils manifest now declares its existing Vue dependency; Web declar
 and vue-eslint-parser instead of relying on source-root hoisting.
 
 Source-fidelity check: all 655 tracked files across DWeb and the four source libraries are present;
-the v2 package layout consolidates those source libraries into three packages.
+the v2 package layout consolidates those source libraries into four focused packages.
 645 are byte-identical to the source snapshot; 10 differ only in the documented config,
 manifest, declaration, ignore, and README adaptations. Original trailing whitespace in
 `useReadingPosition.ts`, `public/llms.txt`, and generated `worker-configuration.d.ts` was

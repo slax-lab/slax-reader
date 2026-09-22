@@ -101,7 +101,7 @@
 
 <script lang="ts" setup>
 import Toast from '../Toast'
-import { RESTMethodPath } from '@commons/types/const'
+import { RESTMethodPath } from '@commons/contracts/const'
 
 const props = defineProps<{
   importId: number

@@ -1,4 +1,4 @@
-import { SubscriptionType, type UserInfo } from '@commons/types/interface'
+import { SubscriptionType, type UserInfo } from '@commons/contracts/interface'
 import type { PowerSyncDatabase } from '@powersync/web'
 
 interface LocalUserRow {

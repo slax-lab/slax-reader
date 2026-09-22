@@ -1,6 +1,8 @@
 import type { SessionService } from './sessionService'
 import { request } from '@/bridge/request'
-import { LocalStorageKey, type MetricActionType, RESTMethodPath } from '@commons/types'
+import { LocalStorageKey } from '@commons/frontend-types/const'
+import { type MetricActionType } from '@commons/contracts/analytics'
+import { RESTMethodPath } from '@commons/contracts/const'
 
 const CLIENT_TYPE_HEADER = 'extension'
 const CLIENT_VERSION_HEADER = `${process.env.VERSION}`

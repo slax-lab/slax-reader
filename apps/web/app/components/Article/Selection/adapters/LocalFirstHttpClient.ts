@@ -1,7 +1,7 @@
 import type { FetchOptions } from '@commons/frontend-utils/request'
 
 import { type AddMarkBody,useLocalMarks } from '@/composables/bookmark/useLocalMarks'
-import { RESTMethodPath } from '@commons/types/const'
+import { RESTMethodPath } from '@commons/contracts/const'
 import type { IHttpClient } from '@slax-reader/selection/adapters'
 import { DwebHttpClient } from '~/components/Article/Selection/adapters/DwebHttpClient'
 

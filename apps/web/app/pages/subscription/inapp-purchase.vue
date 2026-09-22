@@ -62,8 +62,8 @@
 import { useAppBridge } from '@/utils/appBridge'
 import { formatDate } from '@commons/frontend-utils/date'
 
-import type { InAppPurchaseOrderIdData, InAppPurchaseStatus } from '@commons/types/interface'
-import { RESTMethodPath } from '@commons/types'
+import type { InAppPurchaseOrderIdData, InAppPurchaseStatus } from '@commons/contracts/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
 import Toast from '~/components/Toast'
 
 const { t } = useI18n()

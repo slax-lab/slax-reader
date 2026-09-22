@@ -1,7 +1,7 @@
 import { isSlaxReaderApp } from '../utils/environment'
 
-import { RESTMethodPath } from '@commons/types/const'
-import { type UserInfo } from '@commons/types/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
+import { type UserInfo } from '@commons/contracts/interface'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { type _GettersTree, defineStore } from 'pinia'
 

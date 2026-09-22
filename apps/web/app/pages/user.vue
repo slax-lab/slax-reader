@@ -99,8 +99,8 @@ import UserPageSkeleton from '~/components/UserPageSkeleton.vue'
 
 import { getPreferredLanguage, isSlaxReaderApp } from '../utils/environment'
 
-import { RESTMethodPath } from '@commons/types/const'
-import { type UserDetailInfo } from '@commons/types/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
+import { type UserDetailInfo } from '@commons/contracts/interface'
 import { showFeedbackModal } from '~/components/Modal'
 import Toast, { ToastType } from '~/components/Toast'
 import { useLabFeatures } from '~/composables/useLabFeatures'

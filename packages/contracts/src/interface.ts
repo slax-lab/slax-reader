@@ -484,18 +484,6 @@ export interface BookmarkChangelogResp<T> {
   logs: T[]
 }
 
-export interface PanelPosition {
-  left?: string
-  top?: string
-  width?: string
-  height?: string
-}
-export interface LocalConfig {
-  webPanelPosition?: PanelPosition
-  autoToggle?: boolean
-  sidebarWidthSync?: boolean
-}
-
 export interface BookmarkExportItem {
   url: string
   title: string

@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 
-import type { CollectionOwnerInfo } from '@commons/types/interface'
-import { RESTMethodPath } from '@commons/types'
+import type { CollectionOwnerInfo } from '@commons/contracts/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
 
 // 合集主人头像缓存：7d TTL+SWR
 // 统一 snippet 为主人头像

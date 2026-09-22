@@ -1,5 +1,5 @@
 import type { QuoteData } from '../Chat/type'
-import type { MarkPathApprox, MarkPathItem, UserInfo } from '@commons/types/interface'
+import type { MarkPathApprox, MarkPathItem, UserInfo } from '@commons/contracts/interface'
 
 export enum MenuType {
   Copy = 'copy',

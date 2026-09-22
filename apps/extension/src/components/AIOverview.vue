@@ -42,8 +42,8 @@ import { Resize } from '@commons/frontend-utils/directive'
 import { RequestMethodType } from '@commons/frontend-utils/request'
 
 import Toast, { ToastType } from './Toast'
-import { RESTMethodPath } from '@commons/types/const'
-import type { BookmarkBriefDetail, BookmarkTag } from '@commons/types/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
+import type { BookmarkBriefDetail, BookmarkTag } from '@commons/contracts/interface'
 
 type OverviewSocketData =
   | {

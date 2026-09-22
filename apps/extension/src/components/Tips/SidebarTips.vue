@@ -24,7 +24,7 @@
 </template>
 
 <script lang="ts" setup>
-import { LocalStorageKey } from '@commons/types/const'
+import { LocalStorageKey } from '@commons/frontend-types/const'
 import { vResizeObserver } from '@vueuse/components'
 import { storage } from '@wxt-dev/storage'
 

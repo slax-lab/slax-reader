@@ -52,7 +52,7 @@
 </template>
 
 <script lang="ts" setup>
-import { RESTMethodPath } from '@commons/types/const'
+import { RESTMethodPath } from '@commons/contracts/const'
 import { vOnClickOutside } from '@vueuse/components'
 import Toast, { ToastType } from '~/components/Toast'
 import { useExclusivePopover } from '~/composables/useExclusivePopover'

@@ -4,7 +4,7 @@ import { computed, defineComponent, inject } from 'vue'
 
 import BookmarkListContent from '~~/app/components/BookmarkList/BookmarkListContent.vue'
 
-import type { BookmarkItem, BookmarkTag } from '@commons/types/interface'
+import type { BookmarkItem, BookmarkTag } from '@commons/contracts/interface'
 import { LocalFirstAdapterKey, SharedUserTagsKey, type UserTagSource } from '~~/app/composables/local-first/injection'
 import { makeBookmarkItem } from '~~/tests/fixtures/bookmark'
 import { mountWithApp } from '~~/tests/setup/mount'

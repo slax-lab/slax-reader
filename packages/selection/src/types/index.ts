@@ -4,7 +4,7 @@
  * 统一了dweb和extensions两端的类型系统
  */
 
-import type { MarkPathApprox, MarkPathItem, MarkSelectContent } from '@commons/types/interface'
+import type { MarkPathApprox, MarkPathItem, MarkSelectContent } from '@commons/contracts/interface'
 
 // 重新导出以供外部使用
 export type { MarkPathItem, MarkSelectContent, MarkPathApprox }

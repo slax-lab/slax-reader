@@ -1,4 +1,4 @@
-import { LocalStorageKey } from '@commons/types/const'
+import { LocalStorageKey } from '@commons/frontend-types/const'
 import { googleAnalytics4 } from '@wxt-dev/analytics/providers/google-analytics-4'
 
 const isProduction = process.env.SLAX_ENV === 'production'

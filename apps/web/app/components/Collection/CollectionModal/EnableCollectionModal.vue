@@ -78,8 +78,8 @@
 <script lang="ts" setup>
 import { RequestError } from '@commons/frontend-utils/request'
 
-import { RESTMethodPath } from '@commons/types/const'
-import type { UserEnableCollectShare } from '@commons/types/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
+import type { UserEnableCollectShare } from '@commons/contracts/interface'
 import Toast, { ToastType } from '~/components/Toast'
 
 // current-name 已有名；default-name 兜底

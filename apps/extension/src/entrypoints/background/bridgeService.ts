@@ -1,7 +1,7 @@
 import type { BridgeBookmarkPayload } from '@/config/message'
 
 import type { SessionService } from './sessionService'
-import type { UserInfo } from '@commons/types/interface'
+import type { UserInfo } from '@commons/contracts/interface'
 
 /**
  * local-first 桥的 SW 侧代理。

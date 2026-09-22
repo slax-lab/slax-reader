@@ -1,4 +1,4 @@
-import type { UserInfo } from '@commons/types/interface'
+import type { UserInfo } from '@commons/contracts/interface'
 import type { IUserProvider } from '@slax-reader/selection/adapters'
 
 /**

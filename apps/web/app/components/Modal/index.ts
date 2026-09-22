@@ -7,7 +7,7 @@ import SnapshotStatusModal from './SnapshotStatusModal.vue'
 
 import { modalBootloader } from '~/utils/modal'
 
-import { BookmarkParseStatus } from '@commons/types/interface'
+import { BookmarkParseStatus } from '@commons/contracts/interface'
 
 export const showFeedbackModal = (options: { title: string; reportType: string; href?: string; email: string; params?: Record<string, string | number> }) => {
   const app = modalBootloader({

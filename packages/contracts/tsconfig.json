@@ -18,5 +18,5 @@
     "experimentalDecorators": true,
     "paths": {}
   },
-  "include": ["src/**/*.ts", "index.ts"]
+  "include": ["src/**/*.ts"]
 }

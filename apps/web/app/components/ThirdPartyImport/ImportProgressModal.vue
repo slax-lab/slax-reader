@@ -61,7 +61,7 @@
 <script setup lang="ts">
 import ImportFailuresModal from '~/components/ThirdPartyImport/ImportFailuresModal.vue'
 
-import type { ImportProcessResp } from '@commons/types/interface'
+import type { ImportProcessResp } from '@commons/contracts/interface'
 import Toast, { ToastType } from '~/components/Toast'
 import { importProgressPercent, useImportTasks } from '~/composables/useImportTasks'
 

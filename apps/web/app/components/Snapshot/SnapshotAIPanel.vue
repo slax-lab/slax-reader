@@ -74,8 +74,8 @@ import { extractMarkdownFromText } from '@commons/frontend-utils/parse'
 import { RequestMethodType } from '@commons/frontend-utils/request'
 import { findMatchingElement, queryMarkdownAnchorQuote, querySimularMarkdownAnchorQuote } from '@commons/frontend-utils/search'
 
-import { RESTMethodPath } from '@commons/types/const'
-import type { SummaryItemModel } from '@commons/types/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
+import type { SummaryItemModel } from '@commons/contracts/interface'
 import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
 
 // outline 锚点跳转映射

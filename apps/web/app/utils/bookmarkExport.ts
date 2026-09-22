@@ -1,4 +1,4 @@
-import type { BookmarkExportItem, BookmarkExportPage } from '@commons/types/interface'
+import type { BookmarkExportItem, BookmarkExportPage } from '@commons/contracts/interface'
 
 export type BookmarkExportFormat = 'csv' | 'json'
 const headers = 'url,title,tags,saved_at,is_read,is_archived,is_starred,type\r\n'

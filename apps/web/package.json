@@ -25,7 +25,8 @@
     "pretest": "pnpm --filter @slax-reader/selection build"
   },
   "dependencies": {
-    "@commons/types": "workspace:*",
+    "@commons/contracts": "workspace:*",
+    "@commons/frontend-types": "workspace:*",
     "@commons/frontend-utils": "workspace:*",
     "@nuxt/content": "^3.16.0",
     "@nuxtjs/i18n": "^10.6.0",

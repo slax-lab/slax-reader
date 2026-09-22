@@ -100,8 +100,8 @@ import { findMatchingElement, queryAnchorAlikeQuote, queryMarkdownAnchorQuote, q
 import { copyText } from '@commons/frontend-utils/string'
 
 import Toast, { ToastType } from './Toast'
-import { RESTMethodPath } from '@commons/types/const'
-import type { SummaryItemModel } from '@commons/types/interface'
+import { RESTMethodPath } from '@commons/contracts/const'
+import type { SummaryItemModel } from '@commons/contracts/interface'
 import { Readability } from '@slax-lab/readability'
 
 interface Anchor {

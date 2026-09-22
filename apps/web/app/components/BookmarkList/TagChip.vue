@@ -29,7 +29,7 @@
 <script lang="ts" setup>
 import { getCurrentInstance } from 'vue'
 
-import type { BookmarkTag } from '@commons/types/interface'
+import type { BookmarkTag } from '@commons/contracts/interface'
 
 const props = defineProps<{
   tag: BookmarkTag

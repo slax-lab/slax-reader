@@ -20,7 +20,7 @@
 </template>
 
 <script lang="ts" setup>
-import { RESTMethodPath } from '@commons/types'
+import { RESTMethodPath } from '@commons/contracts/const'
 import Toast, { ToastType } from '~/components/Toast'
 
 const props = defineProps({

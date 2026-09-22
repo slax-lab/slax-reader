@@ -58,7 +58,7 @@ import { isClient } from '@commons/frontend-utils/is'
 import { haveRequestToken } from '~/utils/request'
 
 import { useLocalBookmarks } from '@/composables/bookmark/useLocalBookmarks'
-import { RESTMethodPath } from '@commons/types/const'
+import { RESTMethodPath } from '@commons/contracts/const'
 import Toast, { ToastType } from '~/components/Toast'
 import { useLabFeatures } from '~/composables/useLabFeatures'
 

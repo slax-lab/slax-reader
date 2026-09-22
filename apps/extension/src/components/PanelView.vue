@@ -54,8 +54,8 @@ import TextTips from './Tips/TextTips.vue'
 import { ClickOutside } from '@commons/frontend-utils/directive'
 import { MouseTrack } from '@commons/frontend-utils/mouse'
 
-import { LocalStorageKey } from '@commons/types/const'
-import type { LocalConfig, PanelPosition } from '@commons/types/interface'
+import { LocalStorageKey } from '@commons/frontend-types/const'
+import type { LocalConfig, PanelPosition } from '@commons/frontend-types/frontend'
 import { type Position, useDebounceFn, useDraggable, useElementBounding, useScrollLock } from '@vueuse/core'
 
 const props = defineProps({

@@ -1,4 +1,4 @@
-import { LocalStorageKey } from '@commons/types/const'
+import { LocalStorageKey } from '@commons/frontend-types/const'
 
 export class StorageService {
   async clearUserData(): Promise<void> {

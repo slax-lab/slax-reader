@@ -17,5 +17,5 @@ Choose an entry below. Reading docs, reporting issues, and making small edits on
 These are repository docs, readable on GitHub or in an editor; no documentation-site command is configured.
 Product-facing content remains in the Web app.
 
-当前迁移包含 Web、扩展及三个前端共享库。Backend 仍在外部仓库；没有为本次迁移配置自动 PR 预览或免后端演示模式。
+当前迁移包含 Web、扩展及四个前端共享库（contracts、frontend-types、frontend-utils、selection）。Backend 仍在外部仓库；没有为本次迁移配置自动 PR 预览或免后端演示模式。
 Web and Extension have been imported; the backend remains external. Automatic PR previews and a backend-free demo are not configured by this migration.

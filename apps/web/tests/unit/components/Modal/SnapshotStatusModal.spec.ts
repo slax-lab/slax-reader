@@ -9,7 +9,7 @@ import { ref } from 'vue'
 
 import SnapshotStatusModal from '~~/app/components/Modal/SnapshotStatusModal.vue'
 
-import { BookmarkParseStatus } from '@commons/types/interface'
+import { BookmarkParseStatus } from '@commons/contracts/interface'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 

@@ -56,7 +56,7 @@ import ImportProgressModal from '~/components/ThirdPartyImport/ImportProgressMod
 
 import { RequestError } from '@commons/frontend-utils/request'
 
-import { RESTMethodPath } from '@commons/types/const'
+import { RESTMethodPath } from '@commons/contracts/const'
 import Toast from '~/components/Toast'
 import { importProgressPercent, MAX_ACTIVE_IMPORT_TASKS, useImportTasks } from '~/composables/useImportTasks'
 
