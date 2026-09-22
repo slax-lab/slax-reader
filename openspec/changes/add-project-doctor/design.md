@@ -13,3 +13,5 @@ Web checks the shared URLs, API URL, cookie settings, and public OAuth/Turnstile
 The command exits with status 1 when a blocking problem exists and status 0 when only warnings or informational messages remain. `--app` and `--env` narrow the check without changing application configuration.
 
 The output is structured into titled sections and app subsections. Status icons and messages use ANSI colors when the output is interactive, can be forced with `--color`, and can be disabled with `--no-color` or the standard `NO_COLOR` environment variable. Redirected output stays free of escape sequences so CI logs remain readable.
+
+When an app has no configured variables, the environment section gives its app-local `.env` and profile-local `.env.<SLAX_ENV>.local` paths and links the tracked `.env.example`. This keeps the setup guidance beside the application instead of suggesting a root environment file that the loaders do not read.

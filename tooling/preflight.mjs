@@ -264,6 +264,10 @@ function printAppHeading(app, colorEnabled) {
   console.log(`\n  ${paint(app.label, 'heading', colorEnabled)} ${paint(`(${app.directory})`, 'muted', colorEnabled)}`)
 }
 
+function environmentSetupHint(app, envName) {
+  return `未检测到可用的 ${app.label} 环境变量。请创建 ${app.directory}/.env 或 ${app.directory}/.env.${envName}.local，并参考 ${app.directory}/.env.example 中的变量名和占位值。`
+}
+
 function printHelp({ color = undefined } = {}) {
   const colorEnabled = shouldUseColor(color)
   console.log(`${paint('用法：pnpm preflight [选项]', 'title', colorEnabled)}
@@ -313,6 +317,13 @@ function run(options, root = REPO_ROOT) {
     const env = readEnvSources(appDirectory, options.env)
     printAppHeading(app, colorEnabled)
     console.log(`  ${paint(env.files.length ? `读取：${env.files.join('、')}` : '未找到 app 环境文件（也可能来自进程环境）', 'muted', colorEnabled)}`)
+    const hasConfiguredVariable = app.variables.some(variable => {
+      const value = env.values[variable.name]
+      return value !== undefined && value !== ''
+    })
+    if (!hasConfiguredVariable) {
+      printIssue({ level: 'info', message: environmentSetupHint(app, options.env) }, '  ', colorEnabled)
+    }
     for (const variable of app.variables) {
       const issue = validateVariable(variable, env.values)
       issues.push(issue)
@@ -342,7 +353,7 @@ function run(options, root = REPO_ROOT) {
   return errors ? 1 : 0
 }
 
-export { APP_CHECKS, checkInstalledDependencies, checkRuntime, formatIssue, parseArgs, parseEnvText, paint, readEnvSources, run, shouldUseColor, validateVariable }
+export { APP_CHECKS, checkInstalledDependencies, checkRuntime, environmentSetupHint, formatIssue, parseArgs, parseEnvText, paint, readEnvSources, run, shouldUseColor, validateVariable }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {

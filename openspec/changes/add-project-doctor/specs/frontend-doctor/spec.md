@@ -22,6 +22,12 @@ The repository SHALL provide a root `preflight` script, invoked as `pnpm preflig
 - **AND** it never prints the variable value
 - **AND** it exits with a non-zero status
 
+#### Scenario: No app environment is configured
+
+- **WHEN** none of the selected app's required variables is present in its environment files or the process environment
+- **THEN** the command tells the contributor which app-local environment file to create
+- **AND** it points to that app's `.env.example` for variable names and placeholder values
+
 #### Scenario: Only backend integration is unavailable
 
 - **WHEN** frontend dependencies and required frontend variables are configured but `SLAX_BACKEND_DIR` is absent
