@@ -1,6 +1,6 @@
-# Design — frontend setup doctor
+# Design — frontend setup check
 
-`tooling/doctor.mjs` uses only Node.js built-ins so it can run before workspace dependencies are installed. The root `doctor` script delegates to it; the tool does not depend on Nuxt, WXT, Zod, or dotenv.
+`tooling/doctor.mjs` uses only Node.js built-ins so it can run before workspace dependencies are installed. The root `setup:check` script delegates to it; the tool does not depend on Nuxt, WXT, Zod, or dotenv.
 
 The check has three layers:
 
