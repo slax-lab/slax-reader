@@ -2,7 +2,7 @@ import { getCurrentSessionToken, requireInteractiveLogin } from '@/utils/session
 import type { FetchOptions } from '@commons/frontend-utils/request'
 
 import { request } from './request'
-import { RESTMethodPath } from '@commons/contracts/const'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { NOT_LOGIN_ERROR } from '@commons/frontend-types/error'
 import type { IBookmarkProvider } from '@slax-reader/selection/adapters'
 

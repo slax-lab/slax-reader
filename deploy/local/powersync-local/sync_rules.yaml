@@ -1,0 +1,185 @@
+config:
+  edition: 3
+
+with:
+  current_user_id: |
+    SELECT id
+    FROM sr_user
+    WHERE uuid = auth.user_id()
+      AND deleted_at IS NULL
+
+streams:
+  user_data_v1:
+    auto_subscribe: true
+    queries:
+      ## 用户信息
+      - |
+        SELECT uuid AS id,
+          email, name, picture, given_name, family_name,
+          lang, ai_lang, timezone, account,
+          last_read_at, invite_code
+        FROM sr_user
+        WHERE id IN current_user_id
+
+      ## 用户tag list
+      - |
+        SELECT tag_name, display, source, last_used_at, created_at, uuid AS id
+        FROM sr_user_tag
+        WHERE user_id IN current_user_id
+
+      ## 用户平台绑定关系
+      - |
+        SELECT platform, platform_id, user_name, created_at, uuid AS id
+        FROM sr_platform_bind
+        WHERE user_id IN current_user_id
+      ## 用户书签列表
+      - |
+        SELECT is_read, archive_status, is_starred,
+          created_at, updated_at, alias_title, type,
+          deleted_at, metadata, uuid AS id,
+          starred_at, archived_at
+        FROM sr_user_bookmark
+        WHERE user_id IN current_user_id
+          AND deleted_at IS NULL
+
+      ## 用户订阅信息
+      - |
+        SELECT uuid AS id,
+          stripe_subscription_id, stripe_customer_id, stripe_stripe_currency,
+          first_subscription_time, subscription_end_time, next_invoice_time,
+          auto_renew, stripe_credit, subscribed,
+          apple_original_transaction_id, source_type
+        FROM sr_user_subscription
+        WHERE user_id IN current_user_id
+
+  subscribed_collections:
+    auto_subscribe: true
+    with:
+      ## 订阅的合集id
+      subscribed_collection_ids: |
+        SELECT subscriber.collection_id
+        FROM sr_user_collection_subscriber AS subscriber
+        INNER JOIN sr_user AS authenticated_user
+          ON subscriber.user_id = authenticated_user.id
+        WHERE authenticated_user.uuid = auth.user_id()
+          AND authenticated_user.deleted_at IS NULL
+          AND subscriber.is_deleted = false
+
+      ## 有效合集owner ids
+      open_collection_owner_ids: |
+        SELECT collection.owner_id
+        FROM sr_user_collection_subscriber AS subscriber
+        INNER JOIN sr_user_collection AS collection
+          ON subscriber.collection_id = collection.id
+        INNER JOIN sr_user AS owner
+          ON owner.id = collection.owner_id AND owner.deleted_at IS NULL
+        INNER JOIN sr_user AS authenticated_user
+          ON subscriber.user_id = authenticated_user.id
+        WHERE authenticated_user.uuid = auth.user_id()
+          AND authenticated_user.deleted_at IS NULL
+          AND subscriber.is_deleted = false
+          AND subscriber.is_active = true
+          AND collection.status = 1
+
+    queries:
+      ## 订阅的合集信息
+      - |
+        SELECT uuid AS id,
+          CAST(collection_id AS TEXT) AS collection_id,
+          CAST(owner_id AS TEXT) AS owner_id,
+          subscription_end_time, next_invoice_time,
+          auto_renew, last_read_at,
+          created_at, updated_at, is_cancelled
+        FROM sr_user_collection_subscriber
+        WHERE user_id IN current_user_id
+          AND is_deleted = false
+          AND connection.parameter('schema_version') = '2'
+
+      ## 订阅的合集列表
+      - |
+        SELECT CAST(id AS TEXT) AS id,
+          CAST(owner_id AS TEXT) AS owner_id,
+          display_name, avatar, description, collection_code,
+          type, status, updated_at
+        FROM sr_user_collection
+        WHERE id IN subscribed_collection_ids
+          AND connection.parameter('schema_version') = '2'
+
+      ## 映射分享设置
+      - |
+        SELECT DISTINCT CAST(sr_sharer_setting.owner_id AS TEXT) AS id,
+          0 AS allow_highlight,
+          1 AS show_highlight,
+          1 AS allow_access
+        FROM sr_user_collection AS sr_sharer_setting
+        WHERE sr_sharer_setting.owner_id IN open_collection_owner_ids
+          AND connection.parameter('schema_version') = '2'
+
+      ## 订阅的合集的书签列表
+      - |
+        SELECT sr_collection_bookmark.uuid AS id,
+          CAST(sr_collection_bookmark.user_id AS TEXT) AS owner_id,
+          sr_collection_bookmark.alias_title,
+          sr_collection_bookmark.metadata,
+          sr_collection_bookmark.starred_at,
+          sr_collection_bookmark.created_at,
+          sr_collection_bookmark.updated_at
+        FROM sr_user_bookmark AS sr_collection_bookmark
+        WHERE sr_collection_bookmark.user_id IN open_collection_owner_ids
+          AND sr_collection_bookmark.is_starred = true
+          AND sr_collection_bookmark.deleted_at IS NULL
+          AND ifnull(json_extract(sr_collection_bookmark.metadata, '$.share.is_enable'), 1) = 1
+          AND connection.parameter('schema_version') = '2'
+
+      ## 订阅的合集的书签信息
+      - |
+        SELECT CAST(sr_user_bookmark_stats.id AS TEXT) AS id,
+          sr_user_bookmark_stats.bookmark_uuid,
+          sr_user_bookmark_stats.comment_count,
+          sr_user_bookmark_stats.first_comment,
+          CAST(sr_user_bookmark_stats.owner_id AS TEXT) AS owner_id,
+          sr_user_bookmark_stats.created_at
+        FROM sr_user_bookmark_stats
+        WHERE sr_user_bookmark_stats.owner_id IN open_collection_owner_ids
+          AND sr_user_bookmark_stats.collection_id IS NOT NULL
+          AND connection.parameter('schema_version') = '2'
+
+  bookmark_comment:
+    auto_subscribe: false
+    accept_potentially_dangerous_queries: false
+    query: |
+      SELECT sr_bookmark_comment.uuid AS id, sr_bookmark_comment.user_bookmark_uuid,
+        sr_bookmark_comment.type, sr_bookmark_comment.source, sr_bookmark_comment.comment, sr_bookmark_comment.approx_source,
+        sr_bookmark_comment.content, sr_bookmark_comment.is_deleted, sr_bookmark_comment.created_at, sr_bookmark_comment.metadata
+      FROM sr_bookmark_comment
+      INNER JOIN sr_user_bookmark AS bookmark
+        ON bookmark.id = sr_bookmark_comment.bookmark_id
+      WHERE bookmark.uuid = subscription.parameter('bookmark_uuid')
+        AND bookmark.user_id IN current_user_id
+
+  collection_bookmark_comment:
+    auto_subscribe: false
+    accept_potentially_dangerous_queries: false
+    query: |
+      SELECT sr_bookmark_comment.uuid AS id, sr_bookmark_comment.user_bookmark_uuid,
+        sr_bookmark_comment.type, sr_bookmark_comment.source, sr_bookmark_comment.comment, sr_bookmark_comment.approx_source,
+        sr_bookmark_comment.content, sr_bookmark_comment.is_deleted, sr_bookmark_comment.created_at, sr_bookmark_comment.metadata
+      FROM sr_bookmark_comment
+      INNER JOIN sr_user_bookmark AS bookmark
+        ON bookmark.id = sr_bookmark_comment.bookmark_id
+      INNER JOIN sr_user_collection AS collection
+        ON collection.owner_id = bookmark.user_id
+      INNER JOIN sr_user AS authenticated_user
+        ON authenticated_user.uuid = auth.user_id()
+      INNER JOIN sr_user AS owner
+        ON owner.id = bookmark.user_id
+      WHERE bookmark.uuid = subscription.parameter('bookmark_uuid')
+        AND authenticated_user.deleted_at IS NULL
+        AND owner.deleted_at IS NULL
+        AND collection.status = 1
+        AND bookmark.user_id = CAST(subscription.parameter('owner_id') AS INTEGER)
+        AND bookmark.is_starred = true
+        AND bookmark.deleted_at IS NULL
+        AND ifnull(json_extract(bookmark.metadata, '$.share.is_enable'), 1) = 1
+        AND ifnull(json_extract(bookmark.metadata, '$.share.show_line'), 1) = 1
+        AND ifnull(json_extract(bookmark.metadata, '$.share.show_comment'), 1) = 1

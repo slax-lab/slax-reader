@@ -1,6 +1,6 @@
 import { bookmarkExportFilename, exportCsvCell, prepareBookmarkExport } from '~~/app/utils/bookmarkExport'
 
-import type { BookmarkExportItem } from '@commons/contracts/interface'
+import type { BookmarkExportItem } from '@slax-reader/contracts/interface'
 import { describe, expect, it, vi } from 'vitest'
 
 const item: BookmarkExportItem = {

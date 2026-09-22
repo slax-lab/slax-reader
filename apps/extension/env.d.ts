@@ -1,4 +1,4 @@
-import '@commons/contracts'
+import '@slax-reader/contracts'
 import type { z } from 'zod'
 import type { extensionsEnvSchema } from './env.schema'
 

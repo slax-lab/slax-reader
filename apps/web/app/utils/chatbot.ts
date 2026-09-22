@@ -2,8 +2,8 @@ import { LineDecoder, SSEDecoder } from '@commons/frontend-utils/decoder'
 import { partialParse } from '@commons/frontend-utils/json'
 import { RequestMethodType } from '@commons/frontend-utils/request'
 
-import { RESTMethodPath } from '@commons/contracts/const'
-import { type ChatCompletionChunk } from '@commons/contracts/openai'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
+import { type ChatCompletionChunk } from '@slax-reader/contracts/openai'
 import type { QuoteData } from '~/components/Chat/type'
 
 export enum ChatParamsType {

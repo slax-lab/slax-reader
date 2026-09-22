@@ -1,4 +1,4 @@
-import { RESTMethodPath } from '@commons/contracts/const'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { useUserStore } from '~/stores/user'
 

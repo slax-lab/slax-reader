@@ -70,7 +70,7 @@ import LoginModal from '~~/app/components/Modal/LoginModal.vue'
 import ShareModal from '~~/app/components/Modal/ShareModal.vue'
 import SnapshotStatusModal from '~~/app/components/Modal/SnapshotStatusModal.vue'
 
-import { BookmarkParseStatus } from '@commons/contracts/interface'
+import { BookmarkParseStatus } from '@slax-reader/contracts/interface'
 import { showEditNameModal, showEditTagModal, showFeedbackModal, showLoginModal, showShareConfigModal, showSnapshotStatusModal } from '~~/app/components/Modal'
 
 afterEach(() => {

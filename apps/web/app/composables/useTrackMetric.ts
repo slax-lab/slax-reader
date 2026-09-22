@@ -1,7 +1,7 @@
 import { haveRequestToken } from '~/utils/request'
 
-import { type MetricActionType } from '@commons/contracts/analytics'
-import { RESTMethodPath } from '@commons/contracts/const'
+import { type MetricActionType } from '@slax-reader/contracts/analytics'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 
 export const useTrackMetric = () => {
   const config = useRuntimeConfig()

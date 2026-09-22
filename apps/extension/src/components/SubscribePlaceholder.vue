@@ -28,7 +28,7 @@ export enum PlaceholderStyle {
 import SubscribeCard from './SubscribeCard.vue'
 import BookmarkTags from '@/components/BookmarkTags.vue'
 
-import type { BookmarkBriefDetail, BookmarkTag } from '@commons/contracts/interface'
+import type { BookmarkBriefDetail, BookmarkTag } from '@slax-reader/contracts/interface'
 
 type ExtensionBookmarkBriefInfo = BookmarkBriefDetail
 

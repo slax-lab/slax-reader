@@ -45,7 +45,7 @@
 </template>
 
 <script lang="ts" setup>
-import { RESTMethodPath } from '@commons/contracts/const'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { UAParser } from 'ua-parser-js'
 
 const props = defineProps({

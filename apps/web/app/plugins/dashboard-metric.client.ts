@@ -1,6 +1,6 @@
 import { haveRequestToken } from '~/utils/request'
 
-import { RESTMethodPath } from '@commons/contracts/const'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 
 const DASHBOARD_PATH_PREFIX = '/dashboard'
 const ACTION_TYPE_HEADER = 'heartbeat'

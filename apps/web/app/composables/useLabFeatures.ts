@@ -2,8 +2,8 @@
 // State lives in useState (not the persisted user store) so a stale switch never comes back from localStorage.
 import { RequestError } from '@commons/frontend-utils/request'
 
-import { RESTMethodPath } from '@commons/contracts/const'
-import type { LabFeature } from '@commons/contracts/interface'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
+import type { LabFeature } from '@slax-reader/contracts/interface'
 import Toast, { ToastType } from '~/components/Toast'
 
 export const LAB_FEATURE_DISABLED = 'LAB_FEATURE_DISABLED'

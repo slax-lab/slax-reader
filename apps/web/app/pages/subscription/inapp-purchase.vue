@@ -62,8 +62,8 @@
 import { useAppBridge } from '@/utils/appBridge'
 import { formatDate } from '@commons/frontend-utils/date'
 
-import type { InAppPurchaseOrderIdData, InAppPurchaseStatus } from '@commons/contracts/interface'
-import { RESTMethodPath } from '@commons/contracts/const'
+import type { InAppPurchaseOrderIdData, InAppPurchaseStatus } from '@slax-reader/contracts/interface'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import Toast from '~/components/Toast'
 
 const { t } = useI18n()

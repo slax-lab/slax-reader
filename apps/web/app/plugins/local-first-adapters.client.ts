@@ -5,7 +5,7 @@ import { haveRequestToken } from '~/utils/request'
 import { useLocalBookmarks } from '@/composables/bookmark/useLocalBookmarks'
 import { isLocalFirstEnabled } from '@/composables/useLocalFirst'
 import { useLocalNotifications } from '@/composables/useLocalNotifications'
-import type { UserNotificationMessageItem } from '@commons/contracts/interface'
+import type { UserNotificationMessageItem } from '@slax-reader/contracts/interface'
 import { type LocalFirstAdapter, LocalFirstAdapterKey } from '~/composables/local-first/injection'
 import type { ComputedRef, Ref } from 'vue'
 

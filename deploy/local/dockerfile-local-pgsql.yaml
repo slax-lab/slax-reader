@@ -1,0 +1,80 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: slax-reader-backend
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      PGDATA: /var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "admin"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    command: ["postgres", "-c", "wal_level=logical"]
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+
+  powersync:
+    image: journeyapps/powersync-service:latest
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/probes/liveness').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+      start_period: 10s
+    container_name: dev-powersync
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    command: ["start", "-r", "unified"]
+    environment:
+      POWERSYNC_CONFIG_PATH: /config/powersync.yaml
+      PS_DATA_SOURCE_URI: postgresql://admin:admin@postgres:5432/slax-reader-backend-internal
+      PS_STORAGE_POSTGRESQL_URI: postgresql://admin:admin@postgres:5432/powersync
+      PS_PORT: "8080"
+      PS_API_TOKEN: local-dev-powersync-admin-token
+      PS_JWKS_AUDIENCE: reader-sync
+      PS_JWK_N: ${PS_JWK_N:-}
+      PS_JWK_E: ${PS_JWK_E:-AQAB}
+      PS_JWK_KID: ${PS_JWK_KID:-local-dev}
+    ports:
+      - "127.0.0.1:18080:8080"
+    volumes:
+      - ./powersync-local/powersync.yaml:/config/powersync.yaml:ro
+      - ./powersync-local/sync_rules.yaml:/config/sync_rules.yaml:ro
+
+  powersync-api:
+    image: journeyapps/powersync-service:latest
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/probes/liveness').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+      start_period: 10s
+    command: ["start", "-r", "api"]
+    environment:
+      POWERSYNC_CONFIG_PATH: /config/powersync.yaml
+      PS_DATA_SOURCE_URI: postgresql://admin:admin@postgres:5432/slax-reader-backend-internal
+      PS_STORAGE_POSTGRESQL_URI: postgresql://admin:admin@postgres:5432/powersync
+      PS_PORT: "8080"
+      PS_API_TOKEN: local-dev-powersync-admin-token
+      PS_JWKS_AUDIENCE: reader-sync
+      PS_JWK_N: ${PS_JWK_N:-}
+      PS_JWK_E: ${PS_JWK_E:-AQAB}
+      PS_JWK_KID: ${PS_JWK_KID:-local-dev}
+    volumes:
+      - ./powersync-local/powersync.yaml:/config/powersync.yaml:ro
+      - ./powersync-local/sync_rules.yaml:/config/sync_rules.yaml:ro
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18081:8080"
+
+volumes:
+  postgres_data:
+  pgadmin_data:

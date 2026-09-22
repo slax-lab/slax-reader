@@ -52,7 +52,7 @@
 
 <script lang="ts" setup>
 import { fireworks, pride, star } from './confetti'
-import { RESTMethodPath } from '@commons/contracts/const'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { vOnKeyStroke } from '@vueuse/components'
 import Toast, { ToastType } from '~/components/Toast'
 

@@ -4,7 +4,7 @@ import { computed, type Ref, ref, shallowRef, toValue, watch } from 'vue'
 
 import { urlHttpString } from '@commons/frontend-utils/string'
 
-import { type MarkDetail, MarkType } from '@commons/contracts/interface'
+import { type MarkDetail, MarkType } from '@slax-reader/contracts/interface'
 import type { SelectionConfig } from '@slax-reader/selection'
 import {
   AnchorProcessor,

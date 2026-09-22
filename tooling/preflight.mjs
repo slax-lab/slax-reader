@@ -15,7 +15,7 @@ const APP_CHECKS = {
     directory: 'apps/web',
     command: 'nuxt',
     workspaceDependencies: [
-      '@commons/contracts',
+      '@slax-reader/contracts',
       '@commons/frontend-types',
       '@commons/frontend-utils',
       '@slax-reader/selection'
@@ -37,7 +37,7 @@ const APP_CHECKS = {
     directory: 'apps/extension',
     command: 'wxt',
     workspaceDependencies: [
-      '@commons/contracts',
+      '@slax-reader/contracts',
       '@commons/frontend-types',
       '@commons/frontend-utils',
       '@slax-reader/selection'

@@ -4,7 +4,7 @@ import { isClient } from '@commons/frontend-utils/is'
 
 import type { CommonBookmarkOptions } from './type'
 import { useResize } from './useCommon'
-import type { UserInfo } from '@commons/contracts/interface'
+import type { UserInfo } from '@slax-reader/contracts/interface'
 import type { QuoteData } from '~/components/Chat/type'
 import { showLoginModal } from '~/components/Modal'
 import { useUserStore } from '~/stores/user'

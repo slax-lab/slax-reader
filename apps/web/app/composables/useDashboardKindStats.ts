@@ -1,5 +1,5 @@
-import type { BookmarkFunnel, DashboardMetricsQuery, TopArticleItem, VisitOverview } from '@commons/contracts/interface'
-import { RESTMethodPath } from '@commons/contracts/const'
+import type { BookmarkFunnel, DashboardMetricsQuery, TopArticleItem, VisitOverview } from '@slax-reader/contracts/interface'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 
 export type KindStatsPeriod = 'day' | 'week' | 'month'
 

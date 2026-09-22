@@ -1,4 +1,4 @@
-import type { HighlightItem } from '@commons/contracts/interface'
+import type { HighlightItem } from '@slax-reader/contracts/interface'
 import { describe, expect, it } from 'vitest'
 
 // fork 覆盖：统一跳 /b/

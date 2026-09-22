@@ -69,8 +69,8 @@ export enum NotificationCellStyle {
 </script>
 
 <script lang="ts" setup>
-import { RESTMethodPath } from '@commons/contracts/const'
-import type { UserNotificationMessageItem } from '@commons/contracts/interface'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
+import type { UserNotificationMessageItem } from '@slax-reader/contracts/interface'
 
 const props = defineProps({
   notification: {

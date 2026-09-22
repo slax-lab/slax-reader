@@ -19,7 +19,7 @@ import type { II18nService } from './II18nService'
 import type { IEnvironmentAdapter } from './IEnvironmentAdapter'
 import type { IBookmarkProvider } from './IBookmarkProvider'
 import type { Ref } from 'vue'
-import type { MarkType as BackendMarkType } from '@commons/contracts/interface'
+import type { MarkType as BackendMarkType } from '@slax-reader/contracts/interface'
 
 /**
  * Selection模块依赖集合

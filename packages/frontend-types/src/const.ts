@@ -1,4 +1,4 @@
-/** Frontend-only storage keys. API routes live in @commons/contracts/const. */
+/** Frontend-only storage keys. API routes live in @slax-reader/contracts/const. */
 enum LocalStorageKey {
   USER_TOKEN = 'local:token',
   ANALYTICS_ENABLED = 'local:analytics-enabled',

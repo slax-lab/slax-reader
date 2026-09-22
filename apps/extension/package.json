@@ -35,7 +35,7 @@
     "pretest:offscreen:timing": "pnpm --filter @slax-reader/selection build"
   },
   "dependencies": {
-    "@commons/contracts": "workspace:*",
+    "@slax-reader/contracts": "workspace:*",
     "@commons/frontend-types": "workspace:*",
     "@commons/frontend-utils": "workspace:*",
     "@slax-lab/readability": "^0.6.4",

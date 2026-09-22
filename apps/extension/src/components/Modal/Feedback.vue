@@ -34,7 +34,7 @@
 </template>
 
 <script lang="ts" setup>
-import { RESTMethodPath } from '@commons/contracts/const'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { useScrollLock } from '@vueuse/core'
 import { UAParser } from 'ua-parser-js'
 

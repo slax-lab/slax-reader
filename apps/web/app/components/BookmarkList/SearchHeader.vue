@@ -54,8 +54,8 @@
 import BookmarksEmptyView from '~/components/BookmarkList/BookmarksEmptyView.vue'
 import ListEndHint from '~/components/ListEndHint.vue'
 
-import { RESTMethodPath } from '@commons/contracts/const'
-import type { SearchResultItem } from '@commons/contracts/interface'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
+import type { SearchResultItem } from '@slax-reader/contracts/interface'
 
 const props = defineProps({
   defaultSearchText: {

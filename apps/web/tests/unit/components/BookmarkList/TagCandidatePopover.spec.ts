@@ -4,7 +4,7 @@
 // 搜索框按子串过滤；空 → no_candidates；Escape / 点击外部 → close
 import TagCandidatePopover from '~~/app/components/BookmarkList/TagCandidatePopover.vue'
 
-import type { BookmarkTag } from '@commons/contracts/interface'
+import type { BookmarkTag } from '@slax-reader/contracts/interface'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { describe, expect, it } from 'vitest'
 

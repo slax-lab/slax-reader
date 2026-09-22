@@ -5,7 +5,7 @@ import { defineComponent, reactive } from 'vue'
 
 import BookmarkCell from '~~/app/components/BookmarkList/BookmarkCell.vue'
 
-import { BookmarkParseStatus, type BookmarkTag } from '@commons/contracts/interface'
+import { BookmarkParseStatus, type BookmarkTag } from '@slax-reader/contracts/interface'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
 import { baseBookmarkItem, makeBookmarkItem } from '~~/tests/fixtures/bookmark'

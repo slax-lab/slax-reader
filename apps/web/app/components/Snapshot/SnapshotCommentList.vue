@@ -45,7 +45,7 @@
 <script lang="ts" setup>
 import SnapshotCommentCard from './SnapshotCommentCard.vue'
 
-import type { UserList } from '@commons/contracts/interface'
+import type { UserList } from '@slax-reader/contracts/interface'
 import type { MarkCommentInfo, MarkItemInfo, MarkPathItem } from '@slax-reader/selection/types'
 import { useUserStore } from '~/stores/user'
 

@@ -3,8 +3,8 @@
 </template>
 
 <script lang="ts" setup>
-import type { BloggerInfo } from '@commons/contracts/interface'
-import { RESTMethodPath } from '@commons/contracts/const'
+import type { BloggerInfo } from '@slax-reader/contracts/interface'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { useCookies } from '@vueuse/integrations/useCookies'
 
 const route = useRoute()

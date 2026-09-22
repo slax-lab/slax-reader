@@ -4,7 +4,7 @@
 // tags 空 → 渲染 #empty slot
 import TagSection from '~~/app/components/BookmarkList/TagSection.vue'
 
-import type { BookmarkTag } from '@commons/contracts/interface'
+import type { BookmarkTag } from '@slax-reader/contracts/interface'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { describe, expect, it } from 'vitest'
 

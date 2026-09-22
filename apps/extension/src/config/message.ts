@@ -1,4 +1,4 @@
-import type { MetricActionType } from '@commons/contracts/analytics'
+import type { MetricActionType } from '@slax-reader/contracts/analytics'
 
 export interface BridgeBookmarkTag {
   id: string

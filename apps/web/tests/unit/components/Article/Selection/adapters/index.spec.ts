@@ -3,7 +3,7 @@
 // 这 4 个 class 都是 @slax-reader/selection 适配器层，逻辑简单（构造存值 + 转发）
 // 注意：DwebI18nService 不在此 spec — 它显式 from '#app' import useNuxtApp，
 //       vi.mock('#app') 会破坏 setupNuxt 内部依赖；该文件 1 行 t() 转发，列 phase6
-import { RESTMethodPath } from '@commons/contracts/const'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { ToastType } from '@slax-reader/selection/adapters'
 import { DwebBookmarkProvider } from '~~/app/components/Article/Selection/adapters/DwebBookmarkProvider'

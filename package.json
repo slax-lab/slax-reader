@@ -13,6 +13,7 @@
     "test:preflight": "node --test tooling/preflight.test.mjs",
     "web": "node tooling/web.mjs",
     "extension": "node tooling/extension.mjs",
+    "api": "node tooling/api.mjs",
     "prepare": "lefthook install"
   },
   "devDependencies": {

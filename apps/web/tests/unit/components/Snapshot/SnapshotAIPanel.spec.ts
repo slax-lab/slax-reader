@@ -6,7 +6,7 @@
 //  - request().stream 真实协议：resolve 一个注册函数 callBack；callBack(handler:(text,isDone)=>void)
 //  - overview / outline 都走 stream，断言时按 url 过滤；mockStream 按 url 分发返回值
 //  - 每个用例 reset 后必须重装默认 URL 分发（mockReset 会清掉 implementation）
-import { RESTMethodPath } from '@commons/contracts/const'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
 import { mountWithApp } from '~~/tests/setup/mount'

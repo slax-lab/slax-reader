@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { formatDate } from '@commons/frontend-utils/date'
 
-import type { HighlightItem } from '@commons/contracts/interface'
+import type { HighlightItem } from '@slax-reader/contracts/interface'
 import type { PropType } from 'vue'
 
 defineProps({

@@ -3,8 +3,8 @@
 </template>
 
 <script lang="ts" setup>
-import { type CollectionBookmarkDetail } from '@commons/contracts/interface'
-import { RESTMethodPath } from '@commons/contracts/const'
+import { type CollectionBookmarkDetail } from '@slax-reader/contracts/interface'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 
 definePageMeta({
   middleware: [

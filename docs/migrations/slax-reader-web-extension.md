@@ -79,7 +79,7 @@ source checkout is touched.
 The original four source packages already have both app consumers in the pinned source. They are
 migrated ahead of the Extension so Web can resolve its existing workspace dependencies;
 this is not an extraction of new abstractions. The v2 workspace exposes four focused packages:
-`@commons/contracts`, `@commons/frontend-types`, `@commons/frontend-utils`, and
+`@slax-reader/contracts`, `@commons/frontend-types`, `@commons/frontend-utils`, and
 `@slax-reader/selection`. API routes, domain payloads, events, and shared enums live in
 `contracts`; browser-only and local-first implementation types live in `frontend-types`.
 No API-contract conversion or OpenAPI generation is performed.

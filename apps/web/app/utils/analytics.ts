@@ -1,6 +1,6 @@
 import { getClientEventHeaders, getUserToken } from '~/utils/request'
 
-import type { WebAnalyticsEvent } from '@commons/contracts/analytics'
+import type { WebAnalyticsEvent } from '@slax-reader/contracts/analytics'
 
 type FirstPartyEvent = {
   event_name: string

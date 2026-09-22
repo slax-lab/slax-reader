@@ -1,4 +1,4 @@
-import { RESTMethodPath } from '@commons/contracts/const'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { registerSW } from 'virtual:pwa-register'
 

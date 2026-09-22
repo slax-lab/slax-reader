@@ -1,7 +1,7 @@
 import { expireCurrentSession, getCurrentSessionToken, getExtensionEventHeaders, requireInteractiveLogin } from '@/utils/session'
 import { type FetchOptions, FetchRequest } from '@commons/frontend-utils/request'
 
-import { RESTMethodPath } from '@commons/contracts/const'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { NOT_LOGIN_ERROR } from '@commons/frontend-types/error'
 
 let bridgeBookmarkUid: string | null = null

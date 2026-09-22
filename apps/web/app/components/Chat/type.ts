@@ -1,4 +1,4 @@
-import type { MarkPathItem } from '@commons/contracts/interface'
+import type { MarkPathItem } from '@slax-reader/contracts/interface'
 
 // 每一个消息的基本结构
 export interface MessageBaseItem {

@@ -46,8 +46,8 @@
 </template>
 
 <script lang="ts" setup>
-import { RESTMethodPath } from '@commons/contracts/const'
-import type { BookmarkTag } from '@commons/contracts/interface'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
+import type { BookmarkTag } from '@slax-reader/contracts/interface'
 import { vOnKeyStroke } from '@vueuse/components'
 import Toast, { ToastType } from '~/components/Toast'
 

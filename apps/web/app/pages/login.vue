@@ -14,8 +14,8 @@
 import LoginView from '~/components/global/LoginView.vue'
 import LoginKocBanner from '~/components/Login/LoginKocBanner.vue'
 
-import type { BloggerInfo } from '@commons/contracts/interface'
-import { RESTMethodPath } from '@commons/contracts/const'
+import type { BloggerInfo } from '@slax-reader/contracts/interface'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 
 const route = useRoute()
 const redirect = `${route.query.redirect || ''}`

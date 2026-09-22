@@ -20,6 +20,23 @@ node_modules
 # pnpm's other fallback location, is already covered by `node_modules` above.
 .pnpm-store/
 
+# API local configuration, generated deployments, and runtime state
+.vars.temp
+.wrangler
+.deploy/
+.worker-types-*/
+.worker-types-test-*/
+.apple-certs-*/
+.tmp-root-deployment-*/
+.tmp-setup-backend*/
+.tmp-root-tooling-*/
+deploy/cloudflare/*.local.toml
+deploy/local/.generated/
+deploy/local/powersync-local/*private*.json
+deploy/local/powersync-local/dev-jwks-public.json
+deploy/local/powersync-local/compose.env
+apps/api/src/infra/repository/db/*/generated/
+
 # Build output
 dist/
 build/
@@ -61,3 +78,11 @@ AGENTS.local.md
 CLAUDE.local.md
 .claude/settings.local.json
 .kimi-code/local.toml
+
+# Operator-owned API deployment configuration
+deploy/local/api.toml
+
+# Legacy local config paths remain ignored during migration
+deploy/cloudflare/api.toml
+deploy/cloudflare/.generated/
+proxy

@@ -1,5 +1,5 @@
-import type { UserShareCollectInfo } from '@commons/contracts/interface'
-import { RESTMethodPath } from '@commons/contracts/const'
+import type { UserShareCollectInfo } from '@slax-reader/contracts/interface'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 
 // 模块级单例缓存，跨组件复用
 const info = ref<UserShareCollectInfo | null>(null)

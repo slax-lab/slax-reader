@@ -1,5 +1,5 @@
-import type { DashboardMetricsDailyItem, DashboardMetricsQuery } from '@commons/contracts/interface'
-import { RESTMethodPath } from '@commons/contracts/const'
+import type { DashboardMetricsDailyItem, DashboardMetricsQuery } from '@slax-reader/contracts/interface'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 
 const DASHBOARD_DAILY_RANGE_DAYS = 365
 const PLATFORM_KEYS = ['web', 'ios', 'android', 'extension'] as const

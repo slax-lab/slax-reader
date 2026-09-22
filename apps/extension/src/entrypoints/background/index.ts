@@ -8,8 +8,8 @@ import { MessageHandler } from '@/entrypoints/background/messageHandler'
 import { MetricService } from '@/entrypoints/background/metricService'
 import { SessionService } from '@/entrypoints/background/sessionService'
 import { StorageService } from '@/entrypoints/background/storageService'
-import type { UserInfo } from '@commons/contracts/interface'
-import type { MetricActionType } from '@commons/contracts/analytics'
+import type { UserInfo } from '@slax-reader/contracts/interface'
+import type { MetricActionType } from '@slax-reader/contracts/analytics'
 
 export default defineBackground(() => {
   const storageService = new StorageService()

@@ -13,7 +13,7 @@ Monorepo 的含义是把这些项目放在同一个仓库里协作，并不意�
 | [`apps/extension`](../../apps/extension/README.md) | WXT 浏览器扩展：后台、网页侧边栏、离屏页面 | 已迁入 |
 | [`apps/backend`](../../apps/backend) | 为 API 服务预留的位置 | 当前占位；实际 backend 仍在外部仓库 |
 | [`apps/cli`](../../apps/cli) | 为命令行应用预留的位置 | 当前占位；不属于本次前端迁移 |
-| [`packages/contracts`](../../packages/contracts/README.md) | 前后端共享的 API、领域数据、事件和路由契约，包名 `@commons/contracts` | Web、Extension，以及后续 backend 使用 |
+| [`packages/contracts`](../../packages/contracts/README.md) | 前后端共享的 API、领域数据、事件和路由契约，包名 `@slax-reader/contracts` | Web、Extension，以及后续 backend 使用 |
 | [`packages/frontend-types`](../../packages/frontend-types/README.md) | Web/Extension 的浏览器端和 local-first 实现类型，包名 `@commons/frontend-types` | 两个前端 app 使用 |
 | [`packages/frontend-utils`](../../packages/frontend-utils/README.md) | 现有公共工具，包名 `@commons/frontend-utils` | 两个 app 使用 |
 | [`packages/selection`](../../packages/selection/README.md) | 划线和标注引擎，包名 `@slax-reader/selection` | 两个 app 使用 |

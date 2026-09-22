@@ -94,8 +94,8 @@
 <script setup lang="ts">
 import { showRedeemModal } from './PaymentModal'
 import Subscription from '@/components/SubscriptionModal'
-import { type InAppPurchaseStatus, SubscriptionType, type UserDetailInfo } from '@commons/contracts/interface'
-import { RESTMethodPath } from '@commons/contracts/const'
+import { type InAppPurchaseStatus, SubscriptionType, type UserDetailInfo } from '@slax-reader/contracts/interface'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import Toast from '~/components/Toast'
 
 const { t } = useI18n()

@@ -191,8 +191,8 @@ vi.mock('~~/app/components/Article/processors', () => {
 // katex CSS 副作用
 vi.mock('katex/dist/katex.css', () => ({}))
 
-vi.mock('@commons/contracts/interface', async () => {
-  const actual = await vi.importActual<typeof import('@commons/contracts/interface')>('@commons/contracts/interface')
+vi.mock('@slax-reader/contracts/interface', async () => {
+  const actual = await vi.importActual<typeof import('@slax-reader/contracts/interface')>('@slax-reader/contracts/interface')
   return {
     ...actual,
     MarkType: { LINE: 'line', COMMENT: 'comment', REPLY: 'reply', ORIGIN_LINE: 'origin_line', ORIGIN_COMMENT: 'origin_comment' }

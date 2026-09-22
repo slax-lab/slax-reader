@@ -3,7 +3,7 @@
 // 必须 mock useI18n，否则 store 实例化会因 vue-i18n "must be called from inside a setup function" 报错。
 // haveRequestToken 来自 layers/core/app/utils/request.ts 的 nuxt auto-import，
 // 直接 vi.mock 模块路径拦不到 auto-import 改写后的代码（与 useAuth.spec.ts 同模式），必须用 mockNuxtImport。
-import { SubscriptionType } from '@commons/contracts/interface'
+import { SubscriptionType } from '@slax-reader/contracts/interface'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { useUserStore } from '~~/app/stores/user'
 import { baseUser, makeUser } from '~~/tests/fixtures/user'

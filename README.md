@@ -28,23 +28,51 @@ This monorepo hosts all non-mobile Slax Reader code:
 | --- | --- |
 | `apps/web` | Web frontend ([r.slax.com](https://r.slax.com/)) |
 | `apps/extension` | Browser extension (Chrome/Edge) |
-| `apps/backend` | API server (Cloudflare Workers) |
+| `apps/api` | API server (Cloudflare Workers: Core, Edge, AI and Browser) |
 | `apps/cli` | Command-line client |
-| `packages/contracts` | Shared API contracts and types |
+| `packages/contracts` | Shared API, domain and event contracts (`@slax-reader/contracts`) |
 | `packages/frontend-types` | Shared Web/Extension implementation types |
 | `packages/frontend-utils` | Shared frontend utilities |
 | `packages/selection` | Shared highlighting and annotation engine |
+| `deploy/` | Public API templates and local Web, Extension and API infrastructure |
+| `docs/` | Development, architecture and migration documentation |
 
 Shared libraries belong in `packages` when at least two apps use them. See the
 [repository map](docs/architecture/frontend.md) for the current application and package boundaries.
 
 ## Development and self-hosting
 
-Web and Extension source now live in this repository. Start with the
-[developer setup guide](docs/contributing/development.en.md) or [中文开发指南](docs/contributing/development.md).
-After installing dependencies, run `pnpm preflight` to check the local runtime, workspace links, and required frontend environment variables.
-The backend remains external during this migration; local business flows require its development configuration.
-See [migration status and remaining verification](docs/migrations/final-verification.md) before planning deployment.
+Install dependencies once from the repository root:
+
+```bash
+pnpm install --frozen-lockfile
+```
+
+The root exposes one dispatcher per application while each app keeps its concrete command list:
+
+```bash
+pnpm preflight
+pnpm web -- dev
+pnpm extension -- dev
+pnpm api -- setup:api
+pnpm api -- dev
+```
+
+Web and Extension configuration lives in `deploy/local_web/` and `deploy/local_extension/` when those directories are present. The API uses the public template [`deploy/cloudflare/api.toml.example`](deploy/cloudflare/api.toml.example) and ignored local configuration under `deploy/local/`. Secrets belong in ignored local environment files or platform secret stores; do not put them in tracked templates or browser bundles.
+
+API commands and API-specific configuration belong to [`apps/api/`](apps/api/), including Prisma configs under `prisma/` and deployment code under `script/deploy/`. The root `api` command forwards to the scripts declared by `apps/api/package.json`. Validation commands include:
+
+```bash
+pnpm api -- gen:all
+pnpm api -- lint
+pnpm api -- typecheck
+pnpm api -- test
+pnpm api -- build
+```
+
+The API's `setup:api` command prepares local dependencies and exits; `dev` starts Workers separately. Remote deployment and migrations remain explicit operations with their safety checks. See the [API development guide](docs/api/DEVELOPMENT-DOCUMENT-EN.md) ([中文](docs/api/DEVELOPMENT-DOCUMENT-CN.md), [日本語](docs/api/DEVELOPMENT-DOCUMENT-JP.md)).
+
+Shared HTTP types live in [`packages/contracts`](packages/contracts/README.md). Web, Extension, API and future CLI code imports the contract package and does not import application internals.
 
 ## Contributing
 

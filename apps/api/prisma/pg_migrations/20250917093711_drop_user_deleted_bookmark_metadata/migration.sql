@@ -1,0 +1,2 @@
+DROP TRIGGER IF EXISTS trigger_user_delete_bookmark_metadata_insert ON sr_user_delete_bookmark;
+DROP FUNCTION IF EXISTS trigger_user_delete_bookmark_metadata_on_insert();

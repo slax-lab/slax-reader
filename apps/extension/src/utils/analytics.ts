@@ -1,5 +1,5 @@
 import { getCurrentSessionToken, getExtensionEventHeaders } from './session'
-import type { ExtensionAnalyticsEvent } from '@commons/contracts/analytics'
+import type { ExtensionAnalyticsEvent } from '@slax-reader/contracts/analytics'
 
 /**
  * Extension端埋点上报函数

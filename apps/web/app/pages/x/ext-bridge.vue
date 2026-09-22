@@ -6,7 +6,7 @@
 
 import { isAllowedExtensionOrigin, parseExtensionBridgeIds } from '~/utils/extensionBridge'
 
-import type { UserInfo } from '@commons/contracts/interface'
+import type { UserInfo } from '@slax-reader/contracts/interface'
 import type { PowerSyncDatabase } from '@powersync/web'
 import { useUserStore } from '~/stores/user'
 

@@ -1,5 +1,5 @@
 import type { SessionService } from './sessionService'
-import type { UserInfo } from '@commons/contracts/interface'
+import type { UserInfo } from '@slax-reader/contracts/interface'
 
 export class AuthService {
   constructor(

@@ -1,17 +1,17 @@
-// Augments `@commons/contracts/interface` with the fields and interfaces that are
+// Augments `@slax-reader/contracts/interface` with the fields and interfaces that are
 // shared by the current Web and Extension applications.
 //
-// Importing `@commons/contracts` once anywhere in the program (e.g. via
-// the app's `index.d.ts`) makes every `from '@commons/contracts/interface'`
+// Importing `@slax-reader/contracts` once anywhere in the program (e.g. via
+// the app's `index.d.ts`) makes every `from '@slax-reader/contracts/interface'`
 // import see the augmented and added types.
 
-import type { BookmarkParseStatus, CollectionInfo, SubscriptionType } from '@commons/contracts/interface'
+import type { BookmarkParseStatus, CollectionInfo, SubscriptionType } from '@slax-reader/contracts/interface'
 
 // Keep these imported names visible to package-level noUnusedLocals checks;
 // they are consumed inside the module augmentation below.
 export type { BookmarkParseStatus, CollectionInfo, SubscriptionType }
 
-declare module '@commons/contracts/interface' {
+declare module '@slax-reader/contracts/interface' {
   // ─── Field augmentations on upstream interfaces ─────────────────────
 
   interface BookmarkDetail {

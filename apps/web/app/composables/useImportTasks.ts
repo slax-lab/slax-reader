@@ -1,5 +1,5 @@
-import { RESTMethodPath } from '@commons/contracts/const'
-import type { ImportProcessResp } from '@commons/contracts/interface'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
+import type { ImportProcessResp } from '@slax-reader/contracts/interface'
 
 // Mirrors MAX_ACTIVE_IMPORT_TASKS in the backend import service.
 export const MAX_ACTIVE_IMPORT_TASKS = 5

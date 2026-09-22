@@ -28,7 +28,7 @@
 </template>
 
 <script lang="ts" setup>
-import { BookmarkParseStatus } from '@commons/contracts/interface'
+import { BookmarkParseStatus } from '@slax-reader/contracts/interface'
 
 export interface SnapshotStatusModalProps {
   status: BookmarkParseStatus

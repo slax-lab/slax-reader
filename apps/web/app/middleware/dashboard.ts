@@ -1,4 +1,4 @@
-import { RESTMethodPath } from '@commons/contracts/const'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 
 export default defineNuxtRouteMiddleware(async () => {
   if (import.meta.client) {

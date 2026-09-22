@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 
-import type { CollectionOwnerInfo } from '@commons/contracts/interface'
-import { RESTMethodPath } from '@commons/contracts/const'
+import type { CollectionOwnerInfo } from '@slax-reader/contracts/interface'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 
 // 合集主人头像缓存：7d TTL+SWR
 // 统一 snippet 为主人头像

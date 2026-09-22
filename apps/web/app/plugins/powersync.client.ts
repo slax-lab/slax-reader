@@ -2,7 +2,7 @@ import { notifyExtensionBridgeAuthExpired, parseExtensionBridgeIds } from '~/uti
 import { requestExtensionBridgeSession } from '~/utils/extensionBridgeSession'
 import { getClientEventHeaders, getUserToken } from '~/utils/request'
 
-import { RESTMethodPath } from '@commons/contracts/const'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { createPowerSyncPlugin } from '@powersync/vue'
 import { PowerSyncDatabase, SyncStreamConnectionMethod } from '@powersync/web'
 import { clearSyncCredsCache, createConnector, fetchSyncCredentials } from '~/local-first/connector'

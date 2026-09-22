@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { RESTMethodPath } from '@commons/contracts/const'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { showLoginModal } from '~/components/Modal'
 import Toast, { ToastType } from '~/components/Toast'
 import { useUserStore } from '~/stores/user'

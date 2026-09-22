@@ -52,8 +52,8 @@ import NotificationCell, { NotificationCellStyle } from '~/components/Notificati
 
 import { isSafari } from '@commons/frontend-utils/is'
 
-import { RESTMethodPath } from '@commons/contracts/const'
-import type { UserNotificationMessageItem } from '@commons/contracts/interface'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
+import type { UserNotificationMessageItem } from '@slax-reader/contracts/interface'
 import { vOnClickOutside } from '@vueuse/components'
 import { LocalFirstAdapterKey } from '~/composables/local-first/injection'
 import type { Ref } from 'vue'

@@ -5,7 +5,7 @@
 
 import { nextTick, ref } from 'vue'
 
-import type { UserInfo } from '@commons/contracts/interface'
+import type { UserInfo } from '@slax-reader/contracts/interface'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { baseUser } from '~~/tests/fixtures/user'
 import { createPinia, setActivePinia } from 'pinia'

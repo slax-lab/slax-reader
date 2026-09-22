@@ -4,8 +4,8 @@ import {
   getDashboardMetricsDailyPlatformValue,
   useDashboardMetricsDailySource
 } from './useDashboardMetricsDailySource'
-import type { DashboardMetricsQuery, OverallMetrics, PlatformMetric } from '@commons/contracts/interface'
-import { RESTMethodPath } from '@commons/contracts/const'
+import type { DashboardMetricsQuery, OverallMetrics, PlatformMetric } from '@slax-reader/contracts/interface'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 
 const DEFAULT_QUERY: DashboardMetricsQuery = {
   start_time: '2026-01-01 00:00:00',

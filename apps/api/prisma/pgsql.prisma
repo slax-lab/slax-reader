@@ -1,0 +1,770 @@
+generator hyperdrive_client {
+    provider        = "prisma-client-js"
+    engineType      = "client"
+    runtime         = "cloudflare"
+    previewFeatures = ["driverAdapters", "views"]
+    output          = "../node_modules/@prisma/hyperdrive-client"
+}
+
+datasource hyperdrive {
+    provider     = "postgresql"
+    relationMode = "prisma"
+}
+
+model sr_user {
+    id   Int    @id @default(autoincrement())
+    uuid String @unique @default(dbgenerated("gen_random_uuid()"))
+
+    email            String    @unique
+    name             String    @default("")
+    picture          String    @default("")
+    given_name       String    @default("")
+    family_name      String    @default("")
+    lang             String    @default("")
+    ai_lang          String    @default("")
+    country          String    @default("")
+    city             String    @default("")
+    region           String    @default("")
+    latitude         Float     @default(0)
+    longitude        Float     @default(0)
+    timezone         String    @default("")
+    account          String    @default("")
+    last_login_at    DateTime
+    last_login_ip    String    @default("")
+    last_read_at     DateTime?
+    invite_code      String    @default("")
+    created_at       DateTime
+    deleted_at       DateTime?
+    snapshot_sharing Boolean   @default(true)
+
+    subscription sr_user_subscription?
+
+    @@index([account])
+    @@index([invite_code])
+}
+
+model sr_bookmark {
+    id   Int    @id @default(autoincrement())
+    uuid String @unique @default(dbgenerated("gen_random_uuid()"))
+
+    title              String   @default("")
+    host_url           String   @default("")
+    target_url         String   @default("")
+    site_name          String   @default("")
+    content_icon       String   @default("")
+    content_cover      String   @default("")
+    content_key        String   @default("")
+    content_md_key     String   @default("")
+    content_word_count Int      @default(0)
+    description        String   @default("")
+    byline             String   @default("")
+    private_user       Int      @default(0)
+    status             String   @default("pending")
+    // 内容审核结果：0-普通内容 1-色情内容 2-极度危险内容(儿童色情/反动/恐怖主义/核武制造/毒品等)
+    moderation_result  Int      @default(0)
+    created_at         DateTime
+    updated_at         DateTime
+    published_at       DateTime
+
+    userBookmarks        sr_user_bookmark[]
+    sr_user_bookmark_tag sr_user_bookmark_tag[]
+
+    @@unique([target_url, private_user])
+}
+
+model sr_user_bookmark {
+    id   Int    @id @default(autoincrement())
+    uuid String @unique @default(dbgenerated("gen_random_uuid()"))
+
+    user_id        Int      @default(0)
+    bookmark_id    Int      @default(0)
+    is_read        Boolean  @default(false)
+    archive_status Int      @default(0)
+    is_starred     Boolean  @default(false)
+    created_at     DateTime @default(now())
+
+    // 仅作数据库记录/排障，不参与业务
+    updated_at DateTime
+
+    alias_title String @default("")
+    // 0- 文章 1- URL快捷方式
+    type        Int    @default(0)
+
+    starred_at  DateTime?
+    archived_at DateTime?
+
+    bookmark             sr_bookmark              @relation(fields: [bookmark_id], references: [id])
+    sr_user_bookmark_tag sr_user_bookmark_tag[]
+    sr_bookmark_delete   sr_user_delete_bookmark?
+    deleted_at           DateTime?
+
+    metadata Json @default("{}")
+
+    @@unique([user_id, bookmark_id])
+    @@index([bookmark_id])
+    @@index([user_id, deleted_at, archive_status, archived_at(sort: Desc)])
+    @@index([user_id, deleted_at, is_starred, starred_at(sort: Desc)])
+}
+
+model sr_user_bookmark_stats {
+    id Int @id @default(autoincrement())
+
+    bookmark_uuid String   @unique
+    comment_count Int      @default(0)
+    first_comment Json?
+    collection_id Int?
+    owner_id      Int
+    created_at    DateTime @default(now())
+
+    @@index([owner_id])
+    @@index([collection_id])
+}
+
+model sr_bookmark_summary {
+    id   Int    @id @default(autoincrement())
+    uuid String @unique @default(dbgenerated("gen_random_uuid()"))
+
+    content     String    @default("")
+    ai_name     String    @default("")
+    ai_model    String    @default("")
+    created_at  DateTime
+    updated_at  DateTime?
+    lang        String    @default("")
+    user_id     Int       @default(0)
+    bookmark_id Int       @default(0)
+
+    @@unique([bookmark_id, lang, user_id])
+}
+
+model sr_user_report {
+    id         Int      @id @default(autoincrement())
+    user_id    Int      @default(0)
+    type       String   @default("")
+    content    String   @default("")
+    created_at DateTime @default(now())
+
+    // 新增负责存储反馈信息的 JSON 字段，结构如下：
+    // {
+    /// platform: "app" | "web" | "extension",
+    /// environment: "ios" | "android" | "chrome" | "firefox" | "edge" | "safari",
+    /// version: "1.0.0",
+    /// entry_point: "inbox" | "bookmark_detail" | "share" | "collection",
+    /// bookmark_id: "{对应的 sr_bookmark 的 id}",
+    /// target_url: "{对应的 url}",
+    /// ip_address: "127.0.0.1",
+    /// allow_follow_up: true | false
+    // }
+    extra_data Json @default("{}")
+}
+
+model sr_platform_bind {
+    id   Int    @id @default(autoincrement())
+    uuid String @unique @default(dbgenerated("gen_random_uuid()"))
+
+    user_id     Int      @default(0)
+    platform    String   @default("")
+    platform_id String   @default("")
+    user_name   String   @default("")
+    created_at  DateTime @default(now())
+
+    @@unique([user_id, platform])
+    @@index([platform, platform_id])
+}
+
+model sr_user_subscription_period {
+    id             Int      @id @default(autoincrement())
+    user_id        Int      @default(0)
+    type           Int      @default(0)
+    source         String   @default("")
+    interval       String   @default("")
+    interval_count Int      @default(0)
+    created_at     DateTime @default(now())
+
+    @@index([user_id])
+    @@index([source])
+}
+
+model sr_user_invite {
+    id             Int      @id @default(autoincrement())
+    user_id        Int      @default(0)
+    code           String   @default("")
+    invite_user_id Int      @default(0)
+    source         String   @default("")
+    is_valid       Boolean  @default(true)
+    created_at     DateTime @default(now())
+
+    @@index([user_id])
+}
+
+model sr_user_subscription {
+    id   Int    @id @default(autoincrement())
+    uuid String @unique @default(dbgenerated("gen_random_uuid()"))
+
+    user_id Int @default(0)
+
+    // Stripe字段
+    stripe_subscription_id String @default("")
+    stripe_customer_id     String @default("")
+    stripe_stripe_currency String @default("")
+
+    // 首次购买、续订、恢复购买都保持不变
+    // 即使订阅过期后重新续订，original_transaction_id 也会保持不变
+    apple_original_transaction_id String @default("")
+    // source_type: system / stripe / apple / google
+    // system代表是系统赠送的免费订阅
+    source_type                   String @default("")
+
+    first_subscription_time DateTime
+    subscription_end_time   DateTime
+    next_invoice_time       DateTime
+    auto_renew              Boolean  @default(false)
+    stripe_credit           Int      @default(0)
+    subscribed              Boolean  @default(false)
+    created_at              DateTime @default(now())
+
+    user sr_user @relation(fields: [user_id], references: [id])
+
+    @@unique([user_id])
+}
+
+model sr_payment_job {
+    key         String    @id
+    kind        String
+    payload     Json      @default("{}")
+    status      String    @default("pending")
+    lease_token String?
+    lease_until DateTime?
+    attempts    Int       @default(0)
+    error       String    @default("")
+    created_at  DateTime  @default(now())
+    updated_at  DateTime  @default(now())
+
+    @@index([status, kind])
+}
+
+model sr_payment_grant {
+    key        String   @id
+    user_id    Int
+    provider   String
+    source     String
+    scope      String @default("")
+    covered_end DateTime?
+    period_id  Int?     @unique
+    amount     Int      @default(0)
+    refunded   Int      @default(0)
+    minutes    Int      @default(0)
+    revoked    Boolean  @default(false)
+    status     String   @default("pending")
+    created_at DateTime @default(now())
+
+    @@index([user_id])
+}
+
+model sr_payment_refund {
+    key        String   @id
+    grant_key  String
+    amount     Int
+    created_at DateTime @default(now())
+}
+
+model sr_stripe_event {
+    id                  Int      @id @default(autoincrement())
+    event_id            String   @default("")
+    event_type          String   @default("")
+    event_data          String   @default("")
+    event_account       String   @default("")
+    previous_event_data String   @default("")
+    live_mode           Boolean  @default(false)
+    created_at          DateTime @default(now())
+}
+
+model sr_bookmark_comment {
+    id   Int    @id @default(autoincrement())
+    uuid String @unique @default(dbgenerated("gen_random_uuid()"))
+
+    user_bookmark_uuid String @default("")
+
+    user_id     Int @default(0)
+    bookmark_id Int @default(0)
+    // 1- 划线 2- 评论 3- 评论回复
+    type        Int @default(0)
+
+    // type in [1,2]，Source是path， type in [3]
+    source  String @default("")
+    comment String @default("")
+
+    root_id   Int @default(0)
+    parent_id Int @default(0)
+
+    // 模糊匹配来源
+    approx_source String @default("")
+
+    // 划线/评论的内容
+    content String @default("")
+
+    // 评论来源
+    source_type String @default("")
+    source_id   String @default("")
+
+    is_deleted Boolean  @default(false)
+    created_at DateTime @default(now())
+    updated_at DateTime
+
+    metadata Json @default("{}")
+
+    @@index([user_id, created_at, is_deleted])
+    @@index([bookmark_id, root_id, is_deleted])
+    @@index([bookmark_id, type, is_deleted])
+    @@index([user_bookmark_uuid])
+}
+
+model sr_bookmark_share {
+    id   Int    @id @default(autoincrement())
+    uuid String @unique @default(dbgenerated("gen_random_uuid()"))
+
+    share_code    String   @default("")
+    user_id       Int      @default(0)
+    bookmark_id   Int      @default(0)
+    show_line     Boolean  @default(false)
+    show_comment  Boolean  @default(false)
+    show_userinfo Boolean  @default(false)
+    allow_comment Boolean  @default(false)
+    allow_line    Boolean  @default(false)
+    is_enable     Boolean  @default(true)
+    created_at    DateTime @default(now())
+
+    @@unique([bookmark_id, user_id])
+    @@index([share_code])
+}
+
+model sr_user_tag {
+    id   Int    @id @default(autoincrement())
+    uuid String @unique @default(dbgenerated("gen_random_uuid()"))
+
+    user_id    Int      @default(0)
+    tag_name   String   @default("")
+    display    Boolean  @default(true)
+    created_at DateTime @default(now())
+
+    // "auto": in the vocabulary but never confirmed by the user
+    // "mine": confirmed by the user, AI picks these first
+    source       String    @default("auto")
+    // last time the user (not AI) attached this tag to a bookmark
+    last_used_at DateTime?
+
+    @@unique([user_id, tag_name])
+    @@index([user_id, display, source])
+}
+
+model sr_user_bookmark_tag {
+    id   Int    @id @default(autoincrement())
+    uuid String @unique @default(dbgenerated("gen_random_uuid()"))
+
+    user_id     Int      @default(0)
+    bookmark_id Int      @default(0)
+    tag_name    String   @default("")
+    tag_id      Int      @default(0)
+    created_at  DateTime @default(now())
+    is_deleted  Boolean  @default(false)
+    // who attached this tag: "user" | "ai"; "" for rows created before the column existed
+    source      String   @default("")
+
+    user_bookmark sr_user_bookmark? @relation(fields: [user_id, bookmark_id], references: [user_id, bookmark_id])
+    bookmark      sr_bookmark?      @relation(fields: [bookmark_id], references: [id])
+
+    @@unique([bookmark_id, user_id, tag_id])
+    @@index([tag_id, user_id, is_deleted])
+    @@index([bookmark_id, user_id, is_deleted])
+}
+
+model sr_bookmark_import {
+    id          Int    @id @default(autoincrement())
+    user_id     Int    @default(0)
+    type        String @default("")
+    object_key  String @default("")
+    // 0- 未开始 1- 进行中 2- 失败 3- 完成
+    status      Int    @default(0)
+    // 成功or失败原因
+    reason      String @default("")
+    // 需要导入的总数
+    total_count Int    @default(0)
+    // 分片处理总数
+    batch_count Int    @default(0)
+
+    // success total
+    success_total Int @default(0)
+    // failed total
+    failed_total  Int @default(0)
+
+    created_at DateTime @default(now())
+
+    @@index([user_id])
+}
+
+model sr_bookmark_import_relation {
+    id          Int      @id @default(autoincrement())
+    user_id     Int      @default(0)
+    bookmark_id Int      @default(0)
+    import_id   Int      @default(0)
+    // 1-success, 2-failed
+    status      Int      @default(0)
+    created_at  DateTime @default(now())
+
+    @@index([user_id, import_id, bookmark_id])
+}
+
+model sr_aigc_batch_task {
+    id               Int       @id @default(autoincrement())
+    user_id          Int       @default(0)
+    bookmark_id      Int       @default(0)
+    task_type        String    @default("") // tags_overview, summary, etc.
+    // pending, submitted, completed, failed
+    status           String    @default("pending")
+    // 重试次数
+    retry_count      Int       @default(0)
+    // gemini batch request id
+    batch_request_id String    @default("")
+    // 错误信息
+    error_message    String    @default("")
+    // AI 生成的结果 JSON
+    result_data      String    @default("")
+    created_at       DateTime  @default(now())
+    updated_at       DateTime  @default(now())
+    submitted_at     DateTime?
+    completed_at     DateTime?
+
+    @@unique([batch_request_id])
+    @@index([task_type, status, batch_request_id])
+}
+
+model sr_user_delete_bookmark {
+    id Int @id @default(autoincrement())
+
+    user_id     Int       @default(0)
+    bookmark_id Int       @default(0)
+    deleted_at  DateTime?
+
+    sr_user_bookmark sr_user_bookmark @relation(fields: [user_id, bookmark_id], references: [user_id, bookmark_id])
+
+    @@unique([user_id, bookmark_id])
+}
+
+model sr_bookmark_fetch_retry {
+    id            Int       @id @default(autoincrement())
+    user_id       Int       @default(0)
+    bookmark_id   Int       @default(0)
+    retry_count   Int       @default(0)
+    created_at    DateTime  @default(now())
+    last_retry_at DateTime?
+    status        String    @default("pending")
+    trace_id      String    @default("")
+
+    @@unique([bookmark_id, user_id])
+    @@index([status])
+}
+
+model sr_bookmark_vector_shard {
+    id          Int      @id @default(autoincrement())
+    bookmark_id Int      @default(0)
+    bucket_idx  Int      @default(0)
+    created_at  DateTime @default(now())
+
+    @@unique([bookmark_id])
+}
+
+model sr_user_notification {
+    id   Int    @id @default(autoincrement())
+    uuid String @unique @default(dbgenerated("gen_random_uuid()"))
+
+    user_id Int @default(0)
+
+    // type: comment | reply | subscribe / cancel_subscribe | follow / cancel_follow
+    type String @default("")
+
+    // source: share | profile (预留)
+    source String @default("")
+
+    // xxx 评论了你 | xxx 回复了你 | xxx 关注了你 | xxx 订阅了你
+    title String @default("")
+
+    // 对应title，供列表直接使用
+    body String @default("")
+
+    // JSON结构，针对不同场景供给解析
+    // comment_id 用于点击后跳转到指定位置标记用
+    // comment: { "share_code": "xxx", "content": "xxx", "comment_id": xxx }
+    // reply: { "share_code": "xxx", "content": "xxx", "parent_content": "xxx", "comment_id": xxx  }
+    details String @default("")
+
+    is_read Boolean @default(false)
+
+    created_at DateTime @default(now())
+
+    @@index([user_id, created_at])
+}
+
+model sr_user_collection {
+    id   Int @id @default(autoincrement())
+    // 0- unknonw , 1- free, 2- paid 
+    type Int @default(0)
+
+    owner_id           Int    @default(0)
+    display_name       String @default("")
+    avatar             String @default("")
+    description        String @default("")
+    amount             Int    @default(0)
+    currency           String @default("")
+
+    collection_code String @default("")
+
+    show_marks   Boolean @default(false)
+    allow_marks  Boolean @default(false)
+    show_profile Boolean @default(false)
+
+    // 0- 暂停（无法继续订阅新的、续订，但是旧的可以继续看，price变为0）, 1- 正常
+    status Int @default(0)
+
+    created_at DateTime @default(now())
+    updated_at DateTime
+
+    @@unique([owner_id])
+    @@unique([collection_code])
+}
+
+// Collection counters are maintained incrementally by database triggers.
+model sr_user_collection_stats {
+    id Int @id @default(autoincrement())
+
+    collection_id Int @unique
+    owner_id      Int @unique
+
+    starred_count   Int      @default(0)
+    subscriber_count Int     @default(0)
+    last_modified_at DateTime @default(now())
+
+    created_at DateTime @default(now())
+    updated_at DateTime @default(now())
+}
+
+model sr_user_collection_subscriber_period {
+    id Int @id @default(autoincrement())
+
+    user_id        Int      @default(0)
+    collection_id  Int      @default(0)
+    // (stripe对应的subscrption/paid 事件id)
+    source         String   @default("")
+    // STRIPE = 1, TRIAL = 2, APPLE = 3, INVITE = 4, INVITE_CONSUMPTION = 5, STRIPE_ROLLBACK = 6
+    type           Int      @default(0)
+    interval       String   @default("")
+    interval_count Int      @default(0)
+    created_at     DateTime @default(now())
+
+    @@index([user_id, collection_id])
+    @@index([source])
+}
+
+model sr_user_collection_subscriber {
+    id   Int    @id @default(autoincrement())
+    uuid String @unique @default(dbgenerated("gen_random_uuid()"))
+
+    user_id       Int @default(0)
+    collection_id Int @default(0)
+    owner_id      Int @default(0)
+
+    // cus_<xxxx>
+    // sr_<id>, 免费
+    stripe_customer_id String @default("")
+
+    // UTC
+    // 免费： 2999年到期
+    // 付费： 根据period 实际计算
+    subscription_end_time DateTime
+
+    // 免费： 2999年
+    // 付费： 根据period 实际计算
+    next_invoice_time DateTime
+
+    // 免费：true
+    // 付费：根据是否一次性购买来区分
+    auto_renew Boolean @default(false)
+
+    created_at   DateTime  @default(now())
+    updated_at   DateTime
+    last_read_at DateTime?
+
+    is_cancelled Boolean @default(false)
+    is_deleted   Boolean @default(false)
+
+    is_active Boolean @default(true)
+
+    @@unique([user_id, collection_id])
+    @@index([collection_id, subscription_end_time])
+}
+
+model sr_user_redeem_code {
+    id Int @id @default(autoincrement())
+
+    creator_id Int    @default(0)
+    code       String @default("")
+    user_id    Int    @default(0)
+
+    created_at DateTime  @default(now())
+    updated_at DateTime?
+
+    @@unique([code])
+}
+
+model sr_user_receive_activity_record {
+    id Int @id @default(autoincrement())
+
+    user_id       Int      @default(0)
+    activity_type String   @default("")
+    created_at    DateTime @default(now())
+
+    metadata Json @default("{}")
+
+    @@unique([user_id, activity_type])
+    @@index([metadata])
+}
+
+model sr_user_bookmark_overview {
+    id   Int    @id @default(autoincrement())
+    uuid String @unique @default(dbgenerated("gen_random_uuid()"))
+
+    user_id     Int      @default(0)
+    bookmark_id Int      @default(0)
+    overview    String   @default("")
+    content     String   @default("") // 新增 JSON 字段
+    created_at  DateTime @default(now())
+
+    @@unique([bookmark_id, user_id])
+}
+
+model sr_apple_notification_event {
+    id Int @id @default(autoincrement())
+
+    notification_uuid String @default("")
+
+    sub_type          String @default("")
+    product_id        String @default("")
+    app_account_token String @default("")
+
+    bundle_id        String @default("")
+    bundle_version   String @default("")
+    notification_env String @default("")
+
+    transaction_info String @default("")
+    renewal_info     String @default("")
+
+    @@index([product_id, app_account_token])
+}
+
+model sr_apple_transaction_processed {
+    id                      Int      @id @default(autoincrement())
+    transaction_id          String   @unique
+    original_transaction_id String
+    user_id                 Int
+    notification_type       String   @default("")
+    processed_at            DateTime @default(now())
+
+    @@index([original_transaction_id])
+    @@index([user_id, processed_at])
+}
+
+model sr_twitter_mentions_record {
+    id Int @id @default(autoincrement())
+
+    tweet_id         String @default("")
+    reply_tweet_id   String @default("")
+    reply_tweet_name String @default("")
+
+    mention_twitter_id   String @default("")
+    mention_twitter_name String @default("")
+    mention_content      String @default("")
+
+    user_id      Int      @default(0)
+    mention_time DateTime @default(now())
+
+    created_at DateTime @default(now())
+
+    @@unique([tweet_id])
+}
+
+model sr_user_api_key {
+    id   Int    @id @default(autoincrement())
+    uuid String @unique @default(dbgenerated("gen_random_uuid()"))
+
+    user_id Int @unique
+
+    key_prefix String @default("")
+    key_hash   String @default("")
+    name       String @default("")
+
+    created_at DateTime @default(now())
+    updated_at DateTime @default(now())
+
+    @@unique([key_hash])
+}
+
+// Per-user switches for Labs features. One row per (user, feature); no row means off.
+// created_at = first time the user touched the switch, updated_at = last change.
+model sr_user_lab_feature {
+    id         Int      @id @default(autoincrement())
+    user_id    Int
+    feature    String
+    enabled    Boolean  @default(false)
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+
+    @@unique([user_id, feature])
+    @@index([feature, enabled])
+}
+
+// Derived AI article for a YouTube video. Captions and articles are R2 objects under
+// youtube/canonical/; this row only carries pointers, versions, status and the eligibility result.
+// One row per (video_id, source_hash, prompt_version), shared by every bookmark of that video:
+// the caption source hash changes whenever the captions change, so an old article can never be
+// published over new captions. Visibility is decided by the bookmark, never by this row.
+model sr_youtube_article {
+    id               Int       @id @default(autoincrement())
+    video_id         String
+    caption_key      String?
+    caption_text_key String?
+    caption_language String?
+    caption_kind     String?
+    source_hash      String
+    eligibility_json Json?
+    status           String    @default("pending")
+    article_key      String?
+    article_text_key String?
+    model            String?
+    prompt_version   String
+    schema_version   Int       @default(1)
+    quality_json     Json?
+    retry_count      Int       @default(0)
+    lease_until      DateTime?
+    next_retry_at    DateTime?
+    error_message    String?
+    created_at       DateTime  @default(now())
+    updated_at       DateTime  @updatedAt
+    started_at       DateTime?
+    completed_at     DateTime?
+
+    @@unique([video_id, source_hash, prompt_version])
+    @@index([status, next_retry_at])
+}
+
+// Which caption version a bookmark saw when it was crawled. One row per bookmark (bookmarks are
+// per user here). Deleted with the bookmark; canonical rows with no refs left are swept.
+model sr_youtube_article_ref {
+    id          Int      @id @default(autoincrement())
+    bookmark_id Int      @unique
+    user_id     Int
+    video_id    String
+    source_hash String
+    created_at  DateTime @default(now())
+    updated_at  DateTime @updatedAt
+
+    @@index([video_id, source_hash])
+    @@index([user_id])
+}
