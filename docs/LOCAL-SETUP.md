@@ -34,7 +34,7 @@ Optional: Stripe CLI, only if you will work on payment webhooks.
 ## Phase 2 — Clone and install
 
 ```bash
-git clone <repo-url> && cd slax-reader
+git clone https://github.com/slax-lab/slax-reader.git && cd slax-reader
 pnpm install --frozen-lockfile
 ```
 
