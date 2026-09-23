@@ -8,6 +8,7 @@
     "dev": "node ./config/nuxt-command.mjs dev",
     "generate": "node ./config/nuxt-command.mjs generate",
     "preview": "node ./config/nuxt-command.mjs preview",
+    "setup": "pnpm run type",
     "type": "node ./config/nuxt-command.mjs prepare",
     "type:wrangler": "node ./config/wrangler-command.mjs types",
     "test": "vitest run",

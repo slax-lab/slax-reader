@@ -16,6 +16,7 @@
     "test:offscreen:timing": "node tests/offscreen-real-timing.mjs",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
+    "setup": "pnpm run type",
     "type": "wxt prepare",
     "compile": "vue-tsc --noEmit",
     "lint:fix": "eslint .  --fix",
