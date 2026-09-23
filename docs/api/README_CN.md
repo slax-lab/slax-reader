@@ -91,4 +91,4 @@
 
 # 📝 License
 
-`Slax Reader` is licensed under the [Apache License 2.0](../../apps/api/LICENSE). The community version is completely free, open-source, and will remain so forever.
+`Slax Reader` is licensed under the [Apache License 2.0](../../LICENSE). The community version is completely free, open-source, and will remain so forever.

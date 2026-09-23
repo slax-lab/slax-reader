@@ -1,8 +1,46 @@
 # Slax Reader DWeb
 
+[English](architecture.md)
+
 ## 项目概述
 
 Slax Reader DWeb 是基于 Nuxt 4 的阅读 Web 应用（"Read It Later"产品）。前端源码集中在 `apps/web`，通过 workspace 使用共享库，不依赖 Git 子模块。业务运行时通过 API 服务 `apps/api` 提供数据和同步能力。
+
+## 仓库中的应用关系
+
+`apps` 是可以启动或构建的应用，`packages` 是多个应用使用的库，`docs/web` 和
+`docs/extension` 是前端开发说明。共享库只有在至少两个应用使用时才放入 `packages`；
+单个应用的实现、配置和测试留在对应的 `apps` 目录。
+
+| 目录 | 内容 |
+| --- | --- |
+| `apps/web` | Nuxt 阅读器、本地同步和 Web 服务端渲染 |
+| `apps/extension` | WXT 浏览器扩展、后台脚本、侧边栏和离屏页面 |
+| `apps/api` | Cloudflare Workers API 服务 |
+| `packages/contracts` | Web、Extension、API 和 CLI 共用的 API、领域数据和事件契约 |
+| `packages/frontend-types` | Web/Extension 的浏览器端和 local-first 实现类型 |
+| `packages/frontend-utils` | Web/Extension 共用的前端工具 |
+| `packages/selection` | Web/Extension 共用的划线和标注引擎 |
+| `deploy` | 各应用的本地环境配置和公开示例 |
+
+```mermaid
+flowchart LR
+    shared["packages：类型、工具、划线引擎"]
+    web["apps/web：阅读器"]
+    ext["apps/extension：浏览器扩展"]
+    bridge["Web /x/ext-bridge 页面"]
+    backend["apps/api：API 与同步服务"]
+    shared --> web
+    shared --> ext
+    ext -->|"后台 → 离屏页面中的 iframe"| bridge
+    bridge -->|"读取 Web 本地数据与会话"| web
+    web <-->|"API 与同步"| backend
+    ext -->|"API 请求"| backend
+```
+
+Web 与 Extension 通过 workspace 导入共享库；运行时，Extension 的离屏页面通过 Web 的
+`/x/ext-bridge` 访问网页侧的本地数据和会话。API 业务代码属于 `apps/api`，不放入 Web
+或 Extension 的服务端目录。
 
 ## 项目结构
 
@@ -85,7 +123,7 @@ apps/web/
 
 ## 开发指南
 
-命令、环境配置和后端要求见[本地开发与验证](development.md)，首次参与见[开发者入门](../../contributing/development.md)。
+命令、环境配置、参与方式和提交流程见[本地开发与验证](development.md)。
 应用的 `server` 目录属于 Nuxt，API 业务服务位于 `apps/api`，通过 service binding 和 HTTP API 协作。
 
 ### 环境 Profile
@@ -133,4 +171,4 @@ common.[大类名].[描述]          // common.tips.success
 
 ## 许可证
 
-仓库许可见 [LICENSE](../../../LICENSE)，导入代码的原始许可和来源见[迁移记录](../../migrations/slax-reader-web-extension.md)。
+仓库许可见 [LICENSE](../../LICENSE) 和 [NOTICE](../../NOTICE)。
