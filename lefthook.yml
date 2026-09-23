@@ -8,8 +8,10 @@ pre-commit:
     long-lived-branch:
       # No glob on purpose: this must run on every commit. The remote ruleset
       # rejects pushes to the environment branches; catching the mistake here
-      # saves moving commits off dev/beta/main after the fact.
-      run: 'case "$(git branch --show-current)" in dev|beta|main) exit 1 ;; esac'
+      # saves moving commits off dev/beta/main after the fact. Merge commits
+      # are exempt: the documented sync-back flow resolves divergence with a
+      # merge commit while checked out on a long-lived branch.
+      run: 'case "$(git branch --show-current)" in dev|beta|main) git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1 || exit 1 ;; esac'
       fail_text: "Direct commits to dev/beta/main are rejected. Cut a task branch first: git switch -c <type>/<task-name> --no-track origin/dev"
     rulesync-drift:
       glob: "{AGENTS.md,CLAUDE.md,.claude/**,.codex/**,.agents/**,.rulesync/**}"
