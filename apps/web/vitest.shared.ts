@@ -13,6 +13,9 @@ export const sharedTestOptions = {
   setupFiles: ['./tests/setup/index.ts', './tests/setup/fork.ts'],
   environment: 'nuxt' as const,
   testTimeout: 10000,
+  // CI runner 资源更紧张，每个测试文件启动 Nuxt 环境的 setup/teardown hook 常超过默认 10s（继承自 testTimeout），
+  // 单独放宽 hookTimeout 而不动 testTimeout，避免连带放大单个测试用例的超时容忍度
+  hookTimeout: 30000,
   environmentOptions: {
     nuxt: {
       domEnvironment: 'happy-dom' as const,
