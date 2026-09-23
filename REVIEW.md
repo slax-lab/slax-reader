@@ -20,6 +20,7 @@ Reserve Important for findings that:
 
 - break behavior or introduce a regression
 - lose or corrupt user data (bookmarks, highlights, comments)
+- corrupt the shared production database through schema migrations: the beta environment runs migrations against production PostgreSQL before code passes the `main` gate, so any migration that is incompatible with the code currently serving production — dropping or renaming tables/columns, changing column types, adding `NOT NULL` columns without defaults — is Important unless the change demonstrates an expand/contract split; applies when the diff touches `**/migrations/**` (e.g. `apps/api/prisma/migrations/`), `*.sql`, or ORM schema files (e.g. `schema.prisma`)
 - leak secrets or PII
 - break the cross-app API contracts in `packages/contracts`
 - diverge from the intent of the linked OpenSpec change
