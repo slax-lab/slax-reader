@@ -1,0 +1,72 @@
+name: Frontend CI
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/**'
+      - 'apps/extension/**'
+      - 'packages/contracts/**'
+      - 'packages/frontend-types/**'
+      - 'packages/frontend-utils/**'
+      - 'packages/selection/**'
+      - 'tooling/*.mjs'
+      - 'tooling/*.d.mts'
+      - 'deploy/cloudflare/api.toml.example'
+      - 'deploy/local_web/.env.example'
+      - 'deploy/local_extension/.env.example'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/frontend-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'apps/extension/**'
+      - 'packages/contracts/**'
+      - 'packages/frontend-types/**'
+      - 'packages/frontend-utils/**'
+      - 'packages/selection/**'
+      - 'tooling/*.mjs'
+      - 'tooling/*.d.mts'
+      - 'deploy/cloudflare/api.toml.example'
+      - 'deploy/local_web/.env.example'
+      - 'deploy/local_extension/.env.example'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/frontend-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_COLOR: '0'
+      NUXT_TELEMETRY_DISABLED: '1'
+      WRANGLER_SEND_METRICS: 'false'
+      PUBLIC_BASE_URL: http://localhost:3000
+      AUTH_BASE_URL: http://localhost:3000
+      SHARE_BASE_URL: http://localhost:3000
+      DWEB_API_BASE_URL: http://localhost:8787
+      EXTENSIONS_API_BASE_URL: http://localhost:8787
+      COOKIE_DOMAIN: localhost
+      COOKIE_TOKEN_NAME: slax_test
+      GOOGLE_OAUTH_CLIENT_ID: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:preflight
+      - run: pnpm --filter @slax-reader/contracts typecheck
+      - run: pnpm --filter @apps/slax-reader-dweb type
+      - run: pnpm --filter @apps/slax-reader-extensions type
+      - run: pnpm --filter @slax-reader/selection typecheck
+      - run: pnpm web -- test
+      - run: pnpm extension -- test

@@ -9,8 +9,12 @@
   "scripts": {
     "agent:sync": "rulesync generate",
     "agent:check": "rulesync doctor --strict && rulesync generate --check && openspec validate --all --strict && bash tooling/check-gh-aw-drift.sh",
-    "prepare": "lefthook install",
-    "api": "node tooling/api.mjs"
+    "preflight": "node tooling/preflight.mjs",
+    "test:preflight": "node --test tooling/preflight.test.mjs tooling/env-files.test.mjs tooling/app-command.test.mjs tooling/nuxt-command.test.mjs tooling/wrangler-command.test.mjs tooling/pnpm-command.test.mjs",
+    "web": "node tooling/web.mjs",
+    "extension": "node tooling/extension.mjs",
+    "api": "node tooling/api.mjs",
+    "prepare": "lefthook install"
   },
   "devDependencies": {
     "@fission-ai/openspec": "1.13.1",

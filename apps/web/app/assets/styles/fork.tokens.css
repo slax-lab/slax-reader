@@ -1,0 +1,140 @@
+/* Slax Reader Fork-specific Design Tokens
+ *
+ * 派生层：所有 fork 业务专属语义变量均派生自 upstream `theme.tokens.css` 已声明的 `--slax-*`。
+ * 禁止在此文件内重新声明 upstream 已有变量（防止 light/dark/eink 三主题切换时出现两套色值并存
+ * 导致的视觉漂移）。
+ *
+ * 安全前缀：所有新增变量沿用 `--slax-` 前缀（保持私有命名空间，避开公网原网页冲突）。
+ */
+
+:root {
+  /* === Plan / Subscribe 业务专属 === */
+  --slax-plan-highlight: var(--slax-accent);
+  --slax-plan-highlight-bg: var(--slax-accent-bg);
+  --slax-plan-card-border: var(--slax-border);
+  --slax-subscribe-cta-bg: var(--slax-accent);
+  --slax-subscribe-cta-text: var(--slax-btn-text);
+  --slax-subscribe-cta-bg-hover: var(--slax-accent-soft);
+  --slax-stripe-trust: var(--slax-text-muted);
+
+  /* === Dashboard 图表专属 === */
+  /* 注：fork data-viz 业务色，**字面值**，不派生自 upstream accent。详见 design fix 2026-05-27。 */
+  --slax-chart-primary: #16b998;
+  --slax-chart-primary-rgb: 22, 185, 152;
+  --slax-chart-primary-hover: #14a588; /* chart CTA hover 深变体（与 payment-cta-hover #14a689 差 1 位，语义不同）*/
+  --slax-chart-gold: #f0a93c; /* Dashboard section-tag gold amber */
+  --slax-chart-gold-rgb: 240, 169, 60; /* 供 rgba(var(--slax-chart-gold-rgb), α) */
+  --slax-chart-gold-dark-rgb: 196, 127, 16; /* gold amber 深色变体，供 -webkit-text-stroke */
+  --slax-chart-grid: var(--slax-border);
+  --slax-chart-axis: var(--slax-text-muted);
+  --slax-chart-tooltip-bg: var(--slax-surface-solid);
+  --slax-chart-tooltip-text: var(--slax-text);
+
+  /* === PaymentModal / InviteCodeModal 专属 === */
+  /* 注：支付弹窗独有业务色，字面值，不派生自 upstream accent（青绿系 ≠ 暖橙 accent）。2026-05-27。 */
+
+  /* 成功/CTA 青绿系（与 chart-primary 同色调，由 chart-primary 派生） */
+  --slax-payment-success-grad-from: #5ad297; /* PRO badge 渐变起点，chart-primary 浅变体 */
+  --slax-payment-cta-hover: #14a689; /* CTA hover 深变体 */
+
+  /* 弹窗叠加层 */
+  --slax-modal-overlay-rgb: 15, 20, 25; /* #0f1419 对应 rgb 三元组，供 alpha overlay 构造 */
+  --slax-modal-content-bg: #fcfcfc; /* 弹窗内容区近白背景 */
+  --slax-modal-warm-bg: #f5f5f3; /* 弹窗内容区暖灰背景（SubscriptionModal / CollectionModal 系列） */
+
+  /* 支付卡片边框 */
+  --slax-payment-card-border: #ecf0f5;
+
+  /* 输入框 / 表单文字 */
+  --slax-payment-text-primary: #333333; /* 输入内容 / 成功说明文字 */
+  --slax-payment-text-placeholder: #999999; /* placeholder 灰 */
+
+  /* === PlanCard 业务专属 === */
+  /* 注：PlanCard 独有色值，字面量，不派生自 upstream。2026-05-27。 */
+  --slax-text-deep: #0f1419; /* 深近黑文字（价格金额 / 粗体标题），#0f1419 rgb 三元组见 modal-overlay-rgb */
+  --slax-discount-text: #b4440c; /* 折扣标签暖橙文字 */
+  --slax-discount-bg-from-rgb: 255, 142, 101; /* 折扣渐变起点 rgb */
+  --slax-discount-bg-to-rgb: 255, 178, 101; /* 折扣渐变终点 rgb */
+  --slax-plan-neutral-bg: #f5f7fa; /* 未激活按钮 / 一次性购买按钮背景（冷灰） */
+  --slax-plan-neutral-bg-hover: #eef0f3; /* 上述按钮 hover 态 */
+  --slax-plan-secondary-text: #666666; /* plan card 二级灰文字 */
+
+  /* === PlanPayment 专属 === */
+  --slax-tips-warn: #ff6838; /* 提示文字警示橙（订阅 tips / subscribe 提示点） */
+  --slax-overlay-white-rgb: 255, 255, 255; /* 白色遮罩 rgb，供 rgba(var(--slax-overlay-white-rgb), α) */
+
+  /* === Collection 业务专属 === */
+  /* alpha overlay 用 rgb 三元组（与 payment-text-primary / placeholder 同色，补 rgb 变体） */
+  --slax-payment-text-primary-rgb: 51, 51, 51; /* #333333 rgb，供 rgba(var(--slax-payment-text-primary-rgb), α) */
+  --slax-payment-text-placeholder-rgb: 153, 153, 153; /* #999999 rgb，供 rgba(var(--slax-payment-text-placeholder-rgb), α) */
+  /* Collection 独有业务色 */
+  --slax-collection-toggle-off: #c5c6cb; /* toggle 关闭态背景（冷灰） */
+  --slax-collection-link: #5490c2; /* 链接蓝（collection owner 设置页链接） */
+  --slax-collection-tag: #a8b1cd; /* 标签灰蓝（BookmarkCell 序号标签） */
+  --slax-collection-unread: #f0a93c; /* 专栏未读黄点（FeedSwitcher 头像角标）；不派生自 accent，避免与暖橙 accent 混淆 */
+
+  /* === Homepage 业务专属 === */
+  --slax-homepage-premium-grad: linear-gradient(90deg, #f7e0af 0%, #f8e8c9 100%); /* Free Premium banner CTA 暖金渐变 */
+  --slax-homepage-koc-dark-to: #1a2332; /* KOC banner 渐变终点深蓝 */
+  --slax-homepage-koc-link: #64b5f6; /* KOC banner 链接蓝 */
+  --slax-homepage-koc-link-hover: #90caf9; /* KOC banner 链接 hover 蓝 */
+
+  /* === ThirdPartyImport 业务专属 === */
+  /* 文字层级 */
+  --slax-import-text-dark: #1f2937; /* 深灰标题文字 */
+  --slax-import-text-mid: #374151; /* 中灰正文 */
+  --slax-import-text-secondary: #4b5563; /* 次级正文 */
+  --slax-import-text-muted: #6b7280; /* 辅助文字 */
+  --slax-import-text-light: #9ca3af; /* 浅灰辅助 */
+  /* 边框 / 背景 */
+  --slax-import-border: #e5e7eb; /* 主边框 */
+  --slax-import-border-mid: #d1d5db; /* 中等边框 */
+  --slax-import-bg-subtle: #f3f4f6; /* 极浅背景 */
+  --slax-import-bg-light: #f8fafc; /* 浅背景（header / hover） */
+  --slax-import-divider: #e9ecef; /* 分隔线 */
+  --slax-import-tag-bg: #f0f0f0; /* 标签背景 */
+  --slax-import-selected-bg: #f0fdfa; /* 选中行背景（青绿浅色） */
+  --slax-collection-tag-rgb: 168, 177, 205; /* #a8b1cd rgb，供 rgba(var(--slax-collection-tag-rgb), α) */
+  /* 状态色：success */
+  --slax-import-success-bg: #dcfce7;
+  --slax-import-success-text: #166534;
+  --slax-import-success-border: #bbf7d0;
+  /* 状态色：warning */
+  --slax-import-warn-bg: #fef3c7;
+  --slax-import-warn-text: #b45309;
+  --slax-import-warn-border: #fde68a;
+  /* 状态色：error */
+  --slax-import-error-bg: #fee2e2;
+  --slax-import-error-text: #dc2626;
+  --slax-import-error-border: #fecaca;
+  /* 状态色：info */
+  --slax-import-info-bg: #dbeafe;
+  --slax-import-info-text: #2563eb;
+  --slax-import-info-border: #bfdbfe;
+  /* 危险按钮 */
+  --slax-import-danger-btn: #dc3545;
+  --slax-import-danger-btn-hover: #c82333;
+  --slax-import-danger2-btn: #ff6b6b;
+  --slax-import-danger2-btn-hover: #ff5252;
+  /* error detail 区域 */
+  --slax-import-error-detail-bg: #fef2f2;
+  --slax-import-error-detail-text: #b91c1c;
+  --slax-import-error-detail-dark: #7f1d1d;
+
+  /* === CollectionHeader / global 专属 === */
+  --slax-collection-gold: #f4c982; /* CollectionHeader 金色 spinner / 选中边框 */
+  --slax-collection-gold-rgb: 244, 201, 130; /* 供 rgba(var(--slax-collection-gold-rgb), α) */
+  --slax-collection-gold-text: #a28d64; /* CollectionHeader 金色文字 */
+
+  /* === SubscribeButton 专属 === */
+  /* 注：顶栏订阅按钮深棕渐变 + 暖桃文字，独立 fork 业务色。2026-05-27。 */
+  --slax-subscribe-dark-from: #272220; /* 按钮渐变起点深棕 */
+  --slax-subscribe-dark-to: #4b4441; /* 按钮渐变终点中棕 */
+  --slax-subscribe-peach-text: #ffdcc1; /* 按钮文字暖桃色 */
+}
+
+/* dark / eink 下若派生失真（例如 `--slax-accent-bg` 在 dark 下变得不可读），在此 override；
+ * 首批先不写，等 Phase 4 各目录视觉走查发现问题再启用对应块（同时给 fork-tokens.spec 加断言）。
+ */
+/* [data-slax-theme='dark'] { ... } */
+/* [data-slax-theme='eink'] { ... } */

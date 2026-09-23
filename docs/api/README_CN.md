@@ -16,7 +16,7 @@
 </div>
 </br>
 
-这是基于 Cloudflare Workers 开发的 Slax Reader API 服务，后端源码、Prisma、生成器和测试已迁入本仓库的 [`apps/api/`](../../apps/api/)。目前仅后端完成迁入，Web、扩展和 CLI 仍待迁移；[旧 Web 仓库](https://github.com/slax-lab/slax-reader-web) 暂时仍是前端源码来源。根目录命令与迁移状态见[仓库说明](../../README.md)，后端开发见[开发指南](DEVELOPMENT-DOCUMENT-CN.md)。本文为部署、开发教程，如需直接使用 Slax Reader，请移步 [Slax Reader](https://r.slax.com) 或 [Slax Reader Bot](https://t.me/slax_reader_bot)。
+这是基于 Cloudflare Workers 开发的 Slax Reader API 服务，后端源码、Prisma、生成器和测试位于本仓库的 [`apps/api/`](../../apps/api/)。Web 和扩展位于 [`apps/web`](../../apps/web/) 与 [`apps/extension`](../../apps/extension/)，共享契约位于 [`packages/contracts`](../../packages/contracts/)。根目录命令与仓库结构见[仓库说明](../../README.md)，API 开发见[开发指南](DEVELOPMENT-DOCUMENT-CN.md)。本文为部署、开发教程，如需直接使用 Slax Reader，请移步 [Slax Reader](https://r.slax.com) 或 [Slax Reader Bot](https://t.me/slax_reader_bot)。
 
 <div align="center">
 
@@ -91,4 +91,4 @@
 
 # 📝 License
 
-`Slax Reader` is licensed under the [Apache License 2.0](../../apps/api/LICENSE). The community version is completely free, open-source, and will remain so forever.
+`Slax Reader` is licensed under the [Apache License 2.0](../../LICENSE). The community version is completely free, open-source, and will remain so forever.

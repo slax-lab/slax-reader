@@ -1,0 +1,4 @@
+{
+  "extends": "../.nuxt/tsconfig.server.json",
+  "files": ["../_cloudflare/env.d.ts"]
+}

@@ -14,6 +14,7 @@ function fixture() {
   temp.push(dir)
   for (const child of ['tooling', 'apps/api', 'bin']) fs.mkdirSync(path.join(dir, child), { recursive: true })
   fs.copyFileSync(path.join(ROOT, 'tooling/api.mjs'), path.join(dir, 'tooling/api.mjs'))
+  fs.copyFileSync(path.join(ROOT, 'tooling/pnpm-command.mjs'), path.join(dir, 'tooling/pnpm-command.mjs'))
   fs.writeFileSync(path.join(dir, 'apps/api/package.json'), JSON.stringify({ name: 'slax-reader-backend', scripts: { fixture: 'unused' } }))
   fs.writeFileSync(
     path.join(dir, 'bin/pnpm'),
@@ -26,7 +27,7 @@ function fixture() {
 describe('API workspace command contract', () => {
   test('root exposes one API abstraction and preserves repository checks', () => {
     const root = read(path.join(ROOT, 'package.json'))
-    expect(Object.keys(root.scripts).sort()).toEqual(['agent:check', 'agent:sync', 'api', 'prepare'])
+    expect(Object.keys(root.scripts).sort()).toEqual(['agent:check', 'agent:sync', 'api', 'extension', 'preflight', 'prepare', 'test:preflight', 'web'])
     expect(root.scripts['agent:check']).toContain('check-gh-aw-drift.sh')
     expect(Object.keys(root.devDependencies).sort()).toEqual(['@fission-ai/openspec', 'lefthook', 'rulesync'])
   })

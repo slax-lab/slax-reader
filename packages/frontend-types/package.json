@@ -1,0 +1,33 @@
+{
+  "name": "@commons/frontend-types",
+  "version": "1.0.0",
+  "description": "Web 与 Extension 共用的前端实现类型",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./const": "./src/const.ts",
+    "./error": "./src/error.ts",
+    "./frontend": "./src/frontend.ts",
+    "./selection": "./src/selection.ts",
+    "./models": "./src/models.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Apache-2.0",
+  "private": true,
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "typescript-eslint": "^8.68.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint": "^10.9.1",
+    "typescript": "^6.0.3",
+    "jiti": "^2.7.0"
+  },
+  "dependencies": {
+    "@slax-reader/contracts": "workspace:*"
+  }
+}

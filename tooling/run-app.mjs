@@ -1,0 +1,121 @@
+import { pnpmInvocation } from './pnpm-command.mjs'
+import { spawn } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs'
+import { constants } from 'node:os'
+import { dirname, resolve } from 'node:path'
+import { loadDeployEnvironment } from './env-files.mjs'
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+
+function forwardedArguments(argumentsList) {
+  return argumentsList[0] === '--' ? argumentsList.slice(1) : argumentsList
+}
+
+function packageCommands(packagePath) {
+  const manifest = JSON.parse(readFileSync(packagePath, 'utf8'))
+  const scripts = manifest.scripts || {}
+  const lifecycleCommands = new Set(['install', 'prepare', 'preinstall', 'postinstall', 'prepublish', 'postpublish'])
+  return Object.keys(scripts)
+    .filter(command => {
+      if (lifecycleCommands.has(command)) return false
+      if (command.startsWith('pre') && Object.hasOwn(scripts, command.slice(3))) return false
+      if (command.startsWith('post') && Object.hasOwn(scripts, command.slice(4))) return false
+      return true
+    })
+    .sort()
+}
+
+function printUsage({ commandName, appLabel, commands, aliases }) {
+  const aliasLines = Object.entries(aliases)
+    .map(([alias, command]) => `  ${alias} → ${command}`)
+    .join('\n')
+  const aliasesText = aliasLines ? `\n\n别名：\n${aliasLines}` : ''
+  console.log(`用法：pnpm ${commandName} -- <命令> [参数]\n\n${appLabel} 可用命令：\n  ${commands.join('\n  ')}${aliasesText}`)
+}
+
+function resolveCommand(requestedCommand, aliases) {
+  return aliases[requestedCommand] || requestedCommand
+}
+
+function runApp({ commandName, appLabel, packageName, packagePath, environmentApp = commandName, commands, aliases = {}, argumentsList = process.argv.slice(2) }) {
+  const args = forwardedArguments(argumentsList)
+  const requestedCommand = args[0]
+
+  let availableCommands = commands
+  if (!availableCommands) {
+    try {
+      availableCommands = packageCommands(resolve(REPO_ROOT, packagePath))
+    } catch (error) {
+      console.error(`${appLabel} 命令清单读取失败：${error.message}`)
+      process.exitCode = 1
+      return process.exitCode
+    }
+  }
+
+  if (!requestedCommand || requestedCommand === 'help' || requestedCommand === '--help' || requestedCommand === '-h') {
+    printUsage({ commandName, appLabel, commands: availableCommands, aliases })
+    process.exitCode = requestedCommand ? 0 : 2
+    return process.exitCode
+  }
+
+  const command = resolveCommand(requestedCommand, aliases)
+  if (!availableCommands.includes(command)) {
+    console.error(`未知的 ${appLabel} 命令：${requestedCommand}`)
+    printUsage({ commandName, appLabel, commands: availableCommands, aliases })
+    process.exitCode = 2
+    return process.exitCode
+  }
+
+  let childEnvironment
+  try {
+    childEnvironment = loadDeployEnvironment({
+      appName: environmentApp,
+      root: REPO_ROOT
+    }).environment
+  } catch (error) {
+    console.error(appLabel + ' 环境变量加载失败：' + (error instanceof Error ? error.message : String(error)))
+    process.exitCode = 1
+    return process.exitCode
+  }
+
+  const forwardedArgs = args.slice(1)
+  const childArgs = ['--filter', packageName, 'run', command]
+  if (forwardedArgs.length) childArgs.push(...forwardedArgs)
+  const grouped = process.platform !== 'win32' && process.env.SLAX_APP_INHERIT_PROCESS_GROUP !== '1'
+  const invocation = pnpmInvocation(childArgs)
+  const child = spawn(invocation.program, invocation.args, {
+    cwd: REPO_ROOT,
+    env: childEnvironment,
+    stdio: 'inherit',
+    detached: grouped
+  })
+
+  let interrupted
+  const stop = signal => {
+    interrupted = signal
+    if (!child.pid) return
+    try {
+      grouped ? process.kill(-child.pid, signal) : child.kill(signal)
+    } catch (error) {
+      if (error?.code !== 'ESRCH') throw error
+    }
+  }
+  const interrupt = () => stop('SIGINT')
+  const terminate = () => stop('SIGTERM')
+  process.on('SIGINT', interrupt)
+  process.on('SIGTERM', terminate)
+  child.on('error', error => {
+    console.error(`${appLabel} 命令启动失败：${error.message}`)
+    process.exitCode = 1
+  })
+  child.on('close', (code, signal) => {
+    process.removeListener('SIGINT', interrupt)
+    process.removeListener('SIGTERM', terminate)
+    const reason = interrupted || signal
+    process.exitCode = reason ? 128 + (constants.signals[reason] || 1) : code ?? 1
+  })
+  return undefined
+}
+
+export { forwardedArguments, packageCommands, printUsage, resolveCommand, runApp }

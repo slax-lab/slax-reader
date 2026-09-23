@@ -1,0 +1,203 @@
+/* Slax Reader Design Tokens（仅 :root + [data-slax-theme] 变量块）
+ *
+ * 安全注入范围：dweb 主站 + iframe 文章预览 + 可选 CE shadow
+ *   - 所有变量名使用 --slax-* 私有前缀，避开公网原网页（含 daisyUI / Tailwind dark mode 等）的命名空间冲突
+ *   - 不含任何 html / body / * 全局规则；全局兜底与 E-ink 通配禁用在配套的 theme.css 中
+ */
+
+/* Light（日间，默认） */
+:root {
+  /* 颜色 - 基础 */
+  --slax-bg: #faf8f2;
+  --slax-surface: rgba(255, 251, 244, 0.7);
+  --slax-surface-solid: #fffbf4;
+  --slax-topbar-bg: rgba(250, 248, 242, 0.75);
+
+  /* 颜色 - 文本 */
+  --slax-text: #1a1814;
+  --slax-text-muted: #6a5f52;
+  --slax-text-light: #9a8e7f;
+  --slax-btn-text: #faf8f2;
+
+  /* 颜色 - 强调 */
+  --slax-accent: #b45837;
+  --slax-accent-soft: #e4b894;
+  --slax-accent-bg: rgba(180, 88, 55, 0.06);
+
+  /* 链接色：日夜随强调色，E-ink 见下方 */
+  --slax-link: var(--slax-accent);
+  --slax-link-suffix: '';
+
+  /* 颜色 - 功能 */
+  --slax-danger: #c44;
+  --slax-danger-bg: rgba(204, 68, 68, 0.06);
+  --slax-selection: rgba(180, 88, 55, 0.15);
+  /* 引用高亮：接手原生选区，比它重一档 */
+  --slax-quote-highlight: rgba(180, 88, 55, 0.22);
+  --slax-border: rgba(26, 24, 20, 0.08);
+  --slax-border-strong: rgba(26, 24, 20, 0.16);
+
+  /* 阴影 */
+  --slax-shadow-warm: 0 8px 32px rgba(180, 88, 55, 0.08);
+  --slax-shadow-sm: 0 2px 8px rgba(180, 88, 55, 0.05);
+  /* 弹窗专用：暖色阴影叠一层大范围投影抬升浮层；E-ink 下整体置 none */
+  --slax-shadow-modal: 0 8px 32px rgba(180, 88, 55, 0.08), 0 20px 60px rgba(0, 0, 0, 0.12);
+
+  /* 渐变氛围（详情页阅读界面用更暖的 #fff4e0 系，见 pages/bookmarks/[id]、pages/s/[id] 内 html override） */
+  --slax-grad-a: #faf5eb;
+  --slax-grad-b: #f6efe4;
+  --slax-grad-c: #f8efe4;
+
+  /* 浮层细节 */
+  --slax-inset-hi: rgba(255, 255, 255, 0.6);
+
+  /* 圆角 */
+  --slax-radius: 14px;
+  --slax-radius-sm: 10px;
+
+  /* 布局 */
+  --slax-sidebar-w: 240px;
+  --slax-shell-w: 1200px;
+  --slax-content-w: 820px;
+  --slax-content-min-w: 640px;
+  --slax-side-panel-w: 440px;
+  --slax-side-panel-min-w: 380px;
+  --slax-side-panel-max-w: 680px;
+  /* JS 动态写入完整有效推距，CSS 消费方用 * -0.5 做中心点修正 */
+  --slax-push-amount: 0px;
+
+  /* 顶栏高度三档（来源：design-system §5.1）：
+   *   --slax-header-h-list:     列表页 / error / guide / [...slug] / 营销页等默认场景
+   *   --slax-header-h-snapshot: 快照页桌面（pages/s/[id]、pages/bookmarks/[id] 等），通过页面 layout
+   *                             override --slax-header-height 切到此值
+   *   --slax-header-h-mobile:   H5 移动模式，由 theme.css 内 @media (max-width: 768px)
+   *                             把 --slax-header-height 切到此值
+   * 默认值 --slax-header-height = list 56px；任意页面用 h-header / var(--slax-header-height)
+   * 都先拿到默认 list 高，需要快照档的页面在自己 scoped 内 override --slax-header-height 即可
+   */
+  --slax-header-h-list: 56px;
+  --slax-header-h-snapshot: 52px;
+  --slax-header-h-mobile: 48px;
+  --slax-header-height: var(--slax-header-h-list);
+
+  /* 字体 */
+  --slax-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* serif 泛型中文回退依赖 lang，
+     en 下会变黑体，故显式列宋体 */
+  --slax-font-serif: 'Playfair Display', 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'SimSun', 'STSong', serif;
+  /* 系统等宽栈（GitHub 同款） */
+  --slax-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+
+  /* 字号语义 8 档（来源：design-system §3）：
+   *   --slax-fs-display: 文章大标题 / 快照页标题 32px
+   *   --slax-fs-h2:      二级标题 / 侧栏面板标题 22px
+   *   --slax-fs-brand:   Logo 20px
+   *   --slax-fs-card:    列表卡片标题 17px
+   *   --slax-fs-body:    正文 16px
+   *   --slax-fs-meta:    辅助信息（侧栏导航 / tag） 14px
+   *   --slax-fs-aux:     日期 / 来源 / 副标题 13px
+   *   --slax-fs-tag:     标签 / 角标 / 计数 12px
+   * 项目内既有非标值（15/18/24/34）在本轮 token 化时映射到最近档，详见 .claude/task2-fontsize-shifts.md 追踪表。
+   */
+  --slax-fs-display: 32px;
+  --slax-fs-h2: 22px;
+  --slax-fs-brand: 20px;
+  --slax-fs-card: 17px;
+  --slax-fs-body: 16px;
+  --slax-fs-meta: 14px;
+  --slax-fs-aux: 13px;
+  --slax-fs-tag: 12px;
+
+  /* 特效参数（来源：design-system §6）：
+   *   --slax-blur:        磨砂玻璃；topbar / surface 浮层统一用 backdrop-filter: var(--slax-blur)
+   *   --slax-ease-spring: 弹性曲线，浮层滑入 / 面板出现等阅读侧动画统一使用
+   *   --slax-dur-normal:  Transition 标准时长 0.2s
+   *   --slax-dur-fast:    Transition 快速时长 0.15s
+   * E-ink 由 theme.css 内 `[data-slax-theme='eink'] *` 通配禁用 transition / animation /
+   *   backdrop-filter，本块 eink override 把 --slax-blur 显式置 none，作用于直接消费
+   *   var(--slax-blur) 的写法（绕过通配的内联 / 行内场景），保证墨水屏零毛玻璃残影。
+   */
+  --slax-blur: blur(16px) saturate(150%);
+  --slax-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --slax-dur-normal: 0.2s;
+  --slax-dur-fast: 0.15s;
+}
+
+/* Dark（夜间） */
+[data-slax-theme='dark'] {
+  --slax-bg: #141210;
+  --slax-surface: rgba(30, 27, 24, 0.75);
+  --slax-surface-solid: #1e1b18;
+  --slax-topbar-bg: rgba(20, 18, 16, 0.8);
+
+  --slax-text: #e8e2d8;
+  --slax-text-muted: #9a8e7f;
+  --slax-text-light: #6a5f52;
+  --slax-btn-text: #141210;
+
+  --slax-accent: #d4764f;
+  --slax-accent-soft: #7a4a30;
+  --slax-accent-bg: rgba(212, 118, 79, 0.08);
+
+  --slax-danger: #e07070;
+  --slax-danger-bg: rgba(224, 112, 112, 0.1);
+  --slax-selection: rgba(212, 118, 79, 0.2);
+  --slax-quote-highlight: rgba(212, 118, 79, 0.3);
+  --slax-border: rgba(255, 251, 244, 0.08);
+  --slax-border-strong: rgba(255, 251, 244, 0.16);
+
+  --slax-shadow-warm: 0 8px 32px rgba(0, 0, 0, 0.25);
+  --slax-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --slax-shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.25), 0 20px 60px rgba(0, 0, 0, 0.12);
+
+  --slax-grad-a: #1e1810;
+  --slax-grad-b: #1a1612;
+  --slax-grad-c: #181410;
+
+  --slax-inset-hi: rgba(255, 255, 255, 0.04);
+}
+
+/* E-ink（墨水屏，仅 token；通配禁用与 View Transition 禁用见 theme.css，仅作用主站） */
+[data-slax-theme='eink'] {
+  --slax-bg: #ffffff;
+  --slax-surface: #ffffff;
+  --slax-surface-solid: #ffffff;
+  --slax-topbar-bg: #ffffff;
+
+  --slax-text: #000000;
+  --slax-text-muted: #333333;
+  --slax-text-light: #666666;
+  --slax-btn-text: #ffffff;
+
+  --slax-accent: #000000;
+  --slax-accent-soft: #666666;
+  --slax-accent-bg: #f0f0f0;
+
+  /* E-ink 链接用经典蓝 + ↗︎ 后缀 */
+  --slax-link: #5490c2;
+  --slax-link-suffix: ' ↗︎';
+
+  --slax-danger: #444444;
+  --slax-danger-bg: #eeeeee;
+  --slax-selection: #dddddd;
+  /* 无彩色可用，走灰阶 */
+  --slax-quote-highlight: #cfcfcf;
+  --slax-border: #cccccc;
+  --slax-border-strong: #999999;
+
+  --slax-shadow-warm: none;
+  --slax-shadow-sm: none;
+  --slax-shadow-modal: none;
+
+  --slax-grad-a: transparent;
+  --slax-grad-b: transparent;
+  --slax-grad-c: transparent;
+
+  --slax-inset-hi: none;
+
+  --slax-radius: 4px;
+  --slax-radius-sm: 2px;
+
+  /* E-ink 显式禁用毛玻璃；transition / animation 由 theme.css 内通配规则统一禁用 */
+  --slax-blur: none;
+}

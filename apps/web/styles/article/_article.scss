@@ -1,0 +1,65 @@
+@use 'content-mixin' as *;
+
+@mixin article {
+  * {
+    text-autospace: normal;
+  }
+
+  @include content-styles;
+
+  /* iframe */
+  iframe[src] {
+    --style: min-h-400px;
+  }
+
+  /* YouTube 平铺字幕：视频下方逐句，时间戳可点击跳转，正文真实 HTML 便于划线评论 */
+  .slax-yt-transcript {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--slax-border);
+  }
+
+  .slax-yt-cue {
+    margin: 0;
+    padding: 3px 0;
+    line-height: 1.8;
+  }
+
+  /* 时间戳做成可点按钮：accent 描边 + 浅底 + 小三角播放图标，圆角矩形 */
+  .slax-yt-cue-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-right: 10px;
+    padding: 3px 10px;
+    border: 1px solid var(--slax-accent-soft);
+    border-radius: 6px;
+    background: var(--slax-accent-bg);
+    color: var(--slax-accent);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.8em;
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition:
+      background 0.12s ease,
+      border-color 0.12s ease;
+  }
+
+  /* 前置播放小三角 */
+  .slax-yt-cue-time::before {
+    content: '';
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 4px 0 4px 6px;
+    border-color: transparent transparent transparent currentColor;
+  }
+
+  .slax-yt-cue-time:hover {
+    background: var(--slax-accent-soft);
+    border-color: var(--slax-accent);
+  }
+}

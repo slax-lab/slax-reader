@@ -16,7 +16,7 @@
 </div>
 </br>
 
-これは Cloudflare Workers を利用する Slax Reader API です。バックエンドのソース、Prisma、ジェネレーター、テストは本リポジトリの [`apps/api/`](../../apps/api/) に移行済みです。現在移行済みなのはバックエンドのみで、Web・拡張機能・CLI は未移行です。[旧 Web リポジトリ](https://github.com/slax-lab/slax-reader-web) が当面のフロントエンドソースです。ルートコマンドと移行状況は[リポジトリ概要](../../README.md)、API 開発は[開発ガイド](DEVELOPMENT-DOCUMENT-JP.md)を参照してください。Slax Reader を直接使用したい場合は、[Slax Reader](https://r.slax.com) または [Slax Reader Bot](https://t.me/slax_reader_bot) をご覧ください。
+これは Cloudflare Workers を利用する Slax Reader API です。バックエンドのソース、Prisma、ジェネレーター、テストは本リポジトリの [`apps/api/`](../../apps/api/) にあります。Web と拡張機能は [`apps/web`](../../apps/web/) と [`apps/extension`](../../apps/extension/)、共有契約は [`packages/contracts`](../../packages/contracts/) にあります。ルートコマンドとリポジトリ構成は[概要](../../README.md)、API 開発は[開発ガイド](DEVELOPMENT-DOCUMENT-JP.md)を参照してください。Slax Reader を直接使用したい場合は、[Slax Reader](https://r.slax.com) または [Slax Reader Bot](https://t.me/slax_reader_bot) をご覧ください。
 
 <div align="center">
 
@@ -91,4 +91,4 @@ Slax Reader API の開発中に、多くの優れたオープンソースプロ�
 
 # 📝 ライセンス
 
-`Slax Reader` は [Apache License 2.0](../../apps/api/LICENSE) の下でライセンスされています。コミュニティバージョンは完全に無料でオープンソースであり、永遠にそうであり続けます。
+`Slax Reader` は [Apache License 2.0](../../LICENSE) の下でライセンスされています。コミュニティバージョンは完全に無料でオープンソースであり、永遠にそうであり続けます。

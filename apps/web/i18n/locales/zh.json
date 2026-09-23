@@ -1,0 +1,1239 @@
+{
+  "common": {
+    "app": {
+      "name": "Slax Reader",
+      "seo_title": "Slax Reader: Read Smarter, Save Forever. Your AI read-it-later app for deep insights.",
+      "short_name": "Slax Reader",
+      "description": "Slax Reader is the open-source read-later app for deep thinkers. Archive the web permanently, read smarter with AI instant summaries, interactive outline and deep-dive chat.",
+      "pro": "Slax Reader Pro",
+      "pro_token": "Pro",
+      "trail_pro": "Slax Reader Trail Pro"
+    },
+    "collection": {
+      "no_more": "没有更多了",
+      "period": "/ 月",
+      "subscribers": "订阅者"
+    },
+    "country": {
+      "AT": "奥地利",
+      "AU": "澳大利亚",
+      "BE": "比利时",
+      "CA": "加拿大",
+      "CH": "瑞士",
+      "DE": "德国",
+      "DK": "丹麦",
+      "ES": "西班牙",
+      "FI": "芬兰",
+      "FR": "法国",
+      "GB": "英国",
+      "HK": "香港",
+      "IE": "爱尔兰",
+      "IT": "意大利",
+      "JP": "日本",
+      "LU": "卢森堡",
+      "NL": "荷兰",
+      "NO": "挪威",
+      "NZ": "新西兰",
+      "PT": "葡萄牙",
+      "SE": "瑞典",
+      "SG": "新加坡",
+      "US": "美国"
+    },
+    "operate": {
+      "add": "添加",
+      "archive": "归档",
+      "archived": "已归档",
+      "cancel": "取消",
+      "cancel_edit_title": "取消修改",
+      "cancel_line": "取消划线",
+      "chatbot": "Chat",
+      "comment": "评论",
+      "confirm": "确定",
+      "copy": "复制",
+      "delete": "删除",
+      "delete_line": "删除划线",
+      "download": "下载",
+      "edit": "修改",
+      "edit_title": "修改标题",
+      "feedback": "反馈",
+      "report_issue": "反馈问题",
+      "forward": "转发",
+      "like": "点赞",
+      "line": "划线",
+      "loading": "加载中...",
+      "login": "登录",
+      "menu_trash": "移出收藏",
+      "off": "已关闭",
+      "on": "已开启",
+      "payment": {
+        "completed": "已完成支付",
+        "confirm_desc": "您是否已完成支付？",
+        "confirm_title": "支付确认",
+        "not_completed": "未完成支付"
+      },
+      "refetch": "重新抓取",
+      "remove_subscribe": "移除",
+      "reply": "回复",
+      "resubscribe": "重新订阅",
+      "revert_to_inbox": "移回 Inbox",
+      "save": "保存",
+      "search": "搜索",
+      "share": "分享",
+      "snapshot": "快照",
+      "starred": "已加星",
+      "submit": "提交",
+      "subscribe": "订阅",
+      "summary_refresh": "重新生成",
+      "top": "回到顶部",
+      "trashed": "删除",
+      "unarchive": "取消归档",
+      "unsubscribe": "取消订阅",
+      "use": "使用",
+      "view_source": "查看",
+      "view_source_all": "查看全部",
+      "close": "关闭",
+      "star": "加星",
+      "collapse": "收起",
+      "confirm_delete": "确认删除",
+      "copy_link": "复制链接",
+      "more": "更多",
+      "send": "发送",
+      "share_twitter": "分享到 X"
+    },
+    "payment": {
+      "completed": "已完成支付",
+      "confirm_desc": "您是否已完成支付？",
+      "confirm_title": "是否完成支付",
+      "loading": "加载中...",
+      "not_completed": "未完成支付",
+      "stripestatus": {
+        "action_required_requested_capabilities": "需要申请账户权限",
+        "listed": "账户存在风险",
+        "normal": "正常",
+        "rejected_fraud": "涉嫌欺诈",
+        "rejected_incomplete_verification": "验证资料不全",
+        "rejected_listed": "被风险名单标记",
+        "rejected_other": "其他原因拒绝",
+        "rejected_terms_of_service": "违反服务条款",
+        "requirements_past_due": "需补充验证材料",
+        "requirements_pending_verification": "资料审核中",
+        "under_review": "账户安全检查中"
+      }
+    },
+    "tips": {
+      "access_unavailable": {
+        "bookmark_footer": "（内容页右上角 - 分享 - 复制链接）",
+        "desc": "请联系发布者获取正确的分享地址",
+        "title": "这是私密内容，无法查看",
+        "web_footer": "（代理页侧边栏 - 分享 - 复制链接）"
+      },
+      "add_tag_failed": "添加标签失败",
+      "add_url_success": "链接已添加",
+      "cancel_line_success": "已取消划线",
+      "ai_response_language": "跟 ChatBot 对话时，它回答内容使用的语言",
+      "archive_success": "内容已归档",
+      "copy_content_success": "内容复制成功",
+      "delete_tag_failed": "删除标签失败",
+      "editname_success": "标题成功编辑",
+      "fetch_error": "请求失败",
+      "get_tag_list_failed": "获取标签列表失败",
+      "invalid_invite_code": "无效邀请码",
+      "operate_failed": "操作失败",
+      "refetch_success": "已重新开始抓取",
+      "save_failed": "保存失败",
+      "save_success": "保存成功",
+      "share_failed": "创建分享失败",
+      "share_success": "分享链接已复制到剪贴板",
+      "star_success": "内容已加星",
+      "subscribe_success": "订阅成功!",
+      "transfer_save_success": "转存成功",
+      "trash_success": "已放入回收站",
+      "unarchive_success": "内容已取消归档",
+      "unstar_success": "内容已取消加星",
+      "unsubscribe_success": "取消订阅成功!",
+      "delete_comment_success": "评论已删除",
+      "lab_open": "去打开"
+    },
+    "error": {
+      "network": "网络异常，请稍后重试"
+    },
+    "theme": {
+      "dark": "夜间",
+      "eink": "墨水屏",
+      "light": "日间"
+    }
+  },
+  "component": {
+    "add_url_top_modal": {
+      "add_url": {
+        "button": "添加",
+        "placeholder": "将你想要添加的链接粘贴到这里",
+        "title": "添加链接",
+        "invalid_url": "请粘贴有效的文章链接，需以 http:// 或 https:// 开头"
+      }
+    },
+    "ai_summaries": {
+      "click_to_expand": "点击彩色圆点可展开/收起节点",
+      "click_to_interpret": "点击按钮解读此文章",
+      "copy_content_success": "内容复制成功",
+      "interpret": "解读此文章",
+      "mindmap": "思维导图",
+      "processing": "内容解析中",
+      "title": "解析结果"
+    },
+    "article_ce_tweet": {
+      "followers": "粉丝",
+      "followings": "关注",
+      "location": "位置：",
+      "website": "网站：",
+      "quote_avatar_alt": "引用推文头像",
+      "quote_image_alt": "引用推文图片"
+    },
+    "article_selection": {
+      "comment_deleted": "评论已删除",
+      "comment_failed": "评论失败",
+      "comment_placeholder": "回复 {username}",
+      "hours_ago": "小时前",
+      "just_now": "刚刚",
+      "minutes_ago": "分钟前",
+      "placeholder": "发表你的观点",
+      "reply": "回复...",
+      "stroke_failed": "划线失败",
+      "title": "发表评论",
+      "user_deleted": "已删除"
+    },
+    "bookmark_article": {
+      "no_title": "无标题",
+      "video_not_support_tips": ">>> 视频无法播放，请访问原文浏览 <<<"
+    },
+    "bookmark_cell": {
+      "add_tag": "加标签",
+      "edit_title_placeholder": "请输入新标题",
+      "no_title": "无标题",
+      "shortcut": "link to:"
+    },
+    "bookmark_tags": {
+      "create": "创建“{name}”",
+      "confirm": "确定 ({n})",
+      "by_ai": "AI 添加",
+      "group_mine": "我的标签",
+      "group_auto": "自动标签",
+      "placeholder": "输入新标签 (按 Enter 确认)",
+      "more": "查看更多标签"
+    },
+    "cancel_collection_modal": {
+      "removecollection": "从我订阅的书签集中移除",
+      "subtitle": "你可以继续访问内容至 {date}。此后将不再收取费用",
+      "title": "要停止订阅“{name}”吗？"
+    },
+    "chat_bot": {
+      "access_complete": "访问完成",
+      "access_failed": "访问失败",
+      "accessing_token": "访问中",
+      "generating_question": "生成问题中...",
+      "hello": "你好，我是 Slax Reader AI 助手：",
+      "now_accessing": "正在访问中...",
+      "{alias}_placeholder": "请输入你的问题（{alias} + enter 可以换行）",
+      "{tips}_accessing": "\"{tips}\" 访问中...",
+      "{tips}_searching": "\"{tips}\" 搜索中...",
+      "bookmark_no_content": "暂无内容",
+      "bookmark_no_title": "无标题",
+      "empty_desc": "与 AI 对话，深入理解文章内容。",
+      "panel_title": "Chat",
+      "search_bookmark_complete": "资料库搜索完成",
+      "search_bookmark_failed": "资料库搜索失败",
+      "search_bookmark_token": "搜索资料库",
+      "search_complete": "搜索完成",
+      "search_failed": "搜索失败",
+      "searching_token": "搜索中",
+      "{tips}_searching_bookmark": "\"{tips}\" 搜索资料库..."
+    },
+    "chat_bubble_message": {
+      "links_source": "信息来源：",
+      "related_questions": "相关的：",
+      "bookmarks_source": "书签来源："
+    },
+    "snapshot_article_source": {
+      "label": "来源："
+    },
+    "chat_tips_message": {
+      "generate_question_title": "读者最关心："
+    },
+    "collection_header": {
+      "filter_collection_title": "“{title}” 的内容：",
+      "loading": "订阅加载中...",
+      "no_collects": "暂无订阅收藏",
+      "subscribe_url": "订阅链接："
+    },
+    "copy_button": {
+      "copy_content": "复制内容"
+    },
+    "edit_name_modal": {
+      "placeholder": "请输入新标题",
+      "title": "修改标题"
+    },
+    "edit_tag": {
+      "delete_confirm": "确认删除该标签？此操作不可撤销",
+      "delete": "删除该标签",
+      "title": "修改标签"
+    },
+    "feedback": {
+      "follow_up": "允许通过 {email} 跟进",
+      "name": "反馈",
+      "placeholder": "请描述你遇到的问题......",
+      "title": "你的反馈将帮助我们变得更好"
+    },
+    "install_extension_tips": {
+      "descript": "安装我们的小插件，轻松收藏精彩网页。阅读时随心划重点、记灵感，还能召唤 AI 助手对话探讨。",
+      "install": "安装",
+      "title": "随时保存，悦读无忧"
+    },
+    "login_koc_banner": {
+      "invited_by": "邀请你加入",
+      "invited_generic": "你被邀请加入",
+      "perk": "赠送 60 天 Pro 会员"
+    },
+    "login_view": {
+      "google_login": "Google 登录",
+      "share_page_login_tips": "你还没有登录，登录成功后才可进行相关操作",
+      "title": "创建你的账号，来了解一下我们吧~",
+      "apple_login": "通过 Apple 登录",
+      "tos_and": "与",
+      "tos_prefix": "登录即代表你同意"
+    },
+    "notification_cell": {
+      "comment_title": "{username} 发表了评论：",
+      "reply_title": "{username} 回复了你："
+    },
+    "notification_header": {
+      "title": "全部通知"
+    },
+    "owner_setting": {
+      "charge_percent": "（包含服务管理费比例：{value}）",
+      "period": "/ 月",
+      "placeholder": {
+        "name": "请输入名称"
+      },
+      "share": {
+        "1": "显示划线/评论",
+        "2": "允许划线/评论",
+        "3": "显示我的用户信息"
+      },
+      "share_disabled": "分享已关闭",
+      "share_enabled": "分享已开启",
+      "share_option": "分享选项",
+      "tips": {
+        "price_cant_changed": "暂不支持付费转免费",
+        "price_unavailable": "需要先完善Stripe账号信息"
+      },
+      "title": {
+        "enable_sharing": "开启收藏分享",
+        "link": "订阅链接 (用户可通过此链接订阅你收藏的内容)",
+        "name": "名称设置",
+        "price": "订阅价格",
+        "share": "分享选项",
+        "subscribe": "订阅设置"
+      }
+    },
+    "payment": {
+      "redeem_placeholder": "请输入邀请码",
+      "subscribe_successful": "订阅成功!",
+      "successful": "支付成功"
+    },
+    "plan_card": {
+      "one_time_purchase": "购买 1 个月",
+      "one_time_purchase_rule": "一次性购买 • 无自动续费",
+      "plans": {
+        "1": {
+          "discount": "",
+          "free_features": {
+            "1": "无限添加书签",
+            "2": "内容永久备份",
+            "3": "无限高亮与笔记",
+            "4": "书签分享",
+            "5": "基础文本搜索",
+            "6": "支持导入 Pocket 和 Omnivo"
+          },
+          "one_month": "month",
+          "operate_title": "当前计划",
+          "period": "/ 月",
+          "tip_title": "",
+          "title": "免费版",
+          "two_month": "2 months"
+        },
+        "2": {
+          "discount": "按月订阅立省40%",
+          "free_features": {
+            "1": "包含免费版所有功能"
+          },
+          "operate_title": "按月订阅",
+          "period": "/ 月",
+          "period_unit": "月",
+          "pro_features": {
+            "1": "交互式 AI 对话",
+            "2": "AI 总结分析",
+            "3": "自动标签归类",
+            "4": "高级语义搜索",
+            "5": "专属优先支持",
+            "6": "新功能抢先体验"
+          },
+          "tip_title": "最受欢迎",
+          "title": "专业版"
+        }
+      },
+      "subscribe_month_rule": "自动续期 • 随时取消",
+      "wip": "(更多平台即将支持)"
+    },
+    "plan_payment": {
+      "choose_plan": "选择计划",
+      "one_time_price": "$9.99",
+      "pay": "支付",
+      "pay_now": "（现在支付）",
+      "period": "/ 月",
+      "plan_price": "$5.99",
+      "stripe_error": "Stripe支付环境出错",
+      "tips": "暂不支持没有 Visa 或 MasterCard 的单币种银联卡",
+      "title_trail": "七天试用"
+    },
+    "pro_icon": {
+      "processing": "会员生效中"
+    },
+    "remove_collection_modal": {
+      "title": "要移除订阅“{name}”吗？"
+    },
+    "search_header": {
+      "empty": "没有找到相关内容",
+      "empty_desc": "换个关键词，或者扩大搜索范围试试",
+      "placeholder": "输入你要查找的内容",
+      "semantic_relative": "语义相关 {value}%",
+      "found_count": "找到 {count} 篇包含"
+    },
+    "share_bubble_tips": {
+      "text": "把内容分享给好友"
+    },
+    "share_modal": {
+      "copy_link": "复制链接",
+      "copy_success": "复制成功!",
+      "options": {
+        "1": "显示划线和评论",
+        "2": "显示我的头像和昵称",
+        "3": "允许访客划线和评论"
+      },
+      "revoke_tips": "分享链接已撤销",
+      "title": "分享"
+    },
+    "stripe_pay_setting": {
+      "country_select": {
+        "subtitle": "选定后不可变更",
+        "title": "选择国家，"
+      },
+      "guideline": {
+        "create_title": "创建 Stripe 账户",
+        "status": {
+          "active": "已激活",
+          "filling": "填写资料",
+          "pending": "待审核",
+          "reviewing": "审核中"
+        },
+        "title": "Stripe 商户设置流程",
+        "update_title": "补充 Stripe 商户资料"
+      },
+      "receive": {
+        "available": "可收款",
+        "unavailable": "不可收款"
+      },
+      "withdraw": {
+        "available": "可提现",
+        "unavailable": "不可提现"
+      }
+    },
+    "subscribe": {
+      "cancel": "取消",
+      "confirm": "马上激活",
+      "confirm_message": "🎉 立即激活「高级会员」",
+      "confirm_message_new_user": "🎉 最后一步！立即激活「高级会员」",
+      "index_confirm": "即刻体验",
+      "index_message": "限时赠礼 ｜ 解锁1个月「高级会员」特权",
+      "receive_already_received": "赠礼已领取",
+      "receive_result_error": "领取失败，请稍后重试",
+      "skip": "先跳过",
+      "successful": "🎉领取成功🎉"
+    },
+    "subscribe_collection_button": {
+      "processing": "状态更新中"
+    },
+    "subscription": {
+      "description": "解锁完整的 AI 能力 —— 内容解析、对话助手、语义搜索，让阅读更高效。",
+      "title": "升级到 Pro",
+      "cycle_monthly": "连续包月",
+      "cycle_monthly_tag": "省 40%",
+      "cycle_oneoff": "单月购买",
+      "current_plan": "当前计划",
+      "badge_popular": "最受欢迎",
+      "cta_subscribe": "订阅",
+      "secure_payment": "安全支付 · 随时取消",
+      "secure_payment_oneoff": "安全支付 · 无自动续费"
+    },
+    "tags_header": {
+      "mine": "我的标签",
+      "auto": "自动标签",
+      "mine_hint": "AI 打标签时优先用这些词",
+      "promote": "设为我的标签",
+      "demote": "移出我的标签",
+      "empty_mine": "挑几个你真的会用的词",
+      "empty_mine_desc": "选中的词会排到最上面，AI 以后优先用它们打标签。也可以直接新建一个。",
+      "untagged": "未打标签的文章",
+      "add_filter": "再加一个标签",
+      "result_count": "{n} 篇",
+      "no_candidates": "没有可以再加的标签",
+      "add_tag": "添加新标签",
+      "add_tag_placeholder": "输入新标签",
+      "filter_tag_title": "“{title}”标签下的内容：",
+      "loading": "标签加载中..."
+    },
+    "user_notification": {
+      "no_message": "没有新消息",
+      "title": "新消息"
+    },
+    "user_operate_icon": {
+      "logout": "退出账号",
+      "personal_info": "个人中心"
+    },
+    "ai_panel": {
+      "outline_label": "全文解析",
+      "overview_label": "全文概要",
+      "retry": "加载失败，点击重试"
+    },
+    "article_ce_social_post": {
+      "followers": "粉丝",
+      "followings": "关注",
+      "location": "位置：",
+      "score": "得分",
+      "website": "网站："
+    },
+    "snapshot_chat": {
+      "copied": "已复制",
+      "empty_desc": "或选中文字，针对特定内容提问",
+      "empty_title": "问 AI 关于这篇文章的任何问题，",
+      "scroll_to_bottom": "回到最新"
+    },
+    "snapshot_comment": {
+      "empty_desc": "还没有评论。\n选中这篇文章里的文字，即可留下一条评论。"
+    },
+    "snapshot_status_modal": {
+      "dont_remind_again": "以后不再提醒",
+      "failed_content": "建议：点击标题打开原网页阅读，或使用浏览器插件重新收藏该文章",
+      "failed_title": "快照生成失败",
+      "pending_content": "你可以先点击标题阅读原网页",
+      "pending_title": "快照生成中，预计需要几分钟"
+    },
+    "transcript_panel": {
+      "empty": "暂无字幕",
+      "title": "字幕"
+    }
+  },
+  "docs": {
+    "title": {
+      "delete_account_notice": "账户注销须知",
+      "how_do_i_delete_account": "如何删除账号",
+      "privacy": "隐私政策",
+      "terms": "服务条款"
+    }
+  },
+  "page": {
+    "dashboard": {
+      "eyebrow": "数据看板",
+      "title": "读者活跃度快照",
+      "description": "所选时间段内产品增长、用户激活与平台活跃度的精炼概览。",
+      "tab_aria_label": "看板视图切换",
+      "tab_today": "今日数据",
+      "tab_today_hint": "查看当前快照与平台分布",
+      "tab_history": "历史",
+      "tab_history_hint": "查看区间趋势与结构变化",
+      "range_label": "时间范围",
+      "range_start": "开始日期",
+      "range_end": "截止日期",
+      "refresh": "应用",
+      "reset": "重置",
+      "loading": "数据加载中…",
+      "retry": "重试",
+      "quick_insights_eyebrow": "快速洞察",
+      "quick_insights_title": "增长正在集中的方向",
+      "top_platform_badge": "领先平台",
+      "top_platform_meta": "{activeUsers} 活跃用户 · 占总活跃量 {activeShare}",
+      "stat_total_active": "活跃用户总数",
+      "stat_total_new": "新增用户总数",
+      "stat_platform_count": "平台数量",
+      "chip_core": "核心",
+      "chip_growth": "增长",
+      "chip_depth": "深度",
+      "platform_mix_eyebrow": "平台分布",
+      "platform_mix_title": "各平台新增与活跃用户对比",
+      "legend_active": "活跃用户",
+      "legend_new": "新增用户",
+      "row_numbers": "{activeUsers} 活跃 · {newUsers} 新增",
+      "platform_web": "Web",
+      "platform_ios": "iOS",
+      "platform_android": "Android",
+      "platform_extension": "扩展插件",
+      "platform_desktop": "Desktop",
+      "platform_unknown": "未知",
+      "platform_total": "总数",
+      "history_eyebrow": "历史数据",
+      "history_title": "",
+      "history_range_aria_label": "历史区间选择",
+      "range_7d": "7 天",
+      "range_30d": "30 天",
+      "range_90d": "90 天",
+      "range_365d": "365 天",
+      "history_total": "区间累计",
+      "history_vs_start": "相较区间起点",
+      "history_summary_active": "期末活跃用户",
+      "history_summary_active_hint": "多平台总活跃规模",
+      "history_summary_new": "期末新增用户",
+      "history_summary_new_hint": "最近一个观察点新增",
+      "history_summary_retention": "留存率",
+      "history_summary_retention_hint": "阅读回访保持稳定",
+      "history_summary_ai": "AI 会话",
+      "history_summary_ai_hint": "深度功能使用持续提升",
+      "history_chart_growth": "增长",
+      "history_chart_acquisition": "获客",
+      "history_chart_quality": "质量",
+      "history_chart_depth": "深度使用",
+      "history_chart_engagement": "互动",
+      "history_chart_ai": "AI",
+      "history_expand": "放大查看",
+      "history_expand_aria_label": "放大查看 {title}",
+      "history_chart_active_platform_title": "活跃用户数",
+      "history_chart_active_platform_desc": "当日至少有过一次以下行为的用户数：打开或刷新 Web 客户端，或将 App 切换到前台（即有\"心跳\"上报），按平台细分展示。",
+      "history_chart_new_users_platform_title": "新用户数",
+      "history_chart_new_users_platform_desc": "当日完成注册的新用户数，按平台细分展示。",
+      "history_chart_new_users_title": "新增用户趋势",
+      "history_chart_new_users_desc": "新用户进入速度稳定爬升，便于与投放或发布节奏对照。",
+      "history_chart_retention_title": "留存率趋势",
+      "history_chart_retention_desc": "衡量用户在完成首轮体验后是否持续回来阅读。",
+      "history_chart_bookmarks_title": "人均收藏趋势",
+      "history_chart_bookmarks_desc": "反映完成激活后的用户是否持续把内容沉淀进个人库。",
+      "history_chart_share_title": "分享转化率趋势",
+      "history_chart_share_desc": "展示内容分享后进一步触发注册或回访的效率变化。",
+      "history_chart_ai_title": "AI 会话趋势",
+      "history_chart_ai_desc": "观察高价值 AI 功能的使用热度是否持续提高。",
+      "history_metric_retention": "留存率",
+      "history_metric_bookmarks_per_user": "人均收藏",
+      "history_metric_share_rate": "分享转化率",
+      "card_new_users_title": "新用户数",
+      "card_new_users_desc": "当日完成注册的新用户数。",
+      "card_active_users_title": "活跃用户数",
+      "card_active_users_desc": "当日至少有过一次以下行为的用户数：打开或刷新 Web 客户端，或将 App 切换到前台（即有\"心跳\"上报）。",
+      "card_new_bookmarks_title": "新增书签数",
+      "card_new_bookmarks_desc": "当日用户新收藏的书签总数。",
+      "card_bookmark_users_title": "新增书签用户数",
+      "card_bookmark_users_desc": "当日至少新增 1 个书签的用户数。",
+      "card_new_subscriptions_title": "新增 Pro 订阅用户数",
+      "card_new_subscriptions_desc": "当日完成 Pro 订阅（含首次订阅、过期后恢复订阅）的用户数，不含退款。注：订阅≠支付，比如 iOS 用户在订阅的次月才会扣款。",
+      "card_archive_users_title": "归档书签用户数",
+      "card_archive_users_desc": "当日至少将 1 个书签归档的用户数。",
+      "card_activated_users_title": "新用户激活数",
+      "card_activated_users_desc": "在注册后 24 小时内完成首次收藏的用户数，按收藏时间统计。",
+      "card_ai_power_users_title": "AI 用户数",
+      "card_ai_power_users_desc": "当日使用了 AI 功能的用户数，这三个细分指标按顺序分别是：\n· Chat：当日对话轮数 ≥ 2 的用户数。\n· Overview：当日使用该功能次数 ≥ 1 的用户数。\n· Outline：当日使用该功能次数 ≥ 1 的用户数。",
+      "ai_label_chat": "Chat",
+      "ai_label_overview": "Overview",
+      "ai_label_summary": "Outline"
+    },
+    "auth": {
+      "authenticating": "认证中"
+    },
+    "bookmarks_detail": {
+      "ai_analyze": "AI 解析",
+      "chat": "Chat",
+      "loading": "内容加载中 ···",
+      "notes_count": "{ count } 条笔记",
+      "notes_by": "{ author } · { count } 条笔记",
+      "no_more": "没有更多了",
+      "no_title": "无标题",
+      "not_exists": "书签不存在",
+      "processing": "内容正在处理，请稍后 ···",
+      "share_bookmark_tips": "由 { user } 分享于 { date }",
+      "trash_bookmark_restore": "移回 Inbox",
+      "trash_bookmark_tips": "书签于 { date } 被放入废纸篓. 7天后将会被删除.",
+      "og_title_with_notes": "{title} — {author} 的阅读笔记",
+      "error_not_found": "页面不存在",
+      "error_generic": "出错了",
+      "cancel_quote": "取消引用",
+      "comment_all": "评论全文",
+      "comment_placeholder": "写下你的想法...",
+      "comments": "评论",
+      "from_collection": "本文来自",
+      "from_collection_short": "来自",
+      "send_hint": "Enter 发送 · Shift+Enter 换行",
+      "share_to_twitter": "分享到 X / Twitter",
+      "shared_via": "分享自",
+      "try_free": "免费试用"
+    },
+    "bookmarks_index": {
+      "untagged": "未打标签",
+      "Trash": "回收站",
+      "add_url": "添加",
+      "archive": "归档",
+      "collections": "合集",
+      "content_deleted": "原内容已被删除",
+      "empty": "这里还没有内容",
+      "empty_highlights_title": "还没有划线",
+      "empty_highlights_desc": "在任意文章中选中文字即可划线，划过的内容都会显示在这里",
+      "empty_starred_title": "还没有星标文章",
+      "empty_starred_desc": "在任意文章上点击星标，标过的内容都会显示在这里",
+      "empty_archive_title": "还没有归档文章",
+      "empty_archive_desc": "归档的文章会移出收件箱，但仍然可以搜索到",
+      "empty_trash_title": "回收站是空的",
+      "empty_trash_desc": "删除的文章会在这里保留 7 天，之后永久删除",
+      "highlights": "划线",
+      "inbox": "收件箱",
+      "more": "加载更多",
+      "new_topic": "输入不超过30个字符的新标签...",
+      "no_more": "已到达内容尽头",
+      "starred": "星标",
+      "source_filter_site": "站点",
+      "topics": "标签",
+      "trash_no_more": "回收站中的文章会在 7 天后被永久删除",
+      "view_original": "查看原文",
+      "collection_feed": {
+        "closed": "已关闭",
+        "expired_days": "已过期 {count} 天",
+        "subscribed_today": "今天刚订阅",
+        "subscribed_since": "订阅于 {date}",
+        "view_home": "查看合集",
+        "renew": "续订",
+        "closed_title": "该合集已被作者关闭",
+        "closed_desc": "重新开启后，新推荐会自动回到这里。",
+        "expired_title": "「{name}」的订阅已过期",
+        "expired_desc": "续订后即可继续查看该合集的推荐内容。",
+        "highlight_count": "{count} 条划线",
+        "open_article": "打开《{title}》",
+        "my_inbox": "我的收件箱"
+      },
+      "starred_share": {
+        "title": "你的星标，也能帮别人发现好内容",
+        "desc": "开启后，星标文章自动组成你的推荐阅读页，别人通过链接即可订阅。",
+        "enable": "开启合集",
+        "dismiss": "暂不开启",
+        "status_enabled": "已开启合集",
+        "subscriber_count": "{count} 人订阅",
+        "share": "分享合集",
+        "copied": "已复制合集链接",
+        "view_collection": "查看合集",
+        "mini_copy": "你的星标也能帮别人发现好内容",
+        "mini_cta": "开启合集",
+        "enable_modal": {
+          "title": "开启星标合集",
+          "desc": "开启后，已有和新增的星标文章会自动组成你的推荐阅读页。",
+          "note": "合集页公开可见，可随时关闭或重新开启。",
+          "submit": "开启合集",
+          "success_title": "你的合集已开启",
+          "success_desc": "你加星标的文章，都会自动收录进合集。",
+          "success_cta": "查看我的合集"
+        }
+      },
+      "local_sync": {
+        "title": "正在初始化…",
+        "subtitle": "正在将你的收藏同步到本设备",
+        "preparing": "正在准备…"
+      },
+      "date_group_format": "{year} 年 {month} 月",
+      "days_ago": "{n} 天前",
+      "hours_ago": "{n} 小时前",
+      "just_now": "刚刚",
+      "last_updated_at": "最近更新于 {time}",
+      "minutes_ago": "{n} 分钟前",
+      "months_ago": "{n} 个月前",
+      "years_ago": "{n} 年前",
+      "add_article": "添加文章",
+      "empty_collections_desc": "选择一个合集，查看其中收录的文章",
+      "empty_collections_title": "还没有合集内容",
+      "empty_inbox_desc": "打开任何想读的网页，点浏览器工具栏上的 Slax Reader 图标。",
+      "empty_inbox_prompt": {
+        "desc": "安装浏览器扩展，在任何网页一键收藏。",
+        "install": "安装浏览器扩展",
+        "note": "约 1 分钟完成设置",
+        "title": "收藏的文章会出现在这里"
+      },
+      "empty_inbox_title": "收藏你的第一篇文章",
+      "empty_topics_desc": "给收藏的文章打标签，内容会自动聚合成标签",
+      "empty_topics_title": "还没有标签",
+      "layout_card": "卡片视图",
+      "layout_text": "文字视图",
+      "search_back": "返回",
+      "search_history_clear": "清空",
+      "search_history_title": "最近搜索",
+      "search_placeholder": "搜索文章…",
+      "sidebar_collapse": "收起侧栏",
+      "sidebar_expand": "展开侧栏"
+    },
+    "c_detail": {
+      "subscribe_text": "来自 {user} 的订阅收藏"
+    },
+    "c_index": {
+      "badge": "加星合集",
+      "stat_articles": "星标",
+      "stat_subscribers": "订阅者",
+      "note_visitor": "订阅后，新的推荐会自动同步到你的首页。",
+      "note_subscriber": "已同步到你的 Inbox，新内容会自动更新。",
+      "goto_inbox": "前往 Inbox →",
+      "manage": "管理合集",
+      "subscribe": "订阅合集",
+      "subscribed": "已订阅",
+      "unsubscribe": "退订",
+      "share": "分享合集",
+      "copy_link": "复制链接",
+      "share_twitter": "分享到 Twitter",
+      "toast_copied": "已复制合集链接",
+      "toast_subscribed": "已订阅",
+      "toast_unsubscribed": "已退订",
+      "list_end": "— 已到达内容尽头 —",
+      "pager_label": "分页导航",
+      "pager_prev": "上一页",
+      "pager_next": "下一页",
+      "pager_jump_prev": "上一组页码",
+      "pager_jump_next": "下一组页码",
+      "highlight_count": "{count} 条划线",
+      "month_label": "{year} 年 {month} 月",
+      "not_found_title": "合集不存在",
+      "not_found_desc": "该合集可能已被删除，或链接有误。",
+      "seo_desc_fallback": "由 {name} 精选的 {count} 篇文章",
+      "seo_desc_updated": " · 最近更新于 {month}",
+      "empty_title": "还没有内容",
+      "empty_desc": "作者还没有加星任何文章，稍后再来看看吧。",
+      "closed_visitor_title": "{name} 已被作者关闭",
+      "closed_visitor_desc": "用 Slax Reader 收藏你自己的文章。",
+      "closed_visitor_cta": "免费使用 Slax Reader",
+      "closed_subscriber_title": "{name} 已被作者关闭",
+      "closed_subscriber_desc": "重新开启后，新推荐会自动回到你的 Inbox",
+      "closed_unsubscribe": "退订",
+      "closed_owner_desc": "你的合集已不再公开，订阅者会看到「已关闭」。",
+      "closed_owner_cta": "管理合集"
+    },
+    "collection_manage": {
+      "back_to_collection": "返回合集",
+      "back_to_starred": "返回星标列表",
+      "title": "管理合集",
+      "status_open": "公开中",
+      "status_closed": "已关闭",
+      "page_desc": "修改合集名称与描述，调整公开状态。",
+      "closed_notice": "你的合集已不再公开，订阅者会看到「已关闭」。",
+      "reopen": "重新开启",
+      "link_label": "合集链接",
+      "link_hint": "系统生成，不可修改；分享此链接给他人即可访问你的合集",
+      "link_hint_closed": "合集关闭期间，此链接不可用。",
+      "copy": "复制",
+      "copied": "已复制",
+      "name_label": "名称",
+      "optional": "选填",
+      "name_placeholder": "给合集起个名字（选填）",
+      "desc_label": "描述",
+      "desc_placeholder": "介绍一下这个合集（选填）",
+      "save": "保存修改",
+      "danger_title": "危险操作",
+      "danger_desc": "关闭后，合集将不再对外可见，订阅者会看到「已关闭」。你的星标内容保留，随时可重新开启。",
+      "close_collection": "关闭合集",
+      "confirm_title": "关闭合集？",
+      "confirm_desc": "关闭后，合集将不再对外可见，订阅者会看到「已关闭」。你的星标内容保留，随时可重新开启。",
+      "confirm_cancel": "取消",
+      "confirm_close": "确认关闭",
+      "overview_articles": "内容数",
+      "overview_articles_hint": "来自你当前的星标内容。",
+      "overview_subscribers": "订阅者",
+      "overview_subscribers_hint": "会持续收到你的更新。",
+      "toast_saved": "已保存修改",
+      "toast_copied": "已复制合集链接",
+      "toast_closed": "合集已关闭",
+      "toast_reopened": "合集已重新开启",
+      "default_name": "{name} 的阅读推荐"
+    },
+    "guide": {
+      "guides": {
+        "1": {
+          "title": "将「Slax Reader」扩展插件 icon 置顶"
+        },
+        "2": {
+          "title": "打开 url 后点击图标可以收藏内容（打勾即表示收藏完成）"
+        },
+        "3": {
+          "title": "登录账号，即可在 Inbox 看到收藏的内容"
+        }
+      },
+      "operate_title": "开始使用：",
+      "subtitle": "以下几个需要你留意的细节将帮助你更好的使用产品",
+      "title": "欢迎使用 Slax Reader",
+      "use": "开始使用"
+    },
+    "index": {
+      "cards": {
+        "1": {
+          "content": "收藏的链接，内容会备份在你的账户里，让好内容不丢失",
+          "title": "备份内容"
+        },
+        "2": {
+          "content": "排版清晰大方，阅读体验舒适，操作方便自然",
+          "title": "简洁实用"
+        },
+        "3": {
+          "content": "长文章阅读的好帮手，通过 AI 协助理解，支持输出内容概要和思维导图",
+          "title": "辅助阅读"
+        },
+        "4": {
+          "content": "通过 AI 协助提出问题，并通过一步步的追问，深入理解文章，真正掌握知识",
+          "title": "AI 问答"
+        },
+        "5": {
+          "content": "无需用户手动干预，自动生成可用的标签与分类，内容整理更简单",
+          "title": "自动标签"
+        },
+        "6": {
+          "content": "通过浏览器扩展、iOS 与安卓 App、Telegram 插件等方式收藏内容",
+          "title": "全平台支持"
+        }
+      },
+      "faq": "常见问题",
+      "faqs": {
+        "1": {
+          "content": "Slax Reader 不仅是稍后阅读，它还是阅读者的 AI 助手、学习社区和知识库。",
+          "title": "Slax Reader 是什么？"
+        },
+        "2": {
+          "content": "可以发邮件 hi{'@'}slax.com，也可以通过 Twitter {'@'}SlaxHQ 找到我们。",
+          "title": "怎样找你们反馈问题？"
+        },
+        "3": {
+          "content": "我们都热爱阅读、持续学习、付费使用过很多年不同的 Read it later 产品，但始终没有一款产品符合我们的想象。",
+          "title": "开发团队是些什么人？"
+        },
+        "4": {
+          "content": "AI 已经展现出在辅助学习方面的潜力，这或许是能有突破的一个变量。所以我们打算试试，长期（以十年为单位）迭代这款产品。",
+          "title": "为什么想做这么个软件？"
+        },
+        "5": {
+          "content": "当前只是最初的预览版本，我们的不一样是：\n · AI 优先：更多地使用 AI 技术辅助学习\n · 内容备份：互联网上的链接内容经常丢失，在我们这里，链接一次收藏，长期备份\n\n未来我们会有更多差异化的能力实现，比如：\n · 多智能体讨论，深化理解\n · 建立独特的学习者社区，大家在这里可以讨论交流\n · 内容广场：打破算法推荐带来的内容同质化问题\n · 内容订阅：你关注的人、内容、标签都将可订阅",
+          "title": "Slax Reader 和其他稍后阅读产品有什么不一样？"
+        },
+        "6": {
+          "content": "我们希望用尽可能低的价格提供超值的服务，因此，你可以免费使用的功能包括了无限书签、无限内容缓存（早期用户永久免费）、无限设备数量、无限划线评论（待上线）、导入书签（待上线）、分享书签、全文搜索、全平台客户端。\n\n同时，因为 AI 的算力要求和企业健康经营需要，我们也有付费的专业版本，如果你需要使用 AI 解析、AI 问答、自动打标签等功能时，需要按月订阅。",
+          "title": "你们的产品是免费的吗？"
+        }
+      },
+      "features": "免费和付费功能",
+      "history": "更新历史",
+      "history_notes": {
+        "1": {
+          "1": "支持网页收藏、搜索",
+          "2": "书签缓存页支持AI总结",
+          "3": "书签缓存页支持AI Chat",
+          "version": "v1.0"
+        },
+        "2": {
+          "1": "书签分享",
+          "2": "书签缓存页支持划线、划线评论",
+          "3": "书签缓存页选中内容进行 AI Chat",
+          "4": "增加书签标签功能",
+          "5": "用户语言同步",
+          "version": "v1.1"
+        },
+        "3": {
+          "1": "支持ominivore.app网站导入",
+          "2": "增加垃圾篓功能",
+          "3": "AI总结支持重新生成",
+          "4": "增加定位文章中的划线及评论",
+          "5": "增加版本历史",
+          "version": "v1.2"
+        },
+        "4": {
+          "1": "星标订阅",
+          "2": "支持搜索",
+          "3": "新增消息通知",
+          "4": "支持支付宝/微信单次付款",
+          "5": "AI分析免费开放",
+          "version": "v1.3"
+        },
+        "5": {
+          "1": "Slax Reader 开源啦！🎉",
+          "version": "v1.4"
+        },
+        "6": {
+          "1": "【新特性】通过浏览器扩展，支持在原网页中使用划重点、评论、和 AI 对话功能",
+          "2": "【新特征】AI 输出语言的设置项",
+          "3": "【新特性】通过邀请码兑换 Pro 订阅",
+          "version": "v1.5"
+        },
+        "head": "当前版本（{version}）"
+      },
+      "posters": {
+        "1": {
+          "subtitle": "在 Slax Reader 打开收藏的链接，适合在电脑、平板与手机阅读，并且具备恰到好处的 AI 工具辅助学习",
+          "title": "缓存页和工具栏"
+        },
+        "2": {
+          "subtitle": "将长且复杂的文本结构化呈现，并可点击跳转到对应段落",
+          "title": "AI 解析"
+        },
+        "3": {
+          "subtitle": "她是循循善诱的提问者，是遍读百科全书的博学之士，也是充满个性的挑战者",
+          "title": "AI 助手"
+        }
+      },
+      "slogan": "AI 时代的智能学习与社交助手，让知识触手可及",
+      "slogan_left_bracket": "「",
+      "slogan_right_bracket": "」"
+    },
+    "share_detail": {
+      "share_text": "{user} 分享于 {date}",
+      "transfer_save": "转存",
+      "transfered_save": "已转存",
+      "marks_visible": "划线评论可见"
+    },
+    "slug": {
+      "back_home": "回到首页",
+      "title": "找不到页面"
+    },
+    "subscription_mobile_me": {
+      "auto_renew_tips": "试用结束后自动续期",
+      "cancel_subscription": "取消订阅",
+      "start_trial": "开始试用",
+      "subscribed_auto_renew_date": "(将于 {date} 自动续期）",
+      "subscribed_renew_date": "将于 {date} 自动续订",
+      "subscribed_status": {
+        "active_on_google": "此订阅通过 Google Play 开通",
+        "active_via": "通过 {source} 开通",
+        "available": "有效",
+        "cancel_tips": "如需取消订阅，请前往 {source} 操作"
+      },
+      "subscribed_trail_end_date": "您的试用将在 $1 天后结束。",
+      "subscribed_trail_end_tips": "订阅 Pro 版",
+      "trail_tips": "免费畅享一个月，之后仅需$5.99/月。",
+      "unsupported_description": "此页面仅支持通过 Slax Reader 应用访问",
+      "unsupported_title": "当前不支持访问"
+    },
+    "user": {
+      "ai_response_language": "AI 回应语言:",
+      "batches_progress": "进度",
+      "business_name": "商户名称：",
+      "business_type": "商业类型",
+      "capabilities": "账户功能：",
+      "choose_sharing_type": "选择分享类型",
+      "collect_share_settings": "分享设置",
+      "collect_share_url": "订阅链接",
+      "company_name": "公司名称",
+      "complete_stripe_info": "补充账户资料",
+      "connect_slax_payment": "连接 Slax 支付",
+      "connect_stripe": "连接 Stripe",
+      "count": "数量",
+      "country": "国家/地区",
+      "create_account_error": "创建账户失败",
+      "create_stripe_account": "创建 Stripe 账户",
+      "delete_account": {
+        "section_title": "注销账号",
+        "description": "想注销你的 Slax Reader 账号？",
+        "delete_button": "注销账号",
+        "dialog_title": "账号注销须知",
+        "confirm_button": "已阅读并确认注销",
+        "cancel_button": "取消",
+        "second_confirm_title": "最终确认",
+        "second_confirm_description": "此操作不可恢复，确定要永久注销你的账号吗？",
+        "second_confirm_button": "确认注销",
+        "deleting": "正在注销账号...",
+        "delete_success": "账号已成功注销",
+        "delete_failed": "注销账号失败，请稍后再试"
+      },
+      "edit": "编辑",
+      "email": "邮箱",
+      "fetch_stripe_info_failed": "获取 Stripe 账户信息失败",
+      "goto_stripe_board": "前往 Stripe 后台",
+      "help_and_support": "帮助与支持",
+      "import_description": "先在原产品导出书签，再把文件上传到这里。能选 CSV 就选 CSV（Pinboard 选 JSON）。每次一个文件，最多 25 MiB、10,000 条书签。",
+      "import_preview_title": "确认导入",
+      "import_include_feed": "包含订阅源文章",
+      "import_preview_counts": "待导入 {eligible} 条 · 已排除 {feeds} 条订阅源文章 · 已合并 {duplicates} 条重复记录 · 已跳过 {invalid} 条无效记录",
+      "import_date_warning": "有 {count} 个日期无法识别，对应书签将使用导入时间。",
+      "import_start": "开始导入",
+      "import_cancel": "取消",
+      "import_size_limit": "请选择小于 25 MiB 的文件。",
+      "import_preview_failed": "无法预览此文件，请检查产品和格式；单次最多 25 MiB、10,000 条书签。",
+      "import_upload_failed": "上传未完成，请先查看导入进度，再决定是否重试。",
+      "import_note1": "由于我们会对导入的数据进行重新抓取和解析，解析的用时与数量成正比。",
+      "import_note2": "需要注意的是，我们仅支持基础元数据并对网站进行重新解析。如果您的数据发生了遗漏、差异、改变，建议使用我们的APP/浏览器扩展重新收藏以确保数据更完整。",
+      "import_progress": "导入进度",
+      "export_title": "导出收藏链接",
+      "export_description": "导出收藏链接、标题、标签、收藏时间和阅读状态。包含已归档链接，不包含回收站内容。",
+      "export_format": "格式",
+      "export_csv": "CSV（电子表格）",
+      "export_json": "JSON（完整元数据）",
+      "export_start": "导出",
+      "export_cancel": "取消",
+      "export_retry": "重试",
+      "export_progress": "已准备 {count} 条链接",
+      "export_empty": "没有可导出的收藏链接。",
+      "export_failed": "导出失败，请检查网络和登录状态后重试。",
+      "export_cancelled": "已取消导出。",
+      "export_complete": "已下载 {count} 条收藏链接。",
+      "import_third_party_data": "导入第三方数据",
+      "import_time": "导入时间",
+      "no_import_records": "暂无导入记录",
+      "import_network_error": "网络错误",
+      "import_status_pending": "待处理",
+      "import_status_processing": "处理中",
+      "import_status_processing_percent": "处理中（{percentage}%）",
+      "import_status_failed": "失败",
+      "import_status_complete": "完成",
+      "import_status_unknown": "未知",
+      "import_unzipping": "正在解压文件...",
+      "import_uploading": "正在上传文件...",
+      "import_uploading_progress": "正在上传文件 {current} / {total}...",
+      "import_file_invalid": "未找到文件，或文件类型不是 {type}",
+      "import_upload_success": "{type} 数据导入成功，请稍候",
+      "import_submitted": "文件已接收，正在后台导入 {count} 条书签。可以离开本页，稍后在“导入进度”里查看。",
+      "import_submitted_no_count": "文件已接收，正在后台导入。可以离开本页，稍后在“导入进度”里查看。",
+      "import_active_summary": "{count} 个导入进行中，最新一个 {percentage}%",
+      "import_too_many": "同时最多 {max} 个导入，等其中一个完成后再试。",
+      "language": "界面语言:",
+      "language_en": "English",
+      "language_zh": "中文",
+      "my_subscriptions": "我的订阅",
+      "personal_info": "个人信息",
+      "platform": "平台",
+      "save": "保存",
+      "select_country": "选择国家",
+      "setup_completed": "完成设置",
+      "setup_progress": "入驻进度",
+      "setup_step1": "基本信息",
+      "setup_step2": "身份验证",
+      "setup_step3": "银行账户",
+      "setup_step4": "完成",
+      "share_my_collection": "分享我的收藏",
+      "share_my_collection_description": "开启后，用户可通过生成的链接订阅你收藏的所有内容",
+      "show_name": "显示名称",
+      "status": "状态",
+      "stripe_capabilities": "Stripe 能力",
+      "stripe_onboarding": "Stripe 入驻",
+      "stripe_section_title": "Stripe 商户设置",
+      "stripe_setup_notice": "Slax Reader 将通过 Stripe 账户进行支付、提现等操作，需要你补充 Stripe 账户资料",
+      "stripe_status": "Stripe 状态：",
+      "subscribe": {
+        "expired": "订阅到期时间",
+        "first": "初次订阅时间",
+        "next_payment": "下次收款时间",
+        "no": "没有订阅",
+        "processing_notice": "已成功订阅 Pro，订单正在处理中，大概需要几分钟",
+        "subscripted_pro": "已订阅 Pro 版",
+        "subscripted_trail_pro": "已订阅试用 Pro 版"
+      },
+      "subscription_description": "订阅后，您可以体验完整的 AI 功能，包括内容解析和 AI 助手",
+      "subscription_preferences": "订阅偏好",
+      "api_key": "API Key",
+      "skills_cli_title": "Skill + CLI",
+      "api_key_description": "供 AI Agent 通过 Skill + CLI 访问使用。完整 Key 仅在生成时显示一次，请妥善保存。",
+      "api_key_value": "当前 Key",
+      "api_key_created_at": "创建时间",
+      "api_key_generate": "生成 API Key",
+      "api_key_generate_and_copy": "生成并复制",
+      "api_key_generated_and_copied": "API Key 已生成并复制",
+      "api_key_regenerated_and_copied": "API Key 已重新生成并复制",
+      "api_key_view_failed": "无法获取完整 API Key",
+      "api_key_subscribe_to_generate": "订阅后即可生成 API Key。",
+      "api_key_view_all_and_copy": "复制",
+      "api_key_full_unavailable": "完整 Key 已不可查看，如需获取请重新生成。",
+      "api_key_view_all": "查看全部",
+      "api_key_hide": "隐藏",
+      "api_key_regenerate": "重新生成",
+      "api_key_regenerate_tip": "重新生成后，旧的 Key 会立即失效。",
+      "api_key_regenerate_confirm": "重新生成会立即使当前 Key 失效，确认继续吗？",
+      "api_key_new_key": "新的 API Key",
+      "api_key_once_hint": "完整 Key 只会展示这一次，请立即复制并保存。",
+      "api_key_cli_manual": "手动安装",
+      "api_key_cli_ai_agent": "通过 AI Agent 安装",
+      "api_key_cli_copy": "复制",
+      "api_key_cli_manual_hint": "复制以下命令到终端运行即可完成安装",
+      "api_key_cli_ai_hint": "将下方提示词复制给你的 AI 助手（Claude Code、Codex、Cursor、Trae 等），它会自动完成安装。",
+      "api_key_cli_ai_prompt": "帮我安装 Slax Reader CLI：{url}",
+      "api_key_cli_copy_prompt": "复制提示词",
+      "api_key_cli_completion_hint": "配置完成后，重启你的 AI Agent 即可开始使用",
+      "api_key_cli_open_source": "开源地址",
+      "api_key_cli_availability_hint": "Slax Reader 的 Skill + CLI 现在所有用户都可以使用，基础功能 add、list、get 会一直免费，以后加入的部分高级功能可能会放到 Pro 里。",
+      "subscription_redeem": "使用邀请码",
+      "subscription_stripe_portal": "Stripe 客户中心",
+      "telegram": "Telegram",
+      "telegram_channel": "Telegram Channel",
+      "twitter": "Twitter",
+      "third_party_binding": "第三方绑定",
+      "update_account_error": "更新账户失败",
+      "update_share_status_failed": "更新分享状态失败",
+      "update_stripe_info": "更新 Stripe 信息",
+      "url_count": "Total",
+      "view_import_progress": "查看导入进度",
+      "failed": "失败",
+      "success": "成功",
+      "labs": {
+        "intro": "这里的功能还在打磨，可能有 bug，也可能随时下线。打开后遇到问题，欢迎到 Telegram 群告诉我们。",
+        "status_active": "实验中",
+        "status_graduated": "已正式发布",
+        "title": "实验室",
+        "youtube": {
+          "name": "YouTube 视频",
+          "desc": "保存 YouTube 链接，自动拉取字幕，边看边读。目前英文字幕优先，App 端不支持字幕跟随",
+          "blocked": "YouTube 视频还在实验室里，请到设置页打开后再保存"
+        }
+      },
+      "navigation": {
+        "account": "账号",
+        "connections": "连接与集成",
+        "data": "数据管理",
+        "features": "功能",
+        "preferences": "偏好设置",
+        "support": "帮助与支持",
+        "title": "设置"
+      }
+    },
+    "bookmarks_onboarding": {
+      "skip": "稍后再说",
+      "step1": {
+        "install": "安装浏览器扩展",
+        "setupTime": "约 1 分钟完成设置",
+        "title": "任何想读的网页，点一下就收藏了",
+        "toast": "收藏成功"
+      },
+      "step2": {
+        "confirm": "我已置顶插件，继续",
+        "copy": "点地址栏右侧的「拼图」图标，找到 Slax Reader，再点旁边的「图钉」",
+        "extensionsMenu": "扩展程序",
+        "title": "把 Slax Reader 固定到工具栏"
+      },
+      "step3": {
+        "button": "打开我们准备的文章",
+        "copy": "打开我们准备的文章，然后用刚固定好的扩展图标收藏它。",
+        "title": "试试收藏你的第一篇文章"
+      }
+    },
+    "import_failures": {
+      "batch_delete": "批量删除",
+      "batch_delete_error": "批量删除失败",
+      "batch_delete_success": "批量删除成功",
+      "delete_all": "删除全部",
+      "empty": "没有导入失败的项目",
+      "load_error": "加载失败项目时出错",
+      "loading_more": "加载更多...",
+      "no_more": "没有更多失败项目了",
+      "select_all": "全选",
+      "selected_count": "已选择 {count} 项",
+      "title": "导入失败列表",
+      "description": "显示导入过程中失败的项目，您可以选择重试或删除"
+    }
+  },
+  "util": {
+    "chatbot": {
+      "browser_finished": "访问完成",
+      "error_not_subscription": "请订阅以解锁此功能",
+      "generate_question": "问题生成中",
+      "generate_question_finished": "生成完成",
+      "search_finished": "搜索完成",
+      "search_bookmark_failed": "资料库搜索失败",
+      "search_bookmark_finished": "资料库搜索完成"
+    }
+  }
+}

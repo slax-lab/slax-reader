@@ -28,38 +28,57 @@ This monorepo hosts all non-mobile Slax Reader code:
 | --- | --- |
 | `apps/web` | Web frontend ([r.slax.com](https://r.slax.com/)) |
 | `apps/extension` | Browser extension (Chrome/Edge) |
-| `apps/api` | API server (Cloudflare Workers) |
+| `apps/api` | API server (Cloudflare Workers: Core, Edge, AI and Browser) |
 | `apps/cli` | Command-line client |
-| `packages/contracts` | Shared API contracts and types |
-| `deploy/` | Public Cloudflare Worker template and local infrastructure |
+| `packages/contracts` | Shared API, domain and event contracts (`@slax-reader/contracts`) |
+| `packages/frontend-types` | Shared Web/Extension implementation types |
+| `packages/frontend-utils` | Shared frontend utilities |
+| `packages/selection` | Shared highlighting and annotation engine |
+| `deploy/` | Public API templates and local Web, Extension and API infrastructure |
+| `docs/` | Web, Extension and API development documentation |
 
-> Code is currently being migrated in from the legacy per-app repositories — expect directories to fill in over the coming days.
+Shared libraries belong in `packages` when at least two apps use them. See the
+[Web architecture](docs/web/architecture.md) for the current application and package boundaries.
 
-## Development and self-deployment
+## Development and self-hosting
 
-This monorepo is being consolidated from the legacy repositories. **Only the backend has migrated so far**: its source, Prisma schemas, generators and tests are in [`apps/api/`](apps/api/). Web, browser extension and CLI migration is still pending; the `apps/` directories are not yet a complete runnable product checkout. The [legacy web repository](https://github.com/slax-lab/slax-reader-web) remains the frontend source until its migration.
-
-The API uses four Cloudflare Workers: Core, Edge, AI and Browser. Its commands and tool configurations belong to [`apps/api/`](apps/api/), including Prisma configs under `prisma/` and deployment code under `script/deploy/`. The root manifest exposes one dispatcher:
+Install dependencies once from the repository root:
 
 ```bash
 pnpm install --frozen-lockfile
+```
+
+The root exposes one dispatcher per application while each app keeps its concrete command list:
+
+```bash
+pnpm preflight
+pnpm web -- dev
+pnpm extension -- dev
 pnpm api -- setup:api
 pnpm api -- dev
 ```
 
-The single public template is [`deploy/cloudflare/api.toml.example`](deploy/cloudflare/api.toml.example). `config:init` copies it to ignored `deploy/local/api.toml` without overwriting an existing file. Dev, build, deploy and runtime type generation read this actual configuration. Secrets belong in ignored `deploy/local/.dev.vars` or Cloudflare Worker secrets. Local infrastructure under `deploy/local/` provides PostgreSQL and PowerSync; it is not a standalone Docker API runtime.
+Web and Extension configuration lives in `deploy/local_web/` and `deploy/local_extension/`. The API uses the public template [`deploy/cloudflare/api.toml.example`](deploy/cloudflare/api.toml.example) and ignored local configuration under `deploy/local/`. Secrets belong in ignored local environment files or platform secret stores; do not put them in tracked templates or browser bundles.
 
-Validation: `pnpm api -- gen:all`, `pnpm api -- lint`, `pnpm api -- typecheck`, `pnpm api -- test`, and `pnpm api -- build`. Prisma automatically reads `HYPERDRIVE_DATABASE_URL` and `LOGS_DATABASE_URL` from ignored `deploy/local/.env`; placeholders suffice only for client generation. Optional `test:http` and `test:integration:local` use disposable Docker resources and are separate from the default unit suite.
+API commands and API-specific configuration belong to [`apps/api/`](apps/api/), including Prisma configs under `prisma/` and deployment code under `script/deploy/`. The root `api` command forwards to the scripts declared by `apps/api/package.json`. Validation commands include:
 
-See the [development guide](docs/api/DEVELOPMENT-DOCUMENT-EN.md) ([中文](docs/api/DEVELOPMENT-DOCUMENT-CN.md), [日本語](docs/api/DEVELOPMENT-DOCUMENT-JP.md)) and [Cloudflare deployment guide](docs/api/CLOUDFLARE-DEPLOY-EN.md) ([中文](docs/api/CLOUDFLARE-DEPLOY-CN.md), [日本語](docs/api/CLOUDFLARE-DEPLOY-JP.md)). Configure your resources, public origin and provider credentials before deploying. `build` bundles offline; `deploy --dry-run` generates config only. Remote deployment and migrations are separate explicit operations.
+```bash
+pnpm api -- gen:all
+pnpm api -- lint
+pnpm api -- typecheck
+pnpm api -- test
+pnpm api -- build
+```
 
-`pnpm api -- setup:api` validates operator-provided native Wrangler configuration and keys, runs Wrangler login once, starts dependencies, runs migrations/generators, waits for PowerSync health and exits; start Workers separately with `pnpm api -- dev` (`--check` checks prerequisites). All deployment tools accept `SLAX_API_CONFIG` for configuration checked out from another repository. See [development and CI setup](docs/api/DEV-AND-CI-CN.md) and [Docker adapter feasibility](docs/api/DOCKER-ADAPTER-RESEARCH-CN.md).
+The API's `setup:api` command prepares local dependencies and exits; `dev` starts Workers separately. Remote deployment and migrations remain explicit operations with their safety checks. See the [API development guide](docs/api/DEVELOPMENT-DOCUMENT-EN.md) ([中文](docs/api/DEVELOPMENT-DOCUMENT-CN.md), [日本語](docs/api/DEVELOPMENT-DOCUMENT-JP.md)).
 
-共享 HTTP 类型位于 [`packages/contracts`](packages/contracts/README.md)，API 已通过 `@slax-reader/contracts` workspace 依赖使用。Web、扩展和 CLI 接入时从该包导入，不引用 API 服务端类型。
+Shared HTTP types live in [`packages/contracts`](packages/contracts/README.md). Web, Extension, API and future CLI code imports the contract package and does not import application internals.
 
 ## Contributing
 
-Bug reports, features, and docs are all welcome. Open an issue, or pick one labeled `good first issue`. Please follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+Bug reports, features, and docs are all welcome. You can contribute without a development environment through
+[Web 开发与参与指南](docs/web/development.md) or [Extension development](docs/extension/development.md).
+Please follow our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 

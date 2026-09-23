@@ -5,9 +5,9 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "types": [],
-    "strict": true,
     "noEmit": true,
     "isolatedModules": true,
+    "strict": true,
     "skipLibCheck": false
   },
   "include": ["src/**/*.ts", "test/**/*.ts"]

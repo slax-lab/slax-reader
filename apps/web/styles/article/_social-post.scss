@@ -1,0 +1,46 @@
+@use 'content-mixin' as *;
+
+// 社媒卡片 light DOM 样式。
+// 内部样式见各 .ce.vue（shadow DOM）。
+@mixin social-post {
+  .social-post {
+    --style: border-b-(1px solid #e1e8ed) pb-24px;
+
+    &:last-child {
+      --style: border-b-none;
+    }
+  }
+
+  // CE host 外盒（内部见 .ce.vue）
+  social-post-user-info,
+  social-post-footer-info {
+    --style: block;
+  }
+
+  .social-post-content {
+    --style: '!mt-32px';
+
+    @include content-styles;
+
+    .social-post-title {
+      --style: 'font-600 text-body !mb-8px';
+    }
+
+    .social-post-tags {
+      --style: mt-10px flex flex-wrap gap-8px;
+    }
+
+    .social-post-tag {
+      --style: text-#5490c2;
+    }
+  }
+
+  .social-post-media {
+    --style: mt-28px;
+
+    img,
+    video {
+      --style: max-w-full rounded-8px mt-10px;
+    }
+  }
+}

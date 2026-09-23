@@ -1,9 +1,11 @@
 {
   "name": "@slax-reader/contracts",
   "version": "0.0.1",
+  "description": "Web、Extension、API 和 CLI 共用的 HTTP、领域数据与事件契约",
   "private": true,
   "type": "module",
   "sideEffects": false,
+  "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
     ".": {
@@ -41,6 +43,26 @@
     "./events": {
       "types": "./src/events.ts",
       "default": "./src/events.ts"
+    },
+    "./analytics": {
+      "types": "./src/analytics.ts",
+      "default": "./src/analytics.ts"
+    },
+    "./augmentations": {
+      "types": "./src/augmentations.ts",
+      "default": "./src/augmentations.ts"
+    },
+    "./const": {
+      "types": "./src/const.ts",
+      "default": "./src/const.ts"
+    },
+    "./interface": {
+      "types": "./src/interface.ts",
+      "default": "./src/interface.ts"
+    },
+    "./openai": {
+      "types": "./src/openai.ts",
+      "default": "./src/openai.ts"
     }
   },
   "scripts": {
