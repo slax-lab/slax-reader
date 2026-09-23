@@ -3,22 +3,22 @@ import { parseEnv } from 'node:util'
 import { relative, resolve } from 'node:path'
 
 const DEPLOY_DIRECTORIES = Object.freeze({
-  web: 'deploy/local_web',
-  extension: 'deploy/local_extension'
+  web: 'deploy/local',
+  extension: 'deploy/local'
 })
 
 const ENV_NAMES = new Set(['development', 'preview', 'beta', 'production'])
 
-function profileFileName(envName = 'development') {
+function profileFileName(appName, envName = 'development') {
   if (!ENV_NAMES.has(envName)) {
     throw new Error('SLAX_ENV / --env 只能是 development、preview、beta 或 production')
   }
   const profile = envName === 'development' ? 'dev' : envName
-  return `.env.${profile}`
+  return `.env.${appName}.${profile}`
 }
 
-function environmentFileNames(envName = 'development') {
-  return ['.env', profileFileName(envName)]
+function environmentFileNames(appName, envName = 'development') {
+  return [`.env.${appName}`, profileFileName(appName, envName)]
 }
 
 function deployDirectory(appName, root) {
@@ -75,7 +75,7 @@ function parseEnvironmentFile(filePath, appName) {
   return parseEnvironmentText(content, appName, filePath)
 }
 
-function readEnvSources(directory, envName, processEnvironment = process.env, { root = directory, appName = '前端应用' } = {}) {
+function readEnvSources(directory, envName, processEnvironment = process.env, { root = directory, appName = '前端应用', fileAppName = 'web' } = {}) {
   let values = {}
   const sources = Object.create(null)
   const files = []
@@ -91,11 +91,11 @@ function readEnvSources(directory, envName, processEnvironment = process.env, { 
     }
   }
 
-  loadFile('.env')
+  loadFile(`.env.${fileAppName}`)
   // Select the profile before reading its file, then keep SLAX_ENV consistent
   // with that selection even if the profile file contains a different value.
   const selectedEnv = envName || processEnvironment.SLAX_ENV || values.SLAX_ENV || 'development'
-  loadFile(profileFileName(selectedEnv))
+  loadFile(profileFileName(fileAppName, selectedEnv))
   values = { ...values, ...Object.fromEntries(Object.entries(processEnvironment).filter(([, value]) => value !== undefined)) }
   for (const [name, value] of Object.entries(processEnvironment)) {
     if (value !== undefined) {
@@ -111,7 +111,8 @@ function loadDeployEnvironment({ appName, root, envName, processEnvironment = pr
   const directory = deployDirectory(appName, root)
   const result = readEnvSources(directory, envName, processEnvironment, {
     root,
-    appName: appName === 'web' ? 'Web' : 'Extension'
+    appName: appName === 'web' ? 'Web' : 'Extension',
+    fileAppName: appName
   })
 
   return {
@@ -124,8 +125,9 @@ function loadDeployEnvironment({ appName, root, envName, processEnvironment = pr
 /**
  * Load the canonical environment for an app invocation into process.env.
  * This is used by direct app commands (for example `pnpm --filter ... dev`)
- * as well as by the root dispatchers. It deliberately reads only deploy/
- * local_* files, so a stale apps/<name>/.env can never override them.
+ * as well as by the root dispatchers. It deliberately reads only the
+ * per-app deploy/local/.env.<app>* files, so a stale apps/<name>/.env can
+ * never override them.
  */
 function applyDeployEnvironment({ appName, root, envName, processEnvironment = process.env } = {}) {
   const result = loadDeployEnvironment({ appName, root, envName, processEnvironment })

@@ -5,14 +5,14 @@
 ## 配置位置
 
 扩展配置在 `apps/extension/config`，schema 在 `apps/extension/env.schema.ts`。
-根目录的 `pnpm extension -- ...` 会从 `deploy/local_extension` 加载 `.env` 和 profile 文件；development profile 使用 `.env.dev`，其他 profile 使用 `.env.<SLAX_ENV>`，进程中设置的同名变量优先。
-profile 文件覆盖 `.env`。环境名称按终端 `SLAX_ENV` → deploy `.env` 中的 `SLAX_ENV` → `development` 选择，profile 文件不能再切换它。所有根命令（包括 `dev`、`build` 和 `zip`）都使用这套规则；根目录 `.env` 不会自动加载。
+根目录的 `pnpm extension -- ...` 会从 `deploy/local`（与 API、Web 共用目录，靠文件名区分）加载 `.env.extension` 和 profile 文件；development profile 使用 `.env.extension.dev`，其他 profile 使用 `.env.extension.<SLAX_ENV>`，进程中设置的同名变量优先。
+profile 文件覆盖 `.env.extension`。环境名称按终端 `SLAX_ENV` → deploy `.env.extension` 中的 `SLAX_ENV` → `development` 选择，profile 文件不能再切换它。所有根命令（包括 `dev`、`build` 和 `zip`）都使用这套规则；根目录 `.env` 不会自动加载。
 直接运行 app 包也使用同一 deploy 配置，不再读取 app 目录的环境文件。自行配置，不从旧仓库复制，不提交环境文件。
 
-可先复制 [`deploy/local_extension/.env.example`](../../deploy/local_extension/.env.example) 作为起点：
+可先复制 [`deploy/local/.env.extension.example`](../../deploy/local/.env.extension.example) 作为起点：
 
 ```sh
-cp deploy/local_extension/.env.example deploy/local_extension/.env
+cp deploy/local/.env.extension.example deploy/local/.env.extension
 ```
 
 示例中的值只适合本地占位；扩展构建会把部分配置带入客户端产物，不要填写服务端密钥。

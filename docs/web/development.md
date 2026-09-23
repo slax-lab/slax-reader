@@ -5,15 +5,15 @@
 ## Configuration ownership
 
 Web configuration lives in `apps/web/config`, and its environment schema is `apps/web/env.schema.ts`.
-The root `pnpm web -- ...` command loads `.env` and profile files from `deploy/local_web`; the development profile uses `.env.dev`, while other profiles use `.env.<SLAX_ENV>`.
-`.env.dev` overrides `.env`, and variables already present in the process take precedence. Direct app-package commands use the same deploy configuration and no longer read app-local environment files.
-The selected environment is read from process `SLAX_ENV`, then the `SLAX_ENV` value in the deploy `.env`, and defaults to `development`. A profile file cannot switch the selected environment. All root commands, including `dev` and `build`, follow this rule; the repository-root `.env` is not loaded automatically.
+The root `pnpm web -- ...` command loads `.env.web` and profile files from `deploy/local` (shared with the API's own `.env`/`.env.dev`, distinguished by filename); the development profile uses `.env.web.dev`, while other profiles use `.env.web.<SLAX_ENV>`.
+`.env.web.dev` overrides `.env.web`, and variables already present in the process take precedence. Direct app-package commands use the same deploy configuration and no longer read app-local environment files.
+The selected environment is read from process `SLAX_ENV`, then the `SLAX_ENV` value in the deploy `.env.web`, and defaults to `development`. A profile file cannot switch the selected environment. All root commands, including `dev` and `build`, follow this rule; the repository-root `.env` is not loaded automatically.
 Environment files are prepared by the contributor, are not committed, and must not be copied from the old repository.
 
-Start by copying [`deploy/local_web/.env.example`](../../deploy/local_web/.env.example):
+Start by copying [`deploy/local/.env.web.example`](../../deploy/local/.env.web.example):
 
 ```sh
-cp deploy/local_web/.env.example deploy/local_web/.env
+cp deploy/local/.env.web.example deploy/local/.env.web
 ```
 
 The example values are for local placeholders only. Google OAuth is required for Web login; Apple OAuth and Turnstile are optional. Real OAuth, Turnstile, push and Stripe configuration must be supplied by the developer.
@@ -43,11 +43,11 @@ Google login requires a Web application OAuth client ID:
 6. Add `${AUTH_BASE_URL}/auth`, such as `http://localhost:3000/auth`, to **Authorized redirect URIs**.
 7. Copy the generated **Client ID** into `GOOGLE_OAUTH_CLIENT_ID`.
 
-Only the Client ID belongs in frontend configuration. The Client Secret is a server credential and must not be placed in `deploy/local_web/.env.example` or browser output.
+Only the Client ID belongs in frontend configuration. The Client Secret is a server credential and must not be placed in `deploy/local/.env.web.example` or browser output.
 
 ## Backend boundary
 
-`pnpm web -- dev` preserves the existing integration path: the API must have generated `deploy/local/.wrangler/state/v3`, and Web calls the local Worker through the `BACKEND` service binding in the generated `deploy/local_web/.generated/wrangler.toml`.
+`pnpm web -- dev` preserves the existing integration path: the API must have generated `deploy/local/.wrangler/state/v3`, and Web calls the local Worker through the `BACKEND` service binding in the generated `deploy/local/.generated/web/wrangler.toml`.
 Nuxt prepare, type checks and builds do not require that backend path. This guide does not claim that login, bookmark synchronization or saving work without an API integration environment.
 
 Do not start, install or modify the old frontend repository for this migration. Connect to an API integration environment only with configuration supplied by the developer. This work does not deploy Cloudflare resources or change production bindings.
@@ -92,7 +92,7 @@ These checks use the existing Vitest suite. Passing tests and a build do not pro
 
 With local integration configuration available, run `pnpm web -- dev` and verify login, the bookmark list, articles, highlights and comments. Also check `/x/ext-bridge` together with the Extension. Use development test accounts only.
 
-The `build` hook projects public API TOML data into `deploy/local_web/.generated/wrangler.toml`; it does not rewrite the tracked `apps/web/wrangler.toml`.
+The `build` hook projects public API TOML data into `deploy/local/.generated/web/wrangler.toml`; it does not rewrite the tracked `apps/web/wrangler.toml`.
 
 ## Directory conventions
 

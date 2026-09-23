@@ -236,8 +236,8 @@ function printAppHeading(app, colorEnabled) {
 }
 
 function environmentSetupHint(app, envName) {
-  const profileFile = profileFileName(envName)
-  return `未检测到可用的 ${app.label} 环境变量。请参考 ${app.deployDirectory}/.env.example，创建并填写 ${app.deployDirectory}/.env；需要覆盖当前环境的配置时，可使用 ${app.deployDirectory}/${profileFile}。`
+  const profileFile = profileFileName(app.environmentApp, envName)
+  return `未检测到可用的 ${app.label} 环境变量。请参考 ${app.deployDirectory}/.env.${app.environmentApp}.example，创建并填写 ${app.deployDirectory}/.env.${app.environmentApp}；需要覆盖当前环境的配置时，可使用 ${app.deployDirectory}/${profileFile}。`
 }
 
 function printHelp({ color = undefined } = {}) {
@@ -268,7 +268,7 @@ function run(options, root = REPO_ROOT, processEnvironment = process.env) {
   for (const issue of checkRuntime(root)) add(issue)
 
   if (existsSync(resolve(root, '.env'))) {
-    const issue = { level: 'warn', message: '发现根目录 .env；当前 Web/Extension loader 不会自动读取它，请将配置放到 deploy/local_web/.env 或 deploy/local_extension/.env，也可以通过进程环境传入' }
+    const issue = { level: 'warn', message: '发现根目录 .env；当前 Web/Extension loader 不会自动读取它，请将配置放到 deploy/local/.env.web 或 deploy/local/.env.extension，也可以通过进程环境传入' }
     issues.push(issue)
     printIssue(issue, '', colorEnabled)
   }

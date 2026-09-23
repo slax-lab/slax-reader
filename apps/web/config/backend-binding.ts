@@ -6,7 +6,7 @@ import { parse, stringify, type TomlTable } from 'smol-toml'
 const modulePath = import.meta.url.startsWith('file:') ? fileURLToPath(import.meta.url) : path.join(process.cwd(), 'config/backend-binding.ts')
 export const WEB_ROOT = path.resolve(path.dirname(modulePath), '..')
 export const REPO_ROOT = path.resolve(WEB_ROOT, '../..')
-export const GENERATED_DIR = path.join(REPO_ROOT, 'deploy/local_web/.generated')
+export const GENERATED_DIR = path.join(REPO_ROOT, 'deploy/local/.generated/web')
 export const WEB_WRANGLER_CONFIG = path.join(GENERATED_DIR, 'wrangler.toml')
 // CLI appends v3; getPlatformProxy (used by Nuxt) takes the versioned path.
 export const WEB_STATE_DIR = path.join(REPO_ROOT, 'deploy/local/.wrangler/state')

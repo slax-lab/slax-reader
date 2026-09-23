@@ -18,7 +18,7 @@ Set the public local configuration using the [configuration and verification gui
 Start with the deploy template:
 
 ```sh
-cp deploy/local_extension/.env.example deploy/local_extension/.env
+cp deploy/local/.env.extension.example deploy/local/.env.extension
 ```
 
 ## Common commands

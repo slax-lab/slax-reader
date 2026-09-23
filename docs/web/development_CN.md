@@ -5,15 +5,15 @@
 ## 配置归属
 
 Web 配置集中在 `apps/web/config`，环境 schema 在 `apps/web/env.schema.ts`。
-根目录的 `pnpm web -- ...` 会从 `deploy/local_web` 加载 `.env` 和 profile 文件；development profile 使用 `.env.dev`，其他 profile 使用 `.env.<SLAX_ENV>`。
-`.env.dev` 覆盖 `.env`，进程中已设置的同名变量优先。直接运行 app 包也使用同一 deploy 配置，不再读取 app 目录的环境文件。
-环境名称按终端 `SLAX_ENV` → deploy `.env` 中的 `SLAX_ENV` → `development` 选择，profile 文件不能再切换它。所有根命令（包括 `dev` 和 `build`）都使用这套规则；根目录 `.env` 不会自动加载。
+根目录的 `pnpm web -- ...` 会从 `deploy/local`（与 API 共用目录，通过文件名区分）加载 `.env.web` 和 profile 文件；development profile 使用 `.env.web.dev`，其他 profile 使用 `.env.web.<SLAX_ENV>`。
+`.env.web.dev` 覆盖 `.env.web`，进程中已设置的同名变量优先。直接运行 app 包也使用同一 deploy 配置，不再读取 app 目录的环境文件。
+环境名称按终端 `SLAX_ENV` → deploy `.env.web` 中的 `SLAX_ENV` → `development` 选择，profile 文件不能再切换它。所有根命令（包括 `dev` 和 `build`）都使用这套规则；根目录 `.env` 不会自动加载。
 环境文件由开发者自行配置，不提交，也不从旧仓库复制。
 
-可先复制 [`deploy/local_web/.env.example`](../../deploy/local_web/.env.example) 作为起点：
+可先复制 [`deploy/local/.env.web.example`](../../deploy/local/.env.web.example) 作为起点：
 
 ```sh
-cp deploy/local_web/.env.example deploy/local_web/.env
+cp deploy/local/.env.web.example deploy/local/.env.web
 ```
 
 示例中的值只适合本地占位；Google OAuth 是 Web 登录必需配置，Apple OAuth 和 Turnstile 是可选能力。
@@ -46,12 +46,12 @@ Google 登录必须使用 Web 应用类型的 OAuth 客户端 ID。创建流程�
 6. 在 **Authorized redirect URIs** 中填写 `${AUTH_BASE_URL}/auth`，例如 `http://localhost:3000/auth`。
 7. 复制生成的 **Client ID** 到 `GOOGLE_OAUTH_CLIENT_ID`。
 
-这里只需要公开的 Client ID。Client Secret 属于服务端凭据，不要放进前端环境文件、`deploy/local_web/.env.example` 或浏览器产物。
+这里只需要公开的 Client ID。Client Secret 属于服务端凭据，不要放进前端环境文件、`deploy/local/.env.web.example` 或浏览器产物。
 
 ## 后端边界
 
 `pnpm web -- dev` 延续原实现：需要 API 已生成 `deploy/local/.wrangler/state/v3`，
-并通过生成于 `deploy/local_web/.generated/wrangler.toml` 的配置中的 `BACKEND` service binding 调用本地 Worker。
+并通过生成于 `deploy/local/.generated/web/wrangler.toml` 的配置中的 `BACKEND` service binding 调用本地 Worker。
 常规 Nuxt prepare、类型检查和 build 不需要该后端路径。本文不承诺登录、书签同步或保存
 可以在没有 API 联调环境的情况下工作。
 
@@ -100,7 +100,7 @@ pnpm web -- build
 取得本地联调配置后，运行 `pnpm web -- dev`，验收登录、书签列表、文章、高亮和评论，
 并检查 `/x/ext-bridge` 与扩展的配合。联调仅使用开发测试账户。
 
-`build` 延续原 Nuxt hook：从 API 的公开 TOML 投影生成 `deploy/local_web/.generated/wrangler.toml`，不会改写 apps/web/wrangler.toml。
+`build` 延续原 Nuxt hook：从 API 的公开 TOML 投影生成 `deploy/local/.generated/web/wrangler.toml`，不会改写 apps/web/wrangler.toml。
 
 ## 迁移时的目录约定
 
