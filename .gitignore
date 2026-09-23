@@ -61,6 +61,9 @@ deploy/*/.env.*
 !.env.sample
 !.dev.vars.example
 !deploy/*/.env.example
+# Web and Extension share deploy/local with the API; only their examples are tracked.
+!deploy/local/.env.web.example
+!deploy/local/.env.extension.example
 
 # Kimi Code CLI Tower mode local tooling state
 .tower/
@@ -93,6 +96,3 @@ deploy/local/api.toml
 deploy/cloudflare/api.toml
 deploy/cloudflare/.generated/
 proxy
-# Frontend binding projections and local build metadata
-/deploy/local_web/.generated/
-/deploy/local_extension/.generated/

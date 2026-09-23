@@ -3,8 +3,8 @@ import { fileURLToPath } from 'node:url'
 import { applyDeployEnvironment } from '../../../tooling/env-files.mjs'
 
 // Keep direct app commands consistent with `pnpm web` and `pnpm extension`.
-// The shared loader intentionally reads only deploy/local_web, never the old
-// apps/web/.env files.
+// The shared loader intentionally reads only deploy/local/.env.web*, never the
+// old apps/web/.env files.
 applyDeployEnvironment({
   appName: 'web',
   root: fileURLToPath(new URL('../../../', import.meta.url))

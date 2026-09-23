@@ -10,13 +10,13 @@ import { fileURLToPath } from 'node:url'
 function fixture(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'slax-wrangler-wrapper-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))
-  for (const dir of ['apps/web/config', 'tooling', 'bin', 'deploy/local_web', 'deploy/cloudflare']) mkdirSync(join(root, dir), { recursive: true })
+  for (const dir of ['apps/web/config', 'tooling', 'bin', 'deploy/local', 'deploy/cloudflare']) mkdirSync(join(root, dir), { recursive: true })
   for (const file of ['apps/web/config/wrangler-command.mjs', 'apps/web/config/backend-binding.ts', 'tooling/env-files.mjs', 'tooling/pnpm-command.mjs', 'deploy/cloudflare/api.toml.example']) {
     copyFileSync(new URL('../' + file, import.meta.url), join(root, file))
   }
   symlinkSync(fileURLToPath(new URL('../apps/web/node_modules', import.meta.url)), join(root, 'apps/web/node_modules'), 'dir')
-  writeFileSync(join(root, 'deploy/local_web/.env'), 'BACKEND_SERVICE_NAME=base-edge\n')
-  writeFileSync(join(root, 'deploy/local_web/.env.dev'), 'BACKEND_SERVICE_NAME=profile-edge\n')
+  writeFileSync(join(root, 'deploy/local/.env.web'), 'BACKEND_SERVICE_NAME=base-edge\n')
+  writeFileSync(join(root, 'deploy/local/.env.web.dev'), 'BACKEND_SERVICE_NAME=profile-edge\n')
   writeFileSync(join(root, 'apps/web/.env'), 'BACKEND_SERVICE_NAME=stale-app-edge\n')
   const calls = join(root, 'calls.jsonl')
   writeFileSync(join(root, 'bin/pnpm'), `#!/usr/bin/env node
@@ -48,7 +48,7 @@ test('direct Wrangler types loads deploy profile and respects process overrides'
     assert.equal(result.status, 0, result.stderr)
     const invocation = JSON.parse(readFileSync(calls, 'utf8').trim().split('\n').at(-1))
     assert.equal(invocation.edge, override || 'profile-edge')
-    const config = readFileSync(join(root, 'deploy/local_web/.generated/wrangler.toml'), 'utf8')
+    const config = readFileSync(join(root, 'deploy/local/.generated/web/wrangler.toml'), 'utf8')
     assert.match(config, new RegExp('service = "' + (override || 'profile-edge') + '"'))
     assert.deepEqual(invocation.args.slice(0, 4), ['exec', 'wrangler', 'types', '-c'])
   }
@@ -103,7 +103,7 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 
 test('SSR warns when API is unconfigured and shares the unversioned CLI state directory', { skip: process.platform === 'win32' }, t => {
   const { root, calls, env, script } = fixture(t)
-  const staleRedirect = join(root, 'deploy/local_web/.generated/.wrangler/deploy/config.json')
+  const staleRedirect = join(root, 'deploy/local/.generated/web/.wrangler/deploy/config.json')
   mkdirSync(dirname(staleRedirect), { recursive: true })
   writeFileSync(staleRedirect, '{"stale":true}')
   const result = spawnSync(process.execPath, [script, 'ssr-dev'], { env, encoding: 'utf8' })
@@ -115,7 +115,7 @@ test('SSR warns when API is unconfigured and shares the unversioned CLI state di
   assert.equal(args[args.indexOf('--persist-to') + 1], join(root, 'deploy/local/.wrangler/state'))
   // Pages dev rejects --config for custom paths; --cwd is how it discovers the generated wrangler.toml.
   assert.equal(args.includes('--config'), false)
-  assert.equal(args[args.indexOf('--cwd') + 1], join(root, 'deploy/local_web/.generated'))
+  assert.equal(args[args.indexOf('--cwd') + 1], join(root, 'deploy/local/.generated/web'))
   // The stale-redirect cleanup follows wrangler's cwd to the generated dir, not apps/web.
   assert.equal(existsSync(staleRedirect), false)
 })

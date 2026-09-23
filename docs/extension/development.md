@@ -5,14 +5,14 @@
 ## Configuration location
 
 Extension configuration lives in `apps/extension/config`, with its schema in `apps/extension/env.schema.ts`.
-The root `pnpm extension -- ...` command loads `.env` and profile files from `deploy/local_extension`; development uses `.env.dev`, while other profiles use `.env.<SLAX_ENV>`. Process variables take precedence over file values.
-The selected environment is read from process `SLAX_ENV`, then the deploy `.env`, and defaults to `development`. A profile file cannot switch the selected environment. All root commands, including `dev`, `build` and `zip`, use this rule; the repository-root `.env` is not loaded automatically.
+The root `pnpm extension -- ...` command loads `.env.extension` and profile files from `deploy/local` (shared with the API and Web, distinguished by filename); development uses `.env.extension.dev`, while other profiles use `.env.extension.<SLAX_ENV>`. Process variables take precedence over file values.
+The selected environment is read from process `SLAX_ENV`, then the deploy `.env.extension`, and defaults to `development`. A profile file cannot switch the selected environment. All root commands, including `dev`, `build` and `zip`, use this rule; the repository-root `.env` is not loaded automatically.
 Direct app-package commands use the same deploy configuration and no longer read app-local environment files. Prepare your own files, do not copy them from the old repository, and never commit them.
 
-Start with [`deploy/local_extension/.env.example`](../../deploy/local_extension/.env.example):
+Start with [`deploy/local/.env.extension.example`](../../deploy/local/.env.extension.example):
 
 ```sh
-cp deploy/local_extension/.env.example deploy/local_extension/.env
+cp deploy/local/.env.extension.example deploy/local/.env.extension
 ```
 
 Example values are local placeholders only. Extension configuration is included in the client bundle; never put server credentials in it.

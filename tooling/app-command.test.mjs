@@ -44,14 +44,14 @@ function dispatcherFixture(t) {
     }))
     process.exit(Number(process.env.FIXTURE_EXIT || 0))
   `)
+  const deployDir = join(root, 'deploy', 'local')
+  mkdirSync(deployDir, { recursive: true })
   for (const [app, name] of [['web', '@apps/slax-reader-dweb'], ['extension', '@apps/slax-reader-extensions']]) {
     const appDir = join(root, 'apps', app)
-    const deployDir = join(root, 'deploy', 'local_' + app)
     mkdirSync(appDir, { recursive: true })
-    mkdirSync(deployDir, { recursive: true })
     writeFileSync(join(appDir, 'package.json'), JSON.stringify({ name, scripts: { dev: 'node ../../fixture.mjs', build: 'node ../../fixture.mjs' } }))
-    writeFileSync(join(deployDir, '.env'), 'FIXTURE_BASE=base\nFIXTURE_OVERRIDE=base\nFIXTURE_APP=' + app + '\n')
-    writeFileSync(join(deployDir, '.env.dev'), 'FIXTURE_PROFILE=profile\nFIXTURE_OVERRIDE=profile\n' + (app === 'web' ? 'FIXTURE_WEB_ONLY=web\n' : ''))
+    writeFileSync(join(deployDir, `.env.${app}`), 'FIXTURE_BASE=base\nFIXTURE_OVERRIDE=base\nFIXTURE_APP=' + app + '\n')
+    writeFileSync(join(deployDir, `.env.${app}.dev`), 'FIXTURE_PROFILE=profile\nFIXTURE_OVERRIDE=profile\n' + (app === 'web' ? 'FIXTURE_WEB_ONLY=web\n' : ''))
   }
   return { root, run: (app, args, extraEnv = {}) => spawnSync(process.execPath, [join(root, 'tooling', app + '.mjs'), ...args], {
     cwd: tmpdir(), encoding: 'utf8', timeout: 15000,
@@ -77,10 +77,10 @@ test('real dispatchers forward deploy configuration, app isolation, arguments an
 
 test('malformed config stops the dispatcher before spawn but never blocks help', t => {
   const { root, run } = dispatcherFixture(t)
-  writeFileSync(join(root, 'deploy/local_web/.env'), 'TOKEN="private-fixture-value')
+  writeFileSync(join(root, 'deploy/local/.env.web'), 'TOKEN="private-fixture-value')
   const result = run('web', ['dev'])
   assert.equal(result.status, 1)
-  assert.match(result.stderr, /Web.*local_web\/\.env/)
+  assert.match(result.stderr, /Web.*local\/\.env\.web/)
   assert.doesNotMatch(result.stderr, /private-fixture-value/)
   assert.doesNotMatch(result.stdout, /FIXTURE:/)
   assert.equal(run('web', ['--help']).status, 0)

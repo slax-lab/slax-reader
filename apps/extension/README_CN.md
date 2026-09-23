@@ -21,7 +21,7 @@ pnpm extension -- dev
 首次配置请从 deploy 示例开始：
 
 ```sh
-cp deploy/local_extension/.env.example deploy/local_extension/.env
+cp deploy/local/.env.extension.example deploy/local/.env.extension
 ```
 
 ## 常用命令

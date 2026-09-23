@@ -27,10 +27,30 @@ test('parser supports comments, empty values, export syntax and multiline quoted
   }
 })
 
-test('development profile resolves to .env.dev and other profiles keep their names', () => {
-  assert.equal(profileFileName('development'), '.env.dev')
-  assert.equal(profileFileName('preview'), '.env.preview')
-  assert.deepEqual(environmentFileNames('development'), ['.env', '.env.dev'])
+test('development profile resolves to .env.<app>.dev and other profiles keep their names', () => {
+  assert.equal(profileFileName('web', 'development'), '.env.web.dev')
+  assert.equal(profileFileName('web', 'preview'), '.env.web.preview')
+  assert.deepEqual(environmentFileNames('web', 'development'), ['.env.web', '.env.web.dev'])
+  assert.deepEqual(environmentFileNames('extension', 'development'), ['.env.extension', '.env.extension.dev'])
+})
+
+test('web and extension share deploy/local without colliding', () => {
+  const root = temporaryDirectory()
+  const webDirectory = deployDirectory('web', root)
+  const extensionDirectory = deployDirectory('extension', root)
+  assert.equal(webDirectory, extensionDirectory)
+
+  mkdirSync(webDirectory, { recursive: true })
+  writeFileSync(join(webDirectory, '.env.web'), 'ONLY_IN_WEB=web\n')
+  writeFileSync(join(webDirectory, '.env.extension'), 'ONLY_IN_EXTENSION=extension\n')
+
+  const web = loadDeployEnvironment({ appName: 'web', root, processEnvironment: {} })
+  const extension = loadDeployEnvironment({ appName: 'extension', root, processEnvironment: {} })
+  assert.equal(web.environment.ONLY_IN_WEB, 'web')
+  assert.equal(web.environment.ONLY_IN_EXTENSION, undefined)
+  assert.equal(extension.environment.ONLY_IN_EXTENSION, 'extension')
+  assert.equal(extension.environment.ONLY_IN_WEB, undefined)
+  rmSync(root, { recursive: true, force: true })
 })
 
 test('deploy environment merges profile over base and process over both', () => {
@@ -39,16 +59,16 @@ test('deploy environment merges profile over base and process over both', () => 
   const processEnvironment = { OVERRIDE: 'process', SHELL_ONLY: 'shell' }
 
   mkdirSync(directory, { recursive: true })
-  writeFileSync(join(directory, '.env'), 'BASE_ONLY=base\nOVERRIDE=base\n')
-  writeFileSync(join(directory, '.env.dev'), 'PROFILE_ONLY=profile\nOVERRIDE=profile\n')
+  writeFileSync(join(directory, '.env.web'), 'BASE_ONLY=base\nOVERRIDE=base\n')
+  writeFileSync(join(directory, '.env.web.dev'), 'PROFILE_ONLY=profile\nOVERRIDE=profile\n')
 
-  const result = readEnvSources(directory, 'development', processEnvironment, { root, appName: 'Web' })
+  const result = readEnvSources(directory, 'development', processEnvironment, { root, appName: 'Web', fileAppName: 'web' })
   assert.equal(result.values.BASE_ONLY, 'base')
   assert.equal(result.values.PROFILE_ONLY, 'profile')
   assert.equal(result.values.OVERRIDE, 'process')
   assert.equal(result.values.SHELL_ONLY, 'shell')
-  assert.deepEqual(result.files, ['.env', '.env.dev'])
-  assert.equal(result.sources.PROFILE_ONLY, 'deploy/local_web/.env.dev')
+  assert.deepEqual(result.files, ['.env.web', '.env.web.dev'])
+  assert.equal(result.sources.PROFILE_ONLY, 'deploy/local/.env.web.dev')
   rmSync(root, { recursive: true, force: true })
 })
 
@@ -56,11 +76,11 @@ test('missing profile files do not block loading the shared file', () => {
   const root = temporaryDirectory()
   const directory = deployDirectory('extension', root)
   mkdirSync(directory, { recursive: true })
-  writeFileSync(join(directory, '.env'), 'BASE_ONLY=base\n')
+  writeFileSync(join(directory, '.env.extension'), 'BASE_ONLY=base\n')
 
   const result = loadDeployEnvironment({ appName: 'extension', root, processEnvironment: {} })
   assert.equal(result.environment.BASE_ONLY, 'base')
-  assert.deepEqual(result.files, ['.env'])
+  assert.deepEqual(result.files, ['.env.extension'])
   rmSync(root, { recursive: true, force: true })
 })
 
@@ -68,7 +88,7 @@ test('malformed deploy files fail without exposing their contents', () => {
   const root = temporaryDirectory()
   const directory = deployDirectory('web', root)
   mkdirSync(directory, { recursive: true })
-  writeFileSync(join(directory, '.env'), 'BROKEN-NAME=secret-value\n')
+  writeFileSync(join(directory, '.env.web'), 'BROKEN-NAME=secret-value\n')
 
   assert.throws(
     () => loadDeployEnvironment({ appName: 'web', root, processEnvironment: {} }),
@@ -81,7 +101,7 @@ test('loading does not mutate the parent process environment', () => {
   const root = temporaryDirectory()
   const directory = deployDirectory('web', root)
   mkdirSync(directory, { recursive: true })
-  writeFileSync(join(directory, '.env'), 'CHILD_ONLY=child\n')
+  writeFileSync(join(directory, '.env.web'), 'CHILD_ONLY=child\n')
 
   assert.equal(process.env.CHILD_ONLY, undefined)
   const result = loadDeployEnvironment({ appName: 'web', root, processEnvironment: {} })
@@ -99,7 +119,7 @@ test('applyDeployEnvironment exposes only the selected deploy files to a direct 
   })
   const directory = deployDirectory('web', root)
   mkdirSync(directory, { recursive: true })
-  writeFileSync(join(directory, '.env'), 'DEPLOY_ONLY=deploy\nSLAX_ENV=development\n')
+  writeFileSync(join(directory, '.env.web'), 'DEPLOY_ONLY=deploy\nSLAX_ENV=development\n')
 
   const result = applyDeployEnvironment({ appName: 'web', root, processEnvironment: {} })
   assert.equal(result.environment.DEPLOY_ONLY, 'deploy')
@@ -112,9 +132,9 @@ test('base SLAX_ENV selects a profile and a process override selects a different
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const directory = deployDirectory('web', root)
   mkdirSync(directory, { recursive: true })
-  writeFileSync(join(directory, '.env'), 'SLAX_ENV=preview\n')
-  writeFileSync(join(directory, '.env.preview'), 'PROFILE=preview\n')
-  writeFileSync(join(directory, '.env.dev'), 'PROFILE=development\nSLAX_ENV=production\n')
+  writeFileSync(join(directory, '.env.web'), 'SLAX_ENV=preview\n')
+  writeFileSync(join(directory, '.env.web.preview'), 'PROFILE=preview\n')
+  writeFileSync(join(directory, '.env.web.dev'), 'PROFILE=development\nSLAX_ENV=production\n')
 
   const preview = loadDeployEnvironment({ appName: 'web', root, processEnvironment: {} })
   assert.equal(preview.environment.PROFILE, 'preview')
@@ -128,7 +148,7 @@ test('base SLAX_ENV selects a profile and a process override selects a different
 })
 
 test('profile names are restricted before resolving file paths', () => {
-  assert.throws(() => profileFileName('../../outside'), /SLAX_ENV/)
-  assert.throws(() => profileFileName('dev'), /SLAX_ENV/)
+  assert.throws(() => profileFileName('web', '../../outside'), /SLAX_ENV/)
+  assert.throws(() => profileFileName('web', 'dev'), /SLAX_ENV/)
   assert.throws(() => deployDirectory('constructor', '/tmp'), /未知的前端应用/)
 })

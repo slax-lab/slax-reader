@@ -19,7 +19,7 @@ The development server needs the local public API configuration and frontend pub
 Start with the deploy template:
 
 ```sh
-cp deploy/local_web/.env.example deploy/local_web/.env
+cp deploy/local/.env.web.example deploy/local/.env.web
 ```
 
 ## Common commands

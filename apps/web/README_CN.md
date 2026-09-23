@@ -23,7 +23,7 @@ pnpm web -- dev
 首次配置请从 deploy 示例开始：
 
 ```sh
-cp deploy/local_web/.env.example deploy/local_web/.env
+cp deploy/local/.env.web.example deploy/local/.env.web
 ```
 
 ## 常用命令
