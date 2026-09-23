@@ -27,8 +27,8 @@ function command(args) {
       process.removeListener('SIGINT', onInterrupt)
       process.removeListener('SIGTERM', onTerminate)
     }
-    process.once('SIGINT', onInterrupt)
-    process.once('SIGTERM', onTerminate)
+    process.on('SIGINT', onInterrupt)
+    process.on('SIGTERM', onTerminate)
     child.once('error', error => {
       cleanup()
       reject(error)
