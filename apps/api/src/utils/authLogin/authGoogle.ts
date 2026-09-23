@@ -1,8 +1,6 @@
 import { GoogleSSOError, GoogleSSOAudError } from '../../const/err'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
-
 const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'))
-
 interface tokenInfo {
   iss: string
   sub: string
@@ -19,17 +17,14 @@ interface tokenInfo {
   locale: string
   nonce?: string
 }
-
 interface codeInfo {
   id_token: string
   error?: string
   error_description?: string
 }
-
 export class GoogleAuth {
   private clientId: string
   private clientSecret: string
-
   constructor(env: Env, platform: string) {
     switch (platform) {
       case 'ios':
@@ -55,7 +50,6 @@ export class GoogleAuth {
       throw GoogleSSOAudError()
     }
   }
-
   verifyGoogleToken = async (idToken: string): Promise<tokenInfo> => {
     try {
       const { payload } = await jwtVerify(idToken, googleKeys, {
@@ -65,7 +59,7 @@ export class GoogleAuth {
         requiredClaims: ['sub', 'exp', 'iat', 'email', 'email_verified']
       })
       if (!payload.sub || typeof payload.email !== 'string' || !payload.email || String(payload.email_verified) !== 'true') throw GoogleSSOError()
-      if (payload.aud !== this.clientId || (payload.azp !== undefined && payload.azp !== this.clientId)) throw GoogleSSOAudError()
+      if (payload.aud !== this.clientId) throw GoogleSSOAudError()
       return payload as unknown as tokenInfo
     } catch (error) {
       console.error(
@@ -74,7 +68,6 @@ export class GoogleAuth {
       throw GoogleSSOError()
     }
   }
-
   async getToken(code: string, redirectUri: string): Promise<codeInfo> {
     let detail: Record<string, unknown> = { clientId: this.clientId || null, hasClientSecret: !!this.clientSecret, redirectUri }
     try {
@@ -94,7 +87,6 @@ export class GoogleAuth {
       throw GoogleSSOError()
     }
   }
-
   async loginWithGoogle(code: string, redirectUri: string): Promise<tokenInfo> {
     const token = await this.getToken(code, redirectUri)
     return await this.verifyGoogleToken(token.id_token)
