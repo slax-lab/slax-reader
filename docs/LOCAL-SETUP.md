@@ -70,7 +70,22 @@ Workers.
 
 *Verify:* the command exits with "API setup complete".
 
-## Phase 5 — Run
+## Phase 5 — Frontend initialization
+
+```bash
+pnpm web -- setup
+pnpm extension -- setup
+```
+
+Each generates its framework's build-time types (Nuxt's `.nuxt/`, WXT's
+`.wxt/`) ahead of `dev`. Run this once after a fresh install, and again
+any time `.nuxt/` or `.wxt/` was deleted (for example after wiping local
+caches): without it, the first `dev` run can fail with a `TSCONFIG_ERROR`
+for a tsconfig that Nuxt/WXT has not generated yet.
+
+*Verify:* both commands exit without error.
+
+## Phase 6 — Run
 
 Start each service in its own terminal:
 
