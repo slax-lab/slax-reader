@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { spawn, spawnSync } from 'node:child_process'
 import { once } from 'node:events'
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -103,6 +103,9 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 
 test('SSR warns when API is unconfigured and shares the unversioned CLI state directory', { skip: process.platform === 'win32' }, t => {
   const { root, calls, env, script } = fixture(t)
+  const staleRedirect = join(root, 'deploy/local_web/.generated/.wrangler/deploy/config.json')
+  mkdirSync(dirname(staleRedirect), { recursive: true })
+  writeFileSync(staleRedirect, '{"stale":true}')
   const result = spawnSync(process.execPath, [script, 'ssr-dev'], { env, encoding: 'utf8' })
   assert.equal(result.status, 0, result.stderr)
   assert.match(result.stderr, /pnpm api -- config:init/)
@@ -110,6 +113,11 @@ test('SSR warns when API is unconfigured and shares the unversioned CLI state di
   assert.deepEqual(invocations[0].args, ['build'])
   const args = invocations[1].args
   assert.equal(args[args.indexOf('--persist-to') + 1], join(root, 'deploy/local/.wrangler/state'))
+  // Pages dev rejects --config for custom paths; --cwd is how it discovers the generated wrangler.toml.
+  assert.equal(args.includes('--config'), false)
+  assert.equal(args[args.indexOf('--cwd') + 1], join(root, 'deploy/local_web/.generated'))
+  // The stale-redirect cleanup follows wrangler's cwd to the generated dir, not apps/web.
+  assert.equal(existsSync(staleRedirect), false)
 })
 
 test('interrupting SSR build prevents server startup even when the child exits zero', { skip: process.platform === 'win32', timeout: 15000 }, async t => {
