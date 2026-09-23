@@ -23,7 +23,14 @@ function fixture(t) {
 import { appendFileSync } from 'node:fs'
 appendFileSync(${JSON.stringify(calls)}, JSON.stringify({ args: process.argv.slice(2), edge: process.env.BACKEND_SERVICE_NAME }) + '\\n')
 if (process.env.FIXTURE_WAIT === '1') {
-  process.on('SIGTERM', () => process.exit(0))
+  let signals = 0
+  for (const signal of ['SIGINT', 'SIGTERM']) {
+    process.on(signal, () => {
+      signals += 1
+      console.log('RECEIVED ' + signal + ' ' + signals)
+      if (process.env.FIXTURE_REPEAT !== '1' || signals === 2) process.exit(0)
+    })
+  }
   console.log('READY')
   setInterval(() => {}, 1000)
 }
@@ -46,6 +53,53 @@ test('direct Wrangler types loads deploy profile and respects process overrides'
     assert.deepEqual(invocation.args.slice(0, 4), ['exec', 'wrangler', 'types', '-c'])
   }
 })
+
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  test(`Wrangler forwards repeated ${signal} until its child exits`, { skip: process.platform === 'win32', timeout: 15000 }, async t => {
+    const { calls, env, script } = fixture(t)
+    // A separate group lets cleanup terminate the fixture even if a regressed
+    // wrapper exits early and leaves its child running.
+    const child = spawn(process.execPath, [script, 'ssr-dev'], {
+      env: { ...env, FIXTURE_WAIT: '1', FIXTURE_REPEAT: '1' },
+      detached: true,
+      stdio: ['ignore', 'pipe', 'pipe']
+    })
+    t.after(() => {
+      try { process.kill(-child.pid, 'SIGKILL') } catch (error) { if (error.code !== 'ESRCH') throw error }
+    })
+    const closed = once(child, 'close')
+    let output = ''
+    child.stdout.on('data', chunk => { output += chunk })
+    const waitForOutput = marker => new Promise((resolve, reject) => {
+      const cleanup = () => {
+        child.stdout.removeListener('data', check)
+        child.removeListener('exit', earlyExit)
+        child.removeListener('error', onError)
+        t.signal.removeEventListener('abort', aborted)
+      }
+      const check = () => { if (output.includes(marker)) { cleanup(); resolve() } }
+      const earlyExit = () => { cleanup(); reject(new Error(`Wrapper exited before ${marker}`)) }
+      const onError = error => { cleanup(); reject(error) }
+      const aborted = () => onError(new Error('Test aborted'))
+      child.stdout.on('data', check)
+      child.on('exit', earlyExit)
+      child.on('error', onError)
+      t.signal.addEventListener('abort', aborted, { once: true })
+      check()
+    })
+    await waitForOutput('READY')
+    for (const count of [1, 2]) {
+      const received = waitForOutput(`RECEIVED ${signal} ${count}`)
+      child.kill(signal)
+      await received
+    }
+    const [code, exitSignal] = await closed
+    assert.equal(code, signal === 'SIGINT' ? 130 : 143)
+    assert.equal(exitSignal, null)
+    const invocations = readFileSync(calls, 'utf8').trim().split('\n').map(line => JSON.parse(line))
+    assert.deepEqual(invocations.map(call => call.args), [['build']])
+  })
+}
 
 test('SSR warns when API is unconfigured and shares the unversioned CLI state directory', { skip: process.platform === 'win32' }, t => {
   const { root, calls, env, script } = fixture(t)

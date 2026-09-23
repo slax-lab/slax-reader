@@ -2,9 +2,9 @@
 // 关键约束（spec 修订 1-3 决议）：
 //  - useUserStore 全 vi.mock（mountWithApp 独立 Pinia 让 spyOn 失效）
 //  - useNotification 显式 import → vi.mock
-//  - addChannelMessageHandler/removeChannelMessageHandler/useScroll 是 Nuxt auto-import → mockNuxtImport
+//  - addChannelMessageHandler/removeChannelMessageHandler 是 Nuxt auto-import → mockNuxtImport
 //  - useRoute beforeEach 创建 reactive routeState，用例改 reactive proxy 触发 watch
-//  - useScroll mockNuxtImport factory 不引 ref（TDZ），用 hoisted plain { value: 0 }
+//  - VueUse helpers share one vi.mock factory; useScroll uses a hoisted plain { value: 0 } to avoid TDZ
 //  - 子组件 stub 必须设 name 字段（findComponent({ name }) 命中）+ 渲染 named slots
 //  - useUserStore mockUserInfo 字段必须包含 isLogin（user store getter 依赖 haveRequestToken）
 
@@ -100,7 +100,6 @@ mockNuxtImport('analyticsLog', () => mockAnalyticsLog)
 mockNuxtImport('haveRequestToken', () => mockHaveRequestToken)
 mockNuxtImport('addChannelMessageHandler', () => mockAddChannelMessageHandler)
 mockNuxtImport('removeChannelMessageHandler', () => mockRemoveChannelMessageHandler)
-mockNuxtImport('useScroll', () => () => ({ y: yScrollRef }))
 
 vi.mock('~/composables/useNotification', () => ({
   default: mockUseNotificationDefault
@@ -139,6 +138,9 @@ vi.mock('@vueuse/core', async () => {
   const actual = await vi.importActual<any>('@vueuse/core')
   return {
     ...actual,
+    // A separate mockNuxtImport('useScroll') creates a second mock for this
+    // same module and can replace the infinite-scroll mock below.
+    useScroll: () => ({ y: yScrollRef }),
     // useInfiniteScroll: setup 时立即调 callback 一次模拟首次加载
     useInfiniteScroll: (_target: any, callback: any) => {
       // 异步调用让 onLoadMore 在所有 ref 初始化后执行

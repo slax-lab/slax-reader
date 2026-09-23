@@ -27,8 +27,10 @@ allowBuilds:
   '@parcel/watcher': true
   '@swc/core': true
   'esbuild': true
-  'protobufjs': true
-  'sharp': true
+  # Preserve the workspace's install-script restrictions. Standard builds use
+  # published protobufjs artifacts and Sharp's platform-specific binaries.
+  'protobufjs': false
+  'sharp': false
   'workerd': true
   prisma: true
   '@prisma/engines': true
