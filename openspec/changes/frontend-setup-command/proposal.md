@@ -20,6 +20,7 @@ The Backend already has a command for "bring this app to a state where dev can r
 - No changes to `predev` in either app, and no changes to `tooling/run-app.mjs` or the `pnpm web -- ...` / `pnpm extension -- ...` dispatchers: both already discover and forward arbitrary `package.json` scripts, so `pnpm web -- setup` and `pnpm extension -- setup` work with no new plumbing.
 - Update `docs/LOCAL-SETUP.md` to add `pnpm web -- setup` / `pnpm extension -- setup` as the step to run once after a fresh install (or after wiping `.nuxt`/`.wxt`), before the first `dev`.
 - Out of scope: `apps/api`'s `setup:api` → `setup` rename (a separate decision the user has not made yet); this change only adds the analogous Web/Extension commands motivated by that possible future rename.
+- The PR implementing this change also carries an unrelated, already-prepared backend fix to `apps/api/src/utils/authLogin/authGoogle.ts` (Google OIDC token verification), folded in by the author rather than split into its own branch/PR. It is not part of this change's capability scope and is not covered by the `frontend-dev-lifecycle` delta spec below; see the PR description for that fix's own rationale.
 
 ## Capabilities
 
@@ -36,4 +37,5 @@ The Backend already has a command for "bring this app to a state where dev can r
 - `apps/web/package.json`: one new `setup` script.
 - `apps/extension/package.json`: one new `setup` script.
 - `docs/LOCAL-SETUP.md`: one documented step added to the post-install flow.
-- No changes to `tooling/`, no changes to `apps/api`, no changes to CI.
+- No changes to `tooling/`, no changes to CI.
+- `apps/api/src/utils/authLogin/authGoogle.ts` changes in the same PR are out of this change's scope (see note above); they carry their own rationale in the PR description, not in this change's artifacts.
