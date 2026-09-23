@@ -60,19 +60,29 @@ Feature work SHALL flow `feature branch → dev → beta → main`: task branche
 - **WHEN** changes on `dev` are ready for beta, or changes on `beta` are ready for production
 - **THEN** a pull request from `dev` to `beta` (or `beta` to `main`) carries them, subject to the same protection rules as any other pull request
 
-### Requirement: Task branches live in isolated worktrees
+### Requirement: Task branches and commit protection
 
-Every task — human- or agent-driven — SHALL get its own git worktree inside the repository's `.worktrees/` directory on its own branch cut from `origin/dev`, with one task mapping to one worktree, one branch, and one pull request. Work MUST NOT be edited directly in the main checkout, and a task MUST NOT edit files in another task's worktree.
+Every task SHALL use its own branch cut from `origin/dev` and its own pull request targeting `dev`, with `<task-name>` used verbatim for the branch suffix and — when a change is required — the OpenSpec change-id. Commits directly on `dev`, `beta`, or `main` MUST be rejected locally by a pre-commit hook as well as remotely by the branch ruleset; the local hook MUST exempt merge commits so sync-back conflict resolution stays possible. Whether a task works in the main checkout or in a git worktree is a per-machine convention, not a repository requirement. Personal machine-local agent instruction files (gitignored `AGENTS.local.md` / `CLAUDE.local.md`) MAY impose stricter conventions such as mandatory worktrees, and agents MUST follow such a file when it exists at the repository root, with the local file winning on conflict with the shared rules.
 
-#### Scenario: Agent refuses to edit the main checkout
+#### Scenario: Agent cuts a task branch before editing
 
-- **WHEN** an agent is about to make its first file edit of a session and finds itself in the main checkout on a long-lived branch
-- **THEN** it stops and asks for a task worktree (or creates one with approval) before editing
+- **WHEN** an agent is about to make its first file edit of a session and finds the current branch is `dev`, `beta`, or `main`
+- **THEN** it cuts the task branch first (`git switch -c <type>/<task-name> --no-track origin/dev`), asking the human first when the checkout carries uncommitted changes
 
-#### Scenario: Merged task worktrees are cleaned up
+#### Scenario: Direct commit on a long-lived branch is rejected locally
 
-- **WHEN** a task's pull request has merged
-- **THEN** its worktree is removed and its merged branch is deleted
+- **WHEN** a contributor or agent attempts a non-merge commit while checked out on `dev`, `beta`, or `main`
+- **THEN** the pre-commit hook rejects the commit and advises cutting a task branch
+
+#### Scenario: Sync-back merge commits remain possible
+
+- **WHEN** a sync-back conflict resolution requires a merge commit while checked out on a long-lived branch
+- **THEN** the pre-commit hook permits the merge commit, and the remote ruleset still requires the result to land through a pull request
+
+#### Scenario: Personal local instructions override shared rules
+
+- **WHEN** `AGENTS.local.md` or `CLAUDE.local.md` exists at the repository root
+- **THEN** the agent reads and follows it, with the local file winning on conflict with the shared agent rules; when no such file exists, the shared rules apply unchanged
 
 ### Requirement: Promotion pull requests merge with a merge commit
 
