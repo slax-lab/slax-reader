@@ -41,21 +41,16 @@ This repo uses OpenSpec for spec-driven development. Living specs live in `opens
 - Implementation-only changes (refactors, typos, comment/doc tweaks) MAY skip the proposal.
 - After editing specs or changes, run `openspec validate --all --strict`; it must pass before merge.
 
-## Parallel Work — Worktree Convention
-
-Every task — human- or agent-driven — gets its own git worktree on its own branch. Nothing is edited directly in the main checkout on a long-lived branch.
+## Branching and Promotion
 
 The repository has three long-lived environment branches: `dev` (the default branch), `beta`, and `main`. Changes flow `dev` → `beta` → `main` through promotion pull requests, and all three reject direct pushes. Promotion pull requests merge with a **merge commit**, never rebase or squash: rebase and squash forge new SHAs for patches the source branch already carries, and once the histories diverge GitHub's trial-merge gate blocks every merge method until a sync-back merge re-converges them. If a promotion PR reports conflicts from such divergence, merge the target branch back into the source branch first (resolving in favor of the source branch's content), then merge the promotion. Sync-back pull requests merge with a **merge commit** too: a sync-back's entire purpose is making the target branch's tip an ancestor of the source branch, and squash or rebase would forge a new SHA for that tip instead, leaving the divergence — and the blocked promotion — exactly as it was.
 
 Two structural wrinkles when running promotions. First, the required `PR review gate` status can hang at "Expected": the review workflow does not fire for a pull request opened with conflicts, and its triggers do not include `synchronize`, so a sync-back merge does not re-trigger it. Posting a `/review` comment on the pull request runs the on-demand review, after which the gate reports a real status. Second, the required approving review is unobtainable when the author is the repository's only active administrator — self-approval does not count, and rulesets cannot exempt by a pull request's head branch. The human administrator therefore merges promotion and sync-back pull requests from the GitHub UI with the merge-commit method once the required checks are green; agents never merge promotion or sync-back pull requests themselves.
 
-- Location: `.worktrees/<task-name>` inside this repository (gitignored); branch: `<type>/<task-name>` cut from `origin/dev`, where `<type>` is the commit type of the work, e.g. `feat`, `fix`, `docs`, `chore`, `ci`. The task's pull request targets `dev`.
-- Before the first file edit of a session, check where you are: if `git rev-parse --show-toplevel` is the main checkout and `git branch --show-current` is a long-lived branch (`dev`, `beta`, or `main`), STOP. Ask the human to create a task worktree — or, with the human's approval, create it yourself: `git worktree add .worktrees/<task-name> -b <type>/<task-name> --no-track origin/dev`, then `cd` into it and run `pnpm install` before building or testing.
-- One task = one worktree = one branch = one PR: `<task-name>` is one string, used verbatim for the worktree directory, the branch suffix, and — when a change is required — the OpenSpec change-id.
+- One task = one branch = one PR: branch `<type>/<task-name>` cut from `origin/dev`, where `<type>` is the commit type of the work, e.g. `feat`, `fix`, `docs`, `chore`, `ci`. The task's pull request targets `dev`. `<task-name>` is one string, used verbatim for the branch suffix and — when a change is required — the OpenSpec change-id.
+- Never commit on a long-lived branch (`dev`, `beta`, or `main`): a pre-commit hook rejects the commit locally, and the repository ruleset rejects the push remotely. Trivial fixes (typo scale, single file) also go through a branch + PR.
+- Before the first file edit of a session, check where you are: if `git branch --show-current` is a long-lived branch, cut the task branch first — `git switch -c <type>/<task-name> --no-track origin/dev` — asking the human first when the checkout carries uncommitted changes.
 - Parallel tasks MUST NOT carry delta specs for the same capability (`openspec/specs/<capability>/`); sequence such tasks instead. Archive a merged change promptly, via its own small PR.
-- Work only inside your own task's worktree: other directories under `.worktrees/` are other tasks' live checkouts — reading across is fine, editing across is not.
-- Finishing: after the PR merges, remove the worktree (`git worktree remove .worktrees/<task-name>`) and delete the merged branch.
-- Trivial fixes (typo scale, single file) MAY skip the worktree, but still go through a branch + PR — direct pushes to the long-lived branches are rejected by the repository's ruleset.
 
 ## Code Review
 
@@ -79,3 +74,7 @@ Never read, print, copy, or exfiltrate secret files: `.env`, `.env.*`, `.dev.var
 
 - This is enforced by tooling where the tool supports it (Claude Code and Codex via generated permission rules; Kimi Code blocks `.env*` natively), and by this rule everywhere else.
 - If you need configuration values, ask the human; they can paste the relevant non-secret shape of the config.
+
+## Personal Local Instructions
+
+If `AGENTS.local.md` or `CLAUDE.local.md` exists at the repository root, read and follow it. These files hold personal, machine-local instructions and are gitignored, so they usually do not exist — that is normal. Where a local file conflicts with this file, the local file wins.
