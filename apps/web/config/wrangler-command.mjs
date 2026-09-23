@@ -52,8 +52,9 @@ if (mode === 'types') {
     fs.rmSync(path.join(root, '.wrangler', 'deploy', 'config.json'), { force: true })
     const selection = bindings.ensureWebWranglerConfig({ local: true })
     bindings.warnIfApiConfigMissing(selection, true)
+    // Pages dev has no --config flag; --cwd makes it auto-discover the generated wrangler.toml instead.
     process.exitCode = await command([
-      'exec', 'wrangler', 'pages', 'dev', '--config', selection.generatedConfigPath,
+      'exec', 'wrangler', 'pages', 'dev', '--cwd', path.dirname(selection.generatedConfigPath),
       '--port', '3000', '--inspector-port', '9333', '--persist-to', selection.stateDir
     ])
   }

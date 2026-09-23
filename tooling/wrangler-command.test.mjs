@@ -56,6 +56,9 @@ test('SSR warns when API is unconfigured and shares the unversioned CLI state di
   assert.deepEqual(invocations[0].args, ['build'])
   const args = invocations[1].args
   assert.equal(args[args.indexOf('--persist-to') + 1], join(root, 'deploy/local/.wrangler/state'))
+  // Pages dev rejects --config for custom paths; --cwd is how it discovers the generated wrangler.toml.
+  assert.equal(args.includes('--config'), false)
+  assert.equal(args[args.indexOf('--cwd') + 1], join(root, 'deploy/local_web/.generated'))
 })
 
 test('interrupting SSR build prevents server startup even when the child exits zero', { skip: process.platform === 'win32', timeout: 15000 }, async t => {
