@@ -10,7 +10,7 @@ Contributors currently discover missing dependency installation and environment 
 - Check the supported Node.js and pinned pnpm versions, the pnpm workspace installation marker, and the workspace links needed by Web and Extension.
 - Check required Web and Extension variables for the selected `SLAX_ENV`, following the shared deploy-file order and process-environment precedence used by the root dispatchers.
 - Report missing or malformed variables by name without printing values. Keep backend availability outside this frontend-only check.
-- Label required values explicitly, distinguish Web's required Google OAuth value from optional Apple OAuth and Turnstile values, and explain the conditional backend-path requirement.
+- Label required values explicitly, distinguish Web's required Google OAuth value from optional Apple OAuth and Turnstile values, and explain that backend availability is outside this frontend-only check.
 - Present sections and check states with readable terminal styling while remaining plain-text safe for CI and redirected output.
 - Document the command and the `deploy/local_web` and `deploy/local_extension` environment-file boundary for contributors.
 

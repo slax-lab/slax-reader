@@ -6,7 +6,7 @@
 - [x] 1.4 Rename the public setup check to `preflight` and verify no old command or tooling filename remains in active documentation.
 - [x] 1.5 Add readable section hierarchy and optional terminal colors; verify colored and plain-text output paths.
 - [x] 1.6 Add deploy-environment file guidance when no variables are configured; verify the message names both the target file and `.env.example`.
-- [x] 1.7 Label required and optional variables and the conditional backend path; verify missing, empty, invalid, and configured cases retain their existing severity and never print values.
+- [x] 1.7 Label required and optional variables and the backend boundary; verify missing, empty, invalid, and configured cases retain their existing severity and never print values.
 
 ## 2. Onboarding
 

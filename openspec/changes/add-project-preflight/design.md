@@ -8,7 +8,7 @@ The check has three layers:
 2. Workspace: check `node_modules/.modules.yaml`, each app's workspace dependency links, and the app-local `nuxt`/`wxt` executable.
 3. Configuration: load only the names and values needed for validation from the matching `deploy/local_web` or `deploy/local_extension` files, using the same file order as the root dispatchers. Process variables override file values, and the first file defining a variable wins. The report prints names and sources, never values.
 
-Web checks the shared URLs, API URL, cookie settings, and public OAuth/Turnstile fields. Extension checks the shared URLs, Extension API URL, and cookie settings. Google OAuth is required; Apple OAuth and Turnstile are optional and produce informational output when absent or empty. Backend path configuration is informational and never blocks this frontend-only check.
+Web checks the shared URLs, API URL, cookie settings, and public OAuth/Turnstile fields. Extension checks the shared URLs, Extension API URL, and cookie settings. Google OAuth is required; Apple OAuth and Turnstile are optional and produce informational output when absent or empty. Backend availability is outside this frontend-only check.
 
 Variable messages use `（必填）` for the three shared URLs, two cookie settings, each app's API URL, and Web's `GOOGLE_OAUTH_CLIENT_ID`. Web's `APPLE_OAUTH_CLIENT_ID` and `TURNSTILE_SITE_KEY` use `（可选）`; absence and empty values are informational and do not block local frontend checks. Optional schema fields are not added to the required checks. Backend availability is outside the frontend preflight contract and is not inspected. These labels apply to missing, empty, malformed, and configured values in both colored and plain-text reports.
 
