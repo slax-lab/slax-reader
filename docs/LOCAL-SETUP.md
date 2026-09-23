@@ -46,16 +46,9 @@ variable errors are expected at this point; Phase 3 fixes them.
 1. Confirm `local.zip` is at the repository root (Phase 0). Inspect it with
    `unzip -l` and extract it so that its contents land at `deploy/local/`.
    The bundle is the complete local configuration directory — including the
-   PowerSync certificates — and restores every gitignored file the backend
+   PowerSync certificates — and restores every gitignored file the project
    needs.
-2. Frontend environment files live in `deploy/local_web/.env` and
-   `deploy/local_extension/.env`. These are being migrated into
-   `deploy/local/`; if the bundle already contains them, nothing more to do.
-   Otherwise copy the corresponding `.env.example` files and ask the user
-   **[HUMAN]** for the shared `GOOGLE_OAUTH_CLIENT_ID`. Optional keys
-   (GTM, Apple/Turnstile, GA) stay empty to disable the feature — see the
-   comments in each `.env.example`.
-3. Once the *Verify* step below passes, delete `local.zip` from the
+2. Once the *Verify* step below passes, delete `local.zip` from the
    repository root so it is never committed.
 
 *Verify:* `pnpm preflight && pnpm api -- setup:api --check` — all green.
