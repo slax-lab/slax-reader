@@ -75,7 +75,8 @@ function parseEnvironmentFile(filePath, appName) {
   return parseEnvironmentText(content, appName, filePath)
 }
 
-function readEnvSources(directory, envName, processEnvironment = process.env, { root = directory, appName = '前端应用', fileAppName = 'web' } = {}) {
+function readEnvSources(directory, envName, processEnvironment = process.env, { root = directory, appName = '前端应用', fileAppName } = {}) {
+  if (!fileAppName) throw new Error('readEnvSources 需要 fileAppName 来定位 .env.<app> 文件')
   let values = {}
   const sources = Object.create(null)
   const files = []

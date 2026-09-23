@@ -10,7 +10,7 @@
 
 - [x] 2.1 Move `deploy/local_web/.env.example` → `deploy/local/.env.web.example`; `deploy/local_extension/.env.example` → `deploy/local/.env.extension.example`; update self-referencing path comments inside each
 - [x] 2.2 Remove `deploy/local_web/` and `deploy/local_extension/` directories
-- [x] 2.3 Update `.gitignore`: replace `local_web`/`local_extension` entries with `deploy/local/.env.web*`, `deploy/local/.env.extension*` ignore rules plus `!.env.web.example`/`!.env.extension.example` exceptions and the new `deploy/local/.generated/web` generated-dir ignore
+- [x] 2.3 Update `.gitignore`: remove the now-redundant `local_web`/`local_extension` generated-dir ignore rules (the blanket `deploy/*/.env.*` and `deploy/local/.generated/` rules already cover the new paths) and add `!deploy/local/.env.web.example` / `!deploy/local/.env.extension.example` exceptions
 
 ## Tests
 
@@ -22,6 +22,10 @@
 
 - [x] 4.1 Update `README.md`, `docs/web/development.md` + `_CN`, `docs/extension/development.md` + `_CN`, `apps/web/README.md` + `_CN`, `apps/extension/README.md` + `_CN`
 - [x] 4.2 Update `.github/workflows/frontend-ci.yml` path filters
+
+## Spec deltas
+
+- [x] 6.1 Add a `MODIFIED Requirements` delta for `frontend-preflight` (the "No app environment is configured" and "Preflight follows the existing environment boundary" requirements still named `deploy/local_web`/`deploy/local_extension`)
 
 ## Verification
 

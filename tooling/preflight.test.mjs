@@ -20,7 +20,7 @@ test('readEnvSources follows deploy precedence and process variables win', () =>
   writeFileSync(join(appDirectory, '.env.web'), 'COOKIE_DOMAIN=from-base\nFIRST_FILE=base\n')
   writeFileSync(join(appDirectory, '.env.web.dev'), 'COOKIE_DOMAIN=from-profile\nPROFILE_ONLY=profile\n')
 
-  const result = readEnvSources(appDirectory, 'development', { PUBLIC_BASE_URL: 'https://process.example' })
+  const result = readEnvSources(appDirectory, 'development', { PUBLIC_BASE_URL: 'https://process.example' }, { fileAppName: 'web' })
 
   assert.equal(result.values.PUBLIC_BASE_URL, 'https://process.example')
   assert.equal(result.sources.PUBLIC_BASE_URL, 'process environment')
