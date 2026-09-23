@@ -82,6 +82,10 @@ Never read, print, copy, or exfiltrate secret files: `.env`, `.env.*`, `.dev.var
 - This is enforced by tooling where the tool supports it (Claude Code and Codex via generated permission rules; Kimi Code blocks `.env*` natively), and by this rule everywhere else.
 - If you need configuration values, ask the human; they can paste the relevant non-secret shape of the config.
 
+## Documentation Language
+
+Author all durable project documentation in English: OpenSpec artifacts (proposals, designs, tasks, specs), files under `docs/`, code comments, commit messages, and pull request bodies. Conversation with the user is unaffected. Legacy non-English documents under `docs/` (the `*_CN` / `*_JP` files migrated from the polyrepos) stay as-is; when substantially revising one that has no English counterpart, add the English version rather than only extending the translated file.
+
 ## Personal Local Instructions
 
 If `AGENTS.local.md` or `CLAUDE.local.md` exists at the repository root, read and follow it. These files hold personal, machine-local instructions and are gitignored, so they usually do not exist — that is normal. Where a local file conflicts with this file, the local file wins.
