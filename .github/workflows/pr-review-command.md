@@ -11,7 +11,7 @@ run-name: "PR review (on demand) for #${{ github.event.issue.number || github.ru
 # "None of the commands [/review] matched the first word (found: '##')"). Inline
 # strategy is fine here because this workflow has no pull_request trigger; note
 # that comment-triggered workflows run from the default branch, so /review only
-# works once this file is on `main`.
+# works once this file is on the default branch.
 on:
   slash_command:
     name: review
