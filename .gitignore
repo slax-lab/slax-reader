@@ -59,6 +59,7 @@ deploy/*/.env
 deploy/*/.env.*
 !.env.example
 !.env.sample
+!.dev.vars.example
 !deploy/*/.env.example
 
 # Kimi Code CLI Tower mode local tooling state
