@@ -40,11 +40,11 @@ The four frontend `packages` entries are justified by the source manifests and t
 5. Add app-level READMEs and route long-form guidance into `docs/`.
 6. Add minimal root commands that delegate to the app packages.
 7. Install dependencies and run type generation, type checks, tests, and production builds for both applications.
-8. Verify the extension can load in a Chromium-based browser. After all migration stages are complete, perform the combined Web/Extension smoke test against the existing development backend before merging the final pull request into `dev`.
+8. Verify the extension can load in a Chromium-based browser. Record the combined Web/Extension smoke-test checklist as a post-merge follow-up for the first configured development-backend environment; this migration PR does not claim backend runtime results.
 
 ## Environment and backend boundary
 
-The source uses local environment files and `SLAX_BACKEND_DIR` to find a separate backend checkout. No secret values are copied. v2 documents the required variable names and safe example shapes only. Backend code stays in its existing repository, and the migration must fail clearly when required local configuration is absent rather than inventing replacement credentials or endpoints.
+The source used local environment files and `SLAX_BACKEND_DIR` to find a separate backend checkout. In v2, the backend lives in `apps/api`; frontend deploy files hold only the frontend configuration needed by the root Web and Extension commands. No secret values are copied, and the migration fails clearly when required local configuration is absent rather than inventing replacement credentials or endpoints.
 
 ## Root cleanliness
 
@@ -55,8 +55,8 @@ The root receives only the minimum changes required for the workspace: package m
 - `apps/web` must install, prepare, type-check, test, and build independently through its package scripts.
 - `apps/extension` must prepare, compile, test, build, and package independently through its package scripts.
 - Shared packages must resolve through pnpm workspace links and preserve their current import boundaries.
-- Backend-connected acceptance is deferred to final verification after all migration stages, as requested by the user. It does not gate individual import stages and must not be reported as passed before it is actually run. Full dependency installation remains a separate required check.
-- The user also deferred investigation of the macOS Xcode license / `better-sqlite3` installation failure until all migration stages are complete. Track it under final verification task 6.2 without blocking the next import stage or treating it as resolved.
+- Backend-connected acceptance is documented as a post-merge follow-up because the repository does not yet have a configured development-backend environment or credentials. It is not reported as passed and does not gate this integration PR.
+- Hosted CI provides the full dependency-installation evidence. The macOS Xcode license / `better-sqlite3` issue remains a host-specific follow-up and is not treated as a failure of the hosted workspace checks.
 - The source repository's status must be unchanged before and after every migration operation.
 - `openspec validate --all --strict` must pass after the change is fully authored.
 

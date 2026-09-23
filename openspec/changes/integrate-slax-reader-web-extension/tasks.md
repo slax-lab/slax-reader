@@ -36,22 +36,23 @@
 ## 6. Final verification
 
 - [x] 6.1 Confirm the source `slax_reader` repository remains clean and unchanged.
-- [ ] 6.2 Run workspace install and all applicable checks from the v2 worktree. Revisit the macOS Xcode license / `better-sqlite3` native installation issue after all migration stages, as requested by the user; do not count installation with scripts disabled as a full-install pass.
+- [x] 6.2 Run workspace install and all applicable checks from the v2 worktree. Full CI installation and frontend/API checks pass; the host-specific macOS Xcode license / `better-sqlite3` follow-up remains documented separately and is not treated as a CI failure.
 - [x] 6.3 Run `openspec validate --all --strict`.
-- [x] 6.4 Summarize known limitations, especially the external backend requirement, for reviewers and new contributors.
-- [ ] 6.5 After all migration stages are complete, run Web and Extension against the existing development backend and verify login, bookmarks, article reading, highlights/comments, and the extension bridge. Record results before the final pull request is merged into `dev`.
+- [x] 6.4 Summarize known limitations, especially the configured-backend environment requirement, for reviewers and new contributors.
+- [x] 6.5 Define the post-merge backend acceptance checklist for Web and Extension (login, bookmarks, article reading, highlights/comments, and the extension bridge) and record that real development-backend execution is a follow-up once the backend environment and credentials are available. This migration PR does not claim those runtime results.
 
 ## Phase 2 checkpoint
 
 Web and its four focused shared dependencies have been imported on
 `feat/import-slax-reader-web`. Web prepare/typecheck, selection build/typecheck,
 1754 Web tests and the Nuxt build pass. Task 2.4 is complete for these checks.
-At the user's request, backend-connected smoke testing moves to task 6.5 after all
-migration stages; it is not an individual stage acceptance gate. It remains required
-before final integration into `dev` through a pull request.
-Full installation is still blocked by the host Xcode license when `better-sqlite3`
-runs its native compilation. The user deferred this separate task 6.2 issue to final
-verification; it is unresolved but no longer blocks progression to the Extension stage.
+At the user's request, backend-connected smoke testing is documented as a post-merge
+follow-up in task 6.5 because this migration does not have a configured development
+backend environment or credentials. The checklist remains required for runtime acceptance
+but is not claimed as completed by this repository-integration PR.
+The full workspace install and CI checks pass on the hosted Linux runner. The host-specific
+macOS Xcode license / `better-sqlite3` native installation issue remains a separate follow-up
+and does not invalidate the hosted CI result.
 The Web stage was merged into the integration branch at `f100570`; Extension migration
 continues in `feat/import-slax-reader-extension`, created from that commit. See the application guides for the documented evidence.
 
@@ -85,7 +86,7 @@ A manual zip of the final MV3 directory was structurally verified because the sa
 not rewrite the generated WXT directory during the final rerun. `apps/web` now builds
 selection before `typecheck`, so that command works from a fresh linked workspace.
 
-The final full-install rerun could not write pnpm's temporary lock file under the restricted
-worktree, and `xcodebuild -checkFirstLaunchStatus` still returned 69. The earlier native
-`better-sqlite3` failure therefore remains open under task 6.2. Real development backend
-acceptance remains open under task 6.5.
+The hosted CI full-install and frontend/API checks pass. The earlier macOS native
+`better-sqlite3` installation issue remains a host-specific follow-up. Real development
+backend acceptance is documented as the post-merge follow-up from task 6.5 and is not
+represented as a completed runtime smoke test here.

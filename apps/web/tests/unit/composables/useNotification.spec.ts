@@ -140,15 +140,14 @@ describe('useNotification — full env', () => {
   })
 
   describe('requestPushPermission 5 分支（C8-C12，C7 在隔离 describe）', () => {
-    it('C8: permission=denied → false + console.log getSubscription', async () => {
+    it('C8: permission=denied → false，不读取订阅信息', async () => {
       const swReg = makeSwRegistration()
       const Notification = stubFullEnv(swReg)
       Notification.requestPermission.mockResolvedValueOnce('denied')
-      vi.spyOn(console, 'log').mockImplementation(() => {})
       const { requestPushPermission } = useNotification()
       const result = await requestPushPermission()
       expect(result).toBe(false)
-      expect(swReg.pushManager.getSubscription).toHaveBeenCalled()
+      expect(swReg.pushManager.getSubscription).not.toHaveBeenCalled()
     })
 
     it('C9: granted + PUSH_API_PUBLIC_KEY=undefined → false + console.error', async () => {

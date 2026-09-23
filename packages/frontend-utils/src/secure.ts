@@ -9,7 +9,7 @@ export function filterXSS(input: string): string {
         return '&lt;'
       case '>':
         return '&gt;'
-      case '""':
+      case '"':
         return '&quot;'
       case "'":
         return '&#39;'

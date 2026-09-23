@@ -124,5 +124,5 @@ export function isSafari() {
 export function isPC() {
   const userAgentInfo = navigator.userAgent
   const Agents = ['Android', 'iPhone', 'SymbianOS', 'Windows Phone', 'iPod', 'iPad', 'phone']
-  return !Agents.some(agent => userAgentInfo.indexOf(agent) > 0)
+  return !Agents.some(agent => userAgentInfo.indexOf(agent) >= 0)
 }

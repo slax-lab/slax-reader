@@ -316,7 +316,7 @@ export class MarkManager extends Base {
     info.stroke = info.stroke.filter(item => item.userId !== userId)
     if (info.stroke.length === 0 && info.comments.length === 0) {
       const index = this._markItemInfos.value.findIndex(item => item.id === info.id)
-      this._markItemInfos.value.splice(index, 1)
+      if (index !== -1) this._markItemInfos.value.splice(index, 1)
     }
     await this.renderer.drawMark(info, 'update')
     await this.modal.dismissPanel()
@@ -356,7 +356,7 @@ export class MarkManager extends Base {
 
       if (markInfoItem.stroke.length === 0 && markInfoItem.comments.length === 0) {
         const index = this._markItemInfos.value.findIndex(item => item.id === markInfoItem.id)
-        this._markItemInfos.value.splice(index, 1)
+        if (index !== -1) this._markItemInfos.value.splice(index, 1)
       }
     }
 

@@ -25,14 +25,8 @@ The repository SHALL provide a root `preflight` script, invoked as `pnpm preflig
 #### Scenario: No app environment is configured
 
 - **WHEN** none of the selected app's required variables is present in its environment files or the process environment
-- **THEN** the command tells the contributor which app-local environment file to create
-- **AND** it points to that app's `.env.example` for variable names and placeholder values
-
-#### Scenario: Only backend integration is unavailable
-
-- **WHEN** frontend dependencies and required frontend variables are configured but `SLAX_BACKEND_DIR` is absent
-- **THEN** the command reports backend integration as informational
-- **AND** it does not fail the frontend preflight
+- **THEN** the command tells the contributor which `deploy/local_web/.env` or `deploy/local_extension/.env` file to create
+- **AND** it points to the matching deploy `.env.example` for variable names and placeholder values
 
 ### Requirement: Preflight explains required configuration
 
@@ -56,15 +50,9 @@ The preflight report SHALL label the shared URLs, cookie settings, app-specific 
 - **THEN** its message includes `（可选）`
 - **AND** it is informational and does not block local frontend checks
 
-#### Scenario: Backend path is needed for development
-
-- **WHEN** the Web preflight report explains `SLAX_BACKEND_DIR`
-- **THEN** it identifies the path as required for `pnpm web -- dev`
-- **AND** it remains informational for this frontend check
-
 ### Requirement: Preflight follows the existing environment boundary
 
-The preflight check SHALL inspect `.env`, `.env.<SLAX_ENV>`, and `.env.<SLAX_ENV>.local` inside each selected app directory in the same order as the current loaders. Process environment values SHALL take precedence. A root `.env` SHALL be reported as a reminder because the current app loaders do not automatically read it.
+The preflight check SHALL inspect the matching `deploy/local_web` or `deploy/local_extension` `.env` and selected profile files in the same order as the root frontend dispatchers. Process environment values SHALL take precedence. A root `.env` SHALL be reported as a reminder because the current frontend loaders do not automatically read it.
 
 #### Scenario: Contributor narrows a check
 

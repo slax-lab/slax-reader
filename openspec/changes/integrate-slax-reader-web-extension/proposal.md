@@ -13,7 +13,7 @@ This change establishes the migration boundary and moves those frontend projects
 - Add the shared libraries under `packages/contracts`, `packages/frontend-types`, `packages/frontend-utils`, and `packages/selection`. API, domain, event, and route types used across the frontend/backend boundary live in `@commons/contracts`; browser-only and local-first implementation types live in `@commons/frontend-types`. The source's broad `utils` package is renamed to `frontend-utils` to reserve clearer naming for future Backend and CLI packages.
 - Move relevant development and contribution documentation into `docs/web` and `docs/extension` without adding application implementation files to the v2 root.
 - Add only the minimum workspace scripts and configuration needed to install, develop, build, type-check, and test the two migrated applications.
-- Keep the existing backend outside this change; the migrated frontend applications continue to use their existing backend integration until a separate backend migration is planned.
+- Keep the backend project outside this frontend migration scope; the migrated applications use the API project already present in the v2 `dev` base branch through its existing integration boundary.
 - Record the source repository and exact snapshot used for migration so the import remains traceable.
 
 ## Explicit Constraints
@@ -28,4 +28,4 @@ This change establishes the migration boundary and moves those frontend projects
 - New frontend applications and workspace libraries become part of the v2 pnpm workspace.
 - Root-level workspace configuration exposes stable `web` and `extension` entry points; app scripts remain authoritative behind those wrappers.
 - Existing v2 CI and OpenSpec checks remain the repository-level quality gates.
-- Backend remains an external dependency during this change; no backend files or repository are modified.
+- The backend is an environment prerequisite for runtime acceptance, but no backend files or backend behavior are modified by this frontend change.

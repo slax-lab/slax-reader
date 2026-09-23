@@ -42,10 +42,7 @@ const useNotification = () => {
       const permission = await Notification.requestPermission()
       const isGranted = permission === 'granted'
 
-      if (!isGranted) {
-        console.log(await getSubscription())
-        return false
-      }
+      if (!isGranted) return false
 
       if (!$config.PUSH_API_PUBLIC_KEY) {
         console.error('PUSH_API_PUBLIC_KEY is not set')

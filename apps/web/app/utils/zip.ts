@@ -2,15 +2,12 @@ const unzipGetFile = async (file: File, matchRule: RegExp): Promise<File[] | und
   const JSZip = (await import('jszip')).default
   const zip = new JSZip()
   const fileContent = await zip.loadAsync(file)
-  console.log(`fileContent.files: ${Object.keys(fileContent.files)}`)
-
   const files: File[] = []
   for (const [filename, zipEntry] of Object.entries(fileContent.files)) {
     if (filename.startsWith('__MACOSX/') || filename.includes('/._')) continue
     if (!matchRule.test(filename)) continue
 
     const content = await zipEntry.async('arraybuffer')
-    console.log(`find ${filename} success`)
     files.push(new File([content], filename, { type: getMimeType(filename) }))
   }
   return files
