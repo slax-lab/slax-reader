@@ -20,4 +20,4 @@
 
 - [x] 4.1 `openspec validate --all --strict` 通过；lefthook 全绿。
 - [x] 4.2 按 REVIEW.md 完成 pre-push review，提交、推送，PR 目标 `dev`，PR body 携带 `OpenSpec: local-worktree-convention`。
-- [ ] 4.3 PR 合并后归档本 change（`openspec archive`），并清理任务 worktree 与分支。
+- [x] 4.3 PR 合并后归档本 change（`openspec archive`），并清理任务 worktree 与分支。
