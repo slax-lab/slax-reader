@@ -1,15 +1,27 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { parse } from 'smol-toml'
-import { projectWebWranglerConfig, readWebBindingSelection, WEB_STATE_DIR, WEB_STATE_V3 } from '../../../config/backend-binding'
+import { projectWebWranglerConfig, readWebBindingSelection, resolveApiConfigPath, WEB_STATE_DIR, WEB_STATE_V3 } from '../../../config/backend-binding'
 
 function withConfig(contents: string, env: NodeJS.ProcessEnv, local = false) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'slax-web-binding-'))
   const filename = path.join(dir, 'api.toml')
   fs.writeFileSync(filename, contents)
   return readWebBindingSelection({ env: { ...env, SLAX_API_CONFIG: filename }, local })
+}
+
+function withoutDefaultApiConfig<T>(run: () => T): T {
+  const defaultPath = resolveApiConfigPath({})
+  const originalExistsSync = fs.existsSync.bind(fs)
+  const exists = vi.spyOn(fs, 'existsSync')
+  exists.mockImplementation((candidate) => candidate === defaultPath ? false : originalExistsSync(candidate))
+  try {
+    return run()
+  } finally {
+    exists.mockRestore()
+  }
 }
 
 describe('Web API binding projection', () => {
@@ -84,20 +96,22 @@ bucket_name = "reader-beta"
   })
 
   it('keeps offline builds usable when API config is absent', () => {
-    const selection = readWebBindingSelection({ env: { SLAX_ENV: 'beta' }, local: false })
+    const selection = withoutDefaultApiConfig(() => readWebBindingSelection({ env: { SLAX_ENV: 'beta' }, local: false }))
     expect(selection.configFound).toBe(false)
     expect(selection.apiWorkerName).toBe('reader-edge')
   })
 
   it('keeps local dev usable with a helpful warning when default API config is absent', () => {
-    const selection = readWebBindingSelection({ env: {}, local: true })
+    const selection = withoutDefaultApiConfig(() => readWebBindingSelection({ env: {}, local: true }))
     expect(selection.configFound).toBe(false)
     expect(selection.apiWorkerName).toBe('reader-edge')
   })
 
   it('requires an explicitly selected missing config', () => {
     expect(() => readWebBindingSelection({ env: { SLAX_API_CONFIG: '/tmp/slax-reader-v2-no-api.toml' } })).toThrow(/configuration is missing/i)
-    expect(() => readWebBindingSelection({ env: { SLAX_API_ENV: 'dev' } })).toThrow(/configuration is missing/i)
+    withoutDefaultApiConfig(() => {
+      expect(() => readWebBindingSelection({ env: { SLAX_API_ENV: 'dev' } })).toThrow(/configuration is missing/i)
+    })
   })
 
   it('requires OSS in a selected named environment because bindings are not inherited', () => {
