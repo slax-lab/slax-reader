@@ -1,6 +1,6 @@
 # 扩展本地开发与验证
 
-[开发者入门](../../contributing/development.md) · [Developer setup in English](../../contributing/development.en.md)
+[English](development.md) · [通用参与和提交流程](../web/development_CN.md#参与项目web-与-extension-通用) · [Web 开发](../web/development_CN.md)
 
 ## 配置位置
 
@@ -9,7 +9,7 @@
 profile 文件覆盖 `.env`。环境名称按终端 `SLAX_ENV` → deploy `.env` 中的 `SLAX_ENV` → `development` 选择，profile 文件不能再切换它。所有根命令（包括 `dev`、`build` 和 `zip`）都使用这套规则；根目录 `.env` 不会自动加载。
 直接运行 app 包也使用同一 deploy 配置，不再读取 app 目录的环境文件。自行配置，不从旧仓库复制，不提交环境文件。
 
-可先复制 [`deploy/local_extension/.env.example`](../../../deploy/local_extension/.env.example) 作为起点：
+可先复制 [`deploy/local_extension/.env.example`](../../deploy/local_extension/.env.example) 作为起点：
 
 ```sh
 cp deploy/local_extension/.env.example deploy/local_extension/.env
@@ -92,5 +92,5 @@ CHROME_PATH=/absolute/path/to/chromium HEADLESS=1 pnpm --filter @apps/slax-reade
 ## 已记录的安装问题
 
 Web 依赖 `better-sqlite3` 曾因本机 Xcode 许可阻止完整 workspace 安装。
-按迁移计划在全部阶段完成后处理，详见[迁移记录](../../migrations/slax-reader-web-extension.md#deferred-installation-follow-up)。
+真实 API 联调在前端配置和后端开发环境准备完成后进行。
 迁移期间的 `--ignore-scripts` 仅用于临时验证，不是推荐给贡献者或 CI 的标准安装方式。

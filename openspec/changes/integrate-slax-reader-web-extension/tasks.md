@@ -1,13 +1,13 @@
 ## 1. Migration baseline
 
-- [x] 1.1 Record the source repository URL, source commit, inspection date, and read-only rule in `docs/migrations/slax-reader-web-extension.md`.
+- [x] 1.1 Record the source repository URL, source commit, inspection date, and read-only rule in `openspec/changes/integrate-slax-reader-web-extension/design.md`.
 - [x] 1.2 Inventory the Web app, Extension app, shared packages, configs, scripts, docs, generated files, local-only files, and backend integration points.
 - [x] 1.3 Define the target mapping and explicitly exclude backend code, secrets, dependency directories, build outputs, caches, and local state.
 
 ## 2. Web application import
 
 - [x] 2.1 Copy the tracked DWeb application into `apps/web` without copying Git metadata or local-only files.
-- [x] 2.2 Move or adapt Web-specific configuration and documentation so it stays below `apps/web` or `docs/apps/web`.
+- [x] 2.2 Move or adapt Web-specific configuration and documentation so it stays below `apps/web` or `docs/web`.
 - [x] 2.3 Make the Web package resolve the new workspace package locations without changing product behavior.
 - [x] 2.4 Run Web prepare, type-check, tests, and build. Backend-connected smoke testing is tracked separately in final verification task 6.5.
 
@@ -29,7 +29,7 @@
 ## 5. Onboarding and root hygiene
 
 - [x] 5.1 Add focused READMEs for `apps/web`, `apps/extension`, and each migrated shared package.
-- [x] 5.2 Move long-form development, contribution, architecture, and migration guidance into `docs/` subdirectories.
+- [x] 5.2 Keep Web and Extension development and contribution guidance under `docs/web` and `docs/extension`.
 - [x] 5.3 Add minimal root commands for Web and Extension development, testing, and builds while keeping app scripts authoritative.
 - [x] 5.4 Confirm the root contains no copied application source, app-specific long-form docs, secrets, generated local state, or dependency directories.
 
@@ -53,7 +53,7 @@ Full installation is still blocked by the host Xcode license when `better-sqlite
 runs its native compilation. The user deferred this separate task 6.2 issue to final
 verification; it is unresolved but no longer blocks progression to the Extension stage.
 The Web stage was merged into the integration branch at `f100570`; Extension migration
-continues in `feat/import-slax-reader-extension`, created from that commit. See the migration record for evidence.
+continues in `feat/import-slax-reader-extension`, created from that commit. See the application guides for the documented evidence.
 
 
 ## Phase 3 checkpoint
@@ -64,13 +64,12 @@ WXT prepare, vue-tsc, 14 unit tests, Chrome build/zip, vendor prebuild and Chrom
 pass. The 17-scenario offscreen suite also passes using local fixtures. Runtime Extension
 source remains the pinned snapshot. Remaining work is contributor-wide onboarding and
 final verification, including the explicitly deferred native install issue and real backend
-integration. See the migration record for validation scope and source-fidelity evidence.
+integration. See the application guides for validation scope and source-fidelity evidence.
 
 
 ## Phase 4 checkpoint
 
-Contributor-facing onboarding is now under `docs/README.md`, `docs/contributing`, and
-`docs/architecture/frontend.md`. It separates no-install participation from local Web and
+Contributor-facing onboarding is now under `docs/web` and `docs/extension`. It separates no-install participation from local Web and
 Extension development, documents GitHub web editing and issue feedback, links the translation
 files, and records the external backend, absent PR preview/demo, and deferred native install
 limitations. Root navigation points to these entries while application source remains below

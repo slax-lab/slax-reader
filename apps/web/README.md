@@ -1,12 +1,12 @@
 # Slax Reader Web
 
-基于 Nuxt 4 / Vue 3 的 Web 阅读器，来自迁移记录中固定的源码快照。
+The Nuxt 4 / Vue 3 web reader imported from the pinned source snapshot.
 
-[参与指南](../../docs/contributing/README.md) · [Developer setup in English](../../docs/contributing/development.en.md) · [文档导航](../../docs/README.md)
+[Development and contribution guide](../../docs/web/development.md) · [Chinese](README_CN.md)
 
-## 开始开发
+## Start developing
 
-在仓库根执行（Node.js 22.22.2+、24.15.0+ 或 26+，使用仓库固定的 pnpm 11.25.0）：
+Run these commands from the repository root. Use Node.js 22.22.2+, 24.15.0+ or 26+, and the pnpm 11.25.0 version pinned by the repository:
 
 ```sh
 pnpm install --frozen-lockfile
@@ -14,17 +14,15 @@ pnpm --filter @apps/slax-reader-dweb type
 pnpm web -- dev
 ```
 
-开发服务器需要 API 的本地公开配置和公开前端配置。先阅读
-[配置与验证说明](../../docs/apps/web/development.md)。首次联调请运行 `pnpm api -- config:init`；
-本阶段没有无需后端的演示模式。不要把旧仓库的环境文件复制进来。
+The development server needs the local public API configuration and frontend public configuration. Read the [configuration and verification guide](../../docs/web/development.md) first. For the first backend integration, run `pnpm api -- config:init`. This stage does not provide a backend-free demo. Do not copy environment files from the old repository.
 
-首次配置请从 deploy 示例开始：
+Start with the deploy template:
 
 ```sh
 cp deploy/local_web/.env.example deploy/local_web/.env
 ```
 
-## 常用命令
+## Common commands
 
 ```sh
 pnpm web -- typecheck
@@ -32,19 +30,17 @@ pnpm web -- test
 pnpm web -- build
 ```
 
-`dev`、`test`、`build` 会先构建划线引擎 `@slax-reader/selection`。
-共享引擎修改后可单独运行 `pnpm --filter @slax-reader/selection build`。
-包名暂保留 `@apps/slax-reader-dweb`，文件位置是 `apps/web`。
+`dev`, `test`, and `build` build the `@slax-reader/selection` annotation engine first. After changing that shared engine, you can build it directly with `pnpm --filter @slax-reader/selection build`.
+The package name remains `@apps/slax-reader-dweb`; its files live in `apps/web`.
 
-## 从哪里修改
+## Where to make changes
 
-- 页面与交互：`app/pages`、`app/components`、`app/composables`
-- 翻译：`i18n/locales`
-- Web 服务端渲染：`server`（属于 Web，API 业务代码在 `apps/api`）
-- 应用配置：`config`、`nuxt.config.ts`、`uno.config.ts`
-- 自动测试：`tests`
-- 详细架构：[Web 架构](../../docs/apps/web/architecture.md)
-- 来源和许可证：[迁移记录](../../docs/migrations/slax-reader-web-extension.md)
+- Pages and interactions: `app/pages`, `app/components`, `app/composables`
+- Translations: `i18n/locales`
+- Web server rendering: `server` (Web-owned; API business code is in `apps/api`)
+- Application configuration: `config`, `nuxt.config.ts`, `uno.config.ts`
+- Automated tests: `tests`
+- Detailed architecture: [Web architecture](../../docs/web/architecture.md)
+- License: [LICENSE](../../LICENSE) · [NOTICE](../../NOTICE)
 
-扩展位于 [`apps/extension`](../extension/README.md)。Web 现有的 `/x/ext-bridge` 协议保留，
-真实 API 联调留到所有迁移阶段完成后的最终验收。
+The extension lives in [`apps/extension`](../extension/README.md). The existing Web `/x/ext-bridge` protocol is preserved. Real API integration is part of the final acceptance after all migration work is complete.

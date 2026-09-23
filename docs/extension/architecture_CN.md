@@ -1,6 +1,6 @@
 # Slax Reader 浏览器扩展
 
-[配置与验证](development.md) · [应用关系](../../architecture/frontend.md)
+[English](architecture.md) · [配置与验证](development_CN.md) · [Web 架构](../web/architecture_CN.md)
 
 Slax Reader 浏览器扩展的完整源码，包含开源社区基础能力与 Pro 能力（订阅付费 UI、指标埋点、本地优先书签桥等），均在同一份代码里维护，不依赖任何外部子模块。
 

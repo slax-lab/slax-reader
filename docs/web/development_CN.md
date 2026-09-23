@@ -1,6 +1,6 @@
 # Web 本地开发与验证
 
-[开发者入门](../../contributing/development.md) · [Developer setup in English](../../contributing/development.en.md)
+[English](development.md) · [Web 架构](architecture_CN.md) · [Extension 开发](../extension/development_CN.md)
 
 ## 配置归属
 
@@ -10,7 +10,7 @@ Web 配置集中在 `apps/web/config`，环境 schema 在 `apps/web/env.schema.t
 环境名称按终端 `SLAX_ENV` → deploy `.env` 中的 `SLAX_ENV` → `development` 选择，profile 文件不能再切换它。所有根命令（包括 `dev` 和 `build`）都使用这套规则；根目录 `.env` 不会自动加载。
 环境文件由开发者自行配置，不提交，也不从旧仓库复制。
 
-可先复制 [`deploy/local_web/.env.example`](../../../deploy/local_web/.env.example) 作为起点：
+可先复制 [`deploy/local_web/.env.example`](../../deploy/local_web/.env.example) 作为起点：
 
 ```sh
 cp deploy/local_web/.env.example deploy/local_web/.env
@@ -80,7 +80,7 @@ export TURNSTILE_SITE_KEY=
 
 这些值不会启动 API，也不能用于验收真实登录、同步或生产部署。
 默认 development profile 的构建通过不等于 production 配置已经验证。
-完整依赖安装的已知问题见[最终验收清单](../../migrations/final-verification.md)。
+完整安装需要按本机系统准备 Node.js、pnpm 及可能的原生编译工具；跳过安装脚本不等于完整安装成功。
 
 ## 验证顺序
 
@@ -106,5 +106,21 @@ pnpm web -- build
 
 `open_docs` 是 Nuxt Content 读取的产品内容，保留在 app 内。`content.config.ts` 还配置了
 app 内 `docs/en`、`docs/zh` 内容入口，但当前快照没有这两个目录。
-开发者长文档放在仓库 `docs/apps/web`，不会成为页面数据。
+开发者长文档放在仓库 `docs/web`，不会成为页面数据。
 应用依赖声明在 app manifest，共享库通过 workspace 链接，不依赖旧仓库 `node_modules`。
+
+## 参与项目（Web 与 Extension 通用）
+
+不需要本地环境也可以参与：可以在 GitHub Issues 反馈问题或提出建议，也可以直接编辑
+Markdown 文档和翻译文件。反馈时请写明位置、环境、复现步骤、期望结果和实际结果，并隐藏
+账户信息、私密文章、cookie 和 token。
+
+小范围文案、翻译或文档修改可以在 GitHub 网页编辑器中完成，检查 Markdown 预览后从新分支
+提交 PR；较大的多文件修改先开 Issue，再按本地开发流程处理。不要直接提交到 `dev`、
+`beta` 或 `main`。功能、API 和行为修改需要先提出并评审 OpenSpec，纯文档修改可以写
+`OpenSpec: n/a`。
+
+翻译文件位于 `apps/web/i18n/locales` 和 `apps/extension/src/locales`。保留原有 key、
+占位符、换行符和 JSON 结构；Web 使用 `{username}` 一类占位符，Extension 使用 `$1`
+一类占位符。修改代码时，在独立 worktree 中创建任务分支，按受影响的应用运行类型检查、
+测试和构建，并在 PR 中列出实际执行过的检查。

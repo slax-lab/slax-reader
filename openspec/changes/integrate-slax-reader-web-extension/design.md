@@ -14,7 +14,7 @@ The inspected source worktree was clean and identified by commit:
 8a983148fdd1da2f145e7797be070d3fbe8f791a
 ```
 
-The source remote is `https://github.com/unnoo/slax_reader_frontend.git`. This is a read-only input. The first migration imports a working-tree snapshot rather than preserving Git history. The source commit and inspection date are recorded in `docs/migrations/slax-reader-web-extension.md`.
+The source remote is `https://github.com/unnoo/slax_reader_frontend.git`. This is a read-only input. The first migration imports a working-tree snapshot rather than preserving Git history. The source commit was inspected on 2026-09-21 and is recorded above.
 
 ## Target layout
 
@@ -25,11 +25,8 @@ packages/contracts/       <- shared API, domain, event, and route contracts
 packages/frontend-types/  <- frontend-only implementation types from source commons/types-pro
 packages/frontend-utils/  <- source commons/utils, renamed for frontend scope
 packages/selection/       <- source commons/selection
-docs/apps/web/            <- Web-specific development material
-docs/apps/extension/      <- Extension-specific development material
-docs/contributing/        <- contributor-facing guides
-docs/architecture/        <- repository and integration explanations
-docs/migrations/          <- provenance and migration records
+docs/web/                 <- Web-specific development material
+docs/extension/            <- Extension-specific development material
 ```
 
 The four frontend `packages` entries are justified by the source manifests and the agreed backend boundary: both applications depend on these libraries, while `selection` depends on the shared contract surface. `contracts` owns data that crosses an app/backend or app/app boundary, including API routes, domain payloads, events, and shared enums. `frontend-types` owns browser-only and local-first implementation types such as storage keys and extension panel state. The source's `types-pro` definitions are split across those two packages so v2 does not keep overlapping `types` and `contracts` packages.

@@ -35,10 +35,10 @@ This monorepo hosts all non-mobile Slax Reader code:
 | `packages/frontend-utils` | Shared frontend utilities |
 | `packages/selection` | Shared highlighting and annotation engine |
 | `deploy/` | Public API templates and local Web, Extension and API infrastructure |
-| `docs/` | Development, architecture and migration documentation |
+| `docs/` | Web, Extension and API development documentation |
 
 Shared libraries belong in `packages` when at least two apps use them. See the
-[repository map](docs/architecture/frontend.md) for the current application and package boundaries.
+[Web architecture](docs/web/architecture.md) for the current application and package boundaries.
 
 ## Development and self-hosting
 
@@ -77,7 +77,7 @@ Shared HTTP types live in [`packages/contracts`](packages/contracts/README.md). 
 ## Contributing
 
 Bug reports, features, and docs are all welcome. You can contribute without a development environment through
-[参与指南（中文）](docs/contributing/README.md) or [Contributing](docs/contributing/README.en.md).
+[Web 开发与参与指南](docs/web/development.md) or [Extension development](docs/extension/development.md).
 Please follow our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License

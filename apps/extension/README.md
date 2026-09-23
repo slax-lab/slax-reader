@@ -1,28 +1,27 @@
-# Slax Reader 浏览器扩展
+# Slax Reader Browser Extension
 
-基于 WXT 0.21 / Vue 3 的 Chrome、Edge 扩展，沿用固定源码快照的 Manifest V3 和功能。
+The Chrome and Edge extension built with WXT 0.21 and Vue 3. It preserves the pinned Manifest V3 source snapshot and its existing capabilities.
 
-[参与指南](../../docs/contributing/README.md) · [Developer setup in English](../../docs/contributing/development.en.md) · [文档导航](../../docs/README.md)
+[Development and contribution guide](../../docs/web/development.md) · [Chinese](README_CN.md)
 
-## 开始开发
+## Start developing
 
-在仓库根执行，使用 Node.js 22.22.2+、24.15.0+ 或 26+，以及仓库固定的 pnpm 11.25.0：
+Run these commands from the repository root. Use Node.js 22.22.2+, 24.15.0+ or 26+, and the pnpm 11.25.0 version pinned by the repository:
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm extension -- dev
 ```
 
-先按[配置与验证说明](../../docs/apps/extension/development.md)设置本地公开配置。
-登录、收藏同步及划线评论需要 Web 和 backend；扩展能构建并加载，不代表这些业务已联调通过。
+Set the public local configuration using the [configuration and verification guide](../../docs/extension/development.md). Login, bookmark synchronization, highlights and comments need a working Web and backend environment; a successful build or extension load does not prove those flows are integrated.
 
-首次配置请从 deploy 示例开始：
+Start with the deploy template:
 
 ```sh
 cp deploy/local_extension/.env.example deploy/local_extension/.env
 ```
 
-## 常用命令
+## Common commands
 
 ```sh
 pnpm extension -- typecheck
@@ -31,21 +30,17 @@ pnpm extension -- build
 pnpm extension -- zip
 ```
 
-命令自动构建共享划线引擎；类型检查和测试也会先生成 WXT 类型。
-开发命令自动预打包 vendor，`build` 和 `zip` 延续原项目的普通打包或已有 vendor 逻辑。
-包名暂保留 `@apps/slax-reader-extensions`，目录为 `apps/extension`。
+The commands build the shared selection engine automatically; type checks and tests also generate WXT types. The development command pre-bundles vendor assets, while `build` and `zip` preserve the existing normal and vendor-aware packaging paths.
+The package name remains `@apps/slax-reader-extensions`; its files live in `apps/extension`.
 
-构建后，在 Chrome 的 `chrome://extensions` 或 Edge 的 `edge://extensions` 开启开发者模式，
-选择“加载已解压的扩展程序”，载入 `apps/extension/build/chrome-mv3`。
-开发服务器使用 `build/chrome-mv3-dev`；不要混淆两个目录。
+After a build, enable developer mode at `chrome://extensions` or `edge://extensions`, choose “Load unpacked”, and select `apps/extension/build/chrome-mv3`. The development server uses `build/chrome-mv3-dev`; keep these directories separate.
 
-## 从哪里修改
+## Where to make changes
 
-- 扩展界面：`src/components`
-- 翻译文案：`src/locales/en.json`、`src/locales/zh_CN.json`
-- 后台、网页注入和 Web 连接：`src/entrypoints`、`src/bridge`
-- manifest 与构建：`wxt.config.ts`、`config`、`plugins`
-- 自动测试：`tests`
-- [架构说明](../../docs/apps/extension/architecture.md)
-- [来源与迁移记录](../../docs/migrations/slax-reader-web-extension.md)
-- [原始 Apache-2.0 许可](../../docs/migrations/source-license.txt)
+- Extension UI: `src/components`
+- Translations: `src/locales/en.json`, `src/locales/zh_CN.json`
+- Background scripts, page injection and Web integration: `src/entrypoints`, `src/bridge`
+- Manifest and build configuration: `wxt.config.ts`, `config`, `plugins`
+- Automated tests: `tests`
+- [Architecture](../../docs/extension/architecture.md)
+- [License](../../LICENSE) · [NOTICE](../../NOTICE)
