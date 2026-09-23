@@ -18,7 +18,8 @@ Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comme
 
 ## Local Development
 
-- Package manager: **pnpm** (pinned via `packageManager` in `package.json`; Node.js >= 22.13.0 required)
+- Package manager: **pnpm** (pinned via `packageManager` in `package.json`; Node.js `^22.22.2 || ^24.15.0 || >=26` required — use an LTS line, Node 25 is not supported)
+- New team members set up their machine with the agent-executable runbook at `docs/LOCAL-SETUP.md`.
 - Install dependencies once at the repository root: `pnpm install --frozen-lockfile`.
 - Per-app scripts live with their app. The backend exposes its concrete commands from `apps/api/package.json`; the repository root provides the abstract entry `pnpm api -- <command>` so users do not need to change directories.
 - Reusable repository tooling stays at the root. API-specific configuration, Prisma schemas and migrations, generated runtime types, source and tests stay in `apps/api/`; deployment templates and local infrastructure remain in `deploy/`.
