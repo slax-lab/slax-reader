@@ -89,4 +89,4 @@ Author all durable project documentation in English: OpenSpec artifacts (proposa
 
 ## Personal Local Instructions
 
-If `AGENTS.local.md` or `CLAUDE.local.md` exists at the repository root, read and follow it. These files hold personal, machine-local instructions and are gitignored, so they usually do not exist — that is normal. Where a local file conflicts with this file, the local file wins.
+At the start of every session, before any other work: if `AGENTS.local.md` exists at the repository root, read it and follow it. Its presence is visible in the working-directory listing injected into your context, so checking costs no tool call. This file holds personal, machine-local instructions and is gitignored, so it usually does not exist — that is normal. Where it conflicts with this file, it wins.
