@@ -45,6 +45,13 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 const ZOOM_STEP = 1.25
 const MIN_SCALE = 0.1
 const MAX_SCALE = 8
+// Wheel zoom scales with the delta magnitude: trackpad pinch fires many events
+// with tiny deltas and needs a gentle per-event factor, while one mouse-wheel
+// notch (|deltaY| = 120) still lands on exactly one ZOOM_STEP.
+const WHEEL_ZOOM_SENSITIVITY = Math.log(ZOOM_STEP) / 120
+// Bounds the factor of a single wheel event to ZOOM_STEP² against momentum spikes.
+const MAX_WHEEL_DELTA = 240
+const LINE_DELTA_HEIGHT = 16
 // Keeps a fitted diagram clear of the toolbar and the window edges.
 const FIT_MARGIN = 96
 
@@ -135,7 +142,9 @@ const resetView = () => {
 }
 
 const onWheel = (event: WheelEvent) => {
-  zoomBy(event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP)
+  const pixelDelta = event.deltaMode === 1 ? event.deltaY * LINE_DELTA_HEIGHT : event.deltaY
+  const clampedDelta = Math.min(MAX_WHEEL_DELTA, Math.max(-MAX_WHEEL_DELTA, pixelDelta))
+  zoomBy(Math.exp(-clampedDelta * WHEEL_ZOOM_SENSITIVITY))
 }
 
 const setPointerCapture = (target: EventTarget | null, pointerId: number, capture: boolean) => {

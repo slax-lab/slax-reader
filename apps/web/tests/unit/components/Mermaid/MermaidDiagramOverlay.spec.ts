@@ -111,6 +111,15 @@ describe('MermaidDiagramOverlay.vue', () => {
       expect(scaleText()).toBe('80%')
     })
 
+    it('B2b: trackpad pinch (many small deltas) zooms gradually', async () => {
+      await mountOverlay()
+      for (let i = 0; i < 20; i++) {
+        wheel(-4)
+      }
+      await nextTick()
+      expect(scaleText()).toBe('116%')
+    })
+
     it('B3: scale stays within the zoom bounds', async () => {
       await mountOverlay()
       for (let i = 0; i < 20; i++) {
