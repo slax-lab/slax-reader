@@ -352,7 +352,7 @@ function checkLocalApiServices(root = REPO_ROOT, environment = process.env, prob
   const required = ['postgres', 'powersync', 'powersync-api']
   const issues = []
   for (const service of required) {
-    const matches = records.filter(item => item?.Service === service || item?.service === service || item?.Name === `dev-${service}`)
+    const matches = records.filter(item => item?.Service === service || item?.service === service)
     if (!matches.length) {
       issues.push({
         level: 'warn',

@@ -134,6 +134,7 @@ test('Web preflight distinguishes missing generated state from a prepared checko
       prepared.some(issue => issue.level === 'error'),
       false
     )
+    assert.match(prepared.find(issue => issue.message.includes('Web API 联调未就绪')).message, /pnpm api -- config:init/)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
@@ -230,7 +231,6 @@ test('API service preflight classifies absent, unhealthy, and healthy Compose se
       status: 0,
       stdout: JSON.stringify([
         {
-          Service: 'powersync-api',
           Name: 'dev-powersync-api',
           State: 'running',
           Health: 'healthy'
@@ -240,6 +240,7 @@ test('API service preflight classifies absent, unhealthy, and healthy Compose se
     }))
     assert.match(unknown[0].message, /尚未确认健康/)
     assert.match(unknown[1].message, /尚未创建/)
+    assert.match(unknown.find(issue => issue.message.includes('powersync-api')).message, /尚未创建/)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

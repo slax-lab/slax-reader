@@ -154,6 +154,13 @@ The Web section SHALL check selected environment/profile values, workspace links
 - **AND** it suggests `pnpm web -- setup` or the relevant API configuration action
 - **AND** it exits with a non-zero status
 
+#### Scenario: Web uses the public API template for offline preparation
+
+- **WHEN** Web dependencies and generated state are ready but the binding checker selects `deploy/cloudflare/api.toml.example` because no local API configuration exists
+- **THEN** the report keeps Web's startup status independent from the missing backend integration
+- **AND** it reports that API integration is functionality-limited and points to `pnpm api -- config:init` followed by `pnpm api -- setup`
+- **AND** it does not print binding values
+
 #### Scenario: Web feature configuration is missing
 
 - **WHEN** Web startup prerequisites pass but Google OAuth, cookie settings, or a required frontend URL is missing or malformed
