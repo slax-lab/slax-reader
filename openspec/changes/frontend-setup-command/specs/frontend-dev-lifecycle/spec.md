@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Defines the `setup` command Web and Extension expose as the single entry point for whatever preparation steps a contributor or agent needs before `dev` starts cleanly, mirroring the Backend's existing `setup:api` naming convention across all three apps and leaving room for `setup` to grow beyond artifact generation over time.
+Defines the `setup` command Web and Extension expose as the single entry point for whatever preparation steps a contributor or agent needs before `dev` starts cleanly, mirroring the Backend's existing `setup` naming convention across all three apps and leaving room for `setup` to grow beyond artifact generation over time.
 
 ## ADDED Requirements
 

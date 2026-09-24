@@ -104,7 +104,7 @@ The API SHALL use the configured FRONT_END_URL for credentialed events CORS, ima
 - **THEN** deployment fails before any cloud mutation, protecting development-only endpoints and production validation checks
 
 ### Requirement: Tool environment files load automatically
-Prisma configurations and Cloudflare operational commands SHALL automatically load deploy/local/.env using a repository-relative path independent of cwd, without overwriting existing process variables. An explicit SLAX_API_ENV_FILE SHALL select an alternative file relative to the repository root or by absolute path. Explicit missing files and unreadable files MUST fail without printing contents. Offline build, runtime type generation and resource/configuration plans MUST NOT load operator environment files.
+Prisma configurations and Cloudflare operational commands SHALL automatically load only deploy/local/.env using a fixed repository-relative path independent of cwd, without overwriting existing process variables. Missing files SHALL allow CI to provide process variables; unreadable files MUST fail without printing contents. Offline build, runtime type generation and resource/configuration plans MUST NOT load operator environment files.
 
 #### Scenario: Prisma reads database URLs from a file
 - **WHEN** database URLs are present only in deploy/local/.env
@@ -127,15 +127,15 @@ Prisma configurations and Cloudflare operational commands SHALL automatically lo
 - **AND** tool environment variables are not automatically included as Worker bindings
 
 ### Requirement: Setup and application startup are separate
-The API SHALL offer setup:api to validate local prerequisites, run pnpm exec wrangler login once in apps/api, initialize infrastructure and historical migrations, generate clients and runtime assets, wait for PowerSync health, and exit without starting Workers. It SHALL preserve dev as a separate Worker-only command, retain setup:backend as a setup-only alias, remove the combined dev:full command, and stop on failure or interruption without starting later phases.
+The API SHALL offer setup to validate local prerequisites, run pnpm exec wrangler login once in apps/api, initialize infrastructure and historical migrations, generate clients and runtime assets, wait for PowerSync health, and exit without starting Workers. It SHALL preserve dev as a separate Worker-only command, expose setup as the single local-preparation command, remove the combined dev:full command, and stop on failure or interruption without starting later phases.
 
 #### Scenario: Required development configuration is missing
 - **WHEN** required runtime variables remain invalid in operator-provided files or the API PowerSync signing JWK is invalid
-- **THEN** setup:api fails before starting infrastructure or applying migrations
+- **THEN** setup fails before starting infrastructure or applying migrations
 - **AND** the error names the missing configuration without printing secret values
 
 #### Scenario: Development environment is prepared
-- **WHEN** setup:api runs with matching local database configuration, required files and Docker available
+- **WHEN** setup runs with matching local database configuration, required files and Docker available
 - **THEN** setup performs login before infrastructure preparation, returns without starting Workers, and child failures propagate
 - **AND** no remote migrations or resource provisioning run automatically
 
@@ -153,10 +153,10 @@ All API deployment tools SHALL honor SLAX_API_CONFIG as a repository-relative or
 - **AND** the external configuration is never overwritten
 
 ### Requirement: Complete local API setup
-The setup:api command SHALL validate operator-provided configuration and development keys, initialize databases, apply local migrations, generate code, wait for PowerSync service health, and exit without starting API Workers. It MUST NOT create, rewrite, migrate or back up operator configuration or generate keys. Missing or invalid configuration MUST stop startup with a specific error.
+The setup command SHALL validate operator-provided configuration and development keys, initialize databases, apply local migrations, generate code, wait for PowerSync service health, and exit without starting API Workers. It MUST NOT create, rewrite, migrate or back up operator configuration or generate keys. Missing or invalid configuration MUST stop startup with a specific error.
 
 #### Scenario: Missing local configuration
-- **WHEN** setup:api finds missing api.toml or required Worker variables
+- **WHEN** setup finds missing api.toml or required Worker variables
 - **THEN** it lists the missing prerequisites and stops before infrastructure startup
 - **AND** no configuration, backup or key files are created
 
@@ -165,7 +165,7 @@ The setup:api command SHALL validate operator-provided configuration and develop
 - **THEN** setup returns nonzero and does not start Workers or claim completion
 
 #### Scenario: Existing native Wrangler environments
-- **WHEN** setup:api, dev or local D1 reads a file containing env.dev
+- **WHEN** setup, dev or local D1 reads a file containing env.dev
 - **THEN** it selects env.dev without rewriting the source or requiring custom workers tables
 - **AND** vars and resource bindings do not inherit production values
 - **AND** an existing valid development API domain is preserved; the local listener and local database checks remain in effect
@@ -176,7 +176,7 @@ The setup:api command SHALL validate operator-provided configuration and develop
 - **AND** an unknown environment fails without falling back to the top-level configuration
 
 #### Scenario: Check without changes
-- **WHEN** setup:api --check runs
+- **WHEN** setup --check runs
 - **THEN** it validates prerequisites without logging in, creating files or starting services
 
 

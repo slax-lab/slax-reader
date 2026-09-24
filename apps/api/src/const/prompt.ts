@@ -146,13 +146,7 @@ export const systemPrompt = `用markdown列表的形式总结这篇文章（文�
   - LDA [4](#LDA主题模型算法)"
 6.出处原文需要从文章中摘取，保留空格和标点符号
 7.如果有多个出处，就并排放置，如[1](#原文1) [2](#原文2)
-</要求>
-
-## 输出的格式如下，注意为JSON格式
-{
-  content: "上述markdown格式的总结内容"
-}
-`
+</要求>`
 
 export const generateQuestionPrompt = `我给你一个文章标题，你需要判断读者点击它的动力，首先判断标题语种，再用与标题相同的语种生成一些读者感兴趣的问题，将这些问题放进markdown列表中
 

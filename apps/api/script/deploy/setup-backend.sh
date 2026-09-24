@@ -7,10 +7,10 @@ cd "$ROOT"
 
 usage() {
   cat <<'EOF'
-Internal infrastructure setup; use pnpm api -- setup:api
+Internal infrastructure setup; use pnpm api -- setup
 
 Initializes the local backend dev environment without starting dev servers:
-  1. verify node >= 22, pnpm, docker compose + daemon
+  1. verify the repository-supported Node.js line, pnpm, docker compose + daemon
   2. pnpm install --frozen-lockfile
   3. start local postgres and create local databases (idempotent)
   4. prisma migrate deploy (pgsql + logs)
@@ -18,7 +18,7 @@ Initializes the local backend dev environment without starting dev servers:
   6. codegen (pnpm api -- gen:all)
   7. start powersync services
 
-The public setup:api command validates configuration and runs Wrangler login before this script. Start Workers separately with pnpm api -- dev. --no-start is accepted for compatibility.
+The public setup command validates configuration and runs Wrangler login before this script. Start Workers separately with pnpm api -- dev. --no-start is accepted for compatibility.
 EOF
 }
 for arg in "$@"; do
@@ -49,8 +49,18 @@ case "$NODE_MAJOR" in
   '' | *[!0-9]*) die "could not parse node version: $NODE_VERSION" ;;
 esac
 IFS=. read -r NODE_MAJOR NODE_MINOR NODE_PATCH <<< "$NODE_VERSION"
-if [ "$NODE_MAJOR" -lt 22 ] || { [ "$NODE_MAJOR" -eq 22 ] && { [ "$NODE_MINOR" -lt 13 ]; }; }; then
-  die "node >= 22.13.0 required (found v$NODE_VERSION)"
+NODE_MINOR="${NODE_MINOR:-0}"
+NODE_PATCH="${NODE_PATCH:-0}"
+SUPPORTED_NODE=0
+if [ "$NODE_MAJOR" -eq 22 ] && { [ "$NODE_MINOR" -gt 22 ] || { [ "$NODE_MINOR" -eq 22 ] && [ "$NODE_PATCH" -ge 2 ]; }; }; then
+  SUPPORTED_NODE=1
+elif [ "$NODE_MAJOR" -eq 24 ] && { [ "$NODE_MINOR" -gt 15 ] || { [ "$NODE_MINOR" -eq 15 ] && [ "$NODE_PATCH" -ge 0 ]; }; }; then
+  SUPPORTED_NODE=1
+elif [ "$NODE_MAJOR" -ge 26 ]; then
+  SUPPORTED_NODE=1
+fi
+if [ "$SUPPORTED_NODE" -ne 1 ]; then
+  die "supported Node.js required (^22.22.2 || ^24.15.0 || >=26.0.0; found v$NODE_VERSION)"
 fi
 
 command -v pnpm >/dev/null 2>&1 || die "pnpm is not installed"
@@ -72,7 +82,7 @@ say "installing dependencies"
 pnpm install --frozen-lockfile
 
 say "checking complete local configuration"
-pnpm api -- setup:api --check
+pnpm api -- setup --check
 
 say "starting postgres and ensuring databases (idempotent)"
 bash deploy/local/powersync-local/init.sh --postgres-only

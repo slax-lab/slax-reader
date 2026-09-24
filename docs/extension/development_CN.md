@@ -9,6 +9,19 @@
 profile 文件覆盖 `.env.extension`。环境名称按终端 `SLAX_ENV` → deploy `.env.extension` 中的 `SLAX_ENV` → `development` 选择，profile 文件不能再切换它。所有根命令（包括 `dev`、`build` 和 `zip`）都使用这套规则；根目录 `.env` 不会自动加载。
 直接运行 app 包也使用同一 deploy 配置，不再读取 app 目录的环境文件。自行配置，不从旧仓库复制，不提交环境文件。
 
+## 首次准备
+
+先准备下面的 Extension 环境文件，再在仓库根目录运行只读预检和 Extension 初始化：
+
+```sh
+pnpm preflight --app extension
+pnpm extension -- setup
+```
+
+也可以运行 `pnpm setup:all` 按 API、Web、Extension 顺序完成全部初始化。
+删除 `.wxt/` 或本地构建缓存后，需要重新运行 Extension setup；setup
+只准备 WXT 生成状态，不会启动 `pnpm extension -- dev`，也不代表 Web/API 联调已经通过。
+
 可先复制 [`deploy/local/.env.extension.example`](../../deploy/local/.env.extension.example) 作为起点：
 
 ```sh

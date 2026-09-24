@@ -18,7 +18,7 @@ afterEach(() => {
 function fixture() {
   const root = fs.mkdtempSync(path.join(API_ROOT, 'test/.tmp-root-deployment-full-'))
   temps.push(root)
-  for (const file of ['script/root.ts', 'script/deploy/config.ts', 'script/deploy/setup-api.ts', 'script/deploy/generate-powersync-keys.mjs']) {
+  for (const file of ['script/root.ts', 'script/deploy/config.ts', 'script/deploy/setup-api.ts', 'script/deploy/check-readiness.ts', 'script/deploy/generate-powersync-keys.mjs']) {
     const dest = path.join(root, 'apps/api', file)
     fs.mkdirSync(path.dirname(dest), { recursive: true })
     fs.copyFileSync(path.join(API_ROOT, file), dest)
@@ -70,6 +70,48 @@ function calls(f: ReturnType<typeof fixture>) {
 function run(f: ReturnType<typeof fixture>, args: string[] = [], extra: NodeJS.ProcessEnv = {}) {
   return spawnSync(f.executable, [f.entry, ...args], { cwd: f.root, env: { ...f.env, ...extra }, encoding: 'utf8', timeout: 10000 })
 }
+
+describe('read-only API readiness probe', () => {
+  test.each(['ready', 'missing-secrets', 'invalid-key', 'invalid-config', 'both-invalid', 'remote-database'])(
+    'separates startup and functionality for %s without invoking setup',
+    problem => {
+      const f = fixture()
+      if (problem === 'missing-secrets' || problem === 'both-invalid') fs.unlinkSync(f.vars)
+      if (problem === 'invalid-key') fs.appendFileSync(f.vars, 'POWERSYNC_JWK_PRIVATE_KEY=PRIVATE_OUTPUT_MARKER\n')
+      if (problem === 'invalid-config' || problem === 'both-invalid') fs.writeFileSync(f.configFile, '[PRIVATE_OUTPUT_MARKER')
+      if (problem === 'remote-database') {
+        const config: any = parse(fs.readFileSync(f.configFile, 'utf8'))
+        config.hyperdrive[0].localConnectionString = 'postgresql://PRIVATE_OUTPUT_MARKER@remote.invalid/db'
+        fs.writeFileSync(f.configFile, stringify(config))
+      }
+      fs.writeFileSync(path.join(f.root, 'bin/docker'), `#!${process.execPath}\nthrow new Error('Docker must not be called');\n`)
+      f.entry = path.join(f.root, 'apps/api/script/deploy/check-readiness.ts')
+      const before = fs.readFileSync(f.configFile, 'utf8')
+      const result = run(f, [], { TSX_DISABLE_CACHE: '1' })
+      expect(result.status).toBe(0)
+      expect(JSON.parse(result.stdout)).toEqual({ startup: !['invalid-config', 'both-invalid'].includes(problem), local: problem === 'ready' })
+      expect(result.stdout + result.stderr).not.toContain('PRIVATE_OUTPUT_MARKER')
+      expect(result.stderr).toBe('')
+      expect(calls(f)).toEqual([])
+      expect(fs.readFileSync(f.configFile, 'utf8')).toBe(before)
+      expect(fs.existsSync(path.join(f.root, 'deploy/local/.generated'))).toBe(false)
+    }
+  )
+
+  test('honors custom config and environment selection including local env.dev fallback', () => {
+    const f = fixture()
+    const config: any = parse(fs.readFileSync(f.configFile, 'utf8'))
+    const external = path.join(f.root, 'external.toml')
+    fs.writeFileSync(external, stringify({ ...config, vars: {}, env: { dev: config, selected: config } }))
+    fs.unlinkSync(f.configFile)
+    f.entry = path.join(f.root, 'apps/api/script/deploy/check-readiness.ts')
+    for (const selected of [undefined, 'selected', 'absent']) {
+      const result = run(f, [], { SLAX_API_CONFIG: external, SLAX_API_ENV: selected, TSX_DISABLE_CACHE: '1' })
+      expect(result.status).toBe(0)
+      expect(JSON.parse(result.stdout)).toEqual({ startup: selected !== 'absent', local: selected !== 'absent' })
+    }
+  })
+})
 
 describe('API setup without application startup', () => {
   test('setup logs in once per run, initializes dependencies and preserves every operator file', () => {

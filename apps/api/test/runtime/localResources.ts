@@ -113,10 +113,17 @@ export class LocalResources {
   }
 
   async migrate(label: string, databaseUrl: string, kind: 'pgsql' | 'logs') {
-    const envFile = resolve(this.workspace, `${label}.env-file`)
-    writeFileSync(envFile, `HYPERDRIVE_DATABASE_URL=${databaseUrl}\nLOGS_DATABASE_URL=${databaseUrl}\n`, { mode: 0o600 })
-    return this.run(label, 'pnpm', ['exec', 'prisma', 'migrate', 'deploy', '--config', `prisma/${kind}.config.ts`], {
-      SLAX_API_ENV_FILE: envFile
+    // The disposable database harness uses a self-contained Prisma config, without loading operator files.
+    const configFile = resolve(this.workspace, `${label}.prisma.config.ts`)
+    writeFileSync(
+      configFile,
+      `export default ${JSON.stringify({
+        schema: resolve(API_ROOT, `prisma/${kind}.prisma`),
+        migrations: { path: resolve(API_ROOT, kind === 'pgsql' ? 'prisma/pg_migrations' : 'prisma/logs_migrations') }
+      }).slice(0, -1)}, datasource: { url: process.env.HYPERDRIVE_DATABASE_URL } };\n`
+    )
+    return this.run(label, 'pnpm', ['exec', 'prisma', 'migrate', 'deploy', '--config', configFile], {
+      HYPERDRIVE_DATABASE_URL: databaseUrl
     })
   }
 

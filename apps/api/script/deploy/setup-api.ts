@@ -37,19 +37,19 @@ export function checkDevelopment(filename = CONFIG_PATH, environment = process.e
   const missing = required.filter(file => !fs.existsSync(file))
   if (missing.length)
     throw new Error(
-      `Missing local prerequisites:\n${missing.map(file => `- ${path.relative(ROOT, file)}`).join('\n')}\nPrepare the listed files in deploy/local, then rerun setup:api. See docs/api/DEV-AND-CI-CN.md; no configuration files are created or rewritten.`
+      `Missing local prerequisites:\n${missing.map(file => `- ${path.relative(ROOT, file)}`).join('\n')}\nPrepare the listed files in deploy/local, then rerun setup. See docs/api/DEV-AND-CI-CN.md; no configuration files are created or rewritten.`
     )
   const config = readConfig(filename, environment, true)
   for (const target of TARGETS) {
     const effective = workerConfig(config, target, true)
     const vars = effective.vars as TomlTable
-    if (vars.RUN_ENV !== 'development' || vars.RUN_TYPE !== 'dev') throw new Error('setup:api requires RUN_ENV=development and RUN_TYPE=dev for every Worker')
+    if (vars.RUN_ENV !== 'development' || vars.RUN_TYPE !== 'dev') throw new Error('setup requires RUN_ENV=development and RUN_TYPE=dev for every Worker')
     const bindings = (effective.hyperdrive ?? []) as TomlTable[]
     if (target !== 'browser' && ['HYPERDRIVE', 'HYPERDRIVE_LOGS'].some(name => !bindings.some(binding => binding.binding === name)))
-      throw new Error('setup:api requires both HYPERDRIVE and HYPERDRIVE_LOGS bindings')
+      throw new Error('setup requires both HYPERDRIVE and HYPERDRIVE_LOGS bindings')
     for (const binding of bindings) {
       const database = binding.binding === 'HYPERDRIVE' ? 'slax-reader-backend-internal' : binding.binding === 'HYPERDRIVE_LOGS' ? 'slax-reader-logs' : undefined
-      if (!database) throw new Error('setup:api only supports the local main and logs Hyperdrive bindings')
+      if (!database) throw new Error('setup only supports the local main and logs Hyperdrive bindings')
       let url: URL
       try {
         url = new URL(String(binding.localConnectionString))
@@ -64,11 +64,11 @@ export function checkDevelopment(filename = CONFIG_PATH, environment = process.e
         url.password !== 'admin' ||
         url.pathname !== `/${database}`
       )
-        throw new Error('Hyperdrive localConnectionString must match deploy/local/dockerfile-local-pgsql.yaml; setup:api will not use a remote database')
+        throw new Error('Hyperdrive localConnectionString must match deploy/local/dockerfile-local-pgsql.yaml; setup will not use a remote database')
     }
   }
   const runtimeFile = path.join(CONFIG_DIR, '.dev.vars')
-  if (!fs.existsSync(runtimeFile)) throw new Error('Create deploy/local/.dev.vars with local Worker secrets before setup:api')
+  if (!fs.existsSync(runtimeFile)) throw new Error('Create deploy/local/.dev.vars with local Worker secrets before setup')
   const runtime = parse(fs.readFileSync(runtimeFile))
   for (const key of ['JWT_SECRET_TEXT', 'HASH_IDS_SALT', 'EDGE_SHARED_SECRET', 'POWERSYNC_JWK_PRIVATE_KEY']) {
     if (!runtime[key]?.trim()) throw new Error(`Missing ${key} in deploy/local/.dev.vars`)
@@ -76,18 +76,18 @@ export function checkDevelopment(filename = CONFIG_PATH, environment = process.e
   const powerSync = powerSyncPublicEnvironment(runtime.POWERSYNC_JWK_PRIVATE_KEY)
   const sync = new URL(String((config.vars as TomlTable).POWERSYNC_SG_API_URL))
   if (sync.protocol !== 'http:' || !['localhost', '127.0.0.1'].includes(sync.hostname) || sync.port !== '18080')
-    throw new Error('setup:api requires the local PowerSync endpoint http://localhost:18080')
+    throw new Error('setup requires the local PowerSync endpoint http://localhost:18080')
   return powerSync
 }
 
 export async function setupApi(args: string[] = []): Promise<number> {
   const options = parseArgs(args, ['--check'])
-  if (options.target) throw new Error('setup:api prepares shared infrastructure; use pnpm api -- dev <worker> to start a Worker')
+  if (options.target) throw new Error('setup prepares shared infrastructure; use pnpm api -- dev <worker> to start a Worker')
   const environment =
     options.environment || (fs.existsSync(options.config) && (parseToml(fs.readFileSync(options.config, 'utf8')).env as TomlTable | undefined)?.dev ? 'dev' : undefined)
   const powerSync = checkDevelopment(options.config, environment)
   for (const args of [['compose', 'version'], ['info']]) {
-    const result = spawnSync('docker', args, { stdio: 'ignore' })
+    const result = spawnSync('docker', args, { stdio: 'ignore', timeout: 10000 })
     if (result.error || result.status !== 0) throw new Error('Docker Compose and a running Docker daemon are required')
   }
   console.log('Local prerequisites passed. Dedicated Cloudflare development resources and provider credentials are still required for cloud-backed features.')
@@ -124,7 +124,7 @@ export async function setupApi(args: string[] = []): Promise<number> {
       child = undefined
       if (interrupted) return interrupted
       if (status !== 0) {
-        console.error(`${command} failed (exit ${status}); setup:api did not complete. Fix the error above and rerun.`)
+        console.error(`${command} failed (exit ${status}); setup did not complete. Fix the error above and rerun.`)
         return status
       }
     }
