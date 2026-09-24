@@ -87,7 +87,7 @@ export async function setupApi(args: string[] = []): Promise<number> {
     options.environment || (fs.existsSync(options.config) && (parseToml(fs.readFileSync(options.config, 'utf8')).env as TomlTable | undefined)?.dev ? 'dev' : undefined)
   const powerSync = checkDevelopment(options.config, environment)
   for (const args of [['compose', 'version'], ['info']]) {
-    const result = spawnSync('docker', args, { stdio: 'ignore' })
+    const result = spawnSync('docker', args, { stdio: 'ignore', timeout: 10000 })
     if (result.error || result.status !== 0) throw new Error('Docker Compose and a running Docker daemon are required')
   }
   console.log('Local prerequisites passed. Dedicated Cloudflare development resources and provider credentials are still required for cloud-backed features.')

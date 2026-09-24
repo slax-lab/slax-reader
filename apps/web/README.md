@@ -6,21 +6,22 @@ The Nuxt 4 / Vue 3 web reader imported from the pinned source snapshot.
 
 ## Start developing
 
-Run these commands from the repository root. Use Node.js 22.22.2+, 24.15.0+ or 26+, and the pnpm 11.25.0 version pinned by the repository:
-
-```sh
-pnpm install --frozen-lockfile
-pnpm --filter @apps/slax-reader-dweb type
-pnpm web -- dev
-```
-
-The development server needs the local public API configuration and frontend public configuration. Read the [configuration and verification guide](../../docs/web/development.md) first. For the first backend integration, run `pnpm api -- config:init`. This stage does not provide a backend-free demo. Do not copy environment files from the old repository.
-
-Start with the deploy template:
+Copy the Web environment example first, then run these commands from the
+repository root. Use Node.js 22.22.2+, 24.15.0+ or 26+, and the pnpm 11.25.0
+version pinned by the repository:
 
 ```sh
 cp deploy/local/.env.web.example deploy/local/.env.web
+pnpm install --frozen-lockfile
+pnpm preflight --app web
+pnpm web -- setup
+pnpm web -- dev
 ```
+
+For a complete repository initialization, use `pnpm setup:all`. Rerun
+`pnpm web -- setup` after removing `.nuxt/` or local generated Web state.
+
+The development server needs the local public API configuration and frontend public configuration. Read the [configuration and verification guide](../../docs/web/development.md) first. For the first backend integration, run `pnpm api -- config:init`. This stage does not provide a backend-free demo. Do not copy environment files from the old repository.
 
 ## Common commands
 

@@ -10,6 +10,19 @@ Web 配置集中在 `apps/web/config`，环境 schema 在 `apps/web/env.schema.t
 环境名称按终端 `SLAX_ENV` → deploy `.env.web` 中的 `SLAX_ENV` → `development` 选择，profile 文件不能再切换它。所有根命令（包括 `dev` 和 `build`）都使用这套规则；根目录 `.env` 不会自动加载。
 环境文件由开发者自行配置，不提交，也不从旧仓库复制。
 
+## 首次准备
+
+先准备下面的 Web 环境文件，再在仓库根目录运行只读预检和 Web 初始化：
+
+```sh
+pnpm preflight --app web
+pnpm web -- setup
+```
+
+也可以运行 `pnpm setup:all` 按 API、Web、Extension 顺序完成全部初始化。
+删除 `.nuxt/` 或本地生成的 Web 配置后，需要重新运行 Web setup；setup
+只准备生成文件，不会启动 `pnpm web -- dev`，也不代表 API 联调已经通过。
+
 可先复制 [`deploy/local/.env.web.example`](../../deploy/local/.env.web.example) 作为起点：
 
 ```sh

@@ -10,6 +10,27 @@ The root `pnpm web -- ...` command loads `.env.web` and profile files from `depl
 The selected environment is read from process `SLAX_ENV`, then the `SLAX_ENV` value in the deploy `.env.web`, and defaults to `development`. A profile file cannot switch the selected environment. All root commands, including `dev` and `build`, follow this rule; the repository-root `.env` is not loaded automatically.
 Environment files are prepared by the contributor, are not committed, and must not be copied from the old repository.
 
+## First-run preparation
+
+After creating the Web environment file below, run the read-only checks and Web
+preparation from the repository root:
+
+```sh
+pnpm preflight --app web
+pnpm web -- setup
+```
+
+`pnpm setup:all` performs API, Web, and Extension setup in one ordered
+workflow. Run `pnpm web -- setup` again after removing `.nuxt/` or
+`deploy/local/.generated/web/`. Setup prepares generated state; it does not
+start `pnpm web -- dev` or prove that the API is running.
+
+Missing Nuxt preparation or invalid API bindings blocks startup. Missing Google
+OAuth, cookie settings, or required URLs permits startup but limits features.
+An absent generated Web Wrangler projection is informational: dev regenerates it.
+Both failure classes make preflight exit non-zero. See
+[preflight status meanings](../LOCAL-SETUP.md#reading-preflight-results).
+
 Start by copying [`deploy/local/.env.web.example`](../../deploy/local/.env.web.example):
 
 ```sh
@@ -18,16 +39,16 @@ cp deploy/local/.env.web.example deploy/local/.env.web
 
 The example values are for local placeholders only. Google OAuth is required for Web login; Apple OAuth and Turnstile are optional. Real OAuth, Turnstile, push and Stripe configuration must be supplied by the developer.
 
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `PUBLIC_BASE_URL`, `AUTH_BASE_URL`, `SHARE_BASE_URL` | Required | Local Web, login and sharing origins |
-| `DWEB_API_BASE_URL` | Required | API service URL, normally provided by `apps/api` for local integration |
-| `COOKIE_DOMAIN`, `COOKIE_TOKEN_NAME` | Required | Local session-cookie configuration |
-| `GOOGLE_OAUTH_CLIENT_ID` | Required | Google Web OAuth client ID |
-| `APPLE_OAUTH_CLIENT_ID` | Optional | Apple login button; empty hides the option |
-| `TURNSTILE_SITE_KEY` | Optional | Turnstile; empty skips the related verification |
-| `SLAX_API_CONFIG` / `deploy/local/api.toml` | Web dev only | API configuration path required for local Worker integration |
-| `SLAX_ENV` | Optional, defaults to `development` | `development`, `preview`, `beta` or `production` |
+| Variable                                             | Required                            | Purpose                                                                |
+| ---------------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------- |
+| `PUBLIC_BASE_URL`, `AUTH_BASE_URL`, `SHARE_BASE_URL` | Required                            | Local Web, login and sharing origins                                   |
+| `DWEB_API_BASE_URL`                                  | Required                            | API service URL, normally provided by `apps/api` for local integration |
+| `COOKIE_DOMAIN`, `COOKIE_TOKEN_NAME`                 | Required                            | Local session-cookie configuration                                     |
+| `GOOGLE_OAUTH_CLIENT_ID`                             | Required                            | Google Web OAuth client ID                                             |
+| `APPLE_OAUTH_CLIENT_ID`                              | Optional                            | Apple login button; empty hides the option                             |
+| `TURNSTILE_SITE_KEY`                                 | Optional                            | Turnstile; empty skips the related verification                        |
+| `SLAX_API_CONFIG` / `deploy/local/api.toml`          | Web dev only                        | API configuration path required for local Worker integration           |
+| `SLAX_ENV`                                           | Optional, defaults to `development` | `development`, `preview`, `beta` or `production`                       |
 
 See `env.schema.ts` for other optional fields. Never put server secrets in frontend public configuration.
 

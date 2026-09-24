@@ -64,7 +64,7 @@
     "openai": "^5.10.1"
   },
   "engines": {
-    "node": ">=22.13.0"
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
   },
   "scripts": {
     "config:init": "tsx --tsconfig tsconfig.json script/deploy/init-config.ts",

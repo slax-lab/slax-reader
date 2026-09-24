@@ -9,6 +9,27 @@ The root `pnpm extension -- ...` command loads `.env.extension` and profile file
 The selected environment is read from process `SLAX_ENV`, then the deploy `.env.extension`, and defaults to `development`. A profile file cannot switch the selected environment. All root commands, including `dev`, `build` and `zip`, use this rule; the repository-root `.env` is not loaded automatically.
 Direct app-package commands use the same deploy configuration and no longer read app-local environment files. Prepare your own files, do not copy them from the old repository, and never commit them.
 
+## First-run preparation
+
+After creating the Extension environment file below, run the read-only checks
+and Extension preparation from the repository root:
+
+```sh
+pnpm preflight --app extension
+pnpm extension -- setup
+```
+
+`pnpm setup:all` performs API, Web, and Extension setup in one ordered
+workflow. Run `pnpm extension -- setup` again after removing `.wxt/` or local
+build caches. Setup prepares WXT state; it does not start
+`pnpm extension -- dev` or prove that Web/API integration is available.
+
+Missing WXT preparation or an invalid `PUBLIC_BASE_URL` blocks startup.
+Missing login/sharing URLs, API URL, or cookie settings permits startup but
+limits the corresponding features.
+Both failure classes make preflight exit non-zero. See
+[preflight status meanings](../LOCAL-SETUP.md#reading-preflight-results).
+
 Start with [`deploy/local/.env.extension.example`](../../deploy/local/.env.extension.example):
 
 ```sh
@@ -17,15 +38,15 @@ cp deploy/local/.env.extension.example deploy/local/.env.extension
 
 Example values are local placeholders only. Extension configuration is included in the client bundle; never put server credentials in it.
 
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `PUBLIC_BASE_URL` | Required | Web origin and the origin hosting `/x/ext-bridge` |
-| `AUTH_BASE_URL` | Required | Login entry point |
-| `SHARE_BASE_URL` | Required | Sharing entry point |
-| `EXTENSIONS_API_BASE_URL` | Required | Backend API URL |
-| `COOKIE_DOMAIN`, `COOKIE_TOKEN_NAME` | Required | Session-cookie settings shared with Web |
-| `SLAX_ENV` | Optional, defaults to `development` | Environment, icon, extension ID and build settings |
-| `UNINSTALL_FEEDBACK_URL` | Optional | Uninstall feedback page |
+| Variable                             | Required                            | Purpose                                            |
+| ------------------------------------ | ----------------------------------- | -------------------------------------------------- |
+| `PUBLIC_BASE_URL`                    | Required                            | Web origin and the origin hosting `/x/ext-bridge`  |
+| `AUTH_BASE_URL`                      | Required                            | Login entry point                                  |
+| `SHARE_BASE_URL`                     | Required                            | Sharing entry point                                |
+| `EXTENSIONS_API_BASE_URL`            | Required                            | Backend API URL                                    |
+| `COOKIE_DOMAIN`, `COOKIE_TOKEN_NAME` | Required                            | Session-cookie settings shared with Web            |
+| `SLAX_ENV`                           | Optional, defaults to `development` | Environment, icon, extension ID and build settings |
+| `UNINSTALL_FEEDBACK_URL`             | Optional                            | Uninstall feedback page                            |
 
 See the schema for other optional fields. The Extension does not need `SLAX_API_CONFIG` or `deploy/local/api.toml`, but its features still require reachable Web and backend services.
 Development configuration normalizes `http://127.0.0.1:3000` Web and sharing URLs to `http://localhost:3000` and adjusts the cookie domain. Use the same hostname for Web and Extension integration.

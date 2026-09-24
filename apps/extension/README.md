@@ -6,20 +6,22 @@ The Chrome and Edge extension built with WXT 0.21 and Vue 3. It preserves the pi
 
 ## Start developing
 
-Run these commands from the repository root. Use Node.js 22.22.2+, 24.15.0+ or 26+, and the pnpm 11.25.0 version pinned by the repository:
-
-```sh
-pnpm install --frozen-lockfile
-pnpm extension -- dev
-```
-
-Set the public local configuration using the [configuration and verification guide](../../docs/extension/development.md). Login, bookmark synchronization, highlights and comments need a working Web and backend environment; a successful build or extension load does not prove those flows are integrated.
-
-Start with the deploy template:
+Copy the Extension environment example first, then run these commands from the
+repository root. Use Node.js 22.22.2+, 24.15.0+ or 26+, and the pnpm 11.25.0
+version pinned by the repository:
 
 ```sh
 cp deploy/local/.env.extension.example deploy/local/.env.extension
+pnpm install --frozen-lockfile
+pnpm preflight --app extension
+pnpm extension -- setup
+pnpm extension -- dev
 ```
+
+For a complete repository initialization, use `pnpm setup:all`. Rerun
+`pnpm extension -- setup` after removing `.wxt/` or local generated state.
+
+Set the public local configuration using the [configuration and verification guide](../../docs/extension/development.md). Login, bookmark synchronization, highlights and comments need a working Web and backend environment; a successful build or extension load does not prove those flows are integrated.
 
 ## Common commands
 
