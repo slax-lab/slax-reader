@@ -138,13 +138,15 @@ jobs:
             # Only runs that can themselves report count as successors: the
             # automatic workflow's pull_request runs, and the command workflow's
             # comment-triggered runs (its pull_request runs decline and report
-            # nothing, per the case filter above).
-            NEWER_AUTO=$(gh api "repos/$REPO/actions/workflows/pr-review.lock.yml/runs?per_page=30" \
-              --arg num "$PR_NUMBER" \
-              --jq "[.workflow_runs[] | select(.event == \"pull_request\") | select(.created_at > \"$RUN_CREATED\") | select((.display_title // \"\") | test(\"#\" + \$num + \"([^0-9]|\$)\"))] | length")
-            NEWER_CMD=$(gh api "repos/$REPO/actions/workflows/pr-review-command.lock.yml/runs?per_page=30" \
-              --arg num "$PR_NUMBER" \
-              --jq "[.workflow_runs[] | select(.event == \"issue_comment\" or .event == \"pull_request_review_comment\") | select(.created_at > \"$RUN_CREATED\") | select((.display_title // \"\") | test(\"#\" + \$num + \"([^0-9]|\$)\"))] | length")
+            # nothing, per the case filter above). gh api has no --arg flag, so
+            # the jq program runs after a pipe; pipefail still aborts the step
+            # if gh api itself fails.
+            NEWER_AUTO=$(gh api "repos/$REPO/actions/workflows/pr-review.lock.yml/runs?per_page=30&created=%3E%3D${RUN_CREATED}" \
+              | jq --arg num "$PR_NUMBER" --arg since "$RUN_CREATED" \
+                '[.workflow_runs[] | select(.event == "pull_request") | select(.created_at > $since) | select((.display_title // "") | test("#" + $num + "([^0-9]|$)"))] | length')
+            NEWER_CMD=$(gh api "repos/$REPO/actions/workflows/pr-review-command.lock.yml/runs?per_page=30&created=%3E%3D${RUN_CREATED}" \
+              | jq --arg num "$PR_NUMBER" --arg since "$RUN_CREATED" \
+                '[.workflow_runs[] | select(.event == "issue_comment" or .event == "pull_request_review_comment") | select(.created_at > $since) | select((.display_title // "") | test("#" + $num + "([^0-9]|$)"))] | length')
             if [ "$((NEWER_AUTO + NEWER_CMD))" -gt 0 ]; then
               echo "Run $RUN_ID was cancelled and a newer review run exists for #$PR_NUMBER; leaving the status to the newest run."
               exit 0

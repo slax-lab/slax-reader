@@ -25,7 +25,7 @@ None.
 
 ## Impact
 
-- `.github/workflows/pr-review.md` (source) and `pr-review.lock.yml` plus `.github/aw` (recompiled with the CI-pinned gh-aw version; drift check enforced by `pnpm agent:check` and pre-commit).
+- `.github/workflows/pr-review.md` (source) and `pr-review.lock.yml` (recompiled with the CI-pinned gh-aw version; `.github/aw` changes only if the compile touches it — this one does not; drift check enforced by `pnpm agent:check` and pre-commit).
 - `.github/workflows/pr-review-gate.yml`: the cancelled-run handling described above; plain Actions, no recompile.
 - Cost: every push to a same-repository pull request runs one review, billed by DeepSeek through BYOK. Rapid pushes overlap at most one in-progress stale review; intermediate pending runs are replaced, not queued.
 - `.github/workflows/pr-review-gate-watchdog.yml`, `pr-review-command.md`: no changes. The gate matches runs to pull requests via the `#<n>` run name and reports on the run's reviewed head, which synchronize-triggered runs satisfy. The watchdog's "no review run since the head moved" deadlock case occurs less often.

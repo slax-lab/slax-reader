@@ -18,14 +18,15 @@
 
 ## 4. Gate: cancelled-and-superseded runs stay silent
 
-- [x] 4.1 In `.github/workflows/pr-review-gate.yml`, before the status computation, detect `conclusion == "cancelled"` and list newer same-PR runs of `pr-review.lock.yml` (event `pull_request`) and `pr-review-command.lock.yml` (events `issue_comment`/`pull_request_review_comment`); when a successor exists, exit without posting; otherwise fall through to fail closed. Verify the workflow still parses as YAML and the extracted script passes `bash -n`
-- [x] 4.2 Verify the successor filter's jq program against a fixture payload: a newer same-PR `pull_request` run counts; `#1470` does not match `#147`; non-`pull_request` events and older runs are excluded
+- [x] 4.1 In `.github/workflows/pr-review-gate.yml`, before the status computation, detect `conclusion == "cancelled"` and list newer same-PR runs of `pr-review.lock.yml` (event `pull_request`) and `pr-review-command.lock.yml` (events `issue_comment`/`pull_request_review_comment`); when a successor exists, exit without posting; otherwise fall through to fail closed. Verify the workflow still parses as YAML and the extracted script passes `bash -n` — and execute the two `gh api | jq` successor queries verbatim against the live repository (syntax checks alone miss bad `gh` flags, which is how the first version of this block shipped a broken `--arg`)
+- [x] 4.2 Verify the successor filter against the live repository on both branches: with PR #147's first review run as the cancelled one the queries count its successors (`NEWER_AUTO=1`, `NEWER_CMD=1`); with the latest run they count zero, exercising the fail-closed fall-through
 - [x] 4.3 Update the gate's header comment, which previously claimed every cancelled run fails closed, to describe the recognized cancelled-and-superseded shape; verify by reading the comment back
 
 ## 5. Review feedback from this change's own PR
 
 - [x] 5.1 Resolve the automated review's Important finding (the spurious failing gate on rapid pushes) via task group 4, and its Nits: scope the delta spec's gate-attribution clause and extend the rapid-push scenario, and sync `openspec/specs/release-branching/spec.md`'s stale "triggers do not include `synchronize`" sentence via a new delta in this change; verify `openspec validate --all --strict` passes
+- [x] 5.2 Resolve the second review round's findings: the `gh api --arg` flag error (pipe to `jq --arg` instead; live-verified per 4.1/4.2), the contradicting gate requirement (add "The merge gate reflects Important findings" to the delta with the superseded-cancelled exception), the stale concurrency comment in `pr-review.md` (recompiled after the edit, guards re-grepped), and the proposal's `.github/aw` Impact wording; verify `openspec validate --all --strict` and `pnpm agent:check` pass
 
 ## 6. Pre-push review
 
-- [ ] 6.1 Re-run the local pre-push review defined in `REVIEW.md` over the full branch diff (all passes, including the compliance pass against this change's artifacts) and resolve Important findings; verify no unresolved Important finding remains before pushing
+- [x] 6.1 Re-run the local pre-push review defined in `REVIEW.md` over the full branch diff (all passes, including the compliance pass against this change's artifacts) and resolve Important findings; verify no unresolved Important finding remains before pushing
