@@ -15,7 +15,8 @@ The merge gate (`pr-review-gate.yml`) reacts to `workflow_run` completions of th
 
 - A push to an open, non-draft, same-repository pull request starts a review of the pushed head, with no human action.
 - Fork pull requests, drafts, and the pause switch behave exactly as today.
-- No changes to the gate, the watchdog, or the on-demand command workflow.
+- The merge gate never posts a failing status from a run that was dropped in favor of a newer push; a manually cancelled final run still fails closed.
+- No changes to the watchdog or the on-demand command workflow.
 
 **Non-Goals:**
 
@@ -44,11 +45,19 @@ Side benefit: a fork push now fires a declined run, and the gate reports a passi
 
 GitHub's default concurrency semantics keep one run in progress and one pending per group, and a new arrival replaces the pending one. With rapid pushes this yields at most one wasted in-progress review of a stale head plus one review of the final head — intermediate heads are never reviewed, which is the desired cost shape.
 
-The tempting alternative, `cancel-in-progress: true`, is rejected for this change: the gate fails closed on a cancelled run and, finding no published review, posts that failure on the *current* pull request head (`pr-review-gate.yml` SHA fallback) — a spurious red required check on the new head until the replacement run reports. Making cancellation safe requires teaching the gate to recognize cancelled-by-supersession, a change to its fail-closed contract that deserves its own evaluation.
+The alternative, `cancel-in-progress: true`, is rejected: it additionally cancels the *in-progress* run, spending the same fail-closed machinery on more cancellations and discarding work already paid for, without improving correctness — the newest push's run reports on the final head either way.
+
+Note what the kept configuration still does: replacing the pending run *cancels* it, and a cancelled run completes with conclusion `cancelled`, which fires the gate's `workflow_run` trigger. This change's own pull request review caught that the gate's fail-closed path would then post a failure on the pull request's *current* head (it falls back to `PR_HEAD` when no review was published) — a spurious red check on the newest head for every dropped pending run, worse under `synchronize` because a push during a ~20-minute review is ordinary. D5 is the fix.
 
 ### D4: Update the stale promotion note at its source
 
 `AGENTS.md` states the review triggers "do not include `synchronize`" in its promotion-notes paragraph. `AGENTS.md` is generated; the source sentence is `.rulesync/rules/overview.md`. The edit goes through `pnpm agent:sync`, with source and regenerated files in the same commit (pre-commit hook and `agent:check` enforce this). After this change, a sync-back merge that resolves a promotion pull request's conflicts re-triggers the review automatically, so the note's remedy paragraph is narrowed rather than deleted: the conflicted-open case itself still produces no run.
+
+### D5: The gate recognizes a cancelled-and-superseded run and stays silent
+
+In `pr-review-gate.yml`, before any status computation: when the completed run's conclusion is `cancelled`, list both review workflows' newer runs for the same pull request (parsed from the `#<n>` run name) and, if any exist, report nothing — the newest run's own gate report owns the head's status, and staying silent is ordering-proof because there is nothing to overwrite. Only runs that can themselves report count as successors: the automatic workflow's `pull_request` runs, and the command workflow's comment-triggered runs (its `pull_request` runs decline by design and never report).
+
+Fail-closed is preserved where it matters: a cancelled run with *no* newer successor — a human cancelling the final run, which is also the shape "cancel the review to dodge a failing verdict" takes — falls through to the unchanged path and fails. The alternative, treating every cancelled run as report-nothing, would leave a manually cancelled final run unreported until the watchdog's grace threshold; rejected as slower and weaker.
 
 ## Risks / Trade-offs
 
@@ -56,6 +65,7 @@ The tempting alternative, `cancel-in-progress: true`, is rejected for this chang
 - [Recompilation with a wrong local gh-aw version produces locks CI rejects] → `tooling/check-gh-aw-drift.sh` refuses to compile unless the local CLI matches the pin in `agent-config.yml`; the task list includes installing the pinned version first.
 - [A future gh-aw upgrade could stop emitting the fork guard, silently extending auto-review to fork pushes] → The recompiled lock is diff-inspected for the guard in this change; the fork-skip spec requirement keeps the review's compliance pass watching it.
 - [A push to a pull request with unresolved merge conflicts may still produce no run, because GitHub does not build the merge ref for conflicted pull requests] → Same behavior as today's `opened` case; the watchdog remains the alarm for heads with no gate status.
+- [The successor query in D5 lists recent runs per workflow and could miss a successor older than the listing window] → Bounded by `created_at > cancelled run's creation` plus `per_page=30`; a missed successor degrades to today's fail-closed behavior, not to a false pass.
 
 ## Migration Plan
 
