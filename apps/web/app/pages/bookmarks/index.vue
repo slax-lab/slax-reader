@@ -2,7 +2,7 @@
   <div class="bookmarks-view">
     <div class="fixed left-0 top-0 z-100 h-0px w-full flex-center">
       <Transition name="list-loading">
-        <div class="h-30px w-30px translate-y-50px rounded-full bg-surface-solid shadow-md flex-center -mt-30px" v-show="showRefreshLoading">
+        <div class="h-30px w-30px translate-y-50px rounded-full bg-surface-solid shadow-md flex-center -mt-30px" v-show="!rssActive && showRefreshLoading">
           <div class="i-svg-spinners:90-ring text-h2 text-accent"></div>
         </div>
       </Transition>
@@ -12,11 +12,16 @@
     <AddUrlTopModal v-model:show="isShowTopModal" @add-url-success="addUrlSuccess" />
 
     <!-- FAB：浮动添加按钮 -->
-    <BookmarksFab @click="isShowTopModal = true" />
+    <BookmarksFab v-show="!rssActive" @click="isShowTopModal = true" />
 
-    <BookmarksLayout ref="bookmarksLayout" :search-text="searchText" @search="text => (searchText = text)" @feedback="feedbackClick">
+    <BookmarksLayout
+      ref="bookmarksLayout"
+      :search-text="rssActive ? rssSearch : searchText"
+      @search="text => (rssActive ? (rssSearch = text) : (searchText = text))"
+      @feedback="feedbackClick"
+    >
       <template v-slot:sidebar-left>
-        <TabsSidebar ref="tabsSidebar" :tabType="searchText ? '' : filterStatus" @change-tab="inboxClick" />
+        <TabsSidebar ref="tabsSidebar" :tabType="rssActive ? 'rss' : searchText ? '' : filterStatus" @change-tab="inboxClick" />
         <!-- fork-only：领取订阅入口 -->
         <div v-if="showReceiveSubscribe" class="sidebar-promo" @click="receiveActivity">
           <img loading="lazy" src="@internal/images/tips-receive-subscribe-cn.png" alt="" v-if="$i18n.locale === 'zh'" />
@@ -24,154 +29,159 @@
         </div>
       </template>
       <template v-slot:content-header>
-        <!-- 首次同步进度：main 内第一个元素，位于 FeedSwitcher 上方 -->
-        <LocalSyncProgress v-if="isFirstSyncing" :percent="syncPercent" :downloaded="syncDownloaded" :total="syncTotal" />
+        <div v-show="!rssActive">
+          <!-- 首次同步进度：main 内第一个元素，位于 FeedSwitcher 上方 -->
+          <LocalSyncProgress v-if="isFirstSyncing" :percent="syncPercent" :downloaded="syncDownloaded" :total="syncTotal" />
 
-        <ClientOnly>
-          <FeedSwitcher
-            v-if="canCollections && filterStatus === 'inbox' && !searchText"
-            :active-code="activeCollectionCode"
-            :collections="subscribedCollections"
-            :animate-code="feedAnimateCode"
-            :fade-codes="feedFadeCodes"
-            @select="selectFeed"
-            @animated="onFeedAnimated"
-          />
-        </ClientOnly>
+          <ClientOnly>
+            <FeedSwitcher
+              v-if="canCollections && filterStatus === 'inbox' && !searchText"
+              :active-code="activeCollectionCode"
+              :collections="subscribedCollections"
+              :animate-code="feedAnimateCode"
+              :fade-codes="feedFadeCodes"
+              @select="selectFeed"
+              @animated="onFeedAnimated"
+            />
+          </ClientOnly>
 
-        <h2 v-if="activeCollection" class="feed-featured-title">
-          <span class="feed-featured-meta">
-            <span class="feed-featured-name">{{ activeCollection.name }}</span>
-            <span class="feed-subscription-meta" :class="{ expired: feedExpired }">
-              {{ feedStatusText }}
+          <h2 v-if="activeCollection" class="feed-featured-title">
+            <span class="feed-featured-meta">
+              <span class="feed-featured-name">{{ activeCollection.name }}</span>
+              <span class="feed-subscription-meta" :class="{ expired: feedExpired }">
+                {{ feedStatusText }}
+              </span>
             </span>
-          </span>
-          <span class="feed-featured-actions">
-            <button class="feed-home-btn" type="button" @click="openCollectionHome">
-              {{ $t('page.bookmarks_index.collection_feed.view_home') }}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5 12h14" />
-                <path d="M13 6l6 6-6 6" />
-              </svg>
-            </button>
-            <button v-if="feedExpired" class="feed-renew-btn" type="button" @click="openCollectionHome">
-              {{ $t('page.bookmarks_index.collection_feed.renew') }}
-            </button>
-          </span>
-        </h2>
-
-        <BookmarksContentHeader
-          v-else
-          :search-text="searchText"
-          :filter-status="filterStatus"
-          :filter-topic-ids="filterTopicIds"
-          :filter-topic-name="filterTopicName"
-          :filter-collection-id="filterCollectionId"
-          :filter-collection-name="filterCollectionName"
-          @back="() => (searchText = '')"
-          @search-status-update="status => (isSearching = status)"
-          @select-tag="selectTopics"
-          @select-untagged="() => inboxClick('untagged')"
-          @select-collect="selectCollection"
-          @code-update="(code: string) => (filterCollectionCode = code)"
-        />
-      </template>
-      <template v-slot:content-list>
-        <!-- fork-only：星标视图顶部合集引导横幅 -->
-        <ClientOnly>
-          <StarredSharePrompt v-if="filterStatus === 'starred' && !searchText && !activeCollectionCode && !loading" :starred-count="bookmarks.length" />
-        </ClientOnly>
-
-        <!-- 切换器：星标/回收站隐藏，强制文字；专栏 feed 也隐藏。归档和收件箱一样可切卡片 -->
-        <ListLayoutSwitcher
-          v-if="
-            !searchText &&
-            !activeCollectionCode &&
-            !['highlights', 'starred', 'trashed'].includes(filterStatus) &&
-            !(filterStatus === 'topics' && filterTopicIds.length < 1) &&
-            !(filterStatus === 'collections' && !filterCollectionId) &&
-            !(isDataEmpty && !isTransitioning && !sourceFilter)
-          "
-          v-model="listMode"
-          :last-updated-text="lastUpdatedText"
-          :show-leading="!!sourceFilter"
-          :class="{ 'source-filter-after-feed': !!sourceFilter && subscribedCollections.length > 0 }"
-        >
-          <template #leading>
-            <div v-if="sourceFilter" class="source-filter-tag">
-              <span class="source-filter-prefix">{{ $t('page.bookmarks_index.source_filter_site') }}:</span>
-              <span class="source-filter-label">{{ sourceFilter.label }}</span>
-              <button class="source-filter-close" type="button" :aria-label="$t('common.operate.cancel')" @click="clearSourceFilter">
-                <svg viewBox="0 0 16 16" aria-hidden="true">
-                  <path d="M4 4l8 8M12 4l-8 8" />
+            <span class="feed-featured-actions">
+              <button class="feed-home-btn" type="button" @click="openCollectionHome">
+                {{ $t('page.bookmarks_index.collection_feed.view_home') }}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h14" />
+                  <path d="M13 6l6 6-6 6" />
                 </svg>
               </button>
-            </div>
-          </template>
-        </ListLayoutSwitcher>
+              <button v-if="feedExpired" class="feed-renew-btn" type="button" @click="openCollectionHome">
+                {{ $t('page.bookmarks_index.collection_feed.renew') }}
+              </button>
+            </span>
+          </h2>
 
-        <!-- 专栏已过期/已关闭：锁图标空状态 -->
-        <div v-if="feedBlocked" class="feed-closed-view">
-          <div class="feed-closed-icon" aria-hidden="true">
-            <!-- icon-empty-lock.svg -->
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="5" y="10" width="14" height="10" rx="2" />
-              <path d="M8,10 L8,7 C8,4.790861 9.790861,3 12,3 C14.209139,3 16,4.790861 16,7 L16,10" />
-              <circle cx="12" cy="15" r="1" />
-            </svg>
-          </div>
-          <h3 class="feed-closed-title">{{ feedClosedTitle }}</h3>
-          <p class="feed-closed-desc">{{ feedClosedDesc }}</p>
-        </div>
-
-        <!-- 专栏 feed：富卡片（标题 + X条划线 + 第一条划线预览 + 作者头像），点击 → /b -->
-        <CollectionFeedList v-else-if="activeCollection" :bookmarks="collectionBookmarks" :author-avatar="activeOwnerAvatar" :collection-code="activeCollection.code" />
-
-        <!-- key 重建：切换列表不清空，
-             复用会残留旧缓存致错位 -->
-        <BookmarkListContent
-          v-else-if="showList"
-          :key="`${filterStatus}:${filterTopicIds.join(',')}:${filterCollectionId}:${activeCollectionCode}:${sourceFilter?.domain || ''}`"
-          :filter-status="filterStatus"
-          :grouped-bookmarks="groupedBookmarks"
-          :highlights="highlights"
-          :list-mode="listMode"
-          :filter-collection-code="filterCollectionCode"
-          @delete="handleDelete"
-          @archive-update="handleCellArchive"
-          @alias-title-update="handleCellAliasTitle"
-          @bookmark-update="handleCellBookmarkUpdate"
-          @select-tag="selectTagFromCell"
-          @source-filter="applySourceFilter"
-        />
-
-        <template v-if="!feedBlocked && !(isTransitioning && isDataEmpty) && !searchText && !isFirstSyncing">
-          <!-- 跳转期间按 B 展示 -->
-          <BookmarksEmptyState
-            v-if="!loading && isDataEmpty"
-            :filter-status="filterStatus"
-            :is-current-inbox-tab="isCurrentInboxTab"
-            :is-first-load="isFirstLoad"
-            :inbox-state="inboxState === 'A' ? 'B' : inboxState"
-          />
-          <ListBottomStatus
+          <BookmarksContentHeader
             v-else
-            :loading="loading"
-            :ending="ending"
-            :is-refresh-loading="isRefreshLoading"
-            :is-in-trash="isInTrash"
+            :search-text="searchText"
             :filter-status="filterStatus"
             :filter-topic-ids="filterTopicIds"
+            :filter-topic-name="filterTopicName"
             :filter-collection-id="filterCollectionId"
+            :filter-collection-name="filterCollectionName"
+            @back="() => (searchText = '')"
+            @search-status-update="status => (isSearching = status)"
+            @select-tag="selectTopics"
+            @select-untagged="() => inboxClick('untagged')"
+            @select-collect="selectCollection"
+            @code-update="(code: string) => (filterCollectionCode = code)"
           />
-        </template>
+        </div>
+      </template>
+      <template v-slot:content-list>
+        <RssPanel v-if="rssVisited" v-show="rssActive" :active="rssActive" :search="rssSearch" v-model:list-mode="listMode" />
+        <div v-show="!rssActive">
+          <!-- fork-only：星标视图顶部合集引导横幅 -->
+          <ClientOnly>
+            <StarredSharePrompt v-if="filterStatus === 'starred' && !searchText && !activeCollectionCode && !loading" :starred-count="bookmarks.length" />
+          </ClientOnly>
+
+          <!-- 切换器：星标/回收站隐藏，强制文字；专栏 feed 也隐藏。归档和收件箱一样可切卡片 -->
+          <ListLayoutSwitcher
+            v-if="
+              !searchText &&
+              !activeCollectionCode &&
+              !['highlights', 'starred', 'trashed'].includes(filterStatus) &&
+              !(filterStatus === 'topics' && filterTopicIds.length < 1) &&
+              !(filterStatus === 'collections' && !filterCollectionId) &&
+              !(isDataEmpty && !isTransitioning && !sourceFilter)
+            "
+            v-model="listMode"
+            :last-updated-text="lastUpdatedText"
+            :show-leading="!!sourceFilter"
+            :class="{ 'source-filter-after-feed': !!sourceFilter && subscribedCollections.length > 0 }"
+          >
+            <template #leading>
+              <div v-if="sourceFilter" class="source-filter-tag">
+                <span class="source-filter-prefix">{{ $t('page.bookmarks_index.source_filter_site') }}:</span>
+                <span class="source-filter-label">{{ sourceFilter.label }}</span>
+                <button class="source-filter-close" type="button" :aria-label="$t('common.operate.cancel')" @click="clearSourceFilter">
+                  <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M4 4l8 8M12 4l-8 8" />
+                  </svg>
+                </button>
+              </div>
+            </template>
+          </ListLayoutSwitcher>
+
+          <!-- 专栏已过期/已关闭：锁图标空状态 -->
+          <div v-if="feedBlocked" class="feed-closed-view">
+            <div class="feed-closed-icon" aria-hidden="true">
+              <!-- icon-empty-lock.svg -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="5" y="10" width="14" height="10" rx="2" />
+                <path d="M8,10 L8,7 C8,4.790861 9.790861,3 12,3 C14.209139,3 16,4.790861 16,7 L16,10" />
+                <circle cx="12" cy="15" r="1" />
+              </svg>
+            </div>
+            <h3 class="feed-closed-title">{{ feedClosedTitle }}</h3>
+            <p class="feed-closed-desc">{{ feedClosedDesc }}</p>
+          </div>
+
+          <!-- 专栏 feed：富卡片（标题 + X条划线 + 第一条划线预览 + 作者头像），点击 → /b -->
+          <CollectionFeedList v-else-if="activeCollection" :bookmarks="collectionBookmarks" :author-avatar="activeOwnerAvatar" :collection-code="activeCollection.code" />
+
+          <!-- key 重建：切换列表不清空，
+             复用会残留旧缓存致错位 -->
+          <BookmarkListContent
+            v-else-if="showList"
+            :key="`${filterStatus}:${filterTopicIds.join(',')}:${filterCollectionId}:${activeCollectionCode}:${sourceFilter?.domain || ''}`"
+            :filter-status="filterStatus"
+            :grouped-bookmarks="groupedBookmarks"
+            :highlights="highlights"
+            :list-mode="listMode"
+            :filter-collection-code="filterCollectionCode"
+            @delete="handleDelete"
+            @archive-update="handleCellArchive"
+            @alias-title-update="handleCellAliasTitle"
+            @bookmark-update="handleCellBookmarkUpdate"
+            @select-tag="selectTagFromCell"
+            @source-filter="applySourceFilter"
+          />
+
+          <template v-if="!feedBlocked && !(isTransitioning && isDataEmpty) && !searchText && !isFirstSyncing">
+            <!-- 跳转期间按 B 展示 -->
+            <BookmarksEmptyState
+              v-if="!loading && isDataEmpty"
+              :filter-status="filterStatus"
+              :is-current-inbox-tab="isCurrentInboxTab"
+              :is-first-load="isFirstLoad"
+              :inbox-state="inboxState === 'A' ? 'B' : inboxState"
+            />
+            <ListBottomStatus
+              v-else
+              :loading="loading"
+              :ending="ending"
+              :is-refresh-loading="isRefreshLoading"
+              :is-in-trash="isInTrash"
+              :filter-status="filterStatus"
+              :filter-topic-ids="filterTopicIds"
+              :filter-collection-id="filterCollectionId"
+            />
+          </template>
+        </div>
       </template>
     </BookmarksLayout>
   </div>
 </template>
 
 <script lang="ts" setup>
-definePageMeta({ alias: ['/'] })
+definePageMeta({ alias: ['/'], key: 'bookmarks' })
 
 import AddUrlTopModal from '~/components/BookmarkList/AddUrlTopModal.vue'
 import BookmarkListContent from '~/components/BookmarkList/BookmarkListContent.vue'
@@ -187,13 +197,14 @@ import StarredSharePrompt from '~/components/BookmarkList/StarredSharePrompt.vue
 import TabsSidebar from '~/components/BookmarkList/TabsSidebar.vue'
 import ReceiveSubscribeModal from '~/components/GetSubscribeModal.vue'
 import BookmarksLayout from '~/components/Layouts/BookmarksLayout.vue'
+import RssPanel from '~/components/RssPanel.vue'
 
 import { useBookmarkData } from '@/composables/bookmark/useBookmarkData'
 import { type CollectionBookmarkItem, type LocalCollectionItem, useLocalCollections } from '@/composables/bookmark/useLocalCollections'
 import { useOwnerInfo } from '@/composables/bookmark/useOwnerInfo'
-import type { UserInfo } from '@slax-reader/contracts/interface'
 import type { BookmarkTag } from '@commons/frontend-types/models'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
+import type { UserInfo } from '@slax-reader/contracts/interface'
 import { showFeedbackModal } from '~/components/Modal'
 import Toast from '~/components/Toast'
 import { useBookmarkFilter } from '~/composables/bookmark/useBookmarkFilter'
@@ -215,6 +226,13 @@ useHead({
 const bookmarksLayout = ref<InstanceType<typeof BookmarksLayout>>()
 const tabsSidebar = ref<InstanceType<typeof TabsSidebar>>()
 const route = useRoute()
+const router = useRouter()
+const rssActive = computed(() => route.query.view === 'rss')
+const rssVisited = ref(rssActive.value)
+const rssSearch = ref('')
+watch(rssActive, active => {
+  if (active) rssVisited.value = true
+})
 const userStore = useUserStore()
 
 const searchText = ref('')
@@ -294,7 +312,8 @@ const {
   searchText,
   activeCollectionCode,
   activeCollectionId,
-  computed(() => sourceFilter.value?.domain)
+  computed(() => sourceFilter.value?.domain),
+  computed(() => !rssActive.value)
 )
 
 const canCollections = import.meta.client && haveRequestToken()
@@ -666,6 +685,11 @@ const selectCollection = async (info: { id: number; name: string; code: string }
 
 // 编排动作：切换 tab
 const inboxClick = async (type: string, index?: number) => {
+  if (type === 'rss') {
+    if (!rssActive.value) await router.replace({ path: route.path, query: { ...route.query, view: 'rss' } })
+    return
+  }
+  if (rssActive.value) await router.replace({ path: route.path, query: { ...route.query, view: undefined } })
   if (searchText.value) {
     searchText.value = ''
     y.value = 0

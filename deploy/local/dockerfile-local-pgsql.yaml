@@ -44,7 +44,7 @@ services:
       PS_JWK_E: ${PS_JWK_E:-AQAB}
       PS_JWK_KID: ${PS_JWK_KID:-local-dev}
     ports:
-      - "127.0.0.1:18080:8080"
+      - "18080:8080"
     volumes:
       - ./powersync-local/powersync.yaml:/config/powersync.yaml:ro
       - ./powersync-local/sync_rules.yaml:/config/sync_rules.yaml:ro

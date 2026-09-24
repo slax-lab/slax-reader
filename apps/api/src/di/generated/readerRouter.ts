@@ -14,6 +14,7 @@ import { MarkController } from '../../handler/http/markController'
 import { ShareController } from '../../handler/http/shareController'
 import { SubscriptionController } from '../../handler/http/subscriptionController'
 import { TagController } from '../../handler/http/tagController'
+import { RssController } from '../../handler/http/rssController'
 import { UserController } from '../../handler/http/userController'
 import { McpServerController } from '../../handler/http/mcpController'
 import { SyncController } from '../../handler/http/syncController'
@@ -333,6 +334,38 @@ export function getRouter(container: Container) {
   router.post('/v1/tag/delete', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(TagController)
     return await controller.handleDeleteTagRequest(ctx, req)
+  })
+  router.get('/v1/rss/subscriptions', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(RssController)
+    return await controller.listSubscriptions(ctx, req)
+  })
+  router.post('/v1/rss/subscriptions', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(RssController)
+    return await controller.addSubscription(ctx, req)
+  })
+  router.post('/v1/rss/subscriptions/:id/update', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(RssController)
+    return await controller.updateSubscription(ctx, req)
+  })
+  router.post('/v1/rss/subscriptions/:id/delete', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(RssController)
+    return await controller.deleteSubscription(ctx, req)
+  })
+  router.post('/v1/rss/subscriptions/:id/refresh', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(RssController)
+    return await controller.refreshSubscription(ctx, req)
+  })
+  router.get('/v1/rss/entries', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(RssController)
+    return await controller.listEntries(ctx, req)
+  })
+  router.get('/v1/rss/entries/:id', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(RssController)
+    return await controller.entry(ctx, req)
+  })
+  router.post('/v1/rss/entries/:id/save', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(RssController)
+    return await controller.saveEntry(ctx, req)
   })
   router.post('/v1/user/login', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(UserController)

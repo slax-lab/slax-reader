@@ -25,7 +25,10 @@ interface codeInfo {
 export class GoogleAuth {
   private clientId: string
   private clientSecret: string
+  private platform: string
+
   constructor(env: Env, platform: string) {
+    this.platform = platform
     switch (platform) {
       case 'ios':
         this.clientId = (env as Env & { GOOGLE_IOS_CLIENT_ID_TEXT?: string }).GOOGLE_IOS_CLIENT_ID_TEXT || ''
@@ -60,6 +63,7 @@ export class GoogleAuth {
       })
       if (!payload.sub || typeof payload.email !== 'string' || !payload.email || String(payload.email_verified) !== 'true') throw GoogleSSOError()
       if (payload.aud !== this.clientId) throw GoogleSSOAudError()
+      if (this.platform === 'web' && payload.azp !== undefined && payload.azp !== this.clientId) throw GoogleSSOAudError()
       return payload as unknown as tokenInfo
     } catch (error) {
       console.error(

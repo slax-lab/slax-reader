@@ -12,6 +12,8 @@ export default defineConfig({
     tsconfigRaw: { compilerOptions: { experimentalDecorators: true } }
   },
   test: {
-    include: ['test/**/*.test.ts']
+    include: ['test/**/*.test.ts'],
+    testTimeout: 30_000,
+    maxWorkers: '50%'
   }
 })

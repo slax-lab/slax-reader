@@ -1453,6 +1453,7 @@ export class BookmarkRepo {
       WHERE b.status IN ('pending', 'pending_retry')
         AND b.created_at BETWEEN ${dayFloor} AND ${pendingCutoff}
         AND NOT EXISTS (SELECT 1 FROM sr_bookmark_import_relation bir WHERE bir.bookmark_id = b.id)
+        AND NOT EXISTS (SELECT 1 FROM sr_rss_save_job rj WHERE rj.bookmark_id = b.id)
       ORDER BY b.created_at ASC
       LIMIT ${opts.limit}
     `

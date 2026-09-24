@@ -143,7 +143,7 @@ describe('repository-root generator paths', () => {
       }
     })
     expect(reads).toEqual(
-      ['aigc', 'bookmark', 'callback', 'collection', 'mark', 'share', 'subscription', 'tag', 'user', 'mcp', 'sync', 'promotion', 'apiKey', 'events', 'metrics'].map(name =>
+      ['aigc', 'bookmark', 'callback', 'collection', 'mark', 'share', 'subscription', 'tag', 'rss', 'user', 'mcp', 'sync', 'promotion', 'apiKey', 'events', 'metrics'].map(name =>
         path.join(API_ROOT, `src/handler/http/${name}Controller.ts`)
       )
     )

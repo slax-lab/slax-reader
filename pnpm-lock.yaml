@@ -146,6 +146,9 @@ importers:
       '@edge-runtime/vm':
         specifier: ^5.0.0
         version: 5.0.0
+      '@electric-sql/pglite':
+        specifier: 0.3.2
+        version: 0.3.2
       '@modelcontextprotocol/inspector':
         specifier: ^0.16.8
         version: 0.16.8(@cfworker/json-schema@4.1.1)(@swc/core@1.16.2)(@swc/wasm@1.16.2)(@types/node@20.17.47)(@types/react@19.2.7)(supports-color@10.2.2)(typescript@5.8.3)

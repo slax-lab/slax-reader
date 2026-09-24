@@ -32,12 +32,17 @@
 
 <script setup lang="ts">
 import { useSidebarCollapsed } from '~/composables/bookmark/useSidebarCollapsed'
+import { useLabFeatures } from '~/composables/useLabFeatures'
 
 // BookmarkTabTypes 和 TabIcons 由 Nuxt auto-import 注入
 // 不显式 import，以便 fork 对 useBookmarkRelative 的 override 能通过 layer 优先级生效
 const { t } = useI18n()
 const sidebarEl = ref<HTMLElement>()
 const { collapsed } = useSidebarCollapsed()
+const labs = useLabFeatures()
+onMounted(() => {
+  void labs.fetch().catch(() => {})
+})
 
 defineProps({
   tabType: {
@@ -51,11 +56,14 @@ const emits = defineEmits(['changeTab'])
 const FALLBACK_ICON = { viewBox: '0 0 24 24', markup: '' }
 
 const tabList = computed(() =>
-  BookmarkTabTypes.map(type => ({
-    type,
-    title: t(`page.bookmarks_index.${type}`),
-    icon: TabIcons[type] ?? FALLBACK_ICON
-  }))
+  BookmarkTabTypes.flatMap(type => {
+    const item = { type, title: t(`page.bookmarks_index.${type}`), icon: TabIcons[type] ?? FALLBACK_ICON }
+    if (type !== 'inbox' || !labs.loaded.value || !labs.isEnabled('rss')) return [item]
+    return [
+      item,
+      { type: 'rss', title: t('rss.title'), icon: { viewBox: '0 0 24 24', markup: '<path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/>' } }
+    ]
+  })
 )
 
 const inboxClick = (type: string, index?: number) => {

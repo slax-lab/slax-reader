@@ -1177,6 +1177,10 @@
           "name": "YouTube videos",
           "desc": "Save a YouTube link and read along with its transcript. English captions are preferred for now, and the app does not follow the transcript yet.",
           "blocked": "YouTube videos are still in Labs. Turn it on in Settings, then save again"
+        },
+        "rss": {
+          "name": "RSS feeds",
+          "desc": "Browse your feeds, then save interesting articles to your Inbox."
         }
       },
       "navigation": {
@@ -1232,6 +1236,66 @@
       "search_finished": "Search complete",
       "search_bookmark_failed": "Knowledge base search failed",
       "search_bookmark_finished": "Knowledge base search complete"
+    }
+  },
+  "rss": {
+    "history_end": "{count} articles collected so far. No further RSS page links were found.",
+    "history_retry": "Earlier articles could not be loaded. Please retry shortly.",
+    "history_loading": "Earlier articles are being collected. Try loading again shortly.",
+    "title": "RSS feeds",
+    "labs": "Labs",
+    "description": "Follow what interests you, then save articles worth reading to your Inbox.",
+    "empty_hint": "Add a website or blog you like. New articles will appear here.",
+    "empty_articles_hint": "This feed has no articles yet. Check back after its next update.",
+    "sources": "Your feeds",
+    "cached_hint": "Showing cached articles · updates in the background",
+    "edit": "Edit feed",
+    "edit_hint": "Change its display name. The feed URL and saved articles stay the same.",
+    "remark": "Custom display name (optional)",
+    "remark_placeholder": "e.g. Daily reading",
+    "remark_hint": "Leave blank to use the feed title. Up to 120 characters.",
+    "save_changes": "Save changes",
+    "saving": "Saving…",
+    "add_hint": "Paste an RSS or Atom URL. We’ll check for new articles regularly.",
+    "feed_limit": "{count} of 20 feeds added",
+    "next_refresh": "Refresh available at {time}",
+    "no_matches": "No matching articles in the loaded list",
+    "search_hint": "Search loaded articles. Load more to keep looking.",
+    "settings": "Labs settings",
+    "inbox": "Inbox",
+    "enable_hint": "Enable RSS in Labs, then add your own feeds.",
+    "url": "RSS / Atom URL",
+    "add": "Add feed",
+    "all": "All feeds",
+    "remove": "Unsubscribe",
+    "no_subscriptions": "No feeds yet",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing…",
+    "last_updated": "Last successful update",
+    "source_error": "Unable to update. Try again later; cached articles remain available.",
+    "loading": "Loading…",
+    "no_articles": "No cached articles yet",
+    "no_url": "This entry has no article URL and cannot be saved.",
+    "saved": "Saved · Open",
+    "save": "Save to Inbox",
+    "more": "Load more",
+    "close": "Close",
+    "feed_content": "Content provided by this feed; it may be an excerpt.",
+    "truncated": "Preview truncated. Open the original to continue reading.",
+    "original": "Open original",
+    "confirm_remove": "Unsubscribe? Saved articles will be kept.",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "errors": {
+      "invalid_remark": "Use a single line of up to 120 characters.",
+      "lab_disabled": "Enable RSS in Labs first",
+      "invalid_feed": "This is not a valid RSS / Atom feed",
+      "unsafe_url": "Use a public HTTP(S) feed URL",
+      "limit_reached": "You can add up to 20 feeds",
+      "refresh_limited": "Please wait before refreshing again",
+      "not_found": "This item no longer exists. Reload the list.",
+      "article_url_missing": "This article has no supported original URL",
+      "source_unavailable": "The source is unavailable. Cached content is kept."
     }
   }
 }

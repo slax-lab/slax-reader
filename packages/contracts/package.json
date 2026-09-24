@@ -63,6 +63,10 @@
     "./openai": {
       "types": "./src/openai.ts",
       "default": "./src/openai.ts"
+    },
+    "./rss": {
+      "types": "./src/rss.ts",
+      "default": "./src/rss.ts"
     }
   },
   "scripts": {
