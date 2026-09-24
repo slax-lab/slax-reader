@@ -4,7 +4,7 @@ import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { MockSnapshotChatBot, capturedCallback, mockBotChat, mockBotDestruct, mockBotInstance, mockUseI18n, mockT, mockAnalyticsLog, mockParseMarkdownText, mockGetUUID } =
+const { MockSnapshotChatBot, capturedCallback, mockBotChat, mockBotDestruct, mockBotInstance, mockUseI18n, mockT, mockAnalyticsLog, mockParseMarkdownText, mockGetUUID, mockHydrateMermaidDiagrams } =
   vi.hoisted(() => {
     const captured: { value: ((p: any) => void) | null } = { value: null }
     const instance: { value: any } = { value: null }
@@ -29,7 +29,8 @@ const { MockSnapshotChatBot, capturedCallback, mockBotChat, mockBotDestruct, moc
       mockT,
       mockAnalyticsLog: vi.fn(),
       mockParseMarkdownText: vi.fn((s: string) => s),
-      mockGetUUID: vi.fn(() => 'test-uuid')
+      mockGetUUID: vi.fn(() => 'test-uuid'),
+      mockHydrateMermaidDiagrams: vi.fn(() => Promise.resolve())
     }
   })
 
@@ -40,6 +41,7 @@ mockNuxtImport('useI18n', () => mockUseI18n)
 mockNuxtImport('analyticsLog', () => mockAnalyticsLog)
 
 vi.mock('@commons/frontend-utils/parse', () => ({ parseMarkdownText: mockParseMarkdownText }))
+vi.mock('@commons/frontend-utils/mermaid', () => ({ hydrateMermaidDiagrams: mockHydrateMermaidDiagrams }))
 vi.mock('@commons/frontend-utils/random', () => ({ getUUID: mockGetUUID }))
 
 import SnapshotChatPanel from '~~/app/components/Snapshot/SnapshotChatPanel.vue'
@@ -49,7 +51,7 @@ const mountPanel = (props: any = {}) =>
     props,
     // attachTo: v-ime-guard 靠 document 捕获阶段拦截 Enter，元素必须真实挂在 document 树上才生效
     attachTo: document.body,
-    global: { stubs: { QuestionMessage: true, TipsMessage: true, DotLoading: true } }
+    global: { stubs: { QuestionMessage: true, TipsMessage: true, DotLoading: true, MermaidDiagramOverlay: true } }
   })
 
 // 触发 SSE 回调的辅助
@@ -474,6 +476,51 @@ describe('SnapshotChatPanel.vue', () => {
       wrapper.unmount()
       expect(mockBotDestruct).toHaveBeenCalledTimes(1)
       expect(inst.chatStatusUpdateHandler).toBeUndefined()
+    })
+  })
+
+  describe('J. mermaid 图表', () => {
+    const diagramMarkup = '<div class="mermaid-diagram"><svg viewBox="0 0 10 10"><text>d</text></svg></div>'
+
+    const mountWithDiagram = async () => {
+      const wrapper = mountPanel({ bookmarkId: 1 })
+      const box = wrapper.find('.chat-messages')
+      box.element.insertAdjacentHTML('beforeend', diagramMarkup)
+      await nextTick()
+      return wrapper
+    }
+
+    it('J1: 每次 v-html 更新后对消息容器补跑 hydration', async () => {
+      const wrapper = mountPanel({ bookmarkId: 1 })
+      mockHydrateMermaidDiagrams.mockClear()
+      emit({ type: 'CONTENT', data: { CONTENT: '```mermaid\ngraph TD;\n```' } })
+      // one tick for the update frame, one for hydration's own nextTick
+      await nextTick()
+      await nextTick()
+      expect(mockHydrateMermaidDiagrams).toHaveBeenCalledWith(wrapper.find('.chat-messages').element, expect.objectContaining({ errorNoticeText: expect.any(Function) }))
+    })
+
+    it('J2: 点击图表 → 打开全览浮层并传入 svg', async () => {
+      const wrapper = await mountWithDiagram()
+      expect(wrapper.findComponent({ name: 'MermaidDiagramOverlay' }).exists()).toBe(false)
+      await wrapper.find('.mermaid-diagram svg').trigger('click')
+      const overlay = wrapper.findComponent({ name: 'MermaidDiagramOverlay' })
+      expect(overlay.exists()).toBe(true)
+      expect(overlay.props('svg')).toContain('<svg')
+    })
+
+    it('J3: 浮层 close → 浮层移除', async () => {
+      const wrapper = await mountWithDiagram()
+      await wrapper.find('.mermaid-diagram svg').trigger('click')
+      wrapper.findComponent({ name: 'MermaidDiagramOverlay' }).vm.$emit('close')
+      await nextTick()
+      expect(wrapper.findComponent({ name: 'MermaidDiagramOverlay' }).exists()).toBe(false)
+    })
+
+    it('J4: 点击非图表区域不打开浮层', async () => {
+      const wrapper = await mountWithDiagram()
+      await wrapper.find('.chat-messages').trigger('click')
+      expect(wrapper.findComponent({ name: 'MermaidDiagramOverlay' }).exists()).toBe(false)
     })
   })
 })

@@ -9,6 +9,12 @@ describe('AIGC prompts', () => {
     expect(prompt).toContain('<article>\narticle-$&-$1\n</article>')
   })
 
+  test.each(['mobile', 'desktop'] as const)('chat rules for %s pin diagrams to mermaid fenced blocks', platform => {
+    const prompt = buildChatSystemInstruction(platform, 'zh', 'article')
+
+    expect(prompt).toContain('```mermaid fenced code block')
+  })
+
   test('auto-tagging allows zero to three precise tags', () => {
     const prompt = generateOverviewTagsUserPrompt('zh', ['技术', '阅读'])
 

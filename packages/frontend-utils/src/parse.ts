@@ -1,10 +1,10 @@
 import MdKatex from '@vscode/markdown-it-katex'
 import DOMPurify from 'dompurify'
 import hljs from 'highlight.js'
-import MarkdownIt from 'markdown-it'
+import MarkdownIt, { type MarkdownIt as MarkdownItInstance } from 'markdown-it'
 import MdCjkFriendly from 'markdown-it-cjk-friendly'
 
-const highlightBlock = (str: string, lang?: string) => {
+export const highlightBlock = (str: string, lang?: string) => {
   return `<pre class="code-block-wrapper"><div class="code-block-header"><span class="code-block-header__lang">${lang}</span><span class="code-block-header__copy"></span></div><code class="hljs code-block-body ${lang}">${str}</code></pre>`
 }
 
@@ -33,40 +33,128 @@ const escapeDollarNumber = (text: string) => {
   return escapedText
 }
 
-const mdi = new MarkdownIt({
-  html: true,
-  linkify: true,
-  highlight(code, language) {
-    const validLang = !!(language && hljs.getLanguage(language))
-    if (validLang) {
-      const lang = language ?? ''
-      return highlightBlock(hljs.highlight(code, { language: lang }).value, lang)
-    }
-    return highlightBlock(hljs.highlightAuto(code).value, '')
-  }
-})
+const mermaidLanguage = /^mermaid$/i
 
-const defaultLinkOpen = mdi.renderer.rules.link_open ?? ((tokens, index, options, _env, self) => self.renderToken(tokens, index, options))
-mdi.renderer.rules.link_open = (tokens, index, options, env, self) => {
-  const token = tokens[index]
-  if (!token) return defaultLinkOpen(tokens, index, options, env, self)
-  if (!token.attrGet('target')) token.attrSet('target', '_blank')
-  if (!token.attrGet('rel')) token.attrSet('rel', 'noopener')
-  return defaultLinkOpen(tokens, index, options, env, self)
+const escapeHtml = (text: string) =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+// Fences may sit inside a blockquote or a list item, so container markers are
+// stripped before matching. Anything the scan cannot place confidently keeps
+// its original info string and renders as a code block.
+// Known asymmetry: markers are stripped on every line, including lines inside
+// an already-open fence, where markdown-it reads the content verbatim. A
+// mermaid source line shaped like `- ``` ` therefore counts as a close here
+// while markdown-it keeps the fence open; the scan then treats a later fence
+// as closed, emits a placeholder for still-arriving content, and hydration
+// renders an unfinished diagram (error notice or a diagram that changes as
+// streaming continues). Remembering the opener's container context would fix
+// this, but real model output essentially never contains such lines, and the
+// stripping cannot be dropped for closers because blockquote-nested fences
+// need it — accepted and recorded here.
+const containerMarkers = /^(?: {0,3}>[ \t]?| {0,3}[-*+][ \t]+| {0,3}\d{1,9}[.)][ \t]+)*/
+const fenceLinePattern = /^( {0,3})(`{3,}|~{3,})([^\r\n]*)/
+
+// markdown-it closes an unterminated fence at the end of the input, so the
+// highlight callback cannot tell a still-streaming mermaid fence from a
+// finished one. Drop the info string of an unclosed mermaid fence before
+// rendering so the fence takes the plain code-block path.
+const downgradeUnclosedMermaidFences = (text: string) => {
+  const lines = text.split('\n')
+  let openFence: { index: number; marker: string; mermaid: boolean } | null = null
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? ''
+    const match = fenceLinePattern.exec(line.replace(containerMarkers, ''))
+    if (!match) continue
+
+    const marker = match[2] ?? ''
+    const info = (match[3] ?? '').trim()
+
+    if (openFence) {
+      const closes = marker[0] === openFence.marker[0] && marker.length >= openFence.marker.length && info === ''
+      if (closes) openFence = null
+      continue
+    }
+
+    if (marker[0] === '`' && info.includes('`')) continue
+
+    openFence = { index, marker, mermaid: mermaidLanguage.test(info.split(/\s+/)[0] ?? '') }
+  }
+
+  if (!openFence?.mermaid) return text
+
+  const line = lines[openFence.index] ?? ''
+  const markerIndex = line.indexOf(openFence.marker)
+  if (markerIndex === -1) return text
+
+  lines[openFence.index] = `${line.slice(0, markerIndex)}${openFence.marker}${line.endsWith('\r') ? '\r' : ''}`
+  return lines.join('\n')
 }
 
 // The plugin runtime supports Markdown It 15, but its published declarations
 // still reference the separate Markdown It 14 types package.
-const mdKatexPlugin = MdKatex as unknown as (md: typeof mdi) => void
+const mdKatexPlugin = MdKatex as unknown as (md: MarkdownItInstance) => void
 
-// 修复 CJK 加粗：** 紧邻全角标点
-// 时无法闭合，导致加粗失效
-mdi.use(MdCjkFriendly).use(mdKatexPlugin)
+const createMarkdownRenderer = (mermaid: boolean) => {
+  const renderer = new MarkdownIt({
+    html: true,
+    linkify: true,
+    highlight(code, language) {
+      if (mermaid && language && mermaidLanguage.test(language)) {
+        return `<div class="mermaid-placeholder">${escapeHtml(code)}</div>`
+      }
+
+      const validLang = !!(language && hljs.getLanguage(language))
+      if (validLang) {
+        const lang = language ?? ''
+        return highlightBlock(hljs.highlight(code, { language: lang }).value, lang)
+      }
+      return highlightBlock(hljs.highlightAuto(code).value, '')
+    }
+  })
+
+  const defaultLinkOpen = renderer.renderer.rules.link_open ?? ((tokens, index, options, _env, self) => self.renderToken(tokens, index, options))
+  renderer.renderer.rules.link_open = (tokens, index, options, env, self) => {
+    const token = tokens[index]
+    if (!token) return defaultLinkOpen(tokens, index, options, env, self)
+    if (!token.attrGet('target')) token.attrSet('target', '_blank')
+    if (!token.attrGet('rel')) token.attrSet('rel', 'noopener')
+    return defaultLinkOpen(tokens, index, options, env, self)
+  }
+
+  // 修复 CJK 加粗：** 紧邻全角标点
+  // 时无法闭合，导致加粗失效
+  renderer.use(MdCjkFriendly).use(mdKatexPlugin)
+
+  return renderer
+}
+
+// One renderer per mermaid mode: the highlight callback is bound to the
+// renderer, so the mode cannot be switched per call on a shared instance.
+const markdownRenderers = new Map<boolean, MarkdownItInstance>()
+
+const getMarkdownRenderer = (mermaid: boolean) => {
+  let renderer = markdownRenderers.get(mermaid)
+  if (!renderer) {
+    renderer = createMarkdownRenderer(mermaid)
+    markdownRenderers.set(mermaid, renderer)
+  }
+  return renderer
+}
+
+export interface ParseMarkdownOptions {
+  // Emits a hydration placeholder for closed mermaid fences instead of a code
+  // block. Opt-in, because a surface that never hydrates would otherwise lose
+  // the code-block rendering (language header, copy affordance) for diagrams.
+  mermaid?: boolean
+}
 
 // 转换markdown内容
-export const parseMarkdownText = (text: string) => {
+export const parseMarkdownText = (text: string, options: ParseMarkdownOptions = {}) => {
+  const { mermaid = false } = options
   const escapedText = escapeBrackets(escapeDollarNumber(text))
-  return DOMPurify.sanitize(mdi.render(escapedText))
+  const fenceSafeText = mermaid ? downgradeUnclosedMermaidFences(escapedText) : escapedText
+  return DOMPurify.sanitize(getMarkdownRenderer(mermaid).render(fenceSafeText))
 }
 
 // 从markdown中提取JSON文本
