@@ -511,6 +511,15 @@
       "score": "得分",
       "website": "网站："
     },
+    "mermaid_diagram_overlay": {
+      "aria_label": "图表全览",
+      "close": "关闭",
+      "hint": "拖拽平移 · 滚轮缩放",
+      "render_failed": "图表渲染失败：{error}",
+      "reset": "重置",
+      "zoom_in": "放大",
+      "zoom_out": "缩小"
+    },
     "snapshot_chat": {
       "copied": "已复制",
       "empty_desc": "或选中文字，针对特定内容提问",

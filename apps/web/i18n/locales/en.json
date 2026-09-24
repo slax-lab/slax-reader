@@ -510,6 +510,15 @@
       "score": "Score",
       "website": "Website: "
     },
+    "mermaid_diagram_overlay": {
+      "aria_label": "Diagram full view",
+      "close": "Close",
+      "hint": "Drag to pan · Scroll to zoom",
+      "render_failed": "Diagram failed to render: {error}",
+      "reset": "Reset",
+      "zoom_in": "Zoom in",
+      "zoom_out": "Zoom out"
+    },
     "snapshot_chat": {
       "copied": "Copied",
       "empty_desc": "Or select text to ask about a specific part",

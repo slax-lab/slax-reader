@@ -11,6 +11,7 @@
       :class="{ scrolled: isScrolled }"
       ref="messages"
       @scroll="onMessagesScroll"
+      @click="onMessagesClick"
       @wheel.passive="onWheel"
       @touchstart.passive="onTouchStart"
       @touchmove.passive="onTouchMove"
@@ -139,6 +140,8 @@
         <button class="chat-send-btn" :disabled="!sendable" @click="sendMessage()">{{ $t('common.operate.send') }}</button>
       </div>
     </div>
+
+    <MermaidDiagramOverlay v-if="diagramSvg" :svg="diagramSvg" @close="diagramSvg = ''" />
   </div>
 </template>
 
@@ -146,12 +149,14 @@
 import QuestionMessage from '~/components/Chat/QuestionMessage.vue'
 import TipsMessage from '~/components/Chat/TipsMessage.vue'
 import DotLoading from '~/components/DotLoading.vue'
+import MermaidDiagramOverlay from '~/components/Mermaid/MermaidDiagramOverlay.vue'
 import OptionsBar from '~/components/OptionsBar.vue'
 
-import { parseMarkdownText } from '@commons/frontend-utils/parse'
-import { getUUID } from '@commons/frontend-utils/random'
 import type { ChatBotParams } from '~/utils/chatbot'
 
+import { hydrateMermaidDiagrams } from '@commons/frontend-utils/mermaid'
+import { parseMarkdownText } from '@commons/frontend-utils/parse'
+import { getUUID } from '@commons/frontend-utils/random'
 import { vOnKeyStroke } from '@vueuse/components'
 import type { BubbleMessageContent, BubbleMessageItem, MessageItem, QuestionMessageItem, QuoteData } from '~/components/Chat/type'
 
@@ -326,6 +331,8 @@ const bufferMessage = ref<BubbleMessageItem | null>(null) as Ref<BubbleMessageIt
 const bufferMarkdownContent = ref('')
 const quoteInfo = ref<QuoteData | null>(null) as Ref<QuoteData | null>
 const copiedId = ref<string | null>(null)
+// Svg markup of the diagram opened in the full-view overlay ('' = closed)
+const diagramSvg = ref('')
 // 是否已向下滚动：仅在离开顶部后才启用顶部淡出 mask，避免滚到最顶时淡化最上方消息
 const isScrolled = ref(false)
 
@@ -437,6 +444,30 @@ const scrollDownClick = () => {
 
 const sendable = computed(() => inputText.value.trim().length > 0 && !isChatting.value)
 
+// Closed mermaid fences render as placeholders; hydration swaps them for
+// diagrams. Every streaming delta rewrites the bubble markup through v-html,
+// so the scan runs again after each update (already-rendered sources come back
+// from the shared render cache).
+const hydrateDiagrams = () => {
+  const box = messages.value
+  if (!box) {
+    return
+  }
+  nextTick(() => hydrateMermaidDiagrams(box, { errorNoticeText: error => t('component.mermaid_diagram_overlay.render_failed', { error }) }))
+}
+
+const onMessagesClick = (event: MouseEvent) => {
+  const target = event.target
+  if (!(target instanceof Element)) {
+    return
+  }
+
+  const svgElement = target.closest('.mermaid-diagram')?.querySelector('svg')
+  if (svgElement) {
+    diagramSvg.value = svgElement.outerHTML
+  }
+}
+
 const bubbleText = (message: BubbleMessageItem) => {
   return (message.contents || [])
     .filter(c => c.type === 'text')
@@ -484,6 +515,8 @@ const addLog = (subAction: 'open' | 'expand' | 'close' | 'collapse') => {
 }
 
 onMounted(() => jumpToBottom())
+
+onUpdated(hydrateDiagrams)
 
 onUnmounted(() => {
   // ChatBot.destruct() 只清 responseCallback，不清 chatStatusUpdateHandler；
@@ -863,7 +896,7 @@ const shakeTextarea = () => {
 }
 
 const getParsedText = (markdownText: string) => {
-  return parseMarkdownText(markdownText).replace(/<a/g, '<a target="_blank"') || ''
+  return parseMarkdownText(markdownText, { mermaid: true }).replace(/<a/g, '<a target="_blank"') || ''
 }
 
 const addQuoteData = (data: QuoteData) => {
@@ -1145,6 +1178,24 @@ defineExpose({ addQuoteData, focusTextarea })
       }
       :deep(code) {
         font-family: var(--slax-font-mono);
+      }
+
+      // Hydrated mermaid diagram; click opens the full-view overlay
+      :deep(div.mermaid-diagram) {
+        margin-top: 12px;
+        cursor: zoom-in;
+
+        svg {
+          display: block;
+          max-width: 100%;
+          height: auto;
+        }
+      }
+
+      :deep(div.mermaid-error-notice) {
+        margin-top: 12px;
+        font-size: 12px;
+        color: var(--slax-text-light);
       }
 
       // 日夜强调色，E-ink 蓝 + ↗︎
