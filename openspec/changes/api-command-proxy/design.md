@@ -136,7 +136,7 @@ pnpm api -- migration:local
 - API-only 部署实现归入 `apps/api/script/deploy/`；根只保留通用入口，公开运行资源保留在 `deploy/`。所有 Prisma config 位于 `apps/api/prisma/`，路径相对该目录。
 - 唯一模板为 `deploy/cloudflare/api.toml.example`，实际配置为同目录忽略的 `api.toml`。所有命令默认读取实际配置，缺失时明确报错；CI 显式复制公开模板，不能自动回退模板部署。
 - 配置保留 Wrangler 共有字段，使用原生 name/services/[env.*]，从服务绑定和原后端名称约定解析目标身份。生成器剥离编排字段，推导内部 service、Durable Object 和 Workflow 的归属，不重写用户资源 ID、队列名、迁移标签或显式兼容设置。
-- Edge owns queue/cron/workflows；Core owns业务 DO；Browser owns SlaxBrowser；AI 引用 Core 的 SlaxJieba。仅 Edge 为公开 HTTP 入口。API 接受显式 BACKEND_API_PREFIX 的 Host，保留既有 Host 兼容。
+- Edge owns queue/cron/workflows；Core owns业务 DO；Browser owns SlaxBrowser；AI 引用 Core 的 SlaxJieba。仅 Edge 为公开 HTTP 入口。BACKEND_API_PREFIX 仍是部署期要求的公开 origin（见 `apps/api/script/deploy/config.ts`）；Core 运行时的 Host 校验已由变更 `drop-core-host-allowlist` 移除，不再保留既有 Host 兼容。
 - 队列通过逻辑 producer binding/dead_letter_queue 与物理 queue name 的显式映射调度；保留历史名称兼容，未知队列必须失败而不是静默确认。
 - types 从 api.toml 提取兼容日期和 flags，隔离临时目录+空 env 生成 runtime；不加载本地秘密或生成字面量 Env。
 - 远程部署先完成全部目标配置与前置校验。提供显式 bootstrap 模式，先部署不绑定内部 service/Workflow 的 Core，再部署 AI，先部署持有 Workflow 的 Edge，最终恢复 Core 完整绑定；常规更新不降级现有服务。现有部署须原样保留 DO migration history。
