@@ -6,8 +6,11 @@ description: Automated, policy-driven pull request review on our own DeepSeek ke
 run-name: "PR review for #${{ github.event.pull_request.number || github.run_id }}"
 on:
   pull_request:
-    # `reopened` is included so a reopened pull request is reviewed again.
-    types: [opened, ready_for_review, reopened]
+    # `reopened` is included so a reopened pull request is reviewed again, and
+    # `synchronize` so a push to an open pull request re-reviews the pushed head.
+    # Pushes on fork heads and drafts still start nothing: the compiled activation
+    # carries the same-repository-head and draft guards for every event type.
+    types: [opened, ready_for_review, reopened, synchronize]
     # Drafts are excluded: `opened` also fires for drafts, which would review the
     # same pull request twice (once as a draft, once at ready_for_review).
     draft: false
@@ -24,8 +27,10 @@ permissions:
 if: vars.PR_REVIEW_ENABLED != 'false'
 
 concurrency:
-  # No cancel-in-progress: a cancelled run is not a passing required check, so a
-  # superseded run must be allowed to finish rather than being cancelled.
+  # No cancel-in-progress: a superseded in-progress run finishes rather than
+  # being cancelled. GitHub still replaces the queued pending run on the next
+  # push, so intermediate heads are never reviewed; the merge gate recognizes
+  # that cancelled-and-superseded shape and stays silent for it (design D5).
   group: pr-review-${{ github.event.pull_request.number || github.run_id }}
 
 timeout-minutes: 20

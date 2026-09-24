@@ -25,9 +25,11 @@ name: PR review gate
 #     for a review that never ran (run 35490678495).
 #
 # Reading the stage conclusions rather than a list of known-bad ones means a shape
-# this gate has never seen — a run cancelled before activation, a stage that threw,
-# a conclusion a future gh-aw release adds — fails closed instead of passing as an
-# unrecognized skip.
+# this gate has never seen — a stage that threw, a conclusion a future gh-aw
+# release adds — fails closed instead of passing as an unrecognized skip. One
+# cancelled shape is recognized: a run cancelled because a newer push superseded
+# it reports nothing and leaves the head's status to the newest run (see the
+# cancelled-run handling in the script); any other cancelled run fails closed.
 #
 # Only possible after merge: `workflow_run` — like `workflow_dispatch` and
 # `issue_comment` — only triggers workflows that exist on the default branch.
@@ -120,6 +122,38 @@ jobs:
             echo "::warning::Run $RUN_ID has no pull request number in its title; not reporting."
             exit 0
           fi
+
+          # A cancelled run never published a review, and when it was cancelled
+          # because a newer push superseded it — the per-PR concurrency group
+          # keeps one pending run and replaces it on the next push — the newest
+          # run owns the head's status. Failing closed here would post that
+          # failure on the pull request's *current* head via the SHA fallback
+          # below, a spurious red check that only the newer run's own report
+          # clears (and clears only if its gate posts last). So a cancelled run
+          # with a newer review run for the same pull request says nothing. A
+          # cancelled run with nothing newer coming — a manual cancel of the
+          # final run — falls through to the normal path and fails closed.
+          if [ "$(jq -r '.conclusion' <<<"$RUN")" = "cancelled" ]; then
+            RUN_CREATED=$(jq -r '.created_at' <<<"$RUN")
+            # Only runs that can themselves report count as successors: the
+            # automatic workflow's pull_request runs, and the command workflow's
+            # comment-triggered runs (its pull_request runs decline and report
+            # nothing, per the case filter above). gh api has no --arg flag, so
+            # the jq program runs after a pipe; pipefail still aborts the step
+            # if gh api itself fails.
+            NEWER_AUTO=$(gh api "repos/$REPO/actions/workflows/pr-review.lock.yml/runs?per_page=30&created=%3E%3D${RUN_CREATED}" \
+              | jq --arg num "$PR_NUMBER" --arg since "$RUN_CREATED" \
+                '[.workflow_runs[] | select(.event == "pull_request") | select(.created_at > $since) | select((.display_title // "") | test("#" + $num + "([^0-9]|$)"))] | length')
+            NEWER_CMD=$(gh api "repos/$REPO/actions/workflows/pr-review-command.lock.yml/runs?per_page=30&created=%3E%3D${RUN_CREATED}" \
+              | jq --arg num "$PR_NUMBER" --arg since "$RUN_CREATED" \
+                '[.workflow_runs[] | select(.event == "issue_comment" or .event == "pull_request_review_comment") | select(.created_at > $since) | select((.display_title // "") | test("#" + $num + "([^0-9]|$)"))] | length')
+            if [ "$((NEWER_AUTO + NEWER_CMD))" -gt 0 ]; then
+              echo "Run $RUN_ID was cancelled and a newer review run exists for #$PR_NUMBER; leaving the status to the newest run."
+              exit 0
+            fi
+            echo "Run $RUN_ID was cancelled with no newer review run for #$PR_NUMBER; failing closed below."
+          fi
+
           PR_HEAD=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.head.sha')
           RUN_STARTED=$(jq -r '.run_started_at // .created_at' <<<"$RUN")
           REVIEW_SHA=$(gh api "repos/$REPO/pulls/$PR_NUMBER/reviews" --paginate \
