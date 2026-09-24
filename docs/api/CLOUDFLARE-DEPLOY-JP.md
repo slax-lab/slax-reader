@@ -30,4 +30,4 @@ pnpm api -- wrangler edge secret put EDGE_SHARED_SECRET
 
 ## 開発環境の一括起動と外部 CI 設定
 
-開発用リソースと環境ファイルを準備後、`pnpm api -- setup:api` で Wrangler ログイン、依存サービスの初期化・マイグレーション・生成を実行して終了します。Worker は別途 `pnpm api -- dev` で起動します。`setup:api --check` はローカル前提条件のみ確認します。Vectorize/AI は引き続きクラウドが必要です。全ツールは SLAX_API_CONFIG（絶対パスまたはリポジトリルート相対パス）に対応し、types は --config も使用できます。手動・再利用可能な .github/workflows/api-deploy.yml は別リポジトリから設定を取得し、検証後にデプロイします。[準備と CI ガイド（中国語）](DEV-AND-CI-CN.md)、[Docker adapter 調査（中国語）](DOCKER-ADAPTER-RESEARCH-CN.md)を参照してください。
+開発用リソースと環境ファイルを準備後、`pnpm api -- setup` で Wrangler ログイン、依存サービスの初期化・マイグレーション・生成を実行して終了します。Worker は別途 `pnpm api -- dev` で起動します。`setup --check` はローカル前提条件のみ確認します。Vectorize/AI は引き続きクラウドが必要です。全ツールは SLAX_API_CONFIG（絶対パスまたはリポジトリルート相対パス）に対応し、types は --config も使用できます。手動・再利用可能な .github/workflows/api-deploy.yml は別リポジトリから設定を取得し、検証後にデプロイします。[準備と CI ガイド（中国語）](DEV-AND-CI-CN.md)、[Docker adapter 調査（中国語）](DOCKER-ADAPTER-RESEARCH-CN.md)を参照してください。

@@ -51,7 +51,7 @@ variable errors are expected at this point; Phase 3 fixes them.
 2. Once the *Verify* step below passes, delete `local.zip` from the
    repository root so it is never committed.
 
-*Verify:* `pnpm preflight && pnpm api -- setup:api --check` — all green.
+*Verify:* `pnpm preflight && pnpm api -- setup --check` — all green.
 These checks are the contract for what the bundle must contain; if one
 reports missing material, either the zip was unpacked to the wrong location
 (`deploy/local/` is the target) or the bundle itself is stale — confirm
@@ -60,7 +60,7 @@ with the user.
 ## Phase 4 — Backend initialization
 
 ```bash
-pnpm api -- setup:api
+pnpm api -- setup
 ```
 
 This runs `wrangler login` once (**[HUMAN]**: browser authorization with the
@@ -107,8 +107,8 @@ against the local API.
   surfaces inside the app, not at the command entry.)
 - pnpm warns `Unsupported engine ... (current: {"node":"v25.x"})`:
   switch to Node 22 LTS or 24 LTS.
-- `pnpm preflight` and `setup:api --check` messages are self-describing; fix
+- `pnpm preflight` and `setup --check` messages are self-describing; fix
   the ✗ items and re-run.
 - Backend setup details: `docs/api/DEV-AND-CI-CN.md`.
-- `setup:api` never creates or rewrites configuration; missing material means
+- `setup` never creates or rewrites configuration; missing material means
   a Phase 3 item is incomplete.

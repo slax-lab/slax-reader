@@ -70,7 +70,6 @@
     "config:init": "tsx --tsconfig tsconfig.json script/deploy/init-config.ts",
     "dev": "tsx --tsconfig tsconfig.json script/deploy/deploy.ts --dev",
     "dev:local": "tsx --tsconfig tsconfig.json script/deploy/dev-local.ts",
-    "setup:backend": "pnpm setup:api",
     "deploy": "tsx --tsconfig tsconfig.json script/deploy/deploy.ts",
     "build": "tsx --tsconfig tsconfig.json script/deploy/build.ts",
     "resources": "tsx --tsconfig tsconfig.json script/deploy/gen-config.ts",
@@ -114,7 +113,7 @@
     "debug:hashids": "tsx --tsconfig tsconfig.json script/hashids.ts",
     "debug:hash-article": "tsx --tsconfig tsconfig.json script/hash-article.ts",
     "insights:d1": "pnpm wrangler core d1 insights",
-    "setup:api": "tsx --tsconfig tsconfig.json script/deploy/setup-api.ts",
+    "setup": "tsx --tsconfig tsconfig.json script/deploy/setup-api.ts",
     "test:setup:local": "tsx --tsconfig tsconfig.json test/runtime/powersyncSmoke.ts"
   }
 }

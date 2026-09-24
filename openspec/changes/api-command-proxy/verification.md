@@ -63,7 +63,7 @@ Wrangler 在嵌套工作树构建时报告的 duplicate package keys 指向工�
 
 ## 自动环境文件加载补验
 
-用户进一步明确需要从文件自动加载，此前仅验证 export/进程环境的结论不能证明文件可用。现已补齐 apps/api/.env 的加载器，并接入全部 Prisma config、D1/Wrangler、dev、真实 deploy、resources --apply。Worker runtime 继续显式使用 deploy/cloudflare/.dev.vars；文档中此前“Prisma 不自动加载”的说明由本节与现行开发文档替代。默认文件按应用位置定位，显式 SLAX_API_ENV_FILE 按仓库根解析，进程变量优先；默认文件缺失兼容 CI，显式缺失或不可读失败且不打印内容。
+用户进一步明确需要从文件自动加载，此前仅验证 export/进程环境的结论不能证明文件可用。工具环境加载器已接入全部 Prisma config、D1/Wrangler、dev、真实 deploy、resources --apply。当前文件固定为 deploy/local/.env，Worker runtime 显式使用 deploy/local/.dev.vars；文档中此前“Prisma 不自动加载”的说明由本节与现行开发文档替代。进程变量优先，文件缺失兼容 CI，不可读失败且不打印内容。
 
 集中修改后统一回归全部通过，日志在 .local/api-env-regression/validation/：
 
@@ -78,7 +78,7 @@ Wrangler 在嵌套工作树构建时报告的 duplicate package keys 指向工�
 
 按后续用户要求实现 dev:full 与 SLAX_API_CONFIG，并提供手动/可复用 API deploy workflow。用户已明确 Docker 本轮仅调研，结果见 docs/api/DOCKER-ADAPTER-RESEARCH-CN.md；HTTP 类型仅评估共享合约边界，未迁出也未增加 Docker runtime。
 
-dev:full 的前置检查覆盖 development/dev、本地 API 与数据库目标、Worker 必需变量、PowerSync JWK/Compose 一致性及 Docker 可用性；随后顺序执行 setup:backend 和 dev，阶段失败停止，SIGINT/SIGTERM 正确透传并保留 130/143 退出码。不自动创建云资源、执行远程迁移或覆盖本地配置/密钥。
+dev:full 的前置检查覆盖 development/dev、本地 API 与数据库目标、Worker 必需变量、PowerSync JWK/Compose 一致性及 Docker 可用性；随后顺序执行 setup 和 dev，阶段失败停止，SIGINT/SIGTERM 正确透传并保留 130/143 退出码。不自动创建云资源、执行远程迁移或覆盖本地配置/密钥。
 
 SLAX_API_CONFIG 贯通 dev/setup、build/deploy、types、D1/Wrangler 与 resources，支持根相对和绝对路径；显式 --config 优先。config:init 不向外部仓库写入。实际生成和四 Worker 构建使用 .local/api-dev-ci/operator configuration/api.toml，名称修改为 ci-reader-*，证明外部路径和空格可用。配置入口测试同时验证默认 api.toml 不存在时各工具仍正确读取外部文件、types 保持空 env 隔离且配置不改写。
 
@@ -94,17 +94,17 @@ SLAX_API_CONFIG 贯通 dev/setup、build/deploy、types、D1/Wrangler 与 resour
 
 ## 环境文件集中存放（后续用户确认）
 
-本节替代上文历史验证中的默认 apps/api/.env 路径。当前默认工具文件为 deploy/cloudflare/.env，与 .dev.vars 和 api.toml 同目录；Prisma 配置仍位于 apps/api/prisma。SLAX_API_ENV_FILE 的显式选择、进程变量优先、本地 setup 固定 URL 和离线命令隔离保持不变。
+本节替代上文历史验证中的默认 apps/api/.env 路径。当前工具文件固定为 deploy/local/.env，与 .dev.vars 和 api.toml 同目录；Prisma 配置仍位于 apps/api/prisma。进程变量优先、本地 setup 固定 URL 和离线命令隔离保持不变。
 
 统一回归：13 项文件读取测试（真实 Prisma CLI、D1 包装器、cwd 独立、显式覆盖、旧路径不隐式加载、Worker 文件传递及离线隔离）；全量 1495 passed、48 skipped、0 failed；API/共享合约类型检查、lint（0 errors，337 个原有 warnings）、四 Worker 离线构建、OpenSpec strict、生成规则检查通过。记录位于 .local/api-env-colocated/validation。124 个 schema/历史迁移内容不变。
 
 只检查实际文件的存在性：apps/api/.env、deploy/cloudflare/.env、deploy/cloudflare/.dev.vars 均不存在，没有读取或搬运用户凭据，也没有生成假密钥。测试只使用合成文件；未执行远程部署或资源操作。
 
-## 完整 setup:api 与本地目录（后续用户确认）
+## 完整 setup 与本地目录（后续用户确认）
 
 本节替代前述环境路径结论：实际 api.toml、.env、.dev.vars 和生成配置默认统一 deploy/local，唯一公开模板保留 deploy/cloudflare/api.toml.example。已存在的三个本地文件仅按文件名移动，没有读取内容或覆盖目标。
 
-setup:api 自动创建缺失的本地配置和安全随机开发密钥，将 PowerSync 私钥自动接入 Worker；已有值不覆盖，不完整或不匹配密钥明确报错。--check 只读且列出缺失路径。内部 setup 复用预检，依次初始化数据库、迁移、生成、等待 PowerSync 健康后启动四个 Workers。兼容旧入口，移除独立 init:pgsql 公开命令。
+setup 自动创建缺失的本地配置和安全随机开发密钥，将 PowerSync 私钥自动接入 Worker；已有值不覆盖，不完整或不匹配密钥明确报错。--check 只读且列出缺失路径。内部 setup 复用预检，依次初始化数据库、迁移、生成、等待 PowerSync 健康后启动四个 Workers。兼容旧入口，移除独立 init:pgsql 公开命令。
 
 集中回归：1501 passed、48 skipped、0 failed；13 项环境文件测试、完整 setup 首次创建/重复运行/缺失/信号/失败传播测试通过。四 Worker 离线构建、类型检查、生成、47 项数据库集成及真实 HTTP 回归通过。额外用独立 Compose 项目、新端口和新卷执行主库/logs 历史迁移，真实启动 PowerSync unified 与 API 两个服务，Compose 健康检查和各自 HTTP liveness 均通过，验证后清理测试容器/卷。没有对用户现有 dev-postgres 执行迁移或停止其 Worker。
 
@@ -125,12 +125,12 @@ setup:api 自动创建缺失的本地配置和安全随机开发密钥，将 Pow
 - 本地 setup 从 .dev.vars 的 API 签名私钥推导 PowerSync 公开验证参数，经子进程环境传给 Compose。旧公私钥副本/compose.env 不再是先决条件，也不改写或生成这些文件。JSON、字段、用途和 RSA 签名验签错误分别报告。
 - 集中回归全部通过：1512 项单测通过、48 跳过；lint 无错误、API/contracts 类型检查通过；Shell 语法、OpenSpec strict、规则漂移和 diff 检查通过。124 个 schema/历史迁移哈希不变。
 - 隔离真实 PostgreSQL/PowerSync 验收通过：API 私钥与旧生成文件刻意不一致，两个 PowerSync 服务健康；Compose 中的公钥参数与 API 私钥相符，JWT 签名验签测试通过。测试容器和本轮临时目录清理。
-- 用户授权修复后，以其真实 deploy/local/api.toml 与 .dev.vars 执行 setup:api --check，通过（退出码 0）。诊断只在本机内部使用私钥，不显示或改写密钥；没有对用户数据库执行迁移或进行云部署。
+- 用户授权修复后，以其真实 deploy/local/api.toml 与 .dev.vars 执行 setup --check，通过（退出码 0）。诊断只在本机内部使用私钥，不显示或改写密钥；没有对用户数据库执行迁移或进行云部署。
 
 
 ## 初始化与项目启动分离（用户最新要求）
 
-- setup:api 校验配置后，在 apps/api 执行一次 pnpm exec wrangler login；成功后初始化 PostgreSQL、迁移、代码生成和 PowerSync，健康检查通过后退出。dev 独立启动 Workers，setup:backend 保留为初始化别名，删除混合入口 dev:full。--check 保持只读且不登录。
+- setup 校验配置后，在 apps/api 执行一次 pnpm exec wrangler login；成功后初始化 PostgreSQL、迁移、代码生成和 PowerSync，健康检查通过后退出。dev 独立启动 Workers，setup 作为唯一初始化命令，删除混合入口 dev:full。--check 保持只读且不登录。
 - 完成修改后统一回归：1514 项测试通过、48 跳过、0 失败；lint、API/contracts 类型检查、Shell 语法、OpenSpec strict、规则漂移与 diff 检查通过；124 个 schema/历史迁移哈希不变。
-- 登录参数/cwd/顺序与每次一次、登录失败停止、基础设施失败传播、两个阶段的 SIGINT/SIGTERM、初始化不启动 Workers 均通过模拟子进程验证；没有实际触发浏览器 OAuth。用户现有配置的 setup:api --check 再次通过，未改写配置、执行用户数据库迁移或启动其项目。
+- 登录参数/cwd/顺序与每次一次、登录失败停止、基础设施失败传播、两个阶段的 SIGINT/SIGTERM、初始化不启动 Workers 均通过模拟子进程验证；没有实际触发浏览器 OAuth。用户现有配置的 setup --check 再次通过，未改写配置、执行用户数据库迁移或启动其项目。
 - 测试临时目录已清理，仓库根目录没有 .tmp 目录；没有新建或修改已有 worktree。记录位于 .local/api-legacy-config/validation。

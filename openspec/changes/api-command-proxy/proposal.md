@@ -36,6 +36,6 @@
 
 用户后续授权优化一键启动和 CI 外部配置；Docker 自部署经澄清本轮仅调研。新增 dev:full 将已配置开发环境的预检、基础设施、历史迁移、生成和 Worker 启动串联；SLAX_API_CONFIG 贯通各工具，CI 从独立仓库选择配置，不复制第二份权威配置。HTTP 类型仅评估 packages/contracts 的迁移边界。
 
-用户最终确认：本地配置集中 deploy/local，setup:api 在配置齐备后一次性启动 PostgreSQL、迁移、PowerSync 与四个 Workers。用户自行准备缺失配置，不允许自动补写、转换或备份配置。遵循其现有原生 Wrangler name/services/env 格式，移除自定义 workers 表要求；各入口统一环境选择，运行时配置只生成在既有 .generated 目录。
+用户最终确认：本地配置集中 deploy/local，setup 在配置齐备后一次性启动 PostgreSQL、迁移、PowerSync 与四个 Workers。用户自行准备缺失配置，不允许自动补写、转换或备份配置。遵循其现有原生 Wrangler name/services/env 格式，移除自定义 workers 表要求；各入口统一环境选择，运行时配置只生成在既有 .generated 目录。
 
-用户最新确认：setup 与项目启动必须分离。setup:api 校验后执行一次 pnpm exec wrangler login，成功后准备 PostgreSQL/PowerSync、迁移和生成并退出；API Workers 由 dev 独立启动。移除混合 dev:full 入口，setup:backend 仅兼容初始化；--check 不登录。
+用户最新确认：setup 与项目启动必须分离。setup 校验后执行一次 pnpm exec wrangler login，成功后准备 PostgreSQL/PowerSync、迁移和生成并退出；API Workers 由 dev 独立启动。移除混合 dev:full 入口，setup 仅负责初始化；--check 不登录。

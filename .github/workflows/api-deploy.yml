@@ -102,10 +102,8 @@ jobs:
           selected = (root / os.environ['CONFIG_FILE']).resolve()
           if not selected.is_relative_to(root) or not selected.is_file() or '\n' in str(selected) or '\r' in str(selected):
               raise SystemExit('config-path must identify a file inside the configuration checkout')
-          empty = Path(os.environ['RUNNER_TEMP']) / 'api-empty.env-file'
-          empty.write_text('')
           with open(os.environ['GITHUB_ENV'], 'a') as output:
-              output.write(f'SLAX_API_CONFIG={selected}\nSLAX_API_ENV_FILE={empty}\n')
+              output.write(f'SLAX_API_CONFIG={selected}\n')
           PY
           git -C .local/deployment-config rev-parse HEAD
       - uses: pnpm/action-setup@v4

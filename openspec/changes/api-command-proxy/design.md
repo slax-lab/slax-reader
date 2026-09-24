@@ -146,19 +146,19 @@ pnpm api -- migration:local
 
 ## 自动加载环境文件
 
-Prisma 的四份 config 与 Wrangler（含 D1）、dev、真实 deploy、resources --apply 显式调用同一工具环境加载器。工具与 Worker 配置集中在 deploy/cloudflare/，工具默认文件固定为 deploy/local/.env，不跟随 cwd 或从祖先目录探测。已存在的进程变量优先，setup 固定的本地数据库连接不能被文件覆盖。SLAX_API_ENV_FILE 可指定仓库根相对或绝对文件；显式文件不存在/不可读应失败，默认文件不存在则兼容 CI/登录态。加载器不打印内容，dotenv 不执行 shell 表达式。
+Prisma 的四份 config 与 Wrangler（含 D1）、dev、真实 deploy、resources --apply 显式调用同一工具环境加载器。工具与 Worker 本地配置集中在 deploy/local/，工具文件固定为 deploy/local/.env，不跟随 cwd 或从祖先目录探测。已存在的进程变量优先，setup 固定的本地数据库连接不能被文件覆盖。文件不可读应失败，文件不存在则兼容 CI/登录态。加载器不打印内容，dotenv 不执行 shell 表达式。
 
 本地 Worker 运行变量仍通过 --env-file 加载 deploy/local/.dev.vars；工具凭据不作为 Worker bindings。D1 的资源身份仍来自 api.toml，.env 用于 Cloudflare 工具认证。build、types、deploy --dry-run 和 resources 计划不调用加载器。验证只使用自建临时文件，不读取用户真实环境文件。
 
 ## 一键开发与 CI 外部配置
 
-setup:api 与 dev 分离，setup:backend 仅兼容初始化；--check 只读且不登录。预检要求 development/dev、本地 API origin、与 Compose 匹配的 Hyperdrive 数据库、Worker 必需密钥、PowerSync API 私钥可以完成 RS256 签名验签及 Docker 可用。所有预检发生在 setup 前。初次需要自行准备专用 Cloudflare 开发资源和外部服务凭据；Vectorize/AI 仍是远程依赖，不宣称离线全功能。
+setup 与 dev 分离，setup 仅负责初始化；--check 只读且不登录。预检要求 development/dev、本地 API origin、与 Compose 匹配的 Hyperdrive 数据库、Worker 必需密钥、PowerSync API 私钥可以完成 RS256 签名验签及 Docker 可用。所有预检发生在 setup 前。初次需要自行准备专用 Cloudflare 开发资源和外部服务凭据；Vectorize/AI 仍是远程依赖，不宣称离线全功能。
 
 SLAX_API_CONFIG 的默认值为 deploy/local/api.toml，支持仓库根相对和绝对路径；build/deploy/types 的 --config 显式参数优先。D1 包装器、resources 和 setup 共享同一选择。config:init 始终只创建默认本地文件，不向外部配置仓库写入。CI 提供 workflow_call/workflow_dispatch，分别检出源码与配置仓库，使用只读配置仓库 token，校验配置文件位于该 checkout，生成/检查/打包后显式部署，不自动迁移或新建云资源。生产 secret 保持 Worker secrets，配置仓库中不保存明文秘密。
 
 ## 统一完整后台启动
 
-setup:api 为初始化入口，setup:backend 保留兼容转发，移除混合 dev:full。用户自行提供配置、环境文件与有效的 API PowerSync 签名私钥；预检只读，不补写、不转换、不备份、不自动生成密钥。预检通过后在 apps/api 中执行一次 pnpm exec wrangler login，继承终端以完成浏览器 OAuth 授权；成功后内部 Bash setup 负责基础设施/迁移/代码生成，PowerSync 健康后退出。Workers 使用 dev 独立启动。登录失败或信号中断时不进入后续阶段。
+setup 为唯一的初始化入口，移除混合 dev:full。用户自行提供配置、环境文件与有效的 API PowerSync 签名私钥；预检只读，不补写、不转换、不备份、不自动生成密钥。预检通过后在 apps/api 中执行一次 pnpm exec wrangler login，继承终端以完成浏览器 OAuth 授权；成功后内部 Bash setup 负责基础设施/迁移/代码生成，PowerSync 健康后退出。Workers 使用 dev 独立启动。登录失败或信号中断时不进入后续阶段。
 
 唯一 api.toml 使用原生 Wrangler name/services/env。setup/dev/local D1 在 env.dev 存在时选择它，否则读取顶层；--env/SLAX_API_ENV 显式选择环境，其余命令默认顶层。命名环境的 vars 和 bindings 不继承顶层，避免意外使用生产资源。Core 按原生 name 环境后缀规则命名；AI/Browser 使用原生服务绑定；Edge 可由 EDGE 服务指定，已有 reader-core 命名沿用旧部署身份，其他命名默认追加 -edge。生成入口配置保持资源 ID、历史迁移和源文件不变。旧 parser-dev 队列不自动删除、不编造处理器，实际未知消息保持原有失败行为。
 

@@ -24,7 +24,7 @@ done
 if [ "$POSTGRES_ONLY" -eq 0 ]; then
   for name in PS_JWK_N PS_JWK_E PS_JWK_KID; do
     if [ -z "${!name:-}" ]; then
-      echo "!! missing $name; use pnpm api -- setup:api to derive public verification parameters from the API signing key" >&2
+      echo "!! missing $name; use pnpm api -- setup to derive public verification parameters from the API signing key" >&2
       exit 1
     fi
   done

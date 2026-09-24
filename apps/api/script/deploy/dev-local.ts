@@ -17,7 +17,6 @@ export function isolatedEnvironment(home: string, emptyEnv: string): NodeJS.Proc
     TMPDIR: resolve(home, 'tmp'),
     CI: 'true',
     DOTENV_CONFIG_PATH: emptyEnv,
-    SLAX_API_ENV_FILE: emptyEnv,
     CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: 'false',
     CLOUDFLARE_INCLUDE_PROCESS_ENV: 'false',
     WRANGLER_SEND_METRICS: 'false'

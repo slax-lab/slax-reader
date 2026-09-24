@@ -30,4 +30,4 @@ pnpm api -- wrangler edge secret put EDGE_SHARED_SECRET
 
 ## 一键启动与 CI 外部配置
 
-完成首次资源和环境文件准备后运行 `pnpm api -- setup:api`，或先执行 `pnpm api -- setup:api --check`。setup 执行一次 Wrangler 登录、初始化依赖、迁移和生成后退出；另行执行 `pnpm api -- dev` 启动 Workers；Vectorize/AI 等仍依赖云端。所有工具支持 `SLAX_API_CONFIG` 指向独立配置仓库中的 api.toml，types 也支持 `--config`。完整准备清单与 CI workflow 示例见 [一键开发与配置仓库](DEV-AND-CI-CN.md)，Docker adapter 和公共 HTTP 类型边界见 [调研](DOCKER-ADAPTER-RESEARCH-CN.md)。
+完成首次资源和环境文件准备后运行 `pnpm api -- setup`，或先执行 `pnpm api -- setup --check`。setup 执行一次 Wrangler 登录、初始化依赖、迁移和生成后退出；另行执行 `pnpm api -- dev` 启动 Workers；Vectorize/AI 等仍依赖云端。所有工具支持 `SLAX_API_CONFIG` 指向独立配置仓库中的 api.toml，types 也支持 `--config`。完整准备清单与 CI workflow 示例见 [一键开发与配置仓库](DEV-AND-CI-CN.md)，Docker adapter 和公共 HTTP 类型边界见 [调研](DOCKER-ADAPTER-RESEARCH-CN.md)。

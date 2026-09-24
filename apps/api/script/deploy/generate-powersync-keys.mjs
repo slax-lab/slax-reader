@@ -20,5 +20,5 @@ writeFileSync(path.join(directory, names[0]), JSON.stringify(privateKey) + '\n',
 writeFileSync(path.join(directory, names[1]), JSON.stringify({ keys: [publicKey] }) + '\n', { flag: 'wx', mode: 0o644 })
 writeFileSync(path.join(directory, names[2]), `PS_JWK_N=${publicKey.n}\nPS_JWK_E=${publicKey.e}\nPS_JWK_KID=${publicKey.kid}\n`, { flag: 'wx', mode: 0o600 })
 console.log(
-  'Created local PowerSync keys. Put the private JWK in deploy/local/.dev.vars as POWERSYNC_JWK_PRIVATE_KEY. setup:api derives the public verification key at runtime; existing configuration is never updated automatically.'
+  'Created local PowerSync keys. Put the private JWK in deploy/local/.dev.vars as POWERSYNC_JWK_PRIVATE_KEY. setup derives the public verification key at runtime; existing configuration is never updated automatically.'
 )

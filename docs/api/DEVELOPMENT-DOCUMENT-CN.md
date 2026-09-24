@@ -6,7 +6,7 @@ API 独有的 TypeScript、Vitest、ESLint、Prettier、EditorConfig 都在 `app
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm api -- setup:api
+pnpm api -- setup
 pnpm api -- dev
 ```
 
@@ -18,7 +18,7 @@ pnpm api -- test
 pnpm api -- build
 ```
 
-`setup:api` 检查你准备的本地配置和密钥，完成数据库初始化、迁移和代码生成，执行一次 Wrangler 登录并等待 PowerSync 健康后退出；Workers 单独用 `pnpm api -- dev` 启动。无需分别初始化 PostgreSQL/PowerSync 。配置集中在 `deploy/local/`，不自动补写配置或生成密钥，缺失时明确退出。`setup:api --check` 只读检查；云资源和第三方凭据仍需自行配置。详见[完整启动说明](DEV-AND-CI-CN.md)。
+`setup` 检查你准备的本地配置和密钥，完成数据库初始化、迁移和代码生成，执行一次 Wrangler 登录并等待 PowerSync 健康后退出；Workers 单独用 `pnpm api -- dev` 启动。无需分别初始化 PostgreSQL/PowerSync 。配置集中在 `deploy/local/`，不自动补写配置或生成密钥，缺失时明确退出。`setup --check` 只读检查；云资源和第三方凭据仍需自行配置。详见[完整启动说明](DEV-AND-CI-CN.md)。
 
 Prisma 自动读取 `deploy/local/.env` 中的 `HYPERDRIVE_DATABASE_URL` 和 `LOGS_DATABASE_URL`，无需手动 export。占位 URL 只适用于生成客户端，迁移必须使用明确目标。`migration:local` 不含 logs，单独调用对应入口。`gen:pull` 必须明确 pgsql/logs，会改写 schema；`gen:diff:d1` 的数据库路径按仓库根解析，拒绝覆盖已有迁移。历史 SQL 不得随配置移动改写。
 
@@ -51,7 +51,7 @@ Prisma 自动读取 `deploy/local/.env` 中的 `HYPERDRIVE_DATABASE_URL` 和 `LO
 | Resource plan / create | `pnpm api -- resources` / `resources --apply` |
 | Wrangler command with actual config | `pnpm api -- wrangler edge <command> [args...]` |
 | Edge logs | `pnpm api -- tail` |
-| Complete local API setup | `pnpm api -- setup:api` |
+| Complete local API setup | `pnpm api -- setup` |
 | Maintenance | `pnpm api -- gen:apple-certs` / `backfill:device-alias` |
 | Diagnostics | `pnpm api -- debug:hashids` / `debug:hash-article` |
 | Optional CLI tools | `pnpm api -- stripe:webhook` / `mcp:tool` / `update:cli` |
@@ -61,10 +61,10 @@ Prisma 自动读取 `deploy/local/.env` 中的 `HYPERDRIVE_DATABASE_URL` 和 `LO
 - `deploy/local/api.toml`：实际部署配置，只放非秘密参数；唯一公开模板是`deploy/cloudflare/api.toml.example`。
 - `deploy/local/.dev.vars`：本地 Worker 密钥，dev 脚本通过 `--env-file` 显式加载；不放到仓库根或 apps/api 再维护副本。生产密钥使用 Cloudflare Worker secrets。
 - `deploy/local/powersync-local/compose.env`：Docker Compose 使用的 PowerSync 公钥参数，由 `pnpm api -- keys:powersync` 生成。
-- `deploy/local/.env`：Prisma 数据库 URL，以及 D1/Wrangler、dev、deploy、resources --apply 的 Cloudflare 工具凭据（如 `CLOUDFLARE_API_TOKEN`）。自动加载，不需要 export；D1 数据库绑定仍来自 api.toml。已有 shell/CI 变量优先，`setup:api` 固定本地数据库 URL，不会被文件覆盖。默认文件缺失时可使用 CI 环境或 Wrangler 登录态。
-- 多套配置或隔离验证可用 `SLAX_API_ENV_FILE` 指定其他文件（相对仓库根或绝对路径）；指定文件缺失/不可读会失败。根 `.env` 不自动加载。build、types、deploy --dry-run、resources 计划不会读取工具环境文件。
+- `deploy/local/.env`：Prisma 数据库 URL，以及 D1/Wrangler、dev、deploy、resources --apply 的 Cloudflare 工具凭据（如 `CLOUDFLARE_API_TOKEN`）。自动加载，不需要 export；D1 数据库绑定仍来自 api.toml。已有 shell/CI 变量优先，`setup` 固定本地数据库 URL，不会被文件覆盖。默认文件缺失时可使用 CI 环境或 Wrangler 登录态。
+- 工具环境文件固定为仓库根下的 `deploy/local/.env`，不受工作目录影响；不可读会失败，文件缺失时允许 CI 直接提供进程变量。根 `.env` 不自动加载。build、types、deploy --dry-run、resources 计划不会读取工具环境文件。
 - `.vars` 和 `.vars.temp` 不是受支持的人工配置入口。所有实际环境文件和密钥均不提交。
 
 ## 一键启动与 CI 外部配置
 
-完成首次资源和环境文件准备后运行 `pnpm api -- setup:api`，或先执行 `pnpm api -- setup:api --check`。setup 执行一次 Wrangler 登录、初始化依赖、迁移和生成后退出；另行执行 `pnpm api -- dev` 启动 Workers；Vectorize/AI 等仍依赖云端。所有工具支持 `SLAX_API_CONFIG` 指向独立配置仓库中的 api.toml，types 也支持 `--config`。完整准备清单与 CI workflow 示例见 [一键开发与配置仓库](DEV-AND-CI-CN.md)，Docker adapter 和公共 HTTP 类型边界见 [调研](DOCKER-ADAPTER-RESEARCH-CN.md)。
+完成首次资源和环境文件准备后运行 `pnpm api -- setup`，或先执行 `pnpm api -- setup --check`。setup 执行一次 Wrangler 登录、初始化依赖、迁移和生成后退出；另行执行 `pnpm api -- dev` 启动 Workers；Vectorize/AI 等仍依赖云端。所有工具支持 `SLAX_API_CONFIG` 指向独立配置仓库中的 api.toml，types 也支持 `--config`。完整准备清单与 CI workflow 示例见 [一键开发与配置仓库](DEV-AND-CI-CN.md)，Docker adapter 和公共 HTTP 类型边界见 [调研](DOCKER-ADAPTER-RESEARCH-CN.md)。

@@ -4,7 +4,7 @@
 # the real deploy/local/.dev.vars (gitignored). New team members receive the
 # filled file through the bundle; see docs/LOCAL-SETUP.md.
 #
-# setup:api validates the file: all four keys must be non-empty, and
+# setup validates the file: all four keys must be non-empty, and
 # POWERSYNC_JWK_PRIVATE_KEY must be a single-line RSA private JWK (including
 # kid) capable of RS256 signing.
 
