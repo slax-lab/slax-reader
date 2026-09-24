@@ -13,4 +13,4 @@
 
 ## 3. Rollout
 
-- [ ] 3.1 Open the PR targeting `dev` with `OpenSpec: pr-review-gate-watchdog` in the body; after merge, confirm on the Actions tab that the schedule appears and the first tick completes clean (no posts on a healthy repository)
+- [x] 3.1 Open the PR targeting `dev` with `OpenSpec: pr-review-gate-watchdog` in the body; after merge, confirm on the Actions tab that the schedule appears and the first tick completes clean (no posts on a healthy repository)
