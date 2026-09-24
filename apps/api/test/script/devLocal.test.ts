@@ -55,7 +55,6 @@ describe('explicit isolated local Worker launcher', () => {
     expect(result.env.CLOUDFLARE_API_TOKEN).toBeUndefined()
     expect(result.env.JWT_SECRET_TEXT).toBeUndefined()
     expect(result.env.DOTENV_CONFIG_PATH).toBe(f.empty)
-    expect(result.env.SLAX_API_ENV_FILE).toBe(f.empty)
     expect(result.env.CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV).toBe('false')
     expect(result.env.CLOUDFLARE_INCLUDE_PROCESS_ENV).toBe('false')
     expect(result.env.WRANGLER_SEND_METRICS).toBe('false')

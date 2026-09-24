@@ -153,7 +153,7 @@ describe('apps/api/script/deploy/setup-backend.sh', () => {
     const repo = newRepo()
     const res = runSetup(repo, ['--help'])
     expect(res.status).toBe(0)
-    expect(res.stdout).toContain('use pnpm api -- setup:api')
+    expect(res.stdout).toContain('use pnpm api -- setup')
     expect(res.log).toBe('')
   })
 
@@ -168,7 +168,7 @@ describe('apps/api/script/deploy/setup-backend.sh', () => {
     const repo = newRepo()
     const res = runSetup(repo, ['--no-start'])
     expect(res.status).toBe(0)
-    expect(res.log).toContain('pnpm api -- setup:api --check')
+    expect(res.log).toContain('pnpm api -- setup --check')
 
     const lines = logOrder(res.log)
     const installIdx = indexOfLine(lines, 'pnpm install --frozen-lockfile')
@@ -209,7 +209,7 @@ describe('apps/api/script/deploy/setup-backend.sh', () => {
   })
 
   it('stops before PostgreSQL mutation when the shared preflight reports missing or invalid configuration', () => {
-    const res = runSetup(newRepo(), [], { MOCK_PNPM_FAIL_CONTAINS: 'setup:api --check' })
+    const res = runSetup(newRepo(), [], { MOCK_PNPM_FAIL_CONTAINS: 'setup --check' })
     expect(res.status).not.toBe(0)
     expect(res.log).not.toContain('up -d postgres')
     expect(res.log).not.toContain('migration:deploy:')

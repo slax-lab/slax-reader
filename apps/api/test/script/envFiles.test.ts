@@ -116,31 +116,17 @@ if (pg.datasource.url !== 'postgresql://local/local_pg' || logs.datasource.url !
     expect(result.stderr).not.toContain('fixture-file-token')
   })
 
-  test('explicit files resolve from repository root and do not merge the default file', () => {
-    const f = fixture()
-    fs.writeFileSync(path.join(f.root, 'alternate.env'), 'CLOUDFLARE_API_TOKEN=alternate-token\n')
-    const entry = path.join(f.api, 'check.ts')
-    fs.writeFileSync(
-      entry,
-      `import { loadApiEnv } from './script/env'; loadApiEnv();
-if (process.env.CLOUDFLARE_API_TOKEN !== 'alternate-token' || process.env.HYPERDRIVE_DATABASE_URL) process.exit(2);`
-    )
-    const result = run(f, 'tsx', [entry], { SLAX_API_ENV_FILE: 'alternate.env' }, f.api)
-    expect(result.status, result.stderr).toBe(0)
-  })
-
-  test('missing default files allow CI variables; missing explicit and unreadable files fail', () => {
+  test('missing default files allow CI variables; unreadable default files fail', () => {
     const f = fixture()
     const entry = path.join(f.api, 'check.ts')
     fs.writeFileSync(entry, `import { loadApiEnv } from './script/env'; loadApiEnv(); if (process.env.CLOUDFLARE_API_TOKEN) process.exit(2);`)
     fs.unlinkSync(path.join(f.root, 'deploy/local/.env'))
     expect(run(f, 'tsx', [entry]).status).toBe(0)
-    for (const file of ['missing.env', 'apps/api']) {
-      const result = run(f, 'tsx', [entry], { SLAX_API_ENV_FILE: file })
-      expect(result.status).not.toBe(0)
-      expect(result.stderr).toContain('Cannot load API environment file')
-      expect(result.stderr).not.toContain('wrong-root-token')
-    }
+    fs.mkdirSync(path.join(f.root, 'deploy/local/.env'))
+    const result = run(f, 'tsx', [entry])
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain('Cannot load deploy/local/.env')
+    expect(result.stderr).not.toContain('wrong-root-token')
   })
 
   test('Worker development receives its runtime file separately from tool credentials', () => {
@@ -159,7 +145,9 @@ if (process.env.CLOUDFLARE_API_TOKEN !== 'alternate-token' || process.env.HYPERD
     ['gen-config', []]
   ])('%s offline path does not load tool environment files', (script, args) => {
     const f = fixture()
-    const result = run(f, 'tsx', [path.join(f.api, `script/deploy/${script}.ts`), ...args], { SLAX_API_ENV_FILE: 'missing.env' })
+    fs.unlinkSync(path.join(f.root, 'deploy/local/.env'))
+    fs.mkdirSync(path.join(f.root, 'deploy/local/.env'))
+    const result = run(f, 'tsx', [path.join(f.api, `script/deploy/${script}.ts`), ...args])
     expect(result.status, result.stderr).toBe(0)
     expect(result.stdout + result.stderr).not.toContain('fixture-file-token')
   })

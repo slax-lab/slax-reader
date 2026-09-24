@@ -7,7 +7,7 @@ cd "$ROOT"
 
 usage() {
   cat <<'EOF'
-Internal infrastructure setup; use pnpm api -- setup:api
+Internal infrastructure setup; use pnpm api -- setup
 
 Initializes the local backend dev environment without starting dev servers:
   1. verify node >= 22, pnpm, docker compose + daemon
@@ -18,7 +18,7 @@ Initializes the local backend dev environment without starting dev servers:
   6. codegen (pnpm api -- gen:all)
   7. start powersync services
 
-The public setup:api command validates configuration and runs Wrangler login before this script. Start Workers separately with pnpm api -- dev. --no-start is accepted for compatibility.
+The public setup command validates configuration and runs Wrangler login before this script. Start Workers separately with pnpm api -- dev. --no-start is accepted for compatibility.
 EOF
 }
 for arg in "$@"; do
@@ -72,7 +72,7 @@ say "installing dependencies"
 pnpm install --frozen-lockfile
 
 say "checking complete local configuration"
-pnpm api -- setup:api --check
+pnpm api -- setup --check
 
 say "starting postgres and ensuring databases (idempotent)"
 bash deploy/local/powersync-local/init.sh --postgres-only

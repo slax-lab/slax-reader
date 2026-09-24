@@ -54,7 +54,7 @@ The root exposes one dispatcher per application while each app keeps its concret
 pnpm preflight
 pnpm web -- dev
 pnpm extension -- dev
-pnpm api -- setup:api
+pnpm api -- setup
 pnpm api -- dev
 ```
 
@@ -70,7 +70,7 @@ pnpm api -- test
 pnpm api -- build
 ```
 
-The API's `setup:api` command prepares local dependencies and exits; `dev` starts Workers separately. Remote deployment and migrations remain explicit operations with their safety checks. See the [API development guide](docs/api/DEVELOPMENT-DOCUMENT-EN.md) ([中文](docs/api/DEVELOPMENT-DOCUMENT-CN.md), [日本語](docs/api/DEVELOPMENT-DOCUMENT-JP.md)).
+The API's `setup` command prepares local dependencies and exits; `dev` starts Workers separately. Remote deployment and migrations remain explicit operations with their safety checks. See the [API development guide](docs/api/DEVELOPMENT-DOCUMENT-EN.md) ([中文](docs/api/DEVELOPMENT-DOCUMENT-CN.md), [日本語](docs/api/DEVELOPMENT-DOCUMENT-JP.md)).
 
 Shared HTTP types live in [`packages/contracts`](packages/contracts/README.md). Web, Extension, API and future CLI code imports the contract package and does not import application internals.
 

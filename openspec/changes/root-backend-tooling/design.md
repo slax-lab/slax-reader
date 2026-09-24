@@ -65,11 +65,11 @@ apps/api/worker-configuration.d.ts
 
 实施验证发现 Prisma 7 的 `prisma-client-js` 按 schema 位置检查 `prisma` 与 `@prisma/client` 是否可从同层解析。为保持原客户端及输出契约，API 保留同版本 `prisma` 的生成解析依赖，根同时声明 `prisma` 和 `@prisma/client`；这不增加 API 命令或配置入口，实际 CLI 和 cwd 仍在根。
 
-命名以 `动作:api[:子任务]` 为主；现有根 `setup:backend`、`keys:powersync`、`deploy:api` 等保持兼容。以下映射均为拟新增或调整后的根入口：
+命名以 `动作:api[:子任务]` 为主；现有根 `keys:powersync`、`deploy:api` 等保持兼容。以下映射均为拟新增或调整后的根入口：
 
 | 现有 API 操作 | 根入口 |
 | --- | --- |
-| dev / preview / setup:backend | dev:api / preview:api / setup:backend |
+| dev / preview / setup | dev:api / preview:api / setup |
 | test / lint / lint:fix / lint:fix:gen | test:api（一次运行）/ test:api:watch / lint:api / lint:api:fix / lint:api:fix:gen |
 | types / gen:all / gen:model | types:api / gen:api / gen:api:model |
 | gen:di / gen:cron / gen:consumer / gen:router | gen:api:di / gen:api:cron / gen:api:consumer / gen:api:router |
