@@ -41,6 +41,16 @@ const escapeHtml = (text: string) =>
 // Fences may sit inside a blockquote or a list item, so container markers are
 // stripped before matching. Anything the scan cannot place confidently keeps
 // its original info string and renders as a code block.
+// Known asymmetry: markers are stripped on every line, including lines inside
+// an already-open fence, where markdown-it reads the content verbatim. A
+// mermaid source line shaped like `- ``` ` therefore counts as a close here
+// while markdown-it keeps the fence open; the scan then treats a later fence
+// as closed, emits a placeholder for still-arriving content, and hydration
+// renders an unfinished diagram (error notice or a diagram that changes as
+// streaming continues). Remembering the opener's container context would fix
+// this, but real model output essentially never contains such lines, and the
+// stripping cannot be dropped for closers because blockquote-nested fences
+// need it — accepted and recorded here.
 const containerMarkers = /^(?: {0,3}>[ \t]?| {0,3}[-*+][ \t]+| {0,3}\d{1,9}[.)][ \t]+)*/
 const fenceLinePattern = /^( {0,3})(`{3,}|~{3,})([^\r\n]*)/
 

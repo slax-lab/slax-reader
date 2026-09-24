@@ -1184,6 +1184,11 @@ defineExpose({ addQuoteData, focusTextarea })
       :deep(div.mermaid-diagram) {
         margin-top: 12px;
         cursor: zoom-in;
+        padding: 8px;
+        border-radius: var(--slax-radius-sm);
+        // Mermaid renders its fixed light theme; pin a light backdrop so
+        // edges and arrowheads stay visible under the dark theme.
+        background: #ffffff;
 
         svg {
           display: block;

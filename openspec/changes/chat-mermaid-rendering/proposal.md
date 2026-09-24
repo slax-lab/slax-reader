@@ -27,7 +27,7 @@ When a user asks the AI chat to draw a diagram (e.g. a swimlane chart for a comp
 
 ## Impact
 
-- **Code**: `packages/frontend-utils/src/parse.ts` (mermaid fence detection + placeholder output) and a new `packages/frontend-utils/src/mermaid.ts` (hydration helper); `apps/web/app/components/Snapshot/SnapshotChatPanel.vue` + `apps/web/app/components/Chat/BubbleMessage.vue` (post-render hydration at the `v-html` update sites); a new diagram-viewer overlay component in `apps/web`; `apps/web/config/uno.base.ts` (one-line fix: UnoCSS `content.pipeline.exclude` patterns must be globs (`**/node_modules/**`) or the build breaks once mermaid enters the bundle); `apps/api/src/const/prompt.ts` (one-line chat rules addition).
+- **Code**: `packages/frontend-utils/src/parse.ts` (mermaid fence detection + placeholder output) and a new `packages/frontend-utils/src/mermaid.ts` (hydration helper); `apps/web/app/components/Snapshot/SnapshotChatPanel.vue` (post-render hydration at the `v-html` update site); a new diagram-viewer overlay component in `apps/web`; `apps/web/config/uno.base.ts` (one-line fix: UnoCSS `content.pipeline.exclude` patterns must be globs (`**/node_modules/**`) or the build breaks once mermaid enters the bundle); `apps/api/src/const/prompt.ts` (one-line chat rules addition).
 - **Dependencies**: new `mermaid` dependency in `packages/frontend-utils` (dynamic-imported only).
 - **APIs**: no API contract changes; prompt change alters chat response formatting only.
 - **Bundle size**: mermaid is large; in the web build it stays a lazy chunk (verified: separate 2.5 MB dynamic chunk, not preloaded). Extension excluded — see What Changes.

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Lets users receive diagrams from the AI chat: when a user asks the assistant to draw a diagram, the answer is expressed in mermaid syntax and every chat surface renders it as an actual diagram instead of a code block.
+Lets users receive diagrams from the AI chat: when a user asks the assistant to draw a diagram, the answer is expressed in mermaid syntax and the web chat surface renders it as an actual diagram instead of a code block.
 
 ## ADDED Requirements
 
@@ -33,6 +33,11 @@ An assistant message containing a closed `mermaid` fenced code block SHALL rende
 
 - **WHEN** an assistant message contains a fenced code block in any other language
 - **THEN** it renders as a syntax-highlighted code block exactly as before
+
+#### Scenario: Diagram stays legible in the dark theme
+
+- **WHEN** a diagram is rendered while the app theme is dark
+- **THEN** the diagram sits on a fixed light backdrop — in the chat bubble and in the full-view overlay — so its edges, arrowheads and labels remain visible (mermaid renders a fixed light theme)
 
 ### Requirement: Streaming-safe rendering
 

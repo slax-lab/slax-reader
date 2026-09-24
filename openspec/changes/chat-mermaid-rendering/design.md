@@ -2,7 +2,7 @@
 
 ## Context
 
-Chat markdown rendering is a shared pipeline: `markdown-it` + `highlight.js` + `DOMPurify` in `packages/frontend-utils/src/parse.ts` (`parseMarkdownText`), consumed via `v-html`. In scope is one live surface — the web snapshot chat panel (`apps/web/app/components/Snapshot/SnapshotChatPanel.vue` + `Chat/BubbleMessage.vue`, serving both `pages/b/[id]` and `pages/s/[id]`). The extension's chat (`apps/extension/src/components/Chat/ChatBot.vue`) was descoped during implementation: WXT builds the extension's chat UI into a content-script bundle with forced `inlineDynamicImports`, so mermaid (~1.6 MB gzipped) would be inlined and parsed on every page load; extension support waits for a follow-up change using on-demand script injection. `apps/web/app/components/Chat/ChatBot.vue` is currently unreferenced by any page and is out of scope. Streaming re-parses the full accumulated markdown and re-injects `v-html` on every SSE delta (`SnapshotChatPanel.vue`'s buffer accumulation).
+Chat markdown rendering is a shared pipeline: `markdown-it` + `highlight.js` + `DOMPurify` in `packages/frontend-utils/src/parse.ts` (`parseMarkdownText`), consumed via `v-html`. In scope is one live surface — the web snapshot chat panel (`apps/web/app/components/Snapshot/SnapshotChatPanel.vue`, serving both `pages/b/[id]` and `pages/s/[id]`). The extension's chat (`apps/extension/src/components/Chat/ChatBot.vue`) was descoped during implementation: WXT builds the extension's chat UI into a content-script bundle with forced `inlineDynamicImports`, so mermaid (~1.6 MB gzipped) would be inlined and parsed on every page load; extension support waits for a follow-up change using on-demand script injection. `apps/web/app/components/Chat/ChatBot.vue` is currently unreferenced by any page and is out of scope. Streaming re-parses the full accumulated markdown and re-injects `v-html` on every SSE delta (`SnapshotChatPanel.vue`'s buffer accumulation).
 
 Constraints that shape the approach:
 
@@ -59,11 +59,15 @@ Initialize mermaid with `securityLevel: 'strict'`, `startOnLoad: false`, `htmlLa
 
 ### D6: Sizing and full-view overlay
 
-In-bubble: SVG gets `max-width: 100%; height: auto` (scaled overview). Click opens a new minimal overlay component (no existing viewer to reuse) rendering the same cached SVG at natural size with zoom (buttons/wheel) and pan (drag). The overlay lives in each app's components, fed by the shared cache — the SVG string is app-agnostic.
+In-bubble: SVG gets `max-width: 100%; height: auto` (scaled overview). Click opens a new minimal overlay component (no existing viewer to reuse) fed the rendered SVG's `outerHTML` from the live DOM node, opened at fit-to-viewport scale (friendlier than natural size for a wide diagram) with zoom (buttons/wheel) and pan (drag). Wheel zoom scales with the delta magnitude (`exp(-deltaY * k)`, calibrated so one mouse-wheel notch equals one button step) — a discrete step per wheel event makes trackpad pinch explosive. The overlay lives in each app's components; the SVG markup itself is app-agnostic.
+
+Theme handling: mermaid always renders its light theme (`#333` edges on transparent background). Rather than theme-aware rendering (which would need the theme in the render-cache key and re-render on theme change), both the bubble diagram container and the overlay pin a fixed light backdrop (`#ffffff`) behind the SVG, so a diagram reads as a self-contained light-themed image in every theme.
 
 ### D7: Prompt contract in shared chat rules
 
 Add one line to the chat rules in `apps/api/src/const/prompt.ts`, placed so it applies to both mobile and desktop rule blocks: when the user explicitly asks for a diagram or chart, express it as a ```mermaid fenced code block. No encouragement of unprompted diagrams.
+
+Scope note: the line lives in `chatCorePrompt`, so mobile chat answers are also pinned to mermaid fenced blocks even though mobile has no mermaid rendering — mobile shows the block as source code. This is an accepted state (the change's rendering requirement is web-only): mermaid source is still readable, and mobile rendering can land later without any prompt change.
 
 ### D8: Dependency placement and loading
 

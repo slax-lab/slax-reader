@@ -142,7 +142,8 @@ const resetView = () => {
 }
 
 const onWheel = (event: WheelEvent) => {
-  const pixelDelta = event.deltaMode === 1 ? event.deltaY * LINE_DELTA_HEIGHT : event.deltaY
+  const deltaUnit = event.deltaMode === 2 ? window.innerHeight : event.deltaMode === 1 ? LINE_DELTA_HEIGHT : 1
+  const pixelDelta = event.deltaY * deltaUnit
   const clampedDelta = Math.min(MAX_WHEEL_DELTA, Math.max(-MAX_WHEEL_DELTA, pixelDelta))
   zoomBy(Math.exp(-clampedDelta * WHEEL_ZOOM_SENSITIVITY))
 }
@@ -270,7 +271,9 @@ onUnmounted(() => {
       height: 100% !important;
       max-width: none !important;
       border-radius: var(--slax-radius-sm);
-      background: var(--slax-surface-solid);
+      // Fixed light backdrop: mermaid renders its light theme, so a
+      // theme-token surface would hide the #333 edges in dark mode.
+      background: #ffffff;
     }
   }
 
