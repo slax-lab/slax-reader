@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { generateOverviewTagsUserPrompt } from '@/const/prompt'
+import { generateOverviewTagsUserPrompt, systemPrompt } from '@/const/prompt'
+
+describe('systemPrompt', () => {
+  it('asks the model for markdown directly, with no JSON envelope', () => {
+    expect(systemPrompt).toContain('用markdown列表的形式总结这篇文章')
+    expect(systemPrompt).toContain('md语法要求只能用#, ## 和 -')
+    expect(systemPrompt.trimEnd().endsWith('</要求>')).toBe(true)
+    expect(systemPrompt).not.toContain('JSON')
+    expect(systemPrompt).not.toContain('content:')
+  })
+})
 
 describe('generateOverviewTagsUserPrompt', () => {
   it('lists my tags before the fallback tags', () => {
