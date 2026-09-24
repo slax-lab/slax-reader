@@ -19,6 +19,45 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+describe('RSS image cache', () => {
+  const request = () => new Request('https://api.example/static/image?' + new URLSearchParams({ u: 'https%3A%2F%2Fexample.com%2Fimage', r: '', m: 'rss', d: 'valid-digest' }))
+  test.each(['video/mp4', 'image/svg+xml', 'text/html'])('rejects %s without redirecting to the origin', async mime => {
+    const { ctx, put } = mediaContext()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('data', { headers: { 'Content-Type': mime } }))
+    const response = await handleImageProxy(ctx, request())
+    expect(response.status).toBe(415)
+    expect(response.headers.has('Location')).toBe(false)
+    expect(put).not.toHaveBeenCalled()
+    expect(hashMD5).toHaveBeenCalledWith('https%3A%2F%2Fexample.com%2Fimagesaltrss')
+  })
+  test('upstream failure cannot fall back to an unproxied image', async () => {
+    const { ctx, put } = mediaContext()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 403 }))
+    const response = await handleImageProxy(ctx, request())
+    expect(response.status).toBe(502)
+    expect(response.headers.has('Location')).toBe(false)
+    expect(put).not.toHaveBeenCalled()
+  })
+  test('reuses storage separately from the legacy large-image cache', async () => {
+    const { ctx, get, put } = mediaContext()
+    get.mockResolvedValue({ size: 8, body: new Response('an-image').body, httpMetadata: { contentType: 'image/png' } })
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    const response = await handleImageProxy(ctx, request())
+    expect(get).toHaveBeenCalledWith('rss-image/image-hash')
+    expect(await response.text()).toBe('an-image')
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(put).not.toHaveBeenCalled()
+  })
+  test('oversized image does not redirect or cache', async () => {
+    const { ctx, put } = mediaContext()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(new Uint8Array(3 * 1024 * 1024 + 1), { headers: { 'Content-Type': 'image/png' } }))
+    const response = await handleImageProxy(ctx, request())
+    expect([413, 502]).toContain(response.status)
+    expect(response.headers.has('Location')).toBe(false)
+    expect(put).not.toHaveBeenCalled()
+  })
+})
+
 describe('edge image proxy', () => {
   test.each([
     { digest: 'invalid', referer: '' },

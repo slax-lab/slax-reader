@@ -1,6 +1,6 @@
 import { base64UrlDecode } from '@/utils/webpush/utils'
 import { fetchResponse, fetchResult } from '@/utils/browser'
-import { publicFetch } from '@/utils/publicFetch'
+import { createPublicFetch, publicFetch } from '@/utils/publicFetch'
 import { publicTarget } from '@/utils/publicTargetPolicy'
 import { DajialaArticleUnavailableError } from '@/const/err'
 
@@ -85,6 +85,54 @@ export class SlaxFetch {
   constructor(env: Env) {
     this.priEnv = env
     this.zyteApiKey = env.ZYTE_API_KEY
+  }
+
+  /** Raw, bounded HTTP for feeds: preserve XML bytes and validate each target redirect. */
+  public async zyteResponse(url: string, headers: Headers, options: { maxBytes: number; timeoutMs: number }): Promise<Response> {
+    if (!this.zyteApiKey?.trim()) throw new FetchError(503, 'Zyte is unavailable')
+    const transport = createPublicFetch(async (target, init) => {
+      const allowed = new Set(['accept', 'if-none-match', 'if-modified-since'])
+      const response = await publicFetch(
+        'https://api.zyte.com/v1/extract',
+        {
+          method: 'POST',
+          signal: init.signal,
+          headers: { 'Content-Type': 'application/json', Authorization: `Basic ${btoa(this.zyteApiKey + ':')}` },
+          body: JSON.stringify({
+            url: target,
+            httpResponseBody: true,
+            httpResponseHeaders: true,
+            followRedirect: false,
+            verifyCertificate: true,
+            customHttpRequestHeaders: [...new Headers(init.headers)].filter(([name]) => allowed.has(name)).map(([name, value]) => ({ name, value }))
+          })
+        },
+        { maxBytes: Math.ceil(options.maxBytes / 3) * 4 + 64 * 1024, timeoutMs: options.timeoutMs, followRedirects: false }
+      )
+      if (!response.ok) {
+        await response.body?.cancel()
+        const headers = new Headers()
+        if (response.headers.has('Retry-After')) headers.set('Retry-After', response.headers.get('Retry-After')!)
+        return new Response(null, { status: 503, headers })
+      }
+      const data = (await response.json()) as { url: string; statusCode: number; httpResponseBody?: string; httpResponseHeaders?: { name: string; value: string }[] }
+      if (publicTarget(data.url).href !== target || !Number.isInteger(data.statusCode) || data.statusCode < 200 || data.statusCode > 599) {
+        throw new FetchError(502, 'Invalid Zyte response')
+      }
+      const resultHeaders = new Headers()
+      for (const { name, value } of data.httpResponseHeaders || []) {
+        // Zyte has already decompressed the body. Cookies never leave the transport.
+        if (!['content-encoding', 'content-length', 'transfer-encoding', 'set-cookie'].includes(name.toLowerCase())) resultHeaders.append(name, value)
+      }
+      const encoded = data.httpResponseBody || ''
+      if (encoded.length > Math.ceil(options.maxBytes / 3) * 4) throw new FetchError(502, 'Zyte response exceeds byte budget')
+      const bytes = Uint8Array.from(atob(encoded), value => value.charCodeAt(0))
+      if (bytes.byteLength > options.maxBytes) throw new FetchError(502, 'Zyte response exceeds byte budget')
+      const result = new Response([204, 205, 304].includes(data.statusCode) ? null : bytes, { status: data.statusCode, headers: resultHeaders })
+      Object.defineProperty(result, 'url', { value: target })
+      return result
+    })
+    return transport(url, { headers }, options)
   }
 
   public async http(url: string, timezone: string, lang = 'zh'): Promise<fetchResult> {

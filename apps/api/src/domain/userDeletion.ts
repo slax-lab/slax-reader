@@ -22,6 +22,8 @@ export class UserDeletionService {
     }
 
     try {
+      await this.prismaPg().$executeRaw`DELETE FROM sr_rss_subscription WHERE user_id = ${userId}`
+      await this.prismaPg().$executeRaw`DELETE FROM sr_rss_save_job WHERE user_id = ${userId}`
       await this.prismaPg().sr_user_api_key.deleteMany({ where: { user_id: userId } })
 
       // Overview生成任务

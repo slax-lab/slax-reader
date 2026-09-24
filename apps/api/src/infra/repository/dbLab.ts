@@ -1,4 +1,4 @@
-import { inject, injectable, singleton } from '@/decorators/di'
+import { inject, injectable } from '@/decorators/di'
 import { PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
 import { PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
@@ -29,10 +29,19 @@ export class LabRepo {
   }
 
   public async upsert(userId: number, feature: string, enabled: boolean): Promise<userLabFeaturePO> {
-    return this.prismaPg().sr_user_lab_feature.upsert({
-      where: { user_id_feature: { user_id: userId, feature } },
-      create: { user_id: userId, feature, enabled },
-      update: { enabled }
+    return this.prismaPg().$transaction(async tx => {
+      // Serialize user mutations. Shared leases survive while another subscriber is active.
+      await tx.$queryRaw`SELECT id FROM sr_user WHERE id = ${userId} FOR UPDATE`
+      const row = await tx.sr_user_lab_feature.upsert({
+        where: { user_id_feature: { user_id: userId, feature } },
+        create: { user_id: userId, feature, enabled },
+        update: { enabled }
+      })
+      if (feature === 'rss' && !enabled) {
+        await tx.$queryRaw`SELECT f.id FROM sr_rss_feed f JOIN sr_rss_subscription s ON s.feed_id=f.id WHERE s.user_id=${userId} ORDER BY f.id FOR UPDATE OF f`
+        await tx.$executeRaw`UPDATE sr_rss_feed f SET lease_token=NULL,lease_until=NULL WHERE EXISTS(SELECT 1 FROM sr_rss_subscription s WHERE s.feed_id=f.id AND s.user_id=${userId}) AND NOT EXISTS(SELECT 1 FROM sr_rss_subscription s JOIN sr_user u ON u.id=s.user_id AND u.deleted_at IS NULL JOIN sr_user_lab_feature l ON l.user_id=s.user_id AND l.feature='rss' AND l.enabled WHERE s.feed_id=f.id)`
+      }
+      return row
     })
   }
 }

@@ -26,9 +26,12 @@ const YOUTUBE_URLS = [
 ]
 
 describe('registry', () => {
-  test('youtube is the only feature, listed as active', async () => {
+  test('RSS and YouTube are active and disabled by default', async () => {
     const { service } = wire()
-    expect(await service.listForUser(1)).toEqual([{ key: 'youtube', status: 'active', enabled: false, enabled_at: null }])
+    expect(await service.listForUser(1)).toEqual([
+      { key: 'rss', status: 'active', enabled: false, enabled_at: null },
+      { key: 'youtube', status: 'active', enabled: false, enabled_at: null }
+    ])
   })
 
   test('GATED_ROUTES maps the youtube crawl route to the youtube switch', () => {

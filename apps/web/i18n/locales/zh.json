@@ -1178,6 +1178,10 @@
           "name": "YouTube 视频",
           "desc": "保存 YouTube 链接，自动拉取字幕，边看边读。目前英文字幕优先，App 端不支持字幕跟随",
           "blocked": "YouTube 视频还在实验室里，请到设置页打开后再保存"
+        },
+        "rss": {
+          "name": "RSS 订阅",
+          "desc": "浏览自己的 RSS 订阅，再将感兴趣的文章收藏到收件箱。"
         }
       },
       "navigation": {
@@ -1234,6 +1238,66 @@
       "search_finished": "搜索完成",
       "search_bookmark_failed": "资料库搜索失败",
       "search_bookmark_finished": "资料库搜索完成"
+    }
+  },
+  "rss": {
+    "history_end": "目前收录 {count} 篇，未发现更多 RSS 分页链接。",
+    "history_retry": "较早文章暂时加载失败，请稍后重试。",
+    "history_loading": "正在收录较早文章，请稍后继续加载。",
+    "title": "RSS 订阅",
+    "labs": "实验室",
+    "description": "订阅感兴趣的内容，挑选值得细读的文章收藏到收件箱。",
+    "empty_hint": "添加你喜欢的网站或博客，更新的文章会出现在这里。",
+    "empty_articles_hint": "订阅源暂时没有文章。更新后会出现在这里。",
+    "sources": "订阅源",
+    "cached_hint": "显示已缓存的文章，后台自动更新",
+    "edit": "编辑订阅",
+    "edit_hint": "修改显示名称，不会改变订阅地址或已收藏的文章。",
+    "remark": "自定义显示名称（选填）",
+    "remark_placeholder": "例如：每天读一点",
+    "remark_hint": "留空使用订阅源原标题，最多 120 个字符。",
+    "save_changes": "保存修改",
+    "saving": "保存中…",
+    "add_hint": "粘贴 RSS / Atom 地址，我们会定期检查新文章。",
+    "feed_limit": "已添加 {count} / 20 个订阅源",
+    "next_refresh": "可于 {time} 再次刷新",
+    "no_matches": "已加载的文章中没有匹配结果",
+    "search_hint": "搜索当前已加载的文章，可加载更多继续查找。",
+    "settings": "实验室设置",
+    "inbox": "收件箱",
+    "enable_hint": "在实验室设置中开启 RSS，添加自己的订阅源。",
+    "url": "RSS / Atom 地址",
+    "add": "添加订阅",
+    "all": "全部订阅",
+    "remove": "取消订阅",
+    "no_subscriptions": "还没有订阅源",
+    "refresh": "刷新",
+    "refreshing": "更新中…",
+    "last_updated": "上次成功更新",
+    "source_error": "暂时无法更新，请稍后重试。已缓存内容仍可阅读。",
+    "loading": "加载中…",
+    "no_articles": "还没有缓存的文章",
+    "no_url": "订阅源未提供原文地址，暂时无法收藏。",
+    "saved": "已收藏 · 打开",
+    "save": "收藏到收件箱",
+    "more": "加载更多",
+    "close": "关闭",
+    "feed_content": "以下内容由 RSS 订阅源提供，可能只有摘要。",
+    "truncated": "内容已截断，可打开原文继续阅读。",
+    "original": "打开原文",
+    "confirm_remove": "取消此订阅？已收藏的文章会保留。",
+    "cancel": "取消",
+    "retry": "重试",
+    "errors": {
+      "invalid_remark": "备注最多 120 个字符，请勿输入换行。",
+      "lab_disabled": "请先开启 RSS 实验室功能",
+      "invalid_feed": "此地址不是有效的 RSS / Atom 订阅源",
+      "unsafe_url": "请使用公开的 HTTP(S) 订阅地址",
+      "limit_reached": "最多可添加 20 个订阅源",
+      "refresh_limited": "刷新过于频繁，请稍后再试",
+      "not_found": "内容已不存在，请刷新列表",
+      "article_url_missing": "文章没有可收藏的原文地址",
+      "source_unavailable": "源站暂时不可用，已缓存内容会保留"
     }
   }
 }

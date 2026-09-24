@@ -243,19 +243,19 @@ model sr_payment_job {
 }
 
 model sr_payment_grant {
-    key        String   @id
-    user_id    Int
-    provider   String
-    source     String
-    scope      String @default("")
+    key         String    @id
+    user_id     Int
+    provider    String
+    source      String
+    scope       String    @default("")
     covered_end DateTime?
-    period_id  Int?     @unique
-    amount     Int      @default(0)
-    refunded   Int      @default(0)
-    minutes    Int      @default(0)
-    revoked    Boolean  @default(false)
-    status     String   @default("pending")
-    created_at DateTime @default(now())
+    period_id   Int?      @unique
+    amount      Int       @default(0)
+    refunded    Int       @default(0)
+    minutes     Int       @default(0)
+    revoked     Boolean   @default(false)
+    status      String    @default("pending")
+    created_at  DateTime  @default(now())
 
     @@index([user_id])
 }
@@ -505,15 +505,15 @@ model sr_user_notification {
 
 model sr_user_collection {
     id   Int @id @default(autoincrement())
-    // 0- unknonw , 1- free, 2- paid 
+    // 0- unknonw , 1- free, 2- paid
     type Int @default(0)
 
-    owner_id           Int    @default(0)
-    display_name       String @default("")
-    avatar             String @default("")
-    description        String @default("")
-    amount             Int    @default(0)
-    currency           String @default("")
+    owner_id     Int    @default(0)
+    display_name String @default("")
+    avatar       String @default("")
+    description  String @default("")
+    amount       Int    @default(0)
+    currency     String @default("")
 
     collection_code String @default("")
 
@@ -538,8 +538,8 @@ model sr_user_collection_stats {
     collection_id Int @unique
     owner_id      Int @unique
 
-    starred_count   Int      @default(0)
-    subscriber_count Int     @default(0)
+    starred_count    Int      @default(0)
+    subscriber_count Int      @default(0)
     last_modified_at DateTime @default(now())
 
     created_at DateTime @default(now())
@@ -767,4 +767,71 @@ model sr_youtube_article_ref {
 
     @@index([video_id, source_hash])
     @@index([user_id])
+}
+
+// Shared feed state; ownership checks and lifecycle cleanup are explicit repository operations.
+model sr_rss_feed {
+    id              String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+    feed_url        String    @unique
+    title           String    @default("")
+    site_url        String?
+    etag            String?
+    last_modified   String?
+    last_checked_at DateTime?
+    last_success_at DateTime?
+    next_fetch_at   DateTime  @default(now())
+    next_allowed_at DateTime  @default(now())
+    error           String?
+    failure_count   Int       @default(0)
+    lease_token     String?
+    lease_until     DateTime?
+    history_url     String?
+    history_seen    String[]  @default([])
+    history_checked_at DateTime?
+    history_retry_at DateTime?
+    created_at      DateTime  @default(now())
+
+    @@index([next_fetch_at], map: "sr_rss_feed_due")
+}
+
+model sr_rss_subscription {
+    id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+    user_id    Int
+    feed_id    String
+    remark     String?
+    created_at DateTime @default(now())
+
+    @@unique([user_id, feed_id])
+    @@index([feed_id], map: "sr_rss_subscription_feed")
+}
+
+model sr_rss_entry {
+    id                String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+    feed_id           String
+    entry_key         String
+    article_url       String?
+    title             String
+    author            String?
+    summary           String
+    content_key       String
+    content_truncated Boolean   @default(false)
+    image_url         String?
+    published_at      DateTime?
+    first_seen_at     DateTime  @default(now())
+    sort_at           DateTime
+    updated_at        DateTime  @default(now())
+
+    @@unique([feed_id, entry_key])
+    @@index([feed_id, sort_at(sort: Desc), id(sort: Desc)], map: "sr_rss_entry_page")
+    @@index([sort_at(sort: Desc), id(sort: Desc)], map: "sr_rss_entry_timeline")
+    @@index([first_seen_at], map: "sr_rss_entry_expiry")
+    @@index([content_key], map: "sr_rss_entry_content")
+}
+
+model sr_rss_save_job {
+    bookmark_id Int      @id
+    user_id     Int
+    created_at  DateTime @default(now())
+
+    @@index([user_id], map: "sr_rss_save_job_user")
 }

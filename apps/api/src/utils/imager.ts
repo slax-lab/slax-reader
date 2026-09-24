@@ -1,4 +1,5 @@
 import { hashMD5 } from './strings'
+import { publicTarget } from './publicTargetPolicy'
 
 export class Imager {
   private url!: URL
@@ -62,12 +63,7 @@ export class Imager {
   }
 
   private async buildImageUrl(url: string, referer: string) {
-    const proxyUrl = new URL(this.env.PROXY_IMAGE_PREFIX)
-    const encodeUrl = encodeURIComponent(url)
-    proxyUrl.searchParams.set('u', encodeUrl)
-    proxyUrl.searchParams.set('r', referer)
-    proxyUrl.searchParams.set('d', await hashMD5(encodeUrl + referer + this.env.IMAGER_CHECK_DIGST_SALT))
-    return proxyUrl.href
+    return buildImageProxyUrl(this.env, url, referer)
   }
 
   private async replaceWeixinVideoImage(element: Element) {
@@ -92,8 +88,24 @@ export class Imager {
    * @param imgs
    * @param header
    */
-  public batchReplaceImage(url: URL, contentDocument: Document) {
+  public batchReplaceImage(url: URL, contentDocument: Document, mode?: 'rss') {
     this.url = url
+
+    if (mode === 'rss') {
+      // Feed HTML has already been normalized and sanitized. Reuse the image
+      // URL optimizations and signer without bookmark media/prewarming effects.
+      return Promise.all(
+        Array.from(contentDocument.querySelectorAll('img')).map(async img => {
+          try {
+            const source = publicTarget(this.getImageUrlFromDocment(img) || '').href
+            img.setAttribute('src', await buildImageProxyUrl(this.env, source, url.href, 'rss'))
+            img.removeAttribute('srcset')
+          } catch (error) {
+            console.log(`Failed to replace image: ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}`)
+          }
+        })
+      )
+    }
 
     const replacePromise = Array.from(contentDocument.querySelectorAll('img')).map(img => this.replaceItemImage(img))
     const replaceVideoPromise = Array.from(contentDocument.querySelectorAll('video')).map(video => this.replaceVideoImage(video))
@@ -152,4 +164,21 @@ export const getImageProxyHeaders = (url: string, referer: string, rawHeader: He
     'Accept-Encoding': rawHeader.get('Accept-Encoding') || 'br, gzip',
     'User-Agent': rawHeader.get('User-Agent') || 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
   }
+}
+
+/** The mode is part of the signature, so an RSS URL cannot downgrade to source redirects. */
+export async function buildImageProxyUrl(env: Env, url: string, referer: string, mode?: 'rss'): Promise<string> {
+  const proxy = new URL(env.PROXY_IMAGE_PREFIX)
+  if (mode === 'rss') {
+    // Wrangler serves the operator-configured Edge worker over HTTP in local development.
+    // This is the proxy endpoint, not a feed-controlled source URL.
+    const localHttp = env.RUN_ENV === 'development' && proxy.protocol === 'http:'
+    if ((!localHttp && proxy.protocol !== 'https:') || proxy.username || proxy.password) throw new Error('Invalid RSS image proxy configuration')
+  }
+  const encoded = encodeURIComponent(url)
+  proxy.searchParams.set('u', encoded)
+  proxy.searchParams.set('r', referer)
+  if (mode) proxy.searchParams.set('m', mode)
+  proxy.searchParams.set('d', await hashMD5(encoded + referer + env.IMAGER_CHECK_DIGST_SALT + (mode || '')))
+  return proxy.href
 }

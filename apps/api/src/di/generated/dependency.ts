@@ -35,6 +35,8 @@ import { YoutubeArticleRepo } from '../../infra/repository/dbYoutubeArticle'
 import { LogsRepo } from '../../infra/repository/dbLogs'
 import { BookmarkService } from '../../domain/bookmark'
 import { LabRepo } from '../../infra/repository/dbLab'
+import { RssRepo } from '../../infra/repository/dbRss'
+import { RssContent } from '../../domain/rss/content'
 import { GA4AnalyticsClient } from '../../infra/external/ga4Analytics'
 import { ReportRepo } from '../../infra/repository/dbReport'
 import { AigcService } from '../../domain/aigc'
@@ -54,6 +56,7 @@ import { QueueClient } from '../../infra/queue/queueClient'
 import { TelegramBotService } from '../../domain/telegram'
 import { MonitoringOrchestrator } from '../../domain/orchestrator/monitor'
 import { AigcBatchOrchestrator } from '../../domain/orchestrator/aigc'
+import { RssService } from '../../domain/rss'
 import { SubscriptionOrchestrator } from '../../domain/orchestrator/subscription'
 import { SubscriptionAppleService } from '../../domain/subscriptionApple'
 import { UserDeletionService } from '../../domain/userDeletion'
@@ -71,6 +74,7 @@ import { EmailService } from '../../domain/email'
 import { ContentOrchestrator } from '../../domain/orchestrator/content'
 import { BookmarkJob } from '../../handler/cron/bookmarkJob'
 import { CollectionJob } from '../../handler/cron/collectionJob'
+import { RssJob } from '../../handler/cron/rssJob'
 import { SubscriptionJob } from '../../handler/cron/subscriptionJob'
 import { UserDeletionJob } from '../../handler/cron/userDeletionJob'
 import { BookmarkConsumer } from '../../handler/queue/bookmarkConsumer'
@@ -91,6 +95,7 @@ import { MarkController } from '../../handler/http/markController'
 import { McpServerController } from '../../handler/http/mcpController'
 import { MetricsController } from '../../handler/http/metricsController'
 import { PromotionController } from '../../handler/http/promotionController'
+import { RssController } from '../../handler/http/rssController'
 import { ShareController } from '../../handler/http/shareController'
 import { SubscriptionController } from '../../handler/http/subscriptionController'
 import { SyncController } from '../../handler/http/syncController'
@@ -179,6 +184,18 @@ container.register(MarkService, {
 container.register(NotificationService, {
   useFactory: container =>
     new NotificationService(container.resolve(UserRepo), container.resolve(BookmarkRepo), container.resolve(CollectionRepo), container.resolve(NotificationMessage))
+})
+
+container.register(RssService, {
+  useFactory: container =>
+    new RssService(
+      container.resolve(RssRepo),
+      container.resolve(LabService),
+      container.resolve(BookmarkSearchRepo),
+      container.resolve(BookmarkRepo),
+      container.resolve(SearchService),
+      container.resolve(RssContent)
+    )
 })
 
 container.register(SearchService, {
@@ -389,6 +406,10 @@ container.register(UrlParserHandler, {
     )
 })
 
+container.register(RssContent, {
+  useFactory: container => new RssContent(lazy(() => container.resolve(BucketClient)))
+})
+
 container.register(BookmarkJob, {
   useFactory: container =>
     new BookmarkJob(container.resolve(MonitoringOrchestrator), container.resolve(BookmarkService), container.resolve(ImportService), container.resolve(AigcBatchOrchestrator))
@@ -396,6 +417,10 @@ container.register(BookmarkJob, {
 
 container.register(CollectionJob, {
   useFactory: container => new CollectionJob(container.resolve(CollectionService))
+})
+
+container.register(RssJob, {
+  useFactory: container => new RssJob(container.resolve(RssService))
 })
 
 container.register(SubscriptionJob, {
@@ -488,6 +513,10 @@ container.register(ReportRepo, {
       lazy(() => container.resolve(PRISIMA_CLIENT)),
       lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT))
     )
+})
+
+container.register(RssRepo, {
+  useFactory: container => new RssRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
 
 container.register(SubscriptionRepo, {
@@ -588,6 +617,10 @@ container.register(MetricsController, {
 
 container.register(PromotionController, {
   useFactory: container => new PromotionController(container.resolve(SubscriptionServiceMain))
+})
+
+container.register(RssController, {
+  useFactory: container => new RssController(container.resolve(RssService))
 })
 
 container.register(ShareController, {

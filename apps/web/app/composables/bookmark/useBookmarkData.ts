@@ -2,16 +2,16 @@
 // 其余走 REST；未登录或无 PowerSync 整体回退 REST。highlights 暂走 REST。
 import { computed, nextTick, onActivated, onDeactivated, onMounted, onUnmounted, ref, toValue, watch } from 'vue'
 
-import { isClient } from '@commons/frontend-utils/is'
 import { bookmarkMatchesSourceDomain } from '~/utils/bookmarkSource'
 import type { ChannelMessageData } from '~/utils/channel'
 
 import { useLocalBookmarks } from '@/composables/bookmark/useLocalBookmarks'
 import { useLocalCollections } from '@/composables/bookmark/useLocalCollections'
 import { useLocalMarks } from '@/composables/bookmark/useLocalMarks'
+import type { BookmarkItem, BookmarkTag } from '@commons/frontend-types/models'
+import { isClient } from '@commons/frontend-utils/is'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { HighlightItem } from '@slax-reader/contracts/interface'
-import type { BookmarkItem, BookmarkTag } from '@commons/frontend-types/models'
 import { useDebounceFn, useEventListener, useInfiniteScroll } from '@vueuse/core'
 import type { useBookmarkFilter } from '~/composables/bookmark/useBookmarkFilter'
 import type { Ref } from 'vue'
@@ -28,7 +28,8 @@ export const useBookmarkData = (
   searchText: Ref<string>,
   activeCollectionCode?: Ref<string | null | undefined>,
   activeCollectionId?: Ref<string | null | undefined>,
-  sourceDomain?: Ref<string | null | undefined>
+  sourceDomain?: Ref<string | null | undefined>,
+  visible?: Ref<boolean>
 ) => {
   const { t, locale } = useI18n()
   const { $powersync } = useNuxtApp()
@@ -315,7 +316,7 @@ export const useBookmarkData = (
     })
   }
 
-  const canLoadMoreList = () => !restLoading.value && !ending.value && isActivated.value && !searchText.value
+  const canLoadMoreList = () => (visible?.value ?? true) && !restLoading.value && !ending.value && isActivated.value && !searchText.value
   const { reset } = useInfiniteScroll(isClient ? window : null, () => onLoadMore(), { distance: 100, canLoadMore: canLoadMoreList })
   const resetInfiniteScroll = useDebounceFn(() => reset(), 1000)
 

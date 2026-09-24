@@ -2,6 +2,7 @@ import { Container } from '../../decorators/di'
 import { ContextManager } from '@/utils/context'
 import { BookmarkJob } from '../../handler/cron/bookmarkJob'
 import { CollectionJob } from '../../handler/cron/collectionJob'
+import { RssJob } from '../../handler/cron/rssJob'
 import { SubscriptionJob } from '../../handler/cron/subscriptionJob'
 import { UserDeletionJob } from '../../handler/cron/userDeletionJob'
 
@@ -26,6 +27,10 @@ export const handleCronjob = async (container: Container, event: any, env: Env, 
     const controller = container.resolve(CollectionJob)
     exec.waitUntil(controller.recomputeCollectionSubscriberActive(new ContextManager(exec, env)))
   }
+  const refreshRss = async () => {
+    const controller = container.resolve(RssJob)
+    exec.waitUntil(controller.refreshRss(new ContextManager(exec, env)))
+  }
   const recoverPayments = async () => {
     const controller = container.resolve(SubscriptionJob)
     exec.waitUntil(controller.recoverPayments(new ContextManager(exec, env)))
@@ -41,6 +46,7 @@ export const handleCronjob = async (container: Container, event: any, env: Env, 
     ['*/2 * * * *', monitorTwitterBookmarks],
     ['*/1 * * * *', detectStuckAndRetry],
     ['*/30 * * * *', recomputeCollectionSubscriberActive],
+    ['*/5 * * * *', refreshRss],
     ['*/5 * * * *', recoverPayments],
     ['*/5 * * * *', recoverDeletedUsers]
   ]

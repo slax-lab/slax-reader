@@ -41,7 +41,12 @@ describe('GET /v1/user/labs', () => {
     expect(await resp.json()).toEqual({
       code: 200,
       message: 'ok',
-      data: { features: [{ key: 'youtube', status: 'active', enabled: true, enabled_at: '2026-09-08T01:02:03.000Z' }] }
+      data: {
+        features: [
+          { key: 'rss', status: 'active', enabled: false, enabled_at: null },
+          { key: 'youtube', status: 'active', enabled: true, enabled_at: '2026-09-08T01:02:03.000Z' }
+        ]
+      }
     })
     expect(labRepo.listByUser).toHaveBeenCalledWith(7)
   })
@@ -49,7 +54,10 @@ describe('GET /v1/user/labs', () => {
   test('no row means off', async () => {
     const { ctrl } = wire([])
     const resp = await ctrl.handleUserLabsRequest(createMockCtx(), new Request('http://x/v1/user/labs'))
-    expect((await resp.json()).data.features).toEqual([{ key: 'youtube', status: 'active', enabled: false, enabled_at: null }])
+    expect((await resp.json()).data.features).toEqual([
+      { key: 'rss', status: 'active', enabled: false, enabled_at: null },
+      { key: 'youtube', status: 'active', enabled: false, enabled_at: null }
+    ])
   })
 })
 
