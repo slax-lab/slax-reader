@@ -4,17 +4,20 @@
 # able to approve the pull requests that person authored.
 * @slax-lab/reader-core
 
-# Path-level ownership lands together with the code. CODEOWNERS is LAST-MATCH-WINS,
-# so keep the catch-all first and add more specific rules below as directories fill
-# up (available org teams: @slax-lab/reader-core, @slax-lab/doc-maintainers).
-# /apps/web/**        @slax-lab/reader-core
-# /apps/extension/**  @slax-lab/reader-core
-/apps/api/**         @slax-lab/reader-core
-/apps/api/script/deploy/**   @slax-lab/reader-core
-/deploy/**           @slax-lab/reader-core
-# /apps/cli/**        @slax-lab/reader-core
+# Path-level ownership. CODEOWNERS is LAST-MATCH-WINS, so keep the catch-all first and
+# more specific rules below. GitHub never requests the pull request author as a
+# reviewer, so a module owner listed here is simply skipped on their own pull
+# requests. @slax-lab/reader-core stays as co-owner on every module so those pull
+# requests still have eligible code-owner approvers.
+# (available org teams: @slax-lab/reader-core, @slax-lab/doc-maintainers)
+/apps/web/**           @Whyjsee @slax-lab/reader-core
+/apps/extension/**     @Whyjsee @slax-lab/reader-core
+/apps/cli/**           @Whyjsee @slax-lab/reader-core
+/apps/api/**           @DGuang21 @slax-lab/reader-core
+/apps/api/script/deploy/**   @DGuang21 @slax-lab/reader-core
+/deploy/**             @slax-lab/reader-core
 /packages/contracts/** @slax-lab/reader-core
-# /packages/**        @slax-lab/reader-core
-# /tooling/**         @slax-lab/reader-core
-# /tests/**           @slax-lab/reader-core
-# /docs/**            @slax-lab/doc-maintainers
+# /packages/**         @slax-lab/reader-core
+# /tooling/**          @slax-lab/reader-core
+# /tests/**            @slax-lab/reader-core
+# /docs/**             @slax-lab/doc-maintainers
