@@ -9,15 +9,15 @@
 # reviewer, so a module owner listed here is simply skipped on their own pull
 # requests. @slax-lab/reader-core stays as co-owner on every module so those pull
 # requests still have eligible code-owner approvers.
-# (available org teams: @slax-lab/reader-core, @slax-lab/doc-maintainers)
 /apps/web/**           @Whyjsee @slax-lab/reader-core
 /apps/extension/**     @Whyjsee @slax-lab/reader-core
 /apps/cli/**           @Whyjsee @slax-lab/reader-core
 /apps/api/**           @DGuang21 @slax-lab/reader-core
 /apps/api/script/deploy/**   @DGuang21 @slax-lab/reader-core
+/.github/**            @boxcounter @slax-lab/reader-core
+/.rulesync/**          @boxcounter @slax-lab/reader-core
+/README.md             @boxcounter @slax-lab/reader-core
+/REVIEW.md             @boxcounter @slax-lab/reader-core
 /deploy/**             @slax-lab/reader-core
 /packages/contracts/** @slax-lab/reader-core
-# /packages/**         @slax-lab/reader-core
-# /tooling/**          @slax-lab/reader-core
-# /tests/**            @slax-lab/reader-core
-# /docs/**             @slax-lab/doc-maintainers
+
