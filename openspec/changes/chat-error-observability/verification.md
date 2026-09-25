@@ -43,6 +43,21 @@ Result: **both variants delivered the complete 64-byte frame and terminated clea
 
 That is a negative result worth recording: local workerd does not reproduce the production isolate-teardown race, so the awaited-close guarantee is pinned by the unit-level ordering assertions in `apps/api/test/domain/aigcChatStream.test.ts` — which were shown to fail against the old shape — rather than by any local runtime reproduction. It also means a local browser pass cannot act as a negative control: run against the pre-fix code it would most likely have shown the frame too. A local pass confirms the fixed path; it does not demonstrate the production hang.
 
+## Local pre-push review (REVIEW.md three passes)
+
+The diff changes observable behavior and touches `apps/**` and `packages/**`, so the OpenSpec flow applies. Several changes are active in `openspec/changes/`; the change-id resolves to `chat-error-observability` as the only one whose proposal and delta specs describe this diff.
+
+**Bugs — no Important findings.** Nits:
+
+- `writer.getWriter()` sits outside the `try` in `bookmarkChat`, so the termination guarantee does not formally cover a throw from `getWriter()` itself. Unreachable in practice: the controller always passes a fresh, unlocked `TransformStream`.
+- A failure inside a tool call (for example the browser tool's fetch) carries no HTTP status, so it now classifies as `AI_PROVIDER_UNAVAILABLE` ("temporarily unavailable"). Slightly imprecise, but the logged cause disambiguates it and it is no worse than the previous single generic failure.
+- `this.wr` and `this.chunks` remain shared fields on the singleton service, so two concurrent chats on one isolate can interleave content frames. Pre-existing and orthogonal; the termination guarantee was made immune to it by capturing the local writer.
+- `MultiLangError.getMessage` reads a module-global language, so concurrent requests in different languages can render each other's message language. Pre-existing.
+
+**Security — no Important findings.** Provider internals (status, code, reference, overload flag) reach logs only; the client receives the localized message plus a numeric code, with no credential, raw provider payload or stack trace. Only extracted scalar fields and the provider message string are logged, never the raw error object, and the API key is read solely from `env.VERTEX_API_KEY` and never placed in a log line or a response. The error frame is JSON-encoded, so it cannot inject into the client's parser. No authentication or authorization surface is touched.
+
+**Compliance — intent matches the change.** Tasks 1–7.4 are implemented; 7.2/7.3 are explicitly unperformed with their reasons recorded above. Three divergences between the planning artifacts and the implementation were found during implementation and reconciled inside this change rather than left to rot: the D6 mechanism (a terminal `.catch()/.finally()` chain instead of awaiting the consumer inside `chat()`, which would change `chat()`'s contract and the timing every existing client test relies on), the "empty stream" rule (no output at all, because tool-only requests legitimately finish without assistant content), and the proposal's wording for that same rule. `openspec validate --all --strict` passes.
+
 ## Not verified
 
 **Manual browser end-to-end** (tasks 7.2/7.3). The operator stopped the `eink-code-highlight` worktree's dev servers, so the ports are free, but the stack still cannot be brought up from this session: the generated configs carry `remote = true` on the Vectorize bindings (`script/deploy/config.ts:212`), so `wrangler dev` requires a `CLOUDFLARE_API_TOKEN` that a non-interactive shell cannot supply and that this session must not obtain. The chat route additionally requires a credential — a JWT signed with `env.JWT_SECRET_TEXT`, an edge identity header carrying `env.EDGE_SHARED_SECRET`, or a database API key — so an authenticated chat request cannot be constructed without reading a secret file, and there is no local-dev auth bypass in `middleware/auth.ts`.
