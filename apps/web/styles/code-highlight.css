@@ -1,0 +1,117 @@
+/* 代码块着色（唯一着色来源）
+ *   - 所有颜色走 --slax-code-* token，定义见 styles/theme.tokens.css 的三个主题块
+ *   - highlight.js 只负责产出 class 名，配色主权在主题层（原本由它自带的深色主题
+ *     样式表决定，那份样式表不消费任何 token，导致三主题长得一模一样）
+ *   - 本文件由 styles/theme.css 引入，仅主站加载，禁止注入 iframe 原网页：
+ *     .hljs 是与公网页面高度撞名的选择器，注入会与用户原网页自己的高亮样式互相污染
+ *   - 结构规则（block / overflow / padding / emphasis / strong / link）原本也由那份
+ *     第三方样式表提供，现由本项目自持，避免依赖升级时静默漂移
+ */
+
+/* 代码块容器是唯一的绘制层：背景 / 边框 / 内边距都在这里。
+ * 内部 code.hljs 透明且无内边距，避免叠出第二层底色或一圈光晕 */
+pre.code-block-wrapper {
+  display: block;
+  overflow-x: auto;
+  padding: 1em;
+  background: var(--slax-code-bg);
+  border: 1px solid var(--slax-code-border);
+}
+
+/* 基准色：未映射到具体角色的 class 回落到这里，
+ * 保证高亮库升级新增 class 时降级为正文色而不是不可见 */
+.hljs {
+  color: var(--slax-code-text);
+  background: transparent;
+}
+
+code.hljs {
+  padding: 3px 5px;
+  background: transparent;
+}
+
+/* code 自身也保留 overflow-x —— 与变更前第三方样式表一致：长行横向滚动的仍是 code 元素 */
+pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 0;
+}
+
+/* 语法角色 → token。分组沿用既有调色板的归组，light / dark 取色值不变 */
+.hljs-comment,
+.hljs-quote {
+  color: var(--slax-code-comment);
+  font-style: italic;
+}
+
+.hljs-doctag,
+.hljs-keyword,
+.hljs-formula {
+  color: var(--slax-code-keyword);
+}
+
+.hljs-section,
+.hljs-name,
+.hljs-selector-tag,
+.hljs-deletion,
+.hljs-subst {
+  color: var(--slax-code-tag);
+}
+
+.hljs-literal {
+  color: var(--slax-code-literal);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-attribute,
+.hljs-meta .hljs-string {
+  color: var(--slax-code-string);
+}
+
+.hljs-attr,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-type,
+.hljs-selector-class,
+.hljs-selector-attr,
+.hljs-selector-pseudo,
+.hljs-number {
+  color: var(--slax-code-number);
+}
+
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link,
+.hljs-meta,
+.hljs-selector-id,
+.hljs-title {
+  color: var(--slax-code-symbol);
+}
+
+.hljs-built_in,
+.hljs-title.class_,
+.hljs-class .hljs-title {
+  color: var(--slax-code-builtin);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: bold;
+}
+
+.hljs-link {
+  text-decoration: underline;
+}
+
+/* E-ink 无彩色可用：keyword 额外加粗，让"结构"这一档不依赖色相也读得出来。
+ * 仅 e-ink 覆盖 —— light / dark 的关键字不加粗，保持既有观感 */
+[data-slax-theme='eink'] .hljs-doctag,
+[data-slax-theme='eink'] .hljs-keyword,
+[data-slax-theme='eink'] .hljs-formula {
+  font-weight: bold;
+}

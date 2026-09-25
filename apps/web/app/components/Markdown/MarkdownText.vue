@@ -9,8 +9,6 @@ import { ref, watch } from 'vue'
 
 import { parseMarkdownText } from '@commons/frontend-utils/parse'
 
-import 'highlight.js/styles/atom-one-dark.css'
-
 const props = defineProps<{ text: string }>()
 const emits = defineEmits(['anchorClick'])
 

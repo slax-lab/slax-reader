@@ -1170,7 +1170,9 @@ defineExpose({ addQuoteData, focusTextarea })
       }
 
       :deep(pre) {
-        background: color-mix(in srgb, var(--slax-text) 6%, transparent);
+        // 代码块底色统一走 --slax-code-* token（着色规则见 styles/code-highlight.css）；
+        // e-ink 下解析为白底 + 1px 边框，不再出现与主题无关的深色填充
+        background: var(--slax-code-bg);
         border-radius: 6px;
         padding: 10px 12px;
         overflow-x: auto;
