@@ -49,6 +49,20 @@ On failure the server SHALL emit exactly one error frame before closing the stre
 - **WHEN** the handler fails
 - **THEN** exactly one error frame is written, regardless of how many internal layers observed the failure
 
+### Requirement: Every shipped chat client renders the terminal error frame
+
+Every chat client in this repository that streams from the chat endpoint — the web chat client and the browser extension's chat client — SHALL surface the terminal error frame as a user-visible failure, whether the frame arrives as a complete line during streaming or only when the stream ends. A client SHALL NOT end a failed request with no message.
+
+#### Scenario: Frame arrives mid-stream
+
+- **WHEN** a chat client receives the terminal error frame as a complete line while the stream is still open
+- **THEN** it shows the failure to the user and leaves the loading state, rather than ending with a blank answer
+
+#### Scenario: Frame is seen only at end of stream
+
+- **WHEN** a chat client receives the terminal error frame only once the stream ends
+- **THEN** it shows the same failure
+
 ### Requirement: Error copy matches actual system behavior
 
 User-facing AI provider error messages SHALL NOT claim or promise a recovery action the system does not perform.

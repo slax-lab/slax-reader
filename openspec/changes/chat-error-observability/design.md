@@ -34,7 +34,7 @@ Constraints that shape the approach:
 - No real backup-provider failover. The copy is corrected to match reality; a second provider is a separate change.
 - No retry/backoff of the provider call inside this change.
 - No changes to the successful streaming protocol, the chunk shape, tool-progress frames, `[DONE]`, or mermaid rendering.
-- No browser-extension client changes (`apps/extension/src/components/Chat/chatbot.ts` has its own copy of this defect and gets a follow-up change). One cross-client consequence to carry into that follow-up: the extension parses error envelopes only in its end-of-stream path, so the new frame — which reaches it as a complete line mid-stream — is dropped there, and it now clears loading with nothing rendered where the previous generic assistant sentence at least appeared. The follow-up must add the same streaming-path envelope parse the web client gained here; this is a regression for that client, not just an omission.
+- The browser extension's chat client is included only for the error-frame parse it needs to keep rendering failures (see D2). Its remaining defects — no termination guarantee on read failure, the same un-timed waits — stay out of scope and get a follow-up change; only the regression this framing decision would otherwise cause is fixed here.
 - No bound on the pre-stream quote-image fetches. `buildQuotePayload` awaits an un-timed `fetch` per quoted image before the idle ceiling is armed, so a host that accepts and never answers can still leave the chat loading with no message. That happens before the stream, so the delta spec's terminal outcomes do not cover it; the fix (arm the ceiling before building the quote payload, or bound those fetches) is recorded as a follow-up.
 - No changes to the summary stream (`AigcService.bookmarkSummary`). It carries the same un-awaited `write`/`close` pattern, but it is a different endpoint with a different client surface, and the capability under change is chat; fixing it is a deliberate follow-up so this change stays small and verifiable.
 - No cancellation of an in-flight chat when its surface tears down. `destruct()` clears the response callback, but the stream keeps running until it ends or the idle bound fires. Aborting it there is a distinct observable behavior with its own scenarios, so it is recorded as a follow-up rather than folded in here.
@@ -74,6 +74,8 @@ This is required by the client's parser: an SSE-framed `data: {...}` line is dec
 The trailing newline is written so the line decoder yields the frame deterministically rather than depending on `flush()` behavior at close.
 
 Reusing the envelope was necessary but not sufficient: the client only parsed envelopes on the end-of-stream path, so a frame arriving as a complete line mid-stream was dropped. Both paths now go through one line router that parses a bare `{...}` line as an envelope either way. The router deliberately excludes SSE field lines (`data: {...}`), which the SSE decoder emits as an event on the following empty line — feeding those to the envelope parser would log a parse error for every chunk.
+
+This framing decision has a cross-client consequence, and it is why the browser extension is touched (D9): because the frame is a complete line consumed while streaming, every shipped client must parse envelopes on its streaming path, not only at end of stream. The extension did not, so it would have dropped the frame and rendered nothing where it previously showed a generic sentence.
 
 ### D3: Preserve provider failure detail in a typed error
 
@@ -127,6 +129,14 @@ The check is deliberately "no line at all" rather than "no assistant content": t
 Provider failure detail is logged as a single structured entry with named fields (provider status, provider code, reference, overloaded flag, timeout flag, and the original error's message), replacing the current opaque `console.error('ChatStream error:', error)` + `AIError()` pair. The classification outcome is logged once more at the stream boundary with the user-facing code and the cause message.
 
 The client-visible message carries the error code and an actionable sentence only. No API key, no raw provider payload, no stack trace, and no Google reference id is sent to the browser; the reference stays in operator logs. Secrets are never logged — the API key is only read from `env.VERTEX_API_KEY` (`vertexAIClient.ts:30`) and is not included in any error or log payload.
+
+### D9: The extension gets the streaming-path envelope parse, and nothing else
+
+The framing decision in D2 made a client-side assumption that held only for the web client: a complete bare-JSON line is consumed mid-stream, so a client that parses envelopes only at end of stream never sees it. The browser extension's client is exactly that client, and before this change the same failure reached it as an SSE content chunk that it did render — so shipping D2 without touching the extension would have been a user-visible regression in a shipped surface, which `REVIEW.md` classifies as Important.
+
+Decision: factor the extension's envelope parsing into one `handleErrorLine` and call it from both its streaming loop and its end-of-stream branch, mirroring the web client. Do not port the rest of the web client's hardening (the terminal `.catch()/.finally()` chain, the inactivity ceiling): those address a pre-existing gap rather than a regression, they would need their own scenarios, and the extension suite would have to grow the same fixtures. They remain the follow-up change.
+
+Alternative considered: leave the extension to the follow-up and accept the regression. Rejected — the change would knowingly degrade a shipped client, and a failure that shows no message is the exact symptom this change exists to remove.
 
 ## Risks / Trade-offs
 

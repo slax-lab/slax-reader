@@ -8,12 +8,15 @@ Every check was compared against a clean tree so pre-existing failures are not a
 
 | Check | Changed tree | Clean baseline | Conclusion |
 | --- | --- | --- | --- |
-| `pnpm api -- test` | 149 passed / 0 failed (1650 tests), 158 files | main checkout: 145 passed / 1 failed (missing `@electric-sql/pglite`), 155 files | No failures introduced; the 3 added files are the new suites. The worktree's own run is fully green because its install resolves `pglite`. |
+| `pnpm api -- test` | 149 passed / 0 failed (1653 tests), 158 files | main checkout: 145 passed / 1 failed (missing `@electric-sql/pglite`), 155 files | No failures introduced; the 3 added files are the new suites. The worktree's own run is fully green because its install resolves `pglite`. |
 | `pnpm api -- typecheck` | 120 errors | 120 errors, byte-identical multiset; main checkout: 0 errors | The 120 are missing-generated-Prisma-client noise in this fresh worktree, present identically with the change applied and stashed, and none touches a changed file. |
 | `pnpm web -- typecheck` | exit 0, clean | n/a | No errors. |
 | `pnpm web -- test` | 12 failed files / 109 failed tests | main checkout: 13 failed files / 118 failed tests | The changed tree's failing-file set is a **strict subset** of the baseline's (the only difference is `tests/unit/utils/mermaid.spec.ts`, unrelated to this diff). No new failures. Neither `chatbot.spec.ts` nor `SnapshotChatPanel.spec.ts` is in either failing set. |
+| `pnpm extension -- test` | 5 files / 18 tests passed | — | Includes the two new failure-envelope cases. |
+| `pnpm extension -- compile` | clean | — | `vue-tsc --noEmit`, no errors (it caught a tuple-typed helper in the new test, since fixed). |
 | API lint (changed files) | 15 warnings | 15 warnings, identical multiset | Zero new warnings; the previous "18" counted three `File ignored` notices. |
 | Web lint (`chatbot.spec.ts`) | 1 error, 0 warnings | 1 error, 0 warnings | Back to the baseline's single pre-existing import-sort error after an intermediate version briefly added one. |
+| Extension lint (changed files) | 1 error (import-sort, pre-existing) | 1 error, identical | `chatbot.ts` is byte-identical to baseline; the new test file adds none. |
 | `openspec validate --all --strict` | 15 passed, 0 failed | — | Change validates strictly. |
 
 ## Tests that were confirmed to catch the original defect
@@ -29,6 +32,8 @@ The core defect was a stream that never terminated. A "was the stream closed" as
 ```
 
 Both fail against the old behavior and pass against the fix; the source was restored with `git checkout` immediately afterwards. This is the evidence that the awaited-close guarantee is actually pinned.
+
+The extension regression test was validated the same way: disabling the new `else if (line.trimStart().startsWith('{'))` branch in `apps/extension/src/components/Chat/chatbot.ts` fails `renders an envelope that arrives as a complete line mid-stream` while the end-of-stream case keeps passing, which is exactly the shape of the regression.
 
 ## Environment scaffolding used (not part of the PR)
 
@@ -60,12 +65,12 @@ The diff changes observable behavior and touches `apps/**` and `packages/**`, so
 
 ## Recorded follow-ups (deliberately not in this change)
 
-Two independent runs of the repository's automated PR review raised no Important findings on this diff; both are recorded on PR #162. Between those reviews and my own passes, the following were identified as real but out of scope, and are recorded in `design.md`'s Non-Goals:
+The repository's automated PR review ran three times against successive heads. Its first two runs raised no Important findings; the third escalated the extension consequence to Important, because shipping the new framing without touching that client would have degraded a shipped surface. That finding is **fixed** in this change (design D9, task 5.7/6.7) rather than deferred. The remaining items below are real but out of scope, and are recorded in `design.md`'s Non-Goals:
 
-1. **Extension client regression.** `apps/extension/src/components/Chat/chatbot.ts` parses error envelopes only at end-of-stream, so the new mid-stream frame is dropped there and the extension now clears loading with nothing rendered (it previously showed the generic sentence). It needs the same streaming-path envelope parse the web client gained here. This is the highest-priority follow-up.
-2. **Pre-stream quote-image stall.** `buildQuotePayload` awaits an un-timed `fetch` per quoted image before the idle ceiling is armed, so a host that never answers can still leave the chat loading with no message.
-3. **No cancellation on surface teardown.** `destruct()` clears the callback but the in-flight stream runs to completion or to the idle bound.
-4. **Summary stream.** `AigcService.bookmarkSummary` carries the same un-awaited `write`/`close` pattern as the chat path did.
+1. **Pre-stream quote-image stall.** `buildQuotePayload` awaits an un-timed `fetch` per quoted image before the idle ceiling is armed, so a host that never answers can still leave the chat loading with no message.
+2. **No cancellation on surface teardown.** `destruct()` clears the callback but the in-flight stream runs to completion or to the idle bound.
+3. **Summary stream.** `AigcService.bookmarkSummary` carries the same un-awaited `write`/`close` pattern as the chat path did.
+4. **The rest of the extension client's defects.** It still has no termination guarantee on a read failure and none of the un-timed waits the web client just gained; only the error-frame parse was fixed here.
 
 ## Not verified
 
