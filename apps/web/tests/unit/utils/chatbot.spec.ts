@@ -125,6 +125,7 @@ describe('ChatBot chat — createMessages 路径', () => {
       url: RESTMethodPath.BOT_CHAT,
       method: RequestMethodType.post,
       signal: expect.any(AbortSignal),
+      errorInterceptors: expect.any(Function),
       body: {
         bm_id: 42,
         share_code: undefined,
@@ -151,6 +152,7 @@ describe('ChatBot chat — createMessages 路径', () => {
       url: RESTMethodPath.BOT_CHAT,
       method: RequestMethodType.post,
       signal: expect.any(AbortSignal),
+      errorInterceptors: expect.any(Function),
       body: {
         bm_id: undefined,
         share_code: 'sc-X',
@@ -182,6 +184,7 @@ describe('ChatBot chat — createMessages 路径', () => {
       url: RESTMethodPath.BOT_CHAT,
       method: RequestMethodType.post,
       signal: expect.any(AbortSignal),
+      errorInterceptors: expect.any(Function),
       body: {
         bm_id: undefined,
         share_code: undefined,
@@ -204,6 +207,7 @@ describe('ChatBot chat — createMessages 路径', () => {
       url: RESTMethodPath.BOT_CHAT,
       method: RequestMethodType.post,
       signal: expect.any(AbortSignal),
+      errorInterceptors: expect.any(Function),
       body: {
         bm_id: 99,
         share_code: undefined,
@@ -227,6 +231,7 @@ describe('ChatBot chat — createMessages 路径', () => {
       url: RESTMethodPath.BOT_CHAT,
       method: RequestMethodType.post,
       signal: expect.any(AbortSignal),
+      errorInterceptors: expect.any(Function),
       body: {
         bm_id: undefined,
         share_code: 'sc-ask',

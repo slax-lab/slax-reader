@@ -9,7 +9,7 @@ Every check was compared against a clean tree so pre-existing failures are not a
 | Check | Changed tree | Clean baseline | Conclusion |
 | --- | --- | --- | --- |
 | `pnpm api -- test` | 149 passed / 0 failed (1653 tests), 158 files | main checkout: 145 passed / 1 failed (missing `@electric-sql/pglite`), 155 files | No failures introduced; the 3 added files are the new suites. The worktree's own run is fully green because its install resolves `pglite`. |
-| `pnpm api -- typecheck` | 120 errors | 120 errors, byte-identical multiset; main checkout: 0 errors | The 120 are missing-generated-Prisma-client noise in this fresh worktree, present identically with the change applied and stashed, and none touches a changed file. |
+| `pnpm api -- typecheck` | **0 errors** once `gen:model` had produced the Prisma clients; 120 before that | 120 errors, byte-identical multiset when run before generating them; main checkout: 0 errors | The 120 were missing-generated-Prisma-client noise in this fresh worktree — present identically with the change applied and stashed, and none touched a changed file. With the clients generated the run is clean, so the change adds no type errors either way. |
 | `pnpm web -- typecheck` | exit 0, clean | n/a | No errors. |
 | `pnpm web -- test` | 12 failed files / 109 failed tests | main checkout: 13 failed files / 118 failed tests | The changed tree's failing-file set is a **strict subset** of the baseline's (the only difference is `tests/unit/utils/mermaid.spec.ts`, unrelated to this diff). No new failures. Neither `chatbot.spec.ts` nor `SnapshotChatPanel.spec.ts` is in either failing set. |
 | `pnpm extension -- test` | 5 files / 18 tests passed | — | Includes the two new failure-envelope cases. |
@@ -81,6 +81,8 @@ The repository's automated PR review ran three times against successive heads. I
 2. **No cancellation on surface teardown.** `destruct()` clears the callback but the in-flight stream runs to completion or to the idle bound.
 3. **Summary stream.** `AigcService.bookmarkSummary` carries the same un-awaited `write`/`close` pattern as the chat path did.
 4. **The rest of the extension client's defects.** It still has no termination guarantee on a read failure and none of the un-timed waits the web client just gained; only the error-frame parse was fixed here.
+5. **Per-request error language.** `MultiLangError.getMessage` resolves against a module-global language, so a frame written after a model call can use a language a concurrent request switched to. `createResponse` shares the property for all non-streaming errors.
+6. **Content writes still share `this.wr`.** Only termination and the error frame use the locally captured writer; `writeChunk`/`writeProgress`/`writeDone` go through the shared singleton field, so concurrent chats on one isolate can still interleave content frames.
 
 ## Not verified
 

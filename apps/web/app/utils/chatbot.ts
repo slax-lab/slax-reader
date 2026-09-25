@@ -162,7 +162,11 @@ export class ChatBot {
         url: RESTMethodPath.BOT_CHAT,
         method: RequestMethodType.post,
         body: messages,
-        signal: abortController.signal
+        signal: abortController.signal,
+        // This call surfaces its own localized failure. The default interceptor would toast the
+        // raw error as well, so an abort would show "AbortError: ..." on top of the message the
+        // user is supposed to read.
+        errorInterceptors: () => {}
       })
 
       if (!callBack) throw new Error(t('util.chatbot.error_request_failed'))

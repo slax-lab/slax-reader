@@ -21,7 +21,7 @@ import { BatchRequest, GeminiBatchProvider } from '@/infra/external/batchComplet
 import { VertexAIClient, ToolDefinition, classifyProviderError } from '@/infra/external/vertexAIClient'
 import { Content, Type } from '@google/genai'
 import { MultiLangError } from '@/utils/multiLangError'
-import { AIError, ErrorParam } from '@/const/err'
+import { AIError, ErrorParam, ErrorName } from '@/const/err'
 
 export type deltaType = {
   role?: 'system' | 'user' | 'assistant' | 'tool'
@@ -420,8 +420,10 @@ export class AigcService {
   // chat with bookmark
   public async bookmarkChat(ctx: ContextManager, title: string, rawContent: string, messages: Content[], writer: WritableStream<Uint8Array>, quote: completionQuote[]) {
     this.wr = writer.getWriter()
-    // Hold our own writer: this is our only handle on the stream, and the termination
-    // guarantee below must survive a concurrent request reassigning the shared field.
+    // Hold our own writer so the frame and the close below always reach THIS stream, even if a
+    // concurrent request reassigns the shared `this.wr` field. The guarantee is deliberately
+    // limited to termination and the error frame: the content helpers still write through
+    // `this.wr`, which is pre-existing (see the design's Non-Goals).
     const wr = this.wr
 
     try {
@@ -457,11 +459,12 @@ export class AigcService {
     const error = err instanceof MultiLangError ? err : classifyProviderError(err)
     const frame = JSON.stringify({ data: error.name, message: error.getMessage, code: error.errCode })
 
-    console.error('[aigc.chat] stream failed', {
-      name: error.name,
-      code: error.errCode,
-      cause: err instanceof Error ? err.message : String(err)
-    })
+    const detail = { name: error.name, code: error.errCode, cause: err instanceof Error ? err.message : String(err) }
+
+    // A rejected request is the caller's mistake, not a service failure. Keeping it out of the
+    // error channel stops a public endpoint from polluting error-rate signals.
+    if (error.name === ErrorName.ERROR_PARAM) console.warn('[aigc.chat] rejected request', detail)
+    else console.error('[aigc.chat] stream failed', detail)
 
     try {
       await wr.write(this.ted.encode(`${frame}\n`))
