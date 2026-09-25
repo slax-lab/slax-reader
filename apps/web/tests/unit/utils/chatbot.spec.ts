@@ -21,10 +21,19 @@ import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockStream, streamCallbackHolder, partialParseMock } = vi.hoisted(() => {
-  const streamCallbackHolder: { subscriber: ((text: string, isDone: boolean) => void) | null } = { subscriber: null }
+  const streamCallbackHolder: {
+    subscriber: ((text: string, isDone: boolean) => void) | null
+    settle: { resolve: () => void; reject: (reason?: unknown) => void } | null
+  } = { subscriber: null, settle: null }
+
   const mockStream = vi.fn(async () => {
     return (subscriber: (text: string, isDone: boolean) => void) => {
       streamCallbackHolder.subscriber = subscriber
+      // The real consumer settles only when the stream ends, so a test drives the stream
+      // after chat() returns and completes the consumer explicitly.
+      return new Promise<void>((resolve, reject) => {
+        streamCallbackHolder.settle = { resolve, reject }
+      })
     }
   })
   const partialParseMock = vi.fn((s: string) => JSON.parse(s))
@@ -56,6 +65,7 @@ import type { QuoteData } from '~/components/Chat/type'
 beforeEach(() => {
   // hoisted holder + mock 调用记录每个 it 重置
   streamCallbackHolder.subscriber = null
+  streamCallbackHolder.settle = null
   mockStream.mockClear()
   mockRequest.mockClear()
   partialParseMock.mockReset().mockImplementation((s: string) => JSON.parse(s))
@@ -65,6 +75,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
@@ -113,6 +124,7 @@ describe('ChatBot chat — createMessages 路径', () => {
     expect(mockStream).toHaveBeenCalledWith({
       url: RESTMethodPath.BOT_CHAT,
       method: RequestMethodType.post,
+      signal: expect.any(AbortSignal),
       body: {
         bm_id: 42,
         share_code: undefined,
@@ -138,6 +150,7 @@ describe('ChatBot chat — createMessages 路径', () => {
     expect(mockStream).toHaveBeenCalledWith({
       url: RESTMethodPath.BOT_CHAT,
       method: RequestMethodType.post,
+      signal: expect.any(AbortSignal),
       body: {
         bm_id: undefined,
         share_code: 'sc-X',
@@ -168,6 +181,7 @@ describe('ChatBot chat — createMessages 路径', () => {
     expect(mockStream).toHaveBeenCalledWith({
       url: RESTMethodPath.BOT_CHAT,
       method: RequestMethodType.post,
+      signal: expect.any(AbortSignal),
       body: {
         bm_id: undefined,
         share_code: undefined,
@@ -189,6 +203,7 @@ describe('ChatBot chat — createMessages 路径', () => {
     expect(mockStream).toHaveBeenCalledWith({
       url: RESTMethodPath.BOT_CHAT,
       method: RequestMethodType.post,
+      signal: expect.any(AbortSignal),
       body: {
         bm_id: 99,
         share_code: undefined,
@@ -211,6 +226,7 @@ describe('ChatBot chat — createMessages 路径', () => {
     expect(mockStream).toHaveBeenCalledWith({
       url: RESTMethodPath.BOT_CHAT,
       method: RequestMethodType.post,
+      signal: expect.any(AbortSignal),
       body: {
         bm_id: undefined,
         share_code: 'sc-ask',
@@ -715,5 +731,143 @@ describe('chat — 边界 + isChatting + destruct', () => {
         }
       })
     )
+  })
+})
+
+// 本轮修复：无论流以何种方式结束都必须离开 loading 态，且失败必须对用户可见。
+type StatusUpdateParams = { data?: { STATUS_UPDATE?: { name?: string; tips?: string } } }
+
+describe('chat — 终止兜底与失败可见性', () => {
+  const flushTasks = () => new Promise(resolve => setTimeout(resolve, 0))
+
+  const errorTipsCalls = (callback: ReturnType<typeof vi.fn>) =>
+    callback.mock.calls.filter(([params]) => (params as StatusUpdateParams | undefined)?.data?.STATUS_UPDATE?.name === 'error')
+
+  const errorTips = (callback: ReturnType<typeof vi.fn>) => ((errorTipsCalls(callback)[0]?.[0] as StatusUpdateParams | undefined)?.data?.STATUS_UPDATE?.tips ?? '')
+
+  const settle = (kind: 'resolve' | 'reject', reason?: unknown) => {
+    const holder = streamCallbackHolder.settle
+    if (!holder) throw new Error('stream consumer was not started')
+    if (kind === 'resolve') holder.resolve()
+    else holder.reject(reason)
+  }
+
+  it('消费者 reject（连接中断）→ loading 复位并提示失败', async () => {
+    const callback = vi.fn()
+    const bot = new ChatBot({ bookmarkId: 1 }, callback)
+    const statusHandler = vi.fn()
+    bot.chatStatusUpdateHandler = statusHandler
+
+    await bot.chat({ type: ChatParamsType.CONTENT, content: 'q' })
+    expect(bot.isChatting).toBe(true)
+
+    settle('reject', new Error('connection dropped'))
+    await flushTasks()
+
+    expect(bot.isChatting).toBe(false)
+    expect(statusHandler).toHaveBeenLastCalledWith(false)
+    expect(errorTipsCalls(callback)).toHaveLength(1)
+    expect(errorTips(callback)).toBe('__T__util.chatbot.error_request_failed')
+  })
+
+  it('流结束但一个帧都没有 → loading 复位并提示无响应', async () => {
+    const callback = vi.fn()
+    const bot = new ChatBot({ bookmarkId: 1 }, callback)
+
+    await bot.chat({ type: ChatParamsType.CONTENT, content: 'q' })
+    settle('resolve')
+    await flushTasks()
+
+    expect(bot.isChatting).toBe(false)
+    expect(errorTipsCalls(callback)).toHaveLength(1)
+    expect(errorTips(callback)).toBe('__T__util.chatbot.error_no_response')
+  })
+
+  it('流正常结束且有内容 → loading 复位且不额外报错', async () => {
+    const callback = vi.fn()
+    const bot = new ChatBot({ bookmarkId: 1 }, callback)
+
+    await bot.chat({ type: ChatParamsType.CONTENT, content: 'q' })
+    const subscriber = streamCallbackHolder.subscriber!
+    sendChunk(subscriber, { choices: [{ delta: [{ role: 'assistant', content: '答案' }] }] })
+    subscriber('', true)
+    settle('resolve')
+    await flushTasks()
+
+    expect(bot.isChatting).toBe(false)
+    expect(errorTipsCalls(callback)).toHaveLength(0)
+  })
+
+  it('流中出现的完整错误行（带换行的裸 JSON）也会被识别并结束 loading', async () => {
+    const callback = vi.fn()
+    const bot = new ChatBot({ bookmarkId: 1 }, callback)
+
+    await bot.chat({ type: ChatParamsType.CONTENT, content: 'q' })
+    const subscriber = streamCallbackHolder.subscriber!
+
+    // 服务端写入的 {data, message, code} 错误帧：非 SSE 帧，且以完整行到达
+    subscriber(`${JSON.stringify({ data: 'AI_PROVIDER_UNAVAILABLE', message: '服务暂时不可用', code: 503 })}\n`, false)
+    subscriber('', true)
+    settle('resolve')
+    await flushTasks()
+
+    expect(bot.isChatting).toBe(false)
+    expect(errorTipsCalls(callback)).toHaveLength(1)
+    expect(errorTips(callback)).toBe('服务暂时不可用')
+  })
+
+  it('request().stream 直接失败 → loading 复位并提示失败', async () => {
+    mockStream.mockRejectedValueOnce(new Error('network down'))
+    const callback = vi.fn()
+    const bot = new ChatBot({ bookmarkId: 1 }, callback)
+
+    await bot.chat({ type: ChatParamsType.CONTENT, content: 'q' })
+
+    expect(bot.isChatting).toBe(false)
+    expect(errorTipsCalls(callback)).toHaveLength(1)
+  })
+
+  it('request().stream 没有返回消费者 → loading 复位并提示失败', async () => {
+    mockStream.mockResolvedValueOnce(undefined as never)
+    const callback = vi.fn()
+    const bot = new ChatBot({ bookmarkId: 1 }, callback)
+
+    await bot.chat({ type: ChatParamsType.CONTENT, content: 'q' })
+
+    expect(bot.isChatting).toBe(false)
+    expect(errorTipsCalls(callback)).toHaveLength(1)
+  })
+
+  it('读流空闲超过上限 → 中止请求并提示超时', async () => {
+    vi.useFakeTimers()
+    const callback = vi.fn()
+    const bot = new ChatBot({ bookmarkId: 1 }, callback)
+
+    await bot.chat({ type: ChatParamsType.CONTENT, content: 'q' })
+    const signal = mockStream.mock.calls[0]![0]!.signal as AbortSignal
+    expect(signal.aborted).toBe(false)
+
+    await vi.advanceTimersByTimeAsync(60_000)
+
+    expect(signal.aborted).toBe(true)
+    expect(bot.isChatting).toBe(false)
+    expect(errorTipsCalls(callback)).toHaveLength(1)
+    expect(errorTips(callback)).toBe('__T__util.chatbot.error_timeout')
+  })
+
+  it('数据持续到达时不会触发空闲上限', async () => {
+    vi.useFakeTimers()
+    const callback = vi.fn()
+    const bot = new ChatBot({ bookmarkId: 1 }, callback)
+
+    await bot.chat({ type: ChatParamsType.CONTENT, content: 'q' })
+    const subscriber = streamCallbackHolder.subscriber!
+    const signal = mockStream.mock.calls[0]![0]!.signal as AbortSignal
+
+    await vi.advanceTimersByTimeAsync(50_000)
+    sendChunk(subscriber, { choices: [{ delta: [{ role: 'assistant', content: 'a' }] }] })
+    await vi.advanceTimersByTimeAsync(50_000)
+
+    expect(signal.aborted).toBe(false)
   })
 })
