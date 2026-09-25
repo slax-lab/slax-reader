@@ -65,6 +65,8 @@ Unmapped classes fall back to the `.hljs` base declaration (`--slax-code-text`),
 
 Panel-specific geometry (chat's `padding: 10px 12px`, `border-radius: 6px`, `overflow-x: auto`) stays where it is — a scoped rule legitimately wins over the global stylesheet, and the point of this decision is only that no second *background* layer exists.
 
+Consequence for the language label: `parse.ts` emits `code-block-header__lang` *inside* the wrapper, so the label now sits on the code background instead of the page background. It has no CSS anywhere in the repo, so it would inherit the page body text color — in the light theme `#1a1814` on `#282c34`, roughly 1.15:1 and effectively invisible. The stylesheet therefore colors `.code-block-header` with `--slax-code-text`, and a guard asserts both that rule and the text-on-surface contrast in all three themes. (Caught in review of the first revision, which had left the label untouched.)
+
 ### D4: `code-highlight.css` is imported from `theme.css`, not from `theme.tokens.css`
 
 `theme.tokens.css` is injected into the reader's iframe preview and shadow roots, where a `.hljs` selector would collide with the original page's own syntax-highlighting styles and would violate the file's "declarations only" guard. `apps/web/styles/theme.css` is the main-site-only global entry (it already holds the `html` / `body` fallbacks and the e-ink wildcard rules), so the class rules are imported there, one line, next to the existing token import.
@@ -77,9 +79,9 @@ Four grays carry the whole palette (`#000000` → `#333333` → `#555555` → `#
 
 Contrast against `#ffffff` (WCAG 2.1 relative luminance), which sets the floor: `#000000` 21.0:1, `#333333` 12.6:1, `#555555` 7.5:1, `#666666` 5.7:1. `#777777` is 4.48:1 and therefore the first gray that fails the 4.5:1 floor — that is why the lightest permitted value is `#666666`. The floor is asserted for e-ink only: light and dark carry the incumbent palette, which does not meet it (e.g. its comment color is ~2.2:1 on its own surface), and re-authoring those two themes is a separate, user-visible design decision.
 
-### D6: Light and dark keep their values; one accepted geometry delta
+### D6: Light and dark keep their values; two accepted visual deltas
 
-Because the eight roles mirror the incumbent groupings, the light and dark palettes are copied, not redesigned, and the surface stays `#282c34`. The one intentional delta is structural: the block now paints one surface, so the wrapper's translucent fill and the highlighted body no longer stack, and the code element no longer adds its own padding inside the wrapper's. Colors are unchanged; insets tighten by the code element's former padding. This is recorded so a reviewer comparing screenshots attributes the diff to geometry and not to a palette change.
+Because the eight roles mirror the incumbent groupings, the light and dark palettes are copied, not redesigned, and the surface stays `#282c34`. Two intentional deltas remain in those themes. First, structural: the block now paints one surface, so the wrapper's translucent fill and the highlighted body no longer stack, and the code element no longer adds its own padding inside the wrapper's — insets tighten. Second, the language label: it now sits on the code surface and takes `--slax-code-text`, so in the light theme it becomes light-on-dark instead of dark-on-light. Colors of the surface, body text and syntax roles are unchanged. This is recorded so a reviewer comparing screenshots attributes the diff to geometry and to the label's surface, not to a palette change.
 
 Normalizing light to a paper surface like the article code block was considered and rejected **for this change**: it changes the default theme's appearance for every reader and is a design decision the reported defect did not ask for. The token layer makes it a one-line change later.
 

@@ -37,6 +37,12 @@ pre code.hljs {
   padding: 0;
 }
 
+/* 语言标签（.code-block-header__lang）在 wrapper 内部，落在**代码块底色**上而不是页面底色上，
+ * 所以必须显式给色：否则 light 下它会继承页面正文色（#1a1814 压在 #282c34 上，约 1.15:1，等于看不见） */
+.code-block-header {
+  color: var(--slax-code-text);
+}
+
 /* 语法角色 → token。分组沿用既有调色板的归组，light / dark 取色值不变 */
 .hljs-comment,
 .hljs-quote {

@@ -81,11 +81,25 @@ A code block SHALL paint its background exactly once, on the block container. Th
 - **WHEN** a code block is rendered in any theme
 - **THEN** the visible background from the block's outer edge to its text is uniformly the code background color, with no second layer, halo or inner frame
 
+### Requirement: The code-block language label stays legible on the code surface
+
+The language label that the shared markdown renderer emits inside the code block SHALL take its color from the code-highlight values rather than inheriting the page text color, and its contrast against the code background SHALL be at least 4.5:1 in every theme.
+
+#### Scenario: Label legible in every theme
+
+- **WHEN** a code block carrying a language tag is displayed in the light, dark or e-ink theme
+- **THEN** the label's contrast against the code background is at least 4.5:1
+
+#### Scenario: Label does not inherit the page text color
+
+- **WHEN** the code-block stylesheet is inspected
+- **THEN** the label element is given an explicit code-highlight color, so a future page-text change cannot make it unreadable against the code surface
+
 ### Requirement: Light and dark keep their existing code-block appearance
 
-In the light and dark themes, the code background, body text color and all syntax colors SHALL retain the values they had before this change; only the e-ink theme's appearance may differ.
+In the light and dark themes, the code background, body text color and all syntax colors SHALL retain the values they had before this change. Their only visible deltas are structural: the block paints a single surface, and the language label — which now sits on that surface — takes the code text color.
 
-#### Scenario: Light and dark are unchanged
+#### Scenario: Light and dark palette is unchanged
 
 - **WHEN** the same code block is rendered in the light theme and in the dark theme after this change
 - **THEN** its background, body text color and syntax colors equal the values used before this change

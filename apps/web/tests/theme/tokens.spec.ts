@@ -289,4 +289,17 @@ describe('theme.tokens.css 代码块 token 校验', () => {
       expect(ratio, `${token} 对比度 ${ratio.toFixed(2)}:1 低于 4.5:1`).toBeGreaterThanOrEqual(4.5)
     }
   })
+
+  // 语言标签（.code-block-header__lang）在 wrapper 内部、落在 wrapper 画的底色上，且取 --slax-code-text；
+  // 三主题都必须可读 —— light 下曾是深字压深底（约 1.15:1），PR review 抓到过
+  it('三主题下代码块正文色（语言标签同色）对代码块底色的对比度均 ≥ 4.5:1', () => {
+    for (const [themeName, block] of [
+      ['light', root],
+      ['dark', dark],
+      ['eink', eink]
+    ] as const) {
+      const ratio = contrastRatio(tokenValue(block, '--slax-code-text'), tokenValue(block, '--slax-code-bg'))
+      expect(ratio, `${themeName} 代码块正文色对比度 ${ratio.toFixed(2)}:1 低于 4.5:1`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
 })
