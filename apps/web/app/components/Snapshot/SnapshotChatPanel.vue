@@ -1170,7 +1170,16 @@ defineExpose({ addQuoteData, focusTextarea })
       }
 
       :deep(pre) {
-        background: color-mix(in srgb, var(--slax-text) 6%, transparent);
+        // 代码块底色 / 字色 / 边框统一走 --slax-code-* token（着色规则见 styles/code-highlight.css）。
+        //
+        // 字色和边框都必须在这里一起给：这条规则给**所有** <pre> 画底，而 wrapper 才带全局的
+        // 字色与 1px 边框。裸 <pre>（模型直接输出的原始 HTML pre、mermaid 占位）不带那些 class：
+        //   - 只给底色 → light 下"深底 + 页面正文色"（#1a1814 on #282c34 ≈ 1.27:1）
+        //   - 不给边框 → e-ink 下白底压在白色面板上（--slax-code-bg 与 --slax-surface-solid 都是
+        //     #ffffff），块边界整个消失
+        background: var(--slax-code-bg);
+        color: var(--slax-code-text);
+        border: 1px solid var(--slax-code-border);
         border-radius: 6px;
         padding: 10px 12px;
         overflow-x: auto;

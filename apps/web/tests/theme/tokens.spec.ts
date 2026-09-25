@@ -9,6 +9,23 @@ import { describe, expect, it } from 'vitest'
 const TOKENS_PATH = resolve(process.cwd(), 'styles/theme.tokens.css')
 const RAW = readFileSync(TOKENS_PATH, 'utf8')
 
+// 代码块 token（highlight.js token 映射；定义见 styles/theme.tokens.css，着色见 styles/code-highlight.css）：
+// 三主题必须各自齐备，缺一个即失败 —— 不允许静默回落到别的主题的值。
+// E-ink 下的深色代码块正是"没有主题分支、直接吃第三方样式表默认值"造成的
+const CODE_REQUIRED_TOKENS = [
+  '--slax-code-bg',
+  '--slax-code-text',
+  '--slax-code-border',
+  '--slax-code-comment',
+  '--slax-code-keyword',
+  '--slax-code-tag',
+  '--slax-code-literal',
+  '--slax-code-string',
+  '--slax-code-number',
+  '--slax-code-symbol',
+  '--slax-code-builtin'
+]
+
 // :root 必备的全部 token（含主题独立的尺寸 / 字体 / 渐变备份）
 const ROOT_REQUIRED_TOKENS = [
   '--slax-bg',
@@ -32,7 +49,8 @@ const ROOT_REQUIRED_TOKENS = [
   '--slax-radius-sm',
   '--slax-grad-a',
   '--slax-grad-b',
-  '--slax-blur'
+  '--slax-blur',
+  ...CODE_REQUIRED_TOKENS
 ]
 
 // 主题块（dark / eink）必须 override 的核心颜色 token；尺寸 / 字体 / 部分阴影从 :root 继承
@@ -53,7 +71,8 @@ const THEME_REQUIRED_TOKENS = [
   '--slax-shadow-sm',
   '--slax-shadow-modal',
   '--slax-grad-a',
-  '--slax-grad-b'
+  '--slax-grad-b',
+  ...CODE_REQUIRED_TOKENS
 ]
 
 const ROOT_ONLY_TOKENS = [
@@ -167,5 +186,120 @@ describe('theme.tokens.css 静态校验', () => {
     expect(eink, 'eink --slax-shadow-warm 必须为 none').toMatch(/--slax-shadow-warm:\s*none/)
     expect(eink, 'eink --slax-shadow-sm 必须为 none').toMatch(/--slax-shadow-sm:\s*none/)
     expect(eink, 'eink --slax-shadow-modal 必须为 none').toMatch(/--slax-shadow-modal:\s*none/)
+  })
+})
+
+// ---- 代码块 token 校验 ----
+// 需求来源：specs/code-highlight-theming —— E-ink 纸面化（表面 / 边框 / 正文色与文章代码块一致、
+// 无深色填充、无半透明）、语法色无彩色且过 4.5:1 对比度下限；light / dark 取色值保持变更前不变
+
+const EINK_SYNTAX_TOKENS = [
+  '--slax-code-comment',
+  '--slax-code-keyword',
+  '--slax-code-tag',
+  '--slax-code-literal',
+  '--slax-code-string',
+  '--slax-code-number',
+  '--slax-code-symbol',
+  '--slax-code-builtin'
+]
+
+// 变更前 light / dark 的取色（Atom One Dark），逐字节保持不变是本次变更的兼容性承诺
+const INCUMBENT_CODE_TOKENS: Record<string, string> = {
+  '--slax-code-bg': '#282c34',
+  '--slax-code-text': '#abb2bf',
+  '--slax-code-border': 'transparent',
+  '--slax-code-comment': '#5c6370',
+  '--slax-code-keyword': '#c678dd',
+  '--slax-code-tag': '#e06c75',
+  '--slax-code-literal': '#56b6c2',
+  '--slax-code-string': '#98c379',
+  '--slax-code-number': '#d19a66',
+  '--slax-code-symbol': '#61aeee',
+  '--slax-code-builtin': '#e6c07b'
+}
+
+const tokenValue = (block: string, name: string): string => {
+  const matched = block.match(new RegExp(`${name}\\s*:\\s*([^;]+);`))
+  const value = matched?.[1]?.trim()
+  if (!value) throw new Error(`未找到 token：${name}`)
+  return value
+}
+
+const parseHex = (value: string): [number, number, number] => {
+  const matched = value.match(/^#([0-9a-fA-F]{6})$/)
+  if (!matched?.[1]) throw new Error(`不是 6 位 hex 颜色：${value}`)
+  const int = Number.parseInt(matched[1], 16)
+  return [(int >> 16) & 0xff, (int >> 8) & 0xff, int & 0xff]
+}
+
+const channelLuminance = (channel: number): number => {
+  const scaled = channel / 255
+  return scaled <= 0.03928 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4
+}
+
+const relativeLuminance = ([r, g, b]: [number, number, number]): number =>
+  0.2126 * channelLuminance(r) + 0.7152 * channelLuminance(g) + 0.0722 * channelLuminance(b)
+
+const contrastRatio = (foreground: string, background: string): number => {
+  const a = relativeLuminance(parseHex(foreground))
+  const b = relativeLuminance(parseHex(background))
+  return a >= b ? (a + 0.05) / (b + 0.05) : (b + 0.05) / (a + 0.05)
+}
+
+describe('theme.tokens.css 代码块 token 校验', () => {
+  const root = extractBlock(':root')
+  const dark = extractBlock("[data-slax-theme='dark']")
+  const eink = extractBlock("[data-slax-theme='eink']")
+  const einkCodeBg = tokenValue(eink, '--slax-code-bg')
+
+  it('light / dark 取色值保持变更前不变（兼容性承诺）', () => {
+    for (const [token, value] of Object.entries(INCUMBENT_CODE_TOKENS)) {
+      expect(tokenValue(root, token), `:root ${token} 取色值被改动`).toBe(value)
+      expect(tokenValue(dark, token), `dark ${token} 取色值被改动`).toBe(value)
+    }
+  })
+
+  it('E-ink 代码块底色 / 正文色 / 边框与文章代码块同款（纸面，无深色填充）', () => {
+    // 文章代码块（styles/article/_content-mixin.scss）消费 --slax-surface + --slax-border，
+    // 两者取同一份值才能保证同一屏上并排的两个代码块不打架
+    expect(einkCodeBg, 'eink 代码块底色必须等于主题 surface').toBe(tokenValue(eink, '--slax-surface'))
+    expect(tokenValue(eink, '--slax-code-text'), 'eink 代码块正文色必须等于主题正文色').toBe(tokenValue(eink, '--slax-text'))
+    expect(tokenValue(eink, '--slax-code-border'), 'eink 代码块边框必须等于主题边框色').toBe(tokenValue(eink, '--slax-border'))
+  })
+
+  it('E-ink 代码块不出现半透明颜色', () => {
+    for (const token of ['--slax-code-bg', '--slax-code-text', '--slax-code-border', ...EINK_SYNTAX_TOKENS]) {
+      const value = tokenValue(eink, token)
+      expect(value, `${token} 不得使用 rgba(`).not.toContain('rgba(')
+      expect(value, `${token} 不得使用 color-mix(`).not.toContain('color-mix(')
+    }
+  })
+
+  it('E-ink 语法色全为灰阶（R = G = B），不靠色相区分', () => {
+    for (const token of EINK_SYNTAX_TOKENS) {
+      const [r, g, b] = parseHex(tokenValue(eink, token))
+      expect([r, g, b], `${token} 必须是灰阶`).toEqual([r, r, r])
+    }
+  })
+
+  it('E-ink 语法色与正文色对代码块底色的对比度均 ≥ 4.5:1', () => {
+    for (const token of ['--slax-code-text', ...EINK_SYNTAX_TOKENS]) {
+      const ratio = contrastRatio(tokenValue(eink, token), einkCodeBg)
+      expect(ratio, `${token} 对比度 ${ratio.toFixed(2)}:1 低于 4.5:1`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  // 语言标签（.code-block-header__lang）在 wrapper 内部、落在 wrapper 画的底色上，且取 --slax-code-text；
+  // 三主题都必须可读 —— light 下曾是深字压深底（约 1.15:1），PR review 抓到过
+  it('三主题下代码块正文色（语言标签同色）对代码块底色的对比度均 ≥ 4.5:1', () => {
+    for (const [themeName, block] of [
+      ['light', root],
+      ['dark', dark],
+      ['eink', eink]
+    ] as const) {
+      const ratio = contrastRatio(tokenValue(block, '--slax-code-text'), tokenValue(block, '--slax-code-bg'))
+      expect(ratio, `${themeName} 代码块正文色对比度 ${ratio.toFixed(2)}:1 低于 4.5:1`).toBeGreaterThanOrEqual(4.5)
+    }
   })
 })
