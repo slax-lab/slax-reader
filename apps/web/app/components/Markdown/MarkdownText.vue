@@ -72,8 +72,16 @@ const handleAnchors = () => {
 .markdown-text {
   .markdown-content {
     --style: flex flex-col;
+    // 子节点统一清零 margin（含代码块，避免 pre 的 UA margin 撑开）
     &:deep(*) {
-      --style: m-0 text-txt;
+      --style: m-0;
+    }
+
+    // 正文色只给非代码块节点：代码块内部的颜色由 styles/code-highlight.css 的 --slax-code-* 决定，
+    // 而这条通配编译后的特异性是 (0,3,0)，会压掉那边的 (0,1,x)。不排除的话，在 light 主题下会出现
+    // “深底 + 页面正文色”（#1a1814 on #282c34 ≈ 1.27:1，等于看不见）
+    &:deep(*:not(.hljs):not(.hljs *):not(.code-block-header):not(.code-block-header *)) {
+      --style: text-txt;
     }
 
     &:deep(h1) {

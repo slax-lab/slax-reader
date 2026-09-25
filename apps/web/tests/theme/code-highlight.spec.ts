@@ -17,8 +17,10 @@ const TOKENS_PATH = resolve(WEB_ROOT, 'styles/theme.tokens.css')
 //   所以它不需要豁免）。把 ChatBot.vue 接回页面时必须一并迁移到 token 着色：删掉这一条，护栏就会覆盖它。
 const VENDOR_IMPORT_EXEMPTIONS = ['app/components/Chat/ChatBot.vue']
 
-// 扫描 app / styles / tests 三处：被接回页面的组件，其 vendor 导入往往先在 tests 里出现
+// 扫描 app / styles / tests 三处，外加 nuxt.config.ts（design D4 提到的等价注册点：`css:` 数组）：
+// 被接回页面的组件，其 vendor 导入往往先在 tests 里出现
 const SCAN_DIRS = ['app', 'styles', 'tests']
+const SCAN_FILES = ['nuxt.config.ts']
 const SCAN_EXTENSIONS = ['.vue', '.ts', '.js', '.mjs', '.css', '.scss']
 // 只认导入/require 语句，避免注释里提到文件名就误报
 const VENDOR_IMPORT = /(?:from\s*|import\s*|require\(\s*)['"]highlight\.js\/styles\//
@@ -46,13 +48,15 @@ const extractBlock = (css: string, selector: string): string => {
 describe('code-highlight 护栏', () => {
   it('apps/web 下不存在 highlight.js 自带主题样式表的导入（允许清单除外）', () => {
     const offenders: string[] = []
-    for (const dir of SCAN_DIRS) {
-      for (const file of collectFiles(resolve(WEB_ROOT, dir))) {
-        const relativePath = file.slice(WEB_ROOT.length + 1)
-        if (VENDOR_IMPORT_EXEMPTIONS.includes(relativePath)) continue
-        if (VENDOR_IMPORT.test(readFileSync(file, 'utf8'))) {
-          offenders.push(relativePath)
-        }
+    const files = [
+      ...SCAN_DIRS.flatMap(dir => collectFiles(resolve(WEB_ROOT, dir))),
+      ...SCAN_FILES.map(file => resolve(WEB_ROOT, file))
+    ]
+    for (const file of files) {
+      const relativePath = file.slice(WEB_ROOT.length + 1)
+      if (VENDOR_IMPORT_EXEMPTIONS.includes(relativePath)) continue
+      if (VENDOR_IMPORT.test(readFileSync(file, 'utf8'))) {
+        offenders.push(relativePath)
       }
     }
     expect(
