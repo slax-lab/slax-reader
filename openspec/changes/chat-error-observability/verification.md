@@ -40,13 +40,23 @@ The extension regression test was validated the same way: disabling the new `els
 - `deploy/local/.env`, `.env.web`, `.env.extension` were **symlinked** into the worktree so Prisma and the web suite could resolve local configuration. No secret file was read, printed, or copied, and all links are gitignored.
 - `pnpm api -- gen:model` was run to generate the Prisma clients, with `XDG_CACHE_HOME` redirected to the gitignored `.local/xdg-cache` because the sandbox denies writes to Prisma's engine cache outside the workspace.
 
-## Runtime probe in workerd — what it does and does not show
+## workerd end-to-end — the real service over real HTTP
 
-The server fix rests on a runtime assumption: that awaiting `close()` **inside** the `waitUntil` task is what keeps the stream alive, where the old `void close()` let the task settle first. To test that assumption without credentials, a throwaway worker (gitignored scratch config) reproduced the exact shape — `TransformStream` + `ctx.waitUntil(task)`, returning the readable immediately, with `/awaited` and `/void` variants — and both were called over real HTTP through local `wrangler dev` (workerd).
+This needed no Cloudflare credential, because the scratch worker declares no bindings and therefore no remote proxy session. A gitignored scratch worker (`.local/chat-e2e/`) imports the **real** `AigcService`, hands it a provider client that always throws, and mirrors `AigcController.handleCompletionsRequest`'s four lines (`TransformStream` + `ctx.waitUntil(bookmarkChat(...))` + immediate `Response`). Under local `wrangler dev` (workerd, `nodejs_compat_v2`, the same compatibility flags the generated configs use):
 
-Result: **both variants delivered the complete 64-byte frame and terminated cleanly.**
+```
+HTTP/1.1 200 OK
+Transfer-Encoding: chunked
+Content-Type: text/event-stream; charset=utf-8
 
-That is a negative result worth recording: local workerd does not reproduce the production isolate-teardown race, so the awaited-close guarantee is pinned by the unit-level ordering assertions in `apps/api/test/domain/aigcChatStream.test.ts` — which were shown to fail against the old shape — rather than by any local runtime reproduction. It also means a local browser pass cannot act as a negative control: run against the pre-fix code it would most likely have shown the frame too. A local pass confirms the fixed path; it does not demonstrate the production hang.
+{"data":"AI_PROVIDER_UNAVAILABLE","message":"The AI service is temporarily unavailable. Please try again in a moment.","code":503}
+```
+
+curl exited cleanly with code 0 after 131 bytes: the stream **terminated on its own** and carried the actionable envelope frame. That is this change's core promise verified in the real runtime against the real service code. Only the auth middleware is bypassed, by calling the controller's four lines directly — the provider, the service, the stream plumbing and the runtime are all production code.
+
+### What it does not show: local workerd cannot be a negative control
+
+Re-running the same request with `bookmarkChat`'s `await`s temporarily reverted to the old `void`-ed fire-and-forget produced **exactly the same 131-byte body and clean exit**, and a synthetic probe of the same shape behaved identically. Local workerd therefore does not reproduce the production isolate-teardown race. The awaited-close guarantee is pinned by the unit ordering assertions in `apps/api/test/domain/aigcChatStream.test.ts` — shown to fail against the old shape — rather than by any local runtime reproduction, and a local pass confirms the fixed path without being able to demonstrate the original hang.
 
 ## Local pre-push review (REVIEW.md three passes)
 
