@@ -1170,9 +1170,14 @@ defineExpose({ addQuoteData, focusTextarea })
       }
 
       :deep(pre) {
-        // 代码块底色统一走 --slax-code-* token（着色规则见 styles/code-highlight.css）；
-        // e-ink 下解析为白底 + 1px 边框，不再出现与主题无关的深色填充
+        // 代码块底色与字色统一走 --slax-code-* token（着色规则见 styles/code-highlight.css）；
+        // e-ink 下解析为白底 + 1px 边框，不再出现与主题无关的深色填充。
+        //
+        // 字色必须在这里一起给：这条规则给**所有** <pre> 画底，而代码调色板的字色只到得了带
+        // wrapper / .hljs 的标记。裸 <pre>（mermaid 占位、缩进代码块、原始 HTML）不带那些 class，
+        // 只给底色就会变成"深底 + 页面正文色"（light 下 #1a1814 on #282c34 ≈ 1.27:1）
         background: var(--slax-code-bg);
+        color: var(--slax-code-text);
         border-radius: 6px;
         padding: 10px 12px;
         overflow-x: auto;

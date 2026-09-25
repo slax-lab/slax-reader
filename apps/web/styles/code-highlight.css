@@ -18,16 +18,20 @@ pre.code-block-wrapper {
   border: 1px solid var(--slax-code-border);
 }
 
-/* 基准色：未映射到具体角色的 class 回落到这里，
- * 保证高亮库升级新增 class 时降级为正文色而不是不可见 */
+/* 基准：拿代码调色板字色的元素必须同时拿到代码底色 —— 否则会出现"代码色文字落在页面底色上"
+ * （例如 RSS 面板里预渲染好的 hljs 标记）。wrapper 存在时由下一条让出绘制层，仍然是单层 */
 .hljs {
   color: var(--slax-code-text);
+  background: var(--slax-code-bg);
+}
+
+/* wrapper 内部交出背景：容器是唯一绘制层 */
+pre.code-block-wrapper code.hljs {
   background: transparent;
 }
 
 code.hljs {
   padding: 3px 5px;
-  background: transparent;
 }
 
 /* code 自身也保留 overflow-x —— 与变更前第三方样式表一致：长行横向滚动的仍是 code 元素 */
@@ -38,7 +42,7 @@ pre code.hljs {
 }
 
 /* 语言标签（.code-block-header__lang）在 wrapper 内部，落在**代码块底色**上而不是页面底色上，
- * 所以必须显式给色：否则 light 下它会继承页面正文色（#1a1814 压在 #282c34 上，约 1.15:1，等于看不见） */
+ * 所以必须显式给色：否则 light 下它会继承页面正文色（#1a1814 压在 #282c34 上，约 1.27:1，等于看不见） */
 .code-block-header {
   color: var(--slax-code-text);
 }

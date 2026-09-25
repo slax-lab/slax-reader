@@ -84,14 +84,34 @@ describe('code-highlight 护栏', () => {
     }
   })
 
-  it('代码块只画一层背景：容器承担底色，内部 .hljs 透明', () => {
+  it('代码块只画一层背景：容器承担底色，wrapper 内的 code 透明', () => {
     const stylesheet = readFileSync(STYLESHEET_PATH, 'utf8')
     const wrapper = extractBlock(stylesheet, 'pre.code-block-wrapper')
     expect(wrapper, '容器必须画 --slax-code-bg').toMatch(/background:\s*var\(--slax-code-bg\)/)
 
+    const innerCode = extractBlock(stylesheet, 'pre.code-block-wrapper code.hljs')
+    expect(innerCode, 'wrapper 内的 code 必须透明，否则叠出第二层底色').toMatch(/background:\s*transparent/)
+  })
+
+  it('代码字色与代码底色必须成对出现（无 wrapper 的 hljs 标记也要自洽）', () => {
+    const stylesheet = readFileSync(STYLESHEET_PATH, 'utf8')
     const base = stylesheet.match(/(?<![\w.-])\.hljs\s*\{([\s\S]*?)\}/)?.[1] ?? ''
     expect(base, '未找到 .hljs 基准规则').not.toBe('')
-    expect(base, '.hljs 不得再画第二层背景').toMatch(/background:\s*transparent/)
+    expect(base, '.hljs 必须取代码字色').toMatch(/color:\s*var\(--slax-code-text\)/)
+    expect(
+      base,
+      '取代码字色的 .hljs 必须同时画代码底色：否则 RSS 这类没有 wrapper 的预渲染标记会出现"代码色文字落在页面底色上"'
+    ).toMatch(/background:\s*var\(--slax-code-bg\)/)
+  })
+
+  it('自绘代码底色的消费方必须同时给出代码字色', () => {
+    // SnapshotChatPanel 的 :deep(pre) 给所有 <pre> 画代码底色，裸 <pre>（mermaid 占位、缩进代码块、
+    // 原始 HTML）不带 wrapper / .hljs，只给底色就会是"深底 + 页面正文色"
+    const panel = readFileSync(resolve(WEB_ROOT, 'app/components/Snapshot/SnapshotChatPanel.vue'), 'utf8')
+    const preRule = panel.match(/:deep\(pre\)\s*\{([\s\S]*?)\n\s*\}/)?.[1] ?? ''
+    expect(preRule, '未找到 SnapshotChatPanel 的 :deep(pre) 规则').not.toBe('')
+    expect(preRule, '该规则必须画 --slax-code-bg').toMatch(/background:\s*var\(--slax-code-bg\)/)
+    expect(preRule, '该规则必须同时给 --slax-code-text，否则裸 <pre> 不可读').toMatch(/color:\s*var\(--slax-code-text\)/)
   })
 
   it('wrapper 内的语言标签显式取色，不继承页面正文色', () => {

@@ -95,6 +95,20 @@ The language label that the shared markdown renderer emits inside the code block
 - **WHEN** the code-block stylesheet is inspected
 - **THEN** the label element is given an explicit code-highlight color, so a future page-text change cannot make it unreadable against the code surface
 
+### Requirement: Code text and code background travel together
+
+Any element that takes the code text or syntax colors SHALL sit on the code background, and no surface may paint the code background without also giving that text the code color. This covers code markup that does not carry the block wrapper — a bare `<pre>` (mermaid placeholders, indented code blocks, raw HTML) and pre-rendered highlight markup.
+
+#### Scenario: Unwrapped code markup is self-consistent
+
+- **WHEN** highlight markup or a bare `<pre>` is rendered without the block wrapper
+- **THEN** its text sits on the code background, rather than code-palette text on the page background or page-colored text on the code background
+
+#### Scenario: A surface that paints the code background also colors its text
+
+- **WHEN** a surface styles its own `<pre>` elements with the code background
+- **THEN** it also gives them the code text color, so no such block shows the page text color on the code background
+
 ### Requirement: Light and dark keep their existing code-block appearance
 
 In the light and dark themes, the code background, body text color and all syntax colors SHALL retain the values they had before this change. Their only visible deltas are structural: the block paints a single surface, and the language label — which now sits on that surface — takes the code text color.
