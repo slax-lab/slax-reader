@@ -58,6 +58,15 @@ The diff changes observable behavior and touches `apps/**` and `packages/**`, so
 
 **Compliance — intent matches the change.** Tasks 1–7.4 are implemented; 7.2/7.3 are explicitly unperformed with their reasons recorded above. Three divergences between the planning artifacts and the implementation were found during implementation and reconciled inside this change rather than left to rot: the D6 mechanism (a terminal `.catch()/.finally()` chain instead of awaiting the consumer inside `chat()`, which would change `chat()`'s contract and the timing every existing client test relies on), the "empty stream" rule (no output at all, because tool-only requests legitimately finish without assistant content), and the proposal's wording for that same rule. `openspec validate --all --strict` passes.
 
+## Recorded follow-ups (deliberately not in this change)
+
+Two independent runs of the repository's automated PR review raised no Important findings on this diff; both are recorded on PR #162. Between those reviews and my own passes, the following were identified as real but out of scope, and are recorded in `design.md`'s Non-Goals:
+
+1. **Extension client regression.** `apps/extension/src/components/Chat/chatbot.ts` parses error envelopes only at end-of-stream, so the new mid-stream frame is dropped there and the extension now clears loading with nothing rendered (it previously showed the generic sentence). It needs the same streaming-path envelope parse the web client gained here. This is the highest-priority follow-up.
+2. **Pre-stream quote-image stall.** `buildQuotePayload` awaits an un-timed `fetch` per quoted image before the idle ceiling is armed, so a host that never answers can still leave the chat loading with no message.
+3. **No cancellation on surface teardown.** `destruct()` clears the callback but the in-flight stream runs to completion or to the idle bound.
+4. **Summary stream.** `AigcService.bookmarkSummary` carries the same un-awaited `write`/`close` pattern as the chat path did.
+
 ## Not verified
 
 **Manual browser end-to-end** (tasks 7.2/7.3). The operator stopped the `eink-code-highlight` worktree's dev servers, so the ports are free, but the stack still cannot be brought up from this session: the generated configs carry `remote = true` on the Vectorize bindings (`script/deploy/config.ts:212`), so `wrangler dev` requires a `CLOUDFLARE_API_TOKEN` that a non-interactive shell cannot supply and that this session must not obtain. The chat route additionally requires a credential — a JWT signed with `env.JWT_SECRET_TEXT`, an edge identity header carrying `env.EDGE_SHARED_SECRET`, or a database API key — so an authenticated chat request cannot be constructed without reading a secret file, and there is no local-dev auth bypass in `middleware/auth.ts`.
