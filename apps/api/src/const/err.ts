@@ -82,7 +82,7 @@ const translations: { [key in Language]: Partial<Record<ErrorName, string>> } = 
     [ErrorName.SYNC_TABLE_TAG_NAME_ERROR]: '同步表标签名称错误',
     [ErrorName.AI_ERROR]: 'AI 服务未能完成本次请求，请重试。',
     [ErrorName.AI_PROVIDER_UNAVAILABLE]: 'AI 服务暂时不可用，请稍后重试。',
-    [ErrorName.AI_PROVIDER_AUTH]: 'AI 服务当前配置异常，请稍后再试。'
+    [ErrorName.AI_PROVIDER_AUTH]: 'AI 服务因我方配置问题暂时不可用，重试暂时无法解决。'
   },
   en: {
     [ErrorName.NOT_FOUND]: 'Resource not found',
@@ -113,7 +113,7 @@ const translations: { [key in Language]: Partial<Record<ErrorName, string>> } = 
     [ErrorName.AI_RATE_LIMIT]: 'AI rate limit',
     [ErrorName.AI_ERROR]: 'The AI service could not complete this request. Please try again.',
     [ErrorName.AI_PROVIDER_UNAVAILABLE]: 'The AI service is temporarily unavailable. Please try again in a moment.',
-    [ErrorName.AI_PROVIDER_AUTH]: 'The AI service is temporarily misconfigured. Please try again later.',
+    [ErrorName.AI_PROVIDER_AUTH]: 'The AI service is temporarily unavailable because of a configuration problem on our side. Retrying will not help right now.',
     [ErrorName.NOT_SUBSCRIPTION]: 'Not subscription',
     [ErrorName.AI_CONTENT_HARMFUL]: `Apologies, your message can't be processed due to potentially harmful content in the chat history or article. `,
     [ErrorName.CREATE_BOOKMARK_SHARE_UNIQUE_FAIL]: 'Create bookmark share unique fail',
@@ -194,7 +194,7 @@ const translations: { [key in Language]: Partial<Record<ErrorName, string>> } = 
     [ErrorName.SHARE_CONTENT_NOT_SUPPORTED]: 'Este tipo de contenido no se puede compartir',
     [ErrorName.AI_ERROR]: 'El servicio de IA no pudo completar esta solicitud. Inténtalo de nuevo.',
     [ErrorName.AI_PROVIDER_UNAVAILABLE]: 'El servicio de IA no está disponible temporalmente. Inténtalo de nuevo en unos momentos.',
-    [ErrorName.AI_PROVIDER_AUTH]: 'El servicio de IA tiene un problema de configuración temporal. Inténtalo de nuevo más tarde.'
+    [ErrorName.AI_PROVIDER_AUTH]: 'El servicio de IA no está disponible temporalmente por un problema de configuración nuestro. Reintentar no ayudará por ahora.'
   }
 }
 

@@ -235,10 +235,11 @@ describe('AI provider error copy', () => {
     expect(AIProviderUnavailableError().getMessage.toLowerCase()).toContain('try again')
   })
 
-  test('the misconfiguration message does not read like a user error', () => {
+  test('the misconfiguration message states the cause and that retrying will not fix it', () => {
     const text = AIProviderAuthError().getMessage.toLowerCase()
 
-    expect(text).toContain('service')
-    expect(text).not.toContain('your ')
+    expect(text).toContain('configuration')
+    expect(text).toContain('will not help')
+    expect(text).not.toContain('try again')
   })
 })

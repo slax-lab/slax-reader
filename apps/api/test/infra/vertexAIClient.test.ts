@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
+import { ApiError } from '@google/genai'
 import {
   AIProviderError,
   CHAT_FIRST_BYTE_TIMEOUT_MS,
@@ -90,6 +91,17 @@ describe('classifyProviderError', () => {
 
   test('a non-provider error falls back to the generic AI error', () => {
     expect(classifyProviderError(new Error('boom')).name).toBe(ErrorName.AI_ERROR)
+  })
+
+  test('classifies the real SDK ApiError shape, not only a hand-built object', () => {
+    // The classification depends on the SDK exposing a numeric status. Using the library's own
+    // ApiError pins that assumption against the real class rather than a mock shaped to match it.
+    const classify = (status: number) => classifyProviderError(new AIProviderError('failed', toProviderFailure(new ApiError({ message: `got status: ${status}.`, status }))))
+
+    expect(classify(401).name).toBe(ErrorName.AI_PROVIDER_AUTH)
+    expect(classify(403).name).toBe(ErrorName.AI_PROVIDER_AUTH)
+    expect(classify(429).name).toBe(ErrorName.AI_RATE_LIMIT)
+    expect(classify(503).name).toBe(ErrorName.AI_PROVIDER_UNAVAILABLE)
   })
 })
 

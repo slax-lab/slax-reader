@@ -139,8 +139,9 @@ export class ChatBot {
       }
     }
 
-    // The server budget only covers its first byte, so the client bounds silence across the
-    // whole response: a stalled stream must not leave the chat loading forever.
+    // The server budget only covers its first byte, so the client bounds the whole interaction:
+    // connection setup plus any silence in the stream. Bounding connect time as well is
+    // deliberate — a server that never answers is the same user-visible hang.
     const armIdleTimer = () => {
       clearIdleTimer()
       idleTimer = setTimeout(() => {
