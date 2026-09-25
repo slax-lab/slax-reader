@@ -104,14 +104,18 @@ describe('code-highlight 护栏', () => {
     ).toMatch(/background:\s*var\(--slax-code-bg\)/)
   })
 
-  it('自绘代码底色的消费方必须同时给出代码字色', () => {
-    // SnapshotChatPanel 的 :deep(pre) 给所有 <pre> 画代码底色，裸 <pre>（mermaid 占位、缩进代码块、
-    // 原始 HTML）不带 wrapper / .hljs，只给底色就会是"深底 + 页面正文色"
+  it('自绘代码底色的消费方必须同时给出代码字色与边框', () => {
+    // SnapshotChatPanel 的 :deep(pre) 给所有 <pre> 画代码底色，裸 <pre>（原始 HTML、mermaid 占位）不带
+    // wrapper：只给底色会是"深底 + 页面正文色"（light 下 1.27:1），不给边框则 e-ink 下白底压白面板、
+    // 块边界整个消失（--slax-code-bg 与 --slax-surface-solid 都是 #ffffff）
     const panel = readFileSync(resolve(WEB_ROOT, 'app/components/Snapshot/SnapshotChatPanel.vue'), 'utf8')
     const preRule = panel.match(/:deep\(pre\)\s*\{([\s\S]*?)\n\s*\}/)?.[1] ?? ''
     expect(preRule, '未找到 SnapshotChatPanel 的 :deep(pre) 规则').not.toBe('')
     expect(preRule, '该规则必须画 --slax-code-bg').toMatch(/background:\s*var\(--slax-code-bg\)/)
     expect(preRule, '该规则必须同时给 --slax-code-text，否则裸 <pre> 不可读').toMatch(/color:\s*var\(--slax-code-text\)/)
+    expect(preRule, '该规则必须同时给 --slax-code-border，否则 e-ink 白底白面板会丢掉块边界').toMatch(
+      /border:\s*1px solid var\(--slax-code-border\)/
+    )
   })
 
   it('wrapper 内的语言标签显式取色，不继承页面正文色', () => {
