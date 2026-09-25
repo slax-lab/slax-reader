@@ -103,4 +103,17 @@ describe('code-highlight 护栏', () => {
       '语言标签落在代码块底色上，必须显式取 --slax-code-text；继承页面正文色会在 light 下变成深字压深底'
     ).toMatch(/color:\s*var\(--slax-code-text\)/)
   })
+
+  it('MarkdownText 的正文色通配不得压掉代码块与链接的颜色', () => {
+    // 该组件那条通配编译后是 (0,3,0)，本样式表的代码块规则是 (0,1,x)，两种坏法都出现过：
+    //   - 不排除代码块节点：light 下代码块字色被强制成页面正文色（#1a1814 on #282c34 ≈ 1.27:1）
+    //   - 用 :not() 直接排除而不包 :where()：特异性涨到 (0,7,0)，反过来压掉同文件的链接色
+    //     （:deep(a) (0,3,1) / :deep(a:not(.slax_link)) (0,4,1)，e-ink 经典蓝 #5490c2 会消失）
+    const source = readFileSync(resolve(WEB_ROOT, 'app/components/Markdown/MarkdownText.vue'), 'utf8')
+    expect(
+      source,
+      '通配正文色必须写成 *:where(:not(...)) 排除代码块节点：:where() 零特异性，整条仍是 (0,3,0)'
+    ).toContain('*:where(:not(.hljs):not(.hljs *):not(.code-block-header):not(.code-block-header *)')
+    expect(source, '不得改回 *:not(...)：它把特异性抬到 (0,7,0)，会压掉链接色').not.toContain('*:not(.hljs)')
+  })
 })
