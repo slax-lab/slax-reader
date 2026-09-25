@@ -135,6 +135,72 @@ describe('bookmarkChat terminates the stream on validation exits', () => {
   })
 })
 
+describe('bookmarkChat awaits termination before the background task settles', () => {
+  /**
+   * The original defect: the terminal write and the close were both `void`-ed inside the
+   * `waitUntil` task, so the task's promise settled before the stream had actually closed and
+   * the runtime could tear the isolate down mid-close. A "was it closed" assertion cannot catch
+   * that — the old code did call close, just without waiting for it. Only the ordering can.
+   */
+  const orderedStream = (options: { closeDelayMs?: number; gateClose?: boolean } = {}) => {
+    const events: string[] = []
+    let releaseClose: (() => void) | undefined
+
+    const writer = {
+      getWriter: () => ({
+        write: async (chunk: Uint8Array) => {
+          const text = new TextDecoder().decode(chunk)
+          events.push(text.trimStart().startsWith('{') ? 'error-frame' : 'content')
+        },
+        close: async () => {
+          if (options.gateClose) await new Promise<void>(resolve => (releaseClose = resolve))
+          else if (options.closeDelayMs) await new Promise(resolve => setTimeout(resolve, options.closeDelayMs))
+          events.push('close')
+        }
+      })
+    } as unknown as WritableStream<Uint8Array>
+
+    return { events, writer, releaseClose: () => releaseClose?.() }
+  }
+
+  const runOrdered = (options: { closeDelayMs?: number; gateClose?: boolean } = {}) => {
+    const client = { registerTools: vi.fn(), chatStream: vi.fn(throwProvider({ providerStatus: 503 })) }
+    const service = new AigcService((() => client) as never)
+    const stream = orderedStream(options)
+    const ctx = { get: vi.fn(() => undefined), env: {} }
+
+    return { ...stream, task: service.bookmarkChat(ctx as never, 'Title', 'article body', userMessage, stream.writer, []) }
+  }
+
+  test('writes the error frame, then closes, then settles', async () => {
+    const { events, task } = runOrdered({ closeDelayMs: 5 })
+
+    await task
+    events.push('task-settled')
+
+    expect(events).toEqual(['error-frame', 'close', 'task-settled'])
+  })
+
+  test('a pending close keeps the task pending, proving the close is awaited', async () => {
+    const { events, task: rawTask, releaseClose } = runOrdered({ gateClose: true })
+
+    let settled = false
+    const task = rawTask.then(() => {
+      settled = true
+    })
+
+    // Give the task every chance to settle early; with an awaited close it must not.
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(settled).toBe(false)
+
+    releaseClose()
+    await task
+
+    expect(settled).toBe(true)
+    expect(events).toEqual(['error-frame', 'close'])
+  })
+})
+
 describe('bookmarkChat success path is unchanged', () => {
   test('a successful short-circuit writes content and closes without an error frame', async () => {
     const stream = await runChat(async () => {}, userMessage, '')
