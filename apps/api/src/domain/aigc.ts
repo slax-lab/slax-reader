@@ -18,10 +18,10 @@ import {
   type TagVocabularyPrompt
 } from '@/const/prompt'
 import { BatchRequest, GeminiBatchProvider } from '@/infra/external/batchCompletion'
-import { VertexAIClient, ToolDefinition } from '@/infra/external/vertexAIClient'
+import { VertexAIClient, ToolDefinition, classifyProviderError } from '@/infra/external/vertexAIClient'
 import { Content, Type } from '@google/genai'
 import { MultiLangError } from '@/utils/multiLangError'
-import { AIError } from '@/const/err'
+import { AIError, ErrorParam, ErrorName } from '@/const/err'
 
 export type deltaType = {
   role?: 'system' | 'user' | 'assistant' | 'tool'
@@ -420,29 +420,65 @@ export class AigcService {
   // chat with bookmark
   public async bookmarkChat(ctx: ContextManager, title: string, rawContent: string, messages: Content[], writer: WritableStream<Uint8Array>, quote: completionQuote[]) {
     this.wr = writer.getWriter()
-    const latestMessageIdx = messages.length - 1
-
-    if (messages.length < 1) return this.wr.write(this.ted.encode('Invalid request\n'))
-
-    const latestMessage = messages[latestMessageIdx]
-    const isToolCall = this.isToolCallMessage(latestMessage)
-    const content = (!isToolCall && latestMessage.parts?.[0]?.text) || ''
+    // Hold our own writer so the frame and the close below always reach THIS stream, even if a
+    // concurrent request reassigns the shared `this.wr` field. The guarantee is deliberately
+    // limited to termination and the error frame: the content helpers still write through
+    // `this.wr`, which is pre-existing (see the design's Non-Goals).
+    const wr = this.wr
 
     try {
+      if (messages.length < 1) throw ErrorParam()
+
+      const latestMessage = messages[messages.length - 1]
+      const isToolCall = this.isToolCallMessage(latestMessage)
+      const content = (!isToolCall && latestMessage.parts?.[0]?.text) || ''
+
       if (!isToolCall) return await this.chatRawContentText(ctx, rawContent, content, messages, quote)
-      if (!latestMessage.parts?.[0]?.functionCall) return this.wr.write(this.ted.encode('Invalid request\n'))
+      if (!latestMessage.parts?.[0]?.functionCall) throw ErrorParam()
 
       switch (latestMessage.parts[0].functionCall.name) {
         case 'generateQuestion':
           return await this.chatToolGenerateRawContentQuestion(ctx, title)
         default:
-          return this.wr.write(this.ted.encode('Invalid request\n'))
+          throw ErrorParam()
       }
     } catch (err) {
-      console.error(err)
-      void this.writeChunk([{ role: 'assistant', content: 'Failed to generate question, please try again later.\n' }])
+      await this.writeChatErrorFrame(wr, err)
     } finally {
-      void this.wr.close()
+      await this.closeChatStream(wr)
+    }
+  }
+
+  /**
+   * Emits exactly one terminal error frame in the API's error envelope shape, as a plain
+   * JSON line. The framing is load-bearing: the web client parses an SSE-framed payload as
+   * a chat chunk (and discards it on the resulting type error), while a plain line reaches
+   * the same `{data, message, code}` branch the non-streaming errors already use.
+   */
+  private async writeChatErrorFrame(wr: WritableStreamDefaultWriter<Uint8Array>, err: unknown) {
+    const error = err instanceof MultiLangError ? err : classifyProviderError(err)
+    const frame = JSON.stringify({ data: error.name, message: error.getMessage, code: error.errCode })
+
+    const detail = { name: error.name, code: error.errCode, cause: err instanceof Error ? err.message : String(err) }
+
+    // A rejected request is the caller's mistake, not a service failure. Keeping it out of the
+    // error channel stops a public endpoint from polluting error-rate signals.
+    if (error.name === ErrorName.ERROR_PARAM) console.warn('[aigc.chat] rejected request', detail)
+    else console.error('[aigc.chat] stream failed', detail)
+
+    try {
+      await wr.write(this.ted.encode(`${frame}\n`))
+    } catch (writeErr) {
+      console.error('[aigc.chat] failed to write error frame', writeErr)
+    }
+  }
+
+  /** Awaited close, so the stream is terminated before the background task settles. */
+  private async closeChatStream(wr: WritableStreamDefaultWriter<Uint8Array>) {
+    try {
+      await wr.close()
+    } catch (closeErr) {
+      console.error('[aigc.chat] failed to close stream', closeErr)
     }
   }
 

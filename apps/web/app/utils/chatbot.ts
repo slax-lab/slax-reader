@@ -89,6 +89,16 @@ async function buildQuotePayload(quote?: QuoteData): Promise<QuotePayloadItem[] 
   )
 }
 
+/** How long the client waits for any stream data before giving up on the response. */
+const CHAT_READ_IDLE_TIMEOUT_MS = 60_000
+
+type ChatStreamState = {
+  /** Whether the stream produced any line at all; nothing at all means the server failed. */
+  frameSeen: boolean
+  /** Whether a failure was already surfaced, so later ones cannot stack up. */
+  errorReported: boolean
+}
+
 export class ChatBot {
   private _isChatting = false
   bookmarkId?: number
@@ -115,70 +125,133 @@ export class ChatBot {
 
   async chat(params: ChatParams) {
     this.updateChatStatus(true)
+
     const sseDecoder = new SSEDecoder()
     const lineDecoder = new LineDecoder()
+    const abortController = new AbortController()
+    const state: ChatStreamState = { frameSeen: false, errorReported: false }
+    let idleTimer: ReturnType<typeof setTimeout> | undefined
 
-    const quotePayload = params.type === ChatParamsType.CONTENT ? await buildQuotePayload(params.quote) : undefined
-    const messages = this.createMessages(params, quotePayload)
-    const callBack = await request().stream({
-      url: RESTMethodPath.BOT_CHAT,
-      method: RequestMethodType.post,
-      body: messages
-    })
+    const clearIdleTimer = () => {
+      if (idleTimer !== undefined) {
+        clearTimeout(idleTimer)
+        idleTimer = undefined
+      }
+    }
 
-    callBack &&
-      callBack((text: string, isDone: boolean) => {
-        if (isDone) {
-          for (const line of lineDecoder.flush()) {
-            if (isDoneSentinel(line)) continue
+    // The server budget only covers its first byte, so the client bounds the whole interaction:
+    // connection setup plus any silence in the stream. Bounding connect time as well is
+    // deliberate — a server that never answers is the same user-visible hang.
+    const armIdleTimer = () => {
+      clearIdleTimer()
+      idleTimer = setTimeout(() => {
+        // Terminate the surface directly: the abort below is asynchronous, so a transport
+        // that ignores it must not leave the user waiting on a spinner.
+        this.reportChatError(state, t('util.chatbot.error_timeout'))
+        abortController.abort()
+        this.updateChatStatus(false)
+      }, CHAT_READ_IDLE_TIMEOUT_MS)
+    }
 
-            const sse = sseDecoder.decode(line)
+    try {
+      const quotePayload = params.type === ChatParamsType.CONTENT ? await buildQuotePayload(params.quote) : undefined
+      const messages = this.createMessages(params, quotePayload)
 
-            if (sse) {
-              if (sse.data === '[DONE]') continue
-              try {
-                const data = JSON.parse(sse.data) as ChatCompletionChunk
-                this.handleData(data)
-              } catch (e) {
-                console.error(e)
-              }
-            } else if (line.length > 0) {
-              try {
-                const data = JSON.parse(line) as { data: string; message: string; code: number }
-                const errorRefs: Record<string, string> = {
-                  NOT_SUBSCRIPTION: t('util.chatbot.error_not_subscription')
-                }
-
-                const error = new Error(errorRefs[data.data] || data.message, { cause: { data: data.data, message: data.message, code: data.code } })
-                this.handleData(error)
-              } catch (e) {
-                console.error(e)
-              }
-            }
-          }
-
-          this.updateChatStatus(false)
-          return
-        }
-
-        const lines = lineDecoder.decode(text)
-        for (const line of lines) {
-          if (isDoneSentinel(line)) continue
-
-          const sse = sseDecoder.decode(line)
-
-          if (sse) {
-            if (sse.data === '[DONE]') continue
-            try {
-              const data = JSON.parse(sse.data) as ChatCompletionChunk
-              this.handleData(data)
-            } catch (e) {
-              console.log('error daata', sse.data)
-              console.error(e)
-            }
-          }
-        }
+      armIdleTimer()
+      const callBack = await request().stream({
+        url: RESTMethodPath.BOT_CHAT,
+        method: RequestMethodType.post,
+        body: messages,
+        signal: abortController.signal,
+        // This call surfaces its own localized failure. The default interceptor would toast the
+        // raw error as well, so an abort would show "AbortError: ..." on top of the message the
+        // user is supposed to read.
+        errorInterceptors: () => {}
       })
+
+      if (!callBack) throw new Error(t('util.chatbot.error_request_failed'))
+
+      Promise.resolve(
+        callBack((text: string, isDone: boolean) => {
+          if (isDone) {
+            clearIdleTimer()
+            this.consumeLines(state, lineDecoder.flush(), sseDecoder)
+            this.updateChatStatus(false)
+            return
+          }
+
+          armIdleTimer()
+          this.consumeLines(state, lineDecoder.decode(text), sseDecoder)
+        })
+      )
+        .catch(err => {
+          console.error('chat stream failed:', err)
+          this.reportChatError(state, t('util.chatbot.error_request_failed'))
+        })
+        .finally(() => {
+          clearIdleTimer()
+          // A stream that ended without a single frame left the user with nothing to read.
+          if (!state.frameSeen) this.reportChatError(state, t('util.chatbot.error_no_response'))
+          this.updateChatStatus(false)
+        })
+    } catch (e) {
+      console.error('chat request failed:', e)
+      clearIdleTimer()
+      this.reportChatError(state, t('util.chatbot.error_request_failed'))
+      this.updateChatStatus(false)
+    }
+  }
+
+  /**
+   * Routes decoded lines to chat chunks, the end sentinel, or an error envelope. Both the
+   * streaming and the end-of-stream paths go through here: an error frame can arrive as a
+   * complete line mid-stream, and handling it only at end-of-stream would drop it.
+   */
+  private consumeLines(state: ChatStreamState, lines: string[], sseDecoder: SSEDecoder) {
+    for (const line of lines) {
+      if (line.length > 0) state.frameSeen = true
+      if (isDoneSentinel(line)) continue
+
+      const sse = sseDecoder.decode(line)
+
+      if (sse) {
+        if (sse.data === '[DONE]') continue
+        try {
+          const data = JSON.parse(sse.data) as ChatCompletionChunk
+          this.handleData(data)
+        } catch (e) {
+          console.error(e)
+        }
+      } else if (line.trimStart().startsWith('{')) {
+        // Only a bare JSON object is an error envelope; an SSE field line such as
+        // `data: {...}` is not one, and is emitted as an event by the empty line that follows.
+        this.handleErrorLine(state, line)
+      }
+    }
+  }
+
+  private handleErrorLine(state: ChatStreamState, line: string) {
+    try {
+      const data = JSON.parse(line) as { data?: string; message?: string; code?: number }
+      if (typeof data?.data !== 'string' && typeof data?.message !== 'string') return
+
+      state.errorReported = true
+      const errorRefs: Record<string, string> = {
+        NOT_SUBSCRIPTION: t('util.chatbot.error_not_subscription')
+      }
+
+      const error = new Error((data.data && errorRefs[data.data]) || data.message || '', { cause: { data: data.data, message: data.message, code: data.code } })
+      this.handleData(error)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  /** Surfaces the first failure of a chat, so a later one cannot stack up behind it. */
+  private reportChatError(state: ChatStreamState, message: string) {
+    if (state.errorReported) return
+    state.errorReported = true
+    this.handleData(new Error(message))
   }
 
   destruct() {
@@ -364,6 +437,10 @@ export class ChatBot {
   }
 
   private updateChatStatus(isChatting: boolean) {
+    // Idempotent: several terminal paths can report the same state, and the handler must
+    // run once per transition so the surface does not flush its buffer twice.
+    if (this._isChatting === isChatting) return
+
     this._isChatting = isChatting
     this.chatStatusUpdateHandler && this.chatStatusUpdateHandler(isChatting)
   }

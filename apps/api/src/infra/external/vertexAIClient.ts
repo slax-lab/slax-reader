@@ -1,5 +1,6 @@
 import { GoogleGenAI, Content, FunctionDeclaration, Schema, Tool } from '@google/genai'
-import { AIError } from '../../const/err'
+import { AIError, AIProviderAuthError, AIProviderUnavailableError, AIRateLimitError } from '../../const/err'
+import type { MultiLangError } from '../../utils/multiLangError'
 
 export type ToolDefinition = {
   declaration: FunctionDeclaration
@@ -20,6 +21,80 @@ export type VertexAIConfig = {
 
 export type OnStepCallback = (toolName: string, args: Record<string, any>) => void
 export type OnTextDeltaCallback = (text: string) => Promise<void>
+
+/** Budget for the provider to produce the first streamed chunk of one request. */
+export const CHAT_FIRST_BYTE_TIMEOUT_MS = 30_000
+
+export type AIProviderFailure = {
+  providerStatus?: number
+  providerCode?: string | number
+  reference?: string
+  overloaded?: boolean
+  timedOut: boolean
+}
+
+/**
+ * A provider interaction failure that keeps the detail the SDK exposed — HTTP status,
+ * provider code, Google reference id and overload flag — so callers can classify it and
+ * operators can still diagnose it. The previous generic AI error discarded all of it.
+ */
+export class AIProviderError extends Error {
+  readonly providerStatus?: number
+  readonly providerCode?: string | number
+  readonly reference?: string
+  readonly overloaded: boolean
+  readonly timedOut: boolean
+  readonly originalError?: unknown
+
+  constructor(message: string, failure: AIProviderFailure, originalError?: unknown) {
+    super(message)
+    this.name = 'AIProviderError'
+    this.providerStatus = failure.providerStatus
+    this.providerCode = failure.providerCode
+    this.reference = failure.reference
+    this.overloaded = failure.overloaded ?? false
+    this.timedOut = failure.timedOut
+    this.originalError = originalError
+  }
+}
+
+const asRecord = (value: unknown): Record<string, unknown> => (typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {})
+
+/** Google reports server-side faults as `internal error; reference = <id>`. */
+const REFERENCE_PATTERN = /reference\s*[:=]\s*([A-Za-z0-9_-]+)/
+
+export const toProviderFailure = (error: unknown, timedOut = false): AIProviderFailure => {
+  const record = asRecord(error)
+  const status = record.status
+  const code = record.code
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : ''
+
+  return {
+    providerStatus: typeof status === 'number' ? status : undefined,
+    providerCode: typeof code === 'string' || typeof code === 'number' ? code : undefined,
+    reference: REFERENCE_PATTERN.exec(message)?.[1],
+    overloaded: record.overloaded === true,
+    timedOut
+  }
+}
+
+/**
+ * Maps a provider failure onto the user-facing error taxonomy. A provider failure that
+ * carries no HTTP status is a network-level failure (the provider was unreachable), which
+ * is transient from the caller's point of view and therefore shares the unavailable code.
+ */
+export const classifyProviderError = (error: unknown): MultiLangError => {
+  if (error instanceof AIProviderError) {
+    if (error.timedOut || error.overloaded) return AIProviderUnavailableError()
+
+    const status = error.providerStatus
+    if (status === 401 || status === 403) return AIProviderAuthError()
+    if (status === 429) return AIRateLimitError()
+    if (status === undefined || status >= 500) return AIProviderUnavailableError()
+  }
+
+  return AIError()
+}
 
 export class VertexAIClient {
   private apiKey: string
@@ -166,11 +241,35 @@ export class VertexAIClient {
       requestConfig.config.tools = config.tools
     }
 
+    const abortController = new AbortController()
+    let timedOut = false
+    let firstByteTimer: ReturnType<typeof setTimeout> | undefined
+
+    const armFirstByteBudget = () => {
+      // Clear first so a budget can never outlive the step it belongs to.
+      clearFirstByteBudget()
+      firstByteTimer = setTimeout(() => {
+        timedOut = true
+        abortController.abort()
+      }, CHAT_FIRST_BYTE_TIMEOUT_MS)
+    }
+
+    const clearFirstByteBudget = () => {
+      if (firstByteTimer !== undefined) {
+        clearTimeout(firstByteTimer)
+        firstByteTimer = undefined
+      }
+    }
+
+    requestConfig.config.abortSignal = abortController.signal
+
     try {
       let currentContents = [...contents]
       const maxSteps = 10
 
       for (let step = 0; step < maxSteps; step++) {
+        armFirstByteBudget()
+
         const response = await ai.models.generateContentStream({
           ...requestConfig,
           contents: currentContents
@@ -181,6 +280,9 @@ export class VertexAIClient {
         const allParts: any[] = []
 
         for await (const chunk of response) {
+          // The first chunk ends the first-byte budget, so long answers are never interrupted.
+          clearFirstByteBudget()
+
           if (chunk.text && options?.onTextDelta) {
             await options.onTextDelta(chunk.text)
           }
@@ -226,8 +328,23 @@ export class VertexAIClient {
         break
       }
     } catch (error) {
-      console.error('ChatStream error:', error)
-      throw AIError()
+      clearFirstByteBudget()
+      const failure = toProviderFailure(error, timedOut)
+
+      // Structured, greppable diagnosis for operators. Only extracted scalars and the
+      // provider message are logged — never the API key or the raw error object.
+      console.error('[aigc.vertex] chat stream failed', {
+        providerStatus: failure.providerStatus,
+        providerCode: failure.providerCode,
+        reference: failure.reference,
+        overloaded: failure.overloaded,
+        timedOut: failure.timedOut,
+        message: error instanceof Error ? error.message : String(error)
+      })
+
+      throw new AIProviderError('AI provider chat stream failed', failure, error)
+    } finally {
+      clearFirstByteBudget()
     }
   }
 }
