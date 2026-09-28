@@ -157,6 +157,21 @@ const smoothScrollToCenter = (el: HTMLElement, rect: DOMRect = el.getBoundingCli
   })
 }
 
+// Never wrap text nodes that live in table structure (outside cells): inserting
+// <mark> there makes the browser synthesize anonymous table cells and breaks the layout
+const TABLE_STRUCTURE_TAGS = new Set(['TABLE', 'THEAD', 'TFOOT', 'TBODY', 'TR', 'COLGROUP'])
+const TABLE_CELL_TAGS = new Set(['TD', 'TH'])
+
+const isTableStructureText = (node: Node): boolean => {
+  let el = node.parentElement
+  while (el) {
+    if (TABLE_CELL_TAGS.has(el.tagName)) return false
+    if (TABLE_STRUCTURE_TAGS.has(el.tagName)) return true
+    el = el.parentElement
+  }
+  return false
+}
+
 // 按文字用 <mark> 包裹高亮，而非整个容器
 const flashRange = (range: Range): HTMLElement[] => {
   const textNodes: Text[] = []
@@ -177,6 +192,10 @@ const flashRange = (range: Range): HTMLElement[] => {
 
   const marks: HTMLElement[] = []
   textNodes.forEach(textNode => {
+    // Skip whitespace-only nodes and table-structure nodes to keep table layout intact
+    if (!textNode.textContent?.trim()) return
+    if (isTableStructureText(textNode)) return
+
     const subRange = document.createRange()
     subRange.selectNodeContents(textNode)
     if (textNode === range.startContainer) subRange.setStart(textNode, range.startOffset)
@@ -209,8 +228,10 @@ const unflash = (marks: HTMLElement[]) => {
 const handleAnchorClick = async (link: string) => {
   const refText = anchorRefs[link]
   if (!refText) return
-  // 在正文区查找目标文本
-  const contentEl = document.querySelector('.bookmark-detail .detail') || document.body
+  // Search within the article body only; abort when it is absent instead of
+  // falling back to document.body (which can match text inside this panel)
+  const contentEl = document.querySelector('.bookmark-article .html-text')
+  if (!contentEl) return
   const result = findMatchingElement(refText, contentEl)
   if (result?.element && result.range) {
     const el = result.element as HTMLElement
