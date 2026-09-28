@@ -2,9 +2,18 @@ import fs from 'node:fs'
 import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
-import { spawn, type ChildProcess } from 'node:child_process'
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { afterEach, describe, expect, test } from 'vitest'
 import { devPortInUseMessage, devPortOccupied } from '../../script/deploy/deploy'
+
+// PID-based cases need lsof/ps to identify the listener; without them the
+// guard degrades to the generic message, so those cases would fail spuriously.
+const processToolsAvailable = (() => {
+  const lsof = spawnSync('lsof', ['-v'])
+  const ps = spawnSync('ps', ['-p', '1', '-o', 'command='])
+  return !lsof.error && !ps.error && ps.status === 0
+})()
+const withProcessTools = test.skipIf(!processToolsAvailable)
 
 const servers: net.Server[] = []
 const children: ChildProcess[] = []
@@ -71,7 +80,7 @@ describe('dev port guard', () => {
     expect(await devPortOccupied(port)).toBe(true)
   })
 
-  test('classifies an unrelated listener as not a Slax dev session', async () => {
+  withProcessTools('classifies an unrelated listener as not a Slax dev session', async () => {
     const server = net.createServer()
     servers.push(server)
     const port = await listen(server, 0)
@@ -80,7 +89,7 @@ describe('dev port guard', () => {
     expect(message).toContain('Stop that process or free the port, then retry.')
   })
 
-  test('classifies a workerd listener as another dev session', async () => {
+  withProcessTools('classifies a workerd listener as another dev session', async () => {
     const port = await freePort()
     const pid = await listenAsFakeWorkerd(port)
     const message = devPortInUseMessage(port)
@@ -89,7 +98,7 @@ describe('dev port guard', () => {
     expect(message).toContain(`kill ${pid}, then retry.`)
   })
 
-  test('does not classify a listener whose argv merely mentions the names', async () => {
+  withProcessTools('does not classify a listener whose argv merely mentions the names', async () => {
     const port = await freePort()
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wrangler-notes-'))
     directories.push(directory)

@@ -131,7 +131,9 @@ export async function deploy(args: string[]): Promise<number> {
       // database containers are machine-wide singletons, so a partial session
       // is still a session. Fixtures that stub wrangler never bind ports and
       // opt out to stay independent of the machine's dev-session state.
-      if (!process.env.SLAX_API_SKIP_DEV_PORT_GUARD) {
+      if (process.env.SLAX_API_SKIP_DEV_PORT_GUARD) {
+        console.warn('Dev port guard skipped: SLAX_API_SKIP_DEV_PORT_GUARD is set (test fixtures only).')
+      } else {
         for (const target of TARGETS) {
           if (await devPortOccupied(ports[target])) {
             console.error(devPortInUseMessage(ports[target]))
