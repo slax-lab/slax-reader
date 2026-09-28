@@ -71,7 +71,7 @@ The diff changes observable behavior and touches `apps/**` and `packages/**`, so
 
 **Security — no Important findings.** Provider internals (status, code, reference, overload flag) reach logs only; the client receives the localized message plus a numeric code, with no credential, raw provider payload or stack trace. Only extracted scalar fields and the provider message string are logged, never the raw error object, and the API key is read solely from `env.VERTEX_API_KEY` and never placed in a log line or a response. The error frame is JSON-encoded, so it cannot inject into the client's parser. No authentication or authorization surface is touched.
 
-**Compliance — intent matches the change.** Tasks 1–7.4 are implemented; 7.2/7.3 are explicitly unperformed with their reasons recorded above. Three divergences between the planning artifacts and the implementation were found during implementation and reconciled inside this change rather than left to rot: the D6 mechanism (a terminal `.catch()/.finally()` chain instead of awaiting the consumer inside `chat()`, which would change `chat()`'s contract and the timing every existing client test relies on), the "empty stream" rule (no output at all, because tool-only requests legitimately finish without assistant content), and the proposal's wording for that same rule. `openspec validate --all --strict` passes.
+**Compliance — intent matches the change.** Tasks 1–7.4 are implemented, including the operator-run browser end-to-end in 7.2/7.3. Three divergences between the planning artifacts and the implementation were found during implementation and reconciled inside this change rather than left to rot: the D6 mechanism (a terminal `.catch()/.finally()` chain instead of awaiting the consumer inside `chat()`, which would change `chat()`'s contract and the timing every existing client test relies on), the "empty stream" rule (no output at all, because tool-only requests legitimately finish without assistant content), and the proposal's wording for that same rule. `openspec validate --all --strict` passes.
 
 ## Recorded follow-ups (deliberately not in this change)
 
@@ -84,9 +84,30 @@ The repository's automated PR review ran three times against successive heads. I
 5. **Per-request error language.** `MultiLangError.getMessage` resolves against a module-global language, so a frame written after a model call can use a language a concurrent request switched to. `createResponse` shares the property for all non-streaming errors.
 6. **Content writes still share `this.wr`.** Only termination and the error frame use the locally captured writer; `writeChunk`/`writeProgress`/`writeDone` go through the shared singleton field, so concurrent chats on one isolate can still interleave content frames.
 
-## Not verified
+## Browser end-to-end (operator-run, the real UI)
 
-**Manual browser end-to-end** (tasks 7.2/7.3). The operator stopped the `eink-code-highlight` worktree's dev servers, so the ports are free, but the stack still cannot be brought up from this session: the generated configs carry `remote = true` on the Vectorize bindings (`script/deploy/config.ts:212`), so `wrangler dev` requires a `CLOUDFLARE_API_TOKEN` that a non-interactive shell cannot supply and that this session must not obtain. The chat route additionally requires a credential — a JWT signed with `env.JWT_SECRET_TEXT`, an edge identity header carrying `env.EDGE_SHARED_SECRET`, or a database API key — so an authenticated chat request cannot be constructed without reading a secret file, and there is no local-dev auth bypass in `middleware/auth.ts`.
+Performed by the operator against this branch's stack (`pnpm api -- dev` + `pnpm web -- dev`) with workerd's egress cut, so the provider call could not complete.
 
-What covers the same ground without credentials: `apps/api/test/handler/http/aigcChatStream.test.ts` drives the real controller, real service and a real failing provider client and reads the resulting `Response` body (stream ends + envelope delivered); `apps/web/tests/unit/utils/chatbot.spec.ts` covers every client termination path. Neither is a substitute for a human pass in the browser, and per the probe above a local browser pass should be treated as confirmation of the fixed behavior rather than as a reproduction of the original hang.
+The chat panel rendered **`The AI service is temporarily unavailable. Please try again in a moment.`** as an error bubble, with the spinner gone and the input still usable. That string is decisive rather than merely plausible: it exists only at `apps/api/src/const/err.ts:115` as the new `AI_PROVIDER_UNAVAILABLE` copy and does **not** exist on `origin/dev`, whose only AI error text was the misleading "switching to the backup provider" line. Reaching the screen therefore required all four of: the new classification, the envelope frame, the client's streaming-path parse, and the loading reset.
+
+The API logged:
+
+```
+[aigc.vertex] chat stream failed {
+  providerStatus: undefined, providerCode: undefined, reference: undefined,
+  overloaded: false, timedOut: true, message: 'The operation was aborted'
+}
+[aigc.chat] stream failed { name: 'AI_PROVIDER_UNAVAILABLE', code: 503, cause: 'AI provider chat stream failed' }
+```
+
+`timedOut: true` is set only by the first-byte budget, so the 30s budget armed, fired and aborted the in-flight call, and the abort classified as transient unavailability — the structured operator diagnosis and the bounded wait are both confirmed in the real runtime. Restoring connectivity afterwards left normal answers and mermaid rendering working (task 7.3).
+
+Two details worth recording so they are not misread:
+
+- The first attempt returned HTTP 400 with body `{data:'BOOKMARK_CONTENT_NOT_FOUND', code:404}`: `getBookmarkTitleContent` could not read that bookmark's stored content object (`apps/api/src/domain/bookmark.ts:890`, a file this change does not touch). The reader page renders its article through a different path, so the reader could show content while chat reported none. The status/code mismatch is a pre-existing quirk of `createResponse`, which only lets 401/418/429 override the HTTP status (`apps/api/src/utils/responseUtils.ts:27`) while `Failed()` defaults to 400.
+- The verification logs exposed a real (if cosmetic) defect in this change's own diagnostics: `providerCode` picked up `DOMException`'s legacy `code` (20 for an abort), which reads like a provider code. `toProviderFailure` now records `providerCode` only for string codes — provider and network codes (`'ECONNREFUSED'`, a provider's own code string) are strings, and the SDK reports its numeric code as `status`, which is already extracted. Covered by a test asserting an AbortError's numeric code is dropped.
+
+## What this does and does not establish
+
+It establishes the fixed behavior end to end in the real UI, in the real runtime. It cannot establish the original failure: as recorded in the workerd section above, local workerd delivers the frame even with the old `void`-ed close, so this pass confirms the fix rather than reproducing the production hang. That guarantee rests on the ordering assertions in `apps/api/test/domain/aigcChatStream.test.ts`, which were shown to fail against the old shape.
 

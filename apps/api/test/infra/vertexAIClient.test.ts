@@ -39,20 +39,34 @@ afterEach(() => {
 })
 
 describe('toProviderFailure', () => {
-  test('keeps status, code, reference and the overload flag from an SDK error', () => {
+  test('keeps status, a string code, reference and the overload flag from an SDK error', () => {
     const sdkError = Object.assign(new Error('got status: 500. {"error":{"code":500}} internal error; reference = cm46tqe5bj490abfkrmsinlh'), {
       name: 'ApiError',
       status: 503,
-      code: 500,
+      code: 'INTERNAL',
       overloaded: true
     })
 
     expect(toProviderFailure(sdkError)).toEqual({
       providerStatus: 503,
-      providerCode: 500,
+      providerCode: 'INTERNAL',
       reference: 'cm46tqe5bj490abfkrmsinlh',
       overloaded: true,
       timedOut: false
+    })
+  })
+
+  test('ignores a numeric DOMException code, which is not a provider code', () => {
+    // An aborted request rejects with a DOMException whose legacy `code` is 20. Recording that
+    // as `providerCode` reads like a provider's own code in the operator log, so it is dropped.
+    const aborted = Object.assign(new Error('The operation was aborted'), { name: 'AbortError', code: 20 })
+
+    expect(toProviderFailure(aborted, true)).toEqual({
+      providerStatus: undefined,
+      providerCode: undefined,
+      reference: undefined,
+      overloaded: false,
+      timedOut: true
     })
   })
 

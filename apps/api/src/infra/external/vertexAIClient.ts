@@ -71,7 +71,11 @@ export const toProviderFailure = (error: unknown, timedOut = false): AIProviderF
 
   return {
     providerStatus: typeof status === 'number' ? status : undefined,
-    providerCode: typeof code === 'string' || typeof code === 'number' ? code : undefined,
+    // Only string codes are provider or network codes (for example 'ECONNREFUSED'). A numeric
+    // `code` is a DOMException legacy code — an aborted request reports 20 — which would be
+    // read as a provider code in the operator log; the SDK reports its own numeric code as
+    // `status`, which is already extracted above.
+    providerCode: typeof code === 'string' ? code : undefined,
     reference: REFERENCE_PATTERN.exec(message)?.[1],
     overloaded: record.overloaded === true,
     timedOut
