@@ -31,13 +31,22 @@ const listenerCommand = (pid: number): string | undefined => {
   }
 }
 
+// Narrow match for the real dev-session processes: the workerd binary that
+// holds the port, or a Wrangler CLI run from a node_modules install. A bare
+// substring match would mislabel any argv that merely mentions the names.
+const devSessionCommand = (command: string): boolean => {
+  const executable = command.split(' ')[0]
+  if (/(^|\/)workerd$/.test(executable) || /(^|\/)wrangler$/.test(executable)) return true
+  return /node_modules\/\S*(wrangler|workerd)/.test(command)
+}
+
 export const devPortInUseMessage = (port: number): string => {
   const pid = listenerPid(port)
   if (pid === undefined) {
     return `Error: 127.0.0.1:${port} is already in use.\nOnly one local API dev session can run at a time. Free the port, then retry.`
   }
   const command = listenerCommand(pid)
-  if (command && /wrangler|workerd/.test(command)) {
+  if (command && devSessionCommand(command)) {
     return [
       'Error: `pnpm api -- dev` is already running on this machine.',
       '',
@@ -118,10 +127,16 @@ export async function deploy(args: string[]): Promise<number> {
   try {
     if (local) {
       const targets = options.target ? [options.target] : TARGETS
-      for (const target of targets) {
-        if (await devPortOccupied(ports[target])) {
-          console.error(devPortInUseMessage(ports[target]))
-          return 1
+      // All four ports are probed even for --target: the dev registry and the
+      // database containers are machine-wide singletons, so a partial session
+      // is still a session. Fixtures that stub wrangler never bind ports and
+      // opt out to stay independent of the machine's dev-session state.
+      if (!process.env.SLAX_API_SKIP_DEV_PORT_GUARD) {
+        for (const target of TARGETS) {
+          if (await devPortOccupied(ports[target])) {
+            console.error(devPortInUseMessage(ports[target]))
+            return 1
+          }
         }
       }
       const results = await Promise.all(targets.map(target => run(target)))

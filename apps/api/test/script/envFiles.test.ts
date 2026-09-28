@@ -74,6 +74,9 @@ function run(f: ReturnType<typeof fixture>, executable: string, args: string[], 
       CHECKPOINT_DISABLE: '1',
       PRISMA_HIDE_UPDATE_MESSAGE: '1',
       WRANGLER_SEND_METRICS: 'false',
+      // The stubbed wrangler never binds ports; skip the dev port guard so the
+      // suite does not depend on whether a real dev session is running.
+      SLAX_API_SKIP_DEV_PORT_GUARD: '1',
       MOCK_LOG: path.join(f.root, 'calls.jsonl'),
       ...extra
     }

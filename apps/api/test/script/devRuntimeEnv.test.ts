@@ -76,6 +76,9 @@ fs.writeFileSync(process.env.MOCK_LOG, JSON.stringify({
       HOME: root,
       TMPDIR: os.tmpdir(),
       WRANGLER_SEND_METRICS: 'false',
+      // The stubbed wrangler never binds ports; skip the dev port guard so the
+      // suite does not depend on whether a real dev session is running.
+      SLAX_API_SKIP_DEV_PORT_GUARD: '1',
       MOCK_LOG: path.join(root, 'result.json')
     }
   })

@@ -28,21 +28,37 @@ const freePort = async (): Promise<number> => {
   return port
 }
 
-// ps reports the child's argv, so the listener is spawned from a script whose
-// path names it like a real Wrangler runtime process.
-const listenAsFakeWorkerd = async (): Promise<{ port: number; pid: number }> => {
-  const port = await freePort()
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'slax-port-guard-'))
-  directories.push(directory)
-  const script = path.join(directory, 'fake-workerd.cjs')
-  fs.writeFileSync(script, `require('net').createServer().listen(${port}, '127.0.0.1')\n`)
-  const child = spawn(process.execPath, [script], { stdio: 'ignore' })
-  children.push(child)
+const waitForListener = async (port: number): Promise<void> => {
   for (let attempt = 0; attempt < 50; attempt++) {
-    if (await devPortOccupied(port)) return { port, pid: child.pid! }
+    if (await devPortOccupied(port)) return
     await new Promise(resolve => setTimeout(resolve, 100))
   }
-  throw new Error('fake workerd never started listening')
+  throw new Error('listener never started')
+}
+
+const spawnListener = (executable: string, script: string): number => {
+  const child = spawn(executable, [script], { stdio: 'ignore' })
+  children.push(child)
+  return child.pid!
+}
+
+// ps reports the child's argv, so a dev-session listener is faked by running a
+// hardlinked copy of the node binary under the real runtime process's name.
+const listenAsFakeWorkerd = async (port: number): Promise<number> => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'slax-port-guard-'))
+  directories.push(directory)
+  const script = path.join(directory, 'listen.cjs')
+  fs.writeFileSync(script, `require('net').createServer().listen(${port}, '127.0.0.1')\n`)
+  const workerd = path.join(directory, 'workerd')
+  try {
+    fs.linkSync(process.execPath, workerd)
+  } catch {
+    fs.copyFileSync(process.execPath, workerd)
+    fs.chmodSync(workerd, 0o755)
+  }
+  const pid = spawnListener(workerd, script)
+  await waitForListener(port)
+  return pid
 }
 
 describe('dev port guard', () => {
@@ -64,12 +80,24 @@ describe('dev port guard', () => {
     expect(message).toContain('Stop that process or free the port, then retry.')
   })
 
-  test('classifies a wrangler/workerd listener as another dev session', async () => {
-    const { port, pid } = await listenAsFakeWorkerd()
+  test('classifies a workerd listener as another dev session', async () => {
+    const port = await freePort()
+    const pid = await listenAsFakeWorkerd(port)
     const message = devPortInUseMessage(port)
     expect(message).toContain('Error: `pnpm api -- dev` is already running on this machine.')
     expect(message).toContain(`Another instance is listening on 127.0.0.1:${port} (PID ${pid}).`)
     expect(message).toContain(`kill ${pid}, then retry.`)
+  })
+
+  test('does not classify a listener whose argv merely mentions the names', async () => {
+    const port = await freePort()
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wrangler-notes-'))
+    directories.push(directory)
+    const script = path.join(directory, 'server.cjs')
+    fs.writeFileSync(script, `require('net').createServer().listen(${port}, '127.0.0.1')\n`)
+    spawnListener(process.execPath, script)
+    await waitForListener(port)
+    expect(devPortInUseMessage(port)).toContain('(not a Slax dev session)')
   })
 
   test('falls back to a generic message when the listener cannot be identified', async () => {
