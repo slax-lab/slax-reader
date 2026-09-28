@@ -8,9 +8,11 @@ import { devPortInUseMessage, devPortOccupied } from '../../script/deploy/deploy
 
 // PID-based cases need lsof/ps to identify the listener; without them the
 // guard degrades to the generic message, so those cases would fail spuriously.
+// Probe ps with a PID the suite can guarantee — PID 1 is not visible in every
+// container.
 const processToolsAvailable = (() => {
   const lsof = spawnSync('lsof', ['-v'])
-  const ps = spawnSync('ps', ['-p', '1', '-o', 'command='])
+  const ps = spawnSync('ps', ['-p', String(process.pid), '-o', 'command='])
   return !lsof.error && !ps.error && ps.status === 0
 })()
 const withProcessTools = test.skipIf(!processToolsAvailable)

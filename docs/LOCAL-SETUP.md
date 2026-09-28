@@ -164,7 +164,8 @@ the services separately and complete the Phase 6 acceptance check.
   for port 8787 (or 8686/8788/8789): another process holds the port. Find it
   with `lsof -nP -iTCP:8787 -sTCP:LISTEN`. If it is a leftover dev session,
   stop it (Ctrl+C in its terminal, or `kill <pid>`); if it is unrelated, free
-  the port, then retry.
+  the port, then retry. (The guard is skipped, with a printed warning, when
+  `SLAX_API_SKIP_DEV_PORT_GUARD` is set — test fixtures only.)
 - All Workers of a running dev session restart at once and lose in-memory
   state for no apparent reason: another `pnpm api -- dev` was started on the
   same machine (a second worktree or terminal) and overwrote the shared local
