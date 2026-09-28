@@ -26,7 +26,7 @@ import { TikHubWeixinContent, isWeixinImageShower } from '@/const/moreapi/weixin
 import { ErrorName } from '../const/err'
 import type { TweetInfo, TweetArticleInfo } from '@/const/twitterapi/struct'
 import { MultiLangError } from '@/utils/multiLangError'
-import { detectRoute, TWITTER_ARTICLE_RE, TWITTER_SHORT_STATUS_RE } from '../utils/platformDetector'
+import { detectRoute, TWITTER_SHORT_STATUS_RE } from '../utils/platformDetector'
 import { FetchThreePartyError } from '../const/err'
 import { scoreArticleQuality, unavailableArticleQualityReview, type ArticleQualityReview, type ParserQualitySummary } from '../utils/articleQualityScoring'
 import { bookmarkEventProperties, EVENT_CONTEXT_KEY, getEventContext, submitServerEvent } from './events'
@@ -199,6 +199,128 @@ export class CrawlService {
     const tweets = await SocialMediaApi.fetchTwitter(env, [tweetId])
     if (tweets.length === 0) throw FetchThreePartyError('Failed to fetch tweet')
     return { tweetId, tweetInfo: tweets[0] }
+  }
+
+  private static normalizeCandidateUrl(value: string | undefined): string | null {
+    if (!value) return null
+    const trimmed = value.trim().replace(/[.,;:!?，。；：！？\])}]+$/g, '')
+    if (!/^https?:\/\//i.test(trimmed)) return null
+    try {
+      return new URL(trimmed).toString()
+    } catch {
+      return null
+    }
+  }
+
+  private static isTwitterArticleUrl(value: string): boolean {
+    try {
+      const parsed = new URL(value)
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false
+      const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '')
+      if (hostname !== 'x.com' && hostname !== 'twitter.com') return false
+      return /^\/\w+\/article\/\d+\/?$/.test(parsed.pathname)
+    } catch {
+      return false
+    }
+  }
+
+  private static isTwitterShortLink(value: string): boolean {
+    try {
+      const parsed = new URL(value)
+      return parsed.hostname.toLowerCase() === 't.co' && /^\/[a-z0-9]+$/i.test(parsed.pathname)
+    } catch {
+      return false
+    }
+  }
+
+  /** Find an X Article URL without treating arbitrary article-shaped external URLs as X content. */
+  private async discoverTwitterArticleUrl(ctx: ContextManager, tweetInfo: TweetInfo): Promise<string | null> {
+    const candidates: string[] = []
+    const seen = new Set<string>()
+    const entityRawUrls = new Set<string>()
+    const add = (value: string | undefined) => {
+      const normalized = CrawlService.normalizeCandidateUrl(value)
+      if (normalized && !seen.has(normalized)) {
+        seen.add(normalized)
+        candidates.push(normalized)
+      }
+    }
+
+    for (const entity of tweetInfo.entities?.urls ?? []) {
+      const raw = CrawlService.normalizeCandidateUrl(entity.url)
+      if (raw) entityRawUrls.add(raw)
+      // An expanded destination is authoritative. Do not resolve its t.co alias again.
+      add(CrawlService.normalizeCandidateUrl(entity.expanded_url) || raw || undefined)
+    }
+
+    for (const match of tweetInfo.text.match(/https?:\/\/[^\s<>"']+/gi) ?? []) {
+      const normalized = CrawlService.normalizeCandidateUrl(match)
+      if (normalized && !entityRawUrls.has(normalized)) add(normalized)
+    }
+
+    for (const candidate of candidates) {
+      if (CrawlService.isTwitterArticleUrl(candidate)) return candidate
+    }
+
+    let attempts = 0
+    for (const candidate of candidates) {
+      if (!CrawlService.isTwitterShortLink(candidate) || attempts >= 5) continue
+      attempts++
+      try {
+        const resolved = await this.resolveShortLink(ctx, candidate)
+        if (CrawlService.isTwitterArticleUrl(resolved)) return resolved
+      } catch (err) {
+        console.log(`Failed to resolve possible X Article link ${candidate}: ${err}`)
+      }
+    }
+    return null
+  }
+
+  private static hasUsableFxEmbedArticle(document: Document): boolean {
+    const article = document.querySelector('article')
+    if (!article) return false
+    if (article.textContent?.trim()) return true
+    return [...article.querySelectorAll('img[src], video[src], video source[src], audio[src], audio source[src], iframe[src]')].some(element =>
+      Boolean(element.getAttribute('src')?.trim())
+    )
+  }
+
+  private static hasUsableTweetArticle(article: TweetArticleInfo | null | undefined): article is TweetArticleInfo {
+    if (!article || !Array.isArray(article.contents)) return false
+    return article.contents.some(block => {
+      if (block.type === 'image') return Boolean(block.url?.trim())
+      return Boolean(block.text?.trim())
+    })
+  }
+
+  private async fetchTwitterArticleFromProviders(
+    ctx: ContextManager,
+    sourceUrl: string,
+    statusId?: string,
+    fetchUrl = sourceUrl
+  ): Promise<Extract<TwitterFetched, { kind: 'article' }> | null> {
+    try {
+      const fxRes = await this.fetchWithFxEmbed(ctx, fetchUrl)
+      if (CrawlService.hasUsableFxEmbedArticle(fxRes.document)) {
+        // Workflow fetch steps must serialize strings, not Document objects.
+        return { kind: 'article', sourceUrl, viaFxEmbedHtml: fxRes.document.toString(), fallbackTweetInfo: null }
+      }
+      console.log(`fxembed returned no usable article body for ${sourceUrl}`)
+    } catch (fxErr) {
+      console.log(`fxembed article capture failed for ${sourceUrl}: ${fxErr}`)
+    }
+
+    if (!statusId) return null
+    try {
+      const article = await SocialMediaApi.fetchTwitterArticle(ctx.env, statusId)
+      if (CrawlService.hasUsableTweetArticle(article)) {
+        return { kind: 'article', sourceUrl, viaFxEmbedHtml: null, fallbackTweetInfo: article }
+      }
+      console.log(`Twitter article API returned no usable content for ${sourceUrl}`)
+    } catch (apiErr) {
+      console.log(`Twitter article API failed for ${sourceUrl}: ${apiErr}`)
+    }
+    return null
   }
 
   public async resolveFinalUrl(ctx: ContextManager, url: string): Promise<string> {
@@ -582,25 +704,21 @@ export class CrawlService {
 
   public async fetchTwitterData(ctx: ContextManager, url: string): Promise<TwitterFetched> {
     // /article/数字 — 直接走 article 路径
-    if (TWITTER_ARTICLE_RE.test(url)) {
+    if (CrawlService.isTwitterArticleUrl(url)) {
       return await this.fetchTwitterArticleData(ctx, url)
     }
 
     // 普通 tweet
     const { tweetId, tweetInfo } = await this.fetchTweet(ctx.env, url)
 
-    // /i/article/ 使用内部 ID，但 article API 必须传原始 status ID。
-    if (/^https:\/\/t\.co\/[a-zA-Z0-9]+$/.test(tweetInfo.text.trim())) {
-      const resolvedUrl = await this.resolveShortLink(ctx, tweetInfo.text.trim())
-      if (/\/(?:i\/)?article\/\d+/i.test(resolvedUrl)) {
-        const articleUrl = `https://x.com/${tweetInfo.author.userName}/article/${tweetId}`
-        try {
-          const article = await SocialMediaApi.fetchTwitterArticle(ctx.env, tweetId)
-          return { kind: 'article', sourceUrl: articleUrl, viaFxEmbedHtml: null, fallbackTweetInfo: article }
-        } catch (articleErr) {
-          console.log(`Failed to fetch Twitter article for ${url}, falling back to tweet: ${articleErr}`)
-        }
-      }
+    const articleUrl = await this.discoverTwitterArticleUrl(ctx, tweetInfo)
+    if (articleUrl) {
+      // Internal /i/article IDs are not tweet IDs. Explicit author/article links
+      // carry their own status ID, which can refer to another author's article.
+      const [, author, , linkedId] = new URL(articleUrl).pathname.split('/')
+      const linkedStatusId = author.toLowerCase() === 'i' ? tweetId : linkedId
+      const article = await this.fetchTwitterArticleFromProviders(ctx, url, linkedStatusId, linkedStatusId === tweetId ? url : articleUrl)
+      if (article) return article
     }
 
     // 普通 tweet，可能带 quoted_tweet
@@ -622,21 +740,13 @@ export class CrawlService {
   }
 
   private async fetchTwitterArticleData(ctx: ContextManager, url: string): Promise<TwitterFetched> {
-    try {
-      const fxRes = await this.fetchWithFxEmbed(ctx, url)
-      // 序列化为 HTML string 以通过 Workflow step 的 structured-clone 序列化；
-      // parse 阶段再 parseHTML 还原 Document。
-      const html = fxRes.document.toString()
-      return { kind: 'article', sourceUrl: url, viaFxEmbedHtml: html, fallbackTweetInfo: null }
-    } catch (fxErr) {
-      console.log(`fetchWithFxEmbed failed for ${url}, falling back to fetchTwitterArticle: ${fxErr}`)
-      // article URL 格式: /article/数字ID，用独立正则提取（不能复用 extractTweetId，那个匹配 /status/）
-      const match = url.match(/\/article\/([0-9]+)/)
-      const articleId = match?.[1]
-      if (!articleId) throw FetchThreePartyError('Invalid Twitter Article URL')
-      const tweetInfo = await SocialMediaApi.fetchTwitterArticle(ctx.env, articleId)
-      return { kind: 'article', sourceUrl: url, viaFxEmbedHtml: null, fallbackTweetInfo: tweetInfo }
-    }
+    const [, author, , articleId] = new URL(url).pathname.split('/')
+    if (!articleId) throw FetchThreePartyError('Invalid Twitter Article URL')
+
+    // /i/article/{id} is an internal article identifier, not a status ID.
+    const fetched = await this.fetchTwitterArticleFromProviders(ctx, url, author.toLowerCase() === 'i' ? undefined : articleId)
+    if (fetched) return fetched
+    throw FetchThreePartyError('Failed to fetch Twitter article')
   }
 
   /**
