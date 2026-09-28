@@ -279,7 +279,9 @@ export class CrawlService {
   private static hasUsableFxEmbedArticle(document: Document): boolean {
     const article = document.querySelector('article')
     if (!article) return false
-    if (article.textContent?.trim()) return true
+    const content = article.cloneNode(true) as Element
+    for (const element of content.querySelectorAll('script, style, noscript, template')) element.remove()
+    if (content.textContent?.trim()) return true
     return [...article.querySelectorAll('img[src], video[src], video source[src], audio[src], audio source[src], iframe[src]')].some(element =>
       Boolean(element.getAttribute('src')?.trim())
     )

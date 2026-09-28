@@ -2,18 +2,18 @@
 
 ## Implementation evidence
 
-- Added 33 regression tests in `apps/api/test/flow/addUrl/14-twitterArticleCapture.test.ts`. The initial 29 cases produced 22 expected failures on the old implementation; all 33 cases pass on the final implementation.
+- Added 34 regression tests in `apps/api/test/flow/addUrl/14-twitterArticleCapture.test.ts`; all 34 cases pass on the final implementation, including script/style-only preview responses that must fall back to the Article API.
 - The tests exercise real article discovery, provider selection, HTML parsing, and persistence, with provider requests and storage mocked. They cover the reported status/internal article IDs, provider ordering, unusable responses, direct article URLs, bounded short links, source preservation, and tweet media/quote fallback.
 - All add-URL flow tests, HTML builder tests, and platform detector tests pass in the complete backend run.
 - `pnpm api -- typecheck`: passed.
 - `pnpm api -- lint`: exited successfully, with 336 warnings. The changed service also passes targeted ESLint with no errors.
-- API Prettier checks for the changed service and new tests: passed.
+- The regression test keeps the existing file formatting; `git diff --check` passes. The existing `crawl.ts` file is not whole-file-clean under the repository formatter, so the implementation preserves its surrounding formatting.
 - `openspec validate --all --strict`: 17 items passed.
 - `git diff --check`: passed.
 
 ## Complete backend suite
 
-Final run: **1,596 passed, 91 failed, 46 skipped**. This is not a green suite. No tests were disabled or changed to work around environment restrictions.
+Final run: **1,599 passed, 88 failed, 46 skipped**. This is not a green suite. No tests were disabled or changed to work around environment restrictions.
 
 The initial sparse checkout omitted public deployment fixtures. Restoring only the non-secret tracked fixtures removed the missing-file failures. Remaining failures are in these suites:
 

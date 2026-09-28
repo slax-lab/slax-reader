@@ -287,6 +287,7 @@ describe("X Article provider fallback", () => {
 		'<html><head><meta property="og:description" content="预览"></head><body>预览</body></html>',
 		"<html><body><article>  </article></body></html>",
 		'<html><body><article><img src=""></article></body></html>',
+		'<html><body><article><script>window.__PREVIEW__ = true</script><style>.preview { display: none }</style></article></body></html>',
 	])(
 		"HTTP 200 without usable article content falls back using the status ID",
 		async (html) => {
