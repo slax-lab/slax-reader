@@ -1,9 +1,56 @@
 import fs from 'node:fs'
+import net from 'node:net'
 import path from 'node:path'
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { API_ROOT, CONFIG_DIR, GENERATED_DIR, LOCAL_STATE, TARGETS, checkRemote, parseArgs, readConfig, writeGenerated, type Target } from './config'
 import { fileURLToPath } from 'node:url'
 import { loadApiEnv } from '../env'
+
+export const devPortOccupied = (port: number): Promise<boolean> =>
+  new Promise(resolve => {
+    const probe = net.createServer()
+    probe.once('error', () => resolve(true))
+    probe.listen(port, '127.0.0.1', () => probe.close(() => resolve(false)))
+  })
+
+const listenerPid = (port: number): number | undefined => {
+  try {
+    const out = execFileSync('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t'], { encoding: 'utf8' })
+    const pid = Number(out.trim().split('\n')[0])
+    return Number.isInteger(pid) && pid > 0 ? pid : undefined
+  } catch {
+    return undefined
+  }
+}
+
+const listenerCommand = (pid: number): string | undefined => {
+  try {
+    return execFileSync('ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8' }).trim()
+  } catch {
+    return undefined
+  }
+}
+
+export const devPortInUseMessage = (port: number): string => {
+  const pid = listenerPid(port)
+  if (pid === undefined) {
+    return `Error: 127.0.0.1:${port} is already in use.\nOnly one local API dev session can run at a time. Free the port, then retry.`
+  }
+  const command = listenerCommand(pid)
+  if (command && /wrangler|workerd/.test(command)) {
+    return [
+      'Error: `pnpm api -- dev` is already running on this machine.',
+      '',
+      `Another instance is listening on 127.0.0.1:${port} (PID ${pid}). Only one local`,
+      'API dev session can run at a time — ports, the local dev registry, and the',
+      'PostgreSQL/PowerSync containers are all machine-wide singletons.',
+      '',
+      'If you are using that session: stop it first (Ctrl+C in its terminal).',
+      `If it crashed or you don't recognize it: kill ${pid}, then retry.`
+    ].join('\n')
+  }
+  return `Error: 127.0.0.1:${port} is already in use by PID ${pid} (not a Slax dev session).\nStop that process or free the port, then retry.`
+}
 
 export async function deploy(args: string[]): Promise<number> {
   const options = parseArgs(args, ['--dev', '--dry-run', '--bootstrap'])
@@ -70,7 +117,14 @@ export async function deploy(args: string[]): Promise<number> {
     })
   try {
     if (local) {
-      const results = await Promise.all((options.target ? [options.target] : TARGETS).map(target => run(target)))
+      const targets = options.target ? [options.target] : TARGETS
+      for (const target of targets) {
+        if (await devPortOccupied(ports[target])) {
+          console.error(devPortInUseMessage(ports[target]))
+          return 1
+        }
+      }
+      const results = await Promise.all(targets.map(target => run(target)))
       return results.find(code => code !== 0) ?? 0
     }
     const order: Target[] = options.target ? [options.target] : bootstrap ? ['browser', 'ai', 'edge', 'core'] : ['browser', 'ai', 'core', 'edge']

@@ -104,6 +104,16 @@ pnpm web -- dev          # reader on http://localhost:3000
 pnpm extension -- dev    # extension build with watch
 ```
 
+Only one `pnpm api -- dev` session can run per machine: the Worker ports, the
+local dev registry, and the PostgreSQL/PowerSync containers are all
+machine-wide singletons, so a second session exits immediately with a
+port-in-use error. With several worktrees or terminals, keep at most one API
+dev session running and check before starting:
+
+```bash
+lsof -nP -iTCP:8787 -sTCP:LISTEN   # no output means no session is running
+```
+
 _Done when:_ the reader loads at `http://localhost:3000` and login works
 against the local API.
 
@@ -150,3 +160,17 @@ the services separately and complete the Phase 6 acceptance check.
 - Backend setup details: `docs/api/DEV-AND-CI-CN.md`.
 - `setup` never creates or rewrites configuration; missing material means
   a Phase 3 item is incomplete.
+- `pnpm api -- dev` exits with `Address already in use` / `is already in use`
+  for port 8787 (or 8686/8788/8789): another process holds the port. Find it
+  with `lsof -nP -iTCP:8787 -sTCP:LISTEN`. If it is a leftover dev session,
+  stop it (Ctrl+C in its terminal, or `kill <pid>`); if it is unrelated, free
+  the port, then retry.
+- All Workers of a running dev session restart at once and lose in-memory
+  state for no apparent reason: another `pnpm api -- dev` was started on the
+  same machine (a second worktree or terminal) and overwrote the shared local
+  dev registry, forcing the first session's Workers to restart. Keep one API
+  dev session per machine.
+- Worker processes survive after the dev session exits: orphaned `workerd`
+  processes (parent PID 1) linger after a crashed or force-killed session.
+  List them with `ps -axo pid,ppid,command | grep -E 'wrangler|workerd' | grep -v grep`
+  and `kill <pid>` each one whose parent is 1.
