@@ -37,6 +37,22 @@
   --slax-border: rgba(26, 24, 20, 0.08);
   --slax-border-strong: rgba(26, 24, 20, 0.16);
 
+  /* 颜色 - 代码块（highlight.js token 映射，着色规则见 styles/code-highlight.css）
+   * light / dark 沿用现有 Atom One Dark 调色板：本变更只把配色从第三方样式表搬进
+   * token 层，让每个主题可覆盖，取色值逐字节不变；E-ink 见下方，是纸面化重制
+   */
+  --slax-code-bg: #282c34;
+  --slax-code-text: #abb2bf;
+  --slax-code-border: transparent;
+  --slax-code-comment: #5c6370;
+  --slax-code-keyword: #c678dd;
+  --slax-code-tag: #e06c75;
+  --slax-code-literal: #56b6c2;
+  --slax-code-string: #98c379;
+  --slax-code-number: #d19a66;
+  --slax-code-symbol: #61aeee;
+  --slax-code-builtin: #e6c07b;
+
   /* 阴影 */
   --slax-shadow-warm: 0 8px 32px rgba(180, 88, 55, 0.08);
   --slax-shadow-sm: 0 2px 8px rgba(180, 88, 55, 0.05);
@@ -146,6 +162,19 @@
   --slax-border: rgba(255, 251, 244, 0.08);
   --slax-border-strong: rgba(255, 251, 244, 0.16);
 
+  /* 颜色 - 代码块：与 :root 同值（说明见 :root），dark 下深底代码块保持现状 */
+  --slax-code-bg: #282c34;
+  --slax-code-text: #abb2bf;
+  --slax-code-border: transparent;
+  --slax-code-comment: #5c6370;
+  --slax-code-keyword: #c678dd;
+  --slax-code-tag: #e06c75;
+  --slax-code-literal: #56b6c2;
+  --slax-code-string: #98c379;
+  --slax-code-number: #d19a66;
+  --slax-code-symbol: #61aeee;
+  --slax-code-builtin: #e6c07b;
+
   --slax-shadow-warm: 0 8px 32px rgba(0, 0, 0, 0.25);
   --slax-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
   --slax-shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.25), 0 20px 60px rgba(0, 0, 0, 0.12);
@@ -184,6 +213,23 @@
   --slax-quote-highlight: #cfcfcf;
   --slax-border: #cccccc;
   --slax-border-strong: #999999;
+
+  /* 颜色 - 代码块：纸面白底 + 1px 边框，高亮走灰阶（无彩色、无半透明）
+   * 四档灰阶 #000/#333/#555/#666 对白底分别为 21.0 / 12.6 / 7.5 / 5.7 : 1，全部过 4.5:1；
+   * 最浅只允许 #666666 —— #777777 实测 4.48:1 差一点点不达标。
+   * 角色区分靠灰阶 + 字重 / 斜体（keyword 加粗、comment 斜体），见 styles/code-highlight.css
+   */
+  --slax-code-bg: #ffffff;
+  --slax-code-text: #000000;
+  --slax-code-border: #cccccc;
+  --slax-code-comment: #666666;
+  --slax-code-keyword: #000000;
+  --slax-code-tag: #333333;
+  --slax-code-literal: #333333;
+  --slax-code-string: #555555;
+  --slax-code-number: #555555;
+  --slax-code-symbol: #000000;
+  --slax-code-builtin: #333333;
 
   --slax-shadow-warm: none;
   --slax-shadow-sm: none;

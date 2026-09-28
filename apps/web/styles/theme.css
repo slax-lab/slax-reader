@@ -1,4 +1,7 @@
 @import './theme.tokens.css';
+/* 代码块着色：含 .hljs 选择器，只能挂在主站全局入口下
+ * （theme.tokens.css 要被注入读者 iframe 预览，那里只允许变量声明） */
+@import './code-highlight.css';
 
 /* 全局兜底：未显式声明的元素自动跟随主题（仅主站，禁止注入 iframe 原网页） */
 html,
