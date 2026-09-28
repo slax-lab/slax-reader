@@ -1244,7 +1244,10 @@
       "generate_question_finished": "Finished",
       "search_finished": "Search complete",
       "search_bookmark_failed": "Knowledge base search failed",
-      "search_bookmark_finished": "Knowledge base search complete"
+      "search_bookmark_finished": "Knowledge base search complete",
+      "error_request_failed": "The message could not be sent. Please try again.",
+      "error_timeout": "The AI service stopped responding. Please try again.",
+      "error_no_response": "The AI service returned no answer. Please try again."
     }
   },
   "rss": {

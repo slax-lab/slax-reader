@@ -79,7 +79,10 @@ const translations: { [key in Language]: Partial<Record<ErrorName, string>> } = 
     [ErrorName.PROHIBITED_CONTENT]: '处理失败：内容被禁止',
     [ErrorName.SHARE_CONTENT_NOT_SUPPORTED]: '该内容类型不支持分享',
     [ErrorName.SYNC_TABLE_RULE_ERROR]: '同步表规则错误',
-    [ErrorName.SYNC_TABLE_TAG_NAME_ERROR]: '同步表标签名称错误'
+    [ErrorName.SYNC_TABLE_TAG_NAME_ERROR]: '同步表标签名称错误',
+    [ErrorName.AI_ERROR]: 'AI 服务未能完成本次请求，请重试。',
+    [ErrorName.AI_PROVIDER_UNAVAILABLE]: 'AI 服务暂时不可用，请稍后重试。',
+    [ErrorName.AI_PROVIDER_AUTH]: 'AI 服务因我方配置问题暂时不可用，重试暂时无法解决。'
   },
   en: {
     [ErrorName.NOT_FOUND]: 'Resource not found',
@@ -108,7 +111,9 @@ const translations: { [key in Language]: Partial<Record<ErrorName, string>> } = 
     [ErrorName.SUBSCRIPTION_NOT_EXPIRED]: 'You have a subscription not expired',
     [ErrorName.INTERNET_SEARCH_FAIL]: 'Internet search fail',
     [ErrorName.AI_RATE_LIMIT]: 'AI rate limit',
-    [ErrorName.AI_ERROR]: `The AI provider has made a mistake. Don't worry, it's switching to the backup provider. \n`,
+    [ErrorName.AI_ERROR]: 'The AI service could not complete this request. Please try again.',
+    [ErrorName.AI_PROVIDER_UNAVAILABLE]: 'The AI service is temporarily unavailable. Please try again in a moment.',
+    [ErrorName.AI_PROVIDER_AUTH]: 'The AI service is temporarily unavailable because of a configuration problem on our side. Retrying will not help right now.',
     [ErrorName.NOT_SUBSCRIPTION]: 'Not subscription',
     [ErrorName.AI_CONTENT_HARMFUL]: `Apologies, your message can't be processed due to potentially harmful content in the chat history or article. `,
     [ErrorName.CREATE_BOOKMARK_SHARE_UNIQUE_FAIL]: 'Create bookmark share unique fail',
@@ -186,7 +191,10 @@ const translations: { [key in Language]: Partial<Record<ErrorName, string>> } = 
     [ErrorName.READABILITY_PARSE_NO_PARSER]: 'Parse failed, please try again later',
     [ErrorName.PROHIBITED_CONTENT]: 'Error de procesamiento: contenido prohibido',
     [ErrorName.LAB_FEATURE_DISABLED]: '{feature} todavía están en el Laboratorio. Actívalo en Ajustes y vuelve a guardar',
-    [ErrorName.SHARE_CONTENT_NOT_SUPPORTED]: 'Este tipo de contenido no se puede compartir'
+    [ErrorName.SHARE_CONTENT_NOT_SUPPORTED]: 'Este tipo de contenido no se puede compartir',
+    [ErrorName.AI_ERROR]: 'El servicio de IA no pudo completar esta solicitud. Inténtalo de nuevo.',
+    [ErrorName.AI_PROVIDER_UNAVAILABLE]: 'El servicio de IA no está disponible temporalmente. Inténtalo de nuevo en unos momentos.',
+    [ErrorName.AI_PROVIDER_AUTH]: 'El servicio de IA no está disponible temporalmente por un problema de configuración nuestro. Reintentar no ayudará por ahora.'
   }
 }
 
@@ -244,6 +252,8 @@ export const SubscriptionNotExpired = (): MultiLangError => NewError(ErrorName.S
 export const InternetSearchFail = (): MultiLangError => NewError(ErrorName.INTERNET_SEARCH_FAIL, 500)
 export const AIRateLimitError = (): MultiLangError => NewError(ErrorName.AI_RATE_LIMIT, 429)
 export const AIError = (): MultiLangError => NewError(ErrorName.AI_ERROR, 500)
+export const AIProviderUnavailableError = (): MultiLangError => NewError(ErrorName.AI_PROVIDER_UNAVAILABLE, 503)
+export const AIProviderAuthError = (): MultiLangError => NewError(ErrorName.AI_PROVIDER_AUTH, 500)
 export const NotSubscriptionError = (): MultiLangError => NewError(ErrorName.NOT_SUBSCRIPTION, 403)
 export const AIContentHarmful = (): MultiLangError => NewError(ErrorName.AI_CONTENT_HARMFUL, 400)
 export const CreateBookmarkShareUniqueFail = (): MultiLangError => NewError(ErrorName.CREATE_BOOKMARK_SHARE_UNIQUE_FAIL, 400)

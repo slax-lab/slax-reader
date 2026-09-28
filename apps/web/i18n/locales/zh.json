@@ -1246,7 +1246,10 @@
       "generate_question_finished": "生成完成",
       "search_finished": "搜索完成",
       "search_bookmark_failed": "资料库搜索失败",
-      "search_bookmark_finished": "资料库搜索完成"
+      "search_bookmark_finished": "资料库搜索完成",
+      "error_request_failed": "消息发送失败，请重试。",
+      "error_timeout": "AI 服务响应超时，请重试。",
+      "error_no_response": "AI 服务未返回内容，请重试。"
     }
   },
   "rss": {

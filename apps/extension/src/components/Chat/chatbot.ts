@@ -125,17 +125,7 @@ export class ChatBot {
                 console.error(e)
               }
             } else if (line.length > 0) {
-              try {
-                const data = JSON.parse(line) as { data: string; message: string; code: number }
-                const errorRefs: Record<string, string> = {
-                  NOT_SUBSCRIPTION: $t('util.chatbot.error_not_subscription')
-                }
-
-                const error = new Error(errorRefs[data.data] || data.message, { cause: { data: data.data, message: data.message, code: data.code } })
-                this.handleData(error, sessionId)
-              } catch (e) {
-                console.error(e)
-              }
+              this.handleErrorLine(line, sessionId)
             }
           }
 
@@ -157,6 +147,11 @@ export class ChatBot {
               console.log('error data', sse.data)
               console.error(e)
             }
+          } else if (line.trimStart().startsWith('{')) {
+            // A terminal provider failure arrives as a bare JSON envelope line written mid-stream,
+            // so it must be handled here as well: this loop consumes the line, which leaves the
+            // end-of-stream flush() with nothing left to re-parse and the user with no message.
+            this.handleErrorLine(line, sessionId)
           }
         }
       })
@@ -168,6 +163,23 @@ export class ChatBot {
 
   get isChatting() {
     return this._isChatting
+  }
+
+  /** Surfaces the `{data, message, code}` envelope the server writes for a terminal failure. */
+  private handleErrorLine(line: string, sessionId: number) {
+    try {
+      const data = JSON.parse(line) as { data?: string; message?: string; code?: number }
+      if (typeof data?.data !== 'string' && typeof data?.message !== 'string') return
+
+      const errorRefs: Record<string, string> = {
+        NOT_SUBSCRIPTION: $t('util.chatbot.error_not_subscription')
+      }
+
+      const error = new Error((data.data && errorRefs[data.data]) || data.message || '', { cause: { data: data.data, message: data.message, code: data.code } })
+      this.handleData(error, sessionId)
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   private handleData(data: ChatCompletionChunk | Error, sessionId: number) {
