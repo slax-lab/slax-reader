@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process'
 import { parse, stringify } from 'smol-toml'
 import { afterEach, expect, test } from 'vitest'
 import { API_ROOT, ROOT } from '../../script/root'
+import { devPortOccupied } from '../../script/deploy/deploy'
 
 const fixtures: string[] = []
 const servers: net.Server[] = []
@@ -105,22 +106,23 @@ test.each([
   expect(call.generated).not.toContain('synthetic-tool-credential')
 })
 
-test('dev port guard exits before spawning wrangler when any dev port is occupied', async ctx => {
+test('dev port guard exits before touching shared state when any dev port is occupied', async ctx => {
   const { root, run } = harness(true, false)
+  // The guard walks all four ports, so the case only works on a clean machine.
+  for (const port of [8686, 8787, 8788, 8789]) {
+    if (await devPortOccupied(port)) ctx.skip(`127.0.0.1:${port} is occupied on this machine`)
+  }
   // Occupy a port other than the requested target's: all four are probed.
   const blocker = net.createServer()
   servers.push(blocker)
-  const blocked = await new Promise<boolean>(resolve => {
-    blocker.once('error', () => resolve(false))
-    blocker.listen(8788, '127.0.0.1', () => resolve(true))
+  await new Promise<void>((resolve, reject) => {
+    blocker.once('error', reject)
+    blocker.listen(8788, '127.0.0.1', () => resolve())
   })
-  if (!blocked) {
-    servers.pop()
-    ctx.skip('127.0.0.1:8788 is occupied on this machine')
-  }
   const result = run(['--dev', 'core'])
   expect(result.status, result.stderr).toBe(1)
   expect(result.stderr).toContain('127.0.0.1:8788 is already in use')
-  // The stub never ran: no call was logged.
+  // The stub never ran and no generated config was written.
   expect(fs.existsSync(path.join(root, 'result.json'))).toBe(false)
+  expect(fs.existsSync(path.join(root, 'deploy/local/.generated'))).toBe(false)
 })

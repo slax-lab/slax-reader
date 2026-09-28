@@ -6,6 +6,8 @@ import { API_ROOT, CONFIG_DIR, GENERATED_DIR, LOCAL_STATE, TARGETS, checkRemote,
 import { fileURLToPath } from 'node:url'
 import { loadApiEnv } from '../env'
 
+const ports: Record<Target, number> = { edge: 8787, core: 8686, ai: 8788, browser: 8789 }
+
 export const devPortOccupied = (port: number): Promise<boolean> =>
   new Promise(resolve => {
     const probe = net.createServer()
@@ -68,6 +70,23 @@ export async function deploy(args: string[]): Promise<number> {
   const bootstrap = options.flags.has('--bootstrap')
   if (bootstrap && (local || options.target)) throw new Error('--bootstrap requires all four remote Workers')
   if (!local && !options.flags.has('--dry-run')) checkRemote(config)
+  // Fail before touching any shared state: the generated configs, the dev
+  // registry and the containers are machine-wide singletons, so even a
+  // --target session is a session and all four ports are probed. Fixtures
+  // that stub wrangler never bind ports and opt out to stay independent of
+  // the machine's dev-session state.
+  if (local && !options.flags.has('--dry-run')) {
+    if (process.env.SLAX_API_SKIP_DEV_PORT_GUARD) {
+      console.warn('Dev port guard skipped: SLAX_API_SKIP_DEV_PORT_GUARD is set (test fixtures only).')
+    } else {
+      for (const target of TARGETS) {
+        if (await devPortOccupied(ports[target])) {
+          console.error(devPortInUseMessage(ports[target]))
+          return 1
+        }
+      }
+    }
+  }
   // Validate every configuration before the first remote mutation.
   const files = Object.fromEntries(TARGETS.map(target => [target, writeGenerated(config, target, GENERATED_DIR, local)]))
   const initial = bootstrap ? writeGenerated(config, 'core', GENERATED_DIR, false, true) : undefined
@@ -76,7 +95,6 @@ export async function deploy(args: string[]): Promise<number> {
     return 0
   }
   loadApiEnv()
-  const ports: Record<Target, number> = { edge: 8787, core: 8686, ai: 8788, browser: 8789 }
   const children = new Set<ReturnType<typeof spawn>>()
   const stop = () => {
     for (const child of children) child.kill('SIGTERM')
@@ -127,20 +145,6 @@ export async function deploy(args: string[]): Promise<number> {
   try {
     if (local) {
       const targets = options.target ? [options.target] : TARGETS
-      // All four ports are probed even for --target: the dev registry and the
-      // database containers are machine-wide singletons, so a partial session
-      // is still a session. Fixtures that stub wrangler never bind ports and
-      // opt out to stay independent of the machine's dev-session state.
-      if (process.env.SLAX_API_SKIP_DEV_PORT_GUARD) {
-        console.warn('Dev port guard skipped: SLAX_API_SKIP_DEV_PORT_GUARD is set (test fixtures only).')
-      } else {
-        for (const target of TARGETS) {
-          if (await devPortOccupied(ports[target])) {
-            console.error(devPortInUseMessage(ports[target]))
-            return 1
-          }
-        }
-      }
       const results = await Promise.all(targets.map(target => run(target)))
       return results.find(code => code !== 0) ?? 0
     }
