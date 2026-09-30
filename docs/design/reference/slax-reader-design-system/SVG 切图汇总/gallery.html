@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>SVG 切图汇总</title>
+<style>
+  /* 配色采用 Slax Reader 视觉规范（日间模式 token，仅展示用，不支持主题切换） */
+  :root {
+    --bg:           #faf8f2;
+    --surface:      rgba(255, 251, 244, 0.7);
+    --surface-solid: #fffbf4;
+    --text:         #1a1814;
+    --text-muted:   #6a5f52;
+    --text-light:   #9a8e7f;
+    --border:       rgba(26, 24, 20, 0.08);
+    --border-strong: rgba(26, 24, 20, 0.16);
+    --accent:       #b45837;
+    --accent-soft:  #e4b894;
+    --accent-bg:    rgba(180, 88, 55, 0.06);
+    --shadow-warm:  0 8px 32px rgba(180, 88, 55, 0.08);
+    --shadow-sm:    0 2px 8px rgba(180, 88, 55, 0.05);
+    --radius:       14px;
+    --radius-sm:    10px;
+    --grad-a:       #faf5eb;
+    --grad-b:       #f6efe4;
+    --grad-c:       #f8efe4;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    position: relative;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(at 30% 0%, var(--grad-a) 0%, transparent 50%),
+      radial-gradient(at 80% 20%, var(--grad-b) 0%, transparent 60%),
+      radial-gradient(at 50% 80%, var(--grad-c) 0%, transparent 40%);
+    z-index: -1;
+    pointer-events: none;
+  }
+  ::selection { background: var(--accent-bg); color: var(--text); }
+
+  .page {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 48px 32px 96px;
+  }
+  .page-header {
+    padding-bottom: 28px;
+    margin-bottom: 36px;
+  }
+  .page-title {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 10px;
+    color: var(--text);
+  }
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0 0 24px;
+  }
+
+  /* TOC */
+  .toc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .toc-label {
+    font-size: 12px;
+    color: var(--text-light);
+    margin-right: 4px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .toc a {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    text-decoration: none;
+    transition: all .15s ease;
+  }
+  .toc a:hover {
+    color: var(--accent);
+    border-color: var(--accent-soft);
+    background: var(--accent-bg);
+  }
+
+  /* 分组 */
+  .size-group { margin-bottom: 44px; }
+  .size-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 14px 0;
+    margin-bottom: 20px;
+  }
+  .size-header h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text);
+    letter-spacing: -0.005em;
+  }
+  .size-header .size-hint {
+    font-size: 12px;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    padding: 2px 8px;
+    background: var(--accent-bg);
+    border-radius: var(--radius-sm);
+  }
+  .size-header .size-count {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text-light);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* 卡片 */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    gap: 12px;
+  }
+  .card {
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 18px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+  }
+  .card:hover {
+    border-color: var(--accent-soft);
+    box-shadow: var(--shadow-sm);
+  }
+  /* 设计师手动替换过的卡片：右上角徽章「已替换」 */
+  .card[data-replaced="true"]::before {
+    content: '已替换';
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 10px;
+    line-height: 1;
+    padding: 3px 6px;
+    background: var(--accent-bg);
+    color: var(--accent);
+    border-radius: 999px;
+    font-weight: 500;
+    pointer-events: none;
+  }
+  .icon-frame {
+    width: 100%;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    color: var(--text);
+  }
+  .icon-frame svg,
+  .icon-frame img {
+    display: block;
+    object-fit: contain;
+  }
+  .card-name {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    color: var(--text);
+    margin: 0 0 4px;
+    word-break: break-all;
+    line-height: 1.35;
+  }
+  .card-purpose {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 0 0 6px;
+  }
+  .card-source {
+    font-size: 11px;
+    color: var(--text-light);
+    margin: 0;
+    line-height: 1.35;
+  }
+  .card[data-preserve="true"] .icon-frame { color: inherit; }
+
+  /* 缩放比标签 */
+  .card-scale {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 10px;
+    line-height: 1.3;
+    color: var(--text-light);
+    margin: 0 0 8px;
+    letter-spacing: 0.02em;
+  }
+  .card-scale[data-ratio="1"] { color: var(--accent); }
+
+  /* ── 自定义右键菜单（下载 icon） ── */
+  .icon-context-menu {
+    position: absolute;
+    display: none;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-warm);
+    padding: 4px;
+    z-index: 1000;
+    min-width: 160px;
+  }
+  .icon-context-menu.show { display: block; }
+  .icon-context-menu button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 12px;
+    background: transparent;
+    border: 0;
+    text-align: left;
+    font-size: 13px;
+    color: var(--text);
+    border-radius: 7px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .icon-context-menu button:hover {
+    background: var(--accent-bg);
+    color: var(--accent);
+  }
+  .icon-context-menu button svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .card .icon-frame { cursor: context-menu; }
+
+  /* 全局 Toast 提示 */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 32px;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--surface-solid);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 16px;
+    font-size: 13px;
+    box-shadow: var(--shadow-warm);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+    z-index: 1100;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 540px) {
+    .page { padding: 32px 16px 64px; }
+    .cards { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="page-header">
+    <h1 class="page-title">SVG 切图汇总</h1>
+    <p class="page-subtitle">按统一后的 7 档标准尺寸归类展示，已合并近邻 1px 差异。配色跟随 Slax Reader 视觉规范（日间模式）。</p>
+    <nav class="toc">
+      <span class="toc-label">Size</span>
+      <a href="#size-32">32</a>
+      <a href="#size-24">24</a>
+      <a href="#size-20">20</a>
+      <a href="#size-18">18</a>
+      <a href="#size-16">16</a>
+      <a href="#size-14">14</a>
+      <a href="#size-12">12</a>
+    </nav>
+  </header>
+
+  <section class="size-group" id="size-32">
+    <div class="size-header">
+      <h2>列表页空态切图</h2>
+      <span class="size-hint">32×32</span>
+      <span class="size-count">5 张</span>
+    </div>
+    <div class="cards">
+      <!-- 列表页 - 侧边栏空态（按 sidebar 导航顺序：收件箱 → 标签 → 归档 → 回收站） -->
+      <div class="card" data-preserve="false" data-replaced="true" title="空态">
+        <div class="icon-frame"><img src="icon-empty-inbox.svg" width="32" height="32" data-viewbox="32" alt=""></div>
+        <p class="card-name">icon-empty-inbox.svg</p>
+        <p class="card-purpose">收件箱</p>
+        <p class="card-source">空态</p>
+      </div>
+      <div class="card" data-preserve="false" data-replaced="true" title="空态">
+        <div class="icon-frame"><img src="icon-empty-topics.svg" width="32" height="32" data-viewbox="32" alt=""></div>
+        <p class="card-name">icon-empty-topics.svg</p>
+        <p class="card-purpose">标签</p>
+        <p class="card-source">空态</p>
+      </div>
+      <div class="card" data-preserve="false" data-replaced="true" title="空态">
+        <div class="icon-frame"><img src="icon-empty-archive.svg" width="32" height="32" data-viewbox="32" alt=""></div>
+        <p class="card-name">icon-empty-archive.svg</p>
+        <p class="card-purpose">归档</p>
+        <p class="card-source">空态</p>
+      </div>
+      <div class="card" data-preserve="false" data-replaced="true" title="空态">
+        <div class="icon-frame"><img src="icon-empty-trash.svg" width="32" height="32" data-viewbox="24" alt=""></div>
+        <p class="card-name">icon-empty-trash.svg</p>
+        <p class="card-purpose">回收站</p>
+        <p class="card-source">空态</p>
+      </div>
+      <div class="card" data-preserve="false" data-replaced="true" title="合集关闭空态">
+        <div class="icon-frame"><img src="icon-empty-lock.svg" width="32" height="32" data-viewbox="24" alt=""></div>
+        <p class="card-name">icon-empty-lock.svg</p>
+        <p class="card-purpose">锁定</p>
+        <p class="card-source">合集关闭空态</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="size-group" id="size-24">
+    <div class="size-header">
+      <h2>Logo 切图</h2>
+      <span class="size-hint">24×24</span>
+      <span class="size-count">1 张</span>
+    </div>
+    <div class="cards">
+      <div class="card" data-preserve="false" title="Topbar 左上角">
+        <div class="icon-frame"><img src="icon-logo-bookmark.png" width="24" height="24" alt="Slax Reader logo"></div>
+        <p class="card-name">icon-logo-bookmark.png</p>
+        <p class="card-purpose">Logo</p>
+        <p class="card-source">Topbar 左上角</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="size-group" id="size-20">
+    <div class="size-header">
+      <h2>详情页 edge-toolbar / panel tab / FAB 切图</h2>
+      <span class="size-hint">20×20</span>
+      <span class="size-count">4 张</span>
+    </div>
+    <div class="cards">
+      <!-- 列表页 - FAB -->
+      <div class="card" data-preserve="false" data-replaced="true" title="FAB 添加文章">
+        <div class="icon-frame"><svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none"><g transform="translate(4, 4)" fill="currentColor"><polygon points="5.25 0 6.75 0 6.75 12 5.25 12"/><polygon transform="translate(6, 6) rotate(-90) translate(-6, -6)" points="5.25 0 6.75 0 6.75 12 5.25 12"/></g></svg></div>
+        <p class="card-name">icon-plus.svg</p>
+        <p class="card-purpose">加号</p>
+        <p class="card-source">FAB 添加文章</p>
+      </div>
+      <!-- 详情页 - Edge-toolbar / Side panel tab（按 AI / Chat / 评论 排列） -->
+      <div class="card" data-preserve="false" data-replaced="true" title="Edge-toolbar / Side panel tab">
+        <div class="icon-frame"><svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke-width="1" fill-rule="evenodd"><g transform="translate(2, 3)"><path d="M8.20205479,0.875 L15.25,0.875 C15.6642136,0.875 16,1.21078644 16,1.625 C16,2.03921356 15.6642136,2.375 15.25,2.375 L8.20205479,2.375 C7.78784123,2.375 7.45205479,2.03921356 7.45205479,1.625 C7.45205479,1.21078644 7.78784123,0.875 8.20205479,0.875 Z" fill="currentColor"/><path d="M8.20205479,6.5625 L15.25,6.5625 C15.6642136,6.5625 16,6.89828644 16,7.3125 C16,7.72671356 15.6642136,8.0625 15.25,8.0625 L8.20205479,8.0625 C7.78784123,8.0625 7.45205479,7.72671356 7.45205479,7.3125 C7.45205479,6.89828644 7.78784123,6.5625 8.20205479,6.5625 Z" fill="currentColor"/><rect fill="currentColor" x="1.09589041" y="6.5625" width="4.38356164" height="1.5" rx="0.75"/><path d="M8.20205479,12.25 L15.25,12.25 C15.6642136,12.25 16,12.5857864 16,13 C16,13.4142136 15.6642136,13.75 15.25,13.75 L8.20205479,13.75 C7.78784123,13.75 7.45205479,13.4142136 7.45205479,13 C7.45205479,12.5857864 7.78784123,12.25 8.20205479,12.25 Z" fill="currentColor"/><path d="M1.5,3 C2.32842712,3 3,2.32842712 3,1.5 C3,0.671572875 2.32842712,0 1.5,0 C0.671572875,0 0,0.671572875 0,1.5 C0,2.32842712 0.671572875,3 1.5,3 Z" fill="currentColor"/><path d="M5.47945205,13.125 L4.16438356,13.125 C2.4109589,13.125 1.53424658,12.6875 1.53424658,10.9375 L1.53424658,1.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></g></svg></div>
+        <p class="card-name">icon-ai-sparkles.svg</p>
+        <p class="card-purpose">AI 解析</p>
+        <p class="card-source">Edge-toolbar / Side panel tab</p>
+      </div>
+      <div class="card" data-preserve="false" data-replaced="true" title="Edge-toolbar / Side panel tab">
+        <div class="icon-frame"><svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke-width="1" fill-rule="evenodd"><g transform="translate(2.4593, 2.5)"><path d="M7.54073884,15 C11.7053739,15 15.0814777,11.6421356 15.0814777,7.5 C15.0814777,3.35786438 11.7053739,0 7.54073884,0 C3.37610378,0 0,3.35786438 0,7.5 C0,11.6421356 3.37610378,15 7.54073884,15 Z" stroke="currentColor" stroke-width="1.5"/><path d="M4.93929935,4.16666667 C5.35351292,4.16666667 5.68929935,4.5024531 5.68929935,4.91666667 L5.68929935,7.58333333 C5.68929935,7.9975469 5.35351292,8.33333333 4.93929935,8.33333333 C4.52508579,8.33333333 4.18929935,7.9975469 4.18929935,7.58333333 L4.18929935,4.91666667 C4.18929935,4.5024531 4.52508579,4.16666667 4.93929935,4.16666667 Z" fill="currentColor"/><path d="M9.12859871,4.16666667 C9.54281227,4.16666667 9.87859871,4.5024531 9.87859871,4.91666667 L9.87859871,7.58333333 C9.87859871,7.9975469 9.54281227,8.33333333 9.12859871,8.33333333 C8.71438515,8.33333333 8.37859871,7.9975469 8.37859871,7.58333333 L8.37859871,4.91666667 C8.37859871,4.5024531 8.71438515,4.16666667 9.12859871,4.16666667 Z" fill="currentColor"/><path d="M14.0985943,11.2001721 C13.8995482,11.530652 13.7851313,11.9173377 13.7851313,12.3306026 C13.7851313,13.5472322 14.7767618,14.5335054 16,14.5335054" stroke="currentColor" stroke-width="1.5"/></g></svg></div>
+        <p class="card-name">icon-ai-chat.svg</p>
+        <p class="card-purpose">Chat</p>
+        <p class="card-source">Edge-toolbar / Side panel tab</p>
+      </div>
+      <div class="card" data-preserve="false" data-replaced="true" title="Edge-toolbar / Side panel tab">
+        <div class="icon-frame"><svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke-width="1" fill-rule="evenodd"><g transform="translate(2.5, 3.25)"><path d="M2.9629631,0 L12.0370369,0 C13.6734362,0 15,1.32656377 15,2.9629631 C15,3.07334795 15,3.1837328 15,3.29411765 C15,3.55491439 15,5.54511047 15,9.26470588 L15,10.2781943 C15,11.5310625 13.9843497,12.5467128 12.7314815,12.5467128 L10.548903,12.5467128 C10.4923607,12.5467128 10.4365691,12.5596586 10.3858045,12.5845578 L8.25730912,13.6285517 C7.78781885,13.8588293 7.23170415,13.8245401 6.7940598,13.5383298 L5.37013625,12.6071133 C5.30987304,12.5677024 5.23942846,12.5467128 5.16742239,12.5467128 L2.63888889,12.5467128 C1.1814708,12.5467128 0,11.365242 0,9.90782391 L0,2.9629631 C0,1.32656377 1.32656377,0 2.9629631,0 Z" stroke="currentColor" stroke-width="1.5"/><path d="M4.91666667,7.41176471 L10.0833333,7.41176471 C10.4975469,7.41176471 10.8333333,7.74755114 10.8333333,8.16176471 C10.8333333,8.57597827 10.4975469,8.91176471 10.0833333,8.91176471 L4.91666667,8.91176471 C4.5024531,8.91176471 4.16666667,8.57597827 4.16666667,8.16176471 C4.16666667,7.74755114 4.5024531,7.41176471 4.91666667,7.41176471 Z" fill="currentColor"/><path d="M4.91666667,3.29411765 L10.0833333,3.29411765 C10.4975469,3.29411765 10.8333333,3.62990408 10.8333333,4.04411765 C10.8333333,4.45833121 10.4975469,4.79411765 10.0833333,4.79411765 L4.91666667,4.79411765 C4.5024531,4.79411765 4.16666667,4.45833121 4.16666667,4.04411765 C4.16666667,3.62990408 4.5024531,3.29411765 4.91666667,3.29411765 Z" fill="currentColor"/></g></svg></div>
+        <p class="card-name">icon-comment.svg</p>
+        <p class="card-purpose">评论</p>
+        <p class="card-source">Edge-toolbar / Side panel tab</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="size-group" id="size-18">
+    <div class="size-header">
+      <h2>侧边栏 / 底部工具栏 / topbar 工具按钮切图</h2>
+      <span class="size-hint">18×18</span>
+      <span class="size-count">12 张</span>
+    </div>
+    <div class="cards">
+      <!-- 侧边栏（按实际导航顺序：收件箱 → 星标 → 标签 → 划线 → 归档 → 回收站） -->
+      <div class="card" data-preserve="false" data-replaced="true" title="侧边栏">
+        <div class="icon-frame"><img src="icon-inbox.svg" width="18" height="18" data-viewbox="18" alt=""></div>
+        <p class="card-name">icon-inbox.svg</p>
+        <p class="card-purpose">收件箱</p>
+        <p class="card-source">侧边栏</p>
+      </div>
+      <div class="card" data-preserve="false" title="侧边栏 / 详情页底部">
+        <div class="icon-frame"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+        <p class="card-name">icon-star.svg</p>
+        <p class="card-purpose">星标</p>
+        <p class="card-source">侧边栏 / 详情页底部</p>
+      </div>
+      <div class="card" data-preserve="false" data-replaced="true" title="侧边栏">
+        <div class="icon-frame"><img src="icon-topics.svg" width="18" height="18" data-viewbox="18" alt=""></div>
+        <p class="card-name">icon-topics.svg</p>
+        <p class="card-purpose">标签</p>
+        <p class="card-source">侧边栏</p>
+      </div>
+      <div class="card" data-preserve="false" data-replaced="true" title="侧边栏">
+        <div class="icon-frame"><img src="icon-pencil.svg" width="18" height="18" data-viewbox="18" alt=""></div>
+        <p class="card-name">icon-pencil.svg</p>
+        <p class="card-purpose">划线</p>
+        <p class="card-source">侧边栏</p>
+      </div>
+      <div class="card" data-preserve="false" data-replaced="true" title="侧边栏 / 底部工具栏">
+        <div class="icon-frame"><img src="icon-archive.svg" width="18" height="18" data-viewbox="18" alt=""></div>
+        <p class="card-name">icon-archive.svg</p>
+        <p class="card-purpose">归档</p>
+        <p class="card-source">侧边栏 / 底部工具栏</p>
+      </div>
+      <div class="card" data-preserve="false" data-replaced="true" title="底部工具栏归档后">
+        <div class="icon-frame"><img src="icon-archived.svg" width="18" height="18" data-viewbox="18" alt=""></div>
+        <p class="card-name">icon-archived.svg</p>
+        <p class="card-purpose">已归档</p>
+        <p class="card-source">底部工具栏归档后</p>
+      </div>
+      <div class="card" data-preserve="false" title="侧边栏">
+        <div class="icon-frame"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></div>
+        <p class="card-name">icon-trash.svg</p>
+        <p class="card-purpose">回收站</p>
+        <p class="card-source">侧边栏</p>
+      </div>
+
+      <!-- H5 底部工具栏 -->
+      <div class="card" data-preserve="false" data-replaced="true" title="H5 底部工具栏「更多」">
+        <div class="icon-frame"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke-width="1" fill-rule="evenodd"><g transform="translate(2.5, 3.25)"><path d="M2.9629631,0 L12.0370369,0 C13.6734362,0 15,1.32656377 15,2.9629631 C15,3.07334795 15,3.1837328 15,3.29411765 C15,3.55491439 15,5.54511047 15,9.26470588 L15,10.2781943 C15,11.5310625 13.9843497,12.5467128 12.7314815,12.5467128 L10.548903,12.5467128 C10.4923607,12.5467128 10.4365691,12.5596586 10.3858045,12.5845578 L8.25730912,13.6285517 C7.78781885,13.8588293 7.23170415,13.8245401 6.7940598,13.5383298 L5.37013625,12.6071133 C5.30987304,12.5677024 5.23942846,12.5467128 5.16742239,12.5467128 L2.63888889,12.5467128 C1.1814708,12.5467128 0,11.365242 0,9.90782391 L0,2.9629631 C0,1.32656377 1.32656377,0 2.9629631,0 Z" stroke="currentColor" stroke-width="1.5"/><path d="M4.91666667,7.41176471 L10.0833333,7.41176471 C10.4975469,7.41176471 10.8333333,7.74755114 10.8333333,8.16176471 C10.8333333,8.57597827 10.4975469,8.91176471 10.0833333,8.91176471 L4.91666667,8.91176471 C4.5024531,8.91176471 4.16666667,8.57597827 4.16666667,8.16176471 C4.16666667,7.74755114 4.5024531,7.41176471 4.91666667,7.41176471 Z" fill="currentColor"/><path d="M4.91666667,3.29411765 L10.0833333,3.29411765 C10.4975469,3.29411765 10.8333333,3.62990408 10.8333333,4.04411765 C10.8333333,4.45833121 10.4975469,4.79411765 10.0833333,4.79411765 L4.91666667,4.79411765 C4.5024531,4.79411765 4.16666667,4.45833121 4.16666667,4.04411765 C4.16666667,3.62990408 4.5024531,3.29411765 4.91666667,3.29411765 Z" fill="currentColor"/></g></svg></div>
+        <p class="card-name">icon-comment.svg</p>
+        <p class="card-purpose">评论</p>
+        <p class="card-source">H5 底部工具栏「更多」</p>
+      </div>
+
+      <!-- topbar 工具按钮 -->
+      <div class="card" data-preserve="false" title="Topbar 通知按钮">
+        <div class="icon-frame"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div>
+        <p class="card-name">icon-bell.svg</p>
+        <p class="card-purpose">通知</p>
+        <p class="card-source">Topbar 通知按钮</p>
+      </div>
+      <div class="card" data-preserve="false" title="Topbar 更多菜单触发 / H5 底部工具栏">
+        <div class="icon-frame"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></div>
+        <p class="card-name">icon-more-vertical.svg</p>
+        <p class="card-purpose">更多</p>
+        <p class="card-source">Topbar 更多菜单 / H5 底部工具栏</p>
+      </div>
+      <div class="card" data-preserve="false" title="Topbar 分享菜单触发">
+        <div class="icon-frame"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg></div>
+        <p class="card-name">icon-share-nodes.svg</p>
+        <p class="card-purpose">分享</p>
+        <p class="card-source">Topbar 分享菜单触发</p>
+      </div>
+
+      <!-- Chat 装饰 -->
+      <div class="card" data-preserve="false" title="Chat 面板空态装饰">
+        <div class="icon-frame"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 L13.5 8.5 L20 10 L13.5 11.5 L12 18 L10.5 11.5 L4 10 L10.5 8.5 Z"/></svg></div>
+        <p class="card-name">icon-sparkle-single.svg</p>
+        <p class="card-purpose">Sparkle</p>
+        <p class="card-source">Chat 面板空态装饰</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="size-group" id="size-16">
+    <div class="size-header">
+      <h2>列表页 topbar / 列表布局 / 弹窗 / 详情页侧边面板 / 选区浮窗 / 下拉菜单切图</h2>
+      <span class="size-hint">16×16</span>
+      <span class="size-count">16 张</span>
+    </div>
+    <div class="cards">
+      <!-- 列表页 - Topbar 搜索框 -->
+      <div class="card" data-preserve="false" title="Topbar 搜索框">
+        <div class="icon-frame"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></div>
+        <p class="card-name">icon-search.svg</p>
+        <p class="card-purpose">搜索</p>
+        <p class="card-source">Topbar 搜索框</p>
+      </div>
+      <!-- 列表页 - 列表布局切换 -->
+      <div class="card" data-preserve="false" title="列表布局切换">
+        <div class="icon-frame"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/></svg></div>
+        <p class="card-name">icon-layout-card.svg</p>
+        <p class="card-purpose">卡片布局</p>
+        <p class="card-source">列表布局切换</p>
+      </div>
+      <div class="card" data-preserve="false" title="列表布局切换">
+        <div class="icon-frame"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></div>
+        <p class="card-name">icon-layout-list.svg</p>
+        <p class="card-purpose">文字布局</p>
+        <p class="card-source">列表布局切换</p>
+      </div>
+      <!-- 列表页 - 用户菜单（popover） -->
+      <div class="card" data-preserve="false" data-replaced="true" title="用户菜单">
+        <div class="icon-frame"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke-width="1"><g transform="translate(3, 3)" stroke="currentColor"><rect x="0" y="7" width="10" height="3" rx="1.2"/><circle cx="5" cy="2" r="2.5"/></g></svg></div>
+        <p class="card-name">icon-user.svg</p>
+        <p class="card-purpose">个人中心</p>
+        <p class="card-source">用户菜单</p>
+      </div>
+      <div class="card" data-preserve="false" data-replaced="true" title="用户菜单">
+        <div class="icon-frame"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke-width="1"><g transform="translate(4, 3)"><path d="M6,10 L1.5,10 C0.671572875,10 0,9.32842712 0,8.5 L0,1.5 C0,0.671572875 0.671572875,0 1.5,0 L6,0" stroke="currentColor" stroke-linecap="round"/><path d="M7.34502231,3.0540248 L9.06326208,4.77226458 C9.20970869,4.91871119 9.20970869,5.15614805 9.06326208,5.30259466 L7.33835912,7.02749762 C7.19191251,7.17394423 6.95447565,7.17394423 6.80802904,7.02749762 C6.72168402,6.9411526 6.68278702,6.81817391 6.70377433,6.69788069 L6.912,5.49933258 L3.5,5.5 C3.22385763,5.5 3,5.27614237 3,5 C3,4.72385763 3.22385763,4.5 3.5,4.5 L6.91,4.49933258 L6.71073377,3.38531736 C6.67421255,3.18145609 6.80986847,2.98658757 7.01372974,2.95006635 C7.13451827,2.9284274 7.25825217,2.96725466 7.34502231,3.0540248 Z" fill="currentColor"/></g></svg></div>
+        <p class="card-name">icon-logout.svg</p>
+        <p class="card-purpose">退出账号</p>
+        <p class="card-source">用户菜单</p>
+      </div>
+      <!-- 列表页 - 弹窗（添加文章 / 订阅）-->
+      <div class="card" data-preserve="false" title="添加文章弹框 URL 输入框">
+        <div class="icon-frame"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></div>
+        <p class="card-name">icon-link.svg</p>
+        <p class="card-purpose">链接</p>
+        <p class="card-source">添加文章弹框 URL 输入框</p>
+      </div>
+      <div class="card" data-preserve="false" title="弹窗 modal-close">
+        <div class="icon-frame"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+        <p class="card-name">icon-close.svg</p>
+        <p class="card-purpose">关闭</p>
+        <p class="card-source">弹窗 modal-close</p>
+      </div>
+      <div class="card" data-preserve="true" data-replaced="true" title="详情页侧边面板关闭">
+        <div class="icon-frame"><img src="icon-side-panel-close.svg" width="16" height="16" alt="关闭侧边面板"></div>
+        <p class="card-name">icon-side-panel-close.svg</p>
+        <p class="card-purpose">关闭侧边面板</p>
+        <p class="card-source">详情页侧边面板关闭</p>
+      </div>
+
+      <!-- 详情页 - AI 解析面板 -->
+      <div class="card" data-preserve="false" title="AI 解析面板">
+        <div class="icon-frame"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg></div>
+        <p class="card-name">icon-document-outline.svg</p>
+        <p class="card-purpose">全文解析</p>
+        <p class="card-source">AI 解析面板</p>
+      </div>
+      <!-- 详情页 - 选区浮窗（按工具栏顺序：复制 / 划线 / 评论 / Chat） -->
+      <div class="card" data-preserve="false" data-replaced="true" title="选区浮窗划线按钮">
+        <div class="icon-frame"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(2.75, 2.3333)" stroke="currentColor"><polyline points="1 8.66666667 4.33333333 0 5.66666667 0 9 8.66666667"/><line x1="2.33333333" y1="6" x2="7.66666667" y2="6"/><line x1="0" y1="10.6666667" x2="10.25" y2="10.6666667"/></g></svg></div>
+        <p class="card-name">icon-highlight-marker.svg</p>
+        <p class="card-purpose">划线</p>
+        <p class="card-source">选区浮窗划线按钮</p>
+      </div>
+      <div class="card" data-preserve="false" data-replaced="true" title="选区浮窗评论按钮">
+        <div class="icon-frame"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linejoin="round"><g transform="translate(2.9167, 3.5)" stroke="currentColor"><path d="M0,0 L9.66666667,0 C10.0348565,0 10.3333333,0.298476833 10.3333333,0.666666667 L10.3333333,7.33333333 C10.3333333,7.70152317 10.0348565,8 9.66666667,8 L2.33333333,8 L0,9.66666667 L0,0 Z"/></g></svg></div>
+        <p class="card-name">icon-comment-bubble.svg</p>
+        <p class="card-purpose">评论气泡</p>
+        <p class="card-source">选区浮窗评论按钮</p>
+      </div>
+      <div class="card" data-preserve="false" data-replaced="true" title="选区浮窗 Chat 按钮">
+        <div class="icon-frame"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke-width="1"><g transform="translate(2, 2)"><circle stroke="currentColor" cx="6" cy="6" r="6"/><path d="M3.4537925,3.46536973 C3.72993487,3.46536973 3.9537925,3.68922736 3.9537925,3.96536973 L3.9537925,6.25 C3.9537925,6.52614237 3.72993487,6.75 3.4537925,6.75 C3.17765012,6.75 2.9537925,6.52614237 2.9537925,6.25 L2.9537925,3.96536973 C2.9537925,3.68922736 3.17765012,3.46536973 3.4537925,3.46536973 Z" fill="currentColor"/><path d="M7,3.46536973 C7.27614237,3.46536973 7.5,3.68922736 7.5,3.96536973 L7.5,6.25 C7.5,6.52614237 7.27614237,6.75 7,6.75 C6.72385763,6.75 6.5,6.52614237 6.5,6.25 L6.5,3.96536973 C6.5,3.68922736 6.72385763,3.46536973 7,3.46536973 Z" fill="currentColor"/><path d="M11.2830533,8.75 C11.1033171,9.04743188 11,9.39544906 11,9.76738745 C11,10.8623541 11.8954305,11.75 13,11.75" stroke="currentColor"/></g></svg></div>
+        <p class="card-name">icon-chat-dots.svg</p>
+        <p class="card-purpose">Chat</p>
+        <p class="card-source">选区浮窗 Chat 按钮</p>
+      </div>
+      <!-- 详情页 - 分享菜单（popover） -->
+      <div class="card" data-preserve="false" data-replaced="true" title="分享菜单 / 选区浮窗 / Chat AI 回答复制">
+        <div class="icon-frame"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke-width="1" fill-rule="evenodd"><g transform="translate(2, 2)" stroke="currentColor"><path d="M5.00000004,3.66666667 L9.99999996,3.66666667 C10.7363796,3.66666667 11.3333333,4.26362035 11.3333333,5.00000004 L11.3333333,9.99999996 C11.3333333,10.7363796 10.7363796,11.3333333 9.99999996,11.3333333 L5.00000004,11.3333333 C4.26362035,11.3333333 3.66666667,10.7363796 3.66666667,9.99999996 L3.66666667,5.00000004 C3.66666667,4.26362035 4.26362035,3.66666667 5.00000004,3.66666667 Z"/><path d="M2,7.66666667 L1.33333333,7.66666667 C0.596953667,7.66666667 0,7.069713 0,6.33333333 L0,1.33333333 C0,0.596953667 0.596953667,0 1.33333333,0 L6.33333333,0 C7.069713,0 7.66666667,0.596953667 7.66666667,1.33333333 L7.66666667,2"/></g></svg></div>
+        <p class="card-name">icon-copy.svg</p>
+        <p class="card-purpose">复制</p>
+        <p class="card-source">分享菜单 / 选区浮窗 / Chat 回答</p>
+      </div>
+      <div class="card" data-preserve="true" title="分享菜单 - 分享到 Twitter">
+        <div class="icon-frame"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></div>
+        <p class="card-name">icon-x-twitter.svg</p>
+        <p class="card-purpose">X / Twitter</p>
+        <p class="card-source">分享菜单 - 分享到 Twitter</p>
+      </div>
+      <!-- 详情页 - 更多菜单（popover） -->
+      <div class="card" data-preserve="false" title="更多菜单">
+        <div class="icon-frame"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
+        <p class="card-name">icon-edit-title.svg</p>
+        <p class="card-purpose">修改标题</p>
+        <p class="card-source">更多菜单</p>
+      </div>
+      <div class="card" data-preserve="false" title="更多菜单">
+        <div class="icon-frame"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></div>
+        <p class="card-name">icon-feedback-message.svg</p>
+        <p class="card-purpose">反馈问题</p>
+        <p class="card-source">更多菜单</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="size-group" id="size-14">
+    <div class="size-header">
+      <h2>列表页搜索/弹窗 / Topbar 主题切换 / 详情页小辅助 / 评论标记 mask 切图</h2>
+      <span class="size-hint">14×14</span>
+      <span class="size-count">10 张</span>
+    </div>
+    <div class="cards">
+      <!-- 列表页 - 搜索框相关 -->
+      <div class="card" data-preserve="false" title="搜索结果视图返回">
+        <div class="icon-frame"><svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="15 18 9 12 15 6"/></svg></div>
+        <p class="card-name">icon-chevron-left.svg</p>
+        <p class="card-purpose">返回</p>
+        <p class="card-source">搜索结果视图返回</p>
+      </div>
+      <div class="card" data-preserve="false" title="搜索历史项前置 icon">
+        <div class="icon-frame"><svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <p class="card-name">icon-clock.svg</p>
+        <p class="card-purpose">时钟</p>
+        <p class="card-source">搜索历史项前置 icon</p>
+      </div>
+      <!-- 列表页 - 弹窗 -->
+      <div class="card" data-preserve="false" title="订阅弹框 feature list">
+        <div class="icon-frame"><svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <p class="card-name">icon-check.svg</p>
+        <p class="card-purpose">勾选</p>
+        <p class="card-source">订阅弹框 feature list</p>
+      </div>
+      <div class="card" data-preserve="false" title="订阅合集主页入口">
+        <div class="icon-frame"><svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></div>
+        <p class="card-name">icon-arrow-right.svg</p>
+        <p class="card-purpose">指示箭头</p>
+        <p class="card-source">订阅合集主页入口</p>
+      </div>
+      <div class="card" data-preserve="false" data-replaced="true" title="星标合集提示了解更多入口">
+        <div class="icon-frame"><svg width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg" fill="none" fill-rule="evenodd"><g transform="translate(1.75, 1.9167)"><path d="M1.16666663,0 L9.33333337,0 C9.97766556,-2.22044605e-16 10.5,0.522334441 10.5,1.16666663 L10.5,9.00000004 C10.5,9.64433223 9.97766556,10.1666667 9.33333337,10.1666667 L1.16666663,10.1666667 C0.522334441,10.1666667 -2.22044605e-16,9.64433223 -2.22044605e-16,9.00000004 L0,1.16666663 C0,0.522334441 0.522334441,-2.22044605e-16 1.16666663,-2.22044605e-16 Z" stroke="#000000"/><path d="M3.25,4.08333333 C3.80228475,4.08333333 4.25,3.63561808 4.25,3.08333333 C4.25,2.53104858 3.80228475,2.08333333 3.25,2.08333333 C2.69771525,2.08333333 2.25,2.53104858 2.25,3.08333333 C2.25,3.63561808 2.69771525,4.08333333 3.25,4.08333333 Z" fill="#000000"/><polyline stroke="#000000" points="10.5 7.83333333 7.58333333 4.91666667 1.16666667 10.1666667"/></g></svg></div>
+        <p class="card-name">icon-image.svg</p>
+        <p class="card-purpose">图片 / 图像</p>
+        <p class="card-source">星标合集提示了解更多入口</p>
+      </div>
+
+      <!-- 共用 - Topbar 主题切换（按 日 / 夜 / 墨 顺序） -->
+      <div class="card" data-preserve="false" title="Topbar 主题切换（列表页 + 详情页）">
+        <div class="icon-frame"><svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div>
+        <p class="card-name">icon-theme-sun.svg</p>
+        <p class="card-purpose">日间</p>
+        <p class="card-source">Topbar 主题切换</p>
+      </div>
+      <div class="card" data-preserve="false" title="Topbar 主题切换（列表页 + 详情页）">
+        <div class="icon-frame"><svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></div>
+        <p class="card-name">icon-theme-moon.svg</p>
+        <p class="card-purpose">夜间</p>
+        <p class="card-source">Topbar 主题切换</p>
+      </div>
+      <div class="card" data-preserve="false" title="Topbar 主题切换（列表页 + 详情页）">
+        <div class="icon-frame"><svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 7h8M8 11h6M8 15h4"/></svg></div>
+        <p class="card-name">icon-theme-eink.svg</p>
+        <p class="card-purpose">墨水屏</p>
+        <p class="card-source">Topbar 主题切换</p>
+      </div>
+
+      <!-- 详情页 - 小辅助 -->
+      <div class="card" data-preserve="false" data-replaced="true" title="添加标签按钮">
+        <div class="icon-frame"><svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none"><g transform="translate(4, 4)" fill="currentColor"><polygon points="5.25 0 6.75 0 6.75 12 5.25 12"/><polygon transform="translate(6, 6) rotate(-90) translate(-6, -6)" points="5.25 0 6.75 0 6.75 12 5.25 12"/></g></svg></div>
+        <p class="card-name">icon-plus.svg</p>
+        <p class="card-purpose">加号</p>
+        <p class="card-source">添加标签按钮</p>
+      </div>
+      <!-- 详情页 - mask -->
+      <div class="card" data-preserve="true" data-replaced="true" title="划线行末标记 (CSS mask)">
+        <div class="icon-frame"><svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none" stroke-linejoin="round"><g transform="translate(2.3333, 3)" stroke="currentColor" stroke-width="1.15"><path d="M0,0 L8.66666667,0 C9.0348565,0 9.33333333,0.298476833 9.33333333,0.666666667 L9.33333333,6.33333333 C9.33333333,6.70152317 9.0348565,7 8.66666667,7 L2.33333333,7 L0,8.66666667 L0,0 Z"/></g></svg></div>
+        <p class="card-name">icon-comment-bubble-mask.svg</p>
+        <p class="card-purpose">评论标记</p>
+        <p class="card-source">划线行末标记 (CSS mask)</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="size-group" id="size-12">
+    <div class="size-header">
+      <h2>卡片小辅助 / mask / 分享 tick 切图</h2>
+      <span class="size-hint">12×12</span>
+      <span class="size-count">4 张</span>
+    </div>
+    <div class="cards">
+      <!-- 列表页 - 卡片 / 划线列表项 -->
+      <div class="card" data-preserve="true" title="划线列表项前置 icon">
+        <div class="icon-frame"><svg width="12" height="12" xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='#a08770' stroke-width='1.5'><path d='M4 19.5A2.5 2.5 0 016.5 17H20'/><path d='M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z'/></svg></div>
+        <p class="card-name">icon-bookmark-source.svg</p>
+        <p class="card-purpose">划线来源</p>
+        <p class="card-source">划线列表项前置 icon</p>
+      </div>
+      <div class="card" data-preserve="false" title="文章卡片加星">
+        <div class="icon-frame"><svg width="12" height="12" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+        <p class="card-name">icon-star.svg</p>
+        <p class="card-purpose">星标</p>
+        <p class="card-source">文章卡片加星</p>
+      </div>
+      <!-- 共用 - 清空 / 删除 -->
+      <div class="card" data-preserve="false" title="搜索清空 / 评论 &amp; Chat 取消引用 / 搜索历史删除">
+        <div class="icon-frame"><svg width="12" height="12" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+        <p class="card-name">icon-close-x.svg</p>
+        <p class="card-purpose">清空 / 删除</p>
+        <p class="card-source">搜索清空 / 取消引用 / 搜索历史删除</p>
+      </div>
+      <!-- 详情页 - 分享 tick -->
+      <div class="card" data-preserve="false" title="分享菜单 share-check tick（带 padding 的占位）">
+        <div class="icon-frame"><svg width="12" height="12" xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 28 28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <p class="card-name">icon-check.svg</p>
+        <p class="card-purpose">勾选</p>
+        <p class="card-source">分享菜单 share-check tick</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- 自定义右键菜单 -->
+<div class="icon-context-menu" id="iconContextMenu" role="menu">
+  <button type="button" onclick="downloadActiveIcon()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    <span>下载 SVG 到本地</span>
+  </button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="galleryToast" role="status" aria-live="polite"></div>
+
+<script>
+  // Smooth scroll for TOC
+  document.querySelectorAll('.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const id = a.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  /* ── 右键菜单：下载 icon SVG / PNG ── */
+  const ctxMenu = document.getElementById('iconContextMenu');
+  let activeCard = null;
+
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('contextmenu', (e) => {
+      // 只在 icon-frame 范围内拦截右键，让卡片文字区还能用浏览器原生菜单
+      if (!e.target.closest('.icon-frame')) return;
+      e.preventDefault();
+      activeCard = card;
+      // 视口边界保护
+      const menuW = 180, menuH = 44;
+      const x = Math.min(e.pageX, window.scrollX + document.documentElement.clientWidth - menuW - 8);
+      const y = Math.min(e.pageY, window.scrollY + document.documentElement.clientHeight - menuH - 8);
+      ctxMenu.style.left = x + 'px';
+      ctxMenu.style.top = y + 'px';
+      ctxMenu.classList.add('show');
+    });
+  });
+
+  function hideContextMenu() {
+    ctxMenu.classList.remove('show');
+    activeCard = null;
+  }
+  document.addEventListener('click', hideContextMenu);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideContextMenu(); });
+  document.addEventListener('contextmenu', (e) => {
+    if (!e.target.closest('.card .icon-frame')) hideContextMenu();
+  });
+
+  function downloadActiveIcon() {
+    if (!activeCard) return;
+    const name = (activeCard.querySelector('.card-name')?.textContent || 'icon').trim();
+    const svg = activeCard.querySelector('.icon-frame svg');
+    const img = activeCard.querySelector('.icon-frame img');
+
+    if (svg) {
+      const clone = svg.cloneNode(true);
+      if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      const content = '<?xml version="1.0" encoding="UTF-8"?>\n' + clone.outerHTML;
+      const blob = new Blob([content], { type: 'image/svg+xml' });
+      triggerDownload(URL.createObjectURL(blob), name.endsWith('.svg') ? name : name + '.svg', true);
+      showToast(`已下载 ${name}`);
+    } else if (img) {
+      // PNG：用 fetch 转 blob 再下载（避免 cross-origin / 浏览器忽略 download 属性）
+      fetch(img.src).then(r => r.blob()).then(blob => {
+        triggerDownload(URL.createObjectURL(blob), name, true);
+        showToast(`已下载 ${name}`);
+      });
+    }
+    hideContextMenu();
+  }
+
+  function triggerDownload(url, filename, revoke) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    if (revoke) setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  let toastTimer = null;
+  function showToast(msg, duration = 1600) {
+    const el = document.getElementById('galleryToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), duration);
+  }
+
+  /* ── 自动给每张卡片注入「viewBox → 渲染尺寸 (缩放比)」标签 ── */
+  document.querySelectorAll('.card').forEach(card => {
+    const svg = card.querySelector('.icon-frame svg');
+    const img = card.querySelector('.icon-frame img');
+    let text = '';
+    let ratio = null;
+
+    if (svg) {
+      const vb = (svg.getAttribute('viewBox') || '').split(/\s+/).map(Number);
+      const vbW = vb[2];
+      const renderW = parseFloat(svg.getAttribute('width'));
+      if (vbW && renderW) {
+        ratio = renderW / vbW;
+        const ratioStr = ratio === 1 ? '1:1' :
+          (Math.round(ratio * 1000) / 1000).toString().replace(/\.?0+$/, '') + '×';
+        const padded = vb[0] !== 0 || vb[1] !== 0;
+        text = `viewBox ${vbW} → ${renderW}（${ratioStr}${padded ? ' · 含 padding' : ''}）`;
+      }
+    } else if (img) {
+      const renderW = parseInt(img.getAttribute('width'));
+      const name = (card.querySelector('.card-name')?.textContent || '').trim();
+      if (name.endsWith('.svg')) {
+        const vbW = parseFloat(img.dataset.viewbox || renderW);
+        ratio = vbW ? renderW / vbW : null;
+        const ratioStr = ratio === 1 ? '1:1' :
+          (Math.round(ratio * 1000) / 1000).toString().replace(/\.?0+$/, '') + '×';
+        text = `viewBox ${vbW} → ${renderW}（${ratioStr}）`;
+      } else {
+        const naturalW = img.naturalWidth || 48;
+        text = `PNG ${naturalW} @ ${renderW}（${Math.round(naturalW/renderW*10)/10}× 高清）`;
+      }
+    }
+
+    if (text) {
+      const label = document.createElement('p');
+      label.className = 'card-scale';
+      if (ratio === 1) label.dataset.ratio = '1';
+      label.textContent = text;
+      const name = card.querySelector('.card-name');
+      if (name) card.insertBefore(label, name);
+      else card.appendChild(label);
+    }
+  });
+</script>
+</body>
+</html>

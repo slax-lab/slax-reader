@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "repository": "https://github.com/unnoo/slax-reader-design-prototypes.git",
+    "commit": "04500203298547b8dd27a251748c2bf598af9d4d",
+    "objects": {
+      "designSystemHtmlBlob": "6e769fc62462319fefff54e5f7c9a18ae66dd72a",
+      "assetDirectoryTree": "7a88121ba07827b35a48fe06f6b8290c40e10da1"
+    },
+    "importedAt": "2026-09-29",
+    "license": "Apache-2.0",
+    "licenseStatus": "Public repository inclusion approved by the Slax Reader maintainer; see SOURCE.md."
+  },
+  "files": [
+    {
+      "path": "SVG 切图汇总/128@1x.png",
+      "mediaType": "image/png",
+      "bytes": 10167,
+      "sha256": "1a2c70c58de1a3de52db2f041e399f4f68219ae325d7e07d2d130a01efd2b69e"
+    },
+    {
+      "path": "SVG 切图汇总/16 favicon@1x.png",
+      "mediaType": "image/png",
+      "bytes": 612,
+      "sha256": "8d0846b738519ef2f17256bd174a16fa8111a3c88f6793f674345b380a65daca"
+    },
+    {
+      "path": "SVG 切图汇总/32@1x.png",
+      "mediaType": "image/png",
+      "bytes": 1284,
+      "sha256": "0be368458855c86b54ea3b0c612c5d03e061864eb4ef59aa22db8369a0657272"
+    },
+    {
+      "path": "SVG 切图汇总/48@1x.png",
+      "mediaType": "image/png",
+      "bytes": 2187,
+      "sha256": "c745e9c04da04550870f352320d19244741c01410ce87c393e2327c852bc7a60"
+    },
+    {
+      "path": "SVG 切图汇总/README.md",
+      "mediaType": "text/markdown",
+      "bytes": 14173,
+      "sha256": "a9fd05ca2881109fd35f7e7d4d2317b36211eb563d2f7c11e4a152ac95fa9e06"
+    },
+    {
+      "path": "SVG 切图汇总/gallery.html",
+      "mediaType": "text/html",
+      "bytes": 50795,
+      "sha256": "dcf3c0e7a970f38e0ece462f120989e2f853a174e5df1935ddec0420d702718b"
+    },
+    {
+      "path": "SVG 切图汇总/icon-ai-chat.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 1684,
+      "sha256": "69d02c50c8658ef6da659df780597fd08c9bc8e89f95f3b31aa822618be91f9b"
+    },
+    {
+      "path": "SVG 切图汇总/icon-ai-sparkles.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 1879,
+      "sha256": "20cdc675475560e76c6bc7dfc173f1c8896b5d6e44f9beca2645829f37597c6a"
+    },
+    {
+      "path": "SVG 切图汇总/icon-archive.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 2202,
+      "sha256": "e3a514d0c1f1fd5179f9cf92d85428b9d9518af3f1f05e4a736391e6e4748bd7"
+    },
+    {
+      "path": "SVG 切图汇总/icon-archived.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 1630,
+      "sha256": "67c4a36f6c540d429c23ece229342526491cb8c6af2a7c68eac562ed8710a958"
+    },
+    {
+      "path": "SVG 切图汇总/icon-arrow-right.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 524,
+      "sha256": "91d8a8a04dbed7c6bb995c78d527280bba83c036feaef8e1bc2fc14ad742df4a"
+    },
+    {
+      "path": "SVG 切图汇总/icon-chat-dots.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 1287,
+      "sha256": "a994ef01a82d963c81069b823ecbd41e81ebdfa679b9a06bae85faeebb4d8c91"
+    },
+    {
+      "path": "SVG 切图汇总/icon-comment-bubble-mask.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 714,
+      "sha256": "0fec03086eda667347a0ddb75a53709ea31ac1444ce39aea45168ea1f82d2139"
+    },
+    {
+      "path": "SVG 切图汇总/icon-comment-bubble.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 663,
+      "sha256": "145bdbb5fe2bf210afbe38366f02ef546968bc6d49e08d6fdf6ab708b6b6e501"
+    },
+    {
+      "path": "SVG 切图汇总/icon-comment.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 1942,
+      "sha256": "a3e4aa8a910c1590743405d1feb795a573f2e8b50b2430e64fafcf748b87d97b"
+    },
+    {
+      "path": "SVG 切图汇总/icon-copy.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 1079,
+      "sha256": "43455badd38f2d991ee4ca7466258c84aabe318d43f376b6e180734f16052f6c"
+    },
+    {
+      "path": "SVG 切图汇总/icon-empty-archive.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 1621,
+      "sha256": "eaa68fd1b7a9603e50cc8d5a51b7eba51bc04ce34d143446af6b5e81eb8aeadf"
+    },
+    {
+      "path": "SVG 切图汇总/icon-empty-inbox.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 1599,
+      "sha256": "bf941cf2505f84f87b06374953bddbdeff57202be7e0827de00d51ee7314e609"
+    },
+    {
+      "path": "SVG 切图汇总/icon-empty-lock.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 708,
+      "sha256": "0550b40dcfcd57bf7e2f768a59b3f921590382992ccb8d0d7c3d0ba041753429"
+    },
+    {
+      "path": "SVG 切图汇总/icon-empty-topics.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 1413,
+      "sha256": "46a7c55c42e59c26202e0443f83afe32f2ffe07eb3b7340036063ae9c73335f6"
+    },
+    {
+      "path": "SVG 切图汇总/icon-empty-trash.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 566,
+      "sha256": "d96cb873cc36118e7b76afcd0e7b60853d6c3d04f81ad044db90530f5aba2019"
+    },
+    {
+      "path": "SVG 切图汇总/icon-highlight-marker.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 760,
+      "sha256": "a53873d806d14cbb7989599653f8e5b748d864c981f6d3043a9151072d6b2f74"
+    },
+    {
+      "path": "SVG 切图汇总/icon-image.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 1245,
+      "sha256": "5eb78e580d6764f6686885ca35fc89b8235354cfddf72f39e5b9c2ed2168a2bb"
+    },
+    {
+      "path": "SVG 切图汇总/icon-inbox.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 1555,
+      "sha256": "87aa141ae6e67e3b335cd789e945dcfdee3da2a6dcc19ca01726213de2c39a9a"
+    },
+    {
+      "path": "SVG 切图汇总/icon-logo-bookmark.png",
+      "mediaType": "image/png",
+      "bytes": 2442,
+      "sha256": "0d9ed2e9bdc5ecedac0f7818a6cc030481e3331425d9deac79780388492791fa"
+    },
+    {
+      "path": "SVG 切图汇总/icon-logo-login.png",
+      "mediaType": "image/png",
+      "bytes": 15105,
+      "sha256": "176a6c9aa266b982ad2aa02d8ac53ff2e5730ce2ab7363ea7c746def7fdeecb8"
+    },
+    {
+      "path": "SVG 切图汇总/icon-logout.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 1168,
+      "sha256": "11341a84ba9d292e05dffbd5eabfe50abf6610aca429d048ee1b97efc7fc475d"
+    },
+    {
+      "path": "SVG 切图汇总/icon-pencil.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 2150,
+      "sha256": "b180b7d3621a6981f01c49c2c98d68d21a247b55aedd678abebba02bb66a874b"
+    },
+    {
+      "path": "SVG 切图汇总/icon-plus.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 666,
+      "sha256": "21e360c54a9e6562201273a36ae08d599079d35b82fafd13c3dc195ce922e0bb"
+    },
+    {
+      "path": "SVG 切图汇总/icon-side-panel-close.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 1305,
+      "sha256": "b3573a6236b2f9cf6f31c330fd80277a7bc2dc9da60fe499b50c5a5e30b41cfc"
+    },
+    {
+      "path": "SVG 切图汇总/icon-topics.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 1000,
+      "sha256": "edb12cac84cb24c6d925a1927e76bd117df2d6eb7c3f0dd50f7fd31b5ba97abf"
+    },
+    {
+      "path": "SVG 切图汇总/icon-user.svg",
+      "mediaType": "image/svg+xml",
+      "bytes": 544,
+      "sha256": "07e9b184cdda9cfb134eb395c0df7cc53cbfca99461ff4f930ca893e0864acc8"
+    },
+    {
+      "path": "slax-reader-design-system.html",
+      "mediaType": "text/html",
+      "bytes": 84766,
+      "sha256": "e9b0576936954b86d8b9af5b8a0890d21ebdccaa2851e195719797cfdac4f55a"
+    }
+  ]
+}

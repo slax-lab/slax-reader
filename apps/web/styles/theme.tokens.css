@@ -82,7 +82,7 @@
   /* JS 动态写入完整有效推距，CSS 消费方用 * -0.5 做中心点修正 */
   --slax-push-amount: 0px;
 
-  /* 顶栏高度三档（来源：design-system §5.1）：
+  /* 顶栏高度三档（规范：根目录 DESIGN.md §5.5）：
    *   --slax-header-h-list:     列表页 / error / guide / [...slug] / 营销页等默认场景
    *   --slax-header-h-snapshot: 快照页桌面（pages/s/[id]、pages/bookmarks/[id] 等），通过页面 layout
    *                             override --slax-header-height 切到此值
@@ -104,7 +104,7 @@
   /* 系统等宽栈（GitHub 同款） */
   --slax-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
 
-  /* 字号语义 8 档（来源：design-system §3）：
+  /* 字号语义 8 档（规范：根目录 DESIGN.md §5.3）：
    *   --slax-fs-display: 文章大标题 / 快照页标题 32px
    *   --slax-fs-h2:      二级标题 / 侧栏面板标题 22px
    *   --slax-fs-brand:   Logo 20px
@@ -113,7 +113,7 @@
    *   --slax-fs-meta:    辅助信息（侧栏导航 / tag） 14px
    *   --slax-fs-aux:     日期 / 来源 / 副标题 13px
    *   --slax-fs-tag:     标签 / 角标 / 计数 12px
-   * 项目内既有非标值（15/18/24/34）在本轮 token 化时映射到最近档，详见 .claude/task2-fontsize-shifts.md 追踪表。
+   * 项目内既有非标值（15/18/24/34）属于历史实现；新增语义与例外遵循 DESIGN.md。
    */
   --slax-fs-display: 32px;
   --slax-fs-h2: 22px;
@@ -124,7 +124,7 @@
   --slax-fs-aux: 13px;
   --slax-fs-tag: 12px;
 
-  /* 特效参数（来源：design-system §6）：
+  /* 特效参数（规范：根目录 DESIGN.md §5.4）：
    *   --slax-blur:        磨砂玻璃；topbar / surface 浮层统一用 backdrop-filter: var(--slax-blur)
    *   --slax-ease-spring: 弹性曲线，浮层滑入 / 面板出现等阅读侧动画统一使用
    *   --slax-dur-normal:  Transition 标准时长 0.2s

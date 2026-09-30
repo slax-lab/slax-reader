@@ -489,7 +489,7 @@ const moreMenuClick = (action: MoreMenuAction) => {
 
 <style lang="scss" scoped>
 .bookmark-detail {
-  // 公开快照页归在 snapshot 档（design-system §5.1：52px），
+  // 公开快照页归在 snapshot 档（DESIGN.md §5.5：52px），
   // 通过 override --slax-header-height 让本页的 DetailLayout .header-container（h-header）拿到 52
   --slax-header-height: var(--slax-header-h-snapshot);
 

@@ -65,8 +65,8 @@ export default defineConfig(
           header: 'var(--slax-header-height)'
         },
         fontSize: {
-          // 字号语义 8 档（来源：design-system §3）。业务侧 text-display / text-h2 / text-card / ...
-          // 直接消费；非标值（15/18/24/34）在 task2 期间已按最近档映射，详见 .claude/task2-fontsize-shifts.md
+          // 字号语义 8 档（规范：根目录 DESIGN.md §5.3）。业务侧
+          // text-display / text-h2 / text-card / ... 直接消费；新增例外遵循 DESIGN.md。
           display: 'var(--slax-fs-display)',
           h2: 'var(--slax-fs-h2)',
           brand: 'var(--slax-fs-brand)',
@@ -81,7 +81,7 @@ export default defineConfig(
           sans: ['Inter', '-apple-system', 'sans-serif'],
           mono: ['SF Mono', 'Fira Code', 'monospace']
         },
-        // 特效参数桥接（来源：design-system §6）。业务侧 utility：
+        // 特效参数桥接（规范：根目录 DESIGN.md §5.4）。业务侧 utility：
         //   duration-fast / duration-normal、ease-spring。Tailwind 的 backdrop-blur 因接受
         //   单一 blur(...) 函数无法表达 "blur(16px) saturate(150%)" 复合滤镜，故 backdrop-filter
         //   仍直接写 `backdrop-filter: var(--slax-blur)`，不在此桥接 backdropBlur key。
