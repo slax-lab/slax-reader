@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="14px" height="14px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <title>icon-arrow-right</title>
+    <g id="icon-arrow-right" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5,12 L19,12" id="路径" stroke="currentColor" stroke-width="1.7"></path>
+        <path d="M13,6 L19,12 L13,18" id="路径" stroke="currentColor" stroke-width="1.7"></path>
+    </g>
+</svg>

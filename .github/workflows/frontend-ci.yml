@@ -5,6 +5,11 @@ on:
     paths:
       - 'apps/web/**'
       - 'apps/extension/**'
+      - 'DESIGN.md'
+      - 'docs/design/**'
+      - '.rulesync/rules/design-system.md'
+      - '.rulesync/rules/web-design.md'
+      - '.rulesync/rules/extension-design.md'
       - 'packages/contracts/**'
       - 'packages/frontend-types/**'
       - 'packages/frontend-utils/**'
@@ -23,6 +28,11 @@ on:
     paths:
       - 'apps/web/**'
       - 'apps/extension/**'
+      - 'DESIGN.md'
+      - 'docs/design/**'
+      - '.rulesync/rules/design-system.md'
+      - '.rulesync/rules/web-design.md'
+      - '.rulesync/rules/extension-design.md'
       - 'packages/contracts/**'
       - 'packages/frontend-types/**'
       - 'packages/frontend-utils/**'
@@ -64,6 +74,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:preflight
+      - run: pnpm design:check
       - run: pnpm --filter @slax-reader/contracts typecheck
       - run: pnpm --filter @apps/slax-reader-dweb typecheck
       - run: pnpm --filter @apps/slax-reader-extensions compile

@@ -1,3 +1,13 @@
+# UI Design Governance
+
+Before changing UI design, styles, tokens, icons, or Vue presentation in `apps/web` or `apps/extension`, read the root `DESIGN.md`.
+
+- `DESIGN.md` owns semantic intent, application profiles, exceptions, and the design change workflow.
+- Runtime token and style files own executable values for their application.
+- `docs/design/reference/` is non-normative provenance material and must not be treated as a runtime asset package.
+- Keep the Web and Extension profiles separate; do not apply Web theme values to the Extension by default.
+- Any visible or accessibility-affecting change follows the repository OpenSpec workflow.
+
 # Slax Reader Monorepo
 
 Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comment, and discuss. This monorepo consolidates all non-mobile codebases (migrated from the legacy polyrepos; some directories may still be empty while migration is in progress).

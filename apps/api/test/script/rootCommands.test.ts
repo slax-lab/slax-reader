@@ -27,7 +27,18 @@ function fixture() {
 describe('API workspace command contract', () => {
   test('root exposes one API abstraction and preserves repository checks', () => {
     const root = read(path.join(ROOT, 'package.json'))
-    expect(Object.keys(root.scripts).sort()).toEqual(['agent:check', 'agent:sync', 'api', 'extension', 'preflight', 'prepare', 'setup:all', 'test:preflight', 'web'])
+    expect(Object.keys(root.scripts).sort()).toEqual([
+      'agent:check',
+      'agent:sync',
+      'api',
+      'design:check',
+      'extension',
+      'preflight',
+      'prepare',
+      'setup:all',
+      'test:preflight',
+      'web'
+    ])
     expect(root.scripts['agent:check']).toContain('check-gh-aw-drift.sh')
     expect(Object.keys(root.devDependencies).sort()).toEqual(['@fission-ai/openspec', 'lefthook', 'rulesync'])
   })

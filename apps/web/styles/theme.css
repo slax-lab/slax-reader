@@ -13,7 +13,7 @@ body {
 
 /* H5 移动模式（< 768px）：把 --slax-header-height 切到 mobile 档（48px）。
  * 仅作用主站；iframe 注入的是 theme.tokens.css，没有 @media，原网页不受影响。
- * 设计系统 §5.5：H5 模式 topbar 高度 48px，对应 --slax-header-h-mobile。
+ * DESIGN.md §5.5：H5 模式 topbar 高度 48px，对应 --slax-header-h-mobile。
  */
 @media (max-width: 768px) {
   :root {
