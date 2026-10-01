@@ -7,9 +7,13 @@ import { describe, expect, it } from 'vitest'
 
 // vitest 工作目录是 dweb 项目根（与 upstream tokens.spec.ts:11 同款用 process.cwd()）
 const TOKENS_PATH = resolve(process.cwd(), 'app/assets/styles/fork.tokens.css')
+const UPSTREAM_TOKENS_PATH = resolve(process.cwd(), 'styles/theme.tokens.css')
 const UNO_PATH = resolve(process.cwd(), 'uno.config.ts')
 const TOKENS_RAW = readFileSync(TOKENS_PATH, 'utf8')
+const UPSTREAM_TOKENS_RAW = readFileSync(UPSTREAM_TOKENS_PATH, 'utf8')
 const UNO_RAW = readFileSync(UNO_PATH, 'utf8')
+
+const stripCssComments = (raw: string): string => raw.replace(/\/\*[\s\S]*?\*\//g, '')
 
 // 限制：只支持单层 {} 块（如 :root {...} / [data-slax-theme='dark'] {...} 这种扁平选择器块）。
 // 不支持嵌套块（@media 内含选择器、@supports 包裹规则等），lazy `[\s\S]*?` 会停在第一个 } 截断。
@@ -25,8 +29,10 @@ const extractBlock = (raw: string, selector: string): string => {
 
 // 单一源派生集合：所有 it 共用，避免手写常量与源文件漂移
 // （Phase 3 code review I1：原版 FORK_TOKENS 常量已删除，:root 块自动枚举）
-const FORK_TOKENS_ROOT = extractBlock(TOKENS_RAW, ':root')
+const FORK_TOKENS_ROOT = extractBlock(stripCssComments(TOKENS_RAW), ':root')
 const FORK_TOKEN_VARS = [...FORK_TOKENS_ROOT.matchAll(/(--slax-[a-z0-9-]+)\s*:/g)].map(m => m[1]!)
+const UPSTREAM_TOKENS_ROOT = extractBlock(stripCssComments(UPSTREAM_TOKENS_RAW), ':root')
+const UPSTREAM_TOKEN_VARS = new Set([...UPSTREAM_TOKENS_ROOT.matchAll(/(--slax-[a-z0-9-]+)\s*:/g)].map(m => m[1]!))
 
 describe('fork.tokens.css 静态校验', () => {
   it('文件存在且非空', () => {
@@ -51,71 +57,8 @@ describe('fork.tokens.css 静态校验', () => {
   })
 
   it('禁止重新声明 upstream 已有的 token 名（spec §3.1 RULE B）', () => {
-    // upstream theme.tokens.css 内已存在的 token 名（手动维护，新增 upstream token 时需同步追加）
-    // 来源：upstream/apps/slax-reader-dweb/layers/core/styles/theme.tokens.css :root 块
-    const UPSTREAM_TOKEN_PREFIXES = [
-      'bg',
-      'surface',
-      'surface-solid',
-      'topbar-bg',
-      'text',
-      'text-muted',
-      'text-light',
-      'btn-text',
-      'accent',
-      'accent-soft',
-      'accent-bg',
-      'danger',
-      'danger-bg',
-      'selection',
-      'code-bg',
-      'code-text',
-      'code-border',
-      'code-comment',
-      'code-keyword',
-      'code-tag',
-      'code-literal',
-      'code-string',
-      'code-number',
-      'code-symbol',
-      'code-builtin',
-      'border',
-      'shadow-warm',
-      'shadow-sm',
-      'grad-a',
-      'grad-b',
-      'grad-c',
-      'inset-hi',
-      'radius',
-      'radius-sm',
-      'sidebar-w',
-      'shell-w',
-      'content-w',
-      'content-min-w',
-      'side-panel-w',
-      'header-h-list',
-      'header-h-snapshot',
-      'header-h-mobile',
-      'header-height',
-      'font-sans',
-      'font-serif',
-      'font-mono',
-      'fs-display',
-      'fs-h2',
-      'fs-brand',
-      'fs-card',
-      'fs-body',
-      'fs-meta',
-      'fs-aux',
-      'fs-tag',
-      'ease-spring',
-      'dur-normal',
-      'dur-fast',
-      'blur'
-    ]
-    const UPSTREAM_TOKENS = new Set(UPSTREAM_TOKEN_PREFIXES.map(p => `--slax-${p}`))
     for (const t of FORK_TOKEN_VARS) {
-      expect(UPSTREAM_TOKENS.has(t), `fork.tokens.css 不应重新声明 upstream 已有 token: ${t}`).toBe(false)
+      expect(UPSTREAM_TOKEN_VARS.has(t), `fork.tokens.css 不应重新声明 upstream 已有 token: ${t}`).toBe(false)
     }
   })
 
