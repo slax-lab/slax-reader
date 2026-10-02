@@ -26,11 +26,60 @@ const CODE_REQUIRED_TOKENS = [
   '--slax-code-builtin'
 ]
 
-// :root 必备的全部 token（含主题独立的尺寸 / 字体 / 渐变备份）
+// :root 必备的全部 token（含主题独立的尺寸 / 字体 / 渐变备份）。
+// This is an intentional explicit contract: classify every new token before adding it to runtime CSS.
 const ROOT_REQUIRED_TOKENS = [
   '--slax-bg',
   '--slax-surface',
   '--slax-surface-solid',
+  '--slax-topbar-bg',
+  '--slax-text',
+  '--slax-text-muted',
+  '--slax-text-light',
+  '--slax-btn-text',
+  '--slax-accent',
+  '--slax-accent-soft',
+  '--slax-accent-bg',
+  '--slax-link',
+  '--slax-link-suffix',
+  '--slax-danger',
+  '--slax-danger-bg',
+  '--slax-border',
+  '--slax-border-strong',
+  '--slax-selection',
+  '--slax-quote-highlight',
+  '--slax-shadow-warm',
+  '--slax-shadow-sm',
+  '--slax-shadow-modal',
+  '--slax-radius',
+  '--slax-radius-sm',
+  '--slax-grad-a',
+  '--slax-grad-b',
+  '--slax-grad-c',
+  '--slax-inset-hi',
+  '--slax-sidebar-w',
+  '--slax-shell-w',
+  '--slax-content-w',
+  '--slax-side-panel-w',
+  '--slax-side-panel-min-w',
+  '--slax-side-panel-max-w',
+  '--slax-header-h-list',
+  '--slax-header-h-snapshot',
+  '--slax-header-h-mobile',
+  '--slax-blur',
+  '--slax-ease-spring',
+  '--slax-dur-normal',
+  '--slax-dur-fast',
+  ...CODE_REQUIRED_TOKENS
+]
+
+// Explicit declarations for each theme block. Unlisted :root tokens are inherited;
+// any new or removed declaration must be classified here deliberately.
+const DARK_REQUIRED_TOKENS = [
+  '--slax-bg',
+  '--slax-surface',
+  '--slax-surface-solid',
+  '--slax-topbar-bg',
   '--slax-text',
   '--slax-text-muted',
   '--slax-text-light',
@@ -41,38 +90,26 @@ const ROOT_REQUIRED_TOKENS = [
   '--slax-danger',
   '--slax-danger-bg',
   '--slax-border',
+  '--slax-border-strong',
   '--slax-selection',
+  '--slax-quote-highlight',
+  ...CODE_REQUIRED_TOKENS,
   '--slax-shadow-warm',
   '--slax-shadow-sm',
   '--slax-shadow-modal',
-  '--slax-radius',
-  '--slax-radius-sm',
   '--slax-grad-a',
   '--slax-grad-b',
-  '--slax-blur',
-  ...CODE_REQUIRED_TOKENS
+  '--slax-grad-c',
+  '--slax-inset-hi'
 ]
 
-// 主题块（dark / eink）必须 override 的核心颜色 token；尺寸 / 字体 / 部分阴影从 :root 继承
-const THEME_REQUIRED_TOKENS = [
-  '--slax-bg',
-  '--slax-surface',
-  '--slax-surface-solid',
-  '--slax-text',
-  '--slax-text-muted',
-  '--slax-text-light',
-  '--slax-btn-text',
-  '--slax-accent',
-  '--slax-accent-soft',
-  '--slax-danger',
-  '--slax-border',
-  '--slax-selection',
-  '--slax-shadow-warm',
-  '--slax-shadow-sm',
-  '--slax-shadow-modal',
-  '--slax-grad-a',
-  '--slax-grad-b',
-  ...CODE_REQUIRED_TOKENS
+const EINK_REQUIRED_TOKENS = [
+  ...DARK_REQUIRED_TOKENS,
+  '--slax-link',
+  '--slax-link-suffix',
+  '--slax-radius',
+  '--slax-radius-sm',
+  '--slax-blur'
 ]
 
 const ROOT_ONLY_TOKENS = [
@@ -102,13 +139,18 @@ const ROOT_ONLY_TOKENS = [
 // E-ink 必须置 none 以禁用毛玻璃残影
 const EINK_OVERRIDE_TOKENS = ['--slax-blur']
 
+const CSS_WITHOUT_COMMENTS = RAW.replace(/\/\*[\s\S]*?\*\//g, '')
+
 const extractBlock = (selector: string): string => {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const re = new RegExp(`${escaped}\\s*\\{([\\s\\S]*?)\\}`, 'm')
-  const match = RAW.match(re)
+  const match = CSS_WITHOUT_COMMENTS.match(re)
   if (!match || match[1] === undefined) throw new Error(`未找到选择器块：${selector}`)
   return match[1]
 }
+
+const declaredTokens = (block: string): string[] =>
+  [...block.matchAll(/(--slax-[a-z0-9-]+)\s*:/g)].map(match => match[1]!).sort()
 
 describe('theme.tokens.css 静态校验', () => {
   it('文件存在且非空', () => {
@@ -123,26 +165,34 @@ describe('theme.tokens.css 静态校验', () => {
     for (const t of ROOT_ONLY_TOKENS) {
       expect(root, `:root 缺失独有 token ${t}`).toContain(t)
     }
+    const expectedRootTokens = [...new Set([...ROOT_REQUIRED_TOKENS, ...ROOT_ONLY_TOKENS])].sort()
+    expect(declaredTokens(root), ':root 声明集合发生漂移，请先更新 token 分类契约').toEqual(expectedRootTokens)
   })
 
   it("[data-slax-theme='dark'] 块覆盖全部必备颜色 token", () => {
     const dark = extractBlock("[data-slax-theme='dark']")
-    for (const t of THEME_REQUIRED_TOKENS) {
+    for (const t of DARK_REQUIRED_TOKENS) {
       expect(dark, `dark 缺失 ${t}`).toContain(t)
     }
+    expect(declaredTokens(dark), 'dark 声明集合发生漂移，请先更新 token 分类契约').toEqual(
+      [...DARK_REQUIRED_TOKENS].sort()
+    )
   })
 
   it("[data-slax-theme='eink'] 块覆盖全部必备颜色 token", () => {
     const eink = extractBlock("[data-slax-theme='eink']")
-    for (const t of THEME_REQUIRED_TOKENS) {
+    for (const t of EINK_REQUIRED_TOKENS) {
       expect(eink, `eink 缺失 ${t}`).toContain(t)
     }
+    expect(declaredTokens(eink), 'eink 声明集合发生漂移，请先更新 token 分类契约').toEqual(
+      [...EINK_REQUIRED_TOKENS].sort()
+    )
   })
 
   it('文件不含全局规则（html / body / 通配选择器）', () => {
     // 该文件会被注入到用户原网页 iframe，含全局规则会污染原页面
     // 注释里出现 html / body 文本是允许的，正则只匹配选择器位置（行首或 } 后空白）
-    const stripped = RAW.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+    const stripped = CSS_WITHOUT_COMMENTS.replace(/\/\/.*$/gm, '')
     expect(stripped, '禁止 html { ... }').not.toMatch(/(^|[\}\s])html\s*\{/m)
     expect(stripped, '禁止 body { ... }').not.toMatch(/(^|[\}\s])body\s*\{/m)
     expect(stripped, '禁止 * { ... } 通配').not.toMatch(/(^|[\}\s])\*\s*\{/m)
@@ -151,7 +201,7 @@ describe('theme.tokens.css 静态校验', () => {
   it('文件不含 ::view-transition-* / @media 等仅主站需要的规则', () => {
     // 注释里出现 @media / ::view-transition 字样是允许的（如解释为什么放在 theme.css 而不是这里），
     // 仅断言 CSS 规则位置不出现这些 at-rule / pseudo
-    const stripped = RAW.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+    const stripped = CSS_WITHOUT_COMMENTS.replace(/\/\/.*$/gm, '')
     expect(stripped, '禁止 ::view-transition-* 伪元素').not.toContain('::view-transition')
     expect(stripped, '禁止 @media 媒体查询').not.toContain('@media')
     expect(stripped, '禁止 @keyframes 动画').not.toContain('@keyframes')
