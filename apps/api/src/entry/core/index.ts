@@ -6,7 +6,7 @@ import { container } from '@/decorators/di'
 import { ContextManager } from '@/utils/context'
 import { SlaxWebSocketServer } from '@/infra/message/websocket'
 import { initializeInfrastructure, initializeCore } from '@/di/generated/dependency'
-import { getRouter } from '@/di/router'
+import { getRouter } from '@/di/generated/readerRouter'
 import { handleMessage } from '@/di/generated/consumer'
 import { handleCronjob } from '@/di/generated/cronjob'
 import { SlaxMcpServer } from '@/domain/orchestrator/mcp'
@@ -31,8 +31,7 @@ async function handleFetch(request: Request, env: Env, ctx: ExecutionContext) {
   const ctxManager = new ContextManager(ctx, env)
   ctxManager.set('rayId', request.headers.get(EDGE_RAY_ID_HEADER) ?? '')
 
-  const router = getRouter(new URL(request.url).host, currentContainer, env.BACKEND_API_PREFIX)
-  if (!router) return Failed('host not found')
+  const router = getRouter(currentContainer)
 
   initializeInfrastructure(ctxManager, currentContainer)
 

@@ -125,7 +125,7 @@ export function validateConfig(config: ApiConfig, filename: string): ApiConfig {
   if (!config.compatibility_date || !Array.isArray(config.compatibility_flags) || !config.compatibility_flags.includes('global_fetch_strictly_public'))
     throw new Error('Set compatibility_date and retain global_fetch_strictly_public in compatibility_flags')
   const vars = config.vars as TomlTable | undefined
-  if (!vars?.BACKEND_API_PREFIX) throw new Error('vars.BACKEND_API_PREFIX is required for HTTP host routing')
+  if (!vars?.BACKEND_API_PREFIX) throw new Error('vars.BACKEND_API_PREFIX is required')
   const origin = new URL(String(vars.BACKEND_API_PREFIX))
   if (!['http:', 'https:'].includes(origin.protocol) || origin.username || origin.password || origin.search || origin.hash || origin.pathname !== '/')
     throw new Error('BACKEND_API_PREFIX must be an HTTP(S) origin without credentials or a path')

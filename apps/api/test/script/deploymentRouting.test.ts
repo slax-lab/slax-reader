@@ -1,20 +1,11 @@
 import { describe, expect, test, vi } from 'vitest'
-import { getRouter } from '../../src/di/router'
 import { handleMessage } from '../../src/di/generated/consumer'
 
-vi.mock('../../src/di/generated/readerRouter', () => ({ getRouter: () => 'reader-router' }))
 vi.mock('../../src/handler/queue/bookmarkConsumer', () => ({ BookmarkConsumer: class {} }))
 vi.mock('../../src/handler/queue/subscriptionConsumer', () => ({ SubscriptionConsumer: class {} }))
 vi.mock('../../src/handler/queue/userDeletionConsumer', () => ({ UserDeletionConsumer: class {} }))
 
 describe('configured installation routing', () => {
-  test('accepts the exact configured host and keeps legacy hosts', () => {
-    expect(getRouter('reader.example.com', {} as any, 'https://reader.example.com')).toBe('reader-router')
-    expect(getRouter('reader.example.com.attacker.test', {} as any, 'https://reader.example.com')).toBeNull()
-    expect(getRouter('reader.example.com:8443', {} as any, 'https://reader.example.com')).toBeNull()
-    expect(getRouter('arbitrary.test', {} as any, 'invalid')).toBeNull()
-    expect(getRouter('reader-api.slax.com', {} as any)).toBe('reader-router')
-  })
   test.each([
     ['slax-reader-parser-twitter', 'handleParseThirdPartyURL', true],
     ['slax-reader-parser-fetch-retry-prod', 'handleImportOther', false],
