@@ -3,7 +3,9 @@
  * 所有需要按 URL 判断平台的地方都应引用此模块，避免正则分散在多个文件中漂移。
  */
 
-export type RouteKind = 'twitter' | 'twitter_article' | 'xhs' | 'weibo' | 'reddit' | 'zhihu' | 'weixin' | 'youtube' | 'regular'
+import { isToutiaoShareUrl, parseToutiaoArticleUrl } from './toutiaoUrl'
+
+export type RouteKind = 'twitter' | 'twitter_article' | 'xhs' | 'weibo' | 'reddit' | 'zhihu' | 'weixin' | 'youtube' | 'toutiao' | 'regular'
 
 /** Twitter 推文页（/status/数字ID） */
 export const TWITTER_STATUS_RE = /https?:\/\/(?:www\.)?(?:x|twitter)\.com\/\w+\/status\/\d+/
@@ -117,6 +119,7 @@ const SOCIAL_MEDIA_ROUTES: RouteKind[] = ['twitter', 'twitter_article', 'xhs', '
  * 根据 URL 判断应走的抓取路由。
  */
 export function detectRoute(url: string): RouteKind {
+  if (parseToutiaoArticleUrl(url) || isToutiaoShareUrl(url)) return 'toutiao'
   if (TWITTER_ARTICLE_RE.test(url)) return 'twitter_article'
   if (TWITTER_STATUS_RE.test(url)) return 'twitter'
   if (XHS_RE.test(url)) return 'xhs'

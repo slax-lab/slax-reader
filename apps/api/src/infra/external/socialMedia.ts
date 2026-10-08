@@ -9,8 +9,13 @@ import { YoutubeCue } from '@/utils/htmlBuilder'
 import { buildYoutubeCaptionDocument, captionBaseLanguage, toCompatCues, type YoutubeCaptionDocument } from '@/utils/youtubeCaption'
 import { FetchThreePartyError } from '@/const/err'
 import { TweetArticleAPIResponse, TweetArticleInfo, TweetInfo, TwitterAPIResponse, TwitterMentionsAPIResponse } from '@/const/twitterapi/struct'
+import { fetchToutiaoArticle } from './toutiao'
 
 export class SocialMediaApi {
+  public static fetchToutiao(env: Pick<Env, 'TIKHUB_TOKEN'>, url: string) {
+    return fetchToutiaoArticle(env.TIKHUB_TOKEN, url)
+  }
+
   private static apifyApiUrl = 'https://api.apify.com/v2/acts'
   private static tikhubApiUrl = 'https://api.tikhub.io'
 

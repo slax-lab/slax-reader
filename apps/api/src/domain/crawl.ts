@@ -30,6 +30,8 @@ import { detectRoute, TWITTER_SHORT_STATUS_RE } from '../utils/platformDetector'
 import { FetchThreePartyError } from '../const/err'
 import { scoreArticleQuality, unavailableArticleQualityReview, type ArticleQualityReview, type ParserQualitySummary } from '../utils/articleQualityScoring'
 import { bookmarkEventProperties, EVENT_CONTEXT_KEY, getEventContext, submitServerEvent } from './events'
+import { isToutiaoShareUrl, parseToutiaoArticleUrl, resolveToutiaoUrl } from '../utils/toutiaoUrl'
+import type { ToutiaoArticle } from '../const/moreapi/toutiao'
 
 export type TwitterFetched =
   | { kind: 'tweet'; tweetInfo: TweetInfo; quoteTweetHtml: string }
@@ -183,6 +185,7 @@ export class CrawlService {
   }
 
   public async resolveShortLink(ctx: ContextManager, url: string): Promise<string> {
+    if (parseToutiaoArticleUrl(url) || isToutiaoShareUrl(url)) return (await resolveToutiaoUrl(url)).canonicalUrl
     const urlObj = new URL(url)
     const isShortLink = CrawlService.shortLinkDomains.includes(urlObj.hostname)
     if (!isShortLink) return url
@@ -589,6 +592,35 @@ export class CrawlService {
     }
 
     const parseRes = await this.createParseRes(ctx, fetchRes)
+    return this.scoreAndSaveArticle(parseRes, fetchRes, bookmarkId, userBookmarkUuid)
+  }
+
+  public fetchToutiaoData(ctx: ContextManager, url: string): Promise<ToutiaoArticle> {
+    return SocialMediaApi.fetchToutiao(ctx.env, url)
+  }
+
+  public async parseAndSaveToutiao(ctx: ContextManager, fetched: ToutiaoArticle, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+    const fetchRes = { url: fetched.canonicalUrl, content: fetched.html, title: fetched.title }
+    // TikHub supplies the article body already. Generic extraction drops its lead image and some paragraphs.
+    const document = ContentParser.getDocument(parseHTML(fetched.html).document.body.innerHTML)
+    await new Imager(ctx.env).batchReplaceImage(new URL(fetched.canonicalUrl), document)
+    const parseRes: Preparse = {
+      title: fetched.title,
+      byline: fetched.author,
+      siteName: fetched.siteName,
+      publishedTime: fetched.publishedAt ? new Date(fetched.publishedAt) : new Date(),
+      contentDocument: document,
+      content: document.documentElement.outerHTML,
+      textContent: fetched.text,
+      length: fetched.text.length,
+      excerpt: fetched.text.slice(0, 200),
+      dir: '',
+      lang: ''
+    }
+    return this.scoreAndSaveArticle(parseRes, fetchRes, bookmarkId, userBookmarkUuid)
+  }
+
+  private async scoreAndSaveArticle(parseRes: Preparse, fetchRes: fetchResult, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
     let qualityReview: ArticleQualityReview
     try {
       qualityReview = scoreArticleQuality({
