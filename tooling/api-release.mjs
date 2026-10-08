@@ -11,7 +11,7 @@ const apiRequire = createRequire(new URL('../apps/api/package.json', import.meta
 const stages = new Set(['policy', 'currency-start', 'selectors', 'configuration', 'remote-preflight', 'gen:all', 'lint', 'typecheck', 'test', 'build', 'currency-final', 'public-ip', 'firewall', 'tunnel', 'readiness', 'migration:deploy:pgsql', 'migration:deploy:logs', 'migration:remote:d1', 'migration:remote:fulltext', 'deploy', 'cleanup-tunnel', 'cleanup-firewall', 'cleanup-files', 'release'])
 const categories = new Set(['ineligible-event', 'invalid-selectors', 'missing-secrets', 'invalid-configuration', 'invalid-database-url', 'invalid-public-ip', 'branch-lookup-failed', 'private-fetch-failed', 'repository-not-private', 'remote-api-failed', 'command-failed', 'readiness-timeout', 'tunnel-failed', 'cancelled', 'cleanup-failed', 'internal-error'])
 const results = new Set(['started', 'passed', 'failed', 'superseded'])
-const secretFields = new Set(['API_CONFIG_REPOSITORY', 'API_CONFIG_REF', 'API_CONFIG_MANIFEST_PATH', 'CONFIG_REPO_TOKEN', 'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_FIREWALL_API_TOKEN', 'CLOUDFLARE_TUNNEL_CLIENT_ID', 'CLOUDFLARE_TUNNEL_TOKEN', 'HYPERDRIVE_DATABASE_URL', 'LOGS_DATABASE_URL'])
+const secretFields = new Set(['API_CONFIG_REPOSITORY', 'API_CONFIG_MANIFEST_PATH', 'CONFIG_REPO_TOKEN', 'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_FIREWALL_API_TOKEN', 'CLOUDFLARE_TUNNEL_CLIENT_ID', 'CLOUDFLARE_TUNNEL_TOKEN', 'HYPERDRIVE_DATABASE_URL', 'LOGS_DATABASE_URL'])
 export function safeReporter(write, summary = () => {}) {
   return (stage, result, error) => {
     requireValue(stages.has(stage) && results.has(result), 'internal-error')
@@ -92,11 +92,16 @@ export async function fetchConfiguration(secrets, environment, directory, { http
   const options = { token: secrets.CONFIG_REPO_TOKEN, signal }
   const metadata = await http(repo, options)
   requireValue(metadata.private === true && metadata.full_name === secrets.API_CONFIG_REPOSITORY, 'repository-not-private')
-  const commit = await http(`${repo}/commits/${secrets.API_CONFIG_REF}`, options)
-  requireValue(commit.sha === secrets.API_CONFIG_REF, 'private-fetch-failed')
+  const branch = metadata.default_branch
+  requireValue(typeof branch === 'string' && branch.length <= 255 && /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(branch) && !branch.includes('..') && !branch.includes('//') && !branch.endsWith('/') && !branch.endsWith('.lock'), 'private-fetch-failed')
+  const commit = await http(`${repo}/commits/${encodeURIComponent(branch)}`, options)
+  requireValue(typeof commit.sha === 'string' && shaPattern.test(commit.sha), 'private-fetch-failed')
+  const revision = commit.sha
+  mask(branch)
+  mask(revision)
   // Fetch just the declared data files, never scripts, key files or credentials.
   const content = async filename => {
-    const file = await http(`${repo}/contents/${filename.split('/').map(encodeURIComponent).join('/')}?ref=${secrets.API_CONFIG_REF}`, options)
+    const file = await http(`${repo}/contents/${filename.split('/').map(encodeURIComponent).join('/')}?ref=${revision}`, options)
     requireValue(file.type === 'file' && file.path === filename && file.encoding === 'base64' && typeof file.content === 'string' && file.size > 0 && file.size <= 500_000, 'private-fetch-failed')
     return Buffer.from(file.content, 'base64').toString('utf8')
   }
@@ -328,7 +333,7 @@ async function main() {
     const context = { eventName: env.GITHUB_EVENT_NAME, repository: env.GITHUB_REPOSITORY, environment: env.RELEASE_ENVIRONMENT, codeRef: env.RELEASE_CODE_REF }
     // Repeat eligibility before touching any private bootstrap value.
     eligibility(event, context)
-    for (const key of ['API_CONFIG_REPOSITORY', 'API_CONFIG_REF', 'API_CONFIG_MANIFEST_PATH', 'CONFIG_REPO_TOKEN', 'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_FIREWALL_API_TOKEN', 'CLOUDFLARE_TUNNEL_CLIENT_ID', 'CLOUDFLARE_TUNNEL_TOKEN', 'HYPERDRIVE_DATABASE_URL', 'LOGS_DATABASE_URL']) maskPrivate(env[key])
+    for (const key of secretFields) maskPrivate(env[key])
     const ports = {
       provenance: release => {
         const line = `API release source: PR #${release.number}; ${release.environment}; ${release.codeRef}`

@@ -44,15 +44,19 @@ The pipeline SHALL map `dev` to the legacy test installation, `beta` to the exis
 
 ### Requirement: Release artifacts are pinned and attributable
 
-Source SHALL be checked out at the qualifying pull request's resulting merged commit, including the resulting commit for squash or rebase merges. Operator configuration SHALL be checked out at an explicitly configured immutable commit. The target environment MUST be derived from the pull request base branch rather than the workflow's default-branch context. Configuration paths MUST remain inside the private configuration checkout. Public release output SHALL identify only the public pull request, logical environment, public source commit, and safe stage results. The private repository identity, configuration revision, and private file paths MUST NOT be published.
+Source SHALL be checked out at the qualifying pull request's resulting merged commit, including the resulting commit for squash or rebase merges. The private configuration repository's default branch SHALL be automatically resolved once to an immutable commit per deployment attempt, without requiring a configuration-ref Secret; all configuration files in that attempt MUST use that same commit. The target environment MUST be derived from the pull request base branch rather than the workflow's default-branch context. Configuration paths MUST remain inside the private configuration checkout. Public release output SHALL identify only the public pull request, logical environment, public source commit, and safe stage results. The private repository identity, branch, configuration revision, and private file paths MUST NOT be published.
 
 #### Scenario: A production promotion runs under the default branch context
 - **WHEN** a merged pull request targets `main` while the workflow runs from the repository's default branch
 - **THEN** the release builds the production promotion's resulting commit and selects the production environment
 
-#### Scenario: A configuration selector is mutable or escapes its checkout
-- **WHEN** an operator supplies a branch/tag instead of an immutable configuration commit, or a path outside the configuration checkout
+#### Scenario: Configuration resolution is invalid or its path escapes the checkout
+- **WHEN** the repository default branch or its resolved immutable commit is absent or invalid, or a configuration path escapes the checkout
 - **THEN** the release fails before migrations or publication
+
+#### Scenario: Configuration changes while a release is fetching files
+- **WHEN** the configuration default branch advances after a release resolves its commit
+- **THEN** the release fetches the manifest and selected native TOML from the originally resolved commit
 
 ### Requirement: Validation and migrations precede Worker publication
 
@@ -100,7 +104,7 @@ All beta and production migration/publication operations SHALL share a mutual-ex
 
 #### Scenario: A failed current release is retried
 - **WHEN** the same merged commit is still the target branch tip
-- **THEN** rerunning its existing workflow may retry the same source with the explicitly configured immutable configuration revision under the same validation and locking rules, validating the selected configuration revision without publishing it
+- **THEN** rerunning its existing workflow may retry the same source with the then-current configuration default branch resolved to one immutable revision under the same validation and locking rules, without publishing private branch or revision metadata
 
 ### Requirement: Real deployment configuration is private and credentials use Actions Secrets
 
@@ -121,6 +125,18 @@ All real deployment configuration and infrastructure metadata SHALL be obtained 
 #### Scenario: A public PR runs validation
 - **WHEN** local or ordinary pull-request CI validates the deployment implementation
 - **THEN** it uses generic templates and synthetic fixtures without obtaining private checkout selectors, fetching real configuration, or receiving deployment secrets
+
+### Requirement: Configuration contributions exclude credentials
+
+The independent private configuration repository SHALL carry agent instructions forbidding credential files and embedded tokens, passwords, private keys, and credential URLs. Its PR CI SHALL check every introduced commit for credentials and forbidden files, including a secret added and subsequently removed within the same PR. The check MUST fail on a finding or scanner error, use read-only repository permissions without deployment Secrets, and keep matched values and raw reports out of logs and artifacts. Operator documentation SHALL identify the required branch-protection check.
+
+#### Scenario: A PR includes a credential or forbidden file
+- **WHEN** an introduced PR commit adds embedded credentials or a credential file
+- **THEN** the Secret-scan check fails without printing matched values, even if a later PR commit removes them
+
+#### Scenario: A PR changes only declarative infrastructure metadata
+- **WHEN** a PR contains ordinary account/resource identifiers and credential-free native configuration
+- **THEN** the Secret-scan check allows that declarative configuration
 
 ### Requirement: Public CI output excludes private deployment information
 

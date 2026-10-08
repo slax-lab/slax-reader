@@ -28,7 +28,7 @@ Keep the automatic trigger free of file-path filters initially: like the legacy 
 
 ### 2. Fetch all real deployment settings privately and inject Actions Secrets
 
-Use `dev`, `beta`, and `prod`, with `main` mapped to `prod`. The executor's environment-bound job obtains bootstrap checkout locators from Actions Secrets: `API_CONFIG_REPOSITORY`, `API_CONFIG_REF` (a full immutable commit SHA), and `API_CONFIG_MANIFEST_PATH`, with `CONFIG_REPO_TOKEN` scoped read-only to the configuration repository. Validate selector syntax and verify the repository is private before fetching its content. No private selector is a public workflow input or ordinary Actions Variable.
+Use `dev`, `beta`, and `prod`, with `main` mapped to `prod`. The executor's environment-bound job obtains `API_CONFIG_REPOSITORY` and optional `API_CONFIG_MANIFEST_PATH` from Actions Secrets, with `CONFIG_REPO_TOKEN` scoped read-only to the configuration repository. Verify private repository identity, read its default branch, and resolve that branch once to a full immutable commit SHA. Fetch both manifest and native TOML at that exact SHA; a later branch advance cannot change files within the attempt. There is no configuration-ref input or Secret to maintain. Reject missing/invalid default branches or resolved revisions before fetching files. Neither private branch nor revision is printed. No private selector is a public workflow input or ordinary Actions Variable.
 
 Use the conventional private layout `api/dev.toml`, `api/beta.toml`, `api/prod.toml`, and `api/releases.json`. The manifest selects the corresponding native file. `API_CONFIG_MANIFEST_PATH` is optional when this conventional manifest path is used; an explicitly configured alternative still comes from Actions Secrets. The generic default path exposes no installation metadata. Maintain real configuration in an independent private checkout, never inside the public source repository, and do not invent missing account, zone, or Tunnel settings when adapting legacy files.
 
@@ -66,7 +66,7 @@ Use executor-owned concurrency groups: one test group and one shared production-
 
 Check that the target branch still points to the merged source SHA at the start and again immediately before the first remote mutation. A mismatched SHA produces a visible superseded result and no remote operations; inability to verify the branch is a failure. This prevents delayed runs and old retries from replacing a newer release on the same branch. It does not impose a global source-SHA comparison between beta and main, whose histories differ.
 
-GitHub concurrency is not a promise that every intermediate queued run will execute in order. The design deploys eligible current tips without cancelling an executing migration. Each attempt validates the currently configured immutable configuration commit without publishing it. Operators can change that protected revision between retries; the selected configuration is still pinned for the complete attempt. Public summaries report configuration-validation status only.
+GitHub concurrency is not a promise that every intermediate queued run will execute in order. The design deploys eligible current tips without cancelling an executing migration. Each attempt resolves the configuration default branch once and validates that immutable commit without publishing it. A retry resolves the then-current default branch again and can use newer reviewed configuration; each individual attempt still uses one fixed revision. Public summaries report configuration-validation status only.
 
 ### 5. Make cleanup and policy behavior testable without remote operations
 
@@ -88,6 +88,8 @@ Use synthetic sentinel values for private repository/ref/path, infrastructure se
 
 ## Risks / Trade-offs
 
+The independent configuration repository also needs agent instructions and a required PR check. Its canonical `AGENTS.md` forbids credential files, tokens, passwords, private keys and credential URLs even in a private repository; the requested `Agent.MD` points to that policy. PR CI uses a pinned Gitleaks CLI and an additional credential-file/configuration guard over every introduced commit, including credentials removed by a later commit. It runs with read-only repository permissions and no deployment Secrets, captures/redacts diagnostics, and uploads no reports. Branch protection must require the `Secret scan` check and review changes to the scan policy; CI alone does not prevent an administrator bypass or a direct push.
+
 - Beta mutates production PostgreSQL/logs and the shared Browser Worker before main promotion → Preserve the requested topology, serialize both releases, and retain the existing production-compatibility review requirement.
 - Stale configuration or missing GitHub settings can block the first release → Fail before remote access and document the private manifest schema, protected bootstrap selectors, Actions Secrets, and branch-policy prerequisites using placeholders.
 - PostgreSQL, logs, D1, and Worker publication are not one transaction → Stop on the first failure, report completed stages, and retry idempotent migrations/publication; never perform automatic destructive schema rollback.
@@ -100,7 +102,7 @@ Use synthetic sentinel values for private repository/ref/path, infrastructure se
 1. Obtain human review of these artifacts before implementation.
 2. Implement and verify the workflows, helpers/tests, and English operator documentation on `ci/merge-triggered-api-deploy`.
 3. Document the private manifest/native-config schema and Actions Secrets migration using placeholders only. Add an English counterpart to the existing CI guide and cross-link obsolete manual-deployment guidance.
-4. Operators prepare the private configuration repository, pinned bootstrap selectors, and GitHub Actions Secrets before the PR merges into `dev`; missing settings must prevent the first remote operation. Private values and resource IDs are not populated by the agent or copied into public examples.
+4. Operators complete and review the private configuration repository's default branch and prepare GitHub Actions Secrets before the PR merges into `dev`; missing settings must prevent the first remote operation. Configuration changes on that branch are picked up automatically by the next eligible release attempt. Private values and resource IDs are never copied into public examples.
 5. Run OpenSpec strict validation and the local review from `REVIEW.md`, then publish a PR targeting `dev` with `OpenSpec: merge-triggered-api-deploy`.
 6. The implementation PR's merge can initiate the first test release. Promote the reviewed workflow through beta and main using the repository's human-managed merge-commit promotion process.
 7. A release failure is retried from its existing run if its source remains current. Recovery requiring code/schema changes uses a new PR; revert code only when compatible with applied migrations. Disabling automation, if needed, is an operator action.

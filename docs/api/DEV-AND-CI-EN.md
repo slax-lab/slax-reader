@@ -23,7 +23,6 @@ Prepare these settings **before merging the implementation PR**: its merge into 
 | Actions Secret | Purpose / legacy mapping |
 | --- | --- |
 | `API_CONFIG_REPOSITORY` | Private `owner/repository` selector |
-| `API_CONFIG_REF` | Full lowercase 40-character immutable configuration commit SHA |
 | `API_CONFIG_MANIFEST_PATH` | Optional relative `.json` manifest path; defaults to `api/releases.json` |
 | `CONFIG_REPO_TOKEN` | Fine-grained token: read-only Contents and Metadata for only the configuration repository |
 | `CLOUDFLARE_API_TOKEN` | `CLOUDFLARE_TEST_API_TOKEN` for dev; `CLOUDFLARE_PROD_API_TOKEN` for beta/prod |
@@ -49,11 +48,11 @@ api/
   releases.json
 ```
 
-The manifest maps `dev` to `api/dev.toml`, `beta` to `api/beta.toml`, and `prod` to `api/prod.toml`. Commit the reviewed files to the private repository first, then set each Environment's `API_CONFIG_REF` to that commit's full SHA. Updating configuration files alone does not deploy or update the pinned revision. After a successful configuration-repository update, explicitly advance the protected revision before a qualifying source merge or current-run retry. Never copy real TOML, manifests, generated files or credential files into the public monorepo.
+The manifest maps `dev` to `api/dev.toml`, `beta` to `api/beta.toml`, and `prod` to `api/prod.toml`. Merge the completed, reviewed configuration into that private repository's default branch. At the start of configuration loading, each release verifies private repository identity and resolves the default branch once to a full immutable SHA, then fetches every file at that SHA. No configuration-ref Secret is required. A configuration-only update does not itself deploy; the next eligible source release or current-run retry resolves the latest reviewed default-branch tip automatically. Never copy real TOML, manifests, generated files or credential files into the public monorepo.
 
 When adapting legacy files, remove local `env`/`dev` sections, preserve the existing installation bindings and resource identities, add the explicit Edge service, and transfer Edge routes from the legacy deployment overrides. Complete missing production account IDs, both firewall zone IDs and a valid test Tunnel hostname in the private files; do not substitute example IDs or guess a hostname from a path-based legacy selector. Review any differences between legacy per-Worker compatibility overrides and the monorepo's shared native configuration before the first release. Keep the legacy source files intact until the private migration is reviewed.
 
-The configuration repository must be private. Before fetching content, the pipeline verifies authenticated private status and the exact configured commit. It fetches only the manifest and selected native TOML through GitHub's Contents API; it does not clone scripts, create a Git credential helper, or persist a token. No credential files, submodules, or symlinks are accepted. Paths are relative, contained, and free of traversal or line breaks.
+The configuration repository must be private. Before fetching content, the pipeline verifies authenticated private status and resolves the default branch to an immutable commit. It fetches only the manifest and selected native TOML through GitHub's Contents API; it does not clone scripts, create a Git credential helper, or persist a token. No credential files, submodules, or symlinks are accepted. Paths are relative, contained, and free of traversal or line breaks.
 
 The following **synthetic** manifest illustrates the schema. All real metadata belongs exclusively in the private repository. For beta/prod, include both environment entries with the same account, firewall zone, Tunnel listener/hostname, and Browser identity. Other Worker identities and configuration files remain environment-specific. A dev-only manifest may contain just dev.
 
@@ -111,7 +110,7 @@ Cleanup runs in `finally` and is retried by an `always()` step. It stops only th
 
 ## Retry and verification
 
-Rerun a failed release from its existing GitHub Actions run while that merged source remains the target branch tip. A changed protected configuration SHA applies to the new attempt, remains immutable for that attempt, and is never printed. Migration/publication stages are not a single transaction: inspect safe completed-stage results and retry forward; do not perform destructive schema rollback automatically.
+Rerun a failed release from its existing GitHub Actions run while that merged source remains the target branch tip. Each new attempt resolves the current private default-branch tip again, remains pinned to that SHA for its complete attempt, and never prints the branch or revision. Migration/publication stages are not a single transaction: inspect safe completed-stage results and retry forward; do not perform destructive schema rollback automatically.
 
 If a runner is killed before cleanup, an authorized operator should find the exact rule by its public run/attempt notes in the **private** Cloudflare dashboard and remove only that rule. Check both migration state and published Workers before recovery. Correct code/schema through a new PR; promotions and sync-back PRs still require human merge-commit handling.
 
@@ -124,3 +123,7 @@ pnpm exec openspec validate --all --strict
 ```
 
 Ordinary PR API CI uses the public generic template and synthetic fixtures and receives no deployment Secrets. Offline tests cover rejected events, fork merges, environment/ref selection, private repository/configuration validation, stale runs, readiness, migration ordering, credential scope, failure/cancellation cleanup, YAML contracts, and private/encoded sentinel exclusion from public output. The first authorized live release remains the check of actual cloud permissions, GitHub Environment policies, Tunnel routing, and provider integrations.
+
+## Configuration-repository contribution checks
+
+Keep agent instructions in the independent private checkout that prohibit credential files and embedded credentials, including tokens, passwords, private keys and connection URLs. Use its Secret scan PR check over every introduced commit, so removing a credential in a later commit does not hide the earlier addition. Require this check through branch protection and review scanner/policy changes. The check runs with read-only repository permissions and no deployment Secrets, captures/redacts diagnostics, fails on findings or scanner errors, and uploads no reports. Ordinary infrastructure identities remain valid declarative data in that private repository.

@@ -21,7 +21,6 @@ jobs:
       code-ref: ${{ github.event.pull_request.merge_commit_sha }}
     secrets:
       API_CONFIG_REPOSITORY: ${{ secrets.API_CONFIG_REPOSITORY }}
-      API_CONFIG_REF: ${{ secrets.API_CONFIG_REF }}
       API_CONFIG_MANIFEST_PATH: ${{ secrets.API_CONFIG_MANIFEST_PATH }}
       CONFIG_REPO_TOKEN: ${{ secrets.CONFIG_REPO_TOKEN }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -14,13 +14,14 @@ const { parse, stringify } = apiRequire('smol-toml')
 const { parse: yaml } = createRequire(realpathSync(new URL('../node_modules/@fission-ai/openspec/package.json', import.meta.url)))('yaml')
 const publicSHA = 'a'.repeat(40)
 const privateSHA = 'b'.repeat(40)
+const privateBranch = 'synthetic-config/branch'
 const event = branch => ({ action: 'closed', repository: { full_name: 'example/public' }, pull_request: { number: 7, merged: true, merge_commit_sha: publicSHA, base: { ref: branch, repo: { full_name: 'example/public' } }, head: { sha: 'c'.repeat(40), repo: { full_name: 'contributor/fork' } } } })
 const context = branch => ({ eventName: 'pull_request_target', repository: 'example/public', environment: branch === 'main' ? 'prod' : branch, codeRef: publicSHA })
 const settings = () => ({ config: 'private-config/api.toml', accountId: '1'.repeat(32), firewallZoneId: '2'.repeat(32), tunnel: { hostname: 'database.example.com', port: 15432 }, workers: { core: 'synthetic-core', edge: 'synthetic-edge', ai: 'synthetic-ai', browser: 'synthetic-browser' } })
 const manifest = () => ({ version: 1, environments: { dev: settings(), beta: settings(), prod: settings() } })
-const secrets = () => ({ API_CONFIG_REPOSITORY: 'synthetic/private-config', API_CONFIG_REF: privateSHA, API_CONFIG_MANIFEST_PATH: 'private-config/releases.json', CONFIG_REPO_TOKEN: 'sentinel-config-token', CLOUDFLARE_API_TOKEN: 'sentinel-deploy-token', CLOUDFLARE_FIREWALL_API_TOKEN: 'sentinel-firewall-token', CLOUDFLARE_TUNNEL_CLIENT_ID: 'sentinel-access-id', CLOUDFLARE_TUNNEL_TOKEN: 'sentinel-access-secret', HYPERDRIVE_DATABASE_URL: 'postgresql://synthetic:sentinel-password@127.0.0.1:15432/primary', LOGS_DATABASE_URL: 'postgresql://synthetic:sentinel-password@127.0.0.1:15432/logs' })
+const secrets = () => ({ API_CONFIG_REPOSITORY: 'synthetic/private-config', API_CONFIG_MANIFEST_PATH: 'private-config/releases.json', CONFIG_REPO_TOKEN: 'sentinel-config-token', CLOUDFLARE_API_TOKEN: 'sentinel-deploy-token', CLOUDFLARE_FIREWALL_API_TOKEN: 'sentinel-firewall-token', CLOUDFLARE_TUNNEL_CLIENT_ID: 'sentinel-access-id', CLOUDFLARE_TUNNEL_TOKEN: 'sentinel-access-secret', HYPERDRIVE_DATABASE_URL: 'postgresql://synthetic:sentinel-password@127.0.0.1:15432/primary', LOGS_DATABASE_URL: 'postgresql://synthetic:sentinel-password@127.0.0.1:15432/logs' })
 const variants = value => [value, encodeURIComponent(value), Buffer.from(value).toString('base64')]
-const leak = [...Object.values(secrets()), settings().tunnel.hostname, ...Object.values(settings().workers), settings().accountId, settings().firewallZoneId, settings().config].flatMap(variants).join('\n') + '\n::error::private\n::set-output name=private::private'
+const leak = [...Object.values(secrets()), privateSHA, privateBranch, settings().tunnel.hostname, ...Object.values(settings().workers), settings().accountId, settings().firewallZoneId, settings().config].flatMap(variants).join('\n') + '\n::error::private\n::set-output name=private::private'
 
 test('only merged target events qualify, including forks and main in dev event context', () => {
   for (const branch of ['dev', 'beta', 'main']) assert.equal(eligibility(event(branch), { ...context(branch), ref: 'refs/heads/dev', sha: 'd'.repeat(40) }).branch, branch)
@@ -39,9 +40,9 @@ test('only merged target events qualify, including forks and main in dev event c
   for (const [payload, details] of cases) assert.throws(() => eligibility(payload, details), /ineligible-event/)
 })
 
-test('private selectors and manifest reject mutable, escaping, executable or inconsistent data', () => {
+test('private selectors and manifest reject invalid, escaping, executable or inconsistent data', () => {
   selectors(secrets())
-  for (const override of [{ API_CONFIG_REF: 'main' }, { API_CONFIG_REPOSITORY: 'https://example.com/repo' }, { API_CONFIG_MANIFEST_PATH: '../outside.json' }, { API_CONFIG_MANIFEST_PATH: 'x.json\n::error::private' }, { CONFIG_REPO_TOKEN: '' }]) assert.throws(() => selectors({ ...secrets(), ...override }))
+  for (const override of [{ API_CONFIG_REPOSITORY: 'https://example.com/repo' }, { API_CONFIG_MANIFEST_PATH: '../outside.json' }, { API_CONFIG_MANIFEST_PATH: 'x.json\n::error::private' }, { CONFIG_REPO_TOKEN: '' }]) assert.throws(() => selectors({ ...secrets(), ...override }))
   assert.deepEqual(manifestSettings(manifest(), 'dev'), settings())
   for (const mutate of [s => { s.config = '../api.toml' }, s => { s.config = '.env.toml' }, s => { s.wranglerEnvironment = 'a\nb' }, s => { s.tunnel.hostname = 'https://database.example.com/pgsql' }, s => { s.tunnel.port = 0 }, s => { s.accountId = '' }, s => { s.credentials = 'private' }, s => { delete s.workers.edge }]) {
     const value = manifest(); mutate(value.environments.dev)
@@ -73,7 +74,7 @@ function harness({ fail, staleAt, cleanupFail = false, controller = new AbortCon
   return { run, trace, logs, summaries, commands, ports }
 }
 function privateAbsent(outputs) {
-  for (const sentinel of [...Object.values(secrets()), settings().config, settings().tunnel.hostname, ...Object.values(settings().workers), settings().accountId, settings().firewallZoneId].flatMap(variants)) assert.equal(outputs.includes(sentinel), false, `private value reached public output`)
+  for (const sentinel of [...Object.values(secrets()), privateSHA, privateBranch, settings().config, settings().tunnel.hostname, ...Object.values(settings().workers), settings().accountId, settings().firewallZoneId].flatMap(variants)) assert.equal(outputs.includes(sentinel), false, `private value reached public output`)
   assert.equal(outputs.includes('::error::'), false)
   assert.equal(outputs.includes('::set-output'), false)
 }
@@ -121,11 +122,13 @@ test('private fetch verifies private status and commit, fetches only contained d
       const content = filename.endsWith('.json') ? JSON.stringify(manifest()) : stringify(native)
       return { type: 'file', path: filename, encoding: 'base64', size: content.length, content: Buffer.from(content).toString('base64') }
     }
-    return { private: true, full_name: secrets().API_CONFIG_REPOSITORY }
+    return { private: true, full_name: secrets().API_CONFIG_REPOSITORY, default_branch: privateBranch }
   }
   try {
     await fetchConfiguration(secrets(), 'dev', directory, { http, parse })
     assert.equal(requested.length, 4)
+    assert.ok(requested[1].endsWith(`/commits/${encodeURIComponent(privateBranch)}`))
+    for (const url of requested.slice(2)) assert.equal(new URL(url).searchParams.get('ref'), privateSHA)
     assert.deepEqual((await readdir(directory)).sort(), ['api.toml', 'settings.json'])
     assert.equal((await stat(join(directory, 'api.toml'))).mode & 0o777, 0o600)
     assert.equal((await readFile(join(directory, 'api.toml'), 'utf8')).includes(secrets().CONFIG_REPO_TOKEN), false)
@@ -134,7 +137,41 @@ test('private fetch verifies private status and commit, fetches only contained d
       await assert.rejects(fetchConfiguration(secrets(), 'dev', directory, { parse, http: async () => { calls++; return metadata } }), /repository-not-private/)
       assert.equal(calls, 1)
     }
-    await assert.rejects(fetchConfiguration(secrets(), 'dev', directory, { parse, http: async url => url.includes('/commits/') ? { sha: publicSHA } : { private: true, full_name: secrets().API_CONFIG_REPOSITORY } }), /private-fetch-failed/)
+    await assert.rejects(fetchConfiguration(secrets(), 'dev', directory, { parse, http: async url => url.includes('/commits/') ? { sha: 'invalid' } : { private: true, full_name: secrets().API_CONFIG_REPOSITORY, default_branch: privateBranch } }), /private-fetch-failed/)
+  } finally { await rm(directory, { recursive: true, force: true }) }
+})
+
+test('default branch resolution rejects invalid metadata and pins files through branch movement and retries', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'api-resolution-test-'))
+  const metadata = { private: true, full_name: secrets().API_CONFIG_REPOSITORY, default_branch: privateBranch }
+  try {
+    for (const branch of [undefined, '', '../outside', 'x\n::error::private', 'bad//branch', 'branch/']) {
+      let calls = 0
+      await assert.rejects(fetchConfiguration(secrets(), 'dev', directory, { parse, http: async () => { calls++; return { ...metadata, default_branch: branch } } }), /private-fetch-failed/)
+      assert.equal(calls, 1)
+    }
+    for (const sha of [undefined, 'main', 'e'.repeat(39), 'E'.repeat(40)]) {
+      let calls = 0
+      await assert.rejects(fetchConfiguration(secrets(), 'dev', directory, { parse, http: async url => { calls++; return url.includes('/commits/') ? { sha } : metadata } }), /private-fetch-failed/)
+      assert.equal(calls, 2)
+    }
+    const newerSHA = 'e'.repeat(40), revisions = [], masked = []
+    let tip = privateSHA, resolutions = 0
+    const http = async url => {
+      if (url.includes('/commits/')) { resolutions++; return { sha: tip } }
+      if (!url.includes('/contents/')) return metadata
+      const request = new URL(url)
+      revisions.push(request.searchParams.get('ref'))
+      // The branch moves after the manifest request, before the native request.
+      tip = newerSHA
+      const filename = request.pathname.split('/contents/')[1]
+      const content = filename.endsWith('.json') ? JSON.stringify(manifest()) : stringify({ name: 'synthetic-core' })
+      return { type: 'file', path: filename, encoding: 'base64', size: content.length, content: Buffer.from(content).toString('base64') }
+    }
+    for (let attempt = 0; attempt < 2; attempt++) await fetchConfiguration(secrets(), 'dev', directory, { http, parse, mask: value => masked.push(value) })
+    assert.equal(resolutions, 2)
+    assert.deepEqual(revisions, [privateSHA, privateSHA, newerSHA, newerSHA])
+    for (const value of [privateBranch, privateSHA, newerSHA]) assert.ok(masked.includes(value))
   } finally { await rm(directory, { recursive: true, force: true }) }
 })
 
@@ -148,7 +185,7 @@ test('private api layout fetches only the selected environment at the pinned rev
     const http = async (url, options) => {
       assert.equal(options.token, configured.CONFIG_REPO_TOKEN)
       if (url.includes('/commits/')) return { sha: privateSHA }
-      if (!url.includes('/contents/')) return { private: true, full_name: configured.API_CONFIG_REPOSITORY }
+      if (!url.includes('/contents/')) return { private: true, full_name: configured.API_CONFIG_REPOSITORY, default_branch: privateBranch }
       const request = new URL(url)
       assert.equal(request.searchParams.get('ref'), privateSHA)
       const filename = request.pathname.split('/contents/')[1]
@@ -224,7 +261,7 @@ test('private HTTP/parse failures and successful storage stay off public surface
       h.ports.configuration = () => fetchConfiguration(secrets(), 'dev', directory, { parse, http: async url => {
         const phase = url.includes('/commits/') ? 'commit' : url.includes('/contents/') ? (url.includes('.json?') ? 'manifest' : 'native') : 'metadata'
         if (failure === phase) throw new Error(leak)
-        if (phase === 'metadata') return { private: true, full_name: secrets().API_CONFIG_REPOSITORY }
+        if (phase === 'metadata') return { private: true, full_name: secrets().API_CONFIG_REPOSITORY, default_branch: privateBranch }
         if (phase === 'commit') return { sha: privateSHA, commit: { message: leak } }
         const content = phase === 'manifest' ? JSON.stringify(manifest()) : stringify(native)
         return { type: 'file', path: phase === 'manifest' ? secrets().API_CONFIG_MANIFEST_PATH : settings().config, encoding: 'base64', size: content.length, content: Buffer.from(content).toString('base64') }
@@ -244,7 +281,7 @@ test('private HTTP/parse failures and successful storage stay off public surface
     }
     const h = harness()
     h.ports.configuration = () => fetchConfiguration(secrets(), 'dev', directory, { parse, http: async url => {
-      if (!url.includes('/contents/') && !url.includes('/commits/')) return { private: true, full_name: secrets().API_CONFIG_REPOSITORY }
+      if (!url.includes('/contents/') && !url.includes('/commits/')) return { private: true, full_name: secrets().API_CONFIG_REPOSITORY, default_branch: privateBranch }
       if (url.includes('/commits/')) return { sha: privateSHA }
       return { type: 'file', path: secrets().API_CONFIG_MANIFEST_PATH, encoding: 'base64', size: 100, content: Buffer.from(leak).toString('base64') }
     } })
@@ -294,7 +331,7 @@ test('workflow YAML enforces merged gates, fixed checkout, shared lock and no pr
   assert.equal(job.steps.find(step => step.uses === 'actions/checkout@v4').with['persist-credentials'], false)
   assert.equal(job.steps.at(-1).if, '${{ always() }}')
   const text = JSON.stringify(executor)
-  for (const forbidden of ['workflow_dispatch', 'bootstrap', 'config-repository', 'config-ref', 'config-path', 'upload-artifact', 'actions/cache', '"cache"', 'GITHUB_OUTPUT', 'set -x', 'secrets: inherit']) assert.equal(text.includes(forbidden), false)
+  for (const forbidden of ['workflow_dispatch', 'bootstrap', 'config-repository', 'config-ref', 'config-path', 'API_CONFIG_REF', 'upload-artifact', 'actions/cache', '"cache"', 'GITHUB_OUTPUT', 'set -x', 'secrets: inherit']) assert.equal(text.includes(forbidden), false)
   assert.ok(job.steps.findIndex(step => step.run === 'pnpm install --frozen-lockfile') < job.steps.findIndex(step => step.env?.CONFIG_REPO_TOKEN))
   assert.equal(job.steps.find(step => step.env?.CONFIG_REPO_TOKEN).env.API_CONFIG_MANIFEST_PATH, "${{ secrets.API_CONFIG_MANIFEST_PATH || 'api/releases.json' }}")
   assert.equal(JSON.stringify(ci).includes('secrets.'), false)

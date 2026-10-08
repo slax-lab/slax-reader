@@ -29,7 +29,6 @@ export function relativeFile(value, suffix) {
 }
 export function selectors(secrets) {
   requireValue(/^[A-Za-z0-9][\w.-]*\/[A-Za-z0-9][\w.-]*$/.test(secrets.API_CONFIG_REPOSITORY ?? ''), 'invalid-selectors', 'API_CONFIG_REPOSITORY')
-  requireValue(shaPattern.test(secrets.API_CONFIG_REF ?? ''), 'invalid-selectors', 'API_CONFIG_REF')
   try { relativeFile(secrets.API_CONFIG_MANIFEST_PATH, '.json') } catch { throw new ReleaseError('invalid-selectors', 1, 'API_CONFIG_MANIFEST_PATH') }
   requireValue(Boolean(secrets.CONFIG_REPO_TOKEN), 'missing-secrets', 'CONFIG_REPO_TOKEN')
 }
