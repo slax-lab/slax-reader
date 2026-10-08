@@ -1,5 +1,7 @@
 # 环境初始化、项目启动与独立配置仓库部署
 
+> CI release instructions below are historical. Use the current [English merged-release guide](DEV-AND-CI-EN.md); manual workflow dispatch and caller-selected configuration inputs have been removed.
+
 ## 本地开发
 
 安装 Node.js >= 22.13、仓库固定的 pnpm 和 Docker Compose（支持 `up --wait`），启动 Docker，首次检出后执行 `pnpm install --frozen-lockfile`。配置准备好后，初始化与项目启动分开执行：
