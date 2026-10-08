@@ -1,0 +1,32 @@
+name: API release after merge
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches: [dev, beta, main]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: >-
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      github.event.repository.full_name == github.repository &&
+      github.event.pull_request.base.repo.full_name == github.repository
+    uses: ./.github/workflows/api-deploy.yml
+    with:
+      environment: ${{ github.event.pull_request.base.ref == 'main' && 'prod' || github.event.pull_request.base.ref }}
+      code-ref: ${{ github.event.pull_request.merge_commit_sha }}
+    secrets:
+      API_CONFIG_REPOSITORY: ${{ secrets.API_CONFIG_REPOSITORY }}
+      API_CONFIG_REF: ${{ secrets.API_CONFIG_REF }}
+      API_CONFIG_MANIFEST_PATH: ${{ secrets.API_CONFIG_MANIFEST_PATH }}
+      CONFIG_REPO_TOKEN: ${{ secrets.CONFIG_REPO_TOKEN }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_FIREWALL_API_TOKEN: ${{ secrets.CLOUDFLARE_FIREWALL_API_TOKEN }}
+      CLOUDFLARE_TUNNEL_CLIENT_ID: ${{ secrets.CLOUDFLARE_TUNNEL_CLIENT_ID }}
+      CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+      HYPERDRIVE_DATABASE_URL: ${{ secrets.HYPERDRIVE_DATABASE_URL }}
+      LOGS_DATABASE_URL: ${{ secrets.LOGS_DATABASE_URL }}

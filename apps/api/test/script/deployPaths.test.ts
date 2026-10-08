@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { tmpdir } from 'node:os'
 import { parse, stringify, type TomlTable } from 'smol-toml'
 import { afterEach, describe, expect, test } from 'vitest'
 import {
@@ -19,7 +20,7 @@ import {
 const template = path.join(ROOT, 'deploy/cloudflare/api.toml.example')
 const temps: string[] = []
 function directory() {
-  const dir = fs.mkdtempSync(path.join(ROOT, '.tmp-root-tooling-config-'))
+  const dir = fs.mkdtempSync(path.join(tmpdir(), 'slax-api-config-test-'))
   temps.push(dir)
   return dir
 }
