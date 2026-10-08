@@ -32,6 +32,40 @@ export const ZHIHU_RE = /https?:\/\/(?:www\.)?(?:zhihu\.com\/(?:question\/\d+(?:
 /** 微信公众号文章：覆盖 /s?__biz=... 与 /s/xxxx 两种形态 */
 export const WECHAT_MP_RE = /https?:\/\/mp\.weixin\.qq\.com\/s(?:\/|\?)/
 
+/** Hosts whose article HTML depends on client-side rendering. */
+export const BROWSER_HTML_HOSTS = [
+  'mp.weixin.qq.com',
+  'wechat.dxy.cn',
+  'zhihu.com',
+  'infoq.cn',
+  'xueqiu.com',
+  'youtube.com',
+  'google.com',
+  'toutiao.com',
+  'msn.cn',
+  'imixs.org',
+  'binance.com',
+  'wiley.com',
+  'x.com',
+  'twitter.com',
+  'circuitbread.com',
+  'quora.com',
+  'chrisrichardson.net',
+  'huawei.com',
+  'mowen.cn',
+  'linkedin.com',
+  'wallstreetcn.com'
+] as const
+
+export function shouldUseBrowserHtml(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname
+    return BROWSER_HTML_HOSTS.some(host => hostname === host || hostname.endsWith(`.${host}`))
+  } catch {
+    return false
+  }
+}
+
 /** YouTube 域名粗匹配（youtube.com / youtu.be，含 www/m/music 子域） */
 export const YOUTUBE_RE = /^https?:\/\/(?:www\.|m\.|music\.)?(?:youtube\.com|youtu\.be)\//i
 
