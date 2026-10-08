@@ -80,6 +80,8 @@ export function createMockCrawlService() {
     fetchRedditData: vi.fn(),
     fetchZhihuData: vi.fn(),
     fetchRegular: vi.fn(),
+    fetchToutiaoData: vi.fn(),
+    parseAndSaveToutiao: vi.fn(),
     fetchDajiala: vi.fn(),
     fetchWeixin: vi.fn(),
     parseAndSaveContent: vi.fn(),

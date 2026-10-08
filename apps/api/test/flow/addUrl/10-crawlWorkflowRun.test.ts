@@ -121,6 +121,44 @@ describe('CrawlWorkflow fetch step 状态转换', () => {
   })
 })
 
+describe('Toutiao workflow', () => {
+  const canonicalUrl = 'https://www.toutiao.com/article/7694114872820384290/'
+  test('resolves a share and saves within the fetch step before normal validation and post-processing', async () => {
+    const { wf, cs, uph, env } = wireWorkflow()
+    cs.resolveShortLink.mockResolvedValue(canonicalUrl)
+    const article = { canonicalUrl, html: '<p>Complete body</p>' }
+    cs.fetchToutiaoData.mockResolvedValue(article)
+    cs.parseAndSaveToutiao.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, contentKey: 'html/body/toutiao.html' })
+    const step = createMockStep()
+    await runWorkflow(wf, { url: 'https://m.toutiao.com/is/CI_XBMsL7IU/' }, step)
+    expect(cs.fetchToutiaoData).toHaveBeenCalledWith(expect.anything(), canonicalUrl)
+    expect(cs.parseAndSaveToutiao).toHaveBeenCalledWith(expect.anything(), article, 42, expect.any(String))
+    expect(step.do.mock.calls.some(call => call[0] === 'parse')).toBe(false)
+    expect(env.CONTENT_VALIDATION_WORKFLOW.create).toHaveBeenCalledOnce()
+    expect(uph.processPostHandler).toHaveBeenCalled()
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+  })
+
+  test.each(['resolution', 'provider'])('%s failure marks the bookmark failed without generic fallback', async failure => {
+    const { wf, cs, bs, uph } = wireWorkflow()
+    if (failure === 'resolution') cs.resolveShortLink.mockRejectedValue(new Error('Toutiao share link expired'))
+    else cs.fetchToutiaoData.mockRejectedValue(new Error('Toutiao article has been deleted'))
+    await expect(runWorkflow(wf, { url: canonicalUrl })).rejects.toThrow('Toutiao')
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(cs.parseAndSaveToutiao).not.toHaveBeenCalled()
+    expect(uph.processPostHandler).not.toHaveBeenCalled()
+  })
+
+  test('short body still follows normal article soft-404 checks', async () => {
+    const { wf, cs } = wireWorkflow()
+    cs.fetchToutiaoData.mockResolvedValue({ canonicalUrl })
+    cs.parseAndSaveToutiao.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, textContent: 'tiny' })
+    await runWorkflow(wf, { url: canonicalUrl })
+    expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'www.toutiao.com', 'parsing', 'failed', 'soft_404:len=4', expect.anything())
+  })
+})
+
 describe('CrawlWorkflow 缓存命中 (shortCircuit)', () => {
   test('历史公开文章已有内容 → 跳过 fetch/parse，直接 post-processing', async () => {
     const { wf, cs, bs, uph } = wireWorkflow()
