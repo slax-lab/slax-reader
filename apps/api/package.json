@@ -68,7 +68,6 @@
   },
   "scripts": {
     "config:init": "tsx --tsconfig tsconfig.json script/deploy/init-config.ts",
-    "release:check": "tsx --tsconfig tsconfig.json script/deploy/release-check.ts",
     "dev": "tsx --tsconfig tsconfig.json script/deploy/deploy.ts --dev",
     "dev:local": "tsx --tsconfig tsconfig.json script/deploy/dev-local.ts",
     "deploy": "tsx --tsconfig tsconfig.json script/deploy/deploy.ts",

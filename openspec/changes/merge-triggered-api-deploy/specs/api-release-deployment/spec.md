@@ -8,7 +8,7 @@ Define when the API may be released from the monorepo and how each release selec
 
 ### Requirement: Releases require a merged pull request
 
-The API release pipeline SHALL execute only for a pull request that has merged into `dev`, `beta`, or `main` in this repository. The deployment entry point and any reusable deployment call MUST enforce that prerequisite before running release code or accessing deployment credentials. An open pull request, an unmerged closure, a direct push, or an arbitrary manual dispatch MUST NOT cause a release. Merged pull requests from forks SHALL be eligible under the same conditions.
+Deployment SHALL be expressed in one GitHub Actions workflow using inline steps and existing API commands, with no new maintained deployment orchestrator, manifest, release validation command or separate custom scanner framework. The API release pipeline SHALL execute only for a pull request that has merged into `dev`, `beta`, or `main` in this repository. The single deployment workflow MUST enforce that prerequisite before running release code or accessing deployment credentials. An open pull request, an unmerged closure, a direct push, or an arbitrary manual or reusable dispatch MUST NOT cause a release. Merged pull requests from forks SHALL be eligible under the same conditions.
 
 #### Scenario: Pull request merges into a release branch
 - **WHEN** a pull request has merged into one of the three release branches
@@ -18,9 +18,9 @@ The API release pipeline SHALL execute only for a pull request that has merged i
 - **WHEN** a pull request closes without being merged
 - **THEN** the deployment job is skipped without accessing deployment credentials or mutating remote resources
 
-#### Scenario: An alternate caller tries to bypass the merge entry point
-- **WHEN** a reusable caller supplies a deployment environment or source revision without a qualifying merged pull request event
-- **THEN** the release is rejected before source execution or remote mutation
+#### Scenario: An alternate deployment trigger is attempted
+- **WHEN** a push, manual dispatch or reusable caller has no qualifying merged pull request event
+- **THEN** the deployment workflow has no such entry point and performs no release
 
 #### Scenario: A fork contribution has been merged
 - **WHEN** a fork pull request has merged into a release branch
@@ -56,7 +56,7 @@ Source SHALL be checked out at the qualifying pull request's resulting merged co
 
 #### Scenario: Configuration changes while a release is fetching files
 - **WHEN** the configuration default branch advances after a release resolves its commit
-- **THEN** the release fetches the manifest and selected native TOML from the originally resolved commit
+- **THEN** the release fetches the selected native TOML from the originally resolved commit
 
 ### Requirement: Validation and migrations precede Worker publication
 
@@ -108,7 +108,7 @@ All beta and production migration/publication operations SHALL share a mutual-ex
 
 ### Requirement: Real deployment configuration is private and credentials use Actions Secrets
 
-All real deployment configuration and infrastructure metadata SHALL be obtained from an authenticated private configuration repository after the merged-PR gate. Public workflow source, examples, and tests MUST contain only generic configuration structure and synthetic values. Checkout locators SHALL be protected through GitHub Actions Secrets. Credentials SHALL be supplied exclusively through GitHub Actions Secrets with minimum necessary scope; they MUST NOT be stored in the configuration repository or ordinary Actions Variables. Private configuration MUST remain declarative and MUST NOT introduce executable deployment scripts. A public configuration repository, invalid selector, or missing prerequisite MUST fail before deployment access or mutation.
+Operators SHALL maintain only `api/dev.toml`, `api/beta.toml`, and `api/prod.toml`, selected directly from the release environment; no release manifest or manually maintained configuration-ref/path selector SHALL be required. Native Worker identities SHALL be authoritative. Deployment account, firewall zone and Tunnel hostname SHALL come from Actions Secrets, retaining the existing native TOML format without additional deployment fields; the local Tunnel port SHALL come from matching loopback database Secrets. A native account_id, when present, MUST match the selected account Secret. All real deployment configuration and infrastructure metadata SHALL be obtained from an authenticated private configuration repository after the merged-PR gate. Public workflow source, examples, and tests MUST contain only generic configuration structure and synthetic values. Checkout locators SHALL be protected through GitHub Actions Secrets. Credentials SHALL be supplied exclusively through GitHub Actions Secrets with minimum necessary scope; they MUST NOT be stored in the configuration repository or ordinary Actions Variables. Private configuration MUST remain declarative and MUST NOT introduce executable deployment scripts. A public configuration repository, invalid selector, or missing prerequisite MUST fail before deployment access or mutation.
 
 #### Scenario: A release resolves its environment
 - **WHEN** a qualifying merged PR selects test, beta, or production

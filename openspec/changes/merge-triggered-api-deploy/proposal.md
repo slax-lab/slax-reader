@@ -6,9 +6,10 @@ The monorepo has a manual/reusable API deployment workflow, but it does not auto
 
 ## What Changes
 
-- Add an automatic API release entry point for merged pull requests targeting `dev`, `beta`, or `main`, including merged contributions from forks.
+- Use one GitHub Actions workflow with inline steps and existing API commands; add no deployment orchestrator, manifest or new maintained validation scripts. Add an automatic API release entry point for merged pull requests targeting `dev`, `beta`, or `main`, including merged contributions from forks.
 - Preserve the legacy mapping: `dev` replaces `develop` and uses test resources; `beta` keeps the beta Workers on the production account/database; `main` replaces `master` and deploys production.
 - Pin source checkout to the pull request's merged commit. Automatically resolve the private configuration repository's default branch to an immutable commit once per deployment attempt, without a manually maintained configuration-ref Secret. Fetch all real deployment configuration and infrastructure metadata at that resolved commit; public workflows, documentation, and fixtures contain only generic names, schemas, and synthetic examples.
+- Select `api/dev.toml`, `api/beta.toml`, or `api/prod.toml` directly from the merged target; require no release manifest, configurable file selector, or duplicated Worker/account metadata. Keep the existing native file format and supply deployment account, firewall zone and Tunnel hostname through Actions Secrets; derive the local port from database Secrets.
 - Obtain credentials exclusively from GitHub Actions Secrets in the selected GitHub Environment. Store private configuration checkout locators in Actions Secrets as well; do not use ordinary Actions Variables for private deployment data or download credential files from the configuration repository.
 - **BREAKING**: Remove arbitrary `workflow_dispatch` deployment and caller-selected configuration metadata. Reusable calls must also prove that the triggering pull request merged into the selected release branch. Retry failed releases through their existing workflow runs.
 - Restore temporary firewall access, Cloudflare Tunnel connectivity, PostgreSQL/logs migrations, and D1/fulltext migrations before publishing the existing four Workers. Correct the legacy workflow's D1 `--local` commands to remote migrations.
@@ -30,8 +31,8 @@ None. The existing `release-branching` requirements already define `dev`/`beta`/
 ## Impact
 
 - `.github/workflows/api-deploy.yml`, a new merge-entry workflow, and the API CI path/check configuration.
-- Repository workflow-policy tooling and focused offline tests; deployment documentation under `docs/api/`.
-- Operator-managed GitHub Environments (`dev`, `beta`, `prod`), a private declarative deployment manifest and native configurations, protected checkout selectors, Actions Secrets, and existing Cloudflare/database resources.
+- Existing API commands and inline workflow steps; deployment documentation under `docs/api/`.
+- Operator-managed GitHub Environments (`dev`, `beta`, `prod`), three private native TOML configurations, protected checkout selectors, Actions Secrets, and existing Cloudflare/database resources.
 - Beta continues to migrate the production PostgreSQL/logs databases before production code is promoted; migrations must remain compatible with the currently deployed production code.
 
 ## Non-goals

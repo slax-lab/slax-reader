@@ -6,7 +6,6 @@ on:
       - 'apps/api/**'
       - 'packages/contracts/**'
       - 'tooling/api.mjs'
-      - 'tooling/api-release*.mjs'
       - 'tooling/pnpm-command.mjs'
       - 'deploy/**'
       - 'package.json'
@@ -14,14 +13,12 @@ on:
       - 'pnpm-workspace.yaml'
       - '.github/workflows/api-ci.yml'
       - '.github/workflows/api-deploy.yml'
-      - '.github/workflows/api-deploy-on-merge.yml'
   push:
     branches: [main]
     paths:
       - 'apps/api/**'
       - 'packages/contracts/**'
       - 'tooling/api.mjs'
-      - 'tooling/api-release*.mjs'
       - 'tooling/pnpm-command.mjs'
       - 'deploy/**'
       - 'package.json'
@@ -29,7 +26,6 @@ on:
       - 'pnpm-workspace.yaml'
       - '.github/workflows/api-ci.yml'
       - '.github/workflows/api-deploy.yml'
-      - '.github/workflows/api-deploy-on-merge.yml'
 
 permissions:
   contents: read
@@ -49,8 +45,6 @@ jobs:
           node-version: '22'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Verify merged-release policy and confidentiality offline
-        run: node --test tooling/api-release.test.mjs
       - run: pnpm api -- config:init
       - run: pnpm api -- gen:all
       - run: pnpm api -- lint
