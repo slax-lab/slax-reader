@@ -1,7 +1,7 @@
 import { SocialMediaApi } from '../infra/external/socialMedia'
 import { SlaxFetch } from '../infra/external/remoteFetcher'
 import { HtmlBuilder, YoutubeCue } from '../utils/htmlBuilder'
-import { extractYoutubeVideoId } from '../utils/platformDetector'
+import { extractYoutubeVideoId, shouldUseBrowserHtml } from '../utils/platformDetector'
 import { captionPlainText, captionSourceHash, youtubeCaptionKeys, type YoutubeCaptionDocument } from '../utils/youtubeCaption'
 import { evaluateYoutubeEligibility } from '../utils/youtubeEligibility'
 import { YoutubeArticleRepo, YOUTUBE_ARTICLE_PROMPT_VERSION, YOUTUBE_ARTICLE_SCHEMA_VERSION } from '../infra/repository/dbYoutubeArticle'
@@ -49,6 +49,19 @@ export interface CrawlResult {
 }
 
 export type WeixinFetched = { source: 'tikhub'; content: TikHubWeixinContent } | { source: 'legacy'; fetchRes: fetchResult }
+
+const DYNAMIC_LOADING_PLACEHOLDER_RE = /^(?:加载中|正在加载中?|loading|pleasewait|cancel|ok|确定|取消|加载中确定删除吗取消确定|确定删除吗取消确定)+$/i
+
+export const isDynamicLoadingPlaceholder = (title: string, textContent: string): boolean => {
+  if (title.trim()) return false
+
+  const normalizedText = textContent
+    .normalize('NFKC')
+    .replace(/\s+/g, '')
+    .replace(/[·…:：,，.!！？?。]/g, '')
+
+  return normalizedText.length > 0 && normalizedText.length <= 32 && DYNAMIC_LOADING_PLACEHOLDER_RE.test(normalizedText)
+}
 
 /** 微信业务终止错误：不兜底不重试 */
 const isWeixinBusinessTerminal = (e: unknown): boolean => e instanceof Error && (e.name === ErrorName.WEIXIN_ENV_ABNORMAL || e.name === ErrorName.DAJIALA_ARTICLE_UNAVAILABLE)
@@ -264,31 +277,8 @@ export class CrawlService {
    */
   public async fetchRegular(ctx: ContextManager, url: string): Promise<fetchResult> {
     const fetcher = new SlaxFetch(ctx.env)
-    const urlObj = new URL(url)
 
-    const USE_BROWSER_HTML = [
-      'mp.weixin.qq.com',
-      'zhihu.com',
-      'infoq.cn',
-      'xueqiu.com',
-      'youtube.com',
-      'google.com',
-      'toutiao.com',
-      'msn.cn',
-      'imixs.org',
-      'binance.com',
-      'wiley.com',
-      'x.com',
-      'twitter.com',
-      'circuitbread.com',
-      'quora.com',
-      'chrisrichardson.net',
-      'huawei.com',
-      'mowen.cn',
-      'linkedin.com',
-      'wallstreetcn.com'
-    ]
-    const useBrowserHtml = USE_BROWSER_HTML.some(h => urlObj.hostname.endsWith(h))
+    const useBrowserHtml = shouldUseBrowserHtml(url)
     console.log(`using browser html for ${url}: ${useBrowserHtml}`)
 
     try {
@@ -467,6 +457,10 @@ export class CrawlService {
   public async parseAndSaveContent(ctx: ContextManager, fetchRes: fetchResult, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
     if (detectRoute(fetchRes.url) === 'regular') {
       const selected = await this.createBestParseRes(ctx, fetchRes)
+      if (isDynamicLoadingPlaceholder(selected.parseRes.title, selected.parseRes.textContent)) {
+        console.warn(`Dynamic page returned a loading placeholder for ${fetchRes.url}`)
+        throw FetchThreePartyError('Dynamic page returned a loading placeholder')
+      }
       return await this.saveParseRes(selected.parseRes, bookmarkId, userBookmarkUuid, selected.qualityReview)
     }
 
