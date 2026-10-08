@@ -24,7 +24,7 @@ Prepare these settings **before merging the implementation PR**: its merge into 
 | --- | --- |
 | `API_CONFIG_REPOSITORY` | Private `owner/repository` selector |
 | `API_CONFIG_REF` | Full lowercase 40-character immutable configuration commit SHA |
-| `API_CONFIG_MANIFEST_PATH` | Relative `.json` manifest path in that commit |
+| `API_CONFIG_MANIFEST_PATH` | Optional relative `.json` manifest path; defaults to `api/releases.json` |
 | `CONFIG_REPO_TOKEN` | Fine-grained token: read-only Contents and Metadata for only the configuration repository |
 | `CLOUDFLARE_API_TOKEN` | `CLOUDFLARE_TEST_API_TOKEN` for dev; `CLOUDFLARE_PROD_API_TOKEN` for beta/prod |
 | `CLOUDFLARE_FIREWALL_API_TOKEN` | Legacy `CF_API_TOKEN`; zone-read and IP Access rule permissions for the selected zone |
@@ -39,6 +39,20 @@ Both database Secrets must use PostgreSQL URLs with authentication, database nam
 
 ## Private configuration contract
 
+Maintain the configuration repository in its own local checkout, separate from the public monorepo. Its conventional layout is:
+
+```text
+api/
+  dev.toml
+  beta.toml
+  prod.toml
+  releases.json
+```
+
+The manifest maps `dev` to `api/dev.toml`, `beta` to `api/beta.toml`, and `prod` to `api/prod.toml`. Commit the reviewed files to the private repository first, then set each Environment's `API_CONFIG_REF` to that commit's full SHA. Updating configuration files alone does not deploy or update the pinned revision. After a successful configuration-repository update, explicitly advance the protected revision before a qualifying source merge or current-run retry. Never copy real TOML, manifests, generated files or credential files into the public monorepo.
+
+When adapting legacy files, remove local `env`/`dev` sections, preserve the existing installation bindings and resource identities, add the explicit Edge service, and transfer Edge routes from the legacy deployment overrides. Complete missing production account IDs, both firewall zone IDs and a valid test Tunnel hostname in the private files; do not substitute example IDs or guess a hostname from a path-based legacy selector. Review any differences between legacy per-Worker compatibility overrides and the monorepo's shared native configuration before the first release. Keep the legacy source files intact until the private migration is reviewed.
+
 The configuration repository must be private. Before fetching content, the pipeline verifies authenticated private status and the exact configured commit. It fetches only the manifest and selected native TOML through GitHub's Contents API; it does not clone scripts, create a Git credential helper, or persist a token. No credential files, submodules, or symlinks are accepted. Paths are relative, contained, and free of traversal or line breaks.
 
 The following **synthetic** manifest illustrates the schema. All real metadata belongs exclusively in the private repository. For beta/prod, include both environment entries with the same account, firewall zone, Tunnel listener/hostname, and Browser identity. Other Worker identities and configuration files remain environment-specific. A dev-only manifest may contain just dev.
@@ -48,7 +62,7 @@ The following **synthetic** manifest illustrates the schema. All real metadata b
   "version": 1,
   "environments": {
     "dev": {
-      "config": "synthetic/dev.toml",
+      "config": "api/dev.toml",
       "accountId": "11111111111111111111111111111111",
       "firewallZoneId": "22222222222222222222222222222222",
       "tunnel": { "hostname": "database.example.com", "port": 15432 },

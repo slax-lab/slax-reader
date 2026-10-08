@@ -138,6 +138,33 @@ test('private fetch verifies private status and commit, fetches only contained d
   } finally { await rm(directory, { recursive: true, force: true }) }
 })
 
+test('private api layout fetches only the selected environment at the pinned revision', async () => {
+  const configured = { ...secrets(), API_CONFIG_MANIFEST_PATH: 'api/releases.json' }
+  const releaseManifest = manifest()
+  for (const environment of ['dev', 'beta', 'prod']) releaseManifest.environments[environment].config = `api/${environment}.toml`
+  for (const environment of ['dev', 'beta', 'prod']) {
+    const directory = await mkdtemp(join(tmpdir(), 'api-layout-test-'))
+    const requestedFiles = []
+    const http = async (url, options) => {
+      assert.equal(options.token, configured.CONFIG_REPO_TOKEN)
+      if (url.includes('/commits/')) return { sha: privateSHA }
+      if (!url.includes('/contents/')) return { private: true, full_name: configured.API_CONFIG_REPOSITORY }
+      const request = new URL(url)
+      assert.equal(request.searchParams.get('ref'), privateSHA)
+      const filename = request.pathname.split('/contents/')[1]
+      requestedFiles.push(filename)
+      const content = filename === 'api/releases.json' ? JSON.stringify(releaseManifest)
+        : stringify({ name: 'synthetic-core', account_id: '1'.repeat(32), vars: { RUN_TYPE: environment } })
+      return { type: 'file', path: filename, encoding: 'base64', size: content.length, content: Buffer.from(content).toString('base64') }
+    }
+    try {
+      await fetchConfiguration(configured, environment, directory, { http, parse })
+      assert.deepEqual(requestedFiles, ['api/releases.json', `api/${environment}.toml`])
+      assert.equal(parse(await readFile(join(directory, 'api.toml'), 'utf8')).vars.RUN_TYPE, environment)
+    } finally { await rm(directory, { recursive: true, force: true }) }
+  }
+})
+
 test('authenticated readiness requires both databases and has bounded failure and process checks', async () => {
   const urls = ['synthetic-primary', 'synthetic-logs'], checked = []
   let attempts = 0
@@ -269,6 +296,7 @@ test('workflow YAML enforces merged gates, fixed checkout, shared lock and no pr
   const text = JSON.stringify(executor)
   for (const forbidden of ['workflow_dispatch', 'bootstrap', 'config-repository', 'config-ref', 'config-path', 'upload-artifact', 'actions/cache', '"cache"', 'GITHUB_OUTPUT', 'set -x', 'secrets: inherit']) assert.equal(text.includes(forbidden), false)
   assert.ok(job.steps.findIndex(step => step.run === 'pnpm install --frozen-lockfile') < job.steps.findIndex(step => step.env?.CONFIG_REPO_TOKEN))
+  assert.equal(job.steps.find(step => step.env?.CONFIG_REPO_TOKEN).env.API_CONFIG_MANIFEST_PATH, "${{ secrets.API_CONFIG_MANIFEST_PATH || 'api/releases.json' }}")
   assert.equal(JSON.stringify(ci).includes('secrets.'), false)
   for (const trigger of ['pull_request', 'push']) { assert.ok(ci.on[trigger].paths.includes('tooling/api-release*.mjs')); assert.ok(ci.on[trigger].paths.includes('.github/workflows/api-deploy-on-merge.yml')) }
   assert.ok(ci.jobs.check.steps.some(step => step.run === 'node --test tooling/api-release.test.mjs'))
