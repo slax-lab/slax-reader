@@ -533,8 +533,13 @@ const onKeyDown = (e: KeyboardEvent) => {
     return
   }
 
-  const commonPreLineKey = e.ctrlKey || e.shiftKey
-  if ((commonPreLineKey && !isMac) || ((commonPreLineKey || e.metaKey) && isMac)) {
+  // Let native Shift+Enter editing own the newline and caret position.
+  if (e.shiftKey) {
+    return
+  }
+
+  const preLineKey = isMac ? e.metaKey : e.ctrlKey
+  if (preLineKey) {
     if (!e.target || !(e.target instanceof HTMLTextAreaElement)) {
       return
     }
@@ -543,7 +548,7 @@ const onKeyDown = (e: KeyboardEvent) => {
     const cursorPosition = textareaTarget.selectionStart
     const textBeforeCursor = inputText.value.slice(0, cursorPosition)
     const textAfterCursor = inputText.value.slice(cursorPosition)
-    !e.shiftKey && (inputText.value = textBeforeCursor + '\n' + textAfterCursor)
+    inputText.value = textBeforeCursor + '\n' + textAfterCursor
 
     nextTick(() => {
       textareaTarget.selectionStart = cursorPosition + 1

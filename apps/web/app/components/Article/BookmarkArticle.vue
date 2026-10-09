@@ -14,6 +14,7 @@
       <BookmarkTags
         v-if="effAllowTagged"
         class="article-tags"
+        variant="detail"
         :bookmarkId="bookmarkId || 0"
         :bookmarkUid="bookmarkUid"
         :bookmarkUuid="adapters.tagsBookmarkUuid"

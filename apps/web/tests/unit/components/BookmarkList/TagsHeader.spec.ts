@@ -330,6 +330,17 @@ describe('TagsHeader', () => {
       expect(wrapper.emitted('select-tag')![0]).toEqual([['m1', 'a1'], 'Mine One'])
     })
 
+    it('selected topics chips expose an accessible remove button and emit removal', async () => {
+      mockGet.mockResolvedValueOnce([tag('m1', 'mine', { show_name: 'Mine One' })])
+      const wrapper = mountWithApp(TagsHeader, { props: { selectTagIds: ['m1'] } })
+      await flushPromises()
+      const remove = wrapper.find('.selected-tags .tag-act.remove')
+      expect(remove.element.tagName).toBe('BUTTON')
+      expect(remove.attributes('aria-label')).toBeTruthy()
+      await remove.trigger('click')
+      expect(wrapper.emitted('select-tag')!.at(-1)).toEqual([[]])
+    })
+
     it('单个未知 id → 回退 selectTagName；多个未知 id → 原样 id', async () => {
       mockGet.mockResolvedValueOnce([])
       const one = mountWithApp(TagsHeader, { props: { selectTagIds: ['zz'], selectTagName: 'Fallback' } })

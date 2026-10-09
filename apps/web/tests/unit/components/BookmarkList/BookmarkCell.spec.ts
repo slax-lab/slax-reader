@@ -65,11 +65,13 @@ const BookmarkTagsStub = defineComponent({
     // lfKey() 原样透传 bookmark.id：REST 下是 number/hashid，LF 下是 uuid
     bookmarkUuid: { type: [String, Number], default: '' },
     compact: { type: Boolean, default: false },
+    variant: { type: String, default: '' },
     readonly: { type: Boolean, default: false }
   },
   emits: ['change', 'select-tag'],
   template: `<div class="bookmark-tags-stub">
     <span v-for="tag in tags" :key="tag.id" class="stub-chip" @click="$emit('select-tag', tag)">{{ tag.show_name }}</span>
+    <span class="stub-variant" :data-variant="variant" />
     <button class="stub-add" type="button" @click="$emit('change', [...tags, { id: 99, name: 'new', show_name: 'New' }])">+</button>
   </div>`
 })
@@ -398,7 +400,7 @@ describe('components/BookmarkList/BookmarkCell', () => {
       expect(row.findAll('.stub-chip').map(c => c.text())).toEqual(['Vue', 'AI'])
       const child = wrapper.findComponent(BookmarkTagsStub)
       // REST 下没有 local-first uuid，传空串；bookmarkId 是 hashid
-      expect(child.props()).toMatchObject({ bookmarkId: 1000001, bookmarkUid: 'uid-1', bookmarkUuid: '', compact: true, readonly: false, tags })
+      expect(child.props()).toMatchObject({ bookmarkId: 1000001, bookmarkUid: 'uid-1', bookmarkUuid: '', compact: true, readonly: false, tags, variant: 'list-card' })
     })
 
     it('无 tags：子组件仍渲染（自带 "+"）', () => {
@@ -411,6 +413,7 @@ describe('components/BookmarkList/BookmarkCell', () => {
       const wrapper = mountCell({ bookmark: makeBookmarkItem({ tags }), isSubscribe: false, textMode: true })
       expect(wrapper.find('.article-tags').exists()).toBe(true)
       expect(wrapper.findComponent(BookmarkTagsStub).exists()).toBe(true)
+      expect(wrapper.findComponent(BookmarkTagsStub).props('variant')).toBe('list-text')
     })
 
     it('trashed：不渲染标签行', () => {

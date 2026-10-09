@@ -107,6 +107,23 @@ afterEach(() => {
 
 describe('components/BookmarkTags', () => {
   describe('渲染', () => {
+    it('renders detail variant tags with the standalone TagChipDetail component', () => {
+      const wrapper = mountTags({ props: { tags: baseTags, bookmarkId: 7, variant: 'detail' } })
+      const chips = wrapper.findAll('.tags-cells .tag-chip-detail')
+      expect(chips).toHaveLength(2)
+      expect(wrapper.findAll('.tags-cells .tag-chip')).toHaveLength(0)
+      expect(chips[0]!.find('.tag-act.remove').text()).toBe('×')
+      expect(chips[0]!.find('.tag-act.remove svg').exists()).toBe(false)
+    })
+
+    it.each(['list-card', 'list-text'] as const)('forwards %s variant to visible and measurement chips', async variant => {
+      const wrapper = mountTags({ props: { tags: baseTags, bookmarkId: 7, compact: true, variant } })
+      expect(wrapper.find('.tags-cells .tag-chip').classes()).toContain(`variant-${variant}`)
+      expect(wrapper.find('.tags-measure .tag-chip').classes()).toContain(`variant-${variant}`)
+      expect(wrapper.find('.tag-add-wrap .tag-add').exists()).toBe(true)
+      expect(wrapper.find('.tags-measure').attributes()).toHaveProperty('inert')
+    })
+
     it('readonly=false：每个 tag 使用旧版方角外观，带删除按钮 + add 按钮', () => {
       const wrapper = mountTags({ props: { tags: baseTags, bookmarkId: 7 } })
       expect(wrapper.findAll('.tags-cells .tag-chip')).toHaveLength(2)
@@ -604,6 +621,33 @@ describe('components/BookmarkTags', () => {
   // 不是这次改动引入的），所以这里只覆盖不依赖 DOM ref 解析的部分：默认态渲染、compact 才出现度量行、
   // + 图标默认态。真实宽度裁剪→图标切换的端到端行为已用真实 Chrome + 组件同款 CSS/DOM 结构离线验证过。
   describe('compact：宽度裁剪 —— 默认态与度量行', () => {
+    it.each([
+      ['list-card', 99],
+      ['list-text', 116]
+    ] as const)('variant=%s truncates tags and replaces the add icon with overflow when space is limited', async (variant, width) => {
+      const wrapper = mountTags({ props: { tags: [...baseTags, design], bookmarkId: 7, compact: true, variant } })
+      await flushPromises()
+      Object.defineProperty(wrapper.element, 'clientWidth', { configurable: true, value: width })
+      wrapper.findAll('.tags-measure .tag-chip').forEach(chip => Object.defineProperty(chip.element, 'offsetWidth', { configurable: true, value: 30 }))
+      ;(wrapper.vm as any).recomputeVisibleCount()
+      await flushPromises()
+      expect(wrapper.findAll('.tags-cells .tag-chip')).toHaveLength(1)
+      expect(wrapper.find('.tag-add').findAll('circle')).toHaveLength(3)
+      expect(wrapper.find('.tag-add').attributes('title')).toBe('More tags')
+    })
+
+    it('list-text reserves an 8px gap and a 16px add control when measuring visible tags', async () => {
+      const wrapper = mountTags({ props: { tags: [...baseTags, design], bookmarkId: 7, compact: true, variant: 'list-text' } })
+      await flushPromises()
+      Object.defineProperty(wrapper.element, 'clientWidth', { configurable: true, value: 150 })
+      wrapper.findAll('.tags-measure .tag-chip').forEach(chip => Object.defineProperty(chip.element, 'offsetWidth', { configurable: true, value: 30 }))
+      ;(wrapper.vm as any).recomputeVisibleCount()
+      await flushPromises()
+      // 150 - add control 16 - safety 49 = 85: two 30px chips plus an 8px gap fit; three do not.
+      expect(wrapper.findAll('.tags-cells .tag-chip')).toHaveLength(2)
+      expect(wrapper.find('.tag-add').findAll('circle')).toHaveLength(3)
+    })
+
     it('默认（未收到真实宽度测量前）：全部显示，+ 图标，无 More tags title', () => {
       const tags = [tech, ai, design]
       const wrapper = mountTags({ props: { tags: [...tags], bookmarkId: 7, compact: true } })

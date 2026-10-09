@@ -61,6 +61,7 @@
             :bookmark-uuid="lf ? lfKey() : ''"
             :tags="bookmark.tags ?? []"
             :readonly="false"
+            :variant="textMode ? 'list-text' : 'list-card'"
             @change="onTagsChange"
             @select-tag="(tag: BookmarkTag) => emits('selectTag', tag)"
           />
@@ -784,12 +785,6 @@ const starBookmark = async (isStar: boolean) => {
   // （含 BookmarkTags 内部不可见的度量行，双重保险不会露出）
   :deep(.tags-list) {
     flex-wrap: nowrap;
-  }
-
-  // 字号与同行来源/操作按钮的 12px 对齐；只在这里（列表卡片 meta 行）覆盖，
-  // 不动 TagChip.vue 本身默认值，文章详情页的标签行（非 compact 用法）不受影响
-  :deep(.tag-chip.legacy) {
-    font-size: 12px;
   }
 }
 

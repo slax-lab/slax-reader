@@ -15,6 +15,51 @@ describe('components/BookmarkList/TagChip', () => {
     expect(w.classes()).toContain('mine')
   })
 
+  it.each(['topics', 'list-card', 'list-text'] as const)('applies the %s visual variant class', variant => {
+    const w = mountWithApp(TagChip, { props: { tag, variant } })
+    expect(w.classes()).toContain(`variant-${variant}`)
+  })
+
+  it('renders inline SVG action icons for topics chips', () => {
+    const w = mountWithApp(TagChip, { props: { tag, variant: 'topics', promotable: true, removable: true } })
+    expect(w.find('.tag-act.promote svg').exists()).toBe(true)
+    expect(w.find('.tag-act.remove svg').exists()).toBe(true)
+    expect(w.find('.tag-act.remove').text()).toBe('')
+  })
+
+  it('keeps compact and action-gutter state independent for topics chips', () => {
+    const w = mountWithApp(TagChip, { props: { tag, variant: 'topics', compact: true, promotable: true, removable: true } })
+    expect(w.classes()).toEqual(expect.arrayContaining(['variant-topics', 'compact', 'has-acts']))
+    expect(w.findAll('.tag-act')).toHaveLength(2)
+    expect(w.find('.tag-act.promote svg').exists()).toBe(true)
+    expect(w.find('.tag-act.remove svg').exists()).toBe(true)
+    expect(w.find('.tag-act.promote').attributes('aria-label')).toBeTruthy()
+    expect(w.find('.tag-act.remove').attributes('aria-label')).toBeTruthy()
+  })
+
+  it('keeps topics action buttons keyboard reachable without a chip click listener', async () => {
+    const w = mountWithApp(TagChip, { props: { tag, variant: 'topics', removable: true } })
+    const remove = w.find('.tag-act.remove')
+    await remove.trigger('focus')
+    await remove.trigger('click')
+    expect(w.emitted('remove')).toEqual([[tag]])
+  })
+
+  it.each(['list-card', 'list-text'] as const)('renders a text close control for %s chips', variant => {
+    const w = mountWithApp(TagChip, { props: { tag, variant, removable: true } })
+    expect(w.find('.tag-act.remove').text()).toBe('×')
+    expect(w.find('.tag-act.remove svg').exists()).toBe(false)
+  })
+
+  it('keeps list-text actions in the text-mode markup', () => {
+    const w = mountWithApp(TagChip, { props: { tag, variant: 'list-text', removable: true } })
+
+    expect(w.classes()).toEqual(expect.arrayContaining(['variant-list-text', 'has-acts']))
+    expect(w.find('.tag-acts').exists()).toBe(true)
+    expect(w.find('.tag-act.remove').classes()).toContain('remove')
+    expect(w.find('.tag-act.remove').text()).toBe('×')
+  })
+
   it('shows no count, no mark, no buttons by default', () => {
     const w = mountWithApp(TagChip, { props: { tag: { ...tag, source: 'auto' } } })
     expect(w.find('.tag-count').exists()).toBe(false)
@@ -63,5 +108,14 @@ describe('components/BookmarkList/TagChip', () => {
     const w = mountWithApp(TagChip, { props: { tag, promotable: true, onPromote } })
     await w.find('.tag-act.promote').trigger('click')
     expect(onPromote).toHaveBeenCalledWith(tag)
+  })
+
+  it('does not select a list tag when Enter activates its remove button', async () => {
+    const w = mountWithApp(TagChip, { props: { tag, variant: 'list-card', removable: true, onClick: vi.fn() } })
+    const remove = w.find('.tag-act.remove')
+    await remove.trigger('keydown', { key: 'Enter' })
+    await remove.trigger('click')
+    expect(w.emitted('click')).toBeUndefined()
+    expect(w.emitted('remove')).toEqual([[tag]])
   })
 })

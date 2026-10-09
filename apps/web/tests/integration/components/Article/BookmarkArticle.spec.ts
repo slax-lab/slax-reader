@@ -180,6 +180,7 @@ vi.mock('~~/app/components/Article/processors', () => {
     SocialPostProcessor: class {},
     SpanProcessor: class {},
     SvgProcessor: class {},
+    TableLayoutProcessor: class {},
     TweetProcessor: class {},
     VideoProcessor: class {},
     WechatHeaderProcessor: class {},
@@ -201,7 +202,7 @@ vi.mock('@slax-reader/contracts/interface', async () => {
 
 // BookmarkTags 子组件 stub（避免引入 BookmarkTags spec 的 mock 链）
 const stubs = {
-  BookmarkTags: { name: 'BookmarkTags', template: '<div class="bookmark-tags-stub" />', props: ['bookmarkId', 'tags', 'readonly'] },
+  BookmarkTags: { name: 'BookmarkTags', template: '<div class="bookmark-tags-stub" />', props: ['bookmarkId', 'tags', 'readonly', 'variant'] },
   SnapshotArticleSource: {
     name: 'SnapshotArticleSource',
     template: '<div class="article-source-stub" />',
@@ -265,6 +266,7 @@ describe('Article/BookmarkArticle', () => {
         url: 'https://example.com/article',
         author: 'Author'
       })
+      expect(wrapper.findComponent({ name: 'BookmarkTags' }).props('variant')).toBe('detail')
     })
 
     it('article-detail v-html 渲染 detail.content 并补 lazy loading', () => {
@@ -350,11 +352,11 @@ describe('Article/BookmarkArticle', () => {
   })
 
   describe('handleHTML + handleDrawMark 流程', () => {
-    it('onMounted 后：DOMPipeline 注册 17 个 processor 并 run 一次', async () => {
+    it('registers 18 processors and runs the DOM pipeline once after mounting', async () => {
       mountWithApp(BookmarkArticle, { props: { detail: buildDetail() }, global: { stubs } })
       await flushPromises()
       await flushPromises()
-      expect(pipelineRegistered.length).toBe(17)
+      expect(pipelineRegistered.length).toBe(18)
       expect(pipelineRunCalls.length).toBe(1)
     })
 

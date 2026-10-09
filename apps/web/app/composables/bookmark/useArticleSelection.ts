@@ -22,6 +22,7 @@ import {
   SocialPostProcessor,
   SpanProcessor,
   SvgProcessor,
+  TableLayoutProcessor,
   TweetProcessor,
   VideoProcessor,
   type WebProcessorContext,
@@ -138,6 +139,7 @@ export function useArticleSelection(p: UseArticleSelectionParams) {
       .register(new PhotoSwipeProcessor())
       .register(new TweetProcessor())
       .register(new SocialPostProcessor())
+      .register(new TableLayoutProcessor())
 
     await pipeline.run(context)
 
