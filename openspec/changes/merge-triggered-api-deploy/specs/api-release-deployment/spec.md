@@ -10,9 +10,19 @@ Define when the API may be released from the monorepo and how each release selec
 
 Deployment SHALL be expressed in one GitHub Actions workflow using inline steps and existing API commands, with no new maintained deployment orchestrator, manifest, release validation command or separate custom scanner framework. The API release pipeline SHALL execute only for a pull request that has merged into `dev`, `beta`, or `main` in this repository. The single deployment workflow MUST enforce that prerequisite before running release code or accessing deployment credentials. An open pull request, an unmerged closure, a direct push, or an arbitrary manual or reusable dispatch MUST NOT cause a release. Merged pull requests from forks SHALL be eligible under the same conditions.
 
+The workflow SHALL select API-related changes through native path filters covering API source, contracts, API command/workflow/template files and root package/lock/workspace manifests. A merge changing only Web, Extension, frontend-only shared packages or repository documentation MUST NOT initiate API deployment. Future Web deployment and Extension packaging SHALL use their own application and frontend-shared paths; this change SHALL document those scopes without adding placeholder release jobs.
+
 #### Scenario: Pull request merges into a release branch
-- **WHEN** a pull request has merged into one of the three release branches
+- **WHEN** a pull request with API-related changes has merged into one of the three release branches
 - **THEN** the pipeline selects that target branch's release environment and may proceed after its remaining validation succeeds
+
+#### Scenario: A frontend-only or repository documentation-only change merges
+- **WHEN** a merged pull request changes only Web, Extension, frontend-only shared packages or repository documentation
+- **THEN** no API release workflow is initiated
+
+#### Scenario: A shared contract or root dependency manifest changes
+- **WHEN** a merged pull request changes shared contracts or a root package, lock or workspace manifest
+- **THEN** the API workflow is eligible because those paths affect the API as well
 
 #### Scenario: Pull request closes without merging
 - **WHEN** a pull request closes without being merged
@@ -92,18 +102,22 @@ The pipeline SHALL bound Tunnel startup, validate temporary firewall rule creati
 
 ### Requirement: Shared resources are serialized and stale releases are skipped
 
-All beta and production migration/publication operations SHALL share a mutual-exclusion scope covering their common databases and Browser Worker. Test SHALL use an independent scope. A new release MUST NOT cancel an already executing release. Under that scope, the pipeline SHALL recheck the target branch before the first remote mutation and skip a run whose source commit has been superseded on that branch. The pipeline MUST NOT claim that every queued intermediate release executes in order.
+All beta and production migration/publication operations SHALL share a mutual-exclusion scope covering their common databases and Browser Worker. Test SHALL use an independent scope. A new release MUST NOT cancel an already executing release. Under that scope, the pipeline SHALL recheck the target branch before the first remote mutation and skip a run whose API-related contents have been superseded on that branch. When the tip differs from the source commit, the comparison MUST cover the same paths as the workflow filter and fail on comparison errors. Unrelated frontend/documentation changes MUST NOT invalidate the pending API release. The pipeline MUST NOT claim that every queued intermediate release executes in order.
 
 #### Scenario: Beta and production promotions overlap
 - **WHEN** beta and production releases are eligible at the same time
 - **THEN** their remote operations cannot execute concurrently
 
 #### Scenario: An old run is retried after newer changes land
-- **WHEN** the target branch no longer points to the retried run's merged commit
+- **WHEN** the target branch's API-related contents differ from the retried run's merged commit
 - **THEN** the run is reported as superseded and performs no remote mutations
 
+#### Scenario: Unrelated frontend changes land after an API merge
+- **WHEN** the target branch advances but its API-related contents still match the API run's merged commit
+- **THEN** the pending or retried API release remains eligible and uses its original merged source commit
+
 #### Scenario: A failed current release is retried
-- **WHEN** the same merged commit is still the target branch tip
+- **WHEN** the target branch's API-related contents still match the failed run's merged commit
 - **THEN** rerunning its existing workflow may retry the same source with the then-current configuration default branch resolved to one immutable revision under the same validation and locking rules, without publishing private branch or revision metadata
 
 ### Requirement: Real deployment configuration is private and credentials use Actions Secrets

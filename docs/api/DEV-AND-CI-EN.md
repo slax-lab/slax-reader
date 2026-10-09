@@ -49,7 +49,19 @@ Prepare Secrets and merge reviewed private configuration before merging the impl
 
 ## Release steps
 
-Only a merged PR into dev, beta or main deploys. Open/unmerged PRs, direct pushes and manual/reusable calls do not trigger deployment. Source checkout uses the resulting merge SHA. Test has an independent lock; beta/prod share a production lock and do not cancel executing releases. Current-tip checks skip superseded source revisions before private loading and before remote access.
+Only a merged PR into dev, beta or main with API-related changes deploys the API. The workflow filters API source, shared contracts, API command/workflow/template files and root package/lock/workspace manifests. Changes confined to Web, Extension, frontend-only shared packages or the repository docs directory do not initiate API deployment. Open/unmerged PRs, direct pushes and manual/reusable calls do not trigger deployment.
+
+The application scopes are reserved for separate release workflows in this repository:
+
+| Application | Application/shared source paths | Release action |
+| --- | --- | --- |
+| API | `apps/api/**`, `packages/contracts/**` | Existing API deployment |
+| Web | `apps/web/**`, `packages/contracts/**`, `packages/frontend-types/**`, `packages/frontend-utils/**`, `packages/selection/**` | Web deployment, to be added later |
+| Extension | `apps/extension/**`, `packages/contracts/**`, `packages/frontend-types/**`, `packages/frontend-utils/**`, `packages/selection/**` | ZIP packaging with `pnpm extension -- package`, to be added later |
+
+Each application's command/configuration and workflow files also belong to its scope. Root `package.json`, `pnpm-lock.yaml` and `pnpm-workspace.yaml` changes conservatively affect every application. Future Web/Extension release workflows should retain the merged-PR prerequisite and their own path filters.
+
+Source checkout uses the resulting merge SHA. Test has an independent lock; beta/prod share a production lock and do not cancel executing releases. Before private loading and remote access, the workflow compares the merged source with the current branch tip over the same API-related paths. Newer API changes supersede the run; unrelated frontend/documentation commits leave it eligible. Fetch or comparison errors stop the release.
 
 After installation, the workflow runs the existing gen:all, lint, typecheck, test and build commands with generation-only database placeholders. It then opens temporary firewall/Tunnel access, checks both database connections, and runs the existing commands sequentially:
 
@@ -65,7 +77,7 @@ D1 migrations use --remote. Normal publication keeps Browser -> AI -> Core -> Ed
 
 Configured command output and private API responses are captured in temporary files; public messages contain only fixed stage results. No private configuration, IDs, endpoints, raw diagnostics, logs or generated bundles are uploaded or cached. An always() cleanup step stops only the owned Tunnel process, deletes only run-created firewall rules and removes private/generated files. Existing allow rules survive. Cleanup errors also fail the job. A forcibly killed runner may require operator cleanup of the rule with notes api-release:<run-id>:<attempt>.
 
-Retry through the existing Actions run while its merged source remains the target branch tip. The retry reads the latest reviewed configuration default branch again. Database migrations and Worker publication are not one transaction: inspect safe completed-stage results and retry forward; do not roll back schemas automatically.
+Retry through the existing Actions run while its API-related contents still match the target branch tip. The retry reads the latest reviewed configuration default branch again. Database migrations and Worker publication are not one transaction: inspect safe completed-stage results and retry forward; do not roll back schemas automatically.
 
 ## Configuration PR checks
 

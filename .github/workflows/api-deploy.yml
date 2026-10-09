@@ -4,6 +4,17 @@ on:
   pull_request_target:
     types: [closed]
     branches: [dev, beta, main]
+    paths:
+      - 'apps/api/**'
+      - 'packages/contracts/**'
+      - 'tooling/api.mjs'
+      - 'tooling/pnpm-command.mjs'
+      - 'deploy/cloudflare/api.toml.example'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/api-ci.yml'
+      - '.github/workflows/api-deploy.yml'
 
 permissions:
   contents: read
@@ -63,12 +74,25 @@ jobs:
           if ! tip=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha' 2>"$RELEASE_DIR/source.log"); then
             echo 'Source revision check failed'; exit 1
           fi
-          if [ "$tip" = "$MERGE_SHA" ]; then
-            echo 'current=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'current=false' >> "$GITHUB_OUTPUT"
-            echo 'Release skipped: a newer merge is already on this branch'
+          current=true
+          if [ "$tip" != "$MERGE_SHA" ]; then
+            if ! [[ "$tip" =~ ^[a-f0-9]{40}$ ]] || ! git -c credential.helper= fetch --no-tags --depth=1 origin "$tip" >"$RELEASE_DIR/source.log" 2>&1; then
+              echo 'Source revision check failed'; exit 1
+            fi
+            # Keep these paths aligned with the workflow's API path filter.
+            if git diff --quiet "$MERGE_SHA" "$tip" -- apps/api packages/contracts \
+              tooling/api.mjs tooling/pnpm-command.mjs deploy/cloudflare/api.toml.example \
+              package.json pnpm-lock.yaml pnpm-workspace.yaml \
+              .github/workflows/api-ci.yml .github/workflows/api-deploy.yml >"$RELEASE_DIR/source.log" 2>&1; then
+              :
+            else
+              status=$?
+              if [ "$status" -ne 1 ]; then echo 'Source revision comparison failed'; exit 1; fi
+              current=false
+            fi
           fi
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          if [ "$current" = false ]; then echo 'Release skipped: newer API changes are already on this branch'; fi
       - name: Install cloudflared
         if: steps.source.outputs.current == 'true'
         run: |
@@ -155,12 +179,25 @@ jobs:
           if ! tip=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha' 2>"$RELEASE_DIR/source.log"); then
             echo 'Source revision check failed'; exit 1
           fi
-          if [ "$tip" = "$MERGE_SHA" ]; then
-            echo 'current=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'current=false' >> "$GITHUB_OUTPUT"
-            echo 'Release skipped: a newer merge is already on this branch'
+          current=true
+          if [ "$tip" != "$MERGE_SHA" ]; then
+            if ! [[ "$tip" =~ ^[a-f0-9]{40}$ ]] || ! git -c credential.helper= fetch --no-tags --depth=1 origin "$tip" >"$RELEASE_DIR/source.log" 2>&1; then
+              echo 'Source revision check failed'; exit 1
+            fi
+            # Keep these paths aligned with the workflow's API path filter.
+            if git diff --quiet "$MERGE_SHA" "$tip" -- apps/api packages/contracts \
+              tooling/api.mjs tooling/pnpm-command.mjs deploy/cloudflare/api.toml.example \
+              package.json pnpm-lock.yaml pnpm-workspace.yaml \
+              .github/workflows/api-ci.yml .github/workflows/api-deploy.yml >"$RELEASE_DIR/source.log" 2>&1; then
+              :
+            else
+              status=$?
+              if [ "$status" -ne 1 ]; then echo 'Source revision comparison failed'; exit 1; fi
+              current=false
+            fi
           fi
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          if [ "$current" = false ]; then echo 'Release skipped: newer API changes are already on this branch'; fi
       - name: Allow the runner through the existing firewall
         if: steps.release.outputs.current == 'true'
         env:

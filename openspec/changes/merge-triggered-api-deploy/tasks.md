@@ -6,5 +6,6 @@
 - [x] 4. Keep private agent credential rules and simplify PR Secret checks to direct pinned Gitleaks plus inline credential-file checks, deleting the custom scanner scripts/tests and the release manifest.
 - [x] 5. Simplify operator docs around the three files, existing deployment Secrets and one workflow; verify no references require removed scripts or extra configuration.
 - [x] 6. Verify YAML/inline code and synthetic event/fetch/failure/privacy/cleanup cases, run existing API deployment regressions and OpenSpec strict validation, complete Bugs/Security/Compliance review and commit the authorized task branches.
+- [x] 7. Filter API releases by API-related paths, preserve pending releases across unrelated frontend/documentation merges, reserve independent future Web/Extension path scopes in the guide, and verify the selection and supersession behavior offline.
 
 OpenSpec: merge-triggered-api-deploy. Live deployment and remote migrations are outside implementation verification. Publication depends on GitHub network/write access; do not claim a PR exists until it is created.
