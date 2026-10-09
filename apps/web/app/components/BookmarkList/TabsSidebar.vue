@@ -8,11 +8,12 @@
       class="sidebar-item"
       :class="{ active: tabType === item.type }"
       :title="item.title"
+      :aria-label="item.title"
       @click="inboxClick(item.type, index)"
       type="button"
     >
       <!-- viewBox 随 icon 自带 -->
-      <svg class="item-icon" width="18" height="18" :viewBox="item.icon.viewBox" fill="none" stroke="currentColor" stroke-width="1.5" v-html="item.icon.markup" />
+      <AppIcon class="item-icon" :name="item.icon" :size="18" />
       <span>{{ item.title }}</span>
     </button>
 
@@ -20,19 +21,19 @@
     <div class="sidebar-divider" />
 
     <!-- 废纸篓 -->
-    <button class="sidebar-item" :class="{ active: tabType === 'trashed' }" :title="$t('page.bookmarks_index.Trash')" @click="inboxClick('trashed')" type="button">
-      <svg class="item-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <polyline points="3 6 5 6 21 6" />
-        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-      </svg>
+    <button class="sidebar-item" :class="{ active: tabType === 'trashed' }" :title="$t('page.bookmarks_index.Trash')" :aria-label="$t('page.bookmarks_index.Trash')" @click="inboxClick('trashed')" type="button">
+      <AppIcon class="item-icon" name="bookmark.trash" :size="18" />
       <span>{{ $t('page.bookmarks_index.Trash') }}</span>
     </button>
   </nav>
 </template>
 
 <script setup lang="ts">
+import AppIcon from '~/components/AppIcon.vue'
+
 import { useSidebarCollapsed } from '~/composables/bookmark/useSidebarCollapsed'
 import { useLabFeatures } from '~/composables/useLabFeatures'
+import { resolveTabIconKey } from '~/icons/registry'
 
 // BookmarkTabTypes 和 TabIcons 由 Nuxt auto-import 注入
 // 不显式 import，以便 fork 对 useBookmarkRelative 的 override 能通过 layer 优先级生效
@@ -53,15 +54,13 @@ defineProps({
 
 const emits = defineEmits(['changeTab'])
 
-const FALLBACK_ICON = { viewBox: '0 0 24 24', markup: '' }
-
 const tabList = computed(() =>
   BookmarkTabTypes.flatMap(type => {
-    const item = { type, title: t(`page.bookmarks_index.${type}`), icon: TabIcons[type] ?? FALLBACK_ICON }
+    const item = { type, title: t(`page.bookmarks_index.${type}`), icon: resolveTabIconKey(type, TabIcons[type]) }
     if (type !== 'inbox' || !labs.loaded.value || !labs.isEnabled('rss')) return [item]
     return [
       item,
-      { type: 'rss', title: t('rss.title'), icon: { viewBox: '0 0 24 24', markup: '<path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/>' } }
+      { type: 'rss', title: t('rss.title'), icon: 'bookmark.rss' }
     ]
   })
 )

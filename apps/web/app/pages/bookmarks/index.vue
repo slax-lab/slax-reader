@@ -122,12 +122,7 @@
           <!-- 专栏已过期/已关闭：锁图标空状态 -->
           <div v-if="feedBlocked" class="feed-closed-view">
             <div class="feed-closed-icon" aria-hidden="true">
-              <!-- icon-empty-lock.svg -->
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="5" y="10" width="14" height="10" rx="2" />
-                <path d="M8,10 L8,7 C8,4.790861 9.790861,3 12,3 C14.209139,3 16,4.790861 16,7 L16,10" />
-                <circle cx="12" cy="15" r="1" />
-              </svg>
+              <AppIcon name="empty.lock" :size="32" />
             </div>
             <h3 class="feed-closed-title">{{ feedClosedTitle }}</h3>
             <p class="feed-closed-desc">{{ feedClosedDesc }}</p>
@@ -183,6 +178,7 @@
 <script lang="ts" setup>
 definePageMeta({ alias: ['/'], key: 'bookmarks' })
 
+import AppIcon from '~/components/AppIcon.vue'
 import AddUrlTopModal from '~/components/BookmarkList/AddUrlTopModal.vue'
 import BookmarkListContent from '~/components/BookmarkList/BookmarkListContent.vue'
 import BookmarksContentHeader from '~/components/BookmarkList/BookmarksContentHeader.vue'

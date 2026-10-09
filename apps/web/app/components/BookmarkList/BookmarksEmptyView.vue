@@ -3,9 +3,7 @@
   <div class="empty-view">
     <div class="empty-view-icon">
       <slot name="icon">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="12" r="10" />
-        </svg>
+        <AppIcon name="empty.fallback" :size="32" />
       </slot>
     </div>
     <h3 class="empty-view-title">{{ title }}</h3>
@@ -16,6 +14,8 @@
 </template>
 
 <script setup lang="ts">
+import AppIcon from '~/components/AppIcon.vue'
+
 defineProps<{
   title: string
   desc: string
