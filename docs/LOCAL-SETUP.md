@@ -147,6 +147,6 @@ the services separately and complete the Phase 6 acceptance check.
   `【阻止启动】` and `【功能受限】` items and rerun. For Docker installation,
   use [Docker's official guide](https://docs.docker.com/get-docker/). For
   stopped PostgreSQL/PowerSync containers, rerun `pnpm api -- setup`.
-- Backend setup details: `docs/api/DEV-AND-CI-CN.md`.
+- Backend setup and merged-release CI: [API development and CI](api/DEV-AND-CI-EN.md).
 - `setup` never creates or rewrites configuration; missing material means
   a Phase 3 item is incomplete.

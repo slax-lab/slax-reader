@@ -1,130 +1,258 @@
 name: API deploy
 
 on:
-  workflow_dispatch:
-    inputs:
-      config-repository:
-        description: 'Configuration repository (owner/repository)'
-        required: true
-        type: string
-      config-ref:
-        description: 'Configuration commit SHA, tag or branch (prefer immutable SHA)'
-        required: true
-        type: string
-      config-path:
-        description: 'api.toml path within the configuration repository'
-        required: true
-        default: api.toml
-        type: string
-      environment:
-        description: 'GitHub deployment environment'
-        required: true
-        type: choice
-        options: [dev, beta, prod]
-      wrangler-environment:
-        description: 'Optional native Wrangler environment; empty uses top-level configuration'
-        type: string
-        default: ''
-      bootstrap:
-        description: 'First installation only: initialize circular Worker bindings'
-        type: boolean
-        default: false
-  workflow_call:
-    inputs:
-      config-repository:
-        required: true
-        type: string
-      config-ref:
-        required: true
-        type: string
-      config-path:
-        type: string
-        default: api.toml
-      environment:
-        required: true
-        type: string
-      wrangler-environment:
-        type: string
-        default: ''
-      bootstrap:
-        type: boolean
-        default: false
-    secrets:
-      CONFIG_REPO_TOKEN:
-        description: 'Read-only token for the configuration repository'
-        required: true
-      CLOUDFLARE_API_TOKEN:
-        required: true
-      CLOUDFLARE_ACCOUNT_ID:
-        required: false
+  pull_request_target:
+    types: [closed]
+    branches: [dev, beta, main]
+    paths:
+      - 'apps/api/**'
+      - 'packages/contracts/**'
+      - 'tooling/api.mjs'
+      - 'tooling/pnpm-command.mjs'
+      - 'deploy/cloudflare/api.toml.example'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/api-ci.yml'
+      - '.github/workflows/api-deploy.yml'
 
 permissions:
   contents: read
 
-concurrency:
-  group: api-deploy-${{ inputs.environment }}
-  cancel-in-progress: false
-
 jobs:
   deploy:
+    # Merging emits "closed" too; an ordinary closure must skip deployment.
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    environment: ${{ inputs.environment }}
+    timeout-minutes: 40
+    environment: ${{ github.event.pull_request.base.ref == 'main' && 'prod' || github.event.pull_request.base.ref }}
+    concurrency:
+      group: api-deploy-${{ github.event.pull_request.base.ref == 'dev' && 'test' || 'shared-production' }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash --noprofile --norc -euo pipefail {0}
     env:
-      SLAX_API_ENV: ${{ inputs.wrangler-environment }}
+      DEPLOY_ENVIRONMENT: ${{ github.event.pull_request.base.ref == 'main' && 'prod' || github.event.pull_request.base.ref }}
+      TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
+      MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+      SLAX_API_ENV: ''
       WRANGLER_SEND_METRICS: 'false'
       CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: 'false'
-      HYPERDRIVE_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:1/generation_only
-      LOGS_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:1/logs_generation_only
+      CLOUDFLARE_INCLUDE_PROCESS_ENV: 'false'
     steps:
+      - name: Initialize temporary release paths
+        run: |
+          umask 077
+          release_dir="$RUNNER_TEMP/slax-api-release"
+          mkdir -p "$release_dir"
+          {
+            printf 'RELEASE_DIR=%s\n' "$release_dir"
+            printf 'SLAX_API_CONFIG=%s/api.toml\n' "$release_dir"
+            printf 'SLAX_API_GENERATED_DIR=%s/generated\n' "$release_dir"
+            printf 'WRANGLER_LOG_PATH=%s/wrangler.log\n' "$release_dir"
+            printf 'XDG_CONFIG_HOME=%s/xdg\n' "$release_dir"
+            printf 'XDG_CACHE_HOME=%s/cache\n' "$release_dir"
+          } >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
           persist-credentials: false
-      - name: Check out operator configuration
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ inputs.config-repository }}
-          ref: ${{ inputs.config-ref }}
-          token: ${{ secrets.CONFIG_REPO_TOKEN }}
-          path: .local/deployment-config
-          persist-credentials: false
-      - name: Select configuration without copying or displaying its contents
-        env:
-          CONFIG_FILE: ${{ inputs.config-path }}
-          DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
-        run: |
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
-          if os.environ['DEPLOY_ENVIRONMENT'] not in ('dev', 'beta', 'prod'):
-              raise SystemExit('environment must be dev, beta or prod')
-          root = Path('.local/deployment-config').resolve()
-          selected = (root / os.environ['CONFIG_FILE']).resolve()
-          if not selected.is_relative_to(root) or not selected.is_file() or '\n' in str(selected) or '\r' in str(selected):
-              raise SystemExit('config-path must identify a file inside the configuration checkout')
-          with open(os.environ['GITHUB_ENV'], 'a') as output:
-              output.write(f'SLAX_API_CONFIG={selected}\n')
-          PY
-          git -C .local/deployment-config rev-parse HEAD
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm api -- gen:all
-      - run: pnpm api -- lint
-      - run: pnpm api -- typecheck
-      - run: pnpm api -- test
-      - run: pnpm api -- build
-      - name: Deploy configured Workers
+      - name: Install cloudflared
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            https://github.com/cloudflare/cloudflared/releases/download/2026.10.0/cloudflared-linux-amd64 \
+            --output "$RELEASE_DIR/cloudflared"
+          printf '%s  %s\n' 'd33ff2d14475178d2012c2c56beba87389ac5ded27649519f198a7d3134a99db' "$RELEASE_DIR/cloudflared" | sha256sum --check
+          chmod 700 "$RELEASE_DIR/cloudflared"
+      - name: Load the selected private configuration
+        env:
+          API_CONFIG_REPOSITORY: ${{ secrets.API_CONFIG_REPOSITORY }}
+          CONFIG_REPO_TOKEN: ${{ secrets.CONFIG_REPO_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          python3 - <<'PY'
+          import base64, json, os, re, tomllib, urllib.parse, urllib.request
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args): return None
+          try:
+              os.umask(0o077)
+              repo = os.environ['API_CONFIG_REPOSITORY']
+              assert re.fullmatch(r'[\w.-]+/[\w.-]+', repo)
+              environment = os.environ['DEPLOY_ENVIRONMENT']
+              assert environment in ('dev', 'beta', 'prod')
+              opener = urllib.request.build_opener(NoRedirect)
+              def get(path):
+                  request = urllib.request.Request('https://api.github.com/repos/' + repo + path,
+                      headers={'Authorization': 'Bearer ' + os.environ['CONFIG_REPO_TOKEN'], 'Accept': 'application/vnd.github+json'})
+                  with opener.open(request, timeout=15) as response: return json.load(response)
+              metadata = get('')
+              assert metadata['private'] is True and metadata['full_name'] == repo
+              revision = get('/commits/' + urllib.parse.quote(metadata['default_branch'], safe=''))['sha']
+              assert re.fullmatch(r'[a-f0-9]{40}', revision)
+              filename = 'api/' + environment + '.toml'
+              file = get('/contents/' + filename + '?ref=' + revision)
+              assert file['type'] == 'file' and file['path'] == filename and file['encoding'] == 'base64' and 0 < file['size'] <= 500000
+              data = base64.b64decode(file['content'])
+              config = tomllib.loads(data.decode())
+              def data_only(value):
+                  if isinstance(value, dict):
+                      for key, child in value.items():
+                          assert key not in ('build', 'assets', 'site', 'define', 'unsafe', 'containers', 'localConnectionString') and not re.search(r'secret|password|private.?key|api.?key|auth.?key|token|credential|command', key, re.I)
+                          data_only(child)
+                  elif isinstance(value, list):
+                      for child in value: data_only(child)
+                  elif isinstance(value, str):
+                      assert not re.search(r'PRIVATE KEY-----|postgres(?:ql)?://|https?://[^/\s]*@', value, re.I)
+              data_only(config)
+              assert config['vars']['RUN_ENV'] == 'prod' and config['vars']['RUN_TYPE'] == environment
+              assert not config.get('env') and not config.get('dev')
+              account = os.environ['CLOUDFLARE_ACCOUNT_ID']
+              assert re.fullmatch(r'[a-f0-9]{32}', account) and config.get('account_id', account) == account
+              assert any(row.get('binding') == 'EDGE' for row in config['services'])
+              for key, bindings in {'d1_databases': {'DB', 'DB_FULLTEXT'}, 'hyperdrive': {'HYPERDRIVE', 'HYPERDRIVE_LOGS'}, 'kv_namespaces': {'KV'}}.items():
+                  assert bindings <= {row.get('binding') for row in config[key]}
+              with open(os.environ['SLAX_API_CONFIG'], 'wb') as output: output.write(data)
+          except Exception:
+              raise SystemExit('Private configuration unavailable or invalid; values are withheld') from None
+          PY
+      - name: Generate and build the configured API
+        env:
+          HYPERDRIVE_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:1/generation_only
+          LOGS_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:1/logs_generation_only
+        run: |
+          exec 3>&1 >"$RELEASE_DIR/build.log" 2>&1
+          trap 'echo "API generation or build failed; values are withheld" >&3' ERR
+          node --import ./apps/api/node_modules/tsx/dist/loader.mjs --input-type=module \
+            -e 'import { readConfig, checkRemote } from "./apps/api/script/deploy/config.ts"; checkRemote(readConfig())'
+          pnpm api -- gen:all
+          pnpm api -- build
+          echo 'API generation and build passed' >&3
+      - name: Check the branch before deployment
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          exec 3>&1 >"$RELEASE_DIR/source.log" 2>&1
+          trap 'echo "Source revision check failed" >&3' ERR
+          tip=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha')
+          [[ "$tip" =~ ^[a-f0-9]{40}$ ]]
+          current=true
+          if [ "$tip" != "$MERGE_SHA" ]; then
+            git -c credential.helper= fetch --no-tags --depth=1 origin "$tip"
+            # Keep these paths aligned with the workflow's API path filter.
+            changed=$(git diff --name-only "$MERGE_SHA" "$tip" -- apps/api packages/contracts \
+              tooling/api.mjs tooling/pnpm-command.mjs deploy/cloudflare/api.toml.example \
+              package.json pnpm-lock.yaml pnpm-workspace.yaml \
+              .github/workflows/api-ci.yml .github/workflows/api-deploy.yml)
+            if [ -n "$changed" ]; then current=false; fi
+          fi
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          if [ "$current" = false ]; then echo 'Release skipped: newer API changes are already on this branch' >&3; fi
+      - name: Allow the runner through the existing firewall
+        if: steps.release.outputs.current == 'true'
+        env:
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_FIREWALL_API_TOKEN: ${{ secrets.CLOUDFLARE_FIREWALL_API_TOKEN }}
+        run: |
+          exec 3>&1 >"$RELEASE_DIR/firewall.log" 2>&1
+          trap 'echo "Firewall setup failed; values are withheld" >&3' ERR
+          request() { curl --fail --silent --show-error --max-time 15 -H "Authorization: Bearer $CLOUDFLARE_FIREWALL_API_TOKEN" "$@"; }
+          [[ "$CF_ZONE_ID" =~ ^[a-f0-9]{32}$ ]]
+          zone="https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID"
+          request "$zone" >"$RELEASE_DIR/firewall.json"
+          jq -e --arg account "$CLOUDFLARE_ACCOUNT_ID" '.success == true and .result.account.id == $account' "$RELEASE_DIR/firewall.json" >/dev/null
+          ip=$(curl --fail --silent --show-error --max-time 15 https://api.ipify.org)
+          [[ "$ip" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]
+          url="$zone/firewall/access_rules/rules"
+          request "$url?configuration.target=ip&configuration.value=$ip&mode=whitelist&per_page=100" >"$RELEASE_DIR/firewall.json"
+          jq -e '.success == true and (.result | type == "array")' "$RELEASE_DIR/firewall.json" >/dev/null
+          if jq -e --arg ip "$ip" '.result | any(.mode == "whitelist" and .configuration.target == "ip" and .configuration.value == $ip)' "$RELEASE_DIR/firewall.json" >/dev/null; then exit 0; fi
+          printf '%s' "$ip" >"$RELEASE_DIR/firewall-ip"
+          jq -n --arg ip "$ip" --arg note "api-release:$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT" '{mode:"whitelist",configuration:{target:"ip",value:$ip},notes:$note}' >"$RELEASE_DIR/firewall-request.json"
+          request "$url" -X POST -H 'Content-Type: application/json' --data-binary "@$RELEASE_DIR/firewall-request.json" >"$RELEASE_DIR/firewall.json"
+          jq -e '.success == true and (.result.id | test("^[a-f0-9]{32}$"))' "$RELEASE_DIR/firewall.json" >/dev/null
+      - name: Open the database Tunnel
+        if: steps.release.outputs.current == 'true'
+        env:
+          CLOUDFLARE_TUNNEL_HOSTNAME: ${{ secrets.CLOUDFLARE_TUNNEL_HOSTNAME }}
+          TUNNEL_SERVICE_TOKEN_ID: ${{ secrets.CLOUDFLARE_TUNNEL_CLIENT_ID }}
+          TUNNEL_SERVICE_TOKEN_SECRET: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+          HYPERDRIVE_DATABASE_URL: ${{ secrets.HYPERDRIVE_DATABASE_URL }}
+          LOGS_DATABASE_URL: ${{ secrets.LOGS_DATABASE_URL }}
+        run: |
+          exec 3>&1 >"$RELEASE_DIR/tunnel.log" 2>&1
+          trap 'echo "Database Tunnel startup failed; values are withheld" >&3' ERR
+          test -n "$CLOUDFLARE_TUNNEL_HOSTNAME"
+          test -n "$TUNNEL_SERVICE_TOKEN_ID"
+          test -n "$TUNNEL_SERVICE_TOKEN_SECRET"
+          port=$(node -e '
+            const urls = ["HYPERDRIVE_DATABASE_URL", "LOGS_DATABASE_URL"].map(key => new URL(process.env[key]))
+            const ports = urls.map(url => Number(url.port || 5432))
+            if (ports[0] !== ports[1] || ports[0] <= 1024 || ports[0] > 65535) process.exit(1)
+            for (const url of urls) {
+              if (!["postgres:", "postgresql:"].includes(url.protocol) || url.hostname !== "127.0.0.1" || !url.username || !url.password) process.exit(1)
+              if (url.pathname.length <= 1 || url.hash || url.searchParams.has("host") || url.searchParams.has("port")) process.exit(1)
+            }
+            console.log(ports[0])
+          ')
+          "$RELEASE_DIR/cloudflared" access tcp --hostname "$CLOUDFLARE_TUNNEL_HOSTNAME" --url "127.0.0.1:$port" >"$RELEASE_DIR/cloudflared.log" 2>&1 3>&- &
+          pid=$!
+          printf '%s' "$pid" >"$RELEASE_DIR/tunnel-pid"
+          awk '{print $22}' "/proc/$pid/stat" >"$RELEASE_DIR/tunnel-start"
+          timeout 30s bash -c 'until (echo >"/dev/tcp/127.0.0.1/$1") 2>/dev/null; do kill -0 "$2" || exit 1; sleep 1; done' _ "$port" "$pid"
+      - name: Migrate databases and deploy Workers
+        if: steps.release.outputs.current == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          BOOTSTRAP: ${{ inputs.bootstrap }}
+          HYPERDRIVE_DATABASE_URL: ${{ secrets.HYPERDRIVE_DATABASE_URL }}
+          LOGS_DATABASE_URL: ${{ secrets.LOGS_DATABASE_URL }}
         run: |
-          if [ "$BOOTSTRAP" = "true" ]; then
-            pnpm api -- deploy --bootstrap
-          else
-            pnpm api -- deploy
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo 'Worker deployment Secret is missing'; exit 1; fi
+          for command in migration:deploy:pgsql migration:deploy:logs migration:remote:d1 migration:remote:fulltext deploy; do
+            if ! pnpm api -- "$command" >"$RELEASE_DIR/deploy.log" 2>&1; then
+              echo "API $command failed; values are withheld"; exit 1
+            fi
+            echo "API $command passed"
+          done
+      - name: Close temporary access and remove private files
+        if: ${{ always() }}
+        env:
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          CLOUDFLARE_FIREWALL_API_TOKEN: ${{ secrets.CLOUDFLARE_FIREWALL_API_TOKEN }}
+        run: |
+          exec 3>&1 >"$RELEASE_DIR/cleanup.log" 2>&1
+          trap 'echo "Temporary access cleanup failed; values are withheld" >&3' ERR
+          trap 'rm -rf "$RELEASE_DIR"; rm -f apps/api/worker-configuration.d.ts' EXIT
+          failed=0
+          if [ -f "$RELEASE_DIR/tunnel-pid" ] && [ -f "$RELEASE_DIR/tunnel-start" ]; then
+            pid=$(cat "$RELEASE_DIR/tunnel-pid")
+            if [[ "$pid" =~ ^[0-9]+$ ]] && [ -f "/proc/$pid/stat" ] && [ "$(awk '{print $22}' "/proc/$pid/stat")" = "$(cat "$RELEASE_DIR/tunnel-start")" ]; then
+              kill "$pid" 2>/dev/null || failed=1
+            fi
           fi
+          if [ -f "$RELEASE_DIR/firewall-ip" ]; then
+            ip=$(cat "$RELEASE_DIR/firewall-ip")
+            url="https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/firewall/access_rules/rules"
+            request() { curl --fail --silent --show-error --max-time 15 -H "Authorization: Bearer $CLOUDFLARE_FIREWALL_API_TOKEN" "$@"; }
+            request "$url?configuration.target=ip&configuration.value=$ip&mode=whitelist&per_page=100" >"$RELEASE_DIR/cleanup.json"
+            jq -e '.success == true and (.result | type == "array")' "$RELEASE_DIR/cleanup.json" >/dev/null
+            jq -r --arg ip "$ip" --arg note "api-release:$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT" '.result[] | select(.mode == "whitelist" and .configuration.target == "ip" and .configuration.value == $ip and .notes == $note) | .id' "$RELEASE_DIR/cleanup.json" >"$RELEASE_DIR/owned-rules"
+            while IFS= read -r id; do
+              [[ "$id" =~ ^[a-f0-9]{32}$ ]]
+              request "$url/$id" -X DELETE >"$RELEASE_DIR/cleanup.json"
+              jq -e '.success == true' "$RELEASE_DIR/cleanup.json" >/dev/null
+            done < "$RELEASE_DIR/owned-rules"
+          fi
+          test "$failed" -eq 0
