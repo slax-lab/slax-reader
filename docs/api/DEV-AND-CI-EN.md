@@ -16,6 +16,15 @@ Dev uses the previous test installation. Beta/prod retain their existing product
 
 CI verifies that the configuration repository is private, resolves its default branch once and fetches only the selected TOML at that revision into protected temporary storage. There is no ref/path Secret to maintain. A configuration-only update is picked up by the next source release or current-run retry. Native account_id, if present, must match the selected account Secret; otherwise Wrangler uses the account Secret. Remote mode uses RUN_ENV=prod and RUN_TYPE=dev/beta/prod, with no implicit local env.dev.
 
+Release files must use the declarative subset enforced by the CI loader:
+
+- At any nesting depth, keys named `localConnectionString`, `build`, `assets`, `site`, `define`, `unsafe` or `containers` are forbidden.
+- Keys matching `secret|password|private.?key|api.?key|auth.?key|token|credential|command` are forbidden. This is a case-insensitive substring match at any nesting depth.
+- String values containing `PRIVATE KEY-----`, `postgres://`, `postgresql://` or HTTP(S) URLs with user information (`https?://...@`) are forbidden, also case-insensitively and at any nesting depth.
+- Non-empty top-level `env` and `dev` tables are forbidden. Each release file must supply the selected environment's settings at the top level.
+
+When adapting `deploy/cloudflare/api.toml.example` for release, remove `localConnectionString` from both Hyperdrive entries, move the selected environment's settings to the top level and remove the `env`/`dev` tables. Supply real database URLs through Actions Secrets. A file can pass Wrangler validation and still fail these release checks. Violations deliberately report only `Private configuration unavailable or invalid; values are withheld`; check the constraints above without printing private file contents in CI.
+
 ## Actions Secrets
 
 Set these in the public source repository's dev, beta and prod GitHub Environments. Actual values never belong in public YAML, ordinary Actions Variables, configuration files or logs.
