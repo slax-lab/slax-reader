@@ -21,4 +21,4 @@
 ## 4. Delivery
 
 - [x] 4.1 Update the audit with the final synchronization status, preserved v2 adaptations, and validation evidence; verify the source repository is unchanged.
-- [ ] 4.2 When GitHub access is available, verify remote refs for additional changes, push the task branch, and create one PR targeting `dev` with `OpenSpec: sync-legacy-frontend-develop`, counts, exclusions, and validation results; attach the returned PR URL to this chat.
+- [x] 4.2 When GitHub access is available, verify remote refs for additional changes, push the task branch, and create one PR targeting `dev` with `OpenSpec: sync-legacy-frontend-develop`, counts, exclusions, and validation results; attach the returned PR URL to this chat.

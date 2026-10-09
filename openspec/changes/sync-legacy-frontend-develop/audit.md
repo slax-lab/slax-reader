@@ -93,7 +93,7 @@ Read individual application blobs with `git show <commit>:<path>` and map the tw
 - V2 frontend types, API contract imports, and existing formatting are retained. Existing Mermaid, theme, e-ink highlighting, and outline code remains intact.
 - Additional fixes within the imported tag behavior: Enter on a removal control does not also select the tag; detail clickability reacts to prop updates; list-card hover keeps its border; hidden measurement controls are inert; reduced-motion rules suppress tag/action transitions. Regression tests cover keyboard behavior, reactivity, measurement accessibility, table resize/cleanup, scroll retention, and annotation DOM identity.
 - The source checkout remains on local `develop`, with no tracked changes and only its pre-existing untracked `docs/superpowers/` directory. Application files in the validation copy match the task worktree byte-for-byte.
-- Validation and environment limitations are documented in `validation.md`. Publication is the final delivery step; the PR targets `dev`.
+- Validation and environment limitations are documented in `validation.md`. Published as [PR #181](https://github.com/slax-lab/slax-reader/pull/181), targeting `dev`, and attached to the task.
 
 ## Approval and remote verification
 
