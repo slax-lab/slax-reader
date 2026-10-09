@@ -26,7 +26,7 @@ This matrix is the auditable inventory for the first Web migration. Source hashe
 
 - `pnpm icons:test`: passed (13 tests).
 - `pnpm icons:check`: passed (20 generated entries, source hashes and generated output agree).
-- Focused Web Vitest coverage for `AppIcon`, `TabsSidebar`, `BookmarksEmptyState`, `BookmarksEmptyView`, `SearchHeader`, and `TagsHeader`: passed (67 tests).
+- Focused Web Vitest coverage for `AppIcon`, `TabsSidebar`, `BookmarksEmptyState`, `BookmarksEmptyView`, `SearchHeader`, and `TagsHeader`: passed (68 tests).
 - Focused Web ESLint: passed with five pre-existing warnings (four unused parameters in `useBookmarkRelative.ts` and one existing explicit-`any` warning in the sidebar test); no errors.
 - `pnpm design:check`, `pnpm exec openspec validate --all --strict`, and `pnpm agent:check`: passed.
 - Web typecheck and full Web test execution remain blocked by the pre-existing missing `mermaid` package from `packages/frontend-utils/src/mermaid.ts`; the focused icon/component checks pass independently.

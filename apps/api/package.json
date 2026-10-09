@@ -114,6 +114,7 @@
     "debug:hash-article": "tsx --tsconfig tsconfig.json script/hash-article.ts",
     "insights:d1": "pnpm wrangler core d1 insights",
     "setup": "tsx --tsconfig tsconfig.json script/deploy/setup-api.ts",
-    "test:setup:local": "tsx --tsconfig tsconfig.json test/runtime/powersyncSmoke.ts"
+    "test:setup:local": "tsx --tsconfig tsconfig.json test/runtime/powersyncSmoke.ts",
+    "debug:toutiao": "tsx --tsconfig tsconfig.json script/toutiao-capture.ts"
   }
 }

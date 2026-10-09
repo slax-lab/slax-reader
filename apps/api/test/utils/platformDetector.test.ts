@@ -12,6 +12,7 @@ import {
   WEIBO_MOBILE_RE,
   REDDIT_RE,
   WECHAT_MP_RE,
+  shouldUseBrowserHtml,
   type RouteKind
 } from '@/utils/platformDetector'
 
@@ -68,6 +69,7 @@ describe('detectRoute', () => {
     expect(detectRoute('https://example.com/article/123')).toBe('regular')
     expect(detectRoute('https://github.com/user/repo')).toBe('regular')
     expect(detectRoute('https://news.ycombinator.com/item?id=123')).toBe('regular')
+    expect(detectRoute('https://wechat.dxy.cn/news/view?simuri=%2Fjapi%2Fweixin%2Fnews%2F73450%2Fdata')).toBe('regular')
   })
 
   test('returns regular for partial matches that do not satisfy the full pattern', () => {
@@ -123,6 +125,23 @@ describe('needsResolve', () => {
   test('returns false for non-Twitter URLs', () => {
     expect(needsResolve('https://example.com')).toBe(false)
     expect(needsResolve('https://t.co/abc123')).toBe(false)
+  })
+})
+
+describe('shouldUseBrowserHtml', () => {
+  test('uses browser HTML for JavaScript-rendered DXY WeChat articles', () => {
+    expect(shouldUseBrowserHtml('https://wechat.dxy.cn/news/view?noshare=false&simuri=%2Fjapi%2Fweixin%2Fnews%2F73450%2FMGDhoUR56iXCx%2Fdata&teamId=101')).toBe(true)
+  })
+
+  test('keeps existing browser-rendered hosts enabled', () => {
+    expect(shouldUseBrowserHtml('https://mp.weixin.qq.com/s?__biz=MzA3&mid=123')).toBe(true)
+    expect(shouldUseBrowserHtml('https://www.zhihu.com/question/123')).toBe(true)
+  })
+
+  test('does not match unrelated hostnames by suffix', () => {
+    expect(shouldUseBrowserHtml('https://notwechat.dxy.cn/article')).toBe(false)
+    expect(shouldUseBrowserHtml('https://notwechat.dxy.cn.example/article')).toBe(false)
+    expect(shouldUseBrowserHtml('https://example.com/article')).toBe(false)
   })
 })
 

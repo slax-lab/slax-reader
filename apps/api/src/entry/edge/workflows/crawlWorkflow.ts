@@ -131,6 +131,11 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           }
 
           switch (route) {
+            case 'toutiao': {
+              const data = await trackStep('toutiao_fetching', () => crawlService.fetchToutiaoData(ctxManager, resolvedUrl))
+              const result = await trackStep('parsing', () => crawlService.parseAndSaveToutiao(ctxManager, data, bookmarkId, userBookmarkUuid))
+              return { kind: 'parsed', resolvedUrl: data.canonicalUrl, data: result, isSocialMedia: false }
+            }
             case 'twitter':
             case 'twitter_article': {
               const data = await trackStep('twitter_fetching', () => crawlService.fetchTwitterData(ctxManager, resolvedUrl))
