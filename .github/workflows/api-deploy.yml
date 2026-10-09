@@ -26,17 +26,24 @@ jobs:
       DEPLOY_ENVIRONMENT: ${{ github.event.pull_request.base.ref == 'main' && 'prod' || github.event.pull_request.base.ref }}
       TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
       MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
-      RELEASE_DIR: ${{ runner.temp }}/slax-api-release
-      SLAX_API_CONFIG: ${{ runner.temp }}/slax-api-release/api.toml
-      SLAX_API_GENERATED_DIR: ${{ runner.temp }}/slax-api-release/generated
       SLAX_API_ENV: ''
       WRANGLER_SEND_METRICS: 'false'
       CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: 'false'
       CLOUDFLARE_INCLUDE_PROCESS_ENV: 'false'
-      WRANGLER_LOG_PATH: ${{ runner.temp }}/slax-api-release/wrangler.log
-      XDG_CONFIG_HOME: ${{ runner.temp }}/slax-api-release/xdg
-      XDG_CACHE_HOME: ${{ runner.temp }}/slax-api-release/cache
     steps:
+      - name: Initialize temporary release paths
+        run: |
+          umask 077
+          release_dir="$RUNNER_TEMP/slax-api-release"
+          mkdir -p "$release_dir"
+          {
+            printf 'RELEASE_DIR=%s\n' "$release_dir"
+            printf 'SLAX_API_CONFIG=%s/api.toml\n' "$release_dir"
+            printf 'SLAX_API_GENERATED_DIR=%s/generated\n' "$release_dir"
+            printf 'WRANGLER_LOG_PATH=%s/wrangler.log\n' "$release_dir"
+            printf 'XDG_CONFIG_HOME=%s/xdg\n' "$release_dir"
+            printf 'XDG_CACHE_HOME=%s/cache\n' "$release_dir"
+          } >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
