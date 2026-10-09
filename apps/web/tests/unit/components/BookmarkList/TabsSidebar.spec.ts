@@ -75,6 +75,8 @@ describe('TabsSidebar', () => {
       expect(wrapper.find('.tabs-sidebar').classes()).not.toContain('collapsed')
       for (const item of wrapper.findAll('.sidebar-item')) {
         expect(item.attributes('title')).toBeTruthy()
+        expect(item.attributes('aria-label')).toBe(item.attributes('title'))
+        expect(item.get('svg').attributes('aria-hidden')).toBe('true')
       }
     })
 

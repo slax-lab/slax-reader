@@ -24,7 +24,7 @@ The registry SHALL enforce per-kind fields: inline entries require a source SVG,
 
 ### Requirement: Imported SVG content passes the active-content boundary
 
-The Web build SHALL validate every imported SVG used by the runtime registry before it can be consumed by application code. Validation MUST reject DOCTYPE declarations, entity declarations, scripts, `<style>` elements, `on*` event attributes, `foreignObject`, CSS `url(...)` references, any non-fragment `href` or `xlink:href` references, missing `viewBox` declarations for inline or mask geometry, and undocumented fixed paint where the entry requires `currentColor`. The validation and generated-registry freshness check SHALL run through `pnpm icons:check` and Frontend CI before Web typecheck or tests are accepted.
+The Web build SHALL validate every imported SVG used by the runtime registry before it can be consumed by application code. Validation MUST reject DOCTYPE declarations, entity declarations, scripts, `<style>` elements, `on*` event attributes, `foreignObject`, CSS `url(...)` references, any non-fragment `href` or `xlink:href` references, reusable `<use>` elements, missing `viewBox` declarations for inline or mask geometry, and undocumented fixed paint where the entry requires `currentColor`. The validation and generated-registry freshness check SHALL run through `pnpm icons:check` and Frontend CI before Web typecheck or tests are accepted.
 
 #### Scenario: Unsafe SVG is introduced
 
@@ -38,7 +38,7 @@ The Web build SHALL validate every imported SVG used by the runtime registry bef
 
 ### Requirement: Rendering honors icon kind, size, paint, and accessibility metadata
 
-The Web icon renderer SHALL choose the rendering mechanism from the registry kind. Inline icons SHALL render inside an application-owned SVG viewport using generated, validated inner geometry; mask icons SHALL render through a mask surface; and brand or raster icons SHALL render as image content. The renderer SHALL apply the requested size while preserving the registry default when no size is supplied, SHALL not override documented brand paint, and SHALL follow the explicit accessibility mode rather than infer a parent control's accessible name.
+The Web icon renderer SHALL choose the rendering mechanism from the registry kind. Inline icons SHALL render inside an application-owned SVG viewport using generated, validated inner geometry; mask icons SHALL render through a mask surface; and brand or raster icons SHALL render as image content while preserving their recorded intrinsic aspect ratio. The renderer SHALL apply the requested size while preserving the registry default when no size is supplied, SHALL not override documented brand paint, and SHALL follow the explicit accessibility mode rather than infer a parent control's accessible name.
 
 #### Scenario: Decorative icon
 
@@ -62,7 +62,7 @@ The Web icon renderer SHALL choose the rendering mechanism from the registry kin
 
 ### Requirement: Initial Web migrations preserve existing behavior
 
-The first migration SHALL replace ad hoc icon markup on the following Web surfaces with registry-backed rendering while preserving the existing action semantics, layout dimensions, theme behavior, and control hit areas: `TabsSidebar.vue` including its RSS icon, `useBookmarkRelative.ts` collection/tab icon definitions, `bookmarkEmptyConfig.ts`, `BookmarksEmptyState.vue`, and `BookmarksEmptyView.vue`. Snapshot toolbar/page action icons, ThemeSwitcher icons, article-content SVGs, and Extension icons SHALL remain explicitly deferred.
+The first migration SHALL replace ad hoc icon markup on the following Web surfaces with registry-backed rendering while preserving the existing action semantics, layout dimensions, theme behavior, and control hit areas: `TabsSidebar.vue` including its RSS and trash icons, `useBookmarkRelative.ts` collection/tab icon definitions, `bookmarkEmptyConfig.ts`, `BookmarksEmptyState.vue`, `BookmarksEmptyView.vue`, the SearchHeader and TagsHeader empty-state slots, and the bookmarks page feed-closed lock state. Snapshot toolbar/page action icons, ThemeSwitcher icons, article-content SVGs, standalone RSS panel icons, TagsHeader control icons, and Extension icons SHALL remain explicitly deferred.
 
 #### Scenario: Sidebar icon migration
 
@@ -73,3 +73,13 @@ The first migration SHALL replace ad hoc icon markup on the following Web surfac
 
 - **WHEN** a user views a migrated empty state
 - **THEN** the icon, text, and surrounding layout remain available at the existing supported sizes and the icon does not add duplicate screen-reader output
+
+#### Scenario: Collapsed sidebar control remains labelled
+
+- **WHEN** the desktop sidebar is collapsed and a user navigates its buttons with assistive technology
+- **THEN** each button exposes its translated tab label through `aria-label` even though its visible text is hidden, and the decorative/control-labelled icon does not create duplicate output
+
+#### Scenario: Layered tab resolves to a registry entry
+
+- **WHEN** a Web layer or fork adds a tab type to `BookmarkTabTypes`
+- **THEN** the tab resolves to a registered semantic icon key or an explicit registered fallback entry, and the renderer never receives an empty raw-SVG fallback or an unvalidated icon string

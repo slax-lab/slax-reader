@@ -40,6 +40,9 @@ importers:
       '@fission-ai/openspec':
         specifier: 1.13.1
         version: 1.13.1(@types/node@20.17.47)
+      '@xmldom/xmldom':
+        specifier: 0.9.12
+        version: 0.9.12
       lefthook:
         specifier: ^2.1.14
         version: 2.1.14
@@ -21031,8 +21034,7 @@ snapshots:
       unocss: 66.8.1(@unocss/webpack@66.8.1(esbuild@0.28.2)(rolldown@1.2.9)(rollup@4.63.3)(vite@8.2.2(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.103.1)(terser@5.51.2)(tsx@4.23.12)(yaml@2.9.1))(webpack@5.111.1(@swc/core@1.16.2)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.6.2))(svgo@4.1.0)))(vite@8.2.2(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.103.1)(terser@5.51.2)(tsx@4.23.12)(yaml@2.9.1))
       wxt: 0.21.4(esbuild@0.28.2)(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))(oxc-parser@0.131.0)(rolldown@1.2.9)(rollup@4.63.3)(typescript@6.0.3)(vite@8.2.2(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.103.1)(terser@5.51.2)(tsx@4.23.12)(yaml@2.9.1))(web-ext@10.6.0(express@5.2.1(supports-color@10.2.2))(jiti@2.7.0)(supports-color@10.2.2))(webpack@5.111.1(@swc/core@1.16.2)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.6.2))(svgo@4.1.0))
 
-  '@xmldom/xmldom@0.9.12':
-    optional: true
+  '@xmldom/xmldom@0.9.12': {}
 
   '@xtuc/ieee754@1.2.0': {}
 

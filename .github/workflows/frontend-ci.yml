@@ -75,6 +75,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:preflight
       - run: pnpm design:check
+      - run: pnpm icons:test
+      - run: pnpm icons:check
       - run: pnpm --filter @slax-reader/contracts typecheck
       - run: pnpm --filter @apps/slax-reader-dweb typecheck
       - run: pnpm --filter @apps/slax-reader-extensions compile

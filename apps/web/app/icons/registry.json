@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6",
+  "icons": {
+    "bookmark.inbox": {
+      "kind": "inline",
+      "source": "inbox.svg",
+      "viewBox": "0 0 18 18",
+      "defaultSize": 18,
+      "paint": "currentColor",
+      "accessibility": "control-labelled",
+      "provenance": { "sourcePath": "apps/web/app/constants/designIcons.ts#inbox", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "bookmark.starred": {
+      "kind": "inline",
+      "source": "star.svg",
+      "viewBox": "0 0 24 24",
+      "defaultSize": 18,
+      "paint": "currentColor",
+      "accessibility": "control-labelled",
+      "provenance": { "sourcePath": "apps/web/app/constants/bookmarkEmptyConfig.ts#starred", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "bookmark.topics": {
+      "kind": "inline",
+      "source": "topics.svg",
+      "viewBox": "0 0 18 18",
+      "defaultSize": 18,
+      "paint": "currentColor",
+      "accessibility": "control-labelled",
+      "provenance": { "sourcePath": "apps/web/app/constants/designIcons.ts#topics", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "bookmark.collections": {
+      "kind": "inline",
+      "source": "collections.svg",
+      "viewBox": "0 0 24 24",
+      "defaultSize": 18,
+      "paint": "currentColor",
+      "accessibility": "control-labelled",
+      "provenance": { "sourcePath": "apps/web/app/composables/useBookmarkRelative.ts#TabIcons.collections", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "bookmark.highlights": {
+      "kind": "inline",
+      "source": "pencil.svg",
+      "viewBox": "0 0 18 18",
+      "defaultSize": 18,
+      "paint": "currentColor",
+      "accessibility": "control-labelled",
+      "provenance": { "sourcePath": "apps/web/app/constants/designIcons.ts#pencil", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "bookmark.archive": {
+      "kind": "inline",
+      "source": "archive.svg",
+      "viewBox": "0 0 18 18",
+      "defaultSize": 18,
+      "paint": "currentColor",
+      "accessibility": "control-labelled",
+      "provenance": { "sourcePath": "apps/web/app/constants/designIcons.ts#archive", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "bookmark.rss": {
+      "kind": "inline",
+      "source": "rss.svg",
+      "viewBox": "0 0 24 24",
+      "defaultSize": 18,
+      "paint": "currentColor",
+      "accessibility": "control-labelled",
+      "provenance": { "sourcePath": "apps/web/app/components/BookmarkList/TabsSidebar.vue#rss", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "bookmark.trash": {
+      "kind": "inline",
+      "source": "trash.svg",
+      "viewBox": "0 0 24 24",
+      "defaultSize": 18,
+      "paint": "currentColor",
+      "accessibility": "control-labelled",
+      "provenance": { "sourcePath": "apps/web/app/components/BookmarkList/TabsSidebar.vue#trash", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "bookmark.fallback": {
+      "kind": "inline",
+      "source": "fallback.svg",
+      "viewBox": "0 0 24 24",
+      "defaultSize": 18,
+      "paint": "currentColor",
+      "accessibility": "control-labelled",
+      "provenance": { "sourcePath": "apps/web/app/components/BookmarkList/TabsSidebar.vue#fallback", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "empty.inbox": {
+      "kind": "inline",
+      "source": "empty-inbox.svg",
+      "viewBox": "0 0 32 32",
+      "defaultSize": 32,
+      "paint": "currentColor",
+      "accessibility": "decorative",
+      "provenance": { "sourcePath": "apps/web/app/constants/designIcons.ts#emptyInbox", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "empty.starred": {
+      "kind": "inline",
+      "source": "star.svg",
+      "viewBox": "0 0 24 24",
+      "defaultSize": 32,
+      "paint": "currentColor",
+      "accessibility": "decorative",
+      "provenance": { "sourcePath": "apps/web/app/constants/bookmarkEmptyConfig.ts#starred", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "empty.topics": {
+      "kind": "inline",
+      "source": "empty-topics.svg",
+      "viewBox": "0 0 32 32",
+      "defaultSize": 32,
+      "paint": "currentColor",
+      "accessibility": "decorative",
+      "provenance": { "sourcePath": "apps/web/app/constants/designIcons.ts#emptyTopics", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "empty.highlights": {
+      "kind": "inline",
+      "source": "empty-highlights.svg",
+      "viewBox": "0 0 24 24",
+      "defaultSize": 32,
+      "paint": "currentColor",
+      "accessibility": "decorative",
+      "provenance": { "sourcePath": "apps/web/app/constants/bookmarkEmptyConfig.ts#highlights", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "empty.archive": {
+      "kind": "inline",
+      "source": "empty-archive.svg",
+      "viewBox": "0 0 32 32",
+      "defaultSize": 32,
+      "paint": "currentColor",
+      "accessibility": "decorative",
+      "provenance": { "sourcePath": "apps/web/app/constants/designIcons.ts#emptyArchive", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "empty.trashed": {
+      "kind": "inline",
+      "source": "empty-trash.svg",
+      "viewBox": "0 0 24 24",
+      "defaultSize": 32,
+      "paint": "currentColor",
+      "accessibility": "decorative",
+      "provenance": { "sourcePath": "apps/web/app/constants/designIcons.ts#emptyTrash", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "empty.collections": {
+      "kind": "inline",
+      "source": "empty-collections.svg",
+      "viewBox": "0 0 24 24",
+      "defaultSize": 32,
+      "paint": "currentColor",
+      "accessibility": "decorative",
+      "provenance": { "sourcePath": "apps/web/app/constants/bookmarkEmptyConfig.ts#collections", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "empty.fallback": {
+      "kind": "inline",
+      "source": "fallback.svg",
+      "viewBox": "0 0 24 24",
+      "defaultSize": 32,
+      "paint": "currentColor",
+      "accessibility": "decorative",
+      "provenance": { "sourcePath": "apps/web/app/constants/bookmarkEmptyConfig.ts#fallback", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "empty.search": {
+      "kind": "inline",
+      "source": "search.svg",
+      "viewBox": "0 0 24 24",
+      "defaultSize": 32,
+      "paint": "currentColor",
+      "accessibility": "decorative",
+      "provenance": { "sourcePath": "apps/web/app/components/BookmarkList/SearchHeader.vue#empty", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "empty.tags": {
+      "kind": "inline",
+      "source": "tags.svg",
+      "viewBox": "0 0 24 24",
+      "defaultSize": 32,
+      "paint": "currentColor",
+      "accessibility": "decorative",
+      "provenance": { "sourcePath": "apps/web/app/components/BookmarkList/TagsHeader.vue#empty", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    },
+    "empty.lock": {
+      "kind": "inline",
+      "source": "empty-lock.svg",
+      "viewBox": "0 0 24 24",
+      "defaultSize": 32,
+      "paint": "currentColor",
+      "accessibility": "decorative",
+      "provenance": { "sourcePath": "apps/web/app/pages/bookmarks/index.vue#feed-closed", "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6" }
+    }
+  }
+}

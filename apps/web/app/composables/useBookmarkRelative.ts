@@ -1,7 +1,7 @@
 import { useTrackMetric } from './useTrackMetric'
 import type { BookmarkDetail, CollectionBookmarkDetail, ShareBookmarkDetail, SnapshotBookmarkDetail } from '@commons/frontend-types/models'
 import { showFeedbackModal } from '~/components/Modal'
-import { DESIGN_ICONS, type DesignIcon } from '~/constants/designIcons'
+import type { IconKey } from '~/icons/registry'
 import { useUserStore } from '~/stores/user'
 
 export enum BookmarkType {
@@ -52,19 +52,13 @@ export const isSnapshotBookmarkDetail = (detail: BookmarkArticleDetail): detail 
 export const BookmarkTabTypes = ['inbox', 'starred', 'topics', 'highlights', 'archive']
 
 // 覆盖 TabIcons，加 collections
-export const TabIcons: Record<string, DesignIcon> = {
-  inbox: DESIGN_ICONS.inbox,
-  starred: {
-    viewBox: '0 0 24 24',
-    markup: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'
-  },
-  topics: DESIGN_ICONS.topics,
-  collections: {
-    viewBox: '0 0 24 24',
-    markup: '<path d="M12 2l10 5-10 5L2 7l10-5z"/><path d="M2 12l10 5 10-5"/><path d="M2 17l10 5 10-5"/>'
-  },
-  highlights: DESIGN_ICONS.pencil,
-  archive: DESIGN_ICONS.archive
+export const TabIcons: Record<string, IconKey> = {
+  inbox: 'bookmark.inbox',
+  starred: 'bookmark.starred',
+  topics: 'bookmark.topics',
+  collections: 'bookmark.collections',
+  highlights: 'bookmark.highlights',
+  archive: 'bookmark.archive'
 }
 
 export const showFeedbackView = (options: BookmarkTypeOptions, type: string) => {

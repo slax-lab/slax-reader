@@ -10,6 +10,9 @@
     "agent:sync": "rulesync generate",
     "agent:check": "rulesync doctor --strict && rulesync generate --check && openspec validate --all --strict && bash tooling/check-gh-aw-drift.sh",
     "design:check": "node tooling/design-reference.mjs",
+    "icons:check": "node tooling/icon-registry.mjs --check",
+    "icons:test": "node --test tooling/icon-registry.test.mjs",
+    "icons:write": "node tooling/icon-registry.mjs --write",
     "preflight": "node tooling/preflight.mjs",
     "setup:all": "node tooling/setup-all.mjs",
     "test:preflight": "node --test tooling/preflight.test.mjs tooling/env-files.test.mjs tooling/app-command.test.mjs tooling/nuxt-command.test.mjs tooling/wrangler-command.test.mjs tooling/pnpm-command.test.mjs tooling/setup-all.test.mjs tooling/review-verdict.test.mjs",
@@ -20,6 +23,7 @@
   },
   "devDependencies": {
     "@fission-ai/openspec": "1.13.1",
+    "@xmldom/xmldom": "0.9.12",
     "lefthook": "^2.1.14",
     "rulesync": "16.39.1"
   }
