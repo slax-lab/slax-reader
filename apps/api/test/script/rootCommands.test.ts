@@ -33,6 +33,9 @@ describe('API workspace command contract', () => {
       'api',
       'design:check',
       'extension',
+      'icons:check',
+      'icons:test',
+      'icons:write',
       'preflight',
       'prepare',
       'setup:all',
@@ -40,7 +43,7 @@ describe('API workspace command contract', () => {
       'web'
     ])
     expect(root.scripts['agent:check']).toContain('check-gh-aw-drift.sh')
-    expect(Object.keys(root.devDependencies).sort()).toEqual(['@fission-ai/openspec', 'lefthook', 'rulesync'])
+    expect(Object.keys(root.devDependencies).sort()).toEqual(['@fission-ai/openspec', '@xmldom/xmldom', 'lefthook', 'rulesync'])
   })
   test('API owns its commands, Prisma configs and build tools without duplicate root configs', () => {
     const api = read(path.join(API_ROOT, 'package.json'))
