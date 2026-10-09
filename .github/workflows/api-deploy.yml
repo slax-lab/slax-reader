@@ -33,6 +33,9 @@ jobs:
     concurrency:
       group: api-deploy-${{ github.event.pull_request.base.ref == 'dev' && 'test' || 'shared-production' }}
       cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash --noprofile --norc -euo pipefail {0}
     env:
       DEPLOY_ENVIRONMENT: ${{ github.event.pull_request.base.ref == 'main' && 'prod' || github.event.pull_request.base.ref }}
       TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
@@ -64,37 +67,7 @@ jobs:
         with:
           node-version: '22'
       - run: pnpm install --frozen-lockfile
-      - name: Check whether this merge is still current
-        id: source
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          umask 077
-          mkdir -p "$RELEASE_DIR"
-          if ! tip=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha' 2>"$RELEASE_DIR/source.log"); then
-            echo 'Source revision check failed'; exit 1
-          fi
-          current=true
-          if [ "$tip" != "$MERGE_SHA" ]; then
-            if ! [[ "$tip" =~ ^[a-f0-9]{40}$ ]] || ! git -c credential.helper= fetch --no-tags --depth=1 origin "$tip" >"$RELEASE_DIR/source.log" 2>&1; then
-              echo 'Source revision check failed'; exit 1
-            fi
-            # Keep these paths aligned with the workflow's API path filter.
-            if git diff --quiet "$MERGE_SHA" "$tip" -- apps/api packages/contracts \
-              tooling/api.mjs tooling/pnpm-command.mjs deploy/cloudflare/api.toml.example \
-              package.json pnpm-lock.yaml pnpm-workspace.yaml \
-              .github/workflows/api-ci.yml .github/workflows/api-deploy.yml >"$RELEASE_DIR/source.log" 2>&1; then
-              :
-            else
-              status=$?
-              if [ "$status" -ne 1 ]; then echo 'Source revision comparison failed'; exit 1; fi
-              current=false
-            fi
-          fi
-          echo "current=$current" >> "$GITHUB_OUTPUT"
-          if [ "$current" = false ]; then echo 'Release skipped: newer API changes are already on this branch'; fi
       - name: Install cloudflared
-        if: steps.source.outputs.current == 'true'
         run: |
           curl --fail --silent --show-error --location --retry 3 \
             https://github.com/cloudflare/cloudflared/releases/download/2026.10.0/cloudflared-linux-amd64 \
@@ -102,7 +75,6 @@ jobs:
           printf '%s  %s\n' 'd33ff2d14475178d2012c2c56beba87389ac5ded27649519f198a7d3134a99db' "$RELEASE_DIR/cloudflared" | sha256sum --check
           chmod 700 "$RELEASE_DIR/cloudflared"
       - name: Load the selected private configuration
-        if: steps.source.outputs.current == 'true'
         env:
           API_CONFIG_REPOSITORY: ${{ secrets.API_CONFIG_REPOSITORY }}
           CONFIG_REPO_TOKEN: ${{ secrets.CONFIG_REPO_TOKEN }}
@@ -153,51 +125,39 @@ jobs:
           except Exception:
               raise SystemExit('Private configuration unavailable or invalid; values are withheld') from None
           PY
-      - name: Validate and build the configured API
-        if: steps.source.outputs.current == 'true'
+      - name: Generate and build the configured API
         env:
           HYPERDRIVE_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:1/generation_only
           LOGS_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:1/logs_generation_only
         run: |
-          if ! node --import ./apps/api/node_modules/tsx/dist/loader.mjs --input-type=module \
-            -e 'import { readConfig, checkRemote } from "./apps/api/script/deploy/config.ts"; checkRemote(readConfig())' \
-            >"$RELEASE_DIR/validation.log" 2>&1; then
-            echo 'API remote configuration check failed; values are withheld'; exit 1
-          fi
-          for command in gen:all lint typecheck test build; do
-            if ! pnpm api -- "$command" >"$RELEASE_DIR/validation.log" 2>&1; then
-              echo "API $command failed; values are withheld"; exit 1
-            fi
-            echo "API $command passed"
-          done
-      - name: Recheck the branch before deployment
-        if: steps.source.outputs.current == 'true'
+          exec 3>&1 >"$RELEASE_DIR/build.log" 2>&1
+          trap 'echo "API generation or build failed; values are withheld" >&3' ERR
+          node --import ./apps/api/node_modules/tsx/dist/loader.mjs --input-type=module \
+            -e 'import { readConfig, checkRemote } from "./apps/api/script/deploy/config.ts"; checkRemote(readConfig())'
+          pnpm api -- gen:all
+          pnpm api -- build
+          echo 'API generation and build passed' >&3
+      - name: Check the branch before deployment
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if ! tip=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha' 2>"$RELEASE_DIR/source.log"); then
-            echo 'Source revision check failed'; exit 1
-          fi
+          exec 3>&1 >"$RELEASE_DIR/source.log" 2>&1
+          trap 'echo "Source revision check failed" >&3' ERR
+          tip=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha')
+          [[ "$tip" =~ ^[a-f0-9]{40}$ ]]
           current=true
           if [ "$tip" != "$MERGE_SHA" ]; then
-            if ! [[ "$tip" =~ ^[a-f0-9]{40}$ ]] || ! git -c credential.helper= fetch --no-tags --depth=1 origin "$tip" >"$RELEASE_DIR/source.log" 2>&1; then
-              echo 'Source revision check failed'; exit 1
-            fi
+            git -c credential.helper= fetch --no-tags --depth=1 origin "$tip"
             # Keep these paths aligned with the workflow's API path filter.
-            if git diff --quiet "$MERGE_SHA" "$tip" -- apps/api packages/contracts \
+            changed=$(git diff --name-only "$MERGE_SHA" "$tip" -- apps/api packages/contracts \
               tooling/api.mjs tooling/pnpm-command.mjs deploy/cloudflare/api.toml.example \
               package.json pnpm-lock.yaml pnpm-workspace.yaml \
-              .github/workflows/api-ci.yml .github/workflows/api-deploy.yml >"$RELEASE_DIR/source.log" 2>&1; then
-              :
-            else
-              status=$?
-              if [ "$status" -ne 1 ]; then echo 'Source revision comparison failed'; exit 1; fi
-              current=false
-            fi
+              .github/workflows/api-ci.yml .github/workflows/api-deploy.yml)
+            if [ -n "$changed" ]; then current=false; fi
           fi
           echo "current=$current" >> "$GITHUB_OUTPUT"
-          if [ "$current" = false ]; then echo 'Release skipped: newer API changes are already on this branch'; fi
+          if [ "$current" = false ]; then echo 'Release skipped: newer API changes are already on this branch' >&3; fi
       - name: Allow the runner through the existing firewall
         if: steps.release.outputs.current == 'true'
         env:
@@ -205,26 +165,24 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_FIREWALL_API_TOKEN: ${{ secrets.CLOUDFLARE_FIREWALL_API_TOKEN }}
         run: |
-          if ! (
-            set -euo pipefail
-            [[ "$CF_ZONE_ID" =~ ^[a-f0-9]{32}$ ]] || exit 1
-            zone="https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID"
-            curl --fail --silent --show-error --max-time 15 "$zone" -H "Authorization: Bearer $CLOUDFLARE_FIREWALL_API_TOKEN" >"$RELEASE_DIR/firewall.json" || exit 1
-            jq -e --arg account "$CLOUDFLARE_ACCOUNT_ID" '.success == true and .result.account.id == $account' "$RELEASE_DIR/firewall.json" >/dev/null || exit 1
-            ip=$(curl --fail --silent --show-error --max-time 15 https://api.ipify.org) || exit 1
-            IP="$ip" python3 -c 'import ipaddress,os; ip=ipaddress.ip_address(os.environ["IP"]); assert ip.version == 4 and ip.is_global' || exit 1
-            url="$zone/firewall/access_rules/rules"
-            curl --fail --silent --show-error --max-time 15 "$url?configuration.target=ip&configuration.value=$ip&mode=whitelist&per_page=100" -H "Authorization: Bearer $CLOUDFLARE_FIREWALL_API_TOKEN" >"$RELEASE_DIR/firewall.json" || exit 1
-            jq -e '.success == true and (.result | type == "array")' "$RELEASE_DIR/firewall.json" >/dev/null || exit 1
-            if jq -e --arg ip "$ip" '.result | any(.mode == "whitelist" and .configuration.target == "ip" and .configuration.value == $ip)' "$RELEASE_DIR/firewall.json" >/dev/null; then exit 0; fi
-            printf '%s' "$ip" >"$RELEASE_DIR/firewall-ip"
-            jq -n --arg ip "$ip" --arg note "api-release:$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT" '{mode:"whitelist",configuration:{target:"ip",value:$ip},notes:$note}' >"$RELEASE_DIR/firewall-request.json"
-            curl --fail --silent --show-error --max-time 15 "$url" -X POST -H "Authorization: Bearer $CLOUDFLARE_FIREWALL_API_TOKEN" -H 'Content-Type: application/json' --data-binary "@$RELEASE_DIR/firewall-request.json" >"$RELEASE_DIR/firewall.json" || exit 1
-            jq -e '.success == true and (.result.id | test("^[a-f0-9]{32}$"))' "$RELEASE_DIR/firewall.json" >/dev/null || exit 1
-          ) >"$RELEASE_DIR/firewall.log" 2>&1; then
-            echo 'Firewall setup failed; values are withheld'; exit 1
-          fi
-      - name: Open the database Tunnel and check both databases
+          exec 3>&1 >"$RELEASE_DIR/firewall.log" 2>&1
+          trap 'echo "Firewall setup failed; values are withheld" >&3' ERR
+          request() { curl --fail --silent --show-error --max-time 15 -H "Authorization: Bearer $CLOUDFLARE_FIREWALL_API_TOKEN" "$@"; }
+          [[ "$CF_ZONE_ID" =~ ^[a-f0-9]{32}$ ]]
+          zone="https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID"
+          request "$zone" >"$RELEASE_DIR/firewall.json"
+          jq -e --arg account "$CLOUDFLARE_ACCOUNT_ID" '.success == true and .result.account.id == $account' "$RELEASE_DIR/firewall.json" >/dev/null
+          ip=$(curl --fail --silent --show-error --max-time 15 https://api.ipify.org)
+          [[ "$ip" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]
+          url="$zone/firewall/access_rules/rules"
+          request "$url?configuration.target=ip&configuration.value=$ip&mode=whitelist&per_page=100" >"$RELEASE_DIR/firewall.json"
+          jq -e '.success == true and (.result | type == "array")' "$RELEASE_DIR/firewall.json" >/dev/null
+          if jq -e --arg ip "$ip" '.result | any(.mode == "whitelist" and .configuration.target == "ip" and .configuration.value == $ip)' "$RELEASE_DIR/firewall.json" >/dev/null; then exit 0; fi
+          printf '%s' "$ip" >"$RELEASE_DIR/firewall-ip"
+          jq -n --arg ip "$ip" --arg note "api-release:$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT" '{mode:"whitelist",configuration:{target:"ip",value:$ip},notes:$note}' >"$RELEASE_DIR/firewall-request.json"
+          request "$url" -X POST -H 'Content-Type: application/json' --data-binary "@$RELEASE_DIR/firewall-request.json" >"$RELEASE_DIR/firewall.json"
+          jq -e '.success == true and (.result.id | test("^[a-f0-9]{32}$"))' "$RELEASE_DIR/firewall.json" >/dev/null
+      - name: Open the database Tunnel
         if: steps.release.outputs.current == 'true'
         env:
           CLOUDFLARE_TUNNEL_HOSTNAME: ${{ secrets.CLOUDFLARE_TUNNEL_HOSTNAME }}
@@ -233,47 +191,26 @@ jobs:
           HYPERDRIVE_DATABASE_URL: ${{ secrets.HYPERDRIVE_DATABASE_URL }}
           LOGS_DATABASE_URL: ${{ secrets.LOGS_DATABASE_URL }}
         run: |
-          if ! port=$(python3 - <<'PY'
-          import os, re, urllib.parse
-          try:
-              host = os.environ['CLOUDFLARE_TUNNEL_HOSTNAME']
-              assert '.' in host and len(host) <= 253 and all(re.fullmatch(r'[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?', label) for label in host.split('.'))
-              urls = [urllib.parse.urlparse(os.environ[key]) for key in ('HYPERDRIVE_DATABASE_URL', 'LOGS_DATABASE_URL')]
-              ports = [url.port or 5432 for url in urls]
-              assert ports[0] == ports[1] and 1024 < ports[0] <= 65535
-              assert os.environ['TUNNEL_SERVICE_TOKEN_ID'] and os.environ['TUNNEL_SERVICE_TOKEN_SECRET']
-              for url in urls:
-                  query = urllib.parse.parse_qs(url.query)
-                  assert url.scheme in ('postgres', 'postgresql') and url.hostname == '127.0.0.1' and url.username and url.password and len(url.path) > 1 and not url.fragment and not {'host', 'port'} & query.keys()
-              print(ports[0])
-          except Exception: raise SystemExit('Invalid Tunnel or database Secrets; values are withheld') from None
-          PY
-          ); then exit 1; fi
-          "$RELEASE_DIR/cloudflared" access tcp --hostname "$CLOUDFLARE_TUNNEL_HOSTNAME" --url "127.0.0.1:$port" >"$RELEASE_DIR/tunnel.log" 2>&1 &
+          exec 3>&1 >"$RELEASE_DIR/tunnel.log" 2>&1
+          trap 'echo "Database Tunnel startup failed; values are withheld" >&3' ERR
+          test -n "$CLOUDFLARE_TUNNEL_HOSTNAME"
+          test -n "$TUNNEL_SERVICE_TOKEN_ID"
+          test -n "$TUNNEL_SERVICE_TOKEN_SECRET"
+          port=$(node -e '
+            const urls = ["HYPERDRIVE_DATABASE_URL", "LOGS_DATABASE_URL"].map(key => new URL(process.env[key]))
+            const ports = urls.map(url => Number(url.port || 5432))
+            if (ports[0] !== ports[1] || ports[0] <= 1024 || ports[0] > 65535) process.exit(1)
+            for (const url of urls) {
+              if (!["postgres:", "postgresql:"].includes(url.protocol) || url.hostname !== "127.0.0.1" || !url.username || !url.password) process.exit(1)
+              if (url.pathname.length <= 1 || url.hash || url.searchParams.has("host") || url.searchParams.has("port")) process.exit(1)
+            }
+            console.log(ports[0])
+          ')
+          "$RELEASE_DIR/cloudflared" access tcp --hostname "$CLOUDFLARE_TUNNEL_HOSTNAME" --url "127.0.0.1:$port" >"$RELEASE_DIR/cloudflared.log" 2>&1 3>&- &
           pid=$!
           printf '%s' "$pid" >"$RELEASE_DIR/tunnel-pid"
           awk '{print $22}' "/proc/$pid/stat" >"$RELEASE_DIR/tunnel-start"
-          if ! TUNNEL_PID="$pid" timeout 65s node <<'JS' >"$RELEASE_DIR/readiness.log" 2>&1
-          const { Client } = require('./apps/api/node_modules/pg')
-          const deadline = Date.now() + 60000
-          async function ready() {
-            while (Date.now() < deadline) {
-              process.kill(Number(process.env.TUNNEL_PID), 0)
-              const connected = await Promise.all(['HYPERDRIVE_DATABASE_URL', 'LOGS_DATABASE_URL'].map(async key => {
-                const client = new Client({ connectionString: process.env[key], connectionTimeoutMillis: 2000, query_timeout: 2000 })
-                client.on('error', () => {})
-                try { await client.connect(); await client.query('SELECT 1'); return true }
-                catch { return false }
-                finally { await client.end().catch(() => {}) }
-              }))
-              if (connected.every(Boolean)) return
-              await new Promise(resolve => setTimeout(resolve, 1000))
-            }
-            throw new Error('Database readiness timed out')
-          }
-          ready().catch(() => { process.exitCode = 1 })
-          JS
-          then echo 'Database Tunnel or readiness failed; values are withheld'; exit 1; fi
+          timeout 30s bash -c 'until (echo >"/dev/tcp/127.0.0.1/$1") 2>/dev/null; do kill -0 "$2" || exit 1; sleep 1; done' _ "$port" "$pid"
       - name: Migrate databases and deploy Workers
         if: steps.release.outputs.current == 'true'
         env:
@@ -295,6 +232,8 @@ jobs:
           CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
           CLOUDFLARE_FIREWALL_API_TOKEN: ${{ secrets.CLOUDFLARE_FIREWALL_API_TOKEN }}
         run: |
+          exec 3>&1 >"$RELEASE_DIR/cleanup.log" 2>&1
+          trap 'echo "Temporary access cleanup failed; values are withheld" >&3' ERR
           trap 'rm -rf "$RELEASE_DIR"; rm -f apps/api/worker-configuration.d.ts' EXIT
           failed=0
           if [ -f "$RELEASE_DIR/tunnel-pid" ] && [ -f "$RELEASE_DIR/tunnel-start" ]; then
@@ -304,18 +243,16 @@ jobs:
             fi
           fi
           if [ -f "$RELEASE_DIR/firewall-ip" ]; then
-            if ! (
-              set -euo pipefail
-              ip=$(cat "$RELEASE_DIR/firewall-ip")
-              url="https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/firewall/access_rules/rules"
-              curl --fail --silent --show-error --max-time 15 "$url?configuration.target=ip&configuration.value=$ip&mode=whitelist&per_page=100" -H "Authorization: Bearer $CLOUDFLARE_FIREWALL_API_TOKEN" >"$RELEASE_DIR/cleanup.json" || exit 1
-              jq -e '.success == true and (.result | type == "array")' "$RELEASE_DIR/cleanup.json" >/dev/null || exit 1
-              jq -r --arg ip "$ip" --arg note "api-release:$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT" '.result[] | select(.mode == "whitelist" and .configuration.target == "ip" and .configuration.value == $ip and .notes == $note) | .id' "$RELEASE_DIR/cleanup.json" >"$RELEASE_DIR/owned-rules" || exit 1
-              while IFS= read -r id; do
-                [[ "$id" =~ ^[a-f0-9]{32}$ ]] || exit 1
-                curl --fail --silent --show-error --max-time 15 "$url/$id" -X DELETE -H "Authorization: Bearer $CLOUDFLARE_FIREWALL_API_TOKEN" >"$RELEASE_DIR/cleanup.json" || exit 1
-                jq -e '.success == true' "$RELEASE_DIR/cleanup.json" >/dev/null || exit 1
-              done < "$RELEASE_DIR/owned-rules"
-            ) >"$RELEASE_DIR/cleanup.log" 2>&1; then failed=1; fi
+            ip=$(cat "$RELEASE_DIR/firewall-ip")
+            url="https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/firewall/access_rules/rules"
+            request() { curl --fail --silent --show-error --max-time 15 -H "Authorization: Bearer $CLOUDFLARE_FIREWALL_API_TOKEN" "$@"; }
+            request "$url?configuration.target=ip&configuration.value=$ip&mode=whitelist&per_page=100" >"$RELEASE_DIR/cleanup.json"
+            jq -e '.success == true and (.result | type == "array")' "$RELEASE_DIR/cleanup.json" >/dev/null
+            jq -r --arg ip "$ip" --arg note "api-release:$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT" '.result[] | select(.mode == "whitelist" and .configuration.target == "ip" and .configuration.value == $ip and .notes == $note) | .id' "$RELEASE_DIR/cleanup.json" >"$RELEASE_DIR/owned-rules"
+            while IFS= read -r id; do
+              [[ "$id" =~ ^[a-f0-9]{32}$ ]]
+              request "$url/$id" -X DELETE >"$RELEASE_DIR/cleanup.json"
+              jq -e '.success == true' "$RELEASE_DIR/cleanup.json" >/dev/null
+            done < "$RELEASE_DIR/owned-rules"
           fi
-          if [ "$failed" != 0 ]; then echo 'Temporary access cleanup failed; values are withheld'; exit 1; fi
+          test "$failed" -eq 0

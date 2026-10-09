@@ -70,19 +70,23 @@ Source SHALL be checked out at the qualifying pull request's resulting merged co
 
 ### Requirement: Validation and migrations precede Worker publication
 
-The release SHALL complete dependency installation, generation, lint, type checking, tests, and four-Worker bundling before opening temporary database access. It SHALL verify database connectivity, apply outstanding primary PostgreSQL and logs migrations, and apply remote D1 and fulltext migrations before publishing the Workers. Validation SHALL use generation-only database placeholders; migrations MUST receive the selected environment's real connection values. Every stage MUST stop subsequent release operations on failure. Production-database migrations performed by beta MUST be compatible with currently serving production code.
+The release SHALL complete dependency installation, configuration validation, generation and four-Worker bundling before opening temporary database access. Lint, type checking and tests SHALL remain in the existing PR CI rather than being repeated during release. After bounded Tunnel listener startup, the existing migration commands SHALL connect to their databases, apply outstanding primary PostgreSQL and logs migrations, and apply remote D1 and fulltext migrations before publishing the Workers. Validation SHALL use generation-only database placeholders; migrations MUST receive the selected environment's real connection values. Every stage MUST stop subsequent release operations on failure. Production-database migrations performed by beta MUST be compatible with currently serving production code.
 
 #### Scenario: A release completes normally
-- **WHEN** validation and database connectivity checks succeed
+- **WHEN** validation, Tunnel startup and database migration connections succeed
 - **THEN** all four database migration operations succeed before the existing Workers are published in dependency order
 
-#### Scenario: Validation or connectivity fails
-- **WHEN** build validation fails or a database is unreachable within the bounded readiness period
+#### Scenario: Validation or Tunnel startup fails
+- **WHEN** build validation fails or the local Tunnel listener does not become available within 30 seconds
 - **THEN** no database migration or Worker publication begins
 
 #### Scenario: A migration fails
-- **WHEN** any PostgreSQL, logs, D1, or fulltext migration fails
+- **WHEN** any PostgreSQL, logs, D1, or fulltext migration fails, including a database connection failure
 - **THEN** remaining migrations and Worker publication stop, and the workflow reports failure
+
+#### Scenario: The logs database is unavailable after the primary migration
+- **WHEN** the primary migration succeeds but the subsequent logs migration cannot connect
+- **THEN** the completed primary migration remains applied, later operations stop and cleanup runs, matching the legacy sequential release behavior
 
 #### Scenario: D1 migrations run during release
 - **WHEN** the release applies D1 or fulltext migrations

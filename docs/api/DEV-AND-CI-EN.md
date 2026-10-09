@@ -61,9 +61,9 @@ The application scopes are reserved for separate release workflows in this repos
 
 Each application's command/configuration and workflow files also belong to its scope. Root `package.json`, `pnpm-lock.yaml` and `pnpm-workspace.yaml` changes conservatively affect every application. Future Web/Extension release workflows should retain the merged-PR prerequisite and their own path filters.
 
-Source checkout uses the resulting merge SHA. Test has an independent lock; beta/prod share a production lock and do not cancel executing releases. Before private loading and remote access, the workflow compares the merged source with the current branch tip over the same API-related paths. Newer API changes supersede the run; unrelated frontend/documentation commits leave it eligible. Fetch or comparison errors stop the release.
+Source checkout uses the resulting merge SHA. Test has an independent lock; beta/prod share a production lock and do not cancel executing releases. Immediately before remote access, the workflow compares the merged source with the current branch tip once over the same API-related paths. Newer API changes supersede the run; unrelated frontend/documentation commits leave it eligible. Fetch or comparison errors stop the release.
 
-After installation, the workflow runs the existing gen:all, lint, typecheck, test and build commands with generation-only database placeholders. It then opens temporary firewall/Tunnel access, checks both database connections, and runs the existing commands sequentially:
+Lint, type checking and tests run in the existing PR CI. After installation, release validates the real configuration and runs only gen:all and build with generation-only database placeholders. It then opens temporary firewall/Tunnel access, waits up to 30 seconds for the local Tunnel listener and runs the existing commands sequentially:
 
 ```sh
 pnpm api -- migration:deploy:pgsql
@@ -73,7 +73,7 @@ pnpm api -- migration:remote:fulltext
 pnpm api -- deploy
 ```
 
-D1 migrations use --remote. Normal publication keeps Browser -> AI -> Core -> Edge. A failure stops later commands. Routine releases never provision resources, bootstrap or upload Worker secrets. Beta migrations must remain compatible with currently serving production code.
+D1 migrations use --remote. Normal publication keeps Browser -> AI -> Core -> Edge. Each migration checks its database connection; a failure stops later commands. As in the legacy pipeline, a primary migration may already be applied when the subsequent logs migration fails. Routine releases never provision resources, bootstrap or upload Worker secrets. Beta migrations must remain compatible with currently serving production code.
 
 Configured command output and private API responses are captured in temporary files; public messages contain only fixed stage results. No private configuration, IDs, endpoints, raw diagnostics, logs or generated bundles are uploaded or cached. An always() cleanup step stops only the owned Tunnel process, deletes only run-created firewall rules and removes private/generated files. Existing allow rules survive. Cleanup errors also fail the job. A forcibly killed runner may require operator cleanup of the rule with notes api-release:<run-id>:<attempt>.
 
