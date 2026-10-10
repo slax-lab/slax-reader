@@ -18,16 +18,16 @@ CI verifies that the configuration repository is private, resolves its default b
 
 Release files must use the declarative subset enforced by the CI loader:
 
-- At any nesting depth, keys named `localConnectionString`, `build`, `assets`, `site`, `define`, `unsafe` or `containers` are forbidden.
-- Keys matching `secret|password|private.?key|api.?key|auth.?key|token|credential|command` are forbidden. This is a case-insensitive substring match at any nesting depth.
-- String values containing `PRIVATE KEY-----`, `postgres://`, `postgresql://` or HTTP(S) URLs with user information (`https?://...@`) are forbidden, also case-insensitively and at any nesting depth.
+- The top-level `[vars]` table accepts strings, including runtime tokens, private keys, salts, webhook URLs and allowlists. Maintain their real values only in these private TOMLs; multiline strings use native TOML syntax. All four Workers receive the selected environment's runtime values through normal publication.
+- Outside that `[vars]` table, keys named `localConnectionString`, `build`, `assets`, `site`, `define`, `unsafe` or `containers` are forbidden at any nesting depth.
+- Outside `[vars]`, keys matching `secret|password|private.?key|api.?key|auth.?key|token|credential|command` and strings containing `PRIVATE KEY-----`, `postgres://`, `postgresql://` or HTTP(S) URLs with user information (`https?://...@`) are forbidden. These matches are case-insensitive.
 - Non-empty top-level `env` and `dev` tables are forbidden. Each release file must supply the selected environment's settings at the top level.
 
 When adapting `deploy/cloudflare/api.toml.example` for release, remove `localConnectionString` from both Hyperdrive entries, move the selected environment's settings to the top level and remove the `env`/`dev` tables. Supply real database URLs through Actions Secrets. A file can pass Wrangler validation and still fail these release checks. Violations deliberately report only `Private configuration unavailable or invalid; values are withheld`; check the constraints above without printing private file contents in CI.
 
 ## Actions Secrets
 
-Set these in the public source repository's dev, beta and prod GitHub Environments. Actual values never belong in public YAML, ordinary Actions Variables, configuration files or logs.
+Set these deployment access credentials in the public source repository's dev, beta and prod GitHub Environments. Their actual values never belong in public YAML, ordinary Actions Variables, configuration files or logs. Runtime credentials belong in the private TOML's `[vars]` instead.
 
 | Secret | Existing input / purpose |
 | --- | --- |
@@ -43,7 +43,7 @@ Set these in the public source repository's dev, beta and prod GitHub Environmen
 | HYPERDRIVE_DATABASE_URL | Existing dev/production primary migration URL |
 | LOGS_DATABASE_URL | Existing dev/production logs migration URL |
 
-Use the same production inputs for beta and prod. Both authenticated PostgreSQL URLs must address 127.0.0.1 at the same port; CI reads that port directly, defaulting to 5432. The hostname Secret is DNS only, without scheme, port or path; verify the previous test path-based selector's existing TCP routing. Worker runtime secrets remain in Cloudflare and are not fetched or uploaded. Public dependencies need no NPM_TOKEN.
+Use the same production inputs for beta and prod. Both authenticated PostgreSQL URLs must address 127.0.0.1 at the same port; CI reads that port directly, defaulting to 5432. The hostname Secret is DNS only, without scheme, port or path; verify the previous test path-based selector's existing TCP routing. Runtime values are published from private TOML as native Wrangler variables; no separate Secret upload is required. Remote deploy uses `--keep-vars` to retain existing variables and Secrets whose original values have not yet been recovered. An explicit TOML value replaces a same-name remote binding, including a Secret. Do not uncomment empty placeholders: supply the original value first. Removing a TOML entry alone does not delete the existing remote binding. Public dependencies need no NPM_TOKEN.
 
 Prepare Secrets and merge reviewed private configuration before merging the implementation PR, since that source merge can initiate the first test release. `pull_request_target` runs under the default branch context: all three Environment branch policies must permit dev, including prod. The job separately derives the actual environment from the merged PR target.
 
@@ -73,7 +73,7 @@ pnpm api -- migration:remote:fulltext
 pnpm api -- deploy
 ```
 
-D1 migrations use --remote. Normal publication keeps Browser -> AI -> Core -> Edge. Each migration checks its database connection; a failure stops later commands. As in the legacy pipeline, a primary migration may already be applied when the subsequent logs migration fails. Routine releases never provision resources, bootstrap or upload Worker secrets. Beta migrations must remain compatible with currently serving production code.
+D1 migrations use --remote. Normal publication keeps Browser -> AI -> Core -> Edge, including the selected TOML's runtime values. Each migration checks its database connection; a failure stops later commands. As in the legacy pipeline, a primary migration may already be applied when the subsequent logs migration fails. Routine releases never provision resources or bootstrap. Beta migrations must remain compatible with currently serving production code.
 
 Private configuration stays in `$RUNNER_TEMP/slax-api-release/api.toml`; the effective Core configuration is generated at `$RUNNER_TEMP/slax-api-release/generated/core.toml`. The generator rewrites D1 migration directories to the checked-out API's Prisma migration folders. Wrangler resolves those paths relative to the generated configuration file. Before opening database access, CI checks that `DB` resolves to `apps/api/prisma/d1_migrations` and `DB_FULLTEXT` to its `fulltext` directory, and that both contain SQL files. A failed migration reports its exit status, recognized error category and numeric Cloudflare error codes when available; raw diagnostics remain withheld.
 
@@ -81,8 +81,8 @@ Configured command output and private API responses are captured in temporary fi
 
 Retry through the existing Actions run while its API-related contents still match the target branch tip. The retry reads the latest reviewed configuration default branch again. Database migrations and Worker publication are not one transaction: inspect safe completed-stage results and retry forward; do not roll back schemas automatically.
 
-## Configuration PR checks
+## Configuration confidentiality
 
-The private repository carries strict AGENTS.md/Agent.MD credential rules. One PR workflow directly runs pinned Gitleaks and an inline credential-file check over every introduced commit, including credentials later removed. Findings and scanner errors fail the Secret scan status without printing values or uploading reports. Require that exact status through branch protection and review workflow/policy changes. No custom scanner scripts or additional deployment files are maintained.
+Runtime credentials in the independent private repository's environment TOMLs are an intentional operator-approved exception to the previous credential-free policy. Keep that repository private and restrict access. Other credential files and deployment access credentials remain excluded. The public source repository's credential checks still apply to every public contribution; private TOMLs must never be copied into it. Generated Worker TOMLs have owner-only permissions and remain within release temporary storage.
 
 Offline validation uses synthetic configuration and command substitutes. It never accesses live credentials, databases or cloud mutations. Existing API deployment regressions and `pnpm exec openspec validate --all --strict` remain applicable; actual permissions, Tunnel routing and GitHub Environment policies are verified by the first authorized merged release.

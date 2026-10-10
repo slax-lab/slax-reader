@@ -46,7 +46,8 @@ export async function deploy(args: string[]): Promise<number> {
         ...(loadRuntimeFile ? ['--env-file', workerEnv] : []),
         ...(target === 'edge' ? ['--test-scheduled'] : [])
       ]
-      const child = spawn('wrangler', local ? dev : ['deploy', ...common, '--minify'], {
+      // Preserve unrecovered remote bindings; explicit TOML vars replace matching names.
+      const child = spawn('wrangler', local ? dev : ['deploy', ...common, '--minify', '--keep-vars'], {
         cwd: API_ROOT,
         stdio: 'inherit',
         env: {

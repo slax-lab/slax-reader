@@ -1,4 +1,5 @@
-# Copy to api.toml, then configure YOUR resources. Never put secrets here.
+# Copy to api.toml, then configure YOUR resources. Never commit real credentials to this public template.
+# Remote runtime values may be maintained in [vars] of the independent private configuration repository.
 # Native Wrangler configuration; named environments use [env.dev], [env.preview], etc.
 # Local commands select env.dev when present; --env selects an environment explicitly.
 name = "reader-core"
@@ -18,7 +19,7 @@ cpu_ms = 300000
 
 [vars]
 # Local defaults. For remote deployment set RUN_ENV = "prod".
-# RUN_TYPE = "prod" selects live payments; beta/dev selects sandbox behavior.
+# RUN_TYPE identifies the installation; STRIPE_LIVE_MODE must match the Reader Stripe key.
 RUN_ENV = "development"
 RUN_TYPE = "dev"
 # Comma-separated allowlist for the beta host and the /m/ dashboard. These are operator and
@@ -199,4 +200,3 @@ localConnectionString = "postgresql://admin:admin@localhost:15432/slax-reader-lo
 name = "BOOKMARK_ADD_RATE_LIMITER"
 namespace_id = "1001"
 simple = { limit = 30, period = 60 }
-

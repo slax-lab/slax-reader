@@ -104,16 +104,19 @@ jobs:
               assert file['type'] == 'file' and file['path'] == filename and file['encoding'] == 'base64' and 0 < file['size'] <= 500000
               data = base64.b64decode(file['content'])
               config = tomllib.loads(data.decode())
-              def data_only(value):
+              def data_only(value, root=False):
                   if isinstance(value, dict):
                       for key, child in value.items():
+                          if root and key == 'vars':
+                              assert isinstance(child, dict) and all(isinstance(item, str) for item in child.values())
+                              continue
                           assert key not in ('build', 'assets', 'site', 'define', 'unsafe', 'containers', 'localConnectionString') and not re.search(r'secret|password|private.?key|api.?key|auth.?key|token|credential|command', key, re.I)
                           data_only(child)
                   elif isinstance(value, list):
                       for child in value: data_only(child)
                   elif isinstance(value, str):
                       assert not re.search(r'PRIVATE KEY-----|postgres(?:ql)?://|https?://[^/\s]*@', value, re.I)
-              data_only(config)
+              data_only(config, root=True)
               assert config['vars']['RUN_ENV'] == 'prod' and config['vars']['RUN_TYPE'] == environment
               assert not config.get('env') and not config.get('dev')
               account = os.environ['CLOUDFLARE_ACCOUNT_ID']

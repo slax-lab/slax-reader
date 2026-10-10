@@ -129,16 +129,7 @@ export function validateConfig(config: ApiConfig, filename: string): ApiConfig {
   const origin = new URL(String(vars.BACKEND_API_PREFIX))
   if (!['http:', 'https:'].includes(origin.protocol) || origin.username || origin.password || origin.search || origin.hash || origin.pathname !== '/')
     throw new Error('BACKEND_API_PREFIX must be an HTTP(S) origin without credentials or a path')
-  for (const table of [vars]) {
-    for (const key of Object.keys(table ?? {})) {
-      if (/^(STRIPE_CONNECT|NOTE_STRIPE|SES_)/.test(key)) throw new Error(`${key} is retired and must be removed from Reader configuration`)
-      if (
-        /SECRET|PASSWORD|PRIVATE_KEY|API_KEY|AUTH_KEY|TOKEN/.test(key) ||
-        ['IMAGER_CHECK_DIGST_SALT', 'HASH_IDS_SALT', 'REPORT_PUSH_API', 'STRIPE_PUSH_API', 'ERROR_LOG_PUSH_API', 'CRAWL_PUSH_API'].includes(key)
-      )
-        throw new Error(`${key} must be configured as a Worker secret, not a TOML variable`)
-    }
-  }
+  for (const key of Object.keys(vars ?? {})) if (/^(STRIPE_CONNECT|NOTE_STRIPE|SES_)/.test(key)) throw new Error(`${key} is retired and must be removed from Reader configuration`)
   queueMapping(config)
   // Build every target before any remote operation to validate merged values.
   for (const target of TARGETS) workerConfig(config, target)
@@ -258,9 +249,10 @@ export function writeGenerated(config: ApiConfig, target: Target, outputDir = GE
   output.tsconfig = path.relative(directory, API_TSCONFIG)
   for (const db of rows(output.d1_databases))
     db.migrations_dir = path.relative(directory, path.join(API_ROOT, 'prisma/d1_migrations', db.binding === 'DB_FULLTEXT' ? 'fulltext' : ''))
-  fs.mkdirSync(directory, { recursive: true })
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 })
   const filename = path.join(directory, `${target}${bootstrap ? '.bootstrap' : ''}.toml`)
-  fs.writeFileSync(filename, stringify(output))
+  if (fs.existsSync(filename)) fs.chmodSync(filename, 0o600)
+  fs.writeFileSync(filename, stringify(output), { mode: 0o600 })
   return filename
 }
 
