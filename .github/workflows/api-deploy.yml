@@ -35,7 +35,7 @@ jobs:
       cancel-in-progress: false
     defaults:
       run:
-        shell: bash --noprofile --norc -euo pipefail {0}
+        shell: bash --noprofile --norc -Eeuo pipefail {0}
     env:
       DEPLOY_ENVIRONMENT: ${{ github.event.pull_request.base.ref == 'main' && 'prod' || github.event.pull_request.base.ref }}
       TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
@@ -133,7 +133,22 @@ jobs:
           exec 3>&1 >"$RELEASE_DIR/build.log" 2>&1
           trap 'echo "API generation or build failed; values are withheld" >&3' ERR
           node --import ./apps/api/node_modules/tsx/dist/loader.mjs --input-type=module \
-            -e 'import { readConfig, checkRemote } from "./apps/api/script/deploy/config.ts"; checkRemote(readConfig())'
+            -e 'import { readConfig, checkRemote, writeGenerated } from "./apps/api/script/deploy/config.ts"; const config = readConfig(); checkRemote(config); writeGenerated(config, "core")'
+          python3 - <<'PY'
+          import os, pathlib, tomllib
+          try:
+              filename = pathlib.Path(os.environ['SLAX_API_GENERATED_DIR']) / 'core.toml'
+              config = tomllib.loads(filename.read_text())
+              root = pathlib.Path(os.environ['GITHUB_WORKSPACE']) / 'apps/api/prisma/d1_migrations'
+              for binding, suffix in (('DB', ''), ('DB_FULLTEXT', 'fulltext')):
+                  database = next(row for row in config['d1_databases'] if row['binding'] == binding)
+                  directory = (filename.parent / database['migrations_dir']).resolve()
+                  assert directory == (root / suffix).resolve() and any(directory.glob('*.sql'))
+          except Exception:
+              os.write(3, b'D1 migration path check failed; values are withheld\n')
+              raise SystemExit(1) from None
+          os.write(3, b'D1 migration paths checked (DB, DB_FULLTEXT)\n')
+          PY
           pnpm api -- gen:all
           pnpm api -- build
           echo 'API generation and build passed' >&3
@@ -166,21 +181,35 @@ jobs:
           CLOUDFLARE_FIREWALL_API_TOKEN: ${{ secrets.CLOUDFLARE_FIREWALL_API_TOKEN }}
         run: |
           exec 3>&1 >"$RELEASE_DIR/firewall.log" 2>&1
-          trap 'echo "Firewall setup failed; values are withheld" >&3' ERR
-          request() { curl --fail --silent --show-error --max-time 15 -H "Authorization: Bearer $CLOUDFLARE_FIREWALL_API_TOKEN" "$@"; }
+          stage=zone-input
+          trap 'echo "Firewall $stage failed; values are withheld" >&3' ERR
+          request() {
+            local http code=0
+            http=$(curl --fail --silent --show-error --max-time 15 --output "$RELEASE_DIR/firewall.json" --write-out '%{http_code}' -H "Authorization: Bearer $CLOUDFLARE_FIREWALL_API_TOKEN" "$@") || code=$?
+            [[ "$http" =~ ^[0-9]{3}$ ]] || http=000
+            if [ "$code" -ne 0 ]; then
+              printf 'Firewall %s failed (HTTP %s, curl %s); values are withheld\n' "$stage" "$http" "$code" >&3
+              exit "$code"
+            fi
+          }
           [[ "$CF_ZONE_ID" =~ ^[a-f0-9]{32}$ ]]
           zone="https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID"
-          request "$zone" >"$RELEASE_DIR/firewall.json"
+          stage=zone-read
+          request "$zone"
+          stage=zone-account-check
           jq -e --arg account "$CLOUDFLARE_ACCOUNT_ID" '.success == true and .result.account.id == $account' "$RELEASE_DIR/firewall.json" >/dev/null
+          stage=runner-ip
           ip=$(curl --fail --silent --show-error --max-time 15 https://api.ipify.org)
           [[ "$ip" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]
           url="$zone/firewall/access_rules/rules"
-          request "$url?configuration.target=ip&configuration.value=$ip&mode=whitelist&per_page=100" >"$RELEASE_DIR/firewall.json"
+          stage=rule-list
+          request "$url?configuration.target=ip&configuration.value=$ip&mode=whitelist&per_page=100"
           jq -e '.success == true and (.result | type == "array")' "$RELEASE_DIR/firewall.json" >/dev/null
           if jq -e --arg ip "$ip" '.result | any(.mode == "whitelist" and .configuration.target == "ip" and .configuration.value == $ip)' "$RELEASE_DIR/firewall.json" >/dev/null; then exit 0; fi
           printf '%s' "$ip" >"$RELEASE_DIR/firewall-ip"
           jq -n --arg ip "$ip" --arg note "api-release:$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT" '{mode:"whitelist",configuration:{target:"ip",value:$ip},notes:$note}' >"$RELEASE_DIR/firewall-request.json"
-          request "$url" -X POST -H 'Content-Type: application/json' --data-binary "@$RELEASE_DIR/firewall-request.json" >"$RELEASE_DIR/firewall.json"
+          stage=rule-create
+          request "$url" -X POST -H 'Content-Type: application/json' --data-binary "@$RELEASE_DIR/firewall-request.json"
           jq -e '.success == true and (.result.id | test("^[a-f0-9]{32}$"))' "$RELEASE_DIR/firewall.json" >/dev/null
       - name: Open the database Tunnel
         if: steps.release.outputs.current == 'true'
@@ -221,8 +250,25 @@ jobs:
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo 'Worker deployment Secret is missing'; exit 1; fi
           for command in migration:deploy:pgsql migration:deploy:logs migration:remote:d1 migration:remote:fulltext deploy; do
-            if ! pnpm api -- "$command" >"$RELEASE_DIR/deploy.log" 2>&1; then
-              echo "API $command failed; values are withheld"; exit 1
+            status=0
+            pnpm api -- "$command" >"$RELEASE_DIR/deploy.log" 2>&1 || status=$?
+            if [ "$status" -ne 0 ]; then
+              echo "API $command failed (exit $status); values are withheld"
+              python3 - <<'PY'
+          import os, pathlib, re
+          log = (pathlib.Path(os.environ['RELEASE_DIR']) / 'deploy.log').read_text(errors='replace')
+          for pattern, category in (
+              (r'No migrations (?:folder found|present)|ENOENT', 'migration file or directory unavailable'),
+              (r'Authentication error|Unauthorized|not authorized|forbidden', 'authentication or permission error'),
+              (r'SQLITE_ERROR|syntax error|no such (?:table|column)|(?:FOREIGN KEY|NOT NULL|UNIQUE) constraint failed', 'SQL error'),
+          ):
+              if re.search(pattern, log, re.I):
+                  print('API diagnostic: ' + category)
+                  break
+          codes = sorted(set(re.findall(r'\[code: (\d{3,6})\]', log)))
+          if codes: print('Cloudflare error codes: ' + ', '.join(codes))
+          PY
+              exit "$status"
             fi
             echo "API $command passed"
           done
@@ -233,7 +279,8 @@ jobs:
           CLOUDFLARE_FIREWALL_API_TOKEN: ${{ secrets.CLOUDFLARE_FIREWALL_API_TOKEN }}
         run: |
           exec 3>&1 >"$RELEASE_DIR/cleanup.log" 2>&1
-          trap 'echo "Temporary access cleanup failed; values are withheld" >&3' ERR
+          stage=tunnel-stop
+          trap 'echo "Temporary access $stage failed; values are withheld" >&3' ERR
           trap 'rm -rf "$RELEASE_DIR"; rm -f apps/api/worker-configuration.d.ts' EXIT
           failed=0
           if [ -f "$RELEASE_DIR/tunnel-pid" ] && [ -f "$RELEASE_DIR/tunnel-start" ]; then
@@ -245,13 +292,23 @@ jobs:
           if [ -f "$RELEASE_DIR/firewall-ip" ]; then
             ip=$(cat "$RELEASE_DIR/firewall-ip")
             url="https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/firewall/access_rules/rules"
-            request() { curl --fail --silent --show-error --max-time 15 -H "Authorization: Bearer $CLOUDFLARE_FIREWALL_API_TOKEN" "$@"; }
-            request "$url?configuration.target=ip&configuration.value=$ip&mode=whitelist&per_page=100" >"$RELEASE_DIR/cleanup.json"
+            request() {
+              local http code=0
+              http=$(curl --fail --silent --show-error --max-time 15 --output "$RELEASE_DIR/cleanup.json" --write-out '%{http_code}' -H "Authorization: Bearer $CLOUDFLARE_FIREWALL_API_TOKEN" "$@") || code=$?
+              [[ "$http" =~ ^[0-9]{3}$ ]] || http=000
+              if [ "$code" -ne 0 ]; then
+                printf 'Firewall cleanup %s failed (HTTP %s, curl %s); values are withheld\n' "$stage" "$http" "$code" >&3
+                exit "$code"
+              fi
+            }
+            stage=rule-list
+            request "$url?configuration.target=ip&configuration.value=$ip&mode=whitelist&per_page=100"
             jq -e '.success == true and (.result | type == "array")' "$RELEASE_DIR/cleanup.json" >/dev/null
             jq -r --arg ip "$ip" --arg note "api-release:$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT" '.result[] | select(.mode == "whitelist" and .configuration.target == "ip" and .configuration.value == $ip and .notes == $note) | .id' "$RELEASE_DIR/cleanup.json" >"$RELEASE_DIR/owned-rules"
             while IFS= read -r id; do
               [[ "$id" =~ ^[a-f0-9]{32}$ ]]
-              request "$url/$id" -X DELETE >"$RELEASE_DIR/cleanup.json"
+              stage=rule-delete
+              request "$url/$id" -X DELETE
               jq -e '.success == true' "$RELEASE_DIR/cleanup.json" >/dev/null
             done < "$RELEASE_DIR/owned-rules"
           fi
