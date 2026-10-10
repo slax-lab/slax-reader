@@ -4,13 +4,15 @@
       <div v-if="idx > 0" class="edge-sep" />
       <button class="edge-btn" :class="{ active: modelValue === btn.id }" :title="btn.label" @click="toggle(btn.id)">
         <span class="edge-label">{{ btn.label }}</span>
-        <span class="edge-icon" v-html="btn.icon" />
+        <span class="edge-icon"><AppIcon :name="btn.icon" :size="20" /></span>
       </button>
     </template>
   </div>
 </template>
 
 <script lang="ts" setup>
+import AppIcon from '~/components/AppIcon.vue'
+
 import { resolveSnapshotPanels, type SnapshotPanelId } from '~/components/Snapshot/panels'
 
 const props = defineProps<{

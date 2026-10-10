@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
-import { readFile, writeFile } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
-import { extname, resolve, relative, join } from 'node:path'
+import { readFile, realpath, writeFile } from 'node:fs/promises'
+import { extname, join, relative, resolve, sep } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { DOMParser, XMLSerializer } from '@xmldom/xmldom'
@@ -43,6 +42,29 @@ const ROOT_PRESENTATION_ATTRIBUTES = new Set([
 const fail = message => {
   throw new Error(`icon registry: ${message}`)
 }
+
+const isContainedPath = (candidate, root) => candidate === root || candidate.startsWith(`${root}${sep}`)
+
+/**
+ * Resolve a manifest path through symlinks before checking its repository boundary.
+ * The caller must only read the returned path after this check succeeds.
+ */
+export const resolveContainedPath = async (candidate, allowedRoot, label) => {
+  let canonicalRoot
+  let canonicalCandidate
+  try {
+    canonicalRoot = await realpath(allowedRoot)
+    canonicalCandidate = await realpath(candidate)
+  } catch {
+    fail(`${label} does not exist: ${candidate}`)
+  }
+  if (!isContainedPath(canonicalCandidate, canonicalRoot)) {
+    fail(`${label} resolves outside ${canonicalRoot}: ${canonicalCandidate}`)
+  }
+  return canonicalCandidate
+}
+
+export const hashSourceBytes = sourceBytes => createHash('sha256').update(sourceBytes).digest('hex')
 
 const escapeXmlAttribute = value => value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 
@@ -110,6 +132,7 @@ export const validateManifestEntry = (key, entry) => {
   if (!['decorative', 'control-labelled', 'standalone'].includes(entry.accessibility)) fail(`${key} has invalid accessibility mode`)
   if (entry.label !== undefined && typeof entry.label !== 'string') fail(`${key} label must be a string`)
   if (entry.label !== undefined && entry.accessibility !== 'standalone') fail(`${key} labels are only valid for standalone icons`)
+  if (entry.accessibility === 'standalone' && entry.label !== undefined && entry.label.trim() === '') fail(`${key} standalone label must not be blank`)
   if (!entry.provenance || typeof entry.provenance.sourcePath !== 'string' || typeof entry.provenance.sourceCommit !== 'string') fail(`${key} must record source provenance`)
   if (entry.kind === 'inline' && entry.paint !== 'currentColor' && entry.paint !== 'fixed') fail(`${key} inline paint must be currentColor or fixed`)
   if (entry.kind === 'mask' && entry.paint !== 'mask-currentColor') fail(`${key} mask paint must be mask-currentColor`)
@@ -129,18 +152,20 @@ export const buildRegistry = async () => {
   if (manifest.version !== 1) fail(`unsupported manifest version ${manifest.version}`)
   if (typeof manifest.sourceCommit !== 'string' || !manifest.sourceCommit) fail('manifest must declare sourceCommit')
   if (!manifest.icons || typeof manifest.icons !== 'object' || Array.isArray(manifest.icons)) fail('manifest icons must be an object')
+  const canonicalAssetRoot = await resolveContainedPath(ASSET_DIR, ROOT, 'icon asset root')
 
   const output = {}
   for (const [key, entry] of Object.entries(manifest.icons)) {
     validateManifestEntry(key, entry)
     if (entry.provenance.sourceCommit !== manifest.sourceCommit) fail(`${key} provenance sourceCommit must match the manifest sourceCommit`)
     const provenancePath = resolve(ROOT, entry.provenance.sourcePath.split('#', 1)[0])
-    if (relative(ROOT, provenancePath).startsWith('..') || !existsSync(provenancePath)) fail(`${key} provenance sourcePath does not exist: ${entry.provenance.sourcePath}`)
+    await resolveContainedPath(provenancePath, ROOT, `${key} provenance sourcePath`)
     const assetPath = resolve(ASSET_DIR, entry.source)
-    if (relative(ASSET_DIR, assetPath).startsWith('..') || !existsSync(assetPath)) fail(`${key} source does not exist: ${entry.source}`)
-    const source = await readFile(assetPath, 'utf8')
-    const parsed = extname(entry.source).toLowerCase() === '.svg' ? parseSvg(source, entry) : null
-    const sourceHash = createHash('sha256').update(source).digest('hex')
+    const canonicalAssetPath = await resolveContainedPath(assetPath, canonicalAssetRoot, `${key} source`)
+    const sourceBytes = await readFile(canonicalAssetPath)
+    const source = extname(entry.source).toLowerCase() === '.svg' ? sourceBytes.toString('utf8') : null
+    const parsed = source === null ? null : parseSvg(source, entry)
+    const sourceHash = hashSourceBytes(sourceBytes)
     output[key] = {
       kind: entry.kind,
       source: entry.source,
