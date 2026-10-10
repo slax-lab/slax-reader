@@ -6,6 +6,8 @@ This document is the single design contract for Slax Reader. It defines the visu
 
 The contract does not duplicate every runtime value. Executable values remain in application-owned token files. The archived prototype under `docs/design/reference/` is evidence and visual context, not a specification.
 
+Deferred design-system work is tracked in [`docs/design/backlog.md`](docs/design/backlog.md). The backlog is planning guidance; it does not turn every remaining inline SVG or legacy token into a migration requirement.
+
 ## 1. Scope and reading order
 
 This contract applies to:
@@ -201,7 +203,7 @@ The archived reference is not automatically trusted runtime markup. Runtime SVG 
 
 ### 7.4 Size and accessibility
 
-The common reference sizes are 12, 14, 16, 18, 20, 24, and 32 pixels. Ten-pixel artwork is a special compact case, not a general interactive target. Control hit areas are larger than their icons.
+The common reference sizes are 12, 14, 15, 16, 17, 18, 20, 24, and 32 pixels. Fifteen- and seventeen-pixel artwork support compact menu and toolbar actions; ten-pixel artwork is a special compact case, not a general interactive target. Control hit areas are larger than their icons.
 
 - Decorative icons default to `aria-hidden="true"`.
 - A surrounding button or link owns the accessible name when it already describes the action.
@@ -266,6 +268,7 @@ Before completing UI work, an agent must be able to answer:
 ## 12. Related files
 
 - `docs/design/README.md` — index and maintenance entry point
+- `docs/design/backlog.md` — bounded follow-up work and completion criteria
 - `docs/design/reference/slax-reader-design-system/SOURCE.md` — reference provenance and limitations
 - `apps/web/styles/theme.tokens.css` — Web core runtime tokens
 - `apps/web/styles/theme.css` — Web host-level theme behavior
