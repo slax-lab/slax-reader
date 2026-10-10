@@ -1,3 +1,4 @@
+import { validatePdfSources, isPdfContentKey } from '@slax-reader/contracts/pdf'
 import type {
   CreateMarkRequest as markRequest,
   MarkSelectContent as markSelectContent,
@@ -108,10 +109,12 @@ export class MarkService {
   assertMarkData = async (data: markRequest) => {
     if (data.type === markType.REPLY || typeof data.source === 'number') return
 
-    // 检查单次划线不超过1000个字符+3张图片
+    // Keep legacy article quote limits; PDF selections only validate their source shape.
     let sourceLength = 0
     let sourceImageCount = 0
+    try { validatePdfSources(data.source) } catch { throw ErrorParam() }
     data.source.forEach(item => {
+      if (item.type === 'pdf') return
       if (item.type === 'image') sourceImageCount++
       else sourceLength += item.end_offset - item.start_offet
     })
@@ -409,6 +412,15 @@ export class MarkService {
 
     // 回复对象检测
     const userBookmark = await this.assertCreateMarkSource(ctx, data)
+    if (data.type !== markType.REPLY) {
+      const detail = await this.bookmarkRepo.getUserBookmarkByUuidWithDetail(userBookmark.uuid)
+      const documentId = (detail?.metadata as { pdf_document_id?: string })?.pdf_document_id
+      try {
+        const pdfLength = validatePdfSources(data.source, documentId || '')
+        if (isPdfContentKey(detail?.bookmark.content_key) !== (pdfLength !== undefined)) throw ErrorParam()
+      } catch { throw ErrorParam() }
+    }
+
 
     // 防止通过回复来绕过评论限制
     let rootId = 0

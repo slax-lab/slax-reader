@@ -2,7 +2,7 @@
   <Teleport to="body">
     <Transition name="modal">
       <div v-if="show" class="modal-backdrop" @click.self="closeModal">
-        <div class="modal-dialog" role="dialog" aria-modal="true">
+        <div class="modal-dialog" :class="{ 'pdf-upload-enabled': pdfUploadEnabled }" role="dialog" aria-modal="true">
           <div class="modal-header">
             <h3 class="modal-title">{{ $t('component.add_url_top_modal.add_url.title') }}</h3>
             <button class="modal-close" @click="closeModal" type="button" :aria-label="$t('common.operate.close')">
@@ -27,7 +27,7 @@
               autocomplete="off"
               @keydown.enter="topModalClick"
               @keydown.esc="closeModal"
-              @input="showError = false"
+              @input="showError = false; pdfFile = null; pdfError = ''"
             />
           </div>
           <p class="modal-error" v-if="showError">
@@ -38,11 +38,18 @@
             </svg>
             {{ $t('component.add_url_top_modal.add_url.invalid_url') }}
           </p>
+          <div v-if="pdfUploadEnabled" class="pdf-upload">
+            <input ref="pdfInput" type="file" accept="application/pdf,.pdf" class="sr-only" :disabled="searchModalLoading" @change="selectPdf" />
+            <button class="modal-btn modal-btn-ghost" :disabled="searchModalLoading" @click="pdfInput?.click()">{{ $t('pdf.upload') }}</button>
+            <span>{{ $t('pdf.upload_limit') }}</span>
+          </div>
+          <p v-if="pdfFile" class="modal-desc">{{ pdfFile.name }} - {{ (pdfFile.size / 1024 / 1024).toFixed(1) }} MiB</p>
+          <p v-if="pdfError" class="modal-error" role="alert">{{ pdfError }}</p>
           <div class="modal-footer">
             <button class="modal-btn modal-btn-ghost" @click="closeModal" type="button">{{ $t('common.operate.cancel') }}</button>
-            <button class="modal-btn modal-btn-primary" @click="topModalClick" :disabled="!addUrlButtonEnable || searchModalLoading" type="button">
+            <button class="modal-btn modal-btn-primary" @click="topModalClick" :disabled="(!addUrlButtonEnable && !pdfFile) || searchModalLoading" type="button">
               <div v-if="searchModalLoading" class="i-svg-spinners:90-ring h-14px w-14px"></div>
-              <span v-else>{{ $t('component.add_url_top_modal.add_url.button') }}</span>
+              <span v-else>{{ $t(pdfFile ? 'pdf.upload' : 'component.add_url_top_modal.add_url.button') }}</span>
             </button>
           </div>
         </div>
@@ -54,6 +61,7 @@
 <script setup lang="ts">
 // add-url 支持 local-first
 // 启用时本地写入，否则走 REST
+import { PDF_MAX_BYTES } from '@slax-reader/contracts/pdf'
 import { isClient } from '@commons/frontend-utils/is'
 import { haveRequestToken } from '~/utils/request'
 
@@ -65,6 +73,10 @@ import { useLabFeatures } from '~/composables/useLabFeatures'
 const show = defineModel('show')
 const emits = defineEmits(['addUrlSuccess'])
 
+const { t } = useI18n()
+const pdfInput = ref<HTMLInputElement>()
+const pdfFile = shallowRef<File | null>(null)
+const pdfError = ref('')
 const addUrlText = ref('')
 const searchModalLoading = ref(false)
 const showError = ref(false)
@@ -75,18 +87,23 @@ const local = useLocalBookmarks()
 const useLocalFirst = () => isClient && haveRequestToken() && isLocalFirstEnabled()
 // 实验室开关：local-first 分支不经过服务端，写本地行之前先在这里拦
 const labs = useLabFeatures()
+const pdfUploadEnabled = computed(() => labs.loaded.value && labs.isEnabled('pdf'))
+watch(pdfUploadEnabled, enabled => { if (!enabled) pdfFile.value = null })
 
 watch(
   () => show.value,
   value => {
     if (value) {
       addUrlText.value = ''
+      pdfFile.value = null
+      pdfError.value = ''
       showError.value = false
       // 打开弹窗时拉一次开关列表，isBlocked 才有依据；拉不到就交给服务端置失败
-      if (useLocalFirst() && !labs.loaded.value) labs.fetch().catch(() => {})
+      if (isClient && !labs.loaded.value) labs.fetch().catch(() => {})
       // 聚焦交由 v-autofocus 指令处理
     }
-  }
+  },
+  { immediate: true }
 )
 
 const trimmedUrl = computed(() => addUrlText.value.trim())
@@ -97,7 +114,38 @@ const addUrlButtonEnable = computed(() => {
   return url.startsWith('http://') || url.startsWith('https://')
 })
 
+const selectPdf = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  pdfError.value = ''
+  if (!file) return
+  pdfFile.value = null
+  if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') { pdfError.value = t('pdf.invalid_file'); return }
+  if (!file.size || file.size > PDF_MAX_BYTES) { pdfError.value = t('pdf.upload_limit'); return }
+  pdfFile.value = file
+  addUrlText.value = ''
+}
+const uploadPdf = async () => {
+  if (!pdfFile.value || searchModalLoading.value) return
+  if (!pdfUploadEnabled.value) { labs.showBlockedToast(t('page.user.labs.pdf.blocked')); return }
+  searchModalLoading.value = true
+  pdfError.value = ''
+  try {
+    const result = await request().post<{ bookmark_id: number; bookmark_uid: string }>({
+      url: `/v1/bookmark/upload_pdf?filename=${encodeURIComponent(pdfFile.value.name)}`, body: pdfFile.value,
+      headers: { 'Content-Type': 'application/pdf' },
+      errorInterceptors: err => { if (!labs.handleSaveError(err)) pdfError.value = t('pdf.upload_failed') }
+    })
+    if (!result?.bookmark_uid) throw new Error('PDF upload returned no bookmark')
+    show.value = false
+    emits('addUrlSuccess', '')
+    await navigateTo(`/b/${result.bookmark_uid}`)
+  } catch (error) { if (!(error instanceof Error && error.name === 'LAB_FEATURE_DISABLED')) pdfError.value = t('pdf.upload_failed') }
+  finally { searchModalLoading.value = false }
+}
 const topModalClick = async () => {
+  if (pdfFile.value) { await uploadPdf(); return }
   if (!addUrlButtonEnable.value) {
     showError.value = true
     return
@@ -136,11 +184,17 @@ const topModalClick = async () => {
 }
 
 const closeModal = () => {
+  if (searchModalLoading.value) return
   show.value = false
 }
 </script>
 
 <style lang="scss" scoped>
+.pdf-upload { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 8px; }
+.pdf-upload span { color: var(--slax-text-light); font-size: var(--slax-fs-aux); }
+.pdf-upload .modal-btn { min-height: 44px; }
+@media (max-width: 768px) { .pdf-upload-enabled .modal-btn, .pdf-upload-enabled .modal-close { min-height: 44px; min-width: 44px; } }
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

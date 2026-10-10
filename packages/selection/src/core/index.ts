@@ -8,5 +8,5 @@ export * from './MarkRenderer'
 export * from './utils'
 
 // MarkManager和ArticleSelection都导出了IMarkModal和Ref，需要明确导出
-export { MarkManager, type Ref } from './MarkManager'
+export { MarkManager, type Ref, type IMarkRenderer, type MarkManagerDependencies } from './MarkManager'
 export { ArticleSelection, type IMarkModal } from './ArticleSelection'

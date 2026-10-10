@@ -9,8 +9,6 @@ import { GA4AnalyticsClient } from '@/infra/external/ga4Analytics'
 import { LogsService } from '@/domain/logs'
 import { CollectionRepo } from '@/infra/repository/dbCollection'
 import { BookmarkSearchRepo } from '@/infra/repository/dbBookmarkSearch'
-import { BookmarkRepo, queueStatus } from '@/infra/repository/dbBookmark'
-import { LabService } from '@/domain/lab'
 import { SearchService } from '@/domain/search'
 import { bookmarkEventProperties, getEventContext, submitServerEvent } from '@/domain/events'
 import { ErrorMarkTypeError, ErrorParam, SyncTableRuleError, SyncTableTagNameError, UserNotFoundError } from '@/const/err'
@@ -147,9 +145,7 @@ export class SyncOrchestrator {
     @inject(GA4AnalyticsClient) private ga4Client: GA4AnalyticsClient,
     @inject(LogsService) private logsService: LogsService,
     @inject(CollectionRepo) private collectionRepo: CollectionRepo,
-    @inject(BookmarkSearchRepo) private bookmarkSearchRepo: BookmarkSearchRepo,
-    @inject(BookmarkRepo) private bookmarkRepo: BookmarkRepo,
-    @inject(LabService) private labService: LabService
+    @inject(BookmarkSearchRepo) private bookmarkSearchRepo: BookmarkSearchRepo
   ) {}
 
   /** sign token */
@@ -497,18 +493,6 @@ export class SyncOrchestrator {
       const pType = police.getParserType()
 
       if (pType === parserType.BLOCK_PARSE) return
-
-      // Labs gate: the client already wrote the row, so the most the server can do is not crawl it
-      try {
-        await this.labService.assertUrlAllowed(ctx, newBookmark.targetUrl)
-      } catch (error) {
-        if (!LabService.isLabDisabledError(error)) throw error
-        await this.bookmarkRepo.updateBookmarkStatus(newBookmark.bookmarkId, queueStatus.FAILED)
-        ctx.execution.waitUntil(
-          this.logsService.track(newBookmark.userId, 'bookmark_add', { bookmark_id: newBookmark.bookmarkId, channel: 'powersync_batch', status: 'lab_disabled' })
-        )
-        return
-      }
 
       ctx.execution.waitUntil(
         this.ga4Client.trackEvent(newBookmark.userId, 'bookmark_add_start', {

@@ -26,11 +26,12 @@ const YOUTUBE_URLS = [
 ]
 
 describe('registry', () => {
-  test('RSS and YouTube are active and disabled by default', async () => {
+  test('RSS, YouTube, and PDF are active and disabled by default', async () => {
     const { service } = wire()
     expect(await service.listForUser(1)).toEqual([
       { key: 'rss', status: 'active', enabled: false, enabled_at: null },
-      { key: 'youtube', status: 'active', enabled: false, enabled_at: null }
+      { key: 'youtube', status: 'active', enabled: false, enabled_at: null },
+      { key: 'pdf', status: 'active', enabled: false, enabled_at: null }
     ])
   })
 
@@ -40,6 +41,11 @@ describe('registry', () => {
 })
 
 describe('assertUrlAllowed', () => {
+  test.each(['https://example.com/file.pdf?download=1', 'https://arxiv.org/pdf/2608.00046'])('defers PDF classification of %s to response headers', async url => {
+    const { service, labRepo } = wire(false)
+    await expect(service.assertUrlAllowed(createMockCtx({ userId: 7 }), url)).resolves.toBeUndefined()
+    expect(labRepo.isEnabled).not.toHaveBeenCalled()
+  })
   beforeEach(() => setGlobalLanguage('en'))
 
   test.each(YOUTUBE_URLS)('blocks %s when the switch is off', async url => {

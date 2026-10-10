@@ -64,13 +64,19 @@ export class OpenAIModerationClient {
   public async moderate(input: string | ModerationInput[]): Promise<ModerationResult> {
     const resp = await fetch(this.endpoint, {
       method: 'POST',
-      redirect: 'error',
+      redirect: 'manual',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.pickKey()}`
       },
       body: JSON.stringify({ model: OpenAIModerationClient.MODEL, input })
     })
+
+    // Workers supports manual redirects; reject them without forwarding credentials.
+    if (resp.status >= 300 && resp.status < 400) {
+      await resp.body?.cancel().catch(() => {})
+      throw new Error('OpenAI moderation endpoint must not redirect')
+    }
 
     if (!resp.ok) {
       throw new Error(`omni-moderation request failed: ${resp.status} ${await resp.text().catch(() => '')}`)

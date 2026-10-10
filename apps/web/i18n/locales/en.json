@@ -1,4 +1,11 @@
 {
+  "pdf": {
+    "local_upload": "Local upload",
+    "page_spacing": "Show page gaps",
+    "original_colors": "Original colors",
+    "theme_colors": "Theme colors",
+    "reader": "PDF reader", "controls": "PDF controls", "previous": "Previous page", "next": "Next page", "page": "Page", "fit": "Fit width", "zoom_out": "Zoom out", "zoom_in": "Zoom in", "loading": "Loading PDF…", "retry": "Retry", "load_failed": "Unable to open this PDF. Retry or upload a valid file.", "password": "Password-protected PDFs are not supported yet.", "highlight": "Highlight", "remove_highlight": "Remove highlight", "comment": "Comment", "ask_ai": "Ask AI", "selection_actions": "Selected text actions", "selection_invalid": "Unable to locate the selected text. Please select it again.", "text_pending": "Preparing PDF text for AI…", "text_empty": "No analyzable text is available. Scanned PDFs can still be viewed.", "text_failed": "PDF text extraction failed. You can still view the file.", "quote_not_found": "This passage could not be located in the PDF.", "upload": "Upload PDF", "upload_limit": "One PDF, up to 50 MiB", "invalid_file": "Choose a PDF file.", "upload_failed": "PDF upload failed. Please retry."
+  },
   "common": {
     "app": {
       "name": "Slax Reader",
@@ -1190,6 +1197,11 @@
         "rss": {
           "name": "RSS feeds",
           "desc": "Browse your feeds, then save interesting articles to your Inbox."
+        },
+        "pdf": {
+          "name": "PDF bookmarks",
+          "desc": "Save PDF links or upload PDFs to read, highlight, comment, and analyze extractable text.",
+          "blocked": "PDF bookmarks are still in Labs. Turn it on in Settings, then save again"
         }
       },
       "navigation": {

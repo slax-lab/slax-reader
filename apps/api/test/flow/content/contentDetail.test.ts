@@ -33,6 +33,7 @@ const share = (o: Record<string, any> = {}) => ({
 
 function wire() {
   const bs = {
+    getPdfDescriptor: vi.fn().mockResolvedValue(undefined),
     getUserBookmarkByUuidWithDetail: vi.fn(),
     getBookmarkOutline: vi.fn().mockResolvedValue(null)
   }
@@ -56,6 +57,15 @@ function wire() {
 }
 
 describe('getContentMeta', () => {
+  test.each([10, 0])('includes the PDF type and descriptor for permitted viewer %s', async userId => {
+    const { orch, bs } = wire()
+    const pdf = { url: '/api/content/ub-uuid/pdf', document_id: 'a'.repeat(64), text_status: 'ready' }
+    bs.getPdfDescriptor.mockResolvedValue(pdf)
+    bs.getUserBookmarkByUuidWithDetail.mockResolvedValue(ub({ type: 2, bookmark: { ...BM, content_key: 'pdf/body/ub-uuid.pdf' }, metadata: { share: share() } }))
+    const result = await orch.getContentMeta(createMockCtx({ userId }), 'ub-uuid')
+    expect(result.type).toBe('pdf')
+    expect(result.pdf).toEqual(pdf)
+  })
   test.each([0, 20, 10])('hidden profile does not expose collection identity to viewer %s; owner retains footer', async userId => {
     const { orch, bs, cs } = wire()
     bs.getUserBookmarkByUuidWithDetail.mockResolvedValue(ub({ metadata: { share: share({ show_userinfo: false }) } }))

@@ -1,3 +1,4 @@
+import { bookmarkContentType, isPdfContentKey } from '@slax-reader/contracts/pdf'
 import { pickTagsForBookmark } from '@/utils/tags'
 import { inject, injectable } from '@/decorators/di'
 import { ContextManager } from '@/utils/context'
@@ -8,7 +9,7 @@ import { CollectionService } from '@/domain/collection'
 import { NotificationService } from '@/domain/notification'
 import { AigcService, MixTagsOverviewResult } from '@/domain/aigc'
 import { UserService } from '@/domain/user'
-import { BookmarkContentNotFoundError, BookmarkNotFoundError, ProhibitedContentError, UserNotFoundError, BookmarkOverviewContentError } from '@/const/err'
+import { BookmarkContentNotFoundError, PdfTextUnavailableError, BookmarkNotFoundError, ProhibitedContentError, UserNotFoundError, BookmarkOverviewContentError } from '@/const/err'
 import { MultiLangError } from '@/utils/multiLangError'
 import { BucketClient } from '@/infra/repository/bucketClient'
 import type { LazyInstance } from '@/decorators/lazy'
@@ -102,6 +103,7 @@ export class BookmarkOrchestrator {
       ...bookmarkWithoutId,
       bookmark_id: ctx.hashIds.encodeId(res.bookmark.id),
       bookmark_user_uuid: res.uuid,
+      pdf: await this.bookmarkService.getPdfDescriptor(res.bookmark.content_key, res.uuid),
       content: contentResult.status === 'fulfilled' ? contentResult.value : undefined,
       archived: res.archive_status === 1 ? 'archive' : res.archive_status === 2 ? 'later' : 'inbox',
       starred: res.is_starred ? 'star' : 'unstar',
@@ -110,7 +112,7 @@ export class BookmarkOrchestrator {
       alias_title: res.alias_title,
       tags: tagsResult.status === 'fulfilled' ? tagsResult.value : [],
       user_id: ctx.hashIds.encodeId(userId),
-      type: res.type === 1 ? 'shortcut' : 'article',
+      type: bookmarkContentType(res.type),
       overview,
       key_takeaways
     }
@@ -162,6 +164,8 @@ export class BookmarkOrchestrator {
       byline: bm.byline,
       content_word_count: bm.content_word_count,
       target_url: bm.target_url,
+      type: bookmarkContentType(res.type),
+      pdf: await this.bookmarkService.getPdfDescriptor(bm.content_key, res.uuid),
       status: bm.status
     }
   }
@@ -364,6 +368,7 @@ export class BookmarkOrchestrator {
     ])
 
     if (!user || !userBookmark) throw UserNotFoundError()
+    if (bookmark && isPdfContentKey(bookmark.content_key) && !bookmark.content_md_key) throw PdfTextUnavailableError()
     if (!bookmark?.content_md_key) throw BookmarkNotFoundError()
     if (isProhibitedContentUrl(bookmark.target_url)) throw ProhibitedContentError()
     if (bookmark.moderation_result > 0) throw ProhibitedContentError()
@@ -423,6 +428,7 @@ export class BookmarkOrchestrator {
     ])
 
     if (!user || !userBookmark) throw UserNotFoundError()
+    if (bookmark && isPdfContentKey(bookmark.content_key) && !bookmark.content_md_key) throw PdfTextUnavailableError()
     if (!bookmark?.content_md_key) throw BookmarkNotFoundError()
     if (isProhibitedContentUrl(bookmark.target_url)) throw ProhibitedContentError()
     if (bookmark.moderation_result > 0) throw ProhibitedContentError()

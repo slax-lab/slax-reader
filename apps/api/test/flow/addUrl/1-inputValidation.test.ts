@@ -11,6 +11,7 @@ vi.mock('@/decorators/di', () => ({
 }))
 vi.mock('@/decorators/controller', () => ({ Controller: () => (target: any) => target }))
 vi.mock('@/decorators/route', () => ({
+  All: () => (_t: any, _k: string, desc: PropertyDescriptor) => desc,
   Get: () => (_t: any, _k: string, desc: PropertyDescriptor) => desc,
   Post: () => (_t: any, _k: string, desc: PropertyDescriptor) => desc
 }))

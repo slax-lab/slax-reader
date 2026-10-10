@@ -11,7 +11,7 @@ definePageMeta({
     async to => {
       const nuxtApp = useNuxtApp()
       const bmId = Number(to.params.id)
-      type BookmarkDetailWithUuid = BookmarkDetail & { bookmark_user_uuid?: string; type?: 'shortcut' | 'article'; target_url?: string }
+      type BookmarkDetailWithUuid = BookmarkDetail & { bookmark_user_uuid?: string; type?: 'shortcut' | 'article' | 'pdf'; target_url?: string }
 
       const detail = await request()
         .get<BookmarkDetailWithUuid>({

@@ -115,6 +115,7 @@ const getQuoteText = (info: MarkItemInfo): string => {
   try {
     return info.source
       .map(item => {
+        if (item.type === 'pdf') return item.text
         if (item.type === 'image') return '🖼️'
         const el = document.querySelector(item.path)
         if (!el) return ''

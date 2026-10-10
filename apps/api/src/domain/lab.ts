@@ -31,7 +31,8 @@ export class LabService {
   protected features(): Record<string, LabFeatureDef> {
     return {
       rss: { status: 'active', name: { zh: 'RSS 订阅', en: 'RSS feeds', es: 'Fuentes RSS' } },
-      youtube: { status: 'active', name: { zh: 'YouTube 视频', en: 'YouTube videos', es: 'Los vídeos de YouTube' } }
+      youtube: { status: 'active', name: { zh: 'YouTube 视频', en: 'YouTube videos', es: 'Los vídeos de YouTube' } },
+      pdf: { status: 'active', name: { zh: 'PDF 收藏', en: 'PDF bookmarks', es: 'Los documentos PDF' } }
     }
   }
 
@@ -85,6 +86,10 @@ export class LabService {
     }
     const key = this.gatedFeatureForUrl(parsed.toString())
     if (!key) return
+    await this.assertEnabled(ctx, key)
+  }
+
+  public async assertEnabled(ctx: ContextManager, key: string): Promise<void> {
     if (!(await this.isEnabled(ctx.getUserId(), key))) throw this.disabledError(key)
   }
 

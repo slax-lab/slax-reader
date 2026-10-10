@@ -97,6 +97,25 @@ async function runWorkflow(wf: any, eventOverrides: Record<string, unknown> = {}
 }
 
 describe('CrawlWorkflow fetch step 状态转换', () => {
+  test('PDF capture reuses text AI processing without invoking HTML parsing', async () => {
+    const { wf, cs, bs, uph } = wireWorkflow()
+    bs.capturePdf.mockResolvedValue(true)
+    bs.getBookmarkById.mockResolvedValue({ title: 'PDF', content_key: 'pdf/body/pdf.pdf', content_md_key: 'text/pdf/pdf.txt' })
+    bs.getBookmarkContent.mockResolvedValue('## Page 1\n\nA PDF passage suitable for AI analysis.')
+    await runWorkflow(wf)
+    expect(bs.capturePdf).toHaveBeenCalled()
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(cs.parseAndSaveContent).not.toHaveBeenCalled()
+    expect(uph.processPostHandler).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ textContent: expect.stringContaining('Page 1') }))
+  })
+  test('PDF scans finish capture without dispatching empty text to post-processing AI', async () => {
+    const { wf, cs, bs, uph } = wireWorkflow()
+    bs.capturePdf.mockResolvedValue(true)
+    bs.getBookmarkById.mockResolvedValue({ title: 'Scan', content_key: 'pdf/body/scan.pdf', content_md_key: '' })
+    await runWorkflow(wf)
+    expect(cs.parseAndSaveContent).not.toHaveBeenCalled()
+    expect(uph.processPostHandler).not.toHaveBeenCalled()
+  })
   test('fetch 开始 → 设置 status=parseing', async () => {
     const { wf, cs, bs } = wireWorkflow()
     cs.fetchRegular.mockResolvedValue({ content: '<p>hi</p>', url: 'https://example.com/article', title: 'T' })
@@ -288,6 +307,16 @@ describe('CrawlWorkflow weixin 路由', () => {
     expect(cs.fetchWeixin).toHaveBeenCalled()
     expect(cs.parseAndSaveWeixin).toHaveBeenCalled()
     expect(uph.processPostHandler).toHaveBeenCalled()
+  })
+
+  test('PDF Labs rejection is terminal, marks the pending save failed, and skips fault alerts and HTML parsing', async () => {
+    const { wf, bs, cs, uph } = wireWorkflow()
+    bs.capturePdf.mockRejectedValue(new MultiLangError(ErrorName.LAB_FEATURE_DISABLED, 400, { en: 'PDF bookmarks are still in Labs' }))
+    await expect(runWorkflow(wf, { url: 'https://example.com/download' })).rejects.toMatchObject({ name: 'NonRetryableError', message: expect.stringContaining('pdf_lab_disabled:') })
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(cs.pushBookmarkFailureAlert).not.toHaveBeenCalled()
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(uph.processPostHandler).not.toHaveBeenCalled()
   })
 
   test('weixin 业务终态 (WEIXIN_ENV_ABNORMAL) → NonRetryableError → FAILED', async () => {

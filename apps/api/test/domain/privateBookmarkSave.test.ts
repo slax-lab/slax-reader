@@ -104,4 +104,26 @@ describe('bookmark save privacy', () => {
     expect(tx.sr_user_delete_bookmark.deleteMany).toHaveBeenCalledWith({ where: { user_id: userId, bookmark_id: 11 } })
     expect(result).toMatchObject({ bookmarkId: 11, userId })
   })
+
+  test.each(['https://example.com/paper.pdf', 'https://arxiv.org/pdf/2608.00046'])('PowerSync accepts %s without a Labs lookup', async url => {
+    const tx = syncTx()
+    const repo = new DBSyncBatchOperation((() => undefined) as never)
+    expect(await repo.executeCreateBookmark(tx as never, { ...operation, data: { ...operation.data, targetUrl: url } })).toMatchObject({ bookmarkId: 11, userId })
+    expect(tx.sr_user_bookmark.upsert).toHaveBeenCalled()
+  })
+
+  test('a cached extensionless PDF does not block unrelated pending mutations', async () => {
+    const tx = syncTx()
+    tx.sr_bookmark.upsert.mockResolvedValue({ id: 11, private_user: userId, content_key: 'pdf/body/saved.pdf' } as never)
+    const transaction = vi.fn(async callback => callback(tx))
+    const repo = new DBSyncBatchOperation((() => ({ $transaction: transaction })) as never)
+    const result = await repo.executeOrderedOperations([
+      operation,
+      { type: 'update_bookmark', bookmarkUuid: 'other-article', userId, data: { is_starred: true } }
+    ])
+    expect(result).toMatchObject([{ bookmarkId: 11, userId }])
+    expect(tx.sr_user_bookmark.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: expect.objectContaining({ type: 2 }) }))
+    expect(tx.sr_user_bookmark.update).toHaveBeenCalledWith(expect.objectContaining({ where: { uuid: 'other-article', user_id: userId }, data: expect.objectContaining({ is_starred: true }) }))
+    expect(tx.sr_user_delete_bookmark.deleteMany).toHaveBeenCalled()
+  })
 })

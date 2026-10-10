@@ -81,7 +81,7 @@ import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
 // outline 锚点跳转映射
 const anchorRefs: Record<string, string> = {}
 
-const emit = defineEmits(['dismiss'])
+const emit = defineEmits(['dismiss', 'find-quote'])
 
 // 小屏点击锚点后收起侧栏
 const { isH5 } = useSnapshotLayout()
@@ -228,6 +228,11 @@ const unflash = (marks: HTMLElement[]) => {
 const handleAnchorClick = async (link: string) => {
   const refText = anchorRefs[link]
   if (!refText) return
+  if (props.pdf) {
+    if (isH5.value) emit('dismiss')
+    emit('find-quote', { source: {}, data: [{ type: 'text', content: refText }] })
+    return
+  }
   // Search within the article body only; abort when it is absent instead of
   // falling back to document.body (which can match text inside this panel)
   const contentEl = document.querySelector('.bookmark-article .html-text')
@@ -249,6 +254,7 @@ const handleAnchorClick = async (link: string) => {
 }
 
 const props = defineProps({
+  pdf: { type: Boolean, default: false },
   bookmarkId: {
     type: Number,
     required: false

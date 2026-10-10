@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 vi.mock('cloudflare:workers', () => ({ WorkflowEntrypoint: class {} }))
+vi.mock('cloudflare:workflows', () => ({ NonRetryableError: class extends Error {} }))
 vi.mock('@/di/generated/dependency', () => ({ initializeInfrastructure: vi.fn(), initializeCore: vi.fn() }))
 vi.mock('@/domain/crawl', () => ({ CrawlService: class {} }))
 vi.mock('@/domain/orchestrator/urlParser', () => ({ UrlParserHandler: class {} }))

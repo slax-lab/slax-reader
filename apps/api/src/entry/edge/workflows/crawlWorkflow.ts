@@ -44,6 +44,7 @@ type FetchedPayload =
   | { kind: 'weibo'; resolvedUrl: string; data: WeiboData; isSocialMedia: true }
   | { kind: 'reddit'; resolvedUrl: string; data: RedditData; isSocialMedia: true }
   | { kind: 'zhihu'; resolvedUrl: string; data: ZhihuFetched; isSocialMedia: true }
+  | { kind: 'pdf'; resolvedUrl: string; isSocialMedia: false }
   | { kind: 'parsed'; resolvedUrl: string; data: CrawlResult; isSocialMedia: boolean }
   | { kind: 'shortCircuit'; resolvedUrl: string; data: { title: string; textContent: string; byline: string }; isSocialMedia: false }
 
@@ -104,6 +105,11 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           timeout: '5 minutes'
         },
         async (): Promise<FetchedPayload> => {
+          const stored = await bookmarkService.getBookmarkById(bookmarkId)
+          if (stored?.content_key?.startsWith('pdf/body/')) {
+            await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, url)
+            return { kind: 'pdf', resolvedUrl: url, isSocialMedia: false }
+          }
           // 检查是否已有内容
           const existingData = await bookmarkService.getBookmarkTitleAndTextContentTry(bookmarkId)
           if (existingData?.privateUser === 0) {
@@ -124,6 +130,14 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           }
 
           const route = detectRoute(resolvedUrl)
+          if (route === 'regular') {
+            try {
+              if (await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, resolvedUrl)) return { kind: 'pdf', resolvedUrl, isSocialMedia: false }
+            } catch (error) {
+              if (error instanceof MultiLangError && error.name === ErrorName.LAB_FEATURE_DISABLED) throw new NonRetryableError(`pdf_lab_disabled:${error.getMessage}`)
+              throw error
+            }
+          }
           if (inlineContent && route === 'regular') {
             const fetchRes = { content: inlineContent, url: resolvedUrl, title: '' }
             const result = await trackStep('inline_content', () => crawlService.parseAndSaveContent(ctxManager, fetchRes, bookmarkId, userBookmarkUuid))
@@ -193,13 +207,14 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
       await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.FAILED)
 
       const scope = err instanceof NonRetryableError ? 'workflow_fetch.business_terminal' : 'workflow_fetch.exhausted'
-      await alertFailure(scope, {
-        bookmark_id: bookmarkId,
-        url,
-        domain: hostname,
-        user_id: userId,
-        error: errMsg
-      })
+      if (!errMsg.startsWith('pdf_lab_disabled:'))
+        await alertFailure(scope, {
+          bookmark_id: bookmarkId,
+          url,
+          domain: hostname,
+          user_id: userId,
+          error: errMsg
+        })
       // 导入追踪：fetch 失败
       if (event.payload.importTaskId) {
         await bookmarkService.updateBookmarkImportRelationStatus(userId, bookmarkId, event.payload.importTaskId, 2).catch(e => console.error(`import relation update failed: ${e}`))
@@ -212,7 +227,10 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
 
     let crawlResult: CrawlResult | undefined
 
-    if (fetched.kind === 'shortCircuit') {
+    if (fetched.kind === 'pdf') {
+      const stored = await bookmarkService.getBookmarkById(bookmarkId)
+      crawlResult = { title: stored?.title || '', textContent: stored?.content_md_key ? (await bookmarkService.getBookmarkContent(stored.content_md_key)) || '' : '', byline: '' }
+    } else if (fetched.kind === 'shortCircuit') {
       // bookmark 已有内容，跳过 parse
       crawlResult = {
         title: fetched.data.title,
@@ -287,7 +305,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     // 软404检测（仅非社交媒体来源）
     const isSocialMedia = fetched.isSocialMedia
     let isSoft404 = false
-    if (crawlResult && crawlResult.textContent && crawlResult.textContent.length < 15 && !isSocialMedia) {
+    if (crawlResult && crawlResult.textContent && crawlResult.textContent.length < 15 && !isSocialMedia && fetched.kind !== 'pdf') {
       isSoft404 = true
       console.log(`Soft 404 detected for bookmark ${bookmarkId}: textContent length = ${crawlResult.textContent.length}`)
       await crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, hostname, 'parsing', 'failed', `soft_404:len=${crawlResult.textContent.length}`, ctxManager)
@@ -378,6 +396,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           timeout: '10 minutes'
         },
         async () => {
+          if (fetched?.kind === 'pdf' && !crawlResult?.textContent) return
           if (!crawlResult) {
             console.error(`No crawl result available for post-processing of bookmark ${bookmarkId}`)
             return

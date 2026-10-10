@@ -10,17 +10,19 @@ import { nextTick } from 'vue'
 import AddUrlTopModal from '~~/app/components/BookmarkList/AddUrlTopModal.vue'
 
 import { RequestError } from '@commons/frontend-utils/request'
+import { useLabFeatures } from '~/composables/useLabFeatures'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockRequest, mockPost, mockToastShowToast, mockNavigateTo } = vi.hoisted(() => {
+const { mockRequest, mockPost, mockGet, mockToastShowToast, mockNavigateTo } = vi.hoisted(() => {
   const mockPost = vi.fn(() => Promise.resolve({ bookmark_id: 1, status: 'ok' }))
   return {
     mockPost,
-    mockRequest: vi.fn(() => ({ post: mockPost })),
+    mockGet: vi.fn(),
+    mockRequest: vi.fn(),
     mockToastShowToast: vi.fn(),
     mockNavigateTo: vi.fn()
   }
@@ -57,16 +59,110 @@ const mountModal = (show: boolean) =>
     attachTo: document.body
   })
 
+const selectFile = async (file: File) => {
+  const input = document.querySelector('input[type=file]') as HTMLInputElement
+  Object.defineProperty(input, 'files', { value: [file], configurable: true })
+  input.dispatchEvent(new Event('change'))
+  await nextTick()
+}
+
 describe('AddUrlTopModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockPost.mockResolvedValue({ bookmark_id: 1, status: 'ok' })
+    mockRequest.mockReturnValue({ post: mockPost, get: mockGet })
+    mockGet.mockResolvedValue({ features: [] })
+    const labs = useLabFeatures()
+    labs.loaded.value = true
+    labs.features.value = [{ key: 'pdf', status: 'active', enabled: true, enabled_at: null }]
   })
 
   afterEach(() => {
     vi.useRealTimers()
     // 清理 Teleport 挂载到 body 的内容
     document.body.innerHTML = ''
+  })
+
+  it('hides the upload entry while PDF Labs is disabled or unknown, and shows it after opt-in loads', async () => {
+    const labs = useLabFeatures()
+    labs.features.value[0]!.enabled = false
+    const wrapper = mountModal(true)
+    expect(document.querySelector('input[type=file]')).toBeNull()
+    labs.features.value[0]!.enabled = true
+    await nextTick()
+    expect(document.querySelector('input[type=file]')).not.toBeNull()
+    wrapper.unmount()
+    labs.loaded.value = false
+    mockGet.mockResolvedValueOnce({ features: [{ key: 'pdf', status: 'active', enabled: true, enabled_at: null }] })
+    mountModal(true)
+    expect(document.querySelector('input[type=file]')).toBeNull()
+    await flushPromises()
+    expect(mockGet).toHaveBeenCalledWith({ url: '/v1/user/labs' })
+    expect(document.querySelector('input[type=file]')).not.toBeNull()
+  })
+
+  it('clears a selected upload when PDF Labs is disabled', async () => {
+    mountModal(true)
+    await selectFile(new File(['%PDF-1.7'], 'draft.pdf', { type: 'application/pdf' }))
+    const labs = useLabFeatures()
+    labs.features.value[0]!.enabled = false
+    await nextTick()
+    expect(document.querySelector('input[type=file]')).toBeNull()
+    expect((document.querySelector('.modal-btn-primary') as HTMLButtonElement).disabled).toBe(true)
+    expect(mockPost).not.toHaveBeenCalled()
+  })
+
+  it('keeps the upload open and offers the Labs settings action if the server rejects opt-in', async () => {
+    const wrapper = mountModal(true)
+    await selectFile(new File(['%PDF-1.7'], 'draft.pdf', { type: 'application/pdf' }))
+    rejectWith(new RequestError({ message: 'PDF bookmarks are still in Labs', name: 'LAB_FEATURE_DISABLED', code: 400 }))
+    ;(document.querySelector('.modal-btn-primary') as HTMLButtonElement).click()
+    await flushPromises()
+    expect(wrapper.emitted('update:show')).toBeFalsy()
+    expect(mockToastShowToast).toHaveBeenCalledWith(expect.objectContaining({ text: 'PDF bookmarks are still in Labs', action: { text: 'Turn on', onClick: expect.any(Function) } }))
+    expect(document.querySelector('[role=alert]')).toBeNull()
+  })
+
+  it('uploads raw PDF bytes, refreshes the list and opens its saved preview', async () => {
+    const wrapper = mountModal(true)
+    const file = new File(['%PDF-1.7'], '文件.pdf', { type: 'application/pdf' })
+    await selectFile(file)
+    expect(document.body.textContent).toContain('文件.pdf')
+    mockPost.mockResolvedValueOnce({ bookmark_id: 1, bookmark_uid: 'pdf-saved' } as never)
+    ;(document.querySelector('.modal-btn-primary') as HTMLButtonElement).click()
+    await flushPromises()
+    expect(mockPost).toHaveBeenCalledWith(expect.objectContaining({ url: '/v1/bookmark/upload_pdf?filename=%E6%96%87%E4%BB%B6.pdf', body: file, headers: { 'Content-Type': 'application/pdf' } }))
+    expect(wrapper.emitted('addUrlSuccess')).toBeTruthy()
+    expect(mockNavigateTo).toHaveBeenCalledWith('/b/pdf-saved')
+  })
+
+  it('retains the selected file for retry and prevents closing during an upload', async () => {
+    const wrapper = mountModal(true)
+    await selectFile(new File(['%PDF-1.7'], 'retry.pdf', { type: 'application/pdf' }))
+    let fail: (reason: Error) => void = () => {}
+    mockPost.mockImplementationOnce(() => new Promise((_, reject) => { fail = reject }))
+    ;(document.querySelector('.modal-btn-primary') as HTMLButtonElement).click()
+    await nextTick()
+    ;(document.querySelector('.modal-close') as HTMLButtonElement).click()
+    expect(wrapper.emitted('update:show')).toBeFalsy()
+    expect((document.querySelector('.modal-btn-primary') as HTMLButtonElement).disabled).toBe(true)
+    fail(new Error('upload failed'))
+    await flushPromises()
+    expect(document.body.textContent).toContain('retry.pdf')
+    expect(document.querySelector('[role=alert]')).not.toBeNull()
+    expect((document.querySelector('.modal-btn-primary') as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('rejects oversized and invalid selections and clears any previously selected PDF', async () => {
+    mountModal(true)
+    await selectFile(new File(['%PDF-1.7'], 'valid.pdf'))
+    const oversized = new File([''], 'large.pdf')
+    Object.defineProperty(oversized, 'size', { value: 50 * 1024 * 1024 + 1 })
+    await selectFile(oversized)
+    expect((document.querySelector('.modal-btn-primary') as HTMLButtonElement).disabled).toBe(true)
+    await selectFile(new File(['text'], 'bad.txt', { type: 'text/plain' }))
+    expect(document.querySelector('[role=alert]')).not.toBeNull()
+    expect(mockPost).not.toHaveBeenCalled()
   })
 
   it('show=false → modal-backdrop 不渲染', () => {

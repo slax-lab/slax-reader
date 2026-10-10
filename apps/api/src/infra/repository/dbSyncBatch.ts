@@ -1,3 +1,4 @@
+import { validatePdfSources, isPdfContentKey } from '@slax-reader/contracts/pdf'
 import { inject, injectable } from '@/decorators/di'
 import { PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import { LazyInstance } from '@/decorators/lazy'
@@ -165,6 +166,7 @@ export class DBSyncBatchOperation {
         where: { uuid: operation.bookmarkUuid, user_id: operation.userId },
         data: {
           bookmark_id: bookmark.id,
+          ...(isPdfContentKey(bookmark.content_key) ? { type: 2 } : {}),
           deleted_at: null,
           archive_status: isArchive ? 1 : 0,
           created_at: new Date(),
@@ -178,13 +180,14 @@ export class DBSyncBatchOperation {
           uuid: operation.bookmarkUuid,
           user_id: operation.userId,
           bookmark_id: bookmark.id,
-          type: 0,
+          type: isPdfContentKey(bookmark.content_key) ? 2 : 0,
           archive_status: isArchive ? 1 : 0,
           deleted_at: null,
           created_at: new Date(),
           updated_at: new Date()
         },
         update: {
+          ...(isPdfContentKey(bookmark.content_key) ? { type: 2 } : {}),
           deleted_at: null,
           archive_status: isArchive ? 1 : 0,
           created_at: new Date(),
@@ -332,6 +335,17 @@ export class DBSyncBatchOperation {
       include: { bookmark: true }
     })
     if (!userBookmark?.bookmark) throw ShareActionNotAllowedError()
+    if (type !== markType.REPLY) {
+      let parsed: unknown
+      try { parsed = JSON.parse(source) }
+      catch { if (isPdfContentKey(userBookmark.bookmark.content_key)) throw ShareActionNotAllowedError() }
+      if (parsed !== undefined) try {
+        const documentId = (userBookmark.metadata as { pdf_document_id?: string })?.pdf_document_id
+        const pdfLength = validatePdfSources(parsed, documentId || '')
+        if (isPdfContentKey(userBookmark.bookmark.content_key) !== (pdfLength !== undefined)) throw ShareActionNotAllowedError()
+      } catch { throw ShareActionNotAllowedError() }
+    }
+
 
     const isVisitor = userBookmark.user_id !== operation.userId
     if (isVisitor) {
@@ -509,8 +523,8 @@ export class DBSyncBatchOperation {
 
     const sharePermission = [markType.LINE, markType.ORIGIN_LINE].includes(type) ? Prisma.sql`share.allow_line` : Prisma.sql`share.allow_comment`
 
-    const rows = await tx.$queryRaw<Array<{ id: number; collection_code: string }>>(Prisma.sql`
-      SELECT bookmark.id, collection.collection_code
+    const rows = await tx.$queryRaw<Array<{ id: number; collection_code: string; content_key: string; metadata: unknown }>>(Prisma.sql`
+      SELECT bookmark.id, collection.collection_code, article.content_key, bookmark.metadata
       FROM sr_user_bookmark AS bookmark
       INNER JOIN sr_user_collection AS collection
         ON collection.owner_id = bookmark.user_id
@@ -544,6 +558,16 @@ export class DBSyncBatchOperation {
     `)
     const collectionBookmark = rows[0]
     if (!collectionBookmark) throw ShareActionNotAllowedError()
+    if (type !== markType.REPLY) {
+      let parsed: unknown
+      try { parsed = JSON.parse(source) }
+      catch { if (isPdfContentKey(collectionBookmark.content_key)) throw ShareActionNotAllowedError() }
+      if (parsed !== undefined) try {
+        const documentId = (collectionBookmark.metadata as { pdf_document_id?: string })?.pdf_document_id
+        const pdfLength = validatePdfSources(parsed, documentId || '')
+        if (isPdfContentKey(collectionBookmark.content_key) !== (pdfLength !== undefined)) throw ShareActionNotAllowedError()
+      } catch { throw ShareActionNotAllowedError() }
+    }
 
     let rootId = 0
     let parentId = 0

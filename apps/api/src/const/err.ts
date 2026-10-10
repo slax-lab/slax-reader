@@ -306,6 +306,7 @@ export const DajialaArticleUnavailableError = (detail?: string): MultiLangError 
   return error
 }
 export const DeleteImportFailedBookmarkFailError = (): MultiLangError => NewError(ErrorName.DELETE_IMPORT_FAILED_BOOKMARK_FAIL, 400)
+export const PdfTextUnavailableError = (): MultiLangError => new MultiLangError(ErrorName.PDF_TEXT_UNAVAILABLE, 422, { en: 'No analyzable PDF text is available', zh: '暂无可分析文字', es: 'No hay texto PDF disponible para analizar' })
 export const BookmarkContentNotFoundError = (): MultiLangError => NewError(ErrorName.BOOKMARK_CONTENT_NOT_FOUND, 404)
 export const BookmarkOverviewContentError = (): MultiLangError => NewError(ErrorName.BOOKMARK_OVERVIEW_CONTENT_ERROR, 500)
 export const AccountDeletionNotAllowedError = (reason?: string): MultiLangError => {

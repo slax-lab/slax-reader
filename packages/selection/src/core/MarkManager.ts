@@ -23,6 +23,8 @@ import {
 } from '../types'
 import type { IEnvironmentAdapter, IUserProvider, IHttpClient, IToastService, II18nService, IBookmarkProvider, ToastType } from '../adapters'
 
+export type IMarkRenderer = Pick<MarkRenderer, 'drawMark' | 'clearAllMarks' | 'setMarkClickHandler' | 'transferNodeInfos'>
+
 // 重新导出 Ref 类型供外部使用
 export type { Ref }
 
@@ -118,7 +120,7 @@ export class MarkManager extends Base {
   private getMarkType: (type: 'comment' | 'reply' | 'line') => BackendMarkType
 
   // 渲染器和模态框
-  private renderer: MarkRenderer
+  private renderer: IMarkRenderer
   private modal: IMarkModal
 
   /**
@@ -134,7 +136,7 @@ export class MarkManager extends Base {
     config: SelectionConfig,
     environmentAdapter: IEnvironmentAdapter,
     dependencies: MarkManagerDependencies,
-    renderer: MarkRenderer,
+    renderer: IMarkRenderer,
     modal: IMarkModal,
     findQuote: (quote: QuoteData) => void
   ) {
@@ -447,7 +449,13 @@ export class MarkManager extends Base {
       const mark2Item = mark2[i]
       if (mark1Item.type !== mark2Item.type) return false
 
-      if (mark1Item.type === 'text' && mark2Item.type === 'text') {
+      if (mark1Item.type === 'pdf' && mark2Item.type === 'pdf') {
+        if (mark1Item.document_id !== mark2Item.document_id || mark1Item.version !== mark2Item.version || mark1Item.page !== mark2Item.page ||
+            mark1Item.text !== mark2Item.text || mark1Item.quads.length !== mark2Item.quads.length) return false
+        // Text-layer layout rounds CSS pixels differently at each scale.
+        // Compare in PDF units so reselecting a passage reuses its existing thread.
+        if (!mark1Item.quads.every((quad, index) => quad.every((value, corner) => Math.abs(value - mark2Item.quads[index][corner]) <= 0.75))) return false
+      } else if (mark1Item.type === 'text' && mark2Item.type === 'text') {
         if (mark1Item.path !== mark2Item.path || mark1Item.start !== mark2Item.start || mark1Item.end !== mark2Item.end) {
           return false
         }
@@ -540,6 +548,7 @@ export class MarkManager extends Base {
    */
   createQuote(items: MarkPathItem[], approx?: MarkPathApprox): QuoteData['data'] {
     return items.map(item => {
+      if (item.type === 'pdf') return { type: 'text', content: item.text }
       if (item.type === 'image') {
         const infos = this.renderer.transferNodeInfos(item)
         const content = infos.length > 0 && infos[0].type === 'image' ? (infos[0].ele as HTMLImageElement).src : ''
@@ -798,7 +807,9 @@ export class MarkManager extends Base {
 
       if (!markInfoItem) {
         try {
-          if (mark.approx_source && Object.keys(mark.approx_source).length > 0) {
+          if (markSources.some(source => source.type === 'pdf')) {
+            if (mark.approx_source) mark.approx_source.raw_text = markSources.map(source => source.type === 'pdf' ? source.text : '').join('\n')
+          } else if (mark.approx_source && Object.keys(mark.approx_source).length > 0) {
             const newRange = rangeSvc.getRange(mark.approx_source)
             const rawText = newRange ? getRangeTextWithNewlines(newRange) : undefined
             mark.approx_source.raw_text = rawText

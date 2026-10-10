@@ -1,17 +1,10 @@
-/**
- * PowerSync path: the client already wrote the bookmark row, so a gated URL is marked
- * failed instead of crawled.
- * 来源: src/domain/orchestrator/sync.ts sendRetryParseEvent
- */
+/** Sync acceptance and dispatch must not depend on Labs availability. */
 import { describe, expect, test, vi } from 'vitest'
 import { SyncOrchestrator } from '@/domain/orchestrator/sync'
-import { LabService } from '@/domain/lab'
-import { queueStatus } from '@/infra/repository/dbBookmark'
 import { createMockCtx } from '@test/helpers/mockFactory'
 
-function wire(enabled: boolean) {
-  const labRepo = { listByUser: vi.fn(), isEnabled: vi.fn().mockResolvedValue(enabled), upsert: vi.fn() }
-  const labService = new (LabService as any)(labRepo) as LabService
+function wire() {
+  const labService = { assertUrlAllowed: vi.fn().mockRejectedValue(new Error('Labs is unavailable')) }
   const crawlService = { createWorkflow: vi.fn().mockResolvedValue(undefined) }
   const bookmarkRepo = { updateBookmarkStatus: vi.fn().mockResolvedValue(undefined) }
   const logsService = { track: vi.fn().mockResolvedValue(undefined) }
@@ -21,30 +14,23 @@ function wire(enabled: boolean) {
   Object.assign(orchestrator, { labService, crawlService, bookmarkRepo, logsService, ga4Client, bookmarkSearchRepo, searchService: { clearSearchCache: vi.fn().mockResolvedValue(undefined) } })
   const ctx = createMockCtx({ userId: 7 })
   ctx.env.KV = { delete: vi.fn().mockResolvedValue(undefined) }
-  return { orchestrator, ctx, crawlService, bookmarkRepo, logsService }
+  return { orchestrator, ctx, crawlService, bookmarkRepo, logsService, labService }
 }
 
 const newBookmark = { bookmarkId: 11, targetUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', userId: 7 }
 
-describe('sendRetryParseEvent', () => {
-  test('switch off → no workflow, bookmark marked FAILED', async () => {
-    const { orchestrator, ctx, crawlService, bookmarkRepo, logsService } = wire(false)
-    await orchestrator.sendRetryParseEvent(ctx, newBookmark)
-    expect(crawlService.createWorkflow).not.toHaveBeenCalled()
-    expect(bookmarkRepo.updateBookmarkStatus).toHaveBeenCalledWith(11, queueStatus.FAILED)
-    expect(logsService.track).toHaveBeenCalledWith(7, 'bookmark_add', expect.objectContaining({ status: 'lab_disabled' }))
-  })
-
-  test('switch on → workflow starts as before', async () => {
-    const { orchestrator, ctx, crawlService, bookmarkRepo } = wire(true)
-    await orchestrator.sendRetryParseEvent(ctx, newBookmark)
-    expect(crawlService.createWorkflow).toHaveBeenCalledWith(ctx.env, expect.objectContaining({ bookmarkId: 11, url: newBookmark.targetUrl }), 3, ctx)
+describe('sendRetryParseEvent without Labs checks', () => {
+  test.each([
+    'https://arxiv.org/pdf/2608.00046',
+    'https://example.com/paper.pdf',
+    'https://example.com/download',
+    newBookmark.targetUrl,
+    'https://example.com/post'
+  ])('dispatches %s even when Labs is unavailable', async targetUrl => {
+    const { orchestrator, ctx, crawlService, bookmarkRepo, labService } = wire()
+    await orchestrator.sendRetryParseEvent(ctx, { ...newBookmark, targetUrl })
+    expect(crawlService.createWorkflow).toHaveBeenCalledWith(ctx.env, expect.objectContaining({ bookmarkId: 11, url: targetUrl }), 3, ctx)
+    expect(labService.assertUrlAllowed).not.toHaveBeenCalled()
     expect(bookmarkRepo.updateBookmarkStatus).not.toHaveBeenCalled()
-  })
-
-  test('ordinary article is never gated', async () => {
-    const { orchestrator, ctx, crawlService } = wire(false)
-    await orchestrator.sendRetryParseEvent(ctx, { ...newBookmark, targetUrl: 'https://example.com/post' })
-    expect(crawlService.createWorkflow).toHaveBeenCalled()
   })
 })

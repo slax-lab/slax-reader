@@ -1,3 +1,4 @@
+import type { PdfDescriptor, PdfMarkSource } from './pdf.js'
 export enum BookmarkParseStatus {
   FAILED = 'failed',
   PENDING = 'pending',
@@ -41,6 +42,7 @@ export interface MarkUserInfo {
 }
 
 export type MarkPathItem =
+  | PdfMarkSource
   | {
       type: 'text'
       path: string
@@ -97,7 +99,7 @@ export interface BookmarkItem {
   archived: 'inbox' | 'archive' | 'later'
   starred: 'star' | 'unstar'
   trashed_at?: string | null
-  type: 'shortcut' | 'article'
+  type: 'shortcut' | 'article' | 'pdf'
   /** 列表接口带回的标签（REST）或本地拼出来的标签（local-first） */
   tags?: BookmarkTag[]
 }
@@ -143,6 +145,7 @@ export interface InlineBookmarkDetail {
 
 // 各类书签详情（普通/分享/合集/快照）的公共字段基类。
 export interface BaseBookmarkDetail {
+  pdf?: PdfDescriptor
   title: string
   target_url: string
   host_url: string
@@ -167,6 +170,7 @@ export interface BookmarkOwnerInfo {
 }
 
 export interface ShareBookmarkDetail extends BaseBookmarkDetail {
+  type?: 'shortcut' | 'article' | 'pdf'
   site_name: string
   share_info: ShareInfo
   user_info: BookmarkOwnerInfo
@@ -183,7 +187,7 @@ export interface BookmarkDetail extends BaseBookmarkDetail {
   archived: 'inbox' | 'archive' | 'later'
   starred: 'star' | 'unstar'
   trashed_at: string | null
-  type: 'shortcut' | 'article'
+  type: 'shortcut' | 'article' | 'pdf'
 }
 
 export interface BookmarkTag {
@@ -487,7 +491,7 @@ export interface BookmarkExportItem {
   is_read: boolean
   is_archived: boolean
   is_starred: boolean
-  type: 'article' | 'shortcut'
+  type: 'article' | 'shortcut' | 'pdf'
 }
 
 export interface BookmarkExportPage {

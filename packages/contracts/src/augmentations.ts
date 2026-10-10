@@ -15,7 +15,7 @@ declare module '@slax-reader/contracts/interface' {
   // ─── Field augmentations on upstream interfaces ─────────────────────
 
   interface BookmarkDetail {
-    type: 'shortcut' | 'article'
+    type: 'shortcut' | 'article' | 'pdf'
   }
 
   // 加星/归档时间戳（local-first 列表按此排序/分组，均可选）
@@ -53,7 +53,7 @@ declare module '@slax-reader/contracts/interface' {
     private_user?: number
     status: BookmarkParseStatus
     updated_at?: string
-    type: 'shortcut' | 'article'
+    type: 'shortcut' | 'article' | 'pdf'
     collection_info: CollectionInfo
     user_info: BookmarkOwnerInfo
   }
@@ -77,7 +77,7 @@ declare module '@slax-reader/contracts/interface' {
     archived: 'inbox' | 'archive' | 'later'
     starred: 'star' | 'unstar'
     trashed_at: string | null
-    type: 'shortcut' | 'article'
+    type: 'shortcut' | 'article' | 'pdf'
     first_comment?: string
     outline?: string
     user_info?: SnapshotUserInfo

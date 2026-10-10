@@ -31,7 +31,8 @@
     "pg": "^8.22.0",
     "stripe": "^16.11.0",
     "turndown": "^7.2.4",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "unpdf": "1.8.1"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.8.71",

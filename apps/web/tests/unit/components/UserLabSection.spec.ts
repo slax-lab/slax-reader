@@ -79,6 +79,15 @@ describe('UserLabSection', () => {
     await toggle.trigger('click')
     expect(mockPost).not.toHaveBeenCalled()
   })
+  it('renders the PDF opt-in and enables lab:pdf through the existing settings API', async () => {
+    const wrapper = await mountSection([{ key: 'pdf', status: 'active', enabled: false, enabled_at: null }])
+    expect(wrapper.find('.lab-name span').text()).toBe('PDF bookmarks')
+    expect(wrapper.find('.switch-toggle').classes()).not.toContain('on')
+    await wrapper.find('.switch-toggle').trigger('click')
+    await flushPromises()
+    expect(mockPost).toHaveBeenCalledWith({ url: '/v1/user/setting/enable', body: { key: 'lab:pdf' } })
+    expect(wrapper.find('.switch-toggle').classes()).toContain('on')
+  })
 
   it('点击开关 → 乐观置开 + POST /v1/user/setting/enable { key: lab:youtube }', async () => {
     const wrapper = await mountSection([youtube()])

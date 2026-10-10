@@ -6,6 +6,7 @@ import pkg from './package.json'
 import replace from '@rollup/plugin-replace'
 import { fileURLToPath } from 'url'
 import wasm from 'vite-plugin-wasm'
+import { scopedPdfStyles } from './config/pdf-assets'
 
 const env = getEnv()
 console.log('Current env is:', env)
@@ -272,7 +273,7 @@ export default defineNuxtConfig({
 
   sourcemap: false,
   vite: {
-    plugins: [wasm()],
+    plugins: [wasm(), scopedPdfStyles()],
     // @powersync/web spawns a web worker that itself uses dynamic import()
     // (code-splitting). Rollup forbids iife/umd (Vite's default worker.format)
     // for code-splitting worker bundles, so we force ES module workers. The
@@ -320,7 +321,10 @@ export default defineNuxtConfig({
         // 触发依赖重新预构建 + 整页 reload，把已 transform 的成果冲掉重来。
         '@stripe/stripe-js',
         // packages/frontend-utils/src/parse.ts 用到；同样会被运行时发现触发 reload。
-        'markdown-it-cjk-friendly'
+        'markdown-it-cjk-friendly',
+        // Avoid rebuilding dependencies during the first PDF reader navigation.
+        'pdfjs-dist/legacy/build/pdf.mjs',
+        'pdfjs-dist/web/pdf_viewer.mjs'
       ],
       exclude: ['@journeyapps/wa-sqlite', '@powersync/web']
     }
@@ -331,6 +335,7 @@ export default defineNuxtConfig({
       persistDir: backendPersistDir
     },
     publicAssets: [
+      ...['cmaps', 'standard_fonts', 'wasm'].map(name => ({ dir: fileURLToPath(new URL(`./node_modules/pdfjs-dist/${name}/`, import.meta.url)), baseURL: `/pdfjs/${name}`, maxAge: 31536000 })),
       {
         dir: 'public',
         baseURL: '/',

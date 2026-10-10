@@ -95,6 +95,13 @@ describe('useLabFeatures', () => {
   })
 
   describe('isBlocked', () => {
+    it.each(['https://example.com/paper.pdf', 'https://arxiv.org/pdf/2608.00046'])('defers PDF classification of %s to server response headers', url => {
+      const labs = useLabFeatures()
+      labs.features.value = [{ ...youtube(), enabled: true }, { key: 'pdf', status: 'active', enabled: false, enabled_at: null }]
+      labs.loaded.value = true
+      expect(labs.isBlocked(url)).toBe(false)
+      expect(labs.blockedMessage(url)).toBe('')
+    })
     const videoUrls = [
       'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       'https://youtube.com/watch?feature=share&v=dQw4w9WgXcQ',
