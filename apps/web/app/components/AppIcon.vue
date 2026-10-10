@@ -51,7 +51,7 @@ const props = withDefaults(
 const icon = computed(() => resolveIcon(props.name))
 const size = computed(() => props.size ?? icon.value.defaultSize)
 const cssSize = computed(() => (typeof size.value === 'number' ? `${size.value}px` : size.value))
-const accessibleLabel = computed(() => props.label || icon.value.label)
+const accessibleLabel = computed(() => (props.label === undefined ? icon.value.label : props.label)?.trim())
 
 const accessibilityAttrs = computed(() => {
   if (icon.value.accessibility === 'standalone') {

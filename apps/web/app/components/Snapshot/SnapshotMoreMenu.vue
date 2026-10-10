@@ -1,17 +1,13 @@
 <template>
   <div class="more-menu-wrap" ref="wrapEl">
     <button class="more-btn" :class="{ active: isOpen }" :title="$t('common.operate.more')" @click.stop="toggle">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <circle cx="12" cy="5" r="1" fill="currentColor" />
-        <circle cx="12" cy="12" r="1" fill="currentColor" />
-        <circle cx="12" cy="19" r="1" fill="currentColor" />
-      </svg>
+      <AppIcon name="snapshot.more" :size="17" />
     </button>
     <Transition name="popover">
       <div v-if="isOpen" class="more-popover" v-on-click-outside="close">
         <button v-for="item in actions" :key="item.id" class="popover-item" :class="{ danger: item.danger }" @click="handleAction(item)">
           <span>{{ item.label }}</span>
-          <svg v-if="item.icon" v-html="item.icon" class="item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" />
+          <AppIcon v-if="item.icon" class="item-icon" :name="item.icon" :size="15" />
         </button>
       </div>
     </Transition>
@@ -19,13 +15,16 @@
 </template>
 
 <script lang="ts" setup>
+import AppIcon from '~/components/AppIcon.vue'
+
 import { vOnClickOutside } from '@vueuse/components'
 import { useExclusivePopover } from '~/composables/useExclusivePopover'
+import type { IconKey } from '~/icons/registry'
 
 export interface MoreMenuAction {
   id: string
   label: string
-  icon?: string
+  icon?: IconKey
   danger?: boolean
 }
 

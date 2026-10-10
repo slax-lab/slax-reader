@@ -7,6 +7,7 @@
 // local-first：userTagSource().tags / bookmarkListTagSource().candidates()，改名删除提升仍走 REST
 import { computed, ref } from 'vue'
 
+import AppIcon from '~~/app/components/AppIcon.vue'
 import TagsHeader from '~~/app/components/BookmarkList/TagsHeader.vue'
 
 import type { BookmarkTag } from '@commons/frontend-types/models'
@@ -89,6 +90,8 @@ describe('TagsHeader', () => {
       expect(wrapper.findAll('.tag-section.mine .tag-act.promote').length).toBe(0)
       // 未打标签入口
       expect(wrapper.find('.tag-untagged').text()).toContain('Untagged articles')
+      expect(wrapper.findAllComponents(AppIcon).map(icon => icon.props('name'))).toEqual(expect.arrayContaining(['tags.add', 'tags.untagged']))
+      expect(wrapper.get('.tag-add svg').html()).toContain('currentColor')
     })
 
     it('source 缺省视为 auto；display=false 被过滤', async () => {
@@ -326,6 +329,8 @@ describe('TagsHeader', () => {
       chips.forEach(c => expect(c.classes()).toContain('active'))
       expect(wrapper.findAll('.selected-tags .tag-act.remove').length).toBe(2)
       expect(wrapper.find('.tag-add-filter').exists()).toBe(true)
+      expect(wrapper.find('.tag-add-filter').attributes('aria-label')).toBe('Add another tag')
+      expect(wrapper.findAllComponents(AppIcon).map(icon => icon.props('name'))).toContain('tags.add-filter')
       // 挂载时把当前选择回抛，供父级加载（列表未到，名字沿用 selectTagName）
       expect(wrapper.emitted('select-tag')![0]).toEqual([['m1', 'a1'], 'Mine One'])
     })
@@ -357,6 +362,8 @@ describe('TagsHeader', () => {
       mockGet.mockResolvedValueOnce(mixedTags())
       const wrapper = mountWithApp(TagsHeader, { props: { selectTagIds: ['m1'] } })
       await flushPromises()
+      expect(wrapper.findAllComponents(AppIcon).map(icon => icon.props('name'))).toContain('tags.back')
+      expect(wrapper.get('.back-btn').attributes('aria-label')).toBe('Back')
       await wrapper.find('.back-btn').trigger('click')
       const events = wrapper.emitted('select-tag')!
       expect(events[events.length - 1]).toEqual([[]])

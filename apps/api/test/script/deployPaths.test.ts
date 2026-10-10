@@ -94,7 +94,7 @@ describe('single API configuration', () => {
     expect(JSON.parse(String((output.vars as TomlTable).API_QUEUE_CHANNELS))).toEqual(queueMapping(config))
     for (const row of (output.queues as { consumers: TomlTable[] }).consumers) expect(row.channel).toBeUndefined()
   })
-  test('rejects ambiguous identities, unknown queue roles and secrets', () => {
+  test('rejects ambiguous identities, unknown queue roles and retired variables', () => {
     const dir = directory(),
       file = path.join(dir, 'api.toml')
     const invalid = (change: (config: ApiConfig) => void, message: string) => {
@@ -113,11 +113,33 @@ describe('single API configuration', () => {
       ;(c.services as TomlTable[]).find(row => row.binding === 'SlaxBrowser')!.service = 'invalid name'
     }, 'services.SlaxBrowser.service')
     invalid(c => {
-      ;(c.vars as TomlTable).EDGE_SHARED_SECRET = 'fixture'
-    }, 'Worker secret')
+      ;(c.vars as TomlTable).SES_SECRET_KEY = 'fixture'
+    }, 'retired')
     invalid(c => {
       ;(c.queues as { consumers: TomlTable[] }).consumers[0].queue = 'unknown'
     }, 'logical channel')
+  })
+  test('private runtime values round-trip to every Worker with owner-only permissions', () => {
+    const dir = directory()
+    const config = readConfig(template)
+    const runtime = {
+      EDGE_SHARED_SECRET: 'synthetic-edge-value',
+      IMAGER_CHECK_DIGST_SALT: 'synthetic-image-salt',
+      REPORT_PUSH_API: 'https://alerts.example.com/synthetic',
+      APPLE_SIGN_AUTH_KEY: 'synthetic-line-one\nsynthetic-line-two\n'
+    }
+    Object.assign(config.vars as TomlTable, runtime)
+    const input = path.join(dir, 'api.toml')
+    fs.writeFileSync(input, stringify(config))
+    const selected = readConfig(input)
+    for (const target of TARGETS) {
+      const filename = writeGenerated(selected, target, dir)
+      fs.chmodSync(filename, 0o644)
+      writeGenerated(selected, target, dir)
+      expect(fs.statSync(filename).mode & 0o777).toBe(0o600)
+      expect(parse(fs.readFileSync(filename, 'utf8')).vars).toMatchObject(runtime)
+    }
+    expect(selected.vars).toMatchObject(runtime)
   })
   test.each(['__proto__', 'constructor', 'toString'])('rejects inherited properties as logical queue roles: %s', channel => {
     const config = readConfig(template)

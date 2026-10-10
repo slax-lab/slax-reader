@@ -5,9 +5,7 @@
       <!-- 添加标签行 -->
       <div class="tags-add-row">
         <div class="tag-add" v-if="!isAddingTag" @click="addTagClick">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
+          <AppIcon name="tags.add" :size="13" />
           <span>{{ t('component.tags_header.add_tag') }}</span>
         </div>
         <div class="tag-input-wrap" v-else>
@@ -71,10 +69,7 @@
 
         <!-- 未打标签的文章 -->
         <button class="tag-untagged" type="button" @click="emits('select-untagged')">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20.59 13.41 11 3.83V3H4v7h.83l9.58 9.59a2 2 0 0 0 2.82 0l3.36-3.36a2 2 0 0 0 0-2.82Z" />
-            <circle cx="7.5" cy="6.5" r="1" />
-          </svg>
+          <AppIcon name="tags.untagged" :size="12" />
           <span>{{ t('component.tags_header.untagged') }}</span>
         </button>
       </template>
@@ -93,17 +88,23 @@
 
     <!-- 筛选态：返回 + 已选标签（交集）+ “+” 候选 -->
     <div class="selected-tag-header" v-else>
-      <button class="back-btn" type="button" @click="unselectTag">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
+      <button class="back-btn" type="button" :aria-label="t('page.bookmarks_index.search_back')" @click="unselectTag">
+        <AppIcon name="tags.back" :size="14" />
       </button>
       <!-- :key 随 id 集合变化整块挂卸，绕开 keyed v-for patch 崩溃 -->
       <div class="selected-tags" :key="selectedKey">
         <TagChip variant="topics" v-for="tag in selectedTags" :key="tag.id" :tag="tag" active removable @remove="removeSelected" />
       </div>
       <div class="tag-add-filter-wrap">
-        <button class="tag-add-filter" type="button" :title="t('component.tags_header.add_filter')" @click="togglePicker">+</button>
+        <button
+          class="tag-add-filter"
+          type="button"
+          :title="t('component.tags_header.add_filter')"
+          :aria-label="t('component.tags_header.add_filter')"
+          @click="togglePicker"
+        >
+          <AppIcon name="tags.add-filter" :size="14" />
+        </button>
         <TagCandidatePopover
           v-if="isPickerOpen"
           :selected-ids="props.selectTagIds"
@@ -441,7 +442,7 @@ watch(selectedKey, () => {
     background: color-mix(in srgb, var(--slax-accent) 10%, transparent);
   }
 
-  svg {
+  :deep(svg) {
     flex-shrink: 0;
     opacity: 0.8;
   }

@@ -164,15 +164,15 @@ import SnapshotTranscriptPanel from '~/components/Snapshot/SnapshotTranscriptPan
 import { eventLog } from '@/utils/analytics'
 import { extractFirstContentImage } from '@/utils/ogImage'
 import { sortBookmarkTags } from '@/utils/tags'
-import { isClient, isServer } from '@commons/frontend-utils/is'
-import { extractHTMLTextContent } from '@commons/frontend-utils/parse'
 
 import { useLocalBookmarks } from '@/composables/bookmark/useLocalBookmarks'
 import { useLocalMarks } from '@/composables/bookmark/useLocalMarks'
 import { useReadingPosition } from '@/composables/useReadingPosition'
 import { useSidePanelPreference } from '@/composables/useSidePanelPreference'
-import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { MarkDetail, SnapshotBookmarkDetail, SnapshotMetadata } from '@commons/frontend-types/models'
+import { isClient, isServer } from '@commons/frontend-utils/is'
+import { extractHTMLTextContent } from '@commons/frontend-utils/parse'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { runArticleSsrProcessors } from '~/components/Article/processors/ssr-runner'
 import type { QuoteData } from '~/components/Chat/type'
 import CursorToast from '~/components/CursorToast'
@@ -182,6 +182,7 @@ import Toast, { ToastType } from '~/components/Toast'
 import { useBookmark } from '~/composables/bookmark/useBookmark'
 import { useCommentPanel } from '~/composables/useCommentPanel'
 import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
+import type { IconKey } from '~/icons/registry'
 import { useUserStore } from '~/stores/user'
 import { pdfTitlePreview } from '~/utils/pdfPreview'
 import type { PdfTitlePreview } from '~/utils/pdfPreview'
@@ -739,8 +740,8 @@ const findQuote = (quote: QuoteData) => {
   bookmarkArticle.value?.findQuote(quote)
 }
 
-const editTitleIcon = `<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>`
-const feedbackIcon = `<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>`
+const editTitleIcon: IconKey = 'snapshot.edit-title'
+const feedbackIcon: IconKey = 'snapshot.feedback'
 
 const menuLoading = ref(false)
 
@@ -842,10 +843,10 @@ const localStarred = computed<'star' | 'unstar'>(() => (localRow?.row.value?.is_
 const isArchived = computed(() => (localFirst.value ? localArchived.value !== 'inbox' : restArchived.value !== 'inbox'))
 const isStarred = computed(() => (localFirst.value ? localStarred.value === 'star' : restStarred.value === 'star'))
 
-const archiveIcon = `<svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><g transform="translate(1.4432, 0.3555)"><path d="M12.7662118,6.46157078 L10.4256398,13.0958407 C10.2115978,13.808728 9.65283106,14.3674947 8.93994379,14.5815367 L2.6224656,16.605317" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" transform="translate(7.6943, 11.5334) rotate(-315) translate(-7.6943, -11.5334)"/><path d="M8.81967277,3.14984148 L11.8801863,2.2309327 C12.2688174,2.11424753 12.6766531,2.33416629 12.7911127,2.722135 C12.8313632,2.8585668 12.8309464,3.00399495 12.7899133,3.14065968 L10.6303817,9.20138137 C10.4163397,9.91426864 9.85757298,10.4730354 9.14468571,10.6870774 L3.14065968,12.7899133 C2.75202857,12.9065985 2.34419294,12.6866797 2.22973331,12.298711 C2.18948282,12.1622792 2.18989958,12.0168511 2.2309327,11.8801863 L3.14984148,8.81967277" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" transform="translate(7.5104, 7.5104) rotate(-315) translate(-7.5104, -7.5104)"/><path d="M7.34976027,1.73227156 C7.667324,1.73227156 7.92476027,1.98970783 7.92476027,2.30727156 L7.92475964,6.81727156 L9.04230112,6.19394851 C9.27964334,6.06142024 9.57247073,6.11966982 9.74261963,6.31990313 L9.80032694,6.40155081 C9.95079588,6.67084979 9.85735739,7.00057821 9.59635596,7.14631741 L7.65165393,8.23330932 C7.61677635,8.25460163 7.57978681,8.27193918 7.54142439,8.28511956 C7.37288921,8.34678923 7.18754042,8.3220589 7.04226549,8.22661234 C7.02913993,8.21803726 7.01628012,8.20913012 7.00381519,8.19972734 L5.11324127,7.14308255 C4.85223985,6.99734335 4.75880136,6.66761492 4.90454056,6.4066135 C5.06305271,6.13397825 5.40028612,6.04161935 5.66729612,6.19071364 L6.77475964,6.80927156 L6.77476027,2.30727156 C6.77476027,1.98970783 7.03219654,1.73227156 7.34976027,1.73227156 Z" fill="currentColor"/></g></svg>`
-const archiveIconOn = `<svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><g transform="translate(0.7647, 0.2647)"><path d="M6.7939305,6.01914529 L12.6763408,3.31641624 C13.0778195,3.13195305 13.5528192,3.30787888 13.7372824,3.70935758 C13.8283187,3.90749539 13.834533,4.13420769 13.7544872,4.3370349 L11.514773,10.0122294 C11.204693,10.7979387 10.5777475,11.4165219 9.78794563,11.7160241 L4.2791921,13.8050091 C3.86607071,13.9616696 3.40417119,13.753767 3.24751064,13.3406456 C3.172743,13.1434798 3.17884294,12.9247678 3.26448383,12.7320758 L5.80130774,7.02422205 C5.99891306,6.57961008 6.3518168,6.22227861 6.7939305,6.01914529 Z" fill="currentColor" transform="translate(8.4853, 8.4853) rotate(45) translate(-8.4853, -8.4853)"/><path d="M1.23528137,5.48528137 L7.59532859,3.21383594 C8.01031392,3.0656269 8.46262972,3.05861955 8.88200695,3.19390253 L15.9852814,5.48528137 L15.9852814,5.48528137" stroke="currentColor" stroke-linecap="round"/><path d="M1.23528137,14.4852814 L7.59532859,12.2138359 C8.01031392,12.0656269 8.46262972,12.0586196 8.88200695,12.1939025 L15.9852814,14.4852814 L15.9852814,14.4852814" stroke="currentColor" stroke-linecap="round" transform="translate(8.6103, 13.2353) scale(1, -1) translate(-8.6103, -13.2353)"/></g></svg>`
-const starIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`
-const starIconOn = `<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`
+const archiveIcon: IconKey = 'bookmark-action.archive'
+const archiveIconOn: IconKey = 'bookmark-action.archive-active'
+const starIcon: IconKey = 'bookmark-action.star'
+const starIconOn: IconKey = 'bookmark-action.star-active'
 
 const bottomToolbarActions = computed<BottomToolbarAction[]>(() => [
   // 归档后文案变「已归档」

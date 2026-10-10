@@ -6,6 +6,7 @@
 //
 // 注意：本组件用 useNuxtApp().$i18n.t() 拿 i18n，并非组件内 useI18n()，所以测试文案对齐
 // 走的是 nuxt 内部默认 locale（en），切 zh 需驱动 nuxt module 的 setLocale，本测试不展开。
+import AppIcon from '~~/app/components/AppIcon.vue'
 import ThemeSwitcher from '~~/app/components/global/ThemeSwitcher.vue'
 
 import { mount } from '@vue/test-utils'
@@ -32,6 +33,7 @@ describe('ThemeSwitcher 组件', () => {
     const buttons = wrapper.findAll('button.theme-btn')
     if (buttons.length > 0) {
       expect(buttons.length).toBe(3)
+      expect(wrapper.findAllComponents(AppIcon).map(icon => icon.props('name'))).toEqual(['theme.light', 'theme.dark', 'theme.eink'])
     } else {
       // fallback 路径：单骨架
       expect(wrapper.findAll('.theme-btn-skeleton').length).toBeGreaterThanOrEqual(1)

@@ -116,6 +116,39 @@ describe('AppIcon', () => {
     expect(wrapper.get('svg').attributes('aria-label')).toBe('Status')
   })
 
+  it('trims caller labels before exposing standalone accessible names', () => {
+    setTestIcon('test.trimmed-standalone', {
+      kind: 'inline',
+      source: 'standalone.svg',
+      viewBox: '0 0 24 24',
+      defaultSize: 24,
+      paint: 'currentColor',
+      accessibility: 'standalone',
+      geometry: '<circle cx="12" cy="12" r="10"/>',
+      sourceHash: 'test',
+      provenance
+    })
+    const wrapper = mountWithApp(AppIcon, { props: { name: 'test.trimmed-standalone', label: '  Status  ' } })
+    expect(wrapper.get('svg').attributes('aria-label')).toBe('Status')
+    expect(() => mountWithApp(AppIcon, { props: { name: 'test.trimmed-standalone', label: '  ' } })).toThrow(/requires an accessible label/)
+  })
+
+  it('does not silently replace a blank caller label with the registered default', () => {
+    setTestIcon('test.default-labelled', {
+      kind: 'inline',
+      source: 'default-labelled.svg',
+      viewBox: '0 0 24 24',
+      defaultSize: 24,
+      paint: 'currentColor',
+      accessibility: 'standalone',
+      label: 'Registered status',
+      geometry: '<circle cx="12" cy="12" r="10"/>',
+      sourceHash: 'test',
+      provenance
+    })
+    expect(() => mountWithApp(AppIcon, { props: { name: 'test.default-labelled', label: '  ' } })).toThrow(/requires an accessible label/)
+  })
+
   it('uses the registered semantic fallback for layered tab types', () => {
     expect(resolveTabIconKey('unknown-layer-tab')).toBe('bookmark.fallback')
     expect(resolveTabIconKey('unknown-layer-tab', { viewBox: '0 0 24 24', markup: '<path/>' })).toBe('bookmark.fallback')
