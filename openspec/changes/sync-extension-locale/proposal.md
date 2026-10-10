@@ -37,4 +37,4 @@ None. Existing living specs do not define account locale synchronization.
 
 ## Review and source status
 
-The user approved this proposal on 2026-10-10 and requested a PR first. The initial Draft PR contains planning artifacts only; implementation tasks remain pending. The local legacy branch contains both source commits. Terminal GitHub access was unavailable during preparation, so the PR head and latest remote `dev` must be verified before applying the port. The isolated task branch currently starts at local `origin/dev` commit `8682a738baa11aaff84167c9169ea7e8dc7a2eee`.
+The user approved this proposal on 2026-10-10 and requested a PR first. The initial Draft PR contains planning artifacts only; product implementation remains pending. GitHub CLI verification on 2026-10-10 confirmed that PR #1615 contains both source commits and has head `c1677360ceb10a31835666e0e497892f688408d2`. The isolated task branch starts at verified remote `dev` commit `8682a738baa11aaff84167c9169ea7e8dc7a2eee`. Recheck these refs when implementation starts if either branch has advanced.

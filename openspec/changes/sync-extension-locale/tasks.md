@@ -2,7 +2,7 @@
 
 ## 1. Verify the port baseline
 
-- [ ] 1.1 After proposal approval, fetch current `origin/dev` and inspect legacy PR #1615, reconciling the isolated branch and recording verified source and target SHAs in the PR.
+- [x] 1.1 After proposal approval, fetch current `origin/dev` and inspect legacy PR #1615, reconciling the isolated branch and recording verified source and target SHAs for the PR (`8682a73` and `c1677360`, verified on 2026-10-10).
 - [ ] 1.2 Prepare dependencies without loading secret files, then run existing focused Web user-store and Extension session tests to establish and record the v2 baseline.
 
 ## 2. Port shared types and Extension synchronization
@@ -29,4 +29,4 @@
 - [ ] 5.2 Run affected Web tests, the Extension test suite, shared package and application typechecks, lint on changed source, and Chrome/Firefox builds; record exact results and any independently confirmed baseline failures.
 - [ ] 5.3 Run real Chrome locale integration checks for opposite browser/account languages, active drafts/operations, session changes, worker restart, and recovery; record timings and any unverified acceptance scenarios explicitly.
 - [ ] 5.4 Run `openspec validate --all --strict`, `git diff --check`, and the Bugs, Security, and Compliance passes from `REVIEW.md`; resolve all Important findings and record `sync-extension-locale` as the matching change.
-- [ ] 5.5 Commit, push `feat/sync-extension-locale`, and create a PR targeting `dev` with `OpenSpec: sync-extension-locale`, legacy provenance, and v2 verification results; verify and attach the created PR URL.
+- [ ] 5.5 Commit and push the implementation on `feat/sync-extension-locale`, update the same Draft PR targeting `dev` with `OpenSpec: sync-extension-locale`, legacy provenance, and v2 verification results, then mark it ready; verify and attach the PR URL.

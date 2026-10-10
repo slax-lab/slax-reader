@@ -8,7 +8,7 @@ The local source range is `7a4bb109..c1677360` in `unnoo/slax_reader_frontend`, 
 
 Current v2 has the pre-feature Web user-store actions, a Pinia offline profile fallback, and an Extension `$t` wrapper around native WXT i18n. v2's backend `apps/api/src/utils/responseUtils.ts` and `packages/contracts/src/http.ts` confirm that successful JSON uses `code`, not `status`.
 
-The task worktree is `.worktrees/sync-extension-account-locale`, branch `feat/sync-extension-locale`, initially at local `origin/dev` `8682a73`. Terminal GitHub access is unavailable; refresh the remote branch and verify PR #1615's head before implementation. The original checkout contains unrelated ongoing work and must remain untouched.
+The task worktree is `.worktrees/sync-extension-account-locale`, branch `feat/sync-extension-locale`, based on `origin/dev` `8682a73`. GitHub CLI verification on 2026-10-10 confirmed that this is still the remote `dev` tip and that PR #1615 has head `c1677360`. The original checkout contains unrelated ongoing work and must remain untouched.
 
 ## Goals / Non-Goals
 
@@ -61,12 +61,12 @@ Adapt the locale browser fixture to v2 paths and test-build conventions. Do not 
 - [Legacy file replacement loses v2 changes] → Apply hunks selectively and review every touched file against current `dev`.
 - [Frozen pages, offline APIs, or stale installed content scripts delay updates] → Keep cached fallback and lifecycle recovery; report the two-second target only under normal active conditions and refresh old injected scripts after extension upgrades.
 - [Source fixtures hide the same API bug] → Ground envelope fixtures in v2's existing response serializer and cover malformed and failure responses.
-- [Remote refs cannot currently be verified] → Reconcile against fresh `origin/dev` and PR head before implementation/push; do not claim current local refs are latest.
+- [Source or target refs advance after proposal publication] → Recheck `origin/dev` and PR head before implementation/push and adapt any intervening changes.
 
 ## Migration Plan
 
-1. Obtain human review of these OpenSpec artifacts, then verify remote source and target revisions without touching the original checkout.
+1. Human approval and remote source/target verification were completed on 2026-10-10. Publish these planning artifacts as a Draft PR before implementation, as requested.
 2. Apply and validate the mapped changes in the isolated task branch. Keep all implementation tasks unchecked until verified.
 3. Run the required Bugs, Security, and Compliance review from `REVIEW.md`, resolving Important findings.
-4. Push and create one PR targeting `dev`, with `OpenSpec: sync-extension-locale`, source PR/commit provenance, and v2 validation results.
+4. Push the implementation to the same Draft PR targeting `dev`, keeping `OpenSpec: sync-extension-locale`, updating source provenance and v2 validation results, and marking it ready after validation.
 5. Release Web and Extension through their existing processes after merge. Older versions tolerate the new signal; newer Extensions retain periodic and lifecycle refresh with older Web clients. A rollback can restore previous application code without an API or database migration.
