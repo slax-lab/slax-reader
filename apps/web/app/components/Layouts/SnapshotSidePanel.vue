@@ -43,7 +43,13 @@
       <div class="side-panel-tabs-group">
         <template v-for="(tab, idx) in tabs" :key="tab.id">
           <div v-if="idx > 0" class="panel-tab-sep" />
-          <button class="side-panel-tab" :class="{ active: activeTab === tab.id }" :title="tab.label" @click="$emit('update:activeTab', activeTab === tab.id ? null : tab.id)">
+          <button
+            class="side-panel-tab"
+            :class="{ active: activeTab === tab.id }"
+            :title="tab.label"
+            :aria-label="tab.label"
+            @click="$emit('update:activeTab', activeTab === tab.id ? null : tab.id)"
+          >
             <span class="tab-icon"><AppIcon :name="tab.icon" :size="20" /></span>
           </button>
         </template>

@@ -613,8 +613,6 @@ watch(selectedKey, () => {
   border-radius: 999px;
   background: transparent;
   color: var(--slax-accent);
-  font-size: 16px;
-  line-height: 1;
   cursor: pointer;
   transition: all 0.15s;
 
