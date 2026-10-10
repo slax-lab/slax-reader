@@ -138,12 +138,13 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
       const errMsg = err instanceof Error ? err.message : String(err)
       console.error(`ImportParse workflow fetch failed for bookmark ${bookmarkId}: ${errMsg}`)
       await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.FAILED)
-      if (!errMsg.startsWith('pdf_lab_disabled:')) await crawlService.pushBookmarkFailureAlert(userId, 'import_parse_workflow.fetch', {
-        bookmark_id: bookmarkId,
-        url,
-        user_id: userId,
-        error: errMsg
-      })
+      if (!errMsg.startsWith('pdf_lab_disabled:'))
+        await crawlService.pushBookmarkFailureAlert(userId, 'import_parse_workflow.fetch', {
+          bookmark_id: bookmarkId,
+          url,
+          user_id: userId,
+          error: errMsg
+        })
       await crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, hostname, 'fetching', 'failed', errMsg, ctxManager)
       await markImportFailed()
       throw err
@@ -161,7 +162,7 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
           if (!crawlResult) return
           if (crawlResult.pdf) {
             const stored = await bookmarkService.getBookmarkById(bookmarkId)
-            crawlResult.textContent = stored?.content_md_key ? await bookmarkService.getBookmarkContent(stored.content_md_key) || '' : ''
+            crawlResult.textContent = stored?.content_md_key ? (await bookmarkService.getBookmarkContent(stored.content_md_key)) || '' : ''
             if (!crawlResult.textContent) return
           }
           await urlParserHandler.processPostHandler(

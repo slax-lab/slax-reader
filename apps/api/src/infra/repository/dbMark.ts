@@ -9,12 +9,14 @@ import { JsonValue } from '@prisma/client/runtime/client'
 import { MarkType as markType } from '@slax-reader/contracts'
 export { MarkType as markType } from '@slax-reader/contracts'
 
-export type markXPathItem = import('@slax-reader/contracts/pdf').PdfMarkSource | {
-  type: 'text' | 'image'
-  xpath: string
-  start_offet: number
-  end_offset: number
-}
+export type markXPathItem =
+  | import('@slax-reader/contracts/pdf').PdfMarkSource
+  | {
+      type: 'text' | 'image'
+      xpath: string
+      start_offet: number
+      end_offset: number
+    }
 
 export interface markPO {
   id?: number

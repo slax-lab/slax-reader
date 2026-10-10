@@ -513,7 +513,10 @@ export class BookmarkRepo {
       await tx.sr_bookmark.update({ where: { id: bookmarkId }, data: { ...info, updated_at: new Date() } })
       const relations = await tx.sr_user_bookmark.findMany({ where: { bookmark_id: bookmarkId }, select: { id: true, metadata: true } })
       for (const relation of relations) {
-        await tx.sr_user_bookmark.update({ where: { id: relation.id }, data: { type: 2, metadata: { ...(relation.metadata as Record<string, Prisma.JsonValue>), pdf_document_id: documentId } } })
+        await tx.sr_user_bookmark.update({
+          where: { id: relation.id },
+          data: { type: 2, metadata: { ...(relation.metadata as Record<string, Prisma.JsonValue>), pdf_document_id: documentId } }
+        })
       }
     })
   }

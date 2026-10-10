@@ -113,3 +113,11 @@ Earlier historical no-push statements describe their individual validation sessi
 - `pnpm api -- build` completed its offline dry run. A full isolated Nuxt production build completed, including the client worker, scoped PDF CSS, local PDF assets, prerender output, and Cloudflare Pages server. Isolation kept the existing Web development server/build directory untouched.
 - `pnpm design:check`, `pnpm icons:check`, strict OpenSpec validation (27 items after the upstream merge), and the full feature diff whitespace check passed.
 - Live upload/sharing, actual software-keyboard/KMP device acceptance, and the latest PDF source-row visual inspection remain explicitly open. These are reported as remaining coverage in the PR; no deployment or merge is authorized by this task.
+
+## API CI lint follow-up
+
+The initial PR API CI run `38036700365`, job `114168503188`, failed on 33 `prettier/prettier` errors in six API source files. Applied the existing ESLint formatter only to those files; no generated code, UI, rules, or runtime behavior changed.
+
+- `pnpm api -- lint` passed with zero errors. The same 336 warnings remain nonblocking.
+- `pnpm api -- typecheck` and `git diff --check` passed.
+- Local pre-push review: Bugs and Security found no semantic or access-policy changes; Compliance confirms an implementation-only formatting follow-up to `add-pdf-bookmarks`. No Important findings.

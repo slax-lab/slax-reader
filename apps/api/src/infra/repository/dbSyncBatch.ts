@@ -337,15 +337,20 @@ export class DBSyncBatchOperation {
     if (!userBookmark?.bookmark) throw ShareActionNotAllowedError()
     if (type !== markType.REPLY) {
       let parsed: unknown
-      try { parsed = JSON.parse(source) }
-      catch { if (isPdfContentKey(userBookmark.bookmark.content_key)) throw ShareActionNotAllowedError() }
-      if (parsed !== undefined) try {
-        const documentId = (userBookmark.metadata as { pdf_document_id?: string })?.pdf_document_id
-        const pdfLength = validatePdfSources(parsed, documentId || '')
-        if (isPdfContentKey(userBookmark.bookmark.content_key) !== (pdfLength !== undefined)) throw ShareActionNotAllowedError()
-      } catch { throw ShareActionNotAllowedError() }
+      try {
+        parsed = JSON.parse(source)
+      } catch {
+        if (isPdfContentKey(userBookmark.bookmark.content_key)) throw ShareActionNotAllowedError()
+      }
+      if (parsed !== undefined)
+        try {
+          const documentId = (userBookmark.metadata as { pdf_document_id?: string })?.pdf_document_id
+          const pdfLength = validatePdfSources(parsed, documentId || '')
+          if (isPdfContentKey(userBookmark.bookmark.content_key) !== (pdfLength !== undefined)) throw ShareActionNotAllowedError()
+        } catch {
+          throw ShareActionNotAllowedError()
+        }
     }
-
 
     const isVisitor = userBookmark.user_id !== operation.userId
     if (isVisitor) {
@@ -560,13 +565,19 @@ export class DBSyncBatchOperation {
     if (!collectionBookmark) throw ShareActionNotAllowedError()
     if (type !== markType.REPLY) {
       let parsed: unknown
-      try { parsed = JSON.parse(source) }
-      catch { if (isPdfContentKey(collectionBookmark.content_key)) throw ShareActionNotAllowedError() }
-      if (parsed !== undefined) try {
-        const documentId = (collectionBookmark.metadata as { pdf_document_id?: string })?.pdf_document_id
-        const pdfLength = validatePdfSources(parsed, documentId || '')
-        if (isPdfContentKey(collectionBookmark.content_key) !== (pdfLength !== undefined)) throw ShareActionNotAllowedError()
-      } catch { throw ShareActionNotAllowedError() }
+      try {
+        parsed = JSON.parse(source)
+      } catch {
+        if (isPdfContentKey(collectionBookmark.content_key)) throw ShareActionNotAllowedError()
+      }
+      if (parsed !== undefined)
+        try {
+          const documentId = (collectionBookmark.metadata as { pdf_document_id?: string })?.pdf_document_id
+          const pdfLength = validatePdfSources(parsed, documentId || '')
+          if (isPdfContentKey(collectionBookmark.content_key) !== (pdfLength !== undefined)) throw ShareActionNotAllowedError()
+        } catch {
+          throw ShareActionNotAllowedError()
+        }
     }
 
     let rootId = 0

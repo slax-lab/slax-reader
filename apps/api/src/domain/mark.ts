@@ -112,7 +112,11 @@ export class MarkService {
     // Keep legacy article quote limits; PDF selections only validate their source shape.
     let sourceLength = 0
     let sourceImageCount = 0
-    try { validatePdfSources(data.source) } catch { throw ErrorParam() }
+    try {
+      validatePdfSources(data.source)
+    } catch {
+      throw ErrorParam()
+    }
     data.source.forEach(item => {
       if (item.type === 'pdf') return
       if (item.type === 'image') sourceImageCount++
@@ -418,9 +422,10 @@ export class MarkService {
       try {
         const pdfLength = validatePdfSources(data.source, documentId || '')
         if (isPdfContentKey(detail?.bookmark.content_key) !== (pdfLength !== undefined)) throw ErrorParam()
-      } catch { throw ErrorParam() }
+      } catch {
+        throw ErrorParam()
+      }
     }
-
 
     // 防止通过回复来绕过评论限制
     let rootId = 0
