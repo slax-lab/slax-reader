@@ -1,26 +1,52 @@
 <template>
-  <div class="bookmark-tags" ref="rootEl">
+  <div class="bookmark-tags" :class="props.variant ? `variant-${props.variant}` : ''" ref="rootEl">
     <div class="tags-list" :class="{ 'is-reserving': isReserving }">
       <!-- :key 随 id 集合变化整块挂卸，
            绕开 keyed v-for patch 崩溃 -->
       <div v-if="visibleTags.length" :key="tagsKey" class="tags-cells">
-        <TagChip
-          v-for="tag in visibleTags"
-          :key="tag.id"
-          :tag="tag"
-          legacy
-          :legacy-interactive="props.compact"
-          :removable="!props.readonly"
-          :ai-mark="tag.added_by === 'ai'"
-          @click="emit('select-tag', tag)"
-          @remove="deleteBookmarkTag(tag.id)"
-        />
+        <template v-if="props.variant === 'detail'">
+          <TagChipDetail
+            v-for="tag in visibleTags"
+            :key="tag.id"
+            :tag="tag"
+            :legacy-interactive="props.compact"
+            :removable="!props.readonly"
+            @click="emit('select-tag', tag)"
+            @remove="deleteBookmarkTag(tag.id)"
+          />
+        </template>
+        <template v-else>
+          <TagChip
+            v-for="tag in visibleTags"
+            :key="tag.id"
+            :tag="tag"
+            v-bind="props.variant ? { variant: props.variant } : { legacy: true }"
+            :legacy-interactive="props.compact"
+            :removable="!props.readonly"
+            :ai-mark="tag.added_by === 'ai'"
+            @click="emit('select-tag', tag)"
+            @remove="deleteBookmarkTag(tag.id)"
+          />
+        </template>
       </div>
 
       <!-- compact 专用：不可见度量行，完整渲染 displayTags 量真实宽度，
            与可见 chip 完全解耦（不受 hover 展开删除按钮影响），只用来算 visibleCount -->
-      <div v-if="props.compact" class="tags-measure" ref="measureEl" aria-hidden="true">
-        <TagChip v-for="tag in displayTags" :key="tag.id" :tag="tag" legacy :legacy-interactive="props.compact" :removable="!props.readonly" :ai-mark="tag.added_by === 'ai'" />
+      <div v-if="props.compact" class="tags-measure" ref="measureEl" aria-hidden="true" inert>
+        <template v-if="props.variant === 'detail'">
+          <TagChipDetail v-for="tag in displayTags" :key="tag.id" :tag="tag" :legacy-interactive="props.compact" :removable="!props.readonly" />
+        </template>
+        <template v-else>
+          <TagChip
+            v-for="tag in displayTags"
+            :key="tag.id"
+            :tag="tag"
+            v-bind="props.variant ? { variant: props.variant } : { legacy: true }"
+            :legacy-interactive="props.compact"
+            :removable="!props.readonly"
+            :ai-mark="tag.added_by === 'ai'"
+          />
+        </template>
       </div>
 
       <div class="loading" v-if="isTagLoading">
@@ -91,6 +117,7 @@
 
 <script lang="ts" setup>
 import TagChip from '~/components/BookmarkList/TagChip.vue'
+import TagChipDetail from '~/components/BookmarkList/TagChipDetail.vue'
 
 import { computeVisibleTagCount } from '~/utils/tagOverflow'
 
@@ -131,6 +158,10 @@ const props = defineProps({
     type: Boolean,
     required: false,
     default: false
+  },
+  variant: {
+    type: String as PropType<'list-card' | 'list-text' | 'detail'>,
+    required: false
   }
 })
 
@@ -199,11 +230,16 @@ const visibleCount = ref(Infinity)
 const isOverflowing = computed(() => props.compact && visibleCount.value < displayTags.value.length)
 const visibleTags = computed(() => (props.compact ? displayTags.value.slice(0, visibleCount.value) : displayTags.value))
 
-// chip 间隔对齐 .tags-list 的 gap-8px；ADD_BTN 是 +/··· 按钮自身宽度；
-// SAFETY_MARGIN 吃掉 legacy chip hover 时删除按钮 0→14px 展开动画可能带来的边界闪动
+// Match the list gap and reserve the full add-control width plus room for action expansion.
 const TAG_GAP = 8
-const ADD_BTN_WIDTH = 28
-const SAFETY_MARGIN = 28
+const ADD_BTN_WIDTH = computed(() => {
+  if (props.variant === 'list-card') return 20
+  if (props.variant === 'list-text') return 16
+  return 28
+})
+// Measurement chips never expand on hover. Reserve the widest list action expansion
+// in addition to the base margin so visible chips cannot crowd out the overflow control.
+const SAFETY_MARGIN = computed(() => (props.variant === 'list-card' || props.variant === 'list-text' ? 28 + 21 : 28))
 
 const recomputeVisibleCount = () => {
   if (!props.compact) return
@@ -219,8 +255,8 @@ const recomputeVisibleCount = () => {
     availableWidth: container.clientWidth,
     chipWidths,
     gap: TAG_GAP,
-    addButtonWidth: ADD_BTN_WIDTH,
-    safetyMargin: SAFETY_MARGIN
+    addButtonWidth: ADD_BTN_WIDTH.value,
+    safetyMargin: SAFETY_MARGIN.value
   })
 
   visibleCount.value = count >= displayTags.value.length ? Infinity : count
@@ -578,6 +614,58 @@ const addingTagClick = (e: MouseEvent) => {
   }
 }
 
+.bookmark-tags.variant-list-card {
+  .tag-add {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border-style: dashed;
+  }
+}
+
+.bookmark-tags.variant-list-text {
+  // Prototype: 8px flex gap plus each tag's own 8px left padding for the
+  // divider — a 0px gap here glues the divider to the previous tag.
+  .tags-list {
+    gap: 8px;
+  }
+
+  .tags-measure {
+    gap: 8px;
+  }
+
+  .tags-cells {
+    display: contents;
+  }
+
+  .tag-add-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    padding-left: 0;
+    border-left: 0;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: -4px;
+      top: 50%;
+      width: 1px;
+      height: 12px;
+      background: var(--slax-border);
+      transform: translateY(-50%);
+    }
+  }
+
+  .tag-add {
+    width: 16px;
+    height: 16px;
+    border: none;
+    border-radius: 0;
+  }
+}
+
 .search-list {
   // fixed 定位（Teleport 到 body），top/left 由脚本按 + 按钮 rect 算好写进 style
   --style: fixed w-260px rounded-sm overflow-hidden border-(1px solid border) shadow-warm bg-surface-solid px-12px py-16px pb-12px z-200;
@@ -665,6 +753,11 @@ const addingTagClick = (e: MouseEvent) => {
   .list-loading {
     --style: absolute inset-0 flex-center;
     background: color-mix(in srgb, var(--slax-surface-solid) 80%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tag-add {
+    transition: none !important;
   }
 }
 </style>

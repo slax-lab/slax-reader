@@ -50,7 +50,7 @@
               <p class="mine-onboarding-desc">{{ t('component.tags_header.empty_mine_desc') }}</p>
               <!-- 改用 v-if div 包裹 v-for，避开 LF 异步列表的 patch 崩溃 -->
               <div class="mine-onboarding-chips" v-if="onboardingTags.length">
-                <TagChip v-for="tag in onboardingTags" :key="tag.id" :tag="tag" @click="promoteTag" />
+                <TagChip variant="topics" v-for="tag in onboardingTags" :key="tag.id" :tag="tag" @click="promoteTag" />
               </div>
             </div>
           </template>
@@ -100,7 +100,7 @@
       </button>
       <!-- :key 随 id 集合变化整块挂卸，绕开 keyed v-for patch 崩溃 -->
       <div class="selected-tags" :key="selectedKey">
-        <TagChip v-for="tag in selectedTags" :key="tag.id" :tag="tag" active removable @remove="removeSelected" />
+        <TagChip variant="topics" v-for="tag in selectedTags" :key="tag.id" :tag="tag" active removable @remove="removeSelected" />
       </div>
       <div class="tag-add-filter-wrap">
         <button class="tag-add-filter" type="button" :title="t('component.tags_header.add_filter')" @click="togglePicker">+</button>

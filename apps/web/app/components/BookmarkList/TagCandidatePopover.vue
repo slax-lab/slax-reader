@@ -9,7 +9,7 @@
     </div>
     <!-- 改用 v-if div 包裹 v-for，避开 LF 异步列表的 patch 崩溃 -->
     <div class="candidate-list" v-else-if="filtered.length">
-      <TagChip v-for="tag in filtered" :key="tag.id" :tag="tag" :count="tag.count" compact @click="emit('pick', tag)" />
+      <TagChip variant="topics" v-for="tag in filtered" :key="tag.id" :tag="tag" :count="tag.count" compact @click="emit('pick', tag)" />
     </div>
     <div class="candidate-empty" v-else>{{ $t('component.tags_header.no_candidates') }}</div>
   </div>

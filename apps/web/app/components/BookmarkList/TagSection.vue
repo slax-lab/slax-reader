@@ -11,7 +11,7 @@
     <div class="tags-list">
       <div v-if="tags.length" class="tags-cells">
         <div class="tag-item" v-for="tag in tags" :key="tag.id">
-          <TagChip :tag="tag" :promotable="promotable" @click="emit('select', tag)" @promote="emit('promote', tag)" />
+          <TagChip variant="topics" :tag="tag" :promotable="promotable" @click="emit('select', tag)" @promote="emit('promote', tag)" />
           <button v-if="editable" class="tag-edit-btn" type="button" :title="$t('common.operate.edit')" @click.stop="emit('edit', tag)">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />

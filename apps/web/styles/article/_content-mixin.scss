@@ -73,6 +73,13 @@
   /* 表格类 */
   table {
     --style: '!w-full my-24px';
+    // Scrollable fallback, including before client-side layout measurement.
+    display: block;
+    max-width: 100%;
+    min-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
     border-collapse: separate; // separate 模型下圆角才生效
     border-spacing: 0; // 去掉间距，避免双线缝隙
     border: 1px solid var(--slax-border);
@@ -81,7 +88,12 @@
     box-shadow: var(--slax-shadow-sm); // 轻微抬升；eink 下 token 为 none
     font-size: var(--slax-fs-meta);
     line-height: 1.6;
-    overflow: hidden;
+
+    // Native table layout stretches short rows to fill the available width.
+    // TableLayoutProcessor removes this class as soon as the content needs scrolling.
+    &.slax-table-fit {
+      display: table;
+    }
   }
 
   // 表格标题：居中弱化

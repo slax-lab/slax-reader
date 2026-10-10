@@ -44,6 +44,13 @@ describe('components/BookmarkList/TagSection', () => {
     expect(w.emitted('select')!.length).toBe(1)
   })
 
+  it('uses the topics variant and inline promote SVG for promotable chips', () => {
+    const w = mountWithApp(TagSection, { props: { title: 'Auto tags', tags, promotable: true } })
+    const chip = w.findAll('.tag-chip')[0]!
+    expect(chip.classes()).toContain('variant-topics')
+    expect(chip.find('.tag-act.promote svg').exists()).toBe(true)
+  })
+
   it('renders the empty slot instead of chips when tags is empty', () => {
     const w = mountWithApp(TagSection, {
       props: { title: 't', tags: [] },
