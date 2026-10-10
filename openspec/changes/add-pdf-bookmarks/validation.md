@@ -104,3 +104,12 @@ Reviewed the complete feature diff under `REVIEW.md`, linked to `add-pdf-bookmar
 - Fresh API full suite: 157 files passed, 1,855 tests passed, 46 optional infrastructure tests skipped. Fresh isolated Web run: nine suites and 87 tests passed, including upload/Labs, source display, private binary delivery, existing AI/comments, and the delayed PDF keyboard regression.
 
 Earlier historical no-push statements describe their individual validation sessions. Final branch synchronization and release-check results will be recorded before the feature is pushed; no deployment is part of this task.
+
+### Final synchronized branch checks
+
+- Merged `origin/dev` at `8682a73` without conflicts. Reviewed the resulting feature diff, including the three automatically merged Web files; upstream icon changes remain intact. No additional Important Bugs, Security, or Compliance findings.
+- The nine affected Web suites passed all 87 tests again after the merge. The three PDF inline-viewer/geometry/preview suites passed all 20 tests. The updated upstream deployment-path suite passed all 13 tests.
+- `pnpm api -- typecheck`, shared selection typecheck, Extension compile, and Web `vue-tsc` against freshly generated isolated Nuxt types passed. Extension preparation emitted existing missing-public-runtime-value warnings but completed successfully.
+- `pnpm api -- build` completed its offline dry run. A full isolated Nuxt production build completed, including the client worker, scoped PDF CSS, local PDF assets, prerender output, and Cloudflare Pages server. Isolation kept the existing Web development server/build directory untouched.
+- `pnpm design:check`, `pnpm icons:check`, strict OpenSpec validation (27 items after the upstream merge), and the full feature diff whitespace check passed.
+- Live upload/sharing, actual software-keyboard/KMP device acceptance, and the latest PDF source-row visual inspection remain explicitly open. These are reported as remaining coverage in the PR; no deployment or merge is authorized by this task.
