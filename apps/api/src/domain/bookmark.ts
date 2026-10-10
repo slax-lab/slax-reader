@@ -1,3 +1,6 @@
+import { bookmarkContentType, isPdfContentKey, PDF_MAX_BYTES, pdfByteRange, pdfResponseHeaders, type PdfDescriptor } from '@slax-reader/contracts/pdf'
+import { readPdfBody, pdfFilename, pdfHash, extractPdfText, hasPdfSignature, PdfSaveInProgressError } from '@/utils/pdf'
+import { publicFetch } from '@/utils/publicFetch'
 import type { MarkDetail } from '@slax-reader/contracts'
 import type { BookmarkExportResponse, AddBookmarkRequest as addBookmarkReq, AddUrlBookmarkRequest as addUrlBookmarkReq } from '@slax-reader/contracts'
 import { bookmarkPO, BookmarkRepo, queueStatus, bookmarkParsePO, AigcBatchTaskStatus, bookmarkFetchRetryStatus, bookmarkParseStatus } from '@/infra/repository/dbBookmark'
@@ -12,7 +15,16 @@ import { callbackType, QueueClient, queueParseMessage } from '@/infra/queue/queu
 import { ContextManager } from '@/utils/context'
 import { NotificationMessage } from '@/infra/message/notification'
 import { parserType, processTargetUrl, URLPolicie } from '@/utils/urlPolicie'
-import { ServerError, ErrorParam, BookmarkContentNotFoundError, BookmarkNotFoundError, CreateBookmarkFailError, UserNotFoundError, BlockTargetUrlError } from '@/const/err'
+import {
+  ServerError,
+  ErrorParam,
+  BookmarkContentNotFoundError,
+  PdfTextUnavailableError,
+  BookmarkNotFoundError,
+  CreateBookmarkFailError,
+  UserNotFoundError,
+  BlockTargetUrlError
+} from '@/const/err'
 import { CrawlService } from '@/domain/crawl'
 import { Hashid } from '@/utils/hashids'
 import { LabService } from '@/domain/lab'
@@ -56,7 +68,7 @@ export interface BookmarkDetailResp {
   user_id: number
   marks: markDetail
   tags: BookmarkTag[]
-  type: 'shortcut' | 'article'
+  type: 'shortcut' | 'article' | 'pdf'
   overview?: string
 }
 
@@ -139,7 +151,7 @@ export class BookmarkService {
       site_name: options.siteName ?? ''
     }
 
-    const status = options.type === 0 ? queueStatus.PENDING : queueStatus.SUCCESS
+    const status = options.type === 1 ? queueStatus.SUCCESS : queueStatus.PENDING
     const bmInfo = await this.bookmarkRepo.createBookmark(bookmarkPO, status)
     if (!bmInfo) return null
 
@@ -197,6 +209,7 @@ export class BookmarkService {
 
     const privateUser = ctx.getUserId()
     const lastBm = await this.bookmarkRepo.getBookmark(target_url, privateUser)
+    if (isPdfContentKey(lastBm?.content_key)) await this.labService.assertEnabled(ctx, 'pdf')
 
     const bmInfo = await this.createBookmarkBase({
       ctx,
@@ -266,6 +279,7 @@ export class BookmarkService {
     const targetUrl = processTargetUrl(target_url)
     const privateUser = ctx.getUserId()
     const lastBm = await this.bookmarkRepo.getBookmark(targetUrl, privateUser)
+    if (isPdfContentKey(lastBm?.content_key)) await this.labService.assertEnabled(ctx, 'pdf')
 
     // 创建书签
     const bmInfo = await this.createBookmarkBase({
@@ -377,6 +391,7 @@ export class BookmarkService {
         const promiseList = [
           this.bucket().R2Bucket.delete(bmPO.content_key || ''),
           this.bucket().R2Bucket.delete(bmPO.content_md_key || ''),
+          ...(isPdfContentKey(bmPO.content_key) ? [this.bucket().R2Bucket.delete(bmPO.content_key!.replace('pdf/body/', 'pdf/meta/').replace(/\.pdf$/, '.json'))] : []),
           this.bookmarkSearchRepo.deleteBookmarkRaw(bmId)
         ]
 
@@ -466,7 +481,7 @@ export class BookmarkService {
           archived: archive_status === 1 ? 'archive' : archive_status === 2 ? 'later' : 'inbox',
           starred: is_starred ? 'star' : 'unstar',
           trashed_at: !!deleted_at ? deleted_at : undefined,
-          type: type === 1 ? 'shortcut' : 'article',
+          type: bookmarkContentType(type),
           created_at,
           updated_at,
           tags: (sr_user_bookmark_tag || []).map(t => ({
@@ -495,12 +510,227 @@ export class BookmarkService {
   }
 
   public async getBookmarkContent(bmKey: string) {
-    if (!bmKey) return
+    if (!bmKey || isPdfContentKey(bmKey)) return
     const target = await this.bucket().R2Bucket.get(bmKey)
     if (target) {
       const content = await target.text()
       return content
     }
+  }
+
+  public async getPdfDescriptor(contentKey: string, uuid: string): Promise<PdfDescriptor | undefined> {
+    if (!isPdfContentKey(contentKey)) return
+    const object = await this.bucket().R2Bucket.head(contentKey)
+    if (!object) return
+    const meta = object.customMetadata ?? {}
+    const state = await this.bucket().R2Bucket.get(contentKey.replace('pdf/body/', 'pdf/meta/').replace(/\.pdf$/, '.json'))
+    const text = state ? await state.json<{ text_status: PdfDescriptor['text_status']; pages: number }>() : { text_status: 'pending' as const, pages: 0 }
+    return {
+      url: `/api/content/${encodeURIComponent(uuid)}/pdf`,
+      filename: meta.filename || 'document.pdf',
+      size: object.size,
+      document_id: meta.sha256 || '',
+      source: meta.source === 'upload' ? 'upload' : 'url',
+      text_status: text.text_status,
+      pages: text.pages || undefined
+    }
+  }
+
+  public async getPdfResponse(ctx: ContextManager, uuid: string, request: Request): Promise<Response> {
+    const access = await this.getBookmarkReadAccess(ctx, uuid)
+    const key = access?.bookmark.bookmark.content_key
+    if (!key || !isPdfContentKey(key)) return new Response(null, { status: 404 })
+    const bucket = this.bucket().R2Bucket
+    const object = await bucket.head(key)
+    if (!object) return new Response(null, { status: 404 })
+    let range: ReturnType<typeof pdfByteRange>
+    try {
+      range = pdfByteRange(request.headers.get('Range'), object.size)
+    } catch {
+      return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${object.size}`, 'Cache-Control': 'private, no-store' } })
+    }
+    const headers = pdfResponseHeaders(object.customMetadata?.filename || 'document.pdf', object.size, range)
+    if (request.method === 'HEAD') return new Response(null, { status: range ? 206 : 200, headers })
+    const body = await bucket.get(key, range ? { range } : undefined)
+    return new Response(body?.body ?? null, { status: body ? (range ? 206 : 200) : 404, headers })
+  }
+
+  private async persistPdf(
+    ctx: ContextManager,
+    bookmarkId: number,
+    uuid: string,
+    bytes: Uint8Array,
+    filename: string,
+    source: 'url' | 'upload',
+    extract: boolean,
+    existingKey?: string
+  ) {
+    const bucket = this.bucket().R2Bucket
+    const documentId = await pdfHash(bytes)
+    const key = existingKey || `pdf/body/${uuid}.pdf`
+    const textKey = key.replace('pdf/body/', 'text/pdf/').replace(/\.pdf$/, '.txt')
+    const stateKey = key.replace('pdf/body/', 'pdf/meta/').replace(/\.pdf$/, '.json')
+    const previous = await bucket.head(key)
+    // PDF.js takes ownership of the input buffer. Persist it before extraction,
+    // so a second 50 MiB copy is unnecessary and the original stays immutable.
+    if (previous && !existingKey) throw new PdfSaveInProgressError()
+    if (!previous) {
+      const saved = await bucket.put(key, bytes, {
+        onlyIf: new Headers({ 'If-None-Match': '*' }),
+        httpMetadata: { contentType: 'application/pdf' },
+        customMetadata: { filename, sha256: documentId, source }
+      })
+      // A competing request owns this file and its cleanup; never overwrite it.
+      if (!saved) throw new PdfSaveInProgressError()
+    }
+    try {
+      const result = extract ? await extractPdfText(bytes) : { text: '', pages: 0, status: 'pending' as const, title: undefined, author: undefined }
+      if (result.text) await bucket.put(textKey, result.text, { httpMetadata: { contentType: 'text/plain; charset=utf-8' } })
+      await bucket.put(stateKey, JSON.stringify({ text_status: result.status, pages: result.pages }), { httpMetadata: { contentType: 'application/json' } })
+      await this.bookmarkRepo.completePdfBookmark(
+        bookmarkId,
+        {
+          title: result.title || filename.replace(/\.pdf$/i, ''),
+          byline: result.author || '',
+          content_key: key,
+          content_md_key: result.text ? textKey : '',
+          content_word_count: result.text.length,
+          status: queueStatus.SUCCESS,
+          published_at: new Date(),
+          site_name: ''
+        },
+        documentId
+      )
+    } catch (error) {
+      if (!previous) await bucket.delete([key, textKey, stateKey]).catch(() => {})
+      else await bucket.delete([textKey, stateKey]).catch(() => {})
+      throw error
+    }
+    await this.searchService.clearSearchCache(ctx, ctx.getUserId())
+  }
+
+  /** Existing files are immutable so saved page anchors retain their identity. */
+  public async capturePdf(ctx: ContextManager, bookmarkId: number, uuid: string, url: string): Promise<boolean> {
+    const bookmark = await this.bookmarkRepo.getBookmarkById(bookmarkId)
+    if (bookmark && isPdfContentKey(bookmark.content_key)) {
+      const object = await this.bucket().R2Bucket.get(bookmark.content_key)
+      if (!object) throw new Error('Stored PDF file is unavailable')
+      const descriptor = await this.getPdfDescriptor(bookmark.content_key, uuid)
+      if (descriptor?.text_status === 'pending') {
+        const bytes = await readPdfBody(object.body, String(object.size))
+        await this.persistPdf(
+          ctx,
+          bookmarkId,
+          uuid,
+          bytes,
+          object.customMetadata?.filename || 'document.pdf',
+          object.customMetadata?.source === 'upload' ? 'upload' : 'url',
+          true,
+          bookmark.content_key
+        )
+      } else {
+        await object.body.cancel()
+        await this.bookmarkRepo.completePdfBookmark(
+          bookmarkId,
+          {
+            content_key: bookmark.content_key,
+            content_md_key: bookmark.content_md_key,
+            content_word_count: bookmark.content_word_count,
+            status: queueStatus.SUCCESS,
+            published_at: bookmark.published_at,
+            site_name: bookmark.site_name
+          },
+          object.customMetadata?.sha256 || ''
+        )
+      }
+      return true
+    }
+    // Prefer the final media type, with a bounded file-signature fallback.
+    let probe: Response
+    try {
+      probe = await publicFetch(url, {}, { maxBytes: PDF_MAX_BYTES, timeoutMs: 30_000 })
+    } catch {
+      return false
+    }
+    const mediaType = probe.headers.get('Content-Type')?.split(';', 1)[0]?.trim().toLowerCase()
+    if (!probe.ok) {
+      await probe.body?.cancel()
+      if (mediaType === 'application/pdf') throw new Error('PDF download failed')
+      return false
+    }
+    const isPdfMime = mediaType === 'application/pdf'
+    const reader = probe.body?.getReader()
+    const prefix = new Uint8Array(1024)
+    let prefixSize = 0
+    try {
+      while (reader && !isPdfMime && prefixSize < prefix.length) {
+        const chunk = await reader.read()
+        if (chunk.done) break
+        const count = Math.min(chunk.value.length, prefix.length - prefixSize)
+        prefix.set(chunk.value.subarray(0, count), prefixSize)
+        prefixSize += count
+        if (hasPdfSignature(prefix.subarray(0, prefixSize))) break
+      }
+    } finally {
+      await reader?.cancel().catch(() => {})
+      reader?.releaseLock()
+    }
+    if (!isPdfMime && !hasPdfSignature(prefix.subarray(0, prefixSize))) return false
+    await this.labService.assertEnabled(ctx, 'pdf')
+    const response = await publicFetch(url, {}, { maxBytes: PDF_MAX_BYTES, timeoutMs: 60_000 })
+    if (!response.ok) {
+      await response.body?.cancel()
+      throw new Error('PDF download failed')
+    }
+    const bytes = await readPdfBody(response.body, response.headers.has('Content-Encoding') ? null : response.headers.get('Content-Length'))
+    const path = new URL(response.url || url).pathname.split('/').pop() || 'document.pdf'
+    let name = path
+    try {
+      name = decodeURIComponent(path)
+    } catch {}
+    if (!/\.pdf$/i.test(name)) name += '.pdf'
+    await this.persistPdf(ctx, bookmarkId, uuid, bytes, pdfFilename(name), 'url', true)
+    return true
+  }
+
+  public async uploadPdf(ctx: ContextManager, request: Request) {
+    await this.labService.assertEnabled(ctx, 'pdf')
+    let filename: string
+    try {
+      filename = pdfFilename(new URL(request.url).searchParams.get('filename') || 'document.pdf')
+    } catch {
+      throw ErrorParam()
+    }
+    let bytes: Uint8Array
+    try {
+      bytes = await readPdfBody(request.body, request.headers.get('Content-Length'))
+    } catch {
+      throw ErrorParam()
+    }
+    const hash = await pdfHash(bytes)
+    const target = `slax-pdf://${ctx.getUserId()}/${hash}`
+    const bookmark = await this.createBookmarkBase({ ctx, targetUrl: target, hostUrl: '', title: filename.replace(/\.pdf$/i, ''), type: 2, privateUser: ctx.getUserId() })
+    if (!bookmark) throw CreateBookmarkFailError()
+    const relation = await this.bookmarkRepo.getUserBookmarkWithDetail(bookmark.id, ctx.getUserId())
+    if (!relation) throw BookmarkNotFoundError()
+    if (!isPdfContentKey(bookmark.content_key)) {
+      try {
+        await this.persistPdf(ctx, bookmark.id, relation.uuid, bytes, filename, 'upload', false)
+      } catch (error) {
+        if (!(error instanceof PdfSaveInProgressError)) await this.bookmarkRepo.updateBookmarkStatus(bookmark.id, queueStatus.FAILED)
+        throw error
+      }
+    }
+    const descriptor = await this.getPdfDescriptor(bookmark.content_key || `pdf/body/${relation.uuid}.pdf`, relation.uuid)
+    if (descriptor?.text_status === 'pending') {
+      await this.crawlService.createWorkflow(
+        ctx.env,
+        { url: target, bookmarkId: bookmark.id, userId: ctx.getUserId(), enUserId: ctx.hashIds.encodeId(ctx.getUserId()), userLang: ctx.get('user_lang') || 'en' },
+        3,
+        ctx
+      )
+    }
+    return { bookmark_id: ctx.hashIds.encodeId(bookmark.id), bookmark_uid: relation.uuid }
   }
 
   public async bookmarkArchive(ctx: ContextManager, bmId: number, status: string) {
@@ -881,6 +1111,7 @@ export class BookmarkService {
     if (!bookmarkId || bookmarkId < 1) throw ErrorParam()
 
     const bookmark = await this.getBookmarkById(bookmarkId)
+    if (bookmark && !(bookmark instanceof MultiLangError) && isPdfContentKey(bookmark.content_key) && !bookmark.content_md_key) throw PdfTextUnavailableError()
     if (!bookmark || bookmark instanceof MultiLangError || !bookmark.content_md_key) {
       throw BookmarkNotFoundError()
     }
@@ -919,7 +1150,7 @@ export class BookmarkService {
         is_read: row.is_read,
         is_archived: row.archive_status === 1,
         is_starred: row.is_starred,
-        type: row.type === 1 ? 'shortcut' : 'article'
+        type: bookmarkContentType(row.type)
       }
     })
 
@@ -969,7 +1200,7 @@ export class BookmarkService {
 
     const access = await this.getBookmarkReadAccess(ctx, bookmarkUid)
     const contentKey = access?.bookmark.bookmark.content_key
-    if (!contentKey) return null
+    if (!contentKey || isPdfContentKey(contentKey)) return null
 
     const r2Object = await this.bucketData().R2Bucket.get(contentKey)
     return r2Object?.body ?? null
@@ -1021,6 +1252,14 @@ export class BookmarkService {
 
     const privateUser = ctx.getUserId()
     const lastBm = await this.bookmarkData.getBookmark(targetUrl, privateUser)
+    if (isPdfContentKey(lastBm?.content_key)) {
+      try {
+        await this.labService.assertEnabled(ctx, 'pdf')
+      } catch (error) {
+        if (LabService.isLabDisabledError(error)) return null
+        throw error
+      }
+    }
     if (item.import_only && lastBm?.bookmark_id && (await this.bookmarkData.getUserBookmark(lastBm.bookmark_id, privateUser))) return null
     const bmInfo = await this.createBookmarkBase({
       ctx,

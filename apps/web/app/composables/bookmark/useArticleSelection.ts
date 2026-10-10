@@ -104,7 +104,7 @@ export function useArticleSelection(p: UseArticleSelectionParams) {
   // HTML 管道，onMounted 调用
   const handleHTML = async () => {
     const container = p.monitorDom.value
-    if (!container) return
+    if (!container || p.detail.value.pdf) return
 
     const context: WebProcessorContext = {
       container,
@@ -147,7 +147,7 @@ export function useArticleSelection(p: UseArticleSelectionParams) {
   }
 
   const handleDrawMark = async () => {
-    if (!p.ready.value) return // localReady 门控
+    if (!p.ready.value || p.detail.value.pdf) return // localReady 门控
     if (!articleSelectionRef.value && p.containerDom.value && p.monitorDom.value) {
       const config = {
         shareCode: p.shareCode || '',
@@ -238,6 +238,7 @@ export function useArticleSelection(p: UseArticleSelectionParams) {
     }
 
     for (const source of mark.source) {
+      if (source.type === 'pdf') continue
       if (source.type === 'image') {
         const paths = source.path.split('>')
         const tailIdx = paths.length - 1

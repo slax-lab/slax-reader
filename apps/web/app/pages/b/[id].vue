@@ -1,6 +1,6 @@
 <template>
   <div>
-    <SnapshotDetailLayout v-if="detail" class="bookmark-detail" @close-panel="onUserPanelChange(null)">
+    <SnapshotDetailLayout v-if="detail" class="bookmark-detail" :class="{ 'is-pdf': !!detail.pdf }" @close-panel="onUserPanelChange(null)">
       <template #topbar>
         <SnapshotTopBar>
           <template #left>
@@ -22,6 +22,7 @@
 
       <BookmarkArticleLocalFirst
         v-if="detail"
+        :key="detail.pdf?.document_id ?? 'title'"
         ref="bookmarkArticle"
         :detail="detail"
         :marks="marks"
@@ -32,6 +33,8 @@
         :bookmark-uuid="uuid"
         :local-ready="localReady"
         :is-owner="isOwner"
+        :pdf-load-error="!!error"
+        @retry-pdf="retryPdfContent"
         @screen-lock-update="screenLockUpdate"
         @chat-bot-quote="onChatBotQuote"
       />
@@ -66,11 +69,12 @@
       </template>
 
       <template #side-panel>
-        <SnapshotSidePanel v-if="detail" :active-tab="activePanel" :panels="sidePanels" :shortcut="sidePanelShortcut" @update:active-tab="onUserPanelChange($event)">
+        <SnapshotSidePanel :keyboard-aware="!!detail?.pdf" v-if="detail" :active-tab="activePanel" :panels="sidePanels" :shortcut="sidePanelShortcut" @update:active-tab="onUserPanelChange($event)">
           <template #ai>
             <ClientOnly>
               <!-- overview 仅 owner；outline 用 SSR 数据 -->
-              <SnapshotAIPanel
+              <p v-if="detail.pdf && detail.pdf.text_status !== 'ready'" class="pdf-ai-unavailable" role="status">{{ $t(`pdf.text_${detail.pdf.text_status}`) }}</p>
+              <SnapshotAIPanel v-else :pdf="!!detail.pdf" @find-quote="findQuote"
                 :bookmark-uid="bookmarkUid"
                 :default-outline="detail.outline"
                 :overview-enabled="isOwner"
@@ -86,8 +90,9 @@
           </template>
           <template #chat>
             <!-- Chat 仅 owner，组件不挂载 -->
+            <p v-if="detail.pdf && detail.pdf.text_status !== 'ready'" class="pdf-ai-unavailable" role="status">{{ $t(`pdf.text_${detail.pdf.text_status}`) }}</p>
             <SnapshotChatPanel
-              v-if="isOwner && !isSubscriptionExpired"
+              v-if="isOwner && !isSubscriptionExpired && (!detail.pdf || detail.pdf.text_status === 'ready')"
               ref="chatbot"
               :bookmark-uid="bookmarkUid"
               :is-appeared="activePanel === 'chat'"
@@ -179,6 +184,8 @@ import { useCommentPanel } from '~/composables/useCommentPanel'
 import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
 import type { IconKey } from '~/icons/registry'
 import { useUserStore } from '~/stores/user'
+import { pdfTitlePreview } from '~/utils/pdfPreview'
+import type { PdfTitlePreview } from '~/utils/pdfPreview'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -197,9 +204,11 @@ useRobotsRule('noindex, follow, noarchive')
 let contentResponseHeaders = new Headers()
 let articleProcessDuration: number | undefined
 const contentRequestHeaders = import.meta.server ? useRequestHeaders(['cookie']) : undefined
+const contentRequestEvent = import.meta.server ? useRequestEvent() : undefined
+const fetchContent = useRequestFetch()
 
-const { data: pageData, error } = await useAsyncData(`content-${uuid}`, async () => {
-  const res = await useRequestFetch()<{ metadata: SnapshotMetadata; body: string | null }>(`/api/content/${uuid}`, {
+const { data: pageData, error, refresh: refreshContent } = await useAsyncData(`content-${uuid}`, async () => {
+  const res = await fetchContent<{ metadata: SnapshotMetadata; body: string | null }>(`/api/content/${uuid}`, {
     headers: contentRequestHeaders,
     onResponse({ response }) {
       contentResponseHeaders = new Headers(response.headers)
@@ -212,8 +221,46 @@ const { data: pageData, error } = await useAsyncData(`content-${uuid}`, async ()
     articleProcessDuration = performance.now() - articleProcessStartedAt
   }
 
+  if (import.meta.server) {
+    const title = pdfTitlePreview(res.metadata)
+    if (title) {
+      const event = contentRequestEvent
+      if (event) {
+        event.context.__isOwner = res.metadata.role === 'owner'
+        event.context.__ownerUid = res.metadata.user_id == null ? '' : String(res.metadata.user_id)
+      }
+      // Only the title/type placeholder is serialized for PDF hydration.
+      return { metadata: title as SnapshotMetadata, body: null }
+    }
+  }
+
   return res
 })
+
+const clientReady = import.meta.client ? new Promise<void>(resolve => onNuxtReady(resolve)) : undefined
+const pdfPlaceholder = ref<PdfTitlePreview>()
+watch(() => pageData.value?.metadata, metadata => {
+  if (metadata) pdfPlaceholder.value = pdfTitlePreview(metadata)
+}, { immediate: true })
+
+let pdfTextPoll: ReturnType<typeof setTimeout> | undefined
+let pdfTextPollCount = 0
+watch(() => pageData.value?.metadata?.pdf?.text_status, status => {
+  clearTimeout(pdfTextPoll)
+  if (import.meta.client && status === 'pending' && pdfTextPollCount++ < 100) {
+    pdfTextPoll = setTimeout(async () => {
+      await refreshContent().catch(() => {})
+      if (pageData.value?.metadata?.pdf?.text_status === 'pending' && pdfTextPollCount++ < 100) schedulePdfTextPoll()
+    }, 3000)
+  }
+}, { immediate: true })
+function schedulePdfTextPoll() {
+  pdfTextPoll = setTimeout(async () => {
+    await refreshContent().catch(() => {})
+    if (pageData.value?.metadata?.pdf?.text_status === 'pending' && pdfTextPollCount++ < 100) schedulePdfTextPoll()
+  }, 3000)
+}
+onBeforeUnmount(() => clearTimeout(pdfTextPoll))
 
 if (import.meta.server && useRuntimeConfig().public.slaxEnv !== 'production') {
   const appendServerTiming = (value: string) => {
@@ -248,7 +295,7 @@ const canActOnMarks = computed(() => isOwner.value)
 const localRow = local ? local.watchDetail(uuid, localFirst) : null
 
 useReadingPosition(uuid, {
-  enabled: () => localFirst.value,
+  enabled: () => localFirst.value && !detail.value?.pdf,
   ready: () => localReady.value,
   skipRestore: () => !!route.query.highlight,
   load: () => local?.getReadingPosition(uuid).then(r => (r ? { index: r.anchor_index, ratio: r.anchor_ratio, percent: r.percent } : null)) ?? Promise.resolve(null),
@@ -268,7 +315,7 @@ const localTitle = computed<string | null>(() => (localFirst.value ? (localRow?.
 const localAlias = computed<string | null>(() => (localFirst.value ? (localRow?.row.value?.alias_title ?? null) : null))
 
 const detail = computed<SnapshotBookmarkDetail | null>(() => {
-  const meta = pageData.value?.metadata as SnapshotMetadata | undefined
+  const meta = (pageData.value?.metadata ?? pdfPlaceholder.value) as SnapshotMetadata | undefined
   if (!meta) return null
 
   const base = {
@@ -294,8 +341,8 @@ if (import.meta.server) {
   const reqEvent = useRequestEvent()
   if (reqEvent) {
     const metadata = pageData.value?.metadata as { role?: string; user_id?: number } | undefined
-    reqEvent.context.__isOwner = metadata?.role === 'owner'
-    reqEvent.context.__ownerUid = metadata?.user_id == null ? '' : String(metadata.user_id)
+    reqEvent.context.__isOwner ??= metadata?.role === 'owner'
+    reqEvent.context.__ownerUid ??= metadata?.user_id == null ? '' : String(metadata.user_id)
   }
 }
 
@@ -381,28 +428,7 @@ const { isSubscriptionExpired, showAnalyzed, showChatbot, chatBotQuote, showFeed
     bookmarkUid: bookmarkUid.value,
     targetUrl: detail.value?.target_url
   }),
-  initialRequestTask: async () => {
-    if (!isClient) return
-    // 划线/评论归属依赖真实 userId
-    // upstream 取不到，这里刷新兜底
-    const userStore = useUserStore()
-    if (userStore.isLogin && !userStore.userInfo) {
-      try {
-        await userStore.refreshUserInfo()
-      } catch (e) {
-        console.error('[b] load user failed:', e)
-      }
-    }
-    if (local) {
-      try {
-        if (isOwner.value && (await local.exists(uuid))) localFirst.value = true
-      } catch (e) {
-        console.error('[b] local-first takeover failed:', e)
-      }
-    }
-    localReady.value = true
-    if (!localFirst.value) await loadMarks()
-  },
+  initialRequestTask: initializeClientDetail,
   // 就绪后决定初始侧栏
   initialTasksCompleted: () => {
     if (!isClient) return
@@ -414,6 +440,38 @@ const { isSubscriptionExpired, showAnalyzed, showChatbot, chatBotQuote, showFeed
     }, 5000)
   }
 })
+
+async function initializeClientDetail() {
+  if (!isClient) return
+  const userStore = useUserStore()
+  if (pageData.value?.metadata.type === 'pdf' && !pageData.value.metadata.pdf) {
+    await clientReady
+    await refreshContent()
+    if (error.value) return
+  }
+  // 划线/评论归属依赖真实 userId
+  // upstream 取不到，这里刷新兜底
+  if (userStore.isLogin && !userStore.userInfo) {
+    try {
+      await userStore.refreshUserInfo()
+    } catch (e) {
+      console.error('[b] load user failed:', e)
+    }
+  }
+  if (local) {
+    try {
+      if (isOwner.value && (await local.exists(uuid))) localFirst.value = true
+    } catch (e) {
+      console.error('[b] local-first takeover failed:', e)
+    }
+  }
+  localReady.value = true
+  if (!localFirst.value) await loadMarks()
+}
+async function retryPdfContent() {
+  await refreshContent()
+  if (!error.value) await initializeClientDetail()
+}
 
 // visitor：AI 看 outline，评论看 marks
 const hasOutline = computed(() => !!detail.value?.outline?.trim())
@@ -876,7 +934,7 @@ const defineSeo = () => {
 
   useHead({
     titleTemplate: title,
-    link: [{ rel: 'canonical', href: m.target_url }]
+    link: [{ rel: 'canonical', href: m.pdf?.source === 'upload' ? selfUrl : m.target_url }]
   })
 
   useSeoMeta({
@@ -932,6 +990,14 @@ renderServerData()
 </script>
 
 <style lang="scss" scoped>
+@media (max-width: 768px) {
+  .bookmark-detail.is-pdf :deep(.comment-composer-send),
+  .bookmark-detail.is-pdf :deep(.comment-meta-actions button),
+  .bookmark-detail.is-pdf :deep(.comment-sub-actions button),
+  .bookmark-detail.is-pdf :deep(.side-panel-tab),
+  .bookmark-detail.is-pdf :deep(.side-panel-close) { min-height: 44px; min-width: 44px; }
+}
+.pdf-ai-unavailable { padding: 24px; font-size: var(--slax-fs-aux); line-height: 1.6; color: var(--slax-text-muted); }
 .bookmark-detail {
   --slax-header-height: var(--slax-header-h-snapshot);
 

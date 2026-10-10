@@ -1,5 +1,5 @@
 import type { MarkCommentInfo, MarkItemInfo, QuoteData } from '@slax-reader/selection/types'
-import type { DwebArticleSelection } from '~/components/Article/Selection/DwebArticleSelection'
+import type { ReaderSelection } from '~/components/Article/Selection/ReaderSelection'
 import type { SnapshotPanelId } from '~/components/Snapshot/panels'
 
 export interface CommentPanelEvent {
@@ -26,7 +26,7 @@ export function useCommentPanel({
   allowAction = () => true
 }: {
   activePanel: Ref<SnapshotPanelId | null>
-  articleSelection: Ref<DwebArticleSelection | null>
+  articleSelection: Ref<ReaderSelection | null>
   allowAction?: () => boolean
 }) {
   const activeInfoId = ref<string | null>(null)
@@ -70,6 +70,7 @@ export function useCommentPanel({
 
   // 通过 info.id 闪烁正文划线
   const flashMarkByInfoId = (infoId: string) => {
+    if (articleSelection.value?.revealMark) { articleSelection.value.revealMark(infoId); return }
     const marks = document.querySelectorAll<HTMLElement>(`slax-mark[data-uuid="${infoId}"]`)
     if (!marks.length) return
     // 即时定位，smooth 长文滚动太慢

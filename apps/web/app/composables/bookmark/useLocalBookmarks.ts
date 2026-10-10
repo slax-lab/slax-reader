@@ -1,3 +1,4 @@
+import { bookmarkContentType } from '@slax-reader/contracts/pdf'
 import { computed, type MaybeRef, toValue } from 'vue'
 
 import { toUtcDate } from '@/utils/date'
@@ -143,7 +144,7 @@ function rowToItem(r: LocalBookmarkRow): BookmarkItem {
     archived: r.archive_status === 1 ? 'archive' : 'inbox',
     starred: r.is_starred === 1 ? 'star' : 'unstar',
     trashed_at: null,
-    type: r.type === 1 ? 'shortcut' : 'article',
+    type: bookmarkContentType(r.type),
     // 卡片上的标签由 useBookmarkData 用词表把 uuid 换成名字
     tag_ids: parseTagIds(r.m_tags)
   }

@@ -8,7 +8,7 @@ export interface BookmarkExportItem {
   is_read: boolean
   is_archived: boolean
   is_starred: boolean
-  type: 'article' | 'shortcut'
+  type: 'article' | 'shortcut' | 'pdf'
 }
 
 export type BookmarkExportResponse = CursorPage<BookmarkExportItem>

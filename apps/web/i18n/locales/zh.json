@@ -1,4 +1,11 @@
 {
+  "pdf": {
+    "local_upload": "本地上传",
+    "page_spacing": "显示页间距",
+    "original_colors": "原色",
+    "theme_colors": "跟随主题",
+    "reader": "PDF 阅读器", "controls": "PDF 阅读控制", "previous": "上一页", "next": "下一页", "page": "页码", "fit": "适合宽度", "zoom_out": "缩小", "zoom_in": "放大", "loading": "正在加载 PDF…", "retry": "重试", "load_failed": "无法打开此 PDF，请重试或上传有效文件。", "password": "暂不支持密码保护的 PDF。", "highlight": "划线", "remove_highlight": "删除划线", "comment": "评论", "ask_ai": "问 AI", "selection_actions": "选中文字操作", "selection_invalid": "无法定位选中文字，请重新选择。", "text_pending": "正在提取 PDF 文字以供 AI 分析…", "text_empty": "暂无可分析文字，扫描件仍可正常预览。", "text_failed": "PDF 文字提取失败，仍可正常预览文件。", "quote_not_found": "未能在 PDF 中定位这段引用。", "upload": "上传 PDF", "upload_limit": "单个 PDF，最大 50 MiB", "invalid_file": "请选择 PDF 文件。", "upload_failed": "PDF 上传失败，请重试。"
+  },
   "common": {
     "app": {
       "name": "Slax Reader",
@@ -1191,6 +1198,11 @@
         "rss": {
           "name": "RSS 订阅",
           "desc": "浏览自己的 RSS 订阅，再将感兴趣的文章收藏到收件箱。"
+        },
+        "pdf": {
+          "name": "PDF 收藏",
+          "desc": "收藏 PDF 链接或上传 PDF，在线阅读、划线评论，并分析可提取的文字。",
+          "blocked": "PDF 收藏还在实验室里，请到设置页打开后再保存"
         }
       },
       "navigation": {

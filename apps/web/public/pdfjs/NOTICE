@@ -1,0 +1,6 @@
+Slax Reader bundles PDF.js (pdfjs-dist 6.4.299).
+Copyright Mozilla Foundation and PDF.js contributors.
+Source: https://github.com/mozilla/pdf.js
+License: Apache License 2.0, included in LICENSE in this directory.
+The viewer stylesheet is scoped to the Slax PDF reader during the build.
+The original worker, CMaps, fonts and WASM assets retain their upstream notices.

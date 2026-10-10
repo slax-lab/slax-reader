@@ -1,6 +1,6 @@
 <template>
   <div>
-    <SnapshotDetailLayout class="bookmark-detail" @close-panel="activePanel = null">
+    <SnapshotDetailLayout class="bookmark-detail" :class="{ 'is-pdf': !!detail?.pdf }" @close-panel="activePanel = null">
       <template #topbar>
         <SnapshotTopBar>
           <template #left>
@@ -41,9 +41,12 @@
 
       <BookmarkArticle
         v-if="detail"
+        :key="detail.pdf?.document_id ?? 'title'"
         ref="bookmarkArticle"
         :detail="detail"
         :marks="marks"
+        :pdf-load-error="pdfLoadError"
+        @retry-pdf="loadBookmarkDetail"
         @screen-lock-update="screenLockUpdate"
         @bookmark-update="bookmarkUpdate"
         @chat-bot-quote="onChatBotQuote"
@@ -70,15 +73,17 @@
       </template>
 
       <template #side-panel>
-        <SnapshotSidePanel v-if="detail" :active-tab="activePanel" @update:active-tab="activePanel = $event">
+        <SnapshotSidePanel :keyboard-aware="!!detail?.pdf" v-if="detail" :active-tab="activePanel" @update:active-tab="activePanel = $event">
           <template #ai>
             <ClientOnly>
-              <SnapshotAIPanel :share-code="shareCode" :is-appeared="activePanel === 'ai'" @dismiss="activePanel = null" />
+              <p v-if="detail.pdf && detail.pdf.text_status !== 'ready'" class="pdf-ai-unavailable" role="status">{{ $t(`pdf.text_${detail.pdf.text_status}`) }}</p>
+              <SnapshotAIPanel v-else :pdf="!!detail.pdf" @find-quote="findQuote" :share-code="shareCode" :is-appeared="activePanel === 'ai'" @dismiss="activePanel = null" />
             </ClientOnly>
           </template>
           <template #chat>
+            <p v-if="detail.pdf && detail.pdf.text_status !== 'ready'" class="pdf-ai-unavailable" role="status">{{ $t(`pdf.text_${detail.pdf.text_status}`) }}</p>
             <SnapshotChatPanel
-              v-if="!isSubscriptionExpired"
+              v-if="!isSubscriptionExpired && (!detail.pdf || detail.pdf.text_status === 'ready')"
               ref="chatbot"
               :share-code="shareCode"
               :is-appeared="activePanel === 'chat'"
@@ -157,17 +162,21 @@ import Toast, { ToastType } from '~/components/Toast'
 import { useBookmark } from '~/composables/bookmark/useBookmark'
 import { useCommentPanel } from '~/composables/useCommentPanel'
 import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
+import { pdfTitlePreview } from '~/utils/pdfPreview'
 
 const { t } = useI18n()
 const router = useRoute()
 const loading = ref(false)
 
 const config = useRuntimeConfig().public
+const detailRequest = request()
 
 const googleLoginBtn = ref<InstanceType<typeof GoogleLoginButton>>()
 const shareCode = String(router.params.id)
 const detail = ref<ShareBookmarkDetail>()
 const marks = ref<MarkDetail>()
+const pdfLoadError = ref(false)
+const clientReady = import.meta.client ? new Promise<void>(resolve => onNuxtReady(resolve)) : undefined
 
 const bookmarkArticle = ref<InstanceType<typeof BookmarkArticle>>()
 const chatbot = ref<InstanceType<typeof SnapshotChatPanel>>()
@@ -265,6 +274,13 @@ const defineSeo = () => {
     return
   }
 
+  if (detail.value.type === 'pdf') {
+    const title = `${detail.value.title} - ${t('common.app.name')}`
+    useHead({ title })
+    useSeoMeta({ title, ogTitle: title, twitterTitle: title })
+    return
+  }
+
   const wordText = extractHTMLTextContent(detail.value?.content || '')
   const title = `${detail.value?.title} - ${t('common.app.name')}`
   const description = wordText.length < 60 ? wordText : wordText.slice(0, 60)
@@ -328,29 +344,37 @@ const loadMarks = async () => {
 }
 
 const loadBookmarkDetail = async () => {
-  if (!detail.value) {
-    const data = await request().get<ShareBookmarkDetail>({
-      url: RESTMethodPath.SHARE_BOOKMARK_DETAIL,
-      query: {
-        share_code: shareCode
-      }
-    })
+  pdfLoadError.value = false
+  try {
+    if (!detail.value || (detail.value.type === 'pdf' && !detail.value.pdf)) {
+      const data = await detailRequest.get<ShareBookmarkDetail>({
+        url: RESTMethodPath.SHARE_BOOKMARK_DETAIL,
+        query: { share_code: shareCode }
+      })
 
-    data && (detail.value = data)
+      data && (detail.value = data)
+    }
+
+    await loadMarks()
+  } catch {
+    pdfLoadError.value = detail.value?.type === 'pdf'
   }
-
-  await loadMarks()
 }
 
 const fetchServerData = async () => {
-  const { data } = await useAsyncData('detail', () =>
-    request().get<ShareBookmarkDetail>({
+  const { data } = await useAsyncData(`share-detail-${shareCode}`, async () => {
+    const response = await request().get<ShareBookmarkDetail>({
       url: RESTMethodPath.SHARE_BOOKMARK_DETAIL,
       query: {
         share_code: shareCode
       }
     })
-  )
+    if (import.meta.server && response) {
+      const title = pdfTitlePreview(response)
+      if (title) return title as ShareBookmarkDetail
+    }
+    return response
+  })
 
   data.value && (detail.value = data.value)
 }
@@ -398,6 +422,7 @@ const {
       return
     }
 
+    if (detail.value?.type === 'pdf' && !detail.value.pdf) await clientReady
     await loadBookmarkDetail()
   },
   initialTasksCompleted: () => {
@@ -485,6 +510,14 @@ const moreMenuClick = (action: MoreMenuAction) => {
 </script>
 
 <style lang="scss" scoped>
+@media (max-width: 768px) {
+  .bookmark-detail.is-pdf :deep(.comment-composer-send),
+  .bookmark-detail.is-pdf :deep(.comment-meta-actions button),
+  .bookmark-detail.is-pdf :deep(.comment-sub-actions button),
+  .bookmark-detail.is-pdf :deep(.side-panel-tab),
+  .bookmark-detail.is-pdf :deep(.side-panel-close) { min-height: 44px; min-width: 44px; }
+}
+.pdf-ai-unavailable { padding: 24px; font-size: var(--slax-fs-aux); line-height: 1.6; color: var(--slax-text-muted); }
 .bookmark-detail {
   // 公开快照页归在 snapshot 档（DESIGN.md §5.5：52px），
   // 通过 override --slax-header-height 让本页的 DetailLayout .header-container（h-header）拿到 52

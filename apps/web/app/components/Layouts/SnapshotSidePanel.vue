@@ -63,6 +63,7 @@ defineOptions({ inheritAttrs: false })
 
 const props = defineProps<{
   activeTab: SnapshotPanelId | null
+  keyboardAware?: boolean
   // 展示的面板子集，不传则全部
   panels?: SnapshotPanelId[]
   // 收起快捷键文案，不传则不提示
@@ -117,7 +118,30 @@ onBeforeUnmount(clearTipsTimer)
 // 抓手下拉跟手，松手按阈值收起
 const dragOffset = ref(0)
 const isSheetDragging = ref(false)
+const viewportHeight = ref(0)
+const keyboardInset = ref(0)
+const updateKeyboardViewport = () => {
+  const viewport = window.visualViewport
+  viewportHeight.value = viewport?.height ?? window.innerHeight
+  keyboardInset.value = Math.max(0, window.innerHeight - viewportHeight.value - (viewport?.offsetTop ?? 0))
+}
+onMounted(() => {
+  // PDF metadata arrives after hydration; start observing when its reader is ready.
+  watch(() => props.keyboardAware, (enabled, _, onCleanup) => {
+    viewportHeight.value = 0
+    keyboardInset.value = 0
+    if (!enabled) return
+    updateKeyboardViewport()
+    window.visualViewport?.addEventListener('resize', updateKeyboardViewport)
+    window.visualViewport?.addEventListener('scroll', updateKeyboardViewport)
+    onCleanup(() => {
+      window.visualViewport?.removeEventListener('resize', updateKeyboardViewport)
+      window.visualViewport?.removeEventListener('scroll', updateKeyboardViewport)
+    })
+  }, { immediate: true })
+})
 const panelStyle = computed(() => ({
+  ...(props.keyboardAware && isH5.value && viewportHeight.value ? { bottom: keyboardInset.value + 'px', maxHeight: viewportHeight.value * .9 + 'px', minHeight: viewportHeight.value * .4 + 'px' } : {}),
   width: panelWidth.value + 'px',
   // 下拉时接管 transform，松手交还 CSS
   ...(isSheetDragging.value ? { transform: `translateY(${dragOffset.value}px)` } : {})

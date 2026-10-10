@@ -38,7 +38,7 @@
 
 <script lang="ts" setup>
 import type { MarkCommentInfo, MarkItemInfo, QuoteData } from '@slax-reader/selection/types'
-import type { DwebArticleSelection } from '~/components/Article/Selection/DwebArticleSelection'
+import type { ReaderSelection } from '~/components/Article/Selection/ReaderSelection'
 import { getUUID } from '~/components/Article/Selection/tools'
 import { showLoginModal } from '~/components/Modal'
 import Toast, { ToastType } from '~/components/Toast'
@@ -47,7 +47,7 @@ import { useUserStore } from '~/stores/user'
 const props = defineProps<{
   allowAction?: boolean
   allowReply?: boolean
-  articleSelection: DwebArticleSelection | null
+  articleSelection: ReaderSelection | null
   pendingSelection: MarkItemInfo | null
   pendingQuote: QuoteData | null
   activeInfoId: string | null
