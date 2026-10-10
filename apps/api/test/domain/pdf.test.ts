@@ -2,8 +2,6 @@ import { describe, expect, it, vi } from 'vitest'
 import { PDF_MAX_BYTES, bookmarkContentType, pdfMetadataAuthor, pdfByteRange, pdfResponseHeaders, validatePdfSources } from '@slax-reader/contracts/pdf'
 import { extractPdfText, pdfHash, readPdfBody } from '../../src/utils/pdf'
 import { pdfFixture } from '../helpers/pdfFixture'
-import { getDocumentProxy } from 'unpdf'
-import { quadToViewport, rectToPdfQuad } from '../../../web/app/components/Article/Pdf/geometry'
 
 describe('PDF ingestion and extraction', () => {
   it('extracts document-info authors alongside text, including image-only pages', async () => {
@@ -67,21 +65,6 @@ describe('PDF contracts', () => {
     expect(pdfMetadataAuthor('a'.repeat(600), undefined)?.length).toBe(500)
   })
 
-  it.each([0, 90, 180, 270])('restores page geometry at rotation %s with a nonzero page origin across zoom/density changes', async rotation => {
-    const pdf = await getDocumentProxy(pdfFixture(['Geometry'], [rotation]))
-    try {
-      const page = await pdf.getPage(1)
-      const viewport = page.getViewport({ scale: 1 })
-      const quad = rectToPdfQuad({ left: 12, top: 24, right: 70, bottom: 46 }, viewport)
-      for (const scale of [0.5, 1, 2, 3]) {
-        const points = quadToViewport(quad, page.getViewport({ scale }))
-        expect(points[0]![0]).toBeCloseTo(12 * scale)
-        expect(points[0]![1]).toBeCloseTo(24 * scale)
-        expect(points[2]![0]).toBeCloseTo(70 * scale)
-        expect(points[2]![1]).toBeCloseTo(46 * scale)
-      }
-    } finally { await pdf.loadingTask.destroy() }
-  })
   it.each([[0, 'article'], [1, 'shortcut'], [2, 'pdf']])('maps persisted type %s', (type, name) => expect(bookmarkContentType(Number(type))).toBe(name))
   it.each([['bytes=2-4', { offset: 2, length: 3 }], ['bytes=-4', { offset: 6, length: 4 }], ['bytes=7-', { offset: 7, length: 3 }], ['bytes=0-99', { offset: 0, length: 10 }]])('handles range %s', (value, range) => expect(pdfByteRange(String(value), 10)).toEqual(range))
   it.each(['bytes=10-', 'bytes=4-2', 'bytes=-0', 'bytes=0-1,4-5', 'bytes=90071992547409930-'])('rejects %s', value => expect(() => pdfByteRange(value, 10)).toThrow())

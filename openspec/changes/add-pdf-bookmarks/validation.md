@@ -121,3 +121,12 @@ The initial PR API CI run `38036700365`, job `114168503188`, failed on 33 `prett
 - `pnpm api -- lint` passed with zero errors. The same 336 warnings remain nonblocking.
 - `pnpm api -- typecheck` and `git diff --check` passed.
 - Local pre-push review: Bugs and Security found no semantic or access-policy changes; Compliance confirms an implementation-only formatting follow-up to `add-pdf-bookmarks`. No Important findings.
+
+## API CI test isolation follow-up
+
+The next API CI run `38037648999` passed lint and typecheck but failed while loading `test/domain/pdf.test.ts`: its import of Web `geometry.ts` made Vite resolve the Web tsconfig and its absent `.nuxt/tsconfig.app.json`. Reproduced the same failure in a separate clean checkout with no Web build directory.
+
+- Moved the four rotated/nonzero-origin viewport tests into Web `pdfViewport.spec.ts`. They now exercise the frontend's pinned PDF.js with a real PDF fixture and retain all zoom/density assertions. API tests no longer import Web source; backend extraction, metadata, ingestion limits, and contracts remain covered. No production code, UI, dependency, or CI configuration changed.
+- `pnpm api -- test` in that clean checkout passed: 157 files passed, 1,852 tests passed, and 46 optional infrastructure tests skipped. Web `.nuxt` remained absent before and after the run.
+- The four PDF viewer/geometry/viewport/preview suites passed all 24 tests, both in plain happy-dom and with the repository's shared Nuxt test setup using an isolated build directory.
+- Local pre-push review under `REVIEW.md`: Bugs confirms preserved geometry coverage and independent API setup; Security confirms no runtime or access-policy changes; Compliance confirms an implementation-only test relocation within `add-pdf-bookmarks`. No Important findings.
