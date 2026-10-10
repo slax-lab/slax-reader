@@ -8,7 +8,7 @@ Allow users to save PDF links or upload PDF files and read, highlight, and discu
 
 ### Requirement: PDF acquisition requires Labs opt-in
 
-PDF bookmarks SHALL be an active, disabled-by-default per-user Labs feature. The frontend SHALL show the upload entry only when its loaded Labs state enables `pdf`. The backend SHALL require opt-in for uploads and new PDF acquisition through REST URL saves, imports, and capture workflows, including extensionless responses. Sync mutation acceptance and dispatch SHALL NOT validate Labs state. Disabling the switch SHALL preserve read access to existing saved PDFs.
+PDF bookmarks SHALL be an active, disabled-by-default per-user Labs feature. The frontend SHALL show the upload entry only when its loaded Labs state enables `pdf`. The backend SHALL require opt-in for uploads and new PDF acquisition through REST URL saves, imports, and capture workflows, including extensionless responses. Sync mutation acceptance and dispatch SHALL NOT validate Labs state. Disabling the switch SHALL preserve read access to existing saved PDFs. Existing non-PDF Labs acquisition gates SHALL remain enforced by the crawl workflow.
 
 #### Scenario: Labs is disabled
 - **WHEN** a user without PDF opt-in opens the bookmark dialog or requests PDF upload
@@ -25,6 +25,10 @@ PDF bookmarks SHALL be an active, disabled-by-default per-user Labs feature. The
 #### Scenario: Labs is enabled
 - **WHEN** the user enables PDF bookmarks in Labs
 - **THEN** the upload entry becomes available and authorized PDF URL saves and uploads can complete
+
+#### Scenario: Non-PDF Labs acquisition after synchronization
+- **WHEN** synchronization accepts a YouTube URL while its Labs feature is disabled
+- **THEN** synchronization and unrelated changes can complete, while the crawl workflow rejects that acquisition before cache reuse or provider fetching, marks it failed without retry or fault alerts, and applies the same check to a short link resolved to YouTube
 
 ### Requirement: PDF title uses embedded metadata when available
 

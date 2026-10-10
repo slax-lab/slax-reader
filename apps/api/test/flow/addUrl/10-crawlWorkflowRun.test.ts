@@ -36,12 +36,16 @@ vi.mock('@/di/generated/dependency', () => ({
   initializeInfrastructure: vi.fn()
 }))
 vi.mock('@/utils/context', () => ({
-  ContextManager: vi.fn().mockImplementation((_ctx: any, env: any) => ({
-    setUserInfo: vi.fn(),
-    setHashIds: vi.fn(),
-    env,
-    execution: { waitUntil: vi.fn((p: Promise<any>) => p.catch(() => {})) }
-  }))
+  ContextManager: vi.fn().mockImplementation((_ctx: any, env: any) => {
+    let userId = 0
+    return {
+      setUserInfo: vi.fn((id: number) => { userId = id }),
+      getUserId: () => userId,
+      setHashIds: vi.fn(),
+      env,
+      execution: { waitUntil: vi.fn((p: Promise<any>) => p.catch(() => {})) }
+    }
+  })
 }))
 vi.mock('@/utils/hashids', () => ({
   Hashid: vi.fn().mockImplementation(() => ({ encodeId: vi.fn((id: number) => id * 100) }))
@@ -50,6 +54,7 @@ vi.mock('@/utils/hashids', () => ({
 import { CrawlWorkflow } from '@/entry/edge/workflows/crawlWorkflow'
 import { CrawlService } from '@/domain/crawl'
 import { BookmarkService } from '@/domain/bookmark'
+import { LabService } from '@/domain/lab'
 import { UrlParserHandler } from '@/domain/orchestrator/urlParser'
 import { TelegramBotService } from '@/domain/telegram'
 import { ImportService } from '@/domain/import'
@@ -67,16 +72,19 @@ import {
   STANDARD_CRAWL_RESULT
 } from '@test/helpers/mockFactory'
 
-function wireWorkflow() {
-  const cs = createMockCrawlService()
+function wireWorkflow(labsEnabled = true) {
+  const cs = { ...createMockCrawlService(), fetchYoutubeData: vi.fn(), parseAndSaveYoutube: vi.fn() }
   const bs = createMockBookmarkService()
   const uph = createMockUrlParserHandler()
   const tg = createMockTelegramBotService()
   const imp = createMockImportService()
+  const labRepo = { isEnabled: vi.fn().mockResolvedValue(labsEnabled) }
+  const labs = new (LabService as any)(labRepo) as LabService
 
   mockResolveMap.clear()
   mockResolveMap.set(CrawlService, cs)
   mockResolveMap.set(BookmarkService, bs)
+  mockResolveMap.set(LabService, labs)
   mockResolveMap.set(UrlParserHandler, uph)
   mockResolveMap.set(TelegramBotService, tg)
   mockResolveMap.set(ImportService, imp)
@@ -86,7 +94,7 @@ function wireWorkflow() {
   wf.ctx = {}
   wf.env = env
 
-  return { wf, cs, bs, uph, tg, imp, env }
+  return { wf, cs, bs, uph, tg, imp, env, labRepo }
 }
 
 // ---- Helper: run workflow ----
@@ -95,6 +103,90 @@ async function runWorkflow(wf: any, eventOverrides: Record<string, unknown> = {}
   const mockStep = step ?? createMockStep()
   return wf.run(event, mockStep)
 }
+
+describe('CrawlWorkflow acquisition Labs gates', () => {
+  const youtube = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+
+  test.each([
+    { url: youtube, cached: false },
+    { url: youtube, cached: true },
+    { url: 'https://youtu.be/dQw4w9WgXcQ', cached: false },
+    { url: 'https://youtu.be/dQw4w9WgXcQ', cached: true }
+  ])('rejects disabled YouTube acquisition before cache reuse or provider fetch: %o', async ({ url, cached }) => {
+    const { wf, cs, bs, uph, labRepo } = wireWorkflow(false)
+    if (cached) bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, privateUser: 0 })
+
+    await expect(runWorkflow(wf, { url, userId: 7 })).rejects.toMatchObject({ name: 'NonRetryableError', message: expect.stringContaining('url_lab_disabled:') })
+
+    expect(labRepo.isEnabled).toHaveBeenCalledWith(7, 'youtube')
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(bs.getBookmarkTitleAndTextContentTry).not.toHaveBeenCalled()
+    expect(bs.capturePdf).not.toHaveBeenCalled()
+    expect(cs.resolveShortLink).not.toHaveBeenCalled()
+    expect(cs.fetchYoutubeData).not.toHaveBeenCalled()
+    expect(cs.pushBookmarkFailureAlert).not.toHaveBeenCalled()
+    expect(uph.processPostHandler).not.toHaveBeenCalled()
+  })
+
+  test('rejects a regular short link resolved to YouTube before provider fetch', async () => {
+    const { wf, cs, bs, labRepo } = wireWorkflow(false)
+    cs.resolveShortLink.mockResolvedValue(youtube)
+
+    await expect(runWorkflow(wf, { url: 'https://bit.ly/video' })).rejects.toMatchObject({ name: 'NonRetryableError', message: expect.stringContaining('url_lab_disabled:') })
+
+    expect(labRepo.isEnabled).toHaveBeenCalledWith(1, 'youtube')
+    expect(cs.fetchYoutubeData).not.toHaveBeenCalled()
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(cs.pushBookmarkFailureAlert).not.toHaveBeenCalled()
+  })
+
+  test.each([youtube, 'https://bit.ly/video'])('allows enabled YouTube acquisition from %s', async url => {
+    const { wf, cs, uph, labRepo } = wireWorkflow(true)
+    cs.resolveShortLink.mockResolvedValue(youtube)
+    cs.fetchYoutubeData.mockResolvedValue({ title: 'Video' })
+    cs.parseAndSaveYoutube.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf, { url, userId: 7 })
+
+    expect(labRepo.isEnabled).toHaveBeenCalledWith(7, 'youtube')
+    expect(cs.fetchYoutubeData).toHaveBeenCalledWith(expect.anything(), youtube)
+    expect(cs.parseAndSaveYoutube).toHaveBeenCalled()
+    expect(uph.processPostHandler).toHaveBeenCalled()
+  })
+
+  test('keeps ungated articles independent of Labs availability', async () => {
+    const { wf, cs, labRepo } = wireWorkflow(false)
+    labRepo.isEnabled.mockRejectedValue(new Error('Labs unavailable'))
+    cs.fetchRegular.mockResolvedValue({ content: '<p>Article</p>', url: 'https://example.com/article', title: 'Article' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf)
+
+    expect(labRepo.isEnabled).not.toHaveBeenCalled()
+    expect(cs.fetchRegular).toHaveBeenCalled()
+  })
+
+  test('preserves retriable Labs service failures on gated acquisitions', async () => {
+    const { wf, cs, bs, labRepo } = wireWorkflow()
+    labRepo.isEnabled.mockRejectedValue(new Error('Labs unavailable'))
+
+    await expect(runWorkflow(wf, { url: youtube })).rejects.toMatchObject({ name: 'Error', message: 'Labs unavailable' })
+
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(cs.fetchYoutubeData).not.toHaveBeenCalled()
+    expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(1, 'workflow_fetch.exhausted', expect.anything())
+  })
+
+  test('records import failure when a disabled YouTube acquisition is dispatched', async () => {
+    const { wf, bs, imp } = wireWorkflow(false)
+
+    await expect(runWorkflow(wf, { url: youtube, importTaskId: 55 })).rejects.toMatchObject({ name: 'NonRetryableError' })
+
+    expect(bs.updateBookmarkImportRelationStatus).toHaveBeenCalledWith(1, 42, 55, 2)
+    expect(imp.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 55, 0, 1)
+  })
+})
 
 describe('CrawlWorkflow fetch step 状态转换', () => {
   test('PDF capture reuses text AI processing without invoking HTML parsing', async () => {

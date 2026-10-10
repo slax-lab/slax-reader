@@ -130,3 +130,13 @@ The next API CI run `38037648999` passed lint and typecheck but failed while loa
 - `pnpm api -- test` in that clean checkout passed: 157 files passed, 1,852 tests passed, and 46 optional infrastructure tests skipped. Web `.nuxt` remained absent before and after the run.
 - The four PDF viewer/geometry/viewport/preview suites passed all 24 tests, both in plain happy-dom and with the repository's shared Nuxt test setup using an isolated build directory.
 - Local pre-push review under `REVIEW.md`: Bugs confirms preserved geometry coverage and independent API setup; Security confirms no runtime or access-policy changes; Compliance confirms an implementation-only test relocation within `add-pdf-bookmarks`. No Important findings.
+
+## PR review: non-PDF acquisition gates
+
+Review run `38038349778` reported one Important finding: removing Labs checks from sync dispatch also removed the only asynchronous gate for YouTube captures. The existing REST gate remained, but a PowerSync-originated acquisition could proceed with YouTube Labs disabled. Confirmed the finding against `LabService.GATED_ROUTES` and the crawl workflow.
+
+- Restored URL-based Labs checks in the crawl fetch step before cache reuse and after short-link resolution. Disabled acquisitions raise `NonRetryableError`, mark the pending bookmark failed, retain import failure accounting, and skip fault alerts. Gated acquisitions retain retriable infrastructure errors; ungated URLs do not read Labs state. Sync acceptance and dispatch remain independent of Labs, and PDF gating still uses response detection.
+- Ten new workflow cases cover direct/short-form YouTube URLs, disabled cache reuse, redirected short links, enabled captures, user identity, ungated articles during Labs outages, retriable Labs failures, and import accounting. Six affected suites passed 153 tests, including the unchanged sync independence and PDF acquisition tests.
+- `pnpm api -- test`: 157 files passed, 1,862 tests passed, 46 optional infrastructure tests skipped.
+- `pnpm api -- lint`: zero errors, 336 existing warnings. `pnpm api -- typecheck` and `pnpm api -- build` passed; the build bundled all four Workers offline without deployment. `LabService` already has a generated infrastructure registration, so no generated-file edit was needed.
+- Local pre-push review under `REVIEW.md`: **Bugs** confirmed gate placement before cache reuse and provider requests, enabled behavior, terminal disabled errors, and independent sync; **Security** confirmed checks use the workflow user's context and preserve authorization and storage policy; **Compliance** confirmed the approved change's continued acquisition gates and tasks 9.1/9.3. No remaining Important findings in this follow-up.

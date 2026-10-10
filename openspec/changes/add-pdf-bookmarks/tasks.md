@@ -61,6 +61,7 @@ Task 6.2 remains open for a complete authenticated upload/sharing browser exerci
 
 - [x] 9.1 Remove Labs dependencies from sync acceptance/dispatch, preserve cached PDF relation types, regenerate API wiring, and verify mixed pending batches plus continued REST/workflow acquisition gates.
 - [x] 9.2 Remove PDF character/page-segment/quad-count selection limits across frontend and REST/sync writes; retain document identity/geometry and existing article/comment limits, and verify selections exceeding all former limits.
+- [x] 9.3 Restore non-PDF Labs acquisition gates in the crawl workflow without gating sync acceptance/dispatch; verify disabled/enabled YouTube captures, cache reuse, short-link resolution, terminal failures, and unaffected ordinary articles and PDFs.
 
 ## 10. PDF identification and author/source presentation
 

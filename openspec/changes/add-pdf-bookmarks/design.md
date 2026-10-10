@@ -38,6 +38,8 @@ Read XMP `dc:title` and document-info `Title` using the same PDF document opened
 
 PDF page slots have no gap by default. A local reader toggle restores the existing 20px gap, uses semantic selected/focus states, and leaves page dimensions, mark coordinates, and HTML article presentation unchanged. OCR is outside this implementation.
 
+Non-PDF Labs gates remain acquisition concerns too. The crawl fetch step checks the original URL before cache reuse and checks a changed short-link destination before provider fetching, using the existing `LabService` route registry. A disabled YouTube feature terminates only that acquisition, marks it failed, and emits no fault alert. Labs service failures remain retriable for gated acquisitions; ungated articles do not read Labs state. Sync acceptance and dispatch still do not consult Labs. PDF opt-in continues to depend on response detection rather than URL patterns.
+
 ### 1. Reuse existing storage with an explicit additive PDF type
 
 Reserve user-bookmark type `2` for PDF. Add a common type mapper for REST detail/list/export mappings and local bookmark/collection mappings; stop silently treating every value other than `1` as an article. Use `pdf/body/<user-bookmark-uuid>.pdf` as the original-object key and `application/pdf` R2 HTTP metadata. Store extracted page-labelled text in `text/pdf/<user-bookmark-uuid>.txt` through `content_md_key`, preserving the existing AI input contract.

@@ -9,6 +9,7 @@ import type { RedditData } from '@/const/moreapi/reddit'
 import { isWeixinImageShower, isWeixinLegacyImageShower } from '@/const/moreapi/weixin'
 import { UrlParserHandler } from '@/domain/orchestrator/urlParser'
 import { BookmarkService } from '@/domain/bookmark'
+import { LabService } from '@/domain/lab'
 import { Hashid } from '@/utils/hashids'
 import { queueStatus } from '@/infra/repository/dbBookmark'
 import { parserType } from '@/utils/urlPolicie'
@@ -61,6 +62,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     initializeInfrastructure(ctxManager, currentContainer)
 
     const bookmarkService = currentContainer.resolve(BookmarkService)
+    const labService = currentContainer.resolve(LabService)
     const crawlService = currentContainer.resolve(CrawlService)
     const urlParserHandler = currentContainer.resolve(UrlParserHandler)
     const telegramBotSvc = currentContainer.resolve(TelegramBotService)
@@ -81,6 +83,15 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
 
     const alertFailure = (scope: string, meta: Record<string, unknown>) =>
       crawlService.pushBookmarkFailureAlert(userId, scope, meta).catch(e => console.error(`alertFailure ${scope} failed: ${e}`))
+
+    const assertUrlCaptureAllowed = async (targetUrl: string) => {
+      try {
+        await labService.assertUrlAllowed(ctxManager, targetUrl)
+      } catch (error) {
+        if (error instanceof MultiLangError && error.name === ErrorName.LAB_FEATURE_DISABLED) throw new NonRetryableError(`url_lab_disabled:${error.getMessage}`)
+        throw error
+      }
+    }
 
     const trackStep = async <T>(stepName: string, fn: () => Promise<T>): Promise<T> => {
       try {
@@ -105,6 +116,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           timeout: '5 minutes'
         },
         async (): Promise<FetchedPayload> => {
+          await assertUrlCaptureAllowed(url)
           const stored = await bookmarkService.getBookmarkById(bookmarkId)
           if (stored?.content_key?.startsWith('pdf/body/')) {
             await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, url)
@@ -127,6 +139,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           const resolvedUrl = await crawlService.resolveShortLink(ctxManager, url)
           if (resolvedUrl !== url) {
             console.log(`Resolved short link: ${url} -> ${resolvedUrl}`)
+            await assertUrlCaptureAllowed(resolvedUrl)
           }
 
           const route = detectRoute(resolvedUrl)
@@ -207,7 +220,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
       await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.FAILED)
 
       const scope = err instanceof NonRetryableError ? 'workflow_fetch.business_terminal' : 'workflow_fetch.exhausted'
-      if (!errMsg.startsWith('pdf_lab_disabled:'))
+      if (!errMsg.startsWith('pdf_lab_disabled:') && !errMsg.startsWith('url_lab_disabled:'))
         await alertFailure(scope, {
           bookmark_id: bookmarkId,
           url,
