@@ -3,7 +3,7 @@
     <template v-for="(action, idx) in visibleActions" :key="action.id">
       <div v-if="idx > 0" class="toolbar-sep" />
       <button class="toolbar-btn" :class="{ active: action.active }" :title="action.label" @click="$emit('action', action, $event)">
-        <span class="btn-icon" v-html="action.icon" />
+        <span class="btn-icon"><AppIcon :name="action.icon" :size="18" /></span>
         <span v-if="!isNarrow" class="btn-label">{{ action.label }}</span>
       </button>
     </template>
@@ -12,7 +12,7 @@
       <template v-for="(panel, pIdx) in panelButtons" :key="panel.id">
         <div v-if="pIdx > 0 || visibleActions.length > 0" class="toolbar-sep" />
         <button class="toolbar-btn" :class="{ active: activePanel === panel.id }" :title="panel.label" @click="$emit('panel', panel.id)">
-          <span class="btn-icon" v-html="panel.icon" />
+          <span class="btn-icon"><AppIcon :name="panel.icon" :size="18" /></span>
           <span v-if="!isNarrow" class="btn-label">{{ panel.label }}</span>
         </button>
       </template>
@@ -21,11 +21,14 @@
 </template>
 
 <script lang="ts" setup>
+import AppIcon from '~/components/AppIcon.vue'
+
 import { resolveSnapshotPanels, type SnapshotPanelId } from '~/components/Snapshot/panels'
+import type { IconKey } from '~/icons/registry'
 
 export interface BottomToolbarAction {
   id: string
-  icon: string
+  icon: IconKey
   label: string
   active?: boolean
   visible?: boolean

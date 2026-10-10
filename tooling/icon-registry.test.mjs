@@ -1,17 +1,62 @@
 import assert from 'node:assert/strict'
+import { execFile } from 'node:child_process'
+import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import test from 'node:test'
+import { promisify } from 'node:util'
 
-import { buildRegistry, renderGeneratedRegistry, validateManifestEntry, validateSvg } from './icon-registry.mjs'
+import { buildRegistry, hashSourceBytes, renderGeneratedRegistry, resolveContainedPath, validateManifestEntry, validateSvg } from './icon-registry.mjs'
 
 const metadata = { kind: 'inline', paint: 'currentColor', viewBox: '0 0 24 24' }
+const execFileAsync = promisify(execFile)
+const REPOSITORY_ROOT = new URL('..', import.meta.url)
 
 test('builds the checked-in Web registry', async () => {
   const registry = await buildRegistry()
-  assert.equal(Object.keys(registry).length, 20)
+  assert.ok(Object.keys(registry).length >= 23)
   assert.equal(registry['bookmark.inbox'].viewBox, '0 0 18 18')
   assert.match(registry['bookmark.inbox'].geometry, /<path/)
   assert.match(registry['bookmark.inbox'].sourceHash, /^[a-f0-9]{64}$/)
+  assert.equal(registry['fixture.mask'].kind, 'mask')
+  assert.equal(registry['fixture.brand'].kind, 'brand')
+  assert.equal(registry['fixture.raster'].kind, 'raster')
   assert.match(renderGeneratedRegistry(registry), /GENERATED_ICON_REGISTRY/)
+})
+
+test('hashes binary registry sources from their original bytes', async () => {
+  const sourcePath = new URL('../apps/web/app/assets/icons/fixtures/raster.png', import.meta.url)
+  const sourceBytes = await readFile(sourcePath)
+  const registry = await buildRegistry()
+  assert.equal(registry['fixture.raster'].sourceHash, hashSourceBytes(sourceBytes))
+  assert.notEqual(hashSourceBytes(Buffer.from(sourceBytes.toString('utf8'))), registry['fixture.raster'].sourceHash)
+
+  const mutatedBytes = Buffer.from(sourceBytes)
+  mutatedBytes[mutatedBytes.length - 1] ^= 1
+  await writeFile(sourcePath, mutatedBytes)
+  try {
+    await assert.rejects(
+      execFileAsync(process.execPath, ['tooling/icon-registry.mjs', '--check'], { cwd: REPOSITORY_ROOT }),
+      error => /generated registry is stale/.test(`${error.stdout ?? ''}${error.stderr ?? ''}`)
+    )
+  } finally {
+    await writeFile(sourcePath, sourceBytes)
+  }
+})
+
+test('rejects registry paths that escape through a symlink before reading them', async () => {
+  const allowedRoot = await mkdtemp(join(tmpdir(), 'icon-registry-'))
+  const outside = await mkdtemp(join(tmpdir(), 'icon-registry-outside-'))
+  const target = join(outside, 'secret.svg')
+  const link = join(allowedRoot, 'escape.svg')
+  try {
+    await writeFile(target, '<svg viewBox="0 0 1 1"/>')
+    await symlink(target, link)
+    await assert.rejects(resolveContainedPath(link, allowedRoot, 'fixture source'), /resolves outside/)
+    await assert.rejects(resolveContainedPath(link, allowedRoot, 'fixture provenance sourcePath'), /resolves outside/)
+  } finally {
+    await Promise.all([rm(allowedRoot, { recursive: true, force: true }), rm(outside, { recursive: true, force: true })])
+  }
 })
 
 test('rejects reusable SVG references to keep generated IDs scoped', () => {
@@ -76,6 +121,10 @@ test('enforces kind-specific registry metadata', () => {
       label: 'Brand',
       provenance
     })
+  )
+  assert.throws(
+    () => validateManifestEntry('blank-standalone-label', { kind: 'inline', source: 'icon.svg', viewBox: '0 0 24 24', defaultSize: 24, paint: 'currentColor', accessibility: 'standalone', label: ' \t ', provenance }),
+    /standalone label must not be blank/
   )
   assert.throws(
     () => validateManifestEntry('decorative-label', { kind: 'inline', source: 'icon.svg', viewBox: '0 0 24 24', defaultSize: 24, paint: 'currentColor', accessibility: 'decorative', label: 'Ignored', provenance }),

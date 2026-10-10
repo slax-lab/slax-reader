@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import * as Vue from 'vue'
 
+import AppIcon from '../../../app/components/AppIcon.vue'
 import TabsSidebar from '../../../app/components/BookmarkList/TabsSidebar.vue'
 import RssPanel from '../../../app/components/RssPanel.vue'
 
@@ -112,6 +113,8 @@ describe('RSS inside Inbox', () => {
   it('reuses Inbox layout controls and keeps article nodes while refreshing or switching tabs', async () => {
     const wrapper = panel(),
       original = wrapper.get('article').element
+    expect(wrapper.findAllComponents(AppIcon).map(icon => icon.props('name'))).toEqual(expect.arrayContaining(['rss.rss', 'rss.refresh', 'rss.edit', 'rss.trash', 'rss.bookmark']))
+    expect(wrapper.get('button[aria-label="rss.edit"] svg').find('[stroke="currentColor"]').exists()).toBe(true)
     expect(wrapper.find('.layout-switcher').exists()).toBe(true)
     rss.loading.value = true
     await Vue.nextTick()
@@ -144,5 +147,22 @@ describe('RSS inside Inbox', () => {
     await flushPromises()
     expect(rss.update).toHaveBeenCalledWith('a', '')
     expect(rss.add).not.toHaveBeenCalled()
+  })
+
+  it('keeps registry-backed refresh icon visible in loading state', async () => {
+    rss.loading.value = true
+    const wrapper = panel()
+    await Vue.nextTick()
+    expect(wrapper.findAllComponents(AppIcon).map(icon => icon.props('name'))).toContain('rss.refresh')
+    expect(wrapper.get('[aria-label="rss.refresh"] svg').html()).toContain('currentColor')
+  })
+
+  it('keeps the retry action and alert visible when RSS initialization fails', async () => {
+    rss.error.value = 'network'
+    const wrapper = panel()
+    expect(wrapper.get('[role="alert"]').text()).toContain('rss.errors.network')
+    expect(wrapper.get('button.text-button').text()).toBe('rss.retry')
+    await wrapper.get('button.text-button').trigger('click')
+    expect(rss.initialize).toHaveBeenCalled()
   })
 })

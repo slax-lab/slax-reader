@@ -145,13 +145,12 @@ import SnapshotSharePopover from '~/components/Snapshot/SnapshotSharePopover.vue
 import SnapshotTopBar from '~/components/Snapshot/SnapshotTopBar.vue'
 import TopTips from '~/components/Tips/TopTips.vue'
 
+import type { MarkDetail, ShareBookmarkDetail } from '@commons/frontend-types/models'
 import { formatDate } from '@commons/frontend-utils/date'
 import { isClient, isServer } from '@commons/frontend-utils/is'
 import { extractHTMLTextContent } from '@commons/frontend-utils/parse'
-
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { BookmarkExistsResp } from '@slax-reader/contracts/interface'
-import type { MarkDetail, ShareBookmarkDetail } from '@commons/frontend-types/models'
 import type { QuoteData } from '~/components/Chat/type'
 import type { SnapshotPanelId } from '~/components/Snapshot/panels'
 import Toast, { ToastType } from '~/components/Toast'
@@ -255,9 +254,7 @@ const onCancelReply = () => {
   composeStroke.value = false
 }
 
-const topIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`
-
-const bottomToolbarActions = computed<BottomToolbarAction[]>(() => [{ id: 'top', icon: topIcon, label: t('common.operate.top') }])
+const bottomToolbarActions = computed<BottomToolbarAction[]>(() => [{ id: 'top', icon: 'snapshot.back-to-top', label: t('common.operate.top') }])
 
 const bottomToolbarAction = (action: BottomToolbarAction) => {
   if (action.id === 'top') backToTop()
