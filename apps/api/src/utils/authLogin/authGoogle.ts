@@ -46,10 +46,8 @@ export class GoogleAuth {
         console.error(`[login] rejected: unsupported google platform ${JSON.stringify({ platform })}`)
         throw GoogleSSOAudError()
     }
-    if (!this.clientId || (platform !== 'web' && this.clientId === env.GOOGLE_CLIENT_ID_TEXT)) {
-      console.error(
-        `[login] rejected: google client id unusable ${JSON.stringify({ platform, clientId: this.clientId || null, hasClientSecret: !!this.clientSecret, usesWebClientId: !!this.clientId && this.clientId === env.GOOGLE_CLIENT_ID_TEXT })}`
-      )
+    if (!this.clientId) {
+      console.error(`[login] rejected: google client id unusable ${JSON.stringify({ platform, clientId: null, hasClientSecret: !!this.clientSecret })}`)
       throw GoogleSSOAudError()
     }
   }
