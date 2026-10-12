@@ -21,7 +21,9 @@ export function releaseInputs(env, needsToken = false) {
   if (!/^[a-f0-9]{32}$/.test(env.CLOUDFLARE_ACCOUNT_ID || '')) throw failure('Missing or invalid CLOUDFLARE_ACCOUNT_ID')
   if (!/^[a-z0-9](?:[a-z0-9-]{0,56}[a-z0-9])?$/.test(env.PAGES_PROJECT_NAME || '')) throw failure('Missing or invalid PAGES_PROJECT_NAME')
   if (needsToken && (!env.CLOUDFLARE_API_TOKEN?.trim() || /\s/.test(env.CLOUDFLARE_API_TOKEN))) throw failure('Missing or invalid CLOUDFLARE_API_TOKEN')
-  return { profile: profiles[env.TARGET_BRANCH], account: env.CLOUDFLARE_ACCOUNT_ID, project: env.PAGES_PROJECT_NAME, sha: env.MERGE_SHA, token: needsToken ? env.CLOUDFLARE_API_TOKEN : undefined }
+  if (needsToken && !/^[a-f0-9]{32}$/.test(env.CF_ZONE_ID || '')) throw failure('Missing or invalid CF_ZONE_ID')
+  const hosts = { dev: 'r.slax.dev', beta: 'r-beta.slax.com', main: 'r.slax.com' }
+  return { profile: profiles[env.TARGET_BRANCH], account: env.CLOUDFLARE_ACCOUNT_ID, project: env.PAGES_PROJECT_NAME, sha: env.MERGE_SHA, token: needsToken ? env.CLOUDFLARE_API_TOKEN : undefined, zone: needsToken ? env.CF_ZONE_ID : undefined, host: hosts[env.TARGET_BRANCH] }
 }
 
 export async function validateBuildConfig(text) {
@@ -200,7 +202,26 @@ export async function deployWeb(env = process.env, { source = join(root, 'apps/w
     }
     await run(process.execPath, [wrangler, 'pages', 'deploy', assets, '--no-bundle', '--project-name', inputs.project, '--branch', branch, '--commit-hash', inputs.sha, '--commit-dirty=false'], { cwd: temporary, env: childEnv, signal, logPath: join(temporary, 'upload.log'), timeout: 10 * 60_000 })
     await confirmDeployment(inputs, deploymentId(report, inputs.project), branch, { fetchImpl, signal, attempts, interval })
+    await purgeCache(inputs, { fetchImpl, signal })
   } finally { rmSync(temporary, { recursive: true, force: true }) }
+}
+
+export async function purgeCache(inputs, { fetchImpl = fetch, signal } = {}) {
+  let response
+  try {
+    response = await fetchImpl(`https://api.cloudflare.com/client/v4/zones/${inputs.zone}/purge_cache`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${inputs.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hosts: [inputs.host] }),
+      redirect: 'error',
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000)
+    })
+  } catch { throw failure('Cache purge request failed or timed out; response withheld') }
+  if (!response.ok) throw failure(`Cache purge failed (HTTP ${response.status}); response withheld`)
+  let body
+  try { body = await response.json() } catch { throw failure('Invalid cache purge response; response withheld') }
+  if (body?.success !== true) throw failure('Cache purge rejected; response withheld')
+  console.log(`Cloudflare accepted cache purge for ${inputs.host}`)
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

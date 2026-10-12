@@ -22,33 +22,42 @@ interface codeInfo {
   error?: string
   error_description?: string
 }
+const clientIdList = (value: string | undefined): string[] =>
+  (value ?? '')
+    .split(',')
+    .map(id => id.trim())
+    .filter(Boolean)
+
 export class GoogleAuth {
+  // The Web OAuth client, which is also the server client that native ID tokens are issued for (`aud`).
   private clientId: string
   private clientSecret: string
   private platform: string
+  // Native app clients allowed as the authorized party (`azp`) of a native ID token.
+  private appClientIds: string[]
 
   constructor(env: Env, platform: string) {
     this.platform = platform
+    this.clientId = env.GOOGLE_CLIENT_ID_TEXT || ''
+    this.clientSecret = ''
+    this.appClientIds = []
     switch (platform) {
       case 'ios':
-        this.clientId = (env as Env & { GOOGLE_IOS_CLIENT_ID_TEXT?: string }).GOOGLE_IOS_CLIENT_ID_TEXT || ''
-        this.clientSecret = ''
+        this.appClientIds = clientIdList((env as Env & { GOOGLE_IOS_CLIENT_ID_TEXT?: string }).GOOGLE_IOS_CLIENT_ID_TEXT)
         break
       case 'android':
-        this.clientId = env.GOOGLE_ANDROID_CLIENT_ID_TEXT
-        this.clientSecret = ''
+        this.appClientIds = clientIdList(env.GOOGLE_ANDROID_CLIENT_ID_TEXT)
         break
       case 'web':
-        this.clientId = env.GOOGLE_CLIENT_ID_TEXT
         this.clientSecret = env.GOOGLE_CLIENT_SECRET_TEXT
         break
       default:
         console.error(`[login] rejected: unsupported google platform ${JSON.stringify({ platform })}`)
         throw GoogleSSOAudError()
     }
-    if (!this.clientId || (platform !== 'web' && this.clientId === env.GOOGLE_CLIENT_ID_TEXT)) {
+    if (!this.clientId || (platform !== 'web' && (!this.appClientIds.length || this.appClientIds.includes(this.clientId)))) {
       console.error(
-        `[login] rejected: google client id unusable ${JSON.stringify({ platform, clientId: this.clientId || null, hasClientSecret: !!this.clientSecret, usesWebClientId: !!this.clientId && this.clientId === env.GOOGLE_CLIENT_ID_TEXT })}`
+        `[login] rejected: google client id unusable ${JSON.stringify({ platform, clientId: this.clientId || null, appClientIds: this.appClientIds, hasClientSecret: !!this.clientSecret })}`
       )
       throw GoogleSSOAudError()
     }
@@ -63,7 +72,12 @@ export class GoogleAuth {
       })
       if (!payload.sub || typeof payload.email !== 'string' || !payload.email || String(payload.email_verified) !== 'true') throw GoogleSSOError()
       if (payload.aud !== this.clientId) throw GoogleSSOAudError()
-      if (this.platform === 'web' && payload.azp !== undefined && payload.azp !== this.clientId) throw GoogleSSOAudError()
+      const azp = typeof payload.azp === 'string' ? payload.azp : undefined
+      const presenterAllowed = this.platform === 'web' ? azp === undefined || azp === this.clientId : azp !== undefined && this.appClientIds.includes(azp)
+      if (!presenterAllowed) {
+        console.error(`[login] rejected: google authorized party not allowed ${JSON.stringify({ platform: this.platform, azp: azp ?? null, appClientIds: this.appClientIds })}`)
+        throw GoogleSSOAudError()
+      }
       return payload as unknown as tokenInfo
     } catch (error) {
       console.error(

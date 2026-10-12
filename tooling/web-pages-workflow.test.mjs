@@ -24,7 +24,7 @@ test('release accepts only merged pull requests and selects one protected Enviro
   assert.deepEqual(Object.keys(workflow.on), ['pull_request_target'])
   assert.deepEqual(workflow.on.pull_request_target.types, ['closed'])
   assert.deepEqual(workflow.on.pull_request_target.branches, ['dev', 'beta', 'main'])
-  for (const [branch, environment] of [['dev', 'dev'], ['beta', 'beta'], ['main', 'prod']]) {
+  for (const [branch, environment] of [['dev', 'dev'], ['beta', 'beta'], ['main', 'main']]) {
     assert.equal(evaluate(job.if, event(branch)), true)
     assert.equal(evaluate(job.environment, event(branch)), environment)
     assert.equal(evaluate(job.if, event(branch, false)), false)
@@ -55,6 +55,7 @@ test('only the guarded publish step receives a Cloudflare Secret', () => {
   assert.equal(secretSteps.length, 1)
   assert.equal(secretSteps[0].run, 'node tooling/web-pages-deploy.mjs deploy')
   assert.equal(secretSteps[0].env.CLOUDFLARE_API_TOKEN, '${{ secrets.CLOUDFLARE_API_TOKEN }}')
+  assert.equal(secretSteps[0].env.CF_ZONE_ID, '${{ secrets.CF_ZONE_ID }}')
   assert.equal(secretSteps[0].if, "steps.release.outputs.current == 'true'")
   assert.ok(job.steps.some(step => step.run === 'pnpm install --frozen-lockfile'))
   assert.ok(job.steps.some(step => step.run === 'node tooling/web-pages-deploy.mjs build'))
