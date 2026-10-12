@@ -1,0 +1,72 @@
+name: CLI release
+
+on:
+  push:
+    tags:
+      - 'cli-v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cli-npm-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'slax-lab/slax-reader'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.15.0'
+      - run: node tooling/cli-release.mjs preflight
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm cli -- typecheck
+      - run: pnpm cli -- test
+      - run: pnpm test:cli-tooling
+      - run: pnpm test:preflight
+      - run: node tooling/cli-release.mjs prepare "$RUNNER_TEMP/cli-release"
+      - name: Verify the exact release archive
+        run: |
+          archive=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const dir=process.env.RUNNER_TEMP+"/cli-release"; console.log(dir+"/"+JSON.parse(readFileSync(dir+"/release.json","utf8")).filename)')
+          pnpm cli -- test:package "$archive"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli-release-${{ github.sha }}
+          path: ${{ runner.temp }}/cli-release/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.15.0'
+          registry-url: https://registry.npmjs.org
+      - name: Install the trusted publishing client
+        run: npm install --global npm@12.2.0 --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: cli-release-${{ github.sha }}
+          path: ${{ runner.temp }}/cli-release
+      - name: Publish npm package and GitHub Release
+        run: node tooling/cli-release.mjs publish "$RUNNER_TEMP/cli-release"
+        env:
+          GH_TOKEN: ${{ github.token }}
