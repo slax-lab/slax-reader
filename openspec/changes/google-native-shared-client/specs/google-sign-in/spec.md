@@ -6,27 +6,32 @@ Defines how the API accepts Google sign-in from the Web reader and the native iO
 
 ## ADDED Requirements
 
-### Requirement: Native Google sign-in accepts the shared server client
+### Requirement: Native Google sign-in verifies the server audience and the app presenter
 
-The API SHALL accept native (`ios` and `android`) Google sign-in requests whose ID token audience is that platform's configured Google client ID, including when that client ID is the same value as the Web Google client ID. The API MUST reject a native Google sign-in request with a configuration error when the platform has no configured Google client ID.
+The API SHALL accept a native (`ios` or `android`) Google ID token only when its `aud` is the Web/server Google client ID and its `azp` is one of the Google app client IDs configured for that platform. Each native platform MAY configure several app client IDs (for example one per Android signing certificate). The API MUST reject a native Google sign-in request with `GOOGLE_SSO_AUD_ERROR`, before any token verification, when the server client ID is missing, when the platform has no configured app client ID, or when the platform's app client IDs include the server client ID.
 
-#### Scenario: Native token issued for the shared Web/server client
+#### Scenario: Native token from a configured app client
 
-- **WHEN** an iOS or Android app submits a valid Google ID token whose `aud` is the shared client ID, and the platform's configured client ID equals the Web client ID
-- **THEN** the sign-in passes verification and is not rejected as an invalid audience
+- **WHEN** an iOS or Android app submits a valid Google ID token whose `aud` is the server client ID and whose `azp` is one of that platform's app client IDs
+- **THEN** the sign-in passes verification
 
-#### Scenario: Native client ID is not configured
+#### Scenario: Native token presented by another client
 
-- **WHEN** a native platform's Google client ID is missing or empty
+- **WHEN** a native token's `azp` is absent, belongs to the other native platform, is the server client, or is not configured
+- **THEN** the sign-in is rejected
+
+#### Scenario: Native platform misconfigured
+
+- **WHEN** a native platform has no app client ID, or its app client IDs include the server client ID
 - **THEN** the request is rejected with `GOOGLE_SSO_AUD_ERROR` before any token verification
 
 ### Requirement: Google ID tokens are verified for every platform
 
-The API SHALL verify every Google ID token's signature against Google's keys, its issuer, expiry, required claims, and verified email, and MUST require its `aud` to equal the requesting platform's configured client ID. For Web sign-in, a present `azp` MUST also equal the Web client ID.
+The API SHALL verify every Google ID token's signature against Google's keys, its issuer, expiry, required claims, and verified email, and MUST require its `aud` to equal the Web/server Google client ID. For Web sign-in, a present `azp` MUST also equal the Web client ID.
 
 #### Scenario: Token issued for another client
 
-- **WHEN** any platform submits a Google ID token whose `aud` is not that platform's configured client ID
+- **WHEN** any platform submits a Google ID token whose `aud` is not the server client ID
 - **THEN** the sign-in is rejected
 
 #### Scenario: Web token with a different authorized party
