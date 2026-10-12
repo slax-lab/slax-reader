@@ -1,6 +1,6 @@
 # Web local development and verification
 
-[Web architecture](architecture.md) · [Extension development](../extension/development.md) · [Chinese](development_CN.md)
+[Web architecture](architecture.md) · [Pages deployment](deployment.md) · [Extension development](../extension/development.md) · [Chinese](development_CN.md)
 
 ## Configuration ownership
 
