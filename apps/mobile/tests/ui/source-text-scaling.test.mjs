@@ -42,6 +42,7 @@ test('actual SourceText responds to system font scale once while retaining style
   const native = {Platform: {OS: 'android'}, Text: 'Text', StyleSheet: {create: value => value, flatten, absoluteFill: {}}, useWindowDimensions: () => ({fontScale})};
   const ui = await load('../../src/components/SourceUI.tsx', {
     react: React, 'react-native': native, 'react-native-safe-area-context': {}, '../../assets': {mobileAssets: {}}, '../theme': theme, './source-font-scaling': scaling,
+    './SourceSheetModal': await load('../../src/components/SourceSheetModal.tsx', {react: React, 'react-native': native, '../theme': theme}),
   });
   const props = {children: 'Synthetic accessible paragraph', accessibilityLabel: 'Synthetic paragraph', testID: 'source-paragraph', style: [{fontSize: 14}, {lineHeight: 20, marginTop: 16}]};
   const actual = override => ui.SourceText({...props, ...override}).props;

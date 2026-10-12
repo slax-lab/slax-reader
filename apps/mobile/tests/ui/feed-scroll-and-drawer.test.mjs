@@ -138,7 +138,7 @@ test('actual Library preserves both modes through toggles and gives a new native
   const selection = await load('../../src/screens/collection-selection.ts', {});
   const commands = [], lists = {}, menus = [], tabs = [], markedRead = []; let owner = 'account-a', rssPosition, inboxPosition, inboxReset, inboxWatch;
   const primitive = ({children}) => React.createElement('div', null, children), nil = () => null;
-  const FlatList = React.forwardRef((props, ref) => {lists.inbox = {...props, instance: React.useRef(Symbol('native-inbox-list')).current}; React.useImperativeHandle(ref, () => ({scrollToOffset: value => commands.push(['inbox', value.offset])}), []); return null;});
+  const FlatList = React.forwardRef((props, ref) => {lists.inbox = {...props, instance: React.useRef(Symbol('native-inbox-list')).current}; React.useImperativeHandle(ref, () => ({scrollToOffset: value => commands.push(['inbox', value.offset])}), []); return props.ListHeaderComponent;});
   function RssFeed({scrollPosition}) {rssPosition = scrollPosition; const scrollTo = React.useCallback(offset => commands.push(['rss', offset]), []); lists.rss = {...scrolling.useFeedScrollPosition(scrollPosition, scrollTo).events, instance: React.useRef(Symbol('rss-component')).current}; return null;}
   const rssState = {enabled: true, selected: 'feed-a', subscriptions: [], entries: [], ready: true, busy: false, hasMore: false};
   class RssController {subscribe = () => () => {}; getSnapshot = () => rssState; activate() {} dispose() {} cancel() {} poll() {} async load() {}}
@@ -162,7 +162,9 @@ test('actual Library preserves both modes through toggles and gives a new native
   const select = label => act(async () => menus.at(-1).items.find(item => item.label === label).onPress());
   await act(async () => root.render(render())); observe('inbox', 0); observe('inbox', 420);
   const firstInbox = lists.inbox.instance, renderBookmark = lists.inbox.renderItem;
-  assert.deepEqual({...lists.inbox.getItemLayout(bookmarks, 3)}, {index: 3, length: 53, offset: 168.5}, 'Fixed rows include the exact separator and top content inset');
+  assert.equal(lists.inbox.getItemLayout, undefined, 'Wait for the scrolling collection header measurement');
+  await act(async () => lists.inbox.ListHeaderComponent.props.onLayout({nativeEvent: {layout: {height: 104}}}));
+  assert.deepEqual({...lists.inbox.getItemLayout(bookmarks, 3)}, {index: 3, length: 53, offset: 264.5}, 'Fixed rows include the measured collection header and separators');
   await act(async () => inboxWatch([{id: 'prepended-bookmark'}, ...bookmarks]));
   assert.equal(lists.inbox.renderItem, renderBookmark, 'Incoming rows do not rebuild all row action callbacks');
   assert.equal(lists.inbox.instance, firstInbox, 'A same-feed sync update retains the native list anchor');

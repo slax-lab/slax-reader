@@ -43,7 +43,7 @@ export function RssFeedSwitcher({state, controller, onAdd}: {state: RssState; co
   </ScrollView>;
 }
 function displayTime(raw: string) { const date = new Date(raw); if (!Number.isFinite(date.getTime())) return ''; const pad = (v: number) => String(v).padStart(2, '0'); return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`; }
-export function RssFeed({state, controller, adding, onDismissAdd, onRequestAdd, onOpenSettings, onOpen, scrollPosition, active = true}: {state: RssState; controller: RssController; adding: boolean; onDismissAdd(): void; onRequestAdd(): void; onOpenSettings(): void; onOpen(entry: RssEntry): void; scrollPosition: FeedScrollPosition; active?: boolean}) {
+export function RssFeed({state, controller, adding, onDismissAdd, onRequestAdd, onOpenSettings, onOpen, scrollPosition, active = true, header}: {state: RssState; controller: RssController; adding: boolean; onDismissAdd(): void; onRequestAdd(): void; onOpenSettings(): void; onOpen(entry: RssEntry): void; scrollPosition: FeedScrollPosition; active?: boolean; header?: React.ReactNode}) {
   const {t, fixtureOnly} = useMobile(); const list = useRef<FlatList<RssEntry>>(null), toolbar = useRef<View>(null);
   const scrollTo = useCallback((offset: number, animated = false) => list.current?.scrollToOffset({offset, animated}), []);
   const scroll = useFeedScrollPosition(scrollPosition, scrollTo, true, state.selected);
@@ -78,6 +78,7 @@ export function RssFeed({state, controller, adding, onDismissAdd, onRequestAdd, 
   return <View style={{flex: 1, backgroundColor: C.readerBackground}}>
     <FlatList key={state.selected} ref={list} {...scroll.events} maintainVisibleContentPosition={{minIndexForVisible: 0}} data={state.enabled ? state.entries : []} keyExtractor={entry => entry.id} contentContainerStyle={{paddingBottom: 16}}
       ListHeaderComponent={<>
+        {header}
         {state.busy ? <SourceProgress height={2} color={C.rssAccent} /> : null}
         {state.error ? <View style={{paddingHorizontal: 24, paddingVertical: 12}}><SourceText style={[T.metadata, {color: C.danger}]}>{t(`rss_error_${state.error}`)}</SourceText><TextAction label={t('rss_retry')} onPress={() => void controller.load()} disabled={state.busy} /></View> : null}
         {!state.enabled && state.ready && !state.busy ? <TextAction label={t('rss_open_settings')} onPress={onOpenSettings} /> : null}

@@ -39,7 +39,7 @@ function views() {
     const key = React.useRef(Symbol(name)).current;
     React.useLayoutEffect(() => {nodes.set(key, {name, props, key}); return () => nodes.delete(key);});
     React.useImperativeHandle(ref, () => ({focus() {}, scrollToOffset() {}, measureInWindow(callback) {callback(0, 0, 300, 40);}}), []);
-    return React.createElement('div', null, visible && !props.visible ? null : props.children);
+    return React.createElement('div', null, visible && !props.visible ? null : name === 'FlatList' ? [props.ListHeaderComponent, props.children] : props.children);
   });
   const primitives = Object.fromEntries(['View', 'Text', 'Pressable', 'TextInput', 'Image', 'ScrollView', 'ActivityIndicator', 'FlatList'].map(name => [name, native(name)]));
   const ui = Object.fromEntries(['SourceText', 'SourceButton', 'SourceIcon', 'TextAction', 'Divider', 'SourceProgress'].map(name => [name, native(name)]));
@@ -133,6 +133,23 @@ test('mounted title editor rejects whitespace via confirm and IME without dismis
   await act(async () => v.one('TextInput').onChangeText('  Edited 标题  '));
   await act(async () => v.one('TextInput').onSubmitEditing());
   assert.deepEqual(submitted, ['Edited 标题']); assert.equal(dismissals, 1);
+}));
+
+test('add-link silently ignores unrelated clipboard text and never overwrites typing with a late clipboard result', async () => mounted(async root => {
+  const v = views(), submitted = []; let clipboard = Promise.resolve('Plain text without a link'), resolveClipboard;
+  const {LinkInputDialog} = await load('../../src/components/LinkInputDialog.tsx', {
+    react: React, 'react-native': {...v.primitives, StyleSheet: {create: value => value}}, 'expo-clipboard': {getStringAsync: () => clipboard}, '../runtime': {useMobile: () => ({t: value => value})}, '../theme': theme, '../theme/testIds': {mobileTestIds: {AddLinkError: 'clipboard-error'}}, './SourceUI': v.ui,
+  });
+  const render = visible => root.render(React.createElement(LinkInputDialog, {visible, onSubmit: value => submitted.push(value), onDismiss() {}}));
+  await act(async () => render(true)); await act(async () => {await new Promise(resolve => setTimeout(resolve, 370));});
+  assert.equal(v.one('TextInput').value, ''); assert.equal(v.all('SourceText').some(node => node.testID === 'clipboard-error'), false);
+  await act(async () => v.one('SourceButton').onPress()); assert.equal(v.one('SourceText', node => node.testID === 'clipboard-error').children, 'add_link_error_invalid_url');
+  await act(async () => render(false)); clipboard = new Promise(resolve => {resolveClipboard = resolve;}); await act(async () => render(true));
+  await act(async () => {await new Promise(resolve => setTimeout(resolve, 370));});
+  await act(async () => v.one('TextInput').onChangeText('https://typed.test/first'));
+  await act(async () => resolveClipboard('https://clipboard.test/late'));
+  assert.equal(v.one('TextInput').value, 'https://typed.test/first');
+  await act(async () => v.one('SourceButton').onPress()); assert.deepEqual(submitted, ['https://typed.test/first']);
 }));
 
 test('mounted RSS editor retains add draft on dismissal/failure, clears on success or Labs off, and offers selectable readonly URL', async () => mounted(async root => {
@@ -231,8 +248,10 @@ for (const zone of ['Asia/Shanghai', 'America/Los_Angeles']) test(`mounted Libra
       '../components': components, '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => context}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../utils/source-time': time,
     }, {Date: class extends Date {static now() {return Date.UTC(2026, 9, 11, 12);}}});
     await act(async () => root.render(React.createElement(LibraryScreen, {navigation: {navigate() {}}})));
+    assert.equal(v.all('View').some(props => props.testID === 'library-collection-strip'), false, 'No collection must not reserve a selector strip');
     const collection = {id: 'shared', name: 'Shared', ownerId: 'owner', status: 1, hasNew: false, subscriptionEndTime: '2026-10-11 13:00:00'};
     await act(async () => {onCollections([collection]); onSubscription([{subscription_end_time: collection.subscriptionEndTime}]);});
+    assert.equal(v.all('View').filter(props => props.testID === 'library-collection-strip').length, 1);
     const tabs = v.all('Pressable').filter(props => props.accessibilityRole === 'tab');
     await act(async () => tabs[1].onPress());
     assert.deepEqual(v.one('FlatList').data, rows, 'A future UTC collection must remain readable even in an ahead-of-UTC locale');

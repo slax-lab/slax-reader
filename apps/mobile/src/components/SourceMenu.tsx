@@ -16,7 +16,7 @@ export function SourceMenu({visible, onDismiss, items, anchor, width = L.menuWid
   }, [visible, motion]);
   if (!mounted && !visible) return null;
   const height = items.length * L.menuRowHeight + 36;
-  return <Modal transparent visible={mounted || visible} animationType="none" statusBarTranslucent onRequestClose={onDismiss}>
+  return <Modal transparent presentationStyle="overFullScreen" visible={mounted || visible} animationType="none" statusBarTranslucent onRequestClose={onDismiss}>
     <Pressable accessible={false} style={StyleSheet.absoluteFill} onPress={onDismiss} />
     <Animated.View accessibilityViewIsModal style={[styles.menu, {width, opacity: motion, transform: [{scale: motion.interpolate({inputRange: [0, 1], outputRange: [0.92, 1]})}], left: Math.max(8, Math.min(anchor.x, window.width - width - 8)), top: Math.max(8, Math.min(anchor.y, window.height - height - 16))}]}>
       {items.map((item, index) => <Pressable key={index} accessibilityRole="menuitem" accessibilityState={{disabled: Boolean(item.disabled), selected: Boolean(item.selected)}} disabled={item.disabled} onPress={() => {onDismiss(); item.onPress();}} style={({pressed}) => [styles.item, {backgroundColor: pressed ? C.pressedOverlay : 'transparent', opacity: item.disabled ? 0.4 : 1}]}>

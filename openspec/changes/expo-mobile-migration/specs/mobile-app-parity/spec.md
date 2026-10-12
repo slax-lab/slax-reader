@@ -31,7 +31,23 @@ Inbox, Starred, and Archived SHALL retain the source-ordered flat list without d
 #### Scenario: A URL is saved without connectivity
 - **WHEN** a user submits a valid HTTP or HTTPS URL while offline
 - **THEN** a pending bookmark appears optimistically in the library
-- **AND** invalid or ambiguous clipboard input retains the original validation behavior
+- **AND** explicit invalid submissions and ambiguous multi-link clipboard input retain validation
+- **AND** opening the add-link form with no valid clipboard URL stays empty and silent without overwriting subsequent typing
+
+#### Scenario: The application starts before local data is ready
+- **WHEN** account ownership and local startup checks are still pending
+- **THEN** the default blank surface appears without an animated loading indicator
+- **AND** safe available content replaces it immediately without exposing a previous account
+
+#### Scenario: The user scrolls a collection feed
+- **WHEN** the library list is dragged vertically
+- **THEN** the collection selector scrolls offscreen with the list header
+- **AND** horizontal collection selection, item anchoring and saved-position restoration remain functional
+
+#### Scenario: There are no subscribed collections
+- **WHEN** the collection list is empty
+- **THEN** the entire collection selector strip, including the own-feed shortcut, is omitted
+- **AND** its former fixed height is not reserved above the article rows
 
 #### Scenario: A subscribed collection becomes unavailable
 - **WHEN** the selected collection closes, expires, or disappears

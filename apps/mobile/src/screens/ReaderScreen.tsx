@@ -566,9 +566,9 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
   }
   const showToolbar = useCallback(() => {if (isPreview || !isAccountActive()) return; pendingToolbar.current = null; setToolbarId(++toolbarSequence.current); void clearSelection(); telemetry.element('detail_toolbar_open', 'detail'); telemetry.firebase('bookmark', 'use_toolbar_menu'); setOverlay('toolbar')}, [isPreview, isAccountActive, clearSelection, telemetry])
   const headerMore = useCallback(() => <Animated.View pointerEvents={toolbarIsVisible ? 'auto' : 'none'} accessibilityElementsHidden={!toolbarIsVisible}
-    importantForAccessibility={toolbarIsVisible ? 'auto' : 'no-hide-descendants'} style={{transform: [{translateY: headerMoreOffset}]}}>
+    importantForAccessibility={toolbarIsVisible ? 'auto' : 'no-hide-descendants'} collapsable={false} style={{width: 48, height: 44, transform: [{translateY: headerMoreOffset}]}}>
     <Pressable testID="reader-header-more" accessibilityRole="button" accessibilityLabel={t('detail_toolbar_share')} onPress={showToolbar}
-      style={({pressed}) => ({width: 48, height: 44, alignItems: 'flex-end', justifyContent: 'center', opacity: pressed ? .5 : 1})}><SourceIcon name="ic_floating_panel_more" size={24} /></Pressable>
+      style={({pressed}) => ({width: 48, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .5 : 1})}><SourceIcon name="ic_floating_panel_more" size={24} testID="reader-header-more-icon" /></Pressable>
   </Animated.View>, [headerMoreOffset, toolbarIsVisible, showToolbar, t])
   useLayoutEffect(() => navigation.setOptions({title: '', headerShadowVisible: false, headerTransparent: true,
     headerStyle: {backgroundColor: 'transparent'},

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { mobileAssets, type MobileAssetName } from '../../assets';
 import { mobileColors as C, mobileTypography as T } from '../theme';
 import { sourceTextDimensions } from './source-font-scaling';
+import { SourceSheetModal } from './SourceSheetModal';
 
 export function SourceText({style, ...props}: TextProps) {
   const {fontScale} = useWindowDimensions();
@@ -17,7 +18,7 @@ export function SourceText({style, ...props}: TextProps) {
 }
 export function SourceIcon({name, size = 24, label, style, testID}: {name: MobileAssetName; size?: number; label?: string; testID?: string; style?: StyleProp<ImageStyle>}) {
   const roundedSize = Platform.OS === 'android' ? PixelRatio.roundToNearestPixel(size) : size;
-  return <Image testID={testID} source={mobileAssets[name]} resizeMode="contain" accessibilityLabel={label} accessible={Boolean(label)} style={[{width: roundedSize, height: roundedSize}, style]} />;
+  return <Image testID={testID} source={mobileAssets[name]} resizeMode="contain" accessibilityLabel={label} accessible={Boolean(label)} style={[{width: roundedSize, height: roundedSize, flexShrink: 0}, style]} />;
 }
 export function SourceAvatar({uri, size = 40, label}: {uri?: string; size?: number; label?: string}) {
   return <SourceAvatarImage key={uri ?? ''} uri={uri} size={size} label={label} />;
@@ -71,7 +72,7 @@ export function ScreenSurface({children, style, testID, bottomInset = true, sour
 export function SourceDialog({visible, onDismiss, onDidDismiss, title, children, actions, testID, compact = false, dismissible = true}: {
   visible: boolean; onDismiss(): void; onDidDismiss?(): void; title?: string; children?: React.ReactNode; actions?: React.ReactNode; testID?: string; compact?: boolean; dismissible?: boolean;
 }) {
-  return <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onDismiss={onDidDismiss} onRequestClose={() => { if (dismissible) onDismiss(); }}>
+  return <Modal visible={visible} transparent presentationStyle="overFullScreen" animationType="fade" statusBarTranslucent onDismiss={onDidDismiss} onRequestClose={() => { if (dismissible) onDismiss(); }}>
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modal}>
       <Pressable accessibilityLabel="" accessible={false} onPress={() => { if (dismissible) onDismiss(); }} style={[StyleSheet.absoluteFill, styles.scrim]} />
       <View accessibilityViewIsModal testID={testID} style={[styles.dialog, compact && styles.compactDialog]}>
@@ -95,15 +96,12 @@ export function SourceSheet({visible, onDismiss, busy, children, style, contentC
     },
     onPanResponderTerminate: () => Animated.timing(drag, {toValue: 0, duration: 200, useNativeDriver: true}).start(),
   }), [busy, drag, onDismiss]);
-  return <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={() => { if (!busy) onDismiss(); }}>
-    <KeyboardAvoidingView style={styles.sheetModal} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Pressable accessible={false} onPress={() => { if (!busy) onDismiss(); }} style={[StyleSheet.absoluteFill, styles.scrim]} />
-      <Animated.View accessibilityViewIsModal style={[styles.sheet, style, {paddingBottom: inset.bottom + bottomPadding, transform: [{translateY: drag}]}]}>
-        <View {...pan.panHandlers} style={{alignSelf: 'stretch'}}><View style={[styles.sheetHandle, handleColor ? {backgroundColor: handleColor} : undefined]} /></View>
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[{gap: 16}, contentContainerStyle]}>{children}</ScrollView>
-      </Animated.View>
-    </KeyboardAvoidingView>
-  </Modal>;
+  return <SourceSheetModal visible={visible} onDismiss={onDismiss} dismissible={!busy}>
+    <Animated.View accessibilityViewIsModal style={[styles.sheet, style, {paddingBottom: inset.bottom + bottomPadding, transform: [{translateY: drag}]}]}>
+      <View {...pan.panHandlers} style={{alignSelf: 'stretch'}}><View style={[styles.sheetHandle, handleColor ? {backgroundColor: handleColor} : undefined]} /></View>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[{gap: 16}, contentContainerStyle]}>{children}</ScrollView>
+    </Animated.View>
+  </SourceSheetModal>;
 }
 const styles = StyleSheet.create({
   text: {...T.body, color: C.text, includeFontPadding: false}, screen: {flex: 1, backgroundColor: C.background},

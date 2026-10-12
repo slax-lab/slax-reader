@@ -14,6 +14,9 @@ if (!domModule) {
 export const nativeBoundary = {skip: !domModule && 'An existing happy-dom runtime is required'}
 export {React, act}
 export async function loadComponent(path, boundaries, globals = {}) {
+  if (path.endsWith('/ReaderOverlays.tsx') && !boundaries['../components/SourceSheetModal']) {
+    boundaries = {...boundaries, '../components/SourceSheetModal': await loadComponent('../../src/components/SourceSheetModal.tsx', {react: boundaries.react, 'react-native': boundaries['react-native'], '../theme': boundaries['../theme']}, globals)}
+  }
   const code = ts.transpileModule(await readFile(new URL(path, import.meta.url), 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true}}).outputText
   const exports = {}
   vm.runInNewContext(code, {exports, __DEV__: true, AbortController, Date, URL, setTimeout, clearTimeout, ...globals, require(name) {
@@ -48,7 +51,8 @@ export async function withNativeHost(run) {
     Modal: value => value.visible ? React.createElement(primitive, value) : null,
     ActivityIndicator: primitive, Image: primitive,
     Animated: {Value, View: primitive, timing, sequence: group, parallel: group},
-    Easing: {bezier: (...points) => points, linear: 'linear'}, StyleSheet: {create: value => value, absoluteFill: {position: 'absolute', top: 0, left: 0, right: 0, bottom: 0}},
+    Easing: {bezier: (...points) => points, linear: 'linear', cubic: 'cubic', out: value => value}, StyleSheet: {create: value => value, absoluteFill: {position: 'absolute', top: 0, left: 0, right: 0, bottom: 0}},
+    AccessibilityInfo: {isReduceMotionEnabled: async () => false, addEventListener: () => ({remove() {}})},
     Platform: {OS: 'ios'}, useWindowDimensions: () => ({width: 390, height: 844}),
     Keyboard: {addListener: (name, callback) => {keyboard.set(name, callback); return {remove() {keyboard.delete(name)}}}, dismiss() {dismisses++}},
     AppState: {addEventListener: () => ({remove() {}})},

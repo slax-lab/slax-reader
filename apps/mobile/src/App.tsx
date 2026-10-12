@@ -1,5 +1,5 @@
 import React, {useEffect, useRef} from 'react';
-import {ActivityIndicator, Platform, Pressable, StatusBar, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
+import {Platform, Pressable, StatusBar, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {NavigationContainer, createNavigationContainerRef} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
@@ -60,7 +60,7 @@ export function ApplicationRoutes() {
       <Pressable style={styles.retry} onPress={() => { void retryStart().catch(() => undefined); }} accessibilityRole="button"><Text style={{color: C.surface}}>{t('rss_retry')}</Text></Pressable>
     </SafeAreaView>;
   }
-  if (upgrade.status !== 'ready' || session.status === 'loading') return <View style={styles.center}><ActivityIndicator color={C.accent}/></View>;
+  if (upgrade.status !== 'ready' || session.status === 'loading') return <View testID="app-startup-surface" style={{flex: 1, backgroundColor: C.background}} />;
   return <NavigationContainer ref={navigationRef} onReady={reportRoutes} onStateChange={reportRoutes}>
     <Stack.Navigator screenOptions={{headerTintColor: C.text, headerStyle: {backgroundColor: C.background}, headerTitleAlign: 'center', headerTitleStyle: {fontSize: 17, fontWeight: '500'}, contentStyle: {backgroundColor: C.background}, headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal'}}>
       {session.status === 'unauthenticated' ? <Stack.Screen name="Login" component={LoginScreen} options={{headerShown: false}}/> : <Stack.Group navigationKey={session.session.userId}>

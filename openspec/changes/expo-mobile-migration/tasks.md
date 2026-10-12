@@ -114,7 +114,7 @@
 - [ ] 13.2 Write English mobile setup, plugin approval ledger, architecture, upgrade/recovery, source/asset provenance, and local/build/release guides through the root command; verify each documented command and clearly identify operator-managed configuration without secret content.
 - [ ] 13.3 Run final Android/iOS development builds and iOS Release/archive validation, types, meaningful data/bridge tests, strict OpenSpec validation, and controlled upgrade verification; attach command/device/version results and do not mark unavailable runtime/signed checks complete. The final release delivery is iOS-only; no Android release package is required.
 - [ ] 13.4 Read `REVIEW.md` and complete its local pre-push review/compliance passes; resolve Important findings, verify the PR body includes `OpenSpec: expo-mobile-migration`, and create/attach the task PR targeting `dev` without public App Store publication or backend production deployment.
-- [ ] 13.5 Deliver the explicitly authorized publisher-signed iOS preview `1.0.25 (759)` main/share application to the existing TestFlight app using opaque Apple tooling; verify artifact identities/entitlements/version, record upload and Apple processing/TestFlight status, and retain unfinished migration/telemetry acceptance without public App Store publication.
+- [ ] 13.5 Deliver the explicitly authorized publisher-signed iOS preview `1.0.25 (760)` main/share application to the existing TestFlight app using opaque Apple tooling; verify artifact identities/entitlements/version, record upload and Apple processing/TestFlight status, and retain unfinished migration/telemetry acceptance without public App Store publication.
 
 ## 14. Reviewed parity regression repairs
 
@@ -129,6 +129,19 @@ These focused repairs address the October 11 source comparison. Their host-level
 - [ ] 14.7 Resolve reviewed Reader origin-isolation gaps; verify untrusted article content, frames, and navigation cannot acquire authenticated application-origin access or privileged native capabilities while supported reader content remains functional.
 - [ ] 14.8 Resolve reviewed modal interaction and dismissal gaps; verify native back, outside dismissal, and unsaved-input safeguards against the existing source behavior without duplicate navigation or lost edits.
 - [ ] 14.9 Verify release admission for configured main and standalone Share Firebase resources, target membership/linkage, bootstrap, main crash-symbol upload, and artifact metadata without inspecting configuration contents; exercise missing/stale-input rejection and a fresh configured `1.0.25 (758)` archive with previous-build bound `757`. Keep missing operator paths and native telemetry delivery pending until independently verified.
+
+## 16. Main-checkout UI refinements
+
+The user requested sequential, single-process work in the main checkout on local `dev`; no new worktree, subagent or direct commit to the long-lived branch is part of this pass.
+
+- [x] 16.1 Restore visible Reader more/archive image assets in actual iOS presentation and cover the header/floating-button layout boundary.
+- [x] 16.2 Render an unanimated default/blank startup surface without a loading spinner; show safe available content immediately without exposing a previous account.
+- [x] 16.3 Move collection/feed selectors into the vertical list header so they can scroll offscreen, preserving horizontal selection, list anchoring and restoration; omit the whole collection strip when no collections exist.
+- [x] 16.4 Keep add-link opening quiet when the clipboard contains no URL, retain explicit submit validation, and prevent late clipboard reads from overwriting input.
+- [x] 16.5 Keep transparent iOS backdrops stationary while independently animating sheet/menu content; preserve native dismissal completion, keyboard and reduced-motion behavior without a gray sliding pseudo-panel.
+- [ ] 16.6 Run focused regressions, standard checks/build and native visual interaction verification for these six requested refinements; keep unavailable evidence explicit.
+
+Build 760 verification: 587 host tests and TypeScript passed, the isolated iOS app built and displayed the Reader header more icon and floating/menu archive artwork, and the bottom menu opened through the real header control. Full native motion/long-list/profile acceptance remains incomplete. Publisher-signed main/share build 760 passed identity/signature/App Group checks and Apple accepted the explicitly authorized TestFlight preview upload; processing availability is separate.
 
 ## 15. TestFlight stability and performance follow-up
 

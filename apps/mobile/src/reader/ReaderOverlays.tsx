@@ -4,6 +4,7 @@ import {outlineMotion, type OutlineStatus} from './outline-motion.ts'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { MobileAssetName } from '../../assets'
 import { SourceAvatar, SourceIcon, SourceText, TextAction } from '../components'
+import {SourceSheetModal} from '../components/SourceSheetModal'
 import type { createTranslator } from '../i18n'
 import { mobileColors as C, mobileTypography as T } from '../theme'
 import { selectionMenuTop } from './coordinates.ts'
@@ -39,7 +40,7 @@ export function FloatingActions({visible, isCollection, starred, archived, outli
   return <Animated.View pointerEvents={visible ? 'box-none' : 'none'} style={[styles.floating, {bottom: inset.bottom + 24, transform: [{translateY: offset}, {translateX: horizontal}]}]}>
     {!isCollection ? <View style={styles.floatingPill}>
       <Pressable accessibilityRole="button" accessibilityLabel={t(starred ? 'bookmark_unstar' : 'bookmark_star')} onPress={onStar} style={({pressed}) => ({width: 50, height: 50, justifyContent: 'center', paddingLeft: 17.5, opacity: pressed ? .5 : 1})}><SourceIcon name={starred ? 'ic_floating_panel_starred' : 'ic_floating_panel_star'} size={20} /></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={t(archived ? 'bookmark_unarchive' : 'bookmark_archive')} onPress={onArchive} style={({pressed}) => ({width: 50, height: 50, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 17.5, opacity: pressed ? .5 : 1})}><SourceIcon name={archived ? 'ic_floating_panel_archieved' : 'ic_floating_panel_archieve'} size={20} /></Pressable>
+      <Pressable testID="reader-floating-archive" accessibilityRole="button" accessibilityLabel={t(archived ? 'bookmark_unarchive' : 'bookmark_archive')} onPress={onArchive} style={({pressed}) => ({width: 50, height: 50, flexShrink: 0, justifyContent: 'center', alignItems: 'center', opacity: pressed ? .5 : 1})}><SourceIcon name={archived ? 'ic_floating_panel_archieved' : 'ic_floating_panel_archieve'} size={20} testID="reader-floating-archive-icon" /></Pressable>
     </View> : null}
     <View style={styles.floatingCircle}><IconAction name="ic_floating_panel_more" label={t('detail_toolbar_summary')} size={20} onPress={onMore} /></View>
   </Animated.View>
@@ -71,7 +72,7 @@ export function ReaderSheet({visible, onDismiss, children, testID, inline = fals
       <Animated.View testID={testID} accessibilityViewIsModal onLayout={comment ? event => setSheetHeight(event.nativeEvent.layout.height) : undefined} style={[styles.readerSheet, {marginTop: inset.top + 36, paddingBottom: inset.bottom}, comment && {maxHeight: '80%', flexShrink: 1, marginTop: 0, backgroundColor: C.background, paddingBottom: keyboardVisible ? 8 : inset.bottom, transform: [{translateY: motion.interpolate({inputRange: [0, 1], outputRange: [sheetHeight, 0]})}]}]}>{comment && !visible ? retained.current : children}</Animated.View>
     </KeyboardAvoidingView>
   if (inline) return (comment ? mounted || visible : visible) ? <View pointerEvents={visible ? 'auto' : 'none'} accessibilityElementsHidden={!visible} importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'} style={[StyleSheet.absoluteFill, {zIndex: 5}]}>{content}</View> : null
-  return <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onDismiss}>{content}</Modal>
+  return <SourceSheetModal visible={visible} onDismiss={onDismiss}><View testID={testID} accessibilityViewIsModal style={[styles.readerSheet, {marginTop: inset.top + 36, paddingBottom: inset.bottom}]}>{children}</View></SourceSheetModal>
 }
 
 export function ReaderToolbar({visible, collection, youtube, starred, archived, t, onDismiss, onDidDismiss, onAction}: {visible: boolean; collection: boolean; youtube: boolean; starred: boolean; archived: boolean; t: Translate; onDismiss(): void; onDidDismiss?(): void; onAction(id: string): void}) {
@@ -86,14 +87,12 @@ export function ReaderToolbar({visible, collection, youtube, starred, archived, 
     ...(!collection ? [{id: 'delete', label: t('detail_toolbar_delete'), icon: 'ic_bottom_panel_delete' as const}] : []),
   ]
   const inset = useSafeAreaInsets()
-  return <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss} onDismiss={onDidDismiss} statusBarTranslucent>
-    <View style={{flex: 1, justifyContent: 'flex-end'}}><Pressable accessible={false} onPress={onDismiss} style={[StyleSheet.absoluteFill, {backgroundColor: C.scrim}]} />
-      <View style={[styles.toolbarSheet, {paddingBottom: inset.bottom + 24}]}><View style={styles.toolbarGrid}>{actions.map(action => <Pressable key={action.id} onPress={() => onAction(action.id)} style={styles.toolbarItem} accessibilityRole="button" testID={`reader-toolbar-${action.id}`}>
-        <View style={styles.toolbarIcon}><SourceIcon name={action.icon} size={28} />{action.pro ? <SourceIcon name="ic_bottom_panel_pro" size={24} style={{position: 'absolute', right: -4, top: -4}} /> : null}</View>
-        <SourceText style={[T.toolbarLabel, {marginTop: 8}]}>{action.label}</SourceText>
-      </Pressable>)}</View></View>
-    </View>
-  </Modal>
+  return <SourceSheetModal visible={visible} onDismiss={onDismiss} onDidDismiss={onDidDismiss}>
+    <View style={[styles.toolbarSheet, {paddingBottom: inset.bottom + 24}]}><View style={styles.toolbarGrid}>{actions.map(action => <Pressable key={action.id} onPress={() => onAction(action.id)} style={styles.toolbarItem} accessibilityRole="button" testID={`reader-toolbar-${action.id}`}>
+      <View style={styles.toolbarIcon}><SourceIcon name={action.icon} size={28} />{action.pro ? <SourceIcon name="ic_bottom_panel_pro" size={24} style={{position: 'absolute', right: -4, top: -4}} /> : null}</View>
+      <SourceText style={[T.toolbarLabel, {marginTop: 8}]}>{action.label}</SourceText>
+    </Pressable>)}</View></View>
+  </SourceSheetModal>
 }
 
 export interface CommentMenuAnchor {markId: number; x: number; y: number}
