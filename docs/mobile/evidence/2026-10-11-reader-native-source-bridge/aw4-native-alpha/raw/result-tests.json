@@ -1,0 +1,313 @@
+{
+  "_type" : {
+    "_name" : "ActionTestPlanRunSummaries"
+  },
+  "summaries" : {
+    "_type" : {
+      "_name" : "Array"
+    },
+    "_values" : [
+      {
+        "_type" : {
+          "_name" : "ActionTestPlanRunSummary",
+          "_supertype" : {
+            "_name" : "ActionAbstractTestSummary"
+          }
+        },
+        "name" : {
+          "_type" : {
+            "_name" : "String"
+          },
+          "_value" : "Test Scheme Action"
+        },
+        "testableSummaries" : {
+          "_type" : {
+            "_name" : "Array"
+          },
+          "_values" : [
+            {
+              "_type" : {
+                "_name" : "ActionTestableSummary",
+                "_supertype" : {
+                  "_name" : "ActionAbstractTestSummary"
+                }
+              },
+              "diagnosticsDirectoryName" : {
+                "_type" : {
+                  "_name" : "String"
+                },
+                "_value" : ""
+              },
+              "identifierURL" : {
+                "_type" : {
+                  "_name" : "String"
+                },
+                "_value" : "test:\/\/com.apple.xcode\/ReaderNativeControl\/ReaderNativeControl"
+              },
+              "name" : {
+                "_type" : {
+                  "_name" : "String"
+                },
+                "_value" : "ReaderNativeControl"
+              },
+              "projectRelativePath" : {
+                "_type" : {
+                  "_name" : "String"
+                },
+                "_value" : "ReaderNativeControl.xcodeproj"
+              },
+              "targetName" : {
+                "_type" : {
+                  "_name" : "String"
+                },
+                "_value" : "ReaderNativeControl"
+              },
+              "testKind" : {
+                "_type" : {
+                  "_name" : "String"
+                },
+                "_value" : "UI"
+              },
+              "testLanguage" : {
+                "_type" : {
+                  "_name" : "String"
+                },
+                "_value" : ""
+              },
+              "testRegion" : {
+                "_type" : {
+                  "_name" : "String"
+                },
+                "_value" : ""
+              },
+              "tests" : {
+                "_type" : {
+                  "_name" : "Array"
+                },
+                "_values" : [
+                  {
+                    "_type" : {
+                      "_name" : "ActionTestSummaryGroup",
+                      "_supertype" : {
+                        "_name" : "ActionTestSummaryIdentifiableObject",
+                        "_supertype" : {
+                          "_name" : "ActionAbstractTestSummary"
+                        }
+                      }
+                    },
+                    "duration" : {
+                      "_type" : {
+                        "_name" : "Double"
+                      },
+                      "_value" : "10.242032051086426"
+                    },
+                    "identifier" : {
+                      "_type" : {
+                        "_name" : "String"
+                      },
+                      "_value" : "Selected tests"
+                    },
+                    "identifierURL" : {
+                      "_type" : {
+                        "_name" : "String"
+                      },
+                      "_value" : "test:\/\/com.apple.xcode\/ReaderNativeControl\/ReaderNativeControl\/Selected%20tests"
+                    },
+                    "name" : {
+                      "_type" : {
+                        "_name" : "String"
+                      },
+                      "_value" : "Selected tests"
+                    },
+                    "subtests" : {
+                      "_type" : {
+                        "_name" : "Array"
+                      },
+                      "_values" : [
+                        {
+                          "_type" : {
+                            "_name" : "ActionTestSummaryGroup",
+                            "_supertype" : {
+                              "_name" : "ActionTestSummaryIdentifiableObject",
+                              "_supertype" : {
+                                "_name" : "ActionAbstractTestSummary"
+                              }
+                            }
+                          },
+                          "duration" : {
+                            "_type" : {
+                              "_name" : "Double"
+                            },
+                            "_value" : "10.242032051086426"
+                          },
+                          "identifier" : {
+                            "_type" : {
+                              "_name" : "String"
+                            },
+                            "_value" : "ReaderNativeControl.xctest"
+                          },
+                          "identifierURL" : {
+                            "_type" : {
+                              "_name" : "String"
+                            },
+                            "_value" : "test:\/\/com.apple.xcode\/ReaderNativeControl\/ReaderNativeControl\/ReaderNativeControl.xctest"
+                          },
+                          "name" : {
+                            "_type" : {
+                              "_name" : "String"
+                            },
+                            "_value" : "ReaderNativeControl.xctest"
+                          },
+                          "subtests" : {
+                            "_type" : {
+                              "_name" : "Array"
+                            },
+                            "_values" : [
+                              {
+                                "_type" : {
+                                  "_name" : "ActionTestSummaryGroup",
+                                  "_supertype" : {
+                                    "_name" : "ActionTestSummaryIdentifiableObject",
+                                    "_supertype" : {
+                                      "_name" : "ActionAbstractTestSummary"
+                                    }
+                                  }
+                                },
+                                "duration" : {
+                                  "_type" : {
+                                    "_name" : "Double"
+                                  },
+                                  "_value" : "10.242032051086426"
+                                },
+                                "identifier" : {
+                                  "_type" : {
+                                    "_name" : "String"
+                                  },
+                                  "_value" : "ReaderNativeControl"
+                                },
+                                "identifierURL" : {
+                                  "_type" : {
+                                    "_name" : "String"
+                                  },
+                                  "_value" : "test:\/\/com.apple.xcode\/ReaderNativeControl\/ReaderNativeControl\/ReaderNativeControl"
+                                },
+                                "name" : {
+                                  "_type" : {
+                                    "_name" : "String"
+                                  },
+                                  "_value" : "ReaderNativeControl"
+                                },
+                                "subtests" : {
+                                  "_type" : {
+                                    "_name" : "Array"
+                                  },
+                                  "_values" : [
+                                    {
+                                      "_type" : {
+                                        "_name" : "ActionTestMetadata",
+                                        "_supertype" : {
+                                          "_name" : "ActionTestSummaryIdentifiableObject",
+                                          "_supertype" : {
+                                            "_name" : "ActionAbstractTestSummary"
+                                          }
+                                        }
+                                      },
+                                      "activitySummariesCount" : {
+                                        "_type" : {
+                                          "_name" : "Int"
+                                        },
+                                        "_value" : "54"
+                                      },
+                                      "duration" : {
+                                        "_type" : {
+                                          "_name" : "Double"
+                                        },
+                                        "_value" : "10.242032051086426"
+                                      },
+                                      "identifier" : {
+                                        "_type" : {
+                                          "_name" : "String"
+                                        },
+                                        "_value" : "ReaderNativeControl\/testNativeLongPressOriginalBodyWord()"
+                                      },
+                                      "identifierURL" : {
+                                        "_type" : {
+                                          "_name" : "String"
+                                        },
+                                        "_value" : "test:\/\/com.apple.xcode\/ReaderNativeControl\/ReaderNativeControl\/ReaderNativeControl\/testNativeLongPressOriginalBodyWord"
+                                      },
+                                      "name" : {
+                                        "_type" : {
+                                          "_name" : "String"
+                                        },
+                                        "_value" : "testNativeLongPressOriginalBodyWord()"
+                                      },
+                                      "summaryRef" : {
+                                        "_type" : {
+                                          "_name" : "Reference"
+                                        },
+                                        "id" : {
+                                          "_type" : {
+                                            "_name" : "String"
+                                          },
+                                          "_value" : "0~ubaxT5dDPwDqDZxeV9IHOOn5KqBf6UNSpw2zbu7gECOc6bJG7AIypJJJr4yCPmcRtu0dBpzHmqwboIEhTFd4hQ=="
+                                        },
+                                        "targetType" : {
+                                          "_type" : {
+                                            "_name" : "TypeDefinition"
+                                          },
+                                          "name" : {
+                                            "_type" : {
+                                              "_name" : "String"
+                                            },
+                                            "_value" : "ActionTestSummary"
+                                          },
+                                          "supertype" : {
+                                            "_type" : {
+                                              "_name" : "TypeDefinition"
+                                            },
+                                            "name" : {
+                                              "_type" : {
+                                                "_name" : "String"
+                                              },
+                                              "_value" : "ActionTestSummaryIdentifiableObject"
+                                            },
+                                            "supertype" : {
+                                              "_type" : {
+                                                "_name" : "TypeDefinition"
+                                              },
+                                              "name" : {
+                                                "_type" : {
+                                                  "_name" : "String"
+                                                },
+                                                "_value" : "ActionAbstractTestSummary"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "testStatus" : {
+                                        "_type" : {
+                                          "_name" : "String"
+                                        },
+                                        "_value" : "Success"
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

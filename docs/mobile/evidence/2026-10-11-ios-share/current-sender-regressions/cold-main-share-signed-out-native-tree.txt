@@ -1,0 +1,125 @@
+Attributes: Application, 0x11695db80, pid: 79168, label: 'ShareFixtureHost'
+Element subtree:
+ →Application, 0x11695db80, pid: 79168, label: 'ShareFixtureHost'
+    Window (Main), 0x11695dcc0, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x11695de00, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x11695df40, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x11695e080, {{0.0, 0.0}, {402.0, 874.0}}
+          Other, 0x11695e1c0, {{0.0, 0.0}, {402.0, 874.0}}
+            Other, 0x11695e300, {{128.0, 400.0}, {146.0, 74.3}}
+              StaticText, 0x11695e440, {{128.0, 400.0}, {146.0, 20.3}}, identifier: 'share-fixture-status', label: 'Ready: signed-out'
+              Button, 0x11695e580, {{128.0, 444.3}, {146.0, 30.0}}, identifier: 'share-fixture-send', label: 'Share controlled URL'
+                StaticText, 0x11695e6c0, {{128.0, 450.3}, {146.0, 18.0}}, label: 'Share controlled URL'
+      Other, 0x11695e800, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x11695e940, {{0.0, 0.0}, {402.0, 874.0}}, identifier: 'PopoverDismissRegion', label: 'dismiss popup'
+        Popover, 0x11695ea80, {{9.0, 483.0}, {384.0, 382.0}}
+          Image, 0x11695ebc0, {{-141.0, 333.0}, {684.0, 682.0}}
+          Other, 0x11695ed00, {{9.0, 483.0}, {384.0, 382.0}}
+            Other, 0x11695ee40, {{9.0, 483.0}, {384.0, 382.0}}
+              Other, 0x11695ef80, {{9.0, 483.0}, {384.0, 382.0}}
+                Other, 0x11695f0c0, {{9.0, 483.0}, {384.0, 382.0}}
+                  Other, 0x11695f200, {{9.0, 483.0}, {384.0, 382.0}}
+                    Other, 0x11695f340, {{9.0, 483.0}, {384.0, 382.0}}
+                      Other, 0x11695f480, {{9.0, 483.0}, {0.0, 0.0}}
+                        Other, 0x11695f5c0, {{9.0, 483.0}, {384.0, 382.0}}
+                          Other, 0x11695f700, {{9.0, 483.0}, {384.0, 382.0}}
+                            Other, 0x11695f840, {{9.0, 483.0}, {384.0, 382.0}}
+                              Other, 0x11695f980, {{9.0, 483.0}, {384.0, 382.0}}
+            Other, 0x11695fac0, {{9.0, 483.0}, {384.0, 382.0}}
+              Other, 0x11695fc00, {{9.0, 483.0}, {384.0, 382.0}}, identifier: 'ActivityListView'
+                Other, 0x11695fd40, {{9.0, 483.0}, {384.0, 382.0}}, identifier: 'ShareSheet.RemoteContainerView'
+                  Other, 0x11695fe80, {{9.0, 483.0}, {384.0, 382.0}}
+                    Other, 0x11686b480, {{9.0, 483.0}, {384.0, 382.0}}
+                      Other, 0x116869540, {{9.0, 483.0}, {384.0, 382.0}}
+                        Other, 0x116964000, {{9.0, 483.0}, {384.0, 382.0}}
+                          Other, 0x116964140, {{9.0, 483.0}, {384.0, 382.0}}
+                            Other, 0x116964280, {{9.0, 483.0}, {384.0, 382.0}}
+                              Other, 0x1169643c0, {{9.0, 483.0}, {384.0, 382.0}}
+                                Other, 0x116964500, {{9.0, 483.0}, {384.0, 382.0}}
+                                  NavigationBar, 0x116964640, {{9.0, 483.0}, {384.0, 104.3}}, identifier: 'UIActivityContentView'
+                                    Image, 0x116964780, {{33.3, 507.3}, {64.0, 64.0}}, identifier: 'safari', label: 'Safari浏览器'
+                                    Other, 0x1169648c0, {{112.3, 529.3}, {256.3, 20.0}}, identifier: 'LP.CaptionBar.BottomCaption', label: 'share-fixture.test'
+                                  Other, 0x116964a00, {{9.0, 483.0}, {384.0, 382.0}}
+                                    Other, 0x116964b40, {{9.0, 483.0}, {384.0, 382.0}}
+                                      Other, 0x116964c80, {{9.0, 483.0}, {384.0, 382.0}}, identifier: 'shareSheet.activity.contentView'
+                                        CollectionView, 0x116964dc0, {{9.0, 483.0}, {384.0, 382.0}}, identifier: 'activityCollectionView'
+                                          Other, 0x116964f00, {{9.0, 483.0}, {384.0, 382.0}}
+                                            Other, 0x116965040, {{9.0, 483.0}, {384.0, 159.1}}
+                                          Other, 0x116965180, {{9.0, 483.0}, {384.0, 382.0}}
+                                          ScrollView, 0x1169652c0, {{27.3, 587.3}, {347.3, 138.3}}
+                                            Cell, 0x116965400, {{27.3, 587.3}, {82.0, 122.3}}, identifier: 'shareCell', label: '提醒事项'
+                                              Other, 0x116965540, {{27.3, 587.3}, {82.0, 122.3}}
+                                                Other, 0x116965680, {{27.3, 679.3}, {82.0, 14.3}}
+                                                  StaticText, 0x1169657c0, {{27.3, 679.3}, {82.0, 14.3}}, identifier: 'cellTitleLabel', label: '提醒事项'
+                                                  StaticText, 0x116965900, {{27.3, 679.3}, {32.7, 30.3}}, identifier: 'cellTitleLabel', label: 'Apple Inc'
+                                                  Other, 0x116965a40, {{27.3, 679.3}, {82.0, 14.3}}
+                                                Image, 0x116965b80, {{34.3, 603.3}, {68.0, 68.0}}, identifier: 'activityImageView'
+                                            Cell, 0x116965cc0, {{115.7, 587.3}, {82.0, 122.3}}, identifier: 'shareCell', label: 'Slax Reader'
+                                              Other, 0x116965e00, {{115.7, 587.3}, {82.0, 122.3}}
+                                                Other, 0x116965f40, {{115.7, 679.3}, {82.0, 14.3}}
+                                                  StaticText, 0x116966080, {{115.7, 679.3}, {82.0, 14.3}}, identifier: 'cellTitleLabel', label: 'Slax Reader'
+                                                  StaticText, 0x1169661c0, {{115.7, 679.3}, {32.7, 30.3}}, identifier: 'cellTitleLabel', label: 'Apple Inc'
+                                                  Other, 0x116966300, {{115.7, 679.3}, {82.0, 14.3}}
+                                                Image, 0x116966440, {{122.7, 603.3}, {68.0, 68.0}}, identifier: 'activityImageView'
+                                            Cell, 0x116966580, {{204.0, 587.3}, {82.0, 138.3}}, identifier: 'shareCell', label: 'Source Share UI Fixture'
+                                              Other, 0x1169666c0, {{204.0, 587.3}, {82.0, 138.3}}
+                                                Other, 0x116966800, {{204.0, 679.3}, {82.0, 30.3}}
+                                                  StaticText, 0x116966940, {{204.0, 679.3}, {82.0, 30.3}}, identifier: 'cellTitleLabel', label: 'Source Share UI Fixture'
+                                                  StaticText, 0x116966a80, {{204.0, 679.3}, {32.7, 30.3}}, identifier: 'cellTitleLabel', label: 'Apple Inc'
+                                                  Other, 0x116966bc0, {{204.0, 679.3}, {82.0, 30.3}}
+                                                Image, 0x116966d00, {{211.0, 603.3}, {68.0, 68.0}}, identifier: 'activityImageView'
+                                            Cell, 0x116966e40, {{292.3, 587.3}, {82.0, 122.3}}, identifier: 'shareCell', label: '更多'
+                                              Other, 0x116966f80, {{292.3, 587.3}, {82.0, 122.3}}
+                                                Other, 0x1169670c0, {{292.3, 679.3}, {82.0, 14.3}}
+                                                  StaticText, 0x116967200, {{292.3, 679.3}, {82.0, 14.3}}, identifier: 'cellTitleLabel', label: '更多'
+                                                  StaticText, 0x116967340, {{292.3, 679.3}, {32.7, 30.3}}, identifier: 'cellTitleLabel', label: 'Apple Inc'
+                                                  Other, 0x116967480, {{292.3, 679.3}, {82.0, 14.3}}
+                                                Image, 0x1169675c0, {{299.3, 603.3}, {68.0, 68.0}}, identifier: 'activityImageView'
+                                          ScrollView, 0x116967700, {{27.3, 726.7}, {347.3, 138.3}}
+                                            Cell, 0x116967840, {{27.3, 726.7}, {82.0, 138.3}}, identifier: 'actionGroupCell', label: 'Copy'
+                                              Other, 0x116967980, {{27.3, 726.7}, {82.0, 138.3}}
+                                                Other, 0x116967ac0, {{27.3, 818.7}, {82.0, 14.3}}
+                                                  StaticText, 0x116967c00, {{27.3, 818.7}, {82.0, 14.3}}, identifier: 'cellTitleLabel', label: 'Copy'
+                                                  StaticText, 0x116967d40, {{27.3, 818.7}, {32.7, 30.3}}, identifier: 'cellTitleLabel', label: 'Apple Inc'
+                                                  Other, 0x116967e80, {{27.3, 818.7}, {82.0, 14.3}}
+                                                Other, 0x116968000, {{33.3, 742.7}, {70.0, 70.0}}
+                                                Image, 0x116968140, {{52.3, 759.3}, {32.0, 36.7}}, identifier: 'activityImageView', label: '拷贝'
+                                            Cell, 0x116968280, {{115.7, 726.7}, {82.0, 138.3}}, identifier: 'actionGroupCell', label: 'Add to Reading List'
+                                              Other, 0x1169683c0, {{115.7, 726.7}, {82.0, 138.3}}
+                                                Other, 0x116968500, {{115.7, 818.7}, {82.0, 30.3}}
+                                                  StaticText, 0x116968640, {{115.7, 818.7}, {82.0, 30.3}}, identifier: 'cellTitleLabel', label: 'Add to Reading List'
+                                                  StaticText, 0x116968780, {{115.7, 818.7}, {32.7, 30.3}}, identifier: 'cellTitleLabel', label: 'Apple Inc'
+                                                  Other, 0x1169688c0, {{115.7, 818.7}, {82.0, 30.3}}
+                                                Other, 0x116968a00, {{121.7, 742.7}, {70.0, 70.0}}
+                                                Image, 0x116968b40, {{140.7, 767.0}, {32.0, 21.0}}, identifier: 'activityImageView', label: '阅读列表'
+                                          Other, 0x116968c80, {{33.3, 725.7}, {335.3, 1.0}}, identifier: 'collectionView.footerView'
+                                        Other, 0x116968dc0, {{33.3, 587.3}, {335.3, 1.0}}
+                                  Other, 0x116968f00, {{9.0, 483.0}, {384.0, 382.0}}
+                                    Other, 0x116969040, {{9.0, 483.0}, {384.0, 382.0}}
+      Other, 0x116969180, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x1169692c0, {{-402.0, -874.0}, {1206.0, 2622.0}}
+        Other, 0x116969400, {{0.0, 0.0}, {402.0, 874.0}}
+          Other, 0x116969540, {{0.0, 0.0}, {402.0, 874.0}}
+            Other, 0x116969680, {{0.0, 0.0}, {402.0, 874.0}}
+              Other, 0x1169697c0, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x116969900, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x116969a40, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x116969b80, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x116969cc0, {{0.0, 0.0}, {402.0, 874.0}}
+                        Other, 0x116969e00, {{0.0, 0.0}, {402.0, 874.0}}
+                          Other, 0x116969f40, {{0.0, 72.0}, {402.0, 802.0}}
+                            Image, 0x11696a080, {{-150.0, -78.0}, {702.0, 1102.0}}
+                            Other, 0x11696a1c0, {{0.0, 72.0}, {402.0, 802.0}}
+                              Other, 0x11696a300, {{0.0, 72.0}, {402.0, 802.0}}
+                                Other, 0x11696a440, {{0.0, 72.0}, {402.0, 802.0}}
+                                  Other, 0x11696a580, {{0.0, 72.0}, {402.0, 802.0}}
+                                    Other, 0x11696a6c0, {{0.0, 72.0}, {402.0, 802.0}}
+                                    Other, 0x11696a800, {{0.0, 694.0}, {402.0, 180.0}}
+                                      StaticText, 0x11696a940, {{20.0, 790.0}, {362.0, 19.3}}, label: 'Not have auth info, please login first.'
+Path to element:
+ →Application, 0x11695db80, pid: 79168, label: 'ShareFixtureHost'
+Query chain:
+ →Find: Target Application 'app.slax.reader.sharefixturehost'
+  Output: {
+    Application, 0x11696aa80, pid: 79168, label: 'ShareFixtureHost'
+  }

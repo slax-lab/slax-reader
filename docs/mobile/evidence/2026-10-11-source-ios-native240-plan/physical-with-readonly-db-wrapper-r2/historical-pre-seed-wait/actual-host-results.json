@@ -1,0 +1,21 @@
+[
+  {
+    "name": "guards",
+    "command": [
+      "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+      "-B",
+      "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/native-scroll-db-runtime-guards.test.py",
+      "-v"
+    ],
+    "exitCode": 0
+  },
+  {
+    "name": "readonly",
+    "command": [
+      "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+      "-B",
+      "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/run-native-scroll-with-db.py"
+    ],
+    "exitCode": 0
+  }
+]

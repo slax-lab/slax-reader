@@ -1,0 +1,44 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "1449F957-4134-4E42-ACE5-6EDE83537F04.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-after-native-selection-dismissal-native-tree_0_1B59A957-5EFD-46B1-9C8A-BF33E8B3E3F2.txt",
+        "timestamp" : 1791674996.757
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "DCEBA715-8279-437D-BE91-6B4483D8F59C.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-after-native-selection-dismissal_0_218D6C63-05C0-480A-B7CF-2349FDACE771.png",
+        "timestamp" : 1791674996.389
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "8E5AF27A-A3FD-4497-AAD6-1AC6DC1BF7A2.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-before-native-selection-dismissal-native-tree_0_3935F1E5-9C75-4F9B-ABEC-8775C746AF58.txt",
+        "timestamp" : 1791674991.297
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "FD29174C-ECA3-4E53-B87D-89E74E257F35.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-before-native-selection-dismissal_0_C4233471-87C6-4A1D-8558-A863F8F88502.png",
+        "timestamp" : 1791674990.888
+      }
+    ],
+    "testIdentifier" : "ReaderNativeControl/testNativeBackClearsPreparedSelection()",
+    "testIdentifierURL" : "test://com.apple.xcode/ReaderNativeControl/ReaderNativeControl/ReaderNativeControl/testNativeBackClearsPreparedSelection"
+  }
+]

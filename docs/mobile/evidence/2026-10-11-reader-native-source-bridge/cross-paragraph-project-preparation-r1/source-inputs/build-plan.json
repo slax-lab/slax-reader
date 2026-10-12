@@ -1,0 +1,94 @@
+{
+  "kind": "cross-paragraph-native-build-plan",
+  "version": 1,
+  "status": "prepared-only-not-compiled-or-executed",
+  "projectRoot": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project",
+  "derivedDataRoot": "/private/tmp/slax-reader-cross-paragraph-build-520eeb57afaf413ca5e23e4fbd2a6f88",
+  "floorBytes": 3221225472,
+  "preBuildFreeBytes": 3865470566,
+  "productCapBytes": 262144000,
+  "logCapBytes": 8388608,
+  "deadlineSeconds": 180,
+  "jobs": 1,
+  "inputs": [
+    {
+      "relativePath": "ControlHost.swift",
+      "sha256": "243b419d3e02a29e2d8f3100ec5637a7a2e054970ac2a258c811027856246495",
+      "bytes": 726
+    },
+    {
+      "relativePath": "ReaderCrossParagraphControl.swift",
+      "sha256": "7c1b3720a67bf91b370f688524cc17f0d54d7f2387a2c53deba9a3be60d53d57",
+      "bytes": 14089
+    },
+    {
+      "relativePath": "reference-alpha.png",
+      "sha256": "0bee483fd7932174a320dbd4e89243ca66d03946fb63bd7144e9a0308f83e4c7",
+      "bytes": 349121
+    },
+    {
+      "relativePath": "CrossParagraphControl.xcodeproj/project.pbxproj",
+      "sha256": "a02314f60233488fc354f127be8171da055db792bfc75210ae9ce800a8019751",
+      "bytes": 5217
+    },
+    {
+      "relativePath": "CrossParagraphControl.xcodeproj/xcshareddata/xcschemes/CrossParagraphControl.xcscheme",
+      "sha256": "83f14f3116e6e28cb2edbece7030316125c2f11b3521a09ba6e1e89009ffeffa",
+      "bytes": 1433
+    },
+    {
+      "relativePath": "build.py",
+      "sha256": "83fbafb66ac774f16cd62011547d8259ccaa51b46e7f7f7fa0a106fd07feaadf",
+      "bytes": 14987
+    },
+    {
+      "relativePath": "build-guards.test.py",
+      "sha256": "f39dfde4035d58b21e80ddcd491e7994913d33d3aa1b7e32b7a3d3d7a001b92b",
+      "bytes": 5538
+    },
+    {
+      "relativePath": "README.md",
+      "sha256": "7b31dde19d85238d09806769622aa60bba4876cf738ce2eaf3ee479abbc67ea3",
+      "bytes": 3141
+    }
+  ],
+  "protectedLegacyInputs": [
+    {
+      "relativePath": "../ReaderCrossParagraphControl.swift",
+      "sha256": "7f249347649b419322a93445ec344b4f414414327807e9095bb68214387d5adc",
+      "bytes": 12707
+    },
+    {
+      "relativePath": "../../ControlHost.swift",
+      "sha256": "1096b4aedbc3f913fd93b5eac3213c80c4ddbf27635e0cd57718bf67cea2f400",
+      "bytes": 724
+    },
+    {
+      "relativePath": "../../ReaderNativeControl.swift",
+      "sha256": "84daeb26cde784efd06fed3e6c08dad55dac785ef987ac175e16408c6ef0b91f",
+      "bytes": 9974
+    },
+    {
+      "relativePath": "../../ReaderNativeControl.xcodeproj/project.pbxproj",
+      "sha256": "f93c8d95a1cb107dc3a75f50d5c2d6446800c79fddbaceb7480617bd63c1627d",
+      "bytes": 4711
+    },
+    {
+      "relativePath": "../../ReaderNativeControl.xcodeproj/xcshareddata/xcschemes/ReaderNativeControl.xcscheme",
+      "sha256": "dd403736b0b22a23c4df0ba758ba891a6896c99badddf346bb91824c89c0f91c",
+      "bytes": 1169
+    }
+  ],
+  "hostBundleIdentifier": "app.slax.reader.crossparagraphfixture.controlhost",
+  "testBundleIdentifier": "app.slax.reader.crossparagraphfixture.control",
+  "scheme": "CrossParagraphControl",
+  "genericSimulatorArm64Only": true,
+  "buildForTestingOnly": true,
+  "noDeviceCommands": true,
+  "noAppGroupOrOtherApplicationTargets": true,
+  "bitmapPreflight": "ReaderCrossParagraphBitmapPreflight/testArchivedNativeSelectionHandlesBitmapOrientation",
+  "nativeContinuation": "ReaderCrossParagraphControl/testNativeEndHandleDragFromGenuineAlphaTowardSecondParagraph",
+  "futureNativeExecutionRequiresSeparateAllocation": true,
+  "originalDriverSha256": "7f249347649b419322a93445ec344b4f414414327807e9095bb68214387d5adc",
+  "copyClosedInputsToOwnedDD": true
+}

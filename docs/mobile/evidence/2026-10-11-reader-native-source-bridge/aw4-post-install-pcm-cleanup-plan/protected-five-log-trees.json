@@ -1,0 +1,370 @@
+[
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-build",
+    "path": "failed-report.json",
+    "mode": 420,
+    "mtimeNs": 1791669102741366565,
+    "bytes": 3934,
+    "kind": "file",
+    "sha256": "404f48e4ad42661c39729776e2d943aec8daa8c61f78f6db05701368452626d5"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-build",
+    "path": "owner.json",
+    "mode": 420,
+    "mtimeNs": 1791669063776541141,
+    "bytes": 548,
+    "kind": "file",
+    "sha256": "fe3015f73194614e592b08ead3aaa05aa14f1ab9f3654439064bd86287499b9e"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-build",
+    "path": "pod-result.json",
+    "mode": 420,
+    "mtimeNs": 1791669090604687880,
+    "bytes": 234,
+    "kind": "file",
+    "sha256": "df9c2b6522d131d58f821317e393a8686c43e742a2ffdc4a91cf6462f1306c35"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-build",
+    "path": "pod.log",
+    "mode": 420,
+    "mtimeNs": 1791669090586665559,
+    "bytes": 37218,
+    "kind": "file",
+    "sha256": "ad35e20923c6b08ac66c41a6f4e66770cfc091f4f60228314a2cbf3df5c7fded"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-build",
+    "path": "xcodebuild-result.json",
+    "mode": 420,
+    "mtimeNs": 1791669102740665198,
+    "bytes": 735,
+    "kind": "file",
+    "sha256": "0baf456160c02d8a0577f95ab2f4eb6689311aa71003159e5262baf8ab399d64"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-build",
+    "path": "xcodebuild.log",
+    "mode": 420,
+    "mtimeNs": 1791669102634665705,
+    "bytes": 192989,
+    "kind": "file",
+    "sha256": "32f96c16ebaf2630a92571eb83b269dd07bdbf4004c2786b2128320eb1c5ef8c"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-resume",
+    "path": "accounting-probe.json",
+    "mode": 420,
+    "mtimeNs": 1791669339019409547,
+    "bytes": 1625,
+    "kind": "file",
+    "sha256": "fee7754bc448f6e4400c060742dc9f8c9c7ff6d6b4b7e29b370340fa5e533409"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-resume",
+    "path": "failed-report.json",
+    "mode": 420,
+    "mtimeNs": 1791670149084813502,
+    "bytes": 180309,
+    "kind": "file",
+    "sha256": "600b54faa605fa9e3f751d79ed3b3bb276e8d6a55eeaf6ca9c61c0f40774f3ef"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-resume",
+    "path": "owner.json",
+    "mode": 420,
+    "mtimeNs": 1791669339004949724,
+    "bytes": 765,
+    "kind": "file",
+    "sha256": "7bd23cef466589eaddc6be05c875a3047963afe48d62214d4e3c3d593666723c"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-resume",
+    "path": "pod-result.json",
+    "mode": 420,
+    "mtimeNs": 1791669365497361634,
+    "bytes": 754,
+    "kind": "file",
+    "sha256": "f87b4d60b213e162f127d0cdbf2e71e370616510a7242ce749a2ffaef8db2777"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-resume",
+    "path": "pod.log",
+    "mode": 420,
+    "mtimeNs": 1791669365482810896,
+    "bytes": 37218,
+    "kind": "file",
+    "sha256": "695da516f238c2a094c542766e060daced599437c9d4e42a6883722b3510463d"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-resume",
+    "path": "xcodebuild-result.json",
+    "mode": 420,
+    "mtimeNs": 1791670149083242243,
+    "bytes": 1252,
+    "kind": "file",
+    "sha256": "d5be9ca7976bb9d5779d1c78ef274d98c8e5a526c7ebbd9affd7f2b022ef78c1"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-resume",
+    "path": "xcodebuild.log",
+    "mode": 420,
+    "mtimeNs": 1791670149054605210,
+    "bytes": 14468556,
+    "kind": "file",
+    "sha256": "2a13a4e119add1f74cbdc487d9968fbe714f72f147806dfe5d83f62c9d72294c"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-continue-product",
+    "path": "accounting-probe.json",
+    "mode": 420,
+    "mtimeNs": 1791670397510160251,
+    "bytes": 1822,
+    "kind": "file",
+    "sha256": "3794ca4e36581a5ce361022f7d8e1b01e41b560255e3956efcaf17496adaab17"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-continue-product",
+    "path": "failed-report.json",
+    "mode": 420,
+    "mtimeNs": 1791671167313023688,
+    "bytes": 172097,
+    "kind": "file",
+    "sha256": "f781329d5c28966a519c2ab58a3446b50d4385f19f958393b23493dcd3557b76"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-continue-product",
+    "path": "owner.json",
+    "mode": 420,
+    "mtimeNs": 1791670397278980116,
+    "bytes": 950,
+    "kind": "file",
+    "sha256": "3709ddf48b32bdd70bd845b84f904548e5504eb8710bdb1f61606cabe5858555"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-continue-product",
+    "path": "pod-result.json",
+    "mode": 420,
+    "mtimeNs": 1791670425469457554,
+    "bytes": 756,
+    "kind": "file",
+    "sha256": "ec3d059c471422aae5c6cebb285e582d33a9058bafd22c5db4b457b28aa8c5a1"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-continue-product",
+    "path": "pod.log",
+    "mode": 420,
+    "mtimeNs": 1791670425451975040,
+    "bytes": 37218,
+    "kind": "file",
+    "sha256": "ad35e20923c6b08ac66c41a6f4e66770cfc091f4f60228314a2cbf3df5c7fded"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-continue-product",
+    "path": "xcodebuild-result.json",
+    "mode": 420,
+    "mtimeNs": 1791671167310997089,
+    "bytes": 1252,
+    "kind": "file",
+    "sha256": "ea004d335c1eee240c3f25cecb2765ef55afe2e65729719b5b2938ae8a1f51fa"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-continue-product",
+    "path": "xcodebuild.log",
+    "mode": 420,
+    "mtimeNs": 1791671167229655915,
+    "bytes": 16422079,
+    "kind": "file",
+    "sha256": "2b520c2f2a2e96d4e6fd969d4577ae9d365d9fd33be8211c2ecb4bfa3d29feda"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+    "path": "accounting-probe.json",
+    "mode": 420,
+    "mtimeNs": 1791671603184031543,
+    "bytes": 2016,
+    "kind": "file",
+    "sha256": "bef97d4e108bd034fe0975d34a6ca3429f09085c177064dfe6cedebf0868ce19"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+    "path": "device-window-66429fd6-856d-4463-a70c-b04a09f37625",
+    "mode": 493,
+    "mtimeNs": 1791673188729798478,
+    "bytes": 256,
+    "kind": "directory"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+    "path": "device-window-66429fd6-856d-4463-a70c-b04a09f37625/boot.log",
+    "mode": 420,
+    "mtimeNs": 1791673150362105981,
+    "bytes": 0,
+    "kind": "file",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+    "path": "device-window-66429fd6-856d-4463-a70c-b04a09f37625/bootstatus.log",
+    "mode": 420,
+    "mtimeNs": 1791673162298033643,
+    "bytes": 196,
+    "kind": "file",
+    "sha256": "efc121ca98cc92e80738e31a4f7218f5d3a08c6f6403870bc0da89ecb6cb23d0"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+    "path": "device-window-66429fd6-856d-4463-a70c-b04a09f37625/install-owned-ui-fixture.log",
+    "mode": 420,
+    "mtimeNs": 1791673167949300790,
+    "bytes": 0,
+    "kind": "file",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+    "path": "device-window-66429fd6-856d-4463-a70c-b04a09f37625/launch-owned-ui-fixture.log",
+    "mode": 420,
+    "mtimeNs": 1791673183478978662,
+    "bytes": 33,
+    "kind": "file",
+    "sha256": "382e010ad2346e7782dc1b07be08e8537a4179976dfc89488dae74e8aac4c51d"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+    "path": "device-window-66429fd6-856d-4463-a70c-b04a09f37625/owner.json",
+    "mode": 420,
+    "mtimeNs": 1791673149204793785,
+    "bytes": 418,
+    "kind": "file",
+    "sha256": "5ead2214ee7262ef7cc3ba4ff6b020ba65432bf3c18596cc79aabac71cdca54c"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+    "path": "device-window-66429fd6-856d-4463-a70c-b04a09f37625/report.json",
+    "mode": 420,
+    "mtimeNs": 1791673188730007349,
+    "bytes": 5722,
+    "kind": "file",
+    "sha256": "621ca4aea0a92af82064d669e0cd3c7e79648e220766fe042801e19315edfd21"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+    "path": "failed-report.json",
+    "mode": 420,
+    "mtimeNs": 1791672383900530994,
+    "bytes": 174222,
+    "kind": "file",
+    "sha256": "63037804d780be177d2b9887f8179998fc0ca2a0462f541aa69f1f72efd114fa"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+    "path": "owner.json",
+    "mode": 420,
+    "mtimeNs": 1791671602871901909,
+    "bytes": 1138,
+    "kind": "file",
+    "sha256": "2128b590d0f0acdbebf722803327df9bfd374927329cdb9178115ec3374a06a7"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+    "path": "report.json",
+    "mode": 420,
+    "mtimeNs": 1791672933261673117,
+    "bytes": 6351,
+    "kind": "file",
+    "sha256": "be0e72740b63b30b8e7a249ea3661e087456169050c0ac79d0b872415b0ea77d"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+    "path": "xcodebuild-result.json",
+    "mode": 420,
+    "mtimeNs": 1791672383675514301,
+    "bytes": 1233,
+    "kind": "file",
+    "sha256": "228277f7022393576ce5de16584333356d0cc67987fc529862a842b5519a657c"
+  },
+  {
+    "root": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+    "path": "xcodebuild.log",
+    "mode": 420,
+    "mtimeNs": 1791672383510430351,
+    "bytes": 16481546,
+    "kind": "file",
+    "sha256": "9828532344aebdc278c8c7e0e68e6107a106cd7576e553eb2751b6d1badbec30"
+  },
+  {
+    "root": "/tmp/slax-reader-aw4-public-sign-ba391fab-1ee8-484d-9c95-1ecb4021ee6d",
+    "path": "actual-public-entitlements.log",
+    "mode": 420,
+    "mtimeNs": 1791672970924561043,
+    "bytes": 132,
+    "kind": "file",
+    "sha256": "1f8221062b9c87d5a55ba3ea6ff69c07156fb27f63fe3ea424e6b3a436449d8b"
+  },
+  {
+    "root": "/tmp/slax-reader-aw4-public-sign-ba391fab-1ee8-484d-9c95-1ecb4021ee6d",
+    "path": "actual-public-signature.log",
+    "mode": 420,
+    "mtimeNs": 1791672970918796703,
+    "bytes": 434,
+    "kind": "file",
+    "sha256": "dc3c9bd1b8b6ae467c4e35806e3702bfc5ec86852f48f05e968094d7e665612b"
+  },
+  {
+    "root": "/tmp/slax-reader-aw4-public-sign-ba391fab-1ee8-484d-9c95-1ecb4021ee6d",
+    "path": "complete-signed-app-manifest.json",
+    "mode": 420,
+    "mtimeNs": 1791672933225441280,
+    "bytes": 45246,
+    "kind": "file",
+    "sha256": "6570567571698574073f3eed6bba121fed39267b3e9fe8f98dc4aa2e15c7e68e"
+  },
+  {
+    "root": "/tmp/slax-reader-aw4-public-sign-ba391fab-1ee8-484d-9c95-1ecb4021ee6d",
+    "path": "owner.json",
+    "mode": 420,
+    "mtimeNs": 1791672929636704346,
+    "bytes": 701,
+    "kind": "file",
+    "sha256": "17bf358812b91712c98c048557c972df6393142c21dd92023a7d02d2b8bd9d61"
+  },
+  {
+    "root": "/tmp/slax-reader-aw4-public-sign-ba391fab-1ee8-484d-9c95-1ecb4021ee6d",
+    "path": "public-ad-hoc-sign-result.json",
+    "mode": 420,
+    "mtimeNs": 1791672930905391999,
+    "bytes": 320,
+    "kind": "file",
+    "sha256": "af3ebacc3c8f7a04b5c5979a13a557b52491bfb9541aa5ecd2e6cef5d73af6be"
+  },
+  {
+    "root": "/tmp/slax-reader-aw4-public-sign-ba391fab-1ee8-484d-9c95-1ecb4021ee6d",
+    "path": "public-ad-hoc-sign.log",
+    "mode": 420,
+    "mtimeNs": 1791672930213888329,
+    "bytes": 132,
+    "kind": "file",
+    "sha256": "881ea4374dee84f0500c586b933a98b3196c75179ff9ce6bd7684af86d516d27"
+  },
+  {
+    "root": "/tmp/slax-reader-aw4-public-sign-ba391fab-1ee8-484d-9c95-1ecb4021ee6d",
+    "path": "signature-verification-result.json",
+    "mode": 420,
+    "mtimeNs": 1791672932631004319,
+    "bytes": 314,
+    "kind": "file",
+    "sha256": "ef681af0c50c152ca652ddd445989580aa6ea1b8fe52a0a324e6ec706f7075a7"
+  },
+  {
+    "root": "/tmp/slax-reader-aw4-public-sign-ba391fab-1ee8-484d-9c95-1ecb4021ee6d",
+    "path": "signature-verification.log",
+    "mode": 420,
+    "mtimeNs": 1791672931930488044,
+    "bytes": 0,
+    "kind": "file",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

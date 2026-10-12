@@ -1,0 +1,101 @@
+{
+  "kind": "isolated-native-foundation-launch",
+  "schemaVersion": 1,
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "targetDriverInputs": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-driver-l.json",
+    "sha256": "0b577dd13fcffc0b2564408807439283bac9b234637a003081159c75f6dd1ba3"
+  },
+  "android": {
+    "identity": "com.slax.reader.uifixture",
+    "device": "emulator-5560",
+    "nativeLaunch": "passed",
+    "nativeScopedPowerSyncSQLite": "passed-through-real-fixture-database-init-and-render",
+    "nativeReaderBody": "rendered",
+    "readerBridgePosition": {
+      "controlledFixture": true,
+      "fixtureVersion": 1,
+      "cacheKey": "00000003-0000-4000-8000-000000000001",
+      "requestedPixels": 240,
+      "consumed": true,
+      "observed": {
+        "scrollPoints": 91.42857360839844,
+        "contentHeightPoints": 1641.142822265625,
+        "viewportHeightPoints": 806.4761962890625,
+        "positionPixels": 240.0000057220459
+      },
+      "geometry": {
+        "pixelRatio": 2.625,
+        "topInsetPoints": 297.1428527832031,
+        "headerHeightPoints": 297.1428527832031,
+        "containerScreenTopPoints": 107.80953979492188,
+        "webViewScreenTopPoints": 313.52381896972656,
+        "viewportHeightPoints": 806.4761962890625
+      }
+    },
+    "screenshot": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/target-native-foundation/android-reader-l.png",
+      "sha256": "19c91ed1f8830a4e0f4630a77c26fb5f28c18842376084dfdaf3dbd4adf31815"
+    },
+    "rawMetadata": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/target-native-foundation/android-reader-l-raw.json",
+      "sha256": "11b799e822485b8276d94e054ecdf911e7d7d10646fa327af52887effccd0831"
+    },
+    "apkSha256": "40dc7f92147047270a8465275d0a80ecb12be924bd5120656fc98574f91a2cc9"
+  },
+  "ios": {
+    "identity": "app.slax.reader.uifixture",
+    "device": "32D9AFE0-32C7-443A-8FEC-3EBB42135386",
+    "nativeBuild": "passed",
+    "nativeLaunch": "passed",
+    "nativeScopedPowerSyncSQLite": "passed-through-real-fixture-database-init-and-render",
+    "nativeReaderBody": "rendered-after-fixture-in-memory-origin-fix",
+    "nativeReaderBridgeReady": "pending; diagnostic consumed=false and observed=null",
+    "readerBridgePosition": {
+      "controlledFixture": true,
+      "fixtureVersion": 1,
+      "cacheKey": "00000003-0000-4000-8000-000000000001",
+      "requestedPixels": 240,
+      "consumed": false,
+      "observed": null,
+      "geometry": {
+        "pixelRatio": 3,
+        "topInsetPoints": 296,
+        "headerHeightPoints": 296,
+        "containerScreenTopPoints": 116,
+        "webViewScreenTopPoints": 116,
+        "viewportHeightPoints": 758
+      }
+    },
+    "appArtifact": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/target-native-foundation/ios-app-artifact-l.json",
+      "sha256": "8f2d9c1614732c7a0572dd646d799c2f3e5ab9227a59f6b3b7b6c03ab22c931b"
+    },
+    "libraryScreenshot": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/target-native-foundation/ios-library-k.png",
+      "sha256": "87cd148bb5bb4d49e675b87aaea7f90579754a3aaeee6e180e5ed7a8c880a73d"
+    },
+    "libraryRawMetadata": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/target-native-foundation/ios-library-k-raw.json",
+      "sha256": "6b830ee516d13034c525c4924bae68f3a6b94e801bb0b5ebe49137c6fd7d6afd"
+    },
+    "readerScreenshot": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/target-native-foundation/ios-reader-l.png",
+      "sha256": "78ba543c8c09a99411f5d4e4ddf92b50a7055efcd59bc0b8448951cf25080136"
+    },
+    "readerRawMetadata": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/target-native-foundation/ios-reader-l-raw.json",
+      "sha256": "cf1617ecece8aac7698801189b5080c6b325054b1ad3c2a3fc2542390a68af95"
+    }
+  },
+  "legacyProductionDataAccessed": false,
+  "productionRuntimeAcceptance": "separate",
+  "visualParity": "unverified",
+  "nativeInteractionAcceptance": "unverified",
+  "limitations": [
+    "Only synthetic scoped native SQLite and controlled prepared body rendering are established.",
+    "The initial h iOS Reader blank frame was rejected; l fixes the in-memory fixture base origin.",
+    "iOS Reader bridge/position readiness remains pending and is not claimed by foundation launch.",
+    "The complete 338-case visual/input/lifecycle matrix remains incomplete."
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "name": "reader-video-prepared-01-open-transcript",
+  "result": "native-candidate-captured",
+  "expectedRoute": null,
+  "observedRoute": {
+    "name": "Reader",
+    "params": {
+      "bookmarkId": "00000005-0000-4000-8000-000000000001"
+    },
+    "key": "Reader-5g4SPeRkgWEZYYagQzby_"
+  },
+  "focusedWindow": "mCurrentFocus=Window{fc34049 u0 com.slax.reader.uifixture/com.slax.reader.uifixture.MainActivity}",
+  "nativeInput": null,
+  "nativeInteractionVerified": false,
+  "expectedNativeState": [],
+  "forbiddenNativeState": [],
+  "preparedActionIndices": [
+    1
+  ],
+  "preparationOnly": true,
+  "preparedScenario": "reader-video",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "nativeMeasurements": {
+    "platform": "android",
+    "osVersion": "14",
+    "deviceModel": "sdk_gphone64_arm64",
+    "viewport": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "screen": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "pixelRatio": 2.625,
+    "fontScale": 1,
+    "fontScaleProfile": "default",
+    "safeArea": {
+      "left": 0,
+      "bottom": 24,
+      "right": 0,
+      "top": 51.80952453613281
+    },
+    "appearance": "light"
+  },
+  "visualInspection": "pending",
+  "sourceParity": "unverified",
+  "capturedAtMillis": 1791659960096,
+  "files": [
+    {
+      "path": "08-reader-video-prepared-01-open-transcript/native.png",
+      "sha256": "135c920868e149177d97b0d7300dfefca5a118259ba3acb3c4e73334b350c3a9",
+      "bytes": 77435
+    },
+    {
+      "path": "08-reader-video-prepared-01-open-transcript/runtime-context.json",
+      "sha256": "9055230142401ff69061c79433a832a7172d1c43476e98b49e1f2b63be23b9b9",
+      "bytes": 2826
+    },
+    {
+      "path": "08-reader-video-prepared-01-open-transcript/native-hierarchy.xml",
+      "sha256": "9870b56f787c0110a1b878157fd021a78c2aad30e6b7cb16991cd1610635bea0",
+      "bytes": 8675
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "4B845D93-7494-4C80-8621-7B64D073D88D.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-native-word-selection-published-native-tree_0_85107B64-AD05-48B3-8754-1CB69FFEB7ED.txt",
+        "timestamp" : 1791674469.076
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "83EE1EF4-C49A-4510-85A4-03B1E1EE7D46.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-native-word-selection-published_0_C98EF9F5-59A5-47D5-8DF5-0AD23A43920D.png",
+        "timestamp" : 1791674468.653
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "FE14E658-4F9E-496A-915B-E5EBA3709C92.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-after-native-word-long-press-native-tree_0_A359712C-0156-44E8-88E9-C297766CD1EB.txt",
+        "timestamp" : 1791674467.111
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "7088345F-CA60-4706-898F-A409FB7046AA.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-after-native-word-long-press_0_4BC22CC2-8439-4D71-AC0A-B6EA2B375493.png",
+        "timestamp" : 1791674466.185
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "93331BD2-E8F0-4001-858D-E9F47C48B132.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-before-native-word-long-press-native-tree_0_28D2238B-C787-48BD-BBDC-FCFD9A9305EA.txt",
+        "timestamp" : 1791674464.011
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "3C80590C-DDFD-4441-97CE-5E49F709FF44.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-before-native-word-long-press_0_1A755175-B677-45CE-884B-3DD0A0358B4E.png",
+        "timestamp" : 1791674463.522
+      }
+    ],
+    "testIdentifier" : "ReaderNativeControl/testNativeLongPressOriginalBodyWord()",
+    "testIdentifierURL" : "test://com.apple.xcode/ReaderNativeControl/ReaderNativeControl/ReaderNativeControl/testNativeLongPressOriginalBodyWord"
+  }
+]

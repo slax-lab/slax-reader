@@ -1,0 +1,105 @@
+{
+  "kind": "slax-reader-passive-input-regression",
+  "version": 1,
+  "recordedAt": "2026-10-10T20:24:08.983604+00:00",
+  "scope": "Controlled Debug input observation only; synthetic DOM events and actual mounted React components, not WK/native input acceptance",
+  "sourceInputs": [
+    {
+      "path": "apps/mobile/src/reader/input.ts",
+      "sha256": "f58cba33f6ec817c2b28a1239de401751d755b4282c08f7319ec26fda03a0b8c"
+    },
+    {
+      "path": "apps/mobile/src/reader/types.ts",
+      "sha256": "9665e33212f163f8e9e9cd4a1391e3eeb60e9e15fe7f0a5f728bcab875afb13d"
+    },
+    {
+      "path": "apps/mobile/src/reader/bridge.ts",
+      "sha256": "b5d2b33140ba85bf5ea44ab9aae5ecde9f8933413e9f74664042bf72d2618efd"
+    },
+    {
+      "path": "apps/mobile/src/reader/document.ts",
+      "sha256": "2951b3451dd46b9196c7d61ca7a10f3b07ca0b2ab896456454027735be409906"
+    },
+    {
+      "path": "apps/mobile/src/reader/ReaderWebView.tsx",
+      "sha256": "b182b5050f2683f7d070d83ee9d92eb270799231ff6fee2a2318ecd63a8c9948"
+    },
+    {
+      "path": "apps/mobile/src/screens/ReaderScreen.tsx",
+      "sha256": "7533b969b830bb2b50c1440746fe2ce1f214ac3a653b1a95b985eaf72b5d84a2"
+    },
+    {
+      "path": "apps/mobile/assets/embedded/js/react-native-host.js",
+      "sha256": "fe1809f006dcbc91995cd508d36e287e2acda6e6294acee78e8cad0653922bc2"
+    },
+    {
+      "path": "apps/mobile/src/reader/embedded.generated.ts",
+      "sha256": "d4fce6797ce13cc2e3366bd30a9941f244593db250728b750d66edcc7dbda1ae"
+    },
+    {
+      "path": "apps/mobile/src/reader/index.ts",
+      "sha256": "7629fb901942b5ad7cc3c672ba39d9a1fb471839a239bfcc546aa893a44b7712"
+    },
+    {
+      "path": "apps/mobile/src/runtime.tsx",
+      "sha256": "18b4a75beace74f8ea86b8d4b92af20cd768b57b7396cd4ce90fd9dbe075f439"
+    },
+    {
+      "path": "apps/mobile/tests/reader/input.test.mjs",
+      "sha256": "9eb843073adb38a6d8f5ba00063a6eba227202d15d76d6751b3fc17020c37a2e"
+    },
+    {
+      "path": "apps/mobile/tests/reader/dom.test.mjs",
+      "sha256": "901bb6a364ae541267dcd14bcfaa6c8e2a31cadb50a20fd8ffd1905c4e8ca668"
+    },
+    {
+      "path": "apps/mobile/tests/reader/screen-lifecycle.test.mjs",
+      "sha256": "d2b81c959473d3057a20d3b16ffefd27b8f584e7ec0461ff1b1fddfcf492dc6e"
+    }
+  ],
+  "originalBridgeSHA256": "cc943378a1de086b4dfc1c628e50618b187ae515fa256210bf2f51ac26038225",
+  "logs": [
+    {
+      "path": "tests.log",
+      "sha256": "0eb919d14f68eb975900d58a569670883e1692528cb728353acd6def3ba15ae0"
+    },
+    {
+      "path": "typecheck.log",
+      "sha256": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92"
+    }
+  ],
+  "tests": {
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "command": "node --experimental-strip-types --test apps/mobile/tests/reader/input.test.mjs apps/mobile/tests/reader/dom.test.mjs apps/mobile/tests/reader/screen-lifecycle.test.mjs"
+  },
+  "typecheck": {
+    "exitCode": 0,
+    "command": "pnpm --filter @apps/slax-reader-mobile typecheck"
+  },
+  "bounds": {
+    "counterMaximum": 1000000,
+    "eventsPerControlledFile": 128,
+    "payload": "finite numbers, booleans and nullable flags only; fixed page/stage metadata"
+  },
+  "observedContracts": [
+    "click does not synthesize mark touchend",
+    "source movement >10 CSS pixels still rejects mark taps",
+    "source type2 comment survives rendering/message/parser",
+    "touchcancel does not drain an already pending source selection",
+    "observer never processes/dispatches/changes a range",
+    "malformed or extra-field snapshots are rejected",
+    "Release and ordinary Debug do not register input listeners",
+    "diagnostic messages are never delivered to application actions",
+    "a throwing observer does not interrupt event delivery/restore/persistence/detach"
+  ],
+  "nativeInputVerified": false,
+  "selectionPublicationVerified": false,
+  "oldNativeCommentTapVerified": false,
+  "pending": [
+    "fresh native input records under reviewed Debug gates",
+    "actual WK selection publication and legacy-comment tap diagnosis",
+    "separate native long-press XCTest control compilation/execution"
+  ]
+}

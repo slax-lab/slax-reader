@@ -1,0 +1,82 @@
+{
+  "kind": "whole-native-raster-comparison",
+  "schemaVersion": 1,
+  "sourceCapture": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/android/en/library-populated/source-l-default/capture.json",
+    "sha256": "cbd9a6a731c64d2166f18be943408b9d3162269e4651e3fc16ff47faed378bb2"
+  },
+  "targetCapture": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/android/en/library-populated/target-ae-default/capture.json",
+    "sha256": "02c650f7104eb2510b5433c08b6408b22d09b73d0852a094167e562238dcd96c"
+  },
+  "targetNativeBuild": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-build-z.json",
+    "sha256": "509ccf378ca1a6e8133b11721eee98d7cd99509d51896ea5d792ad95146c678e"
+  },
+  "differentPixels": 37,
+  "regions": [
+    {
+      "id": "native-status-bar",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1080,
+        "height": 136
+      },
+      "differentPixels": 0,
+      "sourceRgbaSha256": "d5fa38f1a25df7dbfbc4609552bb95949d1e9f10c8c4de5abd3b8a66b96e804c",
+      "targetRgbaSha256": "d5fa38f1a25df7dbfbc4609552bb95949d1e9f10c8c4de5abd3b8a66b96e804c"
+    },
+    {
+      "id": "header",
+      "bounds": {
+        "x": 0,
+        "y": 136,
+        "width": 1080,
+        "height": 147
+      },
+      "differentPixels": 0,
+      "sourceRgbaSha256": "54a2699d34661de392402f5be7c3bccb4d4b09df3451714208febf927c475b41",
+      "targetRgbaSha256": "54a2699d34661de392402f5be7c3bccb4d4b09df3451714208febf927c475b41"
+    },
+    {
+      "id": "collection-band",
+      "bounds": {
+        "x": 0,
+        "y": 283,
+        "width": 1080,
+        "height": 220
+      },
+      "differentPixels": 0,
+      "sourceRgbaSha256": "20a55272e55cdcdeaae9eb90861d761da1a1b52e7bf54f132789a41cec1377e4",
+      "targetRgbaSha256": "20a55272e55cdcdeaae9eb90861d761da1a1b52e7bf54f132789a41cec1377e4"
+    },
+    {
+      "id": "feed-body",
+      "bounds": {
+        "x": 0,
+        "y": 503,
+        "width": 1080,
+        "height": 1497
+      },
+      "differentPixels": 28,
+      "sourceRgbaSha256": "6c082e536dec0668b03ce34338001d7d28a9d5fcf6a33b58b5d0893d1070d1c5",
+      "targetRgbaSha256": "a36e93e7bc438e7e2056275c72121fe510ddd5d4d7b21dcef32295db3ae8ede3"
+    },
+    {
+      "id": "continue-card-and-bottom",
+      "bounds": {
+        "x": 0,
+        "y": 2000,
+        "width": 1080,
+        "height": 400
+      },
+      "differentPixels": 9,
+      "sourceRgbaSha256": "73facb9249ef5f534f6c961bacc809a50f62357837e905b2184553b2d4879fe0",
+      "targetRgbaSha256": "ad7465909b3db3fab6ff05d6374cd36178497226170f9e8d1b35e9afa03242ef"
+    }
+  ],
+  "comparison": "Exact original-coordinate RGBA; no alignment, resampling, masks or color adjustment.",
+  "result": "failed",
+  "nativeInteractionVerified": false
+}

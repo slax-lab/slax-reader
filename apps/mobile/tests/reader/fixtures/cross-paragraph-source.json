@@ -1,0 +1,5 @@
+[
+  { "type": "text", "xpath": "div:nth-child(1) > article#reader-fixture > p#first > strong", "start_offset": 0, "end_offset": 4 },
+  { "type": "text", "xpath": "div:nth-child(1) > article#reader-fixture > p#first", "start_offset": 10, "end_offset": 15 },
+  { "type": "text", "xpath": "div:nth-child(1) > article#reader-fixture > p#second", "start_offset": 0, "end_offset": 6 }
+]

@@ -1,0 +1,164 @@
+{
+  "kind": "slax-owned-obsolete-android-legacy-intermediates-audit",
+  "version": 1,
+  "root": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy",
+  "retainedApk": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/outputs/apk/debug/slax-android-legacy-fixture-debug.apk",
+  "retainedApkSHA256": "529c45b6d9f6227da2229ba619ed01874149805bc2fa85cfb82866a8921f688f",
+  "boundHistoricalReport": "android-original-queue-real-service.json",
+  "directories": [
+    "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/merged_native_libs",
+    "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/stripped_native_libs",
+    "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/dex"
+  ],
+  "fileCount": 28,
+  "regularFileBytes": 24849028,
+  "inventory": [
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib/arm64-v8a/libdatastore_shared_counter.so",
+      "bytes": 10360,
+      "sha256": "deed4546c8dafad0e68ea2c25e4c0a62ca97343614ae386b7ed2af6abb7fa999"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib/arm64-v8a/libpowersync.so",
+      "bytes": 435680,
+      "sha256": "753a57be4e4438ac30bd4974e57a145e72918e3b8c8161e2f2759d10cf5c8899"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib/arm64-v8a/libsqliteJni.so",
+      "bytes": 1281456,
+      "sha256": "9d3ad85cca0b7b02e0fe31beec3f17c86cccdebf62e1d1c47ac46743f4967a99"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib/armeabi-v7a/libdatastore_shared_counter.so",
+      "bytes": 8432,
+      "sha256": "f51d0b6801896a20be66bd389a024f30be3284b757ac02377833d20e70b9c628"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib/armeabi-v7a/libpowersync.so",
+      "bytes": 295664,
+      "sha256": "5b55c4a2af05d247a1c89801fa1e606f207598bfb9ba279e7f6e175f2ee714b4"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib/armeabi-v7a/libsqliteJni.so",
+      "bytes": 1254892,
+      "sha256": "d1bcd83899465f738a7e155007f318be8331bbae97b942cce5d29c24b633501e"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib/x86/libdatastore_shared_counter.so",
+      "bytes": 7976,
+      "sha256": "c38104bd173ef2e405d32e90ef753725c54aaeca08f2e9a57820df8782f4d790"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib/x86/libpowersync.so",
+      "bytes": 513528,
+      "sha256": "ddb4c10c95e188721fcb99dc1808b691f57d76fd155d7b9fec83c9dcbb755277"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib/x86/libsqliteJni.so",
+      "bytes": 1140764,
+      "sha256": "b30393b5fd4414f5ccb52d20d70001ec5da6a47a7d455f7ccd36d502e70d45b9"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib/x86_64/libdatastore_shared_counter.so",
+      "bytes": 9424,
+      "sha256": "c3973140a0e6144a83e7dd7ee3c4e161f42181591feda254e12c8395d3bbacd0"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib/x86_64/libpowersync.so",
+      "bytes": 494488,
+      "sha256": "76015c0209db99ac05fe7f6d03c052e0b8009ebd859fcececb3da7df9a5300ff"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib/x86_64/libsqliteJni.so",
+      "bytes": 1189688,
+      "sha256": "0d1892faf4a90c1c99c375df704ac5dc498af492e71661fdda12c6a497a6691b"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/stripped_native_libs/debug/stripDebugDebugSymbols/out/lib/arm64-v8a/libdatastore_shared_counter.so",
+      "bytes": 7784,
+      "sha256": "178f89a2c6c9234ddf980dd4cd1f3616186a46b2b932aafa6707abd04c5fd76a"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/stripped_native_libs/debug/stripDebugDebugSymbols/out/lib/arm64-v8a/libpowersync.so",
+      "bytes": 435672,
+      "sha256": "cb97a5fbfc859f04c0bfaf2bb83112483831834cd1b55f5860cd2f1f337319ca"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/stripped_native_libs/debug/stripDebugDebugSymbols/out/lib/arm64-v8a/libsqliteJni.so",
+      "bytes": 1065408,
+      "sha256": "a3b7e03667fb5b0591ec74249b8012b389afff4fdfeb8e5123eebd1786def808"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/stripped_native_libs/debug/stripDebugDebugSymbols/out/lib/armeabi-v7a/libdatastore_shared_counter.so",
+      "bytes": 5916,
+      "sha256": "b4a465c02ee3ab581128ce8fedf83b40f6868c73c74b88e98908803229947e6a"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/stripped_native_libs/debug/stripDebugDebugSymbols/out/lib/armeabi-v7a/libpowersync.so",
+      "bytes": 295652,
+      "sha256": "452bbec6af7f4e0ab9a8fc009e3c0495aa521b470c03a8b7e65c9ff238316ade"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/stripped_native_libs/debug/stripDebugDebugSymbols/out/lib/armeabi-v7a/libsqliteJni.so",
+      "bytes": 1068000,
+      "sha256": "15ae0d5bd3021f183089f6d8ffc8dea091e6597d6e6ee4fa058a12e1ff36227f"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/stripped_native_libs/debug/stripDebugDebugSymbols/out/lib/x86/libdatastore_shared_counter.so",
+      "bytes": 6124,
+      "sha256": "ad9ce026fa71181a87aaa5f86019902ca02bf132c20fb04c28b1e781e68d8df0"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/stripped_native_libs/debug/stripDebugDebugSymbols/out/lib/x86/libpowersync.so",
+      "bytes": 513516,
+      "sha256": "4901c3cef347111ffa9ed2c838a7e1af7610bf9ac0ae1306a174f9e48f6ab579"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/stripped_native_libs/debug/stripDebugDebugSymbols/out/lib/x86/libsqliteJni.so",
+      "bytes": 1038064,
+      "sha256": "a20224256690d5d439caa73e47851d761058426c0625fdcdff64752428bf33de"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/stripped_native_libs/debug/stripDebugDebugSymbols/out/lib/x86_64/libdatastore_shared_counter.so",
+      "bytes": 7336,
+      "sha256": "ccd1862ef8f854d2322f3ee07adebd107890ded3b7c96b8f3528ac99aab4a4f6"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/stripped_native_libs/debug/stripDebugDebugSymbols/out/lib/x86_64/libpowersync.so",
+      "bytes": 494480,
+      "sha256": "cd5f94a38b80a9f6ac7f684392f74ee08cf932a0e20c116322ceaa358725ea83"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/stripped_native_libs/debug/stripDebugDebugSymbols/out/lib/x86_64/libsqliteJni.so",
+      "bytes": 1064080,
+      "sha256": "9449201673e70faad3b83484a5d3e32ec85fc9383d4a3163b3f1386e9d9cccbc"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/dex/debug/mergeExtDexDebug/classes.dex",
+      "bytes": 12166120,
+      "sha256": "48d00fd3e351e0ca447c335ba71800b01887c3c6d731d5791f96f98f0f37e31e"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/dex/debug/mergeProjectDexDebug/0/classes.dex",
+      "bytes": 3332,
+      "sha256": "a6a0b16b1aaa6b4c4e3ec4196d9bac0c97b9b834b3d8b7e310dd3e8f1f8fb4c4"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/dex/debug/mergeProjectDexDebug/3/classes.dex",
+      "bytes": 26664,
+      "sha256": "388d58a983f3e88c16616a422a6233bb66094126b9491387215ec7487b43defd"
+    },
+    {
+      "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/android-legacy/build/intermediates/dex/debug/mergeProjectDexDebug/7/classes.dex",
+      "bytes": 8528,
+      "sha256": "4c8f1e324a72692cc6740768d7529aa4bcb8e6e91dc3589bf433c1e50dfae56c"
+    }
+  ],
+  "currentV2ProjectPreserved": true,
+  "v2UsesPublicSourceWhitelistOnly": true,
+  "v2DependsOnTheseIntermediates": false,
+  "globalGradleCacheNotTouched": true,
+  "sandboxOrDatabase": false,
+  "removed": false,
+  "assessment": "Only about24MiB of regular outputs; retain warm outputs because cleanup cannot materially satisfy4GiB allocation floor"
+}

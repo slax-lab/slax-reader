@@ -1,0 +1,45 @@
+{
+  "kind": "sanitized-source-android-build",
+  "schemaVersion": 1,
+  "sourceCommit": "9951904405159f49f24effd4d42815f77ff33442",
+  "sourceManifestSha256": "3501089ae75682a823afdfb54ccf243d32cbc56eba1f84bd70c68afafc1f2943",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "actionDriverSha256": "3ca3e217457d081080a12d21732de7cad34215dfacccef9627cbd9db16c3cca8",
+  "inputManifest": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/source-driver-n/input-manifest.json",
+    "sha256": "26ab60618a83faff6fb1e78c566bd2778869fa20a8e516bd009ef28514b478c0"
+  },
+  "gradleVersion": "8.13",
+  "javaVersion": "17",
+  "maxWorkers": 1,
+  "maxHeap": "1g",
+  "tasks": [
+    ":composeApp:assembleDebugAndroidTest"
+  ],
+  "sourceApplicationReusedFrom": "source-build.json",
+  "result": "passed",
+  "elapsedSeconds": 20,
+  "originalSourceModified": false,
+  "productionBuildConfigurationEvaluated": false,
+  "applicationId": "com.slax.reader.fixture",
+  "testApplicationId": "com.slax.reader.fixture.test",
+  "artifacts": [
+    {
+      "kind": "source-instrumentation",
+      "sha256": "35a59356b92855ce41017cc521dc619289792c53a7993b574689ddf1efa3961c",
+      "bytes": 1544238
+    }
+  ],
+  "driverPreparation": {
+    "lifecycle": "prior-library-shared-user-and-subscription-dao-collectors",
+    "actionSelection": "optional-zero-based-declared-fixture-action-index",
+    "nativeInteractionVerified": false,
+    "observedNativeSemantics": "read-only text bounds and raw-pixel vertical scroll ranges",
+    "initialSelection": "explicit-fixtureInitialOnly-true-skips-all-preparation-actions",
+    "readerRoutes": "actual unchanged Bookmark DetailScreen and RSS RssReader with real source view models"
+  },
+  "buildLog": {
+    "path": "source-build-n.log",
+    "sha256": "b5e8790a01c69d92a888271aea07b7656cb263dd09244f07020156af18f94f26"
+  }
+}

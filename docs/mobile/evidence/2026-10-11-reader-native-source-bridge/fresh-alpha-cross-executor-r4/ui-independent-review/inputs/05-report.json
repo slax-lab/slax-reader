@@ -1,0 +1,255 @@
+{
+  "kind": "prepared-only-fresh-alpha-cross-r4-coupled-exact-snapshot-root",
+  "version": 1,
+  "openSpecChange": "expo-mobile-migration",
+  "nativeExecuted": false,
+  "compilerExecuted": false,
+  "deviceCommandsExecuted": false,
+  "liveProcessQueryExecuted": false,
+  "metroRequestsExecuted": false,
+  "stageModified": false,
+  "productionOrNativeInputsChanged": false,
+  "runRootCreated": false,
+  "grantRootCreated": false,
+  "retainedR3": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/report.json",
+    "bytes": 13280,
+    "sha256": "27867d08073a1138ab7cef655edcde45c485ade5ebe8336ab37d6e2b70c01b18"
+  },
+  "retainedR3ImportantIndependentReview": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/ui-independent-review/report.json",
+    "bytes": 8523,
+    "sha256": "015d9dd7154fe824f18519ed49eae8d9d57c74ab06a50a2e10e9ef43fb7201e4"
+  },
+  "retainedR3ActualNodeFailure": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/ui-independent-review/actual-host-check.json",
+    "bytes": 4078,
+    "sha256": "9dab8feeb094eb820463c7fe4754f017e4787d32d288f6d70de4d2153f818980"
+  },
+  "retainedR2ActualNegative": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/actual-metro-relative-command-refusal-root-review-r1/report.json",
+    "bytes": 4648,
+    "sha256": "06e3317ef7dd45984e21a7a8f0af13139f15bdd8288c3e9fd432fd1ae37d1790"
+  },
+  "inputs": [
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/inputs/run-fresh-alpha-cross.py",
+      "bytes": 53071,
+      "sha256": "7211938cba2d51208047c816a2400e4ca8eed974e86e030b1262c050f6daab0e"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/inputs/runtime-policy.json",
+      "bytes": 36030,
+      "sha256": "e896337a8dfac86ab38196102d596d52a27decf7492ecd155d4bc3a5f1b081f7"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/inputs/runtime-guards.test.py",
+      "bytes": 31133,
+      "sha256": "7c6a3d2b2b5eabb1ba145e909305d28857104107b4bcd8193e841d5a97eceb69"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/inputs/snapshot-check.mjs",
+      "bytes": 2254,
+      "sha256": "245041cf9176d57308557221564b87179800067fb1393d7696e7913f3cca1f70"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/inputs/installed-helpers-forward-admission.json",
+      "bytes": 24439,
+      "sha256": "edf7dc74497fae0312ba5145774411276d5614742449f8f063dcbc666b870716"
+    }
+  ],
+  "documentation": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/README.md",
+    "bytes": 2900,
+    "sha256": "5f858a329dec43958edcdb5349c453fe960e0659a9110bc7fd03b287b5d65679"
+  },
+  "rootBinding": {
+    "executorRunRoot": "/private/tmp/slax-reader-fresh-alpha-cross-1b39303dfecd4db394e2b95c27e9a962",
+    "grantRoot": "/private/tmp/slax-reader-fresh-alpha-cross-grants-1b39303dfecd4db394e2b95c27e9a962",
+    "snapshotLiteralRoot": "/private/tmp/slax-reader-fresh-alpha-cross-1b39303dfecd4db394e2b95c27e9a962",
+    "priorRootsRejected": [
+      "/private/tmp/slax-reader-fresh-alpha-cross-c26ced6d60c34bbcb9f2590c6dc453c4",
+      "/private/tmp/slax-reader-fresh-alpha-cross-70641adca8a446cbbeb6177a7e5dfe2c"
+    ],
+    "allEarlierGrantsRemainConsumedOrUnallocatedHistory": true
+  },
+  "focusedHostGuards": {
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "childProcesses": 3,
+    "elapsedSeconds": 0.101,
+    "command": "SLAX_FRESH_ROOT_ADMISSION_EVIDENCE=1 python3 -B inputs/runtime-guards.test.py Guards.test_actual_node_snapshot_new_root_passes_root_admission_without_scope_creation Guards.test_actual_node_snapshot_prior_roots_reject_before_old_scope_file_read",
+    "stdout": {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/focused-snapshot-root-guards.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stderr": {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/focused-snapshot-root-guards.stderr",
+      "bytes": 300,
+      "sha256": "164dcb1bd6f5dbdbd99ea5f7f05766b37c071e06b86beeb983df322009aa74e6"
+    },
+    "rawChildren": [
+      {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/snapshot-root-host-guards/new-root.json",
+        "bytes": 520,
+        "sha256": "8bf7c783236f2ee8d4b7259d27d2e90b668a2c649a259a8451e07bddf06694eb"
+      },
+      {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/snapshot-root-host-guards/new-root.stderr",
+        "bytes": 838,
+        "sha256": "9bbe181422f305a9f8d5eb595a8c372475278572a8881c4f22c8c82604597eec"
+      },
+      {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/snapshot-root-host-guards/new-root.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/snapshot-root-host-guards/r2-root.json",
+        "bytes": 520,
+        "sha256": "d2d453b9073666a8347d2794fe38aa2d77f5be51cb2520e81e0255503bfebc07"
+      },
+      {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/snapshot-root-host-guards/r2-root.stderr",
+        "bytes": 904,
+        "sha256": "7f417a6343537247d81dd436045c8e7a565fc6d69c6ecf55894dec24ec4e5df4"
+      },
+      {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/snapshot-root-host-guards/r2-root.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/snapshot-root-host-guards/r3-root.json",
+        "bytes": 520,
+        "sha256": "7ab20f0c55700eb3c7a538cacdd7728a16291a17cd34d4e4eff95651b3b0b8b9"
+      },
+      {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/snapshot-root-host-guards/r3-root.stderr",
+        "bytes": 904,
+        "sha256": "7f417a6343537247d81dd436045c8e7a565fc6d69c6ecf55894dec24ec4e5df4"
+      },
+      {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/snapshot-root-host-guards/r3-root.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "newRootResult": "Literal root accepted; expected absent alpha-report ENOENT before any actual fixture observation read",
+    "priorRootResults": "Both reject with Unallocated snapshot check before filesystem observation",
+    "nativeAcceptanceFromHostChildren": false
+  },
+  "historicalHostGuardsNotRepeated": {
+    "r3SixMetroGuards": {
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "elapsedSeconds": 0.002,
+      "command": "python3 -B inputs/runtime-guards.test.py Guards.test_actual_root_relative_cli_and_three_cwd_fields_are_accepted Guards.test_relative_cli_requires_exact_live_owned_cwd Guards.test_cwd_missing_duplicate_extra_fields_and_raw_whitespace_are_refused Guards.test_cli_options_headers_paths_and_whitespace_cannot_replace_exact_argv Guards.test_lsof_command_is_closed_to_exact_owned_pid_and_cwd_only Guards.test_prior_run_commands_and_allocation_paths_are_refused_before_read",
+      "stdout": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/focused-metro-guards.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/focused-metro-guards.stderr",
+        "bytes": 632,
+        "sha256": "500b978e4aeb6fd3224a53f5a283c27df67c1419ccd36f53632e7b41a8c8d282"
+      },
+      "liveProcessOrNativeInvoked": false
+    },
+    "r2ThirtyThreeGuards": {
+      "passed": 33,
+      "failed": 0,
+      "skipped": 0,
+      "rerunForRevision3": false,
+      "report": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/report.json",
+        "bytes": 6380,
+        "sha256": "f27bf0405ce35da96f4778ecb753ebb35ce64e94762b1c30cf30a0ad200fd53e"
+      },
+      "authorLog": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/focused-guards-first.log",
+        "bytes": 2582,
+        "sha256": "f4c6a554d9c5e79e4220c3492a0f199ee9f5c579b91798dc963e94ec88b8b6f3"
+      },
+      "independentReport": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/report.json",
+        "bytes": 16056,
+        "sha256": "0699827458fc7f9517198ed801f34f9c009a1649537d2696a359d8d6cfd834f0"
+      }
+    },
+    "rerunForRevision4": false
+  },
+  "downstreamProductionSnapshotGuard": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/snapshot-guard.mjs",
+    "bytes": 9198,
+    "sha256": "b7bf76670cc28e796c5aa5d14b2dc4731b57db90a41ec8095ce31a2d1105a3f6"
+  },
+  "downstreamSnapshotGuardChanged": false,
+  "unchangedInstalledHelperAdmission": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/inputs/installed-helpers-forward-admission.json",
+    "bytes": 24439,
+    "sha256": "edf7dc74497fae0312ba5145774411276d5614742449f8f063dcbc666b870716"
+  },
+  "metroOwnerObservation": {
+    "ownedPID": 93891,
+    "exactCLIArgv": "/usr/local/bin/node node_modules/expo/bin/cli start --dev-client --port 8083 --max-workers 1",
+    "cwd": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3",
+    "lsofArgv": [
+      "/usr/sbin/lsof",
+      "-a",
+      "-p",
+      "93891",
+      "-d",
+      "cwd",
+      "-Fn"
+    ],
+    "exactCwdFields": [
+      "p93891",
+      "fcwd",
+      "n/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3"
+    ],
+    "requiresUnchanged377Stage": true,
+    "metroRestartAllowed": false
+  },
+  "caps": {
+    "sharedSeconds": 180,
+    "nativeEachSeconds": 45,
+    "releaseSeconds": 30,
+    "killGraceSeconds": 4,
+    "logicalAndAllocatedBytes": 268435456,
+    "combinedLogsBytes": 8388608,
+    "floorBytes": 3221225472,
+    "preFreeBytes": 3865470566
+  },
+  "freshScopePrivacy": {
+    "onlyDirectHistoricalChildNameAndLstatBaseline": true,
+    "newScopesMaximum": 2,
+    "allowedCases": [
+      "reader-mixed",
+      "library-populated"
+    ],
+    "onlyFixedMarkerContentsReadByAccounting": true,
+    "sqliteOrHistoricalScopeContentsRead": false,
+    "currentReaderEqualsControllerExactNewScope": true,
+    "bootstrapDisposalDoesNotResetBound": true
+  },
+  "currentLiveAdmission": {
+    "performed": false,
+    "pendingRootAllocation": true
+  },
+  "nativeAlphaAccepted": false,
+  "nativeCrossAccepted": false,
+  "wholeVisualParityAccepted": false,
+  "independentReviewStatus": "pending-revision4-readonly-review",
+  "pending": [
+    "Root independent review of exact snapshot root and revised closed inputs.",
+    "Fresh Root allocation and current full readonly admission; no old allocation reuse.",
+    "Actual fresh Alpha input and Root raw/frame/live continuation barrier.",
+    "Actual Cross input and independent settled source-range outcome.",
+    "Complete migration/UI/native-image/publisher and TestFlight acceptance."
+  ]
+}

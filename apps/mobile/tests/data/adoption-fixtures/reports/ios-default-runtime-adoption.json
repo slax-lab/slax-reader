@@ -1,0 +1,148 @@
+{
+  "kind": "slax-controlled-ios-default-runtime-adoption",
+  "version": 1,
+  "status": "passed",
+  "recordedAt": "2026-10-10T18:43:44.948Z",
+  "platform": "ios-simulator",
+  "device": "522DD84F-0407-4707-BBAB-0263B4ACE2DA",
+  "application": {
+    "bundleIdentifier": "app.slax.reader",
+    "version": "1.0.25",
+    "buildNumber": "757",
+    "installedExecutableSHA256": "afca590846175cce828b550f5c92b17096b706c214de67ea1d6d1a380eebd97f",
+    "publisherSigned": false,
+    "signature": "Public AppGroup-only ad hoc simulator signature"
+  },
+  "nativeReport": {
+    "kind": "slax-controlled-normal-runtime-start-report",
+    "version": 1,
+    "status": "passed",
+    "platform": "ios",
+    "device": "522DD84F-0407-4707-BBAB-0263B4ACE2DA",
+    "nonce": "122744b4-b9cf-4b26-9b3a-a8f6a83f772b",
+    "requestedAt": 1791657819899,
+    "normalCreateMobileDataRuntimeExecuted": true,
+    "explicitAdoptionEvidenceProvided": false,
+    "defaultProfile": "slax-powersync-format14-schema2-v1",
+    "actualNativeInventoryAndInspector": true,
+    "actualNativeAccountResourceActivation": true,
+    "schemaInitializationSnapshotUnchanged": true,
+    "firstInspection": {
+      "queueDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "userVersion": 1,
+      "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/522DD84F-0407-4707-BBAB-0263B4ACE2DA/data/Containers/Data/Application/9F3CD522-07E9-428C-9C8E-790640FB4CD0/Library/Application Support/databases/powersync.db",
+      "pendingOperations": 0,
+      "formatVersion": 14,
+      "pendingTransactions": 0,
+      "localDigest": "d021bc0c950ac956ae3d84c257c9715374b9d8b57c9ee75c230b07b18ba3534a",
+      "storageTables": [
+        "ps_data__sr_bookmark_comment",
+        "ps_data__sr_collection_bookmark",
+        "ps_data__sr_platform_bind",
+        "ps_data__sr_sharer_setting",
+        "ps_data__sr_user",
+        "ps_data__sr_user_bookmark",
+        "ps_data__sr_user_bookmark_stats",
+        "ps_data__sr_user_collection",
+        "ps_data__sr_user_collection_subscriber",
+        "ps_data__sr_user_notification",
+        "ps_data__sr_user_subscription",
+        "ps_data__sr_user_tag",
+        "ps_data_local__local_bookmark_info"
+      ],
+      "dataDigest": "5c0d57b0f8945d78bd4d0180a53fab36783b65b433f02b5918689ad8a4e441b9",
+      "integrityValid": true
+    },
+    "afterSchemaInspection": {
+      "queueDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "userVersion": 1,
+      "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/522DD84F-0407-4707-BBAB-0263B4ACE2DA/data/Containers/Data/Application/9F3CD522-07E9-428C-9C8E-790640FB4CD0/Library/Application Support/databases/powersync.db",
+      "pendingOperations": 0,
+      "formatVersion": 14,
+      "pendingTransactions": 0,
+      "localDigest": "d021bc0c950ac956ae3d84c257c9715374b9d8b57c9ee75c230b07b18ba3534a",
+      "storageTables": [
+        "ps_data__sr_bookmark_comment",
+        "ps_data__sr_collection_bookmark",
+        "ps_data__sr_platform_bind",
+        "ps_data__sr_sharer_setting",
+        "ps_data__sr_user",
+        "ps_data__sr_user_bookmark",
+        "ps_data__sr_user_bookmark_stats",
+        "ps_data__sr_user_collection",
+        "ps_data__sr_user_collection_subscriber",
+        "ps_data__sr_user_notification",
+        "ps_data__sr_user_subscription",
+        "ps_data__sr_user_tag",
+        "ps_data_local__local_bookmark_info"
+      ],
+      "dataDigest": "5c0d57b0f8945d78bd4d0180a53fab36783b65b433f02b5918689ad8a4e441b9",
+      "integrityValid": true
+    },
+    "coreVersion": "0.5.3/2ba6b280",
+    "originalBookmarkTagCommentAvailableInNormalRepositories": true,
+    "originalReadPosition": 348.25,
+    "originalHiddenJsonRetained": true,
+    "originalCacheReadByNormalAccountCache": true,
+    "completedServiceReportMd5": "75588b047d17b2f82ba2ef85105eed5e",
+    "deniedRequestPaths": [
+      "/m",
+      "/v1/user/refresh",
+      "/v1/sync/token"
+    ],
+    "networkRequestsForwarded": 0,
+    "shutdownReleasedDatabaseAndNativeResourceOwner": true,
+    "productionDefaultProfileWired": true,
+    "visibleLibraryOrReaderUiAcceptance": false,
+    "publisherUpgrade": false,
+    "testFlight": false
+  },
+  "acceptedProfileProof": "src/data/adoption-profile.ts",
+  "originalServiceReport": {
+    "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-original-queue-real-service.json",
+    "sha256": "daea6445855b441a4be37ad3d7fd695614f5d86c3236a3aa79059d4a8c43ab71"
+  },
+  "preferenceCasEvidence": {
+    "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-native-preference-cas.json",
+    "sha256": "1d04950760c1e9e6fa94011ad0c1f701a5dbcfe7bcb461f073cda842ea9a098f"
+  },
+  "sourceInputs": [
+    {
+      "path": "apps/mobile/tests/data/NativeRuntimeStartupFixture.ts",
+      "sha256": "77c05e98dbd3fc9152afaec6baa894aa8a7c0aae39ab8376e0da86e531c1b43f"
+    },
+    {
+      "path": "apps/mobile/tests/data/NativeAdoptionFixtureApp.tsx",
+      "sha256": "59eed2b26b9246a6c06c40e5023aba1d3f6b0ee32dabf318bb6a5e6fdd39d88e"
+    },
+    {
+      "path": "apps/mobile/src/data/runtime.ts",
+      "sha256": "0df561a63c028c87e44bc511f41ee78c604001baf31a27613239cb0559f718ba"
+    },
+    {
+      "path": "apps/mobile/src/data/adoption-profile.ts",
+      "sha256": "0782206ef8680766f1c12c88661df9c702b52ec37c48b0da6a8e762715c6624b"
+    },
+    {
+      "path": "apps/mobile/src/data/adoption.ts",
+      "sha256": "adaa415c44b41746a19a06f7fcf743ef07a39cb997737a27145671dfdf600ae3"
+    },
+    {
+      "path": "apps/mobile/src/data/upgrade.ts",
+      "sha256": "400e9ee274e497b2f77820452add0e5668270a0bd6e51b8a6ebf21c605ee3632"
+    }
+  ],
+  "cleanup": {
+    "matchingRequestRemoved": true,
+    "appTerminated": true,
+    "sandboxPreserved": true,
+    "noUninstallNoDataClear": true
+  },
+  "scope": {
+    "constrainedProductionDefaultProfileEnabled": true,
+    "visibleLibraryReaderAcceptance": false,
+    "publisherUpgrade": false,
+    "testFlight": false,
+    "wholeMigrationAccepted": false
+  }
+}

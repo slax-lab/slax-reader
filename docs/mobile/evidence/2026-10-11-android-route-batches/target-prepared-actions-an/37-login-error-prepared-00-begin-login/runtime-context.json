@@ -1,0 +1,81 @@
+{
+  "appId": "com.slax.reader.uifixture",
+  "device": "sdk_gphone64_arm64 - 14 - API 34",
+  "scenario": "login-error",
+  "inputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "scopeUri": "file:///data/user/0/com.slax.reader.uifixture/cache/slax-ui-fixtures/login-error-1791660156555-6fd6d815a5a638/",
+  "renderContext": {
+    "controlledFixture": true,
+    "fixtureVersion": 1,
+    "scenario": "login-error",
+    "inputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+    "locale": "en",
+    "nativeMeasurements": {
+      "platform": "android",
+      "osVersion": "14",
+      "deviceModel": "sdk_gphone64_arm64",
+      "viewport": {
+        "width": 411.42857142857144,
+        "height": 914.2857142857143,
+        "scale": 2.625,
+        "fontScale": 1
+      },
+      "screen": {
+        "width": 411.42857142857144,
+        "height": 914.2857142857143,
+        "scale": 2.625,
+        "fontScale": 1
+      },
+      "pixelRatio": 2.625,
+      "fontScale": 1,
+      "fontScaleProfile": "default",
+      "safeArea": {
+        "left": 0,
+        "bottom": 24,
+        "right": 0,
+        "top": 51.80952453613281
+      },
+      "appearance": "light"
+    },
+    "observedRoute": {
+      "key": "Login-pfdMi2w4Z5LWNThnN-dVu",
+      "name": "Login"
+    },
+    "observedNavigationState": {
+      "root": {
+        "stale": false,
+        "type": "stack",
+        "key": "stack-0yDDA2SyIar9edbWwE3fI",
+        "index": 0,
+        "routeNames": [
+          "Login"
+        ],
+        "preloadedRoutes": [],
+        "routes": [
+          {
+            "key": "Login-pfdMi2w4Z5LWNThnN-dVu",
+            "name": "Login"
+          }
+        ]
+      },
+      "canGoBack": false
+    },
+    "measuredAt": "2026-10-10T19:22:38.667Z",
+    "displayedClock": "pending-native-frame-inspection",
+    "simulatedNetworkAndSync": true,
+    "nativeExecution": "pending-capture",
+    "preparedActions": [
+      {
+        "action": {
+          "kind": "begin-login",
+          "provider": "google"
+        },
+        "handler": "login",
+        "nativeInteractionVerified": false
+      }
+    ],
+    "sourceParity": "unverified"
+  },
+  "preparationOnly": false,
+  "nativeInteractionVerified": false
+}

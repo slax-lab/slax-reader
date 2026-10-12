@@ -1,0 +1,51 @@
+{
+  "kind": "isolated-android-paragraph-native-input",
+  "schemaVersion": 1,
+  "projectRoot": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3",
+  "driverSha256": "d8ba5ece171e796c3980c35f419ae72c836a1296ca09683a3ea5894aeae78ee9",
+  "files": [
+    {
+      "path": "android/app/src/main/java/com/slax/reader/uifixture/MainActivity.kt",
+      "sha256": "5a13951b2d561b151be07ff7d199789c2f2aa0a0ee2634aee6a71d115a6e95c7",
+      "bytes": 2865
+    },
+    {
+      "path": "android/app/build.gradle",
+      "sha256": "0e64156aa8d772593bb694975076ef9b8f6c1884329d9fd5b43d165b8625c7ea",
+      "bytes": 8609
+    },
+    {
+      "path": "android/gradle.properties",
+      "sha256": "30ae153b65af3d0b590f718f560677e87bff209c4b70d6b6df94dc12b93acd3e",
+      "bytes": 2649
+    },
+    {
+      "path": "modules/slax-platform/android/build.gradle",
+      "sha256": "fb67f8ad2736f3c8499d167d81d748fb96f507bc4c8057744034c51ac2f8440f",
+      "bytes": 249
+    },
+    {
+      "path": "modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxTextView.kt",
+      "sha256": "b25e28110b02953e574c5574c772c84ecec748e3d3d7c378d5a58ccfcd9c63f2",
+      "bytes": 7578
+    },
+    {
+      "path": "modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxLineHeightSpan.kt",
+      "sha256": "28f8cf119493afea380f5778908a6d335a8c31195000bcb8b6cc41cb1129f82c",
+      "bytes": 1321
+    },
+    {
+      "path": "modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxPlatformModule.kt",
+      "sha256": "1f15504be596a1f39d2797685719b5ca32bf266cf65ab9604cd91f450f968471",
+      "bytes": 7139
+    }
+  ],
+  "architectures": [
+    "arm64-v8a"
+  ],
+  "workers": 1,
+  "maxHeapMiB": 1024,
+  "buildMethod": "existing cached :app:assembleDebug; no prebuild/clean/new ABI",
+  "minimumFreeBytes": 805306368,
+  "maximumEstimatedAdditionalBytes": 262144000
+}

@@ -1,0 +1,45 @@
+{
+  "kind": "controlled-original-installation-cas-default-startup-independent-review",
+  "recordedAt": "2026-10-10T19:58:54.058760+00:00",
+  "openSpecChange": "expo-mobile-migration",
+  "report": {
+    "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-native-cas-and-default-startup.json",
+    "sha256": "c47b3405c5d80001e6b51d0135bde78a360e57de0347c2ae95d38d88175d6bf8"
+  },
+  "sourceInputHashesVerified": {
+    "apps/mobile/tests/data/NativePreferenceCasFixture.ts": "567719b8f03ac94b7373acf39edd4dd6675324433fd4210336bf91731ed13624",
+    "apps/mobile/tests/data/adoption-fixtures/tooling/native-preference-control.mjs": "a74bc54120acd27622266d1fd46bde0e8e3e7a054e6f928325597486b33c62e6",
+    "apps/mobile/tests/data/NativeRuntimeStartupFixture.ts": "77c05e98dbd3fc9152afaec6baa894aa8a7c0aae39ab8376e0da86e531c1b43f",
+    "apps/mobile/src/data/runtime.ts": "0df561a63c028c87e44bc511f41ee78c604001baf31a27613239cb0559f718ba",
+    "apps/mobile/src/data/adoption-profile.ts": "0782206ef8680766f1c12c88661df9c702b52ec37c48b0da6a8e762715c6624b",
+    "apps/mobile/src/data/adoption.ts": "adaa415c44b41746a19a06f7fcf743ef07a39cb997737a27145671dfdf600ae3",
+    "apps/mobile/src/data/preferences.ts": "fd2debe5370cd1831be1cb377c22aec6243c0e53b4602ba229666e0ef38d90af",
+    "apps/mobile/modules/slax-legacy/ios/SlaxLegacyModule.swift": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3"
+  },
+  "passes": {
+    "Bugs": {
+      "importantFindings": [],
+      "observations": [
+        "Fresh stale/current CAS returned false/true. Separate literal-native process held the shared preference lock across the actual 7958 ms main read.",
+        "Database, unrelated preferences and original AndroidX DataStore remained unchanged; normal factory used its default adoption profile without an evidence override.",
+        "Normal account repositories and cache retained bookmark/tag/comment, full hidden JSON and read position 348.25; shutdown released the SDK and native owner."
+      ]
+    },
+    "Security": {
+      "importantFindings": [],
+      "observations": [
+        "Guarded owned simulator, synthetic account and denied forwarding retain the controlled test boundary."
+      ]
+    },
+    "Compliance": {
+      "importantFindings": [],
+      "observations": [
+        "The previous timed-out attempt remains explicitly unaccepted; fresh request retries have separate nonces.",
+        "Visible screens, publisher signatures and TestFlight remain outside this report."
+      ]
+    }
+  },
+  "actualVisibleUpgradeAcceptance": false,
+  "publisherUpgrade": false,
+  "testFlight": false
+}

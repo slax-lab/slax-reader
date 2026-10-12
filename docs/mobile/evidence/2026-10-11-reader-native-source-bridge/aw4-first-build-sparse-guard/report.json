@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "status": "initial-native-build-interrupted-by-conservative-logical-sparse-budget-no-install",
+  "knownOwnedDD": "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata",
+  "noDeviceCalls": true,
+  "artifacts": [
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-first-build-sparse-guard/failed-report.json",
+      "bytes": 3934,
+      "sha256": "404f48e4ad42661c39729776e2d943aec8daa8c61f78f6db05701368452626d5"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-first-build-sparse-guard/original-build-runner.mjs",
+      "bytes": 7577,
+      "sha256": "551a24eddaf742f4e6e7c2b9a210b245d0a287fa38d3195d484eefa65b956ba8"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-first-build-sparse-guard/owner.json",
+      "bytes": 548,
+      "sha256": "fe3015f73194614e592b08ead3aaa05aa14f1ab9f3654439064bd86287499b9e"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-first-build-sparse-guard/pod-result.json",
+      "bytes": 234,
+      "sha256": "df9c2b6522d131d58f821317e393a8686c43e742a2ffdc4a91cf6462f1306c35"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-first-build-sparse-guard/pod.log",
+      "bytes": 37218,
+      "sha256": "ad35e20923c6b08ac66c41a6f4e66770cfc091f4f60228314a2cbf3df5c7fded"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-first-build-sparse-guard/xcodebuild-result.json",
+      "bytes": 735,
+      "sha256": "0baf456160c02d8a0577f95ab2f4eb6689311aa71003159e5262baf8ab399d64"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-first-build-sparse-guard/xcodebuild.log",
+      "bytes": 192989,
+      "sha256": "32f96c16ebaf2630a92571eb83b269dd07bdbf4004c2786b2128320eb1c5ef8c"
+    }
+  ],
+  "cause": "The three Xcode compilation cache sparse files have26GiB logical length but48KiB allocated. All original guard logs remain unchanged. Corrected resume reports both figures and only accounts allocated blocks for these exact three regular files."
+}

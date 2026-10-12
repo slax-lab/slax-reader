@@ -1,0 +1,112 @@
+{
+  "kind": "slax-source-native-scroll-generated-file-race-supplement",
+  "version": 3,
+  "openSpec": "expo-mobile-migration",
+  "status": "host-monitor-fix-verified-native-retry-not-executed",
+  "executor": {
+    "path": "apps/mobile/fixtures/source-ios/control/build-native-scroll.py",
+    "sha256": "040e3d55c2faf13efb7d2f3e8039c3b8a9893bdd4567f46e25384b50b8fd0d5b",
+    "bytes": 21762
+  },
+  "test": {
+    "path": "apps/mobile/fixtures/source-ios/control/native-build-monitor-tests.py",
+    "sha256": "18014c6ae3d4aba05e4275b4adec8814f13166428315a241c1176f9b26faef82",
+    "bytes": 10957
+  },
+  "executionPlan": {
+    "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/native-generated-race-r3/execution-plan.json",
+    "sha256": "8092aa81abc534984832a90ab9c6485ddb0778ba557198c1bac778776b75a437",
+    "bytes": 13010
+  },
+  "inputsManifest": {
+    "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/inputs.json",
+    "sha256": "6c22360986c860aeb4a6bf20b6ac78958d48258a45bae2f296c05f7b8cb77b9f",
+    "bytes": 67024,
+    "copyInputs": 113,
+    "unchanged": true
+  },
+  "preservedHistoricalInputs": [
+    {
+      "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/cache-isolation-r2/report.json",
+      "sha256": "982c3e313508c2be86d9d859c9fb0b787573549d36920a58217d80e7af3d4e18",
+      "bytes": 3324
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/cache-isolation-r2/execution-plan.json",
+      "sha256": "d84e7dab55446a2c1ae2820e0ad225991b1c365c6488680a7fa6defde9756d66",
+      "bytes": 12052
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/cache-isolation-r2/build-native-scroll.py",
+      "sha256": "ababd6a1135be2813a76676beec11deccfdd3e921ebefc587a39234242aeb2d8",
+      "bytes": 20763
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/cache-isolation-r2/first-native-build-failed/report.json",
+      "sha256": "a8df74187ad19d245010d704da8bac571d871ac265e864449156a51f0d7d8f04",
+      "bytes": 2039
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/cache-isolation-r2/first-native-build-failed/failure.json",
+      "sha256": "0f5cead05daf0a7b3dca31dcfc865a60edf283d2526b0cbc8d314a3f586e5577",
+      "bytes": 855
+    }
+  ],
+  "actualPrecedingFailure": {
+    "reason": "Compiler atomically renamed a generated .pcm.tmp between enumeration and lstat; monitor raised FileNotFoundError.",
+    "commandsInHistoricalFailure": 0,
+    "outputReceiptLimitation": "The preceding executor killed its child but did not retain captured command stdout/stderr/receipt. The immutable preceding failure is preserved rather than rewritten.",
+    "nativeCompilerInvocation": "Root preceding attempt only; this supplement did not execute native tools or recover unavailable preceding output."
+  },
+  "focusedTests": {
+    "passed": 16,
+    "failed": 0,
+    "skipped": 0,
+    "monitorCases": 7,
+    "existingAllocationResourceCases": 8,
+    "existingCacheFlagCases": 1,
+    "logs": {
+      "monitor": {
+        "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/native-generated-race-r3/monitor-tests.log",
+        "sha256": "0a6e8fad7abb0666cc0b1f1021d71e7107e1c8fce27ea7fbad9ee744893d7e71",
+        "bytes": 1176
+      },
+      "allocation": {
+        "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/native-generated-race-r3/allocation-tests.log",
+        "sha256": "74d2360a48d4b4cb550f8375062363917485197b5884243fbcd7d9858049f200",
+        "bytes": 719
+      },
+      "cache": {
+        "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/native-generated-race-r3/cache-tests.log",
+        "sha256": "e4557d1ebbb49a6709f87bea586409aa52ea61f54cb96bfe50e13aa55f275225",
+        "bytes": 194
+      }
+    },
+    "processScope": "Real host files, atomic rename and selector-readable pipes; subprocess.Popen and os.killpg are mocked. No Swift/Xcode/KMP/device calls.",
+    "assertions": [
+      "Generated-file atomic rename tolerated only while monitoring and recounted afterward",
+      "Copied input disappearance rejects even during monitoring",
+      "Final stopped-process generated disappearance rejects",
+      "Other generated stat exceptions reject",
+      "Unexpected monitor exception retains stdout/stderr and kills only the mocked owned group",
+      "execute archives partial buffers and a stopped command before failing",
+      "Zero child exit still requires strict final accounting",
+      "Existing allocation, sparse allocation/product caps, symlink and cache flags remain guarded"
+    ]
+  },
+  "reviewPasses": {
+    "Bugs": "Narrow fix for the actual temporary-file race and lost output receipt; strict stopped-process accounting remains fail closed.",
+    "Security": "No path expansion, secret input, external cleanup, device command or process-group scope change. Unexpected errors are bounded to their exception type in stop reasons.",
+    "Compliance": "Prepared source-native fixture harness under expo-mobile-migration; no production behavior, original source, J framework, canonical payload or native acceptance change."
+  },
+  "scope": {
+    "newNativeCompilerExecuted": false,
+    "deviceExecuted": false,
+    "kmpRelink": false,
+    "stageOrMetroChanged": false,
+    "cleanupExecuted": false,
+    "native240Accepted": false,
+    "budgetsOrFloorRelaxed": false,
+    "rootAllocationRequiredBeforeRetry": true
+  }
+}

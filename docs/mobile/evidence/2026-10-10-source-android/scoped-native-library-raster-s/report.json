@@ -1,0 +1,236 @@
+{
+  "kind": "scoped-native-raster-comparison",
+  "schemaVersion": 1,
+  "platform": "android",
+  "locale": "en",
+  "fixtureScenario": "library-populated",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "sourceDriver": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/source-driver-l/input-manifest.json",
+    "sha256": "25ec74a1d2192a2a9a30f22ccea0cc9ba6a02563cb3349e0811274887d9a3496"
+  },
+  "targetDriver": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-driver-s.json",
+    "sha256": "c4270316a0aa6bef9a643665561a0f937cd7588a371e6d23fe56e21e9e55ba09"
+  },
+  "artifacts": {
+    "source.png": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/scoped-native-library-raster-s/source.png",
+      "sha256": "578d7977654431066f37ab0eab39897c167c4d4814b767891757ae793fd3f9e7"
+    },
+    "source-raw.json": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/scoped-native-library-raster-s/source-raw.json",
+      "sha256": "a3bd672f6a0a2d28e3e85ee27acc27e8dda984aaff0bcacf445884b49c18d340"
+    },
+    "target.png": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/scoped-native-library-raster-s/target.png",
+      "sha256": "2c07a1e4bee5076a467bfad04114d1b7de111599a4317bd9414e23ef096d31f6"
+    },
+    "target-raw.json": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/scoped-native-library-raster-s/target-raw.json",
+      "sha256": "1325b5362ac0f53b0a578e2e0153c21de6e358974089bd8eb9e45173ec2ba5a5"
+    }
+  },
+  "comparison": "exact original RGBA pixels; no alignment, resampling, masking, or color adjustment",
+  "regions": [
+    {
+      "id": "mixedCjkTitle",
+      "bounds": {
+        "x": 142,
+        "y": 550,
+        "width": 891,
+        "height": 80
+      },
+      "sourceRgbaSha256": "4fb517d6b4c1b001d61af242f35e740d92eab713a2b83aa25cba75c00723dffd",
+      "targetRgbaSha256": "4fb517d6b4c1b001d61af242f35e740d92eab713a2b83aa25cba75c00723dffd",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "longTitle",
+      "bounds": {
+        "x": 142,
+        "y": 700,
+        "width": 891,
+        "height": 63
+      },
+      "sourceRgbaSha256": "f2b01e879dbb8beb0f1b0ba46ab992dc91f5bee1cc317e2fa0f703388829adcd",
+      "targetRgbaSha256": "f2b01e879dbb8beb0f1b0ba46ab992dc91f5bee1cc317e2fa0f703388829adcd",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "videoTitle",
+      "bounds": {
+        "x": 142,
+        "y": 840,
+        "width": 891,
+        "height": 63
+      },
+      "sourceRgbaSha256": "ec935c612f4fb81279d412dc0deb2ab5212c9d1e9d3b8728e8771473d27f9c87",
+      "targetRgbaSha256": "ec935c612f4fb81279d412dc0deb2ab5212c9d1e9d3b8728e8771473d27f9c87",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "processingTitle",
+      "bounds": {
+        "x": 142,
+        "y": 980,
+        "width": 891,
+        "height": 63
+      },
+      "sourceRgbaSha256": "092a53ae53e45c6c9a5f92f3686544a0a62c8c1b3a7120746e7b1eadcac31460",
+      "targetRgbaSha256": "092a53ae53e45c6c9a5f92f3686544a0a62c8c1b3a7120746e7b1eadcac31460",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "failedTitle",
+      "bounds": {
+        "x": 142,
+        "y": 1120,
+        "width": 891,
+        "height": 63
+      },
+      "sourceRgbaSha256": "0d067fb0dc3630447c411b7c2f39492702270f349885620b1ab26b20104d570a",
+      "targetRgbaSha256": "0d067fb0dc3630447c411b7c2f39492702270f349885620b1ab26b20104d570a",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "starredTitle",
+      "bounds": {
+        "x": 142,
+        "y": 1260,
+        "width": 891,
+        "height": 63
+      },
+      "sourceRgbaSha256": "9abc455c205961ee3f238ac37988275ccfbe42d0e8b1ec43e058aa3516d7f91f",
+      "targetRgbaSha256": "9abc455c205961ee3f238ac37988275ccfbe42d0e8b1ec43e058aa3516d7f91f",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "ownCollectionLabel",
+      "bounds": {
+        "x": 115,
+        "y": 423,
+        "width": 70,
+        "height": 40
+      },
+      "sourceRgbaSha256": "e9cd93dfb918d6ae4a38b80c7774dcd8d32a0cd8d7842b300b71adc66cb9ae86",
+      "targetRgbaSha256": "e9cd93dfb918d6ae4a38b80c7774dcd8d32a0cd8d7842b300b71adc66cb9ae86",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "activeCollectionLabel",
+      "bounds": {
+        "x": 265,
+        "y": 423,
+        "width": 205,
+        "height": 40
+      },
+      "sourceRgbaSha256": "dcadac22fb3bcdbaefa24cc97981cfc1c8af910c448a531df54a2520a32e0ed4",
+      "targetRgbaSha256": "dcadac22fb3bcdbaefa24cc97981cfc1c8af910c448a531df54a2520a32e0ed4",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "closedCollectionLabel",
+      "bounds": {
+        "x": 490,
+        "y": 423,
+        "width": 198,
+        "height": 40
+      },
+      "sourceRgbaSha256": "e317a4cb90d2e26f5089894b713771022237d569b151c4a60e067a3a90badedf",
+      "targetRgbaSha256": "e317a4cb90d2e26f5089894b713771022237d569b151c4a60e067a3a90badedf",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "expiredCollectionLabel",
+      "bounds": {
+        "x": 710,
+        "y": 423,
+        "width": 202,
+        "height": 42
+      },
+      "sourceRgbaSha256": "893617291f4f86db591f437d236bafc2b07d01bae68842347bd0099ab0f931b6",
+      "targetRgbaSha256": "893617291f4f86db591f437d236bafc2b07d01bae68842347bd0099ab0f931b6",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "continueReadingTitle",
+      "bounds": {
+        "x": 112,
+        "y": 2130,
+        "width": 538,
+        "height": 42
+      },
+      "sourceRgbaSha256": "95777a11952f0cbb2745118db63b59f3485caf4916b551bdfc4730fa99b52564",
+      "targetRgbaSha256": "95777a11952f0cbb2745118db63b59f3485caf4916b551bdfc4730fa99b52564",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "noMoreItemsFooter",
+      "bounds": {
+        "x": 400,
+        "y": 1440,
+        "width": 280,
+        "height": 70
+      },
+      "sourceRgbaSha256": "a34781bf74b177eb63c1bc97e6d164ffd41539a0799e81d0cef627b57a915574",
+      "targetRgbaSha256": "a34781bf74b177eb63c1bc97e6d164ffd41539a0799e81d0cef627b57a915574",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  ],
+  "result": "passed-for-listed-regions-only",
+  "wholeScreenParity": "unverified",
+  "nativeInteractionVerified": false,
+  "limitations": [
+    "Only the listed default-font English/light Android text regions match.",
+    "Avatar/border rendering, header, full screen and remaining required profiles/gestures are pending."
+  ]
+}

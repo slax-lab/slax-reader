@@ -1,0 +1,83 @@
+{
+  "kind": "native-reader-bridge-observation",
+  "schemaVersion": 1,
+  "implementation": "target",
+  "platform": "ios",
+  "identity": "app.slax.reader.uifixture",
+  "device": "32D9AFE0-32C7-443A-8FEC-3EBB42135386",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "fixtureScenario": "reader-mixed",
+  "targetDriverInputs": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-driver-q.json",
+    "sha256": "8f51a9ee2ece98d27d2bf6e8a120990ed8d0fe3351e5aacbf4abca751be2947e"
+  },
+  "screenshot": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-native-foundation/ios-reader-q-screenshot.png",
+    "sha256": "3d5c0784bbe53c4b7433771bb668f5c3909f89b2a30c6791c81386bd33f0a9c3"
+  },
+  "nativePosition": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-native-foundation/ios-reader-q-nativePosition.json",
+    "sha256": "bda8f2310afdca9fb15a9119c555d1a92db86d0c989715fa1c4b390e24e72732"
+  },
+  "rawMetadata": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-native-foundation/ios-reader-q-rawMetadata.json",
+    "sha256": "0da2b504387b03140fade49520d9bce748160340ad81264b365b7f4d9a3d66ae"
+  },
+  "observation": {
+    "controlledFixture": true,
+    "fixtureVersion": 1,
+    "cacheKey": "00000003-0000-4000-8000-000000000001",
+    "requestedPixels": 240,
+    "consumed": true,
+    "observed": {
+      "scrollPoints": -216,
+      "contentHeightPoints": 1440,
+      "viewportHeightPoints": 758,
+      "positionPixels": 240
+    },
+    "geometry": {
+      "pixelRatio": 3,
+      "topInsetPoints": 296,
+      "headerHeightPoints": 296,
+      "containerScreenTopPoints": 116,
+      "webViewScreenTopPoints": 116,
+      "viewportHeightPoints": 758
+    },
+    "bridge": {
+      "pageId": "reader-1",
+      "ready": true,
+      "documentLoaded": true,
+      "documentHeightPoints": 1440,
+      "nativeTag": 1190,
+      "loadStarts": 1,
+      "loadEnds": 1,
+      "messages": 10,
+      "rejectedMessages": 0
+    },
+    "scrollTrace": [
+      {
+        "scrollPoints": -296,
+        "contentHeightPoints": 0,
+        "viewportHeightPoints": 758,
+        "insetPoints": 296,
+        "restoreConsumed": false
+      },
+      {
+        "scrollPoints": -216,
+        "contentHeightPoints": 1440,
+        "viewportHeightPoints": 758,
+        "insetPoints": 296,
+        "restoreConsumed": true
+      }
+    ]
+  },
+  "nativeBridgeReady": "passed-through-actual-native-script-messages",
+  "nativeInitialPositionRestore": "passed-observation-requested240-observed240",
+  "nativeInteractionVerified": false,
+  "visualParity": "unverified",
+  "productionDataAccessed": false,
+  "limitations": [
+    "Only controlled initial native position and ready bridge observed.",
+    "Original iOS matched source/profile matrix, bottom-toolbar visibility, gestures/back and full functional acceptance remain pending."
+  ]
+}

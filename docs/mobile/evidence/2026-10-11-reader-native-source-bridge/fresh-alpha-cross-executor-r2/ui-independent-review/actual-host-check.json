@@ -1,0 +1,95 @@
+{
+  "argv": [
+    "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+    "-B",
+    "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/runtime-guards.test.py"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 0.787106916,
+  "stdout": {
+    "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/raw/guards.stdout",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "stderr": {
+    "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/raw/guards.stderr",
+    "bytes": 2582,
+    "sha256": "eef202cb047b9d551e2ff715a77aac5c275c89c883c114827a67102dee13e3d6"
+  },
+  "inputsPrePostUnchanged": true,
+  "pre": [
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/run-fresh-alpha-cross.py",
+      "bytes": 51649,
+      "sha256": "71376d43caadadc6e2f695e06c0b1ee2c1f43240dc0c11f20d473089d498eb0a"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/runtime-policy.json",
+      "bytes": 35251,
+      "sha256": "b444d16fd14e424576638c512bef862fd4858fbaef53be5bc24c8de3dcc9344a"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/runtime-guards.test.py",
+      "bytes": 25326,
+      "sha256": "b2c9f509d3ffd79c1ddd61abbbbffc059002dbe37dfa4e7684c1dece03227ef6"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/snapshot-check.mjs",
+      "bytes": 2254,
+      "sha256": "3fed60342c4e3fc6e40842440be81fd3a668565a22bc24d713372a601b799837"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/installed-helpers-forward-admission.json",
+      "bytes": 24439,
+      "sha256": "edf7dc74497fae0312ba5145774411276d5614742449f8f063dcbc666b870716"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/report.json",
+      "bytes": 6380,
+      "sha256": "f27bf0405ce35da96f4778ecb753ebb35ce64e94762b1c30cf30a0ad200fd53e"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/README.md",
+      "bytes": 3746,
+      "sha256": "1937f22cb0a717cb7bce4462a0db6efff5bb5674b98edffc0adf47f3b8036ada"
+    }
+  ],
+  "post": [
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/run-fresh-alpha-cross.py",
+      "bytes": 51649,
+      "sha256": "71376d43caadadc6e2f695e06c0b1ee2c1f43240dc0c11f20d473089d498eb0a"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/runtime-policy.json",
+      "bytes": 35251,
+      "sha256": "b444d16fd14e424576638c512bef862fd4858fbaef53be5bc24c8de3dcc9344a"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/runtime-guards.test.py",
+      "bytes": 25326,
+      "sha256": "b2c9f509d3ffd79c1ddd61abbbbffc059002dbe37dfa4e7684c1dece03227ef6"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/snapshot-check.mjs",
+      "bytes": 2254,
+      "sha256": "3fed60342c4e3fc6e40842440be81fd3a668565a22bc24d713372a601b799837"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/installed-helpers-forward-admission.json",
+      "bytes": 24439,
+      "sha256": "edf7dc74497fae0312ba5145774411276d5614742449f8f063dcbc666b870716"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/report.json",
+      "bytes": 6380,
+      "sha256": "f27bf0405ce35da96f4778ecb753ebb35ce64e94762b1c30cf30a0ad200fd53e"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/README.md",
+      "bytes": 3746,
+      "sha256": "1937f22cb0a717cb7bce4462a0db6efff5bb5674b98edffc0adf47f3b8036ada"
+    }
+  ],
+  "nativeDeviceCompilerStageOrMetroCommand": false
+}

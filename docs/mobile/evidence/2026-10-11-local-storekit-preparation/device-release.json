@@ -1,0 +1,13 @@
+{
+  "kind": "slax-controlled-visible-upgrade-device-release",
+  "version": 1,
+  "device": "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+  "runId": "controlled-ios-visible-upgrade-v2-20261011",
+  "ownerFile": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-native-visible-upgrade-ios-waradJ/fixture-owner.json",
+  "mainProcessPreviouslyStopped": true,
+  "deviceShutdown": true,
+  "sandboxPreserved": true,
+  "dataReset": false,
+  "newDeviceBooted": false,
+  "initialGuardAttempt": "stopped before mutation because an incorrect cleanup field name was assumed; retried against exact immutable cleanup fields and SHA"
+}

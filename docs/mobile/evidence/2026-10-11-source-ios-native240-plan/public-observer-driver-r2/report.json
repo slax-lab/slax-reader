@@ -1,0 +1,114 @@
+{
+  "kind": "slax-original-ios-native-scroll-public-preparation",
+  "version": 2,
+  "preparedAt": "2026-10-10T23:46:47.401342+00:00",
+  "status": "public-fixture-code-prepared-host-guards-passed-native-compile-and-input-not-performed",
+  "change": "expo-mobile-migration",
+  "priorAuditUnchanged": {
+    "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/report.json",
+    "sha256": "ed145c28df5b66194e93d1e67ad051e8f649ad751776440fc7bafe22c01624e4",
+    "bytes": 19150
+  },
+  "inputs": [
+    {
+      "path": "apps/mobile/fixtures/source-ios/main.swift",
+      "sha256": "b7b937ba5807eb0602577b0ef59817ec0da2855efb323a0fb260b18450a8addd",
+      "bytes": 23858,
+      "archive": {
+        "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/public-observer-driver-r2/source-inputs/apps/mobile/fixtures/source-ios/main.swift",
+        "sha256": "b7b937ba5807eb0602577b0ef59817ec0da2855efb323a0fb260b18450a8addd",
+        "bytes": 23858
+      }
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/control/SourceFixtureNativeScrollControl.swift",
+      "sha256": "98b48d7137a89842444210c826d839e7a8575ae1d7a4cfe9c058b3e81cff2807",
+      "bytes": 5870,
+      "archive": {
+        "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/public-observer-driver-r2/source-inputs/apps/mobile/fixtures/source-ios/control/SourceFixtureNativeScrollControl.swift",
+        "sha256": "98b48d7137a89842444210c826d839e7a8575ae1d7a4cfe9c058b3e81cff2807",
+        "bytes": 5870
+      }
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/control/SourceFixtureControl.xcodeproj/project.pbxproj",
+      "sha256": "5f03d69db0b95560bcf7baa78793e60aa4798ae0784485c09b712efe763d5958",
+      "bytes": 5012,
+      "archive": {
+        "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/public-observer-driver-r2/source-inputs/apps/mobile/fixtures/source-ios/control/SourceFixtureControl.xcodeproj/project.pbxproj",
+        "sha256": "5f03d69db0b95560bcf7baa78793e60aa4798ae0784485c09b712efe763d5958",
+        "bytes": 5012
+      }
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/control/prepare-native-scroll.py",
+      "sha256": "3b4528e9ea1d5b2b3c4740fa51e9f364118cd2d5004f7907150f202a97322dba",
+      "bytes": 7072,
+      "archive": {
+        "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/public-observer-driver-r2/source-inputs/apps/mobile/fixtures/source-ios/control/prepare-native-scroll.py",
+        "sha256": "3b4528e9ea1d5b2b3c4740fa51e9f364118cd2d5004f7907150f202a97322dba",
+        "bytes": 7072
+      }
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/control/native-scroll-request-tests.py",
+      "sha256": "27520b342df80d753024a4552fcb6f162186ab992d4349f0234e6d7c9c320ca9",
+      "bytes": 4727,
+      "archive": {
+        "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/public-observer-driver-r2/source-inputs/apps/mobile/fixtures/source-ios/control/native-scroll-request-tests.py",
+        "sha256": "27520b342df80d753024a4552fcb6f162186ab992d4349f0234e6d7c9c320ca9",
+        "bytes": 4727
+      }
+    }
+  ],
+  "actualHostCheck": {
+    "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/public-observer-driver-r2/actual-host-check.json",
+    "sha256": "ad9192a279a48bdaa666b216339bbb869a8c428f01a8c1faf34097d93eef74b1",
+    "bytes": 455
+  },
+  "preservedBoundaries": {
+    "originalKotlinAndClientCheckoutModified": false,
+    "retainedJOrOStageModified": false,
+    "byWKU3StageModified": false,
+    "productionSourceModified": false,
+    "nativeBuild": false,
+    "deviceOrMetroCommands": false,
+    "specOrCoverageMutation": false,
+    "originalTwentySampleAndProgrammaticStepDefaultRemains": true,
+    "oldSourceFixtureControlSwiftUnchanged": true,
+    "oldReaderNativeControlSwiftUnchanged": true
+  },
+  "optionalObserver": {
+    "argument": [
+      "--fixture-native-scroll-observation",
+      "<fresh-UUID>"
+    ],
+    "allowedRoute": "reader-mixed/en/actionIndex-1/stepnone",
+    "readinessSeconds": 30,
+    "postPreparedSeconds": 60,
+    "totalSeconds": 90,
+    "maxSamples": 300,
+    "recentNativeKvoEvents": 128,
+    "actualNativeKvoCounterRetained": true,
+    "nativeProducer": "Reads actual original WK contentOffset/contentSize/bounds callbacks, actual frame/insets/scale/loading/dragging/decelerating and nonmutating DOM/body/markManager presence. It never sets scrolling/selection/DB/UI values.",
+    "background": "Brief native test-host foreground pauses reads while the same finite deadline remains. Same WK/window identity is required on return.",
+    "artifact": "fixture-native-reader-observation.json",
+    "nonceAndIdentity": "Fresh nonce, current-launch source prepared status, actual bound WK identity, ordered timestamped samples and callback sequence. Sampler always retains nativeInteractionVerified:false."
+  },
+  "nativeDriver": {
+    "test": "SourceFixtureNativeScrollControl/testPerformOneMeasuredOriginalReaderNativeDrag",
+    "sourceBundle": "app.slax.reader.sourcefixture",
+    "mainMustBeNotRunning": true,
+    "unknownOrAnyRetainedAlertRejected": true,
+    "mode": "Exactly one real slow body press0.1/drag/hold0.1 per fresh externally observed request; index1..3. No programmatic scroll.",
+    "requestVariable": "SLAX_SOURCE_NATIVE_SCROLL_REQUEST",
+    "maxRequestBytes": 16384,
+    "requestFreshnessSeconds": 30,
+    "coordinates": "Actual full402x874 source WK guards and unobstructed right-body endpoints; <=120pt vertical movement, no horizontal edge drag.",
+    "positionAcceptance": "Test completion never implies240. Root controller must read post-input same-nonce/WK actual native callback increase and settled matching position. Every failed/unmatched gesture remains evidence."
+  },
+  "requestBuilder": "Validates canonicalaaf/source350/current source ready/appearance light/L/scale3/safe62+34, last3 stable actual native samples no older than2s, native finite counters and exact offset+inset projection. Uses measured residual only, caps3/120pt and rejects already240 rather than fabricating input.",
+  "futureCompileAllocation": "No build executed. Tiny Swift app/control only with retainedj/o framework; no KMP relink. Root must separately review exact output paths, cache/input hashes, resource floor/time/product budget and allocate native slot/device. Package equal canonical runtime assets; keep raw-j/framework MachO ancestry and new shell/helper/source fixture bytes separate.",
+  "executorLimits": "Later orchestration <=3 inputs and90s tests; no native setters/bridge scrolling/saved-position injection. It must control actual09:41 status bar and archive before/after readonly observer, native request/XCTest frame/log and source/target hashes. Source saved-position240 restoration remains separately unverified.",
+  "coverage": "No338-case or whole-visual/nav acceptance promotion. Source and target differing header/title/approximate mark pixels require actual matched-position inspection."
+}

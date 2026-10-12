@@ -1,0 +1,69 @@
+{
+  "name": "rss-refresh-limited-prepared-02-source-menu",
+  "result": "native-candidate-captured",
+  "expectedRoute": null,
+  "observedRoute": {
+    "key": "Library-FjlI0KTwuHDVtfmWhuUv-",
+    "name": "Library"
+  },
+  "focusedWindow": "mCurrentFocus=Window{389ef4c u0 com.slax.reader.uifixture/com.slax.reader.uifixture.MainActivity}",
+  "nativeInput": null,
+  "nativeInteractionVerified": false,
+  "expectedNativeState": [],
+  "forbiddenNativeState": [],
+  "preparedActionIndices": [
+    0,
+    1,
+    2
+  ],
+  "preparationOnly": true,
+  "preparedScenario": "rss-refresh-limited",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "nativeMeasurements": {
+    "platform": "android",
+    "osVersion": "14",
+    "deviceModel": "sdk_gphone64_arm64",
+    "viewport": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "screen": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "pixelRatio": 2.625,
+    "fontScale": 1,
+    "fontScaleProfile": "default",
+    "safeArea": {
+      "left": 0,
+      "bottom": 24,
+      "right": 0,
+      "top": 51.80952453613281
+    },
+    "appearance": "light"
+  },
+  "visualInspection": "pending",
+  "sourceParity": "unverified",
+  "capturedAtMillis": 1791660097435,
+  "files": [
+    {
+      "path": "27-rss-refresh-limited-prepared-02-source-menu/native.png",
+      "sha256": "0fb5649d83f26a1f1e34782506c4c4ff48587c8d53bb581a8d6ca92148f8178b",
+      "bytes": 149498
+    },
+    {
+      "path": "27-rss-refresh-limited-prepared-02-source-menu/runtime-context.json",
+      "sha256": "aa1aa8d8a8dc8c166f7803a39b1f6a8ce190e0d669ad67e69fa38a89bd54a765",
+      "bytes": 2756
+    },
+    {
+      "path": "27-rss-refresh-limited-prepared-02-source-menu/native-hierarchy.xml",
+      "sha256": "b4b5149c3776000ea2379842cf7dd0282c49b3df2cd5922b1e8e5a38f4709749",
+      "bytes": 5478
+    }
+  ]
+}

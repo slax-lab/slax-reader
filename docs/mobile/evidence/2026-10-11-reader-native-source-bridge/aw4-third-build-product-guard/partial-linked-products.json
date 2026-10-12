@@ -1,0 +1,163 @@
+{
+  "status": "partial-linked-products-retained-original-not-complete-app",
+  "entries": [
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/SlaxReader",
+      "mode": 493,
+      "mtimeNs": 1791671166632466997,
+      "logicalBytes": 40344,
+      "allocatedBytes": 40960,
+      "kind": "file",
+      "sha256": "e7d0e3ad6bb04a99dbffb6ef7aa3a36c3da83e5e18c5502bb4d71e416fafc782"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/SlaxReader.debug.dylib",
+      "mode": 493,
+      "mtimeNs": 1791671161237505534,
+      "logicalBytes": 55446888,
+      "allocatedBytes": 55447552,
+      "kind": "file",
+      "sha256": "b175f0fa4df38c7e91360b978721d69414efe677309dbe763a42f5de5a64ebe5"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents",
+      "mode": 493,
+      "mtimeNs": 1791671161587924897,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791671166643016939,
+      "logicalBytes": 656,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "0394d0a96a94d74b18ae4e53513c591f4117dc35bd44f301982a8d29d5386e13"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources",
+      "mode": 493,
+      "mtimeNs": 1791671166254381595,
+      "logicalBytes": 160,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/DWARF",
+      "mode": 493,
+      "mtimeNs": 1791671166643098769,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/DWARF/SlaxReader",
+      "mode": 420,
+      "mtimeNs": 1791671166643609961,
+      "logicalBytes": 16542,
+      "allocatedBytes": 20480,
+      "kind": "file",
+      "sha256": "c5137b96c692143dc43c5404f263038bdbfc3470c8bab73aee42a37dab3beaf6"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/DWARF/SlaxReader.debug.dylib",
+      "mode": 420,
+      "mtimeNs": 1791671166561266279,
+      "logicalBytes": 126761093,
+      "allocatedBytes": 126763008,
+      "kind": "file",
+      "sha256": "88aef6efc020c20692439deea88e5b4c076ed43c31fe908f7dd03b66d600d67b"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Relocations",
+      "mode": 493,
+      "mtimeNs": 1791671166015314992,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Relocations/aarch64",
+      "mode": 493,
+      "mtimeNs": 1791671166643379260,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Relocations/aarch64/SlaxReader.debug.dylib.yml",
+      "mode": 420,
+      "mtimeNs": 1791671166244501715,
+      "logicalBytes": 30132585,
+      "allocatedBytes": 30134272,
+      "kind": "file",
+      "sha256": "41da8edab3a14cd1f560b2fb6a88a04a7cb36f0a63501694a95c22706f20365d"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Relocations/aarch64/SlaxReader.yml",
+      "mode": 420,
+      "mtimeNs": 1791671166643437508,
+      "logicalBytes": 198,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "8bea9683ad0a022571c207083ffbd78efe1691fdfc23700ff487fdf4b39a9b6b"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Swift",
+      "mode": 493,
+      "mtimeNs": 1791671166254452093,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Swift/aarch64",
+      "mode": 493,
+      "mtimeNs": 1791671166255226734,
+      "logicalBytes": 192,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Swift/aarch64/ExpoFileSystem.swiftinterface",
+      "mode": 420,
+      "mtimeNs": 1791643167000000000,
+      "logicalBytes": 2215,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "d507e7274c46a06fb9188225c21a5197781443ad8aac58ae963781371140e246"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Swift/aarch64/ExpoFont.swiftinterface",
+      "mode": 420,
+      "mtimeNs": 1791643168000000000,
+      "logicalBytes": 1352,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "4dfb2d21cbf3050a4623598f44a9299f6f0a971e9509e8e82cbb939d6b4c047d"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Swift/aarch64/ExpoModulesCore.swiftinterface",
+      "mode": 420,
+      "mtimeNs": 1791643169000000000,
+      "logicalBytes": 121717,
+      "allocatedBytes": 122880,
+      "kind": "file",
+      "sha256": "b4a207e3ee84b5c6c8a55d051a391288a44e5d20ae2dbdf5d3fcf27f3e3c5338"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Swift/aarch64/FirebaseAnalytics.swiftinterface",
+      "mode": 420,
+      "mtimeNs": 1791643170000000000,
+      "logicalBytes": 1243,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "564b88f13f181a746ced861d8c3577de23a880c80cce063d9899c407677e8f6c"
+    }
+  ],
+  "copied": false,
+  "buildSucceeded": false,
+  "installed": false
+}

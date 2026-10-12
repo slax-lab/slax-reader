@@ -1,0 +1,237 @@
+{
+  "kind": "slax-native-real-service-reconnect",
+  "version": 1,
+  "recordedAt": "2026-10-10T16:47:10.901Z",
+  "status": "passed",
+  "platform": "ios-simulator",
+  "device": "2B9DDD06-0C55-4D1A-B03E-35006A7D1849",
+  "runtime": "iOS 26.5 arm64",
+  "appPid": 34413,
+  "newApplication": {
+    "bundleIdentifier": "app.slax.reader",
+    "version": "1.0.25",
+    "buildNumber": "757",
+    "artifact": "/tmp/slax-mobile-native-artifacts/SlaxReader-ios-debug-identity-757-group-only.app",
+    "executableSHA256": "afca590846175cce828b550f5c92b17096b706c214de67ea1d6d1a380eebd97f",
+    "signature": "Public ad hoc simulator App Group entitlement only",
+    "deepStrictSignatureVerified": true,
+    "publisherSigned": false,
+    "releaseArchive": false
+  },
+  "priorFirstUpgradeReport": {
+    "path": "reports/ios-first-upgrade-and-reinstall.json",
+    "sha256": "9e47ca4673ae3e55570b7baef93d86a494ea381b0fb493c7f7e25eb85b122fdf"
+  },
+  "ownedService": {
+    "marker": {
+      "kind": "slax-controlled-native-real-service",
+      "version": 1,
+      "runId": "controlled-ios-service-20261011-r3",
+      "prefix": "slax-native-ff157d78",
+      "network": "slax-native-ff157d78-net",
+      "networks": [
+        "slax-native-ff157d78-net",
+        "slax-native-ff157d78-gateway"
+      ],
+      "containers": [
+        "slax-native-ff157d78-source",
+        "slax-native-ff157d78-storage",
+        "slax-native-ff157d78-sync"
+      ],
+      "volumes": [
+        "slax-native-ff157d78-source-data",
+        "slax-native-ff157d78-storage-data"
+      ],
+      "sourceImage": "postgres@sha256:f02121de6f74d30d8a94cd1d9584125e2178d7e6c377d8130112d4e52d867995",
+      "serviceImage": "journeyapps/powersync-service@sha256:413a0c813e96935ebe7203b5759f8a594a7b7cd8aa42134713e63af637e0f079",
+      "imageIDs": {
+        "journeyapps/powersync-service@sha256:413a0c813e96935ebe7203b5759f8a594a7b7cd8aa42134713e63af637e0f079": "sha256:413a0c813e96935ebe7203b5759f8a594a7b7cd8aa42134713e63af637e0f079",
+        "postgres@sha256:f02121de6f74d30d8a94cd1d9584125e2178d7e6c377d8130112d4e52d867995": "sha256:f02121de6f74d30d8a94cd1d9584125e2178d7e6c377d8130112d4e52d867995"
+      },
+      "privateKeyPersisted": false,
+      "tokensPersisted": false,
+      "syncOrigin": "http://127.0.0.1:58465",
+      "apiOrigin": "http://127.0.0.1:58466",
+      "serviceConfigSHA256": "b3657a61ea902c70ee36c29cab1b137bb1195ac28ac9288d6948b0b582f4f17e",
+      "publicJwkSHA256": "4f8e9a50c4583c53b870a4139e69ae6cb8906daaaf222215652144fccf1c1a41"
+    },
+    "postgresMemoryMiB": 256,
+    "postgresContainers": 2,
+    "serviceMemoryMiB": 512,
+    "postgresPublishedPorts": false,
+    "postgresNetworks": [
+      "slax-native-ff157d78-net"
+    ],
+    "serviceNetworks": [
+      "slax-native-ff157d78-net",
+      "slax-native-ff157d78-gateway"
+    ],
+    "servicePublishedPort": {
+      "host": "127.0.0.1",
+      "port": 32768
+    },
+    "cachedImagesOnly": true,
+    "containerPullPolicy": "never",
+    "unrelatedResourcesInspectedOrChanged": false,
+    "cleanup": {
+      "status": "owned-resources-removed",
+      "controllerTerminated": true,
+      "readerAppTerminated": true,
+      "ownedContainersRemoved": 3,
+      "ownedVolumesRemoved": 2,
+      "ownedNetworksRemoved": 2,
+      "unrelatedResourcesRemoved": false
+    }
+  },
+  "nativeReport": {
+    "status": "passed",
+    "platform": "ios",
+    "runId": "controlled-ios-service-20261011-r3",
+    "coreVersion": "0.5.3/2ba6b280",
+    "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/2B9DDD06-0C55-4D1A-B03E-35006A7D1849/data/Containers/Data/Application/7ABD8201-2D3D-439B-A351-76F7468E5805/Library/Application Support/databases/powersync.db",
+    "serviceReconnect": true,
+    "productionAdoptionEnabled": false,
+    "originalLegacyFirstQueueUpload": false,
+    "offlineTransaction": [
+      {
+        "transactionId": 5,
+        "crud": [
+          {
+            "clientId": 9,
+            "id": "bookmark-1",
+            "op": "PATCH",
+            "table": "sr_user_bookmark",
+            "opData": {
+              "alias_title": "Controlled actual service offline edit"
+            },
+            "previousValues": {
+              "alias_title": "Controlled committed offline process-kill edit"
+            }
+          },
+          {
+            "clientId": 10,
+            "id": "tag-service-ios-controlled-ios-service-20261011-r3",
+            "op": "PUT",
+            "table": "sr_user_tag",
+            "opData": {
+              "display": "Before service",
+              "tag_name": "actual-service",
+              "user_id": "synthetic-user"
+            },
+            "previousValues": null
+          }
+        ]
+      }
+    ],
+    "actualRetryRetainsQueue": true,
+    "exactServerSqlReceipts": [
+      [
+        {
+          "id": "bookmark-1",
+          "op": "PATCH",
+          "data": {
+            "alias_title": "Controlled actual service offline edit"
+          },
+          "table": "sr_user_bookmark",
+          "preData": {
+            "alias_title": "Controlled committed offline process-kill edit"
+          }
+        },
+        {
+          "id": "tag-service-ios-controlled-ios-service-20261011-r3",
+          "op": "PUT",
+          "data": {
+            "display": "Before service",
+            "user_id": "synthetic-user",
+            "tag_name": "actual-service"
+          },
+          "table": "sr_user_tag",
+          "preData": null
+        }
+      ]
+    ],
+    "replicationCheckpointObserved": true,
+    "defaultTransportReplicated": true,
+    "explicitWebSocketReplicated": true,
+    "traffic": {
+      "streamHttpRequests": 2,
+      "webSocketUpgrades": 1,
+      "serverToClientBytes": 4488
+    },
+    "originalPreferencesUntouched": true,
+    "completeLocalJsonUntouched": true,
+    "originalCacheRetained": true,
+    "pendingOperations": 0,
+    "credentialsPersisted": false
+  },
+  "nativeReportSHA256": "24d4b7aa1a2c5016b6f7e609cb7f2ca15125f33861d104de5e49684dacd3dd5e",
+  "serverReceipts": {
+    "rows": [
+      [
+        {
+          "id": "bookmark-1",
+          "op": "PATCH",
+          "data": {
+            "alias_title": "Controlled actual service offline edit"
+          },
+          "table": "sr_user_bookmark",
+          "preData": {
+            "alias_title": "Controlled committed offline process-kill edit"
+          }
+        },
+        {
+          "id": "tag-service-ios-controlled-ios-service-20261011-r3",
+          "op": "PUT",
+          "data": {
+            "display": "Before service",
+            "user_id": "synthetic-user",
+            "tag_name": "actual-service"
+          },
+          "table": "sr_user_tag",
+          "preData": null
+        }
+      ]
+    ],
+    "replicationSlots": [
+      {
+        "active": true,
+        "confirmedFlushLsn": "0/15BCEB8"
+      }
+    ],
+    "traffic": {
+      "streamHttpRequests": 2,
+      "webSocketUpgrades": 1,
+      "serverToClientBytes": 4554
+    }
+  },
+  "serverReceiptsSHA256": "9df4c4ec1b5a238e18ad1d55d09d1280343b578186a1317771386a8ea1a283e8",
+  "sourceInputs": {
+    "apps/mobile/src/data/adoption.ts": "f1d50fdfcba53d760ed8fc52736a0e3d5789278596fc97baeba30d830596656c",
+    "apps/mobile/src/data/schema.ts": "a987c5085226f51516c128bf38b698ae2bea657744bb7e9a619fd58042f84ada",
+    "apps/mobile/src/data/api.ts": "79be519a6b3fdeb25cbfbc75b7c0a080a5da5ac8be8287c226ba10c153f837b5",
+    "apps/mobile/src/data/connector.ts": "bf3b1d425aadff664a94cb681c41752a7cbc0897f1c8b4101d736bafa982d23d",
+    "apps/mobile/src/data/uploader.ts": "f3279efbb7d89337072cc96db3dbe86246b8e4b5b551bbf8cd89de5e059845ca",
+    "apps/mobile/src/domain/session.ts": "f708ba51902975891d97fb7e4afbbfe5669939416d6d06223dabdba4c68d6d32",
+    "apps/mobile/tests/data/NativeServiceReconnectFixture.ts": "0720f932d85a79e4823e9124744ae4dee6c67f59c14646bea1f7fca3e0d75c6c",
+    "apps/mobile/tests/data/adoption-fixtures/tooling/real-service.mjs": "1c262981f834e2f9bcd2b96a4f2ae0e4019a233dfdad5489f9da5500eed8ca42",
+    "apps/mobile/tests/data/adoption-fixtures/tooling/native-fault-control.mjs": "a2e7e03ad29fd3beb0ae49cbf61d8908a7f49809a79012986b42e614bb846b34"
+  },
+  "scope": {
+    "originalLegacyFirstQueueUpload": false,
+    "completedUpgradeNewOfflineWritesOnly": true,
+    "actualPowerSyncAndPostgreSql": true,
+    "actualApiHttp503": true,
+    "actualNativeCloseAndReopen": true,
+    "actualDefaultTransportAndExplicitWebSocket": true,
+    "productionDefaultTransportChanged": false,
+    "privateKeysOrJwtPersistedOrReported": false,
+    "productionAdoptionEnabled": false,
+    "publisherSigned": false,
+    "testFlightProcessingConfirmed": false
+  },
+  "limitations": [
+    "This real service result covers newly queued client IDs 9/10 after the original four operations completed through fixture callbacks. It does not prove real server upload of the original four-operation pending queue.",
+    "The artifact is an ad hoc simulator development build. Publisher-signed upgrade, release archive and TestFlight processing remain separate acceptance.",
+    "Android first-upgrade, repeated-installation and real service counterparts remain pending."
+  ]
+}

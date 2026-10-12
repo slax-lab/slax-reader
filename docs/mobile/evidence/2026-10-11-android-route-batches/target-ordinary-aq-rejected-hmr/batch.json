@@ -1,0 +1,33 @@
+{
+  "kind": "isolated-target-native-route-batch",
+  "schemaVersion": 1,
+  "appId": "com.slax.reader.uifixture",
+  "device": "emulator-5560",
+  "driverSha256": "adfb7464e4da1685dfefafd3cfb5c92ff07118389badd23326b287f85ff11540",
+  "records": [
+    {
+      "name": "settings-initial",
+      "result": "preparation-failed",
+      "error": "Controlled command failed (1): file:///Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tooling/fixture-control.mjs:53\n      if (response.error || response.result?.exceptionDetails) reject(new Error(JSON.stringify(response.error ?? response.result.exceptionDetails)));\n                                                                      ^\n\nError: {\"message\":\"Runtime.evaluate\",\"code\":-32601}\n    at WebSocket.receive (file:///Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tooling/fixture-control.mjs:53:71)\n    at WebSocket.onMessage (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/event-target.js:132:16)\n    at WebSocket.emit (node:events:519:28)\n    at Receiver.receiverOnMessage (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/websocket.js:1088:20)\n    at Receiver.emit (node:events:519:28)\n    at Receiver.dataMessage (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/receiver.js:558:14)\n    at Receiver.getData (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/receiver.js:475:17)\n    at Receiver.startLoop (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/receiver.js:172:22)\n    at Receiver._write (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/receiver.js:107:10)\n    at writeOrBuffer (node:internal/streams/writable:572:12)\n\nNode.js v22.22.3",
+      "sourceParity": "unverified"
+    },
+    {
+      "name": "feedback-error-initial",
+      "result": "preparation-failed",
+      "error": "Controlled command failed (1): file:///Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tooling/fixture-control.mjs:53\n      if (response.error || response.result?.exceptionDetails) reject(new Error(JSON.stringify(response.error ?? response.result.exceptionDetails)));\n                                                                      ^\n\nError: {\"message\":\"Runtime.evaluate\",\"code\":-32601}\n    at WebSocket.receive (file:///Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tooling/fixture-control.mjs:53:71)\n    at WebSocket.onMessage (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/event-target.js:132:16)\n    at WebSocket.emit (node:events:519:28)\n    at Receiver.receiverOnMessage (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/websocket.js:1088:20)\n    at Receiver.emit (node:events:519:28)\n    at Receiver.dataMessage (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/receiver.js:558:14)\n    at Receiver.getData (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/receiver.js:475:17)\n    at Receiver.startLoop (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/receiver.js:172:22)\n    at Receiver._write (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/receiver.js:107:10)\n    at writeOrBuffer (node:internal/streams/writable:572:12)\n\nNode.js v22.22.3",
+      "sourceParity": "unverified"
+    },
+    {
+      "name": "delete-blocked-initial",
+      "result": "preparation-failed",
+      "error": "Controlled command failed (1): file:///Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tooling/fixture-control.mjs:53\n      if (response.error || response.result?.exceptionDetails) reject(new Error(JSON.stringify(response.error ?? response.result.exceptionDetails)));\n                                                                      ^\n\nError: {\"message\":\"Runtime.evaluate\",\"code\":-32601}\n    at WebSocket.receive (file:///Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tooling/fixture-control.mjs:53:71)\n    at WebSocket.onMessage (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/event-target.js:132:16)\n    at WebSocket.emit (node:events:519:28)\n    at Receiver.receiverOnMessage (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/websocket.js:1088:20)\n    at Receiver.emit (node:events:519:28)\n    at Receiver.dataMessage (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/receiver.js:558:14)\n    at Receiver.getData (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/receiver.js:475:17)\n    at Receiver.startLoop (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/receiver.js:172:22)\n    at Receiver._write (/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/node_modules/.pnpm/ws@7.5.13/node_modules/ws/lib/receiver.js:107:10)\n    at writeOrBuffer (node:internal/streams/writable:572:12)\n\nNode.js v22.22.3",
+      "sourceParity": "unverified"
+    }
+  ],
+  "overallParity": "unverified",
+  "limitations": [
+    "Native route/control guards do not replace inspection of the candidate PNG.",
+    "Prepared routes/actions are distinct from logged native input.",
+    "Source matching, remaining locales/profiles and complete state matrix remain pending."
+  ]
+}

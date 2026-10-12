@@ -1,0 +1,87 @@
+{
+  "kind": "source-control-native-products-recovery-public-archive",
+  "version": 1,
+  "regularFiles": [
+    {
+      "relativePath": "README.md",
+      "bytes": 1752,
+      "sha256": "f1a26779adcb393f9a0b97a87025f293f70c177ae9f3f9d0cc09099133ef8598"
+    },
+    {
+      "relativePath": "compiled-products.json",
+      "bytes": 26925,
+      "sha256": "6ea6b9d328a8897eda2625ba67ac24ca9b1a9c4a64e89368ba1ca7941bd44876"
+    },
+    {
+      "relativePath": "raw/SourceFixtureControl_iphonesimulator26.5-arm64.xctestrun",
+      "bytes": 4818,
+      "sha256": "89c7581f035a6456575a020c9b83c0d0ae6b9884a882db5e432fb8990480dc7f"
+    },
+    {
+      "relativePath": "raw/build-native-scroll-control-only.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "raw/build-native-scroll-control-only.stdout",
+      "bytes": 134759,
+      "sha256": "2e946d8272962961fb6aef27ff409c5c4c86b1640b7db4f987c23308f98b09dc"
+    },
+    {
+      "relativePath": "raw/failure.json",
+      "bytes": 2548,
+      "sha256": "91971c2cfa95b91beadd94f21075b7fec78697ab5928573602a663d9968de712"
+    },
+    {
+      "relativePath": "raw/input-basis.json",
+      "bytes": 135250,
+      "sha256": "a1b2e7ecd628f2ee25c3f3dfbe1a21bdaa08341401cbc8bbb0a35f1d82ccec49"
+    },
+    {
+      "relativePath": "raw/owner.json",
+      "bytes": 1565,
+      "sha256": "f70b7a77c202e7a6d6a5d93adec577c0bba1bcf28f77043d58669cc603b586e1"
+    },
+    {
+      "relativePath": "recover-products.py",
+      "bytes": 15537,
+      "sha256": "bdc3540244f3691d92a847db5130983f783ef0a4d9b0a2ea0e007732a376ba3d"
+    },
+    {
+      "relativePath": "report.json",
+      "bytes": 15753,
+      "sha256": "4f87630d7a646b47902524bf022991d478a0459379923d262a401b496b4595a6"
+    },
+    {
+      "relativePath": "retained-basis-verification.json",
+      "bytes": 109482,
+      "sha256": "1985c2cdffb7cb554670f03ed66b04045c4d0dd1fd9fba77563cac3b267ae086"
+    },
+    {
+      "relativePath": "source-inputs/ControlHost.swift",
+      "bytes": 718,
+      "sha256": "6fff150a4e3cd8d5c5644a827058c574674d7d5511e3ace9aff59eb08709c29c"
+    },
+    {
+      "relativePath": "source-inputs/SourceFixtureControl.swift",
+      "bytes": 3425,
+      "sha256": "75e86e298857a4580deceddf1123562acc0d8d71ed571c3e2f6174df2dfb824c"
+    },
+    {
+      "relativePath": "source-inputs/SourceFixtureControl.xcodeproj/project.pbxproj",
+      "bytes": 5012,
+      "sha256": "5f03d69db0b95560bcf7baa78793e60aa4798ae0784485c09b712efe763d5958"
+    },
+    {
+      "relativePath": "source-inputs/SourceFixtureControl.xcodeproj/xcshareddata/xcschemes/SourceFixtureControl.xcscheme",
+      "bytes": 1175,
+      "sha256": "91bc64759f66c0dee5af74466259fc8c19df16127dbdbbe2459c76371f401c1b"
+    },
+    {
+      "relativePath": "source-inputs/SourceFixtureNativeScrollControl.swift",
+      "bytes": 5870,
+      "sha256": "98b48d7137a89842444210c826d839e7a8575ae1d7a4cfe9c058b3e81cff2807"
+    }
+  ],
+  "compilerOrDeviceInvoked": false
+}

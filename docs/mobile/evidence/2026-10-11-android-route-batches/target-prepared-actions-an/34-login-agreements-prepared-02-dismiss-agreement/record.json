@@ -1,0 +1,69 @@
+{
+  "name": "login-agreements-prepared-02-dismiss-agreement",
+  "result": "native-candidate-captured",
+  "expectedRoute": null,
+  "observedRoute": {
+    "key": "Login-moOqly2GBRL9pR4j69rIk",
+    "name": "Login"
+  },
+  "focusedWindow": "mCurrentFocus=Window{26e0444 u0 com.slax.reader.uifixture/com.slax.reader.uifixture.MainActivity}",
+  "nativeInput": null,
+  "nativeInteractionVerified": false,
+  "expectedNativeState": [],
+  "forbiddenNativeState": [],
+  "preparedActionIndices": [
+    0,
+    1,
+    2
+  ],
+  "preparationOnly": true,
+  "preparedScenario": "login-agreements",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "nativeMeasurements": {
+    "platform": "android",
+    "osVersion": "14",
+    "deviceModel": "sdk_gphone64_arm64",
+    "viewport": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "screen": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "pixelRatio": 2.625,
+    "fontScale": 1,
+    "fontScaleProfile": "default",
+    "safeArea": {
+      "left": 0,
+      "bottom": 24,
+      "right": 0,
+      "top": 51.80952453613281
+    },
+    "appearance": "light"
+  },
+  "visualInspection": "pending",
+  "sourceParity": "unverified",
+  "capturedAtMillis": 1791660146649,
+  "files": [
+    {
+      "path": "34-login-agreements-prepared-02-dismiss-agreement/native.png",
+      "sha256": "ab9299c50b66951ad7d5cfaa2e647ad3cb66eb2a7e2fe686a37be7e664e0b20c",
+      "bytes": 78926
+    },
+    {
+      "path": "34-login-agreements-prepared-02-dismiss-agreement/runtime-context.json",
+      "sha256": "c62feace3d79cc48bf1fb95805ec6998ddc14c058b157a6bff3f1131ea628278",
+      "bytes": 2593
+    },
+    {
+      "path": "34-login-agreements-prepared-02-dismiss-agreement/native-hierarchy.xml",
+      "sha256": "1c12a9845cec16981eccf88cb796ab7b9027175b16b3d343a305541f2dbc4e73",
+      "bytes": 10684
+    }
+  ]
+}

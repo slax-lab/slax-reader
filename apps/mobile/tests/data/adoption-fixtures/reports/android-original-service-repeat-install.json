@@ -1,0 +1,264 @@
+{
+  "kind": "slax-native-android-same-identity-repeat-after-real-original-queue",
+  "version": 1,
+  "status": "passed",
+  "recordedAt": "2026-10-10T17:40:34.550Z",
+  "platform": "android-emulator",
+  "device": "emulator-5562",
+  "runtime": "Android 14 API34 arm64-v8a",
+  "runId": "controlled-android-first-service-20261011",
+  "originalServiceEvidence": {
+    "report": "apps/mobile/tests/data/adoption-fixtures/reports/android-original-queue-real-service.json",
+    "sha256": "5ada6e8518df019fb02e9f638cea271cfd54cd36aa885c7bfe734976ac57949a",
+    "nativeServiceReportSHA256": "58d595b26e3c96b3ab63407a2f1e3196ff7fcafab27b82a15d826ecd253a8280",
+    "originalSixActualSqlAndNativeCompletions": true,
+    "originalReportBytesPreserved": true
+  },
+  "newApplication": {
+    "bundleIdentifier": "com.slax.reader",
+    "version": "1.0.0",
+    "buildNumber": "1",
+    "artifact": "/tmp/slax-mobile-native-artifacts/slax-reader-debug-identity.apk",
+    "apkSHA256": "c2dcdc430514343aafd02c1a8ee8c6f769ba0b51c10b524b0e830b4487e89faa",
+    "signature": "Public generated Android debug certificate",
+    "publicCertificateSHA256": "fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c",
+    "samePublicDebugCertificateAsOldProducer": true,
+    "publisherSigned": false,
+    "releaseArtifact": false,
+    "releaseMetadataScope": "Development APK compiled before selected 757 release metadata; this is native data acceptance only."
+  },
+  "committedOfflineState": {
+    "kind": "slax-native-adoption-fault-state",
+    "version": 1,
+    "runId": "controlled-android-first-service-20261011",
+    "phase": "hold-after-offline-commit",
+    "requestedAt": 1791653747306,
+    "writtenAt": 1791653755032,
+    "readyForExternalKill": true,
+    "baseline": {
+      "databasePath": "/data/data/com.slax.reader/databases/powersync.db",
+      "integrityValid": true,
+      "formatVersion": 14,
+      "userVersion": 1,
+      "storageTables": [
+        "ps_data__sr_bookmark_comment",
+        "ps_data__sr_collection_bookmark",
+        "ps_data__sr_platform_bind",
+        "ps_data__sr_sharer_setting",
+        "ps_data__sr_user",
+        "ps_data__sr_user_bookmark",
+        "ps_data__sr_user_bookmark_stats",
+        "ps_data__sr_user_collection",
+        "ps_data__sr_user_collection_subscriber",
+        "ps_data__sr_user_notification",
+        "ps_data__sr_user_subscription",
+        "ps_data__sr_user_tag",
+        "ps_data_local__local_bookmark_info"
+      ],
+      "pendingOperations": 2,
+      "pendingTransactions": 1,
+      "queueDigest": "00949133822adb72a4d9b8250f156e563bfa01a274c94dfa846aa38e1755ebc7",
+      "dataDigest": "7315b7df376dc56c128a3d30195aabb1941441aa9b408ab1020922c9652f8816",
+      "localDigest": "0ad784ce90ceab3799a6996e3cde9946b64e3534a36badeb2a4db6d91128cccc"
+    },
+    "ownerIdentity": {
+      "owner": "android:com.slax.reader:/data/data/com.slax.reader/files",
+      "relativePath": "databases/powersync.db"
+    },
+    "pending": [
+      {
+        "transactionId": 4,
+        "crud": [
+          {
+            "clientId": 7,
+            "id": "bookmark-1",
+            "op": "PATCH",
+            "table": "sr_user_bookmark",
+            "opData": {
+              "alias_title": "Controlled committed offline process-kill edit"
+            },
+            "previousValues": {
+              "alias_title": "Controlled actual service offline edit"
+            }
+          },
+          {
+            "clientId": 8,
+            "id": "tag-native-fault-1",
+            "op": "PUT",
+            "table": "sr_user_tag",
+            "opData": {
+              "display": "Native fault",
+              "tag_name": "native-fault",
+              "user_id": "synthetic-user"
+            },
+            "previousValues": null
+          }
+        ]
+      }
+    ],
+    "alias": "Controlled committed offline process-kill edit",
+    "localJson": "{\"overview\":\"Offline summary\",\"is_downloaded\":1,\"read_position\":\"348.25\",\"outline_read_position\":\"12\",\"is_auto_cached\":0,\"future_field\":{\"preserve\":true},\"native_fault_future\":{\"retained\":true,\"run\":\"controlled-android-first-service-20261011\"}}",
+    "legacyPreferenceFingerprint": "3f827733345f4601dd9ce6941242ab02931b19821cac162b5b256f272fd8d5ff",
+    "nativePreferenceValues": {
+      "auth_token": "fixture-auth-token-NOT-A-REAL-CREDENTIAL",
+      "user_id": "synthetic-user",
+      "last_refresh_time": "1700000000",
+      "powersync_refresh_time": 1700000000123,
+      "powersync_token": "fixture-sync-token-NOT-A-REAL-CREDENTIAL",
+      "powersync_connect_url": "https://sync.invalid/controlled-fixture",
+      "continue_reading_bookmark": "{\"bookmarkId\":\"bookmark-1\",\"title\":\"Offline article\",\"collectionOwnerId\":\"synthetic-owner\",\"collectionId\":\"synthetic-collection\"}",
+      "user_setting_detail_do_not_alert": "1",
+      "user_language": "zh-CN",
+      "cache_count": -1,
+      "download_images": 1,
+      "selected_env": "BETA",
+      "analytics_device_id": "fixture-stable-device-id",
+      "future_boolean": true,
+      "future_strings": [
+        "one",
+        "two"
+      ],
+      "_slax_preferences_migration_v1": "3f827733345f4601dd9ce6941242ab02931b19821cac162b5b256f272fd8d5ff"
+    },
+    "cacheContent": "<article><p>Controlled offline fixture</p></article>"
+  },
+  "processKill": {
+    "ownerProbeWhileHeld": {
+      "kind": "slax-native-owner-probe",
+      "platform": "android",
+      "acquired": false
+    },
+    "signal": {
+      "kind": "slax-native-fault-kill",
+      "platform": "android",
+      "device": "emulator-5562",
+      "pid": 6517,
+      "signal": "SIGKILL"
+    },
+    "ownerProbeAfterKill": {
+      "kind": "slax-native-owner-probe",
+      "platform": "android",
+      "acquired": true
+    }
+  },
+  "actualSameIdentityInstallation": {
+    "command": "adb -s emulator-5562 install -r /tmp/slax-mobile-native-artifacts/slax-reader-debug-identity.apk",
+    "output": "Performing Streamed Install\nSuccess",
+    "before": {
+      "device": "emulator-5562",
+      "uid": "10192",
+      "inodeOwnerStat": "336839:10192:10192\n320875:10192:10192",
+      "nativeServiceReportSHA256": "58d595b26e3c96b3ab63407a2f1e3196ff7fcafab27b82a15d826ecd253a8280",
+      "originalReportPreserved": true,
+      "hashCapture": "Retained exact native file before fault hold; rechecked unchanged after installation"
+    },
+    "after": {
+      "device": "emulator-5562",
+      "uid": "10192",
+      "inodeOwnerStat": "336839:10192:10192\n320875:10192:10192",
+      "sameSandboxAndDatabaseInodes": true,
+      "nativeServiceReportSHA256": "58d595b26e3c96b3ab63407a2f1e3196ff7fcafab27b82a15d826ecd253a8280",
+      "originalReportUnchanged": true,
+      "installWithoutUninstallOrDataClear": true
+    },
+    "publicCertificateSHA256": "fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c",
+    "artifactSHA256": "c2dcdc430514343aafd02c1a8ee8c6f769ba0b51c10b524b0e830b4487e89faa",
+    "sameArtifactAndPublicSignature": true
+  },
+  "nativeEvents": [
+    {
+      "phase": "resume-after-offline-commit",
+      "status": "passed",
+      "platform": "android",
+      "runId": "controlled-android-first-service-20261011",
+      "coreVersion": "0.5.3/2ba6b280",
+      "databasePath": "/data/data/com.slax.reader/databases/powersync.db",
+      "pendingOperations": 0,
+      "completedOperations": 2,
+      "logicalIdentityReturned": true,
+      "containerRelocated": false,
+      "actualOriginalServicePrerequisite": true,
+      "serviceReconnect": false,
+      "productionAdoptionEnabled": false
+    },
+    {
+      "phase": "repeat-accepted",
+      "status": "passed",
+      "platform": "android",
+      "runId": "controlled-android-first-service-20261011",
+      "coreVersion": "0.5.3/2ba6b280",
+      "databasePath": "/data/data/com.slax.reader/databases/powersync.db",
+      "pendingOperations": 0,
+      "completedOperations": 0,
+      "logicalIdentityReturned": true,
+      "containerRelocated": false,
+      "actualOriginalServicePrerequisite": true,
+      "serviceReconnect": false,
+      "productionAdoptionEnabled": false
+    }
+  ],
+  "finalNativeSnapshot": {
+    "databasePath": "/data/data/com.slax.reader/databases/powersync.db",
+    "integrityValid": true,
+    "formatVersion": 14,
+    "userVersion": 1,
+    "storageTables": [
+      "ps_data__sr_bookmark_comment",
+      "ps_data__sr_collection_bookmark",
+      "ps_data__sr_platform_bind",
+      "ps_data__sr_sharer_setting",
+      "ps_data__sr_user",
+      "ps_data__sr_user_bookmark",
+      "ps_data__sr_user_bookmark_stats",
+      "ps_data__sr_user_collection",
+      "ps_data__sr_user_collection_subscriber",
+      "ps_data__sr_user_notification",
+      "ps_data__sr_user_subscription",
+      "ps_data__sr_user_tag",
+      "ps_data_local__local_bookmark_info"
+    ],
+    "pendingOperations": 0,
+    "pendingTransactions": 0,
+    "queueDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "dataDigest": "7315b7df376dc56c128a3d30195aabb1941441aa9b408ab1020922c9652f8816",
+    "localDigest": "0ad784ce90ceab3799a6996e3cde9946b64e3534a36badeb2a4db6d91128cccc"
+  },
+  "canonicalNativeIdentity": {
+    "owner": "android:com.slax.reader:/data/data/com.slax.reader/files",
+    "relativePath": "databases/powersync.db"
+  },
+  "sourceInputs": {
+    "apps/mobile/src/data/adoption.ts": "f1d50fdfcba53d760ed8fc52736a0e3d5789278596fc97baeba30d830596656c",
+    "apps/mobile/src/data/upgrade.ts": "400e9ee274e497b2f77820452add0e5668270a0bd6e51b8a6ebf21c605ee3632",
+    "apps/mobile/src/data/preferences.ts": "fd2debe5370cd1831be1cb377c22aec6243c0e53b4602ba229666e0ef38d90af",
+    "apps/mobile/src/data/uploader.ts": "f3279efbb7d89337072cc96db3dbe86246b8e4b5b551bbf8cd89de5e059845ca",
+    "apps/mobile/tests/data/NativeAdoptionFaultFixture.ts": "2c294f449d540f83fc4f593a97a430dc5c5374affb2186b2349db4592c0b42a4",
+    "apps/mobile/tests/data/completed-native-service.ts": "ed402141eecedcb0a81fe4dda0515f007e4822fe5028aa6d20196a9242c6f9a8",
+    "apps/mobile/tests/data/adoption-fixtures/tooling/native-fault-control.mjs": "58650334e1c2e423fd88894e7ce9be9f7253aa9eb59f644f5cf4c86f575441f5"
+  },
+  "scope": {
+    "actualSameIdentityReinstallation": true,
+    "actualCommittedOfflineProcessKill": true,
+    "rawQueueAndTransactionPreserved": true,
+    "completeLocalJsonFutureFieldsPreserved": true,
+    "originalAndImportedPreferencesPreserved": true,
+    "originalCacheHtmlPreserved": true,
+    "canonicalNativeOwnerAndSlotPreserved": true,
+    "newOperations": [
+      7,
+      8
+    ],
+    "newTransaction": 4,
+    "newOperationsActualNativeCompletion": true,
+    "newOperationsUploadUsesSyntheticCallback": true,
+    "newOperationsRealServiceUpload": false,
+    "originalSixActualServiceUpload": true,
+    "productionAdoptionEnabled": false,
+    "publisherSigned": false,
+    "testFlightProcessingConfirmed": false
+  },
+  "limitations": [
+    "This report adds actual Android repeated-installation and new 7/8 offline operation preservation to the immutable original-six real-service report. The new two upload receipts are callback-only; they do not substitute for that earlier actual service proof.",
+    "This is a controlled public-debug APK on a synthetic sandbox. Production adoption, cross-process preference CAS, suspension, publisher iOS Release and TestFlight processing remain separate."
+  ]
+}

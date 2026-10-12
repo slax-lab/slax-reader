@@ -1,0 +1,3481 @@
+{
+  "formatVersion": 1,
+  "capturedBeforeCommandsAt": "2026-10-10T23:07:28.138476+00:00",
+  "publicInputClosure": [
+    {
+      "path": "apps/mobile/android/app/build.gradle",
+      "sha256": "08d12e111f45ca9b605898961c70e6731ceb13e5975dec09e898e1f19fe8fee4",
+      "bytes": 8592
+    },
+    {
+      "path": "apps/mobile/android/build.gradle",
+      "sha256": "b2cb52734a4f45c6fda73fd98a749545a295742b2e4a82fc166c5eb2b91cbede",
+      "bytes": 563
+    },
+    {
+      "path": "apps/mobile/app.config.ts",
+      "sha256": "3be5106ded1760c119c8cc01e3ec65021fb9b3fb77ac3a4142c1e83e601f7824",
+      "bytes": 3079
+    },
+    {
+      "path": "apps/mobile/assets/LICENSE.source",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357
+    },
+    {
+      "path": "apps/mobile/assets/README.md",
+      "sha256": "c3920715322e77c89dd809f7ae5da307683d9a2988dcf017d770162168e3b464",
+      "bytes": 2316
+    },
+    {
+      "path": "apps/mobile/assets/android-playstore-icon.png",
+      "sha256": "d3c1f4234c4ad5349d1e7c0560918ffd2bb3663cfe4495b19b2004ffcc953aa0",
+      "bytes": 47196
+    },
+    {
+      "path": "apps/mobile/assets/app-icon.png",
+      "sha256": "43070f29911e934ea04a74a0e88524359661d8a942b0acf2d0b118ab24a957fb",
+      "bytes": 222491
+    },
+    {
+      "path": "apps/mobile/assets/convert-vectors.py",
+      "sha256": "57b2618b9ee7c063f24926567938aa55d3574f5b37e960e4475fd1cefd0d5603",
+      "bytes": 4811
+    },
+    {
+      "path": "apps/mobile/assets/drawable/bg_login.png",
+      "sha256": "7a63f8ce1d043a5d4fb4249eb2488c8283dfbc6d2a639cc7d3acbbeaaa3816bf",
+      "bytes": 75387
+    },
+    {
+      "path": "apps/mobile/assets/drawable/default_splash.png",
+      "sha256": "eb79be8a28fb76968b0ffd23e112858fa52274078036bf11904c3dbb6f896494",
+      "bytes": 406053
+    },
+    {
+      "path": "apps/mobile/assets/drawable/global-default-avatar.png",
+      "sha256": "f27eeb7fab179d2b18cb61f2b9f8a03a1016709f1589f398110895456c5e32e9",
+      "bytes": 6857
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_agree_disable.png",
+      "sha256": "efcf56e93fb1fba0f53014d2846dd87838a9549a477ffd1f29da64546a24b117",
+      "bytes": 446
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_agree_enable.png",
+      "sha256": "3507491c4f2c82316fcb3227d0825cea62447ab9008ad4ae33f38390e7f973d1",
+      "bytes": 760
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_app_logo.png",
+      "sha256": "4518185b7d94721ea604e588fb8766d0b1a2642668515c027e742f2ba03f794e",
+      "bytes": 5948
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_bottom_panel_archieve.png",
+      "sha256": "e88a90ba3995dc376f67317856a9eb7e786e2d59d3f4a53a6b35f45222e98e51",
+      "bytes": 1183
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_bottom_panel_archieved.png",
+      "sha256": "4cf6c7b2d5ad8d6afa92b409a261e06a786eb194fe48f2b13ddbbeba5911a0bf",
+      "bytes": 2872
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_bottom_panel_chatbot.png",
+      "sha256": "e700c512c1ef728eeb0f35fcfef074d0c9a664a6423b6c6832c5fe0147eaf1d2",
+      "bytes": 1045
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_bottom_panel_comment.png",
+      "sha256": "f3f66c412b896754a6a5c840b4ee9875099fd62a1e0a14d96b1d5c2059992fbd",
+      "bytes": 872
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_bottom_panel_delete.png",
+      "sha256": "5f8ade194d8a75945162b0be449f42066f006f7fd4335ca7bea1d3527ae283bb",
+      "bytes": 968
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_bottom_panel_edittitle.png",
+      "sha256": "e2c9e2bbbc6a2b29d508b0c0eedac1b2d849a23f4a851291e649748da54c20fe",
+      "bytes": 955
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_bottom_panel_feedback.png",
+      "sha256": "b38c78ca7f30013344c2dfaeeeb036bc024ecc065ef4f35acc530f68d4ba4a66",
+      "bytes": 750
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_bottom_panel_pro.png",
+      "sha256": "b28de359ad2594451a76e12d61a1b1c0b346c7112c34097b2f5b689c31985e97",
+      "bytes": 1433
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_bottom_panel_share.png",
+      "sha256": "b076c05930ca7512230438b3e95b1220a3e8e89b41a55a53ba744317600b182a",
+      "bytes": 814
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_bottom_panel_star.png",
+      "sha256": "c277a5e522979249dc680930722b087a4997a46a26e253d38c781ee25fe9552a",
+      "bytes": 1158
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_bottom_panel_starred.png",
+      "sha256": "10c5e95770c185f424ba63a0ab85248004f93d67d923b28182a89bc7c70b034b",
+      "bytes": 1995
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_bottom_panel_summary.png",
+      "sha256": "9c36133440cadb63d4c95545f5620d3716143edbc0d8920f51a443827f1207b5",
+      "bytes": 456
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_bottom_panel_transcript.png",
+      "sha256": "6ea9be2136b1563006291823f6468b163aa804a43aa684bb4e9fb7640542a772",
+      "bytes": 736
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_bottom_panel_underline.png",
+      "sha256": "e48c259fe61e6d04552b5891213a6d612b57981d00ce86085631fc3f7bd2906f",
+      "bytes": 524
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_cell_action_archieve.png",
+      "sha256": "d83202402cef8db9629e1f5223883ecceda91d9568a4b46322de12e70d9ac80b",
+      "bytes": 909
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_cell_action_archieved.png",
+      "sha256": "7b5e38977c37dd2e5168c5d1ac5e4101c840c180707a8e9d697f3d6fc475a0d9",
+      "bytes": 805
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_cell_action_star.png",
+      "sha256": "06d9076e59d0e2eff0000412328309382ae54e46545b15ac99c57947db0eaecc",
+      "bytes": 896
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_cell_action_starred.png",
+      "sha256": "24139488cfbe7716c2e18b5fc346da53c0deeb843cd3a7e6f6fa0230f94db843",
+      "bytes": 640
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_cell_archived.png",
+      "sha256": "e5e9c4fa932ae9ae3ac67241252860e70facda859843b6e1ce68bea99231c6e6",
+      "bytes": 645
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_cell_internet.png",
+      "sha256": "3be28a2526573756cc78f1b1c2c9f27ffd4f90aab8a564ad7ee20c336ee91bea",
+      "bytes": 671
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_cell_internet_downloading.png",
+      "sha256": "dedcada2fc4628d169cf7f68709ac789cc60bee08fcebaf1e94a0f25af5b8df3",
+      "bytes": 601
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_cell_internet_uncached.png",
+      "sha256": "084424b88e48391902aea91c5628450ce4b9925659a38f8981204973f3da4569",
+      "bytes": 586
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_cell_more.png",
+      "sha256": "c8c1e226e3dde11b9ea3b7d7483c2c7aadb4b342e1dae08546442204f627193d",
+      "bytes": 158
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_cell_more_archieve.png",
+      "sha256": "3a8be64fefc1a983ffd683d6580567e512d4bb393211316c041e43db5aae19ab",
+      "bytes": 706
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_cell_more_delete.png",
+      "sha256": "bbb3584d552c015b7f91a1c00c7d5bf9fd193189f49a40248dc2cf8a23f3e708",
+      "bytes": 722
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_cell_more_edittitle.png",
+      "sha256": "d5d791fa3893c5d170fc07a68339c495139310075bb1348ea2bf1e066b8405a1",
+      "bytes": 485
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_cell_more_highlighted.png",
+      "sha256": "c1d2bbca6363bdbcfd8576a20b28065b4fddeb3dd67243f80fa943e5f58eeee8",
+      "bytes": 158
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_cell_more_star.png",
+      "sha256": "d943b3acdfbba896f90678b9fa552bf7df198ebb58ac807edc09856bfcaeba1e",
+      "bytes": 667
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_cell_starred.png",
+      "sha256": "1649350094ed3856378d39f464bf95c627c1b54695c7dc477cf49741463353e1",
+      "bytes": 711
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_cell_tag.png",
+      "sha256": "08a986117679e774fb7e5ab4bf077fda02cbdef52b8fdfa9e780633fd2a0c4a4",
+      "bytes": 603
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_circle_close_icon.png",
+      "sha256": "57937664b49e3c74af61d12e2d4bf4e18ec30c2e53255e1e2598fc6c3b74eb3a",
+      "bytes": 963
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_comment_panel_close.png",
+      "sha256": "c1c5c15f3b82efbc128589f5166f436d6edc64ff0b78699a8dad3f1083f40ed8",
+      "bytes": 420
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_comment_panel_copy.png",
+      "sha256": "d95ef8723044401912403ee18e3a5d857eb4e584dfdb7b77295e4db95e2f3a5f",
+      "bytes": 441
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_comment_panel_delete.png",
+      "sha256": "2b8835e92434c180f10d4eed89d1baffc23fc40475dc2356f68c60873b4b691e",
+      "bytes": 594
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_comment_panel_highlight.png",
+      "sha256": "cfca87ded03ecd428f29f346d7f3fb178e631cca080d3018ade0c3c317ff45f0",
+      "bytes": 409
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_comment_panel_highlighted.png",
+      "sha256": "ba0142d34acfc825f638b1e116b05527d850d0038f0258cdd310d73fe99b873b",
+      "bytes": 415
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_comment_panel_share.png",
+      "sha256": "ae526bcd6219a76a0ed34183b36cb4505d5aef6512e95210187e53ef5d6e8a1b",
+      "bytes": 625
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_continue_reading_close.png",
+      "sha256": "ad3722ad93de8621455c6666b3119625e5763d0dcd00f8cb3843e7e5628a07cc",
+      "bytes": 412
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_continue_reading_icon.png",
+      "sha256": "f8535e30f1e04b88b2355138e402856a9405a191b2054e4f5f75f147ac6ca096",
+      "bytes": 629
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_floating_panel_archieve.png",
+      "sha256": "a556872fc20753d6a99e04a526f0645a4d60923b6f428802b54d23c6658ca22f",
+      "bytes": 869
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_floating_panel_archieved.png",
+      "sha256": "984fc421495a4dabea5d3b466efa2a791e845dbc8ad645bdcd7fdf4406f98296",
+      "bytes": 4969
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_floating_panel_more.png",
+      "sha256": "2cf62e58a386b9b27d7ddf9a3e2e0fe5fd3566e67078a517ee232c6a99d08b8b",
+      "bytes": 186
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_floating_panel_star.png",
+      "sha256": "440f1b444fe81de71686c00765923f84de322ca40d2a96e5e6650d2573304526",
+      "bytes": 864
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_floating_panel_starred.png",
+      "sha256": "b4ad58e3c8631b7a115440efeee2976383d10cad179afe4e8fe718cbca996ac4",
+      "bytes": 3205
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_inbox_plane.png",
+      "sha256": "ee9baabaad9348b20612e35cb9bbe81e2adf7c6dc5a7c74beaf103ce7f242b28",
+      "bytes": 627
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_inbox_tab.png",
+      "sha256": "3b77f776f59a8fbff10578d46d0dce2b54048c53fdfaaa08794ee14cc5ae1d4b",
+      "bytes": 123
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_menu_action_comment.png",
+      "sha256": "8dfd4bfbe12072cfb7a437823ae798f70083ec5acce77ce6767d43c1d750eece",
+      "bytes": 540
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_menu_action_copy.png",
+      "sha256": "d95ef8723044401912403ee18e3a5d857eb4e584dfdb7b77295e4db95e2f3a5f",
+      "bytes": 441
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_menu_action_highlight.png",
+      "sha256": "cfca87ded03ecd428f29f346d7f3fb178e631cca080d3018ade0c3c317ff45f0",
+      "bytes": 409
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_outline_banner_analyzed.png",
+      "sha256": "178a353ec4ae9e17d5513ef0492cabd1727c6b6de73e333595cba8337e7a0a7a",
+      "bytes": 764
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_outline_banner_analyzing.png",
+      "sha256": "491cef17786a480780a1c6795b8a4294ccd58911056e6f00c9e16b2a744b1290",
+      "bytes": 744
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_outline_banner_close.png",
+      "sha256": "ad3722ad93de8621455c6666b3119625e5763d0dcd00f8cb3843e7e5628a07cc",
+      "bytes": 412
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_outline_banner_expand.png",
+      "sha256": "1d3f813511e881fc4033de1ba48689d2ddb26f4147631ebaaae9ea8199f3d407",
+      "bytes": 215
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_outline_collapsed.png",
+      "sha256": "b76dcae82834a92a474eb19ada1e9fff46bb72bd2d00195e82e97aaa5c4c47ba",
+      "bytes": 342
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_outline_dialog_close.png",
+      "sha256": "4bbbe783c53a9e44ce1a1a26d790019ea4f7d4580ecb06aa34199f6aa5a4b51c",
+      "bytes": 437
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_outline_dialog_shrink.png",
+      "sha256": "da406292b3a63adfb822bc77819181fca096a08ccbee16a601ae6c319477f6b3",
+      "bytes": 649
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_outline_empty_inboxlist_icon.png",
+      "sha256": "f651d3e2a5b937c9282d560ba0c00cb0235dcc4e6eefc7f65223d6eb064eb39f",
+      "bytes": 1176
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_radio_disabled.png",
+      "sha256": "efcf56e93fb1fba0f53014d2846dd87838a9549a477ffd1f29da64546a24b117",
+      "bytes": 446
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_radio_enabled.png",
+      "sha256": "d29a1addd75593b4bff28977a4adba211c7af4bd6e23f4215c7309b1c5aefc4b",
+      "bytes": 615
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_rss.png",
+      "sha256": "0c8d02f30c05cdcc5101afa4f9525cbafe4ba55837cc1b8d5ead5b2cf118f3e4",
+      "bytes": 1803
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_rss_refresh.png",
+      "sha256": "48d7f512fea55493fb58d5c8255ef52e123fa2eca09bd8b2bab2b13c30791bdd",
+      "bytes": 1655
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_rss_save.png",
+      "sha256": "5a91c7d6596454ac54dee1bd46d724372fa122e674611269b4c77679cdb2344f",
+      "bytes": 619
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_sm_apple.png",
+      "sha256": "ea153d9116f40ad2f90319c117a3d690db720eccf44ab7a9825fd8c100221f24",
+      "bytes": 780
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_sm_back.png",
+      "sha256": "4ded6ba23e037faa6c49c63f006477c881ca65a35753aafd6684e14dba8b67c9",
+      "bytes": 225
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_sm_google.png",
+      "sha256": "e39c9045207807a5009d88dc299a2d507e8f1cdfc25654eecb4562ec452231aa",
+      "bytes": 1515
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_xs_blue_down_arrow.png",
+      "sha256": "b6b2b521e72c2c423d07e7d97539e0a7ec08ac2163c1cc53eee83a1060dca697",
+      "bytes": 310
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_xs_dialog_close.png",
+      "sha256": "ca4f33e81609cb259e229dbe93ccd5642cc5118c88eae0b4782f61fffd31c25f",
+      "bytes": 293
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_xs_inbox_add.png",
+      "sha256": "b0b51e08104bc3aa6f5e2b42e5a6f5c0946eeb80bdecdd34e438f520f008e738",
+      "bytes": 121
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_xs_sidebar_about.png",
+      "sha256": "da29db69958d8b0529997ff72a1915d590fe7fa1652e336f2f1ca41f0ea3aae2",
+      "bytes": 718
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_xs_sidebar_close.png",
+      "sha256": "b804110c504140178328ce1318d527ced3417819002c4ef6b24606e03270bd14",
+      "bytes": 380
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_xs_sidebar_config.png",
+      "sha256": "4a3aaeb2398df4f6f16ec5e4133c9a7df84910ef137e57df7d1d981ab50aac76",
+      "bytes": 320
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_xs_sidebar_feedback.png",
+      "sha256": "6ed22f011687f69f1f52fd18bbb7d144355d24251fc5b5016f77dec760a2905e",
+      "bytes": 660
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_xs_sidebar_logout.png",
+      "sha256": "8796adc9baaa21ef6c2f64180dacc4401ab3816d6d075f0e7d5a77a593744d03",
+      "bytes": 568
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_xs_sidebar_subscribe.png",
+      "sha256": "f91d89713b434c1bdde7e2ffc92ea780ef04e5c677ec1d1abf1d22e1d89eb507",
+      "bytes": 778
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_xs_sidebar_subscribed.png",
+      "sha256": "83fec558e16347fa69957361c3b26d9db95c7175c4c164e3efe3f8645a2419db",
+      "bytes": 1893
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_xs_sidebar_yellow_arrow.png",
+      "sha256": "17d12e9023c505f668164bdc0fbe5181537d053676c516f24459a5dab121b908",
+      "bytes": 230
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_xs_tag_close.png",
+      "sha256": "3899a195111740d01652e531e1b94a71f28af5729b498a428d5c5014cd8fb1de",
+      "bytes": 266
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_xs_tick_gray_outline_icon.png",
+      "sha256": "08bba653fcd10f28c3068f7b76df4d84a19c3f86e051577383758a23d552d006",
+      "bytes": 338
+    },
+    {
+      "path": "apps/mobile/assets/drawable/ic_xs_yellow_plus.png",
+      "sha256": "27534e754c624535af10a3decc586ce9a46869f179d05d318f51c204b74497ef",
+      "bytes": 146
+    },
+    {
+      "path": "apps/mobile/assets/drawable/inbox-more.png",
+      "sha256": "03e12a3a5980ba49c30bba9976f66e5c6c9ee7a5d1c127db177b00848c2cfc8c",
+      "bytes": 452
+    },
+    {
+      "path": "apps/mobile/assets/embedded/SOURCE-LICENSE.txt",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357
+    },
+    {
+      "path": "apps/mobile/assets/embedded/css/article.css",
+      "sha256": "eaec206eee3165366c34c8e1cbdd9d33af2bbde4313a698afd62daa6857f5729",
+      "bytes": 9657
+    },
+    {
+      "path": "apps/mobile/assets/embedded/css/bottom-line.css",
+      "sha256": "d51b9ee9e1677d9ced9dec1cdc8ddda4ad0662ed61703335981aeae1024912d2",
+      "bytes": 702
+    },
+    {
+      "path": "apps/mobile/assets/embedded/css/mark.css",
+      "sha256": "49141a462a4aac0ef5fd24ed891da25b71dc22e8bfbcbd367ece25c430c25a0d",
+      "bytes": 1462
+    },
+    {
+      "path": "apps/mobile/assets/embedded/css/reset.css",
+      "sha256": "8c432276c23a9417bfbfdaee785c9abf074e1c86976fce70ae499f6d77fbcf3a",
+      "bytes": 872
+    },
+    {
+      "path": "apps/mobile/assets/embedded/html/error.html",
+      "sha256": "83288a404403dbf49883a836090cec86f0603a29696342c4585a25e7b5ff4ae3",
+      "bytes": 4567
+    },
+    {
+      "path": "apps/mobile/assets/embedded/html/webview-template.html",
+      "sha256": "a46d963da7f4334527293ed7e0c5f11798f02583e8ec234989820c58491884a9",
+      "bytes": 6008
+    },
+    {
+      "path": "apps/mobile/assets/embedded/image/error.png",
+      "sha256": "288f91013cf501544241447d8f7b4cde2c912d0ae42186bc68f073f633b327d7",
+      "bytes": 29568
+    },
+    {
+      "path": "apps/mobile/assets/embedded/js/react-native-host.js",
+      "sha256": "3acfd2eeaead47880e51b6ed728bfec6eca327a1bfffda744c2688af05a31478",
+      "bytes": 22485
+    },
+    {
+      "path": "apps/mobile/assets/embedded/js/webview-bridge.js",
+      "sha256": "cc943378a1de086b4dfc1c628e50618b187ae515fa256210bf2f51ac26038225",
+      "bytes": 132641
+    },
+    {
+      "path": "apps/mobile/assets/embedded/source-manifest.json",
+      "sha256": "45c82a536b6a88a68be7f86ecfa3664e341101b2f3d35c1c3de4cf527b5d386e",
+      "bytes": 2553
+    },
+    {
+      "path": "apps/mobile/assets/index.ts",
+      "sha256": "85917a5093db1325b2975bba724e55f1cfb05599276cb05628f40081d9c7cc6d",
+      "bytes": 26504
+    },
+    {
+      "path": "apps/mobile/assets/native-evidence.mjs",
+      "sha256": "916d42f31c42d0a5bf240674dcda0ff58a68c5286650403e590c8a579db54f3a",
+      "bytes": 23667
+    },
+    {
+      "path": "apps/mobile/assets/provenance.json",
+      "sha256": "8d909776871ffc396292f35b0bcad32e2e0dbef2828f2b0da0541780ced9f9f4",
+      "bytes": 83824
+    },
+    {
+      "path": "apps/mobile/assets/share-logo.png",
+      "sha256": "4518185b7d94721ea604e588fb8766d0b1a2642668515c027e742f2ba03f794e",
+      "bytes": 5948
+    },
+    {
+      "path": "apps/mobile/assets/source-auth-public.json",
+      "sha256": "d9bfafcbe573b8e1fa4ed831621e44f2d2390bbb1cd309094eccbeaf952bc66a",
+      "bytes": 544
+    },
+    {
+      "path": "apps/mobile/assets/vector-conversions.json",
+      "sha256": "7df8700e65b4c4a3d4117dcedd81e55ae16eb0014ddbd1a417fdc38db4a04bf2",
+      "bytes": 5061
+    },
+    {
+      "path": "apps/mobile/assets/vectors/ic_bottom_panel_transcript.svg",
+      "sha256": "1cf533895f7d0d2228ea82b7028d5e395d18c2a18f97ca65126b9a67c5c96a97",
+      "bytes": 524
+    },
+    {
+      "path": "apps/mobile/assets/vectors/ic_bottom_panel_transcript.xml",
+      "sha256": "8ee1bfdafcfb942158c29fc2bf4d7e4e39ce0828ca290772a9b7f6adc2606ad2",
+      "bytes": 855
+    },
+    {
+      "path": "apps/mobile/assets/vectors/ic_rss.svg",
+      "sha256": "3a9ac08b6cabf83bdc57324934f182cecfc2b1cee7cff406843eb6dfaff3ca7e",
+      "bytes": 299
+    },
+    {
+      "path": "apps/mobile/assets/vectors/ic_rss.xml",
+      "sha256": "09df66c82058b97329555780307641552987c0fb132ba3fbb2c7cd61cfd89d11",
+      "bytes": 485
+    },
+    {
+      "path": "apps/mobile/assets/vectors/ic_rss_refresh.svg",
+      "sha256": "c61ae4a758658778cab8b7ca3842be68412c58ee14909633149b1bf459624915",
+      "bytes": 301
+    },
+    {
+      "path": "apps/mobile/assets/vectors/ic_rss_refresh.xml",
+      "sha256": "00e7d47e1a0ea8f11e99741bb32645891bfea55b1f172932cf14cd23a1823e4d",
+      "bytes": 457
+    },
+    {
+      "path": "apps/mobile/assets/vectors/ic_rss_save.svg",
+      "sha256": "cda812d823fa831466fe663bcf8abbffeb1a7ed50e47cc0a091af63b2fb53cc1",
+      "bytes": 224
+    },
+    {
+      "path": "apps/mobile/assets/vectors/ic_rss_save.xml",
+      "sha256": "ac7f220f99c41debfd2018d1323551b9293b3cffbd6b54b30ced359f64f5e526",
+      "bytes": 377
+    },
+    {
+      "path": "apps/mobile/assets/verify-baseline.mjs",
+      "sha256": "851b38610f1e341b424c2769024ed08480cc46f8ecae132399e73b69d9731004",
+      "bytes": 11168
+    },
+    {
+      "path": "apps/mobile/babel.config.cjs",
+      "sha256": "dc2cd8e52a06222356ed0ee0b96330f801b851c40d7c63b952cfb601d69dcd8c",
+      "bytes": 243
+    },
+    {
+      "path": "apps/mobile/fixtures/FixtureApp.tsx",
+      "sha256": "2a16e73447168e9959c347094c830ce1bfdac1c8df011ff63139fdeedafcbd1b",
+      "bytes": 10811
+    },
+    {
+      "path": "apps/mobile/fixtures/README.md",
+      "sha256": "6da030dc1f131fbd70599fb65f42cb9349d0a7b24b6725b51c04d8b80da8310d",
+      "bytes": 16157
+    },
+    {
+      "path": "apps/mobile/fixtures/articles/delete-notice.html",
+      "sha256": "f83d131b138eaafc6e1770348911dd4311e8a16b52e157701bb98f4a4b5b9414",
+      "bytes": 2710
+    },
+    {
+      "path": "apps/mobile/fixtures/articles/long.html",
+      "sha256": "84e955134d8983ee3395e9079bdb2e4bb07b4b9834cd304d99ff8535b2d05a23",
+      "bytes": 16183
+    },
+    {
+      "path": "apps/mobile/fixtures/articles/mixed.html",
+      "sha256": "31a896cf24248a45c8a6b5aa92a23a244cab3c562bbf40848d5e13a48b41ec6b",
+      "bytes": 1206
+    },
+    {
+      "path": "apps/mobile/fixtures/articles/privacy.html",
+      "sha256": "0548ddb5faf187897be0d6c9ed41b894f9676b057769077c41ee0701cebd7d39",
+      "bytes": 355
+    },
+    {
+      "path": "apps/mobile/fixtures/articles/rss.html",
+      "sha256": "6c906184ccba93cc799cb78a7f24cfc4a271bd3d7f05d050ca15a370e2d00b17",
+      "bytes": 368
+    },
+    {
+      "path": "apps/mobile/fixtures/articles/short.html",
+      "sha256": "4b0fd49b289bada48313ebb2352f6432b5b6e4ac4099ae93cf85f41aafbf63c8",
+      "bytes": 67
+    },
+    {
+      "path": "apps/mobile/fixtures/articles/terms.html",
+      "sha256": "337e42fd530f1773636c832fd0d3bd29a01dbc9bdc0e49bde645c0d897c75f2d",
+      "bytes": 355
+    },
+    {
+      "path": "apps/mobile/fixtures/articles/video.html",
+      "sha256": "51b9bcde940986e7b0ce82778932a694c3c1de6d421615b8365cb32aeb3b9f3d",
+      "bytes": 1260
+    },
+    {
+      "path": "apps/mobile/fixtures/commands.ts",
+      "sha256": "1a796d675a248684aaa04bdd76575addf8186a4fbec47504aa74be1b780ef4cb",
+      "bytes": 1984
+    },
+    {
+      "path": "apps/mobile/fixtures/documents.ts",
+      "sha256": "14e51a5c163e6c13e7dc327afa207a77056f32335b574d9c2d76c37f081bfa21",
+      "bytes": 23166
+    },
+    {
+      "path": "apps/mobile/fixtures/generate-fixtures.py",
+      "sha256": "daf31c326e3995a8b51a0e6905971f5e5750a4ac0f40a1ef9d94f11fa9af19b7",
+      "bytes": 26265
+    },
+    {
+      "path": "apps/mobile/fixtures/isolation.ts",
+      "sha256": "4cf695a9136fa4ac13890bf23448575785f4c8a4137ca10d50dfbccc57f84dee",
+      "bytes": 4415
+    },
+    {
+      "path": "apps/mobile/fixtures/manifest.json",
+      "sha256": "00a7555b87503153de38f0047283018f223469ecd3830089e9e2703ca7a1f133",
+      "bytes": 1623
+    },
+    {
+      "path": "apps/mobile/fixtures/prepare-source-ios.py",
+      "sha256": "c00754762c62cef4dec681554fe67f2a88467a0756f676b98240f4ad793bfa67",
+      "bytes": 9581
+    },
+    {
+      "path": "apps/mobile/fixtures/prepare-source-share-ios.py",
+      "sha256": "18f1ef07e056ec1d4e303554d583b6fa23d5f4d5ebf254d6fe308767fcf59baa",
+      "bytes": 10447
+    },
+    {
+      "path": "apps/mobile/fixtures/prepare-source.py",
+      "sha256": "71a059882b8f3f3357e28cd7e6d43cf1082182e7d0743fbeb1a4e160124d0a81",
+      "bytes": 18091
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/README.md",
+      "sha256": "eeabbb521b5870ebfb796190e6f496d3e75171921a2825d0d95be997d387c83b",
+      "bytes": 3360
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/ControlHost.swift",
+      "sha256": "1096b4aedbc3f913fd93b5eac3213c80c4ddbf27635e0cd57718bf67cea2f400",
+      "bytes": 724
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/ReaderNativeControl.swift",
+      "sha256": "84daeb26cde784efd06fed3e6c08dad55dac785ef987ac175e16408c6ef0b91f",
+      "bytes": 9974
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/ReaderNativeControl.xcodeproj/project.pbxproj",
+      "sha256": "f93c8d95a1cb107dc3a75f50d5c2d6446800c79fddbaceb7480617bd63c1627d",
+      "bytes": 4711
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/ReaderNativeControl.xcodeproj/xcshareddata/xcschemes/ReaderNativeControl.xcscheme",
+      "sha256": "dd403736b0b22a23c4df0ba758ba891a6896c99badddf346bb91824c89c0f91c",
+      "bytes": 1169
+    },
+    {
+      "path": "apps/mobile/fixtures/resources.ts",
+      "sha256": "96e03add074ba683f47bb9023d3a730a3e9135cc20473355c082f1181737c1b7",
+      "bytes": 8369
+    },
+    {
+      "path": "apps/mobile/fixtures/runtime.ts",
+      "sha256": "f436adc9a315ea53594394be348113ef08ab5d5b603d80f11881881228132c05",
+      "bytes": 9262
+    },
+    {
+      "path": "apps/mobile/fixtures/scenarios.json",
+      "sha256": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f",
+      "bytes": 1756477
+    },
+    {
+      "path": "apps/mobile/fixtures/source-android/FixtureFirebase.kt",
+      "sha256": "b1fd2461f03c012d5e861cb55bddc66449feda9c91707e0c57b74b2d0b64749e",
+      "bytes": 395
+    },
+    {
+      "path": "apps/mobile/fixtures/source-android/FixtureManifest.xml",
+      "sha256": "61415eefa1da4ff771a2550dc7e7bb8fdf6747313780d44266a53368ff895f6b",
+      "bytes": 948
+    },
+    {
+      "path": "apps/mobile/fixtures/source-android/FixturePayload.kt",
+      "sha256": "a7f4c24f7647ed8b84b9564c40f23978db981cfe6ccc94ca2aa0520a65900faf",
+      "bytes": 5633
+    },
+    {
+      "path": "apps/mobile/fixtures/source-android/FixtureReaderHttp.kt",
+      "sha256": "6927689a6b0c044ed5a1852f44c27844098aca2dca0159a1908f91eead907787",
+      "bytes": 7026
+    },
+    {
+      "path": "apps/mobile/fixtures/source-android/FixtureReaderResources.kt",
+      "sha256": "17344c84141b6771be670da4449b5a24612f9edff2cc7053ad90e02fcb730878",
+      "bytes": 3074
+    },
+    {
+      "path": "apps/mobile/fixtures/source-android/FixtureRunner.kt",
+      "sha256": "e7abfea07791140d5c75006e9b217474a7e8c66ce755cd9510360ca181fdec99",
+      "bytes": 1148
+    },
+    {
+      "path": "apps/mobile/fixtures/source-android/FixtureWebViewHost.kt",
+      "sha256": "18affcd4156b814f9dc6b91146a22d621c4e324c276a8d0f4f0e42cb1ec8dcce",
+      "bytes": 5272
+    },
+    {
+      "path": "apps/mobile/fixtures/source-android/README.md",
+      "sha256": "6c85349939b4cb8bde19159dca6121c9a069cc5a9789748cf67ca7999ea660be",
+      "bytes": 11057
+    },
+    {
+      "path": "apps/mobile/fixtures/source-android/SourceFixtureActivity.kt",
+      "sha256": "578136e272fc0e01b4bed35a636847e84d12eb93d5e066c59bb3a17695778fc4",
+      "bytes": 923
+    },
+    {
+      "path": "apps/mobile/fixtures/source-android/SourceReaderAdapter.kt",
+      "sha256": "ea0d9935914fd01f1334295d4d88a2c7af42dc769a7da21d717a0c4cf55dfcb1",
+      "bytes": 27271
+    },
+    {
+      "path": "apps/mobile/fixtures/source-android/SourceReaderHttpRegression.kt",
+      "sha256": "c700a958d86563d55b2cdc53b07c730c1a182b41cb087d223d75ccedfc8e3497",
+      "bytes": 6428
+    },
+    {
+      "path": "apps/mobile/fixtures/source-android/SourceReferenceFixtureTest.kt",
+      "sha256": "62bb1fe5b2496fb4b81485b09277ce8ced00431c2e791ed298a84a78120d068f",
+      "bytes": 29800
+    },
+    {
+      "path": "apps/mobile/fixtures/source-android/build.gradle.kts",
+      "sha256": "f3f603a5a68b69524af8ae84bb212e60040a5544acc5e9b9d1389d5313edc494",
+      "bytes": 436
+    },
+    {
+      "path": "apps/mobile/fixtures/source-android/composeApp.gradle.kts",
+      "sha256": "722f0cd0fa71c1f4618298aa6c4482fb129c1ed1aec20425a646692c55def727",
+      "bytes": 5670
+    },
+    {
+      "path": "apps/mobile/fixtures/source-android/settings.gradle.kts",
+      "sha256": "6c1e5acf6e8a41b4d6b806a3328f86ca3fd6a5f2165426dd9fb5957a59282f4a",
+      "bytes": 244
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/FixtureFoundation.h",
+      "sha256": "afc1638ce6d646891317f07590b548501fbe6d7067f4ea6f34784a3c4c0074db",
+      "bytes": 647
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/FixtureGoogle.kt",
+      "sha256": "d13a806f5202ded59bad4cc668e506adf943fa7f0fdda8ba4121cd3f3f6f6d29",
+      "bytes": 520
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/FixturePlatform.kt",
+      "sha256": "79a449c12378d56159e4e3439aebb57d186fc9346a546e1581fcf053dec57e6e",
+      "bytes": 1480
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/FixturePolicy.kt",
+      "sha256": "4a9c1909a38075a82c066dc06109eb715b8c8c7e9143e9226fbcda2823d79927",
+      "bytes": 679
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/FixturePreferences.kt",
+      "sha256": "92e8764cc13bc03fc8c8cace7a371422d99ef00e37dca5bbd46a8e50a5595db1",
+      "bytes": 437
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/FixtureReaderStep.swift",
+      "sha256": "7dd09392d7e7fe6e16b90c69ab3d42b4b8590a062c73dc35647dc3f4d62d7c41",
+      "bytes": 5860
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/FixtureWebViewHost.kt",
+      "sha256": "72e52ca68ca5875d7f5de9878758256c333f207f26a772e593faf36070bf206c",
+      "bytes": 6454
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/Info.plist",
+      "sha256": "468ccc8cc8e1cd60d2a85056d0f6d5c7892f1369763ce4e5a97530436f51b746",
+      "bytes": 1035
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/README.md",
+      "sha256": "cf2f1e187388665a3b2ce747edfdc1e4dd4c61f66e3ace9ffda88ad20661ab4b",
+      "bytes": 9424
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/SourceFixture.kt",
+      "sha256": "908e2e3898023be1a487ffbf98021466ff30483b67008ab1bdb8a0e5bad282a2",
+      "bytes": 17105
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/build-app.mjs",
+      "sha256": "4b2c03bc2108dff763e174e2f9f0fab0c52474b414b4a1ce1110279e52860855",
+      "bytes": 5107
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/build.gradle.kts",
+      "sha256": "dcd0adf7929f8007de42d62be79fece3df4c06c8ef889a46774d5bb4e0e43bd8",
+      "bytes": 373
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/composeApp.gradle.kts",
+      "sha256": "5bd98128ed2666c59c1b651e6a31f1539cbc201216bf79ff51e769f25be4fd38",
+      "bytes": 4002
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/control/ControlHost.swift",
+      "sha256": "6fff150a4e3cd8d5c5644a827058c574674d7d5511e3ace9aff59eb08709c29c",
+      "bytes": 718
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/control/SourceFixtureControl.swift",
+      "sha256": "75e86e298857a4580deceddf1123562acc0d8d71ed571c3e2f6174df2dfb824c",
+      "bytes": 3425
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/control/SourceFixtureControl.xcodeproj/project.pbxproj",
+      "sha256": "14c2271095f0640d4b27d722d7b2e0a76e0083c985d25a94ac1c44b437f63aa4",
+      "bytes": 4703
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/control/SourceFixtureControl.xcodeproj/xcshareddata/xcschemes/SourceFixtureControl.xcscheme",
+      "sha256": "91bc64759f66c0dee5af74466259fc8c19df16127dbdbbe2459c76371f401c1b",
+      "bytes": 1175
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/fixture-foundation.def",
+      "sha256": "9998938548711a56eadee9a5f1920f1941c58899a531cb470c6cac00153992c5",
+      "bytes": 153
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/main.swift",
+      "sha256": "2dc7c3b99f139409a23be314545ee291345f5c92cf45d00c61de92fc7ecf4377",
+      "bytes": 13057
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/settings.gradle.kts",
+      "sha256": "4628d891046f051184d5f4b6dfe3762b6807cd41ec532e9223fcabf5325a6b80",
+      "bytes": 242
+    },
+    {
+      "path": "apps/mobile/fixtures/source-share-ios/ComposeAppStub.swift",
+      "sha256": "1cafe84ab6d4828aab66b736045e10b39a9567079b6a610229451727da400620",
+      "bytes": 1120
+    },
+    {
+      "path": "apps/mobile/fixtures/source-share-ios/Host.swift",
+      "sha256": "6797c4dc5886859411fef04041291bc2b46eb37fed62aca2ef3f9f3aa0efeaa2",
+      "bytes": 2313
+    },
+    {
+      "path": "apps/mobile/fixtures/source-share-ios/README.md",
+      "sha256": "c92d8d1a996d584b45fd2e3cd66941cdea4d0786006dcf9ae3b9febb867a3f8a",
+      "bytes": 3856
+    },
+    {
+      "path": "apps/mobile/fixtures/source-share-ios/ShareInfo.plist",
+      "sha256": "3ddd92630c6791ea1c8bb4601224837cae8ae82b9fec1887fb7bbc5bc3e9f741",
+      "bytes": 1029
+    },
+    {
+      "path": "apps/mobile/fixtures/source-share-ios/build-app.mjs",
+      "sha256": "2454cecf02fc0869783f33d11e541ed982792245bc045f24b3577a060a724250",
+      "bytes": 3881
+    },
+    {
+      "path": "apps/mobile/fixtures/source-share-ios/control/ControlHost.swift",
+      "sha256": "31f609cbb8e3511c1eef08bfeb0ef6558504bc0aeaeb9f7f49560e8921f7f5e3",
+      "bytes": 723
+    },
+    {
+      "path": "apps/mobile/fixtures/source-share-ios/control/SourceShareControl.swift",
+      "sha256": "1729c0088f55b99197090a1e5bcd99d102270ef9cd73d40045cbe682b84e379e",
+      "bytes": 3057
+    },
+    {
+      "path": "apps/mobile/fixtures/source-share-ios/control/SourceShareControl.xcodeproj/project.pbxproj",
+      "sha256": "da60eb87a5a0d6f6f6a80489dbf5fb56c2cfd002afc98165fe42ec569cdc78b0",
+      "bytes": 4705
+    },
+    {
+      "path": "apps/mobile/fixtures/source-share-ios/control/SourceShareControl.xcodeproj/xcshareddata/xcschemes/SourceShareControl.xcscheme",
+      "sha256": "37c078c4fc44af568faf9957c8e546fe512ce35238eee127efdd1bf4689f7e36",
+      "bytes": 1163
+    },
+    {
+      "path": "apps/mobile/fixtures/source-share-ios/sample-success.mjs",
+      "sha256": "eca3865dc634504392864b027de04f3c868495714ae3b0ac65acbecd2c9443cc",
+      "bytes": 4204
+    },
+    {
+      "path": "apps/mobile/fixtures/target-ios-control/ControlHost.swift",
+      "sha256": "0f46e380e10f59b0729da8990adcd04432b4fd85c61f8e2a08f420294bfd1ea7",
+      "bytes": 714
+    },
+    {
+      "path": "apps/mobile/fixtures/target-ios-control/TargetFixtureControl.swift",
+      "sha256": "88c43c84ffa6872afd322dce60260d50c5c68c48d038c164e1d2943cfa2d204b",
+      "bytes": 5383
+    },
+    {
+      "path": "apps/mobile/fixtures/target-ios-control/TargetFixtureControl.xcodeproj/project.pbxproj",
+      "sha256": "5033f8796dd0ad3e5901fa380db485585ded6891ffb713c8490d4cf8f1ae1437",
+      "bytes": 4695
+    },
+    {
+      "path": "apps/mobile/fixtures/target-ios-control/TargetFixtureControl.xcodeproj/xcshareddata/xcschemes/TargetFixtureControl.xcscheme",
+      "sha256": "e72a1de76ca9b6a7e8fd08b09c032752a7b8d68a0356010975daeb9727f86bdc",
+      "bytes": 1175
+    },
+    {
+      "path": "apps/mobile/fixtures/test-source-preparer.py",
+      "sha256": "8ac6abdf047a391032744d420102ac063aabf2d5397ce5296a3b0c144860cff8",
+      "bytes": 1434
+    },
+    {
+      "path": "apps/mobile/fixtures/transport.ts",
+      "sha256": "e8f87d72a7018d5df419e2416ece5b6de0f4648e8642bbb548a64405600d5faf",
+      "bytes": 5220
+    },
+    {
+      "path": "apps/mobile/fixtures/verify-fixtures.mjs",
+      "sha256": "a3ca9dc8d512eeb73b9e1e7c5c5044fffa0699fa25377c77389f1349f6ecbe7c",
+      "bytes": 6998
+    },
+    {
+      "path": "apps/mobile/ios/Podfile.lock",
+      "sha256": "a4ac1d5a3db5921bb1fe5630b3979a95e5e9d01fb32eae9dc04946ada95a796c",
+      "bytes": 130015
+    },
+    {
+      "path": "apps/mobile/metro.config.cjs",
+      "sha256": "0d2906cd24cc51269fbca472f3f68ab2fd79ad2347f301745811363270943d7c",
+      "bytes": 106
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/android/build.gradle",
+      "sha256": "2990e00dc1e6fafd34484121588711c071da5c02ee10859e6ad997b0830f0995",
+      "bytes": 245
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/android/src/main/AndroidManifest.xml",
+      "sha256": "343d5be1ac17cdd45d1a2f2ddc616c509290e655869125a9422a96d88aa66066",
+      "bytes": 72
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/android/src/main/java/com/slax/reader/legacy/SlaxLegacyModule.kt",
+      "sha256": "487b780bb58831a2ec2e0452d7077961002764c09a45dbe06f0aa067c8040ef5",
+      "bytes": 9281
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/expo-module.config.json",
+      "sha256": "59ae076fab29eac44f759803663e80c566ca960ef4b62e647791ab3fc0bbd389",
+      "bytes": 161
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/ios/DatabaseIdentity.swift",
+      "sha256": "f8f020698a160425d5be842d276f23b0294291a8ab96e07c4db185289aba806a",
+      "bytes": 1670
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/ios/DatabaseInspection.swift",
+      "sha256": "8dcd9b4ff0d188cb70a1c4f347848a61fc98b5b94b1463723a717db82b10ff02",
+      "bytes": 3948
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/ios/SlaxLegacy.podspec",
+      "sha256": "d05b0b84a7e5123ae055ebb52319c66f9e06af6c71494bcd88332abf5b61210e",
+      "bytes": 588
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/ios/SlaxLegacyModule.swift",
+      "sha256": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3",
+      "bytes": 6621
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/build.gradle",
+      "sha256": "5b2ec123e501ac6bb949483d61d55573e88441ec0b4349d9aa22b17761bb3859",
+      "bytes": 580
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/AndroidManifest.xml",
+      "sha256": "343d5be1ac17cdd45d1a2f2ddc616c509290e655869125a9422a96d88aa66066",
+      "bytes": 72
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxDns.kt",
+      "sha256": "5582252c5f3c21a7f762c644b88381c23d062481f6d7a2588b98b5db94b90f7a",
+      "bytes": 2413
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxGoogleSignIn.kt",
+      "sha256": "9b0b4558cf5439b6c6eb621dc386fabf087c6203041781d568b00503fdcd30e4",
+      "bytes": 1295
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxLineHeightSpan.kt",
+      "sha256": "b8baac70848f582e83ccd52f8d0c4962d7c0eb5f7f06e05752e0d02a52540edf",
+      "bytes": 965
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxPlatformModule.kt",
+      "sha256": "d9b5363f5732f24555bc75fc970c00ef378004c61459704ddf1e9bfda28bee9d",
+      "bytes": 7361
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxReaderView.kt",
+      "sha256": "105853280b12ced2752124d7f8dc3b5f335943dbb5bdcdad31fac6b03d3f09f5",
+      "bytes": 7010
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxResources.kt",
+      "sha256": "868281d74e0fc36b183956a9232161f0a1566e63a1cb6be0e367fec7d5706882",
+      "bytes": 8426
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxRingView.kt",
+      "sha256": "42312e968327c5ef66c845e05ab9f554fce7837c0ba8c65d09d29b1ee847dafb",
+      "bytes": 6700
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxShapeView.kt",
+      "sha256": "97a5234f6859f89e2653925255121b5b348a5706a5a02cc0f4085acb52c88229",
+      "bytes": 3164
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxTextScaling.kt",
+      "sha256": "f8c236d5dc8e3f1417b2327ee12548795bd651b85b3bcd9bd53a2e89f223331d",
+      "bytes": 1950
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxTextView.kt",
+      "sha256": "c82bc3ca173c63a003f342600399d91539331d478999ae086f2e38080c6df39c",
+      "bytes": 7487
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/expo-module.config.json",
+      "sha256": "d5a0d516881bee81ea259eeee2f947434ac07984e7ab7fb20360257d351e19c0",
+      "bytes": 208
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxDns.swift",
+      "sha256": "1cb509cad382bec63f044683a41544ad9ed3e00b8b0ee839fad4a28678270a36",
+      "bytes": 4500
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxGoogleAppDelegateSubscriber.swift",
+      "sha256": "958a4e8fc408035266d6e9ec814949fc72bc582f1f477ae1ead32b5d0cc63c13",
+      "bytes": 735
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxPlatform.podspec",
+      "sha256": "ac549eb3a1cd058884051ace8539af398a4dea4ad8d352ccb379107b751965d0",
+      "bytes": 481
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxPlatformModule.swift",
+      "sha256": "7a3fa8b2efeab3a2bb20a9a0729c697ff95c3774b20a2bc133a2f3b07e5c9b27",
+      "bytes": 8540
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxReaderDocumentNavigationGate.swift",
+      "sha256": "33cf869bf0a52541d101699c88e8701bb7888b14e34a37390b52582419c973d5",
+      "bytes": 989
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxReaderView.swift",
+      "sha256": "c0c727feb112265a4909ed7c7b5908d214e5ac867d2c85fb36dca6c9d7f38f66",
+      "bytes": 11861
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxResourceHandler.swift",
+      "sha256": "a6d193898668f3200355dd5349ade700912e0245a2ad21f154f9e20b29863ba2",
+      "bytes": 9818
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxRingView.swift",
+      "sha256": "bda084a963ef0928ab68d274449bc4d72b424f4bc0a32302b891a14f7809a635",
+      "bytes": 6241
+    },
+    {
+      "path": "apps/mobile/modules/slax-share/android/build.gradle",
+      "sha256": "d24cfbdae1fe9a352586b44837f1525587772af489227cecaad630fa9f9f4893",
+      "bytes": 243
+    },
+    {
+      "path": "apps/mobile/modules/slax-share/android/src/main/AndroidManifest.xml",
+      "sha256": "343d5be1ac17cdd45d1a2f2ddc616c509290e655869125a9422a96d88aa66066",
+      "bytes": 72
+    },
+    {
+      "path": "apps/mobile/modules/slax-share/android/src/main/java/com/slax/reader/extension/ShareActivity.kt",
+      "sha256": "216e22036c1ebeab3a2822e16c431367fc52dbb93d52db78effa2c364732470c",
+      "bytes": 11224
+    },
+    {
+      "path": "apps/mobile/modules/slax-share/android/src/main/java/com/slax/reader/share/SlaxShareModule.kt",
+      "sha256": "aeef00fa87d812f7b4aa201b237ed117e50958334ed4be31a4813214789fdf8d",
+      "bytes": 232
+    },
+    {
+      "path": "apps/mobile/modules/slax-share/android/src/main/res/values/styles.xml",
+      "sha256": "5411b8d3c904aa29bd77d9964baa89ba557eb889355a949bfcc6d211afd370e5",
+      "bytes": 575
+    },
+    {
+      "path": "apps/mobile/modules/slax-share/expo-module.config.json",
+      "sha256": "d806ec89ffa4b6a1c01faadeac3485f4dacd094f54c4765d3aa57c3a54bab0ea",
+      "bytes": 102
+    },
+    {
+      "path": "apps/mobile/native/share/ios/ExtensionClass.js",
+      "sha256": "966b78103c172b4d983973431179530a791658d3770dfc2d1c03d3e1281c7482",
+      "bytes": 391
+    },
+    {
+      "path": "apps/mobile/native/share/ios/ShareCollector.swift",
+      "sha256": "9f8edd6c618a58b03e65b4c57a1c3309dd951f4539796492d428eb0fc4c9c186",
+      "bytes": 4237
+    },
+    {
+      "path": "apps/mobile/native/share/ios/SharePage.swift",
+      "sha256": "773d375552cd23046066dc770de345290a986fd0ee6a65e9daf700bfa4624b5f",
+      "bytes": 563
+    },
+    {
+      "path": "apps/mobile/native/share/ios/ShareViewController.swift",
+      "sha256": "2f6c9f613c776dc456934d5ee7c14a5c687b4d438af9ca36451c132dfd8ca46b",
+      "bytes": 9848
+    },
+    {
+      "path": "apps/mobile/native/share/ios/SharedPreferences.swift",
+      "sha256": "9ec8056affcb8ff8cd34d68a9170c5ce2b94a6147560210aaadda280289e62ee",
+      "bytes": 3521
+    },
+    {
+      "path": "apps/mobile/native/share/tests/plugin.test.cjs",
+      "sha256": "ce5a1aafef59a98f1d96857e71e9ad18d4673cc93a9c15ca045e806957ce5f8a",
+      "bytes": 7742
+    },
+    {
+      "path": "apps/mobile/package.json",
+      "sha256": "8e926517bdd7bb1ad48a7e64f57d8cf6c0934bdffddd2324e248cbfee49494a2",
+      "bytes": 2496
+    },
+    {
+      "path": "apps/mobile/plugins/repair-share-project.cjs",
+      "sha256": "b42fe6fdcd9a3bc29e6c01de364c2f4cb7838b2a0da91b14ada9b1a5c537c1ec",
+      "bytes": 897
+    },
+    {
+      "path": "apps/mobile/plugins/with-firebase-bootstrap.cjs",
+      "sha256": "49f1f9d7db57e2309e42f2c52cd88e688c5db647430193f962b439f864a11187",
+      "bytes": 797
+    },
+    {
+      "path": "apps/mobile/plugins/with-native-back.cjs",
+      "sha256": "4c53568bca7bc025cda39c1485b6e6bc2abee599721ff22f7e743ac9d719e77e",
+      "bytes": 3668
+    },
+    {
+      "path": "apps/mobile/plugins/with-native-compatibility.cjs",
+      "sha256": "99dff2ffc9ff6f473233b2f4c4eb54f8a4d999ade3b21491f44286f878827ac3",
+      "bytes": 5167
+    },
+    {
+      "path": "apps/mobile/plugins/with-share.cjs",
+      "sha256": "2eaa9359985689401ed4193b1239887c772431d9f2db28fffdf352ba73d5a130",
+      "bytes": 10758
+    },
+    {
+      "path": "apps/mobile/src/App.tsx",
+      "sha256": "09de329ac84f3069b2d605a7a155580f786b03a077f2e1ebbf2db92df8821a0d",
+      "bytes": 6529
+    },
+    {
+      "path": "apps/mobile/src/auth/providers.ts",
+      "sha256": "00ce9b0bcce8e8d723bfe99d8b3ae15295725eb48a54e8535bc835a789ef870e",
+      "bytes": 2652
+    },
+    {
+      "path": "apps/mobile/src/components/BookmarkRow.tsx",
+      "sha256": "d3e7412008491b2d0e0bf7f8fe28281e58e61dd47b8be79ddfe8f68b40a575ad",
+      "bytes": 7776
+    },
+    {
+      "path": "apps/mobile/src/components/LinkInputDialog.tsx",
+      "sha256": "6c25fe31d8fae2f369a77a88f09c1ff0acb291d0fbc5156ccaceeedee54473ae",
+      "bytes": 3595
+    },
+    {
+      "path": "apps/mobile/src/components/RssFeed.tsx",
+      "sha256": "d9bb1cb9c3068f3325f48a4d343a0adbb861a750322a55120dd79a1b61427dbb",
+      "bytes": 14494
+    },
+    {
+      "path": "apps/mobile/src/components/SourceDrawer.tsx",
+      "sha256": "6b0bf005e6a4a17f75feea6baf1505b028abe64b5975253ad1f2a4f5e141d817",
+      "bytes": 3832
+    },
+    {
+      "path": "apps/mobile/src/components/SourceLine.tsx",
+      "sha256": "5cbc08c85b57775261a34a1abcca5cf6e6c380bb5f7730c6ebc164aa251733b1",
+      "bytes": 2885
+    },
+    {
+      "path": "apps/mobile/src/components/SourceMenu.tsx",
+      "sha256": "a0a32d294952748496b51e834a2acd0f05b8ba6f2ae4ded2d8ab3dcb35377f9c",
+      "bytes": 2933
+    },
+    {
+      "path": "apps/mobile/src/components/SourceParagraph.tsx",
+      "sha256": "a3a48bb30e6bf955cda70e4954eec6bacd4141b60b1579df76aa4c00b7a691b6",
+      "bytes": 3906
+    },
+    {
+      "path": "apps/mobile/src/components/SourceRing.tsx",
+      "sha256": "5d9d5d6b75141e5deb5f3d58f990118d2c41c27581058e27bec9b83523c2ecba",
+      "bytes": 2669
+    },
+    {
+      "path": "apps/mobile/src/components/SourceShape.tsx",
+      "sha256": "b976d68ab144b3358502bc8a35be3ddf53e8d648c7815c538f9a53658ab1c5f1",
+      "bytes": 1229
+    },
+    {
+      "path": "apps/mobile/src/components/SourceSyncAvatar.tsx",
+      "sha256": "4e02255a13bd985f83e695de230ccd65297f1015ca894918410f52d288e3766e",
+      "bytes": 2005
+    },
+    {
+      "path": "apps/mobile/src/components/SourceUI.tsx",
+      "sha256": "f36fa4ce71906c96e3d4fade725aff44522a15bc1987d5dcf381acf0d85651f2",
+      "bytes": 10978
+    },
+    {
+      "path": "apps/mobile/src/components/drawer-motion.ts",
+      "sha256": "ad6cb89cec76c0fac43db94cdf5ef9617708efd5ce553c98d27bd3441dbe83f1",
+      "bytes": 408
+    },
+    {
+      "path": "apps/mobile/src/components/feed-scroll.ts",
+      "sha256": "5f14c845257fc7588550a253880595a12453d3a8836a4c05739d8f87be06304c",
+      "bytes": 3273
+    },
+    {
+      "path": "apps/mobile/src/components/fixture-actions.ts",
+      "sha256": "0b75f0c408c990fa165962104ee5e00bde823257e0dba86e6cf4356c8448bd6f",
+      "bytes": 1755
+    },
+    {
+      "path": "apps/mobile/src/components/index.ts",
+      "sha256": "f117593ec8d6bc51a1461bb2568542ef30d9bcad9f0c5c0f6b0555f3ccd64f9d",
+      "bytes": 151
+    },
+    {
+      "path": "apps/mobile/src/components/source-font-scaling.ts",
+      "sha256": "f808a0dd21e5b45ee407ed068f16cec67084493b086e848c036bf4f9ebbc45bb",
+      "bytes": 3085
+    },
+    {
+      "path": "apps/mobile/src/components/sync-state.ts",
+      "sha256": "d805e01c294a3cb117880f6cf9fa0f640753b7f4f90912c24d4b94473c83c96f",
+      "bytes": 1502
+    },
+    {
+      "path": "apps/mobile/src/config.ts",
+      "sha256": "ad0c74b6ee4c79129fb1c13e3a55cb47d16ee51929822c4461c578713f6cdf0b",
+      "bytes": 1083
+    },
+    {
+      "path": "apps/mobile/src/controlled-upgrade-visibility.ts",
+      "sha256": "9fa6c60108745f3c6363e28b79304c68d1969dc536c25fd3fbca9bce1d85b209",
+      "bytes": 7534
+    },
+    {
+      "path": "apps/mobile/src/data/account-cleanup.ts",
+      "sha256": "152363e6efc97cd49ae3b31af090c35cb2230d99bcbc4a9117ce010675d5a126",
+      "bytes": 680
+    },
+    {
+      "path": "apps/mobile/src/data/account-lease.ts",
+      "sha256": "ba6487ed16180d90223b08d093a1de574489143faad9ff70bc251730b7b02381",
+      "bytes": 3076
+    },
+    {
+      "path": "apps/mobile/src/data/adoption-profile.ts",
+      "sha256": "0782206ef8680766f1c12c88661df9c702b52ec37c48b0da6a8e762715c6624b",
+      "bytes": 5326
+    },
+    {
+      "path": "apps/mobile/src/data/adoption.ts",
+      "sha256": "adaa415c44b41746a19a06f7fcf743ef07a39cb997737a27145671dfdf600ae3",
+      "bytes": 8232
+    },
+    {
+      "path": "apps/mobile/src/data/api.ts",
+      "sha256": "27f99d1a2e3b9353c3e0f82fa487c724e5891d17940236cfca719e9e20ae195e",
+      "bytes": 13458
+    },
+    {
+      "path": "apps/mobile/src/data/background-cache.ts",
+      "sha256": "18a7404f945074ac4c53909e575668418db388b41bbbb6ed37f1dad595d04d06",
+      "bytes": 12271
+    },
+    {
+      "path": "apps/mobile/src/data/cache-maintenance.ts",
+      "sha256": "3280e7338206437e7224f03f404822d69c0cc55c17683eecf63687b31a31847a",
+      "bytes": 5467
+    },
+    {
+      "path": "apps/mobile/src/data/cache-paths.ts",
+      "sha256": "b1f8f0afd2153d07087b7b14c446e840772f8fc625a40b3af0b529583bbb3456",
+      "bytes": 766
+    },
+    {
+      "path": "apps/mobile/src/data/cache.ts",
+      "sha256": "c179fe23d8d128c115ae397083ef5179fc5c884364b4c720af13f84500ce8481",
+      "bytes": 3297
+    },
+    {
+      "path": "apps/mobile/src/data/connector.ts",
+      "sha256": "bf3b1d425aadff664a94cb681c41752a7cbc0897f1c8b4101d736bafa982d23d",
+      "bytes": 2427
+    },
+    {
+      "path": "apps/mobile/src/data/index.ts",
+      "sha256": "82cb6ee1904ac010ec8286116d0f862f4c7e308fac0e28eaa918b24126e048e7",
+      "bytes": 384
+    },
+    {
+      "path": "apps/mobile/src/data/legacy-preferences.ts",
+      "sha256": "827d92242c628f738fde3eaf7ac801d156e4088445984dad2e069fcddcb439b3",
+      "bytes": 4822
+    },
+    {
+      "path": "apps/mobile/src/data/native-storage.ts",
+      "sha256": "57a41b05295cf052a548fe8c2d0618b40f1787d485ffc58c36653e23fd9cfd14",
+      "bytes": 1582
+    },
+    {
+      "path": "apps/mobile/src/data/preferences.ts",
+      "sha256": "fd2debe5370cd1831be1cb377c22aec6243c0e53b4602ba229666e0ef38d90af",
+      "bytes": 3983
+    },
+    {
+      "path": "apps/mobile/src/data/repositories.ts",
+      "sha256": "bf25bee38a1f494c6d52c79295c7144f30f0edf12e56c053e8bc4125a7cffcbf",
+      "bytes": 16253
+    },
+    {
+      "path": "apps/mobile/src/data/runtime.ts",
+      "sha256": "0df561a63c028c87e44bc511f41ee78c604001baf31a27613239cb0559f718ba",
+      "bytes": 9302
+    },
+    {
+      "path": "apps/mobile/src/data/schema.ts",
+      "sha256": "a987c5085226f51516c128bf38b698ae2bea657744bb7e9a619fd58042f84ada",
+      "bytes": 3002
+    },
+    {
+      "path": "apps/mobile/src/data/upgrade.ts",
+      "sha256": "400e9ee274e497b2f77820452add0e5668270a0bd6e51b8a6ebf21c605ee3632",
+      "bytes": 2673
+    },
+    {
+      "path": "apps/mobile/src/data/uploader.ts",
+      "sha256": "f3279efbb7d89337072cc96db3dbe86246b8e4b5b551bbf8cd89de5e059845ca",
+      "bytes": 5831
+    },
+    {
+      "path": "apps/mobile/src/debug/shake.ts",
+      "sha256": "fc5371880d0802a491c81aee9bedd26758b431fd46d314493299b1335a3a8e7d",
+      "bytes": 424
+    },
+    {
+      "path": "apps/mobile/src/domain/delete-account.ts",
+      "sha256": "775af2cce731a57ab6ec4e937230bd5e42159e23d8be8d72fc7b8bdab8e466c0",
+      "bytes": 1103
+    },
+    {
+      "path": "apps/mobile/src/domain/index.ts",
+      "sha256": "68c99b59c959d99f1781e3889cffdef1231eb14d34bd32e57529199c8ad9c36a",
+      "bytes": 30
+    },
+    {
+      "path": "apps/mobile/src/domain/session.ts",
+      "sha256": "f708ba51902975891d97fb7e4afbbfe5669939416d6d06223dabdba4c68d6d32",
+      "bytes": 8702
+    },
+    {
+      "path": "apps/mobile/src/i18n/appMessages.ts",
+      "sha256": "ad2e70f3e6dcbe209fb78e6ee0de217d50843ae01fc0493dbac8977d71cd14ae",
+      "bytes": 848
+    },
+    {
+      "path": "apps/mobile/src/i18n/index.ts",
+      "sha256": "f2cab0bbb0e188d2f9947b5519aa2eea9205dcc269a65de5028a9c3ab798bf3e",
+      "bytes": 2469
+    },
+    {
+      "path": "apps/mobile/src/i18n/messages.ts",
+      "sha256": "f8225c77bd7ce4de9aa0b7d2f11027aa9aa80f490b07ca563e0016ccddfa9257",
+      "bytes": 21781
+    },
+    {
+      "path": "apps/mobile/src/native/fixture-document.ts",
+      "sha256": "651d89a7d8a6a444e131287901651afdca892b225272dd471f0cc24940f58afd",
+      "bytes": 891
+    },
+    {
+      "path": "apps/mobile/src/native/platform.ts",
+      "sha256": "812ce83359e58cc097733eacb613b4cdb7edc066a3fb89c322ec77ba2c77baee",
+      "bytes": 1522
+    },
+    {
+      "path": "apps/mobile/src/native/reader.tsx",
+      "sha256": "f2346d680361c551d40b550ee9020688bc865b94a7cb3fdabb4939ed8bc35305",
+      "bytes": 5882
+    },
+    {
+      "path": "apps/mobile/src/navigation/types.ts",
+      "sha256": "8bda4aadf3bcd64d455235949fbeb185a9e02326f3ce7de336f6e132ddae5d2b",
+      "bytes": 647
+    },
+    {
+      "path": "apps/mobile/src/payments/controller.ts",
+      "sha256": "5890663e464bbe33cfc636d1e79475a47fbcd58a537e90bbc3880c0bea4a7e57",
+      "bytes": 12335
+    },
+    {
+      "path": "apps/mobile/src/payments/expo-store.ts",
+      "sha256": "c799f4f6d6f46564ad30c010d6999b62a0797041e7429586c8c2065bc99ca071",
+      "bytes": 2150
+    },
+    {
+      "path": "apps/mobile/src/reader/ImageGallery.tsx",
+      "sha256": "42d8395bae1b3713cfedeb17bec0305147250506fad2d916da0755a132dd38fc",
+      "bytes": 9813
+    },
+    {
+      "path": "apps/mobile/src/reader/MarkdownView.tsx",
+      "sha256": "ec5cf331befe71f3d434f3aa7c9595420818fb09ee6e07b5912d92f807446564",
+      "bytes": 3230
+    },
+    {
+      "path": "apps/mobile/src/reader/OverviewViews.tsx",
+      "sha256": "7d9fd5e8b799a132356b60f65d01dfd679099ad8e56cbcedf658b631abfb359e",
+      "bytes": 4072
+    },
+    {
+      "path": "apps/mobile/src/reader/ReaderOverlays.tsx",
+      "sha256": "a853d0cec80eaaa397faa619f203a4e91a9207b8f9a8c7d6138b1a58f7e9338a",
+      "bytes": 18226
+    },
+    {
+      "path": "apps/mobile/src/reader/ReaderSkeleton.tsx",
+      "sha256": "1cec3ca7c7741a347b84b9e66bd6429a69cce5296d43d4b9178e4ba21c497bc3",
+      "bytes": 948
+    },
+    {
+      "path": "apps/mobile/src/reader/ReaderWebView.tsx",
+      "sha256": "24c909de2c7eb2c125ac951c61c911a217b1b1917f6eafc7ee55441b80e7be2a",
+      "bytes": 28548
+    },
+    {
+      "path": "apps/mobile/src/reader/TagSheet.tsx",
+      "sha256": "bc71fd1c654815e39deb9b048026eac1bf775452cf3263e4ef3eae153aeae5f8",
+      "bytes": 6704
+    },
+    {
+      "path": "apps/mobile/src/reader/account.ts",
+      "sha256": "99f6d06c6849d52e780aef7e41c6e51063d9b9d2875d89f66086809f6e868c80",
+      "bytes": 1160
+    },
+    {
+      "path": "apps/mobile/src/reader/bridge.ts",
+      "sha256": "b5d2b33140ba85bf5ea44ab9aae5ecde9f8933413e9f74664042bf72d2618efd",
+      "bytes": 9342
+    },
+    {
+      "path": "apps/mobile/src/reader/coordinates.ts",
+      "sha256": "9a611dffc3e26efa7cdc556dab2f30d2d87b0d62e9272ddcf7c6b61c7892ddd1",
+      "bytes": 2879
+    },
+    {
+      "path": "apps/mobile/src/reader/document.ts",
+      "sha256": "2951b3451dd46b9196c7d61ca7a10f3b07ca0b2ab896456454027735be409906",
+      "bytes": 2302
+    },
+    {
+      "path": "apps/mobile/src/reader/embedded.generated.ts",
+      "sha256": "2ed58deebe18f70748fe6146d486c8e154e7c0ba87e38c3292d9f972d78623ef",
+      "bytes": 223230
+    },
+    {
+      "path": "apps/mobile/src/reader/gallery-resource.ts",
+      "sha256": "88c059045da40299fc4a8e7f217142127409c1c439777047b3bcf2724007ec1a",
+      "bytes": 1791
+    },
+    {
+      "path": "apps/mobile/src/reader/generate-assets.mjs",
+      "sha256": "ffa7c775402990a6e8d83afacdb3ec531aae1afbb6733b01ab73077844e7fea1",
+      "bytes": 1645
+    },
+    {
+      "path": "apps/mobile/src/reader/image-transports.ts",
+      "sha256": "ad14986a9ce3b39872fedf632cf70396bc8d78cdb0912b245c14675ff589a3f8",
+      "bytes": 2603
+    },
+    {
+      "path": "apps/mobile/src/reader/index.ts",
+      "sha256": "7629fb901942b5ad7cc3c672ba39d9a1fb471839a239bfcc546aa893a44b7712",
+      "bytes": 794
+    },
+    {
+      "path": "apps/mobile/src/reader/input.ts",
+      "sha256": "f58cba33f6ec817c2b28a1239de401751d755b4282c08f7319ec26fda03a0b8c",
+      "bytes": 3715
+    },
+    {
+      "path": "apps/mobile/src/reader/markdown.ts",
+      "sha256": "9d22ec24d59b0b2b6c2a0be1eab691bdd3d4fcd528cd3111935d9ae1c3baddcb",
+      "bytes": 4200
+    },
+    {
+      "path": "apps/mobile/src/reader/model.ts",
+      "sha256": "1d2e9db08839508500a6e45293f6fa87c07b8ae5f1147a1abf3f31a5ead340c4",
+      "bytes": 10366
+    },
+    {
+      "path": "apps/mobile/src/reader/native-attachment.ts",
+      "sha256": "667c272464290f895d4a3525d047ce336cccdb340d774e38cd00e0a78efe020a",
+      "bytes": 1578
+    },
+    {
+      "path": "apps/mobile/src/reader/native.ts",
+      "sha256": "0692c876f290400daf2ade5c7814714ae17793d3cc03b417e450afb6d70f9212",
+      "bytes": 1833
+    },
+    {
+      "path": "apps/mobile/src/reader/position.ts",
+      "sha256": "9b0aec28083c280d033faf781caa7792c2c76bd875405e96db3e2d8ad048810f",
+      "bytes": 1898
+    },
+    {
+      "path": "apps/mobile/src/reader/recovery.ts",
+      "sha256": "b2ab71c96defc1c884f449abaac31c8cb875445cdcd1e381d044aea1c668ecac",
+      "bytes": 1343
+    },
+    {
+      "path": "apps/mobile/src/reader/share-model.ts",
+      "sha256": "7e63688c482b36da7f96f3c8773e91fc9f1c34773bd19385bd83e1281bb1caf4",
+      "bytes": 1233
+    },
+    {
+      "path": "apps/mobile/src/reader/share.ts",
+      "sha256": "19779646916bc4a0e8c3f3b2b5a62ffd581951dc801ef0387bd3996c0f6f4558",
+      "bytes": 3124
+    },
+    {
+      "path": "apps/mobile/src/reader/tags.ts",
+      "sha256": "14266e516eb4f599d7bc5d435708f68cf2d92264d7951cfb0b26f1de4545f246",
+      "bytes": 1850
+    },
+    {
+      "path": "apps/mobile/src/reader/types.ts",
+      "sha256": "9665e33212f163f8e9e9cd4a1391e3eeb60e9e15fe7f0a5f728bcab875afb13d",
+      "bytes": 3670
+    },
+    {
+      "path": "apps/mobile/src/rss/controller.ts",
+      "sha256": "365f90ebdc824e182ab09442bf061e5de786253fa9c819f6c039d7dec5fe5e74",
+      "bytes": 11034
+    },
+    {
+      "path": "apps/mobile/src/rss/controller.verify.mjs",
+      "sha256": "8bbdb7cb5e8ce8709ccc675113490d4bc69b929b0f50671b0575fffa04d93e4a",
+      "bytes": 4971
+    },
+    {
+      "path": "apps/mobile/src/runtime.tsx",
+      "sha256": "0fd77a26611c2ce93d2f0b5e4c7b58e971daa56864c26a6939faf5268eae7a72",
+      "bytes": 10809
+    },
+    {
+      "path": "apps/mobile/src/screens/AboutScreen.tsx",
+      "sha256": "51cc7d761619e457b73db032a23ad60994bed3b968a8b4684843d82fc96c3abc",
+      "bytes": 1229
+    },
+    {
+      "path": "apps/mobile/src/screens/DebugScreen.tsx",
+      "sha256": "e312039b23c6794aab4c6b6f0fec481b0a55ad86eaa20c981a000246f8df8aae",
+      "bytes": 17283
+    },
+    {
+      "path": "apps/mobile/src/screens/DeleteAccountScreen.tsx",
+      "sha256": "f65cc0da04e5508bf7d12ccd4125f47762dd85eca040e47baeefc2c62d984265",
+      "bytes": 7901
+    },
+    {
+      "path": "apps/mobile/src/screens/FeedbackScreen.tsx",
+      "sha256": "48f209b9d164e8d3445d98427df694bb431c60c4cb108a38d71c86a3a101201c",
+      "bytes": 5902
+    },
+    {
+      "path": "apps/mobile/src/screens/LibraryScreen.tsx",
+      "sha256": "e0ec9a9d5ab42ff505cfd8440a85aee932287bcb1214182f034bdb8c4b5f1cd1",
+      "bytes": 27116
+    },
+    {
+      "path": "apps/mobile/src/screens/LoginScreen.tsx",
+      "sha256": "218046a2f49387d259ccd591dc42e0e086121019f4369402f4a9042cfc8fe156",
+      "bytes": 9495
+    },
+    {
+      "path": "apps/mobile/src/screens/ReaderScreen.tsx",
+      "sha256": "9b74a014c44225d61a469d922caa538e118f320c137f9e1493ba19fce39db3b7",
+      "bytes": 59598
+    },
+    {
+      "path": "apps/mobile/src/screens/SettingsScreen.tsx",
+      "sha256": "7f01c39e79bea0cea0cbbefc817e8efc98127466f558823ec1b91a46484cd287",
+      "bytes": 7093
+    },
+    {
+      "path": "apps/mobile/src/screens/SubscriptionScreen.tsx",
+      "sha256": "fd0e13d271cb13b697c0752ab68ced9a3618e53e541026a6a499a638d814ddaa",
+      "bytes": 4260
+    },
+    {
+      "path": "apps/mobile/src/screens/collection-selection.ts",
+      "sha256": "e9e712238f61cc4c3b9156e8d9b5bc148eed8c7d478f4af41f1ee6226ea0b036",
+      "bytes": 887
+    },
+    {
+      "path": "apps/mobile/src/screens/notice-read-gate.ts",
+      "sha256": "7c2c029b9f10bbeff44df0d2c54cf6d4f4b399a35f0c470aba8476dbc87fd1db",
+      "bytes": 4055
+    },
+    {
+      "path": "apps/mobile/src/telemetry/core.ts",
+      "sha256": "2bf41d0dd10781dd6692cf1974748a1aab8959578695d96b1b43539e47dd85a8",
+      "bytes": 5321
+    },
+    {
+      "path": "apps/mobile/src/telemetry/firebase.ts",
+      "sha256": "64156c8871cd53c5426e9286a8e944804e3e4649bd8684e6f1a2eee1e6ebde5c",
+      "bytes": 802
+    },
+    {
+      "path": "apps/mobile/src/telemetry/index.ts",
+      "sha256": "4477fcd7b26530c406aaf47224f2ea275da474b0d44a040ec9bfcba5b1f2a207",
+      "bytes": 1473
+    },
+    {
+      "path": "apps/mobile/src/theme/index.ts",
+      "sha256": "8dd62b5e3ae6706b924f59785e5ed57c4f77345d23096bea575519e6a2fcbe8f",
+      "bytes": 3947
+    },
+    {
+      "path": "apps/mobile/src/theme/testIds.ts",
+      "sha256": "b4d677cd20ad3890032e8ad0e871f04153a9e43bce28e1c6b937bec262e1fc61",
+      "bytes": 1224
+    },
+    {
+      "path": "apps/mobile/src/utils/abort.ts",
+      "sha256": "10912d7e3a2267c44ed1fa07e286bc30deba884e8264f3e6984a643959c4a07d",
+      "bytes": 989
+    },
+    {
+      "path": "apps/mobile/tests/auth/NativeGoogleOptionsProbe.java",
+      "sha256": "c89cad53109b73ebb68d995bb446d13a24c942032ff750dbc19f11ca9386c55b",
+      "bytes": 2342
+    },
+    {
+      "path": "apps/mobile/tests/auth/README.md",
+      "sha256": "c2971326a1249ee10752085cc93ed5b4563275507131468e2478cc7711114789",
+      "bytes": 1967
+    },
+    {
+      "path": "apps/mobile/tests/auth/providers.test.mjs",
+      "sha256": "0f8e860e729920e5aa29f2bd9ef44d2e4bb97f99b9cd2056087d0584eebc0bb1",
+      "bytes": 7173
+    },
+    {
+      "path": "apps/mobile/tests/data/NativeAdoptionFaultFixture.ts",
+      "sha256": "2c294f449d540f83fc4f593a97a430dc5c5374affb2186b2349db4592c0b42a4",
+      "bytes": 14942
+    },
+    {
+      "path": "apps/mobile/tests/data/NativeAdoptionFixtureApp.tsx",
+      "sha256": "e7da534d9a4cd081c2634870322c96c25b7952dcf567e44ffcab89dfb74f64b0",
+      "bytes": 15829
+    },
+    {
+      "path": "apps/mobile/tests/data/NativePreferenceCasFixture.ts",
+      "sha256": "567719b8f03ac94b7373acf39edd4dd6675324433fd4210336bf91731ed13624",
+      "bytes": 10478
+    },
+    {
+      "path": "apps/mobile/tests/data/NativeRuntimeStartupFixture.ts",
+      "sha256": "77c05e98dbd3fc9152afaec6baa894aa8a7c0aae39ab8376e0da86e531c1b43f",
+      "bytes": 8828
+    },
+    {
+      "path": "apps/mobile/tests/data/NativeServiceReconnectFixture.ts",
+      "sha256": "de615a9d5783492b2ca3bc77ccc2b04dfacfa7820585a5e234a55da2bf818ce4",
+      "bytes": 24418
+    },
+    {
+      "path": "apps/mobile/tests/data/NativeStreamingFixture.ts",
+      "sha256": "1670e5727df568c60ffdc265189755271d1f692313573960321bcfd6860af3e7",
+      "bytes": 4954
+    },
+    {
+      "path": "apps/mobile/tests/data/NativeUpgradeVisibleFixtureApp.tsx",
+      "sha256": "951ceba56fc7fce2eeffb7fbaf9cb3d1f04863d88997041c1283884c5edf6fc7",
+      "bytes": 20873
+    },
+    {
+      "path": "apps/mobile/tests/data/abort-native.test.ts",
+      "sha256": "5580201df4e12f8bb6b2cc5ca66437c8321d7fb99b0e4e476d2c7d0b8d852a7d",
+      "bytes": 5944
+    },
+    {
+      "path": "apps/mobile/tests/data/account-lease.test.ts",
+      "sha256": "8538e85b7a277d97ff359f67c5cf526ec6fd3baa4d048fe8bde5d1edc7580f81",
+      "bytes": 6102
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/PREFERENCE-CAS.md",
+      "sha256": "44fe0b90040b78c9635ebff9f29a1f26bd6b1024269cf5c4c02cafa381bf79d1",
+      "bytes": 4036
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/README.md",
+      "sha256": "8aba3b66538198fa801d758b3d1b2344683a39d24fe34d852a01ba009cef2477",
+      "bytes": 29484
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/REAL-SERVICE.md",
+      "sha256": "2b7aa568058ef942123692c19bc0b1a21d82913958af7d92a7bb976c2cfe0f10",
+      "bytes": 8800
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/VISIBLE-LEGACY.md",
+      "sha256": "7df77890af51af7e70bcbca789ed3ed972e1897616d3f7b3b6bbee2823576cef",
+      "bytes": 5421
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/android-legacy/build.gradle.kts",
+      "sha256": "7059f4e70c890f2a001299d71b7d144908ba62e63045ebfd27bd5a0bdadda7d0",
+      "bytes": 1082
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/android-legacy/gradle.properties",
+      "sha256": "198cfb414a6067fc813ba6dd9d8d927a5d9bd005567dc4bba8784a8deec518b9",
+      "bytes": 73
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/android-legacy/settings.gradle.kts",
+      "sha256": "6cc1b7088548bb7d46cf2f60d4cf5f534be023129557c9d825cd1486b327c7c3",
+      "bytes": 211
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/android-legacy/src/main/AndroidManifest.xml",
+      "sha256": "e2f3e78439897d353300d350be3907074f9d4707725ba1f89322ebbdfa4292c9",
+      "bytes": 461
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/android-legacy/src/main/java/com/slax/reader/LegacyFixtureActivity.kt",
+      "sha256": "0629270b2aa2560bb4a769985d5aead6bfea7ac5e31d94d6c6be61dcc6fcabc9",
+      "bytes": 6981
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/android-legacy/src/main/java/com/slax/reader/data/database/Schema.kt",
+      "sha256": "344a7bcc6901c7d3b22052278bcc326bc1f84930bb65a7fb9d2efb7a61042cd5",
+      "bytes": 5868
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/host/IdentityMain.swift",
+      "sha256": "3580b7d60ca589644817e1c28942ba612fcb292b2241dc5f976030f6ef9c6005",
+      "bytes": 2257
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/host/InspectMain.swift",
+      "sha256": "8738ff66df9dfa87b64c44c0bf1c26f9851565dfc942892e04406b29edd4622c",
+      "bytes": 287
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/host/inspect.mjs",
+      "sha256": "78ee1ff93243adbc707758fb42a079a539e64cc7a069e8db4c00ac7a4d9f0685",
+      "bytes": 2105
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/host/loader.mjs",
+      "sha256": "89e26bcc4e59b8413e6036e109a0afc4d96f975461ea133d1af06e91b96a8599",
+      "bytes": 1102
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/host/verify.mjs",
+      "sha256": "e39e4b4783b32722ffe3af764a517ed5d7119072b3be01906d3f0f4a411335e0",
+      "bytes": 10009
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/ios-legacy/Info.plist",
+      "sha256": "a019feee47f4e400cd6a0a13f6bd4d0626d142a27ac4352e8e6341c11984ad29",
+      "bytes": 1016
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/ios-legacy/LegacyFixtureApp.swift",
+      "sha256": "5c800377a5b57e61507ee6b1662abd7dc0b2cb0767bc55e7da1b7c2ed871458b",
+      "bytes": 3922
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/ios-legacy/SlaxLegacyFixture.entitlements",
+      "sha256": "d30603c544890246eb9edf9015e2ee93cbe2303e6f804ac6fc61432ace1b0611",
+      "bytes": 290
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/ios-legacy/build-app.mjs",
+      "sha256": "21788c1ceee22416a4a2013d17a78a4b35e4f51ba2862b46bf3e3cbfc6090b77",
+      "bytes": 1864
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/ios-legacy/build.gradle.kts",
+      "sha256": "b8753b71b9fdb42e119329556efe1d2fc6381abc7de56b060de788c9395c256b",
+      "bytes": 578
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/ios-legacy/gradle.properties",
+      "sha256": "d50a0764cf84781fc5b1b013c34ca719596a32da6862478c68392701a8cf5310",
+      "bytes": 48
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/ios-legacy/settings.gradle.kts",
+      "sha256": "8e2e86f538d2106abc34e772224439a47107f898410bc3614d490b8f64c81f97",
+      "bytes": 207
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/ios-legacy/src/commonMain/kotlin/com/slax/reader/data/database/Schema.kt",
+      "sha256": "344a7bcc6901c7d3b22052278bcc326bc1f84930bb65a7fb9d2efb7a61042cd5",
+      "bytes": 5868
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/ios-legacy/src/iosSimulatorArm64Main/kotlin/LegacyFixtureProducer.kt",
+      "sha256": "d25ac1ea33591ff8082dd2b7e2011e8fca5e0cd844a02ae68df731a0d288e8ca",
+      "bytes": 5472
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/kotlin-jvm/build.gradle.kts",
+      "sha256": "4cc23a42ccaf7c477843efab308cc3648dbebf8a0cfbaf17c32ca48139c3b682",
+      "bytes": 493
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/kotlin-jvm/settings.gradle.kts",
+      "sha256": "1d2019cb39cbbca068d6580ec69ea213345a1c427e1a4467590d89a87689e893",
+      "bytes": 215
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/kotlin-jvm/src/main/kotlin/Fixture.kt",
+      "sha256": "92ece4e7f23b9e819d3f9de9a811300e437425d3f223316819b99b0480abc7b5",
+      "bytes": 3647
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/kotlin-jvm/src/main/kotlin/LegacyPreferencesFixture.kt",
+      "sha256": "fca0357e5c4be4a7ab68ace068e552f2b0b29f633a009fd0826bf2fe4efc4b95",
+      "bytes": 2278
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/kotlin-jvm/src/main/kotlin/Schema.kt",
+      "sha256": "344a7bcc6901c7d3b22052278bcc326bc1f84930bb65a7fb9d2efb7a61042cd5",
+      "bytes": 5868
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/native/OwnerProbe.java",
+      "sha256": "0415f387c4505ac6ea6d7eddde2308b528d0a935f55079436cb3b1446dbb7aaf",
+      "bytes": 1147
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/native/OwnerProbe.swift",
+      "sha256": "e7632ce30aa1065f339baecac2d1e40ed6479470074188e491dee8bd11659d4f",
+      "bytes": 1898
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/native/PreferenceProbe.template.kt",
+      "sha256": "be4bab5e4a97ed503e53a9399fb0cddc8f1afecf344be53d594d6b88523ac503",
+      "bytes": 4591
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/native/PreferenceProbe.template.swift",
+      "sha256": "745b44845eb5f6bc5d0f5cab24ee1408260c8d142150c0bc6099ca08ede9e6a5",
+      "bytes": 5817
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/native/UpgradeVisibleControl.swift",
+      "sha256": "9149d10516fe5894ddff6c7f3fa5256df0dedda2a94aa0a83d5ede86f6c9a291",
+      "bytes": 9049
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/native/UpgradeVisibleHost.swift",
+      "sha256": "9811f87d016e6c9a83014c0fd01bc7d1f7c3504677b6acb4b378aaacc401ae12",
+      "bytes": 691
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/android-default-runtime-adoption.json",
+      "sha256": "4f395ba2060a14ae9ccd966f682a97341f59f140618159a719f21b2a0c64973e",
+      "bytes": 5899
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/android-native-adoption.json",
+      "sha256": "deb0c10d11e2a8a22bd683d9a6dc205bb330fcdd14b455e1c86b3ab476702ab0",
+      "bytes": 2553
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/android-native-faults.json",
+      "sha256": "a1e555f1db66b1e2407f7f3f57bcbb30b7734e89150b84cf3789fbcf4385a38a",
+      "bytes": 6131
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/android-native-preference-cas.json",
+      "sha256": "989ec8496b9338454b5e36a20f21eaf460603a65fe05aad9b7d7fe0f55c8e203",
+      "bytes": 12806
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/android-native-producer.json",
+      "sha256": "d61fe2221e043dafd1e0435a66c7a4b9e64793e05d839bb2d0b74de19702af38",
+      "bytes": 988
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/android-original-queue-real-service.json",
+      "sha256": "5ada6e8518df019fb02e9f638cea271cfd54cd36aa885c7bfe734976ac57949a",
+      "bytes": 29640
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/android-original-service-repeat-install.json",
+      "sha256": "8bfe82565e015c45ee29707daeebf48c0626b49e5c7d677a11132cad5b4313d7",
+      "bytes": 11303
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/build-checks.json",
+      "sha256": "278644b1dd568e4fee977f337b281235972d785da1abe2d84060e53c2491d336",
+      "bytes": 2275
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/host-sdk-adoption.json",
+      "sha256": "f29bef9d41f334ddd21b5c2cc4e8ecfe425b98b791949e44d6dda1a02b4042e7",
+      "bytes": 1743
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-default-runtime-adoption.json",
+      "sha256": "e196b141b577fed7bb421a647df0277b3fec3538b0e2f9395fc6b1f0f6db548b",
+      "bytes": 6026
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-first-upgrade-and-reinstall.json",
+      "sha256": "9e47ca4673ae3e55570b7baef93d86a494ea381b0fb493c7f7e25eb85b122fdf",
+      "bytes": 15280
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-identity-host.json",
+      "sha256": "80b626f803c27797a2de11f85d18b0d7b8b7fab59338dec05ca77b48ffc3ca6c",
+      "bytes": 438
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-native-adoption.json",
+      "sha256": "cf30f3b3d8888cbea3949ba8bdf2a86df97bd84ea6395f6e5dcf73f3673d92cd",
+      "bytes": 3988
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-native-expo-stream.json",
+      "sha256": "8414599ac9196ae91c5e83a66c02f14ac65b274a0e692b89b53e59bb39e19a1e",
+      "bytes": 5034
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-native-faults.json",
+      "sha256": "8a3235c8b18d78870ec34509d8a89c90b7d9f6c665fa2676c1deca270329056f",
+      "bytes": 5658
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-native-preference-cas.json",
+      "sha256": "1d04950760c1e9e6fa94011ad0c1f701a5dbcfe7bcb461f073cda842ea9a098f",
+      "bytes": 10195
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-native-producer.json",
+      "sha256": "a2599e5f49679ad8e448c4d8b2e17aec0de1e3e9f3fd5e4cc192a45be5caade9",
+      "bytes": 1404
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-native-real-service.json",
+      "sha256": "93d1753572028ac70612ae6d97493de32bed10bebdb3c908241b4b26bc384a4a",
+      "bytes": 9070
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-original-queue-real-service.json",
+      "sha256": "daea6445855b441a4be37ad3d7fd695614f5d86c3236a3aa79059d4a8c43ab71",
+      "bytes": 27760
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-native-cas-and-default-startup-independent-review.json",
+      "sha256": "f4383b387c3b3f2e373a20d8f81ab991b6ff81e2822e076cd798e5f7ef3401d4",
+      "bytes": 2618
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-native-cas-and-default-startup.json",
+      "sha256": "c47b3405c5d80001e6b51d0135bde78a360e57de0347c2ae95d38d88175d6bf8",
+      "bytes": 8442
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-original-queue-real-service-independent-review.json",
+      "sha256": "06c2c246098dc33d6f872139e0f84a4e9fd5a10449e641cedf94113ad4aa7e3f",
+      "bytes": 1351
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-original-queue-real-service.json",
+      "sha256": "19ab5db83da66175fc6b5fb8eb9834bab1274c603b72e9a97f766b030ba45ffb",
+      "bytes": 51673
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-original-service-cleanup.json",
+      "sha256": "5ce05cd31305e3db43917082b4a415510fa7662a49295f4460084df02d797553",
+      "bytes": 360
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui-cleanup.json",
+      "sha256": "d96ba531ece52b349eb51b61f5382f1888455f429a43f5d92fd3dc9a1b33cef9",
+      "bytes": 3074
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui-independent-review.json",
+      "sha256": "c28f6905e9efec1eb1c1310ee3cdbdad270c7875b72ddecf0b872ca98c7df483",
+      "bytes": 43919
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui.json",
+      "sha256": "aca037e517a32eb1fc102d3cb8335d414b3376fb1beba4c300cc62b0d8cd10ec",
+      "bytes": 83188
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-after-context.json",
+      "sha256": "e782f54a16bec172eedfb20056b60927132baee57e4a7123ec3c48e85550299e",
+      "bytes": 4512
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-after-observations.json",
+      "sha256": "eaca7d1b1b6e9c27c31510163bfb48c40aab3244b5ec6ff2d69436dbfe28fc21",
+      "bytes": 22293
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-attachments/1B698696-774F-48F4-A36C-348700365873.txt",
+      "sha256": "c2b38605e843fd4cedf573206697fa8d81d9ae2d876acd48d32384c9266cd410",
+      "bytes": 21708
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-attachments/A50BDA04-E20D-4562-B0A7-DE8966EF74EE.png",
+      "sha256": "18e93ee7339d5aa0cfd23aae1826134e91d327614e3c961229f82c55b16d5064",
+      "bytes": 157835
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-attachments/manifest.json",
+      "sha256": "7162eb501d815ff4af62fa094c8474d3cd2d9382f34c35475265281db2fe316e",
+      "bytes": 1211
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-before-context.json",
+      "sha256": "3fc81fe423b1be4928d5941f32ebe4e709da815c78c7c2e778c7ee53634a9838",
+      "bytes": 4468
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-before-observations.json",
+      "sha256": "eaca7d1b1b6e9c27c31510163bfb48c40aab3244b5ec6ff2d69436dbfe28fc21",
+      "bytes": 22293
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-result.json",
+      "sha256": "1513655567cff7057bf84cf15d1e8133412a9636263920c30347991bb8c478c8",
+      "bytes": 1394
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/controlled-start.mjs",
+      "sha256": "d6f89432bbb3e4154f1a02a3aac56df7d83c6beb0dfa01a60f920e37119e4fbd",
+      "bytes": 7538
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/controlled-test.mjs",
+      "sha256": "83eaf7f961a9edbb4bbd4e2712d82e2ae708612b83157e242bb8759e468759c2",
+      "bytes": 5101
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/fixture-run.json",
+      "sha256": "7e0b19c3ec1c657391af827ae9c9695703a1e831228eb3db3442adffd1f3009b",
+      "bytes": 4175
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/initial-inspection-after-context.json",
+      "sha256": "fa8fc3aee2507c3ee6243af438da7daf1539f5103feea6ec3c6ae3633d9a5129",
+      "bytes": 3545
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/initial-inspection-attachments/08B7C0DB-0E65-4E58-AA31-D11EC77CCF28.png",
+      "sha256": "26939468586686d0ec2eb3e7f82a3976962f118347f1bcebaf02bcc3584f8261",
+      "bytes": 869970
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/initial-inspection-attachments/66C98297-E57C-4178-B1E0-CA12C80D2C05.txt",
+      "sha256": "96d468b2bae060e5f43f867088fe9a585028f077326b261f5e8faba7dded83e6",
+      "bytes": 14981
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/initial-inspection-attachments/manifest.json",
+      "sha256": "b3a6f408cf066f23409054aa31533d769a0550d912bca38641fad13f1fa4e066",
+      "bytes": 1206
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/initial-inspection-before-context.json",
+      "sha256": "85cb2ea0869e238f8ab7ff843c1db4af43a017195c67f27c74f5b13b345a4727",
+      "bytes": 3479
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/initial-inspection-result.json",
+      "sha256": "e6fc5849acf7c30c9b1e17629106efb43eb3d67fcb061809c91018e1acf76141",
+      "bytes": 1370
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/launched.json",
+      "sha256": "d9da25801191d2da780d75dcc9944507b44af40d6728cc98ea543d782dfd282b",
+      "bytes": 4292
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/native-upgrade-ui-request.json",
+      "sha256": "086f88c1bd03c04e65816527b627d296ab3758f67a260f8400d7905fc9a30875",
+      "bytes": 378
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-after-context.json",
+      "sha256": "662ba6a28a004c03188721223de489b58de8812eb5f28a9f12f968b31ae08f17",
+      "bytes": 4666
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-after-observations.json",
+      "sha256": "eaca7d1b1b6e9c27c31510163bfb48c40aab3244b5ec6ff2d69436dbfe28fc21",
+      "bytes": 22293
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-attachments/2282C4CB-CCA9-402F-AF3B-4502130227D4.txt",
+      "sha256": "30b68736eb21f01bdd17f191b501d57055705bd5a211c76413e09f0213307aaf",
+      "bytes": 21708
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-attachments/52528498-E3F3-4A05-90D1-E4CDBB51CB13.png",
+      "sha256": "a07f30f00c5597d86af6502f23e084316548b8fec6ed6004cda6568d4dd318e3",
+      "bytes": 158206
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-attachments/76F61B8B-F821-4FEF-8696-5C29DF2D2A7B.png",
+      "sha256": "a07f30f00c5597d86af6502f23e084316548b8fec6ed6004cda6568d4dd318e3",
+      "bytes": 158206
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-attachments/EE90F5EF-DFB2-436E-AD88-96F37BE21BB6.txt",
+      "sha256": "3543a25f4cd6ba97836eb5102804a2694c426be7c86c9971455c9583657f7180",
+      "bytes": 21708
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-attachments/manifest.json",
+      "sha256": "79ea6673e0230d992c2982775d7b37d64a8d027608d3e39666c734ded54e0ff4",
+      "bytes": 2256
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-before-context.json",
+      "sha256": "b03748fd78f48ef331333bad1f9fca6321e0496f1859efb205deed2030eaf893",
+      "bytes": 4622
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-before-observations.json",
+      "sha256": "eaca7d1b1b6e9c27c31510163bfb48c40aab3244b5ec6ff2d69436dbfe28fc21",
+      "bytes": 22293
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-result.json",
+      "sha256": "333870fdf025cdf2db89bd0b4b6f7797b1ec773a6194b9703ac8d8239dedadff",
+      "bytes": 1424
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-after-context.json",
+      "sha256": "d9dae7aac11e2b1c90db8ec4a0578a99f612c0a066c9f74d94bed9c78650c97d",
+      "bytes": 3699
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-attachments/25B67E52-0523-41A9-A3F1-1B8FD07E35DF.txt",
+      "sha256": "e54eb466c41102f1f567075128fe670fe260c08f0fc0061c4eff5059c4173328",
+      "bytes": 5865
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-attachments/656A3D40-3C27-460D-A1A7-857792EC5DA7.txt",
+      "sha256": "6fc67d0610cc1c4f0ca15fe6a8d16532ee933d44aac4fcf2aa9eae8cb4d51b9e",
+      "bytes": 15217
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-attachments/6CAC52C4-AC63-4E0B-871D-0309C1728D1A.png",
+      "sha256": "dfac23febe16159401d6ac26c44930a17f6a8c094dee6948070ff9aee440f791",
+      "bytes": 869906
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-attachments/8DC93A75-E8B1-4391-8A32-B388132908B2.png",
+      "sha256": "946014fc8fe91d63ca602f8c83129df7ff63345ec2932421c16f0c0e3ecbffbf",
+      "bytes": 118697
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-attachments/manifest.json",
+      "sha256": "99b1abf6b16aaa27d182b1d74291b367b3a6bba88e0f01ca94f2397ba096b6cb",
+      "bytes": 2242
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-before-context.json",
+      "sha256": "e881c0e754dc087b30e20162fdd77d3e76bb113f267bb5ee886b756b1a909223",
+      "bytes": 3655
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-result.json",
+      "sha256": "64613e5f0e16ccb8b217c2e46709c079119d5a43f872518e3effe0eafb98c363",
+      "bytes": 1416
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-after-context.json",
+      "sha256": "4bc8e3e7fbd3ac49458dd386022b0f608c08eb91ebd9b0c188003549f16e25bc",
+      "bytes": 4204
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-after-observations.json",
+      "sha256": "eaca7d1b1b6e9c27c31510163bfb48c40aab3244b5ec6ff2d69436dbfe28fc21",
+      "bytes": 22293
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/09BB0643-DFA7-4EF6-B771-906B57A0392D.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4",
+      "bytes": 213
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/114CE949-E1C8-46F0-ADFC-D42A39767406.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4",
+      "bytes": 213
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/16E18BC0-7732-47BA-8BC1-C65F2161C29E.png",
+      "sha256": "cc8f3a607b73f8c35e90a535d73d90b4e96c4fc278f9b869a0d7e9847c5024cd",
+      "bytes": 330853
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/3ABD5856-29E2-4AD6-AF74-78A6D97E1E92.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4",
+      "bytes": 213
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/3F45CCDC-AC91-4D27-B0A2-E03556DA43F5.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4",
+      "bytes": 213
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/48A0150F-0499-443B-9D32-C7409CCF4590.txt",
+      "sha256": "5c233867e2541d38d0595898d61c3cfbd6d1669078c58b62b2fcae279958e0b9",
+      "bytes": 278
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/4A2BAA62-9899-46C2-837D-E857893F5F19.txt",
+      "sha256": "fa8b467c1282cf6fc20a56b180039aec27fe3a7ad82c6d74c4263b55fa0ed4db",
+      "bytes": 31001
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/58E110AE-53E1-4218-89FC-F3FB613ED070.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4",
+      "bytes": 213
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/60E1FFF0-FC8C-4CC9-8885-E0DD077122E9.mp4",
+      "sha256": "4f8d58d9f2ca2b8db0a5dcc5950157025ffa6b3427285c84e596f023a11c6188",
+      "bytes": 938698
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/65D6F4FB-559F-4708-832B-795B33E462F0.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4",
+      "bytes": 213
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/6C1A0B26-1CA1-4B13-A26E-4C39CDF353DF.txt",
+      "sha256": "0cbb30c98dd18289697a49432c7bc795fe8391d6e23706283e4dbeb2abf8a084",
+      "bytes": 86
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/6FD33892-C8CA-4705-A9EA-017C4CE1239A.txt",
+      "sha256": "5c233867e2541d38d0595898d61c3cfbd6d1669078c58b62b2fcae279958e0b9",
+      "bytes": 278
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/7A38E80C-F318-4BF2-9D48-9F2DF5D7AE09.txt",
+      "sha256": "dfbe5632ac7c871372324928c57b4ce26f8bac5362f1c13e70ddb82cafdf6db7",
+      "bytes": 21731
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/B7679333-2283-46BD-8778-96553A7FB482.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4",
+      "bytes": 213
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/BE559CE2-A613-4C1C-9419-BD934B7A4D86.txt",
+      "sha256": "f2c5a07e88662e4e7f331613a71e271d0879ec03addcf87d5cff61b3ed1add8c",
+      "bytes": 16001
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/C247B432-FACD-420A-A780-99D55B9D2BD9.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4",
+      "bytes": 213
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/D3F4E7F4-11E4-45F9-93CD-20D54CA88AF6.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4",
+      "bytes": 213
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/F4F915FF-E0CB-4CAA-ADAA-60448DBA0559.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4",
+      "bytes": 213
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/manifest.json",
+      "sha256": "713c5affc498a138c94a1a8c8360541a2e08e282cdcacea3c325cab9ef756b89",
+      "bytes": 10570
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-before-context.json",
+      "sha256": "52400ad368126ce89c66adcc42346ea576963ad38f205f6b9a5b4cd6b0506743",
+      "bytes": 3721
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-result.json",
+      "sha256": "de92f53489bc3517fa4a01dbf1a155319b1019a90ac2b0ca725d3af682b95aae",
+      "bytes": 1433
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-after-context.json",
+      "sha256": "f105bd4171079cf9f86f818d3cd7d1d857d09eb8cd1e87e2907e7063b6c99bc8",
+      "bytes": 4930
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-after-observations.json",
+      "sha256": "ae1dbb48368deb5db8cb0a196a7ef768a8953b56247a9fd2f9a1ea7ab33daa66",
+      "bytes": 25202
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/17A6283A-B17B-4D62-A486-F0502EA355EB.png",
+      "sha256": "a07f30f00c5597d86af6502f23e084316548b8fec6ed6004cda6568d4dd318e3",
+      "bytes": 158206
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/21229979-76C5-43BE-8F8D-7EC0CF74B3BF.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187",
+      "bytes": 232
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/23A5078C-BA42-41BF-9A8E-A0C99A0347A4.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187",
+      "bytes": 232
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/26D8B968-472D-43D5-939A-B81A0C8AB647.txt",
+      "sha256": "65459fdc7bee9e6a72a02e6541b856c4fed3940fa2a50c51f8fc1e85da328a44",
+      "bytes": 21708
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/33C64EDA-4A12-4B24-8A79-07A3948CC86A.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187",
+      "bytes": 232
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/4FF450FA-BC91-457C-AE34-1418EE966EC2.txt",
+      "sha256": "8f9fa1a1c75bf34151d6d0660cf2456469e3a17b139718cd6dbfb97c75995bfb",
+      "bytes": 21826
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/501E1BDD-22FA-4BA9-B0C0-00DD6A2744AD.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187",
+      "bytes": 232
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/61138550-D498-41E5-B182-940EA0793CB0.mp4",
+      "sha256": "be8ae4523106172d6ef2eae5a43e662b38b112d3b09379165d582f89fb4e4a26",
+      "bytes": 863477
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/9723AF5F-020C-48F1-9053-AA96E9D624B0.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187",
+      "bytes": 232
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/9CCD7F24-5839-458A-BCEE-993262B65892.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187",
+      "bytes": 232
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/E1152878-EB6F-4194-840D-8E87F9834373.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187",
+      "bytes": 232
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/E33DE0EF-B293-417F-865C-1B789A174ABB.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187",
+      "bytes": 232
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/FC79A844-4E61-4266-8436-CD1AD3421059.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187",
+      "bytes": 232
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/FFC32F4C-809F-4371-8D36-D331EF14C58A.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187",
+      "bytes": 232
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/manifest.json",
+      "sha256": "7242f7bf78c1ac33381fb59ffc07767084cf1580eb138f10835ec71bae12096d",
+      "bytes": 8417
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-before-context.json",
+      "sha256": "75da7ac0e7e1c9ca6eaa5f1e63881a151ab0012cb79ed381fc209933ee23c470",
+      "bytes": 4776
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-before-observations.json",
+      "sha256": "eaca7d1b1b6e9c27c31510163bfb48c40aab3244b5ec6ff2d69436dbfe28fc21",
+      "bytes": 22293
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-result.json",
+      "sha256": "465a9994075596f22e08e82cf6a275b53ee2dfea39d22e13576ac55e01ae4760",
+      "bytes": 1391
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-after-context.json",
+      "sha256": "89e516850845b788957aff73b6d13888df3f2b7bc56d8fbfe1518d0eabdde1bf",
+      "bytes": 4895
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-after-observations.json",
+      "sha256": "a1c5fea3efbff46b916b5b0d546b450879c7fa929a413ffa46590670e6033322",
+      "bytes": 26724
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-attachments/3746E8F8-09BF-4AD2-B34E-ECD876EDF929.png",
+      "sha256": "6648fa1816500731dfb2541310f8e8d2d2c22ba27245650fe5c87a0f613c26fb",
+      "bytes": 117833
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-attachments/92BBDB26-8489-41BF-9E0F-086244DC60B9.png",
+      "sha256": "74f8bc47609defb63f3c74c3214d6698745113c5b98128a18baa3389949ea85c",
+      "bytes": 469961
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-attachments/D134C3EA-875A-4EC3-856C-F9C251EEB592.txt",
+      "sha256": "0e6a5d2ab1d4e1c10071eccf06d33ab7c43abbfbd3ad1a42d8eeb6402f19cb82",
+      "bytes": 5948
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-attachments/D82DC173-BEE0-49B4-B383-CC8A2BC5111A.txt",
+      "sha256": "71102a355be93b48d50779c24515214ee99adc931278798415edffb7954fb02e",
+      "bytes": 15872
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-attachments/manifest.json",
+      "sha256": "4ffbaa1ca942ea55a8c718f698a0f8f2bf22a3b29090da326a4d69d5594b320c",
+      "bytes": 2202
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-before-context.json",
+      "sha256": "a9203207f7332b5f644fa379927ec1641630b6f965090c7777f17573f6128aee",
+      "bytes": 5062
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-before-observations.json",
+      "sha256": "ae1dbb48368deb5db8cb0a196a7ef768a8953b56247a9fd2f9a1ea7ab33daa66",
+      "bytes": 25202
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-result.json",
+      "sha256": "d4cae3310d3082ce835ca0a42ac19a18efc8921401a1e3aa64f0677ca849b090",
+      "bytes": 1404
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-cleanup.json",
+      "sha256": "a999eba126507ba521d1235f7685dc98d4b836a6063fa8f441a45a6fa386dd24",
+      "bytes": 2809
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-independent-review.json",
+      "sha256": "169464a90b09199992cca1d977f63348062910829c8caf2359c05e8e571ff61a",
+      "bytes": 11378
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/actual-native-underline-hit-coordinate.txt",
+      "sha256": "0cbb30c98dd18289697a49432c7bc795fe8391d6e23706283e4dbeb2abf8a084",
+      "bytes": 86
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/comment-first-tap-failure-native-tree.txt",
+      "sha256": "132ebb3a1eaa54909f4035529e878476139e58792a0e58614f759f5ce75d176b",
+      "bytes": 22284
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/comment-tap-result.png",
+      "sha256": "f035ac719677ce1a173223fb48922879ecc6a7e279a338a4007aa82089010120",
+      "bytes": 540943
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/comment-underline-tap-failure-native-tree.txt",
+      "sha256": "9b30fd9c26fa523b479eba7e2f64503b82d338f6b10969e87ed2f487bbd6d15f",
+      "bytes": 31001
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/initial-onboarding-native-tree.txt",
+      "sha256": "e16d0c5a76b53ba0a2f506ffe5a7ee392161d8d194acc879668e7af8d330890e",
+      "bytes": 15416
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/initial-onboarding.png",
+      "sha256": "ca6b0ef5f6a6ccbd92fa8e51a5d17b088af4ac6fe115f9c489cb8e08bae677c0",
+      "bytes": 891963
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/initial-reader-before-ready.png",
+      "sha256": "78ce93f1f297d82d04cc020a81c2cf5c7f93fdef9c339b57e270046ce8a4cf77",
+      "bytes": 280759
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/library-after-native-back-native-tree.txt",
+      "sha256": "9812ed304e603237a9543ece36b04a58ab0ec4a366817ae7c596bb205a48bbde",
+      "bytes": 6031
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/library-after-native-back.png",
+      "sha256": "95dc03b3c0497ef048c35cb22182cf3df5e5c5d2fed28aaf4db185cbaf7cebda",
+      "bytes": 117668
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/library-after-onboarding-with-debug-log.png",
+      "sha256": "566f181e3614963281d1ad007aedef2635b485b5eb3394398eb02c905e61a5ca",
+      "bytes": 171107
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/loaded-original-cache-and-mark.png",
+      "sha256": "98bd486e53e4b31820c918ffc042f5f3d639efb401b9704baa8695c797ccd623",
+      "bytes": 336035
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/loaded-original-cache-native-tree.txt",
+      "sha256": "d744c69971738ee1f503c2194ff0cb06d3f5df648946171ae439f06cf6be6541",
+      "bytes": 15618
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/native-upgrade-reader-lifecycle.json",
+      "sha256": "e4850f461bd93da75463a444e191db7549119b5a62d185f37c5ec88ef7e5625e",
+      "bytes": 21445
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/native-upgrade-ui-context.json",
+      "sha256": "3cef5d2c20c2fe65314a1d0eb8dd8207532c3f0699d8c34a033b451c4bb61d34",
+      "bytes": 6145
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/native-upgrade-ui-request.json",
+      "sha256": "afb6072b17072d80a06006b473e5b47996ffc61df36237b4118c58b0bf3084e6",
+      "bytes": 378
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/original-mark-before-failed-underline-tap.png",
+      "sha256": "0d8cea43bca56db055d1dda48672a557f5bdf8d09ebfaee058456c2e52d6e263",
+      "bytes": 330499
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui.json",
+      "sha256": "229db24828335526042189bdbdee744fe1cd8015c0f375526532b36768ccd46f",
+      "bytes": 41294
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-visible-source-service-harness-failure-cleanup.json",
+      "sha256": "bd490cf510461759d2729e50860e886963ea8c6d127408b227b111f4512b17e3",
+      "bytes": 455
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-visible-source-service-harness-failure.json",
+      "sha256": "7a92886636b61eb159d608863822228386ca29d4bbbb8e668e744e51b18ba9ff",
+      "bytes": 12141
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/obsolete-android-legacy-intermediates-audit.json",
+      "sha256": "19c659ff1db65d13f9da3965176611ced119b5b5a2405df3499223c73623a6f0",
+      "bytes": 11517
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/obsolete-source-valid-v1-build-cleanup.json",
+      "sha256": "9dcacf644b61a0236b750fbf2c91afe05c8f82f104cce2a1d3ba9cf29b2a6f15",
+      "bytes": 5352
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/old-kotlin-sdk.json",
+      "sha256": "d019e3ccfbdb55139c584fa60180c3aa2719c467a57e4acd5c55e1a0e597d887",
+      "bytes": 2527
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/owned-visible-ui-derived-cache-cleanup-plan.json",
+      "sha256": "b04f0bf3a826c3ee95896fe1edb2f343018236c069e73c580d08e58d6c284ba2",
+      "bytes": 118583
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/owned-visible-ui-derived-cache-cleanup-result.json",
+      "sha256": "b945407b0090b787824e162ffb2e9e6504eefbb7d247a551b17fd2f79c90cb9a",
+      "bytes": 1357
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/swift-inspection.json",
+      "sha256": "8b943d4dea94f8569282b1a18299fa50adb62805f59e7b5d422e961a1ec2152b",
+      "bytes": 1070
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/visible-legacy-producer-builds.json",
+      "sha256": "ccaec9a0260e18a773d581a5a6b797ca61b8cf7f35d0e3b6a2575a4d14fc034f",
+      "bytes": 7381
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/visible-legacy-producer-v2-builds.json",
+      "sha256": "fa8e55cceb9bffce96d823158c9159e26b37445e52ee6aace02ee7d7b91254db",
+      "bytes": 4733
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/build-native-probes.mjs",
+      "sha256": "b8aa0f0f8a5a2e9f287c75c075b05e7ab36cc79038ec4dbc780d88e3f7ad38bf",
+      "bytes": 2973
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/build-preference-probe.mjs",
+      "sha256": "30b1c7bd52659e55c180b6f2c024b03dd051a6181956b544c97ad0bbeb254e68",
+      "bytes": 4913
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/native-fault-control.mjs",
+      "sha256": "58650334e1c2e423fd88894e7ce9be9f7253aa9eb59f644f5cf4c86f575441f5",
+      "bytes": 11738
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/native-preference-control.mjs",
+      "sha256": "a74bc54120acd27622266d1fd46bde0e8e3e7a054e6f928325597486b33c62e6",
+      "bytes": 9327
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/native-stream-service.mjs",
+      "sha256": "e6940943fac49a7dfb2884f189c5fa16d53c743d12b64b1db60056b5252fcb98",
+      "bytes": 3810
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/preference-probe-source.mjs",
+      "sha256": "4749e5b43e8e0a87f42dfeec42f0e8b1e82ac6ad421f515af94968ea73955450",
+      "bytes": 1847
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/real-service.d.mts",
+      "sha256": "101714c149fd35eb76f07cb3366c50a6443ca1ef3348ce87103d1075143b6a83",
+      "bytes": 210
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/real-service.mjs",
+      "sha256": "5ac8a12f3093104557fd8f7fd640552987a8eb1a1001facb2e37933cd1f1103f",
+      "bytes": 20309
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/visible-producer-project.mjs",
+      "sha256": "f6a629dbd4ab367874c7df778f41c418f5ace8e7162fab33286b2e6fda21b2b3",
+      "bytes": 16599
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/visible-ui-ios-prepare.mjs",
+      "sha256": "7c5dc390154f058f0e7592f81dd3cc82b5055a6e0eab7fe487300a762f748b13",
+      "bytes": 7019
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/visible-upgrade-control.mjs",
+      "sha256": "405d95545453434247e73bf91dce039926654b5760483dc07a8cac4cda24d79f",
+      "bytes": 10692
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/visible-legacy-inputs.json",
+      "sha256": "bd660fd48fbdecd7c9eb599ce701281fdf6c6ff78d716cab945cdcfc0d59d110",
+      "bytes": 3109
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-profile.test.ts",
+      "sha256": "4f58adc9ec79281335040139b8111604bed8c7c0abafc58ab8b8bed1935b4402",
+      "bytes": 8632
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption.test.ts",
+      "sha256": "3cfa19c7510f0ed56a4166ddbe656d14122863caf94727090f9cac6554aff2c4",
+      "bytes": 9431
+    },
+    {
+      "path": "apps/mobile/tests/data/api-session.test.ts",
+      "sha256": "cc1c7e4a1ad8aac622906e007cce39bc2f7bc8dd8f2ec4f5e87473c633638fd9",
+      "bytes": 22741
+    },
+    {
+      "path": "apps/mobile/tests/data/background-cache.test.ts",
+      "sha256": "011b79e638085f600bcd9de9abb9e22d62a73da67ecfd6a9a8689da04932da8f",
+      "bytes": 13391
+    },
+    {
+      "path": "apps/mobile/tests/data/cache-lease.test.mjs",
+      "sha256": "818c4e844ede9193d28baed6b0a2e99d6b62706432d4be1c7d7f80dacd0bdb52",
+      "bytes": 4995
+    },
+    {
+      "path": "apps/mobile/tests/data/cache-maintenance.test.ts",
+      "sha256": "1a1123867087f71fbe230eea142eac37a460de1ab6ceb067bd003dcd23c76093",
+      "bytes": 6535
+    },
+    {
+      "path": "apps/mobile/tests/data/compatibility.test.ts",
+      "sha256": "c6f29240af6fee86c92d5056ac1d56be693ec9d76e7db4e8fb836329063f4c1a",
+      "bytes": 11834
+    },
+    {
+      "path": "apps/mobile/tests/data/completed-native-service.test.ts",
+      "sha256": "96f12787dd298410ae1a38bd0e1343d93516e4085d71a779f34373cd88cf3f5f",
+      "bytes": 1776
+    },
+    {
+      "path": "apps/mobile/tests/data/completed-native-service.ts",
+      "sha256": "ed402141eecedcb0a81fe4dda0515f007e4822fe5028aa6d20196a9242c6f9a8",
+      "bytes": 4378
+    },
+    {
+      "path": "apps/mobile/tests/data/delete-account.test.ts",
+      "sha256": "3ce144d56bed81962c51e47e5282cc4f6f9f76df3e9371e3e1aa8762ffb9ca9b",
+      "bytes": 5087
+    },
+    {
+      "path": "apps/mobile/tests/data/fixture-project.test.mjs",
+      "sha256": "e522a37af45d0125eb1f0e44ab83fb65cb7221644dd7ddffbe140e1533dd560d",
+      "bytes": 3276
+    },
+    {
+      "path": "apps/mobile/tests/data/helpers.ts",
+      "sha256": "902d993f8190732e7cc9506ec1547be62dd050eb3e90d2be3a7b99df72597b8d",
+      "bytes": 623
+    },
+    {
+      "path": "apps/mobile/tests/data/native-fixture-paths.test.ts",
+      "sha256": "fa149f59348235ade7c76415d679d4b05cf9f7189663d43bae62edeaf823f6a9",
+      "bytes": 1842
+    },
+    {
+      "path": "apps/mobile/tests/data/native-fixture-paths.ts",
+      "sha256": "e334ea31f5745f75828c99c3393b87140ff1a1e1301049687335285c30e5a6b9",
+      "bytes": 1396
+    },
+    {
+      "path": "apps/mobile/tests/data/native-service-materialization.ts",
+      "sha256": "2c11dc27dd368b40c1bd720ee0fd7759bfe64475c58d41b1b76e65aa0dc232b5",
+      "bytes": 957
+    },
+    {
+      "path": "apps/mobile/tests/data/pre-reconnect-evidence.test.mjs",
+      "sha256": "6ddbb16b7be1a2ad7c825aec2b4ac87bdb50d872ce6df99e024290ceb9b51909",
+      "bytes": 8124
+    },
+    {
+      "path": "apps/mobile/tests/data/pre-reconnect-evidence.ts",
+      "sha256": "3f531e6181f522bfbfe0acad6b42a8fa483d8830cf86b0f2ad1caee953f644a2",
+      "bytes": 8702
+    },
+    {
+      "path": "apps/mobile/tests/data/preference-probe-source.test.mjs",
+      "sha256": "1c8e5a12950879ea22856a34924fd14b41527b0ccca551b36fe23998ecb7b70c",
+      "bytes": 1299
+    },
+    {
+      "path": "apps/mobile/tests/data/real-service-controller.test.ts",
+      "sha256": "92ee5a925908ea7e7c17b3a47977543766c96c56b447a3adeffdaa9db251d9d5",
+      "bytes": 4795
+    },
+    {
+      "path": "apps/mobile/tests/data/upgrade-visibility.test.mjs",
+      "sha256": "f246b69a2f51f028e7676dbb922d2a12e95fee854196f03e5b819ee217ba3bf6",
+      "bytes": 11348
+    },
+    {
+      "path": "apps/mobile/tests/data/uploader.test.ts",
+      "sha256": "ed7f44371986ace6b32f8745c9a091aeaf5868433f81eaa8dc2cddf7dff738c1",
+      "bytes": 3705
+    },
+    {
+      "path": "apps/mobile/tests/data/visible-producer.test.mjs",
+      "sha256": "8ffa05925b347fe027a2074daa6b09a3921f0a1e0b2d060d8c1d89234e6b5949",
+      "bytes": 7504
+    },
+    {
+      "path": "apps/mobile/tests/firebase-bootstrap.test.cjs",
+      "sha256": "e89998ab0301bdce41865a3ac5cf88fc589da8c047f7240be0778383a621052a",
+      "bytes": 1279
+    },
+    {
+      "path": "apps/mobile/tests/fixtures/commands.test.ts",
+      "sha256": "e14d4f704702a8c24d16a528486ab6b6cae96115fabbabc1f04511ecfcd9ba05",
+      "bytes": 1165
+    },
+    {
+      "path": "apps/mobile/tests/fixtures/transport-native-abort.test.mjs",
+      "sha256": "07853c81aa204c1e7af3f8d2d00e4d420d5c4becf4c55133e6a310862a1defa9",
+      "bytes": 4145
+    },
+    {
+      "path": "apps/mobile/tests/native-back.test.cjs",
+      "sha256": "55ea84ee512d9eb09122b9ab94ed3bceaaefabbad6470faa200969b37b7bffaa",
+      "bytes": 2780
+    },
+    {
+      "path": "apps/mobile/tests/native-compatibility.test.cjs",
+      "sha256": "54208296ffe5a596e8dc6becff2ec02e5c6fda75482ed41b4e8abf2f55f53b93",
+      "bytes": 5395
+    },
+    {
+      "path": "apps/mobile/tests/payments-native/NativeStoreKitFixtureApp.tsx",
+      "sha256": "584cd5405566e274a2a9796026c8c010ce41bf9e2205497fcf5125afef121449",
+      "bytes": 8975
+    },
+    {
+      "path": "apps/mobile/tests/payments-native/README.md",
+      "sha256": "7b13978f68c9b90c24f90209fbea0bf46ffe6b8e7f21225d9c9e4a8375baee66",
+      "bytes": 8185
+    },
+    {
+      "path": "apps/mobile/tests/payments-native/StoreKitFixtureControl.swift",
+      "sha256": "b2e93f232badc740a22fec06558d451756df6b2748c783fe58f310d082ff07a6",
+      "bytes": 7411
+    },
+    {
+      "path": "apps/mobile/tests/payments-native/bind-preflight.mjs",
+      "sha256": "5007900562f984c2763fbd22574a04accbcc40040132a858b64c12d9dbc0c42d",
+      "bytes": 7343
+    },
+    {
+      "path": "apps/mobile/tests/payments-native/contract.ts",
+      "sha256": "a849ed204a7f5fde90c234c71df82a2213ead450918ff57295957a3e843aa2ff",
+      "bytes": 6216
+    },
+    {
+      "path": "apps/mobile/tests/payments-native/guards.test.ts",
+      "sha256": "03f36257873c8b30ab928559d41194bb8d5c20136ee3fe4c2e29eb88056695fb",
+      "bytes": 3780
+    },
+    {
+      "path": "apps/mobile/tests/payments-native/prepare-lib.mjs",
+      "sha256": "da9fc70f92cdaa6d1b5af884136a52f82681cbd4f9a202fc185698a6a9f52cdb",
+      "bytes": 9868
+    },
+    {
+      "path": "apps/mobile/tests/payments-native/prepare.mjs",
+      "sha256": "b2e17ea50ef2e1f2dc633f00406d4168fa1665689bc100ac4b644c38acf20dba",
+      "bytes": 12216
+    },
+    {
+      "path": "apps/mobile/tests/payments-native/prepare.test.mjs",
+      "sha256": "fa721f2a2e9eb63b8aa850d7ba1cd2787f2db608213f3aa2ff9c0492833eb705",
+      "bytes": 9187
+    },
+    {
+      "path": "apps/mobile/tests/payments.test.ts",
+      "sha256": "33f474f7f63ecd0cdea2277f80bbad24fcd049a25c3482b602088b9d1b91eff3",
+      "bytes": 21140
+    },
+    {
+      "path": "apps/mobile/tests/reader/account.test.mjs",
+      "sha256": "3b6dbaf0d122aa4ca655f989a26217df64c87b4244aef24a7ed66182779455bf",
+      "bytes": 3144
+    },
+    {
+      "path": "apps/mobile/tests/reader/assets.test.mjs",
+      "sha256": "c495e6e5f7ae772fd16a1443236f331da2341dd2e452373a1176f9c9f2e94bce",
+      "bytes": 1022
+    },
+    {
+      "path": "apps/mobile/tests/reader/bridge.test.mjs",
+      "sha256": "bcdc10e1944dd4c7ad365584b094b164f79f00bc7122aae7d886accf4f49a1a4",
+      "bytes": 10457
+    },
+    {
+      "path": "apps/mobile/tests/reader/dom.test.mjs",
+      "sha256": "57cca885de2d9c677cca8f0ba3f755b83c21efbe34ff2285f96321a681ff2e8f",
+      "bytes": 25013
+    },
+    {
+      "path": "apps/mobile/tests/reader/fixtures/cross-paragraph-source.json",
+      "sha256": "15ed52dd8d2bc1bd50ced6e8bd4dddaef8fe6ff2132eb6489b39e843116fc797",
+      "bytes": 381
+    },
+    {
+      "path": "apps/mobile/tests/reader/fixtures/mixed-article.html",
+      "sha256": "5d59ada11fc71aaef3a0d884b410e2ad3712c62f3857dcbacd758b25c78deabc",
+      "bytes": 583
+    },
+    {
+      "path": "apps/mobile/tests/reader/gallery-cache-fixture.mjs",
+      "sha256": "5608535e5b5768841dce6121ddb7fab62ac4707e2bc1843afa2bceaadf552e34",
+      "bytes": 2644
+    },
+    {
+      "path": "apps/mobile/tests/reader/gallery-resource.test.mjs",
+      "sha256": "82ce2a80f72afaa1135f4529425862afa56813ade53d4cb26a6fba9b68f0f189",
+      "bytes": 5575
+    },
+    {
+      "path": "apps/mobile/tests/reader/gallery.test.mjs",
+      "sha256": "83715c46043d8f44e3dd16a5bf6fd84bd2c053f17ba5dff5ceed34f2c82267ef",
+      "bytes": 12621
+    },
+    {
+      "path": "apps/mobile/tests/reader/input.test.mjs",
+      "sha256": "9eb843073adb38a6d8f5ba00063a6eba227202d15d76d6751b3fc17020c37a2e",
+      "bytes": 2179
+    },
+    {
+      "path": "apps/mobile/tests/reader/lifecycle.test.mjs",
+      "sha256": "61b12ca483f77dbcff7a64ee9926072183d0eb51c0505754dc0e1a077ba58cf3",
+      "bytes": 4271
+    },
+    {
+      "path": "apps/mobile/tests/reader/model.test.mjs",
+      "sha256": "a223e81d9caecf2cf116132e34886f2ed586092253c000ec5f9421d54fa4f643",
+      "bytes": 6792
+    },
+    {
+      "path": "apps/mobile/tests/reader/native-navigation-host.mjs",
+      "sha256": "c6c0408718a7c48a005506a413c3057cce329ec1ba6ac1781f95d224ab43e2fc",
+      "bytes": 4825
+    },
+    {
+      "path": "apps/mobile/tests/reader/native-resources-host.mjs",
+      "sha256": "c2c03dff086d443530bf8c75fc5656937fd445ed329a3a6430a3a4f93eac187c",
+      "bytes": 1742
+    },
+    {
+      "path": "apps/mobile/tests/reader/native-resources-host/ApplicationInfo.kt",
+      "sha256": "d25d8f1f388cfd1fdd57c5ecbf09618d6c4b7404aa2921c1aaa907c6ac462fa6",
+      "bytes": 137
+    },
+    {
+      "path": "apps/mobile/tests/reader/native-resources-host/Context.kt",
+      "sha256": "6a97752369a508a4e584e871f715b8e57000579c31c684c739af8d27b7775143",
+      "bytes": 354
+    },
+    {
+      "path": "apps/mobile/tests/reader/native-resources-host/Host.kt",
+      "sha256": "f799d4a9b20701c3d0f69093378413dd67a5d13262f236be9013eeb3cda71023",
+      "bytes": 5294
+    },
+    {
+      "path": "apps/mobile/tests/reader/native-resources-host/JSONObject.kt",
+      "sha256": "a3da7be586c66ed3f0a870a0f2ebc67c2b8d9055e151430a7342f4a42d13d053",
+      "bytes": 448
+    },
+    {
+      "path": "apps/mobile/tests/reader/native-resources-host/Uri.kt",
+      "sha256": "8132b77850ad358f8edeaa3177efcf12df0a0f7c515e1f4c299958775a42a10c",
+      "bytes": 245
+    },
+    {
+      "path": "apps/mobile/tests/reader/native-resources-host/WebResourceResponse.kt",
+      "sha256": "5c4770d21ff7d00657c846c4aa1043e3b24c4877ba4693476766a8a93893f0bf",
+      "bytes": 143
+    },
+    {
+      "path": "apps/mobile/tests/reader/recovery.test.mjs",
+      "sha256": "0ba468329317caa63a9fc26ca789adb00ccf34489d3c1416e96b508bfdc61849",
+      "bytes": 1783
+    },
+    {
+      "path": "apps/mobile/tests/reader/screen-lifecycle.test.mjs",
+      "sha256": "aeaa59c4582e4d6e0b2d7c7ebc7c6f05ae269d6dc32f274657f79003197a6383",
+      "bytes": 42408
+    },
+    {
+      "path": "apps/mobile/tests/reader/share.test.mjs",
+      "sha256": "be1cab25e22f97a49afff0edddc6ad1847bc2bb62000412b2f8e12a5351131e2",
+      "bytes": 2394
+    },
+    {
+      "path": "apps/mobile/tests/reader/source-error-readiness.test.mjs",
+      "sha256": "ceca1a4822820fc8d23396d887840c6449c2ec3e2c9eb268223fefa80108badb",
+      "bytes": 4259
+    },
+    {
+      "path": "apps/mobile/tests/reader/tags.test.mjs",
+      "sha256": "6e23e127f3a1bd51b5165764e3be860479ba64d5781c8c06b09ba7eb6e6fc9de",
+      "bytes": 1731
+    },
+    {
+      "path": "apps/mobile/tests/release/ios-release.test.mjs",
+      "sha256": "05fa90b2f99dcbed94b28afdebc7c02d7026b995e45b0bc2ca52c19aa6fc68b3",
+      "bytes": 5447
+    },
+    {
+      "path": "apps/mobile/tests/rss/controller.test.mjs",
+      "sha256": "436a83440a2f745ec7be161e324d77ea7e9fd1ac2798c2b68b00979dff9dbc8a",
+      "bytes": 6233
+    },
+    {
+      "path": "apps/mobile/tests/share-native/README.md",
+      "sha256": "c8636cb19a22b5b848e32b186500c3b9fd5fcbf3db18ed3e8426c1b56c85e9bc",
+      "bytes": 3379
+    },
+    {
+      "path": "apps/mobile/tests/share-native/ShareFixtureControl.swift",
+      "sha256": "8b0f4e30ab1ec60833b421a0e4b23b9a4a1a7772f13230085836deb003e709c8",
+      "bytes": 7648
+    },
+    {
+      "path": "apps/mobile/tests/share-native/ShareFixtureHost.swift",
+      "sha256": "602da1e229639ddd102cc1743d057e7d986199505532149c1896e9f6161f4227",
+      "bytes": 6889
+    },
+    {
+      "path": "apps/mobile/tests/share-native/controller.mjs",
+      "sha256": "f14607bddbbafafa3f559020046d32a1bf54c9e79a987a7da399fb6797c5a8c1",
+      "bytes": 3866
+    },
+    {
+      "path": "apps/mobile/tests/share-native/page.test.mjs",
+      "sha256": "efdd570f23c79c1ae1a2ec68ce3b620ba54ede2edd8053409fc665e40b801cce",
+      "bytes": 1875
+    },
+    {
+      "path": "apps/mobile/tests/share-native/prepare.mjs",
+      "sha256": "409699c77bdf04137f6b954f302ee248faafd58c64f06896d4dc7a1151411f48",
+      "bytes": 10233
+    },
+    {
+      "path": "apps/mobile/tests/telemetry/core.test.mjs",
+      "sha256": "3e4b312a5169c45eb3b67628c766a2002da71f29a8f25b9c37ebf3bfdd4aac3a",
+      "bytes": 7344
+    },
+    {
+      "path": "apps/mobile/tests/ui/collection-selection.test.ts",
+      "sha256": "f26e4431472e7abcf483c5c0d7d510e80a567b8ab6ad44220b6e9abf037c0824",
+      "bytes": 1253
+    },
+    {
+      "path": "apps/mobile/tests/ui/feed-native-anchor.test.mjs",
+      "sha256": "14bcdacc9044a5769d07e87955097c07793be26dc8c60accacd9b65687f91805",
+      "bytes": 3477
+    },
+    {
+      "path": "apps/mobile/tests/ui/feed-scroll-and-drawer.test.mjs",
+      "sha256": "dc35fbf7cfea7d5bd40fd8013b34ee4160bceb0b7f5ff3fd19e889dfd3ab6697",
+      "bytes": 26021
+    },
+    {
+      "path": "apps/mobile/tests/ui/fixture-actions.test.ts",
+      "sha256": "52a8b1e92eac25909c9a0606c7666b469e6c0ec7be13d779c23a5542e6e0fb88",
+      "bytes": 1834
+    },
+    {
+      "path": "apps/mobile/tests/ui/fixture-android-control.test.mjs",
+      "sha256": "07265737349ab8a88850a3937f25d24417dfb115ab6f6fb8dc1377653b29cc57",
+      "bytes": 396
+    },
+    {
+      "path": "apps/mobile/tests/ui/fixture-control-contract.test.mjs",
+      "sha256": "0b3e64503bc8f88eaf297a136a8446b54d48b5a3898aeb5510ed785ddc992bff",
+      "bytes": 1373
+    },
+    {
+      "path": "apps/mobile/tests/ui/fixture-document.test.ts",
+      "sha256": "73e098ab3acfcbcbc37e9c9ff482a2a04396893f23df6a083eb84490ad8ba83b",
+      "bytes": 1150
+    },
+    {
+      "path": "apps/mobile/tests/ui/fixture-isolation.test.ts",
+      "sha256": "824236f7df6cada7e27508865a6db4052b54e354b5d160873617178aef2d2245",
+      "bytes": 3250
+    },
+    {
+      "path": "apps/mobile/tests/ui/native-evidence.test.mjs",
+      "sha256": "8b938af63f0e33caf8602bed320f7d8c4ac053886ee8ecd38c21bbc673f843bb",
+      "bytes": 19364
+    },
+    {
+      "path": "apps/mobile/tests/ui/native-paragraph-host.mjs",
+      "sha256": "1e23e39d51870916facb2c0617aa926bc4548445f6db1e5a81cc12adce3be371",
+      "bytes": 1479
+    },
+    {
+      "path": "apps/mobile/tests/ui/native-paragraph-host/Host.kt",
+      "sha256": "69b8e0a78a7d326e62abcf5f41e5e7b2cb4b8c0bdb42570813b19dd72c4781b4",
+      "bytes": 2367
+    },
+    {
+      "path": "apps/mobile/tests/ui/native-paragraph-host/LineHeightSpan.kt",
+      "sha256": "2975f34aa47c9a64c8c8e3f805781ac6b0005984adae9c48ad614cdb2eba1d6c",
+      "bytes": 210
+    },
+    {
+      "path": "apps/mobile/tests/ui/native-paragraph-host/Paint.kt",
+      "sha256": "d94842bcf434f68e2090ea5daaa56d8a2b482aaaf83f8c982f3f2502dce52b52",
+      "bytes": 307
+    },
+    {
+      "path": "apps/mobile/tests/ui/native-text-scaling-host.kt",
+      "sha256": "7596d05fe2a0c55a95cfd3c84550ed9463fc66cd1df92efbe737c4220d2dacea",
+      "bytes": 1466
+    },
+    {
+      "path": "apps/mobile/tests/ui/native-text-scaling-host.mjs",
+      "sha256": "0167d40df8349a4e0b5aff392c013b4eb8e4501ae5fd97d7b1c74965d20d467b",
+      "bytes": 1495
+    },
+    {
+      "path": "apps/mobile/tests/ui/notice-read-gate.test.ts",
+      "sha256": "114e16ab0f7f46e17b97f9c17f6ff106bc64c6cd802887877a7cb4e779ba26f8",
+      "bytes": 4986
+    },
+    {
+      "path": "apps/mobile/tests/ui/source-contract.test.mjs",
+      "sha256": "4607c04986b726153ec821ac8a967d2ca1861f4534455e6237af1e7298bad2a1",
+      "bytes": 3323
+    },
+    {
+      "path": "apps/mobile/tests/ui/source-line-metrics.test.mjs",
+      "sha256": "6a7bfba90a2fd8b745c0db38c2108158a94586b40b4469ba533dbeee1afad981",
+      "bytes": 3897
+    },
+    {
+      "path": "apps/mobile/tests/ui/source-paragraph-metrics.test.mjs",
+      "sha256": "f4a0597a4c536f530e6b4d0afbf7a1b79a4290950b918c667d87cea1a14ba095",
+      "bytes": 6571
+    },
+    {
+      "path": "apps/mobile/tests/ui/source-replay.test.mjs",
+      "sha256": "4159e3f05240302e9c21abf40c8f2e6774ff1b2fa083f012c7acf7a187099332",
+      "bytes": 4566
+    },
+    {
+      "path": "apps/mobile/tests/ui/source-text-scaling.test.mjs",
+      "sha256": "4b0b8fc0e1022577100bca34897582c459e420989a62e04741e2a5fafb87c4e6",
+      "bytes": 4692
+    },
+    {
+      "path": "apps/mobile/tests/ui/sync-state.test.ts",
+      "sha256": "0038c2841e88ba5a8d6c00a87f77dc4415df1514c14062a528720d678b4c2faa",
+      "bytes": 1633
+    },
+    {
+      "path": "apps/mobile/tests/ui/test-fixture-android-control.py",
+      "sha256": "b68a623a105634b0106c55312893bf387cac1b6059ac91ff2d156ebf36f3c134",
+      "bytes": 4959
+    },
+    {
+      "path": "apps/mobile/tooling/check.mjs",
+      "sha256": "da6b42e5be786aa8596c29d60259f7c097fdd450e89ff8f5306ff89de189ce3e",
+      "bytes": 771
+    },
+    {
+      "path": "apps/mobile/tooling/fixture-android-batch.py",
+      "sha256": "238fe40b4ba3bade16acd5af432515b5c0284ffbfda57d81aa7262fc1eccbb72",
+      "bytes": 32659
+    },
+    {
+      "path": "apps/mobile/tooling/fixture-control-contract.mjs",
+      "sha256": "062137fa950def7294e8f705a400941f1734e79518eb654a2747f93604c42aa5",
+      "bytes": 1071
+    },
+    {
+      "path": "apps/mobile/tooling/fixture-control.mjs",
+      "sha256": "5b7a4c4fbc01e1e0e8ad5930a0a69485594691f4c9baca6ce582497fb6ed9bdf",
+      "bytes": 7385
+    },
+    {
+      "path": "apps/mobile/tooling/fixture-project.mjs",
+      "sha256": "41526df475a539ae83a61e703e3dc230693928d6ff1fed160b7f79ebdf989856",
+      "bytes": 17376
+    },
+    {
+      "path": "apps/mobile/tooling/fixture-source-android-batch.py",
+      "sha256": "1f46e72b31c5fb6d81f86631e8354280bda0b6e0f4e2a2c7f154ac6f283092df",
+      "bytes": 9373
+    },
+    {
+      "path": "apps/mobile/tooling/ios-release.mjs",
+      "sha256": "9872533727168468121ef7f5ede25e01d1e5a910b69348653093230625122b96",
+      "bytes": 15668
+    },
+    {
+      "path": "apps/mobile/tooling/native-build.mjs",
+      "sha256": "879db8c130195747e58ad047a24fd5a92154841e662356766edef3cf107a45c0",
+      "bytes": 3706
+    },
+    {
+      "path": "apps/mobile/tooling/test.mjs",
+      "sha256": "c987993d855c504632073686a153ccb57c0e3939941f08dcd6f5355c0693ae49",
+      "bytes": 867
+    },
+    {
+      "path": "apps/mobile/tsconfig.json",
+      "sha256": "b80a883402608f3c2d0ae8581ce27a2cf53000d76192091d4a1212e2d5f2957b",
+      "bytes": 289
+    },
+    {
+      "path": "docs/mobile/coverage.json",
+      "sha256": "e350045bc5b62a5e20fb38f0e2cc9a10cd7ffb43d8e447b003d808b4add4b9f2",
+      "bytes": 333658
+    },
+    {
+      "path": "docs/mobile/source-manifest.json",
+      "sha256": "3501089ae75682a823afdfb54ccf243d32cbc56eba1f84bd70c68afafc1f2943",
+      "bytes": 108675
+    },
+    {
+      "path": "openspec/changes/expo-mobile-migration/design.md",
+      "sha256": "9e3c6e002b1d7761be34aef104d8b4599f9f86c65546c0313369094eb8344a28",
+      "bytes": 24357
+    },
+    {
+      "path": "openspec/changes/expo-mobile-migration/proposal.md",
+      "sha256": "035f35ba9576f18d6aab37582361b0d15b15f9e0f9ea48fb61e2adc47f20a222",
+      "bytes": 4539
+    },
+    {
+      "path": "openspec/changes/expo-mobile-migration/specs/mobile-app-parity/spec.md",
+      "sha256": "c1dc7a465a8f909e13c070a663763d4eb10c08efe34bfa8a0b773cc72e380ac3",
+      "bytes": 7063
+    },
+    {
+      "path": "openspec/changes/expo-mobile-migration/specs/mobile-expo-runtime/spec.md",
+      "sha256": "8f6f997c35799c1a3385577e5bafa384baa17b6591878bc518eb6aa9ccfad6b5",
+      "bytes": 5988
+    },
+    {
+      "path": "openspec/changes/expo-mobile-migration/specs/mobile-native-navigation/spec.md",
+      "sha256": "cca04ac57a76e4c0dfc5848533efdbe77d4a5bc65c59aae19a918e163cf41d4c",
+      "bytes": 2952
+    },
+    {
+      "path": "openspec/changes/expo-mobile-migration/specs/mobile-reader-parity/spec.md",
+      "sha256": "e8c56d9628cde2302bec827595c033605df8540ba62f5af605fc8b81fc5ac511",
+      "bytes": 5470
+    },
+    {
+      "path": "openspec/changes/expo-mobile-migration/specs/mobile-upgrade-compatibility/spec.md",
+      "sha256": "17b0dcb347df87117d772921e55dc8b50652290ce3855cfd045bc418f37f63a9",
+      "bytes": 5055
+    },
+    {
+      "path": "openspec/changes/expo-mobile-migration/specs/mobile-visual-parity/spec.md",
+      "sha256": "5320215df59e8a17314de7bd4977e6e3006c520d8657172fcce36df3bb01df0b",
+      "bytes": 3232
+    },
+    {
+      "path": "openspec/changes/expo-mobile-migration/tasks.md",
+      "sha256": "8d2b3d4974bb932acff69dc204508244606b898b0528ceed084039756a0e7d49",
+      "bytes": 18420
+    },
+    {
+      "path": "package.json",
+      "sha256": "0d583533077c6e181d855174a3050dd0e1f4d0c42d0db952cdcae0dde36495d9",
+      "bytes": 1331
+    },
+    {
+      "path": "packages/contracts/README.md",
+      "sha256": "c0a302ed709b810d23900418ddfc0de30843a0d6a0f9dd17a3d9972b94116ff4",
+      "bytes": 3339
+    },
+    {
+      "path": "packages/contracts/README_CN.md",
+      "sha256": "f9b725b558a1c626aa029d83961b06e4029ae0c70e37049a88ead71bd837c4cc",
+      "bytes": 2884
+    },
+    {
+      "path": "packages/contracts/package.json",
+      "sha256": "318604407c87f522472d5ff086e46f1959d6bdfb7d93c8c067ae4a878ffd338f",
+      "bytes": 1945
+    },
+    {
+      "path": "packages/contracts/src/analytics.ts",
+      "sha256": "fced19c94303e4e59dcc04a0fe85e15e46e757c6372cd57b0b78883f409c7c28",
+      "bytes": 6691
+    },
+    {
+      "path": "packages/contracts/src/api-keys.ts",
+      "sha256": "c02ec7953375dffb928927ebcd7881f08ed29b7f47727a1b3c1ff0834e8bf573",
+      "bytes": 348
+    },
+    {
+      "path": "packages/contracts/src/augmentations.ts",
+      "sha256": "cdb048798c92d9067161bf1697a40c8223363321cb37d67cf13bee9971bceb04",
+      "bytes": 9723
+    },
+    {
+      "path": "packages/contracts/src/bookmarks.ts",
+      "sha256": "69aed7fd17a64f2acc56f4d8ae740a4f86097e46517f7af01de264382a9ac0df",
+      "bytes": 1736
+    },
+    {
+      "path": "packages/contracts/src/collections.ts",
+      "sha256": "9624a16667760f2c2c6811504646d874d9231b2ee651fe6089aa2c7ea68e5f19",
+      "bytes": 1596
+    },
+    {
+      "path": "packages/contracts/src/const.ts",
+      "sha256": "747d6d72c87a5c665a1c6e01ac3af013eece3d77e5809688a7e13b09f926f08f",
+      "bytes": 4761
+    },
+    {
+      "path": "packages/contracts/src/errors.ts",
+      "sha256": "9aff1a8cd9e45e7364da6e5fef59c745bfece9305a296d336dcde3d95f4f34c7",
+      "bytes": 5535
+    },
+    {
+      "path": "packages/contracts/src/events.ts",
+      "sha256": "79132ac9c8d819431f94c436edff2b70a171c882480505cec538682236f06606",
+      "bytes": 502
+    },
+    {
+      "path": "packages/contracts/src/http.ts",
+      "sha256": "44b57f91098d3b6c632aa591a710ecf48b01113a2dd1df28b30055c3631a0c9c",
+      "bytes": 670
+    },
+    {
+      "path": "packages/contracts/src/index.ts",
+      "sha256": "45431bbb063f064a7e7cdecf4e470d565b0aa7ab2e1bcadf254a482419a6264a",
+      "bytes": 478
+    },
+    {
+      "path": "packages/contracts/src/interface.ts",
+      "sha256": "aeaa3644ada155696e1d3ea2cad15b18ce5cd72fd85060901d29a3398bcd1fb7",
+      "bytes": 10543
+    },
+    {
+      "path": "packages/contracts/src/marks.ts",
+      "sha256": "835805a30745d639143b2a60bc0e9036d3435654f3d1045ca14434e203d04009",
+      "bytes": 2117
+    },
+    {
+      "path": "packages/contracts/src/openai.ts",
+      "sha256": "086f5e79e5d4b8efb00a3addc0ec129d2776333da77f200921c39ad74670bf51",
+      "bytes": 2290
+    },
+    {
+      "path": "packages/contracts/src/pdf.ts",
+      "sha256": "bb7eef250b98fea3ed5a4da39d423b8521d6b7ba9dbd00eb3d335fcd69dc217a",
+      "bytes": 3836
+    },
+    {
+      "path": "packages/contracts/src/rss.ts",
+      "sha256": "0c25136fac31c7f3f9abf173b809f26a48f28f48b0ee44fa376120c552b53749",
+      "bytes": 2750
+    },
+    {
+      "path": "packages/contracts/src/tags.ts",
+      "sha256": "522230568109e25b54faee3779874c7d0014f3501781ef058a0e35af7c2a8c46",
+      "bytes": 903
+    },
+    {
+      "path": "packages/contracts/test/consumer.ts",
+      "sha256": "ae15c339a5fbbd29c282378ea39f5c2788bd673f6dadcef706eebc32fe520a81",
+      "bytes": 2596
+    },
+    {
+      "path": "packages/contracts/test/fixtures/rss.json",
+      "sha256": "ab28272dcc0ab5a5f006dfd639ebb3e474713047b81342cf4bd12a004f1f507c",
+      "bytes": 1870
+    },
+    {
+      "path": "packages/contracts/test/rss.ts",
+      "sha256": "01ddb225176c5bf14fa04cf5e451f2bbbfba16effee2923e27c7c53b227f4ef8",
+      "bytes": 2228
+    },
+    {
+      "path": "packages/contracts/tsconfig.json",
+      "sha256": "6434734f034000ede3932831da89b080991e96b6136425bf51a62131e71cd945",
+      "bytes": 298
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "sha256": "0b95b9c75b86ded6d7a44270b5c0c800d2c27a064d6e986269846c7a9d2f53c6",
+      "bytes": 1301655
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "sha256": "d4535de18c9a5f2190c913c7abf2d3e9997f5901551e78ec46c2ba9403557e27",
+      "bytes": 2314
+    },
+    {
+      "path": "tooling/mobile.mjs",
+      "sha256": "cfba79aa7d4a20be93f5cb6a7c7a41fa3cd8a8e2c5390ffde4fc52ea0aa0fefa",
+      "bytes": 1995
+    }
+  ]
+}

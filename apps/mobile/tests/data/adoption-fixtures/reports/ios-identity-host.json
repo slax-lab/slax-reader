@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "scope": "production Swift identity helper, host execution",
+  "sameContainerUpdate": true,
+  "otherOwnerRejected": true,
+  "noncanonicalCandidateRejected": true,
+  "date": "2026-10-10",
+  "productionHelperSHA256": "f8f020698a160425d5be842d276f23b0294291a8ab96e07c4db185289aba806a",
+  "hostFixtureSHA256": "3580b7d60ca589644817e1c28942ba612fcb292b2241dc5f976030f6ef9c6005",
+  "iosBridgeRuntimeExecuted": false
+}

@@ -1,0 +1,162 @@
+{
+  "kind": "scoped-native-raster-comparison",
+  "schemaVersion": 1,
+  "platform": "android",
+  "locale": "en",
+  "fixtureScenario": "library-populated",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "fontScale": 1.5,
+  "fontScaleProfile": "accessibility-enlarged",
+  "sourceDriver": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/source-driver-l/input-manifest.json",
+    "sha256": "25ec74a1d2192a2a9a30f22ccea0cc9ba6a02563cb3349e0811274887d9a3496"
+  },
+  "targetDriver": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-driver-y.json",
+    "sha256": "bad86de45d0e307d5bbaa7d776d01eb8af4412e56673f58ddf15940c05572d97"
+  },
+  "nativeAndroidBuild": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-build-x.json",
+    "sha256": "fd77ffa44ca245f5e092db5e0ade40d25e967691c223b2e946659eef7fcf5281"
+  },
+  "artifacts": {
+    "source.png": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/scoped-native-library-fontscale-1_5-y/source.png",
+      "sha256": "0c490180a572f411501a86ec2fc409b593885eaa59e7447efee394efce940c27"
+    },
+    "source-raw.json": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/scoped-native-library-fontscale-1_5-y/source-raw.json",
+      "sha256": "41df8bd86ebaa9d4eecfd266abf0ba700ac1af0120470cae6499731e0d77e5be"
+    },
+    "target.png": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/scoped-native-library-fontscale-1_5-y/target.png",
+      "sha256": "3ecd2c047a33e4671379f3aed536a060bc771801b0b8b6f0edae19e0a3dd0ebf"
+    },
+    "target-raw.json": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/scoped-native-library-fontscale-1_5-y/target-raw.json",
+      "sha256": "3906844a416d044fae1aaab2bc88cf773a621e7cbace079a84c48c9540fc1527"
+    }
+  },
+  "comparison": "exact original RGBA pixels; no alignment, resampling, masking, or color adjustment",
+  "regions": [
+    {
+      "id": "sixRowTitles",
+      "bounds": {
+        "x": 142,
+        "y": 550,
+        "width": 891,
+        "height": 773
+      },
+      "sourceRgbaSha256": "0375f359fbaa0ede768a87b837da0f4a3ac923bf06fc720cb1c5a57d361579f4",
+      "targetRgbaSha256": "0375f359fbaa0ede768a87b837da0f4a3ac923bf06fc720cb1c5a57d361579f4",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "noMoreItemsFooter",
+      "bounds": {
+        "x": 335,
+        "y": 1440,
+        "width": 410,
+        "height": 90
+      },
+      "sourceRgbaSha256": "86329d51e1ff4ad575af38312c8b990055024fece9a32b4afa2b4f7efe790820",
+      "targetRgbaSha256": "86329d51e1ff4ad575af38312c8b990055024fece9a32b4afa2b4f7efe790820",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "continueReadingTitle",
+      "bounds": {
+        "x": 116,
+        "y": 2110,
+        "width": 809,
+        "height": 100
+      },
+      "sourceRgbaSha256": "f6427e81f76c3f10511b99b3516351386cd0e17f5418a64aabd824612d43ae56",
+      "targetRgbaSha256": "f6427e81f76c3f10511b99b3516351386cd0e17f5418a64aabd824612d43ae56",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "entireCollectionBand",
+      "bounds": {
+        "x": 0,
+        "y": 283,
+        "width": 1080,
+        "height": 220
+      },
+      "sourceRgbaSha256": "9c7e6aa9b12b6fb4f836c97d9bced6d32efde8030afa951efcf167fdfcf3cf43",
+      "targetRgbaSha256": "9c7e6aa9b12b6fb4f836c97d9bced6d32efde8030afa951efcf167fdfcf3cf43",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "entireNativeStatusBar",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1080,
+        "height": 136
+      },
+      "sourceRgbaSha256": "0681e4e33807d8d801c4628df42a5be47c4a30d3efedbb486b8e2b03c802a75f",
+      "targetRgbaSha256": "0681e4e33807d8d801c4628df42a5be47c4a30d3efedbb486b8e2b03c802a75f",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "entireNavigationHeader",
+      "bounds": {
+        "x": 0,
+        "y": 136,
+        "width": 1080,
+        "height": 147
+      },
+      "sourceRgbaSha256": "fdec339156551e54dd660ed9408d6881d28ff6c5e98c6bebf332e902046b5edb",
+      "targetRgbaSha256": "fdec339156551e54dd660ed9408d6881d28ff6c5e98c6bebf332e902046b5edb",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "entireBodyBelowTopCornerArc",
+      "bounds": {
+        "x": 0,
+        "y": 541,
+        "width": 1080,
+        "height": 1459
+      },
+      "sourceRgbaSha256": "bd63f4f1603d464105d71f2a8c1e13e431076b1abad2832671c8ac97472c1329",
+      "targetRgbaSha256": "bd63f4f1603d464105d71f2a8c1e13e431076b1abad2832671c8ac97472c1329",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  ],
+  "result": "passed-for-listed-regions-only",
+  "wholeScreenParity": "failed",
+  "nativeInteractionVerified": false,
+  "limitations": [
+    "Body top corners and continue-banner border/divider prevent whole-screen acceptance; other platform/locale/appearance cases and native input remain pending.",
+    "Source enlarged collection labels clip inside the original padded LazyRow; this target preserves that layout."
+  ]
+}

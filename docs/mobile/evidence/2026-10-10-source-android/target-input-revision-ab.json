@@ -1,0 +1,17 @@
+{
+  "kind": "controlled-fixture-input-revision",
+  "version": 1,
+  "revision": "ios-source-tail-and-explicit-zero-tracking-ab",
+  "fixtureSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "previousDriver": "target-driver-aa.json",
+  "driver": "target-driver-ab.json",
+  "changedFiles": [
+    {
+      "path": "src/components/SourceLine.tsx",
+      "previousSha256": "6743d81a7c9bc77e3862ca0c84398f7f8e429d7bf1a9ce8c2d6d2c23039e8927",
+      "sha256": "5cbc08c85b57775261a34a1abcca5cf6e6c380bb5f7730c6ebc164aa251733b1"
+    }
+  ],
+  "nativeAndroidChanged": false,
+  "nativeIosChanged": false
+}

@@ -1,0 +1,87 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const {createRequire} = require('node:module');
+const expoRequire = createRequire(require.resolve('expo/config-plugins'));
+const pluginsRequire = createRequire(expoRequire.resolve('@expo/config-plugins'));
+const xcode = pluginsRequire('xcode');
+const plist = pluginsRequire('@expo/plist').default;
+const helpers = require('../../../plugins/with-share.cjs')._test;
+const options = helpers.normalizedOptions({version: '1.2.3', android: {versionCode: 123}}, {apiBaseUrl: 'https://api.example', apiBetaUrl: 'https://beta.example'});
+function projectFixture() {
+  const project = xcode.project('fixture.pbxproj');
+  project.hash = {headComment: '!$*UTF8*$!', project: {archiveVersion: 1, objectVersion: 46, rootObject: 'PROJECT', objects: {
+    PBXProject: {PROJECT: {isa: 'PBXProject', mainGroup: 'ROOT', targets: [{value: 'APP', comment: 'App'}]}, PROJECT_comment: 'Project object'},
+    PBXNativeTarget: {APP: {isa: 'PBXNativeTarget', name: '"App"', productName: '"App"', productReference: 'PRODUCT', buildConfigurationList: 'CONFIG', buildPhases: [], dependencies: []}, APP_comment: 'App'},
+    PBXGroup: {ROOT: {isa: 'PBXGroup', children: [{value: 'PRODUCTS', comment: 'Products'}], sourceTree: '"<group>"'}, PRODUCTS: {isa: 'PBXGroup', name: 'Products', children: [{value: 'PRODUCT', comment: 'App.app'}], sourceTree: '"<group>"'}, PRODUCTS_comment: 'Products'},
+    PBXFileReference: {PRODUCT: {isa: 'PBXFileReference', path: 'App.app', sourceTree: 'BUILT_PRODUCTS_DIR'}},
+    PBXBuildFile: {}, PBXContainerItemProxy: {}, PBXTargetDependency: {},
+    XCConfigurationList: {CONFIG: {isa: 'XCConfigurationList', buildConfigurations: [{value: 'DEBUG', comment: 'Debug'}, {value: 'RELEASE', comment: 'Release'}], defaultConfigurationName: 'Release'}},
+    XCBuildConfiguration: {DEBUG: {isa: 'XCBuildConfiguration', name: 'Debug', buildSettings: {DEVELOPMENT_TEAM: 'fixture-team'}}, RELEASE: {isa: 'XCBuildConfiguration', name: 'Release', buildSettings: {DEVELOPMENT_TEAM: 'fixture-team'}}},
+  }}};
+  return project;
+}
+test('share Android manifest remains idempotent and preserves unrelated configuration', () => {
+  const manifest = {manifest: {application: [{$: {'android:name': '.MainApplication'}, activity: [{$: {'android:name': '.MainActivity'}}]}]}};
+  helpers.updateAndroidManifest(manifest, options); const first = JSON.stringify(manifest);
+  helpers.updateAndroidManifest(manifest, options); assert.equal(JSON.stringify(manifest), first);
+  const application = manifest.manifest.application[0]; assert.equal(application.activity.length, 2);
+  assert.equal(application.activity[1]['intent-filter'][0].data[0].$['android:mimeType'], 'text/plain');
+  assert.equal(application['meta-data'].find(value => value.$['android:name'] === 'SlaxApiBetaURL').$['android:value'], 'https://beta.example');
+});
+test('share Xcode target generates once with original identity, source/resource membership and signing inheritance', () => {
+  const project = projectFixture(); helpers.configureIosTarget(project, options); const first = project.writeSync();
+  helpers.configureIosTarget(project, options); assert.equal(project.writeSync(), first);
+  const [uuid, target] = helpers.targetEntry(project); assert.ok(uuid); assert.equal(String(target.productType), '"com.apple.product-type.app-extension"');
+  const list = project.pbxXCConfigurationList()[target.buildConfigurationList];
+  for (const reference of list.buildConfigurations) {
+    const settings = project.pbxXCBuildConfigurationSection()[reference.value].buildSettings;
+    assert.equal(settings.PRODUCT_BUNDLE_IDENTIFIER, '"app.slax.reader.share"'); assert.equal(settings.IPHONEOS_DEPLOYMENT_TARGET, '16.4'); assert.equal(settings.DEVELOPMENT_TEAM, 'fixture-team');
+  }
+  assert.equal(target.buildPhases.length, 3);
+  assert.equal(Object.hasOwn(project.pbxGroupByName('SlaxShare'), 'path'), false);
+  const files = project.pbxFileReferenceSection(), builds = project.pbxBuildFileSection();
+  for (const file of Object.values(files).filter(file => typeof file === 'object' && String(file.path).replaceAll('"', '').startsWith('SlaxShare/'))) {
+    for (const key of ['explicitFileType', 'fileEncoding']) if (Object.hasOwn(file, key)) assert.notEqual(file[key], undefined);
+  }
+  const source = project.hash.project.objects.PBXSourcesBuildPhase[target.buildPhases.find(value => value.comment === 'Sources').value];
+  const resources = project.hash.project.objects.PBXResourcesBuildPhase[target.buildPhases.find(value => value.comment === 'Resources').value];
+  assert.deepEqual(source.files.map(value => String(files[builds[value.value].fileRef].path).replaceAll('"', '')).sort(), ['SlaxShare/ShareCollector.swift', 'SlaxShare/SharePage.swift', 'SlaxShare/ShareViewController.swift', 'SlaxShare/SharedPreferences.swift']);
+  assert.deepEqual(resources.files.map(value => String(files[builds[value.value].fileRef].path).replaceAll('"', '')), ['SlaxShare/ExtensionClass.js']);
+});
+test('share target repairs an already generated undefined virtual-group path without duplicating files', () => {
+  const project = projectFixture(); helpers.configureIosTarget(project, options);
+  const group = project.pbxGroupByName('SlaxShare'); group.path = 'undefined';
+  helpers.configureIosTarget(project, options);
+  assert.equal(Object.hasOwn(group, 'path'), false); assert.equal(helpers.targetEntry(project)[1].buildPhases.length, 3);
+});
+test('an existing share target adds the Safari parser and configured Firebase resource exactly once', () => {
+  const project = projectFixture(); helpers.configureIosTarget(project, options);
+  const [uuid] = helpers.targetEntry(project);
+  const group = project.pbxGroupByName('SlaxShare');
+  const groupId = Object.entries(project.hash.project.objects.PBXGroup).find(([key, value]) => !key.endsWith('_comment') && value === group)[0];
+  project.removeSourceFile('SlaxShare/SharePage.swift', {target: uuid}, groupId);
+  assert.equal(project.hasFile('SlaxShare/SharePage.swift'), false);
+  const configured = {...options, firebaseIosConfig: 'fixture-only-public-shape.plist'};
+  helpers.configureIosTarget(project, configured);
+  assert.ok(project.hasFile('SlaxShare/SharePage.swift'));
+  assert.ok(project.hasFile('SlaxShare/GoogleService-Info.plist'));
+  const first = project.writeSync();
+  helpers.configureIosTarget(project, configured);
+  assert.equal(project.writeSync(), first);
+});
+test('standalone share files retain preprocessing and App Group without requiring the host application', () => {
+  const output = fs.mkdtempSync(path.join(os.tmpdir(), 'slax-share-fixture-'));
+  try {
+    const root = path.resolve(__dirname, '../../..'); helpers.writeIosFiles(output, root, options);
+    const info = plist.parse(fs.readFileSync(path.join(output, 'SlaxShare/Info.plist'), 'utf8'));
+    const entitlements = plist.parse(fs.readFileSync(path.join(output, 'SlaxShare/SlaxShare.entitlements'), 'utf8'));
+    assert.equal(info.NSExtension.NSExtensionPrincipalClass, '$(PRODUCT_MODULE_NAME).ShareViewController');
+    assert.equal(info.NSExtension.NSExtensionAttributes.NSExtensionJavaScriptPreprocessingFile, 'ExtensionClass');
+    assert.equal(info.NSExtension.NSExtensionAttributes.NSExtensionActivationRule.NSExtensionActivationSupportsWebPageWithMaxCount, 1);
+    assert.equal(info.SlaxApiBaseURL, 'https://api.example'); assert.deepEqual(entitlements['com.apple.security.application-groups'], ['group.app.slax.reader']);
+    assert.equal(fs.existsSync(path.join(output, 'SlaxShare/ShareCollector.swift')), true);
+  } finally {fs.rmSync(output, {recursive: true, force: true});}
+});

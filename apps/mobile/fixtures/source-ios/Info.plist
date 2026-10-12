@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>app.slax.reader.sourcefixture</string>
+<key>CFBundleExecutable</key><string>SlaxSourceFixtureApp</string>
+<key>CFBundleName</key><string>Slax Source Fixture</string>
+<key>CFBundleDisplayName</key><string>Slax Source Fixture</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleVersion</key><string>1</string><key>CFBundleShortVersionString</key><string>1.0.0</string>
+<key>MinimumOSVersion</key><string>16.4</string>
+<key>CADisableMinimumFrameDurationOnPhone</key><true/>
+<key>UILaunchScreen</key><dict/><key>UIRequiresFullScreen</key><true/>
+<key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string></array>
+<key>CFBundleURLTypes</key><array><dict><key>CFBundleURLSchemes</key><array><string>slaxreader-source-fixture</string></array></dict></array>
+</dict></plist>

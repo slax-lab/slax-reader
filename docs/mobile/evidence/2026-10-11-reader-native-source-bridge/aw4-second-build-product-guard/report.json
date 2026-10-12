@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "status": "guard-stopped-partial-native-build-not-installed",
+  "stageMarkerSha256": "dee6cc6040c6574b621a2e49a791b8bf285fc4960ccdee3318df4ac4577dc801",
+  "reason": "new-product-budget",
+  "xcodebuildDurationMs": 783575,
+  "actualStopSample": {
+    "at": 1791670148841,
+    "freeBytes": 4070088704,
+    "ownedBytes": 3060459813,
+    "sparseCompilationCache": [
+      {
+        "relativePath": "CompilationCache.noindex/generic/v1.1/v8.data",
+        "logicalBytes": 17179869184,
+        "allocatedBytes": 16384
+      },
+      {
+        "relativePath": "CompilationCache.noindex/generic/v1.1/v8.index",
+        "logicalBytes": 8589934592,
+        "allocatedBytes": 16384
+      },
+      {
+        "relativePath": "CompilationCache.noindex/generic/v1.1/v3.actions",
+        "logicalBytes": 1073741824,
+        "allocatedBytes": 16384
+      }
+    ]
+  },
+  "actualNewViewAndGateSwiftCompilationObserved": true,
+  "fullApplicationLinked": false,
+  "newAppInstalled": false,
+  "deviceCalls": false,
+  "nativeSelectionRetest": "pending",
+  "sourceInputs": [
+    {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/.slax-ui-fixture-project.json",
+      "sha256": "dee6cc6040c6574b621a2e49a791b8bf285fc4960ccdee3318df4ac4577dc801"
+    },
+    {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/modules/slax-platform/ios/SlaxReaderView.swift",
+      "sha256": "c0c727feb112265a4909ed7c7b5908d214e5ac867d2c85fb36dca6c9d7f38f66"
+    },
+    {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/modules/slax-platform/ios/SlaxReaderDocumentNavigationGate.swift",
+      "sha256": "33cf869bf0a52541d101699c88e8701bb7888b14e34a37390b52582419c973d5"
+    },
+    {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/assets/embedded/js/react-native-host.js",
+      "sha256": "3acfd2eeaead47880e51b6ed728bfec6eca327a1bfffda744c2688af05a31478"
+    },
+    {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/src/reader/embedded.generated.ts",
+      "sha256": "2ed58deebe18f70748fe6146d486c8e154e7c0ba87e38c3292d9f972d78623ef"
+    },
+    {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/src/screens/ReaderScreen.tsx",
+      "sha256": "7103eb8e074b055a7e78690bdd62e6cc4d92622a6cde89c726623a0192c02805"
+    }
+  ],
+  "locksBefore": [
+    {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/ios/Podfile.lock",
+      "sha256": "791b5607e6b6b55fc7950a91125c05baa2f5cfe408b4ea6bead228c1b98f8f34"
+    },
+    {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/ios/Pods/Manifest.lock",
+      "sha256": "791b5607e6b6b55fc7950a91125c05baa2f5cfe408b4ea6bead228c1b98f8f34"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/tmp/slax-reader-nativebridge-ios-aw4-resume/owner.json",
+      "sha256": "7bd23cef466589eaddc6be05c875a3047963afe48d62214d4e3c3d593666723c",
+      "archive": "owner.json"
+    },
+    {
+      "path": "/tmp/slax-reader-nativebridge-ios-aw4-resume/failed-report.json",
+      "sha256": "600b54faa605fa9e3f751d79ed3b3bb276e8d6a55eeaf6ca9c61c0f40774f3ef",
+      "archive": "failed-report.json"
+    },
+    {
+      "path": "/tmp/slax-reader-nativebridge-ios-aw4-resume/accounting-probe.json",
+      "sha256": "fee7754bc448f6e4400c060742dc9f8c9c7ff6d6b4b7e29b370340fa5e533409",
+      "archive": "accounting-probe.json"
+    },
+    {
+      "path": "/tmp/slax-reader-nativebridge-ios-aw4-resume/pod-result.json",
+      "sha256": "f87b4d60b213e162f127d0cdbf2e71e370616510a7242ce749a2ffaef8db2777",
+      "archive": "pod-result.json"
+    },
+    {
+      "path": "/tmp/slax-reader-nativebridge-ios-aw4-resume/xcodebuild-result.json",
+      "sha256": "d5be9ca7976bb9d5779d1c78ef274d98c8e5a526c7ebbd9affd7f2b022ef78c1",
+      "archive": "xcodebuild-result.json"
+    },
+    {
+      "path": "/tmp/slax-reader-nativebridge-ios-aw4-resume/pod.log",
+      "sha256": "695da516f238c2a094c542766e060daced599437c9d4e42a6883722b3510463d",
+      "archive": "pod.log"
+    },
+    {
+      "path": "/tmp/slax-reader-nativebridge-ios-aw4-resume.mjs",
+      "sha256": "27e9fb1b585cadf97c90b6cfe20aa7069912112f4b7a5a160b287e9dd5287a05",
+      "archive": "slax-reader-nativebridge-ios-aw4-resume.mjs"
+    },
+    {
+      "path": "/tmp/slax-reader-nativebridge-ios-aw4-resume/xcodebuild.log",
+      "sha256": "2a13a4e119add1f74cbdc487d9968fbe714f72f147806dfe5d83f62c9d72294c",
+      "bytes": 14468556,
+      "archive": "xcodebuild.log.gz",
+      "gzipSha256": "dff5d579612c0bf3d8d00df6f793c880d0f53c3b72da2a3d097d830305d2aff5",
+      "decompressionHashVerified": true
+    }
+  ],
+  "limitations": [
+    "The same frozen native View and navigation gate appear in actual Swift compile commands; this is not a successful full application build.",
+    "The approved2.8GiB guard stopped legitimate conservative product growth; no compiler error is claimed as the stop reason.",
+    "The preceding sparse-cache guard failure remains separate and unchanged."
+  ]
+}

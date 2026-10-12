@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "planSha256": "e4775846e765db1fc72177f109ebb2e93727ee7a14012a1e61ec677c10cd739f",
+  "runnerSha256": "3bd920beadd32a21a37ca04b571c42c81aabd921b5588e94e6cedf42453fe37c",
+  "runNonce": "fbdb8327-4e64-47c2-8856-acecd12b36d0",
+  "device": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+  "scopeUri": "file:///Users/daguang/Library/Developer/CoreSimulator/Devices/B85A7582-A0A7-4A0F-9BF0-8424330859F3/data/Containers/Data/Application/5E637416-B35B-4D03-9D31-093B3A22A6B9/Library/Caches/slax-ui-fixtures/reader-mixed-1791674424384-4b1c3afce40354/",
+  "alphaRun": {
+    "path": "/tmp/slax-reader-ios-alpha-aw4-3fd5f035-26ea-41c1-b312-1f8c6babf6a2/run.json",
+    "sha256": "aa022baebdd656491eae50da7eaefd865cfbf310b34ece513cc2c190bd60b4eb"
+  },
+  "command": [
+    "xcodebuild",
+    "test-without-building",
+    "-xctestrun",
+    "/tmp/slax-reader-native-control-build/Build/Products/ReaderNativeControl_iphonesimulator26.5-arm64.xctestrun",
+    "-destination",
+    "platform=iOS Simulator,id=B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+    "-parallel-testing-enabled",
+    "NO",
+    "-maximum-concurrent-test-simulator-destinations",
+    "1",
+    "-jobs",
+    "1",
+    "-only-testing:ReaderNativeControl/ReaderNativeControl/testNativeBackClearsPreparedSelection",
+    "-resultBundlePath",
+    "/tmp/slax-reader-ios-selection-back-aw4-fbdb8327-4e64-47c2-8856-acecd12b36d0/native.xcresult"
+  ],
+  "exitCode": 0,
+  "refused": null,
+  "elapsedSeconds": 17.56259975,
+  "incrementBytes": 838631,
+  "preInputSelection": {
+    "path": "/tmp/slax-reader-ios-selection-back-aw4-fbdb8327-4e64-47c2-8856-acecd12b36d0/pre-input-selection.json",
+    "sha256": "0c689e7af7c541a78e8b89ad3f1af718f71409516ce39fc9a1d1b83263a9cb6c"
+  },
+  "nativeBuildReceipt": {
+    "path": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache/report.json",
+    "sha256": "be0e72740b63b30b8e7a249ea3661e087456169050c0ac79d0b872415b0ea77d"
+  },
+  "resultBundle": "/tmp/slax-reader-ios-selection-back-aw4-fbdb8327-4e64-47c2-8856-acecd12b36d0/native.xcresult",
+  "completedXcresultMetadataPresent": true,
+  "logSha256": "055ef5ba306b513b64b772abad6525ba9de5a9675016cb84f456bcf79baa978e",
+  "freeBytes": 4713598976,
+  "samples": [
+    {
+      "elapsedSeconds": 0.024598624999999874,
+      "incrementBytes": 4753,
+      "ownedTotalBytes": 2956643546,
+      "freeBytes": 4716015616
+    },
+    {
+      "elapsedSeconds": 1.0496455,
+      "incrementBytes": 4753,
+      "ownedTotalBytes": 2956643546,
+      "freeBytes": 4716003328
+    },
+    {
+      "elapsedSeconds": 2.0761269170000003,
+      "incrementBytes": 6120,
+      "ownedTotalBytes": 2956644913,
+      "freeBytes": 4715626496
+    },
+    {
+      "elapsedSeconds": 3.1063046250000004,
+      "incrementBytes": 6265,
+      "ownedTotalBytes": 2956645058,
+      "freeBytes": 4715622400
+    },
+    {
+      "elapsedSeconds": 4.128698375000001,
+      "incrementBytes": 16148,
+      "ownedTotalBytes": 2956654941,
+      "freeBytes": 4715552768
+    },
+    {
+      "elapsedSeconds": 5.163091832999999,
+      "incrementBytes": 19755,
+      "ownedTotalBytes": 2956658548,
+      "freeBytes": 4706910208
+    },
+    {
+      "elapsedSeconds": 6.189490666999999,
+      "incrementBytes": 31758,
+      "ownedTotalBytes": 2956670551,
+      "freeBytes": 4707012608
+    },
+    {
+      "elapsedSeconds": 7.214435916999999,
+      "incrementBytes": 81686,
+      "ownedTotalBytes": 2956720479,
+      "freeBytes": 4707131392
+    },
+    {
+      "elapsedSeconds": 8.257387374999999,
+      "incrementBytes": 167505,
+      "ownedTotalBytes": 2956806298,
+      "freeBytes": 4706852864
+    },
+    {
+      "elapsedSeconds": 9.308401583,
+      "incrementBytes": 233661,
+      "ownedTotalBytes": 2956872454,
+      "freeBytes": 4706766848
+    },
+    {
+      "elapsedSeconds": 10.337026583,
+      "incrementBytes": 852916,
+      "ownedTotalBytes": 2957491709,
+      "freeBytes": 4714352640
+    },
+    {
+      "elapsedSeconds": 11.359120458,
+      "incrementBytes": 1687287,
+      "ownedTotalBytes": 2958326080,
+      "freeBytes": 4712984576
+    },
+    {
+      "elapsedSeconds": 12.406290333,
+      "incrementBytes": 1813252,
+      "ownedTotalBytes": 2958452045,
+      "freeBytes": 4712443904
+    },
+    {
+      "elapsedSeconds": 13.436976249999999,
+      "incrementBytes": 1824738,
+      "ownedTotalBytes": 2958463531,
+      "freeBytes": 4711968768
+    },
+    {
+      "elapsedSeconds": 14.467044083000001,
+      "incrementBytes": 1912062,
+      "ownedTotalBytes": 2958550855,
+      "freeBytes": 4711854080
+    },
+    {
+      "elapsedSeconds": 15.517185125000001,
+      "incrementBytes": 2018064,
+      "ownedTotalBytes": 2958656857,
+      "freeBytes": 4712198144
+    },
+    {
+      "elapsedSeconds": 16.550387583,
+      "incrementBytes": 3641304,
+      "ownedTotalBytes": 2960280097,
+      "freeBytes": 4710932480
+    }
+  ],
+  "testWithoutBuilding": true,
+  "newReaderOrDomRangePrepared": false,
+  "syntheticSelectionPublished": false,
+  "noMainOrGroupAccess": true,
+  "nativeAssertionVerdict": "requires completed raw test result review"
+}

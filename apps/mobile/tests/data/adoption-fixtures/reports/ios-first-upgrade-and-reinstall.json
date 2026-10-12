@@ -1,0 +1,322 @@
+{
+  "kind": "slax-native-first-upgrade-and-reinstallation",
+  "version": 1,
+  "recordedAt": "2026-10-10T16:33:03.999Z",
+  "status": "passed",
+  "platform": "ios-simulator",
+  "device": "2B9DDD06-0C55-4D1A-B03E-35006A7D1849",
+  "runtime": "iOS 26.5 arm64",
+  "fixtureOwner": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-native-first-ios-OU40x3/fixture-owner.json",
+  "previousControlledSimulatorDataPreserved": true,
+  "oldProducer": {
+    "sdk": "powersync-kotlin-1.14.1",
+    "coreVersion": "0.5.1/d6c157e7",
+    "binarySHA256": "fd557f4b20448c17e7bff875ce45795ed92c3788d6274929e5e57969a32c84f4",
+    "markerSHA256": "52b80b8947172697c8042694f91f4a151adadd2130e2311ee9fd950bee163410",
+    "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/2B9DDD06-0C55-4D1A-B03E-35006A7D1849/data/Containers/Data/Application/933B1FFF-333B-4F74-A86E-C1012DA6AEA8/Library/Application Support/databases/powersync.db",
+    "pendingOperations": 4,
+    "pendingTransactions": 2,
+    "closedBeforeMarker": true
+  },
+  "newApplication": {
+    "bundleIdentifier": "app.slax.reader",
+    "version": "1.0.25",
+    "buildNumber": "757",
+    "artifact": "/tmp/slax-mobile-native-artifacts/SlaxReader-ios-debug-identity-757-group-only.app",
+    "executableSHA256": "afca590846175cce828b550f5c92b17096b706c214de67ea1d6d1a380eebd97f",
+    "signature": "Public ad hoc simulator App Group entitlement only",
+    "deepStrictSignatureVerified": true,
+    "publisherSigned": false,
+    "releaseArchive": false
+  },
+  "firstUpgrade": {
+    "withoutUninstallOrDataClear": true,
+    "initialInstallPreservedContainer": true,
+    "openingBeforeSdkConstruction": true,
+    "openingState": {
+      "kind": "slax-native-adoption-fault-state",
+      "version": 1,
+      "runId": "ios-first-20261011",
+      "phase": "hold-before-first-sdk-open",
+      "requestedAt": 1791649402872,
+      "writtenAt": 1791649670246,
+      "readyForExternalKill": true,
+      "baseline": {
+        "pendingOperations": 4,
+        "queueDigest": "d6da8bcc4fd59fa587e60e491cedbd5a651577b96b79eb28a0ded03a18158f75",
+        "integrityValid": true,
+        "userVersion": 1,
+        "pendingTransactions": 2,
+        "storageTables": [
+          "ps_data__sr_bookmark_comment",
+          "ps_data__sr_collection_bookmark",
+          "ps_data__sr_platform_bind",
+          "ps_data__sr_sharer_setting",
+          "ps_data__sr_user",
+          "ps_data__sr_user_bookmark",
+          "ps_data__sr_user_bookmark_stats",
+          "ps_data__sr_user_collection",
+          "ps_data__sr_user_collection_subscriber",
+          "ps_data__sr_user_notification",
+          "ps_data__sr_user_subscription",
+          "ps_data__sr_user_tag",
+          "ps_data_local__local_bookmark_info"
+        ],
+        "formatVersion": 14,
+        "localDigest": "d021bc0c950ac956ae3d84c257c9715374b9d8b57c9ee75c230b07b18ba3534a",
+        "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/2B9DDD06-0C55-4D1A-B03E-35006A7D1849/data/Containers/Data/Application/40DD0F99-EA5D-4B5D-BB5A-7F3A73C41873/Library/Application Support/databases/powersync.db",
+        "dataDigest": "86860d8dbfd69f910a128209c9659bde1bacd9470f7479caa98d1d87ab34c308"
+      },
+      "sdkOpened": false
+    },
+    "ownerProbeWhileHeld": {
+      "acquired": false,
+      "errno": 35
+    },
+    "signal": {
+      "kind": "slax-native-fault-kill",
+      "platform": "ios",
+      "device": "2B9DDD06-0C55-4D1A-B03E-35006A7D1849",
+      "pid": 27031,
+      "signal": "SIGKILL"
+    },
+    "ownerProbeAfterKill": {
+      "kind": "slax-native-owner-probe",
+      "platform": "ios-simulator",
+      "acquired": true,
+      "errno": 0
+    },
+    "resumePid": 28600,
+    "nativeReport": {
+      "status": "passed",
+      "platform": "ios",
+      "sdk": "powersync-react-native-2.3.1",
+      "sdkVersion": "0.5.3/2ba6b280",
+      "coreVersion": "0.5.3/2ba6b280",
+      "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/2B9DDD06-0C55-4D1A-B03E-35006A7D1849/data/Containers/Data/Application/40DD0F99-EA5D-4B5D-BB5A-7F3A73C41873/Library/Application Support/databases/powersync.db",
+      "originalDatabasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/2B9DDD06-0C55-4D1A-B03E-35006A7D1849/data/Containers/Data/Application/933B1FFF-333B-4F74-A86E-C1012DA6AEA8/Library/Application Support/databases/powersync.db",
+      "containerRelocated": true,
+      "nativeDriver": "OP-SQLite",
+      "sameIdentityReplacement": true,
+      "pendingQueue": true,
+      "transactionBoundaries": true,
+      "offlineRows": true,
+      "hiddenLocalJson": true,
+      "originalCache": true,
+      "originalAndroidXPreferences": true,
+      "originalPreferencesUntouched": true,
+      "interruptionAfterOfflineWrite": true,
+      "retryRetainsQueue": true,
+      "uploadOrder": true,
+      "firstUpgradeInterruption": true,
+      "logicalIdentityReturned": true,
+      "serviceReconnect": false,
+      "releaseSignedUpgrade": false,
+      "ios": true
+    },
+    "nativeReportSHA256": "73b9b8f37cc2dae6c7678c4a95dedbc5c0b5cc735618a0ed69313ee1d9867093",
+    "originalFourOperationsPreserved": true,
+    "newClientIds": [
+      5,
+      6
+    ],
+    "retry": "Simulated 503",
+    "completion": "Ordered public SDK completion through fixture callback; no real service request"
+  },
+  "repeatedInstallation": {
+    "sameApplicationArtifact": true,
+    "withoutUninstallOrDataClear": true,
+    "committedState": {
+      "kind": "slax-native-adoption-fault-state",
+      "version": 1,
+      "runId": "ios-first-20261011",
+      "phase": "hold-after-offline-commit",
+      "requestedAt": 1791649788212,
+      "writtenAt": 1791649792445,
+      "readyForExternalKill": true,
+      "baseline": {
+        "dataDigest": "3035969308202624de45df84324c72b7261893de940071157ce95661dcafc7a2",
+        "formatVersion": 14,
+        "pendingTransactions": 1,
+        "pendingOperations": 2,
+        "queueDigest": "aa00a001e3e82003da9fe3cff6bf301001b63663c7d1e09c9cc2a35b08a4aeb9",
+        "localDigest": "c52e4d5e4fc35c24ea0f2d4d29916171903b798c668f1b1847acd02b893d2e36",
+        "userVersion": 1,
+        "storageTables": [
+          "ps_data__sr_bookmark_comment",
+          "ps_data__sr_collection_bookmark",
+          "ps_data__sr_platform_bind",
+          "ps_data__sr_sharer_setting",
+          "ps_data__sr_user",
+          "ps_data__sr_user_bookmark",
+          "ps_data__sr_user_bookmark_stats",
+          "ps_data__sr_user_collection",
+          "ps_data__sr_user_collection_subscriber",
+          "ps_data__sr_user_notification",
+          "ps_data__sr_user_subscription",
+          "ps_data__sr_user_tag",
+          "ps_data_local__local_bookmark_info"
+        ],
+        "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/2B9DDD06-0C55-4D1A-B03E-35006A7D1849/data/Containers/Data/Application/40DD0F99-EA5D-4B5D-BB5A-7F3A73C41873/Library/Application Support/databases/powersync.db",
+        "integrityValid": true
+      },
+      "ownerIdentity": {
+        "relativePath": "Library/Application Support/databases/powersync.db",
+        "relocationPrefix": "/Users/daguang/Library/Developer/CoreSimulator/Devices/2B9DDD06-0C55-4D1A-B03E-35006A7D1849/data/Containers/Data/Application/",
+        "owner": "ios:app.slax.reader:/Users/daguang/Library/Developer/CoreSimulator/Devices/2B9DDD06-0C55-4D1A-B03E-35006A7D1849/data/Containers/Shared/AppGroup/ED0F51E0-ABAA-41DF-8AC2-532E0476F1AE"
+      },
+      "pending": [
+        {
+          "transactionId": 4,
+          "crud": [
+            {
+              "clientId": 7,
+              "id": "bookmark-1",
+              "op": "PATCH",
+              "table": "sr_user_bookmark",
+              "opData": {
+                "alias_title": "Controlled committed offline process-kill edit"
+              },
+              "previousValues": {
+                "alias_title": "After upgrade, still offline"
+              }
+            },
+            {
+              "clientId": 8,
+              "id": "tag-native-fault-1",
+              "op": "PUT",
+              "table": "sr_user_tag",
+              "opData": {
+                "display": "Native fault",
+                "tag_name": "native-fault",
+                "user_id": "synthetic-user"
+              },
+              "previousValues": null
+            }
+          ]
+        }
+      ],
+      "alias": "Controlled committed offline process-kill edit",
+      "localJson": "{\"overview\":\"Offline summary\",\"is_downloaded\":1,\"read_position\":\"348.25\",\"outline_read_position\":\"12\",\"is_auto_cached\":0,\"future_field\":{\"preserve\":true},\"native_fault_future\":{\"retained\":true,\"run\":\"ios-first-20261011\"}}"
+    },
+    "signal": {
+      "kind": "slax-native-fault-kill",
+      "platform": "ios",
+      "device": "2B9DDD06-0C55-4D1A-B03E-35006A7D1849",
+      "pid": 29406,
+      "signal": "SIGKILL"
+    },
+    "containerBefore": "/Users/daguang/Library/Developer/CoreSimulator/Devices/2B9DDD06-0C55-4D1A-B03E-35006A7D1849/data/Containers/Data/Application/40DD0F99-EA5D-4B5D-BB5A-7F3A73C41873/Library/Application Support/databases/powersync.db",
+    "containerAfter": "/Users/daguang/Library/Developer/CoreSimulator/Devices/2B9DDD06-0C55-4D1A-B03E-35006A7D1849/data/Containers/Data/Application/7ABD8201-2D3D-439B-A351-76F7468E5805/Library/Application Support/databases/powersync.db",
+    "actualUuidContainerChanged": true,
+    "ownerIdentity": {
+      "relativePath": "Library/Application Support/databases/powersync.db",
+      "relocationPrefix": "/Users/daguang/Library/Developer/CoreSimulator/Devices/2B9DDD06-0C55-4D1A-B03E-35006A7D1849/data/Containers/Data/Application/",
+      "owner": "ios:app.slax.reader:/Users/daguang/Library/Developer/CoreSimulator/Devices/2B9DDD06-0C55-4D1A-B03E-35006A7D1849/data/Containers/Shared/AppGroup/ED0F51E0-ABAA-41DF-8AC2-532E0476F1AE"
+    },
+    "resumePid": 29733,
+    "acceptedReopenPid": 30018,
+    "nativeEvents": [
+      {
+        "phase": "resume-after-offline-commit",
+        "status": "passed",
+        "platform": "ios",
+        "runId": "ios-first-20261011",
+        "coreVersion": "0.5.3/2ba6b280",
+        "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/2B9DDD06-0C55-4D1A-B03E-35006A7D1849/data/Containers/Data/Application/7ABD8201-2D3D-439B-A351-76F7468E5805/Library/Application Support/databases/powersync.db",
+        "pendingOperations": 0,
+        "completedOperations": 2,
+        "logicalIdentityReturned": true,
+        "containerRelocated": true,
+        "serviceReconnect": false,
+        "productionAdoptionEnabled": false
+      },
+      {
+        "phase": "repeat-accepted",
+        "status": "passed",
+        "platform": "ios",
+        "runId": "ios-first-20261011",
+        "coreVersion": "0.5.3/2ba6b280",
+        "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/2B9DDD06-0C55-4D1A-B03E-35006A7D1849/data/Containers/Data/Application/7ABD8201-2D3D-439B-A351-76F7468E5805/Library/Application Support/databases/powersync.db",
+        "pendingOperations": 0,
+        "completedOperations": 0,
+        "logicalIdentityReturned": true,
+        "containerRelocated": true,
+        "serviceReconnect": false,
+        "productionAdoptionEnabled": false
+      }
+    ],
+    "nativeReportSHA256": "19e3c6530d94c3c8370ef27dcff9d8ef0140ea7ef41a9fdaed4ae040917b0c16",
+    "finalSnapshot": {
+      "queueDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storageTables": [
+        "ps_data__sr_bookmark_comment",
+        "ps_data__sr_collection_bookmark",
+        "ps_data__sr_platform_bind",
+        "ps_data__sr_sharer_setting",
+        "ps_data__sr_user",
+        "ps_data__sr_user_bookmark",
+        "ps_data__sr_user_bookmark_stats",
+        "ps_data__sr_user_collection",
+        "ps_data__sr_user_collection_subscriber",
+        "ps_data__sr_user_notification",
+        "ps_data__sr_user_subscription",
+        "ps_data__sr_user_tag",
+        "ps_data_local__local_bookmark_info"
+      ],
+      "formatVersion": 14,
+      "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/2B9DDD06-0C55-4D1A-B03E-35006A7D1849/data/Containers/Data/Application/7ABD8201-2D3D-439B-A351-76F7468E5805/Library/Application Support/databases/powersync.db",
+      "userVersion": 1,
+      "pendingOperations": 0,
+      "integrityValid": true,
+      "localDigest": "c52e4d5e4fc35c24ea0f2d4d29916171903b798c668f1b1847acd02b893d2e36",
+      "dataDigest": "3035969308202624de45df84324c72b7261893de940071157ce95661dcafc7a2",
+      "pendingTransactions": 0
+    },
+    "firstUpgradeReportByteIdentical": true,
+    "queuedClientIds": [
+      7,
+      8
+    ],
+    "transactionId": 4,
+    "completeLocalJsonPreserved": true,
+    "exactRawSnapshotPreservedOnResume": true,
+    "completedOperations": 2,
+    "retry": "Simulated 503",
+    "completion": "Ordered public SDK completion through fixture callback; no real service request"
+  },
+  "sourceInputs": {
+    "apps/mobile/modules/slax-legacy/ios/DatabaseIdentity.swift": "f8f020698a160425d5be842d276f23b0294291a8ab96e07c4db185289aba806a",
+    "apps/mobile/modules/slax-legacy/ios/DatabaseInspection.swift": "8dcd9b4ff0d188cb70a1c4f347848a61fc98b5b94b1463723a717db82b10ff02",
+    "apps/mobile/modules/slax-legacy/ios/SlaxLegacyModule.swift": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3",
+    "apps/mobile/src/data/adoption.ts": "f1d50fdfcba53d760ed8fc52736a0e3d5789278596fc97baeba30d830596656c",
+    "apps/mobile/src/data/upgrade.ts": "400e9ee274e497b2f77820452add0e5668270a0bd6e51b8a6ebf21c605ee3632",
+    "apps/mobile/tests/data/NativeAdoptionFixtureApp.tsx": "9796de762d437ba3dd3a93adcc1fee1844b48016cf1115ad96d7088e2051a913",
+    "apps/mobile/tests/data/NativeAdoptionFaultFixture.ts": "10dc7dbff6d40335756b6a90efb79d85e34a232f5116d752c1a6aab36f863250",
+    "apps/mobile/tests/data/native-fixture-paths.ts": "e334ea31f5745f75828c99c3393b87140ff1a1e1301049687335285c30e5a6b9",
+    "apps/mobile/tests/data/adoption-fixtures/tooling/native-fault-control.mjs": "a2e7e03ad29fd3beb0ae49cbf61d8908a7f49809a79012986b42e614bb846b34",
+    "apps/mobile/tests/data/adoption-fixtures/native/OwnerProbe.swift": "e7632ce30aa1065f339baecac2d1e40ed6479470074188e491dee8bd11659d4f"
+  },
+  "scope": {
+    "nativeLogicalIdentityBridge": true,
+    "genuineOriginalQueueFirstInterruption": true,
+    "actualSecondInstallation": true,
+    "sameDeviceOwnerAndSlotRebased": true,
+    "independentNativeOwnerContention": true,
+    "nativeOpSqlite": true,
+    "realServiceReconnect": false,
+    "originalLegacyQueueUploadedToRealService": false,
+    "publisherSignedUpgrade": false,
+    "backgroundSuspension": false,
+    "shareExtensionColdLaunch": false,
+    "crossProcessPreferenceCas": false,
+    "productionAdoptionEnabled": false,
+    "testFlightUploaded": false
+  },
+  "limitations": [
+    "This uses publicly ad hoc signed simulator applications, not publisher signing or a device archive.",
+    "Original and subsequent operations complete through deterministic fixture upload callbacks. Actual service receipts and replication are a separate pending scenario.",
+    "Historical Android/iOS adoption reports and their completed sandboxes were not overwritten or reset.",
+    "The production migration profile remains disabled."
+  ]
+}

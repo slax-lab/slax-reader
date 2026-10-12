@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "device": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+  "scopeUri": "file:///Users/daguang/Library/Developer/CoreSimulator/Devices/B85A7582-A0A7-4A0F-9BF0-8424330859F3/data/Containers/Data/Application/6F59F529-43F2-4CBE-A33D-EB6CFF9E2019/Library/Caches/slax-ui-fixtures/reader-mixed-1791666903606-855b1e83fc1568/",
+  "inputSha256": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f",
+  "stageMarkerSha256": "ca0badee057adbb23f3001a930c08c16f2c15a7dcdadbbf564a3daf37e6cbe13",
+  "command": [
+    "xcodebuild",
+    "test-without-building",
+    "-xctestrun",
+    "/tmp/slax-reader-native-control-build/Build/Products/ReaderNativeControl_iphonesimulator26.5-arm64.xctestrun",
+    "-destination",
+    "platform=iOS Simulator,id=B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+    "-parallel-testing-enabled",
+    "NO",
+    "-maximum-concurrent-test-simulator-destinations",
+    "1",
+    "-jobs",
+    "1",
+    "-only-testing:ReaderNativeControl/ReaderNativeControl/testNativeLongPressOriginalBodyWord",
+    "-resultBundlePath",
+    "/tmp/slax-reader-ios-alpha-native-e9dd32c3.xcresult"
+  ],
+  "exitCode": -15,
+  "refused": "minimum-free-disk",
+  "elapsedSeconds": 47.137119166,
+  "incrementBytes": 146171360,
+  "freeBytes": 718434304,
+  "resultBundle": "/tmp/slax-reader-ios-alpha-native-e9dd32c3.xcresult",
+  "logSha256": "471c6670f5a46700a065ff80e2e71a16c234a2f7a1d413d894c8a5d99b82f726",
+  "domRangePrepared": false,
+  "syntheticSelectionPublished": false
+}

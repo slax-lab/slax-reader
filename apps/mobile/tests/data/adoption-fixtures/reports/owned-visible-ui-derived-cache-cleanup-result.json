@@ -1,0 +1,22 @@
+{
+  "kind": "owned-visible-ui-derived-cache-cleanup-result",
+  "recordedAt": "2026-10-10T21:16:39.715396+00:00",
+  "planSHA256": "b04f0bf3a826c3ee95896fe1edb2f343018236c069e73c580d08e58d6c284ba2",
+  "project": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-upgrade-ui-LEePuR",
+  "removedDirectories": [
+    "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-upgrade-ui-LEePuR/DerivedData/ModuleCache.noindex",
+    "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-upgrade-ui-LEePuR/DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build",
+    "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-upgrade-ui-LEePuR/DerivedData/Build/Intermediates.noindex/ExplicitPrecompiledModules",
+    "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-upgrade-ui-LEePuR/DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules"
+  ],
+  "removedFiles": 456,
+  "removedFileBytes": 120929096,
+  "protectedFiles": 4338,
+  "protectedHashesUnchanged": true,
+  "freeBytesBefore": 795971584,
+  "freeBytesAfter": 919707648,
+  "actualFreeByteChange": 123736064,
+  "productsSourcesLogsXcresultsDatabasesDeviceSandboxesPreserved": true,
+  "sharedOrOperatorCachesTouched": false,
+  "initialIncorrectAbbreviatedPlanHashGuardStoppedBeforeMutation": true
+}

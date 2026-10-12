@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "status": "build-interrupted-owned-product-budget-not-installed",
+  "reason": "new-product-budget",
+  "buildSucceeded": false,
+  "resourceResult": {
+    "command": "xcodebuild",
+    "args": [
+      "-workspace",
+      "SlaxReader.xcworkspace",
+      "-scheme",
+      "SlaxReader",
+      "-configuration",
+      "Debug",
+      "-sdk",
+      "iphonesimulator",
+      "-destination",
+      "generic/platform=iOS Simulator",
+      "ARCHS=arm64",
+      "ONLY_ACTIVE_ARCH=YES",
+      "CODE_SIGNING_ALLOWED=NO",
+      "-jobs",
+      "1",
+      "-derivedDataPath",
+      "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata",
+      "CLANG_MODULE_CACHE_PATH=/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/ModuleCache.noindex",
+      "build"
+    ],
+    "exitCode": null,
+    "stopped": "new-product-budget",
+    "durationMs": 741622,
+    "lastSample": {
+      "at": 1791671166955,
+      "freeBytes": 3263291392,
+      "ownedBytes": 3859300943,
+      "sparseCompilationCache": [
+        {
+          "relativePath": "CompilationCache.noindex/generic/v1.1/v8.data",
+          "logicalBytes": 17179869184,
+          "allocatedBytes": 16384
+        },
+        {
+          "relativePath": "CompilationCache.noindex/generic/v1.1/v8.index",
+          "logicalBytes": 8589934592,
+          "allocatedBytes": 16384
+        },
+        {
+          "relativePath": "CompilationCache.noindex/generic/v1.1/v3.actions",
+          "logicalBytes": 1073741824,
+          "allocatedBytes": 16384
+        }
+      ]
+    }
+  },
+  "runner": {
+    "path": "/tmp/slax-reader-nativebridge-ios-aw4-continue-product.mjs",
+    "sha256": "20fd9b94e8e8863fc8d836fcf0bb943ffc0118f3ec9f9b6870cecef5c964d587"
+  },
+  "actualLinkedProductsRetainedAsPartial": true,
+  "completeAppOrNativeRuntimeClaim": false,
+  "noDeviceCalls": true,
+  "rawLog": {
+    "path": "/tmp/slax-reader-nativebridge-ios-aw4-continue-product/xcodebuild.log",
+    "sha256": "2b520c2f2a2e96d4e6fd969d4577ae9d365d9fd33be8211c2ecb4bfa3d29feda",
+    "bytes": 16422079,
+    "compressedPath": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-third-build-product-guard/xcodebuild.log.gz",
+    "compressedSha256": "8e7a31e406bcb1ce05cefa275181f42afc18482c2945e2984b38267182e0d72a",
+    "decompressedBytesVerified": true
+  },
+  "planSha256": "d15e766004d482b283603e4560558b22587b3414f75db000b9ac7b680d65bfbb",
+  "freeBytes": 3246993408,
+  "noRemovalPerformed": true
+}

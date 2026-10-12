@@ -1,0 +1,16 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+group = 'com.slax.reader.platform'
+version = '1.0.0'
+android {
+  namespace 'com.slax.reader.platform'
+  defaultConfig { minSdkVersion 26; versionCode 1; versionName '1.0.0' }
+}
+dependencies {
+  // Reuse the exact Credential Manager libraries already shipped by the approved Google adapter.
+  implementation 'androidx.credentials:credentials:1.6.0'
+  implementation 'androidx.credentials:credentials-play-services-auth:1.6.0'
+  implementation 'com.google.android.libraries.identity.googleid:googleid:1.2.0'
+}

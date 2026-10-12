@@ -1,0 +1,43 @@
+{
+  "kind": "isolated-target-android-build",
+  "schemaVersion": 1,
+  "result": "passed-build-only",
+  "durationSeconds": 81,
+  "fixtureInputSha256": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f",
+  "driver": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-driver-av.json",
+    "sha256": "d8ba5ece171e796c3980c35f419ae72c836a1296ca09683a3ea5894aeae78ee9"
+  },
+  "generatedNativeInput": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-native-input-av.json",
+    "sha256": "a8c6701e1b5ec635bbe270c4468c2f875f190f8d6e0aeb191f345ccdbb2ed758"
+  },
+  "apk": {
+    "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/android/app/build/outputs/apk/debug/app-debug.apk",
+    "sha256": "28d633fc3df8e1e9de05a833efee4a8fd08bd862fc19196819da0c806b870694",
+    "bytes": 99338502,
+    "preservedOutsideGeneratedDirectory": false
+  },
+  "buildLog": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-build-av.log",
+    "sha256": "8a10f55eabc701ba14d46a11a65c0276def8d8ba5dd44b1f3ee60d99d679f9ca"
+  },
+  "workers": 1,
+  "architectures": [
+    "arm64-v8a"
+  ],
+  "maxHeapMiB": 1024,
+  "originalNativeSourceModified": false,
+  "nativeProductionDataAccessed": false,
+  "nativeOutputComparison": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-native-output-av.json",
+    "sha256": "65d0d7f418164c4854dbb20b034a3076fff871c13e890fb11a70f1e9e5eb0668"
+  },
+  "resourceEstimateStatus": "observed-filesystem-free-space-drop-exceeded-estimate",
+  "freeBytesBeforeBuild": 1924415488,
+  "freeBytesAfterBuild": 841089024,
+  "estimatedAdditionalBytes": 262144000,
+  "resourceLimitation": "CMake tasks executed; all 31 native .so outputs are byte-identical to ai. The filesystem free-space reduction is measured across the machine and is not attributed entirely to this build. Further copies/installs/builds were stopped pending a resource window.",
+  "nativeParagraphRuntimeAcceptance": "pending",
+  "nativeParity": "unverified"
+}

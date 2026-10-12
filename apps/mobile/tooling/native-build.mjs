@@ -1,0 +1,42 @@
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import {readFileSync} from 'node:fs';
+
+const platform = process.argv[2];
+const release = process.argv.includes('--release');
+const unsigned = process.argv.includes('--unsigned');
+const app = fileURLToPath(new URL('../', import.meta.url));
+if (release) {
+  if (process.env.EXPO_PUBLIC_SLAX_ADOPTION_FIXTURE === '1' || process.env.EXPO_PUBLIC_SLAX_UI_FIXTURE) throw new Error('Controlled fixtures require a development build and cannot produce release artifacts.');
+  const version = process.env.SLAX_MOBILE_VERSION;
+  const number = process.env.SLAX_MOBILE_BUILD_NUMBER;
+  const previous = process.env.SLAX_MOBILE_PREVIOUS_BUILD_NUMBER;
+  if (!version || !/^\d+\.\d+\.\d+$/.test(version) || !number || !/^[1-9]\d*$/.test(number) || !previous || !/^\d+$/.test(previous) || Number(number) <= Number(previous)) {
+    throw new Error('Release builds require a three-part SLAX_MOBILE_VERSION, positive SLAX_MOBILE_BUILD_NUMBER, and lower SLAX_MOBILE_PREVIOUS_BUILD_NUMBER from the last published build or its operator-confirmed upper bound.');
+  }
+  const native = platform === 'android' ? readFileSync(`${app}/android/app/build.gradle`, 'utf8') : readFileSync(`${app}/ios/SlaxReader/Info.plist`, 'utf8');
+  const matches = platform === 'android' ? native.includes(`versionCode ${number}`) && native.includes(`versionName "${version}"`) : native.includes(`<string>${number}</string>`) && native.includes(`<string>${version}</string>`);
+  if (!matches) throw new Error('Regenerate the native project with pnpm mobile -- prebuild using the same release version inputs before building.');
+  if (platform === 'android' && !unsigned && !['SLAX_ANDROID_KEYSTORE_PATH', 'SLAX_ANDROID_KEYSTORE_PASSWORD', 'SLAX_ANDROID_KEY_ALIAS', 'SLAX_ANDROID_KEY_PASSWORD'].every(key => Boolean(process.env[key]))) {
+    throw new Error('Android signed release requires all four operator-managed SLAX_ANDROID signing inputs; --unsigned builds only a verification artifact.');
+  }
+  if (platform === 'ios' && !unsigned) throw new Error('This command builds an unsigned simulator artifact. Use --unsigned explicitly for Release validation; device signing and archive export belong to the operator-managed Xcode release workflow.');
+}
+const forwarded = process.argv.slice(3).filter(arg => !['--release', '--unsigned'].includes(arg));
+let command, args, cwd;
+if (platform === 'android') {
+  command = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+  const native = readFileSync(`${app}/android/app/build.gradle`, 'utf8');
+  if (release && (!native.includes('// Slax release signing: operator-managed environment only.') || /release \{[^}]*signingConfig = signingConfigs.debug/.test(native))) throw new Error('Regenerate native projects: release builds cannot use the template debug signing identity.');
+  args = [release ? 'assembleRelease' : 'assembleDebug', ...forwarded];
+  cwd = `${app}/android`;
+} else if (platform === 'ios') {
+  command = 'xcodebuild';
+  args = ['-workspace', 'SlaxReader.xcworkspace', '-scheme', 'SlaxReader', '-configuration', release ? 'Release' : 'Debug', '-sdk', 'iphonesimulator', '-destination', 'generic/platform=iOS Simulator', 'CODE_SIGNING_ALLOWED=NO', ...forwarded];
+  cwd = `${app}/ios`;
+} else if (platform === 'pods') {
+  command = 'pod'; args = ['install', ...forwarded]; cwd = `${app}/ios`;
+} else throw new Error('Use build:android, build:ios, or pods.');
+const result = spawnSync(command, args, { cwd, stdio: 'inherit', env: unsigned ? {...process.env, SLAX_MOBILE_UNSIGNED: '1'} : process.env });
+if (result.error) console.error(result.error.message);
+process.exitCode = result.status ?? 1;

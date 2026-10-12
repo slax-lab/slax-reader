@@ -1,0 +1,786 @@
+{
+  "kind": "slax-controlled-visible-upgrade-reader-observations",
+  "version": 1,
+  "platform": "ios",
+  "device": "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+  "runId": "controlled-ios-visible-upgrade-v2-20261011",
+  "nonce": "5460a82a-34f9-4938-b361-b79b50b44819",
+  "requestedAt": 1791662334275,
+  "visibleInputsSHA256": "bd660fd48fbdecd7c9eb599ce701281fdf6c6ff78d716cab945cdcfc0d59d110",
+  "actualNativeResourceOwner": "109ed4b4-19a7-44a5-bdab-7f43f45adedb",
+  "observationsOnly": true,
+  "events": [
+    {
+      "type": "lifecycle",
+      "event": {
+        "pageId": "reader-1",
+        "nativeTag": null,
+        "ready": false,
+        "restoreConsumed": false,
+        "positionPixels": null,
+        "kind": "mount"
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+      "observedAt": 1791662477232
+    },
+    {
+      "type": "ready",
+      "event": {
+        "requestedPixels": 348.25,
+        "consumed": false,
+        "observed": null,
+        "geometry": {
+          "pixelRatio": 3,
+          "topInsetPoints": 0,
+          "headerHeightPoints": 0,
+          "containerScreenTopPoints": 0,
+          "webViewScreenTopPoints": 0,
+          "viewportHeightPoints": 0
+        },
+        "bridge": {
+          "pageId": "reader-1",
+          "ready": false,
+          "documentLoaded": false,
+          "documentHeightPoints": 1,
+          "nativeTag": null,
+          "loadStarts": 0,
+          "loadEnds": 0,
+          "messages": 0,
+          "rejectedMessages": 0
+        },
+        "scrollTrace": []
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+      "observedAt": 1791662477238
+    },
+    {
+      "type": "ready",
+      "event": {
+        "requestedPixels": 348.25,
+        "consumed": false,
+        "observed": null,
+        "geometry": {
+          "pixelRatio": 3,
+          "topInsetPoints": 298,
+          "headerHeightPoints": 236,
+          "containerScreenTopPoints": 0,
+          "webViewScreenTopPoints": 0,
+          "viewportHeightPoints": 874
+        },
+        "bridge": {
+          "pageId": "reader-1",
+          "ready": false,
+          "documentLoaded": false,
+          "documentHeightPoints": 1,
+          "nativeTag": 446,
+          "loadStarts": 1,
+          "loadEnds": 0,
+          "messages": 0,
+          "rejectedMessages": 0
+        },
+        "scrollTrace": []
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+      "observedAt": 1791662479777
+    },
+    {
+      "type": "native-scroll",
+      "event": {
+        "requestedPixels": 348.25,
+        "consumed": false,
+        "observed": {
+          "scrollPoints": -298,
+          "contentHeightPoints": 0,
+          "viewportHeightPoints": 874,
+          "positionPixels": 0
+        },
+        "geometry": {
+          "pixelRatio": 3,
+          "topInsetPoints": 298,
+          "headerHeightPoints": 236,
+          "containerScreenTopPoints": 0,
+          "webViewScreenTopPoints": 0,
+          "viewportHeightPoints": 874
+        },
+        "bridge": {
+          "pageId": "reader-1",
+          "ready": false,
+          "documentLoaded": false,
+          "documentHeightPoints": 1,
+          "nativeTag": 446,
+          "loadStarts": 1,
+          "loadEnds": 0,
+          "messages": 0,
+          "rejectedMessages": 0
+        },
+        "scrollTrace": [
+          {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "insetPoints": 298,
+            "restoreConsumed": false
+          }
+        ]
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+      "observedAt": 1791662479789
+    },
+    {
+      "type": "ready",
+      "event": {
+        "requestedPixels": 348.25,
+        "consumed": false,
+        "observed": {
+          "scrollPoints": -298,
+          "contentHeightPoints": 0,
+          "viewportHeightPoints": 874,
+          "positionPixels": 0
+        },
+        "geometry": {
+          "pixelRatio": 3,
+          "topInsetPoints": 298,
+          "headerHeightPoints": 236,
+          "containerScreenTopPoints": 0,
+          "webViewScreenTopPoints": 0,
+          "viewportHeightPoints": 874
+        },
+        "bridge": {
+          "pageId": "reader-1",
+          "ready": true,
+          "documentLoaded": false,
+          "documentHeightPoints": 1,
+          "nativeTag": 446,
+          "loadStarts": 1,
+          "loadEnds": 0,
+          "messages": 2,
+          "rejectedMessages": 0
+        },
+        "scrollTrace": [
+          {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "insetPoints": 298,
+            "restoreConsumed": false
+          }
+        ]
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+      "observedAt": 1791662479847
+    },
+    {
+      "type": "ready",
+      "event": {
+        "requestedPixels": 348.25,
+        "consumed": false,
+        "observed": {
+          "scrollPoints": -298,
+          "contentHeightPoints": 0,
+          "viewportHeightPoints": 874,
+          "positionPixels": 0
+        },
+        "geometry": {
+          "pixelRatio": 3,
+          "topInsetPoints": 298,
+          "headerHeightPoints": 236,
+          "containerScreenTopPoints": 0,
+          "webViewScreenTopPoints": 0,
+          "viewportHeightPoints": 874
+        },
+        "bridge": {
+          "pageId": "reader-1",
+          "ready": true,
+          "documentLoaded": true,
+          "documentHeightPoints": 1,
+          "nativeTag": 446,
+          "loadStarts": 1,
+          "loadEnds": 1,
+          "messages": 2,
+          "rejectedMessages": 0
+        },
+        "scrollTrace": [
+          {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "insetPoints": 298,
+            "restoreConsumed": false
+          }
+        ]
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+      "observedAt": 1791662479871
+    },
+    {
+      "type": "ready",
+      "event": {
+        "requestedPixels": 348.25,
+        "consumed": false,
+        "observed": {
+          "scrollPoints": -298,
+          "contentHeightPoints": 0,
+          "viewportHeightPoints": 874,
+          "positionPixels": 0
+        },
+        "geometry": {
+          "pixelRatio": 3,
+          "topInsetPoints": 298,
+          "headerHeightPoints": 236,
+          "containerScreenTopPoints": 0,
+          "webViewScreenTopPoints": 0,
+          "viewportHeightPoints": 874
+        },
+        "bridge": {
+          "pageId": "reader-1",
+          "ready": true,
+          "documentLoaded": true,
+          "documentHeightPoints": 3766,
+          "nativeTag": 446,
+          "loadStarts": 1,
+          "loadEnds": 1,
+          "messages": 6,
+          "rejectedMessages": 0
+        },
+        "scrollTrace": [
+          {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "insetPoints": 298,
+            "restoreConsumed": false
+          }
+        ]
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+      "observedAt": 1791662479894
+    },
+    {
+      "type": "restore",
+      "event": {
+        "requestedPixels": 348.25,
+        "consumed": true,
+        "observed": {
+          "scrollPoints": -298,
+          "contentHeightPoints": 0,
+          "viewportHeightPoints": 874,
+          "positionPixels": 0
+        },
+        "geometry": {
+          "pixelRatio": 3,
+          "topInsetPoints": 298,
+          "headerHeightPoints": 236,
+          "containerScreenTopPoints": 0,
+          "webViewScreenTopPoints": 0,
+          "viewportHeightPoints": 874
+        },
+        "bridge": {
+          "pageId": "reader-1",
+          "ready": true,
+          "documentLoaded": true,
+          "documentHeightPoints": 3766,
+          "nativeTag": 446,
+          "loadStarts": 1,
+          "loadEnds": 1,
+          "messages": 8,
+          "rejectedMessages": 0
+        },
+        "scrollTrace": [
+          {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "insetPoints": 298,
+            "restoreConsumed": false
+          }
+        ]
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+      "observedAt": 1791662479944
+    },
+    {
+      "type": "native-scroll",
+      "event": {
+        "requestedPixels": 348.25,
+        "consumed": true,
+        "observed": {
+          "scrollPoints": -181,
+          "contentHeightPoints": 3766,
+          "viewportHeightPoints": 874,
+          "positionPixels": 351
+        },
+        "geometry": {
+          "pixelRatio": 3,
+          "topInsetPoints": 298,
+          "headerHeightPoints": 236,
+          "containerScreenTopPoints": 0,
+          "webViewScreenTopPoints": 0,
+          "viewportHeightPoints": 874
+        },
+        "bridge": {
+          "pageId": "reader-1",
+          "ready": true,
+          "documentLoaded": true,
+          "documentHeightPoints": 3766,
+          "nativeTag": 446,
+          "loadStarts": 1,
+          "loadEnds": 1,
+          "messages": 9,
+          "rejectedMessages": 0
+        },
+        "scrollTrace": [
+          {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "insetPoints": 298,
+            "restoreConsumed": false
+          },
+          {
+            "scrollPoints": -181,
+            "contentHeightPoints": 3766,
+            "viewportHeightPoints": 874,
+            "insetPoints": 298,
+            "restoreConsumed": true
+          }
+        ]
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+      "observedAt": 1791662480555
+    },
+    {
+      "type": "position-persisted",
+      "pageId": "reader-1",
+      "reason": "debounce",
+      "requestedPixels": 351,
+      "persistedPixels": 351,
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+      "observedAt": 1791662482571
+    },
+    {
+      "type": "lifecycle",
+      "event": {
+        "pageId": "reader-1",
+        "nativeTag": 446,
+        "ready": true,
+        "restoreConsumed": true,
+        "positionPixels": 351,
+        "kind": "unmount"
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+      "observedAt": 1791662748214
+    },
+    {
+      "type": "lifecycle",
+      "event": {
+        "pageId": "reader-1",
+        "nativeTag": 446,
+        "ready": true,
+        "restoreConsumed": true,
+        "positionPixels": 351,
+        "kind": "dispose-requested",
+        "reason": "document-change"
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+      "observedAt": 1791662748219
+    },
+    {
+      "type": "lifecycle",
+      "event": {
+        "pageId": "reader-1",
+        "nativeTag": null,
+        "ready": true,
+        "restoreConsumed": true,
+        "positionPixels": 351,
+        "kind": "position-flush-completed",
+        "reason": "document-change"
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+      "observedAt": 1791662748252
+    },
+    {
+      "type": "lifecycle",
+      "event": {
+        "pageId": "reader-1",
+        "nativeTag": 446,
+        "ready": true,
+        "restoreConsumed": true,
+        "positionPixels": 351,
+        "kind": "native-detach-completed"
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+      "observedAt": 1791662748256
+    },
+    {
+      "type": "lifecycle",
+      "event": {
+        "pageId": "reader-2",
+        "nativeTag": null,
+        "ready": false,
+        "restoreConsumed": false,
+        "positionPixels": null,
+        "kind": "mount"
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+      "observedAt": 1791662837174
+    },
+    {
+      "type": "ready",
+      "event": {
+        "requestedPixels": 351,
+        "consumed": false,
+        "observed": null,
+        "geometry": {
+          "pixelRatio": 3,
+          "topInsetPoints": 0,
+          "headerHeightPoints": 0,
+          "containerScreenTopPoints": 0,
+          "webViewScreenTopPoints": 0,
+          "viewportHeightPoints": 0
+        },
+        "bridge": {
+          "pageId": "reader-2",
+          "ready": false,
+          "documentLoaded": false,
+          "documentHeightPoints": 1,
+          "nativeTag": null,
+          "loadStarts": 0,
+          "loadEnds": 0,
+          "messages": 0,
+          "rejectedMessages": 0
+        },
+        "scrollTrace": []
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+      "observedAt": 1791662837177
+    },
+    {
+      "type": "ready",
+      "event": {
+        "requestedPixels": 351,
+        "consumed": false,
+        "observed": null,
+        "geometry": {
+          "pixelRatio": 3,
+          "topInsetPoints": 298,
+          "headerHeightPoints": 236,
+          "containerScreenTopPoints": 0,
+          "webViewScreenTopPoints": 0,
+          "viewportHeightPoints": 874
+        },
+        "bridge": {
+          "pageId": "reader-2",
+          "ready": false,
+          "documentLoaded": false,
+          "documentHeightPoints": 1,
+          "nativeTag": 1060,
+          "loadStarts": 1,
+          "loadEnds": 0,
+          "messages": 0,
+          "rejectedMessages": 0
+        },
+        "scrollTrace": []
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+      "observedAt": 1791662838178
+    },
+    {
+      "type": "native-scroll",
+      "event": {
+        "requestedPixels": 351,
+        "consumed": false,
+        "observed": {
+          "scrollPoints": -298,
+          "contentHeightPoints": 0,
+          "viewportHeightPoints": 874,
+          "positionPixels": 0
+        },
+        "geometry": {
+          "pixelRatio": 3,
+          "topInsetPoints": 298,
+          "headerHeightPoints": 236,
+          "containerScreenTopPoints": 0,
+          "webViewScreenTopPoints": 0,
+          "viewportHeightPoints": 874
+        },
+        "bridge": {
+          "pageId": "reader-2",
+          "ready": false,
+          "documentLoaded": false,
+          "documentHeightPoints": 1,
+          "nativeTag": 1060,
+          "loadStarts": 1,
+          "loadEnds": 0,
+          "messages": 0,
+          "rejectedMessages": 0
+        },
+        "scrollTrace": [
+          {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "insetPoints": 298,
+            "restoreConsumed": false
+          }
+        ]
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+      "observedAt": 1791662838183
+    },
+    {
+      "type": "ready",
+      "event": {
+        "requestedPixels": 351,
+        "consumed": false,
+        "observed": {
+          "scrollPoints": -298,
+          "contentHeightPoints": 0,
+          "viewportHeightPoints": 874,
+          "positionPixels": 0
+        },
+        "geometry": {
+          "pixelRatio": 3,
+          "topInsetPoints": 298,
+          "headerHeightPoints": 236,
+          "containerScreenTopPoints": 0,
+          "webViewScreenTopPoints": 0,
+          "viewportHeightPoints": 874
+        },
+        "bridge": {
+          "pageId": "reader-2",
+          "ready": true,
+          "documentLoaded": false,
+          "documentHeightPoints": 1,
+          "nativeTag": 1060,
+          "loadStarts": 1,
+          "loadEnds": 0,
+          "messages": 2,
+          "rejectedMessages": 0
+        },
+        "scrollTrace": [
+          {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "insetPoints": 298,
+            "restoreConsumed": false
+          }
+        ]
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+      "observedAt": 1791662838244
+    },
+    {
+      "type": "ready",
+      "event": {
+        "requestedPixels": 351,
+        "consumed": false,
+        "observed": {
+          "scrollPoints": -298,
+          "contentHeightPoints": 0,
+          "viewportHeightPoints": 874,
+          "positionPixels": 0
+        },
+        "geometry": {
+          "pixelRatio": 3,
+          "topInsetPoints": 298,
+          "headerHeightPoints": 236,
+          "containerScreenTopPoints": 0,
+          "webViewScreenTopPoints": 0,
+          "viewportHeightPoints": 874
+        },
+        "bridge": {
+          "pageId": "reader-2",
+          "ready": true,
+          "documentLoaded": true,
+          "documentHeightPoints": 1,
+          "nativeTag": 1060,
+          "loadStarts": 1,
+          "loadEnds": 1,
+          "messages": 2,
+          "rejectedMessages": 0
+        },
+        "scrollTrace": [
+          {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "insetPoints": 298,
+            "restoreConsumed": false
+          }
+        ]
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+      "observedAt": 1791662838290
+    },
+    {
+      "type": "ready",
+      "event": {
+        "requestedPixels": 351,
+        "consumed": false,
+        "observed": {
+          "scrollPoints": -298,
+          "contentHeightPoints": 0,
+          "viewportHeightPoints": 874,
+          "positionPixels": 0
+        },
+        "geometry": {
+          "pixelRatio": 3,
+          "topInsetPoints": 298,
+          "headerHeightPoints": 236,
+          "containerScreenTopPoints": 0,
+          "webViewScreenTopPoints": 0,
+          "viewportHeightPoints": 874
+        },
+        "bridge": {
+          "pageId": "reader-2",
+          "ready": true,
+          "documentLoaded": true,
+          "documentHeightPoints": 3766,
+          "nativeTag": 1060,
+          "loadStarts": 1,
+          "loadEnds": 1,
+          "messages": 6,
+          "rejectedMessages": 0
+        },
+        "scrollTrace": [
+          {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "insetPoints": 298,
+            "restoreConsumed": false
+          }
+        ]
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+      "observedAt": 1791662838317
+    },
+    {
+      "type": "restore",
+      "event": {
+        "requestedPixels": 351,
+        "consumed": true,
+        "observed": {
+          "scrollPoints": -298,
+          "contentHeightPoints": 0,
+          "viewportHeightPoints": 874,
+          "positionPixels": 0
+        },
+        "geometry": {
+          "pixelRatio": 3,
+          "topInsetPoints": 298,
+          "headerHeightPoints": 236,
+          "containerScreenTopPoints": 0,
+          "webViewScreenTopPoints": 0,
+          "viewportHeightPoints": 874
+        },
+        "bridge": {
+          "pageId": "reader-2",
+          "ready": true,
+          "documentLoaded": true,
+          "documentHeightPoints": 3766,
+          "nativeTag": 1060,
+          "loadStarts": 1,
+          "loadEnds": 1,
+          "messages": 8,
+          "rejectedMessages": 0
+        },
+        "scrollTrace": [
+          {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "insetPoints": 298,
+            "restoreConsumed": false
+          }
+        ]
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+      "observedAt": 1791662838393
+    },
+    {
+      "type": "native-scroll",
+      "event": {
+        "requestedPixels": 351,
+        "consumed": true,
+        "observed": {
+          "scrollPoints": -181,
+          "contentHeightPoints": 3766,
+          "viewportHeightPoints": 874,
+          "positionPixels": 351
+        },
+        "geometry": {
+          "pixelRatio": 3,
+          "topInsetPoints": 298,
+          "headerHeightPoints": 236,
+          "containerScreenTopPoints": 0,
+          "webViewScreenTopPoints": 0,
+          "viewportHeightPoints": 874
+        },
+        "bridge": {
+          "pageId": "reader-2",
+          "ready": true,
+          "documentLoaded": true,
+          "documentHeightPoints": 3766,
+          "nativeTag": 1060,
+          "loadStarts": 1,
+          "loadEnds": 1,
+          "messages": 9,
+          "rejectedMessages": 0
+        },
+        "scrollTrace": [
+          {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "insetPoints": 298,
+            "restoreConsumed": false
+          },
+          {
+            "scrollPoints": -181,
+            "contentHeightPoints": 3766,
+            "viewportHeightPoints": 874,
+            "insetPoints": 298,
+            "restoreConsumed": true
+          }
+        ]
+      },
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+      "observedAt": 1791662838498
+    },
+    {
+      "type": "position-persisted",
+      "pageId": "reader-2",
+      "reason": "debounce",
+      "requestedPixels": 351,
+      "persistedPixels": 351,
+      "cacheKey": "bookmark-1",
+      "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+      "observedAt": 1791662840513
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "command": "xcodebuild",
+  "args": [
+    "-workspace",
+    "SlaxReader.xcworkspace",
+    "-scheme",
+    "SlaxReader",
+    "-configuration",
+    "Debug",
+    "-sdk",
+    "iphonesimulator",
+    "-destination",
+    "generic/platform=iOS Simulator",
+    "ARCHS=arm64",
+    "ONLY_ACTIVE_ARCH=YES",
+    "CODE_SIGNING_ALLOWED=NO",
+    "-jobs",
+    "1",
+    "-derivedDataPath",
+    "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata",
+    "CLANG_MODULE_CACHE_PATH=/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/ModuleCache.noindex",
+    "build"
+  ],
+  "exitCode": null,
+  "stopped": "new-product-budget",
+  "durationMs": 12121,
+  "lastSample": {
+    "at": 1791669102625,
+    "freeBytes": 7158439936,
+    "ownedBytes": 26915300505
+  }
+}

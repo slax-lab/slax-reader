@@ -1,0 +1,26 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "66C98297-E57C-4178-B1E0-CA12C80D2C05.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-initial-library-inspection-native-tree_0_5D439D48-0DF6-4F5D-B8D2-6AB4E80FAC1B.txt",
+        "timestamp" : 1791664158.546
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "08B7C0DB-0E65-4E58-AA31-D11EC77CCF28.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-initial-library-inspection_0_82841F36-2CEE-44CA-88D2-CFD4570D721D.png",
+        "timestamp" : 1791664157.783
+      }
+    ],
+    "testIdentifier" : "UpgradeVisibleControl/testInspectLibrary()",
+    "testIdentifierURL" : "test://com.apple.xcode/UpgradeVisibleControl/UpgradeVisibleControl/UpgradeVisibleControl/testInspectLibrary"
+  }
+]

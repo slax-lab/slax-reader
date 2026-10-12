@@ -1,0 +1,253 @@
+{
+  "schemaVersion": 1,
+  "controlledFixture": true,
+  "changeId": "expo-mobile-migration",
+  "projectRoot": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3",
+  "revision": "ios-native-source-bridge-navigation-gate-and-rss-contract-aw4",
+  "priorMarkerSha256": "ca0badee057adbb23f3001a930c08c16f2c15a7dcdadbbf564a3daf37e6cbe13",
+  "currentMarkerSha256": "dee6cc6040c6574b621a2e49a791b8bf285fc4960ccdee3318df4ac4577dc801",
+  "generatedInputCount": 372,
+  "refreshClosure": [
+    "src/App.tsx",
+    "src/auth/providers.ts",
+    "src/components/BookmarkRow.tsx",
+    "src/components/LinkInputDialog.tsx",
+    "src/components/RssFeed.tsx",
+    "src/components/SourceLine.tsx",
+    "src/components/SourceMenu.tsx",
+    "src/components/SourceParagraph.tsx",
+    "src/components/SourceRing.tsx",
+    "src/components/SourceShape.tsx",
+    "src/components/SourceSyncAvatar.tsx",
+    "src/components/SourceUI.tsx",
+    "src/components/fixture-actions.ts",
+    "src/components/index.ts",
+    "src/components/source-font-scaling.ts",
+    "src/components/sync-state.ts",
+    "src/config.ts",
+    "src/data/account-cleanup.ts",
+    "src/data/account-lease.ts",
+    "src/data/adoption-profile.ts",
+    "src/data/adoption.ts",
+    "src/data/api.ts",
+    "src/data/background-cache.ts",
+    "src/data/cache-maintenance.ts",
+    "src/data/cache-paths.ts",
+    "src/data/cache.ts",
+    "src/data/connector.ts",
+    "src/data/index.ts",
+    "src/data/legacy-preferences.ts",
+    "src/data/native-storage.ts",
+    "src/data/preferences.ts",
+    "src/data/repositories.ts",
+    "src/data/runtime.ts",
+    "src/data/schema.ts",
+    "src/data/upgrade.ts",
+    "src/data/uploader.ts",
+    "src/debug/shake.ts",
+    "src/domain/delete-account.ts",
+    "src/domain/index.ts",
+    "src/domain/session.ts",
+    "src/i18n/appMessages.ts",
+    "src/i18n/index.ts",
+    "src/i18n/messages.ts",
+    "src/native/fixture-document.ts",
+    "src/native/platform.ts",
+    "src/native/reader.tsx",
+    "src/navigation/types.ts",
+    "src/payments/controller.ts",
+    "src/payments/expo-store.ts",
+    "src/reader/ImageGallery.tsx",
+    "src/reader/MarkdownView.tsx",
+    "src/reader/OverviewViews.tsx",
+    "src/reader/ReaderOverlays.tsx",
+    "src/reader/ReaderSkeleton.tsx",
+    "src/reader/ReaderWebView.tsx",
+    "src/reader/TagSheet.tsx",
+    "src/reader/account.ts",
+    "src/reader/bridge.ts",
+    "src/reader/coordinates.ts",
+    "src/reader/document.ts",
+    "src/reader/embedded.generated.ts",
+    "src/reader/generate-assets.mjs",
+    "src/reader/image-transports.ts",
+    "src/reader/index.ts",
+    "src/reader/input.ts",
+    "src/reader/markdown.ts",
+    "src/reader/model.ts",
+    "src/reader/native-attachment.ts",
+    "src/reader/native.ts",
+    "src/reader/position.ts",
+    "src/reader/recovery.ts",
+    "src/reader/share-model.ts",
+    "src/reader/share.ts",
+    "src/reader/tags.ts",
+    "src/reader/types.ts",
+    "src/rss/controller.ts",
+    "src/rss/controller.verify.mjs",
+    "src/runtime.tsx",
+    "src/screens/AboutScreen.tsx",
+    "src/screens/DebugScreen.tsx",
+    "src/screens/DeleteAccountScreen.tsx",
+    "src/screens/FeedbackScreen.tsx",
+    "src/screens/LibraryScreen.tsx",
+    "src/screens/LoginScreen.tsx",
+    "src/screens/ReaderScreen.tsx",
+    "src/screens/SettingsScreen.tsx",
+    "src/screens/SubscriptionScreen.tsx",
+    "src/screens/collection-selection.ts",
+    "src/screens/notice-read-gate.ts",
+    "src/telemetry/core.ts",
+    "src/telemetry/firebase.ts",
+    "src/telemetry/index.ts",
+    "src/theme/index.ts",
+    "src/theme/testIds.ts",
+    "src/utils/abort.ts",
+    "assets/embedded/css/article.css",
+    "assets/embedded/css/bottom-line.css",
+    "assets/embedded/css/mark.css",
+    "assets/embedded/css/reset.css",
+    "assets/embedded/html/error.html",
+    "assets/embedded/html/webview-template.html",
+    "assets/embedded/image/error.png",
+    "assets/embedded/js/react-native-host.js",
+    "assets/embedded/js/webview-bridge.js",
+    "assets/embedded/source-manifest.json",
+    "modules/slax-platform/ios/SlaxDns.swift",
+    "modules/slax-platform/ios/SlaxGoogleAppDelegateSubscriber.swift",
+    "modules/slax-platform/ios/SlaxPlatform.podspec",
+    "modules/slax-platform/ios/SlaxPlatformModule.swift",
+    "modules/slax-platform/ios/SlaxReaderDocumentNavigationGate.swift",
+    "modules/slax-platform/ios/SlaxReaderView.swift",
+    "modules/slax-platform/ios/SlaxResourceHandler.swift",
+    "modules/slax-platform/ios/SlaxRingView.swift",
+    "fixtures/FixtureApp.tsx",
+    "fixtures/commands.ts",
+    "fixtures/documents.ts",
+    "fixtures/isolation.ts",
+    "fixtures/resources.ts",
+    "fixtures/runtime.ts",
+    "fixtures/transport.ts"
+  ],
+  "changedInputs": [
+    {
+      "path": "src/auth/providers.ts",
+      "beforeSha256": "14966069991c2bc16a540b510204d2b8b8bc89e9c167bc9677721dc8d91c8336",
+      "afterSha256": "00ce9b0bcce8e8d723bfe99d8b3ae15295725eb48a54e8535bc835a789ef870e"
+    },
+    {
+      "path": "src/native/platform.ts",
+      "beforeSha256": "bc340b66884e061e84b0ffb99007fe1886b2baeb81be99d1e9c4b578cb10960c",
+      "afterSha256": "812ce83359e58cc097733eacb613b4cdb7edc066a3fb89c322ec77ba2c77baee"
+    },
+    {
+      "path": "src/reader/embedded.generated.ts",
+      "beforeSha256": "d4fce6797ce13cc2e3366bd30a9941f244593db250728b750d66edcc7dbda1ae",
+      "afterSha256": "2ed58deebe18f70748fe6146d486c8e154e7c0ba87e38c3292d9f972d78623ef"
+    },
+    {
+      "path": "src/rss/controller.verify.mjs",
+      "beforeSha256": "f2243fc0eadf11b7bb47ef00cc3a25715a274d66c9922ea83eb84ea81ea9223e",
+      "afterSha256": "8bbdb7cb5e8ce8709ccc675113490d4bc69b929b0f50671b0575fffa04d93e4a"
+    },
+    {
+      "path": "src/screens/ReaderScreen.tsx",
+      "beforeSha256": "27301f9e8cd4ef7df72674925b6799fd3953cbdea0b4e952f0911512f6f8616a",
+      "afterSha256": "7103eb8e074b055a7e78690bdd62e6cc4d92622a6cde89c726623a0192c02805"
+    },
+    {
+      "path": "assets/embedded/js/react-native-host.js",
+      "beforeSha256": "fe1809f006dcbc91995cd508d36e287e2acda6e6294acee78e8cad0653922bc2",
+      "afterSha256": "3acfd2eeaead47880e51b6ed728bfec6eca327a1bfffda744c2688af05a31478"
+    },
+    {
+      "path": "modules/slax-platform/ios/SlaxReaderDocumentNavigationGate.swift",
+      "beforeSha256": null,
+      "afterSha256": "33cf869bf0a52541d101699c88e8701bb7888b14e34a37390b52582419c973d5"
+    },
+    {
+      "path": "modules/slax-platform/ios/SlaxReaderView.swift",
+      "beforeSha256": "2dd5b7868f337285ff4759334daf1ba8b70e923b2d1761de77ae924a5e61db44",
+      "afterSha256": "c0c727feb112265a4909ed7c7b5908d214e5ac867d2c85fb36dca6c9d7f38f66"
+    }
+  ],
+  "protectedNativeAndEntrypointFiles": [
+    {
+      "path": "ios/Podfile.lock",
+      "sha256": "791b5607e6b6b55fc7950a91125c05baa2f5cfe408b4ea6bead228c1b98f8f34"
+    },
+    {
+      "path": "ios/Pods/Manifest.lock",
+      "sha256": "791b5607e6b6b55fc7950a91125c05baa2f5cfe408b4ea6bead228c1b98f8f34"
+    },
+    {
+      "path": "ios/SlaxReader.xcodeproj/project.pbxproj",
+      "sha256": "7182c044865018f43e7b70ac389b51a1d54221e4587b55e24382991eec5cd197"
+    },
+    {
+      "path": "ios/SlaxReader/Info.plist",
+      "sha256": "4ce64cd59f2a7eb9d171660bb97a74af5f3fcf9c950321de9fb167da9a4b7d46"
+    },
+    {
+      "path": "android/app/build/outputs/apk/debug/app-debug.apk",
+      "sha256": "28d633fc3df8e1e9de05a833efee4a8fd08bd862fc19196819da0c806b870694"
+    },
+    {
+      "path": "index.ts",
+      "sha256": "575fefd824ab2ef5870980961ca3f4a977b022dc6771ec4f5816aa9668adf45d"
+    },
+    {
+      "path": "app.config.ts",
+      "sha256": "3be5106ded1760c119c8cc01e3ec65021fb9b3fb77ac3a4142c1e83e601f7824"
+    },
+    {
+      "path": "metro.config.cjs",
+      "sha256": "ff4045d45aff2b243fd44e7c1b5e0ff3b09f2ed88cd7253a283f80fe442f795d"
+    },
+    {
+      "path": "package.json",
+      "sha256": "9a6ead22ae5d052e7106fe63403be2402cfdb200f0d80f48ffcd5d8cfcda4536"
+    }
+  ],
+  "protectedFilesByteIdentical": true,
+  "generatedDigestsRecomputedFromActualStageBytes": true,
+  "previousInputHashesVerifiedBeforeChange": true,
+  "androidNativeParagraphCandidateRefreshed": false,
+  "nativeBuildPerformed": false,
+  "deviceCalled": false,
+  "metroRestartedOrControlled": false,
+  "nativeVisualAcceptance": "unverified",
+  "archives": [
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-bridge-aw4-inputs/prior-aw3-inputs.zip",
+      "sha256": "8953a13f563abcc5ac479fc1b1ebafc455c4e29bcda7f39a6f7a6bcb26b017b5",
+      "bytes": 1626375
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-bridge-aw4-inputs/prior-aw3-marker.json",
+      "sha256": "ca0badee057adbb23f3001a930c08c16f2c15a7dcdadbbf564a3daf37e6cbe13",
+      "bytes": 112514
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-bridge-aw4-inputs/aw4-inputs.zip",
+      "sha256": "fcd66592522f0c2727c57a0a7108dc807f0cf5ccaf4b7b98d71b48efe7f1ea6c",
+      "bytes": 1628942
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-bridge-aw4-inputs/aw4-marker.json",
+      "sha256": "dee6cc6040c6574b621a2e49a791b8bf285fc4960ccdee3318df4ac4577dc801",
+      "bytes": 112892
+    }
+  ],
+  "readOnlyNativeConfigurationVerification": {
+    "path": "docs/mobile/evidence/2026-10-11-reader-native-bridge-aw4-inputs/native-config-verification.json",
+    "sha256": "d523d098cbcc4542cda471e1f5b690499aaff50a484bec0d3d2748dde6c62b9a",
+    "exitCode": 0,
+    "generatedInputManifestVerified": true,
+    "androidIdentity": "com.slax.reader.uifixture",
+    "iosIdentity": "app.slax.reader.uifixture",
+    "productionAppGroup": false,
+    "inboundShareTarget": false,
+    "automaticFirebaseCollection": false
+  }
+}

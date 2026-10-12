@@ -1,0 +1,38 @@
+{
+  "kind": "sanitized-source-android-build",
+  "schemaVersion": 1,
+  "sourceCommit": "9951904405159f49f24effd4d42815f77ff33442",
+  "sourceManifestSha256": "3501089ae75682a823afdfb54ccf243d32cbc56eba1f84bd70c68afafc1f2943",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "actionDriverSha256": "39a8c852dcb211ee69fc4660e71dd9ab0694e88ea98e5bd3c5e342150a2ba4ef",
+  "inputManifest": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/source-driver-k/input-manifest.json",
+    "sha256": "60d96c774d9d4b20b0615e8f931055304166507e9252f1328a63f4373e4193ff"
+  },
+  "gradleVersion": "8.13",
+  "javaVersion": "17",
+  "maxWorkers": 2,
+  "maxHeap": "2g",
+  "tasks": [
+    ":composeApp:assembleDebugAndroidTest"
+  ],
+  "sourceApplicationReusedFrom": "source-build.json",
+  "result": "passed",
+  "elapsedSeconds": 9,
+  "originalSourceModified": false,
+  "productionBuildConfigurationEvaluated": false,
+  "applicationId": "com.slax.reader.fixture",
+  "testApplicationId": "com.slax.reader.fixture.test",
+  "artifacts": [
+    {
+      "kind": "source-instrumentation",
+      "sha256": "41235026e8d7b3384c48b49c7104be22f95123c21ac8fef0e405a6150ab1de8f",
+      "bytes": 1544238
+    }
+  ],
+  "driverPreparation": {
+    "lifecycle": "prior-library-shared-user-and-subscription-dao-collectors",
+    "actionSelection": "optional-zero-based-declared-fixture-action-index",
+    "nativeInteractionVerified": false
+  }
+}

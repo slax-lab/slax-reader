@@ -1,0 +1,63 @@
+{
+  "kind": "native-reader-bridge-observation",
+  "schemaVersion": 1,
+  "implementation": "target",
+  "platform": "ios",
+  "identity": "app.slax.reader.uifixture",
+  "device": "32D9AFE0-32C7-443A-8FEC-3EBB42135386",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "fixtureScenario": "reader-mixed",
+  "targetDriverInputs": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-driver-o.json",
+    "sha256": "b62000f526df3e4547e8275db7058709cf3a1fa1ffca991a8e8aca8310cafba1"
+  },
+  "screenshot": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-native-foundation/ios-reader-o-screenshot.png",
+    "sha256": "3039bf1712829eb8003c5970e0325b72d29141257e05bcbe8e03ed90ba2b4d13"
+  },
+  "nativePosition": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-native-foundation/ios-reader-o-nativePosition.json",
+    "sha256": "b29a3ea9c9c2c72605a1842042f8cb6e12bfb9cf20ceb142901c49ac40872ee8"
+  },
+  "rawMetadata": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-native-foundation/ios-reader-o-rawMetadata.json",
+    "sha256": "d707e17f25c5f7d52460bbaeb2805fa4c972f675bd9deb538a98f5feb3dbe542"
+  },
+  "observation": {
+    "controlledFixture": true,
+    "fixtureVersion": 1,
+    "cacheKey": "00000003-0000-4000-8000-000000000001",
+    "requestedPixels": 240,
+    "consumed": true,
+    "observed": {
+      "scrollPoints": -296,
+      "contentHeightPoints": 1440,
+      "viewportHeightPoints": 758,
+      "positionPixels": 0
+    },
+    "geometry": {
+      "pixelRatio": 3,
+      "topInsetPoints": 296,
+      "headerHeightPoints": 296,
+      "containerScreenTopPoints": 116,
+      "webViewScreenTopPoints": 116,
+      "viewportHeightPoints": 758
+    },
+    "bridge": {
+      "pageId": "reader-1",
+      "ready": true,
+      "documentLoaded": true,
+      "documentHeightPoints": 1440,
+      "nativeTag": 3132,
+      "loadStarts": 1,
+      "loadEnds": 1,
+      "messages": 8,
+      "rejectedMessages": 0
+    }
+  },
+  "nativeBridgeReady": "passed-through-actual-native-script-messages",
+  "nativeInitialPositionRestore": "failed-observation-requested240-observed0",
+  "nativeInteractionVerified": false,
+  "visualParity": "unverified",
+  "productionDataAccessed": false
+}
