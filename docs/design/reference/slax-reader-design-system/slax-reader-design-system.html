@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slax Reader — Design System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Inter:wght@300;400;500&family=Noto+Serif+SC:wght@400;500&display=swap');
+
+  /* ════════════════════════════════════════
+     Design Tokens — 设计变量定义
+     修改此处的值后，需同步更新项目文件
+     ════════════════════════════════════════ */
+
+  :root {
+    /* ── 颜色 ── */
+    --bg:           #faf8f2;
+    --surface:      rgba(255, 251, 244, 0.7);
+    --surface-solid: #fffbf4;
+    --text:         #1a1814;
+    --text-muted:   #6a5f52;
+    --text-light:   #9a8e7f;
+    --border:       rgba(26, 24, 20, 0.08);
+    --accent:       #b45837;
+    --accent-soft:  #e4b894;
+    --accent-bg:    rgba(180, 88, 55, 0.06);
+    --danger:       #c44;
+    --danger-bg:    rgba(204, 68, 68, 0.06);
+    --btn-text:     #faf8f2;
+    --selection:    rgba(180, 88, 55, 0.15);
+
+    /* ── 阴影 ── */
+    --shadow-warm:  0 8px 32px rgba(180, 88, 55, 0.08);
+    --shadow-sm:    0 2px 8px rgba(180, 88, 55, 0.05);
+
+    /* ── 渐变背景 ── */
+    --grad-a:       #faf5eb;
+    --grad-b:       #f6efe4;
+    --grad-c:       #f8efe4;
+
+    /* ── 界面 ── */
+    --topbar-bg:    rgba(250, 248, 242, 0.75);
+    --inset-hi:     rgba(255, 255, 255, 0.6);
+
+    /* ── 圆角 ── */
+    --radius:       14px;
+    --radius-sm:    10px;
+
+    /* ── 布局 ── */
+    --sidebar-w:    240px;
+    --shell-w:      1200px;
+    --content-w:    820px;
+  }
+
+  [data-theme="dark"] {
+    --bg:           #141210;
+    --surface:      rgba(30, 27, 24, 0.75);
+    --surface-solid: #1e1b18;
+    --text:         #e8e2d8;
+    --text-muted:   #9a8e7f;
+    --text-light:   #6a5f52;
+    --border:       rgba(255, 251, 244, 0.08);
+    --accent:       #d4764f;
+    --accent-soft:  #7a4a30;
+    --accent-bg:    rgba(212, 118, 79, 0.08);
+    --danger:       #e07070;
+    --danger-bg:    rgba(224, 112, 112, 0.1);
+    --btn-text:     #141210;
+    --selection:    rgba(212, 118, 79, 0.2);
+    --shadow-warm:  0 8px 32px rgba(0, 0, 0, 0.25);
+    --shadow-sm:    0 2px 8px rgba(0, 0, 0, 0.15);
+    --grad-a:       #1e1810;
+    --grad-b:       #1a1612;
+    --grad-c:       #181410;
+    --topbar-bg:    rgba(20, 18, 16, 0.8);
+    --inset-hi:     rgba(255, 255, 255, 0.04);
+  }
+
+  [data-theme="eink"] {
+    --bg:           #ffffff;
+    --surface:      #ffffff;
+    --surface-solid: #ffffff;
+    --text:         #000000;
+    --text-muted:   #333333;
+    --text-light:   #666666;
+    --border:       #cccccc;
+    --accent:       #000000;
+    --accent-soft:  #666666;
+    --accent-bg:    #f0f0f0;
+    --danger:       #444444;
+    --danger-bg:    #eeeeee;
+    --btn-text:     #ffffff;
+    --selection:    #dddddd;
+    --shadow-warm:  none;
+    --shadow-sm:    none;
+    --grad-a:       transparent;
+    --grad-b:       transparent;
+    --grad-c:       transparent;
+    --topbar-bg:    #ffffff;
+    --inset-hi:     none;
+    --radius:       4px;
+    --radius-sm:    2px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  ::selection { background: var(--selection); color: var(--text); }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(at 30% 0%, var(--grad-a) 0%, transparent 50%),
+      radial-gradient(at 80% 20%, var(--grad-b) 0%, transparent 60%);
+    z-index: -1;
+  }
+
+  /* ── Page Layout ── */
+  .ds-header {
+    position: sticky; top: 0; z-index: 100;
+    height: 56px;
+    background: var(--topbar-bg);
+    backdrop-filter: blur(16px) saturate(150%);
+    border-bottom: 1px solid var(--border);
+    transition: background 0.3s;
+  }
+
+  .ds-header-inner {
+    max-width: 960px;
+    margin: 0 auto;
+    height: 100%;
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .ds-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .ds-logo small {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--text-light);
+    margin-left: 8px;
+  }
+
+  .ds-theme-switcher {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .ds-theme-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--text-light);
+    transition: all 0.15s;
+  }
+
+  .ds-theme-btn:hover { color: var(--text); background: var(--surface); }
+  .ds-theme-btn.active { color: var(--accent); background: var(--accent-bg); }
+  .ds-theme-btn svg { width: 16px; height: 16px; }
+
+  .ds-container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 48px 32px 120px;
+  }
+
+  /* ── Section ── */
+  .ds-section {
+    margin-bottom: 64px;
+  }
+
+  .ds-section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .ds-section-desc {
+    font-size: 14px;
+    color: var(--text-light);
+    font-weight: 300;
+    margin-bottom: 32px;
+  }
+
+  /* ── Color Swatches ── */
+  .ds-color-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .ds-swatch {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+
+  .ds-swatch-color {
+    height: 64px;
+    display: flex;
+    align-items: flex-end;
+    padding: 8px 12px;
+  }
+
+  .ds-swatch-info {
+    padding: 10px 12px;
+    background: var(--surface);
+  }
+
+  .ds-swatch-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .ds-swatch-value {
+    font-size: 12px;
+    color: var(--text-light);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    word-break: break-all;
+  }
+
+  .ds-swatch-usage {
+    font-size: 12px;
+    color: var(--text-light);
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+
+  /* ── Tooltip ── */
+  .ds-swatch[data-usage] {
+    cursor: help;
+  }
+
+  .ds-tooltip {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: max-content;
+    max-width: min(280px, calc(100vw - 24px));
+    padding: 8px 12px;
+    background: var(--text);
+    color: var(--bg);
+    font-size: 12px;
+    line-height: 1.5;
+    border-radius: 6px;
+    box-shadow: var(--shadow-warm);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translate3d(-9999px, -9999px, 0);
+    transition: opacity 0.12s ease;
+    z-index: 300;
+  }
+
+  .ds-tooltip.is-visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  [data-theme="eink"] .ds-tooltip {
+    border: 1px solid var(--border);
+    box-shadow: none;
+  }
+
+  .ds-swatch-var {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    margin-bottom: 2px;
+  }
+
+  /* ── Typography ── */
+  .ds-type-row {
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ds-type-sample {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .ds-type-meta {
+    flex-shrink: 0;
+    width: 240px;
+    font-size: 12px;
+    color: var(--text-light);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    line-height: 1.8;
+  }
+
+  /* ── Component Preview ── */
+  .ds-comp-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .ds-comp-card {
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  /* 组件规范采用双列瀑布流，避免矮卡片被最长卡片的行高推开。 */
+  .ds-comp-grid-masonry {
+    display: block;
+    column-count: 2;
+    column-gap: 24px;
+  }
+
+  .ds-comp-grid-masonry > .ds-comp-card {
+    display: inline-block;
+    width: 100%;
+    margin: 0 0 24px;
+    vertical-align: top;
+    break-inside: avoid;
+  }
+
+  .ds-comp-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 16px;
+  }
+
+  /* ── 标签规范：卡片列表与文字列表 ── */
+  #tag-spec { scroll-margin-top: 80px; }
+  .ds-tag-variant + .ds-tag-variant {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+  .ds-tag-title { font-size: 12px; color: var(--text-muted); font-weight: 500; margin-bottom: 6px; }
+  .ds-tag-usage, .ds-tag-notes { font-size: 12px; color: var(--text-light); line-height: 1.8; }
+  .ds-tag-usage { margin-bottom: 12px; }
+  .ds-tag-state { font-size: 11px; color: var(--text-light); margin-bottom: 6px; }
+  .ds-tag-example {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+    margin-bottom: 12px;
+    font-size: 12px;
+    line-height: 16px;
+  }
+  /* 详情页示例与 snapshot 的 .tag / .tag-remove 保持相同尺寸。 */
+  .ds-tag-example.is-detail { gap: 8px; line-height: normal; margin-bottom: 16px; }
+  .ds-detail-tag {
+    display: flex;
+    align-items: center;
+    padding: 4px 10px;
+    font-size: 13px;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: inherit;
+    cursor: default;
+    transition: all 0.15s;
+  }
+  .ds-detail-tag-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 14px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--text-light);
+    font-size: 13px;
+    border-radius: 3px;
+    transition: all 0.15s;
+    border-left: 1px solid var(--border);
+    opacity: 0;
+    width: 0;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .ds-detail-tag:is(:hover, :focus-within, .is-hover) .ds-detail-tag-remove {
+    opacity: 1;
+    width: 14px;
+    margin-left: 6px;
+    padding-left: 6px;
+    pointer-events: auto;
+  }
+  .ds-detail-tag-remove:hover { color: var(--accent); }
+  .ds-detail-tag-remove:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .ds-tag-example.is-detail .ds-tag-add { width: 28px; height: 28px; border-radius: 6px; }
+  .ds-tag-source {
+    color: var(--text-muted);
+    background: var(--accent-bg);
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-weight: 400;
+    margin-right: 4px;
+    cursor: pointer;
+    transition: color 0.15s, background-color 0.15s;
+  }
+  .ds-tag-source:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .ds-list-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 9px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text-muted);
+    background: transparent;
+    font-weight: 400;
+    white-space: nowrap;
+    cursor: default;
+    transition: color 0.15s;
+  }
+  .ds-list-tag:is(:hover, :focus-within, .is-hover) {
+    color: var(--accent);
+  }
+  .ds-tag-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 0;
+    height: 14px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    background: transparent;
+    color: var(--text-light);
+    font: inherit;
+    font-size: 13px;
+    line-height: 1;
+    opacity: 0;
+    pointer-events: none;
+    cursor: pointer;
+    transition: width 0.15s, margin-left 0.15s, padding-left 0.15s, opacity 0.15s, color 0.15s;
+  }
+  .ds-list-tag:is(:hover, :focus-within, .is-hover) .ds-tag-remove {
+    width: 20px;
+    margin-left: 6px;
+    padding-left: 6px;
+    border-left: 1px solid var(--border);
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .ds-tag-remove:hover { color: var(--accent); }
+  .ds-tag-add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 1px dashed var(--border);
+    border-radius: 50%;
+    color: var(--text-light);
+    background: transparent;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+  }
+  .ds-tag-add svg { width: 14px; height: 14px; }
+  .ds-tag-add:is(:hover, .is-hover) { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+  .ds-tag-add:focus-visible, .ds-tag-remove:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .ds-tag-example.is-text { gap: 8px; }
+  .ds-tag-example.is-text .ds-tag-source {
+    padding: 0;
+    margin: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-light);
+    font-weight: 300;
+  }
+  .ds-tag-example.is-text .ds-tag-source:hover { color: var(--accent); }
+  .ds-tag-example.is-text .ds-list-tag {
+    position: relative;
+    padding: 0 0 0 8px;
+    border: 0;
+    border-radius: 0;
+    color: var(--text-light);
+    font-weight: 300;
+  }
+  .ds-tag-example.is-text .ds-list-tag:is(:hover, :focus-within, .is-hover) { color: var(--accent); }
+  .ds-tag-example.is-text .ds-list-tag::before,
+  .ds-tag-example.is-text .ds-tag-add::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 1px;
+    height: 12px;
+    background: var(--border);
+    transform: translateY(-50%);
+  }
+  .ds-tag-example.is-text .ds-tag-remove { height: 12px; font-size: 12px; border-left: 0; }
+  .ds-tag-example.is-text .ds-list-tag:is(:hover, :focus-within, .is-hover) .ds-tag-remove {
+    width: 12px;
+    margin-left: 4px;
+    padding-left: 0;
+    border-left: 0;
+  }
+  .ds-tag-example.is-text .ds-tag-add {
+    position: relative;
+    width: 16px;
+    height: 16px;
+    margin-left: 6px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .ds-tag-example.is-text .ds-tag-add::before { left: -4px; }
+
+  /* ── Token Table ── */
+  .ds-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .ds-table th {
+    text-align: left;
+    padding: 10px 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    border-bottom: 2px solid var(--border);
+    font-size: 12px;
+  }
+
+  .ds-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  .ds-table code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    background: var(--accent-bg);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  .ds-table .val {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .ds-dot {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  /* ── Inline demo ── */
+  .ds-demo-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ds-demo-label {
+    width: 120px;
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--text-light);
+  }
+
+  .ds-radius-box {
+    width: 48px; height: 48px;
+    background: var(--accent-bg);
+    border: 1px solid var(--border);
+  }
+
+  .ds-shadow-box {
+    width: 120px; height: 48px;
+    background: var(--surface-solid);
+    border-radius: var(--radius-sm);
+  }
+
+  .ds-btn-demo {
+    padding: 7px 16px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  .ds-weak-outline-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: color-mix(in srgb, var(--text) 58%, var(--text-muted));
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .ds-weak-outline-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+  .ds-weak-outline-btn.is-icon {
+    width: 40px;
+    padding: 0;
+  }
+  .ds-weak-outline-btn.is-hover,
+  .ds-weak-outline-btn:hover {
+    background: var(--accent-bg);
+    border-color: var(--accent-soft);
+    color: var(--accent);
+  }
+  .ds-weak-outline-btn.is-active,
+  .ds-weak-outline-btn:active {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-color: var(--accent-soft);
+    color: var(--accent);
+    transform: scale(0.98);
+  }
+
+  /* ── Popover 弹出菜单（规范定义 · 跟列表页/快照页保持一致） ── */
+  .popover-menu { position: relative; }
+
+  .popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 220px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-warm), 0 12px 36px color-mix(in srgb, var(--accent) 12%, transparent);
+    padding: 6px;
+    z-index: 60;
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .popover-menu.open .popover {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .popover-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 9px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.12s;
+    text-align: left;
+  }
+  .popover-item:hover { background: var(--accent-bg); color: var(--text); }
+  .popover-item svg { width: 15px; height: 15px; opacity: 0.75; flex-shrink: 0; }
+  .popover-item-danger { color: var(--danger); }
+  .popover-item-danger:hover { background: var(--danger-bg); color: var(--danger); }
+
+  .popover-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 6px 4px;
+  }
+
+  /* 规范页 demo 里需要内联展示 popover，覆盖绝对定位 */
+  .ds-popover-inline {
+    position: static;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+    min-width: 0;
+  }
+
+  /* ── Empty View 空状态（规范定义 · 供列表页/合集页等页面复用） ── */
+  .ds-empty-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 48px 24px;
+  }
+  .ds-empty-view-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: inset 0 1px 0 var(--inset-hi);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-light);
+    margin-bottom: 24px;
+  }
+  .ds-empty-view-icon svg,
+  .ds-empty-view-icon img {
+    width: 32px;
+    height: 32px;
+    opacity: 0.7;
+  }
+  .ds-empty-view-icon img {
+    display: block;
+    object-fit: contain;
+  }
+  .ds-empty-view-title {
+    font-family: 'Playfair Display', 'Noto Serif SC', serif;
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--text);
+    margin: 0 0 8px;
+    letter-spacing: 0;
+  }
+  .ds-empty-view-desc {
+    font-size: 14px;
+    color: var(--text-light);
+    margin: 0;
+    line-height: 1.7;
+    max-width: 360px;
+  }
+  .ds-empty-view-cta {
+    margin-top: 32px;
+    text-decoration: none;
+  }
+
+  [data-theme="eink"] .ds-header { backdrop-filter: none; }
+  [data-theme="eink"] * { transition: none !important; animation: none !important; }
+
+  @media (max-width: 640px) {
+    .ds-color-grid { grid-template-columns: 1fr 1fr; }
+    .ds-comp-grid { grid-template-columns: 1fr; }
+    .ds-comp-grid-masonry { column-count: 1; }
+    .ds-type-row { flex-direction: column; gap: 8px; }
+    .ds-type-meta { width: auto; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ Header ═══ -->
+<header class="ds-header">
+  <div class="ds-header-inner">
+    <div class="ds-logo">Slax Reader <small>Design System v1.0</small></div>
+    <div class="ds-theme-switcher">
+      <button class="ds-theme-btn active" data-theme="light" title="日间模式" aria-label="日间模式">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+      <button class="ds-theme-btn" data-theme="dark" title="夜间模式" aria-label="夜间模式">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
+      <button class="ds-theme-btn" data-theme="eink" title="墨水屏模式" aria-label="墨水屏模式">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 7h8M8 11h6M8 15h4"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="ds-container">
+
+  <!-- ════════════════════════════════════════
+       1. 颜色系统 Color System
+       ════════════════════════════════════════ -->
+  <section class="ds-section">
+    <h2 class="ds-section-title">颜色系统</h2>
+    <p class="ds-section-desc">所有颜色通过 CSS 变量定义，自动适配日间/夜间/墨水屏三种模式。修改变量值即可全局生效。</p>
+
+    <h3 style="font-size:14px;color:var(--text-muted);font-weight:500;margin-bottom:16px;">基础色</h3>
+    <div class="ds-color-grid">
+      <div class="ds-swatch" data-var="--bg" data-usage="页面最底层背景色 · 也用于评论输入框、空状态等需要「贴回页面底色」的内嵌区域；body 上叠加 --grad-a/b/c 形成暖色径向渐变氛围">
+        <div class="ds-swatch-color" style="background:var(--bg);"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--bg</div>
+          <div class="ds-swatch-name">页面底色</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+      <div class="ds-swatch" data-var="--surface" data-usage="半透明磨砂卡片背景 · 文章卡片、评论卡片、侧边面板、底部 / 右侧工具栏等；必须配合 backdrop-filter: blur 使用以形成磨砂玻璃效果">
+        <div class="ds-swatch-color" style="background:var(--surface);border-bottom:1px solid var(--border)"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--surface</div>
+          <div class="ds-swatch-name">磨砂卡片背景</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+      <div class="ds-swatch" data-var="--surface-solid" data-usage="悬浮按钮、弹出菜单、下拉框、提示气泡等浮层；浮在内容之上、需完全遮挡后方像素">
+        <div class="ds-swatch-color" style="background:var(--surface-solid);"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--surface-solid</div>
+          <div class="ds-swatch-name">浮层不透明背景</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+      <div class="ds-swatch" data-var="--topbar-bg" data-usage="顶部导航栏专用半透明底 · 比 --surface 更接近页面底色，让顶栏看起来「漂浮在内容之上但与页面同一氛围」；需配合 backdrop-filter: blur">
+        <div class="ds-swatch-color" style="background:var(--topbar-bg);border-bottom:1px solid var(--border)"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--topbar-bg</div>
+          <div class="ds-swatch-name">顶栏背景</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-size:14px;color:var(--text-muted);font-weight:500;margin:32px 0 16px;">文字色</h3>
+    <div class="ds-color-grid">
+      <div class="ds-swatch" data-var="--text" data-usage="主要文字 · 文章正文、文章标题、列表卡片标题、Logo、按钮 hover 文字色；阅读体验的主要承载色">
+        <div class="ds-swatch-color" style="background:var(--text);"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--text</div>
+          <div class="ds-swatch-name">主要文字</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+      <div class="ds-swatch" data-var="--text-muted" data-usage="次要文字 · 作者名、侧栏导航项、评论作者名、tag 文字、二级按钮文字、面板标题；强度介于 --text 与 --text-light 之间">
+        <div class="ds-swatch-color" style="background:var(--text-muted);"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--text-muted</div>
+          <div class="ds-swatch-name">次要文字</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+      <div class="ds-swatch" data-var="--text-light" data-usage="辅助文字 / 图标 · 日期、来源、副标题、计数、序号、placeholder、未选中状态的图标按钮；用于不希望被读者注意到的元信息">
+        <div class="ds-swatch-color" style="background:var(--text-light);"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--text-light</div>
+          <div class="ds-swatch-name">辅助文字 / 图标</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+      <div class="ds-swatch" data-var="--btn-text" data-usage="强调色实心按钮、深色实心元素上的文字 / 图标色；与强调色或深色背景形成高对比">
+        <div class="ds-swatch-color" style="background:var(--btn-text);border:1px solid var(--border)"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--btn-text</div>
+          <div class="ds-swatch-name">实心按钮文字</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-size:14px;color:var(--text-muted);font-weight:500;margin:32px 0 16px;">强调色 & 功能色</h3>
+    <div class="ds-color-grid">
+      <div class="ds-swatch" data-var="--accent" data-usage="品牌主色 · 用于主按钮底色、链接文字、选中态文字、徽章文字、回复 / 加星 / 划线等关键交互元素，标记可点击 / 已激活状态">
+        <div class="ds-swatch-color" style="background:var(--accent);"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--accent</div>
+          <div class="ds-swatch-name">品牌强调色</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+      <div class="ds-swatch" data-var="--accent-soft" data-usage="次级强调 · 头像边框、勾选框 hover 描边、划线高亮边框、文字选中底色（日间模式），比 --accent 更柔和、不抢视觉重心">
+        <div class="ds-swatch-color" style="background:var(--accent-soft);"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--accent-soft</div>
+          <div class="ds-swatch-name">柔和强调</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+      <div class="ds-swatch" data-var="--accent-bg" data-usage="强调色极淡底 · 侧栏选中底、操作项 hover 底、来源 / 评论数 / 评论全文等徽章底、引用框背景、子评论左边框、划线高亮底色；任何需要标记「与品牌色相关」但不抢眼的弱底色">
+        <div class="ds-swatch-color" style="background:var(--accent-bg);border-bottom:1px solid var(--border)"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--accent-bg</div>
+          <div class="ds-swatch-name">强调极淡底</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+      <div class="ds-swatch" data-var="--danger" data-usage="破坏性操作的文字 / 图标色 · 用于删除、移除、清空等不可逆动作；通常仅在 hover 时显现以避免干扰阅读">
+        <div class="ds-swatch-color" style="background:var(--danger);"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--danger</div>
+          <div class="ds-swatch-name">破坏性操作色</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+      <div class="ds-swatch" data-var="--danger-bg" data-usage="破坏性操作 hover 时的极淡红色底 · 与 --danger 文字色配套使用，提示该按钮的删除 / 不可逆性质">
+        <div class="ds-swatch-color" style="background:var(--danger-bg);border-bottom:1px solid var(--border)"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--danger-bg</div>
+          <div class="ds-swatch-name">破坏性操作底</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+      <div class="ds-swatch" data-var="--selection" data-usage="鼠标框选文字 / 划词时的高亮底色（::selection 全局生效），三种模式下都偏暖偏淡、不遮挡正文">
+        <div class="ds-swatch-color" style="background:var(--selection);"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--selection</div>
+          <div class="ds-swatch-name">划词高亮</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+      <div class="ds-swatch" data-var="--border" data-usage="通用边框 / 分隔线 · 卡片边、工具栏边、按钮边、输入框边、标签边、横向分隔、面板顶/底分割线、列表项分隔；统一极淡，靠对比而非粗细划分区域">
+        <div class="ds-swatch-color" style="background:var(--border);"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--border</div>
+          <div class="ds-swatch-name">边框 / 分隔线</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-size:14px;color:var(--text-muted);font-weight:500;margin:32px 0 16px;">渐变 & 氛围</h3>
+    <div class="ds-color-grid">
+      <div class="ds-swatch" data-var="--grad-a" data-usage="页面背景径向渐变 · 左上角光斑色 · 与 --bg 叠加，让页面顶部偏暖偏亮，模拟自然光从左上方洒入">
+        <div class="ds-swatch-color" style="background:var(--grad-a);"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--grad-a</div>
+          <div class="ds-swatch-name">渐变·左上光斑</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+      <div class="ds-swatch" data-var="--grad-b" data-usage="页面背景径向渐变 · 右上角光斑色 · 与 --grad-a 在水平方向形成暖色过渡，让顶部两侧都有微妙的氛围层次">
+        <div class="ds-swatch-color" style="background:var(--grad-b);"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--grad-b</div>
+          <div class="ds-swatch-name">渐变·右上光斑</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+      <div class="ds-swatch" data-var="--grad-c" data-usage="页面背景径向渐变 · 底部光斑色 · 让页面下半部有微弱回暖，避免长文滚动时底部显得灰冷；墨水屏模式下置为 transparent 以保证均匀阅读">
+        <div class="ds-swatch-color" style="background:var(--grad-c);"></div>
+        <div class="ds-swatch-info">
+          <div class="ds-swatch-var">--grad-c</div>
+          <div class="ds-swatch-name">渐变·底部光斑</div>
+          <div class="ds-swatch-value"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════
+       2. 完整变量对照表 Token Reference
+       ════════════════════════════════════════ -->
+  <section class="ds-section">
+    <h2 class="ds-section-title">完整变量对照表</h2>
+    <p class="ds-section-desc">三种模式下所有 CSS 变量的具体值。</p>
+
+    <table class="ds-table">
+      <thead>
+        <tr><th>变量</th><th>日间 Light</th><th>夜间 Dark</th><th>墨水屏 E-ink</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>--bg</code></td><td class="val"><span class="ds-dot" style="background:#faf8f2"></span>#faf8f2</td><td class="val"><span class="ds-dot" style="background:#141210"></span>#141210</td><td class="val"><span class="ds-dot" style="background:#fff;border-color:#ccc"></span>#ffffff</td></tr>
+        <tr><td><code>--surface</code></td><td class="val">rgba(255,251,244,0.7)</td><td class="val">rgba(30,27,24,0.75)</td><td class="val">#ffffff</td></tr>
+        <tr><td><code>--surface-solid</code></td><td class="val">#fffbf4</td><td class="val">#1e1b18</td><td class="val">#ffffff</td></tr>
+        <tr><td><code>--text</code></td><td class="val"><span class="ds-dot" style="background:#1a1814"></span>#1a1814</td><td class="val"><span class="ds-dot" style="background:#e8e2d8"></span>#e8e2d8</td><td class="val"><span class="ds-dot" style="background:#000"></span>#000000</td></tr>
+        <tr><td><code>--text-muted</code></td><td class="val"><span class="ds-dot" style="background:#6a5f52"></span>#6a5f52</td><td class="val"><span class="ds-dot" style="background:#9a8e7f"></span>#9a8e7f</td><td class="val"><span class="ds-dot" style="background:#333"></span>#333333</td></tr>
+        <tr><td><code>--text-light</code></td><td class="val"><span class="ds-dot" style="background:#9a8e7f"></span>#9a8e7f</td><td class="val"><span class="ds-dot" style="background:#6a5f52"></span>#6a5f52</td><td class="val"><span class="ds-dot" style="background:#666"></span>#666666</td></tr>
+        <tr><td><code>--border</code></td><td class="val">rgba(26,24,20,0.08)</td><td class="val">rgba(255,251,244,0.08)</td><td class="val">#cccccc</td></tr>
+        <tr><td><code>--accent</code></td><td class="val"><span class="ds-dot" style="background:#b45837"></span>#b45837</td><td class="val"><span class="ds-dot" style="background:#d4764f"></span>#d4764f</td><td class="val"><span class="ds-dot" style="background:#000"></span>#000000</td></tr>
+        <tr><td><code>--accent-soft</code></td><td class="val"><span class="ds-dot" style="background:#e4b894"></span>#e4b894</td><td class="val"><span class="ds-dot" style="background:#7a4a30"></span>#7a4a30</td><td class="val"><span class="ds-dot" style="background:#666"></span>#666666</td></tr>
+        <tr><td><code>--accent-bg</code></td><td class="val">rgba(180,88,55,0.06)</td><td class="val">rgba(212,118,79,0.08)</td><td class="val">#f0f0f0</td></tr>
+        <tr><td><code>--danger</code></td><td class="val"><span class="ds-dot" style="background:#c44"></span>#cc4444</td><td class="val"><span class="ds-dot" style="background:#e07070"></span>#e07070</td><td class="val"><span class="ds-dot" style="background:#444"></span>#444444</td></tr>
+        <tr><td><code>--danger-bg</code></td><td class="val">rgba(204,68,68,0.06)</td><td class="val">rgba(224,112,112,0.1)</td><td class="val">#eeeeee</td></tr>
+        <tr><td><code>--btn-text</code></td><td class="val">#faf8f2</td><td class="val">#141210</td><td class="val">#ffffff</td></tr>
+        <tr><td><code>--selection</code></td><td class="val">rgba(180,88,55,0.15)</td><td class="val">rgba(212,118,79,0.2)</td><td class="val">#dddddd</td></tr>
+        <tr><td><code>--shadow-warm</code></td><td class="val">0 8px 32px rgba(…0.08)</td><td class="val">0 8px 32px rgba(…0.25)</td><td class="val">none</td></tr>
+        <tr><td><code>--shadow-sm</code></td><td class="val">0 2px 8px rgba(…0.05)</td><td class="val">0 2px 8px rgba(…0.15)</td><td class="val">none</td></tr>
+        <tr><td><code>--topbar-bg</code></td><td class="val">rgba(250,248,242,0.75)</td><td class="val">rgba(20,18,16,0.8)</td><td class="val">#ffffff</td></tr>
+        <tr><td><code>--inset-hi</code></td><td class="val">rgba(255,255,255,0.6)</td><td class="val">rgba(255,255,255,0.04)</td><td class="val">none</td></tr>
+        <tr><td><code>--radius</code></td><td class="val">14px</td><td class="val">14px</td><td class="val">4px</td></tr>
+        <tr><td><code>--radius-sm</code></td><td class="val">10px</td><td class="val">10px</td><td class="val">2px</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ════════════════════════════════════════
+       3. 字体系统 Typography
+       ════════════════════════════════════════ -->
+  <section class="ds-section">
+    <h2 class="ds-section-title">字体系统</h2>
+    <p class="ds-section-desc">标题使用 Playfair Display 衬线体，正文使用 Inter 无衬线体。中文标题配合 Noto Serif SC。</p>
+
+    <div class="ds-type-row">
+      <div class="ds-type-sample" style="font-family:'Playfair Display','Noto Serif SC',serif;font-size:32px;font-weight:500;line-height:1.4;letter-spacing:-0.02em;">
+        文章大标题 Article Title
+      </div>
+      <div class="ds-type-meta">
+        font-size: 32px<br>
+        font-weight: 500<br>
+        line-height: 1.4<br>
+        letter-spacing: -0.02em<br>
+        用于：快照页标题
+      </div>
+    </div>
+
+    <div class="ds-type-row">
+      <div class="ds-type-sample" style="font-family:'Playfair Display','Noto Serif SC',serif;font-size:22px;font-weight:500;line-height:1.4;letter-spacing:-0.01em;">
+        二级标题 Section Heading
+      </div>
+      <div class="ds-type-meta">
+        font-size: 22px<br>
+        font-weight: 500<br>
+        line-height: 1.4<br>
+        letter-spacing: -0.01em<br>
+        用于：文章内 h2、侧边面板标题（评论 / AI / Chat）
+      </div>
+    </div>
+
+    <div class="ds-type-row">
+      <div class="ds-type-sample" style="font-family:'Playfair Display',serif;font-size:20px;font-weight:500;letter-spacing:-0.02em;">
+        Slax Reader 品牌标识
+      </div>
+      <div class="ds-type-meta">
+        font-size: 20px<br>
+        font-weight: 500<br>
+        letter-spacing: -0.02em<br>
+        用于：顶栏 Logo
+      </div>
+    </div>
+
+    <div class="ds-type-row">
+      <div class="ds-type-sample" style="font-family:'Playfair Display',serif;font-size:17px;font-weight:400;line-height:1.45;letter-spacing:-0.01em;">
+        列表卡片标题 Article Card Title in List View
+      </div>
+      <div class="ds-type-meta">
+        font-size: 17px<br>
+        font-weight: 400<br>
+        line-height: 1.45<br>
+        letter-spacing: -0.01em<br>
+        用于：列表页文章标题
+      </div>
+    </div>
+
+    <div class="ds-type-row">
+      <div class="ds-type-sample" style="font-size:16px;line-height:1.85;">
+        正文排版示例。这是一段用于展示阅读体验的文字，行高设置为 1.85 以保证中文长文的阅读舒适度。
+      </div>
+      <div class="ds-type-meta">
+        font-size: 16px<br>
+        font-weight: 400<br>
+        line-height: 1.85<br>
+        用于：快照页正文
+      </div>
+    </div>
+
+    <div class="ds-type-row">
+      <div class="ds-type-sample" style="font-size:14px;color:var(--text-muted);">
+        辅助信息文字 Secondary Text
+      </div>
+      <div class="ds-type-meta">
+        font-size: 14px<br>
+        font-weight: 400<br>
+        color: --text-muted<br>
+        用于：侧栏导航项、作者名、tag 文字、二级按钮文字
+      </div>
+    </div>
+
+    <div class="ds-type-row">
+      <div class="ds-type-sample" style="font-size:13px;color:var(--text-light);font-weight:300;">
+        2026-04-08 · 爱范儿 · 辅助标注文字
+      </div>
+      <div class="ds-type-meta">
+        font-size: 13px<br>
+        font-weight: 300<br>
+        color: --text-light<br>
+        用于：日期、来源、副标题
+      </div>
+    </div>
+
+    <div class="ds-type-row" style="border-bottom:none;">
+      <div class="ds-type-sample" style="font-size:12px;color:var(--text-light);">
+        标签 · 小字 · 角标
+      </div>
+      <div class="ds-type-meta">
+        font-size: 12px<br>
+        用于：来源标签、评论数 / 评论全文等徽章、计数、小字提示
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════
+       4. 圆角 & 阴影 Radius & Shadow
+       ════════════════════════════════════════ -->
+  <section class="ds-section">
+    <h2 class="ds-section-title">圆角 & 阴影</h2>
+    <p class="ds-section-desc">圆角在墨水屏模式下自动收紧（14→4px, 10→2px），阴影在墨水屏模式下禁用。</p>
+
+    <div class="ds-demo-row">
+      <div class="ds-demo-label">--radius<br><span style="font-size:12px;color:var(--text-light)">14px / 4px(eink)</span></div>
+      <div class="ds-radius-box" style="border-radius:var(--radius);"></div>
+      <span style="font-size:12px;color:var(--text-light)">大圆角 · 文章卡片、图片、悬浮按钮（FAB）、弹出菜单、面板等较大尺寸的容器</span>
+    </div>
+
+    <div class="ds-demo-row">
+      <div class="ds-demo-label">--radius-sm<br><span style="font-size:12px;color:var(--text-light)">10px / 2px(eink)</span></div>
+      <div class="ds-radius-box" style="border-radius:var(--radius-sm);"></div>
+      <span style="font-size:12px;color:var(--text-light)">小圆角 · 按钮、侧栏导航项、工具栏槽位、输入框、tag、徽章等较小的交互元素</span>
+    </div>
+
+    <div class="ds-demo-row">
+      <div class="ds-demo-label">--shadow-warm</div>
+      <div class="ds-shadow-box" style="box-shadow:var(--shadow-warm);"></div>
+      <span style="font-size:12px;color:var(--text-light)">暖色主阴影 · 用于 FAB、底部工具栏、边缘工具栏、弹出菜单、文章卡片 hover 等所有「漂浮在内容之上」的元素，墨水屏模式下自动禁用</span>
+    </div>
+
+    <div class="ds-demo-row" style="border-bottom:none">
+      <div class="ds-demo-label">--shadow-sm</div>
+      <div class="ds-shadow-box" style="box-shadow:var(--shadow-sm);"></div>
+      <span style="font-size:12px;color:var(--text-light)">轻量阴影 · 预留 token，用于轻量提示性悬浮（如输入框 focus、小型 toast），目前主要页面尚未使用</span>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════
+       5. 布局参数 Layout
+       ════════════════════════════════════════ -->
+  <section class="ds-section">
+    <h2 class="ds-section-title">布局参数</h2>
+    <p class="ds-section-desc">所有页面整体居中。快照页的内容区与侧边栏面板存在响应式联动，根据视口宽度分三档行为；< 768px 进入 H5 模式。</p>
+
+    <!-- 5.1 CSS 变量 -->
+    <h3 style="font-size:14px;font-weight:500;margin:20px 0 10px;color:var(--text)">CSS 变量</h3>
+    <table class="ds-table">
+      <thead>
+        <tr><th>变量</th><th>值</th><th>用途</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>--shell-w</code></td><td class="val">1200px</td><td>列表页整体布局最大宽度</td></tr>
+        <tr><td><code>--sidebar-w</code></td><td class="val">240px</td><td>列表页左侧导航栏宽度</td></tr>
+        <tr><td><code>--content-w</code></td><td class="val">820px</td><td>快照页阅读内容理想宽度</td></tr>
+        <tr><td><code>--content-min-w</code></td><td class="val">640px</td><td>快照页内容最小可阅读宽度（推距上限）</td></tr>
+        <tr><td><code>--side-panel-w</code></td><td class="val">440px</td><td>侧边栏面板默认宽度</td></tr>
+        <tr><td><code>--push-amount</code></td><td class="val">JS 动态计算</td><td>body 实际推距（≤ 面板宽度）</td></tr>
+        <tr><td>顶栏高度</td><td class="val">56px（列表）/ 52px（快照桌面）/ 48px（H5）</td><td>固定顶栏</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 5.2 侧边栏面板尺寸 -->
+    <h3 style="font-size:14px;font-weight:500;margin:24px 0 10px;color:var(--text)">侧边栏面板（快照页）</h3>
+    <table class="ds-table">
+      <thead>
+        <tr><th>项</th><th>值</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>默认宽度</td><td class="val">440px</td><td>初始加载宽度</td></tr>
+        <tr><td>最小宽度</td><td class="val">380px</td><td>用户拖拽下限</td></tr>
+        <tr><td>最大宽度</td><td class="val">680px</td><td>用户拖拽上限</td></tr>
+        <tr><td>H5 模式宽度</td><td class="val">100vw（固定）</td><td>移动端全屏覆盖，禁用拖拽</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 5.3 桌面态三档布局 -->
+    <h3 style="font-size:14px;font-weight:500;margin:24px 0 10px;color:var(--text)">桌面态三档布局逻辑</h3>
+    <p class="ds-section-desc" style="margin-bottom:10px">
+      <strong>Free 临界</strong> = content_w(820) + 2 × panel_w + 2 × buffer(40)<br>
+      <strong>Push 临界</strong> = content_min_w(640) + panel_w
+    </p>
+    <table class="ds-table">
+      <thead>
+        <tr><th>模式</th><th>触发条件</th><th>行为</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Free 居中</td><td>视口 ≥ Free 临界</td><td>内容居中，面板贴右，无重叠</td></tr>
+        <tr><td>Push 左推</td><td>Free 临界 &gt; 视口 &gt; Push 临界</td><td>内容向左推（push = 面板宽），可阅读宽度 ≥ min</td></tr>
+        <tr><td>Push + 软覆盖</td><td>视口 ≤ Push 临界</td><td>push 卡在 视口 − min，面板自然重叠到文字右侧</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 5.4 临界值实例 -->
+    <h3 style="font-size:14px;font-weight:500;margin:24px 0 10px;color:var(--text)">临界值实例（按面板宽度变化）</h3>
+    <table class="ds-table">
+      <thead>
+        <tr><th>面板宽度</th><th>Free 临界</th><th>Push 临界</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>380px（最小）</td><td class="val">1620px</td><td class="val">1020px</td></tr>
+        <tr><td><strong>440px（默认）</strong></td><td class="val"><strong>1780px</strong></td><td class="val"><strong>1080px</strong></td></tr>
+        <tr><td>680px（最大）</td><td class="val">2260px</td><td class="val">1320px</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 5.5 H5 模式 -->
+    <h3 style="font-size:14px;font-weight:500;margin:24px 0 10px;color:var(--text)">H5 模式（视口 &lt; 768px）</h3>
+    <p class="ds-section-desc" style="margin-bottom:10px">
+      由 JS <code>matchMedia('(max-width: 768px)')</code> 监听断点穿越，通过 <code>body.h5-mode</code> 类驱动样式覆盖。桌面 push 逻辑完全旁路。
+    </p>
+    <table class="ds-table">
+      <thead>
+        <tr><th>项</th><th>桌面态</th><th>H5 态</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>面板形态</td><td>右侧滑入（覆盖式 / push 式自适应）</td><td class="val">底部 sheet 滑出</td></tr>
+        <tr><td>面板默认状态</td><td>展开（评论 tab）</td><td class="val">关闭</td></tr>
+        <tr><td>面板宽度</td><td>380–680 可横向拖拽</td><td class="val">100vw 固定</td></tr>
+        <tr><td>面板高度</td><td>100vh（top:52px 起）</td><td class="val">默认 auto（内容自适应），40vh–90vh 可纵向拖拽</td></tr>
+        <tr><td>拖拽手柄</td><td>左侧边缘（横向调宽）</td><td class="val">顶部居中抓手（纵向调高）</td></tr>
+        <tr><td>右侧 tabs（AI / Chat / 评论）</td><td>显示</td><td class="val">隐藏</td></tr>
+        <tr><td>Edge Toolbar（右侧悬浮）</td><td>显示</td><td class="val">隐藏</td></tr>
+        <tr><td>触发面板入口</td><td>边缘 toolbar</td><td class="val">底部 toolbar 三按钮：解析 / Chat / 评论</td></tr>
+        <tr><td>Topbar 高度</td><td>52px</td><td class="val">48px</td></tr>
+        <tr><td>文章 padding</td><td>76px 24px 120px</td><td class="val">64px 16px 100px</td></tr>
+        <tr><td>标题字号</td><td>32px</td><td class="val">26px</td></tr>
+        <tr><td>底部按钮文字</td><td>显示</td><td class="val">隐藏（仅图标）</td></tr>
+        <tr><td>底部 toolbar 显示时机</td><td>始终</td><td class="val">sheet 关闭时显示，sheet 打开时隐藏</td></tr>
+        <tr><td>Overlay 遮罩</td><td>窄屏 push 不下时启用</td><td class="val">sheet 打开时启用（点击遮罩关闭）</td></tr>
+        <tr><td>桌面 → H5 时面板开着</td><td>—</td><td class="val">自动收起</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 5.6 断点全景图 -->
+    <h3 style="font-size:14px;font-weight:500;margin:24px 0 10px;color:var(--text)">断点全景（默认面板 440px）</h3>
+    <pre style="font-size:12px;line-height:1.8;color:var(--text-muted);background:var(--accent-bg);padding:16px 18px;border-radius:8px;overflow-x:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">0─────────600─────────<strong style="color:var(--accent)">768</strong>═══════<strong style="color:var(--accent)">1080</strong>═══════<strong style="color:var(--accent)">1780</strong>──────∞
+│                       │            │           │
+│  H5 模式              │  Push 软覆盖 │  Push 正常 │  Free 居中
+│  面板 100vw           │  面板叠到字  │  内容左推  │  面板贴右
+│  默认关闭             │  内容守住min │           │  无重叠
+│  底部加 "更多" 按钮    │            │           │
+                       768          1080        1780</pre>
+  </section>
+
+  <!-- ════════════════════════════════════════
+       6. 组件规范 Components
+       ════════════════════════════════════════ -->
+  <section class="ds-section">
+    <h2 class="ds-section-title">组件规范</h2>
+    <p class="ds-section-desc">常用 UI 组件的样式参数。</p>
+
+    <div class="ds-comp-grid ds-comp-grid-masonry">
+
+      <div class="ds-comp-card">
+        <div class="ds-comp-label">按钮 Button</div>
+        <!-- 主按钮 -->
+        <div style="font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:8px">主按钮 Primary</div>
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
+          <button class="ds-btn-demo" style="background:var(--accent);color:var(--btn-text);">默认</button>
+          <button class="ds-btn-demo" style="background:var(--accent);color:var(--btn-text);opacity:0.9;transform:translateY(-1px)">Hover</button>
+          <button class="ds-btn-demo" style="background:var(--accent);color:var(--btn-text);opacity:0.8;transform:scale(0.98)">Active</button>
+        </div>
+        <div style="font-size:12px;color:var(--text-light);line-height:1.8;margin-bottom:20px">
+          默认: bg=--accent, color=--btn-text<br>
+          Hover: opacity=0.9, translateY(-1px)<br>
+          Active: opacity=0.8, scale(0.98)
+        </div>
+        <!-- 弱化描边按钮 -->
+        <div style="font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:8px">弱化描边按钮 Weak Outline</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+          <button class="ds-weak-outline-btn is-icon" aria-label="分享">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="18" cy="5" r="3"/>
+              <circle cx="6" cy="12" r="3"/>
+              <circle cx="18" cy="19" r="3"/>
+              <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/>
+            </svg>
+          </button>
+          <button class="ds-weak-outline-btn is-icon is-hover" aria-label="分享 hover">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="18" cy="5" r="3"/>
+              <circle cx="6" cy="12" r="3"/>
+              <circle cx="18" cy="19" r="3"/>
+              <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/>
+            </svg>
+          </button>
+          <button class="ds-weak-outline-btn is-icon is-active" aria-label="分享 active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="18" cy="5" r="3"/>
+              <circle cx="6" cy="12" r="3"/>
+              <circle cx="18" cy="19" r="3"/>
+              <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/>
+            </svg>
+          </button>
+          <button class="ds-weak-outline-btn">管理合集</button>
+        </div>
+        <div style="font-size:12px;color:var(--text-light);line-height:1.8;margin-bottom:20px">
+          默认: bg=transparent, border=--border, color=mix(--text 58%, --text-muted)<br>
+          Hover: bg=--accent-bg, border=--accent-soft, color=--accent<br>
+          Active: Hover 色值 + scale(0.98)<br>
+          图标按钮: 40×40px；文字按钮: min-height=40px, padding=0 16px
+        </div>
+        <!-- 操作项 -->
+        <div style="font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:8px">操作项 Action</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+          <button class="ds-btn-demo" style="background:transparent;color:var(--text-light);border:none;padding:6px 10px;font-size:12px;font-weight:400">默认</button>
+          <button class="ds-btn-demo" style="background:var(--accent-bg);color:var(--text);border:none;padding:6px 10px;font-size:12px;font-weight:400">Hover</button>
+          <button class="ds-btn-demo" style="background:var(--danger-bg);color:var(--danger);border:none;padding:6px 10px;font-size:12px;font-weight:400">Danger Hover</button>
+        </div>
+        <div style="font-size:12px;color:var(--text-light);line-height:1.8">
+          默认: 透明, color=--text-light, 列表卡片 hover 时才显示<br>
+          Hover: bg=--accent-bg, color=--text<br>
+          Danger Hover: bg=--danger-bg, color=--danger
+        </div>
+      </div>
+
+      <div class="ds-comp-card" id="tag-spec">
+        <div class="ds-comp-label">标签 Tag</div>
+        <div class="ds-tag-variant">
+          <div class="ds-tag-title">详情页标签 Detail Tag</div>
+          <div class="ds-tag-usage">使用位置：文章详情（快照页）标题下方的标签区。</div>
+          <div class="ds-tag-state">默认 / Hover</div>
+          <div class="ds-tag-example is-detail">
+            <span class="ds-detail-tag">默认<button class="ds-detail-tag-remove" type="button" aria-label="移除标签（默认示例）">×</button></span>
+            <span class="ds-detail-tag is-hover">Hover<button class="ds-detail-tag-remove" type="button" aria-label="移除标签（悬停示例）">×</button></span>
+            <button class="ds-tag-add" type="button" aria-label="添加标签（详情页）"><svg viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.5"/></svg></button>
+            <button class="ds-tag-add is-hover" type="button" aria-label="添加标签（详情页悬停示例）"><svg viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.5"/></svg></button>
+          </div>
+          <div class="ds-tag-notes">
+            默认：border=--border，删除按钮隐藏<br>
+            Hover：文字与描边保持原色，显示 × 删除按钮；竖分隔线固定高 14px，垂直居中<br>
+            标签组间距：8px；删除按钮宽 14px，左外边距与左内边距均为 6px；标签内部无额外 gap，与 snapshot 一致<br>
+            添加按钮默认：border=dashed --border<br>
+            添加按钮 Hover：border=dashed --accent，bg=--accent-bg
+          </div>
+        </div>
+        <div class="ds-tag-variant">
+          <div class="ds-tag-title">卡片列表标签 Article Card Tag</div>
+          <div class="ds-tag-usage">使用位置：收件箱卡片模式中，来源后的主题标签；来源本身使用 Source 样式，不显示删除按钮。</div>
+          <div class="ds-tag-state">默认 / Hover</div>
+          <div class="ds-tag-example">
+            <span class="ds-tag-source">爱范儿</span>
+            <span class="ds-list-tag">影像技术<button class="ds-tag-remove" type="button" aria-label="移除标签">×</button></span>
+            <span class="ds-list-tag is-hover">MWC<button class="ds-tag-remove" type="button" aria-label="移除标签">×</button></span>
+            <button class="ds-tag-add" type="button" aria-label="添加标签"><svg viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.5"/></svg></button>
+            <button class="ds-tag-add is-hover" type="button" aria-label="添加标签（悬停示例）"><svg viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.5"/></svg></button>
+          </div>
+          <div class="ds-tag-notes">默认：12px 字号，与来源一致；高 20px，透明底，1px --border 描边，圆角 20px。<br>标签 Hover：文字高亮为 --accent，描边保持 --border，展开竖分隔线和「×」；「×」可移除该文章的标签。<br>添加入口：位于标签组末尾，即使无标签也显示；20×20px 圆形，虚线描边 --border；Hover 时描边与图标为 --accent，底色为 --accent-bg。<br>来源 Hover：仅加深底色至 --accent 10%，保持文字颜色，不显示「×」。</div>
+        </div>
+        <div class="ds-tag-variant">
+          <div class="ds-tag-title">文字列表标签 Text List Tag</div>
+          <div class="ds-tag-usage">使用位置：收件箱文字列表中，来源与主题标签所在的第二行元信息。</div>
+          <div class="ds-tag-state">默认 / Hover</div>
+          <div class="ds-tag-example is-text">
+            <span class="ds-tag-source">爱范儿</span>
+            <span class="ds-list-tag">影像技术<button class="ds-tag-remove" type="button" aria-label="移除标签">×</button></span>
+            <span class="ds-list-tag is-hover">MWC<button class="ds-tag-remove" type="button" aria-label="移除标签">×</button></span>
+            <button class="ds-tag-add" type="button" aria-label="添加标签"><svg viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.5"/></svg></button>
+            <button class="ds-tag-add is-hover" type="button" aria-label="添加标签（悬停示例）"><svg viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.5"/></svg></button>
+          </div>
+          <div class="ds-tag-notes">默认：12px 字号、字重 300，文字为 --text-light；无底色与胶囊边框；来源、每个标签和「+」之间用 12px 高的 --border 短竖线分隔。<br>标签 Hover：文字为 --accent，显示「×」；文字与「×」之间无竖线，间距 4px，「×」区域宽 12px，无左内边距。<br>添加入口：位于标签组末尾，无标签时也保留；16×16px 无边框「+」，左侧保留短竖线；Hover 时图标为 --accent，底色保持透明。<br>来源 Hover：仅文字变为 --accent，不显示「×」；收件箱中来源位于元信息行首，左侧不加分隔线。</div>
+        </div>
+      </div>
+
+      <div class="ds-comp-card">
+        <div class="ds-comp-label">卡片 Article Card</div>
+        <div style="font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:8px">默认状态</div>
+        <div style="padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:inset 0 1px 0 var(--inset-hi);margin-bottom:12px">
+          <div style="font-family:'Playfair Display',serif;font-size:15px;color:var(--text);margin-bottom:6px;">文章标题示例</div>
+          <div style="font-size:12px;color:var(--text-light);">2026-04-08 · 来源</div>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:8px">Hover 状态</div>
+        <div style="padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-warm),inset 0 1px 0 var(--inset-hi);transform:translateY(-1px);margin-bottom:12px">
+          <div style="font-family:'Playfair Display',serif;font-size:15px;color:var(--text);margin-bottom:6px;">文章标题示例</div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:12px;color:var(--text-light);">2026-04-08 · 来源</span>
+            <span style="margin-left:auto;font-size:12px;color:var(--text-light)">快照 · 归档 · 删除</span>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text-light);line-height:1.8">
+          默认: bg=--surface, border=--border, inset-hi 顶部高光<br>
+          Hover: +shadow-warm, translateY(-1px), 显示操作项<br>
+          星标区域 hover 时不显示操作项（区域互斥）
+        </div>
+      </div>
+
+      <div class="ds-comp-card">
+        <div class="ds-comp-label">星标 Star</div>
+        <div style="display:flex;align-items:center;gap:32px;margin-bottom:16px">
+          <div style="text-align:center">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-light);opacity:0.3"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <div style="font-size:12px;color:var(--text-light);margin-top:6px">默认</div>
+          </div>
+          <div style="text-align:center">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-light);opacity:0.6"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <div style="font-size:12px;color:var(--text-light);margin-top:6px">Hover</div>
+          </div>
+          <div style="text-align:center">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" style="color:var(--accent);opacity:0.6"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <div style="font-size:12px;color:var(--text-light);margin-top:6px">已加星</div>
+          </div>
+          <div style="text-align:center">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" style="color:var(--accent);opacity:0.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <div style="font-size:12px;color:var(--text-light);margin-top:6px">已加星 Hover</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text-light);line-height:1.8">
+          尺寸: 12×12px, 触控区 52×25px<br>
+          默认: stroke, color=--text-light, opacity=0.3<br>
+          Hover: opacity→0.6<br>
+          已加星: fill, color=--accent, opacity=0.6<br>
+          已加星 Hover: opacity→0.8<br>
+          点击切换，列表与快照页底部栏同步
+        </div>
+      </div>
+
+      <div class="ds-comp-card">
+        <div class="ds-comp-label">来源标签 Source</div>
+        <div style="display:flex;gap:16px;align-items:center;">
+          <div>
+            <span style="font-size:12px;color:var(--text-muted);background:var(--accent-bg);padding:2px 10px;border-radius:20px;">卡片模式</span>
+          </div>
+          <div>
+            <span style="font-size:12px;color:var(--text-light);font-weight:300;border-left:1px solid var(--border);padding-left:8px;">文字模式</span>
+          </div>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-light);line-height:1.8">
+          卡片模式: bg=--accent-bg, 圆角 20px<br>
+          文字模式: 无底色, weight=300, 左侧竖线分隔<br>
+          max-width: 180px, 超出省略
+        </div>
+      </div>
+
+      <div class="ds-comp-card">
+        <div class="ds-comp-label">右侧工具栏 Edge Toolbar</div>
+        <div style="display:flex;gap:24px;align-items:center;margin-bottom:16px">
+          <div style="text-align:center">
+            <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:var(--radius-sm) 0 0 var(--radius-sm);color:var(--text-muted)">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke-width="1" fill-rule="evenodd"><g transform="translate(2, 3)"><path d="M8.20205479,0.875 L15.25,0.875 C15.6642136,0.875 16,1.21078644 16,1.625 C16,2.03921356 15.6642136,2.375 15.25,2.375 L8.20205479,2.375 C7.78784123,2.375 7.45205479,2.03921356 7.45205479,1.625 C7.45205479,1.21078644 7.78784123,0.875 8.20205479,0.875 Z" fill="currentColor"/><path d="M8.20205479,6.5625 L15.25,6.5625 C15.6642136,6.5625 16,6.89828644 16,7.3125 C16,7.72671356 15.6642136,8.0625 15.25,8.0625 L8.20205479,8.0625 C7.78784123,8.0625 7.45205479,7.72671356 7.45205479,7.3125 C7.45205479,6.89828644 7.78784123,6.5625 8.20205479,6.5625 Z" fill="currentColor"/><rect fill="currentColor" x="1.09589041" y="6.5625" width="4.38356164" height="1.5" rx="0.75"/><path d="M8.20205479,12.25 L15.25,12.25 C15.6642136,12.25 16,12.5857864 16,13 C16,13.4142136 15.6642136,13.75 15.25,13.75 L8.20205479,13.75 C7.78784123,13.75 7.45205479,13.4142136 7.45205479,13 C7.45205479,12.5857864 7.78784123,12.25 8.20205479,12.25 Z" fill="currentColor"/><path d="M1.5,3 C2.32842712,3 3,2.32842712 3,1.5 C3,0.671572875 2.32842712,0 1.5,0 C0.671572875,0 0,0.671572875 0,1.5 C0,2.32842712 0.671572875,3 1.5,3 Z" fill="currentColor"/><path d="M5.47945205,13.125 L4.16438356,13.125 C2.4109589,13.125 1.53424658,12.6875 1.53424658,10.9375 L1.53424658,1.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></g></svg>
+            </div>
+            <div style="font-size:12px;color:var(--text-light);margin-top:6px">默认</div>
+          </div>
+          <div style="text-align:center">
+            <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:var(--radius-sm) 0 0 var(--radius-sm);color:var(--text)">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke-width="1" fill-rule="evenodd"><g transform="translate(2, 3)"><path d="M8.20205479,0.875 L15.25,0.875 C15.6642136,0.875 16,1.21078644 16,1.625 C16,2.03921356 15.6642136,2.375 15.25,2.375 L8.20205479,2.375 C7.78784123,2.375 7.45205479,2.03921356 7.45205479,1.625 C7.45205479,1.21078644 7.78784123,0.875 8.20205479,0.875 Z" fill="currentColor"/><path d="M8.20205479,6.5625 L15.25,6.5625 C15.6642136,6.5625 16,6.89828644 16,7.3125 C16,7.72671356 15.6642136,8.0625 15.25,8.0625 L8.20205479,8.0625 C7.78784123,8.0625 7.45205479,7.72671356 7.45205479,7.3125 C7.45205479,6.89828644 7.78784123,6.5625 8.20205479,6.5625 Z" fill="currentColor"/><rect fill="currentColor" x="1.09589041" y="6.5625" width="4.38356164" height="1.5" rx="0.75"/><path d="M8.20205479,12.25 L15.25,12.25 C15.6642136,12.25 16,12.5857864 16,13 C16,13.4142136 15.6642136,13.75 15.25,13.75 L8.20205479,13.75 C7.78784123,13.75 7.45205479,13.4142136 7.45205479,13 C7.45205479,12.5857864 7.78784123,12.25 8.20205479,12.25 Z" fill="currentColor"/><path d="M1.5,3 C2.32842712,3 3,2.32842712 3,1.5 C3,0.671572875 2.32842712,0 1.5,0 C0.671572875,0 0,0.671572875 0,1.5 C0,2.32842712 0.671572875,3 1.5,3 Z" fill="currentColor"/><path d="M5.47945205,13.125 L4.16438356,13.125 C2.4109589,13.125 1.53424658,12.6875 1.53424658,10.9375 L1.53424658,1.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></g></svg>
+            </div>
+            <div style="font-size:12px;color:var(--text-light);margin-top:6px">Hover</div>
+          </div>
+          <div style="text-align:center">
+            <div style="display:flex;align-items:center">
+              <div style="padding:0 14px;height:44px;display:flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-right:none;border-radius:var(--radius-sm) 0 0 var(--radius-sm);font-size:13px;color:var(--text)">AI 解析</div>
+              <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:0;color:var(--text)">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke-width="1" fill-rule="evenodd"><g transform="translate(2, 3)"><path d="M8.20205479,0.875 L15.25,0.875 C15.6642136,0.875 16,1.21078644 16,1.625 C16,2.03921356 15.6642136,2.375 15.25,2.375 L8.20205479,2.375 C7.78784123,2.375 7.45205479,2.03921356 7.45205479,1.625 C7.45205479,1.21078644 7.78784123,0.875 8.20205479,0.875 Z" fill="currentColor"/><path d="M8.20205479,6.5625 L15.25,6.5625 C15.6642136,6.5625 16,6.89828644 16,7.3125 C16,7.72671356 15.6642136,8.0625 15.25,8.0625 L8.20205479,8.0625 C7.78784123,8.0625 7.45205479,7.72671356 7.45205479,7.3125 C7.45205479,6.89828644 7.78784123,6.5625 8.20205479,6.5625 Z" fill="currentColor"/><rect fill="currentColor" x="1.09589041" y="6.5625" width="4.38356164" height="1.5" rx="0.75"/><path d="M8.20205479,12.25 L15.25,12.25 C15.6642136,12.25 16,12.5857864 16,13 C16,13.4142136 15.6642136,13.75 15.25,13.75 L8.20205479,13.75 C7.78784123,13.75 7.45205479,13.4142136 7.45205479,13 C7.45205479,12.5857864 7.78784123,12.25 8.20205479,12.25 Z" fill="currentColor"/><path d="M1.5,3 C2.32842712,3 3,2.32842712 3,1.5 C3,0.671572875 2.32842712,0 1.5,0 C0.671572875,0 0,0.671572875 0,1.5 C0,2.32842712 0.671572875,3 1.5,3 Z" fill="currentColor"/><path d="M5.47945205,13.125 L4.16438356,13.125 C2.4109589,13.125 1.53424658,12.6875 1.53424658,10.9375 L1.53424658,1.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></g></svg>
+              </div>
+            </div>
+            <div style="font-size:12px;color:var(--text-light);margin-top:6px">文字滑出</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text-light);line-height:1.8">
+          默认: color=--text-muted<br>
+          Hover: color=--text, 文字从右向左滑出<br>
+          滑出动画: cubic-bezier(0.16, 1, 0.3, 1)<br>
+          收回: opacity 0.08s 先消失再位移<br>
+          点击: 打开右侧面板
+        </div>
+      </div>
+
+      <div class="ds-comp-card">
+        <div class="ds-comp-label">底部工具栏 Bottom Toolbar</div>
+        <div style="display:inline-flex;gap:2px;padding:6px;background:var(--surface);border:1px solid var(--border);border-radius:16px;margin-bottom:16px">
+          <span style="padding:6px 12px;font-size:13px;color:var(--text-muted);border-radius:10px">归档</span>
+          <span style="width:1px;height:20px;background:var(--border);align-self:center"></span>
+          <span style="padding:6px 12px;font-size:13px;color:var(--text-muted);border-radius:10px">加星</span>
+          <span style="width:1px;height:20px;background:var(--border);align-self:center"></span>
+          <span style="padding:6px 12px;font-size:13px;color:var(--text-muted);border-radius:10px;background:var(--accent-bg);color:var(--text)">分享 ← hover</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-light);line-height:1.8">
+          容器: bg=--surface, border-radius=16px, backdrop-filter<br>
+          项目: padding=8px 14px, 竖线分隔<br>
+          Hover: bg=--accent-bg, color=--text<br>
+          加星状态与标题旁星标同步<br>
+          窄屏 ≤600px 隐藏文字，只保留图标
+        </div>
+      </div>
+
+      <div class="ds-comp-card">
+        <div class="ds-comp-label">弹出菜单 Popover</div>
+        <div style="font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:8px">标准结构（普通项 + 分隔线 + 破坏性操作）</div>
+        <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;margin-bottom:16px">
+          <div class="popover ds-popover-inline" role="menu" style="min-width:220px">
+            <button class="popover-item" role="menuitem">
+              <span>复制链接</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+            <button class="popover-item" role="menuitem" style="background:var(--accent-bg);color:var(--text)">
+              <span>修改标题（Hover 态）</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </button>
+            <div class="popover-divider"></div>
+            <button class="popover-item popover-item-danger" role="menuitem">
+              <span>退出账号 / 删除</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </button>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text-light);line-height:1.8">
+          <strong>使用场景:</strong> 顶栏分享 / 更多操作 / 用户头像菜单 等点击触发的下拉菜单<br>
+          <strong>容器 .popover:</strong> bg=--surface-solid, border=--border, border-radius=--radius (12px), shadow=--shadow-warm + 暖色光晕, padding=6px, min-width=180~220px<br>
+          <strong>进入动画:</strong> opacity 0→1 + translateY(-4px→0), 0.18s ease<br>
+          <strong>菜单项 .popover-item:</strong> padding=9px 12px, font-size=14px, border-radius=8px, color=--text-muted, svg=15×15 opacity=0.75<br>
+          <strong>菜单项 Hover:</strong> bg=--accent-bg, color=--text<br>
+          <strong>破坏性 .popover-item-danger:</strong> color=--danger; Hover bg=--danger-bg<br>
+          <strong>分隔线 .popover-divider:</strong> 1px var(--border), margin=6px 4px<br>
+          <strong>触发容器:</strong> 任意 position:relative 的 wrapper（如 .popover-menu / .share-menu / .more-menu），通过 .open 类切换显隐<br>
+          <strong>交互规则:</strong> 点击触发器切换；点击容器外或按 ESC 关闭；同一时刻只允许一个 popover 打开
+        </div>
+      </div>
+
+      <div class="ds-comp-card">
+        <div class="ds-comp-label">空状态 Empty View</div>
+        <div style="font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:8px">标准结构</div>
+        <div class="ds-empty-view" style="min-height:240px;margin-bottom:16px">
+          <div class="ds-empty-view-icon" aria-hidden="true">
+            <img src="SVG 切图汇总/icon-empty-lock.svg" alt="">
+          </div>
+          <h3 class="ds-empty-view-title">该合集已被作者关闭</h3>
+          <p class="ds-empty-view-desc">用 Slax Reader 收藏你自己的文章。</p>
+          <button class="ds-weak-outline-btn ds-empty-view-cta" style="background:var(--accent);border-color:var(--accent);color:var(--btn-text)">免费使用 Slax Reader</button>
+        </div>
+        <table class="ds-table" style="font-size:12px;margin-bottom:16px">
+          <tr><td>容器</td><td><code>.empty-view</code> 默认隐藏；页面状态类只负责显示、居中和外层 padding / min-height</td></tr>
+          <tr><td>图标容器</td><td>72×72px, radius=50%, bg=<code>--surface</code>, border=<code>--border</code>, inset=<code>--inset-hi</code></td></tr>
+          <tr><td>图标</td><td>32×32px, color=<code>--text-light</code>, opacity=0.7；空态 icon 放在 32×32 切图组</td></tr>
+          <tr><td>标题</td><td>20px, Playfair Display / Noto Serif SC, weight=500, color=<code>--text</code>, letter-spacing=0</td></tr>
+          <tr><td>说明</td><td>14px, color=<code>--text-light</code>, line-height=1.7, max-width=360px</td></tr>
+          <tr><td>间距</td><td>icon → title: 24px；title → desc: 8px；desc → CTA: 32px</td></tr>
+          <tr><td>CTA</td><td>复用现有按钮组件：主按钮或弱化描边按钮；不新增独立 CTA 样式</td></tr>
+        </table>
+        <div style="font-size:12px;color:var(--text-light);line-height:1.8">
+          <strong>禁止:</strong> 不为单个页面新建 title / desc / icon 的视觉类；不新增 11px、15px 等规范外字号；不使用页面私有颜色。<br>
+          <strong>允许:</strong> 页面可加语义状态类（如 collection-closed-view-active）控制显示和替换业务文案。
+        </div>
+      </div>
+
+      <div class="ds-comp-card">
+        <div class="ds-comp-label">特效参数 Effects</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:2">
+          <strong>Backdrop Filter:</strong> blur(16px) saturate(150%)<br>
+          <strong>Transition 标准:</strong> all 0.2s<br>
+          <strong>Transition 快速:</strong> all 0.15s<br>
+          <strong>弹性曲线:</strong> cubic-bezier(0.16, 1, 0.3, 1)<br>
+          <strong>墨水屏:</strong> 禁用所有 transition / animation<br>
+          <strong>选中高亮:</strong> ::selection bg=--selection
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+
+  <!-- ─── Toast 提示 ─── -->
+  <section class="ds-section">
+    <h2 class="ds-section-title">Toast 提示</h2>
+    <p class="ds-section-desc">轻量操作反馈提示，底部居中浮出，1.8s 后自动消失。分「成功」和「警示」两种语义，颜色均复用 token。</p>
+
+    <div class="ds-comp-grid">
+
+      <!-- 成功 Toast -->
+      <div class="ds-comp-card">
+        <div class="ds-comp-label">成功 / 确认类</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">用于正面操作结果：已归档、已加星、已复制、已保存…</div>
+        <div style="display:flex;justify-content:center;margin-bottom:20px">
+          <div style="
+            display:inline-block;
+            padding:10px 20px;
+            background:var(--surface-solid);
+            border:1px solid var(--border);
+            border-radius:var(--radius-sm);
+            font-size:14px;
+            color:var(--text);
+            box-shadow:var(--shadow-warm);
+            font-family:inherit;
+          ">已归档</div>
+        </div>
+        <table class="ds-table" style="font-size:12px">
+          <tr><td>背景</td><td><code>--surface-solid</code></td></tr>
+          <tr><td>边框</td><td><code>1px solid --border</code></td></tr>
+          <tr><td>文字色</td><td><code>--text</code></td></tr>
+          <tr><td>圆角</td><td><code>--radius-sm</code></td></tr>
+          <tr><td>阴影</td><td><code>--shadow-warm</code></td></tr>
+          <tr><td>字号</td><td>14px</td></tr>
+          <tr><td>padding</td><td>10px 20px</td></tr>
+        </table>
+      </div>
+
+      <!-- 警示 Toast -->
+      <div class="ds-comp-card">
+        <div class="ds-comp-label">警示 / 失败类</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">用于操作异常、链接无效、网络失败等负面反馈。</div>
+        <div style="display:flex;justify-content:center;margin-bottom:20px">
+          <div style="
+            display:inline-block;
+            padding:10px 20px;
+            background:var(--danger-bg);
+            border:1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+            border-radius:var(--radius-sm);
+            font-size:14px;
+            color:var(--danger);
+            box-shadow:var(--shadow-warm);
+            font-family:inherit;
+          ">链接格式不正确</div>
+        </div>
+        <table class="ds-table" style="font-size:12px">
+          <tr><td>背景</td><td><code>--danger-bg</code></td></tr>
+          <tr><td>边框</td><td><code>1px solid --danger 30%</code></td></tr>
+          <tr><td>文字色</td><td><code>--danger</code></td></tr>
+          <tr><td>圆角</td><td><code>--radius-sm</code></td></tr>
+          <tr><td>阴影</td><td><code>--shadow-warm</code></td></tr>
+          <tr><td>字号</td><td>14px</td></tr>
+          <tr><td>padding</td><td>10px 20px</td></tr>
+        </table>
+      </div>
+
+      <!-- 行为规范 -->
+      <div class="ds-comp-card">
+        <div class="ds-comp-label">行为规范</div>
+        <table class="ds-table" style="font-size:12px;margin-top:8px">
+          <tr><td>位置</td><td>fixed · 底部居中（bottom: 88px）</td></tr>
+          <tr><td>进场</td><td>translateY(8px) opacity:0 → 0 opacity:1，duration 0.2s ease</td></tr>
+          <tr><td>退场</td><td>1.8s 后 opacity:0，duration 0.2s ease</td></tr>
+          <tr><td>同时只显示一条</td><td>新 toast 触发时清除旧 timer，文字原地替换</td></tr>
+          <tr><td>API</td><td><code>showToast(msg)</code> — 成功<br><code>showToast(msg, 'error')</code> — 警示</td></tr>
+          <tr><td>H5 sheet 开启时</td><td>bottom 上移至 76px，避免被 sheet 遮盖</td></tr>
+        </table>
+      </div>
+
+    </div>
+  </section>
+
+<script>
+  const swatchTooltip = document.createElement('div');
+  swatchTooltip.className = 'ds-tooltip';
+  document.body.appendChild(swatchTooltip);
+
+  function positionSwatchTooltip(swatch) {
+    const rect = swatch.getBoundingClientRect();
+    swatchTooltip.textContent = swatch.dataset.usage;
+    swatchTooltip.classList.add('is-visible');
+
+    const tipRect = swatchTooltip.getBoundingClientRect();
+    const gap = 10;
+    const margin = 12;
+    const left = Math.min(
+      Math.max(rect.left + rect.width / 2 - tipRect.width / 2, margin),
+      window.innerWidth - tipRect.width - margin
+    );
+    const above = rect.top - tipRect.height - gap;
+    const top = above >= margin ? above : rect.bottom + gap;
+
+    swatchTooltip.style.transform = `translate3d(${left}px, ${top}px, 0)`;
+  }
+
+  document.querySelectorAll('.ds-swatch[data-usage]').forEach(swatch => {
+    swatch.addEventListener('mouseenter', () => positionSwatchTooltip(swatch));
+    swatch.addEventListener('mousemove', () => positionSwatchTooltip(swatch));
+    swatch.addEventListener('mouseleave', () => {
+      swatchTooltip.classList.remove('is-visible');
+    });
+  });
+
+  window.addEventListener('scroll', () => {
+    swatchTooltip.classList.remove('is-visible');
+  }, { passive: true });
+
+  function updateSwatchValues() {
+    document.querySelectorAll('.ds-swatch[data-var]').forEach(swatch => {
+      const varName = swatch.dataset.var;
+      const val = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+      const el = swatch.querySelector('.ds-swatch-value');
+      if (el) el.textContent = val;
+    });
+  }
+
+  updateSwatchValues();
+
+  document.querySelectorAll('.ds-theme-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const theme = btn.dataset.theme;
+      if (theme === 'light') document.documentElement.removeAttribute('data-theme');
+      else document.documentElement.setAttribute('data-theme', theme);
+      document.querySelectorAll('.ds-theme-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      setTimeout(updateSwatchValues, 10);
+    });
+  });
+</script>
+
+</body>
+</html>

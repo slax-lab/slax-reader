@@ -1,0 +1,1 @@
+CREATE INDEX "slax_user_bookmark_user_id_updated_at_idx" ON "slax_user_bookmark"("user_id", "updated_at");

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="16px" height="16px" viewBox="0 0 16 16" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>笑脸@2x</title>
+    <defs>
+        <linearGradient x1="25.0994072%" y1="12.995583%" x2="69.7909115%" y2="82.0565932%" id="linearGradient-1">
+            <stop stop-color="#FFF69C" offset="0%"></stop>
+            <stop stop-color="#FDBA03" offset="100%"></stop>
+        </linearGradient>
+        <circle id="path-2" cx="8" cy="8" r="8"></circle>
+        <filter x="0.0%" y="0.0%" width="100.0%" height="100.0%" filterUnits="objectBoundingBox" id="filter-3">
+            <feGaussianBlur stdDeviation="0" in="SourceGraphic"></feGaussianBlur>
+        </filter>
+        <filter x="-21.7%" y="-23.5%" width="143.5%" height="147.0%" filterUnits="objectBoundingBox" id="filter-5">
+            <feGaussianBlur stdDeviation="1.16363636" in="SourceGraphic"></feGaussianBlur>
+        </filter>
+        <linearGradient x1="50%" y1="1.71813965%" x2="50%" y2="100%" id="linearGradient-6">
+            <stop stop-color="#FF945A" offset="0%"></stop>
+            <stop stop-color="#FF762C" offset="54.4319401%"></stop>
+            <stop stop-color="#FD6B1C" offset="100%"></stop>
+        </linearGradient>
+        <path d="M0.552336196,0.270794553 C1.93512414,0.0809635026 3.23793389,0.00164750234 4.5061564,0.00164750234 C5.74741061,0.00164750234 7.01818776,-0.0366306537 8.21769325,0.255827582 C8.68163996,0.368945059 8.81694357,0.477309154 8.7025887,1.20656399 C8.29761566,3.78912618 6.5457352,4.98449704 4.40593686,4.98449704 C2.19406995,4.98449704 0.293731774,3.64527069 0.0217351301,1.11911955 C-0.101341793,0.301520757 0.328517048,0.301520757 0.552336196,0.270794553 Z" id="path-7"></path>
+        <linearGradient x1="50%" y1="0%" x2="50%" y2="100%" id="linearGradient-9">
+            <stop stop-color="#F04C2B" offset="0%"></stop>
+            <stop stop-color="#D43B1C" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="页面-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Slax-Reader/插件弹框" transform="translate(-376.000000, -284.000000)">
+            <g id="已收藏备份-2" transform="translate(356.000000, 263.000000)">
+                <g id="编组-3" transform="translate(20.000000, 20.000000)">
+                    <g id="笑脸" transform="translate(0.000000, 1.000000)">
+                        <mask id="mask-4" fill="white">
+                            <use xlink:href="#path-2"></use>
+                        </mask>
+                        <use id="蒙版" fill="url(#linearGradient-1)" filter="url(#filter-3)" xlink:href="#path-2"></use>
+                        <path d="M15.9473592,4.39975051 C15.4341096,9.76429778 13.8850671,13.0609212 11.3002316,14.2896207 C8.71539609,15.5183202 6.09737018,15.9260323 3.44615385,15.5127569 L4.6082212,18.4004548 L16.3454251,19.2637066 L19.5029554,9.57031447 L15.9473592,4.39975051 Z" id="路径" fill="#FD761A" opacity="0.62040513" filter="url(#filter-5)" mask="url(#mask-4)"></path>
+                        <g id="嘴巴" mask="url(#mask-4)">
+                            <g transform="translate(3.793649, 6.853876)">
+                                <mask id="mask-8" fill="white">
+                                    <use xlink:href="#path-7"></use>
+                                </mask>
+                                <use id="蒙版" stroke="none" fill="url(#linearGradient-6)" fill-rule="evenodd" xlink:href="#path-7"></use>
+                                <path d="M1.3061564,-0.0179075015 L1.39426365,0.762372437 C1.41715156,0.966075004 1.57879452,1.12631599 1.78267703,1.14754096 C2.51618482,1.22390199 3.37727079,1.26208251 4.36593495,1.26208251 C5.36667215,1.26208251 6.27601195,1.22296382 7.09395435,1.14472644 C7.30288195,1.12474839 7.46798657,0.95886212 7.48698374,0.749843043 L7.58307948,-0.307464204 L7.58307948,-0.307464204 L1.43318169,-0.207507459 L1.3061564,-0.0179075015 Z" id="路径-28" stroke="none" fill="#FFFFFF" fill-rule="evenodd" mask="url(#mask-8)"></path>
+                                <path d="M1.17360331,3.849594 C2.32193487,3.42000572 3.42147181,3.20521157 4.47221412,3.20521157 C5.52295644,3.20521157 6.72173519,3.48605944 8.06855038,4.04775518 L6.4423612,5.77493908 L2.98350482,6.05528753 L1.17360331,3.849594 Z" id="路径-29" stroke="none" fill="url(#linearGradient-9)" fill-rule="evenodd" mask="url(#mask-8)"></path>
+                            </g>
+                        </g>
+                        <path d="M4.19407514,4.90674537 C4.70391137,4.16828383 5.18966173,3.79905306 5.65132622,3.79905306 C6.11299071,3.79905306 6.52980445,4.08282006 6.90176744,4.65035407" id="路径-30" stroke="#613E2A" stroke-width="0.727272727" stroke-linecap="round" mask="url(#mask-4)" transform="translate(5.547921, 4.352899) rotate(-1.000000) translate(-5.547921, -4.352899) "></path>
+                        <path d="M9.11855024,4.943884 C9.62838647,4.20542247 10.1141368,3.8361917 10.5758013,3.8361917 C11.0374658,3.8361917 11.4542796,4.1199587 11.8262425,4.6874927" id="路径-30备份" stroke="#613E2A" stroke-width="0.727272727" stroke-linecap="round" mask="url(#mask-4)" transform="translate(10.472396, 4.390038) scale(-1, 1) rotate(1.000000) translate(-10.472396, -4.390038) "></path>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

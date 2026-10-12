@@ -8,18 +8,23 @@ Defines the repository's long-lived environment branches (`dev`, `beta`, `main`)
 
 ### Requirement: Three long-lived environment branches
 
-The repository SHALL maintain exactly three long-lived branches: `dev` (integration, serving the test environment), `beta` (serving the beta environment), and `main` (serving production). `main` MUST remain the repository's default branch.
+The repository SHALL maintain exactly three long-lived branches: `dev` (integration, serving the test environment), `beta` (serving the beta environment), and `main` (serving production). `dev` MUST be the repository's default branch, so that pull requests opened without a deliberate base choice — including fork pull requests, whose base defaults to the upstream default branch — target the integration branch, and `main` is only ever targeted deliberately.
 
 #### Scenario: Branch to environment mapping is stable
 
 - **WHEN** a change lands on `dev`, `beta`, or `main`
-- **THEN** it belongs to the test, beta, or production release line respectively, and `main` is still the default branch from which default-branch-loaded automation runs
+- **THEN** it belongs to the test, beta, or production release line respectively, and `dev` is the default branch from which default-branch-loaded automation runs
+
+#### Scenario: Undirected pull requests land on the integration branch
+
+- **WHEN** a pull request is opened without deliberately choosing a base branch, including a pull request from a fork
+- **THEN** its base is `dev`, and `main` receives changes only through deliberately opened promotion pull requests
 
 ### Requirement: Uniform protection on all long-lived branches
 
 All three long-lived branches MUST be protected identically: changes arrive only through pull requests (direct pushes are rejected), deletion and non-fast-forward updates are rejected, and merging requires one approving review including a code-owner review plus the required status checks `agent-config drift check` and `PR review gate`. Squash, rebase, and merge-commit merging MUST all be permitted, so that promotion and sync-back pull requests can use the merge method the branching model requires. Protection MUST be defined in a branch ruleset whose name identifies the release branches, applied to all three refs.
 
-When a promotion or sync-back pull request cannot obtain the required approving review — because its author is the repository's only active administrator, self-approval does not count, and rulesets cannot exempt by a pull request's head branch — a human repository administrator merges it, bypassing the review requirement, with the merge-commit method, after the required status checks report success. If the `PR review gate` status has not reported (the review workflow does not fire for a pull request opened with conflicts, and its triggers do not include `synchronize`), posting a `/review` comment on the pull request runs the on-demand review so the gate reports a real status.
+When a promotion or sync-back pull request cannot obtain the required approving review — because its author is the repository's only active administrator, self-approval does not count, and rulesets cannot exempt by a pull request's head branch — a human repository administrator merges it, bypassing the review requirement, with the merge-commit method, after the required status checks report success. If the `PR review gate` status has not reported — the review workflow does not fire for a pull request opened with conflicts — the sync-back merge that resolves the conflicts re-triggers the review automatically, because the review triggers include `synchronize`; if no run fires (for example the pull request is still conflicted), posting a `/review` comment on the pull request runs the on-demand review so the gate reports a real status.
 
 #### Scenario: Direct push is rejected on every long-lived branch
 
@@ -55,19 +60,29 @@ Feature work SHALL flow `feature branch → dev → beta → main`: task branche
 - **WHEN** changes on `dev` are ready for beta, or changes on `beta` are ready for production
 - **THEN** a pull request from `dev` to `beta` (or `beta` to `main`) carries them, subject to the same protection rules as any other pull request
 
-### Requirement: Task branches live in isolated worktrees
+### Requirement: Task branches and commit protection
 
-Every task — human- or agent-driven — SHALL get its own git worktree inside the repository's `.worktrees/` directory on its own branch cut from `origin/dev`, with one task mapping to one worktree, one branch, and one pull request. Work MUST NOT be edited directly in the main checkout, and a task MUST NOT edit files in another task's worktree.
+Every task SHALL use its own branch cut from `origin/dev` and its own pull request targeting `dev`, with `<task-name>` used verbatim for the branch suffix and — when a change is required — the OpenSpec change-id. Commits directly on `dev`, `beta`, or `main` MUST be rejected locally by a pre-commit hook as well as remotely by the branch ruleset; the local hook MUST exempt merge commits so sync-back conflict resolution stays possible. Whether a task works in the main checkout or in a git worktree is a per-machine convention, not a repository requirement. Personal machine-local agent instruction files (gitignored `AGENTS.local.md` / `CLAUDE.local.md`) MAY impose stricter conventions such as mandatory worktrees, and agents MUST follow such a file when it exists at the repository root, with the local file winning on conflict with the shared rules.
 
-#### Scenario: Agent refuses to edit the main checkout
+#### Scenario: Agent cuts a task branch before editing
 
-- **WHEN** an agent is about to make its first file edit of a session and finds itself in the main checkout on a long-lived branch
-- **THEN** it stops and asks for a task worktree (or creates one with approval) before editing
+- **WHEN** an agent is about to make its first file edit of a session and finds the current branch is `dev`, `beta`, or `main`
+- **THEN** it cuts the task branch first (`git switch -c <type>/<task-name> --no-track origin/dev`), asking the human first when the checkout carries uncommitted changes
 
-#### Scenario: Merged task worktrees are cleaned up
+#### Scenario: Direct commit on a long-lived branch is rejected locally
 
-- **WHEN** a task's pull request has merged
-- **THEN** its worktree is removed and its merged branch is deleted
+- **WHEN** a contributor or agent attempts a non-merge commit while checked out on `dev`, `beta`, or `main`
+- **THEN** the pre-commit hook rejects the commit and advises cutting a task branch
+
+#### Scenario: Sync-back merge commits remain possible
+
+- **WHEN** a sync-back conflict resolution requires a merge commit while checked out on a long-lived branch
+- **THEN** the pre-commit hook permits the merge commit, and the remote ruleset still requires the result to land through a pull request
+
+#### Scenario: Personal local instructions override shared rules
+
+- **WHEN** `AGENTS.local.md` or `CLAUDE.local.md` exists at the repository root
+- **THEN** the agent reads and follows it, with the local file winning on conflict with the shared agent rules; when no such file exists, the shared rules apply unchanged
 
 ### Requirement: Promotion pull requests merge with a merge commit
 

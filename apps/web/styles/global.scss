@@ -1,0 +1,119 @@
+@use '@unocss/reset/sanitize/sanitize.css' as *;
+@use './page-transition.scss';
+
+// Playfair Display 衬线体（标题/序号/品牌）
+// 自托管 woff2，不走 Google CDN
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/playfair-display-latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/playfair-display-latin-ext.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+// 字体改由 theme.css 内 body { font-family: var(--slax-font-sans) } 兜底，此处不再用通配符设置
+* {
+  outline: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  box-sizing: border-box;
+  print-color-adjust: exact !important;
+}
+
+html {
+  padding: 0;
+  margin: 0;
+  scrollbar-gutter: stable;
+}
+
+body {
+  position: relative;
+  overflow-x: hidden;
+  /* iOS < 11.2 */
+  padding-top: constant(safe-area-inset-top);
+  padding-left: constant(safe-area-inset-left);
+  padding-right: constant(safe-area-inset-right);
+  padding-bottom: constant(safe-area-inset-bottom);
+  /* iOS >= 11.2 */
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+
+  // 隔离 stacking context，让 body::before 渐变层只覆盖 body 自身而不冒泡至父级
+  isolation: isolate;
+}
+
+// 全局氛围渐变层：跟随主题切换的暖色径向渐变
+// E-ink 主题通过 token (--slax-grad-a/b: transparent) 自动隐藏渐变
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(at 30% 0%, var(--slax-grad-a) 0%, transparent 50%), radial-gradient(at 80% 20%, var(--slax-grad-b) 0%, transparent 60%),
+    radial-gradient(at 50% 80%, var(--slax-grad-c) 0%, transparent 40%);
+}
+
+// Nuxt 渲染入口与默认布局：放在渐变层之上
+#__nuxt,
+.default-layout {
+  position: relative;
+  z-index: 1;
+}
+
+// 文本选区色
+::selection {
+  background: var(--slax-selection);
+  color: var(--slax-text);
+}
+
+button {
+  padding: 0;
+  user-select: none;
+  cursor: pointer;
+  outline: none;
+  border: none;
+  background-color: transparent;
+}
+
+// 隐藏滚动条但保留滚动
+// 用法：class="scrollbar-hide"
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+// transition 动画
+
+.opacity-leave-to,
+.opacity-enter-from {
+  --style: '!opacity-0';
+}
+
+.opacity-enter-active,
+.opacity-leave-active {
+  --style: transition-all duration-normal ease-in-out;
+}
+
+// --slax-header-height 已迁入 theme.tokens.css 的 :root；此处不再单独声明

@@ -1,0 +1,14 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "slax-reader"
+compatibility_date = "2026-05-26"
+pages_build_output_dir = "./dist"
+compatibility_flags = ["nodejs_compat"]
+
+[[r2_buckets]]
+binding = "OSS"
+bucket_name = "slax-reader-backend"
+
+[[services]]
+binding = "BACKEND"
+service = "reader-backend-dev"
+entrypoint = "ContentEntry"

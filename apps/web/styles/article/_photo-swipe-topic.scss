@@ -1,0 +1,50 @@
+@mixin photo-swipe-topic {
+  slax-photo-swipe-topic {
+    .topic-container {
+      --style: flex flex-col;
+
+      .photo-section {
+        --style: w-full select-none relative;
+
+        .swiper {
+          --style: w-full h-500px flex flex-row flex-nowrap overflow-x-auto cursor-grab;
+          scroll-snap-type: x mandatory;
+          &::-webkit-scrollbar {
+            --style: hidden;
+          }
+
+          .swiper-slide {
+            scroll-snap-align: center;
+            --style: w-full h-full shrink-0 flex-center;
+
+            img {
+              --style: w-full h-full object-fit object-contain bg-transparent;
+            }
+          }
+        }
+      }
+
+      .text-section {
+        --style: mt-32px;
+        .author {
+          --style: flex items-center;
+          img {
+            --style: w-32px rounded-full border-(1px solid #f5f5f3) select-none;
+          }
+
+          .nickname {
+            --style: ml-10px text-body font-bold line-height-16px;
+          }
+        }
+
+        .title {
+          --style: mt-32px text-h2 font-bold;
+        }
+
+        .desc {
+          --style: mt-24px text-body;
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,32 @@
+telemetry:
+  disable_telemetry_sharing: true
+
+replication:
+  connections:
+    - type: postgresql
+      uri: !env PS_DATA_SOURCE_URI
+      sslmode: disable
+
+storage:
+  type: postgresql
+  uri: !env PS_STORAGE_POSTGRESQL_URI
+  sslmode: disable
+
+port: !env PS_PORT
+
+sync_rules:
+  path: /config/sync_rules.yaml
+
+client_auth:
+  jwks:
+    keys:
+      - kty: 'RSA'
+        n: !env PS_JWK_N
+        e: !env PS_JWK_E
+        alg: 'RS256'
+        kid: !env PS_JWK_KID
+  audience: [!env PS_JWKS_AUDIENCE]
+
+api:
+  tokens:
+    - !env PS_API_TOKEN

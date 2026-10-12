@@ -1,0 +1,77 @@
+@mixin contentStyle {
+  * + * {
+    --style: mt-10px;
+  }
+
+  &::v-deep(h1) {
+    --style: text-(display txt) line-height-48px font-semibold;
+  }
+
+  &::v-deep(h2) {
+    --style: mt-45px text-(h2 txt) line-height-42px font-semibold;
+  }
+
+  &::v-deep(h3) {
+    --style: mt-45px text-(h2 txt) line-height-36px font-semibold;
+  }
+
+  &::v-deep(p) {
+    --style: mt-35px text-(card #4d4d4d) line-height-34px font-medium;
+  }
+
+  &::v-deep(ul),
+  &::v-deep(ol) {
+    --style: py-5px pl-2em;
+  }
+
+  &::v-deep(li) {
+    --style: mt-10px text-(card #4d4d4d) line-height-34px font-medium;
+  }
+
+  &::v-deep(a) {
+    // text-#4ECACD markdown 链接蓝绿色（专属排版色），保留
+    --style: text-#4ECACD;
+  }
+
+  &::v-deep(h2 > a),
+  &::v-deep(h3 > a) {
+    --style: text-inherit decoration-none;
+  }
+
+  &::v-deep(pre) {
+    --style: p-4 max-w-screen bg-gray-200 rounded text-left whitespace-pre-wrap;
+    font-family: var(--slax-font-mono) !important;
+
+    code {
+      --style: max-w-full block whitespace-pre;
+      font-family: var(--slax-font-mono) !important;
+
+      * {
+        font-family: var(--slax-font-mono) !important;
+      }
+
+      span p {
+        --style: inline;
+      }
+    }
+
+    &.language-text {
+      code {
+        --style: whitespace-pre-wrap;
+      }
+    }
+  }
+
+  &::v-deep(code) {
+    --style: text-left bg-gray-200;
+    font-family: var(--slax-font-mono);
+  }
+
+  &::v-deep(table) {
+    &,
+    * {
+      // text-#4d4d4d 是 markdown 表格中等偏暗灰文字，与 token --slax-text-muted 不完全对应，保留
+      --style: border-(1px solid border) p-10px text-(body #4d4d4d) line-height-28px font-medium;
+    }
+  }
+}

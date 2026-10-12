@@ -1,0 +1,179 @@
+{
+  "click_to_view": "Click to View",
+  "collect_page": "Collect Page",
+  "collected": "Collected",
+  "collection_failed": "Collection Failed",
+  "collection_in_progress": "Collecting",
+  "collection_not_supported": "Collection Not Supported on This Page",
+  "collection_successful": "Collected",
+  "common": {
+    "operate": {
+      "chatbot": "Chat",
+      "comment": "Comment",
+      "copy": "Copy",
+      "delete_line": "Clear",
+      "line": "Highlight",
+      "reply": "Reply",
+      "submit": "Submit",
+      "summary_refresh": "Re-generate"
+    },
+    "tips": {
+      "copy_content_success": "Content copied successfully",
+      "share_failed": "Create share failed",
+      "sidebar_tips": "Pages saved!\n\nReady to highlight, comment, and explore with AI"
+    }
+  },
+  "component": {
+    "ai_summaries": {
+      "analyzed_title": "Outline",
+      "click_to_expand": "Click any circle to explore more details",
+      "click_to_interpret": "Click the button to interpret this article",
+      "copy_content_success": "Content copied successfully",
+      "interpret": "Interpret this article",
+      "mindmap": "Mind Map",
+      "processing": "Analyzing",
+      "title": "Analysis Results"
+    },
+    "article_selection": {
+      "comment_deleted": "Comment deleted",
+      "comment_failed": "Comment failed",
+      "comment_placeholder": "Reply to $1",
+      "comments": {
+        "placeholder": "What do you think?\nLeave a comment below",
+        "title": "Comments"
+      },
+      "hours_ago": "hours ago",
+      "just_now": "Just now",
+      "minutes_ago": "minutes ago",
+      "perceptions": "Perceptions",
+      "placeholder": "Share your thoughts",
+      "reply": "Reply to...",
+      "stroke_failed": "Highlight failed",
+      "title": "Post a comment"
+    },
+    "bookmark_tags": {
+      "add": "Add Tags",
+      "add_placeholder": "Create: $1",
+      "placeholder": "Enter new tag (press Enter to confirm)"
+    },
+    "chat_bot": {
+      "access_complete": "Access complete",
+      "access_failed": "Access failed:",
+      "accessing_token": "Accessing",
+      "alias_placeholder": "Enter your question ($1 + enter to line break)",
+      "discover": "Discover more about this article，\nask me anything that comes to mind",
+      "generating_question": "Generating question...",
+      "hello": "Hello, I am the Slax Reader AI assistant:",
+      "now_accessing": "Accessing...",
+      "search_bookmark_complete": "Knowledge base search completed",
+      "search_bookmark_failed": "Knowledge base search failed",
+      "search_complete": "Search completed",
+      "search_failed": "Search failed",
+      "searching_token": "Searching",
+      "selected_image": "[$1 image$2 selected]",
+      "tips_accessing": "\"$1\" Accessing...",
+      "tips_searching": "\"$1\" Searching...",
+      "tips_searching_bookmark": "\"$1\" Searching knowledge base..."
+    },
+    "chat_bubble_message": {
+      "bookmarks_source": "Bookmark source:",
+      "links_source": "Information source:",
+      "related_questions": "Related:"
+    },
+    "chat_tips_message": {
+      "generate_question_title": "You might want to ask..."
+    },
+    "copy_button": {
+      "copy_content": "Copy content"
+    },
+    "feedback": {
+      "follow_up": "Allow follow-up at $1",
+      "name": "Feedback",
+      "placeholder": "Please describe the problem you are experiencing...",
+      "title": "Your feedback will help us improve"
+    },
+    "overview": {
+      "retry": "Regenerate Overview",
+      "text_content_title": "Overview: "
+    },
+    "panel": {
+      "auto_toggle": {
+        "on": "ON",
+        "off": "OFF",
+        "tips": "Auto-hide sidebar",
+        "enabled_tips": "Auto-close on outside click",
+        "disabled_tips": "Manual close: 'X' or $1"
+      },
+      "close_tips": "Keyboard shortcuts"
+    },
+    "plan_card": {
+      "one_time_purchase": "Try 1 Month Free",
+      "plan": {
+        "free_features": {
+          "one": "Includes all features of the free version"
+        },
+        "operate_title": "Subscribe Monthly",
+        "period": "/ Month",
+        "pro_features": {
+          "five": "Early access to new features",
+          "four": "Priority support",
+          "one": "Interactive AI chat",
+          "three": "Advanced semantic search",
+          "two": "Auto-tagging"
+        },
+        "title": "Pro Reader"
+      },
+      "subscribe_month_rule": "No auto-renewal"
+    },
+    "share_modal": {
+      "copy_link": "Copy link",
+      "copy_success": "Copied!",
+      "options": {
+        "first": "Show highlights and comments",
+        "second": "Show my avatar and nickname",
+        "third": "Allow visitors to add highlights and comments"
+      },
+      "revoke_tips": "Shared link access been revoked",
+      "title": "Share"
+    },
+    "sidebar": {
+      "about": "About",
+      "ai": "AI",
+      "archieve": "Archive",
+      "archieved": "Archived",
+      "chat": "Chat",
+      "collect_content": "Collect",
+      "collecting": "Collecting",
+      "comments": "Comment",
+      "feedback": "Feedback",
+      "more": "More",
+      "outline": "Outline",
+      "share": "Share",
+      "star": "Star",
+      "starred": "Starred",
+      "view_collection_detail": "View Cache"
+    }
+  },
+  "extended_settings": "Extended Settings",
+  "not_collected": "Not Collected",
+  "recollection": "Collect Again",
+  "removal": "Discard",
+  "removal_failed": "Removal Failed",
+  "removal_in_progress": "Removing",
+  "removal_successful": "Removed",
+  "shortcut_settings": "Shortcut Settings",
+  "slax_collection_list": "Slax Inbox ↗",
+  "util": {
+    "chatbot": {
+      "browser_finished": "Access complete",
+      "error_not_subscription": "Please Unlock this feature with a subscription",
+      "generate_question": "Generating question",
+      "generate_question_finished": "Finished",
+      "search_bookmark": "Searching knowledge base",
+      "search_bookmark_failed": "Knowledge base search failed",
+      "search_bookmark_finished": "Knowledge base search complete",
+      "search_finished": "Search complete"
+    }
+  },
+  "open_labs_in_settings": "Turn on in web settings ↗"
+}

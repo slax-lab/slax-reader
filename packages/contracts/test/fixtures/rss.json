@@ -1,0 +1,67 @@
+{
+  "subscriptions": {
+    "items": [
+      {
+        "id": "subscription-uuid",
+        "feed_url": "https://example.com/feed.xml",
+        "title": "Example",
+        "site_url": "https://example.com",
+        "icon_url": null,
+        "refreshing": false,
+        "last_checked_at": "2026-09-22T00:00:00.000Z",
+        "last_success_at": "2026-09-22T00:00:00.000Z",
+        "next_fetch_at": "2026-09-22T00:30:00.000Z",
+        "next_allowed_at": "2026-09-22T00:05:00.000Z",
+        "error": null,
+        "remark": null
+      }
+    ]
+  },
+  "entries": {
+    "items": [
+      {
+        "id": "entry-uuid",
+        "subscription_id": "subscription-uuid",
+        "source_title": "Example",
+        "title": "Example article",
+        "author": null,
+        "summary": "Feed summary",
+        "article_url": "https://example.com/article",
+        "image_url": null,
+        "published_at": null,
+        "first_seen_at": "2026-09-22T00:00:00.000Z",
+        "bookmark_user_uuid": null
+      }
+    ],
+    "next_cursor": null
+  },
+  "detail": {
+    "id": "entry-uuid",
+    "subscription_id": "subscription-uuid",
+    "source_title": "Example",
+    "title": "Example article",
+    "author": null,
+    "summary": "Feed summary",
+    "article_url": "https://example.com/article",
+    "image_url": null,
+    "published_at": null,
+    "first_seen_at": "2026-09-22T00:00:00.000Z",
+    "bookmark_user_uuid": null,
+    "content_html": "<h2>Example</h2><p>Feed <strong>summary</strong>.</p>",
+    "content_source": "feed",
+    "content_truncated": false
+  },
+  "save": {
+    "bookmark_user_uuid": "bookmark-user-uuid",
+    "result": "created",
+    "processing_status": "pending"
+  },
+  "refresh": {
+    "status": "accepted",
+    "next_allowed_at": "2026-09-22T00:05:00.000Z"
+  },
+  "error": {
+    "error": "refresh_limited",
+    "next_allowed_at": "2026-09-22T00:05:00.000Z"
+  }
+}

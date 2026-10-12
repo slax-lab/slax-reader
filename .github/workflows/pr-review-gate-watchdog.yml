@@ -1,0 +1,178 @@
+name: PR review gate watchdog
+
+# Scheduled fallback for the merge gate (OpenSpec change pr-review-gate-watchdog,
+# design D1/D3/D4/D5).
+#
+# The gate (pr-review-gate.yml) only wakes on workflow_run completions of the
+# review workflows, so it cannot see the shape "the review never started": a
+# pull request opened with conflicts has no merge ref and no pull_request run
+# at all (observed on #97), leaving the required "PR review gate" context at
+# Expected forever. This watchdog is the only component whose trigger is
+# independent of that failure shape; a pull_request trigger would be absent in
+# exactly the cases it exists for, so there is deliberately no pull_request leg.
+#
+# What it does, every tick: for each open pull request that the review system
+# would have activated for (not a draft, not from a fork), it fails closed —
+# posts a failing "PR review gate" status on the head commit — when the head
+# carries no such status, no review run exists for the pull request since the
+# head commit existed, and the head commit is older than 45 minutes (normal
+# review latency is bounded by the review's 20-minute timeout plus queueing).
+# Posting once makes the context exist, so the watchdog speaks at most once
+# per head; a genuine gate report posted later supersedes it (Statuses API
+# latest-wins).
+#
+# Run matching parses "#<n>" from run display_titles — the same contract the
+# gate relies on — because a pull_request run's head_sha is the merge commit,
+# not the pull request head.
+#
+# Caveats:
+# - Like the gate, schedule workflows run only from the default branch, so this
+#   takes effect only after merging to dev.
+# - GitHub disables scheduled workflows after 60 days of repository inactivity.
+# - A declined-by-design shape this workflow cannot see: a stacked pull request
+#   that is not the top of its stack is declined by the review's activation
+#   stage via a GraphQL-only field. A conflicted one would get a failure it
+#   does not deserve; /review or close/reopen resolves it (design, Risks).
+
+on:
+  schedule:
+    # Every 15 minutes, off the :00/:30 herd marks.
+    - cron: "4-59/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print the decisions and would-be status payloads without posting"
+        type: boolean
+        default: true
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+  statuses: write
+
+concurrency:
+  # No cancel-in-progress: a superseded scan must finish rather than leave a
+  # head it already decided about unreported.
+  group: pr-review-gate-watchdog
+
+jobs:
+  scan:
+    # The whole scan is silent while reviews are paused (design D3): the pause
+    # is a deliberate operator switch, not a deadlock.
+    if: vars.PR_REVIEW_ENABLED != 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fail closed for heads no review ever started for
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          # FIXTURE_DIR: point at a directory of captured API responses to
+          # exercise the decision logic locally (pulls.json, status-<sha>.json,
+          # commit-<sha>.json, runs-pr-review.lock.yml.json,
+          # runs-pr-review-command.lock.yml.json). Unset in the workflow.
+          FIXTURE_DIR: ""
+        run: |
+          set -euo pipefail
+          CONTEXT="PR review gate"
+          THRESHOLD_SECONDS=$((45 * 60))
+          NOW=$(date -u +%s)
+          RUN_ID="${RUN_ID:-local}"
+
+          fetch() { # <api-path> <fixture-file>
+            if [ -n "${FIXTURE_DIR:-}" ]; then
+              cat "$FIXTURE_DIR/$2"
+            else
+              gh api "$1"
+            fi
+          }
+
+          fetch_pulls() {
+            if [ -n "${FIXTURE_DIR:-}" ]; then
+              jq -r '.[] | @base64' "$FIXTURE_DIR/pulls.json"
+            else
+              gh api "repos/$REPO/pulls?state=open&per_page=100" --jq '.[] | @base64'
+            fi
+          }
+
+          fetch_pulls | while read -r row; do
+            PR=$(base64 -d <<<"$row")
+            NUMBER=$(jq -r '.number' <<<"$PR")
+            SHA=$(jq -r '.head.sha' <<<"$PR")
+            LOG="pull request #$NUMBER head ${SHA:0:7}"
+
+            # Declined-by-design shapes the REST payload can see, mirroring the
+            # review's activation conditions: drafts and forks are never
+            # reviewed, so a missing gate status is intentional there. A null
+            # head.repo (deleted fork) is treated as a fork.
+            if [ "$(jq -r '.draft' <<<"$PR")" = "true" ]; then
+              echo "$LOG: draft, review is declined by design; skipping"
+              continue
+            fi
+            if [ "$(jq -r '.head.repo.fork != false' <<<"$PR")" = "true" ]; then
+              echo "$LOG: fork, review is declined by design; skipping"
+              continue
+            fi
+
+            # The gate context already carries a status on this head: the gate
+            # (or this watchdog on an earlier tick) has spoken. Latest status
+            # wins from here; nothing to do.
+            EXISTING=$(fetch "repos/$REPO/commits/$SHA/status" "status-$SHA.json" \
+              | jq -r --arg ctx "$CONTEXT" '[.statuses[]? | select(.context == $ctx)] | length')
+            if [ "$EXISTING" -gt 0 ]; then
+              echo "$LOG: a '$CONTEXT' status already exists on the head; skipping"
+              continue
+            fi
+
+            # The head commit's committer date is the available proxy for "when
+            # this head arrived" (no REST field records the push). It anchors
+            # both remaining checks: a run created after it reviews this head,
+            # and 45 minutes after it a review can no longer be merely slow.
+            COMMITTER_DATE=$(fetch "repos/$REPO/commits/$SHA" "commit-$SHA.json" \
+              | jq -r '.commit.committer.date')
+            COMMITTER_TS=$(date -u -jf "%Y-%m-%dT%H:%M:%SZ" "$COMMITTER_DATE" +%s 2>/dev/null \
+              || date -u -d "$COMMITTER_DATE" +%s)
+            AGE=$((NOW - COMMITTER_TS))
+            if [ "$AGE" -lt "$THRESHOLD_SECONDS" ]; then
+              echo "$LOG: head is ${AGE}s old (< ${THRESHOLD_SECONDS}s grace); skipping"
+              continue
+            fi
+
+            # A review run — automatic or on-demand — created since this head
+            # existed means a review is queued, running, or done for it; the
+            # gate owns the outcome either way. Matches "#<n>" in the run's
+            # display_title (the run-name contract), not head_sha, which for
+            # pull_request runs is the merge commit.
+            ENC_DATE=$(jq -rn --arg d ">=$COMMITTER_DATE" '$d | @uri')
+            RUN_FOUND=""
+            for WF in pr-review.lock.yml pr-review-command.lock.yml; do
+              TITLES=$(fetch "repos/$REPO/actions/workflows/$WF/runs?per_page=100&created=$ENC_DATE" \
+                "runs-$WF.json" | jq -r '.workflow_runs[]? | .display_title')
+              if grep -qE "#${NUMBER}([^0-9]|$)" <<<"$TITLES"; then
+                RUN_FOUND="$WF"
+                break
+              fi
+            done
+            if [ -n "$RUN_FOUND" ]; then
+              echo "$LOG: a review run exists in $RUN_FOUND for this head; skipping"
+              continue
+            fi
+
+            # No status, no run, past the grace threshold: the required check
+            # would wait at Expected forever. Fail closed, with the remedy in
+            # the description, and claim no unverified cause.
+            DESC="No review started for this head and none is coming; comment /review or close+reopen the PR to break the deadlock"
+            if [ "${DRY_RUN:-}" = "true" ] || [ "${DRY_RUN:-}" = "1" ]; then
+              echo "$LOG: DRY RUN would POST state=failure context='$CONTEXT' description='$DESC'"
+            else
+              echo "$LOG: POSTING failure on $SHA: $DESC"
+              gh api -X POST "repos/$REPO/statuses/$SHA" \
+                -f state="failure" \
+                -f context="$CONTEXT" \
+                -f description="$DESC" \
+                -f target_url="https://github.com/$REPO/actions/runs/$RUN_ID" > /dev/null
+            fi
+          done

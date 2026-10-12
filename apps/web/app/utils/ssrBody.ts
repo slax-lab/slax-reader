@@ -1,0 +1,1 @@
+export const SSR_BODY_STRIPPED = '__SLAX_SSR_STRIPPED__'

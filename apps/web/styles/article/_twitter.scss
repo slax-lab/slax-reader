@@ -1,0 +1,88 @@
+@use 'content-mixin' as *;
+
+@mixin twitter {
+  .tweet {
+    --style: border-b-(1px solid #e1e8ed) pb-24px;
+
+    &:last-child {
+      --style: border-b-none;
+    }
+
+    .tweet-header {
+      --style: relative bg-(cover center #fff) px-25px py-20px border-b-(1px solid #e1e8ed) flex items-center flex-wrap;
+
+      .banner-overlay {
+        --style: bg-#00000099 absolute inset-0;
+      }
+
+      .profile-image {
+        --style: w-48px h-48px rounded-full border-(2px solid #fff) mr-15px relative z-1 cursor-pointer;
+      }
+    }
+  }
+
+  .tweet-content {
+    --style: '!mt-32px whitespace-pre-line';
+
+    @include content-styles;
+  }
+
+  .quote-tweet-container {
+    --style: mt-28px relative border-(1px solid #e1e8ed) rounded-8px p-15px;
+    --style: 'hover:bg-#f5f8fa transition-colors duration-normal';
+
+    .quote-tweet {
+      --style: '!mt-0';
+
+      .quote-header {
+        --style: flex items-center;
+
+        img {
+          --style: 'w-32px h-32px rounded-full m-0';
+        }
+
+        .quote-title {
+          --style: 'font-bold !text-meta';
+          color: var(--slax-text-muted);
+        }
+
+        img + .quote-title {
+          --style: '!ml-10px';
+        }
+      }
+
+      .quote-description {
+        --style: mt-10px text-meta;
+        color: var(--slax-text-light);
+      }
+
+      .quote-media {
+        --style: w-full;
+
+        img {
+          --style: max-w-full rounded-8px mt-10px;
+        }
+      }
+
+      .quote-link {
+        --style: absolute inset-0 opacity-0;
+      }
+    }
+  }
+
+  .tweet-media {
+    img {
+      --style: 'first:(!mt-0) last:(!mb-0) not max-w-full rounded-8px';
+    }
+  }
+
+  .tweet-footer {
+    --style: '!mt-24px flex items-center justify-end';
+    div {
+      --style: 'flex items-center !ml-20px';
+    }
+    span {
+      --style: '!ml-5px';
+    }
+  }
+}

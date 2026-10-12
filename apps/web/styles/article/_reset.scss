@@ -1,0 +1,77 @@
+@mixin reset {
+  @font-face {
+    font-family: 'source-serif-pro';
+    src: url('/fonts/source-serif-pro-400-normal.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+    unicode-range: U+0-7F, U+A0, U+B7, U+200A, U+2014, U+2018, U+2019, U+201C, U+201D, U+2022, U+2026;
+  }
+
+  @font-face {
+    font-family: 'source-serif-pro';
+    src: url('/fonts/source-serif-pro-700-normal.woff') format('woff');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+    unicode-range: U+0-7F, U+A0, U+B7, U+200A, U+2014, U+2018, U+2019, U+201C, U+201D, U+2022, U+2026;
+  }
+
+  /* 块级元素 */
+  body,
+  h1, h2, h3, h4, h5, h6,
+  span:not(.katex):not(.katex span):not(pre span),
+  p,
+  div,
+  section,
+  article,
+  aside,
+  header,
+  footer,
+  nav,
+  main,
+  figure,
+  figcaption,
+  blockquote,
+  dl, dt, dd,
+  /* 列表元素 */
+  ul, ol, li,
+  /* 表单元素 */
+  form,
+  fieldset,
+  legend,
+  input,
+  textarea,
+  button,
+  select,
+  /* 表格元素 */
+  table,
+  caption,
+  tbody,
+  tfoot,
+  thead,
+  tr, th, td,
+  /* 其他常用元素 */
+  pre,
+  code,
+  hr,
+  /* HTML5元素 */
+  canvas,
+  video,
+  audio {
+    --style: 'break-words m-0 text-body line-height-28px text-justify';
+    color: var(--slax-text);
+  }
+
+  * {
+    font-family:
+      source-serif-pro,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      Roboto,
+      'Helvetica Neue',
+      Arial,
+      sans-serif;
+  }
+}

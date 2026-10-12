@@ -103,10 +103,26 @@ safe-outputs:
               echo "::error::No agent output found, so the review verdict is unknown. Failing closed."
               exit 1
             fi
-            IMPORTANT=$(jq -r '[.items[] | select(.type == "review_verdict") | (.important_findings | tonumber? // 0)] | max // 0' "$GH_AW_AGENT_OUTPUT")
-            SUMMARY=$(jq -r '[.items[] | select(.type == "review_verdict") | .summary] | last // ""' "$GH_AW_AGENT_OUTPUT")
+            VERDICT_COUNT=$(jq '[.items[] | select(.type == "review_verdict")] | length' "$GH_AW_AGENT_OUTPUT")
+            if [ "$VERDICT_COUNT" -ne 1 ]; then
+              echo "::error::Expected exactly one review_verdict item, found ${VERDICT_COUNT}. The review verdict is unknown. Failing closed."
+              exit 1
+            fi
+            IMPORTANT=$(jq -r '([.items[] | select(.type == "review_verdict")][0].important_findings // empty) | tostring' "$GH_AW_AGENT_OUTPUT")
+            case "$IMPORTANT" in
+              '' | *[!0-9]*)
+                echo "::error::review_verdict.important_findings must be a non-negative integer. Failing closed."
+                exit 1
+                ;;
+            esac
+            SUMMARY=$(jq -r '[.items[] | select(.type == "review_verdict")][0].summary | select(type == "string") | select(test("[^[:space:]]"))' "$GH_AW_AGENT_OUTPUT")
+            if [ -z "$SUMMARY" ]; then
+              echo "::error::review_verdict.summary is missing. Failing closed."
+              exit 1
+            fi
             echo "Verdict: ${IMPORTANT} Important finding(s). ${SUMMARY}"
-            if [ "$IMPORTANT" -gt 0 ]; then
+            # Decimal text avoids shell integer overflow for malformed large counts.
+            if [[ "$IMPORTANT" == *[1-9]* ]]; then
               echo "::error::Automated review reported ${IMPORTANT} Important finding(s); this pull request is blocked until they are addressed and the review passes."
               exit 1
             fi
