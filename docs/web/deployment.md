@@ -8,7 +8,7 @@ The `Web Pages deploy` GitHub Actions workflow publishes the existing Nuxt Pages
 | --- | --- | --- | --- |
 | `dev` | `dev` | `preview` | Test-account Pages project |
 | `beta` | `beta` | `beta` | Production-account beta Pages project |
-| `main` | `prod` | `production` | Production-account production Pages project |
+| `main` | `main` | `production` | Production-account production Pages project |
 
 The workflow runs only after an eligible pull request is merged. It checks out that merge commit, builds once for the selected environment, and publishes only that destination. Ordinary PR checks receive no release credentials. API-only, Extension-only, and documentation-only changes do not publish Web; shared frontend packages, build tooling, and dependency changes do.
 
@@ -16,16 +16,17 @@ A repository branch and a Pages project's production branch need not share a nam
 
 ## GitHub settings to fill
 
-In the repository, open **Settings → Environments** and create or reuse `dev`, `beta`, and `prod`. Restrict each Environment to its corresponding release branch; retain any required reviewer policy. Configure these same names separately in each Environment:
+In the repository, open **Settings → Environments** and create or reuse `dev`, `beta`, and `main`. Restrict each Environment to its corresponding release branch; retain any required reviewer policy. Configure these same names separately in each Environment:
 
 | Kind | Name | Value |
 | --- | --- | --- |
 | Variable | `CLOUDFLARE_ACCOUNT_ID` | The account that owns this environment's existing Pages project |
 | Variable | `PAGES_PROJECT_NAME` | The existing Pages project name, not its custom domain |
 | Variable | `WEB_BUILD_CONFIG` | A JSON object containing this environment's public Web build settings |
-| Secret | `CLOUDFLARE_API_TOKEN` | An account-scoped token with **Account → Cloudflare Pages → Edit** permission |
+| Secret | `CLOUDFLARE_API_TOKEN` | A token with **Account → Cloudflare Pages → Edit** and **Zone → Cache Purge → Purge** permissions for the selected account and zone |
+| Secret | `CF_ZONE_ID` | The existing zone containing this environment's Web hostname; reused from API deployment |
 
-Use the test account for `dev`, and the production account for `beta` and `prod`. An existing API deployment token is reusable only if it also has the necessary Pages permission. No credential value belongs in a workflow file, pull request, issue, or chat.
+Use the test account for `dev`, and the production account for `beta` and `main`. An existing API deployment token is reusable when it has both Pages and Cache Purge permissions. No credential value belongs in a workflow file, pull request, issue, or chat.
 
 The workflow reserves these input references; it does not create or populate GitHub settings. Missing or invalid inputs fail the release before publication. There is no default account, fallback project, or automatic project creation.
 
@@ -85,7 +86,11 @@ Nuxt currently emits a generated `dist/wrangler.toml` containing an incomplete b
 
 Releases serialize per environment without cancelling an upload already in progress. Before upload, the workflow checks whether newer Web-related changes have reached that branch. A superseded run is skipped, including on retry; unrelated changes do not invalidate it. Retry the newer eligible run instead of forcing an old bundle over it. API and Web releases are independent, so this workflow does not guarantee API deployment ordering.
 
-A failed build, project check, upload, or final deployment status fails the job. Diagnostics identify the failing stage without dumping raw project responses or credentials. Temporary publication files and captured external logs are removed, not uploaded as CI artifacts.
+After Pages confirms the final deployment succeeded, the helper calls [Cloudflare's cache purge API](https://developers.cloudflare.com/api/resources/cache/methods/purge/) with a single hostname: `dev` uses `r.slax.dev`, `beta` uses `r-beta.slax.com`, and `main` uses `r.slax.com`. This clears all edge cache entries for that hostname, not the entire zone, other environments, browser caches, or Service Worker caches. Failed or superseded deployments do not purge.
+
+A failed build, project check, upload, final deployment status, or cache purge fails the job. Purge requests have a 15-second timeout and require both HTTP success and JSON `success: true`; rerun an eligible release after a transient error. A purge failure does not roll back a successful Pages deployment. Diagnostics identify the failing stage without dumping raw responses or credentials. Temporary publication files and captured external logs are removed, not uploaded as CI artifacts.
+
+On first rollout, check that the log reports Cloudflare accepted the purge, then request a previously cached asset and inspect its version and `CF-Cache-Status`. API acceptance alone does not prove a particular asset was evicted, and other traffic can refill the cache before verification.
 
 For rollback, restore a known-good deployment through the existing Pages deployment history and pause or revert the faulty release workflow/change as appropriate. Do not delete or recreate the Pages project.
 

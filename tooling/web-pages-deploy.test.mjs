@@ -10,7 +10,7 @@ const publicConfig = {
   PUBLIC_BASE_URL: 'https://web.example.test', AUTH_BASE_URL: 'https://web.example.test', SHARE_BASE_URL: 'https://web.example.test', DWEB_API_BASE_URL: 'https://api.example.test',
   COOKIE_DOMAIN: 'example.test', COOKIE_TOKEN_NAME: 'reader_session', GOOGLE_OAUTH_CLIENT_ID: 'fixture-client-id'
 }
-const environment = () => ({ ...process.env, TARGET_BRANCH: 'dev', MERGE_SHA: 'a'.repeat(40), CLOUDFLARE_ACCOUNT_ID: '0'.repeat(32), PAGES_PROJECT_NAME: 'fixture-web', WEB_BUILD_CONFIG: JSON.stringify(publicConfig), CLOUDFLARE_API_TOKEN: 'fixture-credential' })
+const environment = () => ({ ...process.env, TARGET_BRANCH: 'dev', MERGE_SHA: 'a'.repeat(40), CLOUDFLARE_ACCOUNT_ID: '0'.repeat(32), CF_ZONE_ID: '1'.repeat(32), PAGES_PROJECT_NAME: 'fixture-web', WEB_BUILD_CONFIG: JSON.stringify(publicConfig), CLOUDFLARE_API_TOKEN: 'fixture-credential' })
 const project = () => ({
   name: 'fixture-web', production_branch: 'master', deployment_configs: { production: {
     compatibility_date: '2026-05-26', compatibility_flags: ['nodejs_compat'],
@@ -163,20 +163,33 @@ ${mode === 'failure' ? 'process.exit(7)' : `writeFileSync(process.env.WRANGLER_O
 `)
 }
 
-test('offline release executes a real deployment subprocess and cleans temporary data', async t => {
-  const { root, source, put } = fixture(t)
-  fakeWrangler(put)
-  const cloud = project()
-  const original = structuredClone(cloud)
-  let requests = 0
-  await deployWeb(environment(), { source, wrangler: join(root, 'wrangler.mjs'), temporaryRoot: root, fetchImpl: async url => {
-    requests++
-    return response(url.includes('/deployments/') ? deployment() : cloud)
-  } })
-  assert.equal(requests, 2)
-  assert.deepEqual(cloud, original)
-  assert.equal(readdirSync(root).some(name => name.startsWith('slax-web-pages-')), false)
-})
+for (const [branch, host] of [['dev', 'r.slax.dev'], ['beta', 'r-beta.slax.com'], ['main', 'r.slax.com']]) {
+  test(`${branch} release purges only its hostname after successful deployment`, async t => {
+    const { root, source, put } = fixture(t)
+    fakeWrangler(put)
+    const cloud = project()
+    const original = structuredClone(cloud)
+    const requests = []
+    await deployWeb({ ...environment(), TARGET_BRANCH: branch }, { source, wrangler: join(root, 'wrangler.mjs'), temporaryRoot: root, interval: 1, fetchImpl: async (url, options) => {
+      requests.push(url)
+      if (url.endsWith('/purge_cache')) {
+        assert.equal(requests.length, 4)
+        assert.equal(url, `https://api.cloudflare.com/client/v4/zones/${'1'.repeat(32)}/purge_cache`)
+        assert.equal(options.method, 'POST')
+        assert.equal(options.headers.Authorization, 'Bearer fixture-credential')
+        assert.equal(options.headers['Content-Type'], 'application/json')
+        assert.equal(options.redirect, 'error')
+        assert.ok(options.signal instanceof AbortSignal)
+        assert.deepEqual(JSON.parse(options.body), { hosts: [host] })
+        return response({ id: 'purge-fixture' })
+      }
+      return response(url.includes('/deployments/') ? deployment(requests.length === 2 ? 'active' : 'success') : cloud)
+    } })
+    assert.equal(requests.length, 4)
+    assert.deepEqual(cloud, original)
+    assert.equal(readdirSync(root).some(name => name.startsWith('slax-web-pages-')), false)
+  })
+}
 
 for (const [name, settings] of [
   ['missing compatibility metadata', {}],
@@ -199,14 +212,49 @@ for (const [name, settings] of [
   })
 }
 
-test('failed upload and failed final status reject and clean staged output', async t => {
+test('failed upload and failed final status never purge and clean staged output', async t => {
   const { root, source, put } = fixture(t)
+  const fetchImpl = async url => {
+    assert.ok(!url.endsWith('/purge_cache'))
+    return response(url.includes('/deployments/') ? deployment('failure') : project())
+  }
   fakeWrangler(put, 'failure')
-  await assert.rejects(deployWeb(environment(), { source, temporaryRoot: root, wrangler: join(root, 'wrangler.mjs'), fetchImpl: async () => response(project()) }), /exit 7/)
+  await assert.rejects(deployWeb(environment(), { source, temporaryRoot: root, wrangler: join(root, 'wrangler.mjs'), fetchImpl }), /exit 7/)
   assert.equal(readdirSync(root).some(name => name.startsWith('slax-web-pages-')), false)
   fakeWrangler(put)
-  await assert.rejects(deployWeb(environment(), { source, temporaryRoot: root, wrangler: join(root, 'wrangler.mjs'), fetchImpl: async url => response(url.includes('/deployments/') ? deployment('failure') : project()) }), /final deployment failed/)
+  await assert.rejects(deployWeb(environment(), { source, temporaryRoot: root, wrangler: join(root, 'wrangler.mjs'), fetchImpl }), /final deployment failed/)
   assert.equal(readdirSync(root).some(name => name.startsWith('slax-web-pages-')), false)
+})
+
+for (const status of [403, 429, 500, 'network', 'json', 'rejected', 'truthy']) {
+  test(`purge ${status} fails the release with safe diagnostics and cleanup`, async t => {
+    const { root, source, put } = fixture(t)
+    fakeWrangler(put)
+    await assert.rejects(deployWeb(environment(), { source, temporaryRoot: root, wrangler: join(root, 'wrangler.mjs'), fetchImpl: async url => {
+      if (!url.endsWith('/purge_cache')) return response(url.includes('/deployments/') ? deployment() : project())
+      if (status === 'network') throw new Error('fixture-private-response')
+      if (status === 'json') return new Response('fixture-private-response')
+      if (typeof status === 'number') return new Response('fixture-private-response', { status })
+      return new Response(JSON.stringify({ success: status === 'truthy' ? 'true' : false, errors: ['fixture-private-response'] }))
+    } }), error => {
+      assert.match(error.message, /[Cc]ache purge/)
+      assert.doesNotMatch(error.message, /fixture-private-response|fixture-credential/)
+      return true
+    })
+    assert.equal(readdirSync(root).some(name => name.startsWith('slax-web-pages-')), false)
+  })
+}
+
+test('missing or invalid purge zones fail before any publication', async t => {
+  const { root, source, put } = fixture(t)
+  fakeWrangler(put)
+  for (const zone of ['', 'invalid', '../other', 'A'.repeat(32)]) {
+    await assert.rejects(deployWeb({ ...environment(), CF_ZONE_ID: zone }, {
+      source, temporaryRoot: root, wrangler: join(root, 'wrangler.mjs'),
+      fetchImpl: async () => assert.fail('must not contact Cloudflare'),
+      run: async () => assert.fail('must not publish')
+    }), /CF_ZONE_ID/)
+  }
 })
 
 test('subprocess interruption rejects and releases its log file', async t => {
