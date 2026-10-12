@@ -31,12 +31,15 @@ export function installedMotionHost(View) {
   const ra = dirname(require.resolve('react-native-reanimated/package.json'));
   const {Bezier} = installed(resolve(ra, 'src/Bezier.ts'));
   const {Easing} = installed(resolve(ra, 'src/Easing.ts'), {'./Bezier': {Bezier}});
-  const {withTiming} = installed(resolve(ra, 'src/animation/timing.ts'), {'../Easing': {Easing}, './util': {defineAnimation: (_target, factory) => factory(), getReduceMotionForAnimation: () => false}});
+  const animationUtil = {defineAnimation: (_target, factory) => factory(), getReduceMotionForAnimation: () => false};
+  const {withTiming} = installed(resolve(ra, 'src/animation/timing.ts'), {'../Easing': {Easing}, './util': animationUtil});
+  const {withDelay} = installed(resolve(ra, 'src/animation/delay.ts'), {'./util': animationUtil});
+  const {withSequence} = installed(resolve(ra, 'src/animation/sequence.ts'), {'./util': animationUtil, '../common': {logger: {warn() {}}}});
   const animations = new Map(), values = [], detectors = new Map(), jsCalls = [];
   let now = 1;
   function cancelAnimation(value) {const animation = animations.get(value); if (animation) {animations.delete(value); animation.callback?.(false);}}
   const reanimated = {
-    __esModule: true, default: {View}, withTiming, Easing, cancelAnimation,
+    __esModule: true, default: {View}, withTiming, withDelay, withSequence, Easing, cancelAnimation,
     runOnJS: callback => (...args) => {jsCalls.push(callback); return callback(...args);},
     useSharedValue(initial) {
       return React.useMemo(() => {let current = initial; const value = {get value() {return current;}, set value(next) {

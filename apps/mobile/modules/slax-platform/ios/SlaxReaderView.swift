@@ -33,6 +33,29 @@ private final class SlaxWeakSourceMessage: NSObject, WKScriptMessageHandler {
     owner?.receiveSourceMessage(raw, pageId: binding.pageId, generation: binding.generation)
   }
 }
+private enum SlaxReaderRuleLists {
+  private static let cache: NSCache<NSString, WKContentRuleList> = {
+    let cache = NSCache<NSString, WKContentRuleList>()
+    cache.countLimit = 4
+    return cache
+  }()
+  private static var pending: [String: [(WKContentRuleList?, Error?) -> Void]] = [:]
+
+  static func load(_ rules: String, completion: @escaping (WKContentRuleList?, Error?) -> Void) {
+    if let cached = cache.object(forKey: rules as NSString) { completion(cached, nil); return }
+    if pending[rules] != nil { pending[rules]?.append(completion); return }
+    pending[rules] = [completion]
+    let identifier = "slax-reader-\(UUID().uuidString)"
+    WKContentRuleListStore.default().compileContentRuleList(forIdentifier: identifier, encodedContentRuleList: rules) { list, error in
+      DispatchQueue.main.async {
+        WKContentRuleListStore.default().removeContentRuleList(forIdentifier: identifier) { _ in }
+        if let list, error == nil { cache.setObject(list, forKey: rules as NSString) }
+        let callbacks = pending.removeValue(forKey: rules) ?? []
+        callbacks.forEach { $0(list, error) }
+      }
+    }
+  }
+}
 final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScrollViewDelegate {
   private static var sequence = 0
   // WebKit callbacks, view disposal, and account revocation share the main queue.
@@ -208,9 +231,7 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
       rulesCompiling = true
       let expectedPage = pageId, expectedOwner = resourceOwner
       guard let rules = try? security.contentRules() else { detach(); return }
-      let ruleId = "slax-reader-\(UUID().uuidString)"
-      WKContentRuleListStore.default().compileContentRuleList(forIdentifier: ruleId, encodedContentRuleList: rules) { [weak self] list, error in
-        WKContentRuleListStore.default().removeContentRuleList(forIdentifier: ruleId) { _ in }
+      SlaxReaderRuleLists.load(rules) { [weak self] list, error in
         guard let self, self.ownsResources, self.pageId == expectedPage, self.resourceOwner == expectedOwner, self.security == security else { return }
         guard let list, error == nil else { self.emit("error", ["message": "Reader security policy unavailable", "code": "securityPolicy"]); self.detach(); return }
         self.webView.configuration.userContentController.add(list)

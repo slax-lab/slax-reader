@@ -44,6 +44,11 @@ Inbox, Starred, and Archived SHALL retain the source-ordered flat list without d
 - **THEN** the collection selector scrolls offscreen with the list header
 - **AND** horizontal collection selection, item anchoring and saved-position restoration remain functional
 
+#### Scenario: Collections arrive while the library is initially at the top
+- **WHEN** subscribed collections are available initially or arrive after the article rows while the user remains at the top
+- **THEN** the populated selector is visible by default rather than being scrolled away by article anchoring
+- **AND** later synchronization does not reset a deliberately scrolled list or a restored Reader-return position
+
 #### Scenario: There are no subscribed collections
 - **WHEN** the collection list is empty
 - **THEN** the entire collection selector strip, including the own-feed shortcut, is omitted

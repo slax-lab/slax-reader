@@ -20,6 +20,8 @@ export const BookmarkRow = memo(function BookmarkRow({item, sort, owned, onOpen,
   const offset = useSharedValue(0), dragStart = useSharedValue(0), dragging = useSharedValue(false), touchX = useSharedValue(0), touchY = useSharedValue(0);
   const flash = useRef(new Animated.Value(0)).current, title = bookmarkDisplayTitle(item), oldTitle = useRef(title);
   const row = useRef<View>(null), [menu, setMenu] = useState(false), [anchor, setAnchor] = useState({x: 0, y: 0});
+  const menuMounted = useRef(false);
+  if (menu) menuMounted.current = true;
   const max = owned ? sort === 'inbox' ? 130 : 70 : 0;
   useEffect(() => {cancelAnimation(offset); offset.value = 0; dragging.value = false; return () => cancelAnimation(offset);}, [max, offset, dragging]);
   useEffect(() => {
@@ -67,7 +69,7 @@ export const BookmarkRow = memo(function BookmarkRow({item, sort, owned, onOpen,
       </Pressable>
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, {backgroundColor: '#000000', opacity: flash}]} />
     </Reanimated.View></GestureDetector>
-    {owned ? <SourceMenu visible={menu} width={180} anchor={anchor} onDismiss={() => setMenu(false)} items={[
+    {owned && menuMounted.current ? <SourceMenu visible={menu} width={180} anchor={anchor} onDismiss={() => setMenu(false)} items={[
       {label: t(item.isStarred ? 'bookmark_unstar' : 'bookmark_star'), icon: item.isStarred ? 'ic_floating_panel_starred' : 'ic_cell_more_star', onPress: () => perform(() => repositories?.updateBookmark(item.id, {isStarred: item.isStarred ? 0 : 1}), 'bookmark_star_button')},
       {label: t(item.archiveStatus ? 'bookmark_unarchive' : 'bookmark_archive'), icon: item.archiveStatus ? 'ic_floating_panel_archieved' : 'ic_cell_more_archieve', onPress: () => perform(() => repositories?.updateBookmark(item.id, {archiveStatus: item.archiveStatus ? 0 : 1}), 'bookmark_archive_button')},
       {label: t('bookmark_edit_title'), icon: 'ic_cell_more_edittitle', onPress: () => {onEdit(item); telemetry.element('bookmark_edit_title_button', 'bookmarks');}},

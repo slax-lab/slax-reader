@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Animated, AppState, Easing, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native'
+import Reanimated, {cancelAnimation, Easing as UiEasing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming} from 'react-native-reanimated'
 import {outlineMotion, type OutlineStatus} from './outline-motion.ts'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { MobileAssetName } from '../../assets'
@@ -169,28 +170,35 @@ export function OutlineSheet({status, toolbarVisible, markdown, pending, busy, e
   const viewport = useWindowDimensions(), inset = useSafeAreaInsets()
   const previous = useRef<OutlineStatus>('hidden')
   const [contentReady, setContentReady] = useState(false)
-  const values = useRef({background: new Animated.Value(0), expanded: new Animated.Value(0), slide: new Animated.Value(1), collapsed: new Animated.Value(0), morph: new Animated.Value(0), morphAlpha: new Animated.Value(0)}).current
-  const toolbarOffset = useRef(new Animated.Value(toolbarVisible ? 0 : 150)).current
+  const background = useSharedValue(0), expanded = useSharedValue(0), slide = useSharedValue(1), collapsed = useSharedValue(0), morph = useSharedValue(0), morphAlpha = useSharedValue(0)
+  const values = React.useMemo(() => ({background, expanded, slide, collapsed, morph, morphAlpha}), [background, expanded, slide, collapsed, morph, morphAlpha])
+  const toolbarOffset = useSharedValue(toolbarVisible ? 0 : 150)
   useEffect(() => {
-    const animation = Animated.timing(toolbarOffset, {toValue: toolbarVisible ? 0 : 150, duration: 300, easing: Easing.bezier(.4, 0, .2, 1), useNativeDriver: true})
-    animation.start(); return () => animation.stop()
+    toolbarOffset.value = withTiming(toolbarVisible ? 0 : 150, {duration: 300, easing: UiEasing.bezier(.4, 0, .2, 1)})
+    return () => cancelAnimation(toolbarOffset)
   }, [toolbarVisible, toolbarOffset])
   useEffect(() => {
     const motion = outlineMotion(previous.current, status)
     previous.current = status
     if (status === 'expanded') setContentReady(true)
-    // Collapsed opacity shares its native AnimatedProps graph with toolbarOffset.
-    const animation = Animated.parallel((Object.keys(values) as (keyof typeof values)[]).map(key => Animated.sequence(motion[key].map(step => Animated.timing(values[key], {...step, easing: step.linear ? Easing.linear : Easing.bezier(.4, 0, .2, 1), useNativeDriver: key === 'collapsed'})))))
-    animation.start()
-    return () => animation.stop()
+    for (const key of Object.keys(values) as (keyof typeof values)[]) {
+      const steps = motion[key].map(step => withDelay(step.delay ?? 0, withTiming(step.toValue, {duration: step.duration, easing: step.linear ? UiEasing.linear : UiEasing.bezier(.4, 0, .2, 1)})))
+      values[key].value = withSequence(steps[0]!, ...steps.slice(1))
+    }
+    return () => {for (const value of Object.values(values)) cancelAnimation(value)}
   }, [status, values])
-  if (status === 'none') return null
-  const interpolate = (value: Animated.Value, from: number, to: number) => value.interpolate({inputRange: [0, 1], outputRange: [from, to]})
   const height = viewport.height - inset.top - 36, bottom = inset.bottom + 24
+  const backgroundStyle = useAnimatedStyle(() => ({opacity: background.value}))
+  const morphStyle = useAnimatedStyle(() => ({opacity: morphAlpha.value, width: 50 + (viewport.width - 50) * morph.value, height: 50 + (height - 50) * morph.value,
+    bottom: bottom * (1 - morph.value), borderTopLeftRadius: 25 - 5 * morph.value, borderTopRightRadius: 25 - 5 * morph.value,
+    borderBottomLeftRadius: 25 * (1 - morph.value), borderBottomRightRadius: 25 * (1 - morph.value), transform: [{translateX: -87 * (1 - morph.value)}]}))
+  const panelStyle = useAnimatedStyle(() => ({opacity: expanded.value, transform: [{translateY: viewport.height * slide.value}]}))
+  const collapsedStyle = useAnimatedStyle(() => ({opacity: collapsed.value, transform: [{translateX: -87}, {translateY: toolbarOffset.value}]}))
+  if (status === 'none') return null
   return <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, {zIndex: 4}]}>
-    <Animated.View pointerEvents={status === 'expanded' ? 'auto' : 'none'} style={[StyleSheet.absoluteFill, {backgroundColor: '#000000', opacity: values.background}]}><Pressable testID="reader-outline-dismiss" accessible={false} style={StyleSheet.absoluteFill} onPress={onClose} /></Animated.View>
-    <Animated.View testID="reader-outline-morph" pointerEvents="none" style={{position: 'absolute', alignSelf: 'center', backgroundColor: C.surface, opacity: values.morphAlpha, width: interpolate(values.morph, 50, viewport.width), height: interpolate(values.morph, 50, height), bottom: interpolate(values.morph, bottom, 0), borderTopLeftRadius: interpolate(values.morph, 25, 20), borderTopRightRadius: interpolate(values.morph, 25, 20), borderBottomLeftRadius: interpolate(values.morph, 25, 0), borderBottomRightRadius: interpolate(values.morph, 25, 0), transform: [{translateX: interpolate(values.morph, -87, 0)}]}} />
-    <Animated.View testID="reader-outline-panel" pointerEvents={status === 'expanded' ? 'auto' : 'none'} accessibilityViewIsModal={status === 'expanded'} accessibilityElementsHidden={status !== 'expanded'} importantForAccessibility={status === 'expanded' ? 'auto' : 'no-hide-descendants'} style={[styles.outlinePanel, {height, paddingBottom: inset.bottom, opacity: values.expanded, transform: [{translateY: interpolate(values.slide, 0, viewport.height)}]}]}>
+    <Reanimated.View pointerEvents={status === 'expanded' ? 'auto' : 'none'} style={[StyleSheet.absoluteFill, {backgroundColor: '#000000'}, backgroundStyle]}><Pressable testID="reader-outline-dismiss" accessible={false} style={StyleSheet.absoluteFill} onPress={onClose} /></Reanimated.View>
+    <Reanimated.View testID="reader-outline-morph" pointerEvents="none" style={[{position: 'absolute', alignSelf: 'center', backgroundColor: C.surface}, morphStyle]} />
+    <Reanimated.View testID="reader-outline-panel" pointerEvents={status === 'expanded' ? 'auto' : 'none'} accessibilityViewIsModal={status === 'expanded'} accessibilityElementsHidden={status !== 'expanded'} importantForAccessibility={status === 'expanded' ? 'auto' : 'no-hide-descendants'} style={[styles.outlinePanel, {height, paddingBottom: inset.bottom}, panelStyle]}>
       <View style={{flex: 1, paddingTop: 32}}>
         {error ? <View style={styles.center}><SourceText style={{fontSize: 16, fontWeight: '500', color: '#FF5252'}}>{t('outline_error')}</SourceText><SourceText style={{fontSize: 12, color: C.mutedText, marginTop: 8}}>{error}</SourceText><TextAction label={t('rss_retry')} onPress={onRetry} /></View> : pending && busy ? <View style={styles.center}><ActivityIndicator color={C.bodyText} /><SourceText style={[T.helper, {marginTop: 12}]}>{t('outline_summarizing')}</SourceText></View> : contentReady ?
           <MarkdownView markdown={markdown || t('outline_empty')} initialPosition={position} onLink={onLink} onPosition={onPosition} /> : null}
@@ -201,8 +209,8 @@ export function OutlineSheet({status, toolbarVisible, markdown, pending, busy, e
         <View style={{width: 1, height: 16, backgroundColor: '#33333314'}} />
         <Pressable testID="reader-outline-close" accessibilityRole="button" onPress={onClose} style={({pressed}) => [styles.outlineFooterAction, {opacity: pressed ? .5 : 1}]}><SourceIcon name="ic_outline_dialog_close" size={24} style={{tintColor: '#666666'}} /><SourceText style={[T.helper, {color: C.secondaryText}]}>{t('btn_close')}</SourceText></Pressable>
       </View>
-    </Animated.View>
-    <Animated.View pointerEvents={status === 'collapsed' && toolbarVisible ? 'auto' : 'none'} accessibilityElementsHidden={status !== 'collapsed' || !toolbarVisible} importantForAccessibility={status === 'collapsed' && toolbarVisible ? 'auto' : 'no-hide-descendants'} style={[styles.floatingCircle, {position: 'absolute', alignSelf: 'center', bottom, opacity: values.collapsed, transform: [{translateX: -87}, {translateY: toolbarOffset}]}]}><IconAction name="ic_outline_collapsed" label={t('outline_expand')} size={20} onPress={onExpand} testID="reader-outline-expand" /></Animated.View>
+    </Reanimated.View>
+    <Reanimated.View pointerEvents={status === 'collapsed' && toolbarVisible ? 'auto' : 'none'} accessibilityElementsHidden={status !== 'collapsed' || !toolbarVisible} importantForAccessibility={status === 'collapsed' && toolbarVisible ? 'auto' : 'no-hide-descendants'} style={[styles.floatingCircle, {position: 'absolute', alignSelf: 'center', bottom}, collapsedStyle]}><IconAction name="ic_outline_collapsed" label={t('outline_expand')} size={20} onPress={onExpand} testID="reader-outline-expand" /></Reanimated.View>
   </View>
 }
 

@@ -17,6 +17,10 @@ export async function loadComponent(path, boundaries, globals = {}) {
   if (path.endsWith('/ReaderOverlays.tsx') && !boundaries['../components/SourceSheetModal']) {
     boundaries = {...boundaries, '../components/SourceSheetModal': await loadComponent('../../src/components/SourceSheetModal.tsx', {react: boundaries.react, 'react-native': boundaries['react-native'], '../theme': boundaries['../theme']}, globals)}
   }
+  if (path.endsWith('/ReaderOverlays.tsx') && !boundaries['react-native-reanimated']) {
+    const {installedMotionHost} = await import('../ui/installed-motion-host.mjs')
+    boundaries = {...boundaries, 'react-native-reanimated': installedMotionHost(boundaries['react-native'].View).reanimated}
+  }
   const code = ts.transpileModule(await readFile(new URL(path, import.meta.url), 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true}}).outputText
   const exports = {}
   vm.runInNewContext(code, {exports, __DEV__: true, AbortController, Date, URL, setTimeout, clearTimeout, ...globals, require(name) {

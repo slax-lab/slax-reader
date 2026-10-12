@@ -388,6 +388,13 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
     if (state.content && !force) return
     const controller = new AbortController(); aiRequests.current.set(kind, controller)
     let content = ''; let takeaways: string[] = []; const processor = new StreamMarkdownProcessor()
+    let publishTimer: ReturnType<typeof setTimeout> | undefined
+    let pendingAi: AiState | null = null
+    const publish = () => {
+      publishTimer = undefined
+      const next = pendingAi; pendingAi = null
+      if (next && !controller.signal.aborted && mounted.current && isAccountActive()) update(next)
+    }
     update(previous => ({...previous, busy: true, pending: !previous.content, error: null}))
     try {
       const network = fixtureOnly?.network ?? await getNetworkStateAsync()
@@ -401,15 +408,25 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
         if (kind === 'outline' && typeof event.data?.outline === 'string') content = processor.process(event.data.outline)
         if (event.data?.key_takeaways) takeaways = event.data.key_takeaways
         if (event.type === 'done' || event.data?.done) {completed = true; if (kind === 'outline') content = processor.flush()}
-        if (!controller.signal.aborted) update({content, takeaways, busy: !completed, pending: !content, error: null})
+        pendingAi = {content, takeaways, busy: !completed, pending: !content, error: null}
         if (completed) {
+          if (publishTimer !== undefined) clearTimeout(publishTimer)
+          publish()
           if (content) await repositories.local.update(cacheKey, kind === 'overview' ? {overview: content, key_takeaways: takeaways.length ? JSON.stringify(takeaways) : null} : {outline: content})
           break
         }
+        if (publishTimer === undefined) publishTimer = setTimeout(publish, 80)
       }
       if (!completed && !controller.signal.aborted) throw new Error(t('outline_error'))
-    } catch (error) {if (!controller.signal.aborted && isAccountActive()) update(previous => ({...previous, busy: false, error: error instanceof Error ? error.message : t('outline_error')}))}
-    finally {if (aiRequests.current.get(kind) === controller) aiRequests.current.delete(kind)}
+    } catch (error) {
+      if (publishTimer !== undefined) clearTimeout(publishTimer)
+      publish()
+      if (!controller.signal.aborted && mounted.current && isAccountActive()) update(previous => ({...previous, busy: false, error: error instanceof Error ? error.message : t('outline_error')}))
+    } finally {
+      if (publishTimer !== undefined) clearTimeout(publishTimer)
+      pendingAi = null
+      if (aiRequests.current.get(kind) === controller) aiRequests.current.delete(kind)
+    }
   }, [api, bookmarkId, cacheKey, isPreview, repositories, overview, outline, fixtureOnly?.network, isAccountActive])
   useEffect(() => {
     if (documentReady && appActive && !loading && html && !contentError && !isPreview && !aiStarted.current) {aiStarted.current = true; void loadAi('overview'); void loadAi('outline')}

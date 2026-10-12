@@ -1,0 +1,50 @@
+{
+  "version": "1.0.25",
+  "build": 761,
+  "kind": "user-authorized-preview",
+  "android": {
+    "applicationId": "com.slax.reader",
+    "format": "aab",
+    "fileName": "SlaxReader-1.0.25-761.aab",
+    "deliveredTo": "user Downloads directory",
+    "bytes": 83016477,
+    "sha256": "69133e6575d0c1ece80fff9cb90953fdf4f84f1607ff330db48d2cf622796144",
+    "signatureVerified": true,
+    "bundletoolValidationPassed": true,
+    "architectures": ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"],
+    "embeddedHermesBundleBytes": 4279300,
+    "googlePlayUploaded": false,
+    "publisherVersionHistoryVerified": false
+  },
+  "ios": {
+    "teamId": "8G3A932HJG",
+    "mainBundleId": "app.slax.reader",
+    "shareBundleId": "app.slax.reader.share",
+    "appGroup": "group.app.slax.reader",
+    "archiveSucceeded": true,
+    "signaturesAndVersionsVerified": true,
+    "mainExecutableSha256": "0f5eeee69dab001897fa80fb8442410e57a5f5ed363fed97aa665cecb5754c3e",
+    "shareExecutableSha256": "5c17781e8b10b08ee2eee0ed7f29748337686a917e3564bcda1ea5cbf66c9b28",
+    "uploadSucceeded": true,
+    "uploadCompletedLocal": "2026-10-12 16:33:01",
+    "appleStatusAtUpload": "Uploaded package is processing.",
+    "testFlightInstallAvailabilityVerified": false,
+    "missingPrebuiltDsyms": ["React.framework", "ReactNativeDependencies.framework", "hermesvm.framework"]
+  },
+  "firebase": {
+    "operatorFilesInspected": false,
+    "mainAndroidConfigured": true,
+    "mainIosConfigPresentInArchive": true,
+    "shareIosConfigured": false,
+    "nativeEventAndCrashDeliveryVerified": false,
+    "reproduction": "Supply operator-managed SLAX_MOBILE_FIREBASE_ANDROID_CONFIG and SLAX_MOBILE_FIREBASE_IOS_CONFIG, then run the documented prebuild/pods workflow. Checked-in native defaults do not reference uncommitted configuration resources."
+  },
+  "validation": {
+    "typecheck": "passed",
+    "openSpecStrict": "29 passed",
+    "unitTests": "not run at user instruction",
+    "iosCollectionDelayedArrivalScrollAndReturn": "observed in isolated native fixture",
+    "releaseFrameTimeParity": "not measured",
+    "fullMigrationAcceptance": "incomplete"
+  }
+}

@@ -45,8 +45,10 @@ export function SourceDrawer({open, onOpenChange, width, drawer, children, testI
       if (next !== committed.value) {committed.value = next; runOnJS(commit)(next);}
     })
     .onFinalize((_event, succeeded) => {if (dragging.value && !succeeded) settle(committed.value); dragging.value = false;}), [motion, start, dragging, committed, width, show, commit, settle]);
-  const opening = useMemo(() => makeGesture(false).enabled(!open), [makeGesture, open]);
-  const closing = useMemo(() => makeGesture(true).enabled(open || visible), [makeGesture, open, visible]);
+  const opening = useMemo(() => makeGesture(false), [makeGesture]);
+  const closing = useMemo(() => makeGesture(true), [makeGesture]);
+  opening.enabled(!open);
+  closing.enabled(open || visible);
   const scrimStyle = useAnimatedStyle(() => ({opacity: motion.value}));
   const drawerStyle = useAnimatedStyle(() => ({transform: [{translateX: (motion.value - 1) * width}]}));
   return <DrawerGesture.Provider value={opening}><View style={{flex: 1}}>
