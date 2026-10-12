@@ -69,7 +69,7 @@ Before the first release, verify the project's primary deployment already has:
 - Its intended production branch and custom domains.
 - `BACKEND` bound to the matching API service with the `ContentEntry` entrypoint.
 - `OSS` bound to the matching R2 bucket.
-- The existing Node compatibility configuration suitable for this app (`nodejs_compat`, modern compatibility date, no explicit legacy-v2 opt-out).
+- Existing runtime compatibility settings remain managed by Cloudflare. The release helper does not impose its own compatibility-date or flag requirements; Wrangler/Cloudflare validates them during deployment.
 - Any additional bindings used by the deployment, including Nuxt Content D1 if required, and existing runtime variables/secrets.
 
 The release performs a read-only project check and preserves the remote settings. It does not infer a missing binding, repair configuration, run migrations, or deploy the API. Confirm runtime settings in Cloudflare rather than downloading or pasting secret-bearing configuration into this repository.

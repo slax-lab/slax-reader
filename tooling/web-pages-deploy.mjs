@@ -114,7 +114,6 @@ export function inspectProject(project, expectedName) {
   const config = project.deployment_configs?.production
   if (!config?.services?.BACKEND?.service || config.services.BACKEND.entrypoint !== 'ContentEntry') throw failure('Pages production requires BACKEND with ContentEntry')
   if (!config.r2_buckets?.OSS?.name) throw failure('Pages production requires OSS R2 binding')
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(config.compatibility_date || '') || config.compatibility_date < '2024-09-23' || !config.compatibility_flags?.includes('nodejs_compat') || config.compatibility_flags.includes('no_nodejs_compat_v2')) throw failure('Pages production requires modern nodejs_compat settings')
   return branch
 }
 

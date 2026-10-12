@@ -11,7 +11,7 @@ The Web application already builds for Cloudflare Pages and the operator already
 - Reserve environment-scoped GitHub Variables for the account ID, Pages project name, and allowlisted public Web build configuration; reserve an environment-scoped Secret for the Pages deployment token. The operator fills these after the implementation PR is ready.
 - Read the selected existing Pages project's production branch and required public binding metadata before publication. Deploy to that branch rather than assuming it matches the repository branch.
 - Preserve dashboard-managed runtime configuration by uploading a sanitized copy of the existing Pages build without a discovered Wrangler configuration. Keep the server bundle, routing files, and public assets; do not upload the generated public-template deployment configuration.
-- Fail before publication on missing inputs, an unavailable project, missing required service/R2 bindings, incompatible runtime settings, or invalid build output. Serialize releases per environment and skip superseded Web revisions.
+- Fail before publication on missing inputs, an unavailable project, missing required service/R2 bindings, or invalid build output. Leave compatibility-date and compatibility-flag validation to Wrangler/Cloudflare rather than adding a custom preflight gate. Serialize releases per environment and skip superseded Web revisions.
 - Add focused offline regressions and operator documentation explaining inputs, existing-project setup, retries, and the first test-environment verification.
 
 ## Capabilities
