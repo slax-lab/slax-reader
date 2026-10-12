@@ -19,6 +19,8 @@
     "web": "node tooling/web.mjs",
     "extension": "node tooling/extension.mjs",
     "api": "node tooling/api.mjs",
+    "cli": "node tooling/cli.mjs",
+    "test:cli-tooling": "node --test tooling/cli-command.test.mjs tooling/cli-release.test.mjs tooling/cli-release-process.test.mjs",
     "prepare": "lefthook install"
   },
   "devDependencies": {

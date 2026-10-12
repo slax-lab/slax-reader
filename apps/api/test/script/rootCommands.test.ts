@@ -31,6 +31,7 @@ describe('API workspace command contract', () => {
       'agent:check',
       'agent:sync',
       'api',
+      'cli',
       'design:check',
       'extension',
       'icons:check',
@@ -39,6 +40,7 @@ describe('API workspace command contract', () => {
       'preflight',
       'prepare',
       'setup:all',
+      'test:cli-tooling',
       'test:preflight',
       'web'
     ])
