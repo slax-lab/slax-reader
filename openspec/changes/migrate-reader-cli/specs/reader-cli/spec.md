@@ -113,13 +113,19 @@ CLI install, skill synchronization, upgrade-driven skill synchronization and man
 
 ### Requirement: Reproducible and isolated migration verification
 
-The repository SHALL provide automated CLI validation that checks the built executable against controlled HTTP endpoints and checks the packed package outside the workspace. CLI validation SHALL NOT require real account credentials, production bookmark mutations, global CLI installation or developer-agent skill installation. Applicable CI SHALL run frozen installation, CLI typecheck/build/tests and package-consumer validation when CLI integration or its dependency declarations change.
+The repository SHALL provide automated CLI validation that checks the built executable against controlled HTTP endpoints and checks the packed package outside the workspace. CLI validation SHALL NOT require real account credentials, production bookmark mutations, global CLI installation or developer-agent skill installation. Pull-request CI SHALL run frozen installation, CLI typecheck/build/tests and package-consumer validation when CLI integration or its dependency declarations change. The CLI workflows SHALL NOT repeat full validation on post-merge branch pushes or release tags. Release workflows SHALL explicitly build the CLI and retain release guards and exact-archive consumer smoke validation instead.
 
 #### Scenario: Exercise account and bookmark requests in CI
 
 - **WHEN** CLI validation runs in an empty temporary user/config environment with synthetic credentials
 - **THEN** it exercises real CLI processes against local HTTP fixtures and checks methods, request data, output and failure status
 - **AND** registry/package-manager behavior is controlled so install/upgrade/skill coverage does not change global tools or agent state
+
+#### Scenario: Avoid duplicate post-merge validation
+
+- **WHEN** a reviewed change is merged into a long-lived branch or a release tag is pushed
+- **THEN** the CLI workflows do not rerun the full PR validation suites
+- **AND** a release tag runs the source/version guards, an explicit build and an installation smoke check of the final archive before publication
 
 #### Scenario: Verify distribution before declaring migration complete
 

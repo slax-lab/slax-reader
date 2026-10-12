@@ -29,7 +29,7 @@
 ## 5. Validate the standalone package and CI
 
 - [x] 5.1 Add package-consumer validation that packs the application through the standard package manager, inspects the archive and installs it outside the workspace; verify license/bin/version metadata, absence of private production dependencies and accidental workspace files, then run the installed bin's help/version and an authenticated loopback-fixture interaction.
-- [x] 5.2 Add `.github/workflows/cli-ci.yml` with relevant path triggers, read-only permissions, root frozen installation, supported LTS runtime coverage, CLI checks, dispatcher regression checks and packed-consumer validation; verify YAML/command wiring and execute the applicable CI commands locally.
+- [x] 5.2 Add `.github/workflows/cli-ci.yml` with relevant pull-request-only path triggers, read-only permissions, root frozen installation, supported LTS runtime coverage, CLI checks, dispatcher regression checks and packed-consumer validation. Do not repeat the full suites after merge or on release tags; the release workflow explicitly builds and runs only release guards and the exact-archive consumer smoke check. Verify YAML/command wiring, regression assertions for this separation, and the applicable commands locally.
 
 - [x] 5.3 Add testable release preflight/orchestration tooling and `.github/workflows/cli-release.yml` for stable `cli-v<version>` tags reachable from main; verify version/repository/tag guards, least-privilege OIDC jobs and package-wide concurrency through automated tests.
 - [x] 5.4 Publish the one tested archive through npm OIDC and create the monorepo GitHub Release with the same archive, SHA-256 file and generated notes; verify fresh publication, exact-version integrity/source-commit checks, missing-asset recovery, conflicting assets, registry failures and non-regressing latest behavior against controlled adapters without public writes.
@@ -43,6 +43,6 @@
 
 ## 7. Run final acceptance and review
 
-- [x] 7.1 Run root frozen installation, `pnpm cli -- typecheck`, `pnpm cli -- build`, `pnpm cli -- test`, the packed-consumer validation command and `pnpm test:preflight` on the final worktree; verify every required check passes and record any environmental blocker without claiming completion.
+- [x] 7.1 Run root frozen installation, `pnpm cli -- typecheck`, `pnpm cli -- build`, `pnpm cli -- test`, the packed-consumer validation command and `pnpm test:preflight` on the final worktree. Synchronize the API root-command contract with the new CLI scripts and run the API CI sequence (`config:init`, `gen:all`, `lint`, `typecheck`, `test`, `build`) with synthetic generation-only database URLs; verify every required check passes and record any environmental blocker without claiming completion.
 - [x] 7.2 Run `pnpm exec openspec validate --all --strict` and the Bugs, Security and Compliance passes in `REVIEW.md` against change `migrate-reader-cli`; verify all Important findings are resolved and completed task marks correspond to actual evidence.
 - [x] 7.3 Inspect final Git status/diff and present the worktree, branch, source revision, validation results and remaining release-only prerequisites; verify the original checkout/mobile commit is untouched and no commit, push, npm publication, legacy-repository modification or production account operation occurred without separate authorization.

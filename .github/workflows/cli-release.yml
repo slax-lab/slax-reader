@@ -28,10 +28,7 @@ jobs:
       - run: node tooling/cli-release.mjs preflight
       - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
-      - run: pnpm cli -- typecheck
-      - run: pnpm cli -- test
-      - run: pnpm test:cli-tooling
-      - run: pnpm test:preflight
+      - run: pnpm cli -- build
       - run: node tooling/cli-release.mjs prepare "$RUNNER_TEMP/cli-release"
       - name: Verify the exact release archive
         run: |

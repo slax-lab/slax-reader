@@ -1,6 +1,6 @@
 # CLI releases
 
-`.github/workflows/cli-ci.yml` validates pull requests and relevant branch changes on Node 22.22.2 and 24.15.0. `.github/workflows/cli-release.yml` publishes stable CLI releases when a `cli-v<version>` tag is pushed.
+`.github/workflows/cli-ci.yml` validates relevant pull requests on Node 22.22.2 and 24.15.0. It does not run again on post-merge pushes to `dev`, `beta` or `main`. `.github/workflows/cli-release.yml` publishes stable CLI releases when a `cli-v<version>` tag is pushed; it builds without repeating typecheck, CLI unit/integration suites or root tooling tests.
 
 ## One-time setup
 
@@ -38,7 +38,7 @@ These external settings are not created by local installation or tests. A passin
 3. Fetch the promoted commit and create a matching tag on that commit, for example `cli-v2.0.0`. Push that tag intentionally. Tag creation/push is the publication action; the workflow never increments versions, creates tags or merges branches for you.
 4. Monitor **CLI release** in GitHub Actions. All gates run on the tagged revision. A tag must match the package manifest and point to a commit reachable from `main`. Branch pushes, malformed tags and prerelease versions do not publish.
 
-The workflow builds and tests, packs once, verifies that exact archive in an isolated consumer, transfers it to the publishing job, then publishes it with `npm publish`. After registry integrity verification it creates the tag's Release in `slax-lab/slax-reader` and uploads:
+Full source validation belongs to PR CI and the reviewed promotion process; the release job does not rerun those suites or independently re-prove them on the final merge SHA. The release workflow checks the tag, installs frozen dependencies, explicitly builds, packs once, smoke-checks that exact archive in an isolated consumer, transfers it to the publishing job, then publishes it with `npm publish`. After registry integrity verification it creates the tag's Release in `slax-lab/slax-reader` and uploads:
 
 - `slax-lab-reader-cli-<version>.tgz`: the same bytes published to npm;
 - `SHA256SUMS`: SHA-256 checksum for the archive;

@@ -11,17 +11,6 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.github/workflows/cli-*.yml'
-  push:
-    branches: [dev, beta, main]
-    paths:
-      - 'apps/cli/**'
-      - 'packages/contracts/**'
-      - 'tooling/cli*.mjs'
-      - 'tooling/pnpm-command.mjs'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/workflows/cli-*.yml'
 
 permissions:
   contents: read
