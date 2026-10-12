@@ -85,10 +85,7 @@ test('project inspection uses the remote production branch and preserves additio
     data => { data.name = 'wrong' }, data => { data.production_branch = '' },
     data => { delete data.deployment_configs.production.services.BACKEND },
     data => { data.deployment_configs.production.services.BACKEND.entrypoint = 'WrongEntry' },
-    data => { delete data.deployment_configs.production.r2_buckets.OSS },
-    data => { data.deployment_configs.production.compatibility_flags = [] },
-    data => { data.deployment_configs.production.compatibility_flags.push('no_nodejs_compat_v2') },
-    data => { data.deployment_configs.production.compatibility_date = '2020-01-01' }
+    data => { delete data.deployment_configs.production.r2_buckets.OSS }
   ]
   for (const change of mutations) { const data = project(); change(data); assert.throws(() => inspectProject(data, 'fixture-web')) }
 })
@@ -180,6 +177,27 @@ test('offline release executes a real deployment subprocess and cleans temporary
   assert.deepEqual(cloud, original)
   assert.equal(readdirSync(root).some(name => name.startsWith('slax-web-pages-')), false)
 })
+
+for (const [name, settings] of [
+  ['missing compatibility metadata', {}],
+  ['empty flags', { compatibility_date: '2026-05-26', compatibility_flags: [] }],
+  ['old compatibility date', { compatibility_date: '2020-01-01', compatibility_flags: ['nodejs_compat'] }],
+  ['explicit opt-out flags', { compatibility_date: '2026-08-04', compatibility_flags: ['no_nodejs_compat', 'no_nodejs_compat_v2'] }]
+]) {
+  test(`release delegates ${name} to Wrangler without mutation`, async t => {
+    const { root, source, put } = fixture(t)
+    fakeWrangler(put)
+    const cloud = project()
+    delete cloud.deployment_configs.production.compatibility_date
+    delete cloud.deployment_configs.production.compatibility_flags
+    Object.assign(cloud.deployment_configs.production, settings)
+    const original = structuredClone(cloud)
+    assert.equal(inspectProject(cloud, 'fixture-web'), 'master')
+    await deployWeb(environment(), { source, wrangler: join(root, 'wrangler.mjs'), temporaryRoot: root, fetchImpl: async url => response(url.includes('/deployments/') ? deployment() : cloud) })
+    assert.deepEqual(cloud, original)
+    assert.equal(readdirSync(root).some(name => name.startsWith('slax-web-pages-')), false)
+  })
+}
 
 test('failed upload and failed final status reject and clean staged output', async t => {
   const { root, source, put } = fixture(t)

@@ -38,7 +38,7 @@ Alternative: a long list of separate Variables would also work but expands workf
 
 ### 3. Preserve runtime settings through config-free Pages upload
 
-Do not change `backend-binding.ts` or make generated build configuration authoritative for remote Pages settings in this change. Before upload, query only the specified project's metadata with the deployment token; hold the response in memory and never log or persist raw environment values. Confirm the project name/account path, production branch, `BACKEND` service binding, `OSS` R2 binding, and a compatible `nodejs_compat` configuration. Where entrypoint metadata is exposed, require the expected `ContentEntry`; absent or ambiguous prerequisite data must produce an actionable stop rather than a replacement configuration.
+Do not change `backend-binding.ts` or make generated build configuration authoritative for remote Pages settings in this change. Before upload, query only the specified project's metadata with the deployment token; hold the response in memory and never log or persist raw environment values. Confirm the project name/account path, production branch, `BACKEND` service binding, and `OSS` R2 binding. Do not inspect or reject compatibility dates or flags; Wrangler/Cloudflare owns their interpretation and validation. Where entrypoint metadata is exposed, require the expected `ContentEntry`; absent or ambiguous prerequisite data must produce an actionable stop rather than a replacement configuration.
 
 Copy the build into an isolated temporary staging directory outside the checkout/config discovery ancestry. Exclude deployment configuration and redirect metadata (`wrangler.*`, `.wrangler`, generated config files), dotenv/credential files, and non-runtime release metadata. Reject unsafe symlinks and confirm `_worker.js/index.js`, routing metadata, and static output are present. Retain server chunks, WASM, `_headers`, `_redirects`, and `_routes.json` as produced by Nuxt. Inspect the final staged output, not only the original build directory.
 
@@ -62,7 +62,8 @@ Run the project's standard Web typecheck, tests, and build with documented place
 
 ## Risks / Trade-offs
 
-- [Existing remote bindings or compatibility settings are incomplete] -> Fail read-only preflight and identify the missing binding/setting; do not auto-create or overwrite it.
+- [Existing remote bindings are incomplete] -> Fail read-only preflight and identify the missing binding; do not auto-create or overwrite it.
+- [Runtime compatibility settings are unsupported] -> Let Wrangler/Cloudflare report the deployment outcome instead of maintaining a separate compatibility policy.
 - [Config discovery uploads template bindings] -> Run config-free from isolated staging and test with conflicting configs in the original checkout.
 - [Pages metadata contains sensitive environment values] -> Inspect required fields in memory, omit raw responses from diagnostics and artifacts, and clean temporary logs.
 - [API and Web jobs run independently] -> Preserve current API contracts and require API prerequisites to exist; do not imply ordered API/Web publication.

@@ -43,7 +43,7 @@ Each release SHALL read `CLOUDFLARE_ACCOUNT_ID`, `PAGES_PROJECT_NAME`, and `WEB_
 
 ### Requirement: Publication targets the existing project's primary deployment
 
-The release SHALL verify the specified Pages project exists under the configured account and obtain its current production branch before publication. It SHALL target that branch even when its name differs from the repository branch. It SHALL NOT create projects, change their production branches, or alter domains. Required `BACKEND` service and `OSS` storage bindings and Node compatibility settings SHALL be checked without mutating them; missing prerequisites SHALL stop publication.
+The release SHALL verify the specified Pages project exists under the configured account and obtain its current production branch before publication. It SHALL target that branch even when its name differs from the repository branch. It SHALL NOT create projects, change their production branches, or alter domains. Required `BACKEND` service and `OSS` storage bindings SHALL be checked without mutating them; missing prerequisites SHALL stop publication. The release helper SHALL NOT reject compatibility dates or flags before invoking Wrangler; Wrangler/Cloudflare SHALL remain responsible for interpreting those settings and reporting deployment errors.
 
 #### Scenario: Repository main deploys to a legacy master branch
 
@@ -52,8 +52,14 @@ The release SHALL verify the specified Pages project exists under the configured
 
 #### Scenario: A project or required binding is unavailable
 
-- **WHEN** the project lookup fails, its production branch is invalid, or required binding/runtime settings are missing
+- **WHEN** the project lookup fails, its production branch is invalid, or required bindings are missing
 - **THEN** publication stops with a bounded diagnostic and does not create a replacement project or infer a different account
+
+#### Scenario: Compatibility settings are delegated to the deployment platform
+
+- **WHEN** a project passes the project and binding checks but its compatibility settings are absent, old, or use different flags
+- **THEN** the helper proceeds to Wrangler without changing or rejecting those settings
+- **AND** any Wrangler or Cloudflare deployment failure still fails the release
 
 ### Requirement: Existing runtime configuration and application output are preserved
 
