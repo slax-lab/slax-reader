@@ -81,10 +81,10 @@ const onFeedback = () => {
 }
 
 // 退出登录
-const logout = () => {
+const logout = async () => {
   close()
-  auth.clearAuth()
-  navigateTo('/login', { replace: true })
+  await auth.clearAuth()
+  await navigateTo('/login', { replace: true })
 }
 </script>
 

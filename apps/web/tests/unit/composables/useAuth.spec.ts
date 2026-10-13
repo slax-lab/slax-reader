@@ -1,26 +1,17 @@
-// useAuth composable 覆盖：四个方法的副作用 + 错误分支
-// 注意 useAuth 是对象字面量包装的方法集（非响应式状态机），导出形式 `() => useAuth`
-// useAuth.ts 模块顶层 `const { set, get, remove } = useCookies()` 在 import 时即执行，
-// 因此 vi.mock('@vueuse/integrations/useCookies', ...) 必须在 import useAuth 之前生效。
-// vitest 会 hoist vi.mock 调用到文件顶部，但 mock factory 内引用的顶层变量在 hoist 后
-// "还未初始化"，因此用 vi.hoisted 显式包装 cookie spies 与 store spy。
-//
-// request() 是 Nuxt auto-import（来源 layers/core/app/utils/request.ts），
-// 必须用 mockNuxtImport('request', ...) 拦截 —— vi.mock 模块路径方式不会作用于
-// auto-import 改写后的代码（README 已说明）。
-//
-// 注意：mockNuxtImport 是 macro，被 transform 成 vi.mock 后 hoist 到文件顶部，
-// 此时跨文件 import binding 仍在 TDZ，因此 mockPost/mockRequest 必须来自同文件的
-// vi.hoisted，不能从 tests/mocks/request.ts import。
+// Cookie functions are captured at module load. Keep their hoisted spies
+// stable and replace only the browser-storage boundary in cleanup tests.
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { useNuxtApp } from '#app'
 import useAuth from '~~/app/composables/useAuth'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fetchSyncCredentials } from '~~/app/local-first/connector'
+import authMiddleware from '~~/app/middleware/auth.global'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { cookieSet, cookieGet, cookieRemove, clearUserInfo, mockPost, mockRequest } = vi.hoisted(() => {
   const post = vi.fn()
   return {
     cookieSet: vi.fn(),
-    cookieGet: vi.fn(() => undefined as string | undefined),
+    cookieGet: vi.fn<(name?: string) => string | undefined>(),
     cookieRemove: vi.fn(),
     clearUserInfo: vi.fn(),
     mockPost: post,
@@ -35,6 +26,8 @@ const { cookieSet, cookieGet, cookieRemove, clearUserInfo, mockPost, mockRequest
     }))
   }
 })
+const { navigateTo } = vi.hoisted(() => ({ navigateTo: vi.fn() }))
+mockNuxtImport('navigateTo', () => navigateTo)
 
 vi.mock('@vueuse/integrations/useCookies', () => ({
   useCookies: () => ({
@@ -60,7 +53,8 @@ const runtimeConfig = {
     APPLE_OAUTH_CLIENT_ID: 'a-client-id',
     AUTH_BASE_URL: 'https://auth.test',
     COOKIE_TOKEN_NAME: 'token',
-    COOKIE_DOMAIN: '.example.com'
+    COOKIE_DOMAIN: '.example.com',
+    DWEB_API_BASE_URL: 'https://api.test'
   }
 }
 mockNuxtImport('useRuntimeConfig', () => () => runtimeConfig)
@@ -74,12 +68,16 @@ describe('useAuth', () => {
     // cookieGet 默认返回 undefined，用 mockReset 清掉用例内的 mockReturnValue 残留后再恢复默认
     cookieGet.mockReset().mockReturnValue(undefined)
     cookieRemove.mockReset()
-    clearUserInfo.mockClear()
+    clearUserInfo.mockReset()
+    navigateTo.mockClear()
     // 重置 location.href（happy-dom 下允许直接赋值）
     window.location.href = 'http://localhost/'
     // 重置 COOKIE_DOMAIN，防止上一个用例改动污染后续
     runtimeConfig.public.COOKIE_DOMAIN = '.example.com'
+    runtimeConfig.public.COOKIE_TOKEN_NAME = 'token'
   })
+
+  afterEach(() => vi.restoreAllMocks())
 
   describe('requestAuth', () => {
     it('拼接 Google OAuth URL 并跳转', async () => {
@@ -130,32 +128,132 @@ describe('useAuth', () => {
   })
 
   describe('clearAuth', () => {
-    it('清 cookie 两次（带 domain / 不带 domain）+ 清 store', async () => {
+    // Chrome distinguishes host-only cookies from explicit-domain cookies,
+    // even when both use the current hostname. Model that storage boundary.
+    let cookies: Array<{ name: string; value: string; domain?: string; path: string }>
+    const seed = (domain?: string, name = 'token', value = 'legacy-token') => {
+      cookies.push({ name, value, domain: domain?.replace(/^\./, ''), path: '/' })
+    }
+
+    beforeEach(() => {
+      window.location.href = 'https://r.slax.dev/bookmarks'
+      runtimeConfig.public.COOKIE_DOMAIN = 'slax.dev'
+      cookies = []
+      cookieGet.mockImplementation((name: string = 'token') => cookies.find(cookie => cookie.name === name)?.value)
+      cookieRemove.mockImplementation((name: string, options: { domain?: string; path: string }) => {
+        cookies = cookies.filter(cookie => cookie.name !== name || cookie.path !== options.path || cookie.domain !== options.domain?.replace(/^\./, ''))
+      })
+    })
+
+    it('removes a legacy current-host domain cookie after migration to a parent domain', async () => {
+      seed('.r.slax.dev')
       await useAuth().clearAuth()
-      expect(cookieRemove).toHaveBeenCalledWith('token', { path: '/', domain: '.example.com' })
-      expect(cookieRemove).toHaveBeenCalledWith('token', { path: '/' })
+      expect(cookies).toEqual([])
       expect(clearUserInfo).toHaveBeenCalledTimes(1)
     })
 
-    it('checkAndRemoveOriginalCookies 抛错时不影响 clearAuth 完成（try/catch 兜底）', async () => {
-      // splits.length > 2 且存在旧 cookie 触发父域名 remove；让该次 remove 抛错
-      runtimeConfig.public.COOKIE_DOMAIN = '.sub.example.com'
-      cookieGet.mockReturnValue('old-token')
-      let callCount = 0
-      cookieRemove.mockImplementation(() => {
-        callCount++
-        if (callCount === 3) throw new Error('remove failed')
-      })
-      await expect(useAuth().clearAuth()).resolves.toBeUndefined()
-      expect(cookieRemove).toHaveBeenCalledTimes(3) // 2 次正常 + 1 次抛错
-      expect(clearUserInfo).toHaveBeenCalled()
+    it('removes every supported variant without deleting differently named cookies', async () => {
+      runtimeConfig.public.COOKIE_TOKEN_NAME = 'session'
+      seed(undefined, 'session')
+      seed('.slax.dev', 'session')
+      seed('.r.slax.dev', 'session')
+      seed('.r.slax.dev', 'preference', 'dark')
+      await useAuth().clearAuth()
+      expect(cookies).toEqual([{ name: 'preference', value: 'dark', domain: 'r.slax.dev', path: '/' }])
     })
 
-    it('COOKIE_DOMAIN 有三段但 cookie 为空时不调用额外 remove', async () => {
-      runtimeConfig.public.COOKIE_DOMAIN = '.sub.example.com'
-      // cookieGet 默认返回 undefined（beforeEach 已设），不需要额外设置
+    it('preserves cleanup of the previously supported parent domain', async () => {
+      runtimeConfig.public.COOKIE_DOMAIN = '.r.slax.dev'
+      seed('.r.slax.dev')
+      seed('.slax.dev')
       await useAuth().clearAuth()
-      expect(cookieRemove).toHaveBeenCalledTimes(2) // 仅两次正常 remove，没有第三次
+      expect(cookies).toEqual([])
+    })
+
+    it.each(['localhost', '127.0.0.1', '[::1]'])('clears a host-only session on %s repeatedly', async hostname => {
+      window.location.href = `http://${hostname}/bookmarks`
+      runtimeConfig.public.COOKIE_DOMAIN = hostname
+      seed()
+      await useAuth().clearAuth()
+      await useAuth().clearAuth()
+      expect(cookies).toEqual([])
+    })
+
+    it('completes with no login cookie', async () => {
+      await expect(useAuth().clearAuth()).resolves.toBeUndefined()
+      expect(cookies).toEqual([])
+    })
+
+    it('still clears the current-host cookie if an optional domain cannot be removed', async () => {
+      seed('.r.slax.dev')
+      const removeCookie = cookieRemove.getMockImplementation()!
+      cookieRemove.mockImplementation((name: string, options: { domain?: string; path: string }) => {
+        if (options.domain === 'slax.dev') throw new Error('Unsupported domain')
+        removeCookie(name, options)
+      })
+      await useAuth().clearAuth()
+      expect(cookies).toEqual([])
+      expect(clearUserInfo).toHaveBeenCalledOnce()
+    })
+
+    it.each(['manual logout', 'HTTP 401'])('allows the login route after %s clears a migrated session', async reason => {
+      const publicConfig = useNuxtApp().$config.public
+      const originalName = publicConfig.COOKIE_TOKEN_NAME
+      publicConfig.COOKIE_TOKEN_NAME = 'token'
+      const route = (path: string) => ({ path, fullPath: path, hash: '', query: {} })
+      const enterLogin = () => authMiddleware(route('/login') as never, route('/bookmarks') as never)
+      seed('.r.slax.dev')
+      try {
+        await enterLogin()
+        expect(navigateTo).toHaveBeenCalledWith('/bookmarks')
+        navigateTo.mockClear()
+        if (reason === 'HTTP 401') {
+          const { request: createRequest } = await vi.importActual<typeof import('~~/app/utils/request')>('~~/app/utils/request')
+          await createRequest().options.responseInterceptors!({ status: 401, data: null, message: '' })
+          expect(navigateTo).toHaveBeenCalledWith('/login')
+        } else {
+          await useAuth().clearAuth()
+        }
+        navigateTo.mockClear()
+        expect(await enterLogin()).toBeUndefined()
+        expect(navigateTo).not.toHaveBeenCalled()
+        expect(cookies).toEqual([])
+      } finally {
+        publicConfig.COOKIE_TOKEN_NAME = originalName
+      }
+    })
+
+    it('waits for user-state cleanup before reporting completion', async () => {
+      let finish!: () => void
+      clearUserInfo.mockImplementation(() => new Promise<void>(resolve => { finish = resolve }))
+      let complete = false
+      const clearing = useAuth().clearAuth().then(() => { complete = true })
+      await Promise.resolve()
+      expect(complete).toBe(false)
+      finish()
+      await clearing
+      expect(complete).toBe(true)
+    })
+
+    it('stops sending a rejected legacy token after 401 cleanup and allows a fresh session', async () => {
+      seed('.r.slax.dev')
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 401 }))
+      const credentials = () => fetchSyncCredentials({
+        baseUrl: 'https://api.test',
+        authToken: cookieGet('token'),
+        onUnauthorized: () => useAuth().clearAuth()
+      })
+      await expect(credentials()).resolves.toEqual({ token: '', endpoint: '' })
+      await expect(credentials()).resolves.toEqual({ token: '', endpoint: '' })
+      expect(fetchMock).toHaveBeenCalledOnce()
+      expect(cookies).toEqual([])
+
+      seed('.slax.dev', 'token', 'fresh-login-token')
+      fetchMock.mockResolvedValue(new Response(JSON.stringify({ data: { token: 'sync-token', endpoint: 'https://sync.test' } }), { status: 200 }))
+      await expect(credentials()).resolves.toEqual({ token: 'sync-token', endpoint: 'https://sync.test' })
+      expect(fetchMock).toHaveBeenLastCalledWith('https://api.test/v1/sync/token', expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: 'Bearer fresh-login-token' })
+      }))
     })
   })
 })
