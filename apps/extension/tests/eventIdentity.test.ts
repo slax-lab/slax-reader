@@ -62,6 +62,8 @@ describe('extension first-party identity', () => {
 
   test('posts registered events to the configured API with live token, device and normalized context', async () => {
     browser.cookies.get.mockImplementation(async ({ name }: { name: string }) => ({ value: name === '_su' ? 'web-device' : 'test-token' }))
+    const { setExtensionLocale } = await import('../src/utils/locale')
+    setExtensionLocale('zh')
     const { eventLog } = await import('../src/utils/analytics')
     await eventLog({ event_name: 'screen_viewed', properties: { screen_name: 'extension_save' } })
     expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -69,5 +71,8 @@ describe('extension first-party identity', () => {
     expect(url).toBe('https://api.test/events')
     expect(init.headers).toMatchObject({ Authorization: 'Bearer test-token', 'X-Device-ID': 'web-device', 'X-CLIENT-VERSION': '2.0.11', 'X-CLIENT-LOCALE': 'zh' })
     expect(JSON.parse(init.body).events[0].properties).toMatchObject({ platform: 'extension', screen_name: 'extension_save', client_version: '2.0.11', locale: 'zh' })
+    setExtensionLocale('en')
+    const { getExtensionEventHeaders } = await import('../src/utils/session')
+    expect((await getExtensionEventHeaders())['X-CLIENT-LOCALE']).toBe('en')
   })
 })

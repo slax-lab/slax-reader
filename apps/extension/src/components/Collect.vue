@@ -4,7 +4,7 @@
       <div class="header">
         <div class="status">
           <DotLoading v-if="isLoading" />
-          <img v-if="!isLoading && statusTitle === successText" class="smile" src="@/assets/smile_face.svg" />
+          <img v-if="!isLoading && tipsDisplay?.kind === 'message' && tipsDisplay.key === 'collection_successful'" class="smile" src="@/assets/smile_face.svg" />
           <span>{{ isLoading ? loadingTitle : statusTitle }}</span>
         </div>
         <button v-if="!isLoading" @click="closePopup">
@@ -36,11 +36,13 @@ import DotLoading from './DotLoading.vue'
 
 import { BookmarkActionType, type MessageType, MessageTypeAction } from '@/config/message'
 
-import { RequestError } from '@commons/frontend-utils/request'
+import { type CollectDisplay, formatCollectDisplay } from '@/utils/collectStatus'
 
+import { RequestError } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { AddBookmarkReq, AddBookmarkResp, EmptyBookmarkResp } from '@slax-reader/contracts/interface'
 import { vOnClickOutside } from '@vueuse/components'
+import type { GeneratedI18nStructure } from '#i18n'
 import type { PropType } from 'vue'
 import type { WxtBrowser } from 'wxt/browser'
 
@@ -64,24 +66,24 @@ const isLoading = computed(() => {
   return loading.value
 })
 
-const successText = i18n.t('collection_successful')
-const loadingText = ref(i18n.t('collection_in_progress'))
+const loadingKey = ref<keyof GeneratedI18nStructure>('collection_in_progress')
+const loadingFrame = ref(0)
 const loading = ref(false)
-const loadingTitle = ref(i18n.t('collection_in_progress'))
+const loadingTitle = computed(() => formatCollectDisplay({ kind: 'message', key: loadingKey.value }, loadingFrame.value))
 const loadingInterval = ref<NodeJS.Timeout>()
-const tipsText = ref('')
+const tipsDisplay = ref<CollectDisplay>()
 const statusTitle = computed(() => {
-  if (tipsText.value) {
-    return tipsText.value
+  if (tipsDisplay.value) {
+    return formatCollectDisplay(tipsDisplay.value)
   }
 
   if (isUrlBlocked.value) {
-    return i18n.t('collection_not_supported')
+    return $t('collection_not_supported')
   } else {
     if (bookmarkExists.value) {
-      return i18n.t('collected')
+      return $t('collected')
     } else {
-      return i18n.t('not_collected')
+      return $t('not_collected')
     }
   }
 })
@@ -102,7 +104,7 @@ const t = (
     | 'removal_in_progress'
     | 'removal_failed'
 ) => {
-  return i18n.t(name)
+  return $t(name)
 }
 
 watch(
@@ -113,12 +115,9 @@ watch(
     }
 
     if (value) {
-      loadingTitle.value = loadingText.value
+      loadingFrame.value = 0
       loadingInterval.value = setInterval(() => {
-        const ellipses = loadingTitle.value.replace(loadingText.value, '')
-        loadingTitle.value = `${loadingText.value}${Array.from({ length: (ellipses.length + 1) % 4 })
-          .map(() => '.')
-          .join('')}`
+        loadingFrame.value = (loadingFrame.value + 1) % 4
       }, 800)
     } else {
       clearInterval(loadingInterval.value)
@@ -169,7 +168,9 @@ onMounted(async () => {
   updateTitle()
 })
 
-onUnmounted(() => {})
+onUnmounted(() => {
+  clearInterval(loadingInterval.value)
+})
 
 const updateTitle = () => {
   title.value = document.title || document.querySelector('meta[property="og:title"]')?.getAttribute('content') || `${location.href}${location.pathname}`
@@ -178,7 +179,7 @@ const updateTitle = () => {
 const addBookmark = async () => {
   labBlocked.value = false
   keepPopupOpen = false
-  showLoading(i18n.t('collection_in_progress'))
+  showLoading('collection_in_progress')
   try {
     const resp = await request.post<AddBookmarkResp>({
       url: RESTMethodPath.ADD_BOOKMARK,
@@ -197,9 +198,9 @@ const addBookmark = async () => {
         bookmarkId: resp.bmId
       })
 
-      showTips(i18n.t('collection_successful'))
+      showTips({ kind: 'message', key: 'collection_successful' })
     } else {
-      showTips(i18n.t('collection_failed'))
+      showTips({ kind: 'message', key: 'collection_failed' })
     }
   } catch (error) {
     if (error instanceof RequestError) {
@@ -211,12 +212,12 @@ const addBookmark = async () => {
       if (error.name === 'LAB_FEATURE_DISABLED') {
         labBlocked.value = true
         keepPopupOpen = true
-        showTips(error.message)
+        showTips({ kind: 'raw', text: error.message })
         return
       }
     }
 
-    showTips(i18n.t('collection_failed'))
+    showTips({ kind: 'message', key: 'collection_failed' })
   } finally {
     // 实验室拦截时留着弹窗，用户要点链接去打开
     if (!keepPopupOpen) {
@@ -233,7 +234,7 @@ const deleteBookmark = async () => {
     return
   }
 
-  showLoading(i18n.t('removal_in_progress'))
+  showLoading('removal_in_progress')
   const resp = await request.post<EmptyBookmarkResp>({
     url: RESTMethodPath.DELETE_BOOKMARK,
     body: {
@@ -248,9 +249,9 @@ const deleteBookmark = async () => {
       url: window.location.href,
       actionType: BookmarkActionType.DELETE
     })
-    showTips(i18n.t('removal_successful'))
+    showTips({ kind: 'message', key: 'removal_successful' })
   } else {
-    showTips(i18n.t('removal_failed'))
+    showTips({ kind: 'message', key: 'removal_failed' })
   }
 }
 
@@ -263,19 +264,19 @@ const checkSource = () => {
   window.open(`${process.env.PUBLIC_BASE_URL}/bookmarks/${bookmarkId.value}`, '_blank')
 }
 
-const showLoading = (text: string) => {
-  loadingText.value = text
+const showLoading = (key: keyof GeneratedI18nStructure) => {
+  tipsDisplay.value = undefined
+  loadingKey.value = key
   loading.value = true
 }
 
 const hideLoading = () => {
-  loadingText.value = ''
   loading.value = false
 }
 
-const showTips = (text: string) => {
+const showTips = (display: CollectDisplay) => {
   hideLoading()
-  tipsText.value = text
+  tipsDisplay.value = display
 }
 
 const closePopup = () => {

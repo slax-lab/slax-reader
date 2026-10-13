@@ -22,6 +22,7 @@
 import { vOnClickOutside } from '@vueuse/components'
 
 const props = defineProps({
+  emitOnReselect: { type: Boolean, default: false },
   options: {
     required: true,
     type: Array as PropType<string[]>
@@ -52,7 +53,7 @@ watch(
 )
 
 const optionClick = (index: number) => {
-  if (index !== selectedIndex.value) {
+  if (index !== selectedIndex.value || props.emitOnReselect) {
     selectedIndex.value = index
     emits('optionSelected', index)
   }

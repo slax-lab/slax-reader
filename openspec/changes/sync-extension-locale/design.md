@@ -8,7 +8,7 @@ The local source range is `7a4bb109..c1677360` in `unnoo/slax_reader_frontend`, 
 
 Current v2 has the pre-feature Web user-store actions, a Pinia offline profile fallback, and an Extension `$t` wrapper around native WXT i18n. v2's backend `apps/api/src/utils/responseUtils.ts` and `packages/contracts/src/http.ts` confirm that successful JSON uses `code`, not `status`.
 
-The task worktree is `.worktrees/sync-extension-account-locale`, branch `feat/sync-extension-locale`, based on `origin/dev` `8682a73`. GitHub CLI verification on 2026-10-10 confirmed that this is still the remote `dev` tip and that PR #1615 has head `c1677360`. The original checkout contains unrelated ongoing work and must remain untouched.
+Implementation resumed on 2026-10-13 in the isolated `complete-extension-locale` worktree on `feat/sync-extension-locale`. The existing PR branch was merged with the verified current `origin/dev` at `b086da9`. PR #1615 has source head `c1677360`. The original checkout contains unrelated ongoing work and remains untouched.
 
 ## Goals / Non-Goals
 
@@ -22,7 +22,7 @@ The task worktree is `.worktrees/sync-extension-account-locale`, branch `feat/sy
 
 Map source application paths to `apps/web` and `apps/extension`; map frontend implementation packages to `packages/frontend-types` and `packages/frontend-utils`. Add the pure locale message/snapshot types as `@commons/frontend-types/locale`. Continue importing HTTP constants and `UserInfo` through `@slax-reader/contracts`.
 
-Use the source diff as a checklist rather than replacing entire files. Preserve v2's semantic icons, theme handling, package versions, environment wrappers, tests, and build hooks. Copy only the needed test script entry from the legacy Extension manifest; an extension release version change is outside this port. No new production dependency is expected.
+Use the source diff as a checklist rather than replacing entire files. Preserve v2's semantic icons, theme handling, package versions, environment wrappers, tests, and build hooks. Copy only the needed test script entry from the legacy Extension manifest; an extension release version change is outside this port. The frontend utility package adds a type-only workspace development dependency on `@slax-reader/contracts` to reuse the API envelope; no runtime dependency is added.
 
 Direct cherry-picking would target obsolete directories and the old shared package structure. Reimplementing from scratch would discard existing race-condition fixes and regressions; neither is appropriate.
 
@@ -39,6 +39,8 @@ Accept notifications only from the configured top-level Web origin, and never re
 Port `userLocaleTasks`, `accountLocaleRequest`, and `extensionLocale`, then integrate the user store, Pinia fallback, layout refresh, settings selector, and `OptionsBar` reselect behavior as one coherent change. Capture Nuxt handles before entering asynchronous queues.
 
 Use a session epoch to invalidate previous-account work, read the latest token when a queued save begins, and track confirmed language separately from local display fallback. Protect both API results and the real Pinia offline fallback; changing only the store would leave a stale-language write path.
+
+Track profile read order and the captured token so an older request or offline fallback cannot overwrite a newer profile, including same-account token rotation. If startup token refresh races the only profile read, retry that read once with the current token; reject a second rotation instead of looping. Expire a current malformed or expired session instead of silently classifying it as stale; queued work must still protect a replacement session. Validate refreshed tokens as nonempty strings with the same unexpired account identity before writing the cookie. These guards extend the legacy implementation to satisfy the approved session and stale-read requirements.
 
 Emit a successful-save invalidation immediately after server confirmation. Coordinate lazy translation application so older loads cannot win. Keep auxiliary token refresh bounded and invalidate late writes; its failure must not undo a saved preference. Permit a local display retry without treating an unconfirmed browser fallback as an already saved value.
 

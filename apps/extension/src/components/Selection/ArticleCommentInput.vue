@@ -35,7 +35,7 @@ const props = defineProps({
 const isMac = /Mac/i.test(navigator.platform || navigator.userAgent)
 const textarea = ref<HTMLTextAreaElement>()
 const inputText = ref('')
-const textareaPlaceholder = props.placeholder ?? ref($t('component.article_selection.placeholder'))
+const textareaPlaceholder = computed(() => props.placeholder ?? $t('component.article_selection.placeholder'))
 const compositionAppear = ref(false)
 const sendable = computed(() => {
   return inputText.value.trim().length > 0

@@ -93,16 +93,15 @@ import DotLoading from './DotLoading.vue'
 import MarkdownText from './Markdown/MarkdownText.vue'
 import MarkMindMap from './Markdown/MarkMindMap.vue'
 
+import Toast, { ToastType } from './Toast'
 import { Resize } from '@commons/frontend-utils/directive'
 import { extractMarkdownFromText } from '@commons/frontend-utils/parse'
 import { RequestMethodType } from '@commons/frontend-utils/request'
 import { findMatchingElement, queryAnchorAlikeQuote, queryMarkdownAnchorQuote, querySimularMarkdownAnchorQuote } from '@commons/frontend-utils/search'
 import { copyText } from '@commons/frontend-utils/string'
-
-import Toast, { ToastType } from './Toast'
+import { Readability } from '@slax-lab/readability'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { SummaryItemModel } from '@slax-reader/contracts/interface'
-import { Readability } from '@slax-lab/readability'
 
 interface Anchor {
   index: number
@@ -152,9 +151,9 @@ const currentSummaryIndex = ref(0)
 const mapHeight = ref<number>()
 const markmind = ref<InstanceType<typeof MarkMindMap>>()
 
-const loadingText = $t('component.ai_summaries.processing')
+const loadingFrame = ref(0)
 const loading = ref(false)
-const loadingTitle = ref(loadingText)
+const loadingTitle = computed(() => $t('component.ai_summaries.processing') + '.'.repeat(loadingFrame.value))
 const loadingInterval = ref<NodeJS.Timeout>()
 
 const retryCount = ref(0)
@@ -243,13 +242,10 @@ watch(
 
     if (value) {
       loadingInterval.value = setInterval(() => {
-        const ellipses = loadingTitle.value.replace(loadingText, '')
-        loadingTitle.value = `${loadingText}${Array.from({ length: (ellipses.length + 1) % 4 })
-          .map(() => '.')
-          .join('')}`
+        loadingFrame.value = (loadingFrame.value + 1) % 4
       }, 500)
     } else {
-      loadingTitle.value = loadingText
+      loadingFrame.value = 0
       clearInterval(loadingInterval.value)
     }
   }

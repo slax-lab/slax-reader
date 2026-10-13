@@ -1,9 +1,9 @@
 import { $t } from '@/utils/locale'
+
+import { request } from '@/bridge/request'
 import { LineDecoder, SSEDecoder } from '@commons/frontend-utils/decoder'
 import { partialParse } from '@commons/frontend-utils/json'
 import { RequestMethodType } from '@commons/frontend-utils/request'
-
-import { request } from '@/bridge/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { type ChatCompletionChunk } from '@slax-reader/contracts/openai'
 import type { QuoteData } from '@slax-reader/selection/types'
@@ -276,7 +276,7 @@ export class ChatBot {
             choice.status === 'finished_failed' &&
               this.responseCallback({
                 type: ChatResponseType.STATUS_UPDATE,
-                data: { [ChatResponseType.STATUS_UPDATE]: { name: 'search', tips: $t('util.chatbot.search_finished'), status: 'finished' } },
+                data: { [ChatResponseType.STATUS_UPDATE]: { name: 'search', tips: $t('util.chatbot.search_finished'), status: 'failed' } },
                 sessionId
               })
 
