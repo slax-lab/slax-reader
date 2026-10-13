@@ -6,8 +6,8 @@ The user freezes additional architecture expansion and narrows the remaining acc
 
 - [ ] 20.1 Deferred by the latest explicit no-further-tests delivery instruction: complete native real-PDF highlighting/comment verification. The ordinary iOS app started and synchronized the test account, but the full native scenario was not completed; do not relabel it passed.
 - [x] 20.2 Apply the user's final header correction (no PDF filename or raw URL in the top metadata/title fallback), then deliver explicitly authorized preview 1.0.25 (764), after recorded build 763, without further functional tests. Retain signed archive/export checks and record upload/processing separately from tester availability; 20.1 is no longer a gate for this preview.
-- [ ] 20.3 Complete the required Bugs/Security/Compliance review, commit the bounded delivered changes and push the existing task branch without losing remote work.
-- [ ] 20.4 Remove task-owned build outputs, caches and dedicated test simulators after delivery; preserve source, operator configuration, pending user data and concise release/test receipts.
+- [x] 20.3 Complete the required Bugs/Security/Compliance review, commit the bounded delivered changes and push the existing task branch without losing remote work. Implementation commit `d852f51` was pushed using an explicit lease for the previously observed remote tip after rebasing onto dev `1912e3b`.
+- [x] 20.4 Remove task-owned build outputs, caches and dedicated test simulators after delivery; preserve source, operator configuration, pending user data and concise release/test receipts. Removed the 764 archive/export/DerivedData, simulator build, mobile bundle/Pods/build/Expo outputs, generated PDF bundle and the dedicated simulator; retained public receipts and operator configuration. Available space was approximately 104 GiB after cleanup.
 
 Backend deployment and public App Store publication remain unauthorized. The standard checks must pass on the delivered code, but do not expand the native acceptance beyond 20.1.
 
