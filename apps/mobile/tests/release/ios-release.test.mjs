@@ -16,7 +16,7 @@ function firebaseFixture(t) {
   t.after(() => rmSync(root, {recursive: true, force: true}));
   const write = (relative, value) => {const filename = path.join(root, relative); mkdirSync(path.dirname(filename), {recursive: true}); writeFileSync(filename, value);};
   const objects = {project: {isa: 'PBXProject', mainGroup: 'root', targets: ['SlaxReader', 'SlaxShare']}, root: {isa: 'PBXGroup', sourceTree: '<group>', children: []}};
-  for (const [name, source, frameworks] of [['SlaxReader', 'AppDelegate.swift', ['FirebaseCore', 'FirebaseAnalytics', 'FirebaseCrashlytics']], ['SlaxShare', 'ShareCollector.swift', ['FirebaseCore', 'FirebaseAnalytics']]]) {
+  for (const [name, source, frameworks] of [['SlaxReader', 'AppDelegate.swift', ['FirebaseCore', 'FirebaseAnalytics', 'FirebaseCrashlytics']]]) {
     objects[name] = {isa: 'PBXNativeTarget', name, buildPhases: [`${name}Resources`, `${name}Sources`], buildConfigurationList: `${name}Configurations`};
     objects[`${name}Configurations`] = {isa: 'XCConfigurationList', buildConfigurations: [`${name}Release`]};
     objects[`${name}Release`] = {isa: 'XCBuildConfiguration', name: 'Release', baseConfigurationReference: `${name}xcconfig`, buildSettings: {INFOPLIST_FILE: `${name}/Info.plist`, OTHER_LDFLAGS: ['$(inherited)', '-ObjC']}};
@@ -34,16 +34,20 @@ function firebaseFixture(t) {
     write(`${name}/Info.plist`, JSON.stringify(name === 'SlaxReader' ? mainInfo : {}));
     write(xcconfig, `OTHER_LDFLAGS = $(inherited) ${frameworks.map(name => `-framework "${name}"`).join(' ')}\n`);
   }
+  objects.SlaxShare = {isa: 'PBXNativeTarget', name: 'SlaxShare', buildPhases: [], buildConfigurationList: 'SlaxShareConfigurations'};
+  objects.SlaxShareConfigurations = {isa: 'XCConfigurationList', buildConfigurations: ['SlaxShareRelease']};
+  objects.SlaxShareRelease = {isa: 'XCBuildConfiguration', name: 'Release', buildSettings: {PRODUCT_BUNDLE_IDENTIFIER: 'app.slax.reader.share', INFOPLIST_FILE: 'SlaxShare/Info.plist'}};
   objects.SlaxReader.buildPhases.push('crash');
   objects.crash = {isa: 'PBXShellScriptBuildPhase', name: '[CP-User] [RNFB] Crashlytics Configuration', runOnlyForDeploymentPostprocessing: '0', shellScript: '"${PODS_ROOT}/FirebaseCrashlytics/run"\n', inputPaths: ['${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}']};
   const project = {rootObject: 'project', objects};
   const saveProject = () => write('SlaxReader.xcodeproj/project.pbxproj', JSON.stringify(project));
   saveProject();
   write('SlaxReader/AppDelegate.swift', 'import FirebaseCore\nfunc application(didFinishLaunchingWithOptions: Any) {\nFirebaseApp.configure()\nfactory.startReactNative()\n}\n');
-  write('SlaxShare/ShareCollector.swift', 'import FirebaseCore\nimport FirebaseAnalytics\nfunc report() {\nlet path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist")\nlet options = FirebaseOptions(contentsOfFile: path)\nFirebaseApp.configure(options: options)\nAnalytics.logEvent("bookmark_add_start", parameters: [:])\n}\n');
+  write('SlaxShare/ShareCollector.swift', 'import Foundation\nenum ShareCollector {}\n');
   write('Pods/FirebaseCrashlytics/run', '');
   const readPublicPlist = filename => {
     assert(['project.pbxproj', 'Info.plist'].includes(path.basename(filename)), 'Never parse a Firebase configuration');
+    assert(!filename.includes('SlaxShare'), 'Firebase admission must not inspect Share metadata');
     return JSON.parse(readFileSync(filename, 'utf8'));
   };
   return {root, objects, write, saveProject, admit: () => firebaseReleaseAdmission(root, readPublicPlist)};
@@ -54,53 +58,56 @@ test('Firebase admission uses the real macOS plist converter on public fixture p
   assert.deepEqual(firebaseReleaseAdmission(fixture.root), fixture.admit());
 });
 
-test('Firebase admission resolves target-specific group paths and rejects wrong-target resources', t => {
-  const fixture = firebaseFixture(t);
-  for (const name of ['SlaxReader', 'SlaxShare']) {
-    const id = `${name}config`;
-    fixture.objects.root.children = fixture.objects.root.children.filter(value => value !== id);
-    fixture.objects.root.children.push(`${name}group`);
-    fixture.objects[`${name}group`] = {isa: 'PBXGroup', sourceTree: '<group>', path: name, children: [id]};
-    fixture.objects[id].path = 'GoogleService-Info.plist';
-  }
+test('Firebase admission resolves main group paths and rejects wrong-target resources', t => {
+  const fixture = firebaseFixture(t), id = 'SlaxReaderconfig';
+  fixture.objects.root.children = fixture.objects.root.children.filter(value => value !== id);
+  fixture.objects.root.children.push('SlaxReadergroup');
+  fixture.objects.SlaxReadergroup = {isa: 'PBXGroup', sourceTree: '<group>', path: 'SlaxReader', children: [id]};
+  fixture.objects[id].path = 'GoogleService-Info.plist';
   fixture.saveProject();
   fixture.admit();
-  fixture.objects.SlaxShareconfigBuild.fileRef = 'SlaxReaderconfig';
+  fixture.objects.SlaxReadergroup.path = 'SlaxShare';
   fixture.saveProject();
-  assert.throws(fixture.admit, /SlaxShare.*Resources build phase/);
+  assert.throws(fixture.admit, /SlaxReader.*Resources build phase/);
 });
 
-test('Firebase admission rejects an unattached Release configuration and missing upload executable', t => {
+test('Firebase admission rejects an unattached main Release configuration and missing upload executable', t => {
   const fixture = firebaseFixture(t);
-  fixture.objects.SlaxShareRelease.baseConfigurationReference = 'SlaxReaderxcconfig';
+  fixture.objects.SlaxReaderRelease.baseConfigurationReference = 'SlaxSharexcconfig';
   fixture.saveProject();
-  assert.throws(fixture.admit, /SlaxShare Release is not connected/);
-  fixture.objects.SlaxShareRelease.baseConfigurationReference = 'SlaxSharexcconfig';
-  fixture.objects.SlaxShareRelease.buildSettings.OTHER_LDFLAGS = '-ObjC';
+  assert.throws(fixture.admit, /SlaxReader Release is not connected/);
+  fixture.objects.SlaxReaderRelease.baseConfigurationReference = 'SlaxReaderxcconfig';
+  fixture.objects.SlaxReaderRelease.buildSettings.OTHER_LDFLAGS = '-ObjC';
   fixture.saveProject();
   assert.throws(fixture.admit, /drops inherited CocoaPods linker flags/);
-  fixture.objects.SlaxShareRelease.buildSettings.OTHER_LDFLAGS = '$(inherited) -ObjC';
-  fixture.objects.SlaxShareRelease.buildSettings.INFOPLIST_FILE = 'SlaxReader/Info.plist';
+  fixture.objects.SlaxReaderRelease.buildSettings.OTHER_LDFLAGS = '$(inherited) -ObjC';
+  fixture.objects.SlaxReaderRelease.buildSettings.INFOPLIST_FILE = 'SlaxShare/Info.plist';
   fixture.saveProject();
   assert.throws(fixture.admit, /does not use the inspected public Info.plist/);
-  fixture.objects.SlaxShareRelease.buildSettings.INFOPLIST_FILE = 'SlaxShare/Info.plist';
+  fixture.objects.SlaxReaderRelease.buildSettings.INFOPLIST_FILE = 'SlaxReader/Info.plist';
   fixture.saveProject();
   rmSync(path.join(fixture.root, 'Pods/FirebaseCrashlytics/run'));
   assert.throws(fixture.admit, /symbol-upload script is missing/);
 });
 
-test('Firebase release admission checks public native integration without opening configuration contents', t => {
+test('Firebase release admission checks only public main integration without opening configuration contents', t => {
   const fixture = firebaseFixture(t);
   const admission = fixture.admit();
-  assert.equal(admission.version, 1);
+  assert.equal(admission.version, 2);
   assert.match(admission.nativeSHA256, /^[a-f0-9]{64}$/);
   assert.deepEqual(fixture.admit(), admission);
+  assert.equal(existsSync(path.join(fixture.root, 'SlaxShare/GoogleService-Info.plist')), false);
+  assert.equal(existsSync(path.join(fixture.root, 'Pods/Target Support Files/Pods-SlaxShare')), false);
+  fixture.write('SlaxShare/ShareCollector.swift', 'import Foundation\nenum ShareCollector { static let changed = true }\n');
+  assert.deepEqual(fixture.admit(), admission, 'Share source is not a Firebase admission input');
   checkFirebaseArchiveAdmission(admission, admission);
   assert.throws(() => checkFirebaseArchiveAdmission(undefined, admission), /fresh archive/);
+  assert.throws(() => checkFirebaseArchiveAdmission({...admission, version: 1}, admission), /fresh archive/);
+  assert.throws(() => checkFirebaseArchiveAdmission(admission, {...admission, version: 1}), /fresh archive/);
   assert.throws(() => checkFirebaseArchiveAdmission({...admission, nativeSHA256: 'stale'}, admission), /fresh archive/);
 });
 
-for (const target of ['SlaxReader', 'SlaxShare']) {
+for (const target of ['SlaxReader']) {
   test(`Firebase release admission rejects missing, directory and symlink ${target} configuration resources`, t => {
     const fixture = firebaseFixture(t), filename = path.join(fixture.root, target, 'GoogleService-Info.plist');
     rmSync(filename);
@@ -117,20 +124,20 @@ for (const target of ['SlaxReader', 'SlaxShare']) {
     fixture.saveProject();
     assert.throws(fixture.admit, new RegExp(`${target}.*${phase} build phase`));
   });
-  test(`Firebase ${target} requires Release-linked CocoaPods Analytics, not main-only linkage`, t => {
+  for (const missing of ['FirebaseCore', 'FirebaseAnalytics', 'FirebaseCrashlytics']) test(`Firebase ${target} requires Release-linked ${missing}`, t => {
     const fixture = firebaseFixture(t);
-    fixture.write(`Pods/Target Support Files/Pods-${target}/Pods-${target}.release.xcconfig`, 'OTHER_LDFLAGS = -framework "FirebaseCore"\n');
-    assert.throws(fixture.admit, new RegExp(`${target} Release does not link FirebaseAnalytics`));
+    const frameworks = ['FirebaseCore', 'FirebaseAnalytics', 'FirebaseCrashlytics'].filter(name => name !== missing);
+    fixture.write(`Pods/Target Support Files/Pods-${target}/Pods-${target}.release.xcconfig`, `OTHER_LDFLAGS = ${frameworks.map(name => `-framework "${name}"`).join(' ')}\n`);
+    assert.throws(fixture.admit, new RegExp(`${target} Release does not link ${missing}`));
   });
 }
 
-test('Firebase admission rejects absent or commented initialization and inactive crash upload', t => {
+test('Firebase admission rejects absent or commented main initialization', t => {
   const fixture = firebaseFixture(t);
-  fixture.write('SlaxReader/AppDelegate.swift', 'import FirebaseCore\nfunc application(didFinishLaunchingWithOptions: Any) {\n// FirebaseApp.configure()\nfactory.startReactNative()\n}\n');
-  assert.throws(fixture.admit, /main AppDelegate lacks Firebase initialization/);
-  fixture.write('SlaxReader/AppDelegate.swift', 'import FirebaseCore\nfunc application(didFinishLaunchingWithOptions: Any) {\nFirebaseApp.configure()\nfactory.startReactNative()\n}\n');
-  fixture.write('SlaxShare/ShareCollector.swift', 'import FirebaseCore\nimport FirebaseAnalytics\n');
-  assert.throws(fixture.admit, /ShareCollector lacks/);
+  for (const source of ['import FirebaseCore\n', 'import FirebaseCore\nfunc application(didFinishLaunchingWithOptions: Any) {\n// FirebaseApp.configure()\nfactory.startReactNative()\n}\n']) {
+    fixture.write('SlaxReader/AppDelegate.swift', source);
+    assert.throws(fixture.admit, /main AppDelegate lacks Firebase initialization/);
+  }
 });
 
 for (const mutate of [objects => {objects.SlaxReader.buildPhases = objects.SlaxReader.buildPhases.filter(id => id !== 'crash');}, objects => {objects.crash.shellScript = '# "${PODS_ROOT}/FirebaseCrashlytics/run"';}, objects => {objects.crash.runOnlyForDeploymentPostprocessing = '1';}]) {
@@ -140,23 +147,23 @@ for (const mutate of [objects => {objects.SlaxReader.buildPhases = objects.SlaxR
   });
 }
 
-test('archive and exported bundle resource checks reject stale main/share configurations without reading files', t => {
+test('archive and exported bundle resource checks require only the main configuration without reading files', t => {
   const fixture = firebaseFixture(t), bundle = path.join(fixture.root, 'SlaxReader.app');
   fixture.write('SlaxReader.app/GoogleService-Info.plist', '');
-  assert.throws(() => checkFirebaseBundleResources(bundle), /share artifact/);
-  fixture.write('SlaxReader.app/PlugIns/SlaxShare.appex/GoogleService-Info.plist', '');
   checkFirebaseBundleResources(bundle);
+  assert.equal(existsSync(path.join(bundle, 'PlugIns/SlaxShare.appex/GoogleService-Info.plist')), false);
   rmSync(path.join(bundle, 'GoogleService-Info.plist'));
   assert.throws(() => checkFirebaseBundleResources(bundle), /main artifact/);
 });
 
-test('valid signature metadata cannot bypass telemetry deactivation or automatic screen reporting', () => {
+test('valid signature metadata cannot bypass main telemetry safeguards and Share has no telemetry gate', () => {
   for (const exported of [false, true]) {
     for (const flags of [{FIREBASE_ANALYTICS_COLLECTION_DEACTIVATED: true}, {FIREBASE_ANALYTICS_COLLECTION_ENABLED: false}, {FirebaseDataCollectionDefaultEnabled: false}, {FirebaseCrashlyticsCollectionEnabled: false}, {FirebaseAutomaticScreenReportingEnabled: true}]) {
       assert.throws(() => checkBundleMetadata({...mainInfo, ...flags}, entitlement, signature, release, 'app.slax.reader', exported), /Firebase admission/);
     }
-    const shareInfo = {...mainInfo, CFBundleIdentifier: 'app.slax.reader.share', NSExtension: {NSExtensionPointIdentifier: 'com.apple.share-services'}, FIREBASE_ANALYTICS_COLLECTION_DEACTIVATED: true};
-    assert.throws(() => checkBundleMetadata(shareInfo, {...entitlement, 'application-identifier': '8G3A932HJG.app.slax.reader.share'}, signature, release, 'app.slax.reader.share', exported), /Firebase admission/);
+    const shareInfo = {...mainInfo, CFBundleIdentifier: 'app.slax.reader.share', NSExtension: {NSExtensionPointIdentifier: 'com.apple.share-services'}, FIREBASE_ANALYTICS_COLLECTION_DEACTIVATED: true, FirebaseCrashlyticsCollectionEnabled: false};
+    delete shareInfo.FirebaseAutomaticScreenReportingEnabled;
+    checkBundleMetadata(shareInfo, {...entitlement, 'application-identifier': '8G3A932HJG.app.slax.reader.share'}, signature, release, 'app.slax.reader.share', exported);
   }
 });
 

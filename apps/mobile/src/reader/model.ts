@@ -1,16 +1,28 @@
+import { validatePdfSources, type PdfMarkSource } from '@slax-reader/contracts/pdf'
 import type { MarkRecord, CollectionMarkPolicy } from '../data/repositories.ts'
 import type { MarkCommentProfile } from '../data/api.ts'
-import type { ReaderApprox, ReaderMarkDetail, ReaderMarkItem, ReaderSelection, HtmlMarkPath } from './types.ts'
+import type { ReaderApprox, ReaderMarkDetail, ReaderMarkItem, ReaderMarkPath, ReaderSelection, HtmlMarkPath } from './types.ts'
 import {parseSourceTimestamp} from '../utils/source-time.ts'
 
-export function refreshSelectedMark(current: ReaderMarkItem, marks: ReaderMarkItem[]): ReaderMarkItem {
-  const identified = current.id.trim() ? marks.find(mark => mark.id === current.id) : undefined
-  if (identified) return identified
-  const sameSource = (mark: ReaderMarkItem) => current.source.length > 0 && current.source.length === mark.source.length && current.source.every((path, index) => {
-    const other = mark.source[index]
+function sameReaderSource(left: ReaderMarkPath[], right: ReaderMarkPath[]): boolean {
+  return left.length > 0 && left.length === right.length && left.every((path, index) => {
+    const other = right[index]
+    if (path.type === 'pdf' || other.type === 'pdf') return path.type === 'pdf' && other.type === 'pdf' &&
+      path.version === other.version && path.document_id === other.document_id && path.page === other.page && path.text === other.text &&
+      path.quads.length === other.quads.length && path.quads.every((quad, quadIndex) => quad.length === other.quads[quadIndex].length && quad.every((point, pointIndex) => point === other.quads[quadIndex][pointIndex]))
     return path.type === other.type && path.path === other.path && (path.type === 'image' || other.type === 'text' && path.start === other.start && path.end === other.end)
   })
+}
+
+export function refreshSelectedMark(current: ReaderMarkItem, marks: ReaderMarkItem[]): ReaderMarkItem {
+  if (readerPaths(current.source) === null) return {...current, id: '', stroke: [], comments: []}
+  marks = marks.filter(mark => readerPaths(mark.source) !== null)
+  const pdf = current.source.some(path => path.type === 'pdf')
+  const sameSource = (mark: ReaderMarkItem) => sameReaderSource(current.source, mark.source)
+  const identified = current.id.trim() ? marks.find(mark => mark.id === current.id && (pdf || mark.source.some(path => path.type === 'pdf') ? sameSource(mark) : true)) : undefined
+  if (identified) return identified
   const sameApprox = (mark: ReaderMarkItem) => {
+    if (pdf || mark.source.some(path => path.type === 'pdf')) return false
     const left = current.approx, right = mark.approx
     return Boolean(left?.exact && right?.exact && (left.prefix || left.suffix || typeof left.position_start === 'number' && typeof left.position_end === 'number' && left.position_end > left.position_start) && left.exact === right.exact &&
       (left.prefix ?? '') === (right.prefix ?? '') && (left.suffix ?? '') === (right.suffix ?? '') &&
@@ -19,7 +31,7 @@ export function refreshSelectedMark(current: ReaderMarkItem, marks: ReaderMarkIt
   }
   const sourceMatches = marks.filter(sameSource)
   if (sourceMatches.length === 1) return sourceMatches[0]
-  const approximateMatches = (sourceMatches.length ? sourceMatches : marks.filter(mark => !current.source.length || !mark.source.length || !current.source.some(path => mark.source.some(other => path.type === other.type && path.path === other.path)))).filter(sameApprox)
+  const approximateMatches = (sourceMatches.length ? sourceMatches : marks.filter(mark => !current.source.length || !mark.source.length || !current.source.some(path => mark.source.some(other => path.type !== 'pdf' && other.type !== 'pdf' && path.type === other.type && path.path === other.path)))).filter(sameApprox)
   if (approximateMatches.length === 1) return approximateMatches[0]
   return current.id || current.stroke.length || current.comments.length ? {...current, id: '', stroke: [], comments: []} : current
 }
@@ -58,6 +70,21 @@ export function htmlPaths(value: unknown): HtmlMarkPath[] {
   })
 }
 
+function pdfPaths(source: unknown[], documentId?: string): PdfMarkSource[] | undefined {
+  const firstPdf = source.find((item): item is PdfMarkSource => item !== null && typeof item === 'object' && 'type' in item && item.type === 'pdf')
+  if (validatePdfSources(source, documentId ?? firstPdf?.document_id) === undefined) return undefined
+  return (source as PdfMarkSource[]).map(item => ({type: 'pdf', version: 1, document_id: item.document_id, page: item.page, text: item.text, quads: item.quads.map(quad => [...quad])}))
+}
+
+export function readerPaths(value: unknown, documentId?: string): ReaderMarkPath[] | null {
+  const source = jsonArray<unknown>(value)
+  try {
+    const pdf = pdfPaths(source, documentId)
+    if (pdf) return pdf
+  } catch { return null }
+  try { return htmlPaths(source) } catch { return [] }
+}
+
 /** Deleted ancestors remain visible when an undeleted descendant still needs its thread. */
 export function visibleCommentIds(records: MarkRecord[]): Set<string> {
   const comments = records.filter(item => [2, 3, 5].includes(item.type))
@@ -90,7 +117,9 @@ export function buildReaderMarks(records: MarkRecord[], profiles: MarkCommentPro
     if (uuid) identities.set(number, uuid)
     return number
   }
-  const mark_list = records.filter(record => [1, 4].includes(record.type) ? record.is_deleted === 0 : visible.has(record.id)).map(record => {
+  const mark_list = records.filter(record => [1, 4].includes(record.type) ? record.is_deleted === 0 : visible.has(record.id)).flatMap<ReaderMarkDetail['mark_list'][number]>(record => {
+    const source = readerPaths(record.source)
+    if (source === null && record.type !== 3) return []
     const metadata = jsonObject(record.metadata)
     const userUuid = String(metadata.user_id ?? '')
     const userId = sourceStableId(userUuid)
@@ -100,28 +129,36 @@ export function buildReaderMarks(records: MarkRecord[], profiles: MarkCommentPro
       avatar: policy.showProfile ? userUuid === currentUser.id ? String(currentUser.picture ?? '') : profile?.avatar ?? '' : '',
     }
     const approx = jsonObject(record.approx_source)
-    return { id: id(record.id), uuid: record.id, user_id: userId, type: record.type as ReaderMarkDetail['mark_list'][number]['type'],
-      source: htmlPaths(record.source), approx_source: typeof approx.exact === 'string' ? approx as ReaderApprox : null,
+    return [{ id: id(record.id), uuid: record.id, user_id: userId, type: record.type as ReaderMarkDetail['mark_list'][number]['type'],
+      source: source ?? id(String(metadata.parent_id ?? '')), approx_source: source !== null && typeof approx.exact === 'string' ? approx as ReaderApprox : null,
       parent_id: id(String(metadata.parent_id ?? '')), root_id: id(String(metadata.root_id ?? '')),
       parent_uid: String(metadata.parent_id ?? ''), root_uid: String(metadata.root_id ?? ''),
       comment: record.comment, created_at: record.created_at, is_deleted: record.is_deleted !== 0,
-    }
+    }]
   })
   return { mark_list, user_list: users }
 }
 
-export function selectionPaths(selection: ReaderSelection): HtmlMarkPath[] {
-  return selection.source.map(source => source.type === 'image' ? {type: 'image', path: source.xpath} : {type: 'text', path: source.xpath, start: source.start_offset, end: source.end_offset})
+export function selectionPaths(selection: ReaderSelection): ReaderMarkPath[] {
+  return pdfPaths(selection.source) ?? selection.source.map(source => source.type === 'pdf' ? source : source.type === 'image' ? {type: 'image', path: source.xpath} : {type: 'text', path: source.xpath, start: source.start_offset, end: source.end_offset})
 }
 /** The source removal lookup deletes only a live current-user LINE with the complete same range. */
 export function sourceStrokeToRemove(records: MarkRecord[], mark: ReaderMarkItem | null | undefined, userId: string): MarkRecord | null {
-  if (!mark || !userId) return null
-  const source = JSON.stringify(mark.source)
-  return records.find(record => record.type === 1 && record.is_deleted === 0 && String(jsonObject(record.metadata).user_id ?? '') === userId && JSON.stringify(htmlPaths(record.source)) === source) ?? null
+  if (!mark || !userId || !mark.source.length) return null
+  const pdf = mark.source.some(path => path.type === 'pdf')
+  const paths = pdf ? readerPaths(mark.source) : mark.source
+  if (!paths?.length) return null
+  const source = JSON.stringify(paths)
+  return records.find(record => {
+    if (record.type !== 1 || record.is_deleted !== 0 || String(jsonObject(record.metadata).user_id ?? '') !== userId) return false
+    const candidate = readerPaths(record.source)
+    return candidate !== null && candidate.length > 0 && JSON.stringify(candidate) === source
+  }) ?? null
 }
 export function selectionForMark(mark: ReaderMarkItem, fallbackText = ''): ReaderSelection {
-  const text = mark.approx?.raw_text ?? mark.approx?.exact ?? fallbackText
-  return { source: mark.source.map(path => ({type: path.type, xpath: path.path, start_offset: path.type === 'text' ? path.start : 0, end_offset: path.type === 'text' ? path.end : 0})),
+  const pdf = pdfPaths(mark.source)
+  const text = mark.approx?.raw_text ?? mark.approx?.exact ?? (pdf ? pdf.map(path => path.text).join('\n') : fallbackText)
+  return { source: pdf ?? mark.source.map(path => path.type === 'pdf' ? path : {type: path.type, xpath: path.path, start_offset: path.type === 'text' ? path.start : 0, end_offset: path.type === 'text' ? path.end : 0}),
     text, select_content: [{type: 'text', text, src: ''}], approx_source: {exact: mark.approx?.exact ?? text, prefix: mark.approx?.prefix ?? '', suffix: mark.approx?.suffix ?? '', position_start: mark.approx?.position_start ?? 0, position_end: mark.approx?.position_end ?? 0, raw_text: text},
   }
 }

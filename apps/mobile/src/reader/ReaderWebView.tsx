@@ -7,6 +7,7 @@ import { isReaderOperationCancelled, parseReaderSelection, ReaderBridgeSession }
 import type {ReaderEvaluationHandle} from './bridge.ts'
 import { anchorToScrollPoints, legacyPositionToScrollPoints, scrollPointsToLegacyPosition, selectionScreenYToContainerPoints, readerNearBottom } from './coordinates.ts'
 import type { ReaderGeometry } from './coordinates.ts'
+import {readerHostGeometry} from './host/geometry.ts'
 import { composeReaderDocument } from './document.ts'
 import {mobileConfig} from '../config'
 import {READER_ORIGIN, readerProtectedHosts, readerAllowsUrl, readerAllowsImage, readerImageProxyOrigins} from './security.ts'
@@ -152,13 +153,8 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
   const nativeEventCounts = useRef({loadStarts: 0, loadEnds: 0, messages: 0, rejectedMessages: 0})
   const documentState = useRef({ready, documentLoaded, documentHeightPoints: documentHeight})
   documentState.current = {ready, documentLoaded, documentHeightPoints: documentHeight}
-  const geometry: ReaderGeometry = {
-    pixelRatio: PixelRatio.get(), topInsetPoints: headerHeight,
-    headerHeightPoints: platform === 'ios' ? Math.max(headerHeight - (props.headerSafeAreaPoints ?? 0), 0) : headerHeight, containerScreenTopPoints: screenTop,
-    webViewScreenTopPoints: platform === 'android' ? screenTop + headerHeight - scrollPoints.current : screenTop,
-    viewportHeightPoints: viewportHeight,
-    ...props.platformGeometry,
-  }
+  const geometry = readerHostGeometry(platform, {pixelRatio: PixelRatio.get(), headerHeight,
+    headerSafeArea: props.headerSafeAreaPoints ?? 0, screenTop, viewportHeight, scrollPoints: scrollPoints.current}, props.platformGeometry)
   const geometryRef = useRef(geometry)
   geometryRef.current = geometry
   const nativeContext: ReaderNativeContext = {

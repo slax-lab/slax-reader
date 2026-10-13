@@ -18,6 +18,7 @@ export interface ReaderNativeContext {
   resourceOwner?: string | null
   /** Development fixture roots are accepted only after native marker and cache-path validation. */
   cacheDirectory?: string
+  pdfMode?: boolean
   suppressSelectionMenu: true
   scrollsToTop: boolean
 }

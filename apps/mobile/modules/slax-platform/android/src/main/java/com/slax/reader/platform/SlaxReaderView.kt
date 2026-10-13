@@ -39,7 +39,14 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
     if (resourceOwner != null && resourceOwner != owner) { detach(); return }
     resourceOwner = owner
   }
-  var html = ""; var pageId = ""
+  var html = ""
+    set(value) { field = if (detached) "" else value }
+  var pageId = ""
+  private var pdfMode = false
+  fun setPdfMode(value: Boolean) {
+    if (pdfMode != value && (loaded != null || security != null)) { detach(); return }
+    pdfMode = value
+  }
   private var security: SlaxReaderSecurity? = null
   private var protectedHosts: List<String>? = null
   var imageProxyOrigins: List<String>? = null
@@ -62,7 +69,7 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
       return if (uri.scheme in listOf("http", "https") && uri.rawPath.isNullOrEmpty())
         java.net.URI(uri.scheme, uri.authority, "/", uri.query, uri.fragment).toASCIIString() else uri.toASCIIString()
     }
-    return try { url != null && canonical(url) == canonical(SlaxReaderSecurity.ORIGIN) } catch (_: Exception) { false }
+    return try { url != null && canonical(url) == canonical(security?.documentOrigin ?: SlaxReaderSecurity.ORIGIN) } catch (_: Exception) { false }
   }
   fun evaluateJavaScript(script: String, pageId: String, promise: expo.modules.kotlin.Promise) {
     if (!permitsEvaluation() || loadedPageId != pageId) { promise.reject("E_READER_RELEASED", "Reader page was released", null); return }
@@ -83,8 +90,13 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
   @Volatile private var detached = false
   private fun ownsResources(): Boolean = !detached && (resourceHandler.isFixture || resourceOwner != null && resourceOwner == activeOwner)
   private var screenY = 0.0
+  private var documentScrollEnabled = true
+  fun setDocumentScrollEnabled(value: Boolean) {
+    documentScrollEnabled = value
+    if (!value) retainedWebView?.scrollTo(0, 0)
+  }
   private val identity = View.generateViewId()
-  val webView = object : WebView(context) {
+  private var retainedWebView: WebView? = object : WebView(context) {
     private fun suppress(callback: ActionMode.Callback): ActionMode.Callback = object : ActionMode.Callback {
       override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean { val created = callback.onCreateActionMode(mode, menu); menu.clear(); emit("touch", mapOf("screenY" to screenY)); return created }
       override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean { callback.onPrepareActionMode(mode, menu); menu.clear(); return false }
@@ -93,12 +105,21 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
     }
     override fun startActionMode(callback: ActionMode.Callback): ActionMode? = super.startActionMode(suppress(callback))
     override fun startActionMode(callback: ActionMode.Callback, type: Int): ActionMode? = super.startActionMode(suppress(callback), type)
+    override fun scrollTo(x: Int, y: Int) { super.scrollTo(if (documentScrollEnabled) x else 0, if (documentScrollEnabled) y else 0) }
+    override fun canScrollVertically(direction: Int): Boolean = documentScrollEnabled && super.canScrollVertically(direction)
+    override fun onOverScrolled(scrollX: Int, scrollY: Int, clampedX: Boolean, clampedY: Boolean) {
+      super.onOverScrolled(if (documentScrollEnabled) scrollX else 0, if (documentScrollEnabled) scrollY else 0, clampedX, clampedY)
+    }
     override fun onTouchEvent(event: MotionEvent): Boolean {
       screenY = event.rawY / resourceHandler.displayDensity
       if (event.actionMasked == MotionEvent.ACTION_DOWN || event.actionMasked == MotionEvent.ACTION_MOVE || event.actionMasked == MotionEvent.ACTION_UP) emit("touch", mapOf("screenY" to screenY))
       return super.onTouchEvent(event)
     }
   }
+  private val webView: WebView get() = checkNotNull(retainedWebView) { "Reader page was released" }
+  fun injectJavaScript(script: String) { if (permitsEvaluation()) retainedWebView?.evaluateJavascript(script, null) }
+  fun stopLoading() { retainedWebView?.stopLoading() }
+  fun scrollTo(y: Double) { if (!detached) retainedWebView?.scrollTo(0, (y * resourceHandler.displayDensity).toInt()) }
   init {
     activeViews.add(this)
     webView.setBackgroundColor(Color.TRANSPARENT)
@@ -126,7 +147,8 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
       }
       override fun onPageFinished(view: WebView, url: String?) { emit("loadEnd") }
       override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-        if (request.isForMainFrame || request.url.scheme in listOf("slaxmedia", "slaxmedias", "slaxstatic", "slaxstatics") && request.method != "GET") return WebResourceResponse("text/plain", "UTF-8", java.io.ByteArrayInputStream(ByteArray(0)))
+        if (pdfMode && !request.isForMainFrame && request.url.scheme in listOf("blob", "data")) return null
+        if (pdfMode || request.isForMainFrame || request.url.scheme in listOf("slaxmedia", "slaxmedias", "slaxstatic", "slaxstatics") && request.method != "GET") return WebResourceResponse("text/plain", "UTF-8", java.io.ByteArrayInputStream(ByteArray(0)))
         return resourceHandler.intercept(request.url.toString(), request.requestHeaders)
       }
       override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -146,8 +168,9 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
     if (detached || !ownsResources()) return
     val hosts = protectedHosts ?: return
     val proxies = imageProxyOrigins ?: return
-    try { security = SlaxReaderSecurity(hosts, proxies); resourceHandler.security = security } catch (_: Exception) { detach(); return }
-    webView.settings.blockNetworkLoads = resourceHandler.isFixture
+    try { security = SlaxReaderSecurity(hosts, proxies, pdfMode); resourceHandler.security = security } catch (_: Exception) { detach(); return }
+    webView.settings.blockNetworkLoads = pdfMode || resourceHandler.isFixture
+    webView.settings.domStorageEnabled = !pdfMode
     if (loaded != null) {
       if (loaded != html || loadedPageId != pageId) {
         emit("error", mapOf("message" to "Reader document requires a new native page", "code" to "documentReuse")); detach()
@@ -156,13 +179,13 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
     }
     if (html.isNotEmpty() && pageId.isNotEmpty()) {
       resourceHandler.cancelAll(); loaded = html; loadedPageId = pageId; loadedOwner = resourceOwner; generation++
-      var document = SlaxReaderSecurity.document(html)
-      if (resourceHandler.isFixture) {
+      var document = try { if (pdfMode) SlaxReaderSecurity.pdfDocument(html, pageId) else SlaxReaderSecurity.document(html) } catch (_: Exception) { detach(); return }
+      if (resourceHandler.isFixture && !pdfMode) {
         val policy = "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob: slaxstatic: slaxstatics:; media-src data: blob:; connect-src 'none'; frame-src 'none'; child-src 'none'; base-uri 'none'; form-action 'none'\">"
         val head = Regex("(?i)<head(?:\\s[^>]*)?>").find(document)
         document = if (head == null) policy + document else document.substring(0, head.range.last + 1) + policy + document.substring(head.range.last + 1)
       }
-      webView.loadDataWithBaseURL(SlaxReaderSecurity.ORIGIN, document, "text/html", "UTF-8", null)
+      webView.loadDataWithBaseURL(security!!.documentOrigin, document, "text/html", "UTF-8", null)
     }
   }
   fun detach() {
@@ -170,6 +193,16 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
     detached = true; generation++
     val pending = evaluations.values.toList(); evaluations.clear()
     pending.forEach { it.reject("E_READER_RELEASED", "Reader page was released", null) }
-    activeViews.remove(this); resourceHandler.close(); webView.stopLoading(); webView.removeJavascriptInterface("ReactNativeWebView"); webView.destroy()
+    activeViews.remove(this); resourceHandler.close()
+    html = ""; loaded = null; loadedPageId = null; loadedOwner = null
+    val released = retainedWebView
+    retainedWebView = null
+    released?.let {
+      it.stopLoading(); it.removeJavascriptInterface("ReactNativeWebView")
+      it.webViewClient = WebViewClient(); it.webChromeClient = null
+      endViewTransition(it)
+      removeView(it)
+      it.removeAllViews(); it.destroy()
+    }
   }
 }

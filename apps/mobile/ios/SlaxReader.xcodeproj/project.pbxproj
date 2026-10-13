@@ -13,6 +13,7 @@
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		41F16370AA4D41F48642825D /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E89C718448594F56ABB820C8 /* ShareViewController.swift */; };
 		47A04944B12A1EFF5D84C7B7 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BE2DB3EC228230BAC4DD12F9 /* PrivacyInfo.xcprivacy */; };
+		47D9489EA2864A80A727CA99 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 1A54AA3B71DF4D90B624E001 /* GoogleService-Info.plist */; };
 		559CA6C419B34694B64B6DCF /* ExtensionClass.js in Resources */ = {isa = PBXBuildFile; fileRef = 42AA896C16254F38B93EBF8F /* ExtensionClass.js */; };
 		60B25D45682C412BB8B2E846 /* SlaxShare.appex in Copy Files */ = {isa = PBXBuildFile; fileRef = 76E75B23C62E4793A2737EF9 /* SlaxShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, CodeSignOnCopy, ); }; };
 		97F2475B438F3557B6A087E3 /* Pods_SlaxReader.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A7F066A708825AA49BA33701 /* Pods_SlaxReader.framework */; };
@@ -42,6 +43,7 @@
 		13B07F961A680F5B00A75B9A /* SlaxReader.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SlaxReader.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = SlaxReader/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = SlaxReader/Info.plist; sourceTree = "<group>"; };
+		1A54AA3B71DF4D90B624E001 /* GoogleService-Info.plist */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "SlaxReader/GoogleService-Info.plist"; sourceTree = "<group>"; };
 		2F65B1632B0D45F0908AE445 /* SharedPreferences.swift */ = {isa = PBXFileReference; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = SharedPreferences.swift; path = SlaxShare/SharedPreferences.swift; sourceTree = "<group>"; };
 		42AA896C16254F38B93EBF8F /* ExtensionClass.js */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = sourcecode.javascript; name = ExtensionClass.js; path = SlaxShare/ExtensionClass.js; sourceTree = "<group>"; };
 		6806325909C941BCA57AC212 /* ShareCollector.swift */ = {isa = PBXFileReference; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = ShareCollector.swift; path = SlaxShare/ShareCollector.swift; sourceTree = "<group>"; };
@@ -89,6 +91,7 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
 				BE2DB3EC228230BAC4DD12F9 /* PrivacyInfo.xcprivacy */,
+				1A54AA3B71DF4D90B624E001 /* GoogleService-Info.plist */,
 			);
 			name = SlaxReader;
 			sourceTree = "<group>";
@@ -226,6 +229,7 @@
 				E31FB22396EA4356A913D751 /* Copy Files */,
 				DA9297358C54B99035753761 /* [CP] Embed Pods Frameworks */,
 				47388F017C615D16EEE67630 /* [CP-User] [RNFB] Core Configuration */,
+				88FB529CFC76BFE337F6D6D4 /* [CP-User] [RNFB] Crashlytics Configuration */,
 			);
 			buildRules = (
 			);
@@ -277,6 +281,7 @@
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
 				47A04944B12A1EFF5D84C7B7 /* PrivacyInfo.xcprivacy in Resources */,
+				47D9489EA2864A80A727CA99 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -445,6 +450,20 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SlaxReader/Pods-SlaxReader-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
+		88FB529CFC76BFE337F6D6D4 /* [CP-User] [RNFB] Crashlytics Configuration */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}",
+				"$(BUILT_PRODUCTS_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "[CP-User] [RNFB] Crashlytics Configuration";
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "#!/usr/bin/env bash\n#\n# Copyright (c) 2016-present Invertase Limited & Contributors\n#\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n# you may not use this library except in compliance with the License.\n# You may obtain a copy of the License at\n#\n#   http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\n#\nset -e\n\nif [[ ${PODS_ROOT} && -f \"${PODS_ROOT}/FirebaseCrashlytics/run\" ]]; then\n  echo \"info: Exec FirebaseCrashlytics Run from Pods\"\n  \"${PODS_ROOT}/FirebaseCrashlytics/run\"\nelif [[ -f \"${PROJECT_DIR}/FirebaseCrashlytics.framework/run\" ]]; then\n  echo \"info: Exec FirebaseCrashlytics Run from framework\"\n  \"${PROJECT_DIR}/FirebaseCrashlytics.framework/run\"\nelse\n  # SPM: upload-symbols is at a known path in the SourcePackages checkout.\n  # BUILD_DIR is typically DerivedData/Project-hash/Build/Products — strip from /Build onward\n  # to get the DerivedData project root where SourcePackages lives.\n  SPM_CRASHLYTICS_DIR=\"${BUILD_DIR%Build/*}SourcePackages/checkouts/firebase-ios-sdk/Crashlytics\"\n  SPM_UPLOAD_SYMBOLS=\"${SPM_CRASHLYTICS_DIR}/upload-symbols\"\n  if [[ -x \"${SPM_UPLOAD_SYMBOLS}\" ]]; then\n    echo \"info: Exec FirebaseCrashlytics upload-symbols from SPM\"\n    \"${SPM_UPLOAD_SYMBOLS}\" -gsp \"${PROJECT_DIR}/GoogleService-Info.plist\" -p ios \"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}\"\n  elif [[ -f \"${SPM_UPLOAD_SYMBOLS}\" ]]; then\n    echo \"info: Exec FirebaseCrashlytics upload-symbols from SPM (chmod +x)\"\n    chmod +x \"${SPM_UPLOAD_SYMBOLS}\"\n    \"${SPM_UPLOAD_SYMBOLS}\" -gsp \"${PROJECT_DIR}/GoogleService-Info.plist\" -p ios \"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}\"\n  else\n    echo \"warning: FirebaseCrashlytics run script not found at CocoaPods, framework, or SPM paths. Skipping dSYM upload.\"\n    echo \"warning: Checked: \\${PODS_ROOT}/FirebaseCrashlytics/run, \\${PROJECT_DIR}/FirebaseCrashlytics.framework/run, ${SPM_UPLOAD_SYMBOLS}\"\n  fi\nfi\n";
+		};
 		DA9297358C54B99035753761 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -578,7 +597,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = SlaxShare/SlaxShare.entitlements;
-				CURRENT_PROJECT_VERSION = 761;
+				CURRENT_PROJECT_VERSION = 764;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = SlaxShare/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
@@ -768,7 +787,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = SlaxShare/SlaxShare.entitlements;
-				CURRENT_PROJECT_VERSION = 761;
+				CURRENT_PROJECT_VERSION = 764;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
 					"$(inherited)",

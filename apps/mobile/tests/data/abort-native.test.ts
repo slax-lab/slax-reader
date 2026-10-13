@@ -82,3 +82,15 @@ test('native account deletion stops before backend and leaves authentication int
   await assert.rejects(deleteCurrentAccount({sessions: authority, signal: controller.signal, isActive: () => true, api: {deleteAccount: async () => {requests++; return {canDelete: true};}}}), isAbort);
   assert.equal(requests, 0); assert.equal((await authority.getSession())?.token, 'synthetic-native-token');
 }));
+
+test('PDF timeout preserves its typed cause with the installed RN signal that discards abort reasons', async context => withNativeAbort(async () => {
+  context.mock.timers.enable({apis: ['setTimeout']});
+  let entered!: () => void, cancelled = false;
+  const started = new Promise<void>(resolve => {entered = resolve;});
+  const api = createMobileApi({baseUrl: 'https://fixture.invalid', platform: 'ios', version: 'test', sessions: {getSession: async () => ({token: 'synthetic', userId: 'account', refreshedAt: 0}), clearIfMatches: async () => false},
+    fetch: async () => new Response(new ReadableStream({pull() {entered();}, cancel() {cancelled = true;}}, {highWaterMark: 0}), {headers: {'Content-Type': 'application/json'}}),
+  });
+  const pending = api.getPdfMetadata('doc');
+  const rejected = assert.rejects(pending, error => error instanceof Error && error.name === 'DataTransportError' && 'kind' in error && error.kind === 'timeout' && 'stage' in error && error.stage === 'pdf-metadata');
+  await started; context.mock.timers.tick(120000); await rejected; assert.equal(cancelled, true);
+}));

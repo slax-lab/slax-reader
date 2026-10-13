@@ -20,6 +20,8 @@ interface NativeReaderEvent {type: string; target: number; pageId: string; data?
 interface NativeReaderProps extends ViewProps {
   html: string; baseUrl?: string; cacheKey: string; pageId: string; scrollsToTop: boolean;
   cacheDirectory?: string;
+  pdfMode: boolean;
+  scrollEnabled: boolean;
   protectedHosts: string[];
   imageProxyOrigins: string[];
   resourceOwner: string | null;
@@ -35,6 +37,7 @@ const NativeReaderHost = forwardRef<WebView, WebViewProps>(function NativeReader
   const nativeRef = useRef<NativeReaderRef|null>(null);
   const attachedRef = useRef<NativeReaderRef|null>(null);
   const identity = useRef<number|null>(null);
+  const disposed = useRef(false);
   const callbacks = useRef(props); callbacks.current = props;
   const nativeProps = props.nativeConfig?.props as unknown as ReaderNativeContext;
   useImperativeHandle(outerRef, () => ({
@@ -53,13 +56,16 @@ const NativeReaderHost = forwardRef<WebView, WebViewProps>(function NativeReader
     stopLoading: () => {void nativeRef.current?.stopLoading().catch(() => undefined);},
   } as unknown as WebView), []);
   useEffect(() => () => {
+    disposed.current = true;
     if (identity.current !== null) { refs.delete(identity.current); touchListeners.delete(identity.current); }
-    void attachedRef.current?.detach().catch(() => undefined);
+    const previous = attachedRef.current;
+    nativeRef.current = null; attachedRef.current = null; identity.current = null;
+    void previous?.detach().catch(() => undefined);
   }, []);
   const source = props.source as {html?: string; baseUrl?: string} | undefined;
   function receive(incoming: NativeSyntheticEvent<NativeReaderEvent>) {
     const event = incoming.nativeEvent;
-    if (event.pageId !== nativeProps.pageId) return;
+    if (disposed.current || event.pageId !== nativeProps.pageId) return;
     identity.current = event.target;
     if (nativeRef.current) refs.set(event.target, nativeRef.current);
     const navigation = {target: event.target, url: event.url ?? source?.baseUrl ?? 'about:blank', title: '', loading: event.type === 'loadStart', canGoBack: false, canGoForward: false, navigationType: 'other' as const, lockIdentifier: 0};
@@ -73,7 +79,7 @@ const NativeReaderHost = forwardRef<WebView, WebViewProps>(function NativeReader
   }
   return <View style={[styles.document, props.containerStyle]}><NativeView ref={instance => { nativeRef.current = instance; if (instance) attachedRef.current = instance; }}
     style={[styles.document, props.style]} testID={props.testID} html={source?.html ?? ''} baseUrl={source?.baseUrl}
-    protectedHosts={nativeProps.protectedHosts} imageProxyOrigins={nativeProps.imageProxyOrigins} cacheKey={nativeProps.cacheKey} cacheDirectory={nativeProps.cacheDirectory} resourceOwner={nativeProps.resourceOwner ?? null} pageId={nativeProps.pageId} scrollsToTop={nativeProps.scrollsToTop} onEvent={receive}/></View>;
+    pdfMode={nativeProps.pdfMode === true} scrollEnabled={props.scrollEnabled !== false} protectedHosts={nativeProps.protectedHosts} imageProxyOrigins={nativeProps.imageProxyOrigins} cacheKey={nativeProps.cacheKey} cacheDirectory={nativeProps.cacheDirectory} resourceOwner={nativeProps.resourceOwner ?? null} pageId={nativeProps.pageId} scrollsToTop={nativeProps.scrollsToTop} onEvent={receive}/></View>;
 });
 export const readerNativeAdapter: ReaderNativeAdapter = {
   HostComponent: NativeReaderHost,

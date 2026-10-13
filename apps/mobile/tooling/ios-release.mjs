@@ -55,28 +55,25 @@ export function checkBundleMetadata(info, entitlements, signature, release, bund
 }
 
 function firebaseRequirement(condition, detail) {
-  assert(condition, `iOS release Firebase admission: ${detail}. Operator: supply SLAX_MOBILE_FIREBASE_IOS_CONFIG and SLAX_MOBILE_FIREBASE_SHARE_IOS_CONFIG for the intended main/share registrations, regenerate with pnpm mobile -- prebuild:clean, then pnpm mobile -- pods. Do not read or copy service configuration contents through an agent; see docs/mobile/release.md`);
+  assert(condition, `iOS release Firebase admission: ${detail}. Operator: supply SLAX_MOBILE_FIREBASE_IOS_CONFIG for the intended main-app registration, regenerate with pnpm mobile -- prebuild --platform ios, then pnpm mobile -- pods. Do not read or copy service configuration contents through an agent; see docs/mobile/release.md`);
 }
 function regularFile(filename) {
   try {return lstatSync(filename).isFile();} catch {return false;}
 }
 export function checkFirebaseBundleResources(directory) {
-  for (const [name, relative] of [['main', ''], ['share', 'PlugIns/SlaxShare.appex']]) {
-    firebaseRequirement(regularFile(path.join(directory, relative, 'GoogleService-Info.plist')), `${name} artifact is missing a regular bundled GoogleService-Info.plist; rebuild stale artifacts`);
-  }
+  firebaseRequirement(regularFile(path.join(directory, 'GoogleService-Info.plist')), 'main artifact is missing a regular bundled GoogleService-Info.plist; rebuild stale artifacts');
 }
 export function checkFirebaseMetadata(info, bundle) {
+  if (bundle !== MAIN) return;
   firebaseRequirement(info.FirebaseDataCollectionDefaultEnabled !== false && info.FIREBASE_ANALYTICS_COLLECTION_DEACTIVATED !== true && info.FIREBASE_ANALYTICS_COLLECTION_ENABLED !== false, `${bundle} metadata disables required Analytics collection`);
-  if (bundle === MAIN) {
-    firebaseRequirement(info.FirebaseAutomaticScreenReportingEnabled === false, 'main metadata must retain manual screen reporting');
-    firebaseRequirement(info.FirebaseCrashlyticsCollectionEnabled !== false, 'main metadata disables required Crashlytics collection');
-  }
+  firebaseRequirement(info.FirebaseAutomaticScreenReportingEnabled === false, 'main metadata must retain manual screen reporting');
+  firebaseRequirement(info.FirebaseCrashlyticsCollectionEnabled !== false, 'main metadata disables required Crashlytics collection');
 }
 export function checkFirebaseArchiveAdmission(recorded, current) {
-  firebaseRequirement(recorded?.version === 1 && recorded.nativeSHA256 === current.nativeSHA256, 'archive lacks matching native Firebase admission evidence; create a fresh archive');
+  firebaseRequirement(recorded?.version === 2 && current?.version === 2 && recorded.nativeSHA256 === current.nativeSHA256, 'archive lacks matching native Firebase admission evidence; create a fresh archive');
 }
 export function firebaseReleaseAdmission(iosRoot = path.join(appRoot, 'ios'), readPlist = plist) {
-  for (const target of ['SlaxReader', 'SlaxShare']) firebaseRequirement(regularFile(path.join(iosRoot, target, 'GoogleService-Info.plist')), `${target} is missing a regular generated GoogleService-Info.plist`);
+  firebaseRequirement(regularFile(path.join(iosRoot, 'SlaxReader/GoogleService-Info.plist')), 'SlaxReader is missing a regular generated GoogleService-Info.plist');
   const publicInputs = [];
   const text = relative => {
     firebaseRequirement(regularFile(path.join(iosRoot, relative)), `missing generated ${relative}`);
@@ -99,40 +96,32 @@ export function firebaseReleaseAdmission(iosRoot = path.join(appRoot, 'ios'), re
     const parent = resolveReference(parents[0][0], visited);
     return parent === undefined ? undefined : path.posix.join(parent, entry.path ?? '');
   };
-  const targets = {};
-  for (const [name, bundle, source, frameworks] of [
-    ['SlaxReader', MAIN, 'AppDelegate.swift', ['FirebaseCore', 'FirebaseAnalytics', 'FirebaseCrashlytics']],
-    ['SlaxShare', SHARE, 'ShareCollector.swift', ['FirebaseCore', 'FirebaseAnalytics']],
-  ]) {
-    const target = (root?.targets ?? []).map(id => objects[id]).find(value => value?.isa === 'PBXNativeTarget' && value.name === name);
-    firebaseRequirement(target, `missing ${name} native target`);
-    const phases = (target.buildPhases ?? []).map(id => objects[id]).filter(Boolean);
-    const contains = (kind, relative) => phases.filter(phase => phase.isa === kind && String(phase.runOnlyForDeploymentPostprocessing) === '0').some(phase => (phase.files ?? []).some(id => resolveReference(objects[id]?.fileRef) === relative));
-    firebaseRequirement(contains('PBXResourcesBuildPhase', `${name}/GoogleService-Info.plist`), `${name} Firebase resource is not in that target's Resources build phase`);
-    firebaseRequirement(contains('PBXSourcesBuildPhase', `${name}/${source}`), `${name} Firebase bootstrap source is not in that target's Sources build phase`);
-    const configurations = objects[target.buildConfigurationList]?.buildConfigurations ?? [];
-    const release = configurations.map(id => objects[id]).find(value => value?.name === 'Release');
-    const xcconfig = `Pods/Target Support Files/Pods-${name}/Pods-${name}.release.xcconfig`;
-    firebaseRequirement(resolveReference(release?.baseConfigurationReference) === xcconfig, `${name} Release is not connected to its CocoaPods configuration`);
-    const overrides = release.buildSettings?.OTHER_LDFLAGS;
-    firebaseRequirement(overrides === undefined || (Array.isArray(overrides) ? overrides : overrides.split(/\s+/)).includes('$(inherited)'), `${name} Release drops inherited CocoaPods linker flags`);
-    const linked = /^OTHER_LDFLAGS\s*=\s*(.*)$/m.exec(text(xcconfig))?.[1] ?? '';
-    for (const framework of frameworks) firebaseRequirement(linked.includes(`-framework "${framework}"`), `${name} Release does not link ${framework}`);
-    const infoPath = `${name}/Info.plist`;
-    firebaseRequirement(release.buildSettings?.INFOPLIST_FILE === infoPath, `${name} Release does not use the inspected public Info.plist`);
-    text(infoPath);
-    checkFirebaseMetadata(readPlist(path.join(iosRoot, infoPath)), bundle);
-    targets[name] = {phases, source: text(`${name}/${source}`).replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '')};
-  }
-  const main = targets.SlaxReader.source;
+  const name = 'SlaxReader';
+  const target = (root?.targets ?? []).map(id => objects[id]).find(value => value?.isa === 'PBXNativeTarget' && value.name === name);
+  firebaseRequirement(target, `missing ${name} native target`);
+  const phases = (target.buildPhases ?? []).map(id => objects[id]).filter(Boolean);
+  const contains = (kind, relative) => phases.filter(phase => phase.isa === kind && String(phase.runOnlyForDeploymentPostprocessing) === '0').some(phase => (phase.files ?? []).some(id => resolveReference(objects[id]?.fileRef) === relative));
+  firebaseRequirement(contains('PBXResourcesBuildPhase', `${name}/GoogleService-Info.plist`), `${name} Firebase resource is not in that target's Resources build phase`);
+  firebaseRequirement(contains('PBXSourcesBuildPhase', `${name}/AppDelegate.swift`), `${name} Firebase bootstrap source is not in that target's Sources build phase`);
+  const configurations = objects[target.buildConfigurationList]?.buildConfigurations ?? [];
+  const release = configurations.map(id => objects[id]).find(value => value?.name === 'Release');
+  const xcconfig = `Pods/Target Support Files/Pods-${name}/Pods-${name}.release.xcconfig`;
+  firebaseRequirement(resolveReference(release?.baseConfigurationReference) === xcconfig, `${name} Release is not connected to its CocoaPods configuration`);
+  const overrides = release.buildSettings?.OTHER_LDFLAGS;
+  firebaseRequirement(overrides === undefined || (Array.isArray(overrides) ? overrides : overrides.split(/\s+/)).includes('$(inherited)'), `${name} Release drops inherited CocoaPods linker flags`);
+  const linked = /^OTHER_LDFLAGS\s*=\s*(.*)$/m.exec(text(xcconfig))?.[1] ?? '';
+  for (const framework of ['FirebaseCore', 'FirebaseAnalytics', 'FirebaseCrashlytics']) firebaseRequirement(linked.includes(`-framework "${framework}"`), `${name} Release does not link ${framework}`);
+  const infoPath = `${name}/Info.plist`;
+  firebaseRequirement(release.buildSettings?.INFOPLIST_FILE === infoPath, `${name} Release does not use the inspected public Info.plist`);
+  text(infoPath);
+  checkFirebaseMetadata(readPlist(path.join(iosRoot, infoPath)), MAIN);
+  const main = text(`${name}/AppDelegate.swift`).replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
   firebaseRequirement(/^\s*import FirebaseCore\s*$/m.test(main) && /didFinishLaunchingWithOptions[\s\S]*?FirebaseApp\.configure\(\)\s*\n\s*factory\.startReactNative\(/.test(main), 'main AppDelegate lacks Firebase initialization before React Native startup');
-  const share = targets.SlaxShare.source;
-  firebaseRequirement(/^\s*import FirebaseCore\s*$/m.test(share) && /^\s*import FirebaseAnalytics\s*$/m.test(share) && /Bundle\.main\.path\(forResource: "GoogleService-Info", ofType: "plist"\)/.test(share) && /FirebaseOptions\(contentsOfFile: path\)/.test(share) && /FirebaseApp\.configure\(options: options\)/.test(share) && /Analytics\.logEvent\("bookmark_add_start",/.test(share), 'standalone ShareCollector lacks its configured Firebase Analytics bootstrap');
-  const crashPhase = targets.SlaxReader.phases.find(phase => phase.isa === 'PBXShellScriptBuildPhase' && phase.name === '[CP-User] [RNFB] Crashlytics Configuration');
+  const crashPhase = phases.find(phase => phase.isa === 'PBXShellScriptBuildPhase' && phase.name === '[CP-User] [RNFB] Crashlytics Configuration');
   const crashScript = crashPhase?.shellScript?.replace(/^\s*#.*$/gm, '') ?? '';
   firebaseRequirement(String(crashPhase?.runOnlyForDeploymentPostprocessing) === '0' && /^\s*"\$\{PODS_ROOT\}\/FirebaseCrashlytics\/run"\s*$/m.test(crashScript) && crashPhase.inputPaths?.some(value => value.includes('DWARF_DSYM_FILE_NAME')), 'main target lacks the active Crashlytics symbol-upload phase');
   firebaseRequirement(regularFile(path.join(iosRoot, 'Pods/FirebaseCrashlytics/run')), 'CocoaPods Crashlytics symbol-upload script is missing');
-  return {version: 1, nativeSHA256: digest(JSON.stringify(publicInputs))};
+  return {version: 2, nativeSHA256: digest(JSON.stringify(publicInputs))};
 }
 
 export function archiveArguments(release, directory) {

@@ -68,6 +68,7 @@ public final class SlaxPlatformModule: Module {
       Events("onEvent")
       Prop("html") { (view, value: String) in view.html = value }
       Prop("baseUrl") { (_: SlaxReaderView, _: String?) in }
+      Prop("pdfMode") { (view: SlaxReaderView, value: Bool) in view.setPdfMode(value) }
       Prop("protectedHosts") { (view: SlaxReaderView, value: [String]) in view.setProtectedHosts(value) }
       Prop("imageProxyOrigins") { (view: SlaxReaderView, value: [String]) in view.imageProxyOrigins = value }
       Prop("cacheKey") { (view, value: String) in view.resources.cacheKey = value }
@@ -75,6 +76,7 @@ public final class SlaxPlatformModule: Module {
       Prop("pageId") { (view, value: String) in view.pageId = value }
       Prop("resourceOwner") { (view: SlaxReaderView, value: String?) in view.resourceOwner = value }
       Prop("scrollsToTop") { (view, value: Bool) in view.webView.scrollView.scrollsToTop = value }
+      Prop("scrollEnabled") { (view, value: Bool) in view.webView.scrollView.isScrollEnabled = value }
       OnViewDidUpdateProps { view in view.loadPendingDocument() }
       AsyncFunction("injectJavaScript") { (view: SlaxReaderView, script: String) in view.injectJavaScript(script) }
       AsyncFunction("evaluateJavaScript") { (view: SlaxReaderView, script: String, pageId: String, promise: Promise) in view.evaluateJavaScript(script, pageId: pageId, promise: promise) }

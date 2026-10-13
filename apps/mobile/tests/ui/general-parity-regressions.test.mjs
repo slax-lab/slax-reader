@@ -75,7 +75,7 @@ for (const platform of ['android', 'ios']) test(`mounted ${platform} Login prese
   let height = 800;
   const WebView = v.native('WebView');
   const sessionState = {status: 'unauthenticated'};
-  const mobile = {t: value => value, config: {webUrl: 'https://example.test'}, api: {login: async request => ({token: request.provider, user_id: 'one'})}, sessions: {getSnapshot: () => sessionState, accept: async (...values) => sessions.push(values)}};
+  const mobile = {t: value => value, config: {webUrl: 'https://example.test'}, api: {login: async request => ({token: request.provider, user_id: 'one'})}, sessions: {getSnapshot: () => sessionState, captureIdentity: () => () => {}, accept: async (...values) => sessions.push(values)}};
   const {LoginScreen} = await load('../../src/screens/LoginScreen.tsx', {
     react: React, 'react-native': {...v.primitives, Alert: {alert() {}}, Platform: {OS: platform}, StyleSheet: {create: value => value, absoluteFill: {}}, useWindowDimensions: () => ({width: 375, height})},
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'react-native-webview': {WebView}, '../../assets': {mobileAssets: {}}, '../auth/providers': {authenticate: async provider => {authentication.push(provider); return {provider};}},
@@ -121,7 +121,7 @@ for (const platform of ['android', 'ios']) test(`mounted ${platform} Login prese
 test('mounted title editor rejects whitespace via confirm and IME without dismissing, then trims a valid edit', async () => mounted(async root => {
   const v = views(), submitted = []; let dismissals = 0, visible = true;
   const {LinkInputDialog} = await load('../../src/components/LinkInputDialog.tsx', {
-    react: React, 'react-native': {...v.primitives, StyleSheet: {create: value => value}}, 'expo-clipboard': {getStringAsync: async () => ''}, '../runtime': {useMobile: () => ({t: value => value})}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}}, './SourceUI': v.ui,
+    react: React, 'react-native': {...v.primitives, Platform: {OS: 'ios'}, StyleSheet: {create: value => value}}, 'expo-clipboard': {getStringAsync: async () => ''}, '../runtime': {useMobile: () => ({t: value => value})}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}}, './SourceUI': v.ui,
   });
   await act(async () => root.render(React.createElement(LinkInputDialog, {visible, initialTitle: 'Initial', onSubmit: value => submitted.push(value), onDismiss: () => {dismissals++; visible = false;}})));
   for (const whitespace of ['', '  \t\n ', '\u3000']) {
@@ -138,7 +138,7 @@ test('mounted title editor rejects whitespace via confirm and IME without dismis
 test('add-link silently ignores unrelated clipboard text and never overwrites typing with a late clipboard result', async () => mounted(async root => {
   const v = views(), submitted = []; let clipboard = Promise.resolve('Plain text without a link'), resolveClipboard;
   const {LinkInputDialog} = await load('../../src/components/LinkInputDialog.tsx', {
-    react: React, 'react-native': {...v.primitives, StyleSheet: {create: value => value}}, 'expo-clipboard': {getStringAsync: () => clipboard}, '../runtime': {useMobile: () => ({t: value => value})}, '../theme': theme, '../theme/testIds': {mobileTestIds: {AddLinkError: 'clipboard-error'}}, './SourceUI': v.ui,
+    react: React, 'react-native': {...v.primitives, Platform: {OS: 'ios'}, StyleSheet: {create: value => value}}, 'expo-clipboard': {getStringAsync: () => clipboard}, '../runtime': {useMobile: () => ({t: value => value})}, '../theme': theme, '../theme/testIds': {mobileTestIds: {AddLinkError: 'clipboard-error'}}, './SourceUI': v.ui,
   });
   const render = visible => root.render(React.createElement(LinkInputDialog, {visible, onSubmit: value => submitted.push(value), onDismiss() {}}));
   await act(async () => render(true)); await act(async () => {await new Promise(resolve => setTimeout(resolve, 370));});
@@ -237,7 +237,8 @@ for (const zone of ['Asia/Shanghai', 'America/Los_Angeles']) test(`mounted Libra
     const subscriptions = {watchBookmarks: () => () => {}, watchCollections: callback => {onCollections = callback; return () => {};}, watchUser: () => () => {}, watchSubscription: callback => {onSubscription = callback; return () => {};}, watchCollectionBookmarks: (_owner, callback) => {callback(rows); return () => {};}};
     const rssState = {enabled: false};
     class RssController {subscribe = () => () => {}; getSnapshot = () => rssState; activate() {} dispose() {} cancel() {} poll() {} async load() {}}
-    const context = {t: key => key, repositories: subscriptions, preferences: {}, runtime: {getDatabase: () => null, getNativeResourceOwner: () => 'owner'}, api: {}, sessions: {}, config: {platform: 'ios'}, nativeResourceOwner: 'owner'};
+    const context = {t: key => key, repositories: subscriptions, preferences: {}, runtime: {getDatabase: () => null, getNativeResourceOwner: () => 'owner'}, api: {}, sessions: {}, config: {platform: 'ios'}, nativeResourceOwner: 'owner', upgrade: {status: 'ready'}};
+    Object.assign(context.runtime, {getRepositories: () => subscriptions, getAccountPreferences: () => context.preferences, getUpgradeSnapshot: () => context.upgrade});
     const reset = () => {};
     class FeedScrollPosition {reset() {}}
     const components = {...v.ui, BookmarkRow: nil, LinkInputDialog: nil, RssFeed: nil, RssFeedSwitcher: nil, ScreenSurface: v.native('ScreenSurface'), SourceAvatar: nil, SourceMenu: nil};
@@ -245,6 +246,7 @@ for (const zone of ['Asia/Shanghai', 'America/Los_Angeles']) test(`mounted Libra
       react: React, 'react-native': {...v.primitives, Animated: {}, AppState: {currentState: 'active', addEventListener: () => ({remove() {}})}, Linking: {}, PixelRatio: {roundToNearestPixel: value => value}, Platform: {OS: 'ios', select: values => values.default}, StyleSheet: {create: value => value, absoluteFill: {}}, useWindowDimensions: () => ({width: 375, height: 800})},
       '@react-navigation/native': {useFocusEffect: callback => React.useEffect(callback, [callback])}, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'expo-network': {useNetworkState: () => ({isConnected: true})},
       '../telemetry': {useTelemetry: () => telemetry}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: v.native('SourceShape')}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
+      './LibraryDataStatus': {LibraryDataStatus: nil}, '../components/PdfImportDialog': {PdfImportDialog: nil}, '../pdf/usePdfLab': {usePdfLab: () => ({ready: true, enabled: false})},
       '../components': components, '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => context}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../utils/source-time': time,
     }, {Date: class extends Date {static now() {return Date.UTC(2026, 9, 11, 12);}}});
     await act(async () => root.render(React.createElement(LibraryScreen, {navigation: {navigate() {}}})));

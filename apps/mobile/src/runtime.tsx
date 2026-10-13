@@ -31,7 +31,7 @@ export interface MobileContextValue {
   payments: PaymentController;
   webSession: {ready: boolean; error: Error|null};
   telemetryOverride?: MobileTelemetry;
-  fixtureOnly?: {network: {isConnected: boolean; isInternetReachable: boolean|null}; dataDirectory: string; deleteNoticeHtml?: string; agreementHtml?: Partial<Record<'terms'|'privacy', string>>; subscriptionHtml?: string; authenticate?(provider: LoginProvider): Promise<LoginRequest|null>};
+  fixtureOnly?: {network: {isConnected: boolean; isInternetReachable: boolean|null}; dataDirectory: string; pdfNativeOwner?: true; nativePdfImport?: 'seeded-synthetic-only'; deleteNoticeHtml?: string; agreementHtml?: Partial<Record<'terms'|'privacy', string>>; subscriptionHtml?: string; authenticate?(provider: LoginProvider): Promise<LoginRequest|null>};
   retryStart(): Promise<void>;
 }
 const MobileContext = createContext<MobileContextValue | null>(null);
@@ -99,7 +99,8 @@ export function MobileProvider({children}: {children: React.ReactNode}) {
     let mounted = true;
     const current = () => mounted && runtime.sessions.getSnapshot() === session && runtime.getNativeResourceOwner() === nativeResourceOwner;
     setWebSession({ready: false, error: null, token, owner: nativeResourceOwner});
-    cookieSerial.current = cookieSerial.current.catch(() => undefined).then(() => {
+    cookieSerial.current = cookieSerial.current.catch(() => undefined).then(async () => {
+      if (token) await runtime.sessions.prepareRequest?.();
       if (current()) return setWebSessionCookie(mobileConfig.webUrl, token, mobileConfig.webDomain);
     }).then(() => { if (current()) setWebSession({ready: true, error: null, token, owner: nativeResourceOwner}); }).catch(reason => {
       if (current()) setWebSession({ready: false, error: reason instanceof Error ? reason : new Error('Unable to prepare the web session'), token, owner: nativeResourceOwner});
@@ -136,7 +137,8 @@ export function MobileProvider({children}: {children: React.ReactNode}) {
   const config = useMemo(() => ({...mobileConfig, apiUrl, isBeta: apiUrl === mobileConfig.betaApiUrl}), [apiUrl]);
   const retryStart = useCallback(async () => {await runtime.stop(); await runtime.start(); setSettings(await runtime.preferences.read());}, [runtime]);
   const preferences = runtime.getAccountPreferences() ?? runtime.preferences;
-  const repositories = runtime.getRepositories(), cache = runtime.getCache();
+  const dataReady = upgrade.status === 'ready' && nativeResourceOwner !== null;
+  const repositories = dataReady ? runtime.getRepositories() : null, cache = dataReady ? runtime.getCache() : null;
   const visibleWebSession = useMemo(() => webSession.token === token && webSession.owner === nativeResourceOwner ? webSession : {ready: false, error: null}, [webSession, token, nativeResourceOwner]);
   const value = useMemo<MobileContextValue>(() => ({
     runtime, api: runtime.api, preferences, sessions: runtime.sessions, nativeResourceOwner,

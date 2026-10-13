@@ -17,7 +17,7 @@ globalThis.AbortController = nativeRequire('abort-controller/dist/abort-controll
 
 function fixture(count = 50, load: (id: string, signal: AbortSignal) => Promise<string> = async id => `<p>${id}</p>`, image: (url: string, signal: AbortSignal) => Promise<Uint8Array> = async () => new Uint8Array([1])) {
   const db = new DatabaseSync(':memory:');
-  db.exec(`CREATE TABLE sr_user_bookmark(id TEXT PRIMARY KEY, metadata TEXT, archive_status INTEGER, deleted_at TEXT, created_at TEXT, updated_at TEXT);
+  db.exec(`CREATE TABLE sr_user_bookmark(id TEXT PRIMARY KEY, metadata TEXT, archive_status INTEGER, deleted_at TEXT, created_at TEXT, updated_at TEXT, type INTEGER DEFAULT 0);
     CREATE TABLE sr_user_collection(id TEXT PRIMARY KEY, owner_id TEXT);
     CREATE TABLE sr_user_collection_subscriber(collection_id TEXT);
     CREATE TABLE sr_collection_bookmark(id TEXT, owner_id TEXT, metadata TEXT, starred_at TEXT, created_at TEXT);
@@ -49,7 +49,7 @@ function fixture(count = 50, load: (id: string, signal: AbortSignal) => Promise<
     content: async (id, _owner, signal) => {requests.push(id); return load(id, signal);}, image,
     cache: {writeArticle(key, html) {guard(); files.set(key, html);}, removeArticle(key) {guard(); files.delete(key);}, async ensureImage(key, url, loadBytes) {const bytes = await loadBytes(); guard(); if (bytes.length) downloadedImages.push(`${key}:${url}`); return null;}},
   });
-  function personal(id: string, created = id, status = 'success', archived = false) {db.prepare('INSERT INTO sr_user_bookmark VALUES (?, ?, ?, NULL, ?, ?)').run(id, JSON.stringify({bookmark: {status}}), archived ? 1 : 0, created, created);}
+  function personal(id: string, created = id, status = 'success', archived = false) {db.prepare('INSERT INTO sr_user_bookmark VALUES (?, ?, ?, NULL, ?, ?, 0)').run(id, JSON.stringify({bookmark: {status}}), archived ? 1 : 0, created, created);}
   function collection(owner: string, id: string, created = id) {
     if (!db.prepare('SELECT id FROM sr_user_collection WHERE id = ?').get(owner)) {db.prepare('INSERT INTO sr_user_collection VALUES (?, ?)').run(owner, owner); db.prepare('INSERT INTO sr_user_collection_subscriber VALUES (?)').run(owner);}
     db.prepare('INSERT INTO sr_collection_bookmark VALUES (?, ?, ?, ?, ?)').run(id, owner, JSON.stringify({bookmark: {status: 'success'}}), created, created);

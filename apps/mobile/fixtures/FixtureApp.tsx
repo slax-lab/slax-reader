@@ -68,7 +68,7 @@ export default function FixtureApp() {
         const control = globalThis.__SLAX_UI_FIXTURE__;
         if (!control) throw new Error('Fixture has not finished preparing');
         await control.perform(command.action);
-      } catch (reason) {setError(reason instanceof Error ? reason.message : 'Fixture command failed');}
+      } catch {console.warn('Controlled fixture command failed; inspect fixture command diagnostics.');}
     };
     const stop = Linking.addEventListener('url', event => {void handle(event.url);});
     void Linking.getInitialURL().then(url => {if (url) void handle(url);});
@@ -96,7 +96,21 @@ export default function FixtureApp() {
       globalThis.__SLAX_UI_FIXTURE__ = {scenario: scenarioName, locale: payload.settings.user_language as 'en'|'zh', inputSha256: digest, scopeUri: adapter.scopeUri, plannedActions: scenario.actions, setSync: adapter.setSync,
         async captureContext() {if (!active) throw new Error('Fixture scope was disposed'); const current = await adapter.preferences.read(); if (!active) throw new Error('Fixture scope was disposed'); observedPreferenceValues = {cache_count: current.cache_count, download_images: current.download_images, user_language: current.user_language}; recordContext(); const raw = await new File(adapter.scopeUri, 'render-context.json').text(); if (!active) throw new Error('Fixture scope was disposed'); return JSON.parse(raw);},
         selectCase(next, nextLocale) {if (!Object.hasOwn(bundle.scenarios, next) || !['en', 'zh'].includes(nextLocale)) throw new Error('Unknown prepared fixture case or locale'); setScenarioName(next); setLocale(nextLocale); setGeneration(value => value + 1);},
-        async perform(input) {const action = (typeof input === 'number' ? scenario.actions[input] : input) as FixtureAction; if (!action) throw new Error('Unknown fixture action index'); const handler = await fixtureActions.dispatch(action); await new Promise(resolve => setTimeout(resolve, 50)); const result = {handler, nativeInteractionVerified: false as const}; preparedActions.push({action, ...result}); recordContext(); return result;},
+        async perform(input) {
+          try {
+            if (!active) throw new Error('Fixture scope was disposed');
+            const action = (typeof input === 'number' ? scenario.actions[input] : input) as FixtureAction;
+            if (!action) throw new Error('Unknown fixture action index');
+            const handler = await adapter.perform(action);
+            if (!active) throw new Error('Fixture scope was disposed');
+            const result = {handler, nativeInteractionVerified: false as const}; preparedActions.push({action, ...result}); recordContext(); return result;
+          } catch (reason) {
+            const name = reason && typeof reason === 'object' && 'name' in reason ? reason.name : '';
+            const code = name === 'AbortError' || name === 'FixtureControlDisposed' ? 'interrupted' : 'failed';
+            if (active) new File(adapter.scopeUri, 'command-error.json').write(JSON.stringify({controlledFixture: true, fixtureVersion: 1, code, nativeInteractionVerified: false}));
+            throw new Error(`Fixture command ${code}; inspect command-error.json`);
+          }
+        },
         async setNetwork(next) {payload.network = next; await refresh();},
         async setLocale(next) {payload.settings.user_language = next; await adapter.preferences.update(values => {values.user_language = next;}); await refresh(); recordContext();},
       };

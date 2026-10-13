@@ -4,17 +4,21 @@ import {readFileSync, realpathSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import vm from 'node:vm';
 import ts from 'typescript';
+import * as pdfContracts from '@slax-reader/contracts/pdf';
 const require = createRequire(import.meta.url);
 const nativeRequire = createRequire(realpathSync(require.resolve('react-native/package.json')));
 const NativeAbortController = nativeRequire('abort-controller/dist/abort-controller').AbortController;
-const NativeResponse = nativeRequire('whatwg-fetch').Response;
+const {Response: NativeResponse, Headers: NativeHeaders} = nativeRequire('whatwg-fetch');
 const abortExports = {};
 const compile = path => ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022}}).outputText;
-vm.runInNewContext(compile('../../src/utils/abort.ts'), {exports: abortExports});
+vm.runInNewContext(compile('../../src/utils/abort.ts'), {exports: abortExports, AbortController: NativeAbortController, setTimeout, clearTimeout});
 const exports = {};
-vm.runInNewContext(compile('../../fixtures/transport.ts'), {exports, URL, Response: NativeResponse, ReadableStream, TextEncoder, TextDecoder, setTimeout, clearTimeout, require(path) {assert.equal(path, '../src/utils/abort'); return abortExports;}});
+vm.runInNewContext(compile('../../fixtures/transport.ts'), {exports, URL, Response: NativeResponse, Headers: NativeHeaders, ReadableStream, TextEncoder, TextDecoder, setTimeout, clearTimeout, require(path) {assert.equal(path, '../src/utils/abort'); return abortExports;}});
+const transportErrors = {};
+vm.runInNewContext(compile('../../src/data/transport-errors.ts'), {exports: transportErrors, Error});
 const apiExports = {};
-vm.runInNewContext(compile('../../src/data/api.ts'), {exports: apiExports, URL, AbortController: NativeAbortController, TextDecoder, setTimeout, clearTimeout, require(path) {assert.equal(path, '../utils/abort.ts'); return abortExports;}});
+const apiImports = {'../utils/abort.ts': abortExports, '@slax-reader/contracts/pdf': pdfContracts, './transport-errors.ts': transportErrors};
+vm.runInNewContext(compile('../../src/data/api.ts'), {exports: apiExports, URL, AbortController: NativeAbortController, TextDecoder, setTimeout, clearTimeout, require(path) {assert.ok(Object.hasOwn(apiImports, path), `Unexpected API import: ${path}`); return apiImports[path];}});
 const payload = {network: {isInternetReachable: true}, api: [{method: 'GET', path: '/v1/user/labs', query: {}, status: 200, delayMs: 0, json: {code: 200, data: {features: [{key: 'rss', enabled: true}]}}}]};
 test('fixture API works with the exact React Native AbortController dependency', async () => {
   const controller = new NativeAbortController();
@@ -52,4 +56,41 @@ test('native abort prevents a second fixture stream chunk from reaching the actu
   assert.equal((await iterator.next()).value.data.overview, 'first ');
   controller.abort();
   await assert.rejects(iterator.next(), error => error.name === 'AbortError');
+});
+
+function pdfFixture() {
+  const descriptor = {url: '/v1/bookmark/pdf?bookmark_uid=synthetic-pdf', filename: 'synthetic.pdf', size: 8, document_id: 'a'.repeat(64), source: 'upload', text_status: 'ready', pages: 8};
+  const pdf = {documents: new Map([['synthetic-pdf', {descriptor, bytes: new TextEncoder().encode('%PDF-1.4')}]]), counts: {metadataRequests: 0, rangeRequests: 0, bytesServed: 0, offlineRequests: 0, rejectedRequests: 0}, record() {}, importPdf: {async accept() {return {bookmark_uid: 'synthetic-pdf', bookmark_id: 'synthetic-pdf'};}}};
+  const fetch = exports.createFixtureFetch({network: {isInternetReachable: true}, api: []}, 'https://fixture-api.test', pdf);
+  const api = new apiExports.SlaxApi({baseUrl: 'https://fixture-api.test', platform: 'ios', version: 'fixture', sessions: {getSession: async () => ({token: 'synthetic', userId: 'fixture'})}, fetch});
+  return {api, fetch, pdf, descriptor};
+}
+
+test('actual PDF metadata parser consumes the exact RN Response fixture body then reaches binary ranges', async () => {
+  assert.equal(new NativeResponse(JSON.stringify({code: 200})).body, undefined);
+  const f = pdfFixture();
+  const envelope = await (await f.fetch('https://fixture-api.test/v1/bookmark/metadata?bookmark_uid=synthetic-pdf')).json();
+  assert.equal(envelope.data.pdf.document_id, f.descriptor.document_id);
+  const range = await f.fetch('https://fixture-api.test/v1/bookmark/pdf?bookmark_uid=synthetic-pdf', {headers: {Range: 'bytes=0-7'}});
+  assert.equal(range.status, 206); assert.equal(range.headers.get('ETag'), null); await range.body.cancel();
+  f.pdf.counts.rangeRequests = 0;
+  const descriptor = await f.api.getPdfMetadata('synthetic-pdf');
+  assert.equal(descriptor.document_id, f.descriptor.document_id); assert.equal(descriptor.pages, 8);
+  const bytes = await f.api.getPdfRange('synthetic-pdf', descriptor.document_id, 0, 8, undefined, 8);
+  assert.equal(new TextDecoder().decode(bytes), '%PDF-1.4'); assert.equal(f.pdf.counts.rangeRequests, 1);
+});
+
+test('actual PDF upload parser consumes the exact RN Response success stream', async () => {
+  const f = pdfFixture(), result = await f.api.uploadPdf(new Blob(['%PDF-1.4']), 'synthetic.pdf');
+  assert.equal(result.bookmark_uid, 'synthetic-pdf');
+});
+
+for (const endpoint of ['metadata?bookmark_uid=synthetic-pdf', 'upload_pdf']) test(`native abort and body cancellation remain effective for ${endpoint}`, async () => {
+  const f = pdfFixture(), controller = new NativeAbortController();
+  const options = {signal: controller.signal, ...(endpoint === 'upload_pdf' ? {method: 'POST', headers: {'Content-Type': 'application/pdf'}, body: new Blob(['%PDF-1.4'])} : {})};
+  const response = await f.fetch(`https://fixture-api.test/v1/bookmark/${endpoint}`, options);
+  assert.equal(typeof response.body.getReader, 'function'); controller.abort();
+  await assert.rejects(response.body.getReader().read(), error => error.name === 'AbortError');
+  const fresh = await f.fetch(`https://fixture-api.test/v1/bookmark/${endpoint}`, {...options, signal: undefined});
+  await fresh.body.cancel(); assert.equal((await fresh.body.getReader().read()).done, true);
 });

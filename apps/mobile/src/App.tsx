@@ -1,5 +1,5 @@
 import React, {useEffect, useRef} from 'react';
-import {Platform, Pressable, StatusBar, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
+import {Platform, StatusBar, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {NavigationContainer, createNavigationContainerRef} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
@@ -35,7 +35,7 @@ const sourceHeaderTitle = Platform.OS === 'android'
   : undefined;
 
 export function ApplicationRoutes() {
-  const {session, upgrade, t, retryStart} = useMobile();
+  const {session, t} = useMobile();
   const telemetry = useTelemetry();
   const reported = useRef(new Set<string>());
   const userId = session.status === 'authenticated' ? session.session.userId : null;
@@ -51,16 +51,7 @@ export function ApplicationRoutes() {
       telemetry.screen(route.name, route.params ?? {});
     }
   }
-  if (upgrade.status === 'verification-required' || upgrade.status === 'error') {
-    return <SafeAreaView style={styles.center}>
-      <Text style={styles.title}>{t(upgrade.status === 'verification-required' ? 'upgrade_required_title' : 'data_open_failed_title')}</Text>
-      <Text style={styles.message}>{upgrade.status === 'verification-required'
-        ? t('upgrade_required_message')
-        : upgrade.error.message}</Text>
-      <Pressable style={styles.retry} onPress={() => { void retryStart().catch(() => undefined); }} accessibilityRole="button"><Text style={{color: C.surface}}>{t('rss_retry')}</Text></Pressable>
-    </SafeAreaView>;
-  }
-  if (upgrade.status !== 'ready' || session.status === 'loading') return <View testID="app-startup-surface" style={{flex: 1, backgroundColor: C.background}} />;
+  if (session.status === 'loading') return <View testID="app-startup-surface" style={{flex: 1, backgroundColor: C.background}} />;
   return <NavigationContainer ref={navigationRef} onReady={reportRoutes} onStateChange={reportRoutes}>
     <Stack.Navigator screenOptions={{headerTintColor: C.text, headerStyle: {backgroundColor: C.background}, headerTitleAlign: 'center', headerTitleStyle: {fontSize: 17, fontWeight: '500'}, contentStyle: {backgroundColor: C.background}, headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal'}}>
       {session.status === 'unauthenticated' ? <Stack.Screen name="Login" component={LoginScreen} options={{headerShown: false}}/> : <Stack.Group navigationKey={session.session.userId}>
@@ -89,4 +80,4 @@ export default function App() {
     <RuntimeBoundary><MobileProvider><ApplicationRoutes/></MobileProvider></RuntimeBoundary>
   </SafeAreaProvider></GestureHandlerRootView>;
 }
-const styles = StyleSheet.create({center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: C.background}, title: {fontSize: 18, color: C.text, textAlign: 'center'}, message: {fontSize: 14, lineHeight: 21, color: C.secondaryText, textAlign: 'center', marginTop: 16}, retry: {backgroundColor: C.accent, marginTop: 20, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24}});
+const styles = StyleSheet.create({center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: C.background}, title: {fontSize: 18, color: C.text, textAlign: 'center'}, message: {fontSize: 14, lineHeight: 21, color: C.secondaryText, textAlign: 'center', marginTop: 16}});

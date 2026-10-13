@@ -48,7 +48,7 @@ export class CacheMaintenance {
       if (selected.includes('article')) {
         for (const id of ids) {
           this.guard(); const removed = await this.files.removeArticleContent(id); this.guard();
-          if (removed) await this.database.writeTransaction(tx => {this.guard(); return tx.execute("UPDATE ps_data_local__local_bookmark_info SET data = json_set(data, '$.is_downloaded', 0) WHERE id = ? AND json_extract(data, '$.is_auto_cached') = 0", [id]);});
+          if (removed) await this.database.writeTransaction(tx => {this.guard(); return tx.execute("UPDATE ps_data_local__local_bookmark_info SET data = json_remove(json_set(data, '$.is_downloaded', 0), '$.pdf_cache') WHERE id = ? AND json_extract(data, '$.is_auto_cached') = 0", [id]);});
         }
       }
       if (selected.includes('images')) for (const id of ids) {this.guard(); await this.files.removeImages(id); this.guard();}

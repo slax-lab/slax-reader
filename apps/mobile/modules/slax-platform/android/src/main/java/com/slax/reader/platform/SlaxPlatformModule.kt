@@ -85,6 +85,7 @@ class SlaxPlatformModule : Module() {
       Events("onEvent")
       Prop("html") { view: SlaxReaderView, value: String -> view.html = value }
       Prop("baseUrl") { _view: SlaxReaderView, _value: String? -> }
+      Prop("pdfMode") { view: SlaxReaderView, value: Boolean -> view.setPdfMode(value) }
       Prop("protectedHosts") { view: SlaxReaderView, value: List<String> -> view.setProtectedHosts(value) }
       Prop("imageProxyOrigins") { view: SlaxReaderView, value: List<String> -> view.imageProxyOrigins = value }
       Prop("cacheKey") { view: SlaxReaderView, value: String -> view.resourceHandler.cacheKey = value }
@@ -92,12 +93,13 @@ class SlaxPlatformModule : Module() {
       Prop("pageId") { view: SlaxReaderView, value: String -> view.pageId = value }
       Prop("resourceOwner") { view: SlaxReaderView, value: String? -> view.setResourceOwner(value) }
       Prop("scrollsToTop") { _view: SlaxReaderView, _value: Boolean -> }
+      Prop("scrollEnabled") { view: SlaxReaderView, value: Boolean -> view.setDocumentScrollEnabled(value) }
       OnViewDidUpdateProps { view: SlaxReaderView -> view.loadPendingDocument() }
       OnViewDestroys { view: SlaxReaderView -> view.detach() }
-      AsyncFunction("injectJavaScript") { view: SlaxReaderView, script: String -> view.webView.evaluateJavascript(script, null) }
+      AsyncFunction("injectJavaScript") { view: SlaxReaderView, script: String -> view.injectJavaScript(script) }
       AsyncFunction("evaluateJavaScript") { view: SlaxReaderView, script: String, pageId: String, promise: Promise -> view.evaluateJavaScript(script, pageId, promise) }
-      AsyncFunction("stopLoading") { view: SlaxReaderView -> view.webView.stopLoading() }
-      AsyncFunction("scrollTo") { view: SlaxReaderView, y: Double, _animated: Boolean -> view.webView.scrollTo(0, (y * view.resourceHandler.displayDensity).toInt()) }
+      AsyncFunction("stopLoading") { view: SlaxReaderView -> view.stopLoading() }
+      AsyncFunction("scrollTo") { view: SlaxReaderView, y: Double, _animated: Boolean -> view.scrollTo(y) }
       AsyncFunction("updateInsets") { _view: SlaxReaderView, _top: Double, _bottom: Double -> }
       AsyncFunction("setScrollsToTop") { _view: SlaxReaderView, _enabled: Boolean -> }
       AsyncFunction("detach") { view: SlaxReaderView -> view.detach() }

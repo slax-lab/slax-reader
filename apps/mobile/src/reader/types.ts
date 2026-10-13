@@ -1,13 +1,15 @@
 import type { MarkPathApprox, MarkPathItem, MarkUserInfo } from '@slax-reader/contracts/interface'
 import type { MarkType } from '@slax-reader/contracts/marks'
+import type { PdfMarkSource } from '@slax-reader/contracts/pdf'
 import type {ReaderInputSnapshot} from './input.ts'
 
 export type HtmlMarkPath = Extract<MarkPathItem, { type: 'text' | 'image' }>
+export type ReaderMarkPath = HtmlMarkPath | PdfMarkSource
 export type ReaderApprox = Partial<MarkPathApprox> & { exact: string }
 
 /** Source output, not the similarly named request type whose offset spelling differs. */
 export interface ReaderSelection {
-  source: Array<{ type: 'text' | 'image'; xpath: string; start_offset: number; end_offset: number }>
+  source: Array<{ type: 'text' | 'image'; xpath: string; start_offset: number; end_offset: number } | PdfMarkSource>
   select_content: Array<{ type: 'text' | 'image'; text: string; src: string }>
   approx_source: MarkPathApprox
   text: string
@@ -28,7 +30,7 @@ export interface ReaderComment {
 
 export interface ReaderMarkItem {
   id: string
-  source: HtmlMarkPath[]
+  source: ReaderMarkPath[]
   stroke: Array<{ mark_id?: number | null; userId: number }>
   comments: ReaderComment[]
   approx?: ReaderApprox | null
@@ -41,7 +43,7 @@ export interface ReaderMarkDetail {
     uuid?: string
     user_id: number
     type: MarkType
-    source: HtmlMarkPath[] | number
+    source: ReaderMarkPath[] | number
     approx_source?: ReaderApprox | null
     parent_id: number
     parent_uid?: string

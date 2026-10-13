@@ -206,6 +206,21 @@ fun main() {
     check(bridge(legacyRoot.path, "foreign", relative) == null)
     check(bridge(legacyRoot.path, "alias", "bookmark/alias/images/$hash.jpg") == null)
     check(bridge(legacyRoot.path, "external", "bookmark/external/images/$hash.jpg") == null)
+    val pdfBridge = SlaxCachePathsModule().apply { appContext.reactContext = Context(legacyRoot) }.definition().pdfCacheFileUri
+    val pdfPath = "pdf/v1/account/document/manifest.json.entries/1.data"
+    check(pdfBridge(legacyRoot.path, pdfPath) == android.net.Uri.fromFile(File(legacyRoot, "files/$pdfPath").canonicalFile).toString())
+    check(pdfBridge(File(legacyRoot, "files").path, pdfPath) == null)
+    for (path in listOf("pdf/../foreign", "pdf//document", "pdf/./document", "bookmark/document", "pdf/%2f/document")) check(pdfBridge(legacyRoot.path, path) == null)
+    check(pdfBridge(outside.path, "pdf/v1/account/document") == null)
+    val pdfFiles = File(legacyRoot, "files").apply { mkdirs() }
+    Files.createSymbolicLink(File(pdfFiles, "pdf").toPath(), outside.toPath())
+    check(pdfBridge(legacyRoot.path, pdfPath) == null)
+    File(pdfFiles, "pdf").delete(); File(pdfFiles, "pdf").mkdirs()
+    Files.createSymbolicLink(File(pdfFiles, "pdf/foreign").toPath(), outside.toPath())
+    check(pdfBridge(legacyRoot.path, "pdf/foreign/image") == null)
+    pdfFiles.deleteRecursively(); Files.createSymbolicLink(pdfFiles.toPath(), outside.toPath())
+    check(pdfBridge(legacyRoot.path, pdfPath) == null)
+    pdfFiles.delete()
     legacy.close()
     println("Production Kotlin resources: legacy nested reads, symlink/traversal isolation, cache writes, revocation, and permanent close passed (host JVM only).")
   } finally { java.net.CookieHandler.setDefault(previousCookies); server.stop(0); root.deleteRecursively() }

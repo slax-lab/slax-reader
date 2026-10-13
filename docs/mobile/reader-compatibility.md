@@ -334,3 +334,206 @@ changes, and independent sink failures; native Firebase delivery is not verified
 
 No source-vs-new reader UI, native upgrade, real-player or pixel/animation parity
 result is declared passed by this document.
+
+## Approved PDF extension
+
+PDF is an approved addition to the same native `Reader` route, not part of the
+historical HTML source-parity proof above. `ReaderScreen` resolves the repository
+bookmark type before consulting the HTML cache or raw-content API. A record that
+has not synchronized yet cannot accidentally start an HTML request. PDF keeps the
+native title, tags, overview, tools, comments and back/discard handling, with a
+bounded native header above an independently scrolling PDF viewport on both
+platforms. It does not use the HTML reader's full-height Android outer scroller.
+
+`src/reader/PdfWebView.tsx`, `pdf-document.ts` and `pdf-runtime.ts` own the PDF-only
+document. `tooling/pdf-assets.mjs` bundles the pinned `pdfjs-dist` version with its
+matching real module worker, CMaps, standard fonts and WASM resources. The worker
+runs locally; a remote Web reader, Vue/Nuxt presentation, native PDF SDK or fake
+worker is not the implementation. Bounded canvases and text layers support page
+navigation, zoom, eviction and redraw. Authenticated URLs and bearer credentials
+remain outside the WebView: `PDFDataRangeTransport` requests bytes through the
+application boundary rather than fetching the private API itself.
+
+### API, foreground queue and local files
+
+The current compatibility target is the existing authenticated
+`GET /v1/bookmark/metadata?bookmark_uid=...` response's nested `data.pdf` descriptor
+and `/v1/bookmark/pdf` binary reads. The user explicitly requires no new backend
+API. The introduced `/pdf_metadata` and conditional-response additions are removed,
+not pending deployment. Authorized actual `SlaxApi` requests to
+`https://reader-api.slax.dev` returned metadata 200 and twelve Range 206 responses
+without ETag, totaling 2,924,012 bytes with the descriptor SHA-256 matched for a
+41-page PDF. Mobile must use the configured API origin, accept absent ETag,
+validate content type/range/actual length, and use any supplied ETag only as an
+additional check. Full size and SHA-256 validation still gate offline-complete
+status; a range response alone does not cryptographically verify an individual
+block. The current bundled PDF.js rendered the first and last pages in headless
+Chromium with one real module worker, zero page errors and no PDF toolbar; see
+[the bounded live-contract evidence](evidence/2026-10-13-live-pdf-contract/verification.json).
+This is not native Expo rendering, cold-start lifecycle or PowerSync acceptance;
+those end-to-end checks remain pending.
+
+PDF extends `BackgroundArticleCache`; it does not introduce a second scheduler.
+Visible-reader requests join or promote deduplicated **256 KiB** block work in the
+existing foreground queue. `PdfBlockCache` stores a versioned manifest containing
+the descriptor and block size, with document identity and size separating block
+sets. Native storage is scoped to environment, account and personal/collection
+owner context. Atomic writes publish validated blocks; only complete size- and
+SHA-256-verified bytes receive the available-offline state. Partial progress is
+not offline completion. Revocation fences late reads/writes and online access
+denial invalidates cached access; an offline shared copy cannot discover a new
+server-side revocation until connectivity returns.
+
+The production `PdfFileStorage` uses the native `SlaxCachePaths.pdfCacheFileUri`
+guard before Expo file I/O. Android requires the supplied root to match canonical
+`context.dataDir`, but returns physical files under canonical
+`context.filesDir/pdf`, which Expo permits. Canonical comparison accepts Android's
+legitimate `/data/user/0` to `/data/data` alias while still rejecting traversal,
+non-app roots and symlinks in `files` or PDF path components. iOS retains its native
+Application Support ownership boundary. Image paths and App Group behavior are
+not broadened by the Android PDF path correction.
+
+Backgrounding pauses/aborts network work while keeping valid blocks and retained
+cache intent for foreground resume. Closing Reader releases its rendering and
+request lifetime, but not an independently retained manual offline-download task.
+There is no background URLSession, WorkManager or other OS background transfer
+service. Native cache/file boundaries remain application-owned; cleanup cannot
+remove comments or pending synchronization operations.
+
+PDF Labs enables local acquisition. The project-owned `SlaxPdfImport` module uses
+the native document picker, accepts one nonempty PDF up to 50 MiB, and copies it
+into a private temporary import directory. iOS uses coordinated security-scoped
+access; Android reads the selected content URI. Both bound the copy, validate the
+PDF signature and constrain deletion to their own temporary files rather than
+accepting arbitrary filesystem paths. The application uploads the raw PDF through
+`/v1/bookmark/upload_pdf`, rechecks Labs/account ownership, cancels upload on
+background, and waits for the synchronized bookmark before opening Reader.
+Cancellation and upload errors do not report success. Uploads display the filename
+and local-upload source, not a synthetic original URL. PDF URL saves retain normal
+capture; disabling Labs does not remove access to existing PDF bookmarks.
+
+### Positions, annotations and extracted text
+
+PDF position is stored separately as `pdf_read_position` JSON containing
+`document_id` and a one-based page plus fractional page offset. It never reuses
+HTML physical-pixel `read_position`; outline position remains independent.
+
+The existing selection/mark model retains PDF version, immutable document ID,
+one-based page, exact selected text and unscaled quadrilaterals. Native highlight,
+comment and reply actions use existing mark repositories and PowerSync writes,
+including collection permissions and stroke-only deletion. Selection geometry is
+translated using the measured native PDF viewport top, not a guessed header
+height. The native notes list sends the mark identity back to the renderer to
+reveal the passage and open its comment thread. Stale-document selections cannot
+create marks. Backgrounding and transient failures preserve unsent drafts;
+authorization/account revocation clears inaccessible PDF state and private drafts.
+
+PDF.js text layers supply local selection, while the existing server extraction
+feeds overview and outline. `pending`, `ready`, `empty` and `failed` states gate AI
+requests and explain unavailable text without inventing OCR or a new chat UI.
+Pending metadata polling is bounded, cancellation-aware and restartable on
+foreground/retry. Scanned or extraction-failed PDFs can remain visually readable
+without promising selectable text or generated AI output.
+
+### Verification and availability boundary
+
+Run the repository entry points from the root:
+
+```sh
+pnpm mobile -- typecheck
+pnpm mobile -- test
+pnpm mobile -- bundle
+```
+
+PDF host regressions exercise the production screen, queue, cache, API and mark
+model behind explicit native boundaries. The real-browser PDF tests exercise the
+local worker, resource loading, rendered pages, selection geometry and bounded
+page residency; check for skipped browser cases when the required local browser
+is absent. Neither browser execution nor host tests prove WKWebView/Android
+WebView selection handles, native keyboard/back behavior or visual acceptance.
+See [PDF fixture verification](fixture-acceptance.md#pdf-fixture-verification) for
+isolated native scenarios and evidence requirements.
+
+Scoped native menu/annotation checks now pass on the updated host. The isolated
+iOS 26.5 simulator's `strict14` run used a genuine long press and ordinary
+center-target Highlight/Comment taps, with no system menu or menu items. It
+verified the exact quote `text`, keyboard entry, submission and Notes restoration
+of the highlight/comment. `lifecycle13` verified pages 2–4, zoom to 125%, Fit to
+width at 100%, background/foreground retention at page 4/125%, and native
+Back/Library/reopen restoration to page 4. Reopening starts at 100% fit width;
+zoom is not persisted, unlike page-relative position. Earlier exposed-edge
+success and failed attempts remain historical diagnostics, not the basis for
+these strict passes.
+
+A physical Android fixture run also verified only Slax selection actions,
+highlight creation/removal affordances, comment submission and Notes reopening of
+the saved passage/thread. The demonstrated retention/OOM path is now repaired:
+detached navigation wrappers retained approximately 15 MB of PDF HTML per reset
+and destroyed WebViews through transition lists. Detach now releases the heavy
+HTML/document/WebView references, ends the child transition and rejects late
+operations/events. After rebuilding the fixture, 15 resets retained exactly one
+WebView; ten actual Library/PDF/Back cycles returned to zero WebViews after each
+Back. Allocated Java heap stayed around 28–29 MB reading and 13.7–13.9 MB in
+Library, with no OOM in the post-fix process log. This is bounded endurance
+verification without Fast Refresh or process restarts during measurement, not an
+unlimited soak result. Upstream transition lists may still retain lightweight
+detached wrappers.
+
+Real iOS and Android picker/copy/UI flows now pass with the synthetic import
+fixture, including cancellation, file selection, saved/synchronization-pending
+feedback and automatic Reader opening. Both used the same independently checked
+285,847-byte PDF. iOS additionally verified temporary-copy cleanup. The native
+picker, Expo file and upload client paths were real, but upload acceptance and
+delayed SQLite publication were simulated locally: neither live backend upload
+nor production PowerSync synchronization is established.
+
+The earlier full-cache runs used `FixturePdfStorage` with real Expo file I/O and
+retain that historical scope. New `reader-pdf-native-storage` runs close the
+production-adapter and mid-flight lifecycle gaps on both platforms. Actual
+`PdfFileStorage` diagnostics passed write/read, replacement, size, list and remove.
+Each run retained a real 262,144-byte first block of the 1,071,078-byte document
+with `complete:false`; native Home/background aborted the delayed second range,
+and foreground retried and completed without redownloading the first block.
+Independent hashing of the five native blocks matched document SHA-256
+`e28e3c0b6a27a3aa7c565326748bf93c34986946cc58d0638aee687c3473b0c0`.
+Synthetic-offline native reading reached page 30 without additional served PDF
+bytes. Android retained one WebView after the flow; iOS `production-cache4`
+records a passing XCTest with native Home and foreground input.
+
+These results execute the production file adapter, queue/cache and lifecycle
+against delayed closed fixture transport, not a live server outage or airplane
+mode. Machine receipts retain `nativeInteractionVerified:false`; native input
+results are separate evidence. Native concurrent reader/prefetch arbitration,
+missing-block offline failure/recovery with the production adapter, process-kill/
+restart, cross-page handle dragging and the complete platform/profile matrix
+remain unverified. Host tests cover priority promotion/deduplication and restart
+logic, but are not substituted for those broader native scenarios.
+
+The local cross-renderer regression now exercises Web `geometry.ts`, real shared
+`MarkManager`, `InlinePdfViewer` and the actual Web `drawPage` implementation,
+alongside production `MobileRepositories` writes in in-memory SQLite and mobile
+mark restoration. It checks both directions on a rotated page at different zooms,
+exact document/page/text/quads, projected overlays and retained comment threads.
+The combined source/interoperability group passed 10 tests with no skips. Its
+local HTTP wiring is not live PowerSync/backend synchronization or acceptance of
+the full Web application shell. The final integrated run after the Android
+storage-path correction passed 860 mobile tests with no failures or skips,
+TypeScript, both platform production bundles, API type checking, 32 strict
+OpenSpec checks and the diff check. The correction also passed focused
+storage/runtime tests, Kotlin/Swift host checks and its native flow. These results support
+completed implementation tasks 18.2, 18.3 and 18.5 without certifying the remaining
+live-service, concurrent-native, missing-block or full-matrix acceptance.
+
+The current correction requires no new backend API or deployment: Mobile must
+match the existing metadata and range contract described above. Live mobile
+verification remains pending after that client change; no backend deployment has
+been authorized or performed. Earlier claims that a new PDF endpoint must first
+be deployed are superseded, not evidence that the existing service is absent. The user subsequently
+authorized immediate preview 1.0.25 (763), confirmed prior build 762, and requested
+no further tests. This preview does not certify the remaining acceptance or
+require backend deployment before uploading. Standalone Share requires no
+Firebase; its integration and admission requirements are removed, while main-app
+Firebase and main/share identity, signature, version and App Group checks remain.
+The previous unauthenticated browser attempt does not invalidate the user's
+confirmed build input. Archive, export, upload and Apple processing still require
+separate successful records; no upload is implied by this authorization.

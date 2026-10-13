@@ -5,6 +5,9 @@ import {React, act, nativeBoundary, loadComponent, withNativeHost} from './parit
 import {PreferenceStore, PREFERENCE_KEYS} from '../../src/data/preferences.ts'
 import {MemoryPreferences} from '../data/helpers.ts'
 import {bookmarkCacheKey, bookmarkDisplayTitle, collectionMarkPolicy, PERSONAL_MARK_POLICY, PENDING_COLLECTION_MARK_POLICY} from '../../src/data/repositories.ts'
+import * as pdfContracts from '@slax-reader/contracts/pdf'
+import * as transportErrors from '../../src/data/transport-errors.ts'
+import * as pdfErrors from '../../src/reader/pdf-errors.ts'
 import * as model from '../../src/reader/model.ts'
 import * as account from '../../src/reader/account.ts'
 import * as input from '../../src/reader/input.ts'
@@ -49,6 +52,8 @@ async function screenFixture(host, options, run) {
     return React.createElement('div', null, props.html)
   })
   const boundaries = {
+    '@slax-reader/contracts/pdf': pdfContracts, '../data/transport-errors': transportErrors, '../reader/pdf-errors': pdfErrors,
+    '../reader/PdfWebView': {PdfWebView: () => assert.fail('An HTML performance fixture must not mount the PDF renderer')},
     react: React, 'react-native': {...host.native, AppState: appState}, 'expo-clipboard': {}, 'expo-network': {getNetworkStateAsync: async () => ({isConnected: true})}, 'expo-file-system': {}, 'expo/fetch': {},
     '@react-navigation/native': {usePreventRemove() {}}, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})},
     '../components': {...host.components, SourceDialog: props => {dialogs.set(props.title, props); return null}}, '../components/SourceRing': {SourceCircularProgress: nil},

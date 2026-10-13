@@ -542,6 +542,12 @@ importers:
       '@types/react':
         specifier: ^19.2.0
         version: 19.2.7
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
+      pdfjs-dist:
+        specifier: 6.4.299
+        version: 6.4.299
       react-dom:
         specifier: 19.2.3
         version: 19.2.3(react@19.2.3)

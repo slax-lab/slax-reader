@@ -23274,6 +23274,798 @@
         }
       ],
       "nativeExecution": "pending-adapter-and-device"
+    },
+    "reader-pdf": {
+      "route": {
+        "name": "Reader",
+        "params": {
+          "bookmarkId": "fixture-pdf-eight"
+        }
+      },
+      "payload": {
+        "settings": {
+          "user_language": "en",
+          "cache_count": 0,
+          "download_images": 0,
+          "user_setting_detail_do_not_alert": "true"
+        },
+        "session": {
+          "userId": "00000001-0000-4000-8000-000000000001",
+          "token": "fixture-only-never-use-for-auth",
+          "refreshedAt": 1791604800
+        },
+        "database": {
+          "sr_user": [
+            {
+              "id": "00000001-0000-4000-8000-000000000001",
+              "name": "Fixture Reader",
+              "email": "reader@example.test",
+              "picture": "",
+              "lang": "en",
+              "ai_lang": "en",
+              "timezone": "UTC"
+            }
+          ],
+          "sr_user_tag": [],
+          "sr_user_bookmark": [
+            {
+              "id": "fixture-pdf-eight",
+              "user_id": "00000001-0000-4000-8000-000000000001",
+              "alias_title": "",
+              "created_at": "2026-10-10T04:00:00Z",
+              "updated_at": "2026-10-10T04:00:00Z",
+              "starred_at": "",
+              "archived_at": "",
+              "deleted_at": null,
+              "is_read": 0,
+              "is_starred": 0,
+              "archive_status": 0,
+              "type": 2,
+              "metadata": "{\"tags\":[],\"bookmark\":{\"uuid\":\"fixture-pdf-eight\",\"title\":\"Eight-page selectable PDF fixture\",\"target_url\":\"https://fixture-pages.test/eight-pages.pdf\",\"host_url\":\"https://fixture-pages.test\",\"site_name\":\"Fixture PDF\",\"description\":\"\",\"byline\":\"Fixture Author\",\"published_at\":\"2026-10-10T04:00:00Z\",\"status\":\"success\",\"content_cover\":\"\",\"content_icon\":\"\",\"content_word_count\":160,\"type\":2}}"
+            }
+          ],
+          "sr_bookmark_comment": [],
+          "sr_user_subscription": [],
+          "sr_user_collection": [],
+          "sr_user_collection_subscriber": [],
+          "sr_collection_bookmark": [],
+          "sr_sharer_setting": [],
+          "ps_data_local__local_bookmark_info": [
+            {
+              "id": "fixture-pdf-eight",
+              "data": "{\"id\":\"fixture-pdf-eight\",\"is_downloaded\":0,\"is_auto_cached\":1,\"overview\":\"Eight deterministic PDF pages, including a rotated third page.\",\"outline\":\"- [Page 3](#page=3)\",\"mark_users\":\"[]\"}"
+            }
+          ]
+        },
+        "cache": [],
+        "pdf": [
+          {
+            "bookmarkId": "fixture-pdf-eight",
+            "document": "eight-pages"
+          }
+        ],
+        "network": {
+          "isConnected": true,
+          "isInternetReachable": true
+        },
+        "sync": {
+          "connected": true,
+          "connecting": false,
+          "hasSynced": true,
+          "uploading": false,
+          "downloading": false
+        },
+        "api": [
+          {
+            "method": "GET",
+            "path": "/v1/user/labs",
+            "query": {},
+            "status": 200,
+            "delayMs": 0,
+            "json": {
+              "code": 200,
+              "message": "Fixture response",
+              "data": {
+                "features": [
+                  {
+                    "key": "pdf",
+                    "enabled": true
+                  },
+                  {
+                    "key": "rss",
+                    "enabled": false
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "method": "GET",
+            "path": "/v1/mark/users",
+            "query": {},
+            "status": 200,
+            "delayMs": 0,
+            "json": {
+              "code": 200,
+              "message": "Fixture response",
+              "data": []
+            }
+          }
+        ]
+      },
+      "actions": [
+        {
+          "kind": "pdf-cache-status"
+        },
+        {
+          "kind": "pdf-fill-cache"
+        },
+        {
+          "kind": "pdf-network-offline"
+        },
+        {
+          "kind": "background-flush"
+        },
+        {
+          "kind": "pdf-cache-status"
+        },
+        {
+          "kind": "pdf-network-online"
+        }
+      ],
+      "nativeExecution": "pending-adapter-and-device"
+    },
+    "reader-pdf-long": {
+      "route": {
+        "name": "Reader",
+        "params": {
+          "bookmarkId": "fixture-pdf-long"
+        }
+      },
+      "payload": {
+        "settings": {
+          "user_language": "en",
+          "cache_count": 0,
+          "download_images": 0,
+          "user_setting_detail_do_not_alert": "true"
+        },
+        "session": {
+          "userId": "00000001-0000-4000-8000-000000000001",
+          "token": "fixture-only-never-use-for-auth",
+          "refreshedAt": 1791604800
+        },
+        "database": {
+          "sr_user": [
+            {
+              "id": "00000001-0000-4000-8000-000000000001",
+              "name": "Fixture Reader",
+              "email": "reader@example.test",
+              "picture": "",
+              "lang": "en",
+              "ai_lang": "en",
+              "timezone": "UTC"
+            }
+          ],
+          "sr_user_tag": [],
+          "sr_user_bookmark": [
+            {
+              "id": "fixture-pdf-long",
+              "user_id": "00000001-0000-4000-8000-000000000001",
+              "alias_title": "",
+              "created_at": "2026-10-10T04:00:00Z",
+              "updated_at": "2026-10-10T04:00:00Z",
+              "starred_at": "",
+              "archived_at": "",
+              "deleted_at": null,
+              "is_read": 0,
+              "is_starred": 0,
+              "archive_status": 0,
+              "type": 2,
+              "metadata": "{\"tags\":[],\"bookmark\":{\"uuid\":\"fixture-pdf-long\",\"title\":\"Thirty-page PDF range fixture\",\"target_url\":\"https://fixture-pages.test/long-pages.pdf\",\"host_url\":\"https://fixture-pages.test\",\"site_name\":\"Fixture PDF\",\"description\":\"\",\"byline\":\"Fixture Author\",\"published_at\":\"2026-10-10T04:00:00Z\",\"status\":\"success\",\"content_cover\":\"\",\"content_icon\":\"\",\"content_word_count\":600,\"type\":2}}"
+            }
+          ],
+          "sr_bookmark_comment": [],
+          "sr_user_subscription": [],
+          "sr_user_collection": [],
+          "sr_user_collection_subscriber": [],
+          "sr_collection_bookmark": [],
+          "sr_sharer_setting": [],
+          "ps_data_local__local_bookmark_info": [
+            {
+              "id": "fixture-pdf-long",
+              "data": "{\"id\":\"fixture-pdf-long\",\"is_downloaded\":0,\"is_auto_cached\":1,\"overview\":\"Thirty deterministic PDF pages for bounded rendering and cache ranges.\",\"outline\":\"- [Page 20](#page=20)\",\"mark_users\":\"[]\"}"
+            }
+          ]
+        },
+        "cache": [],
+        "pdf": [
+          {
+            "bookmarkId": "fixture-pdf-long",
+            "document": "long-pages"
+          }
+        ],
+        "network": {
+          "isConnected": true,
+          "isInternetReachable": true
+        },
+        "sync": {
+          "connected": true,
+          "connecting": false,
+          "hasSynced": true,
+          "uploading": false,
+          "downloading": false
+        },
+        "api": [
+          {
+            "method": "GET",
+            "path": "/v1/user/labs",
+            "query": {},
+            "status": 200,
+            "delayMs": 0,
+            "json": {
+              "code": 200,
+              "message": "Fixture response",
+              "data": {
+                "features": [
+                  {
+                    "key": "pdf",
+                    "enabled": true
+                  },
+                  {
+                    "key": "rss",
+                    "enabled": false
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "method": "GET",
+            "path": "/v1/mark/users",
+            "query": {},
+            "status": 200,
+            "delayMs": 0,
+            "json": {
+              "code": 200,
+              "message": "Fixture response",
+              "data": []
+            }
+          }
+        ]
+      },
+      "actions": [
+        {
+          "kind": "pdf-cache-status"
+        },
+        {
+          "kind": "pdf-fill-cache"
+        },
+        {
+          "kind": "pdf-network-offline"
+        },
+        {
+          "kind": "background-flush"
+        },
+        {
+          "kind": "pdf-cache-status"
+        },
+        {
+          "kind": "pdf-network-online"
+        }
+      ],
+      "nativeExecution": "pending-adapter-and-device"
+    },
+    "reader-pdf-offline": {
+      "route": {
+        "name": "Reader",
+        "params": {
+          "bookmarkId": "fixture-pdf-offline"
+        }
+      },
+      "payload": {
+        "settings": {
+          "user_language": "en",
+          "cache_count": 0,
+          "download_images": 0,
+          "user_setting_detail_do_not_alert": "true"
+        },
+        "session": {
+          "userId": "00000001-0000-4000-8000-000000000001",
+          "token": "fixture-only-never-use-for-auth",
+          "refreshedAt": 1791604800
+        },
+        "database": {
+          "sr_user": [
+            {
+              "id": "00000001-0000-4000-8000-000000000001",
+              "name": "Fixture Reader",
+              "email": "reader@example.test",
+              "picture": "",
+              "lang": "en",
+              "ai_lang": "en",
+              "timezone": "UTC"
+            }
+          ],
+          "sr_user_tag": [],
+          "sr_user_bookmark": [
+            {
+              "id": "fixture-pdf-offline",
+              "user_id": "00000001-0000-4000-8000-000000000001",
+              "alias_title": "",
+              "created_at": "2026-10-10T04:00:00Z",
+              "updated_at": "2026-10-10T04:00:00Z",
+              "starred_at": "",
+              "archived_at": "",
+              "deleted_at": null,
+              "is_read": 0,
+              "is_starred": 0,
+              "archive_status": 0,
+              "type": 2,
+              "metadata": "{\"tags\":[],\"bookmark\":{\"uuid\":\"fixture-pdf-offline\",\"title\":\"Fully cached offline PDF fixture\",\"target_url\":\"https://fixture-pages.test/eight-pages.pdf\",\"host_url\":\"https://fixture-pages.test\",\"site_name\":\"Fixture PDF\",\"description\":\"\",\"byline\":\"Fixture Author\",\"published_at\":\"2026-10-10T04:00:00Z\",\"status\":\"success\",\"content_cover\":\"\",\"content_icon\":\"\",\"content_word_count\":160,\"type\":2}}"
+            }
+          ],
+          "sr_bookmark_comment": [],
+          "sr_user_subscription": [],
+          "sr_user_collection": [],
+          "sr_user_collection_subscriber": [],
+          "sr_collection_bookmark": [],
+          "sr_sharer_setting": [],
+          "ps_data_local__local_bookmark_info": [
+            {
+              "id": "fixture-pdf-offline",
+              "data": "{\"id\":\"fixture-pdf-offline\",\"is_downloaded\":0,\"is_auto_cached\":1,\"overview\":\"A PDF cached through the production queue before the network becomes unavailable.\",\"outline\":\"- [Page 3](#page=3)\",\"mark_users\":\"[]\"}"
+            }
+          ]
+        },
+        "cache": [],
+        "pdf": [
+          {
+            "bookmarkId": "fixture-pdf-offline",
+            "document": "eight-pages",
+            "prepare": "complete"
+          }
+        ],
+        "network": {
+          "isConnected": false,
+          "isInternetReachable": false
+        },
+        "sync": {
+          "connected": false,
+          "connecting": false,
+          "hasSynced": true,
+          "uploading": false,
+          "downloading": false
+        },
+        "api": [
+          {
+            "method": "GET",
+            "path": "/v1/user/labs",
+            "query": {},
+            "status": 200,
+            "delayMs": 0,
+            "json": {
+              "code": 200,
+              "message": "Fixture response",
+              "data": {
+                "features": [
+                  {
+                    "key": "pdf",
+                    "enabled": true
+                  },
+                  {
+                    "key": "rss",
+                    "enabled": false
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "method": "GET",
+            "path": "/v1/mark/users",
+            "query": {},
+            "status": 200,
+            "delayMs": 0,
+            "json": {
+              "code": 200,
+              "message": "Fixture response",
+              "data": []
+            }
+          }
+        ]
+      },
+      "actions": [
+        {
+          "kind": "pdf-cache-status"
+        },
+        {
+          "kind": "background-flush"
+        },
+        {
+          "kind": "pdf-cache-status"
+        },
+        {
+          "kind": "pdf-network-online"
+        }
+      ],
+      "nativeExecution": "pending-adapter-and-device"
+    },
+    "reader-pdf-import": {
+      "route": {
+        "name": "Library"
+      },
+      "payload": {
+        "settings": {
+          "user_language": "en",
+          "cache_count": 0,
+          "download_images": 0,
+          "user_setting_detail_do_not_alert": "true"
+        },
+        "session": {
+          "userId": "00000001-0000-4000-8000-000000000001",
+          "token": "fixture-only-never-use-for-auth",
+          "refreshedAt": 1791604800
+        },
+        "database": {
+          "sr_user": [
+            {
+              "id": "00000001-0000-4000-8000-000000000001",
+              "name": "Fixture Reader",
+              "email": "reader@example.test",
+              "picture": "",
+              "lang": "en",
+              "ai_lang": "en",
+              "timezone": "UTC"
+            }
+          ],
+          "sr_user_tag": [],
+          "sr_user_bookmark": [],
+          "sr_bookmark_comment": [],
+          "sr_user_subscription": [],
+          "sr_user_collection": [],
+          "sr_user_collection_subscriber": [],
+          "sr_collection_bookmark": [],
+          "sr_sharer_setting": [],
+          "ps_data_local__local_bookmark_info": []
+        },
+        "cache": [],
+        "pdf": [
+          {
+            "bookmarkId": "fixture-pdf-imported",
+            "document": "eight-pages"
+          }
+        ],
+        "network": {
+          "isConnected": true,
+          "isInternetReachable": true
+        },
+        "sync": {
+          "connected": true,
+          "connecting": false,
+          "hasSynced": true,
+          "uploading": false,
+          "downloading": false
+        },
+        "api": [
+          {
+            "method": "GET",
+            "path": "/v1/user/labs",
+            "query": {},
+            "status": 200,
+            "delayMs": 0,
+            "json": {
+              "code": 200,
+              "message": "Fixture response",
+              "data": {
+                "features": [
+                  {
+                    "key": "pdf",
+                    "enabled": true
+                  },
+                  {
+                    "key": "rss",
+                    "enabled": false
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "method": "GET",
+            "path": "/v1/mark/users",
+            "query": {},
+            "status": 200,
+            "delayMs": 0,
+            "json": {
+              "code": 200,
+              "message": "Fixture response",
+              "data": []
+            }
+          }
+        ],
+        "nativePdfImport": {
+          "bookmarkId": "fixture-pdf-imported",
+          "syncDelayMs": 2000,
+          "rows": {
+            "sr_user_bookmark": [
+              {
+                "id": "fixture-pdf-imported",
+                "user_id": "00000001-0000-4000-8000-000000000001",
+                "alias_title": "",
+                "created_at": "2026-10-10T04:00:00Z",
+                "updated_at": "2026-10-10T04:00:00Z",
+                "starred_at": "",
+                "archived_at": "",
+                "deleted_at": null,
+                "is_read": 0,
+                "is_starred": 0,
+                "archive_status": 0,
+                "type": 2,
+                "metadata": "{\"tags\":[],\"bookmark\":{\"uuid\":\"fixture-pdf-imported\",\"title\":\"Synthetic native PDF import\",\"target_url\":\"https://fixture-pages.test/eight-pages.pdf\",\"host_url\":\"https://fixture-pages.test\",\"site_name\":\"Fixture PDF\",\"description\":\"\",\"byline\":\"Fixture Author\",\"published_at\":\"2026-10-10T04:00:00Z\",\"status\":\"success\",\"content_cover\":\"\",\"content_icon\":\"\",\"content_word_count\":160,\"type\":2}}"
+              }
+            ],
+            "ps_data_local__local_bookmark_info": [
+              {
+                "id": "fixture-pdf-imported",
+                "data": "{\"id\":\"fixture-pdf-imported\",\"is_downloaded\":0,\"is_auto_cached\":1,\"overview\":\"The native picker copied the seeded PDF; upload and delayed synchronization are simulated locally.\",\"outline\":\"- [Page 3](#page=3)\",\"mark_users\":\"[]\"}"
+              }
+            ]
+          }
+        }
+      },
+      "actions": [
+        {
+          "kind": "open-add-link"
+        },
+        {
+          "kind": "pdf-cache-status"
+        }
+      ],
+      "nativeExecution": "pending-adapter-and-device"
+    },
+    "reader-pdf-native-storage": {
+      "route": {
+        "name": "Library"
+      },
+      "payload": {
+        "settings": {
+          "user_language": "en",
+          "cache_count": 0,
+          "download_images": 0,
+          "user_setting_detail_do_not_alert": "true"
+        },
+        "session": {
+          "userId": "00000001-0000-4000-8000-000000000001",
+          "token": "fixture-only-never-use-for-auth",
+          "refreshedAt": 1791604800
+        },
+        "database": {
+          "sr_user": [
+            {
+              "id": "00000001-0000-4000-8000-000000000001",
+              "name": "Fixture Reader",
+              "email": "reader@example.test",
+              "picture": "",
+              "lang": "en",
+              "ai_lang": "en",
+              "timezone": "UTC"
+            }
+          ],
+          "sr_user_tag": [],
+          "sr_user_bookmark": [
+            {
+              "id": "fixture-pdf-native",
+              "user_id": "00000001-0000-4000-8000-000000000001",
+              "alias_title": "",
+              "created_at": "2026-10-10T04:00:00Z",
+              "updated_at": "2026-10-10T04:00:00Z",
+              "starred_at": "",
+              "archived_at": "",
+              "deleted_at": null,
+              "is_read": 0,
+              "is_starred": 0,
+              "archive_status": 0,
+              "type": 2,
+              "metadata": "{\"tags\":[],\"bookmark\":{\"uuid\":\"fixture-pdf-native\",\"title\":\"Native production PDF storage fixture\",\"target_url\":\"https://fixture-pages.test/long-pages.pdf\",\"host_url\":\"https://fixture-pages.test\",\"site_name\":\"Fixture PDF\",\"description\":\"\",\"byline\":\"Fixture Author\",\"published_at\":\"2026-10-10T04:00:00Z\",\"status\":\"success\",\"content_cover\":\"\",\"content_icon\":\"\",\"content_word_count\":600,\"type\":2}}"
+            }
+          ],
+          "sr_bookmark_comment": [],
+          "sr_user_subscription": [],
+          "sr_user_collection": [],
+          "sr_user_collection_subscriber": [],
+          "sr_collection_bookmark": [],
+          "sr_sharer_setting": [],
+          "ps_data_local__local_bookmark_info": [
+            {
+              "id": "fixture-pdf-native",
+              "data": "{\"id\":\"fixture-pdf-native\",\"is_downloaded\":0,\"is_auto_cached\":1,\"overview\":\"Thirty pages served in delayed ranges through the actual production file adapter.\",\"outline\":\"- [Page 20](#page=20)\",\"mark_users\":\"[]\"}"
+            }
+          ]
+        },
+        "cache": [],
+        "pdf": [
+          {
+            "bookmarkId": "fixture-pdf-native",
+            "document": "long-pages"
+          }
+        ],
+        "network": {
+          "isConnected": true,
+          "isInternetReachable": true
+        },
+        "sync": {
+          "connected": true,
+          "connecting": false,
+          "hasSynced": true,
+          "uploading": false,
+          "downloading": false
+        },
+        "api": [
+          {
+            "method": "GET",
+            "path": "/v1/user/labs",
+            "query": {},
+            "status": 200,
+            "delayMs": 0,
+            "json": {
+              "code": 200,
+              "message": "Fixture response",
+              "data": {
+                "features": [
+                  {
+                    "key": "pdf",
+                    "enabled": true
+                  },
+                  {
+                    "key": "rss",
+                    "enabled": false
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "method": "GET",
+            "path": "/v1/mark/users",
+            "query": {},
+            "status": 200,
+            "delayMs": 0,
+            "json": {
+              "code": 200,
+              "message": "Fixture response",
+              "data": []
+            }
+          }
+        ]
+      },
+      "actions": [
+        {
+          "kind": "pdf-production-storage"
+        },
+        {
+          "kind": "pdf-fill-cache"
+        },
+        {
+          "kind": "pdf-cache-status"
+        },
+        {
+          "kind": "pdf-network-offline"
+        },
+        {
+          "kind": "pdf-network-online"
+        }
+      ],
+      "nativeExecution": "pending-adapter-and-device"
+    },
+    "reader-pdf-http": {
+      "route": {
+        "name": "Reader",
+        "params": {
+          "bookmarkId": "fixture-pdf-http"
+        }
+      },
+      "payload": {
+        "settings": {
+          "user_language": "en",
+          "cache_count": 0,
+          "download_images": 0,
+          "user_setting_detail_do_not_alert": "true"
+        },
+        "session": {
+          "userId": "00000001-0000-4000-8000-000000000001",
+          "token": "slax-pdf-loopback-synthetic-only",
+          "refreshedAt": 1791604800
+        },
+        "database": {
+          "sr_user": [
+            {
+              "id": "00000001-0000-4000-8000-000000000001",
+              "name": "Fixture Reader",
+              "email": "reader@example.test",
+              "picture": "",
+              "lang": "en",
+              "ai_lang": "en",
+              "timezone": "UTC"
+            }
+          ],
+          "sr_user_tag": [],
+          "sr_user_bookmark": [
+            {
+              "id": "fixture-pdf-http",
+              "user_id": "00000001-0000-4000-8000-000000000001",
+              "alias_title": "",
+              "created_at": "2026-10-10T04:00:00Z",
+              "updated_at": "2026-10-10T04:00:00Z",
+              "starred_at": "",
+              "archived_at": "",
+              "deleted_at": null,
+              "is_read": 0,
+              "is_starred": 0,
+              "archive_status": 0,
+              "type": 2,
+              "metadata": "{\"tags\":[],\"bookmark\":{\"uuid\":\"fixture-pdf-http\",\"title\":\"Loopback HTTP PDF fixture\",\"target_url\":\"https://fixture-pages.test/long-pages.pdf\",\"host_url\":\"https://fixture-pages.test\",\"site_name\":\"Fixture PDF\",\"description\":\"\",\"byline\":\"Fixture Author\",\"published_at\":\"2026-10-10T04:00:00Z\",\"status\":\"success\",\"content_cover\":\"\",\"content_icon\":\"\",\"content_word_count\":600,\"type\":2}}"
+            }
+          ],
+          "sr_bookmark_comment": [],
+          "sr_user_subscription": [],
+          "sr_user_collection": [],
+          "sr_user_collection_subscriber": [],
+          "sr_collection_bookmark": [],
+          "sr_sharer_setting": [],
+          "ps_data_local__local_bookmark_info": [
+            {
+              "id": "fixture-pdf-http",
+              "data": "{\"id\":\"fixture-pdf-http\",\"is_downloaded\":0,\"is_auto_cached\":1,\"overview\":\"Real Expo HTTP transport and native owner enforcement with synthetic PDF bytes only.\",\"outline\":\"- [Page 20](#page=20)\",\"mark_users\":\"[]\"}"
+            }
+          ]
+        },
+        "cache": [],
+        "pdf": [
+          {
+            "bookmarkId": "fixture-pdf-http",
+            "document": "long-pages"
+          }
+        ],
+        "network": {
+          "isConnected": true,
+          "isInternetReachable": true
+        },
+        "sync": {
+          "connected": true,
+          "connecting": false,
+          "hasSynced": true,
+          "uploading": false,
+          "downloading": false
+        },
+        "api": []
+      },
+      "actions": [
+        {
+          "kind": "pdf-production-storage"
+        },
+        {
+          "kind": "pdf-fill-cache"
+        },
+        {
+          "kind": "pdf-cache-status"
+        },
+        {
+          "kind": "pdf-http-status"
+        },
+        {
+          "kind": "pdf-http-mode",
+          "mode": "metadata-404"
+        },
+        {
+          "kind": "pdf-http-mode",
+          "mode": "normal"
+        },
+        {
+          "kind": "pdf-http-mode",
+          "mode": "slow"
+        }
+      ],
+      "nativeExecution": "pending-adapter-and-device"
     }
   }
 }

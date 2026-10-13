@@ -56,7 +56,6 @@ function writeIosFiles(platformRoot, projectRoot, options) {
   if (options.apiBaseUrl.startsWith('http:') || options.apiBetaUrl.startsWith('http:')) info.NSAppTransportSecurity = {NSAllowsArbitraryLoads: true};
   fs.writeFileSync(path.join(directory, 'Info.plist'), plistBuild(info));
   fs.writeFileSync(path.join(directory, 'SlaxShare.entitlements'), plistBuild({'com.apple.security.application-groups': [GROUP]}));
-  if (options.firebaseIosConfig) fs.copyFileSync(path.resolve(projectRoot, options.firebaseIosConfig), path.join(directory, 'GoogleService-Info.plist'));
 }
 function targetEntry(project) {
   return Object.entries(project.pbxNativeTargetSection()).find(([key, target]) => !key.endsWith('_comment') && String(target.name).replaceAll('"', '') === TARGET);
@@ -105,12 +104,8 @@ function configureIosTarget(project, options) {
   for (const source of SOURCES) {
     if (!project.hasFile(`${TARGET}/${source}`)) project.addSourceFile(`${TARGET}/${source}`, {target: uuid}, sourceGroupId);
   }
-  if (options.firebaseIosConfig && !project.hasFile(`${TARGET}/GoogleService-Info.plist`)) {
-    const group = project.pbxGroupByName(TARGET);
-    const groups = project.hash.project.objects.PBXGroup;
-    const groupId = Object.entries(groups).find(([key, value]) => !key.endsWith('_comment') && value === group)?.[0];
-    project.addResourceFile(`${TARGET}/GoogleService-Info.plist`, {target: uuid}, groupId);
-  }
+  removeFirebaseResource(project, uuid);
+  removeFirebasePodIntegration(project, uuid, target);
   repairIosPaths(project);
   const list = project.pbxXCConfigurationList()[target.buildConfigurationList];
   for (const entry of list.buildConfigurations) {
@@ -125,19 +120,80 @@ function configureIosTarget(project, options) {
   }
   return project;
 }
+function removeFirebaseResource(project, target) {
+  const references = project.pbxFileReferenceSection();
+  const builds = project.pbxBuildFileSection();
+  const resources = project.pbxResourcesBuildPhaseObj(target);
+  const name = 'GoogleService-Info.plist';
+  const unquote = value => String(value).replaceAll('"', '');
+  const removedReferences = new Set();
+  resources.files = resources.files.filter(entry => {
+    const build = builds[entry.value];
+    if (path.posix.basename(unquote(references[build?.fileRef]?.path)) !== name) return true;
+    removedReferences.add(build.fileRef);
+    const otherPhase = Object.values(project.hash.project.objects).some(section => Object.values(section).some(phase => phase && typeof phase === 'object' && phase !== resources && phase.files?.some(file => file.value === entry.value)));
+    if (!otherPhase) {delete builds[entry.value]; delete builds[`${entry.value}_comment`];}
+    return false;
+  });
+  for (const [id, reference] of Object.entries(references)) {
+    if (typeof reference === 'object' && unquote(reference.path) === `${TARGET}/${name}`) removedReferences.add(id);
+  }
+  for (const id of removedReferences) {
+    if (unquote(references[id]?.path) !== `${TARGET}/${name}` || Object.values(builds).some(build => build?.fileRef === id)) continue;
+    delete references[id]; delete references[`${id}_comment`];
+    for (const group of Object.values(project.hash.project.objects.PBXGroup)) {
+      if (typeof group === 'object') group.children = group.children.filter(entry => entry.value !== id);
+    }
+  }
+}
+function removeFirebasePodIntegration(project, uuid, target) {
+  const references = project.pbxFileReferenceSection();
+  const unquote = value => String(value).replaceAll('"', '');
+  const list = project.pbxXCConfigurationList()[target.buildConfigurationList];
+  for (const entry of list.buildConfigurations) {
+    const configuration = project.pbxXCBuildConfigurationSection()[entry.value];
+    if (/^Pods-SlaxShare\.(?:debug|release)\.xcconfig$/.test(path.posix.basename(unquote(references[configuration.baseConfigurationReference]?.path)))) {
+      delete configuration.baseConfigurationReference;
+      delete configuration.baseConfigurationReference_comment;
+    }
+  }
+  const builds = project.pbxBuildFileSection();
+  const frameworks = project.pbxFrameworksBuildPhaseObj(uuid);
+  const removed = new Set();
+  frameworks.files = frameworks.files.filter(entry => {
+    const build = builds[entry.value];
+    if (!['Pods_SlaxShare.framework', 'libPods-SlaxShare.a'].includes(path.posix.basename(unquote(references[build?.fileRef]?.path)))) return true;
+    const otherPhase = Object.values(project.hash.project.objects).some(section => Object.values(section).some(phase => phase && typeof phase === 'object' && phase !== frameworks && phase.files?.some(file => file.value === entry.value)));
+    removed.add(build.fileRef);
+    if (!otherPhase) {delete builds[entry.value]; delete builds[`${entry.value}_comment`];}
+    return false;
+  });
+  for (const id of removed) {
+    if (Object.values(builds).some(build => build?.fileRef === id)) continue;
+    delete references[id]; delete references[`${id}_comment`];
+    for (const group of Object.values(project.hash.project.objects.PBXGroup)) {
+      if (typeof group === 'object') group.children = group.children.filter(entry => entry.value !== id);
+    }
+  }
+  const scripts = project.hash.project.objects.PBXShellScriptBuildPhase ?? {};
+  target.buildPhases = target.buildPhases.filter(entry => {
+    const script = scripts[entry.value];
+    if (!script || !unquote(script.name).startsWith('[CP] ') || !JSON.stringify(script).includes('Pods-SlaxShare')) return true;
+    delete scripts[entry.value]; delete scripts[`${entry.value}_comment`];
+    return false;
+  });
+}
+function removeFirebasePod(contents) {
+  return contents.replace(/^# BEGIN SLAX SHARE\r?\n[\s\S]*?^# END SLAX SHARE(?:\r?\n|$)/gm, '');
+}
 function withShare(config, input = {}) {
   const options = normalizedOptions(config, input);
   config = withEntitlementsPlist(config, mod => {mod.modResults['com.apple.security.application-groups'] = [...new Set([...(mod.modResults['com.apple.security.application-groups'] || []), GROUP])]; return mod;});
   config = withAndroidManifest(config, mod => {mod.modResults = updateAndroidManifest(mod.modResults, options); return mod;});
   config = withDangerousMod(config, ['ios', async mod => {writeIosFiles(mod.modRequest.platformProjectRoot, mod.modRequest.projectRoot, options); return mod;}]);
   config = withXcodeProject(config, mod => {configureIosTarget(mod.modResults, options); return mod;});
-  if (options.firebaseIosConfig) config = withPodfile(config, mod => {
-    const begin = '# BEGIN SLAX SHARE', end = '# END SLAX SHARE';
-    const block = `${begin}\ntarget '${TARGET}' do\n  use_frameworks! :linkage => :static\n  pod 'Firebase/Analytics'\nend\n${end}`;
-    mod.modResults.contents = mod.modResults.contents.replace(new RegExp(`${begin}[\\s\\S]*?${end}\\n?`, 'g'), '').trimEnd() + `\n\n${block}\n`;
-    return mod;
-  });
+  config = withPodfile(config, mod => {mod.modResults.contents = removeFirebasePod(mod.modResults.contents); return mod;});
   return config;
 }
 module.exports = withShare;
-module.exports._test = {normalizedOptions, updateAndroidManifest, writeIosFiles, configureIosTarget, repairIosPaths, targetEntry, plistBuild};
+module.exports._test = {normalizedOptions, updateAndroidManifest, writeIosFiles, configureIosTarget, repairIosPaths, targetEntry, plistBuild, removeFirebasePod};

@@ -8,6 +8,9 @@ import ts from 'typescript'
 import React, {act} from 'react'
 import {PreferenceStore, PREFERENCE_KEYS} from '../../src/data/preferences.ts'
 import {MemoryPreferences} from '../data/helpers.ts'
+import * as pdfContracts from '@slax-reader/contracts/pdf'
+import * as transportErrors from '../../src/data/transport-errors.ts'
+import * as pdfErrors from '../../src/reader/pdf-errors.ts'
 import * as model from '../../src/reader/model.ts'
 import * as account from '../../src/reader/account.ts'
 import {ReaderPositionWriter} from '../../src/reader/position.ts'
@@ -15,6 +18,7 @@ import {ReaderCrashRecovery} from '../../src/reader/recovery.ts'
 import {FixtureActionRouter} from '../../src/components/fixture-actions.ts'
 import * as bridge from '../../src/reader/bridge.ts'
 import * as coordinates from '../../src/reader/coordinates.ts'
+import * as hostGeometry from '../../src/reader/host/geometry.ts'
 import * as documentComposer from '../../src/reader/document.ts'
 import * as recovery from '../../src/reader/recovery.ts'
 import * as input from '../../src/reader/input.ts'
@@ -30,9 +34,7 @@ let domModule = process.env.SLAX_READER_DOM_MODULE
 if (!domModule) {
   try {domModule = require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]})} catch {}
 }
-const screenCode = ts.transpileModule(await readFile(new URL('../../src/screens/ReaderScreen.tsx', import.meta.url), 'utf8'), {
-  compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},
-}).outputText
+const {loadComponent, withRenderedElement} = await import('./parity-host.mjs')
 const rssExports = {}
 const rssCode = ts.transpileModule(await readFile(new URL('../../src/rss/controller.ts', import.meta.url), 'utf8'), {
   compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022},
@@ -74,7 +76,11 @@ for (const {platform, kind, initialRssError} of [
     return originalUpdate(edit)
   }
   const Context = React.createContext(null)
-  const primitive = ({children}) => React.createElement('div', null, children)
+  const rendered = new Map()
+  const primitive = props => {
+    if (props.testID) rendered.set(props.testID, props)
+    return React.createElement('div', {'data-testid': props.testID}, props.children)
+  }
   const nil = () => null
   const components = {SourceDialog: nil, SourceIcon: nil, SourceText: primitive, TextAction: props => {if (props.label === 'rss_retry') retryAction = props; return null}}
   const fixtureActions = new FixtureActionRouter(), stopActions = fixtureActions.activate('fixture-only')
@@ -104,6 +110,8 @@ for (const {platform, kind, initialRssError} of [
   const network = {isConnected: true, isInternetReachable: true}
   const telemetry = {element: (...event) => nativeEvents.push(event), firebase: (...event) => nativeEvents.push(event)}
   const boundaries = {
+    '@slax-reader/contracts/pdf': pdfContracts, '../data/transport-errors': transportErrors, '../reader/pdf-errors': pdfErrors,
+    '../reader/PdfWebView': {PdfWebView: () => assert.fail('An HTML lifecycle fixture must not mount the PDF renderer')},
     react: React,
     'react-native': {ActivityIndicator: nil, Animated: {Value: class {constructor(value) {this.value = value}}, View: primitive,
       timing: (_value, config) => ({start() {headerAnimations.push(config)}, stop() {}})}, Easing: {bezier: (...points) => points},
@@ -127,11 +135,7 @@ for (const {platform, kind, initialRssError} of [
     '../reader/position': {ReaderPositionWriter}, '../reader/recovery': {ReaderCrashRecovery}, '../reader/account': account,
     '../components/fixture-actions': {fixtureActions},
   }
-  const exported = {}
-  vm.runInNewContext(screenCode, {exports: exported, __DEV__: true, AbortController, setTimeout, clearTimeout, require: name => {
-    assert.ok(Object.hasOwn(boundaries, name), `Unexpected Reader boundary: ${name}`)
-    return boundaries[name]
-  }})
+  const exported = await loadComponent('../../src/screens/ReaderScreen.tsx', boundaries)
   const listeners = new Map()
   const navigation = {setOptions: value => {options = value}, navigate() {}, goBack() {}, addListener: (name, callback) => {listeners.set(name, callback); return () => listeners.delete(name)}}
   function Harness() {
@@ -189,7 +193,10 @@ for (const {platform, kind, initialRssError} of [
     assert.equal(options.headerStyle.backgroundColor, 'transparent')
     if (kind === 'rss') assert.equal(skeletonProps, undefined, 'The original RSS route starts with its own centered loading indicator')
     else assert.equal(skeletonProps.topSpacer, 106, 'Both source platform article skeletons reserve status padding plus 44 before their first 12-point gap')
-    assert.equal(readerProps.header.props.style[1].paddingTop, kind === 'rss' ? 114 : 106, 'Source article/RSS spacers remain 44/52 beneath the actual status inset')
+    await withRenderedElement(readerProps.header, () => {
+      const header = rendered.get(kind === 'rss' ? 'reader-rss-header' : 'reader-article-header')
+      assert.equal(header.style[1].paddingTop, kind === 'rss' ? 114 : 106, 'Source article/RSS spacers remain 44/52 beneath the actual status inset')
+    })
     assert.equal(readerProps.headerSafeAreaPoints, platform === 'ios' ? 62 : 0, 'Only iOS separates WK native safe/header insets; Android scrolls the whole measured header')
     if (kind === 'rss') {
       assert.equal(options.headerRight, undefined, 'Original RSS has genuine Back and no bookmark More action')
@@ -212,34 +219,34 @@ for (const {platform, kind, initialRssError} of [
       assert.equal(backBlocked, true, 'An actual gallery remains a source transient before native route exit')
       await act(async () => {galleryProps.onDismiss()})
       assert.equal(backBlocked, false)
-      const findElement = (node, id) => {
-        if (Array.isArray(node)) return node.map(value => findElement(value, id)).find(Boolean)
-        if (!React.isValidElement(node)) return undefined
-        return node.props.testID === id ? node : findElement(node.props.children, id)
+      const findElement = async (node, id) => {
+        rendered.clear()
+        return withRenderedElement(node, () => rendered.has(id) ? {props: rendered.get(id)} : undefined)
       }
-      const save = findElement(readerProps.header, 'reader-rss-save')
+      const save = await findElement(readerProps.header, 'reader-rss-save')
       assert.ok(save && !save.props.disabled, 'The source RSS header save control remains enabled')
       holdSave = true
       await act(async () => {save.props.onPress()})
       assert.deepEqual(rssSaves, ['fixture-rss'])
-      const busySave = findElement(readerProps.header, 'reader-rss-save')
+      const busySave = await findElement(readerProps.header, 'reader-rss-save')
       assert.equal(busySave.props.disabled, true, 'A pending save prevents a duplicate command while retaining the body')
       const progress = React.Children.toArray(busySave.props.children).find(child => child.type === SourceCircularProgress)
       assert.equal(progress.props.size, 14); assert.equal(progress.props.thickness, 1.5)
       assert.equal(readerProps.html, '<p>Fixture RSS article</p>')
       await act(async () => {releaseRssSave()})
-      assert.equal(findElement(readerProps.header, 'reader-rss-error').props.children, 'rss_error_source_unavailable', 'A failed RSS save remains an inline source header error')
-      assert.equal(findElement(readerProps.header, 'reader-rss-save').props.disabled, false, 'The unchanged unsaved entry remains available for retry')
+      assert.equal((await findElement(readerProps.header, 'reader-rss-error')).props.children, 'rss_error_source_unavailable', 'A failed RSS save remains an inline source header error')
+      assert.equal((await findElement(readerProps.header, 'reader-rss-save')).props.disabled, false, 'The unchanged unsaved entry remains available for retry')
       assert.deepEqual(savedEntries, [], 'A denied save must not report a saved entry')
       assert.equal(backBlocked, false, 'An inline source error does not intercept genuine native Back')
       assert.equal(readerProps.html, '<p>Fixture RSS article</p>', 'A save failure retains the original feed document')
       failRssSave = false
       holdSave = false
-      await act(async () => {findElement(readerProps.header, 'reader-rss-save').props.onPress()})
+      const retrySave = await findElement(readerProps.header, 'reader-rss-save')
+      await act(async () => {retrySave.props.onPress()})
       assert.deepEqual(rssSaves, ['fixture-rss', 'fixture-rss'])
-      assert.equal(findElement(readerProps.header, 'reader-rss-error'), undefined, 'Retry clears the prior source error')
+      assert.equal(await findElement(readerProps.header, 'reader-rss-error'), undefined, 'Retry clears the prior source error')
       assert.deepEqual(savedEntries, [['fixture-rss', 'fixture-saved-bookmark', 'https://fixture.test/article']])
-      assert.equal(findElement(readerProps.header, 'reader-rss-save').props.disabled, true, 'The real saved result disables duplicate saves')
+      assert.equal((await findElement(readerProps.header, 'reader-rss-save')).props.disabled, true, 'The real saved result disables duplicate saves')
       assert.deepEqual(bookmarkWrites, [])
       return
     }
@@ -247,17 +254,19 @@ for (const {platform, kind, initialRssError} of [
     await act(async () => readerProps.onEvent({type: 'textSelected', mark: {stroke: []}, text: 'Near status bar', containerYPoints: 12}, 'fixture-page'))
     assert.equal(selectionMenuProps.minTop, platform === 'ios' ? 82 : 60, 'Source full-window menus use iOS status+20 and the Android fixed 60dp minimum')
     assert.equal(options.unstable_headerRightItems()[0].hidesSharedBackground, true, 'The adjacent source more action must not inherit the iOS 26 native back background exception')
-    assert.equal(options.headerRight().props.pointerEvents, 'auto')
+    await withRenderedElement(options.headerRight(), () => assert.equal(rendered.get('reader-header-more-container').pointerEvents, 'auto'))
     await act(async () => {readerProps.onPositionChange(240, false)})
-    const hiddenMore = options.headerRight()
-    assert.equal(hiddenMore.props.pointerEvents, 'none')
-    assert.equal(hiddenMore.props.accessibilityElementsHidden, true)
+    await withRenderedElement(options.headerRight(), () => {
+      const hiddenMore = rendered.get('reader-header-more-container')
+      assert.equal(hiddenMore.pointerEvents, 'none')
+      assert.equal(hiddenMore.accessibilityElementsHidden, true)
+    })
     assert.equal(headerAnimations.at(-1).toValue, -100)
     assert.equal(headerAnimations.at(-1).duration, 300)
     assert.equal(headerAnimations.at(-1).useNativeDriver, true)
     await act(async () => {readerProps.onPositionChange(0, false)})
     assert.equal(headerAnimations.at(-1).toValue, 0)
-    const button = options.headerRight().props.children
+    const button = await withRenderedElement(options.headerRight(), () => ({props: rendered.get('reader-header-more')}))
     assert.equal(button.props.accessibilityLabel, 'detail_toolbar_share')
     await act(async () => {button.props.onPress()})
     assert.equal(toolbarVisible, true)
@@ -314,7 +323,7 @@ for (const {controlledDirectory, debug, observes, name} of [
   const boundaries = {
     react: React,
     'react-native': {AppState: {addEventListener: () => ({remove() {}})}, PixelRatio: {get: () => 3}, Platform: {OS: 'ios'}, ScrollView: NativeView, View: NativeView, StyleSheet: {create: value => value}},
-    'react-native-webview': {WebView}, './bridge.ts': bridge, './coordinates.ts': coordinates, './document.ts': documentComposer,
+    'react-native-webview': {WebView}, './bridge.ts': bridge, './coordinates.ts': coordinates, './document.ts': documentComposer, './host/geometry.ts': hostGeometry,
     './security.ts': security, '../config': {mobileConfig: {webUrl: 'https://r.slax.com', webDomain: '.slax.com', apiUrl: 'https://api-reader.slax.com', betaApiUrl: 'https://api-reader-beta.slax.com'}},
     './input.ts': input,
     './native-attachment.ts': {ReaderNativeAttachment}, './recovery.ts': recovery, './position.ts': {ReaderPositionWriter},
@@ -489,7 +498,7 @@ test('actual Android Reader waits for the native scroll content and viewport bef
   const boundaries = {
     react: React,
     'react-native': {AppState: {addEventListener: (_type, listener) => {appStateChanged = listener; return {remove() {}}}}, PixelRatio: {get: () => 2.625}, Platform: {OS: 'android'}, ScrollView: NativeScrollView, View: NativeView, StyleSheet: {create: value => value}},
-    'react-native-webview': {WebView}, './bridge.ts': bridge, './coordinates.ts': coordinates, './document.ts': documentComposer,
+    'react-native-webview': {WebView}, './bridge.ts': bridge, './coordinates.ts': coordinates, './document.ts': documentComposer, './host/geometry.ts': hostGeometry,
     './security.ts': security, '../config': {mobileConfig: {webUrl: 'https://r.slax.com', webDomain: '.slax.com', apiUrl: 'https://api-reader.slax.com', betaApiUrl: 'https://api-reader-beta.slax.com'}},
     './input.ts': input, './native-attachment.ts': {ReaderNativeAttachment}, './recovery.ts': recovery, './position.ts': {ReaderPositionWriter},
   }

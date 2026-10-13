@@ -1,25 +1,27 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {AccessibilityInfo, Animated, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindowDimensions} from 'react-native';
+import {Animated, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindowDimensions} from 'react-native';
 import {mobileColors} from '../theme';
+import {motionDuration, motionDurationFor} from '../motion/policy';
+import {useReducedMotion} from '../motion/useReducedMotion';
 
 export function SourceSheetModal({visible, onDismiss, onDidDismiss, dismissible = true, children}: {
   visible: boolean; onDismiss(): void; onDidDismiss?(): void; dismissible?: boolean; children: React.ReactNode;
 }) {
   const {height: windowHeight} = useWindowDimensions();
   const [presented, setPresented] = useState(visible), [shown, setShown] = useState(false), [height, setHeight] = useState(0);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const reducedMotion = useReducedMotion();
   const progress = useRef(new Animated.Value(0)).current;
-  const current = useRef({visible, onDidDismiss}); current.current = {visible, onDidDismiss};
-  const pendingDismiss = useRef(false), retained = useRef(children);
+  const current = useRef({visible, onDidDismiss, generation: 0});
+  const generation = current.current.generation + (!current.current.visible && visible ? 1 : 0);
+  current.current = {visible, onDidDismiss, generation};
+  const pendingDismiss = useRef(false), retained = useRef(children), mounted = useRef(true);
   if (visible) retained.current = children;
   useEffect(() => {
-    let active = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then(value => {if (active) setReducedMotion(value);});
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReducedMotion);
-    return () => {active = false; subscription.remove();};
+    mounted.current = true;
+    return () => {mounted.current = false; pendingDismiss.current = false;};
   }, []);
   const completeDismissal = () => {
-    if (current.current.visible || !pendingDismiss.current) return;
+    if (!mounted.current || current.current.generation !== generation || current.current.visible || !pendingDismiss.current) return;
     pendingDismiss.current = false;
     current.current.onDidDismiss?.();
   };
@@ -29,14 +31,15 @@ export function SourceSheetModal({visible, onDismiss, onDidDismiss, dismissible 
       if (!presented) {setHeight(0); setShown(false); setPresented(true); return;}
       if (!shown || height <= 0) return;
     } else if (!presented) return;
-    const animation = Animated.timing(progress, {toValue: visible ? 1 : 0, duration: reducedMotion ? 0 : visible ? 220 : 160, easing: Easing.out(Easing.cubic), useNativeDriver: true});
+    let active = true;
+    const animation = Animated.timing(progress, {toValue: visible ? 1 : 0, duration: motionDurationFor(visible ? motionDuration.sheetEnter : motionDuration.sheetExit, reducedMotion), easing: Easing.out(Easing.cubic), useNativeDriver: true});
     animation.start(({finished}) => {
-      if (!finished || current.current.visible) return;
+      if (!active || !finished || visible || current.current.visible) return;
       pendingDismiss.current = true;
       setShown(false); setPresented(false);
       if (Platform.OS !== 'ios') completeDismissal();
     });
-    return () => animation.stop();
+    return () => {active = false; animation.stop();};
   }, [visible, presented, shown, height, reducedMotion, progress]);
   return <Modal visible={presented} transparent presentationStyle="overFullScreen" animationType="none" statusBarTranslucent
     onShow={() => setShown(true)} onDismiss={completeDismissal} onRequestClose={() => {if (dismissible) onDismiss();}}>

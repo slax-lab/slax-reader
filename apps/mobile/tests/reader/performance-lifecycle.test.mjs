@@ -5,6 +5,7 @@ import vm from 'node:vm'
 import {React, act, loadComponent, nativeBoundary, withNativeHost} from './parity-host.mjs'
 import * as bridge from '../../src/reader/bridge.ts'
 import * as coordinates from '../../src/reader/coordinates.ts'
+import * as hostGeometry from '../../src/reader/host/geometry.ts'
 import * as documentComposer from '../../src/reader/document.ts'
 import * as recovery from '../../src/reader/recovery.ts'
 import * as input from '../../src/reader/input.ts'
@@ -96,7 +97,7 @@ for (const platform of ['ios', 'android']) test(`${platform} Reader offsets pres
     const {ReaderWebView} = await loadComponent('../../src/reader/ReaderWebView.tsx', {
       react: React, 'react-native': {...host.native, View, ScrollView, Platform: {OS: platform}, PixelRatio: {get: () => 3},
         AppState: {currentState: 'active', addEventListener: (_name, callback) => {appState = callback; return {remove() {}}}}},
-      'react-native-webview': {WebView}, './bridge.ts': bridge, './coordinates.ts': coordinates, './document.ts': documentComposer,
+      'react-native-webview': {WebView}, './bridge.ts': bridge, './coordinates.ts': coordinates, './document.ts': documentComposer, './host/geometry.ts': hostGeometry,
       './security.ts': security, '../config': {mobileConfig: {webUrl: 'https://r.slax.com', webDomain: '.slax.com', apiUrl: 'https://api-reader.slax.com', betaApiUrl: 'https://api-reader-beta.slax.com'}},
       './input.ts': input, './native-attachment.ts': {ReaderNativeAttachment}, './recovery.ts': recovery, './position.ts': {ReaderPositionWriter},
     }, {Error})

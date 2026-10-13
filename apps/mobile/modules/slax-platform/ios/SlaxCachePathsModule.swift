@@ -4,6 +4,21 @@ import Foundation
 public final class SlaxCachePathsModule: Module {
   public func definition() -> ModuleDefinition {
     Name("SlaxCachePaths")
+    Function("pdfCacheFileUri") { (directory: String, relativePath: String) -> String? in
+      guard let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first,
+            let supplied = directory.hasPrefix("file://") ? URL(string: directory) : URL(fileURLWithPath: directory), supplied.isFileURL else { return nil }
+      let root = supplied.standardizedFileURL.resolvingSymlinksInPath()
+      guard root.path == support.resolvingSymlinksInPath().path else { return nil }
+      let parts = relativePath.components(separatedBy: "/")
+      guard parts.first == "pdf", parts.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." && $0.range(of: "^[A-Za-z0-9_.-]+$", options: .regularExpression) != nil }) else { return nil }
+      var current = root
+      for part in parts {
+        current.appendPathComponent(part)
+        guard current.resolvingSymlinksInPath().path == current.path,
+              (try? FileManager.default.attributesOfItem(atPath: current.path)[.type] as? FileAttributeType) != .typeSymbolicLink else { return nil }
+      }
+      return current.absoluteString
+    }
     Function("imageCacheFileUri") { (directory: String, key: String, relativePath: String) -> String? in
       let root = (directory.hasPrefix("file://") ? URL(string: directory) : URL(fileURLWithPath: directory))?.standardizedFileURL.resolvingSymlinksInPath()
       guard let root, root.isFileURL, let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }

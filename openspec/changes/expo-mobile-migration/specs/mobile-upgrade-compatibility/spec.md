@@ -64,3 +64,61 @@ Startup SHALL preserve source rendering from persisted authenticated state while
 - **WHEN** the user signs out or switches account
 - **THEN** prior-user data and synchronization are isolated before rendering the new account
 - **AND** cached content, comments, and shared-extension credentials do not leak between users
+
+### Requirement: Main API credentials refresh on a daily foreground lifecycle
+
+The main API JWT SHALL be refreshed when 86,400 seconds have elapsed since the last successful refresh, checked at startup, foreground return and before authenticated request or sync-credential use. Cold startup SHALL select and immediately present Login or the authenticated shell after reading local logged-in state, without waiting for refresh, sync or initialization. Protected requests SHALL await due main refresh and asynchronous PowerSync connection SHALL await valid scoped credentials; these network gates MUST NOT block local route presentation or be bypassed by it. Cached data SHALL hydrate only after genuine ownership/migration verification, with localized loading/failure inside the shell rather than global blank UI or unverified cross-account access. An active foreground deadline SHALL cover continuous use without restart; background SHALL cancel scheduling and foreground SHALL re-evaluate due state, without an OS background service. Concurrent triggers SHALL share one account/API-origin-owned refresh. Only successful refresh SHALL advance its persisted timestamp; failures SHALL use bounded retry/backoff without resetting account/local data or logging tokens. Known expired credentials MUST NOT be treated as valid. Any definitive authentication transition SHALL match the current token/generation; stale failures or 401 responses MUST NOT clear a newer session.
+
+#### Scenario: A cold process starts with stale persisted credentials
+- **WHEN** real runtime startup restores a main session last refreshed two days ago and expired PowerSync credentials while main refresh is deferred
+- **THEN** the locally chosen route/shell appears before deferred refresh or initialization resolves, while protected API/PDF/sync requests remain behind network readiness
+- **AND** cached data appears only after ownership/migration checks; successful main refresh precedes valid sync acquisition/connection without a stale-bearer dispatch
+
+#### Scenario: Database admission fails after the shell is presented
+- **WHEN** local identity is known but asynchronous database ownership/migration admission is pending or fails
+- **THEN** the shell remains visible with localized data loading or upgrade failure
+- **AND** no unverified or previous-account data is accessed, and late initializer results cannot publish after stop or account/origin replacement
+
+#### Scenario: Cold-start refresh cannot reach the network
+- **WHEN** the awaited startup refresh fails from offline or transient network conditions
+- **THEN** safe cached local UI and queued writes remain intact while protected network work stays blocked or bounded-retryable
+- **AND** neither detached ignored refresh nor fabricated authentication permits stale requests; definitive current-token rejection may require reauthentication without destructive local-data reset
+
+#### Scenario: The daily deadline occurs during continuous foreground use
+- **WHEN** the last successful main refresh reaches the 86,400-second boundary while API and sync work also request credentials
+- **THEN** one refresh serves the concurrent callers and the next deadline follows its successful completion
+- **AND** failed attempts neither advance the success timestamp nor cause an unbounded request-driven retry loop
+
+#### Scenario: The app resumes after a refresh deadline
+- **WHEN** the application returns after backgrounding past the daily deadline
+- **THEN** it rechecks and refreshes before due authenticated request/sync use without requiring a restart
+- **AND** offline or timeout failure preserves local data, queued writes and account context while exposing bounded recovery rather than a destructive reset
+
+#### Scenario: Account or origin changes while refresh is pending
+- **WHEN** a refresh response or old-token 401 arrives after token rotation, sign-out, account replacement or API-origin change
+- **THEN** obsolete success/failure cannot mutate the new session or reactivate its old timers
+- **AND** no previous-account token is returned to the new request or synchronization scope
+
+### Requirement: PowerSync credential caching follows actual signed expiry
+
+The client SHALL cache the server-issued PowerSync JWT according to its actual finite `exp`, scoped to account/session generation and configured API origin. It SHALL honor the server's actual lifetime, including the observed 300-second issuance, rather than assume a 24-hour contract. It SHALL refresh automatically within a documented pre-expiry safety window appropriate to that lifetime, share concurrent acquisition, and return `expiresAt` using the installed SDK's exact supported type and semantics. Invalid, missing or expired expiry MUST NOT enter a reusable cache; the client MUST NOT extend validity with an arbitrary fixed cache duration or treat decoded claims as signature verification. Due main API refresh SHALL precede sync-token acquisition without recursion. The PowerSync UUID subject and main API encoded ID SHALL be treated as distinct wire representations, without replacing account/origin ownership checks with raw-string equality. Rejection, expiry or scope change SHALL invalidate the relevant lease and use supported SDK credential renewal/reconnection while preserving one database owner and pending CRUD.
+
+#### Scenario: A cached sync token reaches its safety window
+- **WHEN** a current account/origin's cached JWT approaches its actual expiration
+- **THEN** the connector and SDK coordinate one fresh credential acquisition and expose the returned expiry to the SDK
+- **AND** the client neither reuses an expired token nor fabricates another 24 hours of validity
+
+#### Scenario: The server issues a five-minute sync credential
+- **WHEN** an authorized response issues a valid 300-second JWT with a UUID subject distinct from the main API encoded ID
+- **THEN** the client honors its actual expiry and appropriate safety window within the active account/origin scope
+- **AND** neither the shorter lifetime nor the different wire identifier alone is treated as an invalid credential or permission to extend signed validity
+
+#### Scenario: Issued expiry is invalid
+- **WHEN** the server credential has missing, malformed or already-expired expiry
+- **THEN** it is not reused and the invalid expiry is reported without changing signed validity
+- **AND** bounded recovery preserves local data and queued writes
+
+#### Scenario: Sync credentials are renewed during pending uploads
+- **WHEN** credentials expire or are rejected while local CRUD remains queued
+- **THEN** supported renewal/reconnection retains transaction order and the same legitimate database owner
+- **AND** old-generation credential responses cannot repopulate a replaced account/origin cache or discard uploads

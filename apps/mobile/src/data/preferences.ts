@@ -11,7 +11,7 @@ export interface PreferenceStorage {
 export const PREFERENCE_KEYS = {
   token: 'auth_token', userId: 'user_id', lastRefresh: 'last_refresh_time',
   syncRefresh: 'powersync_refresh_time', syncToken: 'powersync_token', syncEndpoint: 'powersync_connect_url',
-  syncApiOrigin: 'powersync_api_origin',
+  syncApiOrigin: 'powersync_api_origin', syncUserId: 'powersync_user_id',
   continueReading: 'continue_reading_bookmark', detailDoNotAlert: 'user_setting_detail_do_not_alert',
   language: 'user_language', cacheCount: 'cache_count', downloadImages: 'download_images',
   environment: 'selected_env', deviceId: 'analytics_device_id',

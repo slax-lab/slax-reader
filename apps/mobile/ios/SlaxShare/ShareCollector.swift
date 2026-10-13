@@ -1,8 +1,4 @@
 import Foundation
-#if canImport(FirebaseCore) && canImport(FirebaseAnalytics)
-import FirebaseCore
-import FirebaseAnalytics
-#endif
 
 enum ShareFailure: Error { case message(String) }
 enum ShareCollector {
@@ -22,7 +18,6 @@ enum ShareCollector {
     var body: [String: String] = ["target_url": String(content[range])]
     if let title { body["target_title"] = title }
     request.httpBody = try JSONSerialization.data(withJSONObject: body)
-    let start = Date()
     do {
       let configuration = URLSessionConfiguration.ephemeral
       configuration.timeoutIntervalForRequest = 8; configuration.timeoutIntervalForResource = 15
@@ -33,29 +28,14 @@ enum ShareCollector {
       if response.statusCode == 401 { throw ShareFailure.message("Auth expired, please reopen the app to login again.") }
       if response.statusCode == 400, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let message = json["message"] as? String, !message.isEmpty { throw ShareFailure.message(message) }
       guard response.statusCode == 200 || response.statusCode == 204 else { throw ShareFailure.message("Collection failed, please try again.") }
-      report(status: "success", version: version, duration: Date().timeIntervalSince(start))
     } catch {
       if Task.isCancelled { throw CancellationError() }
-      report(status: "failed", version: version)
       if let failure = error as? ShareFailure { throw failure }
       let code = (error as NSError).code
       if code == NSURLErrorTimedOut { throw ShareFailure.message("Request timed out, please try again.") }
       if [NSURLErrorCannotFindHost, NSURLErrorNotConnectedToInternet, NSURLErrorCannotConnectToHost].contains(code) { throw ShareFailure.message("Network unavailable, please check your connection.") }
       throw ShareFailure.message("Collection failed, please try again.")
     }
-  }
-  private static func report(status: String, version: String, duration: TimeInterval? = nil) {
-    #if canImport(FirebaseCore) && canImport(FirebaseAnalytics)
-    if FirebaseApp.app() == nil {
-      // Telemetry cannot turn a successful collection into an extension crash.
-      guard let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
-            let options = FirebaseOptions(contentsOfFile: path) else { return }
-      FirebaseApp.configure(options: options)
-    }
-    var properties: [String: Any] = ["method": "share_extension", "channel": "app", "status": status, "platform": "app", "platform_type": "ios", "version": version]
-    if let duration { properties["duration"] = "\(duration)s" }
-    Analytics.logEvent("bookmark_add_start", parameters: properties)
-    #endif
   }
   private final class RejectRedirects: NSObject, URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) { completionHandler(nil) }

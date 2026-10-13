@@ -7,7 +7,9 @@ open class Module {
 }
 class ModuleDefinition(build: ModuleDefinition.() -> Unit) {
   lateinit var imageCacheFileUri: (String, String, String) -> String?
+  lateinit var pdfCacheFileUri: (String, String) -> String?
   init { build() }
   fun Name(name: String) { check(name == "SlaxCachePaths") }
   fun Function(name: String, body: (String, String, String) -> String?) { check(name == "imageCacheFileUri"); imageCacheFileUri = body }
+  fun Function(name: String, body: (String, String) -> String?) { check(name == "pdfCacheFileUri"); pdfCacheFileUri = body }
 }

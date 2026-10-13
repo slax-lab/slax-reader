@@ -5,7 +5,7 @@ import {PreferenceStore} from '../../src/data/preferences.ts';
 import {SessionChangedError, SessionController} from '../../src/domain/session.ts';
 import {clearAccountData} from '../../src/data/account-cleanup.ts';
 import {createSyncConnector} from '../../src/data/connector.ts';
-import {MemoryPreferences} from './helpers.ts';
+import {MemoryPreferences, testJwt} from './helpers.ts';
 
 class HeldReadPreferences extends MemoryPreferences {
   private nextRead: {started: () => void; gate: Promise<void>; skip: number} | null = null;
@@ -64,12 +64,12 @@ test('a pending retry cannot send an old request after account switching', async
   await assert.rejects(api.rssLabs(), SessionChangedError); assert.equal(sends, 1);
 });
 
-test('persisted startup and account-enter API credentials remain usable before authenticated publication', async () => {
+test('persisted startup and account-enter API credentials remain usable independently of local presentation', async () => {
   const preferences = new PreferenceStore(new MemoryPreferences({auth_token: 'stored-token', user_id: 'a'}));
   const sent: string[] = [];
   let api!: ReturnType<typeof createMobileApi>;
   const sessions = new SessionController(preferences, {leave: async () => {}, enter: async () => {
-    assert.notEqual(sessions.getSnapshot().status, 'authenticated'); await api.getSyncToken();
+    await api.getSyncToken();
   }});
   api = createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions, fetch: async (_url, request) => {
     sent.push((request?.headers as Record<string, string>).Authorization); return Response.json({code: 200, data: {endpoint: 'https://sync.example', token: 'sync-token'}});
@@ -135,9 +135,9 @@ test('a held connector cache read cannot return fresh same-user credentials to a
   const connector = createSyncConnector(api, preferences, sessions, undefined, () => 2000);
   const held = storage.holdNextRead(1), oldCredentials = connector.fetchCredentials();
   await held.waiting; await sessions.signOut(); await sessions.accept('same-token', 'a');
-  await preferences.update(values => {values.powersync_token = 'fresh-cache'; values.powersync_connect_url = 'https://fresh-sync.example'; values.powersync_refresh_time = 1000; values.powersync_api_origin = 'https://api.example';});
+  await preferences.update(values => {values.powersync_token = testJwt('a'); values.powersync_connect_url = 'https://fresh-sync.example'; values.powersync_refresh_time = 1000; values.powersync_api_origin = 'https://api.example'; values.powersync_user_id = 'a';});
   held.release(); assert.equal(await oldCredentials, null); assert.equal(sends, 0);
-  assert.deepEqual(await connector.fetchCredentials(), {endpoint: 'https://fresh-sync.example', token: 'fresh-cache'});
+  assert.deepEqual(await connector.fetchCredentials(), {endpoint: 'https://fresh-sync.example', token: testJwt('a'), expiresAt: new Date(86401000)});
 });
 
 test('late connector network credentials cannot overwrite fresh same-user sync cache', async () => {
@@ -168,7 +168,7 @@ test('connector credential CAS retry rejects the expired connection scope', asyn
   const preferences = new PreferenceStore(new HeldSwapPreferences({auth_token: 'same-token', user_id: 'a'}));
   const sessions = new SessionController(preferences, {leave: async () => {}, enter: async () => {}});
   await sessions.restore();
-  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions, fetch: async () => Response.json({code: 200, data: {endpoint: 'https://old-sync.example', token: 'old-sync-token'}})});
+  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions, fetch: async () => Response.json({code: 200, data: {endpoint: 'https://old-sync.example', token: testJwt('a', Math.floor(Date.now() / 1000) + 86400, Math.floor(Date.now() / 1000))}})});
   let started!: () => void, release!: () => void;
   const waiting = new Promise<void>(resolve => {started = resolve;}), gate = new Promise<void>(resolve => {release = resolve;}); nextSwap = {started, gate};
   const oldCredentials = createSyncConnector(api, preferences, sessions).fetchCredentials();
@@ -268,7 +268,7 @@ test('interrupted source sign-out clears adopted rows, local data and cache befo
   assert.equal(sessions.getSnapshot().status, 'loading'); assert.deepEqual(events, []);
   allowCleanup(); await restoring; await accepting;
   assert.deepEqual(events, ['revoke-native-resources', 'clear-database', 'clear-cache', 'enter:b']);
-  assert.deepEqual(states, ['loading', 'unauthenticated', 'authenticated']);
+  assert.deepEqual(states, ['unauthenticated', 'authenticated']);
   assert.equal((await preferences.read()).powersync_token, undefined);
   assert.equal((await sessions.getSession())?.userId, 'b');
 });

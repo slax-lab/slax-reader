@@ -5,6 +5,7 @@ import {pathToFileURL} from 'node:url'
 import vm from 'node:vm'
 import ts from 'typescript'
 import React, {act} from 'react'
+import {motionModules} from '../ui/motion-modules.mjs'
 
 const require = createRequire(import.meta.url)
 let domModule = process.env.SLAX_READER_DOM_MODULE
@@ -14,6 +15,7 @@ if (!domModule) {
 export const nativeBoundary = {skip: !domModule && 'An existing happy-dom runtime is required'}
 export {React, act}
 export async function loadComponent(path, boundaries, globals = {}) {
+  boundaries = {...motionModules(boundaries), ...boundaries}
   if (path.endsWith('/ReaderOverlays.tsx') && !boundaries['../components/SourceSheetModal']) {
     boundaries = {...boundaries, '../components/SourceSheetModal': await loadComponent('../../src/components/SourceSheetModal.tsx', {react: boundaries.react, 'react-native': boundaries['react-native'], '../theme': boundaries['../theme']}, globals)}
   }
@@ -21,13 +23,38 @@ export async function loadComponent(path, boundaries, globals = {}) {
     const {installedMotionHost} = await import('../ui/installed-motion-host.mjs')
     boundaries = {...boundaries, 'react-native-reanimated': installedMotionHost(boundaries['react-native'].View).reanimated}
   }
-  const code = ts.transpileModule(await readFile(new URL(path, import.meta.url), 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true}}).outputText
-  const exports = {}
-  vm.runInNewContext(code, {exports, __DEV__: true, AbortController, Date, URL, setTimeout, clearTimeout, ...globals, require(name) {
-    assert.ok(Object.hasOwn(boundaries, name), `Unexpected native parity boundary: ${name}`)
-    return boundaries[name]
-  }})
-  return exports
+  const entry = new URL(path, import.meta.url)
+  const normalize = url => url.href.replace(/\.(tsx?|jsx?)$/, '').replace(/\/index$/, '')
+  const mapped = new Map(Object.entries(boundaries).map(([name, value]) => [name.startsWith('.') ? normalize(new URL(name, entry)) : name, value]))
+  const modules = new Map()
+  const load = async url => {
+    const key = normalize(url)
+    if (mapped.has(key)) return mapped.get(key)
+    if (modules.has(key)) return modules.get(key)
+    let source, resolved
+    for (const suffix of /\.[a-z]+$/.test(url.pathname) ? [''] : ['.ts', '.tsx', '/index.ts', '/index.tsx']) {
+      try {resolved = new URL(`${url.href}${suffix}`); source = await readFile(resolved, 'utf8'); break} catch (error) {if (error.code !== 'ENOENT') throw error}
+    }
+    assert.notEqual(source, undefined, `Missing real parity module: ${url.pathname}`)
+    const exports = {}; modules.set(key, exports)
+    const code = ts.transpileModule(source, {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true}}).outputText
+    const imports = new Map()
+    for (const match of code.matchAll(/require\(["']([^"']+)["']\)/g)) {
+      const name = match[1]
+      if (name.startsWith('.')) imports.set(name, await load(new URL(name, resolved)))
+      else {assert.ok(mapped.has(name), `Unexpected native parity boundary: ${name} in ${resolved.pathname}`); imports.set(name, mapped.get(name))}
+    }
+    vm.runInNewContext(code, {exports, __DEV__: true, AbortController, Date, URL, setTimeout, clearTimeout, ...globals, require: name => imports.get(name)}, {filename: resolved.pathname})
+    return exports
+  }
+  return load(entry)
+}
+export async function withRenderedElement(element, run) {
+  const {createRoot} = await import('react-dom/client')
+  const container = document.createElement('div'), root = createRoot(container)
+  document.body.append(container)
+  try {await act(async () => root.render(element)); return await run(container)}
+  finally {await act(async () => root.unmount()); container.remove()}
 }
 export async function withNativeHost(run) {
   const {Window} = await import(pathToFileURL(domModule).href), window = new Window()

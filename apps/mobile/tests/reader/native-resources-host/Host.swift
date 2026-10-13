@@ -17,6 +17,10 @@ private final class Task: NSObject, WKURLSchemeTask {
   func didFailWithError(_ error: Error) { failed = true }
 }
 
+private final class MissingMimeResponse: URLResponse, @unchecked Sendable {
+  override var mimeType: String? { nil }
+}
+
 @main struct Host {
   static func spin(_ until: () -> Bool) {
     let deadline = Date().addingTimeInterval(5)
@@ -96,7 +100,7 @@ private final class Task: NSObject, WKURLSchemeTask {
     stream.urlSession(session, task: network, willPerformHTTPRedirection: response, newRequest: URLRequest(url: URL(string: "https://auth.example/a")!)) { precondition($0 == nil) }
     precondition(redirectTask.failed)
     session.invalidateAndCancel()
-    for mime in ["text/html", "application/json"] {
+    for mime in ["text/html", "application/json", "application/octet-stream"] {
       let rejected = Task("slaxstatics://public.test/a")
       let imageStream = SlaxResourceStream(task: rejected, original: URL(string: "https://public.test/a")!, cache: { nil }, cached: { nil }, allowsNetwork: true, security: policy, hasOwnership: { true }, done: {})
       imageStream.urlSession(session, dataTask: network, didReceive: URLResponse(url: URL(string: "https://public.test/a")!, mimeType: mime, expectedContentLength: 5, textEncodingName: nil)) { precondition($0 == .cancel) }
@@ -105,7 +109,10 @@ private final class Task: NSObject, WKURLSchemeTask {
     for privateImage in [false, true] {
       let missingMime = Task("slaxstatics://public.test/a")
       let imageStream = SlaxResourceStream(task: missingMime, original: URL(string: "https://public.test/a")!, cache: { nil }, cached: { nil }, allowsNetwork: true, security: policy, privateImage: privateImage, hasOwnership: { true }, done: {})
-      imageStream.urlSession(session, dataTask: network, didReceive: URLResponse(url: URL(string: "https://public.test/a")!, mimeType: nil, expectedContentLength: 5, textEncodingName: nil)) { precondition($0 == (privateImage ? .cancel : .allow)) }
+      let response = MissingMimeResponse(url: URL(string: "https://public.test/a")!, mimeType: nil, expectedContentLength: 5, textEncodingName: nil)
+      precondition(response.mimeType == nil)
+      imageStream.urlSession(session, dataTask: network, didReceive: response) { precondition($0 == (privateImage ? .cancel : .allow)) }
+      precondition(missingMime.failed == privateImage && missingMime.responses == (privateImage ? 0 : 1))
       imageStream.cancel()
     }
     let imagePromise = ExpoModulesCore.Promise()
@@ -169,6 +176,11 @@ private final class Task: NSObject, WKURLSchemeTask {
     precondition(bridge(root.path, "foreign", relative) == nil)
     precondition(bridge(root.path, "alias", "bookmark/alias/images/\(hash).jpg") == nil)
     precondition(bridge(root.path, "external", "bookmark/external/images/\(hash).jpg") == nil)
+    let pdfBridge = SlaxCachePathsModule().definition().pdfCacheFileUri
+    let support = manager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+    precondition(pdfBridge(support.path, "pdf/v1/account/document/manifest.json.entries/1.data") != nil)
+    for path in ["pdf/../foreign", "pdf//document", "pdf/./document", "bookmark/document", "pdf/%2f/document"] { precondition(pdfBridge(support.path, path) == nil) }
+    precondition(pdfBridge(outside.path, "pdf/v1/account/document") == nil)
     handler.close()
     let closed = Task("slaxstatics://example.com/image")
     handler.start(closed)

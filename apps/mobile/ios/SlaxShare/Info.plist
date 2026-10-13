@@ -17,7 +17,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.0.25</string>
 	<key>CFBundleVersion</key>
-	<string>761</string>
+	<string>764</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>
@@ -42,7 +42,7 @@
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>SlaxApiBaseURL</key>
-	<string>https://api-reader.slax.com</string>
+	<string>https://reader-api.slax.dev</string>
 	<key>SlaxApiBetaURL</key>
 	<string>https://api-reader-beta.slax.com</string>
 </dict>

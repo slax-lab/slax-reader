@@ -35,9 +35,9 @@ Inbox, Starred, and Archived SHALL retain the source-ordered flat list without d
 - **AND** opening the add-link form with no valid clipboard URL stays empty and silent without overwriting subsequent typing
 
 #### Scenario: The application starts before local data is ready
-- **WHEN** account ownership and local startup checks are still pending
-- **THEN** the default blank surface appears without an animated loading indicator
-- **AND** safe available content replaces it immediately without exposing a previous account
+- **WHEN** local logged-in state is known while account ownership, refresh, sync or initialization remains pending
+- **THEN** Login or the authenticated shell is presented immediately, with localized data loading or upgrade failure rather than a global blank wait
+- **AND** cached content waits for verified account/migration admission and protected requests wait for valid credentials without exposing a previous account
 
 #### Scenario: The user scrolls a collection feed
 - **WHEN** the library list is dragged vertically
@@ -107,7 +107,7 @@ iOS SHALL retain an independently operating share extension with the original id
 
 ### Requirement: Auxiliary behavior is included in completion
 
-Feedback, About, sidebar/logout, cache cleanup, hidden diagnostic entry, environment switching, network/sync diagnostics, and existing analytics/crash reporting SHALL retain their source behavior and platform restrictions. New push registration, global search, arbitrary business deep links, and previously unwired helpers MUST NOT be falsely counted as source parity requirements or substitutes for implemented flows.
+Feedback, About, sidebar/logout, cache cleanup, hidden diagnostic entry, environment switching, network/sync diagnostics, and main-app analytics/crash reporting SHALL retain their source behavior and platform restrictions. By explicit user decision, the standalone `app.slax.reader.share` extension SHALL NOT integrate Firebase telemetry or require Firebase configuration/linkage; this exception MUST NOT remove main-app Analytics or Crashlytics or alter the extension's collection, shared-authentication and App Group behavior. New push registration, global search, arbitrary business deep links, and previously unwired helpers MUST NOT be falsely counted as source parity requirements or substitutes for implemented flows.
 
 #### Scenario: Diagnostic behavior is exercised
 - **WHEN** a user opens the hidden diagnostic route and performs a supported cache or environment action

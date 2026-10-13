@@ -10,7 +10,7 @@ import {bookmarkCacheKey, MobileRepositories} from '../../src/data/repositories.
 import type {SqlDatabase, SqlTransaction} from '../../src/data/repositories.ts';
 import {createSyncConnector} from '../../src/data/connector.ts';
 import type {SlaxApi} from '../../src/data/api.ts';
-import {MemoryPreferences} from './helpers.ts';
+import {MemoryPreferences, testJwt} from './helpers.ts';
 
 const varint = (value: bigint): number[] => {const bytes: number[] = []; do {const next = Number(value & 127n); value >>= 7n; bytes.push(next | (value ? 128 : 0));} while (value); return bytes;};
 const message = (tag: number, data: number[]) => [tag, ...varint(BigInt(data.length)), ...data];
@@ -52,12 +52,12 @@ test('existing database requires complete adoption evidence and no filename fall
   assert.throws(() => verifiedDatabaseLocation({...inventory, databaseCandidates: ['/different/powersync.db']}, evidence), UpgradeVerificationRequired);
 });
 test('cached PowerSync credentials retain milliseconds and cannot race a newer login', async () => {
-  const storage = new MemoryPreferences({auth_token: 'a', user_id: 'u', powersync_refresh_time: 1000, powersync_connect_url: 'https://sync.example', powersync_token: 'cached', powersync_api_origin: 'https://api.example'});
+  const storage = new MemoryPreferences({auth_token: 'a', user_id: 'u', powersync_refresh_time: 1000, powersync_connect_url: 'https://sync.example', powersync_token: testJwt('u'), powersync_api_origin: 'https://api.example', powersync_user_id: 'u'});
   const prefs = new PreferenceStore(storage), sessions = {getSession: async () => ({token: String(storage.values.auth_token), userId: String(storage.values.user_id), refreshedAt: 0}), clearIfMatches: async () => false};
   let calls = 0;
-  const api = {options: {baseUrl: 'https://api.example'}, getSyncToken: async () => {calls++; storage.values = {auth_token: 'b', user_id: 'new'}; storage.revision++; return {endpoint: 'https://new.example', token: 'fetched'};}} as SlaxApi;
+  const api = {options: {baseUrl: 'https://api.example'}, getSyncToken: async () => {calls++; storage.values = {auth_token: 'b', user_id: 'new'}; storage.revision++; return {endpoint: 'https://new.example', token: testJwt('u')};}} as SlaxApi;
   const connector = createSyncConnector(api, prefs, sessions, undefined, () => 2000);
-  assert.deepEqual(await connector.fetchCredentials(), {endpoint: 'https://sync.example', token: 'cached'}); assert.equal(calls, 0);
+  assert.deepEqual(await connector.fetchCredentials(), {endpoint: 'https://sync.example', token: testJwt('u'), expiresAt: new Date(86401000)}); assert.equal(calls, 0);
   const force = createSyncConnector(api, prefs, sessions, 'https://local.example', () => 2000);
   assert.equal(await force.fetchCredentials(), null); assert.equal(storage.values.powersync_token, undefined);
 });
@@ -65,10 +65,10 @@ test('unscoped legacy credentials and a different API environment require fresh 
   const storage = new MemoryPreferences({auth_token: 'fixture', user_id: 'u', powersync_refresh_time: 1000, powersync_connect_url: 'https://old-sync.example', powersync_token: 'cached'});
   const preferences = new PreferenceStore(storage), sessions = {getSession: async () => ({token: 'fixture', userId: 'u', refreshedAt: 0}), clearIfMatches: async () => false};
   let calls = 0;
-  const api = {options: {baseUrl: 'https://api.example'}, getSyncToken: async () => {calls++; return {endpoint: 'https://new-sync.example', token: 'fresh'};}} as SlaxApi;
+  const api = {options: {baseUrl: 'https://api.example'}, getSyncToken: async () => {calls++; return {endpoint: 'https://new-sync.example', token: testJwt('u')};}} as SlaxApi;
   const connector = createSyncConnector(api, preferences, sessions, undefined, () => 2000);
-  assert.equal((await connector.fetchCredentials())?.token, 'fresh'); assert.equal(calls, 1);
-  await connector.fetchCredentials(); assert.equal(calls, 1);
+  assert.equal((await connector.fetchCredentials())?.token, testJwt('u')); assert.equal(calls, 1);
+  connector.resume(); await connector.fetchCredentials(); assert.equal(calls, 1);
   api.options.baseUrl = 'https://beta.example'; await connector.fetchCredentials(); assert.equal(calls, 2);
   assert.equal((await preferences.read()).powersync_api_origin, 'https://beta.example');
 });

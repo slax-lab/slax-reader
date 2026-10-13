@@ -23,7 +23,7 @@ test('startup renders only the default surface until the current account is read
   assert.ok(host.props.has('app-startup-surface'));
   assert.equal(host.props.get('app-startup-surface').children, undefined);
   assert.deepEqual(screens, []);
-  context = {...context, upgrade: {status: 'ready'}, session: {status: 'unauthenticated'}}; await render();
+  context = {...context, upgrade: {status: 'checking'}, session: {status: 'unauthenticated'}}; await render();
   assert.deepEqual(screens, ['Login']);
   context = {...context, session: {status: 'authenticated', session: {userId: 'current'}}}; await render();
   assert.equal(host.props.has('app-startup-surface'), false); assert.ok(screens.includes('Library'));

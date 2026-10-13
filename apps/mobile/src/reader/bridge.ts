@@ -1,3 +1,4 @@
+import { validatePdfSources } from '@slax-reader/contracts/pdf'
 import { scriptJson } from './document.ts'
 import {parseReaderInputSnapshot} from './input.ts'
 import type { HtmlMarkPath, ReaderCommand, ReaderComment, ReaderEvent, ReaderMarkItem, ReaderSelection, SelectionGeometry } from './types.ts'
@@ -17,6 +18,14 @@ function htmlPath(value: unknown): value is HtmlMarkPath {
   return value.type === 'image' || (value.type === 'text' && integer(value.start) && integer(value.end) && value.start >= 0 && value.end >= value.start)
 }
 
+function readerSources(source: unknown[], html: (path: unknown) => boolean, documentId?: string): boolean {
+  try {
+    const firstPdf = source.find(path => object(path) && path.type === 'pdf')
+    return validatePdfSources(source, documentId ?? (object(firstPdf) && string(firstPdf.document_id) ? firstPdf.document_id : undefined)) === undefined
+      ? source.every(html) : true
+  } catch { return false }
+}
+
 function comment(value: unknown, depth = 0): value is ReaderComment {
   if (!object(value) || depth > 32 || !integer(value.markId) || !integer(value.userId) || !string(value.comment) ||
       !string(value.username) || !string(value.avatar) || typeof value.isDeleted !== 'boolean' || !string(value.createdAt) ||
@@ -26,9 +35,9 @@ function comment(value: unknown, depth = 0): value is ReaderComment {
   return value.rootId == null || integer(value.rootId)
 }
 
-export function parseReaderMark(value: unknown): ReaderMarkItem | null {
+export function parseReaderMark(value: unknown, documentId?: string): ReaderMarkItem | null {
   value = maybeJson(value)
-  if (!object(value) || !string(value.id) || !Array.isArray(value.source) || !value.source.every(htmlPath) ||
+  if (!object(value) || !string(value.id) || !Array.isArray(value.source) || !readerSources(value.source, htmlPath, documentId) ||
       !Array.isArray(value.stroke) || !value.stroke.every(stroke => object(stroke) && integer(stroke.userId) && (stroke.mark_id == null || integer(stroke.mark_id))) ||
       !Array.isArray(value.comments) || !value.comments.every(item => comment(item))) return null
   if (value.approx != null && (!object(value.approx) || !string(value.approx.exact) ||
@@ -36,12 +45,12 @@ export function parseReaderMark(value: unknown): ReaderMarkItem | null {
   return value as unknown as ReaderMarkItem
 }
 
-export function parseReaderSelection(value: unknown): ReaderSelection | null {
+export function parseReaderSelection(value: unknown, documentId?: string): ReaderSelection | null {
   value = maybeJson(value)
   if (value === null) return null
   if (!object(value) || !string(value.text) || !Array.isArray(value.source) || value.source.length === 0 ||
-      !value.source.every(path => object(path) && (path.type === 'text' || path.type === 'image') && string(path.xpath) &&
-        integer(path.start_offset) && integer(path.end_offset) && path.start_offset >= 0 && path.end_offset >= path.start_offset) ||
+      !readerSources(value.source, path => object(path) && (path.type === 'text' || path.type === 'image') && string(path.xpath) &&
+        integer(path.start_offset) && integer(path.end_offset) && path.start_offset >= 0 && path.end_offset >= path.start_offset, documentId) ||
       !Array.isArray(value.select_content) || !value.select_content.every(content => object(content) &&
         (content.type === 'text' || content.type === 'image') && string(content.text) && string(content.src)) ||
       !object(value.approx_source) || !string(value.approx_source.exact) || !string(value.approx_source.prefix) ||
@@ -81,7 +90,7 @@ export function parseReaderMessage(message: string, pageId: string): ReaderEvent
     case 'markItemInfosChanged': {
       const values = maybeJson(payload.markItemInfos)
       if (!Array.isArray(values)) return null
-      const marks = values.map(parseReaderMark)
+      const marks = values.map(value => parseReaderMark(value))
       return marks.every((mark): mark is ReaderMarkItem => mark !== null) ? { type: 'markItemInfosChanged', marks } : null
     }
     case 'imageClick':

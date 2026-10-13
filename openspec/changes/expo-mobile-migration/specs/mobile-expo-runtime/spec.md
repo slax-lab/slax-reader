@@ -64,12 +64,22 @@ Migration SHALL preserve the source repository and account for its audited worki
 
 ### Requirement: Final release delivery follows the authorized TestFlight scope
 
-The application SHALL distinguish a fully accepted migration release from an explicitly authorized preview. The user authorized immediate TestFlight preview delivery of `1.0.25 (761)` following uploaded build `760`, plus a publisher-signed Android App Bundle copied to Downloads, Git delivery and subsequent task-owned build/cache/simulator cleanup. Main-app Firebase configurations and Android signing inputs were supplied for opaque build-tool use; full parity acceptance and standalone Share Firebase configuration remain incomplete. Preview delivery MUST retain the incomplete acceptance and telemetry status rather than certify it as complete. Main/share installation identities, App Group and matching version/build metadata SHALL be preserved. Release tooling SHALL use opaque authorized Apple signing/authentication without reading, printing or copying credential/private-key contents. The subsequent user follow-up also requires Android packaging with the original `com.slax.reader` identity and explicit version, signature, embedded-bundle and installability evidence. Publisher signing inputs remain operator-managed; an unsigned validation build MUST NOT be presented as an installable release or signed with a substitute identity. Public App Store publication and production backend operations remain outside this authorization.
+The application SHALL distinguish a fully accepted migration release from an explicitly authorized preview. The historical preview-763 instruction confirmed `1.0.25 (762)` as the prior build and authorized publisher-signed TestFlight preview `1.0.25 (763)` without further tests, before remaining acceptance was complete. Its delivery receipt remains historical evidence. The subsequent PDF-correction/architecture request explicitly requires new tests and native motion verification and authorizes no additional publication or deployment. Historical build-761 Android/TestFlight delivery and its receipts remain unchanged. Preview delivery MUST retain unfinished acceptance and telemetry evidence as incomplete. The standalone `app.slax.reader.share` extension SHALL have no Firebase integration, configuration/linkage or Firebase admission requirement by explicit user decision; main-app Analytics/Crashlytics and their configuration, bootstrap, symbol-upload and release-admission checks SHALL remain intact. Main/share installation identities, App Group and matching version/build metadata SHALL be preserved. Release tooling SHALL use opaque authorized Apple signing/authentication without reading, printing or copying credential/private-key contents, and SHALL retain signed-artifact identity and fixture-exclusion checks. Publisher signing inputs remain operator-managed; an unsigned validation build MUST NOT be presented as a signed release. Backend deployment remains separately unauthorized: compatible deployed PDF APIs determine live feature availability but SHALL NOT be required to proceed with this explicitly authorized preview. Public App Store publication remains outside scope; upload and processing/availability SHALL be recorded separately.
 
 #### Scenario: The user requests an early preview
 - **WHEN** the user explicitly requests a TestFlight preview before full acceptance
 - **THEN** the publisher-signed preview is uploaded with matching main/share identities and incremented build metadata
 - **AND** unavailable native, performance and telemetry checks remain recorded as incomplete, not hidden as passed
+
+#### Scenario: Share has no Firebase configuration
+- **WHEN** the main app has its required Firebase integration and the standalone Share target has no Firebase integration or configuration
+- **THEN** release admission does not require Share Firebase resources, bootstrap, linkage or telemetry
+- **AND** main Analytics/Crashlytics checks and both bundles' identity, version, signature and App Group checks remain enforced
+
+#### Scenario: Preview 763 is requested without further tests
+- **WHEN** the user confirms build 762 and requests immediate TestFlight preview 763 without further tests
+- **THEN** the signed main/share build uses `1.0.25 (763)` and records 762 as the user-confirmed prior bound without claiming remote history was independently queried
+- **AND** no further test run or backend deployment is required for this preview, while incomplete acceptance and conditional PDF live availability remain explicit
 
 #### Scenario: The accepted iOS release reaches TestFlight
 - **WHEN** migration acceptance is complete and the authorized iOS archive/export succeeds
@@ -80,3 +90,26 @@ The application SHALL distinguish a fully accepted migration release from an exp
 - **WHEN** publisher signing, upload or Apple processing cannot complete
 - **THEN** the validated local work and recoverable artifacts are retained
 - **AND** the release task stays incomplete with the specific limitation recorded rather than publishing an unverified replacement
+
+### Requirement: Mobile features have enforced responsibility boundaries
+
+Following the approved post-763 correction, Mobile SHALL prioritize the main API/PowerSync credential-lifetime repair and stabilize PDF behavior before broad architecture refactoring. Credential work may proceed alongside unfinished native PDF correction without starting Phase 2. The subsequent refactor SHALL provide thin route composition, cohesive feature state/controllers and presentation, typed domain/data ports, and native/infrastructure adapters. Reader host geometry and format-specific rendering SHALL be separate from bookmark/comment/AI/overlay state; Library, settings/account, auth, RSS and payments SHALL retain explicit feature boundaries. Shared UI MUST NOT import screens or activate services, and presentation MUST NOT perform SQL, network/file I/O or global account transitions. Each asynchronous operation, subscription, timer and animation SHALL have one cancellation owner. Import/cycle checks SHALL enforce these boundaries using existing tooling.
+
+#### Scenario: A feature is extracted from a large screen
+- **WHEN** Reader or another mobile screen is split into modules
+- **THEN** real behavior and account/document cleanup remain covered through its extracted controllers and components
+- **AND** the change does not merely move unrelated responsibilities into one oversized hook or compressed presentation file
+
+### Requirement: Current testing and generated guidance support the architecture
+
+The post-763 follow-up SHALL add meaningful unit/component coverage using the current Node/TypeScript/React host conventions plus real-browser/native verification. Preview 763's no-further-tests exception SHALL NOT apply to this new work. Expo SDK, React Navigation and approved animation/data libraries SHALL remain unless separately authorized; optional test packages require an explicit dependency decision rather than an automatic framework migration. English mobile-scoped guidance SHALL be authored in `.rulesync/`, generated as `apps/mobile/AGENTS.md` with `pnpm agent:sync`, and included in drift checks, never hand-edited.
+
+#### Scenario: Architecture and motion changes are delivered
+- **WHEN** the integrated refactor is ready for acceptance
+- **THEN** mobile check/bundle, affected native builds, original native PDF/interaction scenarios and generated-rule drift checks run on the deliverable
+- **AND** mocks, skipped checks and missing live API evidence remain distinct from native or production acceptance
+
+#### Scenario: A contributor updates mobile agent guidance
+- **WHEN** responsibility, ownership or animation rules change
+- **THEN** the mobile-scoped `.rulesync/rules/mobile-architecture.md` source and root repository map are updated and regenerated
+- **AND** nested generated guidance is checked for drift without hand edits or new deployment/publication authorization

@@ -1,0 +1,45 @@
+{
+  "version": "1.0.25",
+  "build": 763,
+  "previousBuild": 762,
+  "previousBuildSource": "user confirmation",
+  "kind": "user-authorized-preview",
+  "ios": {
+    "teamId": "8G3A932HJG",
+    "mainBundleId": "app.slax.reader",
+    "shareBundleId": "app.slax.reader.share",
+    "appGroup": "group.app.slax.reader",
+    "archiveSucceeded": true,
+    "exportSucceeded": true,
+    "signaturesAndVersionsVerified": true,
+    "localExportIpaSha256": "e83ca033ab8490ca28a408e54ce7421a626ccebdf53e1d3d7eea6e446c2e682e",
+    "localExportHashScope": "Verified local export; Xcode subsequently exported the same verified archive for upload.",
+    "uploadSucceeded": true,
+    "uploadCompletedAt": "2026-10-13T03:13:04.604Z",
+    "appleStatusAtUpload": "Uploaded package is processing.",
+    "testFlightInstallAvailabilityVerified": false,
+    "missingPrebuiltDsyms": ["React.framework", "ReactNativeDependencies.framework", "hermesvm.framework"]
+  },
+  "firebase": {
+    "mainConfiguredAndAdmissionPassed": true,
+    "shareRequired": false,
+    "shareIntegrationRemoved": true,
+    "shareResourceAbsentInArchive": true,
+    "configurationContentsInspected": false,
+    "nativeEventAndCrashDeliveryVerified": false
+  },
+  "validation": {
+    "additionalFunctionalTests": "not run at user instruction",
+    "nativePrebuildAndPods": "passed",
+    "signedArtifactChecks": "passed",
+    "openSpecStrict": "32 passed",
+    "fullMigrationAndLivePdfAcceptance": "incomplete",
+    "backendDeployed": false
+  },
+  "localEvidence": {
+    "archiveReport": ".local/pdf-testflight-763-r2/ios-release-report.json",
+    "exportReport": ".local/pdf-testflight-763-export/ios-release-report.json",
+    "uploadReport": ".local/pdf-testflight-763-export/upload-dfd3e89f-ce75-43c9-b0cb-f59d8e203e0f/ios-release-report.json",
+    "uploadLog": ".local/pdf-testflight-763-upload.log"
+  }
+}

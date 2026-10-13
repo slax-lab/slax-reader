@@ -2,6 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {React, act, nativeBoundary, loadComponent, withNativeHost} from '../reader/parity-host.mjs'
 import {mobileColors, mobileLayout, mobileTypography} from '../../src/theme/index.ts'
+import {SessionController} from '../../src/domain/session.ts'
+import {PreferenceStore} from '../../src/data/preferences.ts'
+import {FixtureMemoryPreferences} from '../../fixtures/isolation.ts'
 
 const text = node => Array.isArray(node) ? node.map(text).join('') : React.isValidElement(node) ? text(node.props.children) : node ?? ''
 const deferred = () => {let resolve, reject; const promise = new Promise((yes, no) => {resolve = yes; reject = no}); return {promise, resolve, reject}}
@@ -14,7 +17,8 @@ async function loginFixture(host, platform, run) {
     modal = {...props, onDismiss() {phase = 'dismissed'; lifecycle.push(phase); props.onDismiss()}}
     return props.visible ? React.createElement(host.native.View, props) : null
   }
-  const mobile = {api: {login: async request => {requests.push(request); return {token: 'synthetic', user_id: 'fixture'}}}, sessions: {getSnapshot: () => session, accept: async (...values) => accepted.push(values)}, t: key => key, config: {webUrl: 'https://fixture.test'}}
+  let identity = 0
+  const mobile = {api: {login: async request => {requests.push(request); return {token: 'synthetic', user_id: 'fixture'}}}, sessions: {getSnapshot: () => session, captureIdentity: () => {const before = identity; return () => {if (before !== identity) throw new Error('Identity changed')}}, accept: async (...values) => accepted.push(values)}, t: key => key, config: {webUrl: 'https://fixture.test'}}
   const {LoginScreen} = await loadComponent('../../src/screens/LoginScreen.tsx', {
     react: React, 'react-native': {...host.native, Platform: {OS: platform}, Text: primitive, Pressable: primitive, Modal, Alert: {alert: (...args) => alerts.push(args)}},
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})}, 'react-native-webview': {WebView: () => null}, '../../assets': {mobileAssets: {}},
@@ -24,7 +28,10 @@ async function loginFixture(host, platform, run) {
   const render = () => host.render(React.createElement(LoginScreen))
   const press = key => act(async () => controls.get(key).onPress())
   await render()
-  await run({render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, setUser: () => {session = {status: 'authenticated', session: {userId: 'other'}}}, authenticate: value => {authenticate = value}})
+  await run({render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, useSessions: value => {mobile.sessions = value},
+    hydrate: () => {session = {status: 'unauthenticated'}},
+    replaceIdentity: () => {identity++; session = {status: 'unauthenticated'}},
+    setUser: () => {identity++; session = {status: 'authenticated', session: {userId: 'other', token: 'replacement'}}}, authenticate: value => {authenticate = value}})
 }
 
 for (const platform of ['ios', 'android']) test(`mounted ${platform} Google agreement continues only at its platform dismissal boundary`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, platform, async fixture => {
@@ -61,10 +68,38 @@ test('retired iOS agreement cannot start replacement provider and provider rejec
   assert.equal(fixture.alerts.length, 1); assert.deepEqual(fixture.accepted, [])
 })))
 
-for (const cancel of ['unmount', 'account']) test(`provider completion after ${cancel} cannot accept a session`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'ios', async fixture => {
+for (const cancel of ['unmount', 'account', 'identity']) test(`provider completion after ${cancel} cannot accept a session`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'ios', async fixture => {
   const gate = deferred(); fixture.authenticate(() => gate.promise)
   await fixture.press('login_google'); await fixture.press('agreement_btn_agree'); await act(async () => fixture.modal().onDismiss())
-  if (cancel === 'unmount') await host.unmount(); else fixture.setUser()
+  if (cancel === 'unmount') await host.unmount(); else if (cancel === 'identity') fixture.replaceIdentity(); else fixture.setUser()
   await act(async () => gate.resolve({provider: 'google'}))
   assert.deepEqual(fixture.requests, []); assert.deepEqual(fixture.accepted, []); assert.deepEqual(fixture.alerts, [])
+})))
+
+for (const platform of ['ios', 'android']) test(`mounted ${platform} native provider survives same-identity unauthenticated DB hydration`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, platform, async fixture => {
+  const gate = deferred(); fixture.authenticate(() => gate.promise)
+  await fixture.press('login_google'); await fixture.press('agreement_btn_agree')
+  if (platform === 'ios') {
+    fixture.hydrate(); await fixture.render()
+    await act(async () => fixture.modal().onDismiss())
+  }
+  assert.equal(fixture.providers.length, 1)
+  fixture.hydrate(); await fixture.render()
+  await act(async () => gate.resolve({provider: 'google'}))
+  assert.equal(fixture.requests.length, 1); assert.equal(fixture.accepted.length, 1); assert.deepEqual(fixture.alerts, [])
+})))
+
+for (const platform of ['ios', 'android']) test(`mounted ${platform} provider completes across real SessionController DB restore`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, platform, async fixture => {
+  const gate = deferred(), database = deferred()
+  const sessions = new SessionController(new PreferenceStore(new FixtureMemoryPreferences({})), {leave: () => database.promise, enter: async () => {}}, () => 123)
+  await sessions.restoreLocal(); fixture.useSessions(sessions); await fixture.render()
+  const identity = sessions.captureIdentity()
+  fixture.authenticate(() => gate.promise)
+  await fixture.press('login_google'); await fixture.press('agreement_btn_agree')
+  if (platform === 'ios') await act(async () => fixture.modal().onDismiss())
+  const restoring = sessions.restore()
+  await act(async () => {database.resolve(); await restoring})
+  assert.equal(sessions.getSnapshot().status, 'unauthenticated'); assert.doesNotThrow(identity)
+  await fixture.render(); await act(async () => gate.resolve({provider: 'google'}))
+  assert.equal(fixture.requests.length, 1); assert.equal(sessions.getSnapshot().status, 'authenticated'); assert.equal(sessions.getSnapshot().session.userId, 'fixture'); assert.deepEqual(fixture.alerts, [])
 })))

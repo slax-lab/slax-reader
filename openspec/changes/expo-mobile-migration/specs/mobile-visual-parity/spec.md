@@ -41,3 +41,17 @@ Copied assets SHALL retain source provenance, logical size, original brand paint
 - **WHEN** an original mobile vector cannot be consumed directly by the chosen runtime
 - **THEN** its geometry is preserved through a deterministic application-owned transformation or approved renderer
 - **AND** it is not replaced with an approximate icon from an unapproved library
+
+### Requirement: Mobile motion remains native-coupled and interruptible
+
+The approved architecture follow-up SHALL use existing native/UI-thread mechanisms for gesture and scroll-following motion, without per-frame React state updates or rebuilding PDF layout. Reusable motion parameters/policies SHALL preserve measured interruptible entry/exit, reduced motion, accessibility visibility, hit testing, stationary backdrops, keyboard avoidance, native-back cancellation and real dismissal completion. Drawer, row swipe, Reader floating actions, sheets/comment keyboard and route transitions SHALL be verified on both native platforms; unit tests alone MUST NOT establish smoothness or unmeasured frame-rate improvements.
+
+#### Scenario: A sheet or gesture animation is interrupted
+- **WHEN** dismissal, replacement, backgrounding or native-back cancellation interrupts motion
+- **THEN** the owning animation stops or resumes coherently without stale callbacks, hidden touch interception or lost drafts
+- **AND** reduced-motion and accessibility state match the final visible/native navigation state
+
+#### Scenario: PDF uses the approved uncluttered Reader presentation
+- **WHEN** a PDF is opened or scrolled
+- **THEN** its native header/widgets and document move through the established HTML Reader scroll model without a separate capped header scroller
+- **AND** AI-preparation notices, offline/completion badges, partial-cache rows and PDF page/zoom/Fit toolbar are absent while existing native Reader actions and genuine error feedback remain

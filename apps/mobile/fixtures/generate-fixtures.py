@@ -122,6 +122,47 @@ add("login-cancelled", {"name": "Login"}, edits=login_fixture, actions=[{"kind":
 add("login-error", {"name": "Login"}, edits=lambda v: login_fixture(v, "error"), actions=[{"kind": "begin-login", "provider": "google"}, {"kind": "accept-agreement"}])
 add("login-success", {"name": "Login"}, edits=lambda v: login_fixture(v, "success"), actions=[{"kind": "begin-login", "provider": "google"}, {"kind": "accept-agreement"}])
 
+def pdf_fixture(name, identifier, document, title, overview, page, offline=False):
+    record = bookmark("mixed", title, url=f"https://fixture-pages.test/{document}.pdf")
+    record.update({"id": identifier, "type": 2})
+    metadata = json.loads(record["metadata"])
+    metadata["tags"] = []
+    metadata["bookmark"].update({"uuid": identifier, "type": 2, "site_name": "Fixture PDF", "content_word_count": 600 if document == "long-pages" else 160})
+    record["metadata"] = dumps(metadata)
+    database = {table: [] for table in base["database"]}
+    database.update({"sr_user": deepcopy(base["database"]["sr_user"]), "sr_user_bookmark": [record],
+                     "ps_data_local__local_bookmark_info": [{"id": identifier, "data": dumps({"id": identifier, "is_downloaded": 0, "is_auto_cached": 1, "overview": overview, "outline": f"- [Page {page}](#page={page})", "mark_users": "[]"})}]})
+    plan = {"bookmarkId": identifier, "document": document}
+    if offline: plan["prepare"] = "complete"
+    actions = [{"kind": "pdf-cache-status"}]
+    if not offline: actions += [{"kind": "pdf-fill-cache"}, {"kind": "pdf-network-offline"}]
+    actions += [{"kind": "background-flush"}, {"kind": "pdf-cache-status"}, {"kind": "pdf-network-online"}]
+    scenarios[name] = {"route": {"name": "Reader", "params": {"bookmarkId": identifier}}, "payload": {
+        "settings": {"user_language": "en", "cache_count": 0, "download_images": 0, "user_setting_detail_do_not_alert": "true"},
+        "session": deepcopy(base["session"]), "database": database, "cache": [], "pdf": [plan],
+        "network": {"isConnected": not offline, "isInternetReachable": not offline}, "sync": dict(base["sync"], connected=not offline),
+        "api": [response("/v1/user/labs", {"features": [{"key": "pdf", "enabled": True}, {"key": "rss", "enabled": False}]}), response("/v1/mark/users", [])],
+    }, "actions": actions, "nativeExecution": "pending-adapter-and-device"}
+
+pdf_fixture("reader-pdf", "fixture-pdf-eight", "eight-pages", "Eight-page selectable PDF fixture", "Eight deterministic PDF pages, including a rotated third page.", 3)
+pdf_fixture("reader-pdf-long", "fixture-pdf-long", "long-pages", "Thirty-page PDF range fixture", "Thirty deterministic PDF pages for bounded rendering and cache ranges.", 20)
+pdf_fixture("reader-pdf-offline", "fixture-pdf-offline", "eight-pages", "Fully cached offline PDF fixture", "A PDF cached through the production queue before the network becomes unavailable.", 3, offline=True)
+pdf_fixture("reader-pdf-import", "fixture-pdf-imported", "eight-pages", "Synthetic native PDF import", "The native picker copied the seeded PDF; upload and delayed synchronization are simulated locally.", 3)
+import_scenario = scenarios["reader-pdf-import"]
+import_scenario["route"] = {"name": "Library"}
+import_scenario["actions"] = [{"kind": "open-add-link"}, {"kind": "pdf-cache-status"}]
+import_scenario["payload"]["nativePdfImport"] = {"bookmarkId": "fixture-pdf-imported", "syncDelayMs": 2000,
+    "rows": {table: import_scenario["payload"]["database"][table] for table in ["sr_user_bookmark", "ps_data_local__local_bookmark_info"]}}
+for table in import_scenario["payload"]["nativePdfImport"]["rows"]:
+    import_scenario["payload"]["database"][table] = []
+pdf_fixture("reader-pdf-native-storage", "fixture-pdf-native", "long-pages", "Native production PDF storage fixture", "Thirty pages served in delayed ranges through the actual production file adapter.", 20)
+scenarios["reader-pdf-native-storage"]["route"] = {"name": "Library"}
+scenarios["reader-pdf-native-storage"]["actions"] = [{"kind": "pdf-production-storage"}, {"kind": "pdf-fill-cache"}, {"kind": "pdf-cache-status"}, {"kind": "pdf-network-offline"}, {"kind": "pdf-network-online"}]
+pdf_fixture("reader-pdf-http", "fixture-pdf-http", "long-pages", "Loopback HTTP PDF fixture", "Real Expo HTTP transport and native owner enforcement with synthetic PDF bytes only.", 20)
+scenarios["reader-pdf-http"]["payload"]["session"]["token"] = "slax-pdf-loopback-synthetic-only"
+scenarios["reader-pdf-http"]["payload"]["api"] = []
+scenarios["reader-pdf-http"]["actions"] = [{"kind": "pdf-production-storage"}, {"kind": "pdf-fill-cache"}, {"kind": "pdf-cache-status"}, {"kind": "pdf-http-status"}, {"kind": "pdf-http-mode", "mode": "metadata-404"}, {"kind": "pdf-http-mode", "mode": "normal"}, {"kind": "pdf-http-mode", "mode": "slow"}]
+
 bundle = {"schemaVersion": 1, "synthetic": True, "clock": STAMP, "apiOrigin": "https://fixture-api.test", "webOrigin": "https://fixture-pages.test", "ids": IDS, "artwork": {"https://fixture-images.test/success.png": {"asset": "../assets/drawable/ic_app_logo.png"}, "https://fixture-images.test/rss.png?m=rss&d=fixture-only": {"asset": "../assets/drawable/ic_app_logo.png"}, "https://fixture-images.test/failure.png": {"status": 404}}, "documents": {"/delete-account-notice": "articles/delete-notice.html"}, "scenarios": scenarios}
 output = ROOT / "scenarios.json"
 output.write_text(json.dumps(bundle, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

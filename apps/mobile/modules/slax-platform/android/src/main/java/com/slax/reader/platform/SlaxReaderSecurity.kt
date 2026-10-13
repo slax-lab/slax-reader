@@ -3,15 +3,26 @@ package com.slax.reader.platform
 import java.net.URI
 import java.util.Locale
 
-internal class SlaxReaderSecurity(hosts: List<String>, val imageProxyOrigins: List<String> = emptyList()) {
+internal class SlaxReaderSecurity(hosts: List<String>, val imageProxyOrigins: List<String> = emptyList(), val pdfMode: Boolean = false) {
+  val documentOrigin get() = if (pdfMode) PDF_ORIGIN else ORIGIN
   companion object {
     const val ORIGIN = "https://reader.slax.invalid/"
+    const val PDF_ORIGIN = "https://pdf.reader.slax.invalid/"
     const val CSP = "default-src 'none'; script-src 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'unsafe-inline' https:; font-src https: data:; img-src https: data: blob: slaxstatic: slaxstatics:; media-src https: data: blob: slaxmedia: slaxmedias:; frame-src https:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; worker-src 'none'"
     fun validRange(value: String): Boolean {
       val match = Regex("^bytes=([0-9]*)-([0-9]*)$").matchEntire(value) ?: return false
       val start = match.groupValues[1].toLongOrNull(); val end = match.groupValues[2].toLongOrNull()
       if (match.groupValues[1].isEmpty()) return end != null && end > 0
       return start != null && (match.groupValues[2].isEmpty() || end != null && end >= start)
+    }
+    fun pdfCsp(pageId: String): String {
+      require(Regex("^[A-Za-z0-9-]+$").matches(pageId)) { "Invalid PDF page identity" }
+      return "default-src 'none'; script-src 'nonce-slax-pdf-$pageId' blob: 'wasm-unsafe-eval'; worker-src blob:; connect-src blob:; img-src blob: data:; font-src blob: data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'"
+    }
+    fun pdfDocument(html: String, pageId: String): String {
+      val policy = "<meta http-equiv=\"Content-Security-Policy\" content=\"${pdfCsp(pageId)}\">"
+      require(html.contains("<head>") && html.contains(policy)) { "Invalid PDF document policy" }
+      return html.replaceFirst("<head>", "<head>$policy")
     }
     fun document(html: String): String {
       val policy = "<meta http-equiv=\"Content-Security-Policy\" content=\"$CSP\"><meta name=\"referrer\" content=\"strict-origin-when-cross-origin\">"
@@ -29,6 +40,7 @@ internal class SlaxReaderSecurity(hosts: List<String>, val imageProxyOrigins: Li
     } + "slax.com").distinct().sorted()
   }
   fun original(raw: String): String? = runCatching {
+    require(!pdfMode)
     require(raw.none { it <= ' ' || it.code == 127 || it == '\\' })
     val source = URI(raw)
     val scheme = when (source.scheme?.lowercase(Locale.ROOT)) { "slaxstatics" -> "https"; "slaxstatic" -> "http"; else -> source.scheme?.lowercase(Locale.ROOT) }
@@ -49,6 +61,7 @@ internal class SlaxReaderSecurity(hosts: List<String>, val imageProxyOrigins: Li
   }.getOrNull()
   fun allowsMediaHop(raw: String): Boolean = allows(raw) || runCatching { signedImageProxy(raw) && !URI(raw).query.split('&').any { it.substringBefore('=') == "m" } }.getOrDefault(false)
   fun signedImageProxy(raw: String): Boolean = runCatching {
+    require(!pdfMode)
     val url = URI(raw)
     require(url.rawPath == "/static/image" && url.rawUserInfo == null && url.rawFragment == null)
     require(imageProxyOrigins.contains("${url.scheme}://${url.rawAuthority}"))

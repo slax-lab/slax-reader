@@ -7,12 +7,13 @@ globs: ["**/*"]
 
 # Slax Reader Monorepo
 
-Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comment, and discuss. This monorepo consolidates all non-mobile codebases (migrated from the legacy polyrepos; some directories may still be empty while migration is in progress).
+Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comment, and discuss. This monorepo brings together the Web, browser extension, API, CLI, mobile apps, and shared packages; migration work remains tracked in OpenSpec.
 
 ## Repository Map
 
 - `apps/web` — web frontend (the reader at r.slax.com)
 - `apps/extension` — browser extension (Chrome/Edge)
+- `apps/mobile` — Expo / React Native Android and iOS app; scoped engineering rules live in its generated `AGENTS.md`
 - `apps/api` — API server (Cloudflare Workers: Core, Edge, AI, Browser)
 - `apps/api/script/deploy` — backend deployment, setup, and resource provisioning commands
 - `deploy/cloudflare` — public Cloudflare Worker template

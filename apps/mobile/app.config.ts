@@ -4,7 +4,6 @@ const uiFixture = Boolean(process.env.EXPO_PUBLIC_SLAX_UI_FIXTURE);
 const fixtureMode = process.env.EXPO_PUBLIC_SLAX_ADOPTION_FIXTURE === '1' || uiFixture;
 const firebaseIosConfig = fixtureMode ? undefined : process.env.SLAX_MOBILE_FIREBASE_IOS_CONFIG;
 const firebaseAndroidConfig = fixtureMode ? undefined : process.env.SLAX_MOBILE_FIREBASE_ANDROID_CONFIG;
-const firebaseShareIosConfig = fixtureMode ? undefined : process.env.SLAX_MOBILE_FIREBASE_SHARE_IOS_CONFIG;
 
 const providerPlugins: NonNullable<ExpoConfig['plugins']> = fixtureMode ? [] : [
   ['react-native-nitro-google-signin', {
@@ -29,6 +28,7 @@ const config: ExpoConfig = {
     entitlements: uiFixture ? {} : { 'com.apple.security.application-groups': ['group.app.slax.reader'] },
     infoPlist: { ITSAppUsesNonExemptEncryption: false, FirebaseAutomaticScreenReportingEnabled: false,
       NSAppTransportSecurity: {NSAllowsArbitraryLoads: true},
+      ...(process.env.EXPO_PUBLIC_SLAX_UI_FIXTURE === 'reader-pdf-import' ? {UIFileSharingEnabled: true, LSSupportsOpeningDocumentsInPlace: true} : {}),
       ...(fixtureMode ? {FIREBASE_ANALYTICS_COLLECTION_DEACTIVATED: true, FirebaseCrashlyticsCollectionEnabled: false} : {})},
   },
   android: {
@@ -45,7 +45,6 @@ const config: ExpoConfig = {
       apiBetaUrl: process.env.EXPO_PUBLIC_SLAX_BETA_API_URL ?? 'https://api-reader-beta.slax.com',
       versionName: process.env.SLAX_MOBILE_VERSION ?? '1.0.0',
       versionCode: Number(process.env.SLAX_MOBILE_BUILD_NUMBER ?? '1'),
-      ...(firebaseShareIosConfig ? {firebaseIosConfig: firebaseShareIosConfig} : {}),
     }] as NonNullable<ExpoConfig['plugins']>[number]] : []),
     ['expo-dev-client', { launchMode: 'most-recent' }],
     'expo-secure-store',

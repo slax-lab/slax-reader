@@ -3,9 +3,13 @@ import Foundation
 struct SlaxReaderSecurity: Equatable {
   static let origin = URL(string: "https://reader.slax.invalid/")!
   static let csp = "default-src 'none'; script-src 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'unsafe-inline' https:; font-src https: data:; img-src https: data: blob: slaxstatic: slaxstatics:; media-src https: data: blob: slaxmedia: slaxmedias:; frame-src https:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; worker-src 'none'"
+  static let pdfOrigin = URL(string: "https://pdf.reader.slax.invalid/")!
   let protectedHosts: [String]
   let imageProxyOrigins: [String]
-  init(_ hosts: [String], imageProxyOrigins: [String] = []) throws {
+  let pdfMode: Bool
+  var documentOrigin: URL { pdfMode ? Self.pdfOrigin : Self.origin }
+  init(_ hosts: [String], imageProxyOrigins: [String] = [], pdfMode: Bool = false) throws {
+    self.pdfMode = pdfMode
     self.imageProxyOrigins = try imageProxyOrigins.map { raw in
       guard let url = URL(string: raw), let parts = URLComponents(url: url, resolvingAgainstBaseURL: false), ["http", "https"].contains(parts.scheme ?? ""), parts.host != nil, parts.user == nil, parts.password == nil, parts.query == nil, parts.fragment == nil, parts.path.isEmpty else { throw URLError(.badURL) }
       return raw
@@ -20,7 +24,7 @@ struct SlaxReaderSecurity: Equatable {
     protectedHosts = Array(Set(normalized + ["slax.com"])).sorted()
   }
   func original(_ url: URL) -> URL? {
-    guard !url.absoluteString.unicodeScalars.contains(where: { $0.value <= 32 || $0.value == 127 || $0.value == 92 }),
+    guard !pdfMode, !url.absoluteString.unicodeScalars.contains(where: { $0.value <= 32 || $0.value == 127 || $0.value == 92 }),
       var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
     if components.scheme?.lowercased() == "slaxstatics" { components.scheme = "https" }
     if components.scheme?.lowercased() == "slaxstatic" { components.scheme = "http" }
@@ -58,7 +62,7 @@ struct SlaxReaderSecurity: Equatable {
     return parts[1].isEmpty || end != nil && end! >= start
   }
   func signedImageProxy(_ url: URL) -> Bool {
-    guard let parts = URLComponents(url: url, resolvingAgainstBaseURL: false), parts.path == "/static/image", parts.user == nil, parts.password == nil, parts.fragment == nil,
+    guard !pdfMode, let parts = URLComponents(url: url, resolvingAgainstBaseURL: false), parts.path == "/static/image", parts.user == nil, parts.password == nil, parts.fragment == nil,
       let items = parts.queryItems else { return false }
     var origin = parts; origin.path = ""; origin.query = nil
     guard imageProxyOrigins.contains(origin.string ?? ""), Set(items.map(\.name)).count == items.count,
@@ -68,7 +72,20 @@ struct SlaxReaderSecurity: Equatable {
       let source = values["u"]?.removingPercentEncoding.flatMap(URL.init(string:)), let referer = values["r"].flatMap(URL.init(string:)) else { return false }
     return [source, referer].allSatisfy { ["http", "https"].contains($0.scheme ?? "") && $0.host != nil && $0.user == nil && $0.password == nil }
   }
+  static func pdfCsp(_ pageId: String) throws -> String {
+    guard pageId.range(of: "^[A-Za-z0-9-]+$", options: .regularExpression) != nil else { throw URLError(.badURL) }
+    return "default-src 'none'; script-src 'nonce-slax-pdf-\(pageId)' blob: 'wasm-unsafe-eval'; worker-src blob:; connect-src blob:; img-src blob: data:; font-src blob: data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'"
+  }
+  static func pdfDocument(_ html: String, pageId: String) throws -> String {
+    let csp = try pdfCsp(pageId)
+    let policy = "<meta http-equiv=\"Content-Security-Policy\" content=\"\(csp)\">"
+    guard let head = html.range(of: "<head>"), html.contains(policy) else { throw URLError(.badURL) }
+    var document = html
+    document.insert(contentsOf: policy, at: head.upperBound)
+    return document
+  }
   func contentRules() throws -> String {
+    if pdfMode { return "[{\"trigger\":{\"url-filter\":\"^https?://\",\"url-filter-is-case-sensitive\":false},\"action\":{\"type\":\"block\"}}]" }
     let rules = protectedHosts.flatMap { host in
       ["[/?#]", "$"].map { end in
         ["trigger": ["url-filter": "^https?://([^/]*@)?([^/:]*\\.)?" + NSRegularExpression.escapedPattern(for: host) + "\\.?(:[0-9]+)?" + end, "url-filter-is-case-sensitive": false], "action": ["type": "block"]] as [String: Any]

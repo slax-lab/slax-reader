@@ -77,6 +77,11 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
   let webView: WKWebView
   private let identifier: Int
   var html = ""; var pageId = ""
+  private var pdfMode = false
+  func setPdfMode(_ value: Bool) {
+    if pdfMode != value && (loaded != nil || security != nil) { detach(); return }
+    pdfMode = value
+  }
   private var security: SlaxReaderSecurity?
   private var rulesReady = false
   private var rulesCompiling = false
@@ -222,7 +227,7 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
   func loadPendingDocument() {
     guard applicationActive, !processGone else { return }
     guard ownsResources, let protectedHosts, let imageProxyOrigins, !html.isEmpty, !pageId.isEmpty else { return }
-    guard let policy = try? SlaxReaderSecurity(protectedHosts, imageProxyOrigins: imageProxyOrigins) else { detach(); return }
+    guard let policy = try? SlaxReaderSecurity(protectedHosts, imageProxyOrigins: imageProxyOrigins, pdfMode: pdfMode) else { detach(); return }
     if let security, security != policy { detach(); return }
     security = policy; resources.security = policy
     let security = policy
@@ -253,15 +258,19 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
     loaded = html; loadedPageId = pageId; loadedGeneration = generation; loadedOwner = resourceOwner
     sourceMessage.bind(pageId: pageId, generation: generation)
     resources.cancelAll()
-    var document = SlaxReaderSecurity.document(html)
-    if resources.isFixture {
+    var document: String
+    if pdfMode {
+      guard let pdfDocument = try? SlaxReaderSecurity.pdfDocument(html, pageId: pageId) else { detach(); return }
+      document = pdfDocument
+    } else { document = SlaxReaderSecurity.document(html) }
+    if resources.isFixture && !pdfMode {
       // This policy is inserted before any source resource can load, and remains
       // active even if a script later removes its meta element.
       let policy = "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob: slaxstatic: slaxstatics:; media-src data: blob:; connect-src 'none'; frame-src 'none'; child-src 'none'; base-uri 'none'; form-action 'none'\">"
       if let head = document.range(of: "(?i)<head(?:\\s[^>]*)?>", options: .regularExpression) { document.insert(contentsOf: policy, at: head.upperBound) }
       else { document = policy + document }
     }
-    documentNavigation = webView.loadHTMLString(document, baseURL: SlaxReaderSecurity.origin)
+    documentNavigation = webView.loadHTMLString(document, baseURL: security.documentOrigin)
   }
   fileprivate func receiveSourceMessage(_ raw: String, pageId: String, generation: String) {
     guard Thread.isMainThread, ownsResources, navigationGate.permitsSource, loadedPageId == pageId, self.pageId == pageId,
@@ -313,7 +322,7 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
   func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { markProcessGone() }
   func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
     guard ownsResources, rulesReady, let security, let url = action.request.url else { decisionHandler(.cancel); return }
-    if navigationGate.admitMainFrame(isInitialRequest: loaded != nil && (url == SlaxReaderSecurity.origin || url.absoluteString == "about:blank") && action.targetFrame?.isMainFrame == true && action.navigationType == .other) {
+    if navigationGate.admitMainFrame(isInitialRequest: loaded != nil && (url == security.documentOrigin || url.absoluteString == "about:blank") && action.targetFrame?.isMainFrame == true && action.navigationType == .other) {
       decisionHandler(.allow); return
     }
     guard !resources.isFixture, security.allows(url) else { decisionHandler(.cancel); return }

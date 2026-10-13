@@ -28,8 +28,11 @@ export function LoginScreen() {
   useLayoutEffect(() => {mounted.current = true; return () => {mounted.current = false; pending.current = null; providerGeneration.current++;};}, []);
   useLayoutEffect(() => () => {pending.current = null; providerGeneration.current++; active.current = false;}, [api, sessions]);
   const sessionGuard = () => {
-    const before = sessions.getSnapshot();
-    return () => sessions.getSnapshot() === before && before.status !== 'authenticated';
+    const before = sessions.getSnapshot(), assertIdentity = sessions.captureIdentity();
+    return () => {
+      try {assertIdentity();} catch {return false;}
+      return before.status === 'unauthenticated' && sessions.getSnapshot().status === 'unauthenticated';
+    };
   };
   async function login(provider: LoginProvider, allowed = sessionGuard()) {
     if (active.current || !mounted.current || !allowed()) return;

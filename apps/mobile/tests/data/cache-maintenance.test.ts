@@ -17,14 +17,14 @@ function fixture() {
 }
 test('manual cache categories preserve automatic/missing flags and collection owner identity', async () => {
   const {db, files, service, put, read} = fixture();
-  put('manual', {is_auto_cached: 0, is_downloaded: 2, read_position: '7', future_field: {kept: true}});
+  put('manual', {is_auto_cached: 0, is_downloaded: 2, read_position: '7', future_field: {kept: true}, pdf_cache: {id: 'manual', owner: null}});
   put('automatic', {is_auto_cached: 1, is_downloaded: 2}); put('legacy-missing', {is_downloaded: 2});
   put('collection-owner-bookmark', {is_auto_cached: 0, is_downloaded: 2, overview: '中文'});
   assert.deepEqual(await service.usage(), {article: 200, images: 400, other: 7});
   assert.equal(await service.clear(['article']), 200);
   assert.deepEqual(files.get('automatic'), {article: 100, images: 200}); assert.deepEqual(files.get('legacy-missing'), {article: 100, images: 200});
   assert.equal(read('manual').is_downloaded, 0); assert.equal(read('manual').is_auto_cached, 0); assert.equal(read('collection-owner-bookmark').is_downloaded, 0);
-  assert.equal(read('manual').read_position, '7'); assert.deepEqual(read('manual').future_field, {kept: true});
+  assert.equal(read('manual').read_position, '7'); assert.deepEqual(read('manual').future_field, {kept: true}); assert.equal(read('manual').pdf_cache, undefined);
   assert.equal(await service.clear(['images']), 400); assert(read('manual')); assert(read('collection-owner-bookmark'));
   assert.equal(await service.clear(['other']), 7); assert.deepEqual(read('manual').future_field, {kept: true}); assert.equal(read('collection-owner-bookmark'), null); db.close();
 });

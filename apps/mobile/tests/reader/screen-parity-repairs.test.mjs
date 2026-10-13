@@ -1,9 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {React, act, nativeBoundary, loadComponent, withNativeHost} from './parity-host.mjs'
+import {React, act, nativeBoundary, loadComponent, withNativeHost, withRenderedElement} from './parity-host.mjs'
 import {PreferenceStore, PREFERENCE_KEYS} from '../../src/data/preferences.ts'
 import {MemoryPreferences} from '../data/helpers.ts'
 import {bookmarkCacheKey, bookmarkDisplayTitle, collectionMarkPolicy, PERSONAL_MARK_POLICY, PENDING_COLLECTION_MARK_POLICY} from '../../src/data/repositories.ts'
+import * as pdfContracts from '@slax-reader/contracts/pdf'
+import * as transportErrors from '../../src/data/transport-errors.ts'
+import * as pdfErrors from '../../src/reader/pdf-errors.ts'
 import * as model from '../../src/reader/model.ts'
 import * as account from '../../src/reader/account.ts'
 import * as input from '../../src/reader/input.ts'
@@ -83,6 +86,8 @@ async function screenFixture(host, kind, run, platform = 'ios') {
     './MarkdownView.tsx': {MarkdownView: nil}, './outline-motion.ts': outlineMotion,
   })
   const boundaries = {
+    '@slax-reader/contracts/pdf': pdfContracts, '../data/transport-errors': transportErrors, '../reader/pdf-errors': pdfErrors,
+    '../reader/PdfWebView': {PdfWebView: () => assert.fail('An HTML parity fixture must not mount the PDF renderer')},
     react: React, 'react-native': host.native, 'expo-clipboard': {setStringAsync: async value => copied.push(value)}, 'expo-network': {getNetworkStateAsync: async () => ({isConnected: false})}, 'expo-file-system': {}, 'expo/fetch': {},
     '@react-navigation/native': {usePreventRemove: (blocked, callback) => {preventRemove = {blocked, callback}}}, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})},
     '../components': {...host.components, SourceDialog: NativeDialog}, '../components/SourceRing': {SourceCircularProgress: nil},
@@ -101,7 +106,7 @@ async function screenFixture(host, kind, run, platform = 'ios') {
   await render(); await host.settle(300)
   await run({reader: () => readerProps, panel: () => panelProps, selectionMenu: () => selectionProps, back: () => preventRemove, subscriptions, writes, deleted, copied, opened, dialogs, preferences, dialogLifecycle,
     toolbar: () => toolbarModal, toolbarLifecycle, shares, routes, failShare: () => {shareFailure = true},
-    openToolbar: () => act(async () => headerOptions.headerRight().props.children.props.onPress()),
+    openToolbar: () => withRenderedElement(headerOptions.headerRight(), () => act(async () => host.props.get('reader-header-more').onPress())),
     toolbarAction: id => act(async () => host.props.get(`reader-toolbar-${id}`).onPress()),
     render, setSettings: async value => {settings = value; await render()}, settingsChanged: async value => act(async () => refreshSettings([value])),
     setUser: userId => {session = {status: 'authenticated', session: {token: 'synthetic', userId, refreshedAt: 0}}},
@@ -184,9 +189,11 @@ test('actual selection drops a removed last stroke and adopts same-range recreat
 })))
 
 for (const kind of ['personal', 'rss']) test(`actual ${kind} original bypasses confirmation while body links retain confirmation and preference`, nativeBoundary, async () => withNativeHost(async host => screenFixture(host, kind, async fixture => {
-  const original = find(fixture.reader().header, node => node.props.onPress && find(node.props.children, child => child.props.children === (kind === 'rss' ? 'rss_original' : 'detail_view_original')))
-  assert.ok(original)
-  await act(async () => original.props.onPress())
+  await withRenderedElement(fixture.reader().header, async () => {
+    const original = host.props.get('reader-original')
+    assert.ok(original)
+    await act(async () => original.onPress())
+  })
   assert.deepEqual(fixture.opened, [`https://fixture.test/${kind === 'rss' ? 'rss-original' : 'original'}`])
   assert.equal(fixture.dialogs.get('external_link_alert_title').visible, false)
   await act(async () => fixture.reader().onExternalUrl('https://fixture.test/body'))
