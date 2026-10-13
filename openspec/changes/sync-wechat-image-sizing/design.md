@@ -17,6 +17,7 @@ This affects the Web article renderer under `DESIGN.md`. Responsive dimensions a
 - Port the source algorithm after the existing per-image setup. Select images with inline pixel width and height only for the existing WeChat host allowlist, excluding PhotoSwipe. A global height override would discard intentional source sizing.
 - Compare declared width with the article container's positive `clientWidth`. Set only width to `100% !important` and height to `auto !important` when the declared width exceeds it. Natural image size is not a sizing signal: a high-resolution asset may intentionally render as a small icon.
 - Measure immediately, then use the container document's `ResizeObserver` when available. Waiting only for `load` misses lazy or already-cached images. Register observer disconnection in the existing cleanup list; add no global listeners.
+- Coalesce resize-triggered corrections into the next animation frame and cancel a pending frame during cleanup. Browser validation of the source algorithm showed that synchronous height changes in the observer callback trigger a deferred-notification warning because they resize the observed container. Initial correction remains synchronous.
 - Keep the source's one-way conversion: once an image becomes responsive, later growth does not restore its former fixed pixel dimensions. Existing load and preview handlers remain authoritative.
 
 ## Risks / Trade-offs
