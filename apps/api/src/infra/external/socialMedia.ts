@@ -589,7 +589,11 @@ export class SocialMediaApi {
    * The ASR track (language_code `a.xx`, kind=asr) is always in the spoken language, so it tells
    * us the original language: manual track in that language → the ASR track itself.
    * Without an ASR track the original language is unknown: manual track in the user's language →
-   * first track. Translated tracks are never requested here.
+   * English track → first track. Translated tracks are never requested here.
+   * The track list is sorted by language name, so the first track is often a translation
+   * (`ar` for a video with many uploaded translations). English is the most likely original.
+   * debt: a non-English video with uploaded translations and no ASR track still gets English.
+   * Upgrade path: take the video's default audio language from its metadata.
    */
   private static pickYoutubeCaptionTrack(tracks: TikHubYoutubeCaptionTrack[], userLang?: string): TikHubYoutubeCaptionTrack | null {
     if (!tracks.length) return null
@@ -601,9 +605,9 @@ export class SocialMediaApi {
       return tracks.find(t => isManual(t) && base(t) === original) ?? asr
     }
     const user = (userLang ?? '').toLowerCase().split('-')[0]
-    if (user) {
-      const inUserLang = tracks.find(t => isManual(t) && base(t) === user)
-      if (inUserLang) return inUserLang
+    for (const lang of [user, 'en']) {
+      const inLang = lang && tracks.find(t => isManual(t) && base(t) === lang)
+      if (inLang) return inLang
     }
     return tracks[0]
   }

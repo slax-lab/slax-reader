@@ -101,6 +101,19 @@ test('renders static Vite asset imports for non-inline kinds', () => {
 
 test('enforces kind-specific registry metadata', () => {
   const provenance = { sourcePath: 'source.svg', sourceCommit: 'abc123' }
+  for (const defaultSize of [15, 17]) {
+    assert.doesNotThrow(() =>
+      validateManifestEntry(`compact-${defaultSize}`, {
+        kind: 'inline',
+        source: 'icon.svg',
+        viewBox: '0 0 24 24',
+        defaultSize,
+        paint: 'currentColor',
+        accessibility: 'decorative',
+        provenance
+      })
+    )
+  }
   assert.throws(
     () => validateManifestEntry('missing-mask-paint', { kind: 'mask', source: 'mask.svg', viewBox: '0 0 24 24', defaultSize: 24, paint: 'currentColor', accessibility: 'decorative', provenance }),
     /mask paint/
