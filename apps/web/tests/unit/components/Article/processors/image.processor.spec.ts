@@ -101,6 +101,47 @@ describe('ImageProcessor', () => {
     expect(ctx.callbacks.screenLockUpdate).toHaveBeenLastCalledWith(false)
   })
 
+  it.each([48, 96, 199, 200, 500])('preserves a 14px WeChat icon after loading a %ipx asset', naturalWidth => {
+    const ctx = buildContext(
+      '<section><img src="https://mmbiz.qpic.cn/icon.png" style="width:14px !important;max-width:100% !important;height:auto !important;vertical-align:middle"></section>',
+      ArticleStyle.Default,
+      new URL('https://mp.weixin.qq.com/s/xxx')
+    )
+    const img = ctx.container.querySelector('img')!
+    processor.process(ctx)
+    expect(img.style.width).toBe('14px')
+    setNaturalSize(img, naturalWidth, naturalWidth)
+    img.onload?.(new Event('load'))
+    expect(img.style.width).toBe('14px')
+    expect(img.style.height).toBe('auto')
+    expect(img.style.maxWidth).toBe('100%')
+    expect(img.style.verticalAlign).toBe('middle')
+  })
+
+  it('preserves height-only WeChat icons after loading', () => {
+    const ctx = buildContext(
+      '<img src="https://mmbiz.qpic.cn/icon.png" style="width:auto !important;height:24px !important;vertical-align:middle">',
+      ArticleStyle.Default,
+      new URL('https://mp.weixin.qq.com/s/xxx')
+    )
+    const img = ctx.container.querySelector('img')!
+    processor.process(ctx)
+    setNaturalSize(img, 96, 96)
+    img.onload?.(new Event('load'))
+    expect(img.style.width).toBe('auto')
+    expect(img.style.height).toBe('24px')
+    expect(img.style.verticalAlign).toBe('middle')
+  })
+
+  it.each(['height:auto', 'height:auto;max-width:100%'])('retains the intrinsic-width fallback without a WeChat display size: %s', style => {
+    const ctx = buildContext(`<img src="https://mmbiz.qpic.cn/icon.png" style="${style}">`, ArticleStyle.Default, new URL('https://mp.weixin.qq.com/s/xxx'))
+    const img = ctx.container.querySelector('img')!
+    processor.process(ctx)
+    setNaturalSize(img, 96, 96)
+    img.onload?.(new Event('load'))
+    expect(img.style.width).toBe('96px')
+  })
+
   it('微信文章大图：保留原始 style，且在缺失 padding/height 时基于原样式补齐（非覆盖）', () => {
     const ctx = buildContext(
       '<p><span>x</span><img src="https://mmbiz.qpic.cn/i.png" style="vertical-align: middle;max-width: 100%;width: 100%;box-sizing: border-box;"></p>',
@@ -168,6 +209,38 @@ describe('ImageProcessor', () => {
     ctx.cleanups.forEach(cleanup => cleanup())
   })
 
+  it.each(['cover', 'contain', 'none', 'scale-down'])('preserves an explicit WeChat %s frame instead of applying proportional resizing', objectFit => {
+    const ctx = buildContext(
+      `<img src="https://mmbiz.qpic.cn/crop.png" style="width:800px !important;height:100px !important;max-width:100% !important;object-fit:${objectFit}">`,
+      ArticleStyle.Default,
+      new URL('https://mp.weixin.qq.com/s/xxx')
+    )
+    Object.defineProperty(ctx.container, 'clientWidth', { value: 360 })
+    const img = ctx.container.querySelector('img')!
+    processor.process(ctx)
+    setNaturalSize(img, 800, 800)
+    img.onload?.(new Event('load'))
+    expect(img.style.height).toBe('100px')
+    expect(img.style.width).toBe('800px')
+    expect(img.style.objectFit).toBe(objectFit)
+    ctx.cleanups.forEach(cleanup => cleanup())
+  })
+
+  it.each(['max-width', 'max-height'])('preserves a WeChat icon constrained only by %s', property => {
+    const ctx = buildContext(
+      `<img src="https://mmbiz.qpic.cn/icon.png" style="${property}:14px !important;vertical-align:middle">`,
+      ArticleStyle.Default,
+      new URL('https://mp.weixin.qq.com/s/xxx')
+    )
+    const img = ctx.container.querySelector('img')!
+    processor.process(ctx)
+    setNaturalSize(img, 96, 96)
+    img.onload?.(new Event('load'))
+    expect(img.style.getPropertyValue(property)).toBe('14px')
+    expect(img.style.width).not.toBe('96px')
+    expect(img.style.verticalAlign).toBe('middle')
+  })
+
   it.each([
     ['small icons', 'width: 24px !important; height: 24px !important;'],
     ['fitting images', 'width: 600px !important; height: 300px !important;'],
@@ -211,7 +284,9 @@ describe('ImageProcessor', () => {
     )
     const ctx = buildContext('<img src="https://mmbiz.qpic.cn/i.png" style="width: 600px; height: 300px;">', ArticleStyle.Default, new URL('https://mp.weixin.qq.com/s/xxx'))
     let containerWidth = initialWidth
-    Object.defineProperty(ctx.container, 'clientWidth', { get: () => containerWidth })
+    Object.defineProperty(ctx.container, 'clientWidth', {
+      get: () => containerWidth
+    })
     const img = ctx.container.querySelector('img')!
     processor.process(ctx)
     expect(img.style.width).toBe('600px')
