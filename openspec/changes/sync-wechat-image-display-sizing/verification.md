@@ -46,3 +46,7 @@ The custom-property fixture renders at 14px, and duplicate longhands retain comp
 An independent reviewer performed REVIEW.md's Bugs, Security, and Compliance passes against `sync-wechat-image-display-sizing`. Both Important findings were reproduced and fixed before push. Re-review found no remaining Important findings or Nits and independently checked variables, margin, padding, border, and important declaration ordering through Readability. The reviewer did not rerun the broad suites or browser checks.
 
 Release Web before API if deployed separately. The Web fix benefits existing stored content at rendering; backend normalization applies when collecting or recapturing. No stored-content migration is included. Archive this change only after merge.
+
+## Pull request
+
+Created [PR #208](https://github.com/slax-lab/slax-reader/pull/208) targeting `dev`. The implementation commit is `21fad29c`; the subsequent documentation commit records completion. The latest target update inspected before publishing was unrelated KOC profile configuration in #207 and did not touch these implementation paths.
