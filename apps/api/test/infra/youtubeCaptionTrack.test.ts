@@ -35,9 +35,16 @@ describe('pickYoutubeCaptionTrack', () => {
     expect(pick([track('pt-BR'), track('a.pt', 'asr')], 'en')).toBe('pt-BR')
   })
 
-  test('without an ASR track the user language wins, then the first track', () => {
+  test('without an ASR track the user language wins, then English, then the first track', () => {
     expect(pick([track('fr'), track('zh-Hans'), track('en')], 'zh')).toBe('zh-Hans')
+    expect(pick([track('fr'), track('en-US'), track('de')], 'zh')).toBe('en-US')
     expect(pick([track('fr'), track('de')], 'zh')).toBe('fr')
+  })
+
+  test('many manual translations sorted by name do not pick the first one (en0GuyhieQk)', () => {
+    // TikHub list for en0GuyhieQk: 21 manual tracks, no ASR track, no kind, sorted by language name.
+    const tracks = ['ar', 'bn', 'nl', 'en', 'fr', 'de', 'iw', 'hi', 'ja', 'ko', 'es'].map(code => ({ ...track(code), kind: undefined as unknown as string }))
+    expect(pick(tracks, 'zh')).toBe('en')
   })
 
   test('user language is ignored when the original language is known', () => {
