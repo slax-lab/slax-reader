@@ -53,6 +53,26 @@ export class PromotionController {
       name: 'Luca',
       avatar: 'https://reader-img.slax.com/koc/luca.jpg',
       activity_id: 'luca'
+    },
+    yianggao: {
+      name: 'Yiang',
+      avatar: 'https://reader-img.slax.com/koc/yianggao.jpg',
+      activity_id: 'yianggao'
+    },
+    corina: {
+      name: 'Corina',
+      avatar: 'https://reader-img.slax.com/koc/corina.jpg',
+      activity_id: 'corina'
+    },
+    hopeseventeen: {
+      name: 'Hope Seventeen',
+      avatar: 'https://reader-img.slax.com/koc/hopeseventeen.jpg',
+      activity_id: 'hopeseventeen'
+    },
+    senl: {
+      name: 'Sen',
+      avatar: 'https://reader-img.slax.com/koc/senl.jpg',
+      activity_id: 'senl'
     }
   }
 
