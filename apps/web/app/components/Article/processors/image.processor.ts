@@ -26,6 +26,15 @@ function hasStyleDeclaration(style: string, prop: string): boolean {
   return new RegExp(`(^|;)\\s*${prop}\\s*:`, 'i').test(style)
 }
 
+function hasDisplaySize(img: HTMLImageElement): boolean {
+  return ['width', 'height', 'max-width', 'max-height'].some(property => {
+    const value = img.style.getPropertyValue(property).trim()
+    // A generic container limit says nothing about an icon's display size.
+    if (property.startsWith('max-') && value === '100%') return false
+    return !!value && !/^(auto|none|initial|inherit|unset|revert(?:-layer)?|0(?:px|%)?)$/i.test(value)
+  })
+}
+
 // 在已有 style 基础上补齐缺失的 padding/height，而不是整体覆盖
 function ensurePaddingAndHeightStyle(img: HTMLImageElement): void {
   const currentStyle = img.getAttribute('style') || ''
@@ -70,7 +79,7 @@ export class ImageProcessor implements DOMProcessor {
           if (img.naturalWidth < 5 || img.naturalHeight < 5) {
             img.setAttribute('style', 'display: none;')
             return
-          } else if (img.naturalWidth < 200) {
+          } else if (img.naturalWidth < 200 && !(preserveStyle && hasDisplaySize(img))) {
             img.setAttribute('style', `width: ${img.naturalWidth}px !important;`)
             return
           }
@@ -132,7 +141,9 @@ export class ImageProcessor implements DOMProcessor {
 
     if (preserveStyle && context.articleStyle !== ArticleStyle.PhotoSwipeTopic) {
       // Backend pixel dimensions may be intrinsic; shrink oversized images while preserving icons.
-      const fixedSizeImgs = imgs.filter(img => /^[\d.]+px$/.test(img.style.width) && /^[\d.]+px$/.test(img.style.height))
+      const fixedSizeImgs = imgs.filter(
+        img => /^[\d.]+px$/.test(img.style.width) && /^[\d.]+px$/.test(img.style.height) && !/^(cover|contain|none|scale-down)$/i.test(img.style.objectFit)
+      )
       if (!fixedSizeImgs.length) return
 
       const fitOversizedImages = () => {
