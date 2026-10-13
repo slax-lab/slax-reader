@@ -705,3 +705,20 @@ describe('useUserStore - changeLocalLocale', () => {
     setLocaleSpy.mockRestore()
   })
 })
+
+it('does not commit a profile response after its session changes', async () => {
+  setActivePinia(createPinia())
+  cookieGet.mockReturnValue('account-a')
+  let resolve!: (value: unknown) => void
+  mockGet.mockReturnValueOnce(
+    new Promise(r => {
+      resolve = r
+    })
+  )
+  const store = useUserStore()
+  const pending = store.refreshUserInfo()
+  cookieGet.mockReturnValue('account-b')
+  resolve(baseUser)
+  await expect(pending).rejects.toThrow('Session changed')
+  expect(store.user).toBeNull()
+})

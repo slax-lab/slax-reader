@@ -2,13 +2,16 @@
   <div class="default-layout">
     <NuxtPwaAssets v-if="showPwaManifest" />
     <NuxtPage :keepalive="{ include: cacheRoutes }" />
+    <ClientOnly><KocPromotionHost /></ClientOnly>
   </div>
 </template>
 
 <script setup lang="ts">
-import { isClient } from '@commons/frontend-utils/is'
+import KocPromotionHost from '~/components/Promotion/KocPromotionHost.vue'
+
 import { getPreferredLanguage, isSlaxReaderApp } from '~/utils/environment'
 
+import { isClient } from '@commons/frontend-utils/is'
 import { useUserStore } from '~/stores/user'
 
 const cacheRoutes = ['bookmarks']

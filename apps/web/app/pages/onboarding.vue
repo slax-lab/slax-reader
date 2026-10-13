@@ -2,7 +2,7 @@
   <div class="onboarding-view">
     <OnboardingTopBar @feedback="feedbackClick" />
     <main class="onboarding-main">
-      <BookmarksOnboardingHero @skip="finish" @complete="finish" />
+      <BookmarksOnboardingHero v-if="!kocFlow.blocksOnboarding.value" @skip="finish" @complete="finish" />
     </main>
   </div>
 </template>
@@ -13,6 +13,7 @@ import OnboardingTopBar from '~/components/BookmarkList/OnboardingTopBar.vue'
 
 import { showFeedbackModal } from '~/components/Modal'
 import { useOnboardingPending } from '~/composables/bookmark/useOnboardingPending'
+import { useKocPromotionFlow } from '~/composables/promotion/useKocPromotionFlow'
 import { useUserStore } from '~/stores/user'
 
 const { t } = useI18n()
@@ -22,25 +23,27 @@ useHead({
   titleTemplate: t('common.app.name')
 })
 
-const userId = computed(() => userStore.userInfo?.userId)
-const { isPending, clearPending, setDismissed } = useOnboardingPending(userId)
+const kocFlow = useKocPromotionFlow()
+const route = useRoute()
+const userId = kocFlow.userId
+const { isPending, setDismissed } = useOnboardingPending(userId)
 
-// 无标记 → 退回 /bookmarks
+// Return to the root Inbox when no onboarding session is pending.
 watch(
-  [() => userStore.userInfo, isPending],
-  ([info, pending]) => {
-    if (info && !pending) navigateTo('/bookmarks', { replace: true })
+  [userId, isPending, kocFlow.blocksOnboarding],
+  ([info, pending, blocked]) => {
+    if (route.path === '/onboarding' && info && !pending && !blocked) navigateTo(kocFlow.returnTarget('/'), { replace: true })
   },
   { immediate: true }
 )
 
-userStore.getUserInfo({ refresh: true })
+userStore.getUserInfo({ refresh: true }).catch(() => {})
 
-// 清标记 + 落终态，回到 /bookmarks
+// Publish completion before returning to the cached Inbox.
 const finish = () => {
-  clearPending()
+  if (kocFlow.blocksOnboarding.value) return
   setDismissed()
-  navigateTo('/bookmarks', { replace: true })
+  navigateTo(kocFlow.returnTarget('/'), { replace: true })
 }
 
 const feedbackClick = () => {

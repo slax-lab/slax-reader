@@ -1,3 +1,4 @@
+import { enableAutoUnmount } from '@vue/test-utils'
 // pages/bookmarks/index.vue 集成测试 — 完整覆盖（实测目标 90%+）
 // 关键约束（spec 修订 1-3 决议）：
 //  - useUserStore 全 vi.mock（mountWithApp 独立 Pinia 让 spyOn 失效）
@@ -8,6 +9,9 @@
 //  - 子组件 stub 必须设 name 字段（findComponent({ name }) 命中）+ 渲染 named slots
 //  - useUserStore mockUserInfo 字段必须包含 isLogin（user store getter 依赖 haveRequestToken）
 
+import { RESTMethodPath } from '@slax-reader/contracts/const'
+import ReceiveSubscribeModal from '~/components/GetSubscribeModal.vue'
+import { initialPromotionState } from '~~/app/utils/promotionFlow'
 import { nextTick, reactive, ref } from 'vue'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
@@ -65,7 +69,11 @@ const {
     mockAnalyticsLog: vi.fn(),
     mockHaveRequestToken: vi.fn(() => false),
     mockAddChannelMessageHandler: vi.fn((handler: any) => {
-      captured.value = handler
+      const previous = captured.value
+      captured.value = (...args: any[]) => {
+        previous?.(...args)
+        handler(...args)
+      }
     }),
     mockRemoveChannelMessageHandler: vi.fn(),
     capturedChannelHandler: captured,
@@ -192,9 +200,15 @@ const mountIndexPage = () =>
     global: { stubs: baseStubs }
   })
 
+enableAutoUnmount(afterEach)
+
 describe('pages/bookmarks/index.vue', () => {
   beforeEach(() => {
+    useState('onboarding-flags', () => ({})).value = {}
+    localStorage.clear()
+    useState('koc-promotion', initialPromotionState).value = { ...initialPromotionState(), userId: baseUser.userId, phase: 'idle' }
     vi.clearAllMocks()
+    mockHaveRequestToken.mockReturnValue(false)
     capturedChannelHandler.value = null
     yScrollRef.value = 0
     // 默认 useRoute reactive proxy（修订 2 P1 #1）
@@ -207,12 +221,79 @@ describe('pages/bookmarks/index.vue', () => {
     mockUseRoute.mockReturnValue(routeState)
     mockGetUserInfo.mockResolvedValue(baseUser)
     mockGet.mockResolvedValue([])
+    mockPost.mockResolvedValue({})
     // 每例重置，避免跨用例串味
     mockUseExtensionDetection.mockReturnValue({ isInstalled: { value: true }, checked: { value: true } })
   })
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it('refreshes the ordinary subscription and disposes the shared modal after acknowledgement', async () => {
+    mockHaveRequestToken.mockReturnValue(true)
+    mockPost.mockResolvedValue({ status: false })
+    const wrapper = mountIndexPage()
+    await flushPromises()
+    await wrapper.find('.sidebar-promo').trigger('click')
+    const modal = wrapper.findComponent(ReceiveSubscribeModal)
+    expect(modal.exists()).toBe(true)
+    mockGetUserInfo.mockClear()
+    modal.vm.$emit('outcome', 'success')
+    await flushPromises()
+    expect(mockGetUserInfo).toHaveBeenCalledWith({ refresh: true })
+    expect(wrapper.find('.sidebar-promo').exists()).toBe(false)
+    modal.vm.$emit('outcome', 'acknowledged')
+    await flushPromises()
+    expect(wrapper.findComponent(ReceiveSubscribeModal).exists()).toBe(false)
+  })
+
+  it('waits for the new account collection response before deciding onboarding', async () => {
+    mockHaveRequestToken.mockReturnValue(true)
+    const detection = { isInstalled: ref(true), checked: ref(true) }
+    mockUseExtensionDetection.mockReturnValue(detection)
+    mountIndexPage()
+    await flushPromises()
+    let resolveCollections!: (rows: any[]) => void
+    mockGet.mockImplementation(({ url }: any) =>
+      url === RESTMethodPath.COLLECT_SUBSCRIBED_LIST
+        ? new Promise(resolve => {
+            resolveCollections = resolve
+          })
+        : Promise.resolve([])
+    )
+    useState('koc-promotion').value.userId = baseUser.userId + 1
+    detection.isInstalled.value = false
+    await flushPromises()
+    expect(resolveCollections).toBeDefined()
+    expect(mockNavigateTo).not.toHaveBeenCalledWith({ path: '/onboarding', query: {} }, expect.anything())
+    resolveCollections([{ id: 2, code: 'subscribed', display_name: 'A collection', cancelled: false }])
+    await flushPromises()
+    expect(mockNavigateTo).not.toHaveBeenCalledWith({ path: '/onboarding', query: {} }, expect.anything())
+  })
+
+  it('does not onboard a cached Inbox before a new campaign query is reconciled', async () => {
+    mockHaveRequestToken.mockReturnValue(true)
+    mockPost.mockResolvedValue({ status: false })
+    const detection = { isInstalled: ref(true), checked: ref(true) }
+    mockUseExtensionDetection.mockReturnValue(detection)
+    mountIndexPage()
+    await flushPromises()
+    const route = mockUseRoute()
+    Object.assign(route.query, { activity_type: 'blogger', activity_id: 'daguang', claim: 'true' })
+    route.fullPath = '/?activity_type=blogger&activity_id=daguang&claim=true'
+    detection.isInstalled.value = false
+    await flushPromises()
+    expect(mockNavigateTo).not.toHaveBeenCalledWith({ path: '/onboarding', query: {} }, expect.anything())
+  })
+
+  it('a failed collection request cannot establish empty subscriptions', async () => {
+    mockHaveRequestToken.mockReturnValue(true)
+    mockUseExtensionDetection.mockReturnValue({ isInstalled: ref(false), checked: ref(true) })
+    mockGet.mockImplementation(({ url }: any) => (url === RESTMethodPath.COLLECT_SUBSCRIBED_LIST ? Promise.reject(Error('offline')) : Promise.resolve([])))
+    mountIndexPage()
+    await flushPromises()
+    expect(mockNavigateTo).not.toHaveBeenCalledWith({ path: '/onboarding', query: {} }, expect.anything())
   })
 
   describe('挂载 + computed（C1-C7）', () => {
@@ -224,6 +305,7 @@ describe('pages/bookmarks/index.vue', () => {
     })
 
     it('C2: 默认无 bookmarks + 已装插件（mock 默认）→ inbox 走纯净空态 BookmarksEmptyView', async () => {
+      mockHaveRequestToken.mockReturnValue(true)
       const wrapper = mountIndexPage()
       await flushPromises()
       // 已装插件 → 状态 C 纯净空态
@@ -289,11 +371,12 @@ describe('pages/bookmarks/index.vue', () => {
     })
 
     it('C7: 默认 inbox + isDataEmpty=true + 未装插件 → 跳转 /onboarding，列表侧按状态 B 展示（非通用 EmptyView）', async () => {
+      mockHaveRequestToken.mockReturnValue(true)
       mockUseExtensionDetection.mockReturnValue({ isInstalled: { value: false }, checked: { value: true } })
       const wrapper = mountIndexPage()
       await flushPromises()
       // 状态 A → 跳转 + 按 B 展示
-      expect(mockNavigateTo).toHaveBeenCalledWith('/onboarding', { replace: true })
+      expect(mockNavigateTo).toHaveBeenCalledWith({ path: '/onboarding', query: {} }, { replace: true })
       expect(wrapper.findComponent({ name: 'BookmarksEmptyView' }).exists()).toBe(true)
     })
 
@@ -503,6 +586,7 @@ describe('pages/bookmarks/index.vue', () => {
     })
 
     it('C22: loadData query 返 [] → ending=true（列表无 cell + 进入空态）', async () => {
+      mockHaveRequestToken.mockReturnValue(true)
       mockGet.mockResolvedValueOnce([])
       const wrapper = mountIndexPage()
       await flushPromises()

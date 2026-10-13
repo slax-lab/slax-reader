@@ -1,3 +1,4 @@
+import { enableAutoUnmount } from '@vue/test-utils'
 // useOnboardingPending 单元测试
 import { defineComponent, ref } from 'vue'
 
@@ -17,13 +18,16 @@ const mountPending = (userId: ReturnType<typeof ref<number | undefined>>) => {
   return { wrapper, api: api! }
 }
 
+enableAutoUnmount(afterEach)
 describe('useOnboardingPending', () => {
   beforeEach(() => {
     localStorage.clear()
+    useState('onboarding-flags', () => ({})).value = {}
   })
 
   afterEach(() => {
     localStorage.clear()
+    useState('onboarding-flags', () => ({})).value = {}
   })
 
   it('userId 未就位（undefined）→ isPending 恒为 false，setPending/clearPending 均不写入', () => {

@@ -89,10 +89,12 @@ export const useUserStore = defineStore<'user', UserState, UserGetters, UserActi
   },
   actions: {
     async refreshUserInfo(): Promise<UserInfo> {
+      const token = getUserToken()
       const resp = await request().get<UserInfo>({
         url: RESTMethodPath.ME
       })
 
+      if (token !== getUserToken()) throw new Error('Session changed')
       if (!resp) {
         throw new Error('refresh user info failed')
       }

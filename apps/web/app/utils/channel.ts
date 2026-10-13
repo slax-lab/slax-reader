@@ -1,6 +1,7 @@
 import { isClient, isFunction, isPromise } from '@commons/frontend-utils/is'
 
 export interface ChannelMessageData {
+  subscription: { userId: number }
   archive: {
     id: number
     cancel: boolean

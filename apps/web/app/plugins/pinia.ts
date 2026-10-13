@@ -18,15 +18,17 @@ function userStoreExtensionPlugin(context: PiniaPluginContext) {
   if (store.$id === 'user' && typeof store.refreshUserInfo === 'function') {
     const original = store.refreshUserInfo.bind(store)
     store.refreshUserInfo = async () => {
+      const token = getUserToken()
       // 身份以 /me 为权威
       // 本地 id 是 UUID，离线才回退
       try {
         return await original()
       } catch (e) {
+        if (token !== getUserToken()) throw e
         if (isLocalFirstEnabled()) {
           try {
             const local = await loadLocalUserInfo()
-            if (local) {
+            if (local && token === getUserToken()) {
               store.user = local
               if (store.locale !== local.lang) store.changeLocalLocale(local.lang)
               return local

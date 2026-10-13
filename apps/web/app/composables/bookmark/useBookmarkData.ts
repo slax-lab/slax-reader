@@ -10,6 +10,7 @@ import { useLocalCollections } from '@/composables/bookmark/useLocalCollections'
 import { useLocalMarks } from '@/composables/bookmark/useLocalMarks'
 import type { BookmarkItem, BookmarkTag } from '@commons/frontend-types/models'
 import { isClient } from '@commons/frontend-utils/is'
+import { useStatus } from '@powersync/vue'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { HighlightItem } from '@slax-reader/contracts/interface'
 import { useDebounceFn, useEventListener, useInfiniteScroll } from '@vueuse/core'
@@ -39,6 +40,9 @@ export const useBookmarkData = (
   const restHighlights = ref<HighlightItem[]>([])
   // REST 加载态，仅非 local tab 用
   const restLoading = ref(false)
+  const restReady = ref(false)
+  const restSession = ref<string>()
+  const restOwner = ref<number | null>(null)
   const ending = ref(false)
   const page = ref(1)
   const isTransitioning = ref(false)
@@ -48,6 +52,9 @@ export const useBookmarkData = (
   // local-first：客户端 + 已登录 + PowerSync 就绪
   const canUseLocal = isClient && haveRequestToken() && isLocalFirstEnabled() && !!$powersync
   const local = canUseLocal ? useLocalBookmarks() : null
+  const syncStatus = canUseLocal ? useStatus() : null
+  const localOwner = useState<string | null>('powersync-owner', () => null)
+  const verifiedUser = useState('koc-promotion', () => ({ userId: null as number | null }))
   // flag 关时不建，highlights 回退 REST
   const localMarks = canUseLocal && isHighlightLocalFirstEnabled() ? useLocalMarks() : null
 
@@ -108,6 +115,19 @@ export const useBookmarkData = (
     if (isLocalBookmarkTab.value) return localList!.isLoading.value || bookmarkSettling.value
     if (isLocalHighlightTab.value) return localHighlights!.isLoading.value || highlightSettling.value
     return restLoading.value
+  })
+
+  const onboardingReady = computed(() => {
+    if (loading.value || isTransitioning.value) return false
+    if (isLocalBookmarkTab.value)
+      return (
+        !localList!.error.value &&
+        !localList!.isFetching.value &&
+        syncStatus?.value?.hasSynced === true &&
+        !!verifiedUser.value.userId &&
+        localOwner.value === String(verifiedUser.value.userId)
+      )
+    return restReady.value && restSession.value === getUserToken() && restOwner.value === verifiedUser.value.userId
   })
 
   // 切入 local 书签 tab 置 settling，结果刷新后清除
@@ -247,20 +267,28 @@ export const useBookmarkData = (
   let loadSeq = 0
   const loadData = async <T extends any[]>(query: () => Promise<T | undefined>) => {
     const seq = loadSeq
+    const token = getUserToken()
     restLoading.value = true
-    const data = await query()
-    if (seq !== loadSeq) return
-    restLoading.value = false
-    if (!data || data.length < 1) {
-      ending.value = true
-      return
+    try {
+      const data = await query()
+      if (seq !== loadSeq || token !== getUserToken()) return
+      if (!Array.isArray(data)) return
+      if (data.length < 1) {
+        ending.value = true
+        return data
+      }
+      page.value += 1
+      return data
+    } catch {
+      if (seq === loadSeq) restReady.value = false
+    } finally {
+      if (seq === loadSeq) restLoading.value = false
     }
-    page.value += 1
-    return data
   }
 
   const resetBookmarks = () => {
     loadSeq += 1
+    restReady.value = false
     restBookmarks.value = []
     restHighlights.value = []
     restLoading.value = false
@@ -273,6 +301,15 @@ export const useBookmarkData = (
   const onLoadMore = async () => {
     if (isFirstLoad.value) isFirstLoad.value = false
     const type = filter.filterStatus.value
+    const seq = loadSeq
+    const token = getUserToken()
+    const owner = verifiedUser.value.userId
+    const current = () => seq === loadSeq && token === getUserToken() && owner === verifiedUser.value.userId
+    const markReady = () => {
+      restSession.value = token
+      restOwner.value = owner
+      restReady.value = true
+    }
 
     if (isLocalCollectionTab.value) {
       ending.value = true
@@ -296,10 +333,16 @@ export const useBookmarkData = (
     const topicKey = type === 'topics' ? filter.filterTopicIds.value.join(',') : ''
     if (type === 'highlights') {
       const data = await loadData(queryHighlights)
-      type === filter.filterStatus.value && restHighlights.value.push(...(data || []))
+      if (current() && Array.isArray(data) && type === filter.filterStatus.value) {
+        restHighlights.value.push(...data)
+        markReady()
+      }
     } else {
       const data = await loadData(queryBookmarks)
-      type === filter.filterStatus.value && (type !== 'topics' || topicKey === filter.filterTopicIds.value.join(',')) && restBookmarks.value.push(...(data || []))
+      if (current() && Array.isArray(data) && type === filter.filterStatus.value && (type !== 'topics' || topicKey === filter.filterTopicIds.value.join(','))) {
+        restBookmarks.value.push(...data)
+        markReady()
+      }
     }
   }
 
@@ -315,6 +358,15 @@ export const useBookmarkData = (
       onLoadMore()
     })
   }
+
+  watch(
+    [() => getUserToken(), () => verifiedUser.value.userId],
+    () => {
+      resetBookmarks()
+      if (haveRequestToken()) void onLoadMore()
+    },
+    { flush: 'sync' }
+  )
 
   const canLoadMoreList = () => (visible?.value ?? true) && !restLoading.value && !ending.value && isActivated.value && !searchText.value
   const { reset } = useInfiniteScroll(isClient ? window : null, () => onLoadMore(), { distance: 100, canLoadMore: canLoadMoreList })
@@ -411,6 +463,7 @@ export const useBookmarkData = (
     ending,
     isTransitioning,
     isFirstLoad,
+    onboardingReady,
     groupedBookmarks,
     isRefreshLoading,
     lastUpdatedText,

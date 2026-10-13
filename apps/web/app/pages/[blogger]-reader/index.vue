@@ -3,8 +3,8 @@
 </template>
 
 <script lang="ts" setup>
-import type { BloggerInfo } from '@slax-reader/contracts/interface'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
+import type { BloggerInfo } from '@slax-reader/contracts/interface'
 import { useCookies } from '@vueuse/integrations/useCookies'
 
 const route = useRoute()
@@ -29,12 +29,11 @@ onMounted(async () => {
     if (bloggerInfo.value?.activity_id) {
       params.set('activity_id', bloggerInfo.value.activity_id)
       params.set('activity_type', 'blogger')
-      // claim=true 确保每次访问 KOC 邀请链接都会触发 alertGetSubscribe modal
-      // （bookmarks 页 router.replace 会抹掉这些 query，需在抹掉前让 isClaimClick=true 生效）
+      // The layout coordinator captures this invitation before cleaning the root URL.
       params.set('claim', 'true')
     }
     const query = params.toString()
-    await navigateTo(`/bookmarks${query ? `?${query}` : ''}`, { replace: true })
+    await navigateTo(`/${query ? `?${query}` : ''}`, { replace: true })
   } else {
     const params = new URLSearchParams()
     params.set('blogger', blogger)

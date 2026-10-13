@@ -15,6 +15,8 @@ const state = vi.hoisted(() => ({
 mockNuxtImport('useRuntimeConfig', () => () => ({
   public: { DWEB_API_BASE_URL: 'https://api.test', COOKIE_TOKEN_NAME: 'token', EXTENSION_BRIDGE_IDS: 'allowed-id', slaxEnv: 'production' }
 }))
+const ownership = { value: null as string | null }
+mockNuxtImport('useState', () => () => ownership)
 mockNuxtImport('useRouter', () => () => ({ afterEach: state.afterEach }))
 mockNuxtImport('useAuth', () => () => ({ clearAuth: state.clearAuth }))
 vi.mock('~/utils/request', () => ({ getUserToken: state.cookie, getClientEventHeaders: () => ({}) }))
@@ -67,6 +69,29 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('PowerSync in an authenticated extension iframe with no page cookie', () => {
+  it('falls back without exposing local data when storage is denied at startup', async () => {
+    await import('~~/app/plugins/powersync.client')
+    vi.spyOn(window, 'parent', 'get').mockReturnValue(window)
+    state.cookie.mockReturnValue(token('user-a'))
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('denied', 'SecurityError')
+    })
+    try {
+      const result = await start()
+      expect(result?.provide?.powersync).toBeNull()
+      expect(state.connect).not.toHaveBeenCalled()
+    } finally {
+      spy.mockRestore()
+    }
+  })
+  it('does not expose old local data when account cleanup fails', async () => {
+    state.session.mockResolvedValue(token('user-b'))
+    state.clear.mockRejectedValue(new Error('database busy'))
+    const result = await start()
+    expect(result?.provide?.powersync).toBeNull()
+    expect(state.connect).not.toHaveBeenCalled()
+  })
+
   it('starts syncing and authenticates the sync-token request using the extension session', async () => {
     const sessionToken = token('user-a')
     state.session.mockResolvedValue(sessionToken)
@@ -75,9 +100,12 @@ describe('PowerSync in an authenticated extension iframe with no page cookie', (
     expect(state.connect).toHaveBeenCalledOnce()
     const connector = getConnector()
     await expect(connector.fetchCredentials()).resolves.toEqual({ token: 'sync-token', endpoint: 'https://sync.test' })
-    expect(fetch).toHaveBeenCalledWith('https://api.test/v1/sync/token', expect.objectContaining({
-      headers: expect.objectContaining({ Authorization: `Bearer ${sessionToken}` })
-    }))
+    expect(fetch).toHaveBeenCalledWith(
+      'https://api.test/v1/sync/token',
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: `Bearer ${sessionToken}` })
+      })
+    )
   })
 
   it('reads renewed credentials for uploads and refuses a different account', async () => {
@@ -88,9 +116,12 @@ describe('PowerSync in an authenticated extension iframe with no page cookie', (
     const renewed = token('user-a', 2)
     state.session.mockResolvedValue(renewed)
     await connector.uploadData(database)
-    expect(fetch).toHaveBeenLastCalledWith(expect.stringContaining('/v1/sync/changes'), expect.objectContaining({
-      headers: expect.objectContaining({ Authorization: `Bearer ${renewed}` })
-    }))
+    expect(fetch).toHaveBeenLastCalledWith(
+      expect.stringContaining('/v1/sync/changes'),
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: `Bearer ${renewed}` })
+      })
+    )
     expect(complete).toHaveBeenCalledOnce()
 
     state.session.mockResolvedValue(token('user-b'))

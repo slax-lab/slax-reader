@@ -51,6 +51,27 @@ describe('GetSubscribeModal', () => {
     mockPost.mockResolvedValue({ title: 'Done', message: 'Received' })
   })
 
+  it('blocks dismissal during submission and waits for success acknowledgement without reloading', async () => {
+    runtimeConfig.public.TURNSTILE_SITE_KEY = ''
+    let resolve!: (result: any) => void
+    mockPost.mockReturnValueOnce(
+      new Promise(r => {
+        resolve = r
+      })
+    )
+    const wrapper = mountWithApp(GetSubscribeModal, { props })
+    await wrapper.find('.btn-confirm').trigger('click')
+    await wrapper.find('.receive-modal').trigger('click')
+    expect(wrapper.emitted('dismiss')).toBeUndefined()
+    resolve({ title: 'Done', message: 'Received', subMessage: '' })
+    await flushPromises()
+    expect(wrapper.emitted('outcome')).toContainEqual(['success'])
+    expect(wrapper.find('.success-continue').exists()).toBe(true)
+    await wrapper.find('.success-continue').trigger('click')
+    expect(wrapper.emitted('outcome')?.at(-1)).toEqual(['acknowledged'])
+    wrapper.unmount()
+  })
+
   it('Turnstile 未配置时不渲染组件且确认按钮可以直接提交', async () => {
     runtimeConfig.public.TURNSTILE_SITE_KEY = ''
     const wrapper = mountWithApp(GetSubscribeModal, {
