@@ -129,5 +129,42 @@ export class ImageProcessor implements DOMProcessor {
         img.style.cssFloat = 'none'
       }
     })
+
+    if (preserveStyle && context.articleStyle !== ArticleStyle.PhotoSwipeTopic) {
+      // Backend pixel dimensions may be intrinsic; shrink oversized images while preserving icons.
+      const fixedSizeImgs = imgs.filter(img => /^[\d.]+px$/.test(img.style.width) && /^[\d.]+px$/.test(img.style.height))
+      if (!fixedSizeImgs.length) return
+
+      const fitOversizedImages = () => {
+        const availableWidth = context.container.clientWidth
+        if (availableWidth <= 0) return
+
+        for (const img of fixedSizeImgs) {
+          if (!img.style.width.endsWith('px') || parseFloat(img.style.width) <= availableWidth) continue
+          img.style.setProperty('width', '100%', 'important')
+          img.style.setProperty('height', 'auto', 'important')
+        }
+      }
+
+      // Do not depend on load events: lazy and cached images also need fixed placeholder heights removed.
+      fitOversizedImages()
+      const view = context.container.ownerDocument.defaultView
+      if (view?.ResizeObserver) {
+        let frame: number | undefined
+        const observer = new view.ResizeObserver(() => {
+          if (frame !== undefined) return
+          // Height changes resize the observed container; defer writes to avoid a notification loop.
+          frame = view.requestAnimationFrame(() => {
+            frame = undefined
+            fitOversizedImages()
+          })
+        })
+        observer.observe(context.container)
+        context.cleanups.push(() => {
+          observer.disconnect()
+          if (frame !== undefined) view.cancelAnimationFrame(frame)
+        })
+      }
+    }
   }
 }
