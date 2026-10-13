@@ -106,10 +106,18 @@ describe('OpenAIModerationClient', () => {
     const { url, init, body } = lastCall()
     expect(url).toBe('https://api.openai.com/v1/moderations')
     expect((init as RequestInit).method).toBe('POST')
-    expect((init as RequestInit).redirect).toBe('error')
+    expect((init as RequestInit).redirect).toBe('manual')
     expect((init as any).headers.Authorization).toBe('Bearer sk-test')
     expect(body.model).toBe('omni-moderation-latest')
     expect(body.input).toBe('x')
+  })
+
+  test.each([301, 302, 303, 307, 308])('rejects redirect %s without sending credentials to its destination', async status => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status, headers: { Location: 'https://untrusted.example/moderations' } }))
+    await expect(new OpenAIModerationClient(env).moderate('x')).rejects.toThrow('must not redirect')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(lastCall().url).toBe('https://api.openai.com/v1/moderations')
+    expect(lastCall().init.redirect).toBe('manual')
   })
 
   test('只有显式配置才能向可信自建审核 endpoint 发送密钥', async () => {

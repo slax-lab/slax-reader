@@ -1,3 +1,4 @@
+import { isPdfContentKey } from '@slax-reader/contracts/pdf'
 import { isServerTimingEnabled } from './serverTiming'
 import { createError, getCookie, getResponseHeader, type H3Event, setResponseHeader } from 'h3'
 
@@ -82,6 +83,8 @@ export async function loadContent(event: H3Event, uuid: string): Promise<Content
     if (!metadata) {
       throw createError({ statusCode: 404, message: 'not found' })
     }
+
+    if (isPdfContentKey(metadata.content_key)) return { metadata, body: null }
 
     let body = bodyResult.status === 'fulfilled' ? bodyResult.value : null
     if (bodyResult.status === 'rejected') {

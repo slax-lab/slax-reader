@@ -1,0 +1,55 @@
+{
+  "name": "@slax-lab/reader-cli",
+  "version": "1.0.1",
+  "description": "Slax Reader API client CLI - manage bookmarks from the command line",
+  "type": "module",
+  "bin": {
+    "reader-cli": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "start": "node dist/index.js",
+    "test": "pnpm run build && node --test test/*.test.mjs",
+    "test:package": "node script/verify-package.mjs",
+    "prepublishOnly": "npm run build",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "slax",
+    "reader",
+    "bookmark",
+    "cli"
+  ],
+  "author": "slax-lab",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slax-lab/slax-reader.git",
+    "directory": "apps/cli"
+  },
+  "homepage": "https://github.com/slax-lab/slax-reader/tree/dev/apps/cli#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "conf": "^15.1.0",
+    "ora": "^9.3.0",
+    "semver": "^7.7.4"
+  },
+  "devDependencies": {
+    "@slax-reader/contracts": "workspace:*",
+    "@types/node": "^25.6.0",
+    "@types/semver": "^7.7.1",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.2"
+  }
+}

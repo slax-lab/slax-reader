@@ -37,6 +37,7 @@ vi.mock('@/utils/hashids', () => ({
 import { CrawlWorkflow } from '@/entry/edge/workflows/crawlWorkflow'
 import { CrawlService } from '@/domain/crawl'
 import { BookmarkService } from '@/domain/bookmark'
+import { LabService } from '@/domain/lab'
 import { UrlParserHandler } from '@/domain/orchestrator/urlParser'
 import { TelegramBotService } from '@/domain/telegram'
 import { ImportService } from '@/domain/import'
@@ -57,6 +58,7 @@ function wireAndRun(eventOverrides: Record<string, unknown> = {}, crawlResultOve
   mockResolveMap.clear()
   mockResolveMap.set(CrawlService, cs)
   mockResolveMap.set(BookmarkService, bs)
+  mockResolveMap.set(LabService, { assertUrlAllowed: vi.fn().mockResolvedValue(undefined) })
   mockResolveMap.set(UrlParserHandler, uph)
   mockResolveMap.set(TelegramBotService, tg)
   mockResolveMap.set(ImportService, imp)
@@ -111,6 +113,7 @@ describe('软 404 检测', () => {
     mockResolveMap.clear()
     mockResolveMap.set(CrawlService, cs)
     mockResolveMap.set(BookmarkService, bs)
+    mockResolveMap.set(LabService, { assertUrlAllowed: vi.fn().mockResolvedValue(undefined) })
     mockResolveMap.set(UrlParserHandler, uph)
     mockResolveMap.set(TelegramBotService, tg)
     mockResolveMap.set(ImportService, imp)

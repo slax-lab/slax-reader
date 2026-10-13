@@ -1,3 +1,4 @@
+import type { PdfMarkSource } from '@slax-reader/contracts/pdf'
 /**
  * Types used while selecting and rendering a mark in the browser.
  *
@@ -9,6 +10,7 @@
  * selection implementation.
  */
 export type SelectionMarkPathItem =
+  | PdfMarkSource
   | { type: 'text'; path: string; start: number; end: number }
   | { type: 'image'; path: string }
 

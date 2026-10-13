@@ -2,14 +2,16 @@
   <div class="bookmark-article snapshot" ref="bookmarkArticle" :class="{ [articleStyle]: true }">
     <header class="article-header">
       <SnapshotArticleSource
-        v-if="detail.target_url"
+        v-if="!isPdf && detail.target_url && !detail.target_url.startsWith('slax-pdf://')"
         :url="detail.target_url"
         :site-name="detail.site_name"
         :column-name="(detail as BookmarkArticleDetail & { column_name?: string }).column_name"
         :author="detail.byline"
         :host-url="detail.host_url"
       />
-      <div class="article-divider" />
+      <PdfDocumentSource v-if="isPdf && detail.pdf" :pdf="detail.pdf" :url="detail.target_url"
+        :site-name="detail.site_name" :host-url="detail.host_url" :author="pdfAuthor" />
+      <div v-if="!isPdf" class="article-divider" />
       <h1 class="article-title" :title="title">{{ title }}</h1>
       <BookmarkTags
         v-if="effAllowTagged"
@@ -22,15 +24,25 @@
         :readonly="!ready || !effAllowTagged"
       />
     </header>
+    <ClientOnly v-if="isPdf">
+      <PdfReader v-if="detail.pdf" :key="detail.pdf.document_id" :pdf="detail.pdf" :marks="pdfMarks" :ready="ready"
+        :allow-action="adapters.allowActionOverride ?? allowAction" :bookmark-id="bookmarkId" :bookmark-uid="bookmarkUid"
+        :share-code="shareCode" :owner-user-id="bookmarkUserId" :collection="pdfCollection" :adapters="adapters"
+        @selection="pdfSelection = $event" @quote="emits('chatBotQuote', $event)" @metadata="pdfMetadata = $event" />
+      <p v-else class="pdf-load-status" role="status">{{ t(pdfLoadError ? 'pdf.load_failed' : 'pdf.loading') }}<button v-if="pdfLoadError" @click="emits('retryPdf')">{{ t('pdf.retry') }}</button></p>
+    </ClientOnly>
     <!-- 保留 .article-detail ref + articleStyle class，processors 管道 / mark 绘制依赖 -->
-    <div class="article-detail article-body" ref="articleDetail" :class="{ [articleStyle]: true }">
+    <div v-else class="article-detail article-body" ref="articleDetail" :class="{ [articleStyle]: true }">
       <div class="html-text" lang="en" v-html="articleHTML"></div>
     </div>
-    <SnapshotArticleFooter :via="footerVia" :show-via="footerShowVia" :collection="footerCollection" />
+    <SnapshotArticleFooter v-if="!isPdf || detail.pdf" :via="footerVia" :show-via="footerShowVia" :collection="footerCollection" />
   </div>
 </template>
 
 <script lang="ts" setup>
+import type { ReaderSelection } from './Selection/ReaderSelection'
+import PdfDocumentSource from './Pdf/PdfDocumentSource.vue'
+const PdfReader = defineAsyncComponent(() => import('./Pdf/PdfReader.client.vue'))
 import BookmarkTags from '~/components/BookmarkTags.vue'
 import SnapshotArticleFooter from '~/components/Snapshot/SnapshotArticleFooter.vue'
 import SnapshotArticleSource from '~/components/Snapshot/SnapshotArticleSource.vue'
@@ -79,10 +91,11 @@ const props = defineProps({
     type: Boolean,
     required: false,
     default: true
-  }
+  },
+  pdfLoadError: Boolean
 })
 
-const emits = defineEmits(['screenLockUpdate', 'bookmarkUpdate', 'chatBotQuote'])
+const emits = defineEmits(['screenLockUpdate', 'bookmarkUpdate', 'chatBotQuote', 'retryPdf'])
 
 // 行为注入，默认空=现状
 const adapters = inject(ArticleSelectionAdaptersKey, {})
@@ -91,6 +104,13 @@ const { t } = useI18n()
 const { detail } = toRefs(props)
 const bookmarkArticle = ref<HTMLDivElement>()
 const articleDetail = ref<HTMLDivElement>()
+const pdfSelection = shallowRef<ReaderSelection | null>(null)
+const isPdf = computed(() => !!props.detail.pdf || ('type' in props.detail && props.detail.type === 'pdf'))
+const pdfMetadata = shallowRef<{ author?: string }>()
+const pdfAuthor = computed(() => props.detail.byline?.trim() || pdfMetadata.value?.author)
+watch(() => props.detail.pdf?.document_id, () => { pdfMetadata.value = undefined })
+const pdfMarks = computed(() => adapters.markSource === 'props' ? props.marks : props.detail.marks ?? props.marks)
+const pdfCollection = computed(() => 'collection_info' in props.detail && props.detail.collection_info ? { code: props.detail.collection_info.collection_code, cb_id: props.detail.collection_info.cb_id } : undefined)
 
 // 仅调用一次，模板与 composable 共用
 const { bookmarkId, shareCode, bookmarkUid, title, allowTagged, allowAction, bookmarkUserId, updateStarred } = useArticleDetail(detail)
@@ -118,7 +138,7 @@ const articleHTML = computed(() => {
 })
 
 // 划线/评论重逻辑唯一来源
-const { articleSelectionRef, handleHTML, findQuote, cleanup } = useArticleSelection({
+const { articleSelectionRef, handleHTML, findQuote: findHtmlQuote, cleanup } = useArticleSelection({
   detail,
   containerDom: bookmarkArticle,
   monitorDom: articleDetail,
@@ -172,10 +192,9 @@ const starBookmark = async (event: MouseEvent, isStar: boolean) => {
   }
 }
 
-defineExpose({
-  findQuote,
-  articleSelection: articleSelectionRef
-})
+const activeSelection = computed<ReaderSelection | null>(() => props.detail.pdf ? pdfSelection.value : articleSelectionRef.value)
+const findQuote = (quote: QuoteData) => props.detail.pdf ? pdfSelection.value?.findQuote(quote) : findHtmlQuote(quote)
+defineExpose({ findQuote, articleSelection: activeSelection })
 </script>
 
 <style lang="scss" scoped>
@@ -197,6 +216,9 @@ defineExpose({
     margin-top: 0;
   }
 }
+
+.pdf-load-status { padding: 12px 0; color: var(--slax-text-muted); font-size: var(--slax-fs-aux); }
+.pdf-load-status button { margin-left: 12px; min-height: 44px; padding: 0 12px; color: var(--slax-accent); border: 1px solid var(--slax-border); border-radius: var(--slax-radius-sm); background: var(--slax-surface-solid); }
 
 .article-header {
   display: flex;

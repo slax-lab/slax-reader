@@ -14,6 +14,21 @@ files, credentials, or a browser that only you can provide.
 - Write secrets only into the gitignored files named in this document. Never
   print secret values into logs, and never commit them.
 
+## CLI-only development
+
+For CLI-only work, skip the service/configuration phases below. Install the root pinned pnpm dependencies with a supported Node LTS runtime, then run:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm cli -- typecheck
+pnpm cli -- build
+pnpm cli -- start --help
+pnpm cli -- test
+pnpm cli -- test:package
+```
+
+No config bundle, Docker, API keys or running service is required for these checks. Existing user authentication stays in the CLI's `reader-cli` system configuration, not `deploy/local`. Use interactive `pnpm cli -- start login` only when you want to access your account. See [CLI development](cli/DEVELOPMENT.md) and [release setup](cli/RELEASE.md). Existing `preflight` and `setup:all` module coverage is unchanged.
+
 ## Phase 0 — The config bundle [HUMAN]
 
 This project keeps its local configuration in `local.zip`, an internal bundle

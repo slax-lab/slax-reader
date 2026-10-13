@@ -18,7 +18,7 @@ import { RequestUtils } from '../../utils/requestUtils'
 import { callbackType } from '../../infra/queue/queueClient'
 import { bookmarkPO } from '../../infra/repository/dbBookmark'
 import { Controller } from '../../decorators/controller'
-import { Get, Post } from '../../decorators/route'
+import { Get, Post, All } from '../../decorators/route'
 import { inject } from '../../decorators/di'
 import { BookmarkOrchestrator } from '../../domain/orchestrator/bookmark'
 import { BookmarkAddOrchestrator } from '../../domain/orchestrator/bookmarkAdd'
@@ -52,6 +52,20 @@ export class BookmarkController {
     @inject(CrawlService) private crawlService: CrawlService,
     @inject(LogsService) private logsService: LogsService
   ) {}
+
+  @Post('/upload_pdf')
+  public async handlePdfUpload(ctx: ContextManager, request: Request) {
+    await this.userDeletionService.ensureUserNotDeleted(ctx.getUserId())
+    return Successed(await this.bookmarkService.uploadPdf(ctx, request))
+  }
+
+  @All('/pdf')
+  public async handlePdfFile(ctx: ContextManager, request: Request) {
+    if (!['GET', 'HEAD'].includes(request.method)) return new Response(null, { status: 405 })
+    const uuid = new URL(request.url).searchParams.get('bookmark_uid')
+    if (!uuid) return Failed(ErrorParam())
+    return this.bookmarkService.getPdfResponse(ctx, uuid, request)
+  }
 
   @Get('/export')
   public async handleUserExportBookmarksRequest(ctx: ContextManager, request: Request) {

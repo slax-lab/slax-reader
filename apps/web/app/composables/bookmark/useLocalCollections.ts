@@ -1,3 +1,4 @@
+import { bookmarkContentType } from '@slax-reader/contracts/pdf'
 import { computed, type MaybeRef, toValue } from 'vue'
 
 import { toUtcDate } from '@/utils/date'
@@ -53,6 +54,7 @@ interface LocalCollectionRow {
 }
 
 interface LocalCollectionBookmarkRow {
+  m_pdf_document_id: string | null
   id: string
   owner_id: string
   alias_title: string
@@ -78,6 +80,7 @@ interface LocalCollectionBookmarkRow {
 
 const BOOKMARK_COLS = `
   cb.id, cb.owner_id, cb.alias_title, cb.created_at, cb.updated_at, cb.starred_at,
+  JSON_EXTRACT(cb.metadata, '$.pdf_document_id')             AS m_pdf_document_id,
   JSON_EXTRACT(cb.metadata, '$.bookmark.title')              AS m_title,
   JSON_EXTRACT(cb.metadata, '$.bookmark.target_url')         AS m_target_url,
   JSON_EXTRACT(cb.metadata, '$.bookmark.host_url')           AS m_host_url,
@@ -181,7 +184,7 @@ function rowToItem(r: LocalCollectionBookmarkRow): CollectionBookmarkItem {
     archived: 'inbox',
     starred: r.starred_at ? 'star' : 'unstar',
     trashed_at: null,
-    type: 'article',
+    type: bookmarkContentType(r.m_pdf_document_id ? 2 : 0),
     mark_count: Number(r.mark_count ?? 0),
     first_mark: hasFirst ? { content: r.mp_content ?? '', comment: r.mp_comment ?? '', source: r.mp_source ?? '' } : null
   }

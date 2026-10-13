@@ -47,6 +47,8 @@ export function createMockEnv(runType = 'dev') {
 
 export function createMockBookmarkService() {
   return {
+    capturePdf: vi.fn().mockResolvedValue(false),
+    getPdfDescriptor: vi.fn().mockResolvedValue(undefined),
     addUrlBookmark: vi.fn(),
     addBookmark: vi.fn(),
     batchAddUrlBookmark: vi.fn(),

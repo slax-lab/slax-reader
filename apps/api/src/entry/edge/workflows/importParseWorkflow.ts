@@ -1,5 +1,7 @@
 import { container } from '@/decorators/di'
 import { WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from 'cloudflare:workers'
+import { NonRetryableError } from 'cloudflare:workflows'
+import { LabService } from '@/domain/lab'
 import { initializeInfrastructure, initializeCore } from '@/di/generated/dependency'
 import { ContextManager } from '@/utils/context'
 import { CrawlService, CrawlResult } from '@/domain/crawl'
@@ -96,7 +98,7 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
     }
 
     // Step 1: Fetch — 检查缓存，然后 headless browser 抓取
-    let crawlResult: CrawlResult | undefined
+    let crawlResult: (CrawlResult & { pdf?: boolean }) | undefined
     try {
       crawlResult = await step.do(
         'fetch',
@@ -104,8 +106,17 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
           retries: { limit: 1, delay: '30 seconds' as const, backoff: 'constant' as const },
           timeout: '2 minutes'
         },
-        async (): Promise<CrawlResult> => {
+        async (): Promise<CrawlResult & { pdf?: boolean }> => {
           publicTarget(url)
+          try {
+            if (await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, url)) {
+              const stored = await bookmarkService.getBookmarkById(bookmarkId)
+              return { title: stored?.title || '', textContent: '', byline: '', pdf: true }
+            }
+          } catch (error) {
+            if (LabService.isLabDisabledError(error)) throw new NonRetryableError(`pdf_lab_disabled:${error instanceof Error ? error.message : String(error)}`)
+            throw error
+          }
           // 缓存命中检查
           const existingData = await bookmarkService.getBookmarkTitleAndTextContentTry(bookmarkId)
           if (existingData?.privateUser === 0) {
@@ -127,12 +138,13 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
       const errMsg = err instanceof Error ? err.message : String(err)
       console.error(`ImportParse workflow fetch failed for bookmark ${bookmarkId}: ${errMsg}`)
       await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.FAILED)
-      await crawlService.pushBookmarkFailureAlert(userId, 'import_parse_workflow.fetch', {
-        bookmark_id: bookmarkId,
-        url,
-        user_id: userId,
-        error: errMsg
-      })
+      if (!errMsg.startsWith('pdf_lab_disabled:'))
+        await crawlService.pushBookmarkFailureAlert(userId, 'import_parse_workflow.fetch', {
+          bookmark_id: bookmarkId,
+          url,
+          user_id: userId,
+          error: errMsg
+        })
       await crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, hostname, 'fetching', 'failed', errMsg, ctxManager)
       await markImportFailed()
       throw err
@@ -148,6 +160,11 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
         },
         async () => {
           if (!crawlResult) return
+          if (crawlResult.pdf) {
+            const stored = await bookmarkService.getBookmarkById(bookmarkId)
+            crawlResult.textContent = stored?.content_md_key ? (await bookmarkService.getBookmarkContent(stored.content_md_key)) || '' : ''
+            if (!crawlResult.textContent) return
+          }
           await urlParserHandler.processPostHandler(
             ctxManager,
             {

@@ -78,7 +78,22 @@ pnpm api -- build
 
 The API's `setup` command prepares local dependencies and exits; `dev` starts Workers separately. Remote deployment and migrations remain explicit operations with their safety checks. See the [API development guide](docs/api/DEVELOPMENT-DOCUMENT-EN.md) ([中文](docs/api/DEVELOPMENT-DOCUMENT-CN.md), [日本語](docs/api/DEVELOPMENT-DOCUMENT-JP.md)).
 
-Shared HTTP types live in [`packages/contracts`](packages/contracts/README.md). Web, Extension, API and future CLI code imports the contract package and does not import application internals.
+Shared HTTP types live in [`packages/contracts`](packages/contracts/README.md). Web, Extension, API and CLI code import the contract package and do not import application internals.
+
+### CLI
+
+The [CLI](apps/cli/README.md) is published as `@slax-lab/reader-cli` with the `reader-cli` executable. It needs no local deployment configuration to build or test:
+
+```bash
+pnpm cli -- typecheck
+pnpm cli -- build
+pnpm cli -- start --help
+pnpm cli -- test
+pnpm cli -- test:package
+pnpm test:cli-tooling
+```
+
+See [CLI development](docs/cli/DEVELOPMENT.md) and [automated npm/GitHub releases](docs/cli/RELEASE.md). Stable `cli-v<version>` tags on commits promoted to `main` publish through npm OIDC; no user-added Actions secret is required.
 
 ## Contributing
 

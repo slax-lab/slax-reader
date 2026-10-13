@@ -67,6 +67,10 @@
     "./rss": {
       "types": "./src/rss.ts",
       "default": "./src/rss.ts"
+    },
+    "./pdf": {
+      "types": "./src/pdf.ts",
+      "default": "./src/pdf.ts"
     }
   },
   "scripts": {

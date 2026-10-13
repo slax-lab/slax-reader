@@ -23,6 +23,8 @@ export interface updateBookmarkShareReq {
 }
 
 export interface getBookmarkByShareResp {
+  type: import('@slax-reader/contracts/pdf').BookmarkContentType
+  pdf?: import('@slax-reader/contracts/pdf').PdfDescriptor
   byline: string
   content: string
   content_cover: string

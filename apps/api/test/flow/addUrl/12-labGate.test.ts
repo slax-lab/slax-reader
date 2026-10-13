@@ -11,6 +11,7 @@ vi.mock('@/decorators/di', () => ({
 }))
 vi.mock('@/decorators/controller', () => ({ Controller: () => (target: any) => target }))
 vi.mock('@/decorators/route', () => ({
+  All: () => (_t: any, _k: string, desc: PropertyDescriptor) => desc,
   Get: () => (_t: any, _k: string, desc: PropertyDescriptor) => desc,
   Post: () => (_t: any, _k: string, desc: PropertyDescriptor) => desc
 }))
@@ -34,11 +35,16 @@ function wireService(enabled: boolean) {
   const createBookmarkBase = vi.fn().mockResolvedValue({ id: 11, private_user: 7 })
   const bookmarkRepo = { getBookmark: vi.fn().mockResolvedValue(null) }
   const service = Object.create(BookmarkService.prototype) as BookmarkService
-  Object.assign(service, { createBookmarkBase, bookmarkRepo, labService: labService(enabled) })
+  Object.assign(service, { createBookmarkBase, bookmarkRepo, bookmarkData: bookmarkRepo, labService: labService(enabled) })
   return { service, createBookmarkBase }
 }
 
 describe('BookmarkService.addUrlBookmark', () => {
+  test.each(['https://arxiv.org/pdf/2608.00046', 'https://example.com/paper.pdf'])('accepts %s before response-based classification even with PDF Labs off', async url => {
+    const { service, createBookmarkBase } = wireService(false)
+    await expect(service.addUrlBookmark(createMockCtx({ userId: 7 }), { target_url: url, tags: [] }, 0 as any)).resolves.toBeDefined()
+    expect(createBookmarkBase).toHaveBeenCalled()
+  })
   test('switch off → LAB_FEATURE_DISABLED before any row is written', async () => {
     const { service, createBookmarkBase } = wireService(false)
     const ctx = createMockCtx({ userId: 7 })
@@ -61,6 +67,11 @@ describe('BookmarkService.addUrlBookmark', () => {
 })
 
 describe('BookmarkService.addUrlBookmarkItem (import)', () => {
+  test('imports PDF-looking links before response-based classification', async () => {
+    const { service, createBookmarkBase } = wireService(false)
+    expect(await service.addUrlBookmarkItem(createMockCtx({ userId: 7 }), { target_url: 'https://example.com/paper.pdf', target_title: 'Paper', tags: [] })).toBeDefined()
+    expect(createBookmarkBase).toHaveBeenCalled()
+  })
   test('gated URL is skipped (null) instead of throwing', async () => {
     const { service, createBookmarkBase } = wireService(false)
     const res = await service.addUrlBookmarkItem(createMockCtx({ userId: 7 }), { target_url: YOUTUBE, target_title: 'v', tags: [] })

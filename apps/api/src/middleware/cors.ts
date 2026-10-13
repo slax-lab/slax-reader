@@ -3,8 +3,8 @@ import { deploymentOrigin } from '@/utils/deploymentOrigin'
 
 export const corsHeader = {
   server: 'slax-reader',
-  'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Device-ID, X-CLIENT-TYPE, X-CLIENT-VERSION, X-CLIENT-LOCALE',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, DELETE, PUT',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, Range, X-Device-ID, X-CLIENT-TYPE, X-CLIENT-VERSION, X-CLIENT-LOCALE',
+  'Access-Control-Allow-Methods': 'POST, GET, HEAD, OPTIONS, DELETE, PUT',
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Max-Age': '86400'
 }

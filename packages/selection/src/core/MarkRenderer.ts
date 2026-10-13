@@ -26,6 +26,7 @@ export class MarkRenderer extends Base {
    * @returns 标记ID
    */
   async drawMark(info: MarkItemInfo, action: 'create' | 'update' = 'create') {
+    if (info.source.some(source => source.type === 'pdf')) return info.id
     const userId = this.userProvider.getUserId()
 
     const isComment = info.comments.length > 0
@@ -235,6 +236,7 @@ export class MarkRenderer extends Base {
   transferNodeInfos(markItem: MarkPathItem) {
     const infos: ({ start: number; end: number; node: Node; type: 'text' } | { type: 'image'; ele: Element })[] = []
 
+    if (markItem.type === 'pdf') return infos
     const path = fixCssSelector(markItem.path)
     if (markItem.type === 'text') {
       const baseElement = this.config.monitorDom?.querySelector(path) as HTMLElement

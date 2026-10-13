@@ -1,3 +1,4 @@
+import type { PdfMarkSource } from './pdf.js'
 export enum MarkType {
   LINE = 1,
   COMMENT = 2,
@@ -6,7 +7,7 @@ export enum MarkType {
   ORIGIN_COMMENT = 5
 }
 
-export interface MarkPathItem {
+export type MarkPathItem = PdfMarkSource | {
   type: 'text' | 'image'
   xpath: string
   start_offet: number

@@ -23,6 +23,7 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.github/workflows/frontend-ci.yml'
+      - '.github/workflows/web-deploy.yml'
   push:
     branches: [main]
     paths:
@@ -46,6 +47,7 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.github/workflows/frontend-ci.yml'
+      - '.github/workflows/web-deploy.yml'
 
 permissions:
   contents: read

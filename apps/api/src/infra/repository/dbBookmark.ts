@@ -146,7 +146,7 @@ export interface collectionBookmarkWithStatsPO extends bookmarkPO {
   moderation_result: number
   bookmark_user_uuid: string
   starred_at: Date | null
-  type: 'shortcut' | 'article'
+  type: 'shortcut' | 'article' | 'pdf'
   mark_count: number
   first_mark: { content: string; comment: string; source: string } | null
 }
@@ -506,6 +506,19 @@ export class BookmarkRepo {
 
   public async updateBookmark(bmId: number, info: bookmarkParsePO) {
     return await this.prismaPg().sr_bookmark.update({ where: { id: bmId }, data: { updated_at: new Date(), ...info } })
+  }
+
+  public async completePdfBookmark(bookmarkId: number, info: bookmarkParsePO, documentId: string) {
+    return this.prismaPg().$transaction(async tx => {
+      await tx.sr_bookmark.update({ where: { id: bookmarkId }, data: { ...info, updated_at: new Date() } })
+      const relations = await tx.sr_user_bookmark.findMany({ where: { bookmark_id: bookmarkId }, select: { id: true, metadata: true } })
+      for (const relation of relations) {
+        await tx.sr_user_bookmark.update({
+          where: { id: relation.id },
+          data: { type: 2, metadata: { ...(relation.metadata as Record<string, Prisma.JsonValue>), pdf_document_id: documentId } }
+        })
+      }
+    })
   }
 
   public async upsertBookmarkSummary(info: bookmarkSummaryPO) {
@@ -1075,7 +1088,7 @@ export class BookmarkRepo {
         bookmark.published_at,
         user_bookmark.uuid AS bookmark_user_uuid,
         user_bookmark.starred_at,
-        CASE WHEN user_bookmark.type = 1 THEN 'shortcut' ELSE 'article' END AS type,
+        CASE WHEN user_bookmark.type = 2 THEN 'pdf' WHEN user_bookmark.type = 1 THEN 'shortcut' ELSE 'article' END AS type,
         CASE
           WHEN COALESCE((
             SELECT share.is_enable AND share.show_line AND share.show_comment

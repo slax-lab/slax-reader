@@ -1,3 +1,4 @@
+import { bookmarkContentType, type PdfDescriptor } from '@slax-reader/contracts/pdf'
 import { injectable } from '../../decorators/di'
 import { ContextManager } from '@/utils/context'
 import { CollectionService, updateUserShareCollectOption } from '../collection'
@@ -32,7 +33,8 @@ export interface CBookmarkDetail {
   updated_at?: Date
   marks: markDetail
   tags: BookmarkTag[]
-  type: 'shortcut' | 'article'
+  type: 'shortcut' | 'article' | 'pdf'
+  pdf?: PdfDescriptor
   collection_info: {
     allow_action: boolean
     allow_line: boolean
@@ -121,7 +123,8 @@ export class CollectionOrchestrator {
         marksResult.status === 'fulfilled' ? { ...marksResult.value, user_list: bookmarkPolicy.showProfile ? marksResult.value.user_list : {} } : { mark_list: [], user_list: {} },
       alias_title: bookmarkInfo.alias_title,
       tags: tagsResult.status === 'fulfilled' ? tagsResult.value : [],
-      type: bookmarkInfo.type === 1 ? 'shortcut' : 'article',
+      type: bookmarkContentType(bookmarkInfo.type),
+      pdf: await this.bookmarkService.getPdfDescriptor(bookmarkInfo.bookmark.content_key, bookmarkInfo.uuid),
       collection_info: {
         allow_action: bookmarkPolicy.allowLine || bookmarkPolicy.allowComment,
         allow_line: bookmarkPolicy.allowLine,

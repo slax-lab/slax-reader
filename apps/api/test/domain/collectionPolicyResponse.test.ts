@@ -131,6 +131,7 @@ describe('Collection detail policy response', () => {
       })
     }
     const bookmarkService = {
+      getPdfDescriptor: vi.fn().mockResolvedValue(undefined),
       getBookmarkContent: vi.fn().mockResolvedValue('<p>content</p>'),
       getBookmarkShareByBookmarkId: vi.fn().mockResolvedValue({
         is_enable: true,

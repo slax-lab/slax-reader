@@ -1,3 +1,4 @@
+import { bookmarkContentType } from '@slax-reader/contracts/pdf'
 import { inject, injectable } from '@/decorators/di'
 import { BookmarkService } from '@/domain/bookmark'
 import { CollectionService } from '@/domain/collection'
@@ -45,6 +46,8 @@ export class ContentOrchestrator {
       bookmark_uuid: ub.uuid,
       user_id: ctx.hashIds.encodeId(ub.user_id),
       content_key,
+      type: bookmarkContentType(ub.type),
+      pdf: await this.bookmarkService.getPdfDescriptor(content_key, ub.uuid),
       alias_title: ub.alias_title,
       role: isOwner ? 'owner' : 'visitor'
     }
@@ -56,7 +59,7 @@ export class ContentOrchestrator {
       archived: ub.archive_status === 1 ? 'archive' : ub.archive_status === 2 ? 'later' : 'inbox',
       starred: ub.is_starred ? 'star' : 'unstar',
       trashed_at: ub.deleted_at,
-      type: ub.type === 1 ? 'shortcut' : 'article'
+      type: bookmarkContentType(ub.type)
     }
   }
 

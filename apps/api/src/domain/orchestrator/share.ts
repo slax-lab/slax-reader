@@ -1,3 +1,4 @@
+import { bookmarkContentType } from '@slax-reader/contracts/pdf'
 import { inject, injectable } from '@/decorators/di'
 import { ShareService, getBookmarkByShareResp } from '@/domain/share'
 import { BookmarkService, markDetail } from '@/domain/bookmark'
@@ -70,7 +71,7 @@ export class ShareOrchestrator {
   }
 
   public async getBookmarkByShareCode(ctx: ContextManager, shareCode: string): Promise<getBookmarkByShareResp> {
-    const { share, bookmark } = await this.resolveShareAccess(ctx, shareCode)
+    const { share, bookmark, userBm } = await this.resolveShareAccess(ctx, shareCode)
     const [userInfo, tags] = await Promise.all([
       this.userService.getUserBriefInfo(share.show_userinfo, share.user_id),
       share.show_userinfo ? this.tagService.getBookmarkTags(ctx, share.user_id, share.bookmark_id) : Promise.resolve([])
@@ -83,6 +84,8 @@ export class ShareOrchestrator {
 
     return {
       ...restProps,
+      type: bookmarkContentType(userBm.type),
+      pdf: await this.bookmarkService.getPdfDescriptor(bookmark.content_key, userBm.uuid),
       content: bmContent || '',
       created_at: bookmark.created_at.toISOString(),
       published_at: bookmark.published_at.toISOString(),

@@ -384,9 +384,7 @@ container.register(SyncOrchestrator, {
       container.resolve(GA4AnalyticsClient),
       container.resolve(LogsService),
       container.resolve(CollectionRepo),
-      container.resolve(BookmarkSearchRepo),
-      container.resolve(BookmarkRepo),
-      container.resolve(LabService)
+      container.resolve(BookmarkSearchRepo)
     )
 })
 
