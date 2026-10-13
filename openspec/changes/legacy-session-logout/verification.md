@@ -25,7 +25,7 @@ pnpm exec vitest run tests/unit/composables/useAuth.spec.ts \
 
 ## Browser status
 
-The original failure was reproduced in Chrome with a disposable cookie: a cookie explicitly scoped to the current hostname survived host-only removal. The post-change browser check remains pending because the Mac is locked; a local browser-test server also could not bind a port in the restricted environment. Automated tests model the observed scope distinction, but do not replace verification of the deployed application.
+The original failure was reproduced in Chrome with a disposable cookie: a cookie explicitly scoped to the current hostname survived host-only removal. The post-change browser check was blocked during validation by the locked Mac and a restricted environment that prevented a local browser-test server from binding a port. This check remains pending. Automated tests model the observed scope distinction, but do not replace verification of the deployed application.
 
 ## Local pre-push review
 
