@@ -53,7 +53,7 @@
       </template>
       <template v-else-if="content.type === 'tips'">
         <div class="tips">
-          <span :class="{ loading: content.loading }">{{ content.tips }}</span>
+          <span :class="{ loading: content.loading }">{{ content.localized ? formatToolTip(content.localized) : content.tips }}</span>
         </div>
       </template>
       <template v-else-if="content.type === 'related-question'">
@@ -77,10 +77,10 @@
 </template>
 
 <script lang="ts" setup>
-import { copyText } from '@commons/frontend-utils/string'
-
 import Toast, { ToastType } from './../Toast'
+import { formatToolTip } from './statusTips'
 import { type BubbleMessageItem, type QuoteData } from './type'
+import { copyText } from '@commons/frontend-utils/string'
 
 const emits = defineEmits(['questionClick', 'quoteClick'])
 const props = defineProps({

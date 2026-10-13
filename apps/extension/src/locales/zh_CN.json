@@ -73,7 +73,13 @@
       "selected_image": "[已选中 $1 张图片]",
       "tips_accessing": "\"$1\" 访问中...",
       "tips_searching": "\"$1\" 搜索中...",
-      "tips_searching_bookmark": "\"$1\" 搜索资料库..."
+      "tips_searching_bookmark": "\"$1\" 搜索资料库...",
+      "search_complete_subject": "\"$1\" 搜索完成",
+      "search_failed_subject": "\"$1\" 搜索失败",
+      "access_complete_subject": "\"$1\" 访问完成",
+      "access_failed_subject": "\"$1\" 访问失败",
+      "search_bookmark_complete_subject": "\"$1\" 资料库搜索完成",
+      "search_bookmark_failed_subject": "\"$1\" 资料库搜索失败"
     },
     "chat_bubble_message": {
       "bookmarks_source": "书签来源：",

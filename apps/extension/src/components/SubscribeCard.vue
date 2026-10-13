@@ -46,7 +46,7 @@ interface PlanItem {
   pro: { name: string }[]
 }
 
-const plan = ref<PlanItem>({
+const plan = computed<PlanItem>(() => ({
   title: $t('component.plan_card.plan.title'),
   unit: '$',
   price: 5.99,
@@ -77,7 +77,7 @@ const plan = ref<PlanItem>({
       name: $t('component.plan_card.plan.pro_features.five')
     }
   ]
-})
+}))
 
 const subscribe = () => {
   window.open(`${process.env.PUBLIC_BASE_URL}/bookmarks#subscribe`, '_blank')

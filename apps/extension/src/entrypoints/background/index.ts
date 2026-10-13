@@ -1,15 +1,23 @@
 import { BookmarkActionType, type BookmarkLookupResult, MessageTypeAction } from '@/config/message'
 
+import { setExtensionLocale } from '@/utils/locale'
+import { ACCOUNT_LOCALE_KEY, normalizeBrowserLocale } from '@/utils/localeCore'
+import { isLocaleSender } from '@/utils/localeRelay'
+
+import { ensureLocaleCalibrationAlarm } from './localeAlarm'
+import { readLocaleUserInfo } from './localeApi'
+import { LocaleService } from './localeService'
+import { expireLocaleSession } from './localeSessionExpiry'
 import { AuthService } from '@/entrypoints/background/authService'
 import { BridgeService, canUseBridgeState } from '@/entrypoints/background/bridgeService'
 import { BrowserService, logTabMessageError } from '@/entrypoints/background/browserService'
 import { CONFIG } from '@/entrypoints/background/config'
 import { MessageHandler } from '@/entrypoints/background/messageHandler'
 import { MetricService } from '@/entrypoints/background/metricService'
-import { SessionService } from '@/entrypoints/background/sessionService'
+import { getSessionAccountKey, getTokenIdentityKeys, SessionService, userInfoMatchesIdentity } from '@/entrypoints/background/sessionService'
 import { StorageService } from '@/entrypoints/background/storageService'
-import type { UserInfo } from '@slax-reader/contracts/interface'
 import type { MetricActionType } from '@slax-reader/contracts/analytics'
+import type { UserInfo } from '@slax-reader/contracts/interface'
 
 export default defineBackground(() => {
   const storageService = new StorageService()
@@ -24,10 +32,47 @@ export default defineBackground(() => {
   const bridgeService = new BridgeService(sessionService, () => sessionTransition)
   const metricService = new MetricService(sessionService)
 
-  const expireSession = () =>
-    enqueueSessionTransition(async () => {
-      await Promise.allSettled([sessionService.clearSession(), storageService.clearUserData(), bridgeService.teardown()])
-    })
+  const expireSession = (expectedToken?: string): Promise<void> => {
+    return enqueueSessionTransition(() =>
+      expireLocaleSession(
+        {
+          session: sessionService,
+          invalidateLocale: () => localeService.invalidateSession(null),
+          clearUserData: () => storageService.clearUserData(),
+          teardown: () => bridgeService.teardown(),
+          recalibrate: () => refreshLocale('session')
+        },
+        expectedToken
+      )
+    )
+  }
+  setExtensionLocale(normalizeBrowserLocale(browser.i18n.getUILanguage()))
+  const localeService = new LocaleService({
+    readSession: async () => {
+      const token = await sessionService.getToken()
+      if (!token || !(await sessionService.hasSession())) return null
+      const accountKey = await getSessionAccountKey(token)
+      return accountKey ? { token, accountKey, identityKeys: getTokenIdentityKeys(token) } : null
+    },
+    readStored: async () => (await browser.storage.local.get(ACCOUNT_LOCALE_KEY))[ACCOUNT_LOCALE_KEY],
+    writeStored: snapshot => browser.storage.local.set({ [ACCOUNT_LOCALE_KEY]: snapshot }),
+    readUserInfo: readLocaleUserInfo,
+    expireSession,
+    onSnapshot: snapshot => {
+      setExtensionLocale(snapshot.locale)
+      void BrowserService.updateContextMenuLocale().catch(error => console.warn('[locale] menus failed', error))
+    },
+    browserLocale: () => browser.i18n.getUILanguage(),
+    now: () => Date.now()
+  })
+  const refreshLocale = (reason: Parameters<LocaleService['refresh']>[0]) => {
+    void localeService.refresh(reason).catch(error => console.warn('[locale] refresh failed', error))
+  }
+  void localeService
+    .initialize()
+    .then(() => refreshLocale('startup'))
+    .catch(error => console.warn('[locale] initialization failed', error))
+  void ensureLocaleCalibrationAlarm().catch(error => console.warn('[locale] alarm initialization failed', error))
 
   let loginInFlight: Promise<void> | null = null
   const requireLogin = () => {
@@ -52,20 +97,6 @@ export default defineBackground(() => {
   let checkupInFlight: Promise<boolean> | null = null
   let forcedCheckupQueued = false
 
-  const getTokenIdentityKeys = (token: string | null): Set<string> => {
-    if (!token) return new Set()
-    try {
-      const payload = token.split('.')[1]
-      if (!payload) return new Set()
-      const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
-      const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
-      const claims = JSON.parse(atob(padded)) as { id?: string | number; user_id?: string | number; uid?: string | number; sub?: string | number; email?: string }
-      return new Set([claims.id ?? claims.user_id ?? claims.uid ?? claims.sub, claims.email].filter(value => value != null && String(value)).map(String))
-    } catch {
-      return new Set()
-    }
-  }
-
   let lastSessionIdentity = ''
   const initialSessionIdentity = sessionService.getToken().then(token => {
     lastSessionIdentity = [...getTokenIdentityKeys(token)][0] || ''
@@ -86,7 +117,7 @@ export default defineBackground(() => {
 
   const userInfoMatchesSession = async (userInfo: UserInfo) => {
     const identities = getTokenIdentityKeys(await sessionService.getToken())
-    return identities.has(String(userInfo.userId)) || identities.has(userInfo.email)
+    return userInfoMatchesIdentity(userInfo, identities)
   }
 
   // offscreen bridge 转发的 PowerSync 同步状态广播（见 offscreen/main.ts 的 powersync-status）。
@@ -235,6 +266,7 @@ export default defineBackground(() => {
 
     if (changeInfo.removed) {
       if (changeInfo.cause !== 'overwrite') {
+        void localeService.invalidateSession(null).catch(error => console.warn('[locale] reset failed', error))
         void enqueueSessionTransition(async () => {
           await Promise.allSettled([storageService.clearUserData(), bridgeService.teardown()])
         })
@@ -247,8 +279,10 @@ export default defineBackground(() => {
       const currentIdentity = [...getTokenIdentityKeys(changeInfo.cookie.value)][0] || ''
       const sameUser = Boolean(currentIdentity && currentIdentity === lastSessionIdentity)
       lastSessionIdentity = currentIdentity
-      if (!sameUser) await Promise.allSettled([storageService.clearUserData(), bridgeService.teardown()])
+      if (!sameUser)
+        await Promise.allSettled([localeService.invalidateSession(await getSessionAccountKey(changeInfo.cookie.value)), storageService.clearUserData(), bridgeService.teardown()])
     }).then(async () => {
+      refreshLocale('session')
       if (!(await sessionService.hasSession())) return
       await changesCheckup(true)
     })
@@ -290,7 +324,10 @@ export default defineBackground(() => {
           downlink: connection.downlink,
           online: navigator.onLine
         })
-        if (networkStatus === 'online') void changesCheckup(true)
+        if (networkStatus === 'online') {
+          refreshLocale('online')
+          void changesCheckup(true)
+        }
       }
       lastStatus = networkStatus as 'online' | 'offline'
     })
@@ -302,11 +339,9 @@ export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(async ({ reason }) => {
     await BrowserService.resetContentScripts()
     BrowserService.setupBadge()
-    BrowserService.registerContextMenus()
+    await BrowserService.registerContextMenus()
 
-    await browser.alarms.create(CONFIG.BOOKMARK_RECORDS_SYNC_KEY, {
-      periodInMinutes: CONFIG.SYNC_INTERVAL_MINUTES
-    })
+    await ensureLocaleCalibrationAlarm()
 
     console.log(`Extension installed, reason: ${reason}, browser: ${import.meta.env.BROWSER}`)
     console.log(`Runtime: ${!!browser.runtime} \nCookie: ${!!browser.cookies} \nTabs: ${!!browser.tabs} \nContextMenus: ${!!browser.contextMenus} \nAction: ${!!browser.action}`)
@@ -323,6 +358,7 @@ export default defineBackground(() => {
   // 监听定时任务
   browser.alarms.onAlarm.addListener(alarm => {
     if (alarm.name === CONFIG.BOOKMARK_RECORDS_SYNC_KEY) {
+      refreshLocale('alarm')
       changesCheckup(true)
     }
   })
@@ -340,6 +376,7 @@ export default defineBackground(() => {
     collectList: () => BrowserService.openTab(`${process.env.PUBLIC_BASE_URL}/bookmarks`),
     index: () => BrowserService.openTab(`${process.env.PUBLIC_BASE_URL}`),
     collect: async (info, tab) => {
+      refreshLocale('open')
       const isLoggedIn = await authService.checkLogin()
       if (!isLoggedIn) {
         return
@@ -360,6 +397,7 @@ export default defineBackground(() => {
 
   // 监听插件图标点击事件
   browser.action.onClicked.addListener(async tab => {
+    refreshLocale('open')
     const isLoggedIn = await authService.checkLogin()
     if (!isLoggedIn) {
       return
@@ -373,7 +411,11 @@ export default defineBackground(() => {
   BrowserService.watchPinnedStatusChanges()
 
   // 监听快捷键
-  browser.commands.onCommand.addListener((command, tab) => tab && BrowserService.openCollectPopup(tab, command, authService))
+  browser.commands.onCommand.addListener((command, tab) => {
+    if (!tab || command !== 'open_collect') return
+    refreshLocale('open')
+    return BrowserService.openCollectPopup(tab, command, authService)
+  })
 
   // 监听其他页面发送的消息
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -382,17 +424,33 @@ export default defineBackground(() => {
       actionType?: MetricActionType | BookmarkActionType
       target?: string
       method?: string
+      version?: number
       url?: string
       operation?: 'create' | 'delete'
       body?: Record<string, unknown>
       status?: Record<string, unknown>
     }
 
+    if (receiveMessage.target === 'slax-background' && receiveMessage.method === 'get-account-locale') {
+      if (sender.id !== browser.runtime.id) return false
+      void localeService
+        .getSnapshot()
+        .then(snapshot => sendResponse({ success: true, snapshot }))
+        .catch(() => sendResponse({ success: false }))
+      return true
+    }
+    if (receiveMessage.target === 'slax-background' && receiveMessage.method === 'invalidate-account-locale') {
+      if (receiveMessage.version !== 1 || !isLocaleSender(sender, browser.runtime.id, process.env.PUBLIC_BASE_URL || '')) return false
+      refreshLocale('user-save')
+      sendResponse({ success: true })
+      return false
+    }
+
     if (receiveMessage.target === 'slax-background' && receiveMessage.method === 'bridge-session') {
       if (sender.id !== browser.runtime.id || sender.url !== browser.runtime.getURL('/offscreen.html') || sender.tab) return false
       void (async () => {
         await sessionTransition
-        const token = await sessionService.hasSession() ? await sessionService.getToken() : null
+        const token = (await sessionService.hasSession()) ? await sessionService.getToken() : null
         sendResponse({ success: true, token })
       })().catch(() => sendResponse({ success: false }))
       return true

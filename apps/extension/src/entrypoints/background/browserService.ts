@@ -1,5 +1,7 @@
 import { MessageTypeAction } from '@/config/message'
 
+import { $t } from '@/utils/locale'
+
 type AuthSession = { checkLogin: () => Promise<boolean> }
 const CONTENT_SCRIPT_READY_TABS = 'content-script-ready-tabs'
 
@@ -17,13 +19,36 @@ export class BrowserService {
     browser.action.setBadgeTextColor({ color: '#fff' })
   }
 
-  static registerContextMenus(): void {
+  private static menuQueue: Promise<void> = Promise.resolve()
+
+  static registerContextMenus(): Promise<void> {
+    return this.updateContextMenuLocale()
+  }
+
+  static updateContextMenuLocale(): Promise<void> {
     const menus: Browser.contextMenus.CreateProperties[] = [
-      { id: 'collectList', title: i18n.t('slax_collection_list'), contexts: ['action'] },
-      { id: 'collect', title: i18n.t('collect_page'), contexts: ['page'] }
+      { id: 'collectList', title: $t('slax_collection_list'), contexts: ['action'] },
+      { id: 'collect', title: $t('collect_page'), contexts: ['page'] }
     ]
 
-    menus.forEach(item => browser.contextMenus.create(item))
+    this.menuQueue = this.menuQueue
+      .catch(() => {})
+      .then(async () => {
+        for (const item of menus) {
+          try {
+            await browser.contextMenus.update(item.id!, { title: item.title })
+          } catch {
+            await new Promise<void>((resolve, reject) => {
+              browser.contextMenus.create(item, () => {
+                const error = browser.runtime.lastError
+                if (error) reject(new Error(error.message))
+                else resolve()
+              })
+            })
+          }
+        }
+      })
+    return this.menuQueue
   }
 
   // 推送置顶状态给所有标签页
@@ -134,7 +159,8 @@ export class BrowserService {
     }
 
     // A SPA navigation can leave the existing content script alive without another ready event.
-    void browser.tabs.sendMessage(tabId, { action: MessageTypeAction.ContentScriptReady })
+    void browser.tabs
+      .sendMessage(tabId, { action: MessageTypeAction.ContentScriptReady })
       .then(response => {
         if (active && response?.ready === true) void this.markContentScriptReady(tabId).catch(error => logTabMessageError('[collect] readiness persistence failed:', error))
       })

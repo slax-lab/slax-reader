@@ -856,6 +856,9 @@ importers:
         specifier: 3.5.42
         version: 3.5.42(typescript@6.0.3)
     devDependencies:
+      '@slax-reader/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@types/lodash-es':
         specifier: ^4.17.12
         version: 4.17.12

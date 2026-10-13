@@ -73,7 +73,13 @@
       "selected_image": "[$1 image$2 selected]",
       "tips_accessing": "\"$1\" Accessing...",
       "tips_searching": "\"$1\" Searching...",
-      "tips_searching_bookmark": "\"$1\" Searching knowledge base..."
+      "tips_searching_bookmark": "\"$1\" Searching knowledge base...",
+      "search_complete_subject": "\"$1\" Search completed",
+      "search_failed_subject": "\"$1\" Search failed",
+      "access_complete_subject": "\"$1\" Access complete",
+      "access_failed_subject": "\"$1\" Access failed",
+      "search_bookmark_complete_subject": "\"$1\" Knowledge base search completed",
+      "search_bookmark_failed_subject": "\"$1\" Knowledge base search failed"
     },
     "chat_bubble_message": {
       "bookmarks_source": "Bookmark source:",

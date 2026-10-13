@@ -87,7 +87,9 @@ const morePanelItem = ref<PanelItem[]>([
     type: PanelItemType.Share,
     icon: Images.share.main,
     highlighedIcon: Images.share.highlighted,
-    title: $t('component.sidebar.share'),
+    get title() {
+      return $t('component.sidebar.share')
+    },
     hovered: false
   }
 ])
@@ -97,7 +99,9 @@ const subMorePanelItem = ref<PanelItem[]>([
     type: PanelItemType.Feedback,
     icon: Images.feedback.main,
     highlighedIcon: Images.feedback.highlighted,
-    title: $t('component.sidebar.feedback'),
+    get title() {
+      return $t('component.sidebar.feedback')
+    },
     hovered: false
   }
 ])

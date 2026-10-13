@@ -42,6 +42,7 @@
     "vue": "^3.5.42"
   },
   "devDependencies": {
+    "@slax-reader/contracts": "workspace:*",
     "@types/lodash-es": "^4.17.12"
   },
   "private": true

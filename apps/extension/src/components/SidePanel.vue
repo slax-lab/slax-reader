@@ -3,12 +3,7 @@
     <template #content>
       <Transition name="sidepanel">
         <div class="dark px-20px" v-show="isSummaryShowing && isSubscribed">
-          <AIOverview
-            v-if="bookmarkBriefInfo"
-            :bookmark-brief-info="bookmarkBriefInfo"
-            :bookmark-id="hasBookmarkReference ? 1 : undefined"
-            :isAppeared="isSummaryShowing"
-          />
+          <AIOverview v-if="bookmarkBriefInfo" :bookmark-brief-info="bookmarkBriefInfo" :bookmark-id="hasBookmarkReference ? 1 : undefined" :isAppeared="isSummaryShowing" />
           <AISummaries
             v-if="hasBookmarkReference"
             :key="`${currentUrl}:${bookmarkReferenceKey}`"
@@ -122,7 +117,6 @@ import { type BookmarkLookupResult, type BridgeBookmarkPayload, type MessageType
 import { Images, type PanelItem, PanelItemType } from '@/config/panel'
 
 import { checkUserSubscribedIsExpired } from '@/utils/examine'
-import { RequestError } from '@commons/frontend-utils/request'
 
 import { setBridgeBookmarkUid } from '@/bridge/request'
 import { BridgeBookmarkProvider, BridgeHttpClient } from '@/bridge/selectionAdapters'
@@ -132,9 +126,10 @@ import { ExtensionsArticleSelection } from '@/components/Selection/ExtensionsArt
 import { MarkModal } from '@/components/Selection/modal'
 import Toast from '@/components/Toast'
 import { ToastType } from '@/components/Toast/type'
+import type { BookmarkBriefDetail, MarkDetail, MarkInfo } from '@commons/frontend-types/models'
+import { RequestError } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { type AddBookmarkReq, MarkType as BackendMarkType, type UserInfo } from '@slax-reader/contracts/interface'
-import type { BookmarkBriefDetail, MarkDetail, MarkInfo } from '@commons/frontend-types/models'
 import type { MarkCommentInfo, MarkItemInfo, QuoteData } from '@slax-reader/selection/types'
 import { onKeyStroke } from '@vueuse/core'
 import type { WxtBrowser } from 'wxt/browser'
@@ -154,7 +149,9 @@ const subPanelItems = ref<PanelItem[]>([
     icon: Images.outline.sub,
     highlighedIcon: Images.outline.highlighted,
     selectedIcon: Images.outline.selected,
-    title: $t('component.sidebar.outline'),
+    get title() {
+      return $t('component.sidebar.outline')
+    },
     hovered: false,
     isSelected: () => isSummaryShowing.value
   },
@@ -163,7 +160,9 @@ const subPanelItems = ref<PanelItem[]>([
     icon: Images.chatbot.sub,
     highlighedIcon: Images.chatbot.highlighted,
     selectedIcon: Images.chatbot.selected,
-    title: $t('component.sidebar.chat'),
+    get title() {
+      return $t('component.sidebar.chat')
+    },
     hovered: false,
     isSelected: () => isChatbotShowing.value
   },
@@ -172,7 +171,9 @@ const subPanelItems = ref<PanelItem[]>([
     icon: Images.comments.sub,
     highlighedIcon: Images.comments.highlighted,
     selectedIcon: Images.comments.selected,
-    title: $t('component.sidebar.comments'),
+    get title() {
+      return $t('component.sidebar.comments')
+    },
     hovered: false,
     isSelected: () => isCommentShowing.value
   }
@@ -290,18 +291,15 @@ const addLog = () => {
   // })
 }
 
-watch(
-  bookmarkUid,
-  uid => {
-    if (!uid) {
-      bookmarkBriefInfo.value = null
-      unloadSelection()
-      return
-    }
-
-    addLog()
+watch(bookmarkUid, uid => {
+  if (!uid) {
+    bookmarkBriefInfo.value = null
+    unloadSelection()
+    return
   }
-)
+
+  addLog()
+})
 
 props.browser.runtime.onMessage.addListener(
   (message: unknown, _sender: Browser.runtime.MessageSender, sendResponse: (response?: 'string' | Record<string, string | number>) => void) => {
