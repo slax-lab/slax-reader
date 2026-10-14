@@ -8,8 +8,11 @@ import { enableAutoUnmount,mount } from '@vue/test-utils'
 import { flushPromises } from '@vue/test-utils'
 import { useBookmarkData } from '~~/app/composables/bookmark/useBookmarkData'
 import { useInboxOnboardingState } from '~~/app/composables/bookmark/useInboxOnboardingState'
-import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+
+// Node 22 omits node:sqlite from builtinModules, so Vitest tries to bundle a static import.
+// Load the real Node module directly while keeping the Vue fixture in happy-dom.
+const { DatabaseSync } = process.getBuiltinModule('node:sqlite')
 
 const env = vi.hoisted(() => ({ db: null as any, states: new Map<string, any>() }))
 mockNuxtImport('useNuxtApp', () => () => ({ $powersync: env.db }))

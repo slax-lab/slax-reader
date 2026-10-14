@@ -183,6 +183,22 @@ Integrated verification:
 - Strict OpenSpec validation: **39 items passed**. `git diff --check` passed.
 - The PostgreSQL concurrency release check in task 4.5 and the documented external integration limits remain unchanged. No deployment or PR merge is part of publication.
 
+### CI runtime compatibility follow-up
+
+Frontend CI run `38500840706` failed before collecting the 10 tests in `local-sync.spec.ts`: Vite rejected the static `node:sqlite` import. The remaining 2,086 Web tests and the API/CLI checks passed. The failure was reproduced locally with CI's Node 22.22.2; the previous integrated verification used Node 24.15.0.
+
+Node 22 supports SQLite but omits prefix-only modules from `module.builtinModules`. Vitest uses that list to externalize built-ins, so the static import reached Vite's client bundler. Node added prefix-only entries in 23.5.0, explaining the different Node 24 result. The test now loads the same real SQLite module with `process.getBuiltinModule('node:sqlite')`, supported since Node 22.3.0. This keeps the happy-dom/Vue fixture, actual SQL execution, and all existing assertions intact.
+
+The Node documentation confirms three available approaches: direct `getBuiltinModule` loading, a `createRequire` loader, or using a runtime with the expanded built-in module list. Direct loading is the smallest fix and preserves the repository's supported Node 22 CI runtime without additional loader setup or workflow changes.
+
+- Before the fix: the targeted suite reproduced the CI bundling error and collected zero tests on Node 22.22.2.
+- After the fix: all 10 targeted tests passed on Node 22.22.2.
+- Full Web suite on Node 22.22.2: **2,096 tests passed, 1 skipped; 195 files passed, 1 skipped**. The existing happy-dom fetch abort during teardown remains non-failing.
+- Node 24.15.0 compatibility: all 10 targeted tests passed. Strict OpenSpec validation passed all 39 items, and `git diff --check` passed.
+- The follow-up changes only test loading and this validation record; production behavior, UI, dependencies, and CI configuration are unchanged. Incremental Bugs/Security/Compliance review found no Important findings or Nits, using `OpenSpec: koc-onboarding-continuity`.
+
+References: [Node 22 process.getBuiltinModule](https://nodejs.org/download/release/v22.22.2/docs/api/process.html#processgetbuiltinmoduleid), [Node 22 module.createRequire](https://nodejs.org/download/release/v22.22.2/docs/api/module.html#modulecreaterequirefilename), and [Node 24 builtinModules history](https://nodejs.org/download/release/v24.15.0/docs/api/module.html#modulebuiltinmodules).
+
 ### Final PR file inventory against dev
 
 The final diff against `1912e3b` contains 48 files: 17 added, 31 modified, 0 deleted. Changes already present in dev are excluded.
