@@ -2,6 +2,7 @@ import { computed } from 'vue'
 
 import { AccountLocaleStaleError } from '~/utils/accountLocaleRequest'
 import { createPromotionFlow, initialPromotionState, promotionBlocksOnboarding, promotionIntent } from '~/utils/promotionFlow'
+import { getTokenUserId } from '~/utils/sessionOwner'
 
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { useUserStore } from '~/stores/user'
@@ -80,6 +81,9 @@ export const useKocPromotionController = () => {
     })
     if (generation !== identityGeneration || current !== getUserToken() || !Number.isSafeInteger(profile?.userId) || profile.userId <= 0) throw Error('Unverified identity')
     flow.setAccount(profile.userId)
+    // The API profile ID and the JWT owner use different Hashid contexts.
+    // Bind the local owner only after this session's server read succeeds.
+    state.value.sessionOwner = getTokenUserId(current)
     return profile
   }
   const identify = async () => {

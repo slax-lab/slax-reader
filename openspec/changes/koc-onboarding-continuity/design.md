@@ -287,3 +287,9 @@ All profile writers share request ordering, including the offline fallback. An o
 ### Integration with account locale synchronization
 
 PR integration reuses the latest dev branch's `UserLocaleTasks` as the sole profile and locale writer, replacing the earlier standalone profile-ordering helper. A server-only store action shares its ordering with ordinary reads and the Pinia offline fallback. The KOC controller bypasses that fallback, uses a 10-second abort signal, checks numeric verified identity after the read, and retries a superseded same-session identity read once within the same deadline. Confirmed language changes during a promotion read remain authoritative; ordinary offline recovery retains the existing language and account safeguards.
+
+### Empty Inbox identity regression
+
+Local browser reproduction after PR #209 found completed synchronization and successful queries with onboarding readiness permanently false. JWT IDs use the default Hashid context; `/user/me` IDs use the authenticated user's context. Comparing the PowerSync JWT owner directly with the profile ID incorrectly rejects the same account. Earlier fixtures used equal IDs and concealed the defect.
+
+Retain the profile ID for promotion and onboarding storage. After a successful, current-session server identity read, bind a separate in-memory `sessionOwner` using the same token decoder as PowerSync. Local readiness requires a verified profile, a nonempty verified session owner, and equality with both the guarded database owner and the current token's owner. Token decoding alone cannot establish verified identity. Account reset clears the binding; late profile responses cannot restore it. No API identifier, authentication policy, reward rule, or UI design changes.
