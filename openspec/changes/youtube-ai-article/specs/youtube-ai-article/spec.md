@@ -42,6 +42,10 @@ The system SHALL stop spending on an article version above $0.30 across all atte
 - **WHEN** an owner triggers the 21st automatic start in one UTC day
 - **THEN** the status is `limit_reached` and nothing starts
 
+#### Scenario: Save-triggered start over the limit
+- **WHEN** an owner saves a video after 20 automatic starts in the same UTC day
+- **THEN** nothing starts and the version stays pending
+
 #### Scenario: Site-wide budget
 - **WHEN** site-wide spend for the day reaches the budget
 - **THEN** new runs are deferred for the sweep and exactly one alert is sent that day
@@ -85,6 +89,18 @@ The bookmark page SHALL show the article below the player, outside the original 
 #### Scenario: Bookmark with marks
 - **WHEN** the article is ready and the bookmark has marks on the transcript
 - **THEN** the transcript stays unfolded so comment cards can scroll to their marks
+
+### Requirement: Migration compatible with deployed code
+
+The migration SHALL NOT drop or rename a table, column or unique key that the deployed code writes through. It SHALL keep the unique key `(video_id, source_hash, prompt_version)` until a later contract migration. While that key exists, the system SHALL keep one language row per caption version and SHALL answer `unavailable` for another language instead of failing.
+
+#### Scenario: Production code during the beta migration
+- **WHEN** beta has applied the migration and production still runs the P0 code
+- **THEN** the P0 caption write succeeds as before
+
+#### Scenario: Second language before the contract migration
+- **WHEN** an owner in another language opens a video whose caption version already has a row
+- **THEN** the status is `unavailable` and the request does not fail
 
 ### Requirement: Hidden Settings row for YouTube AI articles
 

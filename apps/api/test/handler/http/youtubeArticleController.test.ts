@@ -35,7 +35,7 @@ describe('YoutubeArticleController', () => {
     const { ctrl, service } = wire()
     expect((await ctrl.handleContent(createMockCtx(), get('/v1/youtube_article/content?bookmark_uid=u1'))).status).toBe(400)
     const resp = await ctrl.handleContent(createMockCtx(), get('/v1/youtube_article/content?bookmark_uid=u1&version=abc-en-1-v1'))
-    expect(resp.headers.get('Cache-Control')).toBe('private, max-age=300')
+    expect(resp.headers.get('Cache-Control')).toBe('private, no-store')
     expect(service.getContent).toHaveBeenCalledWith(expect.anything(), 'u1', 'abc-en-1-v1')
   })
 

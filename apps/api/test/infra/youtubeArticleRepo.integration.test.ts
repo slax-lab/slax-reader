@@ -58,31 +58,29 @@ describePg('YoutubeArticleRepo on Postgres', () => {
     await pg.$disconnect()
   })
 
-  test('one row per target language; re-evaluation refreshes only pending/skipped rows', async () => {
+  test('while the old unique key exists, another language refreshes the version row; re-evaluation refreshes only pending/skipped rows', async () => {
     const en = await repo.recordEvaluation(evaluation())
     const zh = await repo.recordEvaluation(evaluation({ target_language: 'zh', status: 'skipped' }))
-    expect(en.id).not.toBe(zh.id)
-    expect([en.target_language, zh.target_language]).toEqual(['en', 'zh'])
+    expect(zh.id).toBe(en.id)
+    expect(zh).toMatchObject({ target_language: 'en', status: 'skipped' })
 
     const again = await repo.recordEvaluation(evaluation({ status: 'skipped', eligibility: { decision: 'skip', reason_codes: ['x'] } }))
     expect(again.id).toBe(en.id)
     expect(again.status).toBe('skipped')
 
     await pg.sr_youtube_article.update({ where: { id: en.id }, data: { status: 'ready', updated_at: new Date(Date.now() - 30 * 86_400_000) } })
-    const kept = await repo.recordEvaluation(evaluation())
+    const kept = await repo.recordEvaluation(evaluation({ target_language: 'zh' }))
     expect(kept.status).toBe('ready')
     // a new save marks the row as used, so the orphan sweep cannot delete it under the new ref
     expect(kept.updated_at.getTime()).toBeGreaterThan(Date.now() - 60_000)
   })
 
-  test('ensureLanguageRow copies the gate result; a concurrent second call returns the same row', async () => {
+  test('while the old unique key exists, ensureLanguageRow gives null for a second language and never throws', async () => {
     const base = await repo.recordEvaluation(evaluation())
     const [a, b] = await Promise.all([repo.ensureLanguageRow(base, 'zh'), repo.ensureLanguageRow(base, 'zh')])
-    expect(a.id).toBe(b.id)
-    expect(a).toMatchObject({ target_language: 'zh', status: 'pending', caption_key: base.caption_key, eligibility_json: { decision: 'generate', reason_codes: [] } })
-
-    const skippedBase = await repo.recordEvaluation(evaluation({ source_hash: 'h2', eligibility: { decision: 'review', reason_codes: ['non_en_zh_language'] }, status: 'skipped' }))
-    expect((await repo.ensureLanguageRow(skippedBase, 'zh')).status).toBe('skipped')
+    expect(a).toBeNull()
+    expect(b).toBeNull()
+    expect((await repo.ensureLanguageRow(base, 'en'))?.id).toBe(base.id)
   })
 
   test('one run wins the claim; the winning claim is idempotent; only the winner renews and publishes', async () => {
@@ -220,7 +218,8 @@ describePg('YoutubeArticleRepo on Postgres', () => {
     expect((await repo.recordEvaluation(evaluation())).status).toBe('takedown')
     expect((await repo.recordEvaluation(evaluation({ source_hash: 'new' }))).status).toBe('takedown')
     const base = (await repo.findVersion(video, 'h1', 'en', 'v1'))!
-    expect((await repo.ensureLanguageRow(base, 'zh')).status).toBe('takedown')
+    // While the old unique key exists, a taken-down version can not get a second language row at all
+    expect(await repo.ensureLanguageRow(base, 'zh')).toBeNull()
   })
 
   test('takedown script marks rows (or adds a marker); the sweep sees it; orphans never delete the marker', async () => {

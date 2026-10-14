@@ -205,6 +205,23 @@ describe('parseChunkOutput', () => {
 describe('mergeChunkResults', () => {
   const cues = Array.from({ length: 6 }, (_, i) => cue(i, `line ${i}`))
 
+  test('a paragraph with most of its cues in the previous chunk is overlap; one with half is kept', () => {
+    const para = (text: string, ids: string[]) => ({ speaker: null, text, source_cue_ids: ids })
+    const doc = mergeChunkResults(
+      [
+        { lede: '', sections: [{ heading: 'A', start_ms: 0, end_ms: 0, paragraphs: [para('p0', ['c0000', 'c0001', 'c0002'])] }] },
+        {
+          lede: '',
+          sections: [{ heading: 'A', start_ms: 0, end_ms: 0, paragraphs: [para('p0 reworded', ['c0001', 'c0002', 'c0003']), para('p1', ['c0002', 'c0004'])] }]
+        }
+      ],
+      cues,
+      'en',
+      'article'
+    )
+    expect(doc.sections[0].paragraphs.map(p => p.text)).toEqual(['p0', 'p1'])
+  })
+
   test('drops overlap paragraphs, joins same headings, takes times from cues', () => {
     const doc = mergeChunkResults(
       [

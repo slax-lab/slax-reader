@@ -755,6 +755,9 @@ model sr_youtube_article {
     completed_at     DateTime?
 
     @@unique([video_id, source_hash, target_language, prompt_version], map: "sr_youtube_article_video_id_source_hash_target_language_pro_key")
+    // Expand/contract: the old key stays while production code still upserts on it. The contract
+    // migration in podcast-article drops it.
+    @@unique([video_id, source_hash, prompt_version])
     @@index([status, next_retry_at])
 }
 

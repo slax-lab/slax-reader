@@ -250,7 +250,9 @@ export class YoutubeArticleService {
     if (!row) {
       const base = (await this.repo.listForSource(ref.video_id, ref.source_hash))[0]
       if (!base) throw BookmarkNotFoundError()
-      row = await this.repo.ensureLanguageRow(base, language)
+      const created = await this.repo.ensureLanguageRow(base, language)
+      if (!created) throw BookmarkNotFoundError()
+      row = created
     }
     if (row.status === 'takedown') throw BookmarkNotFoundError()
 
@@ -284,10 +286,18 @@ export class YoutubeArticleService {
       if (!row) {
         const base = (await this.repo.listForSource(ref.video_id, ref.source_hash))[0]
         if (!base) return
-        row = await this.repo.ensureLanguageRow(base, language)
+        const created = await this.repo.ensureLanguageRow(base, language)
+        if (!created) return
+        row = created
       }
       if (row.status !== 'pending' || row.next_retry_at || eligibilityDecision(row) !== 'generate') return
+      // A save-triggered start is an automatic start and counts against the same daily limit
+      if (!(await this.takeDaily(userId, 'auto'))) {
+        console.log(`YouTube article trigger after crawl: bookmark=${bookmarkId} article=${row.id} lang=${language} result=limit_reached`)
+        return
+      }
       const result = await this.start(ctx, row, title, 'crawl')
+      if (result === 'not_pending' || result === 'locked') await this.giveBackDaily(userId, 'auto')
       console.log(`YouTube article trigger after crawl: bookmark=${bookmarkId} article=${row.id} lang=${language} result=${result}`)
     } catch (err) {
       console.error(`YouTube article trigger after crawl failed for bookmark ${bookmarkId}: ${err instanceof Error ? err.message : String(err)}`)

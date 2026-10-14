@@ -540,13 +540,23 @@ describe('manual generate and retry', () => {
 })
 
 describe('after the crawl', () => {
-  test('starts the saver language version without counting', async () => {
+  test('starts the saver language version and counts it as an automatic start', async () => {
     const w = wire()
     w.repo.add({})
     await w.service.triggerAfterCrawl(w.ctx(OWNER), BOOKMARK, OWNER, 'Attention')
     expect(w.create).toHaveBeenCalledTimes(1)
     expect(w.create.mock.calls[0][0]).toMatchObject({ params: { trigger: 'crawl', title: 'Attention' } })
-    expect(w.redis.store.get(`yt_article:${OWNER}:${today()}:auto`)).toBeUndefined()
+    expect(w.redis.store.get(`yt_article:${OWNER}:${today()}:auto`)).toBe(1)
+  })
+
+  test('a save over the daily automatic limit starts nothing and keeps the row pending', async () => {
+    const w = wire()
+    w.redis.store.set(`yt_article:${OWNER}:${today()}:auto`, YOUTUBE_ARTICLE_DAILY_LIMITS.auto)
+    const row = w.repo.add({})
+    await w.service.triggerAfterCrawl(w.ctx(OWNER), BOOKMARK, OWNER, 'Attention')
+    expect(w.create).not.toHaveBeenCalled()
+    expect(row.status).toBe('pending')
+    expect(w.redis.store.get(`yt_article:${OWNER}:${today()}:auto`)).toBe(YOUTUBE_ARTICLE_DAILY_LIMITS.auto)
   })
 
   test('does nothing when Labs is off, the gate said skip, or there is no ref; never throws', async () => {

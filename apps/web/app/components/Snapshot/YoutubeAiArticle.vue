@@ -10,7 +10,11 @@
 
     <!-- One live region that stays in the DOM, so every status change is announced -->
     <div class="yt-ai-status-region" role="status" aria-live="polite">
-      <p v-if="isWorking && !timedOut" class="yt-ai-status">
+      <p v-if="loadFailed" class="yt-ai-status">
+        {{ $t('component.youtube_article.load_failed') }}
+        <button type="button" class="yt-ai-action" @click="start">{{ $t('component.youtube_article.retry') }}</button>
+      </p>
+      <p v-else-if="isWorking && !timedOut" class="yt-ai-status">
         <span class="i-svg-spinners:90-ring yt-ai-spinner" aria-hidden="true"></span>
         {{ $t('component.youtube_article.preparing') }}
       </p>
@@ -65,7 +69,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { state, article, acting, timedOut, isWorking, start, stop, generate, retry } = useYoutubeArticle(() => props.bookmarkUid)
+const { state, article, acting, timedOut, loadFailed, isWorking, start, stop, generate, retry } = useYoutubeArticle(() => props.bookmarkUid)
 
 const status = computed(() => state.value?.status ?? 'unavailable')
 const isReady = computed(() => status.value === 'ready' && !!article.value)

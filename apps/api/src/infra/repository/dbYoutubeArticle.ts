@@ -123,8 +123,21 @@ export class YoutubeArticleRepo {
    * ready, takedown, ...) is returned as is.
    */
   public async recordEvaluation(input: YoutubeArticleEvaluation): Promise<youtubeArticlePO> {
-    const where = YoutubeArticleRepo.versionKey(input.video_id, input.source_hash, input.target_language, input.prompt_version)
-    const existing = await this.prismaPg().sr_youtube_article.findUnique({ where })
+    let where = YoutubeArticleRepo.versionKey(input.video_id, input.source_hash, input.target_language, input.prompt_version)
+    let existing = await this.prismaPg().sr_youtube_article.findUnique({ where })
+    if (!existing) {
+      // debt: the unique key without target_language stays until the contract migration in
+      // podcast-article, so a second language row of this version can not be inserted yet. The
+      // evaluation belongs to the caption version, so refresh the row of any language instead.
+      const other = await this.prismaPg().sr_youtube_article.findFirst({
+        where: { video_id: input.video_id, source_hash: input.source_hash, prompt_version: input.prompt_version },
+        orderBy: { id: 'asc' }
+      })
+      if (other) {
+        existing = other
+        where = YoutubeArticleRepo.versionKey(other.video_id, other.source_hash, other.target_language, other.prompt_version)
+      }
+    }
     // A save of this version keeps a row that moved on as it is, but marks it as used now, so the
     // orphan sweep (which only deletes rows untouched for 7 days) cannot remove it under the new ref
     if (existing && !REEVALUABLE_STATUSES.includes(existing.status as YoutubeArticleStatus)) {
@@ -207,9 +220,24 @@ export class YoutubeArticleRepo {
    * The row for a language that has none yet. The gate result belongs to the captions, not to the
    * language, so it is copied from a sibling row. A concurrent insert wins and is returned as is.
    */
-  public async ensureLanguageRow(base: youtubeArticlePO, targetLanguage: string): Promise<youtubeArticlePO> {
+  /**
+   * The row of this version in another language, created from `base`. Null when the database can not
+   * hold a second language yet: the unique key without target_language stays until the contract
+   * migration in podcast-article, so the insert conflicts on it.
+   */
+  public async ensureLanguageRow(base: youtubeArticlePO, targetLanguage: string): Promise<youtubeArticlePO | null> {
     const where = YoutubeArticleRepo.versionKey(base.video_id, base.source_hash, targetLanguage, base.prompt_version)
     const status: YoutubeArticleStatus = base.status === 'takedown' ? 'takedown' : eligibilityDecision(base) === 'generate' ? 'pending' : 'skipped'
+    try {
+      return await this.createLanguageRow(base, where, targetLanguage, status)
+    } catch (err) {
+      if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) throw err
+      // A parallel caller created the same row, or the old key blocks a second language
+      return this.prismaPg().sr_youtube_article.findUnique({ where })
+    }
+  }
+
+  private createLanguageRow(base: youtubeArticlePO, where: ReturnType<typeof YoutubeArticleRepo.versionKey>, targetLanguage: string, status: YoutubeArticleStatus) {
     return this.prismaPg().sr_youtube_article.upsert({
       where,
       create: {

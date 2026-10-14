@@ -281,6 +281,21 @@ describe('YoutubeAiArticle', () => {
     expect(second.find('.yt-ai-body').exists()).toBe(true)
   })
 
+  it('a ready article whose content keeps failing offers a retry instead of an empty section', async () => {
+    routeGet([ready()], null)
+    const wrapper = mount()
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(60_000)
+    await flushPromises()
+    expect(wrapper.text()).toContain('Could not load the article.')
+
+    routeGet([ready()])
+    await wrapper.find('.yt-ai-action').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.yt-ai-body').text()).toContain('Body text.')
+    expect(wrapper.text()).not.toContain('Could not load the article.')
+  })
+
   it('status messages live in one region that stays in the DOM; aria-busy clears after the timeout', async () => {
     routeGet([state({ status: 'generating' })])
     const wrapper = mount()

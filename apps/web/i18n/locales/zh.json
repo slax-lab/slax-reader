@@ -555,6 +555,7 @@
       "generate": "仍然生成",
       "failed": "整理失败。",
       "retry": "重试",
+      "load_failed": "整理稿加载失败。",
       "limit_reached": "今天的生成次数已用完，明天再试。",
       "language_note": "此整理稿为{language}",
       "lang": {

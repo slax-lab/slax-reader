@@ -394,10 +394,7 @@ export class BookmarkService {
           this.bucket().R2Bucket.delete(bmPO.content_key || ''),
           this.bucket().R2Bucket.delete(bmPO.content_md_key || ''),
           ...(isPdfContentKey(bmPO.content_key) ? [this.bucket().R2Bucket.delete(bmPO.content_key!.replace('pdf/body/', 'pdf/meta/').replace(/\.pdf$/, '.json'))] : []),
-          this.bookmarkSearchRepo.deleteBookmarkRaw(bmId),
-          // YouTube article ref. Only here, where the bookmark row itself is gone: a shared (pre
-          // 2026-08-19) bookmark keeps its ref for the other users. The sweep removes unreferenced rows.
-          this.youtubeArticleRepo.unlinkBookmark(bmId)
+          this.bookmarkSearchRepo.deleteBookmarkRaw(bmId)
         ]
 
         const shard = await this.bookmarkRepo.getVectorShard(bmId)
@@ -408,6 +405,12 @@ export class BookmarkService {
       } catch (error) {
         console.log('delete bookmark content key error:', bmPO)
       }
+      // YouTube article ref. Only here, where the bookmark row itself is gone: a shared (pre
+      // 2026-08-19) bookmark keeps its ref for the other users. The sweep removes unreferenced rows,
+      // so a ref left behind would keep the video's rows and captions forever: log it on its own.
+      await this.youtubeArticleRepo.unlinkBookmark(bmId).catch(error => {
+        console.error(`YouTube article ref unlink failed for bookmark ${bmId}: ${error instanceof Error ? error.message : String(error)}`)
+      })
     }
 
     // 删除share数据

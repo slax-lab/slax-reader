@@ -47,7 +47,7 @@ Captions are necessary but not sufficient. Zero-cost rules (caption density, noi
 | Limit | Value |
 |---|---|
 | Per article version, all attempts, failed calls included | $0.30 |
-| Automatic starts per user per day | 20 |
+| Automatic starts per user per day (opening a bookmark or saving a video) | 20 |
 | Manual starts per user per day | 5 |
 | Site-wide model spend per UTC day | $20, then new runs are deferred and one alert is sent |
 | Concurrently running rows | bounded; extra rows are deferred for the sweep |
@@ -72,7 +72,7 @@ The monorepo keeps one public Wrangler template. The binding goes into `deploy/c
 
 ## Risks / Trade-offs
 
-- The migration replaces the unique key `(video_id, source_hash, prompt_version)` with a key that includes `target_language`, in one step. Beta runs migrations against the production database before production code updates. In that window, the production P0 caption write (an upsert on the old key) fails. The failure is caught and logged, and the bookmark save succeeds. YouTube bookmarks saved in that window get no article reference and show `unavailable` until they are saved again. This was a deliberate choice over an expand/contract split: the window only affects accounts with the hidden `youtube` Labs feature.
+- The migration is expand-only. It adds `target_language` and the new unique key, and it keeps the old key `(video_id, source_hash, prompt_version)`, because beta runs migrations against the production database before production code updates, and the production P0 code upserts on the old key. While the old key exists, a caption version holds one language row: `recordEvaluation` refreshes the row of any language instead of inserting, and `ensureLanguageRow` returns null on the conflict, so a second language reads `unavailable`. The contract migration in `podcast-article` drops the old key; it must reach beta only after this change runs in production.
 - Prompt quality, validation thresholds and cost factors were tested only against a fake model. Mitigation: the feature is off by default and its Settings row is hidden; turn it on for internal accounts and calibrate with about 10 real videos first.
 - The Gemini list price is hard-coded. Mitigation: check against the Vertex price page before rollout.
 - Folding the transcript after the reading position is restored can shift the position for local-first owners. Accepted for Labs.

@@ -24,7 +24,14 @@ The integration test `labRepo.integration.test.ts` already failed on `origin/dev
 
 ## Review
 
-Local `REVIEW.md` review (Bugs, Security, Compliance): one Important finding, the one-step unique-key migration. The owner accepted it; `design.md` records the risk. New UI uses existing `--slax-*` tokens and no `v-html`.
+The local `REVIEW.md` review found the one-step unique-key migration Important. The first PR review confirmed it and found a second Important issue: a save-triggered start did not count against the daily automatic limit. Both are fixed:
+
+- The migration is expand-only and keeps the old key. `recordEvaluation` and `ensureLanguageRow` handle the old key without failing; Postgres integration tests cover both.
+- `triggerAfterCrawl` takes an automatic daily slot before it starts and gives it back when nothing started; unit tests cover the count and the limit.
+
+PR review Nits that were fixed: content requests that keep failing now show "Could not load the article" with a retry (status and content failures are counted apart); a paragraph with more than half of its cues in the previous chunk is dropped as overlap; `/v1/youtube_article/content` is `private, no-store`; a failed ref unlink during bookmark deletion is logged on its own. The Labs Nit is answered in `proposal.md`: hiding the row is a UI rule only, as for `youtube` and `pdf`. The `takeDaily` race Nit does not apply: Redis `INCR` is atomic, so concurrent callers get distinct counts.
+
+New UI uses existing `--slax-*` tokens and no `v-html`.
 
 ## Not validated
 

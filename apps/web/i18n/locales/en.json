@@ -554,6 +554,7 @@
       "generate": "Generate anyway",
       "failed": "Could not generate the article.",
       "retry": "Retry",
+      "load_failed": "Could not load the article.",
       "limit_reached": "Daily limit reached, try again tomorrow.",
       "language_note": "This article is in {language}",
       "lang": {

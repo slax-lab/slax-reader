@@ -5,7 +5,9 @@ ALTER TABLE "sr_youtube_article" ADD COLUMN "target_language" TEXT NOT NULL DEFA
 
 UPDATE "sr_youtube_article" SET "target_language" = 'zh' WHERE "caption_language" LIKE 'zh%';
 
-DROP INDEX "sr_youtube_article_video_id_source_hash_prompt_version_key";
+-- Expand only: the old unique key (video_id, source_hash, prompt_version) stays, because the code
+-- serving production still upserts on it while beta runs this migration. Until the contract
+-- migration drops it, a version holds one language row; the code handles the conflict.
 
 CREATE UNIQUE INDEX "sr_youtube_article_video_id_source_hash_target_language_pro_key" ON "sr_youtube_article"("video_id", "source_hash", "target_language", "prompt_version");
 

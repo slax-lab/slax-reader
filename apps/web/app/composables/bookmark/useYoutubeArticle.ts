@@ -20,13 +20,18 @@ export const useYoutubeArticle = (bookmarkUid: () => string) => {
   const article = ref<YoutubeArticleContent | null>(null)
   const acting = ref(false)
   const timedOut = ref(false)
+  // Requests kept failing, so polling stopped for this visit; the reader can try again
+  const loadFailed = ref(false)
 
   let timer: ReturnType<typeof setTimeout> | null = null
   let attempt = 0
   let startedAt = 0
   let loadedVersion = ''
   let stopped = false
-  let failures = 0
+  // Status and content failures are counted apart: a status that keeps succeeding must not hide
+  // content requests that keep failing
+  let statusFailures = 0
+  let contentFailures = 0
 
   const isWorking = computed(() => !!state.value && WORKING.includes(state.value.status))
   // Poll while the article is being made, and also to recover from a failed status or content request
@@ -44,17 +49,21 @@ export const useYoutubeArticle = (bookmarkUid: () => string) => {
       .catch(() => null)
     if (stopped) return
     if (!res) {
-      failures++
+      contentFailures++
       return
     }
-    failures = 0
+    contentFailures = 0
     article.value = res
     loadedVersion = version
   }
 
   const schedule = () => {
     clearTimer()
-    if (stopped || !needsPoll() || failures >= MAX_FAILURES) return
+    if (stopped || !needsPoll()) return
+    if (statusFailures >= MAX_FAILURES || contentFailures >= MAX_FAILURES) {
+      loadFailed.value = true
+      return
+    }
     if (Date.now() - startedAt >= YOUTUBE_ARTICLE_POLL_MAX_MS) {
       timedOut.value = true
       return
@@ -78,19 +87,21 @@ export const useYoutubeArticle = (bookmarkUid: () => string) => {
       .get<YoutubeArticleState>({ url: RESTMethodPath.YOUTUBE_ARTICLE_STATUS, query: { bookmark_uid: uid }, errorInterceptors: silent })
       .catch(() => null)
     if (res) {
-      failures = 0
+      statusFailures = 0
       await apply(res)
     } else {
-      failures++
+      statusFailures++
       schedule()
     }
   }
 
   const restartPolling = () => {
     attempt = 0
-    failures = 0
+    statusFailures = 0
+    contentFailures = 0
     startedAt = Date.now()
     timedOut.value = false
+    loadFailed.value = false
   }
 
   const start = async () => {
@@ -122,7 +133,7 @@ export const useYoutubeArticle = (bookmarkUid: () => string) => {
     }
   }
 
-  return { state, article, acting, timedOut, isWorking, start, stop, refresh, generate: () => act('generate'), retry: () => act('retry') }
+  return { state, article, acting, timedOut, loadFailed, isWorking, start, stop, refresh, generate: () => act('generate'), retry: () => act('retry') }
 }
 
 export default useYoutubeArticle

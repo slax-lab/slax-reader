@@ -324,8 +324,9 @@ export function parseChunkOutput(text: string): ChunkParseResult {
 }
 
 /**
- * Join the chunk results in cue order. A paragraph whose cues were all covered by an earlier chunk
- * is overlap and is dropped; adjacent sections with the same heading become one. Section times
+ * Join the chunk results in cue order. A paragraph with more than half of its cues covered by an
+ * earlier chunk is overlap and is dropped: chunks overlap by design, and a paragraph that spans the
+ * overlap would otherwise repeat earlier text in other words; adjacent sections with the same heading become one. Section times
  * come from the cues, not from the model.
  */
 export function mergeChunkResults(
@@ -340,7 +341,7 @@ export function mergeChunkResults(
   for (const result of results) {
     const seenInChunk: string[] = []
     for (const section of result.sections) {
-      const paragraphs = section.paragraphs.filter(p => p.source_cue_ids.length === 0 || !p.source_cue_ids.every(id => covered.has(id)))
+      const paragraphs = section.paragraphs.filter(p => p.source_cue_ids.filter(id => covered.has(id)).length * 2 <= p.source_cue_ids.length)
       paragraphs.forEach(p => seenInChunk.push(...p.source_cue_ids))
       if (paragraphs.length === 0) continue
       const prev = sections[sections.length - 1]
