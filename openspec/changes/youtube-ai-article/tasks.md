@@ -18,4 +18,5 @@
 
 - [x] 3.1 Run the local pre-push review from `REVIEW.md` and resolve Important findings.
 - [x] 3.2 Open the PR to `dev` with `OpenSpec: youtube-ai-article`.
-- [ ] 3.3 Before rollout: add the binding to the private Wrangler configuration, run the migration, enable `youtube_article` for internal accounts, and check about 10 real videos for faithfulness and cost.
+- [ ] 3.3 Before this PR merges (a merge to `dev` deploys and runs migrations): add the `YOUTUBE_ARTICLE_WORKFLOW` binding to the private configuration TOML.
+- [ ] 3.4 After deploy: enable `youtube_article` for internal accounts and check about 10 real videos for faithfulness and cost.
