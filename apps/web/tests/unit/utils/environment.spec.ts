@@ -196,4 +196,9 @@ describe('服务端环境', () => {
     const { isMobileBrowser } = await import('~~/app/utils/environment')
     expect(isMobileBrowser()).toBe(false)
   })
+
+  it('returns the download landing page without accessing navigator on the server', async () => {
+    const { getReaderAppDownloadUrl } = await import('~~/app/utils/environment')
+    expect(getReaderAppDownloadUrl()).toBe('https://www.slax.com/reader/')
+  })
 })

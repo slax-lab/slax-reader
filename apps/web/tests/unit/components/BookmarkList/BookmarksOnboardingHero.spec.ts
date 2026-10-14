@@ -1,7 +1,8 @@
 // BookmarksOnboardingHero 组件单测
 import BookmarksOnboardingHero from '~~/app/components/BookmarkList/BookmarksOnboardingHero.vue'
 
-import { mountWithApp } from '~~/tests/setup/mount'
+import { enableAutoUnmount, mount } from '@vue/test-utils'
+import { createTestI18n, mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const { mockUseExtensionDetection, mockUsePinnedDetection } = vi.hoisted(() => ({
@@ -17,6 +18,8 @@ vi.mock('~/composables/usePinnedDetection', () => ({
   usePinnedDetection: mockUsePinnedDetection
 }))
 
+enableAutoUnmount(afterEach)
+
 describe('BookmarksOnboardingHero', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -24,6 +27,46 @@ describe('BookmarksOnboardingHero', () => {
     vi.clearAllMocks()
     mockUseExtensionDetection.mockReturnValue({ isInstalled: { value: false }, checked: { value: true } })
     mockUsePinnedDetection.mockReturnValue({ isPinned: { value: false } })
+  })
+
+  it.each([
+    ['iPhone', 'iPhone', 1, 'https://apps.apple.com/us/app/slax-reader-ai-read-it-later/id6596730998'],
+    ['Android', 'Linux armv8l', 5, 'https://play.google.com/store/apps/details?id=com.slax.reader'],
+    ['iPad', 'iPad', 5, 'https://apps.apple.com/us/app/slax-reader-ai-read-it-later/id6596730998'],
+    ['Macintosh; Intel Mac OS X 10_15_7', 'MacIntel', 5, 'https://apps.apple.com/us/app/slax-reader-ai-read-it-later/id6596730998'],
+    ['BlackBerry', 'BlackBerry', 1, 'https://www.slax.com/reader/'],
+    ['Windows Phone 10.0; Android 4.2.1; like iPhone', 'Win32', 1, 'https://www.slax.com/reader/']
+  ])('offers a new-tab app download instead of extension steps on %s', (ua, platform, maxTouchPoints, url) => {
+    vi.stubGlobal('navigator', { userAgent: `Mozilla/5.0 (${ua})`, platform, maxTouchPoints })
+    const wrapper = mountWithApp(BookmarksOnboardingHero)
+    expect(wrapper.find('.hero-app-download').exists()).toBe(true)
+    const download = wrapper.get('a.hero-app-download')
+    expect(download.attributes('href')).toBe(url)
+    expect(download.attributes('target')).toBe('_blank')
+    expect(download.attributes('rel')).toBe('noopener noreferrer')
+    expect(wrapper.find('.browser-save-demo').exists()).toBe(false)
+    expect(wrapper.find('.hero-install-btn').exists()).toBe(false)
+    expect(wrapper.find('.pin-card').exists()).toBe(false)
+    expect(mockUseExtensionDetection).not.toHaveBeenCalled()
+    expect(mockUsePinnedDetection).not.toHaveBeenCalled()
+  })
+
+  it.each(['en', 'zh'] as const)('localizes mobile actions in %s and only exits on manual close', async locale => {
+    vi.useFakeTimers()
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (iPhone)', platform: 'iPhone', maxTouchPoints: 1 })
+    const wrapper = mount(BookmarksOnboardingHero, { global: { plugins: [createTestI18n(locale)] } })
+    expect(wrapper.find('.hero-app-download').exists()).toBe(true)
+    expect(wrapper.get('.hero-app-download').text()).toBe(locale === 'zh' ? '下载 App' : 'Download app')
+    expect(wrapper.get('.hero-mobile-close').text()).toBe(locale === 'zh' ? '关闭引导，继续使用网页版' : 'Close guide and continue on the web')
+    await wrapper.get('.hero-app-download').trigger('click')
+    window.dispatchEvent(new Event('focus'))
+    document.dispatchEvent(new Event('visibilitychange'))
+    vi.advanceTimersByTime(1000)
+    expect(wrapper.emitted('skip')).toBeUndefined()
+    expect(wrapper.emitted('complete')).toBeUndefined()
+    expect(wrapper.get('.hero-app-download').exists()).toBe(true)
+    await wrapper.get('.hero-mobile-close').trigger('click')
+    expect(wrapper.emitted('skip')).toHaveLength(1)
   })
 
   it('步骤1（未装插件）：渲染标题 + 浏览器演示 + 安装按钮 + setup note + 稍后再说按钮', () => {
