@@ -75,4 +75,4 @@ Task 6.4 covers completed local review and strict validation. PR #209 now target
 ## 9. PR integration review
 
 - [x] 9.1 Integrate the latest dev locale synchronization without introducing a second profile/locale writer; preserve authoritative KOC identity reads, bounded requests, and stale-response protection.
-- [ ] 9.2 Run merged-state regression checks, complete the post-PR Bugs/Security/Compliance review, and publish the validated result to PR #209.
+- [x] 9.2 Run merged-state regression checks, complete the post-PR Bugs/Security/Compliance review, and publish the validated result to PR #209.
