@@ -11,14 +11,9 @@ describe('youtubeBody', () => {
     expect(youtubeBodyHasArticle('<p>data-slax-derived="youtube-article"</p>')).toBe(false)
   })
 
-  it('no duplicate article: a body that holds it shows no block and no bar', () => {
-    expect(youtubeArticleView({ isYoutube: true, bodyHasArticle: true, below: false })).toBe('none')
-    expect(youtubeArticleView({ isYoutube: true, bodyHasArticle: true, below: true })).toBe('none')
-    expect(youtubeArticleView({ isYoutube: false, bodyHasArticle: false, below: false })).toBe('none')
-  })
-
-  it('raw body: the status bar first; the old block below the body once the bar falls back', () => {
-    expect(youtubeArticleView({ isYoutube: true, bodyHasArticle: false, below: false })).toBe('bar')
-    expect(youtubeArticleView({ isYoutube: true, bodyHasArticle: false, below: true })).toBe('below')
+  it('the page decides from the status, not the body text: the bar for every YouTube bookmark, the block once the bar falls back', () => {
+    expect(youtubeArticleView({ isYoutube: false, below: false })).toBe('none')
+    expect(youtubeArticleView({ isYoutube: true, below: false })).toBe('bar')
+    expect(youtubeArticleView({ isYoutube: true, below: true })).toBe('below')
   })
 })

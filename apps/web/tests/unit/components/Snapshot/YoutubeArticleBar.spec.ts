@@ -131,6 +131,24 @@ describe('YoutubeArticleBar', () => {
     w.unmount()
   })
 
+  it('a body that holds the owner article, read by a visitor in another language: falls back to the article below', async () => {
+    routeGet([ready({ language: 'zh', requested_language: 'zh', body_ready: false })])
+    const w = await mount({ bodyHasArticle: true })
+    await flushPromises()
+    expect(w.emitted('fallback')).toHaveLength(1)
+    w.unmount()
+  })
+
+  it("a body that holds this viewer's article: the bar shows nothing and does not fall back", async () => {
+    routeGet([ready()])
+    const w = await mount({ bodyHasArticle: true })
+    await flushPromises()
+    expect(w.find('.youtube-article-bar').exists()).toBe(false)
+    expect(w.emitted('fallback')).toBeUndefined()
+    expect(w.emitted('refresh-body')).toBeUndefined()
+    w.unmount()
+  })
+
   it('skipped and failed keep their actions; unavailable shows nothing', async () => {
     routeGet([state({ status: 'skipped', can_generate: true })])
     mockPost.mockResolvedValue(state({ status: 'pending' }))

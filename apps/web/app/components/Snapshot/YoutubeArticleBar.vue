@@ -37,7 +37,8 @@ const emit = defineEmits<{
 const { state, acting, timedOut, isWorking, start, stop, generate, retry } = useYoutubeArticle(() => props.bookmarkUid, { loadContent: false })
 
 const status = computed(() => state.value?.status ?? 'unavailable')
-const visible = computed(() => !!state.value && status.value !== 'unavailable')
+// Nothing to say when the body already holds this viewer's article
+const visible = computed(() => !!state.value && status.value !== 'unavailable' && !(status.value === 'ready' && !!state.value?.body_ready && props.bodyHasArticle))
 const awaitingBody = computed(() => status.value === 'ready' && !!state.value?.body_ready && !props.bodyHasArticle)
 
 // Swapping the body restarts the video, so it waits while the video plays; then the reader decides
@@ -69,9 +70,10 @@ const askForBody = () => {
 
 watch(state, s => {
   if (!s || s.status === 'unavailable') return
-  // Marks on the raw transcript keep it as the body; a ready article that is not the body (a visitor
-  // in another language, or a body write that failed) is shown below the body
-  if (s.body_mode === 'transcript' || (s.status === 'ready' && !s.body_ready && !props.bodyHasArticle)) emit('fallback')
+  // Marks keep the body as it is; a ready article that is not in the body (a visitor in another
+  // language, even when the body holds the owner's article, or a body write that failed) is shown
+  // below the body
+  if (s.body_mode === 'transcript' || (s.status === 'ready' && !s.body_ready)) emit('fallback')
 })
 watch(awaitingBody, value => {
   if (value) askForBody()

@@ -25,6 +25,9 @@ export interface YoutubeCue {
   text: string
 }
 
+/** A video id that is safe to put into the player markup (YouTube ids are 11 of these characters). */
+export const isSafeVideoId = (videoId: string): boolean => /^[\w-]{1,32}$/.test(videoId)
+
 export class HtmlBuilder {
   public static buildTweet(item: TweetInfo, quoteTweetHtml?: string): string {
     const tweetStyle =
@@ -478,7 +481,7 @@ ${rows}
    * `articleHtml` must come from renderMediaArticle, which escapes every model string.
    */
   public static buildYoutubeArticleBody(videoId: string, cues: YoutubeCue[], articleHtml: string): string {
-    const safeId = /^[\w-]{1,32}$/.test(videoId) ? videoId : ''
+    const safeId = isSafeVideoId(videoId) ? videoId : ''
     return `<div class="slax-yt" data-slax-derived="youtube">
 ${HtmlBuilder.youtubePlayer(safeId, cues)}
 ${articleHtml}

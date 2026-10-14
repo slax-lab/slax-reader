@@ -9,7 +9,7 @@ import { BucketClient } from '@/infra/repository/bucketClient'
 import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
 import { CrawlService } from '@/domain/crawl'
 import { MediaBodyService } from '@/domain/mediaBody'
-import { HtmlBuilder, type YoutubeCue } from '@/utils/htmlBuilder'
+import { HtmlBuilder, isSafeVideoId, type YoutubeCue } from '@/utils/htmlBuilder'
 import { renderMediaArticle } from '@/utils/podcastArticle'
 import { toCompatCues, type YoutubeCaptionDocument } from '@/utils/youtubeCaption'
 import { normalizeYoutubeUrl } from '@/utils/platformDetector'
@@ -356,22 +356,19 @@ export class YoutubeArticleService {
   // ---------- bodies ----------
 
   /**
-   * Body state of one bookmark for the status response. The body gets the version in the owner's
-   * language. An owner whose ready version is not in the body yet gets it written now: bookmarks
-   * whose article was made before this rule, or whose write failed. Visitors only read.
-   */
-  /**
-   * Whether the body holds `row`, the version this viewer gets (theirs, or the owner's for a
-   * visitor). A visitor in another language therefore gets body_ready false and the article below
-   * the body at once. The owner's read writes a ready article that is not in the body yet; a failed
-   * write is logged and answers body_ready false, so the page falls back instead of failing.
+   * Body state for the status response: whether the body holds `row`, the version this viewer gets
+   * (theirs, or the owner's for a visitor). A body that already holds it is 'article' even when it
+   * has marks (marks on the article keep it). Otherwise marks keep the body as it is
+   * ('transcript'). A visitor in another language gets body_ready false and the article below the
+   * body at once. The owner's read writes a ready article that is not in the body yet (made before
+   * this rule, or a failed write); a failed write is logged and answers body_ready false, so the page
+   * falls back instead of failing. Visitors only read.
    */
   private async bodyState(ctx: ContextManager, access: Access, row: youtubeArticlePO): Promise<Pick<YoutubeArticleStatusResponse, 'body_mode' | 'body_ready'>> {
-    if (await this.bodies.hasMarks(access.bookmarkId, access.ownerId)) return { body_mode: 'transcript', body_ready: false }
-    if (row.status !== 'ready') return { body_mode: 'article', body_ready: false }
-    const html = await this.bodies.readBody(access.bookmarkId)
+    const html = row.status === 'ready' ? await this.bodies.readBody(access.bookmarkId) : null
     if (html?.includes(this.bodyMarker(row))) return { body_mode: 'article', body_ready: true }
-    if (!access.isOwner || html === null) return { body_mode: 'article', body_ready: false }
+    if (await this.bodies.hasMarks(access.bookmarkId, access.ownerId)) return { body_mode: 'transcript', body_ready: false }
+    if (row.status !== 'ready' || !access.isOwner || html === null) return { body_mode: 'article', body_ready: false }
     try {
       return { body_mode: 'article', body_ready: await this.publishBodyFor(ctx, access.bookmarkId, access.ownerId, row) }
     } catch (err) {
@@ -418,7 +415,7 @@ export class YoutubeArticleService {
 
   /** Player (same cues as the crawl wrote, for the side transcript panel) plus the article. Null when an object is gone. */
   private async renderBody(row: youtubeArticlePO): Promise<{ html: string; text: string } | null> {
-    if (!row.article_key || !row.caption_key || !/^[\w-]{1,32}$/.test(row.source_id)) return null
+    if (!row.article_key || !row.caption_key || !isSafeVideoId(row.source_id)) return null
     const bucket = this.bucket().R2Bucket
     const [docObj, captionObj] = await Promise.all([bucket.get(row.article_key), bucket.get(row.caption_key)])
     if (!docObj || !captionObj) return null
@@ -429,17 +426,14 @@ export class YoutubeArticleService {
   }
 
   /**
-   * Takedown: bodies that hold the article go back to the raw captions, rebuilt from the player's
-   * own cues (the caption objects are deleted with the article).
-   */
-  /**
-   * Takedown: put the raw captions back into every body that holds the article. This is a legal path,
+   * Takedown: put the raw captions back into every body that holds the article, rebuilt from the
+   * player's own cues (the caption objects are deleted with the article). This is a legal path,
    * so it also writes flagged bookmarks, and a body whose cues can not be read gets the player only:
    * the article text must not survive. Bodies that could not be written are logged by id.
    */
   private async restoreRawBodies(ctx: ContextManager, videoId: string): Promise<number> {
     // Same guard as renderBody: the id goes into the player markup
-    if (!/^[\w-]{1,32}$/.test(videoId)) {
+    if (!isSafeVideoId(videoId)) {
       console.error(`YouTube article takedown: invalid video id, bodies not restored`)
       return 0
     }

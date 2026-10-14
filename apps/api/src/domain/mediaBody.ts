@@ -49,10 +49,12 @@ export class MediaBodyService {
     const bookmark = await this.bookmarkService.getBookmarkById(bookmarkId)
     if (!bookmark?.content_key || (bookmark.moderation_result > 0 && !opts.force)) return false
     const bucket = this.bucket().R2Bucket
-    await bucket.put(bookmark.content_key, body.html)
+    // The HTML goes last: it carries the version marker that says the body is written, so a failure
+    // before it leaves the old body in place and the next status read or run writes everything again
     if (bookmark.content_md_key) await bucket.put(bookmark.content_md_key, body.text)
     await this.bookmarkRepo.updateBookmarkWordCount(bookmarkId, body.text.length)
     await this.bookmarkRepo.deleteBookmarkSummary(bookmarkId, userId)
+    await bucket.put(bookmark.content_key, body.html)
     const results = await this.searchService.addSearchRecord(ctx, bookmarkId, bookmark.title || '', body.text).catch(err => [{ status: 'rejected' as const, reason: err }])
     const rejected = (results ?? []).filter(r => r.status === 'rejected')
     if (rejected.length) console.error(`Media body search index failed for bookmark ${bookmarkId}: ${rejected.length} part(s)`)

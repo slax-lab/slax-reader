@@ -544,7 +544,7 @@ const refreshBody = async () => {
 const youtubeBodyHasArticle = computed(() => bodyHasYoutubeArticle(detail.value?.content ?? ''))
 const youtubeArticleBelow = ref(false)
 const youtubeArticleView = computed(() =>
-  pickYoutubeArticleView({ isYoutube: isYoutube.value && !!bookmarkUid.value, bodyHasArticle: youtubeBodyHasArticle.value, below: youtubeArticleBelow.value })
+  pickYoutubeArticleView({ isYoutube: isYoutube.value && !!bookmarkUid.value, below: youtubeArticleBelow.value })
 )
 // Media cues for the transcript panel: the YouTube player's, or the podcast player's once the transcript exists
 const youtubeCues = computed<{ t: number; text: string }[]>(() => {

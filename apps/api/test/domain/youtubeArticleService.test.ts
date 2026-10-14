@@ -869,6 +869,14 @@ describe('the article as the bookmark body', () => {
     expect(w.objects.get('html/body/u1.html')).toBe(RAW_BODY)
   })
 
+  test('status: marks made on the article body keep body_mode article', async () => {
+    const w = wire()
+    const row = ready(w)
+    await w.service.publishBodies(w.ctx(0), row.id)
+    w.marks.set(BOOKMARK + 1000, [{ is_deleted: false }])
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ body_mode: 'article', body_ready: true })
+  })
+
   test('status: a failed body write answers body_ready false instead of failing the request', async () => {
     const w = wire()
     ready(w)

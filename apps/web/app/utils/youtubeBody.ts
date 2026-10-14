@@ -4,11 +4,14 @@
 export const youtubeBodyHasArticle = (content: string): boolean => /<article\b[^>]*\bdata-slax-derived="youtube-article"/.test(content)
 
 /**
- * - 'none': not YouTube, or the body already is the article (no second copy, nothing folded)
- * - 'bar': the article is being made and will become the body; a slim status line above it
- * - 'below': the body keeps the raw transcript; the article shows below it, as before
+ * - 'none': not YouTube
+ * - 'bar': the status line above the body. It decides from the status (body_mode, body_ready), not
+ *   from the body text: a body can hold the owner's article while this viewer gets another version.
+ *   It shows nothing when the body already holds the viewer's article.
+ * - 'below': the body is not the viewer's article (marks, another language, a failed write); the
+ *   article shows below it, as before
  */
-export const youtubeArticleView = (input: { isYoutube: boolean; bodyHasArticle: boolean; below: boolean }): 'none' | 'bar' | 'below' => {
-  if (!input.isYoutube || input.bodyHasArticle) return 'none'
+export const youtubeArticleView = (input: { isYoutube: boolean; below: boolean }): 'none' | 'bar' | 'below' => {
+  if (!input.isYoutube) return 'none'
   return input.below ? 'below' : 'bar'
 }

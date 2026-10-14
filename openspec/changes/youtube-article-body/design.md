@@ -32,7 +32,7 @@ The status lines (preparing, timeout, skipped, failed, limit) are one shared com
 
 - Article body: no separate article block and no fold.
 - Raw body with an article coming: `YoutubeArticleBar` above the body shows making, skipped ("generate anyway"), failed (retry) and limit states. When the status says the body is ready, the page reloads the body in place and remounts it, at most 4 times 15 seconds apart, and never while the video plays (a button instead).
-- Raw body that stays raw (marks, a visitor in another language, a failed write): the article block below the body, as in `youtube-ai-article`.
+- Body that is not the viewer's article (marks, a visitor in another language even when the body holds the owner's article, a failed write): the article block below the body, as in `youtube-ai-article`. The page mounts the bar for every YouTube bookmark and lets the status decide, not the body text.
 
 Article paragraphs use the podcast markup and code path (`bindMediaText`, `MediaFollower`, `listenStartOf`). The YouTube player now reports its play state.
 
