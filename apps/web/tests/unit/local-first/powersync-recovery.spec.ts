@@ -178,12 +178,13 @@ describe('initializePowerSyncWithFallback', () => {
     expect(created).toEqual(['shared', 'dedicated', 'main'])
   })
 
-  it('uses REST after a timeout instead of opening another instance of the same database', async () => {
+  it.each([true, false])('uses REST after a timeout without another instance (shared eligible: %s)', async sharedWorkerAvailable => {
     vi.useFakeTimers()
     const created: PowerSyncWorkerMode[] = []
     const hanging = makeDb(() => new Promise<void>(() => {}))
 
     const promise = initializePowerSyncWithFallback({
+      sharedWorkerAvailable,
       createDatabase: mode => {
         created.push(mode)
         return hanging as never
@@ -195,10 +196,10 @@ describe('initializePowerSyncWithFallback', () => {
 
     await vi.advanceTimersByTimeAsync(100)
     await expect(promise).resolves.toEqual({ database: null, mode: 'rest' })
-    expect(created).toEqual(['shared'])
+    expect(created).toEqual([sharedWorkerAvailable ? 'shared' : 'dedicated'])
   })
 
-  it('uses REST when failed database cleanup does not finish', async () => {
+  it.each([true, false])('uses REST when cleanup does not finish (shared eligible: %s)', async sharedWorkerAvailable => {
     vi.useFakeTimers()
     const created: PowerSyncWorkerMode[] = []
     const failed = makeDb(async () => {
@@ -206,6 +207,7 @@ describe('initializePowerSyncWithFallback', () => {
     })
 
     const promise = initializePowerSyncWithFallback({
+      sharedWorkerAvailable,
       createDatabase: mode => {
         created.push(mode)
         return failed as never
@@ -218,10 +220,10 @@ describe('initializePowerSyncWithFallback', () => {
 
     await vi.advanceTimersByTimeAsync(100)
     await expect(promise).resolves.toEqual({ database: null, mode: 'rest' })
-    expect(created).toEqual(['shared'])
+    expect(created).toEqual([sharedWorkerAvailable ? 'shared' : 'dedicated'])
   })
 
-  it('uses REST when failed database cleanup reports an error', async () => {
+  it.each([true, false])('uses REST when cleanup reports an error (shared eligible: %s)', async sharedWorkerAvailable => {
     const created: PowerSyncWorkerMode[] = []
     const events: string[] = []
     const failed = makeDb(async () => {
@@ -230,6 +232,7 @@ describe('initializePowerSyncWithFallback', () => {
     failed.database.close.mockRejectedValueOnce(new Error('cleanup failed'))
 
     const result = await initializePowerSyncWithFallback({
+      sharedWorkerAvailable,
       createDatabase: mode => {
         created.push(mode)
         return failed as never
@@ -240,8 +243,26 @@ describe('initializePowerSyncWithFallback', () => {
     })
 
     expect(result).toEqual({ database: null, mode: 'rest' })
-    expect(created).toEqual(['shared'])
+    expect(created).toEqual([sharedWorkerAvailable ? 'shared' : 'dedicated'])
     expect(events).toContain('dispose-error')
+  })
+
+  it('falls back to main after dedicated-first failure and completed cleanup', async () => {
+    const created: PowerSyncWorkerMode[] = []
+    const failed = makeDb(async () => { throw new Error('dedicated failed') })
+    const main = makeDb(async () => {})
+
+    const result = await initializePowerSyncWithFallback({
+      sharedWorkerAvailable: false,
+      createDatabase: mode => {
+        created.push(mode)
+        if (mode === 'main') expect(failed.database.close).toHaveBeenCalledOnce()
+        return (mode === 'dedicated' ? failed : main) as never
+      }
+    })
+
+    expect(result).toEqual({ database: main, mode: 'main' })
+    expect(created).toEqual(['dedicated', 'main'])
   })
 
   it('emits structured events for retry and success transitions', async () => {
