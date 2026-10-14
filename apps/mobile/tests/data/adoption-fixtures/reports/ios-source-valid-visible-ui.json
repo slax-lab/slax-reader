@@ -1,0 +1,1212 @@
+{
+  "kind": "slax-controlled-source-valid-visible-upgrade-ui-report",
+  "version": 1,
+  "status": "partial",
+  "recordedAt": "2026-10-10T20:14:30.520Z",
+  "platform": "ios-simulator",
+  "device": "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+  "runId": "controlled-ios-visible-upgrade-v2-20261011",
+  "nonce": "5460a82a-34f9-4938-b361-b79b50b44819",
+  "sourceValidProducerServiceReport": {
+    "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-original-queue-real-service.json",
+    "sha256": "19ab5db83da66175fc6b5fb8eb9834bab1274c603b72e9a97f766b030ba45ffb"
+  },
+  "nativeCasAndDefaultStartupReport": {
+    "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-native-cas-and-default-startup.json",
+    "sha256": "c47b3405c5d80001e6b51d0135bde78a360e57de0347c2ae95d38d88175d6bf8"
+  },
+  "sourceInputHashes": {
+    "apps/mobile/src/runtime.tsx": "33bd6a31099ac316efdd9836a94322ed1dffd884b81e48570cdc0ef65633b563",
+    "apps/mobile/src/App.tsx": "09de329ac84f3069b2d605a7a155580f786b03a077f2e1ebbf2db92df8821a0d",
+    "apps/mobile/src/screens/ReaderScreen.tsx": "4088890b034e5a9efd26ac3278828efbcfe8f0ef03a27d49b240a9e00507fac7",
+    "apps/mobile/src/reader/ReaderWebView.tsx": "8da31e8931966a8a4c6d539f869f420aa6f08824174665bb375fd009795e712d",
+    "apps/mobile/src/reader/bridge.ts": "b6d4a0c3aa66fc39a8c3594b601e311bec67f0031f8f11b05686807f57806d5c",
+    "apps/mobile/src/reader/model.ts": "1d2e9db08839508500a6e45293f6fa87c07b8ae5f1147a1abf3f31a5ead340c4",
+    "apps/mobile/src/reader/position.ts": "9b0aec28083c280d033faf781caa7792c2c76bd875405e96db3e2d8ad048810f",
+    "apps/mobile/src/reader/embedded.generated.ts": "93abfbda27993030a0738697ac24721e90de9a9878ad029e4313d30c82036a77",
+    "apps/mobile/src/data/runtime.ts": "0df561a63c028c87e44bc511f41ee78c604001baf31a27613239cb0559f718ba",
+    "apps/mobile/src/data/adoption-profile.ts": "0782206ef8680766f1c12c88661df9c702b52ec37c48b0da6a8e762715c6624b",
+    "apps/mobile/tests/data/NativeUpgradeVisibleFixtureApp.tsx": "7c19bf4152218974aed8b11216e1b4a7f1d6cf4667c59be8d1eb01337dcf88a9",
+    "apps/mobile/tests/data/NativeAdoptionFixtureApp.tsx": "e7da534d9a4cd081c2634870322c96c25b7952dcf567e44ffcab89dfb74f64b0",
+    "apps/mobile/tests/data/adoption-fixtures/tooling/visible-upgrade-control.mjs": "e07d80e7fb3f68b1327c9e24a1e5da8b0ff433fc922e217077c6bae9f822b392",
+    "apps/mobile/tests/data/adoption-fixtures/tooling/visible-ui-ios-prepare.mjs": "7c5dc390154f058f0e7592f81dd3cc82b5055a6e0eab7fe487300a762f748b13"
+  },
+  "actualContext": {
+    "kind": "slax-controlled-visible-upgrade-context",
+    "version": 1,
+    "platform": "ios",
+    "device": "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+    "nonce": "5460a82a-34f9-4938-b361-b79b50b44819",
+    "requestedAt": 1791662334275,
+    "capturedAt": 1791663223633,
+    "visibleInputsSHA256": "bd660fd48fbdecd7c9eb599ce701281fdf6c6ff78d716cab945cdcfc0d59d110",
+    "realProductionRoutesMounted": true,
+    "simulatedUiRowsOrHtml": false,
+    "fixtureOnlyProviderUsed": false,
+    "explicitAdoptionEvidenceProvided": false,
+    "normalRuntimeReady": true,
+    "actualNativeResourceOwner": "109ed4b4-19a7-44a5-bdab-7f43f45adedb",
+    "observedRoute": {
+      "key": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+      "name": "Reader",
+      "params": {
+        "bookmarkId": "bookmark-1"
+      }
+    },
+    "observedNavigationState": {
+      "stale": false,
+      "type": "stack",
+      "key": "stack-MSu2sKbQ0sOtEdy7BVDkx",
+      "index": 1,
+      "routeNames": [
+        "Library",
+        "Reader",
+        "Settings",
+        "About",
+        "Debug",
+        "DeleteAccount",
+        "Subscription",
+        "Feedback"
+      ],
+      "preloadedRoutes": [],
+      "routes": [
+        {
+          "key": "Library-3uEsPPH6kycBX_ZJ3P87Q",
+          "name": "Library"
+        },
+        {
+          "key": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+          "name": "Reader",
+          "params": {
+            "bookmarkId": "bookmark-1"
+          }
+        }
+      ]
+    },
+    "canGoBack": true,
+    "initialBookmark": {
+      "id": "bookmark-1",
+      "userId": "synthetic-user",
+      "aliasTitle": "Controlled actual service offline edit",
+      "title": "Offline article",
+      "url": "https://offline.invalid/article-1",
+      "status": "success",
+      "createdAt": "2026-10-01T09:41:00.000Z",
+      "updatedAt": "2026-10-01T09:41:00.000Z",
+      "archiveStatus": 0,
+      "isStarred": 1,
+      "isRead": 0,
+      "metadata": "{\"tags\": [\"tag-1\", \"tag-2\"], \"share\": {\"uuid\": \"share-bookmark-1\", \"is_enable\": false, \"show_line\": true, \"allow_line\": true, \"created_at\": \"2026-10-01T09:41:00.000Z\", \"share_code\": \"controlled-offline-share\", \"allow_access\": 1, \"show_comment\": true, \"allow_comment\": true, \"show_userinfo\": true}, \"bookmark\": {\"uuid\": \"article-1\", \"title\": \"Offline article\", \"byline\": \"Controlled fixture author\", \"status\": \"success\", \"host_url\": \"https://offline.invalid\", \"site_name\": \"Controlled offline fixture\", \"target_url\": \"https://offline.invalid/article-1\", \"description\": \"An original SDK article retained through the Expo migration.\", \"content_icon\": \"\", \"published_at\": \"2026-10-01T09:41:00.000Z\", \"content_cover\": \"\", \"content_word_count\": 661}}",
+      "downloadStatus": 2,
+      "isAutoCached": false
+    },
+    "originalComment": {
+      "id": "comment-1",
+      "type": 2,
+      "comment": "Pending comment"
+    },
+    "currentLocalJson": {
+      "overview": "Offline summary",
+      "is_downloaded": 2,
+      "read_position": "351",
+      "outline_read_position": "12",
+      "is_auto_cached": 0,
+      "future_field": {
+        "preserve": true
+      }
+    },
+    "sourceCachedArticleMd5": "26bc476663fc09a13006c7483ac2af68",
+    "originalDataStoreFingerprint": "3f827733345f4601dd9ce6941242ab02931b19821cac162b5b256f272fd8d5ff",
+    "refusedRequestPaths": [
+      "/m",
+      "/v1/user/refresh",
+      "/v1/sync/token",
+      "/v1/user/labs",
+      "/events",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/events",
+      "/v1/sync/changes",
+      "/v1/bookmark/outline",
+      "/events",
+      "/events",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/user/labs",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/events",
+      "/v1/bookmark/outline",
+      "/v1/sync/changes",
+      "/events",
+      "/events",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token",
+      "/v1/sync/token"
+    ],
+    "networkRequestsForwarded": 0,
+    "nativeScreenshotsAndInteractionAcceptance": "pending-external-XCTest-or-emulator-evidence",
+    "publisherUpgrade": false,
+    "testFlight": false
+  },
+  "actualReaderObservations": {
+    "kind": "slax-controlled-visible-upgrade-reader-observations",
+    "version": 1,
+    "platform": "ios",
+    "device": "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+    "runId": "controlled-ios-visible-upgrade-v2-20261011",
+    "nonce": "5460a82a-34f9-4938-b361-b79b50b44819",
+    "requestedAt": 1791662334275,
+    "visibleInputsSHA256": "bd660fd48fbdecd7c9eb599ce701281fdf6c6ff78d716cab945cdcfc0d59d110",
+    "actualNativeResourceOwner": "109ed4b4-19a7-44a5-bdab-7f43f45adedb",
+    "observationsOnly": true,
+    "events": [
+      {
+        "type": "lifecycle",
+        "event": {
+          "pageId": "reader-1",
+          "nativeTag": null,
+          "ready": false,
+          "restoreConsumed": false,
+          "positionPixels": null,
+          "kind": "mount"
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+        "observedAt": 1791662477232
+      },
+      {
+        "type": "ready",
+        "event": {
+          "requestedPixels": 348.25,
+          "consumed": false,
+          "observed": null,
+          "geometry": {
+            "pixelRatio": 3,
+            "topInsetPoints": 0,
+            "headerHeightPoints": 0,
+            "containerScreenTopPoints": 0,
+            "webViewScreenTopPoints": 0,
+            "viewportHeightPoints": 0
+          },
+          "bridge": {
+            "pageId": "reader-1",
+            "ready": false,
+            "documentLoaded": false,
+            "documentHeightPoints": 1,
+            "nativeTag": null,
+            "loadStarts": 0,
+            "loadEnds": 0,
+            "messages": 0,
+            "rejectedMessages": 0
+          },
+          "scrollTrace": []
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+        "observedAt": 1791662477238
+      },
+      {
+        "type": "ready",
+        "event": {
+          "requestedPixels": 348.25,
+          "consumed": false,
+          "observed": null,
+          "geometry": {
+            "pixelRatio": 3,
+            "topInsetPoints": 298,
+            "headerHeightPoints": 236,
+            "containerScreenTopPoints": 0,
+            "webViewScreenTopPoints": 0,
+            "viewportHeightPoints": 874
+          },
+          "bridge": {
+            "pageId": "reader-1",
+            "ready": false,
+            "documentLoaded": false,
+            "documentHeightPoints": 1,
+            "nativeTag": 446,
+            "loadStarts": 1,
+            "loadEnds": 0,
+            "messages": 0,
+            "rejectedMessages": 0
+          },
+          "scrollTrace": []
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+        "observedAt": 1791662479777
+      },
+      {
+        "type": "native-scroll",
+        "event": {
+          "requestedPixels": 348.25,
+          "consumed": false,
+          "observed": {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "positionPixels": 0
+          },
+          "geometry": {
+            "pixelRatio": 3,
+            "topInsetPoints": 298,
+            "headerHeightPoints": 236,
+            "containerScreenTopPoints": 0,
+            "webViewScreenTopPoints": 0,
+            "viewportHeightPoints": 874
+          },
+          "bridge": {
+            "pageId": "reader-1",
+            "ready": false,
+            "documentLoaded": false,
+            "documentHeightPoints": 1,
+            "nativeTag": 446,
+            "loadStarts": 1,
+            "loadEnds": 0,
+            "messages": 0,
+            "rejectedMessages": 0
+          },
+          "scrollTrace": [
+            {
+              "scrollPoints": -298,
+              "contentHeightPoints": 0,
+              "viewportHeightPoints": 874,
+              "insetPoints": 298,
+              "restoreConsumed": false
+            }
+          ]
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+        "observedAt": 1791662479789
+      },
+      {
+        "type": "ready",
+        "event": {
+          "requestedPixels": 348.25,
+          "consumed": false,
+          "observed": {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "positionPixels": 0
+          },
+          "geometry": {
+            "pixelRatio": 3,
+            "topInsetPoints": 298,
+            "headerHeightPoints": 236,
+            "containerScreenTopPoints": 0,
+            "webViewScreenTopPoints": 0,
+            "viewportHeightPoints": 874
+          },
+          "bridge": {
+            "pageId": "reader-1",
+            "ready": true,
+            "documentLoaded": false,
+            "documentHeightPoints": 1,
+            "nativeTag": 446,
+            "loadStarts": 1,
+            "loadEnds": 0,
+            "messages": 2,
+            "rejectedMessages": 0
+          },
+          "scrollTrace": [
+            {
+              "scrollPoints": -298,
+              "contentHeightPoints": 0,
+              "viewportHeightPoints": 874,
+              "insetPoints": 298,
+              "restoreConsumed": false
+            }
+          ]
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+        "observedAt": 1791662479847
+      },
+      {
+        "type": "ready",
+        "event": {
+          "requestedPixels": 348.25,
+          "consumed": false,
+          "observed": {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "positionPixels": 0
+          },
+          "geometry": {
+            "pixelRatio": 3,
+            "topInsetPoints": 298,
+            "headerHeightPoints": 236,
+            "containerScreenTopPoints": 0,
+            "webViewScreenTopPoints": 0,
+            "viewportHeightPoints": 874
+          },
+          "bridge": {
+            "pageId": "reader-1",
+            "ready": true,
+            "documentLoaded": true,
+            "documentHeightPoints": 1,
+            "nativeTag": 446,
+            "loadStarts": 1,
+            "loadEnds": 1,
+            "messages": 2,
+            "rejectedMessages": 0
+          },
+          "scrollTrace": [
+            {
+              "scrollPoints": -298,
+              "contentHeightPoints": 0,
+              "viewportHeightPoints": 874,
+              "insetPoints": 298,
+              "restoreConsumed": false
+            }
+          ]
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+        "observedAt": 1791662479871
+      },
+      {
+        "type": "ready",
+        "event": {
+          "requestedPixels": 348.25,
+          "consumed": false,
+          "observed": {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "positionPixels": 0
+          },
+          "geometry": {
+            "pixelRatio": 3,
+            "topInsetPoints": 298,
+            "headerHeightPoints": 236,
+            "containerScreenTopPoints": 0,
+            "webViewScreenTopPoints": 0,
+            "viewportHeightPoints": 874
+          },
+          "bridge": {
+            "pageId": "reader-1",
+            "ready": true,
+            "documentLoaded": true,
+            "documentHeightPoints": 3766,
+            "nativeTag": 446,
+            "loadStarts": 1,
+            "loadEnds": 1,
+            "messages": 6,
+            "rejectedMessages": 0
+          },
+          "scrollTrace": [
+            {
+              "scrollPoints": -298,
+              "contentHeightPoints": 0,
+              "viewportHeightPoints": 874,
+              "insetPoints": 298,
+              "restoreConsumed": false
+            }
+          ]
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+        "observedAt": 1791662479894
+      },
+      {
+        "type": "restore",
+        "event": {
+          "requestedPixels": 348.25,
+          "consumed": true,
+          "observed": {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "positionPixels": 0
+          },
+          "geometry": {
+            "pixelRatio": 3,
+            "topInsetPoints": 298,
+            "headerHeightPoints": 236,
+            "containerScreenTopPoints": 0,
+            "webViewScreenTopPoints": 0,
+            "viewportHeightPoints": 874
+          },
+          "bridge": {
+            "pageId": "reader-1",
+            "ready": true,
+            "documentLoaded": true,
+            "documentHeightPoints": 3766,
+            "nativeTag": 446,
+            "loadStarts": 1,
+            "loadEnds": 1,
+            "messages": 8,
+            "rejectedMessages": 0
+          },
+          "scrollTrace": [
+            {
+              "scrollPoints": -298,
+              "contentHeightPoints": 0,
+              "viewportHeightPoints": 874,
+              "insetPoints": 298,
+              "restoreConsumed": false
+            }
+          ]
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+        "observedAt": 1791662479944
+      },
+      {
+        "type": "native-scroll",
+        "event": {
+          "requestedPixels": 348.25,
+          "consumed": true,
+          "observed": {
+            "scrollPoints": -181,
+            "contentHeightPoints": 3766,
+            "viewportHeightPoints": 874,
+            "positionPixels": 351
+          },
+          "geometry": {
+            "pixelRatio": 3,
+            "topInsetPoints": 298,
+            "headerHeightPoints": 236,
+            "containerScreenTopPoints": 0,
+            "webViewScreenTopPoints": 0,
+            "viewportHeightPoints": 874
+          },
+          "bridge": {
+            "pageId": "reader-1",
+            "ready": true,
+            "documentLoaded": true,
+            "documentHeightPoints": 3766,
+            "nativeTag": 446,
+            "loadStarts": 1,
+            "loadEnds": 1,
+            "messages": 9,
+            "rejectedMessages": 0
+          },
+          "scrollTrace": [
+            {
+              "scrollPoints": -298,
+              "contentHeightPoints": 0,
+              "viewportHeightPoints": 874,
+              "insetPoints": 298,
+              "restoreConsumed": false
+            },
+            {
+              "scrollPoints": -181,
+              "contentHeightPoints": 3766,
+              "viewportHeightPoints": 874,
+              "insetPoints": 298,
+              "restoreConsumed": true
+            }
+          ]
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+        "observedAt": 1791662480555
+      },
+      {
+        "type": "position-persisted",
+        "pageId": "reader-1",
+        "reason": "debounce",
+        "requestedPixels": 351,
+        "persistedPixels": 351,
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+        "observedAt": 1791662482571
+      },
+      {
+        "type": "lifecycle",
+        "event": {
+          "pageId": "reader-1",
+          "nativeTag": 446,
+          "ready": true,
+          "restoreConsumed": true,
+          "positionPixels": 351,
+          "kind": "unmount"
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+        "observedAt": 1791662748214
+      },
+      {
+        "type": "lifecycle",
+        "event": {
+          "pageId": "reader-1",
+          "nativeTag": 446,
+          "ready": true,
+          "restoreConsumed": true,
+          "positionPixels": 351,
+          "kind": "dispose-requested",
+          "reason": "document-change"
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+        "observedAt": 1791662748219
+      },
+      {
+        "type": "lifecycle",
+        "event": {
+          "pageId": "reader-1",
+          "nativeTag": null,
+          "ready": true,
+          "restoreConsumed": true,
+          "positionPixels": 351,
+          "kind": "position-flush-completed",
+          "reason": "document-change"
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+        "observedAt": 1791662748252
+      },
+      {
+        "type": "lifecycle",
+        "event": {
+          "pageId": "reader-1",
+          "nativeTag": 446,
+          "ready": true,
+          "restoreConsumed": true,
+          "positionPixels": 351,
+          "kind": "native-detach-completed"
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-nstJkC5o-Wawe-9sQIEIq",
+        "observedAt": 1791662748256
+      },
+      {
+        "type": "lifecycle",
+        "event": {
+          "pageId": "reader-2",
+          "nativeTag": null,
+          "ready": false,
+          "restoreConsumed": false,
+          "positionPixels": null,
+          "kind": "mount"
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+        "observedAt": 1791662837174
+      },
+      {
+        "type": "ready",
+        "event": {
+          "requestedPixels": 351,
+          "consumed": false,
+          "observed": null,
+          "geometry": {
+            "pixelRatio": 3,
+            "topInsetPoints": 0,
+            "headerHeightPoints": 0,
+            "containerScreenTopPoints": 0,
+            "webViewScreenTopPoints": 0,
+            "viewportHeightPoints": 0
+          },
+          "bridge": {
+            "pageId": "reader-2",
+            "ready": false,
+            "documentLoaded": false,
+            "documentHeightPoints": 1,
+            "nativeTag": null,
+            "loadStarts": 0,
+            "loadEnds": 0,
+            "messages": 0,
+            "rejectedMessages": 0
+          },
+          "scrollTrace": []
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+        "observedAt": 1791662837177
+      },
+      {
+        "type": "ready",
+        "event": {
+          "requestedPixels": 351,
+          "consumed": false,
+          "observed": null,
+          "geometry": {
+            "pixelRatio": 3,
+            "topInsetPoints": 298,
+            "headerHeightPoints": 236,
+            "containerScreenTopPoints": 0,
+            "webViewScreenTopPoints": 0,
+            "viewportHeightPoints": 874
+          },
+          "bridge": {
+            "pageId": "reader-2",
+            "ready": false,
+            "documentLoaded": false,
+            "documentHeightPoints": 1,
+            "nativeTag": 1060,
+            "loadStarts": 1,
+            "loadEnds": 0,
+            "messages": 0,
+            "rejectedMessages": 0
+          },
+          "scrollTrace": []
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+        "observedAt": 1791662838178
+      },
+      {
+        "type": "native-scroll",
+        "event": {
+          "requestedPixels": 351,
+          "consumed": false,
+          "observed": {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "positionPixels": 0
+          },
+          "geometry": {
+            "pixelRatio": 3,
+            "topInsetPoints": 298,
+            "headerHeightPoints": 236,
+            "containerScreenTopPoints": 0,
+            "webViewScreenTopPoints": 0,
+            "viewportHeightPoints": 874
+          },
+          "bridge": {
+            "pageId": "reader-2",
+            "ready": false,
+            "documentLoaded": false,
+            "documentHeightPoints": 1,
+            "nativeTag": 1060,
+            "loadStarts": 1,
+            "loadEnds": 0,
+            "messages": 0,
+            "rejectedMessages": 0
+          },
+          "scrollTrace": [
+            {
+              "scrollPoints": -298,
+              "contentHeightPoints": 0,
+              "viewportHeightPoints": 874,
+              "insetPoints": 298,
+              "restoreConsumed": false
+            }
+          ]
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+        "observedAt": 1791662838183
+      },
+      {
+        "type": "ready",
+        "event": {
+          "requestedPixels": 351,
+          "consumed": false,
+          "observed": {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "positionPixels": 0
+          },
+          "geometry": {
+            "pixelRatio": 3,
+            "topInsetPoints": 298,
+            "headerHeightPoints": 236,
+            "containerScreenTopPoints": 0,
+            "webViewScreenTopPoints": 0,
+            "viewportHeightPoints": 874
+          },
+          "bridge": {
+            "pageId": "reader-2",
+            "ready": true,
+            "documentLoaded": false,
+            "documentHeightPoints": 1,
+            "nativeTag": 1060,
+            "loadStarts": 1,
+            "loadEnds": 0,
+            "messages": 2,
+            "rejectedMessages": 0
+          },
+          "scrollTrace": [
+            {
+              "scrollPoints": -298,
+              "contentHeightPoints": 0,
+              "viewportHeightPoints": 874,
+              "insetPoints": 298,
+              "restoreConsumed": false
+            }
+          ]
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+        "observedAt": 1791662838244
+      },
+      {
+        "type": "ready",
+        "event": {
+          "requestedPixels": 351,
+          "consumed": false,
+          "observed": {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "positionPixels": 0
+          },
+          "geometry": {
+            "pixelRatio": 3,
+            "topInsetPoints": 298,
+            "headerHeightPoints": 236,
+            "containerScreenTopPoints": 0,
+            "webViewScreenTopPoints": 0,
+            "viewportHeightPoints": 874
+          },
+          "bridge": {
+            "pageId": "reader-2",
+            "ready": true,
+            "documentLoaded": true,
+            "documentHeightPoints": 1,
+            "nativeTag": 1060,
+            "loadStarts": 1,
+            "loadEnds": 1,
+            "messages": 2,
+            "rejectedMessages": 0
+          },
+          "scrollTrace": [
+            {
+              "scrollPoints": -298,
+              "contentHeightPoints": 0,
+              "viewportHeightPoints": 874,
+              "insetPoints": 298,
+              "restoreConsumed": false
+            }
+          ]
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+        "observedAt": 1791662838290
+      },
+      {
+        "type": "ready",
+        "event": {
+          "requestedPixels": 351,
+          "consumed": false,
+          "observed": {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "positionPixels": 0
+          },
+          "geometry": {
+            "pixelRatio": 3,
+            "topInsetPoints": 298,
+            "headerHeightPoints": 236,
+            "containerScreenTopPoints": 0,
+            "webViewScreenTopPoints": 0,
+            "viewportHeightPoints": 874
+          },
+          "bridge": {
+            "pageId": "reader-2",
+            "ready": true,
+            "documentLoaded": true,
+            "documentHeightPoints": 3766,
+            "nativeTag": 1060,
+            "loadStarts": 1,
+            "loadEnds": 1,
+            "messages": 6,
+            "rejectedMessages": 0
+          },
+          "scrollTrace": [
+            {
+              "scrollPoints": -298,
+              "contentHeightPoints": 0,
+              "viewportHeightPoints": 874,
+              "insetPoints": 298,
+              "restoreConsumed": false
+            }
+          ]
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+        "observedAt": 1791662838317
+      },
+      {
+        "type": "restore",
+        "event": {
+          "requestedPixels": 351,
+          "consumed": true,
+          "observed": {
+            "scrollPoints": -298,
+            "contentHeightPoints": 0,
+            "viewportHeightPoints": 874,
+            "positionPixels": 0
+          },
+          "geometry": {
+            "pixelRatio": 3,
+            "topInsetPoints": 298,
+            "headerHeightPoints": 236,
+            "containerScreenTopPoints": 0,
+            "webViewScreenTopPoints": 0,
+            "viewportHeightPoints": 874
+          },
+          "bridge": {
+            "pageId": "reader-2",
+            "ready": true,
+            "documentLoaded": true,
+            "documentHeightPoints": 3766,
+            "nativeTag": 1060,
+            "loadStarts": 1,
+            "loadEnds": 1,
+            "messages": 8,
+            "rejectedMessages": 0
+          },
+          "scrollTrace": [
+            {
+              "scrollPoints": -298,
+              "contentHeightPoints": 0,
+              "viewportHeightPoints": 874,
+              "insetPoints": 298,
+              "restoreConsumed": false
+            }
+          ]
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+        "observedAt": 1791662838393
+      },
+      {
+        "type": "native-scroll",
+        "event": {
+          "requestedPixels": 351,
+          "consumed": true,
+          "observed": {
+            "scrollPoints": -181,
+            "contentHeightPoints": 3766,
+            "viewportHeightPoints": 874,
+            "positionPixels": 351
+          },
+          "geometry": {
+            "pixelRatio": 3,
+            "topInsetPoints": 298,
+            "headerHeightPoints": 236,
+            "containerScreenTopPoints": 0,
+            "webViewScreenTopPoints": 0,
+            "viewportHeightPoints": 874
+          },
+          "bridge": {
+            "pageId": "reader-2",
+            "ready": true,
+            "documentLoaded": true,
+            "documentHeightPoints": 3766,
+            "nativeTag": 1060,
+            "loadStarts": 1,
+            "loadEnds": 1,
+            "messages": 9,
+            "rejectedMessages": 0
+          },
+          "scrollTrace": [
+            {
+              "scrollPoints": -298,
+              "contentHeightPoints": 0,
+              "viewportHeightPoints": 874,
+              "insetPoints": 298,
+              "restoreConsumed": false
+            },
+            {
+              "scrollPoints": -181,
+              "contentHeightPoints": 3766,
+              "viewportHeightPoints": 874,
+              "insetPoints": 298,
+              "restoreConsumed": true
+            }
+          ]
+        },
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+        "observedAt": 1791662838498
+      },
+      {
+        "type": "position-persisted",
+        "pageId": "reader-2",
+        "reason": "debounce",
+        "requestedPixels": 351,
+        "persistedPixels": 351,
+        "cacheKey": "bookmark-1",
+        "routeKey": "Reader-egjj_p1ei-__Hf7Zx8Mxo",
+        "observedAt": 1791662840513
+      }
+    ]
+  },
+  "visibleData": {
+    "originalTitleInActualInbox": true,
+    "originalCachedBodyTextInActualWKWebView": true,
+    "originalMarkRendered": true,
+    "originalOfflineSummaryVisible": true,
+    "originalCommentStoredAndRenderedMark": true,
+    "originalCommentPanelVisible": false,
+    "simulatedRowsOrHtml": false,
+    "fixtureOnlyProviderUsed": false,
+    "normalDefaultRuntime": true,
+    "networkRequestsForwarded": 0
+  },
+  "position": {
+    "originalRequestedPhysicalPixels": 348.25,
+    "commandExpectedNativeOffsetPoints": -181.91666666666669,
+    "actualNativeOffsetPoints": -181,
+    "actualInsetPoints": 298,
+    "pixelRatio": 3,
+    "actualRestoredPhysicalPixels": 351,
+    "actualCommittedPhysicalPixels": 351,
+    "differencePhysicalPixels": 2.75,
+    "exactFractionalRestorationAccepted": false,
+    "originalWKEquivalentQuantization": "requires independent native comparison; no expected-position writeback"
+  },
+  "nativeBack": {
+    "realBackButtonIdentifier": "BackButton",
+    "testPassed": true,
+    "returnedToActualLibrary": true,
+    "realUnmountFlushAndNativeDetachObserved": true
+  },
+  "xctest": {
+    "executed": 8,
+    "passed": 5,
+    "failed": 3,
+    "failures": [
+      {
+        "test": "testOpenOriginalReaderAndNativeBack",
+        "reason": "Uninspected navigation count assertion expected one; actual native BackButton plus reader-header-more counted two. No back tap in this attempt."
+      },
+      {
+        "test": "testOpenOriginalOfflineComment",
+        "nativeQuoteFrame": {
+          "x": 20,
+          "y": 185,
+          "width": 178,
+          "height": 20
+        },
+        "reason": "Actual quote AX tap did not expose Pending comment within ten seconds. DOM touch delivery is not inferred from native input synthesis."
+      },
+      {
+        "test": "testOpenOriginalOfflineCommentAtObservedUnderline",
+        "actualNativePoint": {
+          "x": 109,
+          "y": 204
+        },
+        "reason": "Actual quote lower-edge native tap did not expose Pending comment within ten seconds. Pending read-only input/bridge diagnosis."
+      }
+    ],
+    "unexecutedPreparedGesture": "testScrollToOriginalQuoteAndOpenComment was built only; no gesture executed because parent ended this phase."
+  },
+  "artifacts": {
+    "native-upgrade-ui-request.json": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/native-upgrade-ui-request.json",
+      "sha256": "afb6072b17072d80a06006b473e5b47996ffc61df36237b4118c58b0bf3084e6"
+    },
+    "native-upgrade-ui-context.json": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/native-upgrade-ui-context.json",
+      "sha256": "3cef5d2c20c2fe65314a1d0eb8dd8207532c3f0699d8c34a033b451c4bb61d34"
+    },
+    "native-upgrade-reader-lifecycle.json": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/native-upgrade-reader-lifecycle.json",
+      "sha256": "e4850f461bd93da75463a444e191db7549119b5a62d185f37c5ec88ef7e5625e"
+    },
+    "initial-onboarding.png": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/initial-onboarding.png",
+      "sha256": "ca6b0ef5f6a6ccbd92fa8e51a5d17b088af4ac6fe115f9c489cb8e08bae677c0"
+    },
+    "initial-onboarding-native-tree.txt": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/initial-onboarding-native-tree.txt",
+      "sha256": "e16d0c5a76b53ba0a2f506ffe5a7ee392161d8d194acc879668e7af8d330890e"
+    },
+    "library-after-onboarding-with-debug-log.png": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/library-after-onboarding-with-debug-log.png",
+      "sha256": "566f181e3614963281d1ad007aedef2635b485b5eb3394398eb02c905e61a5ca"
+    },
+    "loaded-original-cache-and-mark.png": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/loaded-original-cache-and-mark.png",
+      "sha256": "98bd486e53e4b31820c918ffc042f5f3d639efb401b9704baa8695c797ccd623"
+    },
+    "loaded-original-cache-native-tree.txt": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/loaded-original-cache-native-tree.txt",
+      "sha256": "d744c69971738ee1f503c2194ff0cb06d3f5df648946171ae439f06cf6be6541"
+    },
+    "library-after-native-back.png": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/library-after-native-back.png",
+      "sha256": "95dc03b3c0497ef048c35cb22182cf3df5e5c5d2fed28aaf4db185cbaf7cebda"
+    },
+    "library-after-native-back-native-tree.txt": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/library-after-native-back-native-tree.txt",
+      "sha256": "9812ed304e603237a9543ece36b04a58ab0ec4a366817ae7c596bb205a48bbde"
+    },
+    "original-mark-before-failed-underline-tap.png": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/original-mark-before-failed-underline-tap.png",
+      "sha256": "0d8cea43bca56db055d1dda48672a557f5bdf8d09ebfaee058456c2e52d6e263"
+    },
+    "actual-native-underline-hit-coordinate.txt": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/actual-native-underline-hit-coordinate.txt",
+      "sha256": "0cbb30c98dd18289697a49432c7bc795fe8391d6e23706283e4dbeb2abf8a084"
+    },
+    "comment-first-tap-failure-native-tree.txt": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/comment-first-tap-failure-native-tree.txt",
+      "sha256": "132ebb3a1eaa54909f4035529e878476139e58792a0e58614f759f5ce75d176b"
+    },
+    "comment-underline-tap-failure-native-tree.txt": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/comment-underline-tap-failure-native-tree.txt",
+      "sha256": "9b30fd9c26fa523b479eba7e2f64503b82d338f6b10969e87ed2f487bbd6d15f"
+    },
+    "initial-reader-before-ready.png": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/initial-reader-before-ready.png",
+      "sha256": "78ce93f1f297d82d04cc020a81c2cf5c7f93fdef9c339b57e270046ce8a4cf77"
+    },
+    "comment-tap-result.png": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/comment-tap-result.png",
+      "sha256": "f035ac719677ce1a173223fb48922879ecc6a7e279a338a4007aa82089010120"
+    },
+    "inspect-xctest.log": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/inspect-xctest.log",
+      "sha256": "0386fb3431b5ae77fd8df9cfaf3d2389d80bd71857ca18638cd8051ef131e005"
+    },
+    "dismiss-xctest.log": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/dismiss-xctest.log",
+      "sha256": "98529df9e47ff8c0d0c03f13471664940e6d27bfbcd15ca1802ef52dda341326"
+    },
+    "reader-back-xctest.log": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/reader-back-xctest.log",
+      "sha256": "5e7895ad9a186d82e6ecb6410ae7dde499d1e4aa04bd79293c4c1ddc0c8b033c"
+    },
+    "loaded-inspect-xctest.log": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/loaded-inspect-xctest.log",
+      "sha256": "a075191ba2c9f4bd1c8c87ab25b76ac7e6ae58c4d46bdee0f78ed093d8309d81"
+    },
+    "comment-xctest.log": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/comment-xctest.log",
+      "sha256": "63b29f7d80e4c0df2a2d2dca29cc71899dc001b2c462612cbe914128c818be1c"
+    },
+    "actual-back-xctest.log": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/actual-back-xctest.log",
+      "sha256": "a60f2a22b5b59e16dbd2e0bce3cc8a18fbd3782255e0c47f4b024490a1951621"
+    },
+    "underline-xctest.log": {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/underline-xctest.log",
+      "sha256": "22a74f4593ceb3033a5f3b76ac1319c71196e73832fd4c29429644dd89f3e855"
+    }
+  },
+  "scope": {
+    "libraryBodyAndMarkFunctionalEvidence": true,
+    "completeCommentInteractionAcceptance": false,
+    "exactVisualParity": false,
+    "fullMigrationAcceptance": false,
+    "publisherSignedUpgrade": false,
+    "testFlight": false,
+    "androidFullRowVisibleAcceptance": false
+  },
+  "currentHelperTemplate": {
+    "path": "apps/mobile/tests/data/adoption-fixtures/native/UpgradeVisibleControl.swift",
+    "sha256": "a59c4875cabc62600c6303b35987ecbdcc90350bcda76650828fd2e3c0f3a592",
+    "note": "Includes a subsequently prepared but unexecuted gesture test. Historical result/log/AX artifacts retain each actual attempt; no historical helper Mach-O hash claim."
+  },
+  "retainedTemporaryProject": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-upgrade-ui-LEePuR",
+  "deviceSandboxPreserved": true,
+  "productionSourceChangedDuringPhase": false
+}

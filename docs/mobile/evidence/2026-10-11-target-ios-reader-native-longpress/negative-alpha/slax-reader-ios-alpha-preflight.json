@@ -1,0 +1,21 @@
+{
+  "device": {
+    "lastBootedAt": "2026-10-10T18:44:09Z",
+    "dataPath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/B85A7582-A0A7-4A0F-9BF0-8424330859F3/data",
+    "dataPathSize": 2768420864,
+    "logPath": "/Users/daguang/Library/Logs/CoreSimulator/B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+    "udid": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+    "isAvailable": true,
+    "logPathSize": 364544,
+    "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro",
+    "state": "Shutdown",
+    "name": "SlaxColdShareControlled-20261011-Mg6KLJ",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5"
+  },
+  "targetStageMarkerSha256": "ca0badee057adbb23f3001a930c08c16f2c15a7dcdadbbf564a3daf37e6cbe13",
+  "retainedAppSha256": "ce2d68fb0b9bc6f270b50bccf6b27199da77a58fa84d22171d1291bfac7a3206",
+  "freeBytes": 1539084288,
+  "otherSlaxBooted": [],
+  "sourceClosureMatched": true,
+  "deviceTouched": false
+}

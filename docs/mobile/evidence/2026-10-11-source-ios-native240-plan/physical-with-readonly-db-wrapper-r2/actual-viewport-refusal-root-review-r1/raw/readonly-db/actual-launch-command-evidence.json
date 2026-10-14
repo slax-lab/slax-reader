@@ -1,0 +1,14 @@
+{
+  "observationNonce": "856734e5-2f5a-4e5a-924b-a597dfe1d45d",
+  "bundleIdentifier": "app.slax.reader.sourcefixture",
+  "fixtureInputSha256": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f",
+  "sourceManifestSha256": "3501089ae75682a823afdfb54ccf243d32cbc56eba1f84bd70c68afafc1f2943",
+  "pid": 13020,
+  "launchedAtUnixSeconds": 1791683363.6345658,
+  "launchTimeMeaning": "actual simctl command invocation lower bound, not process birth timestamp",
+  "rawLaunchStdout": {
+    "path": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/08.stdout",
+    "sha256": "529041c6446950a64286c8593dc1dd852b254ce85b088068a402c1a710fe2896"
+  },
+  "rawLaunchCommandIndex": 8
+}

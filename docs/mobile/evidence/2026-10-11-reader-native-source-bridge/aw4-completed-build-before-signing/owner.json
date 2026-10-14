@@ -1,0 +1,25 @@
+{
+  "kind": "slax-reader-nativebridge-ui-build",
+  "version": 1,
+  "stage": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3",
+  "markerSha256": "dee6cc6040c6574b621a2e49a791b8bf285fc4960ccdee3318df4ac4577dc801",
+  "derivedData": "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata",
+  "logRoot": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+  "identity": "app.slax.reader.uifixture",
+  "arm64Only": true,
+  "jobs": 1,
+  "newProductBudget": 3758096384,
+  "minimumFree": 3221225472,
+  "noDeviceCalls": true,
+  "resumedOwnedDD": true,
+  "precedingLogRoots": [
+    "/tmp/slax-reader-nativebridge-ios-aw4-build",
+    "/tmp/slax-reader-nativebridge-ios-aw4-resume",
+    "/tmp/slax-reader-nativebridge-ios-aw4-continue-product"
+  ],
+  "includesAllDistinctAw4BuildLogs": true,
+  "precedingOwnerSha256": "3709ddf48b32bdd70bd845b84f904548e5504eb8710bdb1f61606cabe5858555",
+  "precedingFailureSha256": "f781329d5c28966a519c2ab58a3446b50d4385f19f958393b23493dcd3557b76",
+  "cleanupReceiptSha256": "279a78d134315399051e1200917bfa3ab058746fdde5d3bed4c475ee8830f496",
+  "noDeploymentOrCodegenRerun": true
+}

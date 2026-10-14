@@ -1,0 +1,284 @@
+{
+  "kind": "slax-controlled-android-cross-process-native-preference-cas",
+  "version": 1,
+  "status": "passed",
+  "recordedAt": "2026-10-10T18:52:20.182Z",
+  "platform": "android-emulator",
+  "device": "emulator-5562",
+  "application": {
+    "bundleIdentifier": "com.slax.reader",
+    "version": "1.0.0",
+    "buildNumber": "1",
+    "artifact": "/tmp/slax-mobile-native-artifacts/slax-reader-debug-identity.apk",
+    "installedApkSHA256": "c2dcdc430514343aafd02c1a8ee8c6f769ba0b51c10b524b0e830b4487e89faa",
+    "publicCertificateSHA256": "fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c",
+    "publisherSigned": false,
+    "signature": "Public generated Android debug identity; predates selected iOS757 metadata"
+  },
+  "prerequisite": {
+    "report": "apps/mobile/tests/data/adoption-fixtures/reports/android-original-queue-real-service.json",
+    "sha256": "5ada6e8518df019fb02e9f638cea271cfd54cd36aa885c7bfe734976ac57949a",
+    "actualOriginalSixServiceUpload": true,
+    "originalReportBytesUnchanged": true,
+    "nativeServiceReportHashScope": "Matching MD5 checked by native reports; no reserialized host file hash is claimed"
+  },
+  "probe": {
+    "kind": "slax-controlled-native-preference-probe",
+    "version": 1,
+    "platform": "android",
+    "output": "/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-native-preference-probe-mzWHRP",
+    "executable": "/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-native-preference-probe-mzWHRP/preference-probe-dex.jar",
+    "executableSHA256": "c8795b92d3295aede1df739f0f080c9efd5bddecd7fe19493abcc379fe6df45c",
+    "sourcePath": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/modules/slax-legacy/android/src/main/java/com/slax/reader/legacy/SlaxLegacyModule.kt",
+    "sourceSHA256": "487b780bb58831a2ec2e0452d7077961002764c09a45dbe06f0aa067c8040ef5",
+    "templatePath": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/native/PreferenceProbe.template.kt",
+    "templateSHA256": "be4bab5e4a97ed503e53a9399fb0cddc8f1afecf344be53d594d6b88523ac503",
+    "literalBodySHA256": {
+      "lockingAndSnapshot": "f9bb2f751068b381e7286128edcb566d13565fa9157de5fc4fbecb453a631d9b",
+      "jsonMap": "1728220306344735c98ee7109c08cf3101c9caf17c8998aa243114c6f9bc1e6c",
+      "compareAndSwap": "ebb5b99f3583b2fc1ae2a7b0099774ce5288e3a57f90e1d903b038e1aa8bf2e2"
+    },
+    "compilerArtifacts": [
+      {
+        "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-compiler-embeddable/2.1.20/4ef56b3316798316bfac7a0ae443391c9e900ea1/kotlin-compiler-embeddable-2.1.20.jar",
+        "sha256": "c54a00718c8c0e3ee858bf42771c7f401c5e3c1738861e18e9536371042fa1b3"
+      },
+      {
+        "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.1.20/aa8ca79cd50578314f6d1180c47cbe14c0fee567/kotlin-stdlib-2.1.20.jar",
+        "sha256": "1bcc74e8ce84e2c25eaafde10f1248349cce3062b6e36978cbeec610db1e930a"
+      },
+      {
+        "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-reflect/1.6.10/1cbe9c92c12a94eea200d23c2bbaedaf3daf5132/kotlin-reflect-1.6.10.jar",
+        "sha256": "3277ac102ae17aad10a55abec75ff5696c8d109790396434b496e75087854203"
+      },
+      {
+        "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-script-runtime/2.1.20/f7c623d7f7bdb01f5ccd6b437bc0a937fcd7c57e/kotlin-script-runtime-2.1.20.jar",
+        "sha256": "ae4397fbb3aa2a1ada09290e753bba99a4114548977c3115526b9958f4cb1a04"
+      },
+      {
+        "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-daemon-embeddable/2.1.20/95670fce77befd02a70a0bc3abe8ee4533521334/kotlin-daemon-embeddable-2.1.20.jar",
+        "sha256": "d9e83df1d847a201ba3c016a786ced091be9503997d09f6a9cf1796ee489f374"
+      },
+      {
+        "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains.intellij.deps/trove4j/1.0.20200330/3afb14d5f9ceb459d724e907a21145e8ff394f02/trove4j-1.0.20200330.jar",
+        "sha256": "c5fd725bffab51846bf3c77db1383c60aaaebfe1b7fe2f00d23fe1b7df0a439d"
+      },
+      {
+        "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm/1.8.0/ac1dc37a30a93150b704022f8d895ee1bd3a36b3/kotlinx-coroutines-core-jvm-1.8.0.jar",
+        "sha256": "9860906a1937490bf5f3b06d2f0e10ef451e65b95b269f22daf68a3d1f5065c5"
+      },
+      {
+        "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar",
+        "sha256": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478"
+      }
+    ],
+    "directoryResolutionOverride": "Only the explicitly guarded original-service synthetic fixture store",
+    "expoCallbackWrapperReplaced": true,
+    "productionBodiesModified": false,
+    "deviceExecuted": true,
+    "secondProcessUsesExtractedLiteralProductionLockSnapshotAndCasBodies": true,
+    "secondProcessExpoCallbackWrapperAdapted": true,
+    "remoteDexPath": "/data/local/tmp/slax-controlled-preference-probe.jar",
+    "remoteDexReadonly": true
+  },
+  "modes": [
+    {
+      "mode": "stale-cas",
+      "request": {
+        "kind": "slax-native-preference-cas-request",
+        "version": 1,
+        "platform": "android",
+        "device": "emulator-5562",
+        "nonce": "b2724a5f-2e90-4d4e-b406-512583483042",
+        "requestedAt": 1791658194699,
+        "mode": "stale-cas",
+        "sourceSHA256": "487b780bb58831a2ec2e0452d7077961002764c09a45dbe06f0aa067c8040ef5",
+        "serviceRunId": "controlled-android-first-service-20261011"
+      },
+      "mainNativeReport": {
+        "kind": "slax-native-preference-cas-report",
+        "version": 1,
+        "status": "passed",
+        "platform": "android",
+        "device": "emulator-5562",
+        "mode": "stale-cas",
+        "nonce": "b2724a5f-2e90-4d4e-b406-512583483042",
+        "requestedAt": 1791658194699,
+        "sourceSHA256": "487b780bb58831a2ec2e0452d7077961002764c09a45dbe06f0aa067c8040ef5",
+        "beforeRevision": 14,
+        "afterRevision": 16,
+        "casResults": [
+          false,
+          true
+        ],
+        "probe": {
+          "kind": "slax-native-preference-cas-probe",
+          "version": 1,
+          "nonce": "b2724a5f-2e90-4d4e-b406-512583483042",
+          "requestedAt": 1791658194699,
+          "platform": "android",
+          "pid": 4990,
+          "sourceSHA256": "487b780bb58831a2ec2e0452d7077961002764c09a45dbe06f0aa067c8040ef5",
+          "phase": "committed",
+          "revisionBefore": 14,
+          "revisionAfter": 15,
+          "applied": true
+        },
+        "mainUsesActualNativeBridge": true,
+        "secondProcessUsesLiteralNativeBodies": true,
+        "bothSettingsRetained": true,
+        "unrelatedPreferencesUnchanged": true,
+        "originalDataStoreUnchanged": true,
+        "databaseUnchanged": true,
+        "productionAdoptionProfileUsed": false,
+        "completedServiceReportMd5": "b1d684e9c3550270551db987ae496f74"
+      },
+      "evidenceFiles": [
+        {
+          "file": "stale-cas-current-request.json",
+          "sha256": "e87a88e7983b3df54e287b1a2967cc4cec90057a58e4040511fefbd49904e46b"
+        },
+        {
+          "file": "stale-cas-current-state.json",
+          "sha256": "254584778d22591e3790b0aafcb4897bf465b4f371d8c66aef3b8ff938c75247"
+        },
+        {
+          "file": "stale-cas-current-probe.json",
+          "sha256": "9d48b710f4a959601cb5c4f052812277c353837c99065cfc546e3dfdd924028e"
+        },
+        {
+          "file": "stale-cas-current-report.json",
+          "sha256": "82d3f393b95faf7a364eb638d8cacfad2d7fa499fad3b2dfade18126815fbb27"
+        }
+      ]
+    },
+    {
+      "mode": "lock-read",
+      "request": {
+        "kind": "slax-native-preference-cas-request",
+        "version": 1,
+        "platform": "android",
+        "device": "emulator-5562",
+        "nonce": "3ed8a1a0-22d2-43c5-9651-0a49f9f715f0",
+        "requestedAt": 1791658204026,
+        "mode": "lock-read",
+        "sourceSHA256": "487b780bb58831a2ec2e0452d7077961002764c09a45dbe06f0aa067c8040ef5",
+        "serviceRunId": "controlled-android-first-service-20261011"
+      },
+      "mainNativeReport": {
+        "kind": "slax-native-preference-cas-report",
+        "version": 1,
+        "status": "passed",
+        "platform": "android",
+        "device": "emulator-5562",
+        "mode": "lock-read",
+        "nonce": "3ed8a1a0-22d2-43c5-9651-0a49f9f715f0",
+        "requestedAt": 1791658204026,
+        "sourceSHA256": "487b780bb58831a2ec2e0452d7077961002764c09a45dbe06f0aa067c8040ef5",
+        "beforeRevision": 16,
+        "afterRevision": 16,
+        "casResults": [],
+        "probe": {
+          "kind": "slax-native-preference-cas-probe",
+          "version": 1,
+          "nonce": "3ed8a1a0-22d2-43c5-9651-0a49f9f715f0",
+          "requestedAt": 1791658204026,
+          "platform": "android",
+          "pid": 5256,
+          "sourceSHA256": "487b780bb58831a2ec2e0452d7077961002764c09a45dbe06f0aa067c8040ef5",
+          "phase": "lock-released",
+          "heldAt": 1791658210629,
+          "releasedAt": 1791658218636
+        },
+        "readStartedAt": 1791658210675,
+        "readFinishedAt": 1791658218641,
+        "mainUsesActualNativeBridge": true,
+        "secondProcessUsesLiteralNativeBodies": true,
+        "bothSettingsRetained": false,
+        "unrelatedPreferencesUnchanged": true,
+        "originalDataStoreUnchanged": true,
+        "databaseUnchanged": true,
+        "productionAdoptionProfileUsed": false,
+        "completedServiceReportMd5": "b1d684e9c3550270551db987ae496f74"
+      },
+      "evidenceFiles": [
+        {
+          "file": "lock-read-current-request.json",
+          "sha256": "401a7cb64ab130232b8e69ad43d02ad1e4e8f95410721cb351026e1876757f29"
+        },
+        {
+          "file": "lock-read-current-state.json",
+          "sha256": "bc0b79020fd94aefd617e68d44223125d813788d6e5e2c95f56e48351feb095c"
+        },
+        {
+          "file": "lock-read-current-probe.json",
+          "sha256": "5b8a00a1182ba94b17505cf496f1a5c197f549433b9b449460c75da6881539ff"
+        },
+        {
+          "file": "lock-read-current-report.json",
+          "sha256": "570515c2a44e56eca8dbc871cf08699f7c57eb1e11a4f94590ec79dc542d171c"
+        }
+      ]
+    }
+  ],
+  "checks": {
+    "actualMainBridge": true,
+    "staleCasRejectedThenRebased": true,
+    "separateNativeProcessFileChannelBlocksMainRead": true,
+    "allUnrelatedPreferenceValuesUnchanged": true,
+    "originalAndroidXDataStoreUnchanged": true,
+    "databaseRowsAndQueueUnchanged": true
+  },
+  "cleanup": {
+    "matchingRequestsRemoved": true,
+    "mainAppForceStopped": true,
+    "syntheticPreferenceCasKeysAndReportsRetained": true,
+    "noUninstallNoDataClear": true
+  },
+  "sourceInputs": [
+    {
+      "path": "apps/mobile/tests/data/NativePreferenceCasFixture.ts",
+      "sha256": "567719b8f03ac94b7373acf39edd4dd6675324433fd4210336bf91731ed13624"
+    },
+    {
+      "path": "apps/mobile/tests/data/NativeAdoptionFixtureApp.tsx",
+      "sha256": "59eed2b26b9246a6c06c40e5023aba1d3f6b0ee32dabf318bb6a5e6fdd39d88e"
+    },
+    {
+      "path": "apps/mobile/src/data/preferences.ts",
+      "sha256": "fd2debe5370cd1831be1cb377c22aec6243c0e53b4602ba229666e0ef38d90af"
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/native-preference-control.mjs",
+      "sha256": "a74bc54120acd27622266d1fd46bde0e8e3e7a054e6f928325597486b33c62e6"
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/preference-probe-source.mjs",
+      "sha256": "4749e5b43e8e0a87f42dfeec42f0e8b1e82ac6ad421f515af94968ea73955450"
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/build-preference-probe.mjs",
+      "sha256": "30b1c7bd52659e55c180b6f2c024b03dd051a6181956b544c97ad0bbeb254e68"
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/native/PreferenceProbe.template.kt",
+      "sha256": "be4bab5e4a97ed503e53a9399fb0cddc8f1afecf344be53d594d6b88523ac503"
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/android/src/main/java/com/slax/reader/legacy/SlaxLegacyModule.kt",
+      "sha256": "487b780bb58831a2ec2e0452d7077961002764c09a45dbe06f0aa067c8040ef5"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-10-builds/android-database-identity.json",
+      "sha256": "b52042ae03daae6decaabab0fb188119a6e11cd9f5bbe589e11184290a31916c"
+    }
+  ],
+  "scope": {
+    "productionAdoptionProfileUsedByCas": false,
+    "productionDefaultProfileWiredSeparately": true,
+    "oldIosCasEvidenceUnchanged": true,
+    "publisherUpgrade": false,
+    "testFlight": false,
+    "wholeMigrationAccepted": false
+  }
+}

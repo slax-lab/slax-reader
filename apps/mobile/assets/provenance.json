@@ -1,0 +1,2009 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "9951904405159f49f24effd4d42815f77ff33442",
+  "licenseFile": "LICENSE.source",
+  "licenseScope": "Source repository license evidence; brand ownership is not independently established.",
+  "logicalSizePolicy": "Use the source component measurement. null means no single global display size was established.",
+  "assets": [
+    {
+      "key": "android_playstore_icon",
+      "sourcePath": "composeApp/src/androidMain/ic_launcher-playstore.png",
+      "targetPath": "apps/mobile/assets/android-playstore-icon.png",
+      "kind": "brand",
+      "sourceSha256": "d3c1f4234c4ad5349d1e7c0560918ffd2bb3663cfe4495b19b2004ffcc953aa0",
+      "targetSha256": "d3c1f4234c4ad5349d1e7c0560918ffd2bb3663cfe4495b19b2004ffcc953aa0",
+      "pixelWidth": 512,
+      "pixelHeight": 512,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "bg_login",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/bg_login.png",
+      "targetPath": "apps/mobile/assets/drawable/bg_login.png",
+      "kind": "brand",
+      "sourceSha256": "7a63f8ce1d043a5d4fb4249eb2488c8283dfbc6d2a639cc7d3acbbeaaa3816bf",
+      "targetSha256": "7a63f8ce1d043a5d4fb4249eb2488c8283dfbc6d2a639cc7d3acbbeaaa3816bf",
+      "pixelWidth": 1500,
+      "pixelHeight": 1260,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/login/LoginScreen.kt",
+          "line": 142
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "default_splash",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/default_splash.png",
+      "targetPath": "apps/mobile/assets/drawable/default_splash.png",
+      "kind": "brand",
+      "sourceSha256": "eb79be8a28fb76968b0ffd23e112858fa52274078036bf11904c3dbb6f896494",
+      "targetSha256": "eb79be8a28fb76968b0ffd23e112858fa52274078036bf11904c3dbb6f896494",
+      "pixelWidth": 700,
+      "pixelHeight": 699,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "global_default_avatar",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/global-default-avatar.png",
+      "targetPath": "apps/mobile/assets/drawable/global-default-avatar.png",
+      "kind": "raster",
+      "sourceSha256": "f27eeb7fab179d2b18cb61f2b9f8a03a1016709f1589f398110895456c5e32e9",
+      "targetSha256": "f27eeb7fab179d2b18cb61f2b9f8a03a1016709f1589f398110895456c5e32e9",
+      "pixelWidth": 220,
+      "pixelHeight": 220,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/CommentPanelSheet.kt",
+          "line": 879
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/CommentPanelSheet.kt",
+          "line": 880
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/CommentPanelSheet.kt",
+          "line": 1191
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/CommentPanelSheet.kt",
+          "line": 1192
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/Avatar.kt",
+          "line": 49
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/Avatar.kt",
+          "line": 50
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/CollectionFeed.kt",
+          "line": 162
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/CollectionFeed.kt",
+          "line": 163
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/sidebar/Sidebar.kt",
+          "line": 88
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/sidebar/Sidebar.kt",
+          "line": 89
+        },
+        {
+          "path": "composeApp/src/iosMain/kotlin/com/slax/reader/ui/bookmark/components/NotchFrame.kt",
+          "line": 37
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_agree_disable",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_agree_disable.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_agree_disable.png",
+      "kind": "raster",
+      "sourceSha256": "efcf56e93fb1fba0f53014d2846dd87838a9549a477ffd1f29da64546a24b117",
+      "targetSha256": "efcf56e93fb1fba0f53014d2846dd87838a9549a477ffd1f29da64546a24b117",
+      "pixelWidth": 48,
+      "pixelHeight": 48,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/feedback/FeedbackScreen.kt",
+          "line": 226
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_agree_enable",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_agree_enable.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_agree_enable.png",
+      "kind": "raster",
+      "sourceSha256": "3507491c4f2c82316fcb3227d0825cea62447ab9008ad4ae33f38390e7f973d1",
+      "targetSha256": "3507491c4f2c82316fcb3227d0825cea62447ab9008ad4ae33f38390e7f973d1",
+      "pixelWidth": 48,
+      "pixelHeight": 48,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/feedback/FeedbackScreen.kt",
+          "line": 225
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_app_logo",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_app_logo.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_app_logo.png",
+      "kind": "brand",
+      "sourceSha256": "4518185b7d94721ea604e588fb8766d0b1a2642668515c027e742f2ba03f794e",
+      "targetSha256": "4518185b7d94721ea604e588fb8766d0b1a2642668515c027e742f2ba03f794e",
+      "pixelWidth": 172,
+      "pixelHeight": 216,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/about/About.kt",
+          "line": 66
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_bottom_panel_archieve",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_bottom_panel_archieve.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_bottom_panel_archieve.png",
+      "kind": "raster",
+      "sourceSha256": "e88a90ba3995dc376f67317856a9eb7e786e2d59d3f4a53a6b35f45222e98e51",
+      "targetSha256": "e88a90ba3995dc376f67317856a9eb7e786e2d59d3f4a53a6b35f45222e98e51",
+      "pixelWidth": 96,
+      "pixelHeight": 112,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/BottomToolbarSheet.kt",
+          "line": 65
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_bottom_panel_archieved",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_bottom_panel_archieved.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_bottom_panel_archieved.png",
+      "kind": "raster",
+      "sourceSha256": "4cf6c7b2d5ad8d6afa92b409a261e06a786eb194fe48f2b13ddbbeba5911a0bf",
+      "targetSha256": "4cf6c7b2d5ad8d6afa92b409a261e06a786eb194fe48f2b13ddbbeba5911a0bf",
+      "pixelWidth": 96,
+      "pixelHeight": 122,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/BottomToolbarSheet.kt",
+          "line": 65
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_bottom_panel_chatbot",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_bottom_panel_chatbot.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_bottom_panel_chatbot.png",
+      "kind": "raster",
+      "sourceSha256": "e700c512c1ef728eeb0f35fcfef074d0c9a664a6423b6c6832c5fe0147eaf1d2",
+      "targetSha256": "e700c512c1ef728eeb0f35fcfef074d0c9a664a6423b6c6832c5fe0147eaf1d2",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_bottom_panel_comment",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_bottom_panel_comment.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_bottom_panel_comment.png",
+      "kind": "raster",
+      "sourceSha256": "f3f66c412b896754a6a5c840b4ee9875099fd62a1e0a14d96b1d5c2059992fbd",
+      "targetSha256": "f3f66c412b896754a6a5c840b4ee9875099fd62a1e0a14d96b1d5c2059992fbd",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/BottomToolbarSheet.kt",
+          "line": 81
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_bottom_panel_delete",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_bottom_panel_delete.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_bottom_panel_delete.png",
+      "kind": "raster",
+      "sourceSha256": "5f8ade194d8a75945162b0be449f42066f006f7fd4335ca7bea1d3527ae283bb",
+      "targetSha256": "5f8ade194d8a75945162b0be449f42066f006f7fd4335ca7bea1d3527ae283bb",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/BottomToolbarSheet.kt",
+          "line": 78
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_bottom_panel_edittitle",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_bottom_panel_edittitle.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_bottom_panel_edittitle.png",
+      "kind": "raster",
+      "sourceSha256": "e2c9e2bbbc6a2b29d508b0c0eedac1b2d849a23f4a851291e649748da54c20fe",
+      "targetSha256": "e2c9e2bbbc6a2b29d508b0c0eedac1b2d849a23f4a851291e649748da54c20fe",
+      "pixelWidth": 98,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/BottomToolbarSheet.kt",
+          "line": 67
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_bottom_panel_feedback",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_bottom_panel_feedback.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_bottom_panel_feedback.png",
+      "kind": "raster",
+      "sourceSha256": "b38c78ca7f30013344c2dfaeeeb036bc024ecc065ef4f35acc530f68d4ba4a66",
+      "targetSha256": "b38c78ca7f30013344c2dfaeeeb036bc024ecc065ef4f35acc530f68d4ba4a66",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/BottomToolbarSheet.kt",
+          "line": 76
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_bottom_panel_pro",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_bottom_panel_pro.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_bottom_panel_pro.png",
+      "kind": "raster",
+      "sourceSha256": "b28de359ad2594451a76e12d61a1b1c0b346c7112c34097b2f5b689c31985e97",
+      "targetSha256": "b28de359ad2594451a76e12d61a1b1c0b346c7112c34097b2f5b689c31985e97",
+      "pixelWidth": 100,
+      "pixelHeight": 40,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/IconGridPage.kt",
+          "line": 60
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_bottom_panel_share",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_bottom_panel_share.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_bottom_panel_share.png",
+      "kind": "raster",
+      "sourceSha256": "b076c05930ca7512230438b3e95b1220a3e8e89b41a55a53ba744317600b182a",
+      "targetSha256": "b076c05930ca7512230438b3e95b1220a3e8e89b41a55a53ba744317600b182a",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/BottomToolbarSheet.kt",
+          "line": 75
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_bottom_panel_star",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_bottom_panel_star.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_bottom_panel_star.png",
+      "kind": "raster",
+      "sourceSha256": "c277a5e522979249dc680930722b087a4997a46a26e253d38c781ee25fe9552a",
+      "targetSha256": "c277a5e522979249dc680930722b087a4997a46a26e253d38c781ee25fe9552a",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/BottomToolbarSheet.kt",
+          "line": 60
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_bottom_panel_starred",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_bottom_panel_starred.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_bottom_panel_starred.png",
+      "kind": "raster",
+      "sourceSha256": "10c5e95770c185f424ba63a0ab85248004f93d67d923b28182a89bc7c70b034b",
+      "targetSha256": "10c5e95770c185f424ba63a0ab85248004f93d67d923b28182a89bc7c70b034b",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/BottomToolbarSheet.kt",
+          "line": 60
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_bottom_panel_summary",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_bottom_panel_summary.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_bottom_panel_summary.png",
+      "kind": "raster",
+      "sourceSha256": "9c36133440cadb63d4c95545f5620d3716143edbc0d8920f51a443827f1207b5",
+      "targetSha256": "9c36133440cadb63d4c95545f5620d3716143edbc0d8920f51a443827f1207b5",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/BottomToolbarSheet.kt",
+          "line": 72
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_bottom_panel_transcript",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_bottom_panel_transcript.xml",
+      "targetPath": "apps/mobile/assets/drawable/ic_bottom_panel_transcript.png",
+      "kind": "raster",
+      "sourceSha256": "8ee1bfdafcfb942158c29fc2bf4d7e4e39ce0828ca290772a9b7f6adc2606ad2",
+      "targetSha256": "6ea9be2136b1563006291823f6468b163aa804a43aa684bb4e9fb7640542a772",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "logicalSize": {
+        "width": 24,
+        "height": 24
+      },
+      "transform": "android-vector-to-svg-to-png-at-4x",
+      "sourceUses": [],
+      "runtimeUse": "available",
+      "conversion": {
+        "name": "ic_bottom_panel_transcript",
+        "scale": 4,
+        "logicalWidth": 24,
+        "logicalHeight": 24,
+        "sourceSha256": "8ee1bfdafcfb942158c29fc2bf4d7e4e39ce0828ca290772a9b7f6adc2606ad2",
+        "svgSha256": "1cf533895f7d0d2228ea82b7028d5e395d18c2a18f97ca65126b9a67c5c96a97",
+        "pngSha256": "6ea9be2136b1563006291823f6468b163aa804a43aa684bb4e9fb7640542a772",
+        "renderer": "sharp (SVG through librsvg)",
+        "rendererVersions": {
+          "aom": "3.15.1",
+          "archive": "3.8.9",
+          "cairo": "1.18.6",
+          "cgif": "0.5.4",
+          "exif": "0.6.26",
+          "expat": "2.8.5",
+          "ffi": "3.8.0",
+          "fontconfig": "2.18.3",
+          "freetype": "2.14.3",
+          "fribidi": "1.0.17",
+          "glib": "2.90.0",
+          "harfbuzz": "14.5.0",
+          "heif": "1.23.5",
+          "highway": "1.4.0",
+          "imagequant": "2.4.1",
+          "lcms": "2.19.1",
+          "mozjpeg": "0826579",
+          "pango": "1.58.2",
+          "pixman": "0.46.4",
+          "png": "1.6.58",
+          "proxy-libintl": "0.5",
+          "rsvg": "2.63.2",
+          "tiff": "4.7.2",
+          "uhdr": "2.0.2",
+          "vips": "8.18.7",
+          "webp": "1.6.0",
+          "xml2": "2.15.4",
+          "zlib-ng": "2.3.3",
+          "sharp": "0.35.5"
+        }
+      },
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_bottom_panel_underline",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_bottom_panel_underline.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_bottom_panel_underline.png",
+      "kind": "raster",
+      "sourceSha256": "e48c259fe61e6d04552b5891213a6d612b57981d00ce86085631fc3f7bd2906f",
+      "targetSha256": "e48c259fe61e6d04552b5891213a6d612b57981d00ce86085631fc3f7bd2906f",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/BottomToolbarSheet.kt",
+          "line": 80
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_cell_action_archieve",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_cell_action_archieve.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_cell_action_archieve.png",
+      "kind": "raster",
+      "sourceSha256": "d83202402cef8db9629e1f5223883ecceda91d9568a4b46322de12e70d9ac80b",
+      "targetSha256": "d83202402cef8db9629e1f5223883ecceda91d9568a4b46322de12e70d9ac80b",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/BookmarkItem.kt",
+          "line": 254
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_cell_action_archieved",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_cell_action_archieved.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_cell_action_archieved.png",
+      "kind": "raster",
+      "sourceSha256": "7b5e38977c37dd2e5168c5d1ac5e4101c840c180707a8e9d697f3d6fc475a0d9",
+      "targetSha256": "7b5e38977c37dd2e5168c5d1ac5e4101c840c180707a8e9d697f3d6fc475a0d9",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/BookmarkItem.kt",
+          "line": 254
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_cell_action_star",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_cell_action_star.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_cell_action_star.png",
+      "kind": "raster",
+      "sourceSha256": "06d9076e59d0e2eff0000412328309382ae54e46545b15ac99c57947db0eaecc",
+      "targetSha256": "06d9076e59d0e2eff0000412328309382ae54e46545b15ac99c57947db0eaecc",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/BookmarkItem.kt",
+          "line": 219
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_cell_action_starred",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_cell_action_starred.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_cell_action_starred.png",
+      "kind": "raster",
+      "sourceSha256": "24139488cfbe7716c2e18b5fc346da53c0deeb843cd3a7e6f6fa0230f94db843",
+      "targetSha256": "24139488cfbe7716c2e18b5fc346da53c0deeb843cd3a7e6f6fa0230f94db843",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/BookmarkItem.kt",
+          "line": 219
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_cell_archived",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_cell_archived.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_cell_archived.png",
+      "kind": "raster",
+      "sourceSha256": "e5e9c4fa932ae9ae3ac67241252860e70facda859843b6e1ce68bea99231c6e6",
+      "targetSha256": "e5e9c4fa932ae9ae3ac67241252860e70facda859843b6e1ce68bea99231c6e6",
+      "pixelWidth": 52,
+      "pixelHeight": 62,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/BookmarkItemStatus.kt",
+          "line": 51
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_cell_internet",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_cell_internet.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_cell_internet.png",
+      "kind": "raster",
+      "sourceSha256": "3be28a2526573756cc78f1b1c2c9f27ffd4f90aab8a564ad7ee20c336ee91bea",
+      "targetSha256": "3be28a2526573756cc78f1b1c2c9f27ffd4f90aab8a564ad7ee20c336ee91bea",
+      "pixelWidth": 48,
+      "pixelHeight": 48,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/BookmarkItemStatus.kt",
+          "line": 54
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_cell_internet_downloading",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_cell_internet_downloading.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_cell_internet_downloading.png",
+      "kind": "raster",
+      "sourceSha256": "dedcada2fc4628d169cf7f68709ac789cc60bee08fcebaf1e94a0f25af5b8df3",
+      "targetSha256": "dedcada2fc4628d169cf7f68709ac789cc60bee08fcebaf1e94a0f25af5b8df3",
+      "pixelWidth": 48,
+      "pixelHeight": 48,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/BookmarkItemStatus.kt",
+          "line": 53
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_cell_internet_uncached",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_cell_internet_uncached.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_cell_internet_uncached.png",
+      "kind": "raster",
+      "sourceSha256": "084424b88e48391902aea91c5628450ce4b9925659a38f8981204973f3da4569",
+      "targetSha256": "084424b88e48391902aea91c5628450ce4b9925659a38f8981204973f3da4569",
+      "pixelWidth": 48,
+      "pixelHeight": 48,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/BookmarkItemStatus.kt",
+          "line": 55
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_cell_more",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_cell_more.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_cell_more.png",
+      "kind": "raster",
+      "sourceSha256": "c8c1e226e3dde11b9ea3b7d7483c2c7aadb4b342e1dae08546442204f627193d",
+      "targetSha256": "c8c1e226e3dde11b9ea3b7d7483c2c7aadb4b342e1dae08546442204f627193d",
+      "pixelWidth": 56,
+      "pixelHeight": 56,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_cell_more_archieve",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_cell_more_archieve.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_cell_more_archieve.png",
+      "kind": "raster",
+      "sourceSha256": "3a8be64fefc1a983ffd683d6580567e512d4bb393211316c041e43db5aae19ab",
+      "targetSha256": "3a8be64fefc1a983ffd683d6580567e512d4bb393211316c041e43db5aae19ab",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/BookmarkItem.kt",
+          "line": 443
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_cell_more_delete",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_cell_more_delete.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_cell_more_delete.png",
+      "kind": "raster",
+      "sourceSha256": "bbb3584d552c015b7f91a1c00c7d5bf9fd193189f49a40248dc2cf8a23f3e708",
+      "targetSha256": "bbb3584d552c015b7f91a1c00c7d5bf9fd193189f49a40248dc2cf8a23f3e708",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/BookmarkItem.kt",
+          "line": 469
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_cell_more_edittitle",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_cell_more_edittitle.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_cell_more_edittitle.png",
+      "kind": "raster",
+      "sourceSha256": "d5d791fa3893c5d170fc07a68339c495139310075bb1348ea2bf1e066b8405a1",
+      "targetSha256": "d5d791fa3893c5d170fc07a68339c495139310075bb1348ea2bf1e066b8405a1",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/BookmarkItem.kt",
+          "line": 457
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_cell_more_highlighted",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_cell_more_highlighted.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_cell_more_highlighted.png",
+      "kind": "raster",
+      "sourceSha256": "c1d2bbca6363bdbcfd8576a20b28065b4fddeb3dd67243f80fa943e5f58eeee8",
+      "targetSha256": "c1d2bbca6363bdbcfd8576a20b28065b4fddeb3dd67243f80fa943e5f58eeee8",
+      "pixelWidth": 56,
+      "pixelHeight": 56,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_cell_more_star",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_cell_more_star.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_cell_more_star.png",
+      "kind": "raster",
+      "sourceSha256": "d943b3acdfbba896f90678b9fa552bf7df198ebb58ac807edc09856bfcaeba1e",
+      "targetSha256": "d943b3acdfbba896f90678b9fa552bf7df198ebb58ac807edc09856bfcaeba1e",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/BookmarkItem.kt",
+          "line": 429
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_cell_starred",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_cell_starred.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_cell_starred.png",
+      "kind": "raster",
+      "sourceSha256": "1649350094ed3856378d39f464bf95c627c1b54695c7dc477cf49741463353e1",
+      "targetSha256": "1649350094ed3856378d39f464bf95c627c1b54695c7dc477cf49741463353e1",
+      "pixelWidth": 48,
+      "pixelHeight": 48,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/BookmarkItemStatus.kt",
+          "line": 50
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_cell_tag",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_cell_tag.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_cell_tag.png",
+      "kind": "raster",
+      "sourceSha256": "08a986117679e774fb7e5ab4bf077fda02cbdef52b8fdfa9e780633fd2a0c4a4",
+      "targetSha256": "08a986117679e774fb7e5ab4bf077fda02cbdef52b8fdfa9e780633fd2a0c4a4",
+      "pixelWidth": 60,
+      "pixelHeight": 60,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/TagCreatingScreen.kt",
+          "line": 239
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/TagCreatingScreen.kt",
+          "line": 316
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_circle_close_icon",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_circle_close_icon.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_circle_close_icon.png",
+      "kind": "raster",
+      "sourceSha256": "57937664b49e3c74af61d12e2d4bf4e18ec30c2e53255e1e2598fc6c3b74eb3a",
+      "targetSha256": "57937664b49e3c74af61d12e2d4bf4e18ec30c2e53255e1e2598fc6c3b74eb3a",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/OverviewDialog.kt",
+          "line": 271
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_comment_panel_close",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_comment_panel_close.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_comment_panel_close.png",
+      "kind": "raster",
+      "sourceSha256": "c1c5c15f3b82efbc128589f5166f436d6edc64ff0b78699a8dad3f1083f40ed8",
+      "targetSha256": "c1c5c15f3b82efbc128589f5166f436d6edc64ff0b78699a8dad3f1083f40ed8",
+      "pixelWidth": 98,
+      "pixelHeight": 98,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/CommentPanelSheet.kt",
+          "line": 347
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_comment_panel_copy",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_comment_panel_copy.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_comment_panel_copy.png",
+      "kind": "raster",
+      "sourceSha256": "d95ef8723044401912403ee18e3a5d857eb4e584dfdb7b77295e4db95e2f3a5f",
+      "targetSha256": "d95ef8723044401912403ee18e3a5d857eb4e584dfdb7b77295e4db95e2f3a5f",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/CommentPanelSheet.kt",
+          "line": 489
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_comment_panel_delete",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_comment_panel_delete.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_comment_panel_delete.png",
+      "kind": "raster",
+      "sourceSha256": "2b8835e92434c180f10d4eed89d1baffc23fc40475dc2356f68c60873b4b691e",
+      "targetSha256": "2b8835e92434c180f10d4eed89d1baffc23fc40475dc2356f68c60873b4b691e",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/CommentPanelSheet.kt",
+          "line": 1008
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_comment_panel_highlight",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_comment_panel_highlight.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_comment_panel_highlight.png",
+      "kind": "raster",
+      "sourceSha256": "cfca87ded03ecd428f29f346d7f3fb178e631cca080d3018ade0c3c317ff45f0",
+      "targetSha256": "cfca87ded03ecd428f29f346d7f3fb178e631cca080d3018ade0c3c317ff45f0",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/CommentPanelSheet.kt",
+          "line": 529
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_comment_panel_highlighted",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_comment_panel_highlighted.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_comment_panel_highlighted.png",
+      "kind": "raster",
+      "sourceSha256": "ba0142d34acfc825f638b1e116b05527d850d0038f0258cdd310d73fe99b873b",
+      "targetSha256": "ba0142d34acfc825f638b1e116b05527d850d0038f0258cdd310d73fe99b873b",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/CommentPanelSheet.kt",
+          "line": 522
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_comment_panel_share",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_comment_panel_share.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_comment_panel_share.png",
+      "kind": "raster",
+      "sourceSha256": "ae526bcd6219a76a0ed34183b36cb4505d5aef6512e95210187e53ef5d6e8a1b",
+      "targetSha256": "ae526bcd6219a76a0ed34183b36cb4505d5aef6512e95210187e53ef5d6e8a1b",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_continue_reading_close",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_continue_reading_close.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_continue_reading_close.png",
+      "kind": "raster",
+      "sourceSha256": "ad3722ad93de8621455c6666b3119625e5763d0dcd00f8cb3843e7e5628a07cc",
+      "targetSha256": "ad3722ad93de8621455c6666b3119625e5763d0dcd00f8cb3843e7e5628a07cc",
+      "pixelWidth": 48,
+      "pixelHeight": 48,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/ContinueReading.kt",
+          "line": 193
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_continue_reading_icon",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_continue_reading_icon.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_continue_reading_icon.png",
+      "kind": "raster",
+      "sourceSha256": "f8535e30f1e04b88b2355138e402856a9405a191b2054e4f5f75f147ac6ca096",
+      "targetSha256": "f8535e30f1e04b88b2355138e402856a9405a191b2054e4f5f75f147ac6ca096",
+      "pixelWidth": 56,
+      "pixelHeight": 56,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/ContinueReading.kt",
+          "line": 161
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_floating_panel_archieve",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_floating_panel_archieve.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_floating_panel_archieve.png",
+      "kind": "raster",
+      "sourceSha256": "a556872fc20753d6a99e04a526f0645a4d60923b6f428802b54d23c6658ca22f",
+      "targetSha256": "a556872fc20753d6a99e04a526f0645a4d60923b6f428802b54d23c6658ca22f",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/FloatingActionBar.kt",
+          "line": 178
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_floating_panel_archieved",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_floating_panel_archieved.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_floating_panel_archieved.png",
+      "kind": "raster",
+      "sourceSha256": "984fc421495a4dabea5d3b466efa2a791e845dbc8ad645bdcd7fdf4406f98296",
+      "targetSha256": "984fc421495a4dabea5d3b466efa2a791e845dbc8ad645bdcd7fdf4406f98296",
+      "pixelWidth": 80,
+      "pixelHeight": 86,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/FloatingActionBar.kt",
+          "line": 177
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/BookmarkItem.kt",
+          "line": 443
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_floating_panel_more",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_floating_panel_more.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_floating_panel_more.png",
+      "kind": "raster",
+      "sourceSha256": "2cf62e58a386b9b27d7ddf9a3e2e0fe5fd3566e67078a517ee232c6a99d08b8b",
+      "targetSha256": "2cf62e58a386b9b27d7ddf9a3e2e0fe5fd3566e67078a517ee232c6a99d08b8b",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/FloatingActionBar.kt",
+          "line": 215
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/NavigatorBar.kt",
+          "line": 103
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/rss/RssPanel.kt",
+          "line": 95
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_floating_panel_star",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_floating_panel_star.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_floating_panel_star.png",
+      "kind": "raster",
+      "sourceSha256": "440f1b444fe81de71686c00765923f84de322ca40d2a96e5e6650d2573304526",
+      "targetSha256": "440f1b444fe81de71686c00765923f84de322ca40d2a96e5e6650d2573304526",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/FloatingActionBar.kt",
+          "line": 154
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_floating_panel_starred",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_floating_panel_starred.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_floating_panel_starred.png",
+      "kind": "raster",
+      "sourceSha256": "b4ad58e3c8631b7a115440efeee2976383d10cad179afe4e8fe718cbca996ac4",
+      "targetSha256": "b4ad58e3c8631b7a115440efeee2976383d10cad179afe4e8fe718cbca996ac4",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/FloatingActionBar.kt",
+          "line": 153
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/BookmarkItem.kt",
+          "line": 429
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_inbox_plane",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_inbox_plane.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_inbox_plane.png",
+      "kind": "raster",
+      "sourceSha256": "ee9baabaad9348b20612e35cb9bbe81e2adf7c6dc5a7c74beaf103ce7f242b28",
+      "targetSha256": "ee9baabaad9348b20612e35cb9bbe81e2adf7c6dc5a7c74beaf103ce7f242b28",
+      "pixelWidth": 40,
+      "pixelHeight": 40,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/Avatar.kt",
+          "line": 148
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_inbox_tab",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_inbox_tab.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_inbox_tab.png",
+      "kind": "raster",
+      "sourceSha256": "3b77f776f59a8fbff10578d46d0dce2b54048c53fdfaaa08794ee14cc5ae1d4b",
+      "targetSha256": "3b77f776f59a8fbff10578d46d0dce2b54048c53fdfaaa08794ee14cc5ae1d4b",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/InboxListScreen.kt",
+          "line": 274
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_menu_action_comment",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_menu_action_comment.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_menu_action_comment.png",
+      "kind": "raster",
+      "sourceSha256": "8dfd4bfbe12072cfb7a437823ae798f70083ec5acce77ce6767d43c1d750eece",
+      "targetSha256": "8dfd4bfbe12072cfb7a437823ae798f70083ec5acce77ce6767d43c1d750eece",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/SelectionActionBar.kt",
+          "line": 91
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_menu_action_copy",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_menu_action_copy.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_menu_action_copy.png",
+      "kind": "raster",
+      "sourceSha256": "d95ef8723044401912403ee18e3a5d857eb4e584dfdb7b77295e4db95e2f3a5f",
+      "targetSha256": "d95ef8723044401912403ee18e3a5d857eb4e584dfdb7b77295e4db95e2f3a5f",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/androidInstrumentedTest/kotlin/com/slax/reader/ui/CoreComponentsUiTest.kt",
+          "line": 93
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/CommentPanelSheet.kt",
+          "line": 1001
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/SelectionActionBar.kt",
+          "line": 79
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_menu_action_highlight",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_menu_action_highlight.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_menu_action_highlight.png",
+      "kind": "raster",
+      "sourceSha256": "cfca87ded03ecd428f29f346d7f3fb178e631cca080d3018ade0c3c317ff45f0",
+      "targetSha256": "cfca87ded03ecd428f29f346d7f3fb178e631cca080d3018ade0c3c317ff45f0",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/SelectionActionBar.kt",
+          "line": 83
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/SelectionActionBar.kt",
+          "line": 87
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_outline_banner_analyzed",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_outline_banner_analyzed.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_outline_banner_analyzed.png",
+      "kind": "raster",
+      "sourceSha256": "178a353ec4ae9e17d5513ef0492cabd1727c6b6de73e333595cba8337e7a0a7a",
+      "targetSha256": "178a353ec4ae9e17d5513ef0492cabd1727c6b6de73e333595cba8337e7a0a7a",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_outline_banner_analyzing",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_outline_banner_analyzing.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_outline_banner_analyzing.png",
+      "kind": "raster",
+      "sourceSha256": "491cef17786a480780a1c6795b8a4294ccd58911056e6f00c9e16b2a744b1290",
+      "targetSha256": "491cef17786a480780a1c6795b8a4294ccd58911056e6f00c9e16b2a744b1290",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_outline_banner_close",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_outline_banner_close.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_outline_banner_close.png",
+      "kind": "raster",
+      "sourceSha256": "ad3722ad93de8621455c6666b3119625e5763d0dcd00f8cb3843e7e5628a07cc",
+      "targetSha256": "ad3722ad93de8621455c6666b3119625e5763d0dcd00f8cb3843e7e5628a07cc",
+      "pixelWidth": 48,
+      "pixelHeight": 48,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_outline_banner_expand",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_outline_banner_expand.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_outline_banner_expand.png",
+      "kind": "raster",
+      "sourceSha256": "1d3f813511e881fc4033de1ba48689d2ddb26f4147631ebaaae9ea8199f3d407",
+      "targetSha256": "1d3f813511e881fc4033de1ba48689d2ddb26f4147631ebaaae9ea8199f3d407",
+      "pixelWidth": 48,
+      "pixelHeight": 48,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_outline_collapsed",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_outline_collapsed.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_outline_collapsed.png",
+      "kind": "raster",
+      "sourceSha256": "b76dcae82834a92a474eb19ada1e9fff46bb72bd2d00195e82e97aaa5c4c47ba",
+      "targetSha256": "b76dcae82834a92a474eb19ada1e9fff46bb72bd2d00195e82e97aaa5c4c47ba",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/OutlineDialog.kt",
+          "line": 417
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_outline_dialog_close",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_outline_dialog_close.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_outline_dialog_close.png",
+      "kind": "raster",
+      "sourceSha256": "4bbbe783c53a9e44ce1a1a26d790019ea4f7d4580ecb06aa34199f6aa5a4b51c",
+      "targetSha256": "4bbbe783c53a9e44ce1a1a26d790019ea4f7d4580ecb06aa34199f6aa5a4b51c",
+      "pixelWidth": 98,
+      "pixelHeight": 98,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/OutlineDialog.kt",
+          "line": 379
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/TranscriptDialog.kt",
+          "line": 182
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_outline_dialog_shrink",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_outline_dialog_shrink.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_outline_dialog_shrink.png",
+      "kind": "raster",
+      "sourceSha256": "da406292b3a63adfb822bc77819181fca096a08ccbee16a601ae6c319477f6b3",
+      "targetSha256": "da406292b3a63adfb822bc77819181fca096a08ccbee16a601ae6c319477f6b3",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/OutlineDialog.kt",
+          "line": 339
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_outline_empty_inboxlist_icon",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_outline_empty_inboxlist_icon.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_outline_empty_inboxlist_icon.png",
+      "kind": "raster",
+      "sourceSha256": "f651d3e2a5b937c9282d560ba0c00cb0235dcc4e6eefc7f65223d6eb064eb39f",
+      "targetSha256": "f651d3e2a5b937c9282d560ba0c00cb0235dcc4e6eefc7f65223d6eb064eb39f",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/EmptyView.kt",
+          "line": 47
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_radio_disabled",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_radio_disabled.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_radio_disabled.png",
+      "kind": "raster",
+      "sourceSha256": "efcf56e93fb1fba0f53014d2846dd87838a9549a477ffd1f29da64546a24b117",
+      "targetSha256": "efcf56e93fb1fba0f53014d2846dd87838a9549a477ffd1f29da64546a24b117",
+      "pixelWidth": 48,
+      "pixelHeight": 48,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/login/LoginScreen.kt",
+          "line": 387
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_radio_enabled",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_radio_enabled.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_radio_enabled.png",
+      "kind": "raster",
+      "sourceSha256": "d29a1addd75593b4bff28977a4adba211c7af4bd6e23f4215c7309b1c5aefc4b",
+      "targetSha256": "d29a1addd75593b4bff28977a4adba211c7af4bd6e23f4215c7309b1c5aefc4b",
+      "pixelWidth": 48,
+      "pixelHeight": 48,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/login/LoginScreen.kt",
+          "line": 386
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_rss",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_rss.xml",
+      "targetPath": "apps/mobile/assets/drawable/ic_rss.png",
+      "kind": "raster",
+      "sourceSha256": "09df66c82058b97329555780307641552987c0fb132ba3fbb2c7cd61cfd89d11",
+      "targetSha256": "0c8d02f30c05cdcc5101afa4f9525cbafe4ba55837cc1b8d5ead5b2cf118f3e4",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "logicalSize": {
+        "width": 24,
+        "height": 24
+      },
+      "transform": "android-vector-to-svg-to-png-at-4x",
+      "sourceUses": [],
+      "runtimeUse": "available",
+      "conversion": {
+        "name": "ic_rss",
+        "scale": 4,
+        "logicalWidth": 24,
+        "logicalHeight": 24,
+        "sourceSha256": "09df66c82058b97329555780307641552987c0fb132ba3fbb2c7cd61cfd89d11",
+        "svgSha256": "3a9ac08b6cabf83bdc57324934f182cecfc2b1cee7cff406843eb6dfaff3ca7e",
+        "pngSha256": "0c8d02f30c05cdcc5101afa4f9525cbafe4ba55837cc1b8d5ead5b2cf118f3e4",
+        "renderer": "sharp (SVG through librsvg)",
+        "rendererVersions": {
+          "aom": "3.15.1",
+          "archive": "3.8.9",
+          "cairo": "1.18.6",
+          "cgif": "0.5.4",
+          "exif": "0.6.26",
+          "expat": "2.8.5",
+          "ffi": "3.8.0",
+          "fontconfig": "2.18.3",
+          "freetype": "2.14.3",
+          "fribidi": "1.0.17",
+          "glib": "2.90.0",
+          "harfbuzz": "14.5.0",
+          "heif": "1.23.5",
+          "highway": "1.4.0",
+          "imagequant": "2.4.1",
+          "lcms": "2.19.1",
+          "mozjpeg": "0826579",
+          "pango": "1.58.2",
+          "pixman": "0.46.4",
+          "png": "1.6.58",
+          "proxy-libintl": "0.5",
+          "rsvg": "2.63.2",
+          "tiff": "4.7.2",
+          "uhdr": "2.0.2",
+          "vips": "8.18.7",
+          "webp": "1.6.0",
+          "xml2": "2.15.4",
+          "zlib-ng": "2.3.3",
+          "sharp": "0.35.5"
+        }
+      },
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_rss_refresh",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_rss_refresh.xml",
+      "targetPath": "apps/mobile/assets/drawable/ic_rss_refresh.png",
+      "kind": "raster",
+      "sourceSha256": "00e7d47e1a0ea8f11e99741bb32645891bfea55b1f172932cf14cd23a1823e4d",
+      "targetSha256": "48d7f512fea55493fb58d5c8255ef52e123fa2eca09bd8b2bab2b13c30791bdd",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "logicalSize": {
+        "width": 24,
+        "height": 24
+      },
+      "transform": "android-vector-to-svg-to-png-at-4x",
+      "sourceUses": [],
+      "runtimeUse": "available",
+      "conversion": {
+        "name": "ic_rss_refresh",
+        "scale": 4,
+        "logicalWidth": 24,
+        "logicalHeight": 24,
+        "sourceSha256": "00e7d47e1a0ea8f11e99741bb32645891bfea55b1f172932cf14cd23a1823e4d",
+        "svgSha256": "c61ae4a758658778cab8b7ca3842be68412c58ee14909633149b1bf459624915",
+        "pngSha256": "48d7f512fea55493fb58d5c8255ef52e123fa2eca09bd8b2bab2b13c30791bdd",
+        "renderer": "sharp (SVG through librsvg)",
+        "rendererVersions": {
+          "aom": "3.15.1",
+          "archive": "3.8.9",
+          "cairo": "1.18.6",
+          "cgif": "0.5.4",
+          "exif": "0.6.26",
+          "expat": "2.8.5",
+          "ffi": "3.8.0",
+          "fontconfig": "2.18.3",
+          "freetype": "2.14.3",
+          "fribidi": "1.0.17",
+          "glib": "2.90.0",
+          "harfbuzz": "14.5.0",
+          "heif": "1.23.5",
+          "highway": "1.4.0",
+          "imagequant": "2.4.1",
+          "lcms": "2.19.1",
+          "mozjpeg": "0826579",
+          "pango": "1.58.2",
+          "pixman": "0.46.4",
+          "png": "1.6.58",
+          "proxy-libintl": "0.5",
+          "rsvg": "2.63.2",
+          "tiff": "4.7.2",
+          "uhdr": "2.0.2",
+          "vips": "8.18.7",
+          "webp": "1.6.0",
+          "xml2": "2.15.4",
+          "zlib-ng": "2.3.3",
+          "sharp": "0.35.5"
+        }
+      },
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_rss_save",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_rss_save.xml",
+      "targetPath": "apps/mobile/assets/drawable/ic_rss_save.png",
+      "kind": "raster",
+      "sourceSha256": "ac7f220f99c41debfd2018d1323551b9293b3cffbd6b54b30ced359f64f5e526",
+      "targetSha256": "5a91c7d6596454ac54dee1bd46d724372fa122e674611269b4c77679cdb2344f",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "logicalSize": {
+        "width": 24,
+        "height": 24
+      },
+      "transform": "android-vector-to-svg-to-png-at-4x",
+      "sourceUses": [],
+      "runtimeUse": "available",
+      "conversion": {
+        "name": "ic_rss_save",
+        "scale": 4,
+        "logicalWidth": 24,
+        "logicalHeight": 24,
+        "sourceSha256": "ac7f220f99c41debfd2018d1323551b9293b3cffbd6b54b30ced359f64f5e526",
+        "svgSha256": "cda812d823fa831466fe663bcf8abbffeb1a7ed50e47cc0a091af63b2fb53cc1",
+        "pngSha256": "5a91c7d6596454ac54dee1bd46d724372fa122e674611269b4c77679cdb2344f",
+        "renderer": "sharp (SVG through librsvg)",
+        "rendererVersions": {
+          "aom": "3.15.1",
+          "archive": "3.8.9",
+          "cairo": "1.18.6",
+          "cgif": "0.5.4",
+          "exif": "0.6.26",
+          "expat": "2.8.5",
+          "ffi": "3.8.0",
+          "fontconfig": "2.18.3",
+          "freetype": "2.14.3",
+          "fribidi": "1.0.17",
+          "glib": "2.90.0",
+          "harfbuzz": "14.5.0",
+          "heif": "1.23.5",
+          "highway": "1.4.0",
+          "imagequant": "2.4.1",
+          "lcms": "2.19.1",
+          "mozjpeg": "0826579",
+          "pango": "1.58.2",
+          "pixman": "0.46.4",
+          "png": "1.6.58",
+          "proxy-libintl": "0.5",
+          "rsvg": "2.63.2",
+          "tiff": "4.7.2",
+          "uhdr": "2.0.2",
+          "vips": "8.18.7",
+          "webp": "1.6.0",
+          "xml2": "2.15.4",
+          "zlib-ng": "2.3.3",
+          "sharp": "0.35.5"
+        }
+      },
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_sm_apple",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_sm_apple.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_sm_apple.png",
+      "kind": "brand",
+      "sourceSha256": "ea153d9116f40ad2f90319c117a3d690db720eccf44ab7a9825fd8c100221f24",
+      "targetSha256": "ea153d9116f40ad2f90319c117a3d690db720eccf44ab7a9825fd8c100221f24",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/login/LoginScreen.kt",
+          "line": 202
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_sm_back",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_sm_back.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_sm_back.png",
+      "kind": "raster",
+      "sourceSha256": "4ded6ba23e037faa6c49c63f006477c881ca65a35753aafd6684e14dba8b67c9",
+      "targetSha256": "4ded6ba23e037faa6c49c63f006477c881ca65a35753aafd6684e14dba8b67c9",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/about/About.kt",
+          "line": 43
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/NavigatorBar.kt",
+          "line": 75
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/debug/Debug.kt",
+          "line": 448
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/feedback/FeedbackScreen.kt",
+          "line": 77
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/setting/DeleteAccountScreen.kt",
+          "line": 93
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/setting/Setting.kt",
+          "line": 74
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/subscription/Subscription.kt",
+          "line": 110
+        }
+      ],
+      "runtimeUse": "provenance-only-native-back-replacement",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_sm_google",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_sm_google.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_sm_google.png",
+      "kind": "brand",
+      "sourceSha256": "e39c9045207807a5009d88dc299a2d507e8f1cdfc25654eecb4562ec452231aa",
+      "targetSha256": "e39c9045207807a5009d88dc299a2d507e8f1cdfc25654eecb4562ec452231aa",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/login/LoginScreen.kt",
+          "line": 170
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_xs_blue_down_arrow",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_xs_blue_down_arrow.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_xs_blue_down_arrow.png",
+      "kind": "raster",
+      "sourceSha256": "b6b2b521e72c2c423d07e7d97539e0a7ec08ac2163c1cc53eee83a1060dca697",
+      "targetSha256": "b6b2b521e72c2c423d07e7d97539e0a7ec08ac2163c1cc53eee83a1060dca697",
+      "pixelWidth": 32,
+      "pixelHeight": 32,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/OverviewView.kt",
+          "line": 99
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_xs_dialog_close",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_xs_dialog_close.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_xs_dialog_close.png",
+      "kind": "raster",
+      "sourceSha256": "ca4f33e81609cb259e229dbe93ccd5642cc5118c88eae0b4782f61fffd31c25f",
+      "targetSha256": "ca4f33e81609cb259e229dbe93ccd5642cc5118c88eae0b4782f61fffd31c25f",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/const/component/EditNameDialog.kt",
+          "line": 107
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/AddLinkDialog.kt",
+          "line": 183
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/ProcessingDialog.kt",
+          "line": 94
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_xs_inbox_add",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_xs_inbox_add.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_xs_inbox_add.png",
+      "kind": "raster",
+      "sourceSha256": "b0b51e08104bc3aa6f5e2b42e5a6f5c0946eeb80bdecdd34e438f520f008e738",
+      "targetSha256": "b0b51e08104bc3aa6f5e2b42e5a6f5c0946eeb80bdecdd34e438f520f008e738",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/InboxListScreen.kt",
+          "line": 358
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/rss/RssFeedItems.kt",
+          "line": 74
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_xs_sidebar_about",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_xs_sidebar_about.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_xs_sidebar_about.png",
+      "kind": "raster",
+      "sourceSha256": "da29db69958d8b0529997ff72a1915d590fe7fa1652e336f2f1ca41f0ea3aae2",
+      "targetSha256": "da29db69958d8b0529997ff72a1915d590fe7fa1652e336f2f1ca41f0ea3aae2",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/sidebar/compenents/FooterMenu.kt",
+          "line": 192
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_xs_sidebar_close",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_xs_sidebar_close.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_xs_sidebar_close.png",
+      "kind": "raster",
+      "sourceSha256": "b804110c504140178328ce1318d527ced3417819002c4ef6b24606e03270bd14",
+      "targetSha256": "b804110c504140178328ce1318d527ced3417819002c4ef6b24606e03270bd14",
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/sidebar/Sidebar.kt",
+          "line": 117
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_xs_sidebar_config",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_xs_sidebar_config.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_xs_sidebar_config.png",
+      "kind": "raster",
+      "sourceSha256": "4a3aaeb2398df4f6f16ec5e4133c9a7df84910ef137e57df7d1d981ab50aac76",
+      "targetSha256": "4a3aaeb2398df4f6f16ec5e4133c9a7df84910ef137e57df7d1d981ab50aac76",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/sidebar/compenents/FooterMenu.kt",
+          "line": 148
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_xs_sidebar_feedback",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_xs_sidebar_feedback.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_xs_sidebar_feedback.png",
+      "kind": "raster",
+      "sourceSha256": "6ed22f011687f69f1f52fd18bbb7d144355d24251fc5b5016f77dec760a2905e",
+      "targetSha256": "6ed22f011687f69f1f52fd18bbb7d144355d24251fc5b5016f77dec760a2905e",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/sidebar/compenents/FooterMenu.kt",
+          "line": 167
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_xs_sidebar_logout",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_xs_sidebar_logout.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_xs_sidebar_logout.png",
+      "kind": "raster",
+      "sourceSha256": "8796adc9baaa21ef6c2f64180dacc4401ab3816d6d075f0e7d5a77a593744d03",
+      "targetSha256": "8796adc9baaa21ef6c2f64180dacc4401ab3816d6d075f0e7d5a77a593744d03",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/sidebar/compenents/FooterMenu.kt",
+          "line": 211
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_xs_sidebar_subscribe",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_xs_sidebar_subscribe.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_xs_sidebar_subscribe.png",
+      "kind": "raster",
+      "sourceSha256": "f91d89713b434c1bdde7e2ffc92ea780ef04e5c677ec1d1abf1d22e1d89eb507",
+      "targetSha256": "f91d89713b434c1bdde7e2ffc92ea780ef04e5c677ec1d1abf1d22e1d89eb507",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/sidebar/compenents/FooterMenu.kt",
+          "line": 129
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_xs_sidebar_subscribed",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_xs_sidebar_subscribed.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_xs_sidebar_subscribed.png",
+      "kind": "raster",
+      "sourceSha256": "83fec558e16347fa69957361c3b26d9db95c7175c4c164e3efe3f8645a2419db",
+      "targetSha256": "83fec558e16347fa69957361c3b26d9db95c7175c4c164e3efe3f8645a2419db",
+      "pixelWidth": 64,
+      "pixelHeight": 58,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/sidebar/compenents/FooterMenu.kt",
+          "line": 97
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_xs_sidebar_yellow_arrow",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_xs_sidebar_yellow_arrow.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_xs_sidebar_yellow_arrow.png",
+      "kind": "raster",
+      "sourceSha256": "17d12e9023c505f668164bdc0fbe5181537d053676c516f24459a5dab121b908",
+      "targetSha256": "17d12e9023c505f668164bdc0fbe5181537d053676c516f24459a5dab121b908",
+      "pixelWidth": 80,
+      "pixelHeight": 80,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/sidebar/compenents/FooterMenu.kt",
+          "line": 114
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_xs_tag_close",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_xs_tag_close.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_xs_tag_close.png",
+      "kind": "raster",
+      "sourceSha256": "3899a195111740d01652e531e1b94a71f28af5729b498a428d5c5014cd8fb1de",
+      "targetSha256": "3899a195111740d01652e531e1b94a71f28af5729b498a428d5c5014cd8fb1de",
+      "pixelWidth": 62,
+      "pixelHeight": 62,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/TagItem.kt",
+          "line": 103
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_xs_tick_gray_outline_icon",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_xs_tick_gray_outline_icon.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_xs_tick_gray_outline_icon.png",
+      "kind": "raster",
+      "sourceSha256": "08bba653fcd10f28c3068f7b76df4d84a19c3f86e051577383758a23d552d006",
+      "targetSha256": "08bba653fcd10f28c3068f7b76df4d84a19c3f86e051577383758a23d552d006",
+      "pixelWidth": 32,
+      "pixelHeight": 32,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/RssReader.kt",
+          "line": 138
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/rss/RssFeedItems.kt",
+          "line": 145
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/setting/Setting.kt",
+          "line": 298
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "ic_xs_yellow_plus",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/ic_xs_yellow_plus.png",
+      "targetPath": "apps/mobile/assets/drawable/ic_xs_yellow_plus.png",
+      "kind": "raster",
+      "sourceSha256": "27534e754c624535af10a3decc586ce9a46869f179d05d318f51c204b74497ef",
+      "targetSha256": "27534e754c624535af10a3decc586ce9a46869f179d05d318f51c204b74497ef",
+      "pixelWidth": 32,
+      "pixelHeight": 32,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/components/TagsView.kt",
+          "line": 72
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "inbox_more",
+      "sourcePath": "composeApp/src/commonMain/composeResources/drawable/inbox-more.png",
+      "targetPath": "apps/mobile/assets/drawable/inbox-more.png",
+      "kind": "raster",
+      "sourceSha256": "03e12a3a5980ba49c30bba9976f66e5c6c9ee7a5d1c127db177b00848c2cfc8c",
+      "targetSha256": "03e12a3a5980ba49c30bba9976f66e5c6c9ee7a5d1c127db177b00848c2cfc8c",
+      "pixelWidth": 24,
+      "pixelHeight": 24,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/InboxListScreen.kt",
+          "line": 311
+        },
+        {
+          "path": "composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/compenents/Title.kt",
+          "line": 60
+        }
+      ],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "launcher_icon",
+      "sourcePath": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/1024.png",
+      "targetPath": "apps/mobile/assets/app-icon.png",
+      "kind": "brand",
+      "sourceSha256": "43070f29911e934ea04a74a0e88524359661d8a942b0acf2d0b118ab24a957fb",
+      "targetSha256": "43070f29911e934ea04a74a0e88524359661d8a942b0acf2d0b118ab24a957fb",
+      "pixelWidth": 1024,
+      "pixelHeight": 1024,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    },
+    {
+      "key": "share_logo",
+      "sourcePath": "composeApp/src/commonMain/composeResources/files/share_logo.png",
+      "targetPath": "apps/mobile/assets/share-logo.png",
+      "kind": "brand",
+      "sourceSha256": "4518185b7d94721ea604e588fb8766d0b1a2642668515c027e742f2ba03f794e",
+      "targetSha256": "4518185b7d94721ea604e588fb8766d0b1a2642668515c027e742f2ba03f794e",
+      "pixelWidth": 172,
+      "pixelHeight": 216,
+      "transform": "identity",
+      "logicalSize": null,
+      "sourceUses": [],
+      "runtimeUse": "available",
+      "licenseEvidence": "LICENSE (Apache-2.0); no asset-specific license notice found during audit"
+    }
+  ]
+}

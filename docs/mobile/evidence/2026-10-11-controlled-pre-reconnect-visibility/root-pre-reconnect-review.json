@@ -1,0 +1,46 @@
+{
+  "kind": "slax-root-controlled-pre-reconnect-review",
+  "version": 1,
+  "recordedAt": "2026-10-10T23:16:29.270289+00:00",
+  "change": "expo-mobile-migration",
+  "status": "host-preparation-reviewed-native-acceptance-pending",
+  "sourceInputsSHA256": {
+    "apps/mobile/src/controlled-upgrade-visibility.ts": "9fa6c60108745f3c6363e28b79304c68d1969dc536c25fd3fbca9bce1d85b209",
+    "apps/mobile/src/runtime.tsx": "0fd77a26611c2ce93d2f0b5e4c7b58e971daa56864c26a6939faf5268eae7a72",
+    "apps/mobile/tests/data/NativeUpgradeVisibleFixtureApp.tsx": "951ceba56fc7fce2eeffb7fbaf9cb3d1f04863d88997041c1283884c5edf6fc7",
+    "apps/mobile/tests/data/adoption-fixtures/tooling/visible-upgrade-control.mjs": "2d2aab73ecdf3f7e2aceb8ec74a7443a125874306792ceb62a0dac239666128e",
+    "apps/mobile/tests/data/pre-reconnect-evidence.ts": "3f531e6181f522bfbfe0acad6b42a8fa483d8830cf86b0f2ad1caee953f644a2",
+    "apps/mobile/tests/data/pre-reconnect-evidence.test.mjs": "6ddbb16b7be1a2ad7c825aec2b4ac87bdb50d872ce6df99e024290ceb9b51909",
+    "apps/mobile/tests/data/NativeServiceReconnectFixture.ts": "de615a9d5783492b2ca3bc77ccc2b04dfacfa7820585a5e234a55da2bf818ce4",
+    "apps/mobile/tests/data/upgrade-visibility.test.mjs": "f246b69a2f51f028e7676dbb922d2a12e95fee854196f03e5b819ee217ba3bf6",
+    "apps/mobile/tests/data/visible-upgrade-transport.test.mjs": "0a42cd77936b2aeba8eda6c323169dd1a3339d6b59a45eaf9cec016053b3115c"
+  },
+  "authorRawTransportReceipt": {
+    "path": "raw-android-transport-r2/report.json",
+    "sha256": "798b029e506460e4e73662de9f8ee0e3080bc6304a88d11b19eb3a2719cf99d4"
+  },
+  "independentFollowupReceipt": {
+    "path": "native-ui-independent-review-r2/independent-review.json",
+    "sha256": "d5d22838890676251a74eb617205081b999b975c079e4f336a3e2c101eb4370e"
+  },
+  "rootReview": {
+    "ordinaryMobileProviderSuffixUnchangedFromFrozenCompiledStage": true,
+    "suffixSha256": "36f839f25af5d4f8c05b6314957e9d44d76766ebdd6ab2b4a9c10752c3041d37",
+    "exactControllerChanges": "Add raw stdout opt-in only for the named Android marker cat; path/status remain trimmed. Three exact substitutions from the archived before input match the current controller.",
+    "bugs": "Fresh explicit pre phase, same original producer/request raw MD5/run/nonce/device/native identity, actual normal runtime references, original four raw CRUD/order/business digests and only observed persisted read_position relaxation reviewed. The prior Android raw newline Important is fixed and demonstrated by the actual-controller failed-first/pass regression. Retained first-opening checkpoint and SIGKILL baseline predicates remain conservative.",
+    "security": "Development-only controlled renderer and synthetic-only markers; source/user/token checks and blocked loopback are retained. Observation records are bounded; no operator or live account data was inspected.",
+    "compliance": "Implementation matches approved task5.8 preparation. No task completion is asserted from host tests; genuine current-native old edits/render/reconnect and publisher-signed upgrade remain pending.",
+    "importantFindingsRemaining": []
+  },
+  "tests": {
+    "priorTypedHostChecks": 51,
+    "actualControllerNewRegression": 1,
+    "newRegressionIndependentPassed": true,
+    "typedInputsUnchangedSinceTypecheck": true,
+    "integratedHistoricalBeforeRawCorrection": "../2026-10-11-current-static-r10/report.json",
+    "broadTestsNotRepeatedAfterExactUntypedTransportCorrection": true
+  },
+  "nativeBuildOrDeviceExecuted": false,
+  "task5_8Complete": false,
+  "publisherOrTestFlightAcceptance": false
+}

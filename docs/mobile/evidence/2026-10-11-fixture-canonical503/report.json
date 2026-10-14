@@ -1,0 +1,38 @@
+{
+  "kind": "canonical-source-error-fixture-revision",
+  "schemaVersion": 1,
+  "oldFixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "newFixtureInputSha256": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f",
+  "oldArchive": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/source-driver-o/composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/scenarios.json",
+    "sha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+    "manifest": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/source-driver-o/composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/manifest.json",
+      "sha256": "2f019f61c23e9b1546da118c93ab57cfa9d8ba01ccface50620970ddfeee4260"
+    }
+  },
+  "onlyScenarioChanged": "reader-load-error",
+  "onlyPayloadChange": "payload.api[0].json.data: object {error:source_unavailable} -> string source_unavailable",
+  "allOtherScenariosAndGlobalsEqual": true,
+  "changedGeneratedFiles": [
+    "apps/mobile/fixtures/manifest.json",
+    "apps/mobile/fixtures/scenarios.json"
+  ],
+  "historicalNativeReportsModified": false,
+  "changedCaseNativeAcceptance": "pending-fresh-source-and-target",
+  "matrix": "unverified",
+  "files": [
+    {
+      "path": "scenarios.json",
+      "sha256": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f"
+    },
+    {
+      "path": "manifest.json",
+      "sha256": "00a7555b87503153de38f0047283018f223469ecd3830089e9e2703ca7a1f133"
+    },
+    {
+      "path": "generate-fixtures.py",
+      "sha256": "daf31c326e3995a8b51a0e6905971f5e5750a4ac0f40a1ef9d94f11fa9af19b7"
+    }
+  ]
+}

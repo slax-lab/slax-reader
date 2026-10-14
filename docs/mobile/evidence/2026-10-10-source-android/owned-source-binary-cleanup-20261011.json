@@ -1,0 +1,99 @@
+{
+  "kind": "owned-source-instrumentation-binary-cleanup",
+  "schemaVersion": 1,
+  "records": [
+    {
+      "path": "/tmp/slax-mobile-native-artifacts/slax-source-ui-reference-i-test.apk",
+      "sha256": "3fbfa13eaaf78c57a5d207549851927b4a4f751e278a6dce0bac85c9b7e207b1",
+      "bytes": 1544238,
+      "nativePackageLine": "package: name='com.slax.reader.fixture.test' versionCode='' versionName='' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'",
+      "ownerBuildReport": {
+        "path": "docs/mobile/evidence/2026-10-10-source-android/source-build-i.json",
+        "sha256": "24c6ff49d299edaafb1a62b8709213e7799493b77e6e18e3ad02aec1cc6d7b74"
+      },
+      "ownerInputManifest": {
+        "path": "docs/mobile/evidence/2026-10-10-source-android/source-driver-i/input-manifest.json",
+        "sha256": "b6caba3fc23f79817f17dce457fd767dd9b0cc98b5361dfad777e5bca9a5482e"
+      },
+      "retainedInputArchive": "docs/mobile/evidence/2026-10-10-source-android/source-driver-i",
+      "reason": "Obsolete isolated instrumentation revision; current o and baseline j binaries retained. Exact compiled inputs/build reports/capture evidence remain archived."
+    },
+    {
+      "path": "/tmp/slax-mobile-native-artifacts/slax-source-ui-reference-k-test.apk",
+      "sha256": "41235026e8d7b3384c48b49c7104be22f95123c21ac8fef0e405a6150ab1de8f",
+      "bytes": 1544238,
+      "nativePackageLine": "package: name='com.slax.reader.fixture.test' versionCode='' versionName='' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'",
+      "ownerBuildReport": {
+        "path": "docs/mobile/evidence/2026-10-10-source-android/source-build-k.json",
+        "sha256": "2968c6ea901e3aeedea2ad836c3b2a91d4d84422b2d371cb0c8813347a32395e"
+      },
+      "ownerInputManifest": {
+        "path": "docs/mobile/evidence/2026-10-10-source-android/source-driver-k/input-manifest.json",
+        "sha256": "60d96c774d9d4b20b0615e8f931055304166507e9252f1328a63f4373e4193ff"
+      },
+      "retainedInputArchive": "docs/mobile/evidence/2026-10-10-source-android/source-driver-k",
+      "reason": "Obsolete isolated instrumentation revision; current o and baseline j binaries retained. Exact compiled inputs/build reports/capture evidence remain archived."
+    },
+    {
+      "path": "/tmp/slax-mobile-native-artifacts/slax-source-ui-reference-l-test.apk",
+      "sha256": "faf9e08a0554afeb832aa2382e97621be7c2fd9dd4a9826bfa07171bf9bc0d0c",
+      "bytes": 1544238,
+      "nativePackageLine": "package: name='com.slax.reader.fixture.test' versionCode='' versionName='' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'",
+      "ownerBuildReport": {
+        "path": "docs/mobile/evidence/2026-10-10-source-android/source-build-l.json",
+        "sha256": "8811e5db693ae88da097242aefad28024e098d049e72b91086b82a3a663902e5"
+      },
+      "ownerInputManifest": {
+        "path": "docs/mobile/evidence/2026-10-10-source-android/source-driver-l/input-manifest.json",
+        "sha256": "25ec74a1d2192a2a9a30f22ccea0cc9ba6a02563cb3349e0811274887d9a3496"
+      },
+      "retainedInputArchive": "docs/mobile/evidence/2026-10-10-source-android/source-driver-l",
+      "reason": "Obsolete isolated instrumentation revision; current o and baseline j binaries retained. Exact compiled inputs/build reports/capture evidence remain archived."
+    },
+    {
+      "path": "/tmp/slax-mobile-native-artifacts/slax-source-ui-instrumentation-m.apk",
+      "sha256": "38967f1e7183c1ed3792e9dbcb77089e15285cec4fcc9357d942b08db0094344",
+      "bytes": 1544238,
+      "nativePackageLine": "package: name='com.slax.reader.fixture.test' versionCode='' versionName='' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'",
+      "ownerBuildReport": {
+        "path": "docs/mobile/evidence/2026-10-10-source-android/source-build-m.json",
+        "sha256": "5d3180d6c2c4b4cb8d95529a48f5ade5b4f983c694baf252e95e55c4e3bc5c9a"
+      },
+      "ownerInputManifest": {
+        "path": "docs/mobile/evidence/2026-10-10-source-android/source-driver-m/input-manifest.json",
+        "sha256": "f787669025084bc6d70be6af14082ad24bc0dce600b4d225ecf28d928e452cf5"
+      },
+      "retainedInputArchive": "docs/mobile/evidence/2026-10-10-source-android/source-driver-m",
+      "reason": "Obsolete isolated instrumentation revision; current o and baseline j binaries retained. Exact compiled inputs/build reports/capture evidence remain archived."
+    },
+    {
+      "path": "/tmp/slax-mobile-native-artifacts/slax-source-ui-instrumentation-n.apk",
+      "sha256": "35a59356b92855ce41017cc521dc619289792c53a7993b574689ddf1efa3961c",
+      "bytes": 1544238,
+      "nativePackageLine": "package: name='com.slax.reader.fixture.test' versionCode='' versionName='' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'",
+      "ownerBuildReport": {
+        "path": "docs/mobile/evidence/2026-10-10-source-android/source-build-n.json",
+        "sha256": "9e60fee9307c035f391b126aeaa3f8e0e9e9f84263c29e57530a5c7bd8266d23"
+      },
+      "ownerInputManifest": {
+        "path": "docs/mobile/evidence/2026-10-10-source-android/source-driver-n/input-manifest.json",
+        "sha256": "26ab60618a83faff6fb1e78c566bd2778869fa20a8e516bd009ef28514b478c0"
+      },
+      "retainedInputArchive": "docs/mobile/evidence/2026-10-10-source-android/source-driver-n",
+      "reason": "Obsolete isolated instrumentation revision; current o and baseline j binaries retained. Exact compiled inputs/build reports/capture evidence remain archived."
+    }
+  ],
+  "totalBytes": 7721190,
+  "retained": [
+    "slax-source-ui-reference-e-debug.apk",
+    "slax-source-ui-reference-e-test.apk",
+    "slax-source-ui-reference-j-test.apk",
+    "slax-source-ui-instrumentation-o.apk",
+    "cached source e compiled classes",
+    "source Ktor JVM evidence"
+  ],
+  "operatorCachesTouched": false,
+  "deviceMutation": false,
+  "historicalEvidenceModified": false,
+  "status": "removed-only-listed-obsolete-instrumentation-binaries"
+}

@@ -1,0 +1,11 @@
+{
+  "kind": "slax-controlled-visible-service-failure-cleanup",
+  "runId": "controlled-ios-visible-upgrade-20261011",
+  "device": "468A1F1E-408C-4B74-922E-1EB216A446E0",
+  "preservedFailedReportSHA256": "7a92886636b61eb159d608863822228386ca29d4bbbb8e668e744e51b18ba9ff",
+  "ownedContainersVolumesNetworksRemoved": true,
+  "ownedControllerStopped": true,
+  "simulatorShutdown": true,
+  "sandboxPreserved": true,
+  "recordedAt": "2026-10-10T19:31:46.413Z"
+}

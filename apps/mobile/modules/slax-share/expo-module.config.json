@@ -1,0 +1,4 @@
+{
+  "platforms": ["android"],
+  "android": { "modules": ["com.slax.reader.share.SlaxShareModule"] }
+}

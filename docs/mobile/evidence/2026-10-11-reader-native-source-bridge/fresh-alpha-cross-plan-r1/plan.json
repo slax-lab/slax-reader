@@ -1,0 +1,218 @@
+{
+  "kind": "prepared-only-fresh-native-alpha-and-cross-paragraph-two-grant-plan",
+  "version": 1,
+  "openSpecChange": "expo-mobile-migration",
+  "status": "prepared-only-requires-executor-review-and-two-explicit-input-grants",
+  "runRoot": "/private/tmp/slax-reader-fresh-alpha-cross-c26ced6d60c34bbcb9f2590c6dc453c4",
+  "device": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+  "ownedMigrationDevices": [
+    "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+    "88E63005-F681-45A6-AF8D-BEFE4E27584D"
+  ],
+  "unrelatedDevices": "Readonly state metadata only; never input/shutdown/erase/install there.",
+  "onlyTarget": "app.slax.reader.uifixture",
+  "mainMustNotRun": "app.slax.reader",
+  "stage": {
+    "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3",
+    "marker": {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/.slax-ui-fixture-project.json",
+      "bytes": 114339,
+      "sha256": "916255118823ed8d2764c333b4d135d0b0278b3b0edba2a38d48762ceaf2d4f3"
+    },
+    "expectedGeneratedFiles": 377,
+    "requireAllGeneratedSourceHashesCurrent": true
+  },
+  "metro": {
+    "port": 8083,
+    "pid": 93891,
+    "ownerReceipt": {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-post-aw4-ui-refresh-plan/revision-r2/owned-metro-restart/report.json",
+      "bytes": 905,
+      "sha256": "9017c2b820359b618af92e6e1f5129c84afdbba1324740fddbf52073a26f6aaf"
+    },
+    "noRestartOrStageWrite": true
+  },
+  "fixtureInputs": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/scenarios.json",
+    "bytes": 1756477,
+    "sha256": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f"
+  },
+  "runtimeCompiledAppAncestry": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-completed-signed-app/report.json",
+    "bytes": 2354,
+    "sha256": "a930b22a732f8f514af9ecc7ad0158c6434f6c3c53fd1deb3500cc628684def9"
+  },
+  "historicalAlphaReferenceOnly": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-alpha/report.json",
+    "bytes": 15045,
+    "sha256": "f39c4a931eaa3e54dbae48cf460562709bc8ec760d254cf203a666c36e377f88"
+  },
+  "actualBitmapPrerequisite": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r3/actual-native-bitmap-root-review/report.json",
+    "bytes": 57944,
+    "sha256": "728a9ad173da048f350393973a9a17d28ac612082082f428e31686a28066e4de"
+  },
+  "alphaBuildAncestry": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-target-ios-reader-native-longpress/build-preparation.json",
+    "bytes": 3781,
+    "sha256": "4a723f4c43ea8db77b399ecea24f4e21bc8f092d29afb7413680af39de096114"
+  },
+  "alphaCurrentProducts": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-plan-r1/current-alpha-compiled-products.json",
+    "bytes": 27175,
+    "sha256": "9dcda464114775016ce7653086948eb6706016d3ac718d720f2686f93d5741a0"
+  },
+  "alphaCompiledProductFiles": 63,
+  "alphaOriginalPlist": {
+    "path": "/private/tmp/slax-reader-native-control-build/Build/Products/ReaderNativeControl_iphonesimulator26.5-arm64.xctestrun",
+    "bytes": 4822,
+    "sha256": "623f33be48065532daa5e82aa4121f79eaf912ec60ac92145af3eb10ee966f47"
+  },
+  "alphaOnlyTest": "ReaderNativeControl/ReaderNativeControl/testNativeLongPressOriginalBodyWord",
+  "crossBuildRootReview": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r4/actual-build-root-review/report.json",
+    "bytes": 28453,
+    "sha256": "f75960cb3574cd31fa21f840404ec5ea5e589b74128a64d256629422e3e79152"
+  },
+  "crossOriginal53Products": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-plan-r1/compiled-products.json",
+    "bytes": 14286,
+    "sha256": "cce42c80ced776af71199d7cb72b75c663dc2bbeeea7d7539a5d7b8a36b2b2b0"
+  },
+  "acceptedExistingCrossHelperContainers": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-plan-r1/accepted-existing-cross-helper-containers.json",
+    "bytes": 23903,
+    "sha256": "7884554c773070ad9d126b3fc7195b1a5df25ea1c59ee2d931e741f11709879f"
+  },
+  "crossOnlyTest": "CrossParagraphControl/ReaderCrossParagraphControl/testNativeEndHandleDragFromGenuineAlphaTowardSecondParagraph",
+  "publicControlInputs": [
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tooling/fixture-control.mjs",
+      "bytes": 7385,
+      "sha256": "5b7a4c4fbc01e1e0e8ad5930a0a69485594691f4c9baca6ce582497fb6ed9bdf"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tooling/fixture-control-contract.mjs",
+      "bytes": 1071,
+      "sha256": "062137fa950def7294e8f705a400941f1734e79518eb654a2747f93604c42aa5"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/reader-native-ios/control/ReaderNativeControl.swift",
+      "bytes": 9974,
+      "sha256": "84daeb26cde784efd06fed3e6c08dad55dac785ef987ac175e16408c6ef0b91f"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/ReaderCrossParagraphControl.swift",
+      "bytes": 14089,
+      "sha256": "7c1b3720a67bf91b370f688524cc17f0d54d7f2387a2c53deba9a3be60d53d57"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/snapshot-guard.mjs",
+      "bytes": 9198,
+      "sha256": "b7bf76670cc28e796c5aa5d14b2dc4731b57db90a41ec8095ce31a2d1105a3f6"
+    }
+  ],
+  "nativeUtilities": [
+    {
+      "path": "/usr/bin/xcrun",
+      "bytes": 117392,
+      "sha256": "a439970aea2b4e435eac6518ff62c97fd1c57d8c731974027ad211b515c7a7b8"
+    },
+    {
+      "path": "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+      "bytes": 100528,
+      "sha256": "d508f0e1901151843804e4af512d4587ad0e422039e43e14abf22792360ad3d4"
+    }
+  ],
+  "hostNode": {
+    "path": "/usr/local/bin/node",
+    "bytes": 228373824,
+    "sha256": "b90619f497223f181bd6423ba0e4b3bb053dc2aa41fc10f8b34c120b83ac5465"
+  },
+  "proposedGuards": {
+    "globalSlotSeconds": 180,
+    "reserveReleaseSeconds": 30,
+    "ownProcessKillGraceSeconds": 4,
+    "alphaNativeDeadlineSeconds": 45,
+    "crossNativeDeadlineSeconds": 45,
+    "utilityDeadlineSeconds": 5,
+    "maxNewRunRootAndAllOwnedHelperContainerLogicalBytes": 268435456,
+    "maxNewRunRootAndAllOwnedHelperContainerAllocatedBytes": 268435456,
+    "maxCombinedLogsBytes": 8388608,
+    "freeFloorBytes": 3221225472,
+    "preflightFreeBytes": 3865470566,
+    "noSparseApparentSizeExceptions": true,
+    "noNativeCompile": true,
+    "oneAlphaPress": true,
+    "atMostOneCrossHandleDrag": true,
+    "noAutomaticRetry": true
+  },
+  "conditions": {
+    "appearance": "light",
+    "contentSize": "L",
+    "locale": "en",
+    "displayedTime": "09:41",
+    "viewportPoints": [
+      402,
+      874
+    ],
+    "scale": 3,
+    "safeAreaPoints": [
+      62,
+      0,
+      34,
+      0
+    ],
+    "requestedBodyPositionPixels": 240,
+    "observedBodyPositionRequired": true,
+    "selectionStartsEmpty": true,
+    "noPreparedDOMRange": true,
+    "noSyntheticSelectionEvent": true
+  },
+  "sequence": [
+    "Root grants freshAlpha only; rehash immutable inputs, both owned devices shutdown, accepted Cross installed manifests unchanged, and record all other simulator states without interaction.",
+    "Copy exactly the bound old Alpha Products and unchanged current53 Cross Products into the fresh run root. Do not overwrite or build either original DD. Record post-test signing changes separately.",
+    "Boot only owned B85; bounded bootstatus; set only owned UI light/content-size L and clock09:41. Launch only current installed uifixture with the same native app executable/debug dylib from the signed-app ancestry. Verify current377 Metro delivery; no restart.",
+    "Select fresh reader-mixed/en/font1 through the existing isolated fixture controller. Record a new scope/PID/route/pageId/cacheKey/nativeTag; require preparedActions=[] and no prior selection. Call only readonly inspect-position/inspect-selection and copy context/position/input/lifecycle from that exact uifixture scope. Inspect native PNG/time/conditions and actual ready/full874/native observed240 before one native press.",
+    "Run ONLY the Alpha selector45s. Require completed raw exact1pass/0fail/0skip + one native1s Alpha press, native handles/menu, no unknown alert, and a fresh same-page settled5character/1path readonly snapshot/actual240. Wrapper exit alone does not authorize Cross.",
+    "Root independently reviews raw freshAlpha artifacts and issues a distinct same-window Cross continuation grant binding live scope/page/nativeTag/position/app/stage/helper/XCResult hashes. Require enough global time for45s test +30s release +4s grace. Otherwise release and keep cross pending. Do not recreate selection or reuse old Alpha report.",
+    "Before Cross, reobserve current same5char/1path nativeAlpha and native frames. Run ONLY Cross selector once. No additional press/tap/DOM range. Copy the same-scope post-drag readonly snapshot; use the actual installed production snapshot guard against the new Alpha report and native geometry. Raw exact native1pass plus verified extension into second paragraph is required; no copy/highlight/persistence claim.",
+    "Always terminate only owned UI/helper identities, clear only ownclockoverride, shutdownB85/readbackShutdown; preserve all data/AppGroups/installedmain state. Rehash stage377/original Products; archive actual helper mutations and raw incomplete failures."
+  ],
+  "fixedPreparedCaseCommand": [
+    "/usr/local/bin/node",
+    "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tooling/fixture-control.mjs",
+    "--platform",
+    "ios",
+    "--device",
+    "SlaxColdShareControlled-20261011-Mg6KLJ",
+    "--case",
+    "reader-mixed",
+    "--locale",
+    "en",
+    "--font-scale",
+    "1"
+  ],
+  "readonlyOnlyActions": [
+    "inspect-position",
+    "inspect-selection"
+  ],
+  "allocationBarrier": {
+    "freshAlphaRequired": true,
+    "sameLiveScopeCrossRequiresSecondGrant": true,
+    "frozenPlanDoesNotAuthorizeExecution": true,
+    "sourcePhysicalAndDatabaseGrantsIndependent": true
+  },
+  "acceptance": {
+    "nativeFreshAlpha": "pending",
+    "nativeCrossParagraph": "pending",
+    "wholeReaderParity": false,
+    "directKotlinCallback": false,
+    "coveragePromotion": false
+  },
+  "pendingExecutorIssues": [
+    "An exact resource-bounded executor and meaningful host guard tests require independent review before this plan is runnable.",
+    "Existing Alpha helper installation metadata must be admitted by its actual own identity and bound current public compiled artifacts; unexpected task helper contents refuse. Current Cross helper manifests are known from the accepted bitmap attempt.",
+    "Root must decide the proposed180s two-grant live-selection handoff and256MiB total helper/results cap before either native input."
+  ]
+}

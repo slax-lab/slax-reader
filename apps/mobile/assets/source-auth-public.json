@@ -1,0 +1,11 @@
+{
+  "source": {
+    "path": "iosApp/iosApp/Info.plist",
+    "commit": "9951904405159f49f24effd4d42815f77ff33442",
+    "sha256": "c86da091c4bc67eec5e93c78375165e303ac306ca13a94a6c669a857324ab725"
+  },
+  "googleIosClientId": "561250096193-7hjcrkob9cv49gkvt9jn544dsih1oi4g.apps.googleusercontent.com",
+  "googleWebClientId": "561250096193-gr0t8bc9j9h9hd3rds97vpqd1tq0vq2s.apps.googleusercontent.com",
+  "googleIosUrlScheme": "com.googleusercontent.apps.561250096193-7hjcrkob9cv49gkvt9jn544dsih1oi4g",
+  "iosApplicationScheme": "app.slax.reader"
+}

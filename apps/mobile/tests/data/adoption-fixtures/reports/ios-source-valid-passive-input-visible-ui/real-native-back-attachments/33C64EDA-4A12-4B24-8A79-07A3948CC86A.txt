@@ -1,0 +1,5 @@
+Query chain:
+ →Find: Application 'app.slax.reader'
+  ↪︎Find: Descendants matching type Button
+    ↪︎Find: Elements matching predicate '"Controlled actual service offline edit" IN identifiers'
+      ↪︎Find: First Match

@@ -1,0 +1,6 @@
+Query chain:
+ →Find: Application 'app.slax.reader'
+  ↪︎Find: Descendants matching type WebView
+    ↪︎Find: Descendants matching type StaticText
+      ↪︎Find: Elements matching predicate '"Controlled offline fixture" IN identifiers'
+        ↪︎Find: First Match

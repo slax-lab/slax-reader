@@ -1,0 +1,347 @@
+{
+  "date": "2026-10-10",
+  "kind": "main-development-native-build-validation",
+  "branch": "feat/expo-mobile-migration",
+  "repositoryBase": "226be91882c226253ced36cf32ff216b5e140990",
+  "runtime": {
+    "expo": "57.0.27",
+    "reactNative": "0.86.3",
+    "react": "19.2.3",
+    "powersyncReactNative": "2.3.1",
+    "opSqlite": "18.2.5"
+  },
+  "android": {
+    "status": "passed",
+    "configuration": "Debug",
+    "bundleIdentifier": "com.slax.reader",
+    "minimumApi": 26,
+    "compileApi": 36,
+    "gradle": "9.3.1",
+    "java": "17.0.19",
+    "artifactPath": "/tmp/slax-mobile-native-artifacts/slax-reader-debug-owner.apk",
+    "artifactSHA256": "1f5d9de0d2dbb222cd185dd904f67591cb38990eae9d1c87c015b9713b099c3b",
+    "buildLogSHA256": "ad26165fea37a0ae6f903702bdd517bc57511bde9aa4d27864d3f0902fb734f4",
+    "terminalResult": "BUILD SUCCESSFUL in 32s; 986 actionable tasks: 45 executed, 941 up-to-date",
+    "productionSigning": false,
+    "normalRuntimeLaunch": "pending",
+    "architectures": [
+      "arm64-v8a"
+    ],
+    "appOwnedMergedActivities": [
+      {
+        "name": "com.slax.reader.MainActivity",
+        "exported": "true",
+        "actions": [
+          "android.intent.action.MAIN",
+          "android.intent.action.VIEW"
+        ],
+        "mimeTypes": []
+      },
+      {
+        "name": "com.slax.reader.extension.ShareActivity",
+        "exported": "true",
+        "actions": [
+          "android.intent.action.SEND"
+        ],
+        "mimeTypes": [
+          "text/plain"
+        ]
+      }
+    ]
+  },
+  "ios": {
+    "kind": "slax-native-ios-development-artifact",
+    "app": "/tmp/slax-mobile-native-artifacts/SlaxReader-ios-debug-20261010.app",
+    "sdk": "iOSSimulator26.5",
+    "minimumOs": "16.4",
+    "architecture": "arm64",
+    "bundleIdentifier": "app.slax.reader",
+    "simulatorOnly": true,
+    "productionSigning": false,
+    "adHocSigning": true,
+    "nativeBuild": "passed",
+    "deviceLaunch": "failed-before-process-start",
+    "binarySha256": "cf0ea8ad7f60c9469161ddabc34fdf11e60da68758f15cac0fa3bed1ed20819e",
+    "debugLibrarySha256": "16ac4b64ce600ce9f3b069663601bda43e1b6ee503ce94cae65a44299ee18d16",
+    "mainEntitlementsSha256": "1ea56d58f606dfb323f813b60778f6bb87be289777080e98c4c432cf05b491c1",
+    "buildLogSHA256": "7eddd9d92cbdef16822a07bb6d719b388a58883a7d60e9eedb3ae93be0700760",
+    "terminalResult": "BUILD SUCCEEDED",
+    "normalRuntimeLaunch": "pending",
+    "mainTarget": {
+      "name": "SlaxReader",
+      "bundleIdentifier": "app.slax.reader",
+      "buildNumber": "1",
+      "marketingVersion": "1.0.0",
+      "registeredUrlSchemes": [
+        "app.slax.reader",
+        "slaxreader",
+        "app.slax.reader",
+        "com.googleusercontent.apps.561250096193-7hjcrkob9cv49gkvt9jn544dsih1oi4g",
+        "exp+slax-reader"
+      ],
+      "publicAdHocEntitlements": {
+        "com.apple.security.application-groups": [
+          "group.app.slax.reader"
+        ],
+        "com.apple.developer.applesignin": [
+          "Default"
+        ]
+      }
+    },
+    "shareTarget": {
+      "name": "SlaxShare",
+      "embeddedPath": "PlugIns/SlaxShare.appex",
+      "bundleIdentifier": "app.slax.reader.share",
+      "buildNumber": "1",
+      "marketingVersion": "1.0.0",
+      "minimumOs": "16.4",
+      "extensionPoint": "com.apple.share-services",
+      "principalClass": "SlaxShare.ShareViewController",
+      "publicAdHocEntitlements": {
+        "com.apple.security.application-groups": [
+          "group.app.slax.reader"
+        ]
+      }
+    },
+    "targetMembershipVerified": "Built SlaxShare.appex is embedded under main application PlugIns and its signature passes deep strict verification; both target Info.plist identities and public signature entitlement values were inspected.",
+    "launchFailure": "First manually signed simulator artifact failed before process start with NSPOSIXErrorDomain163. A second artifact containing the same compiled native code with only the public App Group signature entitlement launched successfully. The difference in manual signature entitlements is the inferred cause; this experiment does not establish general Apple authentication or Xcode signing restrictions.",
+    "simulatorSignatureExperiments": [
+      {
+        "artifact": "/tmp/slax-mobile-native-artifacts/SlaxReader-ios-debug-20261010.app",
+        "mainSignatureEntitlements": {
+          "com.apple.security.application-groups": [
+            "group.app.slax.reader"
+          ],
+          "com.apple.developer.applesignin": [
+            "Default"
+          ]
+        },
+        "launch": "failed-before-process-start",
+        "error": "NSPOSIXErrorDomain163"
+      },
+      {
+        "artifact": "/tmp/slax-mobile-native-artifacts/SlaxReader-ios-debug-group-only-20261010.app",
+        "mainExecutableSHA256": "5ad2419596c05396c1e9b306ba518acec9aec452fa901826cb2eab735612538a",
+        "mainSignatureEntitlements": {
+          "com.apple.security.application-groups": [
+            "group.app.slax.reader"
+          ]
+        },
+        "launch": "passed",
+        "controlledSimulator": "32D9AFE0-32C7-443A-8FEC-3EBB42135386",
+        "nativeCodeChanges": false,
+        "productionSigning": false,
+        "operatorAppleAuthenticationEstablished": false
+      }
+    ],
+    "buildCacheRetained": false,
+    "buildCacheNote": "Completed root-owned DerivedData removed after both preserved signed simulator artifacts passed deep strict signature verification. This frees space for isolated source/target UI builds; artifacts and log evidence remain."
+  },
+  "javascript": {
+    "check": "passed",
+    "tests": 191,
+    "topLevelTests": 179,
+    "typecheck": "passed",
+    "assetSourceFixtureChecks": "passed",
+    "androidExport": "passed",
+    "iosExport": "passed",
+    "checkLogSHA256": "d3b19e4091521dc537403dbda93922ecafd50e3fad26e4492a0a6bb2d9b4c67b",
+    "bundleLogSHA256": "0967ba5e56d2fcb5f661cc0b2383f198a37a25ea78d4a4ee072642864b9ba4cb",
+    "additionalChangesVerified": "Initiating-session deletion guard and controlled same-simulator container relocation helper included in the191test check and updated production Android/iOS exports."
+  },
+  "openspec": {
+    "command": "pnpm exec openspec validate --all --strict",
+    "passed": 28,
+    "failed": 0
+  },
+  "inputRecording": "Public implementation inputs recorded after native builds and current JavaScript validation. This is not a pre-build snapshot or proof of any later edits.",
+  "publicInputs": [
+    {
+      "path": "apps/mobile/modules/slax-legacy/android/build.gradle",
+      "sha256": "2990e00dc1e6fafd34484121588711c071da5c02ee10859e6ad997b0830f0995"
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/android/src/main/AndroidManifest.xml",
+      "sha256": "343d5be1ac17cdd45d1a2f2ddc616c509290e655869125a9422a96d88aa66066"
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/android/src/main/java/com/slax/reader/legacy/SlaxLegacyModule.kt",
+      "sha256": "8e210ea131d4d5f50ef055c13cb2d2f89965ab5e2f087d1c07f416ce16f715fc"
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/expo-module.config.json",
+      "sha256": "59ae076fab29eac44f759803663e80c566ca960ef4b62e647791ab3fc0bbd389"
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/ios/DatabaseInspection.swift",
+      "sha256": "8dcd9b4ff0d188cb70a1c4f347848a61fc98b5b94b1463723a717db82b10ff02"
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/ios/SlaxLegacy.podspec",
+      "sha256": "d05b0b84a7e5123ae055ebb52319c66f9e06af6c71494bcd88332abf5b61210e"
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/ios/SlaxLegacyModule.swift",
+      "sha256": "e651f37b5e22e689c9789a3c51a0839c5afb2b039c14417060012987890eda9c"
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/build.gradle",
+      "sha256": "fb67f8ad2736f3c8499d167d81d748fb96f507bc4c8057744034c51ac2f8440f"
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/AndroidManifest.xml",
+      "sha256": "343d5be1ac17cdd45d1a2f2ddc616c509290e655869125a9422a96d88aa66066"
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxDns.kt",
+      "sha256": "5582252c5f3c21a7f762c644b88381c23d062481f6d7a2588b98b5db94b90f7a"
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxPlatformModule.kt",
+      "sha256": "1c2a32c958e597ea9fec2905b1f372bd3921149e14e4ccdf2329e52f402505a0"
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxReaderView.kt",
+      "sha256": "105853280b12ced2752124d7f8dc3b5f335943dbb5bdcdad31fac6b03d3f09f5"
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxResources.kt",
+      "sha256": "868281d74e0fc36b183956a9232161f0a1566e63a1cb6be0e367fec7d5706882"
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxRingView.kt",
+      "sha256": "8f535e3e2717980bc332b4cc1ce059f3062fb0101182cac5ee7b678cd9f0487a"
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/expo-module.config.json",
+      "sha256": "d5a0d516881bee81ea259eeee2f947434ac07984e7ab7fb20360257d351e19c0"
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxDns.swift",
+      "sha256": "1cb509cad382bec63f044683a41544ad9ed3e00b8b0ee839fad4a28678270a36"
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxGoogleAppDelegateSubscriber.swift",
+      "sha256": "958a4e8fc408035266d6e9ec814949fc72bc582f1f477ae1ead32b5d0cc63c13"
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxPlatform.podspec",
+      "sha256": "ac549eb3a1cd058884051ace8539af398a4dea4ad8d352ccb379107b751965d0"
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxPlatformModule.swift",
+      "sha256": "7a3fa8b2efeab3a2bb20a9a0729c697ff95c3774b20a2bc133a2f3b07e5c9b27"
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxReaderView.swift",
+      "sha256": "62e02f5e15f2eed7e19d68cd2044bc801205615c820d8ca89d7b8e3c1adcecdc"
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxResourceHandler.swift",
+      "sha256": "a6d193898668f3200355dd5349ade700912e0245a2ad21f154f9e20b29863ba2"
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxRingView.swift",
+      "sha256": "bda084a963ef0928ab68d274449bc4d72b424f4bc0a32302b891a14f7809a635"
+    },
+    {
+      "path": "apps/mobile/modules/slax-share/android/build.gradle",
+      "sha256": "d24cfbdae1fe9a352586b44837f1525587772af489227cecaad630fa9f9f4893"
+    },
+    {
+      "path": "apps/mobile/modules/slax-share/android/src/main/AndroidManifest.xml",
+      "sha256": "343d5be1ac17cdd45d1a2f2ddc616c509290e655869125a9422a96d88aa66066"
+    },
+    {
+      "path": "apps/mobile/modules/slax-share/android/src/main/java/com/slax/reader/extension/ShareActivity.kt",
+      "sha256": "216e22036c1ebeab3a2822e16c431367fc52dbb93d52db78effa2c364732470c"
+    },
+    {
+      "path": "apps/mobile/modules/slax-share/android/src/main/java/com/slax/reader/share/SlaxShareModule.kt",
+      "sha256": "aeef00fa87d812f7b4aa201b237ed117e50958334ed4be31a4813214789fdf8d"
+    },
+    {
+      "path": "apps/mobile/modules/slax-share/android/src/main/res/values/styles.xml",
+      "sha256": "5411b8d3c904aa29bd77d9964baa89ba557eb889355a949bfcc6d211afd370e5"
+    },
+    {
+      "path": "apps/mobile/modules/slax-share/expo-module.config.json",
+      "sha256": "d806ec89ffa4b6a1c01faadeac3485f4dacd094f54c4765d3aa57c3a54bab0ea"
+    },
+    {
+      "path": "apps/mobile/native/share/ios/ExtensionClass.js",
+      "sha256": "966b78103c172b4d983973431179530a791658d3770dfc2d1c03d3e1281c7482"
+    },
+    {
+      "path": "apps/mobile/native/share/ios/ShareCollector.swift",
+      "sha256": "9f8edd6c618a58b03e65b4c57a1c3309dd951f4539796492d428eb0fc4c9c186"
+    },
+    {
+      "path": "apps/mobile/native/share/ios/ShareViewController.swift",
+      "sha256": "0d3aa0f64630dc0439d2ea62d78bd0aaeeea497884276684bd1593ef12b82c3d"
+    },
+    {
+      "path": "apps/mobile/native/share/ios/SharedPreferences.swift",
+      "sha256": "9ec8056affcb8ff8cd34d68a9170c5ce2b94a6147560210aaadda280289e62ee"
+    },
+    {
+      "path": "apps/mobile/plugins/repair-share-project.cjs",
+      "sha256": "b42fe6fdcd9a3bc29e6c01de364c2f4cb7838b2a0da91b14ada9b1a5c537c1ec"
+    },
+    {
+      "path": "apps/mobile/plugins/with-firebase-bootstrap.cjs",
+      "sha256": "49f1f9d7db57e2309e42f2c52cd88e688c5db647430193f962b439f864a11187"
+    },
+    {
+      "path": "apps/mobile/plugins/with-native-compatibility.cjs",
+      "sha256": "89fdb7b6c92290dd4c12c3bf3d49a680bfe5d7098a0c6759acae3c1c75392f87"
+    },
+    {
+      "path": "apps/mobile/plugins/with-share.cjs",
+      "sha256": "2604b52fd2f5b67418e47d8c9ba01bbe8c88c450450e044e87ac14407b530b18"
+    },
+    {
+      "path": "apps/mobile/app.config.ts",
+      "sha256": "3be5106ded1760c119c8cc01e3ec65021fb9b3fb77ac3a4142c1e83e601f7824"
+    },
+    {
+      "path": "apps/mobile/package.json",
+      "sha256": "9a6ead22ae5d052e7106fe63403be2402cfdb200f0d80f48ffcd5d8cfcda4536"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "sha256": "0b95b9c75b86ded6d7a44270b5c0c800d2c27a064d6e986269846c7a9d2f53c6"
+    }
+  ],
+  "notEstablished": [
+    "normal-runtime launch on both platforms",
+    "matched native UI and interaction parity",
+    "production Firebase configuration or delivery",
+    "real provider authentication",
+    "StoreKit sandbox purchases or restores",
+    "publisher-signed upgrades",
+    "Release configuration builds",
+    "real PowerSync service reconnect",
+    "production database adoption authorization"
+  ],
+  "subsequentNativeChanges": {
+    "reason": "Native canonical logical database identity for repeated iOS container relocation and exact Android slot ownership. Added after the artifacts recorded here were built.",
+    "files": [
+      {
+        "path": "apps/mobile/modules/slax-legacy/ios/DatabaseIdentity.swift",
+        "sha256": "f8f020698a160425d5be842d276f23b0294291a8ab96e07c4db185289aba806a"
+      },
+      {
+        "path": "apps/mobile/modules/slax-legacy/ios/SlaxLegacyModule.swift",
+        "sha256": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3"
+      },
+      {
+        "path": "apps/mobile/modules/slax-legacy/android/src/main/java/com/slax/reader/legacy/SlaxLegacyModule.kt",
+        "sha256": "487b780bb58831a2ec2e0452d7077961002764c09a45dbe06f0aa067c8040ef5"
+      }
+    ],
+    "swiftIdentityHelperIos16_4Typecheck": "passed",
+    "mainApplicationRebuild": "pending",
+    "priorAdoptionReportsVerifyTheseChanges": false
+  }
+}

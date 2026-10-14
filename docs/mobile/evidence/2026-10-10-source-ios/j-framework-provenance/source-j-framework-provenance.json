@@ -1,0 +1,338 @@
+{
+  "version": 1,
+  "status": "actual-source-j-kotlin-link-with-historical-source-l-packaging-reuse",
+  "openSpec": "expo-mobile-migration",
+  "sourceCommit": "9951904405159f49f24effd4d42815f77ff33442",
+  "historicalFixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "actualJLink": {
+    "task": ":composeApp:linkDebugFrameworkIosSimulatorArm64",
+    "result": "BUILD SUCCESSFUL in 1m 14s",
+    "log": {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-10-source-ios/source-current-public-build.log",
+      "sha256": "a24b553fe841a8a8c48a2836053a9f35a62afe407cfea4c58a0bc75fdb9ad6ad",
+      "bytes": 12095
+    },
+    "marker": {
+      "path": "/private/tmp/slax-source-ui-fixture-ios-j/slax-source-fixture.json",
+      "sha256": "ab978b840390b23bac06072599bd811bb262148d5a124ce37d0a64025597feb1",
+      "bytes": 11508
+    },
+    "buildReport": {
+      "path": "/private/tmp/slax-source-ui-fixture-ios-j/ios-harness/build/source-ios-build-report.json",
+      "sha256": "f9df55004a73c758985667ef46338d90b8a00df182fefbd07719938bef975160",
+      "bytes": 12029
+    }
+  },
+  "verification": {
+    "pinnedOriginalPublicFiles": 356,
+    "overlayFiles": 55,
+    "all411CurrentStagedFileHashesMatch": true,
+    "compileFileCountNotInferredFromCopiedFileCount": true,
+    "rawFramework": {
+      "path": "/private/tmp/slax-source-ui-fixture-ios-j/composeApp/build/bin/iosSimulatorArm64/debugFramework/SlaxSourceFixture.framework/SlaxSourceFixture",
+      "sha256": "1bc0873e19287f6b8cfc99bb9106d124e67a1343bfc06e227f0bce93ce9da38d",
+      "bytes": 106041168
+    },
+    "packagedJFramework": {
+      "path": "/private/tmp/slax-source-ui-fixture-ios-j/ios-harness/build/SlaxSourceFixtureApp.app/Frameworks/SlaxSourceFixture.framework/SlaxSourceFixture",
+      "sha256": "2855e20b05230e95218c545d18085ea83e0d34ff75178f2d563f48a54b9b8670",
+      "bytes": 105442800
+    },
+    "equalFileBackedMachOSections": 33,
+    "sectionHashes": [
+      {
+        "segment": "__TEXT",
+        "section": "__text",
+        "bytes": 45043260,
+        "sha256": "3cee5075ca5492596db938b820dda2c54256c174b33ab79b46d1db5d44e2461a"
+      },
+      {
+        "segment": "__TEXT",
+        "section": "__stubs",
+        "bytes": 7056,
+        "sha256": "bb318ecaaab85df809a8217fb12915cdc0e7ae85a68f94349b32048bef566e82"
+      },
+      {
+        "segment": "__TEXT",
+        "section": "__objc_stubs",
+        "bytes": 10848,
+        "sha256": "a758b31c8b2d18e4eead9551e26a77f8fd7bf9bdbb15f492ebf05f1eb5785950"
+      },
+      {
+        "segment": "__TEXT",
+        "section": "__init_offsets",
+        "bytes": 196,
+        "sha256": "459e4ab83a0ffc88c4c89786536df31ecbc540420ec8cf92235d24772c17f799"
+      },
+      {
+        "segment": "__TEXT",
+        "section": "__objc_methlist",
+        "bytes": 88904,
+        "sha256": "81bc361846aeb875bee9f13b3611561e3fa074c7409e615375123ef858688969"
+      },
+      {
+        "segment": "__TEXT",
+        "section": "__gcc_except_tab",
+        "bytes": 362472,
+        "sha256": "6f4215bf85f6859890c1471ff1b60b4f7f423033fe103fcb5a9379525b50dc61"
+      },
+      {
+        "segment": "__TEXT",
+        "section": "__const",
+        "bytes": 8232948,
+        "sha256": "5da357cb9c52736ff0fc4adb19393fb9b9aefaa487547f75063bee24a1b63859"
+      },
+      {
+        "segment": "__TEXT",
+        "section": "__objc_methname",
+        "bytes": 178445,
+        "sha256": "17824f10dcfd0fd7896890cb8964a877d0b19959d501cd96d95d7ca365cd32c7"
+      },
+      {
+        "segment": "__TEXT",
+        "section": "__objc_classname",
+        "bytes": 34998,
+        "sha256": "0b4b120d6c1abdd7fbe64e413521cb5f79f43528cfa87d116aa564ae769f0978"
+      },
+      {
+        "segment": "__TEXT",
+        "section": "__objc_methtype",
+        "bytes": 88702,
+        "sha256": "d6232e6a9df3830537353c14b6d0903e5fa87652d76e9b8b3c55b3c819157bb6"
+      },
+      {
+        "segment": "__TEXT",
+        "section": "__cstring",
+        "bytes": 213583,
+        "sha256": "0283514638238bc1f8b63a323b184126ef16b752035588f84b7950cf306144c6"
+      },
+      {
+        "segment": "__TEXT",
+        "section": "__oslogstring",
+        "bytes": 52,
+        "sha256": "bc41d92140c5c4093eb6a6314d9820f6d545e4f960462ab9a6d3cbb95b7a0391"
+      },
+      {
+        "segment": "__TEXT",
+        "section": "__ustring",
+        "bytes": 942,
+        "sha256": "e2a604757b5d494d6a4ee3250fc944c21f7edf2aea3ae1d66fc135aaf4ef3ae1"
+      },
+      {
+        "segment": "__TEXT",
+        "section": "__unwind_info",
+        "bytes": 220600,
+        "sha256": "ba54570977105db89939a1db68ea1ddb832eb84007f8e14f4a04948b5079bd06"
+      },
+      {
+        "segment": "__TEXT",
+        "section": "__eh_frame",
+        "bytes": 1988,
+        "sha256": "19f8cb78fb58f2b771d0b494a3cd163d937d0f15c209347e405a12e81bbedf0d"
+      },
+      {
+        "segment": "__DATA_CONST",
+        "section": "__got",
+        "bytes": 5680,
+        "sha256": "15062662e5184b47780513b48064ef35a651a58a4009bf5418497f612c655bbd"
+      },
+      {
+        "segment": "__DATA_CONST",
+        "section": "__const",
+        "bytes": 9213976,
+        "sha256": "ae67cf98464358f4ca030f8f9e9e65b9da530b49b04781ebb38240b915186597"
+      },
+      {
+        "segment": "__DATA_CONST",
+        "section": "__cfstring",
+        "bytes": 1152,
+        "sha256": "a1046837a8aa96fd9a3170ff2c4270caa36acb7cf447c0f1dcdf21ddb07b62f6"
+      },
+      {
+        "segment": "__DATA_CONST",
+        "section": "__objc_classlist",
+        "bytes": 6016,
+        "sha256": "fbd26b766a18fe5975837bacb2b8327dcdb099dc13d60d81bc505a183af725d4"
+      },
+      {
+        "segment": "__DATA_CONST",
+        "section": "__objc_nlclslist",
+        "bytes": 8,
+        "sha256": "47372c4f54be8040ef7c869bf0729c98927d8021de339d4912f91927159e7dfb"
+      },
+      {
+        "segment": "__DATA_CONST",
+        "section": "__objc_catlist",
+        "bytes": 104,
+        "sha256": "d8d5f80ba41b6ad9c5af3637f58cdab044ef4f809a3e9b8d2efad28823998e8f"
+      },
+      {
+        "segment": "__DATA_CONST",
+        "section": "__objc_protolist",
+        "bytes": 4936,
+        "sha256": "5e363485c9c7e3875bf0050fbc2f861e0856a36ae5ff5e71e3bf3f142ceaf52f"
+      },
+      {
+        "segment": "__DATA_CONST",
+        "section": "__objc_imageinfo",
+        "bytes": 8,
+        "sha256": "94039884329d3732c577860f40d0dfdf883ff89dac332f87216e692c08892fa2"
+      },
+      {
+        "segment": "__DATA",
+        "section": "__objc_const",
+        "bytes": 162424,
+        "sha256": "99ec6474a8be88d332f3cdaca21f5d838cd485e888a95fd9258a8b1cfadb3a92"
+      },
+      {
+        "segment": "__DATA",
+        "section": "__objc_selrefs",
+        "bytes": 49608,
+        "sha256": "5d4849c864ddd109c3d4a8a10a193be8be325a87d14a22be61e608bc2df0c4fc"
+      },
+      {
+        "segment": "__DATA",
+        "section": "__objc_protorefs",
+        "bytes": 4936,
+        "sha256": "024a9f39ea644b7aea1653262c5bec1554bfa3804b13b4f447452f70728bbccc"
+      },
+      {
+        "segment": "__DATA",
+        "section": "__objc_classrefs",
+        "bytes": 1352,
+        "sha256": "45021fa763c11455d1111b25415b908e53d44886475210430509f16adb1910d6"
+      },
+      {
+        "segment": "__DATA",
+        "section": "__objc_superrefs",
+        "bytes": 272,
+        "sha256": "6dc0d328c6de4319c686c2d006c20ac649edcf98f7c79ae4417e091bed9597e8"
+      },
+      {
+        "segment": "__DATA",
+        "section": "__objc_ivar",
+        "bytes": 288,
+        "sha256": "b9b55a916e314756d05e1d8dc00a911dc887406c98869f59eeba2ebcde336a22"
+      },
+      {
+        "segment": "__DATA",
+        "section": "__objc_data",
+        "bytes": 60160,
+        "sha256": "f43f1407e53a916a23a6a7a73308821e4ae59547d6e1bf299c999606287e8264"
+      },
+      {
+        "segment": "__DATA",
+        "section": "__data",
+        "bytes": 235424,
+        "sha256": "a5578f42ffa0c043e0fb6af347abed8116fce6f173a47d6f78e83796c0014935"
+      },
+      {
+        "segment": "__DATA",
+        "section": "__thread_vars",
+        "bytes": 696,
+        "sha256": "15093a2050561d5b1d9f1ffafe6438c9d65bfa520faaf7c99f154034a4a25db7"
+      },
+      {
+        "segment": "__DATA",
+        "section": "__thread_data",
+        "bytes": 12,
+        "sha256": "5f146687b03243b254c3d403aaeca59c9231bc0773d11726673a589dbcb3f1be"
+      }
+    ]
+  },
+  "originalUiIncluded": {
+    "commonDetailScreenNotModified": true,
+    "iosDetailScreenNotExcluded": true,
+    "realFrameworkSymbols": {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-10-source-ios/j-framework-provenance/j-reader-framework-symbols.txt",
+      "sha256": "629a5337f6e6ac66e8f5e611e6303dad0d17ce1a9527778f0412dc20b2ea6109",
+      "bytes": 1141
+    },
+    "readerCallPath": "Swift SourceFixtureKt.SourceFixtureViewController -> Compose SourceSession.Render -> SourceReaderAdapter.Render -> original DetailScreen; platform iOS implementation remains included",
+    "sourceInputs": [
+      {
+        "path": "/private/tmp/slax-source-ui-fixture-ios-j/composeApp/build.gradle.kts",
+        "sha256": "5bd98128ed2666c59c1b651e6a31f1539cbc201216bf79ff51e769f25be4fd38",
+        "bytes": 4002
+      },
+      {
+        "path": "/private/tmp/slax-source-ui-fixture-ios-j/composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/DetailScreen.kt",
+        "sha256": "c01776a2dbc8b75b42be04e8d054ceb3c4753ab543b2f3fb00bbe3907ccaac27",
+        "bytes": 7676
+      },
+      {
+        "path": "/private/tmp/slax-source-ui-fixture-ios-j/composeApp/src/iosMain/kotlin/com/slax/reader/ui/bookmark/DetailScreen.ios.kt",
+        "sha256": "8ba2bb1d8f43b58c7ef693feee951eac5060bb454289113a172d751aafdef394",
+        "bytes": 9413
+      },
+      {
+        "path": "/private/tmp/slax-source-ui-fixture-ios-j/composeApp/src/commonMain/kotlin/com/slax/reader/ui/inbox/InboxListScreen.kt",
+        "sha256": "9b40c28c841ca38565497131afcf92cda8299dbf4181468eaad074383d81ac41",
+        "bytes": 16987
+      },
+      {
+        "path": "/private/tmp/slax-source-ui-fixture-ios-j/composeApp/src/fixtureIosMain/kotlin/com/slax/reader/fixtures/SourceFixture.kt",
+        "sha256": "a047472d90157f52826e7d173944b73e14840bfcb30547ddb9a2a03465e13685",
+        "bytes": 16762
+      },
+      {
+        "path": "/private/tmp/slax-source-ui-fixture-ios-j/composeApp/src/fixtureIosMain/kotlin/com/slax/reader/fixtures/SourceReaderAdapter.kt",
+        "sha256": "43030e4b9c53c8cb30976599dcc267aec29b7bb9e8752e8369cebda1bb59595a",
+        "bytes": 18676
+      },
+      {
+        "path": "/private/tmp/slax-source-ui-fixture-ios-j/composeApp/src/fixtureIosMain/kotlin/com/slax/reader/fixtures/FixtureOriginalWebView.kt",
+        "sha256": "6f5ef62f5fbd78ca41a6cc7e921a0c93f81a4657da1b4aa3861695b3598f2a15",
+        "bytes": 28514
+      },
+      {
+        "path": "/private/tmp/slax-source-ui-fixture-ios-j/ios-harness/main.swift",
+        "sha256": "1f34534c49a6104207899e86c2efee880abccb1d6042214844231a76d4e96b78",
+        "bytes": 7800
+      }
+    ]
+  },
+  "historicalL": {
+    "report": {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-10-source-ios/source-native-launch.json",
+      "sha256": "5c8350c07d932534358bdcb536c06cdf44aa4c8917295fb183618a68022f2a70",
+      "bytes": 20492
+    },
+    "reusedJFrameworkSha256": "2855e20b05230e95218c545d18085ea83e0d34ff75178f2d563f48a54b9b8670",
+    "launcherExecutableSha256": "224398645f84e0661fa345a985e08a2fbd063c777b8e42a5b79c3c1a1b64c504",
+    "priorReportedByteIdenticalSubset": {
+      "stage": "slax-source-ui-fixture-ios-j",
+      "markerSha256": "ab978b840390b23bac06072599bd811bb262148d5a124ce37d0a64025597feb1",
+      "compiledInputByteIdentical": true,
+      "comparedFileCount": 279,
+      "difference": "packaging-only readonly Swift geometry observer and corrected Compose resource destination"
+    },
+    "originalLTempStageRemoved": true,
+    "currentVerificationDoesNotReconstructRemovedL279FileSubset": true,
+    "noKotlinLinkClaimForL": true
+  },
+  "artifacts": [
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-10-source-ios/j-framework-provenance/j-source-marker.json",
+      "sha256": "ab978b840390b23bac06072599bd811bb262148d5a124ce37d0a64025597feb1",
+      "bytes": 11508
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-10-source-ios/j-framework-provenance/j-actual-build-report.json",
+      "sha256": "f9df55004a73c758985667ef46338d90b8a00df182fefbd07719938bef975160",
+      "bytes": 12029
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-10-source-ios/j-framework-provenance/j-reader-framework-symbols.txt",
+      "sha256": "629a5337f6e6ac66e8f5e611e6303dad0d17ce1a9527778f0412dc20b2ea6109",
+      "bytes": 1141
+    }
+  ],
+  "limits": [
+    "This supplemental check binds the actual retained j link and matching packaged framework; it does not relabel the old f report as j or l compilation.",
+    "The public Swift shell prepares fixture inputs/network rules and launches the original Kotlin Compose UIViewController; it does not implement Library or Reader UI.",
+    "Platform factory/bootstrap fixture shims and controlled original WebView network-rule additions are listed in the marker; this is not original provider/network production behavior.",
+    "Historical h fixture SHA remains unchanged here; current canonical reader-load-error requires a fresh corresponding input revision.",
+    "No new compilation, simulator action, native gesture or whole visual acceptance occurred during this verification."
+  ]
+}

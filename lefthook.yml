@@ -14,7 +14,7 @@ pre-commit:
       run: 'case "$(git branch --show-current)" in dev|beta|main) git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1 || exit 1 ;; esac'
       fail_text: "Direct commits to dev/beta/main are rejected. Cut a task branch first: git switch -c <type>/<task-name> --no-track origin/dev"
     rulesync-drift:
-      glob: "{AGENTS.md,CLAUDE.md,.claude/**,.codex/**,.agents/**,.rulesync/**}"
+      glob: "{AGENTS.md,**/AGENTS.md,CLAUDE.md,.claude/**,.codex/**,.agents/**,.rulesync/**}"
       run: pnpm exec rulesync generate --check
       fail_text: "Generated agent files drift from .rulesync/ sources. Edit .rulesync/, run `pnpm agent:sync`, and commit both."
     gh-aw-drift:

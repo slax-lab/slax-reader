@@ -1,0 +1,229 @@
+{
+  "kind": "slax-controlled-visible-upgrade-ui-independent-review",
+  "version": 1,
+  "recordedAt": "2026-10-10T20:22:49.405490+00:00",
+  "openSpecChange": "expo-mobile-migration",
+  "reviewedReport": {
+    "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui.json",
+    "sha256": "229db24828335526042189bdbdee744fe1cd8015c0f375526532b36768ccd46f"
+  },
+  "reviewedCleanup": {
+    "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-cleanup.json",
+    "sha256": "a999eba126507ba521d1235f7685dc98d4b836a6063fa8f441a45a6fa386dd24"
+  },
+  "historicalSourceBindings": {
+    "observerReview": {
+      "path": "docs/mobile/evidence/2026-10-11-controlled-upgrade-reader-observer/independent-review.json",
+      "sha256": "b589dcb009b9e7c64a58f00445c5275cf9e80a0902a666926f36c6eff58f323e"
+    },
+    "matchingInputHashes": {
+      "apps/mobile/src/runtime.tsx": "33bd6a31099ac316efdd9836a94322ed1dffd884b81e48570cdc0ef65633b563",
+      "apps/mobile/src/screens/ReaderScreen.tsx": "4088890b034e5a9efd26ac3278828efbcfe8f0ef03a27d49b240a9e00507fac7",
+      "apps/mobile/src/reader/ReaderWebView.tsx": "8da31e8931966a8a4c6d539f869f420aa6f08824174665bb375fd009795e712d",
+      "apps/mobile/tests/data/NativeUpgradeVisibleFixtureApp.tsx": "7c19bf4152218974aed8b11216e1b4a7f1d6cf4667c59be8d1eb01337dcf88a9",
+      "apps/mobile/tests/data/NativeAdoptionFixtureApp.tsx": "e7da534d9a4cd081c2634870322c96c25b7952dcf567e44ffcab89dfb74f64b0",
+      "apps/mobile/tests/data/adoption-fixtures/tooling/visible-upgrade-control.mjs": "e07d80e7fb3f68b1327c9e24a1e5da8b0ff433fc922e217077c6bae9f822b392",
+      "apps/mobile/tests/data/adoption-fixtures/tooling/visible-ui-ios-prepare.mjs": "7c5dc390154f058f0e7592f81dd3cc82b5055a6e0eab7fe487300a762f748b13"
+    },
+    "notCurrentSourceOrNewNativeBinaryProof": true
+  },
+  "verifiedRawArtifacts": [
+    {
+      "name": "native-upgrade-ui-request.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/native-upgrade-ui-request.json",
+      "sha256": "afb6072b17072d80a06006b473e5b47996ffc61df36237b4118c58b0bf3084e6"
+    },
+    {
+      "name": "native-upgrade-ui-context.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/native-upgrade-ui-context.json",
+      "sha256": "3cef5d2c20c2fe65314a1d0eb8dd8207532c3f0699d8c34a033b451c4bb61d34"
+    },
+    {
+      "name": "native-upgrade-reader-lifecycle.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/native-upgrade-reader-lifecycle.json",
+      "sha256": "e4850f461bd93da75463a444e191db7549119b5a62d185f37c5ec88ef7e5625e"
+    },
+    {
+      "name": "initial-onboarding.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/initial-onboarding.png",
+      "sha256": "ca6b0ef5f6a6ccbd92fa8e51a5d17b088af4ac6fe115f9c489cb8e08bae677c0"
+    },
+    {
+      "name": "initial-onboarding-native-tree.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/initial-onboarding-native-tree.txt",
+      "sha256": "e16d0c5a76b53ba0a2f506ffe5a7ee392161d8d194acc879668e7af8d330890e"
+    },
+    {
+      "name": "library-after-onboarding-with-debug-log.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/library-after-onboarding-with-debug-log.png",
+      "sha256": "566f181e3614963281d1ad007aedef2635b485b5eb3394398eb02c905e61a5ca"
+    },
+    {
+      "name": "loaded-original-cache-and-mark.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/loaded-original-cache-and-mark.png",
+      "sha256": "98bd486e53e4b31820c918ffc042f5f3d639efb401b9704baa8695c797ccd623"
+    },
+    {
+      "name": "loaded-original-cache-native-tree.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/loaded-original-cache-native-tree.txt",
+      "sha256": "d744c69971738ee1f503c2194ff0cb06d3f5df648946171ae439f06cf6be6541"
+    },
+    {
+      "name": "library-after-native-back.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/library-after-native-back.png",
+      "sha256": "95dc03b3c0497ef048c35cb22182cf3df5e5c5d2fed28aaf4db185cbaf7cebda"
+    },
+    {
+      "name": "library-after-native-back-native-tree.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/library-after-native-back-native-tree.txt",
+      "sha256": "9812ed304e603237a9543ece36b04a58ab0ec4a366817ae7c596bb205a48bbde"
+    },
+    {
+      "name": "original-mark-before-failed-underline-tap.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/original-mark-before-failed-underline-tap.png",
+      "sha256": "0d8cea43bca56db055d1dda48672a557f5bdf8d09ebfaee058456c2e52d6e263"
+    },
+    {
+      "name": "actual-native-underline-hit-coordinate.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/actual-native-underline-hit-coordinate.txt",
+      "sha256": "0cbb30c98dd18289697a49432c7bc795fe8391d6e23706283e4dbeb2abf8a084"
+    },
+    {
+      "name": "comment-first-tap-failure-native-tree.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/comment-first-tap-failure-native-tree.txt",
+      "sha256": "132ebb3a1eaa54909f4035529e878476139e58792a0e58614f759f5ce75d176b"
+    },
+    {
+      "name": "comment-underline-tap-failure-native-tree.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/comment-underline-tap-failure-native-tree.txt",
+      "sha256": "9b30fd9c26fa523b479eba7e2f64503b82d338f6b10969e87ed2f487bbd6d15f"
+    },
+    {
+      "name": "initial-reader-before-ready.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/initial-reader-before-ready.png",
+      "sha256": "78ce93f1f297d82d04cc020a81c2cf5c7f93fdef9c339b57e270046ce8a4cf77"
+    },
+    {
+      "name": "comment-tap-result.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/comment-tap-result.png",
+      "sha256": "f035ac719677ce1a173223fb48922879ecc6a7e279a338a4007aa82089010120"
+    },
+    {
+      "name": "inspect-xctest.log",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/inspect-xctest.log",
+      "sha256": "0386fb3431b5ae77fd8df9cfaf3d2389d80bd71857ca18638cd8051ef131e005"
+    },
+    {
+      "name": "dismiss-xctest.log",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/dismiss-xctest.log",
+      "sha256": "98529df9e47ff8c0d0c03f13471664940e6d27bfbcd15ca1802ef52dda341326"
+    },
+    {
+      "name": "reader-back-xctest.log",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/reader-back-xctest.log",
+      "sha256": "5e7895ad9a186d82e6ecb6410ae7dde499d1e4aa04bd79293c4c1ddc0c8b033c"
+    },
+    {
+      "name": "loaded-inspect-xctest.log",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/loaded-inspect-xctest.log",
+      "sha256": "a075191ba2c9f4bd1c8c87ab25b76ac7e6ae58c4d46bdee0f78ed093d8309d81"
+    },
+    {
+      "name": "comment-xctest.log",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/comment-xctest.log",
+      "sha256": "63b29f7d80e4c0df2a2d2dca29cc71899dc001b2c462612cbe914128c818be1c"
+    },
+    {
+      "name": "actual-back-xctest.log",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/actual-back-xctest.log",
+      "sha256": "a60f2a22b5b59e16dbd2e0bce3cc8a18fbd3782255e0c47f4b024490a1951621"
+    },
+    {
+      "name": "underline-xctest.log",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-visible-ui-v1/underline-xctest.log",
+      "sha256": "22a74f4593ceb3033a5f3b76ac1319c71196e73832fd4c29429644dd89f3e855"
+    }
+  ],
+  "verifiedPrerequisiteReports": [
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-original-queue-real-service.json",
+      "sha256": "19ab5db83da66175fc6b5fb8eb9834bab1274c603b72e9a97f766b030ba45ffb"
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-native-cas-and-default-startup.json",
+      "sha256": "c47b3405c5d80001e6b51d0135bde78a360e57de0347c2ae95d38d88175d6bf8"
+    }
+  ],
+  "passes": {
+    "bugs": "No Important findings in the scoped evidence report. The three failed native attempts remain failures.",
+    "security": "The controlled renderer used the actual native resource owner and synthetic adopted data; observed forwarded network requests were zero. This is scoped runtime evidence, not a repository security audit.",
+    "compliance": "Partial OpenSpec evidence only; no full migration, exact visual, publisher upgrade, or TestFlight acceptance."
+  },
+  "observations": {
+    "realProductionLibraryCachedBodySummaryAndRenderedMark": true,
+    "originalCommentPanelOpened": false,
+    "actualXCTest": {
+      "executed": 8,
+      "passed": 5,
+      "failed": 3
+    },
+    "firstReaderRestoration": {
+      "requestedPhysicalPixels": 348.25,
+      "restoreAcknowledgementObservedPhysicalPixels": 0,
+      "actualNativeScrollDelayAfterAcknowledgementMs": 611,
+      "actualNativeOffsetPoints": -181,
+      "insetPoints": 298,
+      "pixelRatio": 3,
+      "actualObservedAndPersistedPhysicalPixels": 351,
+      "differencePhysicalPixels": 2.75,
+      "exactFractionalAcceptance": false,
+      "originalNativeEquivalentQuantizationCompared": false,
+      "zeroPositionPersistedInThisTrace": false
+    },
+    "firstReaderNativeBack": {
+      "actualLibraryScreenshotAndAX": true,
+      "orderedLifecycle": [
+        "mount",
+        "unmount",
+        "dispose-requested",
+        "position-flush-completed",
+        "native-detach-completed"
+      ],
+      "positionFlushedPhysicalPixels": 351
+    },
+    "finalCapturedRoute": "Reader",
+    "finalRouteReason": "The reader was reopened for subsequent failed comment interactions; the final context is not a Library context.",
+    "cleanup": {
+      "matchingRequestRemoved": true,
+      "processAbsenceVerified": true,
+      "osProcessResourceRelease": true,
+      "gracefulSdkShutdownProved": false,
+      "newNativeOwnerProbe": false,
+      "sandboxPreserved": true
+    },
+    "newUiOfflineOperations": {
+      "pendingOperationIds": [
+        7,
+        8
+      ],
+      "transactions": [
+        4,
+        5
+      ],
+      "uploaded": false,
+      "historicalSixOperationServiceReportUnmodified": true,
+      "currentQueueEmpty": false
+    }
+  },
+  "limitations": [
+    "Native taps did not prove DOM touch delivery.",
+    "The comment remains stored and its mark visible; panel interaction is not accepted.",
+    "The prepared native gesture test was not executed.",
+    "The library/body captures do not establish exact visual parity.",
+    "Later production diagnostic edits are outside this historical native run."
+  ],
+  "fullMigrationAcceptance": false,
+  "exactVisualParity": false,
+  "publisherSignedUpgrade": false,
+  "testFlight": false
+}

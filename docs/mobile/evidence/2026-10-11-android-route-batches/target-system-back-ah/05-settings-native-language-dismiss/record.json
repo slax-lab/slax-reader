@@ -1,0 +1,146 @@
+{
+  "name": "settings-native-language-dismiss",
+  "result": "native-candidate-captured",
+  "expectedRoute": "Settings",
+  "observedRoute": {
+    "key": "Settings-Uj_24Y0pKhwXtjAg3eMhG",
+    "name": "Settings"
+  },
+  "focusedWindow": "mCurrentFocus=Window{7d02fab u0 com.slax.reader.uifixture/com.slax.reader.uifixture.MainActivity}",
+  "nativeInput": {
+    "method": "adb-native-system-back",
+    "keycode": "KEYCODE_BACK",
+    "focusedWindowBeforeInput": "mCurrentFocus=Window{21a41fe u0 com.slax.reader.uifixture/com.slax.reader.uifixture.MainActivity}",
+    "observedBefore": {
+      "controlledFixture": true,
+      "fixtureVersion": 1,
+      "scenario": "library-populated",
+      "inputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "locale": "en",
+      "nativeMeasurements": {
+        "platform": "android",
+        "osVersion": "14",
+        "deviceModel": "sdk_gphone64_arm64",
+        "viewport": {
+          "width": 411.42857142857144,
+          "height": 914.2857142857143,
+          "scale": 2.625,
+          "fontScale": 1
+        },
+        "screen": {
+          "width": 411.42857142857144,
+          "height": 914.2857142857143,
+          "scale": 2.625,
+          "fontScale": 1
+        },
+        "pixelRatio": 2.625,
+        "fontScale": 1,
+        "fontScaleProfile": "default",
+        "safeArea": {
+          "left": 0,
+          "bottom": 24,
+          "right": 0,
+          "top": 51.80952453613281
+        },
+        "appearance": "light"
+      },
+      "observedRoute": {
+        "key": "Settings-Uj_24Y0pKhwXtjAg3eMhG",
+        "name": "Settings"
+      },
+      "observedNavigationState": {
+        "root": {
+          "stale": false,
+          "type": "stack",
+          "key": "stack-F-euR3PSKTNyljJ-XOM7_",
+          "index": 1,
+          "routeNames": [
+            "Library",
+            "Reader",
+            "Settings",
+            "About",
+            "Debug",
+            "DeleteAccount",
+            "Subscription",
+            "Feedback"
+          ],
+          "preloadedRoutes": [],
+          "routes": [
+            {
+              "key": "Library-vUn-IQ-Ut_65Bz2fT0cpR",
+              "name": "Library"
+            },
+            {
+              "key": "Settings-Uj_24Y0pKhwXtjAg3eMhG",
+              "name": "Settings"
+            }
+          ]
+        },
+        "canGoBack": true
+      },
+      "measuredAt": "2026-10-10T18:31:57.432Z",
+      "displayedClock": "pending-native-frame-inspection",
+      "simulatedNetworkAndSync": true,
+      "nativeExecution": "pending-capture",
+      "preparedActions": [],
+      "sourceParity": "unverified"
+    }
+  },
+  "nativeInteractionVerified": true,
+  "expectedNativeState": [],
+  "forbiddenNativeState": [
+    [
+      "class",
+      "android.widget.RadioButton"
+    ]
+  ],
+  "preparedScenario": "library-populated",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "nativeMeasurements": {
+    "platform": "android",
+    "osVersion": "14",
+    "deviceModel": "sdk_gphone64_arm64",
+    "viewport": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "screen": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "pixelRatio": 2.625,
+    "fontScale": 1,
+    "fontScaleProfile": "default",
+    "safeArea": {
+      "left": 0,
+      "bottom": 24,
+      "right": 0,
+      "top": 51.80952453613281
+    },
+    "appearance": "light"
+  },
+  "visualInspection": "pending",
+  "sourceParity": "unverified",
+  "capturedAtMillis": 1791657121541,
+  "files": [
+    {
+      "path": "05-settings-native-language-dismiss/native.png",
+      "sha256": "f8261ec91161368fe46d2e80027ee0e5986e557d87ca14475480e632782e7349",
+      "bytes": 128766
+    },
+    {
+      "path": "05-settings-native-language-dismiss/runtime-context.json",
+      "sha256": "a6978783062052c6f102b591baa75c67446da4d9181715015ddba32d6c4be456",
+      "bytes": 2338
+    },
+    {
+      "path": "05-settings-native-language-dismiss/native-hierarchy.xml",
+      "sha256": "8fcd84cb6e820b79471e4ab0c0fdc936100108a76903f2d29f3d8633507f20ec",
+      "bytes": 18892
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "kind": "initial-host-guard-tool-output-summary",
+  "rawLogRetained": false,
+  "tests": 9,
+  "passed": 6,
+  "errors": 3,
+  "nativeExecuted": false,
+  "cause": "Synthetic TemporaryDirectory roots used /var aliases with symlinked ancestors; production guard correctly rejected them. Tests now resolve their own synthetic paths. This summary records the first tool output and is not a fabricated raw log."
+}

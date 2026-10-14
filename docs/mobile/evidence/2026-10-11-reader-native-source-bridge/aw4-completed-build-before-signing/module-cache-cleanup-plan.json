@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "status": "planned-awaiting-root-review-no-removal",
+  "derivedDataCanonical": "/private/tmp/slax-reader-nativebridge-ios-aw4-deriveddata",
+  "ownedBuildOwner": {
+    "path": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache/owner.json",
+    "sha256": "2128b590d0f0acdbebf722803327df9bfd374927329cdb9178115ec3374a06a7",
+    "markerSha256": "dee6cc6040c6574b621a2e49a791b8bf285fc4960ccdee3318df4ac4577dc801"
+  },
+  "cacheCanonical": "/private/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/ModuleCache.noindex",
+  "cacheLstat": {
+    "directory": true,
+    "symlink": false
+  },
+  "cacheInventory": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-completed-build-before-signing/module-cache-inventory.json",
+    "sha256": "c57a64279d951d7a89d4fbc6220488fb12452f05b42485db5464e3a154d5132b",
+    "entries": 4505,
+    "logicalFileBytes": 1027722992,
+    "allocatedFileBytes": 1039007744
+  },
+  "protectedInventory": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-completed-build-before-signing/protected-dd-inventory.json",
+    "sha256": "d59bdff7f3352b864aa9ef08dc0c0c768b2ec42f9f20a1457068e2fd6a2139c4",
+    "entries": 28164
+  },
+  "onlyRemoval": "ModuleCache.noindex entries matching the immutable full inventory; keep all other DD entries",
+  "forbiddenRemoval": [
+    "ExplicitPrecompiledModules",
+    "Products",
+    "XCBuildData",
+    "Index",
+    "CompilationCache",
+    "helper",
+    "other DD"
+  ],
+  "noActiveOwnedBuildProcess": true,
+  "resume": "No app rebuild, pods, or codegen. After reviewed cache-only cleanup, public ad-hoc fixture signing and existing test-without-building only; same 3.5 GiB/floor 3 GiB and reserved output checks",
+  "freeBytes": 3929923584
+}

@@ -1,0 +1,182 @@
+{
+  "name": "settings-native-language-english",
+  "result": "native-candidate-captured",
+  "expectedRoute": "Settings",
+  "observedRoute": {
+    "name": "Settings",
+    "key": "Settings-0u2T5tXYtE6JEvWzRi9rg"
+  },
+  "focusedWindow": "mCurrentFocus=Window{26e0444 u0 com.slax.reader.uifixture/com.slax.reader.uifixture.MainActivity}",
+  "nativeInput": {
+    "method": "adb-native-input-tap",
+    "selector": {
+      "text": "English"
+    },
+    "observedNode": {
+      "index": "5",
+      "text": "",
+      "resource-id": "",
+      "class": "android.widget.RadioButton",
+      "package": "com.slax.reader.uifixture",
+      "content-desc": "English",
+      "checkable": "true",
+      "checked": "false",
+      "clickable": "true",
+      "enabled": "true",
+      "focusable": "true",
+      "focused": "false",
+      "scrollable": "false",
+      "long-clickable": "false",
+      "password": "false",
+      "selected": "false",
+      "bounds": "[126,1255][954,1454]"
+    },
+    "pointPixels": {
+      "x": 540,
+      "y": 1354
+    },
+    "focusedWindowBeforeInput": "mCurrentFocus=Window{77e63b9 u0 com.slax.reader.uifixture/com.slax.reader.uifixture.MainActivity}",
+    "observedBefore": {
+      "controlledFixture": true,
+      "fixtureVersion": 1,
+      "scenario": "settings",
+      "inputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "locale": "en",
+      "observedPreferenceValues": {
+        "cache_count": 100,
+        "download_images": 1,
+        "user_language": "zh"
+      },
+      "nativeMeasurements": {
+        "platform": "android",
+        "osVersion": "14",
+        "deviceModel": "sdk_gphone64_arm64",
+        "viewport": {
+          "width": 411.42857142857144,
+          "height": 914.2857142857143,
+          "scale": 2.625,
+          "fontScale": 1
+        },
+        "screen": {
+          "width": 411.42857142857144,
+          "height": 914.2857142857143,
+          "scale": 2.625,
+          "fontScale": 1
+        },
+        "pixelRatio": 2.625,
+        "fontScale": 1,
+        "fontScaleProfile": "default",
+        "safeArea": {
+          "left": 0,
+          "bottom": 24,
+          "right": 0,
+          "top": 51.80952453613281
+        },
+        "appearance": "light"
+      },
+      "observedRoute": {
+        "name": "Settings",
+        "key": "Settings-0u2T5tXYtE6JEvWzRi9rg"
+      },
+      "observedNavigationState": {
+        "root": {
+          "stale": false,
+          "type": "stack",
+          "key": "stack-0fc3asJAE8eti5IlZvYOV",
+          "index": 1,
+          "routeNames": [
+            "Library",
+            "Reader",
+            "Settings",
+            "About",
+            "Debug",
+            "DeleteAccount",
+            "Subscription",
+            "Feedback"
+          ],
+          "routes": [
+            {
+              "name": "Library",
+              "key": "Library-1uzHYIfI2nl-uTw2jcX1o"
+            },
+            {
+              "name": "Settings",
+              "key": "Settings-0u2T5tXYtE6JEvWzRi9rg"
+            }
+          ],
+          "preloadedRoutes": []
+        },
+        "canGoBack": true
+      },
+      "measuredAt": "2026-10-10T19:43:25.611Z",
+      "displayedClock": "pending-native-frame-inspection",
+      "simulatedNetworkAndSync": true,
+      "nativeExecution": "pending-capture",
+      "preparedActions": [],
+      "sourceParity": "unverified"
+    }
+  },
+  "nativeInteractionVerified": true,
+  "expectedNativeState": [],
+  "forbiddenNativeState": [
+    [
+      "class",
+      "android.widget.RadioButton"
+    ]
+  ],
+  "expectedPreferenceValues": {
+    "user_language": "en"
+  },
+  "keyboardAllowed": false,
+  "preparedActionIndices": null,
+  "preparationOnly": false,
+  "preparedScenario": "settings",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "nativeMeasurements": {
+    "platform": "android",
+    "osVersion": "14",
+    "deviceModel": "sdk_gphone64_arm64",
+    "viewport": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "screen": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "pixelRatio": 2.625,
+    "fontScale": 1,
+    "fontScaleProfile": "default",
+    "safeArea": {
+      "left": 0,
+      "bottom": 24,
+      "right": 0,
+      "top": 51.80952453613281
+    },
+    "appearance": "light"
+  },
+  "visualInspection": "pending",
+  "sourceParity": "unverified",
+  "capturedAtMillis": 1791661410579,
+  "files": [
+    {
+      "path": "08-settings-native-language-english/native.png",
+      "sha256": "43b6a27695b4b93c57570bf254bf37b64365f1642e7b00ddd52a2053fbbbd7d4",
+      "bytes": 128658
+    },
+    {
+      "path": "08-settings-native-language-english/runtime-context.json",
+      "sha256": "32c3ea6e41312319842ec4bf2b4cf7f9251422ef3fc07c0c8da3f8b5999416a4",
+      "bytes": 2434
+    },
+    {
+      "path": "08-settings-native-language-english/native-hierarchy.xml",
+      "sha256": "a7cf0a231a66cb59a623687435a225ae64dd17e0d8ea443a65e9f5c592210d2d",
+      "bytes": 19242
+    }
+  ]
+}

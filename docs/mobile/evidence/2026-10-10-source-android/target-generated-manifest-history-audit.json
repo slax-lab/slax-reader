@@ -1,0 +1,368 @@
+{
+  "kind": "historical-generated-input-manifest-mismatch-audit",
+  "schemaVersion": 1,
+  "discoveredAtRevision": "aw-before-capture",
+  "currentVerifiedRevision": "aw2",
+  "files": [
+    {
+      "path": "fixtures/FixtureApp.tsx",
+      "actualAwStageSha256": "2a16e73447168e9959c347094c830ce1bfdac1c8df011ff63139fdeedafcbd1b",
+      "currentSourceSha256": "2a16e73447168e9959c347094c830ce1bfdac1c8df011ff63139fdeedafcbd1b",
+      "earliestArchivedStaleMarker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-ar.json",
+      "affectedMarkers": [
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-ar.json",
+          "markerSha256": "140a087d0b348246256764c9683c26d9389ad79ee350052e3ed7a9f3dad817cd",
+          "sourceDeclaredSha256": "2a16e73447168e9959c347094c830ce1bfdac1c8df011ff63139fdeedafcbd1b",
+          "generatedDeclaredSha256": "6a7726a2f63706515533e3de6b005e418136793ef792579f4cca0bf523735bbe"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-as.json",
+          "markerSha256": "7ac1c15234d580d3ed55336d792589013faa2a04edbf2e1f3ae391c05ba6a6c9",
+          "sourceDeclaredSha256": "2a16e73447168e9959c347094c830ce1bfdac1c8df011ff63139fdeedafcbd1b",
+          "generatedDeclaredSha256": "6a7726a2f63706515533e3de6b005e418136793ef792579f4cca0bf523735bbe"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-at.json",
+          "markerSha256": "2e10a54786bb37c3588a64517612786ac47cd05fa41236a50c7971c79481e1ed",
+          "sourceDeclaredSha256": "2a16e73447168e9959c347094c830ce1bfdac1c8df011ff63139fdeedafcbd1b",
+          "generatedDeclaredSha256": "6a7726a2f63706515533e3de6b005e418136793ef792579f4cca0bf523735bbe"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-au.json",
+          "markerSha256": "30fdebfde38c33c0a4883d8c1b7dd2a7f603df2de9a5b0a382df422c5726d526",
+          "sourceDeclaredSha256": "2a16e73447168e9959c347094c830ce1bfdac1c8df011ff63139fdeedafcbd1b",
+          "generatedDeclaredSha256": "6a7726a2f63706515533e3de6b005e418136793ef792579f4cca0bf523735bbe"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-av.json",
+          "markerSha256": "d8ba5ece171e796c3980c35f419ae72c836a1296ca09683a3ea5894aeae78ee9",
+          "sourceDeclaredSha256": "2a16e73447168e9959c347094c830ce1bfdac1c8df011ff63139fdeedafcbd1b",
+          "generatedDeclaredSha256": "6a7726a2f63706515533e3de6b005e418136793ef792579f4cca0bf523735bbe"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-aw.json",
+          "markerSha256": "59099e7d030ff61f3d742347a18a9419d1280a37d65168cc264a02f0baa75e09",
+          "sourceDeclaredSha256": "2a16e73447168e9959c347094c830ce1bfdac1c8df011ff63139fdeedafcbd1b",
+          "generatedDeclaredSha256": "6a7726a2f63706515533e3de6b005e418136793ef792579f4cca0bf523735bbe"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-av2.json",
+          "markerSha256": "eb0e45fcaf5708bdfd51e25c620693dfebe84b0ab592e8a6b5e21eeed7e709f7",
+          "sourceDeclaredSha256": "2a16e73447168e9959c347094c830ce1bfdac1c8df011ff63139fdeedafcbd1b",
+          "generatedDeclaredSha256": "6a7726a2f63706515533e3de6b005e418136793ef792579f4cca0bf523735bbe"
+        }
+      ],
+      "sameBytesArchiveLocatedBeforeAw2": [],
+      "earliestRevisionCaptureReportsLocated": [
+        {
+          "report": "docs/mobile/evidence/2026-10-11-android-route-batches/target-ordinary-font15-ar/batch.json",
+          "sha256": "c9470c35fbd1576bd83528ba326dde1b0e6ad1a9a935b94584b73f77605fbf22",
+          "records": [
+            {
+              "name": "settings-initial",
+              "result": "native-candidate-captured"
+            },
+            {
+              "name": "feedback-error-initial",
+              "result": "native-candidate-captured"
+            }
+          ]
+        },
+        {
+          "report": "docs/mobile/evidence/2026-10-11-android-route-batches/target-controls-ar-incomplete/batch.json",
+          "sha256": "415299d275896b464507062584bdc3a18e369f946844ba63bd56177ef73c863e",
+          "records": [
+            {
+              "name": "settings-before-native-controls",
+              "result": "native-candidate-captured"
+            },
+            {
+              "name": "settings-native-cache-100",
+              "result": "native-candidate-captured"
+            },
+            {
+              "name": "settings-native-images-off",
+              "result": "native-candidate-captured"
+            },
+            {
+              "name": "settings-native-images-on",
+              "result": "native-candidate-captured"
+            },
+            {
+              "name": "settings-native-language-open",
+              "result": "native-candidate-captured"
+            },
+            {
+              "name": "settings-native-language-chinese",
+              "result": "native-candidate-captured"
+            },
+            {
+              "name": "settings-native-language-reopen",
+              "result": "native-candidate-captured"
+            },
+            {
+              "name": "settings-native-language-english",
+              "result": "native-candidate-captured"
+            },
+            {
+              "name": "feedback-before-native-input",
+              "result": "native-candidate-captured"
+            },
+            {
+              "name": "feedback-native-keyboard-text",
+              "result": "native-candidate-captured"
+            },
+            {
+              "name": "feedback-native-keyboard-dismiss",
+              "result": "native-candidate-captured"
+            },
+            {
+              "name": "feedback-native-submit-error",
+              "result": "failed"
+            }
+          ]
+        }
+      ],
+      "interpretation": "The original marker sourceFileDigests field binds the declared source version, while generatedSourceDigests is stale. Actual native frames and scoped input results are retained; complete old-stage byte replay has not been established by these fields alone."
+    },
+    {
+      "path": "src/App.tsx",
+      "actualAwStageSha256": "09de329ac84f3069b2d605a7a155580f786b03a077f2e1ebbf2db92df8821a0d",
+      "currentSourceSha256": "09de329ac84f3069b2d605a7a155580f786b03a077f2e1ebbf2db92df8821a0d",
+      "earliestArchivedStaleMarker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-aq.json",
+      "affectedMarkers": [
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-aq.json",
+          "markerSha256": "572da4223a1090e0f4d2864580dd08a0c288c7e2afa8421ffa868e07510669ec",
+          "sourceDeclaredSha256": "09de329ac84f3069b2d605a7a155580f786b03a077f2e1ebbf2db92df8821a0d",
+          "generatedDeclaredSha256": "3931a012952764f1e447e5ffcb2b7753fee6d224e771dd4e6d5eb8a3129bc3c7"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-ar.json",
+          "markerSha256": "140a087d0b348246256764c9683c26d9389ad79ee350052e3ed7a9f3dad817cd",
+          "sourceDeclaredSha256": "09de329ac84f3069b2d605a7a155580f786b03a077f2e1ebbf2db92df8821a0d",
+          "generatedDeclaredSha256": "3931a012952764f1e447e5ffcb2b7753fee6d224e771dd4e6d5eb8a3129bc3c7"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-as.json",
+          "markerSha256": "7ac1c15234d580d3ed55336d792589013faa2a04edbf2e1f3ae391c05ba6a6c9",
+          "sourceDeclaredSha256": "09de329ac84f3069b2d605a7a155580f786b03a077f2e1ebbf2db92df8821a0d",
+          "generatedDeclaredSha256": "3931a012952764f1e447e5ffcb2b7753fee6d224e771dd4e6d5eb8a3129bc3c7"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-at.json",
+          "markerSha256": "2e10a54786bb37c3588a64517612786ac47cd05fa41236a50c7971c79481e1ed",
+          "sourceDeclaredSha256": "09de329ac84f3069b2d605a7a155580f786b03a077f2e1ebbf2db92df8821a0d",
+          "generatedDeclaredSha256": "3931a012952764f1e447e5ffcb2b7753fee6d224e771dd4e6d5eb8a3129bc3c7"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-au.json",
+          "markerSha256": "30fdebfde38c33c0a4883d8c1b7dd2a7f603df2de9a5b0a382df422c5726d526",
+          "sourceDeclaredSha256": "09de329ac84f3069b2d605a7a155580f786b03a077f2e1ebbf2db92df8821a0d",
+          "generatedDeclaredSha256": "3931a012952764f1e447e5ffcb2b7753fee6d224e771dd4e6d5eb8a3129bc3c7"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-av.json",
+          "markerSha256": "d8ba5ece171e796c3980c35f419ae72c836a1296ca09683a3ea5894aeae78ee9",
+          "sourceDeclaredSha256": "09de329ac84f3069b2d605a7a155580f786b03a077f2e1ebbf2db92df8821a0d",
+          "generatedDeclaredSha256": "3931a012952764f1e447e5ffcb2b7753fee6d224e771dd4e6d5eb8a3129bc3c7"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-aw.json",
+          "markerSha256": "59099e7d030ff61f3d742347a18a9419d1280a37d65168cc264a02f0baa75e09",
+          "sourceDeclaredSha256": "09de329ac84f3069b2d605a7a155580f786b03a077f2e1ebbf2db92df8821a0d",
+          "generatedDeclaredSha256": "3931a012952764f1e447e5ffcb2b7753fee6d224e771dd4e6d5eb8a3129bc3c7"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-av2.json",
+          "markerSha256": "eb0e45fcaf5708bdfd51e25c620693dfebe84b0ab592e8a6b5e21eeed7e709f7",
+          "sourceDeclaredSha256": "09de329ac84f3069b2d605a7a155580f786b03a077f2e1ebbf2db92df8821a0d",
+          "generatedDeclaredSha256": "3931a012952764f1e447e5ffcb2b7753fee6d224e771dd4e6d5eb8a3129bc3c7"
+        }
+      ],
+      "sameBytesArchiveLocatedBeforeAw2": [],
+      "earliestRevisionCaptureReportsLocated": [
+        {
+          "report": "docs/mobile/evidence/2026-10-11-android-route-batches/target-ordinary-aq-rejected-hmr/batch.json",
+          "sha256": "a0fa30c0a5e43d7b27ee55e8ccba4b7f5cf642ff888e28ce4ac7b150c9ad784e",
+          "records": [
+            {
+              "name": "settings-initial",
+              "result": "preparation-failed"
+            },
+            {
+              "name": "feedback-error-initial",
+              "result": "preparation-failed"
+            },
+            {
+              "name": "delete-blocked-initial",
+              "result": "preparation-failed"
+            }
+          ]
+        },
+        {
+          "report": "docs/mobile/evidence/2026-10-11-android-route-batches/target-provider-alert-dismiss-aq/batch.json",
+          "sha256": "323bc1aeba2c1092395206020f9fa473c927dcfada8c082072156ed2f836866c",
+          "records": [
+            {
+              "name": "native-dismiss-observed-provider-alert",
+              "result": "native-candidate-captured"
+            }
+          ]
+        }
+      ],
+      "interpretation": "The original marker sourceFileDigests field binds the declared source version, while generatedSourceDigests is stale. Actual native frames and scoped input results are retained; complete old-stage byte replay has not been established by these fields alone."
+    },
+    {
+      "path": "src/screens/DeleteAccountScreen.tsx",
+      "actualAwStageSha256": "f65cc0da04e5508bf7d12ccd4125f47762dd85eca040e47baeefc2c62d984265",
+      "currentSourceSha256": "f65cc0da04e5508bf7d12ccd4125f47762dd85eca040e47baeefc2c62d984265",
+      "earliestArchivedStaleMarker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-ao.json",
+      "affectedMarkers": [
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-ao.json",
+          "markerSha256": "b8666217a372de75379048f34db717a1ceca78d085bd89f9657b6a756acc981a",
+          "sourceDeclaredSha256": "21e1a18a3726c4b1c8779e56e500472cbc194528ce8926e18180d999e8babb89",
+          "generatedDeclaredSha256": "dd4131c683781c429a72e7ade1fa12b88ef02dbabb52a5cf140f02273966c900"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-ap.json",
+          "markerSha256": "40470278a75138b6cd7173cd7915d5d2b6f65658c20eba2a17c528a943ef87ee",
+          "sourceDeclaredSha256": "21e1a18a3726c4b1c8779e56e500472cbc194528ce8926e18180d999e8babb89",
+          "generatedDeclaredSha256": "dd4131c683781c429a72e7ade1fa12b88ef02dbabb52a5cf140f02273966c900"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-aq.json",
+          "markerSha256": "572da4223a1090e0f4d2864580dd08a0c288c7e2afa8421ffa868e07510669ec",
+          "sourceDeclaredSha256": "f65cc0da04e5508bf7d12ccd4125f47762dd85eca040e47baeefc2c62d984265",
+          "generatedDeclaredSha256": "dd4131c683781c429a72e7ade1fa12b88ef02dbabb52a5cf140f02273966c900"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-ar.json",
+          "markerSha256": "140a087d0b348246256764c9683c26d9389ad79ee350052e3ed7a9f3dad817cd",
+          "sourceDeclaredSha256": "f65cc0da04e5508bf7d12ccd4125f47762dd85eca040e47baeefc2c62d984265",
+          "generatedDeclaredSha256": "dd4131c683781c429a72e7ade1fa12b88ef02dbabb52a5cf140f02273966c900"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-as.json",
+          "markerSha256": "7ac1c15234d580d3ed55336d792589013faa2a04edbf2e1f3ae391c05ba6a6c9",
+          "sourceDeclaredSha256": "f65cc0da04e5508bf7d12ccd4125f47762dd85eca040e47baeefc2c62d984265",
+          "generatedDeclaredSha256": "dd4131c683781c429a72e7ade1fa12b88ef02dbabb52a5cf140f02273966c900"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-at.json",
+          "markerSha256": "2e10a54786bb37c3588a64517612786ac47cd05fa41236a50c7971c79481e1ed",
+          "sourceDeclaredSha256": "f65cc0da04e5508bf7d12ccd4125f47762dd85eca040e47baeefc2c62d984265",
+          "generatedDeclaredSha256": "dd4131c683781c429a72e7ade1fa12b88ef02dbabb52a5cf140f02273966c900"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-au.json",
+          "markerSha256": "30fdebfde38c33c0a4883d8c1b7dd2a7f603df2de9a5b0a382df422c5726d526",
+          "sourceDeclaredSha256": "f65cc0da04e5508bf7d12ccd4125f47762dd85eca040e47baeefc2c62d984265",
+          "generatedDeclaredSha256": "dd4131c683781c429a72e7ade1fa12b88ef02dbabb52a5cf140f02273966c900"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-av.json",
+          "markerSha256": "d8ba5ece171e796c3980c35f419ae72c836a1296ca09683a3ea5894aeae78ee9",
+          "sourceDeclaredSha256": "f65cc0da04e5508bf7d12ccd4125f47762dd85eca040e47baeefc2c62d984265",
+          "generatedDeclaredSha256": "dd4131c683781c429a72e7ade1fa12b88ef02dbabb52a5cf140f02273966c900"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-aw.json",
+          "markerSha256": "59099e7d030ff61f3d742347a18a9419d1280a37d65168cc264a02f0baa75e09",
+          "sourceDeclaredSha256": "f65cc0da04e5508bf7d12ccd4125f47762dd85eca040e47baeefc2c62d984265",
+          "generatedDeclaredSha256": "dd4131c683781c429a72e7ade1fa12b88ef02dbabb52a5cf140f02273966c900"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-av2.json",
+          "markerSha256": "eb0e45fcaf5708bdfd51e25c620693dfebe84b0ab592e8a6b5e21eeed7e709f7",
+          "sourceDeclaredSha256": "f65cc0da04e5508bf7d12ccd4125f47762dd85eca040e47baeefc2c62d984265",
+          "generatedDeclaredSha256": "dd4131c683781c429a72e7ade1fa12b88ef02dbabb52a5cf140f02273966c900"
+        }
+      ],
+      "sameBytesArchiveLocatedBeforeAw2": [],
+      "earliestRevisionCaptureReportsLocated": [],
+      "interpretation": "The original marker sourceFileDigests field binds the declared source version, while generatedSourceDigests is stale. Actual native frames and scoped input results are retained; complete old-stage byte replay has not been established by these fields alone."
+    },
+    {
+      "path": "src/screens/notice-read-gate.ts",
+      "actualAwStageSha256": "7c2c029b9f10bbeff44df0d2c54cf6d4f4b399a35f0c470aba8476dbc87fd1db",
+      "currentSourceSha256": "7c2c029b9f10bbeff44df0d2c54cf6d4f4b399a35f0c470aba8476dbc87fd1db",
+      "earliestArchivedStaleMarker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-ao.json",
+      "affectedMarkers": [
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-ao.json",
+          "markerSha256": "b8666217a372de75379048f34db717a1ceca78d085bd89f9657b6a756acc981a",
+          "sourceDeclaredSha256": "4676c6275840ec87fdd3f5da9dad7d1e613d8dbcf45eb52b536ee082c5dcfa4a",
+          "generatedDeclaredSha256": "576b9f1605d0dc8ae6ad6ddf1d2668ffb70fbe7b5dd7d851e9f15d2b48a9ed9f"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-ap.json",
+          "markerSha256": "40470278a75138b6cd7173cd7915d5d2b6f65658c20eba2a17c528a943ef87ee",
+          "sourceDeclaredSha256": "7c2c029b9f10bbeff44df0d2c54cf6d4f4b399a35f0c470aba8476dbc87fd1db",
+          "generatedDeclaredSha256": "576b9f1605d0dc8ae6ad6ddf1d2668ffb70fbe7b5dd7d851e9f15d2b48a9ed9f"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-aq.json",
+          "markerSha256": "572da4223a1090e0f4d2864580dd08a0c288c7e2afa8421ffa868e07510669ec",
+          "sourceDeclaredSha256": "7c2c029b9f10bbeff44df0d2c54cf6d4f4b399a35f0c470aba8476dbc87fd1db",
+          "generatedDeclaredSha256": "576b9f1605d0dc8ae6ad6ddf1d2668ffb70fbe7b5dd7d851e9f15d2b48a9ed9f"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-ar.json",
+          "markerSha256": "140a087d0b348246256764c9683c26d9389ad79ee350052e3ed7a9f3dad817cd",
+          "sourceDeclaredSha256": "7c2c029b9f10bbeff44df0d2c54cf6d4f4b399a35f0c470aba8476dbc87fd1db",
+          "generatedDeclaredSha256": "576b9f1605d0dc8ae6ad6ddf1d2668ffb70fbe7b5dd7d851e9f15d2b48a9ed9f"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-as.json",
+          "markerSha256": "7ac1c15234d580d3ed55336d792589013faa2a04edbf2e1f3ae391c05ba6a6c9",
+          "sourceDeclaredSha256": "7c2c029b9f10bbeff44df0d2c54cf6d4f4b399a35f0c470aba8476dbc87fd1db",
+          "generatedDeclaredSha256": "576b9f1605d0dc8ae6ad6ddf1d2668ffb70fbe7b5dd7d851e9f15d2b48a9ed9f"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-at.json",
+          "markerSha256": "2e10a54786bb37c3588a64517612786ac47cd05fa41236a50c7971c79481e1ed",
+          "sourceDeclaredSha256": "7c2c029b9f10bbeff44df0d2c54cf6d4f4b399a35f0c470aba8476dbc87fd1db",
+          "generatedDeclaredSha256": "576b9f1605d0dc8ae6ad6ddf1d2668ffb70fbe7b5dd7d851e9f15d2b48a9ed9f"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-au.json",
+          "markerSha256": "30fdebfde38c33c0a4883d8c1b7dd2a7f603df2de9a5b0a382df422c5726d526",
+          "sourceDeclaredSha256": "7c2c029b9f10bbeff44df0d2c54cf6d4f4b399a35f0c470aba8476dbc87fd1db",
+          "generatedDeclaredSha256": "576b9f1605d0dc8ae6ad6ddf1d2668ffb70fbe7b5dd7d851e9f15d2b48a9ed9f"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-av.json",
+          "markerSha256": "d8ba5ece171e796c3980c35f419ae72c836a1296ca09683a3ea5894aeae78ee9",
+          "sourceDeclaredSha256": "7c2c029b9f10bbeff44df0d2c54cf6d4f4b399a35f0c470aba8476dbc87fd1db",
+          "generatedDeclaredSha256": "576b9f1605d0dc8ae6ad6ddf1d2668ffb70fbe7b5dd7d851e9f15d2b48a9ed9f"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-aw.json",
+          "markerSha256": "59099e7d030ff61f3d742347a18a9419d1280a37d65168cc264a02f0baa75e09",
+          "sourceDeclaredSha256": "7c2c029b9f10bbeff44df0d2c54cf6d4f4b399a35f0c470aba8476dbc87fd1db",
+          "generatedDeclaredSha256": "576b9f1605d0dc8ae6ad6ddf1d2668ffb70fbe7b5dd7d851e9f15d2b48a9ed9f"
+        },
+        {
+          "marker": "docs/mobile/evidence/2026-10-10-source-android/target-driver-av2.json",
+          "markerSha256": "eb0e45fcaf5708bdfd51e25c620693dfebe84b0ab592e8a6b5e21eeed7e709f7",
+          "sourceDeclaredSha256": "7c2c029b9f10bbeff44df0d2c54cf6d4f4b399a35f0c470aba8476dbc87fd1db",
+          "generatedDeclaredSha256": "576b9f1605d0dc8ae6ad6ddf1d2668ffb70fbe7b5dd7d851e9f15d2b48a9ed9f"
+        }
+      ],
+      "sameBytesArchiveLocatedBeforeAw2": [],
+      "earliestRevisionCaptureReportsLocated": [],
+      "interpretation": "The original marker sourceFileDigests field binds the declared source version, while generatedSourceDigests is stale. Actual native frames and scoped input results are retained; complete old-stage byte replay has not been established by these fields alone."
+    }
+  ],
+  "sourceAndGeneratedVerificationAw2": "passed-except-intentional-generated-metro-config",
+  "priorReportsRewritten": false,
+  "limitations": [
+    "Existing report file content and captures remain unchanged. This audit adds no retroactive capture hashes.",
+    "Files or reports not enumerated here can still contain independently grounded validation; absence from this bounded search is not a claim that all historical behavior evidence is invalid.",
+    "The earliest archived stale marker establishes the observed revision boundary, not the time that bytes originally changed.",
+    "aw2 current file archives cannot establish earlier stages retrospectively."
+  ]
+}

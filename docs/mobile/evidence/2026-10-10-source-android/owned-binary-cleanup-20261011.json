@@ -1,0 +1,89 @@
+{
+  "kind": "owned-historical-ui-binary-cleanup",
+  "schemaVersion": 1,
+  "authorization": "Root requested removal of owned historical fixture APKs after SHA/input/owner checks on 2026-10-11",
+  "retained": [
+    "slax-reader-ui-fixture-arm64-ai.apk",
+    "all-production-identity-binaries",
+    "slax-source-ui-reference-e-debug.apk",
+    "slax-source-ui-reference-j-test.apk",
+    "slax-source-ui-instrumentation-o.apk",
+    "all-source-and-current-ios-binaries"
+  ],
+  "deleted": [
+    {
+      "path": "/tmp/slax-mobile-native-artifacts/slax-reader-ui-fixture-arm64-af.apk",
+      "sha256": "6a4363ce1a36aa601e746449d675f6fc91c95fe5dbf4eccdba75559209ce9126",
+      "bytes": 99334733,
+      "owner": "native_ui_acceptance",
+      "buildReport": "docs/mobile/evidence/2026-10-10-source-android/target-build-af.json",
+      "reportSha256": "420a1715a53b63e620486449b73b7b03e24b152a565cf58fc98069479c45f291",
+      "reason": "Historical independent UI fixture; current ai retains the accepted z geometry plus native Back compatibility. Raw reports/captures/input hashes are preserved."
+    },
+    {
+      "path": "/tmp/slax-mobile-native-artifacts/slax-reader-ui-fixture-arm64-m.apk",
+      "sha256": "f27c06c66e469a5884e00dddc6c16eadc4bd731a233b58ed8e89f179b3e8ca53",
+      "bytes": 99329847,
+      "owner": "native_ui_acceptance",
+      "buildReport": "docs/mobile/evidence/2026-10-10-source-android/target-build-m.json",
+      "reportSha256": "4a296cc36fc905ac258760cf61f64ae2e53a77ec9d55830c2e691d6cef4354c1",
+      "reason": "Historical independent UI fixture; current ai retains the accepted z geometry plus native Back compatibility. Raw reports/captures/input hashes are preserved."
+    },
+    {
+      "path": "/tmp/slax-mobile-native-artifacts/slax-reader-ui-fixture-arm64-n.apk",
+      "sha256": "694bd67491c61bb2050d62aa4326dd36d9d2ac549a8250ed877c2fa93be766a4",
+      "bytes": 99330200,
+      "owner": "native_ui_acceptance",
+      "buildReport": "docs/mobile/evidence/2026-10-10-source-android/target-build-n.json",
+      "reportSha256": "d3700bde07ae5639a2909f6f353628dcdc8e1a25edee309079efc9e25f903537",
+      "reason": "Historical independent UI fixture; current ai retains the accepted z geometry plus native Back compatibility. Raw reports/captures/input hashes are preserved."
+    },
+    {
+      "path": "/tmp/slax-mobile-native-artifacts/slax-reader-ui-fixture-arm64-s.apk",
+      "sha256": "960aa3f76db400702e251a23136455600b8bbca1f8a62c736c80d8b9f2050301",
+      "bytes": 99330994,
+      "owner": "native_ui_acceptance",
+      "buildReport": "docs/mobile/evidence/2026-10-10-source-android/target-build-s.json",
+      "reportSha256": "41990b8d2d104b84281dbc0f69b50a6002e299d245c36f25ecba855059a39cea",
+      "reason": "Historical independent UI fixture; current ai retains the accepted z geometry plus native Back compatibility. Raw reports/captures/input hashes are preserved."
+    },
+    {
+      "path": "/tmp/slax-mobile-native-artifacts/slax-reader-ui-fixture-arm64-t.apk",
+      "sha256": "5921d2d1a5d15fbc31fd5bb5ed3113600d8efe78c5c127c5b7056264d74c75be",
+      "bytes": 99331186,
+      "owner": "native_ui_acceptance",
+      "buildReport": "docs/mobile/evidence/2026-10-10-source-android/target-build-t.json",
+      "reportSha256": "6715c910f48bae5b9a53b0a77cae60216c39b2bfbbb0348c7cad9e87ccda76ef",
+      "reason": "Historical independent UI fixture; current ai retains the accepted z geometry plus native Back compatibility. Raw reports/captures/input hashes are preserved."
+    },
+    {
+      "path": "/tmp/slax-mobile-native-artifacts/slax-reader-ui-fixture-arm64-u.apk",
+      "sha256": "6e32d4f3f62aa89aaa2c732333f1612a18cb21531bdcec783b9fd274d7ae2990",
+      "bytes": 99331192,
+      "owner": "native_ui_acceptance",
+      "buildReport": "docs/mobile/evidence/2026-10-10-source-android/target-build-u.json",
+      "reportSha256": "39a22ea81ceeb520497bdd72261267c6b632051714aa0d48d8463f4dbed4db48",
+      "reason": "Historical independent UI fixture; current ai retains the accepted z geometry plus native Back compatibility. Raw reports/captures/input hashes are preserved."
+    },
+    {
+      "path": "/tmp/slax-mobile-native-artifacts/slax-reader-ui-fixture-arm64-x.apk",
+      "sha256": "42fa86d27856f68013377facc834fc666f6850f43c392aba4a5bd97115fa21e3",
+      "bytes": 99331087,
+      "owner": "native_ui_acceptance",
+      "buildReport": "docs/mobile/evidence/2026-10-10-source-android/target-build-x.json",
+      "reportSha256": "fd77ffa44ca245f5e092db5e0ade40d25e967691c223b2e946659eef7fcf5281",
+      "reason": "Historical independent UI fixture; current ai retains the accepted z geometry plus native Back compatibility. Raw reports/captures/input hashes are preserved."
+    },
+    {
+      "path": "/tmp/slax-mobile-native-artifacts/slax-reader-ui-fixture-arm64-z.apk",
+      "sha256": "a1aecc130cbc74b763a4bd6fd0a370b3114687b223dd26b2abc096f46b13fc1e",
+      "bytes": 99334869,
+      "owner": "native_ui_acceptance",
+      "buildReport": "docs/mobile/evidence/2026-10-10-source-android/target-build-z.json",
+      "reportSha256": "509ccf378ca1a6e8133b11721eee98d7cd99509d51896ea5d792ad95146c678e",
+      "reason": "Historical independent UI fixture; current ai retains the accepted z geometry plus native Back compatibility. Raw reports/captures/input hashes are preserved."
+    }
+  ],
+  "bytesReclaimed": 794654108,
+  "nativeDataOrInstalledPackagesChanged": false
+}

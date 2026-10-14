@@ -1,0 +1,44 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "2282C4CB-CCA9-402F-AF3B-4502130227D4.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-reader-after-controlled-offline-logbox-native-tree_0_97D578E6-CF74-4A19-8683-3555DEA6E343.txt",
+        "timestamp" : 1791664344.022
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "52528498-E3F3-4A05-90D1-E4CDBB51CB13.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-reader-after-controlled-offline-logbox_0_E789F74A-177F-4DB8-AB83-0F5D4CE12A91.png",
+        "timestamp" : 1791664343.467
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "EE90F5EF-DFB2-436E-AD88-96F37BE21BB6.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-observed-controlled-offline-logbox-native-tree_0_E7790343-51BC-4CCE-B172-28B3384357DA.txt",
+        "timestamp" : 1791664341.335
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "76F61B8B-F821-4FEF-8696-5C29DF2D2A7B.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-observed-controlled-offline-logbox_0_553D28F4-E725-4738-AC83-3B823C7A696B.png",
+        "timestamp" : 1791664340.838
+      }
+    ],
+    "testIdentifier" : "UpgradeVisibleControl/testDismissObservedControlledOfflineLogBox()",
+    "testIdentifierURL" : "test://com.apple.xcode/UpgradeVisibleControl/UpgradeVisibleControl/UpgradeVisibleControl/testDismissObservedControlledOfflineLogBox"
+  }
+]

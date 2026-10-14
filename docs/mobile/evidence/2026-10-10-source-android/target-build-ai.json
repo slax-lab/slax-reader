@@ -1,0 +1,35 @@
+{
+  "kind": "isolated-target-android-build",
+  "schemaVersion": 1,
+  "result": "passed",
+  "durationSeconds": 55,
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "driver": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-driver-ai.json",
+    "sha256": "43f86921fc49531d135995867d7c1b8817a249d6fc4df1f8711e36c3f22ea9f9"
+  },
+  "generatedNativeInput": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-native-input-ai.json",
+    "sha256": "69354ef54a4f6215f8a1b30edb914377126c9702bd745d9a413fb3ebf6d66e29"
+  },
+  "apk": {
+    "path": "/tmp/slax-mobile-native-artifacts/slax-reader-ui-fixture-arm64-ai.apk",
+    "sha256": "aeb2f0743bbd7d0679fbb8ca9d0a9cb03612fd46384045637a4537fe60fe0df2",
+    "bytes": 99334764
+  },
+  "buildLog": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-build-ai.log",
+    "sha256": "769b82fa52aa7a6d18ddbb841a10b86d7997a2300bf10d66401b8acddbdb777b"
+  },
+  "workers": 1,
+  "architectures": [
+    "arm64-v8a"
+  ],
+  "maxHeapMiB": 1024,
+  "nativeBackRuntimeAcceptance": "passed-actual-api34-navigation-dialog-pop-rootfallback-resume",
+  "nativeProductionDataAccessed": false,
+  "runtimeEvidence": {
+    "path": "docs/mobile/evidence/2026-10-11-android-route-batches/native-back-runtime-aj.json",
+    "sha256": "8e3f31968fc93aea4014a2aec9e511a9fb7732e38a7366897f1238f5e5c0282a"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "kind": "slax-root-post-install-pcm-plan-review",
+  "version": 1,
+  "status": "exact-candidate-and-protected-inputs-verified-removal-not-yet-authorized",
+  "planSha256": "4e4a10aa3012ae874b06722c45ceb127903b191ff87cb1a514d162da5b07c626",
+  "executorSha256": "e9b1cfe55679d27e092943f491f2262ec1b93c6ca2629267e5e55fa78323f531",
+  "counts": {
+    "entries": 28693,
+    "regularHashes": 26049,
+    "preservedSparseMetadata": 3
+  },
+  "cacheEntries": 4065,
+  "protectedDdEntries": 24101,
+  "closedLogsEntries": 41,
+  "completeAppAndDsymEntries": 252,
+  "installedEntries": 234,
+  "stageInputs": 372,
+  "publicPodAndNativeInputs": 6,
+  "noActiveOwnedCompiler": true,
+  "currentDeepStrictSignatureVerificationExitCode": 0,
+  "freeBytes": 2596442112,
+  "cleanupPerformed": false,
+  "alphaInputPerformed": false,
+  "preliminaryReadGuards": "Two preliminary metadata guards stopped before public compiler/index outputs NativeRequestCredentials.d and LAPrivateKey.h. Final guard classifies actual private filenames and extensions before content reads; no secret file was read."
+}

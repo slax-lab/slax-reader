@@ -1,0 +1,126 @@
+{
+  "kind": "cross-paragraph-bitmap-only-native-attempt",
+  "version": 1,
+  "basePlanSHA256": "bac663b00c3737a9fed4cedfdcd703256a3e43790f48797c1d45e263fed7a280",
+  "policySHA256": "d60716eacb3ffe193fc5fbdd537a5e7ba6afb379d2953ffff1df1cbf744ad625",
+  "executorSHA256": "4a62ae0ed3608833acd73f921a3199df394fd2932e865fc8c32a89ac284f2952",
+  "device": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+  "onlyTestIdentifier": "CrossParagraphControl/ReaderCrossParagraphBitmapPreflight/testArchivedNativeSelectionHandlesBitmapOrientation",
+  "commands": [
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "list",
+        "devices",
+        "--json"
+      ],
+      "timeoutSeconds": 4,
+      "stdout": "/private/tmp/slax-reader-cross-bitmap-run-3abcabe0aa6046fa986950d38ce5cea8/logs/00.stdout",
+      "stderr": "/private/tmp/slax-reader-cross-bitmap-run-3abcabe0aa6046fa986950d38ce5cea8/logs/00.stderr",
+      "exitCode": 0,
+      "stopped": null,
+      "ownedPID": 5293,
+      "elapsedSeconds": 0.6120575,
+      "stdoutSHA256": "fef377f9e6467362ff1fa458623158d3a14ce15598c676cf3076eb5470344e01",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "resourceSamples": [
+    {
+      "elapsedSeconds": 0.10428362499999999,
+      "freeBytes": 4726145024,
+      "owned": {
+        "logicalBytes": 2690,
+        "allocatedBytes": 4096,
+        "regularFiles": 1
+      },
+      "installed": {
+        "containers": [],
+        "pendingIdentities": [],
+        "logicalBytes": 0,
+        "allocatedBytes": 0
+      },
+      "logBytes": 0
+    },
+    {
+      "elapsedSeconds": 0.127823208,
+      "freeBytes": 4726145024,
+      "owned": {
+        "logicalBytes": 2690,
+        "allocatedBytes": 4096,
+        "regularFiles": 3
+      },
+      "installed": {
+        "containers": [],
+        "pendingIdentities": [],
+        "logicalBytes": 0,
+        "allocatedBytes": 0
+      },
+      "logBytes": 0
+    },
+    {
+      "elapsedSeconds": 0.696210666,
+      "freeBytes": 4726099968,
+      "owned": {
+        "logicalBytes": 19875,
+        "allocatedBytes": 24576,
+        "regularFiles": 3
+      },
+      "installed": {
+        "containers": [],
+        "pendingIdentities": [],
+        "logicalBytes": 0,
+        "allocatedBytes": 0
+      },
+      "logBytes": 17185
+    },
+    {
+      "elapsedSeconds": 0.778901583,
+      "freeBytes": 4726099968,
+      "owned": {
+        "logicalBytes": 21204,
+        "allocatedBytes": 24576,
+        "regularFiles": 3
+      },
+      "installed": {
+        "containers": [],
+        "pendingIdentities": [],
+        "logicalBytes": 0,
+        "allocatedBytes": 0
+      },
+      "logBytes": 17185
+    }
+  ],
+  "nativeBitmapAccepted": false,
+  "verdictRequiresIndependentRawXCResultReview": true,
+  "noTargetInput": true,
+  "allocation": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r2/root-one-native-allocation.json",
+    "sha256": "9b6bb3a74c9843dae959ab25618b49901c928b02f3751b3771e3a3afa07ae2ac",
+    "grant": {
+      "kind": "root-one-cross-bitmap-only-native-allocation",
+      "version": 1,
+      "executorSHA256": "4a62ae0ed3608833acd73f921a3199df394fd2932e865fc8c32a89ac284f2952",
+      "runtimePolicySHA256": "d60716eacb3ffe193fc5fbdd537a5e7ba6afb379d2953ffff1df1cbf744ad625",
+      "basePlanSHA256": "bac663b00c3737a9fed4cedfdcd703256a3e43790f48797c1d45e263fed7a280",
+      "runRoot": "/private/tmp/slax-reader-cross-bitmap-run-3abcabe0aa6046fa986950d38ce5cea8",
+      "device": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+      "onlyTestIdentifier": "CrossParagraphControl/ReaderCrossParagraphBitmapPreflight/testArchivedNativeSelectionHandlesBitmapOrientation",
+      "attempts": 1,
+      "noTargetInput": true,
+      "exclusiveDeviceLoan": true,
+      "allOtherNativeLoansReleased": true,
+      "expiresAtUnixSeconds": 1791680769.8532622,
+      "review": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r2/root-independent-review-and-allocation.json",
+        "sha256": "2319e853ed116c025095648a1ffe369602b2142d0fe3f132a2ef04d129847cbe"
+      },
+      "nonce": "ffd512f4-b318-4f11-9245-fe878c7a1181"
+    }
+  },
+  "refusal": "ValueError: Another simulator loan is live",
+  "protectedOriginalProductsAndStageUnchanged": true,
+  "elapsedSeconds": 0.778908208,
+  "status": "stopped-or-release-unconfirmed"
+}

@@ -1,0 +1,10 @@
+file:///Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tooling/fixture-control-contract.mjs:7
+  if (matches.length !== 1) throw new Error('Exactly one matching independent UI fixture target must be attached');
+                                  ^
+
+Error: Exactly one matching independent UI fixture target must be attached
+    at selectFixtureInspector (file:///Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tooling/fixture-control-contract.mjs:7:35)
+    at file:///Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tooling/fixture-control.mjs:31:27
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+
+Node.js v22.22.3

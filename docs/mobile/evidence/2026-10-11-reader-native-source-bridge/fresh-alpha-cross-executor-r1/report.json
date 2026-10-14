@@ -1,0 +1,107 @@
+{
+  "kind": "prepared-only-fresh-alpha-cross-executor-host-evidence",
+  "version": 1,
+  "openSpecChange": "expo-mobile-migration",
+  "nativeExecuted": false,
+  "compilerExecuted": false,
+  "deviceCommandsExecuted": false,
+  "metroRequestsExecuted": false,
+  "stageModified": false,
+  "upstreamPlan": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-plan-r1/plan.json",
+    "bytes": 11868,
+    "sha256": "f0e459b257a912de98d63ef1dad09e4beadab4249972daf00f2fa1dd32992c98"
+  },
+  "upstreamReport": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-plan-r1/report.json",
+    "bytes": 1481,
+    "sha256": "132269f857ca80ca837e03edf276092b8a9e30fc1f8498830ec5e31da74a048e"
+  },
+  "inputs": [
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/inputs/installed-helpers-forward-admission.json",
+      "bytes": 24439,
+      "sha256": "edf7dc74497fae0312ba5145774411276d5614742449f8f063dcbc666b870716"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/inputs/run-fresh-alpha-cross.py",
+      "bytes": 44802,
+      "sha256": "b90011fd4834415a0236a64201d9b828178cb44146e74e222841b3ef617ed18e"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/inputs/runtime-guards.test.py",
+      "bytes": 12726,
+      "sha256": "851e1f694d66a460d34a498e198c1267a67279b782107abadd5c805a0c0ee8a0"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/inputs/runtime-policy.json",
+      "bytes": 34697,
+      "sha256": "e98b4c008e43941e91de35566587d67fc99ba100cb438181f722d40ee52c01e1"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/inputs/snapshot-check.mjs",
+      "bytes": 2254,
+      "sha256": "3fed60342c4e3fc6e40842440be81fd3a668565a22bc24d713372a601b799837"
+    }
+  ],
+  "logs": [
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/host-logs/focused-guards.log",
+      "bytes": 1560,
+      "sha256": "d42023f71e58f72f80eed3a1083fbb60add67b8a82cfe1bafc1d6dad7ad52e16"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/host-logs/readonly-admission.log",
+      "bytes": 191,
+      "sha256": "f7549cdf950a98d59b5b07d6e6e2ba7aa4909107879b6753fdf34b16d58fad33"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/host-logs/snapshot-js-parse.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "focusedHostGuards": {
+    "passed": 21,
+    "failed": 0,
+    "skipped": 0,
+    "command": "python3 -B /Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/inputs/runtime-guards.test.py"
+  },
+  "readonlyAdmission": {
+    "status": "readonly-preflight-pass",
+    "compiledAlphaFiles": 63,
+    "compiledCrossFiles": 53,
+    "stagedFiles": 377,
+    "existingHelperContainers": 4,
+    "nativeExecuted": false,
+    "runRootCreated": false
+  },
+  "snapshotDelegationParserExit": 0,
+  "failedFirst": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/failed-first/receipt.json",
+    "bytes": 1188,
+    "sha256": "aecbe805280782e12457fe6bb207b72f50bb0537cad5b8b9c70853730cf1e209"
+  },
+  "persistentOwnerAndDistinctRootContinuation": "prepared-only-requires-two-grants-and-independent-raw-live-alpha-review",
+  "caps": {
+    "sharedSeconds": 180,
+    "nativeEachSeconds": 45,
+    "releaseSeconds": 30,
+    "killGraceSeconds": 4,
+    "logicalAndAllocatedBytes": 268435456,
+    "combinedLogsBytes": 8388608,
+    "floorBytes": 3221225472,
+    "preFreeBytes": 3865470566
+  },
+  "fourInstalledHelperContainersAdmitted": true,
+  "originalAlpha63Cross53ProductsAnd148UIBundleProtected": true,
+  "current377StageBound": true,
+  "runRootCreated": false,
+  "grantRootCreated": false,
+  "pending": [
+    "Independent three-pass executor review and fresh Root allocation.",
+    "Actual fresh Alpha native press and same-window Root raw/frame review.",
+    "Actual Cross native end-handle drag and readonly same-page range extension.",
+    "Full Reader visual/input parity, native image decode/recycling, source callbacks, publisher/TestFlight acceptance."
+  ]
+}

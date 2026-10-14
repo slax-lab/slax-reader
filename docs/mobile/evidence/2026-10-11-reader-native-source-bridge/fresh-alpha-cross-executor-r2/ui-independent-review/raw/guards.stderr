@@ -1,0 +1,38 @@
+test_actual_failed_host_process_records_exit_and_raw_hash (__main__.Guards) ... ok
+test_all_log_bytes_share_one_cap (__main__.Guards) ... ok
+test_allocated_cap_even_when_logical_small (__main__.Guards) ... ok
+test_baseline_never_descends_into_historical_scope (__main__.Guards) ... ok
+test_completed_cross_selector_remains_observed_if_later_attachment_step_fails (__main__.Guards) ... ok
+test_cross_pre_spawn_failure_never_claims_command_issued (__main__.Guards) ... ok
+test_cross_refuses_scope_page_native_tag_and_owner_changes (__main__.Guards) ... ok
+test_cross_rejects_changed_snapshot_raw_results_and_old_report (__main__.Guards) ... ok
+test_cross_requires_fresh_raw_alpha_and_independent_review (__main__.Guards) ... ok
+test_directory_symlink_refused (__main__.Guards) ... ok
+test_exact_fresh_reader_and_bootstrap_count_all_new_blocks_without_database_read (__main__.Guards) ... ok
+test_existing_helper_bytes_count_toward_cap (__main__.Guards) ... ok
+test_failed_cross_host_command_marks_issued_before_post_validation (__main__.Guards) ... ok
+test_fifo_refused (__main__.Guards) ... ok
+test_final_accounting_error_preserves_primary_and_final_receipt (__main__.Guards) ... ok
+test_handoff_keeps_native_and_release_budget (__main__.Guards) ... ok
+test_initial_floor_and_ongoing_floor (__main__.Guards) ... ok
+test_new_marker_closed_case_version_digest_and_boolean (__main__.Guards) ... ok
+test_new_parent_allocation_is_counted_when_it_did_not_exist (__main__.Guards) ... ok
+test_new_reader_must_equal_exact_controller_scope_and_be_fresh (__main__.Guards) ... ok
+test_new_scope_and_nested_links_are_refused (__main__.Guards) ... ok
+test_new_scope_bytes_cannot_hide_outside_run_and_helper_cap (__main__.Guards) ... ok
+test_no_other_selector_or_device_or_prepare_selection (__main__.Guards) ... ok
+test_operator_filename_denied_before_read (__main__.Guards) ... ok
+test_pre_spawn_refusal_still_has_final_record (__main__.Guards) ... ok
+test_raw_byte_bind_does_not_trim (__main__.Guards) ... ok
+test_root_and_every_directory_counted (__main__.Guards) ... ok
+test_scope_must_be_one_exact_owned_ui_child (__main__.Guards) ... ok
+test_scope_symlink_cannot_leave_directory (__main__.Guards) ... ok
+test_sparse_file_logical_limit (__main__.Guards) ... ok
+test_two_new_names_bound_survives_bootstrap_disposal (__main__.Guards) ... ok
+test_unknown_new_name_refused_before_any_marker_read (__main__.Guards) ... ok
+test_wrong_or_mixed_selector_native_summary_refused (__main__.Guards) ... ok
+
+----------------------------------------------------------------------
+Ran 33 tests in 0.643s
+
+OK

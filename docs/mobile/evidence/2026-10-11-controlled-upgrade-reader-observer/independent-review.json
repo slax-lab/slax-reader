@@ -1,0 +1,63 @@
+{
+  "kind": "controlled-original-installation-reader-observer-independent-review",
+  "recordedAt": "2026-10-10T19:58:54.058760+00:00",
+  "openSpecChange": "expo-mobile-migration",
+  "sourceInputHashes": {
+    "apps/mobile/src/runtime.tsx": "33bd6a31099ac316efdd9836a94322ed1dffd884b81e48570cdc0ef65633b563",
+    "apps/mobile/src/screens/ReaderScreen.tsx": "4088890b034e5a9efd26ac3278828efbcfe8f0ef03a27d49b240a9e00507fac7",
+    "apps/mobile/src/reader/ReaderWebView.tsx": "8da31e8931966a8a4c6d539f869f420aa6f08824174665bb375fd009795e712d",
+    "apps/mobile/tests/reader/screen-lifecycle.test.mjs": "19078fcb4d701aff320416167725007de06b5dde422387bffd7317bce975b19e",
+    "apps/mobile/tests/data/NativeUpgradeVisibleFixtureApp.tsx": "7c19bf4152218974aed8b11216e1b4a7f1d6cf4667c59be8d1eb01337dcf88a9",
+    "apps/mobile/tests/data/NativeAdoptionFixtureApp.tsx": "e7da534d9a4cd081c2634870322c96c25b7952dcf567e44ffcab89dfb74f64b0",
+    "apps/mobile/tests/data/adoption-fixtures/tooling/visible-upgrade-control.mjs": "e07d80e7fb3f68b1327c9e24a1e5da8b0ff433fc922e217077c6bae9f822b392",
+    "apps/mobile/tests/data/adoption-fixtures/tooling/visible-ui-ios-prepare.mjs": "7c5dc390154f058f0e7592f81dd3cc82b5055a6e0eab7fe487300a762f748b13",
+    "apps/mobile/tests/data/adoption-fixtures/native/UpgradeVisibleHost.swift": "9811f87d016e6c9a83014c0fd01bc7d1f7c3504677b6acb4b378aaacc401ae12",
+    "apps/mobile/tests/data/adoption-fixtures/native/UpgradeVisibleControl.swift": "804086639db107725cd67eda80b32c02bb19987739bd4deb3500a941fd92c85f"
+  },
+  "passes": {
+    "Bugs": {
+      "importantFindings": [],
+      "observations": [
+        "Actual runtime, cache, repositories and account/native resource owner identities are required; fixtureOnly is rejected.",
+        "Reader snapshots observe real native events and commit callbacks. Observer failures are caught; real mounted Reader regression restores 240, flushes 600 and detaches once both with and without a fixture document directory.",
+        "The bounded observer checks the current owned request, nonce, platform, device, run, input hash, timestamp and active owner before writing a separate record."
+      ]
+    },
+    "Security": {
+      "importantFindings": [],
+      "observations": [
+        "Development-only provider requires exact synthetic account, owned device/container and completed original adoption/default startup markers.",
+        "External forwarding and StoreKit operations are refused. Numeric snapshots exclude document text, selection content and credentials.",
+        "Empty UI host has no App Group or database access and activates only an already running guarded main app."
+      ]
+    },
+    "Compliance": {
+      "importantFindings": [],
+      "observations": [
+        "Implementation supports the approved genuine on-disk upgrade verification. No new optional dependencies were added.",
+        "Prepared XCTest and WebView existence cannot establish visible article, comment, restored-position or complete visual acceptance."
+      ]
+    }
+  },
+  "verification": [
+    {
+      "command": "pnpm mobile -- typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "node --test apps/mobile/tests/reader/screen-lifecycle.test.mjs",
+      "exitCode": 0,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "actualVisibleUpgradeAcceptance": false,
+  "publisherUpgrade": false,
+  "testFlight": false,
+  "scope": "Scoped review of controlled observation and UI-driver preparation before the actual native visible-upgrade run; not the final repository pre-push review."
+}

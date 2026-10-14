@@ -1,0 +1,33 @@
+{
+  "kind": "root-fresh-alpha-cross-r5-preexecution-review",
+  "version": 1,
+  "openSpecChange": "expo-mobile-migration",
+  "preparationSHA256": "ae9a8e60a268a23f38b41d84abbb0cda78d4e610e8dfef7b7461d715a36971d8",
+  "independentReviewSHA256": "cce6d188d5aec8ce4a0350f1e63f447eb68d9d9683f7bc2298ca77b592ba6b73",
+  "executorSHA256": "e1a113bad199a30854fa1565fed21bece6b131221228c6f53a1f562788ea1ca0",
+  "runtimePolicySHA256": "3d2e60cb398c8e2127bbf26e5fb2376186e6bede295d2fce4ce48f3e4e30d5d7",
+  "allEarlierExecutorAndCompleteR5DeltaAndReadinessAnd12GuardsRead": true,
+  "currentReadonlyAdmission": {
+    "exitCode": 0,
+    "alphaFiles": 63,
+    "crossFiles": 53,
+    "stageFiles": 377,
+    "installedUIFiles": 148,
+    "helpers": 4
+  },
+  "current14BindingsVerified": true,
+  "freeBytes": 4228231168,
+  "ownedCompilerCountAtLastObservation": 0,
+  "passes": {
+    "Bugs": {
+      "Important": []
+    },
+    "Security": {
+      "Important": []
+    },
+    "Compliance": {
+      "Important": []
+    }
+  },
+  "scope": "One native Alpha only; Cross requires distinct actual raw frame/selection/240/current live continuation review in unchanged180s window. No native compile/sign/DB/cleanup."
+}

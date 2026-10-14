@@ -1,0 +1,48 @@
+{
+  "recordedAt": "2026-10-10T17:56:04.258553+00:00",
+  "nativeTestPassed": true,
+  "mainApplicationClosedBeforeDuringAndAfter": true,
+  "syntheticCurrentStore": "revision1 values selected_env=BETA with no auth_token",
+  "syntheticLegacyStore": "Valid protobuf containing known synthetic stale auth_token and selected_env=BETA",
+  "actualMessage": "Not have auth info, please login first.",
+  "signedOutCollectionRequests": 0,
+  "compiledExtensionSectionsUnchanged": true,
+  "nativeMainLibraryVerification": "../main-native-library-verification.json",
+  "preparationInputBinding": "preparation.json",
+  "nativeXCTestResult": "/tmp/slax-mobile-share-stale-legacy-r3.xcresult",
+  "publisherSigned": false,
+  "productionRequests": false,
+  "scope": "Actual compiled extension selects the current signed-out store despite stale legacy authentication, without launching the main app. This does not establish cross-process preference CAS, Safari preprocessing, publisher signing or TestFlight availability.",
+  "files": [
+    {
+      "path": "control-build.log",
+      "sha256": "607eb315bb3ebfbcb7cf83d5648c4f8b2df1cab1d4d3e73454a3d9b10348bfb4",
+      "bytes": 176398
+    },
+    {
+      "path": "controller-receipts.json",
+      "sha256": "d279093f1a4b24a323459827694c354fbf9cd6816f4268599eb38925a47a6047",
+      "bytes": 327
+    },
+    {
+      "path": "preparation.json",
+      "sha256": "d1e5d9fd9eb75a15d2d0410044a57bf6df3aa7e3b1c9d67c5e152ea60887a2e1",
+      "bytes": 6903
+    },
+    {
+      "path": "signed-out.png",
+      "sha256": "eff37f2389a881cc96474e009fe7d65d57a6923df78f49e60463f8e220dbb8ee",
+      "bytes": 85320
+    },
+    {
+      "path": "signed-out.txt",
+      "sha256": "7cffebb3629569e82b9818e961a23963afae8943f4c1dbd93d30d61194fd0675",
+      "bytes": 10992
+    },
+    {
+      "path": "xctest.log",
+      "sha256": "ffa67658c80e87ed40b5378639d1a3e493c6f126e67d5ccf170f355cbdfa293e",
+      "bytes": 6466
+    }
+  ]
+}

@@ -37,6 +37,7 @@ describe('API workspace command contract', () => {
       'icons:check',
       'icons:test',
       'icons:write',
+      'mobile',
       'preflight',
       'prepare',
       'setup:all',

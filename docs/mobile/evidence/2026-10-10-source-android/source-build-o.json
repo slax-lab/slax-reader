@@ -1,0 +1,48 @@
+{
+  "kind": "sanitized-source-android-build",
+  "schemaVersion": 1,
+  "sourceCommit": "9951904405159f49f24effd4d42815f77ff33442",
+  "sourceManifestSha256": "3501089ae75682a823afdfb54ccf243d32cbc56eba1f84bd70c68afafc1f2943",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "actionDriverSha256": "eac29984637ca922cdae9d4844da809bd6b03db58a1c4b4c92a6faba56c8bee1",
+  "inputManifest": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/source-driver-o/input-manifest.json",
+    "sha256": "2a9652b4bdabf3d09c935ed4e1ba891e2a7818ef76946912e59bf278cd30d305"
+  },
+  "gradleVersion": "8.13",
+  "javaVersion": "17",
+  "maxWorkers": 1,
+  "maxHeap": "1g",
+  "tasks": [
+    ":composeApp:assembleDebugAndroidTest"
+  ],
+  "sourceApplicationReusedFrom": "source-build.json",
+  "result": "passed",
+  "elapsedSeconds": 20,
+  "originalSourceModified": false,
+  "productionBuildConfigurationEvaluated": false,
+  "applicationId": "com.slax.reader.fixture",
+  "testApplicationId": "com.slax.reader.fixture.test",
+  "artifacts": [
+    {
+      "kind": "source-instrumentation",
+      "sha256": "a33128dec0db8603922ac41612cbc8badacadc98b5b03b49e6f87cb17c13203c",
+      "bytes": 1544238
+    }
+  ],
+  "driverPreparation": {
+    "lifecycle": "prior-library-shared-user-and-subscription-dao-collectors",
+    "actionSelection": "optional-zero-based-declared-fixture-action-index",
+    "nativeInteractionVerified": false,
+    "observedNativeSemantics": "read-only text bounds and raw-pixel vertical scroll ranges",
+    "initialSelection": "explicit-fixtureInitialOnly-true-skips-all-preparation-actions",
+    "readerRoutes": "actual unchanged Bookmark DetailScreen and RSS RssReader with real source view models",
+    "rejectedReadiness": "Readonly actual VM/native DOM diagnostic plus explicitly rejected PNG; exceptions still fail the test",
+    "additionalRoutes": "Original DeleteAccount screen with prepared local notice and measured source URL scroll events",
+    "galleryCapture": "Requires original progress semantics to disappear before capturing the original photo"
+  },
+  "buildLog": {
+    "path": "source-build-o.log",
+    "sha256": "e75fe01323a193acbf587fe9af53ce7d22a9ce9681cfc8829b6662a3f7879d5a"
+  }
+}

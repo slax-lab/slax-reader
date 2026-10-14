@@ -1,0 +1,242 @@
+{
+  "kind": "slax-google-options-cached-public-closure",
+  "version": 1,
+  "rootRuntimeClasses": [
+    "com/google/android/libraries/identity/googleid/GetGoogleIdOption",
+    "com/google/android/libraries/identity/googleid/GetGoogleIdOption$Builder",
+    "androidx/credentials/GetCredentialRequest",
+    "androidx/credentials/GetCredentialRequest$Builder"
+  ],
+  "sources": {
+    "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxGoogleSignIn.kt": "9b0b4558cf5439b6c6eb621dc386fabf087c6203041781d568b00503fdcd30e4",
+    "apps/mobile/tests/auth/NativeGoogleOptionsProbe.java": "c89cad53109b73ebb68d995bb446d13a24c942032ff750dbc19f11ca9386c55b",
+    "apps/mobile/modules/slax-platform/android/build.gradle": "5b2ec123e501ac6bb949483d61d55573e88441ec0b4349d9aa22b17761bb3859",
+    "apps/mobile/tests/auth/README.md": "c2971326a1249ee10752085cc93ed5b4563275507131468e2478cc7711114789"
+  },
+  "artifacts": [
+    {
+      "id": "googleid",
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/com.google.android.libraries.identity.googleid/googleid/1.2.0/a6e16944637e1395fe8c5cc2f93e4cda8a40c4c3/googleid-1.2.0.aar",
+      "bytes": 109059,
+      "sha256": "f49e88107f90ef0d1250d8504e8eba18be8532b1286203c92f28bf6bd15814ff",
+      "role": "sdk",
+      "classesJarSHA256": "803e7ae54608e58d5045c0f53ca531d92248d15c4680d6ebcdfd5f6d57f7b5ab",
+      "classesJarBytes": 38177
+    },
+    {
+      "id": "credentials",
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/androidx.credentials/credentials/1.6.0/c55ef43bd30fbe62168a22c5df509116814a167b/credentials-1.6.0.aar",
+      "bytes": 634646,
+      "sha256": "9051922592ee3c92370ce3f942d66661f1e9050ac5b370932c71f0a380acf227",
+      "role": "sdk",
+      "classesJarSHA256": "5f8ea6b4666c8d03777865d0b8bc88bc6b8a1d0d770babd6a2a671562bdb94a5",
+      "classesJarBytes": 651708
+    },
+    {
+      "id": "androidx-core",
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/androidx.core/core/1.15.0/e8d4c7eeed12403fdd2d5ef29a00ebe946d530d6/core-1.15.0.aar",
+      "bytes": 1336135,
+      "sha256": "432b85a1974076e14b487ece4a28c59a84f1b9efc3fc8be72cd7f05d32055e51",
+      "role": "sdk",
+      "classesJarSHA256": "e4d3c02d3d3cc92f0c6d59df0a7c7d8faa04936aeabaa4f5f3e55c050f076d9b",
+      "classesJarBytes": 1357224
+    },
+    {
+      "id": "biometric",
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/androidx.biometric/biometric/1.1.0/3d4d3a881cc8cbeee5bf9dd6a4e8326f0e4b44cd/biometric-1.1.0.aar",
+      "bytes": 194748,
+      "sha256": "270c7b7d99942d5ec1dd88594e4648feb33d8e31d8c3c2ab2321d49d9abdfc1f",
+      "role": "sdk",
+      "classesJarSHA256": "3f5185db9f323c0215931fc40163dcb80354f00dd7de7523f61da0bca96f4898",
+      "classesJarBytes": 81084
+    },
+    {
+      "id": "androidx-annotation",
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/androidx.annotation/annotation-jvm/1.8.1/b8a16fe526014b7941c1debaccaf9c5153692dbb/annotation-jvm-1.8.1.jar",
+      "bytes": 56126,
+      "sha256": "9aab326d9492800991854360ac248f493ce7f7c3183519309b78ace9e240f6f6",
+      "role": "sdk"
+    },
+    {
+      "id": "jspecify",
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jspecify/jspecify/1.0.0/7425a601c1c7ec76645a78d22b8c6a627edee507/jspecify-1.0.0.jar",
+      "bytes": 3819,
+      "sha256": "1fad6e6be7557781e4d33729d49ae1cdc8fdda6fe477bb0cc68ce351eafdfbab",
+      "role": "sdk"
+    },
+    {
+      "id": "stdlib",
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.4.10/8943c84ddc6d5cc00a10dbc3736c397066eeaab5/kotlin-stdlib-2.4.10.jar",
+      "bytes": 1841933,
+      "sha256": "4ec0293bc3751423b203f1d8493251c57c42e73eb6377a6b8560d0974ff0a6df",
+      "role": "sdk-compiler"
+    },
+    {
+      "id": "coroutines-core",
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm/1.10.2/4a9f78ef49483748e2c129f3d124b8fa249dafbf/kotlinx-coroutines-core-jvm-1.10.2.jar",
+      "bytes": 1479317,
+      "sha256": "5ca175b38df331fd64155b35cd8cae1251fa9ee369709b36d42e0a288ccce3fd",
+      "role": "sdk"
+    },
+    {
+      "id": "coroutines-android",
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-coroutines-android/1.10.2/c8705d275d81f19e8afaf3ff9b5bf7a4b6b6c19b/kotlinx-coroutines-android-1.10.2.jar",
+      "bytes": 17826,
+      "sha256": "e713f1f874244115a07571065cffa0f24f5e78300e9720fea16de3af1d75fd41",
+      "role": "sdk"
+    },
+    {
+      "id": "annotations",
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar",
+      "bytes": 17536,
+      "sha256": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+      "role": "sdk-compiler"
+    },
+    {
+      "id": "compiler",
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-compiler-embeddable/2.4.10/cac44a5a360313427c693a9de295017bc76d6e4e/kotlin-compiler-embeddable-2.4.10.jar",
+      "bytes": 60352373,
+      "sha256": "9309638a2ee03e6bde9ef4b7444055a94b84ab906563675d71ff9aecb64da913",
+      "role": "compiler"
+    },
+    {
+      "id": "build-tools-api",
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-build-tools-api/2.4.10/c88fe54d8d8c568de500b26fd459853c7202de39/kotlin-build-tools-api-2.4.10.jar",
+      "bytes": 310932,
+      "sha256": "3953d283e7710c990672e403a87df393d9726a9bf3e172194ebb5c33e062fcb0",
+      "role": "compiler"
+    },
+    {
+      "id": "script-runtime",
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-script-runtime/2.4.10/8365e84d1043a759f868135e8146ed949698804a/kotlin-script-runtime-2.4.10.jar",
+      "bytes": 46565,
+      "sha256": "f4a5b30c2fdfbe386b097101b7989dbeea3743c06396136664784e08e15c6899",
+      "role": "compiler"
+    },
+    {
+      "id": "reflect",
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-reflect/1.6.10/1cbe9c92c12a94eea200d23c2bbaedaf3daf5132/kotlin-reflect-1.6.10.jar",
+      "bytes": 3038560,
+      "sha256": "3277ac102ae17aad10a55abec75ff5696c8d109790396434b496e75087854203",
+      "role": "compiler"
+    },
+    {
+      "id": "daemon",
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-daemon-embeddable/2.4.10/266ea1db63e2a3d5f471a4d5e72cc40c2ff23c29/kotlin-daemon-embeddable-2.4.10.jar",
+      "bytes": 381839,
+      "sha256": "547d969a2eab602fe0bdfd9fcb1b563a5c6d30099d3351394d6427eba8288467",
+      "role": "compiler"
+    },
+    {
+      "id": "compiler-coroutines",
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm/1.8.0/ac1dc37a30a93150b704022f8d895ee1bd3a36b3/kotlinx-coroutines-core-jvm-1.8.0.jar",
+      "bytes": 1548360,
+      "sha256": "9860906a1937490bf5f3b06d2f0e10ef451e65b95b269f22daf68a3d1f5065c5",
+      "role": "compiler"
+    },
+    {
+      "id": "android-api",
+      "path": "/Users/daguang/Library/Android/sdk/platforms/android-36/android.jar",
+      "bytes": 27768026,
+      "sha256": "d9eb9da824d9e247a352f570f01e1169e725b2954bca9e283a71786c59b59f9a",
+      "role": "platform"
+    },
+    {
+      "id": "d8",
+      "path": "/Users/daguang/Library/Android/sdk/build-tools/36.0.0/lib/d8.jar",
+      "bytes": 17998582,
+      "sha256": "4097ff9c46c185c6e7214da7fe9b1befb5adeea5cc9ca349270e0249904f9240",
+      "role": "dex-tool"
+    },
+    {
+      "id": "adb",
+      "path": "/Users/daguang/Library/Android/sdk/platform-tools/adb",
+      "bytes": 19993936,
+      "sha256": "9fdf861259dc807937b13afdd5f053c7fda9f3b7726933fe0e0f45130ecb8dc7",
+      "role": "device-tool"
+    },
+    {
+      "id": "java",
+      "path": "/opt/homebrew/Cellar/openjdk@17/17.0.19/libexec/openjdk.jdk/Contents/Home/bin/java",
+      "bytes": 69600,
+      "sha256": "7db0dd5c0c4dc931244875d0723783a32cc7912922e6aaac1dbb744bf8ae837f",
+      "role": "compiler-tool"
+    },
+    {
+      "id": "javac",
+      "path": "/opt/homebrew/Cellar/openjdk@17/17.0.19/libexec/openjdk.jdk/Contents/Home/bin/javac",
+      "bytes": 69504,
+      "sha256": "a7905f0d4944e3aee8aa20673f199a688b815545f930ee537b3d28a578ae2861",
+      "role": "compiler-tool"
+    },
+    {
+      "id": "jdk-release",
+      "path": "/opt/homebrew/Cellar/openjdk@17/17.0.19/libexec/openjdk.jdk/Contents/Home/release",
+      "bytes": 1252,
+      "sha256": "2733cd698c75e9ef9323cd4666f117bd98aa3863a31000d3c335c2d68e86c554",
+      "role": "jdk-metadata"
+    },
+    {
+      "id": "jdk-java-base",
+      "path": "/opt/homebrew/Cellar/openjdk@17/17.0.19/libexec/openjdk.jdk/Contents/Home/jmods/java.base.jmod",
+      "bytes": 17455431,
+      "sha256": "38e5fe2e259a8445f7ac3ad5a90898a4d60d0447f06d32e5908a864cf4112f16",
+      "role": "bootstrap-metadata"
+    }
+  ],
+  "compilerIds": [
+    "compiler",
+    "build-tools-api",
+    "stdlib",
+    "script-runtime",
+    "reflect",
+    "daemon",
+    "compiler-coroutines",
+    "annotations"
+  ],
+  "sdkCompileIds": [
+    "googleid",
+    "credentials",
+    "androidx-core",
+    "biometric",
+    "androidx-annotation",
+    "jspecify",
+    "stdlib",
+    "coroutines-core",
+    "coroutines-android",
+    "annotations"
+  ],
+  "wholeRuntimeJarIds": [
+    "stdlib",
+    "coroutines-core",
+    "coroutines-android",
+    "androidx-annotation",
+    "jspecify",
+    "annotations"
+  ],
+  "jdkHome": "/opt/homebrew/Cellar/openjdk@17/17.0.19/libexec/openjdk.jdk/Contents/Home",
+  "knownBootstrapIntrinsic": "java/lang/invoke/LambdaMetafactory",
+  "deviceOwner": {
+    "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-expo-native-run-x426cf54/fixture-owner.json",
+    "sha256": "1c9d8cbc969def92791e19ef8af21de348c54a14faef24a898b79e5afd318364",
+    "avdConfigPath": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-expo-native-run-x426cf54/avd/slax-migration-controlled.avd/config.ini",
+    "avdConfigSHA256": "c036110ba8f3970c82bf2149dbbdbd546555cc0c94a48319266ee00b545bdeb8",
+    "kind": "slax-controlled-native-validation",
+    "name": "slax-migration-controlled",
+    "port": 5560,
+    "serial": "emulator-5560",
+    "avdHome": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-expo-native-run-x426cf54/avd",
+    "requiredApi": 34,
+    "requiredAbi": "arm64-v8a"
+  },
+  "budget": {
+    "hostDisk": 104857600,
+    "deviceDisk": 20971520,
+    "heap": 536870912,
+    "minimumFreeBeforeExecution": 3865470567,
+    "executionMilliseconds": 120000,
+    "commandMilliseconds": 30000,
+    "minimumFreeDuringExecution": 3221225472
+  },
+  "scope": "Actual request construction only; whole unmodified production Kotlin helper is compiled, while signIn/getCredential/account/provider paths are never invoked. SDK compile/signature jars remain complete; runtime request-builder classes are actual unmodified SDK classes, with whole Kotlin/coroutine/runtime annotation jars. Known JVM LambdaMetafactory bootstrap is sourced from real JDK17 and must be handled by actual D8; no SDK substitutes."
+}

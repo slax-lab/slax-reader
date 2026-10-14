@@ -1,0 +1,44 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "D134C3EA-875A-4EC3-856C-F9C251EEB592.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-library-after-native-back-native-tree_0_6E4F69DA-A805-4B8B-8B03-83479078498D.txt",
+        "timestamp" : 1791664442.745
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "3746E8F8-09BF-4AD2-B34E-ECD876EDF929.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-library-after-native-back_0_2239B426-D040-4178-A294-456F7736BC60.png",
+        "timestamp" : 1791664442.632
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "D82DC173-BEE0-49B4-B383-CC8A2BC5111A.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-loaded-reader-before-native-back-native-tree_0_5189537F-6EF0-4DDA-A495-95D92F4C87DF.txt",
+        "timestamp" : 1791664440.665
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "92BBDB26-8489-41BF-9E0F-086244DC60B9.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-loaded-reader-before-native-back_0_E6E1000F-7020-4BB3-B2A8-37DE4F337105.png",
+        "timestamp" : 1791664440.328
+      }
+    ],
+    "testIdentifier" : "UpgradeVisibleControl/testNativeBackFromLoadedReader()",
+    "testIdentifierURL" : "test://com.apple.xcode/UpgradeVisibleControl/UpgradeVisibleControl/UpgradeVisibleControl/testNativeBackFromLoadedReader"
+  }
+]

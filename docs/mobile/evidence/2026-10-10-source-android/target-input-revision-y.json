@@ -1,0 +1,17 @@
+{
+  "kind": "controlled-fixture-input-revision",
+  "version": 1,
+  "revision": "source-rounded-header-padding-y",
+  "fixtureSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "previousDriver": "target-driver-x.json",
+  "driver": "target-driver-y.json",
+  "changedFiles": [
+    {
+      "path": "src/screens/LibraryScreen.tsx",
+      "previousSha256": "0a2b60636b3b86af3db0a5f902f923523e555fab9d6ac4776cf8e9269c69c907",
+      "sha256": "f8bf64f65143552896605bb50411790541cc7beea38314097daae5b0bf2f6b14"
+    }
+  ],
+  "nativeAndroidChanged": false,
+  "nativeIosChanged": false
+}

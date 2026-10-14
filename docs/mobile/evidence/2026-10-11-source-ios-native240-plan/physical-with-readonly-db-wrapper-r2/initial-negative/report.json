@@ -1,0 +1,29 @@
+{
+  "kind": "author-wrapper-host-negative-before-freeze",
+  "command": [
+    "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+    "-B",
+    "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/native-scroll-db-runtime-guards.test.py",
+    "-v"
+  ],
+  "exitCode": 1,
+  "hostTests": 19,
+  "errors": 2,
+  "databaseOpened": false,
+  "nativeCommands": false,
+  "reason": "Wrapper facade connect first positional parameter named uri conflicted with SQLite uri=True keyword. Pure tests refused before any underlying connect.",
+  "inputs": [
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/run-native-scroll-with-db.py",
+      "bytes": 20954,
+      "sha256": "17ee8a1824573f22eeee20f1f50298476dae52fcfa6a7079292d2601c22f2152"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/native-scroll-db-runtime-guards.test.py",
+      "bytes": 17108,
+      "sha256": "93bbf895cae4e7bf30cb8333a6538e9287a0668d48102caeba78f1cd7dcd26aa"
+    }
+  ],
+  "prior17PassWasBeforeSharedDeadlineFacade": true,
+  "first19InteractiveFailureRepeatedOnlyToRetainExactRawLog": true
+}

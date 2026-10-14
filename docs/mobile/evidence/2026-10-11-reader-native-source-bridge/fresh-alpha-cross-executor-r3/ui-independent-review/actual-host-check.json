@@ -1,0 +1,81 @@
+{
+  "actualChecks": [
+    {
+      "name": "six-focused-guards",
+      "argv": [
+        "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-B",
+        "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/inputs/runtime-guards.test.py",
+        "Guards.test_actual_root_relative_cli_and_three_cwd_fields_are_accepted",
+        "Guards.test_relative_cli_requires_exact_live_owned_cwd",
+        "Guards.test_cwd_missing_duplicate_extra_fields_and_raw_whitespace_are_refused",
+        "Guards.test_cli_options_headers_paths_and_whitespace_cannot_replace_exact_argv",
+        "Guards.test_lsof_command_is_closed_to_exact_owned_pid_and_cwd_only",
+        "Guards.test_prior_run_commands_and_allocation_paths_are_refused_before_read"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.09168104099999999,
+      "stdout": {
+        "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/ui-independent-review/raw/six-focused-guards.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/ui-independent-review/raw/six-focused-guards.stderr",
+        "bytes": 632,
+        "sha256": "624f707aee40c52da76ae04455d2a5343c6e691bedd4999bd5544f2ae7edd9e7"
+      }
+    },
+    {
+      "name": "actual-node-new-root-refusal",
+      "argv": [
+        "/usr/local/bin/node",
+        "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/inputs/snapshot-check.mjs",
+        "alpha",
+        "/private/tmp/slax-reader-fresh-alpha-cross-70641adca8a446cbbeb6177a7e5dfe2c"
+      ],
+      "exitCode": 1,
+      "elapsedSeconds": 0.11559175000000001,
+      "stdout": {
+        "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/ui-independent-review/raw/actual-node-new-root-refusal.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/ui-independent-review/raw/actual-node-new-root-refusal.stderr",
+        "bytes": 904,
+        "sha256": "be268f13b7e39188124b58923635370ba2fba18183db97f8856e69b178e37311"
+      }
+    }
+  ],
+  "inputsPrePostUnchanged": true,
+  "inputs": [
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/inputs/run-fresh-alpha-cross.py",
+      "bytes": 53071,
+      "sha256": "01c1c03f6ff2b15917330e7f2aed8b5720d1e755a48920cb1725aa98101b9d8a"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/inputs/runtime-policy.json",
+      "bytes": 36030,
+      "sha256": "9c3b43a296d882e48e987bb700948ea599615ccf9ae9375b823124190cd292e9"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/inputs/runtime-guards.test.py",
+      "bytes": 28771,
+      "sha256": "a4d248158111afc7f84d6e32a1f614fa79d9b02b5a9b56fbe439d399059ec378"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/inputs/snapshot-check.mjs",
+      "bytes": 2254,
+      "sha256": "3fed60342c4e3fc6e40842440be81fd3a668565a22bc24d713372a601b799837"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/inputs/installed-helpers-forward-admission.json",
+      "bytes": 24439,
+      "sha256": "edf7dc74497fae0312ba5145774411276d5614742449f8f063dcbc666b870716"
+    }
+  ],
+  "nativeDeviceCompilerMetroOrStageAction": false,
+  "newRunRootCreated": false
+}

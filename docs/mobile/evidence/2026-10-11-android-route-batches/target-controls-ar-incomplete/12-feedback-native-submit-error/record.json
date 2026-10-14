@@ -1,0 +1,136 @@
+{
+  "name": "feedback-native-submit-error",
+  "result": "failed",
+  "error": "Feedback native input is missing",
+  "nativeInteractionVerified": false,
+  "nativeInput": {
+    "method": "adb-native-input-tap",
+    "selector": {
+      "resource-id": "feedback_submit"
+    },
+    "observedNode": {
+      "index": "0",
+      "text": "",
+      "resource-id": "feedback_submit",
+      "class": "android.widget.Button",
+      "package": "com.slax.reader.uifixture",
+      "content-desc": "Submit",
+      "checkable": "false",
+      "checked": "false",
+      "clickable": "true",
+      "enabled": "true",
+      "focusable": "true",
+      "focused": "false",
+      "scrollable": "false",
+      "long-clickable": "false",
+      "password": "false",
+      "selected": "false",
+      "bounds": "[877,157][1038,262]"
+    },
+    "pointPixels": {
+      "x": 957,
+      "y": 209
+    },
+    "focusedWindowBeforeInput": "mCurrentFocus=Window{26e0444 u0 com.slax.reader.uifixture/com.slax.reader.uifixture.MainActivity}",
+    "observedBefore": {
+      "controlledFixture": true,
+      "fixtureVersion": 1,
+      "scenario": "feedback-error",
+      "inputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "locale": "en",
+      "observedPreferenceValues": {
+        "cache_count": 50,
+        "download_images": 1,
+        "user_language": "en"
+      },
+      "nativeMeasurements": {
+        "platform": "android",
+        "osVersion": "14",
+        "deviceModel": "sdk_gphone64_arm64",
+        "viewport": {
+          "width": 411.42857142857144,
+          "height": 914.2857142857143,
+          "scale": 2.625,
+          "fontScale": 1
+        },
+        "screen": {
+          "width": 411.42857142857144,
+          "height": 914.2857142857143,
+          "scale": 2.625,
+          "fontScale": 1
+        },
+        "pixelRatio": 2.625,
+        "fontScale": 1,
+        "fontScaleProfile": "default",
+        "safeArea": {
+          "left": 0,
+          "bottom": 24,
+          "right": 0,
+          "top": 51.80952453613281
+        },
+        "appearance": "light"
+      },
+      "observedRoute": {
+        "name": "Feedback",
+        "params": {
+          "bookmarkId": "00000003-0000-4000-8000-000000000001",
+          "targetUrl": "https://fixture-pages.test/mixed",
+          "title": "Fixed article title",
+          "entryPoint": "detail"
+        },
+        "key": "Feedback-dpz0kjU1m5uN_Hv79tkaf"
+      },
+      "observedNavigationState": {
+        "root": {
+          "stale": false,
+          "type": "stack",
+          "key": "stack-jaPDX31sh4dftqmGh2I0b",
+          "index": 1,
+          "routeNames": [
+            "Library",
+            "Reader",
+            "Settings",
+            "About",
+            "Debug",
+            "DeleteAccount",
+            "Subscription",
+            "Feedback"
+          ],
+          "routes": [
+            {
+              "name": "Library",
+              "key": "Library-zXcc2Gu2Cy5yiO8VKMmeX"
+            },
+            {
+              "name": "Feedback",
+              "params": {
+                "bookmarkId": "00000003-0000-4000-8000-000000000001",
+                "targetUrl": "https://fixture-pages.test/mixed",
+                "title": "Fixed article title",
+                "entryPoint": "detail"
+              },
+              "key": "Feedback-dpz0kjU1m5uN_Hv79tkaf"
+            }
+          ],
+          "preloadedRoutes": []
+        },
+        "canGoBack": true
+      },
+      "measuredAt": "2026-10-10T19:41:33.551Z",
+      "displayedClock": "pending-native-frame-inspection",
+      "simulatedNetworkAndSync": true,
+      "nativeExecution": "pending-capture",
+      "preparedActions": [],
+      "sourceParity": "unverified"
+    }
+  },
+  "capturedAtMillis": 1791661298510,
+  "sourceParity": "unverified",
+  "files": [
+    {
+      "path": "12-feedback-native-submit-error/rejected-diagnostic.png",
+      "sha256": "5cb477134285f9d2ad2c35ee1c4a7c7a79ee0a94ee8364e194a52f5509de274a",
+      "bytes": 98649
+    }
+  ]
+}

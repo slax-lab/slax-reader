@@ -1,0 +1,58 @@
+{
+  "controlledFixture": true,
+  "fixtureVersion": 1,
+  "kind": "original-swift-share-presentation",
+  "simulatorOnly": true,
+  "bundleIdentifier": "app.slax.reader.sourcesharefixture",
+  "extensionIdentifier": "app.slax.reader.sourcesharefixture.share",
+  "sourceCommit": "9951904405159f49f24effd4d42815f77ff33442",
+  "sourceManifestSha256": "3501089ae75682a823afdfb54ccf243d32cbc56eba1f84bd70c68afafc1f2943",
+  "originalSourcePath": "iosApp/share/ShareViewController.swift",
+  "originalSourceSha256": "e362d3286bc0091711e538b40f3813408d1214f6c726c129656a1fbd0978c016",
+  "sourceCheckoutModified": false,
+  "originalSwiftByteIdentical": true,
+  "originalKotlinRuntime": false,
+  "realNetwork": false,
+  "productionAppGroup": false,
+  "syntheticBoundary": "explicit-local-ComposeApp.ShareKt-Swift-stub",
+  "nativeVisualAcceptance": "unverified",
+  "files": [
+    {
+      "path": "ComposeAppStub.swift",
+      "sha256": "1cafe84ab6d4828aab66b736045e10b39a9567079b6a610229451727da400620"
+    },
+    {
+      "path": "Host.swift",
+      "sha256": "6797c4dc5886859411fef04041291bc2b46eb37fed62aca2ef3f9f3aa0efeaa2"
+    },
+    {
+      "path": "README.md",
+      "sha256": "09e3091ac91feb726748fa73b32ecc3868483da5ed6871ccf31e3a2280cfa5e1"
+    },
+    {
+      "path": "ShareInfo.plist",
+      "sha256": "3ddd92630c6791ea1c8bb4601224837cae8ae82b9fec1887fb7bbc5bc3e9f741"
+    },
+    {
+      "path": "SourceShareFixture.xcodeproj/project.pbxproj",
+      "sha256": "5e3797997c5d231d3bdcf543b99c3da6fc3f0107f9740edf3bf39b71b2e82836"
+    },
+    {
+      "path": "SourceShareFixture.xcodeproj/xcshareddata/xcschemes/SourceShareFixture.xcscheme",
+      "sha256": "1da56024469d69521a52f4837f612e416a0c854560d4484ba2f8ce29613ed919"
+    },
+    {
+      "path": "original/ShareViewController.swift",
+      "sha256": "e362d3286bc0091711e538b40f3813408d1214f6c726c129656a1fbd0978c016"
+    }
+  ],
+  "sourceNativeBuild": "unchanged-Swift-controller-with-explicit-local-boundary-built",
+  "appPath": "/private/tmp/slax-source-share-fixture-c/build/Build/Products/Debug-iphonesimulator/SourceShareHost.app",
+  "executableSHA256": "a67a9bdf923824fe8c68589f4f0846348a3fc7546e42cfb5c8bc01c5cd104198",
+  "extensionExecutableSHA256": "8d5f668b35b5547015e3a3b7c33acc8ad71a142a2e47559a5c5f9a2fdff3bc13",
+  "boundaryExecutableSHA256": "91a199a2992ef5d67c2bd775ff1d28bd13da8a48cea44c38af23219ebbbe9f4e",
+  "packagingDriverSHA256": "2454cecf02fc0869783f33d11e541ed982792245bc045f24b3577a060a724250",
+  "signing": "public-ad-hoc-simulator-only",
+  "simulatorInstall": "not-performed-by-build-driver",
+  "nativeInteractionVerified": false
+}

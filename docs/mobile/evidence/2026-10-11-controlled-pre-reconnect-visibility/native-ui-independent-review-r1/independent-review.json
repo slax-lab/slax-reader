@@ -1,0 +1,111 @@
+{
+  "kind": "slax-controlled-pre-reconnect-native-ui-independent-review",
+  "version": 1,
+  "recordedAt": "2026-10-10T23:11:42.811020+00:00",
+  "change": "expo-mobile-migration",
+  "status": "important-finding-awaiting-fix",
+  "authorReceiptSHA256": "c63f5336ed059c887f2da78f985d249604952a583bcd43f1e56b35a4fdbbdd64",
+  "sourceInputsSHA256": {
+    "apps/mobile/src/controlled-upgrade-visibility.ts": "9fa6c60108745f3c6363e28b79304c68d1969dc536c25fd3fbca9bce1d85b209",
+    "apps/mobile/src/runtime.tsx": "0fd77a26611c2ce93d2f0b5e4c7b58e971daa56864c26a6939faf5268eae7a72",
+    "apps/mobile/tests/data/NativeUpgradeVisibleFixtureApp.tsx": "951ceba56fc7fce2eeffb7fbaf9cb3d1f04863d88997041c1283884c5edf6fc7",
+    "apps/mobile/tests/data/adoption-fixtures/tooling/visible-upgrade-control.mjs": "405d95545453434247e73bf91dce039926654b5760483dc07a8cac4cda24d79f",
+    "apps/mobile/tests/data/pre-reconnect-evidence.ts": "3f531e6181f522bfbfe0acad6b42a8fa483d8830cf86b0f2ad1caee953f644a2",
+    "apps/mobile/tests/data/pre-reconnect-evidence.test.mjs": "6ddbb16b7be1a2ad7c825aec2b4ac87bdb50d872ce6df99e024290ceb9b51909",
+    "apps/mobile/tests/data/NativeServiceReconnectFixture.ts": "de615a9d5783492b2ca3bc77ccc2b04dfacfa7820585a5e234a55da2bf818ce4",
+    "apps/mobile/tests/data/upgrade-visibility.test.mjs": "f246b69a2f51f028e7676dbb922d2a12e95fee854196f03e5b819ee217ba3bf6"
+  },
+  "allEightCurrentAndArchivedInputsMatch": true,
+  "additionalReadOnlyInputsSHA256": {
+    "REVIEW.md": "f971265251f4de7981958224e2d7eea4fefa270f0ba01aecc2e90820aa7ed7f3",
+    "openspec/changes/expo-mobile-migration/proposal.md": "035f35ba9576f18d6aab37582361b0d15b15f9e0f9ea48fb61e2adc47f20a222",
+    "openspec/changes/expo-mobile-migration/design.md": "9e3c6e002b1d7761be34aef104d8b4599f9f86c65546c0313369094eb8344a28",
+    "openspec/changes/expo-mobile-migration/tasks.md": "8d2b3d4974bb932acff69dc204508244606b898b0528ceed084039756a0e7d49",
+    "openspec/changes/expo-mobile-migration/specs/mobile-upgrade-compatibility/spec.md": "17b0dcb347df87117d772921e55dc8b50652290ce3855cfd045bc418f37f63a9",
+    "apps/mobile/src/data/adoption.ts": "adaa415c44b41746a19a06f7fcf743ef07a39cb997737a27145671dfdf600ae3",
+    "apps/mobile/src/data/cache.ts": "c179fe23d8d128c115ae397083ef5179fc5c884364b4c720af13f84500ce8481",
+    "apps/mobile/src/data/runtime.ts": "0df561a63c028c87e44bc511f41ee78c604001baf31a27613239cb0559f718ba",
+    "apps/mobile/modules/slax-legacy/android/src/main/java/com/slax/reader/legacy/SlaxLegacyModule.kt": "487b780bb58831a2ec2e0452d7077961002764c09a45dbe06f0aa067c8040ef5",
+    "apps/mobile/tests/data/adoption-fixtures/visible-legacy-inputs.json": "bd660fd48fbdecd7c9eb599ce701281fdf6c6ff78d716cab945cdcfc0d59d110"
+  },
+  "passes": [
+    {
+      "pass": "Bugs",
+      "important": 1,
+      "nits": 0
+    },
+    {
+      "pass": "Security",
+      "important": 0,
+      "nits": 0
+    },
+    {
+      "pass": "Compliance",
+      "important": 0,
+      "nits": 0
+    }
+  ],
+  "findings": [
+    {
+      "pass": "Bugs",
+      "classification": "Important",
+      "title": "Android controller trims raw request bytes and prevents exact receipt validation",
+      "file": "apps/mobile/tests/data/adoption-fixtures/tooling/visible-upgrade-control.mjs",
+      "lines": [
+        29,
+        43,
+        69,
+        74,
+        92
+      ],
+      "trigger": "The writer appends a newline. Android marker reading uses command(), whose stdout.trim() removes that byte. The actual app hashes File.text() including the newline. Cleanup hashes the trimmed bytes into visibilityRequestMd5. validatePreReconnectServiceBaseline line37 rejects the three actual raw marker MD5 observations.",
+      "effect": "Android pre-reconnect cleanup cannot produce a valid finished receipt or continue the authorized service exercise from it. iOS uses readFileSync and retains bytes.",
+      "requestedFix": "Keep raw marker output unchanged; retain trimmed scalar command results. Add a regression executing the actual command/read transport through a mocked adb process.",
+      "reproduction": "android-raw-request-reproduction.log",
+      "reproductionSHA256": "5e0afebe1ee1c62058ca7ddfdeb459741793b341810561e7ed59833d2ee061c8"
+    }
+  ],
+  "checks": {
+    "command": [
+      "node",
+      "--experimental-strip-types",
+      "--test",
+      "apps/mobile/tests/data/pre-reconnect-evidence.test.mjs",
+      "apps/mobile/tests/data/upgrade-visibility.test.mjs"
+    ],
+    "tests": 51,
+    "passed": 51,
+    "failed": 0,
+    "skipped": 0,
+    "log": "focused-tests.log",
+    "logSHA256": "7ace470b23f8d79271c4e85749552c52435ef2ea067ebb41fe5c06a105111219",
+    "inputBeforeAndAfterUnchanged": true,
+    "currentEightMatchAuthorArchive": true,
+    "commandSourceReproductionUsesActualControllerFunction": true,
+    "nativeDeviceUsed": false
+  },
+  "reviewedPredicates": [
+    "Actual DEV-only production services, synthetic original account and blocked loopback; no fixture-only rows or document injection",
+    "Android dataDir cache root differs from filesDir marker root, as actual native ownership inventory reports",
+    "Absent phase retains post-service six-operation/normal-start/CAS-bound controller prerequisites",
+    "Ordered original four CRUD/two transactions, raw opData/previousValues, business/queue/local digests before account start",
+    "Same source/run/device/nonce/raw-request hash/native database identity throughout offline and service receipt",
+    "Only actual ready/native-scroll and committed persisted position with native teardown can relax original complete local JSON; other keys/rows/digests/cache/preferences remain unchanged",
+    "Service SIGKILL recovery retains exact finished-receipt MD5/pre-service snapshot; missing receipt retains byte-exact original local state",
+    "Original ordinary MobileProvider and following bytes exactly match retained aw4 stage"
+  ],
+  "ordinaryProviderUnchangedProof": {
+    "sourceStart": "export function MobileProvider(",
+    "currentAndAw4SuffixSHA256": "9caeb70dc9c8e61122133ccc413ab7ca2cae967dec0aeb5bb795664014874b75"
+  },
+  "scope": {
+    "nativeBuild": false,
+    "nativeDeviceOperation": false,
+    "stageOrMetroMutation": false,
+    "specOrCoverageEdit": false,
+    "beforeReconnectScreenshotsOrInputAccepted": false,
+    "subsequentServiceWithPreVisibilityBaselineExecuted": false,
+    "task5_8Complete": false,
+    "testFlight": false
+  }
+}

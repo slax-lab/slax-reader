@@ -1,0 +1,30 @@
+{
+  "platform": "macOS host; simulator typecheck only",
+  "deviceExecuted": false,
+  "snapshot": {
+    "databasePath": "controlled-fixture/powersync.db",
+    "dataDigest": "86860d8dbfd69f910a128209c9659bde1bacd9470f7479caa98d1d87ab34c308",
+    "formatVersion": 14,
+    "integrityValid": true,
+    "localDigest": "d021bc0c950ac956ae3d84c257c9715374b9d8b57c9ee75c230b07b18ba3534a",
+    "pendingOperations": 4,
+    "pendingTransactions": 2,
+    "queueDigest": "d6da8bcc4fd59fa587e60e491cedbd5a651577b96b79eb28a0ded03a18158f75",
+    "storageTables": [
+      "ps_data__sr_bookmark_comment",
+      "ps_data__sr_collection_bookmark",
+      "ps_data__sr_platform_bind",
+      "ps_data__sr_sharer_setting",
+      "ps_data__sr_user",
+      "ps_data__sr_user_bookmark",
+      "ps_data__sr_user_bookmark_stats",
+      "ps_data__sr_user_collection",
+      "ps_data__sr_user_collection_subscriber",
+      "ps_data__sr_user_notification",
+      "ps_data__sr_user_subscription",
+      "ps_data__sr_user_tag",
+      "ps_data_local__local_bookmark_info"
+    ],
+    "userVersion": 1
+  }
+}

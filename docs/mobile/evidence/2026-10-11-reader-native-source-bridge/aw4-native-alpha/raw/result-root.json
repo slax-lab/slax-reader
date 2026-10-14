@@ -1,0 +1,480 @@
+{
+  "_type" : {
+    "_name" : "ActionsInvocationRecord"
+  },
+  "actions" : {
+    "_type" : {
+      "_name" : "Array"
+    },
+    "_values" : [
+      {
+        "_type" : {
+          "_name" : "ActionRecord"
+        },
+        "actionResult" : {
+          "_type" : {
+            "_name" : "ActionResult"
+          },
+          "coverage" : {
+            "_type" : {
+              "_name" : "CodeCoverageInfo"
+            }
+          },
+          "diagnosticsRef" : {
+            "_type" : {
+              "_name" : "Reference"
+            },
+            "id" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "0~_NMzT4lUwFLtZnLnI9Xuyo99Qj67PiekIDfcz_Gq_Yjo37xdUXAzzmPL8YluVuVHO17lVQnwdLkPi3Ac3HAajw=="
+            }
+          },
+          "issues" : {
+            "_type" : {
+              "_name" : "ResultIssueSummaries"
+            }
+          },
+          "logRef" : {
+            "_type" : {
+              "_name" : "Reference"
+            },
+            "id" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "0~oyv2yV7Kg7zCTpvCTFzktm1-S1zweYY8G8Brewj6Dqv-nzdSfzIgBpGzVTU-NloDyA8QK6UisIM7TwPyqvgC9Q=="
+            },
+            "targetType" : {
+              "_type" : {
+                "_name" : "TypeDefinition"
+              },
+              "name" : {
+                "_type" : {
+                  "_name" : "String"
+                },
+                "_value" : "ActivityLogSection"
+              }
+            }
+          },
+          "metrics" : {
+            "_type" : {
+              "_name" : "ResultMetrics"
+            },
+            "testsCount" : {
+              "_type" : {
+                "_name" : "Int"
+              },
+              "_value" : "1"
+            }
+          },
+          "resultName" : {
+            "_type" : {
+              "_name" : "String"
+            },
+            "_value" : "action"
+          },
+          "status" : {
+            "_type" : {
+              "_name" : "String"
+            },
+            "_value" : "succeeded"
+          },
+          "testsRef" : {
+            "_type" : {
+              "_name" : "Reference"
+            },
+            "id" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "0~52s0DJBRzYwKieHR2mgsZwhuaWkv2q22OrjepWU_5I9530DRR44Yw99xtu9XxhkdH7UodymO3b0wBLvDw4USLQ=="
+            },
+            "targetType" : {
+              "_type" : {
+                "_name" : "TypeDefinition"
+              },
+              "name" : {
+                "_type" : {
+                  "_name" : "String"
+                },
+                "_value" : "ActionTestPlanRunSummaries"
+              }
+            }
+          }
+        },
+        "buildResult" : {
+          "_type" : {
+            "_name" : "ActionResult"
+          },
+          "coverage" : {
+            "_type" : {
+              "_name" : "CodeCoverageInfo"
+            }
+          },
+          "issues" : {
+            "_type" : {
+              "_name" : "ResultIssueSummaries"
+            }
+          },
+          "metrics" : {
+            "_type" : {
+              "_name" : "ResultMetrics"
+            }
+          },
+          "resultName" : {
+            "_type" : {
+              "_name" : "String"
+            },
+            "_value" : "build"
+          },
+          "status" : {
+            "_type" : {
+              "_name" : "String"
+            },
+            "_value" : "notRequested"
+          }
+        },
+        "endedTime" : {
+          "_type" : {
+            "_name" : "Date"
+          },
+          "_value" : "2026-10-11T07:21:09.512+0800"
+        },
+        "runDestination" : {
+          "_type" : {
+            "_name" : "ActionRunDestinationRecord"
+          },
+          "displayName" : {
+            "_type" : {
+              "_name" : "String"
+            },
+            "_value" : "SlaxColdShareControlled-20261011-Mg6KLJ"
+          },
+          "localComputerRecord" : {
+            "_type" : {
+              "_name" : "ActionDeviceRecord"
+            },
+            "busSpeedInMHz" : {
+              "_type" : {
+                "_name" : "Int"
+              },
+              "_value" : "0"
+            },
+            "cpuCount" : {
+              "_type" : {
+                "_name" : "Int"
+              },
+              "_value" : "1"
+            },
+            "cpuKind" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "Apple M1"
+            },
+            "cpuSpeedInMHz" : {
+              "_type" : {
+                "_name" : "Int"
+              },
+              "_value" : "0"
+            },
+            "identifier" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "00008103-001E25DA3ED3001E"
+            },
+            "isConcreteDevice" : {
+              "_type" : {
+                "_name" : "Bool"
+              },
+              "_value" : "true"
+            },
+            "logicalCPUCoresPerPackage" : {
+              "_type" : {
+                "_name" : "Int"
+              },
+              "_value" : "8"
+            },
+            "modelCode" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "Macmini9,1"
+            },
+            "modelName" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "Mac mini"
+            },
+            "modelUTI" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "com.apple.macmini-2020"
+            },
+            "name" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "My Mac"
+            },
+            "nativeArchitecture" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "arm64e"
+            },
+            "operatingSystemVersion" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "26.5.2"
+            },
+            "operatingSystemVersionWithBuildNumber" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "26.5.2 (25F84)"
+            },
+            "physicalCPUCoresPerPackage" : {
+              "_type" : {
+                "_name" : "Int"
+              },
+              "_value" : "8"
+            },
+            "platformRecord" : {
+              "_type" : {
+                "_name" : "ActionPlatformRecord"
+              },
+              "identifier" : {
+                "_type" : {
+                  "_name" : "String"
+                },
+                "_value" : "com.apple.platform.macosx"
+              },
+              "userDescription" : {
+                "_type" : {
+                  "_name" : "String"
+                },
+                "_value" : "macOS"
+              }
+            },
+            "ramSizeInMegabytes" : {
+              "_type" : {
+                "_name" : "Int"
+              },
+              "_value" : "16384"
+            }
+          },
+          "targetArchitecture" : {
+            "_type" : {
+              "_name" : "String"
+            },
+            "_value" : "arm64"
+          },
+          "targetDeviceRecord" : {
+            "_type" : {
+              "_name" : "ActionDeviceRecord"
+            },
+            "busSpeedInMHz" : {
+              "_type" : {
+                "_name" : "Int"
+              },
+              "_value" : "0"
+            },
+            "cpuCount" : {
+              "_type" : {
+                "_name" : "Int"
+              },
+              "_value" : "0"
+            },
+            "cpuSpeedInMHz" : {
+              "_type" : {
+                "_name" : "Int"
+              },
+              "_value" : "0"
+            },
+            "identifier" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3"
+            },
+            "isConcreteDevice" : {
+              "_type" : {
+                "_name" : "Bool"
+              },
+              "_value" : "true"
+            },
+            "logicalCPUCoresPerPackage" : {
+              "_type" : {
+                "_name" : "Int"
+              },
+              "_value" : "0"
+            },
+            "modelCode" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "iPhone18,1"
+            },
+            "modelName" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "iPhone 17 Pro"
+            },
+            "modelUTI" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "com.apple.com.apple.iphone-17-pro-2"
+            },
+            "name" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "SlaxColdShareControlled-20261011-Mg6KLJ"
+            },
+            "nativeArchitecture" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "arm64"
+            },
+            "operatingSystemVersion" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "26.5"
+            },
+            "operatingSystemVersionWithBuildNumber" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "26.5 (23F77)"
+            },
+            "physicalCPUCoresPerPackage" : {
+              "_type" : {
+                "_name" : "Int"
+              },
+              "_value" : "0"
+            },
+            "platformRecord" : {
+              "_type" : {
+                "_name" : "ActionPlatformRecord"
+              },
+              "identifier" : {
+                "_type" : {
+                  "_name" : "String"
+                },
+                "_value" : "com.apple.platform.iphonesimulator"
+              },
+              "userDescription" : {
+                "_type" : {
+                  "_name" : "String"
+                },
+                "_value" : "iOS Simulator"
+              }
+            },
+            "ramSizeInMegabytes" : {
+              "_type" : {
+                "_name" : "Int"
+              },
+              "_value" : "0"
+            }
+          },
+          "targetSDKRecord" : {
+            "_type" : {
+              "_name" : "ActionSDKRecord"
+            },
+            "identifier" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "iphonesimulator26.5"
+            },
+            "name" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "Simulator - iOS 26.5"
+            },
+            "operatingSystemVersion" : {
+              "_type" : {
+                "_name" : "String"
+              },
+              "_value" : "26.5"
+            }
+          }
+        },
+        "schemeCommandName" : {
+          "_type" : {
+            "_name" : "String"
+          },
+          "_value" : "Test"
+        },
+        "schemeTaskName" : {
+          "_type" : {
+            "_name" : "String"
+          },
+          "_value" : "Action"
+        },
+        "startedTime" : {
+          "_type" : {
+            "_name" : "Date"
+          },
+          "_value" : "2026-10-11T07:20:49.937+0800"
+        },
+        "testPlanName" : {
+          "_type" : {
+            "_name" : "String"
+          },
+          "_value" : "ReaderNativeControl"
+        }
+      }
+    ]
+  },
+  "issues" : {
+    "_type" : {
+      "_name" : "ResultIssueSummaries"
+    }
+  },
+  "metadataRef" : {
+    "_type" : {
+      "_name" : "Reference"
+    },
+    "id" : {
+      "_type" : {
+        "_name" : "String"
+      },
+      "_value" : "0~jq_O_WhnYQ0mWJBDC6YWxXM18T38mhnc-VLZYt8ivHlgdEghWO3CtdAHEfvzT5KDcuVN3DYVjCOJC5rdxX5GLQ=="
+    },
+    "targetType" : {
+      "_type" : {
+        "_name" : "TypeDefinition"
+      },
+      "name" : {
+        "_type" : {
+          "_name" : "String"
+        },
+        "_value" : "ActionsInvocationMetadata"
+      }
+    }
+  },
+  "metrics" : {
+    "_type" : {
+      "_name" : "ResultMetrics"
+    },
+    "testsCount" : {
+      "_type" : {
+        "_name" : "Int"
+      },
+      "_value" : "1"
+    }
+  }
+}

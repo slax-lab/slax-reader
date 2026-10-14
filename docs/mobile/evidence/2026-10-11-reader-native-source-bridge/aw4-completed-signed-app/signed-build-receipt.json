@@ -1,0 +1,137 @@
+{
+  "kind": "slax-reader-nativebridge-ui-build",
+  "version": 1,
+  "stage": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3",
+  "markerSha256": "dee6cc6040c6574b621a2e49a791b8bf285fc4960ccdee3318df4ac4577dc801",
+  "derivedData": "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata",
+  "logRoot": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+  "identity": "app.slax.reader.uifixture",
+  "arm64Only": true,
+  "jobs": 1,
+  "newProductBudget": 3758096384,
+  "minimumFree": 3221225472,
+  "noDeviceCalls": true,
+  "resumedOwnedDD": true,
+  "precedingLogRoots": [
+    "/tmp/slax-reader-nativebridge-ios-aw4-build",
+    "/tmp/slax-reader-nativebridge-ios-aw4-resume",
+    "/tmp/slax-reader-nativebridge-ios-aw4-continue-product"
+  ],
+  "includesAllDistinctAw4BuildLogs": true,
+  "precedingOwnerSha256": "3709ddf48b32bdd70bd845b84f904548e5504eb8710bdb1f61606cabe5858555",
+  "precedingFailureSha256": "f781329d5c28966a519c2ab58a3446b50d4385f19f958393b23493dcd3557b76",
+  "cleanupReceiptSha256": "279a78d134315399051e1200917bfa3ab058746fdde5d3bed4c475ee8830f496",
+  "noDeploymentOrCodegenRerun": true,
+  "status": "actual-arm64-debug-native-build-passed-not-installed",
+  "buildSucceeded": true,
+  "signed": true,
+  "installed": false,
+  "appPath": "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/Build/Products/Debug-iphonesimulator/SlaxReader.app",
+  "nativeExecutable": {
+    "path": "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/Build/Products/Debug-iphonesimulator/SlaxReader.app/SlaxReader",
+    "sha256": "30303f6fa005ad2da4376dcc4be93da5b12d363947b441c642319ba86d4f0b3c"
+  },
+  "nativeDebugDylib": {
+    "path": "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/Build/Products/Debug-iphonesimulator/SlaxReader.app/SlaxReader.debug.dylib",
+    "sha256": "b175f0fa4df38c7e91360b978721d69414efe677309dbe763a42f5de5a64ebe5"
+  },
+  "publicInputs": [
+    {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/.slax-ui-fixture-project.json",
+      "sha256": "dee6cc6040c6574b621a2e49a791b8bf285fc4960ccdee3318df4ac4577dc801"
+    },
+    {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/modules/slax-platform/ios/SlaxReaderView.swift",
+      "sha256": "c0c727feb112265a4909ed7c7b5908d214e5ac867d2c85fb36dca6c9d7f38f66"
+    },
+    {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/modules/slax-platform/ios/SlaxReaderDocumentNavigationGate.swift",
+      "sha256": "33cf869bf0a52541d101699c88e8701bb7888b14e34a37390b52582419c973d5"
+    },
+    {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/assets/embedded/js/react-native-host.js",
+      "sha256": "3acfd2eeaead47880e51b6ed728bfec6eca327a1bfffda744c2688af05a31478"
+    },
+    {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/src/reader/embedded.generated.ts",
+      "sha256": "2ed58deebe18f70748fe6146d486c8e154e7c0ba87e38c3292d9f972d78623ef"
+    },
+    {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/src/screens/ReaderScreen.tsx",
+      "sha256": "7103eb8e074b055a7e78690bdd62e6cc4d92622a6cde89c726623a0192c02805"
+    }
+  ],
+  "locksBefore": [
+    {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/ios/Podfile.lock",
+      "sha256": "791b5607e6b6b55fc7950a91125c05baa2f5cfe408b4ea6bead228c1b98f8f34"
+    },
+    {
+      "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/ios/Pods/Manifest.lock",
+      "sha256": "791b5607e6b6b55fc7950a91125c05baa2f5cfe408b4ea6bead228c1b98f8f34"
+    }
+  ],
+  "podsProject": {
+    "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/ios/Pods/Pods.xcodeproj/project.pbxproj",
+    "sha256": "90d6d4762baf5112a5bf8061c061755fbec625cedf867144677f279232aefd48"
+  },
+  "additionalOwnedRoots": [
+    "/tmp/slax-reader-aw4-public-sign-ba391fab-1ee8-484d-9c95-1ecb4021ee6d"
+  ],
+  "signingOwnerSha256": "17bf358812b91712c98c048557c972df6393142c21dd92023a7d02d2b8bd9d61",
+  "completeSignedAppManifest": {
+    "path": "/tmp/slax-reader-aw4-public-sign-ba391fab-1ee8-484d-9c95-1ecb4021ee6d/complete-signed-app-manifest.json",
+    "sha256": "6570567571698574073f3eed6bba121fed39267b3e9fe8f98dc4aa2e15c7e68e",
+    "regularFiles": 148
+  },
+  "completeBuildEvidence": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-completed-build-before-signing/report.json",
+    "sha256": "847dab81aec012eeb499f75d82483c198583bc931cef232d337cea762c60c10a"
+  },
+  "cleanupReceipt": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-completed-build-before-signing/module-cache-cleanup-receipt.json",
+    "sha256": "12749e7d5acda3fcbb067defa808272cd72e55bc21edc4acfc4a69af666325d5"
+  },
+  "unsignedAppAndDsymManifest": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-completed-build-before-signing/complete-unsigned-app-and-dsym.json",
+    "sha256": "011297a6c5fadb357a45eaaf5b7faa4665f929fdf52ab98b747057a7391b2885"
+  },
+  "samples": [
+    {
+      "at": 1791672930.197695,
+      "ownedBytes": 2806113166,
+      "freeBytes": 4970991616
+    },
+    {
+      "at": 1791672930.6959,
+      "ownedBytes": 2806179681,
+      "freeBytes": 4970983424
+    },
+    {
+      "at": 1791672931.45254,
+      "ownedBytes": 2806180001,
+      "freeBytes": 4970844160
+    },
+    {
+      "at": 1791672931.9302652,
+      "ownedBytes": 2806180001,
+      "freeBytes": 4970745856
+    },
+    {
+      "at": 1791672932.427396,
+      "ownedBytes": 2806180001,
+      "freeBytes": 4970741760
+    },
+    {
+      "at": 1791672933.109488,
+      "ownedBytes": 2806180315,
+      "freeBytes": 4970725376
+    }
+  ],
+  "fixtureVersion": "1.0.0 (1)",
+  "publisherVersionClaim": false,
+  "publicAdHocFixtureOnly": true,
+  "nativeSelectionRetest": "pending",
+  "noMainOrGroupAccess": true,
+  "noAppRebuildPodsCodegenInstallOrDeviceCalls": true
+}

@@ -1,0 +1,23 @@
+{
+  "kind": "isolated-target-android-build",
+  "schemaVersion": 1,
+  "result": "passed",
+  "durationSeconds": 93,
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "driver": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-driver-m.json",
+    "sha256": "de15f36f4e20cf3468dfdaec2b1a92e04a9e185dc04195a55b9d380da4ff691a"
+  },
+  "apk": {
+    "path": "/tmp/slax-mobile-native-artifacts/slax-reader-ui-fixture-arm64-m.apk",
+    "sha256": "f27c06c66e469a5884e00dddc6c16eadc4bd731a233b58ed8e89f179b3e8ca53",
+    "bytes": 99329847
+  },
+  "workers": 1,
+  "architectures": [
+    "arm64-v8a"
+  ],
+  "maxHeapMiB": 1024,
+  "nativeTextRuntimeAcceptance": "pending",
+  "nativeProductionDataAccessed": false
+}
