@@ -25,16 +25,28 @@ The command prompts for the keystore password. The key password equals the keyst
 
 The root `pnpm mobile -- <command>` entry loads `deploy/mobile/.env` for native preparation, development, and build/release commands. Expo configuration and direct native build/release scripts use the same loader. Existing shell/CI values override the file. The three default Firebase/keystore paths are detected automatically when their files exist; explicit path overrides resolve relative to the repository root, independent of the caller's working directory. File values are parsed as dotenv data without shell evaluation or variable expansion. API, Web, and Extension environment files are not read.
 
-Tests, type checking, JavaScript bundle checks, and controlled fixture projects skip local configuration. Set `SLAX_MOBILE_NO_LOCAL_CONFIG=1` to explicitly disable local discovery for another invocation. A native command with no local files retains the unconfigured development path; signed releases still reject missing credentials and require explicit monotonic version inputs.
+Tests, type checking, JavaScript bundle checks, and controlled fixture projects skip local configuration. Set `SLAX_MOBILE_NO_LOCAL_CONFIG=1` to explicitly disable local discovery for another invocation. A native command with no local files retains the unconfigured development path; signed releases still reject missing credentials and invalid version metadata.
 
-For Android, fill the release version fields in `.env`, then run from the repository root:
+Maintain public version metadata in `apps/mobile/package.json`, independently of this local directory:
+
+```json
+{
+  "version": "1.0.25",
+  "buildNumber": 766,
+  "previousBuildNumber": 765
+}
+```
+
+This represents `1.0.25(766)`. Both native platforms and the iOS share extension use these fields; `.env` and the former `SLAX_MOBILE_VERSION`, `SLAX_MOBILE_BUILD_NUMBER`, and `SLAX_MOBILE_PREVIOUS_BUILD_NUMBER` variables do not override them. Keep `version` as a valid three-part package version, `buildNumber` as a positive integer, and `previousBuildNumber` as a lower confirmed build bound. Before another store release, choose a new build greater than all already published builds and update the previous bound accordingly. Keeping build 766 records the latest delivered version; it does not authorize republishing that build. Controlled fixtures retain their separate `1.0.0(1)` metadata.
+
+After updating the package metadata when needed, run Android preparation/builds from the repository root:
 
 ```sh
 pnpm mobile -- prebuild --platform android
 pnpm mobile -- build:android --release bundleRelease --max-workers=1 --no-parallel --no-daemon
 ```
 
-For iOS, fill the release version and Apple team fields in `.env`, then use the existing guarded release workflow:
+For iOS, configure the Apple team in `.env` and use the same package version metadata with the existing guarded release workflow:
 
 ```sh
 pnpm mobile -- prebuild --platform ios

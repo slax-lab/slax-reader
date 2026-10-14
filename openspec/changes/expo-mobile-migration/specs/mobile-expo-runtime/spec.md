@@ -10,6 +10,13 @@ Make the complete mobile application buildable and maintainable inside the monor
 
 Mobile SHALL keep operator-owned iOS/Android build files under ignored `deploy/mobile/ios` and `deploy/mobile/android`, with local settings in ignored `deploy/mobile/.env` and tracked setup documentation/template. Native preparation/build/release commands and Expo configuration SHALL use one loader, discover the default Firebase and Android release-keystore paths, resolve relative explicit paths from the repository root, and give existing process values precedence. A repository-relative operator ZIP SHALL restore these inputs when extracted at the repository root without making regenerated native directories their only source. Original signing credentials and release checks SHALL remain required; missing values SHALL NOT create a new signing identity. iOS signing SHALL retain the existing Xcode/Keychain workflow.
 
+Public native version metadata SHALL instead be maintained in `apps/mobile/package.json` through `version`, `buildNumber`, and `previousBuildNumber`. Expo main/share configuration, Android release validation, and iOS release validation SHALL consume the same fields, preserve monotonic previous-bound checks, and ignore legacy version environment variables. The combined display format SHALL be `version(buildNumber)`, while the package `version` remains a valid three-part version. Local operator archives SHALL NOT maintain a separate build version in `.env`.
+
+#### Scenario: Contributor changes the mobile version
+- **WHEN** a contributor changes version/build metadata in the mobile package manifest and regenerates the native projects
+- **THEN** both platforms and the share extension use that metadata consistently
+- **AND** stale local or shell version variables cannot change it, and invalid or non-monotonic package values stop a release
+
 #### Scenario: Operator restores mobile build inputs
 - **WHEN** the operator extracts the mobile input archive at the repository root and fills the original signing values in `deploy/mobile/.env`
 - **THEN** native preparation and builds find both Firebase registrations and the existing Android publisher key without manual file-path exports
@@ -56,9 +63,12 @@ Before installing, declaring, importing, or configuring any additional optional 
 
 Mobile source-only changes SHALL receive appropriate mobile checks and SHALL remain outside existing API source deployment paths. Changes to shared contracts or root package, lock, or workspace manifests SHALL retain the existing API release eligibility. Mobile commands SHALL distinguish local preparation, offline verification, and explicitly authorized release operations.
 
+Routine Mobile CI SHALL run unit/static checks and Android/iOS JavaScript bundle validation. It SHALL NOT generate native projects, invoke Gradle, CocoaPods, or Xcode builds, or produce/upload native APK, AAB, IPA, or simulator application artifacts. Native build and device acceptance SHALL remain explicit local/operator verification.
+
 #### Scenario: A mobile source-only pull request is checked
 - **WHEN** only mobile implementation and mobile documentation change
 - **THEN** mobile CI verifies the affected application
+- **AND** it runs unit/static checks and JavaScript bundle validation without native package builds or artifact uploads
 - **AND** that source-only change does not initiate API deployment
 
 #### Scenario: The shared workspace lockfile changes

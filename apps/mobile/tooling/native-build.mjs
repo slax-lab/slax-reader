@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {readFileSync} from 'node:fs';
 import {applyMobileEnvironment} from './deploy-environment.cjs';
+import {readBuildVersion} from './build-version.cjs';
 
 applyMobileEnvironment();
 
@@ -11,15 +12,10 @@ const unsigned = process.argv.includes('--unsigned');
 const app = fileURLToPath(new URL('../', import.meta.url));
 if (release) {
   if (process.env.EXPO_PUBLIC_SLAX_ADOPTION_FIXTURE === '1' || process.env.EXPO_PUBLIC_SLAX_UI_FIXTURE) throw new Error('Controlled fixtures require a development build and cannot produce release artifacts.');
-  const version = process.env.SLAX_MOBILE_VERSION;
-  const number = process.env.SLAX_MOBILE_BUILD_NUMBER;
-  const previous = process.env.SLAX_MOBILE_PREVIOUS_BUILD_NUMBER;
-  if (!version || !/^\d+\.\d+\.\d+$/.test(version) || !number || !/^[1-9]\d*$/.test(number) || !previous || !/^\d+$/.test(previous) || Number(number) <= Number(previous)) {
-    throw new Error('Release builds require a three-part SLAX_MOBILE_VERSION, positive SLAX_MOBILE_BUILD_NUMBER, and lower SLAX_MOBILE_PREVIOUS_BUILD_NUMBER from the last published build or its operator-confirmed upper bound.');
-  }
+  const {version, build: number} = readBuildVersion();
   const native = platform === 'android' ? readFileSync(`${app}/android/app/build.gradle`, 'utf8') : readFileSync(`${app}/ios/SlaxReader/Info.plist`, 'utf8');
   const matches = platform === 'android' ? native.includes(`versionCode ${number}`) && native.includes(`versionName "${version}"`) : native.includes(`<string>${number}</string>`) && native.includes(`<string>${version}</string>`);
-  if (!matches) throw new Error('Regenerate the native project with pnpm mobile -- prebuild using the same release version inputs before building.');
+  if (!matches) throw new Error('Regenerate the native project with pnpm mobile -- prebuild after updating apps/mobile/package.json before building.');
   if (platform === 'android' && !unsigned && !['SLAX_ANDROID_KEYSTORE_PATH', 'SLAX_ANDROID_KEYSTORE_PASSWORD', 'SLAX_ANDROID_KEY_ALIAS', 'SLAX_ANDROID_KEY_PASSWORD'].every(key => Boolean(process.env[key]))) {
     throw new Error('Android signed release requires deploy/mobile/android/slax-reader.release.jks and SLAX_ANDROID_KEYSTORE_PASSWORD, SLAX_ANDROID_KEY_ALIAS, SLAX_ANDROID_KEY_PASSWORD in deploy/mobile/.env or the process environment; SLAX_ANDROID_KEYSTORE_PATH can override the file path. --unsigned builds only a verification artifact.');
   }

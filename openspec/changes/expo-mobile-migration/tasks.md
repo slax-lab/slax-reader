@@ -1,10 +1,21 @@
 # Tasks
 
+## 22. Approved routine CI scope (2026-10-14)
+
+- [x] 22.1 Remove the Android/iOS native build jobs and Android APK artifact upload from Mobile CI, retaining the existing unit/static checks and JavaScript bundle validation.
+- [x] 22.2 Align mobile setup/release documentation and this change's CI requirements with the approved checks-only scope; preserve explicit local/operator native verification and existing API release eligibility.
+- [x] 22.3 Run the retained checks and JavaScript bundles, validate workflow structure, strict OpenSpec, and final diff, and record environment limitations; complete Bugs/Security/Compliance review before pushing to the existing PR branch.
+
+CI follow-up verification: the workflow parses with only the existing Ubuntu `static` job, preserving check/bundle commands and trigger paths. Architecture, resource/fixture checks, TypeScript, and both JavaScript exports passed. The full local suite reported 1,048 passes and 10 environment failures (temporary-directory cleanup permissions, browser startup, and loopback-listener permissions); it is not a passing full-suite result. The 47 focused package-version/fixture/environment/release/import tests passed without failures or skips. Strict OpenSpec passed all 41 items and the final diff check passed. Bugs, Security, and Compliance review used `expo-mobile-migration` and found no Important findings in this follow-up. Native application packaging and artifact uploads were not performed.
+
 ## 21. Mobile build-input directory and restore archive (2026-10-14)
 
 - [x] 21.1 Consolidate local Firebase registrations, the existing Android signing key and optional upload-account file under ignored `deploy/mobile`, with an environment template and restoration guide.
 - [x] 21.2 Share local environment/default-path loading across root commands, Expo configuration and direct native build/release scripts; preserve process overrides, signing/version admission and offline/fixture isolation.
 - [x] 21.3 Verify configuration precedence, actual native-process handoff, missing-credential rejection and affected fixture/release regressions; validate specs and create/test-extract the repository-relative operator ZIP. Record missing original passwords/alias and platform signing prerequisites without claiming a new signed build.
+- [x] 21.4 Move public version/build/previous-bound metadata into the mobile package manifest, retain the user-selected `1.0.25(766)` snapshot, validate the supplied original Android signing values locally, and regenerate/test-extract the operator ZIP without version fields in `.env`.
+
+Package-version follow-up verification: 54 targeted tests, TypeScript, real Expo main/share configuration and Android/iOS JavaScript bundles passed. Stale version environment values cannot override package metadata, while controlled fixtures retain their separate version. The operator-supplied store password, key alias and private-key password were verified against the existing keystore without exporting its private key. The replacement operator ZIP passed integrity, extraction/source equality and restored-configuration checks; its local environment has no version/build fields. Build 766 remains the user-selected existing version; no new signed native build or store upload was performed.
 
 Build-input follow-up verification: 50 targeted tests, TypeScript, architecture checks, Android/iOS JavaScript bundles, and all 39 strict OpenSpec items passed. Actual Expo configuration resolves both platform Firebase paths under `deploy/mobile`; a controlled fixture excludes them. ZIP integrity, extraction/source equality, and configuration loading from the restored directory passed. Native-process handoff uses a synthetic executable, not a signed Android build. The original Android signing passwords/alias remain unknown and blank in the local configuration; iOS signing still requires the existing Xcode account/Keychain. No native signed build or store upload was performed for this directory change.
 
