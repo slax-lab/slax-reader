@@ -6,7 +6,7 @@ Change: `koc-onboarding-continuity`. Branch: `fix/koc-onboarding-continuity`, in
 
 The plan review clarified verified identity, database ownership, storage-denied startup and the ordinary modal caller. The implementation review ran Bugs, Security and Compliance passes and found three Important issues: success disposal on navigation, an older check erasing a newer campaign, and collection readiness surviving an account switch. These were corrected and covered by regression tests. The reviewer reported no additional Security findings. The final author pass inspected the follow-up fixes and acceptance criteria.
 
-## Automated evidence
+## Automated evidence before PR integration
 
 - Web full suite: 189 files passed, 1 skipped; 1,994 tests passed, 1 skipped. Includes real Vue Router / KeepAlive KOC-to-onboarding journeys, successful acknowledgement, navigation away after success, delayed A-to-B invitation replacement, submission attribution, URL-only deferral/resume, the ordinary caller, shared onboarding flags and authentication return preservation.
 - Installed PowerSync Vue query API: exercised with a controlled database adapter. First synchronization pending, successful empty/nonempty results, query errors, offline-after-verification and ownership mismatch are covered without replacing the query composable itself.
@@ -44,7 +44,7 @@ If the Web release must be rolled back, retain all reward receipts, entitlement 
 
 Users whose invitation was already lost should revisit the original KOC URL. Eligibility is determined by the server; an ordinary platform trial does not remove an unused blogger entitlement. No bulk grants or invented attribution are part of recovery.
 
-When publishing, target `dev` and include `OpenSpec: koc-onboarding-continuity` in the PR body. Archive the change only after merge. This session does not deploy, push or merge the branch.
+When publishing, target `dev` and include `OpenSpec: koc-onboarding-continuity` in the PR body. Archive the change only after merge. At this pre-publication checkpoint, no deployment, push, or merge had been performed; see the PR integration checkpoint below for subsequent publication.
 
 ## Follow-up fixes
 
@@ -71,7 +71,7 @@ All ten files below are modifications; this follow-up adds or deletes no tracked
 | `openspec/changes/koc-onboarding-continuity/tasks.md` | Track follow-up implementation and verification. |
 | `openspec/changes/koc-onboarding-continuity/validation.md` | Record verification and changed-file inventories. |
 
-### Cumulative branch inventory (including final deep-review fixes)
+### Historical branch inventory before dev integration
 
 Compared with the branch base `b086da93`, the complete KOC/onboarding change touches 46 files: 18 added, 28 modified, none deleted. This includes the earlier implementation and both review-fix passes.
 
@@ -168,4 +168,72 @@ This pass adds three files and modifies twelve existing files. Together with the
 - Independent Bugs/Security/Compliance re-review: no remaining Important findings. The review also caught and verified corrections to accepted-profile locale updates, foreign submission ownership, and refresh queues following rejection.
 - `git diff --check`: passed. Strict OpenSpec validation passes all 35 items.
 
-The successful Web run printed a happy-dom fetch abort during environment teardown, in addition to fixture Turnstile/SSR warnings; Vitest reported no failed tests or unhandled test errors. Earlier failing profile fixture runs are not counted as verification. The dedicated PostgreSQL concurrency check in task 4.5 and the external integration limitations above remain open. This pass did not change backend code or repeat payment operations. No push, deployment, or merge was performed.
+The successful Web run printed a happy-dom fetch abort during environment teardown, in addition to fixture Turnstile/SSR warnings; Vitest reported no failed tests or unhandled test errors. Earlier failing profile fixture runs are not counted as verification. The dedicated PostgreSQL concurrency check in task 4.5 and the external integration limitations above remain open. This pass did not change backend code or repeat payment operations. No push, deployment, or merge had been performed at that verification checkpoint.
+
+## PR integration checkpoint
+
+PR: https://github.com/slax-lab/slax-reader/pull/209 (target `dev`). The reviewed implementation and deep-review fixes were published at `43f3a27`. The target had advanced to `1912e3b`; its account-locale work overlapped the layout, store and Pinia fallback. The integration preserves those dev behaviors and reuses `UserLocaleTasks` for all profile commits. The earlier `userProfile.ts` helper is removed, and Pinia matches dev without a competing fallback implementation. KOC uses a server-only store action with a propagated 10-second deadline and one bounded same-session retry for a superseded identity read.
+
+The post-PR Bugs, Security and Compliance review found no remaining Important findings or Nits in the resolved diff. Tests additionally cover a confirmed language save during a KOC read, a competing page read, the real Pinia offline fallback, and abort-signal propagation. Historical inventories above describe the earlier checkpoints rather than the final PR contents.
+
+Integrated verification:
+
+- Web full suite: **2,096 tests passed, 1 skipped; 195 files passed, 1 skipped**.
+- Web typecheck and lint for integration-touched production code passed. The first typecheck exposed a missing workspace link introduced by dev's new frontend-utils dependency; `pnpm install --frozen-lockfile` restored the declared link without changing the lockfile, and typecheck then passed.
+- Strict OpenSpec validation: **39 items passed**. `git diff --check` passed.
+- The PostgreSQL concurrency release check in task 4.5 and the documented external integration limits remain unchanged. No deployment or PR merge is part of publication.
+
+### Final PR file inventory against dev
+
+The final diff against `1912e3b` contains 48 files: 17 added, 31 modified, 0 deleted. Changes already present in dev are excluded.
+
+| Change | File |
+| --- | --- |
+| Modified | `apps/api/src/domain/subscriptionMain.ts` |
+| Modified | `apps/api/src/handler/http/promotionController.ts` |
+| Added | `apps/api/test/domain/promotionStatus.test.ts` |
+| Modified | `apps/web/app/components/GetSubscribeModal.vue` |
+| Added | `apps/web/app/components/Promotion/KocPromotionHost.vue` |
+| Modified | `apps/web/app/composables/bookmark/useBookmarkData.ts` |
+| Modified | `apps/web/app/composables/bookmark/useInboxOnboardingState.ts` |
+| Modified | `apps/web/app/composables/bookmark/useLocalBookmarks.ts` |
+| Modified | `apps/web/app/composables/bookmark/useLocalCollections.ts` |
+| Modified | `apps/web/app/composables/bookmark/useOnboardingPending.ts` |
+| Added | `apps/web/app/composables/promotion/useKocPromotionFlow.ts` |
+| Modified | `apps/web/app/layouts/default.vue` |
+| Modified | `apps/web/app/pages/[blogger]-reader/index.vue` |
+| Modified | `apps/web/app/pages/bookmarks/index.vue` |
+| Modified | `apps/web/app/pages/onboarding.vue` |
+| Modified | `apps/web/app/plugins/powersync.client.ts` |
+| Modified | `apps/web/app/stores/user.ts` |
+| Modified | `apps/web/app/utils/accountLocaleRequest.ts` |
+| Modified | `apps/web/app/utils/channel.ts` |
+| Added | `apps/web/app/utils/promotionFlow.ts` |
+| Modified | `apps/web/app/utils/userLocaleTasks.ts` |
+| Modified | `apps/web/i18n/locales/en.json` |
+| Modified | `apps/web/i18n/locales/zh.json` |
+| Modified | `apps/web/tests/integration/pages/bookmarks/index.spec.ts` |
+| Modified | `apps/web/tests/unit/components/GetSubscribeModal.spec.ts` |
+| Modified | `apps/web/tests/unit/composables/bookmark/useBookmarkData.spec.ts` |
+| Modified | `apps/web/tests/unit/composables/bookmark/useInboxOnboardingState.spec.ts` |
+| Modified | `apps/web/tests/unit/composables/bookmark/useOnboardingPending.spec.ts` |
+| Modified | `apps/web/tests/unit/local-first/powersync-bridge-session.spec.ts` |
+| Modified | `apps/web/tests/unit/middleware/auth.global.spec.ts` |
+| Modified | `apps/web/tests/unit/pages/onboarding.spec.ts` |
+| Added | `apps/web/tests/unit/promotion/continuity.spec.ts` |
+| Added | `apps/web/tests/unit/promotion/local-readiness.spec.ts` |
+| Added | `apps/web/tests/unit/promotion/local-sync.spec.ts` |
+| Added | `apps/web/tests/unit/promotion/onboarding-readiness.spec.ts` |
+| Added | `apps/web/tests/unit/promotion/profile-ordering.spec.ts` |
+| Added | `apps/web/tests/unit/promotion/routing.spec.ts` |
+| Modified | `apps/web/tests/unit/stores/user.spec.ts` |
+| Modified | `apps/web/tests/unit/utils/accountLocaleRequest.spec.ts` |
+| Modified | `apps/web/tests/unit/utils/userLocaleTasks.spec.ts` |
+| Added | `openspec/changes/koc-onboarding-continuity/.openspec.yaml` |
+| Added | `openspec/changes/koc-onboarding-continuity/design.md` |
+| Added | `openspec/changes/koc-onboarding-continuity/proposal.md` |
+| Added | `openspec/changes/koc-onboarding-continuity/specs/inbox-onboarding-readiness/spec.md` |
+| Added | `openspec/changes/koc-onboarding-continuity/specs/koc-promotion-continuity/spec.md` |
+| Added | `openspec/changes/koc-onboarding-continuity/tasks.md` |
+| Added | `openspec/changes/koc-onboarding-continuity/validation.md` |
+| Modified | `packages/contracts/src/interface.ts` |

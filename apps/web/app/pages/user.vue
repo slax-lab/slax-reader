@@ -41,7 +41,13 @@
             <div class="settings-card">
               <div class="settings-row">
                 <span class="settings-label">{{ $t('page.user.language') }}</span>
-                <OptionsBar :options="languageOptions.map(option => option.name)" :defaultSelectedIndex="languageOptionIndex" @option-selected="localeSelect" />
+                <OptionsBar
+                  :options="languageOptions.map(option => option.name)"
+                  :defaultSelectedIndex="languageOptionIndex"
+                  v-model:index="selectedLanguageIndex"
+                  emit-on-reselect
+                  @option-selected="localeSelect"
+                />
               </div>
               <div class="settings-divider" v-if="userInfo" />
               <div class="settings-row" v-if="userInfo">
@@ -98,6 +104,7 @@ import UserLabSection from '~/components/UserLabSection.vue'
 import UserPageSkeleton from '~/components/UserPageSkeleton.vue'
 
 import { getPreferredLanguage, isSlaxReaderApp } from '../utils/environment'
+import { AccountLocaleStaleError } from '~/utils/accountLocaleRequest'
 
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { type UserDetailInfo } from '@slax-reader/contracts/interface'
@@ -201,12 +208,6 @@ const aiLanguageOptions = computed<{ name: string; value: string }[]>(() => [
   }
 ])
 
-const preferredLang = isSlaxReaderApp() ? getPreferredLanguage() : undefined
-
-if (!preferredLang && userStore.currentLocale !== locale.value) {
-  userStore.changeLocale(locale.value)
-}
-
 const alertParams = (() => {
   const route = useRoute()
   const errorAlert = route.query.error_alert
@@ -308,10 +309,21 @@ const aiResponseLanguageSelect = async (index: number) => {
   await getUserDetailInfo()
 }
 
-const localeSelect = (index: number) => {
+let localeSelectionRequest = 0
+const selectedLanguageIndex = ref(languageOptionIndex.value)
+watch(languageOptionIndex, index => {
+  selectedLanguageIndex.value = index
+})
+const localeSelect = async (index: number) => {
   const option = languageOptions.value[index]
   if (!option) return
-  userStore.changeLocale(option.value)
+  const requestId = ++localeSelectionRequest
+  try {
+    await userStore.changeLocale(option.value)
+  } catch (error) {
+    if (requestId === localeSelectionRequest) selectedLanguageIndex.value = languageOptionIndex.value
+    if (!(error instanceof AccountLocaleStaleError)) Toast.showToast({ text: error instanceof Error ? error.message : String(error), type: ToastType.Error })
+  }
 }
 </script>
 

@@ -5,6 +5,8 @@ import SidePanel from '@/components/SidePanel.vue'
 
 import { MessageTypeAction } from '@/config/message'
 
+import { initializeLocaleClient } from '@/utils/localeClient'
+import { startLocaleRelay } from '@/utils/localeRelay'
 import { watchPinnedStatus } from '@/utils/pinnedStatus'
 
 import '@/styles/reset.scss'
@@ -24,6 +26,23 @@ export default defineContentScript({
   runAt: 'document_idle',
   cssInjectionMode: 'ui',
   async main(ctx) {
+    const localeClient = initializeLocaleClient()
+    const stopRelay = startLocaleRelay()
+    let invalidated = false
+    ctx.onInvalidated(() => {
+      invalidated = true
+      localeClient.dispose()
+      stopRelay()
+    })
+    let localeTimer: ReturnType<typeof setTimeout> | undefined
+    await Promise.race([
+      localeClient.ready,
+      new Promise<void>(resolve => {
+        localeTimer = setTimeout(resolve, 300)
+      })
+    ])
+    clearTimeout(localeTimer)
+    if (invalidated) return
     styleReset()
 
     ctx.onInvalidated(extensionInvalidate)

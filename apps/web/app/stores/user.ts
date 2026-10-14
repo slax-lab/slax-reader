@@ -1,12 +1,15 @@
-import { isSlaxReaderApp } from '../utils/environment'
-import { invalidateUserProfile, readUserProfile } from '~/utils/userProfile'
+import { createAccountLocaleRequest } from '../utils/accountLocaleRequest'
+import { notifyExtensionAccountLocaleInvalidated } from '../utils/extensionLocale'
+import { existingUserLocaleTasks, getUserLocaleTasks, type LocaleUserState } from '../utils/userLocaleTasks'
 
+import type { AppLocale } from '@commons/frontend-types/locale'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { type UserInfo } from '@slax-reader/contracts/interface'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { type _GettersTree, defineStore } from 'pinia'
 
 interface UserState {
+  confirmedAccountLocale: { accountKey: string; locale: AppLocale } | null
   user: UserInfo | null
   locale: string
   payTimeRecord: number | null // 负责记录付费的时间
@@ -30,6 +33,7 @@ interface UserGetters extends _GettersTree<UserState> {
 
 interface UserActions {
   refreshUserInfo: () => Promise<UserInfo>
+  refreshServerUserInfo: (signal?: AbortSignal) => Promise<UserInfo>
   getUserInfo: (options?: { refresh: boolean }) => Promise<UserInfo>
   clearUserInfo: () => Promise<void>
   changeLocale: (locale: string) => Promise<void>
@@ -37,7 +41,7 @@ interface UserActions {
   clearPayTimeRecord: () => void
   refreshUserToken: () => Promise<void>
   changeUserSetting: (key: string, value: string) => Promise<void>
-  changeLocalLocale: (locale: string) => Promise<void>
+  changeLocalLocale: (locale: string, displayOnly?: boolean) => Promise<void>
   updateCloseInstallExtTipsDate: () => void
   updateShareTipsClicked: () => void
   checkAndRefreshUserToken: () => void
@@ -52,6 +56,7 @@ export const useUserStore = defineStore<'user', UserState, UserGetters, UserActi
   state: () => {
     return {
       user: null,
+      confirmedAccountLocale: null,
       locale: useI18n()?.locale?.value,
       payTimeRecord: null,
       lastCloseInstallExtTipsDates: [],
@@ -90,20 +95,11 @@ export const useUserStore = defineStore<'user', UserState, UserGetters, UserActi
   },
   actions: {
     async refreshUserInfo(): Promise<UserInfo> {
-      const token = getUserToken()
-      const resp = await readUserProfile(this, async () => {
-        try {
-          const profile = await request().get<UserInfo>({ url: RESTMethodPath.ME })
-          if (!profile) throw new Error('refresh user info failed')
-          return profile
-        } catch (error) {
-          if (token !== getUserToken() || !isLocalFirstEnabled()) throw error
-          const local = await loadLocalUserInfo()
-          if (!local) throw error
-          return local
-        }
-      })
-      return resp
+      return this.refreshServerUserInfo()
+    },
+    // Identity-sensitive flows bypass the plugin's optional offline fallback.
+    async refreshServerUserInfo(signal?: AbortSignal): Promise<UserInfo> {
+      return localeTasksForStore(this).read(signal)
     },
     async getUserInfo(options?: { refresh: boolean }): Promise<UserInfo> {
       if (options && options.refresh && this.isLogin) {
@@ -117,24 +113,15 @@ export const useUserStore = defineStore<'user', UserState, UserGetters, UserActi
       return this.user
     },
     async clearUserInfo() {
-      invalidateUserProfile(this)
+      existingUserLocaleTasks(this)?.clear()
       this.user = null
+      this.confirmedAccountLocale = null
     },
-    async changeLocalLocale(locale: string) {
-      if (['en', 'zh'].indexOf(locale) === -1) {
-        locale = 'en'
-      }
-
-      const i18n = useNuxtApp().$i18n
-      this.locale = locale
-      i18n.setLocale(locale as 'en' | 'zh')
+    async changeLocalLocale(locale: string, displayOnly = false) {
+      return localeTasksForStore(this).local(locale, displayOnly)
     },
     async changeLocale(locale: string) {
-      if (this.locale === locale) return
-      this.changeUserSetting('lang', locale).then(() => {
-        this.refreshUserToken()
-        this.changeLocalLocale(locale)
-      })
+      return localeTasksForStore(this).save(locale)
     },
     async changeUserSetting(key: string, value: string) {
       return await request().post({
@@ -146,17 +133,7 @@ export const useUserStore = defineStore<'user', UserState, UserGetters, UserActi
       })
     },
     async refreshUserToken() {
-      request()
-        .post<{ token: string }>({
-          url: RESTMethodPath.TOKEN_REFRESH
-        })
-        .then(res => {
-          if (!res) return
-
-          const config = useRuntimeConfig().public
-          const { set } = useCookies()
-          set(config.COOKIE_TOKEN_NAME as string, res.token, { path: '/', expires: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), domain: `${config.COOKIE_DOMAIN}` })
-        })
+      return localeTasksForStore(this).refreshToken()
     },
     updatePayTimeRecord() {
       this.payTimeRecord = Date.now()
@@ -177,7 +154,7 @@ export const useUserStore = defineStore<'user', UserState, UserGetters, UserActi
       }
 
       const { get } = useCookies()
-      const token = get('token')
+      const token = get(useRuntimeConfig().public.COOKIE_TOKEN_NAME)
       if (!token) {
         return
       }
@@ -239,3 +216,26 @@ export const useUserStore = defineStore<'user', UserState, UserGetters, UserActi
     }
   ]
 })
+
+// Capture Nuxt and cookie handles before any task enters an async queue.
+export const localeTasksForStore = (store: LocaleUserState) => {
+  const existing = existingUserLocaleTasks(store)
+  if (existing) return existing
+  const app = useNuxtApp()
+  const config = useRuntimeConfig().public
+  const cookies = useCookies()
+  const serverToken = import.meta.server ? getUserToken() : undefined
+  const auth = useAuth()
+  return getUserLocaleTasks(store, {
+    api: createAccountLocaleRequest(),
+    getToken: () => (import.meta.server ? serverToken : cookies.get(config.COOKIE_TOKEN_NAME)),
+    setToken: token => cookies.set(config.COOKIE_TOKEN_NAME, token, { path: '/', expires: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), domain: `${config.COOKIE_DOMAIN}` }),
+    apply: locale => app.runWithContext(() => app.$i18n.setLocale(locale)),
+    notify: notifyExtensionAccountLocaleInvalidated,
+    expire: () =>
+      app.runWithContext(async () => {
+        await auth.clearAuth()
+        await app.runWithContext(() => navigateTo('/login'))
+      })
+  })
+}

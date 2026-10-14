@@ -20,13 +20,13 @@ const route = useRoute()
 const showPwaManifest = computed(() => route.path === '/' || route.path === '/bookmarks')
 
 const userStore = useUserStore()
-const { locale, setLocale } = useI18n()
+const { locale } = useI18n()
 const preferredLang = getPreferredLanguage()
 
 if (isSlaxReaderApp() && preferredLang && ['zh', 'en'].includes(preferredLang)) {
-  setLocale(preferredLang)
+  void userStore.changeLocalLocale(preferredLang, true).catch(error => console.warn('[locale] native display failed', error))
 } else if (userStore.currentLocale !== locale.value) {
-  userStore.changeLocalLocale(userStore.currentLocale)
+  void userStore.changeLocalLocale(userStore.currentLocale).catch(error => console.warn('[locale] display initialization failed', error))
 }
 
 if (isClient) {

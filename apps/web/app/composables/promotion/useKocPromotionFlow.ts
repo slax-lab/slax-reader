@@ -1,10 +1,9 @@
 import { computed } from 'vue'
 
+import { AccountLocaleStaleError } from '~/utils/accountLocaleRequest'
 import { createPromotionFlow, initialPromotionState, promotionBlocksOnboarding, promotionIntent } from '~/utils/promotionFlow'
-import { readUserProfile } from '~/utils/userProfile'
 
 import { RESTMethodPath } from '@slax-reader/contracts/const'
-import type { UserInfo } from '@slax-reader/contracts/interface'
 import { useUserStore } from '~/stores/user'
 
 export const useKocPromotionFlow = () => {
@@ -71,11 +70,15 @@ export const useKocPromotionController = () => {
   const refreshProfile = async () => {
     const current = getUserToken()
     const generation = identityGeneration
-    const profile = await readUserProfile(userStore, async () => {
-      const result = await api<UserInfo>(RESTMethodPath.ME)
-      if (generation !== identityGeneration || current !== getUserToken() || !Number.isSafeInteger(result?.userId) || result.userId <= 0) throw Error('Unverified identity')
-      return result
+    const signal = AbortSignal.timeout(10000)
+    const read = () => userStore.refreshServerUserInfo(signal)
+    const profile = await read().catch(error => {
+      // A concurrent page refresh can supersede the identity read. Retry once
+      // within the same deadline/session rather than accepting a cached profile.
+      if (error instanceof AccountLocaleStaleError && generation === identityGeneration && current === getUserToken()) return read()
+      throw error
     })
+    if (generation !== identityGeneration || current !== getUserToken() || !Number.isSafeInteger(profile?.userId) || profile.userId <= 0) throw Error('Unverified identity')
     flow.setAccount(profile.userId)
     return profile
   }

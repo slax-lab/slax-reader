@@ -67,12 +67,11 @@ import BubbleMessage from './BubbleMessage.vue'
 import QuestionMessage from './QuestionMessage.vue'
 import TipsMessage from './TipsMessage.vue'
 
-import { parseMarkdownText } from '@commons/frontend-utils/parse'
-import { getUUID } from '@commons/frontend-utils/random'
-
 import 'highlight.js/styles/base16/equilibrium-gray-light.css'
 import { ChatBot, type ChatBotParams, ChatParamsType, type ChatResponseCallback, type ChatResponseData, ChatResponseType } from './chatbot'
 import type { BubbleMessageContent, BubbleMessageItem, MessageItem, QuestionMessageItem, QuoteData } from './type'
+import { parseMarkdownText } from '@commons/frontend-utils/parse'
+import { getUUID } from '@commons/frontend-utils/random'
 import { Readability } from '@slax-lab/readability'
 import { vOnKeyStroke } from '@vueuse/components'
 
@@ -217,7 +216,8 @@ const bot = new ChatBot(botParams, (params: ChatResponseCallback) => {
       if (name === 'generateQuestion') {
         pushBuffer({
           type: 'tips',
-          tips: $t(`component.chat_bot.generating_question`),
+          tips: '',
+          localized: { tool: name, status: 'processing' },
           loading: true,
           tipsType: name,
           sessionId
@@ -225,7 +225,8 @@ const bot = new ChatBot(botParams, (params: ChatResponseCallback) => {
       } else if (name === 'browser') {
         pushBuffer({
           type: 'tips',
-          tips: tips ? $t(`component.chat_bot.tips_accessing`, [tips]) : $t('component.chat_bot.now_accessing'),
+          tips: '',
+          localized: { tool: name, status: 'processing', subject: tips },
           loading: true,
           tipsType: name,
           sessionId
@@ -233,7 +234,8 @@ const bot = new ChatBot(botParams, (params: ChatResponseCallback) => {
       } else if (name === 'search') {
         pushBuffer({
           type: 'tips',
-          tips: $t(`component.chat_bot.tips_searching`, [tips]),
+          tips: '',
+          localized: { tool: name, status: 'processing', subject: tips },
           loading: true,
           tipsType: name,
           sessionId
@@ -241,7 +243,8 @@ const bot = new ChatBot(botParams, (params: ChatResponseCallback) => {
       } else if (name === 'searchBookmark') {
         pushBuffer({
           type: 'tips',
-          tips: $t(`component.chat_bot.tips_searching_bookmark`, [tips]),
+          tips: '',
+          localized: { tool: name, status: 'processing', subject: tips },
           loading: true,
           tipsType: name,
           sessionId
@@ -292,7 +295,7 @@ bot.chatStatusUpdateHandler = (chatting: boolean) => {
 }
 
 const isMac = /Mac/i.test(navigator.platform || navigator.userAgent)
-const textareaPlaceholder = $t(`component.chat_bot.alias_placeholder`, [isMac ? 'cmd' : 'ctrl'])
+const textareaPlaceholder = computed(() => $t(`component.chat_bot.alias_placeholder`, [isMac ? 'cmd' : 'ctrl']))
 const compositionAppear = ref(false)
 const isInited = ref(false)
 const chat = ref<HTMLDivElement>()
@@ -683,9 +686,7 @@ const updateTipsSearchStatus = (success: boolean) => {
     return
   }
 
-  const tipsText = success ? $t('component.chat_bot.search_complete') : $t('component.chat_bot.search_failed')
-  const reg = new RegExp(`${$t('component.chat_bot.searching_token')}\.\.\.$`)
-  searchMessage.tips = searchMessage.tips.replace(reg, tipsText)
+  if (searchMessage.localized && searchMessage.localized.tool !== 'generateQuestion') searchMessage.localized.status = success ? 'finished' : 'failed'
   searchMessage.loading = false
 }
 
@@ -695,9 +696,7 @@ const updateTipsSearchBookmarkStatus = (success: boolean) => {
     return
   }
 
-  const tipsText = success ? $t('component.chat_bot.search_bookmark_complete') : $t('component.chat_bot.search_bookmark_failed')
-  const reg = new RegExp('搜索资料库\.\.\.$')
-  searchMessage.tips = searchMessage.tips.replace(reg, tipsText)
+  if (searchMessage.localized && searchMessage.localized.tool !== 'generateQuestion') searchMessage.localized.status = success ? 'finished' : 'failed'
   searchMessage.loading = false
 }
 
@@ -707,13 +706,7 @@ const updateTipsBrowserStatus = (success: boolean) => {
     return
   }
 
-  const tipsText = success ? $t('component.chat_bot.access_complete') : $t('component.chat_bot.access_failed')
-  if (browerMessage.tips === $t('component.chat_bot.now_accessing')) {
-    browerMessage.tips = tipsText
-  } else {
-    const reg = new RegExp(`${$t('component.chat_bot.accessing_token')}\.\.\.$`)
-    browerMessage.tips = browerMessage.tips.replace(reg, tipsText)
-  }
+  if (browerMessage.localized && browerMessage.localized.tool !== 'generateQuestion') browerMessage.localized.status = success ? 'finished' : 'failed'
   browerMessage.loading = false
 }
 

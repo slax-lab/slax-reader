@@ -21,6 +21,10 @@ import { baseUser } from '~~/tests/fixtures/user'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+// Nuxt setup can preload the page's dependencies before these mocks are registered.
+// Re-evaluate them with this suite's request and infinite-scroll boundaries installed.
+vi.hoisted(() => vi.resetModules())
+
 const {
   mockGetUserInfo,
   mockUseRoute,

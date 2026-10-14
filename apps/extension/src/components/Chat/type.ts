@@ -1,3 +1,4 @@
+import type { LocalizedToolTip } from './statusTips'
 import type { QuoteData } from '@slax-reader/selection/types'
 
 // 每一个消息的基本结构
@@ -11,7 +12,14 @@ export type BubbleMessageContent =
   | { type: 'text'; content: string; isHTML?: boolean; rawContent?: string; sessionId: number }
   | { type: 'links'; content: { url: string; title: string; content: string; icon: string }[]; sessionId: number }
   | { type: 'bookmarks'; content: { title: string; content: string; bookmark_id: number }[]; sessionId: number }
-  | { type: 'tips'; tips: string; tipsType: 'generateQuestion' | 'search' | 'browser' | 'searchBookmark' | 'error'; loading?: boolean; sessionId: number }
+  | {
+      type: 'tips'
+      tips: string
+      localized?: LocalizedToolTip
+      tipsType: 'generateQuestion' | 'search' | 'browser' | 'searchBookmark' | 'error'
+      loading?: boolean
+      sessionId: number
+    }
   | { type: 'related-question'; questions: { content: string; rawContent?: string }[]; sessionId: number }
 
 // 对话的气泡消息结构

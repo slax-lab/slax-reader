@@ -55,7 +55,7 @@ Plan review and implementation were authorized on 2026-10-13. Checkboxes record 
 
 Local implementation and non-production browser verification are complete; see validation.md. Task 4.5 is partially complete: targeted cross-tab convergence is implemented, but real concurrent grant verification requires the opt-in isolated PostgreSQL payment suite and a dedicated test account. No existing database was truncated to run that suite. Preserve this release check rather than marking it tested.
 
-Task 6.4 covers completed local review and strict validation. No push or PR was performed in this session; the documented PR target and OpenSpec body requirement apply when publishing the branch.
+Task 6.4 covers completed local review and strict validation. PR #209 now targets dev and names the required OpenSpec change; the PR integration checkpoint in validation.md records the subsequent review and verification.
 
 ## 7. Follow-up review fixes
 
@@ -71,3 +71,8 @@ Task 6.4 covers completed local review and strict validation. No push or PR was 
 - [x] 8.4 Retain storage invalidations during submission and consume them after settlement.
 - [x] 8.5 Invalidate ordinary eligibility reads when a grant succeeds.
 - [x] 8.6 Run regression tests, typecheck, strict validation and Bugs/Security/Compliance review; record evidence and file inventory.
+
+## 9. PR integration review
+
+- [x] 9.1 Integrate the latest dev locale synchronization without introducing a second profile/locale writer; preserve authoritative KOC identity reads, bounded requests, and stale-response protection.
+- [ ] 9.2 Run merged-state regression checks, complete the post-PR Bugs/Security/Compliance review, and publish the validated result to PR #209.

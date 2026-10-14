@@ -94,7 +94,7 @@ const props = defineProps({
 const emits = defineEmits(['action', 'dismiss', 'commentDelete', 'windowResize', 'locationUpdate'])
 
 const isMac = /Mac/i.test(navigator.platform || navigator.userAgent)
-const textareaPlaceholder = ref($t('component.article_selection.placeholder'))
+const textareaPlaceholder = computed(() => $t('component.article_selection.placeholder'))
 const compositionAppear = ref(false)
 const textarea = ref<HTMLTextAreaElement>()
 const inputText = ref('')
@@ -396,9 +396,7 @@ const maxHeightUpdate = (height: number) => {
   maxHeight.value = height
 }
 
-const cancelReply = () => {
-  textareaPlaceholder.value = $t('component.article_selection.placeholder')
-}
+const cancelReply = () => {}
 
 defineExpose({
   positionConfirmedHandler,

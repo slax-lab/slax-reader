@@ -3,6 +3,7 @@ import { WeixinEnvAbnormalError } from '../../const/err'
 import { parseHTML } from 'linkedom'
 import { CustomParse } from './type'
 import { HtmlBuilder } from '../htmlBuilder'
+import { prepareWeixinImageStyle, restoreWeixinImageStyle } from './weixinImageStyle'
 
 const mpWeixinQQFallbackHandler = (doc: Document) => {
   console.log('fallback')
@@ -44,43 +45,12 @@ const mpWeixinQQPreHandler = (url: string, document: Document) => {
   // 备份一下图片的style
   // 因为公众号号的图片样式是最杂的，得特殊处理一下
   const imgDoms = Array.from(document.querySelectorAll('img')) || []
-  imgDoms.forEach(img => img.setAttribute('slax-style', img.getAttribute('style') || ''))
+  imgDoms.forEach(prepareWeixinImageStyle)
 }
 
 const mpWeixinQQPostHandler = (url: string, document: Document) => {
   const imgDoms = Array.from(document.querySelectorAll('img')) || []
-  imgDoms.forEach(img => {
-    // 获取 Readability 设置的当前样式（可能包含 !important 的 width/height）
-    const currentStyle = img.getAttribute('style') || ''
-
-    // 提取 Readability 设置的 !important 样式
-    const importantWidth = currentStyle.match(/width:\s*[\d.]+px\s*!important/i)?.[0] || ''
-    const importantHeight = currentStyle.match(/height:\s*[\d.]+px\s*!important/i)?.[0] || ''
-
-    // 覆盖原始样式后能解决90%的图片
-    const originalStyleDeclarations = (img.getAttribute('slax-style') || '')
-      .split(';')
-      .map(item => item.trim())
-      .filter(item => {
-        if (!item) return false
-        if (item.includes('opacity')) return false
-        if (item.includes('display')) return false
-        if (item.includes('visibility')) return false
-        // 移除原始样式中的 width/height，因为我们要用 Readability 设置的
-        if (importantWidth && /width\s*:/i.test(item)) return false
-        if (importantHeight && /height\s*:/i.test(item)) return false
-        return true
-      })
-
-    // 合并原始样式和 !important 样式
-    const finalDeclarations = [...originalStyleDeclarations]
-    if (importantWidth) finalDeclarations.push(importantWidth)
-    if (importantHeight) finalDeclarations.push(importantHeight)
-
-    img.setAttribute('style', finalDeclarations.join('; '))
-    img.removeAttribute('slax-style')
-    img.removeAttribute('data-original-style')
-  })
+  imgDoms.forEach(restoreWeixinImageStyle)
 }
 
 const getWeixinBylineHandler = (rawByline: string, document: Document): string => {

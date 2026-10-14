@@ -42,7 +42,17 @@ beforeEach(() => {
   useState('koc-promotion', initialPromotionState).value = initialPromotionState()
   env.token = 'test-session'
   env.channel = null
-  env.user = { user: null, userInfo: null, locale: 'en', changeLocalLocale: vi.fn(), getUserInfo: vi.fn().mockResolvedValue(baseUser) }
+  env.user = {
+    user: null, userInfo: null, locale: 'en', changeLocalLocale: vi.fn(), getUserInfo: vi.fn().mockResolvedValue(baseUser),
+    refreshServerUserInfo: async () => {
+      const token = env.token
+      const response = await env.fetch('https://api.test/v1/user/me')
+      const { data } = await response.json()
+      if (token !== env.token || !response.ok) throw Error('Profile unavailable')
+      env.user.user = data
+      return data
+    }
+  }
   env.post.mockReset().mockResolvedValue({ title: 'Received', message: '60 days', subMessage: '' })
   env.fetch.mockImplementation(
     async (url: string) =>

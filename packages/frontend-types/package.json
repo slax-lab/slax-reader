@@ -10,7 +10,8 @@
     "./error": "./src/error.ts",
     "./frontend": "./src/frontend.ts",
     "./selection": "./src/selection.ts",
-    "./models": "./src/models.ts"
+    "./models": "./src/models.ts",
+    "./locale": "./src/locale.ts"
   },
   "scripts": {
     "typecheck": "tsc --project tsconfig.json"
