@@ -18,11 +18,17 @@ Marks are anchored to the body as it is. A bookmark with any non-deleted highlig
 
 ### Takedown
 
-Takedown first rebuilds the raw caption body from `data-cues` for each affected bookmark, then deletes the article objects. Marks made on the article body lose their anchors.
+Takedown first rebuilds the raw caption body from `data-cues` for each affected bookmark, then deletes the article objects. It is a legal path, so it also writes bookmarks flagged by moderation (`writeBody` with `force`), and a body whose cues can not be read gets the player without captions: the article text never survives. Bodies that can not be written are logged by bookmark id. Marks made on the article body lose their anchors.
+
+### Podcasts and the marks rule
+
+Podcasts do not apply the marks rule. A podcast's first body is only the player and show notes, the transcript exists nowhere else on the page, and the page has no "article below the body" fallback. Marks on the show notes lose their anchor.
 
 ### Client
 
-The page decides from `body_mode` and `body_ready`:
+The page decides from `body_mode` and `body_ready`. `body_ready` compares the body with the version this viewer gets (theirs, or the owner's for a visitor), so a visitor in another language gets the article below the body at once. A failed body write during the owner's status read is logged and answers `body_ready` false instead of failing the request.
+
+The status lines (preparing, timeout, skipped, failed, limit) are one shared component, `YoutubeArticleStatus`, used by the bar and the article block.
 
 - Article body: no separate article block and no fold.
 - Raw body with an article coming: `YoutubeArticleBar` above the body shows making, skipped ("generate anyway"), failed (retry) and limit states. When the status says the body is ready, the page reloads the body in place and remounts it, at most 4 times 15 seconds apart, and never while the video plays (a button instead).

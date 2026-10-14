@@ -202,7 +202,7 @@ export class YoutubeArticleService {
 
     if (!row) return unavailable
     const res = this.response(requested, row, access, access.isOwner ? await this.manualLeft(viewerId) : false)
-    return { ...res, ...(await this.bodyState(ctx, access, ref.source_id, ref.source_hash)) }
+    return { ...res, ...(await this.bodyState(ctx, access, row)) }
   }
 
   /**
@@ -360,14 +360,24 @@ export class YoutubeArticleService {
    * language. An owner whose ready version is not in the body yet gets it written now: bookmarks
    * whose article was made before this rule, or whose write failed. Visitors only read.
    */
-  private async bodyState(ctx: ContextManager, access: Access, sourceId: string, sourceHash: string): Promise<Pick<YoutubeArticleStatusResponse, 'body_mode' | 'body_ready'>> {
+  /**
+   * Whether the body holds `row`, the version this viewer gets (theirs, or the owner's for a
+   * visitor). A visitor in another language therefore gets body_ready false and the article below
+   * the body at once. The owner's read writes a ready article that is not in the body yet; a failed
+   * write is logged and answers body_ready false, so the page falls back instead of failing.
+   */
+  private async bodyState(ctx: ContextManager, access: Access, row: youtubeArticlePO): Promise<Pick<YoutubeArticleStatusResponse, 'body_mode' | 'body_ready'>> {
     if (await this.bodies.hasMarks(access.bookmarkId, access.ownerId)) return { body_mode: 'transcript', body_ready: false }
-    const row = await this.repo.findVersion(sourceId, sourceHash, await this.languageOf(access.ownerId))
-    if (row?.status !== 'ready') return { body_mode: 'article', body_ready: false }
+    if (row.status !== 'ready') return { body_mode: 'article', body_ready: false }
     const html = await this.bodies.readBody(access.bookmarkId)
     if (html?.includes(this.bodyMarker(row))) return { body_mode: 'article', body_ready: true }
     if (!access.isOwner || html === null) return { body_mode: 'article', body_ready: false }
-    return { body_mode: 'article', body_ready: await this.publishBodyFor(ctx, access.bookmarkId, access.ownerId, row) }
+    try {
+      return { body_mode: 'article', body_ready: await this.publishBodyFor(ctx, access.bookmarkId, access.ownerId, row) }
+    } catch (err) {
+      console.error(`YouTube article body write failed for bookmark ${access.bookmarkId}: ${err instanceof Error ? err.message : String(err)}`)
+      return { body_mode: 'article', body_ready: false }
+    }
   }
 
   private bodyMarker(row: youtubeArticlePO): string {
@@ -422,16 +432,30 @@ export class YoutubeArticleService {
    * Takedown: bodies that hold the article go back to the raw captions, rebuilt from the player's
    * own cues (the caption objects are deleted with the article).
    */
+  /**
+   * Takedown: put the raw captions back into every body that holds the article. This is a legal path,
+   * so it also writes flagged bookmarks, and a body whose cues can not be read gets the player only:
+   * the article text must not survive. Bodies that could not be written are logged by id.
+   */
   private async restoreRawBodies(ctx: ContextManager, videoId: string): Promise<number> {
+    // Same guard as renderBody: the id goes into the player markup
+    if (!/^[\w-]{1,32}$/.test(videoId)) {
+      console.error(`YouTube article takedown: invalid video id, bodies not restored`)
+      return 0
+    }
     let count = 0
+    const failed: number[] = []
     for (const ref of await this.repo.listRefs(videoId)) {
       const html = await this.bodies.readBody(ref.bookmark_id)
       if (!html?.includes(BODY_MARKER)) continue
-      const cues = playerCues(html)
-      if (!cues) continue
+      const cues = playerCues(html) ?? []
       // Same text the crawl writes: the caption lines joined
-      if (await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, { html: HtmlBuilder.buildYoutube(videoId, cues), text: cues.map(c => c.text).join(' ') })) count++
+      const body = { html: HtmlBuilder.buildYoutube(videoId, cues), text: cues.map(c => c.text).join(' ') }
+      const written = await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, body, { force: true }).catch(() => false)
+      if (written) count++
+      else failed.push(ref.bookmark_id)
     }
+    if (failed.length) console.error(`YouTube article takedown: bodies not restored for bookmarks ${failed.join(',')}`)
     return count
   }
 

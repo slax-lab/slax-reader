@@ -313,7 +313,12 @@ export class PodcastService {
 
   // ---------- bodies ----------
 
-  /** Write the ready original-language article into the body of every bookmark of the episode. */
+  /**
+   * Write the ready original-language article into the body of every bookmark of the episode.
+   * Unlike YouTube, marks do not keep the old body: the podcast's first body is only the player and
+   * show notes, the transcript exists nowhere else on the page, and the page has no "article below
+   * the body" fallback. Marks on the show notes lose their anchor; that is the accepted trade-off.
+   */
   public async publishBodies(ctx: ContextManager, sourceId: string): Promise<number> {
     const ep = await this.episodes.findBySourceId(sourceId)
     const lang = podcastLanguage(ep?.language)

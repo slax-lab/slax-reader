@@ -286,7 +286,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
     eps,
     arts,
     bookmarkService,
-    new MediaBodyService(bookmarkService as any, bookmarkRepo as any, searchService as any, { hasLiveMarksOnBookmark: vi.fn(async () => false) } as any, (() => bucket) as any),
+    new MediaBodyService(bookmarkService as any, bookmarkRepo as any, searchService as any, { bodyHasMarks: vi.fn(async () => false) } as any, (() => bucket) as any),
     labService,
     userRepo,
     () => redis,

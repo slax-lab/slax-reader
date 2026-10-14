@@ -205,7 +205,8 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
     deleteBookmarkSummary: vi.fn(async () => ({}))
   }
   const markRepo = {
-    hasLiveMarksOnBookmark: vi.fn(async (bmId: number) => [bmId + 1000, bmId + 2000].some(id => (marks.get(id) ?? []).some(m => !m.is_deleted)))
+    // No copy of the bookmark counts as marked, like the real query
+    bodyHasMarks: vi.fn(async (bmId: number) => !bookmarks.has(bmId) || [bmId + 1000, bmId + 2000].some(id => (marks.get(id) ?? []).some(m => !m.is_deleted)))
   }
   const searchService = { addSearchRecord: vi.fn(async () => [{ status: 'fulfilled', value: [] }]) }
   const labService = {
@@ -866,6 +867,46 @@ describe('the article as the bookmark body', () => {
     w.marks.set(BOOKMARK + 1000, [{ is_deleted: false }])
     expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'ready', body_mode: 'transcript', body_ready: false })
     expect(w.objects.get('html/body/u1.html')).toBe(RAW_BODY)
+  })
+
+  test('status: a failed body write answers body_ready false instead of failing the request', async () => {
+    const w = wire()
+    ready(w)
+    w.bookmarkRepo.updateBookmarkWordCount.mockRejectedValueOnce(new Error('pg blip'))
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'ready', body_mode: 'article', body_ready: false })
+  })
+
+  test('status: body_ready follows the version the viewer gets, not the owner language', async () => {
+    const w = wire()
+    const row = ready(w)
+    w.repo.add({ status: 'ready', target_language: 'zh', article_key: ARTICLE_KEY, article_text_key: ARTICLE_KEY.replace('.json', '.txt') })
+    await w.service.publishBodies(w.ctx(0), row.id)
+    // The owner reads English: that is the body
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ body_ready: true })
+    // The visitor reads Chinese: the body is not their version, so the article goes below the body
+    expect(await w.service.getStatus(w.ctx(VISITOR), UUID)).toMatchObject({ status: 'ready', body_ready: false })
+  })
+
+  test('takedown restores a body even when the bookmark was flagged later', async () => {
+    const w = wire()
+    const row = ready(w)
+    await w.service.publishBodies(w.ctx(0), row.id)
+    w.bookmarks.get(BOOKMARK)!.moderation_result = 1
+    row.status = 'takedown'
+    expect((await w.service.takedown(w.ctx(0), VIDEO)).bodies).toBe(1)
+    expect(w.objects.get('html/body/u1.html')).not.toContain('slax-pod-article')
+  })
+
+  test('takedown clears the article even when the body cues can not be read', async () => {
+    const w = wire()
+    const row = ready(w)
+    await w.service.publishBodies(w.ctx(0), row.id)
+    w.objects.set('html/body/u1.html', w.objects.get('html/body/u1.html')!.replace('data-cues="', 'data-cues-broken="'))
+    row.status = 'takedown'
+    expect((await w.service.takedown(w.ctx(0), VIDEO)).bodies).toBe(1)
+    const html = w.objects.get('html/body/u1.html')!
+    expect(html).not.toContain('slax-pod-article')
+    expect(html).toContain('youtube-player')
   })
 
   test('takedown puts the raw captions back into bodies that hold the article', async () => {

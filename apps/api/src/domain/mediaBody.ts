@@ -29,9 +29,7 @@ export class MediaBodyService {
    * counts as marked, so an unknown state never loses marks.
    */
   public async hasMarks(bookmarkId: number, userId: number): Promise<boolean> {
-    const ub = await this.bookmarkRepo.getUserBookmark(bookmarkId, userId)
-    if (!ub) return true
-    return this.markRepo.hasLiveMarksOnBookmark(bookmarkId)
+    return this.markRepo.bodyHasMarks(bookmarkId, userId)
   }
 
   /** The current body HTML of a bookmark, or null when it has none. */
@@ -45,10 +43,11 @@ export class MediaBodyService {
   /**
    * Replace one bookmark's body objects in place (same keys), then its word count and search index.
    * The cached AI overview was made from the old body: it is deleted, so it is made again from the new one.
+   * A flagged bookmark is not written, except with `force` (the takedown restore must reach it too).
    */
-  public async writeBody(ctx: ContextManager, bookmarkId: number, userId: number, body: { html: string; text: string }): Promise<boolean> {
+  public async writeBody(ctx: ContextManager, bookmarkId: number, userId: number, body: { html: string; text: string }, opts: { force?: boolean } = {}): Promise<boolean> {
     const bookmark = await this.bookmarkService.getBookmarkById(bookmarkId)
-    if (!bookmark?.content_key || bookmark.moderation_result > 0) return false
+    if (!bookmark?.content_key || (bookmark.moderation_result > 0 && !opts.force)) return false
     const bucket = this.bucket().R2Bucket
     await bucket.put(bookmark.content_key, body.html)
     if (bookmark.content_md_key) await bucket.put(bookmark.content_md_key, body.text)

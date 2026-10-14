@@ -1,6 +1,6 @@
 /**
- * Real Postgres through MarkRepo.hasLiveMarksOnBookmark: marks of every reader of a shared
- * bookmark count, deleted marks do not. Runs only with RUN_PG_INTEGRATION_TESTS=1 after migrations.
+ * Real Postgres through MarkRepo.bodyHasMarks: marks of every reader of a shared bookmark count,
+ * deleted marks do not, and a user without a copy of the bookmark counts as marked. Runs only with RUN_PG_INTEGRATION_TESTS=1 after migrations.
  */
 import 'dotenv/config'
 import { randomUUID } from 'node:crypto'
@@ -53,12 +53,16 @@ describePg('MarkRepo on Postgres', () => {
   })
 
   test("another reader's live mark counts; a deleted one does not", async () => {
-    expect(await repo.hasLiveMarksOnBookmark(bookmarkId)).toBe(false)
+    expect(await repo.bodyHasMarks(bookmarkId, userIds[0])).toBe(false)
 
     const mark = await pg.sr_bookmark_comment.create({ data: { user_id: userIds[1], bookmark_id: readerBookmarkId, type: 1, is_deleted: true, updated_at: new Date() } })
-    expect(await repo.hasLiveMarksOnBookmark(bookmarkId)).toBe(false)
+    expect(await repo.bodyHasMarks(bookmarkId, userIds[0])).toBe(false)
 
     await pg.sr_bookmark_comment.update({ where: { id: mark.id }, data: { is_deleted: false } })
-    expect(await repo.hasLiveMarksOnBookmark(bookmarkId)).toBe(true)
+    expect(await repo.bodyHasMarks(bookmarkId, userIds[0])).toBe(true)
+  })
+
+  test('a user without a copy of the bookmark counts as marked', async () => {
+    expect(await repo.bodyHasMarks(bookmarkId, -1)).toBe(true)
   })
 })

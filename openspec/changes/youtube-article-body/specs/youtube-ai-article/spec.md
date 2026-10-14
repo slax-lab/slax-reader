@@ -26,7 +26,7 @@ The system SHALL keep at most one article per video, caption source hash, target
 
 ### Requirement: Body status and catch-up
 
-The article status SHALL report `body_mode` (`article` or `transcript`) and `body_ready`. When the owner reads the status of a ready article that is not in the body and the body may change, the system SHALL write it. Visitors SHALL NOT cause a write.
+The article status SHALL report `body_mode` (`article` or `transcript`) and `body_ready`, where `body_ready` means the body holds the version this viewer gets. A failed body write SHALL NOT fail the status request. When the owner reads the status of a ready article that is not in the body and the body may change, the system SHALL write it. Visitors SHALL NOT cause a write.
 
 #### Scenario: Article made before this change
 - **WHEN** the owner opens a bookmark whose ready article is not in the body and that has no marks
@@ -34,7 +34,7 @@ The article status SHALL report `body_mode` (`article` or `transcript`) and `bod
 
 ### Requirement: Takedown restores the raw body
 
-Takedown SHALL restore the raw caption body of each affected bookmark from its cue data before it deletes the article objects.
+Takedown SHALL restore the raw caption body of each affected bookmark from its cue data before it deletes the article objects, also for a bookmark flagged by moderation. When the cue data can not be read, takedown SHALL still replace the body with the player only.
 
 #### Scenario: Taken-down video with an article body
 - **WHEN** the team takes down a video whose bookmarks show the article body

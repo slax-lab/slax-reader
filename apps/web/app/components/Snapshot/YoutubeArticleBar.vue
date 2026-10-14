@@ -2,29 +2,19 @@
   <section v-if="visible" class="youtube-article-bar">
     <!-- One live region that stays in the DOM, so every status change is announced -->
     <div class="yt-bar-status-region" role="status" aria-live="polite">
-      <p v-if="isWorking && !timedOut" class="yt-bar-status">
-        <span class="i-svg-spinners:90-ring yt-bar-spinner" aria-hidden="true"></span>
-        {{ $t('component.youtube_article.preparing') }}
-      </p>
-      <p v-else-if="isWorking && timedOut" class="yt-bar-status">{{ $t('component.youtube_article.timeout') }}</p>
-      <p v-else-if="status === 'skipped'" class="yt-bar-status">
-        {{ $t('component.youtube_article.skipped') }}
-        <button v-if="state?.can_generate" type="button" class="yt-bar-action" :disabled="acting" @click="generate">{{ $t('component.youtube_article.generate') }}</button>
-      </p>
-      <p v-else-if="status === 'failed'" class="yt-bar-status">
-        {{ $t('component.youtube_article.failed') }}
-        <button v-if="state?.can_retry" type="button" class="yt-bar-action" :disabled="acting" @click="retry">{{ $t('component.youtube_article.retry') }}</button>
-      </p>
-      <p v-else-if="status === 'limit_reached'" class="yt-bar-status">{{ $t('component.youtube_article.limit_reached') }}</p>
-      <p v-else-if="awaitingBody" class="yt-bar-status">
-        {{ $t('component.youtube_article.ready_reload') }}
-        <button type="button" class="yt-bar-action" @click="emit('refresh-body')">{{ $t('component.youtube_article.show_article') }}</button>
-      </p>
+      <YoutubeArticleStatus :state="state" :is-working="isWorking" :timed-out="timedOut" :acting="acting" :last="awaitingBody" compact @generate="generate" @retry="retry">
+        <template #last>
+          {{ $t('component.youtube_article.ready_reload') }}
+          <button type="button" class="yt-status-action" @click="emit('refresh-body')">{{ $t('component.youtube_article.show_article') }}</button>
+        </template>
+      </YoutubeArticleStatus>
     </div>
   </section>
 </template>
 
 <script lang="ts" setup>
+import YoutubeArticleStatus from '~/components/Snapshot/YoutubeArticleStatus.vue'
+
 import { PODCAST_EVENTS } from '~/utils/podcastMedia'
 
 import { useYoutubeArticle } from '~/composables/bookmark/useYoutubeArticle'
@@ -107,36 +97,5 @@ onBeforeUnmount(() => {
 
 .yt-bar-status-region:empty {
   display: none;
-}
-
-.yt-bar-status {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--slax-text-light);
-}
-
-.yt-bar-spinner {
-  width: 1em;
-  height: 1em;
-}
-
-.yt-bar-action {
-  padding: 2px 12px;
-  border: 1px solid var(--slax-accent);
-  border-radius: 6px;
-  background: transparent;
-  font-size: 13px;
-  color: var(--slax-accent);
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
 }
 </style>
