@@ -17,4 +17,5 @@
 
 - [x] 3.1 Run the local pre-push review from `REVIEW.md` and resolve Important findings.
 - [x] 3.2 Open the PR with `OpenSpec: podcast-article`, stacked on `youtube-ai-article`.
-- [ ] 3.3 Before rollout: set `ASSEMBLYAI_API_KEY`, add the binding to the private Wrangler configuration, run the migration, enable `podcast` for internal accounts, and test the three episode kinds listed in the design.
+- [ ] 3.3 Before this PR merges (a merge to `dev` deploys and runs migrations): add `ASSEMBLYAI_API_KEY` to `[vars]` and the `PODCAST_WORKFLOW` binding to the private configuration TOML; locally, add the key to `deploy/local/.dev.vars`.
+- [ ] 3.4 After deploy: enable `podcast` for internal accounts and test the three episode kinds listed in the design.
