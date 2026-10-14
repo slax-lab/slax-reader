@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="14px" height="14px" viewBox="0 0 14 14" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>icon-comment-bubble-mask</title>
+    <g id="icon-comment-bubble-mask" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" stroke-linejoin="round">
+        <g id="icon-comment-bubble" transform="translate(2.3333, 3)" stroke="#000000" stroke-width="1.15">
+            <path d="M0,0 L8.66666667,0 C9.0348565,0 9.33333333,0.298476833 9.33333333,0.666666667 L9.33333333,6.33333333 C9.33333333,6.70152317 9.0348565,7 8.66666667,7 L2.33333333,7 L0,8.66666667 L0,0 Z" id="路径"></path>
+        </g>
+    </g>
+</svg>

@@ -11,3 +11,8 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+The CLI in apps/cli and its imported documentation in docs/cli originate from
+slax-lab/slax-reader-cli, commit 9697ec2949049d2e7ef0258cd7b9b6df2142007a.
+They retain the upstream MIT license and slax-lab attribution. See
+apps/cli/LICENSE. This exception does not relicense the rest of the monorepo.

@@ -1,0 +1,94 @@
+/* 划线评论单独注入（iframe 路径：w/[id].vue / sw/[id].vue 以 ?raw 注入） */
+
+slax-mark {
+  color: inherit;
+  white-space: inherit;
+  transition: all var(--slax-dur-normal);
+}
+
+/* !important 压制插件注入的 CSS
+   否则划线样式被插件覆盖 */
+slax-mark.slax-mk-stroke {
+  cursor: pointer;
+  text-decoration: underline dashed !important;
+  text-decoration-color: color-mix(in srgb, var(--slax-accent) 50%, transparent) !important;
+  text-decoration-thickness: 1.5px !important;
+  text-underline-offset: 6px !important;
+  box-decoration-break: clone;
+  border-bottom: none !important;
+}
+
+slax-mark.slax-mk-self-stroke {
+  cursor: pointer;
+  text-decoration: underline dashed !important;
+  text-decoration-color: color-mix(in srgb, var(--slax-accent) 50%, transparent) !important;
+  text-decoration-thickness: 1.5px !important;
+  text-underline-offset: 6px !important;
+  box-decoration-break: clone;
+  border-bottom: none !important;
+}
+
+slax-mark.slax-mk-comment {
+  cursor: pointer;
+  text-decoration: underline solid !important;
+  text-decoration-color: color-mix(in srgb, var(--slax-accent) 50%, transparent) !important;
+  text-decoration-thickness: 1.5px !important;
+  text-underline-offset: 6px !important;
+  box-decoration-break: clone;
+  border-bottom: none !important;
+}
+
+/* hover 任一段，整条划线高亮 */
+slax-mark:hover,
+slax-mark.group-hover {
+  text-decoration-color: var(--slax-accent);
+  background: var(--slax-accent-bg);
+}
+
+/* 引用高亮；口径同本文件 */
+slax-mark.slax-mk-highlighted {
+  background-color: var(--slax-quote-highlight) !important;
+  border-radius: 2px;
+}
+
+slax-mark:has(img) {
+  padding: 0;
+  position: relative;
+  display: inline-block;
+}
+
+slax-mark:has(img).slax-mk-stroke,
+slax-mark:has(img).slax-mk-comment {
+  border: 1.5px solid var(--slax-accent) !important;
+  text-decoration: none !important;
+}
+
+slax-mark:has(img)::after {
+  content: '···';
+  position: absolute;
+  height: 25px;
+  width: 25px;
+  padding-left: 0;
+  padding-right: 0;
+  border-radius: 50%;
+  background-color: color-mix(in srgb, var(--slax-accent) 93%, transparent);
+  right: -5px;
+  top: -5px;
+  line-height: 25px;
+  color: #fff;
+  font-size: 15px;
+  text-align: center;
+  transition: transform var(--slax-dur-normal);
+}
+
+slax-mark:has(img) slax-mark {
+  padding: 0 !important;
+}
+
+slax-mark:has(img) slax-mark::after {
+  content: none;
+}
+
+slax-mark slax-mark {
+  border: none !important;
+}

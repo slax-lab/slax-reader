@@ -1,0 +1,175 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Saved-link export browser validation</title>
+<style>
+  body {
+    font: 16px system-ui;
+    max-width: 900px;
+    margin: 40px auto;
+  }
+  button {
+    padding: 12px;
+    margin: 8px;
+  }
+  pre {
+    white-space: pre-wrap;
+  }
+</style>
+<h1>Saved-link export browser validation</h1>
+<p>Synthetic data only. Each run exports 100,000 links in 200 pages through the production export utility.</p>
+<button id="csv">Run CSV</button><button id="json">Run JSON</button><button id="cancelTest">Test cancellation</button>
+<p id="progress">Ready</p>
+<pre id="result"></pre>
+<script type="module">
+  import { prepareBookmarkExport } from './export.js'
+  const progress = document.querySelector('#progress'),
+    result = document.querySelector('#result')
+  const makeItem = i => ({
+    url: `https://example.com/saved/${i}`,
+    title: `${i % 3 ? '文章' : '=SUM(1,2)'} ${i}, "quoted"\nsecond line 🐈`,
+    tags: [
+      { name: '阅读, "标签"', source: 'ai' },
+      { name: 'work\nnotes', source: 'user' }
+    ],
+    saved_at: '2026-09-08T00:00:00.000Z',
+    is_read: i % 2 === 0,
+    is_archived: i % 3 === 0,
+    is_starred: i % 5 === 0,
+    type: i % 7 === 0 ? 'shortcut' : 'article'
+  })
+  function parseCsv(text) {
+    let rows = [],
+      row = [],
+      cell = '',
+      quote = false
+    for (let i = 0; i < text.length; i++) {
+      let c = text[i]
+      if (c === '"') {
+        if (quote && text[i + 1] === '"') {
+          cell += '"'
+          i++
+        } else quote = !quote
+      } else if (c === ',' && !quote) {
+        row.push(cell)
+        cell = ''
+      } else if (c === '\n' && !quote) {
+        row.push(cell.replace(/\r$/, ''))
+        rows.push(row)
+        row = []
+        cell = ''
+      } else cell += c
+    }
+    return rows
+  }
+  async function run(format, cancel = false) {
+    document.querySelectorAll('button').forEach(b => (b.disabled = true))
+    result.textContent = ''
+    const controller = new AbortController()
+    let pages = 0,
+      count = 0,
+      peak = 0,
+      cancelAt = 0,
+      maxTickGap = 0,
+      last = performance.now()
+    const start = performance.now(),
+      before = performance.memory?.usedJSHeapSize ?? null
+    const timer = setInterval(() => {
+      const now = performance.now()
+      maxTickGap = Math.max(maxTickGap, now - last)
+      last = now
+      peak = Math.max(peak, performance.memory?.usedJSHeapSize ?? 0)
+    }, 10)
+    try {
+      const output = await prepareBookmarkExport({
+        format,
+        signal: controller.signal,
+        fetchPage: async (cursor, signal) => {
+          signal.throwIfAborted()
+          pages++
+          const from = Number(cursor || 0)
+          return { items: Array.from({ length: 500 }, (_, j) => makeItem(from + j)), next_cursor: from + 500 < 100000 ? String(from + 500) : null }
+        },
+        onProgress: n => {
+          count = n
+          progress.textContent = `Prepared ${n} links`
+          if (cancel && n === 10000) {
+            setTimeout(() => {
+              cancelAt = performance.now()
+              controller.abort()
+            }, 0)
+          }
+        }
+      })
+      const built = performance.now(),
+        after = performance.memory?.usedJSHeapSize ?? null
+      clearInterval(timer)
+      const bytes = output.blob.size
+      const text = await output.blob.text()
+      let verified = 0
+      if (format === 'json') {
+        const obj = JSON.parse(text)
+        if (obj.schema_version !== 1 || obj.items.length !== 100000) throw Error('JSON count/version mismatch')
+        for (let i = 0; i < obj.items.length; i++) {
+          if (JSON.stringify(obj.items[i]) !== JSON.stringify(makeItem(i))) throw Error(`JSON record mismatch ${i}`)
+          verified++
+        }
+      } else {
+        const rows = parseCsv(text.replace(/^\uFEFF/, ''))
+        if (rows.length !== 100001) throw Error(`CSV count mismatch ${rows.length}`)
+        for (let i = 0; i < 100000; i++) {
+          const item = makeItem(i),
+            row = rows[i + 1]
+          const expected = [
+            item.url,
+            item.title.startsWith('=') ? "'" + item.title : item.title,
+            JSON.stringify(item.tags.map(t => t.name)),
+            item.saved_at,
+            String(item.is_read),
+            String(item.is_archived),
+            String(item.is_starred),
+            item.type
+          ]
+          if (JSON.stringify(row) !== JSON.stringify(expected)) throw Error(`CSV mismatch ${i}`)
+          verified++
+        }
+      }
+      result.textContent = JSON.stringify(
+        {
+          status: 'passed',
+          format,
+          count: output.count,
+          pages,
+          verified,
+          bytes,
+          prepare_ms: Math.round(built - start),
+          heap_before: before,
+          heap_after: after,
+          heap_peak_sample: peak,
+          max_timer_gap_ms: Math.round(maxTickGap),
+          heap_note: 'Browser performance.memory is approximate; excludes Blob backing storage'
+        },
+        null,
+        2
+      )
+    } catch (error) {
+      result.textContent = JSON.stringify(
+        {
+          status: cancel && error.name === 'AbortError' ? 'cancelled' : 'failed',
+          error: error.name,
+          count,
+          pages,
+          cancel_latency_ms: cancelAt ? Math.round(performance.now() - cancelAt) : null,
+          partial_download: false
+        },
+        null,
+        2
+      )
+    } finally {
+      clearInterval(timer)
+      document.querySelectorAll('button').forEach(b => (b.disabled = false))
+    }
+  }
+  document.querySelector('#csv').onclick = () => run('csv')
+  document.querySelector('#json').onclick = () => run('json')
+  document.querySelector('#cancelTest').onclick = () => run('csv', true)
+</script>

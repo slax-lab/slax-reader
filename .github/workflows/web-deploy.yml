@@ -1,0 +1,101 @@
+name: Web Pages deploy
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches: [dev, beta, main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/contracts/**'
+      - 'packages/frontend-types/**'
+      - 'packages/frontend-utils/**'
+      - 'packages/selection/**'
+      - 'tooling/web.mjs'
+      - 'tooling/run-app.mjs'
+      - 'tooling/env-files.mjs'
+      - 'tooling/env-files.d.mts'
+      - 'tooling/pnpm-command.mjs'
+      - 'tooling/web-pages-deploy*.mjs'
+      - 'tooling/web-pages-workflow.test.mjs'
+      - 'deploy/cloudflare/api.toml.example'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/frontend-ci.yml'
+      - '.github/workflows/web-deploy.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ github.event.pull_request.base.ref }}
+    concurrency:
+      group: web-pages-deploy-${{ github.event.pull_request.base.ref }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash --noprofile --norc -Eeuo pipefail {0}
+    env:
+      TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
+      MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      PAGES_PROJECT_NAME: ${{ vars.PAGES_PROJECT_NAME }}
+      WEB_BUILD_CONFIG: ${{ vars.WEB_BUILD_CONFIG }}
+      NUXT_TELEMETRY_DISABLED: '1'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: 'false'
+      CLOUDFLARE_INCLUDE_PROCESS_ENV: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Validate public inputs and build Web
+        run: node tooling/web-pages-deploy.mjs build
+      - name: Check the branch before publication
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          case "$TARGET_BRANCH" in dev|beta|main) ;; *) exit 1 ;; esac
+          [[ "$MERGE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          tip=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha')
+          [[ "$tip" =~ ^[a-f0-9]{40}$ ]]
+          current=true
+          if [ "$tip" != "$MERGE_SHA" ]; then
+            git -c credential.helper= fetch --no-tags --depth=1 origin "$tip"
+            changed=$(git diff --name-only "$MERGE_SHA" "$tip" -- \
+              'apps/web/**' 'packages/contracts/**' 'packages/frontend-types/**' \
+              'packages/frontend-utils/**' 'packages/selection/**' \
+              'tooling/web.mjs' 'tooling/run-app.mjs' 'tooling/env-files.mjs' \
+              'tooling/env-files.d.mts' 'tooling/pnpm-command.mjs' \
+              'tooling/web-pages-deploy*.mjs' 'tooling/web-pages-workflow.test.mjs' \
+              'deploy/cloudflare/api.toml.example' 'package.json' 'pnpm-lock.yaml' \
+              'pnpm-workspace.yaml' '.github/workflows/frontend-ci.yml' \
+              '.github/workflows/web-deploy.yml')
+            if [ -n "$changed" ]; then current=false; fi
+          fi
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          if [ "$current" = false ]; then
+            echo 'Web release skipped: newer Web changes are already on this branch'
+          fi
+      - name: Publish to the existing Pages project and purge its edge cache
+        if: steps.release.outputs.current == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+        run: node tooling/web-pages-deploy.mjs deploy

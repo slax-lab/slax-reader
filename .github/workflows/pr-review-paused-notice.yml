@@ -10,7 +10,7 @@ name: PR review paused notice
 # rather than gh-aw so that answering costs no agent run and no model request.
 #
 # Note: GitHub runs `issue_comment` workflows from the default branch, so this
-# only takes effect once merged to `main`.
+# only takes effect once merged to the default branch.
 
 on:
   issue_comment:

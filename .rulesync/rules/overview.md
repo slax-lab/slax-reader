@@ -13,7 +13,10 @@ Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comme
 
 - `apps/web` — web frontend (the reader at r.slax.com)
 - `apps/extension` — browser extension (Chrome/Edge)
-- `apps/backend` — API server (Cloudflare Workers)
+- `apps/api` — API server (Cloudflare Workers: Core, Edge, AI, Browser)
+- `apps/api/script/deploy` — backend deployment, setup, and resource provisioning commands
+- `deploy/cloudflare` — public Cloudflare Worker template
+- `deploy/local` — local api.toml/.env/.dev.vars, PostgreSQL / PowerSync Compose and shared Wrangler state
 - `apps/cli` — command-line client (reader-cli)
 - `packages/contracts` — shared API contracts and types used across apps
 - `docs/` — documentation
@@ -22,9 +25,17 @@ Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comme
 
 ## Local Development
 
-- Package manager: **pnpm** (pinned via `packageManager` in `package.json`; Node.js >= 22.13 required, because pnpm 11.25 itself requires it)
-- Install dependencies: `pnpm install`
-- Per-app dev/test/build commands live in each app's own `package.json` — read it before inventing commands.
+- Package manager: **pnpm** (pinned via `packageManager` in `package.json`; Node.js `^22.22.2 || ^24.15.0 || >=26` required — use an LTS line, Node 25 is not supported)
+- New team members set up their machine with the agent-executable runbook at `docs/LOCAL-SETUP.md`.
+- Install dependencies once at the repository root: `pnpm install --frozen-lockfile`.
+- Per-app scripts live with their app. The backend exposes its concrete commands from `apps/api/package.json`; the repository root provides the abstract entry `pnpm api -- <command>` so users do not need to change directories.
+- CLI commands use `pnpm cli -- <command>` (`build`, `dev`, `start`, `typecheck`, `test`, `test:package`). The CLI remains the public `@slax-lab/reader-cli` package, needs no deploy environment files for build/tests, and retains its existing user config namespace. See `docs/cli/DEVELOPMENT.md` and `docs/cli/RELEASE.md`; `cli-v<version>` tags on commits reachable from `main` trigger npm OIDC publication and matching GitHub Release assets.
+- Reusable repository tooling stays at the root. API-specific configuration, Prisma schemas and migrations, generated runtime types, source and tests stay in `apps/api/`; deployment templates and local infrastructure remain in `deploy/`.
+- The only public API template is `deploy/cloudflare/api.toml.example`; initialize ignored `deploy/local/api.toml` with `pnpm api -- config:init`. Dev, deploy, build and runtime types use that native Wrangler configuration (name/services/env, no custom workers tables). Local commands select env.dev if present; --env or SLAX_API_ENV explicitly selects a named environment. API-specific Prisma configs live in `apps/api/prisma/`.
+- Prisma and Cloudflare operational tools automatically load ignored `deploy/local/.env` (database URLs and CLI credentials), using this fixed repository-relative path. Existing process values take precedence; setup pins local database URLs. Build/types and dry-run plans do not load this file. Worker runtime secrets belong in ignored `deploy/local/.dev.vars` or Worker secrets, never TOML or generated Env types.
+- `pnpm api -- setup` validates operator-provided native Wrangler configuration and keys, runs pnpm exec wrangler login once in apps/api, then runs local infrastructure setup/migrations/generation through `apps/api/script/deploy/setup-backend.sh`, waits for PowerSync health and exits. Start Workers separately with pnpm api -- dev; setup never launches them. The combined dev:full command is removed. The root `pnpm setup:all` command runs API setup, Web setup, and Extension setup in order. setup never writes, migrates or backs up configuration or generates keys; missing files must be supplied by the operator. The local PowerSync public key is derived from POWERSYNC_JWK_PRIVATE_KEY in .dev.vars and passed to Compose in memory; obsolete separate key files are not required or rewritten. Invalid signing keys and service failures stop startup. `--check` is read-only and does not invoke login. Cloud services still require dedicated development resources. All deployment tools honor `SLAX_API_CONFIG` (root-relative or absolute), including types, D1 and resource tools; config:init only creates the default local file. CI may check out an independent configuration repository and use the manual/reusable API deploy workflow.
+- Backend validation and deployment commands must be documented through the root abstraction and preserve the distinction between local setup, offline checks and explicitly authorized remote operations.
+- The runtime Worker type generator may use an isolated temporary directory to prevent secret/configuration discovery; this is an internal safety boundary, not a developer-facing working-directory requirement.
 
 ## Development Workflow — OpenSpec Required
 
@@ -39,21 +50,16 @@ This repo uses OpenSpec for spec-driven development. Living specs live in `opens
 - Implementation-only changes (refactors, typos, comment/doc tweaks) MAY skip the proposal.
 - After editing specs or changes, run `openspec validate --all --strict`; it must pass before merge.
 
-## Parallel Work — Worktree Convention
+## Branching and Promotion
 
-Every task — human- or agent-driven — gets its own git worktree on its own branch. Nothing is edited directly in the main checkout on a long-lived branch.
+The repository has three long-lived environment branches: `dev` (the default branch), `beta`, and `main`. Changes flow `dev` → `beta` → `main` through promotion pull requests, and all three reject direct pushes. Promotion pull requests merge with a **merge commit**, never rebase or squash: rebase and squash forge new SHAs for patches the source branch already carries, and once the histories diverge GitHub's trial-merge gate blocks every merge method until a sync-back merge re-converges them. If a promotion PR reports conflicts from such divergence, merge the target branch back into the source branch first (resolving in favor of the source branch's content), then merge the promotion. Sync-back pull requests merge with a **merge commit** too: a sync-back's entire purpose is making the target branch's tip an ancestor of the source branch, and squash or rebase would forge a new SHA for that tip instead, leaving the divergence — and the blocked promotion — exactly as it was.
 
-The repository has three long-lived environment branches: `dev`, `beta`, and `main` (the default branch). Changes flow `dev` → `beta` → `main` through promotion pull requests, and all three reject direct pushes. Promotion pull requests merge with a **merge commit**, never rebase or squash: rebase and squash forge new SHAs for patches the source branch already carries, and once the histories diverge GitHub's trial-merge gate blocks every merge method until a sync-back merge re-converges them. If a promotion PR reports conflicts from such divergence, merge the target branch back into the source branch first (resolving in favor of the source branch's content), then merge the promotion. Sync-back pull requests merge with a **merge commit** too: a sync-back's entire purpose is making the target branch's tip an ancestor of the source branch, and squash or rebase would forge a new SHA for that tip instead, leaving the divergence — and the blocked promotion — exactly as it was.
+Two structural wrinkles when running promotions. First, the required `PR review gate` status can hang at "Expected" when a pull request is opened with conflicts: the review workflow does not fire for a conflicted pull request, so no run reports on the head. The review triggers include `synchronize`, so the sync-back merge that resolves the conflicts re-triggers the review automatically; if the gate still shows no real status (for example the pull request is still conflicted, so no run fires), posting a `/review` comment runs the on-demand review, after which the gate reports a real status. Second, the required approving review is unobtainable when the author is the repository's only active administrator — self-approval does not count, and rulesets cannot exempt by a pull request's head branch. The human administrator therefore merges promotion and sync-back pull requests from the GitHub UI with the merge-commit method once the required checks are green; agents never merge promotion or sync-back pull requests themselves.
 
-Two structural wrinkles when running promotions. First, the required `PR review gate` status can hang at "Expected": the review workflow does not fire for a pull request opened with conflicts, and its triggers do not include `synchronize`, so a sync-back merge does not re-trigger it. Posting a `/review` comment on the pull request runs the on-demand review, after which the gate reports a real status. Second, the required approving review is unobtainable when the author is the repository's only active administrator — self-approval does not count, and rulesets cannot exempt by a pull request's head branch. The human administrator therefore merges promotion and sync-back pull requests from the GitHub UI with the merge-commit method once the required checks are green; agents never merge promotion or sync-back pull requests themselves.
-
-- Location: `.worktrees/<task-name>` inside this repository (gitignored); branch: `<type>/<task-name>` cut from `origin/dev`, where `<type>` is the commit type of the work, e.g. `feat`, `fix`, `docs`, `chore`, `ci`. The task's pull request targets `dev`.
-- Before the first file edit of a session, check where you are: if `git rev-parse --show-toplevel` is the main checkout and `git branch --show-current` is a long-lived branch (`dev`, `beta`, or `main`), STOP. Ask the human to create a task worktree — or, with the human's approval, create it yourself: `git worktree add .worktrees/<task-name> -b <type>/<task-name> --no-track origin/dev`, then `cd` into it and run `pnpm install` before building or testing.
-- One task = one worktree = one branch = one PR: `<task-name>` is one string, used verbatim for the worktree directory, the branch suffix, and — when a change is required — the OpenSpec change-id.
+- One task = one branch = one PR: branch `<type>/<task-name>` cut from `origin/dev`, where `<type>` is the commit type of the work, e.g. `feat`, `fix`, `docs`, `chore`, `ci`. The task's pull request targets `dev`. `<task-name>` is one string, used verbatim for the branch suffix and — when a change is required — the OpenSpec change-id.
+- Never commit on a long-lived branch (`dev`, `beta`, or `main`): a pre-commit hook rejects the commit locally, and the repository ruleset rejects the push remotely. Trivial fixes (typo scale, single file) also go through a branch + PR.
+- Before the first file edit of a session, check where you are: if `git branch --show-current` is a long-lived branch, cut the task branch first — `git switch -c <type>/<task-name> --no-track origin/dev` — asking the human first when the checkout carries uncommitted changes.
 - Parallel tasks MUST NOT carry delta specs for the same capability (`openspec/specs/<capability>/`); sequence such tasks instead. Archive a merged change promptly, via its own small PR.
-- Work only inside your own task's worktree: other directories under `.worktrees/` are other tasks' live checkouts — reading across is fine, editing across is not.
-- Finishing: after the PR merges, remove the worktree (`git worktree remove .worktrees/<task-name>`) and delete the merged branch.
-- Trivial fixes (typo scale, single file) MAY skip the worktree, but still go through a branch + PR — direct pushes to the long-lived branches are rejected by the repository's ruleset.
 
 ## Code Review
 
@@ -77,3 +83,11 @@ Never read, print, copy, or exfiltrate secret files: `.env`, `.env.*`, `.dev.var
 
 - This is enforced by tooling where the tool supports it (Claude Code and Codex via generated permission rules; Kimi Code blocks `.env*` natively), and by this rule everywhere else.
 - If you need configuration values, ask the human; they can paste the relevant non-secret shape of the config.
+
+## Documentation Language
+
+Author all durable project documentation in English: OpenSpec artifacts (proposals, designs, tasks, specs), files under `docs/`, code comments, commit messages, and pull request bodies. Conversation with the user is unaffected. Legacy non-English documents under `docs/` (the `*_CN` / `*_JP` files migrated from the polyrepos) stay as-is; when substantially revising one that has no English counterpart, add the English version rather than only extending the translated file.
+
+## Personal Local Instructions
+
+At the start of every session, before any other work: if `AGENTS.local.md` exists at the repository root, read it and follow it. Its presence is visible in the working-directory listing injected into your context, so checking costs no tool call. This file holds personal, machine-local instructions and is gitignored, so it usually does not exist — that is normal. Where it conflicts with this file, it wins.

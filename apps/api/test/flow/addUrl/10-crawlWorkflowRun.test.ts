@@ -1,0 +1,710 @@
+/**
+ * /add_url Layer 10: CrawlWorkflow.run() 控制流测试
+ * 直接测试 CrawlWorkflow 的 step 编排、状态转换、错误处理
+ */
+import { describe, test, expect, vi, beforeEach } from 'vitest'
+
+vi.mock('cloudflare:workers', () => ({
+  WorkflowEntrypoint: class {},
+  WorkflowEvent: class {},
+  WorkflowStep: class {}
+}))
+vi.mock('cloudflare:workflows', () => ({
+  NonRetryableError: class NonRetryableError extends Error {
+    constructor(msg: string) {
+      super(msg)
+      this.name = 'NonRetryableError'
+    }
+  }
+}))
+
+// ---- Mock DI ----
+const mockResolveMap = new Map<any, any>()
+
+vi.mock('@/decorators/di', () => ({
+  container: {
+    clone: vi.fn(() => ({
+      resolve: vi.fn((cls: any) => mockResolveMap.get(cls))
+    }))
+  },
+  injectable: () => (target: any) => target,
+  singleton: () => (target: any) => target,
+  inject: () => () => undefined
+}))
+vi.mock('@/di/generated/dependency', () => ({
+  initializeCore: vi.fn(),
+  initializeInfrastructure: vi.fn()
+}))
+vi.mock('@/utils/context', () => ({
+  ContextManager: vi.fn().mockImplementation((_ctx: any, env: any) => {
+    let userId = 0
+    return {
+      setUserInfo: vi.fn((id: number) => { userId = id }),
+      getUserId: () => userId,
+      setHashIds: vi.fn(),
+      env,
+      execution: { waitUntil: vi.fn((p: Promise<any>) => p.catch(() => {})) }
+    }
+  })
+}))
+vi.mock('@/utils/hashids', () => ({
+  Hashid: vi.fn().mockImplementation(() => ({ encodeId: vi.fn((id: number) => id * 100) }))
+}))
+
+import { CrawlWorkflow } from '@/entry/edge/workflows/crawlWorkflow'
+import { CrawlService } from '@/domain/crawl'
+import { BookmarkService } from '@/domain/bookmark'
+import { LabService } from '@/domain/lab'
+import { UrlParserHandler } from '@/domain/orchestrator/urlParser'
+import { TelegramBotService } from '@/domain/telegram'
+import { ImportService } from '@/domain/import'
+import { MultiLangError } from '@/utils/multiLangError'
+import { ErrorName } from '@/const/err'
+import {
+  createMockEnv,
+  createMockCrawlService,
+  createMockBookmarkService,
+  createMockUrlParserHandler,
+  createMockTelegramBotService,
+  createMockImportService,
+  createMockStep,
+  createMockWorkflowEvent,
+  STANDARD_CRAWL_RESULT
+} from '@test/helpers/mockFactory'
+
+function wireWorkflow(labsEnabled = true) {
+  const cs = { ...createMockCrawlService(), fetchYoutubeData: vi.fn(), parseAndSaveYoutube: vi.fn() }
+  const bs = createMockBookmarkService()
+  const uph = createMockUrlParserHandler()
+  const tg = createMockTelegramBotService()
+  const imp = createMockImportService()
+  const labRepo = { isEnabled: vi.fn().mockResolvedValue(labsEnabled) }
+  const labs = new (LabService as any)(labRepo) as LabService
+
+  mockResolveMap.clear()
+  mockResolveMap.set(CrawlService, cs)
+  mockResolveMap.set(BookmarkService, bs)
+  mockResolveMap.set(LabService, labs)
+  mockResolveMap.set(UrlParserHandler, uph)
+  mockResolveMap.set(TelegramBotService, tg)
+  mockResolveMap.set(ImportService, imp)
+
+  const env = createMockEnv()
+  const wf = new (CrawlWorkflow as any)()
+  wf.ctx = {}
+  wf.env = env
+
+  return { wf, cs, bs, uph, tg, imp, env, labRepo }
+}
+
+// ---- Helper: run workflow ----
+async function runWorkflow(wf: any, eventOverrides: Record<string, unknown> = {}, step?: any) {
+  const event = createMockWorkflowEvent(eventOverrides)
+  const mockStep = step ?? createMockStep()
+  return wf.run(event, mockStep)
+}
+
+describe('CrawlWorkflow acquisition Labs gates', () => {
+  const youtube = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+
+  test.each([
+    { url: youtube, cached: false },
+    { url: youtube, cached: true },
+    { url: 'https://youtu.be/dQw4w9WgXcQ', cached: false },
+    { url: 'https://youtu.be/dQw4w9WgXcQ', cached: true }
+  ])('rejects disabled YouTube acquisition before cache reuse or provider fetch: %o', async ({ url, cached }) => {
+    const { wf, cs, bs, uph, labRepo } = wireWorkflow(false)
+    if (cached) bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, privateUser: 0 })
+
+    await expect(runWorkflow(wf, { url, userId: 7 })).rejects.toMatchObject({ name: 'NonRetryableError', message: expect.stringContaining('url_lab_disabled:') })
+
+    expect(labRepo.isEnabled).toHaveBeenCalledWith(7, 'youtube')
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(bs.getBookmarkTitleAndTextContentTry).not.toHaveBeenCalled()
+    expect(bs.capturePdf).not.toHaveBeenCalled()
+    expect(cs.resolveShortLink).not.toHaveBeenCalled()
+    expect(cs.fetchYoutubeData).not.toHaveBeenCalled()
+    expect(cs.pushBookmarkFailureAlert).not.toHaveBeenCalled()
+    expect(uph.processPostHandler).not.toHaveBeenCalled()
+  })
+
+  test('rejects a regular short link resolved to YouTube before provider fetch', async () => {
+    const { wf, cs, bs, labRepo } = wireWorkflow(false)
+    cs.resolveShortLink.mockResolvedValue(youtube)
+
+    await expect(runWorkflow(wf, { url: 'https://bit.ly/video' })).rejects.toMatchObject({ name: 'NonRetryableError', message: expect.stringContaining('url_lab_disabled:') })
+
+    expect(labRepo.isEnabled).toHaveBeenCalledWith(1, 'youtube')
+    expect(cs.fetchYoutubeData).not.toHaveBeenCalled()
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(cs.pushBookmarkFailureAlert).not.toHaveBeenCalled()
+  })
+
+  test.each([youtube, 'https://bit.ly/video'])('allows enabled YouTube acquisition from %s', async url => {
+    const { wf, cs, uph, labRepo } = wireWorkflow(true)
+    cs.resolveShortLink.mockResolvedValue(youtube)
+    cs.fetchYoutubeData.mockResolvedValue({ title: 'Video' })
+    cs.parseAndSaveYoutube.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf, { url, userId: 7 })
+
+    expect(labRepo.isEnabled).toHaveBeenCalledWith(7, 'youtube')
+    expect(cs.fetchYoutubeData).toHaveBeenCalledWith(expect.anything(), youtube)
+    expect(cs.parseAndSaveYoutube).toHaveBeenCalled()
+    expect(uph.processPostHandler).toHaveBeenCalled()
+  })
+
+  test('keeps ungated articles independent of Labs availability', async () => {
+    const { wf, cs, labRepo } = wireWorkflow(false)
+    labRepo.isEnabled.mockRejectedValue(new Error('Labs unavailable'))
+    cs.fetchRegular.mockResolvedValue({ content: '<p>Article</p>', url: 'https://example.com/article', title: 'Article' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf)
+
+    expect(labRepo.isEnabled).not.toHaveBeenCalled()
+    expect(cs.fetchRegular).toHaveBeenCalled()
+  })
+
+  test('preserves retriable Labs service failures on gated acquisitions', async () => {
+    const { wf, cs, bs, labRepo } = wireWorkflow()
+    labRepo.isEnabled.mockRejectedValue(new Error('Labs unavailable'))
+
+    await expect(runWorkflow(wf, { url: youtube })).rejects.toMatchObject({ name: 'Error', message: 'Labs unavailable' })
+
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(cs.fetchYoutubeData).not.toHaveBeenCalled()
+    expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(1, 'workflow_fetch.exhausted', expect.anything())
+  })
+
+  test('records import failure when a disabled YouTube acquisition is dispatched', async () => {
+    const { wf, bs, imp } = wireWorkflow(false)
+
+    await expect(runWorkflow(wf, { url: youtube, importTaskId: 55 })).rejects.toMatchObject({ name: 'NonRetryableError' })
+
+    expect(bs.updateBookmarkImportRelationStatus).toHaveBeenCalledWith(1, 42, 55, 2)
+    expect(imp.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 55, 0, 1)
+  })
+})
+
+describe('CrawlWorkflow fetch step 状态转换', () => {
+  test('PDF capture reuses text AI processing without invoking HTML parsing', async () => {
+    const { wf, cs, bs, uph } = wireWorkflow()
+    bs.capturePdf.mockResolvedValue(true)
+    bs.getBookmarkById.mockResolvedValue({ title: 'PDF', content_key: 'pdf/body/pdf.pdf', content_md_key: 'text/pdf/pdf.txt' })
+    bs.getBookmarkContent.mockResolvedValue('## Page 1\n\nA PDF passage suitable for AI analysis.')
+    await runWorkflow(wf)
+    expect(bs.capturePdf).toHaveBeenCalled()
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(cs.parseAndSaveContent).not.toHaveBeenCalled()
+    expect(uph.processPostHandler).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ textContent: expect.stringContaining('Page 1') }))
+  })
+  test('PDF scans finish capture without dispatching empty text to post-processing AI', async () => {
+    const { wf, cs, bs, uph } = wireWorkflow()
+    bs.capturePdf.mockResolvedValue(true)
+    bs.getBookmarkById.mockResolvedValue({ title: 'Scan', content_key: 'pdf/body/scan.pdf', content_md_key: '' })
+    await runWorkflow(wf)
+    expect(cs.parseAndSaveContent).not.toHaveBeenCalled()
+    expect(uph.processPostHandler).not.toHaveBeenCalled()
+  })
+  test('fetch 开始 → 设置 status=parseing', async () => {
+    const { wf, cs, bs } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>hi</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf)
+
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'parseing')
+  })
+
+  test('regular URL 成功 → fetchRegular + parseAndSaveContent + post-processing', async () => {
+    const { wf, cs, bs, uph } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>hi</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf)
+
+    expect(cs.fetchRegular).toHaveBeenCalled()
+    expect(cs.parseAndSaveContent).toHaveBeenCalled()
+    expect(uph.processPostHandler).toHaveBeenCalled()
+    expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'example.com', 'complete', 'success')
+  })
+})
+
+describe('Toutiao workflow', () => {
+  const canonicalUrl = 'https://www.toutiao.com/article/7694114872820384290/'
+  test('resolves a share and saves within the fetch step before normal validation and post-processing', async () => {
+    const { wf, cs, uph, env } = wireWorkflow()
+    cs.resolveShortLink.mockResolvedValue(canonicalUrl)
+    const article = { canonicalUrl, html: '<p>Complete body</p>' }
+    cs.fetchToutiaoData.mockResolvedValue(article)
+    cs.parseAndSaveToutiao.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, contentKey: 'html/body/toutiao.html' })
+    const step = createMockStep()
+    await runWorkflow(wf, { url: 'https://m.toutiao.com/is/CI_XBMsL7IU/' }, step)
+    expect(cs.fetchToutiaoData).toHaveBeenCalledWith(expect.anything(), canonicalUrl)
+    expect(cs.parseAndSaveToutiao).toHaveBeenCalledWith(expect.anything(), article, 42, expect.any(String))
+    expect(step.do.mock.calls.some(call => call[0] === 'parse')).toBe(false)
+    expect(env.CONTENT_VALIDATION_WORKFLOW.create).toHaveBeenCalledOnce()
+    expect(uph.processPostHandler).toHaveBeenCalled()
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+  })
+
+  test.each(['resolution', 'provider'])('%s failure marks the bookmark failed without generic fallback', async failure => {
+    const { wf, cs, bs, uph } = wireWorkflow()
+    if (failure === 'resolution') cs.resolveShortLink.mockRejectedValue(new Error('Toutiao share link expired'))
+    else cs.fetchToutiaoData.mockRejectedValue(new Error('Toutiao article has been deleted'))
+    await expect(runWorkflow(wf, { url: canonicalUrl })).rejects.toThrow('Toutiao')
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(cs.parseAndSaveToutiao).not.toHaveBeenCalled()
+    expect(uph.processPostHandler).not.toHaveBeenCalled()
+  })
+
+  test('short body still follows normal article soft-404 checks', async () => {
+    const { wf, cs } = wireWorkflow()
+    cs.fetchToutiaoData.mockResolvedValue({ canonicalUrl })
+    cs.parseAndSaveToutiao.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, textContent: 'tiny' })
+    await runWorkflow(wf, { url: canonicalUrl })
+    expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'www.toutiao.com', 'parsing', 'failed', 'soft_404:len=4', expect.anything())
+  })
+})
+
+describe('CrawlWorkflow 缓存命中 (shortCircuit)', () => {
+  test('历史公开文章已有内容 → 跳过 fetch/parse，直接 post-processing', async () => {
+    const { wf, cs, bs, uph } = wireWorkflow()
+    bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ title: 'Cached', textContent: 'Cached body', byline: 'Author', privateUser: 0 })
+
+    await runWorkflow(wf)
+
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(cs.fetchTwitterData).not.toHaveBeenCalled()
+    expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'example.com', 'content_fetch_cached', 'success')
+    expect(uph.processPostHandler).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ title: 'Cached', textContent: 'Cached body', byline: 'Author' })
+    )
+  })
+
+  test('私有文章已有内容 → 重新 fetch/parse，不复用缓存', async () => {
+    const { wf, cs, bs } = wireWorkflow()
+    bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ title: 'Old', textContent: 'Old body', byline: 'Author', privateUser: 1 })
+    cs.fetchRegular.mockResolvedValue({ content: '<p>new</p>', url: 'https://example.com/article', title: 'New' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf)
+
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'parseing')
+    expect(cs.fetchRegular).toHaveBeenCalled()
+    expect(cs.parseAndSaveContent).toHaveBeenCalled()
+    expect(cs.sendAddBookmarkStepEvent).not.toHaveBeenCalledWith(1, 42, 'example.com', 'content_fetch_cached', 'success')
+  })
+})
+
+describe('CrawlWorkflow 社交媒体路由 + parse step', () => {
+  test('twitter URL → fetchTwitterData + parse step 调 parseAndSaveTwitter', async () => {
+    const { wf, cs, env } = wireWorkflow()
+    const twitterData = { kind: 'tweet', tweetInfo: { text: 'hello' } }
+    cs.fetchTwitterData.mockResolvedValue(twitterData)
+    cs.parseAndSaveTwitter.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf, { url: 'https://x.com/user/status/123' })
+
+    expect(cs.fetchTwitterData).toHaveBeenCalled()
+    expect(cs.parseAndSaveTwitter).toHaveBeenCalled()
+    expect(env.CONTENT_VALIDATION_WORKFLOW.create).toHaveBeenCalledWith(
+      expect.objectContaining({ params: expect.objectContaining({ bookmarkId: 42, contentKey: STANDARD_CRAWL_RESULT.contentKey }) })
+    )
+  })
+
+  test('xhs URL → fetchXhsData + parse step 调 parseAndSaveXhs', async () => {
+    const { wf, cs } = wireWorkflow()
+    cs.fetchXhsData.mockResolvedValue({ title: 'note' })
+    cs.parseAndSaveXhs.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf, { url: 'https://www.xiaohongshu.com/explore/abc' })
+
+    expect(cs.fetchXhsData).toHaveBeenCalled()
+    expect(cs.parseAndSaveXhs).toHaveBeenCalled()
+  })
+
+  test('weibo URL → fetchWeiboData + parseAndSaveWeibo', async () => {
+    const { wf, cs } = wireWorkflow()
+    cs.fetchWeiboData.mockResolvedValue({ id: '1', text: 'hi' })
+    cs.parseAndSaveWeibo.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf, { url: 'https://weibo.com/123/abc' })
+
+    expect(cs.fetchWeiboData).toHaveBeenCalled()
+    expect(cs.parseAndSaveWeibo).toHaveBeenCalled()
+  })
+
+  test('reddit URL → fetchRedditData + parseAndSaveReddit', async () => {
+    const { wf, cs } = wireWorkflow()
+    cs.fetchRedditData.mockResolvedValue({ title: 'Post' })
+    cs.parseAndSaveReddit.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf, { url: 'https://www.reddit.com/r/test/comments/abc/title' })
+
+    expect(cs.fetchRedditData).toHaveBeenCalled()
+    expect(cs.parseAndSaveReddit).toHaveBeenCalled()
+  })
+
+  test('zhihu URL → fetchZhihuData + parse step 调 parseAndSaveZhihu', async () => {
+    const { wf, cs } = wireWorkflow()
+    cs.fetchZhihuData.mockResolvedValue({ content: '<article data-content-type="qa">QA</article>', title: 'Question', author: '知乎回答' })
+    cs.parseAndSaveZhihu.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf, { url: 'https://www.zhihu.com/question/123' })
+
+    expect(cs.fetchZhihuData).toHaveBeenCalled()
+    expect(cs.parseAndSaveZhihu).toHaveBeenCalled()
+    expect(cs.parseAndSaveContent).not.toHaveBeenCalled()
+  })
+})
+
+describe('CrawlWorkflow inlineContent 分支', () => {
+  test('inlineContent + 非社交 → 使用 inline 内容 (跳过 fetchRegular)', async () => {
+    const { wf, cs } = wireWorkflow()
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf, { inlineContent: '<p>inline</p>' })
+
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(cs.parseAndSaveContent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ content: '<p>inline</p>' }), 42, 'ub-test-uuid')
+  })
+
+  test('inlineContent + 社交媒体 → 忽略 inline, 走平台 fetch', async () => {
+    const { wf, cs } = wireWorkflow()
+    const twitterData = { kind: 'tweet', tweetInfo: { text: 'tw' } }
+    cs.fetchTwitterData.mockResolvedValue(twitterData)
+    cs.parseAndSaveTwitter.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf, { url: 'https://x.com/user/status/1', inlineContent: '<p>ignored</p>' })
+
+    expect(cs.fetchTwitterData).toHaveBeenCalled()
+    expect(cs.parseAndSaveContent).not.toHaveBeenCalled()
+  })
+})
+
+describe('CrawlWorkflow weixin 路由', () => {
+  test('weixin 成功 → fetchWeixin + parseAndSaveWeixin 同 step 完成，返回 parsed', async () => {
+    const { wf, cs, uph } = wireWorkflow()
+    cs.fetchWeixin.mockResolvedValue({ source: 'tikhub', content: { title: 'WX', nick_name: 'n', content_noencode: '<p>wechat</p>' } })
+    cs.parseAndSaveWeixin.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf, { url: 'https://mp.weixin.qq.com/s?__biz=M&mid=1' })
+
+    expect(cs.fetchWeixin).toHaveBeenCalled()
+    expect(cs.parseAndSaveWeixin).toHaveBeenCalled()
+    expect(uph.processPostHandler).toHaveBeenCalled()
+  })
+
+  test('PDF Labs rejection is terminal, marks the pending save failed, and skips fault alerts and HTML parsing', async () => {
+    const { wf, bs, cs, uph } = wireWorkflow()
+    bs.capturePdf.mockRejectedValue(new MultiLangError(ErrorName.LAB_FEATURE_DISABLED, 400, { en: 'PDF bookmarks are still in Labs' }))
+    await expect(runWorkflow(wf, { url: 'https://example.com/download' })).rejects.toMatchObject({ name: 'NonRetryableError', message: expect.stringContaining('pdf_lab_disabled:') })
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(cs.pushBookmarkFailureAlert).not.toHaveBeenCalled()
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(uph.processPostHandler).not.toHaveBeenCalled()
+  })
+
+  test('weixin 业务终态 (WEIXIN_ENV_ABNORMAL) → NonRetryableError → FAILED', async () => {
+    const { wf, cs, bs } = wireWorkflow()
+    cs.fetchWeixin.mockRejectedValue(new MultiLangError(ErrorName.WEIXIN_ENV_ABNORMAL, 500, { en: 'env abnormal' }))
+
+    await expect(runWorkflow(wf, { url: 'https://mp.weixin.qq.com/s?__biz=M&mid=1' })).rejects.toThrow()
+
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(1, 'workflow_fetch.business_terminal', expect.objectContaining({ bookmark_id: 42 }))
+  })
+
+  test('weixin 业务终态 (DAJIALA_ARTICLE_UNAVAILABLE) → NonRetryableError → FAILED', async () => {
+    const { wf, cs, bs } = wireWorkflow()
+    cs.fetchWeixin.mockRejectedValue(new MultiLangError(ErrorName.DAJIALA_ARTICLE_UNAVAILABLE, 404, { en: 'unavailable' }))
+
+    await expect(runWorkflow(wf, { url: 'https://mp.weixin.qq.com/s?__biz=M&mid=1' })).rejects.toThrow()
+
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+  })
+
+  test('weixin 图片流 (tikhub item_show_type=8) → 短正文不触发 soft404，但触发内容验证', async () => {
+    const { wf, cs, env } = wireWorkflow()
+    cs.fetchWeixin.mockResolvedValue({ source: 'tikhub', content: { title: 'WX', nick_name: 'n', content_noencode: '<p>x</p>', item_show_type: 8 } })
+    cs.parseAndSaveWeixin.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, textContent: 'Short' })
+
+    await runWorkflow(wf, { url: 'https://mp.weixin.qq.com/s?__biz=M&mid=1' })
+
+    const alertCalls = cs.pushBookmarkFailureAlert.mock.calls
+    expect(alertCalls.every((c: any[]) => c[1] !== 'workflow_parse.soft_404')).toBe(true)
+    expect(env.CONTENT_VALIDATION_WORKFLOW.create).toHaveBeenCalledWith(
+      expect.objectContaining({ params: expect.objectContaining({ bookmarkId: 42, contentKey: STANDARD_CRAWL_RESULT.contentKey }) })
+    )
+  })
+
+  test('weixin 图片流 (legacy #js_image_desc) → 视为社媒：短正文不触发 soft404', async () => {
+    const { wf, cs } = wireWorkflow()
+    cs.fetchWeixin.mockResolvedValue({ source: 'legacy', fetchRes: { content: '<div id="js_image_desc">imgs</div>', url: 'https://mp.weixin.qq.com/s/x', title: 'WX' } })
+    cs.parseAndSaveWeixin.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, textContent: 'Short' })
+
+    await runWorkflow(wf, { url: 'https://mp.weixin.qq.com/s?__biz=M&mid=1' })
+
+    const alertCalls = cs.pushBookmarkFailureAlert.mock.calls
+    expect(alertCalls.every((c: any[]) => c[1] !== 'workflow_parse.soft_404')).toBe(true)
+  })
+
+  test('weixin parse 失败 → 归到 fetch step 失败路径 (exhausted) + FAILED', async () => {
+    const { wf, cs, bs } = wireWorkflow()
+    cs.fetchWeixin.mockResolvedValue({ source: 'tikhub', content: { title: 'WX', nick_name: 'n', content_noencode: '<p>wechat</p>' } })
+    // parse 现在与 fetch 同 step：失败走 fetch 的重试/失败路径，而非旧的独立 parse step
+    cs.parseAndSaveWeixin.mockRejectedValue(new Error('parse boom'))
+
+    await expect(runWorkflow(wf, { url: 'https://mp.weixin.qq.com/s?__biz=M&mid=1' })).rejects.toThrow()
+
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(1, 'workflow_fetch.exhausted', expect.objectContaining({ bookmark_id: 42 }))
+  })
+})
+
+describe('CrawlWorkflow fetch 失败路径', () => {
+  test('fetch 异常 (retries exhausted) → FAILED + alert(exhausted)', async () => {
+    const { wf, cs, bs } = wireWorkflow()
+    cs.fetchRegular.mockRejectedValue(new Error('network timeout'))
+
+    await expect(runWorkflow(wf)).rejects.toThrow('network timeout')
+
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(1, 'workflow_fetch.exhausted', expect.objectContaining({ bookmark_id: 42, error: 'network timeout' }))
+  })
+
+  test('fetch 失败 + importTaskId → 更新 import relation(status=2) + incr(0,1)', async () => {
+    const { wf, cs, bs, imp } = wireWorkflow()
+    cs.fetchRegular.mockRejectedValue(new Error('fail'))
+
+    await expect(runWorkflow(wf, { importTaskId: 99 })).rejects.toThrow()
+
+    expect(bs.updateBookmarkImportRelationStatus).toHaveBeenCalledWith(1, 42, 99, 2)
+    expect(imp.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 99, 0, 1)
+  })
+
+  test('fetch 失败 + 无 importTaskId → 不更新 import', async () => {
+    const { wf, bs, cs } = wireWorkflow()
+    cs.fetchRegular.mockRejectedValue(new Error('fail'))
+
+    await expect(runWorkflow(wf)).rejects.toThrow()
+
+    expect(bs.updateBookmarkImportRelationStatus).not.toHaveBeenCalled()
+  })
+})
+
+describe('CrawlWorkflow parse step 失败路径', () => {
+  test('parseAndSaveTwitter 异常 → FAILED + alert(workflow_parse.error)', async () => {
+    const { wf, cs, bs } = wireWorkflow()
+    cs.fetchTwitterData.mockResolvedValue({ kind: 'tweet', tweetInfo: { text: 'hi' } })
+    cs.parseAndSaveTwitter.mockRejectedValue(new Error('parse boom'))
+
+    await expect(runWorkflow(wf, { url: 'https://x.com/user/status/1' })).rejects.toThrow()
+
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(1, 'workflow_parse.error', expect.objectContaining({ bookmark_id: 42 }))
+  })
+
+  test('parse 失败 + importTaskId → 更新 import relation', async () => {
+    const { wf, cs, bs, imp } = wireWorkflow()
+    cs.fetchTwitterData.mockResolvedValue({ kind: 'tweet', tweetInfo: {} })
+    cs.parseAndSaveTwitter.mockRejectedValue(new Error('parse fail'))
+
+    await expect(runWorkflow(wf, { url: 'https://x.com/user/status/1', importTaskId: 50 })).rejects.toThrow()
+
+    expect(bs.updateBookmarkImportRelationStatus).toHaveBeenCalledWith(1, 42, 50, 2)
+    expect(imp.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 50, 0, 1)
+  })
+})
+
+describe('CrawlWorkflow 软 404 + 内容验证', () => {
+  test('textContent < 15 chars + 非社交 → soft 404 alert', async () => {
+    const { wf, cs } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, textContent: 'Short' })
+
+    await runWorkflow(wf)
+
+    expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(1, 'workflow_parse.soft_404', expect.objectContaining({ bookmark_id: 42 }))
+  })
+
+  test('textContent < 15 + 社交媒体 → 不触发 soft 404', async () => {
+    const { wf, cs } = wireWorkflow()
+    cs.fetchTwitterData.mockResolvedValue({ kind: 'tweet', tweetInfo: { text: 'hi' } })
+    cs.parseAndSaveTwitter.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, textContent: 'Short' })
+
+    await runWorkflow(wf, { url: 'https://x.com/user/status/1' })
+
+    const alertCalls = cs.pushBookmarkFailureAlert.mock.calls
+    expect(alertCalls.every((c: any[]) => c[1] !== 'workflow_parse.soft_404')).toBe(true)
+  })
+
+  test('正常内容 + 有 contentKey → 触发 CONTENT_VALIDATION_WORKFLOW', async () => {
+    const { wf, cs, env } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf)
+
+    expect(env.CONTENT_VALIDATION_WORKFLOW.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: expect.objectContaining({ bookmarkId: 42, contentKey: STANDARD_CRAWL_RESULT.contentKey })
+      })
+    )
+  })
+
+  test('soft 404 → CONTENT_VALIDATION_WORKFLOW 不触发', async () => {
+    const { wf, cs, env } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, textContent: 'Tiny' })
+
+    await runWorkflow(wf)
+
+    expect(env.CONTENT_VALIDATION_WORKFLOW.create).not.toHaveBeenCalled()
+  })
+
+  test('CONTENT_VALIDATION_WORKFLOW.create 失败 → alert + workflow 继续', async () => {
+    const { wf, cs, env, uph } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+    env.CONTENT_VALIDATION_WORKFLOW.create.mockRejectedValue(new Error('create failed'))
+
+    await runWorkflow(wf)
+
+    expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(1, 'post_processing.content_validation', expect.objectContaining({ bookmark_id: 42 }))
+    expect(uph.processPostHandler).toHaveBeenCalled()
+  })
+})
+
+describe('CrawlWorkflow post-processing step', () => {
+  test('processPostHandler 接收正确参数', async () => {
+    const { wf, cs, uph } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf, { callbackChatId: 555, callbackOriginMessageId: 666, ignoreGenerateTag: true })
+
+    expect(uph.processPostHandler).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        info: expect.objectContaining({
+          userId: 1,
+          bookmarkId: 42,
+          callbackPayload: { chat_id: 555, origin_message_id: 666 },
+          ignoreGenerateTag: true
+        })
+      }),
+      expect.objectContaining({ title: STANDARD_CRAWL_RESULT.title })
+    )
+  })
+
+  test('soft 404 → ignoreGenerateTag 强制为 true', async () => {
+    const { wf, cs, uph } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, textContent: 'Tiny' })
+
+    await runWorkflow(wf, { ignoreGenerateTag: false })
+
+    expect(uph.processPostHandler).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        info: expect.objectContaining({ ignoreGenerateTag: true })
+      }),
+      expect.anything()
+    )
+  })
+
+  test('callbackChatId 存在 → initTelegramBot 被调用', async () => {
+    const { wf, cs, tg } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf, { callbackChatId: 100 })
+
+    expect(tg.initTelegramBot).toHaveBeenCalled()
+  })
+
+  test('callbackChatId=0 → initTelegramBot 不调用', async () => {
+    const { wf, cs, tg } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf, { callbackChatId: 0 })
+
+    expect(tg.initTelegramBot).not.toHaveBeenCalled()
+  })
+
+  test('post-processing 失败 → 不 throw, alert 发送, workflow 完成', async () => {
+    const { wf, cs, uph } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+    uph.processPostHandler.mockRejectedValue(new Error('post fail'))
+
+    await runWorkflow(wf)
+
+    expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(1, 'post_processing.failed', expect.objectContaining({ error: 'post fail' }))
+    expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'example.com', 'complete', 'success')
+  })
+})
+
+describe('CrawlWorkflow import 追踪', () => {
+  test('成功 + importTaskId → update-import step 调用 (status=1, incr 1,0)', async () => {
+    const { wf, cs, bs, imp } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf, { importTaskId: 77 })
+
+    expect(bs.updateBookmarkImportRelationStatus).toHaveBeenCalledWith(1, 42, 77, 1)
+    expect(imp.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 77, 1, 0)
+  })
+
+  test('无 importTaskId → update-import step 不执行', async () => {
+    const { wf, cs, bs, imp } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf)
+
+    const stepCalls = (createMockStep().do as any).mock?.calls ?? []
+    expect(bs.updateBookmarkImportRelationStatus).not.toHaveBeenCalled()
+    expect(imp.incrImportTask).not.toHaveBeenCalled()
+  })
+
+  test('update-import step 失败 → 静默捕获, workflow 完成', async () => {
+    const { wf, cs, bs, imp } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+    bs.updateBookmarkImportRelationStatus.mockRejectedValue(new Error('db error'))
+
+    await expect(runWorkflow(wf, { importTaskId: 77 })).resolves.toBeUndefined()
+  })
+})
+
+describe('CrawlWorkflow hostname 提取', () => {
+  test('有效 URL → 正确 hostname', async () => {
+    const { wf, cs } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf, { url: 'https://github.com/repo' })
+
+    expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'github.com', expect.any(String), expect.any(String))
+  })
+
+  test('无效 URL → "unknown"', async () => {
+    const { wf, cs } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'not-a-url', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+
+    await runWorkflow(wf, { url: 'not-a-url' })
+
+    expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'unknown', expect.any(String), expect.any(String))
+  })
+})
