@@ -42,7 +42,10 @@ export class PodcastProcessor implements DOMProcessor {
     const seekFrom = (target: EventTarget | null): boolean => {
       const el = (target as HTMLElement | null)?.closest<HTMLElement>('[data-media-seek]')
       if (!el || !context.container.contains(el)) return false
-      const ms = Number(el.dataset['mediaSeek'])
+      // Number('') is 0, so an empty attribute would seek to the start
+      const raw = el.dataset['mediaSeek']
+      if (!raw) return false
+      const ms = Number(raw)
       if (!Number.isFinite(ms)) return false
       seekTo(ms)
       return true

@@ -170,6 +170,12 @@ export class PodcastService {
     res.body_ready = original?.status === 'ready'
     if (original && (original.status === 'failed' || original.status === 'skipped')) res.reason = (original.error_message ?? '').split(':')[0] || null
     if (original?.status === 'failed' && access.isOwner && !isFinalError(original.error_message)) res.can_retry = true
+    // Same visitor rule for the article stage: a running article is shown as running, a failed or
+    // skipped one is unavailable, and no failure reason reaches a visitor
+    if (!access.isOwner && original?.status !== 'ready') {
+      if (original?.status === 'failed' || original?.status === 'skipped') return unavailable
+      res.reason = null
+    }
 
     const viewerId = ctx.getUserId()
     const wanted = await this.languageOf(viewerId > 0 ? viewerId : access.ownerId)
@@ -510,7 +516,7 @@ export class PodcastService {
       const keys = [row.article_key, row.article_text_key].filter((k): k is string => !!k)
       if (!(await this.articles.deleteOrphan(row.id, cutoff))) continue
       if (keys.length) await bucket.delete(keys)
-      await this.deletePrefix(podcastChunkPrefix(row.source_id, row.source_hash, row.target_language, row.prompt_version))
+      await this.deletePrefix(podcastChunkPrefix(row.source_id, row.source_hash, row.target_language, row.prompt_version, row.schema_version))
       deleted++
     }
     for (const ep of await this.episodes.listOrphans(cutoff, 100)) {

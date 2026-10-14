@@ -81,6 +81,25 @@ describe('PodcastBar', () => {
     expect(statusCalls()).toBe(calls)
   })
 
+  it('status requests that keep failing say so and offer to check again', async () => {
+    let down = false
+    mockGet.mockImplementation(() => (down ? Promise.reject(new Error('down')) : Promise.resolve(state({ transcript: 'transcribing' }))))
+    const w = await mount()
+    await flushPromises()
+    expect(w.text()).toContain('Transcribing the audio')
+    down = true
+    await vi.advanceTimersByTimeAsync(120_000)
+    expect(w.text()).toContain('Could not get the latest status.')
+    expect(w.text()).not.toContain('Transcribing the audio')
+
+    down = false
+    await w.find('.pod-action').trigger('click')
+    await flushPromises()
+    expect(w.text()).toContain('Transcribing the audio')
+    expect(w.text()).not.toContain('Could not get the latest status.')
+    w.unmount()
+  })
+
   it('a playing player is not interrupted: the reader gets a button instead', async () => {
     routeGet([state({ transcript: 'ready', article: 'generating' }), state({ transcript: 'ready', article: 'ready', body_ready: true })])
     const w = await mount()

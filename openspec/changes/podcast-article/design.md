@@ -26,7 +26,7 @@ The migration is also the contract step of `youtube-ai-article`: it drops the P0
 
 ### Access
 
-`PodcastService` uses `BookmarkService.getBookmarkReadAccess`, the same rule as the snapshot page and the YouTube article. Only the owner retries. Visitors see a running episode as pending and a failed one as unavailable.
+`PodcastService` uses `BookmarkService.getBookmarkReadAccess`, the same rule as the snapshot page and the YouTube article. Only the owner retries. Visitors see a running episode as pending and a failed one as unavailable, at the transcript stage and at the article stage, and never get a failure reason.
 
 ### Cost limits
 

@@ -62,7 +62,12 @@ export class PodcastWorkflow extends WorkflowEntrypoint<Env, PodcastWorkflowPara
         flagBookmarks: (sourceId, result) => service.flagBookmarks(sourceId, result),
         publishBodies: sourceId => service.publishBodies(ctxManager, sourceId),
         translationTargets: (sourceId, original) => service.translationTargets(sourceId, original),
-        addCost: usd => service.addCost(usd).catch(e => console.error(`podcast cost record failed: ${e}`))
+        // One retry: a missed amount lets the site-wide budget gate under-count
+        addCost: usd =>
+          service
+            .addCost(usd)
+            .catch(() => service.addCost(usd))
+            .catch(e => console.error(`podcast cost record failed after a retry: ${e}`))
       },
       event.payload,
       stepLike,

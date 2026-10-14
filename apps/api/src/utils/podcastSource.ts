@@ -98,10 +98,9 @@ export function outboundUrlProblem(raw: string): string | null {
   if (BLOCKED_HOSTNAMES.has(host) || BLOCKED_SUFFIXES.some(s => host.endsWith(s))) return 'local_host'
   if (ipv4Blocked(host)) return 'private_ip'
   if (host.includes(':')) {
-    // IPv6 literal: allow only global unicast (2000::/3) that is not an IPv4-mapped private address
+    // IPv6 literal: allow only global unicast (2000::/3). This also rejects every IPv4-mapped
+    // literal (::ffff:...), private or not
     if (!/^[23]/.test(host)) return 'private_ip'
-    const mapped = /::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(host)
-    if (mapped && ipv4Blocked(mapped[1])) return 'private_ip'
   }
   return null
 }

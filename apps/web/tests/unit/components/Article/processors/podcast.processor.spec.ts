@@ -74,4 +74,16 @@ describe('PodcastProcessor', () => {
     expect(seek).toHaveBeenCalledTimes(2)
     window.removeEventListener('slax:youtube-seek', seek)
   })
+
+  it('an empty seek attribute does nothing (Number("") would seek to the start)', () => {
+    const ctx = context(BODY)
+    processor.process(ctx)
+    const seek = vi.fn()
+    window.addEventListener('slax:youtube-seek', seek)
+    const stamp = ctx.container.querySelector<HTMLElement>('.slax-pod-time')!
+    stamp.setAttribute('data-media-seek', '')
+    stamp.click()
+    expect(seek).not.toHaveBeenCalled()
+    window.removeEventListener('slax:youtube-seek', seek)
+  })
 })

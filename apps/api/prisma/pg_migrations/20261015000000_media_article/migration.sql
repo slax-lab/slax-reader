@@ -6,7 +6,7 @@
 -- Contract step of youtube-ai-article: drop the P0 unique key (video_id, source_hash, prompt_version).
 -- Only the P0 code upserts on it, so this migration must reach beta only after youtube-ai-article
 -- runs in production. Without the drop, a caption version can hold one language row only.
-DROP INDEX "sr_youtube_article_video_id_source_hash_prompt_version_key";
+DROP INDEX IF EXISTS "sr_youtube_article_video_id_source_hash_prompt_version_key";
 
 ALTER TABLE "sr_youtube_article" ADD COLUMN "media_kind" TEXT NOT NULL DEFAULT 'youtube';
 CREATE UNIQUE INDEX "sr_media_article_version_key" ON "sr_youtube_article"("media_kind", "video_id", "source_hash", "target_language", "prompt_version");

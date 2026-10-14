@@ -424,6 +424,19 @@ describe('getStatus and getTranslation', () => {
     expect((await w.service.getStatus(w.ctx(VISITOR), UUID)).transcript).toBe('pending')
   })
 
+  test('visitors: an article that failed or was skipped is unavailable, with no reason; a running one shows no reason', async () => {
+    const w = wire()
+    const { en } = w.readyEpisode()
+    en.status = 'skipped'
+    en.error_message = 'too_long'
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ article: 'skipped', reason: 'too_long' })
+    expect(await w.service.getStatus(w.ctx(VISITOR), UUID)).toMatchObject({ transcript: 'unavailable', article: 'unavailable', reason: null })
+    en.status = 'failed'
+    expect(await w.service.getStatus(w.ctx(VISITOR), UUID)).toMatchObject({ article: 'unavailable', reason: null })
+    en.status = 'generating'
+    expect(await w.service.getStatus(w.ctx(VISITOR), UUID)).toMatchObject({ transcript: 'ready', article: 'generating', reason: null, can_retry: false })
+  })
+
   test('skipped episodes report the reason without retry for final ones', async () => {
     const w = wire()
     w.eps.add({ transcript_status: 'skipped', error_message: 'too_long' })

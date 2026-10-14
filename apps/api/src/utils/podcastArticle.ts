@@ -68,8 +68,15 @@ export function podcastArticleKeys(
   return { jsonKey: `${base}.json`, htmlKey: `${base}.html`, textKey: `${base}.txt` }
 }
 
-export function podcastChunkPrefix(sourceId: string, transcriptHash: string, lang: string, promptVersion: string = PODCAST_ARTICLE_PROMPT_VERSION): string {
-  return `podcast/canonical/chunks/${sourceId}/${transcriptHash}-${lang}-${promptVersion}/`
+/** Chunk results of one article version; the schema version is part of it, as in the article keys. */
+export function podcastChunkPrefix(
+  sourceId: string,
+  transcriptHash: string,
+  lang: string,
+  promptVersion: string = PODCAST_ARTICLE_PROMPT_VERSION,
+  schemaVersion: number = PODCAST_ARTICLE_SCHEMA_VERSION
+): string {
+  return `podcast/canonical/chunks/${sourceId}/${transcriptHash}-${lang}-${schemaVersion}-${promptVersion}/`
 }
 
 export function podcastChunkKey(sourceId: string, transcriptHash: string, lang: string, index: number, promptVersion: string = PODCAST_ARTICLE_PROMPT_VERSION): string {

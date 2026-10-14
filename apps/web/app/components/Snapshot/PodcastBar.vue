@@ -2,7 +2,11 @@
   <section v-if="visible" class="podcast-bar">
     <!-- One live region that stays in the DOM, so every status change is announced -->
     <div class="pod-status-region" role="status" aria-live="polite">
-      <p v-if="working && !notStarted" class="pod-status">
+      <p v-if="stalled" class="pod-status">
+        {{ $t('component.podcast.stalled') }}
+        <button type="button" class="pod-action" @click="start">{{ $t('component.podcast.check_again') }}</button>
+      </p>
+      <p v-else-if="working && !notStarted" class="pod-status">
         <span class="i-svg-spinners:90-ring pod-spinner" aria-hidden="true"></span>
         {{ $t(`component.podcast.${phase}`) }}
       </p>
@@ -60,7 +64,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { state, translation, phase, acting, start, stop, retry } = usePodcast(() => props.bookmarkUid)
+const { state, translation, phase, acting, stalled, start, stop, retry } = usePodcast(() => props.bookmarkUid)
 
 const visible = computed(() => phase.value !== 'hidden')
 // The owner's episode that never started (daily limit reached when it was saved)

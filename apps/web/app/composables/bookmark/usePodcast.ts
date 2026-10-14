@@ -39,6 +39,9 @@ export const usePodcast = (bookmarkUid: () => string) => {
   let failures = 0
   let translationFailures = 0
 
+  // Polling gave up (failed requests, or the time cap) while work was still running; the reader can check again
+  const stalled = ref(false)
+
   const phase = computed(() => podcastPhase(state.value))
   const needsPoll = () => {
     const s = state.value
@@ -71,7 +74,12 @@ export const usePodcast = (bookmarkUid: () => string) => {
 
   const schedule = () => {
     clearTimer()
-    if (stopped || !needsPoll() || failures >= MAX_FAILURES || Date.now() - startedAt >= PODCAST_POLL_MAX_MS) return
+    if (stopped || !needsPoll()) return
+    if (failures >= MAX_FAILURES || Date.now() - startedAt >= PODCAST_POLL_MAX_MS) {
+      stalled.value = true
+      return
+    }
+    stalled.value = false
     const delay = PODCAST_POLL_DELAYS[Math.min(attempt, PODCAST_POLL_DELAYS.length - 1)]
     attempt++
     timer = setTimeout(() => void refresh(), delay)
@@ -104,6 +112,7 @@ export const usePodcast = (bookmarkUid: () => string) => {
     attempt = 0
     failures = 0
     startedAt = Date.now()
+    stalled.value = false
     await refresh()
   }
 
@@ -129,7 +138,7 @@ export const usePodcast = (bookmarkUid: () => string) => {
     }
   }
 
-  return { state, translation, phase, acting, start, stop, refresh, retry }
+  return { state, translation, phase, acting, stalled, start, stop, refresh, retry }
 }
 
 export default usePodcast

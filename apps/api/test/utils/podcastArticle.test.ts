@@ -65,7 +65,7 @@ describe('keys and ids', () => {
       htmlKey: 'podcast/canonical/articles/s1/abc-zh-1-v1.html',
       textKey: 'podcast/canonical/articles/s1/abc-zh-1-v1.txt'
     })
-    expect(podcastChunkKey('s1', 'abc', 'en', 3)).toBe('podcast/canonical/chunks/s1/abc-en-v1/3.json')
+    expect(podcastChunkKey('s1', 'abc', 'en', 3)).toBe('podcast/canonical/chunks/s1/abc-en-1-v1/3.json')
     expect(podcastArticleVersion('0123456789abcdef', 'en')).toBe('0123456789ab-en-1-v1')
     expect(podcastWorkflowId('s1', 36)).toBe('pod-s1-10')
   })

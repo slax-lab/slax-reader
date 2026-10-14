@@ -577,6 +577,8 @@
       "error": "This audio cannot be played here. Open the original page to listen."
     },
     "podcast": {
+      "stalled": "Could not get the latest status.",
+      "check_again": "Check again",
       "queued": "The transcript is queued.",
       "transcribing": "Transcribing the audio. A long episode can take 10 to 30 minutes.",
       "writing": "Writing the readable transcript. This takes a few minutes.",
