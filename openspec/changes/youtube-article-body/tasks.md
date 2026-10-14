@@ -8,6 +8,6 @@
 ## 2. Review and delivery
 
 - [x] 2.1 Run the local pre-push review from `REVIEW.md` and resolve Important findings.
-- [ ] 2.2 Open the PR with `OpenSpec: youtube-article-body`, stacked on `podcast-article`.
+- [x] 2.2 Open the PR with `OpenSpec: youtube-article-body`, stacked on `podcast-article`.
 - [ ] 2.3 On beta with an internal account: check the body swap, the side transcript, marks on the article body and the mobile layout.
 - [ ] 2.4 Archive after `youtube-ai-article` is archived; this change modifies its spec.
