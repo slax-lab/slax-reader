@@ -7,6 +7,7 @@ import { PowerSyncDatabase, SyncStreamConnectionMethod } from '@powersync/web'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { clearSyncCredsCache, createConnector, fetchSyncCredentials } from '~/local-first/connector'
 import { initializePowerSyncWithFallback, type PowerSyncRecoveryEvent, type PowerSyncWorkerMode } from '~/local-first/powersync-recovery'
+import { shouldUsePowerSyncSharedWorker } from '~/local-first/powersync-worker-policy'
 import { AppSchema } from '~/local-first/schema'
 import { POWER_SYNC_DATABASE_GENERATION, POWER_SYNC_LOCAL_DATA_VERSION } from '~/local-first/version'
 
@@ -176,7 +177,7 @@ export default defineNuxtPlugin(async nuxtApp => {
   const recovery = useDatabaseWorker
     ? await initializePowerSyncWithFallback({
         createDatabase,
-        sharedWorkerAvailable: typeof SharedWorker !== 'undefined',
+        sharedWorkerAvailable: shouldUsePowerSyncSharedWorker(),
         onEvent: logPowerSyncRecoveryEvent
       })
     : await (async () => {

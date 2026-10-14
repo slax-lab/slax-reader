@@ -199,7 +199,20 @@ The Node documentation confirms three available approaches: direct `getBuiltinMo
 
 References: [Node 22 process.getBuiltinModule](https://nodejs.org/download/release/v22.22.2/docs/api/process.html#processgetbuiltinmoduleid), [Node 22 module.createRequire](https://nodejs.org/download/release/v22.22.2/docs/api/module.html#modulecreaterequirefilename), and [Node 24 builtinModules history](https://nodejs.org/download/release/v24.15.0/docs/api/module.html#modulebuiltinmodules).
 
-### Final PR file inventory against dev
+### Subsequent dev merge: Safari worker policy
+
+Integrated dev `3f2ea18d` into PR #209 after the Safari/mobile PowerSync worker-policy fix and design-spec archives landed. The only textual conflict was the recovery import group in `powersync.client.ts`. The resolution retains the new `shouldUsePowerSyncSharedWorker()` policy alongside the KOC account-ownership guard, delayed plugin exposure, and storage-denied REST fallback.
+
+The first combined regression run exposed seven fixture failures in the incoming worker-selection suite: its happy-dom plugin harness lacked the Nuxt `useState` boundary now needed for ownership tracking. A single fixture mock supplies that state; the real plugin, policy, and recovery path remain under test.
+
+- Full Web suite on Node 22.22.2: **2,119 passed, 3 skipped; 197 files passed, 1 skipped**.
+- Development-transform worker-selection run: **2 passed, 7 production-only cases skipped**.
+- Web typecheck, lint for the merged plugin/test, and `git diff --check` passed. Strict OpenSpec validation passed all **38** current items after dev's archives.
+- Independent incremental Bugs/Security/Compliance review: no Important findings or Nits. The selected change remains `koc-onboarding-continuity`, compatible with `powersync-safari-worker-policy`.
+
+The diff against this dev revision contains 49 files; the additional file relative to the inventory below is the worker-selection fixture adaptation. Real-device Worker timing and the existing isolated PostgreSQL concurrent-grant release check remain outside these automated results.
+
+### File inventory at the first PR integration checkpoint
 
 The final diff against `1912e3b` contains 48 files: 17 added, 31 modified, 0 deleted. Changes already present in dev are excluded.
 

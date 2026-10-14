@@ -76,3 +76,4 @@ Task 6.4 covers completed local review and strict validation. PR #209 now target
 
 - [x] 9.1 Integrate the latest dev locale synchronization without introducing a second profile/locale writer; preserve authoritative KOC identity reads, bounded requests, and stale-response protection.
 - [x] 9.2 Run merged-state regression checks, complete the post-PR Bugs/Security/Compliance review, and publish the validated result to PR #209.
+- [x] 9.3 Integrate dev's Safari/mobile Worker policy while preserving KOC ownership and readiness guards; adapt the incoming Nuxt test boundary and verify full Web, development Worker selection, typecheck, lint, strict specs, and incremental review.

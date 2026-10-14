@@ -8,9 +8,9 @@ Provides a safe, typed, and accessible Web icon contract so curated application 
 
 ### Requirement: Runtime icons have explicit typed metadata
 
-The Web runtime SHALL resolve each registered icon by a stable key whose metadata identifies its rendering kind as `inline`, `mask`, `brand`, or `raster`. Metadata SHALL record the source provenance, default size, and the view box or equivalent intrinsic dimensions required by that kind. Inline and mask icons SHALL declare their paint behavior, and every icon SHALL declare an accessibility mode of `decorative`, `control-labelled`, or `standalone`; standalone entries SHALL include a default accessible label or require one from the caller.
+The Web runtime SHALL resolve each registered icon by a stable key whose metadata identifies its rendering kind as `inline`, `mask`, `brand`, or `raster`. Metadata SHALL record the source provenance, default size, and the view box or equivalent intrinsic dimensions required by that kind. Inline and mask icons SHALL declare their paint behavior, and every icon SHALL declare an accessibility mode of `decorative`, `control-labelled`, or `standalone`; standalone entries SHALL include a non-empty default accessible label or require a non-empty label from the caller.
 
-The registry SHALL enforce per-kind fields: inline entries require a source SVG, view box, current-color or documented fixed paint policy, and default size; mask entries require a source SVG, view box, mask paint policy, and default size; brand and raster entries require an approved source, intrinsic dimensions, default size, and fixed-paint or image metadata.
+The registry SHALL enforce per-kind fields: inline entries require a source SVG, view box, current-color or documented fixed paint policy, and default size; mask entries require a source SVG, view box, mask paint policy, and default size; brand and raster entries require an approved source, intrinsic dimensions, default size, and fixed-paint or image metadata. Validation fixtures SHALL exercise all four rendering kinds with the same metadata rules used by production entries.
 
 #### Scenario: Registered inline icon is complete
 
@@ -22,9 +22,14 @@ The registry SHALL enforce per-kind fields: inline entries require a source SVG,
 - **WHEN** a consumer requests a key that is not present in the registry
 - **THEN** the renderer fails in a deterministic development-visible way and does not fetch or interpret external markup
 
+#### Scenario: Standalone label is blank
+
+- **WHEN** a standalone icon entry or caller label contains only whitespace
+- **THEN** registry validation or rendering fails visibly instead of exposing an empty accessible name
+
 ### Requirement: Imported SVG content passes the active-content boundary
 
-The Web build SHALL validate every imported SVG used by the runtime registry before it can be consumed by application code. Validation MUST reject DOCTYPE declarations, entity declarations, scripts, `<style>` elements, `on*` event attributes, `foreignObject`, CSS `url(...)` references, any non-fragment `href` or `xlink:href` references, reusable `<use>` elements, missing `viewBox` declarations for inline or mask geometry, and undocumented fixed paint where the entry requires `currentColor`. The validation and generated-registry freshness check SHALL run through `pnpm icons:check` and Frontend CI before Web typecheck or tests are accepted.
+The Web build SHALL validate every imported SVG used by the runtime registry before it can be consumed by application code. Validation MUST reject DOCTYPE declarations, entity declarations, scripts, `<style>` elements, `on*` event attributes, `foreignObject`, CSS `url(...)` references, any non-fragment `href` or `xlink:href` references, reusable `<use>` elements, missing `viewBox` declarations for inline or mask geometry, and undocumented fixed paint where the entry requires `currentColor`. Source and provenance paths SHALL be resolved through canonical filesystem paths and MUST remain inside their respective repository-owned roots, including when a symlink is present. Binary asset hashes SHALL be calculated from raw bytes rather than a decoded text representation. The validation and generated-registry freshness check SHALL run through `pnpm icons:check` and Frontend CI before Web typecheck or tests are accepted.
 
 #### Scenario: Unsafe SVG is introduced
 
@@ -36,9 +41,19 @@ The Web build SHALL validate every imported SVG used by the runtime registry bef
 - **WHEN** an imported inline SVG uses only permitted geometry and current-color-compatible paint
 - **THEN** validation succeeds and the icon can be registered with its declared metadata
 
+#### Scenario: Registry source escapes through a symlink
+
+- **WHEN** a manifest source or provenance path resolves through a symlink outside its allowed repository root
+- **THEN** validation fails before the file is read or emitted into generated runtime metadata
+
+#### Scenario: Binary asset provenance is checked
+
+- **WHEN** a brand or raster asset changes by one byte
+- **THEN** its generated source hash changes and `pnpm icons:check` detects stale generated output
+
 ### Requirement: Rendering honors icon kind, size, paint, and accessibility metadata
 
-The Web icon renderer SHALL choose the rendering mechanism from the registry kind. Inline icons SHALL render inside an application-owned SVG viewport using generated, validated inner geometry; mask icons SHALL render through a mask surface; and brand or raster icons SHALL render as image content while preserving their recorded intrinsic aspect ratio. The renderer SHALL apply the requested size while preserving the registry default when no size is supplied, SHALL not override documented brand paint, and SHALL follow the explicit accessibility mode rather than infer a parent control's accessible name.
+The Web icon renderer SHALL choose the rendering mechanism from the registry kind. Inline icons SHALL render inside an application-owned SVG viewport using generated, validated inner geometry; mask icons SHALL render through a mask surface; and brand or raster icons SHALL render as image content while preserving their recorded intrinsic aspect ratio. The renderer SHALL apply the requested size while preserving the registry default when no size is supplied, SHALL not override documented brand paint, and SHALL follow the explicit accessibility mode rather than infer a parent control's accessible name. Every interactive control changed or migrated by this change that relies on an icon for its action SHALL expose an accessible name through visible text or an explicit `aria-label`; a `title` attribute alone SHALL not be the only naming mechanism. Registry default sizes SHALL match the default rendered size of each in-scope consumer unless the consumer supplies an explicit documented override.
 
 #### Scenario: Decorative icon
 
@@ -48,7 +63,7 @@ The Web icon renderer SHALL choose the rendering mechanism from the registry kin
 #### Scenario: Icon labelled by its surrounding control
 
 - **WHEN** an icon with `control-labelled` mode is rendered inside a button or link
-- **THEN** the icon is hidden from the accessibility tree and the surrounding control remains responsible for the accessible name
+- **THEN** the icon is hidden from the accessibility tree and the surrounding control exposes its accessible name through visible text or an explicit `aria-label`
 
 #### Scenario: Standalone meaningful icon
 
@@ -60,9 +75,39 @@ The Web icon renderer SHALL choose the rendering mechanism from the registry kin
 - **WHEN** a mask icon is rendered under a different Web theme
 - **THEN** its geometry remains unchanged and its visible color follows the consuming semantic color
 
+#### Scenario: Registry size matches its default consumer
+
+- **WHEN** a consumer renders an icon without an explicit size
+- **THEN** the icon uses the registry default size recorded for that consumer's normal layout, and a deliberate size override is covered by the migration matrix or component contract
+
 ### Requirement: Initial Web migrations preserve existing behavior
 
-The first migration SHALL replace ad hoc icon markup on the following Web surfaces with registry-backed rendering while preserving the existing action semantics, layout dimensions, theme behavior, and control hit areas: `TabsSidebar.vue` including its RSS and trash icons, `useBookmarkRelative.ts` collection/tab icon definitions, `bookmarkEmptyConfig.ts`, `BookmarksEmptyState.vue`, `BookmarksEmptyView.vue`, the SearchHeader and TagsHeader empty-state slots, and the bookmarks page feed-closed lock state. Snapshot toolbar/page action icons, ThemeSwitcher icons, article-content SVGs, standalone RSS panel icons, TagsHeader control icons, and Extension icons SHALL remain explicitly deferred.
+The Web runtime icon migration SHALL replace ad hoc icon markup on the initial surfaces and the approved follow-up Web control surfaces with registry-backed rendering while preserving existing action semantics, layout dimensions, theme behavior, responsive behavior, control hit areas, and accessible naming. The follow-up surfaces are TagsHeader add/back/untagged/add-filter controls, the standalone RSS panel and `RssIcon.vue`, Snapshot panel/bottom-toolbar/right-edge/page-action icons, and ThemeSwitcher mode icons. Article-content SVG processing and Extension icons SHALL remain explicitly deferred because they use separate renderer or application-profile contracts.
+
+#### Scenario: RSS and tag controls retain their action contract
+
+- **WHEN** a user uses an RSS or TagsHeader control in light, dark, or e-ink Web mode
+- **THEN** the control keeps its existing label, focus behavior, hit area, visual state, and action while its icon is rendered from the registry
+
+#### Scenario: Snapshot controls retain responsive behavior
+
+- **WHEN** a user views Snapshot panel or toolbar controls at desktop, the 768px transition, or the narrow mobile width
+- **THEN** the same controls remain available in the same order and state, with registry icons preserving their current optical size and accessible labels
+
+#### Scenario: ThemeSwitcher remains profile-scoped
+
+- **WHEN** a user changes between light, dark, and e-ink Web themes
+- **THEN** ThemeSwitcher keeps its current collapsed/expanded interaction and each mode icon follows semantic currentColor without changing Extension styling
+
+#### Scenario: Deferred renderers remain isolated
+
+- **WHEN** article content or Extension UI renders an SVG outside the migrated Web control surfaces
+- **THEN** it continues using its existing renderer and is not routed through the Web registry by this change
+
+#### Scenario: Existing migrated surfaces remain compatible
+
+- **WHEN** a user views the previously migrated BookmarkList surfaces
+- **THEN** their selected, hover, empty-state, collapsed-sidebar, theme, and accessibility behavior remains unchanged
 
 #### Scenario: Sidebar icon migration
 
