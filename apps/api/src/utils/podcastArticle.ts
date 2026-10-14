@@ -573,17 +573,22 @@ function renderShownotes(info: PodcastPlayerInfo, lang: PodcastLanguage): string
 export function renderPodcastBody(input: { info: PodcastPlayerInfo; article?: { doc: YoutubeArticleDocument; version: string; cues: PodcastCue[] } }): string {
   const lang: PodcastLanguage = input.article?.doc.language === 'zh' ? 'zh' : input.article ? 'en' : (input.info.language ?? 'en')
   const out: string[] = ['<div class="slax-pod" data-slax-derived="podcast">', renderPlayer(input.info, input.article?.cues ?? [])]
-  if (input.article) out.push(renderPodcastArticle(input.article.doc, input.article.version, input.article.cues))
+  if (input.article) out.push(renderMediaArticle(input.article.doc, input.article.version, input.article.cues, 'podcast'))
   const notes = renderShownotes(input.info, lang)
   if (notes) out.push(notes)
   out.push('</div>')
   return out.join('\n')
 }
 
-export function renderPodcastArticle(doc: YoutubeArticleDocument, version: string, cues: PodcastCue[]): string {
+/**
+ * The cleaned article of a podcast episode or a YouTube video, as body HTML. Both media use the same
+ * classes, so the client's seek, follow-along and "listen from here" work for both; only
+ * data-slax-derived names the media. `cues` gives each paragraph the start of its first cue.
+ */
+export function renderMediaArticle(doc: YoutubeArticleDocument, version: string, cues: { id: string; start_ms: number }[], kind: 'podcast' | 'youtube'): string {
   const startOf = new Map(cues.map(c => [c.id, c.start_ms]))
   const lang: PodcastLanguage = doc.language === 'zh' ? 'zh' : 'en'
-  const out: string[] = [`<article class="slax-pod-article" data-slax-derived="podcast-article" data-article-version="${escapeHtml(version)}" lang="${lang}">`]
+  const out: string[] = [`<article class="slax-pod-article" data-slax-derived="${kind}-article" data-article-version="${escapeHtml(version)}" lang="${lang}">`]
   if (doc.lede) out.push(`<p class="slax-pod-lede">${escapeHtml(doc.lede)}</p>`)
   for (const section of doc.sections) {
     out.push('<section class="slax-pod-section">')

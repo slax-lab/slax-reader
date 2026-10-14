@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import { checkArticleQuality, mergeChunkResults, parseChunkOutput, type YoutubeArticleDocument } from '@/utils/youtubeArticle'
 import { buildTranscriptDocument, parseVtt, transcriptPlainText } from '@/utils/podcastTranscript'
+import { HtmlBuilder } from '@/utils/htmlBuilder'
 import {
   applyTranslation,
   articleParagraphText,
@@ -27,6 +28,7 @@ import {
   podcastTranscriptKey,
   podcastWorkflowId,
   polishQualityOptions,
+  renderMediaArticle,
   renderPodcastBody,
   renderPodcastText,
   speakerDisplay,
@@ -296,6 +298,16 @@ describe('rendering', () => {
     expect(html).toContain('data-article-version="v&quot;1"')
     expect(html).toMatch(/data-cues="\[\{&quot;t&quot;:0\.16,&quot;text&quot;:&quot;We were able/)
     expect(html.indexOf('slax-pod-article')).toBeLessThan(html.indexOf('slax-pod-notes'))
+  })
+
+  test('YouTube body: the same article markup, named youtube, after the player; a bad video id is dropped', () => {
+    const article = renderMediaArticle(cleanedDoc(), 'v1', transcript.cues, 'youtube')
+    expect(article).toContain('<article class="slax-pod-article" data-slax-derived="youtube-article" data-article-version="v1"')
+    expect(article).toContain('<span class="slax-pod-time" data-media-seek="160" role="button" tabindex="0">00:00</span>')
+    const body = HtmlBuilder.buildYoutubeArticleBody('abc_DEF-123', [{ t: 1, text: 'a "b"' }], article)
+    expect(body).toContain('<youtube-player data-video-id="abc_DEF-123" data-cues="[{&quot;t&quot;:1,&quot;text&quot;:&quot;a \\&quot;b\\&quot;&quot;}]">')
+    expect(body.indexOf('<youtube-player')).toBeLessThan(body.indexOf('slax-pod-article'))
+    expect(HtmlBuilder.buildYoutubeArticleBody('"><script>', [], article)).not.toContain('<script>')
   })
 
   test('Spotify: embed only', () => {

@@ -8,10 +8,16 @@ import { RedisClient } from '@/infra/repository/redisClient'
 import { BucketClient } from '@/infra/repository/bucketClient'
 import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
 import { CrawlService } from '@/domain/crawl'
+import { MediaBodyService } from '@/domain/mediaBody'
+import { HtmlBuilder, type YoutubeCue } from '@/utils/htmlBuilder'
+import { renderMediaArticle } from '@/utils/podcastArticle'
+import { toCompatCues, type YoutubeCaptionDocument } from '@/utils/youtubeCaption'
 import { normalizeYoutubeUrl } from '@/utils/platformDetector'
 import { YoutubeArticleRepo, eligibilityDecision, isFinalError, type youtubeArticlePO, type YoutubeArticleStatus } from '@/infra/repository/dbYoutubeArticle'
 import {
   YOUTUBE_ARTICLE_LIMITS,
+  escapeHtml,
+  renderArticleText,
   youtubeArticleChunkPrefix,
   youtubeArticleLanguage,
   youtubeArticleVersion,
@@ -59,7 +65,18 @@ export interface YoutubeArticleStatusResponse {
   can_retry: boolean
   article_url: string | null
   updated_at: string | null
+  /**
+   * 'article': the cleaned article is (or becomes, once ready) the bookmark body. 'transcript': the
+   * body keeps the raw captions, because the bookmark has highlights or comments on them; the client
+   * shows the article below the body as before.
+   */
+  body_mode: 'article' | 'transcript'
+  /** The bookmark body holds the cleaned article now. */
+  body_ready: boolean
 }
+
+/** What a body that holds a YouTube article starts with; the version follows. */
+const BODY_MARKER = 'data-slax-derived="youtube-article" data-article-version="'
 
 type StartResult = 'started' | 'locked' | 'busy' | 'over_budget' | 'not_pending' | 'failed'
 
@@ -74,6 +91,26 @@ interface Access {
 }
 
 const DAY_SECONDS = 24 * 60 * 60
+
+/** The legacy cues in the body's <youtube-player data-cues>, or null when they cannot be read. */
+export function playerCues(html: string): YoutubeCue[] | null {
+  const raw = /<youtube-player\b[^>]*\sdata-cues="([^"]*)"/.exec(html)?.[1]
+  if (raw === undefined) return null
+  try {
+    const parsed = JSON.parse(
+      raw
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
+    ) as unknown
+    if (!Array.isArray(parsed)) return null
+    return parsed.filter((c): c is YoutubeCue => !!c && typeof c.t === 'number' && typeof c.text === 'string')
+  } catch {
+    return null
+  }
+}
 
 function utcDay(now: Date = new Date()): string {
   return now.toISOString().slice(0, 10).replace(/-/g, '')
@@ -94,7 +131,8 @@ export class YoutubeArticleService {
     @inject(RedisClient) private redis: LazyInstance<RedisClient>,
     @inject(BucketClient) private bucket: LazyInstance<BucketClient>,
     @inject(SlaxAlertBotClient) private alertBot: SlaxAlertBotClient,
-    @inject(CrawlService) private crawlService: CrawlService
+    @inject(CrawlService) private crawlService: CrawlService,
+    @inject(MediaBodyService) private bodies: MediaBodyService
   ) {}
 
   // ---------- access ----------
@@ -163,7 +201,8 @@ export class YoutubeArticleService {
     }
 
     if (!row) return unavailable
-    return this.response(requested, row, access, access.isOwner ? await this.manualLeft(viewerId) : false)
+    const res = this.response(requested, row, access, access.isOwner ? await this.manualLeft(viewerId) : false)
+    return { ...res, ...(await this.bodyState(ctx, access, ref.source_id, ref.source_hash)) }
   }
 
   /**
@@ -211,7 +250,9 @@ export class YoutubeArticleService {
         can_generate: false,
         can_retry: false,
         article_url: null,
-        updated_at: null
+        updated_at: null,
+        body_mode: 'transcript',
+        body_ready: false
       }
     }
     const eligibility = row.eligibility_json as { decision?: string; reason_codes?: string[] } | null
@@ -229,7 +270,9 @@ export class YoutubeArticleService {
       can_generate: access.isOwner && canManual && (status === 'skipped' || status === 'failed') && !isFinalError(row.error_message),
       can_retry: access.isOwner && status === 'failed' && !isFinalError(row.error_message),
       article_url: ready ? `/v1/youtube_article/content?bookmark_uid=${encodeURIComponent(access.bookmarkUid)}&version=${encodeURIComponent(version)}` : null,
-      updated_at: row.updated_at.toISOString()
+      updated_at: row.updated_at.toISOString(),
+      body_mode: 'article',
+      body_ready: false
     }
   }
 
@@ -290,6 +333,12 @@ export class YoutubeArticleService {
         if (!created) return
         row = created
       }
+      // Already made for an earlier save of this video: this bookmark gets the article at once, no model call
+      if (row.status === 'ready') {
+        const written = await this.publishBodyFor(ctx, bookmarkId, userId, row)
+        console.log(`YouTube article trigger after crawl: bookmark=${bookmarkId} article=${row.id} lang=${language} result=${written ? 'body_written' : 'body_kept'}`)
+        return
+      }
       if (row.status !== 'pending' || row.next_retry_at || eligibilityDecision(row) !== 'generate') return
       // A save-triggered start is an automatic start and counts against the same daily limit
       if (!(await this.takeDaily(userId, 'auto'))) {
@@ -302,6 +351,88 @@ export class YoutubeArticleService {
     } catch (err) {
       console.error(`YouTube article trigger after crawl failed for bookmark ${bookmarkId}: ${err instanceof Error ? err.message : String(err)}`)
     }
+  }
+
+  // ---------- bodies ----------
+
+  /**
+   * Body state of one bookmark for the status response. The body gets the version in the owner's
+   * language. An owner whose ready version is not in the body yet gets it written now: bookmarks
+   * whose article was made before this rule, or whose write failed. Visitors only read.
+   */
+  private async bodyState(ctx: ContextManager, access: Access, sourceId: string, sourceHash: string): Promise<Pick<YoutubeArticleStatusResponse, 'body_mode' | 'body_ready'>> {
+    if (await this.bodies.hasMarks(access.bookmarkId, access.ownerId)) return { body_mode: 'transcript', body_ready: false }
+    const row = await this.repo.findVersion(sourceId, sourceHash, await this.languageOf(access.ownerId))
+    if (row?.status !== 'ready') return { body_mode: 'article', body_ready: false }
+    const html = await this.bodies.readBody(access.bookmarkId)
+    if (html?.includes(this.bodyMarker(row))) return { body_mode: 'article', body_ready: true }
+    if (!access.isOwner || html === null) return { body_mode: 'article', body_ready: false }
+    return { body_mode: 'article', body_ready: await this.publishBodyFor(ctx, access.bookmarkId, access.ownerId, row) }
+  }
+
+  private bodyMarker(row: youtubeArticlePO): string {
+    return `${BODY_MARKER}${escapeHtml(this.versionOf(row))}"`
+  }
+
+  /**
+   * A version just became ready: write it into the body of every bookmark of this caption version
+   * whose owner reads that language and has the switch on. Bookmarks with marks keep their body.
+   */
+  public async publishBodies(ctx: ContextManager, articleId: number): Promise<number> {
+    const row = await this.repo.findById(articleId)
+    if (row?.status !== 'ready') return 0
+    let rendered: { html: string; text: string } | null | undefined
+    let count = 0
+    for (const ref of await this.repo.listRefs(row.source_id, row.source_hash)) {
+      if (!(await this.wantsBody(ref.bookmark_id, ref.user_id, row))) continue
+      // Rendered once for all bookmarks, and only when one of them takes it
+      if (rendered === undefined) rendered = await this.renderBody(row)
+      if (!rendered) return count
+      if (await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered)) count++
+    }
+    return count
+  }
+
+  private async publishBodyFor(ctx: ContextManager, bookmarkId: number, userId: number, row: youtubeArticlePO): Promise<boolean> {
+    if (!(await this.wantsBody(bookmarkId, userId, row))) return false
+    const rendered = await this.renderBody(row)
+    return rendered ? this.bodies.writeBody(ctx, bookmarkId, userId, rendered) : false
+  }
+
+  /** The owner has the switch on and reads this language, and nobody marked the body. Marks are checked last, closest to the write. */
+  private async wantsBody(bookmarkId: number, userId: number, row: youtubeArticlePO): Promise<boolean> {
+    if (!(await this.labService.isEnabled(userId, YOUTUBE_ARTICLE_LAB))) return false
+    if ((await this.languageOf(userId)) !== row.target_language) return false
+    return !(await this.bodies.hasMarks(bookmarkId, userId))
+  }
+
+  /** Player (same cues as the crawl wrote, for the side transcript panel) plus the article. Null when an object is gone. */
+  private async renderBody(row: youtubeArticlePO): Promise<{ html: string; text: string } | null> {
+    if (!row.article_key || !row.caption_key || !/^[\w-]{1,32}$/.test(row.source_id)) return null
+    const bucket = this.bucket().R2Bucket
+    const [docObj, captionObj] = await Promise.all([bucket.get(row.article_key), bucket.get(row.caption_key)])
+    if (!docObj || !captionObj) return null
+    const doc = JSON.parse(await docObj.text()) as YoutubeArticleDocument
+    const caption = JSON.parse(await captionObj.text()) as YoutubeCaptionDocument
+    const article = renderMediaArticle(doc, this.versionOf(row), caption.cues, 'youtube')
+    return { html: HtmlBuilder.buildYoutubeArticleBody(row.source_id, toCompatCues(caption.cues), article), text: renderArticleText(doc) }
+  }
+
+  /**
+   * Takedown: bodies that hold the article go back to the raw captions, rebuilt from the player's
+   * own cues (the caption objects are deleted with the article).
+   */
+  private async restoreRawBodies(ctx: ContextManager, videoId: string): Promise<number> {
+    let count = 0
+    for (const ref of await this.repo.listRefs(videoId)) {
+      const html = await this.bodies.readBody(ref.bookmark_id)
+      if (!html?.includes(BODY_MARKER)) continue
+      const cues = playerCues(html)
+      if (!cues) continue
+      // Same text the crawl writes: the caption lines joined
+      if (await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, { html: HtmlBuilder.buildYoutube(videoId, cues), text: cues.map(c => c.text).join(' ') })) count++
+    }
+    return count
   }
 
   // ---------- start ----------
@@ -435,9 +566,9 @@ export class YoutubeArticleService {
     // Takedowns marked by the script: the objects can only be listed and deleted from the Worker
     let takenDown = 0
     for (const videoId of await this.repo.listTakedownsToClean(20)) {
-      const res = await this.takedown(videoId)
+      const res = await this.takedown(ctx, videoId)
       takenDown++
-      console.log(`YouTube article takedown cleaned: video=${videoId} rows=${res.rows} objects=${res.objects}`)
+      console.log(`YouTube article takedown cleaned: video=${videoId} rows=${res.rows} objects=${res.objects} bodies=${res.bodies}`)
     }
     if (expired || started || deleted || takenDown) console.log(`YouTube article sweep: expired=${expired} started=${started} deleted=${deleted} takedowns=${takenDown}`)
     return { expired, started, deleted, takenDown }
@@ -504,8 +635,9 @@ export class YoutubeArticleService {
 
   // ---------- takedown ----------
 
-  /** Stop serving and generating every article of a video, then delete its objects. */
-  public async takedown(videoId: string): Promise<{ rows: number; objects: number }> {
+  /** Stop serving and generating every article of a video: bodies back to the raw captions, then delete its objects. */
+  public async takedown(ctx: ContextManager, videoId: string): Promise<{ rows: number; objects: number; bodies: number }> {
+    const bodies = await this.restoreRawBodies(ctx, videoId)
     const rows = await this.repo.listForVideo(videoId)
     const keys = new Set<string>()
     for (const row of rows) {
@@ -518,7 +650,7 @@ export class YoutubeArticleService {
     objects += await this.deletePrefix(`youtube/canonical/articles/${videoId}/`)
     objects += await this.deletePrefix(`youtube/canonical/chunks/${videoId}/`)
     const count = await this.repo.takedownVideo(videoId)
-    return { rows: count, objects }
+    return { rows: count, objects, bodies }
   }
 
   /** Called from the bookmark deletion path when the bookmark row itself is gone. */

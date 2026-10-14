@@ -6,6 +6,7 @@
  */
 import { describe, expect, test, vi } from 'vitest'
 import { PodcastService, PODCAST_MAX_CONCURRENT } from '@/domain/podcast'
+import { MediaBodyService } from '@/domain/mediaBody'
 import type { podcastEpisodePO } from '@/infra/repository/dbPodcastArticle'
 import type { mediaArticlePO, mediaArticleRefPO } from '@/infra/repository/dbMediaArticle'
 import { resolveBookmarkReadAccess } from '@/utils/bookmarkAccess'
@@ -285,8 +286,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
     eps,
     arts,
     bookmarkService,
-    bookmarkRepo,
-    searchService,
+    new MediaBodyService(bookmarkService as any, bookmarkRepo as any, searchService as any, { list: vi.fn(async () => []) } as any, (() => bucket) as any),
     labService,
     userRepo,
     () => redis,

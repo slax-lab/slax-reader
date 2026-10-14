@@ -564,7 +564,9 @@
       },
       "show_transcript": "显示原始字幕",
       "hide_transcript": "隐藏原始字幕",
-      "seek": "跳到 {time}"
+      "seek": "跳到 {time}",
+      "ready_reload": "整理稿已生成。",
+      "show_article": "显示整理稿"
     },
     "podcast_player": {
       "play": "播放",
@@ -1267,7 +1269,7 @@
         },
         "youtube_article": {
           "name": "YouTube AI 整理稿",
-          "desc": "把收藏的 YouTube 视频字幕整理成一篇可读的文章，语言跟随你的 AI 语言设置。依赖画面的视频不自动整理，你可以手动生成。"
+          "desc": "把收藏的 YouTube 视频字幕整理成一篇可读的文章，语言跟随你的 AI 语言设置。整理稿替换页面上的原始字幕，点时间戳可以从那里播放视频。依赖画面的视频不自动整理，你可以手动生成。"
         },
         "podcast": {
           "name": "播客文字稿",

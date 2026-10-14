@@ -563,7 +563,9 @@
       },
       "show_transcript": "Show original transcript",
       "hide_transcript": "Hide original transcript",
-      "seek": "Jump to {time}"
+      "seek": "Jump to {time}",
+      "ready_reload": "The article is ready.",
+      "show_article": "Show it"
     },
     "podcast_player": {
       "play": "Play",
@@ -1266,7 +1268,7 @@
         },
         "youtube_article": {
           "name": "YouTube AI articles",
-          "desc": "Turns the transcript of a saved YouTube video into a readable article in your AI language. Videos that rely on visuals are skipped, and you can still generate them by hand."
+          "desc": "Turns the transcript of a saved YouTube video into a readable article in your AI language. The article takes the place of the raw captions on the page, and its time stamps play the video from there. Videos that rely on visuals are skipped, and you can still generate them by hand."
         },
         "podcast": {
           "name": "Podcast transcripts",

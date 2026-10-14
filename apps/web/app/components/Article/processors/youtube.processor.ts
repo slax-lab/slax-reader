@@ -1,4 +1,5 @@
 import { YoutubePlayerElement } from '../CEComponents'
+import { bindMediaText } from './podcast.processor'
 import type { DOMProcessor, WebProcessorContext } from './types'
 
 /**
@@ -7,6 +8,8 @@ import type { DOMProcessor, WebProcessorContext } from './types'
  *    源标签未被替换时内嵌的兜底 <iframe> 仍可直接播放。
  * 2) 给平铺在正文里的字幕时间戳（[data-yt-seek]）绑委托点击/回车，派发 slax:youtube-seek
  *    事件让播放器跳转（与侧栏字幕面板同一套事件桥）。正文字幕为真实 HTML，便于划线评论。
+ * 3) AI 整理稿已写进正文时（与播客同一套 .slax-pod-article 结构），段首时间戳跳转视频，
+ *    正在播放的段落高亮并跟随。
  */
 export class YoutubeProcessor implements DOMProcessor {
   readonly name = 'YoutubeProcessor'
@@ -27,6 +30,8 @@ export class YoutubeProcessor implements DOMProcessor {
       const element = new YoutubePlayerElement({ videoId })
       node.parentElement?.replaceChild(element, node)
     })
+
+    if (context.container.querySelector('.slax-pod-article')) bindMediaText(context)
 
     // 正文平铺字幕：时间戳点击/回车跳转。委托绑在容器上，避免逐条监听
     const transcript = context.container.querySelector('.slax-yt-transcript')

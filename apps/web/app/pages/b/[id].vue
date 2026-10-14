@@ -53,13 +53,20 @@
               @translation="podcastTranslation = $event"
               @refresh-body="refreshBody"
             />
+            <YoutubeArticleBar
+              v-if="youtubeArticleView === 'bar'"
+              :bookmark-uid="bookmarkUid"
+              :body-has-article="youtubeBodyHasArticle"
+              @refresh-body="refreshBody"
+              @fallback="youtubeArticleBelow = true"
+            />
           </ClientOnly>
         </template>
         <template #after-body>
           <ClientOnly>
             <PodcastTranslation v-if="podcastShowsTranslation && podcastTranslation" :content="podcastTranslation" />
             <YoutubeAiArticle
-              v-if="isYoutube && bookmarkUid"
+              v-if="youtubeArticleView === 'below'"
               :bookmark-uid="bookmarkUid"
               :transcript-shown="youtubeTranscriptShown"
               :has-transcript="youtubeCues.length > 0"
@@ -194,10 +201,12 @@ import SnapshotSharePopover from '~/components/Snapshot/SnapshotSharePopover.vue
 import SnapshotTopBar from '~/components/Snapshot/SnapshotTopBar.vue'
 import SnapshotTranscriptPanel from '~/components/Snapshot/SnapshotTranscriptPanel.vue'
 import YoutubeAiArticle from '~/components/Snapshot/YoutubeAiArticle.vue'
+import YoutubeArticleBar from '~/components/Snapshot/YoutubeArticleBar.vue'
 
 import { eventLog } from '@/utils/analytics'
 import { extractFirstContentImage } from '@/utils/ogImage'
 import { sortBookmarkTags } from '@/utils/tags'
+import { youtubeArticleView as pickYoutubeArticleView, youtubeBodyHasArticle as bodyHasYoutubeArticle } from '@/utils/youtubeBody'
 
 import { useLocalBookmarks } from '@/composables/bookmark/useLocalBookmarks'
 import { useLocalMarks } from '@/composables/bookmark/useLocalMarks'
@@ -528,8 +537,15 @@ const bodyKey = ref(0)
 const refreshBody = async () => {
   await refreshNuxtData(`content-${uuid}`)
   // Remount only for a new body; the status bar (inside the article) asks again a little later
-  if (podcastBodyHasArticle.value) bodyKey.value++
+  if (isPodcast.value ? podcastBodyHasArticle.value : youtubeBodyHasArticle.value) bodyKey.value++
 }
+// YouTube AI article: the cleaned article becomes the body (status bar above it while it is made).
+// A bookmark that keeps the raw transcript body (marks on it) shows the article below the body as before
+const youtubeBodyHasArticle = computed(() => bodyHasYoutubeArticle(detail.value?.content ?? ''))
+const youtubeArticleBelow = ref(false)
+const youtubeArticleView = computed(() =>
+  pickYoutubeArticleView({ isYoutube: isYoutube.value && !!bookmarkUid.value, bodyHasArticle: youtubeBodyHasArticle.value, below: youtubeArticleBelow.value })
+)
 // Media cues for the transcript panel: the YouTube player's, or the podcast player's once the transcript exists
 const youtubeCues = computed<{ t: number; text: string }[]>(() => {
   const content = detail.value?.content
@@ -545,7 +561,7 @@ const youtubeCues = computed<{ t: number; text: string }[]>(() => {
   }
 })
 
-// YouTube AI article: once it is ready the original transcript in the body is folded (hidden,
+// YouTube AI article shown below the body: once it is ready the original transcript in the body is folded (hidden,
 // never removed, so marks and comments keep their place); the reader can show it again.
 // A transcript with highlights starts unfolded: a folded highlight cannot be reached from its comment card.
 const youtubeArticleReady = ref(false)

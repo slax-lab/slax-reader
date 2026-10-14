@@ -155,12 +155,13 @@ function setup(opts: { cues?: number; model?: ArticleModel; row?: Partial<youtub
   const repo = memRow(opts.row)
   const model = opts.model ?? faithfulModel()
   const addCost = vi.fn(async () => {})
-  const deps: RunnerDeps = { repo, bucket: bucket as any, model, addCost }
+  const publishBodies = vi.fn(async (_articleId: number) => 2)
+  const deps: RunnerDeps = { repo, bucket: bucket as any, model, addCost, publishBodies }
   const params: YoutubeArticleWorkflowParams = { articleId: 1, videoId: VIDEO, sourceHash: HASH, targetLanguage: 'en', promptVersion: 'v1', title: 'Attention', trigger: 'open' }
   const { step, calls } = engine({ rewrap: opts.rewrap })
   const runId = opts.runId ?? 'run-1'
   const run = (stepLike: StepLike = step) => runYoutubeArticle(deps, params, stepLike, runId)
-  return { deps, bucket, repo, model, addCost, params, step, calls, run }
+  return { deps, bucket, repo, model, addCost, publishBodies, params, step, calls, run }
 }
 
 const articleKeys = (lang = 'en') => {
@@ -177,7 +178,8 @@ describe('happy path', () => {
 
     const chunkSteps = s.calls.filter(c => c.startsWith('chunk-'))
     expect(chunkSteps.length).toBeGreaterThan(1)
-    expect(s.calls).toEqual(['claim', 'prepare', ...chunkSteps, 'assemble', 'publish', 'drop-chunks'])
+    expect(s.calls).toEqual(['claim', 'prepare', ...chunkSteps, 'assemble', 'publish', 'drop-chunks', 'publish-body'])
+    expect(s.publishBodies).toHaveBeenCalledWith(1)
     expect(s.model.chat).toHaveBeenCalledTimes(chunkSteps.length)
     expect(s.addCost).toHaveBeenCalledTimes(chunkSteps.length)
 
@@ -232,6 +234,17 @@ describe('duplicates and races', () => {
     expect(await s.run()).toBe('superseded')
     for (const k of articleKeys()) expect(s.bucket.objects.has(k)).toBe(false)
     expect(s.repo.finishAttempt).not.toHaveBeenCalled()
+    expect(s.publishBodies).not.toHaveBeenCalled()
+  })
+
+  test('body writes that keep failing do not undo the ready article', async () => {
+    const s = setup({ cues: 40 })
+    const logs = vi.spyOn(console, 'log').mockImplementation(() => {})
+    s.publishBodies.mockRejectedValue(new Error('r2 down'))
+    expect(await s.run()).toBe('ready')
+    expect(s.repo.row.status).toBe('ready')
+    expect(logs.mock.calls.some(c => String(c[0]).includes('youtube_article_bodies_failed'))).toBe(true)
+    logs.mockRestore()
   })
 
   test('lease lost mid-run (swept or taken down) → stop quietly, no status write', async () => {
@@ -410,5 +423,6 @@ describe('limits and gates', () => {
     expect(s.repo.row.quality_json).toMatchObject({ passed: false })
     expect([...s.bucket.objects.keys()].some(k => k.includes('/chunks/'))).toBe(false)
     for (const k of articleKeys('zh')) expect(s.bucket.objects.has(k)).toBe(false)
+    expect(s.publishBodies).not.toHaveBeenCalled()
   })
 })

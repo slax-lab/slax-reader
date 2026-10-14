@@ -194,6 +194,14 @@ export abstract class MediaArticleRepo {
     return this.prismaPg().sr_media_article_ref.findFirst({ where: { media_kind: this.kind, source_id: sourceId, source_hash: sourceHash }, orderBy: { id: 'asc' } })
   }
 
+  /** Every bookmark that points at this source, oldest first; one caption version when `sourceHash` is given. */
+  public async listRefs(sourceId: string, sourceHash?: string): Promise<mediaArticleRefPO[]> {
+    return this.prismaPg().sr_media_article_ref.findMany({
+      where: { media_kind: this.kind, source_id: sourceId, ...(sourceHash ? { source_hash: sourceHash } : {}) },
+      orderBy: { id: 'asc' }
+    })
+  }
+
   public async findById(id: number): Promise<mediaArticlePO | null> {
     const row = await this.prismaPg().sr_media_article.findUnique({ where: { id } })
     return row && row.media_kind === this.kind ? row : null

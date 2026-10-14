@@ -444,12 +444,16 @@ export class HtmlBuilder {
     return `${h}:${m}:${s}`
   }
 
-  public static buildYoutube(videoId: string, cues: YoutubeCue[]): string {
+  private static youtubePlayer(videoId: string, cues: YoutubeCue[]): string {
     // cues JSON 放进 data-* 属性，escapeHtml 处理属性上下文转义（" & < > '）
     const cuesAttr = HtmlBuilder.escapeHtml(JSON.stringify(cues))
-    const player = `<youtube-player data-video-id="${videoId}" data-cues="${cuesAttr}">
+    return `<youtube-player data-video-id="${videoId}" data-cues="${cuesAttr}">
   <iframe src="https://www.youtube.com/embed/${videoId}" style="width:100%;aspect-ratio:16/9;border:0;" frameborder="0" allowfullscreen></iframe>
 </youtube-player>`
+  }
+
+  public static buildYoutube(videoId: string, cues: YoutubeCue[]): string {
+    const player = HtmlBuilder.youtubePlayer(videoId, cues)
 
     if (!cues.length) return player
 
@@ -465,6 +469,19 @@ ${player}
   <div class="slax-yt-transcript">
 ${rows}
   </div>
+</div>`
+  }
+
+  /**
+   * YouTube body once the AI article is ready: the same player (its cues still feed the side
+   * transcript panel), then the cleaned article in place of the raw caption lines.
+   * `articleHtml` must come from renderMediaArticle, which escapes every model string.
+   */
+  public static buildYoutubeArticleBody(videoId: string, cues: YoutubeCue[], articleHtml: string): string {
+    const safeId = /^[\w-]{1,32}$/.test(videoId) ? videoId : ''
+    return `<div class="slax-yt" data-slax-derived="youtube">
+${HtmlBuilder.youtubePlayer(safeId, cues)}
+${articleHtml}
 </div>`
   }
 

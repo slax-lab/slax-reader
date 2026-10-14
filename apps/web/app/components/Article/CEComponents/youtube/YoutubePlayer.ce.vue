@@ -9,6 +9,8 @@
 <script lang="ts" setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
+import { PODCAST_EVENTS } from '~/utils/podcastMedia'
+
 interface YTPlayer {
   seekTo(seconds: number, allowSeekAhead: boolean): void
   playVideo(): void
@@ -31,6 +33,19 @@ const mountRef = ref<HTMLElement | null>(null)
 
 let player: YTPlayer | null = null
 let timer: ReturnType<typeof setInterval> | null = null
+let playing = false
+
+// YT.PlayerState.PLAYING. The play state goes out with every time event (the article follows only
+// while the video plays) and as a state event (the page does not swap the body under a playing video)
+const YT_PLAYING = 1
+const setPlaying = (next: boolean) => {
+  if (next === playing) return
+  playing = next
+  window.dispatchEvent(new CustomEvent(PODCAST_EVENTS.state, { detail: { playing } }))
+  // Pressing play brings the article back to following the video
+  if (playing) window.dispatchEvent(new CustomEvent(PODCAST_EVENTS.follow, { detail: { following: true } }))
+}
+const onStateChange = (e: { data: number }) => setPlaying(e?.data === YT_PLAYING)
 
 // 加载 YouTube IFrame API（全局仅一次），ready 后 resolve window.YT
 const loadYoutubeApi = (): Promise<YTNamespace> => {
@@ -86,7 +101,7 @@ const startSync = () => {
   timer = setInterval(() => {
     if (!player || typeof player.getCurrentTime !== 'function') return
     const now = player.getCurrentTime() || 0
-    window.dispatchEvent(new CustomEvent('slax:youtube-time', { detail: { t: now } }))
+    window.dispatchEvent(new CustomEvent('slax:youtube-time', { detail: { t: now, playing } }))
   }, 300)
 }
 
@@ -98,13 +113,14 @@ onMounted(async () => {
   player = new YT.Player(mountRef.value, {
     videoId: props.videoId,
     playerVars: { rel: 0, playsinline: 1 },
-    events: { onReady: startSync }
+    events: { onReady: startSync, onStateChange }
   })
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('slax:youtube-seek', onSeekRequest)
   stopSync()
+  setPlaying(false)
   if (player && typeof player.destroy === 'function') player.destroy()
   player = null
 })

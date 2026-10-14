@@ -4,6 +4,41 @@ import { PodcastPlayerElement } from '../CEComponents'
 import type { DOMProcessor, WebProcessorContext } from './types'
 
 /**
+ * Cleaned media text (podcast or YouTube article, same markup): paragraph time stamps
+ * ([data-media-seek], ms) seek the player on click or Enter/Space, and the paragraph being
+ * played is marked and kept in view.
+ */
+export const bindMediaText = (context: WebProcessorContext): void => {
+  const seekFrom = (target: EventTarget | null): boolean => {
+    const el = (target as HTMLElement | null)?.closest<HTMLElement>('[data-media-seek]')
+    if (!el || !context.container.contains(el)) return false
+    // Number('') is 0, so an empty attribute would seek to the start
+    const raw = el.dataset['mediaSeek']
+    if (!raw) return false
+    const ms = Number(raw)
+    if (!Number.isFinite(ms)) return false
+    seekTo(ms)
+    return true
+  }
+  const onClick = (e: Event) => void seekFrom(e.target)
+  const onKeydown = (e: Event) => {
+    const ke = e as KeyboardEvent
+    if (ke.key !== 'Enter' && ke.key !== ' ') return
+    if (seekFrom(ke.target)) ke.preventDefault()
+  }
+  context.container.addEventListener('click', onClick)
+  context.container.addEventListener('keydown', onKeydown)
+
+  const follower = new MediaFollower(() => context.container)
+
+  context.cleanups.push(() => {
+    context.container.removeEventListener('click', onClick)
+    context.container.removeEventListener('keydown', onKeydown)
+    follower.destroy()
+  })
+}
+
+/**
  * Podcast bodies from the backend:
  * 1) <slax-media data-kind="audio"> becomes the audio player (PodcastPlayerElement), placed just
  *    above the body container: there it stays sticky over the original and the translation (rendered
@@ -39,32 +74,6 @@ export class PodcastProcessor implements DOMProcessor {
       }
     }
 
-    const seekFrom = (target: EventTarget | null): boolean => {
-      const el = (target as HTMLElement | null)?.closest<HTMLElement>('[data-media-seek]')
-      if (!el || !context.container.contains(el)) return false
-      // Number('') is 0, so an empty attribute would seek to the start
-      const raw = el.dataset['mediaSeek']
-      if (!raw) return false
-      const ms = Number(raw)
-      if (!Number.isFinite(ms)) return false
-      seekTo(ms)
-      return true
-    }
-    const onClick = (e: Event) => void seekFrom(e.target)
-    const onKeydown = (e: Event) => {
-      const ke = e as KeyboardEvent
-      if (ke.key !== 'Enter' && ke.key !== ' ') return
-      if (seekFrom(ke.target)) ke.preventDefault()
-    }
-    context.container.addEventListener('click', onClick)
-    context.container.addEventListener('keydown', onKeydown)
-
-    const follower = new MediaFollower(() => context.container)
-
-    context.cleanups.push(() => {
-      context.container.removeEventListener('click', onClick)
-      context.container.removeEventListener('keydown', onKeydown)
-      follower.destroy()
-    })
+    bindMediaText(context)
   }
 }

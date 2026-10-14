@@ -15,7 +15,9 @@ const silent = () => {}
 // Consecutive failed requests before polling gives up for this visit
 const MAX_FAILURES = 3
 
-export const useYoutubeArticle = (bookmarkUid: () => string) => {
+// `loadContent: false` follows the status only: the article arrives in the bookmark body instead
+export const useYoutubeArticle = (bookmarkUid: () => string, options: { loadContent?: boolean } = {}) => {
+  const withContent = options.loadContent ?? true
   const state = ref<YoutubeArticleState | null>(null)
   const article = ref<YoutubeArticleContent | null>(null)
   const acting = ref(false)
@@ -35,7 +37,7 @@ export const useYoutubeArticle = (bookmarkUid: () => string) => {
 
   const isWorking = computed(() => !!state.value && WORKING.includes(state.value.status))
   // Poll while the article is being made, and also to recover from a failed status or content request
-  const needsPoll = () => !state.value || isWorking.value || (state.value.status === 'ready' && !article.value)
+  const needsPoll = () => !state.value || isWorking.value || (withContent && state.value.status === 'ready' && !article.value)
 
   const clearTimer = () => {
     if (timer) clearTimeout(timer)
@@ -76,7 +78,7 @@ export const useYoutubeArticle = (bookmarkUid: () => string) => {
   const apply = async (next: YoutubeArticleState | null | undefined) => {
     if (!next || stopped) return
     state.value = next
-    if (next.status === 'ready' && next.version) await loadContent(next.version)
+    if (withContent && next.status === 'ready' && next.version) await loadContent(next.version)
     schedule()
   }
 

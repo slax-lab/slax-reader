@@ -403,6 +403,10 @@ export interface YoutubeArticleState {
   can_retry: boolean
   article_url: string | null
   updated_at: string | null
+  /** 'article': the cleaned article is (or becomes) the bookmark body. 'transcript': the body keeps the raw captions (it has marks) */
+  body_mode?: 'article' | 'transcript'
+  /** The bookmark body holds the cleaned article now */
+  body_ready?: boolean
 }
 
 /** Structured article, /v1/youtube_article/content. Rendered with text bindings only, never as HTML. */
