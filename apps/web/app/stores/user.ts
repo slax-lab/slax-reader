@@ -1,4 +1,5 @@
 import { isSlaxReaderApp } from '../utils/environment'
+import { invalidateUserProfile, readUserProfile } from '~/utils/userProfile'
 
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { type UserInfo } from '@slax-reader/contracts/interface'
@@ -90,19 +91,18 @@ export const useUserStore = defineStore<'user', UserState, UserGetters, UserActi
   actions: {
     async refreshUserInfo(): Promise<UserInfo> {
       const token = getUserToken()
-      const resp = await request().get<UserInfo>({
-        url: RESTMethodPath.ME
+      const resp = await readUserProfile(this, async () => {
+        try {
+          const profile = await request().get<UserInfo>({ url: RESTMethodPath.ME })
+          if (!profile) throw new Error('refresh user info failed')
+          return profile
+        } catch (error) {
+          if (token !== getUserToken() || !isLocalFirstEnabled()) throw error
+          const local = await loadLocalUserInfo()
+          if (!local) throw error
+          return local
+        }
       })
-
-      if (token !== getUserToken()) throw new Error('Session changed')
-      if (!resp) {
-        throw new Error('refresh user info failed')
-      }
-
-      this.user = resp
-      if (this.locale !== resp.lang) {
-        this.changeLocalLocale(resp.lang)
-      }
       return resp
     },
     async getUserInfo(options?: { refresh: boolean }): Promise<UserInfo> {
@@ -117,6 +117,7 @@ export const useUserStore = defineStore<'user', UserState, UserGetters, UserActi
       return this.user
     },
     async clearUserInfo() {
+      invalidateUserProfile(this)
       this.user = null
     },
     async changeLocalLocale(locale: string) {

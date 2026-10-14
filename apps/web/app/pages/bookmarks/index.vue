@@ -7,6 +7,7 @@
       :cancel-text="t('component.subscribe.cancel')"
       activity_id="platform_0527"
       activity_type="platform_0527"
+      :on-disposed-settlement="ordinaryDisposedSettlement"
       @outcome="ordinaryOutcome"
     />
     <div class="fixed left-0 top-0 z-100 h-0px w-full flex-center">
@@ -294,6 +295,7 @@ const {
   isTransitioning,
   isFirstLoad,
   onboardingReady,
+  confirmOnboardingEmpty,
   groupedBookmarks,
   isRefreshLoading,
   lastUpdatedText,
@@ -439,6 +441,7 @@ const { inboxState } = useInboxOnboardingState({
   isDataEmpty,
   isFirstLoad,
   onboardingReady,
+  confirmEmpty: confirmOnboardingEmpty,
   userId: kocFlow.userId
 })
 
@@ -783,18 +786,48 @@ const feedbackClick = () => {
 
 let ordinaryPhase = 'idle'
 let ordinaryRefreshPending = false
+let ordinaryAlive = true
+let ordinaryStatusGeneration = 0
+let ordinaryProfileRefreshing = false
+const ordinaryDisposedSettlement = shallowRef<() => void>()
+const resetOrdinaryPresentation = () => {
+  if (ordinaryPhase === 'submitting') ordinaryRefreshPending = true
+  ordinaryModalOpen.value = false
+  ordinaryPhase = 'idle'
+}
+watch(
+  () => route.path,
+  path => {
+    if (!isInboxPath(path)) resetOrdinaryPresentation()
+  },
+  { flush: 'sync' }
+)
+onDeactivated(resetOrdinaryPresentation)
 const refreshOrdinaryProfile = async () => {
   ordinaryRefreshPending = true
+  if (ordinaryProfileRefreshing) return
+  ordinaryProfileRefreshing = true
   try {
-    await userStore.getUserInfo({ refresh: true })
-    ordinaryRefreshPending = false
-  } catch {
-    /* Retry on focus. */
+    while (ordinaryAlive && ordinaryRefreshPending) {
+      ordinaryRefreshPending = false
+      try {
+        await userStore.getUserInfo({ refresh: true })
+      } catch {
+        if (ordinaryRefreshPending) continue
+        ordinaryRefreshPending = true
+        break
+      }
+    }
+  } finally {
+    ordinaryProfileRefreshing = false
   }
 }
 const loadActivityStatus = async () => {
   if (!import.meta.client) return
   const token = getUserToken()
+  const userId = kocFlow.userId.value
+  const generation = ++ordinaryStatusGeneration
+  const isCurrent = () => ordinaryAlive && token === getUserToken() && userId === kocFlow.userId.value && generation === ordinaryStatusGeneration
   request()
     .post<{ status: boolean }>({
       url: RESTMethodPath.PROMOTION_CHECK_RECEIVE,
@@ -802,21 +835,32 @@ const loadActivityStatus = async () => {
     })
     .then(res => {
       // 只保留侧栏 promo 入口，去掉自动弹窗
-      if (token !== getUserToken()) return
+      if (!isCurrent()) return
       showReceiveSubscribe.value = !!res && res.status === false
       if (res?.status === true && !['success', 'submitting'].includes(ordinaryPhase)) ordinaryModalOpen.value = false
     })
     .catch(() => {
-      showReceiveSubscribe.value = false
+      if (isCurrent()) showReceiveSubscribe.value = false
     })
 }
 
 const receiveActivity = () => {
-  if (!kocFlow.state.value.pending && !kocFlow.blocksOnboarding.value) ordinaryModalOpen.value = true
+  if (!kocFlow.state.value.pending && !kocFlow.blocksOnboarding.value) {
+    const userId = kocFlow.userId.value
+    const token = getUserToken()
+    ordinaryDisposedSettlement.value = () => {
+      if (!ordinaryAlive || token !== getUserToken() || userId !== kocFlow.userId.value) return
+      void loadActivityStatus()
+      void refreshOrdinaryProfile()
+      if (userId) postChannelMessage('subscription', { userId })
+    }
+    ordinaryModalOpen.value = true
+  }
 }
 const ordinaryOutcome = (outcome: string) => {
   ordinaryPhase = outcome
   if (outcome === 'success') {
+    ordinaryStatusGeneration++
     showReceiveSubscribe.value = false
     const userId = kocFlow.userId.value
     if (userId) postChannelMessage('subscription', { userId })
@@ -829,7 +873,7 @@ const ordinaryOutcome = (outcome: string) => {
   }
 }
 watch([kocFlow.userId, () => kocFlow.state.value.pending], () => {
-  ordinaryModalOpen.value = false
+  resetOrdinaryPresentation()
   if (kocFlow.userId.value && !kocFlow.state.value.pending) loadActivityStatus()
   else showReceiveSubscribe.value = false
 })
@@ -843,11 +887,13 @@ const refreshOrdinaryOnFocus = () => {
   if (ordinaryRefreshPending) void refreshOrdinaryProfile()
   if (kocFlow.userId.value && !kocFlow.state.value.pending) void loadActivityStatus()
 }
+onActivated(refreshOrdinaryOnFocus)
 onMounted(() => {
   addChannelMessageHandler(onSubscriptionChanged)
   window.addEventListener('focus', refreshOrdinaryOnFocus)
 })
 onUnmounted(() => {
+  ordinaryAlive = false
   removeChannelMessageHandler(onSubscriptionChanged)
   window.removeEventListener('focus', refreshOrdinaryOnFocus)
 })

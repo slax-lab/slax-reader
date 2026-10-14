@@ -45,3 +45,127 @@ If the Web release must be rolled back, retain all reward receipts, entitlement 
 Users whose invitation was already lost should revisit the original KOC URL. Eligibility is determined by the server; an ordinary platform trial does not remove an unused blogger entitlement. No bulk grants or invented attribution are part of recovery.
 
 When publishing, target `dev` and include `OpenSpec: koc-onboarding-continuity` in the PR body. Archive the change only after merge. This session does not deploy, push or merge the branch.
+
+## Follow-up fixes
+
+The follow-up review corrected cross-tab invitation replacement during an explicit route check and ordinary promotion presentation surviving cached-page departure. Additional settlement tests found that returning before an abandoned request finished could leave eligibility/profile state stale. Disposal now triggers account-scoped reconciliation when the original request settles; older eligibility responses cannot overwrite newer results, and profile refreshes are serialized without losing a request at completion.
+
+Regression coverage includes both invitation-check delays, bare-route storage recovery, all ordinary claim/departure/return orders, overlapping stale reads, account changes, owner disposal, lost responses, and a refresh queued in the previous refresh's completion microtask. No reward values, backend grant logic, visual styles, or layout were changed in this follow-up.
+
+Final follow-up verification: Web full suite passes 2,008 tests across 189 files, with one existing test/file skipped. Web typecheck and touched production ESLint pass with no errors or lint warnings. Strict OpenSpec validation passes all 35 items; `git diff --check` passes. Independent Bugs, Security and Compliance review reports no remaining Important or Nit findings against `koc-onboarding-continuity`. The validation limits above still apply; backend grants and external integrations were not rerun in this follow-up. An initial full-suite run overlapped Nuxt type generation and failed to load its temporary tsconfig in one unrelated suite; running the suite separately passed in full.
+
+### Files changed in the follow-up
+
+All ten files below are modifications; this follow-up adds or deletes no tracked files.
+
+| File | Purpose |
+| --- | --- |
+| `apps/web/app/components/Promotion/KocPromotionHost.vue` | Serialize storage reconciliation and require matching durable context before URL cleanup. |
+| `apps/web/app/utils/promotionFlow.ts` | Preserve explicit invitation precedence while restoring persisted context. |
+| `apps/web/app/pages/bookmarks/index.vue` | Reset cached ordinary presentation and reconcile activation, settlement, and queued refreshes safely. |
+| `apps/web/app/components/GetSubscribeModal.vue` | Notify the original owner after a disposed request settles in the same session. |
+| `apps/web/tests/unit/promotion/routing.spec.ts` | Cover invitation storage races and correct blogger attribution. |
+| `apps/web/tests/integration/pages/bookmarks/index.spec.ts` | Cover cached-page lifecycle, settlement order, late responses, and refresh queues. |
+| `apps/web/tests/unit/components/GetSubscribeModal.spec.ts` | Cover disposed success/failure settlement and session isolation. |
+| `openspec/changes/koc-onboarding-continuity/design.md` | Record follow-up decisions. |
+| `openspec/changes/koc-onboarding-continuity/tasks.md` | Track follow-up implementation and verification. |
+| `openspec/changes/koc-onboarding-continuity/validation.md` | Record verification and changed-file inventories. |
+
+### Cumulative branch inventory (including final deep-review fixes)
+
+Compared with the branch base `b086da93`, the complete KOC/onboarding change touches 46 files: 18 added, 28 modified, none deleted. This includes the earlier implementation and both review-fix passes.
+
+| Change | File |
+| --- | --- |
+| Modified | `apps/api/src/domain/subscriptionMain.ts` |
+| Modified | `apps/api/src/handler/http/promotionController.ts` |
+| Added | `apps/api/test/domain/promotionStatus.test.ts` |
+| Modified | `apps/web/app/components/GetSubscribeModal.vue` |
+| Added | `apps/web/app/components/Promotion/KocPromotionHost.vue` |
+| Modified | `apps/web/app/composables/bookmark/useBookmarkData.ts` |
+| Modified | `apps/web/app/composables/bookmark/useInboxOnboardingState.ts` |
+| Modified | `apps/web/app/composables/bookmark/useLocalBookmarks.ts` |
+| Modified | `apps/web/app/composables/bookmark/useLocalCollections.ts` |
+| Modified | `apps/web/app/composables/bookmark/useOnboardingPending.ts` |
+| Added | `apps/web/app/composables/promotion/useKocPromotionFlow.ts` |
+| Modified | `apps/web/app/layouts/default.vue` |
+| Modified | `apps/web/app/pages/[blogger]-reader/index.vue` |
+| Modified | `apps/web/app/pages/bookmarks/index.vue` |
+| Modified | `apps/web/app/pages/onboarding.vue` |
+| Modified | `apps/web/app/plugins/pinia.ts` |
+| Modified | `apps/web/app/plugins/powersync.client.ts` |
+| Modified | `apps/web/app/stores/user.ts` |
+| Modified | `apps/web/app/utils/channel.ts` |
+| Added | `apps/web/app/utils/promotionFlow.ts` |
+| Added | `apps/web/app/utils/userProfile.ts` |
+| Modified | `apps/web/i18n/locales/en.json` |
+| Modified | `apps/web/i18n/locales/zh.json` |
+| Modified | `apps/web/tests/integration/pages/bookmarks/index.spec.ts` |
+| Modified | `apps/web/tests/unit/components/GetSubscribeModal.spec.ts` |
+| Modified | `apps/web/tests/unit/composables/bookmark/useBookmarkData.spec.ts` |
+| Modified | `apps/web/tests/unit/composables/bookmark/useInboxOnboardingState.spec.ts` |
+| Modified | `apps/web/tests/unit/composables/bookmark/useOnboardingPending.spec.ts` |
+| Modified | `apps/web/tests/unit/local-first/powersync-bridge-session.spec.ts` |
+| Modified | `apps/web/tests/unit/middleware/auth.global.spec.ts` |
+| Modified | `apps/web/tests/unit/pages/onboarding.spec.ts` |
+| Added | `apps/web/tests/unit/promotion/continuity.spec.ts` |
+| Added | `apps/web/tests/unit/promotion/local-readiness.spec.ts` |
+| Added | `apps/web/tests/unit/promotion/local-sync.spec.ts` |
+| Added | `apps/web/tests/unit/promotion/profile-ordering.spec.ts` |
+| Added | `apps/web/tests/unit/promotion/onboarding-readiness.spec.ts` |
+| Added | `apps/web/tests/unit/promotion/routing.spec.ts` |
+| Modified | `apps/web/tests/unit/stores/user.spec.ts` |
+| Added | `openspec/changes/koc-onboarding-continuity/.openspec.yaml` |
+| Added | `openspec/changes/koc-onboarding-continuity/design.md` |
+| Added | `openspec/changes/koc-onboarding-continuity/proposal.md` |
+| Added | `openspec/changes/koc-onboarding-continuity/specs/inbox-onboarding-readiness/spec.md` |
+| Added | `openspec/changes/koc-onboarding-continuity/specs/koc-promotion-continuity/spec.md` |
+| Added | `openspec/changes/koc-onboarding-continuity/tasks.md` |
+| Added | `openspec/changes/koc-onboarding-continuity/validation.md` |
+| Modified | `packages/contracts/src/interface.ts` |
+
+## Final deep-review fixes
+
+The five reproducible findings were confirmed and approved for repair. All five now have durable regression coverage:
+
+1. First sync no longer authorizes onboarding from a throttled stale empty query. A direct SQLite read confirms the committed Inbox and active subscription state. Tests use the installed PowerSync query processor and actual SQLite expressions, covering downloaded bookmarks/subscriptions, cancelled/null subscriptions, archived/deleted data, offline reuse, errors and ownership changes.
+2. Profile writes share request ordering across the page, KOC controller and offline fallback; newer accepted commits include locale synchronization. Older reads and cleared sessions cannot restore stale subscription or language state.
+3. A disposed KOC request retains submission ownership until settlement. Returning does not remount a second claim form; settlement rechecks server authority and refreshes the profile without relying on focus.
+4. Storage invalidations remain queued during submission/success and reconcile when allowed. Broadcasts cannot bypass an owned in-flight submission or be blocked by another account's old submission.
+5. Ordinary success invalidates eligibility responses started before the grant, preventing a consumed CTA from reappearing.
+
+Both profile refresh queues drain genuinely newer queued work after an earlier read fails, while retaining focus-based retry when no new request exists. This pass changes lifecycle and data decisions only; no styles, layout, entitlement values, or backend grant transaction changed.
+
+The new real-store fixture initially depended on import order because partial Nuxt mocks evaluated a circular network/store dependency. After consulting the Nuxt testing and Vitest module-mocking documentation, the options considered were a complete network-module mock, hoisted module-cache reset, deferred store import, and a Nuxt runtime fixture. A complete network boundary mock was the narrowest deterministic fix; production store, controller, router, host and modal remain real.
+
+### Files changed in this pass
+
+This pass adds three files and modifies twelve existing files. Together with the preceding uncommitted follow-up, the worktree contains eighteen changed files; the cumulative branch inventory above also includes the earlier committed implementation.
+
+| Change | File | Purpose |
+| --- | --- | --- |
+| Modified | `apps/web/app/components/Promotion/KocPromotionHost.vue` | Submission ownership, disposal reconciliation, queued storage events and profile refreshes. |
+| Modified | `apps/web/app/composables/bookmark/useBookmarkData.ts` | Direct post-sync Inbox/subscription emptiness confirmation. |
+| Modified | `apps/web/app/composables/bookmark/useInboxOnboardingState.ts` | Require scoped confirmation before setting pending. |
+| Modified | `apps/web/app/composables/promotion/useKocPromotionFlow.ts` | Share ordered authoritative profile commits. |
+| Modified | `apps/web/app/pages/bookmarks/index.vue` | Wire confirmation, invalidate old eligibility, drain queued refresh after failure. |
+| Modified | `apps/web/app/plugins/pinia.ts` | Remove the separate offline-fallback writer. |
+| Modified | `apps/web/app/stores/user.ts` | Include offline fallback inside the ordered profile transaction. |
+| Added | `apps/web/app/utils/userProfile.ts` | Shared profile/locale commit ordering and invalidation. |
+| Modified | `apps/web/tests/integration/pages/bookmarks/index.spec.ts` | Ordinary eligibility and refresh regressions. |
+| Modified | `apps/web/tests/unit/promotion/routing.spec.ts` | KOC disposal, account, storage, broadcast and refresh races. |
+| Added | `apps/web/tests/unit/promotion/local-sync.spec.ts` | Real query scheduler plus SQLite readiness coverage. |
+| Added | `apps/web/tests/unit/promotion/profile-ordering.spec.ts` | Real store and KOC profile-ordering integration. |
+| Modified | `openspec/changes/koc-onboarding-continuity/design.md` | Record asynchronous boundary decisions. |
+| Modified | `openspec/changes/koc-onboarding-continuity/tasks.md` | Track approved fixes and validation. |
+| Modified | `openspec/changes/koc-onboarding-continuity/validation.md` | Record evidence and updated file inventories. |
+
+### Final verification
+
+- Full Web suite: **2,031 passed, 1 skipped; 191 files passed, 1 skipped**. This adds 23 regression cases to the preceding 2,008-test baseline.
+- Web typecheck: passed after the final production edits, run separately from Vitest to avoid concurrent `.nuxt` generation.
+- Touched production ESLint: zero errors; four pre-existing warnings (one `any` and three unused bindings) remain.
+- Independent Bugs/Security/Compliance re-review: no remaining Important findings. The review also caught and verified corrections to accepted-profile locale updates, foreign submission ownership, and refresh queues following rejection.
+- `git diff --check`: passed. Strict OpenSpec validation passes all 35 items.
+
+The successful Web run printed a happy-dom fetch abort during environment teardown, in addition to fixture Turnstile/SSR warnings; Vitest reported no failed tests or unhandled test errors. Earlier failing profile fixture runs are not counted as verification. The dedicated PostgreSQL concurrency check in task 4.5 and the external integration limitations above remain open. This pass did not change backend code or repeat payment operations. No push, deployment, or merge was performed.

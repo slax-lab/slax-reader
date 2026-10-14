@@ -73,6 +73,7 @@ const props = defineProps<{
   cancelText: string
   activity_id: string
   activity_type: string
+  onDisposedSettlement?: () => void
 }>()
 const { t } = useI18n()
 const isLocked = useScrollLock(document.body)
@@ -133,6 +134,7 @@ const handleConfirm = async () => {
     return
   }
   loading.value = true
+  const reconcileAfterDisposal = props.onDisposedSettlement
   emits('outcome', 'submitting')
   try {
     const result = await request().post<{ title: string; message: string; subMessage: string }>({
@@ -161,6 +163,8 @@ const handleConfirm = async () => {
     turnstileKey.value++
   } finally {
     if (alive) loading.value = false
+    // Component events stop after disposal; the owner may still need to refresh.
+    else if (getUserToken() === originalToken) reconcileAfterDisposal?.()
   }
 }
 </script>

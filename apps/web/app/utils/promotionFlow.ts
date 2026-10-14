@@ -184,8 +184,14 @@ export function createPromotionFlow(state: PromotionState, deps: Dependencies) {
           ...(state.pending.deferred ? { koc_deferred: 'true' } : {})
         }
       : {}
-  const restore = async () => {
+  const restore = async (query: Record<string, unknown> = {}) => {
     if (['submitting', 'success'].includes(state.phase)) return
+    if (query.activity_type === 'blogger') {
+      await enter(query)
+      // Reassert the explicit invite without recapturing it on every storage event.
+      save()
+      return
+    }
     generation++
     loaded = false
     validated = false

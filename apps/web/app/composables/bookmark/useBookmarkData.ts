@@ -130,6 +130,26 @@ export const useBookmarkData = (
     return restReady.value && restSession.value === getUserToken() && restOwner.value === verifiedUser.value.userId
   })
 
+  const confirmOnboardingEmpty = async () => {
+    if (!onboardingReady.value) return false
+    if (!local) return isDataEmpty.value
+    const token = getUserToken()
+    const owner = localOwner.value
+    const userId = verifiedUser.value.userId
+    // Sync completion precedes throttled live-query notifications. Read the
+    // committed database directly before treating a cached empty result as final.
+    const rows = await $powersync!.getAll<{ is_empty: number }>(`
+      SELECT NOT EXISTS (
+        SELECT 1 FROM sr_user_bookmark WHERE archive_status = 0 AND deleted_at IS NULL
+      ) AND NOT EXISTS (
+        SELECT 1 FROM sr_user_collection_subscriber s
+        JOIN sr_user_collection c ON c.id = s.collection_id
+        WHERE COALESCE(s.is_cancelled, 0) != 1
+      ) AS is_empty
+    `)
+    return token === getUserToken() && owner === localOwner.value && userId === verifiedUser.value.userId && onboardingReady.value && rows[0]?.is_empty === 1
+  }
+
   // 切入 local 书签 tab 置 settling，结果刷新后清除
   if (local) {
     watch(
@@ -464,6 +484,7 @@ export const useBookmarkData = (
     isTransitioning,
     isFirstLoad,
     onboardingReady,
+    confirmOnboardingEmpty,
     groupedBookmarks,
     isRefreshLoading,
     lastUpdatedText,

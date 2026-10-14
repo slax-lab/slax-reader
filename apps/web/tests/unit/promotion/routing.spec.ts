@@ -1,26 +1,28 @@
 // @vitest-environment happy-dom
-import { defineComponent, h, KeepAlive, ref, nextTick, watch, computed } from 'vue'
+import { computed,defineComponent, h, KeepAlive, nextTick, ref, watch } from 'vue'
 import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
-import { mockNuxtImport } from '@nuxt/test-utils/runtime'
-import { flushPromises, enableAutoUnmount } from '@vue/test-utils'
-import { beforeEach, afterEach, it, expect, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { mountWithApp } from '~~/tests/setup/mount'
+
 import KocPromotionHost from '~~/app/components/Promotion/KocPromotionHost.vue'
 import OnboardingPage from '~~/app/pages/onboarding.vue'
-import { useKocPromotionFlow } from '~~/app/composables/promotion/useKocPromotionFlow'
-import { useOnboardingPending } from '~~/app/composables/bookmark/useOnboardingPending'
+
 import { initialPromotionState } from '~~/app/utils/promotionFlow'
+
+import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { enableAutoUnmount,flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
+import { useOnboardingPending } from '~~/app/composables/bookmark/useOnboardingPending'
+import { useKocPromotionFlow } from '~~/app/composables/promotion/useKocPromotionFlow'
 import { baseUser } from '~~/tests/fixtures/user'
-const env = vi.hoisted(() => ({ router: null as any, states: new Map<string, any>(), token: 'test-session', post: vi.fn(), fetch: vi.fn(), user: null as any }))
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+const env = vi.hoisted(() => ({ router: null as any, states: new Map<string, any>(), token: 'test-session', post: vi.fn(), fetch: vi.fn(), channel: null as any, user: null as any }))
 mockNuxtImport('useState', () => (key: string, init: () => unknown) => {
   if (!env.states.has(key)) env.states.set(key, ref(init()))
   return env.states.get(key)
 })
-mockNuxtImport('useI18n', () => () => ({ t: (key: string, args?: any) => (key === 'promotion.resume' ? 'Claim KOC reward' : key) }))
+mockNuxtImport('useI18n', () => () => ({ t: (key: string) => (key === 'promotion.resume' ? 'Claim KOC reward' : key) }))
 mockNuxtImport('useHead', () => () => {})
 mockNuxtImport('getClientEventHeaders', () => () => ({}))
-mockNuxtImport('addChannelMessageHandler', () => () => {})
+mockNuxtImport('addChannelMessageHandler', () => (handler: any) => { env.channel = handler })
 mockNuxtImport('removeChannelMessageHandler', () => () => {})
 mockNuxtImport('postChannelMessage', () => () => {})
 mockNuxtImport('getUserToken', () => () => env.token)
@@ -30,6 +32,7 @@ mockNuxtImport('navigateTo', () => (to: any, options: any) => (options?.replace 
 mockNuxtImport('request', () => () => ({ post: env.post }))
 mockNuxtImport('useRuntimeConfig', () => () => ({ app: { baseURL: '/' }, public: { DWEB_API_BASE_URL: 'https://api.test', TURNSTILE_SITE_KEY: '' } }))
 vi.mock('~/stores/user', () => ({ useUserStore: () => env.user }))
+vi.mock('~/components/Toast', () => ({ default: { showToast: vi.fn() }, ToastType: { Error: 'error' } }))
 vi.mock('~/components/Modal', () => ({ showFeedbackModal: vi.fn() }))
 enableAutoUnmount(afterEach)
 beforeEach(() => {
@@ -37,7 +40,9 @@ beforeEach(() => {
   env.states.clear()
   useState('onboarding-flags', () => ({})).value = {}
   useState('koc-promotion', initialPromotionState).value = initialPromotionState()
-  env.user = { user: null, userInfo: null, getUserInfo: vi.fn().mockResolvedValue(baseUser) }
+  env.token = 'test-session'
+  env.channel = null
+  env.user = { user: null, userInfo: null, locale: 'en', changeLocalLocale: vi.fn(), getUserInfo: vi.fn().mockResolvedValue(baseUser) }
   env.post.mockReset().mockResolvedValue({ title: 'Received', message: '60 days', subMessage: '' })
   env.fetch.mockImplementation(
     async (url: string) =>
@@ -255,4 +260,237 @@ it('keeps attribution stable in flight and selects a newer invitation after a fa
   await flushPromises()
   expect(useState('koc-promotion').value.pending.blogger).toBe('lenyy')
   expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+})
+
+
+it.each(['validation', 'eligibility'])('keeps an explicit invite when another tab changes storage during %s', async stage => {
+  let release!: (response: Response) => void
+  env.fetch.mockImplementation(async (url: string) => {
+    if (url.includes('/me')) return new Response(JSON.stringify({ data: baseUser }))
+    const isValidation = url.includes('blogger_info')
+    const data = isValidation
+      ? { activity_type: 'blogger', activity_id: new URL(url).searchParams.get('blogger') }
+      : { status: false }
+    if (!release && ((stage === 'validation' && isValidation) || (stage === 'eligibility' && !isValidation)))
+      return new Promise<Response>(resolve => { release = resolve })
+    return new Response(JSON.stringify({ data }))
+  })
+  const { wrapper } = await mountJourney('/?activity_id=daguang&activity_type=blogger&claim=true#retained', false)
+  const key = `slax_koc_pending_v1_${baseUser.userId}`
+  localStorage.setItem(key, JSON.stringify({ version: 1, blogger: 'lenyy', capturedAt: 1, deferred: true }))
+  window.dispatchEvent(new StorageEvent('storage', { key }))
+  await flushPromises()
+  release(new Response(JSON.stringify({ data: stage === 'validation' ? { activity_type: 'blogger', activity_id: 'daguang' } : { status: false } })))
+  await flushPromises()
+  await flushPromises()
+  expect(useState('koc-promotion').value.pending?.blogger).toBe('daguang')
+  expect(JSON.parse(localStorage.getItem(key)!).blogger).toBe('daguang')
+  expect(env.router.currentRoute.value.fullPath).toBe('/#retained')
+  expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+  await wrapper.find('.btn-confirm').trigger('click')
+  await flushPromises()
+  expect(env.post.mock.calls[0][0].body.activity_id).toBe('daguang')
+})
+
+it('still restores another tab invitation on a bare Inbox URL', async () => {
+  const { wrapper } = await mountJourney('/', false)
+  const key = `slax_koc_pending_v1_${baseUser.userId}`
+  localStorage.setItem(key, JSON.stringify({ version: 1, blogger: 'daguang', capturedAt: 1, deferred: true }))
+  window.dispatchEvent(new StorageEvent('storage', { key }))
+  await flushPromises()
+  await flushPromises()
+  expect(wrapper.text()).toContain('Claim KOC reward')
+  expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+  expect(useState('koc-promotion').value.pending?.blogger).toBe('daguang')
+})
+
+
+it('restores the newest stored invite when an older stored invite is still validating', async () => {
+  const key = `slax_koc_pending_v1_${baseUser.userId}`
+  localStorage.setItem(key, JSON.stringify({ version: 1, blogger: 'daguang', capturedAt: 1, deferred: true }))
+  let release!: (response: Response) => void
+  env.fetch.mockImplementation(async (url: string) => {
+    if (url.includes('/me')) return new Response(JSON.stringify({ data: baseUser }))
+    if (url.includes('blogger_info')) {
+      const blogger = new URL(url).searchParams.get('blogger')
+      if (blogger === 'daguang' && !release) return new Promise<Response>(resolve => { release = resolve })
+      return new Response(JSON.stringify({ data: { activity_type: 'blogger', activity_id: blogger } }))
+    }
+    return new Response(JSON.stringify({ data: { status: false } }))
+  })
+  const { wrapper } = await mountJourney('/', false)
+  localStorage.setItem(key, JSON.stringify({ version: 1, blogger: 'lenyy', capturedAt: 2, deferred: true }))
+  window.dispatchEvent(new StorageEvent('storage', { key }))
+  release(new Response(JSON.stringify({ data: { activity_type: 'blogger', activity_id: 'daguang' } })))
+  await flushPromises()
+  await flushPromises()
+  expect(useState('koc-promotion').value.pending?.blogger).toBe('lenyy')
+  expect(JSON.parse(localStorage.getItem(key)!).blogger).toBe('lenyy')
+  expect(wrapper.text()).toContain('Claim KOC reward')
+})
+
+it('reconciles a KOC grant that settles after returning from another page', async () => {
+  let received = false
+  let release!: () => void
+  env.post.mockImplementationOnce(() => new Promise(resolve => {
+    release = () => {
+      received = true
+      resolve({ title: 'Received', message: '60 days', subMessage: '' })
+    }
+  }))
+  env.fetch.mockImplementation(async (url: string) => new Response(JSON.stringify({ data:
+    url.includes('/me') ? { ...baseUser, nickname: received ? 'refreshed' : 'original' } :
+    url.includes('blogger_info') ? { activity_type: 'blogger', activity_id: 'daguang' } :
+    { status: received, reason: received ? 'already_received' : 'eligible' }
+  })))
+  const { wrapper } = await mountJourney('/?activity_id=daguang&activity_type=blogger&claim=true', false)
+  await wrapper.find('.btn-confirm').trigger('click')
+  await env.router.push('/elsewhere')
+  await flushPromises()
+  await env.router.push('/')
+  await flushPromises()
+  expect(wrapper.find('.form-state').exists()).toBe(false)
+  release()
+  await flushPromises()
+  await flushPromises()
+  expect(wrapper.find('.form-state').exists()).toBe(false)
+  expect(useState('koc-promotion').value.pending).toBeNull()
+  expect(env.user.user.nickname).toBe('refreshed')
+})
+
+it('adopts a newer stored invitation after the original in-flight claim fails', async () => {
+  let reject!: (error: Error) => void
+  env.post.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail }))
+  env.fetch.mockImplementation(async (url: string) => new Response(JSON.stringify({ data:
+    url.includes('/me') ? baseUser : url.includes('blogger_info') ?
+    { activity_type: 'blogger', activity_id: new URL(url).searchParams.get('blogger') } : { status: false }
+  })))
+  const { wrapper } = await mountJourney('/?activity_id=daguang&activity_type=blogger&claim=true', false)
+  await wrapper.find('.btn-confirm').trigger('click')
+  const key = `slax_koc_pending_v1_${baseUser.userId}`
+  localStorage.setItem(key, JSON.stringify({ version: 1, blogger: 'lenyy', capturedAt: 9, deferred: true }))
+  window.dispatchEvent(new StorageEvent('storage', { key }))
+  await flushPromises()
+  reject(Error('connection lost'))
+  await flushPromises()
+  await flushPromises()
+  expect(useState('koc-promotion').value.pending.blogger).toBe('lenyy')
+  expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+})
+
+it('reconciles a disposed failed submission against a newer explicit invitation', async () => {
+  let reject!: (error: Error) => void
+  env.post.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail }))
+  env.fetch.mockImplementation(async (url: string) => new Response(JSON.stringify({ data:
+    url.includes('/me') ? baseUser : url.includes('blogger_info') ?
+    { activity_type: 'blogger', activity_id: new URL(url).searchParams.get('blogger') } : { status: false }
+  })))
+  const { wrapper } = await mountJourney('/?activity_id=daguang&activity_type=blogger&claim=true', false)
+  await wrapper.find('.btn-confirm').trigger('click')
+  await env.router.push('/elsewhere')
+  await flushPromises()
+  await env.router.push('/?activity_id=lenyy&activity_type=blogger&claim=true')
+  await flushPromises()
+  expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+  expect(env.router.currentRoute.value.query.activity_id).toBe('lenyy')
+  reject(Error('connection lost'))
+  await flushPromises()
+  await flushPromises()
+  expect(useState('koc-promotion').value.pending.blogger).toBe('lenyy')
+  expect(wrapper.find('.form-state').exists()).toBe(true)
+  expect(env.post).toHaveBeenCalledTimes(1)
+})
+
+it('does not let a disposed submission change a newly authenticated account', async () => {
+  let release!: () => void
+  env.post.mockImplementationOnce(() => new Promise(resolve => { release = () => resolve({ title: 'Received', message: '60 days' }) }))
+  const { wrapper } = await mountJourney('/?activity_id=daguang&activity_type=blogger&claim=true', false)
+  await wrapper.find('.btn-confirm').trigger('click')
+  await env.router.push('/elsewhere')
+  await flushPromises()
+  env.token = 'another-account'
+  env.fetch.mockImplementation(async (url: string) => new Response(JSON.stringify({ data:
+    url.includes('/me') ? { ...baseUser, userId: baseUser.userId + 1 } :
+    url.includes('blogger_info') ? { activity_type: 'blogger', activity_id: 'lenyy' } : { status: false }
+  })))
+  await env.router.push('/?activity_id=lenyy&activity_type=blogger&claim=true')
+  await flushPromises()
+  const newProfile = env.user.user
+  release()
+  await flushPromises()
+  expect(useState('koc-promotion').value.pending.blogger).toBe('lenyy')
+  expect(useState('koc-promotion').value.userId).toBe(baseUser.userId + 1)
+  expect(env.user.user).toBe(newProfile)
+  expect(wrapper.find('.form-state').exists()).toBe(true)
+  env.token = 'test-session'
+})
+
+it('retains a queued storage invitation when a subscription broadcast arrives during a disposed submission', async () => {
+  let reject!: (error: Error) => void
+  env.post.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail }))
+  env.fetch.mockImplementation(async (url: string) => new Response(JSON.stringify({ data:
+    url.includes('/me') ? baseUser : url.includes('blogger_info') ?
+    { activity_type: 'blogger', activity_id: new URL(url).searchParams.get('blogger') } : { status: false }
+  })))
+  const { wrapper } = await mountJourney('/?activity_id=daguang&activity_type=blogger&claim=true', false)
+  await wrapper.find('.btn-confirm').trigger('click')
+  await env.router.push('/elsewhere')
+  await flushPromises()
+  await env.router.push('/')
+  await flushPromises()
+  const key = `slax_koc_pending_v1_${baseUser.userId}`
+  localStorage.setItem(key, JSON.stringify({ version: 1, blogger: 'lenyy', capturedAt: 9, deferred: true }))
+  window.dispatchEvent(new StorageEvent('storage', { key }))
+  env.channel('subscription', { subscription: { userId: baseUser.userId } })
+  await flushPromises()
+  expect(JSON.parse(localStorage.getItem(key)!).blogger).toBe('lenyy')
+  reject(Error('connection lost'))
+  await flushPromises()
+  await flushPromises()
+  expect(useState('koc-promotion').value.pending.blogger).toBe('lenyy')
+  expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+})
+
+it('does not block the new account subscription broadcast with an old submission owner', async () => {
+  let release!: () => void
+  env.post.mockImplementationOnce(() => new Promise(resolve => { release = () => resolve({ title: 'Received', message: '60 days' }) }))
+  const { wrapper } = await mountJourney('/?activity_id=daguang&activity_type=blogger&claim=true', false)
+  await wrapper.find('.btn-confirm').trigger('click')
+  await env.router.push('/elsewhere')
+  await flushPromises()
+  env.token = 'new-account'
+  const user = { ...baseUser, userId: baseUser.userId + 1 }
+  let received = false
+  env.fetch.mockImplementation(async (url: string) => new Response(JSON.stringify({ data:
+    url.includes('/me') ? user : url.includes('blogger_info') ?
+    { activity_type: 'blogger', activity_id: 'lenyy' } : { status: received, reason: received ? 'already_received' : 'eligible' }
+  })))
+  await env.router.push('/?activity_id=lenyy&activity_type=blogger&claim=true')
+  await flushPromises()
+  received = true
+  env.channel('subscription', { subscription: { userId: user.userId } })
+  await flushPromises()
+  await flushPromises()
+  expect(useState('koc-promotion').value.pending).toBeNull()
+  expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+  release()
+  await flushPromises()
+})
+
+it('drains a profile refresh queued behind a failed read', async () => {
+  await mountJourney('/', false)
+  let reject!: (error: Error) => void
+  let profileReads = 0
+  env.fetch.mockImplementation(async () => {
+    profileReads++
+    if (profileReads === 1) return await new Promise((_resolve, fail) => { reject = fail })
+    return new Response(JSON.stringify({ data: { ...baseUser, name: 'Refreshed' } }))
+  })
+  env.channel('subscription', { subscription: { userId: baseUser.userId } })
+  await flushPromises()
+  env.channel('subscription', { subscription: { userId: baseUser.userId } })
+  reject(Error('temporary network failure'))
+  await flushPromises()
+  expect(profileReads).toBe(2)
+  expect(env.user.user.name).toBe('Refreshed')
 })

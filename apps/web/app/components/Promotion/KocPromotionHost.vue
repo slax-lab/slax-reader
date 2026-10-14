@@ -16,6 +16,7 @@
       :sub-title="offerText"
       :confirm-text="t('promotion.claim')"
       :cancel-text="t('promotion.later')"
+      :on-disposed-settlement="disposedSettlement"
       :activity_id="modalBlogger"
       activity_type="blogger"
       @outcome="outcome"
@@ -36,20 +37,36 @@ const active = computed(() => isPromotionSurface(route.path))
 const modalBlogger = ref('')
 const modalKey = ref(0)
 const modalOpen = ref(false)
+const disposedSettlement = shallowRef<() => void>()
+let submitting: { key: number; token: string | undefined; userId: number | null } | null = null
+const submissionIsCurrent = () => submitting?.token === getUserToken() && submitting?.userId === state.value.userId
 let syncing = false
 let rerun = false
+let storageChanged = false
 let alive = true
 let cleaning = false
 let profileNeedsRefresh = false
+let profileRefreshing = false
 const refreshSubscription = async () => {
   profileNeedsRefresh = true
+  if (profileRefreshing) return
+  profileRefreshing = true
   try {
-    await refreshProfile()
-    profileNeedsRefresh = false
-  } catch {
-    /* Retry on focus without repeating the grant. */
+    while (alive && profileNeedsRefresh) {
+      profileNeedsRefresh = false
+      try {
+        await refreshProfile()
+      } catch {
+        if (profileNeedsRefresh) continue
+        profileNeedsRefresh = true
+        break
+      }
+    }
+  } finally {
+    profileRefreshing = false
   }
 }
+
 const offerText = computed(() => {
   const reward = state.value.reward
   return reward?.kind === 'credit'
@@ -85,14 +102,40 @@ const sync = async () => {
   try {
     if (!sessionIsCurrent()) modalOpen.value = false
     if (!(await identify()) || !alive || !active.value || route.fullPath !== fullPath) return
-    await flow.enter(query)
+    // The request owns its attribution until settlement, even if its modal was disposed.
+    if (submissionIsCurrent()) return
+    if (['submitting', 'success'].includes(state.value.phase)) return
+    if (storageChanged) {
+      storageChanged = false
+      // An explicit route remains authoritative over another tab's pending invite.
+      await flow.restore(query)
+    } else await flow.enter(query)
+    // Reconcile storage before presenting or consuming this route's invitation.
+    if (storageChanged) return
     if (!alive || !active.value || !sessionIsCurrent() || route.fullPath !== fullPath) return
     if (state.value.phase === 'offer' && !modalOpen.value && state.value.pending) {
       modalBlogger.value = state.value.pending.blogger
       modalKey.value++
+      const key = modalKey.value
+      const token = getUserToken()
+      const userId = state.value.userId
+      disposedSettlement.value = () => {
+        if (!alive || submitting?.key !== key || token !== getUserToken() || userId !== state.value.userId || !sessionIsCurrent()) return
+        submitting = null
+        flow.invalidate()
+        // Settlement can be success, failure, or a lost response. Recheck authority.
+        void refreshSubscription()
+        if (userId) postChannelMessage('subscription', { userId })
+        void sync()
+      }
       modalOpen.value = true
     }
-    if (query.activity_type === 'blogger' && state.value.durable && !['submitting', 'success'].includes(state.value.phase)) {
+    if (
+      query.activity_type === 'blogger' &&
+      state.value.pending?.blogger === query.activity_id &&
+      state.value.durable &&
+      !['submitting', 'success'].includes(state.value.phase)
+    ) {
       const query = { ...route.query }
       for (const key of ['activity_id', 'activity_type', 'claim', 'koc_deferred']) delete query[key]
       cleaning = true
@@ -158,17 +201,22 @@ const outcome = async (value: string) => {
     await sync()
     return
   }
-  if (value === 'submitting') state.value.phase = 'submitting'
-  else if (value === 'failed') {
+  if (value === 'submitting') {
+    submitting = { key: modalKey.value, token: getUserToken(), userId: state.value.userId }
+    state.value.phase = 'submitting'
+  } else if (value === 'failed') {
+    submitting = null
     state.value.phase = 'offer'
     await sync()
   } else if (value === 'deferred') await defer()
   else if (value === 'unavailable') {
+    submitting = null
     modalOpen.value = false
     await flow.check()
     await sync()
     void refreshSubscription()
   } else if (value === 'success') {
+    submitting = null
     const userId = state.value.userId
     flow.granted()
     if (active.value && route.query.activity_type === 'blogger' && route.query.activity_id === modalBlogger.value) {
@@ -187,7 +235,7 @@ const outcome = async (value: string) => {
 const channel = (name: string, data: { subscription?: { userId: number } }) => {
   if (name !== 'subscription' || data.subscription?.userId !== state.value.userId) return
   void refreshSubscription()
-  if (!['submitting', 'success'].includes(state.value.phase)) void flow.check().then(sync)
+  if (!submissionIsCurrent() && !['submitting', 'success'].includes(state.value.phase)) void flow.check().then(sync)
 }
 const focus = () => {
   void sync().then(() => {
@@ -195,7 +243,11 @@ const focus = () => {
   })
 }
 const storage = (event: StorageEvent) => {
-  if (state.value.userId && (event.key === null || event.key === promotionStorageKey(state.value.userId)) && sessionIsCurrent()) void flow.restore().then(sync)
+  if (state.value.userId && (event.key === null || event.key === promotionStorageKey(state.value.userId)) && sessionIsCurrent()) {
+    storageChanged = true
+    if (route.query.activity_type !== 'blogger' && !['submitting', 'success'].includes(state.value.phase)) flow.invalidate()
+    void sync()
+  }
 }
 onMounted(() => {
   for (const key of ['activity_claimed_blogger', 'activity_claimed_platform_0527']) {

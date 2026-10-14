@@ -267,3 +267,19 @@ The independent Bugs, Security and Compliance review identified three Important 
 Additional integration checks cover synchronously gating a cached Inbox on a fresh campaign query, rearming a deferred URL when storage is denied, and refreshing the ordinary modal caller after removing forced reload. Storage events reread only the current account's pending record, and confirmed success removes only the matching invitation. Profile refresh failures retry on focus independently of the confirmed grant.
 
 See [validation.md](validation.md) for execution evidence, rollout and remaining deployment checks.
+
+
+### Follow-up review: storage events and cached ordinary offers
+
+The follow-up review found two additional lifecycle defects:
+
+- A storage-event restore could replace a still-resolving explicit invitation, after which the original route cleanup consumed the wrong invitation. Storage events now queue through the host reconciliation loop. Explicit route context wins over persisted context, and cleanup requires the matching blogger to be durable. Reasserting that invitation preserves its capture time; a bare-route storage event invalidates older validation before restoring the new record.
+- Ordinary promotion success or submission could leave its page-owned open/phase flags alive after the modal was disposed. Leaving the Inbox or deactivating the cached page now resets presentation. Returning rechecks eligibility, and an abandoned submission schedules a profile refresh, without requiring a window-focus event or reopening the modal automatically. A session-bound disposal callback also reconciles when the request settles after the user has already returned. It checks the owning page and account before refreshing or notifying other tabs, and never restores presentation. Eligibility generations reject older replies; profile refreshes drain queued requests serially, including requests arriving as the previous refresh finishes.
+
+Regression tests exercise both validation and eligibility delays, stored-to-stored replacement, normal cross-tab recovery, real cached-page/modal departure and return in each settlement order, delayed profile/status replies, queued refreshes, and account/page disposal. These fixes retain the existing UI styles and reward policy.
+
+### Final deep-review: asynchronous settlement boundaries
+
+First-sync completion can precede PowerSync's throttled live-query refresh. Automatic onboarding therefore confirms both Inbox emptiness and the absence of active collection subscriptions with a fresh database read after readiness, scoped to the current account/session. Failed or superseded confirmation cannot set pending. This adds no fixed delay and retains previously synced offline support.
+
+All profile writers share request ordering, including the offline fallback. An older response cannot overwrite a newer committed profile or locale. Accepted commits apply server language consistently regardless of which caller requested the profile. Refresh queues attempt genuinely newer queued work even when the preceding read fails, and otherwise retain focus-based retry. KOC identity still requires a successful authenticated server read. Disposed KOC submissions reconcile eligibility and profile when they settle, without reviving the disposed modal. Storage changes received during submission stay queued until reconciliation is allowed. Ordinary grant success invalidates any eligibility reads started before that success. Regression coverage includes real query scheduling and Router/KeepAlive lifetimes. No styles, layout, or reward policy change in this pass.

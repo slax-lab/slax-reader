@@ -12,7 +12,7 @@ import { enableAutoUnmount } from '@vue/test-utils'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import ReceiveSubscribeModal from '~/components/GetSubscribeModal.vue'
 import { initialPromotionState } from '~~/app/utils/promotionFlow'
-import { nextTick, reactive, ref } from 'vue'
+import { defineComponent, h, KeepAlive, nextTick, reactive, ref } from 'vue'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
@@ -226,6 +226,27 @@ describe('pages/bookmarks/index.vue', () => {
     mockUseExtensionDetection.mockReturnValue({ isInstalled: { value: true }, checked: { value: true } })
   })
 
+  it('a pre-grant status response cannot restore the claimed ordinary offer', async () => {
+    mockPost.mockResolvedValue({ status: false })
+    const wrapper = mountIndexPage()
+    await flushPromises()
+    let releaseOldStatus!: () => void
+    mockPost.mockImplementationOnce(() => new Promise(resolve => {
+      releaseOldStatus = () => resolve({ status: false })
+    }))
+    window.dispatchEvent(new Event('focus'))
+    await flushPromises()
+    await wrapper.find('.sidebar-promo').trigger('click')
+    mockPost.mockResolvedValueOnce({ title: 'Received', message: '30 days' })
+    await wrapper.find('.btn-confirm').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.success-continue').exists()).toBe(true)
+    releaseOldStatus()
+    await flushPromises()
+    await wrapper.find('.success-continue').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.sidebar-promo').exists()).toBe(false)
+  })
   afterEach(() => {
     vi.useRealTimers()
   })
@@ -246,6 +267,126 @@ describe('pages/bookmarks/index.vue', () => {
     modal.vm.$emit('outcome', 'acknowledged')
     await flushPromises()
     expect(wrapper.findComponent(ReceiveSubscribeModal).exists()).toBe(false)
+  })
+
+  it.each(['success', 'submitting', 'return-before-settlement', 'return-with-delayed-refresh'])('disposes an ordinary %s modal when leaving and returning to the cached Inbox', async phase => {
+    mockHaveRequestToken.mockReturnValue(true)
+    let received = false
+    let releaseGrant!: () => void
+    mockPost.mockImplementation(({ url }: any) => {
+      if (url === RESTMethodPath.PROMOTION_CHECK_RECEIVE) return Promise.resolve({ status: received })
+      return new Promise(resolve => {
+        releaseGrant = () => {
+          received = true
+          resolve({ title: 'Received', message: '30 days', subMessage: '' })
+        }
+      })
+    })
+    const route = mockUseRoute()
+    const Elsewhere = defineComponent({ render: () => h('div', 'Elsewhere') })
+    const Shell = defineComponent({
+      setup: () => () => h(KeepAlive, { include: ['bookmarks'] }, () => h(route.path === '/bookmarks' ? IndexPage : Elsewhere))
+    })
+    const wrapper = mountWithApp(Shell, { global: { stubs: baseStubs } })
+    await flushPromises()
+    const originalPageId = wrapper.findComponent(IndexPage).vm.$.uid
+    await wrapper.find('.sidebar-promo').trigger('click')
+    await wrapper.find('.btn-confirm').trigger('click')
+    if (phase === 'success') {
+      releaseGrant()
+      await flushPromises()
+      expect(wrapper.find('.success-continue').exists()).toBe(true)
+    }
+    route.path = '/settings'
+    route.fullPath = '/settings'
+    await flushPromises()
+    mockGetUserInfo.mockClear()
+    if (phase === 'submitting') {
+      releaseGrant()
+      await flushPromises()
+      expect(mockGetUserInfo).toHaveBeenCalledWith({ refresh: true })
+    }
+    mockGetUserInfo.mockClear()
+    let releaseOldStatus!: () => void
+    let releaseOldProfile!: () => void
+    if (phase === 'return-with-delayed-refresh') {
+      mockPost.mockImplementationOnce(() => new Promise(resolve => {
+        releaseOldStatus = () => resolve({ status: false })
+      }))
+      mockGetUserInfo.mockImplementationOnce(() => new Promise(resolve => {
+        releaseOldProfile = () => resolve(baseUser)
+      }))
+    }
+    route.path = '/bookmarks'
+    route.fullPath = '/bookmarks'
+    await flushPromises()
+    expect(wrapper.findComponent(IndexPage).vm.$.uid).toBe(originalPageId)
+    expect(wrapper.findComponent(ReceiveSubscribeModal).exists()).toBe(false)
+    if (phase.startsWith('return-')) {
+      mockGetUserInfo.mockClear()
+      releaseGrant()
+      await flushPromises()
+      if (phase === 'return-with-delayed-refresh') {
+        expect(mockGetUserInfo).not.toHaveBeenCalled()
+        releaseOldStatus()
+        releaseOldProfile()
+        await flushPromises()
+      }
+      expect(mockGetUserInfo).toHaveBeenCalledWith({ refresh: true })
+      expect(wrapper.findComponent(ReceiveSubscribeModal).exists()).toBe(false)
+    }
+    expect(wrapper.find('.sidebar-promo').exists()).toBe(false)
+  })
+
+  it.each(['account-change', 'page-unmount'])('ignores a disposed ordinary claim after %s', async departure => {
+    mockPost.mockResolvedValue({ status: false })
+    const wrapper = mountIndexPage()
+    await flushPromises()
+    await wrapper.find('.sidebar-promo').trigger('click')
+    let releaseGrant!: () => void
+    mockPost.mockImplementationOnce(() => new Promise(resolve => {
+      releaseGrant = () => resolve({ title: 'Received', message: '30 days' })
+    }))
+    await wrapper.find('.btn-confirm').trigger('click')
+    if (departure === 'account-change') useState('koc-promotion').value.userId = baseUser.userId + 1
+    else wrapper.unmount()
+    await flushPromises()
+    mockGetUserInfo.mockClear()
+    mockPost.mockClear()
+    releaseGrant()
+    await flushPromises()
+    expect(mockGetUserInfo).not.toHaveBeenCalled()
+    expect(mockPost).not.toHaveBeenCalled()
+  })
+
+  it('does not lose a subscription refresh queued as the previous refresh completes', async () => {
+    mountIndexPage()
+    await flushPromises()
+    mockGetUserInfo.mockClear()
+    let finishRefresh!: () => void
+    mockGetUserInfo.mockImplementationOnce(() => new Promise(resolve => {
+      finishRefresh = () => resolve(baseUser)
+    }))
+    const signal = () => capturedChannelHandler.value('subscription', { subscription: { userId: baseUser.userId } })
+    signal()
+    finishRefresh()
+    queueMicrotask(signal)
+    await flushPromises()
+    expect(mockGetUserInfo).toHaveBeenCalledTimes(2)
+  })
+
+  it('attempts a queued ordinary profile refresh after the preceding read fails', async () => {
+    mountIndexPage()
+    await flushPromises()
+    mockGetUserInfo.mockClear()
+    let reject!: (error: Error) => void
+    mockGetUserInfo.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail }))
+    const signal = () => capturedChannelHandler.value('subscription', { subscription: { userId: baseUser.userId } })
+    signal()
+    signal()
+    reject(Error('temporary network failure'))
+    await flushPromises()
+    expect(mockGetUserInfo).toHaveBeenCalledTimes(2)
   })
 
   it('waits for the new account collection response before deciding onboarding', async () => {

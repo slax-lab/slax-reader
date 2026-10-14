@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 
 import { createPromotionFlow, initialPromotionState, promotionBlocksOnboarding, promotionIntent } from '~/utils/promotionFlow'
+import { readUserProfile } from '~/utils/userProfile'
 
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { UserInfo } from '@slax-reader/contracts/interface'
@@ -70,9 +71,11 @@ export const useKocPromotionController = () => {
   const refreshProfile = async () => {
     const current = getUserToken()
     const generation = identityGeneration
-    const profile = await api<UserInfo>(RESTMethodPath.ME)
-    if (generation !== identityGeneration || current !== getUserToken() || !Number.isSafeInteger(profile?.userId) || profile.userId <= 0) throw Error('Unverified identity')
-    userStore.user = profile
+    const profile = await readUserProfile(userStore, async () => {
+      const result = await api<UserInfo>(RESTMethodPath.ME)
+      if (generation !== identityGeneration || current !== getUserToken() || !Number.isSafeInteger(result?.userId) || result.userId <= 0) throw Error('Unverified identity')
+      return result
+    })
     flow.setAccount(profile.userId)
     return profile
   }

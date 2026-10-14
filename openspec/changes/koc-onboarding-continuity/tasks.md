@@ -56,3 +56,18 @@ Plan review and implementation were authorized on 2026-10-13. Checkboxes record 
 Local implementation and non-production browser verification are complete; see validation.md. Task 4.5 is partially complete: targeted cross-tab convergence is implemented, but real concurrent grant verification requires the opt-in isolated PostgreSQL payment suite and a dedicated test account. No existing database was truncated to run that suite. Preserve this release check rather than marking it tested.
 
 Task 6.4 covers completed local review and strict validation. No push or PR was performed in this session; the documented PR target and OpenSpec body requirement apply when publishing the branch.
+
+## 7. Follow-up review fixes
+
+- [x] 7.1 Preserve the explicit invitation through competing storage events during validation and eligibility checks, and verify persistence before URL cleanup; add regression coverage for attribution and ordinary cross-tab restoration.
+- [x] 7.2 Reset the ordinary promotion presentation when leaving the cached Inbox, including success and in-flight disposal; reconcile on activation and request settlement, guard account/page lifetime, reject stale eligibility replies, and drain queued profile refreshes. Verify all departure/return/settlement orders cannot remount a consumed offer or strand its refresh without window focus.
+- [x] 7.3 Run the affected regression suites, Web typecheck, strict OpenSpec validation, and a follow-up Bugs/Security/Compliance review; record results and changed files.
+
+## 8. Final deep-review fixes
+
+- [x] 8.1 Confirm local Inbox and active subscriptions directly after first sync before setting onboarding pending; cover throttled query notifications, empty/offline data, failures and ownership changes.
+- [x] 8.2 Order profile commits across page, promotion and offline fallback reads so a stale response cannot revert a granted subscription.
+- [x] 8.3 Reconcile a KOC submission after modal disposal without reopening or corrupting a newer invitation/account.
+- [x] 8.4 Retain storage invalidations during submission and consume them after settlement.
+- [x] 8.5 Invalidate ordinary eligibility reads when a grant succeeds.
+- [x] 8.6 Run regression tests, typecheck, strict validation and Bugs/Security/Compliance review; record evidence and file inventory.
