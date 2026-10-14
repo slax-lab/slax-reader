@@ -28,10 +28,10 @@ import { NotificationMessage } from '../../infra/message/notification'
 import { CrawlService } from '../../domain/crawl'
 import { LabService } from '../../domain/lab'
 import { SearchService } from '../../domain/search'
+import { YoutubeArticleRepo } from '../../infra/repository/dbYoutubeArticle'
 import { CollectionRepo } from '../../infra/repository/dbCollection'
 import { LogsService } from '../../domain/logs'
 import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
-import { YoutubeArticleRepo } from '../../infra/repository/dbYoutubeArticle'
 import { LogsRepo } from '../../infra/repository/dbLogs'
 import { BookmarkService } from '../../domain/bookmark'
 import { LabRepo } from '../../infra/repository/dbLab'
@@ -60,6 +60,7 @@ import { RssService } from '../../domain/rss'
 import { SubscriptionOrchestrator } from '../../domain/orchestrator/subscription'
 import { SubscriptionAppleService } from '../../domain/subscriptionApple'
 import { UserDeletionService } from '../../domain/userDeletion'
+import { YoutubeArticleService } from '../../domain/youtubeArticle'
 import { ApiKeyService } from '../../domain/apiKey'
 import { BookmarkOrchestrator } from '../../domain/orchestrator/bookmark'
 import { BookmarkAddOrchestrator } from '../../domain/orchestrator/bookmarkAdd'
@@ -77,6 +78,7 @@ import { CollectionJob } from '../../handler/cron/collectionJob'
 import { RssJob } from '../../handler/cron/rssJob'
 import { SubscriptionJob } from '../../handler/cron/subscriptionJob'
 import { UserDeletionJob } from '../../handler/cron/userDeletionJob'
+import { YoutubeArticleJob } from '../../handler/cron/youtubeArticleJob'
 import { BookmarkConsumer } from '../../handler/queue/bookmarkConsumer'
 import { SubscriptionConsumer } from '../../handler/queue/subscriptionConsumer'
 import { UserDeletionConsumer } from '../../handler/queue/userDeletionConsumer'
@@ -101,6 +103,8 @@ import { SubscriptionController } from '../../handler/http/subscriptionControlle
 import { SyncController } from '../../handler/http/syncController'
 import { TagController } from '../../handler/http/tagController'
 import { UserController } from '../../handler/http/userController'
+import { YoutubeArticleAdminController } from '../../handler/http/youtubeArticleAdminController'
+import { YoutubeArticleController } from '../../handler/http/youtubeArticleController'
 import { DatabaseRegistry } from '../data'
 
 container.register(AigcService, {
@@ -130,7 +134,8 @@ container.register(BookmarkService, {
       container.resolve(NotificationMessage),
       container.resolve(CrawlService),
       container.resolve(LabService),
-      container.resolve(SearchService)
+      container.resolve(SearchService),
+      container.resolve(YoutubeArticleRepo)
     )
 })
 
@@ -284,6 +289,20 @@ container.register(UserDeletionService, {
     )
 })
 
+container.register(YoutubeArticleService, {
+  useFactory: container =>
+    new YoutubeArticleService(
+      container.resolve(YoutubeArticleRepo),
+      container.resolve(BookmarkService),
+      container.resolve(LabService),
+      container.resolve(UserRepo),
+      lazy(() => container.resolve(RedisClient)),
+      lazy(() => container.resolve(BucketClient)),
+      container.resolve(SlaxAlertBotClient),
+      container.resolve(CrawlService)
+    )
+})
+
 container.register(AigcBatchOrchestrator, {
   useFactory: container => new AigcBatchOrchestrator(container.resolve(AigcService), container.resolve(BookmarkService), container.resolve(TagService))
 })
@@ -431,6 +450,10 @@ container.register(UserDeletionJob, {
       lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)),
       container.resolve(UserDeletionService)
     )
+})
+
+container.register(YoutubeArticleJob, {
+  useFactory: container => new YoutubeArticleJob(container.resolve(YoutubeArticleService))
 })
 
 container.register(BookmarkConsumer, {
@@ -654,6 +677,14 @@ container.register(UserController, {
       container.resolve(UserDeletionService),
       container.resolve(LabService)
     )
+})
+
+container.register(YoutubeArticleAdminController, {
+  useFactory: container => new YoutubeArticleAdminController(container.resolve(YoutubeArticleService))
+})
+
+container.register(YoutubeArticleController, {
+  useFactory: container => new YoutubeArticleController(container.resolve(YoutubeArticleService))
 })
 
 container.register(DatabaseRegistry, {

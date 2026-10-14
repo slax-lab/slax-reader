@@ -722,9 +722,10 @@ model sr_user_lab_feature {
 
 // Derived AI article for a YouTube video. Captions and articles are R2 objects under
 // youtube/canonical/; this row only carries pointers, versions, status and the eligibility result.
-// One row per (video_id, source_hash, prompt_version), shared by every bookmark of that video:
-// the caption source hash changes whenever the captions change, so an old article can never be
-// published over new captions. Visibility is decided by the bookmark, never by this row.
+// One row per (video_id, source_hash, target_language, prompt_version), shared by every bookmark
+// of that video whose reader wants that language: the caption source hash changes whenever the
+// captions change, so an old article can never be published over new captions. Visibility is
+// decided by the bookmark, never by this row.
 model sr_youtube_article {
     id               Int       @id @default(autoincrement())
     video_id         String
@@ -733,6 +734,7 @@ model sr_youtube_article {
     caption_language String?
     caption_kind     String?
     source_hash      String
+    target_language  String    @default("en")
     eligibility_json Json?
     status           String    @default("pending")
     article_key      String?
@@ -742,6 +744,8 @@ model sr_youtube_article {
     schema_version   Int       @default(1)
     quality_json     Json?
     retry_count      Int       @default(0)
+    run_id           String?
+    cost_usd         Float     @default(0)
     lease_until      DateTime?
     next_retry_at    DateTime?
     error_message    String?
@@ -750,7 +754,7 @@ model sr_youtube_article {
     started_at       DateTime?
     completed_at     DateTime?
 
-    @@unique([video_id, source_hash, prompt_version])
+    @@unique([video_id, source_hash, target_language, prompt_version], map: "sr_youtube_article_video_id_source_hash_target_language_pro_key")
     @@index([status, next_retry_at])
 }
 

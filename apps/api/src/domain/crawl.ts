@@ -5,6 +5,7 @@ import { extractYoutubeVideoId, shouldUseBrowserHtml } from '../utils/platformDe
 import { captionPlainText, captionSourceHash, youtubeCaptionKeys, type YoutubeCaptionDocument } from '../utils/youtubeCaption'
 import { evaluateYoutubeEligibility } from '../utils/youtubeEligibility'
 import { YoutubeArticleRepo, YOUTUBE_ARTICLE_PROMPT_VERSION, YOUTUBE_ARTICLE_SCHEMA_VERSION } from '../infra/repository/dbYoutubeArticle'
+import { youtubeArticleLanguage } from '@/utils/youtubeArticle'
 import { parseHTML } from 'linkedom'
 import { Imager } from '../utils/imager'
 import { ContentParser } from '../utils/parser'
@@ -533,7 +534,7 @@ export class CrawlService {
    * source and point this bookmark at it. Never throws: the bookmark is already saved and its
    * status must not depend on any of this. Logs carry ids, hashes and counts only, never the transcript.
    */
-  private async saveYoutubeCaptionArtifacts(ctx: ContextManager, fetched: YoutubeFetched, bookmarkId: number): Promise<void> {
+  public async saveYoutubeCaptionArtifacts(ctx: ContextManager, fetched: YoutubeFetched, bookmarkId: number): Promise<void> {
     const { videoId, caption } = fetched
     // An unavailable provider is not evidence that the video has no captions. Do not overwrite
     // the shared no-caption evaluation (or its bookmark reference) with a transient failure.
@@ -542,6 +543,11 @@ export class CrawlService {
       return
     }
     try {
+      // A taken-down video never gets its captions stored again
+      if (await this.youtubeArticleRepo.isTakedown(videoId)) {
+        console.log(`YouTube caption artifacts skipped for bookmark ${bookmarkId}: video ${videoId} is taken down`)
+        return
+      }
       const sourceHash = await captionSourceHash(caption, videoId)
       const plainText = caption ? captionPlainText(caption) : ''
       let captionKey: string | null = null
@@ -567,6 +573,9 @@ export class CrawlService {
         caption_language: caption?.language ?? null,
         caption_kind: caption?.kind ?? null,
         source_hash: sourceHash,
+        // Best guess from the request language; the trigger after the crawl adds the row for the
+        // reader's real AI language when it differs
+        target_language: youtubeArticleLanguage(null, ctx.getlang()),
         prompt_version: YOUTUBE_ARTICLE_PROMPT_VERSION,
         schema_version: YOUTUBE_ARTICLE_SCHEMA_VERSION,
         status: eligibility.decision === 'generate' ? 'pending' : 'skipped',

@@ -28,6 +28,7 @@ import {
 import { CrawlService } from '@/domain/crawl'
 import { Hashid } from '@/utils/hashids'
 import { LabService } from '@/domain/lab'
+import { YoutubeArticleRepo } from '@/infra/repository/dbYoutubeArticle'
 import { SearchService } from '@/domain/search'
 import { BookmarkTag } from '@/domain/tag'
 import { supportedLang } from '@/const/lang'
@@ -108,7 +109,8 @@ export class BookmarkService {
     @inject(NotificationMessage) private notifyMessage: NotificationMessage,
     @inject(CrawlService) private crawlService: CrawlService,
     @inject(LabService) private labService: LabService,
-    @inject(SearchService) private searchService: SearchService
+    @inject(SearchService) private searchService: SearchService,
+    @inject(YoutubeArticleRepo) private youtubeArticleRepo: YoutubeArticleRepo
   ) {
     this.bookmarkData = bookmarkRepo
     this.bucketData = bucket
@@ -392,7 +394,10 @@ export class BookmarkService {
           this.bucket().R2Bucket.delete(bmPO.content_key || ''),
           this.bucket().R2Bucket.delete(bmPO.content_md_key || ''),
           ...(isPdfContentKey(bmPO.content_key) ? [this.bucket().R2Bucket.delete(bmPO.content_key!.replace('pdf/body/', 'pdf/meta/').replace(/\.pdf$/, '.json'))] : []),
-          this.bookmarkSearchRepo.deleteBookmarkRaw(bmId)
+          this.bookmarkSearchRepo.deleteBookmarkRaw(bmId),
+          // YouTube article ref. Only here, where the bookmark row itself is gone: a shared (pre
+          // 2026-08-19) bookmark keeps its ref for the other users. The sweep removes unreferenced rows.
+          this.youtubeArticleRepo.unlinkBookmark(bmId)
         ]
 
         const shard = await this.bookmarkRepo.getVectorShard(bmId)

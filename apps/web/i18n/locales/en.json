@@ -545,6 +545,24 @@
     "transcript_panel": {
       "empty": "No transcript available",
       "title": "Transcript"
+    },
+    "youtube_article": {
+      "title": "AI article",
+      "preparing": "Preparing the article, this usually takes 1 to 3 minutes",
+      "timeout": "The article is taking longer than usual. Come back later to read it.",
+      "skipped": "This video relies on visuals, so no article was generated.",
+      "generate": "Generate anyway",
+      "failed": "Could not generate the article.",
+      "retry": "Retry",
+      "limit_reached": "Daily limit reached, try again tomorrow.",
+      "language_note": "This article is in {language}",
+      "lang": {
+        "en": "English",
+        "zh": "Chinese"
+      },
+      "show_transcript": "Show original transcript",
+      "hide_transcript": "Hide original transcript",
+      "seek": "Jump to {time}"
     }
   },
   "docs": {
@@ -1202,6 +1220,10 @@
           "name": "PDF bookmarks",
           "desc": "Save PDF links or upload PDFs to read, highlight, comment, and analyze extractable text.",
           "blocked": "PDF bookmarks are still in Labs. Turn it on in Settings, then save again"
+        },
+        "youtube_article": {
+          "name": "YouTube AI articles",
+          "desc": "Turns the transcript of a saved YouTube video into a readable article in your AI language. Videos that rely on visuals are skipped, and you can still generate them by hand."
         }
       },
       "navigation": {

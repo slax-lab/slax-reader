@@ -143,11 +143,11 @@ describe('repository-root generator paths', () => {
       }
     })
     expect(reads).toEqual(
-      ['aigc', 'bookmark', 'callback', 'collection', 'mark', 'share', 'subscription', 'tag', 'rss', 'user', 'mcp', 'sync', 'promotion', 'apiKey', 'events', 'metrics'].map(name =>
+      ['aigc', 'bookmark', 'callback', 'collection', 'mark', 'share', 'subscription', 'tag', 'rss', 'user', 'mcp', 'sync', 'promotion', 'apiKey', 'events', 'metrics', 'youtubeArticle', 'youtubeArticleAdmin'].map(name =>
         path.join(API_ROOT, `src/handler/http/${name}Controller.ts`)
       )
     )
-    expect(writes).toHaveBeenCalledWith(path.join(API_ROOT, 'src/di/generated/readerRouter.ts'), expect.stringContaining("from '../../handler/http/metricsController'"))
+    expect(writes).toHaveBeenCalledWith(path.join(API_ROOT, 'src/di/generated/readerRouter.ts'), expect.stringContaining("from '../../handler/http/youtubeArticleAdminController'"))
     expect(writes.mock.calls[0][1]).toContain("router.get('/fixture/test'")
     expect(writes.mock.calls[0][1]).not.toContain(ROOT)
   })

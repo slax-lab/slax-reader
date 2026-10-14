@@ -546,6 +546,24 @@
     "transcript_panel": {
       "empty": "暂无字幕",
       "title": "字幕"
+    },
+    "youtube_article": {
+      "title": "AI 整理稿",
+      "preparing": "整理稿生成中，通常需要 1 到 3 分钟",
+      "timeout": "整理稿比平时慢，稍后回来查看。",
+      "skipped": "这段视频更依赖画面，没有自动整理。",
+      "generate": "仍然生成",
+      "failed": "整理失败。",
+      "retry": "重试",
+      "limit_reached": "今天的生成次数已用完，明天再试。",
+      "language_note": "此整理稿为{language}",
+      "lang": {
+        "en": "英文",
+        "zh": "中文"
+      },
+      "show_transcript": "显示原始字幕",
+      "hide_transcript": "隐藏原始字幕",
+      "seek": "跳到 {time}"
     }
   },
   "docs": {
@@ -1203,6 +1221,10 @@
           "name": "PDF 收藏",
           "desc": "收藏 PDF 链接或上传 PDF，在线阅读、划线评论，并分析可提取的文字。",
           "blocked": "PDF 收藏还在实验室里，请到设置页打开后再保存"
+        },
+        "youtube_article": {
+          "name": "YouTube AI 整理稿",
+          "desc": "把收藏的 YouTube 视频字幕整理成一篇可读的文章，语言跟随你的 AI 语言设置。依赖画面的视频不自动整理，你可以手动生成。"
         }
       },
       "navigation": {

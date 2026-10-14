@@ -22,6 +22,8 @@ import { PromotionController } from '../../handler/http/promotionController'
 import { ApiKeyController } from '../../handler/http/apiKeyController'
 import { EventsController } from '../../handler/http/eventsController'
 import { MetricsController } from '../../handler/http/metricsController'
+import { YoutubeArticleController } from '../../handler/http/youtubeArticleController'
+import { YoutubeArticleAdminController } from '../../handler/http/youtubeArticleAdminController'
 
 export function getRouter(container: Container) {
   const router = Router()
@@ -526,6 +528,26 @@ export function getRouter(container: Container) {
   router.post('/m/dashboard/bookmark_steps', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(MetricsController)
     return await controller.handleBookmarkSteps(ctx, req)
+  })
+  router.get('/v1/youtube_article/status', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(YoutubeArticleController)
+    return await controller.handleStatus(ctx, req)
+  })
+  router.get('/v1/youtube_article/content', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(YoutubeArticleController)
+    return await controller.handleContent(ctx, req)
+  })
+  router.post('/v1/youtube_article/generate', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(YoutubeArticleController)
+    return await controller.handleGenerate(ctx, req)
+  })
+  router.post('/v1/youtube_article/retry', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(YoutubeArticleController)
+    return await controller.handleRetry(ctx, req)
+  })
+  router.post('/m/youtube_article/backfill', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(YoutubeArticleAdminController)
+    return await controller.handleBackfill(ctx, req)
   })
 
   router.get('/ping', () => Successed('pong'))

@@ -14,7 +14,7 @@ import { createMockCtx, createMockBucketClient, createMockBookmarkRepo, createMo
 function wire() {
   const { factory: bc, putIfKeyExists } = createMockBucketClient()
   const br = createMockBookmarkRepo()
-  const repo = { recordEvaluation: vi.fn().mockResolvedValue({ id: 1 }), linkBookmark: vi.fn().mockResolvedValue({ id: 1 }) }
+  const repo = { recordEvaluation: vi.fn().mockResolvedValue({ id: 1 }), linkBookmark: vi.fn().mockResolvedValue({ id: 1 }), isTakedown: vi.fn().mockResolvedValue(false) }
   const svc = new (CrawlService as any)()
   ;(svc as any).bucketClient = bc
   ;(svc as any).bookmarkRepo = br
@@ -91,6 +91,7 @@ describe('parseAndSaveYoutube with captions', () => {
       caption_kind: 'manual',
       prompt_version: YOUTUBE_ARTICLE_PROMPT_VERSION,
       schema_version: 1,
+      target_language: 'en',
       status: 'pending'
     })
     expect(row.caption_key).toBe(`youtube/canonical/captions/dQw4w9WgXcQ/${row.source_hash}.json`)
@@ -163,6 +164,27 @@ describe('failures never touch the bookmark', () => {
     await expect(svc.parseAndSaveYoutube(createMockCtx(), fetched(), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 10, 'ub-10')).resolves.toBeTruthy()
     expect(br.updateBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ status: 'success' }))
     expect(repo.recordEvaluation).not.toHaveBeenCalled()
+  })
+})
+
+describe('target language and takedown', () => {
+  test('the row is written for the request language, limited to en/zh', async () => {
+    const zh = wire()
+    await zh.svc.parseAndSaveYoutube(createMockCtx({ lang: 'zh' }), fetched(), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 10, 'ub-10')
+    expect(zh.repo.recordEvaluation.mock.calls[0][0].target_language).toBe('zh')
+    const ja = wire()
+    await ja.svc.parseAndSaveYoutube(createMockCtx({ lang: 'ja' }), fetched(), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 10, 'ub-10')
+    expect(ja.repo.recordEvaluation.mock.calls[0][0].target_language).toBe('en')
+  })
+
+  test('a taken-down video stores no captions, no row and no link; the bookmark still succeeds', async () => {
+    const { svc, putIfKeyExists, br, repo } = wire()
+    repo.isTakedown.mockResolvedValue(true)
+    await svc.parseAndSaveYoutube(createMockCtx(), fetched(), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 10, 'ub-10')
+    expect(putKeys(putIfKeyExists).filter(k => k.startsWith('youtube/'))).toEqual([])
+    expect(repo.recordEvaluation).not.toHaveBeenCalled()
+    expect(repo.linkBookmark).not.toHaveBeenCalled()
+    expect(br.updateBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ status: 'success' }))
   })
 })
 

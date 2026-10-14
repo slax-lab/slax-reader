@@ -98,6 +98,7 @@ interface __BaseEnv_Env {
   CORE: Service<typeof import('./src/entry/core/index').default>
   CRAWL_WORKFLOW: Workflow /* CrawlWorkflow from reader-core */
   CONTENT_VALIDATION_WORKFLOW: Workflow /* ContentValidationWorkflow from reader-core */
+  YOUTUBE_ARTICLE_WORKFLOW: Workflow /* YoutubeArticleWorkflow from reader-core */
   IMPORT_PARSE_WORKFLOW: Workflow /* ImportParseWorkflow from reader-core */
 }
 declare namespace Cloudflare {

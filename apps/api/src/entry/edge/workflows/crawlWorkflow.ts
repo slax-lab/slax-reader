@@ -24,6 +24,7 @@ import { OpenAIModerationClient, ModerationResult } from '@/infra/external/opena
 import { extractImageUrls } from '@/utils/htmlImages'
 import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
 import { EVENT_CONTEXT_KEY, type EventRequestContext } from '@/domain/events'
+import { YoutubeArticleService } from '@/domain/youtubeArticle'
 
 export interface CrawlWorkflowParams {
   eventContext?: EventRequestContext
@@ -398,6 +399,18 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
         const errMsg = triggerErr instanceof Error ? triggerErr.message : String(triggerErr)
         console.error(`Failed to trigger content validation workflow for bookmark ${bookmarkId}: ${errMsg}`)
         await alertFailure('post_processing.content_validation', { bookmark_id: bookmarkId, url, domain: hostname, error: errMsg })
+      }
+    }
+
+    // YouTube AI article: queue the saver's language version and start it if the gate allows.
+    // Inside a step so a workflow replay does not start it twice; failures never touch the bookmark.
+    if (crawlResult && !isSoft404 && moderationResult === ModerationResult.NORMAL && fetched?.resolvedUrl && detectRoute(fetched.resolvedUrl) === 'youtube') {
+      try {
+        await step.do('youtube-article-trigger', { retries: { limit: 1, delay: '10 seconds' as const, backoff: 'constant' }, timeout: '1 minute' }, async () => {
+          await currentContainer.resolve(YoutubeArticleService).triggerAfterCrawl(ctxManager, bookmarkId, userId, crawlResult!.title)
+        })
+      } catch (err) {
+        console.error(`YouTube article trigger step failed for bookmark ${bookmarkId}: ${err instanceof Error ? err.message : String(err)}`)
       }
     }
 

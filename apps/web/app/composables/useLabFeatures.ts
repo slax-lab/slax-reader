@@ -8,7 +8,10 @@ import Toast, { ToastType } from '~/components/Toast'
 
 export const LAB_FEATURE_DISABLED = 'LAB_FEATURE_DISABLED'
 
-export const isLabVisibleInSettings = (key: string): boolean => key !== 'youtube' && key !== 'pdf'
+// YouTube AI articles need YouTube saving, so the row is hidden with it
+const HIDDEN_IN_SETTINGS = new Set(['youtube', 'youtube_article', 'pdf'])
+
+export const isLabVisibleInSettings = (key: string): boolean => !HIDDEN_IN_SETTINGS.has(key)
 
 // Mirrors the backend gate: a YouTube video URL (watch / youtu.be / shorts / live / embed with an 11-char id)
 const YOUTUBE_VIDEO_RE = /^https?:\/\/(?:(?:www\.|m\.|music\.)?youtube\.com\/(?:watch\?(?:[^#]*&)?v=|(?:shorts|live|embed)\/)|youtu\.be\/)([A-Za-z0-9_-]{11})(?![A-Za-z0-9_-])/i

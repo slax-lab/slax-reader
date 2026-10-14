@@ -389,6 +389,31 @@ export interface LabFeature {
   enabled_at: string | null
 }
 
+/** YouTube AI article status, /v1/youtube_article/status */
+export type YoutubeArticleStatus = 'unavailable' | 'limit_reached' | 'pending' | 'skipped' | 'generating' | 'validating' | 'ready' | 'failed'
+
+export interface YoutubeArticleState {
+  status: YoutubeArticleStatus
+  language: 'en' | 'zh' | null
+  requested_language: 'en' | 'zh'
+  eligibility: { decision: 'generate' | 'skip' | 'review'; reason_codes: string[] } | null
+  version: string | null
+  format: 'article' | 'dialogue' | null
+  can_generate: boolean
+  can_retry: boolean
+  article_url: string | null
+  updated_at: string | null
+}
+
+/** Structured article, /v1/youtube_article/content. Rendered with text bindings only, never as HTML. */
+export interface YoutubeArticleContent {
+  version: string
+  language: 'en' | 'zh'
+  format: 'article' | 'dialogue'
+  lede: string
+  sections: { heading: string; start_ms: number; paragraphs: { speaker: string | null; text: string }[] }[]
+}
+
 export interface UserShareCollectInfo {
   show_name: string
   price: number

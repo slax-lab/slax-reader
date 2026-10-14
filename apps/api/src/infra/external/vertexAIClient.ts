@@ -20,6 +20,9 @@ export type VertexAIConfig = {
 }
 
 export type OnStepCallback = (toolName: string, args: Record<string, any>) => void
+
+/** Token counts of the final response; thinking tokens are billed as output, so they are added to it. */
+export type ChatUsage = { inputTokens: number; outputTokens: number }
 export type OnTextDeltaCallback = (text: string) => Promise<void>
 
 /** Budget for the provider to produce the first streamed chunk of one request. */
@@ -130,7 +133,11 @@ export class VertexAIClient {
     }
   }
 
-  async chat(contents: Content[], config: VertexAIConfig = {}, options?: { onStep?: OnStepCallback; systemInstruction?: string }): Promise<{ text: string }> {
+  async chat(
+    contents: Content[],
+    config: VertexAIConfig = {},
+    options?: { onStep?: OnStepCallback; systemInstruction?: string }
+  ): Promise<{ text: string; usage?: ChatUsage; finishReason?: string }> {
     const ai = await this.getAIClient()
 
     const generationConfig: any = {
@@ -201,7 +208,9 @@ export class VertexAIClient {
         continue
       }
 
-      return { text: response.text || '' }
+      const meta = response.usageMetadata
+      const usage = meta ? { inputTokens: meta.promptTokenCount ?? 0, outputTokens: (meta.candidatesTokenCount ?? 0) + (meta.thoughtsTokenCount ?? 0) } : undefined
+      return { text: response.text || '', usage, finishReason: response.candidates?.[0]?.finishReason }
     }
 
     return { text: '' }

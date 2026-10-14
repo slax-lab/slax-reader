@@ -60,6 +60,9 @@ import { TelegramBotService } from '@/domain/telegram'
 import { ImportService } from '@/domain/import'
 import { MultiLangError } from '@/utils/multiLangError'
 import { ErrorName } from '@/const/err'
+import { YoutubeArticleService } from '@/domain/youtubeArticle'
+import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
+import { OpenAIModerationClient, ModerationResult } from '@/infra/external/openaiModeration'
 import {
   createMockEnv,
   createMockCrawlService,
@@ -706,5 +709,53 @@ describe('CrawlWorkflow hostname 提取', () => {
     await runWorkflow(wf, { url: 'not-a-url' })
 
     expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'unknown', expect.any(String), expect.any(String))
+  })
+})
+
+describe('CrawlWorkflow → YouTube AI article trigger', () => {
+  const YT = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+
+  function wireYoutube() {
+    const w = wireWorkflow()
+    const yt = { triggerAfterCrawl: vi.fn().mockResolvedValue(undefined) }
+    mockResolveMap.set(YoutubeArticleService, yt)
+    mockResolveMap.set(SlaxAlertBotClient, { crawl: { pushMessage: vi.fn().mockResolvedValue(undefined) } })
+    ;(w.bs as any).updateBookmarkModerationResult = vi.fn().mockResolvedValue(undefined)
+    ;(w.bs as any).disableBookmarkShare = vi.fn().mockResolvedValue(undefined)
+    ;(w.cs as any).fetchYoutubeData = vi.fn().mockResolvedValue({ videoId: 'dQw4w9WgXcQ', title: 'Attention', cues: [] })
+    ;(w.cs as any).parseAndSaveYoutube = vi.fn().mockResolvedValue({ ...STANDARD_CRAWL_RESULT, title: 'Attention' })
+    return { ...w, yt }
+  }
+
+  test('a YouTube save that passed moderation triggers the article for the saver, inside a step', async () => {
+    const { wf, yt } = wireYoutube()
+    const step = createMockStep()
+    await runWorkflow(wf, { url: YT }, step)
+    expect(yt.triggerAfterCrawl).toHaveBeenCalledWith(expect.anything(), 42, 1, 'Attention')
+    expect(step.do.mock.calls.map((c: any[]) => c[0])).toContain('youtube-article-trigger')
+  })
+
+  test('other routes never trigger it', async () => {
+    const { wf, cs, yt } = wireYoutube()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>hi</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+    await runWorkflow(wf)
+    expect(yt.triggerAfterCrawl).not.toHaveBeenCalled()
+  })
+
+  test('flagged by moderation → no trigger', async () => {
+    const { wf, yt } = wireYoutube()
+    const spy = vi.spyOn(OpenAIModerationClient.prototype, 'moderateContent').mockResolvedValue(ModerationResult.PORN)
+    await runWorkflow(wf, { url: YT })
+    expect(yt.triggerAfterCrawl).not.toHaveBeenCalled()
+    spy.mockRestore()
+  })
+
+  test('a trigger failure never fails the crawl', async () => {
+    const { wf, yt, cs, uph } = wireYoutube()
+    yt.triggerAfterCrawl.mockRejectedValue(new Error('pg down'))
+    await runWorkflow(wf, { url: YT })
+    expect(uph.processPostHandler).toHaveBeenCalled()
+    expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'www.youtube.com', 'complete', 'success')
   })
 })

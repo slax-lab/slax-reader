@@ -35,6 +35,9 @@
     <div v-else class="article-detail article-body" ref="articleDetail" :class="{ [articleStyle]: true }">
       <div class="html-text" lang="en" v-html="articleHTML"></div>
     </div>
+    <!-- Content derived from the article (YouTube AI article). Outside .article-detail on purpose:
+         the original DOM, marks and processors stay untouched -->
+    <slot name="after-body" />
     <SnapshotArticleFooter v-if="!isPdf || detail.pdf" :via="footerVia" :show-via="footerShowVia" :collection="footerCollection" />
   </div>
 </template>

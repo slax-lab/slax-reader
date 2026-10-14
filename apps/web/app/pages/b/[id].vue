@@ -1,6 +1,11 @@
 <template>
   <div>
-    <SnapshotDetailLayout v-if="detail" class="bookmark-detail" :class="{ 'is-pdf': !!detail.pdf }" @close-panel="onUserPanelChange(null)">
+    <SnapshotDetailLayout
+      v-if="detail"
+      class="bookmark-detail"
+      :class="{ 'is-pdf': !!detail.pdf, 'yt-transcript-folded': youtubeArticleReady && !youtubeTranscriptShown }"
+      @close-panel="onUserPanelChange(null)"
+    >
       <template #topbar>
         <SnapshotTopBar>
           <template #left>
@@ -37,7 +42,20 @@
         @retry-pdf="retryPdfContent"
         @screen-lock-update="screenLockUpdate"
         @chat-bot-quote="onChatBotQuote"
-      />
+      >
+        <template #after-body>
+          <ClientOnly>
+            <YoutubeAiArticle
+              v-if="isYoutube && bookmarkUid"
+              :bookmark-uid="bookmarkUid"
+              :transcript-shown="youtubeTranscriptShown"
+              :has-transcript="youtubeCues.length > 0"
+              @ready="youtubeArticleReady = $event"
+              @toggle-transcript="youtubeTranscriptPref = !youtubeTranscriptShown"
+            />
+          </ClientOnly>
+        </template>
+      </BookmarkArticleLocalFirst>
 
       <template #right-edge-toolbar>
         <!-- visitor 无内容则隐藏整条侧栏 -->
@@ -160,6 +178,7 @@ import SnapshotRightEdgeToolbar from '~/components/Snapshot/SnapshotRightEdgeToo
 import SnapshotSharePopover from '~/components/Snapshot/SnapshotSharePopover.vue'
 import SnapshotTopBar from '~/components/Snapshot/SnapshotTopBar.vue'
 import SnapshotTranscriptPanel from '~/components/Snapshot/SnapshotTranscriptPanel.vue'
+import YoutubeAiArticle from '~/components/Snapshot/YoutubeAiArticle.vue'
 
 import { eventLog } from '@/utils/analytics'
 import { extractFirstContentImage } from '@/utils/ogImage'
@@ -494,6 +513,13 @@ const youtubeCues = computed<{ t: number; text: string }[]>(() => {
     return []
   }
 })
+
+// YouTube AI article: once it is ready the original transcript in the body is folded (hidden,
+// never removed, so marks and comments keep their place); the reader can show it again.
+// A transcript with highlights starts unfolded: a folded highlight cannot be reached from its comment card.
+const youtubeArticleReady = ref(false)
+const youtubeTranscriptPref = ref<boolean | null>(null)
+const youtubeTranscriptShown = computed(() => youtubeTranscriptPref.value ?? hasMarks.value)
 
 const sidePanels = computed<SnapshotPanelId[]>(() => {
   if (isOwner.value) return isYoutube.value ? ['ai', 'transcript', 'chat', 'comment'] : ['ai', 'chat', 'comment']
@@ -1020,6 +1046,12 @@ renderServerData()
 
 .comment-panel-wrap {
   --style: h-full flex flex-col overflow-hidden;
+}
+
+// The YouTube AI article is ready: fold the original transcript in the body. Hidden only, the DOM
+// stays, so marks and comments on it keep working when it is shown again; the side panel is unchanged
+.bookmark-detail.yt-transcript-folded :deep(.slax-yt-transcript) {
+  display: none;
 }
 
 .error {

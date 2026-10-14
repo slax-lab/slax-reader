@@ -47,7 +47,10 @@ describePg('LabRepo on Postgres', () => {
 
   test('no row means off; upsert flips one row per (user, feature)', async () => {
     expect(await repo.isEnabled(userId, 'youtube')).toBe(false)
-    expect(await service.listForUser(userId)).toEqual([{ key: 'youtube', status: 'active', enabled: false, enabled_at: null }])
+    expect(await service.listForUser(userId)).toEqual([
+      { key: 'youtube', status: 'active', enabled: false, enabled_at: null },
+      { key: 'youtube_article', status: 'active', enabled: false, enabled_at: null }
+    ])
 
     await service.setEnabled(userId, 'youtube', true)
     expect(await repo.isEnabled(userId, 'youtube')).toBe(true)

@@ -48,6 +48,12 @@ class RedisOperation<T> {
     await this.client.set(this.key, stringValue, { ex: seconds })
   }
 
+  /** SET NX EX: true when this call created the key. */
+  async setIfAbsent(value: T, seconds: number): Promise<boolean> {
+    const stringValue = typeof value === 'object' ? JSON.stringify(value) : String(value)
+    return (await this.client.set(this.key, stringValue, { nx: true, ex: seconds })) === 'OK'
+  }
+
   async incr(): Promise<number> {
     return this.client.incr(this.key)
   }
@@ -99,6 +105,26 @@ export class RedisClient {
 
   userProfile(userId: string) {
     return this.key<Record<string, any>>(`user_profile:${userId}`)
+  }
+
+  /** Per-user daily count of YouTube article starts, kind = auto | manual. */
+  youtubeArticleDaily(userId: number, day: string, kind: 'auto' | 'manual') {
+    return this.key<number>(`yt_article:${userId}:${day}:${kind}`)
+  }
+
+  /** Site-wide estimated model spend of one UTC day, in micro-dollars. */
+  youtubeArticleCost(day: string) {
+    return this.key<number>(`yt_article_cost:${day}`)
+  }
+
+  /** Short lock so one row is not started twice by parallel polls, the crawl and the sweeper. */
+  youtubeArticleStartLock(articleId: number) {
+    return this.key<number>(`yt_article_start:${articleId}`)
+  }
+
+  /** Set once a day when the site-wide budget is hit, so the alert goes out once. */
+  youtubeArticleBudgetAlert(day: string) {
+    return this.key<number>(`yt_article_budget_alert:${day}`)
   }
 
   userImportProcess(userId: number, id: number) {
