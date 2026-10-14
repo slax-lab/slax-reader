@@ -1,10 +1,12 @@
-import { enableAutoUnmount } from '@vue/test-utils'
-// pages/onboarding.vue 单测
-import { initialPromotionState } from '~~/app/utils/promotionFlow'
 import OnboardingPage from '~~/app/pages/onboarding.vue'
 
+// pages/onboarding.vue 单测
+import { initialPromotionState } from '~~/app/utils/promotionFlow'
+
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { enableAutoUnmount } from '@vue/test-utils'
 import { flushPromises } from '@vue/test-utils'
+import { useOnboardingPending } from '~~/app/composables/bookmark/useOnboardingPending'
 import { baseUser } from '~~/tests/fixtures/user'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -52,11 +54,45 @@ describe('pages/onboarding.vue', () => {
     useState('onboarding-flags', () => ({})).value = {}
     useState('koc-promotion', initialPromotionState).value = { ...initialPromotionState(), userId: baseUser.userId, phase: 'idle' }
     vi.clearAllMocks()
+    mockNavigateTo.mockImplementation(() => Promise.resolve())
     mockGetUserInfo.mockResolvedValue(baseUser)
   })
 
   afterEach(() => {
     localStorage.clear()
+    vi.unstubAllGlobals()
+  })
+
+  it('closes the real mobile hero and publishes dismissal before returning to the cached Inbox', async () => {
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (iPhone)', platform: 'iPhone', maxTouchPoints: 1 })
+    localStorage.setItem(`slax_onboarding_pending_${baseUser.userId}`, 'true')
+    const wrapper = mountWithApp(OnboardingPage, { global: { stubs: { OnboardingTopBar: stubs.OnboardingTopBar } } })
+    await flushPromises()
+    expect(wrapper.find('.hero-mobile-close').exists()).toBe(true)
+    mockNavigateTo.mockImplementation(() => {
+      expect(localStorage.getItem(`slax_onboarding_dismissed_${baseUser.userId}`)).toBe('true')
+      expect(localStorage.getItem(`slax_onboarding_pending_${baseUser.userId}`)).toBeNull()
+      return Promise.resolve()
+    })
+    await wrapper.get('.hero-mobile-close').trigger('click')
+    await flushPromises()
+    expect(mockNavigateTo).toHaveBeenCalledWith({ path: '/', query: {} }, { replace: true })
+    const observer = mountWithApp({ setup: () => useOnboardingPending(ref(baseUser.userId)), template: '<div>{{ isDismissed }}:{{ isPending }}</div>' })
+    expect(observer.text()).toBe('true:false')
+    observer.vm.setPending()
+    await nextTick()
+    expect(observer.text()).toBe('true:false')
+  })
+
+  it('allows mobile close without an account identity', async () => {
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Android)', platform: 'Linux armv8l', maxTouchPoints: 5 })
+    useState('koc-promotion', initialPromotionState).value = { ...initialPromotionState(), phase: 'idle' }
+    const wrapper = mountWithApp(OnboardingPage, { global: { stubs: { OnboardingTopBar: stubs.OnboardingTopBar } } })
+    expect(wrapper.find('.hero-mobile-close').exists()).toBe(true)
+    await wrapper.get('.hero-mobile-close').trigger('click')
+    await flushPromises()
+    expect(mockNavigateTo).toHaveBeenCalledWith({ path: '/', query: {} }, { replace: true })
+    expect(localStorage.getItem(`slax_onboarding_dismissed_${baseUser.userId}`)).toBeNull()
   })
 
   it('无 onboarding 标记 → userInfo 就位后立即退回 /', async () => {

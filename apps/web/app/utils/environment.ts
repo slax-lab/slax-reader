@@ -72,3 +72,18 @@ export const isMobileBrowser = (): boolean => {
   // iPadOS 13+ 的 Safari UA 伪装成桌面 Mac，用触屏兜底
   return navigator.maxTouchPoints > 1 && navigator.platform === 'MacIntel'
 }
+
+/** Official destinations published at https://www.slax.com/reader/. */
+export const getReaderAppDownloadUrl = (): string => {
+  const fallback = 'https://www.slax.com/reader/'
+  if (!isClient) return fallback
+
+  const { userAgent, platform, maxTouchPoints } = navigator
+  // Windows Phone can include both Android and iPhone compatibility tokens.
+  if (/Windows Phone|IEMobile|BlackBerry|BB10/i.test(userAgent)) return fallback
+  if (/Android/i.test(userAgent)) return 'https://play.google.com/store/apps/details?id=com.slax.reader'
+  if (/iPhone|iPad|iPod/i.test(userAgent) || (platform === 'MacIntel' && maxTouchPoints > 1)) {
+    return 'https://apps.apple.com/us/app/slax-reader-ai-read-it-later/id6596730998'
+  }
+  return fallback
+}
