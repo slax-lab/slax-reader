@@ -46,7 +46,7 @@ function memBucket() {
 function memRow(over: Partial<youtubeArticlePO> = {}) {
   const row = {
     id: 1,
-    video_id: VIDEO,
+    source_id: VIDEO,
     source_hash: HASH,
     target_language: 'en',
     caption_key: CAPTION_KEY,

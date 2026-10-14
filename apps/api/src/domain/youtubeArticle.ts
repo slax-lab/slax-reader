@@ -138,9 +138,9 @@ export class YoutubeArticleService {
     const ref = await this.repo.findRef(access.bookmarkId)
     if (!ref) return unavailable
 
-    let row = await this.repo.findVersion(ref.video_id, ref.source_hash, requested)
+    let row = await this.repo.findVersion(ref.source_id, ref.source_hash, requested)
     if (!row && access.isOwner) {
-      const base = (await this.repo.listForSource(ref.video_id, ref.source_hash))[0]
+      const base = (await this.repo.listForSource(ref.source_id, ref.source_hash))[0]
       if (base) row = await this.repo.ensureLanguageRow(base, requested)
     }
 
@@ -158,7 +158,7 @@ export class YoutubeArticleService {
     // so any other state would be a spinner that never ends
     if (!access.isOwner && (!row || row.status !== 'ready')) {
       const ownerLanguage = await this.languageOf(access.ownerId)
-      const fallback = ownerLanguage === requested ? null : await this.repo.findVersion(ref.video_id, ref.source_hash, ownerLanguage)
+      const fallback = ownerLanguage === requested ? null : await this.repo.findVersion(ref.source_id, ref.source_hash, ownerLanguage)
       row = fallback?.status === 'ready' ? fallback : null
     }
 
@@ -176,7 +176,7 @@ export class YoutubeArticleService {
     if (access.flagged || !(await this.labService.isEnabled(access.ownerId, YOUTUBE_ARTICLE_LAB))) throw BookmarkNotFoundError()
     const ref = await this.repo.findRef(access.bookmarkId)
     if (!ref) throw BookmarkNotFoundError()
-    const rows = await this.repo.listForSource(ref.video_id, ref.source_hash)
+    const rows = await this.repo.listForSource(ref.source_id, ref.source_hash)
     const row = rows.find(r => r.status === 'ready' && r.article_key && this.versionOf(r) === version)
     if (!row) throw BookmarkNotFoundError()
     const obj = await this.bucket().R2Bucket.get(row.article_key!)
@@ -246,9 +246,9 @@ export class YoutubeArticleService {
     const ref = await this.repo.findRef(access.bookmarkId)
     if (!ref) throw BookmarkNotFoundError()
     const language = await this.languageOf(access.ownerId)
-    let row = await this.repo.findVersion(ref.video_id, ref.source_hash, language)
+    let row = await this.repo.findVersion(ref.source_id, ref.source_hash, language)
     if (!row) {
-      const base = (await this.repo.listForSource(ref.video_id, ref.source_hash))[0]
+      const base = (await this.repo.listForSource(ref.source_id, ref.source_hash))[0]
       if (!base) throw BookmarkNotFoundError()
       const created = await this.repo.ensureLanguageRow(base, language)
       if (!created) throw BookmarkNotFoundError()
@@ -282,9 +282,9 @@ export class YoutubeArticleService {
       const ref = await this.repo.findRef(bookmarkId)
       if (!ref) return
       const language = await this.languageOf(userId)
-      let row = await this.repo.findVersion(ref.video_id, ref.source_hash, language)
+      let row = await this.repo.findVersion(ref.source_id, ref.source_hash, language)
       if (!row) {
-        const base = (await this.repo.listForSource(ref.video_id, ref.source_hash))[0]
+        const base = (await this.repo.listForSource(ref.source_id, ref.source_hash))[0]
         if (!base) return
         const created = await this.repo.ensureLanguageRow(base, language)
         if (!created) return
@@ -333,7 +333,7 @@ export class YoutubeArticleService {
 
     const params: YoutubeArticleWorkflowParams = {
       articleId: row.id,
-      videoId: row.video_id,
+      videoId: row.source_id,
       sourceHash: row.source_hash,
       targetLanguage: row.target_language as YoutubeArticleLanguage,
       promptVersion: row.prompt_version,
@@ -341,7 +341,7 @@ export class YoutubeArticleService {
       trigger
     }
     try {
-      await ctx.env.YOUTUBE_ARTICLE_WORKFLOW.create({ id: youtubeArticleWorkflowId(row.video_id, row.source_hash, row.target_language, row.prompt_version), params })
+      await ctx.env.YOUTUBE_ARTICLE_WORKFLOW.create({ id: youtubeArticleWorkflowId(row.source_id, row.source_hash, row.target_language, row.prompt_version), params })
       return 'started'
     } catch (err) {
       console.error(`YouTube article workflow create failed for article ${row.id}: ${err instanceof Error ? err.message : String(err)}`)
@@ -416,7 +416,7 @@ export class YoutubeArticleService {
     let started = 0
     for (const row of slots > 0 ? await this.repo.listRunnable(slots) : []) {
       if (slots <= 0) break
-      const ref = await this.repo.findAnyRef(row.video_id, row.source_hash)
+      const ref = await this.repo.findAnyRef(row.source_id, row.source_hash)
       const title = ref ? (((await this.bookmarkService.getBookmarkById(ref.bookmark_id).catch(() => null)) as { title?: string } | null)?.title ?? '') : ''
       const result = await this.start(ctx, row, title, 'sweep')
       if (result === 'started') {
@@ -455,7 +455,7 @@ export class YoutubeArticleService {
     }
     if (!(await this.repo.deleteOrphan(row.id, cutoff))) return false
     if (keys.length) await bucket.delete(keys)
-    await this.deletePrefix(youtubeArticleChunkPrefix(row.video_id, row.source_hash, row.target_language, row.prompt_version))
+    await this.deletePrefix(youtubeArticleChunkPrefix(row.source_id, row.source_hash, row.target_language, row.prompt_version))
     return true
   }
 

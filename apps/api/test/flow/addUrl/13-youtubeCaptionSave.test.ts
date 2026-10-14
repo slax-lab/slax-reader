@@ -86,7 +86,7 @@ describe('parseAndSaveYoutube with captions', () => {
     const row = repo.recordEvaluation.mock.calls[0][0]
     expect(row).not.toHaveProperty('bookmark_id')
     expect(row).toMatchObject({
-      video_id: 'dQw4w9WgXcQ',
+      source_id: 'dQw4w9WgXcQ',
       caption_language: 'en',
       caption_kind: 'manual',
       prompt_version: YOUTUBE_ARTICLE_PROMPT_VERSION,
@@ -99,7 +99,7 @@ describe('parseAndSaveYoutube with captions', () => {
     expect(row.eligibility).toMatchObject({ rules_version: 1, decision: 'generate', reason_codes: [] })
 
     expect(repo.linkBookmark).toHaveBeenCalledTimes(1)
-    expect(repo.linkBookmark).toHaveBeenCalledWith({ bookmark_id: 10, user_id: 1, video_id: 'dQw4w9WgXcQ', source_hash: row.source_hash })
+    expect(repo.linkBookmark).toHaveBeenCalledWith({ bookmark_id: 10, user_id: 1, source_id: 'dQw4w9WgXcQ', source_hash: row.source_hash })
     expect(repo.linkBookmark.mock.invocationCallOrder[0]).toBeGreaterThan(repo.recordEvaluation.mock.invocationCallOrder[0])
   })
 

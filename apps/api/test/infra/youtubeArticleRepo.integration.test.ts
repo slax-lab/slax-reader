@@ -29,7 +29,7 @@ describePg('YoutubeArticleRepo on Postgres', () => {
   const bookmarkBase = 900_000_000 + Math.floor(Math.random() * 1_000_000)
 
   const evaluation = (over: Partial<YoutubeArticleEvaluation> = {}): YoutubeArticleEvaluation => ({
-    video_id: video,
+    source_id: video,
     caption_key: `youtube/canonical/captions/${video}/h1.json`,
     caption_text_key: `youtube/canonical/captions/${video}/h1.txt`,
     caption_language: 'en',
@@ -53,34 +53,36 @@ describePg('YoutubeArticleRepo on Postgres', () => {
   })
 
   afterAll(async () => {
-    await pg.sr_youtube_article.deleteMany({ where: { video_id: { startsWith: `t${token}` } } })
-    await pg.sr_youtube_article_ref.deleteMany({ where: { video_id: { startsWith: `t${token}` } } })
+    await pg.sr_media_article.deleteMany({ where: { source_id: { startsWith: `t${token}` } } })
+    await pg.sr_media_article_ref.deleteMany({ where: { source_id: { startsWith: `t${token}` } } })
     await pg.$disconnect()
   })
 
-  test('while the old unique key exists, another language refreshes the version row; re-evaluation refreshes only pending/skipped rows', async () => {
+  test('one row per target language; re-evaluation refreshes only pending/skipped rows', async () => {
     const en = await repo.recordEvaluation(evaluation())
     const zh = await repo.recordEvaluation(evaluation({ target_language: 'zh', status: 'skipped' }))
-    expect(zh.id).toBe(en.id)
-    expect(zh).toMatchObject({ target_language: 'en', status: 'skipped' })
+    expect(en.id).not.toBe(zh.id)
+    expect([en.target_language, zh.target_language]).toEqual(['en', 'zh'])
 
     const again = await repo.recordEvaluation(evaluation({ status: 'skipped', eligibility: { decision: 'skip', reason_codes: ['x'] } }))
     expect(again.id).toBe(en.id)
     expect(again.status).toBe('skipped')
 
-    await pg.sr_youtube_article.update({ where: { id: en.id }, data: { status: 'ready', updated_at: new Date(Date.now() - 30 * 86_400_000) } })
-    const kept = await repo.recordEvaluation(evaluation({ target_language: 'zh' }))
+    await pg.sr_media_article.update({ where: { id: en.id }, data: { status: 'ready', updated_at: new Date(Date.now() - 30 * 86_400_000) } })
+    const kept = await repo.recordEvaluation(evaluation())
     expect(kept.status).toBe('ready')
     // a new save marks the row as used, so the orphan sweep cannot delete it under the new ref
     expect(kept.updated_at.getTime()).toBeGreaterThan(Date.now() - 60_000)
   })
 
-  test('while the old unique key exists, ensureLanguageRow gives null for a second language and never throws', async () => {
+  test('ensureLanguageRow copies the gate result; a concurrent second call returns the same row', async () => {
     const base = await repo.recordEvaluation(evaluation())
     const [a, b] = await Promise.all([repo.ensureLanguageRow(base, 'zh'), repo.ensureLanguageRow(base, 'zh')])
-    expect(a).toBeNull()
-    expect(b).toBeNull()
-    expect((await repo.ensureLanguageRow(base, 'en'))?.id).toBe(base.id)
+    expect(a.id).toBe(b.id)
+    expect(a).toMatchObject({ target_language: 'zh', status: 'pending', caption_key: base.caption_key, eligibility_json: { decision: 'generate', reason_codes: [] } })
+
+    const skippedBase = await repo.recordEvaluation(evaluation({ source_hash: 'h2', eligibility: { decision: 'review', reason_codes: ['non_en_zh_language'] }, status: 'skipped' }))
+    expect((await repo.ensureLanguageRow(skippedBase, 'zh')).status).toBe('skipped')
   })
 
   test('one run wins the claim; the winning claim is idempotent; only the winner renews and publishes', async () => {
@@ -118,7 +120,7 @@ describePg('YoutubeArticleRepo on Postgres', () => {
   test('retryable failures go back to pending with a delay, then stay failed after 3 attempts', async () => {
     const row = await repo.recordEvaluation(evaluation())
     for (const [i, expected] of ['pending', 'pending', 'failed'].entries()) {
-      await pg.sr_youtube_article.update({ where: { id: row.id }, data: { next_retry_at: null } })
+      await pg.sr_media_article.update({ where: { id: row.id }, data: { next_retry_at: null } })
       expect(await repo.claim(row.id, `run-${i}`, 60_000)).toBe(true)
       expect(await repo.finishAttempt(row.id, { kind: 'retry', error: 'rate_limited' }, { runId: 'someone-else' })).toBeNull()
       expect(await repo.finishAttempt(row.id, { kind: 'retry', error: 'rate_limited' }, { runId: `run-${i}` })).toBe(expected)
@@ -132,7 +134,7 @@ describePg('YoutubeArticleRepo on Postgres', () => {
     const row = await repo.recordEvaluation(evaluation())
     await repo.claim(row.id, 'run-1', 60_000)
     expect(await repo.finishAttempt(row.id, { kind: 'retry', error: 'lease_expired' }, { expiredBefore: new Date() })).toBeNull()
-    await pg.sr_youtube_article.update({ where: { id: row.id }, data: { lease_until: new Date(Date.now() - 1000) } })
+    await pg.sr_media_article.update({ where: { id: row.id }, data: { lease_until: new Date(Date.now() - 1000) } })
     expect(await repo.finishAttempt(row.id, { kind: 'retry', error: 'lease_expired', retryDelayMs: 60_000 }, { expiredBefore: new Date() })).toBe('pending')
     expect((await repo.findById(row.id))!.next_retry_at!.getTime()).toBeGreaterThan(Date.now() + 50_000)
   })
@@ -156,14 +158,14 @@ describePg('YoutubeArticleRepo on Postgres', () => {
     expect((await repo.findById(row.id))?.next_retry_at).toBeInstanceOf(Date)
     expect(await repo.requeue(row.id, false)).toBe(false)
 
-    await pg.sr_youtube_article.update({ where: { id: row.id }, data: { status: 'failed', retry_count: 3, error_message: 'quality:length_ratio' } })
+    await pg.sr_media_article.update({ where: { id: row.id }, data: { status: 'failed', retry_count: 3, error_message: 'quality:length_ratio' } })
     expect(await repo.requeue(row.id, true)).toBe(true)
     expect(await repo.findById(row.id)).toMatchObject({ status: 'pending', retry_count: 0, error_message: null })
 
-    await pg.sr_youtube_article.update({ where: { id: row.id }, data: { status: 'failed', error_message: 'budget_exceeded' } })
+    await pg.sr_media_article.update({ where: { id: row.id }, data: { status: 'failed', error_message: 'budget_exceeded' } })
     expect(await repo.requeue(row.id, true)).toBe(false)
     expect(await repo.requeue(row.id, false)).toBe(false)
-    await pg.sr_youtube_article.update({ where: { id: row.id }, data: { status: 'skipped', error_message: 'too_long' } })
+    await pg.sr_media_article.update({ where: { id: row.id }, data: { status: 'skipped', error_message: 'too_long' } })
     expect(await repo.requeue(row.id, false)).toBe(false)
   })
 
@@ -187,8 +189,8 @@ describePg('YoutubeArticleRepo on Postgres', () => {
     const orphan = await repo.recordEvaluation(evaluation({ source_hash: 'old' }))
     const running = await repo.recordEvaluation(evaluation({ source_hash: 'busy' }))
     await repo.claim(running.id, 'run-1', 60_000)
-    await repo.linkBookmark({ bookmark_id: bookmarkBase + n, user_id: 1, video_id: video, source_hash: 'h1' })
-    await pg.sr_youtube_article.updateMany({ where: { video_id: video }, data: { updated_at: new Date(Date.now() - 8 * 86_400_000) } })
+    await repo.linkBookmark({ bookmark_id: bookmarkBase + n, user_id: 1, source_id: video, source_hash: 'h1' })
+    await pg.sr_media_article.updateMany({ where: { source_id: video }, data: { updated_at: new Date(Date.now() - 8 * 86_400_000) } })
 
     const ids = (await repo.listOrphans(new Date(Date.now() - 7 * 86_400_000), 1000)).map(r => r.id)
     expect(ids).toContain(orphan.id)
@@ -197,9 +199,9 @@ describePg('YoutubeArticleRepo on Postgres', () => {
     const cutoff = new Date(Date.now() - 7 * 86_400_000)
     expect(await repo.deleteOrphan(linked.id, cutoff)).toBe(false)
     // touched again after the sweep listed it (a re-save): kept
-    await pg.sr_youtube_article.update({ where: { id: orphan.id }, data: { updated_at: new Date() } })
+    await pg.sr_media_article.update({ where: { id: orphan.id }, data: { updated_at: new Date() } })
     expect(await repo.deleteOrphan(orphan.id, cutoff)).toBe(false)
-    await pg.sr_youtube_article.update({ where: { id: orphan.id }, data: { updated_at: new Date(Date.now() - 8 * 86_400_000) } })
+    await pg.sr_media_article.update({ where: { id: orphan.id }, data: { updated_at: new Date(Date.now() - 8 * 86_400_000) } })
     expect(await repo.deleteOrphan(orphan.id, cutoff)).toBe(true)
     expect(await repo.findById(orphan.id)).toBeNull()
 
@@ -210,7 +212,7 @@ describePg('YoutubeArticleRepo on Postgres', () => {
 
   test('takedown clears pointers, blocks new rows of the video and survives re-evaluation', async () => {
     const row = await repo.recordEvaluation(evaluation())
-    await pg.sr_youtube_article.update({ where: { id: row.id }, data: { status: 'ready', article_key: 'a.json' } })
+    await pg.sr_media_article.update({ where: { id: row.id }, data: { status: 'ready', article_key: 'a.json' } })
     expect(await repo.takedownVideo(video)).toBe(1)
     expect(await repo.isTakedown(video)).toBe(true)
     expect(await repo.findById(row.id)).toMatchObject({ status: 'takedown', article_key: null, caption_key: null })
@@ -218,8 +220,7 @@ describePg('YoutubeArticleRepo on Postgres', () => {
     expect((await repo.recordEvaluation(evaluation())).status).toBe('takedown')
     expect((await repo.recordEvaluation(evaluation({ source_hash: 'new' }))).status).toBe('takedown')
     const base = (await repo.findVersion(video, 'h1', 'en', 'v1'))!
-    // While the old unique key exists, a taken-down version can not get a second language row at all
-    expect(await repo.ensureLanguageRow(base, 'zh')).toBeNull()
+    expect((await repo.ensureLanguageRow(base, 'zh')).status).toBe('takedown')
   })
 
   test('takedown script marks rows (or adds a marker); the sweep sees it; orphans never delete the marker', async () => {
@@ -229,7 +230,7 @@ describePg('YoutubeArticleRepo on Postgres', () => {
     await client.connect()
     try {
       const vid = `tk${token}${n}`.slice(0, 11).padEnd(11, '_')
-      const row = await repo.recordEvaluation(evaluation({ video_id: vid }))
+      const row = await repo.recordEvaluation(evaluation({ source_id: vid }))
       expect(await takedownVideo(client, vid, false)).toEqual({ video_id: vid, rows: 1, marked: 0, applied: false })
       expect((await repo.findById(row.id))?.status).toBe('pending')
       expect(await takedownVideo(client, vid, true)).toMatchObject({ rows: 1, marked: 1, applied: true })
@@ -238,15 +239,15 @@ describePg('YoutubeArticleRepo on Postgres', () => {
       await repo.takedownVideo(vid)
       expect(await repo.listTakedownsToClean(1000)).not.toContain(vid)
 
-      await pg.sr_youtube_article.updateMany({ where: { video_id: vid }, data: { updated_at: new Date(Date.now() - 30 * 86_400_000) } })
-      expect((await repo.listOrphans(new Date(), 1000)).map(r => r.video_id)).not.toContain(vid)
+      await pg.sr_media_article.updateMany({ where: { source_id: vid }, data: { updated_at: new Date(Date.now() - 30 * 86_400_000) } })
+      expect((await repo.listOrphans(new Date(), 1000)).map(r => r.source_id)).not.toContain(vid)
       expect(await repo.deleteOrphan(row.id, new Date())).toBe(false)
 
       const fresh = `tm${token}${n}`.slice(0, 11).padEnd(11, '_')
       expect(await takedownVideo(client, fresh, true)).toMatchObject({ rows: 0, marked: 1 })
       expect(await repo.isTakedown(fresh)).toBe(true)
       await expect(takedownVideo(client, 'bad id!', true)).rejects.toThrow('11-character')
-      await pg.sr_youtube_article.deleteMany({ where: { video_id: { in: [vid, fresh] } } })
+      await pg.sr_media_article.deleteMany({ where: { source_id: { in: [vid, fresh] } } })
     } finally {
       await client.end()
     }
@@ -267,7 +268,7 @@ describePg('YoutubeArticleRepo on Postgres', () => {
     const linked = await mk(labUser.id, `https://www.youtube.com/watch?v=${token}aa3`, 'YouTube')
     const notYt = await mk(labUser.id, `https://example.com/${token}`)
     const offUser = await mk(otherUser.id, `https://www.youtube.com/watch?v=${token}aa4`)
-    await repo.linkBookmark({ bookmark_id: linked.b.id, user_id: labUser.id, video_id: video, source_hash: 'h1' })
+    await repo.linkBookmark({ bookmark_id: linked.b.id, user_id: labUser.id, source_id: video, source_hash: 'h1' })
     try {
       const all = (await repo.listBackfillCandidates(1000)).filter(r => [yt1, yt2, linked, notYt, offUser].some(x => x.ub.id === r.user_bookmark_id))
       expect(all.map(r => r.bookmark_id)).toEqual([yt2.b.id, yt1.b.id])
@@ -288,7 +289,7 @@ describePg('YoutubeArticleRepo on Postgres', () => {
   test('findForBookmark follows the bookmark ref to the language row', async () => {
     const row = await repo.recordEvaluation(evaluation({ target_language: 'zh' }))
     const bookmarkId = bookmarkBase + 500_000 + n
-    await repo.linkBookmark({ bookmark_id: bookmarkId, user_id: 7, video_id: video, source_hash: 'h1' })
+    await repo.linkBookmark({ bookmark_id: bookmarkId, user_id: 7, source_id: video, source_hash: 'h1' })
     expect((await repo.findForBookmark(bookmarkId, 'zh'))?.id).toBe(row.id)
     expect(await repo.findForBookmark(bookmarkId, 'en')).toBeNull()
     expect((await repo.findAnyRef(video, 'h1'))?.bookmark_id).toBe(bookmarkId)

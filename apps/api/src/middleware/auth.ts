@@ -15,6 +15,8 @@ const whiteList = [
   '/v1/share/detail',
   '/v1/youtube_article/status',
   '/v1/youtube_article/content',
+  '/v1/podcast/status',
+  '/v1/podcast/translation',
   '/v1/share/mark_list',
   '/v1/user/messages',
   '/v1/bookmark/connect_changes',

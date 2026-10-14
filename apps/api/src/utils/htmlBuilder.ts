@@ -1,4 +1,5 @@
 import { XHSData } from '@/const/moreapi/xhs'
+import { renderPodcastBody, type PodcastPlayerInfo } from '@/utils/podcastArticle'
 import { TweetArticleInfo, TweetInfo } from '@/const/twitterapi/struct'
 import { RedditData } from '@/const/moreapi/reddit'
 import { TikHubWeixinContent, parseWeixinCreateTime } from '@/const/moreapi/weixin'
@@ -465,6 +466,11 @@ ${player}
 ${rows}
   </div>
 </div>`
+  }
+
+  /** First body of a podcast bookmark: the player and the show notes. The article replaces it later. */
+  public static buildPodcast(info: PodcastPlayerInfo): string {
+    return renderPodcastBody({ info })
   }
 
   public static buildQuoteTweet(document: Document) {

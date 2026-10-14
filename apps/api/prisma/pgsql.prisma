@@ -720,15 +720,18 @@ model sr_user_lab_feature {
     @@index([feature, enabled])
 }
 
-// Derived AI article for a YouTube video. Captions and articles are R2 objects under
-// youtube/canonical/; this row only carries pointers, versions, status and the eligibility result.
-// One row per (video_id, source_hash, target_language, prompt_version), shared by every bookmark
-// of that video whose reader wants that language: the caption source hash changes whenever the
-// captions change, so an old article can never be published over new captions. Visibility is
-// decided by the bookmark, never by this row.
-model sr_youtube_article {
+// Derived AI article of a medium (YouTube video or podcast episode). Sources and articles are R2
+// objects under youtube/canonical/ or podcast/canonical/; this row only carries pointers, versions,
+// status and the eligibility result. One row per (media_kind, source_id, source_hash,
+// target_language, prompt_version), shared by every bookmark of that source whose reader wants that
+// language: the source hash changes whenever the captions or transcript change, so an old article
+// can never be published over a new source. Visibility is decided by the bookmark, never by this row.
+// The table keeps its YouTube-era names, so the migration only adds and code already in production
+// keeps working; the old unique key stays because YouTube and podcast source ids never collide.
+model sr_media_article {
     id               Int       @id @default(autoincrement())
-    video_id         String
+    media_kind       String    @default("youtube")
+    source_id        String    @map("video_id")
     caption_key      String?
     caption_text_key String?
     caption_language String?
@@ -754,26 +757,29 @@ model sr_youtube_article {
     started_at       DateTime?
     completed_at     DateTime?
 
-    @@unique([video_id, source_hash, target_language, prompt_version], map: "sr_youtube_article_video_id_source_hash_target_language_pro_key")
-    // Expand/contract: the old key stays while production code still upserts on it. The contract
-    // migration in podcast-article drops it.
-    @@unique([video_id, source_hash, prompt_version])
+    @@unique([media_kind, source_id, source_hash, target_language, prompt_version], map: "sr_media_article_version_key")
+    @@unique([source_id, source_hash, target_language, prompt_version], map: "sr_youtube_article_video_id_source_hash_target_language_pro_key")
     @@index([status, next_retry_at])
+    @@map("sr_youtube_article")
 }
 
-// Which caption version a bookmark saw when it was crawled. One row per bookmark (bookmarks are
-// per user here). Deleted with the bookmark; canonical rows with no refs left are swept.
-model sr_youtube_article_ref {
+// Which source version a bookmark points at. One row per bookmark (bookmarks are per user here).
+// Deleted with the bookmark; canonical rows with no refs left are swept. A podcast ref has an
+// empty source_hash until the episode's transcript is ready.
+model sr_media_article_ref {
     id          Int      @id @default(autoincrement())
     bookmark_id Int      @unique
     user_id     Int
-    video_id    String
+    media_kind  String   @default("youtube")
+    source_id   String   @map("video_id")
     source_hash String
     created_at  DateTime @default(now())
     updated_at  DateTime @updatedAt
 
-    @@index([video_id, source_hash])
+    @@index([media_kind, source_id, source_hash], map: "sr_media_article_ref_media_kind_source_id_source_hash_idx")
+    @@index([source_id, source_hash])
     @@index([user_id])
+    @@map("sr_youtube_article_ref")
 }
 
 // Shared feed state; ownership checks and lifecycle cleanup are explicit repository operations.
@@ -841,4 +847,37 @@ model sr_rss_save_job {
     created_at  DateTime @default(now())
 
     @@index([user_id], map: "sr_rss_save_job_user")
+}
+
+// One podcast episode per audio URL: metadata and the transcription job. The transcript is an R2
+// object under podcast/canonical/transcripts/; articles are sr_media_article rows (media_kind podcast).
+model sr_podcast_episode {
+    id                    Int       @id @default(autoincrement())
+    source_id             String    @unique
+    audio_url             String
+    title                 String    @default("")
+    show_name             String    @default("")
+    author                String    @default("")
+    cover_url             String    @default("")
+    duration_sec          Int?
+    language              String?
+    shownotes             String    @default("")
+    publisher_transcripts Json?
+    transcript_status     String    @default("pending")
+    transcript_source     String?
+    provider_job_id       String?
+    transcript_key        String?
+    transcript_hash       String?
+    speakers              Boolean   @default(false)
+    cost_usd              Float     @default(0)
+    retry_count           Int       @default(0)
+    run_id                String?
+    lease_until           DateTime?
+    next_retry_at         DateTime?
+    error_message         String?
+    created_at            DateTime  @default(now())
+    updated_at            DateTime  @updatedAt
+    completed_at          DateTime?
+
+    @@index([transcript_status, next_retry_at])
 }

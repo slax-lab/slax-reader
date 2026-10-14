@@ -38,6 +38,7 @@ interface MenuItem {
 const ICON_COPY = `<svg viewBox="0 0 16 16" fill="none" stroke-width="1" fill-rule="evenodd"><g transform="translate(2, 2)" stroke="currentColor"><path d="M5.00000004,3.66666667 L9.99999996,3.66666667 C10.7363796,3.66666667 11.3333333,4.26362035 11.3333333,5.00000004 L11.3333333,9.99999996 C11.3333333,10.7363796 10.7363796,11.3333333 9.99999996,11.3333333 L5.00000004,11.3333333 C4.26362035,11.3333333 3.66666667,10.7363796 3.66666667,9.99999996 L3.66666667,5.00000004 C3.66666667,4.26362035 4.26362035,3.66666667 5.00000004,3.66666667 Z"/><path d="M2,7.66666667 L1.33333333,7.66666667 C0.596953667,7.66666667 0,7.069713 0,6.33333333 L0,1.33333333 C0,0.596953667 0.596953667,0 1.33333333,0 L6.33333333,0 C7.069713,0 7.66666667,0.596953667 7.66666667,1.33333333 L7.66666667,2"/></g></svg>`
 const ICON_STROKE = `<svg viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(2.75, 2.3333)" stroke="currentColor"><polyline points="1 8.66666667 4.33333333 0 5.66666667 0 9 8.66666667"/><line x1="2.33333333" y1="6" x2="7.66666667" y2="6"/><line x1="0" y1="10.6666667" x2="10.25" y2="10.6666667"/></g></svg>`
 const ICON_COMMENT = `<svg viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linejoin="round"><g transform="translate(2.9167, 3.5)" stroke="currentColor"><path d="M0,0 L9.66666667,0 C10.0348565,0 10.3333333,0.298476833 10.3333333,0.666666667 L10.3333333,7.33333333 C10.3333333,7.70152317 10.0348565,8 9.66666667,8 L2.33333333,8 L0,9.66666667 L0,0 Z"/></g></svg>`
+const ICON_LISTEN = `<svg viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linejoin="round"><g transform="translate(2, 2)" stroke="currentColor"><circle cx="6" cy="6" r="6"/><path d="M4.6,3.6 L8.6,6 L4.6,8.4 Z"/></g></svg>`
 const ICON_CHATBOT = `<svg viewBox="0 0 16 16" fill="none" stroke-width="1"><g transform="translate(2, 2)"><circle stroke="currentColor" cx="6" cy="6" r="6"/><path d="M3.4537925,3.46536973 C3.72993487,3.46536973 3.9537925,3.68922736 3.9537925,3.96536973 L3.9537925,6.25 C3.9537925,6.52614237 3.72993487,6.75 3.4537925,6.75 C3.17765012,6.75 2.9537925,6.52614237 2.9537925,6.25 L2.9537925,3.96536973 C2.9537925,3.68922736 3.17765012,3.46536973 3.4537925,3.46536973 Z" fill="currentColor"/><path d="M7,3.46536973 C7.27614237,3.46536973 7.5,3.68922736 7.5,3.96536973 L7.5,6.25 C7.5,6.52614237 7.27614237,6.75 7,6.75 C6.72385763,6.75 6.5,6.52614237 6.5,6.25 L6.5,3.96536973 C6.5,3.68922736 6.72385763,3.46536973 7,3.46536973 Z" fill="currentColor"/><path d="M11.2830533,8.75 C11.1033171,9.04743188 11,9.39544906 11,9.76738745 C11,10.8623541 11.8954305,11.75 13,11.75" stroke="currentColor"/></g></svg>`
 
 const props = defineProps({
@@ -64,6 +65,11 @@ const props = defineProps({
   hideComment: {
     type: Boolean,
     required: false
+  },
+  // 选区在播客段落里：显示「从这里听」
+  allowListen: {
+    type: Boolean,
+    required: false
   }
 })
 const emits = defineEmits(['action', 'dismiss', 'noAction'])
@@ -85,6 +91,13 @@ const updateMenus = () => {
       icon: ICON_COPY
     }
   ]
+  if (props.allowListen) {
+    menus.value.push({
+      id: MenuType.Listen,
+      name: t('common.operate.listen_from_here'),
+      icon: ICON_LISTEN
+    })
+  }
   if (props.allowAction) {
     menus.value.push(
       props.isStroked
@@ -123,7 +136,8 @@ nextTick(() => {
 })
 
 const handleClick = (id: MenuType, event: MouseEvent) => {
-  if (id !== MenuType.Copy && !useUserStore().userInfo) {
+  // 复制和收听不需要登录
+  if (id !== MenuType.Copy && id !== MenuType.Listen && !useUserStore().userInfo) {
     return showLoginModal({
       redirect: window.location.href
     })
@@ -138,7 +152,7 @@ const handleClickOutside = () => {
 }
 
 watch(
-  () => [props.allowAction, props.allowChatbot, props.isStroked, props.hideComment],
+  () => [props.allowAction, props.allowChatbot, props.isStroked, props.hideComment, props.allowListen],
   () => {
     updateMenus()
   },

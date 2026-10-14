@@ -6,6 +6,24 @@ import { captionPlainText, captionSourceHash, youtubeCaptionKeys, type YoutubeCa
 import { evaluateYoutubeEligibility } from '../utils/youtubeEligibility'
 import { YoutubeArticleRepo, YOUTUBE_ARTICLE_PROMPT_VERSION, YOUTUBE_ARTICLE_SCHEMA_VERSION } from '../infra/repository/dbYoutubeArticle'
 import { youtubeArticleLanguage } from '@/utils/youtubeArticle'
+import { PodcastArticleRepo, PodcastEpisodeRepo } from '../infra/repository/dbPodcastArticle'
+import { fetchPublicText } from '@/infra/external/podcastFetch'
+import {
+  appleLookupUrl,
+  classifyPodcastUrl,
+  directAudioInfo,
+  enrichFromFeed,
+  findFeedItem,
+  latestFeedEpisode,
+  parseAppleUrl,
+  parsePodcastFeed,
+  parseXiaoyuzhouPage,
+  pickAppleEpisode,
+  podcastSourceId,
+  spotifyInfo,
+  type PodcastEpisodeInfo
+} from '@/utils/podcastSource'
+import { renderPodcastText } from '@/utils/podcastArticle'
 import { parseHTML } from 'linkedom'
 import { Imager } from '../utils/imager'
 import { ContentParser } from '../utils/parser'
@@ -97,7 +115,9 @@ export class CrawlService {
     @inject(BookmarkRepo) private bookmarkRepo: BookmarkRepo,
     @inject(LogsService) private logsService: LogsService,
     @inject(SlaxAlertBotClient) private alertBot: SlaxAlertBotClient,
-    @inject(YoutubeArticleRepo) private youtubeArticleRepo: YoutubeArticleRepo
+    @inject(YoutubeArticleRepo) private youtubeArticleRepo: YoutubeArticleRepo,
+    @inject(PodcastEpisodeRepo) private podcastEpisodeRepo: PodcastEpisodeRepo,
+    @inject(PodcastArticleRepo) private podcastArticleRepo: PodcastArticleRepo
   ) {}
 
   public async pushBookmarkFailureAlert(userId: number, scope: string, meta: Record<string, unknown>) {
@@ -567,7 +587,7 @@ export class CrawlService {
         plainText
       })
       await this.youtubeArticleRepo.recordEvaluation({
-        video_id: videoId,
+        source_id: videoId,
         caption_key: captionKey,
         caption_text_key: captionTextKey,
         caption_language: caption?.language ?? null,
@@ -581,12 +601,110 @@ export class CrawlService {
         status: eligibility.decision === 'generate' ? 'pending' : 'skipped',
         eligibility
       })
-      await this.youtubeArticleRepo.linkBookmark({ bookmark_id: bookmarkId, user_id: ctx.getUserId(), video_id: videoId, source_hash: sourceHash })
+      await this.youtubeArticleRepo.linkBookmark({ bookmark_id: bookmarkId, user_id: ctx.getUserId(), source_id: videoId, source_hash: sourceHash })
       console.log(
         `YouTube caption saved for bookmark ${bookmarkId}: video=${videoId} hash=${sourceHash.slice(0, 12)} cues=${caption?.cues.length ?? 0} chars=${plainText.length} decision=${eligibility.decision} reasons=${eligibility.reason_codes.join(',') || '-'}`
       )
     } catch (err) {
       console.error(`YouTube caption artifacts failed for bookmark ${bookmarkId} (video ${videoId}): ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  /**
+   * Podcast episode data for a recognised link (spec 第 2 节). Null when the link is not a podcast
+   * episode after all (a feed without audio, an Apple episode the lookup does not list): the caller
+   * then saves it as a normal page. Fetch errors are thrown, so the crawl step retries.
+   */
+  public async fetchPodcastData(url: string): Promise<PodcastEpisodeInfo | null> {
+    try {
+      return await this.readPodcastEpisode(url)
+    } catch (err) {
+      // An error that will repeat (blocked address, too large, 4xx, unreadable answer) is not worth a
+      // retry: the link is saved as a normal page, as it was before the podcast route existed.
+      // Errors that can pass (5xx, timeouts, network) are thrown, so the crawl step retries.
+      const message = err instanceof Error ? err.message : String(err)
+      if (err instanceof SyntaxError || /^(blocked_url|too_large|too_many_redirects|http_4\d\d)/.test(message)) {
+        console.warn(`Podcast fetch for ${url} gave up (${message.slice(0, 80)}); saving as a page`)
+        return null
+      }
+      throw err
+    }
+  }
+
+  private async readPodcastEpisode(url: string): Promise<PodcastEpisodeInfo | null> {
+    const kind = classifyPodcastUrl(url)
+    if (kind === 'xiaoyuzhou') {
+      const info = parseXiaoyuzhouPage(url, await fetchPublicText(url, { maxBytes: 3 * 1024 * 1024, accept: 'text/html' }))
+      return info.audioUrl ? info : null
+    }
+    if (kind === 'apple') {
+      const ids = parseAppleUrl(url)
+      if (!ids) return null
+      const lookup = JSON.parse(await fetchPublicText(appleLookupUrl(ids.showId), { maxBytes: 3 * 1024 * 1024, accept: 'application/json' }))
+      const picked = pickAppleEpisode(url, lookup, ids.episodeId)
+      if (!picked) return null
+      if (!picked.feedUrl) return picked.info
+      try {
+        // The feed adds transcripts, the language and fuller notes; the episode works without it
+        const feed = parsePodcastFeed(await fetchPublicText(picked.feedUrl, { maxBytes: 15 * 1024 * 1024 }))
+        return enrichFromFeed(picked.info, feed, findFeedItem(feed, { audioUrl: picked.info.audioUrl, title: picked.info.title }))
+      } catch (err) {
+        console.warn(`Podcast feed enrichment failed for ${url}: ${err instanceof Error ? err.message : String(err)}`)
+        return picked.info
+      }
+    }
+    if (kind === 'audio') return directAudioInfo(url)
+    if (kind === 'feed') {
+      let feed
+      try {
+        feed = parsePodcastFeed(await fetchPublicText(url, { maxBytes: 15 * 1024 * 1024 }))
+      } catch (err) {
+        if (err instanceof Error && err.message === 'not an RSS feed') return null
+        throw err
+      }
+      return latestFeedEpisode(url, feed)
+    }
+    if (kind === 'spotify') {
+      const oembed = await fetchPublicText(`https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`, { maxBytes: 256 * 1024, accept: 'application/json' })
+        .then(text => JSON.parse(text) as { title?: string; thumbnail_url?: string })
+        .catch(() => null)
+      return spotifyInfo(url, oembed)
+    }
+    return null
+  }
+
+  /** First body of a podcast bookmark (player and notes), the episode row and the bookmark's reference to it. */
+  public async parseAndSavePodcast(ctx: ContextManager, info: PodcastEpisodeInfo, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+    const html = HtmlBuilder.buildPodcast({ ...info })
+    const textContent = renderPodcastText({ info })
+    const result = await this.parseAndSaveSocialMedia(ctx, {
+      html,
+      originalUrl: info.pageUrl,
+      bookmarkId,
+      userBookmarkUuid,
+      meta: {
+        title: info.title || info.showName || 'Podcast',
+        textContent,
+        excerpt: (info.shownotes || info.title).slice(0, 200),
+        byline: info.author || info.showName,
+        siteName: info.showName || (info.kind === 'xiaoyuzhou' ? '小宇宙' : info.kind === 'apple' ? 'Apple Podcasts' : info.kind === 'spotify' ? 'Spotify' : 'Podcast'),
+        publishedTime: info.publishedAt ?? new Date()
+      }
+    })
+    await this.savePodcastEpisode(ctx, info, bookmarkId)
+    return result
+  }
+
+  /** Episode row and bookmark reference. Never throws: the bookmark is already saved. */
+  public async savePodcastEpisode(ctx: ContextManager, info: PodcastEpisodeInfo, bookmarkId: number): Promise<void> {
+    if (!info.audioUrl) return
+    try {
+      const sourceId = await podcastSourceId(info.audioUrl)
+      const episode = await this.podcastEpisodeRepo.upsertFromInfo(sourceId, info)
+      await this.podcastArticleRepo.linkBookmark({ bookmark_id: bookmarkId, user_id: ctx.getUserId(), source_id: sourceId, source_hash: episode.transcript_hash ?? '' })
+      console.log(`Podcast episode saved for bookmark ${bookmarkId}: episode=${episode.id} source=${sourceId} kind=${info.kind} status=${episode.transcript_status}`)
+    } catch (err) {
+      console.error(`Podcast episode save failed for bookmark ${bookmarkId}: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
 

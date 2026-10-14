@@ -1,0 +1,227 @@
+/**
+ * Podcast sources against real pages and feeds saved on 2026-10-14 (test/fixtures/podcast):
+ * a 小宇宙 episode page, an iTunes lookup answer for The Daily, and a Buzzsprout feed that
+ * carries Podcasting 2.0 transcript tags.
+ * 来源: src/utils/podcastSource.ts, docs/podcast-article/spec.md 第 2 节
+ */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, test } from 'vitest'
+import {
+  classifyPodcastUrl,
+  directAudioInfo,
+  enrichFromFeed,
+  findFeedItem,
+  latestFeedEpisode,
+  outboundUrlProblem,
+  parseAppleUrl,
+  parseDuration,
+  parsePodcastFeed,
+  parseXiaoyuzhouPage,
+  pickAppleEpisode,
+  podcastLanguage,
+  podcastSourceId,
+  spotifyInfo,
+  stripHtml
+} from '@/utils/podcastSource'
+
+const fixture = (name: string) => readFileSync(join(__dirname, '../fixtures/podcast', name), 'utf8')
+
+describe('classifyPodcastUrl', () => {
+  test.each([
+    ['https://www.xiaoyuzhoufm.com/episode/6ac821ae848a38b151b0d593', 'xiaoyuzhou'],
+    ['https://xiaoyuzhoufm.com/episode/6ac821ae848a38b151b0d593?s=abc', 'xiaoyuzhou'],
+    ['https://podcasts.apple.com/us/podcast/the-daily/id1200361736?i=1000796109623', 'apple'],
+    ['https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk', 'spotify'],
+    ['https://open.spotify.com/intl-de/episode/4rOoJ6Egrf8K2IrywzwOMk?si=x', 'spotify'],
+    ['https://cdn.example.com/show/ep1.mp3', 'audio'],
+    ['https://cdn.example.com/show/ep1.M4A?token=1', 'audio'],
+    ['https://feeds.buzzsprout.com/1004689.rss', 'feed'],
+    ['https://example.com/podcast/feed', 'feed'],
+    ['https://feed.xyz.fm/show', 'feed'],
+    ['https://anchor.fm/s/abc/podcast/rss', 'feed']
+  ])('%s → %s', (url, kind) => {
+    expect(classifyPodcastUrl(url)).toBe(kind)
+  })
+
+  test.each([
+    'https://podcasts.apple.com/us/podcast/the-daily/id1200361736',
+    'https://www.xiaoyuzhoufm.com/podcast/5e5c52c9418a84a04625e6cc',
+    'https://example.com/blog/post',
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    'ftp://example.com/a.mp3',
+    'not a url'
+  ])('%s is not a podcast episode', url => {
+    expect(classifyPodcastUrl(url)).toBeNull()
+  })
+})
+
+describe('outboundUrlProblem', () => {
+  test.each([
+    ['https://media.xyzcdn.net/a.mp3', null],
+    ['http://example.com:80/a.mp3', null],
+    ['file:///etc/passwd', 'scheme'],
+    ['https://user:pass@example.com/a.mp3', 'credentials'],
+    ['https://example.com:8443/a.mp3', 'port'],
+    ['http://localhost/a.mp3', 'local_host'],
+    ['http://printer.local/a.mp3', 'local_host'],
+    ['http://127.0.0.1/a.mp3', 'private_ip'],
+    ['http://10.1.2.3/a.mp3', 'private_ip'],
+    ['http://172.20.0.1/a.mp3', 'private_ip'],
+    ['http://192.168.1.1/a.mp3', 'private_ip'],
+    ['http://169.254.169.254/latest/meta-data', 'private_ip'],
+    ['http://100.64.0.1/a.mp3', 'private_ip'],
+    ['http://[::1]/a.mp3', 'private_ip'],
+    ['http://[::ffff:10.0.0.1]/a.mp3', 'private_ip'],
+    ['http://[2606:4700::1111]/a.mp3', null],
+    ['nonsense', 'unparsable']
+  ])('%s → %s', (url, problem) => {
+    expect(outboundUrlProblem(url)).toBe(problem)
+  })
+})
+
+describe('helpers', () => {
+  test('parseDuration', () => {
+    expect(parseDuration('01:02:03')).toBe(3723)
+    expect(parseDuration('62:03')).toBe(3723)
+    expect(parseDuration('4121')).toBe(4121)
+    expect(parseDuration('2773')).toBe(2773)
+    expect(parseDuration(1931.6)).toBe(1932)
+    expect(parseDuration('')).toBeNull()
+    expect(parseDuration('abc')).toBeNull()
+  })
+
+  test('podcastLanguage keeps only zh and en', () => {
+    expect(podcastLanguage('en-us')).toBe('en')
+    expect(podcastLanguage('zh-CN')).toBe('zh')
+    expect(podcastLanguage('ZH')).toBe('zh')
+    expect(podcastLanguage('ja')).toBeNull()
+    expect(podcastLanguage(null)).toBeNull()
+  })
+
+  test('stripHtml folds tags and entities and caps the length', () => {
+    expect(stripHtml('<p>A &amp; B</p><p>C&nbsp;&#8217;s</p>')).toBe('A & B\nC ’s')
+    expect(stripHtml('x'.repeat(5000)).length).toBe(4000)
+  })
+
+  test('podcastSourceId is stable, ignores host case and fragments, and differs by path', async () => {
+    const a = await podcastSourceId('https://Media.Example.com/a.mp3#t=10')
+    expect(a).toBe(await podcastSourceId('https://media.example.com/a.mp3'))
+    expect(a).toHaveLength(32)
+    expect(a).not.toBe(await podcastSourceId('https://media.example.com/b.mp3'))
+  })
+})
+
+describe('小宇宙 page', () => {
+  const url = 'https://www.xiaoyuzhoufm.com/episode/6ac821ae848a38b151b0d593?s=share'
+  test('reads audio, title, show, duration, notes and date from the Next.js data blob', () => {
+    const info = parseXiaoyuzhouPage(url, fixture('xiaoyuzhou-episode.html'))
+    expect(info).toMatchObject({
+      kind: 'xiaoyuzhou',
+      pageUrl: 'https://www.xiaoyuzhoufm.com/episode/6ac821ae848a38b151b0d593',
+      title: 'E255｜模型越来越强，为什么用户没感觉？再访阿里国际站总裁张阔',
+      showName: '硅谷101',
+      durationSec: 2773,
+      language: 'zh'
+    })
+    expect(info.audioUrl).toMatch(/^https:\/\/media\.xyzcdn\.net\/5e5c52c9418a84a04625e6cc\/.+\.(mp3|m4a)$/)
+    expect(info.shownotes.length).toBeGreaterThan(100)
+    expect(info.shownotes).not.toMatch(/<[a-z]/i)
+    expect(info.publishedAt?.toISOString()).toBe('2026-10-08T23:00:00.000Z')
+  })
+
+  test('falls back to og:audio when the data blob is missing', () => {
+    const info = parseXiaoyuzhouPage(url, '<meta property="og:audio" content="https://media.xyzcdn.net/x.m4a"><meta property="og:title" content="T">')
+    expect(info).toMatchObject({ audioUrl: 'https://media.xyzcdn.net/x.m4a', title: 'T', language: 'zh' })
+  })
+
+  test('no audio at all → empty audioUrl (the caller fails the fetch)', () => {
+    expect(parseXiaoyuzhouPage(url, '<html></html>').audioUrl).toBe('')
+  })
+})
+
+describe('Apple Podcasts', () => {
+  const url = 'https://podcasts.apple.com/us/podcast/when-a-i-comes/id1200361736?i=1000796109623'
+  test('parseAppleUrl', () => {
+    expect(parseAppleUrl(url)).toEqual({ showId: '1200361736', episodeId: '1000796109623' })
+    expect(parseAppleUrl('https://podcasts.apple.com/us/podcast/the-daily/id1200361736')).toBeNull()
+  })
+
+  test('picks the episode out of the show lookup, with the feed URL', () => {
+    const picked = pickAppleEpisode(url, JSON.parse(fixture('apple-lookup.json')), '1000796109623')
+    expect(picked?.feedUrl).toBe('https://feeds.simplecast.com/Sl5CSM3S')
+    expect(picked?.info).toMatchObject({ kind: 'apple', showName: 'The Daily', durationSec: 1997 })
+    expect(picked?.info.audioUrl).toMatch(/^https:\/\/dts\.podtrac\.com\//)
+    expect(picked?.info.title.length).toBeGreaterThan(5)
+  })
+
+  test('an episode not in the lookup → null', () => {
+    expect(pickAppleEpisode(url, JSON.parse(fixture('apple-lookup.json')), '999')).toBeNull()
+  })
+})
+
+describe('RSS feed', () => {
+  const feed = parsePodcastFeed(fixture('buzzsprout-feed.xml'))
+
+  test('reads show, language and items with audio, duration and transcript refs', () => {
+    expect(feed.language).toBe('en')
+    expect(feed.languageTag).toBe('en-us')
+    expect(feed.items).toHaveLength(2)
+    const item = feed.items[0]
+    expect(item.audioUrl).toMatch(/\.mp3$/)
+    expect(item.durationSec).toBe(4121)
+    expect(item.guid).toBe('Buzzsprout-19917599')
+    expect(item.transcripts.map(t => t.type)).toEqual(['text/html', 'application/json', 'application/x-subrip', 'text/vtt'])
+    expect(item.description).not.toMatch(/<p>/)
+  })
+
+  test('latestFeedEpisode picks the newest item with audio', () => {
+    const info = latestFeedEpisode('https://feeds.buzzsprout.com/1004689.rss', feed)
+    expect(info).toMatchObject({ kind: 'feed', language: 'en', showName: feed.title })
+    expect(info?.transcripts).toHaveLength(4)
+  })
+
+  test('a feed without audio enclosures has no episode', () => {
+    const blog = parsePodcastFeed('<rss><channel><title>Blog</title><item><title>Post</title><link>https://x</link></item></channel></rss>')
+    expect(latestFeedEpisode('https://x/feed', blog)).toBeNull()
+  })
+
+  test('not RSS → throws', () => {
+    expect(() => parsePodcastFeed('<html><body>hi</body></html>')).toThrow('not an RSS feed')
+  })
+
+  test('findFeedItem matches by guid, audio file name or title; enrichFromFeed fills the gaps', () => {
+    const item = feed.items[1]
+    expect(findFeedItem(feed, { guid: item.guid })).toBe(item)
+    expect(findFeedItem(feed, { audioUrl: `https://tracker.example/redirect/${item.audioUrl.replace(/^https:\/\//, '')}` })).toBe(item)
+    expect(findFeedItem(feed, { title: `  ${item.title.toUpperCase()} ` })).toBe(item)
+    expect(findFeedItem(feed, { title: 'nope' })).toBeNull()
+
+    const base = directAudioInfo('https://cdn.example.com/ep.mp3')
+    const enriched = enrichFromFeed(base, feed, item)
+    expect(enriched.language).toBe('en')
+    expect(enriched.languageTag).toBe('en-us')
+    expect(enriched.transcripts).toHaveLength(4)
+    expect(enriched.durationSec).toBe(item.durationSec)
+  })
+})
+
+describe('direct audio and Spotify', () => {
+  test('direct audio uses the file name as title', () => {
+    expect(directAudioInfo('https://cdn.example.com/shows/my-great_episode.mp3')).toMatchObject({
+      kind: 'audio',
+      title: 'my great episode',
+      audioUrl: 'https://cdn.example.com/shows/my-great_episode.mp3'
+    })
+  })
+
+  test('Spotify has an embed and no audio', () => {
+    expect(spotifyInfo('https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk?si=1', { title: 'Ep', thumbnail_url: 'https://i.scdn.co/x' })).toMatchObject({
+      kind: 'spotify',
+      audioUrl: '',
+      embedUrl: 'https://open.spotify.com/embed/episode/4rOoJ6Egrf8K2IrywzwOMk',
+      title: 'Ep',
+      coverUrl: 'https://i.scdn.co/x'
+    })
+  })
+})

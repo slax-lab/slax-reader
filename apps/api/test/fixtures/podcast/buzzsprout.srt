@@ -1,0 +1,65 @@
+1
+00:00:00,160 --> 00:00:03,680
+SPEAKER_02: We were able to
+track that 60% of the requests
+
+2
+00:00:03,680 --> 00:00:06,559
+to install data centers in
+Brazil come from renewable
+
+3
+00:00:06,559 --> 00:00:07,440
+energy companies.
+
+4
+00:00:07,679 --> 00:00:10,880
+This means that renewable energy
+companies are transforming
+
+5
+00:00:10,880 --> 00:00:11,439
+themselves.
+
+6
+00:00:11,599 --> 00:00:15,119
+They're like changing their core
+businesses to also become tech
+
+7
+00:00:15,119 --> 00:00:15,759
+companies.
+
+8
+00:00:15,919 --> 00:00:20,000
+To me, this was like very mind
+blowing at first because this
+
+9
+00:00:20,000 --> 00:00:22,879
+means you're at the same time
+the energy provider and the
+
+10
+00:00:22,879 --> 00:00:23,760
+consumer.
+
+11
+00:00:48,719 --> 00:00:51,119
+SPEAKER_00: As you probably know
+by now, my new book, Hyperscale,
+
+12
+00:00:51,280 --> 00:00:53,200
+comes out in less than two
+weeks.
+
+13
+00:00:53,359 --> 00:00:56,079
+This is a book about the
+build-out of data centers and
+
+14
+00:00:56,079 --> 00:01:00,159
+the backlash to it that we have
+really seen accelerate in the

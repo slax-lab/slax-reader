@@ -46,7 +46,8 @@ describe('GET /v1/user/labs', () => {
           { key: 'rss', status: 'active', enabled: false, enabled_at: null },
           { key: 'youtube', status: 'active', enabled: true, enabled_at: '2026-09-08T01:02:03.000Z' },
           { key: 'youtube_article', status: 'active', enabled: false, enabled_at: null },
-          { key: 'pdf', status: 'active', enabled: false, enabled_at: null }
+          { key: 'pdf', status: 'active', enabled: false, enabled_at: null },
+          { key: 'podcast', status: 'active', enabled: false, enabled_at: null }
         ]
       }
     })
@@ -60,7 +61,8 @@ describe('GET /v1/user/labs', () => {
       { key: 'rss', status: 'active', enabled: false, enabled_at: null },
       { key: 'youtube', status: 'active', enabled: false, enabled_at: null },
       { key: 'youtube_article', status: 'active', enabled: false, enabled_at: null },
-      { key: 'pdf', status: 'active', enabled: false, enabled_at: null }
+      { key: 'pdf', status: 'active', enabled: false, enabled_at: null },
+      { key: 'podcast', status: 'active', enabled: false, enabled_at: null }
     ])
   })
 })
@@ -81,7 +83,7 @@ describe('lab: keys on /setting/enable and /setting/disable', () => {
 
   test('unknown feature is rejected and nothing is written', async () => {
     const { ctrl, labRepo } = wire()
-    await expect(ctrl.handleEnableUserSettingRequest(createMockCtx(), createMockRequest({ key: 'lab:podcast' }))).rejects.toMatchObject({ name: 'ERROR_PARAM' })
+    await expect(ctrl.handleEnableUserSettingRequest(createMockCtx(), createMockRequest({ key: 'lab:no_such_feature' }))).rejects.toMatchObject({ name: 'ERROR_PARAM' })
     expect(labRepo.upsert).not.toHaveBeenCalled()
   })
 })

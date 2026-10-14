@@ -51,7 +51,8 @@ describePg('LabRepo on Postgres', () => {
       { key: 'rss', status: 'active', enabled: false, enabled_at: null },
       { key: 'youtube', status: 'active', enabled: false, enabled_at: null },
       { key: 'youtube_article', status: 'active', enabled: false, enabled_at: null },
-      { key: 'pdf', status: 'active', enabled: false, enabled_at: null }
+      { key: 'pdf', status: 'active', enabled: false, enabled_at: null },
+      { key: 'podcast', status: 'active', enabled: false, enabled_at: null }
     ])
 
     await service.setEnabled(userId, 'youtube', true)

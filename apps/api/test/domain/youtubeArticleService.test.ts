@@ -32,7 +32,7 @@ function memRepo() {
     add(over: Partial<youtubeArticlePO>): youtubeArticlePO {
       const row: youtubeArticlePO = {
         id: ++id,
-        video_id: VIDEO,
+        source_id: VIDEO,
         caption_key: `youtube/canonical/captions/${VIDEO}/${HASH}.json`,
         caption_text_key: `youtube/canonical/captions/${VIDEO}/${HASH}.txt`,
         caption_language: 'en',
@@ -61,12 +61,12 @@ function memRepo() {
       return row
     },
     findRef: vi.fn(async (bookmarkId: number) => refs.find(r => r.bookmark_id === bookmarkId) ?? null),
-    findAnyRef: vi.fn(async (v: string, h: string) => refs.find(r => r.video_id === v && r.source_hash === h) ?? null),
+    findAnyRef: vi.fn(async (v: string, h: string) => refs.find(r => r.source_id === v && r.source_hash === h) ?? null),
     findById: vi.fn(async (rid: number) => rows.find(r => r.id === rid) ?? null),
-    findVersion: vi.fn(async (v: string, h: string, lang: string) => rows.find(r => r.video_id === v && r.source_hash === h && r.target_language === lang) ?? null),
-    listForSource: vi.fn(async (v: string, h: string) => rows.filter(r => r.video_id === v && r.source_hash === h)),
+    findVersion: vi.fn(async (v: string, h: string, lang: string) => rows.find(r => r.source_id === v && r.source_hash === h && r.target_language === lang) ?? null),
+    listForSource: vi.fn(async (v: string, h: string) => rows.filter(r => r.source_id === v && r.source_hash === h)),
     ensureLanguageRow: vi.fn(async (base: youtubeArticlePO, lang: string) => {
-      const existing = rows.find(r => r.video_id === base.video_id && r.source_hash === base.source_hash && r.target_language === lang)
+      const existing = rows.find(r => r.source_id === base.source_id && r.source_hash === base.source_hash && r.target_language === lang)
       if (existing) return existing
       const status = base.status === 'takedown' ? 'takedown' : eligibilityDecision(base) === 'generate' ? 'pending' : 'skipped'
       return repo.add({ ...base, id: undefined as any, target_language: lang, status, article_key: null, retry_count: 0, next_retry_at: null })
@@ -98,7 +98,7 @@ function memRepo() {
       return r.status
     }),
     listOrphans: vi.fn(async (olderThan: Date) =>
-      rows.filter(r => !running(r) && r.status !== 'takedown' && r.updated_at < olderThan && !refs.some(f => f.video_id === r.video_id && f.source_hash === r.source_hash))
+      rows.filter(r => !running(r) && r.status !== 'takedown' && r.updated_at < olderThan && !refs.some(f => f.source_id === r.source_id && f.source_hash === r.source_hash))
     ),
     deleteOrphan: vi.fn(async (rid: number, olderThan: Date) => {
       const i = rows.findIndex(r => r.id === rid && r.updated_at < olderThan)
@@ -107,10 +107,10 @@ function memRepo() {
       return true
     }),
     countRowsUsingKey: vi.fn(async (col: 'caption_key' | 'caption_text_key', key: string) => rows.filter(r => r[col] === key).length),
-    listForVideo: vi.fn(async (v: string) => rows.filter(r => r.video_id === v)),
-    listTakedownsToClean: vi.fn(async () => [...new Set(rows.filter(r => r.status === 'takedown' && (r.caption_key || r.article_key)).map(r => r.video_id))]),
+    listForVideo: vi.fn(async (v: string) => rows.filter(r => r.source_id === v)),
+    listTakedownsToClean: vi.fn(async () => [...new Set(rows.filter(r => r.status === 'takedown' && (r.caption_key || r.article_key)).map(r => r.source_id))]),
     takedownVideo: vi.fn(async (v: string) => {
-      const hit = rows.filter(r => r.video_id === v)
+      const hit = rows.filter(r => r.source_id === v)
       hit.forEach(r => Object.assign(r, { status: 'takedown', article_key: null, article_text_key: null, caption_key: null, caption_text_key: null }))
       return hit.length
     }),
@@ -217,7 +217,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
   const crawlService = {
     fetchYoutubeData: vi.fn(async (_ctx: any, url: string) => ({ videoId: url.slice(-11), caption: null, cues: [] })),
     saveYoutubeCaptionArtifacts: vi.fn(async (ctx: any, fetched: { videoId: string }, bookmarkId: number) => {
-      repo.refs.push({ id: 99, bookmark_id: bookmarkId, user_id: ctx.getUserId(), video_id: fetched.videoId, source_hash: 'h', created_at: new Date(), updated_at: new Date() })
+      repo.refs.push({ id: 99, bookmark_id: bookmarkId, user_id: ctx.getUserId(), source_id: fetched.videoId, source_hash: 'h', created_at: new Date(), updated_at: new Date() })
     })
   }
   const service = new (YoutubeArticleService as any)(
@@ -236,7 +236,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
     c.env.YOUTUBE_ARTICLE_WORKFLOW = { create }
     return c
   }
-  repo.refs.push({ id: 1, bookmark_id: BOOKMARK, user_id: OWNER, video_id: VIDEO, source_hash: HASH, created_at: new Date(), updated_at: new Date() })
+  repo.refs.push({ id: 1, bookmark_id: BOOKMARK, user_id: OWNER, source_id: VIDEO, source_hash: HASH, created_at: new Date(), updated_at: new Date() })
   return { service, repo, redis, bookmark, labOn, users, objects, create, ctx, alertBot, crawlService }
 }
 
@@ -304,7 +304,7 @@ describe('owner opens a bookmark', () => {
   })
 
   test('too many running rows: the row is deferred for the sweeper and keeps its count', async () => {
-    for (let i = 0; i < 4; i++) w.repo.add({ video_id: `other${i}`, status: 'generating', lease_until: new Date(Date.now() + 60_000) })
+    for (let i = 0; i < 4; i++) w.repo.add({ source_id: `other${i}`, status: 'generating', lease_until: new Date(Date.now() + 60_000) })
     const row = w.repo.add({})
     await w.service.getStatus(w.ctx(OWNER), UUID)
     expect(w.create).not.toHaveBeenCalled()
@@ -356,7 +356,7 @@ describe('sharing between users', () => {
     const w = wire({ labOn: [OWNER, VISITOR], users: { [OWNER]: { ai_lang: 'zh', lang: 'zh' }, [VISITOR]: { ai_lang: 'zh', lang: 'zh' } } })
     w.repo.add({ target_language: 'zh', status: 'ready', article_key: 'x.json' })
     // the second user's own bookmark of the same video and caption version
-    w.repo.refs.push({ id: 2, bookmark_id: 200, user_id: VISITOR, video_id: VIDEO, source_hash: HASH, created_at: new Date(), updated_at: new Date() })
+    w.repo.refs.push({ id: 2, bookmark_id: 200, user_id: VISITOR, source_id: VIDEO, source_hash: HASH, created_at: new Date(), updated_at: new Date() })
     const base = (w.service as any).bookmarkService.getUserBookmarkByUuidWithDetail.getMockImplementation()
     ;(w.service as any).bookmarkService.getUserBookmarkByUuidWithDetail.mockImplementation(async (uuid: string) =>
       uuid === 'ub-uuid-2'
@@ -458,7 +458,7 @@ describe('content', () => {
 
   test('a version of another video, a guessed version or a not-ready row is not found', async () => {
     const w = wire()
-    w.repo.add({ video_id: 'otherVideo1', status: 'ready', article_key: 'o.json' })
+    w.repo.add({ source_id: 'otherVideo1', status: 'ready', article_key: 'o.json' })
     w.repo.add({ status: 'generating' })
     await expect(w.service.getContent(w.ctx(OWNER), UUID, 'ffffffffffff-en-1-v1')).rejects.toMatchObject({ name: ErrorName.BOOKMARK_NOT_FOUND })
     await expect(w.service.getContent(w.ctx(OWNER), UUID, '../../secret')).rejects.toMatchObject({ name: ErrorName.BOOKMARK_NOT_FOUND })
@@ -585,7 +585,7 @@ describe('sweep', () => {
   test('expired leases go back to pending with a delay, then the next sweep starts them; never-requested rows stay idle', async () => {
     const w = wire()
     const dead = w.repo.add({ status: 'generating', lease_until: new Date(Date.now() - 1000) })
-    const idle = w.repo.add({ video_id: 'idleVideo01' })
+    const idle = w.repo.add({ source_id: 'idleVideo01' })
     expect(await w.service.sweep(w.ctx(0))).toMatchObject({ expired: 1, started: 0 })
     expect(dead).toMatchObject({ status: 'pending', retry_count: 1, error_message: 'lease_expired' })
     expect(w.create).not.toHaveBeenCalled()
@@ -610,8 +610,8 @@ describe('sweep', () => {
 
   test('the sweep starts no more rows than the free slots', async () => {
     const w = wire()
-    for (let i = 0; i < 2; i++) w.repo.add({ video_id: `busy${i}`, status: 'generating', lease_until: new Date(Date.now() + 60_000) })
-    for (let i = 0; i < 5; i++) w.repo.add({ video_id: `wait${i}`, next_retry_at: new Date(Date.now() - 1000) })
+    for (let i = 0; i < 2; i++) w.repo.add({ source_id: `busy${i}`, status: 'generating', lease_until: new Date(Date.now() + 60_000) })
+    for (let i = 0; i < 5; i++) w.repo.add({ source_id: `wait${i}`, next_retry_at: new Date(Date.now() - 1000) })
     expect((await w.service.sweep(w.ctx(0))).started).toBe(2)
     expect(w.create).toHaveBeenCalledTimes(2)
   })

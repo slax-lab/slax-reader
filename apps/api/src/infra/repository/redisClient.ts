@@ -127,6 +127,26 @@ export class RedisClient {
     return this.key<number>(`yt_article_budget_alert:${day}`)
   }
 
+  /** Podcast episodes a user started transcribing on one UTC day. */
+  podcastDaily(userId: number, day: string) {
+    return this.key<number>(`podcast:${userId}:${day}`)
+  }
+
+  /** Site-wide estimated podcast spend (transcription and model) of one UTC day, in micro-dollars. */
+  podcastCost(day: string) {
+    return this.key<number>(`podcast_cost:${day}`)
+  }
+
+  /** Short lock so one episode is not started twice by the crawl, a retry and the sweeper. */
+  podcastStartLock(episodeId: number) {
+    return this.key<number>(`podcast_start:${episodeId}`)
+  }
+
+  /** Set once a day when the podcast budget is hit, so the alert goes out once. */
+  podcastBudgetAlert(day: string) {
+    return this.key<number>(`podcast_budget_alert:${day}`)
+  }
+
   userImportProcess(userId: number, id: number) {
     return this.key<Record<string, any>>(`user_import_process:${userId}:${id}`)
   }

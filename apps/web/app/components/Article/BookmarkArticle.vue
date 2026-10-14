@@ -24,6 +24,8 @@
         :readonly="!ready || !effAllowTagged"
       />
     </header>
+    <!-- Status above the body (podcast transcript). Outside .article-detail: marks and processors stay untouched -->
+    <slot name="before-body" />
     <ClientOnly v-if="isPdf">
       <PdfReader v-if="detail.pdf" :key="detail.pdf.document_id" :pdf="detail.pdf" :marks="pdfMarks" :ready="ready"
         :allow-action="adapters.allowActionOverride ?? allowAction" :bookmark-id="bookmarkId" :bookmark-uid="bookmarkUid"

@@ -24,6 +24,7 @@ import { EventsController } from '../../handler/http/eventsController'
 import { MetricsController } from '../../handler/http/metricsController'
 import { YoutubeArticleController } from '../../handler/http/youtubeArticleController'
 import { YoutubeArticleAdminController } from '../../handler/http/youtubeArticleAdminController'
+import { PodcastController } from '../../handler/http/podcastController'
 
 export function getRouter(container: Container) {
   const router = Router()
@@ -548,6 +549,18 @@ export function getRouter(container: Container) {
   router.post('/m/youtube_article/backfill', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(YoutubeArticleAdminController)
     return await controller.handleBackfill(ctx, req)
+  })
+  router.get('/v1/podcast/status', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(PodcastController)
+    return await controller.handleStatus(ctx, req)
+  })
+  router.get('/v1/podcast/translation', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(PodcastController)
+    return await controller.handleTranslation(ctx, req)
+  })
+  router.post('/v1/podcast/retry', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(PodcastController)
+    return await controller.handleRetry(ctx, req)
   })
 
   router.get('/ping', () => Successed('pong'))

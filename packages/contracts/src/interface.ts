@@ -414,6 +414,30 @@ export interface YoutubeArticleContent {
   sections: { heading: string; start_ms: number; paragraphs: { speaker: string | null; text: string }[] }[]
 }
 
+export type PodcastTranscriptStatus = 'pending' | 'transcribing' | 'ready' | 'failed' | 'skipped' | 'unavailable'
+export type PodcastArticleStatus = 'pending' | 'generating' | 'validating' | 'ready' | 'failed' | 'skipped' | 'unavailable'
+
+/** /v1/podcast/status: transcript and article of the bookmark's episode, and a translation for the reader. */
+export interface PodcastState {
+  transcript: PodcastTranscriptStatus
+  article: PodcastArticleStatus
+  /** The bookmark body is the cleaned transcript */
+  body_ready: boolean
+  language: 'en' | 'zh' | null
+  /** too_long, no_speech, language_unsupported, moderation, limit_reached, ... */
+  reason: string | null
+  translation: { status: PodcastArticleStatus; language: 'en' | 'zh'; version: string | null } | null
+  can_retry: boolean
+}
+
+/** Structured translation, /v1/podcast/translation. Rendered with text bindings only, never as HTML. */
+export interface PodcastTranslation {
+  version: string
+  language: 'en' | 'zh'
+  lede: string
+  sections: { heading: string; start_ms: number; paragraphs: { speaker: string | null; text: string; start_ms: number }[] }[]
+}
+
 export interface UserShareCollectInfo {
   show_name: string
   price: number

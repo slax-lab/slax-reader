@@ -24,6 +24,7 @@ vi.mock('@/entry/edge/workflows/crawlWorkflow', () => ({ CrawlWorkflow: class {}
 vi.mock('@/entry/edge/workflows/contentValidationWorkflow', () => ({ ContentValidationWorkflow: class {} }))
 vi.mock('@/entry/edge/workflows/importParseWorkflow', () => ({ ImportParseWorkflow: class {} }))
 vi.mock('@/entry/edge/workflows/youtubeArticleWorkflow', () => ({ YoutubeArticleWorkflow: class {} }))
+vi.mock('@/entry/edge/workflows/podcastWorkflow', () => ({ PodcastWorkflow: class {} }))
 
 import edge from '@/entry/edge'
 import { Auth } from '@/utils/jwt'

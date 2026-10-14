@@ -1,6 +1,7 @@
 <template>
   <!-- 属性/事件经 attrs 透传，wrapper 不声明 -->
   <BookmarkArticle ref="inner" :detail="detail" :marks="marks" :ready="localReady">
+    <template #before-body><slot name="before-body" /></template>
     <template #after-body><slot name="after-body" /></template>
   </BookmarkArticle>
 </template>
