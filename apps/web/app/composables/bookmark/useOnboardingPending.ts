@@ -1,55 +1,56 @@
-// onboarding 标记，按用户 id 存储
-import { computed, type ComputedRef, type Ref, ref, toValue, watch } from 'vue'
+import { computed, type ComputedRef, onMounted, onUnmounted,type Ref, toValue, watch } from 'vue'
 
-const STORAGE_PREFIX = 'slax_onboarding_pending_'
-const DISMISSED_PREFIX = 'slax_onboarding_dismissed_'
+type Flags = { pending: boolean; dismissed: boolean }
+const pendingKey = (id: number) => `slax_onboarding_pending_${id}`
+const dismissedKey = (id: number) => `slax_onboarding_dismissed_${id}`
 
 export const useOnboardingPending = (userId: Ref<number | undefined> | ComputedRef<number | undefined>) => {
-  const storageKey = computed(() => {
-    const id = toValue(userId)
-    return id ? `${STORAGE_PREFIX}${id}` : null
-  })
-  const dismissedKey = computed(() => {
-    const id = toValue(userId)
-    return id ? `${DISMISSED_PREFIX}${id}` : null
-  })
-
-  // localStorage 非响应式
-  const isPending = ref(false)
-  const isDismissed = ref(false)
+  const states = useState<Record<number, Flags>>('onboarding-flags', () => ({}))
+  const id = computed(() => toValue(userId))
+  const read = (value: number) => {
+    let flags: Flags = { pending: false, dismissed: false }
+    try {
+      flags.dismissed = localStorage.getItem(dismissedKey(value)) === 'true'
+      flags.pending = !flags.dismissed && localStorage.getItem(pendingKey(value)) === 'true'
+      if (flags.dismissed) localStorage.removeItem(pendingKey(value))
+    } catch {
+      flags = states.value[value] ?? flags
+    }
+    states.value[value] = flags
+  }
   watch(
-    storageKey,
-    key => {
-      isPending.value = !!key && localStorage.getItem(key) === 'true'
+    id,
+    value => {
+      if (value && !states.value[value]) read(value)
     },
-    { immediate: true }
+    { immediate: true, flush: 'sync' }
   )
-  watch(
-    dismissedKey,
-    key => {
-      isDismissed.value = !!key && localStorage.getItem(key) === 'true'
+  const current = computed(() => (id.value ? states.value[id.value] : undefined))
+  const update = (flags: Flags) => {
+    const value = id.value
+    if (!value) return
+    states.value[value] = flags
+    try {
+      if (flags.dismissed) localStorage.setItem(dismissedKey(value), 'true')
+      if (flags.pending) localStorage.setItem(pendingKey(value), 'true')
+      else localStorage.removeItem(pendingKey(value))
+    } catch {
+      /* Same-document state still prevents loops when storage is denied. */
+    }
+  }
+  const onStorage = (event: StorageEvent) => {
+    const value = id.value
+    if (value && (!event.key || [pendingKey(value), dismissedKey(value)].includes(event.key))) read(value)
+  }
+  onMounted(() => window.addEventListener('storage', onStorage))
+  onUnmounted(() => window.removeEventListener('storage', onStorage))
+  return {
+    isPending: computed(() => current.value?.pending ?? false),
+    isDismissed: computed(() => current.value?.dismissed ?? false),
+    setPending: () => {
+      if (!current.value?.dismissed) update({ pending: true, dismissed: false })
     },
-    { immediate: true }
-  )
-
-  const setPending = () => {
-    if (!storageKey.value) return
-    localStorage.setItem(storageKey.value, 'true')
-    isPending.value = true
+    clearPending: () => update({ pending: false, dismissed: current.value?.dismissed ?? false }),
+    setDismissed: () => update({ pending: false, dismissed: true })
   }
-
-  const clearPending = () => {
-    if (!storageKey.value) return
-    localStorage.removeItem(storageKey.value)
-    isPending.value = false
-  }
-
-  // 跳过/完成引导的终态，避免死循环
-  const setDismissed = () => {
-    if (!dismissedKey.value) return
-    localStorage.setItem(dismissedKey.value, 'true')
-    isDismissed.value = true
-  }
-
-  return { isPending, isDismissed, setPending, clearPending, setDismissed }
 }

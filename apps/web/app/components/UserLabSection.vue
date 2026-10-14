@@ -20,14 +20,13 @@
 <script lang="ts" setup>
 import SwitchToggle from '~/components/SwitchToggle.vue'
 
-import { useLabFeatures } from '~/composables/useLabFeatures'
+import { isLabVisibleInSettings, useLabFeatures } from '~/composables/useLabFeatures'
 
 const { te } = useI18n()
 const labs = useLabFeatures()
 const pending = ref<string | null>(null)
 
-// 后端可以先于网页挂上一个新功能；没有文案的 key 不显示
-const rows = computed(() => labs.features.value.filter(feature => te(`page.user.labs.${feature.key}.name`)))
+const rows = computed(() => labs.features.value.filter(feature => isLabVisibleInSettings(feature.key) && te(`page.user.labs.${feature.key}.name`)))
 
 onMounted(() => {
   labs.fetch()

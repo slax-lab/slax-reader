@@ -1323,5 +1323,22 @@
       "article_url_missing": "文章没有可收藏的原文地址",
       "source_unavailable": "源站暂时不可用，已缓存内容会保留"
     }
+  },
+  "promotion": {
+    "identity_error": "暂时无法验证账号，请联网后重试。",
+    "checking": "正在确认邀请资格…",
+    "retry": "重试",
+    "resume": "领取 KOC 奖励",
+    "later": "稍后领取",
+    "claim": "领取奖励",
+    "continue": "继续",
+    "trial": "通过本次 KOC 邀请，你可以领取 {days} 天 Pro 试用。",
+    "credit": "通过本次 KOC 邀请，你可以获得 {amount} 美元的订阅抵扣额度。",
+    "legacy": "领取 KOC 推荐奖励。已生效的 Stripe 订阅将获得订阅抵扣额度。",
+    "pending": "你的 KOC 推荐奖励已保留，可随时继续领取。",
+    "error": "暂时无法确认邀请资格，可以重试或稍后继续。",
+    "invalid": "此 KOC 邀请已失效。",
+    "received": "你已经领取过 KOC 推荐奖励。",
+    "unavailable": "当前订阅暂时无法领取此奖励，可稍后重新确认。"
   }
 }

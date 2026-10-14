@@ -1,4 +1,3 @@
-import { bookmarkContentType } from '@slax-reader/contracts/pdf'
 import { computed, type MaybeRef, toValue } from 'vue'
 
 import { toUtcDate } from '@/utils/date'
@@ -6,6 +5,7 @@ import { toUtcDate } from '@/utils/date'
 import type { BookmarkItem } from '@commons/frontend-types/models'
 import { useQuery } from '@powersync/vue'
 import type { PowerSyncDatabase } from '@powersync/web'
+import { bookmarkContentType } from '@slax-reader/contracts/pdf'
 
 // 订阅的专栏（列表项）
 export interface LocalCollectionItem {
@@ -197,9 +197,9 @@ export const useLocalCollections = () => {
 
   const watchSubscribedCollections = (enabled: MaybeRef<boolean> = true) => {
     const sql = computed(() => (toValue(enabled) ? SUBSCRIBED_SQL : `SELECT * FROM sr_user_collection WHERE 0`))
-    const { data, isLoading } = useQuery<LocalCollectionRow>(sql, [])
+    const { data, isLoading, isFetching, error } = useQuery<LocalCollectionRow>(sql, [])
     const items = computed(() => data.value.map(r => rowToCollection(r as LocalCollectionRow)))
-    return { items, isLoading }
+    return { items, isLoading, isFetching, error }
   }
 
   const watchCollectionBookmarks = (collectionCode: MaybeRef<string | undefined>) => {
@@ -217,9 +217,9 @@ export const useLocalCollections = () => {
            WHERE 0`
     )
     const params = computed(() => (on.value ? [toValue(collectionCode)] : []))
-    const { data, isLoading } = useQuery<LocalCollectionBookmarkRow>(sql, params)
+    const { data, isLoading, isFetching, error } = useQuery<LocalCollectionBookmarkRow>(sql, params)
     const items = computed(() => data.value.map(r => rowToItem(r as LocalCollectionBookmarkRow)))
-    return { items, isLoading }
+    return { items, isLoading, isFetching, error }
   }
 
   const setLastRead = async (collectionCode: string): Promise<boolean> => {

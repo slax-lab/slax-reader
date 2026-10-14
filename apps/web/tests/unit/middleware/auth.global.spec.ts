@@ -150,3 +150,17 @@ describe('middleware/auth.global', () => {
     expect(mockNavigateTo).not.toHaveBeenCalled()
   })
 })
+
+it('preserves a direct root KOC invitation through the existing sign-in return URL', async () => {
+  const fullPath = '/?activity_id=daguang&activity_type=blogger&claim=true'
+  await runMiddleware(makeRoute({ path: '/', fullPath }), makeRoute({ path: '/pricing', fullPath: '/pricing' }))
+  const login = mockNavigateTo.mock.calls[0]![0] as string
+  expect(new URL(login, location.origin).searchParams.get('redirect')).toBe(`${location.origin}${fullPath}`)
+  mockGet.mockReturnValue('test-token')
+  mockNavigateTo.mockClear()
+  await runMiddleware(
+    makeRoute({ path: '/auth', fullPath: '/auth', query: { redirect: encodeURIComponent(`${location.origin}${fullPath}`) } }),
+    makeRoute({ path: '/login', fullPath: '/login' })
+  )
+  expect(mockNavigateTo).toHaveBeenCalledWith(`${location.origin}${fullPath}`, { external: true })
+})

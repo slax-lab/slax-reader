@@ -11,6 +11,7 @@
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
     "test": "vitest run",
+    "test:locale:e2e": "node tests/locale-browser.mjs",
     "test:offscreen:401-soak": "node tests/offscreen-401-soak.mjs",
     "test:offscreen:e2e": "node tests/offscreen-fault-injection.mjs",
     "test:offscreen:timing": "node tests/offscreen-real-timing.mjs",

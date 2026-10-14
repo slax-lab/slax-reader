@@ -498,7 +498,7 @@
       "kind": "inline",
       "source": "snapshot-edit-title.svg",
       "viewBox": "0 0 24 24",
-      "defaultSize": 16,
+      "defaultSize": 15,
       "paint": "currentColor",
       "accessibility": "decorative",
       "provenance": {
@@ -510,7 +510,7 @@
       "kind": "inline",
       "source": "snapshot-feedback.svg",
       "viewBox": "0 0 24 24",
-      "defaultSize": 16,
+      "defaultSize": 15,
       "paint": "currentColor",
       "accessibility": "decorative",
       "provenance": {
@@ -522,7 +522,7 @@
       "kind": "inline",
       "source": "snapshot-more.svg",
       "viewBox": "0 0 24 24",
-      "defaultSize": 18,
+      "defaultSize": 17,
       "paint": "currentColor",
       "accessibility": "decorative",
       "provenance": {

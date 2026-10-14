@@ -2,15 +2,12 @@ import { notifyExtensionBridgeAuthExpired, parseExtensionBridgeIds } from '~/uti
 import { requestExtensionBridgeSession } from '~/utils/extensionBridgeSession'
 import { getClientEventHeaders, getUserToken } from '~/utils/request'
 
-import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { createPowerSyncPlugin } from '@powersync/vue'
 import { PowerSyncDatabase, SyncStreamConnectionMethod } from '@powersync/web'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { clearSyncCredsCache, createConnector, fetchSyncCredentials } from '~/local-first/connector'
-import {
-  initializePowerSyncWithFallback,
-  type PowerSyncRecoveryEvent,
-  type PowerSyncWorkerMode
-} from '~/local-first/powersync-recovery'
+import { initializePowerSyncWithFallback, type PowerSyncRecoveryEvent, type PowerSyncWorkerMode } from '~/local-first/powersync-recovery'
+import { shouldUsePowerSyncSharedWorker } from '~/local-first/powersync-worker-policy'
 import { AppSchema } from '~/local-first/schema'
 import { POWER_SYNC_DATABASE_GENERATION, POWER_SYNC_LOCAL_DATA_VERSION } from '~/local-first/version'
 
@@ -87,10 +84,12 @@ const logPowerSyncRecoveryEvent = (event: PowerSyncRecoveryEvent) => {
 
 export default defineNuxtPlugin(async nuxtApp => {
   const cfg = useRuntimeConfig().public
+  const localOwner = useState<string | null>('powersync-owner', () => null)
+  localOwner.value = null
   const isBridgeFrame = window.parent !== window && window.location.pathname === '/x/ext-bridge'
   let bridgeToken: string | null = null
   let bridgeUserId: string | null = null
-  const getPowerSyncUserToken = () => isBridgeFrame ? bridgeToken : getUserToken()
+  const getPowerSyncUserToken = () => (isBridgeFrame ? bridgeToken : getUserToken())
   const havePowerSyncUserToken = () => Boolean(getPowerSyncUserToken())
   const refreshPowerSyncUserToken = async () => {
     if (!isBridgeFrame) return getUserToken()
@@ -118,7 +117,7 @@ export default defineNuxtPlugin(async nuxtApp => {
   })
   if (isBridgeFrame) {
     try {
-      if (!await refreshPowerSyncUserToken()) throw new Error('extension bridge has no active session')
+      if (!(await refreshPowerSyncUserToken())) throw new Error('extension bridge has no active session')
     } catch {
       window.parent.postMessage({ type: 'slax-bridge-error', error: 'bridge session unavailable' }, '*')
       return unavailable()
@@ -178,7 +177,7 @@ export default defineNuxtPlugin(async nuxtApp => {
   const recovery = useDatabaseWorker
     ? await initializePowerSyncWithFallback({
         createDatabase,
-        sharedWorkerAvailable: typeof SharedWorker !== 'undefined',
+        sharedWorkerAvailable: shouldUsePowerSyncSharedWorker(),
         onEvent: logPowerSyncRecoveryEvent
       })
     : await (async () => {
@@ -199,7 +198,6 @@ export default defineNuxtPlugin(async nuxtApp => {
   }
 
   powerSyncConsole.info('[powersync] database ready', { mode: recovery.mode, dbFilename: DATABASE_FILENAME })
-  nuxtApp.vueApp.use(createPowerSyncPlugin({ database: db }))
 
   let connected = false
   let connecting = false
@@ -223,6 +221,7 @@ export default defineNuxtPlugin(async nuxtApp => {
     }
   }
   const reset = async () => {
+    localOwner.value = null
     powerSyncConsole.info('[powersync] clearing local database for logout/account transition')
     clearSyncCredsCache()
     try {
@@ -236,7 +235,8 @@ export default defineNuxtPlugin(async nuxtApp => {
   // 换号防串：比对上个用户 id，不同（或有 token 却解析不出身份，保守按换号）→ 清上个账号本地库 + creds。
   // 返回是否“可以连接”：换号清理失败则不打用户戳、不连接，避免把上个账号数据当本账号（下次启动重试）。
   const guardAccount = async (): Promise<boolean> => {
-    if (typeof localStorage === 'undefined') return true
+    localOwner.value = null
+    if (typeof localStorage === 'undefined') return false
     const token = getPowerSyncUserToken()
     const currentUserId = token ? getTokenUserId(token) : null
     const lastUser = localStorage.getItem(LAST_USER_KEY)
@@ -250,7 +250,9 @@ export default defineNuxtPlugin(async nuxtApp => {
       }
       connected = false
     }
+    if (token && !currentUserId) return false
     if (currentUserId) localStorage.setItem(LAST_USER_KEY, currentUserId)
+    localOwner.value = currentUserId
     return true
   }
   const guardAccountAndConnect = async () => {
@@ -260,7 +262,7 @@ export default defineNuxtPlugin(async nuxtApp => {
   // 版本闸门：版本不一致则清库（含未同步写，schema 变更后以服务端为准）重新全量同步。
   // 用 navigator.locks 串行化，多标签只清一次。
   const ensureDataVersion = async () => {
-    if (typeof localStorage === 'undefined') return
+    if (typeof localStorage === 'undefined') throw Error('Local storage unavailable')
     const getStoredVersion = () => Number(localStorage.getItem(DATA_VERSION_KEY) ?? 0)
     if (getStoredVersion() >= POWER_SYNC_LOCAL_DATA_VERSION) return
     const migrate = async () => {
@@ -278,7 +280,7 @@ export default defineNuxtPlugin(async nuxtApp => {
       } catch (e) {
         // 清失败不打版本戳，下次启动重试，避免陈旧数据被当成已迁移
         powerSyncConsole.error('[powersync] data-version clear failed, will retry next startup:', e)
-        return
+        throw e
       }
       connected = false
       localStorage.setItem(DATA_VERSION_KEY, String(POWER_SYNC_LOCAL_DATA_VERSION))
@@ -297,8 +299,21 @@ export default defineNuxtPlugin(async nuxtApp => {
   // init：清理（版本闸门 + 换号）必须在任何本地查询前完成，故 await
   // （async 插件会阻塞 app 挂载到此，保证组件 useQuery 前脏/错数据已清）；
   // connect 起网络连接，不阻塞启动。
-  await ensureDataVersion()
-  if (await guardAccount()) transition(connect)
+  try {
+    await ensureDataVersion()
+    if (!(await guardAccount())) throw Error('Local account ownership unavailable')
+  } catch {
+    localOwner.value = null
+    // Preserve the database; inability to verify ownership must not trigger data deletion.
+    try {
+      await db.close()
+    } catch {
+      /* Initialization may not have created a usable connection. */
+    }
+    return unavailable()
+  }
+  nuxtApp.vueApp.use(createPowerSyncPlugin({ database: db }))
+  transition(connect)
 
   // iframe 的 Cookie 可能不可见；其登出/换号由扩展 cookies.onChanged 销毁 bridge。
   if (!isBridgeFrame) {

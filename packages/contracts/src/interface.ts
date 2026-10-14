@@ -498,3 +498,11 @@ export interface BookmarkExportPage {
   items: BookmarkExportItem[]
   next_cursor: string | null
 }
+
+/** Additive promotion status contract; older servers return only status. */
+export type PromotionReward = { kind: 'trial'; days: number } | { kind: 'credit'; amount: number; currency: 'usd' }
+export interface PromotionStatus {
+  status: boolean
+  reason?: 'eligible' | 'already_received' | 'active_apple_subscription'
+  reward?: PromotionReward
+}

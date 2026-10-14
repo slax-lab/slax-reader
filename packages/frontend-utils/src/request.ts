@@ -1,4 +1,5 @@
 import { isFunction, isPromise } from './is'
+import type { ApiResponse } from '@slax-reader/contracts/http'
 
 export class RequestError extends Error {
   override name: string
@@ -40,10 +41,10 @@ export type FetchOptions = {
 } & Pick<FetchConfig, 'errorInterceptors'>
 
 // fetch结果
-export interface FetchResult<T> {
+export type FetchResult<T> = Pick<ApiResponse<T>, 'message'> & Partial<Pick<ApiResponse<T>, 'code'>> & {
   data: T
-  status: number
-  message: string
+  // Backend JSON envelopes use code; handleResult synthesizes status for HTTP 401.
+  status?: number
 }
 
 export class FetchRequest {

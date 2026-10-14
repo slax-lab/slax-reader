@@ -1,4 +1,6 @@
+import { enableAutoUnmount } from '@vue/test-utils'
 // pages/onboarding.vue 单测
+import { initialPromotionState } from '~~/app/utils/promotionFlow'
 import OnboardingPage from '~~/app/pages/onboarding.vue'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
@@ -18,6 +20,7 @@ const { mockNavigateTo, mockGetUserInfo, mockUseI18n, mockUseHead, mockShowFeedb
   }
 })
 
+mockNuxtImport('useRoute', () => () => ({ path: '/onboarding', query: {} }))
 mockNuxtImport('navigateTo', () => mockNavigateTo)
 mockNuxtImport('useI18n', () => mockUseI18n)
 mockNuxtImport('useHead', () => mockUseHead)
@@ -41,9 +44,13 @@ const stubs = {
 
 const mountOnboardingPage = () => mountWithApp(OnboardingPage, { global: { stubs } })
 
+enableAutoUnmount(afterEach)
+
 describe('pages/onboarding.vue', () => {
   beforeEach(() => {
     localStorage.clear()
+    useState('onboarding-flags', () => ({})).value = {}
+    useState('koc-promotion', initialPromotionState).value = { ...initialPromotionState(), userId: baseUser.userId, phase: 'idle' }
     vi.clearAllMocks()
     mockGetUserInfo.mockResolvedValue(baseUser)
   })
@@ -52,10 +59,10 @@ describe('pages/onboarding.vue', () => {
     localStorage.clear()
   })
 
-  it('无 onboarding 标记 → userInfo 就位后立即退回 /bookmarks', async () => {
+  it('无 onboarding 标记 → userInfo 就位后立即退回 /', async () => {
     mountOnboardingPage()
     await flushPromises()
-    expect(mockNavigateTo).toHaveBeenCalledWith('/bookmarks', { replace: true })
+    expect(mockNavigateTo).toHaveBeenCalledWith({ path: '/', query: {} }, { replace: true })
   })
 
   it('有 onboarding 标记 → 渲染 BookmarksOnboardingHero，不退回', async () => {
@@ -66,7 +73,7 @@ describe('pages/onboarding.vue', () => {
     expect(mockNavigateTo).not.toHaveBeenCalled()
   })
 
-  it('hero emit skip → 清标记 + 退回 /bookmarks', async () => {
+  it('hero emit skip → 清标记 + 退回 /', async () => {
     localStorage.setItem(`slax_onboarding_pending_${baseUser.userId}`, 'true')
     const wrapper = mountOnboardingPage()
     await flushPromises()
@@ -75,10 +82,10 @@ describe('pages/onboarding.vue', () => {
     await hero.vm.$emit('skip')
     await flushPromises()
     expect(localStorage.getItem(`slax_onboarding_pending_${baseUser.userId}`)).toBeNull()
-    expect(mockNavigateTo).toHaveBeenCalledWith('/bookmarks', { replace: true })
+    expect(mockNavigateTo).toHaveBeenCalledWith({ path: '/', query: {} }, { replace: true })
   })
 
-  it('hero emit complete → 清标记 + 退回 /bookmarks', async () => {
+  it('hero emit complete → 清标记 + 退回 /', async () => {
     localStorage.setItem(`slax_onboarding_pending_${baseUser.userId}`, 'true')
     const wrapper = mountOnboardingPage()
     await flushPromises()
@@ -87,7 +94,7 @@ describe('pages/onboarding.vue', () => {
     await hero.vm.$emit('complete')
     await flushPromises()
     expect(localStorage.getItem(`slax_onboarding_pending_${baseUser.userId}`)).toBeNull()
-    expect(mockNavigateTo).toHaveBeenCalledWith('/bookmarks', { replace: true })
+    expect(mockNavigateTo).toHaveBeenCalledWith({ path: '/', query: {} }, { replace: true })
   })
 
   it('OnboardingTopBar emit feedback → showFeedbackModal 调用', async () => {

@@ -102,6 +102,31 @@ describe('useBookmarkData', () => {
     vi.useRealTimers()
   })
 
+  it('does not establish empty readiness before a delayed nonempty first response', async () => {
+    let resolve!: (rows: any[]) => void
+    mockGet.mockReturnValueOnce(
+      new Promise(r => {
+        resolve = r
+      })
+    )
+    const { api, wrapper } = mountData(makeFilter())
+    await flushPromises()
+    expect(api.onboardingReady.value).toBe(false)
+    resolve([{ ...baseBookmarkItem, id: 42 }])
+    await flushPromises()
+    expect(api.onboardingReady.value).toBe(true)
+    expect(api.isDataEmpty.value).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('undefined response never establishes empty readiness', async () => {
+    mockGet.mockResolvedValueOnce(undefined)
+    const { api, wrapper } = mountData(makeFilter())
+    await flushPromises()
+    expect(api.onboardingReady.value).toBe(false)
+    wrapper.unmount()
+  })
+
   describe('loadData 分页 + ending', () => {
     it('inbox source filter is sent to REST and changing it restarts from page 1', async () => {
       mockGet.mockResolvedValueOnce([]).mockResolvedValueOnce([{ ...baseBookmarkItem, id: 1 }])

@@ -43,6 +43,13 @@ describe('AppIcon', () => {
     expect(() => resolveIcon('not.registered')).toThrow(/Unknown icon key/)
   })
 
+  it('keeps Snapshot registry defaults aligned with their migrated consumer sizes', () => {
+    expect(resolveIcon('snapshot.more').defaultSize).toBe(17)
+    expect(resolveIcon('snapshot.edit-title').defaultSize).toBe(15)
+    expect(resolveIcon('snapshot.feedback').defaultSize).toBe(15)
+    expect(resolveIcon('snapshot.collapse').defaultSize).toBe(16)
+  })
+
   it('renders mask entries through a currentColor mask surface', () => {
     setTestIcon('test.mask', {
       kind: 'mask',

@@ -2,7 +2,7 @@ import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { useUserStore } from '~/stores/user'
 
-const { set, get, remove } = useCookies()
+const { set, remove } = useCookies()
 
 const useAuth = {
   async requestAuth(options: { redirect: string; affCode: string }) {
@@ -72,30 +72,26 @@ const useAuth = {
   },
   async clearAuth(): Promise<void> {
     const $config = useRuntimeConfig().public
-    remove($config.COOKIE_TOKEN_NAME, { path: '/', domain: `${$config.COOKIE_DOMAIN}` })
+    const configuredDomain = `${$config.COOKIE_DOMAIN || ''}`.replace(/^\.+/, '').toLowerCase()
+    const hostname = typeof window === 'undefined' ? '' : window.location.hostname
+    const domains = new Set([configuredDomain, hostname])
+    const isIpAddress = (domain: string) => domain.includes(':') || /^\d+(\.\d+){3}$/.test(domain)
+    const labels = configuredDomain.split('.')
+    if (labels.length > 2 && !isIpAddress(configuredDomain)) domains.add(labels.slice(1).join('.'))
+
     remove($config.COOKIE_TOKEN_NAME, { path: '/' })
-    const userStore = useUserStore()
-    userStore.clearUserInfo()
-
-    try {
-      checkAndRemoveOriginalCookies()
-    } catch (e) {}
-  }
-}
-
-const checkAndRemoveOriginalCookies = () => {
-  const $config = useRuntimeConfig().public
-  const splits = $config.COOKIE_DOMAIN.split('.').filter(token => !!token)
-  if (splits.length <= 2) {
-    return
-  }
-
-  splits[0] = ''
-  const domain = splits.slice(1).join('.')
-  const oldCookies = get($config.COOKIE_TOKEN_NAME)
-  if (oldCookies) {
-    // remove original old cookie
-    remove($config.COOKIE_TOKEN_NAME, { path: '/', domain: `${domain}` })
+    // Host-only deletion does not remove an explicit-domain cookie at the
+    // same hostname. Expire every supported scope, even with duplicate names.
+    for (const domain of domains) {
+      if (!domain || isIpAddress(domain)) continue
+      try {
+        remove($config.COOKIE_TOKEN_NAME, { path: '/', domain })
+      } catch {
+        // An inapplicable legacy domain must not prevent the other scopes
+        // from being cleared (for example on a local development host).
+      }
+    }
+    await useUserStore().clearUserInfo()
   }
 }
 

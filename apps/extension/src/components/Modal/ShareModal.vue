@@ -38,9 +38,8 @@
 </template>
 
 <script lang="ts" setup>
-import { copyText } from '@commons/frontend-utils/string'
-
 import Toast, { ToastType } from '../Toast'
+import { copyText } from '@commons/frontend-utils/string'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { ShareDetailInfo } from '@slax-reader/contracts/interface'
 import { onKeyStroke, useScrollLock } from '@vueuse/core'
@@ -68,7 +67,7 @@ const isLoading = ref(false)
 const isLocked = useScrollLock(window)
 const appear = ref(false)
 const isShowTips = ref(false)
-const copyTitle = ref($t('component.share_modal.copy_link'))
+const copyTitle = computed(() => $t('component.share_modal.copy_link'))
 const shareLinkUrl = ref('')
 const deleteShareLinkUrl = ref('')
 // 不在 UI 暴露，update 时回传
@@ -76,7 +75,9 @@ const showUserinfo = ref(true)
 // 单一开关，对齐 /b/[id]
 const options = ref<{ title: string; selected: boolean }[]>([
   {
-    title: $t('component.share_modal.options.first'),
+    get title() {
+      return $t('component.share_modal.options.first')
+    },
     selected: true
   }
 ])

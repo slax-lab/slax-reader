@@ -1,3 +1,4 @@
+import { enableAutoUnmount } from '@vue/test-utils'
 // useInboxOnboardingState 单元测试
 import { computed, defineComponent, ref } from 'vue'
 
@@ -45,14 +46,18 @@ const mountState = (
   return { wrapper, api: api!, isDataEmpty, subscribedCount, isFirstLoad }
 }
 
+enableAutoUnmount(afterEach)
+
 describe('useInboxOnboardingState', () => {
   beforeEach(() => {
     localStorage.clear()
+    useState('onboarding-flags', () => ({})).value = {}
   })
 
   afterEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    useState('onboarding-flags', () => ({})).value = {}
   })
 
   it('未就位（探测未完成）且无标记 → inboxState=null', () => {
@@ -98,11 +103,11 @@ describe('useInboxOnboardingState', () => {
     expect(api.inboxState.value).toBe('C')
   })
 
-  it('已落标记后，即使插件探测未就位，仍立刻返回 A（不闪现侧边栏/其它态）', () => {
+  it('a pending marker still waits for extension detection', () => {
     localStorage.setItem('slax_onboarding_pending_1', 'true')
     mockUseExtensionDetection.mockReturnValue(detectionState({ checked: false }))
     const { api } = mountState({ userId: 1 })
-    expect(api.inboxState.value).toBe('A')
+    expect(api.inboxState.value).toBeNull()
   })
 
   it('已落标记后装上插件 → 标记失效并清除，按 C 展示（修复"装插件后仍卡在安装引导"的死路）', async () => {

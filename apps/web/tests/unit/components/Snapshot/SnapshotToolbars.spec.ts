@@ -20,6 +20,7 @@ describe('Snapshot icon-backed controls', () => {
 
     expect(buttons).toHaveLength(4)
     expect(buttons.map(button => button.attributes('title'))).toEqual(['Analysis', 'Transcript', 'Chat', 'Comment'])
+    expect(buttons.map(button => button.attributes('aria-label'))).toEqual(['Analysis', 'Transcript', 'Chat', 'Comment'])
     expect(wrapper.findAll('.tab-icon')).toHaveLength(4)
     expect(wrapper.findAllComponents(AppIcon).map(icon => icon.props('name'))).toEqual([
       'snapshot.collapse',

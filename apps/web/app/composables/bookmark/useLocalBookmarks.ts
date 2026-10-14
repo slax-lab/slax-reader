@@ -1,4 +1,3 @@
-import { bookmarkContentType } from '@slax-reader/contracts/pdf'
 import { computed, type MaybeRef, toValue } from 'vue'
 
 import { toUtcDate } from '@/utils/date'
@@ -7,6 +6,7 @@ import { sortBookmarkTags } from '@/utils/tags'
 import type { BookmarkItem, BookmarkTag } from '@commons/frontend-types/models'
 import { useQuery } from '@powersync/vue'
 import type { PowerSyncDatabase } from '@powersync/web'
+import { bookmarkContentType } from '@slax-reader/contracts/pdf'
 
 const WHERE_BY_TAB: Record<string, string> = {
   inbox: 'archive_status = 0 AND deleted_at IS NULL',
@@ -172,10 +172,10 @@ export const useLocalBookmarks = () => {
       return WHERE_BY_TAB[t] ? listSql(WHERE_BY_TAB[t], order) : listSql('0', order)
     })
     const params = computed(() => [...ids.value])
-    // isLoading：sync 流就绪 + 首批结果到达前为 true（见 @powersync/vue useQuery）。用于消除列表首次加载时的空状态闪烁。
-    const { data, isLoading } = useQuery<LocalBookmarkRow>(sql, params)
+    // Query loading does not imply initial server synchronization has completed.
+    const { data, isLoading, isFetching, error } = useQuery<LocalBookmarkRow>(sql, params)
     const items = computed(() => data.value.map(r => rowToItem(r as LocalBookmarkRow)))
-    return { items, isLoading }
+    return { items, isLoading, isFetching, error }
   }
 
   // 详情单条：enabled=false（owner 未判定）时 WHERE 0

@@ -1,3 +1,4 @@
+import { getExtensionLocale } from './locale'
 type SessionTokenResponse = { success?: boolean; token?: string | null; deviceId?: string }
 
 let fallbackDeviceId: Promise<string> | undefined
@@ -34,7 +35,7 @@ export const getExtensionEventHeaders = async (): Promise<Record<string, string>
   'X-Device-ID': await getExtensionDeviceId(),
   'X-CLIENT-TYPE': 'extension',
   'X-CLIENT-VERSION': process.env.VERSION || browser.runtime.getManifest().version,
-  'X-CLIENT-LOCALE': (browser.i18n.getUILanguage() || 'en').toLowerCase().replaceAll('_', '-').split('-')[0]
+  'X-CLIENT-LOCALE': getExtensionLocale()
 })
 
 export const getCurrentSessionToken = async (): Promise<string | null> => {

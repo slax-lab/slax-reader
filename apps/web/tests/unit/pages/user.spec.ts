@@ -1,12 +1,18 @@
 // pages/user.vue 单测
 // 覆盖：加载态骨架屏 / 内容态卡片结构 / 实验室卡片按 /labs 返回显隐 / 共用顶栏的搜索与反馈 / error_alert query 处理
+import { createApp } from 'vue'
+
 import UserRelatedInfoSection from '~~/app/components/global/UserRelatedInfoSection.vue'
+import OptionsBar from '~~/app/components/OptionsBar.vue'
 import UserImportSection from '~~/app/components/UserImportSection.vue'
 import UserPage from '~~/app/pages/user.vue'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { mount } from '@vue/test-utils'
 import { flushPromises } from '@vue/test-utils'
+import { useUserStore } from '~~/app/stores/user'
 import { mountWithApp } from '~~/tests/setup/mount'
+import { createPinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockRoute, mockNavigateTo, mockRequest, mockGet, mockAnalyticsLog, mockToastShowToast, mockUseI18n, mockShowFeedbackModal } = vi.hoisted(() => {
@@ -147,7 +153,7 @@ describe('pages/user', () => {
     })
 
     it('places Labs after connections and before data', async () => {
-      labFeatures = [{ key: 'youtube', status: 'active', enabled: false, enabled_at: null }]
+      labFeatures = [{ key: 'rss', status: 'active', enabled: false, enabled_at: null }]
       const wrapper = mountWithApp(UserPage, { global: { stubs } })
       await flushPromises()
       const cards = wrapper.findAll('.settings-card')
@@ -196,13 +202,39 @@ describe('pages/user', () => {
       expect(wrapper.find('.settings-nav a[href="#data"]').attributes('aria-current')).toBe('location')
     })
 
-    it('opens the existing Labs deep link after the async Labs response', async () => {
+    it.each([false, true])('omits hidden-only Labs and safely handles the deep link when enabled=%s', async enabled => {
       mockRoute.hash = '#labs'
-      labFeatures = [{ key: 'youtube', status: 'active', enabled: false, enabled_at: null }]
+      labFeatures = ['youtube', 'pdf'].map(key => ({ key, status: 'active', enabled, enabled_at: enabled ? '2026-09-08T00:00:00.000Z' : null }))
       const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView')
       const wrapper = mountWithApp(UserPage, { global: { stubs } })
       await flushPromises()
+      expect(wrapper.find('#labs').exists()).toBe(false)
+      expect(wrapper.find('.settings-nav a[href="#features"]').exists()).toBe(false)
+      expect((wrapper.find('#features').element as HTMLElement).style.display).toBe('none')
+      expect(wrapper.find('#features button').exists()).toBe(false)
+      expect(wrapper.findAll('.settings-card')).toHaveLength(6)
+      expect(mockGet).toHaveBeenCalledWith({ url: '/v1/user/labs' })
+      expect(scroll).not.toHaveBeenCalled()
+      scroll.mockRestore()
+    })
+
+    it('opens the existing Labs deep link after a delayed visible Labs response', async () => {
+      mockRoute.hash = '#labs'
+      labFeatures = [{ key: 'rss', status: 'active', enabled: false, enabled_at: null }]
+      let resolveLabs!: (value: { features: unknown[] }) => void
+      const pendingLabs = new Promise<{ features: unknown[] }>(resolve => { resolveLabs = resolve })
+      mockGet.mockImplementation(({ url }: { url: string }) => url === '/v1/user/labs' ? pendingLabs : Promise.resolve(baseUserDetail))
+      const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView')
+      const wrapper = mountWithApp(UserPage, { global: { stubs } })
+      await flushPromises()
+      expect(wrapper.find('#labs').exists()).toBe(false)
+      expect(wrapper.find('.settings-nav a[href="#features"]').exists()).toBe(false)
+      expect(mockGet).toHaveBeenCalledWith({ url: '/v1/user/labs' })
+
+      resolveLabs({ features: labFeatures })
+      await flushPromises()
       expect(wrapper.find('#labs').exists()).toBe(true)
+      expect(wrapper.find('.settings-nav a[href="#features"]').exists()).toBe(true)
       expect(scroll.mock.contexts).toContain(wrapper.find('#labs').element)
       scroll.mockRestore()
     })
@@ -242,5 +274,29 @@ describe('pages/user', () => {
       expect(mockToastShowToast).toHaveBeenCalledWith(expect.objectContaining({ text: '登录已过期' }))
       expect(mockNavigateTo).toHaveBeenCalledWith({ path: '/user', query: { other: 'keep' } }, { replace: true })
     })
+  })
+})
+
+describe('account language selection', () => {
+  it('never writes account language when entering with a different composer locale', async () => {
+    const pinia = createPinia()
+    createApp({}).use(pinia)
+    const store = useUserStore(pinia)
+    store.locale = 'zh'
+    const save = vi.spyOn(store, 'changeLocale')
+    const wrapper = mountWithApp(UserPage, { global: { stubs, plugins: [pinia] } })
+    await flushPromises()
+    expect(save).not.toHaveBeenCalled()
+    wrapper.unmount()
+    save.mockRestore()
+  })
+  it('emits same-option clicks only when the caller opts into reselection', async () => {
+    const wrapper = mount(OptionsBar, { props: { options: ['English', '中文'], emitOnReselect: true } })
+    await wrapper.findAll('.option-wrapper')[0]!.trigger('click')
+    expect(wrapper.emitted('optionSelected')).toEqual([[0]])
+    await wrapper.setProps({ emitOnReselect: false })
+    await wrapper.findAll('.option-wrapper')[0]!.trigger('click')
+    expect(wrapper.emitted('optionSelected')).toHaveLength(1)
+    wrapper.unmount()
   })
 })
