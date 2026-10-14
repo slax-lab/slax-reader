@@ -54,7 +54,7 @@ test('CocoaPods retains configured Crashlytics upload and removes only the uncon
   if (ruby.error) return t.skip('Ruby is required only on the CocoaPods build host');
   for (const configured of [false, true]) {
     const config = plugin(configured ? {ios: {googleServicesFile: '/operator/configuration-not-opened'}} : {});
-    const input = {contents: "target 'SlaxReader' do\nend\n"};
+    const input = {contents: "target 'SlaxReader' do\n  post_install do |installer|\n  end\nend\n"};
     const first = (await config.mods.ios.podfile({modResults: input, modRequest: {}, modRawConfig: {}})).modResults.contents;
     const second = (await config.mods.ios.podfile({modResults: {contents: first}, modRequest: {}, modRawConfig: {}})).modResults.contents;
     assert.equal(first, second);
@@ -81,5 +81,16 @@ test('CocoaPods retains configured Crashlytics upload and removes only the uncon
     `;
     const result = spawnSync('ruby', ['-e', harness], {encoding: 'utf8'});
     assert.equal(result.status, 0, result.stderr);
+  }
+});
+
+test('requested prebuilt dependencies cannot silently produce a mixed native graph', async () => {
+  const input = {contents: "target 'SlaxReader' do\n  post_install do |installer|\n  end\nend\n"};
+  const result = await mod('ios', 'podfile', input);
+  const guard = result.contents.match(/    # Slax prebuilt React dependency consistency\n([\s\S]*?    end\n)/)[1];
+  for (const [coreSource, depsSource, shouldPass] of [[false, false, true], [false, true, false], [true, false, false]]) {
+    const ruby = `ENV['RCT_USE_PREBUILT_RNCORE']='1'; ENV['RCT_USE_RN_DEP']='1'; class ReactNativeCoreUtils; def self.build_rncore_from_source(); ${coreSource}; end; end; class ReactNativeDependenciesUtils; def self.build_react_native_deps_from_source(); ${depsSource}; end; end; ${guard}`;
+    const run = spawnSync('ruby', ['-e', ruby], {encoding: 'utf8'});
+    assert.equal(run.status === 0, shouldPass, run.stderr);
   }
 });

@@ -5,6 +5,8 @@ import {existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {checkProductionEnvironment, checkProductionBundle} from './release-environment.mjs';
+import {verifyFrameworkClosure} from './ios-frameworks.mjs';
 
 const appRoot = fileURLToPath(new URL('../', import.meta.url));
 const MAIN = 'app.slax.reader', SHARE = 'app.slax.reader.share', GROUP = 'group.app.slax.reader';
@@ -20,6 +22,7 @@ export function archiveResourceCheck(outputParent, readStatistics = statfsSync) 
 }
 
 export function releaseInputs(environment) {
+  checkProductionEnvironment(environment);
   assert(environment.EXPO_PUBLIC_SLAX_ADOPTION_FIXTURE !== '1' && !environment.EXPO_PUBLIC_SLAX_UI_FIXTURE, 'A controlled fixture cannot become an iOS release');
   const version = environment.SLAX_MOBILE_VERSION, build = environment.SLAX_MOBILE_BUILD_NUMBER, previous = environment.SLAX_MOBILE_PREVIOUS_BUILD_NUMBER, team = environment.SLAX_APPLE_TEAM_ID;
   assert(/^\d+\.\d+\.\d+$/.test(version ?? '') && /^[1-9]\d*$/.test(build ?? '') && /^\d+$/.test(previous ?? ''), 'Provide the public release version/build and previous published build bound');
@@ -142,6 +145,7 @@ const plist = filename => JSON.parse(run('plutil', ['-convert', 'json', '-o', '-
 function verifiedBundle(directory, release, bundle, exported) {
   assert(lstatSync(directory).isDirectory() && !lstatSync(directory).isSymbolicLink(), 'Expected a regular signed bundle');
   const info = plist(path.join(directory, 'Info.plist'));
+  checkProductionBundle(info, bundle === MAIN ? readFileSync(path.join(directory, 'main.jsbundle')) : undefined);
   assert(typeof info.CFBundleExecutable === 'string' && /^[a-zA-Z0-9_-]+$/.test(info.CFBundleExecutable), 'Expected a known bundle executable');
   const binary = path.join(directory, info.CFBundleExecutable);
   assert(lstatSync(binary).isFile() && !lstatSync(binary).isSymbolicLink(), 'Expected a regular native executable');
@@ -157,6 +161,7 @@ function verifiedBundle(directory, release, bundle, exported) {
   return {bundle, version: release.version, build: release.build, binarySHA256: digest(readFileSync(binary)), team: signature.team, appGroup: GROUP, signatureVerified: true, platform: 'iphoneos'};
 }
 function verifyApplication(directory, release, exported = false) {
+  verifyFrameworkClosure(directory);
   checkFirebaseBundleResources(directory);
   const main = verifiedBundle(directory, release, MAIN, exported);
   const extensions = readdirSync(path.join(directory, 'PlugIns')).filter(name => name.endsWith('.appex'));
@@ -207,6 +212,8 @@ export function executeRelease(args, environment = process.env, iosRoot = path.j
   const {command, options} = parseReleaseArguments(args), release = releaseInputs(environment);
   const firebaseAdmission = firebaseReleaseAdmission(iosRoot);
   const sourceInfo = plist(path.join(iosRoot, 'SlaxReader/Info.plist'));
+  checkProductionBundle(sourceInfo);
+  checkProductionBundle(plist(path.join(iosRoot, 'SlaxShare/Info.plist')));
   assert(sourceInfo.CFBundleShortVersionString === release.version && String(sourceInfo.CFBundleVersion) === release.build, 'Regenerate native projects with the same version inputs before archiving');
   if (command === 'archive') {
     const resources = archiveResourceCheck(realpathSync(path.dirname(options['--output'])));

@@ -27,6 +27,8 @@ const config: ExpoConfig = {
     supportsTablet: true,
     entitlements: uiFixture ? {} : { 'com.apple.security.application-groups': ['group.app.slax.reader'] },
     infoPlist: { ITSAppUsesNonExemptEncryption: false, FirebaseAutomaticScreenReportingEnabled: false,
+      SlaxApiBaseURL: process.env.EXPO_PUBLIC_SLAX_API_URL ?? 'https://api-reader.slax.com',
+      SlaxApiBetaURL: process.env.EXPO_PUBLIC_SLAX_BETA_API_URL ?? 'https://api-reader-beta.slax.com',
       NSAppTransportSecurity: {NSAllowsArbitraryLoads: true},
       ...(process.env.EXPO_PUBLIC_SLAX_UI_FIXTURE === 'reader-pdf-import' ? {UIFileSharingEnabled: true, LSSupportsOpeningDocumentsInPlace: true} : {}),
       ...(fixtureMode ? {FIREBASE_ANALYTICS_COLLECTION_DEACTIVATED: true, FirebaseCrashlyticsCollectionEnabled: false} : {})},

@@ -179,6 +179,9 @@ test('all release stages reject unconfigured generated projects before creating 
 
 test('export and upload reject an old archive report even after native configuration is repaired', {skip: process.platform !== 'darwin'}, t => {
   const fixture = firebaseFixture(t), archive = path.join(fixture.root, 'archive/SlaxReader.xcarchive');
+  const origins = {SlaxApiBaseURL: 'https://api-reader.slax.com', SlaxApiBetaURL: 'https://api-reader-beta.slax.com'};
+  fixture.write('SlaxReader/Info.plist', JSON.stringify({...mainInfo, ...origins}));
+  fixture.write('SlaxShare/Info.plist', JSON.stringify(origins));
   mkdirSync(archive, {recursive: true});
   const canonicalArchive = path.join(realpathSync(fixture.root), 'archive/SlaxReader.xcarchive');
   fixture.write('archive/ios-release-report.json', JSON.stringify({kind: 'slax-ios-release', stage: 'archive', status: 'completed', archive: canonicalArchive, release}));

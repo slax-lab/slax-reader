@@ -91,6 +91,25 @@ The application SHALL distinguish a fully accepted migration release from an exp
 - **THEN** the validated local work and recoverable artifacts are retained
 - **AND** the release task stays incomplete with the specific limitation recorded rather than publishing an unverified replacement
 
+### Requirement: Distributed iOS previews use production configuration and complete native dependencies
+
+TestFlight archive, export and upload admission SHALL reject non-production API, beta and Web environment overrides. Generated main/share metadata SHALL retain the established production API origins; inspected embedded JavaScript SHALL contain the production API and exclude the local-only `https://reader-api.slax.dev` test origin. Main Firebase admission and the Firebase-free Share target SHALL remain unchanged. CocoaPods SHALL reject a fallback to source artifacts when prebuilt React core or dependencies were requested. Archive/export admission SHALL verify required non-system dynamic dependencies across application, frameworks and extension executables before publication.
+
+#### Scenario: A local test configuration reaches a release command
+- **WHEN** archive, export or upload receives a test-origin override or stale test metadata/JavaScript
+- **THEN** release admission fails rather than publishing a test-connected application
+- **AND** explicitly configured local test builds remain available outside distribution commands
+
+#### Scenario: A native artifact probe or packaging step drops a dependency
+- **WHEN** requested prebuilt artifacts fall back to source mode or a required embedded dynamic library is missing
+- **THEN** CocoaPods or archive/export admission fails with a dependency error
+- **AND** recovery restores the supported dependency installation instead of patching installed packages or a signed application
+
+#### Scenario: The reported startup crash is repaired
+- **WHEN** corrected production build 766 is prepared after build 765's missing-library failure
+- **THEN** production Release cold startup is exercised with embedded JavaScript and signed artifacts pass the environment/dependency checks
+- **AND** upload, Apple processing, tester availability, provider login and physical-device verification remain distinct evidence
+
 ### Requirement: Mobile features have enforced responsibility boundaries
 
 Following the approved post-763 correction, Mobile SHALL prioritize the main API/PowerSync credential-lifetime repair and stabilize PDF behavior before broad architecture refactoring. Credential work may proceed alongside unfinished native PDF correction without starting Phase 2. The subsequent refactor SHALL provide thin route composition, cohesive feature state/controllers and presentation, typed domain/data ports, and native/infrastructure adapters. Reader host geometry and format-specific rendering SHALL be separate from bookmark/comment/AI/overlay state; Library, settings/account, auth, RSS and payments SHALL retain explicit feature boundaries. Shared UI MUST NOT import screens or activate services, and presentation MUST NOT perform SQL, network/file I/O or global account transitions. Each asynchronous operation, subscription, timer and animation SHALL have one cancellation owner. Import/cycle checks SHALL enforce these boundaries using existing tooling.

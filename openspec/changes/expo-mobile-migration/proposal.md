@@ -33,6 +33,8 @@ This approved continuation refines the existing migration rather than starting a
 
 The user has narrowed the remaining work to finishing the existing page/module split without further architecture expansion, then verifying real PDF reading, highlighting and comments on an iOS simulator against `https://reader-api.slax.dev`. The subsequent final instruction authorizes preview 1.0.25 (764) and Git commit/push immediately after removing the PDF filename/raw-URL header metadata and title fallback, without further functional tests. Native PDF annotation acceptance remains incomplete; this explicit preview exception does not turn it into a pass. Clean task-owned outputs, caches and dedicated simulators after delivery. Work sequentially without subagents. Broader unfinished migration/cross-platform matrices remain explicitly incomplete but are not gates for this delivery. Preserve credentials, user data, original identities and main-app release checks; do not deploy the backend or publish publicly.
 
+Following build 765, the user reported a crash and clarified that the test API is local-verification-only. Distribution must restore the production API and reject test overrides in generated metadata and JavaScript. Release cold-launch diagnosis reproduced a missing ReactNativeDependencies dynamic framework before JavaScript; repair the supported dependency graph and add Pod/artifact admission checks before producing corrected build 766. Retain actual startup evidence and do not equate it with provider-login or complete migration acceptance.
+
 ## Capabilities
 
 ### New Capabilities

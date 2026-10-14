@@ -56,6 +56,11 @@ module.exports = function withNativeCompatibility(config, {fixtureMode = false} 
     const modules = ["AppCheckCore", "GoogleUtilities", "RecaptchaInterop"];
     const missing = modules.filter(name => !mod.modResults.contents.includes(`pod '${name}'`));
     if (missing.length) mod.modResults.contents = mod.modResults.contents.replace(/(target 'SlaxReader' do\n)/, `$1${missing.map(name => `  pod '${name}', :modular_headers => true`).join('\n')}\n`);
+    const dependencyGuard = '# Slax prebuilt React dependency consistency';
+    mod.modResults.contents = mod.modResults.contents.replace(/\n    # Slax prebuilt React dependency consistency\n[\s\S]*?    end\n/, '');
+    const hook = '  post_install do |installer|';
+    if (!mod.modResults.contents.includes(hook)) throw new Error('Cannot install the React Native dependency consistency check');
+    mod.modResults.contents = mod.modResults.contents.replace(hook, `${hook}\n    ${dependencyGuard}\n    if (ENV['RCT_USE_PREBUILT_RNCORE'] == '1' && ReactNativeCoreUtils.build_rncore_from_source()) || (ENV['RCT_USE_RN_DEP'] == '1' && ReactNativeDependenciesUtils.build_react_native_deps_from_source())\n      raise 'Requested prebuilt React artifacts are unavailable. Restore artifact access and retry pod install; refusing an inconsistent native dependency graph.'\n    end\n`);
     // Autolinking adds Crashlytics' symbol-upload phase even without Expo SDK bootstrap.
     // CocoaPods integrates user script phases after post_install, so adjust only that
     // generated phase after integration. Configured operator builds retain the SDK phase.
