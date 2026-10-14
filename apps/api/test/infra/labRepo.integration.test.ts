@@ -48,13 +48,15 @@ describePg('LabRepo on Postgres', () => {
   test('no row means off; upsert flips one row per (user, feature)', async () => {
     expect(await repo.isEnabled(userId, 'youtube')).toBe(false)
     expect(await service.listForUser(userId)).toEqual([
+      { key: 'rss', status: 'active', enabled: false, enabled_at: null },
       { key: 'youtube', status: 'active', enabled: false, enabled_at: null },
-      { key: 'youtube_article', status: 'active', enabled: false, enabled_at: null }
+      { key: 'youtube_article', status: 'active', enabled: false, enabled_at: null },
+      { key: 'pdf', status: 'active', enabled: false, enabled_at: null }
     ])
 
     await service.setEnabled(userId, 'youtube', true)
     expect(await repo.isEnabled(userId, 'youtube')).toBe(true)
-    const [row] = await service.listForUser(userId)
+    const row = (await service.listForUser(userId)).find(item => item.key === 'youtube')!
     expect(row.enabled).toBe(true)
     expect(row.enabled_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
 
