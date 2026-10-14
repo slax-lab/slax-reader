@@ -106,6 +106,8 @@ mockNuxtImport('useRouter', () => () => ({
   forward: vi.fn()
 }))
 mockNuxtImport('navigateTo', () => mockNavigateTo)
+// Keep Turnstile disabled so a developer's local TURNSTILE_SITE_KEY cannot gate the confirm button.
+mockNuxtImport('useRuntimeConfig', () => () => ({ app: { baseURL: '/' }, public: { TURNSTILE_SITE_KEY: '' } }))
 mockNuxtImport('useI18n', () => mockUseI18n)
 mockNuxtImport('useHead', () => mockUseHead)
 mockNuxtImport('analyticsLog', () => mockAnalyticsLog)
