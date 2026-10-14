@@ -115,20 +115,27 @@ const savePosition = (force = false) => {
   }
 }
 
-const seek = (sec: number, play: boolean) => {
+// play() rejects with AbortError when a pause comes before it settles (a quick second click).
+// Only a real media failure shows the error.
+const playAudio = (audio: HTMLAudioElement) =>
+  void audio.play().catch((err: unknown) => {
+    if ((err as DOMException | null)?.name !== 'AbortError') error.value = true
+  })
+
+const seek = (sec: number, andPlay: boolean) => {
   const audio = audioRef.value
   if (!audio) return
   userSeeked = true
   audio.currentTime = Math.max(0, duration.value ? Math.min(sec, duration.value) : sec)
   current.value = audio.currentTime
   broadcast()
-  if (play) void audio.play().catch(() => (error.value = true))
+  if (andPlay) playAudio(audio)
 }
 
 const toggle = () => {
   const audio = audioRef.value
   if (!audio) return
-  if (audio.paused) void audio.play().catch(() => (error.value = true))
+  if (audio.paused) playAudio(audio)
   else audio.pause()
 }
 

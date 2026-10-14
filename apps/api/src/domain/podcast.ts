@@ -269,6 +269,8 @@ export class PodcastService {
           return
         }
         const result = await this.start(ctx, ep, 'crawl')
+        // Deferred starts (busy, over budget, create failed) still run later through the sweep, so they
+        // keep the count. 'locked' means another start of this episode is in flight and already counted.
         if (result === 'locked') await this.giveBackDaily(userId)
         console.log(`Podcast trigger after crawl: bookmark=${bookmarkId} episode=${ep.id} result=${result}`)
         return

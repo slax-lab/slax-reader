@@ -866,6 +866,8 @@ model sr_podcast_episode {
     transcript_status     String    @default("pending")
     transcript_source     String?
     provider_job_id       String?
+    // The AssemblyAI job whose cost is already counted, so a retry that polls it again adds nothing
+    asr_cost_job_id       String?
     transcript_key        String?
     transcript_hash       String?
     speakers              Boolean   @default(false)

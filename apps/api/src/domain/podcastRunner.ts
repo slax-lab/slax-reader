@@ -70,7 +70,7 @@ export interface PodcastStepLike extends StepLike {
 }
 
 export interface PodcastRunnerDeps {
-  episodes: Pick<PodcastEpisodeRepo, 'findById' | 'claim' | 'renewLease' | 'setJob' | 'addCost' | 'markReady' | 'finish' | 'markRepublish' | 'clearRepublish'>
+  episodes: Pick<PodcastEpisodeRepo, 'findById' | 'claim' | 'renewLease' | 'setJob' | 'addAsrCost' | 'markReady' | 'finish' | 'markRepublish' | 'clearRepublish'>
   articles: Pick<
     PodcastArticleRepo,
     'recordEvaluation' | 'findById' | 'findVersion' | 'listForSource' | 'claim' | 'renewLease' | 'addCost' | 'publish' | 'finishAttempt' | 'setRefsHash' | 'dropRequest'
@@ -282,11 +282,8 @@ async function transcribe(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
           const state = await deps.asr.get(jobId)
           if (state.status === 'pending') return { kind: 'pending' as const }
           if (state.status === 'error') return { kind: 'error' as const, error: state.error.slice(0, 120) }
-          // Paid once the job is done, whatever happens next.
-          // debt: a later attempt that polls the same finished job counts it again (the provider bills
-          // once). The caps then err on the safe side; upgrade by storing the counted job id.
-          await deps.episodes.addCost(p.episodeId, state.costUsd)
-          await deps.addCost(state.costUsd)
+          // Paid once the job is done, whatever happens next; a later attempt with the same job adds nothing
+          if (await deps.episodes.addAsrCost(p.episodeId, jobId, state.costUsd)) await deps.addCost(state.costUsd)
           const language = podcastLanguage(state.language) ?? podcastLanguage(row.language)
           if (!language) return { kind: 'unsupported' as const }
           if (state.durationSec > PODCAST_LIMITS.maxDurationSec) return { kind: 'too_long' as const }

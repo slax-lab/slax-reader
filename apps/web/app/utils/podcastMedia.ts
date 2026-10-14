@@ -74,7 +74,7 @@ export class MediaFollower {
     this.on(window, 'keydown', e => {
       const ke = e as KeyboardEvent
       const target = ke.target as HTMLElement | null
-      if (SCROLL_KEYS.has(ke.key) && !target?.closest('input, textarea, [contenteditable="true"], button')) this.userScrolled()
+      if (SCROLL_KEYS.has(ke.key) && !target?.closest('input, textarea, [contenteditable="true"], button, [role="button"], [data-media-seek]')) this.userScrolled()
     })
   }
 

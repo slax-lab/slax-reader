@@ -90,6 +90,17 @@ describe('MediaFollower', () => {
     expect(scrolled).toEqual(['p1', 'p2'])
   })
 
+  it('Space on a focused time stamp seeks without stopping the follow', () => {
+    const pill = document.createElement('span')
+    pill.setAttribute('role', 'button')
+    pill.setAttribute('data-media-seek', '')
+    document.body.appendChild(pill)
+    time(1)
+    pill.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }))
+    time(12)
+    expect(scrolled).toEqual(['p1', 'p2'])
+  })
+
   it('destroy removes the mark and the listeners', () => {
     time(12)
     follower.destroy()

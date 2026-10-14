@@ -98,6 +98,11 @@ describePg('podcast repositories on Postgres', () => {
       lease_until: null
     })
     expect(await episodes.addCost(ep.id, 0.1)).toBeCloseTo(0.1)
+    // A finished AssemblyAI job is counted once, however often a retry polls it
+    expect(await episodes.addAsrCost(ep.id, 'job-1', 0.2)).toBe(true)
+    expect(await episodes.addAsrCost(ep.id, 'job-1', 0.2)).toBe(false)
+    expect(await episodes.addAsrCost(ep.id, 'job-2', 0.2)).toBe(true)
+    expect((await episodes.findById(ep.id))?.cost_usd).toBeCloseTo(0.5)
   })
 
   test('retry clears the job and waits; the third attempt fails; requeue refuses final errors', async () => {

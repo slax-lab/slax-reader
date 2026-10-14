@@ -30,6 +30,10 @@ The system SHALL use a publisher transcript when one exists, and SHALL otherwise
 - **WHEN** the feed item has a VTT, SRT, Podcasting 2.0 JSON or timed text transcript
 - **THEN** the system uses it and does not call AssemblyAI
 
+#### Scenario: Retry that polls a counted job
+- **WHEN** a later attempt polls a finished job whose cost was already counted
+- **THEN** the episode cost and the site-wide spend do not change
+
 #### Scenario: Retry after a stored job
 - **WHEN** a workflow step retries after the provider job id was stored
 - **THEN** the step polls the stored job and does not submit a new one
@@ -66,13 +70,17 @@ The podcast status and translation endpoints SHALL apply the snapshot read rule 
 - **WHEN** the owner turns off the share of a podcast bookmark
 - **THEN** a visitor gets not found for status and translation
 
-### Requirement: Additive media article migration
+### Requirement: Media article migration compatible with deployed code
 
-The migration SHALL NOT rename or drop existing tables, columns or unique keys used by deployed code. It SHALL add `media_kind` with default `youtube`, the media article version key and the podcast episode table.
+The migration SHALL NOT rename or drop tables or columns. It SHALL add `media_kind` with default `youtube`, the media article version key and the podcast episode table. It SHALL drop the P0 unique key `(video_id, source_hash, prompt_version)`, and SHALL reach beta only after `youtube-ai-article` runs in production, because only the P0 code writes through that key.
 
 #### Scenario: Production code during the beta migration
-- **WHEN** beta has applied the migration and production still runs the previous code
-- **THEN** the previous code reads and writes YouTube article rows as before
+- **WHEN** beta has applied the migration and production runs `youtube-ai-article`
+- **THEN** that code reads and writes YouTube article rows as before
+
+#### Scenario: Several languages after the contract step
+- **WHEN** an owner in another language opens a video whose caption version already has a row
+- **THEN** the system creates the row for that language
 
 ### Requirement: Playback on the bookmark page
 

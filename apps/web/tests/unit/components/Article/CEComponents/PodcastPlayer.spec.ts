@@ -1,6 +1,7 @@
 // PodcastPlayer：跳转请求、进度广播、倍速、位置记忆、回到当前
 import PodcastPlayer from '~~/app/components/Article/CEComponents/podcast/PodcastPlayer.ce.vue'
 
+import { flushPromises } from '@vue/test-utils'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -45,6 +46,20 @@ describe('PodcastPlayer', () => {
     expect(play).toHaveBeenCalled()
     expect((times.mock.calls.at(-1)![0] as CustomEvent).detail).toMatchObject({ t: 420 })
     window.removeEventListener('slax:youtube-time', times)
+    w.unmount()
+  })
+
+  it('a play cut short by a pause (AbortError) shows no error; a real failure does', async () => {
+    const w = await mount()
+    play.mockImplementationOnce(() => Promise.reject(new DOMException('interrupted', 'AbortError')))
+    window.dispatchEvent(new CustomEvent('slax:youtube-seek', { detail: { t: 10 } }))
+    await flushPromises()
+    expect(w.find('.error').exists()).toBe(false)
+
+    play.mockImplementationOnce(() => Promise.reject(new DOMException('no source', 'NotSupportedError')))
+    window.dispatchEvent(new CustomEvent('slax:youtube-seek', { detail: { t: 20 } }))
+    await flushPromises()
+    expect(w.find('.error').exists()).toBe(true)
     w.unmount()
   })
 

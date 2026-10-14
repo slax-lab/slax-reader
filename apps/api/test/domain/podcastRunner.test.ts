@@ -51,6 +51,7 @@ function episodeStore(over: Partial<podcastEpisodePO> = {}) {
     transcript_status: 'pending',
     transcript_source: null as string | null,
     provider_job_id: null as string | null,
+    asr_cost_job_id: null as string | null,
     transcript_key: null as string | null,
     transcript_hash: null as string | null,
     speakers: false,
@@ -75,7 +76,12 @@ function episodeStore(over: Partial<podcastEpisodePO> = {}) {
       row.provider_job_id = jobId
       return true
     }),
-    addCost: vi.fn(async (_id: number, usd: number) => (row.cost_usd += usd)),
+    addAsrCost: vi.fn(async (_id: number, jobId: string, usd: number) => {
+      if (row.asr_cost_job_id === jobId) return false
+      row.asr_cost_job_id = jobId
+      row.cost_usd += usd
+      return true
+    }),
     markReady: vi.fn(async (_id: number, runId: string, t: { source: string; key: string; hash: string; speakers: boolean; language: string }) => {
       if (row.transcript_status !== 'transcribing' || row.run_id !== runId) return false
       Object.assign(row, { transcript_status: 'ready', transcript_source: t.source, transcript_key: t.key, transcript_hash: t.hash, speakers: t.speakers, language: t.language })
@@ -319,6 +325,14 @@ describe('AssemblyAI path', () => {
     await runPodcastEpisode(deps, P, engine().step, 'run-1')
     expect(asr.submit).not.toHaveBeenCalled()
     expect(asr.get).toHaveBeenCalledWith('job-old')
+  })
+
+  test('a retry that polls an already counted job adds no cost', async () => {
+    const asr = asrFake([{ status: 'completed', segments: words, language: 'en', durationSec: 180, costUsd: 0.0085 }])
+    const { deps, episodes } = setup({ asr, episode: { provider_job_id: 'job-old', asr_cost_job_id: 'job-old', cost_usd: 0.0085 } })
+    await runPodcastEpisode(deps, P, engine().step, 'run-1')
+    expect(episodes.row.cost_usd).toBeCloseTo(0.0085)
+    expect(deps.addCost).not.toHaveBeenCalledWith(0.0085)
   })
 
   test('a provider error goes back to pending for a retry, the job is forgotten', async () => {

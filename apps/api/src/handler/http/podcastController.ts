@@ -28,8 +28,8 @@ export class PodcastController {
   public async handleTranslation(ctx: ContextManager, request: Request) {
     const req = await RequestUtils.query<{ bookmark_uid: string; version: string }>(request)
     if (!req?.bookmark_uid || !req.version) return Failed(ErrorParam())
-    // The version never changes content, but share access can be revoked: keep the browser copy short
-    return Successed(await this.service.getTranslation(ctx, req.bookmark_uid, req.version), 200, 'ok', { 'Cache-Control': 'private, max-age=300' })
+    // The version never changes content, but share access can be revoked: no browser copy
+    return Successed(await this.service.getTranslation(ctx, req.bookmark_uid, req.version), 200, 'ok', { 'Cache-Control': 'private, no-store' })
   }
 
   @Post('/retry')

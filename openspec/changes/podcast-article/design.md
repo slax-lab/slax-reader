@@ -12,7 +12,7 @@ The podcast branch runs in `CrawlWorkflow` after the PDF probe and the inline-co
 
 ### Transcript
 
-Publisher transcripts come first. Without one, AssemblyAI transcribes the audio URL; the workflow polls it with `step.sleep`. A provider job id is stored before polling, so a retried step never bills twice. If AssemblyAI refuses speaker labels for a language, the client asks again without them. Speech density and moderation decide whether the episode continues.
+Publisher transcripts come first. Without one, AssemblyAI transcribes the audio URL; the workflow polls it with `step.sleep`. A provider job id is stored before polling, so a retried step never bills twice. `asr_cost_job_id` records the job whose cost was counted, so a retry that polls the same finished job does not count it again. If AssemblyAI refuses speaker labels for a language, the client asks again without them. Speech density and moderation decide whether the episode continues.
 
 ### Article and body
 
@@ -20,7 +20,9 @@ One article per episode in the original language, built from the transcript with
 
 ### Media articles in the database
 
-The legacy migration renamed `sr_youtube_article(_ref)` to `sr_media_article(_ref)` and `video_id` to `source_id`. In the monorepo, beta runs migrations against the production database before production code updates, so a rename would break the code that production runs in that window. The port keeps the table and column names and maps them in Prisma (`@@map("sr_youtube_article")`, `source_id @map("video_id")`). The migration only adds `media_kind` (default `youtube`) to both tables, a new unique key that starts with `media_kind`, and the new `sr_podcast_episode` table. The previous unique key stays: a YouTube video id and a podcast source id (a hash of the audio URL) never collide, so it never blocks a valid row. Raw SQL uses the database names and aliases `video_id` back to `source_id`.
+The legacy migration renamed `sr_youtube_article(_ref)` to `sr_media_article(_ref)` and `video_id` to `source_id`. In the monorepo, beta runs migrations against the production database before production code updates, so a rename would break the code that production runs in that window. The port keeps the table and column names and maps them in Prisma (`@@map("sr_youtube_article")`, `source_id @map("video_id")`). The migration only adds `media_kind` (default `youtube`) to both tables, a new unique key that starts with `media_kind`, and the new `sr_podcast_episode` table. The language-aware key of `youtube-ai-article` stays: a YouTube video id and a podcast source id (a hash of the audio URL) never collide, so it never blocks a valid row.
+
+The migration is also the contract step of `youtube-ai-article`: it drops the P0 key `(video_id, source_hash, prompt_version)`. Only the P0 code upserts on that key, so the drop is safe once production runs `youtube-ai-article`. Release order: promote `youtube-ai-article` to production first, then merge this change. Raw SQL uses the database names and aliases `video_id` back to `source_id`.
 
 ### Access
 

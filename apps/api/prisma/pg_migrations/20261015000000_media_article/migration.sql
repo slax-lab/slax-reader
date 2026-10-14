@@ -1,8 +1,8 @@
 -- Generalise the YouTube article tables to media articles (YouTube and podcasts). Every existing
--- row is a YouTube row; data does not change. Apart from the contract step below, this migration only adds: the tables keep their
--- names (Prisma maps sr_media_article to sr_youtube_article and source_id to video_id), and the
--- old unique key stays, so code already in production keeps working while beta runs the migration.
--- YouTube video ids and podcast source ids never collide, so the old key never blocks a new row.
+-- row is a YouTube row; data does not change. The tables keep their names (Prisma maps
+-- sr_media_article to sr_youtube_article and source_id to video_id), and the language-aware key of
+-- youtube-ai-article stays: YouTube video ids and podcast source ids never collide. Apart from the
+-- contract step below, this migration only adds.
 -- Contract step of youtube-ai-article: drop the P0 unique key (video_id, source_hash, prompt_version).
 -- Only the P0 code upserts on it, so this migration must reach beta only after youtube-ai-article
 -- runs in production. Without the drop, a caption version can hold one language row only.
@@ -31,6 +31,7 @@ CREATE TABLE "sr_podcast_episode" (
     "transcript_status" TEXT NOT NULL DEFAULT 'pending',
     "transcript_source" TEXT,
     "provider_job_id" TEXT,
+    "asr_cost_job_id" TEXT,
     "transcript_key" TEXT,
     "transcript_hash" TEXT,
     "speakers" BOOLEAN NOT NULL DEFAULT false,

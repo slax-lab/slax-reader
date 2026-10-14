@@ -11,7 +11,7 @@ The code is the legacy implementation from `unnoo/slax_reader_backend` (`feat/po
 | Command | Result |
 | --- | --- |
 | `pnpm api -- typecheck` | Passed. |
-| `pnpm api -- test` with `RUN_PG_INTEGRATION_TESTS=1` on an isolated Postgres 17 | 2,219 passed, 41 skipped; only `collectionTelemetryLogs.integration.test.ts` failed, because it needs the separate logs database. |
+| `pnpm api -- test` with `RUN_PG_INTEGRATION_TESTS=1` on an isolated Postgres 17 | 2,222 passed, 41 skipped; only `collectionTelemetryLogs.integration.test.ts` failed, because it needs the separate logs database. |
 | Podcast and YouTube repository integration tests | Passed, including orphan sweeps and the takedown script against the mapped table names. |
 | `prisma migrate deploy` on an empty Postgres 17, then `prisma migrate diff --exit-code` | All migrations applied; no difference. |
 | `pnpm api -- lint` | 0 errors. |
@@ -25,7 +25,17 @@ The integration tests found one port defect, now fixed: raw SQL used the new mod
 
 ## Review
 
-Local `REVIEW.md` review: the legacy table rename was an Important migration finding. It is fixed with Prisma name mapping and an additive migration (see `design.md`). One Nit stays: `podcastFetch.fetchPublicText` repeats the screening of `utils/publicFetch`. `git diff --check` flags trailing whitespace only in `test/fixtures/podcast/apple-lookup.json`, a recorded Apple response kept byte for byte.
+Local `REVIEW.md` review: the legacy table rename was an Important migration finding. It is fixed with Prisma name mapping (see `design.md`). The migration now also carries the contract step of `youtube-ai-article` (drop of the P0 unique key); the multi-language Postgres integration tests pass after it.
+
+PR review Nits that were fixed:
+
+- `PodcastPlayer`: an `AbortError` from `play()` (a quick second click) no longer shows the "can't play" message.
+- `podcastMedia`: Space on a focused time stamp (`role="button"`, `data-media-seek`) no longer stops the text from following.
+- `addAsrCost`: a retry that polls an already counted AssemblyAI job does not add its cost again (unit and Postgres tests).
+- `/v1/podcast/translation`: now `private, no-store`, like the YouTube content endpoint.
+- `test/fixtures/podcast/apple-lookup.json`: trailing whitespace removed; the parsed JSON is unchanged.
+
+Answered without a change: a deferred podcast start (busy, over budget, create failed) keeps its daily slot because the sweep starts it later, the same rule as YouTube; `fetchPublicText` keeps its own screening because the fallback logic depends on its error strings.
 
 ## Not validated
 

@@ -135,6 +135,18 @@ export class PodcastEpisodeRepo {
     return res.count === 1
   }
 
+  /**
+   * Add the cost of a finished AssemblyAI job once. False when this job was already counted: a retry
+   * that holds the same job polls it again, but the provider bills it once.
+   */
+  public async addAsrCost(id: number, jobId: string, usd: number): Promise<boolean> {
+    const res = await this.prismaPg().sr_podcast_episode.updateMany({
+      where: { id, OR: [{ asr_cost_job_id: null }, { asr_cost_job_id: { not: jobId } }] },
+      data: { asr_cost_job_id: jobId, cost_usd: { increment: usd } }
+    })
+    return res.count === 1
+  }
+
   public async addCost(id: number, usd: number): Promise<number> {
     const row = await this.prismaPg().sr_podcast_episode.update({ where: { id }, data: { cost_usd: { increment: usd } }, select: { cost_usd: true } })
     return row.cost_usd
