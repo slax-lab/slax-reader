@@ -17,5 +17,5 @@
 ## 3. Review and delivery
 
 - [x] 3.1 Run the local pre-push review from `REVIEW.md` and resolve Important findings.
-- [ ] 3.2 Open the PR to `dev` with `OpenSpec: youtube-ai-article`.
+- [x] 3.2 Open the PR to `dev` with `OpenSpec: youtube-ai-article`.
 - [ ] 3.3 Before rollout: add the binding to the private Wrangler configuration, run the migration, enable `youtube_article` for internal accounts, and check about 10 real videos for faithfulness and cost.
