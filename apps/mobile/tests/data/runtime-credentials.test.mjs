@@ -18,12 +18,12 @@ import {PdfBlockCache} from '../../src/data/pdf-cache.ts';
 const deferred = () => {let resolve; const promise = new Promise(yes => {resolve = yes;}); return {promise, resolve};};
 async function until(check) {for (let i = 0; i < 100; i++) {if (check()) return; await setImmediate();} assert(check());}
 async function fixture(refresh, storage = new MemoryPreferences({auth_token: 'old-token', user_id: 'account', last_refresh_time: String(Math.floor(Date.now() / 1000) - 172800), powersync_token: testJwt('account', 2, 1), powersync_refresh_time: 1000, powersync_connect_url: 'https://sync.example', powersync_api_origin: 'https://api.example', powersync_user_id: 'account'}), databaseGate = Promise.resolve()) {
-  const events = [], sent = []; let pending = 3, owners = 0, clears = 0;
+  const events = [], sent = []; let pending = 3, owners = 0, clears = 0, activationFailure, migrationFailure, cleanupFailure;
   class Database {
     async init() {events.push('init'); await databaseGate;} async close() {events.push('close');}
     async connect(connector) {events.push('connect'); await connector.fetchCredentials();}
     async disconnect() {events.push('disconnect');}
-    async disconnectAndClear() {clears++; pending = 0;}
+    async disconnectAndClear() {if (cleanupFailure) throw cleanupFailure; clears++; pending = 0;}
     async execute() {pending++;} async writeTransaction(work) {return work(this);}
   }
   class Cache {constructor(directory) {this.dataDirectory = directory;} clearArticles() {events.push('clear-files');}}
@@ -45,14 +45,14 @@ async function fixture(refresh, storage = new MemoryPreferences({auth_token: 'ol
     'expo/fetch': {fetch}, '../domain/session.ts': {SessionController}, '../domain/credential-readiness.ts': {CredentialReadiness}, './api.ts': {createMobileApi},
     './pdf-cache.ts': {PdfBlockCache}, './pdf-file-storage.ts': {PdfFileStorage: PdfStorage}, './cache.ts': {ArticleFileCache: Cache}, './account-cleanup.ts': {clearAccountData},
     './account-lease.ts': {AccountDatabaseLease, AccountInactiveError}, './background-cache.ts': {BackgroundArticleCache: Worker}, './runtime-activity.ts': {RuntimeActivity},
-    './image-fetch.ts': {fetchCacheImage: async () => {}}, '../native/platform': {activateReaderResources: async () => {events.push('activate');}, revokeReaderResources: async () => {events.push('revoke');}},
+    './image-fetch.ts': {fetchCacheImage: async () => {}}, '../native/platform': {activateReaderResources: async () => {events.push('activate'); if (activationFailure) throw activationFailure;}, revokeReaderResources: async () => {events.push('revoke');}},
     './connector.ts': {createSyncConnector}, './adoption.ts': {openVerifiedDatabase}, './adoption-profile.ts': {deriveReviewedAdoptionEvidence: () => undefined},
-    './legacy-preferences.ts': {migrateLegacyPreferences: async () => {}}, './native-storage.ts': {loadLegacyBridge: () => bridge, nativePreferenceStorage: () => storage},
+    './legacy-preferences.ts': {migrateLegacyPreferences: async () => {if (migrationFailure) throw migrationFailure;}}, './native-storage.ts': {loadLegacyBridge: () => bridge, nativePreferenceStorage: () => storage},
     './preferences.ts': {PreferenceStore, PREFERENCE_KEYS}, './repositories.ts': {MobileRepositories: class {constructor(lease) {this.lease = lease;}}},
     './schema.ts': {createMobileSchema: async () => ({}), SYNC_PARAMETERS: {}}, './upgrade.ts': {UpgradeVerificationRequired}, '@powersync/react-native': {PowerSyncDatabase: Database},
-  });
+  }, {Error});
   const runtime = createMobileDataRuntime({baseUrl: 'https://api.example', platform: 'ios', version: 'test', fetch});
-  return {runtime, sent, events, storage, get pending() {return pending;}, get clears() {return clears;}};
+  return {runtime, sent, events, storage, setActivationFailure: error => {activationFailure = error;}, setMigrationFailure: error => {migrationFailure = error;}, setCleanupFailure: error => {cleanupFailure = error;}, get pending() {return pending;}, get clears() {return clears;}};
 }
 
 test('cold startup publishes local account and verified data without awaiting protected network readiness', async context => {
@@ -105,7 +105,7 @@ test('refresh 401 with a waiting cache worker requires reauthentication without 
   assert.equal(f.sent.filter(value => value.path === '/v1/user/refresh').length, 1);
   assert.equal(f.pending, 3); assert.equal(f.clears, 0);
   const owner = f.runtime.getNativeResourceOwner();
-  await f.runtime.sessions.accept('reauthenticated', 'account'); await until(() => f.events.includes('connect'));
+  await f.runtime.sessions.reauthenticate('reauthenticated', 'account'); await until(() => f.events.includes('connect'));
   assert.equal(f.runtime.getNativeResourceOwner(), owner); assert.equal(f.pending, 3); assert.equal(f.clears, 0);
   await f.runtime.sessions.signOut(); assert.equal(f.clears, 1);
 });
@@ -178,4 +178,47 @@ test('refresh runs before deferred database admission and stop cancels both late
   const stopping = f.runtime.stop(); database.resolve(); refresh.resolve(); await stopping; await rejected;
   assert.equal(f.storage.values.auth_token, 'old-token'); assert.equal(f.runtime.getUpgradeSnapshot().status, 'idle');
   assert.equal(f.runtime.getRepositories(), null); assert.equal(f.events.includes('activate'), false); assert.equal(f.events.includes('connect'), false);
+});
+
+test('failed native activation after fresh login exposes recovery and succeeds on restart', async context => {
+  const f = await fixture(async () => assert.fail('Fresh login must not refresh'), new MemoryPreferences());
+  context.after(() => f.runtime.stop());
+  await f.runtime.start();
+  f.setActivationFailure(new Error('Native activation unavailable'));
+  await assert.rejects(f.runtime.sessions.accept('fresh-login', 'account'), /Native activation unavailable/);
+  assert.equal(f.runtime.sessions.getSnapshot().status, 'authenticated');
+  assert.equal(f.runtime.getUpgradeSnapshot().status, 'error');
+  assert.match(f.runtime.getUpgradeSnapshot().error.message, /Native activation unavailable/);
+  assert.equal(f.runtime.getRepositories(), null); assert.equal(f.runtime.getNativeResourceOwner(), null);
+  f.setActivationFailure(undefined);
+  await f.runtime.stop(); await f.runtime.start();
+  assert.equal(f.runtime.getUpgradeSnapshot().status, 'ready'); assert(f.runtime.getRepositories());
+  assert.equal(f.storage.values.auth_token, 'fresh-login');
+});
+
+test('preference migration failure retains startup recovery and retries without clearing account data', async context => {
+  const f = await fixture(async () => assert.fail('Fresh session must not refresh'), new MemoryPreferences({auth_token: 'fresh', user_id: 'account', last_refresh_time: String(Math.floor(Date.now() / 1000))}));
+  context.after(() => f.runtime.stop());
+  f.setMigrationFailure(new Error('Synthetic preference migration failure'));
+  await assert.rejects(f.runtime.start(), /migration failure/);
+  assert.equal(f.runtime.sessions.getSnapshot().status, 'loading'); assert.equal(f.runtime.getUpgradeSnapshot().status, 'error');
+  assert.equal(f.runtime.getRepositories(), null); assert.equal(f.pending, 3); assert.equal(f.clears, 0);
+  f.setMigrationFailure(undefined);
+  await f.runtime.stop(); await f.runtime.start();
+  assert.equal(f.runtime.getUpgradeSnapshot().status, 'ready'); assert(f.runtime.getRepositories());
+  assert.equal(f.storage.values.auth_token, 'fresh'); assert.equal(f.pending, 3); assert.equal(f.clears, 0);
+});
+
+test('failed sign-out cleanup publishes recovery and restart completes sign-out before exposing services', async context => {
+  const f = await fixture(async () => assert.fail('Fresh session must not refresh'), new MemoryPreferences({auth_token: 'fresh', user_id: 'account', last_refresh_time: String(Math.floor(Date.now() / 1000))}));
+  context.after(() => f.runtime.stop()); await f.runtime.start();
+  f.setCleanupFailure(new Error('Synthetic database cleanup failure'));
+  await assert.rejects(f.runtime.sessions.signOut(), /cleanup failure/);
+  assert.equal(f.runtime.getUpgradeSnapshot().status, 'error'); assert.equal(f.runtime.getRepositories(), null);
+  assert.equal(f.runtime.getNativeResourceOwner(), null); assert.equal(f.storage.values._slax_sign_out_pending_v1, true);
+  assert.equal(f.pending, 3);
+  f.setCleanupFailure(undefined); await f.runtime.stop(); await f.runtime.start();
+  assert.equal(f.runtime.sessions.getSnapshot().status, 'unauthenticated'); assert.equal(f.runtime.getUpgradeSnapshot().status, 'ready');
+  assert.equal(f.runtime.getRepositories(), null); assert.equal(f.storage.values.auth_token, undefined);
+  assert.equal(f.storage.values._slax_sign_out_pending_v1, undefined); assert.equal(f.clears, 1);
 });

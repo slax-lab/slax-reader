@@ -31,7 +31,7 @@ const sortKeys = {inbox: 'inbox_title', starred: 'inbox_starred', archived: 'inb
 const bookmarkKey = (item: BookmarkRecord) => item.id;
 function FeedDivider() {return <Divider inset={24} />;}
 export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
-  const {t, repositories, preferences, runtime, api, sessions, config, fixtureOnly, nativeResourceOwner, upgrade, retryStart} = useMobile();
+  const {t, repositories, preferences, runtime, api, sessions, config, fixtureOnly, nativeResourceOwner, upgrade, credentialState, retryStart} = useMobile();
   const dataReady = Boolean(repositories && nativeResourceOwner && upgrade.status === 'ready');
   const telemetry = useTelemetry();
   const pdfLab = usePdfLab();
@@ -182,6 +182,12 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
       </View>
       <Pressable accessible={false} style={{position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 10}} onPress={() => inboxScroll.reset(true)} />
     </View>
+    {credentialState?.status === 'reauthentication-required' ? <View testID="library-reauthentication" style={{paddingHorizontal: 24, paddingVertical: 12, backgroundColor: C.surface}}>
+      <SourceText style={{color: C.secondaryText, fontSize: 14, lineHeight: 21}}>{t('reauthenticate_message')}</SourceText>
+      <Pressable accessibilityRole="button" onPress={() => navigation.navigate('Reauthenticate')} style={{paddingVertical: 12, alignSelf: 'flex-start'}}>
+        <SourceText style={{color: C.accent, fontSize: 15}}>{t('reauthenticate_action')}</SourceText>
+      </Pressable>
+    </View> : null}
     <SourceShape radius={16} corners="top" fillColor={C.readerBackground} style={[styles.feed, Platform.OS === 'android' && {backgroundColor: 'transparent', borderTopLeftRadius: 0, borderTopRightRadius: 0, overflow: 'visible'}]}>
       {rssSelected ? !dataReady ? <LibraryDataStatus upgrade={upgrade} t={t} retryStart={retryStart} /> : <RssFeed key={nativeResourceOwner} active={clockActive} state={rssState} controller={rss} scrollPosition={feedPositions.rss} adding={addingRss} onDismissAdd={dismissRss} onRequestAdd={requestRss} onOpenSettings={openRssSettings} onOpen={openRss} header={rssState.enabled ? <View style={{backgroundColor: C.background}}><RssFeedSwitcher state={rssState} controller={rss} onAdd={requestRss} /></View> : null} /> : <>
         <FlatList key={JSON.stringify([nativeResourceOwner, activeId])} ref={list} {...inboxScroll.events} maintainVisibleContentPosition={inboxScroll.maintainVisibleContentPosition} data={shownRows} keyExtractor={bookmarkKey} getItemLayout={getItemLayout} initialNumToRender={16} maxToRenderPerBatch={6} windowSize={5} contentContainerStyle={[{paddingBottom: insets.bottom + 16}, !shownRows.length && {flexGrow: 1}]}

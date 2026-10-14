@@ -13,6 +13,11 @@ import type {LoginProvider} from './auth/providers';
 import type {LoginRequest} from './data/api';
 import type {ReaderObservation} from './reader/ReaderWebView';
 import {upgradeVisibilityPhase, validateVisibilityRequest, validateVisibleLegacyProducer, validatePreReconnectVisibility, validatePostServiceVisibility} from './controlled-upgrade-visibility';
+import type {CredentialReadinessState} from './domain/credential-readiness';
+
+const idleCredentials: CredentialReadinessState = {status: 'idle'};
+const noCredentialSubscription = () => () => {};
+const idleCredentialSnapshot = () => idleCredentials;
 
 export interface MobileContextValue {
   runtime: MobileDataRuntime;
@@ -24,6 +29,7 @@ export interface MobileContextValue {
   cache: ReturnType<MobileDataRuntime['getCache']>;
   session: ReturnType<MobileDataRuntime['sessions']['getSnapshot']>;
   upgrade: ReturnType<MobileDataRuntime['getUpgradeSnapshot']>;
+  credentialState?: CredentialReadinessState;
   settings: PreferenceValues;
   locale: MobileLocale;
   t: ReturnType<typeof createTranslator>;
@@ -88,12 +94,14 @@ export function MobileProvider({children}: {children: React.ReactNode}) {
   const [runtime] = useState(() => createMobileDataRuntime({baseUrl: mobileConfig.apiUrl, betaBaseUrl: mobileConfig.betaApiUrl, platform: mobileConfig.platform, version: `${mobileConfig.version} (${mobileConfig.buildNumber})`}));
   const session = useSyncExternalStore(runtime.sessions.subscribe, runtime.sessions.getSnapshot);
   const upgrade = useSyncExternalStore(runtime.subscribeUpgrade, runtime.getUpgradeSnapshot);
+  const credentialState = useSyncExternalStore(runtime.credentials?.subscribe ?? noCredentialSubscription, runtime.credentials?.getSnapshot ?? idleCredentialSnapshot);
   const [settings, setSettings] = useState<PreferenceValues>({});
   const [payments] = useState(() => new PaymentController(createExpoStore(), runtime.sessions, runtime.preferences, runtime.api.checkIapResult));
   const [webSession, setWebSession] = useState<{ready: boolean; error: Error|null; token: string|null; owner: string|null}>({ready: false, error: null, token: null, owner: null});
   const cookieSerial = useRef(Promise.resolve());
   const token = session.status === 'authenticated' ? session.session.token : null;
   const userId = session.status === 'authenticated' ? session.session.userId : null;
+  const reauthenticationRequired = credentialState.status === 'reauthentication-required';
   const nativeResourceOwner = runtime.getNativeResourceOwner();
   useEffect(() => {
     let mounted = true;
@@ -106,9 +114,9 @@ export function MobileProvider({children}: {children: React.ReactNode}) {
       if (current()) setWebSession({ready: false, error: reason instanceof Error ? reason : new Error('Unable to prepare the web session'), token, owner: nativeResourceOwner});
     });
     return () => { mounted = false; };
-  }, [runtime, session, token, nativeResourceOwner]);
+  }, [runtime, session, token, nativeResourceOwner, reauthenticationRequired]);
   useEffect(() => {
-    if (Platform.OS !== 'ios' || !userId || upgrade.status !== 'ready') return;
+    if (Platform.OS !== 'ios' || !userId || upgrade.status !== 'ready' || reauthenticationRequired) return;
     let alive = true;
     const scope = runtime.sessions.captureRequestScope();
     const request = new AbortController();
@@ -118,7 +126,7 @@ export function MobileProvider({children}: {children: React.ReactNode}) {
       return products;
     }, () => alive && !request.signal.aborted && runtime.getNativeResourceOwner() === nativeResourceOwner);
     return () => { alive = false; request.abort(); void payments.stop().catch(() => undefined); };
-  }, [runtime, payments, userId, session, nativeResourceOwner, upgrade.status]);
+  }, [runtime, payments, userId, session, nativeResourceOwner, upgrade.status, reauthenticationRequired]);
   useEffect(() => {
     const update = (state: string) => {void runtime.setForeground(state === 'active').catch(() => undefined);};
     if (AppState.currentState) update(AppState.currentState);
@@ -135,16 +143,23 @@ export function MobileProvider({children}: {children: React.ReactNode}) {
   const t = useMemo(() => createTranslator(locale), [locale]);
   const apiUrl = runtime.api.options.baseUrl;
   const config = useMemo(() => ({...mobileConfig, apiUrl, isBeta: apiUrl === mobileConfig.betaApiUrl}), [apiUrl]);
-  const retryStart = useCallback(async () => {await runtime.stop(); await runtime.start(); setSettings(await runtime.preferences.read());}, [runtime]);
+  const retryFlight = useRef<Promise<void> | null>(null);
+  const retryStart = useCallback(() => {
+    if (retryFlight.current) return retryFlight.current;
+    const attempt = (async () => {await runtime.stop(); await runtime.start(); setSettings(await runtime.preferences.read());})()
+      .finally(() => {if (retryFlight.current === attempt) retryFlight.current = null;});
+    retryFlight.current = attempt;
+    return attempt;
+  }, [runtime]);
   const preferences = runtime.getAccountPreferences() ?? runtime.preferences;
   const dataReady = upgrade.status === 'ready' && nativeResourceOwner !== null;
   const repositories = dataReady ? runtime.getRepositories() : null, cache = dataReady ? runtime.getCache() : null;
   const visibleWebSession = useMemo(() => webSession.token === token && webSession.owner === nativeResourceOwner ? webSession : {ready: false, error: null}, [webSession, token, nativeResourceOwner]);
   const value = useMemo<MobileContextValue>(() => ({
     runtime, api: runtime.api, preferences, sessions: runtime.sessions, nativeResourceOwner,
-    repositories, cache, session, upgrade, settings, locale, t, config, payments,
+    repositories, cache, session, upgrade, credentialState, settings, locale, t, config, payments,
     webSession: visibleWebSession, retryStart,
-  }), [runtime, preferences, nativeResourceOwner, repositories, cache, session, upgrade, settings, locale, t, config, payments, visibleWebSession, retryStart]);
+  }), [runtime, preferences, nativeResourceOwner, repositories, cache, session, upgrade, credentialState, settings, locale, t, config, payments, visibleWebSession, retryStart]);
   return <MobileContext.Provider value={value}>{children}</MobileContext.Provider>;
 }
 export function useMobile(): MobileContextValue {

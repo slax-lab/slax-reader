@@ -9,6 +9,10 @@ export type SessionState = { status: 'loading' } | { status: 'unauthenticated' }
 export class SessionChangedError extends Error {
   constructor() { super('Account changed before request credentials could be used'); this.name = 'SessionChangedError'; }
 }
+export class SessionAccountMismatchError extends Error {
+  readonly code = 'session_account_mismatch';
+  constructor() {super('Sign in with the same account to keep your offline changes'); this.name = 'SessionAccountMismatchError';}
+}
 export interface SessionRequestScope {
   getSession(): Promise<Session | null>;
   assertCurrent(): void;
@@ -26,18 +30,20 @@ export interface AccountLifecycle {
   revoke?(): void;
   rejected?(): void;
   accepted?(): void;
+  failed?(error: unknown): void;
   /** Clear/disconnect old account data before permitting another account to render. */
   leave(userId: string | null, clear: boolean): Promise<void>;
   enter(session: Session): Promise<void>;
 }
 const REAUTHENTICATION = '_slax_reauthentication_required_v1';
+const SIGN_OUT_PENDING = '_slax_sign_out_pending_v1';
 function storedSession(values: PreferenceValues): Session | null {
   return typeof values[K.token] === 'string' && values[K.token] && typeof values[K.userId] === 'string' && values[K.userId]
     ? { token: String(values[K.token]), userId: String(values[K.userId]), refreshedAt: Number(values[K.lastRefresh] ?? 0) }
     : null;
 }
 function clearTokens(values: PreferenceValues) {
-  [K.token, K.userId, K.syncToken, K.syncRefresh, K.syncEndpoint, K.syncApiOrigin, K.syncUserId, REAUTHENTICATION, '_slax_account_cleanup_required_v1'].forEach(key => delete values[key]);
+  [K.token, K.userId, K.syncToken, K.syncRefresh, K.syncEndpoint, K.syncApiOrigin, K.syncUserId, REAUTHENTICATION, SIGN_OUT_PENDING, '_slax_account_cleanup_required_v1'].forEach(key => delete values[key]);
 }
 
 export class SessionController implements SessionAuthority {
@@ -85,14 +91,16 @@ export class SessionController implements SessionAuthority {
       assertCurrent();
       const values = await this.preferences.read();
       assertCurrent();
+      if (values[SIGN_OUT_PENDING] === true) throw new SessionChangedError();
       if (values[REAUTHENTICATION] === true) throw new ReauthenticationRequiredError();
       return storedSession(values);
     }};
   };
   getSession = (): Promise<Session | null> => this.captureRequestScope().getSession();
   private async enterAccount(session: Session) {
+    const current = this.captureIdentity();
     try { await this.lifecycle.enter(session); }
-    catch (error) {this.requestEpoch++; this.credentialsAvailable = false; throw error;}
+    catch (error) {current(); this.requestEpoch++; this.credentialsAvailable = false; this.lifecycle.failed?.(error); throw error;}
   }
   releaseLocalOwner() {this.activeUser = null; this.requestEpoch++; this.identityEpoch++;}
   restoreLocal(): Promise<Session | null> {
@@ -100,7 +108,8 @@ export class SessionController implements SessionAuthority {
     return this.exclusive(async () => {
       current();
       this.requestEpoch++; this.credentialsAvailable = true;
-      const session = await this.readStoredSession(); current();
+      const values = await this.preferences.read(); current();
+      const session = values[SIGN_OUT_PENDING] === true ? null : storedSession(values);
       this.identityEpoch++;
       this.emit(session ? {status: 'authenticated', session} : {status: 'unauthenticated'});
       return session;
@@ -109,7 +118,8 @@ export class SessionController implements SessionAuthority {
   restore(): Promise<Session | null> {
     return this.exclusive(async () => {
       const current = this.captureIdentity();
-      const values = await this.preferences.read(), session = storedSession(values); current();
+      const values = await this.preferences.read(); current();
+      const session = values[SIGN_OUT_PENDING] === true ? null : storedSession(values);
       if (session) {
         this.credentialsAvailable = true;
         if (values._slax_account_cleanup_required_v1 === true) {
@@ -134,18 +144,32 @@ export class SessionController implements SessionAuthority {
       return session;
     });
   }
-  accept(token: string, userId: string): Promise<Session> {
+  accept(token: string, userId: string, onStarted?: (assertCurrent: () => void) => void): Promise<Session> {
+    return this.acceptSession(token, userId, onStarted);
+  }
+  reauthenticate(token: string, userId: string, onStarted?: (assertCurrent: () => void) => void): Promise<Session> {
+    const state = this.state;
+    if (state.status !== 'authenticated' || state.session.userId !== userId) return Promise.reject(new SessionAccountMismatchError());
+    return this.acceptSession(token, userId, onStarted, state.session.userId);
+  }
+  private acceptSession(token: string, userId: string, onStarted?: (assertCurrent: () => void) => void, expectedUserId?: string): Promise<Session> {
     if (!token || !userId) return Promise.reject(new Error('Login response is missing the session'));
+    const identity = this.captureIdentity();
     return this.exclusive(async () => {
+      identity();
+      const stored = await this.preferences.read(), previous = storedSession(stored); identity();
+      if (stored[SIGN_OUT_PENDING] === true) throw new SessionChangedError();
+      if (expectedUserId !== undefined && (previous?.userId !== expectedUserId || stored._slax_account_cleanup_required_v1 === true)) throw new SessionAccountMismatchError();
       this.requestEpoch++; this.identityEpoch++; this.credentialsAvailable = false;
       const current = this.captureIdentity();
-      const stored = await this.preferences.read(), previous = storedSession(stored); current();
+      onStarted?.(current);
       const clear = !!(stored._slax_account_cleanup_required_v1 === true || previous && previous.userId !== userId || !previous && (!this.accountCleared || this.activeUser !== null));
       const priorUser = previous?.userId ?? this.activeUser;
       if (clear) {this.lifecycle.revoke?.(); this.activeUser = null; this.accountCleared = false;}
       const refreshedAt = Math.floor(this.now()), session = {token, userId, refreshedAt};
       await this.preferences.update(values => {
         current();
+        if (expectedUserId !== undefined && (values[K.userId] !== expectedUserId || values[SIGN_OUT_PENDING] === true || values._slax_account_cleanup_required_v1 === true)) throw new SessionAccountMismatchError();
         delete values[K.syncToken]; delete values[K.syncRefresh]; delete values[K.syncEndpoint]; delete values[K.syncApiOrigin]; delete values[K.syncUserId]; delete values[REAUTHENTICATION];
         if (clear) values._slax_account_cleanup_required_v1 = true;
         values[K.token] = token; values[K.userId] = userId; values[K.lastRefresh] = String(refreshedAt);
@@ -153,11 +177,13 @@ export class SessionController implements SessionAuthority {
       });
       current();
       if (!clear || this.lifecycle.revoke) this.emit({status: 'authenticated', session});
-      if (clear) {
-        await this.lifecycle.leave(priorUser, true); current();
-        await this.preferences.update(values => {current(); delete values._slax_account_cleanup_required_v1;}); current();
-        this.accountCleared = true;
-      }
+      try {
+        if (clear) {
+          await this.lifecycle.leave(priorUser, true); current();
+          await this.preferences.update(values => {current(); delete values._slax_account_cleanup_required_v1;}); current();
+          this.accountCleared = true;
+        }
+      } catch (error) {current(); this.lifecycle.failed?.(error); throw error;}
       this.credentialsAvailable = true;
       if (this.activeUser !== userId) await this.enterAccount(session);
       current(); this.activeUser = userId;
@@ -190,22 +216,32 @@ export class SessionController implements SessionAuthority {
       const previous = await this.readStoredSession();
       try { scope?.assertCurrent(); } catch (error) { if (error instanceof SessionChangedError) return false; throw error; }
       if (!previous || previous.token !== token) return false;
+      let requested = false;
+      await this.preferences.update(values => {
+        scope?.assertCurrent(); requested = values[K.token] === token;
+        if (requested) values[SIGN_OUT_PENDING] = true;
+      });
+      if (!requested) return false;
       this.requestEpoch++; this.identityEpoch++; this.credentialsAvailable = false;
+      const identity = this.captureIdentity();
       this.emit({ status: 'loading' });
       this.activeUser = null; this.accountCleared = false;
-      await this.lifecycle.leave(previous.userId, true);
-      let cleared = false;
-      await this.preferences.update(values => {
-        cleared = false;
-        if (values[K.token] === token) { clearTokens(values); cleared = true; }
-      });
-      this.activeUser = null;
-      this.accountCleared = true;
-      const current = await this.readStoredSession();
-      this.credentialsAvailable = true;
-      if (current) { await this.enterAccount(current); this.activeUser = current.userId; this.accountCleared = false; }
-      this.emit(current ? { status: 'authenticated', session: current } : { status: 'unauthenticated' });
-      return cleared;
+      try {
+        await this.lifecycle.leave(previous.userId, true); identity();
+        let cleared = false;
+        await this.preferences.update(values => {
+          identity();
+          cleared = false;
+          if (values[K.token] === token) { clearTokens(values); cleared = true; }
+        });
+        this.activeUser = null;
+        this.accountCleared = true;
+        const current = await this.readStoredSession(); identity();
+        this.credentialsAvailable = true;
+        if (current) { await this.enterAccount(current); this.activeUser = current.userId; this.accountCleared = false; }
+        this.emit(current ? { status: 'authenticated', session: current } : { status: 'unauthenticated' });
+        return cleared;
+      } catch (error) {identity(); this.lifecycle.failed?.(error); throw error;}
     });
   }
   async signOut(): Promise<void> {

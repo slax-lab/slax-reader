@@ -10,8 +10,13 @@ import {mobileTestIds} from '../theme/testIds';
 import {useTelemetry} from '../telemetry';
 import {fixtureDocument} from '../native/fixture-document';
 import {fixtureActions} from '../components/fixture-actions';
+import type {MobileScreenProps} from '../navigation/types';
 
-export function LoginScreen() {
+export function ReauthenticationScreen({navigation}: MobileScreenProps<'Reauthenticate'>) {
+  return <LoginScreen reauthenticating onAuthenticated={() => navigation.goBack()}/>;
+}
+
+export function LoginScreen({reauthenticating = false, onAuthenticated}: {reauthenticating?: boolean; onAuthenticated?(): void} = {}) {
   const {api, sessions, t, config, fixtureOnly} = useMobile();
   const telemetry = useTelemetry();
   const {width, height} = useWindowDimensions();
@@ -31,13 +36,17 @@ export function LoginScreen() {
     const before = sessions.getSnapshot(), assertIdentity = sessions.captureIdentity();
     return () => {
       try {assertIdentity();} catch {return false;}
-      return before.status === 'unauthenticated' && sessions.getSnapshot().status === 'unauthenticated';
+      const current = sessions.getSnapshot();
+      return reauthenticating
+        ? before.status === 'authenticated' && current.status === 'authenticated' && before.session.userId === current.session.userId
+        : before.status === 'unauthenticated' && current.status === 'unauthenticated';
     };
   };
   async function login(provider: LoginProvider, allowed = sessionGuard()) {
     if (active.current || !mounted.current || !allowed()) return;
     const generation = ++providerGeneration.current;
-    const current = () => mounted.current && generation === providerGeneration.current && allowed();
+    let isCurrentSession = allowed;
+    const current = () => mounted.current && generation === providerGeneration.current && isCurrentSession();
     active.current = true; setLoading(provider);
     try {
       telemetry.element(`login_${provider}_button`, 'signup');
@@ -45,9 +54,14 @@ export function LoginScreen() {
       if (!request || !current()) return;
       const result = await api.login(request);
       if (!current()) return;
-      await sessions.accept(result.token, result.user_id);
+      const accept = reauthenticating ? sessions.reauthenticate.bind(sessions) : sessions.accept.bind(sessions);
+      await accept(result.token, result.user_id, assertCurrent => {
+        isCurrentSession = () => {try {assertCurrent(); return true;} catch {return false;}};
+      });
+      if (current()) onAuthenticated?.();
     } catch (error) {
-      if (current()) Alert.alert(t('login_failed'), error instanceof Error ? error.message : t('login_failed'), [{text: t('btn_ok')}]);
+      const mismatch = error && typeof error === 'object' && 'code' in error && error.code === 'session_account_mismatch';
+      if (current()) Alert.alert(t('login_failed'), mismatch ? t('reauthenticate_account_mismatch') : error instanceof Error ? error.message : t('login_failed'), [{text: t('btn_ok')}]);
     } finally {if (generation === providerGeneration.current) {active.current = false; if (mounted.current) setLoading(null);}}
   }
   function openAgreement(tab: 'terms'|'privacy', provider: LoginProvider|null = null) {
@@ -100,10 +114,10 @@ export function LoginScreen() {
   return <View style={[styles.root, {paddingBottom: insets.bottom}]}>
     <View style={styles.top}>
       <View style={{height: Math.min(width * 128 / 375, 128)}}/>
-      <Text style={styles.title}>{t('login_welcome_title')}</Text>
+      <Text style={styles.title}>{t(reauthenticating ? 'reauthenticate_title' : 'login_welcome_title')}</Text>
       <View>
         <Image source={mobileAssets.bg_login} style={{width, aspectRatio: L.loginArtworkAspectRatio}} resizeMode="contain"/>
-        <Text style={styles.subtitle}>{t('login_welcome_subtitle')}</Text>
+        <Text style={styles.subtitle}>{t(reauthenticating ? 'reauthenticate_message' : 'login_welcome_subtitle')}</Text>
       </View>
     </View>
     <View style={styles.bottom}>

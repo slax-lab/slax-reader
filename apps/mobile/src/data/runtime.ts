@@ -100,6 +100,13 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       readiness.reject(); connector.pause(); connectionRequested = false; clearSyncRetry();
       void database?.disconnect().catch(() => undefined);
     },
+    failed(reason) {
+      if (stopping) return;
+      readiness.pause(); connector.pause();
+      const previous = revokeAccountScope();
+      retiredBackground = Promise.all([retiredBackground, previous?.stop(), database?.disconnect()]).then(() => undefined).catch(() => undefined);
+      emit({status: 'error', error: reason instanceof Error ? reason : new Error('Application data initialization failed')});
+    },
     accepted() {
       readiness.reset(); connector.invalidate(); connector.resume(); connecting = undefined; connectionRequested = false;
       const opened = database, generation = accountGeneration;

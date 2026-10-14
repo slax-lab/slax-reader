@@ -75,7 +75,7 @@ for (const platform of ['android', 'ios']) test(`mounted ${platform} Login prese
   let height = 800;
   const WebView = v.native('WebView');
   const sessionState = {status: 'unauthenticated'};
-  const mobile = {t: value => value, config: {webUrl: 'https://example.test'}, api: {login: async request => ({token: request.provider, user_id: 'one'})}, sessions: {getSnapshot: () => sessionState, captureIdentity: () => () => {}, accept: async (...values) => sessions.push(values)}};
+  const mobile = {t: value => value, config: {webUrl: 'https://example.test'}, api: {login: async request => ({token: request.provider, user_id: 'one'})}, sessions: {getSnapshot: () => sessionState, captureIdentity: () => () => {}, accept: async (token, userId, onStarted) => {onStarted?.(() => {}); sessions.push([token, userId]);}}};
   const {LoginScreen} = await load('../../src/screens/LoginScreen.tsx', {
     react: React, 'react-native': {...v.primitives, Alert: {alert() {}}, Platform: {OS: platform}, StyleSheet: {create: value => value, absoluteFill: {}}, useWindowDimensions: () => ({width: 375, height})},
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'react-native-webview': {WebView}, '../../assets': {mobileAssets: {}}, '../auth/providers': {authenticate: async provider => {authentication.push(provider); return {provider};}},
@@ -220,6 +220,7 @@ for (const platform of ['android', 'ios']) test(`actual ${platform} subscription
     'react-native-gesture-handler': {GestureHandlerRootView: nil}, 'react-native-safe-area-context': {SafeAreaProvider: nil, SafeAreaView: nil}, './runtime': {MobileProvider: nil, useMobile: () => ({t: value => value, upgrade: {status: 'ready'}, session: {status: 'authenticated', session: {userId: 'user'}}})}, './theme': theme, './telemetry': {useTelemetry: () => telemetry}, './components/SourceLine': {SourceLine: nil},
   };
   for (const name of ['Login', 'Library', 'Reader', 'Settings', 'About', 'Feedback', 'DeleteAccount', 'Subscription', 'Debug']) boundaries[`./screens/${name}Screen`] = {[`${name}Screen`]: nil};
+  boundaries['./screens/AppRecoveryScreen'] = {AppRecoveryScreen: nil};
   const {ApplicationRoutes} = await load('../../src/App.tsx', boundaries);
   await act(async () => root.render(React.createElement(ApplicationRoutes)));
   const {options} = screens.find(screen => screen.name === 'Subscription');

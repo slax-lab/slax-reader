@@ -65,6 +65,21 @@ Startup SHALL preserve source rendering from persisted authenticated state while
 - **THEN** prior-user data and synchronization are isolated before rendering the new account
 - **AND** cached content, comments, and shared-extension credentials do not leak between users
 
+#### Scenario: A rejected credential is replaced without deleting offline edits
+- **WHEN** the active account requires reauthentication
+- **THEN** the user can reopen the existing provider login from the authenticated shell while keeping admitted cached data and pending writes
+- **AND** only that same account can complete reauthentication; selecting another provider account leaves the original session and offline edits unchanged
+
+#### Scenario: Sign-out cleanup is interrupted
+- **WHEN** account cleanup fails or the process stops after sign-out begins
+- **THEN** persisted sign-out intent prevents protected requests, incoming shares and restoration of the old credentials as a usable session
+- **AND** localized recovery allows cleanup to finish before another account enters
+
+#### Scenario: Local identity cannot be restored
+- **WHEN** preference migration or reading fails before local session publication
+- **THEN** the application presents localized recovery with a retry action rather than an indefinite blank startup surface
+- **AND** retries preserve migration data and share one runtime restart
+
 ### Requirement: Main API credentials refresh on a daily foreground lifecycle
 
 The main API JWT SHALL be refreshed when 86,400 seconds have elapsed since the last successful refresh, checked at startup, foreground return and before authenticated request or sync-credential use. Cold startup SHALL select and immediately present Login or the authenticated shell after reading local logged-in state, without waiting for refresh, sync or initialization. Protected requests SHALL await due main refresh and asynchronous PowerSync connection SHALL await valid scoped credentials; these network gates MUST NOT block local route presentation or be bypassed by it. Cached data SHALL hydrate only after genuine ownership/migration verification, with localized loading/failure inside the shell rather than global blank UI or unverified cross-account access. An active foreground deadline SHALL cover continuous use without restart; background SHALL cancel scheduling and foreground SHALL re-evaluate due state, without an OS background service. Concurrent triggers SHALL share one account/API-origin-owned refresh. Only successful refresh SHALL advance its persisted timestamp; failures SHALL use bounded retry/backoff without resetting account/local data or logging tokens. Known expired credentials MUST NOT be treated as valid. Any definitive authentication transition SHALL match the current token/generation; stale failures or 401 responses MUST NOT clear a newer session.

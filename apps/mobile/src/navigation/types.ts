@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 export type RootStackParams = {
   Login: undefined;
+  Reauthenticate: undefined;
   Library: undefined;
   Reader: { bookmarkId: string; collectionOwnerId?: string; collectionId?: string; title?: string; rssEntryId?: string; openedFrom?: string };
   Settings: undefined;

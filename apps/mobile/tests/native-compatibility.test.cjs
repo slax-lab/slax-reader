@@ -87,7 +87,7 @@ test('CocoaPods retains configured Crashlytics upload and removes only the uncon
 test('requested prebuilt dependencies cannot silently produce a mixed native graph', async () => {
   const input = {contents: "target 'SlaxReader' do\n  post_install do |installer|\n  end\nend\n"};
   const result = await mod('ios', 'podfile', input);
-  const guard = result.contents.match(/    # Slax prebuilt React dependency consistency\n([\s\S]*?    end\n)/)[1];
+  const guard = result.contents.match(/    if \(ENV\['RCT_USE_PREBUILT_RNCORE'\][\s\S]*?    end\n/)[0];
   for (const [coreSource, depsSource, shouldPass] of [[false, false, true], [false, true, false], [true, false, false]]) {
     const ruby = `ENV['RCT_USE_PREBUILT_RNCORE']='1'; ENV['RCT_USE_RN_DEP']='1'; class ReactNativeCoreUtils; def self.build_rncore_from_source(); ${coreSource}; end; end; class ReactNativeDependenciesUtils; def self.build_react_native_deps_from_source(); ${depsSource}; end; end; ${guard}`;
     const run = spawnSync('ruby', ['-e', ruby], {encoding: 'utf8'});

@@ -62,12 +62,13 @@ export class SlaxApi {
     }
     identity?.(); if (origin !== this.origin) throw new Error('API environment changed');
     throwIfAborted(signal);
-    const scope = this.options.sessions.captureRequestScope?.();
+    const scope = publicLogin ? undefined : this.options.sessions.captureRequestScope?.();
     const session = publicLogin ? null : await (scope ? scope.getSession() : this.options.sessions.getSession());
     scope?.assertCurrent();
     const requestToken = tokenOverride ?? session?.token;
     const url = this.url(path, query);
     for (let attempt = 0; ; attempt++) {
+      identity?.(); if (origin !== this.origin) throw new Error('API environment changed');
       scope?.assertCurrent();
       throwIfAborted(signal);
       const controller = new AbortController();

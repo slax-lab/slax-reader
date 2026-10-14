@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {SessionController} from '../../src/domain/session.ts';
+import {SessionController, SessionAccountMismatchError, SessionChangedError} from '../../src/domain/session.ts';
 import {CredentialReadiness, CredentialsUnavailableError, OfflineCredentialError, ReauthenticationRequiredError, isOfflineCredentialError} from '../../src/domain/credential-readiness.ts';
 import {DataTransportError, createMobileApi} from '../../src/data/api.ts';
 import {PreferenceStore} from '../../src/data/preferences.ts';
@@ -9,6 +9,74 @@ import {MemoryPreferences, testJwt} from './helpers.ts';
 import type {SlaxApi} from '../../src/data/api.ts';
 
 const sessionValues = () => ({auth_token: 'main', user_id: '123456', last_refresh_time: '1000'});
+
+test('same-account reauthentication preserves its admitted owner and offline preferences', async () => {
+  const storage = new MemoryPreferences({...sessionValues(), continue_reading_bookmark: 'offline-position', pending_fixture: 'unsent'});
+  let entered = 0, cleared = 0, accepted = 0;
+  const sessions = new SessionController(new PreferenceStore(storage), {enter: async () => {entered++;}, leave: async () => {cleared++;}, accepted: () => {accepted++;}}, () => 1000);
+  await sessions.restore();
+  await sessions.rejectIfMatches('main');
+  const obsolete = sessions.captureIdentity();
+  await sessions.reauthenticate('renewed', '123456');
+  assert.equal(entered, 1); assert.equal(cleared, 0); assert.equal(accepted, 1);
+  assert.equal(storage.values.pending_fixture, 'unsent'); assert.equal(storage.values.continue_reading_bookmark, 'offline-position');
+  assert.equal((await sessions.getSession())?.token, 'renewed');
+  assert.equal(storage.values._slax_reauthentication_required_v1, undefined);
+  assert.throws(obsolete, SessionChangedError);
+});
+
+test('a different provider account cannot replace rejected credentials or offline state', async () => {
+  const storage = new MemoryPreferences(sessionValues());
+  const sessions = new SessionController(new PreferenceStore(storage), {enter: async () => {}, leave: async () => assert.fail('Reauthentication must not clear data')});
+  await sessions.restore(); await sessions.rejectIfMatches('main');
+  const revision = storage.revision, snapshot = sessions.getSnapshot();
+  await assert.rejects(sessions.reauthenticate('other-token', 'other'), SessionAccountMismatchError);
+  assert.equal(storage.revision, revision); assert.equal(sessions.getSnapshot(), snapshot);
+  assert.equal(storage.values.auth_token, 'main');
+  await assert.rejects(sessions.getSession(), ReauthenticationRequiredError);
+});
+
+test('reauthentication rechecks stored account on every preference CAS retry', async () => {
+  const storage = new MemoryPreferences(sessionValues());
+  const sessions = new SessionController(new PreferenceStore(storage), {enter: async () => {}, leave: async () => {}});
+  await sessions.restore(); await sessions.rejectIfMatches('main');
+  storage.beforeSwap = () => {storage.beforeSwap = undefined; storage.values = {auth_token: 'replacement', user_id: 'other'}; storage.revision++;};
+  await assert.rejects(sessions.reauthenticate('renewed', '123456'), SessionAccountMismatchError);
+  assert.equal(storage.values.auth_token, 'replacement'); assert.equal(storage.values.user_id, 'other');
+});
+
+test('failed sign-out exposes recovery and restart completes its journal before another login', async () => {
+  const storage = new MemoryPreferences(sessionValues()), preferences = new PreferenceStore(storage);
+  let fail = true, clears = 0, recoveries = 0;
+  const lifecycle = {enter: async () => {}, leave: async () => {clears++; if (fail) throw new Error('Synthetic cleanup failure');}, failed() {recoveries++;}};
+  const sessions = new SessionController(preferences, lifecycle);
+  await sessions.restore();
+  await assert.rejects(sessions.signOut(), /cleanup failure/);
+  assert.equal(recoveries, 1); assert.equal(sessions.getSnapshot().status, 'loading');
+  assert.equal(storage.values._slax_sign_out_pending_v1, true);
+  await assert.rejects(sessions.getSession(), SessionChangedError);
+  const restarted = new SessionController(preferences, lifecycle);
+  assert.equal(await restarted.restoreLocal(), null);
+  await assert.rejects(restarted.getSession(), SessionChangedError);
+  await assert.rejects(restarted.accept('premature', 'next'), SessionChangedError);
+  fail = false;
+  await restarted.restore();
+  assert.equal(clears, 2); assert.equal(storage.values.auth_token, undefined); assert.equal(storage.values._slax_sign_out_pending_v1, undefined);
+  assert.equal(restarted.getSnapshot().status, 'unauthenticated');
+  await restarted.accept('next-token', 'next');
+  assert.equal((await restarted.getSession())?.userId, 'next');
+});
+
+test('a failed sign-out journal write leaves the existing local session usable', async () => {
+  const storage = new MemoryPreferences(sessionValues());
+  let cleared = false;
+  const sessions = new SessionController(new PreferenceStore(storage), {enter: async () => {}, leave: async () => {cleared = true;}});
+  await sessions.restore(); const snapshot = sessions.getSnapshot();
+  storage.compareAndSwap = async () => {throw new Error('Synthetic storage failure');};
+  await assert.rejects(sessions.signOut(), /storage failure/);
+  assert.equal(sessions.getSnapshot(), snapshot); assert.equal(cleared, false);
+  assert.equal((await sessions.getSession())?.userId, '123456');
+});
 
 test('a current API 401 preserves local identity and data; rejection survives restart and permits public reauthentication', async () => {
   const storage = new MemoryPreferences(sessionValues()), preferences = new PreferenceStore(storage);

@@ -7,7 +7,7 @@ import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
 import {MobileProvider, useMobile} from './runtime';
 import {mobileColors as C} from './theme';
 import type {RootStackParams} from './navigation/types';
-import {LoginScreen} from './screens/LoginScreen';
+import {LoginScreen, ReauthenticationScreen} from './screens/LoginScreen';
 import {LibraryScreen} from './screens/LibraryScreen';
 import {ReaderScreen} from './screens/ReaderScreen';
 import {SettingsScreen} from './screens/SettingsScreen';
@@ -18,6 +18,7 @@ import {SubscriptionScreen} from './screens/SubscriptionScreen';
 import {DebugScreen} from './screens/DebugScreen';
 import {useTelemetry} from './telemetry';
 import {SourceLine} from './components/SourceLine';
+import {AppRecoveryScreen} from './screens/AppRecoveryScreen';
 
 const Stack = createNativeStackNavigator<RootStackParams>();
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
@@ -35,7 +36,7 @@ const sourceHeaderTitle = Platform.OS === 'android'
   : undefined;
 
 export function ApplicationRoutes() {
-  const {session, t} = useMobile();
+  const {session, upgrade, retryStart, t} = useMobile();
   const telemetry = useTelemetry();
   const reported = useRef(new Set<string>());
   const userId = session.status === 'authenticated' ? session.session.userId : null;
@@ -51,11 +52,13 @@ export function ApplicationRoutes() {
       telemetry.screen(route.name, route.params ?? {});
     }
   }
+  if (session.status === 'loading' && upgrade?.status === 'error') return <AppRecoveryScreen t={t} retryStart={retryStart}/>;
   if (session.status === 'loading') return <View testID="app-startup-surface" style={{flex: 1, backgroundColor: C.background}} />;
   return <NavigationContainer ref={navigationRef} onReady={reportRoutes} onStateChange={reportRoutes}>
     <Stack.Navigator screenOptions={{headerTintColor: C.text, headerStyle: {backgroundColor: C.background}, headerTitleAlign: 'center', headerTitleStyle: {fontSize: 17, fontWeight: '500'}, contentStyle: {backgroundColor: C.background}, headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal'}}>
       {session.status === 'unauthenticated' ? <Stack.Screen name="Login" component={LoginScreen} options={{headerShown: false}}/> : <Stack.Group navigationKey={session.session.userId}>
         <Stack.Screen name="Library" component={LibraryScreen} options={{headerShown: false}}/>
+        <Stack.Screen name="Reauthenticate" component={ReauthenticationScreen} options={{title: t('reauthenticate_title'), headerTitle: sourceHeaderTitle}}/>
         <Stack.Screen name="Reader" component={ReaderScreen} options={{title: '', headerStyle: {backgroundColor: C.readerBackground}}}/>
         <Stack.Screen name="Settings" component={SettingsScreen} options={{title: t('setting_title'), headerTitle: sourceHeaderTitle}}/>
         <Stack.Screen name="About" component={AboutScreen} options={{title: t('sidebar_about')}}/>

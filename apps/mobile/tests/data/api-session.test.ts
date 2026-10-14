@@ -89,6 +89,39 @@ test('public login does not require a persisted authenticated session', async ()
   assert.deepEqual(await api.login({code: 'synthetic-code', redirect_uri: 'app://login', platform: 'ios', type: 'apple'}), {token: 'a-token', user_id: 'a'});
 });
 
+test('public login can retry after local acceptance fails without reopening protected credentials', async () => {
+  const storage = new MemoryPreferences(), preferences = new PreferenceStore(storage);
+  const sessions = new SessionController(preferences, {leave: async () => {}, enter: async () => {}});
+  await sessions.restoreLocal();
+  const swap = storage.compareAndSwap.bind(storage);
+  storage.compareAndSwap = async () => {throw new Error('Storage unavailable');};
+  await assert.rejects(sessions.accept('first-token', 'a'), /Storage unavailable/);
+  await assert.rejects(sessions.getSession(), SessionChangedError);
+  let sends = 0;
+  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions, fetch: async (_url, request) => {
+    sends++; assert.equal((request?.headers as Record<string, string>).Authorization, undefined);
+    return Response.json({code: 200, data: {token: 'retry-token', user_id: 'a'}});
+  }});
+  const result = await api.login({code: 'synthetic-code', redirect_uri: '', platform: 'ios', type: 'google'});
+  await assert.rejects(api.rssLabs(), SessionChangedError); assert.equal(sends, 1);
+  storage.compareAndSwap = swap;
+  await sessions.accept(result.token, result.user_id);
+  assert.equal(sessions.getSnapshot().status, 'authenticated');
+  assert.equal((await sessions.getSession())?.token, 'retry-token');
+});
+
+test('a public login retry cannot continue after account identity replacement', async () => {
+  const sessions = new SessionController(new PreferenceStore(new MemoryPreferences()), {leave: async () => {}, enter: async () => {}});
+  await sessions.restoreLocal();
+  let sends = 0;
+  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions,
+    sleep: async () => {await sessions.accept('replacement', 'other');},
+    fetch: async () => {sends++; return Response.json({}, {status: 503});},
+  });
+  await assert.rejects(api.login({code: 'synthetic-code', redirect_uri: '', platform: 'ios', type: 'google'}), SessionChangedError);
+  assert.equal(sends, 1);
+});
+
 test('failed account activation closes credentials and revokes its pending enter request', async () => {
   const storage = new HeldReadPreferences({auth_token: 'a-token', user_id: 'a'});
   let pending!: Promise<void>, held!: ReturnType<HeldReadPreferences['holdNextRead']>, api!: ReturnType<typeof createMobileApi>, sends = 0;

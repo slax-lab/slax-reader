@@ -94,6 +94,7 @@ class ShareActivity : Activity() {
     val content = intent.getStringExtra(Intent.EXTRA_TEXT)?.takeIf {it.isNotEmpty()} ?: return "Not have share content"
     val url = Regex("^((https|http)?://)[^\\s]+").find(content)?.value ?: return "Not have URL content to collect."
     val values = readPreferences()
+    if (values.optBoolean("_slax_sign_out_pending_v1", false)) return "Not have auth info, please login first."
     val token = values.optString("auth_token").takeIf {it.isNotEmpty()} ?: return "Not have auth info, please login first."
     val metadata = packageManager.getApplicationInfo(packageName, android.content.pm.PackageManager.GET_META_DATA).metaData
     val base = metadata.getString(if (values.optString("selected_env") == "BETA") "SlaxApiBetaURL" else "SlaxApiBaseURL") ?: return "Collection failed, please try again."

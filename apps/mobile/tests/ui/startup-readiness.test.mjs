@@ -27,6 +27,7 @@ for (const status of ['authenticated', 'unauthenticated']) test(`mounted ${statu
     '@react-navigation/native-stack': {createNativeStackNavigator: () => ({Navigator, Group: host.native.View, Screen: props => {screens.set(props.name, props); return null;}})},
     'react-native-gesture-handler': {GestureHandlerRootView: host.native.View}, 'react-native-safe-area-context': {SafeAreaProvider: host.native.View, SafeAreaView: host.native.View},
     './runtime': {useMobile: () => context, MobileProvider: nil}, './theme': theme, './telemetry': {useTelemetry: () => telemetry}, './components/SourceLine': {SourceLine: nil},
+    './screens/AppRecoveryScreen': {AppRecoveryScreen: nil},
   };
   for (const name of ['Login', 'Library', 'Reader', 'Settings', 'About', 'Feedback', 'DeleteAccount', 'Subscription', 'Debug']) boundaries[`./screens/${name}Screen`] = {[`${name}Screen`]: nil};
   const {ApplicationRoutes} = await loadComponent('../../src/App.tsx', boundaries);
@@ -39,6 +40,36 @@ for (const status of ['authenticated', 'unauthenticated']) test(`mounted ${statu
     assert.equal(route, status === 'authenticated' ? 'Settings' : 'Login');
     assert.equal(host.props.has('app-startup-surface'), false);
   }
+}));
+
+test('mounted startup shows recoverable local errors, suppresses duplicate retries and returns to Login', nativeBoundary, async () => withNativeHost(async host => {
+  const controls = new Map(), gate = deferred(); let retries = 0;
+  const context = {session: {status: 'loading'}, upgrade: {status: 'error', error: new Error('Private storage detail must not be displayed')}, t: key => key,
+    retryStart: async () => {retries++; await gate.promise; context.session = {status: 'unauthenticated'}; context.upgrade = {status: 'ready'};}};
+  const primitive = props => {if (props.onPress) controls.set(text(props.children), props); return React.createElement(host.native.View, props);};
+  const {AppRecoveryScreen} = await loadComponent('../../src/screens/AppRecoveryScreen.tsx', {
+    react: React, 'react-native': {...host.native, Pressable: primitive, StyleSheet: {create: value => value}},
+    'react-native-safe-area-context': {SafeAreaView: host.native.View}, '../components': {SourceText: host.native.View}, '../theme': theme,
+  });
+  const screens = [];
+  const boundaries = {
+    react: React, 'react-native': {...host.native, Text: host.native.View, StatusBar: nil},
+    '@react-navigation/native': {NavigationContainer: host.native.View, createNavigationContainerRef: () => React.createRef()},
+    '@react-navigation/native-stack': {createNativeStackNavigator: () => ({Navigator: host.native.View, Group: host.native.View, Screen: props => {screens.push(props.name); return null;}})},
+    'react-native-gesture-handler': {GestureHandlerRootView: host.native.View}, 'react-native-safe-area-context': {SafeAreaProvider: host.native.View, SafeAreaView: host.native.View},
+    './runtime': {useMobile: () => context, MobileProvider: nil}, './theme': theme, './telemetry': {useTelemetry: () => telemetry}, './components/SourceLine': {SourceLine: nil}, './screens/AppRecoveryScreen': {AppRecoveryScreen},
+  };
+  for (const name of ['Login', 'Library', 'Reader', 'Settings', 'About', 'Feedback', 'DeleteAccount', 'Subscription', 'Debug']) boundaries[`./screens/${name}Screen`] = {[`${name}Screen`]: nil};
+  const {ApplicationRoutes} = await loadComponent('../../src/App.tsx', boundaries);
+  const render = () => host.render(React.createElement(ApplicationRoutes));
+  await render();
+  assert(host.props.has('app-startup-recovery')); assert.equal(host.props.has('app-startup-surface'), false);
+  assert.doesNotMatch(host.window.document.body.textContent, /Private storage detail/);
+  const retry = controls.get('rss_retry').onPress;
+  await act(async () => {retry(); retry();}); assert.equal(retries, 1);
+  assert.equal(controls.get('rss_retry').disabled, true);
+  await act(async () => gate.resolve()); await render();
+  assert(screens.includes('Login')); assert.equal(host.props.has('app-startup-recovery'), false);
 }));
 
 async function libraryFixture(host) {
@@ -97,6 +128,17 @@ test('mounted Library confines admission loading/recovery to data area and prese
   assert.ok((await f.store.read()).continue_reading_bookmark);
 }));
 
+test('mounted Library offers reauthentication without discarding its admitted data', nativeBoundary, async () => withNativeHost(async host => {
+  const f = await libraryFixture(host); f.admit();
+  f.context.credentialState = {status: 'reauthentication-required'}; await f.render();
+  assert(host.window.document.querySelector('[data-testid="library-reauthentication"]'));
+  await act(async () => f.controls.get('reauthenticate_action').onPress());
+  assert.deepEqual(f.navigations, [['Reauthenticate']]);
+  f.context.credentialState = {status: 'ready'}; await f.render();
+  assert.equal(host.window.document.querySelector('[data-testid="library-reauthentication"]'), null);
+  assert.equal(f.calls.globalReads, 0);
+}));
+
 test('continue-reading waits for admitted repository and non-null owner, then opens with private context and fences a captured stale click', nativeBoundary, async () => withNativeHost(async host => {
   const f = await libraryFixture(host); await f.render();
   f.context.upgrade = {status: 'ready'}; await f.render();
@@ -122,8 +164,8 @@ for (const boundary of ['read', 'update']) test(`continue-reading ${boundary} co
 }));
 
 test('mounted MobileProvider exposes no repository or cache before admission, even with provisional runtime services', nativeBoundary, async () => withNativeHost(async host => {
-  const listeners = new Set(), session = {status: 'authenticated', session: {userId: 'local', token: 'synthetic'}};
-  let upgrade = {status: 'checking'}, owner = 'provisional', visible, getters = 0;
+  const listeners = new Set(), credentialListeners = new Set(), session = {status: 'authenticated', session: {userId: 'local', token: 'synthetic'}};
+  let upgrade = {status: 'checking'}, owner = 'provisional', visible, getters = 0, credentialState = {status: 'idle'}, restartGate, starts = 0, stops = 0;
   const preferences = {subscribe: () => () => {}, read: async () => ({})};
   const repositories = {}, cache = {};
   const runtime = {
@@ -132,7 +174,8 @@ test('mounted MobileProvider exposes no repository or cache before admission, ev
     getNativeResourceOwner: () => owner, getAccountPreferences: () => owner ? preferences : null,
     getRepositories: () => {getters++; return repositories;}, getCache: () => {getters++; return cache;},
     api: {options: {baseUrl: 'https://fixture.test'}}, preferences,
-    start: async () => {}, stop: async () => {}, setForeground: async () => {},
+    credentials: {subscribe: callback => {credentialListeners.add(callback); return () => credentialListeners.delete(callback);}, getSnapshot: () => credentialState},
+    start: async () => {starts++;}, stop: async () => {stops++; if (restartGate) await restartGate.promise;}, setForeground: async () => {},
   };
   const {MobileProvider, useMobile} = await loadComponent('../../src/runtime.tsx', {
     react: React, 'react-native': {...host.native, Platform: {OS: 'android'}}, 'expo-localization': {getLocales: () => [{languageTag: 'en'}]}, 'expo-file-system': {},
@@ -150,4 +193,11 @@ test('mounted MobileProvider exposes no repository or cache before admission, ev
   assert.equal(visible.repositories, null); assert.equal(visible.cache, null); assert.equal(getters, 0);
   await act(async () => {owner = 'admitted'; upgrade = {status: 'ready'}; for (const callback of listeners) callback();});
   assert.equal(visible.repositories, repositories); assert.equal(visible.cache, cache);
+  await act(async () => {credentialState = {status: 'reauthentication-required'}; for (const callback of credentialListeners) callback();});
+  assert.equal(visible.credentialState.status, 'reauthentication-required'); assert.equal(visible.repositories, repositories);
+  restartGate = deferred();
+  const first = visible.retryStart(), second = visible.retryStart();
+  assert.equal(first, second); assert.equal(stops, 1);
+  await act(async () => {restartGate.resolve(); await first;});
+  assert.equal(starts, 2);
 }));
