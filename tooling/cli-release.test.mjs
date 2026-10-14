@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { compareVersions, validateRelease, publishRelease, registryVersion, reconcileAssets, repository, packageName } from './cli-release.mjs'
+import { compareVersions, validateRelease, publishRelease, registryVersion, reconcileAssets, ensureReleaseTag, selectRelease, repository, packageName } from './cli-release.mjs'
 import { readFileSync } from 'node:fs'
 
 const commit = 'a'.repeat(40)
@@ -32,6 +32,8 @@ test('release guards enforce repository, stable tag and package identity', () =>
   assert.equal(compareVersions('2.0.0', '2.0.0'), 0)
   assert.equal(compareVersions('2.0.0', '20.0.0'), -1)
   assert.throws(() => compareVersions('2.0.0-beta.1', '2.0.0'))
+  assert.throws(() => compareVersions('2.0.0' + String.fromCharCode(10), '1.0.0'))
+  assert.throws(() => compareVersions(['2.0.0'], '1.0.0'))
 })
 
 test('fresh release publishes, verifies registry bytes, then creates GitHub outputs', async () => {
@@ -96,29 +98,80 @@ test('release asset retries add only missing identical artifacts without overwri
   await assert.rejects(reconcileAssets({ ...options, remote: { ...options.remote, assets: [{ name: 'cli.tgz' }, { name: 'cli.tgz' }] } }), /Duplicate/)
 })
 
-test('workflow publishes only tested tag artifacts with scoped OIDC and no long-lived token', () => {
+test('workflow scopes branch releases, exact artifact transfer, and stable-only OIDC', () => {
   const workflow = readFileSync(new URL('../.github/workflows/cli-release.yml', import.meta.url), 'utf8')
-  assert.match(workflow, /tags:\s+- 'cli-v\*'/)
-  assert.doesNotMatch(workflow, /pull_request|workflow_dispatch|secrets\.|NPM_TOKEN|NODE_AUTH_TOKEN/)
-  assert.match(workflow, /needs: build/)
-  assert.match(workflow, /id-token: write/)
-  assert.match(workflow, /contents: write/)
+  assert.match(workflow, /branches:\s+- dev\s+- beta\s+- main/)
+  assert.doesNotMatch(workflow, /tags:|pull_request|workflow_dispatch|secrets\.|NPM_TOKEN|NODE_AUTH_TOKEN/)
+  assert.match(workflow, /needs.detect.outputs.eligible == 'true'/)
   assert.match(workflow, /cancel-in-progress: false/)
-  assert.match(workflow, /test:package "\$archive"/)
+  assert.match(workflow, /queue: max/)
+  assert.match(workflow, /group: cli-release-\$\{\{ github.ref \}\}/)
+  const preview = workflow.split('  preview:')[1].split('  publish:')[0]
+  const stable = workflow.split('  publish:')[1]
+  assert.match(preview, /refs\/heads\/dev.*refs\/heads\/beta/)
+  assert.match(preview, /contents: write/)
+  assert.doesNotMatch(preview, /id-token|npm install|registry-url|cli-release.mjs publish/)
+  assert.match(stable, /if: github.ref == 'refs\/heads\/main'/)
+  assert.match(stable, /id-token: write/)
+  assert.match(stable, /contents: write/)
   assert.match(workflow, /GH_TOKEN: \$\{\{ github.token \}\}/)
+  assert.match(workflow, /ref: \$\{\{ github.sha \}\}/)
+  assert.ok(workflow.indexOf('cli-release.mjs prepare') < workflow.indexOf('cli-release.mjs smoke'))
+  assert.ok(workflow.indexOf('cli-release.mjs smoke') < workflow.indexOf('actions/upload-artifact'))
+  assert.match(workflow, /artifact_id: \$\{\{ steps.release_artifact.outputs.artifact-id \}\}/)
+  assert.match(workflow, /name: cli-release-\$\{\{ github.sha \}\}-\$\{\{ github.ref_name \}\}-\$\{\{ github.run_attempt \}\}/)
+  assert.equal([...workflow.matchAll(/artifact-ids: \$\{\{ needs.build.outputs.artifact_id \}\}/g)].length, 2)
+  assert.equal([...workflow.matchAll(/merge-multiple: true/g)].length, 2)
+  assert.doesNotMatch(workflow, /overwrite: true/)
 })
 
-test('full validation runs on pull requests without repeating after merge or before release', () => {
+test('full validation remains in PR CI and release preparation builds explicitly', () => {
   const ci = readFileSync(new URL('../.github/workflows/cli-ci.yml', import.meta.url), 'utf8')
-  const releaseWorkflow = readFileSync(new URL('../.github/workflows/cli-release.yml', import.meta.url), 'utf8')
+  const workflow = readFileSync(new URL('../.github/workflows/cli-release.yml', import.meta.url), 'utf8')
   assert.match(ci, /^  pull_request:/m)
   assert.doesNotMatch(ci, /^  push:/m)
   for (const command of ['pnpm cli -- typecheck', 'pnpm cli -- test', 'pnpm test:cli-tooling', 'pnpm test:preflight', 'pnpm cli -- test:package']) {
     assert.ok(ci.split('\n').some(line => line.trim() === `- run: ${command}`), command)
   }
-  assert.match(releaseWorkflow, /^      - run: pnpm cli -- build$/m)
-  assert.doesNotMatch(releaseWorkflow, /^      - run: pnpm (?:cli -- (?:typecheck|test)|test:cli-tooling|test:preflight)$/m)
-  assert.match(releaseWorkflow, /pnpm cli -- test:package "\$archive"/)
-  assert.ok(releaseWorkflow.indexOf('pnpm cli -- build') < releaseWorkflow.indexOf('cli-release.mjs prepare'))
-  assert.ok(releaseWorkflow.indexOf('test:package "\$archive"') < releaseWorkflow.indexOf('actions/upload-artifact'))
+  assert.doesNotMatch(workflow, /^      - run: pnpm (?:cli -- (?:typecheck|test)|test:cli-tooling|test:preflight)$/m)
+  assert.match(workflow, /cli-release.mjs prepare/)
+  assert.match(workflow, /cli-release.mjs smoke/)
+})
+
+test('every channel derives arbitrary versions and previews cannot publish npm', async () => {
+  for (const baseVersion of ['1.0.2', '3.7.11', '10.0.0']) {
+    for (const branch of ['dev', 'beta', 'main']) {
+      const version = branch === 'main' ? baseVersion : `${baseVersion}-${branch}`
+      const candidate = selectRelease({ previous: { ...manifest, version: '1.0.1' }, manifest: { ...manifest, version: baseVersion }, branch, repo: repository, sha: commit, changed: true })
+      assert.equal(candidate.tag, `cli-v${version}`)
+      assert.equal(candidate.version, version)
+      assert.equal(candidate.baseVersion, baseVersion)
+      if (branch !== 'main') {
+        const api = adapters()
+        await assert.rejects(publishRelease(candidate, api), /Only main/)
+        assert.deepEqual(api.calls, [])
+      }
+    }
+  }
+})
+
+test('remote tags are created at exact commits, dereferenced, and never rewritten', async () => {
+  const writes = []
+  let tag = null
+  const request = async (path, options = {}) => {
+    if (options.method) {
+      writes.push({ path, ...JSON.parse(options.body) })
+      tag = { object: { type: 'commit', sha: commit } }
+    }
+    return tag
+  }
+  await ensureReleaseTag(release, request)
+  await ensureReleaseTag(release, request)
+  assert.deepEqual(writes, [{ path: '/git/refs', ref: release.tag.replace(/^/, 'refs/tags/'), sha: commit }])
+  await ensureReleaseTag(release, async path => path.includes('/git/ref/') ? { object: { type: 'tag', sha: 'b'.repeat(40) } } : { object: { type: 'commit', sha: commit } })
+  tag = { object: { type: 'commit', sha: 'c'.repeat(40) } }
+  await assert.rejects(ensureReleaseTag(release, request), /conflict/)
+  assert.equal(writes.length, 1)
+  await assert.rejects(ensureReleaseTag(release, async () => null, { create: false }), /missing/)
+  await assert.rejects(ensureReleaseTag(release, async () => { throw new Error('permission denied') }), /permission/)
 })

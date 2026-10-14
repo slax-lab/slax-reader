@@ -93,7 +93,7 @@ pnpm cli -- test:package
 pnpm test:cli-tooling
 ```
 
-See [CLI development](docs/cli/DEVELOPMENT.md) and [automated npm/GitHub releases](docs/cli/RELEASE.md). Stable `cli-v<version>` tags on commits promoted to `main` publish through npm OIDC; no user-added Actions secret is required.
+See [CLI development](docs/cli/DEVELOPMENT.md) and [automated npm/GitHub releases](docs/cli/RELEASE.md). Merges that change the CLI and increase its package version automatically create `cli-v<version>-dev` and `cli-v<version>-beta` GitHub Pre-Releases on `dev` and `beta`. Promotion to `main` creates `cli-v<version>` and publishes the same tested stable archive through npm OIDC and GitHub Release; no user-added Actions secret is required.
 
 ## Contributing
 

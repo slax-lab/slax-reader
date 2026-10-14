@@ -1,12 +1,26 @@
 # CLI releases
 
-`.github/workflows/cli-ci.yml` validates relevant pull requests on Node 22.22.2 and 24.15.0. It does not run again on post-merge pushes to `dev`, `beta` or `main`. `.github/workflows/cli-release.yml` publishes stable CLI releases when a `cli-v<version>` tag is pushed; it builds without repeating typecheck, CLI unit/integration suites or root tooling tests.
+Relevant pull requests run full CLI validation on Node 22.22.2 and 24.15.0 in `.github/workflows/cli-ci.yml`. After a merge into `dev`, `beta`, or `main`, `.github/workflows/cli-release.yml` evaluates the complete push diff and the destination branch's previous CLI version. It releases only when `apps/cli/**` changes and `apps/cli/package.json` increases to a new stable SemVer. A version-only edit qualifies; CLI edits without a version increase and unrelated merges are successful skips.
+
+## Channels and versions
+
+The source manifest keeps the stable base version throughout `dev → beta → main`. The release version is derived at build time from the actual manifest value; no example version is hard-coded:
+
+| Branch | Tag | Package and executable version | Distribution |
+| --- | --- | --- | --- |
+| dev | `cli-v<version>-dev` | `<version>-dev` | GitHub Pre-Release |
+| beta | `cli-v<version>-beta` | `<version>-beta` | GitHub Pre-Release |
+| main | `cli-v<version>` | `<version>` | npm latest and stable GitHub Release |
+
+Each tag has its own Release in `slax-lab/slax-reader`. Downloads include `slax-lab-reader-cli-<release-version>.tgz`, `SHA256SUMS`, and generated release notes. The archive is an installable npm package, not a native standalone executable. GitHub's source ZIP/TAR downloads are the tagged monorepo, not the packaged CLI.
+
+The first implementation PR deliberately raises the base version to `1.0.2`, so its merge into dev tests `cli-v1.0.2-dev`. Promotion then tests `cli-v1.0.2-beta` and `cli-v1.0.2`, provided each destination previously had a lower CLI version. Later versions are chosen explicitly in reviewed CLI PRs. Promoting an existing base version does not require another edit when it increases the destination's previous version. One promotion carrying several intermediate versions releases only the resulting manifest version.
 
 ## One-time setup
 
 ### npm trusted publisher
 
-An administrator of `@slax-lab/reader-cli` must open the package's **Settings → Trusted publishing** on npmjs.com and add a GitHub Actions publisher:
+An administrator of `@slax-lab/reader-cli` must configure **Settings → Trusted publishing** on npmjs.com:
 
 | Field | Value |
 | --- | --- |
@@ -16,46 +30,49 @@ An administrator of `@slax-lab/reader-cli` must open the package's **Settings �
 | Environment name | Leave empty |
 | Allowed actions | Enable direct `npm publish` |
 
-Stage-only permission is not enough for this unattended workflow. The workflow uses GitHub-hosted runners, Node 24.15.0 and npm 12.2.0 (trusted publishing requires npm >=11.5.1). Public OIDC publication includes provenance. The package's repository URL must continue to match `slax-lab/slax-reader`.
+Only main publishes to npm. Stage-only permission is insufficient for unattended direct publication. The workflow retains GitHub-hosted runners, Node 24.15.0, npm 12.2.0, public access and provenance. Trusted publishing requires npm >=11.5.1. Keeping the same workflow filename preserves its configured identity. The package repository URL must continue to match the monorepo.
 
-Under the current npm policy, a new trusted publisher must complete its first successful publish within two days or it expires; create it near the planned first release. Refer to the [current npm trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/) for policy updates.
+Under the current npm policy, a new trusted publisher must complete its first successful publish within two days or it expires; create it near the planned stable release. Consult [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/) for current external policy. Local tests do not verify the actual account configuration or OIDC exchange.
 
-### GitHub Actions secrets and permissions
+### GitHub permissions
 
-**No user-created Actions secret is required.** Do not add `NPM_TOKEN`, a personal access token, or a Reader API key for this workflow.
+No user-created Actions secret is required. Detection and build use `contents: read`; preview distribution uses `contents: write`; only stable publication adds `id-token: write`. GitHub API operations use `GH_TOKEN: ${{ github.token }}`. Checkout credentials are not persisted. Repository/organization policy must allow Actions and those job permissions.
 
-- npm authenticates using short-lived OIDC credentials through `id-token: write`.
-- GitHub Release operations use `GH_TOKEN: ${{ github.token }}`, the automatically supplied workflow token, with `contents: write`.
-- The build job remains read-only. Publishing permissions apply only to the publish job after validation.
-- Ensure repository/organization policy permits those job permissions and Actions execution. Restrict creation, updates and deletion of `cli-v*` tags to release maintainers through repository rulesets. If you later add a GitHub Environment, its name must also match the npm trusted publisher; this workflow currently uses none.
+The workflow automatically creates a lightweight tag at the validated merge revision. Applicable `cli-v*` tag rulesets must permit that workflow actor to create tags. A read-only inspection on 2026-10-14 reported the repository's `release-branches` branch ruleset and no tag ruleset, including inherited rulesets in the response; recheck policy if tag creation later returns a permission error. Do not add a personal access token or rewrite existing tags to work around a failure automatically.
 
-These external settings are not created by local installation or tests. A passing dry test is not proof that the npm trust is configured.
+Automatic tagging and distribution occur in the original branch workflow: [GitHub does not trigger another tag-push workflow from GITHUB_TOKEN writes](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow). Manually pushing a tag no longer initiates this release workflow.
 
 ## Release procedure
 
-1. Choose a new stable SemVer and update `apps/cli/package.json` in a task PR targeting `dev`. The imported version is `1.0.0`; do not republish that existing upstream version. The raised Node requirement is a compatibility change to consider when selecting the next version.
-2. Run the checks in [CLI development](DEVELOPMENT.md), then promote through `dev → beta → main` using the repository's human-reviewed promotion process. Confirm the public skill URL is available.
-3. Fetch the promoted commit and create a matching tag on that commit, for example `cli-v2.0.0`. Push that tag intentionally. Tag creation/push is the publication action; the workflow never increments versions, creates tags or merges branches for you.
-4. Monitor **CLI release** in GitHub Actions. All gates run on the tagged revision. A tag must match the package manifest and point to a commit reachable from `main`. Branch pushes, malformed tags and prerelease versions do not publish.
+1. Choose a new stable SemVer and update `apps/cli/package.json` in a task PR targeting dev. Include all CLI changes intended for that version and run the checks in [CLI development](DEVELOPMENT.md).
+2. Merge the reviewed PR into dev. **CLI release** detects the version increase, builds with the derived dev version, packs once, verifies that exact archive in an isolated consumer, then creates the dev tag and uploads the Pre-Release assets.
+3. Download the `.tgz` and its checksum from the tag's Release. From the download directory, verify and install explicitly:
 
-Full source validation belongs to PR CI and the reviewed promotion process; the release job does not rerun those suites or independently re-prove them on the final merge SHA. The release workflow checks the tag, installs frozen dependencies, explicitly builds, packs once, smoke-checks that exact archive in an isolated consumer, transfers it to the publishing job, then publishes it with `npm publish`. After registry integrity verification it creates the tag's Release in `slax-lab/slax-reader` and uploads:
+```bash
+shasum -a 256 -c SHA256SUMS
+npm install --global ./slax-lab-reader-cli-<release-version>.tgz
+reader-cli --version
+```
 
-- `slax-lab-reader-cli-<version>.tgz`: the same bytes published to npm;
-- `SHA256SUMS`: SHA-256 checksum for the archive;
-- generated release notes.
+Replace `<release-version>` with the downloaded version, such as `1.0.2-dev`. Existing CLI upgrade/update checks use npm latest, so install preview archives explicitly.
 
-GitHub also provides its normal source ZIP/TAR downloads for the tagged monorepo. The npm archive is the installable CLI package, not a standalone native executable.
+4. Promote dev to beta, then beta to main through the repository's human-managed merge-commit promotion process. Beta gets its own Pre-Release. Main publishes the validated stable archive through npm Trusted Publishing, verifies registry bytes, and attaches the identical archive/checksum to the stable Release.
+
+Release jobs do not repeat full PR typecheck, unit/integration or root tooling suites. They retain event/repository/manifest/version guards, matching-branch ancestry, explicit build, exact-archive installation smoke validation, and artifact/source/checksum validation. Tags point to the immutable event revision even if that branch advances while the run is queued. Invalid/missing comparison revisions, forced pushes, branch creation/deletion, decreases and identity mismatches fail without publication.
 
 ## Failures and retries
 
-Use **Re-run failed jobs** to reuse the tested artifact, or rerun the whole workflow on the same unchanged tag. Releases are serialized per package; an active release is not canceled by a newer tag.
+Use **Re-run failed jobs** on the original branch workflow run to reuse the validated artifact, or rerun the whole original event to rebuild the same revision. Build artifacts have an attempt-specific name, and distribution downloads the immutable artifact ID supplied by its successful build job. Failed-job retries reuse that build output; a full rerun creates a separate artifact without replacing the earlier one. Each channel has its own non-canceling concurrency group with `queue: max`. GitHub permits up to 100 pending runs per group; explicitly rerun canceled eligible events if that limit is reached. Queue arrival order is not guaranteed to match version order, so stable latest-version guards remain.
 
-- An already published npm version is skipped only when its integrity and embedded source identity match the candidate; registry archive bytes are verified too.
-- Authentication/network errors are failures, not evidence that a package version is missing.
-- Missing GitHub Releases/assets are created; existing matching assets are retained. Conflicting bytes fail without overwrite.
-- Old retries do not move npm `latest` or GitHub's latest release backward. A new unpublished version must be newer than npm latest.
-- Never rewrite a published version/tag or unpublish automatically. Fix a defect using a new reviewed version. If npm succeeded but GitHub failed, do not bump solely to repair attachments: rerun the failed job after correcting the external issue.
+- An existing tag can be reused only if it resolves to the candidate commit. Conflicting or changed targets fail without moving/deleting the tag.
+- An already published npm version is skipped only after embedded source identity, integrity and registry bytes match the candidate.
+- Network/authentication/rate-limit failures are errors, not proof that a tag or npm version is absent.
+- Missing Releases/assets are created; matching attachments are retained. Incorrect prerelease state, duplicate assets or conflicting bytes fail without overwrite.
+- Dev/beta never publish to npm or replace stable GitHub latest. Old stable retries do not move npm or GitHub latest backward, and new unpublished stable versions must exceed npm latest.
+- If npm succeeded but GitHub failed, repair the external issue and rerun the failed job; do not bump solely to repair missing attachments.
+
+The previously observed `cli-v1.0.1` tag/empty Release is historical state and is not modified by this change. Prefer a new unused version when any chosen release version collides with a tag. Reusing a historical version requires separate human-authorized cleanup after checking all npm/GitHub state. Never automatically rewrite a published version or unpublish it.
 
 ## Verification boundary
 
-Local and PR tests validate release guards, exact archive packaging, controlled npm/GitHub orchestration, failure recovery, checksum conflicts and isolated CLI installation. They do not publish public packages, configure npm trust, create remote tags or verify a real OIDC exchange. The first authorized release is still required to verify that external integration end to end.
+Local and PR tests exercise real Git-history eligibility, derived versions, manifest restoration, reproducible archives, controlled npm/GitHub publication, checksum/source conflicts, failure recovery, and standalone installation. They do not create public tags, Releases or npm packages. The first authorized merge/promotion is required to verify workflow-token tag creation and stable npm OIDC integration end to end.

@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { isDeepStrictEqual } from 'node:util'
 import { pnpmInvocation } from './pnpm-command.mjs'
 
 export const repository = 'slax-lab/slax-reader'
@@ -13,7 +14,7 @@ const digest = (bytes, algorithm, encoding = 'hex') => createHash(algorithm).upd
 const run = (program, args, options = {}) => execFileSync(program, args, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, ...options })
 
 export function compareVersions(a, b) {
-  if (!stableVersion.test(a) || !stableVersion.test(b)) throw new Error('Expected stable semantic versions')
+  if (typeof a !== 'string' || typeof b !== 'string' || a.trim() !== a || b.trim() !== b || !stableVersion.test(a) || !stableVersion.test(b)) throw new Error('Expected stable semantic versions')
   const left = a.split('.').map(BigInt)
   const right = b.split('.').map(BigInt)
   for (let i = 0; i < 3; i++) {
@@ -22,29 +23,65 @@ export function compareVersions(a, b) {
   return 0
 }
 
-export function validateRelease({ tag, repo, sha, manifest }) {
-  if (repo !== repository) throw new Error('CLI releases must originate in slax-lab/slax-reader')
-  if (!/^[a-f0-9]{40}$/.test(sha || '')) throw new Error('Invalid source commit')
-  if (manifest.name !== packageName || !stableVersion.test(manifest.version)) throw new Error('Invalid CLI package identity or stable version')
-  if (tag !== `cli-v${manifest.version}`) throw new Error('Release tag must match the stable CLI package version')
-  if (manifest.repository?.url !== `git+https://github.com/${repository}.git`) throw new Error('Package repository does not match publisher')
-  return { name: packageName, version: manifest.version, tag, commit: sha, repository }
+function validateManifest(manifest) {
+  if (manifest.name !== packageName || manifest.repository?.url !== `git+https://github.com/${repository}.git`) throw new Error('Invalid CLI package identity or repository')
 }
 
-export function preflight(env = process.env) {
-  const manifest = JSON.parse(readFileSync(resolve(root, 'apps/cli/package.json'), 'utf8'))
-  const release = validateRelease({ tag: env.GITHUB_REF_NAME, repo: env.GITHUB_REPOSITORY, sha: env.GITHUB_SHA, manifest })
-  if (env.GITHUB_EVENT_NAME !== 'push' || env.GITHUB_REF_TYPE !== 'tag') throw new Error('Only pushed release tags can publish')
-  const head = run('git', ['rev-parse', 'HEAD'], { cwd: root }).trim()
-  if (head !== release.commit) throw new Error('Checkout does not match the release commit')
-  run('git', ['merge-base', '--is-ancestor', release.commit, 'origin/main'], { cwd: root })
-  const target = run('git', ['rev-parse', `refs/tags/${release.tag}^{commit}`], { cwd: root }).trim()
-  if (target !== head) throw new Error('Release tag does not resolve to the checked-out commit')
+export function validateRelease({ tag, repo, sha, manifest, branch = 'main', baseVersion = manifest.version, packed = false }) {
+  if (repo !== repository) throw new Error('CLI releases must originate in slax-lab/slax-reader')
+  if (!/^[a-f0-9]{40}$/.test(sha || '') || /^0+$/.test(sha)) throw new Error('Invalid source commit')
+  if (!['dev', 'beta', 'main'].includes(branch)) throw new Error('Invalid CLI release branch')
+  validateManifest(manifest)
+  if (typeof baseVersion !== 'string' || baseVersion.trim() !== baseVersion || !stableVersion.test(baseVersion)) throw new Error('Expected a stable CLI base version')
+  const channel = branch === 'main' ? 'stable' : branch
+  const version = branch === 'main' ? baseVersion : `${baseVersion}-${branch}`
+  if (manifest.version !== (packed ? version : baseVersion)) throw new Error('CLI manifest version does not match the release channel')
+  if (tag !== `cli-v${version}`) throw new Error('Release tag must match the CLI package version and channel')
+  return { name: packageName, baseVersion, version, channel, branch, tag, commit: sha, repository }
+}
+
+export function selectRelease({ previous, manifest, changed, branch, repo, sha }) {
+  const version = branch === 'main' ? manifest.version : `${manifest.version}-${branch}`
+  const release = validateRelease({ tag: `cli-v${version}`, repo, sha, manifest, branch })
+  validateManifest(previous)
+  const comparison = compareVersions(manifest.version, previous.version)
+  if (comparison < 0) throw new Error(`CLI version decreased from ${previous.version} to ${manifest.version}`)
+  if (!changed || comparison === 0) return { eligible: false, reason: !changed ? 'No CLI directory changes' : 'CLI version unchanged' }
+  return { eligible: true, ...release }
+}
+
+export function preflight(env = process.env, cwd = root) {
+  if (env.GITHUB_EVENT_NAME !== 'push' || env.GITHUB_REF_TYPE !== 'branch') throw new Error('Only release branch pushes can publish')
+  const branch = env.GITHUB_REF_NAME
+  if (!['dev', 'beta', 'main'].includes(branch) || env.GITHUB_REF !== `refs/heads/${branch}`) throw new Error('Invalid CLI release branch ref')
+  if (env.GITHUB_REPOSITORY !== repository) throw new Error('CLI releases must originate in slax-lab/slax-reader')
+  const event = JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8'))
+  if (event.ref !== env.GITHUB_REF || event.repository?.full_name !== repository || event.after !== env.GITHUB_SHA) throw new Error('Push event does not match the release source')
+  if (event.created || event.deleted || event.forced) throw new Error('Branch creation, deletion and forced pushes cannot release')
+  for (const sha of [event.before, event.after]) {
+    if (!/^[a-f0-9]{40}$/.test(sha || '') || /^0+$/.test(sha)) throw new Error('Invalid push comparison revision')
+  }
+  const git = args => run('git', args, { cwd }).trim()
+  if (git(['rev-parse', 'HEAD']) !== event.after) throw new Error('Checkout does not match the release commit')
+  for (const sha of [event.before, event.after]) {
+    try { git(['cat-file', '-e', `${sha}^{commit}`]) } catch { throw new Error(`Push comparison revision unavailable: ${sha}`) }
+  }
+  try { git(['merge-base', '--is-ancestor', event.before, event.after]) } catch { throw new Error('Release push must preserve branch history') }
+  try { git(['merge-base', '--is-ancestor', event.after, `origin/${branch}`]) } catch { throw new Error(`Release commit must be reachable from origin/${branch}`) }
+  const manifest = JSON.parse(git(['show', `${event.after}:apps/cli/package.json`]))
+  const previous = JSON.parse(git(['show', `${event.before}:apps/cli/package.json`]))
+  if (!isDeepStrictEqual(manifest, JSON.parse(readFileSync(resolve(cwd, 'apps/cli/package.json'), 'utf8')))) throw new Error('Working CLI manifest differs from the release source')
+  return selectRelease({ previous, manifest, changed: Boolean(git(['diff', '--name-only', event.before, event.after, '--', 'apps/cli'])), branch, repo: env.GITHUB_REPOSITORY, sha: event.after })
+}
+
+function candidate(env) {
+  const { eligible, reason, ...release } = preflight(env)
+  if (!eligible) throw new Error(`No eligible CLI release: ${reason}`)
   return release
 }
 
 export function prepareRelease(directory, env = process.env) {
-  const release = preflight(env)
+  const release = candidate(env)
   const destination = resolve(directory)
   mkdirSync(destination, { recursive: true })
   if (readdirSync(destination).length) throw new Error('Release output directory must be empty')
@@ -52,7 +89,9 @@ export function prepareRelease(directory, env = process.env) {
   const original = readFileSync(manifestPath, 'utf8')
   const manifest = JSON.parse(original)
   try {
-    writeFileSync(manifestPath, JSON.stringify({ ...manifest, gitHead: release.commit, slaxRelease: release }, null, 2) + '\n')
+    writeFileSync(manifestPath, JSON.stringify({ ...manifest, version: release.version, gitHead: release.commit, slaxRelease: release }, null, 2) + '\n')
+    const build = pnpmInvocation(['cli', '--', 'build'])
+    run(build.program, build.args, { cwd: root, stdio: 'inherit' })
     const invocation = pnpmInvocation(['--dir', 'apps/cli', 'pack', '--pack-destination', destination])
     run(invocation.program, invocation.args, { cwd: root, stdio: 'inherit' })
   } finally {
@@ -77,8 +116,8 @@ export function readRelease(directory) {
   if (release.sha256 !== digest(bytes, 'sha256') || release.integrity !== `sha512-${digest(bytes, 'sha512', 'base64')}`) throw new Error('Release artifact checksum mismatch')
   if (readFileSync(resolve(destination, 'SHA256SUMS'), 'utf8') !== `${release.sha256}  ${release.filename}\n`) throw new Error('Invalid checksum file')
   const manifest = JSON.parse(run('tar', ['-xOf', archive, 'package/package.json']))
-  const expected = validateRelease({ tag: release.tag, repo: release.repository, sha: release.commit, manifest })
-  if (JSON.stringify(manifest.slaxRelease) !== JSON.stringify(expected) || manifest.gitHead !== release.commit || release.version !== manifest.version || release.name !== packageName) throw new Error('Archive source identity mismatch')
+  const expected = validateRelease({ tag: release.tag, repo: release.repository, sha: release.commit, manifest, branch: release.branch, baseVersion: release.baseVersion, packed: true })
+  if (!isDeepStrictEqual(manifest.slaxRelease, expected) || manifest.gitHead !== release.commit || !Object.entries(expected).every(([key, value]) => release[key] === value)) throw new Error('Archive source identity mismatch')
   return release
 }
 
@@ -90,10 +129,11 @@ export async function registryVersion(version, fetcher = fetch) {
 }
 
 export async function publishRelease(release, adapters) {
+  if (release.channel !== 'stable' || release.branch !== 'main') throw new Error('Only main can publish npm packages')
   const existing = await adapters.version(release.version)
   const latest = await adapters.version('latest')
   if (existing) {
-    if (existing.name !== packageName || existing.version !== release.version || existing.dist?.integrity !== release.integrity || existing.slaxRelease?.commit !== release.commit || existing.slaxRelease?.tag !== release.tag || existing.slaxRelease?.repository !== repository) throw new Error('Published npm version conflicts with this release')
+    if (existing.name !== packageName || existing.version !== release.version || existing.dist?.integrity !== release.integrity || !Object.entries(releaseIdentity(release)).every(([key, value]) => existing.slaxRelease?.[key] === value)) throw new Error('Published npm version conflicts with this release')
     await adapters.verifyRegistryArchive(existing.dist, release)
   } else {
     if (latest && compareVersions(release.version, latest.version) <= 0) throw new Error('New release must be newer than npm latest')
@@ -111,13 +151,13 @@ async function githubRequest(path, options = {}) {
     headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${process.env.GH_TOKEN}`, 'X-GitHub-Api-Version': '2022-11-28', ...options.headers },
     signal: AbortSignal.timeout(30000),
   })
-  if (response.status === 404) return null
+  if (response.status === 404 && (!options.method || options.method === 'GET')) return null
   if (!response.ok) throw new Error(`GitHub request failed: ${response.status}`)
   return response.json()
 }
 
 export async function reconcileAssets({ release, remote, assets, readAsset, uploadAsset }) {
-  if (remote.tag_name !== release.tag || remote.draft || remote.prerelease) throw new Error('GitHub Release identity/state mismatch')
+  if (remote.tag_name !== release.tag || remote.draft || remote.prerelease !== (release.channel !== 'stable')) throw new Error('GitHub Release identity/state mismatch')
   for (const asset of assets) {
     const matches = remote.assets.filter(item => item.name === asset.name)
     if (matches.length > 1) throw new Error(`Duplicate release asset: ${asset.name}`)
@@ -130,25 +170,40 @@ export async function reconcileAssets({ release, remote, assets, readAsset, uplo
   }
 }
 
-async function githubRelease(release, directory) {
-  if (!process.env.GH_TOKEN) throw new Error('GitHub workflow token is required')
-  const tag = await githubRequest(`/git/ref/tags/${release.tag}`)
-  if (!tag) throw new Error('Release tag is missing')
+function releaseIdentity(release) {
+  const { name, baseVersion, version, channel, branch, tag, commit, repository: repo } = release
+  return { name, baseVersion, version, channel, branch, tag, commit, repository: repo }
+}
+
+export async function ensureReleaseTag(release, request = githubRequest, { create = true } = {}) {
+  let tag = await request(`/git/ref/tags/${release.tag}`)
+  if (!tag && create) {
+    tag = await request('/git/refs', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ref: `refs/tags/${release.tag}`, sha: release.commit }),
+    })
+  }
+  if (!tag) throw new Error(`Release tag is missing: ${release.tag}`)
   let object = tag.object
-  for (let depth = 0; object.type === 'tag' && depth < 5; depth++) {
-    const annotation = await githubRequest(`/git/tags/${object.sha}`)
+  for (let depth = 0; object?.type === 'tag' && depth < 5; depth++) {
+    const annotation = await request(`/git/tags/${object.sha}`)
     if (!annotation) throw new Error('Annotated tag is missing')
     object = annotation.object
   }
-  if (object.type !== 'commit' || object.sha !== release.commit) throw new Error('Remote release tag changed')
+  if (object?.type !== 'commit' || object.sha !== release.commit) throw new Error(`Release tag conflict: ${release.tag} expected ${release.commit}, found ${object?.sha}`)
+}
+
+async function githubRelease(release, directory) {
+  await ensureReleaseTag(release, githubRequest, { create: false })
   let remote = await githubRequest(`/releases/tags/${release.tag}`)
   if (!remote) {
-    const newest = await githubRequest('/releases/latest')
+    const preview = release.channel !== 'stable'
+    const newest = preview ? null : await githubRequest('/releases/latest')
     const newestVersion = newest?.tag_name?.startsWith('cli-v') ? newest.tag_name.slice(5) : null
-    const makeLatest = !newest || (stableVersion.test(newestVersion || '') && compareVersions(release.version, newestVersion) > 0)
+    const makeLatest = !preview && (!newest || (stableVersion.test(newestVersion || '') && compareVersions(release.version, newestVersion) > 0))
     remote = await githubRequest('/releases', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tag_name: release.tag, target_commitish: release.commit, name: `CLI v${release.version}`, generate_release_notes: true, make_latest: makeLatest ? 'true' : 'false' }),
+      body: JSON.stringify({ tag_name: release.tag, target_commitish: release.commit, name: `CLI v${release.version}`, prerelease: preview, generate_release_notes: true, make_latest: makeLatest ? 'true' : 'false' }),
     })
     if (!remote) throw new Error('GitHub Release creation failed')
   }
@@ -163,6 +218,7 @@ async function githubRelease(release, directory) {
       return Buffer.from(await response.arrayBuffer())
     },
     uploadAsset: async (target, asset) => {
+      await ensureReleaseTag(release, githubRequest, { create: false })
       const response = await fetch(`https://uploads.github.com/repos/${repository}/releases/${target.id}/assets?name=${encodeURIComponent(asset.name)}`, {
         method: 'POST', headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, 'Content-Type': 'application/octet-stream' }, body: asset.bytes, signal: AbortSignal.timeout(60000),
       })
@@ -173,14 +229,36 @@ async function githubRelease(release, directory) {
 
 async function main() {
   const [command, directory = '.local/cli-release'] = process.argv.slice(2)
-  if (command === 'preflight') {
-    console.log(JSON.stringify(preflight()))
+  if (command === 'detect' || command === 'preflight') {
+    const selected = preflight()
+    console.log(JSON.stringify(selected))
+    if (command === 'detect') {
+      if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `eligible=${selected.eligible}\n`)
+      if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, selected.eligible ? `CLI release: ${selected.tag} at ${selected.commit}\n` : `CLI release skipped: ${selected.reason}\n`)
+    }
   } else if (command === 'prepare') {
     console.log(JSON.stringify(prepareRelease(directory)))
-  } else if (command === 'publish') {
-    const expected = preflight()
+  } else if (command === 'verify' || command === 'smoke') {
+    const expected = candidate(process.env)
     const release = readRelease(directory)
-    if (release.commit !== expected.commit || release.tag !== expected.tag) throw new Error('Downloaded artifact differs from the release event')
+    if (!isDeepStrictEqual(releaseIdentity(release), expected)) throw new Error('Downloaded artifact differs from the release event')
+    if (command === 'smoke') {
+      const smoke = pnpmInvocation(['cli', '--', 'test:package', resolve(directory, release.filename), release.version])
+      run(smoke.program, smoke.args, { cwd: root, stdio: 'inherit' })
+    }
+    console.log(JSON.stringify(release))
+  } else if (command === 'publish' || command === 'preview') {
+    const expected = candidate(process.env)
+    const release = readRelease(directory)
+    if (!isDeepStrictEqual(releaseIdentity(release), expected)) throw new Error('Downloaded artifact differs from the release event')
+    if ((command === 'publish') !== (release.channel === 'stable')) throw new Error('Distribution command does not match the release channel')
+    if (!process.env.GH_TOKEN) throw new Error('GitHub workflow token is required')
+    await ensureReleaseTag(release)
+    await ensureReleaseTag(release, githubRequest, { create: false })
+    if (command === 'preview') {
+      await githubRelease(release, resolve(directory))
+      return
+    }
     const npmVersion = run('npm', ['--version']).trim()
     if (compareVersions(npmVersion, '11.5.1') < 0) throw new Error('npm >=11.5.1 is required for trusted publishing')
     await publishRelease(release, {
@@ -192,11 +270,14 @@ async function main() {
         if (!response.ok) throw new Error('Registry archive download failed')
         if (`sha512-${digest(Buffer.from(await response.arrayBuffer()), 'sha512', 'base64')}` !== candidate.integrity) throw new Error('Registry archive bytes differ')
       },
-      publish: () => run('npm', ['publish', resolve(directory, release.filename), '--access', 'public', '--tag', 'latest', '--provenance', '--ignore-scripts'], { cwd: root, stdio: 'inherit' }),
+      publish: async () => {
+        await ensureReleaseTag(release, githubRequest, { create: false })
+        run('npm', ['publish', resolve(directory, release.filename), '--access', 'public', '--tag', 'latest', '--provenance', '--ignore-scripts'], { cwd: root, stdio: 'inherit' })
+      },
       github: candidate => githubRelease(candidate, resolve(directory)),
     })
   } else {
-    throw new Error('Usage: node tooling/cli-release.mjs <preflight|prepare|publish> [artifact-directory]')
+    throw new Error('Usage: node tooling/cli-release.mjs <detect|preflight|prepare|verify|smoke|preview|publish> [artifact-directory]')
   }
 }
 

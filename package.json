@@ -21,7 +21,7 @@
     "api": "node tooling/api.mjs",
     "mobile": "node tooling/mobile.mjs",
     "cli": "node tooling/cli.mjs",
-    "test:cli-tooling": "node --test tooling/cli-command.test.mjs tooling/cli-release.test.mjs tooling/cli-release-process.test.mjs",
+    "test:cli-tooling": "node --test tooling/cli-command.test.mjs tooling/cli-release.test.mjs tooling/cli-release-source.test.mjs tooling/cli-release-process.test.mjs tooling/cli-release-consumer.test.mjs",
     "prepare": "lefthook install"
   },
   "devDependencies": {
