@@ -4,6 +4,8 @@ import { computed, nextTick, onActivated, onDeactivated, onMounted, onUnmounted,
 
 import { bookmarkMatchesSourceDomain } from '~/utils/bookmarkSource'
 import type { ChannelMessageData } from '~/utils/channel'
+import { initialPromotionState } from '~/utils/promotionFlow'
+import { getTokenUserId } from '~/utils/sessionOwner'
 
 import { useLocalBookmarks } from '@/composables/bookmark/useLocalBookmarks'
 import { useLocalCollections } from '@/composables/bookmark/useLocalCollections'
@@ -54,7 +56,7 @@ export const useBookmarkData = (
   const local = canUseLocal ? useLocalBookmarks() : null
   const syncStatus = canUseLocal ? useStatus() : null
   const localOwner = useState<string | null>('powersync-owner', () => null)
-  const verifiedUser = useState('koc-promotion', () => ({ userId: null as number | null }))
+  const verifiedUser = useState('koc-promotion', initialPromotionState)
   // flag 关时不建，highlights 回退 REST
   const localMarks = canUseLocal && isHighlightLocalFirstEnabled() ? useLocalMarks() : null
 
@@ -125,7 +127,9 @@ export const useBookmarkData = (
         !localList!.isFetching.value &&
         syncStatus?.value?.hasSynced === true &&
         !!verifiedUser.value.userId &&
-        localOwner.value === String(verifiedUser.value.userId)
+        !!verifiedUser.value.sessionOwner &&
+        localOwner.value === verifiedUser.value.sessionOwner &&
+        localOwner.value === getTokenUserId(getUserToken())
       )
     return restReady.value && restSession.value === getUserToken() && restOwner.value === verifiedUser.value.userId
   })

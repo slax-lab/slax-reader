@@ -9,6 +9,7 @@ export interface PendingPromotion {
 }
 export interface PromotionState {
   userId: number | null
+  sessionOwner: string | null
   pending: PendingPromotion | null
   phase: PromotionPhase
   durable: boolean
@@ -18,6 +19,7 @@ export interface PromotionState {
 }
 export const initialPromotionState = (): PromotionState => ({
   userId: null,
+  sessionOwner: null,
   pending: null,
   phase: 'resolving',
   durable: false,
