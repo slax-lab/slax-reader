@@ -1,5 +1,13 @@
 # Tasks
 
+## 22. Approved routine CI scope (2026-10-14)
+
+- [x] 22.1 Remove the Android/iOS native build jobs and Android APK artifact upload from Mobile CI, retaining the existing unit/static checks and JavaScript bundle validation.
+- [x] 22.2 Align mobile setup/release documentation and this change's CI requirements with the approved checks-only scope; preserve explicit local/operator native verification and existing API release eligibility.
+- [x] 22.3 Run the retained checks and JavaScript bundles, validate workflow structure, strict OpenSpec, and final diff, and record environment limitations; complete Bugs/Security/Compliance review before pushing to the existing PR branch.
+
+CI follow-up verification: the workflow parses with only the existing Ubuntu `static` job, preserving check/bundle commands and trigger paths. Architecture, resource/fixture checks, TypeScript, and both JavaScript exports passed. The full local suite reported 1,048 passes and 10 environment failures (temporary-directory cleanup permissions, browser startup, and loopback-listener permissions); it is not a passing full-suite result. The 47 focused package-version/fixture/environment/release/import tests passed without failures or skips. Strict OpenSpec passed all 41 items and the final diff check passed. Bugs, Security, and Compliance review used `expo-mobile-migration` and found no Important findings in this follow-up. Native application packaging and artifact uploads were not performed.
+
 ## 21. Mobile build-input directory and restore archive (2026-10-14)
 
 - [x] 21.1 Consolidate local Firebase registrations, the existing Android signing key and optional upload-account file under ignored `deploy/mobile`, with an environment template and restoration guide.

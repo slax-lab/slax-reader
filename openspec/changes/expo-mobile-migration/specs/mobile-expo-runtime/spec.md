@@ -63,9 +63,12 @@ Before installing, declaring, importing, or configuring any additional optional 
 
 Mobile source-only changes SHALL receive appropriate mobile checks and SHALL remain outside existing API source deployment paths. Changes to shared contracts or root package, lock, or workspace manifests SHALL retain the existing API release eligibility. Mobile commands SHALL distinguish local preparation, offline verification, and explicitly authorized release operations.
 
+Routine Mobile CI SHALL run unit/static checks and Android/iOS JavaScript bundle validation. It SHALL NOT generate native projects, invoke Gradle, CocoaPods, or Xcode builds, or produce/upload native APK, AAB, IPA, or simulator application artifacts. Native build and device acceptance SHALL remain explicit local/operator verification.
+
 #### Scenario: A mobile source-only pull request is checked
 - **WHEN** only mobile implementation and mobile documentation change
 - **THEN** mobile CI verifies the affected application
+- **AND** it runs unit/static checks and JavaScript bundle validation without native package builds or artifact uploads
 - **AND** that source-only change does not initiate API deployment
 
 #### Scenario: The shared workspace lockfile changes
