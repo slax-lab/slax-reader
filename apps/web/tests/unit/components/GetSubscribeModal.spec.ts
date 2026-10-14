@@ -22,6 +22,8 @@ vi.mock('~/components/Toast', () => ({
 
 const { mockPost } = vi.hoisted(() => ({ mockPost: vi.fn(() => Promise.resolve({ title: 'Done', message: 'Received' })) }))
 mockNuxtImport('request', () => () => ({ post: mockPost }))
+const { mockGetUserToken } = vi.hoisted(() => ({ mockGetUserToken: vi.fn(() => 'account-a') }))
+mockNuxtImport('getUserToken', () => mockGetUserToken)
 
 const runtimeConfig = {
   app: { baseURL: '/' },
@@ -49,6 +51,28 @@ describe('GetSubscribeModal', () => {
     vi.clearAllMocks()
     runtimeConfig.public.TURNSTILE_SITE_KEY = 'turnstile-site-key'
     mockPost.mockResolvedValue({ title: 'Done', message: 'Received' })
+    mockGetUserToken.mockReturnValue('account-a')
+  })
+
+  it('blocks dismissal during submission and waits for success acknowledgement without reloading', async () => {
+    runtimeConfig.public.TURNSTILE_SITE_KEY = ''
+    let resolve!: (result: any) => void
+    mockPost.mockReturnValueOnce(
+      new Promise(r => {
+        resolve = r
+      })
+    )
+    const wrapper = mountWithApp(GetSubscribeModal, { props })
+    await wrapper.find('.btn-confirm').trigger('click')
+    await wrapper.find('.receive-modal').trigger('click')
+    expect(wrapper.emitted('dismiss')).toBeUndefined()
+    resolve({ title: 'Done', message: 'Received', subMessage: '' })
+    await flushPromises()
+    expect(wrapper.emitted('outcome')).toContainEqual(['success'])
+    expect(wrapper.find('.success-continue').exists()).toBe(true)
+    await wrapper.find('.success-continue').trigger('click')
+    expect(wrapper.emitted('outcome')?.at(-1)).toEqual(['acknowledged'])
+    wrapper.unmount()
   })
 
   it('Turnstile 未配置时不渲染组件且确认按钮可以直接提交', async () => {
@@ -65,6 +89,24 @@ describe('GetSubscribeModal', () => {
     await flushPromises()
 
     expect(mockPost).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ turnstile_token: '' }) }))
+  })
+
+  it.each(['success', 'failure', 'session-change'])('reconciles a disposed request only for its original session: %s', async result => {
+    runtimeConfig.public.TURNSTILE_SITE_KEY = ''
+    let settle!: () => void
+    mockPost.mockImplementationOnce(() => new Promise((resolve, reject) => {
+      settle = () => result === 'failure' ? reject(Error('Response lost')) : resolve({ title: 'Done', message: 'Received' })
+    }))
+    const onDisposedSettlement = vi.fn()
+    const onOutcome = vi.fn()
+    const wrapper = mountWithApp(GetSubscribeModal, { props: { ...props, onDisposedSettlement, onOutcome } })
+    await wrapper.find('.btn-confirm').trigger('click')
+    wrapper.unmount()
+    if (result === 'session-change') mockGetUserToken.mockReturnValue('account-b')
+    settle()
+    await flushPromises()
+    expect(onDisposedSettlement).toHaveBeenCalledTimes(result === 'session-change' ? 0 : 1)
+    expect(onOutcome.mock.calls).toEqual([['submitting']])
   })
 
   it('Turnstile 已配置时确认按钮等待 Token', async () => {

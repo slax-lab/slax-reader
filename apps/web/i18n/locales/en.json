@@ -1321,5 +1321,22 @@
       "article_url_missing": "This article has no supported original URL",
       "source_unavailable": "The source is unavailable. Cached content is kept."
     }
+  },
+  "promotion": {
+    "identity_error": "We could not verify your account. Please retry when connected.",
+    "checking": "Checking your invitation…",
+    "retry": "Retry",
+    "resume": "Claim KOC reward",
+    "later": "Later",
+    "claim": "Claim reward",
+    "continue": "Continue",
+    "trial": "Your KOC invitation includes {days} days of Pro.",
+    "credit": "Your KOC invitation adds USD {amount} in subscription credit.",
+    "legacy": "Claim your KOC reward. Active Stripe subscribers receive subscription credit instead of trial days.",
+    "pending": "Your KOC reward is ready when you are.",
+    "error": "We could not verify your invitation. Retry or continue later.",
+    "invalid": "This KOC invitation is no longer valid.",
+    "received": "You have already received a KOC reward.",
+    "unavailable": "This reward is unavailable for your current subscription. You can check again later."
   }
 }

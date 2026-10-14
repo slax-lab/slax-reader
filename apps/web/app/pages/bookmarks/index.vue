@@ -1,5 +1,15 @@
 <template>
   <div class="bookmarks-view">
+    <ReceiveSubscribeModal
+      v-if="ordinaryModalOpen && isInboxPath(route.path) && !kocFlow.state.value.pending && !kocFlow.blocksOnboarding.value"
+      :sub-title="t('component.subscribe.confirm_message', { month: t('component.plan_card.plans.1.one_month') })"
+      :confirm-text="t('component.subscribe.confirm')"
+      :cancel-text="t('component.subscribe.cancel')"
+      activity_id="platform_0527"
+      activity_type="platform_0527"
+      :on-disposed-settlement="ordinaryDisposedSettlement"
+      @outcome="ordinaryOutcome"
+    />
     <div class="fixed left-0 top-0 z-100 h-0px w-full flex-center">
       <Transition name="list-loading">
         <div class="h-30px w-30px translate-y-50px rounded-full bg-surface-solid shadow-md flex-center -mt-30px" v-show="!rssActive && showRefreshLoading">
@@ -23,7 +33,7 @@
       <template v-slot:sidebar-left>
         <TabsSidebar ref="tabsSidebar" :tabType="rssActive ? 'rss' : searchText ? '' : filterStatus" @change-tab="inboxClick" />
         <!-- fork-only：领取订阅入口 -->
-        <div v-if="showReceiveSubscribe" class="sidebar-promo" @click="receiveActivity">
+        <div v-if="showReceiveSubscribe && !kocFlow.state.value.pending && !kocFlow.blocksOnboarding.value" class="sidebar-promo" @click="receiveActivity">
           <img loading="lazy" src="@internal/images/tips-receive-subscribe-cn.png" alt="" v-if="$i18n.locale === 'zh'" />
           <img loading="lazy" src="@internal/images/tips-receive-subscribe-en.png" alt="" v-else />
         </div>
@@ -195,6 +205,8 @@ import ReceiveSubscribeModal from '~/components/GetSubscribeModal.vue'
 import BookmarksLayout from '~/components/Layouts/BookmarksLayout.vue'
 import RssPanel from '~/components/RssPanel.vue'
 
+import { isInboxPath } from '~/utils/promotionFlow'
+
 import { useBookmarkData } from '@/composables/bookmark/useBookmarkData'
 import { type CollectionBookmarkItem, type LocalCollectionItem, useLocalCollections } from '@/composables/bookmark/useLocalCollections'
 import { useOwnerInfo } from '@/composables/bookmark/useOwnerInfo'
@@ -207,6 +219,7 @@ import { useBookmarkFilter } from '~/composables/bookmark/useBookmarkFilter'
 import { useInboxOnboardingState } from '~/composables/bookmark/useInboxOnboardingState'
 import { useListLayoutMode } from '~/composables/bookmark/useListLayoutMode'
 import { useRefreshIndicator } from '~/composables/bookmark/useRefreshIndicator'
+import { useKocPromotionFlow } from '~/composables/promotion/useKocPromotionFlow'
 import { useUserStore } from '~/stores/user'
 
 const { t, locale } = useI18n()
@@ -239,14 +252,16 @@ const isShowTopModal = ref(false)
 const userInfo = ref<UserInfo>()
 
 // fork-only：领取订阅，replace 前捕获
-const currentActivityId = (route.query.activity_id as string) || 'platform_0527'
-const currentActivityType = (route.query.activity_type as string) || 'platform_0527'
+const currentActivityId = 'platform_0527'
+const currentActivityType = 'platform_0527'
+const kocFlow = useKocPromotionFlow()
 const showReceiveSubscribe = ref(false)
+const ordinaryModalOpen = ref(false)
 
 // fork-only：进页清洗 activity query。?q=（设置页顶栏的搜索）也在这一次 replace 里读走并去掉：
 // 同一 tick 里发两次 replace，vue-router 会取消前一次，activity 参数就留在地址栏了
 const initialSearchQuery = typeof route.query.q === 'string' ? route.query.q.trim() : ''
-useRouter().replace({ path: route.path, query: { ...route.query, claim: undefined, activity_id: undefined, activity_type: undefined, q: undefined } })
+if (route.query.q) useRouter().replace({ path: route.path, query: { ...route.query, q: undefined }, hash: route.hash })
 
 // 筛选状态 + 纯导航 helper
 const {
@@ -279,6 +294,8 @@ const {
   ending,
   isTransitioning,
   isFirstLoad,
+  onboardingReady,
+  confirmOnboardingEmpty,
   groupedBookmarks,
   isRefreshLoading,
   lastUpdatedText,
@@ -318,11 +335,18 @@ const localCollections = canCollections && isLocalFirstEnabled() && $powersync ?
 const restSubscribedCollections = ref<LocalCollectionItem[]>([])
 // REST 路径加载态
 const restCollectionsLoading = ref(canCollections && !localCollections)
+const restCollectionsReady = ref(false)
+let collectionGeneration = 0
+const collectionSession = ref<string>()
 // 取 isLoading 定动画基线
 const subQuery = localCollections ? localCollections.watchSubscribedCollections() : null
 const subscribedCollections = subQuery ? subQuery.items : restSubscribedCollections
 const subLoading = subQuery?.isLoading
 const loadRestCollections = async () => {
+  const generation = ++collectionGeneration
+  const token = getUserToken()
+  restCollectionsReady.value = false
+  restCollectionsLoading.value = true
   try {
     const rows = await request().get<
       Array<{
@@ -340,7 +364,8 @@ const loadRestCollections = async () => {
         cancelled: boolean
       }>
     >({ url: RESTMethodPath.COLLECT_SUBSCRIBED_LIST, query: { page: 1, page_size: 100 } })
-    restSubscribedCollections.value = (rows || []).map(item => ({
+    if (generation !== collectionGeneration || token !== getUserToken() || !Array.isArray(rows)) return
+    restSubscribedCollections.value = rows.map(item => ({
       id: String(item.id),
       code: item.code,
       name: item.display_name,
@@ -356,10 +381,25 @@ const loadRestCollections = async () => {
       has_new: false,
       updated_at: item.updated_at
     }))
+    collectionSession.value = token
+    restCollectionsReady.value = true
+  } catch {
+    // Failed collection queries cannot prove an empty Inbox.
   } finally {
-    restCollectionsLoading.value = false
+    if (generation === collectionGeneration) restCollectionsLoading.value = false
   }
 }
+watch(
+  [() => getUserToken(), kocFlow.userId],
+  () => {
+    collectionGeneration++
+    restCollectionsReady.value = false
+    restSubscribedCollections.value = []
+    collectionSession.value = undefined
+    if (haveRequestToken() && !localCollections) void loadRestCollections()
+  },
+  { flush: 'sync' }
+)
 const activeCollection = computed(() => {
   if (filterStatus.value !== 'inbox' || searchText.value) return null
   return subscribedCollections.value.find(c => c.code === activeCollectionCode.value) || null
@@ -383,25 +423,33 @@ watch(
 )
 
 // fork-only：订阅列表是否已就位
-const subscriptionReady = computed(() => (localCollections ? !subLoading?.value : !restCollectionsLoading.value))
+const subscriptionReady = computed(() =>
+  localCollections
+    ? !subLoading?.value && !subQuery?.isFetching.value && !subQuery?.error.value
+    : restCollectionsReady.value && collectionSession.value === getUserToken() && !restCollectionsLoading.value
+)
 // fork-only：有效订阅数（排除已取消）
 const activeSubscribedCount = computed(() => subscribedCollections.value.filter(c => !c.is_cancelled).length)
 
 // inbox 空态三态判断
 const { inboxState } = useInboxOnboardingState({
-  isCurrentInboxTab,
+  isCurrentInboxTab: computed(
+    () => isInboxPath(route.path) && isCurrentInboxTab.value && !rssActive.value && !searchText.value && !sourceFilter.value && !activeCollectionCode.value
+  ),
   subscribedCount: activeSubscribedCount,
   subscriptionReady,
   isDataEmpty,
   isFirstLoad,
-  userId: computed(() => userStore.userInfo?.userId)
+  onboardingReady,
+  confirmEmpty: confirmOnboardingEmpty,
+  userId: kocFlow.userId
 })
 
 // 状态 A → 跳转 /onboarding
 watch(
-  inboxState,
-  state => {
-    if (state === 'A') navigateTo('/onboarding', { replace: true })
+  [inboxState, kocFlow.blocksOnboarding, () => route.fullPath],
+  ([state, blocked]) => {
+    if (state === 'A' && !blocked && isInboxPath(route.path)) navigateTo(kocFlow.returnTarget('/onboarding'), { replace: true })
   },
   { immediate: true }
 )
@@ -603,7 +651,7 @@ watch(searchText, value => {
 })
 
 // ?q= from another page (e.g. the settings top bar) becomes a search. On a fresh mount the value was
-// captured and stripped with the activity params above; the page is kept alive, so later returns to
+// captured and stripped while preserving campaign params above; the page is kept alive, so later returns to
 // /bookmarks read and strip it here. Hooks rather than a route watcher, so a cached instance never
 // reacts to another page's URL.
 onMounted(() => {
@@ -623,10 +671,13 @@ onActivated(() => {
 })
 
 // fork-only：加载用户后查活动状态
-userStore.getUserInfo({ refresh: true }).then(info => {
-  userInfo.value = info
-  loadActivityStatus()
-})
+userStore
+  .getUserInfo({ refresh: true })
+  .then(info => {
+    userInfo.value = info
+    loadActivityStatus()
+  })
+  .catch(() => {})
 
 onMounted(() => {
   addLog()
@@ -733,15 +784,50 @@ const feedbackClick = () => {
 
 // ─── fork-only：促销/订阅领取活动系统 ────────────────────────────────────
 
+let ordinaryPhase = 'idle'
+let ordinaryRefreshPending = false
+let ordinaryAlive = true
+let ordinaryStatusGeneration = 0
+let ordinaryProfileRefreshing = false
+const ordinaryDisposedSettlement = shallowRef<() => void>()
+const resetOrdinaryPresentation = () => {
+  if (ordinaryPhase === 'submitting') ordinaryRefreshPending = true
+  ordinaryModalOpen.value = false
+  ordinaryPhase = 'idle'
+}
+watch(
+  () => route.path,
+  path => {
+    if (!isInboxPath(path)) resetOrdinaryPresentation()
+  },
+  { flush: 'sync' }
+)
+onDeactivated(resetOrdinaryPresentation)
+const refreshOrdinaryProfile = async () => {
+  ordinaryRefreshPending = true
+  if (ordinaryProfileRefreshing) return
+  ordinaryProfileRefreshing = true
+  try {
+    while (ordinaryAlive && ordinaryRefreshPending) {
+      ordinaryRefreshPending = false
+      try {
+        await userStore.getUserInfo({ refresh: true })
+      } catch {
+        if (ordinaryRefreshPending) continue
+        ordinaryRefreshPending = true
+        break
+      }
+    }
+  } finally {
+    ordinaryProfileRefreshing = false
+  }
+}
 const loadActivityStatus = async () => {
   if (!import.meta.client) return
-  const storageKey = `activity_claimed_${currentActivityType}`
-
-  if (localStorage.getItem(storageKey) === 'true') {
-    showReceiveSubscribe.value = false
-    return
-  }
-
+  const token = getUserToken()
+  const userId = kocFlow.userId.value
+  const generation = ++ordinaryStatusGeneration
+  const isCurrent = () => ordinaryAlive && token === getUserToken() && userId === kocFlow.userId.value && generation === ordinaryStatusGeneration
   request()
     .post<{ status: boolean }>({
       url: RESTMethodPath.PROMOTION_CHECK_RECEIVE,
@@ -749,31 +835,68 @@ const loadActivityStatus = async () => {
     })
     .then(res => {
       // 只保留侧栏 promo 入口，去掉自动弹窗
-      showReceiveSubscribe.value = !!res && !res.status
-      if (res && res.status) {
-        localStorage.setItem(storageKey, 'true')
-      }
+      if (!isCurrent()) return
+      showReceiveSubscribe.value = !!res && res.status === false
+      if (res?.status === true && !['success', 'submitting'].includes(ordinaryPhase)) ordinaryModalOpen.value = false
+    })
+    .catch(() => {
+      if (isCurrent()) showReceiveSubscribe.value = false
     })
 }
 
-const receiveActivity = async () => {
-  const period = currentActivityType === 'blogger' ? t('component.plan_card.plans.1.two_month') : t('component.plan_card.plans.1.one_month')
-  const app = modalBootloader({
-    ele: ReceiveSubscribeModal,
-    props: {
-      subTitle: t('component.subscribe.confirm_message', { month: period }),
-      confirmText: t('component.subscribe.confirm'),
-      cancelText: t('component.subscribe.cancel'),
-      activity_id: currentActivityId,
-      activity_type: currentActivityType,
-      onDismiss: (success: boolean) => {
-        app.unmount()
-        app._container?.remove()
-        success && loadActivityStatus()
-      }
+const receiveActivity = () => {
+  if (!kocFlow.state.value.pending && !kocFlow.blocksOnboarding.value) {
+    const userId = kocFlow.userId.value
+    const token = getUserToken()
+    ordinaryDisposedSettlement.value = () => {
+      if (!ordinaryAlive || token !== getUserToken() || userId !== kocFlow.userId.value) return
+      void loadActivityStatus()
+      void refreshOrdinaryProfile()
+      if (userId) postChannelMessage('subscription', { userId })
     }
-  })
+    ordinaryModalOpen.value = true
+  }
 }
+const ordinaryOutcome = (outcome: string) => {
+  ordinaryPhase = outcome
+  if (outcome === 'success') {
+    ordinaryStatusGeneration++
+    showReceiveSubscribe.value = false
+    const userId = kocFlow.userId.value
+    if (userId) postChannelMessage('subscription', { userId })
+    void refreshOrdinaryProfile()
+  }
+  if (['acknowledged', 'deferred', 'unavailable'].includes(outcome)) ordinaryModalOpen.value = false
+  if (outcome === 'unavailable') {
+    loadActivityStatus()
+    void refreshOrdinaryProfile()
+  }
+}
+watch([kocFlow.userId, () => kocFlow.state.value.pending], () => {
+  resetOrdinaryPresentation()
+  if (kocFlow.userId.value && !kocFlow.state.value.pending) loadActivityStatus()
+  else showReceiveSubscribe.value = false
+})
+const onSubscriptionChanged = (name: keyof ChannelMessageData, data: Partial<ChannelMessageData>) => {
+  if (name === 'subscription' && data.subscription?.userId === kocFlow.userId.value) {
+    loadActivityStatus()
+    void refreshOrdinaryProfile()
+  }
+}
+const refreshOrdinaryOnFocus = () => {
+  if (ordinaryRefreshPending) void refreshOrdinaryProfile()
+  if (kocFlow.userId.value && !kocFlow.state.value.pending) void loadActivityStatus()
+}
+onActivated(refreshOrdinaryOnFocus)
+onMounted(() => {
+  addChannelMessageHandler(onSubscriptionChanged)
+  window.addEventListener('focus', refreshOrdinaryOnFocus)
+})
+onUnmounted(() => {
+  ordinaryAlive = false
+  removeChannelMessageHandler(onSubscriptionChanged)
+  window.removeEventListener('focus', refreshOrdinaryOnFocus)
+})
 </script>
 
 <style lang="scss" scoped>

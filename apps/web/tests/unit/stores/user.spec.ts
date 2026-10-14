@@ -522,6 +522,17 @@ describe('useUserStore - account locale integration', () => {
     store.checkAndRefreshUserToken()
     expect(fetcher).not.toHaveBeenCalled()
   })
+  it('does not commit a profile response after its session changes', async () => {
+    let release!: (value: Response) => void
+    fetcher.mockReturnValueOnce(new Promise(resolve => { release = resolve }))
+    const store = useUserStore()
+    const pending = store.refreshUserInfo()
+    const rejected = expect(pending).rejects.toThrow('superseded')
+    currentToken = token(2)
+    release(new Response(JSON.stringify({ code: 200, message: 'ok', data: baseUser })))
+    await rejected
+    expect(store.user).toBeNull()
+  })
   it('gets existing user without a network read unless refresh requested', async () => {
     const store = useUserStore()
     store.user = makeUser()

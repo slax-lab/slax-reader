@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
 mockNuxtImport('useRuntimeConfig', () => () => ({
   public: { DWEB_API_BASE_URL: 'https://api.test', COOKIE_TOKEN_NAME: 'token' }
 }))
+mockNuxtImport('useState', () => (_key: string, init: () => unknown) => ({ value: init() }))
 mockNuxtImport('useRouter', () => () => ({ afterEach: state.afterEach }))
 mockNuxtImport('useCookie', () => () => ({ value: undefined }))
 mockNuxtImport('watch', () => vi.fn())

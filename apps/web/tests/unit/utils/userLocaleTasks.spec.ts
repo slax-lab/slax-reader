@@ -188,7 +188,7 @@ it('retries profile reads after same-account token rotation and rejects the obso
   f.api.readUser.mockResolvedValueOnce({ ...makeUser(), userId: 'A', lang: 'zh' } as never)
   pending.resolve({ ...makeUser(), userId: 'A', lang: 'en' } as never)
   await reading
-  expect(f.api.readUser).toHaveBeenLastCalledWith(token('A', 2))
+  expect(f.api.readUser).toHaveBeenLastCalledWith(token('A', 2), undefined)
   expect(f.store.locale).toBe('zh')
   await expect(f.tasks.restore({ ...makeUser(), userId: 'A', lang: 'en' } as never, ticket)).rejects.toThrow('superseded')
 })

@@ -120,24 +120,24 @@ export class UserLocaleTasks {
     this.saves = task
     return task
   }
-  async read(): Promise<UserInfo> {
+  async read(signal?: AbortSignal): Promise<UserInfo> {
     ++this.readId
-    return this.readCurrent(true)
+    return this.readCurrent(true, signal)
   }
-  private async readCurrent(retryOnRotation: boolean): Promise<UserInfo> {
+  private async readCurrent(retryOnRotation: boolean, signal?: AbortSignal): Promise<UserInfo> {
     const ticket = this.capture(),
       token = this.deps.getToken()
     if (!token) throw new AccountLocaleStaleError()
     if (!ticket.account) return this.unauthorized(new AccountLocaleUnauthorizedError(), token)
     let user: UserInfo
     try {
-      user = await this.deps.api.readUser(token)
+      user = await this.deps.api.readUser(token, signal)
     } catch (error) {
       return this.unauthorized(error, token)
     }
     if (!this.valid(ticket) || ticket.readId !== this.readId) throw new AccountLocaleStaleError()
     if (ticket.token !== this.deps.getToken()) {
-      if (retryOnRotation) return this.readCurrent(false)
+      if (retryOnRotation) return this.readCurrent(false, signal)
       throw new AccountLocaleStaleError()
     }
     return this.merge(user, ticket, false)

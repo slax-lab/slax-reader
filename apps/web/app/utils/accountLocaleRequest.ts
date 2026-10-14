@@ -19,7 +19,7 @@ export class AccountLocaleDisplayError extends Error {
   }
 }
 export interface AccountLocaleRequest {
-  readUser(token: string): Promise<UserInfo>
+  readUser(token: string, signal?: AbortSignal): Promise<UserInfo>
   saveLanguage(token: string, locale: AppLocale): Promise<void>
   refreshToken(token: string, signal: AbortSignal): Promise<string>
 }
@@ -35,8 +35,8 @@ export const createAccountLocaleRequest = (config?: { baseUrl: string; headers: 
   })
   const headers = (token: string) => ({ ...options.headers, Authorization: `Bearer ${token}` })
   return {
-    async readUser(token) {
-      const data = await api.get<UserInfo>({ url: RESTMethodPath.ME, headers: headers(token) })
+    async readUser(token, signal) {
+      const data = await api.get<UserInfo>({ url: RESTMethodPath.ME, headers: headers(token), signal })
       if (!data || (!data.userId && !data.email)) throw new Error('refresh user info failed')
       return data
     },

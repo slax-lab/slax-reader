@@ -33,6 +33,7 @@ interface UserGetters extends _GettersTree<UserState> {
 
 interface UserActions {
   refreshUserInfo: () => Promise<UserInfo>
+  refreshServerUserInfo: (signal?: AbortSignal) => Promise<UserInfo>
   getUserInfo: (options?: { refresh: boolean }) => Promise<UserInfo>
   clearUserInfo: () => Promise<void>
   changeLocale: (locale: string) => Promise<void>
@@ -94,7 +95,11 @@ export const useUserStore = defineStore<'user', UserState, UserGetters, UserActi
   },
   actions: {
     async refreshUserInfo(): Promise<UserInfo> {
-      return localeTasksForStore(this).read()
+      return this.refreshServerUserInfo()
+    },
+    // Identity-sensitive flows bypass the plugin's optional offline fallback.
+    async refreshServerUserInfo(signal?: AbortSignal): Promise<UserInfo> {
+      return localeTasksForStore(this).read(signal)
     },
     async getUserInfo(options?: { refresh: boolean }): Promise<UserInfo> {
       if (options && options.refresh && this.isLogin) {

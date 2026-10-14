@@ -1,3 +1,4 @@
+import type { PromotionStatus } from '@slax-reader/contracts/interface'
 import { receiveActivityType, subscriptionInterval } from '../infra/repository/dbSubscription'
 import { differenceInDays, differenceInMilliseconds } from 'date-fns'
 import Stripe from 'stripe'
@@ -17,6 +18,11 @@ import { i18n } from '@/const/i18n'
 import moment from 'moment-timezone'
 import { GA4AnalyticsClient } from '@/infra/external/ga4Analytics'
 import { LogsService } from './logs'
+
+const promotionRewards = {
+  [receiveActivityType.BLOGGER]: { days: 60, credit: 1198 },
+  [receiveActivityType.PLATFORM_0527]: { days: 30, credit: 599 }
+} as const
 
 export interface consumptionRecord {
   count: number
@@ -594,16 +600,22 @@ export class SubscriptionServiceMain {
   }
 
   public async checkReceiveStatus(ctx: ContextManager, activityType: string): Promise<boolean> {
-    if (activityType !== receiveActivityType.PLATFORM_0527 && activityType !== receiveActivityType.BLOGGER) return false
+    return (await this.getReceiveStatus(ctx, activityType)).status
+  }
 
-    // 检查用户是否有 Apple IAP 订阅且在订阅期内，如果是则视为已领取
-    const subInfo = await this.subscriptionRepo.getUserSubscriptionInfo(ctx.getUserId())
-    if (subInfo && subInfo.subscription_end_time.getTime() > Date.now() && subInfo.source_type === 'apple') {
-      return true
+  public async getReceiveStatus(ctx: ContextManager, activityType: string): Promise<PromotionStatus> {
+    if (activityType !== receiveActivityType.PLATFORM_0527 && activityType !== receiveActivityType.BLOGGER) return { status: false }
+    const received = await this.subscriptionRepo.findReceiveActivityRecord(ctx.getUserId(), activityType)
+    if (received) return { status: true, reason: 'already_received' }
+    const sub = await this.subscriptionRepo.getUserSubscriptionInfo(ctx.getUserId())
+    const active = !!sub && sub.subscription_end_time.getTime() > Date.now()
+    if (active && sub.source_type === 'apple') return { status: true, reason: 'active_apple_subscription' }
+    const reward = promotionRewards[activityType]
+    return {
+      status: false,
+      reason: 'eligible',
+      reward: active && sub.source_type === 'stripe' && sub.stripe_customer_id ? { kind: 'credit', amount: reward.credit, currency: 'usd' } : { kind: 'trial', days: reward.days }
     }
-
-    const res = await this.subscriptionRepo.findReceiveActivityRecord(ctx.getUserId(), activityType)
-    return !!res
   }
 
   public async receiveSubscription(ctx: ContextManager, activityType: receiveActivityType, activityId?: string) {
@@ -611,7 +623,7 @@ export class SubscriptionServiceMain {
       throw ErrorParam()
     }
     const $i = i18n(ctx.getlang())
-    const blogger = activityType === receiveActivityType.BLOGGER
+    const reward = promotionRewards[activityType]
     const key = `reward:activity:${ctx.getUserId()}:${activityType}`
     let result: { credit: boolean; endTime: string }
     try {
@@ -621,8 +633,8 @@ export class SubscriptionServiceMain {
         activity: activityType,
         activityId,
         interval: subscriptionInterval.DAY,
-        count: blogger ? 60 : 30,
-        credit: blogger ? 1198 : 599,
+        count: reward.days,
+        credit: reward.credit,
         liveMode: ctx.env.STRIPE_LIVE_MODE === 'true' ? true : ctx.env.STRIPE_LIVE_MODE === 'false' ? false : undefined
       })
     } catch (error) {
@@ -634,7 +646,7 @@ export class SubscriptionServiceMain {
       await new SubscriptionPaymentService(this.stripeClient, this.subscriptionRepo).runOperation(`stripe:${ctx.env.STRIPE_LIVE_MODE}::credit:${key}`)
       return {
         title: $i.receiveActivityToCreditTitle({}),
-        message: $i.receiveActivityToCreditResult({ credit: `$${(blogger ? 1198 : 599) / 100}` }),
+        message: $i.receiveActivityToCreditResult({ credit: `$${reward.credit / 100}` }),
         subMessage: $i.receiveActivitySubMessage({})
       }
     }

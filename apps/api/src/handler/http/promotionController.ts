@@ -100,8 +100,8 @@ export class PromotionController {
     const req = await RequestUtils.json<{ activity_type: string; activity_id?: string }>(request)
     if (!req || !req.activity_type) return Failed(ErrorParam())
 
-    const res = await this.subscriptionService.checkReceiveStatus(ctx, req.activity_type)
-    return Successed({ status: res })
+    const res = await this.subscriptionService.getReceiveStatus(ctx, req.activity_type)
+    return Successed(res)
   }
 
   @Post('/receive')

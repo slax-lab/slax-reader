@@ -1,11 +1,11 @@
 <template>
   <div class="receive-modal" :class="{ appear }" @click="closeModal">
     <Transition name="modal">
-      <div class="modal-content" v-show="appear" @click.stop>
+      <div ref="dialog" class="modal-content" v-show="appear" role="dialog" aria-modal="true" aria-labelledby="promotion-title" tabindex="-1" @keydown="onKeydown" @click.stop>
         <!-- 标准 modal-header -->
         <div class="modal-header">
-          <span class="modal-title">{{ t('common.app.name') }}</span>
-          <button class="modal-close" type="button" @click="closeModal" aria-label="close">
+          <span id="promotion-title" class="modal-title">{{ t('common.app.name') }}</span>
+          <button class="modal-close" type="button" @click="closeModal" :disabled="loading" :aria-label="props.cancelText">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
@@ -19,14 +19,25 @@
               <p class="modal-message">{{ props.subTitle }}</p>
 
               <div v-if="turnstileEnabled" class="turnstile-wrap">
-                <NuxtTurnstile :key="turnstileKey" ref="turnstileRef" v-model="turnstileToken" :options="{ theme: 'auto', appearance: 'always' }" />
+                <NuxtTurnstile
+                  :key="turnstileKey"
+                  ref="turnstileRef"
+                  v-model="turnstileToken"
+                  :options="{ theme: 'auto', appearance: 'always', size: narrowScreen ? 'compact' : 'flexible' }"
+                />
               </div>
 
               <div class="modal-actions">
                 <button class="btn-cancel" type="button" :disabled="loading" @click="closeModal">
                   {{ props.cancelText }}
                 </button>
-                <button class="btn-confirm" type="button" :disabled="loading || (turnstileEnabled && !turnstileToken)" :class="{ 'btn-confirm--loading': loading }" @click="handleConfirm">
+                <button
+                  class="btn-confirm"
+                  type="button"
+                  :disabled="loading || (turnstileEnabled && !turnstileToken)"
+                  :class="{ 'btn-confirm--loading': loading }"
+                  @click="handleConfirm"
+                >
                   <span v-if="!loading">{{ props.confirmText }}</span>
                   <span v-else class="btn-spinner" />
                 </button>
@@ -39,6 +50,7 @@
               <h1 class="success-title">{{ receiveResult.title }}</h1>
               <p class="success-message">{{ receiveResult.message }}</p>
               <p v-if="receiveResult.subMessage" class="success-sub">{{ receiveResult.subMessage }}</p>
+              <button class="btn-confirm success-continue" type="button" @click="closeModal">{{ t('promotion.continue') }}</button>
             </div>
           </Transition>
         </div>
@@ -48,129 +60,112 @@
 </template>
 
 <script lang="ts" setup>
-import { fireworks, pride, star } from '@/components/PaymentModal/confetti'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import Toast, { ToastType } from '~/components/Toast'
 
-const emits = defineEmits(['close', 'dismiss', 'confirm'])
-const isLocked = useScrollLock(window)
-const success = ref(false)
-const appear = ref(false)
-const loading = ref(false)
-const turnstileToken = ref('')
-const receiveResult = ref({
-  message: '',
-  title: '',
-  subMessage: ''
-})
-const turnstileRef = ref()
-const turnstileKey = ref(0)
-const turnstileEnabled = Boolean(useRuntimeConfig().public.TURNSTILE_SITE_KEY)
-
+const emits = defineEmits<{
+  dismiss: [success: boolean]
+  outcome: [value: 'submitting' | 'success' | 'acknowledged' | 'deferred' | 'unavailable' | 'failed']
+}>()
 const props = defineProps<{
   subTitle: string
   confirmText: string
   cancelText: string
   activity_id: string
   activity_type: string
+  onDisposedSettlement?: () => void
 }>()
-
+const { t } = useI18n()
+const isLocked = useScrollLock(document.body)
+const success = ref(false)
+const appear = ref(false)
+const loading = ref(false)
+const dialog = ref<HTMLElement>()
+const turnstileToken = ref('')
+const turnstileKey = ref(0)
+const turnstileRef = ref()
+const narrowScreen = useMediaQuery('(max-width: 400px)')
+const turnstileEnabled = Boolean(useRuntimeConfig().public.TURNSTILE_SITE_KEY)
+const receiveResult = ref({ message: '', title: '', subMessage: '' })
+const previousFocus = document.activeElement as HTMLElement | null
+const originalToken = getUserToken()
+let alive = true
 isLocked.value = true
-
-onMounted(() => {
-  setTimeout(() => {
-    appear.value = true
-  })
+onMounted(async () => {
+  appear.value = true
+  await nextTick()
+  dialog.value?.focus()
 })
-
-const handleConfirm = async () => {
-  if (turnstileEnabled && !turnstileToken.value) {
-    return
-  }
-
-  loading.value = true
-
-  request()
-    .post<{ message: string; title: string; subMessage: string }>({
-      url: RESTMethodPath.PROMOTION_RECEIVE,
-      body: {
-        turnstile_token: turnstileToken.value,
-        activity_id: props.activity_id,
-        activity_type: props.activity_type
-      },
-      errorInterceptors(error) {
-        if (error instanceof Error && error.name === 'RECEIVE_ACTIVITY_ALREADY_RECEIVED') {
-          window.location.reload()
-        } else {
-          Toast.showToast({
-            text: t('component.subscribe.receive_result_error'),
-            type: ToastType.Error
-          })
-        }
-      }
-    })
-    .then(res => {
-      if (!res) {
-        Toast.showToast({
-          text: t('component.subscribe.receive_result_error'),
-          type: ToastType.Error
-        })
-
-        return
-      }
-      receiveResult.value = res
-      success.value = true
-      playConfetti()
-
-      setTimeout(() => {
-        if (!appear.value) {
-          return
-        }
-
-        postChannelMessage('refresh', { type: 'page' })
-        window.location.reload()
-      }, 3500)
-    })
-    .catch(e => {
-      console.log(e)
-    })
-    .finally(() => {
-      loading.value = false
-    })
-}
-
-const playConfetti = () => {
-  const randSeed = Math.floor(Math.random() * 100) % 3
-  const duration = 3000
-
-  if (randSeed === 0) {
-    star(duration)
-  } else if (randSeed === 1) {
-    fireworks(duration)
-  } else {
-    pride(duration)
-  }
-}
-
 onUnmounted(() => {
-  offloadTurnstile()
+  alive = false
+  isLocked.value = false
+  previousFocus?.isConnected && previousFocus.focus()
 })
-
 const closeModal = () => {
+  if (loading.value) return
+  emits('outcome', success.value ? 'acknowledged' : 'deferred')
   emits('dismiss', success.value)
 }
-
-const t = (text: string) => {
-  return useNuxtApp().$i18n.t(text)
+const onKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeModal()
+  }
+  if (event.key !== 'Tab') return
+  const items = Array.from(dialog.value?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), iframe, [tabindex="0"]') ?? [])
+  const first = items[0],
+    last = items.at(-1)
+  if (!first) {
+    event.preventDefault()
+    return
+  }
+  if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.value)) {
+    event.preventDefault()
+    last?.focus()
+  } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialog.value)) {
+    event.preventDefault()
+    first.focus()
+  }
 }
-
-const offloadTurnstile = () => {
-  const turnstileApi = 'turnstile/v0/api'
-  const head = document.head
-  const link = head.querySelector(`link[href*="${turnstileApi}"]`)
-  const script = head.querySelector(`script[src*="${turnstileApi}"]`)
-  link?.remove()
-  script?.remove()
+const handleConfirm = async () => {
+  if (loading.value || success.value || (turnstileEnabled && !turnstileToken.value)) return
+  if (getUserToken() !== originalToken) {
+    emits('outcome', 'unavailable')
+    return
+  }
+  loading.value = true
+  const reconcileAfterDisposal = props.onDisposedSettlement
+  emits('outcome', 'submitting')
+  try {
+    const result = await request().post<{ title: string; message: string; subMessage: string }>({
+      url: RESTMethodPath.PROMOTION_RECEIVE,
+      body: { turnstile_token: turnstileToken.value, activity_id: props.activity_id, activity_type: props.activity_type },
+      signal: AbortSignal.timeout(20000),
+      errorInterceptors() {
+        /* The owner reconciles unavailable results; failures stay retryable. */
+      }
+    })
+    if (!alive || getUserToken() !== originalToken) return
+    if (!result || typeof result.title !== 'string' || typeof result.message !== 'string') throw Error('Missing grant confirmation')
+    receiveResult.value = { ...result, subMessage: result.subMessage || '' }
+    success.value = true
+    emits('outcome', 'success')
+    await nextTick()
+    dialog.value?.querySelector<HTMLElement>('.success-continue')?.focus()
+  } catch (error) {
+    if (!alive || getUserToken() !== originalToken) return
+    if (error instanceof Error && error.name === 'RECEIVE_ACTIVITY_ALREADY_RECEIVED') emits('outcome', 'unavailable')
+    else {
+      emits('outcome', 'failed')
+      Toast.showToast({ text: t('component.subscribe.receive_result_error'), type: ToastType.Error })
+    }
+    turnstileToken.value = ''
+    turnstileKey.value++
+  } finally {
+    if (alive) loading.value = false
+    // Component events stop after disposal; the owner may still need to refresh.
+    else if (getUserToken() === originalToken) reconcileAfterDisposal?.()
+  }
 }
 </script>
 
@@ -280,12 +275,12 @@ const offloadTurnstile = () => {
   justify-content: center;
   margin-bottom: 24px;
   min-height: 65px;
-  min-width: 300px;
+  min-width: 0;
   width: 100%;
 
   & > div {
     min-height: 65px !important;
-    min-width: 300px !important;
+    min-width: 0;
     display: block !important;
     visibility: visible !important;
   }
@@ -376,7 +371,6 @@ const offloadTurnstile = () => {
   justify-content: center;
   padding: 48px 28px 40px;
   min-height: 280px;
-  --style: animate-bounce-in;
 }
 
 .success-title {
@@ -442,23 +436,22 @@ const offloadTurnstile = () => {
     transform: rotate(360deg);
   }
 }
+</style>
 
-/* ── Bounce-in (success icon) ── */
-@keyframes bounce-in {
-  0% {
-    transform: scale(0.7);
-    opacity: 0;
-  }
-  60% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+<style scoped>
+.success-continue {
+  margin-top: 24px;
 }
-
-.animate-bounce-in {
-  animation: bounce-in 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+button:focus-visible {
+  outline: 2px solid var(--slax-accent);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .receive-modal,
+  .modal-content,
+  .success-state {
+    animation: none;
+    transition: none;
+  }
 }
 </style>

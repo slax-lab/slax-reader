@@ -74,3 +74,11 @@ it.each([42, {}, [], '', '  '])('rejects malformed refreshed tokens: %j', async 
   vi.stubGlobal('fetch', vi.fn(async () => reply({ token })))
   await expect(createApi().refreshToken('A', new AbortController().signal)).rejects.toThrow('Invalid refreshed token')
 })
+
+it('forwards the bounded identity-read signal', async () => {
+  const controller = new AbortController()
+  const fetcher = vi.fn(async () => reply({ userId: 1, email: 'a@test', lang: 'en' }))
+  vi.stubGlobal('fetch', fetcher)
+  await createApi().readUser('A', controller.signal)
+  expect(fetcher).toHaveBeenCalledWith('https://api.test/v1/user/me', expect.objectContaining({ signal: controller.signal }))
+})
