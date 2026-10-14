@@ -8,6 +8,7 @@ import {fileURLToPath} from 'node:url';
 import {checkProductionEnvironment, checkProductionBundle} from './release-environment.mjs';
 import {verifyFrameworkClosure} from './ios-frameworks.mjs';
 import {applyMobileEnvironment} from './deploy-environment.cjs';
+import {parseBuildVersion, readBuildVersion} from './build-version.cjs';
 
 const appRoot = fileURLToPath(new URL('../', import.meta.url));
 const MAIN = 'app.slax.reader', SHARE = 'app.slax.reader.share', GROUP = 'group.app.slax.reader';
@@ -22,12 +23,11 @@ export function archiveResourceCheck(outputParent, readStatistics = statfsSync) 
   return {outputParent, availableFreeBytes: availableFreeBytes.toString(), requiredFreeBytes: requiredFreeBytes.toString()};
 }
 
-export function releaseInputs(environment) {
+export function releaseInputs(environment, manifest) {
   checkProductionEnvironment(environment);
   assert(environment.EXPO_PUBLIC_SLAX_ADOPTION_FIXTURE !== '1' && !environment.EXPO_PUBLIC_SLAX_UI_FIXTURE, 'A controlled fixture cannot become an iOS release');
-  const version = environment.SLAX_MOBILE_VERSION, build = environment.SLAX_MOBILE_BUILD_NUMBER, previous = environment.SLAX_MOBILE_PREVIOUS_BUILD_NUMBER, team = environment.SLAX_APPLE_TEAM_ID;
-  assert(/^\d+\.\d+\.\d+$/.test(version ?? '') && /^[1-9]\d*$/.test(build ?? '') && /^\d+$/.test(previous ?? ''), 'Provide the public release version/build and previous published build bound');
-  assert(Number.isSafeInteger(Number(build)) && Number.isSafeInteger(Number(previous)) && Number(build) > Number(previous), 'The release build must exceed the previous published build bound');
+  const {version, build, previous} = manifest ? parseBuildVersion(manifest) : readBuildVersion();
+  const team = environment.SLAX_APPLE_TEAM_ID;
   assert(/^[A-Z0-9]{10}$/.test(team ?? ''), 'Provide the public SLAX_APPLE_TEAM_ID for the existing Xcode account');
   return {version, build, previous, team};
 }

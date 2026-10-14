@@ -5,11 +5,16 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {archiveArguments, archiveResourceCheck, checkBundleMetadata, checkFirebaseArchiveAdmission, checkFirebaseBundleResources, executeRelease, exportOptions, firebaseReleaseAdmission, parseReleaseArguments, releaseInputs} from '../../tooling/ios-release.mjs';
 
-const environment = {SLAX_MOBILE_VERSION: '1.0.25', SLAX_MOBILE_BUILD_NUMBER: '757', SLAX_MOBILE_PREVIOUS_BUILD_NUMBER: '756', SLAX_APPLE_TEAM_ID: '8G3A932HJG'};
+const environment = {SLAX_APPLE_TEAM_ID: '8G3A932HJG'};
 const release = releaseInputs(environment);
-const mainInfo = {CFBundleIdentifier: 'app.slax.reader', CFBundleShortVersionString: '1.0.25', CFBundleVersion: '757', DTPlatformName: 'iphoneos', CFBundleSupportedPlatforms: ['iPhoneOS'], FirebaseAutomaticScreenReportingEnabled: false};
+const mainInfo = {CFBundleIdentifier: 'app.slax.reader', CFBundleShortVersionString: release.version, CFBundleVersion: release.build, DTPlatformName: 'iphoneos', CFBundleSupportedPlatforms: ['iPhoneOS'], FirebaseAutomaticScreenReportingEnabled: false};
 const entitlement = {'application-identifier': '8G3A932HJG.app.slax.reader', 'com.apple.developer.team-identifier': '8G3A932HJG', 'com.apple.security.application-groups': ['group.app.slax.reader'], 'com.apple.developer.applesignin': ['Default']};
 const signature = {team: '8G3A932HJG', appleAuthority: true, adHoc: false};
+
+test('iOS admission uses package metadata even when obsolete version environment variables are present', () => {
+  const manifest = {version: '1.2.3', buildNumber: 12, previousBuildNumber: 11};
+  assert.deepEqual(releaseInputs({...environment, SLAX_MOBILE_VERSION: '9.9.9', SLAX_MOBILE_BUILD_NUMBER: '999', SLAX_MOBILE_PREVIOUS_BUILD_NUMBER: '998'}, manifest), {version: '1.2.3', build: '12', previous: '11', team: environment.SLAX_APPLE_TEAM_ID});
+});
 
 function firebaseFixture(t) {
   const root = mkdtempSync(path.join(tmpdir(), 'slax-release-public-fixture-'));
@@ -227,8 +232,8 @@ test('release commands cannot forward unsigned/simulator flags or change artifac
   for (const args of [['archive', '--output', '/tmp/new', '--unsigned'], ['archive', '--output', '/tmp/new', '-sdk', 'iphonesimulator'], ['archive', '--output', '/tmp/new', 'CODE_SIGNING_ALLOWED=NO'], ['export', '--archive', '/tmp/app.xcarchive'], ['upload', '--archive', '/tmp/app.xcarchive', '--export', '../old'], ['export', '--archive', '/tmp/app.xcarchive', '--archive', '/tmp/other.xcarchive', '--output', '/tmp/new']]) assert.throws(() => parseReleaseArguments(args));
   assert.throws(() => releaseInputs({...environment, EXPO_PUBLIC_SLAX_ADOPTION_FIXTURE: '1'}));
   assert.throws(() => releaseInputs({...environment, EXPO_PUBLIC_SLAX_UI_FIXTURE: 'library'}));
-  assert.throws(() => releaseInputs({...environment, SLAX_MOBILE_BUILD_NUMBER: '756'}));
-  assert.throws(() => releaseInputs({...environment, SLAX_MOBILE_BUILD_NUMBER: '9007199254740993'}));
+  assert.throws(() => releaseInputs(environment, {version: '1.0.25', buildNumber: 756, previousBuildNumber: 756}));
+  assert.throws(() => releaseInputs(environment, {version: '1.0.25', buildNumber: Number.MAX_SAFE_INTEGER + 1, previousBuildNumber: 756}));
   assert.throws(() => releaseInputs({...environment, SLAX_APPLE_TEAM_ID: undefined}));
 });
 

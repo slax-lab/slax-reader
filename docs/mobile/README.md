@@ -49,8 +49,8 @@ The application floor is Android API 26 and iOS 16.4. The approved runtime is Ex
 | `EXPO_PUBLIC_SLAX_GOOGLE_WEB_CLIENT_ID` | Google ID-token audience for the existing backend |
 | `EXPO_PUBLIC_SLAX_GOOGLE_IOS_CLIENT_ID` | iOS Google client identifier |
 | `EXPO_PUBLIC_SLAX_GOOGLE_IOS_URL_SCHEME` | Reversed iOS client identifier registered by the provider plugin |
-| `SLAX_MOBILE_VERSION` / `SLAX_MOBILE_BUILD_NUMBER` | Native marketing version and build number; development defaults are `1.0.0` / `1` |
-| `SLAX_MOBILE_PREVIOUS_BUILD_NUMBER` | Last published build number or a recorded, operator-confirmed upper bound; release validation requires a lower value |
+| `apps/mobile/package.json`: `version` / `buildNumber` | Canonical native marketing version and build code; together represent `1.0.25(766)`; environment version overrides are ignored |
+| `apps/mobile/package.json`: `previousBuildNumber` | Confirmed previous build bound, strictly lower than `buildNumber`; update before another store release |
 | `SLAX_APPLE_TEAM_ID` | Public publisher team identifier for the guarded iOS archive/export/upload commands using the existing Xcode account |
 
 Google authentication defaults to the public client identifiers and reversed callback scheme pinned from the original iOS `Info.plist` in `apps/mobile/assets/source-auth-public.json`. The original `app.slax.reader` application scheme is retained alongside `slaxreader`. The web audience defaults to the source `GIDServerClientID`; the original Android environment value was not inspected. The public environment inputs above override these defaults. Real provider callbacks and backend audience acceptance still require native verification. Controlled fixtures omit the Google callback plugin and use synthetic provider results. Apple and iOS share require the original capabilities and operator provisioning. Firebase's Analytics/Crashlytics SDKs need operator-managed native Firebase configuration before delivery can be verified. Those files are ignored and are never source-migration inputs. An unavailable Firebase app does not block reading or first-party telemetry.
