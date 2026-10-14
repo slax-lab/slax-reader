@@ -1,6 +1,9 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {readFileSync} from 'node:fs';
+import {applyMobileEnvironment} from './deploy-environment.cjs';
+
+applyMobileEnvironment();
 
 const platform = process.argv[2];
 const release = process.argv.includes('--release');
@@ -18,7 +21,7 @@ if (release) {
   const matches = platform === 'android' ? native.includes(`versionCode ${number}`) && native.includes(`versionName "${version}"`) : native.includes(`<string>${number}</string>`) && native.includes(`<string>${version}</string>`);
   if (!matches) throw new Error('Regenerate the native project with pnpm mobile -- prebuild using the same release version inputs before building.');
   if (platform === 'android' && !unsigned && !['SLAX_ANDROID_KEYSTORE_PATH', 'SLAX_ANDROID_KEYSTORE_PASSWORD', 'SLAX_ANDROID_KEY_ALIAS', 'SLAX_ANDROID_KEY_PASSWORD'].every(key => Boolean(process.env[key]))) {
-    throw new Error('Android signed release requires all four operator-managed SLAX_ANDROID signing inputs; --unsigned builds only a verification artifact.');
+    throw new Error('Android signed release requires deploy/mobile/android/slax-reader.release.jks and SLAX_ANDROID_KEYSTORE_PASSWORD, SLAX_ANDROID_KEY_ALIAS, SLAX_ANDROID_KEY_PASSWORD in deploy/mobile/.env or the process environment; SLAX_ANDROID_KEYSTORE_PATH can override the file path. --unsigned builds only a verification artifact.');
   }
   if (platform === 'ios' && !unsigned) throw new Error('This command builds an unsigned simulator artifact. Use --unsigned explicitly for Release validation; device signing and archive export belong to the operator-managed Xcode release workflow.');
 }

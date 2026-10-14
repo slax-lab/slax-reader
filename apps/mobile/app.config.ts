@@ -1,5 +1,7 @@
 import type { ExpoConfig } from 'expo/config';
 import sourceAuth from './assets/source-auth-public.json';
+import {applyMobileEnvironment} from './tooling/deploy-environment.cjs';
+applyMobileEnvironment();
 const uiFixture = Boolean(process.env.EXPO_PUBLIC_SLAX_UI_FIXTURE);
 const fixtureMode = process.env.EXPO_PUBLIC_SLAX_ADOPTION_FIXTURE === '1' || uiFixture;
 const firebaseIosConfig = fixtureMode ? undefined : process.env.SLAX_MOBILE_FIREBASE_IOS_CONFIG;

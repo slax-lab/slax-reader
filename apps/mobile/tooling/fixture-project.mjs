@@ -10,7 +10,7 @@ const MOBILE_ROOT = fileURLToPath(new URL('../', import.meta.url));
 const PREFIX = 'slax-reader-ui-fixture-';
 const MARKER = '.slax-ui-fixture-project.json';
 const ANDROID_ID = 'com.slax.reader.uifixture', IOS_ID = 'app.slax.reader.uifixture', SCHEME = 'slaxreader-ui-fixture';
-const FILES = ['app.config.ts', 'babel.config.cjs', 'metro.config.cjs', 'package.json', 'index.ts', 'tsconfig.json', 'tooling/native-build.mjs', 'tooling/fixture-project.mjs'];
+const FILES = ['app.config.ts', 'babel.config.cjs', 'metro.config.cjs', 'package.json', 'index.ts', 'tsconfig.json', 'tooling/native-build.mjs', 'tooling/fixture-project.mjs', 'tooling/deploy-environment.cjs'];
 const TREES = ['src', 'assets', 'modules', 'native/share', 'plugins', 'fixtures', 'tests'];
 const SKIP_DIRECTORIES = new Set(['node_modules', '.git', '.gradle', '.expo', 'build', 'dist', 'generated', 'new-owner', 'Pods', 'DerivedData', 'operator', 'credentials']);
 const EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.cjs', '.mjs', '.json', '.md', '.txt', '.css', '.html', '.py', '.kt', '.kts', '.gradle', '.swift', '.java', '.xml', '.podspec', '.h', '.m', '.mm', '.c', '.cpp', '.properties', '.yml', '.yaml', '.sql', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.ico', '.ttf', '.otf', '.ttc', '.woff', '.woff2']);

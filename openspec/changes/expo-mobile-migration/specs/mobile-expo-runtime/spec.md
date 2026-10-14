@@ -6,6 +6,20 @@ Make the complete mobile application buildable and maintainable inside the monor
 
 ## ADDED Requirements
 
+### Requirement: Mobile build inputs have one restorable local directory
+
+Mobile SHALL keep operator-owned iOS/Android build files under ignored `deploy/mobile/ios` and `deploy/mobile/android`, with local settings in ignored `deploy/mobile/.env` and tracked setup documentation/template. Native preparation/build/release commands and Expo configuration SHALL use one loader, discover the default Firebase and Android release-keystore paths, resolve relative explicit paths from the repository root, and give existing process values precedence. A repository-relative operator ZIP SHALL restore these inputs when extracted at the repository root without making regenerated native directories their only source. Original signing credentials and release checks SHALL remain required; missing values SHALL NOT create a new signing identity. iOS signing SHALL retain the existing Xcode/Keychain workflow.
+
+#### Scenario: Operator restores mobile build inputs
+- **WHEN** the operator extracts the mobile input archive at the repository root and fills the original signing values in `deploy/mobile/.env`
+- **THEN** native preparation and builds find both Firebase registrations and the existing Android publisher key without manual file-path exports
+- **AND** shell/CI overrides retain precedence and configuration contents are not logged or committed
+
+#### Scenario: Offline verification or a fixture runs
+- **WHEN** tests, type checking, JavaScript bundle checks, or a controlled fixture runs
+- **THEN** local operator configuration is not loaded
+- **AND** malformed or absent local credentials do not block these checks or authorize a signed release
+
 ### Requirement: Mobile has a stable monorepo entry point
 
 The repository SHALL provide the mobile application under `apps/mobile`, with its implementation, assets, native integrations, configuration, and tests owned by that application. Contributors SHALL be able to invoke its documented development, type-check, test, Android build, and iOS build commands through `pnpm mobile -- <command>`. Mobile SHALL consume public shared contracts without depending on Web, Extension, or API application internals.

@@ -7,6 +7,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {checkProductionEnvironment, checkProductionBundle} from './release-environment.mjs';
 import {verifyFrameworkClosure} from './ios-frameworks.mjs';
+import {applyMobileEnvironment} from './deploy-environment.cjs';
 
 const appRoot = fileURLToPath(new URL('../', import.meta.url));
 const MAIN = 'app.slax.reader', SHARE = 'app.slax.reader.share', GROUP = 'group.app.slax.reader';
@@ -58,7 +59,7 @@ export function checkBundleMetadata(info, entitlements, signature, release, bund
 }
 
 function firebaseRequirement(condition, detail) {
-  assert(condition, `iOS release Firebase admission: ${detail}. Operator: supply SLAX_MOBILE_FIREBASE_IOS_CONFIG for the intended main-app registration, regenerate with pnpm mobile -- prebuild --platform ios, then pnpm mobile -- pods. Do not read or copy service configuration contents through an agent; see docs/mobile/release.md`);
+  assert(condition, `iOS release Firebase admission: ${detail}. Place the intended main-app registration at deploy/mobile/ios/GoogleService-Info.plist or supply SLAX_MOBILE_FIREBASE_IOS_CONFIG, regenerate with pnpm mobile -- prebuild --platform ios, then pnpm mobile -- pods. See deploy/mobile/README.md`);
 }
 function regularFile(filename) {
   try {return lstatSync(filename).isFile();} catch {return false;}
@@ -249,4 +250,7 @@ export function executeRelease(args, environment = process.env, iosRoot = path.j
   } catch (error) {saveReport(uploadDirectory, {...report, status: 'failed', completedAt: new Date().toISOString()}); throw error;}
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) executeRelease(process.argv.slice(2));
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  applyMobileEnvironment();
+  executeRelease(process.argv.slice(2));
+}

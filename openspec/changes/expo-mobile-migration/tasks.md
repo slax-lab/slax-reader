@@ -1,5 +1,13 @@
 # Tasks
 
+## 21. Mobile build-input directory and restore archive (2026-10-14)
+
+- [x] 21.1 Consolidate local Firebase registrations, the existing Android signing key and optional upload-account file under ignored `deploy/mobile`, with an environment template and restoration guide.
+- [x] 21.2 Share local environment/default-path loading across root commands, Expo configuration and direct native build/release scripts; preserve process overrides, signing/version admission and offline/fixture isolation.
+- [x] 21.3 Verify configuration precedence, actual native-process handoff, missing-credential rejection and affected fixture/release regressions; validate specs and create/test-extract the repository-relative operator ZIP. Record missing original passwords/alias and platform signing prerequisites without claiming a new signed build.
+
+Build-input follow-up verification: 50 targeted tests, TypeScript, architecture checks, Android/iOS JavaScript bundles, and all 39 strict OpenSpec items passed. Actual Expo configuration resolves both platform Firebase paths under `deploy/mobile`; a controlled fixture excludes them. ZIP integrity, extraction/source equality, and configuration loading from the restored directory passed. Native-process handoff uses a synthetic executable, not a signed Android build. The original Android signing passwords/alias remain unknown and blank in the local configuration; iOS signing still requires the existing Xcode account/Keychain. No native signed build or store upload was performed for this directory change.
+
 ## 20. Narrowed iOS delivery (latest user instruction)
 
 The user freezes additional architecture expansion and narrows the remaining acceptance to real PDF reading, highlighting and comments on an iOS simulator connected to `https://reader-api.slax.dev`. Preserve the completed page/module extractions and existing safeguards; unfinished broad migration and cross-platform matrices below remain incomplete, not release gates for this explicitly authorized delivery. Work sequentially in the sole main worktree, without subagents. Use the supplied credential only through the authorized test session, never in source, logs or committed artifacts.

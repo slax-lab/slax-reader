@@ -80,7 +80,7 @@ test('failed local database publication is recorded as failure, not synchronized
 
 test('file sharing config is restricted to the native import fixture build', async () => {
   for (const scenario of [undefined, 'reader-pdf', 'reader-pdf-import']) {
-    const {default: config} = await load('../../app.config.ts', {'./assets/source-auth-public.json': {default: {}}}, {process: {env: {EXPO_PUBLIC_SLAX_UI_FIXTURE: scenario}}});
+    const {default: config} = await load('../../app.config.ts', {'./assets/source-auth-public.json': {default: {}}, './tooling/deploy-environment.cjs': {applyMobileEnvironment() {}}}, {process: {env: {EXPO_PUBLIC_SLAX_UI_FIXTURE: scenario}}});
     assert.equal(config.ios.infoPlist.UIFileSharingEnabled, scenario === 'reader-pdf-import' ? true : undefined);
     assert.equal(config.ios.infoPlist.LSSupportsOpeningDocumentsInPlace, scenario === 'reader-pdf-import' ? true : undefined);
   }

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { constants } from 'node:os';
 import { pnpmInvocation } from './pnpm-command.mjs';
+import {loadMobileEnvironment} from '../apps/mobile/tooling/deploy-environment.cjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const manifest = JSON.parse(readFileSync(new URL('../apps/mobile/package.json', import.meta.url), 'utf8'));
@@ -17,9 +18,13 @@ if (!command || ['help', '-h', '--help'].includes(command)) {
   console.error(`Unknown mobile command: ${command}`);
   process.exitCode = 2;
 } else {
+  const configurationCommands = new Set(['dev', 'config', 'prebuild', 'prebuild:clean', 'android', 'ios', 'pods', 'build:android', 'build:ios', 'archive:ios', 'export:ios', 'upload:ios']);
+  const environment = configurationCommands.has(command)
+    ? loadMobileEnvironment().environment
+    : {...process.env, SLAX_MOBILE_NO_LOCAL_CONFIG: '1'};
   const invocation = pnpmInvocation(['--filter', manifest.name, 'run', command, ...args]);
   const grouped = process.platform !== 'win32' && process.env.SLAX_APP_INHERIT_PROCESS_GROUP !== '1';
-  const child = spawn(invocation.program, invocation.args, { cwd: root, stdio: 'inherit', env: {...process.env, EXPO_NO_DOTENV: '1'}, detached: grouped });
+  const child = spawn(invocation.program, invocation.args, { cwd: root, stdio: 'inherit', env: {...environment, EXPO_NO_DOTENV: '1'}, detached: grouped });
   let interrupted;
   const stop = signal => {
     interrupted = signal;

@@ -17,7 +17,7 @@ pnpm mobile -- bundle
 node apps/mobile/assets/verify-baseline.mjs --source /path/to/slax-reader-client
 ```
 
-All root mobile commands set `EXPO_NO_DOTENV=1`. They do not load the API's local configuration or start other applications. Supply public Expo build inputs through the process environment. Never place tokens, signing credentials, private keys, or Firebase service configuration in public Expo variables or tracked files.
+All root mobile commands set `EXPO_NO_DOTENV=1`. Native preparation/development and build/release commands explicitly load `deploy/mobile/.env`, with existing process values taking precedence, and discover Firebase/Android signing files under `deploy/mobile/ios` and `deploy/mobile/android`. Expo configuration and direct native build/release scripts use the same loader. Tests, type checking, JavaScript bundle checks, and controlled fixtures skip local configuration. API, Web, and Extension local configuration is not read, and other applications are not started. See [the mobile build-input layout](../../deploy/mobile/README.md) for restoration and signing setup. Never place tokens, signing credentials, private keys, or Firebase service configuration in public Expo variables or tracked files.
 
 For local development, install Android SDK 36, its build tools, the configured NDK, and Java 17; iOS requires macOS, Xcode, and CocoaPods. Native custom modules and OP-SQLite require a development build:
 
