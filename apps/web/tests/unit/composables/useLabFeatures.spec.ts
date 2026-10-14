@@ -4,7 +4,7 @@
 import { RequestError } from '@commons/frontend-utils/request'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
-import { useLabFeatures } from '~~/app/composables/useLabFeatures'
+import { isLabVisibleInSettings, useLabFeatures } from '~~/app/composables/useLabFeatures'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockGet, mockPost, mockRequest, mockToastShowToast, mockNavigateTo } = vi.hoisted(() => {
@@ -37,6 +37,24 @@ describe('useLabFeatures', () => {
     const labs = useLabFeatures()
     labs.features.value = []
     labs.loaded.value = false
+  })
+
+  describe('Settings visibility', () => {
+    it.each(['youtube', 'pdf'])('hides %s only from Settings', async key => {
+      const feature = { key, status: 'active' as const, enabled: true, enabled_at: '2026-09-08T00:00:00.000Z' }
+      mockGet.mockResolvedValue({ features: [feature] })
+      const labs = useLabFeatures()
+      await labs.fetch()
+
+      expect(isLabVisibleInSettings(key)).toBe(false)
+      expect(labs.features.value).toEqual([feature])
+      expect(labs.isEnabled(key)).toBe(true)
+      expect(mockPost).not.toHaveBeenCalled()
+    })
+
+    it.each(['rss', 'future-feature'])('keeps %s eligible for Settings', key => {
+      expect(isLabVisibleInSettings(key)).toBe(true)
+    })
   })
 
   describe('fetch', () => {

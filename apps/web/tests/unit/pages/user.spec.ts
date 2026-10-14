@@ -153,7 +153,7 @@ describe('pages/user', () => {
     })
 
     it('places Labs after connections and before data', async () => {
-      labFeatures = [{ key: 'youtube', status: 'active', enabled: false, enabled_at: null }]
+      labFeatures = [{ key: 'rss', status: 'active', enabled: false, enabled_at: null }]
       const wrapper = mountWithApp(UserPage, { global: { stubs } })
       await flushPromises()
       const cards = wrapper.findAll('.settings-card')
@@ -202,13 +202,39 @@ describe('pages/user', () => {
       expect(wrapper.find('.settings-nav a[href="#data"]').attributes('aria-current')).toBe('location')
     })
 
-    it('opens the existing Labs deep link after the async Labs response', async () => {
+    it.each([false, true])('omits hidden-only Labs and safely handles the deep link when enabled=%s', async enabled => {
       mockRoute.hash = '#labs'
-      labFeatures = [{ key: 'youtube', status: 'active', enabled: false, enabled_at: null }]
+      labFeatures = ['youtube', 'pdf'].map(key => ({ key, status: 'active', enabled, enabled_at: enabled ? '2026-09-08T00:00:00.000Z' : null }))
       const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView')
       const wrapper = mountWithApp(UserPage, { global: { stubs } })
       await flushPromises()
+      expect(wrapper.find('#labs').exists()).toBe(false)
+      expect(wrapper.find('.settings-nav a[href="#features"]').exists()).toBe(false)
+      expect((wrapper.find('#features').element as HTMLElement).style.display).toBe('none')
+      expect(wrapper.find('#features button').exists()).toBe(false)
+      expect(wrapper.findAll('.settings-card')).toHaveLength(6)
+      expect(mockGet).toHaveBeenCalledWith({ url: '/v1/user/labs' })
+      expect(scroll).not.toHaveBeenCalled()
+      scroll.mockRestore()
+    })
+
+    it('opens the existing Labs deep link after a delayed visible Labs response', async () => {
+      mockRoute.hash = '#labs'
+      labFeatures = [{ key: 'rss', status: 'active', enabled: false, enabled_at: null }]
+      let resolveLabs!: (value: { features: unknown[] }) => void
+      const pendingLabs = new Promise<{ features: unknown[] }>(resolve => { resolveLabs = resolve })
+      mockGet.mockImplementation(({ url }: { url: string }) => url === '/v1/user/labs' ? pendingLabs : Promise.resolve(baseUserDetail))
+      const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView')
+      const wrapper = mountWithApp(UserPage, { global: { stubs } })
+      await flushPromises()
+      expect(wrapper.find('#labs').exists()).toBe(false)
+      expect(wrapper.find('.settings-nav a[href="#features"]').exists()).toBe(false)
+      expect(mockGet).toHaveBeenCalledWith({ url: '/v1/user/labs' })
+
+      resolveLabs({ features: labFeatures })
+      await flushPromises()
       expect(wrapper.find('#labs').exists()).toBe(true)
+      expect(wrapper.find('.settings-nav a[href="#features"]').exists()).toBe(true)
       expect(scroll.mock.contexts).toContain(wrapper.find('#labs').element)
       scroll.mockRestore()
     })

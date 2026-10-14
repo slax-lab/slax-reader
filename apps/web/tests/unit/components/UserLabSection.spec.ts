@@ -1,7 +1,5 @@
-// UserLabSection 组件单测
-// 挂载时 GET /v1/user/labs；空列表不渲染整张卡；没有文案的 key 跳过；
-// graduated 行开关禁用且显示为开；点击开关 → POST setting/enable|disable，失败回滚 + toast
 import UserLabSection from '~~/app/components/UserLabSection.vue'
+import { useLabFeatures } from '~~/app/composables/useLabFeatures'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
@@ -26,8 +24,8 @@ vi.mock('~/components/Toast', () => ({
   ToastType: { Success: 'success', Error: 'error', Normal: 'normal' }
 }))
 
-// 工厂而不是常量：组件会通过响应式代理改到原对象，常量会把上一个用例的开关状态带进下一个
-const youtube = () => ({ key: 'youtube', status: 'active', enabled: false, enabled_at: null })
+const rss = () => ({ key: 'rss', status: 'active', enabled: false, enabled_at: null })
+const hiddenFeatures = (enabled = false) => ['youtube', 'pdf'].map(key => ({ key, status: 'active', enabled, enabled_at: enabled ? '2026-09-08T00:00:00.000Z' : null }))
 
 const mountSection = async (features: unknown[]) => {
   mockGet.mockResolvedValue({ features })
@@ -40,37 +38,65 @@ describe('UserLabSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockPost.mockResolvedValue('ok')
+    const labs = useLabFeatures()
+    labs.features.value = []
+    labs.loaded.value = false
   })
 
   afterEach(() => {
     document.body.innerHTML = ''
   })
 
-  it('挂载时请求 /v1/user/labs', async () => {
+  it('loads /v1/user/labs on mount', async () => {
     await mountSection([])
     expect(mockGet).toHaveBeenCalledWith({ url: '/v1/user/labs' })
   })
 
-  it('列表为空 → 整张卡不渲染', async () => {
-    const wrapper = await mountSection([])
+  it.each([
+    { name: 'empty', features: [] },
+    { name: 'hidden-only', features: hiddenFeatures() },
+    { name: 'untranslated-only', features: [{ ...rss(), key: 'no_such_feature' }] }
+  ])('omits the entire card for $name responses', async ({ features }) => {
+    const wrapper = await mountSection(features)
     expect(wrapper.find('.settings-card').exists()).toBe(false)
+    expect(wrapper.find('button').exists()).toBe(false)
+    expect(mockPost).not.toHaveBeenCalled()
   })
 
-  it('渲染标题、说明和功能行；没有文案的 key 跳过', async () => {
-    const wrapper = await mountSection([youtube(), { key: 'no_such_feature', status: 'active', enabled: true, enabled_at: null }])
+  it('renders RSS and omits hidden and untranslated features', async () => {
+    const [youtube, pdf] = hiddenFeatures()
+    const wrapper = await mountSection([youtube, rss(), pdf, { ...rss(), key: 'no_such_feature' }])
     expect(wrapper.find('#labs.settings-card').exists()).toBe(true)
     expect(wrapper.find('.title').text()).toBe('Labs')
     expect(wrapper.find('.intro').text()).toContain('still rough')
     const rows = wrapper.findAll('.lab-row')
-    expect(rows.length).toBe(1)
-    expect(rows[0]!.find('.lab-name span').text()).toBe('YouTube videos')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.find('.lab-name span').text()).toBe('RSS feeds')
     expect(rows[0]!.find('.lab-pill').text()).toBe('In Labs')
-    expect(rows[0]!.find('.lab-desc').text()).toContain('transcript')
+    expect(rows[0]!.find('.lab-desc').text()).toContain('Browse your feeds')
     expect(rows[0]!.find('.switch-toggle').classes()).not.toContain('on')
+    expect(wrapper.text()).not.toContain('YouTube videos')
+    expect(wrapper.text()).not.toContain('PDF bookmarks')
   })
 
-  it('graduated → 标签“已正式发布”，开关禁用并显示为开', async () => {
-    const wrapper = await mountSection([{ ...youtube(), status: 'graduated', enabled: true }])
+  it.each([
+    { status: 'active', enabled: false },
+    { status: 'active', enabled: true },
+    { status: 'graduated', enabled: true }
+  ])('keeps $status hidden preferences intact when enabled=$enabled', async ({ status, enabled }) => {
+    const features = hiddenFeatures(enabled).map(feature => ({ ...feature, status }))
+    const original = structuredClone(features)
+    const wrapper = await mountSection(features)
+    const labs = useLabFeatures()
+    expect(wrapper.find('.lab-row').exists()).toBe(false)
+    expect(labs.features.value).toEqual(original)
+    expect(labs.isEnabled('youtube')).toBe(enabled)
+    expect(labs.isEnabled('pdf')).toBe(enabled)
+    expect(mockPost).not.toHaveBeenCalled()
+  })
+
+  it('shows a released RSS feature enabled with a disabled toggle', async () => {
+    const wrapper = await mountSection([{ ...rss(), status: 'graduated', enabled: true }])
     const row = wrapper.find('.lab-row')
     expect(row.find('.lab-pill').text()).toBe('Released')
     const toggle = row.find('.switch-toggle')
@@ -79,40 +105,37 @@ describe('UserLabSection', () => {
     await toggle.trigger('click')
     expect(mockPost).not.toHaveBeenCalled()
   })
-  it('renders the PDF opt-in and enables lab:pdf through the existing settings API', async () => {
-    const wrapper = await mountSection([{ key: 'pdf', status: 'active', enabled: false, enabled_at: null }])
-    expect(wrapper.find('.lab-name span').text()).toBe('PDF bookmarks')
-    expect(wrapper.find('.switch-toggle').classes()).not.toContain('on')
+
+  it('enables RSS without updating hidden preferences', async () => {
+    const hidden = hiddenFeatures(true)
+    const original = structuredClone(hidden)
+    const wrapper = await mountSection([...hidden, rss()])
     await wrapper.find('.switch-toggle').trigger('click')
-    await flushPromises()
-    expect(mockPost).toHaveBeenCalledWith({ url: '/v1/user/setting/enable', body: { key: 'lab:pdf' } })
     expect(wrapper.find('.switch-toggle').classes()).toContain('on')
+    await flushPromises()
+    expect(mockPost).toHaveBeenCalledExactlyOnceWith({ url: '/v1/user/setting/enable', body: { key: 'lab:rss' } })
+    expect(wrapper.find('.switch-toggle').classes()).toContain('on')
+    expect(useLabFeatures().features.value.filter(feature => feature.key !== 'rss')).toEqual(original)
   })
 
-  it('点击开关 → 乐观置开 + POST /v1/user/setting/enable { key: lab:youtube }', async () => {
-    const wrapper = await mountSection([youtube()])
-    await wrapper.find('.switch-toggle').trigger('click')
-    expect(wrapper.find('.switch-toggle').classes()).toContain('on')
-    await flushPromises()
-    expect(mockPost).toHaveBeenCalledWith({ url: '/v1/user/setting/enable', body: { key: 'lab:youtube' } })
-    expect(wrapper.find('.switch-toggle').classes()).toContain('on')
-  })
-
-  it('已开的功能点击 → POST /v1/user/setting/disable', async () => {
-    const wrapper = await mountSection([{ ...youtube(), enabled: true, enabled_at: '2026-09-08T00:00:00.000Z' }])
+  it('disables an enabled RSS feature', async () => {
+    const wrapper = await mountSection([{ ...rss(), enabled: true, enabled_at: '2026-09-08T00:00:00.000Z' }])
     await wrapper.find('.switch-toggle').trigger('click')
     await flushPromises()
-    expect(mockPost).toHaveBeenCalledWith({ url: '/v1/user/setting/disable', body: { key: 'lab:youtube' } })
+    expect(mockPost).toHaveBeenCalledExactlyOnceWith({ url: '/v1/user/setting/disable', body: { key: 'lab:rss' } })
     expect(wrapper.find('.switch-toggle').classes()).not.toContain('on')
   })
 
-  it('请求失败 → 回滚开关 + toast operate_failed', async () => {
+  it('rolls back a failed RSS toggle without changing hidden preferences', async () => {
     mockPost.mockRejectedValue(new Error('500'))
-    const wrapper = await mountSection([youtube()])
+    const hidden = hiddenFeatures(true)
+    const original = structuredClone(hidden)
+    const wrapper = await mountSection([...hidden, rss()])
     await wrapper.find('.switch-toggle').trigger('click')
     await flushPromises()
     expect(mockToastShowToast).toHaveBeenCalledWith(expect.objectContaining({ text: 'Operation failed', type: 'error' }))
-    expect(mockPost).toHaveBeenCalledTimes(1)
+    expect(mockPost).toHaveBeenCalledExactlyOnceWith({ url: '/v1/user/setting/enable', body: { key: 'lab:rss' } })
     expect(wrapper.find('.switch-toggle').classes()).not.toContain('on')
+    expect(useLabFeatures().features.value.filter(feature => feature.key !== 'rss')).toEqual(original)
   })
 })
