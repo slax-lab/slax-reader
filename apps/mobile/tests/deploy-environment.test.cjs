@@ -34,13 +34,12 @@ test('default build files resolve without parsing opaque Firebase or signing con
 
 test('local credentials support quoted values and process overrides without mutating the caller', t => {
   const f = fixture(t);
-  f.put('deploy/mobile/.env', 'SLAX_ANDROID_KEYSTORE_PASSWORD="local # password"\nSLAX_ANDROID_KEY_ALIAS=old-key\nSLAX_ANDROID_KEY_PASSWORD=local-key-password\nSLAX_MOBILE_VERSION=1.2.3\n');
+  f.put('deploy/mobile/.env', 'SLAX_ANDROID_KEYSTORE_PASSWORD="local # password"\nSLAX_ANDROID_KEY_ALIAS=old-key\nSLAX_ANDROID_KEY_PASSWORD=local-key-password\n');
   const inherited = {SLAX_ANDROID_KEY_ALIAS: 'selected-key', SLAX_ANDROID_KEY_PASSWORD: '', SHELL_ONLY: 'present'};
   const result = f.load(inherited);
   assert.equal(result.environment.SLAX_ANDROID_KEYSTORE_PASSWORD, 'local # password');
   assert.equal(result.environment.SLAX_ANDROID_KEY_ALIAS, 'selected-key');
   assert.equal(result.environment.SLAX_ANDROID_KEY_PASSWORD, '');
-  assert.equal(result.environment.SLAX_MOBILE_VERSION, '1.2.3');
   assert.equal(result.environment.SHELL_ONLY, 'present');
   assert.deepEqual(result.files, ['deploy/mobile/.env']);
   assert.deepEqual(inherited, {SLAX_ANDROID_KEY_ALIAS: 'selected-key', SLAX_ANDROID_KEY_PASSWORD: '', SHELL_ONLY: 'present'});
@@ -86,11 +85,12 @@ test('unconfigured mobile does not read other applications or legacy operator lo
 
 function nativeFixture(t) {
   const f = fixture(t);
-  for (const file of ['native-build.mjs', 'deploy-environment.cjs']) {
+  for (const file of ['native-build.mjs', 'deploy-environment.cjs', 'build-version.cjs']) {
     const target = path.join(f.root, 'apps/mobile/tooling', file);
     mkdirSync(path.dirname(target), {recursive: true});
     copyFileSync(path.join(__dirname, '../tooling', file), target);
   }
+  f.put('apps/mobile/package.json', JSON.stringify({version: '1.2.3', buildNumber: 12, previousBuildNumber: 11}));
   f.put('apps/mobile/android/app/build.gradle', 'versionCode 12\nversionName "1.2.3"\n// Slax release signing: operator-managed environment only.\n');
   f.put('deploy/mobile/android/slax-reader.release.jks', 'synthetic test key');
   f.put('apps/mobile/android/gradlew', `#!${process.execPath}\nconsole.log(JSON.stringify({args:process.argv.slice(2),key:process.env.SLAX_ANDROID_KEYSTORE_PATH,alias:process.env.SLAX_ANDROID_KEY_ALIAS,password:process.env.SLAX_ANDROID_KEYSTORE_PASSWORD,keyPassword:process.env.SLAX_ANDROID_KEY_PASSWORD}));\n`, 0o755);
@@ -98,9 +98,9 @@ function nativeFixture(t) {
   return f;
 }
 
-test('direct Android release passes discovered signing inputs to the build process from any cwd', {skip: process.platform === 'win32'}, t => {
+test('direct Android release uses package versions despite stale environment values and passes discovered signing inputs', {skip: process.platform === 'win32'}, t => {
   const f = nativeFixture(t);
-  f.put('deploy/mobile/.env', 'SLAX_MOBILE_VERSION=1.2.3\nSLAX_MOBILE_BUILD_NUMBER=12\nSLAX_MOBILE_PREVIOUS_BUILD_NUMBER=11\nSLAX_ANDROID_KEYSTORE_PASSWORD=synthetic-store\nSLAX_ANDROID_KEY_ALIAS=synthetic-alias\nSLAX_ANDROID_KEY_PASSWORD=synthetic-key\n');
+  f.put('deploy/mobile/.env', 'SLAX_MOBILE_VERSION=9.9.9\nSLAX_MOBILE_BUILD_NUMBER=999\nSLAX_MOBILE_PREVIOUS_BUILD_NUMBER=998\nSLAX_ANDROID_KEYSTORE_PASSWORD=synthetic-store\nSLAX_ANDROID_KEY_ALIAS=synthetic-alias\nSLAX_ANDROID_KEY_PASSWORD=synthetic-key\n');
   const result = f.run();
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(JSON.parse(result.stdout), {args: ['assembleRelease', 'bundleRelease'], key: path.join(f.root, 'deploy/mobile/android/slax-reader.release.jks'), alias: 'synthetic-alias', password: 'synthetic-store', keyPassword: 'synthetic-key'});
@@ -108,7 +108,7 @@ test('direct Android release passes discovered signing inputs to the build proce
 
 test('missing original signing credentials stop a release before starting Gradle', {skip: process.platform === 'win32'}, t => {
   const f = nativeFixture(t);
-  f.put('deploy/mobile/.env', 'SLAX_MOBILE_VERSION=1.2.3\nSLAX_MOBILE_BUILD_NUMBER=12\nSLAX_MOBILE_PREVIOUS_BUILD_NUMBER=11\n');
+  f.put('deploy/mobile/.env', '');
   const result = f.run();
   assert.equal(result.status, 1);
   assert.match(result.stderr, /deploy\/mobile\/\.env/);
@@ -127,17 +127,17 @@ test('root mobile dispatcher loads native inputs, isolates offline commands and 
   mkdirSync(path.dirname(helper), {recursive: true});
   copyFileSync(path.join(__dirname, '../tooling/deploy-environment.cjs'), helper);
   f.put('apps/mobile/package.json', JSON.stringify({name: '@fixture/mobile', scripts: {prebuild: 'fixture', check: 'fixture'}}));
-  f.put('bin/pnpm', `#!${process.execPath}\nconsole.log(JSON.stringify({args:process.argv.slice(2),version:process.env.SLAX_MOBILE_VERSION,skip:process.env.SLAX_MOBILE_NO_LOCAL_CONFIG,noDotenv:process.env.EXPO_NO_DOTENV}));\n`, 0o755);
+  f.put('bin/pnpm', `#!${process.execPath}\nconsole.log(JSON.stringify({args:process.argv.slice(2),alias:process.env.SLAX_ANDROID_KEY_ALIAS,skip:process.env.SLAX_MOBILE_NO_LOCAL_CONFIG,noDotenv:process.env.EXPO_NO_DOTENV}));\n`, 0o755);
   const run = args => spawnSync(process.execPath, [path.join(f.root, 'tooling/mobile.mjs'), ...args], {cwd: tmpdir(), env: {PATH: path.join(f.root, 'bin') + path.delimiter + process.env.PATH}, encoding: 'utf8', timeout: 10000});
-  f.put('deploy/mobile/.env', 'SLAX_MOBILE_VERSION=1.2.3\n');
+  f.put('deploy/mobile/.env', 'SLAX_ANDROID_KEY_ALIAS=synthetic-key\n');
   const configured = run(['--', 'prebuild', '--platform', 'android']);
   assert.equal(configured.status, 0, configured.stderr);
-  assert.deepEqual(JSON.parse(configured.stdout), {args: ['--filter', '@fixture/mobile', 'run', 'prebuild', '--platform', 'android'], version: '1.2.3', noDotenv: '1'});
+  assert.deepEqual(JSON.parse(configured.stdout), {args: ['--filter', '@fixture/mobile', 'run', 'prebuild', '--platform', 'android'], alias: 'synthetic-key', noDotenv: '1'});
   f.put('deploy/mobile/.env', 'PASSWORD="private-unclosed-value');
   const offline = run(['check']);
   assert.equal(offline.status, 0, offline.stderr);
   assert.equal(JSON.parse(offline.stdout).skip, '1');
-  assert.equal(JSON.parse(offline.stdout).version, undefined);
+  assert.equal(JSON.parse(offline.stdout).alias, undefined);
   assert.equal(run(['help']).status, 0);
   const malformed = run(['prebuild']);
   assert.equal(malformed.status, 1);

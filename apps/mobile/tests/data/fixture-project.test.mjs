@@ -8,7 +8,7 @@ import {allowedSourceFiles, fixtureCommands} from '../../tooling/fixture-project
 test('UI project whitelist includes native module source and skips secrets, generated builds and root native projects', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'slax-fixture-whitelist-'));
   try {
-    for (const name of ['app.config.ts', 'babel.config.cjs', 'metro.config.cjs', 'package.json', 'index.ts', 'tsconfig.json', 'tooling/native-build.mjs', 'tooling/fixture-project.mjs', 'tooling/deploy-environment.cjs', 'src/App.tsx', 'assets/logo.png', 'modules/local/android/src/Module.kt', 'modules/local/android/build.gradle', 'native/share/ios/Share.swift', 'plugins/example.cjs', 'fixtures/scenarios.json', 'tests/source.test.ts']) {
+    for (const name of ['app.config.ts', 'babel.config.cjs', 'metro.config.cjs', 'package.json', 'index.ts', 'tsconfig.json', 'tooling/native-build.mjs', 'tooling/fixture-project.mjs', 'tooling/deploy-environment.cjs', 'tooling/build-version.cjs', 'src/App.tsx', 'assets/logo.png', 'modules/local/android/src/Module.kt', 'modules/local/android/build.gradle', 'native/share/ios/Share.swift', 'plugins/example.cjs', 'fixtures/scenarios.json', 'tests/source.test.ts']) {
       const file = path.join(root, name); mkdirSync(path.dirname(file), {recursive: true}); writeFileSync(file, 'synthetic source');
     }
     for (const name of ['src/.env', 'src/.dev.vars.local', 'assets/private-key.pem', 'modules/local/android/debug.keystore', 'fixtures/google-services.json', 'fixtures/GoogleService-Info.plist', 'ios', 'android']) symlinkSync('/nonexistent-path-must-never-be-opened', path.join(root, name));
@@ -22,7 +22,7 @@ test('UI project whitelist includes native module source and skips secrets, gene
 test('UI source whitelist rejects symlinks in an otherwise approved source subtree', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'slax-fixture-whitelist-'));
   try {
-    for (const name of ['app.config.ts', 'babel.config.cjs', 'metro.config.cjs', 'package.json', 'index.ts', 'tsconfig.json', 'tooling/native-build.mjs', 'tooling/fixture-project.mjs', 'tooling/deploy-environment.cjs']) {mkdirSync(path.dirname(path.join(root, name)), {recursive: true}); writeFileSync(path.join(root, name), 'synthetic source');}
+    for (const name of ['app.config.ts', 'babel.config.cjs', 'metro.config.cjs', 'package.json', 'index.ts', 'tsconfig.json', 'tooling/native-build.mjs', 'tooling/fixture-project.mjs', 'tooling/deploy-environment.cjs', 'tooling/build-version.cjs']) {mkdirSync(path.dirname(path.join(root, name)), {recursive: true}); writeFileSync(path.join(root, name), 'synthetic source');}
     mkdirSync(path.join(root, 'src')); symlinkSync('/nonexistent-external-source', path.join(root, 'src/external.ts'));
     assert.throws(() => allowedSourceFiles(root), /symlinks are not permitted/);
   } finally {rmSync(root, {recursive: true, force: true});}

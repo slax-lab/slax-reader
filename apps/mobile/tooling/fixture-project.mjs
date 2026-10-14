@@ -10,7 +10,7 @@ const MOBILE_ROOT = fileURLToPath(new URL('../', import.meta.url));
 const PREFIX = 'slax-reader-ui-fixture-';
 const MARKER = '.slax-ui-fixture-project.json';
 const ANDROID_ID = 'com.slax.reader.uifixture', IOS_ID = 'app.slax.reader.uifixture', SCHEME = 'slaxreader-ui-fixture';
-const FILES = ['app.config.ts', 'babel.config.cjs', 'metro.config.cjs', 'package.json', 'index.ts', 'tsconfig.json', 'tooling/native-build.mjs', 'tooling/fixture-project.mjs', 'tooling/deploy-environment.cjs'];
+const FILES = ['app.config.ts', 'babel.config.cjs', 'metro.config.cjs', 'package.json', 'index.ts', 'tsconfig.json', 'tooling/native-build.mjs', 'tooling/fixture-project.mjs', 'tooling/deploy-environment.cjs', 'tooling/build-version.cjs'];
 const TREES = ['src', 'assets', 'modules', 'native/share', 'plugins', 'fixtures', 'tests'];
 const SKIP_DIRECTORIES = new Set(['node_modules', '.git', '.gradle', '.expo', 'build', 'dist', 'generated', 'new-owner', 'Pods', 'DerivedData', 'operator', 'credentials']);
 const EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.cjs', '.mjs', '.json', '.md', '.txt', '.css', '.html', '.py', '.kt', '.kts', '.gradle', '.swift', '.java', '.xml', '.podspec', '.h', '.m', '.mm', '.c', '.cpp', '.properties', '.yml', '.yaml', '.sql', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.ico', '.ttf', '.otf', '.ttc', '.woff', '.woff2']);
@@ -53,7 +53,7 @@ export function allowedSourceFiles(sourceRoot) {
 function fixtureEnv(scenario, locale) {
   const env = {};
   for (const key of ['PATH', 'HOME', 'USER', 'LOGNAME', 'SHELL', 'TMPDIR', 'LANG', 'LC_ALL', 'TERM', 'JAVA_HOME', 'ANDROID_HOME', 'ANDROID_SDK_ROOT', 'DEVELOPER_DIR', 'SDKROOT']) if (process.env[key]) env[key] = process.env[key];
-  return {...env, CI: '1', EXPO_NO_DOTENV: '1', EXPO_NO_TELEMETRY: '1', EXPO_NO_METRO_LAZY: '1', EXPO_PUBLIC_SLAX_UI_FIXTURE: scenario, EXPO_PUBLIC_SLAX_UI_FIXTURE_LOCALE: locale, EXPO_PUBLIC_SLAX_ADOPTION_FIXTURE: '0', SLAX_MOBILE_UNSIGNED: '1', SLAX_MOBILE_VERSION: '1.0.0', SLAX_MOBILE_BUILD_NUMBER: '1'};
+  return {...env, CI: '1', EXPO_NO_DOTENV: '1', EXPO_NO_TELEMETRY: '1', EXPO_NO_METRO_LAZY: '1', EXPO_PUBLIC_SLAX_UI_FIXTURE: scenario, EXPO_PUBLIC_SLAX_UI_FIXTURE_LOCALE: locale, EXPO_PUBLIC_SLAX_ADOPTION_FIXTURE: '0', SLAX_MOBILE_UNSIGNED: '1'};
 }
 function scopeProject(projectRoot) {
   const canonical = realpathSync(projectRoot), temp = realpathSync(tmpdir());
