@@ -12,6 +12,16 @@ The snapshot is not a runtime asset package. Read its `SOURCE.md` before opening
 
 The [design-system backlog](backlog.md) records bounded follow-up work for reusable Web icons and legacy theme-token debt. It does not require removing every local SVG or grant implementation scope without an OpenSpec change.
 
+## Completed design-system work
+
+The design contract, reference snapshot, and approved Web icon migrations form the completed foundation. The [living runtime icon specification](../../openspec/specs/runtime-icon-registry/spec.md) records the merged behavior.
+
+- [Initial registry and migration matrix](../../openspec/changes/archive/2026-10-09-runtime-icon-registry/migration-matrix.md).
+- [Web control migration and verification record](../../openspec/changes/archive/2026-10-14-web-icon-registry-followup/migration-matrix.md) from PR #186.
+- [Accessibility, default-size, and backlog follow-ups](../../openspec/changes/archive/2026-10-14-design-system-followups/proposal.md) from PR #188.
+
+Remaining icon migrations and theme-token debt stay in the backlog and can be addressed alongside relevant feature work.
+
 ## Maintenance
 
 - Change semantic design decisions in the root `DESIGN.md`.
