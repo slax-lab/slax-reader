@@ -100,6 +100,20 @@ describe('YoutubeArticleBar', () => {
     w.unmount()
   })
 
+  it('checks for the body again when the video stops playing', async () => {
+    routeGet([state({ status: 'generating' }), ready()])
+    const w = await mount()
+    await flushPromises()
+    window.dispatchEvent(new CustomEvent(PODCAST_EVENTS.state, { detail: { playing: true } }))
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(w.emitted('refresh-body')).toBeUndefined()
+    window.dispatchEvent(new CustomEvent(PODCAST_EVENTS.state, { detail: { playing: false } }))
+    expect(w.emitted('refresh-body')).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(15_000)
+    expect(w.emitted('refresh-body')).toHaveLength(2)
+    w.unmount()
+  })
+
   it('marks on the raw transcript: falls back to the article below the body at once', async () => {
     routeGet([state({ status: 'generating', body_mode: 'transcript' })])
     const w = await mount()

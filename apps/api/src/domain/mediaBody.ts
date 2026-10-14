@@ -24,13 +24,14 @@ export class MediaBodyService {
 
   /**
    * True when anyone left a highlight or comment on this bookmark. Marks are anchored to the body
-   * as it is, so a body with marks must not be replaced. Deleted rows do not count; a missing user
-   * bookmark counts as marked, so an unknown state never loses marks.
+   * as it is, so a body with marks must not be replaced. The body is shared by every reader of the
+   * bookmark, so every reader's marks count. Deleted rows do not count; a missing user bookmark
+   * counts as marked, so an unknown state never loses marks.
    */
   public async hasMarks(bookmarkId: number, userId: number): Promise<boolean> {
     const ub = await this.bookmarkRepo.getUserBookmark(bookmarkId, userId)
     if (!ub) return true
-    return (await this.markRepo.list(ub.id)).some(m => !m.is_deleted)
+    return this.markRepo.hasLiveMarksOnBookmark(bookmarkId)
   }
 
   /** The current body HTML of a bookmark, or null when it has none. */

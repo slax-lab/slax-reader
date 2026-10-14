@@ -53,7 +53,10 @@ const awaitingBody = computed(() => status.value === 'ready' && !!state.value?.b
 // Swapping the body restarts the video, so it waits while the video plays; then the reader decides
 let playing = false
 const onState = (e: Event) => {
+  const wasPlaying = playing
   playing = !!(e as CustomEvent<{ playing: boolean }>).detail?.playing
+  // A check that came while the video played was skipped; continue the checks when playback stops
+  if (wasPlaying && !playing && !bodyTimer) askForBody()
 }
 
 // Ask a few times: the status can say ready a moment before this bookmark's body is written.

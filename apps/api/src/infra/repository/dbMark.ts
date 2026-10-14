@@ -125,6 +125,17 @@ export class MarkRepo {
     return row?.comment ?? ''
   }
 
+  /**
+   * Whether any reader's copy of a shared bookmark has a non-deleted highlight or comment. The body
+   * belongs to the shared bookmark row, while marks hang off each user bookmark.
+   */
+  async hasLiveMarksOnBookmark(bookmarkId: number): Promise<boolean> {
+    const userBookmarks = await this.prismaPg().sr_user_bookmark.findMany({ where: { bookmark_id: bookmarkId }, select: { id: true } })
+    if (userBookmarks.length === 0) return false
+    const count = await this.prismaPg().sr_bookmark_comment.count({ where: { bookmark_id: { in: userBookmarks.map(ub => ub.id) }, is_deleted: false } })
+    return count > 0
+  }
+
   async list(userBmId: number) {
     return (
       await this.prismaPg().sr_bookmark_comment.findMany({

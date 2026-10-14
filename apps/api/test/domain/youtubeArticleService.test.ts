@@ -197,14 +197,16 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
   const bookmarks = new Map<number, { title: string; content_key: string | null; content_md_key: string | null; moderation_result: number }>([
     [BOOKMARK, { title: 'Attention', content_key: 'html/body/u1.html', content_md_key: 'text/body/u1.txt', moderation_result: 0 }]
   ])
-  /** Live marks per user bookmark id; the user bookmark id is the bookmark id + 1000. */
+  /** Live marks per user bookmark id: the owner's copy is the bookmark id + 1000, a co-reader's + 2000. */
   const marks = new Map<number, { is_deleted: boolean }[]>()
   const bookmarkRepo = {
     getUserBookmark: vi.fn(async (bmId: number) => (bookmarks.has(bmId) ? { id: bmId + 1000 } : null)),
     updateBookmarkWordCount: vi.fn(async () => ({})),
     deleteBookmarkSummary: vi.fn(async () => ({}))
   }
-  const markRepo = { list: vi.fn(async (ubId: number) => marks.get(ubId) ?? []) }
+  const markRepo = {
+    hasLiveMarksOnBookmark: vi.fn(async (bmId: number) => [bmId + 1000, bmId + 2000].some(id => (marks.get(id) ?? []).some(m => !m.is_deleted)))
+  }
   const searchService = { addSearchRecord: vi.fn(async () => [{ status: 'fulfilled', value: [] }]) }
   const labService = {
     isEnabled: vi.fn(async (userId: number) => labOn.has(userId)),
@@ -782,6 +784,14 @@ describe('the article as the bookmark body', () => {
 
     w.marks.set(BOOKMARK + 1000, [{ is_deleted: true }])
     expect(await w.service.publishBodies(w.ctx(0), row.id)).toBe(1)
+  })
+
+  test("another reader's marks on a shared bookmark also keep the body", async () => {
+    const w = wire()
+    const row = ready(w)
+    w.marks.set(BOOKMARK + 2000, [{ is_deleted: false }])
+    expect(await w.service.publishBodies(w.ctx(0), row.id)).toBe(0)
+    expect(w.objects.get('html/body/u1.html')).toBe(RAW_BODY)
   })
 
   test('every bookmark of the video that wants the language gets it; other languages, Labs off and flagged ones do not', async () => {
