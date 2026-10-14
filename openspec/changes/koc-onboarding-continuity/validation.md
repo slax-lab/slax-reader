@@ -124,6 +124,24 @@ Compared with the branch base `b086da93`, the complete KOC/onboarding change tou
 | Added | `openspec/changes/koc-onboarding-continuity/validation.md` |
 | Modified | `packages/contracts/src/interface.ts` |
 
+## Empty Inbox follow-up (2026-10-14)
+
+The user-provided local test account reproduced a blank Inbox without automatic onboarding on the merged implementation. Temporary boolean-only diagnostics confirmed first synchronization complete, no loading/fetching/query error, verified profile and local owner present, but profile/owner equality false. The API uses different Hashid contexts for JWT identity and `/user/me` identity. No credentials or personal account values are recorded here.
+
+The correction binds the JWT owner to a successful current-session profile read and compares local ownership within that namespace. Profile IDs remain the promotion/onboarding storage keys. The PowerSync decoder is shared without changing its existing ID/email fallback. First-sync, query success, direct SQLite confirmation and session/account-switch checks remain required.
+
+Verification:
+
+- Red: realistic distinct-ID fixtures failed the readiness and empty-Inbox selection assertions before the implementation change.
+- Green: the full Web Vitest run on Node 22.22.2 passed 197 files / 2,132 tests; one file and three tests were skipped. Existing Nuxt/PowerSync and happy-dom teardown warnings remain non-failing.
+- `vue-tsc --noEmit -p .nuxt/tsconfig.app.json` passed against the generated Nuxt configuration. ESLint passed for all changed TypeScript files after sorting test imports; existing explicit-any warnings remain.
+- `openspec validate --all --strict`: 39 passed, zero failed. `git diff --check` passed.
+- Real local Web, connected to the user's running API: a bare-root empty Inbox automatically reached `/onboarding` and displayed the extension installation tutorial.
+- Real local KOC entry: the 60-day offer appeared before onboarding, and choosing Later reached `/onboarding` with the resumable KOC entry. No reward was submitted. Successful-claim acknowledgement remains covered by the existing routing regression suite.
+- The diagnostic logging was removed. The temporary browser login cookie was expired and verified by return to the login page; only the agent-started Web and cookie-helper services were stopped.
+
+Local pre-push review used OpenSpec change `koc-onboarding-continuity`: Bugs, Security and Compliance passes found no Important issues. The correction implements the already-approved current-account readiness requirement without changing API contracts, grant rules or UI presentation. The existing isolated concurrent-grant release check in task 4.5 remains pending and is unrelated to this correction.
+
 ## Final deep-review fixes
 
 The five reproducible findings were confirmed and approved for repair. All five now have durable regression coverage:

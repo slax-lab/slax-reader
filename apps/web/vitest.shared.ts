@@ -26,7 +26,12 @@ export const sharedTestOptions = {
     }
   },
   // tests/ 只剩 it.skip smoke 时 Vitest 默认 "No test files found" 退出非零
-  passWithNoTests: true
+  passWithNoTests: true,
+  // happy-dom has no Web Worker, so the PowerSync plugin always walks its recovery chain down to the REST
+  // fallback in tests. That is expected; hide its logs so they are not mistaken for real failures.
+  onConsoleLog(log: string) {
+    if (/^\[powersync\] (recovery attempt failed|failed database cleanup|changing recovery mode|all database modes failed)/.test(log)) return false
+  }
 }
 
 /** 基座 exclude（主跑与 raw 跑都要剔除：类型定义 / 入口 / 布局 / 插件） */

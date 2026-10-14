@@ -1216,6 +1216,13 @@
     },
     "bookmarks_onboarding": {
       "skip": "Maybe later",
+      "mobile": {
+        "title": "Take your reading with you",
+        "copy": "Save and read articles on your phone with the Slax Reader app. Your library stays in sync across devices.",
+        "download": "Download app",
+        "newTab": "The download page opens in a new tab.",
+        "close": "Close guide and continue on the web"
+      },
       "step1": {
         "install": "Install Browser Extension",
         "setupTime": "Setup takes about a minute",
