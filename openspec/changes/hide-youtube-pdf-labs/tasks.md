@@ -16,7 +16,7 @@
 ## 3. Review and requested pull request
 
 - [x] 3.1 Run the local Bugs, Security, and Compliance review defined in `REVIEW.md` against `hide-youtube-pdf-labs`; verify every completed task has evidence and resolve all Important findings before pushing.
-- [ ] 3.2 Commit and push only this task branch after validation, then create the requested PR targeting `dev` with `OpenSpec: hide-youtube-pdf-labs`; verify the PR diff contains only this change, includes verification results and the retained Labs-gate limitation, and return its URL without merging it.
+- [x] 3.2 Commit and push only this task branch after validation, then create the requested PR targeting `dev` with `OpenSpec: hide-youtube-pdf-labs`; verify the PR diff contains only this change, includes verification results and the retained Labs-gate limitation, and return its URL without merging it. PR: https://github.com/slax-lab/slax-reader/pull/212 (open, targeting `dev`).
 
 ## Verification evidence
 
