@@ -1,9 +1,19 @@
 <template>
-  <!-- 全新用户三步引导 -->
-  <div class="onboarding-hero">
-    <button class="hero-skip-btn" type="button" @click="skip">{{ $t('page.bookmarks_onboarding.skip') }}</button>
+  <div class="onboarding-hero" :class="{ 'is-mobile': isMobile }">
+    <button v-if="!isMobile" class="hero-skip-btn" type="button" @click="skip">{{ $t('page.bookmarks_onboarding.skip') }}</button>
 
-    <template v-if="currentStep === 1">
+    <template v-if="isMobile">
+      <img class="hero-app-logo" src="@images/icon-logo-bookmark.png" width="64" height="64" alt="" />
+      <h1 class="hero-title">{{ $t('page.bookmarks_onboarding.mobile.title') }}</h1>
+      <p class="hero-app-copy">{{ $t('page.bookmarks_onboarding.mobile.copy') }}</p>
+      <a class="hero-app-download" :href="appDownloadUrl" target="_blank" rel="noopener noreferrer" aria-describedby="app-download-hint">
+        {{ $t('page.bookmarks_onboarding.mobile.download') }}
+      </a>
+      <p id="app-download-hint" class="hero-app-hint">{{ $t('page.bookmarks_onboarding.mobile.newTab') }}</p>
+      <button class="hero-mobile-close" type="button" @click="skip">{{ $t('page.bookmarks_onboarding.mobile.close') }}</button>
+    </template>
+
+    <template v-else-if="currentStep === 1">
       <h1 class="hero-title">{{ $t('page.bookmarks_onboarding.step1.title') }}</h1>
 
       <div class="browser-save-demo" :class="{ 'is-playing': isPlaying, 'is-clicked': isClicked }" aria-label="使用 Slax Reader 浏览器扩展收藏文章的动画示意">
@@ -111,6 +121,8 @@
 </template>
 
 <script setup lang="ts">
+import { getReaderAppDownloadUrl, isMobileBrowser } from '~/utils/environment'
+
 import { useExtensionDetection } from '~/composables/useExtensionDetection'
 import { usePinnedDetection } from '~/composables/usePinnedDetection'
 
@@ -119,9 +131,11 @@ const emit = defineEmits<{ skip: []; complete: [] }>()
 const pluginUrl = 'https://chromewebstore.google.com/detail/slax-reader/gdnhaajlomjkhahnmiijphnodkcfikfd?utm_source=web_onboarding'
 const gettingStartedUrl = 'https://www.slax.com/blog/quick-save-with-the-slax-extension'
 
-// computed 避免拿不到初始值
-const { isInstalled } = useExtensionDetection()
-const { isPinned } = usePinnedDetection()
+const isMobile = isMobileBrowser()
+const appDownloadUrl = isMobile ? getReaderAppDownloadUrl() : ''
+// Mobile onboarding does not wait for extension installation or pinning.
+const { isInstalled } = isMobile ? { isInstalled: ref(false) } : useExtensionDetection()
+const { isPinned } = isMobile ? { isPinned: ref(false) } : usePinnedDetection()
 const manualStep3 = ref(false)
 const installPending = ref(false)
 let installReturnTimer: ReturnType<typeof setTimeout> | undefined
@@ -192,6 +206,7 @@ const playDemoSequence = () => {
 }
 
 onMounted(() => {
+  if (isMobile) return
   playDemoSequence()
 
   document.addEventListener('visibilitychange', checkInstallReturn)
@@ -220,6 +235,82 @@ onUnmounted(() => {
   text-align: center;
   padding: 96px 24px 64px;
   position: relative;
+}
+
+.onboarding-hero.is-mobile {
+  padding: 64px max(24px, env(safe-area-inset-right)) max(40px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+
+  .hero-title {
+    max-width: 420px;
+    margin: 24px 0 16px;
+    line-height: 1.4;
+  }
+}
+
+.hero-app-logo {
+  display: block;
+}
+
+.hero-app-copy {
+  max-width: 360px;
+  margin: 0;
+  color: var(--slax-text-muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.hero-app-download,
+.hero-mobile-close {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 320px);
+  min-height: 48px;
+  padding: 12px 20px;
+  border: 1px solid transparent;
+  border-radius: var(--slax-radius-sm);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--slax-accent);
+    outline-offset: 4px;
+  }
+}
+
+.hero-app-download {
+  margin-top: 32px;
+  background: var(--slax-accent);
+  color: var(--slax-btn-text);
+  text-decoration: none;
+
+  &:hover,
+  &:active {
+    text-decoration: underline;
+  }
+}
+
+.hero-app-hint {
+  margin: 12px 0 24px;
+  color: var(--slax-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.hero-mobile-close {
+  background: transparent;
+  color: var(--slax-text-muted);
+  border-color: var(--slax-border-strong);
+
+  &:hover,
+  &:active {
+    background: var(--slax-accent-bg);
+    border-color: var(--slax-accent);
+    color: var(--slax-text);
+  }
 }
 
 // fixed 相对视口定位

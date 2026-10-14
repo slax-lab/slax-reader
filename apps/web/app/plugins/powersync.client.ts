@@ -1,6 +1,7 @@
 import { notifyExtensionBridgeAuthExpired, parseExtensionBridgeIds } from '~/utils/extensionBridge'
 import { requestExtensionBridgeSession } from '~/utils/extensionBridgeSession'
 import { getClientEventHeaders, getUserToken } from '~/utils/request'
+import { getTokenUserId } from '~/utils/sessionOwner'
 
 import { createPowerSyncPlugin } from '@powersync/vue'
 import { PowerSyncDatabase, SyncStreamConnectionMethod } from '@powersync/web'
@@ -10,21 +11,6 @@ import { initializePowerSyncWithFallback, type PowerSyncRecoveryEvent, type Powe
 import { shouldUsePowerSyncSharedWorker } from '~/local-first/powersync-worker-policy'
 import { AppSchema } from '~/local-first/schema'
 import { POWER_SYNC_DATABASE_GENERATION, POWER_SYNC_LOCAL_DATA_VERSION } from '~/local-first/version'
-
-// 从 JWT payload 取稳定用户标识（id，回退 email），用于换号检测
-const getTokenUserId = (token: string | null | undefined): string | null => {
-  if (!token) return null
-  try {
-    const part = token.split('.')[1]
-    if (!part) return null
-    const b64 = part.replace(/-/g, '+').replace(/_/g, '/')
-    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4)
-    const claims = JSON.parse(atob(padded)) as { id?: string | number; email?: string }
-    return claims.id != null ? String(claims.id) : (claims.email ?? null)
-  } catch {
-    return null
-  }
-}
 
 const LAST_USER_KEY = 'slax:powersync:lastUser'
 

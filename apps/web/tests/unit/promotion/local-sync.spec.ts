@@ -8,20 +8,24 @@ import { enableAutoUnmount,mount } from '@vue/test-utils'
 import { flushPromises } from '@vue/test-utils'
 import { useBookmarkData } from '~~/app/composables/bookmark/useBookmarkData'
 import { useInboxOnboardingState } from '~~/app/composables/bookmark/useInboxOnboardingState'
+import { useKocPromotionController } from '~~/app/composables/promotion/useKocPromotionFlow'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 // Node 22 omits node:sqlite from builtinModules, so Vitest tries to bundle a static import.
 // Load the real Node module directly while keeping the Vue fixture in happy-dom.
 const { DatabaseSync } = process.getBuiltinModule('node:sqlite')
 
-const env = vi.hoisted(() => ({ db: null as any, states: new Map<string, any>() }))
+const env = vi.hoisted(() => ({ db: null as any, states: new Map<string, any>(), token: '', profile: vi.fn() }))
 mockNuxtImport('useNuxtApp', () => () => ({ $powersync: env.db }))
 mockNuxtImport('useState', () => (key: string, init: () => unknown) => {
   if (!env.states.has(key)) env.states.set(key, ref(init()))
   return env.states.get(key)
 })
 mockNuxtImport('haveRequestToken', () => () => true)
-mockNuxtImport('getUserToken', () => () => 'test-account')
+mockNuxtImport('getUserToken', () => () => env.token)
+mockNuxtImport('useRoute', () => () => ({ query: {} }))
+mockNuxtImport('useRuntimeConfig', () => () => ({ public: { DWEB_API_BASE_URL: 'https://api.test' } }))
+vi.mock('~/stores/user', () => ({ useUserStore: () => ({ refreshServerUserInfo: env.profile }) }))
 mockNuxtImport('isLocalFirstEnabled', () => () => true)
 mockNuxtImport('isHighlightLocalFirstEnabled', () => () => false)
 mockNuxtImport('useI18n', () => () => ({ t: (v: string) => v, locale: ref('en') }))
@@ -33,6 +37,8 @@ enableAutoUnmount(afterEach)
 beforeEach(() => {
   env.states.clear()
   localStorage.clear()
+  env.token = `x.${btoa(JSON.stringify({ id: 'token-owner' }))}.x`
+  env.profile.mockReset().mockResolvedValue({ userId: 7 })
 })
 
 function mountLocal(alreadySynced = false) {
@@ -60,13 +66,15 @@ function mountLocal(alreadySynced = false) {
       db: env.db, placeholderData: [], watchOptions: { query, ...options }
     }) })
   }
-  env.states.set('powersync-owner', ref('7'))
-  env.states.set('koc-promotion', ref({ userId: 7 }))
+  env.states.set('powersync-owner', ref('token-owner'))
   const filter = { filterStatus: ref('inbox'), filterTopicIds: ref([]), filterCollectionId: ref(0) } as any
   let data!: ReturnType<typeof useBookmarkData>
   let flow!: ReturnType<typeof useInboxOnboardingState>
   let selectedOnboarding = false
+  let identity!: ReturnType<typeof useKocPromotionController>
   const wrapper = mount(defineComponent({ setup() {
+    identity = useKocPromotionController()
+    void identity.identify()
     data = useBookmarkData(filter, ref(''))
     flow = useInboxOnboardingState({
       isCurrentInboxTab: ref(true), subscribedCount: ref(0), subscriptionReady: ref(true),
@@ -77,7 +85,7 @@ function mountLocal(alreadySynced = false) {
     return () => null
   } }), { global: { plugins: [createPowerSyncPlugin({ database: env.db })] } })
   return {
-    data, flow, sql, wrapper, selected: () => selectedOnboarding,
+    data, flow, sql, wrapper, identity, selected: () => selectedOnboarding,
     sync: (bookmarks = false) => {
       if (bookmarks) rows = [{ id: 'downloaded', archive_status: 0, created_at: '2026-01-01', updated_at: '2026-01-01' }]
       for (const listener of tableListeners) listener.tablesUpdated?.({ tables: ['sr_user_bookmark', 'sr_user_collection_subscriber'] })
@@ -159,6 +167,25 @@ it('does not set onboarding pending after a failed confirmation', async () => {
     await flushPromises()
     expect(local.flow.inboxState.value).toBeNull()
     expect(localStorage.getItem('slax_onboarding_pending_7')).toBeNull()
+  } finally {
+    local.wrapper.unmount()
+    local.sql.close()
+  }
+})
+
+it('does not use a profile response from a superseded session as local ownership', async () => {
+  let release!: (value: unknown) => void
+  env.profile.mockReturnValueOnce(new Promise(resolve => { release = resolve }))
+  const local = mountLocal(true)
+  try {
+    await flushPromises()
+    expect(local.selected()).toBe(false)
+    env.token = `x.${btoa(JSON.stringify({ id: 'another-owner' }))}.x`
+    release({ userId: 7 })
+    await flushPromises()
+    expect(local.selected()).toBe(false)
+    expect(local.data.onboardingReady.value).toBe(false)
+    expect(local.identity.state.value.userId).toBeNull()
   } finally {
     local.wrapper.unmount()
     local.sql.close()
