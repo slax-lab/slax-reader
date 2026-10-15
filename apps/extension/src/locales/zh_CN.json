@@ -7,10 +7,9 @@
     "uploading": "正在收藏…",
     "saved": "PDF 已保存，文字处理可能仍在进行。",
     "queued": "链接已提交，正在后台处理。",
-    "permission": "开启 Chrome 的文件访问权限，即可收藏此 PDF。",
     "permission_label": "需要授权",
     "permission_retry": "已开启权限？重试收藏",
-    "labs": "此账号暂不可收藏 PDF，需要已有的 PDF 实验室授权；设置中可能不显示开关。扩展不会自动开启此功能。",
+    "labs": "此账号暂不可收藏 PDF。请在 Slax Reader 设置的“实验室”中开启“PDF 收藏”后重试。扩展不会自动开启此功能。",
     "login": "请登录后回到此页重试。",
     "source": "操作已过期或来源已变化，请返回原文档再次使用扩展。",
     "unsupported": "无法收藏此来源，请先打开 HTTP(S) 文档或本地 PDF。",
@@ -32,7 +31,8 @@
     "permission_step_settings": "打开此扩展的设置页面。",
     "permission_step_toggle": "开启“允许访问文件网址”开关。",
     "permission_step_return": "Chrome 可能重启扩展。开启后回到此 PDF，再点 Slax Reader 或按 Alt+Y 即可收藏。",
-    "permission_image": "Chrome 扩展设置截图：允许访问文件网址开关。请开启该开关以收藏当前本地 PDF。"
+    "permission_toggle_label": "允许访问文件网址",
+    "permission_image": "Chrome 扩展设置示意：允许访问文件网址开关。请开启该开关以收藏当前本地 PDF。"
   },
   "click_to_view": "点击查看",
   "collect_page": "收藏页面",

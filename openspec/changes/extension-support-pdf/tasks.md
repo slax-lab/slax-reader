@@ -83,3 +83,20 @@ Delivery: https://github.com/slax-lab/slax-reader/pull/239 targets dev from feat
 Visual refinement verification: Chrome 155 renders the English and Chinese native permission bubbles at 340 pixels with all recovery controls visible below the 600-pixel popup limit. Actual Tab-key input reaches the primary settings action with a visible focus ring. Both locale screenshots were inspected; the refreshed real setting-row capture contains only the permission label and switch. Existing toolbar URL/local collection, HTML preservation, repeated-action and permission-reload flows pass. Extension unit tests remain 100/100 and typecheck passes.
 
 Visual refinement pre-push review: Bugs, Security and Compliance passes used extension-support-pdf and found no unresolved Important findings. The change preserves the collection flow and sender/session boundaries, keeps the screenshot free of private paths, and matches the requested light permission-card refinement. Build/zip pass with 20 matching packaged files (the smaller screenshot is now inlined), the retained preview ID and verified Downloads hashes. Strict OpenSpec validation passes all 43 items. Separate English settings artwork is left for the human to update, per the latest instruction.
+
+## 11. Visual and motion refinement
+
+- [x] 11.1 Replace the bundled settings-row screenshot with a code-drawn, locale-aware illustration nested under the step that uses it, record its Chrome-blue as a third-party-surface exception, and update the Extension development note that previously forbade it.
+- [x] 11.2 Align the PDF save surface with the page-save popup's typography, raise its muted and accent text to 4.5:1 on white, enlarge the close and action hit areas, and record the one palette difference in `DESIGN.md` 4.3.
+- [x] 11.3 Animate the injected PDF overlay in and out like the page-save popup, honoring reduced motion, safe against overlapping save actions and teardown, with focused tests.
+
+Verification: `vue-tsc --noEmit` passes and the extension unit suite passes (23 files, 105 tests, including new overlay-motion and teardown cases). The CSS, the switch illustration and the animation were not inspected in a real browser in this change, so the rendered result still needs the human's visual check; `tests/pdf-browser.mjs` was updated for the new illustration but not run.
+
+## 12. Restore the PDF Labs switch
+
+- [x] 12.1 Archive the merged `hide-youtube-pdf-labs` change (PR #212) so its settings visibility rules become a living spec, then modify them here: show the PDF bookmarks row and keep YouTube hidden, with matching Settings navigation and deep-link behavior.
+- [x] 12.2 Narrow the Web Settings visibility predicate to `youtube` only and update its component, composable and page tests, including a case that PDF renders and toggles with a `lab:pdf` enable request.
+- [x] 12.3 Update the Extension's Labs-disabled copy in both locales to point users to Settings > Labs instead of saying the switch may be hidden, and reconcile the proposal, design and saving spec with the visible switch.
+
+Verification: the three Web suites for Labs pass (57 tests). Strict OpenSpec validation is rerun after these edits. This lifts the earlier temporary hiding of `pdf`; the Labs entitlement and backend gate are unchanged.
+

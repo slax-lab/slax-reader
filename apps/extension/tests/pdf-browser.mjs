@@ -171,7 +171,7 @@ try {
   }
   let guideShown = false
   for (let i = 0; i < 100 && !guideShown; i++) {
-    guideShown = await popupValue(`/Allow access to local PDFs|开启本地 PDF 访问权限/.test(document.querySelector('h1')?.textContent || '') && document.querySelector('.settings-screenshot img')?.naturalWidth > 0`)
+    guideShown = await popupValue(`/Allow access to local PDFs|开启本地 PDF 访问权限/.test(document.querySelector('h1')?.textContent || '') && document.querySelector('.switch-demo')?.getAttribute('role') === 'img' && !!document.querySelector('.switch-demo-track')`)
     if (!guideShown) await new Promise(resolve => setTimeout(resolve, 100))
   }
   const screenshot = await popupCommand('Page.captureScreenshot')

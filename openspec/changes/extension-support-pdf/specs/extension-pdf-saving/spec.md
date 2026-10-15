@@ -104,15 +104,15 @@ The extension SHALL accept one nonempty PDF file at most 50 MiB, enforce a bound
 
 ### Requirement: Authentication and PDF Labs eligibility remain authoritative
 
-The extension SHALL use the existing current-account session and client headers. Local upload controls SHALL be available only after loaded Labs state enables PDF, and direct local reads/uploads SHALL not start for disabled or unknown eligibility. The extension MUST NOT enable Labs automatically or replace a hidden setting with an enable control. Online URL saves SHALL not be PDF-gated from URL hints; server detection SHALL enforce existing acquisition policy. Users without PDF opt-in SHALL remain unable to acquire new PDFs even when the Web settings toggle is hidden, while access to existing PDFs SHALL remain unchanged.
+The extension SHALL use the existing current-account session and client headers. Local upload controls SHALL be available only after loaded Labs state enables PDF, and direct local reads/uploads SHALL not start for disabled or unknown eligibility. The extension MUST NOT enable Labs automatically or provide its own enable control; users opt in through the PDF bookmarks switch in Web Settings Labs. Online URL saves SHALL not be PDF-gated from URL hints; server detection SHALL enforce existing acquisition policy. Users without PDF opt-in SHALL remain unable to acquire new PDFs until they turn on PDF bookmarks in Web Settings, while access to existing PDFs SHALL remain unchanged.
 
 #### Scenario: Login is required
 - **WHEN** the save flow has no valid session or receives an authentication failure
 - **THEN** it retains a visible login-required state, offers the existing login flow, and requires an explicit retry after reauthentication without losing the pinned source
 
-#### Scenario: PDF Labs is disabled and its setting is hidden
-- **WHEN** an account has no PDF opt-in and cannot see the PDF switch in Web settings
-- **THEN** local upload remains unavailable, the extension explains that PDF saving is unavailable for the account, and it neither silently opts in nor promises that visiting settings will enable it
+#### Scenario: PDF Labs is disabled
+- **WHEN** an account has no PDF opt-in
+- **THEN** local upload remains unavailable, the extension explains that PDF saving is unavailable for the account, and it neither silently opts in nor claims the account is already eligible; the user can turn on PDF bookmarks in Web Settings Labs
 
 #### Scenario: Labs state cannot be loaded
 - **WHEN** the extension cannot establish that PDF is enabled for local upload
@@ -190,17 +190,25 @@ The injected source-page collection overlay SHALL remain visible across focus ch
 - **WHEN** a user invokes the extension on an online PDF or a local PDF with file access enabled
 - **THEN** the collection popup automatically calls the existing backend save flow, reports progress and its actual result, and does not require another Save click or open a full-page save tab
 
-#### Scenario: Settings screenshot explains the required permission
+#### Scenario: Settings illustration explains the required permission
 - **WHEN** file URL access is disabled for a local source
-- **THEN** the popup includes a bundled real Chrome settings screenshot with descriptive alternative text, localized instructions to enable Allow access to file URLs, and an action opening this extension's details
+- **THEN** the popup includes a code-drawn illustration of the Allow access to file URLs switch with a locale-appropriate label and descriptive accessible name, localized instructions to enable it, and an action opening this extension's details
 
 #### Scenario: Permission guidance has a clear visual hierarchy
 - **WHEN** the permission bubble appears in either supported locale
-- **THEN** it shows one heading, concise numbered setup steps, a readable real settings row, a prominent settings button and a secondary retry action, with visible keyboard focus and guidance to return to the original PDF after enabling access
+- **THEN** it shows one heading, concise numbered setup steps with the switch illustration under the step that uses it, a prominent settings button and a secondary retry action, with visible keyboard focus and guidance to return to the original PDF after enabling access
 
 #### Scenario: Original PDF page hosts the collection feedback
 - **WHEN** an online PDF or a file-access-enabled local PDF is saved
 - **THEN** the existing injected source-page overlay reports progress and results, no separate tab or window is created, and inline success feedback closes after the normal two-second interval
+
+#### Scenario: Overlay enters and leaves with the page-save motion
+- **WHEN** the injected collection overlay opens or closes on a PDF page
+- **THEN** it fades and slides in from above and out again over 250 milliseconds like the page-save popup, ignores pointer input while leaving, may be replaced by a new overlay during that exit, and is removed immediately when the user prefers reduced motion or the page is torn down
+
+#### Scenario: Feedback text is readable
+- **WHEN** any PDF save state is displayed
+- **THEN** its status and action text reach at least 4.5:1 contrast on the white surface, the close control and action buttons have hit areas of about 32 pixels, and the page-save popup's own palette is unchanged
 
 #### Scenario: A website copies a visible operation ID
 - **WHEN** a website embeds its own copy of the save document with that operation ID

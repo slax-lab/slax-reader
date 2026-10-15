@@ -60,3 +60,69 @@ test('source updates only resize or close the matching collection overlay', () =
   expect(frames[0].remove).toHaveBeenCalledOnce()
   expect(browser.runtime.onMessage.removeListener).toHaveBeenCalledOnce()
 })
+
+const animatedFrames = (reduced = false) => {
+  const animations: any[] = []
+  vi.stubGlobal('document', { createElement: vi.fn(() => {
+    const frame: any = { style: {}, contentWindow: {}, isConnected: false, remove: vi.fn(), focus: vi.fn(),
+      animate: vi.fn((keyframes: unknown) => {
+        const animation = { keyframes, finish: undefined as undefined | (() => void), addEventListener: vi.fn((_type: string, callback: () => void) => { animation.finish = callback }) }
+        animations.push(animation)
+        return animation
+      }) }
+    frames.push(frame)
+    return frame
+  }) })
+  ;(window as any).matchMedia = vi.fn(() => ({ matches: reduced }))
+  return animations
+}
+const close = () => receive({ action: MessageTypeAction.PdfCollectSurfaceUpdate, operation: 'operation', method: 'close' }, { id: 'test' }, vi.fn())
+
+test('the overlay fades in from above like the page-save popup', () => {
+  const animations = animatedFrames()
+  mountPdfCollectSurface(container)
+  show()
+  expect(frames[0].animate).toHaveBeenCalledWith([{ opacity: 0, transform: 'translateY(-100%)' }, { opacity: 1, transform: 'none' }],
+    { duration: 250, easing: 'ease-in-out', fill: 'forwards' })
+  expect(animations).toHaveLength(1)
+})
+
+test('closing fades the overlay out and removes it only after the animation finishes', () => {
+  const animations = animatedFrames()
+  mountPdfCollectSurface(container)
+  show()
+  close()
+  expect(frames[0].style.pointerEvents).toBe('none')
+  expect(frames[0].remove).not.toHaveBeenCalled()
+  animations[1].finish!()
+  expect(frames[0].remove).toHaveBeenCalledOnce()
+})
+
+test('a new save action can mount a fresh overlay while the previous one is leaving', () => {
+  animatedFrames()
+  mountPdfCollectSurface(container)
+  show()
+  close()
+  show()
+  expect(frames).toHaveLength(2)
+  expect(frames[0].remove).not.toHaveBeenCalled()
+})
+
+test('reduced motion skips both animations and removes immediately', () => {
+  animatedFrames(true)
+  mountPdfCollectSurface(container)
+  show()
+  expect(frames[0].animate).not.toHaveBeenCalled()
+  close()
+  expect(frames[0].remove).toHaveBeenCalledOnce()
+})
+
+test('unmounting while an overlay is still fading out removes it', () => {
+  animatedFrames()
+  const surface = mountPdfCollectSurface(container)
+  show()
+  close()
+  expect(frames[0].remove).not.toHaveBeenCalled()
+  surface.unmount()
+  expect(frames[0].remove).toHaveBeenCalledOnce()
+})

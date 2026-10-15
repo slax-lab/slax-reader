@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import CollectFeedback from '@/components/CollectFeedback.vue'
-import fileAccessGuide from '@/assets/pdf-file-access-guide.png'
 import { request } from '@/bridge/request'
 import { getCurrentSessionToken } from '@/utils/session'
 import { initializeLocaleClient } from '@/utils/localeClient'
@@ -206,18 +205,19 @@ watch(state, value => {
       <template v-if="state === 'permission'" #title>
         <h1>{{ $t('pdf_save.permission_title') }}</h1>
       </template>
-      <section v-if="state === 'permission'" class="permission-guide" :aria-label="$t('pdf_save.permission_title')">
-        <p class="permission-intro">{{ $t('pdf_save.permission') }}</p>
+      <div v-if="state === 'permission'" class="permission-guide">
         <ol>
           <li>{{ $t('pdf_save.permission_step_settings') }}</li>
-          <li>{{ $t('pdf_save.permission_step_toggle') }}</li>
+          <li>
+            <span>{{ $t('pdf_save.permission_step_toggle') }}</span>
+            <div class="switch-demo" role="img" :aria-label="$t('pdf_save.permission_image')">
+              <span class="switch-demo-label" aria-hidden="true">{{ $t('pdf_save.permission_toggle_label') }}</span>
+              <span class="switch-demo-track" aria-hidden="true"><span class="switch-demo-thumb"></span></span>
+            </div>
+          </li>
+          <li>{{ $t('pdf_save.permission_step_return') }}</li>
         </ol>
-        <div class="settings-screenshot">
-          <div class="settings-label"><img :src="fileAccessGuide" :alt="$t('pdf_save.permission_image')" /></div>
-          <div class="settings-toggle" aria-hidden="true"><img :src="fileAccessGuide" alt="" /></div>
-        </div>
-        <p class="permission-return">{{ $t('pdf_save.permission_step_return') }}</p>
-      </section>
+      </div>
       <div class="actions" :class="{ 'permission-actions': state === 'permission' }">
         <button v-if="state === 'permission'" class="primary-action" @click="settings">{{ $t('pdf_save.settings') }}</button>
         <button v-if="busy" @click="cancel">{{ $t('pdf_save.cancel') }}</button>
@@ -231,49 +231,47 @@ watch(state, value => {
 </template>
 
 <style>
-:root { color-scheme: light; font: 14px/1.5 system-ui, sans-serif; }
+:root { color-scheme: light; font: 14px/1.5 PingFang SC, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+button { font-family: inherit; }
 body { margin: 0; }
 body:has(main.native-action) { width: 340px; }
 main { width: 100%; }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
 .actions:empty { display: none; }
 .actions button {
-  font: inherit; font-size: 13px; background: transparent; border: 0; padding: 4px 0;
-  color: var(--collect-accent); cursor: pointer;
+  font: inherit; font-size: 13px; line-height: 18px; background: transparent; border: 0; padding: 4px 0; min-height: 32px;
+  color: var(--collect-accent); cursor: pointer; transition: opacity 250ms ease-in-out;
 }
-.actions button:hover { text-decoration: underline; }
+.actions button:hover { opacity: 0.8; }
+.actions button:active { opacity: 0.6; }
 .actions button:focus-visible { outline: 2px solid var(--collect-accent); outline-offset: 3px; }
-main .slax-popup.permission-feedback {
-  --collect-muted: #5c6870;
-  --collect-accent: #39749f;
-  --collect-accent-hover: #2f648a;
-  --collect-tint: #f2f6f9;
-  --collect-border: #e4ebf0;
-  padding: 22px;
+/* Close control: CollectFeedback draws a 16px icon with a 16px hit area. Grow the hit area to 32px with padding and
+   negative margins so the icon and header layout stay where they were. Scoped here so Collect.vue is unchanged. */
+main > .slax-popup.standalone .header button { box-sizing: content-box; padding: 8px; margin: -7px -8px -9px -8px; }
+/* PDF save feedback reuses the collection popup's type scale (see Collect.vue). Muted and accent text are darkened
+   for every state of this surface to reach 4.5:1 on white at 13px; the page-save popup in Collect.vue keeps its
+   original palette (DESIGN.md section 4.3). */
+/* `.standalone` raises specificity above CollectFeedback's scoped `.slax-popup[data-v-*]` variable block. */
+main .slax-popup.standalone { --collect-muted: #666; --collect-accent: #33709f; }
+main .slax-popup.standalone.permission-feedback { --collect-tint: #f5f5f5; }
+.permission-feedback h1 { margin: 0; font: inherit; font-size: 16px; font-weight: bold; line-height: 24px; }
+.permission-guide ol { list-style: none; padding: 0; margin: 12px 0 0; counter-reset: setup; display: grid; gap: 12px; }
+.permission-guide li { counter-increment: setup; display: grid; grid-template-columns: 22px 1fr; gap: 6px 10px; align-items: start; font-size: 13px; line-height: 22px; color: var(--collect-text); overflow-wrap: anywhere; }
+.permission-guide li::before { content: counter(setup); display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--collect-tint); color: var(--collect-text); font-size: 12px; font-weight: 500; }
+.permission-guide .switch-demo { grid-column: 2; }
+/* DESIGN EXCEPTION (DESIGN.md section 9, third-party surface): this row imitates Chrome's own "Allow access to
+   file URLs" setting in its on state so users can recognise it. Its blue and shape intentionally follow Chrome,
+   not the Extension palette, and must not be reused for Extension controls. */
+.switch-demo {
+  --chrome-switch-on: #0b57d0;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 0 12px;
+  border: 1px solid var(--collect-border); border-radius: 8px; background: var(--collect-surface);
 }
-main .slax-popup.permission-feedback .header { align-items: center; }
-main .slax-popup.permission-feedback .status { font-size: 12px; font-weight: 500; letter-spacing: 0.01em; }
-main .slax-popup.permission-feedback .header button { width: 28px; height: 28px; margin: -6px -6px -6px 0; padding: 6px; border-radius: 8px; }
-main .slax-popup.permission-feedback .header button:hover { background: var(--collect-tint); }
-main .slax-popup.permission-feedback .title { margin-top: 12px; }
-.permission-feedback h1 { margin: 0; font: inherit; font-size: 20px; font-weight: 650; line-height: 1.35; letter-spacing: -0.02em; }
-.permission-guide p { margin: 0; color: var(--collect-muted); }
-.permission-intro { margin-top: 8px !important; font-size: 13px; line-height: 1.6; }
-.permission-guide ol { list-style: none; padding: 0; margin: 20px 0 14px; counter-reset: setup; display: grid; gap: 12px; }
-.permission-guide li { counter-increment: setup; display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; font-size: 13px; line-height: 22px; overflow-wrap: anywhere; }
-.permission-guide li::before { content: counter(setup); display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--collect-tint); color: var(--collect-accent); font-size: 12px; font-weight: 600; }
-/* Preserve both real screenshot edges while omitting the empty space between label and switch. */
-.settings-screenshot { display: flex; height: 52px; overflow: hidden; border: 1px solid var(--collect-border); border-radius: 10px; background: var(--collect-surface); }
-.settings-screenshot > div { position: relative; overflow: hidden; }
-.settings-label { flex: 1; }
-.settings-toggle { width: 58px; flex: none; }
-.settings-screenshot img { position: absolute; top: 0; height: 100%; width: auto; max-width: none; }
-.settings-label img { left: 0; }
-.settings-toggle img { right: 0; }
-.permission-return { margin-top: 12px !important; font-size: 12px; line-height: 1.65; }
-.permission-actions { display: grid; gap: 4px; margin-top: 20px; }
-.permission-actions button { min-height: 36px; padding: 8px 12px; border-radius: 9px; font-size: 13px; font-weight: 500; line-height: 20px; }
-.permission-actions button:hover { background: var(--collect-tint); text-decoration: none; }
-.permission-actions .primary-action { background: var(--collect-accent); color: var(--collect-surface); font-weight: 600; }
-.permission-actions .primary-action:hover { background: var(--collect-accent-hover); }
+.switch-demo-label { font-size: 13px; line-height: 18px; color: var(--collect-text); overflow-wrap: anywhere; }
+.switch-demo-track { position: relative; flex: none; width: 36px; height: 20px; border-radius: 10px; background: var(--chrome-switch-on); }
+.switch-demo-thumb { position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; }
+.permission-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 0; margin-top: 12px; }
+.permission-actions button { padding: 0; color: var(--collect-muted); }
+.permission-actions .primary-action { color: var(--collect-accent); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .actions button { transition: none; } }
 </style>
