@@ -78,7 +78,7 @@ Delivery: https://github.com/slax-lab/slax-reader/pull/239 targets dev from feat
 
 - [x] 10.1 Apply the human's requested visual refinement: one heading, concise setup steps, a real readable settings-row screenshot, quiet return guidance and clear primary/secondary actions using Extension-owned styles.
 - [x] 10.2 Inspect actual Chrome popup renders in English and Chinese, verify visible recovery controls and keyboard focus, and rerun the existing collection regression fixture.
-- [ ] 10.3 Run appropriate checks and Bugs/Security/Compliance review, build/copy the verified extension to Downloads and push the refinement to the existing PR.
+- [x] 10.3 Run appropriate checks and Bugs/Security/Compliance review, build/copy the verified extension to Downloads and push the refinement to the existing PR.
 
 Visual refinement verification: Chrome 155 renders the English and Chinese native permission bubbles at 340 pixels with all recovery controls visible below the 600-pixel popup limit. Actual Tab-key input reaches the primary settings action with a visible focus ring. Both locale screenshots were inspected; the refreshed real setting-row capture contains only the permission label and switch. Existing toolbar URL/local collection, HTML preservation, repeated-action and permission-reload flows pass. Extension unit tests remain 100/100 and typecheck passes.
 
