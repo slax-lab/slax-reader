@@ -17,7 +17,7 @@
 
 ## 3. Permission guidance, session and eligibility
 
-- [x] 3.1 Implement the native extension-button action bubble for missing file permission, with the bundled real Chrome settings screenshot, localized instructions, current-extension settings link, retry and return-to-source guidance.
+- [x] 3.1 Implement the native extension-button action bubble for missing file permission, with a settings-row guide (a bundled Chrome screenshot at the time; replaced by a code-drawn illustration in 11.1), localized instructions, current-extension settings link, retry and return-to-source guidance.
 - [x] 3.2 Use current session/client headers and read-only Labs state; prevent local reads/uploads for missing permission, disabled/unknown eligibility or changed accounts, without changing Labs settings.
 - [x] 3.3 Reuse the Extension-owned collection renderer, preserve its light style, and add labelled controls, announced status, visible keyboard focus, long-title wrapping and reduced-motion handling.
 
@@ -76,7 +76,7 @@ Delivery: https://github.com/slax-lab/slax-reader/pull/239 targets dev from feat
 
 ## 10. Permission bubble visual refinement
 
-- [x] 10.1 Apply the human's requested visual refinement: one heading, concise setup steps, a real readable settings-row screenshot, quiet return guidance and clear primary/secondary actions using Extension-owned styles.
+- [x] 10.1 Apply the human's requested visual refinement: one heading, concise setup steps, a readable settings-row guide (a real screenshot at the time; see 11.1), quiet return guidance and clear primary/secondary actions using Extension-owned styles.
 - [x] 10.2 Inspect actual Chrome popup renders in English and Chinese, verify visible recovery controls and keyboard focus, and rerun the existing collection regression fixture.
 - [x] 10.3 Run appropriate checks and Bugs/Security/Compliance review, build/copy the verified extension to Downloads and push the refinement to the existing PR.
 
@@ -99,4 +99,11 @@ Verification: `vue-tsc --noEmit` passes and the extension unit suite passes (23 
 - [x] 12.3 Update the Extension's Labs-disabled copy in both locales to point users to Settings > Labs instead of saying the switch may be hidden, and reconcile the proposal, design and saving spec with the visible switch.
 
 Verification: the three Web suites for Labs pass (57 tests). Strict OpenSpec validation is rerun after these edits. This lifts the earlier temporary hiding of `pdf`; the Labs entitlement and backend gate are unchanged.
+
+## 13. Review follow-up
+
+- [x] 13.1 Restore the dashboard heartbeat (`metricService.track()`) on the toolbar click and context-menu collect paths. It was dropped together with the premature PDF-path login gate; `track()` verifies the session itself, so no login check is reintroduced. The side-panel metric is unchanged.
+- [x] 13.2 Update the remaining requirement and scenario text that still described a real settings screenshot, so archiving does not copy a stale requirement into the living spec.
+
+Verification: extension typecheck and unit suite, and strict OpenSpec validation, are rerun after these edits. The heartbeat is not exercised by a new test because the entrypoint tests mock the metric service.
 

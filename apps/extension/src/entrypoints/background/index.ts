@@ -377,6 +377,8 @@ export default defineBackground(() => {
     index: () => BrowserService.openTab(`${process.env.PUBLIC_BASE_URL}`),
     collect: async (info, tab) => {
       refreshLocale('open')
+      // track() checks the session itself, so the heartbeat does not need the login gate that PDF dispatch removed.
+      void metricService.track().catch(error => console.warn('[collect] metric failed:', error))
       tab && BrowserService.openCollectPopup(tab, 'open_collect', authService)
     }
   }
@@ -392,6 +394,7 @@ export default defineBackground(() => {
   // 监听插件图标点击事件
   browser.action.onClicked.addListener(async tab => {
     refreshLocale('open')
+    void metricService.track().catch(error => console.warn('[collect] metric failed:', error))
     BrowserService.openCollectPopup(tab, 'open_collect', authService)
   })
 

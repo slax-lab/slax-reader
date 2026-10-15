@@ -52,11 +52,11 @@ The extension SHALL submit the original HTTP(S) source URL, preserving its query
 
 ### Requirement: An already-open local PDF can be acquired with browser-authorized file access
 
-The extension SHALL save the PDF already open at the initiating `file:` source by reading that file in a supported extension context when browser-managed file access and effective file-scheme permission allow it. It MUST NOT require reselection as the only way to save an already-open local PDF. Without file permission, where Chrome prevents source-page injection, the toolbar action bubble SHALL show “Allow access to file URLs” guidance with a bundled real Chrome settings screenshot, localized steps, browser extension-settings access, and retry. It MUST NOT claim that requesting an optional permission enables the browser-managed toggle or bypass browser security.
+The extension SHALL save the PDF already open at the initiating `file:` source by reading that file in a supported extension context when browser-managed file access and effective file-scheme permission allow it. It MUST NOT require reselection as the only way to save an already-open local PDF. Without file permission, where Chrome prevents source-page injection, the toolbar action bubble SHALL show “Allow access to file URLs” guidance with a code-drawn illustration of the switch, localized steps, browser extension-settings access, and retry. It MUST NOT claim that requesting an optional permission enables the browser-managed toggle or bypass browser security.
 
 #### Scenario: Local file access is off
 - **WHEN** a user invokes save on an already-open local PDF while file access is disabled
-- **THEN** the extension does not read the source, shows screenshot-backed permission guidance in the toolbar action bubble before any file acquisition and offers settings and retry, explaining that the already-open file cannot be read without this setting
+- **THEN** the extension does not read the source, shows permission guidance with a switch illustration in the toolbar action bubble before any file acquisition and offers settings and retry, explaining that the already-open file cannot be read without this setting
 
 #### Scenario: Permission is enabled and the extension reloads
 - **WHEN** the user enables file URL access and the browser closes the collection overlay or clears its session context
