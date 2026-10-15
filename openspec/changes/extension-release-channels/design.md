@@ -4,7 +4,7 @@
 
 See proposal.md for motivation. `.github/workflows/frontend-ci.yml` validates extension types/tests for relevant PRs and main pushes; it does not build a distributable ZIP or create Releases. `.github/workflows/cli-release.yml` already separates read-only detection/build from privileged GitHub distribution, compares full push history, and requires a stable source version increase.
 
-The extension uses WXT 0.21.4, a numeric package version currently 1.16.2, existing preview/beta/production public manifest keys, and the root `pnpm extension -- zip` entry point. `tooling/web-pages-deploy.mjs` establishes dev → preview, beta → beta, main → production. The new managed worktree is on ci/extension-release-channels, cut from origin/dev; the previous PDF worktree is separate.
+The extension uses WXT 0.21.4, a numeric package version initially 1.16.2, existing preview/beta/production public manifest keys, and the root `pnpm extension -- zip` entry point. The human subsequently requested a patch bump to 1.16.3 and full packaging verification. `tooling/web-pages-deploy.mjs` establishes dev → preview, beta → beta, main → production. The new managed worktree is on ci/extension-release-channels, cut from origin/dev; the previous PDF worktree is separate.
 
 Read-only GitHub inspection found existing dev, beta and main Environments but no EXTENSION_BUILD_CONFIG variable in them. The human subsequently requested reuse of WEB_BUILD_CONFIG and supplied its public shape; a fresh inspection confirmed main also has that variable. Existing Web configuration is consumed without changing remote variables.
 
@@ -12,7 +12,7 @@ Read-only GitHub inspection found existing dev, beta and main Environments but n
 
 **Goals:** Reuse CLI release semantics, preserve installable Chrome identity, make skip/build/publication outcomes explicit, and distribute only the verified merged-source archive.
 
-**Non-Goals:** Store publication, npm, signing, automatic versioning, runtime feature changes, branch promotion changes, or cleanup of historical tags/Releases. No current-version bump or retrospective release is included.
+**Non-Goals:** Store publication, npm, signing, automatic versioning, runtime feature changes, branch promotion changes, or cleanup of historical tags/Releases. The explicit human-requested 1.16.3 bump is included; no retrospective release is included.
 
 ## Decisions
 
@@ -74,7 +74,7 @@ Use branch-specific non-canceling concurrency, matching the CLI queue convention
 ## Migration Plan
 
 1. Review this proposal, spec, design and tasks before implementation.
-2. Implement and validate on ci/extension-release-channels; prepare the task PR targeting dev without changing the extension version merely to bootstrap the workflow.
+2. Implement and validate on ci/extension-release-channels; prepare the task PR targeting dev, including the human-requested extension version bump to 1.16.3.
 3. Reuse WEB_BUILD_CONFIG in each destination Environment, or optionally configure a complete EXTENSION_BUILD_CONFIG override when its extension endpoints differ. Never copy production values to another channel automatically. Publish no tag or Release as part of local testing.
-4. Merge the workflow through the normal process and promote it with existing human-managed merge-commit promotions. The next extension PR with an explicit version increase exercises dev, followed by beta/main promotion.
+4. Merge the workflow through the normal process and promote it with existing human-managed merge-commit promotions. This PR's explicit version increase exercises dev after merge, followed by beta/main promotion.
 5. Stop future publication by reverting/disabling the workflow. Keep already published tags and assets intact.

@@ -57,7 +57,7 @@ The workflow token needs `contents: read` and `pull-requests: read` for detectio
 
 ## Publishing a version
 
-1. Prepare an extension PR from `origin/dev` with the intended changes and an explicit stable `apps/extension/package.json` version increase. Update the lockfile through pnpm if the package metadata requires it. There is no version bump solely to introduce this workflow.
+1. Prepare an extension PR from `origin/dev` with the intended changes and an explicit stable `apps/extension/package.json` version increase. Update the lockfile through pnpm if the package metadata requires it. The initial workflow PR includes a human-requested bump from `1.16.2` to `1.16.3` to exercise the first eligible release after merge.
 2. Run ordinary extension validation and `pnpm test:extension-tooling`, then merge through normal review.
 3. Inspect the Extension release Actions run. Detection reports eligibility or the skip reason. Eligible builds reuse the destination's public Web configuration (or complete extension override) and generate an isolated WXT package.
 4. Download the ZIP and `SHA256SUMS` from the corresponding `ext-v...` Release. Promote through the existing `dev` → `beta` → `main` process for subsequent channels.

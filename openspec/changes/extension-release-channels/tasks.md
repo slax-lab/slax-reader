@@ -49,3 +49,11 @@ The human requested reuse of WEB_BUILD_CONFIG on 2026-10-15. This supersedes the
 Shared-config follow-up validation: all 18 focused release-tooling tests passed. A production WXT build consumed synthetic WEB_BUILD_CONFIG with the supplied public field shape and COOKIE_TOKEN_NAME=token; ZIP inspection verified the mapped API URL, stable version/profile ID, and exclusion of unique Web-only sentinel values. Strict OpenSpec validation passed 43 items. The local Bugs/Security/Compliance review used extension-release-channels and found no remaining Important findings. PR #241 rollout instructions now describe reuse; no remote variables, tags or Releases were changed.
 
 CI follow-up: API CI failed its root-command contract because the expected script list did not include test:extension-tooling. The failure was reproduced locally (1 failed, 7 passed); synchronizing that exact expected entry made all 8 root-command tests pass. The strict command-list assertion is preserved. This is a test expectation correction with no runtime behavior change. Local Bugs/Security/Compliance review found no remaining Important findings.
+
+## 7. Explicit version increase and complete packaging verification
+
+The human requested a patch version increase and full packaging verification on 2026-10-15. This supersedes the original decision to leave the current version unchanged. Actual GitHub publication remains gated on a merged PR.
+
+- [x] 7.1 Increase apps/extension/package.json from 1.16.2 to 1.16.3, keep the frozen dependency lock consistent, and verify release eligibility against the destination's prior version.
+- [ ] 7.2 Build dev/beta/main packages using each destination's actual public WEB_BUILD_CONFIG; validate numeric/display versions, profile IDs, references and hashes, then exercise exact-byte publication/retry using controlled GitHub adapters without creating a real tag or Release.
+- [ ] 7.3 Run focused regression tests and strict OpenSpec validation, complete Bugs/Security/Compliance review, update PR rollout/validation evidence and push the version update to PR #241.
