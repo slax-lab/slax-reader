@@ -4,14 +4,6 @@ export function imageFit(width: number, height: number, viewportWidth: number, v
   const ratio = Math.min(viewportWidth / width, viewportHeight / height);
   return {width: width * ratio, height: height * ratio};
 }
-export function imagePanLimit(size: number, viewport: number, scale: number) {
-  'worklet';
-  return Math.max(0, (size * scale - viewport) / 2);
-}
-export function clampImagePan(value: number, limit: number) {
-  'worklet';
-  return Math.max(-limit, Math.min(limit, value));
-}
 export function galleryPage(index: number, displacement: number, velocity: number, width: number, count: number) {
   'worklet';
   const travel = displacement + velocity * 0.18;

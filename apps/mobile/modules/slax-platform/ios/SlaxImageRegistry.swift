@@ -18,6 +18,7 @@ final class SlaxImageRegistry {
   private var running: [UUID: Job] = [:]
   private var destinations: [String: Int] = [:]
   private var reserved: Int64 = 0
+  private var sequence: UInt64 = 0
   private var closed = false
   private let drained = DispatchGroup()
   private let workers: OperationQueue = {
@@ -43,6 +44,7 @@ final class SlaxImageRegistry {
     var destination: String?
     var redirects = 0
     var expiry: DispatchWorkItem?
+    var order: UInt64 = 0
     init(key: Key, original: URL, policy: SlaxReaderSecurity, lease: SlaxStorageLease, registry: SlaxImageRegistry) {
       self.key = key; self.original = original; self.policy = policy; self.lease = lease; self.registry = registry
     }
@@ -125,7 +127,9 @@ final class SlaxImageRegistry {
     if let existing = jobs[key] { job = existing }
     else {
       guard retained.count < 128 else { throw SlaxImageFailure() }
+      sequence &+= 1
       job = Job(key: key, original: original, policy: policy, lease: try SlaxStorageOwner.capture(owner), registry: self)
+      job.order = sequence
       jobs[key] = job; retained[job.id] = job; drained.enter()
     }
     let consumer = Consumer(registry: self, job: job, lease: lease, strict: strict); job.consumers[consumer.id] = consumer
@@ -140,7 +144,7 @@ final class SlaxImageRegistry {
   private func pump() {
     guard !closed else { return }
     while running.count < 3, reserved + Self.maxBytes <= Self.totalBytes,
-      let job = retained.values.first(where: { candidate in candidate.state == "queued" && !candidate.consumers.isEmpty && running.values.filter { host($0.original) == host(candidate.original) }.count < 2 }) {
+      let job = retained.values.filter({ candidate in candidate.state == "queued" && !candidate.consumers.isEmpty && running.values.filter { host($0.original) == host(candidate.original) }.count < 2 }).min(by: { $0.order < $1.order }) {
       job.state = "running"; running[job.id] = job; job.reservation = Self.maxBytes; reserved += Self.maxBytes
       workers.addOperation { self.start(job) }
     }
