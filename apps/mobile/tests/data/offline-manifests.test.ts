@@ -161,9 +161,11 @@ test('retry manager cannot let a late old failure replace a new generation or ov
   assert.equal(await manager.begin('doc', 'pdf'), null); assert(await manager.begin('doc', 'pdf', true)); manager.stop();
 });
 
-test('protocol, identity, integrity and reauthentication failures stop automatic retry', () => {
-  for (const error of [{kind: 'protocol', status: 502}, {code: 'offline_integrity_invalid'}, {name: 'ReauthenticationRequiredError'}, {status: 412}]) assert.equal(offlineFailure(0, error, 0).state, 'denied');
+test('protocol, identity and integrity failures stop automatic retry while a recoverable reauthentication stays retryable', () => {
+  for (const error of [{kind: 'protocol', status: 502}, {code: 'offline_integrity_invalid'}, {status: 412}]) assert.equal(offlineFailure(0, error, 0).state, 'denied');
   assert.equal(offlineFailure(0, new Error('transport'), 0).state, 'failed');
+  const reauth = offlineFailure(0, {name: 'ReauthenticationRequiredError'}, 0);
+  assert.equal(reauth.state, 'failed'); assert.ok(reauth.retryAt > 0);
 });
 
 test('body recovery requires the exact fingerprint and current manifest, preserves unknown fields and never bypasses denial', async t => {

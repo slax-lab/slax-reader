@@ -4,7 +4,8 @@ export type OfflineRetryState = {state: 'failed' | 'denied'; attempts: number; r
 export function offlineFailure(previousAttempts: number, error: unknown, now: number, random = Math.random): OfflineRetryState {
   const fields = error && typeof error === 'object' ? error as Record<string, unknown> : {};
   const status = Number(fields.status ?? 0);
-  const denied = status >= 400 && status < 500 && ![408, 429].includes(status) || fields.kind === 'protocol' || fields.name === 'ReauthenticationRequiredError' || fields.code === 'offline_integrity_invalid';
+  // ReauthenticationRequiredError is a locally recoverable credential state, not a server denial; it stays retryable with backoff.
+  const denied = status >= 400 && status < 500 && ![408, 429].includes(status) || fields.kind === 'protocol' || fields.code === 'offline_integrity_invalid';
   const attempts = Math.min(previousAttempts + 1, 30);
   const delay = Math.min(300_000, 5000 * 2 ** Math.min(attempts - 1, 6));
   const value = random(), jitter = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;

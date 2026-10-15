@@ -9,7 +9,6 @@ import {galleryPage} from './gallery-geometry'
 export {imageFit} from './gallery-geometry'
 
 const alwaysActive = () => true
-let nextGallery = 0
 interface Props {
   images: string[]
   index: number
@@ -21,7 +20,11 @@ interface Props {
   isActive?(): boolean
 }
 export function ImageGallery({isActive = alwaysActive, visible = true, ...props}: Props) {
-  const identity = useMemo(() => ++nextGallery, [props.images, props.resolveUri, props.allowNetworkFallback, isActive])
+  const counter = useRef(0)
+  const inputs = useRef<unknown[]>([])
+  const next = [props.images, props.resolveUri, props.allowNetworkFallback, isActive]
+  if (inputs.current.some((value, index) => value !== next[index])) {inputs.current = next; counter.current++}
+  const identity = counter.current
   const reducedMotion = useReducedMotion()
   const [foreground, setForeground] = useState(AppState.currentState == null || AppState.currentState === 'active')
   const [position, setPosition] = useState({identity, index: props.index})
@@ -60,7 +63,7 @@ function GalleryPager({images, index: initialIndex, resolveUri, onDismiss, error
   const pages = [index - 1, index, index + 1].filter(value => value >= 0 && value < images.length)
   return <View testID="reader-image-gallery" style={styles.root} accessibilityViewIsModal accessibilityRole="adjustable"
     accessibilityValue={{min: 1, max: images.length, now: index + 1}} accessibilityActions={[{name: 'increment'}, {name: 'decrement'}]}
-    onAccessibilityAction={event => commit(event.nativeEvent.actionName === 'increment' ? -viewport.width : viewport.width, 0)} onAccessibilityEscape={dismiss}>
+    onAccessibilityAction={event => commit(event.nativeEvent.actionName === 'increment' ? -viewport.width : viewport.width, 0, pageGeneration.value)} onAccessibilityEscape={dismiss}>
     {pages.map(page => <GalleryImage key={`${page}:${images[page]}`} source={images[page]} identity={`${identity}:${page}:${images[page]}`} relative={page - index}
       width={viewport.width} height={viewport.height} active={page === index} canPrevious={index > 0} canNext={index < images.length - 1}
       pageOffset={pageOffset} pageGeneration={pageGeneration} onPage={commit} onDismiss={dismiss} resolveUri={resolveUri} isActive={isActive} errorLabel={errorLabel} />)}

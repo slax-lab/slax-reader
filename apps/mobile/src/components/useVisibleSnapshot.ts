@@ -12,5 +12,5 @@ export function useVisibleSnapshot<T>(owner: unknown, initial: T, visible: boole
   }, [scope]);
   useEffect(() => {scope.active = true; return () => {scope.active = false;};}, [scope]);
   useEffect(() => {if (visible) update(scope.latest);}, [visible, scope, update]);
-  return [published.scope === scope ? published.value : initial, update];
+  return [published.scope === scope ? published.value : scope.latest, update];
 }
