@@ -30,8 +30,10 @@
 - [x] 5.1 Add docs/extension/RELEASE.md and links from existing extension documentation; verify channel examples, version-bump procedure, ZIP installation, permission/configuration setup and retry/rollback instructions match the implementation.
 - [x] 5.2 Document the required dev/beta/main EXTENSION_BUILD_CONFIG shape using placeholders, and confirm operator-provided public values before configuring any remote variables; verify the rollout checklist distinguishes missing setup from a completed release.
 - [x] 5.3 Build and inspect synthetic preview/beta/production archives locally, run appropriate regression tests and strict OpenSpec validation, and complete REVIEW.md Bugs/Security/Compliance passes; resolve Important findings before any behavior-changing push.
-- [ ] 5.4 Prepare the task PR targeting dev with OpenSpec: extension-release-channels and actual validation evidence; verify no tag, GitHub Release, browser-store upload or long-lived-branch merge was performed during implementation.
+- [x] 5.4 Prepare the task PR targeting dev with OpenSpec: extension-release-channels and actual validation evidence; verify no tag, GitHub Release, browser-store upload or long-lived-branch merge was performed during implementation.
 
 The human approved implementation and push on 2026-10-15 and chose to configure EXTENSION_BUILD_CONFIG later. Remote configuration is intentionally left to the human; local verification uses synthetic public inputs.
 
 Validation completed locally: 16 focused release tests (including the final detect-command fixture), 104 preflight/tool tests with 2 platform skips, 63 extension tests, extension typecheck, actual preview/beta/production WXT ZIP inspection, and 22 CLI tooling tests (the network-dependent consumer test passed on retry after an npm timeout). Strict OpenSpec validation passed all 43 items. Local Bugs, Security and Compliance review used change-id extension-release-channels and found no remaining Important findings. No application end-to-end or live publication test was performed.
+
+Implementation was pushed as ci/extension-release-channels and submitted to dev in https://github.com/slax-lab/slax-reader/pull/241. Public Environment configuration remains the operator’s separate rollout step.
