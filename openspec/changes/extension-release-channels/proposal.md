@@ -1,0 +1,36 @@
+# Proposal
+
+## Why
+
+The extension has PR validation but no workflow that packages a merged version and attaches it to a GitHub Release. The CLI already provides branch-based distribution, and the extension needs the same version-gated delivery model for dev, beta and production.
+
+## What Changes
+
+- Add post-merge extension release automation for `dev`, `beta` and `main`, deriving eligibility from the complete push comparison and verifying the merged PR/source identity.
+- Build only when `apps/extension/**` changes and `apps/extension/package.json` increases its stable base version relative to the destination branch before the merge. The human explicitly selected this CLI-compatible rule; unchanged versions and unrelated merges skip successfully.
+- Derive `ext-v<version>-dev`, `ext-v<version>-beta` and `ext-v<version>` dynamically. Dev and beta are GitHub prereleases; main is a stable GitHub Release.
+- Produce an installable Chromium extension ZIP and `SHA256SUMS`, validate the exact package, and publish them to the corresponding immutable source tag using the workflow token.
+- Keep the committed package and Chrome manifest version numeric. Put channel suffixes in release tags, filenames and `version_name`, preserving the existing environment-specific extension IDs.
+- Build with public GitHub Environment configuration, mapping dev to the existing preview profile, beta to beta, and main to production. Require valid environment values before packaging.
+- Preserve retry safety: matching releases/assets are reusable; conflicting tags or bytes fail without replacement. Keep extension releases from taking over the monorepo's global GitHub Latest pointer.
+
+## Capabilities
+
+### New Capabilities
+
+- `extension-release`: merged/version-gated extension packaging, channel identity, public build configuration, validated GitHub assets and resumable distribution.
+
+### Modified Capabilities
+
+None. Existing branch promotion, CLI publication and extension runtime behavior remain owned by their current capabilities.
+
+## Impact
+
+- New `.github/workflows/extension-release.yml` and focused `tooling/extension-release*.mjs` helpers/tests, with release-tooling coverage in the existing CI entry points.
+- New `docs/extension/RELEASE.md` and links from existing extension documentation; no generated agent-rule changes.
+- Existing `pnpm extension -- zip`, WXT configuration and profile keys are reused. A temporary release-only configuration supplies `version_name` without changing ordinary local builds.
+- Public `EXTENSION_BUILD_CONFIG` variables in the existing dev/beta/main GitHub Environments. Inspection found these variables absent; setup is required before the first eligible release. No new publication credential is needed.
+
+## Non-goals
+
+No Chrome Web Store or npm publication, CRX signing, automatic version increment, automatic PR merge, historical release backfill, or rewriting published tags/assets. The current extension version is not bumped just to install this workflow; the next reviewed version increase starts publication.

@@ -35,6 +35,8 @@ pnpm extension -- zip
 The commands build the shared selection engine automatically; type checks and tests also generate WXT types. The development command pre-bundles vendor assets, while `build` and `zip` preserve the existing normal and vendor-aware packaging paths.
 The package name remains `@apps/slax-reader-extensions`; its files live in `apps/extension`.
 
+[Extension releases](../../docs/extension/RELEASE.md) documents automatic post-merge ZIP packaging, channel versions and public GitHub Environment configuration.
+
 After a build, enable developer mode at `chrome://extensions` or `edge://extensions`, choose “Load unpacked”, and select `apps/extension/build/chrome-mv3`. The development server uses `build/chrome-mv3-dev`; keep these directories separate.
 
 ## Where to make changes
