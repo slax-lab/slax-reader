@@ -36,7 +36,7 @@ jobs:
       github.event.pull_request.base.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: ${{ github.event.pull_request.base.ref }}
+    environment: ${{ github.event.pull_request.base.ref == 'main' && 'prod' || github.event.pull_request.base.ref }}
     concurrency:
       group: web-pages-deploy-${{ github.event.pull_request.base.ref }}
       cancel-in-progress: false
