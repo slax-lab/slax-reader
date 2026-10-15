@@ -70,4 +70,6 @@ The local review follows REVIEW.md and settles on `extension-support-pdf`, with 
 
 - [x] 9.1 Rename the task branch and OpenSpec change to extension-support-pdf, integrate the current dev base, and reconcile the final patch.
 - [x] 9.2 Finish appropriate checks and the required pre-push review with current permission-bubble evidence.
-- [ ] 9.3 Commit and push feat/extension-support-pdf, create a PR targeting dev with its OpenSpec reference and actual validation evidence, and attach it to this chat.
+- [x] 9.3 Commit and push feat/extension-support-pdf, create a PR targeting dev with its OpenSpec reference and actual validation evidence, and attach it to this chat.
+
+Delivery: https://github.com/slax-lab/slax-reader/pull/239 targets dev from feat/extension-support-pdf and is attached to the chat. The corrected permission-popup build was copied to Downloads with all 21 file hashes verified.
