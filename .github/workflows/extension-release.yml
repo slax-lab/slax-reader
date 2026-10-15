@@ -1,0 +1,98 @@
+name: Extension release
+
+on:
+  push:
+    branches: [dev, beta, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: extension-release-${{ github.ref }}
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  detect:
+    if: github.repository == 'slax-lab/slax-reader'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      eligible: ${{ steps.release.outputs.eligible }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.15.0'
+      - id: release
+        run: node tooling/extension-release.mjs detect
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  build:
+    needs: detect
+    if: needs.detect.outputs.eligible == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
+    timeout-minutes: 25
+    outputs:
+      artifact_id: ${{ steps.release_artifact.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.15.0'
+      - run: node tooling/extension-release.mjs preflight
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Build the channel ZIP with public configuration
+        run: node tooling/extension-release.mjs prepare "$RUNNER_TEMP/extension-release"
+        env:
+          WEB_BUILD_CONFIG: ${{ vars.WEB_BUILD_CONFIG }}
+          EXTENSION_BUILD_CONFIG: ${{ vars.EXTENSION_BUILD_CONFIG }}
+      - name: Verify the exact release archive
+        run: node tooling/extension-release.mjs verify "$RUNNER_TEMP/extension-release"
+      - uses: actions/upload-artifact@v4
+        id: release_artifact
+        with:
+          name: extension-release-${{ github.sha }}-${{ github.ref_name }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/extension-release/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.15.0'
+      - uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/extension-release
+      - name: Tag and upload the verified GitHub Release
+        run: node tooling/extension-release.mjs publish "$RUNNER_TEMP/extension-release"
+        env:
+          GH_TOKEN: ${{ github.token }}
