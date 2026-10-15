@@ -24,7 +24,7 @@ test('release accepts only merged pull requests and selects one protected Enviro
   assert.deepEqual(Object.keys(workflow.on), ['pull_request_target'])
   assert.deepEqual(workflow.on.pull_request_target.types, ['closed'])
   assert.deepEqual(workflow.on.pull_request_target.branches, ['dev', 'beta', 'main'])
-  for (const [branch, environment] of [['dev', 'dev'], ['beta', 'beta'], ['main', 'main']]) {
+  for (const [branch, environment] of [['dev', 'dev'], ['beta', 'beta'], ['main', 'prod']]) {
     assert.equal(evaluate(job.if, event(branch)), true)
     assert.equal(evaluate(job.environment, event(branch)), environment)
     assert.equal(evaluate(job.if, event(branch, false)), false)
