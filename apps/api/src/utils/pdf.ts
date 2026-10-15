@@ -1,4 +1,5 @@
-import { PDF_MAX_BYTES, pdfMetadataAuthor } from '@slax-reader/contracts/pdf'
+import { PDF_MAX_BYTES, pdfMetadataAuthor, pdfMetadataTitle } from '@slax-reader/contracts/pdf'
+import { pdfFirstPageTitle } from './pdfTitle'
 
 export class PdfSaveInProgressError extends Error {
   constructor() {
@@ -55,6 +56,53 @@ export async function pdfHash(bytes: Uint8Array): Promise<string> {
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
+type PdfMetadata = { title?: string; author?: string }
+function documentMetadata(value: { metadata?: { get(name: string): unknown } | null; info: unknown }): PdfMetadata {
+  const info = value.info as { Title?: unknown; Author?: unknown } | undefined
+  return {
+    title: pdfMetadataTitle(value.metadata?.get('dc:title'), info?.Title),
+    author: pdfMetadataAuthor(value.metadata?.get('dc:creator'), info?.Author)
+  }
+}
+
+/** Resolve metadata/title before acknowledgement, leaving remaining text to the workflow. */
+export async function extractPdfMetadata(bytes: Uint8Array): Promise<PdfMetadata> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let cleanup = async () => {}
+  try {
+    const { getResolvedPDFJS } = await import('unpdf')
+    const { getDocument } = await getResolvedPDFJS()
+    const options = { data: bytes, isEvalSupported: false, useSystemFonts: false, verbosity: 0 }
+    const task = getDocument(options)
+    cleanup = () => task.destroy().catch(() => {})
+    return await Promise.race([
+      task.promise.then(async pdf => {
+        const value = await pdf.getMetadata().catch(() => undefined)
+        const metadata: PdfMetadata = value ? documentMetadata(value) : {}
+        if (!metadata.title) {
+          try {
+            const page = await pdf.getPage(1)
+            try {
+              metadata.title = pdfFirstPageTitle((await page.getTextContent()).items, page.getViewport({ scale: 1 }))
+            } finally {
+              page.cleanup()
+            }
+          } catch {}
+        }
+        return metadata
+      }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('PDF metadata timed out')), 10_000)
+      })
+    ])
+  } catch {
+    return {}
+  } finally {
+    clearTimeout(timer)
+    await cleanup()
+  }
+}
+
 /** Extract one page at a time. PDF.js consumes/detaches the input buffer. */
 export async function extractPdfText(bytes: Uint8Array): Promise<{ text: string; pages: number; status: 'ready' | 'empty' | 'failed'; title?: string; author?: string }> {
   const { getDocumentProxy } = await import('unpdf')
@@ -65,16 +113,9 @@ export async function extractPdfText(bytes: Uint8Array): Promise<{ text: string;
     const options = { isEvalSupported: false, useSystemFonts: false }
     pdf = await getDocumentProxy(bytes, options)
     const metadata = await pdf.getMetadata().catch(() => undefined)
-    const normalizeTitle = (value: unknown) =>
-      typeof value === 'string'
-        ? value
-            .replace(/[\u0000-\u001f\u007f]/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .slice(0, 500) || undefined
-        : undefined
-    title = normalizeTitle(metadata?.metadata?.get('dc:title')) || normalizeTitle((metadata?.info as { Title?: unknown } | undefined)?.Title)
-    author = pdfMetadataAuthor(metadata?.metadata?.get('dc:creator'), (metadata?.info as { Author?: unknown } | undefined)?.Author)
+    const documentInfo = metadata ? documentMetadata(metadata) : {}
+    title = documentInfo.title
+    author = documentInfo.author
     if (pdf.numPages > 5000) throw new Error('PDF text extraction page limit exceeded')
     const texts: string[] = []
     let length = 0
@@ -82,6 +123,7 @@ export async function extractPdfText(bytes: Uint8Array): Promise<{ text: string;
     for (let number = 1; number <= pdf.numPages; number++) {
       const page = await pdf.getPage(number)
       const content = await page.getTextContent()
+      if (number === 1 && !title) title = pdfFirstPageTitle(content.items, page.getViewport({ scale: 1 }))
       const text = content.items
         .map(item => ('str' in item ? item.str + (item.hasEOL ? '\n' : ' ') : ''))
         .join('')

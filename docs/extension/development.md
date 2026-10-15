@@ -82,10 +82,10 @@ These values do not start the API and do not prove that login or synchronization
 
 ## Loading and development
 
-`pnpm extension -- dev` uses port 3001 and generates `.vendor/vendor.js` for faster development. Enable developer mode in Chrome or Edge, select **Load unpacked**, and load `apps/extension/build/chrome-mv3-dev`.
+`pnpm extension -- dev` uses port 3001 and generates `.vendor/vendor.js` for faster development. Enable developer mode in Chrome, select **Load unpacked**, and load `apps/extension/build/chrome-mv3-dev`.
 For `pnpm extension -- build`, load `apps/extension/build/chrome-mv3` and manually reload the extension after rebuilding. Public manifest keys are preserved across environments, so the extension ID and Web allowlist remain stable after the directory migration.
 
-`.wxt`, `.vendor` and `build` are generated directories and must not be committed. Zip files are generated under `build`. Firefox commands remain available in the source; this migration verifies the Chromium path on Chrome and Edge and does not claim full Firefox verification.
+`.wxt`, `.vendor` and `build` are generated directories and must not be committed. Zip files are generated under `build`. Firefox commands remain available in the source; this migration verifies the Chromium path on Chrome and does not claim full Firefox verification.
 
 ## Optional isolated browser tests
 
@@ -97,6 +97,14 @@ CHROME_PATH=/absolute/path/to/chromium HEADLESS=1 pnpm --filter @apps/slax-reade
 
 This command rebuilds an instrumented test extension. Run `pnpm extension -- build` again before manual testing or packaging. Longer suites include `test:offscreen:401-soak` and `test:offscreen:timing`; they do not replace final backend integration.
 
+## PDF save verification
+
+`node apps/extension/tests/pdf-browser.mjs` builds an isolated fixture with synthetic configuration under `apps/extension/build/pdf-popup-e2e`. It uses disposable Chrome state, real toolbar action dispatch with automatic saving, the shared collection-feedback overlay on the original source page, valid generated PDF bytes, and a mock API. The fixture checks direct local upload, public suffix/extensionless URLs, HTML at a `.pdf` path, disabled Labs, and repeated-action reuse. Source invalidation and account changes also have focused unit coverage. It also disables file access through Chrome settings, invokes the native action bubble, verifies its screenshot and visible recovery controls, opens the correct extension settings, enables access and reinvokes from the original PDF to upload automatically. Playwright omits native action popups from its page list, so the fixture inspects the actual browser-created popup target through CDP. Alt+Y and context-menu entry points share the dispatcher; this fixture exercises the toolbar. Screenshots are under `apps/extension/build/pdf-browser`. The fixture uses a mock API and must not be installed for regular use; manual end-to-end acceptance is recorded below.
+
+The `file:///*` host permission permits reading the already-open PDF only after the browser's file access toggle allows it. No optional-permission request changes that toggle. A permission change can reload the extension and clear session operations; return to the original PDF and invoke toolbar/Alt+Y again. Retry within a surviving page rechecks source, account and permission. Cancel cannot undo an already accepted server request; uncertain submissions require explicit retry after checking the bookmark list.
+
+Before installing a regular unpacked build, rebuild with the intended public Web/API origins and environment-specific extension ID, inspect `build/chrome-mv3/manifest.json`, and run the standard commands above. Local installation does not authorize Chrome Web Store publication. The human reported completing manual end-to-end verification for this change on 2026-10-15. The automated fixture records Chrome toolbar behavior separately from that manual acceptance.
+
 ## Contributing to Web and Extension
 
 You can report issues, suggest improvements, or edit documentation and translations without a local setup. Include the location, environment, reproduction steps and expected versus actual behavior, and remove account details, private articles, cookies and tokens from logs or screenshots.
@@ -104,3 +112,7 @@ You can report issues, suggest improvements, or edit documentation and translati
 Small wording, translation and documentation changes can be made through GitHub's editor and proposed from a new branch. Larger changes should start with an Issue. Do not commit directly to `dev`, `beta` or `main`; behavior changes require a reviewed OpenSpec proposal, while documentation-only changes may use `OpenSpec: n/a`.
 
 Translations live in `apps/web/i18n/locales` and `apps/extension/src/locales`. Preserve keys, placeholders, line breaks and JSON structure. Use an isolated worktree for code changes and report the actual checks run in the PR.
+
+The bundled `src/assets/pdf-file-access-guide.png` is the real Chrome 155 screenshot from the disposable-profile transport spike (`build/pdf-spike/permission-change.png`). The guide frames only its file-access row using CSS; the source image is unchanged. The screen-reader alternative describes that switch. Do not replace technical settings screenshots with generated illustrations.
+
+Local collection titles prefer PDF XMP dc:title, then document-info Title. The backend also resolves a confident first-page heading before falling back to the filename without its PDF suffix, and returns its authoritative title to the popup. The original basename and raw bytes remain unchanged in upload. Updated backends persist and return the title before confirming upload while text extraction continues asynchronously; an explicit repeat save repairs older filename titles without changing user aliases. A confirmed upload uses the backend numeric bookmark ID and UID, and subsequent extension synchronization failures do not replace saved feedback with an uncertain-request error. Backend deployment is required for the initial-list title correction; updating only the extension corrects local popup feedback.

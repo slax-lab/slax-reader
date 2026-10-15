@@ -32,15 +32,19 @@ PDF bookmarks SHALL be an active, disabled-by-default per-user Labs feature. The
 
 ### Requirement: PDF title uses embedded metadata when available
 
-PDF extraction SHALL prefer a nonempty XMP `dc:title`, then document-info `Title`, and fall back to the filename. It SHALL prefer XMP `dc:creator`, including author lists, then document-info `Author`, and save usable author text in the existing byline. Missing authors SHALL remain empty; creation software SHALL NOT be substituted for an author. Metadata read failure SHALL not prevent preview or text extraction. User alias titles SHALL remain unchanged. The client MAY supplement missing author display from metadata of its already-loaded PDF without changing persisted data.
+PDF extraction SHALL prefer a nonempty XMP `dc:title`, then document-info `Title`, then a confidently identified selectable first-page heading, and finally fall back to the filename. First-page detection SHALL be bounded, exclude rotated margin text and ordinary body paragraphs, and join adjacent aligned title lines. Ambiguous or unavailable headings SHALL retain the filename fallback. Cached explicit saves SHALL refresh discoverable titles from immutable stored bytes without replacing the file or modifying user aliases. It SHALL prefer XMP `dc:creator`, including author lists, then document-info `Author`, and save usable author text in the existing byline. Missing authors SHALL remain empty; creation software SHALL NOT be substituted for an author. Metadata read failure SHALL not prevent preview or text extraction. User alias titles SHALL remain unchanged. The client MAY supplement missing author display from metadata of its already-loaded PDF without changing persisted data.
 
 #### Scenario: Embedded title is available
 - **WHEN** a PDF with a metadata title completes extraction
 - **THEN** the bookmark base title uses the normalized metadata title instead of the filename
 
 #### Scenario: PDF has no embedded title
-- **WHEN** metadata is absent or unreadable
+- **WHEN** metadata is absent or unreadable and no first-page heading can be confidently identified
 - **THEN** the bookmark retains a filename-derived title and its normal extraction state
+
+#### Scenario: Visible title exists without title metadata
+- **WHEN** a selectable first-page title is prominent above body text but embedded title fields are empty
+- **THEN** the bookmark uses the complete visible heading and excludes a rotated margin identifier
 
 ### Requirement: PDF preview displays source and available authors
 

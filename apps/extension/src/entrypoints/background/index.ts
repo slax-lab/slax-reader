@@ -377,12 +377,6 @@ export default defineBackground(() => {
     index: () => BrowserService.openTab(`${process.env.PUBLIC_BASE_URL}`),
     collect: async (info, tab) => {
       refreshLocale('open')
-      const isLoggedIn = await authService.checkLogin()
-      if (!isLoggedIn) {
-        return
-      }
-
-      void metricService.track().catch(error => console.warn('[collect] metric failed:', error))
       tab && BrowserService.openCollectPopup(tab, 'open_collect', authService)
     }
   }
@@ -398,12 +392,6 @@ export default defineBackground(() => {
   // 监听插件图标点击事件
   browser.action.onClicked.addListener(async tab => {
     refreshLocale('open')
-    const isLoggedIn = await authService.checkLogin()
-    if (!isLoggedIn) {
-      return
-    }
-
-    void metricService.track().catch(error => console.warn('[collect] metric failed:', error))
     BrowserService.openCollectPopup(tab, 'open_collect', authService)
   })
 
@@ -417,8 +405,35 @@ export default defineBackground(() => {
     return BrowserService.openCollectPopup(tab, command, authService)
   })
 
+  const configureAction = (tab: Browser.tabs.Tab) => {
+    void import('./pdfOperations').then(({ configurePdfAction }) => configurePdfAction(tab)).catch(() => {})
+  }
+  void browser.tabs.query({}).then(tabs => tabs.forEach(configureAction))
+  browser.tabs.onActivated.addListener(({ tabId }) => { void browser.tabs.get(tabId).then(configureAction).catch(() => {}) })
+
   // 监听其他页面发送的消息
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.target === 'pdf-save') {
+      void import('./pdfOperations').then(async ({ pdfOperationMessage, trustedPdfAction, initializePdfAction }) => {
+        if (message.method === 'initialize') {
+          if (!trustedPdfAction(sender) || Object.keys(message).some(key => !['target', 'method'].includes(key))) { sendResponse({ error: 'source' }); return }
+          const [tab] = await browser.tabs.query({ active: true, currentWindow: true })
+          if (!tab) { sendResponse({ error: 'source' }); return }
+          refreshLocale('open')
+          if (tab.url?.startsWith('file:') && !(await browser.extension.isAllowedFileSchemeAccess())) {
+            sendResponse(await initializePdfAction(tab))
+          } else {
+            await BrowserService.openCollectPopup(tab, 'open_collect', authService)
+            sendResponse({ ok: true, inline: true })
+          }
+          return
+        }
+        const result = await pdfOperationMessage(message, sender)
+        if (result.ok && message.method === 'complete') void changesCheckup(true)
+        sendResponse(result)
+      }).catch(() => sendResponse({ error: 'source' }))
+      return true
+    }
     const receiveMessage = message as {
       action?: string
       actionType?: MetricActionType | BookmarkActionType
@@ -548,6 +563,10 @@ export default defineBackground(() => {
 
   // 监听标签页更新
   browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    if (changeInfo.url || changeInfo.status === 'complete') configureAction(tab)
+    if (changeInfo.status === 'loading' || changeInfo.url) {
+      void import('./pdfOperations').then(({ invalidatePdfSource }) => invalidatePdfSource(tabId)).catch(() => {})
+    }
     if (changeInfo.status === 'loading') BrowserService.clearContentScript(tabId)
     if (tab.status !== 'complete') return
 
@@ -576,5 +595,8 @@ export default defineBackground(() => {
     }
   })
 
-  browser.tabs.onRemoved.addListener(tabId => BrowserService.clearContentScript(tabId))
+  browser.tabs.onRemoved.addListener(tabId => {
+    void BrowserService.clearContentScript(tabId)
+    void import('./pdfOperations').then(({ invalidatePdfSource }) => invalidatePdfSource(tabId, true)).catch(() => {})
+  })
 })

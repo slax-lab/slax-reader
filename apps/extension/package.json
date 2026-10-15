@@ -55,6 +55,7 @@
     "markmap-view": "^0.18.12",
     "md5": "^2.3.0",
     "ua-parser-js": "^2.0.10",
+    "unpdf": "1.8.1",
     "vue": "^3.5.42"
   },
   "devDependencies": {

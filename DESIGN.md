@@ -91,6 +91,7 @@ The Web application uses a warm paper visual system with light, dark, and e-ink 
 The Extension currently uses a compact, fixed-dark interface with its own typography, dimensions, and surface values. It is a separate profile, not an incomplete copy of the Web theme.
 
 - Preserve the Extension's compact density unless a reviewed design change says otherwise.
+- The existing light collection-confirmation popup is a local renderer exception. The approved `extension-support-pdf` correction reuses this same component in the existing in-page overlay for PDF feedback; when file access prevents injection, permission guidance uses the toolbar action bubble; preserve its existing palette without importing Web tokens.
 - Do not import the Web token file or silently replace Extension values with Web values.
 - New repeated Extension colors or dimensions should gain Extension-owned semantic variables.
 - A future shared token package must expose shared roles and profile-specific values rather than forcing one application's palette onto the other.

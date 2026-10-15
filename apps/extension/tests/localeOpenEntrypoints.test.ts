@@ -36,7 +36,7 @@ it('calibrates locale for toolbar, context-menu and keyboard opens', async () =>
     alarms: { get: async () => ({}), onAlarm: event() },
     webRequest: { onCompleted: event() },
     runtime: { onInstalled: event(), onMessage: event(), setUninstallURL: vi.fn(async () => {}) },
-    tabs: { onUpdated: event(), onRemoved: event() },
+    tabs: { onUpdated: event(), onRemoved: event(), onActivated: event(), query: async () => [] },
     action: { onClicked: toolbar },
     contextMenus: { onClicked: menu },
     commands: { onCommand: command }
