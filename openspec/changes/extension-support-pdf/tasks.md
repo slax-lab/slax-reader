@@ -73,3 +73,13 @@ The local review follows REVIEW.md and settles on `extension-support-pdf`, with 
 - [x] 9.3 Commit and push feat/extension-support-pdf, create a PR targeting dev with its OpenSpec reference and actual validation evidence, and attach it to this chat.
 
 Delivery: https://github.com/slax-lab/slax-reader/pull/239 targets dev from feat/extension-support-pdf and is attached to the chat. The corrected permission-popup build was copied to Downloads with all 21 file hashes verified.
+
+## 10. Permission bubble visual refinement
+
+- [x] 10.1 Apply the human's requested visual refinement: one heading, concise setup steps, a real readable settings-row screenshot, quiet return guidance and clear primary/secondary actions using Extension-owned styles.
+- [x] 10.2 Inspect actual Chrome popup renders in English and Chinese, verify visible recovery controls and keyboard focus, and rerun the existing collection regression fixture.
+- [ ] 10.3 Run appropriate checks and Bugs/Security/Compliance review, build/copy the verified extension to Downloads and push the refinement to the existing PR.
+
+Visual refinement verification: Chrome 155 renders the English and Chinese native permission bubbles at 340 pixels with all recovery controls visible below the 600-pixel popup limit. Actual Tab-key input reaches the primary settings action with a visible focus ring. Both locale screenshots were inspected; the refreshed real setting-row capture contains only the permission label and switch. Existing toolbar URL/local collection, HTML preservation, repeated-action and permission-reload flows pass. Extension unit tests remain 100/100 and typecheck passes.
+
+Visual refinement pre-push review: Bugs, Security and Compliance passes used extension-support-pdf and found no unresolved Important findings. The change preserves the collection flow and sender/session boundaries, keeps the screenshot free of private paths, and matches the requested light permission-card refinement. Build/zip pass with 20 matching packaged files (the smaller screenshot is now inlined), the retained preview ID and verified Downloads hashes. Strict OpenSpec validation passes all 43 items. Separate English settings artwork is left for the human to update, per the latest instruction.

@@ -198,24 +198,30 @@ watch(state, value => {
 
 <template>
   <main :lang="getExtensionLocale()" :class="{ 'native-action': !inline }">
-    <CollectFeedback :title="name || $t('pdf_save.title')" :status="$t(`pdf_save.${state}`)"
+    <CollectFeedback :title="name || $t('pdf_save.title')"
+      :class="{ 'permission-feedback': state === 'permission' }"
+      :status="state === 'permission' ? $t('pdf_save.permission_label') : $t(`pdf_save.${state}`)"
       :loading="busy" :success="state === 'saved' || state === 'queued'"
       :close-label="$t('pdf_save.close')" expanded standalone @close="close">
-      <section v-if="state === 'permission'" class="permission-guide" :aria-label="$t('pdf_save.permission_title')">
+      <template v-if="state === 'permission'" #title>
         <h1>{{ $t('pdf_save.permission_title') }}</h1>
+      </template>
+      <section v-if="state === 'permission'" class="permission-guide" :aria-label="$t('pdf_save.permission_title')">
+        <p class="permission-intro">{{ $t('pdf_save.permission') }}</p>
         <ol>
           <li>{{ $t('pdf_save.permission_step_settings') }}</li>
           <li>{{ $t('pdf_save.permission_step_toggle') }}</li>
-          <li>{{ $t('pdf_save.permission_step_return') }}</li>
         </ol>
         <div class="settings-screenshot">
-          <img :src="fileAccessGuide" :alt="$t('pdf_save.permission_image')" />
+          <div class="settings-label"><img :src="fileAccessGuide" :alt="$t('pdf_save.permission_image')" /></div>
+          <div class="settings-toggle" aria-hidden="true"><img :src="fileAccessGuide" alt="" /></div>
         </div>
+        <p class="permission-return">{{ $t('pdf_save.permission_step_return') }}</p>
       </section>
-      <div class="actions">
+      <div class="actions" :class="{ 'permission-actions': state === 'permission' }">
+        <button v-if="state === 'permission'" class="primary-action" @click="settings">{{ $t('pdf_save.settings') }}</button>
         <button v-if="busy" @click="cancel">{{ $t('pdf_save.cancel') }}</button>
-        <button v-if="!busy && !['saved', 'queued', 'unsupported', 'source'].includes(state)" @click="checks()">{{ $t('pdf_save.retry') }}</button>
-        <button v-if="state === 'permission'" @click="settings">{{ $t('pdf_save.settings') }}</button>
+        <button v-if="!busy && !['saved', 'queued', 'unsupported', 'source'].includes(state)" @click="checks()">{{ state === 'permission' ? $t('pdf_save.permission_retry') : $t('pdf_save.retry') }}</button>
         <button v-if="state === 'login'" @click="open('/login?from=extension')">{{ $t('pdf_save.sign_in') }}</button>
         <button v-if="['saved', 'queued', 'failed'].includes(state)" @click="open('/bookmarks')">{{ $t('pdf_save.list') }}</button>
         <button v-if="uid && state === 'saved'" @click="open(`/b/${encodeURIComponent(uid)}`)">{{ $t('pdf_save.open') }}</button>
@@ -227,7 +233,7 @@ watch(state, value => {
 <style>
 :root { color-scheme: light; font: 14px/1.5 system-ui, sans-serif; }
 body { margin: 0; }
-body:has(main.native-action) { width: 300px; }
+body:has(main.native-action) { width: 340px; }
 main { width: 100%; }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
 .actions:empty { display: none; }
@@ -237,11 +243,37 @@ main { width: 100%; }
 }
 .actions button:hover { text-decoration: underline; }
 .actions button:focus-visible { outline: 2px solid var(--collect-accent); outline-offset: 3px; }
-.permission-guide { margin-top: 16px; }
-.permission-guide h1 { font-size: 16px; margin: 0; }
-.permission-guide ol { padding-left: 22px; }
-.permission-guide li { margin: 8px 0; overflow-wrap: anywhere; }
-/* Frame the actual Chrome screenshot around the file-access row, excluding unrelated settings and build paths. */
-.settings-screenshot { position: relative; width: 100%; aspect-ratio: 680 / 64; overflow: hidden; border: 1px solid var(--collect-border); border-radius: 8px; box-sizing: border-box; }
-.settings-screenshot img { position: absolute; display: block; width: 188.2353%; max-width: none; left: -50.2941%; top: -646.875%; }
+main .slax-popup.permission-feedback {
+  --collect-muted: #5c6870;
+  --collect-accent: #39749f;
+  --collect-accent-hover: #2f648a;
+  --collect-tint: #f2f6f9;
+  --collect-border: #e4ebf0;
+  padding: 22px;
+}
+main .slax-popup.permission-feedback .header { align-items: center; }
+main .slax-popup.permission-feedback .status { font-size: 12px; font-weight: 500; letter-spacing: 0.01em; }
+main .slax-popup.permission-feedback .header button { width: 28px; height: 28px; margin: -6px -6px -6px 0; padding: 6px; border-radius: 8px; }
+main .slax-popup.permission-feedback .header button:hover { background: var(--collect-tint); }
+main .slax-popup.permission-feedback .title { margin-top: 12px; }
+.permission-feedback h1 { margin: 0; font: inherit; font-size: 20px; font-weight: 650; line-height: 1.35; letter-spacing: -0.02em; }
+.permission-guide p { margin: 0; color: var(--collect-muted); }
+.permission-intro { margin-top: 8px !important; font-size: 13px; line-height: 1.6; }
+.permission-guide ol { list-style: none; padding: 0; margin: 20px 0 14px; counter-reset: setup; display: grid; gap: 12px; }
+.permission-guide li { counter-increment: setup; display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; font-size: 13px; line-height: 22px; overflow-wrap: anywhere; }
+.permission-guide li::before { content: counter(setup); display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--collect-tint); color: var(--collect-accent); font-size: 12px; font-weight: 600; }
+/* Preserve both real screenshot edges while omitting the empty space between label and switch. */
+.settings-screenshot { display: flex; height: 52px; overflow: hidden; border: 1px solid var(--collect-border); border-radius: 10px; background: var(--collect-surface); }
+.settings-screenshot > div { position: relative; overflow: hidden; }
+.settings-label { flex: 1; }
+.settings-toggle { width: 58px; flex: none; }
+.settings-screenshot img { position: absolute; top: 0; height: 100%; width: auto; max-width: none; }
+.settings-label img { left: 0; }
+.settings-toggle img { right: 0; }
+.permission-return { margin-top: 12px !important; font-size: 12px; line-height: 1.65; }
+.permission-actions { display: grid; gap: 4px; margin-top: 20px; }
+.permission-actions button { min-height: 36px; padding: 8px 12px; border-radius: 9px; font-size: 13px; font-weight: 500; line-height: 20px; }
+.permission-actions button:hover { background: var(--collect-tint); text-decoration: none; }
+.permission-actions .primary-action { background: var(--collect-accent); color: var(--collect-surface); font-weight: 600; }
+.permission-actions .primary-action:hover { background: var(--collect-accent-hover); }
 </style>

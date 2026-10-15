@@ -178,9 +178,28 @@ try {
   await writeFile(path.join(scratch, 'native-file-permission-guide.png'), Buffer.from(screenshot.data, 'base64'))
   assert.ok(guideShown, 'the native permission popup renders its instructions and bundled screenshot')
   assert.ok(await popupValue(`innerWidth >= 300 && [...document.querySelectorAll('.actions button')].every(button => button.getBoundingClientRect().bottom <= innerHeight)`), 'native popup keeps guidance and recovery buttons visible')
+  for (const locale of ['en', 'zh']) {
+    await popupValue(`(async () => {
+      const key = 'slax:account-locale:v1'
+      const current = (await chrome.storage.local.get(key))[key]
+      await chrome.storage.local.set({ [key]: { ...current, locale: '${locale}', revision: current.revision + 1 } })
+    })()`)
+    for (let i = 0; i < 100 && !(await popupValue(`document.querySelector('main').lang === '${locale}'`)); i++) await new Promise(resolve => setTimeout(resolve, 50))
+    assert.ok(await popupValue(`document.querySelector('main').lang === '${locale}' && document.querySelectorAll('h1').length === 1 && document.querySelectorAll('.permission-guide li').length === 2`))
+    assert.ok(await popupValue(`innerHeight <= 600 && document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('.actions button')].every(button => button.getBoundingClientRect().bottom <= innerHeight)`), 'localized permission guidance fits the native popup')
+    await popupValue(`document.activeElement.blur()`)
+    for (let i = 0; i < 3 && !(await popupValue(`document.activeElement === document.querySelector('.primary-action')`)); i++) {
+      await popupCommand('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 })
+      await popupCommand('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 })
+    }
+    assert.ok(await popupValue(`document.activeElement === document.querySelector('.primary-action') && getComputedStyle(document.activeElement).outlineStyle !== 'none'`), 'settings action has visible keyboard focus')
+    await popupValue(`document.activeElement.blur()`)
+    const localized = await popupCommand('Page.captureScreenshot')
+    await writeFile(path.join(scratch, `native-file-permission-guide-${locale}.png`), Buffer.from(localized.data, 'base64'))
+  }
   assert.equal(requests.filter(r => r.path.endsWith('upload_pdf')).length, uploadsBeforePermission)
   const detailsReady = context.waitForEvent('page', { timeout: 10_000 })
-  await popupValue(`[...document.querySelectorAll('button')].find(button => /Open extension settings|打开 Chrome 扩展设置/.test(button.textContent)).click()`)
+  await popupValue(`document.querySelector('.primary-action').click()`)
   const details = await detailsReady
   await details.waitForURL('chrome://extensions/*')
   assert.equal(new URL(details.url()).searchParams.get('id'), id)

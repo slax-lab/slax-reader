@@ -25,7 +25,7 @@ defineEmits<{ close: [] }>()
         <img src="@/assets/close.svg" alt="" />
       </button>
     </div>
-    <div class="title">{{ title }}</div>
+    <div class="title"><slot name="title">{{ title }}</slot></div>
     <slot />
   </div>
 </template>

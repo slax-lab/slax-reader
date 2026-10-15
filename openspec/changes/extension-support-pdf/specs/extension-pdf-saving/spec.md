@@ -194,6 +194,10 @@ The injected source-page collection overlay SHALL remain visible across focus ch
 - **WHEN** file URL access is disabled for a local source
 - **THEN** the popup includes a bundled real Chrome settings screenshot with descriptive alternative text, localized instructions to enable Allow access to file URLs, and an action opening this extension's details
 
+#### Scenario: Permission guidance has a clear visual hierarchy
+- **WHEN** the permission bubble appears in either supported locale
+- **THEN** it shows one heading, concise numbered setup steps, a readable real settings row, a prominent settings button and a secondary retry action, with visible keyboard focus and guidance to return to the original PDF after enabling access
+
 #### Scenario: Original PDF page hosts the collection feedback
 - **WHEN** an online PDF or a file-access-enabled local PDF is saved
 - **THEN** the existing injected source-page overlay reports progress and results, no separate tab or window is created, and inline success feedback closes after the normal two-second interval

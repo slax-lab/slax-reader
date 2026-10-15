@@ -15,6 +15,7 @@ The extension's existing save actions depend on an injected HTML collector, so P
 - Preserve confirmed upload success for the backend's numeric encoded ID and nonempty bookmark UID, even when subsequent extension state synchronization fails.
 - Resolve local popup titles from XMP dc:title, then document-info Title, falling back to the basename without its PDF suffix; persist and return the same metadata-derived title before the upload acknowledgement while leaving full text extraction asynchronous.
 - Add focused unit and Chrome acceptance coverage plus permissions/privacy documentation during implementation.
+- Refine the permission bubble's presentation following the human's screenshot feedback: one clear heading, concise numbered steps, a readable real settings screenshot and a prominent settings action with secondary retry.
 
 ## Capabilities
 

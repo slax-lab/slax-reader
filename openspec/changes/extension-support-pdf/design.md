@@ -43,6 +43,8 @@ When file URL access is disabled, Chrome also blocks content-script injection in
 
 Preserve the current collection renderer's light palette as the local exception in `DESIGN.md`, with labelled controls, status announcements, focus visibility, narrow widths, long filenames and reduced motion. Do not import Web tokens, scrape the internal viewer, replace the viewer, or change the offscreen bridge.
 
+The human's visual refinement keeps that light collection renderer and scopes presentation changes to the permission state. Use one heading, a short explanation, two numbered setup steps, a tightly captured real Chrome settings row, and a separate quiet return-to-PDF note. Remove the repeated status paragraph and filename heading from this state. Give settings a full-width primary button and retry a secondary treatment. Use Extension-owned semantic colors and a compact 340-pixel native surface; preserve keyboard focus, status announcements and the existing source-page saving UI.
+
 ### 3. Resolve original local-file bytes in the extension document
 
 The direct-file path is a required acceptance gate, not a promise that service-worker `fetch(file:)` works. After human planning review, the first implementation spike must load the actual WXT page in isolated Chrome profiles and establish a browser-supported extension-document transport (for example XMLHttpRequest with `responseType = 'blob'` if verified). Test the generated manifest's effective `file:///*` access, adding only that narrowly scoped host declaration if required; `<all_urls>` content matching alone is not assumed to authorize file reads.
