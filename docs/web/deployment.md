@@ -8,7 +8,7 @@ The `Web Pages deploy` GitHub Actions workflow publishes the existing Nuxt Pages
 | --- | --- | --- | --- |
 | `dev` | `dev` | `preview` | Test-account Pages project |
 | `beta` | `beta` | `beta` | Production-account beta Pages project |
-| `main` | `main` | `production` | Production-account production Pages project |
+| `main` | `prod` | `production` | Production-account production Pages project |
 
 The workflow runs only after an eligible pull request is merged. It checks out that merge commit, builds once for the selected environment, and publishes only that destination. Ordinary PR checks receive no release credentials. API-only, Extension-only, and documentation-only changes do not publish Web; shared frontend packages, build tooling, and dependency changes do.
 
@@ -16,7 +16,7 @@ A repository branch and a Pages project's production branch need not share a nam
 
 ## GitHub settings to fill
 
-In the repository, open **Settings → Environments** and create or reuse `dev`, `beta`, and `main`. Restrict each Environment to its corresponding release branch; retain any required reviewer policy. Configure these same names separately in each Environment:
+In the repository, open **Settings → Environments** and create or reuse `dev`, `beta`, and `prod`. Restrict each Environment to its corresponding release branch (`prod` to `main`); retain any required reviewer policy. Configure these same names separately in each Environment:
 
 | Kind | Name | Value |
 | --- | --- | --- |
