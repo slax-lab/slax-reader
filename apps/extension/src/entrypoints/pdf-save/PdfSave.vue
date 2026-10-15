@@ -40,7 +40,7 @@ const fail = (error: unknown) => {
   const reason = controller?.signal.reason
   const code = reason instanceof Error && ['source', 'login'].includes(reason.message) ? reason.message : error instanceof Error ? error.message : ''
   const errorName = error instanceof Error ? error.name : ''
-  state.value = code === 'source' ? 'source' : !session || code === 'Not login' || code === 'login' ? 'login' : controller?.signal.aborted ? 'cancelled' : errorName === 'LAB_FEATURE_DISABLED' ? 'labs' :
+  state.value = code === 'source' ? 'source' : !session || code === 'Not login' || code === 'login' ? 'login' : reason instanceof Error && reason.message === 'timeout' ? 'failed' : controller?.signal.aborted ? 'cancelled' : errorName === 'LAB_FEATURE_DISABLED' ? 'labs' :
     ['source', 'login', 'size', 'invalid', 'read', 'permission'].includes(code) ? code as State : 'failed'
 }
 const checks = async (automatic = false) => {
@@ -79,7 +79,7 @@ const save = async () => {
   busy.value = true
   controller = new AbortController()
   const signal = controller.signal
-  const timeout = setTimeout(() => controller?.abort(), 120_000)
+  const timeout = setTimeout(() => controller?.abort(new Error('timeout')), 120_000)
   let file: File | undefined
   try {
     await message('begin')

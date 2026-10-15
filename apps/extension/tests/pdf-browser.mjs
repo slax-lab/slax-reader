@@ -49,7 +49,7 @@ try {
       SHARE_BASE_URL: 'https://share.invalid', EXTENSIONS_API_BASE_URL: origin, COOKIE_DOMAIN: '127.0.0.1', COOKIE_TOKEN_NAME: 'slax-pdf-test', UNINSTALL_FEEDBACK_URL: `${origin}/uninstall` }
   })
   context = await chromium.launchPersistentContext(path.join(scratch, 'profile'), {
-    executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: process.env.HEADLESS !== '0', chromiumSandbox: true,
+    executablePath: process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: process.env.HEADLESS !== '0', chromiumSandbox: true,
     ignoreDefaultArgs: ['--disable-extensions'], args: ['--enable-unsafe-extension-debugging']
   })
   await context.addCookies([{ url: origin, name: 'slax-pdf-test', value: 'synthetic-token' }])

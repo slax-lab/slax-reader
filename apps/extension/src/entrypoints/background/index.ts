@@ -401,12 +401,8 @@ export default defineBackground(() => {
   // 监听插件置顶状态变化，推送给所有标签页（不依赖 visibilitychange）
   BrowserService.watchPinnedStatusChanges()
 
-  // 监听快捷键
-  browser.commands.onCommand.addListener((command, tab) => {
-    if (!tab || command !== 'open_collect') return
-    refreshLocale('open')
-    return BrowserService.openCollectPopup(tab, command, authService)
-  })
+  // Alt+Y is the reserved `_execute_action` command: Chrome delivers it as an action click, so the
+  // `action.onClicked` handler above covers it and no separate `commands.onCommand` listener is needed.
 
   const configureAction = (tab: Browser.tabs.Tab) => {
     void import('./pdfOperations').then(({ configurePdfAction }) => configurePdfAction(tab)).catch(() => {})

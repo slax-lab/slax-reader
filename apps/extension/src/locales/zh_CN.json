@@ -26,7 +26,7 @@
     "list": "打开收藏列表",
     "open": "阅读 PDF",
     "close": "关闭收藏弹窗",
-    "injection": "无法在此页面显示收藏提示，请刷新原 PDF 后重试。",
+    "injection": "无法在此页面显示收藏提示，请刷新页面后重试。",
     "permission_title": "开启本地 PDF 访问权限",
     "permission_step_settings": "打开此扩展的设置页面。",
     "permission_step_toggle": "开启“允许访问文件网址”开关。",

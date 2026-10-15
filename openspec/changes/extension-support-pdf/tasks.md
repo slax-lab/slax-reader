@@ -106,4 +106,7 @@ Verification: the three Web suites for Labs pass (57 tests). Strict OpenSpec val
 - [x] 13.2 Update the remaining requirement and scenario text that still described a real settings screenshot, so archiving does not copy a stale requirement into the living spec.
 
 Verification: extension typecheck and unit suite, and strict OpenSpec validation, are rerun after these edits. The heartbeat is not exercised by a new test because the entrypoint tests mock the metric service.
+- [x] 13.3 Address the remaining review nits that were real: remove the unreachable `commands.onCommand` listener (Alt+Y is the reserved `_execute_action` command and arrives as an action click) with its test case; make the `injection` message page-neutral because HTML pages reach it too; report the 120-second watchdog as a failed uncertain request instead of a cancellation; let the PDF browser fixture honor `CHROME_PATH`.
+
+Deliberately not changed: a confirmed save followed by an account change still shows login and clears the old account's bookmark UID, as required by the "Account changes while a file is pending" scenario and its test. The unused `pdf_save.protected` message, the API's silent legacy-title repair, and the cached-save full-object read and `sha256` fallback are left for a decision.
 

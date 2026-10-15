@@ -101,6 +101,18 @@ test('reloaded operation requires explicit retry and does not automatically repl
   expect(fixture.post).toHaveBeenCalledOnce()
 })
 
+test('the 120 second watchdog reports an uncertain failure, not a user cancellation', async () => {
+  // A request that only settles when its signal aborts, like a hung network call.
+  fixture.post.mockImplementation(({ signal }: { signal: AbortSignal }) => new Promise((_resolve, reject) => {
+    signal.addEventListener('abort', () => reject(signal.reason ?? new DOMException('Aborted', 'AbortError')))
+  }))
+  const popup = view()
+  const checks = popup.checks(true)
+  await vi.advanceTimersByTimeAsync(120_000)
+  await checks
+  expect(popup.state.value).toBe('failed')
+})
+
 test('cancel during initial checks prevents a subsequent automatic submission', async () => {
   let resolveClaim!: (value: unknown) => void
   vi.mocked(browser.runtime.sendMessage).mockImplementationOnce(() => new Promise(resolve => { resolveClaim = resolve }))

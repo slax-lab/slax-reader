@@ -26,7 +26,7 @@
     "list": "Open bookmarks",
     "open": "Read PDF",
     "close": "Close collection popup",
-    "injection": "The collection tip could not be added to this page. Refresh the original PDF and try again.",
+    "injection": "The collection tip could not be added to this page. Refresh the page and try again.",
     "permission_title": "Allow access to local PDFs",
     "permission_step_settings": "Open this extension’s settings.",
     "permission_step_toggle": "Turn on “Allow access to file URLs”.",

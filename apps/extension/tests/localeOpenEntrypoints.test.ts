@@ -46,13 +46,12 @@ it('calibrates locale for toolbar, context-menu and keyboard opens', async () =>
   await Promise.resolve()
   for (const invoke of [
     () => toolbar.addListener.mock.calls[0][0]({ id: 1 }),
-    () => menu.addListener.mock.calls[0][0]({ menuItemId: 'collect' }, { id: 1 }),
-    () => command.addListener.mock.calls[0][0]('open_collect', { id: 1 })
+    () => menu.addListener.mock.calls[0][0]({ menuItemId: 'collect' }, { id: 1 })
   ]) {
     refresh.mockClear()
     await invoke()
     await Promise.resolve()
     expect(refresh).toHaveBeenCalledWith('open')
   }
-  expect(openCollectPopup).toHaveBeenCalledTimes(3)
+  expect(openCollectPopup).toHaveBeenCalledTimes(2)
 })
