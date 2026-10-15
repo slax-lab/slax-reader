@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { appendFileSync, readFileSync, realpathSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 
-export const scopeNames = ['web', 'extension', 'api', 'mobile', 'cli', 'tooling', 'cliTooling', 'design', 'icons', 'mobileEvidence', 'rulesync', 'openspec', 'ghAw']
+export const scopeNames = ['web', 'extension', 'api', 'mobile', 'cli', 'tooling', 'cliTooling', 'extensionTooling', 'design', 'icons', 'mobileEvidence', 'rulesync', 'openspec', 'ghAw']
 const apps = ['web', 'extension', 'api', 'mobile', 'cli']
 const frontend = ['web', 'extension']
 const guards = ['rulesync', 'openspec', 'ghAw']
@@ -25,12 +25,14 @@ export function selectScopes(paths) {
       const readme = parts.length === 3 && readmeName.test(parts[2])
       if (!agentDocument && (!readme || app === 'cli')) add([app], path)
       if (app === 'cli' && !agentDocument) add(['cliTooling'], path)
+      if (app === 'extension' && !agentDocument) add(['extensionTooling'], path)
       if (/\/package\.json$|^apps\/(web|extension)\/(config\/|env\.schema|nuxt\.config|wxt\.config)/.test(path)) add(['tooling'], path)
     }
-    if (path === 'tooling/pnpm-command.mjs') add([...apps, 'tooling', 'cliTooling'], path)
-    if (/^tooling\/(run-app|env-files)(\.|$)/.test(path)) add([...frontend, 'tooling'], path)
+    if (path === 'tooling/pnpm-command.mjs') add([...apps, 'tooling', 'cliTooling', 'extensionTooling'], path)
+    if (/^tooling\/(run-app|env-files)(\.|$)/.test(path)) add([...frontend, 'tooling', 'extensionTooling'], path)
     if (/^tooling\/(web|extension|api|mobile|cli)\.mjs$/.test(path)) add([path.split('/')[1].split('.')[0], 'tooling'], path)
     if (/^tooling\/cli.*\.mjs$/.test(path) || /^\.github\/workflows\/cli-.*\.yml$/.test(path)) add(['cliTooling'], path)
+    if (/^tooling\/extension-release.*\.(mjs|py)$/.test(path) || path === '.github/workflows/extension-release.yml' || path === 'tooling/cli-release.mjs' || path === 'tooling/extension.mjs') add(['extensionTooling'], path)
     if (path === '.github/workflows/cli-ci.yml') add(['cli'], path)
     if (/^tooling\//.test(path) && !/^tooling\/cli/.test(path)) add(['tooling'], path)
     if (path.startsWith('deploy/mobile/') && !(path.split('/').length === 3 && readmeName.test(path.split('/')[2]))) add(['mobile'], path)
@@ -41,7 +43,7 @@ export function selectScopes(paths) {
     if (path.startsWith('docs/design/')) add(['design'], path)
     if (path === 'DESIGN.md' || /^\.rulesync\/rules\/(design-system|web-design|extension-design)\.md$/.test(path)) add(['design'], path)
     if (/^tooling\/design-reference/.test(path)) add(['design'], path)
-    if (/^tooling\/icon-registry/.test(path) || path.startsWith('apps/web/app/assets/icons/') || path.startsWith('apps/web/app/components/Icon/') || path.startsWith('apps/web/config/icons/')) add(['icons'], path)
+    if (/^tooling\/icon-registry/.test(path) || path.startsWith('apps/web/app/assets/icons/') || path.startsWith('apps/web/app/icons/')) add(['icons'], path)
     if (path.startsWith('docs/design/reference/')) add(['icons'], path)
     if (path.startsWith('.rulesync/') || /^rulesync\./.test(path) || /(^|\/)(AGENTS|CLAUDE)\.md$/.test(path) || /^\.(agents|claude|codex)\//.test(path)) add(['rulesync'], path)
     if (path.startsWith('openspec/')) add(['openspec'], path)
@@ -51,7 +53,7 @@ export function selectScopes(paths) {
     if (/^\.github\/workflows\/api-(ci|deploy)\.yml$/.test(path)) add(['api'], path)
     if (path === '.github/workflows/mobile-ci.yml') add(['mobile', 'mobileEvidence'], path)
     if (path === '.github/workflows/web-deploy.yml') add(['tooling'], path)
-    if (path === '.github/workflows/tooling-ci.yml') add(['tooling', 'cliTooling'], path)
+    if (path === '.github/workflows/tooling-ci.yml') add(['tooling', 'cliTooling', 'extensionTooling'], path)
     if (path.startsWith('.github/workflows/')) add(['tooling'], path)
     if (/^tooling\/ci-/.test(path) || path.startsWith('.github/actions/ci-scope/')) add(scopeNames, path)
   }

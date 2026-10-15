@@ -41,7 +41,9 @@ describe('API workspace command contract', () => {
       'preflight',
       'prepare',
       'setup:all',
+      'test:ci',
       'test:cli-tooling',
+      'test:extension-tooling',
       'test:preflight',
       'web'
     ])

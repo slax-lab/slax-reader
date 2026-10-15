@@ -31,4 +31,4 @@ None. The existing `agentic-pr-review`, `release-branching`, and `runtime-icon-r
 - `tooling/cli-release.mjs`, release process fixtures, and `docs/cli/RELEASE.md`.
 - New CI operations documentation and narrowly necessary root script/test routing updates.
 - Root dependency manifests and the shared lockfile initially retain conservative validation fan-out; this proposal does not claim package-graph-aware lockfile minimization.
-- No UI, public API, branch ruleset, historical Release, tag, or npm publication changes during this local task. All requested edits remain uncommitted.
+- No UI, public API, branch ruleset, historical Release, tag, or publication behavior changes. The initial implementation was kept uncommitted for inspection; the human subsequently authorized delivery through the task PR targeting dev.

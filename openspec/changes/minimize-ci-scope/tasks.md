@@ -2,7 +2,7 @@
 
 ## 1. Shared change selection
 
-- [x] 1.1 Refresh from dev and reconcile the current state of PR #231 before editing Mobile CI; verify the task branch contains the expected baseline, preserve that PR's native-job ownership, and record the resulting job set without committing changes.
+- [x] 1.1 Refresh from dev and reconcile the current state of PR #231 before editing Mobile CI; verify the task branch contains the expected baseline, preserve that PR's native-job ownership, and record the resulting job set.
 - [x] 1.2 Implement the pure CI scope policy and its reasons under tooling; verify table-driven cases for every design-matrix row, shared consumers, mixed scopes, ordinary prose, evidence inputs, and conservative root manifests.
 - [x] 1.3 Implement validated complete PR diff enumeration using the actual base/head; verify temporary-repository fixtures for promotion bases, earlier PR commits, additions/deletions/renames, spaces, more than 300 changed paths, unavailable revisions, and comparison failures.
 
@@ -25,4 +25,10 @@
 
 - [x] 4.1 Document the actual CI scope matrix, lightweight detection-only runs, conservative dependency-file boundary, PR/post-merge split, and CLI notes/source-archive distinction; verify documentation matches the implemented routing and retry behavior.
 - [x] 4.2 Run focused scope, workflow, tooling, and controlled CLI-release checks plus openspec validate --all --strict; verify selected coverage and negative cases pass without publishing public tags, Releases, or npm packages, and record any environment limitations explicitly.
-- [x] 4.3 Run all three local REVIEW.md passes against the final uncommitted diff using OpenSpec change minimize-ci-scope; resolve Important findings, record verification evidence, and verify git status contains the intended local edits with no task commits or pushes.
+- [x] 4.3 Run all three local REVIEW.md passes against the final diff using OpenSpec change minimize-ci-scope; resolve Important findings and record verification evidence before the authorized task-branch push.
+
+## 5. PR integration and cancellation verification
+
+- [x] 5.1 Integrate current dev without dropping Extension publication-fixture coverage; verify the Extension workflow, ZIP inspector, app inputs, and shared release helper select the dedicated tooling lane while publication remains non-canceling.
+- [x] 5.2 Correct the API root-command contract for test:ci and validate cancellation isolation; verify the API contract and fixtures for successive heads, separate PRs, and separate workflows pass.
+- [x] 5.3 Run affected validation and all three pre-push review passes; resolve integration conflicts, record the evidence, and prepare the update to PR #238 without publishing a release.

@@ -10,6 +10,20 @@ const workflow = name => load(readFileSync(new URL(`../.github/workflows/${name}
 const evaluate = (expression, context) => Function(...Object.keys(context), `return (${expression.replace(/^\$\{\{\s*|\s*\}\}$/g, '')})`)(...Object.values(context))
 const needs = paths => ({ changes: { outputs: Object.fromEntries(Object.entries(selectScopes(paths).scopes).map(([k, v]) => [k, String(v)])) } })
 
+test('new pushes share a cancellation group while other PRs and workflows remain independent', () => {
+  const groups = []
+  for (const name of ['frontend-ci', 'api-ci', 'mobile-ci', 'cli-ci', 'tooling-ci', 'agent-config']) {
+    const w = workflow(name)
+    assert.equal(w.concurrency['cancel-in-progress'], true)
+    const group = (number, sha, run_id) => w.concurrency.group.replace(/\$\{\{\s*([^}]+?)\s*\}\}/g, (_, expression) => evaluate(expression, { github: { workflow: w.name, event: { pull_request: { number } }, sha, run_id } }))
+    const first = group(238, 'a'.repeat(40), 1)
+    assert.equal(group(238, 'b'.repeat(40), 2), first, name)
+    assert.notEqual(group(239, 'b'.repeat(40), 3), first, name)
+    groups.push(first)
+  }
+  assert.equal(new Set(groups).size, groups.length)
+})
+
 test('application workflows always detect full PR differences and cancel obsolete read-only runs', () => {
   for (const name of ['frontend-ci', 'api-ci', 'mobile-ci', 'cli-ci', 'tooling-ci']) {
     const w = workflow(name)
@@ -76,9 +90,13 @@ test('CLI retains compatibility suites and publication/deployment retain their o
   const tooling = workflow('tooling-ci').jobs
   assert.ok(tooling.check.steps.some(s => s.run === 'pnpm test:preflight'))
   assert.ok(tooling['cli-release'].steps.some(s => s.run === 'pnpm test:cli-tooling'))
+  assert.ok(tooling['extension-release'].steps.some(s => s.run === 'pnpm test:extension-tooling'))
+  assert.equal(evaluate(tooling['extension-release'].if, { needs: needs(['.github/workflows/extension-release.yml']) }), true)
+  assert.equal(evaluate(tooling['extension-release'].if, { needs: needs(['apps/web/page.vue']) }), false)
   assert.equal(tooling['cli-release'].steps.find(s => s.uses?.startsWith('actions/setup-node@')).with['node-version'], '24.15.0')
   const release = workflow('cli-release')
   assert.deepEqual(release.on.push.branches, ['dev', 'beta', 'main'])
   assert.equal(release.concurrency['cancel-in-progress'], false)
+  assert.equal(workflow('extension-release').concurrency['cancel-in-progress'], false)
   for (const name of ['api-deploy', 'web-deploy']) assert.equal(workflow(name).jobs.deploy.concurrency['cancel-in-progress'], false)
 })

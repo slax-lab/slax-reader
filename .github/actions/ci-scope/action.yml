@@ -22,6 +22,9 @@ outputs:
   cliTooling:
     description: Whether cliTooling validation is selected
     value: ${{ steps.detect.outputs.cliTooling }}
+  extensionTooling:
+    description: Whether extension release tooling validation is selected
+    value: ${{ steps.detect.outputs.extensionTooling }}
   design:
     description: Whether design validation is selected
     value: ${{ steps.detect.outputs.design }}

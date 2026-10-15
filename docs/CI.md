@@ -9,7 +9,7 @@ The detector uses the PR's actual base branch and includes earlier PR commits, r
 | Inputs | Validation |
 | --- | --- |
 | Web implementation/config/tests | Web typecheck and tests, shared type prerequisites, icon checks |
-| Extension implementation/config/tests | Extension compile and tests, shared type prerequisites |
+| Extension implementation/config/tests | Extension compile and tests, shared type prerequisites, controlled release-tooling checks |
 | API implementation/config/tests | Generation, lint, typecheck, tests, offline Worker build |
 | Mobile implementation/config/tests | Mobile checks and JavaScript bundle |
 | CLI implementation/config/tests | CLI typecheck, tests, and package smoke on Node 22.22.2 and 24.15.0; CLI tooling checks |
@@ -20,6 +20,7 @@ The detector uses the PR's actual base branch and includes earlier PR commits, r
 | `tooling/run-app.mjs`, `tooling/env-files.*` | Web, Extension, root tooling tests |
 | `tooling/pnpm-command.mjs` | All dispatcher consumers and tooling checks |
 | CLI release tooling or workflow | Controlled CLI release tests, without Web/Extension application suites |
+| Extension release tooling, ZIP inspector, or workflow | Controlled Extension release tests, without Web/Extension application suites |
 | Workflow sources | Root tooling and workflow contract tests, plus their directly affected suites |
 | API deployment template/local infrastructure | API and root configuration tooling checks |
 | Mobile deployment inputs | Mobile; no API suite solely due to the `deploy` directory |
@@ -46,6 +47,8 @@ Do not add a workflow-level `paths` filter to this required check. A workflow sk
 
 AI review, its pause control, `PR review gate`, and the watchdog retain their separate policies. CI cancellation is scoped to the same workflow and PR; newer heads cancel obsolete read-only validation without canceling releases or deployments.
 
+Frontend, API, Mobile, CLI, Tooling, and agent-config use `github.workflow` plus the PR number as their concurrency key with `cancel-in-progress: true`. A new push cancels older running or pending validation for that same PR and workflow; other PRs and workflows remain independent. CLI and Extension publication retain their non-canceling branch queues. Already-started runs created before this configuration existed are not retroactively placed in its concurrency groups.
+
 ## Release verification
 
 API/Web deployment and CLI release workflows keep their own release-specific builds, immutable-source guards, artifact verification, credentials, and serialization. Removing repeated application CI does not remove those checks. CLI release detection still evaluates every protected-branch push and skips unrelated merges or unchanged CLI versions.
@@ -60,6 +63,7 @@ Run from the repository root:
 pnpm test:ci
 pnpm test:preflight
 pnpm test:cli-tooling
+pnpm test:extension-tooling
 pnpm exec openspec validate --all --strict
 ```
 

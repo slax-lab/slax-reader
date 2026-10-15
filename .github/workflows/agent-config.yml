@@ -1,4 +1,6 @@
 # Keep the required context stable; select its expensive checks from the complete PR diff.
+# Tool versions in package.json and the action/gh-aw versions below are deliberate pins;
+# update them in dedicated toolchain upgrades rather than aligning action majors here.
 name: agent-config
 on:
   pull_request: null

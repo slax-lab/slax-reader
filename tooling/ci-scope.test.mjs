@@ -46,9 +46,19 @@ test('deployment input ownership and prose do not spill into unrelated apps', ()
   assert.equal(selectScopes(['apps/web/content/article.md']).scopes.web, true)
 })
 
+test('Extension release fixtures retain coverage without selecting unrelated application suites', () => {
+  for (const path of ['tooling/extension-release.mjs', 'tooling/extension-release-archive.py', 'tooling/extension-release.test.mjs', '.github/workflows/extension-release.yml']) {
+    assert.deepEqual(selectedApps([path]), [])
+    assert.equal(selectScopes([path]).scopes.extensionTooling, true)
+  }
+  for (const path of ['apps/extension/wxt.config.ts', 'tooling/pnpm-command.mjs', 'tooling/cli-release.mjs', 'tooling/extension.mjs', 'tooling/run-app.mjs', 'tooling/env-files.mjs', '.github/workflows/tooling-ci.yml']) assert.equal(selectScopes([path]).scopes.extensionTooling, true)
+  for (const path of ['apps/web/page.vue', 'apps/extension/AGENTS.md', 'tooling/cli-release.test.mjs']) assert.equal(selectScopes([path]).scopes.extensionTooling, false)
+})
+
 test('design, icons and configuration guards retain their exact validation inputs', () => {
   for (const path of ['DESIGN.md', 'docs/design/reference/example.svg', 'tooling/design-reference.mjs']) assert.equal(selectScopes([path]).scopes.design, true)
   assert.equal(selectScopes(['docs/design/reference/example.svg']).scopes.icons, true)
+  for (const path of ['apps/web/app/icons/registry.json', 'apps/web/app/icons/registry.generated.ts']) assert.equal(selectScopes([path]).scopes.icons, true)
   for (const path of ['.rulesync/rules/overview.md', 'apps/web/AGENTS.md', '.agents/skills/example/SKILL.md', 'rulesync.jsonc']) assert.equal(selectScopes([path]).scopes.rulesync, true)
   assert.equal(selectScopes(['openspec/changes/example/tasks.md']).scopes.openspec, true)
   for (const path of ['.github/workflows/pr-review.md', '.github/workflows/shared/pr-review-core.md', '.github/workflows/pr-review.lock.yml', '.github/aw/actions-lock.json', '.github/workflows/aw.json', 'tooling/check-gh-aw-drift.sh']) assert.equal(selectScopes([path]).scopes.ghAw, true)

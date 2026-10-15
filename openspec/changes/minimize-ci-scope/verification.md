@@ -27,7 +27,7 @@ The complete CLI tooling run preceded the final extra notes test and source/vers
 
 ## Local review under REVIEW.md
 
-Selected OpenSpec change: minimize-ci-scope. The uncommitted workflow, scope policy, release implementation, tests, and documentation implement this approved change.
+Selected OpenSpec change: minimize-ci-scope. The workflow, scope policy, release implementation, tests, and documentation implement this approved change.
 
 - Bugs: Checked complete PR coverage, shared consumers, conservative unknown shared packages, evidence/prose routing, no-op and failure conditions of the required configuration job, removed post-merge application runs, retained release builds, baseline ancestry/channel selection, candidate-tag exclusion, first-release input globs, and release retries. No unresolved Important findings.
 - Security: Checked argument-array Git execution with validated revisions, NUL-delimited file handling, read-only CI permissions, lack of new secrets, description escaping, immutable artifact/source identity, and notes checksums plus recomputation before publication writes. Controlled fixtures verify tampering fails before HTTP operations. No unresolved Important findings.
@@ -44,3 +44,13 @@ GitHub-hosted job execution and actual publication were not invoked during local
 Date: 2026-10-15. The human subsequently authorized committing, pushing the task branch, and opening a PR against dev. A fresh fetch confirmed origin/dev still points to the implementation baseline, with no integration changes required. The Bugs, Security, and Compliance review passes were repeated for the final diff under REVIEW.md, using OpenSpec change minimize-ci-scope; no unresolved Important findings were found.
 
 The final full CLI tooling suite passed all 29 tests, including the additional notes guards and real dev/beta/stable archive consumers. The CI policy/workflow suite passed all 13 tests again. The earlier preflight, Mobile, design, icon, rulesync, and gh-aw results remain applicable because those implementation inputs have not changed since their recorded checks.
+
+## PR integration and repeated-push cancellation
+
+Date: 2026-10-15. Integrated dev commit 0a9e801, including merged PRs #240 and #241, into the task branch without rewriting the published task commit. Resolved the frontend/package conflicts by keeping independent PR-only checks and moving the newly added Extension publication fixtures into a scoped Node 24 tooling lane. Production deployment's main GitHub Environment selection and all actual release/deployment workflows match current dev exactly.
+
+The previous hosted API failure was the root-command allowlist missing test:ci (1909 other tests passed). Added that command to the existing contract and ran its complete file: 8 passed. No API runtime source changed. The complete Extension tooling suite passed 18 tests; preflight passed 104 with the same 2 opt-in skips; the CI scope/workflow suite passed 15 tests. Strict OpenSpec validation passed all 45 items. git diff --check passed.
+
+Cancellation fixtures evaluate successive heads/run IDs for the same PR and assert they share a group; separate PRs and workflows have distinct groups. All six read-only CI workflows enable cancel-in-progress. CLI/Extension publication and API/Web deployment retain non-canceling execution. AI review keeps its existing independent policy. No executing hosted runs were present during the metadata check, so no live runs were canceled manually.
+
+Repeated the Bugs, Security, and Compliance pre-push passes on the final integrated diff: no unresolved Important findings. Verified Extension inputs and shared dispatcher/release helpers retain their fixture coverage, all selection outputs are wired, and publication workflows/credentials are unchanged. Addressed the earlier review Nits by correcting the icon registry scope, documenting deliberate action pins, and updating obsolete uncommitted-session wording. Existing CLI-release test evidence remains applicable because its implementation and fixtures are unchanged by this integration.

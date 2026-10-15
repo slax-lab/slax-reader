@@ -2,7 +2,7 @@
 
 ## Context
 
-See proposal.md for motivation. The planning baseline is dev commit e0058d02feb72d86a48db4c149188e7972090d9b, including merged CLI channel automation from PR #229. The isolated branch is ci/minimize-ci-scope. No implementation commits are requested.
+See proposal.md for motivation. The planning baseline is dev commit e0058d02feb72d86a48db4c149188e7972090d9b, including merged CLI channel automation from PR #229. The isolated branch is ci/minimize-ci-scope. The initial implementation was left uncommitted for inspection; delivery through PR #238 was subsequently authorized.
 
 Frontend CI currently has one unconditional check job for Web, Extension, shared types, preflight, design references, and icons. Its tooling/*.mjs trigger includes API, Mobile, and CLI scripts. API CI selects every deploy path. Mobile CI selects docs/mobile/** and runs again on dev/beta/main pushes; the baseline also still has native Android/iOS jobs. PR #231 independently removes those native jobs and changes Mobile version ownership. API and Frontend CI repeat on main pushes; CLI validation already runs only on PRs.
 
@@ -99,8 +99,10 @@ Extend controlled release process fixtures with unrelated Web/Mobile commits, mu
 ## Migration Plan
 
 1. Obtain human review of these artifacts before implementation.
-2. Refresh the worktree from dev and integrate the reviewed state of PR #231 without creating commits for this local request.
+2. Refresh the worktree from dev and integrate the reviewed state of PR #231.
 3. Add and verify selection policy/routing, then apply it to application and configuration workflows and root tooling tests.
 4. Add CLI-scoped notes and extend controlled release fixtures and operations documentation.
-5. Run focused checks, strict OpenSpec validation, and all three local REVIEW.md passes. Leave implementation edits uncommitted for the user to inspect.
+5. Run focused checks, strict OpenSpec validation, and all three local REVIEW.md passes. The initial inspection checkpoint leaves edits uncommitted; the later authorized delivery uses the task branch and PR.
 6. A later authorized PR targets dev with OpenSpec: minimize-ci-scope. Deployment, release publication, and ruleset changes are not performed as part of local verification. Rollback is a later reviewed revert of the workflow/tooling changes; no data migration or remote state repair is required.
+
+During PR integration, preserve the Extension release checks added by merged PR #241. Route them through their own Extension-tooling scope and a Node 24 tooling lane, including the ZIP inspector and the shared CLI release helper they import. Keep its existing branch publication queue non-canceling. A regression fixture must evaluate concurrency keys across successive heads, independent PRs, and independent workflows.

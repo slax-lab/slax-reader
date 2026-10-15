@@ -2,6 +2,8 @@
 
 [Extension architecture](architecture.md) · [Web development](../web/development.md) · [Chinese](development_CN.md)
 
+For version-gated CI packaging and GitHub Release downloads, see [Extension releases](RELEASE.md).
+
 ## Configuration location
 
 Extension configuration lives in `apps/extension/config`, with its schema in `apps/extension/env.schema.ts`.
