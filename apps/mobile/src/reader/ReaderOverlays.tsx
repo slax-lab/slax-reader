@@ -1,5 +1,6 @@
 import React, {useEffect, useRef} from 'react'
-import {Animated, Easing, FlatList, Pressable, StyleSheet, View, useWindowDimensions} from 'react-native'
+import {FlatList, Pressable, StyleSheet, View, useWindowDimensions} from 'react-native'
+import Reanimated, {cancelAnimation, Easing as UiEasing, ReduceMotion, useSharedValue, withTiming, useAnimatedStyle} from 'react-native-reanimated'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import type {MobileAssetName} from '../../assets'
 import {SourceIcon, SourceText} from '../components'
@@ -27,26 +28,26 @@ export function SelectionMenu({y, height, minTop = 0, hasStroke, allowLine, allo
 
 export function FloatingActions({visible, isCollection, starred, archived, outlineCollapsed, t, onStar, onArchive, onMore, onOutline}: {visible: boolean; isCollection: boolean; starred: boolean; archived: boolean; outlineCollapsed: boolean; t: Translate; onStar(): void; onArchive(): void; onMore(): void; onOutline(): void}) {
   const inset = useSafeAreaInsets()
-  const offset = useRef(new Animated.Value(visible ? 0 : 150)).current
-  const horizontal = useRef(new Animated.Value(0)).current
-  useEffect(() => {const animation = Animated.timing(offset, {toValue: visible ? 0 : 150, duration: 300, useNativeDriver: true}); animation.start(); return () => animation.stop()}, [visible, offset])
-  useEffect(() => {const animation = Animated.timing(horizontal, {toValue: outlineCollapsed ? 31 : 0, duration: 350, easing: Easing.bezier(.4, 0, .2, 1), useNativeDriver: true}); animation.start(); return () => animation.stop()}, [outlineCollapsed, horizontal])
-  return <Animated.View pointerEvents={visible ? 'box-none' : 'none'} style={[styles.floating, {bottom: inset.bottom + 24, transform: [{translateY: offset}, {translateX: horizontal}]}]}>
+  const offset = useSharedValue(visible ? 0 : 150)
+  const horizontal = useSharedValue(0)
+  useEffect(() => {offset.value = withTiming(visible ? 0 : 150, {duration: 300, reduceMotion: ReduceMotion.System}); return () => cancelAnimation(offset)}, [visible, offset])
+  useEffect(() => {horizontal.value = withTiming(outlineCollapsed ? 31 : 0, {duration: 350, easing: UiEasing.bezier(.4, 0, .2, 1), reduceMotion: ReduceMotion.System}); return () => cancelAnimation(horizontal)}, [outlineCollapsed, horizontal])
+  const style = useAnimatedStyle(() => ({transform: [{translateY: offset.value}, {translateX: horizontal.value}]}))
+  return <Reanimated.View pointerEvents={visible ? 'box-none' : 'none'} style={[styles.floating, {bottom: inset.bottom + 24}, style]}>
     {!isCollection ? <View style={styles.floatingPill}>
       <Pressable accessibilityRole="button" accessibilityLabel={t(starred ? 'bookmark_unstar' : 'bookmark_star')} onPress={onStar} style={({pressed}) => ({width: 50, height: 50, justifyContent: 'center', paddingLeft: 17.5, opacity: pressed ? .5 : 1})}><SourceIcon name={starred ? 'ic_floating_panel_starred' : 'ic_floating_panel_star'} size={20} /></Pressable>
       <Pressable testID="reader-floating-archive" accessibilityRole="button" accessibilityLabel={t(archived ? 'bookmark_unarchive' : 'bookmark_archive')} onPress={onArchive} style={({pressed}) => ({width: 50, height: 50, flexShrink: 0, justifyContent: 'center', alignItems: 'center', opacity: pressed ? .5 : 1})}><SourceIcon name={archived ? 'ic_floating_panel_archieved' : 'ic_floating_panel_archieve'} size={20} testID="reader-floating-archive-icon" /></Pressable>
     </View> : null}
     <View style={styles.floatingCircle}><IconAction name="ic_floating_panel_more" label={t('detail_toolbar_summary')} size={20} onPress={onMore} /></View>
-  </Animated.View>
+  </Reanimated.View>
 }
 
 export {ReaderSheet} from './components/ReaderSheet'
 
-export function ReaderToolbar({visible, collection, youtube, starred, archived, pdf, t, onDismiss, onDidDismiss, onAction}: {visible: boolean; collection: boolean; youtube: boolean; starred: boolean; archived: boolean; pdf?: {downloadDisabled: boolean; downloading: boolean; notesEnabled: boolean}; t: Translate; onDismiss(): void; onDidDismiss?(): void; onAction(id: string): void}) {
+export function ReaderToolbar({visible, collection, youtube, starred, archived, pdf, t, onDismiss, onDidDismiss, onAction}: {visible: boolean; collection: boolean; youtube: boolean; starred: boolean; archived: boolean; pdf?: {notesEnabled: boolean}; t: Translate; onDismiss(): void; onDidDismiss?(): void; onAction(id: string): void}) {
   const actions: {id: string; label: string; icon: MobileAssetName; pro?: boolean; disabled?: boolean}[] = [
     {id: 'outline', label: t('detail_toolbar_summary'), icon: 'ic_bottom_panel_summary', pro: true},
-    ...(pdf ? [{id: 'pdf-download', label: t(pdf.downloading ? 'pdf_downloading' : 'pdf_download'), icon: 'ic_cell_internet_uncached' as const, disabled: pdf.downloadDisabled},
-      {id: 'pdf-notes', label: t('pdf_notes'), icon: 'ic_bottom_panel_comment' as const, disabled: !pdf.notesEnabled}] : []),
+    ...(pdf ? [{id: 'pdf-notes', label: t('pdf_notes'), icon: 'ic_bottom_panel_comment' as const, disabled: !pdf.notesEnabled}] : []),
     ...(youtube ? [{id: 'transcript', label: t('detail_toolbar_transcript'), icon: 'ic_bottom_panel_transcript' as const}] : []),
     ...(!collection ? [{id: 'star', label: t(starred ? 'detail_toolbar_unstar' : 'detail_toolbar_star'), icon: starred ? 'ic_bottom_panel_starred' as const : 'ic_bottom_panel_star' as const},
       {id: 'archive', label: t(archived ? 'detail_toolbar_unarchive' : 'detail_toolbar_archive'), icon: archived ? 'ic_bottom_panel_archieved' as const : 'ic_bottom_panel_archieve' as const},

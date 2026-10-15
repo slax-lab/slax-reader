@@ -1,4 +1,3 @@
-import bundle from '../../assets/pdf/bundle.json'
 import {mobileColors} from '../theme/index.ts'
 import type {PdfDocumentOptions, PdfLabels} from './pdf-types.ts'
 export type {PdfDocumentOptions, PdfLabels, PdfSelection, PdfReaderEvent, PdfMarkItem} from './pdf-types.ts'
@@ -9,6 +8,7 @@ const json = (value: unknown) => JSON.stringify(value).replace(/</g, '\\u003c').
 const escape = (value: string) => value.replace(/[&<>"']/g, character => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[character]!))
 
 export function composePdfDocument(options: PdfDocumentOptions): string {
+  const bundle = require('../../assets/pdf/bundle.json') as typeof import('../../assets/pdf/bundle.json')
   const labels = {...defaults, ...options.labels}
   const nonce = `slax-pdf-${options.pageId.replace(/[^a-zA-Z0-9-]/g, '')}`
   const config = {...options, descriptor: {size: options.descriptor.size, document_id: options.descriptor.document_id, filename: options.descriptor.filename}, labels}

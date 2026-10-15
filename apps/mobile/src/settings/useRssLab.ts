@@ -18,6 +18,7 @@ export function useRssLab(api: Pick<SlaxApi, 'rssLabs' | 'rssEnable'>, scope: Ac
   const [state, setState] = useState(initial);
   const request = useRef<AbortController | null>(null);
   const foreground = useRef(false);
+  const observedScope = useRef<AccountScope | null>(null);
   const load = useCallback(async (enabled?: boolean) => {
     if (request.current || !foreground.current || !scope.isCurrent()) return;
     const controller = new AbortController();
@@ -57,7 +58,7 @@ export function useRssLab(api: Pick<SlaxApi, 'rssLabs' | 'rssEnable'>, scope: Ac
         void load();
       }
     };
-    setState(initial);
+    if (observedScope.current !== scope) {observedScope.current = scope; setState(initial);}
     update(AppState.currentState);
     const subscription = AppState.addEventListener('change', update);
     return () => {

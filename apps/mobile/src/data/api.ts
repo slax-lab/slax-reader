@@ -1,8 +1,11 @@
 import type { ApiResponse, RssSubscriptionsResponse, RssSubscription, RssRefreshResponse, RssEntriesResponse, RssEntryDetail, RssSaveResponse, AddRssSubscriptionRequest, UpdateRssSubscriptionRequest, AddUrlBookmarkRequest, JsonValue } from '@slax-reader/contracts';
 import type { SessionAuthority } from '../domain/session.ts';
 import {throwIfAborted} from '../utils/abort.ts';
+import {SharedRequestCache} from './shared-request.ts';
+import {readArticleBody} from './bounded-body.ts';
+import type {PdfAcquisitionResult, PdfCompleteConsumer} from './pdf-acquisition.ts';
 import {PDF_MAX_BYTES, type PdfDescriptor} from '@slax-reader/contracts/pdf';
-import {DataTransportError, isNetworkTransportError, httpErrorCode, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS, PDF_RETRY_DELAYS_MS, type DataErrorStage, type DataErrorCode} from './transport-errors.ts';
+import {DataTransportError, NativePdfTransportError, isNetworkTransportError, httpErrorCode, retryAfterMs, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS, PDF_RETRY_DELAYS_MS, type DataErrorStage, type DataErrorCode} from './transport-errors.ts';
 export {DataTransportError, isNetworkTransportError, getDataErrorDiagnostic, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS} from './transport-errors.ts';
 
 export class ApiError extends Error {
@@ -33,17 +36,19 @@ export interface SyncChange { table: string; id: string; op: string; data: Recor
 export interface CheckPurchase { jws_representation: string; order_id: string; product_id: string; platform: string }
 export interface FeedbackRequest { bookmark_uuid: string | null; entry_point: string; type: string; content: string; platform: string; environment: string; version: string; allow_follow_up: boolean; target_url: string | null }
 export interface AiEvent { type: string; data?: { overview?: string; outline?: string; tags?: {id: number; name: string}[]; tag?: {id: number; name: string}; key_takeaways?: string[]; done?: boolean }; message?: string }
-export interface MobileApiOptions { baseUrl: string; platform: 'android' | 'ios'; version: string; sessions: SessionAuthority; fetch?: typeof globalThis.fetch; sleep?: (ms: number) => Promise<void> }
+export interface MobileApiOptions { baseUrl: string; platform: 'android' | 'ios'; version: string; sessions: SessionAuthority; fetch?: typeof globalThis.fetch; pdfFetch?: typeof globalThis.fetch; sleep?: (ms: number) => Promise<void> }
 
 export class SlaxApi {
   private transport: typeof globalThis.fetch;
   private origin: string;
+  private readonly labs = new SharedRequestCache<{features: {key: string; enabled: boolean}[]}>();
   readonly options: MobileApiOptions;
   constructor(options: MobileApiOptions) { this.options = {...options}; this.transport = options.fetch ?? globalThis.fetch; this.origin = ''; this.setBaseUrl(options.baseUrl); }
   /** Configure once during startup, before restoring a persisted account. */
   setBaseUrl(baseUrl: string) {
     const url = new URL(baseUrl);
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('API base URL must be an HTTP(S) origin without credentials');
+    if (this.origin !== url.origin) this.labs.invalidate();
     this.origin = url.origin; this.options.baseUrl = url.origin;
   }
   private url(path: string, query?: Record<string, string | undefined>): string {
@@ -86,10 +91,11 @@ export class SlaxApi {
           }, body: body === undefined ? undefined : JSON.stringify(body), signal: controller.signal, redirect: 'error',
         });
         if (response.status === 401 && requestToken && new URL(url).origin === this.origin) await this.options.sessions.rejectIfMatches?.(requestToken, scope);
-        if (response.status >= 500 && attempt < 2) { await response.body?.cancel(); cleanup(); await this.delay(attempt, signal); continue; }
+        const retryAfter = retryAfterMs(response.headers.get('Retry-After'));
+        if (response.status >= 500 && attempt < 2 && !retryAfter) { await response.body?.cancel(); cleanup(); await this.delay(attempt, signal); continue; }
         if (response.status !== 200 && response.status !== 204) {
           const envelope = await response.json().catch(() => null) as {message?: string; data?: unknown} | null;
-          throw new ApiError(response.status, envelope?.message ?? `Request failed (${response.status})`, envelope?.data);
+          throw Object.assign(new ApiError(response.status, envelope?.message ?? `Request failed (${response.status})`, envelope?.data), {retryAfterMs: retryAfter});
         }
         return {response, cleanup};
       } catch (error) {
@@ -174,16 +180,18 @@ export class SlaxApi {
         check(); let response: Response | undefined, retryHttp = false;
         try {
           let pending: Promise<Response>;
-          try {pending = this.transport(url, request);} catch (error) {check(); throw new DataTransportError('network', stage);}
+          const transport = stage === 'pdf-range' ? this.options.pdfFetch ?? this.transport : this.transport;
+          try {pending = transport(url, request);} catch (error) {check(); if (error instanceof NativePdfTransportError) throw error; throw new DataTransportError('network', stage);}
           void pending.then(value => {if (controller.signal.aborted) void value.body?.cancel().catch(() => undefined);}).catch(() => undefined);
-          try {response = await abortable(pending, controller.signal);} catch (error) {check(); throw new DataTransportError('network', stage);}
+          try {response = await abortable(pending, controller.signal);} catch (error) {check(); if (error instanceof NativePdfTransportError) throw error; throw new DataTransportError('network', stage);}
           check();
           if (response.status === 401 && origin === this.origin) void this.options.sessions.rejectIfMatches?.(session.token, scope).catch(() => undefined);
           if (response.status !== 200 && response.status !== 206) {
-            retryHttp = response.status >= 500 && response.status <= 599;
-            throw new ApiError(response.status, `PDF request failed (${response.status})`, undefined, {stage});
+            const retryAfter = retryAfterMs(response.headers.get('Retry-After'));
+            retryHttp = response.status >= 500 && response.status <= 599 && !retryAfter;
+            throw Object.assign(new ApiError(response.status, `PDF request failed (${response.status})`, undefined, {stage}), {retryAfterMs: retryAfter});
           }
-          const value = await abortable(consume(response, controller.signal), controller.signal); check(); return value;
+          const value = await consume(response, controller.signal); check(); return value;
         } catch (error) {
           check();
           if (body || attempt + 1 >= PDF_REQUEST_MAX_ATTEMPTS || !(retryHttp || isNetworkTransportError(error))) throw error;
@@ -201,6 +209,14 @@ export class SlaxApi {
     finally {clearTimeout(timer); signal?.removeEventListener('abort', aborted);}
   }
   async getPdfRange(bookmarkId: string, documentId: string, begin: number, end: number, signal?: AbortSignal, expectedSize?: number): Promise<Uint8Array> {
+    const result = await this.transferPdf(bookmarkId, documentId, begin, end, signal, expectedSize);
+    if (result.kind !== 'range') throw new Error('PDF range was not returned');
+    return result.bytes;
+  }
+  acquirePdf(bookmarkId: string, descriptor: PdfDescriptor, begin: number, end: number, complete: PdfCompleteConsumer, signal?: AbortSignal): Promise<PdfAcquisitionResult> {
+    return this.transferPdf(bookmarkId, descriptor.document_id, begin, end, signal, descriptor.size, complete);
+  }
+  private async transferPdf(bookmarkId: string, documentId: string, begin: number, end: number, signal?: AbortSignal, expectedSize?: number, complete?: PdfCompleteConsumer): Promise<PdfAcquisitionResult> {
     if (!/^[a-f0-9]{64}$/.test(documentId) || !Number.isSafeInteger(begin) || !Number.isSafeInteger(end) || begin < 0 || end <= begin || end > PDF_MAX_BYTES || end - begin > 1024 * 1024 ||
       (expectedSize !== undefined && (!Number.isSafeInteger(expectedSize) || expectedSize < end || expectedSize > PDF_MAX_BYTES))) throw new Error('Invalid PDF byte range');
     return this.pdfRequest('/v1/bookmark/pdf', {bookmark_uid: bookmarkId}, signal,
@@ -220,27 +236,37 @@ export class SlaxApi {
           (response.headers.has('Content-Length') && advertised !== expected)) throw invalid(502, 'Invalid PDF response length', 'pdf_length_invalid');
         const reader = response.body?.getReader();
         if (!reader) throw invalid(502, 'PDF streaming unavailable', 'pdf_stream_unavailable');
-        const result = new Uint8Array(end - begin);
         const cancel = () => {void reader.cancel().catch(() => undefined);};
         signal.addEventListener('abort', cancel, {once: true});
         if (signal.aborted) cancel();
-        let received = 0;
-        try {
+        let received = 0, consumed = false;
+        const chunks = async function* () {
           for (;;) {
             throwIfAborted(signal);
             let chunk: ReadableStreamReadResult<Uint8Array>;
-            try {chunk = await abortable(reader.read(), signal);} catch (error) {throwIfAborted(signal); throw new DataTransportError('network', 'pdf-range');}
+            try {chunk = await abortable(reader.read(), signal);} catch (error) {throwIfAborted(signal); if (error instanceof NativePdfTransportError) throw error; throw new DataTransportError('network', 'pdf-range');}
             throwIfAborted(signal);
-            const {value, done} = chunk;
-            if (done) break;
-            const start = full ? received : begin + received;
-            received += value.byteLength;
+            if (chunk.done) break;
+            received += chunk.value.byteLength;
             if (received > expected) throw invalid(502, 'PDF response exceeds its length', 'pdf_length_invalid');
-            const left = Math.max(begin, start), right = Math.min(end, start + value.byteLength);
-            if (right > left) result.set(value.subarray(left - start, right - start), left - begin);
+            for (let offset = 0; offset < chunk.value.byteLength; offset += 256 * 1024) yield chunk.value.subarray(offset, Math.min(offset + 256 * 1024, chunk.value.byteLength));
           }
           if (received !== expected) throw invalid(502, 'Incomplete PDF response', 'pdf_length_invalid');
-          return result;
+          consumed = true;
+        };
+        try {
+          if (full && complete) {
+            const retained = await complete(chunks(), signal, cancel); throwIfAborted(signal);
+            if (retained !== false && !consumed) throw invalid(502, 'Incomplete PDF response consumption', 'pdf_length_invalid');
+            return {kind: 'complete', size: expected};
+          }
+          const result = new Uint8Array(end - begin); let offset = full ? 0 : begin;
+          for await (const value of chunks()) {
+            const left = Math.max(begin, offset), right = Math.min(end, offset + value.byteLength);
+            if (right > left) result.set(value.subarray(left - offset, right - offset), left - begin);
+            offset += value.byteLength;
+          }
+          return {kind: 'range', begin, bytes: result};
         } finally {signal.removeEventListener('abort', cancel); void reader.cancel().catch(() => undefined); reader.releaseLock();}
       });
   }
@@ -252,7 +278,11 @@ export class SlaxApi {
       return value.data;
     }, body);
   }
-  setLab = (key: string, enabled: boolean, signal?: AbortSignal) => this.request<JsonValue>(`/v1/user/setting/${enabled ? 'enable' : 'disable'}`, 'POST', {key: `lab:${key}`}, undefined, signal);
+  setLab = async (key: string, enabled: boolean, signal?: AbortSignal) => {
+    this.labs.invalidate();
+    try {return await this.request<JsonValue>(`/v1/user/setting/${enabled ? 'enable' : 'disable'}`, 'POST', {key: `lab:${key}`}, undefined, signal);}
+    finally {this.labs.invalidate();}
+  };
   login = (params: LoginRequest, signal?: AbortSignal) => this.request<LoginResponse>('/v1/user/login', 'POST', params, undefined, signal);
   refresh = async (token: string, signal?: AbortSignal): Promise<string> => {
     throwIfAborted(signal);
@@ -281,7 +311,7 @@ export class SlaxApi {
   uploadChanges = (changes: SyncChange[]) => this.request<{status: boolean}>('/v1/sync/changes', 'POST', changes);
   async getBookmarkRawContent(bookmarkId: string, signal?: AbortSignal): Promise<string> {
     const {response, cleanup} = await this.response('/v1/bookmark/content', 'POST', {bookmark_uid: bookmarkId}, undefined, signal, undefined, undefined, '*/*');
-    try { return await response.text(); } finally { cleanup(); }
+    try { return await readArticleBody(response, signal); } finally { cleanup(); }
   }
   getCollectionBookmarkRawContent(bookmarkId: string, ownerId: string, signal?: AbortSignal): Promise<string> {
     if (!ownerId.trim()) return Promise.reject(new Error('Collection content requires its owner context'));
@@ -290,8 +320,20 @@ export class SlaxApi {
   }
   addBookmarkUrl = (url: string, title?: string, signal?: AbortSignal) => this.request<{bmId: string | number}>('/v1/bookmark/add_url', 'POST', {target_url: url, ...(title === undefined ? {} : {target_title: title})} satisfies Omit<AddUrlBookmarkRequest, 'tags'>, undefined, signal);
   getMarkUsers = (bookmarkId: string, signal?: AbortSignal) => this.request<MarkCommentProfile[]>('/v1/mark/users', 'GET', undefined, {bookmark_uid: bookmarkId}, signal);
-  rssLabs = (signal?: AbortSignal) => this.request<{features: {key: string; enabled: boolean}[]}>('/v1/user/labs', 'GET', undefined, undefined, signal);
-  rssEnable = (enabled: boolean, signal?: AbortSignal) => this.request<JsonValue>(`/v1/user/setting/${enabled ? 'enable' : 'disable'}`, 'POST', {key: 'lab:rss'}, undefined, signal);
+  rssLabs = async (signal?: AbortSignal) => {
+    throwIfAborted(signal);
+    const identity = this.options.sessions.captureIdentity?.(), origin = this.origin;
+    const preparation = this.options.sessions.prepareRequest?.() ?? Promise.resolve();
+    await (signal ? abortable(preparation, signal) : preparation);
+    throwIfAborted(signal); identity?.();
+    if (origin !== this.origin) throw new Error('API environment changed');
+    const scope = this.options.sessions.captureRequestScope?.();
+    const current = () => {identity?.(); scope?.assertCurrent(); if (origin !== this.origin) throw new Error('API environment changed');};
+    const value = await this.labs.read(request => this.request<{features: {key: string; enabled: boolean}[]}>('/v1/user/labs', 'GET', undefined, undefined, request), current, signal);
+    throwIfAborted(signal); current();
+    return {features: value.features.map(feature => ({...feature}))};
+  };
+  rssEnable = (enabled: boolean, signal?: AbortSignal) => this.setLab('rss', enabled, signal);
   rssSubscriptions = (signal?: AbortSignal) => this.request<RssSubscriptionsResponse>('/v1/rss/subscriptions', 'GET', undefined, undefined, signal);
   rssAdd = (url: string, remark: string | null = null, signal?: AbortSignal) => this.request<RssSubscription>('/v1/rss/subscriptions', 'POST', {url, remark} satisfies AddRssSubscriptionRequest, undefined, signal, 120000);
   rssUpdate = (id: string, remark: string | null, signal?: AbortSignal) => this.request<RssSubscription>(`/v1/rss/subscriptions/${encodeURIComponent(id)}/update`, 'POST', {remark} satisfies UpdateRssSubscriptionRequest, undefined, signal);

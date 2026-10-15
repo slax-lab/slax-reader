@@ -13,15 +13,24 @@ if (!domModule) {
   try {domModule = require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]})} catch {}
 }
 export const nativeBoundary = {skip: !domModule && 'An existing happy-dom runtime is required'}
+const frames = new Map()
+let frameId = 0
+// Native frame boundary: work scheduled for the next frame runs after the current synchronous
+// task completes, so fixtures observe frame-deferred readiness once they await.
+const frameBoundary = {
+  requestAnimationFrame: callback => {const id = ++frameId; frames.set(id, callback); queueMicrotask(() => {const pending = frames.get(id); frames.delete(id); pending?.(0)}); return id},
+  cancelAnimationFrame: id => frames.delete(id),
+}
 export {React, act}
 export async function loadComponent(path, boundaries, globals = {}) {
   boundaries = {...motionModules(boundaries), ...boundaries}
   if (path.endsWith('/ReaderOverlays.tsx') && !boundaries['../components/SourceSheetModal']) {
-    boundaries = {...boundaries, '../components/SourceSheetModal': await loadComponent('../../src/components/SourceSheetModal.tsx', {react: boundaries.react, 'react-native': boundaries['react-native'], '../theme': boundaries['../theme']}, globals)}
+    boundaries = {...boundaries, '../components/SourceSheetModal': await loadComponent('../../src/components/SourceSheetModal.tsx', {react: boundaries.react, 'react-native': boundaries['react-native'], '../theme': boundaries['../theme'], 'react-native-reanimated': boundaries['react-native-reanimated'], 'react-native-gesture-handler': boundaries['react-native-gesture-handler']}, globals)}
   }
-  if (path.endsWith('/ReaderOverlays.tsx') && !boundaries['react-native-reanimated']) {
+  if ((!boundaries['react-native-reanimated'] || !boundaries['react-native-gesture-handler']) && boundaries['react-native']?.View) {
     const {installedMotionHost} = await import('../ui/installed-motion-host.mjs')
-    boundaries = {...boundaries, 'react-native-reanimated': installedMotionHost(boundaries['react-native'].View).reanimated}
+    const motion = installedMotionHost(boundaries['react-native'].View)
+    boundaries = {...boundaries, 'react-native-reanimated': boundaries['react-native-reanimated'] ?? motion.reanimated, 'react-native-gesture-handler': boundaries['react-native-gesture-handler'] ?? motion.gestures}
   }
   const entry = new URL(path, import.meta.url)
   const normalize = url => url.href.replace(/\.(tsx?|jsx?)$/, '').replace(/\/index$/, '')
@@ -44,7 +53,7 @@ export async function loadComponent(path, boundaries, globals = {}) {
       if (name.startsWith('.')) imports.set(name, await load(new URL(name, resolved)))
       else {assert.ok(mapped.has(name), `Unexpected native parity boundary: ${name} in ${resolved.pathname}`); imports.set(name, mapped.get(name))}
     }
-    vm.runInNewContext(code, {exports, __DEV__: true, AbortController, Date, URL, setTimeout, clearTimeout, ...globals, require: name => imports.get(name)}, {filename: resolved.pathname})
+    vm.runInNewContext(code, {exports, __DEV__: true, AbortController, Date, URL, setTimeout, clearTimeout, ...frameBoundary, ...globals, require: name => imports.get(name)}, {filename: resolved.pathname})
     return exports
   }
   return load(entry)
@@ -78,7 +87,7 @@ export async function withNativeHost(run) {
   const timing = (value, config) => ({start(callback) {animations.push(config); value.setValue(config.toValue); callback?.({finished: true})}, stop() {}})
   const group = children => ({start(callback) {children.forEach(child => child.start()); callback?.({finished: true})}, stop() {children.forEach(child => child.stop())}})
   const native = {
-    View: primitive, Pressable: primitive, ScrollView: primitive, FlatList: primitive, TextInput: primitive, KeyboardAvoidingView: primitive,
+    View: primitive, Pressable: primitive, ScrollView: primitive, FlatList: props => React.createElement(primitive, props, props.data?.map((item, index) => React.createElement(React.Fragment, {key: props.keyExtractor?.(item, index) ?? index}, props.renderItem({item, index})))), TextInput: primitive, KeyboardAvoidingView: primitive,
     Modal: value => value.visible ? React.createElement(primitive, value) : null,
     ActivityIndicator: primitive, Image: primitive,
     Animated: {Value, View: primitive, timing, sequence: group, parallel: group},

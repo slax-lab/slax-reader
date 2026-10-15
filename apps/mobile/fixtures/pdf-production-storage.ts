@@ -5,7 +5,7 @@ import {PdfFileStorage} from '../src/data/pdf-file-storage';
 import {Sha256} from '../src/data/pdf-sha256';
 import {assertFixtureScope} from './isolation';
 
-export function createFixtureProductionPdfStorage(scopeUri: string, accountGuard: () => void) {
+export function createFixtureProductionPdfStorage(scopeUri: string, accountGuard: () => void, owner: string | null = null) {
   const marker = JSON.parse(new File(scopeUri, 'slax-fixture.json').textSync());
   const validate = () => {
     if (!__DEV__) throw new Error('Production storage diagnostics require a development fixture');
@@ -29,10 +29,10 @@ export function createFixtureProductionPdfStorage(scopeUri: string, accountGuard
   const scopeKey = JSON.stringify(['slax-ui-native-pdf-storage', scopeUri, marker.inputSha256]);
   const hash = new Sha256().update(new TextEncoder().encode(JSON.stringify(scopeKey))).digest();
   const prefix = `pdf/v1/${hash}/`;
-  const storage = new PdfFileStorage(root.uri, () => {validate(); accountGuard();});
+  const storage = new PdfFileStorage(root.uri, () => {validate(); accountGuard();}, owner);
   return {
     storage, scopeKey, prefix,
-    cleanup() {validate(); new PdfFileStorage(root.uri, validate).clearScope(scopeKey);},
+    cleanup() {validate(); return new PdfFileStorage(root.uri, validate, owner).clearScope(scopeKey);},
     async diagnose() {
       const path = `${prefix}diagnostic/probe.block`, first = new Uint8Array([37, 80, 68, 70]), replacement = new Uint8Array([5, 8, 13, 21, 34]);
       const same = (left: Uint8Array | null, right: Uint8Array) => left?.length === right.length && left.every((byte, index) => byte === right[index]);
@@ -44,7 +44,7 @@ export function createFixtureProductionPdfStorage(scopeUri: string, accountGuard
         if (!(await storage.list(`${prefix}diagnostic/`)).includes(path)) throw new Error('Production PDF listing failed');
         await storage.remove(path);
         if (await storage.read(path) !== null || await storage.size(path) !== null || (await storage.list(`${prefix}diagnostic/`)).includes(path)) throw new Error('Production PDF removal failed');
-        return {adapter: 'PdfFileStorage', nativePathGuard: 'SlaxCachePaths.pdfCacheFileUri', rootKind: Platform.OS === 'ios' ? 'ApplicationSupport' : 'context.dataDir', namespace: hash, writeRead: true, replacement: true, size: true, list: true, remove: true, nativeInteractionVerified: false};
+        return {adapter: 'PdfFileStorage', nativePathGuard: 'SlaxStorage worker admission', rootKind: Platform.OS === 'ios' ? 'ApplicationSupport' : 'context.dataDir', namespace: hash, writeRead: true, replacement: true, size: true, list: true, remove: true, nativeInteractionVerified: false};
       } finally {await storage.remove(path);}
     },
   };

@@ -39,6 +39,7 @@ export function parsePurchaseMessage(raw: string): PurchaseCommand|null {
 /** Store callbacks are serialized, account-bound, and finished only after backend validation. */
 export class PaymentController {
   private state: PaymentState = {status: 'idle'};
+  private stateScope: PaymentScope | null = null;
   private listeners = new Set<() => void>();
   private serial: Promise<unknown> = Promise.resolve();
   private products = new Set<string>();
@@ -58,11 +59,16 @@ export class PaymentController {
   }
   getSnapshot = () => this.state;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
-  private emit(state: PaymentState) { this.state = state; this.listeners.forEach(listener => listener()); }
+  private emit(state: PaymentState) { this.stateScope = this.captureScope(); this.state = state; this.listeners.forEach(listener => listener()); }
   private captureScope(): PaymentScope {return {generation: this.generation, request: this.sessions.captureRequestScope?.()};}
   private assertScope(scope: PaymentScope, requireStarted = true) {
     if (scope.generation !== this.generation || requireStarted && !this.started) throw new PaymentCancelledError();
     scope.request?.assertCurrent();
+  }
+  private resetExpiredState() {
+    if (!this.stateScope) return;
+    try {this.assertScope(this.stateScope, false);}
+    catch {this.purchaseReservation = null; this.purchaseErrorScope = null; this.emit({status: 'idle'});}
   }
   private cancelled(error: unknown, scope: PaymentScope, requireStarted = true) {
     if (error instanceof SessionChangedError || error instanceof PaymentCancelledError) return true;
@@ -86,7 +92,7 @@ export class PaymentController {
     try {
       this.assertScope(scope, false);
       if (!isCurrent()) return;
-      this.emit({status: 'loading'});
+      if (!['purchasing', 'checking', 'pending'].includes(this.state.status)) this.emit({status: 'loading'});
       const ids = await load();
       this.assertScope(scope, false);
       if (isCurrent()) await this.start(ids);
@@ -96,15 +102,17 @@ export class PaymentController {
       this.emit({status: 'error', message: 'Unable to load subscription products'});
     }
   }
-  start(ids: string[]): Promise<void> {
+  listen(): Promise<void> {return this.start();}
+  start(ids?: string[]): Promise<void> {
     const scope = this.captureScope();
     const next = this.lifecycle.then(() => this.startInternal(ids, scope), () => this.startInternal(ids, scope));
     this.lifecycle = next.catch(() => undefined);
     return next;
   }
-  private async startInternal(ids: string[], scope: PaymentScope) {
+  private async startInternal(ids: string[] | undefined, scope: PaymentScope) {
     try {
       this.assertScope(scope, false);
+      this.resetExpiredState();
       if (!this.started) {
         this.started = true;
         try {await this.port.start(purchase => {
@@ -116,13 +124,16 @@ export class PaymentController {
         });} catch (error) {this.started = false; throw error;}
         this.assertScope(scope);
       }
-      this.emit({status: 'loading'});
-      this.assertScope(scope); await this.port.products(ids); this.assertScope(scope);
-      this.products = new Set(ids);
-      await this.refreshEntitlements(scope); this.assertScope(scope);
       const pending = await this.port.pending(); this.assertScope(scope);
       for (const purchase of pending) this.enqueue(purchase, scope);
-      if (this.state.status === 'loading') this.emit({status: 'idle'});
+      await this.refreshEntitlements(scope); this.assertScope(scope);
+      if (ids) {
+        const loading = !['purchasing', 'checking', 'pending'].includes(this.state.status);
+        if (loading) this.emit({status: 'loading'});
+        await this.port.products(ids); this.assertScope(scope);
+        this.products = new Set(ids);
+        if (this.state.status === 'loading') this.emit({status: 'idle'});
+      }
     } catch (error) {if (!this.cancelled(error, scope, false)) this.emit({status: 'error', message: error instanceof Error ? error.message : 'Unable to load products'});}
   }
   private enqueue(purchase: StorePurchase, scope = this.captureScope()) {

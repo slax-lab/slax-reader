@@ -82,11 +82,12 @@ public final class SlaxLegacyModule: Module {
         let cancellation = DatabaseInspectionCancellation()
         let activity = try StorageActivity(name: "Slax database inventory", cancel: { cancellation.cancelAndDrain() })
         defer { activity.finish() }
-        let accepted = acceptedDatabaseCandidate(values: values, support: support, shared: shared, bundleIdentifier: "app.slax.reader", cancellation: cancellation)
+        let initialized = try initializedDatabaseCandidate(values: values, support: support, shared: shared, bundleIdentifier: "app.slax.reader")
+        let accepted = initialized == nil ? acceptedDatabaseCandidate(values: values, support: support, shared: shared, bundleIdentifier: "app.slax.reader", cancellation: cancellation) : nil
         try activity.check()
-        var candidates: [String] = accepted.map { [$0] } ?? []
+        var candidates: [String] = initialized.map { $0.mode == "adopted" ? [$0.path] : [] } ?? accepted.map { [$0] } ?? []
         var scanError: Error?
-        for root in accepted == nil ? [library, documents, shared.resolvingSymlinksInPath()] : [] {
+        for root in initialized == nil && accepted == nil ? [library, documents, shared.resolvingSymlinksInPath()] : [] {
           guard let enumerator = manager.enumerator(at: root, includingPropertiesForKeys: [.isSymbolicLinkKey, .isDirectoryKey], options: [], errorHandler: { _, error in scanError = error; return false }) else { throw CocoaError(.fileReadUnknown) }
           for case let file as URL in enumerator {
             try activity.check()
@@ -97,9 +98,12 @@ public final class SlaxLegacyModule: Module {
           if let error = scanError { throw error }
         }
         try manager.createDirectory(at: newDirectory, withIntermediateDirectories: true)
-        Self.ownerMutex.lock(); self.databaseCandidates = Set(candidates); Self.ownerMutex.unlock()
-        return ["scanComplete": true, "databaseCandidates": Array(Set(candidates)).sorted(), "legacyDataDirectory": support.path, "newDatabaseDirectory": newDirectory.path,
-                "databaseIdentities": legacyDatabaseIdentities(Array(Set(candidates)), support: support, shared: shared, bundleIdentifier: "app.slax.reader")]
+        let allowed = Array(Set(candidates + [newDirectory.appendingPathComponent("powersync.db").path]))
+        Self.ownerMutex.lock(); self.databaseCandidates = Set(allowed); Self.ownerMutex.unlock()
+        var inventory: [String: Any] = ["scanComplete": true, "databaseCandidates": Array(Set(candidates)).sorted(), "legacyDataDirectory": support.path, "newDatabaseDirectory": newDirectory.path,
+                "databaseIdentities": legacyDatabaseIdentities(allowed, support: support, shared: shared, bundleIdentifier: "app.slax.reader")]
+        if let initialized { inventory["initializedDatabase"] = ["path": initialized.path, "mode": initialized.mode] }
+        return inventory
       } catch { self.releaseOwner(); throw error }
     }
     AsyncFunction("endDataOwnership") { self.releaseOwner() }

@@ -5,6 +5,8 @@ import {MobileRepositories} from '../../src/data/repositories.ts';
 import type {BookmarkRecord, CollectionRecord, SqlDatabase, SqlTransaction, TagRecord} from '../../src/data/repositories.ts';
 import {MOBILE_TABLES} from '../../src/data/schema.ts';
 import {AccountDatabaseLease} from '../../src/data/account-lease.ts';
+import {CacheStateRepository, LOCAL_CACHE_SQL, type CacheCandidate, type CacheLocalState} from '../../src/data/repositories/cache-state.ts';
+import {AutomaticCachePlan} from '../../src/data/cache-plan.ts';
 
 type SqlValue = string | number | null;
 function fixture() {
@@ -207,4 +209,92 @@ test('generic raw watches preserve null/key/type changes, duplicates and primiti
   emit([{id: 'two', label: 'Changed'}, {id: 'one', label: 'A'}]);
   assert.equal(mappings, 3); assert.equal(mapped.length, 3); assert.equal(mapped[2][1], mapped[0][0]);
   stopMapped();
+});
+
+test('offline cache watches exclude large local content and do not publish position/AI or equivalent status changes', async t => {
+  const f = fixture(); t.after(() => f.db.close());
+  const cache = new CacheStateRepository(f.database), updates: CacheLocalState[][] = [];
+  for (let index = 0; index < 200; index++) f.insert('ps_data_local__local_bookmark_info', {id: `row-${index}`, data: JSON.stringify({is_auto_cached: 1, is_downloaded: 2, outline: 'large outline '.repeat(2000), future: {nested: true}})});
+  const stop = cache.watchLocal(rows => updates.push(rows)); t.after(stop);
+  const initial = updates[0], payload = f.db.prepare(LOCAL_CACHE_SQL).all();
+  assert.equal(payload.length, 200);
+  assert.ok(JSON.stringify(payload).length < 50_000);
+  assert.equal(payload.some(row => 'data' in row || 'outline' in row), false);
+  await f.repositories.local.update('row-0', {read_position: '120', outline: 'changed outline', mark_comment_profiles: []});
+  await f.repositories.local.update('position-only', {read_position: '5', overview: 'not a download task'});
+  await f.repositories.local.update('row-1', {is_downloaded: '2'});
+  const parse = t.mock.method(JSON, 'parse', () => assert.fail('Cache watch publication must not parse whole local JSON in JS'));
+  for (let index = 0; index < 10; index++) f.refresh();
+  parse.mock.restore();
+  assert.equal(updates.length, 1);
+  await f.repositories.local.update('row-0', {is_downloaded: 1}); f.refresh();
+  assert.equal(updates.length, 2); assert.equal(updates[1][0].downloaded, false);
+  assert.equal(updates[1][1], initial[1]); assert.equal(updates[1][199], initial[199]);
+});
+
+test('cache projection preserves manual flag and PDF pin semantics while ignoring invalid JSON records', t => {
+  const f = fixture(); t.after(() => f.db.close());
+  const inputs = [
+    {is_auto_cached: false, is_downloaded: '2', pdf_cache: {id: 'doc', owner: null}},
+    {is_auto_cached: 0, is_downloaded: null, pdf_cache: {}},
+    {is_auto_cached: '0', is_downloaded: false, pdf_cache: false},
+    {is_auto_cached: 1, is_downloaded: '0', pdf_cache: 0},
+    {is_auto_cached: null, is_downloaded: 2, pdf_cache: '0'},
+    {is_auto_cached: true, pdf_cache: ''},
+    {is_auto_cached: 0, pdf_cache: {id: 'doc', owner: 'owner'}},
+    {is_auto_cached: false, is_downloaded: true, pdf_cache: []},
+    {is_auto_cached: false, is_downloaded: [2]},
+    {is_auto_cached: false, is_downloaded: []},
+  ];
+  inputs.forEach((value, index) => f.insert('ps_data_local__local_bookmark_info', {id: String(index), data: JSON.stringify(value)}));
+  for (const [index, data] of ['{broken', 'null', '[]', '1', '"text"'].entries()) f.insert('ps_data_local__local_bookmark_info', {id: `invalid-${index}`, data});
+  const updates: CacheLocalState[][] = [];
+  t.after(new CacheStateRepository(f.database).watchLocal(rows => updates.push(rows)));
+  assert.equal(updates[0].length, inputs.length);
+  for (const [index, input] of inputs.entries()) {
+    const value = input as Record<string, unknown>, state = updates[0][index];
+    assert.equal(state.manual, value.is_auto_cached === 0 || value.is_auto_cached === false);
+    assert.equal(state.downloaded, Number(value.is_downloaded) === 2);
+    assert.equal(state.cleared, Number(value.is_downloaded) === 0);
+    assert.equal(state.pdfCachePresent, !!value.pdf_cache);
+  }
+  assert.equal(updates[0][0].pdfId, 'doc'); assert.equal(updates[0][0].pdfOwner, undefined);
+  assert.equal(updates[0][6].pdfOwner, 'owner');
+});
+
+test('cache candidate watches ignore title/updated timestamps but preserve status, ordering, type and account ownership', async t => {
+  const f = fixture(); t.after(() => f.db.close());
+  f.addBookmark('older', '2026-10-01'); f.addBookmark('newer', '2026-10-02');
+  const updates: CacheCandidate[][] = [], cache = new CacheStateRepository(f.database);
+  t.after(cache.watchPersonal(rows => updates.push(rows)));
+  const initial = updates[0];
+  await f.database.execute("UPDATE sr_user_bookmark SET alias_title = 'Edited', updated_at = '2026-10-03', metadata = json_set(metadata, '$.bookmark.title', 'Changed') WHERE id = 'older'"); f.refresh();
+  assert.equal(updates.length, 1);
+  await f.database.execute("UPDATE sr_user_bookmark SET created_at = '2026-10-04' WHERE id = 'older'"); f.refresh();
+  assert.equal(updates.length, 2); assert.equal(updates[1][0], initial[1]); assert.equal(updates[1][1], initial[0]);
+  await f.database.execute("UPDATE sr_user_bookmark SET type = 2 WHERE id = 'older'"); f.refresh();
+  assert.equal(updates[2][0].pdf, true);
+  await f.database.execute("UPDATE sr_user_bookmark SET metadata = json_set(metadata, '$.bookmark.status', 'pending') WHERE id = 'older'"); f.refresh();
+  assert.equal(updates[3][0].success, false);
+  const lease = new AccountDatabaseLease(f.database), scoped: CacheLocalState[][] = [];
+  const stop = new CacheStateRepository(lease).watchLocal(rows => scoped.push(rows));
+  const latest = f.watches.at(-1)!; lease.invalidate();
+  latest.handler.onResult({rows: {_array: [{id: 'foreign', manual: 1, download_status: 2}]}});
+  assert.equal(scoped.length, 1); assert.equal(latest.signal.aborted, true); stop();
+});
+
+test('cache repository updates drive only changed task keys and retain unrelated task identity', async t => {
+  const f = fixture(); t.after(() => f.db.close()); f.addBookmark('one', '2026-10-02'); f.addBookmark('two', '2026-10-01');
+  const cache = new CacheStateRepository(f.database), plan = new AutomaticCachePlan(true);
+  let publications = 0;
+  t.after(cache.watchPersonal(rows => {publications++; plan.setCandidates('personal', rows);}));
+  t.after(cache.watchLocal(rows => {publications++; plan.setLocal(rows);}));
+  plan.refresh(); const two = plan.tasks.get('two');
+  await f.repositories.local.update('one', {is_downloaded: 1, is_auto_cached: 1}); f.refresh();
+  assert.deepEqual([...plan.refresh()], ['one']); assert.equal(plan.tasks.get('two'), two);
+  const before = publications;
+  await f.repositories.local.update('one', {outline: 'AI', read_position: '42'}); f.refresh();
+  assert.equal(publications, before); assert.deepEqual([...plan.refresh()], []);
+  await f.repositories.local.update('one', {is_downloaded: 2}); f.refresh();
+  assert.deepEqual([...plan.refresh()], ['one']); assert.equal(plan.tasks.has('one'), false); assert.equal(plan.tasks.get('two'), two);
 });

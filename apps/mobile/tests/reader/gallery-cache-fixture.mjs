@@ -6,14 +6,15 @@ import ts from 'typescript';
 import {imageCachePath, imageCacheReadPaths, normalizeImageUrl} from '../../src/data/cache-paths.ts';
 import {AccountInactiveError} from '../../src/data/account-lease.ts';
 import {throwIfAborted} from '../../src/utils/abort.ts';
+import {memoryNativeFileStore} from '../fixtures/native-file-store.mjs';
 
 const require = createRequire(import.meta.url);
 const nativeRequire = createRequire(realpathSync(require.resolve('react-native/package.json')));
 export const NativeAbortController = nativeRequire('abort-controller').AbortController;
 
 /** Execute the production cache with its native filesystem and containment boundaries replaced. */
-export function galleryCacheFixture() {
-  const contents = new Map();
+export function galleryCacheFixture(resolveImage) {
+  const contents = new Map(), native = memoryNativeFileStore(contents);
   class Directory {
     constructor(uri) {this.uri = uri;}
     create() {}
@@ -31,6 +32,7 @@ export function galleryCacheFixture() {
   vm.runInNewContext(output, {exports, require(name) {
     if (name === 'expo-file-system') return {Directory, File};
     if (name === './cache-paths.ts') return {imageCachePath, imageCacheReadPaths, normalizeImageUrl};
+    if (name === './native-file-store.ts') return native;
     if (name === 'expo-modules-core') return {requireNativeModule() {return {imageCacheFileUri: (directory, _key, path) => `file://${directory}/${path}`};}};
     if (name === '../utils/abort.ts') return {throwIfAborted};
     throw new Error(`Unexpected native cache boundary: ${name}`);
@@ -38,7 +40,7 @@ export function galleryCacheFixture() {
   const md5 = url => createHash('md5').update(url).digest('hex');
   let active = true;
   const assertActive = () => {if (!active) throw new AccountInactiveError();};
-  const cache = new exports.ArticleFileCache('/app/data', md5, assertActive);
+  const cache = new exports.ArticleFileCache('/app/data', md5, assertActive, undefined, resolveImage ? 'owner-a' : null, resolveImage);
   return {cache, contents, isActive: () => active, revoke() {active = false;}, nextAccount() {return new exports.ArticleFileCache('/app/data', md5);}};
 }
 

@@ -33,7 +33,7 @@ test('startup renders only the default surface until the current account is read
 test('more and archive artwork remains present and icon dimensions cannot shrink in its button', nativeBoundary, async () => withNativeHost(async host => {
   const artwork = Object.fromEntries(['ic_floating_panel_more','ic_floating_panel_archieve','ic_floating_panel_archieved'].map(name => [name, {uri: `bundled:${name}`} ]));
   const {SourceIcon} = await loadComponent('../../src/components/SourceUI.tsx', {react: React, 'react-native': host.native,
-    'react-native-safe-area-context': {}, '../../assets': {mobileAssets: artwork}, '../theme': {mobileColors, mobileTypography}, './source-font-scaling': {}, './SourceSheetModal': {},
+    'react-native-safe-area-context': {}, '../../assets': {mobileAssets: artwork}, '../theme': {mobileColors, mobileTypography}, './source-font-scaling': {}, './AppImage': {AppImage: host.native.Image}, './SourceSheetModal': {},
   });
   for (const name of Object.keys(artwork)) {
     const image = SourceIcon({name, size: 24});

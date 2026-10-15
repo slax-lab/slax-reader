@@ -122,6 +122,30 @@ import UIKit
     }
     journal["logicalIdentity"] = ["owner": "other"]
     let rejected = try candidate(); precondition(rejected == nil)
+    var binding: [String: Any] = ["version": 1, "state": "ready", "mode": "adopted", "path": file.path, "identity": identity, "targetSdk": "powersync-react-native-2.3.1", "schemaVersion": "2", "profile": "slax-powersync-format14-schema2-v1"]
+    func initialized() throws -> KnownInstallationDatabase? {
+      let encoded = String(data: try JSONSerialization.data(withJSONObject: binding), encoding: .utf8)!
+      return try initializedDatabaseCandidate(values: ["_slax_database_installation_v1": encoded], support: support, shared: shared, bundleIdentifier: "app.slax.reader")
+    }
+    let bound = try initialized(); precondition(bound?.path == file.path && bound?.mode == "adopted")
+    binding["path"] = file.path.replacingOccurrences(of: "9F3CD522-89CD-4B8E-9074-F592D18ADCC3", with: "11111111-1111-4111-8111-111111111111")
+    let relocated = try initialized(); precondition(relocated?.path == file.path)
+    binding["identity"] = ["owner": "other"]
+    do { _ = try initialized(); preconditionFailure("Foreign owner accepted") } catch {}
+    binding["identity"] = identity; binding["path"] = file.path
+    for field in ["state", "mode", "targetSdk", "schemaVersion", "profile"] {
+      let saved = binding[field]; binding[field] = "wrong"
+      do { _ = try initialized(); preconditionFailure("Invalid initialized field accepted") } catch {}
+      binding[field] = saved
+    }
+    let nativeFile = support.appendingPathComponent("slax-react-native/powersync.db")
+    try FileManager.default.createDirectory(at: nativeFile.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try FileManager.default.copyItem(at: file, to: nativeFile)
+    let nativeIdentity = legacyDatabaseIdentities([nativeFile.path], support: support, shared: shared, bundleIdentifier: "app.slax.reader")[nativeFile.path]!
+    binding["mode"] = "native"; binding["path"] = nativeFile.path; binding["identity"] = nativeIdentity; binding["profile"] = "slax-native-format14-schema2-v1"
+    let native = try initialized(); precondition(native?.path == nativeFile.path)
+    try FileManager.default.removeItem(at: nativeFile)
+    do { _ = try initialized(); preconditionFailure("Missing established database accepted") } catch {}
     var longQuery: OpaquePointer?
     precondition(sqlite3_open(":memory:", &longQuery) == SQLITE_OK)
     let cancellation = DatabaseInspectionCancellation()

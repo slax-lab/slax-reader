@@ -94,10 +94,11 @@ async function screenFixture(host, options, run) {
     '@react-navigation/native': {usePreventRemove: (blocked, callback) => {back = {blocked, callback}}}, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})},
     '@slax-reader/contracts/pdf': pdfContracts, '../reader/PdfWebView': {PdfWebView}, '../data/transport-errors': transportErrors, '../reader/pdf-errors': pdfErrors,
     '../components': {...host.components, SourceDialog: props => {dialogs.set(props.title, props); return null}}, '../components/SourceRing': {SourceCircularProgress: nil},
-    '../data': {...repositoriesModule, PREFERENCE_KEYS}, '../runtime': {useMobile: () => mobile, useControlledUpgradeReaderObserver: () => undefined}, '../rss/controller': {},
+    '../data': {...repositoriesModule, PREFERENCE_KEYS}, '../runtime': {useReadingMobile: () => mobile, useMobile: () => mobile, useControlledUpgradeReaderObserver: () => undefined}, '../rss/controller': {},
     '../theme': {mobileColors, mobileTypography}, '../native/reader': {}, '../native/platform': {}, '../telemetry': {useTelemetry: () => telemetry}, '../reader/share': {},
     '../reader': {ReaderWebView: () => assert.fail('PDF must not mount the HTML reader'), composeReaderError: () => assert.fail('PDF must not compose an HTML error'), toolbarVisible: coordinates.toolbarVisible}, '../reader/input': input,
     '../reader/ReaderOverlays': {CommentPanel: props => {panelProps = props; return null}, SelectionMenu: props => {menuProps = props; return null}, OutlineSheet: props => {outlineProps = props; return null}, FloatingActions: props => {floatingProps = props; return null}, ReaderToolbar, TranscriptSheet: nil},
+    '../reader/components/CommentPanel': {CommentPanel: props => {panelProps = props; return null}}, '../reader/components/OutlineSheet': {OutlineSheet: props => {outlineProps = props; return null}},
     '../reader/ImageGallery': {}, '../reader/gallery-resource': {}, '../reader/OverviewViews': {OverviewDialog: props => {overviewProps = props; return null}, OverviewExcerpt: nil},
     '../reader/ReaderSkeleton': {ReaderSkeleton: nil}, '../reader/TagSheet': {ReaderTagSheet: nil}, '../reader/model': model, '../reader/account': account,
     '../reader/position': {ReaderPositionWriter}, '../reader/recovery': {ReaderCrashRecovery}, '../components/fixture-actions': {},
@@ -105,7 +106,7 @@ async function screenFixture(host, options, run) {
   const {ReaderScreen} = await loadComponent('../../src/screens/ReaderScreen.tsx', boundaries, {
     Error, TypeError, setTimeout: (callback, ms) => {const id = ++timerId; timers.set(id, {callback, ms}); return id}, clearTimeout: id => timers.delete(id),
   })
-  const navigation = {setOptions: value => {headerOptions = value}, addListener: (name, callback) => {listeners.set(name, callback); return () => listeners.delete(name)}, getState: () => ({routes: [{key: 'reader'}]})}
+  const navigation = {isFocused: () => true, setOptions: value => {headerOptions = value}, addListener: (name, callback) => {listeners.set(name, callback); return () => listeners.delete(name)}, getState: () => ({routes: [{key: 'reader'}]})}
   const route = {key: 'reader', params: {bookmarkId: 'book', ...(options.collection ? {collectionOwnerId: 'collection-owner', collectionId: 'collection'} : {})}}
   const render = () => host.render(React.createElement(ReaderScreen, {navigation, route}))
   await render(); await host.settle()
@@ -148,9 +149,8 @@ test('PDF URL source retains the original link and complete offline cache permit
   assert.doesNotMatch(fixture.text(), /pdf_downloaded|pdf_partial_cache|pdf_text_/)
   assert.equal(fixture.cacheStatusRequests.length, 0)
   await fixture.openToolbar()
-  assert.equal(host.props.get('reader-toolbar-pdf-download').accessibilityLabel, 'pdf_download')
-  await fixture.toolbarAction('pdf-download')
-  assert.equal(fixture.cacheStatusRequests.length, 1)
+  assert.equal(host.props.has('reader-toolbar-pdf-download'), false)
+  assert.equal(fixture.cacheStatusRequests.length, 0)
   assert.equal(fixture.calls.some(value => Array.isArray(value) && value[0] === 'download'), false)
   await fixture.select(); await act(async () => fixture.selection().onHighlight())
   assert.equal(fixture.markWrites.length, 1)
@@ -344,7 +344,7 @@ test('PDF account revocation clears a background draft and rejects old submit/po
   assert.equal(fixture.writes.length, writes)
 })))
 
-for (const platform of ['ios', 'android']) test(`${platform} PDF notes/download use the existing toolbar with disabled semantics and dismissal ownership`, nativeBoundary, async () => withNativeHost(async host => screenFixture(host, {platform}, async fixture => {
+for (const platform of ['ios', 'android']) test(`${platform} PDF toolbar retains disabled notes without a separate offline-download action`, nativeBoundary, async () => withNativeHost(async host => screenFixture(host, {platform}, async fixture => {
   assert.equal(fixture.cacheStatusRequests.length, 0)
   await fixture.tick(5000); await fixture.state('background'); await fixture.state('active'); await fixture.tick(1500)
   assert.equal(fixture.cacheStatusRequests.length, 0, 'No badge-only cache status polling remains')
@@ -353,14 +353,11 @@ for (const platform of ['ios', 'android']) test(`${platform} PDF notes/download 
   assert.equal(notes.disabled, true); assert.equal(notes.accessibilityState.disabled, true)
   await act(async () => notes.onPress())
   assert.equal(fixture.toolbar().visible, true)
-  await act(async () => host.props.get('reader-toolbar-pdf-download').onPress())
+  assert.equal(host.props.has('reader-toolbar-pdf-download'), false)
+  await act(async () => fixture.toolbar().onDismiss())
   assert.equal(fixture.toolbar().visible, false)
-  if (platform === 'ios') {
-    assert.equal(fixture.cacheStatusRequests.length, 0)
-    await act(async () => fixture.toolbar().onDidDismiss())
-  }
-  assert.equal(fixture.cacheStatusRequests.length, 1)
-  assert.equal(fixture.calls.filter(value => Array.isArray(value) && value[0] === 'download').length, 1)
+  assert.equal(fixture.cacheStatusRequests.length, 0)
+  assert.equal(fixture.calls.filter(value => Array.isArray(value) && value[0] === 'download').length, 0)
 })))
 
 for (const name of ['AbortError', 'ReaderOperationCancelled']) test(`PDF ${name} command/load cancellation keeps readable content and draft`, nativeBoundary, async () => withNativeHost(async host => screenFixture(host, {}, async fixture => {
@@ -535,22 +532,18 @@ test('PDF identity protocol failure removes inaccessible content and draft immed
   assert.match(fixture.text(), /pdf-range\/pdf_identity_mismatch/)
 })))
 
-test('PDF manual download remains independently owned across Reader exit and ignores late callbacks after revocation', nativeBoundary, async () => withNativeHost(async host => screenFixture(host, {pdf: {text_status: 'pending'}}, async fixture => {
+test('PDF Reader exit owns metadata polling but leaves automatic cache work to the account runtime', nativeBoundary, async () => withNativeHost(async host => screenFixture(host, {pdf: {text_status: 'pending'}}, async fixture => {
   await fixture.tick(5000)
   const signal = fixture.metadataRequests.at(-1).signal
+  await fixture.openToolbar()
+  assert.equal(host.props.has('reader-toolbar-pdf-download'), false)
   assert.equal(fixture.cacheStatusRequests.length, 0)
-  await fixture.openToolbar(); await fixture.toolbarAction('pdf-download'); await fixture.openToolbar()
-  assert.equal(host.props.get('reader-toolbar-pdf-download').accessibilityLabel, 'pdf_downloading')
-  assert.equal(host.props.get('reader-toolbar-pdf-download').disabled, true)
-  assert.equal(host.props.get('reader-toolbar-pdf-download').accessibilityState.disabled, true)
-  await act(async () => host.props.get('reader-toolbar-pdf-download').onPress())
-  assert.equal(fixture.cacheStatusRequests.length, 1)
   await fixture.exit()
   assert.equal(signal.aborted, true)
   assert.equal(fixture.calls.includes('exit'), true)
   const count = fixture.metadataRequests.length
   await fixture.tick(5000); assert.equal(fixture.metadataRequests.length, count)
   await fixture.revoke(); await act(async () => fixture.download.resolve())
-  assert.deepEqual(fixture.calls.filter(value => Array.isArray(value) && value[0] === 'download'), [['download', 'book', undefined]])
+  assert.deepEqual(fixture.calls.filter(value => Array.isArray(value) && value[0] === 'download'), [])
   assert.equal(fixture.markWrites.length, 0)
 })))

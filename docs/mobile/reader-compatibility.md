@@ -48,8 +48,8 @@ not establish native gesture or visual acceptance.
 Outbound sharing uses the application-owned native `shareArticle` interface.
 iOS tries exactly the first two article image candidates, reuses the namespaced
 cache, and accepts an image only when both dimensions exceed 100 pixels. It falls
-back to the source `share_logo` asset. Metro HTTP assets are cached with the
-already approved Expo file API before passing a file URL to native code. Android
+back to the source `share_logo` asset. Metro HTTP assets use the same bounded
+native image URI resolver before passing a file URL to native code. Android
 retains the source text and subject chooser. Share-sheet preview behavior remains
 subject to native validation.
 
@@ -96,15 +96,23 @@ Tag assignment retains the source's draft workflow: adding or removing a chip
 changes the draft until Confirm, while Cancel discards assignment changes. New
 tag creation persists immediately, and later repository acknowledgements
 reconcile the draft. Comment input retains the source's 1,500-character limit.
-Changing article route parameters resets article, annotation, AI and overlay
-state before binding the replacement article.
+Draft and AI stream publications have independent component subscriptions so
+keystrokes and chunks do not rerender the document owner. Threaded comments use
+stable-key virtualized rows. Changing article route parameters resets article,
+annotation, AI and overlay state before binding the replacement article. Optional
+work is gated by route visibility as well as App foreground; permission revocation
+and position persistence remain active. AI preparation waits for document and
+navigation-transition readiness without a fixed minimum content delay.
 
 Outline link escaping and streamed-link buffering are ported from
 `MarkdownHelper.kt`. The outline uses an application-owned Markdown-to-HTML
 renderer in an approved WebView, with headings, links, lists, code, quotes and
-tables. This renderer's typography and edge-case Markdown behavior still require
-comparison with the source Compose Markdown renderer. It is not evidence of
-visual parity.
+tables. The incremental parser retains stable completed blocks and reparses the
+changed tail; the WebView parses/replaces only changed blocks, retaining unchanged
+DOM nodes and scroll position. While a selection is active, only the latest update
+is retained until selection collapses. Position-only updates do not reparse text.
+Typography and edge-case Markdown behavior still require comparison with the
+source Compose Markdown renderer; these changes are not evidence of visual parity.
 
 ## Native adapter boundary
 
@@ -263,9 +271,14 @@ calibration, old-app read-position restoration, in-place upgrade with pending
 CRUD, image cache interception/offline failures, status-bar scrolling, real
 YouTube playback and transcript seeks, gallery gestures, cancelled native back
 gestures, sheet keyboard behavior, and the source/new screenshot comparison.
-The source gallery is reimplemented with base React Native gestures; gesture and
-animation parity cannot be inferred from TypeScript tests. Sharing must retain
-the source iOS image preview and logo fallback on a real share sheet.
+The gallery uses reusable Expo image presentation with Gesture Handler/Reanimated
+pinch, focal double-tap zoom, bounded pan and continuous adjacent-page transforms.
+Only the current page and two neighbors prepare owned file URIs; each decoded
+image is capped at four megapixels with two concurrent decodes. Backgrounding
+cancels page resources while retaining the selected index. Native finger-driven
+paging, zoom and animation parity still require installed-app acceptance and
+cannot be inferred from TypeScript tests. Sharing reuses the owned resource URI;
+it must retain the source iOS image preview and logo fallback on a real share sheet.
 
 ## Controlled input observations
 

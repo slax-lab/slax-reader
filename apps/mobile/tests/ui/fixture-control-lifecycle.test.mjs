@@ -18,7 +18,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
 async function load(file, boundaries = {}, globals = {}) {
   const output = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true}}).outputText;
   const exports = {};
-  vm.runInNewContext(output, {exports, __DEV__: true, setTimeout, clearTimeout, setInterval, clearInterval, ...globals, require(name) {assert.ok(Object.hasOwn(boundaries, name), name); return boundaries[name];}});
+  vm.runInNewContext(output, {exports, __DEV__: true, URL, setTimeout, clearTimeout, setInterval, clearInterval, ...globals, require(name) {assert.ok(Object.hasOwn(boundaries, name), name); return boundaries[name];}});
   return exports;
 }
 const runtimeImports = ['expo-file-system', 'react-native', '@powersync/react-native', '../src/data/preferences', '../src/domain/session', '../src/data/repositories', '../src/data/cache', '../src/data/api', '../src/data/schema', '../src/payments/controller', '../src/telemetry/core', '../src/config', '../src/i18n', './transport', './isolation', './documents', './resources', './pdf', '../src/data/background-cache', '../src/data/pdf-cache', './pdf-storage', '../src/data/account-lease', '../src/components/fixture-actions', '../src/native/platform', './pdf-import', './pdf-production-storage', 'expo/fetch', './pdf-http'];

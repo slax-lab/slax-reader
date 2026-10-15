@@ -64,10 +64,11 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
   static func activeReader(pageId: String) -> SlaxReaderView? { activeViews.allObjects.first { !$0.detached && $0.pageId == pageId } }
   static func owns(_ owner: String) -> Bool { activeOwner == owner }
   static func currentOwner() -> String? { activeOwner }
-  static func revokeAllResources() { activeOwner = nil; SlaxReaderImages.cancelAll(); activeViews.allObjects.forEach { $0.detach() } }
+  static func revokeAllResources() { try? SlaxStorageOwner.activate(nil); SlaxPdfTransfers.revokeAll(); SlaxImageModule.revokeAll(); activeOwner = nil; activeViews.allObjects.forEach { $0.detach() } }
   static func activateResources(_ owner: String) throws {
     guard owner.range(of: "^[A-Za-z0-9_-]+$", options: .regularExpression) != nil else { throw NSError(domain: "SlaxPlatform", code: 4, userInfo: [NSLocalizedDescriptionKey: "Invalid Reader owner"]) }
     if activeOwner != nil, activeOwner != owner { revokeAllResources() }
+    if activeOwner != owner { try SlaxStorageOwner.activate(owner) }
     activeOwner = owner
   }
   let onEvent = EventDispatcher()
@@ -91,7 +92,7 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
     if protectedHosts != nil && protectedHosts != hosts { detach(); return }
     protectedHosts = hosts
   }
-  var resourceOwner: String? { didSet { if oldValue != nil, oldValue != resourceOwner { detach() } } }
+  var resourceOwner: String? { didSet { if oldValue != nil, oldValue != resourceOwner { detach() }; resources.resourceOwner = resourceOwner } }
   private var ownsResources: Bool { !detached && !processGone && (resources.isFixture || resourceOwner != nil && resourceOwner == Self.activeOwner) }
   private var loaded: String?; private var detached = false; private var initializedInsets = false
   private var loadedPageId: String?; private var loadedGeneration: String?

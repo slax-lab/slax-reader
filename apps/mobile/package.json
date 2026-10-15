@@ -1,8 +1,8 @@
 {
   "name": "@apps/slax-reader-mobile",
   "version": "1.0.25",
-  "buildNumber": 766,
-  "previousBuildNumber": 765,
+  "buildNumber": 767,
+  "previousBuildNumber": 766,
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -54,6 +54,7 @@
     "expo-file-system": "~57.0.7",
     "expo-haptics": "~57.0.3",
     "expo-iap": "6.0.0",
+    "expo-image": "~57.0.5",
     "expo-localization": "~57.0.2",
     "expo-modules-core": "~57.0.21",
     "expo-network": "~57.0.2",

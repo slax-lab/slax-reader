@@ -1,4 +1,5 @@
 import http.server
+import json
 import os
 import subprocess
 import sys
@@ -7,6 +8,9 @@ import time
 import urllib.parse
 
 failures = []
+image_counts = {}
+image_gates = {}
+image_lock = threading.Lock()
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, *_):
@@ -17,6 +21,39 @@ class Handler(http.server.BaseHTTPRequestHandler):
             failures.append('Credential header reached media fixture')
         parsed = urllib.parse.urlparse(self.path)
         query = urllib.parse.parse_qs(parsed.query)
+        if parsed.path == '/image-counts':
+            with image_lock:
+                data = json.dumps(image_counts).encode()
+            self.send_response(200)
+            self.send_header('Content-Length', str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+        if parsed.path == '/release-image':
+            with image_lock:
+                image_gates.setdefault(query['key'][0], threading.Event()).set()
+            self.send_response(200)
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+            return
+        if parsed.path.startswith('/image-'):
+            key = parsed.path.removeprefix('/image-')
+            with image_lock:
+                image_counts[key] = image_counts.get(key, 0) + 1
+                gate = image_gates.setdefault(key, threading.Event()) if key.startswith('held-') else None
+            if gate is not None:
+                gate.wait(10)
+            data = bytes(index % 251 for index in range(256 * 1024 + 7))
+            self.send_response(200)
+            if key != 'mime':
+                self.send_header('Content-Type', 'text/html' if key == 'html' else 'image/png')
+            self.send_header('Content-Length', str(len(data)))
+            self.end_headers()
+            try:
+                self.wfile.write(data)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            return
         mode = query.get('r', ['range'])[0].rsplit('/', 1)[-1]
         if parsed.path == '/protected':
             failures.append('Protected redirect reached media fixture')
@@ -60,7 +97,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
 server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
 threading.Thread(target=server.serve_forever, daemon=True).start()
 try:
-    env = dict(os.environ, SLAX_MEDIA_HOST='http://127.0.0.1:%s' % server.server_port)
+    home = os.path.join(os.path.dirname(sys.argv[1]), 'home')
+    os.makedirs(home, exist_ok=True)
+    env = dict(os.environ, HOME=home, CFFIXED_USER_HOME=home, SLAX_RESOURCE_TEST_HOME=home, SLAX_MEDIA_HOST='http://127.0.0.1:%s' % server.server_port)
     result = subprocess.run([sys.argv[1]], env=env, timeout=60)
     if failures:
         raise RuntimeError('; '.join(failures))

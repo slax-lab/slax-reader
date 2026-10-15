@@ -208,6 +208,8 @@ PODS:
   - ExpoIap (6.0.0):
     - ExpoModulesCore
     - openiap (= 4.0.0)
+  - ExpoImage (57.0.5):
+    - ExpoModulesCore
   - ExpoKeepAwake (57.0.2):
     - ExpoModulesCore
   - ExpoLocalization (57.0.2):
@@ -2736,6 +2738,7 @@ DEPENDENCIES:
   - "ExpoFont (from `../../../node_modules/.pnpm/expo-font@57.0.4_expo@57.0.27_react-native@0.86.3_@babel+core@7.29.7_supports-color@10._34cb0ed0cb560978e735aaaa0444f503/node_modules/expo-font/ios/ExpoFont.podspec`)"
   - "ExpoHaptics (from `../../../node_modules/.pnpm/expo-haptics@57.0.3_expo@57.0.27/node_modules/expo-haptics/ios`)"
   - "ExpoIap (from `../../../node_modules/.pnpm/expo-iap@6.0.0_expo@57.0.27_react-native@0.86.3_@babel+core@7.29.7_supports-color@10.2._1983f414c984901e769d2eff52281ea9/node_modules/expo-iap/ios`)"
+  - "ExpoImage (from `../../../node_modules/.pnpm/expo-image@57.0.5_expo@57.0.27_react-native@0.86.3_@babel+core@7.29.7_supports-color@10_be66a32309aea3498bec2814872bbb1f/node_modules/expo-image/ios/ExpoImage.podspec`)"
   - "ExpoKeepAwake (from `../../../node_modules/.pnpm/expo-keep-awake@57.0.2_expo@57.0.27_react@19.2.3/node_modules/expo-keep-awake/ios`)"
   - "ExpoLocalization (from `../../../node_modules/.pnpm/expo-localization@57.0.2_expo@57.0.27_react@19.2.3/node_modules/expo-localization/ios`)"
   - "ExpoLogBox (from `../../../node_modules/.pnpm/@expo+log-box@57.0.4_@expo+dom-webview@57.0.1_expo@57.0.27_react-native@0.86.3_@babel+c_caeed061c67a23196bae8342694342a8/node_modules/@expo/log-box`)"
@@ -2900,6 +2903,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.pnpm/expo-haptics@57.0.3_expo@57.0.27/node_modules/expo-haptics/ios"
   ExpoIap:
     :path: "../../../node_modules/.pnpm/expo-iap@6.0.0_expo@57.0.27_react-native@0.86.3_@babel+core@7.29.7_supports-color@10.2._1983f414c984901e769d2eff52281ea9/node_modules/expo-iap/ios"
+  ExpoImage:
+    :podspec: "../../../node_modules/.pnpm/expo-image@57.0.5_expo@57.0.27_react-native@0.86.3_@babel+core@7.29.7_supports-color@10_be66a32309aea3498bec2814872bbb1f/node_modules/expo-image/ios/ExpoImage.podspec"
   ExpoKeepAwake:
     :path: "../../../node_modules/.pnpm/expo-keep-awake@57.0.2_expo@57.0.27_react@19.2.3/node_modules/expo-keep-awake/ios"
   ExpoLocalization:
@@ -3123,10 +3128,11 @@ SPEC CHECKSUMS:
   ExpoFont: f8198a952ba2ff53c9b393b5269ea435f232cfc3
   ExpoHaptics: 32efd02d88953d30a5c2ff796c0fce692e7bcd2e
   ExpoIap: 41dfff6b2083b005fe25b8faac11379690e48255
+  ExpoImage: abe60c6c68d08d837b2c51fb9e8b6c6e320b9125
   ExpoKeepAwake: 72af0b3be3615e59bc819d26061ff4e06b155ee0
   ExpoLocalization: f204d4ca963bfcea932068a978247878f664f5a4
   ExpoLogBox: 80957303325cd4439137765c90a87d7f22aaf2ff
-  ExpoModulesCore: a24854dcfd0d5707e645eddfc975a67f18a46e11
+  ExpoModulesCore: be4232e47a2e85126659a1f21c9ae9cac593573f
   ExpoModulesJSI: 9e2ac522bf1ce86b7b1f8f0bb8ef87b20156e38b
   ExpoModulesWorklets: 1916bfde983876e6caf849398b91a0b492b73869
   ExpoModulesWorkletsAdapter: 262982ea3b1e3ad2f54797ca03d2bc0e01e897e9
@@ -3233,7 +3239,7 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: bb350d1333fd459c1aabe782088419a9b8894d3a
   ReactCodegen: 74073d55d2bbc03a8f3b28aa38db2d985d6e39ec
   ReactCommon: 02f6a489d5eb4ab79d7deba5cd4434e0ba351a07
-  ReactNativeDependencies: 018b961020367bc894ede6fc36a572627037bd66
+  ReactNativeDependencies: 6738e602b46fd24aa453cd58267ec3bb8bf29d27
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
   RNFBAnalytics: a0d26d867e31421ff6a93c646b35e62e96726ee8
   RNFBApp: 27a58dd316c5f0099d2694220d30cdb4f6b22a3b
@@ -3246,6 +3252,6 @@ SPEC CHECKSUMS:
   SlaxPlatform: b486633f3cf846f2a9799747f0417c19f69caae5
   Yoga: 269d501078efa6b25cd57f7f326fc3da213580be
 
-PODFILE CHECKSUM: da89782e2f65cbad64af3f2a257ce0b76394574e
+PODFILE CHECKSUM: 451143ef60b21c775c76d7cd6da85d450f961ab5
 
 COCOAPODS: 1.16.2

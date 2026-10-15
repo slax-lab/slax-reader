@@ -40,7 +40,10 @@ export class CredentialReadiness {
   constructor(options: CredentialReadinessOptions) {this.options = options;}
   getSnapshot = () => this.state;
   subscribe = (listener: (state: CredentialReadinessState) => void) => {this.listeners.add(listener); return () => {this.listeners.delete(listener);};};
-  private emit(state: CredentialReadinessState) {this.state = state; this.listeners.forEach(listener => listener(state));}
+  private emit(state: CredentialReadinessState) {
+    if (this.state.status === state.status && (state.status !== 'retry' || this.state.status === 'retry' && this.state.retryAt === state.retryAt && this.state.code === state.code)) return;
+    this.state = state; this.listeners.forEach(listener => listener(state));
+  }
   private now() {return (this.options.now ?? Date.now)();}
   private clearTimer() {if (this.timer !== undefined) (this.options.clearTimer ?? clearTimeout)(this.timer); this.timer = undefined;}
   private schedule(at: number) {

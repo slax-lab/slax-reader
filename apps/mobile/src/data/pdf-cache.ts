@@ -1,5 +1,6 @@
 import {PDF_MAX_BYTES, type PdfDescriptor} from '@slax-reader/contracts/pdf';
 import {Sha256} from './pdf-sha256.ts';
+import {throwIfAborted} from '../utils/abort.ts';
 
 export type {PdfDescriptor} from '@slax-reader/contracts/pdf';
 export const PDF_BLOCK_SIZE = 256 * 1024;
@@ -10,17 +11,22 @@ const decoder = new TextDecoder('utf-8', {fatal: true});
 
 export interface PdfBlockStorage {
   read(path: string): Promise<Uint8Array | null>;
-  writeAtomic(path: string, bytes: Uint8Array): Promise<void>;
+  writeAtomic(path: string, bytes: Uint8Array, signal?: AbortSignal): Promise<void>;
   remove(path: string): Promise<void>;
   list(prefix: string): Promise<string[]>;
   size?(path: string): Promise<number | null>;
+  stageRemoval?(path: string, generation: string, signal: AbortSignal): Promise<void>;
+  restoreRemoval?(path: string, generation: string): Promise<void>;
+  purgeRemoval?(path: string, generation: string): Promise<void>;
 }
 export interface PdfCacheStatus {downloadedBytes: number; totalBytes: number; complete: boolean}
-interface Manifest {version: number; blockSize: number; descriptor: PdfDescriptor}
+interface Manifest {version: number; blockSize: number; descriptor: PdfDescriptor; generation?: string}
 interface StorageLock {writer?: Promise<void>; readers: Set<Promise<void>>}
 const storageLocks = new WeakMap<PdfBlockStorage, Map<string, StorageLock>>();
 const storageEpochs = new WeakMap<PdfBlockStorage, Map<string, number>>();
 const storageDenials = new WeakMap<PdfBlockStorage, Set<string>>();
+const storageRevisions = new WeakMap<PdfBlockStorage, Map<string, number>>();
+const storageStaging = new WeakMap<PdfBlockStorage, Set<string>>();
 
 function descriptorValue(value: unknown): PdfDescriptor {
   if (!value || typeof value !== 'object') throw new Error('Invalid PDF descriptor');
@@ -46,6 +52,9 @@ export class PdfBlockCache {
   private root: string;
   private locks: Map<string, StorageLock>;
   private scans = new Map<string, Promise<PdfCacheStatus>>();
+  private revisions: Map<string, number>;
+  private staging: Set<string>;
+  private stagingSequence = 0;
 
   constructor(storage: PdfBlockStorage, scope: string, guard: () => void, cleanupGuard = guard) {
     if (typeof scope !== 'string' || !scope) throw new Error('PDF cache scope is required');
@@ -59,10 +68,14 @@ export class PdfBlockCache {
     storageEpochs.set(storage, this.epochs);
     this.denied = storageDenials.get(storage) ?? new Set();
     storageDenials.set(storage, this.denied);
+    this.revisions = storageRevisions.get(storage) ?? new Map();
+    storageRevisions.set(storage, this.revisions);
+    this.staging = storageStaging.get(storage) ?? new Set();
+    storageStaging.set(storage, this.staging);
   }
 
   metadata(key: string): Promise<PdfDescriptor | null> {
-    return this.locked(key, false, prefix => this.loadMetadata(prefix));
+    return this.locked(key, false, async prefix => (await this.loadManifest(prefix))?.descriptor ?? null);
   }
 
   async setMetadata(key: string, descriptor: PdfDescriptor): Promise<void> {
@@ -72,12 +85,14 @@ export class PdfBlockCache {
       check();
       const tombstones = await this.denials(prefix); check();
       const pdf = descriptorValue(descriptor);
-      const previous = await this.loadMetadata(prefix); check();
-      if (!sameDocument(previous, pdf)) {await this.clear(prefix); check();}
-      const manifest: Manifest = {version: MANIFEST_VERSION, blockSize: PDF_BLOCK_SIZE, descriptor: pdf};
+      const previous = await this.loadManifest(prefix); check();
+      if (!sameDocument(previous?.descriptor ?? null, pdf)) {await this.clear(prefix); check();}
+      const generation = sameDocument(previous?.descriptor ?? null, pdf) ? previous?.generation : undefined;
+      const manifest: Manifest = {version: MANIFEST_VERSION, blockSize: PDF_BLOCK_SIZE, descriptor: pdf, ...(generation ? {generation} : {})};
       await this.io(() => this.storage.writeAtomic(`${prefix}manifest.json`, encoder.encode(JSON.stringify(manifest)))); check();
       for (const path of tombstones) {await this.io(() => this.storage.remove(path)); check();}
       this.denied.delete(prefix);
+      await this.prune(prefix, manifest, check);
     });
   }
 
@@ -101,12 +116,12 @@ export class PdfBlockCache {
       const pdf = descriptorValue(descriptor);
       if (!Number.isSafeInteger(begin) || !Number.isSafeInteger(end) || begin < 0 || end <= begin ||
           end > pdf.size || end - begin > PDF_MAX_RANGE_BYTES) throw new Error('Invalid PDF byte range');
-      const stored = await this.loadMetadata(prefix);
+      const stored = await this.loadManifest(prefix);
       this.guard();
-      if (!sameDocument(stored, pdf)) return null;
+      if (!stored || !sameDocument(stored.descriptor, pdf)) return null;
       const result = new Uint8Array(end - begin);
       for (let offset = Math.floor(begin / PDF_BLOCK_SIZE) * PDF_BLOCK_SIZE; offset < end; offset += PDF_BLOCK_SIZE) {
-        const block = await this.loadBlock(prefix, pdf, offset);
+        const block = await this.loadBlock(prefix, stored, offset);
         this.guard();
         if (!block) return null;
         const left = Math.max(begin, offset), right = Math.min(end, offset + block.byteLength);
@@ -116,26 +131,92 @@ export class PdfBlockCache {
     });
   }
 
-  writeBlock(key: string, descriptor: PdfDescriptor, begin: number, bytes: Uint8Array): Promise<void> {
+  writeBlock(key: string, descriptor: PdfDescriptor, begin: number, bytes: Uint8Array, signal?: AbortSignal): Promise<void> {
     return this.locked(key, true, async prefix => {
+      throwIfAborted(signal);
       const pdf = descriptorValue(descriptor);
       if (!Number.isSafeInteger(begin) || begin < 0 || begin >= pdf.size || begin % PDF_BLOCK_SIZE !== 0 ||
           !(bytes instanceof Uint8Array) || bytes.byteLength !== Math.min(PDF_BLOCK_SIZE, pdf.size - begin)) throw new Error('Invalid PDF block');
       const block = new Uint8Array(bytes);
-      const stored = await this.loadMetadata(prefix);
-      this.guard();
-      if (!sameDocument(stored, pdf)) throw new Error('PDF cache identity changed');
-      await this.io(() => this.storage.writeAtomic(this.blockPath(prefix, pdf, begin), block));
-      this.guard();
+      const stored = await this.loadManifest(prefix);
+      this.guard(); throwIfAborted(signal);
+      if (!stored || !sameDocument(stored.descriptor, pdf)) throw new Error('PDF cache identity changed');
+      if (stored.generation && await this.loadBlock(prefix, stored, begin)) {throwIfAborted(signal); return;}
+      throwIfAborted(signal);
+      await this.io(() => this.storage.writeAtomic(this.blockPath(prefix, stored, begin), block, signal));
+      this.guard(); throwIfAborted(signal);
     });
+  }
+
+  async writeComplete(key: string, descriptor: PdfDescriptor, chunks: AsyncIterable<Uint8Array>, signal?: AbortSignal): Promise<void> {
+    const pdf = descriptorValue(descriptor), prefix = this.prefix(key), epoch = this.epochs.get(prefix) ?? 0;
+    const revision = this.revisions.get(prefix) ?? 0;
+    const generation = `full-${Date.now()}-${++this.stagingSequence}-${Math.random().toString(36).slice(2)}`;
+    const directory = `${prefix}${pdf.document_id}-${pdf.size}/${generation}/`;
+    const current = () => {
+      this.guard();
+      if ((this.epochs.get(prefix) ?? 0) !== epoch || this.denied.has(prefix)) throw new Error('PDF access revoked');
+      if ((this.revisions.get(prefix) ?? 0) !== revision) throw new Error('PDF cache identity changed');
+    };
+    const check = () => {current(); throwIfAborted(signal);};
+    const integrity = (message: string) => Object.assign(new Error(message), {code: 'offline_integrity_invalid'});
+    const hash = new Sha256(), buffer = new Uint8Array(PDF_BLOCK_SIZE), written: string[] = [];
+    let received = 0, buffered = 0, committed = false, publishing = false;
+    const flush = async () => {
+      if (!buffered) return;
+      await this.locked(key, true, async () => {
+        check(); const path = `${directory}${received - buffered}.block`; written.push(path);
+        await this.io(() => this.storage.writeAtomic(path, buffer.slice(0, buffered), signal)); check();
+      });
+      buffered = 0;
+    };
+    try {
+      await this.locked(key, true, async () => {
+        check(); const stored = await this.loadManifest(prefix); check();
+        if (!stored || !sameDocument(stored.descriptor, pdf)) throw new Error('PDF cache identity changed');
+        await this.prune(prefix, stored, check); check(); this.staging.add(directory);
+      });
+      for await (const chunk of chunks) {
+        check();
+        if (!(chunk instanceof Uint8Array) || chunk.byteLength > PDF_MAX_RANGE_BYTES || received + chunk.byteLength > pdf.size) throw integrity('Invalid complete PDF chunk');
+        await hash.updateAsync(chunk, check);
+        for (let offset = 0; offset < chunk.byteLength;) {
+          const count = Math.min(buffer.length - buffered, chunk.byteLength - offset);
+          buffer.set(chunk.subarray(offset, offset + count), buffered); buffered += count; received += count; offset += count;
+          if (buffered === buffer.length) await flush();
+        }
+      }
+      check();
+      if (received !== pdf.size || hash.digest() !== pdf.document_id) throw integrity('Complete PDF checksum verification failed');
+      await flush(); check();
+      await this.locked(key, true, async () => {
+        check(); const stored = await this.loadManifest(prefix); check();
+        if (!stored || !sameDocument(stored.descriptor, pdf)) throw new Error('PDF cache identity changed');
+        const manifest: Manifest = {...stored, generation};
+        publishing = true;
+        await this.io(() => this.storage.writeAtomic(`${prefix}manifest.json`, encoder.encode(JSON.stringify(manifest)), signal));
+        committed = true; check(); await this.prune(prefix, manifest, check);
+      });
+    } finally {
+      this.staging.delete(directory);
+      if (!committed && written.length) {
+        try {
+          await this.locked(key, true, async () => {
+            current();
+            if (publishing && (await this.loadManifest(prefix))?.generation === generation) return;
+            for (const path of written) {current(); await this.io(() => this.storage.remove(path));}
+          });
+        } catch {}
+      }
+    }
   }
 
   status(key: string): Promise<PdfCacheStatus> {
     return this.locked(key, false, async prefix => {
-      const pdf = await this.loadMetadata(prefix);
+      const stored = await this.loadManifest(prefix);
       this.guard();
-      if (!pdf) return {downloadedBytes: 0, totalBytes: 0, complete: false};
-      const result = await this.scan(prefix, pdf);
+      if (!stored) return {downloadedBytes: 0, totalBytes: 0, complete: false};
+      const result = await this.scan(prefix, stored);
       this.guard();
       return result;
     });
@@ -144,10 +225,10 @@ export class PdfBlockCache {
   verify(key: string, descriptor: PdfDescriptor): Promise<boolean> {
     return this.locked(key, false, async prefix => {
       const pdf = descriptorValue(descriptor);
-      const stored = await this.loadMetadata(prefix);
+      const stored = await this.loadManifest(prefix);
       this.guard();
-      if (!sameDocument(stored, pdf)) return false;
-      const result = await this.scan(prefix, pdf);
+      if (!stored || !sameDocument(stored.descriptor, pdf)) return false;
+      const result = await this.scan(prefix, stored);
       this.guard();
       return result.complete;
     });
@@ -158,14 +239,38 @@ export class PdfBlockCache {
     return this.locked(key, true, prefix => this.clear(prefix, guard), guard);
   }
 
+  stageRemoval(key: string, generation: string, signal: AbortSignal): Promise<void> {
+    return this.locked(key, true, async prefix => {
+      throwIfAborted(signal);
+      if (!this.storage.stageRemoval) throw new Error('Recoverable PDF removal unavailable');
+      this.revisions.set(prefix, (this.revisions.get(prefix) ?? 0) + 1);
+      await this.io(() => this.storage.stageRemoval!(prefix.slice(0, -1), generation, signal)); throwIfAborted(signal);
+    });
+  }
+  restoreRemoval(key: string, generation: string): Promise<void> {
+    return this.locked(key, true, async prefix => {
+      if (!this.storage.restoreRemoval) throw new Error('Recoverable PDF removal unavailable');
+      this.revisions.set(prefix, (this.revisions.get(prefix) ?? 0) + 1);
+      await this.io(() => this.storage.restoreRemoval!(prefix.slice(0, -1), generation), this.cleanupGuard);
+      const tombstones = await this.denials(prefix, this.cleanupGuard);
+      if (this.denied.has(prefix) || tombstones.length) await this.clear(prefix, this.cleanupGuard, true);
+    }, this.cleanupGuard, false);
+  }
+  async purgeRemoval(key: string, generation: string): Promise<void> {
+    this.cleanupGuard();
+    if (!this.storage.purgeRemoval) throw new Error('Recoverable PDF removal unavailable');
+    const prefix = this.prefix(key);
+    await this.io(() => this.storage.purgeRemoval!(prefix.slice(0, -1), generation), this.cleanupGuard);
+  }
+
   bytes(key: string): Promise<number> {
     return this.locked(key, false, async prefix => {
-      const pdf = await this.loadMetadata(prefix);
+      const stored = await this.loadManifest(prefix);
       this.guard();
-      if (!pdf) return 0;
-      const paths = await this.blockInventory(prefix, pdf);
+      if (!stored) return 0;
+      const paths = await this.blockInventory(prefix, stored);
       this.guard();
-      const total = await this.measure(prefix, pdf, paths);
+      const total = await this.measure(prefix, stored, paths);
       this.guard();
       return total;
     });
@@ -205,35 +310,39 @@ export class PdfBlockCache {
     try {return await run();} finally {guard();}
   }
 
-  private async denials(prefix: string): Promise<string[]> {
-    const directory = `${prefix}denials/`, paths = await this.io(() => this.storage.list(directory));
+  private async denials(prefix: string, guard = this.guard): Promise<string[]> {
+    const directory = `${prefix}denials/`, paths = await this.io(() => this.storage.list(directory), guard);
     return paths.filter(path => path.startsWith(directory) && /^denied-\d+-\d+\.json$/.test(path.slice(directory.length)));
   }
 
-  private async loadMetadata(prefix: string): Promise<PdfDescriptor | null> {
+  private async loadManifest(prefix: string): Promise<Manifest | null> {
     if (this.denied.has(prefix) || (await this.denials(prefix)).length) return null;
     const bytes = await this.io(() => this.storage.read(`${prefix}manifest.json`));
     this.guard();
     if (!bytes) return null;
     try {
       const manifest = JSON.parse(decoder.decode(bytes)) as Manifest | null;
-      if (manifest?.version !== MANIFEST_VERSION || manifest.blockSize !== PDF_BLOCK_SIZE) return null;
-      return descriptorValue(manifest.descriptor);
+      if (manifest?.version !== MANIFEST_VERSION || manifest.blockSize !== PDF_BLOCK_SIZE || manifest.generation !== undefined && (typeof manifest.generation !== 'string' || !/^full-[\w-]{1,100}$/.test(manifest.generation))) return null;
+      return {...manifest, descriptor: descriptorValue(manifest.descriptor)};
     } catch {return null;}
   }
 
-  private blockPath(prefix: string, pdf: PdfDescriptor, begin: number): string {
-    return `${prefix}${pdf.document_id}-${pdf.size}/${begin}.block`;
+  private blockDirectory(prefix: string, manifest: Manifest): string {
+    const {descriptor: pdf, generation} = manifest;
+    return `${prefix}${pdf.document_id}-${pdf.size}/${generation ? `${generation}/` : ''}`;
+  }
+  private blockPath(prefix: string, manifest: Manifest, begin: number): string {
+    return `${this.blockDirectory(prefix, manifest)}${begin}.block`;
   }
 
-  private async loadBlock(prefix: string, pdf: PdfDescriptor, begin: number): Promise<Uint8Array | null> {
-    const bytes = await this.io(() => this.storage.read(this.blockPath(prefix, pdf, begin)));
+  private async loadBlock(prefix: string, manifest: Manifest, begin: number): Promise<Uint8Array | null> {
+    const bytes = await this.io(() => this.storage.read(this.blockPath(prefix, manifest, begin)));
     this.guard();
-    return bytes?.byteLength === Math.min(PDF_BLOCK_SIZE, pdf.size - begin) ? bytes : null;
+    return bytes?.byteLength === Math.min(PDF_BLOCK_SIZE, manifest.descriptor.size - begin) ? bytes : null;
   }
 
-  private async blockInventory(prefix: string, pdf: PdfDescriptor): Promise<Set<string>> {
-    const paths = await this.io(() => this.storage.list(`${prefix}${pdf.document_id}-${pdf.size}/`));
+  private async blockInventory(prefix: string, manifest: Manifest): Promise<Set<string>> {
+    const paths = await this.io(() => this.storage.list(this.blockDirectory(prefix, manifest)));
     this.guard();
     return new Set(paths);
   }
@@ -244,27 +353,28 @@ export class PdfBlockCache {
     this.guard();
   }
 
-  private async measure(prefix: string, pdf: PdfDescriptor, paths: Set<string>): Promise<number> {
+  private async measure(prefix: string, manifest: Manifest, paths: Set<string>): Promise<number> {
+    const pdf = manifest.descriptor;
     let total = 0;
     for (let begin = 0; begin < pdf.size; begin += PDF_BLOCK_SIZE) {
       if (begin % (PDF_BLOCK_SIZE * 8) === 0) {await this.yieldTurn(); this.guard();}
-      const path = this.blockPath(prefix, pdf, begin);
+      const path = this.blockPath(prefix, manifest, begin);
       if (!paths.has(path)) continue;
       const size = this.storage.size
         ? await this.io(() => this.storage.size!(path))
-        : (await this.loadBlock(prefix, pdf, begin))?.byteLength;
+        : (await this.loadBlock(prefix, manifest, begin))?.byteLength;
       this.guard();
       if (size === Math.min(PDF_BLOCK_SIZE, pdf.size - begin)) total += size;
     }
     return total;
   }
 
-  private async scan(prefix: string, pdf: PdfDescriptor): Promise<PdfCacheStatus> {
+  private async scan(prefix: string, manifest: Manifest): Promise<PdfCacheStatus> {
     this.guard();
-    const key = `${prefix}${pdf.document_id}-${pdf.size}`;
+    const key = this.blockDirectory(prefix, manifest);
     let pending = this.scans.get(key);
     if (!pending) {
-      pending = this.scanBlocks(prefix, pdf);
+      pending = this.scanBlocks(prefix, manifest);
       this.scans.set(key, pending);
     }
     try {
@@ -277,22 +387,22 @@ export class PdfBlockCache {
     }
   }
 
-  private async scanBlocks(prefix: string, pdf: PdfDescriptor): Promise<PdfCacheStatus> {
-    const paths = await this.blockInventory(prefix, pdf);
+  private async scanBlocks(prefix: string, manifest: Manifest): Promise<PdfCacheStatus> {
+    const pdf = manifest.descriptor, paths = await this.blockInventory(prefix, manifest);
     this.guard();
     let allPresent = true;
     for (let begin = 0; begin < pdf.size; begin += PDF_BLOCK_SIZE) {
-      if (!paths.has(this.blockPath(prefix, pdf, begin))) {allPresent = false; break;}
+      if (!paths.has(this.blockPath(prefix, manifest, begin))) {allPresent = false; break;}
     }
     if (!allPresent || this.storage.size) {
-      const downloadedBytes = await this.measure(prefix, pdf, paths);
+      const downloadedBytes = await this.measure(prefix, manifest, paths);
       this.guard();
       if (downloadedBytes !== pdf.size) return {downloadedBytes, totalBytes: pdf.size, complete: false};
     }
     const hash = new Sha256();
     let downloadedBytes = 0;
     for (let begin = 0; begin < pdf.size; begin += PDF_BLOCK_SIZE) {
-      const block = await this.loadBlock(prefix, pdf, begin);
+      const block = await this.loadBlock(prefix, manifest, begin);
       this.guard();
       if (block) {
         downloadedBytes += block.byteLength;
@@ -303,7 +413,22 @@ export class PdfBlockCache {
     return {downloadedBytes, totalBytes: pdf.size, complete: downloadedBytes === pdf.size && hash.digest() === pdf.document_id};
   }
 
+  private async prune(prefix: string, manifest: Manifest, check = this.guard): Promise<void> {
+    try {
+      check();
+      const current = this.blockDirectory(prefix, manifest), paths = await this.io(() => this.storage.list(prefix));
+      for (const path of paths) {
+        check();
+        if (!path.startsWith(prefix) || !/^[a-f0-9]{64}-\d+\/(full-[\w-]{1,100}\/)?\d+\.block$/.test(path.slice(prefix.length))) continue;
+        const directory = path.slice(0, path.lastIndexOf('/') + 1);
+        if (directory === current || this.staging.has(directory)) continue;
+        await this.io(() => this.storage.remove(path));
+      }
+    } catch {check();}
+  }
+
   private async clear(prefix: string, guard = this.guard, bestEffort = false): Promise<void> {
+    guard(); this.revisions.set(prefix, (this.revisions.get(prefix) ?? 0) + 1);
     const errors: unknown[] = [];
     const remove = async (path: string) => {
       try {await this.io(() => this.storage.remove(path), guard);}

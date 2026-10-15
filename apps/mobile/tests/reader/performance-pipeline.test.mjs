@@ -1,6 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import vm from 'node:vm'
+import {DatabaseSync} from 'node:sqlite'
+import {BackgroundArticleCache} from '../../src/data/background-cache.ts'
+import {LocalBookmarkRepository} from '../../src/data/repositories/local-metadata.ts'
 import {React, act, nativeBoundary, loadComponent, withNativeHost} from './parity-host.mjs'
 import {PreferenceStore, PREFERENCE_KEYS} from '../../src/data/preferences.ts'
 import {MemoryPreferences} from '../data/helpers.ts'
@@ -16,33 +19,75 @@ import * as motion from '../../src/reader/outline-motion.ts'
 import {ReaderPositionWriter} from '../../src/reader/position.ts'
 import {ReaderCrashRecovery, readerDocumentError, READER_PROCESS_GONE} from '../../src/reader/recovery.ts'
 import {scriptJson} from '../../src/reader/document.ts'
-import {markdownToHtml} from '../../src/reader/markdown.ts'
+import {IncrementalMarkdown} from '../../src/reader/markdown.ts'
+import {markdownDomScript} from '../../src/reader/markdown-dom.ts'
 import {mobileColors, mobileTypography} from '../../src/theme/index.ts'
 
 const deferred = () => {let resolve; const promise = new Promise(yes => {resolve = yes}); return {promise, resolve}}
 const captured = {source: [{type: 'text', xpath: '/p/text()', start_offset: 0, end_offset: 5}], text: 'Quote', approx_source: {exact: 'Quote'}, select_content: [{type: 'text', text: 'Quote', src: ''}]}
 const mark = {id: '', source: [], approx: {}, stroke: [], comments: []}
 
+function automaticArticle(owner, persist) {
+  const db = new DatabaseSync(':memory:'), watchers = new Set(), files = new Map(), started = deferred(), response = deferred(), writing = deferred(), requests = []
+  db.exec(`CREATE TABLE sr_user_bookmark(id TEXT PRIMARY KEY, metadata TEXT, archive_status INTEGER, deleted_at TEXT, created_at TEXT, type INTEGER);
+    CREATE TABLE sr_user_collection(id TEXT PRIMARY KEY, owner_id TEXT);
+    CREATE TABLE sr_user_collection_subscriber(collection_id TEXT);
+    CREATE TABLE sr_collection_bookmark(id TEXT, owner_id TEXT, metadata TEXT, starred_at TEXT, created_at TEXT);
+    CREATE TABLE ps_data_local__local_bookmark_info(id TEXT PRIMARY KEY, data TEXT);`)
+  const key = bookmarkCacheKey('book', owner)
+  if (owner) {
+    db.prepare('INSERT INTO sr_user_collection VALUES (?, ?)').run('collection', owner)
+    db.prepare('INSERT INTO sr_user_collection_subscriber VALUES (?)').run('collection')
+    db.prepare('INSERT INTO sr_collection_bookmark VALUES (?, ?, ?, NULL, ?)').run('book', owner, '{"bookmark":{"status":"success"}}', '2026-10-01')
+  } else db.prepare('INSERT INTO sr_user_bookmark VALUES (?, ?, 0, NULL, ?, 0)').run('book', '{"bookmark":{"status":"success"}}', '2026-10-01')
+  db.prepare('INSERT INTO ps_data_local__local_bookmark_info VALUES (?, ?)').run(key, '{"read_position":"240","overview":"Cached","outline":"Cached","future":"keep"}')
+  let tail = Promise.resolve()
+  const transaction = {execute: async (sql, args = []) => db.prepare(sql).run(...args), getOptional: async (sql, args = []) => db.prepare(sql).get(...args) ?? null}
+  const database = {...transaction, getAll: async (sql, args = []) => db.prepare(sql).all(...args),
+    writeTransaction(work) {
+      const result = tail.then(async () => {
+        db.exec('BEGIN')
+        try {const value = await work(transaction); db.exec('COMMIT'); for (const notify of watchers) notify(); return value}
+        catch (error) {db.exec('ROLLBACK'); throw error}
+      })
+      tail = result.catch(() => undefined); return result
+    },
+    watch(sql, args, handler, {signal}) {
+      const notify = () => {if (!signal.aborted) handler.onResult({rows: {_array: db.prepare(sql).all(...args)}})}
+      watchers.add(notify); signal.addEventListener('abort', () => watchers.delete(notify), {once: true}); notify()
+    },
+  }
+  const worker = new BackgroundArticleCache({database, preferences: new PreferenceStore(new MemoryPreferences({cache_count: 1, download_images: 0})), assertActive() {},
+    cache: {writeArticle: async (key, html) => {writing.resolve(); await persist?.promise; files.set(key, html)}, removeArticle: key => files.delete(key), ensureImage: async () => assert.fail('No fixture images')},
+    content: async (id, owner, signal) => {requests.push({id, owner, signal}); started.resolve(); await response.promise; return '<p>Shared automatic body</p>'}, image: async () => assert.fail('No fixture images'),
+  })
+  return {worker, local: new LocalBookmarkRepository(database), files, key, requests, started, response, writing,
+    async close() {response.resolve(); persist?.resolve(); await worker.stop(); await tail; db.close()}}
+}
+
 async function screenFixture(host, options, run) {
   const nil = () => null, dialogs = new Map(), appListeners = new Set(), writes = [], calls = [], timers = []
   const owner = {id: 'owner'}
   let currentOwner = owner, reader, panel, selection, outline, skeleton, mounts = 0, renders = 0, leases = 0
+  const accessEvents = []
   const appState = {currentState: 'active', addEventListener: (_name, listener) => {appListeners.add(listener); return {remove: () => appListeners.delete(listener)}}}
   const preferences = new PreferenceStore(new MemoryPreferences({user_id: 'user'}))
   const session = {status: 'authenticated', session: {userId: 'user', token: 'synthetic', refreshedAt: 0}}
   const repositories = {
-    local: {read: async () => {calls.push('local-read'); return options.local ? await options.local.promise : {read_position: '240', outline_read_position: '120', overview: 'Cached', outline: 'Cached'}},
-      update: async (_key, value) => {writes.push(value); if (value.is_downloaded === 2 && options.metadataWrite) await options.metadataWrite.promise}},
+    local: {read: async key => {calls.push('local-read'); return options.local ? await options.local.promise : options.storage ? options.storage.local.read(key) : {read_position: '240', outline_read_position: '120', overview: 'Cached', outline: 'Cached'}},
+      update: async (key, value) => {writes.push(value); if (options.storage) await options.storage.local.update(key, value); if (value.is_downloaded === 2 && options.metadataWrite) await options.metadataWrite.promise}},
     getBookmark: async () => ({id: 'book', title: 'Known title', aliasTitle: '', metadata: '{}'}),
     watchUser: callback => {callback([]); return nil}, watchSubscription: callback => {callback([]); return nil}, watchTags: callback => {callback([]); return nil},
     watchRows: () => nil, watchComments: (_id, callback) => {callback([]); return nil},
+    watchCollectionSettings: (_owner, callback) => {callback([{allow_highlight: true, show_highlight: true, allow_access: true}]); return nil}, markCollectionRead: async () => {},
     addMark: async value => {calls.push(['addMark', value]); if (options.addMark) await options.addMark.promise},
   }
-  const cache = {readArticle: async () => {calls.push('cache-read'); return options.cacheRead ? await options.cacheRead.promise : options.remote ? null : '<p>Cached body</p>'},
-    writeArticle: async (_key, html) => {calls.push(['cache-write', html]); if (options.cacheWrite) await options.cacheWrite.promise}}
-  const api = {getBookmarkRawContent: async () => {calls.push('download'); return '<p>Downloaded body</p>'},
+  const cache = {readArticle: async key => {calls.push('cache-read'); return options.cacheRead ? await options.cacheRead.promise : options.storage ? options.storage.files.get(key) ?? null : options.remote ? null : '<p>Cached body</p>'},
+    writeArticle: async (key, html) => {calls.push(['cache-write', html]); if (options.cacheWrite) await options.cacheWrite.promise; options.storage?.files.set(key, html)}}
+  const api = {getBookmarkRawContent: async () => assert.fail('Reader must acquire HTML through its account resource scheduler'),
     streamAi: async function* (kind) {calls.push(['ai', kind]); yield {type: 'done'}}, getMarkUsers: async () => []}
-  const runtime = {getNativeResourceOwner: () => currentOwner, beginArticleAccess: () => {leases++; return () => {leases--}}}
+  const runtime = {getNativeResourceOwner: () => currentOwner, beginArticleAccess: key => {leases++; accessEvents.push(`+${key}`); const release = options.background?.beginForeground(key); return () => {release?.(); leases--; accessEvents.push(`-${key}`)}},
+    getArticleContent: async (id, owner, signal) => {calls.push('download'); return options.background ? options.background.getArticleContent(id, owner, signal) : '<p>Downloaded body</p>'}}
   const ReaderWebView = React.forwardRef((props, ref) => {
     reader = props; renders++
     React.useEffect(() => {mounts++}, [])
@@ -56,24 +101,25 @@ async function screenFixture(host, options, run) {
     '../reader/PdfWebView': {PdfWebView: () => assert.fail('An HTML performance fixture must not mount the PDF renderer')},
     react: React, 'react-native': {...host.native, AppState: appState}, 'expo-clipboard': {}, 'expo-network': {getNetworkStateAsync: async () => ({isConnected: true})}, 'expo-file-system': {}, 'expo/fetch': {},
     '@react-navigation/native': {usePreventRemove() {}}, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})},
-    '../components': {...host.components, SourceDialog: props => {dialogs.set(props.title, props); return null}}, '../components/SourceRing': {SourceCircularProgress: nil},
+    '../components': {...host.components, SourceDialog: props => {dialogs.set(props.title, props); return null}, AppImage: nil}, '../components/SourceRing': {SourceCircularProgress: nil},
     '../data': {bookmarkCacheKey, bookmarkDisplayTitle, collectionMarkPolicy, PERSONAL_MARK_POLICY, PENDING_COLLECTION_MARK_POLICY, PREFERENCE_KEYS},
     '../runtime': {useMobile: () => ({runtime, repositories, cache, api, preferences, session, sessions: {getSnapshot: () => session}, settings: {}, t: key => key, config: {}, nativeResourceOwner: owner}), useControlledUpgradeReaderObserver: () => undefined},
     '../rss/controller': {}, '../theme': {mobileColors, mobileTypography}, '../native/reader': {}, '../native/platform': {}, '../telemetry': {useTelemetry: () => telemetry}, '../reader/share': {},
     '../reader': {ReaderWebView, toolbarVisible: coordinates.toolbarVisible, composeReaderError: () => '<p>Error</p>'}, '../reader/input': input,
     '../reader/ReaderOverlays': {CommentPanel: props => {panel = props; return null}, SelectionMenu: props => {selection = props; return null}, OutlineSheet: props => {outline = props; return null}, FloatingActions: nil, ReaderToolbar: nil, TranscriptSheet: nil},
-    '../reader/ImageGallery': {}, '../reader/gallery-resource': {}, '../reader/OverviewViews': {OverviewDialog: nil, OverviewExcerpt: nil}, '../reader/ReaderSkeleton': {ReaderSkeleton: props => {skeleton = props; return null}}, '../reader/TagSheet': {ReaderTagSheet: nil},
+    '../reader/ImageGallery': {}, '../reader/gallery-resource': {}, '../reader/OverviewViews': {OverviewDialog: nil, OverviewExcerpt: nil}, '../reader/components/CommentPanel': {CommentPanel: props => {panel = props; return null}}, '../reader/components/OutlineSheet': {OutlineSheet: props => {outline = props; return null}}, '../reader/ReaderSkeleton': {ReaderSkeleton: props => {skeleton = props; return null}}, '../reader/TagSheet': {ReaderTagSheet: nil},
     '../reader/model': model, '../reader/account': account, '../reader/position': {ReaderPositionWriter}, '../reader/recovery': {ReaderCrashRecovery}, '../components/fixture-actions': {},
   }
   const sessions = {getSnapshot: () => session}, t = key => key, telemetry = {element() {}, firebase() {}}
   const mobile = {...boundaries['../runtime'].useMobile(), sessions, t}
   boundaries['../runtime'].useMobile = () => mobile
+  boundaries['../runtime'].useReadingMobile = () => mobile
   const {ReaderScreen} = await loadComponent('../../src/screens/ReaderScreen.tsx', boundaries, {Error, setTimeout: (callback, ms) => {timers.push(ms); return setTimeout(callback, ms)}})
   const listeners = new Map()
-  const navigation = {addListener: (name, callback) => {listeners.set(name, callback); return () => listeners.delete(name)}, setOptions() {}, getState: () => ({routes: [{key: 'reader'}]})}
-  await host.render(React.createElement(ReaderScreen, {navigation, route: {key: 'reader', params: {bookmarkId: 'book', title: 'Known title'}}}))
+  const navigation = {isFocused: () => true, addListener: (name, callback) => {listeners.set(name, callback); return () => listeners.delete(name)}, setOptions() {}, getState: () => ({routes: [{key: 'reader'}]})}
+  await host.render(React.createElement(ReaderScreen, {navigation, route: {key: 'reader', params: {bookmarkId: 'book', title: 'Known title', ...(options.collectionOwner ? {collectionOwnerId: options.collectionOwner, collectionId: 'collection'} : {})}}}))
   await run({reader: () => reader, panel: () => panel, selection: () => selection, outline: () => outline, skeleton: () => skeleton,
-    calls, writes, timers, dialogs, mounts: () => mounts, renders: () => renders, leases: () => leases,
+    calls, writes, timers, dialogs, mounts: () => mounts, renders: () => renders, leases: () => leases, accessEvents: () => accessEvents,
     revoke: () => {currentOwner = {id: 'next-owner'}},
     state: async value => act(async () => {appState.currentState = value; [...appListeners].forEach(callback => callback(value))}),
     exit: async () => act(async () => listeners.get('state')({data: {state: {routes: []}}})),
@@ -111,15 +157,19 @@ test('downloaded content and source restore are usable before slow cache persist
     assert.equal(fixture.reader().html, '<p>Downloaded body</p>')
     assert.equal(fixture.reader().initialPosition, 240)
     assert.equal(fixture.calls.some(value => Array.isArray(value) && value[0] === 'cache-write'), false)
-    assert.equal(fixture.leases(), 1)
+    assert.deepEqual(fixture.accessEvents(), ['+book', '+book'], 'The mounted Reader holds its global reading lease alongside the active document load')
+    assert.equal(fixture.leases(), 2)
     await act(async () => fixture.reader().onEvent({type: 'domReady'}, 'page'))
     assert.equal(fixture.calls.filter(value => Array.isArray(value) && value[0] === 'cache-write').length, 1)
     assert.equal(fixture.reader().html, '<p>Downloaded body</p>')
     await act(async () => cacheWrite.resolve())
-    assert.equal(fixture.leases(), 1)
+    assert.equal(fixture.leases(), 2, 'A held cache commit keeps the document lease until its metadata write completes')
     await act(async () => metadataWrite.resolve())
-    assert.equal(fixture.leases(), 0)
+    assert.equal(fixture.leases(), 1, 'The completed document load releases its own lease while the mounted Reader retains the global one')
     assert.equal(fixture.mounts(), 1)
+    await host.unmount()
+    assert.deepEqual(fixture.accessEvents(), ['+book', '+book', '-book', '-book'])
+    assert.equal(fixture.leases(), 0, 'Unmounting the Reader releases the retained global reading lease')
   })
 }))
 
@@ -170,25 +220,33 @@ test('highlight uses the captured range before clearing selection; background ca
 }))
 
 test('mounted MarkdownView produces zero DOM replacements or parses on static outline scroll and restores once', nativeBoundary, async () => withNativeHost(async host => {
-  let props, parses = 0, replacements = 0, markup = '', scriptContext
+  let props, parses = 0, replacements = 0
   const positions = [], scrolls = []
-  const content = {get innerHTML() {return markup}, set innerHTML(value) {markup = value; replacements++}}
-  const webWindow = {scrollY: 0, scrollTo(_x, y) {webWindow.scrollY = y; scrolls.push(y)}, ReactNativeWebView: {postMessage() {}}}
+  let scroll = 0, content
   const WebView = React.forwardRef((value, ref) => {
     props = value
-    React.useImperativeHandle(ref, () => ({injectJavaScript: script => vm.runInNewContext(script, scriptContext)}), [])
+    React.useImperativeHandle(ref, () => ({injectJavaScript: script => host.window.eval(script)}), [])
     return null
   })
+  class CountingMarkdown extends IncrementalMarkdown {update(markdown) {parses++; return super.update(markdown)}}
   const {MarkdownView} = await loadComponent('../../src/reader/MarkdownView.tsx', {
-    react: React, 'react-native': {PixelRatio: {get: () => 3}}, 'react-native-webview': {WebView}, './document.ts': {scriptJson}, './markdown.ts': {markdownToHtml: value => {parses++; return markdownToHtml(value)}},
+    react: React, 'react-native': {PixelRatio: {get: () => 3}}, 'react-native-webview': {WebView}, './document.ts': {scriptJson},
+    './markdown.ts': {IncrementalMarkdown: CountingMarkdown}, './markdown-dom.ts': {markdownDomScript},
   })
   const render = (initialPosition, markdown = '# Title\n\nStatic outline') => host.render(React.createElement(MarkdownView, {markdown, initialPosition, onLink() {}, onPosition: value => positions.push(value)}))
   await render(120)
   const source = props.source
-  scriptContext = {window: webWindow, document: {getElementById: () => content, addEventListener() {}}}
-  vm.runInNewContext(/<script>([\s\S]+)<\/script>/.exec(props.source.html)[1], scriptContext)
+  Object.defineProperty(host.window, 'scrollY', {get: () => scroll, set: value => {scroll = value}, configurable: true})
+  host.window.scrollTo = (_x, y) => {scroll = y; scrolls.push(y)}
+  host.window.ReactNativeWebView = {postMessage() {}}
+  content = host.window.document.createElement('main'); content.id = 'content'
+  const insert = content.insertBefore.bind(content)
+  content.insertBefore = (...args) => {replacements++; return insert(...args)}
+  host.window.document.body.append(content)
+  host.window.eval(/<script>([\s\S]+)<\/script>/.exec(props.source.html)[1])
   await act(async () => props.onLoadEnd())
   assert.equal(parses, 1); assert.equal(replacements, 1); assert.equal(scrolls.at(-1), 40)
+  assert.deepEqual(Array.from(content.children, element => element.outerHTML), ['<h1>Title</h1>', '<p>Static outline</p>'])
   const beforeScrolls = scrolls.length
   for (let y = 1; y <= 50; y++) {
     await act(async () => {props.onScroll({nativeEvent: {contentOffset: {y}}}); props.onScroll({nativeEvent: {contentOffset: {y}}})})
@@ -197,15 +255,19 @@ test('mounted MarkdownView produces zero DOM replacements or parses on static ou
   assert.equal(props.source, source)
   assert.equal(positions.length, 50, 'Duplicate native offsets are coalesced')
   assert.equal(parses, 1); assert.equal(replacements, 1); assert.equal(scrolls.length, beforeScrolls)
-  webWindow.scrollY = 50
+  scroll = 50
+  const title = content.firstChild
   await render(0, '# Title\n\nStreamed addition')
   assert.equal(replacements, 2); assert.equal(scrolls.at(-1), 50, 'A genuine content revision preserves live scroll, not the restore seed')
+  assert.equal(content.firstChild, title, 'The unchanged leading block keeps its retained DOM node')
+  assert.deepEqual(Array.from(content.children, element => element.outerHTML), ['<h1>Title</h1>', '<p>Streamed addition</p>'])
 }))
 
 test('comment focus is consumed once and pending focus is cancelled when backgrounded', nativeBoundary, async () => withNativeHost(async host => {
   const listeners = new Set(), app = {currentState: 'active', addEventListener: (_name, callback) => {listeners.add(callback); return {remove: () => listeners.delete(callback)}}}
   const {CommentPanel} = await loadComponent('../../src/reader/ReaderOverlays.tsx', {react: React, 'react-native': {...host.native, AppState: app},
-    'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})}, '../components': host.components, '../theme': {mobileColors, mobileTypography}, './coordinates.ts': coordinates, './model.ts': model, './MarkdownView.tsx': {}, './outline-motion.ts': motion})
+    'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})}, '../components': host.components, '../theme': {mobileColors, mobileTypography}, './coordinates.ts': coordinates, './model.ts': model, './MarkdownView.tsx': {}, './outline-motion.ts': motion,
+    '../components/SourceSheetModal.tsx': {}, './components/ReaderSheet': {ReaderSheet: props => props.children ?? null}, './components/IconAction': {IconAction: () => null}})
   const props = {visible: true, autoFocus: true, allowComment: true, mark, text: 'Quote', draft: '', currentUserAvatar: '', menu: null, t: key => key, onMenu() {}}
   await host.render(React.createElement(CommentPanel, props))
   await host.settle(310)
@@ -223,14 +285,17 @@ test('comment focus is consumed once and pending focus is cancelled when backgro
 
 for (const end of ['background', 'exit', 'unmount', 'revoke']) test(`pending cache is completed safely on ${end} before document readiness`, nativeBoundary, async () => withNativeHost(async host => {
   await screenFixture(host, {remote: true}, async fixture => {
-    assert.equal(fixture.leases(), 1)
+    assert.deepEqual(fixture.accessEvents(), ['+book', '+book'], 'The mounted Reader holds its global reading lease alongside the active document load')
+    assert.equal(fixture.leases(), 2)
     if (end === 'revoke') {fixture.revoke(); await fixture.state('background')}
     else if (end === 'background') await fixture.state('background')
     else if (end === 'exit') await fixture.exit()
     else await host.unmount()
     assert.equal(fixture.calls.filter(value => Array.isArray(value) && value[0] === 'cache-write').length, end === 'revoke' ? 0 : 1)
-    assert.equal(fixture.leases(), 0)
+    if (end === 'unmount') assert.equal(fixture.leases(), 0, 'Unmounting releases every reading lease')
+    else assert.equal(fixture.leases(), 1, 'The document load releases its own lease while the still-mounted Reader retains the global one')
     assert.equal(fixture.writes.some(value => value.is_downloaded === 2), end !== 'revoke')
+    if (end !== 'unmount') {await host.unmount(); assert.equal(fixture.leases(), 0, 'Unmounting the Reader releases the retained global reading lease')}
   })
 }))
 
@@ -262,4 +327,91 @@ for (const end of ['background', 'exit', 'revoke']) test(`pending foreground rec
       assert.equal(fixture.mounts(), 2, 'A suspended, uncommitted recovery can resume within its one-retry budget')
     }
   })
+}))
+
+for (const collectionOwner of [undefined, 'shared-owner']) test(`mounted ${collectionOwner ? 'collection' : 'personal'} Reader joins automatic HTML and preserves the same owner cache and position`, nativeBoundary, async () => withNativeHost(async host => {
+  const storage = automaticArticle(collectionOwner)
+  try {
+    storage.worker.start(); await storage.started.promise
+    await screenFixture(host, {remote: true, background: storage.worker, storage, collectionOwner}, async fixture => {
+      assert.equal(fixture.calls.filter(value => value === 'download').length, 1)
+      assert.equal(storage.requests.length, 1); assert.equal(storage.requests[0].owner, collectionOwner)
+      assert.equal(fixture.reader(), undefined)
+      await act(async () => {storage.response.resolve(); await storage.worker.settled()})
+      assert.equal(fixture.reader().html, '<p>Shared automatic body</p>'); assert.equal(fixture.reader().initialPosition, 240)
+      assert.equal(fixture.mounts(), 1); assert.equal(fixture.timers.includes(250), false)
+      await act(async () => fixture.reader().onEvent({type: 'domReady'}, 'page'))
+      assert.equal(storage.requests.length, 1); assert.equal(storage.files.get(storage.key), '<p>Shared automatic body</p>')
+      const local = await storage.local.read(storage.key)
+      assert.equal(local.is_downloaded, 2); assert.equal(local.is_auto_cached, 0); assert.equal(local.future, 'keep')
+      assert.equal(fixture.leases(), 1, 'The completed shared body releases the document lease while the mounted Reader retains the global one')
+      await host.unmount()
+      assert.equal(fixture.leases(), 0, 'Unmounting the Reader releases the retained global reading lease')
+    })
+  } finally {await storage.close()}
+}))
+
+test('unmounting a Reader detaches its shared body consumer while the automatic transfer commits safely', nativeBoundary, async () => withNativeHost(async host => {
+  const storage = automaticArticle()
+  try {
+    storage.worker.start(); await storage.started.promise
+    await screenFixture(host, {remote: true, background: storage.worker, storage}, async fixture => {
+      assert.equal(fixture.calls.filter(value => value === 'download').length, 1)
+      await host.unmount(); assert.equal(fixture.leases(), 0)
+      assert.equal(storage.requests[0].signal.aborted, false)
+      storage.response.resolve(); await storage.worker.settled()
+      assert.equal(storage.requests.length, 1); assert.equal(storage.files.get(storage.key), '<p>Shared automatic body</p>')
+      assert.equal((await storage.local.read(storage.key)).is_downloaded, 2)
+      assert.equal(fixture.calls.some(value => Array.isArray(value) && value[0] === 'cache-write'), false)
+    })
+  } finally {await storage.close()}
+}))
+
+test('a Reader-only body request aborts the actual transport on unmount with no late cache or metadata completion', nativeBoundary, async () => withNativeHost(async host => {
+  const storage = automaticArticle()
+  try {
+    await screenFixture(host, {remote: true, background: storage.worker, storage}, async fixture => {
+      await storage.started.promise; await host.unmount()
+      assert.equal(storage.requests[0].signal.aborted, true); assert.equal(fixture.leases(), 0)
+      storage.response.resolve(); await storage.worker.settled()
+      assert.equal(storage.files.size, 0); assert.notEqual((await storage.local.read(storage.key)).is_downloaded, 2)
+      assert.equal(fixture.mounts(), 0)
+    })
+  } finally {await storage.close()}
+}))
+
+test('Reader reuses a completed automatic response while its file commit is still held', nativeBoundary, async () => withNativeHost(async host => {
+  const persist = deferred(), storage = automaticArticle(undefined, persist)
+  try {
+    storage.worker.start(); await storage.started.promise; storage.response.resolve(); await storage.writing.promise
+    assert.equal(storage.files.size, 0)
+    await screenFixture(host, {remote: true, background: storage.worker, storage}, async fixture => {
+      assert.equal(fixture.reader().html, '<p>Shared automatic body</p>'); assert.equal(storage.requests.length, 1)
+      assert.equal(fixture.mounts(), 1); assert.equal(fixture.reader().initialPosition, 240)
+      await act(async () => {persist.resolve(); await storage.worker.settled()})
+      await act(async () => fixture.reader().onEvent({type: 'domReady'}, 'page'))
+      assert.equal(storage.requests.length, 1); assert.equal(fixture.leases(), 1, 'The reused shared body releases the document lease while the mounted Reader retains the global one')
+      await host.unmount()
+      assert.equal(fixture.leases(), 0, 'Unmounting the Reader releases the retained global reading lease')
+    })
+  } finally {await storage.close()}
+}))
+
+test('mounted Reader promotes an already queued body into reserved foreground capacity', nativeBoundary, async () => withNativeHost(async host => {
+  const storage = automaticArticle()
+  try {
+    const occupied = ['busy-a', 'busy-b'].map(id => storage.worker.getArticleContent(id, undefined, undefined, false))
+    await storage.started.promise; storage.worker.start()
+    for (let attempt = 0; attempt < 100 && (await storage.local.read(storage.key)).is_downloaded !== 1; attempt++) await new Promise(resolve => setImmediate(resolve))
+    assert.equal((await storage.local.read(storage.key)).is_downloaded, 1)
+    assert.deepEqual(storage.requests.map(request => request.id), ['busy-a', 'busy-b'])
+    await screenFixture(host, {remote: true, background: storage.worker, storage}, async fixture => {
+      assert.deepEqual(storage.requests.map(request => request.id), ['busy-a', 'busy-b', 'book'])
+      await act(async () => {storage.response.resolve(); await Promise.all(occupied); await storage.worker.settled()})
+      assert.equal(fixture.reader().html, '<p>Shared automatic body</p>')
+      assert.equal(storage.requests.filter(request => request.id === 'book').length, 1)
+      await act(async () => fixture.reader().onEvent({type: 'domReady'}, 'page'))
+      await host.unmount()
+    })
+  } finally {await storage.close()}
 }))

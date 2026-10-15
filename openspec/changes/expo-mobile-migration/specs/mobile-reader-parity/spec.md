@@ -100,7 +100,7 @@ The application SHALL render PDF bookmarks in its existing Reader route using lo
 
 ### Requirement: PDF downloads extend the foreground cache queue
 
-The application SHALL use the existing foreground download queue for automatic PDF caching, manual offline downloads and prioritized reader range requests. Requested blocks SHALL be deduplicated and validated against the immutable document version. Files and task metadata SHALL be isolated by environment, account and bookmark access context. Only a completely downloaded, size/hash-verified document SHALL be recorded as offline-complete. The PDF Reader SHALL NOT show offline/completion badges or partial-cache rows; state remains internal and required download actions use existing app action presentation. No OS background transfer service SHALL be introduced.
+The application SHALL use the existing foreground download queue for automatic PDF caching under the same eligibility, cache-window and retention policy as ordinary articles, with prioritized reader range requests. Following the user's performance-change instruction, no standalone PDF offline-download button SHALL be exposed or required. Requested blocks SHALL be deduplicated and validated against the immutable document version. Files and task metadata SHALL be isolated by environment, account and bookmark access context. Only a completely downloaded, size/hash-verified document SHALL be recorded as offline-complete. The PDF Reader SHALL NOT show offline/completion badges or partial-cache rows; state remains internal. No OS background transfer service SHALL be introduced.
 
 #### Scenario: Reading overlaps prefetch
 - **WHEN** PDF.js requests bytes already cached or scheduled by prefetch

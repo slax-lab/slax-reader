@@ -339,3 +339,73 @@ for (const enabled of [true, false]) {
     assert.deepEqual(await api.setLab('pdf', enabled), {enabled});
   });
 }
+
+const acquisitionDescriptor = {...descriptor, source: 'url' as const, text_status: 'ready' as const};
+const gate = () => {let resolve!: () => void; const promise = new Promise<void>(done => {resolve = done;}); return {promise, resolve};};
+
+test('PDF acquisition distinguishes a validated range without invoking the full consumer', async () => {
+  const {response} = pdfResponse();
+  assert.deepEqual(await apiWith(async () => response).acquirePdf('bookmark', acquisitionDescriptor, 3, 7, async () => assert.fail('unexpected full consumer')),
+    {kind: 'range', begin: 3, bytes: bytes.slice(3, 7)});
+});
+
+test('complete PDF acquisition backpressures transport and delivers at most one block per consumer chunk', {timeout: 3000}, async () => {
+  const large = new Uint8Array(256 * 1024 * 3 + 19), entered = gate(), release = gate(), sizes: number[] = [];
+  const {response, state} = pdfResponse({status: 200, headers: {'Content-Range': null, 'Content-Length': String(large.length)}, chunks: [large.subarray(0, 700_000), large.subarray(700_000)]});
+  Object.assign(response, {arrayBuffer: () => assert.fail('whole-file allocation'), blob: () => assert.fail('whole-file blob')});
+  const pending = apiWith(async () => response).acquirePdf('bookmark', {...acquisitionDescriptor, size: large.length}, 3, 7, async chunks => {
+    for await (const value of chunks) {sizes.push(value.length); if (sizes.length === 1) {entered.resolve(); await release.promise;}}
+  });
+  try {await entered.promise; assert.equal(state.pulls, 1);}
+  finally {release.resolve();}
+  assert.deepEqual(await pending, {kind: 'complete', size: large.length});
+  assert(sizes.every(size => size <= 256 * 1024)); assert.equal(sizes.reduce((total, size) => total + size), large.length);
+  assert.equal(state.pulls, 3); assert.equal(response.body?.locked, false);
+});
+
+for (const invalid of ['truncated', 'excess', 'wrong-size', 'wrong-type', 'wrong-identity'] as const) {
+  test(`complete PDF acquisition rejects ${invalid} without publishing a complete result`, async () => {
+    const headers: Record<string, string | null> = {'Content-Range': null, 'Content-Length': String(bytes.length)};
+    if (invalid === 'wrong-size') headers['Content-Length'] = String(bytes.length + 1);
+    if (invalid === 'wrong-type') headers['Content-Type'] = 'text/html';
+    if (invalid === 'wrong-identity') headers.ETag = `"${'b'.repeat(64)}"`;
+    const chunks = invalid === 'truncated' ? [bytes.slice(0, -1)] : invalid === 'excess' ? [bytes, bytes.slice(0, 1)] : [bytes];
+    const {response, state} = pdfResponse({status: 200, headers, chunks}); let consumed = 0, calls = 0;
+    const api = apiWith(async () => {calls++; return response;});
+    await assert.rejects(api.acquirePdf('bookmark', acquisitionDescriptor, 3, 7, async chunks => {for await (const value of chunks) consumed += value.length;}), ApiError);
+    assert.equal(calls, 1); assert.equal(response.body?.locked, false);
+    if (invalid.startsWith('wrong-')) {assert.equal(consumed, 0); assert.equal(state.cancelled, true);}
+  });
+}
+
+test('a full PDF consumer must exhaust the stream or explicitly reuse another committed acquisition', async () => {
+  const skipped = pdfResponse({status: 200, headers: {'Content-Range': null, 'Content-Length': String(bytes.length)}, chunks: [bytes]});
+  await assert.rejects(apiWith(async () => skipped.response).acquirePdf('bookmark', acquisitionDescriptor, 3, 7, async () => {}), /Incomplete PDF response consumption/);
+  assert.equal(skipped.state.pulls, 0); assert.equal(skipped.state.cancelled, true);
+  const reused = pdfResponse({status: 200, headers: {'Content-Range': null, 'Content-Length': String(bytes.length)}, chunks: [bytes]});
+  assert.deepEqual(await apiWith(async () => reused.response).acquirePdf('bookmark', acquisitionDescriptor, 3, 7, async (_chunks, _signal, discard) => {discard(); return false;}), {kind: 'complete', size: bytes.length});
+  assert.equal(reused.state.pulls, 0); assert.equal(reused.state.cancelled, true);
+});
+
+test('complete PDF acquisition cancellation reaches a stalled stream and its storage consumer', {timeout: 3000}, async () => {
+  const entered = gate(), controller = new AbortController(); let cancelled = false, seenSignal: AbortSignal | undefined;
+  const response = new Response(new ReadableStream<Uint8Array>({pull() {entered.resolve();}, cancel() {cancelled = true;}}, {highWaterMark: 0}),
+    {status: 200, headers: {'Content-Type': 'application/pdf', 'Content-Length': String(bytes.length)}});
+  const writing = apiWith(async () => response).acquirePdf('bookmark', acquisitionDescriptor, 3, 7, async (chunks, signal) => {seenSignal = signal; for await (const _chunk of chunks) assert.fail('unexpected bytes');}, controller.signal);
+  const rejected = assert.rejects(writing, {name: 'AbortError'});
+  await entered.promise; controller.abort(); await rejected;
+  assert.equal(seenSignal?.aborted, true); assert.equal(cancelled, true); assert.equal(response.body?.locked, false);
+});
+
+test('cancelled PDF acquisition retains its slot until its storage consumer has drained', {timeout: 3000}, async () => {
+  const {response} = pdfResponse({status: 200, headers: {'Content-Range': null, 'Content-Length': String(bytes.length)}, chunks: [bytes]});
+  const entered = gate(), release = gate(), controller = new AbortController(); let finished = false, captured: AbortSignal | undefined;
+  const pending = apiWith(async () => response).acquirePdf('bookmark', acquisitionDescriptor, 3, 7, async (chunks, signal) => {
+    for await (const _chunk of chunks) {}
+    captured = signal; entered.resolve(); await release.promise;
+  }, controller.signal).finally(() => {finished = true;});
+  const rejected = assert.rejects(pending, {name: 'AbortError'});
+  try {await entered.promise; controller.abort(); await Promise.resolve(); assert.equal(captured?.aborted, true); assert.equal(finished, false);}
+  finally {release.resolve(); await rejected;}
+  assert.equal(response.body?.locked, false);
+});

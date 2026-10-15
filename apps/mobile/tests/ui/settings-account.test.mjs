@@ -262,6 +262,18 @@ test('RSS foreground and focus own one subscription, cancellation, retry and mut
   assert.equal(h.listeners.size, 0);
 }));
 
+test('RSS retains known state while a same-owner refocus request is pending', async () => mounted(async root => {
+  const h = await harness(root);
+  h.labs = async () => ({features: [{key: 'rss', enabled: true}]});
+  await h.renderRss(); assert.equal(h.rss.ready, true); assert.equal(h.rss.enabled, true);
+  h.focused = false; await h.rerender();
+  const pending = deferred(); h.labs = () => pending.promise;
+  h.focused = true; await h.rerender();
+  assert.equal(h.rss.ready, true); assert.equal(h.rss.enabled, true); assert.equal(h.rss.busy, true);
+  await act(async () => pending.resolve({features: []}));
+  assert.equal(h.rss.enabled, false); assert.equal(h.rss.busy, false);
+}));
+
 test('DeleteAccount real route keeps blank/native-only notices disabled, requires bottom and confirmation', async () => mounted(async root => {
   const h = await harness(root);
   await h.renderRoute('DeleteAccountScreen');

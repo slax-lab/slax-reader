@@ -4,6 +4,7 @@ import type {BookmarkRecord, TagRecord} from '../../data'
 import {openInAppBrowser, shareArticle} from '../../native/platform'
 import {jsonArray, jsonObject, subscriptionActive} from '../model'
 import {readerShareImage} from '../share'
+import {useVisibleSnapshot} from '../../components/useVisibleSnapshot'
 import type {MobileContext, ReaderPresentationIdentity, ReaderScope, ReaderTelemetry} from './types'
 
 interface BookmarkPorts {
@@ -22,7 +23,7 @@ export function useReaderBookmark(scope: ReaderScope, ports: BookmarkPorts) {
   const [record, setRecord] = useState<BookmarkRecord | null>(null)
   const [user, setUser] = useState<Record<string, unknown>>({})
   const [subscribed, setSubscribed] = useState(false)
-  const [tags, setTags] = useState<TagRecord[]>([])
+  const [tags, setTags] = useVisibleSnapshot<TagRecord[]>(repositories, [], scope.routeVisible !== false && scope.appActive)
   const [collectionSettings, setCollectionSettings] = useState<{allow_highlight: boolean; show_highlight: boolean; allow_access: boolean} | null>(null)
   const [draftTitle, setDraftTitle] = useState('')
   useLayoutEffect(() => {setRecord(null); setCollectionSettings(null)}, [cacheKey])
@@ -52,7 +53,7 @@ export function useReaderBookmark(scope: ReaderScope, ports: BookmarkPorts) {
     }
     if (collectionOwnerId) unsubscribers.push(repositories.watchCollectionSettings(collectionOwnerId, rows => {if (current()) setCollectionSettings(rows[0] ?? null)}, failure))
     return () => {active = false; unsubscribers.forEach(unsubscribe => unsubscribe())}
-  }, [repositories, bookmarkId, collectionOwnerId, collectionId, isCollection, isPreview, isAccountActive])
+  }, [repositories, bookmarkId, collectionOwnerId, collectionId, isCollection, isPreview, isAccountActive, setTags])
 
   const acceptRecord = useCallback((value: BookmarkRecord) => setRecord(value), [])
   const toggle = (field: 'isStarred' | 'archiveStatus') => {

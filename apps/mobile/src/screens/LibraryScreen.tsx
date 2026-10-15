@@ -26,6 +26,7 @@ import {parseSourceTimestamp} from '../utils/source-time';
 import {PdfImportDialog} from '../components/PdfImportDialog';
 import {usePdfLab} from '../pdf/usePdfLab';
 import {LibraryDataStatus} from './LibraryDataStatus';
+import {useVisibleSnapshot} from '../components/useVisibleSnapshot';
 
 const sortKeys = {inbox: 'inbox_title', starred: 'inbox_starred', archived: 'inbox_archive'} as const;
 const bookmarkKey = (item: BookmarkRecord) => item.id;
@@ -44,7 +45,10 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
     update(); const listener = AppState.addEventListener('change', update);
     return () => {listener.remove(); setClockActive(false); setImportingPdf(false);};
   }, []));
-  const [rows, setRows] = useState<BookmarkRecord[]>([]), [collectionRows, setCollectionRows] = useState<BookmarkRecord[]>([]), [collections, setCollections] = useState<CollectionRecord[]>([]), [activeId, setActiveId] = useState<string | null>(null);
+  const listOwner = useMemo(() => ({}), [repositories, nativeResourceOwner, sort]);
+  const [rows, setRows] = useVisibleSnapshot<BookmarkRecord[]>(listOwner, [], clockActive);
+  const [collectionRows, setCollectionRows] = useVisibleSnapshot<BookmarkRecord[]>(listOwner, [], clockActive);
+  const [collections, setCollections] = useState<CollectionRecord[]>([]), [activeId, setActiveId] = useState<string | null>(null);
   const [user, setUser] = useState<Record<string, unknown>>({}), [subscription, setSubscription] = useState<Record<string, unknown> | null>(null);
   const [drawer, setDrawer] = useState(false), [sortMenu, setSortMenu] = useState(false), [add, setAdd] = useState(false), [edit, setEdit] = useState<BookmarkRecord | null>(null);
   const [processing, setProcessing] = useState<string | null>(null), [error, setError] = useState<string | null>(null), [continueReading, setContinueReading] = useState<{value: ContinueReadingContext; owner: string; repositories: typeof repositories; preferences: typeof preferences} | null>(null), [now, setNow] = useState(Date.now());
@@ -67,7 +71,7 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
     setRowsReady(false);
     if (!repositories) {setRows([]); return;}
     return repositories.watchBookmarks(sort, values => {setRows(values); setRowsReady(true);}, showError);
-  }, [repositories, sort, showError]);
+  }, [repositories, sort, showError, setRows]);
   useEffect(() => repositories?.watchCollections(setCollections, showError), [repositories, showError]);
   useEffect(() => repositories?.watchUser(values => setUser(values[0] ?? {}), showError), [repositories, showError]);
   useEffect(() => repositories?.watchSubscription(values => setSubscription(values[0] ?? null), showError), [repositories, showError]);
@@ -84,7 +88,7 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
   }, [repositories, inboxScroll.reset]);
   const selectCollection = useCallback((id: string | null) => applyCollectionSelection(collectionSelection.select(id, collections)), [applyCollectionSelection, collectionSelection, collections]);
   useEffect(() => {void applyCollectionSelection(collectionSelection.reconcile(collections));}, [applyCollectionSelection, collectionSelection, collections]);
-  useEffect(() => {setCollectionRows([]); if (active) return repositories?.watchCollectionBookmarks(active.ownerId, setCollectionRows, showError);}, [repositories, active?.ownerId, showError]);
+  useEffect(() => {setCollectionRows([]); if (active) return repositories?.watchCollectionBookmarks(active.ownerId, setCollectionRows, showError);}, [repositories, active?.ownerId, showError, setCollectionRows]);
   const collectionExpiry = active ? parseSourceTimestamp(active.subscriptionEndTime) : NaN;
   const subscriptionExpiry = parseSourceTimestamp(String(subscription?.subscription_end_time ?? subscription?.end_time ?? ''));
   useFocusEffect(useCallback(() => {

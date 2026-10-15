@@ -2,6 +2,7 @@ export interface LegacyInventory {
   scanComplete: boolean; databaseCandidates: string[]; legacyDataDirectory: string; newDatabaseDirectory: string;
   /** Native canonical lock owner and database slot; only iOS application containers may relocate. */
   databaseIdentities?: Record<string, DatabaseLogicalIdentity>;
+  initializedDatabase?: {path: string; mode: 'native' | 'adopted'};
 }
 export interface DatabaseLogicalIdentity { owner: string; relativePath: string; relocationPrefix?: string }
 export interface DatabaseOwnership {

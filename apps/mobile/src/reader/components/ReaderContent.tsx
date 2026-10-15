@@ -3,13 +3,16 @@ import {StyleSheet, View} from 'react-native'
 import {SourceText, TextAction} from '../../components'
 import {SourceCircularProgress} from '../../components/SourceRing'
 import {mobileColors as C, mobileTypography as T} from '../../theme'
-import {PdfWebView} from '../PdfWebView'
 import {ReaderWebView} from '../index'
 import {ReaderSkeleton} from '../ReaderSkeleton'
 import type {Translate} from '../state/types'
 
-type PdfProps = React.ComponentProps<typeof PdfWebView>
+type PdfProps = React.ComponentProps<typeof import('../PdfWebView').PdfWebView>
 type HtmlProps = React.ComponentProps<typeof ReaderWebView>
+function PdfWebView(props: PdfProps) {
+  const Viewer = (require('../PdfWebView') as typeof import('../PdfWebView')).PdfWebView
+  return <Viewer {...props} />
+}
 interface ContentProps {
   isPdf: boolean; isPreview: boolean; loading: boolean; html: string | null
   pdfProps: PdfProps | null; htmlProps: HtmlProps

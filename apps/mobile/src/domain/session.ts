@@ -103,12 +103,12 @@ export class SessionController implements SessionAuthority {
     catch (error) {current(); this.requestEpoch++; this.credentialsAvailable = false; this.lifecycle.failed?.(error); throw error;}
   }
   releaseLocalOwner() {this.activeUser = null; this.requestEpoch++; this.identityEpoch++;}
-  restoreLocal(): Promise<Session | null> {
+  restoreLocal(prepare: () => Promise<PreferenceValues> = () => this.preferences.read()): Promise<Session | null> {
     const current = this.captureIdentity();
     return this.exclusive(async () => {
       current();
       this.requestEpoch++; this.credentialsAvailable = true;
-      const values = await this.preferences.read(); current();
+      const values = await prepare(); current();
       const session = values[SIGN_OUT_PENDING] === true ? null : storedSession(values);
       this.identityEpoch++;
       this.emit(session ? {status: 'authenticated', session} : {status: 'unauthenticated'});

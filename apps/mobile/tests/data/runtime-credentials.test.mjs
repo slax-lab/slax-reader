@@ -6,7 +6,7 @@ import {RuntimeActivity} from '../../src/data/runtime-activity.ts';
 import {AccountDatabaseLease, AccountInactiveError} from '../../src/data/account-lease.ts';
 import {PreferenceStore, PREFERENCE_KEYS} from '../../src/data/preferences.ts';
 import {SessionController} from '../../src/domain/session.ts';
-import {CredentialReadiness} from '../../src/domain/credential-readiness.ts';
+import {CredentialReadiness, ReauthenticationRequiredError, CredentialsUnavailableError} from '../../src/domain/credential-readiness.ts';
 import {createMobileApi} from '../../src/data/api.ts';
 import {createSyncConnector} from '../../src/data/connector.ts';
 import {clearAccountData} from '../../src/data/account-cleanup.ts';
@@ -26,9 +26,10 @@ async function fixture(refresh, storage = new MemoryPreferences({auth_token: 'ol
     async disconnectAndClear() {if (cleanupFailure) throw cleanupFailure; clears++; pending = 0;}
     async execute() {pending++;} async writeTransaction(work) {return work(this);}
   }
-  class Cache {constructor(directory) {this.dataDirectory = directory;} clearArticles() {events.push('clear-files');}}
+  class Cache {constructor(directory) {this.dataDirectory = directory;} setAccessBarrier(barrier) {this.barrier = barrier;} clearArticles() {events.push('clear-files');}}
   class Worker {
     constructor(options) {this.options = options; this.request = new AbortController();}
+    async setOnline() {}
     start() {this.pending = this.options.content('cached-bookmark', undefined, this.request.signal).catch(() => undefined);}
     async pause() {this.cancel(); await this.pending;} resume() {} cancel() {this.request.abort();}
     async stop() {this.cancel(); await this.pending;} beginForeground() {return () => {};}
@@ -42,9 +43,12 @@ async function fixture(refresh, storage = new MemoryPreferences({auth_token: 'ol
     return Response.json({code: 200, data: {ok: true}});
   };
   const {createMobileDataRuntime} = await loadComponent('../../src/data/runtime.ts', {
-    'expo/fetch': {fetch}, '../domain/session.ts': {SessionController}, '../domain/credential-readiness.ts': {CredentialReadiness}, './api.ts': {createMobileApi},
+    'expo/fetch': {fetch}, '../domain/session.ts': {SessionController}, '../domain/credential-readiness.ts': {CredentialReadiness, ReauthenticationRequiredError, CredentialsUnavailableError}, './api.ts': {createMobileApi},
     './pdf-cache.ts': {PdfBlockCache}, './pdf-file-storage.ts': {PdfFileStorage: PdfStorage}, './cache.ts': {ArticleFileCache: Cache}, './account-cleanup.ts': {clearAccountData},
     './account-lease.ts': {AccountDatabaseLease, AccountInactiveError}, './background-cache.ts': {BackgroundArticleCache: Worker}, './runtime-activity.ts': {RuntimeActivity},
+    './native-network.ts': {nativeNetwork: {read: async () => ({}), subscribe: () => () => {}}},
+    './native-pdf-transfer.ts': {createNativePdfFetch: () => assert.fail('Explicit injected transport must remain authoritative')},
+    '../native/reader-image': {loadReaderImage: async () => assert.fail('No image request expected in credential fixture')},
     './image-fetch.ts': {fetchCacheImage: async () => {}}, '../native/platform': {activateReaderResources: async () => {events.push('activate'); if (activationFailure) throw activationFailure;}, revokeReaderResources: async () => {events.push('revoke');}},
     './connector.ts': {createSyncConnector}, './adoption.ts': {openVerifiedDatabase}, './adoption-profile.ts': {deriveReviewedAdoptionEvidence: () => undefined},
     './legacy-preferences.ts': {migrateLegacyPreferences: async () => {if (migrationFailure) throw migrationFailure;}}, './native-storage.ts': {loadLegacyBridge: () => bridge, nativePreferenceStorage: () => storage},

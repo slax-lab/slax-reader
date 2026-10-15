@@ -7,6 +7,7 @@ import {openInAppBrowser} from '../../native/platform'
 import {resolveGalleryImage} from '../gallery-resource'
 import {rssImageUrl, youtubeCues} from '../model'
 import {toolbarVisible} from '../index'
+import {useReducedMotion} from '../../motion/useReducedMotion'
 import type {ReaderEvent} from '../types'
 import type {useReaderAi} from './useReaderAi'
 import type {useReaderAnnotations} from './useReaderAnnotations'
@@ -28,7 +29,7 @@ export function useReaderInteractions(scope: ReaderScope, ports: InteractionPort
   const {cacheKey, currentUserId, isPreview, isAccountActive, mounted, foreground, reader, fail} = scope
   const {isIos, nativeResourceOwner, fixtureOnly, settings, writePreferences, cache, telemetry, api, document, annotations, bookmark, ai, presentation, operationError, clearError} = ports
   const {title, isPdf} = presentation
-  const {panel, selection, draft, discard, deletingComment, commentMenu, pdfNotesVisible, clearSelection} = annotations
+  const {panel, selection, discard, deletingComment, commentMenu, pdfNotesVisible, clearSelection} = annotations
   const run = (work: Promise<unknown> | undefined) => {void work?.catch(fail)}
   const [overlay, setOverlay] = useState<ReaderOverlay>(null)
   const [toolbarId, setToolbarId] = useState(0), toolbarSequence = useRef(0)
@@ -40,11 +41,11 @@ export function useReaderInteractions(scope: ReaderScope, ports: InteractionPort
   const cancelExternal = useCallback(() => {pendingExternal.current = null; setExternalUrl(null)}, [])
   useLayoutEffect(() => () => {pendingExternal.current = null}, [cacheKey, currentUserId, nativeResourceOwner, isAccountActive])
   const [doNotAlert, setDoNotAlert] = useState(false), [toolbarIsVisible, setToolbarIsVisible] = useState(true)
-  const headerMoreOffset = useRef(new Animated.Value(0)).current
+  const headerMoreOffset = useRef(new Animated.Value(0)).current, reducedMotion = useReducedMotion()
   useEffect(() => {
-    const animation = Animated.timing(headerMoreOffset, {toValue: toolbarIsVisible ? 0 : -100, duration: 300, easing: Easing.bezier(.4, 0, .2, 1), useNativeDriver: true})
+    const animation = Animated.timing(headerMoreOffset, {toValue: toolbarIsVisible ? 0 : -100, duration: reducedMotion ? 0 : 300, easing: Easing.bezier(.4, 0, .2, 1), useNativeDriver: true})
     animation.start(); return () => animation.stop()
-  }, [headerMoreOffset, toolbarIsVisible])
+  }, [headerMoreOffset, toolbarIsVisible, reducedMotion])
   const [gallery, setGallery] = useState<{images: string[]; index: number} | null>(null)
   const [transcriptVisible, setTranscriptVisible] = useState(false), [youtubeTime, setYoutubeTime] = useState(-1)
   const cues = useCues(document.html)
@@ -111,7 +112,6 @@ export function useReaderInteractions(scope: ReaderScope, ports: InteractionPort
     else if (id === 'archive') bookmark.toggle('archiveStatus')
     else if (id === 'outline') ai.open()
     else if (id === 'transcript') setTranscriptVisible(true)
-    else if (id === 'pdf-download') run(document.downloadPdf())
     else if (id === 'pdf-notes') annotations.openNotes()
     else if (id === 'edit') {telemetry.element('bookmark_edit_title_button', 'detail'); bookmark.setDraftTitle(title.replace(/\s+/g, ' ').trim()); setOverlay('edit')}
     else if (id === 'delete') {telemetry.element('bookmark_delete_button', 'detail'); setOverlay('delete')}
@@ -126,6 +126,9 @@ export function useReaderInteractions(scope: ReaderScope, ports: InteractionPort
   }
   const action = (id: string) => {
     if (overlay !== 'toolbar' || toolbarId !== toolbarSequence.current || pendingToolbar.current || !mounted.current || !isAccountActive()) return
+    if (id === 'star' || id === 'archive') {
+      toolbarSequence.current++; setOverlay(null); performToolbarAction(id); return
+    }
     pendingToolbar.current = {id: toolbarId, run: () => performToolbarAction(id), isActive: isAccountActive}
     setOverlay(null); if (!isIos) toolbarDidDismiss()
   }

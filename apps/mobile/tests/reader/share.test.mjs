@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {selectShareImage} from '../../src/reader/share-model.ts';
+import {loadComponent} from './parity-host.mjs';
+import {normalizeImageUrl} from '../../src/data/cache-paths.ts';
 test('source sharing accepts only the first two iOS candidates and dimensions strictly greater than 100', async () => {
   const tried = [];
   const source = {ensureCached: async url => {tried.push(url); return `cached:${url}`;}, dimensions: async uri => uri.endsWith('first') ? {width: 100, height: 200} : {width: 101, height: 101}, fallback: async () => 'logo'};
@@ -31,4 +33,23 @@ test('logout during image dimensions cannot return an old-account image or conti
   });
   await started; active = false; releaseDimensions();
   assert.equal(await selecting, null); assert.deepEqual(attempted, ['first']);
+});
+
+test('actual share adapter reuses owned URIs for article images and development logo without byte/file roundtrips', async () => {
+  const calls = [], measured = []; let asset = 'file:///bundle/logo.png';
+  const {readerShareImage} = await loadComponent('../../src/reader/share.ts', {
+    'react-native': {Image: {resolveAssetSource: () => ({uri: asset}), getSize: async uri => {measured.push(uri); return {width: 200, height: 200};}}},
+    'expo-image': {Image: {loadAsync: async uri => {measured.push(uri); return {width: 200, height: 200};}}},
+    '../../assets': {mobileAssets: {share_logo: 1}}, '../data/cache.ts': {normalizeImageUrl}, './share-model.ts': {selectShareImage},
+  });
+  const cache = {ensureImage: async (...args) => {calls.push(['network', ...args]); return 'file:///cache/article.png';}, getResourceUri: async (...args) => {calls.push(['local', ...args]); return 'file:///cache/article.png';}};
+  assert.equal(await readerShareImage('ios', ['slaxstatics://image.test/a'], cache, 'book'), 'file:///cache/article.png');
+  assert.deepEqual(calls, [['network', 'book', 'https://image.test/a']]); assert.deepEqual(measured, ['file:///cache/article.png']); calls.length = 0;
+  assert.equal(await readerShareImage('ios', ['https://image.test/a'], cache, 'book', {allowNetwork: false}), 'file:///cache/article.png');
+  assert.deepEqual(calls, [['local', 'book', 'https://image.test/a']]); calls.length = 0;
+  assert.equal(await readerShareImage('android', ['https://image.test/a'], cache, 'book'), asset); assert.equal(calls.length, 0);
+  asset = 'http://localhost:8081/logo.png'; assert.equal(await readerShareImage('ios', [], cache, 'book'), 'file:///cache/article.png');
+  assert.deepEqual(calls, [['network', 'book', asset]]); calls.length = 0;
+  assert.equal(await readerShareImage('ios', [], cache, 'book', {allowNetwork: false}), 'file:///cache/article.png');
+  assert.deepEqual(calls, [['local', 'book', asset]]);
 });
