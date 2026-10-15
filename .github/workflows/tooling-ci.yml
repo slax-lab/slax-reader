@@ -1,0 +1,52 @@
+name: Tooling CI
+on:
+  pull_request: null
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      tooling: ${{ steps.scope.outputs.tooling }}
+      cliTooling: ${{ steps.scope.outputs.cliTooling }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: scope
+        uses: ./.github/actions/ci-scope
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.2
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:preflight
+      - run: pnpm test:ci
+    needs: changes
+    if: ${{ needs.changes.outputs.tooling == 'true' }}
+  cli-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:cli-tooling
+    needs: changes
+    if: ${{ needs.changes.outputs.cliTooling == 'true' }}

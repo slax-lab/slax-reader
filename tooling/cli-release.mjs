@@ -80,8 +80,76 @@ function candidate(env) {
   return release
 }
 
+const notesPaths = ['apps/cli', 'packages/contracts', 'tooling/cli*.mjs', 'tooling/pnpm-command.mjs', '.github/workflows/cli-*.yml', 'docs/cli']
+const cliTag = /^cli-v((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))(?:-(dev|beta))?$/
+const isNotesPath = path => /^(apps\/cli|packages\/contracts|docs\/cli)\//.test(path) || /^tooling\/(cli[^/]*\.mjs|pnpm-command\.mjs)$/.test(path) || /^\.github\/workflows\/cli-[^/]*\.yml$/.test(path)
+
+export function releaseNotes(release, cwd = root, fixedBaseline = undefined) {
+  if (!/^[a-f0-9]{40}$/.test(release.commit || '') || /^0+$/.test(release.commit) || !['dev', 'beta', 'stable'].includes(release.channel)) throw new Error('Invalid release notes source identity')
+  compareVersions(release.baseVersion, release.baseVersion)
+  if (release.version !== (release.channel === 'stable' ? release.baseVersion : `${release.baseVersion}-${release.channel}`)) throw new Error('Invalid release notes version identity')
+  const git = args => run('git', args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] })
+  if (git(['rev-parse', '--is-shallow-repository']).trim() !== 'false') throw new Error('Release notes require complete Git history')
+  git(['cat-file', '-e', `${release.commit}^{commit}`])
+  const ancestor = commit => {
+    try { git(['merge-base', '--is-ancestor', commit, release.commit]); return true }
+    catch (error) { if (error.status === 1) return false; throw error }
+  }
+  let baseline = fixedBaseline
+  if (baseline === undefined) {
+    const tags = git(['tag', '--list', 'cli-v*']).trim().split('\n').filter(Boolean)
+    const candidates = []
+    for (const tag of tags) {
+      const match = cliTag.exec(tag)
+      if (!match || compareVersions(match[1], release.baseVersion) >= 0) continue
+      const commit = git(['rev-parse', '--verify', `refs/tags/${tag}^{commit}`]).trim()
+      if (ancestor(commit)) candidates.push({ tag, commit, version: match[1], channel: match[2] || 'stable' })
+    }
+    const same = candidates.filter(item => item.channel === release.channel)
+    const eligible = same.length ? same : release.channel === 'stable' ? [] : candidates.filter(item => item.channel === 'stable')
+    eligible.sort((a, b) => compareVersions(b.version, a.version))
+    baseline = eligible.length ? { tag: eligible[0].tag, commit: eligible[0].commit } : null
+  }
+  if (baseline !== null) {
+    const match = typeof baseline?.tag === 'string' && cliTag.exec(baseline.tag)
+    if (!match || !/^[a-f0-9]{40}$/.test(baseline.commit || '') || compareVersions(match[1], release.baseVersion) >= 0 || ![release.channel, ...(release.channel === 'stable' ? [] : ['stable'])].includes(match[2] || 'stable')) throw new Error('Invalid release notes baseline')
+    if (git(['rev-parse', '--verify', `refs/tags/${baseline.tag}^{commit}`]).trim() !== baseline.commit || !ancestor(baseline.commit)) throw new Error('Release notes baseline identity changed')
+  }
+  const range = baseline ? `${baseline.commit}..${release.commit}` : release.commit
+  const net = baseline
+    ? git(['diff', '--no-renames', '--name-only', '-z', baseline.commit, release.commit, '--', ...notesPaths])
+    : git(['ls-tree', '-r', '--name-only', '-z', release.commit])
+  const paths = new Set(net.split('\0').filter(isNotesPath))
+  const commits = git(['log', '--full-history', '--reverse', '--topo-order', '--no-merges', '--format=%H', range, '--', ...notesPaths]).trim().split('\n').filter(Boolean)
+  const groups = { 'CLI package and commands': [], 'Shared CLI contracts': [], 'CLI tooling and documentation': [] }
+  const covered = new Set()
+  const code = path => '`' + path.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('`', '&#96;').replaceAll('\n', '\\n').replaceAll('\r', '\\r') + '`'
+  const add = (sha, changed) => {
+    if (!/^[a-f0-9]{40}$/.test(sha)) throw new Error('Invalid release notes source commit')
+    for (const [title, accept] of [['CLI package and commands', path => path.startsWith('apps/cli/')], ['Shared CLI contracts', path => path.startsWith('packages/contracts/')], ['CLI tooling and documentation', path => !path.startsWith('apps/cli/') && !path.startsWith('packages/contracts/')]]) {
+      const matching = changed.filter(accept)
+      if (matching.length) groups[title].push(`- ${matching.map(code).join(', ')} ([${sha.slice(0, 7)}](https://github.com/${repository}/commit/${sha}))`)
+    }
+    for (const path of changed) covered.add(path)
+  }
+  for (const sha of commits) {
+    if (!/^[a-f0-9]{40}$/.test(sha)) throw new Error('Invalid release notes history')
+    const changed = git(['diff-tree', '--root', '--no-commit-id', '--no-renames', '--name-only', '-r', '-z', sha, '--', ...notesPaths]).split('\0').filter(path => paths.has(path))
+    add(sha, changed)
+  }
+  // Include CLI-only conflict resolutions introduced by a merge, without using its repository-wide subject.
+  add(release.commit, [...paths].filter(path => !covered.has(path)))
+  const comparison = baseline ? `Compared with [${baseline.tag}](https://github.com/${repository}/releases/tag/${baseline.tag}).` : 'First release in this comparison scope; includes available CLI history.'
+  const sections = Object.entries(groups).filter(([, entries]) => entries.length).map(([title, entries]) => `### ${title}\n\n${entries.join('\n')}`)
+  const versionOnly = paths.size === 1 && paths.has('apps/cli/package.json') ? `CLI package version updated to ${release.version}.\n\n` : ''
+  const body = `## CLI v${release.version}\n\nChannel: ${release.channel}\nSource: [${release.commit.slice(0, 7)}](https://github.com/${repository}/commit/${release.commit})\n\n${comparison}\n\n${versionOnly}${sections.length ? sections.join('\n\n') : 'No CLI file changes in this comparison.'}\n`
+  if (Buffer.byteLength(body) > 100000) throw new Error('CLI release notes exceed the publication size limit')
+  return { body, baseline }
+}
+
 export function prepareRelease(directory, env = process.env) {
   const release = candidate(env)
+  const notes = releaseNotes(release)
   const destination = resolve(directory)
   mkdirSync(destination, { recursive: true })
   if (readdirSync(destination).length) throw new Error('Release output directory must be empty')
@@ -101,13 +169,14 @@ export function prepareRelease(directory, env = process.env) {
   if (archives.length !== 1) throw new Error('Expected one packed CLI archive')
   const filename = archives[0]
   const bytes = readFileSync(resolve(destination, filename))
-  const metadata = { ...release, filename, integrity: `sha512-${digest(bytes, 'sha512', 'base64')}`, sha256: digest(bytes, 'sha256') }
+  const metadata = { ...release, filename, integrity: `sha512-${digest(bytes, 'sha512', 'base64')}`, sha256: digest(bytes, 'sha256'), notes: { source: release.commit, baseline: notes.baseline, sha256: digest(notes.body, 'sha256') } }
+  writeFileSync(resolve(destination, 'RELEASE_NOTES.md'), notes.body)
   writeFileSync(resolve(destination, 'release.json'), JSON.stringify(metadata, null, 2) + '\n')
   writeFileSync(resolve(destination, 'SHA256SUMS'), `${metadata.sha256}  ${filename}\n`)
   return metadata
 }
 
-export function readRelease(directory) {
+export function readRelease(directory, { cwd } = {}) {
   const destination = resolve(directory)
   const release = JSON.parse(readFileSync(resolve(destination, 'release.json'), 'utf8'))
   if (typeof release.filename !== 'string' || release.filename !== basename(release.filename) || !/^[a-zA-Z0-9._-]+\.tgz$/.test(release.filename)) throw new Error('Invalid archive filename')
@@ -118,6 +187,9 @@ export function readRelease(directory) {
   const manifest = JSON.parse(run('tar', ['-xOf', archive, 'package/package.json']))
   const expected = validateRelease({ tag: release.tag, repo: release.repository, sha: release.commit, manifest, branch: release.branch, baseVersion: release.baseVersion, packed: true })
   if (!isDeepStrictEqual(manifest.slaxRelease, expected) || manifest.gitHead !== release.commit || !Object.entries(expected).every(([key, value]) => release[key] === value)) throw new Error('Archive source identity mismatch')
+  const notes = readFileSync(resolve(destination, 'RELEASE_NOTES.md'), 'utf8')
+  if (release.notes?.source !== release.commit || release.notes.sha256 !== digest(notes, 'sha256') || !Object.hasOwn(release.notes, 'baseline')) throw new Error('Release notes identity or checksum mismatch')
+  if (cwd && releaseNotes(release, cwd, release.notes.baseline).body !== notes) throw new Error('Release notes differ from source history')
   return release
 }
 
@@ -203,7 +275,7 @@ async function githubRelease(release, directory) {
     const makeLatest = !preview && (!newest || (stableVersion.test(newestVersion || '') && compareVersions(release.version, newestVersion) > 0))
     remote = await githubRequest('/releases', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tag_name: release.tag, target_commitish: release.commit, name: `CLI v${release.version}`, prerelease: preview, generate_release_notes: true, make_latest: makeLatest ? 'true' : 'false' }),
+      body: JSON.stringify({ tag_name: release.tag, target_commitish: release.commit, name: `CLI v${release.version}`, prerelease: preview, body: readFileSync(resolve(directory, 'RELEASE_NOTES.md'), 'utf8'), make_latest: makeLatest ? 'true' : 'false' }),
     })
     if (!remote) throw new Error('GitHub Release creation failed')
   }
@@ -240,7 +312,7 @@ async function main() {
     console.log(JSON.stringify(prepareRelease(directory)))
   } else if (command === 'verify' || command === 'smoke') {
     const expected = candidate(process.env)
-    const release = readRelease(directory)
+    const release = readRelease(directory, { cwd: root })
     if (!isDeepStrictEqual(releaseIdentity(release), expected)) throw new Error('Downloaded artifact differs from the release event')
     if (command === 'smoke') {
       const smoke = pnpmInvocation(['cli', '--', 'test:package', resolve(directory, release.filename), release.version])
@@ -249,7 +321,7 @@ async function main() {
     console.log(JSON.stringify(release))
   } else if (command === 'publish' || command === 'preview') {
     const expected = candidate(process.env)
-    const release = readRelease(directory)
+    const release = readRelease(directory, { cwd: root })
     if (!isDeepStrictEqual(releaseIdentity(release), expected)) throw new Error('Downloaded artifact differs from the release event')
     if ((command === 'publish') !== (release.channel === 'stable')) throw new Error('Distribution command does not match the release channel')
     if (!process.env.GH_TOKEN) throw new Error('GitHub workflow token is required')

@@ -1,27 +1,28 @@
 name: CLI CI
-
 on:
-  pull_request:
-    paths:
-      - 'apps/cli/**'
-      - 'packages/contracts/**'
-      - 'tooling/cli*.mjs'
-      - 'tooling/pnpm-command.mjs'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/workflows/cli-*.yml'
-
+  pull_request: null
 permissions:
   contents: read
-
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      cli: ${{ steps.scope.outputs.cli }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: scope
+        uses: ./.github/actions/ci-scope
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       matrix:
-        node: ['22.22.2', '24.15.0']
+        node:
+          - 22.22.2
+          - 24.15.0
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,6 +35,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm cli -- typecheck
       - run: pnpm cli -- test
-      - run: pnpm test:cli-tooling
-      - run: pnpm test:preflight
       - run: pnpm cli -- test:package
+    needs: changes
+    if: ${{ needs.changes.outputs.cli == 'true' }}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true

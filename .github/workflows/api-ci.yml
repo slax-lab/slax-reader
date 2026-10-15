@@ -1,36 +1,20 @@
 name: API CI
-
 on:
-  pull_request:
-    paths:
-      - 'apps/api/**'
-      - 'packages/contracts/**'
-      - 'tooling/api.mjs'
-      - 'tooling/pnpm-command.mjs'
-      - 'deploy/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/workflows/api-ci.yml'
-      - '.github/workflows/api-deploy.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'apps/api/**'
-      - 'packages/contracts/**'
-      - 'tooling/api.mjs'
-      - 'tooling/pnpm-command.mjs'
-      - 'deploy/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/workflows/api-ci.yml'
-      - '.github/workflows/api-deploy.yml'
-
+  pull_request: null
 permissions:
   contents: read
-
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.scope.outputs.api }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: scope
+        uses: ./.github/actions/ci-scope
   check:
     runs-on: ubuntu-latest
     env:
@@ -52,3 +36,8 @@ jobs:
       - run: pnpm api -- test
       - name: Bundle all four Workers without deployment
         run: pnpm api -- build
+    needs: changes
+    if: ${{ needs.changes.outputs.api == 'true' }}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
