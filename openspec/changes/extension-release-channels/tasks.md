@@ -37,3 +37,13 @@ The human approved implementation and push on 2026-10-15 and chose to configure 
 Validation completed locally: 16 focused release tests (including the final detect-command fixture), 104 preflight/tool tests with 2 platform skips, 63 extension tests, extension typecheck, actual preview/beta/production WXT ZIP inspection, and 22 CLI tooling tests (the network-dependent consumer test passed on retry after an npm timeout). Strict OpenSpec validation passed all 43 items. Local Bugs, Security and Compliance review used change-id extension-release-channels and found no remaining Important findings. No application end-to-end or live publication test was performed.
 
 Implementation was pushed as ci/extension-release-channels and submitted to dev in https://github.com/slax-lab/slax-reader/pull/241. Public Environment configuration remains the operator’s separate rollout step.
+
+## 6. Reuse existing public Web configuration
+
+The human requested reuse of WEB_BUILD_CONFIG on 2026-10-15. This supersedes the requirement to configure a separate extension variable when the Web endpoints match.
+
+- [x] 6.1 Read the destination WEB_BUILD_CONFIG when no complete extension override is set; validate its public schema, map the API key name and forward only extension fields. Verify explicit override precedence and failure without fallback.
+- [x] 6.2 Cover the supplied Web JSON shape with synthetic values, malformed/missing/credential-bearing inputs, exclusion of Web-only fields, and an actual WXT build using the shared-config path.
+- [x] 6.3 Update the workflow, release guide and PR rollout instructions; run focused tests and strict validation, complete Bugs/Security/Compliance review, and push the update to PR #241 without changing remote variables or publishing a release.
+
+Shared-config follow-up validation: all 18 focused release-tooling tests passed. A production WXT build consumed synthetic WEB_BUILD_CONFIG with the supplied public field shape and COOKIE_TOKEN_NAME=token; ZIP inspection verified the mapped API URL, stable version/profile ID, and exclusion of unique Web-only sentinel values. Strict OpenSpec validation passed 43 items. The local Bugs/Security/Compliance review used extension-release-channels and found no remaining Important findings. PR #241 rollout instructions now describe reuse; no remote variables, tags or Releases were changed.

@@ -83,19 +83,33 @@ export async function mergedPullRequest(release, request, { attempts = 3, sleep 
   return null
 }
 
-export function validateBuildConfig(text) {
+export function validateBuildConfig(text, source = 'EXTENSION_BUILD_CONFIG') {
   let values
-  try { values = JSON.parse(text) } catch { throw new Error('Missing or invalid EXTENSION_BUILD_CONFIG JSON') }
-  if (!values || typeof values !== 'object' || Array.isArray(values) || Object.keys(values).some(k => ![...required, ...optional].includes(k)) || Object.values(values).some(v => typeof v !== 'string' || /[\r\n\0]/.test(v))) throw new Error('Invalid public EXTENSION_BUILD_CONFIG fields')
-  for (const key of required) if (!values[key]?.trim()) throw new Error(`EXTENSION_BUILD_CONFIG requires ${key}`)
+  try { values = JSON.parse(text) } catch { throw new Error(`Missing or invalid ${source} JSON`) }
+  if (!values || typeof values !== 'object' || Array.isArray(values) || Object.keys(values).some(k => ![...required, ...optional].includes(k)) || Object.values(values).some(v => typeof v !== 'string' || /[\r\n\0]/.test(v))) throw new Error(`Invalid public ${source} fields`)
+  for (const key of required) if (!values[key]?.trim()) throw new Error(`${source} requires ${key}`)
   for (const key of ['PUBLIC_BASE_URL', 'AUTH_BASE_URL', 'SHARE_BASE_URL', 'EXTENSIONS_API_BASE_URL', 'UNINSTALL_FEEDBACK_URL']) {
     if (!values[key] && optional.includes(key)) continue
     let url
-    try { url = new URL(values[key]) } catch { throw new Error(`Invalid EXTENSION_BUILD_CONFIG ${key}`) }
-    if (url.protocol !== 'https:' || url.username || url.password || url.hash) throw new Error(`Invalid EXTENSION_BUILD_CONFIG ${key}`)
+    try { url = new URL(values[key]) } catch { throw new Error(`Invalid ${source} ${key}`) }
+    if (url.protocol !== 'https:' || url.username || url.password || url.hash) throw new Error(`Invalid ${source} ${key}`)
   }
-  if (!/^\.?[a-zA-Z0-9.-]+$/.test(values.COOKIE_DOMAIN) || values.COOKIE_TOKEN_NAME.length < 5 || /[\s;=]/.test(values.COOKIE_TOKEN_NAME)) throw new Error('Invalid EXTENSION_BUILD_CONFIG cookie settings')
+  if (!/^\.?[a-zA-Z0-9.-]+$/.test(values.COOKIE_DOMAIN) || values.COOKIE_TOKEN_NAME.length < 5 || /[\s;=]/.test(values.COOKIE_TOKEN_NAME)) throw new Error(`Invalid ${source} cookie settings`)
   return values
+}
+
+export async function resolveBuildConfig(env = process.env, cwd = root) {
+  if (env.EXTENSION_BUILD_CONFIG?.trim()) return validateBuildConfig(env.EXTENSION_BUILD_CONFIG)
+  let web
+  try { web = JSON.parse(env.WEB_BUILD_CONFIG) } catch { throw new Error('Missing or invalid WEB_BUILD_CONFIG JSON; set it or EXTENSION_BUILD_CONFIG') }
+  if (!web || typeof web !== 'object' || Array.isArray(web) || Object.values(web).some(value => typeof value !== 'string' || /[\r\n\0]/.test(value))) throw new Error('Invalid public WEB_BUILD_CONFIG fields')
+  const { dwebEnvSchema } = await import(pathToFileURL(join(cwd, 'apps/web/env.schema.ts')).href)
+  // Match the Web builder's treatment of empty optional public settings.
+  for (const [key, value] of Object.entries(web)) if (value === '' && dwebEnvSchema.shape[key]?.isOptional()) delete web[key]
+  if (!dwebEnvSchema.strict().safeParse(web).success) throw new Error('WEB_BUILD_CONFIG does not match the public Web schema')
+  const values = Object.fromEntries(required.filter(key => key !== 'EXTENSIONS_API_BASE_URL').map(key => [key, web[key]]))
+  values.EXTENSIONS_API_BASE_URL = web.DWEB_API_BASE_URL
+  return validateBuildConfig(JSON.stringify(values), 'WEB_BUILD_CONFIG')
 }
 
 export function buildEnvironment(values, profile, env = process.env) {
@@ -118,7 +132,7 @@ export function inspectArchive(archive, release) {
 
 export async function prepareRelease(directory, env = process.env, { release, cwd = root, execute = run } = {}) {
   release ??= candidate(env, cwd)
-  const values = validateBuildConfig(env.EXTENSION_BUILD_CONFIG)
+  const values = await resolveBuildConfig(env, cwd)
   const { extensionsEnvSchema } = await import(pathToFileURL(join(cwd, 'apps/extension/env.schema.ts')).href)
   if (!extensionsEnvSchema.safeParse(values).success) throw new Error('Public configuration does not satisfy the extension schema')
   for (const filename of ['.env.extension', `.env.extension.${release.profile}`]) if (existsSync(join(cwd, 'deploy/local', filename))) throw new Error('Release builds require no local extension environment files')

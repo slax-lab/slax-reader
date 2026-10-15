@@ -1,11 +1,34 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildEnvironment, mergedPullRequest, packageName, profiles, releaseIdentity, repository, selectRelease, validateBuildConfig } from './extension-release.mjs'
+import { buildEnvironment, mergedPullRequest, packageName, profiles, releaseIdentity, repository, resolveBuildConfig, selectRelease, validateBuildConfig } from './extension-release.mjs'
 
 const sha = 'a'.repeat(40)
 const manifest = { name: packageName, version: '1.2.3' }
 const select = (options = {}) => selectRelease({ manifest, previous: { ...manifest, version: '1.2.2' }, branch: 'dev', sha, changed: true, ...options })
 const config = { PUBLIC_BASE_URL: 'https://reader.example.test', AUTH_BASE_URL: 'https://reader.example.test', SHARE_BASE_URL: 'https://share.example.test', EXTENSIONS_API_BASE_URL: 'https://api.example.test', COOKIE_DOMAIN: '.example.test', COOKIE_TOKEN_NAME: 'slax_test' }
+const { EXTENSIONS_API_BASE_URL, ...shared } = config
+const webConfig = { ...shared, COOKIE_TOKEN_NAME: 'token', DWEB_API_BASE_URL: EXTENSIONS_API_BASE_URL, GOOGLE_OAUTH_CLIENT_ID: 'public-fixture.apps.googleusercontent.com', STRIPE_ONCE_PRICE_ID: 'price_fixture_once', STRIPE_SUB_PRICE_ID: 'price_fixture_sub', STRIPE_ONTIME_PRICE_ID: 'price_fixture_ontime', STRIPE_PUBLIC_KEY: 'pk_live_fixture', TURNSTILE_SITE_KEY: 'public-turnstile-fixture', PUSH_API_PUBLIC_KEY: 'public-push-fixture' }
+
+test('the shared Web JSON shape maps API/cookie fields and excludes Web-only settings', async () => {
+  const result = await resolveBuildConfig({ WEB_BUILD_CONFIG: JSON.stringify(webConfig), EXTENSION_BUILD_CONFIG: '' })
+  assert.deepEqual(result, { ...config, COOKIE_TOKEN_NAME: 'token' })
+  for (const branch of ['preview', 'beta', 'production']) {
+    const env = buildEnvironment(result, branch, { PATH: '/bin', GH_TOKEN: 'SENSITIVE' })
+    assert.equal(env.EXTENSIONS_API_BASE_URL, webConfig.DWEB_API_BASE_URL)
+    for (const key of ['WEB_BUILD_CONFIG', 'DWEB_API_BASE_URL', 'GOOGLE_OAUTH_CLIENT_ID', 'STRIPE_ONCE_PRICE_ID', 'STRIPE_SUB_PRICE_ID', 'STRIPE_ONTIME_PRICE_ID', 'STRIPE_PUBLIC_KEY', 'TURNSTILE_SITE_KEY', 'PUSH_API_PUBLIC_KEY', 'GH_TOKEN']) assert.equal(env[key], undefined)
+  }
+  assert.deepEqual(await resolveBuildConfig({ WEB_BUILD_CONFIG: 'invalid', EXTENSION_BUILD_CONFIG: JSON.stringify(config) }), config)
+  assert.deepEqual(await resolveBuildConfig({ WEB_BUILD_CONFIG: JSON.stringify(webConfig), EXTENSION_BUILD_CONFIG: '  ' }), { ...config, COOKIE_TOKEN_NAME: 'token' })
+  assert.deepEqual(await resolveBuildConfig({ WEB_BUILD_CONFIG: JSON.stringify({ ...webConfig, STRIPE_SUB_PRICE_ID: '' }) }), { ...config, COOKIE_TOKEN_NAME: 'token' })
+  await assert.rejects(resolveBuildConfig({ WEB_BUILD_CONFIG: JSON.stringify(webConfig), EXTENSION_BUILD_CONFIG: '{}' }), /EXTENSION_BUILD_CONFIG requires/)
+})
+
+test('shared config rejects missing, malformed and credential-bearing inputs before packaging', async () => {
+  for (const text of [undefined, '', '{', '[]', 'null', '{}']) await assert.rejects(resolveBuildConfig({ WEB_BUILD_CONFIG: text }), /WEB_BUILD_CONFIG/)
+  for (const patch of [{ DWEB_API_BASE_URL: '' }, { DWEB_API_BASE_URL: 'http://api.example.test' }, { DWEB_API_BASE_URL: 'https://user:SENSITIVE@api.example.test' }, { GH_TOKEN: 'SENSITIVE' }, { GOOGLE_ANALYTICS_API_SECRET: 'SENSITIVE' }, { SLAX_ENV: 'production' }, { COOKIE_TOKEN_NAME: 'x' }, { STRIPE_PUBLIC_KEY: 42 }, { PUBLIC_BASE_URL: 'https://reader.example.test\nSENSITIVE' }]) {
+    await assert.rejects(resolveBuildConfig({ WEB_BUILD_CONFIG: JSON.stringify({ ...webConfig, ...patch }) }), error => error.message.includes('WEB_BUILD_CONFIG') && !error.message.includes('SENSITIVE'))
+  }
+})
 
 test('versions select all channels, version-only increases and destination promotions', () => {
   for (const branch of ['dev', 'beta', 'main']) {

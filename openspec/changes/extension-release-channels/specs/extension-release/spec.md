@@ -54,6 +54,14 @@ Builds SHALL use validated public configuration for their target environment and
 - **WHEN** an eligible release lacks required Web, API or cookie configuration
 - **THEN** packaging fails with an actionable configuration error and creates no tag or Release
 
+#### Scenario: Reuse the destination Web configuration
+- **WHEN** no extension-specific configuration is set and the destination Environment provides valid WEB_BUILD_CONFIG
+- **THEN** the build reuses the shared URL/cookie fields, maps DWEB_API_BASE_URL to EXTENSIONS_API_BASE_URL, and excludes Web-only fields from the extension subprocess
+
+#### Scenario: Explicit extension configuration takes precedence
+- **WHEN** a nonempty EXTENSION_BUILD_CONFIG is set alongside WEB_BUILD_CONFIG
+- **THEN** the build uses that complete extension configuration and fails on an invalid override without falling back or combining configuration sources
+
 #### Scenario: Invalid or credential-bearing input
 - **WHEN** build configuration includes unsupported credential fields or malformed endpoint values
 - **THEN** the build rejects it without exposing those values in logs or assets

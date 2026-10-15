@@ -29,7 +29,7 @@ None. Existing branch promotion, CLI publication and extension runtime behavior 
 - New `.github/workflows/extension-release.yml` and focused `tooling/extension-release*.mjs` helpers/tests, with release-tooling coverage in the existing CI entry points.
 - New `docs/extension/RELEASE.md` and links from existing extension documentation; no generated agent-rule changes.
 - Existing `pnpm extension -- zip`, WXT configuration and profile keys are reused. A temporary release-only configuration supplies `version_name` without changing ordinary local builds.
-- Public `EXTENSION_BUILD_CONFIG` variables in the existing dev/beta/main GitHub Environments. Inspection found these variables absent; setup is required before the first eligible release. No new publication credential is needed.
+- Reuse each destination Environment's existing public `WEB_BUILD_CONFIG`, mapping `DWEB_API_BASE_URL` to `EXTENSIONS_API_BASE_URL` and forwarding only extension fields. An optional complete `EXTENSION_BUILD_CONFIG` takes precedence when extension-specific settings are needed. No new publication credential is needed.
 
 ## Non-goals
 

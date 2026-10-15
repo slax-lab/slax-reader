@@ -6,7 +6,7 @@ See proposal.md for motivation. `.github/workflows/frontend-ci.yml` validates ex
 
 The extension uses WXT 0.21.4, a numeric package version currently 1.16.2, existing preview/beta/production public manifest keys, and the root `pnpm extension -- zip` entry point. `tooling/web-pages-deploy.mjs` establishes dev → preview, beta → beta, main → production. The new managed worktree is on ci/extension-release-channels, cut from origin/dev; the previous PDF worktree is separate.
 
-Read-only GitHub inspection found existing dev, beta and main Environments but no EXTENSION_BUILD_CONFIG variable in them. Dev/beta have Web-specific configuration; main currently has no environment variables. Those observations do not authorize copying secrets or changing existing Web deployment configuration.
+Read-only GitHub inspection found existing dev, beta and main Environments but no EXTENSION_BUILD_CONFIG variable in them. The human subsequently requested reuse of WEB_BUILD_CONFIG and supplied its public shape; a fresh inspection confirmed main also has that variable. Existing Web configuration is consumed without changing remote variables.
 
 ## Goals / Non-Goals
 
@@ -42,7 +42,9 @@ WXT omits version_name when it equals the numeric version. Archive validation ac
 
 ### 3. Supply explicit public profile configuration
 
-The build job selects the existing GitHub Environment named by the destination branch and reads its public EXTENSION_BUILD_CONFIG JSON. Required values are PUBLIC_BASE_URL, AUTH_BASE_URL, SHARE_BASE_URL, EXTENSIONS_API_BASE_URL, COOKIE_DOMAIN and COOKIE_TOKEN_NAME. Optional values are a public analytics measurement ID and uninstall-feedback URL. Reject unknown keys, multiline/non-string values, embedded URL credentials, and non-HTTPS release endpoints. Do not accept analytics API secrets or publication credentials as public build values.
+The build job selects the existing GitHub Environment named by the destination branch. By default it reads WEB_BUILD_CONFIG, validates the public Web schema, copies PUBLIC_BASE_URL, AUTH_BASE_URL, SHARE_BASE_URL, COOKIE_DOMAIN and COOKIE_TOKEN_NAME, and maps DWEB_API_BASE_URL to EXTENSIONS_API_BASE_URL. OAuth, Stripe, Turnstile and push settings are not forwarded to the extension build.
+
+A nonempty EXTENSION_BUILD_CONFIG takes precedence as a complete configuration override; an invalid override fails rather than silently falling back or merging sources. Its required values are PUBLIC_BASE_URL, AUTH_BASE_URL, SHARE_BASE_URL, EXTENSIONS_API_BASE_URL, COOKIE_DOMAIN and COOKIE_TOKEN_NAME. Optional values are a public analytics measurement ID and uninstall-feedback URL. Reject unknown keys for the selected source schema, multiline/non-string values, embedded URL credentials, and non-HTTPS extension release endpoints. Do not accept analytics API secrets or publication credentials as public build values.
 
 Validate against the existing extension schema plus release-specific restrictions, and inject only an explicit environment allowlist into build subprocesses. The branch owns SLAX_ENV; configuration cannot choose another profile or override the source version. Clean CI checkout requires no ignored local environment files. Missing public configuration fails before any tag creation; populate it during rollout using operator-confirmed values rather than guessing or copying Web settings wholesale.
 
@@ -73,6 +75,6 @@ Use branch-specific non-canceling concurrency, matching the CLI queue convention
 
 1. Review this proposal, spec, design and tasks before implementation.
 2. Implement and validate on ci/extension-release-channels; prepare the task PR targeting dev without changing the extension version merely to bootstrap the workflow.
-3. Add EXTENSION_BUILD_CONFIG to dev, beta and main using confirmed public values. Publish no tag or Release as part of local testing.
+3. Reuse WEB_BUILD_CONFIG in each destination Environment, or optionally configure a complete EXTENSION_BUILD_CONFIG override when its extension endpoints differ. Never copy production values to another channel automatically. Publish no tag or Release as part of local testing.
 4. Merge the workflow through the normal process and promote it with existing human-managed merge-commit promotions. The next extension PR with an explicit version increase exercises dev, followed by beta/main promotion.
 5. Stop future publication by reverting/disabling the workflow. Keep already published tags and assets intact.

@@ -59,6 +59,7 @@ jobs:
       - name: Build the channel ZIP with public configuration
         run: node tooling/extension-release.mjs prepare "$RUNNER_TEMP/extension-release"
         env:
+          WEB_BUILD_CONFIG: ${{ vars.WEB_BUILD_CONFIG }}
           EXTENSION_BUILD_CONFIG: ${{ vars.EXTENSION_BUILD_CONFIG }}
       - name: Verify the exact release archive
         run: node tooling/extension-release.mjs verify "$RUNNER_TEMP/extension-release"

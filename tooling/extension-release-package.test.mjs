@@ -77,10 +77,15 @@ test('temporary WXT packaging strips credentials, retains source version and cle
     mkdirSync(app, { recursive: true })
     writeFileSync(join(app, 'package.json'), JSON.stringify({ name: packageName, version: '1.2.3', type: 'module' }))
     writeFileSync(join(app, 'env.schema.ts'), `export { extensionsEnvSchema } from ${JSON.stringify(pathToFileURL(join(root, 'apps/extension/env.schema.ts')).href)}`)
+    mkdirSync(join(cwd, 'apps/web'), { recursive: true })
+    writeFileSync(join(cwd, 'apps/web/package.json'), '{"type":"module"}')
+    writeFileSync(join(cwd, 'apps/web/env.schema.ts'), `export { dwebEnvSchema } from ${JSON.stringify(pathToFileURL(join(root, 'apps/web/env.schema.ts')).href)}`)
     const original = readFileSync(join(app, 'package.json'), 'utf8')
     const release = identity(branch)
     const directory = join(cwd, 'artifact')
-    const env = { ...process.env, EXTENSION_BUILD_CONFIG: JSON.stringify(config), GH_TOKEN: 'SENSITIVE', GOOGLE_ANALYTICS_API_SECRET: 'SENSITIVE', SLAX_ENV: 'development' }
+    const { EXTENSIONS_API_BASE_URL, ...shared } = config
+    const web = { ...shared, DWEB_API_BASE_URL: EXTENSIONS_API_BASE_URL, GOOGLE_OAUTH_CLIENT_ID: 'public-fixture', STRIPE_PUBLIC_KEY: 'pk_fixture' }
+    const env = { ...process.env, WEB_BUILD_CONFIG: JSON.stringify(web), EXTENSION_BUILD_CONFIG: '', GH_TOKEN: 'SENSITIVE', GOOGLE_ANALYTICS_API_SECRET: 'SENSITIVE', SLAX_ENV: 'development' }
     let seenConfig
     const execute = async (program, args, options) => {
       assert.equal(program, 'pnpm')
@@ -91,6 +96,9 @@ test('temporary WXT packaging strips credentials, retains source version and cle
       assert.ok(!text.includes('version:'))
       assert.ok(!JSON.stringify(options.env).includes('SENSITIVE'))
       assert.equal(options.env.SLAX_ENV, release.profile)
+      assert.equal(options.env.EXTENSIONS_API_BASE_URL, EXTENSIONS_API_BASE_URL)
+      assert.equal(options.env.STRIPE_PUBLIC_KEY, undefined)
+      assert.equal(options.env.DWEB_API_BASE_URL, undefined)
       const output = JSON.parse(text.match(/outDir: ("[^"]+")/)[1])
       zip(join(output, 'fixture.zip'), release)
     }
@@ -101,7 +109,7 @@ test('temporary WXT packaging strips credentials, retains source version and cle
     assert.equal(readRelease(directory).tag, release.tag)
     await assert.rejects(prepareRelease(join(cwd, 'failure'), env, { release, cwd, execute: async () => { throw Error('Build failed') } }), /Build failed/)
     assert.deepEqual(readdirSync(join(app, 'build')), [])
-    await assert.rejects(prepareRelease(join(cwd, 'missing'), { ...env, EXTENSION_BUILD_CONFIG: '' }, { release, cwd, execute }), /EXTENSION_BUILD_CONFIG/)
+    await assert.rejects(prepareRelease(join(cwd, 'missing'), { ...env, WEB_BUILD_CONFIG: '' }, { release, cwd, execute }), /WEB_BUILD_CONFIG/)
   }
 })
 

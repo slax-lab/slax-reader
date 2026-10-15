@@ -27,7 +27,7 @@ test('build has public inputs and no write token; only verified distribution can
   assert.deepEqual(detect.permissions, { contents: 'read', 'pull-requests': 'read' })
   assert.equal(build.permissions, undefined)
   assert.deepEqual(publish.permissions, { contents: 'write', 'pull-requests': 'read' })
-  assert.deepEqual(build.steps.find(step => step.run?.includes(' prepare ')).env, { EXTENSION_BUILD_CONFIG: '${{ vars.EXTENSION_BUILD_CONFIG }}' })
+  assert.deepEqual(build.steps.find(step => step.run?.includes(' prepare ')).env, { WEB_BUILD_CONFIG: '${{ vars.WEB_BUILD_CONFIG }}', EXTENSION_BUILD_CONFIG: '${{ vars.EXTENSION_BUILD_CONFIG }}' })
   assert.ok(build.steps.some(step => step.run === 'pnpm install --frozen-lockfile'))
   assert.ok(build.steps.some(step => step.run?.includes(' verify ')))
   assert.ok(!JSON.stringify(build).includes('GH_TOKEN'))

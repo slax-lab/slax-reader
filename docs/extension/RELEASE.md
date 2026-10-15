@@ -23,7 +23,20 @@ Chrome's `manifest.version` stays `1.16.3`; `version_name` carries the channel d
 
 ## One-time public configuration
 
-In GitHub **Settings → Environments**, select each of `dev`, `beta` and `main`. Add an Environment **variable** named `EXTENSION_BUILD_CONFIG`, using the public values belonging to that environment. All six fields below are required. These are placeholders, not usable deployment settings:
+The build selects the destination Environment (`dev`, `beta` or `main`) and reuses its existing **variable** `WEB_BUILD_CONFIG` by default. There is no need to create a separate extension variable when its URLs and session settings match the Web app. Repository-level variables follow GitHub's normal Environment precedence; values are never copied between channels automatically.
+
+| Web field | Extension field |
+| --- | --- |
+| `PUBLIC_BASE_URL` | `PUBLIC_BASE_URL` |
+| `AUTH_BASE_URL` | `AUTH_BASE_URL` |
+| `SHARE_BASE_URL` | `SHARE_BASE_URL` |
+| `DWEB_API_BASE_URL` | `EXTENSIONS_API_BASE_URL` |
+| `COOKIE_DOMAIN` | `COOKIE_DOMAIN` |
+| `COOKIE_TOKEN_NAME` | `COOKIE_TOKEN_NAME` |
+
+The Web JSON is validated against its existing public schema, then only those six fields are forwarded. OAuth, Stripe, Turnstile and push configuration are excluded from the extension subprocess.
+
+If extension settings need to differ, add an optional `EXTENSION_BUILD_CONFIG` variable in GitHub **Settings → Environments** for that destination. A nonempty value replaces the entire configuration source; an invalid override fails without falling back to Web values or merging fields. All six fields below are required in an override. These are placeholders, not usable deployment settings:
 
 ```json
 {
@@ -36,7 +49,7 @@ In GitHub **Settings → Environments**, select each of `dev`, `beta` and `main`
 }
 ```
 
-The optional fields are `GOOGLE_ANALYTICS_MEASUREMENT_ID` and `UNINSTALL_FEEDBACK_URL`. URLs must use HTTPS and contain no embedded credentials or fragments. Values must be single-line strings. Unknown fields, `SLAX_ENV`, analytics API secrets and publishing credentials are rejected. The branch selects the runtime profile. Match the Web session-cookie configuration and configure its existing extension/bridge allowlist for that profile's extension ID. See [development configuration](development.md#configuration-location) for field ownership.
+The optional extension override fields are `GOOGLE_ANALYTICS_MEASUREMENT_ID` and `UNINSTALL_FEEDBACK_URL`. Extension release URLs must use HTTPS and contain no embedded credentials or fragments. Values must be single-line strings. Unknown fields for the selected schema, `SLAX_ENV`, analytics API secrets and publishing credentials are rejected. The branch selects the runtime profile. Match the Web session-cookie configuration and configure its existing extension/bridge allowlist for that profile's extension ID. See [development configuration](development.md#configuration-location) for field ownership.
 
 Missing or invalid configuration stops packaging before a tag or Release is created. Build subprocesses receive only public values and a small system environment allowlist; ignored local configuration files are neither required nor used for CI releases. The release tool refuses to build when selected `deploy/local/.env.extension*` files exist. CI uses frozen dependencies, Node 24.15.0, pinned pnpm, and Python 3's standard library for ZIP inspection.
 
@@ -46,7 +59,7 @@ The workflow token needs `contents: read` and `pull-requests: read` for detectio
 
 1. Prepare an extension PR from `origin/dev` with the intended changes and an explicit stable `apps/extension/package.json` version increase. Update the lockfile through pnpm if the package metadata requires it. There is no version bump solely to introduce this workflow.
 2. Run ordinary extension validation and `pnpm test:extension-tooling`, then merge through normal review.
-3. Inspect the Extension release Actions run. Detection reports eligibility or the skip reason. Eligible builds use the destination Environment's public configuration and generate an isolated WXT package.
+3. Inspect the Extension release Actions run. Detection reports eligibility or the skip reason. Eligible builds reuse the destination's public Web configuration (or complete extension override) and generate an isolated WXT package.
 4. Download the ZIP and `SHA256SUMS` from the corresponding `ext-v...` Release. Promote through the existing `dev` → `beta` → `main` process for subsequent channels.
 
 Each Release contains `slax-reader-extension-<display-version>-chrome.zip` and `SHA256SUMS`. An attempt-specific Actions artifact also retains `release.json` with repository, immutable source SHA, branch, profile, versions, extension ID and ZIP hash. Publication downloads the successful build by immutable artifact ID, verifies the event/source and actual archive again, then creates the tag at that exact merged SHA. The ZIP inspector checks entries, CRC, manifest identity and referenced resources. No npm package or browser-store upload is performed. Extension Releases explicitly preserve the monorepo's existing **Latest** selection, so locate stable extension releases by their `ext-v` tags rather than the global latest-release endpoint.
@@ -65,4 +78,4 @@ A full rerun rebuilds the revision using current public configuration. If those 
 
 ## Rollout status for this change
 
-The operator chose to configure all three `EXTENSION_BUILD_CONFIG` variables separately after implementation. Complete that setup before the first eligible version merge. Local verification uses synthetic public configuration and does not establish live Web/API integration. Implementation validation creates no real release tag or GitHub Release.
+The operator requested reuse of the existing `WEB_BUILD_CONFIG` variables. Verify each destination's Web JSON before the first eligible version merge; a separate extension override is optional. Local verification uses synthetic public configuration and does not establish live Web/API integration. Implementation validation creates no real release tag or GitHub Release.
