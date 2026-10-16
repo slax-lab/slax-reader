@@ -54,6 +54,10 @@ After client detail loading, the PDF header SHALL display available author metad
 - **WHEN** an uploaded PDF detail is loaded
 - **THEN** its source shows local upload, its filename, and any available author without exposing a synthetic link
 
+#### Scenario: Source and title spacing
+- **WHEN** a PDF detail shows its source badge above the title
+- **THEN** the badge uses the same size, shape and weight as the web-article source badge, and the same divider and spacing separate it from the title as in an HTML article
+
 #### Scenario: Scanned PDF author metadata
 - **WHEN** a scanned PDF has author metadata but no selectable text
 - **THEN** its author remains available for display while AI retains the empty-text state
@@ -265,6 +269,18 @@ PDF upload, preview, selection actions, and notes SHALL follow the existing read
 #### Scenario: Selection actions follow the passage
 - **WHEN** the owner selects PDF text with a mouse, touch, or keyboard
 - **THEN** highlight/comment actions appear beside the mouse release or selection endpoint, stay within the visual viewport, follow the selected passage when scrolling, and hide while the passage is outside the viewport
+
+#### Scenario: Selection actions survive the release click
+- **WHEN** the owner drags to select PDF text, pauses for longer than the selection debounce, and then releases the mouse
+- **THEN** the actions do not open while the button is held, open shortly after release, and are not dismissed by the click the release generates, so highlight, comment, copy and ask-AI can be chosen
+
+#### Scenario: Drag ends outside the reader
+- **WHEN** the owner releases the pointer outside the PDF reader or the window loses focus during a drag
+- **THEN** the selection is still captured once and no pointer hold is left active
+
+#### Scenario: Control rail state without color alone
+- **WHEN** a PDF control rail toggle such as original colors or page gaps is on
+- **THEN** its on state is conveyed by more than a tint (for example weight and an outline), uses the Web theme tokens including radius, and animates only when the user has not asked for reduced motion
 
 #### Scenario: H5 notes and keyboard
 - **WHEN** the owner opens a selection's notes and focuses the composer on H5

@@ -29,7 +29,7 @@
     </div>
     <p v-if="loading || error" class="pdf-status" role="status">{{ error || t('pdf.loading') }}<button v-if="error" @click="loadDocument">{{ t('pdf.retry') }}</button></p>
     <p v-if="pdf.text_status !== 'ready'" class="pdf-text-status" role="status">{{ t(`pdf.text_${pdf.text_status}`) }}</p>
-    <div class="pdfViewer" ref="viewerElement" tabindex="0" :aria-label="t('pdf.reader')" @pointerup="queueSelection" @keyup="queueSelection" @click="onPdfClick" />
+    <div class="pdfViewer" ref="viewerElement" tabindex="0" :aria-label="t('pdf.reader')" @pointerdown="onViewerPointerDown" @keyup="queueSelection" @click="onPdfClick" />
     <div v-if="draft" ref="selectionMenu" class="pdf-selection-actions" :style="selectionStyle" role="toolbar" :aria-label="t('pdf.selection_actions')" @pointerdown.prevent @keydown.esc="clearDraft">
       <PdfSelectionMenu :key="draft.id" :allow-action="allowAction" :is-stroked="hasOwnStroke" :saving="saving"
         :allow-chatbot="pdf.text_status === 'ready' && adapters.allowChatbot !== false"
@@ -54,6 +54,7 @@ import { capturePdfSelection, findPdfTextRange, quadToViewport } from './geometr
 import { InlinePdfViewer } from './InlinePdfViewer'
 import { themedPdfPageView } from './ThemedPdfPageView'
 import { placeSelectionMenu } from './selectionPosition'
+import { createSelectionScheduler } from './selectionScheduler'
 import PdfSelectionMenu from './PdfSelectionMenu.client.vue'
 import { MenuType } from '../Selection/type'
 import { copyText } from '@commons/frontend-utils/string'
@@ -106,8 +107,9 @@ let pendingQuote: { page: number; text: string } | undefined
 let quoteFlash: PdfMarkSource | undefined
 let quoteTimer: ReturnType<typeof setTimeout> | undefined
 let fit = true
-let selectionTimer: ReturnType<typeof setTimeout> | undefined
-let selectionEvent: Event | undefined
+// Opens the selection menu only after the pointer is released and its click has been dispatched.
+const selectionScheduler = createSelectionScheduler(event => captureSelection(event))
+let stopPointerWatch: (() => void) | undefined
 let selectionAnchor: { range: Range; offsetX: number; offsetY: number } | undefined
 let observedWidth = 0
 let markClick: Parameters<IMarkRenderer['setMarkClickHandler']>[0]
@@ -331,11 +333,26 @@ function captureSelection(event?: Event) {
   }
   void nextTick(positionSelectionMenu)
 }
-function queueSelection(event?: Event) {
-  if (event) selectionEvent = event
-  clearTimeout(selectionTimer)
-  // Show the shared outside-click menu after the selecting click has completed.
-  selectionTimer = setTimeout(() => { captureSelection(selectionEvent); selectionEvent = undefined }, 180)
+function queueSelection(event?: Event) { selectionScheduler.queue(event) }
+function onViewerPointerDown(event: PointerEvent) {
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+  stopPointerWatch?.()
+  selectionScheduler.press()
+  // Listen on the document so a drag that ends outside the viewer still releases the hold.
+  const end = (done: Event) => {
+    stopPointerWatch?.()
+    // Only a real pointerup carries the release position the menu anchors to.
+    selectionScheduler.release(done.type === 'pointerup' ? done : undefined)
+  }
+  document.addEventListener('pointerup', end, true)
+  document.addEventListener('pointercancel', end, true)
+  window.addEventListener('blur', end)
+  stopPointerWatch = () => {
+    document.removeEventListener('pointerup', end, true)
+    document.removeEventListener('pointercancel', end, true)
+    window.removeEventListener('blur', end)
+    stopPointerWatch = undefined
+  }
 }
 function onSelectionChange() { queueSelection() }
 function positionSelectionMenu() {
@@ -450,7 +467,7 @@ onMounted(() => {
   if (viewerElement.value) resizeObserver.observe(viewerElement.value)
 })
 onBeforeUnmount(() => {
-  generation++; cancelAnimationFrame(redrawFrame); clearTimeout(selectionTimer); clearTimeout(quoteTimer); resizeObserver?.disconnect()
+  generation++; cancelAnimationFrame(redrawFrame); selectionScheduler.dispose(); stopPointerWatch?.(); clearTimeout(quoteTimer); resizeObserver?.disconnect()
   document.removeEventListener('selectionchange', onSelectionChange)
   window.removeEventListener('scroll', positionSelectionMenu, true)
   window.removeEventListener('resize', positionSelectionMenu)
@@ -485,14 +502,17 @@ defineExpose({ findQuote, revealMark })
   border: 1px solid var(--slax-border);
   border-right: 0;
   border-radius: var(--slax-radius-sm) 0 0 var(--slax-radius-sm);
-  background: var(--slax-surface);
+  background: var(--slax-surface-solid);
+  box-shadow: var(--slax-shadow-sm);
   color: var(--slax-text-muted);
   cursor: pointer;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
 }
 .pdf-control-toggle:hover, .pdf-control-toggle[aria-expanded='true'] {
   color: var(--slax-accent);
   background: var(--slax-surface-solid);
 }
+.pdf-control-toggle[aria-expanded='true'] { border-color: var(--slax-accent-soft); }
 .pdf-toggle-icon { flex: none; }
 .pdf-toggle-icon.open { transform: rotate(90deg); }
 .pdf-current-page {
@@ -540,6 +560,7 @@ defineExpose({ findQuote, revealMark })
   font-size: var(--slax-fs-aux);
   line-height: 1.4;
   cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
 }
 .pdf-toolbar .pdf-page-button { padding: 0; }
 button:hover:not(:disabled) { color: var(--slax-accent); background: var(--slax-accent-bg); }
@@ -554,7 +575,7 @@ button:focus-visible, input:focus-visible, .pdfViewer:focus-visible { outline: 2
   min-height: 36px;
   padding: 4px;
   border: 1px solid var(--slax-border);
-  border-radius: 6px;
+  border-radius: var(--slax-radius-sm);
   background: var(--slax-bg);
   color: var(--slax-text);
   text-align: center;
@@ -571,7 +592,8 @@ button:focus-visible, input:focus-visible, .pdfViewer:focus-visible { outline: 2
 .pdfViewer { padding: 0; }
 :deep(.pdf-page-slot) { width: 100%; overflow-x: auto; overflow-y: hidden; margin-bottom: 0; scroll-margin-top: calc(var(--slax-header-h-snapshot) + 16px); }
 .pdf-pages-spaced :deep(.pdf-page-slot) { margin-bottom: 20px; }
-.pdf-toolbar button[aria-pressed='true'] { color: var(--slax-accent); background: var(--slax-accent-bg); }
+/* The inset outline and weight keep the on state readable without relying on the tint alone (e-ink, low vision). */
+.pdf-toolbar button[aria-pressed='true'] { color: var(--slax-accent); background: var(--slax-accent-bg); font-weight: 500; box-shadow: inset 0 0 0 1px var(--slax-accent); }
 :deep(.pdfViewer .page) { margin: 0 auto; border: 0; box-shadow: none; flex-shrink: 0; background: transparent; }
 .pdf-original-colors :deep(.pdfViewer .page) { background: var(--page-bg-color); }
 .pdf-selection-actions { position: fixed; z-index: 46; max-width: calc(100vw - 24px); }
@@ -592,5 +614,5 @@ button:focus-visible, input:focus-visible, .pdfViewer:focus-visible { outline: 2
   .pdf-selection-actions { width: max-content; }
   :deep(.pdf-page-slot) { scroll-margin-top: calc(var(--slax-header-h-mobile) + 16px); }
 }
-@media (prefers-reduced-motion: reduce) { .pdf-reader * { scroll-behavior: auto; } }
+@media (prefers-reduced-motion: reduce) { .pdf-reader * { scroll-behavior: auto; transition: none; } }
 </style>
