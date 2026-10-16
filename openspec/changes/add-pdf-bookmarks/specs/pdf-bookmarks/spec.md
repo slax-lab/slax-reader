@@ -278,9 +278,9 @@ PDF upload, preview, selection actions, and notes SHALL follow the existing read
 - **WHEN** the owner releases the pointer outside the PDF reader or the window loses focus during a drag
 - **THEN** the selection is still captured once and no pointer hold is left active
 
-#### Scenario: Control rail state without color alone
-- **WHEN** a PDF control rail toggle such as original colors or page gaps is on
-- **THEN** its on state is conveyed by more than a tint (for example weight and an outline), uses the Web theme tokens including radius, and animates only when the user has not asked for reduced motion
+#### Scenario: Control rail switches show their state without color alone
+- **WHEN** the PDF control rail is expanded
+- **THEN** original colors and page gaps are switches with a fixed label whose knob position and filled track show the state, exposed as `role="switch"` with `aria-checked`, built from the Web theme tokens including radius and matching the Settings switch, and any open or hover motion is skipped when the user has asked for reduced motion
 
 #### Scenario: H5 notes and keyboard
 - **WHEN** the owner opens a selection's notes and focuses the composer on H5
