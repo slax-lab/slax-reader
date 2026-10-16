@@ -1,15 +1,17 @@
 import { createHash } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 
-const root = new URL('../../assets/embedded/', import.meta.url)
+const root = new URL('../../../../packages/reader-embed/assets/', import.meta.url)
+const nativeHost = new URL('../../assets/embedded/js/react-native-host.js', import.meta.url)
+const resource = path => path === 'js/react-native-host.js' ? nativeHost : new URL(path, root)
 const manifest = JSON.parse(await readFile(new URL('source-manifest.json', root), 'utf8'))
 for (const file of manifest.files) {
-  const bytes = await readFile(new URL(file.path, root))
+  const bytes = await readFile(resource(file.path))
   if (createHash('sha256').update(bytes).digest('hex') !== file.sha256) {
     throw new Error(`Imported reader asset changed without updating provenance: ${file.path}`)
   }
 }
-const text = async path => readFile(new URL(path, root), 'utf8')
+const text = async path => readFile(resource(path), 'utf8')
 const assets = {
   template: await text('html/webview-template.html'),
   errorTemplate: await text('html/error.html'),
