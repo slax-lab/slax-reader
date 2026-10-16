@@ -1,0 +1,33 @@
+{
+  "kind": "root-one-fresh-source-swift-shell-build-allocation",
+  "version": 1,
+  "outputRoot": "/private/tmp/slax-source-fresh-shell-build-460d8701-3eb5-4443-9cd6-a415c2b8e07c",
+  "manifestSHA256": "664c10e80677e5699871fc8908a70a00d228eeaa944b9292889f1dd1eeb2e036",
+  "executorSHA256": "69db1f25ad7805c09440593aaa067a39068f2844230d5e40c9ec3b9bd573b5e1",
+  "planSHA256": "a97c96c2b03d3622e264400b486dd3375c521cb0aec1ddbc4e6f4716fef5d38a",
+  "oldSource44ShellSHA256": "a3fde1b120433684d1faee39e55eddb451c699fa1a3ca3695bbe25b31a29f672",
+  "rawJMachOSHA256": "1bc0873e19287f6b8cfc99bb9106d124e67a1343bfc06e227f0bce93ce9da38d",
+  "budget": {
+    "capBytes": 268435456,
+    "floorBytes": 3221225472,
+    "preFreeBytes": 3865470567,
+    "totalSeconds": 120,
+    "swiftSeconds": 60,
+    "signSeconds": 15,
+    "verifySeconds": 15,
+    "inspectSeconds": 15,
+    "commandOutputBytes": 8388608,
+    "recordBytes": 262144,
+    "maximumEntries": 4096,
+    "monitorSeconds": 0.1
+  },
+  "exclusiveNativeBuildSlot": true,
+  "allowSwiftShellOnly": true,
+  "allowFreshSimulatorAdhocSigningOnly": true,
+  "allowControlOrKmpBuild": false,
+  "allowDeviceOrDatabaseOrMetro": false,
+  "allowOldArtifactMutationOrCleanup": false,
+  "nonce": "1523e7ef-174f-43b8-9f7d-d0321d41c901",
+  "requestedAt": 1791685243979,
+  "expiresAt": 1791685483979
+}

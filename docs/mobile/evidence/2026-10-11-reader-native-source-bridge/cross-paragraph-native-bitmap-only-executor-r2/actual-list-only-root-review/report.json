@@ -1,0 +1,72 @@
+{
+  "kind": "root-independent-actual-bitmap-list-only-failure-review",
+  "version": 1,
+  "openSpecChange": "expo-mobile-migration",
+  "reviewedAtUnixSeconds": 1791680624.722454,
+  "actualWrapperExit": 1,
+  "actualCommandCount": 1,
+  "actualCommand": "readonly simctl list devices --json",
+  "actualCommandExit": 0,
+  "actualStopReason": "ValueError: Another simulator loan is live",
+  "nativeTestExecuted": false,
+  "productsCopied": false,
+  "ownedDeviceBooted": false,
+  "targetInputPerformed": false,
+  "xcresultCreated": false,
+  "bitmapAccepted": false,
+  "protected53CompiledProductsUnchanged": true,
+  "protected377StageUnchanged": {
+    "markerSHA256": "916255118823ed8d2764c333b4d135d0b0278b3b0edba2a38d48762ceaf2d4f3",
+    "generatedSourceFiles": 377
+  },
+  "ownedDeviceStateReadback": {
+    "B85A7582-A0A7-4A0F-9BF0-8424330859F3": "Shutdown",
+    "88E63005-F681-45A6-AF8D-BEFE4E27584D": "Shutdown"
+  },
+  "unrelatedBootedMetadataOnly": [
+    {
+      "UDID": "E97BB843-7786-4FC4-90F3-5C03A32E20AE",
+      "name": "iPhone 17 Pro",
+      "state": "Booted",
+      "lastBootedAt": "2026-10-10T12:35:09Z"
+    },
+    {
+      "UDID": "C9CFE383-D9E0-4C1C-84B5-5EC4DBFDD780",
+      "name": "Poker Clip Preview",
+      "state": "Booted",
+      "lastBootedAt": "2026-10-10T13:11:04Z"
+    },
+    {
+      "UDID": "BF9282DB-8781-47A2-99F9-0B948322B8A8",
+      "name": "Poker Language Preview",
+      "state": "Booted",
+      "lastBootedAt": "2026-10-10T13:01:55Z"
+    },
+    {
+      "UDID": "B0281A52-CBF6-475E-A9E8-9B565657553D",
+      "name": "Poker Language iPad",
+      "state": "Booted",
+      "lastBootedAt": "2026-10-10T14:17:30Z"
+    }
+  ],
+  "unrelatedDeviceActions": 0,
+  "minimumObservedGlobalFreeBytes": 4726099968,
+  "archives": [
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r2/actual-list-only-root-review/raw/receipt.json",
+      "bytes": 4576,
+      "sha256": "b49e4e44e6dc6d915b7524428a22ddaa3d257ea361101d08cec16e730218f558"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r2/actual-list-only-root-review/raw/logs/00.stdout",
+      "bytes": 17185,
+      "sha256": "fef377f9e6467362ff1fa458623158d3a14ce15598c676cf3076eb5470344e01"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r2/actual-list-only-root-review/raw/logs/00.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "reviewCorrection": "The earlier Root preparation review overlooked an overbroad all-Booted-device loan predicate. Only the closed owned migration loans should gate this isolated task. Unrelated default/operator simulations remain untouched; the one-attempt r2 grant is consumed and cannot be retried. A separately reviewed r3 must carry new run root and allocation."
+}

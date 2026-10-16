@@ -1,0 +1,21 @@
+{
+  "formatVersion": 1,
+  "status": "actual-complete-aw4-build-source-pod-and-protected-after-cleanup-verified",
+  "sourcePodProofSha256": "2a7b01bf944be7c2c64e174e013feb8b9cd2c70c71ed7e00b25d234272b9dce5",
+  "stagedInputFilesVerified": 372,
+  "publicPodNativeBindingsVerified": 6,
+  "actualSourcesMembershipChecked": [
+    "SlaxReaderView.swift in Sources",
+    "SlaxReaderDocumentNavigationGate.swift in Sources"
+  ],
+  "completedBuildSucceeded": true,
+  "unsignedAppIdentity": "app.slax.reader.uifixture",
+  "marketingVersion": "1.0.0",
+  "buildNumber": "1",
+  "protectedEntriesUnchangedAfterCleanup": 28164,
+  "protectedRegularContentHashesVerified": 25703,
+  "cleanupReceiptSha256": "12749e7d5acda3fcbb067defa808272cd72e55bc21edc4acfc4a69af666325d5",
+  "resourceAccountingSha256": "7baf356838435894aa85ab22b752256f47d52e7051e20e03b46204888a92b275",
+  "noMutationPerformed": true,
+  "scope": "Frozen aw4 simulator reader build, its exact staged source/native membership and complete unsigned resources only. Current production SlaxLegacy has later database-identity changes not present in this frozen UI build; this cannot establish current production upgrade acceptance. Actual signing, installation, Alpha, full UI comparison, publisher1.0.25(757) and TestFlight remain pending."
+}

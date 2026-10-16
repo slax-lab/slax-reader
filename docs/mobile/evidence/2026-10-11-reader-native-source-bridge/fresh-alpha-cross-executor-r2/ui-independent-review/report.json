@@ -1,0 +1,298 @@
+{
+  "kind": "fresh-alpha-cross-executor-r2-independent-review",
+  "version": 1,
+  "recordedAt": "2026-10-11T01:50:44.060126+00:00",
+  "openSpecChange": "expo-mobile-migration",
+  "scope": "Complete frozen r2 executor/policy/snapshot delegation and focused guards; r1 ancestry retained. Public read-only preparation review only.",
+  "inputs": [
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/run-fresh-alpha-cross.py",
+      "bytes": 51649,
+      "sha256": "71376d43caadadc6e2f695e06c0b1ee2c1f43240dc0c11f20d473089d498eb0a",
+      "archivePath": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/inputs/00-run-fresh-alpha-cross.py"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/runtime-policy.json",
+      "bytes": 35251,
+      "sha256": "b444d16fd14e424576638c512bef862fd4858fbaef53be5bc24c8de3dcc9344a",
+      "archivePath": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/inputs/01-runtime-policy.json"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/runtime-guards.test.py",
+      "bytes": 25326,
+      "sha256": "b2c9f509d3ffd79c1ddd61abbbbffc059002dbe37dfa4e7684c1dece03227ef6",
+      "archivePath": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/inputs/02-runtime-guards.test.py"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/snapshot-check.mjs",
+      "bytes": 2254,
+      "sha256": "3fed60342c4e3fc6e40842440be81fd3a668565a22bc24d713372a601b799837",
+      "archivePath": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/inputs/03-snapshot-check.mjs"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/installed-helpers-forward-admission.json",
+      "bytes": 24439,
+      "sha256": "edf7dc74497fae0312ba5145774411276d5614742449f8f063dcbc666b870716",
+      "archivePath": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/inputs/04-installed-helpers-forward-admission.json"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/report.json",
+      "bytes": 6380,
+      "sha256": "f27bf0405ce35da96f4778ecb753ebb35ce64e94762b1c30cf30a0ad200fd53e",
+      "archivePath": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/inputs/05-report.json"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/README.md",
+      "bytes": 3746,
+      "sha256": "1937f22cb0a717cb7bce4462a0db6efff5bb5674b98edffc0adf47f3b8036ada",
+      "archivePath": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/inputs/06-README.md"
+    },
+    {
+      "path": "REVIEW.md",
+      "bytes": 4519,
+      "sha256": "f971265251f4de7981958224e2d7eea4fefa270f0ba01aecc2e90820aa7ed7f3",
+      "archivePath": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/inputs/07-REVIEW.md"
+    },
+    {
+      "path": "openspec/changes/expo-mobile-migration/proposal.md",
+      "bytes": 4539,
+      "sha256": "035f35ba9576f18d6aab37582361b0d15b15f9e0f9ea48fb61e2adc47f20a222",
+      "archivePath": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/inputs/08-proposal.md"
+    },
+    {
+      "path": "openspec/changes/expo-mobile-migration/design.md",
+      "bytes": 24357,
+      "sha256": "9e3c6e002b1d7761be34aef104d8b4599f9f86c65546c0313369094eb8344a28",
+      "archivePath": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/inputs/09-design.md"
+    },
+    {
+      "path": "openspec/changes/expo-mobile-migration/tasks.md",
+      "bytes": 18420,
+      "sha256": "8d2b3d4974bb932acff69dc204508244606b898b0528ceed084039756a0e7d49",
+      "archivePath": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/inputs/10-tasks.md"
+    },
+    {
+      "path": "openspec/changes/expo-mobile-migration/specs/mobile-reader-parity/spec.md",
+      "bytes": 5470,
+      "sha256": "e8c56d9628cde2302bec827595c033605df8540ba62f5af605fc8b81fc5ac511",
+      "archivePath": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/inputs/11-spec.md"
+    },
+    {
+      "path": "openspec/changes/expo-mobile-migration/specs/mobile-visual-parity/spec.md",
+      "bytes": 3232,
+      "sha256": "5320215df59e8a17314de7bd4977e6e3006c520d8657172fcce36df3bb01df0b",
+      "archivePath": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/inputs/12-spec.md"
+    }
+  ],
+  "publicBindingsVerified": [
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/run-fresh-alpha-cross.py",
+      "bytes": 51649,
+      "sha256": "71376d43caadadc6e2f695e06c0b1ee2c1f43240dc0c11f20d473089d498eb0a"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/runtime-guards.test.py",
+      "bytes": 25326,
+      "sha256": "b2c9f509d3ffd79c1ddd61abbbbffc059002dbe37dfa4e7684c1dece03227ef6"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/snapshot-check.mjs",
+      "bytes": 2254,
+      "sha256": "3fed60342c4e3fc6e40842440be81fd3a668565a22bc24d713372a601b799837"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/installed-helpers-forward-admission.json",
+      "bytes": 24439,
+      "sha256": "edf7dc74497fae0312ba5145774411276d5614742449f8f063dcbc666b870716"
+    },
+    {
+      "path": "apps/mobile/fixtures/manifest.json",
+      "bytes": 1623,
+      "sha256": "00a7555b87503153de38f0047283018f223469ecd3830089e9e2703ca7a1f133"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-local-storekit-preparation/device-release.json",
+      "bytes": 625,
+      "sha256": "ac74269fe09215a2a9956524da1638c63fa5ed7b65e70aa355d7df74d5f53e67"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-plan-r1/report.json",
+      "bytes": 1481,
+      "sha256": "132269f857ca80ca837e03edf276092b8a9e30fc1f8498830ec5e31da74a048e"
+    },
+    {
+      "path": "/bin/ps",
+      "bytes": 170816,
+      "sha256": "472992c470606d28f577590decfecd7f4a20f832fd92c671bebc6d44790b5d02"
+    },
+    {
+      "path": "/private/tmp/slax-reader-aw4-public-sign-ba391fab-1ee8-484d-9c95-1ecb4021ee6d/complete-signed-app-manifest.json",
+      "bytes": 45246,
+      "sha256": "6570567571698574073f3eed6bba121fed39267b3e9fe8f98dc4aa2e15c7e68e"
+    },
+    {
+      "path": "apps/mobile/fixtures/scenarios.json",
+      "bytes": 1756477,
+      "sha256": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-completed-signed-app/report.json",
+      "bytes": 2354,
+      "sha256": "a930b22a732f8f514af9ecc7ad0158c6434f6c3c53fd1deb3500cc628684def9"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r3/actual-native-bitmap-root-review/report.json",
+      "bytes": 57944,
+      "sha256": "728a9ad173da048f350393973a9a17d28ac612082082f428e31686a28066e4de"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-target-ios-reader-native-longpress/build-preparation.json",
+      "bytes": 3781,
+      "sha256": "4a723f4c43ea8db77b399ecea24f4e21bc8f092d29afb7413680af39de096114"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-plan-r1/current-alpha-compiled-products.json",
+      "bytes": 27175,
+      "sha256": "9dcda464114775016ce7653086948eb6706016d3ac718d720f2686f93d5741a0"
+    },
+    {
+      "path": "/private/tmp/slax-reader-native-control-build/Build/Products/ReaderNativeControl_iphonesimulator26.5-arm64.xctestrun",
+      "bytes": 4822,
+      "sha256": "623f33be48065532daa5e82aa4121f79eaf912ec60ac92145af3eb10ee966f47"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r4/actual-build-root-review/report.json",
+      "bytes": 28453,
+      "sha256": "f75960cb3574cd31fa21f840404ec5ea5e589b74128a64d256629422e3e79152"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-plan-r1/compiled-products.json",
+      "bytes": 14286,
+      "sha256": "cce42c80ced776af71199d7cb72b75c663dc2bbeeea7d7539a5d7b8a36b2b2b0"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-plan-r1/accepted-existing-cross-helper-containers.json",
+      "bytes": 23903,
+      "sha256": "7884554c773070ad9d126b3fc7195b1a5df25ea1c59ee2d931e741f11709879f"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-post-aw4-ui-refresh-plan/revision-r2/owned-metro-restart/report.json",
+      "bytes": 905,
+      "sha256": "9017c2b820359b618af92e6e1f5129c84afdbba1324740fddbf52073a26f6aaf"
+    },
+    {
+      "path": "/usr/local/bin/node",
+      "bytes": 228373824,
+      "sha256": "b90619f497223f181bd6423ba0e4b3bb053dc2aa41fc10f8b34c120b83ac5465"
+    },
+    {
+      "path": "apps/mobile/tooling/fixture-control.mjs",
+      "bytes": 7385,
+      "sha256": "5b7a4c4fbc01e1e0e8ad5930a0a69485594691f4c9baca6ce582497fb6ed9bdf"
+    },
+    {
+      "path": "apps/mobile/tooling/fixture-control-contract.mjs",
+      "bytes": 1071,
+      "sha256": "062137fa950def7294e8f705a400941f1734e79518eb654a2747f93604c42aa5"
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/ReaderNativeControl.swift",
+      "bytes": 9974,
+      "sha256": "84daeb26cde784efd06fed3e6c08dad55dac785ef987ac175e16408c6ef0b91f"
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/ReaderCrossParagraphControl.swift",
+      "bytes": 14089,
+      "sha256": "7c1b3720a67bf91b370f688524cc17f0d54d7f2387a2c53deba9a3be60d53d57"
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/snapshot-guard.mjs",
+      "bytes": 9198,
+      "sha256": "b7bf76670cc28e796c5aa5d14b2dc4731b57db90a41ec8095ce31a2d1105a3f6"
+    },
+    {
+      "path": "/usr/bin/xcrun",
+      "bytes": 117392,
+      "sha256": "a439970aea2b4e435eac6518ff62c97fd1c57d8c731974027ad211b515c7a7b8"
+    },
+    {
+      "path": "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+      "bytes": 100528,
+      "sha256": "d508f0e1901151843804e4af512d4587ad0e422039e43e14abf22792360ad3d4"
+    }
+  ],
+  "actualHostCheck": {
+    "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/actual-host-check.json",
+    "bytes": 4542,
+    "sha256": "3401cbde115d59d71178c9d7c299403a0262552e27358c1d4255c6f9ade9cdb7"
+  },
+  "actualHostResults": {
+    "passed": 33,
+    "failed": 0,
+    "skipped": 0,
+    "testElapsedSeconds": 0.643,
+    "wrapperElapsedSeconds": 0.787106916,
+    "python": "Xcode pinned Python3.9",
+    "sourcePrePostUnchanged": true,
+    "rawStdout": {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/raw/guards.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "rawStderr": {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/raw/guards.stderr",
+      "bytes": 2582,
+      "sha256": "eef202cb047b9d551e2ff715a77aac5c275c89c883c114827a67102dee13e3d6"
+    },
+    "nativeOrDeviceCommandExecuted": false
+  },
+  "reviewedAuthorLogs": [
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/focused-guards-first.log",
+      "bytes": 2582,
+      "sha256": "f4c6a554d9c5e79e4220c3492a0f199ee9f5c579b91798dc963e94ec88b8b6f3"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/readonly-admission.log",
+      "bytes": 191,
+      "sha256": "f7549cdf950a98d59b5b07d6e6e2ba7aa4909107879b6753fdf34b16d58fad33"
+    }
+  ],
+  "independentAdmissionRerun": false,
+  "reason": "Root had the exclusive B85 Source native window; the authored default read-only admission result is hash-bound and was not rerun against active device state.",
+  "deltaAgainstR1": {
+    "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/ui-independent-review/executor-r1-to-r2.diff",
+    "bytes": 12891,
+    "sha256": "5cb4effa554ec2174c5a2f2a3ace580a9cd91960476cd450ce3b3169b204aa46"
+  },
+  "passes": [
+    {
+      "pass": "Bugs",
+      "importantFindings": [],
+      "conclusion": "No Important. The exact Cross command becomes durably issued immediately after Popen, with input unknown until the unique Passed completed selector. Raw selector hashes and post-input scope success are separate, so later failure cannot erase command/observed selector facts. New marker-proved Reader and bootstrap scopes are included in the unchanged total cap; two historical new names remain charged as a count after bootstrap disposal."
+    },
+    {
+      "pass": "Security",
+      "importantFindings": [],
+      "conclusion": "No Important. Existing UI scope contents are never entered. Only direct historical names/lstat are sampled. At most2 new scopes must have canonical Reader/bootstrap names and closed1KiB controlled/version1/case/aaf markers before metadata-only tree accounting. Exact current Reader URI must equal the freshly created controller scope. Links, unknown names, added marker fields and extra scopes fail closed. SQLite bodies and other production app/group contents are not read."
+    },
+    {
+      "pass": "Compliance",
+      "importantFindings": [],
+      "conclusion": "No Important. Only the two authorized resource/evidence corrections and own r2 binding paths change. Original63/53 compiled helper ancestry, installed148 UI app, stage377, Metro owner, two owned device loans, exact selectors, snapshot delegation and distinct Root grants remain bound. Original180s/45s-native/30s-release/4s-grace/256MiB/3GiB-floor/8MiB-log remain. Native acceptance, full visual parity and TestFlight stay pending."
+    }
+  ],
+  "resolvedR1Finding": {
+    "reviewPath": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/ui-independent-review-r1/report.json",
+    "issue": "Late crossInputIssued=false after native command and later snapshot failure",
+    "resolution": "crossNativeCommandIssued / crossActualInputStatus / crossPostInputScopeAccepted with actual failed-host and completed-selector/post-export-failure checks"
+  },
+  "resourceScopeRevision": "Root explicitly authorized new known synthetic UI scope metadata to be included conservatively in the existing256MiB cap. Historical r1 prepared cap wording and review clarification remain unchanged.",
+  "findings": [],
+  "runRootStillAbsent": true,
+  "grantRootStillAbsent": true,
+  "compilerDeviceDatabaseStageMetroOrCleanupAction": false,
+  "nativeAlphaAccepted": false,
+  "nativeCrossAccepted": false,
+  "wholeVisualParityAccepted": false
+}

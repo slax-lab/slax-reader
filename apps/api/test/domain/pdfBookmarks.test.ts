@@ -5,18 +5,39 @@ vi.mock('@/handler/http/mcpController', () => ({ McpServerController: class {} }
 import { BookmarkService } from '../../src/domain/bookmark'
 import { publicFetch } from '../../src/utils/publicFetch'
 import { pdfFixture } from '../helpers/pdfFixture'
+import { pdfWithVisibleTitle, visiblePdfTitle } from '../helpers/pdfTitleFixture'
 import { createMockCtx } from '../helpers/mockFactory'
 import { getRouter } from '@/di/generated/readerRouter'
 import { LabService } from '@/domain/lab'
 
 function wire() {
   const bytes = pdfFixture()
-  const object = () => ({ size: bytes.length, customMetadata: { filename: 'test.pdf', sha256: 'a'.repeat(64), source: 'url', text_status: 'ready' }, body: new Response(bytes).body, text: vi.fn() })
-  const bucket = { head: vi.fn().mockResolvedValue(null), get: vi.fn().mockImplementation(async (key: string) => key.startsWith('pdf/meta/') ? { json: async () => ({ text_status: 'ready', pages: 1 }) } : object()), put: vi.fn().mockResolvedValue({}), delete: vi.fn().mockResolvedValue(undefined) }
-  const repo = { getBookmarkById: vi.fn().mockResolvedValue({ content_key: '' }), completePdfBookmark: vi.fn().mockResolvedValue(undefined) }
+  const object = () => ({
+    size: bytes.length,
+    customMetadata: { filename: 'test.pdf', sha256: 'a'.repeat(64), source: 'url', text_status: 'ready' },
+    body: new Response(bytes).body,
+    text: vi.fn()
+  })
+  const bucket = {
+    head: vi.fn().mockResolvedValue(null),
+    get: vi.fn().mockImplementation(async (key: string) => (key.startsWith('pdf/meta/') ? { json: async () => ({ text_status: 'ready', pages: 1 }) } : object())),
+    put: vi.fn().mockResolvedValue({}),
+    delete: vi.fn().mockResolvedValue(undefined)
+  }
+  const repo = {
+    getBookmarkById: vi.fn().mockResolvedValue({ content_key: '' }),
+    completePdfBookmark: vi.fn().mockResolvedValue(undefined),
+    updatePdfMetadata: vi.fn().mockResolvedValue(undefined)
+  }
   const labRepo = { isEnabled: vi.fn().mockResolvedValue(true) }
   const labs = new (LabService as any)(labRepo) as LabService
-  const service = Object.assign(Object.create(BookmarkService.prototype), { labService: labs, bucket: () => ({ R2Bucket: bucket }), bucketData: () => ({ R2Bucket: bucket }), bookmarkRepo: repo, searchService: { clearSearchCache: vi.fn() } }) as BookmarkService
+  const service = Object.assign(Object.create(BookmarkService.prototype), {
+    labService: labs,
+    bucket: () => ({ R2Bucket: bucket }),
+    bucketData: () => ({ R2Bucket: bucket }),
+    bookmarkRepo: repo,
+    searchService: { clearSearchCache: vi.fn() }
+  }) as BookmarkService
   return { service, bucket, repo, bytes, object, labRepo }
 }
 beforeEach(() => vi.mocked(publicFetch).mockReset())
@@ -36,31 +57,80 @@ describe('PDF bookmark persistence', () => {
     await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://example.com/1234.pdf')
     expect(repo.completePdfBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ title: 'Actual Paper Title' }), expect.anything())
   })
-  it.each(['application/pdf', 'APPLICATION/PDF', 'application/pdf; charset=binary'])('detects extensionless responses from %s and persists original plus AI text before type completion', async mediaType => {
-    const { service, bucket, repo, bytes } = wire()
-    vi.mocked(publicFetch).mockImplementation(async () => new Response(bytes, { headers: { 'Content-Type': mediaType, 'Content-Length': String(bytes.length) } }))
-    expect(await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://example.com/download?id=1')).toBe(true)
-    expect(publicFetch).toHaveBeenCalledTimes(2)
-    expect(bucket.put.mock.calls[0][0]).toBe('pdf/body/uuid.pdf')
-    expect(bucket.put.mock.calls[1][0]).toBe('text/pdf/uuid.txt')
-    expect(repo.completePdfBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ content_md_key: 'text/pdf/uuid.txt', status: 'success' }), expect.stringMatching(/^[a-f0-9]{64}$/))
+  it('persists a visible first-page title when the online PDF has empty metadata', async () => {
+    const { service, repo } = wire()
+    vi.mocked(publicFetch).mockImplementation(async () => new Response(pdfWithVisibleTitle(), { headers: { 'Content-Type': 'application/pdf' } }))
+    await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://arxiv.org/pdf/2406.00845')
+    expect(repo.completePdfBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ title: visiblePdfTitle }), expect.anything())
   })
+  it('repairs a cached filename title from the stored PDF without refetching or replacing any object', async () => {
+    const { service, bucket, repo } = wire()
+    const bytes = pdfWithVisibleTitle()
+    repo.getBookmarkById.mockResolvedValue({ title: '2406.00845', content_key: 'pdf/body/saved.pdf', content_md_key: 'text/pdf/saved.txt', content_word_count: 999 })
+    bucket.head.mockResolvedValue({ size: bytes.length, customMetadata: { filename: '2406.00845.pdf' } })
+    bucket.get.mockImplementation(async (key: string) =>
+      key.startsWith('pdf/meta/')
+        ? { json: async () => ({ text_status: 'ready', pages: 10 }) }
+        : { size: bytes.length, customMetadata: { filename: '2406.00845.pdf', sha256: 'a'.repeat(64) }, body: new Response(bytes).body }
+    )
+    expect(await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://arxiv.org/pdf/2406.00845')).toBe(true)
+    expect(repo.completePdfBookmark).toHaveBeenCalledWith(10, { title: visiblePdfTitle, status: 'success' }, 'a'.repeat(64))
+    const update = repo.completePdfBookmark.mock.calls[0][1]
+    expect(update).not.toHaveProperty('alias_title')
+    expect(update).not.toHaveProperty('content_md_key')
+    expect(update).not.toHaveProperty('content_word_count')
+    expect(publicFetch).not.toHaveBeenCalled()
+    expect(bucket.put).not.toHaveBeenCalled()
+    expect(bucket.delete).not.toHaveBeenCalled()
+    expect((service as any).searchService.clearSearchCache).toHaveBeenCalledOnce()
+  })
+  it('keeps cached titles and successful state if title discovery is unavailable', async () => {
+    const { service, bucket, repo } = wire()
+    const bytes = new TextEncoder().encode('%PDF-unreadable')
+    repo.getBookmarkById.mockResolvedValue({ title: 'Existing Title', content_key: 'pdf/body/saved.pdf', content_md_key: '' })
+    bucket.get.mockImplementation(async (key: string) =>
+      key.startsWith('pdf/meta/') ? { json: async () => ({ text_status: 'empty', pages: 1 }) } : { size: bytes.length, customMetadata: {}, body: new Response(bytes).body }
+    )
+    expect(await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://example.com/cached.pdf')).toBe(true)
+    expect(repo.completePdfBookmark.mock.calls[0][1]).not.toHaveProperty('title')
+    expect(repo.completePdfBookmark.mock.calls[0][1].status).toBe('success')
+    expect(bucket.put).not.toHaveBeenCalled()
+  })
+  it.each(['application/pdf', 'APPLICATION/PDF', 'application/pdf; charset=binary'])(
+    'detects extensionless responses from %s and persists original plus AI text before type completion',
+    async mediaType => {
+      const { service, bucket, repo, bytes } = wire()
+      vi.mocked(publicFetch).mockImplementation(async () => new Response(bytes, { headers: { 'Content-Type': mediaType, 'Content-Length': String(bytes.length) } }))
+      expect(await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://example.com/download?id=1')).toBe(true)
+      expect(publicFetch).toHaveBeenCalledTimes(2)
+      expect(bucket.put.mock.calls[0][0]).toBe('pdf/body/uuid.pdf')
+      expect(bucket.put.mock.calls[1][0]).toBe('text/pdf/uuid.txt')
+      expect(repo.completePdfBookmark).toHaveBeenCalledWith(
+        10,
+        expect.objectContaining({ content_md_key: 'text/pdf/uuid.txt', status: 'success' }),
+        expect.stringMatching(/^[a-f0-9]{64}$/)
+      )
+    }
+  )
   it('cancels HTML probes and retains the HTML capture path', async () => {
     const { service, bucket } = wire()
     vi.mocked(publicFetch).mockResolvedValue(new Response('<p>Article</p>', { headers: { 'Content-Type': 'text/html' } }))
     expect(await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://example.com')).toBe(false)
     expect(bucket.put).not.toHaveBeenCalled()
   })
-  it.each(['application/octet-stream', '', 'text/html', 'application/pdfx', 'text/plain; note=application/pdf'])('does not classify HTML from misleading URLs or Content-Type %s', async mediaType => {
-    const { service, bucket, labRepo } = wire()
-    labRepo.isEnabled.mockResolvedValue(false)
-    vi.mocked(publicFetch).mockImplementation(async () => new Response('<p>Ordinary article</p>', { headers: mediaType ? { 'Content-Type': mediaType } : {} }))
-    for (const url of ['https://example.com/file.pdf', 'https://arxiv.org/pdf/2608.00046', 'https://example.com/download']) {
-      expect(await service.capturePdf(createMockCtx(), 10, 'uuid', url)).toBe(false)
+  it.each(['application/octet-stream', '', 'text/html', 'application/pdfx', 'text/plain; note=application/pdf'])(
+    'does not classify HTML from misleading URLs or Content-Type %s',
+    async mediaType => {
+      const { service, bucket, labRepo } = wire()
+      labRepo.isEnabled.mockResolvedValue(false)
+      vi.mocked(publicFetch).mockImplementation(async () => new Response('<p>Ordinary article</p>', { headers: mediaType ? { 'Content-Type': mediaType } : {} }))
+      for (const url of ['https://example.com/file.pdf', 'https://arxiv.org/pdf/2608.00046', 'https://example.com/download']) {
+        expect(await service.capturePdf(createMockCtx(), 10, 'uuid', url)).toBe(false)
+      }
+      expect(labRepo.isEnabled).not.toHaveBeenCalled()
+      expect(bucket.put).not.toHaveBeenCalled()
     }
-    expect(labRepo.isEnabled).not.toHaveBeenCalled()
-    expect(bucket.put).not.toHaveBeenCalled()
-  })
+  )
   it.each(['application/octet-stream', ''])('identifies actual PDF file signatures when Content-Type is %s', async mediaType => {
     const { service, bytes, repo } = wire()
     vi.mocked(publicFetch).mockImplementation(async () => new Response(bytes, { headers: mediaType ? { 'Content-Type': mediaType } : {} }))
@@ -69,9 +139,19 @@ describe('PDF bookmark persistence', () => {
   })
   it('identifies PDF signatures split between short response chunks', async () => {
     const { service, bytes } = wire()
-    vi.mocked(publicFetch).mockResolvedValueOnce(new Response(new ReadableStream({ start(controller) {
-      controller.enqueue(bytes.subarray(0, 3)); controller.enqueue(bytes.subarray(3, 8)); controller.close()
-    } }))).mockResolvedValueOnce(new Response(bytes))
+    vi.mocked(publicFetch)
+      .mockResolvedValueOnce(
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(bytes.subarray(0, 3))
+              controller.enqueue(bytes.subarray(3, 8))
+              controller.close()
+            }
+          })
+        )
+      )
+      .mockResolvedValueOnce(new Response(bytes))
     expect(await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://example.com/download')).toBe(true)
   })
   it('persists embedded authors for the existing detail and AI paths', async () => {
@@ -100,14 +180,18 @@ describe('PDF bookmark persistence', () => {
   })
   it('does not classify failed requests by their URL suffix', async () => {
     const { service, labRepo } = wire()
-    vi.mocked(publicFetch).mockRejectedValueOnce(new Error('Network failure')).mockResolvedValueOnce(new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/html' } }))
+    vi.mocked(publicFetch)
+      .mockRejectedValueOnce(new Error('Network failure'))
+      .mockResolvedValueOnce(new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/html' } }))
     expect(await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://example.com/file.pdf')).toBe(false)
     expect(await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://example.com/file.pdf')).toBe(false)
     expect(labRepo.isEnabled).not.toHaveBeenCalled()
   })
   it('bounds decoded bytes rather than the compressed response length', async () => {
     const { service, bytes } = wire()
-    vi.mocked(publicFetch).mockImplementation(async () => new Response(bytes, { headers: { 'Content-Type': 'application/pdf', 'Content-Encoding': 'gzip', 'Content-Length': '10' } }))
+    vi.mocked(publicFetch).mockImplementation(
+      async () => new Response(bytes, { headers: { 'Content-Type': 'application/pdf', 'Content-Encoding': 'gzip', 'Content-Length': '10' } })
+    )
     expect(await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://example.com/download')).toBe(true)
   })
   it('persists intact bytes before PDF.js takes ownership of the buffer', async () => {
@@ -126,7 +210,11 @@ describe('PDF bookmark persistence', () => {
     vi.mocked(publicFetch).mockImplementation(async () => new Response('%PDF-invalid', { headers: { 'Content-Type': 'application/pdf' } }))
     expect(await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://example.com/download')).toBe(true)
     expect(bucket.put).toHaveBeenCalledWith('pdf/meta/uuid.json', JSON.stringify({ text_status: 'failed', pages: 0 }), expect.anything())
-    expect(repo.completePdfBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ content_key: 'pdf/body/uuid.pdf', content_md_key: '', status: 'success' }), expect.anything())
+    expect(repo.completePdfBookmark).toHaveBeenCalledWith(
+      10,
+      expect.objectContaining({ content_key: 'pdf/body/uuid.pdf', content_md_key: '', status: 'success' }),
+      expect.anything()
+    )
     expect(bucket.delete).not.toHaveBeenCalled()
   })
   it('cleans new objects on database failure', async () => {
@@ -151,9 +239,11 @@ describe('PDF bookmark persistence', () => {
     labRepo.isEnabled.mockResolvedValue(false)
     repo.getBookmarkById.mockResolvedValue({ content_key: 'pdf/body/saved.pdf', content_md_key: '' })
     bucket.head.mockResolvedValue({ size: bytes.length, customMetadata: { source: 'upload', filename: 'upload.pdf' } })
-    bucket.get.mockImplementation(async (key: string) => key.startsWith('pdf/meta/')
-      ? { json: async () => ({ text_status: 'pending', pages: 0 }) }
-      : { size: bytes.length, customMetadata: { source: 'upload', filename: 'upload.pdf' }, body: new Response(bytes).body })
+    bucket.get.mockImplementation(async (key: string) =>
+      key.startsWith('pdf/meta/')
+        ? { json: async () => ({ text_status: 'pending', pages: 0 }) }
+        : { size: bytes.length, customMetadata: { source: 'upload', filename: 'upload.pdf' }, body: new Response(bytes).body }
+    )
     expect(await service.capturePdf(createMockCtx(), 10, 'uuid', 'slax-pdf://7/hash')).toBe(true)
     expect(publicFetch).not.toHaveBeenCalled()
     expect(bucket.put.mock.calls.map(call => call[0])).toEqual(['text/pdf/saved.txt', 'pdf/meta/saved.json'])
@@ -175,7 +265,9 @@ describe('PDF upload', () => {
   it('rejects anonymous uploads before resolving the controller', async () => {
     const resolve = vi.fn()
     const router = getRouter({ resolve } as never)
-    await expect(router.fetch(new Request('https://reader.test/v1/bookmark/upload_pdf', { method: 'POST', body: pdfFixture() }), createMockCtx({ userId: 0 }))).rejects.toMatchObject({ errCode: 401 })
+    await expect(
+      router.fetch(new Request('https://reader.test/v1/bookmark/upload_pdf', { method: 'POST', body: pdfFixture() }), createMockCtx({ userId: 0 }))
+    ).rejects.toMatchObject({ errCode: 401 })
     expect(resolve).not.toHaveBeenCalled()
   })
   function uploadWire(existing = false) {
@@ -190,7 +282,9 @@ describe('PDF upload', () => {
     labRepo.isEnabled.mockResolvedValue(false)
     const pull = vi.fn()
     const body = new ReadableStream<Uint8Array>({ pull }, { highWaterMark: 0 })
-    await expect(service.uploadPdf(createMockCtx(), new Request('https://example.com/upload', { method: 'POST', body, duplex: 'half' } as RequestInit))).rejects.toMatchObject({ name: 'LAB_FEATURE_DISABLED' })
+    await expect(service.uploadPdf(createMockCtx(), new Request('https://example.com/upload', { method: 'POST', body, duplex: 'half' } as RequestInit))).rejects.toMatchObject({
+      name: 'LAB_FEATURE_DISABLED'
+    })
     expect(pull).not.toHaveBeenCalled()
     expect(create).not.toHaveBeenCalled()
     expect(bucket.put).not.toHaveBeenCalled()
@@ -201,17 +295,80 @@ describe('PDF upload', () => {
     bucket.head.mockResolvedValue(null)
     bucket.get.mockResolvedValue({ json: async () => ({ text_status: 'pending', pages: 0 }) })
     // Descriptor reads require the newly stored object's head.
-    bucket.put.mockImplementation(async (key: string) => { if (key.endsWith('.pdf')) bucket.head.mockResolvedValue({ size: 100, customMetadata: { source: 'upload' } }); return {} })
-    const result = await service.uploadPdf(createMockCtx({ userId: 7 }), new Request('https://example.com/upload?filename=%E6%B5%8B%E8%AF%95.pdf', { method: 'POST', body: pdfFixture() }))
+    bucket.put.mockImplementation(async (key: string) => {
+      if (key.endsWith('.pdf')) bucket.head.mockResolvedValue({ size: 100, customMetadata: { source: 'upload' } })
+      return {}
+    })
+    const result = await service.uploadPdf(
+      createMockCtx({ userId: 7 }),
+      new Request('https://example.com/upload?filename=%E6%B5%8B%E8%AF%95.pdf', { method: 'POST', body: pdfFixture() })
+    )
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ privateUser: 7, type: 2, title: '测试', targetUrl: expect.stringMatching(/^slax-pdf:\/\/7\/[a-f0-9]{64}$/) }))
     expect(result.bookmark_uid).toBe('saved')
     expect(repo.completePdfBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ content_md_key: '', status: 'success' }), expect.anything())
-    expect((service as any).crawlService.createWorkflow).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ url: expect.stringMatching(/^slax-pdf:/) }), 3, expect.anything())
+    expect((service as any).crawlService.createWorkflow).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ url: expect.stringMatching(/^slax-pdf:/) }),
+      3,
+      expect.anything()
+    )
+  })
+  it('persists and returns the embedded title before the upload is acknowledged, with text still pending', async () => {
+    const { service, bucket, repo } = uploadWire()
+    bucket.get.mockResolvedValue({ json: async () => ({ text_status: 'pending', pages: 0 }) })
+    let saved: Uint8Array | undefined
+    bucket.put.mockImplementation(async (key: string, value: unknown) => {
+      if (key.endsWith('.pdf')) {
+        saved = new Uint8Array(value as Uint8Array)
+        bucket.head.mockResolvedValue({ size: saved.length, customMetadata: { source: 'upload', filename: 'download.pdf' } })
+      }
+      return {}
+    })
+    const bytes = pdfFixture(['Text is extracted later'], [], 'Info Title', undefined, ' 实际 PDF 标题 ')
+    const original = bytes.slice()
+    const ctx = createMockCtx({ userId: 7, hashIds: { encodeId: (id: number) => id + 1000 } })
+    const result = await service.uploadPdf(ctx, new Request('https://reader.test/upload?filename=download.pdf', { method: 'POST', body: bytes }))
+    expect(result).toEqual({ bookmark_id: 1010, bookmark_uid: 'saved', title: '实际 PDF 标题' })
+    expect(saved).toEqual(original)
+    expect(repo.completePdfBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ title: '实际 PDF 标题', content_md_key: '', status: 'success' }), expect.anything())
+    expect(repo.completePdfBookmark.mock.calls[0][1]).not.toHaveProperty('alias_title')
+    expect(bucket.put).toHaveBeenCalledWith('pdf/meta/saved.json', JSON.stringify({ text_status: 'pending', pages: 0 }), expect.anything())
+    expect((service as any).crawlService.createWorkflow).toHaveBeenCalledOnce()
+  })
+  it('keeps the stored title and user alias on duplicate upload instead of replacing them with a new filename', async () => {
+    const { service, create, bucket, object } = uploadWire(true)
+    create.mockResolvedValue({ id: 10, content_key: 'pdf/body/saved.pdf', title: 'Stored Metadata Title' })
+    bucket.head.mockResolvedValue(object())
+    const result = await service.uploadPdf(createMockCtx(), new Request('https://reader.test/upload?filename=other-name.pdf', { method: 'POST', body: pdfFixture() }))
+    expect(result.title).toBe('Stored Metadata Title')
+    expect(bucket.put).not.toHaveBeenCalled()
+  })
+  it('repairs an older filename title on explicit duplicate save without replacing bytes or extraction state', async () => {
+    const { service, create, bucket, repo, object } = uploadWire(true)
+    create.mockResolvedValue({ id: 10, content_key: 'pdf/body/saved.pdf', title: 'download' })
+    bucket.head.mockResolvedValue(object())
+    const result = await service.uploadPdf(
+      createMockCtx(),
+      new Request('https://reader.test/upload?filename=download.pdf', { method: 'POST', body: pdfFixture(['Text'], [], 'Actual Paper Title', 'Jane Doe') })
+    )
+    expect(result.title).toBe('Actual Paper Title')
+    expect(repo.updatePdfMetadata).toHaveBeenCalledWith(10, { title: 'Actual Paper Title', byline: 'Jane Doe' })
+    expect(bucket.put).not.toHaveBeenCalled()
+    expect(repo.completePdfBookmark).not.toHaveBeenCalled()
+    expect((service as any).crawlService.createWorkflow).not.toHaveBeenCalled()
+  })
+  it('returns a filename fallback when metadata is unreadable without blocking original-file storage', async () => {
+    const { service, repo } = uploadWire()
+    const result = await service.uploadPdf(createMockCtx(), new Request('https://reader.test/upload?filename=fallback.pdf', { method: 'POST', body: '%PDF-invalid' }))
+    expect(result.title).toBe('fallback')
+    expect(repo.completePdfBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ title: 'fallback', content_md_key: '', status: 'success' }), expect.anything())
   })
   it('reuses duplicate uploads without replacing files or restarting completed extraction', async () => {
     const { service, bucket, object } = uploadWire(true)
     bucket.head.mockResolvedValue(object())
-    expect((await service.uploadPdf(createMockCtx(), new Request('https://example.com/upload?filename=new.pdf', { method: 'POST', body: pdfFixture() }))).bookmark_uid).toBe('saved')
+    expect((await service.uploadPdf(createMockCtx(), new Request('https://example.com/upload?filename=new.pdf', { method: 'POST', body: pdfFixture() }))).bookmark_uid).toBe(
+      'saved'
+    )
     expect(bucket.put).not.toHaveBeenCalled()
     expect((service as any).crawlService.createWorkflow).not.toHaveBeenCalled()
   })
@@ -240,7 +397,10 @@ describe('PDF upload', () => {
   })
   it('cleans new file objects and marks a partially created upload as failed on storage failure', async () => {
     const { service, bucket, repo } = uploadWire()
-    bucket.put.mockImplementation(async (key: string) => { if (!key.endsWith('.pdf')) throw new Error('storage failed'); return {} })
+    bucket.put.mockImplementation(async (key: string) => {
+      if (!key.endsWith('.pdf')) throw new Error('storage failed')
+      return {}
+    })
     await expect(service.uploadPdf(createMockCtx(), new Request('https://reader.test/upload', { method: 'POST', body: pdfFixture() }))).rejects.toThrow('storage failed')
     expect(bucket.delete).toHaveBeenCalledWith(['pdf/body/saved.pdf', 'text/pdf/saved.txt', 'pdf/meta/saved.json'])
     expect((repo as any).updateBookmarkStatus).toHaveBeenCalledWith(10, 'failed')

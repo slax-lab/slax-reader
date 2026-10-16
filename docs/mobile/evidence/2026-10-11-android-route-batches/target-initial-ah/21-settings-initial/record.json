@@ -1,0 +1,63 @@
+{
+  "name": "settings-initial",
+  "result": "native-candidate-captured",
+  "expectedRoute": "Settings",
+  "observedRoute": {
+    "name": "Settings",
+    "key": "Settings-xa1QH4TxyJ4EEwPnhQyDr"
+  },
+  "focusedWindow": "mCurrentFocus=Window{c798dbc u0 com.slax.reader.uifixture/com.slax.reader.uifixture.MainActivity}",
+  "nativeInput": null,
+  "nativeInteractionVerified": false,
+  "expectedNativeState": [],
+  "forbiddenNativeState": [],
+  "preparedScenario": "settings",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "nativeMeasurements": {
+    "platform": "android",
+    "osVersion": "14",
+    "deviceModel": "sdk_gphone64_arm64",
+    "viewport": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "screen": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "pixelRatio": 2.625,
+    "fontScale": 1,
+    "fontScaleProfile": "default",
+    "safeArea": {
+      "left": 0,
+      "bottom": 24,
+      "right": 0,
+      "top": 51.80952453613281
+    },
+    "appearance": "light"
+  },
+  "visualInspection": "pending",
+  "sourceParity": "unverified",
+  "capturedAtMillis": 1791657372036,
+  "files": [
+    {
+      "path": "21-settings-initial/native.png",
+      "sha256": "f8261ec91161368fe46d2e80027ee0e5986e557d87ca14475480e632782e7349",
+      "bytes": 128766
+    },
+    {
+      "path": "21-settings-initial/runtime-context.json",
+      "sha256": "caddb74ea30ab9a30f29544b7d7a012f7b994a1d43b3c659de2b9c8a934f26c4",
+      "bytes": 2310
+    },
+    {
+      "path": "21-settings-initial/native-hierarchy.xml",
+      "sha256": "8fcd84cb6e820b79471e4ab0c0fdc936100108a76903f2d29f3d8633507f20ec",
+      "bytes": 18892
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "name": "reader-mixed-prepared-00-selection",
+  "result": "native-candidate-captured",
+  "expectedRoute": null,
+  "observedRoute": {
+    "name": "Reader",
+    "params": {
+      "bookmarkId": "00000003-0000-4000-8000-000000000001"
+    },
+    "key": "Reader-LT-XolleDLGdpV2tObroJ"
+  },
+  "focusedWindow": "mCurrentFocus=Window{26e0444 u0 com.slax.reader.uifixture/com.slax.reader.uifixture.MainActivity}",
+  "nativeInput": null,
+  "nativeInteractionVerified": false,
+  "expectedNativeState": [],
+  "forbiddenNativeState": [],
+  "preparedActionIndices": [
+    0
+  ],
+  "preparationOnly": true,
+  "preparedScenario": "reader-mixed",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "nativeMeasurements": {
+    "platform": "android",
+    "osVersion": "14",
+    "deviceModel": "sdk_gphone64_arm64",
+    "viewport": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "screen": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "pixelRatio": 2.625,
+    "fontScale": 1,
+    "fontScaleProfile": "default",
+    "safeArea": {
+      "left": 0,
+      "bottom": 24,
+      "right": 0,
+      "top": 51.80952453613281
+    },
+    "appearance": "light"
+  },
+  "visualInspection": "pending",
+  "sourceParity": "unverified",
+  "capturedAtMillis": 1791659903281,
+  "files": [
+    {
+      "path": "01-reader-mixed-prepared-00-selection/native.png",
+      "sha256": "5e4b9489ed5a9c6d074a926c3c33b745449f88f6e0999249d41b7e73cb28e89f",
+      "bytes": 285558
+    },
+    {
+      "path": "01-reader-mixed-prepared-00-selection/runtime-context.json",
+      "sha256": "c40a38f23ef067385ad470cafaf94b74d4023afb292eae0c464f4fd6e2bc9c43",
+      "bytes": 3623
+    },
+    {
+      "path": "01-reader-mixed-prepared-00-selection/native-hierarchy.xml",
+      "sha256": "7a9cd16f8a173a531b7df457ea27aeced5992ce95edfa70ec6c941ef831edacd",
+      "bytes": 22682
+    }
+  ]
+}

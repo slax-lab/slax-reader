@@ -73,3 +73,13 @@ Task 6.2 remains open for a complete authenticated upload/sharing browser exerci
 Task 10.4 implementation and component/type checks are complete. Rendered theme and narrow-layout inspection remains open: the existing localhost:3000 preview did not return a response during the live check. The running development processes were not restarted. This is separate from KMP device coverage under task 6.2.
 
 Final review restored task 4.4 to open because software-keyboard acceptance has not been observed in a live browser/device. Its delayed PDF viewport subscription is fixed and regression-tested; existing desktop/H5/theme evidence remains recorded in `validation.md`. Tasks 7.3–7.6 retain their final presentation/action acceptance checks even where implementation and earlier smoke coverage exist.
+
+## 11. Detail-page polish
+
+- [x] 11.1 Keep the selection actions open through the mouse release: do not schedule a capture while a pointer is held, capture one debounce after pointerup/pointercancel/blur on the document, and cover the logic with focused fake-timer tests (including a pause longer than the debounce and a release outside the reader).
+- [x] 11.2 Match the PDF source badge to the web-article badge and render the header divider for PDFs so the badge is no longer flush against the title.
+- [x] 11.3 Restructure the control rail: a page-fraction handle with a direction-aware chevron, a panel of segmented page and zoom fields, a fit-width action and two real switches, all on theme tokens with hover and enter transitions and reduced-motion handling. The unused `pdf.theme_colors` copy is removed because the label no longer changes with state.
+- [x] 11.4 Paint PDF text selections with the article selection color (`--slax-selection`) instead of pdf.js's system accent blue, with a translucent ink overlay in e-ink because the text layer sits above the canvas.
+
+Verification: the scheduler tests (8) and the Article and Snapshot component suites pass. The control rail's real template and compiled scoped CSS were rendered in Chrome against the real theme tokens in light, dark and e-ink, English and Chinese, collapsed and expanded, at 1280px and 390px, and inspected; this used a throwaway harness outside the repo, not the running app. The scheduler is verified in isolation; `PdfReader` is not mounted in any test, so the pointer wiring, the real browser drag, and the rendered header and rail (themes, 768px, 320px) were not exercised and remain open under 7.3, 7.4 and 7.6.
+

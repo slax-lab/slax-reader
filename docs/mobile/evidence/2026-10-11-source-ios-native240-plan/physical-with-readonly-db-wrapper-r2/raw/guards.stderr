@@ -1,0 +1,24 @@
+test_bounded_record_and_raw_observation_reference (__main__.WrapperGuards) ... ok
+test_candidate_uses_fresh_debounced_observation_actual_request_and_raw_test (__main__.WrapperGuards) ... ok
+test_candidate_without_completed_genuine_input_never_reads (__main__.WrapperGuards) ... ok
+test_default_mode_creates_no_executor_or_queries (__main__.WrapperGuards) ... ok
+test_exact_one_passed_modern_native_leaf (__main__.WrapperGuards) ... ok
+test_execute_requires_both_grants_before_executor_creation (__main__.WrapperGuards) ... ok
+test_expired_sql_budget_stops_before_connect (__main__.WrapperGuards) ... ok
+test_failed_zero_preserves_rejected_snapshot_and_refuses (__main__.WrapperGuards) ... ok
+test_gesture_retains_original30_69_admission_without_speculative108_gate (__main__.WrapperGuards) ... ok
+test_initial_phase_checks_zero_before_any_native_input (__main__.WrapperGuards) ... ok
+test_launch_baseline_precedes_exact_process_and_pid_is_bound (__main__.WrapperGuards) ... ok
+test_launch_pid_requires_actual_exact_source_stdout (__main__.WrapperGuards) ... ok
+test_native_command_requires_actual_zero_before_any_process (__main__.WrapperGuards) ... ok
+test_native_geometry_drift_after_debounce_is_not_replaced_with_db240 (__main__.WrapperGuards) ... ok
+test_separate_grant_exact_bindings_and_expiry (__main__.WrapperGuards) ... ok
+test_sql240_does_not_override_changed_actual_native_geometry (__main__.WrapperGuards) ... ok
+test_sql_reserve_stops_before_query (__main__.WrapperGuards) ... ok
+test_tampered_actual_native_summary_stops_before_db_query (__main__.WrapperGuards) ... ok
+test_wrapper_sql_deadline_and_whitelist_do_not_open_any_database (__main__.WrapperGuards) ... ok
+
+----------------------------------------------------------------------
+Ran 19 tests in 0.027s
+
+OK

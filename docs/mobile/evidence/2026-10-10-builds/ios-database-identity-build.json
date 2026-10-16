@@ -1,0 +1,134 @@
+{
+  "kind": "slax-main-ios-debug-native-identity-build",
+  "recordedAt": "2026-10-10T16:17:39.145495+00:00",
+  "platform": "iphonesimulator",
+  "configuration": "Debug",
+  "version": "1.0.25",
+  "buildNumber": "757",
+  "command": "pnpm mobile -- build:ios -derivedDataPath /tmp/slax-mobile-ios-identity-build -jobs 1 ARCHS=arm64 ONLY_ACTIVE_ARCH=YES COMPILER_INDEX_STORE_ENABLE=NO",
+  "result": "BUILD SUCCEEDED",
+  "log": "/tmp/slax-mobile-ios-identity-build.log",
+  "logSHA256": "8a02b1802323df61ca29924ac0bb186aaac2145e1e7881f43c0ab2b02be424c5",
+  "originalApp": "/tmp/slax-mobile-native-artifacts/SlaxReader-ios-debug-identity-757.app",
+  "originalExecutableSHA256": "e7d0e3ad6bb04a99dbffb6ef7aa3a36c3da83e5e18c5502bb4d71e416fafc782",
+  "controlledSimulatorApp": "/tmp/slax-mobile-native-artifacts/SlaxReader-ios-debug-identity-757-group-only.app",
+  "controlledSimulatorExecutableSHA256": "afca590846175cce828b550f5c92b17096b706c214de67ea1d6d1a380eebd97f",
+  "signature": "ad-hoc; public App Group entitlement only for controlled simulator CLI launch",
+  "deepStrictSignatureVerified": true,
+  "mainBundleIdentifier": "app.slax.reader",
+  "shareBundleIdentifier": "app.slax.reader.share",
+  "inputSnapshot": "2026-10-10T15:56:35.141645+00:00",
+  "inputSnapshotTiming": "during build/planning, not claimed as pre-build",
+  "publicInputs": [
+    {
+      "path": "apps/mobile/app.config.ts",
+      "sha256": "3be5106ded1760c119c8cc01e3ec65021fb9b3fb77ac3a4142c1e83e601f7824",
+      "currentSHA256": "3be5106ded1760c119c8cc01e3ec65021fb9b3fb77ac3a4142c1e83e601f7824",
+      "unchanged": true
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/ios/DatabaseIdentity.swift",
+      "sha256": "f8f020698a160425d5be842d276f23b0294291a8ab96e07c4db185289aba806a",
+      "currentSHA256": "f8f020698a160425d5be842d276f23b0294291a8ab96e07c4db185289aba806a",
+      "unchanged": true
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/ios/DatabaseInspection.swift",
+      "sha256": "8dcd9b4ff0d188cb70a1c4f347848a61fc98b5b94b1463723a717db82b10ff02",
+      "currentSHA256": "8dcd9b4ff0d188cb70a1c4f347848a61fc98b5b94b1463723a717db82b10ff02",
+      "unchanged": true
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/ios/SlaxLegacyModule.swift",
+      "sha256": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3",
+      "currentSHA256": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3",
+      "unchanged": true
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxDns.swift",
+      "sha256": "1cb509cad382bec63f044683a41544ad9ed3e00b8b0ee839fad4a28678270a36",
+      "currentSHA256": "1cb509cad382bec63f044683a41544ad9ed3e00b8b0ee839fad4a28678270a36",
+      "unchanged": true
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxGoogleAppDelegateSubscriber.swift",
+      "sha256": "958a4e8fc408035266d6e9ec814949fc72bc582f1f477ae1ead32b5d0cc63c13",
+      "currentSHA256": "958a4e8fc408035266d6e9ec814949fc72bc582f1f477ae1ead32b5d0cc63c13",
+      "unchanged": true
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxPlatformModule.swift",
+      "sha256": "7a3fa8b2efeab3a2bb20a9a0729c697ff95c3774b20a2bc133a2f3b07e5c9b27",
+      "currentSHA256": "7a3fa8b2efeab3a2bb20a9a0729c697ff95c3774b20a2bc133a2f3b07e5c9b27",
+      "unchanged": true
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxReaderView.swift",
+      "sha256": "2dd5b7868f337285ff4759334daf1ba8b70e923b2d1761de77ae924a5e61db44",
+      "currentSHA256": "2dd5b7868f337285ff4759334daf1ba8b70e923b2d1761de77ae924a5e61db44",
+      "unchanged": true
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxResourceHandler.swift",
+      "sha256": "a6d193898668f3200355dd5349ade700912e0245a2ad21f154f9e20b29863ba2",
+      "currentSHA256": "a6d193898668f3200355dd5349ade700912e0245a2ad21f154f9e20b29863ba2",
+      "unchanged": true
+    },
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxRingView.swift",
+      "sha256": "bda084a963ef0928ab68d274449bc4d72b424f4bc0a32302b891a14f7809a635",
+      "currentSHA256": "bda084a963ef0928ab68d274449bc4d72b424f4bc0a32302b891a14f7809a635",
+      "unchanged": true
+    },
+    {
+      "path": "apps/mobile/native/share/ios/ShareCollector.swift",
+      "sha256": "9f8edd6c618a58b03e65b4c57a1c3309dd951f4539796492d428eb0fc4c9c186",
+      "currentSHA256": "9f8edd6c618a58b03e65b4c57a1c3309dd951f4539796492d428eb0fc4c9c186",
+      "unchanged": true
+    },
+    {
+      "path": "apps/mobile/native/share/ios/ShareViewController.swift",
+      "sha256": "0d3aa0f64630dc0439d2ea62d78bd0aaeeea497884276684bd1593ef12b82c3d",
+      "currentSHA256": "0d3aa0f64630dc0439d2ea62d78bd0aaeeea497884276684bd1593ef12b82c3d",
+      "unchanged": true
+    },
+    {
+      "path": "apps/mobile/native/share/ios/SharedPreferences.swift",
+      "sha256": "9ec8056affcb8ff8cd34d68a9170c5ce2b94a6147560210aaadda280289e62ee",
+      "currentSHA256": "9ec8056affcb8ff8cd34d68a9170c5ce2b94a6147560210aaadda280289e62ee",
+      "unchanged": true
+    },
+    {
+      "path": "apps/mobile/plugins/with-native-compatibility.cjs",
+      "sha256": "89fdb7b6c92290dd4c12c3bf3d49a680bfe5d7098a0c6759acae3c1c75392f87",
+      "currentSHA256": "89fdb7b6c92290dd4c12c3bf3d49a680bfe5d7098a0c6759acae3c1c75392f87",
+      "unchanged": true
+    },
+    {
+      "path": "apps/mobile/plugins/with-share.cjs",
+      "sha256": "2604b52fd2f5b67418e47d8c9ba01bbe8c88c450450e044e87ac14407b530b18",
+      "currentSHA256": "2604b52fd2f5b67418e47d8c9ba01bbe8c88c450450e044e87ac14407b530b18",
+      "unchanged": true
+    },
+    {
+      "path": "apps/mobile/tooling/native-build.mjs",
+      "sha256": "879db8c130195747e58ad047a24fd5a92154841e662356766edef3cf107a45c0",
+      "currentSHA256": "879db8c130195747e58ad047a24fd5a92154841e662356766edef3cf107a45c0",
+      "unchanged": true
+    }
+  ],
+  "nativeLogicalIdentityRuntimeVerified": true,
+  "sameIdentityFirstInterruptedUpgradeVerified": true,
+  "reinstallUpgradeVerified": true,
+  "releaseArchive": false,
+  "publisherSigned": false,
+  "testFlightUploaded": false,
+  "runtimeEvidence": {
+    "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-first-upgrade-and-reinstall.json",
+    "sha256": "9e47ca4673ae3e55570b7baef93d86a494ea381b0fb493c7f7e25eb85b122fdf",
+    "scope": "Fresh controlled iOS simulator; genuine old Kotlin/PowerSync four-operation interrupted first cutover, new offline operations, accepted-journal reinstall with changed application container; deterministic upload callbacks",
+    "publisherSigned": false,
+    "realServiceReconnectVerified": false,
+    "historicalEvidencePreserved": true
+  }
+}

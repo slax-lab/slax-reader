@@ -1,0 +1,131 @@
+Attributes: Application, 0x1134d9900, pid: 86172, label: 'Slax Reader'
+Element subtree:
+ →Application, 0x1134d9900, pid: 86172, label: 'Slax Reader'
+    Window (Main), 0x1134d9a40, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x1134d9b80, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x1134d9cc0, {{0.0, 0.0}, {402.0, 874.0}}
+          Other, 0x1134d9e00, {{0.0, 0.0}, {402.0, 874.0}}
+            Other, 0x1134d9f40, {{0.0, 0.0}, {402.0, 874.0}}
+              Other, 0x1134da080, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x1134da1c0, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x1134da300, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x1134da440, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x1134da580, {{0.0, 0.0}, {402.0, 874.0}}
+                        NavigationBar, 0x1134da6c0, {{0.0, 62.0}, {402.0, 54.0}}, identifier: 'RNSScreen'
+                          Button, 0x1134da800, {{16.0, 62.0}, {44.0, 44.0}}, identifier: 'BackButton', label: 'Library'
+                          Other, 0x1134da940, {{334.0, 62.0}, {48.0, 44.0}}
+                            Other, 0x1134daa80, {{334.0, 62.0}, {48.0, 44.0}}
+                        Other, 0x1134dabc0, {{0.0, 0.0}, {402.0, 874.0}}
+                          Other, 0x1134dad00, {{0.0, 0.0}, {402.0, 874.0}}
+                            Other, 0x1134dae40, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x1134daf80, {{0.0, 0.0}, {402.0, 874.0}}
+                                Other, 0x1134db0c0, {{0.0, 0.0}, {402.0, 874.0}}
+                                  Other, 0x1134db200, {{0.0, -80.0}, {402.0, 402.0}}
+                                    Other, 0x1134db340, {{0.0, -80.0}, {402.0, 402.0}}, identifier: 'reader-article-header'
+                                    StaticText, 0x1134db480, {{20.0, 26.0}, {362.0, 90.0}}, label: 'A fixed title with English and 中文 for line wrapping, images, tables, formulas, comments and highlights'
+                                      StaticText, 0x1134db5c0, {{20.0, 26.0}, {362.0, 90.0}}, label: 'A fixed title with English and 中文 for line wrapping, images, tables, formulas, comments and highlights'
+                                    StaticText, 0x1134db700, {{20.0, 128.0}, {117.0, 20.0}}, label: '2026-10-10 12:00'
+                                      StaticText, 0x1134db840, {{20.0, 128.0}, {117.0, 20.0}}, label: '2026-10-10 12:00'
+                                    Link, 0x1134db980, {{137.0, 128.0}, {101.0, 20.0}}, label: 'View Original'
+                                    Other, 0x1134dbac0, {{20.0, 164.0}, {74.7, 22.0}}, identifier: 'tag_item'
+                                    StaticText, 0x1134dbc00, {{27.0, 166.0}, {60.7, 18.0}}, label: 'Fixture tag'
+                                      StaticText, 0x1134dbd40, {{27.0, 166.0}, {60.7, 18.0}}, label: 'Fixture tag'
+                                    Button, 0x1134dbe80, {{102.7, 164.0}, {21.0, 21.0}}, label: 'Tags'
+                                    Button, 0x11353a800, {{20.0, 206.0}, {362.0, 92.0}}, label: 'Overview: A deterministic summary of the mixed article.
+固定摘要用于核对中英文排版。 '
+                                  Other, 0x11353a940, {{0.0, 0.0}, {402.0, 874.0}}, identifier: 'reader-screen'
+                                  Other, 0x11353a580, {{0.0, 0.0}, {402.0, 874.0}}, identifier: 'reader-container'
+                                  Other, 0x11353a6c0, {{0.0, 0.0}, {402.0, 874.0}}, identifier: 'reader-document'
+                                    WebView, 0x11353a300, {{0.0, 0.0}, {402.0, 874.0}}
+                                      WebView, 0x11353a440, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x113539cc0, {{0.0, 0.0}, {402.0, 874.0}}
+                                          Other, 0x11353a080, {{0.0, 0.0}, {402.0, 170.8}}
+                                        WebView, 0x11353a1c0, {{0.0, 0.0}, {402.0, 874.0}}
+                                          Other, 0x113539e00, {{0.0, 0.0}, {402.0, 874.0}}
+                                            Other, 0x113539f40, {{0.0, 0.0}, {402.0, 874.0}}
+                                              Other, 0x113539b80, {{0.0, 322.0}, {402.0, 874.0}}
+                                                Other, 0x113539a40, {{0.0, 322.0}, {402.0, 1440.0}}, Focused
+                                                  Other, 0x1135397c0, {{20.0, 322.0}, {362.0, 1240.0}}, label: 'A stable outline heading, 文章', Focused
+                                                    Other, 0x113539900, {{20.0, 322.0}, {362.0, 28.0}}, Focused
+                                                      StaticText, 0x113538a00, {{20.0, 326.0}, {46.0, 20.0}}, label: 'Alpha', value: Alpha , Focused
+                                                      StaticText, 0x113539180, {{65.0, 326.0}, {35.0, 20.0}}, label: 'bold', value: bold, Focused
+                                                      StaticText, 0x113539540, {{99.0, 326.0}, {37.0, 20.0}}, label: 'end.', value:  end., Focused
+                                                    Other, 0x113539680, {{20.0, 374.0}, {362.0, 28.0}}, Focused
+                                                      StaticText, 0x1135392c0, {{20.0, 378.0}, {56.0, 20.0}}, label: 'Second', value: Second, Focused
+                                                      StaticText, 0x113539400, {{75.0, 378.0}, {164.0, 20.0}}, label: 'paragraph with quote.', value:  paragraph with qu..., Focused
+                                                    Other, 0x113538b40, {{20.0, 426.0}, {362.0, 30.0}}, label: 'A stable outline heading', value: 2, Focused
+                                                      StaticText, 0x113538f00, {{20.0, 428.0}, {221.0, 25.0}}, label: 'A stable outline heading', value: A stable outline h..., Focused
+                                                    Other, 0x113539040, {{20.0, 480.0}, {362.0, 84.0}}, Focused
+                                                      StaticText, 0x113538c80, {{20.0, 484.0}, {362.0, 76.0}}, label: '中文段落验证字体回退、换行与标点。Mixed English and Chinese content stays identical across both applications.', value: 中文段落验证字体回退、换行与标点。M..., Focused
+                                                    Other, 0x113538dc0, {{20.0, 588.0}, {362.0, 56.0}}, Focused
+                                                      Other, 0x113538640, {{66.0, 588.0}, {316.0, 28.0}}, label: 'One', Focused
+                                                        StaticText, 0x113538780, {{66.0, 592.0}, {30.0, 20.0}}, label: 'One', value: One, Focused
+                                                      Other, 0x1135388c0, {{66.0, 616.0}, {316.0, 28.0}}, label: 'Two with emphasis', Focused
+                                                        StaticText, 0x113538000, {{66.0, 620.0}, {69.0, 20.0}}, label: 'Two with', value: Two with , Focused
+                                                        StaticText, 0x113538500, {{134.0, 620.0}, {70.0, 20.0}}, label: 'emphasis', value: emphasis, Focused
+                                                    Other, 0x113538280, {{20.0, 668.0}, {362.0, 56.0}}, Focused
+                                                      Other, 0x1135383c0, {{46.0, 668.0}, {336.0, 28.0}}, label: '1. Ordered item', Focused
+                                                        StaticText, 0x113538140, {{20.0, 673.0}, {8.0, 20.0}}, label: '1', Focused
+                                                        StaticText, 0x113414780, {{27.0, 673.0}, {5.0, 20.0}}, label: '.', Focused
+                                                        StaticText, 0x113414dc0, {{46.0, 672.0}, {96.0, 20.0}}, label: 'Ordered item', value: Ordered item, Focused
+                                                      Other, 0x113415180, {{46.0, 696.0}, {336.0, 28.0}}, label: '2. Another item', Focused
+                                                        StaticText, 0x113415040, {{20.0, 701.0}, {10.0, 20.0}}, label: '2', Focused
+                                                        StaticText, 0x113414f00, {{29.0, 701.0}, {5.0, 20.0}}, label: '.', Focused
+                                                        StaticText, 0x1134148c0, {{46.0, 700.0}, {94.0, 20.0}}, label: 'Another item', value: Another item, Focused
+                                                    Other, 0x113414c80, {{20.0, 724.0}, {362.0, 24.0}}, Focused
+                                                      StaticText, 0x113414b40, {{35.0, 726.0}, {108.0, 20.0}}, label: 'A quote with a', value: A quote with a , Focused
+                                                      Link, 0x113414a00, {{142.0, 726.0}, {131.0, 20.0}}, label: 'public original link', Focused
+                                                        StaticText, 0x1134143c0, {{142.0, 726.0}, {131.0, 20.0}}, label: 'public original link', value: public original link, Focused
+                                                      StaticText, 0x113414640, {{272.0, 726.0}, {6.0, 20.0}}, label: '.', value: ., Focused
+                                                    Other, 0x113414500, {{20.0, 772.0}, {362.0, 92.0}}, Focused
+                                                      Other, 0x1134152c0, {{36.0, 788.0}, {330.0, 60.0}}, Focused
+                                                        StaticText, 0x113520140, {{42.0, 794.0}, {231.0, 47.0}}, label: 'const value = 42;
+console.log(value < 50);', value: const value = 42;
+..., Focused
+                                                    Other, 0x113520f00, {{20.0, 888.0}, {220.0, 104.0}}, Focused
+                                                      Other, 0x113521040, {{21.0, 889.0}, {218.0, 52.0}}, Focused
+                                                        Other, 0x113521180, {{21.0, 889.0}, {110.0, 52.0}}, Focused
+                                                          StaticText, 0x1135212c0, {{37.0, 904.0}, {77.0, 20.0}}, label: 'Heading A', value: Heading A, Focused
+                                                        Other, 0x113521400, {{130.0, 889.0}, {109.0, 52.0}}, Focused
+                                                          StaticText, 0x113521540, {{146.0, 904.0}, {77.0, 20.0}}, label: 'Heading B', value: Heading B, Focused
+                                                      Other, 0x113521680, {{21.0, 941.0}, {218.0, 50.0}}, Focused
+                                                        Other, 0x1135217c0, {{21.0, 941.0}, {110.0, 50.0}}, Focused
+                                                          StaticText, 0x113521900, {{37.0, 956.0}, {43.0, 20.0}}, label: 'Cell A', value: Cell A, Focused
+                                                        Other, 0x113521a40, {{130.0, 941.0}, {109.0, 50.0}}, Focused
+                                                          StaticText, 0x113521b80, {{146.0, 956.0}, {43.0, 20.0}}, label: 'Cell B', value: Cell B, Focused
+                                                    Other, 0x113521cc0, {{20.0, 1016.0}, {362.0, 28.0}}, Focused
+                                                      StaticText, 0x113521e00, {{20.0, 1020.0}, {45.0, 20.0}}, label: 'x² + y²', value: x² + y², Focused
+                                                    Image, 0x113521f40, {{22.0, 1046.0}, {172.0, 216.0}}, label: 'Fixture artwork', Focused
+                                                    StaticText, 0x113522080, {{180.0, 1044.0}, {13.0, 19.0}}, label: '···', Focused
+                                                    Other, 0x1135221c0, {{20.0, 1296.0}, {362.0, 80.0}}, Focused
+                                                      Button, 0x113522300, {{20.0, 1296.0}, {362.0, 28.0}}, label: 'More, More', Focused
+                                                        Button, 0x113522440, {{36.0, 1300.0}, {38.0, 20.0}}, label: 'More', value: ▼ More, Focused
+                                                      Other, 0x113522580, {{20.0, 1348.0}, {362.0, 28.0}}, Focused
+                                                        StaticText, 0x1135226c0, {{20.0, 1352.0}, {145.0, 20.0}}, label: 'Expandable content', value: Expandable content, Focused
+                                                    Other, 0x113522940, {{20.0, 1400.0}, {362.0, 28.0}}, Focused
+                                                      StaticText, 0x113522a80, {{20.0, 1404.0}, {264.0, 20.0}}, label: 'The quote says `hello` and ${value}.', value: The quote says `he..., Focused
+                                                    Other, 0x113522bc0, {{20.0, 1452.0}, {362.0, 30.0}}, label: 'Final heading', value: 3, Focused
+                                                      StaticText, 0x113522d00, {{20.0, 1454.0}, {122.0, 25.0}}, label: 'Final heading', value: Final heading, Focused
+                                                    Other, 0x113522e40, {{20.0, 1506.0}, {362.0, 56.0}}, Focused
+                                                      StaticText, 0x113523d40, {{20.0, 1510.0}, {362.0, 48.0}}, label: 'Final paragraph for scroll restoration and outline anchors.', value: Final paragraph fo..., Focused
+                                        Other, 0x113523e80, {{0.0, 0.0}, {402.0, 874.0}}
+                                  Other, 0x113523ac0, {{0.0, 916.0}, {402.0, 50.0}}
+                                    Other, 0x113523c00, {{91.7, 916.0}, {50.0, 50.0}}
+                                      Button, 0x113523840, {{96.7, 921.0}, {40.0, 40.0}}, label: 'Expand'
+                                    Other, 0x113523980, {{153.7, 916.0}, {95.0, 50.0}}
+                                      Button, 0x113523480, {{161.7, 923.0}, {36.0, 36.0}}, label: 'Star'
+                                      Button, 0x113523700, {{204.7, 923.0}, {36.0, 36.0}}, label: 'Archive'
+                                    Other, 0x1135235c0, {{260.7, 916.0}, {50.0, 50.0}}
+                                      Button, 0x113522f80, {{267.7, 923.0}, {36.0, 36.0}}, label: 'Outline'
+                        Other, 0x113523340, {{0.0, 0.0}, {402.0, 874.0}}
+                          Other, 0x113523200, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x1135230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x113564000, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x113564140, {{0.0, 0.0}, {402.0, 874.0}}
+Path to element:
+ →Application, 0x1134d9900, pid: 86172, label: 'Slax Reader'
+Query chain:
+ →Find: Application 'app.slax.reader.uifixture'
+  Output: {
+    Application, 0x113564280, pid: 86172, label: 'Slax Reader'
+  }

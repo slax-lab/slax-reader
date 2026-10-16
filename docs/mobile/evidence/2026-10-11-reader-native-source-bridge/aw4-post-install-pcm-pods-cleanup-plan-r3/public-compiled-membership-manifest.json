@@ -1,0 +1,1967 @@
+{
+  "archive": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-post-install-pcm-pods-cleanup-plan-r3/public-compiled-membership.zip",
+    "sha256": "414f63ce0a04b51092f91c79b2e4bc9336255cf82fb8a28fd9011413c17e291c",
+    "bytes": 314319
+  },
+  "entries": [
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/AppAuth.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490621487468,
+      "logicalBytes": 4451,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "cf71c8cebcbeca0fa4ce3c27c5541b0b6ae2ca08f8b935dad32b9672cf4a20a1"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/AppAuth.build/Objects-normal/arm64/AppAuth.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490620864184,
+      "logicalBytes": 5205,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "61df36e21966b96fdae45bbd9ff51f7383442726f8d0740703827097f3f8a913"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/AppAuth.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490620243275,
+      "logicalBytes": 4543,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "c3d5415fcebb2842afe10c1b5cde5099fee5aacefaa09e0b924787f4d2edbd4d"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/AppCheckCore.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490585293870,
+      "logicalBytes": 5724,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "a0eaf3afa70fb8ebc6f5ed53fffaf05be70058fe2c095ca06b88b9435e829bb2"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/AppCheckCore.build/Objects-normal/arm64/AppCheckCore.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490584319382,
+      "logicalBytes": 6924,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "917a7f421e039d122352c30b5176b63d5f2d745f358c118c76c00cffb971d678"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/AppCheckCore.build/Objects-normal/arm64/AppCheckCore.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490583425518,
+      "logicalBytes": 500,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "31b80a071846a52bc2af6486dea5fe9dbc2b9f1bf5b7384c9f0252da972715fc"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/AppCheckCore.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490582493071,
+      "logicalBytes": 5816,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "041a7800cdfa26b51dc13dd55c2ac873440d3ef500f0c004f09626a54823c9c8"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXConstants.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490568830113,
+      "logicalBytes": 24486,
+      "allocatedBytes": 24576,
+      "kind": "file",
+      "sha256": "bfd2f695cf4e1399d7766ddac9ff51076e4e6ce34b56a634db4b142d8e983cb6"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXConstants.build/Objects-normal/arm64/EXConstants.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490567558212,
+      "logicalBytes": 864,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "9a4fb37a0e2b6c38f1f96cc013d8d740ea391310a3efc9f909971a931f189d25"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXConstants.build/Objects-normal/arm64/EXConstants.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490566710764,
+      "logicalBytes": 260,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "3789f9c2cd54c84714205d98a99a170af693eb53eb3c7c0389794e9bee30f8e5"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXConstants.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490565385322,
+      "logicalBytes": 24578,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "519e3cf6faf4e6863251eb9d4df9b8730295092fd9dbafeaf20759371520f903"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXJSONUtils.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490545852020,
+      "logicalBytes": 4507,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "3f6320be3953646a42a5ab86645418436b993b060e06ef5a5094aa66d53f91f2"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXJSONUtils.build/Objects-normal/arm64/EXJSONUtils.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490545353984,
+      "logicalBytes": 516,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "fdf8b3a9b09b6aebf2ef10773f69ceea36f9b241dcf5ff36397b39e273f12d5a"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXJSONUtils.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490543532507,
+      "logicalBytes": 4599,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "1bac2dde297cc848262d23e1c9357cfb38b397a92140e158103a5325f9ff6cff"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXManifests.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490534646282,
+      "logicalBytes": 24486,
+      "allocatedBytes": 24576,
+      "kind": "file",
+      "sha256": "ab108d9b916e9e6d541b9d0e14b5262814ad1dcdc60824a74368b50dd8e34ded"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXManifests.build/Objects-normal/arm64/EXManifests.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490533587670,
+      "logicalBytes": 1009,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "df27b9b1307cc19ee7a2f8fc7132ad318faa2c3a3c8f4ea5f957f3ebde85277e"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXManifests.build/Objects-normal/arm64/EXManifests.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490532773305,
+      "logicalBytes": 742,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "aa950ba24cab099960ece58f68a36fb8c53074ce6d8b3394a52d2d8b0d7bfa4c"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXManifests.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490531455779,
+      "logicalBytes": 24578,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "407b387eaef59b3de7508c38f330daa0a53b99482dcdfaae85e0e726cc1b53d7"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490520986074,
+      "logicalBytes": 24584,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "c41915bc8f73ac06f8b2a0681880a3472c5f022f52dd45c1d8acfbd716b7a0b5"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/EXUpdatesInterface.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490519909129,
+      "logicalBytes": 897,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "d4e06a50e96ffd575ee7816685eceedc1284c6616cabc65961bc7723db54a342"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/EXUpdatesInterface.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490519006682,
+      "logicalBytes": 429,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "2036d1535a4dbca2e215a52e20694124f829eedfa51129be6276968a2469aebb"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490517706531,
+      "logicalBytes": 24676,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "5c5f375b7872ab50d55b70bb83a18d9b098261917e3517f97645bf81daa1246a"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Expo.build/Objects-normal/arm64/Expo.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490511529982,
+      "logicalBytes": 4517,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "4ba408fbdac344355e5e253bd642a7a106d024858669951622341c85a4c3ae97"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Expo.build/Objects-normal/arm64/Expo.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490510522577,
+      "logicalBytes": 3733,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "e408e9147b492b8ac5d038b6c750851b8d80da6f65e0d3dcf71d8fbacc1179a2"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Expo.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490508953555,
+      "logicalBytes": 36547,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "b328c125c94f39f684ea4402ef72641ebfd27297e2366f7e520bcd928bdccc20"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Expo.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490507189452,
+      "logicalBytes": 36265,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "8fb136925e028f001bb2cb9e2cc5774ad8e056568896bea5f8fa9a4a90b31555"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoAppleAuthentication.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490495945589,
+      "logicalBytes": 24654,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "7ffe547d7f44562609cfb30d8ded4c472ec0ee6a493b4c6f412f83f46da71658"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoAppleAuthentication.build/Objects-normal/arm64/ExpoAppleAuthentication.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490494910810,
+      "logicalBytes": 2074,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "7a94e8d8ea6c923508fd3af5883047eb107e5517b7394bb1eeffbb2e93d5383f"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoAppleAuthentication.build/Objects-normal/arm64/ExpoAppleAuthentication.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490494062487,
+      "logicalBytes": 2506,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "3c38126933f044617c664a9977d04b2f2e281f426980625bc0ce2ed72d1627b9"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoAppleAuthentication.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490492742545,
+      "logicalBytes": 24746,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "5208f2ab6094b196dafa4655dc34ec3dba572419838b67b164ca33d7e1d54e24"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoAsset.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490481634515,
+      "logicalBytes": 24458,
+      "allocatedBytes": 24576,
+      "kind": "file",
+      "sha256": "43dfeccd741071eee27f47e9e8317ec1024afdd959f1abe17f7cc86e778d882f"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoAsset.build/Objects-normal/arm64/ExpoAsset.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490480475404,
+      "logicalBytes": 493,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "072cffb0c0186f01b4f9f3a182adb5a58203a31f3ae1c4b858ce2789fa3134e1"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoAsset.build/Objects-normal/arm64/ExpoAsset.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490479602498,
+      "logicalBytes": 252,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "4ff8407bec5447dd064a37b240beb2a562ab146cf75e0e5272ce65d508cee985"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoAsset.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490478248973,
+      "logicalBytes": 24550,
+      "allocatedBytes": 24576,
+      "kind": "file",
+      "sha256": "3da75d9c1d307d270e601fbc2e5b858eac61c98bd8a1caafdb0a3c28c079c710"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoClipboard.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490467788226,
+      "logicalBytes": 24514,
+      "allocatedBytes": 24576,
+      "kind": "file",
+      "sha256": "7b5e4a5d9e4e7ad352626e6eb465ed467d2bc56854163781cff39f1fca99089c"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoClipboard.build/Objects-normal/arm64/ExpoClipboard.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490466765863,
+      "logicalBytes": 1751,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "35618f93597fd5388b96ba7bb40efa1e348397111e5034452ae6906189887c4a"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoClipboard.build/Objects-normal/arm64/ExpoClipboard.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490465920124,
+      "logicalBytes": 2124,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "7d9c6b80537bac4302a3748587d6b0567d49c364fb909aa2abfff4d1730be615"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoClipboard.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490464632598,
+      "logicalBytes": 24606,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "1cdf65429045da7e2d303908138806fd1e31de4b6f925aa2154ab2d835cc23cf"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoDomWebView.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490454905550,
+      "logicalBytes": 24528,
+      "allocatedBytes": 24576,
+      "kind": "file",
+      "sha256": "3722c84e04113b06f5aa4293ecdeb21654b9af0d925c418aae6cb5d2d5d0eadc"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoDomWebView.build/Objects-normal/arm64/ExpoDomWebView.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490453918521,
+      "logicalBytes": 1740,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "e7054f7b70186723a6cd368c901de477ec5bd7461151a6ea8018b33c6ad5b756"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoDomWebView.build/Objects-normal/arm64/ExpoDomWebView.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490453092073,
+      "logicalBytes": 2125,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "4547e84a0a015cd73c248ec86b232077ea892524b277c5971ded087fdd802d27"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoDomWebView.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490451728423,
+      "logicalBytes": 24620,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "c5d16f88f203a8d1cb7a583b1c7ad503eb21c30e3cbe28a26b8e9f3ddf2ed74e"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoHaptics.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490435908075,
+      "logicalBytes": 24486,
+      "allocatedBytes": 24576,
+      "kind": "file",
+      "sha256": "5a6876d2c1a64261b621021ca1cfde67c5f954bffa2fca5202283d06829c771f"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoHaptics.build/Objects-normal/arm64/ExpoHaptics.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490434658882,
+      "logicalBytes": 505,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "4693f6f086af160f8fea46bbb1997fe380686044bdc9feaee3cf79545669a9a8"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoHaptics.build/Objects-normal/arm64/ExpoHaptics.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490433789142,
+      "logicalBytes": 168,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "287c33f495f9df352397ec738c6da4c8c3048605e21074de705b7fe0222fecdf"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoHaptics.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490432452617,
+      "logicalBytes": 24578,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "ef33b1b499d9a9b423485a3817e2aed0714334d499ead8d74edee99efb82c4b7"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoIap.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490421762790,
+      "logicalBytes": 24657,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "c45de39a19d027721f4e4405519541c5ada34acaf67f0a273b1f53368e245a54"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoIap.build/Objects-normal/arm64/ExpoIap.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490420587429,
+      "logicalBytes": 1488,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "a54163d9fbe93e0fffc1262be04338efe1cd2342219d8f5c48158e84b526c2c1"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoIap.build/Objects-normal/arm64/ExpoIap.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490419791272,
+      "logicalBytes": 1816,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "90d397a751e6625c1424b729fefa66d9be078164d7afc1eb6dc347d3326679b9"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoIap.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490418484663,
+      "logicalBytes": 24749,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "dd30f87dcb3d1098f1b41462fdd4fee1e620d0217262dc81e9661e2131e0c1d9"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoKeepAwake.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490406493268,
+      "logicalBytes": 24514,
+      "allocatedBytes": 24576,
+      "kind": "file",
+      "sha256": "934c5943bdf1459f62301996ef2ecc681982ada2eba0ab1a74d8287581261d06"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoKeepAwake.build/Objects-normal/arm64/ExpoKeepAwake.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490405521197,
+      "logicalBytes": 517,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "0d59baa9a9ada085ba947113bb741fa7a978aa31fc4d5fb9a76002fcd930ab8b"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoKeepAwake.build/Objects-normal/arm64/ExpoKeepAwake.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490404678290,
+      "logicalBytes": 189,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "8f39268e092798aec0511214ccfd7a7302a42d4ed926c6cf1f3c4714c79204f0"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoKeepAwake.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490403360432,
+      "logicalBytes": 24606,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "dbfde46ddda6a70d1e06ef6bc92e1c71b8a57d496013829ef45fcc03071d2f68"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoLocalization.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490393409012,
+      "logicalBytes": 24556,
+      "allocatedBytes": 24576,
+      "kind": "file",
+      "sha256": "2518dc172c3211c1a8f85f258cf832801d4995f5791e4512a19c595aa40a65df"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoLocalization.build/Objects-normal/arm64/ExpoLocalization.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490392284859,
+      "logicalBytes": 535,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "3bd72438516e09bdedb8c6c02b57c20778bb5404350b4cf98820c8571ae7c5d1"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoLocalization.build/Objects-normal/arm64/ExpoLocalization.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490391354495,
+      "logicalBytes": 196,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "b448a82ab848a78837fa5e83bcd45724b62ae2143b4ff539e6361a9dcddc1a4b"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoLocalization.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490390045303,
+      "logicalBytes": 24648,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "bdf6d16c9bac4a38181226c692b01f54be8f39732d598f7b568cc3e32081df80"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/ExpoLogBox.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490380239715,
+      "logicalBytes": 682,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "813b97801d85f4c59971b2230da52379a2c271d02b19236b6358765a344f5ba3"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/ExpoLogBox.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490379248644,
+      "logicalBytes": 532,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "8b0be85203a721485ba2626788bd4a83a280b4e3ca3b9da95d33ab8d7ff6b4ca"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490378176323,
+      "logicalBytes": 14194,
+      "allocatedBytes": 16384,
+      "kind": "file",
+      "sha256": "8e1f86e5dafcaf3d6d5c08fdeb7e2708f3544ac803c0e2d492a2e56320c178c2"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490377067420,
+      "logicalBytes": 13931,
+      "allocatedBytes": 16384,
+      "kind": "file",
+      "sha256": "4f2cf794f8838bd91ee5d6681e9fa03ab0b71bdaf99990331dc49ecce0100172"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoModulesWorkletsAdapter.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490364136620,
+      "logicalBytes": 31129,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "ad2daa8908c136740517df61836a7a2586887fec8db88b90fd48b14c71b23b45"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoModulesWorkletsAdapter.build/Objects-normal/arm64/ExpoModulesWorkletsAdapter.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490363490587,
+      "logicalBytes": 593,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "fb493fd0b9b1b7435c68b7f9c53647e289f7109a7ae2f5835815ba7e59066c1c"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoModulesWorkletsAdapter.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490362358225,
+      "logicalBytes": 31368,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "adeef93e616f27468877d2c0cc203e63ca0238bd8bcfadd10503dd1861ec37dc"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoModulesWorkletsAdapter.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490360021546,
+      "logicalBytes": 31221,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "6246a2057aa22bec132b2c4381c1b45b45b1364f2be6049643d3d08f49a446e6"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoNetwork.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490351816688,
+      "logicalBytes": 24486,
+      "allocatedBytes": 24576,
+      "kind": "file",
+      "sha256": "44da5150a446a73bb239be6f0d46b154a0ab5269778493860ca549d364e4c07c"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoNetwork.build/Objects-normal/arm64/ExpoNetwork.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490350538412,
+      "logicalBytes": 832,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "7aa76c06098530964e284df2a70204a933fad8c5b0cafa7e7d4a1f44cf7f8633"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoNetwork.build/Objects-normal/arm64/ExpoNetwork.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669490349587548,
+      "logicalBytes": 538,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "355a16f332db936ca55d07b7eac1334cf98949167cf8fb5240e868bf71bbe828"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoNetwork.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669490348093983,
+      "logicalBytes": 24578,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "a88ee2a1c91d3ba6edf25dccd9b1efa8594542fd4b7b40ae811e870165b4de89"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoSecureStore.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669437158506299,
+      "logicalBytes": 24542,
+      "allocatedBytes": 24576,
+      "kind": "file",
+      "sha256": "9666c4e7fb52f105395a8d84e703b5ed28f03eb73d42bee2165e48f2fe9c1d4c"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoSecureStore.build/Objects-normal/arm64/ExpoSecureStore.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669437157533311,
+      "logicalBytes": 1060,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "0f9a530cabcb43af10e16d697ccdb46753fd53921164adeb23c7e2cac4e3d130"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoSecureStore.build/Objects-normal/arm64/ExpoSecureStore.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669437156685905,
+      "logicalBytes": 737,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "60365be6844701fae225f323390afa84d70b523f8843a8c64e3621c721862211"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoSecureStore.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669437155392754,
+      "logicalBytes": 24634,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "576e5a8af143fcbab987d8ea761a41d75ecd5195fcfb5467b05bda0bc46c96f3"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoSensors.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669437143619565,
+      "logicalBytes": 24486,
+      "allocatedBytes": 24576,
+      "kind": "file",
+      "sha256": "236839516bfe5bc28d00f5bab1f21e68845bf4d7380c6fa225dcca7a0be94c00"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoSensors.build/Objects-normal/arm64/ExpoSensors.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669437142483787,
+      "logicalBytes": 1885,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "c49fe6780c917a75faedf89354106aadacd44e4070a935190b76bbb18d41065b"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoSensors.build/Objects-normal/arm64/ExpoSensors.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669437141667089,
+      "logicalBytes": 2086,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "8bb3b0e6c39e2c27cb0c5d2bb10dd2f850a7511884a487413cea520a361810bf"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ExpoSensors.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669437140218440,
+      "logicalBytes": 24578,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "a173e0c2b14c79529932c10ce3415e3e82b671173ec7c65af21b3050d3875299"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseCore.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669436683526908,
+      "logicalBytes": 5294,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "29c944c3158bdc86f4abf857c0842c2ab3dbb68a8c7b5a552eec1cb42eca2adb"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseCore.build/Objects-normal/arm64/FirebaseCore.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669436683042081,
+      "logicalBytes": 2533,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "70bbeb0c438a2d266bc21d79e8427c4452335573b4c10ac8926fa0b631db4cff"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseCore.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669436682421005,
+      "logicalBytes": 5386,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "2e1fca7fa08db16ec4526cccb18da77db0b6393be8c9c76e1a1d7949e32f3e3e"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseCoreExtension.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669436658988750,
+      "logicalBytes": 5406,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "cbe80163a5dfa1a89997c875d94bae719db4f62d9d2ad2408e9e97349d0bb182"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseCoreExtension.build/Objects-normal/arm64/FirebaseCoreExtension.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669436658506714,
+      "logicalBytes": 547,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "ff3a51123c030111955cbb0ada552104471ebf05da456872e8df6a7d22e3f9ad"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseCoreExtension.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669436657877097,
+      "logicalBytes": 5498,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "fdc6bd3156d3b0aa5532c04a9ecfd06aee08cc8472dd36e091cbbae0d61fc6ac"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseCoreInternal.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669436645722579,
+      "logicalBytes": 4884,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "2f87ca0d46276a862c99257a7c5bcf699c34d89611ff67e159ce7110a70a8571"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseCoreInternal.build/Objects-normal/arm64/FirebaseCoreInternal.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669436644665384,
+      "logicalBytes": 2685,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "968a535ee0f35bc1c2d7fe36c742a44fa39c2f907e93ecef3e728fa2f237b094"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseCoreInternal.build/Objects-normal/arm64/FirebaseCoreInternal.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669436643793395,
+      "logicalBytes": 2316,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "9e3f032e1b776944e17d6cf5c32d85277c40a63c3b71444a3195808832e14291"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseCoreInternal.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669436642729783,
+      "logicalBytes": 4976,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "ead494b8e67f10f61b6359e09361cab8522bdd74425a5c1c0dc3244734949bef"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseCrashlytics.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669413450806284,
+      "logicalBytes": 7766,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "e0bc498cf3f3d4947e431e0ef1f4b81c626a5c6d641d3a1c738827706dcb50e7"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseCrashlytics.build/Objects-normal/arm64/FirebaseCrashlytics.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669413449650048,
+      "logicalBytes": 15185,
+      "allocatedBytes": 16384,
+      "kind": "file",
+      "sha256": "ed9f4f4ab10bfa9baffdb07961b3ff45f68fd40bc850490db5595abded6b3095"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseCrashlytics.build/Objects-normal/arm64/FirebaseCrashlytics.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669413448583103,
+      "logicalBytes": 518,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "a444e4396a542c0baf0654b5d6729515b5800eda7764cc2c750be95681be4ddb"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseCrashlytics.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669413447436908,
+      "logicalBytes": 8149,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "4d10cb7762a9fa820931ba2d898557b815205f45590d3257e4f9e3c5f8ac02fa"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseCrashlytics.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669413446641335,
+      "logicalBytes": 7858,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "7e7c5f56c537021682e30b182378cd2f582a7c52a3eb3bd0142ff4f7de355f03"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseInstallations.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669413423921655,
+      "logicalBytes": 5879,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "d25e07ab4502cf20999104c7fd151c812360342b7836580a0a32c7f56d7f11c3"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseInstallations.build/Objects-normal/arm64/FirebaseInstallations.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669413423282371,
+      "logicalBytes": 3616,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "a9edf40d1bf87dc616546af0edb7acef7b578d52abd4b227d8f40138b85476db"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseInstallations.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669413422428173,
+      "logicalBytes": 5971,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "26f139833e84227876069c0154c651e951c6c54cfcc1498e41c774950bb2cf66"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseRemoteConfigInterop.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669413404920221,
+      "logicalBytes": 4731,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "c9e985b6afa86acc603a0e77d8ce09f5abd9791393f2cc5afc96c8b6d3aa30c3"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseRemoteConfigInterop.build/Objects-normal/arm64/FirebaseRemoteConfigInterop.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669413403793818,
+      "logicalBytes": 1159,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "589617e851f617e44033ce1a88820705e205b2df016302fa5e4b69abe72f06f2"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseRemoteConfigInterop.build/Objects-normal/arm64/FirebaseRemoteConfigInterop.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669413402831538,
+      "logicalBytes": 688,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "28761fa2dcc8b44e3e352940dad6cdf9fad408d15c11b0fec3baf3b9e37a9c87"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseRemoteConfigInterop.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669413401762676,
+      "logicalBytes": 4823,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "228eeddf4c77ea024d9eaef7994131eb16637817578dce87a98b576a49614450"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseSessions.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669397178008043,
+      "logicalBytes": 7140,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "8482aaf0b118533aa0c64fb3e75a085ec80c5a8dae57179c2053a45eaa10aab2"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseSessions.build/Objects-normal/arm64/FirebaseSessions.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669397176682434,
+      "logicalBytes": 5300,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "1f8dbd37f62add0068d8adb452b21ef2a8672be53a45c7d6b7efe7ae1e00f753"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseSessions.build/Objects-normal/arm64/FirebaseSessions.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669397175697696,
+      "logicalBytes": 4162,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "16c6fe4186aba98e7adca5b889b92c2c15cde13446d99555660fc6557f5e8315"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/FirebaseSessions.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669397174691583,
+      "logicalBytes": 7232,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "daa44f4a8abb6ac824df5b833dfd744829620ed4938a959a9e4672b5bdef1006"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669397164595124,
+      "logicalBytes": 4977,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "6a2be3db6e428d647cb867bd915ba1c2d1826109353612185b6fb2bd197771d4"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/arm64/GTMAppAuth.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669397163529762,
+      "logicalBytes": 1511,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "e544e20460b9cd55639302ab10bf3e11d3ef895301abcaf2a60e2367a03fe587"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/arm64/GTMAppAuth.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669397162618148,
+      "logicalBytes": 1043,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "f37e934f8df888d67bd424fc52ad040f671592f7774abba942bf0d0248896fe2"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669397161575036,
+      "logicalBytes": 5069,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "a5a5a6494418ab50e00e21a66fc66af6b29afaa042fedaf5b19f941d9c22a53d"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/GTMSessionFetcher.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669397139492556,
+      "logicalBytes": 4591,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "3296578f2e4f4ed2de3f26ebad1ac5bbb7c8dbb9476635350c5b9e312547a191"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/GTMSessionFetcher.build/Objects-normal/arm64/GTMSessionFetcher.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669397138936188,
+      "logicalBytes": 1087,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "a184b37c90b8f0845048cd64dcc6130391a58bab046b543cde6eb3754b114c92"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/GTMSessionFetcher.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669397138326446,
+      "logicalBytes": 4683,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "fdcaba277f8d853378453e4b022727e632d7d3562166136b5f85b439182008bf"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/GoogleDataTransport.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669397113191962,
+      "logicalBytes": 5408,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "3352ef72db64b9e8082bbc64e43ac9e9bab9964d0bd11ae78587d1919136cc17"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/GoogleDataTransport.build/Objects-normal/arm64/GoogleDataTransport.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669397112779800,
+      "logicalBytes": 6886,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "7e978b1d8e64cd87f4f6811cd1d0bfdba06003304c4044710c02eec64c89c40e"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/GoogleDataTransport.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669397112070642,
+      "logicalBytes": 5500,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "1be039ce221d4b046b6da95da27ce9a2fe00d0a4ceb7a01e5840444200b1fa01"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/GoogleSignIn.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669397086447414,
+      "logicalBytes": 6715,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "b7a54c726cf5a63964163c3a20951e5c9305924e658e4231ff8097798523e4e2"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/GoogleSignIn.build/Objects-normal/arm64/GoogleSignIn.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669397085975670,
+      "logicalBytes": 5323,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "6d850d74a2ebb74e651028a4bfd19dd345ddc652dec375f58e84a1036cca91fc"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/GoogleSignIn.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669397085182555,
+      "logicalBytes": 6807,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "5208a810a0d560d85c319cad304f11c9d9a6ad8c1b45c31374706df4c9728460"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/GoogleUtilities.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669397046243157,
+      "logicalBytes": 4780,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "9275cb8614be3a19d2b656e8d92f92bd350e2d9607cafd9d37c31f8acb8a4873"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/GoogleUtilities.build/Objects-normal/arm64/GoogleUtilities.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669397045743913,
+      "logicalBytes": 4368,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "a6e6aa48500974ae44c81ce271c81a8e8589e615dd4b4ace3d0d0fb44824a4b5"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/GoogleUtilities.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669397045028880,
+      "logicalBytes": 4872,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "30aeabb1dd65092f48efd505c324881285ce0451e04f4cd1882594d6890a2cca"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/NitroGoogleSignin.build/Objects-normal/arm64/82b82416624d2658e5098eb0a28c15c5-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669397036340028,
+      "logicalBytes": 31977,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "b9b66bf12b22f1f8f38e2e931a55408f94f9c044be66db6b706d2edb974bf240"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/NitroGoogleSignin.build/Objects-normal/arm64/NitroGoogleSignin.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669397034319553,
+      "logicalBytes": 6552,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "50400ee57dd22d1e021b6bd0db3516a90c97fa19a84f410d5c21cbd78ee583a9"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/NitroGoogleSignin.build/Objects-normal/arm64/NitroGoogleSignin.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669397033213608,
+      "logicalBytes": 7755,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "b7aea7bb5c840080b874c085a5dffab54e5716c662c20c65239f5d351e6b6dc4"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/NitroGoogleSignin.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669397031467129,
+      "logicalBytes": 32069,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "2681d5d87df9963181fadb6bdafe0f2ffcf91403fa9d7008ea838b0f1379452d"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/NitroGoogleSignin.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669397029986064,
+      "logicalBytes": 31787,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "7ffccaf62f2d37c6b1587142b62b90184ee655460ff7e1e425fd8083f082d1ab"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/NitroModules.build/Objects-normal/arm64/82b82416624d2658e5098eb0a28c15c5-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669396083380658,
+      "logicalBytes": 29558,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "110ae287c45b07e4e3593ef64fa6cfc81ccca96ae0cbc225b328336d03136abd"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/NitroModules.build/Objects-normal/arm64/NitroModules.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669396082186631,
+      "logicalBytes": 5783,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "069c9b22598a45a097b26ca9e0ff1064a8ba5d228b98a71939e98117de856cee"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/NitroModules.build/Objects-normal/arm64/NitroModules.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669396081244184,
+      "logicalBytes": 3002,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "0f54ab262540836e5f5f325024eced278d3f97dd9185f7279506593911c8d8bf"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/NitroModules.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669396079825118,
+      "logicalBytes": 29650,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "00714085b51be2ed5cf4a1397f709afdf672241be7b41ea3df513cfed3a7908c"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/NitroModules.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669396078518092,
+      "logicalBytes": 29368,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "108b0e44bcc8b4fd5223ac6011a92e62605549ad89352b4ee094ec1ade739839"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Pods-SlaxReader.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378864930707,
+      "logicalBytes": 35557,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "3c6e9475ee01821c918486295e62b5c576381bf6467cfb74851841f2fb5c89c8"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Pods-SlaxReader.build/Objects-normal/arm64/Pods_SlaxReader.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669378864373589,
+      "logicalBytes": 355,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "1f98cb206eebc4de48e088b09ab19b3709e338b55e6b8acb80f904d02001ecc3"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Pods-SlaxReader.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378863102146,
+      "logicalBytes": 35649,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "152352d6b933f7f1cbdd3fca0e229e9225eb4cf4c6800d1bdb8451e6bbf1c0e8"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/PromisesObjC.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669396043308357,
+      "logicalBytes": 4516,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "015078e5f043d416e932885d7689f9481b56bb41b9a99701dab6b45c6fbd1ef3"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/PromisesObjC.build/Objects-normal/arm64/FBLPromises.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669396042817571,
+      "logicalBytes": 3566,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "e9d68a0f227b3533b6342bb1209174a3f582a7b7ec47eaaa3b201b9aada48e4d"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/PromisesObjC.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669396042029831,
+      "logicalBytes": 4620,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "596be1f7e5b39572d8161b3bacb3d2fc008aac85d49df431d4468adc1ffcfb49"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/PromisesSwift.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669395782220263,
+      "logicalBytes": 4752,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "3d1002e054e796138ff3390bc5f41ec223ec85d9029aaf5712987c3e2d74c109"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/PromisesSwift.build/Objects-normal/arm64/Promises.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669395781263774,
+      "logicalBytes": 3528,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "035a1ff6750300bd13f2ac406e40e7f046a4d8d6d733a9dbc62bbf29508dae7c"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/PromisesSwift.build/Objects-normal/arm64/Promises.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669395780361119,
+      "logicalBytes": 2635,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "4ef9fdee90be28ad767b7b6e3a7f2a21a561522dcda3c03858b56b62ebb2e514"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/PromisesSwift.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669395778556183,
+      "logicalBytes": 4856,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "03f3a624b4bae403ce53398773afebea8707350aabe8aab07c88e26aeb261f8c"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNFBAnalytics.build/Objects-normal/arm64/RNFBAnalytics.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669395767486777,
+      "logicalBytes": 720,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "dfae6fc08c96c9f7edd5b4948dc3cc586b24ffb942d7a5fbecbb645760621b33"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNFBAnalytics.build/Objects-normal/arm64/RNFBAnalytics.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669395766623579,
+      "logicalBytes": 304,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "66f0ae0352e2ad8becf6196346a501874aada46e777447cd2b972beef77261cc"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNFBAnalytics.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669395765004474,
+      "logicalBytes": 36074,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "56c99d062e00555daef459f4a4b9fddb19b5e0dc096045ba7a18df82ade37eab"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNFBAnalytics.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669395763198912,
+      "logicalBytes": 35792,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "9cb512086336b09af97852d37ebe4cd4e7a5ae96b04b259bb99f0c1082afae7e"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNFBApp.build/Objects-normal/arm64/RNFBApp.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669395758382138,
+      "logicalBytes": 2310,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "5938547bd72834f2898dfaebebb51577bdc806b4ccc6cabd0ecefc1ab5791a7d"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNFBApp.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669395757047696,
+      "logicalBytes": 32645,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "2820e50b6cc207bff47b50ef45250c6a0274518d87b3ef3fbc3b6a6e8e1597ec"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNFBApp.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669395755632422,
+      "logicalBytes": 32363,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "94c00ccda8a20afa3efc089e2f022f47cb444dcf8843c11102f64979c383a9ed"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNFBCrashlytics.build/Objects-normal/arm64/RNFBCrashlytics.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669395751137310,
+      "logicalBytes": 918,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "c66709727a7f94f04cc70b7c074a890ced2343286b191922765dc1813d1efcef"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNFBCrashlytics.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669395749916742,
+      "logicalBytes": 35009,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "d99df79bfa70458163033e78822087a3c60fad95a0bdf134184df814658e650f"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNFBCrashlytics.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669395748527467,
+      "logicalBytes": 34727,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "ab888958353797a4eb4f6f5f04e79b99738324711ec28cd15a55939dad2f7e16"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNGestureHandler.build/Objects-normal/arm64/RNGestureHandler.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669395743819067,
+      "logicalBytes": 4465,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "2c74ec2cb9c525db7328f9661ecc84f38bbbcafdf05aeca75745c731ebcd8d18"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNGestureHandler.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669395742623581,
+      "logicalBytes": 31711,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "8a222f738eea29a65920692715addcea4af1c106f5100d4255ea996b2efce345"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNGestureHandler.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669395741395054,
+      "logicalBytes": 31429,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "575cb72516508bff9c4da13e9d614a91317f9c1dc0aed40e484e764fe3f54479"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNReanimated.build/Objects-normal/arm64/82b82416624d2658e5098eb0a28c15c5-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379244940220,
+      "logicalBytes": 36582,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "ced1cca943e6df3cead5c26d388765f0679fde0e6d70666b1c69833b5249a155"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNReanimated.build/Objects-normal/arm64/RNReanimated.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669379244238312,
+      "logicalBytes": 20424,
+      "allocatedBytes": 20480,
+      "kind": "file",
+      "sha256": "e0d07e28e798babfa037affbf95134692178806a75886c4f24a0e93b37b0ced6"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNReanimated.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379242850870,
+      "logicalBytes": 36674,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "602f83616a1ca3b6ccc11630301e0f92fad2594ec98e06aa8c94713ae3d93c57"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNReanimated.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379241490637,
+      "logicalBytes": 36392,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "36c5db18c0d74d5113d26ceb25d02af73796f45c4955e739a2b32a6ba43d74e0"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNScreens.build/Objects-normal/arm64/82b82416624d2658e5098eb0a28c15c5-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379234933550,
+      "logicalBytes": 34558,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "9ea9403a2edc77bbceaa3f9605ccd4de29910607004ec2bf6e53c58d973764ce"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNScreens.build/Objects-normal/arm64/RNScreens.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669379233871605,
+      "logicalBytes": 15555,
+      "allocatedBytes": 16384,
+      "kind": "file",
+      "sha256": "1939ecb528634e4accf9ea6abfc7b8032f8fa4882a189723ef255969a1f2d15d"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNScreens.build/Objects-normal/arm64/RNScreens.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669379232581246,
+      "logicalBytes": 263,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "853ce5fb9b8b645ed2d12b7254fe3902e7ed3b6db4a705534fcc74e1f5e4a990"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNScreens.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379230853600,
+      "logicalBytes": 34650,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "7089f736e39d71b0d6759b4bf7a73ddc7c66f79de6b3a358c3b4941e38ef3477"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNScreens.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379229471617,
+      "logicalBytes": 34368,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "12d53ad5d0d81ef8db496ce7dda274deb7a7771bb1ee279c95fd6c7bc8612a5f"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNWorklets.build/Objects-normal/arm64/82b82416624d2658e5098eb0a28c15c5-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379220521852,
+      "logicalBytes": 31159,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "feeb3de6a9d09cda4e8838b906df1208ae6f2c6a832d57b557a830a72bdb338f"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNWorklets.build/Objects-normal/arm64/RNWorklets.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669379220019775,
+      "logicalBytes": 6384,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "c28273368677eb08af9fca62443aea4b0c7d2691302195cbbdcd9b50f671fa8f"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNWorklets.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379218844664,
+      "logicalBytes": 31251,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "f89a0e647ce1b4331c4388d9a240a9bee0936a97c936d93800674a3c750bf2ab"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNWorklets.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379217696220,
+      "logicalBytes": 30988,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "5dbbbef050d2f1330a71cff171bda746577d4582d8208b725be4214823889e79"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ReactAppDependencyProvider.build/Objects-normal/arm64/ReactAppDependencyProvider.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669379200518889,
+      "logicalBytes": 392,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "11e300fd365ce7ed5fc5714e5b28ab59f682ffd635591619091347cf373327e8"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ReactAppDependencyProvider.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379198290291,
+      "logicalBytes": 24304,
+      "allocatedBytes": 24576,
+      "kind": "file",
+      "sha256": "432e51a9b93d672c31aec9a17be4ddebadb1184b76449f378466bfe4ca5eec10"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ReactAppDependencyProvider.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379194496712,
+      "logicalBytes": 24041,
+      "allocatedBytes": 24576,
+      "kind": "file",
+      "sha256": "6d7a6efe05348d4847122e47fa48ede1030286c73a5c357346c56989c973c277"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ReactCodegen.build/Objects-normal/arm64/82b82416624d2658e5098eb0a28c15c5-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379186242439,
+      "logicalBytes": 28793,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "a861eec9568f0bde166bce9210df9e6ede856228d3001d6d2558dd49e4f09ab2"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ReactCodegen.build/Objects-normal/arm64/ReactCodegen.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669379185763153,
+      "logicalBytes": 7299,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "e44c557f2724864d00307f0476d69bbbca687fc50416c379cb1453b50733f297"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ReactCodegen.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379184721207,
+      "logicalBytes": 28885,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "32f02efd8faf664bec944b570a95402972456929878ae8ed3967330da9826060"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ReactCodegen.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379183536638,
+      "logicalBytes": 28527,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "bca6dfe24f2a0f77351ebb8645633fb5197726d8d0d325a32b980004955070fc"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RecaptchaInterop.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379153019012,
+      "logicalBytes": 4577,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "34a0626fd027ee2c2a36df2897381daa36732d86561d1e186e1e480195fe39de"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RecaptchaInterop.build/Objects-normal/arm64/RecaptchaInterop.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669379151735986,
+      "logicalBytes": 528,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "aa5221ee61f0c9dd73364c624a07e07c1dbbfb430bfdb6b3a7a7580745adfcf8"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RecaptchaInterop.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379150259171,
+      "logicalBytes": 4669,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "17be4b14c557051b4de1593b37a2ee09e8b937fad93556b9c9eae50c00350bce"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/SlaxLegacy.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379134969733,
+      "logicalBytes": 24472,
+      "allocatedBytes": 24576,
+      "kind": "file",
+      "sha256": "0f901b26501f9463c216e545c0289b8232f3c36af14891ce82b815eea4394df8"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/SlaxLegacy.build/Objects-normal/arm64/SlaxLegacy.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669379133957329,
+      "logicalBytes": 673,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "0dc263acf0dab81432ae104e6cba2382a3434f49609b2c5fef10298ddb405953"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/SlaxLegacy.build/Objects-normal/arm64/SlaxLegacy.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669379133155755,
+      "logicalBytes": 254,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "2f87bf330afe951eae6c2804ecc6effb0dfe189c3d12be5c8041ca4213ef1923"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/SlaxLegacy.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379130344915,
+      "logicalBytes": 24564,
+      "allocatedBytes": 24576,
+      "kind": "file",
+      "sha256": "b34d10662a26c148e23fd5edd20b082be7013bf691714ae7f77560757b75db84"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/SlaxPlatform.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379110355826,
+      "logicalBytes": 26696,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "67b9337462df127fe205a8546031a340d813570e87d2a18a5479175f9c7dbeb6"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/SlaxPlatform.build/Objects-normal/arm64/SlaxPlatform.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669379109533086,
+      "logicalBytes": 1554,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "a23aafc96b26ad4a6dcb73a14ee33e79dde6fbb1a1e2a6d505e699b946fb8fd5"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/SlaxPlatform.build/Objects-normal/arm64/SlaxPlatform.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669379108768096,
+      "logicalBytes": 917,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "0329e7504d29ced8f6489800b4e3c1310fb7708d959e169172325b7a6104d92c"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/SlaxPlatform.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379107331447,
+      "logicalBytes": 26788,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "2b78461bf0ae3a05209cdb928b32781b4a00520938ee59a8d5b6eb5a58dbff8e"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/expo-dev-launcher.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379083584821,
+      "logicalBytes": 37598,
+      "allocatedBytes": 40960,
+      "kind": "file",
+      "sha256": "369887e365f15f71fbfb351ddd786a82b16861ac34350c941097c7c21859212e"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/expo-dev-launcher.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379081670761,
+      "logicalBytes": 37316,
+      "allocatedBytes": 40960,
+      "kind": "file",
+      "sha256": "f9508ee4b3782245f7a8f4056c75675f5d83c389bf2589f1509d6189df6fbab7"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/expo-dev-launcher.build/Objects-normal/arm64/expo-dev-launcher.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669379079847867,
+      "logicalBytes": 10261,
+      "allocatedBytes": 12288,
+      "kind": "file",
+      "sha256": "8d4eee887aa63ba228846a0debbc9eb0fac3b4bf3679c74ccd0b4605a81a96ca"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/expo-dev-launcher.build/Objects-normal/arm64/expo-dev-launcher.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669379076690947,
+      "logicalBytes": 13314,
+      "allocatedBytes": 16384,
+      "kind": "file",
+      "sha256": "83b11962ec2a28afa3b3b2aec5d19841dbed79f92cb9e53bf644c39262f38da3"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/expo-dev-menu-interface.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378981513321,
+      "logicalBytes": 4650,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "6d48f0c649cadfa7a26f3c48da324086fd3c5b166cfd409bd93a02f89c322c88"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/expo-dev-menu-interface.build/Objects-normal/arm64/EXDevMenuInterface.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669378981125326,
+      "logicalBytes": 1312,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "02eee63723d85043f788e0beac0df853c003f977e295e203f19ef5af841cd4e9"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/expo-dev-menu-interface.build/Objects-normal/arm64/EXDevMenuInterface.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669378980081880,
+      "logicalBytes": 990,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "996fb884df8b5f4cd41fd5ee9d6a873f8883d1b23987d97d1bf5c8e3ab787b7a"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/expo-dev-menu-interface.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378978974769,
+      "logicalBytes": 4742,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "f92692a4e7b3cbdec85b8a3cb105a77ce4fef2f7a7a79b9057572ff6d8f1d06c"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/expo-dev-menu.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669379014996744,
+      "logicalBytes": 44001,
+      "allocatedBytes": 45056,
+      "kind": "file",
+      "sha256": "b6fa1dc90c3fd551136933ccbc20906578d4245c4b9d06634c2e88e118bd2c05"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/expo-dev-menu.build/Objects-normal/arm64/expo-dev-menu.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669379010588506,
+      "logicalBytes": 6890,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "84382e6f4e468c105c887761756a89d341aeaa5e52b12e6ca7dd979dc968fce6"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/expo-dev-menu.build/Objects-normal/arm64/expo-dev-menu.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669379009082442,
+      "logicalBytes": 9887,
+      "allocatedBytes": 12288,
+      "kind": "file",
+      "sha256": "6c754849be8e8d03a73ef664fc270fd25775b2e7279dbab6bc50672733120ebf"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/nanopb.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378962523720,
+      "logicalBytes": 4550,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "d29e0b0b48777a5fa7f99d17b57a5f1f78af481da117a3bb0672e61c1d2b1180"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/nanopb.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378961979560,
+      "logicalBytes": 4642,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "6aae76242c1dc6bbf1ce5c0a9a84e318392e5c74d7e218c8a14a88c65324d336"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/nanopb.build/Objects-normal/arm64/nanopb.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669378961218986,
+      "logicalBytes": 790,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "bf91e35e408838c57b05a9e8b2d34c133b68acebcc776f8773573802d5ad01e3"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/op-sqlite.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378945052393,
+      "logicalBytes": 25839,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "182f1dbf2f34f96b7d59526a80ec7dc17d2a39171f4d1f99db05386dc10f2722"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/op-sqlite.build/Objects-normal/arm64/82b82416624d2658e5098eb0a28c15c5-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378943991822,
+      "logicalBytes": 26046,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "e35b0b021b97db9c1b10796049f01ffe39fd17d29e098c8d5d95c21bbe97f0b3"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/op-sqlite.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378942932377,
+      "logicalBytes": 26138,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "96d32292f24bfad35293ee4977869dba125eda3b79b30c176907c4106e9d5d7a"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/op-sqlite.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378941717308,
+      "logicalBytes": 25931,
+      "allocatedBytes": 28672,
+      "kind": "file",
+      "sha256": "37d85610cddbfaa8401006aac4ad0754f4db72c87c498969d4035a5d67c5bf3a"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/op-sqlite.build/Objects-normal/arm64/op-sqlite.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669378940571781,
+      "logicalBytes": 1864,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "d750542dc394ce9a4164a7210c8674c54210d9ba348ebc06151372f868b17cc3"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/openiap.build/Objects-normal/arm64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378927173862,
+      "logicalBytes": 4451,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "5d262a64b8a4ecf746c32f1ac3103fb0e4a726d723558d2374f72df3918cd1e1"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/openiap.build/Objects-normal/arm64/OpenIAP.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669378925979876,
+      "logicalBytes": 3458,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "725ed0a729da636715600eeb274b25bd2126d20cbe7bde1c85accab955c29108"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/openiap.build/Objects-normal/arm64/OpenIAP.SwiftFileList",
+      "mode": 420,
+      "mtimeNs": 1791669378925272343,
+      "logicalBytes": 2767,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "7b5b371f24278e0fa311adc1cd1b04195b1e72f5c55a39ccea88c265b11e98a1"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/openiap.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378924713975,
+      "logicalBytes": 4543,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "04ac1e0add628139d1307839283a64b6c34e4fe9cf7bd1e30b8f4c421f4bf1d6"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/powersync-react-native.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378913455863,
+      "logicalBytes": 31638,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "54bdf02052c659efd100293d0d1119a8e1456e0e6d45ef64f21bdbb01d8cd05b"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/powersync-react-native.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378912166712,
+      "logicalBytes": 31356,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "6d095b1bd7d683a925506dd459b0a72094d7d9d72a41dacecf3e2366e8428dbf"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/powersync-react-native.build/Objects-normal/arm64/powersync-react-native.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669378911596427,
+      "logicalBytes": 373,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "8ceed83d80b297485bcd34f8f3acb04ca4fc01cc49c0f8759e634faaa4b34f70"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/react-native-safe-area-context.build/Objects-normal/arm64/82b82416624d2658e5098eb0a28c15c5-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378905301838,
+      "logicalBytes": 35441,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "d99681196f84a819797bdfc7a17f1222ba0338649c96342d1b6dee8f0ded6671"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/react-native-safe-area-context.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378903341903,
+      "logicalBytes": 35533,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "b5ccac0abc02849b1afa93e91a93cfeb3ad93ac7b18877da2b7859367926fe23"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/react-native-safe-area-context.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669378901887754,
+      "logicalBytes": 35251,
+      "allocatedBytes": 36864,
+      "kind": "file",
+      "sha256": "ea90d5a0b03f7a83e6df18e041579579aeb60fb6e1ff2a1e259e37545b52504f"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/react-native-safe-area-context.build/Objects-normal/arm64/react-native-safe-area-context.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669378901348719,
+      "logicalBytes": 3310,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "cdd4b3ad4418ab5711dada4925ffd84588e31faec87a2ed773ef5e5f6eb9fb27"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/react-native-webview.build/Objects-normal/arm64/af3fcb34312c57c0f52879cdce924b91-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669101797249419,
+      "logicalBytes": 30506,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "050c05ebca4c53b3153ee3d2d09ddf885853d0a34d785f81a256594dce1a730b"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/react-native-webview.build/Objects-normal/arm64/e6072d4f65d7061329687fe24e3d63a7-common-args.resp",
+      "mode": 420,
+      "mtimeNs": 1791669101795825687,
+      "logicalBytes": 30224,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "30e91473a7bd42369bcd777d6272095e73d8b856ca1e33b0d8c5457c9e329650"
+    },
+    {
+      "path": "Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/react-native-webview.build/Objects-normal/arm64/react-native-webview.LinkFileList",
+      "mode": 420,
+      "mtimeNs": 1791669101795319901,
+      "logicalBytes": 1457,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "c3464057449d59dd1fa783ec91b7f0a8d06fd27e32d64b1d01aca2ee257e665c"
+    }
+  ],
+  "allZipMembersDigestVerified": true,
+  "originalCompletedBuildClosure": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-completed-build-before-signing/completed-build-source-pod-membership.json",
+    "sha256": "2a7b01bf944be7c2c64e174e013feb8b9cd2c70c71ed7e00b25d234272b9dce5"
+  }
+}

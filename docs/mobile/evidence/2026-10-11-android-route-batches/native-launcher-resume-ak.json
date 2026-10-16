@@ -1,0 +1,36 @@
+{
+  "kind": "scoped-native-android-launcher-resume",
+  "schemaVersion": 1,
+  "result": "passed",
+  "applicationId": "com.slax.reader.uifixture",
+  "device": "emulator-5560",
+  "sdk": 34,
+  "targetSdk": 36,
+  "nativeApkSha256": "aeb2f0743bbd7d0679fbb8ca9d0a9cb03612fd46384045637a4537fe60fe0df2",
+  "driverInputs": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-driver-ak.json",
+    "sha256": "bc897e07fdf36dfee6f32ca3da731002d5cef24edd94a2ebb2b75c48cd1b7276"
+  },
+  "batch": {
+    "path": "docs/mobile/evidence/2026-10-11-android-route-batches/target-root-resume-ak/batch.json",
+    "sha256": "4e129ed58145a18f300becbf4e512cb185e437eadc15220a57284d4a1af8067f"
+  },
+  "nativeVideo": {
+    "path": "docs/mobile/evidence/2026-10-11-android-route-batches/target-root-resume-ak/native-input.mp4",
+    "sha256": "056a786b158fe37b0abffa8e451a4bf15de4c6aa8bc8894fae0d9fe33b80b753"
+  },
+  "nativeInputLog": {
+    "path": "docs/mobile/evidence/2026-10-11-android-route-batches/target-root-resume-ak/native-input-log.json",
+    "sha256": "69a50114c47dd334bfa1f034ca226d6b5332c56d4f136c39fc4281b6e554c512"
+  },
+  "launcherComponent": "com.slax.reader.uifixture/.MainActivity",
+  "scopeBefore": "file:///data/user/0/com.slax.reader.uifixture/cache/slax-ui-fixtures/library-populated-1791658747946-ff4f4e5fd96688/",
+  "scopeAfter": "file:///data/user/0/com.slax.reader.uifixture/cache/slax-ui-fixtures/library-populated-1791658747946-ff4f4e5fd96688/",
+  "scopeRetention": "same",
+  "navigationStackRetention": "exact entire observedNavigationState equality",
+  "sourceParity": "unverified",
+  "limitations": [
+    "This API34 root fallback/launcher test does not establish Reader background persistence, process death/restart, other APIs or complete UI parity.",
+    "Historical aj dev-client VIEW resume recreates the fixture runtime and only proves reentry; it is not retained-activity evidence."
+  ]
+}

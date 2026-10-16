@@ -1,0 +1,1910 @@
+{
+  "kind": "actual-source-physical-native-scroll-attempt",
+  "version": 1,
+  "planSHA256": "d2c8eef0f51435e50a8846c804df41f16ab884533b281211980ac35206d9761a",
+  "executorSHA256": "135bac87ef03df564958dd04657a8a705fb5c0f10524de2d05c1040c4d9d6c04",
+  "allocation": {
+    "kind": "root-one-source-physical-native-scroll-allocation",
+    "version": 1,
+    "executorSHA256": "135bac87ef03df564958dd04657a8a705fb5c0f10524de2d05c1040c4d9d6c04",
+    "planSHA256": "d2c8eef0f51435e50a8846c804df41f16ab884533b281211980ac35206d9761a",
+    "runRoot": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319",
+    "device": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+    "observationNonce": "856734e5-2f5a-4e5a-924b-a597dfe1d45d",
+    "onlyTestIdentifier": "SourceFixtureControl/SourceFixtureNativeScrollControl/testPerformOneMeasuredOriginalReaderNativeDrag",
+    "attempts": 1,
+    "maximumGestureIndices": 3,
+    "exclusiveDeviceLoan": true,
+    "allOtherNativeLoansReleased": true,
+    "expiresAtUnixSeconds": 1791683926.222477,
+    "rootReviewSHA256": "2376f0334179345f6c200a40a36196579e941097f04b657e71a4423473796bcb"
+  },
+  "observationNonce": "856734e5-2f5a-4e5a-924b-a597dfe1d45d",
+  "device": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+  "selector": "SourceFixtureControl/SourceFixtureNativeScrollControl/testPerformOneMeasuredOriginalReaderNativeDrag",
+  "commands": [
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "list",
+        "devices",
+        "--json"
+      ],
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "stopped": null,
+      "stdout": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/00.stdout",
+      "stderr": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/00.stderr",
+      "ownedPID": 12725,
+      "elapsedSeconds": 0.6118699160000001,
+      "stdoutSHA256": "7028c99ab6a4e25c887557fc1ea29a53006ca2343ecec84a7fca9b263679ea22",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "boot",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3"
+      ],
+      "timeoutSeconds": 15,
+      "exitCode": 0,
+      "stopped": null,
+      "stdout": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/01.stdout",
+      "stderr": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/01.stderr",
+      "ownedPID": 12732,
+      "elapsedSeconds": 1.2624067500000002,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "bootstatus",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "-b"
+      ],
+      "timeoutSeconds": 45,
+      "exitCode": 0,
+      "stopped": null,
+      "stdout": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/02.stdout",
+      "stderr": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/02.stderr",
+      "ownedPID": 12780,
+      "elapsedSeconds": 9.379956208,
+      "stdoutSHA256": "a2103bea5831e5fde4c020e29c45f139d8d41b7ffd32f4b19b270cab78747304",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "status_bar",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "override",
+        "--time",
+        "09:41",
+        "--dataNetwork",
+        "wifi",
+        "--wifiMode",
+        "active",
+        "--wifiBars",
+        "3",
+        "--cellularMode",
+        "active",
+        "--cellularBars",
+        "4",
+        "--batteryState",
+        "charged",
+        "--batteryLevel",
+        "100"
+      ],
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "stopped": null,
+      "stdout": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/03.stdout",
+      "stderr": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/03.stderr",
+      "ownedPID": 12864,
+      "elapsedSeconds": 0.8329437500000001,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "ui",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "appearance",
+        "light"
+      ],
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "stopped": null,
+      "stdout": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/04.stdout",
+      "stderr": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/04.stderr",
+      "ownedPID": 12871,
+      "elapsedSeconds": 0.710725,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "ui",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "content_size",
+        "large"
+      ],
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "stopped": null,
+      "stdout": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/05.stdout",
+      "stderr": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/05.stderr",
+      "ownedPID": 12876,
+      "elapsedSeconds": 0.6675177909999999,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "install",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/SlaxSourceFixtureApp.app"
+      ],
+      "timeoutSeconds": 20,
+      "exitCode": 0,
+      "stopped": null,
+      "stdout": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/06.stdout",
+      "stderr": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/06.stderr",
+      "ownedPID": 12915,
+      "elapsedSeconds": 10.449201209000002,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "get_app_container",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "app.slax.reader.sourcefixture",
+        "data"
+      ],
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "stopped": null,
+      "stdout": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/07.stdout",
+      "stderr": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/07.stderr",
+      "ownedPID": 12992,
+      "elapsedSeconds": 0.6791428750000001,
+      "stdoutSHA256": "2eddd0756d573f70d9d966c1a8c6b1cfc70e3f77464b2458b9dafe5156b58474",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "launch",
+        "--terminate-running-process",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "app.slax.reader.sourcefixture",
+        "--scenario",
+        "reader-mixed",
+        "--fixture-locale",
+        "en",
+        "--fixture-action-index",
+        "-1",
+        "--fixture-reader-step",
+        "none",
+        "--fixture-native-scroll-observation",
+        "856734e5-2f5a-4e5a-924b-a597dfe1d45d",
+        "-AppleLanguages",
+        "(en)",
+        "-AppleLocale",
+        "en_US"
+      ],
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "stopped": null,
+      "stdout": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/08.stdout",
+      "stderr": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/08.stderr",
+      "ownedPID": 12997,
+      "elapsedSeconds": 8.683201084,
+      "stdoutSHA256": "529041c6446950a64286c8593dc1dd852b254ce85b088068a402c1a710fe2896",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "terminate",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "app.slax.reader.sourcefixture"
+      ],
+      "timeoutSeconds": 4,
+      "exitCode": 0,
+      "stopped": null,
+      "stdout": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/09.stdout",
+      "stderr": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/09.stderr",
+      "ownedPID": 13127,
+      "elapsedSeconds": 0.5040707909999966,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "terminate",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "app.slax.reader.sourcefixture.control.xctrunner"
+      ],
+      "timeoutSeconds": 4,
+      "exitCode": 3,
+      "stopped": null,
+      "stdout": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/10.stdout",
+      "stderr": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/10.stderr",
+      "ownedPID": 13132,
+      "elapsedSeconds": 0.5067672919999993,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "28d1dca99a670a58b97b43dbf72b59fb25cda57d05281a021cd57b927bf589d7"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "terminate",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "app.slax.reader.sourcefixture.controlhost"
+      ],
+      "timeoutSeconds": 4,
+      "exitCode": 3,
+      "stopped": null,
+      "stdout": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/11.stdout",
+      "stderr": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/11.stderr",
+      "ownedPID": 13137,
+      "elapsedSeconds": 0.5095324170000026,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "0469a6481db0291d712a424452f9cbe296260f6bdf5bedd3873b94107fa7b974"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "status_bar",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "clear"
+      ],
+      "timeoutSeconds": 4,
+      "exitCode": 0,
+      "stopped": null,
+      "stdout": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/12.stdout",
+      "stderr": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/12.stderr",
+      "ownedPID": 13140,
+      "elapsedSeconds": 0.5132252080000015,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "shutdown",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3"
+      ],
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "stopped": null,
+      "stdout": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/13.stdout",
+      "stderr": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/13.stderr",
+      "ownedPID": 13145,
+      "elapsedSeconds": 3.561510417000001,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "list",
+        "devices",
+        "--json"
+      ],
+      "timeoutSeconds": 4,
+      "exitCode": 0,
+      "stopped": null,
+      "stdout": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/14.stdout",
+      "stderr": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/logs/14.stderr",
+      "ownedPID": 13152,
+      "elapsedSeconds": 0.5141340839999984,
+      "stdoutSHA256": "8f8abe37181cba962206652969b0ef520ef7e908ff3cbecb76867435e23cacc0",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "resourceSamples": [
+    {
+      "elapsedSeconds": 0.11020075000000001,
+      "globalAvailableBytes": 6522974208,
+      "ownLogicalBytes": 2698,
+      "ownAllocatedBytes": 4096,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 0
+    },
+    {
+      "elapsedSeconds": 0.6925907499999999,
+      "globalAvailableBytes": 6522900480,
+      "ownLogicalBytes": 19883,
+      "ownAllocatedBytes": 24576,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17185
+    },
+    {
+      "elapsedSeconds": 1.1966325839999998,
+      "globalAvailableBytes": 6514593792,
+      "ownLogicalBytes": 8190002,
+      "ownAllocatedBytes": 8241152,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17185
+    },
+    {
+      "elapsedSeconds": 1.7285767499999998,
+      "globalAvailableBytes": 6504681472,
+      "ownLogicalBytes": 17939184,
+      "ownAllocatedBytes": 18034688,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17185
+    },
+    {
+      "elapsedSeconds": 2.231326917,
+      "globalAvailableBytes": 6501130240,
+      "ownLogicalBytes": 21530130,
+      "ownAllocatedBytes": 21667840,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17185
+    },
+    {
+      "elapsedSeconds": 3.019674625,
+      "globalAvailableBytes": 6500786176,
+      "ownLogicalBytes": 21581832,
+      "ownAllocatedBytes": 21737472,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17185
+    },
+    {
+      "elapsedSeconds": 3.6327711249999997,
+      "globalAvailableBytes": 6502313984,
+      "ownLogicalBytes": 21581832,
+      "ownAllocatedBytes": 21737472,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17185
+    },
+    {
+      "elapsedSeconds": 4.369496459,
+      "globalAvailableBytes": 6501883904,
+      "ownLogicalBytes": 21583102,
+      "ownAllocatedBytes": 21737472,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17185
+    },
+    {
+      "elapsedSeconds": 4.970672209,
+      "globalAvailableBytes": 6501744640,
+      "ownLogicalBytes": 21583300,
+      "ownAllocatedBytes": 21741568,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17383
+    },
+    {
+      "elapsedSeconds": 5.565912,
+      "globalAvailableBytes": 6501531648,
+      "ownLogicalBytes": 21583300,
+      "ownAllocatedBytes": 21741568,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17383
+    },
+    {
+      "elapsedSeconds": 6.141547667,
+      "globalAvailableBytes": 6501363712,
+      "ownLogicalBytes": 21583300,
+      "ownAllocatedBytes": 21741568,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17383
+    },
+    {
+      "elapsedSeconds": 6.868821167,
+      "globalAvailableBytes": 6501031936,
+      "ownLogicalBytes": 21583300,
+      "ownAllocatedBytes": 21741568,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17383
+    },
+    {
+      "elapsedSeconds": 7.486628167,
+      "globalAvailableBytes": 6500909056,
+      "ownLogicalBytes": 21583300,
+      "ownAllocatedBytes": 21741568,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17383
+    },
+    {
+      "elapsedSeconds": 8.073302959,
+      "globalAvailableBytes": 6501597184,
+      "ownLogicalBytes": 21583300,
+      "ownAllocatedBytes": 21741568,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17383
+    },
+    {
+      "elapsedSeconds": 8.667473167,
+      "globalAvailableBytes": 6501310464,
+      "ownLogicalBytes": 21583300,
+      "ownAllocatedBytes": 21741568,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17383
+    },
+    {
+      "elapsedSeconds": 9.278135542,
+      "globalAvailableBytes": 6501122048,
+      "ownLogicalBytes": 21583300,
+      "ownAllocatedBytes": 21741568,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17383
+    },
+    {
+      "elapsedSeconds": 10.005337667,
+      "globalAvailableBytes": 6526345216,
+      "ownLogicalBytes": 21583300,
+      "ownAllocatedBytes": 21741568,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17383
+    },
+    {
+      "elapsedSeconds": 11.081196959,
+      "globalAvailableBytes": 6523547648,
+      "ownLogicalBytes": 21583300,
+      "ownAllocatedBytes": 21741568,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17383
+    },
+    {
+      "elapsedSeconds": 11.820174334,
+      "globalAvailableBytes": 6521626624,
+      "ownLogicalBytes": 21583300,
+      "ownAllocatedBytes": 21741568,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17383
+    },
+    {
+      "elapsedSeconds": 12.429649125,
+      "globalAvailableBytes": 6520766464,
+      "ownLogicalBytes": 21583300,
+      "ownAllocatedBytes": 21741568,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17383
+    },
+    {
+      "elapsedSeconds": 13.01538725,
+      "globalAvailableBytes": 6517977088,
+      "ownLogicalBytes": 21583389,
+      "ownAllocatedBytes": 21741568,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 13.849900167,
+      "globalAvailableBytes": 6514229248,
+      "ownLogicalBytes": 21588260,
+      "ownAllocatedBytes": 21745664,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 14.56271175,
+      "globalAvailableBytes": 6513917952,
+      "ownLogicalBytes": 21589267,
+      "ownAllocatedBytes": 21745664,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 15.231819959,
+      "globalAvailableBytes": 6513065984,
+      "ownLogicalBytes": 21590265,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 16.328128917,
+      "globalAvailableBytes": 6512783360,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 16.906029667000002,
+      "globalAvailableBytes": 6512611328,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 17.464792375000002,
+      "globalAvailableBytes": 6512152576,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 18.0618945,
+      "globalAvailableBytes": 6511792128,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 18.647340167000003,
+      "globalAvailableBytes": 6510804992,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 19.203363500000002,
+      "globalAvailableBytes": 6511124480,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 19.753284500000003,
+      "globalAvailableBytes": 6399152128,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 20.361922084000003,
+      "globalAvailableBytes": 6398988288,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 20.924989917,
+      "globalAvailableBytes": 6398271488,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 21.481325417,
+      "globalAvailableBytes": 6398377984,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 22.084260375000003,
+      "globalAvailableBytes": 6401724416,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 22.660504792,
+      "globalAvailableBytes": 6400839680,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 23.241707,
+      "globalAvailableBytes": 6400327680,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 23.793917959,
+      "globalAvailableBytes": 6399524864,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 24.343884125000002,
+      "globalAvailableBytes": 6398423040,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 24.887104209,
+      "globalAvailableBytes": 6398263296,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559237,
+      "installedAllocatedBytes": 141131776,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 25.483593417,
+      "globalAvailableBytes": 6397980672,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140559562,
+      "installedAllocatedBytes": 141135872,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 26.047114167,
+      "globalAvailableBytes": 6397538304,
+      "ownLogicalBytes": 21591356,
+      "ownAllocatedBytes": 21749760,
+      "installedLogicalBytes": 140631849,
+      "installedAllocatedBytes": 141201408,
+      "logBytes": 17472
+    },
+    {
+      "elapsedSeconds": 26.728045875000003,
+      "globalAvailableBytes": 6388600832,
+      "ownLogicalBytes": 21597276,
+      "ownAllocatedBytes": 21757952,
+      "installedLogicalBytes": 140631849,
+      "installedAllocatedBytes": 141201408,
+      "logBytes": 17634
+    },
+    {
+      "elapsedSeconds": 27.535163917000002,
+      "globalAvailableBytes": 6387347456,
+      "ownLogicalBytes": 21600428,
+      "ownAllocatedBytes": 21766144,
+      "installedLogicalBytes": 140631849,
+      "installedAllocatedBytes": 141201408,
+      "logBytes": 17634
+    },
+    {
+      "elapsedSeconds": 28.084011125,
+      "globalAvailableBytes": 6386794496,
+      "ownLogicalBytes": 21600428,
+      "ownAllocatedBytes": 21766144,
+      "installedLogicalBytes": 140631849,
+      "installedAllocatedBytes": 141201408,
+      "logBytes": 17634
+    },
+    {
+      "elapsedSeconds": 28.634100167000003,
+      "globalAvailableBytes": 6386159616,
+      "ownLogicalBytes": 21600428,
+      "ownAllocatedBytes": 21766144,
+      "installedLogicalBytes": 140631849,
+      "installedAllocatedBytes": 141201408,
+      "logBytes": 17634
+    },
+    {
+      "elapsedSeconds": 29.211442959000003,
+      "globalAvailableBytes": 6385557504,
+      "ownLogicalBytes": 21600428,
+      "ownAllocatedBytes": 21766144,
+      "installedLogicalBytes": 140631849,
+      "installedAllocatedBytes": 141201408,
+      "logBytes": 17634
+    },
+    {
+      "elapsedSeconds": 29.786581625,
+      "globalAvailableBytes": 6385778688,
+      "ownLogicalBytes": 21600428,
+      "ownAllocatedBytes": 21766144,
+      "installedLogicalBytes": 140631849,
+      "installedAllocatedBytes": 141201408,
+      "logBytes": 17634
+    },
+    {
+      "elapsedSeconds": 30.3398615,
+      "globalAvailableBytes": 6385618944,
+      "ownLogicalBytes": 21600428,
+      "ownAllocatedBytes": 21766144,
+      "installedLogicalBytes": 140631849,
+      "installedAllocatedBytes": 141201408,
+      "logBytes": 17634
+    },
+    {
+      "elapsedSeconds": 30.896831334,
+      "globalAvailableBytes": 6385348608,
+      "ownLogicalBytes": 21600428,
+      "ownAllocatedBytes": 21766144,
+      "installedLogicalBytes": 140636276,
+      "installedAllocatedBytes": 141209600,
+      "logBytes": 17634
+    },
+    {
+      "elapsedSeconds": 31.454355417000002,
+      "globalAvailableBytes": 6384726016,
+      "ownLogicalBytes": 21600428,
+      "ownAllocatedBytes": 21766144,
+      "installedLogicalBytes": 140636276,
+      "installedAllocatedBytes": 141209600,
+      "logBytes": 17634
+    },
+    {
+      "elapsedSeconds": 32.002759667,
+      "globalAvailableBytes": 6384398336,
+      "ownLogicalBytes": 21600428,
+      "ownAllocatedBytes": 21766144,
+      "installedLogicalBytes": 140636276,
+      "installedAllocatedBytes": 141209600,
+      "logBytes": 17634
+    },
+    {
+      "elapsedSeconds": 32.549229792,
+      "globalAvailableBytes": 6384226304,
+      "ownLogicalBytes": 21600428,
+      "ownAllocatedBytes": 21766144,
+      "installedLogicalBytes": 140636276,
+      "installedAllocatedBytes": 141209600,
+      "logBytes": 17634
+    },
+    {
+      "elapsedSeconds": 33.132548625,
+      "globalAvailableBytes": 6384214016,
+      "ownLogicalBytes": 21600428,
+      "ownAllocatedBytes": 21766144,
+      "installedLogicalBytes": 140636276,
+      "installedAllocatedBytes": 141209600,
+      "logBytes": 17634
+    },
+    {
+      "elapsedSeconds": 33.682083459000005,
+      "globalAvailableBytes": 6383960064,
+      "ownLogicalBytes": 21600428,
+      "ownAllocatedBytes": 21766144,
+      "installedLogicalBytes": 140636276,
+      "installedAllocatedBytes": 141209600,
+      "logBytes": 17634
+    },
+    {
+      "elapsedSeconds": 34.262409959,
+      "globalAvailableBytes": 6383652864,
+      "ownLogicalBytes": 21600428,
+      "ownAllocatedBytes": 21766144,
+      "installedLogicalBytes": 140636276,
+      "installedAllocatedBytes": 141209600,
+      "logBytes": 17634
+    },
+    {
+      "elapsedSeconds": 34.826830834,
+      "globalAvailableBytes": 6383558656,
+      "ownLogicalBytes": 21600428,
+      "ownAllocatedBytes": 21766144,
+      "installedLogicalBytes": 140636276,
+      "installedAllocatedBytes": 141209600,
+      "logBytes": 17634
+    },
+    {
+      "elapsedSeconds": 35.558689584,
+      "globalAvailableBytes": 6382886912,
+      "ownLogicalBytes": 21600465,
+      "ownAllocatedBytes": 21770240,
+      "installedLogicalBytes": 140636276,
+      "installedAllocatedBytes": 141209600,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 36.357880125,
+      "globalAvailableBytes": 6381408256,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 141896812,
+      "installedAllocatedBytes": 142471168,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 36.943792792,
+      "globalAvailableBytes": 6381064192,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 141958268,
+      "installedAllocatedBytes": 142532608,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 37.55205075,
+      "globalAvailableBytes": 6379888640,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 141958268,
+      "installedAllocatedBytes": 142532608,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 38.162485417,
+      "globalAvailableBytes": 6379556864,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 141958268,
+      "installedAllocatedBytes": 142532608,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 38.780506375,
+      "globalAvailableBytes": 6379450368,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 141966540,
+      "installedAllocatedBytes": 142544896,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 39.386249292,
+      "globalAvailableBytes": 6378713088,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 141966540,
+      "installedAllocatedBytes": 142544896,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 40.001693459,
+      "globalAvailableBytes": 6378192896,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 141970660,
+      "installedAllocatedBytes": 142548992,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 40.623048542,
+      "globalAvailableBytes": 6377820160,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 141973510,
+      "installedAllocatedBytes": 142553088,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 41.327186125000004,
+      "globalAvailableBytes": 6375763968,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 141983776,
+      "installedAllocatedBytes": 142565376,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 41.917484625,
+      "globalAvailableBytes": 6373642240,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 141986469,
+      "installedAllocatedBytes": 142565376,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 42.494603375000004,
+      "globalAvailableBytes": 6367055872,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 141988264,
+      "installedAllocatedBytes": 142569472,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 43.050227834000005,
+      "globalAvailableBytes": 6366797824,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 141990958,
+      "installedAllocatedBytes": 142569472,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 43.601063584,
+      "globalAvailableBytes": 6366306304,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 141993653,
+      "installedAllocatedBytes": 142573568,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 44.162074709,
+      "globalAvailableBytes": 6365929472,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 141996350,
+      "installedAllocatedBytes": 142577664,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 44.719136292,
+      "globalAvailableBytes": 6365696000,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 141999044,
+      "installedAllocatedBytes": 142577664,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 45.273461334000004,
+      "globalAvailableBytes": 6365454336,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142000841,
+      "installedAllocatedBytes": 142581760,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 45.833919375,
+      "globalAvailableBytes": 6365487104,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142003537,
+      "installedAllocatedBytes": 142581760,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 46.397964125,
+      "globalAvailableBytes": 6364221440,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142006231,
+      "installedAllocatedBytes": 142585856,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 46.970959625,
+      "globalAvailableBytes": 6362980352,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142008927,
+      "installedAllocatedBytes": 142589952,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 47.529374709,
+      "globalAvailableBytes": 6363418624,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142011622,
+      "installedAllocatedBytes": 142589952,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 48.078188334000004,
+      "globalAvailableBytes": 6363770880,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142013418,
+      "installedAllocatedBytes": 142594048,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 48.660157792,
+      "globalAvailableBytes": 6363717632,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142016115,
+      "installedAllocatedBytes": 142598144,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 49.210053209,
+      "globalAvailableBytes": 6363639808,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142018806,
+      "installedAllocatedBytes": 142598144,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 49.755997667,
+      "globalAvailableBytes": 6363635712,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142021502,
+      "installedAllocatedBytes": 142602240,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 50.380929042,
+      "globalAvailableBytes": 6363607040,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142024197,
+      "installedAllocatedBytes": 142602240,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 50.955049959,
+      "globalAvailableBytes": 6367899648,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142026892,
+      "installedAllocatedBytes": 142606336,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 51.513110459,
+      "globalAvailableBytes": 6367727616,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142029588,
+      "installedAllocatedBytes": 142610432,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 52.096669375000005,
+      "globalAvailableBytes": 6367809536,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142031385,
+      "installedAllocatedBytes": 142610432,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 52.678303292,
+      "globalAvailableBytes": 6367588352,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142034079,
+      "installedAllocatedBytes": 142614528,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 53.262515209,
+      "globalAvailableBytes": 6367539200,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142036775,
+      "installedAllocatedBytes": 142618624,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 53.847795375000004,
+      "globalAvailableBytes": 6367535104,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142039470,
+      "installedAllocatedBytes": 142618624,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 54.432173834000004,
+      "globalAvailableBytes": 6367531008,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142042166,
+      "installedAllocatedBytes": 142622720,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 55.014650584,
+      "globalAvailableBytes": 6367526912,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142044862,
+      "installedAllocatedBytes": 142626816,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 55.566244125000004,
+      "globalAvailableBytes": 6367522816,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142047558,
+      "installedAllocatedBytes": 142626816,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 56.143049167,
+      "globalAvailableBytes": 6367215616,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142050254,
+      "installedAllocatedBytes": 142630912,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 56.727286375,
+      "globalAvailableBytes": 6367186944,
+      "ownLogicalBytes": 21605899,
+      "ownAllocatedBytes": 21778432,
+      "installedLogicalBytes": 142052949,
+      "installedAllocatedBytes": 142635008,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 57.29031525,
+      "globalAvailableBytes": 6367285248,
+      "ownLogicalBytes": 21685521,
+      "ownAllocatedBytes": 21860352,
+      "installedLogicalBytes": 142054746,
+      "installedAllocatedBytes": 142635008,
+      "logBytes": 17671
+    },
+    {
+      "elapsedSeconds": 63.833923584,
+      "globalAvailableBytes": 6376554496,
+      "ownLogicalBytes": 21718168,
+      "ownAllocatedBytes": 21901312,
+      "installedLogicalBytes": 142056542,
+      "installedAllocatedBytes": 142635008,
+      "logBytes": 35626
+    }
+  ],
+  "measurements": [],
+  "initialGlobalAvailableBytes": 6522986496,
+  "wholeB85AllocatedGrowthVerified": false,
+  "actualKotlinCallbackObserved": false,
+  "persistedPositionRead": false,
+  "native240Accepted": false,
+  "visualParityAccepted": false,
+  "separateReadonlyDatabaseSupplement": {
+    "wrapperSHA256": "b347198bdd202ffd274e8719d559cbc09163cc7ac1d7422a51ace9ce386d9350",
+    "wrapperPlanSHA256": "8b15345e7417e33da2503561c831a5f6eaf04befaf471bd0bf6ae667d6ae1a1b",
+    "helperSHA256": "a545d29be7a3a5c97fdb03aca92e277b3c6548d6430c39cb538a174aea703cf9",
+    "databaseAllocationSHA256": "d68976c5065387fa6388b653c0b3d7b280615988a430a22c3d9ccdac1dbf8f1e",
+    "records": [
+      {
+        "label": "before-launch-filenames",
+        "path": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/readonly-db/before-launch-filenames.json",
+        "bytes": 1226,
+        "sha256": "5413ba9919e875945e71c4ea97f0ed37b8299b7856ec87af218df2dc3d83c075"
+      },
+      {
+        "label": "actual-launch-command-evidence",
+        "path": "/private/tmp/slax-source-physical-native-scroll-511427d559f94e7d8b4b6a7d684cf319/readonly-db/actual-launch-command-evidence.json",
+        "bytes": 719,
+        "sha256": "9f512861a6cf8963d332d27bc55206535f77fc906759de2f3bc6d40625a12041"
+      }
+    ],
+    "mode": "ro",
+    "directKotlinCallbackCaptured": false,
+    "persistedTransitionAccepted": false,
+    "ordinaryWalReaderMayUpdateShmLockMetadata": true
+  },
+  "readonlyOtherSimulatorStates": [
+    {
+      "udid": "C232FF0D-817B-41FF-8D83-E3B25C5846F2",
+      "name": "Apple Watch Series 11 (46mm)",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "0B8F06B2-1286-4555-B0A4-BB98C208DA27",
+      "name": "Apple Watch Series 11 (42mm)",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "EF0E736B-807A-4BDB-AE14-053EA4C4DB3A",
+      "name": "Apple Watch Ultra 3 (49mm)",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "D6F5B111-FAAE-4BE1-870E-AE2E3B762520",
+      "name": "Apple Watch SE 3 (44mm)",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "6BFC5FCB-04E5-465A-9F93-18FA8D136BDA",
+      "name": "Apple Watch SE 3 (40mm)",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "E97BB843-7786-4FC4-90F3-5C03A32E20AE",
+      "name": "iPhone 17 Pro",
+      "state": "Booted"
+    },
+    {
+      "udid": "2B9DDD06-0C55-4D1A-B03E-35006A7D1849",
+      "name": "Slax controlled first upgrade 20261011",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "522DD84F-0407-4707-BBAB-0263B4ACE2DA",
+      "name": "Slax Original Queue Real Service 20261011",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "468A1F1E-408C-4B74-922E-1EB216A446E0",
+      "name": "Slax-visible-upgrade-1421e936",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "32D9AFE0-32C7-443A-8FEC-3EBB42135386",
+      "name": "SlaxMigrationControlled-20261010",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "116A11B3-8DA0-408D-8359-4862CCEEE8E5",
+      "name": "Gomoku Screenshots iPhone",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "79A2400D-F5E5-4E77-BFC4-5CD1AABBEDEB",
+      "name": "iPhone 17 Pro Max",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "B609FC5A-FA1B-4666-9BA1-792C299803BF",
+      "name": "iPhone 17e",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "6988AEEE-2129-4B5C-9B44-FF9256154399",
+      "name": "iPhone Air",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "EDFCB705-74A1-4E88-802B-29B96CB5FF55",
+      "name": "iPhone 17",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "1BE34A31-47E3-4280-A0F1-EA417DE9F333",
+      "name": "WitchPotion-CrashRepro-iPhone17",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "C9CFE383-D9E0-4C1C-84B5-5EC4DBFDD780",
+      "name": "Poker Clip Preview",
+      "state": "Booted"
+    },
+    {
+      "udid": "BF9282DB-8781-47A2-99F9-0B948322B8A8",
+      "name": "Poker Language Preview",
+      "state": "Booted"
+    },
+    {
+      "udid": "AD0C3A69-0EEF-4FBA-BCD4-976E6A2E6232",
+      "name": "Poker Offline Audit iPhone SE",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "5C167161-A6CD-4C80-B5A5-D8F71257BB7E",
+      "name": "Gomoku Screenshots iPad",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "29D81B6E-48BA-4049-8FB3-368EE22B94A4",
+      "name": "iPad Pro 13-inch (M5)",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "7089CABF-69D5-4D35-B3FC-31D519F138F7",
+      "name": "iPad Pro 11-inch (M5)",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "25F95D81-F48B-4B14-916E-61221461B87C",
+      "name": "iPad mini (A17 Pro)",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "9D34E873-7489-4879-A454-5CF055D4292F",
+      "name": "iPad Air 13-inch (M4)",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "BD00AFD3-6D2E-4BB5-AB2E-2241B1A59AB7",
+      "name": "iPad Air 11-inch (M4)",
+      "state": "Shutdown"
+    },
+    {
+      "udid": "B0281A52-CBF6-475E-A9E8-9B565657553D",
+      "name": "Poker Language iPad",
+      "state": "Booted"
+    },
+    {
+      "udid": "429DA30F-AE04-432B-9972-11662816D744",
+      "name": "iPad (A16)",
+      "state": "Shutdown"
+    }
+  ],
+  "sourceDataContainer": "/Users/daguang/Library/Developer/CoreSimulator/Devices/B85A7582-A0A7-4A0F-9BF0-8424330859F3/data/Containers/Data/Application/158DB2DC-E5E7-4380-8DE7-738D87A03751",
+  "refusal": "ValueError: Fresh settled source observation unavailable: The exact matched source conditions differ",
+  "ownedDeviceShutdownReadback": true,
+  "protectedAppProductsAndStageUnchanged": true,
+  "finalOwnedContainers": [
+    {
+      "path": "/Users/daguang/Library/Developer/CoreSimulator/Devices/B85A7582-A0A7-4A0F-9BF0-8424330859F3/data/Containers/Bundle/Application/D63A08BC-C1A6-489F-80D6-59C07D1077D5",
+      "identity": "app.slax.reader.sourcefixture.control.xctrunner",
+      "logicalBytes": 21435409,
+      "allocatedBytes": 21549056
+    },
+    {
+      "path": "/Users/daguang/Library/Developer/CoreSimulator/Devices/B85A7582-A0A7-4A0F-9BF0-8424330859F3/data/Containers/Bundle/Application/046A0623-D7F4-436E-B574-678DE6AC7780",
+      "identity": "app.slax.reader.sourcefixture",
+      "logicalBytes": 109684334,
+      "allocatedBytes": 110039040
+    },
+    {
+      "path": "/Users/daguang/Library/Developer/CoreSimulator/Devices/B85A7582-A0A7-4A0F-9BF0-8424330859F3/data/Containers/Data/Application/3C3C843C-01D6-45B1-BF13-3E1CFFFB0AFF",
+      "identity": "app.slax.reader.sourcefixture.control.xctrunner",
+      "logicalBytes": 585,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "/Users/daguang/Library/Developer/CoreSimulator/Devices/B85A7582-A0A7-4A0F-9BF0-8424330859F3/data/Containers/Data/Application/158DB2DC-E5E7-4380-8DE7-738D87A03751",
+      "identity": "app.slax.reader.sourcefixture",
+      "logicalBytes": 10936214,
+      "allocatedBytes": 11038720
+    }
+  ],
+  "newRunFilesExcludingReceipt": [
+    {
+      "relativePath": "Products/Debug-iphonesimulator/ControlHost.app.dSYM/Contents/Info.plist",
+      "bytes": 670,
+      "mode": 420,
+      "sha256": "075e0b6a6eee9ad7dc03497268a714a5e850b5688461b02d5e27bee7d4bf5cfb"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/ControlHost.app.dSYM/Contents/Resources/DWARF/ControlHost",
+      "bytes": 1096992,
+      "mode": 420,
+      "sha256": "425b5c9f5fdfb270357386c902205357cda70a04a4bec1ccff1e39d4dd8a7288"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/ControlHost.app.dSYM/Contents/Resources/Relocations/aarch64/ControlHost.yml",
+      "bytes": 4740,
+      "mode": 420,
+      "sha256": "29dd9250d2eb71a656e3bf9712f12ce4827110758010c5934b5c5d44b2f3aabb"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/ControlHost.app/ControlHost",
+      "bytes": 75688,
+      "mode": 493,
+      "sha256": "8dd33f77d2460f15b756633fb56d844806798f3ebc80ad8cc60c8a5a9522f9c0"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/ControlHost.app/Info.plist",
+      "bytes": 762,
+      "mode": 420,
+      "sha256": "3c8a48776172856ec2402968212febf84edb87a1f2cad31561019f8c597e460d"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/ControlHost.app/PkgInfo",
+      "bytes": 8,
+      "mode": 420,
+      "sha256": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/ControlHost.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo",
+      "bytes": 700,
+      "mode": 420,
+      "sha256": "b5ece7efdfd1650f75ea80a52636045c4ceacd71b51d475b659fe6bfcfc1392d"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/ControlHost.swiftmodule/arm64-apple-ios-simulator.abi.json",
+      "bytes": 149,
+      "mode": 420,
+      "sha256": "4277ac6b49f8511196028a5ac20f5b1b1dfa754c24615d34068089f0b1739728"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/ControlHost.swiftmodule/arm64-apple-ios-simulator.swiftdoc",
+      "bytes": 424,
+      "mode": 420,
+      "sha256": "31a307c652ef338ad8dfcb7ed1e5da2079257c5cbed8a0c61ba39262d639eadc"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/ControlHost.swiftmodule/arm64-apple-ios-simulator.swiftmodule",
+      "bytes": 61656,
+      "mode": 420,
+      "sha256": "e43d9db77db9ad93107de5902c48e4a6a081526f3fef3a108bbe900cb92e2cef"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/Testing.framework/Info.plist",
+      "bytes": 907,
+      "mode": 420,
+      "sha256": "bbcbea48c0dbd6882bcb7fb2301590da876c2e4a38af45f2f180576257ff1d4b"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/Testing.framework/Testing",
+      "bytes": 6920688,
+      "mode": 493,
+      "sha256": "1986afd2209b8bb14a58207eed68baf267f77e4c7737db20bea81ef58076187e"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/Testing.framework/_CodeSignature/CodeResources",
+      "bytes": 4470,
+      "mode": 420,
+      "sha256": "d4ea19a6205a1aa25fe00e49abf0cb86dfae23aed5a6cad58faf3a4bd21fbfbf"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/Testing.framework/version.plist",
+      "bytes": 516,
+      "mode": 420,
+      "sha256": "223a7e8eb1e41954e172a3fa1d67f2599f17e9e7aa7ebe6165469b21b17c9468"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTAutomationSupport.framework/Info.plist",
+      "bytes": 956,
+      "mode": 420,
+      "sha256": "5a4175b7974d1727ba93ff93c74c2390949150ad1e96091f270454eb8346e79b"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTAutomationSupport.framework/XCTAutomationSupport",
+      "bytes": 1553216,
+      "mode": 493,
+      "sha256": "dba609c844eaafabfd1448f019f9c4781dd0ae1c7b0a9c9b80ea13342468dbda"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTAutomationSupport.framework/_CodeSignature/CodeResources",
+      "bytes": 2018,
+      "mode": 420,
+      "sha256": "698deeaefd9347e7585203a292ce3ff315a04b484247bee93e97cb86318c84b3"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTAutomationSupport.framework/version.plist",
+      "bytes": 518,
+      "mode": 420,
+      "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTest.framework/Info.plist",
+      "bytes": 878,
+      "mode": 420,
+      "sha256": "909d0355c12c582734fd68afa4fe6c897ab55907364e6b618e7c083e2f03d758"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTest.framework/XCTest",
+      "bytes": 208400,
+      "mode": 493,
+      "sha256": "9704e507fe542166b80f96178194ec456180a6498af50858990d32671d05b349"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTest.framework/_CodeSignature/CodeResources",
+      "bytes": 17362,
+      "mode": 420,
+      "sha256": "026b86d77c4f67c0c0c9b6dc0d5dc36c12fc487ad8e975262a9e132edff52b5a"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTest.framework/version.plist",
+      "bytes": 518,
+      "mode": 420,
+      "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTestCore.framework/Info.plist",
+      "bytes": 886,
+      "mode": 420,
+      "sha256": "2f0d9073b2ed1feb101463b96c31c62efcc745438d19769b964d8c1fd09f8143"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTestCore.framework/XCTestCore",
+      "bytes": 4089904,
+      "mode": 493,
+      "sha256": "193ecdbb651f484a6e14f5d4dba4ef6de4b5e3aa46e53fa97bb6f1806bef71f3"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTestCore.framework/_CodeSignature/CodeResources",
+      "bytes": 2018,
+      "mode": 420,
+      "sha256": "a4e4cb1b450b595cd79991e6a5bc1a00bedad7ef6b6f2cb402b562c45aee3ec4"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTestCore.framework/version.plist",
+      "bytes": 518,
+      "mode": 420,
+      "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTestSupport.framework/Info.plist",
+      "bytes": 892,
+      "mode": 420,
+      "sha256": "b1e2907db77398ee443b5f99aae969be48e8f0627ff219cb164d9286d7145de8"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTestSupport.framework/XCTestSupport",
+      "bytes": 224912,
+      "mode": 493,
+      "sha256": "f48a2fc67431dd73c9238768ec6635ea8d311098aea8c7b2021920e34c4f5dc4"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTestSupport.framework/_CodeSignature/CodeResources",
+      "bytes": 2018,
+      "mode": 420,
+      "sha256": "493bfa3cbc1033bef7ab5021c6c6423a3ed8bbd86b1fa7c294524777dee105b1"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTestSupport.framework/version.plist",
+      "bytes": 518,
+      "mode": 420,
+      "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCUIAutomation.framework/Info.plist",
+      "bytes": 894,
+      "mode": 420,
+      "sha256": "c8165e0af2a549416efc6dbe5d4bf3d8d306c42cb68d963c3f0b6d8f34457533"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCUIAutomation.framework/XCUIAutomation",
+      "bytes": 3643712,
+      "mode": 493,
+      "sha256": "94e82a956c1d5bdd596b020bd517e793a7534da3efe6468233909ae7a2629ff3"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCUIAutomation.framework/_CodeSignature/CodeResources",
+      "bytes": 9338,
+      "mode": 420,
+      "sha256": "04ef214a7112d65469abb1c4fca5e5222b7d7f84a1906bd107d780ceed580da2"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCUIAutomation.framework/version.plist",
+      "bytes": 518,
+      "mode": 420,
+      "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCUnit.framework/Info.plist",
+      "bytes": 878,
+      "mode": 420,
+      "sha256": "a05755dfb1b3c5fabe06e52ca0a5aafc57919ebcabf0bb10740bc04790ef5bb3"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCUnit.framework/XCUnit",
+      "bytes": 100640,
+      "mode": 493,
+      "sha256": "4d8ff95683584aeaa4d4e4c5699d4f9cc651ca8ac3cd0b9294a960eeccf2b803"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCUnit.framework/_CodeSignature/CodeResources",
+      "bytes": 2018,
+      "mode": 420,
+      "sha256": "a6c97eddc25aff25229771a51202ff4ddc11234de78af235bd7661493ef4f3dc"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCUnit.framework/version.plist",
+      "bytes": 518,
+      "mode": 420,
+      "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/libXCTestSwiftSupport.dylib",
+      "bytes": 2052560,
+      "mode": 493,
+      "sha256": "547be7a8f425563f4ee23f9af749884abcbce56eb3b42714b69929d716e8a533"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Info.plist",
+      "bytes": 8362,
+      "mode": 420,
+      "sha256": "255046e606a18faee6ffd1b01ee810bfe43a505c7f7871f97f0418b8f4d1a876"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/PkgInfo",
+      "bytes": 8,
+      "mode": 420,
+      "sha256": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/PlugIns/SourceFixtureControl.xctest.dSYM/Contents/Info.plist",
+      "bytes": 666,
+      "mode": 420,
+      "sha256": "5db7e98cfa564c67c433c09da9bf6e32568fd4ffc85b4ab249af3b2e3908ce01"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/PlugIns/SourceFixtureControl.xctest.dSYM/Contents/Resources/DWARF/SourceFixtureControl",
+      "bytes": 1170352,
+      "mode": 420,
+      "sha256": "33dddf3434a7f79b5a2f398756f08711ab71bc8d2e02439b469c0c10c6cf7d16"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/PlugIns/SourceFixtureControl.xctest.dSYM/Contents/Resources/Relocations/aarch64/SourceFixtureControl.yml",
+      "bytes": 14819,
+      "mode": 420,
+      "sha256": "7f55ff03eba2afc717685be0c2ecbff2cad953ce44fe2dd511f739c54d1c1074"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/PlugIns/SourceFixtureControl.xctest/Info.plist",
+      "bytes": 725,
+      "mode": 420,
+      "sha256": "7370225a4471893fae090abf85b971bd0b6c3215f8fa5f234bcd333424872ba5"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/PlugIns/SourceFixtureControl.xctest/SourceFixtureControl",
+      "bytes": 115928,
+      "mode": 493,
+      "sha256": "317e67f7e876874f80114777af6cca2b7781de7d85157ffd51491482fcfb0dca"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/SourceFixtureControl-Runner",
+      "bytes": 113616,
+      "mode": 493,
+      "sha256": "7e36729d4fbf984e023e98952e7a2b878c735240c41c14f1f8a6b1544b20d233"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo",
+      "bytes": 924,
+      "mode": 420,
+      "sha256": "3bf5101482030292b77a2ddb832a93261d6bb9a68dd8b7ff2158ba9d975adbc8"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl.swiftmodule/arm64-apple-ios-simulator.abi.json",
+      "bytes": 149,
+      "mode": 420,
+      "sha256": "4277ac6b49f8511196028a5ac20f5b1b1dfa754c24615d34068089f0b1739728"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl.swiftmodule/arm64-apple-ios-simulator.swiftdoc",
+      "bytes": 432,
+      "mode": 420,
+      "sha256": "f46c7d88fb0ab8bc7dd2f17b4fb15f23f0bc83b1696b18e4c8cab770c5304525"
+    },
+    {
+      "relativePath": "Products/Debug-iphonesimulator/SourceFixtureControl.swiftmodule/arm64-apple-ios-simulator.swiftmodule",
+      "bytes": 40460,
+      "mode": 420,
+      "sha256": "48247b8d8d85ae175f79c2015a5a061c5bcddd1e20284523d55caae7848d7f02"
+    },
+    {
+      "relativePath": "Products/SourceFixtureControl_iphonesimulator26.5-arm64.xctestrun",
+      "bytes": 4818,
+      "mode": 420,
+      "sha256": "89c7581f035a6456575a020c9b83c0d0ae6b9884a882db5e432fb8990480dc7f"
+    },
+    {
+      "relativePath": "latest-before-release/fixture-native-reader-observation.json",
+      "bytes": 79622,
+      "mode": 420,
+      "sha256": "877ffecf0fc3e8b6382cb48a8f49c5b5efb4e3d6449f771d2b3d19ae8db69313"
+    },
+    {
+      "relativePath": "logs/00.stderr",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/00.stdout",
+      "bytes": 17185,
+      "mode": 420,
+      "sha256": "7028c99ab6a4e25c887557fc1ea29a53006ca2343ecec84a7fca9b263679ea22"
+    },
+    {
+      "relativePath": "logs/01.stderr",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/01.stdout",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/02.stderr",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/02.stdout",
+      "bytes": 287,
+      "mode": 420,
+      "sha256": "a2103bea5831e5fde4c020e29c45f139d8d41b7ffd32f4b19b270cab78747304"
+    },
+    {
+      "relativePath": "logs/03.stderr",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/03.stdout",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/04.stderr",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/04.stdout",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/05.stderr",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/05.stdout",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/06.stderr",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/06.stdout",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/07.stderr",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/07.stdout",
+      "bytes": 162,
+      "mode": 420,
+      "sha256": "2eddd0756d573f70d9d966c1a8c6b1cfc70e3f77464b2458b9dafe5156b58474"
+    },
+    {
+      "relativePath": "logs/08.stderr",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/08.stdout",
+      "bytes": 37,
+      "mode": 420,
+      "sha256": "529041c6446950a64286c8593dc1dd852b254ce85b088068a402c1a710fe2896"
+    },
+    {
+      "relativePath": "logs/09.stderr",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/09.stdout",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/10.stderr",
+      "bytes": 391,
+      "mode": 420,
+      "sha256": "28d1dca99a670a58b97b43dbf72b59fb25cda57d05281a021cd57b927bf589d7"
+    },
+    {
+      "relativePath": "logs/10.stdout",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/11.stderr",
+      "bytes": 379,
+      "mode": 420,
+      "sha256": "0469a6481db0291d712a424452f9cbe296260f6bdf5bedd3873b94107fa7b974"
+    },
+    {
+      "relativePath": "logs/11.stdout",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/12.stderr",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/12.stdout",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/13.stderr",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/13.stdout",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/14.stderr",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "logs/14.stdout",
+      "bytes": 17185,
+      "mode": 420,
+      "sha256": "8f8abe37181cba962206652969b0ef520ef7e908ff3cbecb76867435e23cacc0"
+    },
+    {
+      "relativePath": "readonly-db/actual-launch-command-evidence.json",
+      "bytes": 719,
+      "mode": 420,
+      "sha256": "9f512861a6cf8963d332d27bc55206535f77fc906759de2f3bc6d40625a12041"
+    },
+    {
+      "relativePath": "readonly-db/before-launch-filenames.json",
+      "bytes": 1226,
+      "mode": 420,
+      "sha256": "5413ba9919e875945e71c4ea97f0ed37b8299b7856ec87af218df2dc3d83c075"
+    }
+  ],
+  "copiedOriginalProductsUnchanged": true,
+  "elapsedSeconds": 63.875013208999995,
+  "finalGlobalAvailableBytes": 6376554496,
+  "globalAvailabilityDeltaBytes": -146432000,
+  "status": "stopped-or-release-unconfirmed"
+}

@@ -1,0 +1,65 @@
+{
+  "kind": "slax-controlled-source-valid-passive-input-stop",
+  "version": 1,
+  "recordedAt": "2026-10-10T20:36:14.605Z",
+  "device": "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+  "runId": "controlled-ios-visible-upgrade-v2-20261011",
+  "nonce": "892f62ab-a252-4dbd-9168-545c99aeeead",
+  "visibleReportSHA256": "aca037e517a32eb1fc102d3cb8335d414b3376fb1beba4c300cc62b0d8cd10ec",
+  "matchingRequestRemoved": true,
+  "simctlTerminateExitStatus": 0,
+  "terminatedMainPid": 23837,
+  "processAbsenceVerified": true,
+  "operatingSystemReleasedProcessResources": true,
+  "nativeOwnerProbeAfterExit": false,
+  "afterProcessExitReadOnlyNativeDatabase": {
+    "bookmark": {
+      "id": "bookmark-1",
+      "is_read": 1,
+      "is_starred": 1,
+      "archive_status": 0,
+      "alias_title": "Controlled actual service offline edit",
+      "metadata": "{\"tags\": [\"tag-1\", \"tag-2\"], \"share\": {\"uuid\": \"share-bookmark-1\", \"is_enable\": false, \"show_line\": true, \"allow_line\": true, \"created_at\": \"2026-10-01T09:41:00.000Z\", \"share_code\": \"controlled-offline-share\", \"allow_access\": 1, \"show_comment\": true, \"allow_comment\": true, \"show_userinfo\": true}, \"bookmark\": {\"uuid\": \"article-1\", \"title\": \"Offline article\", \"byline\": \"Controlled fixture author\", \"status\": \"success\", \"host_url\": \"https://offline.invalid\", \"site_name\": \"Controlled offline fixture\", \"target_url\": \"https://offline.invalid/article-1\", \"description\": \"An original SDK article retained through the Expo migration.\", \"content_icon\": \"\", \"published_at\": \"2026-10-01T09:41:00.000Z\", \"content_cover\": \"\", \"content_word_count\": 661}}"
+    },
+    "comment": {
+      "id": "comment-1",
+      "type": 2,
+      "comment": "Pending comment",
+      "source": "[{\"type\":\"text\",\"path\":\"article#controlled-offline > p#controlled-quote\",\"start\":0,\"end\":26}]",
+      "metadata": "{\"root_id\":null,\"user_id\":\"synthetic-user\",\"parent_id\":null,\"source_type\":null,\"source_id\":null,\"bookmark_id\":\"bookmark-1\"}"
+    },
+    "local": {
+      "overview": "Offline summary",
+      "is_downloaded": 2,
+      "read_position": "351",
+      "outline_read_position": "12",
+      "is_auto_cached": 0,
+      "future_field": {
+        "preserve": true
+      }
+    },
+    "pending": [
+      {
+        "id": 7,
+        "tx_id": 4,
+        "data": "{\"op\":\"PATCH\",\"id\":\"bookmark-1\",\"type\":\"sr_user_bookmark\",\"data\":{\"is_read\":1},\"old\":{\"is_read\":0}}"
+      },
+      {
+        "id": 8,
+        "tx_id": 5,
+        "data": "{\"op\":\"PATCH\",\"id\":\"bookmark-1\",\"type\":\"sr_user_bookmark\",\"data\":{},\"old\":{}}"
+      },
+      {
+        "id": 9,
+        "tx_id": 6,
+        "data": "{\"op\":\"PATCH\",\"id\":\"bookmark-1\",\"type\":\"sr_user_bookmark\",\"data\":{},\"old\":{}}"
+      }
+    ]
+  },
+  "originalNativeServiceReportMd5Unmodified": true,
+  "uiReadOperationsUploadedToService": false,
+  "allDeviceSandboxesPreserved": true,
+  "productionFreezeReleased": true,
+  "publisherSigning": false,
+  "testFlight": false
+}

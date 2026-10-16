@@ -1,0 +1,9 @@
+# Original iOS Swift Share presentation
+
+The original checksum-pinned Swift Share controller was compiled unchanged in a unique simulator host/extension with an explicit local `ComposeApp.ShareKt` Swift boundary. No original Kotlin, API, authentication, Firebase, App Group or production network behavior was executed. Three bounded native XCTest cases observed the original loading, generic error and success text through actual host/system-share input; loading and error closed through the inspected native background. The production main application stayed closed at every pre/post assertion.
+
+Loading and error screenshots and accessibility trees show the actual original 180-point panel at y=694 on the 402×874-point iOS 26.5 simulator. The success screenshot is rejected: the original success animation automatically dismissed before the screenshot/tree request. Its state observation passes a functional fixture check but does not establish a visual baseline. No source/target whole-frame comparison is accepted.
+
+A later finite raw-frame sampler preserved the unchanged original success panel before dismissal. Its separate [supplemental report](../2026-10-11-source-ios-share-success/report.json) retains all 34 frames, the actual native input result, and manually inspected `raw-frames/frame-029.png`. The earlier rejected screenshot remains rejected. The supplemental clock was 02:50, so it is not a matched whole-frame comparison with this 09:41 run.
+
+The first run safely rejected a mistaken activity label. The second run activated only the unique fixture but its UI boundary framework failed DYLD loading. The corrected framework uses an `@rpath` install name, leaving the original controller byte-identical. All native results and those failures are retained. The current original Swift source hash was rechecked against the closed source manifest after execution. Simulator ownership was explicitly released and its status override cleared.

@@ -1,0 +1,20 @@
+{
+  "controlledFixture": true,
+  "receipts": [
+    {
+      "kind": "prepared",
+      "scenario": "signed-out",
+      "serial": 1
+    },
+    {
+      "kind": "prepared",
+      "scenario": "safari-success",
+      "serial": 2
+    },
+    {
+      "kind": "prepared",
+      "scenario": "safari-success",
+      "serial": 3
+    }
+  ]
+}

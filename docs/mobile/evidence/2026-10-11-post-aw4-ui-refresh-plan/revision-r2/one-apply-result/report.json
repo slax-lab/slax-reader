@@ -1,0 +1,99 @@
+{
+  "kind": "slax-ui-ts-refresh-single-apply-receipt",
+  "version": 1,
+  "openSpec": "expo-mobile-migration",
+  "status": "twelve-declared-ts-deltas-refreshed-stage-frozen-no-runtime-execution",
+  "executorExitCode": 0,
+  "attempts": 1,
+  "allocation": {
+    "path": "docs/mobile/evidence/2026-10-11-post-aw4-ui-refresh-plan/revision-r2/root-one-apply-allocation.json",
+    "sha256": "80bbf15663042fbc2e34f852be86884d6deae0966b52ed0ba819067eae7bd947"
+  },
+  "executorSHA256": "8bdefc85fbc0d30269475220ed5aa3e6b599bb42bd5f5e0fdd33ff83ac3d675c",
+  "planSHA256": "1469c5535815bc53accb93c146b9cf6b5e01cb2700345bd3d99f0ee44cb908b2",
+  "closureSHA256": "ca483ab30a8f6163dc0256aaa64d2cf6a920eb7f66426841b742a3614913d589",
+  "stageRoot": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3",
+  "baseMarkerSHA256": "dee6cc6040c6574b621a2e49a791b8bf285fc4960ccdee3318df4ac4577dc801",
+  "currentMarkerSHA256": "916255118823ed8d2764c333b4d135d0b0278b3b0edba2a38d48762ceaf2d4f3",
+  "generatedInputsBefore": 372,
+  "generatedInputsAfter": 377,
+  "all377ActualGeneratedInputsRehashed": true,
+  "changedProductInputs": 12,
+  "newProductInputs": 5,
+  "beforeFilesPreserved": 7,
+  "compiledNativeAuditInputsUnchanged": 14,
+  "publicPodInputsUnchanged": 3,
+  "rawRecords": {
+    "allocation.json": {
+      "bytes": 1399,
+      "sha256": "80bbf15663042fbc2e34f852be86884d6deae0966b52ed0ba819067eae7bd947"
+    },
+    "base-marker.json": {
+      "bytes": 112892,
+      "sha256": "dee6cc6040c6574b621a2e49a791b8bf285fc4960ccdee3318df4ac4577dc801"
+    },
+    "before/src/components/RssFeed.tsx": {
+      "bytes": 13892,
+      "sha256": "bc8cf9edf9403ecaf8164efa0d4cd567e7fcc6795832c10e4a3770a26d1b4c36"
+    },
+    "before/src/components/SourceRing.tsx": {
+      "bytes": 2218,
+      "sha256": "df784b9e982adbd3985f8311cadc79e957e7dff1daace8633be52939c3b159c0"
+    },
+    "before/src/data/cache.ts": {
+      "bytes": 3173,
+      "sha256": "32c4d10b353fa2d7a1cddeb8c96303a4606b5da874a888d9a983c90d19c27106"
+    },
+    "before/src/reader/ImageGallery.tsx": {
+      "bytes": 7676,
+      "sha256": "bd7aa29c82e308eea81c0907fb923e1913a23c176e0382081a350d6b87b3ac4f"
+    },
+    "before/src/runtime.tsx": {
+      "bytes": 10823,
+      "sha256": "18b4a75beace74f8ea86b8d4b92af20cd768b57b7396cd4ce90fd9dbe075f439"
+    },
+    "before/src/screens/LibraryScreen.tsx": {
+      "bytes": 26953,
+      "sha256": "6476a6135fba762f74187428a4c405f011e223f3ea1a6e6f9b7d8d9756f0d651"
+    },
+    "before/src/screens/ReaderScreen.tsx": {
+      "bytes": 59261,
+      "sha256": "7103eb8e074b055a7e78690bdd62e6cc4d92622a6cde89c726623a0192c02805"
+    },
+    "current-marker.json": {
+      "bytes": 114339,
+      "sha256": "916255118823ed8d2764c333b4d135d0b0278b3b0edba2a38d48762ceaf2d4f3"
+    },
+    "owner.json": {
+      "bytes": 413,
+      "sha256": "b70a0359f7a2da4ced6369dc7c0df9defbaf8e1a46a99cf6c30d1ad94c886786"
+    },
+    "report.json": {
+      "bytes": 6240,
+      "sha256": "f3f7d9b95148ea83713040293c8b282404d666ff8edf438cf188d6ab7d1948be"
+    }
+  },
+  "actualExecutorReportSHA256": "f3f7d9b95148ea83713040293c8b282404d666ff8edf438cf188d6ab7d1948be",
+  "hostBytesWrittenByExecutor": 612012,
+  "executorElapsedSeconds": 0.196879375,
+  "freeBytesAfterArchive": 4592304128,
+  "scope": {
+    "stageFrozen": true,
+    "metroStartedOrReloaded": false,
+    "deviceCalls": false,
+    "nativeBuild": false,
+    "nativeAcceptance": false,
+    "googleAcceptance": false,
+    "productionSourceChanged": false,
+    "specOrCoverageChanged": false
+  },
+  "limitations": [
+    "Google window was released after a failed D8 output-limit attempt; no Google runtime result is inferred.",
+    "The retained native executable and Pods ancestry are unchanged. Pending Android paragraph/native platform deltas were not copied or compiled.",
+    "No application execution or new native visual/interaction acceptance occurred."
+  ],
+  "toolResults": {
+    "precheck-tool-result.json": "9b657d6f8e58a7a7a48f4bad2b812617d0a872fead73b1d0fdb56bc2581b4e21",
+    "apply-tool-result.json": "92bf357c64cd956d0f02197b16dd646ff1d8987fb8e1c370ff16e6b0aefbf3cc"
+  }
+}

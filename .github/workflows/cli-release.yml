@@ -2,24 +2,49 @@ name: CLI release
 
 on:
   push:
-    tags:
-      - 'cli-v*'
+    branches:
+      - dev
+      - beta
+      - main
 
 permissions:
   contents: read
 
 concurrency:
-  group: cli-npm-release
+  group: cli-release-${{ github.ref }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
-  build:
+  detect:
     if: github.repository == 'slax-lab/slax-reader'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 5
+    outputs:
+      eligible: ${{ steps.release.outputs.eligible }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.15.0'
+      - id: release
+        run: node tooling/cli-release.mjs detect
+
+  build:
+    needs: detect
+    if: needs.detect.outputs.eligible == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      artifact_id: ${{ steps.release_artifact.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -28,21 +53,47 @@ jobs:
       - run: node tooling/cli-release.mjs preflight
       - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
-      - run: pnpm cli -- build
-      - run: node tooling/cli-release.mjs prepare "$RUNNER_TEMP/cli-release"
+      - name: Build and pack the derived release version
+        run: node tooling/cli-release.mjs prepare "$RUNNER_TEMP/cli-release"
       - name: Verify the exact release archive
-        run: |
-          archive=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const dir=process.env.RUNNER_TEMP+"/cli-release"; console.log(dir+"/"+JSON.parse(readFileSync(dir+"/release.json","utf8")).filename)')
-          pnpm cli -- test:package "$archive"
+        run: node tooling/cli-release.mjs smoke "$RUNNER_TEMP/cli-release"
       - uses: actions/upload-artifact@v4
+        id: release_artifact
         with:
-          name: cli-release-${{ github.sha }}
+          name: cli-release-${{ github.sha }}-${{ github.ref_name }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/cli-release/
           if-no-files-found: error
           retention-days: 30
 
+  preview:
+    needs: build
+    if: github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/beta'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.15.0'
+      - uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/cli-release
+      - name: Tag and upload GitHub Pre-Release
+        run: node tooling/cli-release.mjs preview "$RUNNER_TEMP/cli-release"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   publish:
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -51,6 +102,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -61,9 +113,10 @@ jobs:
         run: npm install --global npm@12.2.0 --ignore-scripts
       - uses: actions/download-artifact@v4
         with:
-          name: cli-release-${{ github.sha }}
+          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          merge-multiple: true
           path: ${{ runner.temp }}/cli-release
-      - name: Publish npm package and GitHub Release
+      - name: Tag and publish npm package and GitHub Release
         run: node tooling/cli-release.mjs publish "$RUNNER_TEMP/cli-release"
         env:
           GH_TOKEN: ${{ github.token }}

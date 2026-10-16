@@ -1,0 +1,15 @@
+{
+  "command": "pod",
+  "args": [
+    "install",
+    "--deployment"
+  ],
+  "exitCode": 0,
+  "stopped": null,
+  "durationMs": 26820,
+  "lastSample": {
+    "at": 1791669087795,
+    "freeBytes": 7233306624,
+    "ownedBytes": 35379
+  }
+}

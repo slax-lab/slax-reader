@@ -1,0 +1,41 @@
+{
+  "kind": "fresh-source-shell-host-preparation-results",
+  "version": 1,
+  "scope": "Host guards and default read-only public input admission only. No native compiler, signing, device, database, Metro or cleanup actions.",
+  "commands": [
+    {
+      "name": "guards",
+      "argv": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/fresh-shell/guards.test.py",
+        "-v"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.25460666699999995,
+      "stdoutBytes": 0,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrBytes": 1592,
+      "stderrSHA256": "74363e63285dbd3efe1a937cbba94ffc3027f000f1bb746da210acde459b07e7"
+    },
+    {
+      "name": "readonly-admission",
+      "argv": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/fresh-shell/build.py"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.5254865839999999,
+      "stdoutBytes": 171,
+      "stdoutSHA256": "e3adbaa8e526274e4a714a819d5ccdcb82cb7be84ae12485b9cc595d174e0840",
+      "stderrBytes": 0,
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "nativeCompilerCommands": 0,
+  "signingCommands": 0,
+  "deviceCommands": 0,
+  "databaseQueries": 0,
+  "guardsPassed": 16,
+  "guardsFailed": 0,
+  "guardsSkipped": 0
+}

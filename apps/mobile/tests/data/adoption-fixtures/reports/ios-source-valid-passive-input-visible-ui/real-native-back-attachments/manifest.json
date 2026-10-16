@@ -1,0 +1,161 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "4FF450FA-BC91-457C-AE34-1418EE966EC2.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "App UI hierarchy for app.slax_0_EE42FDE7-0C01-4828-870C-56BE1A306D6F.reader",
+        "timestamp" : 1791664389.388
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "0113ADA3-3E86-4266-8CC0-3E99962A35BD",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-10-11 at 04.33.09 上午",
+        "timestamp" : 1791664389.388
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "21229979-76C5-43BE-8F8D-7EC0CF74B3BF.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Controlled actual service offline edit\" Button`_0_96143270-0FC7-4A24-9639-C10862265C0F.txt",
+        "timestamp" : 1791664389.299
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "E33DE0EF-B293-417F-865C-1B789A174ABB.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Controlled actual service offline edit\" Button`_0_C8994AAA-9E1B-45D2-81BB-25950CC56CB3.txt",
+        "timestamp" : 1791664388.31
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "33C64EDA-4A12-4B24-8A79-07A3948CC86A.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Controlled actual service offline edit\" Button`_0_520BF556-9E3B-472E-B463-2EF8777D3DD1.txt",
+        "timestamp" : 1791664387.302
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "E1152878-EB6F-4194-840D-8E87F9834373.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Controlled actual service offline edit\" Button`_0_A3FD82D7-72D1-4EA3-88EA-F4E25A218AA5.txt",
+        "timestamp" : 1791664386.385
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "9723AF5F-020C-48F1-9053-AA96E9D624B0.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Controlled actual service offline edit\" Button`_0_89288F9A-311E-468C-8C0D-4E33C37C32B6.txt",
+        "timestamp" : 1791664385.346
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "FC79A844-4E61-4266-8436-CD1AD3421059.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Controlled actual service offline edit\" Button`_0_FACA2935-9AD2-45EB-98BC-5E4AA8A4AEB4.txt",
+        "timestamp" : 1791664384.331
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "501E1BDD-22FA-4BA9-B0C0-00DD6A2744AD.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Controlled actual service offline edit\" Button`_0_E9F33202-86E8-4F07-B420-A20625529C28.txt",
+        "timestamp" : 1791664383.319
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "23A5078C-BA42-41BF-9A8E-A0C99A0347A4.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Controlled actual service offline edit\" Button`_0_AC26C136-BA58-49E7-A624-8F69B4B687F1.txt",
+        "timestamp" : 1791664382.315
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "FFC32F4C-809F-4371-8D36-D331EF14C58A.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Controlled actual service offline edit\" Button`_0_33589BEF-9088-4D23-8C77-AF2C275504C5.txt",
+        "timestamp" : 1791664381.38
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "9CCD7F24-5839-458A-BCEE-993262B65892.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Controlled actual service offline edit\" Button`_0_D2661BBE-7624-4B79-9EC0-9547913F3EE1.txt",
+        "timestamp" : 1791664380.369
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "1C508BF0-77A3-433B-A042-2EAB0548F7DA",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-10-11 at 04.32.58 上午",
+        "timestamp" : 1791664378.017
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "A4863166-37DB-41D5-A8A6-97F5349A2584",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-10-11 at 04.32.58 上午",
+        "timestamp" : 1791664378.313
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "26D8B968-472D-43D5-939A-B81A0C8AB647.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-loaded-reader-before-native-back-native-tree_0_2B0C1C01-22FF-4768-BC89-489EC10031D5.txt",
+        "timestamp" : 1791664377.954
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "17A6283A-B17B-4D62-A486-F0502EA355EB.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-loaded-reader-before-native-back_0_BB7B5308-27D3-4E33-99E0-DD77C9240F52.png",
+        "timestamp" : 1791664377.163
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "61138550-D498-41E5-B182-940EA0793CB0.mp4",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Screen Recording 2026-10-11 at 04.32.56 上午.mp4",
+        "timestamp" : 1791664376.917
+      }
+    ],
+    "testIdentifier" : "UpgradeVisibleControl/testNativeBackFromLoadedReader()",
+    "testIdentifierURL" : "test://com.apple.xcode/UpgradeVisibleControl/UpgradeVisibleControl/UpgradeVisibleControl/testNativeBackFromLoadedReader"
+  }
+]

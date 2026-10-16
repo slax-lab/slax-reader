@@ -1,0 +1,50 @@
+{
+  "kind": "cross-paragraph-bitmap-only-runtime-policy",
+  "version": 2,
+  "openSpecChange": "expo-mobile-migration",
+  "status": "prepared-only-no-native-test",
+  "basePlanSHA256": "bac663b00c3737a9fed4cedfdcd703256a3e43790f48797c1d45e263fed7a280",
+  "runRoot": "/private/tmp/slax-reader-cross-bitmap-run-3abcabe0aa6046fa986950d38ce5cea8",
+  "allocationPath": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r2/root-one-native-allocation.json",
+  "limits": {
+    "preFreeBytes": 3865470566,
+    "floorBytes": 3221225472,
+    "allDistinctNewLogicalAndAllocatedCapBytes": 134217728,
+    "combinedLogCapBytes": 8388608,
+    "totalWindowSeconds": 120,
+    "nativeTestTimeoutSeconds": 45,
+    "releaseReserveSeconds": 30,
+    "receiptReserveBytes": 1048576
+  },
+  "publicInputs": [
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/run-bitmap-only.py",
+      "bytes": 23883,
+      "sha256": "4a62ae0ed3608833acd73f921a3199df394fd2932e865fc8c32a89ac284f2952"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/bitmap-runtime-guards.test.py",
+      "bytes": 10455,
+      "sha256": "2679ddba91114b22ce6ee1477cacc34c173cac9d0009a0265067f3fbd44da288"
+    },
+    {
+      "path": "/usr/bin/xcrun",
+      "bytes": 117392,
+      "sha256": "a439970aea2b4e435eac6518ff62c97fd1c57d8c731974027ad211b515c7a7b8"
+    },
+    {
+      "path": "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+      "bytes": 100528,
+      "sha256": "d508f0e1901151843804e4af512d4587ad0e422039e43e14abf22792360ad3d4"
+    }
+  ],
+  "conditions": {
+    "time": "09:41",
+    "appearance": "light",
+    "contentSize": "large"
+  },
+  "installedAccounting": "Record the pre-attempt Bundle/Data Application container names and identity metadata only. Count all new helper Bundle/Data roots, including partially installed roots before identity metadata appears. Reject other identified new containers, pre-existing helper identities, nonregular/symlink entries and an unidentified final root. No AppGroups or pre-existing application contents are read. Simulator system boot space is recorded through actual free-space samples and is never guessed as helper allocation.",
+  "rawVerdict": "Exit0 and raw test-result export are captured; independent review of the exact bitmap selector1pass/0fail/0skip is mandatory. This executor never marks acceptance or coverage.",
+  "noMutationInReadonlyMode": true,
+  "noCompilerProductCopyDuringPreparation": true
+}

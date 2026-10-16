@@ -1,0 +1,118 @@
+{
+  "kind": "slax-controlled-source-valid-legacy-producer-builds",
+  "version": 2,
+  "status": "built",
+  "capturedAt": "2026-10-10T19:37:22.029Z",
+  "inputsSHA256": "bd660fd48fbdecd7c9eb599ce701281fdf6c6ff78d716cab945cdcfc0d59d110",
+  "generatorSHA256": "f6a629dbd4ab367874c7df778f41c418f5ace8e7162fab33286b2e6fda21b2b3",
+  "declaredOldSdk": "powersync-kotlin-1.14.1",
+  "declaredAndroidXDataStore": "1.2.1",
+  "nativeBuilds": {
+    "ios": {
+      "projectRoot": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-legacy-producer-4SF3t7",
+      "artifact": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-legacy-producer-4SF3t7/build/SlaxLegacyFixture.app/SlaxLegacyFixture",
+      "artifactSHA256": "6f746ea7d0394d5c7215ce4500cbd0942b12eb7d17df28fd06847fd0d9c14d07",
+      "buildLogSHA256": "07a78b926fef7f96a8b3b2bf188b8e239aa5a00633ae5b0937c9620662cde2ee",
+      "publicInputManifest": [
+        {
+          "path": "Info.plist",
+          "sha256": "a019feee47f4e400cd6a0a13f6bd4d0626d142a27ac4352e8e6341c11984ad29"
+        },
+        {
+          "path": "LegacyFixtureApp.swift",
+          "sha256": "5c800377a5b57e61507ee6b1662abd7dc0b2cb0767bc55e7da1b7c2ed871458b"
+        },
+        {
+          "path": "SlaxLegacyFixture.entitlements",
+          "sha256": "d30603c544890246eb9edf9015e2ee93cbe2303e6f804ac6fc61432ace1b0611"
+        },
+        {
+          "path": "build-app.mjs",
+          "sha256": "21788c1ceee22416a4a2013d17a78a4b35e4f51ba2862b46bf3e3cbfc6090b77"
+        },
+        {
+          "path": "build.gradle.kts",
+          "sha256": "b8753b71b9fdb42e119329556efe1d2fc6381abc7de56b060de788c9395c256b"
+        },
+        {
+          "path": "gradle.properties",
+          "sha256": "97dc787aa523ed89f558fc9e45a875847de881ca5f6bc197c3abc77fcccd3991"
+        },
+        {
+          "path": "settings.gradle.kts",
+          "sha256": "8e2e86f538d2106abc34e772224439a47107f898410bc3614d490b8f64c81f97"
+        },
+        {
+          "path": "src/commonMain/kotlin/com/slax/reader/data/database/Schema.kt",
+          "sha256": "344a7bcc6901c7d3b22052278bcc326bc1f84930bb65a7fb9d2efb7a61042cd5"
+        },
+        {
+          "path": "src/iosSimulatorArm64Main/kotlin/LegacyFixtureProducer.kt",
+          "sha256": "cbf74ecbd15de6e664bbd570c2805923e69a60ac8087502edf9b6e685b8487df"
+        },
+        {
+          "path": "visible-legacy-inputs.json",
+          "sha256": "bd660fd48fbdecd7c9eb599ce701281fdf6c6ff78d716cab945cdcfc0d59d110"
+        }
+      ],
+      "publisherSigned": false,
+      "simulatorOrDebugOnly": true,
+      "workers": 1,
+      "heapGiB": 1,
+      "gradle": "8.14.3",
+      "java": "17"
+    },
+    "android": {
+      "projectRoot": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-legacy-producer-1Yq5l0",
+      "artifact": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-legacy-producer-1Yq5l0/build/outputs/apk/debug/slax-android-legacy-fixture-debug.apk",
+      "artifactSHA256": "625d07e102e5c97bf27c1261c9a175749645b136cb70d5848619cc8e60783b61",
+      "buildLogSHA256": "1b3f3802c4fe804c7166c9da3d141845b35c952e7cb612d1b42fb0c7ad26c9c7",
+      "publicInputManifest": [
+        {
+          "path": "build.gradle.kts",
+          "sha256": "7059f4e70c890f2a001299d71b7d144908ba62e63045ebfd27bd5a0bdadda7d0"
+        },
+        {
+          "path": "gradle.properties",
+          "sha256": "97dc787aa523ed89f558fc9e45a875847de881ca5f6bc197c3abc77fcccd3991"
+        },
+        {
+          "path": "settings.gradle.kts",
+          "sha256": "6cc1b7088548bb7d46cf2f60d4cf5f534be023129557c9d825cd1486b327c7c3"
+        },
+        {
+          "path": "src/main/AndroidManifest.xml",
+          "sha256": "e2f3e78439897d353300d350be3907074f9d4707725ba1f89322ebbdfa4292c9"
+        },
+        {
+          "path": "src/main/java/com/slax/reader/LegacyFixtureActivity.kt",
+          "sha256": "fa4d9189001cbfcbd3c6477d8e0e5621985bf79d2be3aef6b608402aae06645a"
+        },
+        {
+          "path": "src/main/java/com/slax/reader/data/database/Schema.kt",
+          "sha256": "344a7bcc6901c7d3b22052278bcc326bc1f84930bb65a7fb9d2efb7a61042cd5"
+        },
+        {
+          "path": "visible-legacy-inputs.json",
+          "sha256": "bd660fd48fbdecd7c9eb599ce701281fdf6c6ff78d716cab945cdcfc0d59d110"
+        }
+      ],
+      "publisherSigned": false,
+      "simulatorOrDebugOnly": true,
+      "workers": 1,
+      "heapGiB": 1,
+      "gradle": "8.14.3",
+      "java": "17"
+    }
+  },
+  "hostChecks": {
+    "count": 8,
+    "passed": 8,
+    "skipped": 0
+  },
+  "nativeProducerExecuted": false,
+  "visibleUiAcceptance": false,
+  "publisherSigning": false,
+  "testFlightUpload": false,
+  "priorFailedProducerPreserved": true
+}

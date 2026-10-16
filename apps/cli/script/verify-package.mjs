@@ -4,12 +4,14 @@ import { mkdtemp, mkdir, readFile, readdir, realpath, rm, writeFile } from 'node
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { fixture, execute, apiKey, version } from '../test/helpers.mjs'
+import { fixture, execute, apiKey, version as sourceVersion } from '../test/helpers.mjs'
 
 const app = fileURLToPath(new URL('../', import.meta.url))
 const root = resolve(app, '../..')
 const temporary = await mkdtemp(join(tmpdir(), 'slax-cli-consumer-'))
 const cleanups = []
+const version = process.argv[3] || sourceVersion
+assert.match(version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:dev|beta))?$/)
 try {
   const artifacts = join(temporary, 'artifacts')
   await mkdir(artifacts)

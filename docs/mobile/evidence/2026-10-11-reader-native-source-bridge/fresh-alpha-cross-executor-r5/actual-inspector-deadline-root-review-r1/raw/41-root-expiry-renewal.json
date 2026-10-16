@@ -1,0 +1,10 @@
+{
+  "kind": "root-unconsumed-alpha-expiry-renewal",
+  "version": 1,
+  "oldAllocationSHA256": "bee40160271f6f486a73c07cb07bc92db71280f53dcd34c824d0446145f1cf99",
+  "newAllocationSHA256": "f7167db48a99772870b83dac80f00556420edd9993784b1b62bb1451e6d30929",
+  "previousRunRootAbsent": true,
+  "nativeAttemptPreviouslyIssued": false,
+  "sameFrozenExecutorAndScope": true,
+  "renewedAtUnixSeconds": 1791685866.71503
+}

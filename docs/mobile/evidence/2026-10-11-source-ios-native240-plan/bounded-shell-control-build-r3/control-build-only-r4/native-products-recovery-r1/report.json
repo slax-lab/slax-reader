@@ -1,0 +1,314 @@
+{
+  "kind": "source-native-scroll-control-actual-product-recovery",
+  "version": 1,
+  "openSpecChange": "expo-mobile-migration",
+  "status": "actual-control-build-command-pass-products-recovered-original-postassertion-failure-preserved",
+  "observedAtUTC": "2026-10-11T00:47:27.027281+00:00",
+  "actualRoot": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47",
+  "preparedOnlyRecoveryNoNativeCommand": true,
+  "nativeCommandActualExitCode": 0,
+  "nativeCommandActualStopped": null,
+  "actualTerminalMarker": "** TEST BUILD SUCCEEDED **",
+  "originalExecutorResult": "failed-post-build-thin-runner-assertion",
+  "oldFailurePreserved": {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/failure.json",
+    "bytes": 2548,
+    "mode": 420,
+    "allocatedBytes": 4096,
+    "mtimeNs": 1791679427136107805,
+    "sha256": "91971c2cfa95b91beadd94f21075b7fec78697ab5928573602a663d9968de712",
+    "archive": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/control-build-only-r4/native-products-recovery-r1/raw/failure.json"
+  },
+  "actualRawArtifacts": [
+    {
+      "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/failure.json",
+      "bytes": 2548,
+      "mode": 420,
+      "allocatedBytes": 4096,
+      "mtimeNs": 1791679427136107805,
+      "sha256": "91971c2cfa95b91beadd94f21075b7fec78697ab5928573602a663d9968de712",
+      "archive": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/control-build-only-r4/native-products-recovery-r1/raw/failure.json"
+    },
+    {
+      "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/owner.json",
+      "bytes": 1565,
+      "mode": 420,
+      "allocatedBytes": 4096,
+      "mtimeNs": 1791679406684787731,
+      "sha256": "f70b7a77c202e7a6d6a5d93adec577c0bba1bcf28f77043d58669cc603b586e1",
+      "archive": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/control-build-only-r4/native-products-recovery-r1/raw/owner.json"
+    },
+    {
+      "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/build-native-scroll-control-only.stdout",
+      "bytes": 134759,
+      "mode": 420,
+      "allocatedBytes": 135168,
+      "mtimeNs": 1791679416834069391,
+      "sha256": "2e946d8272962961fb6aef27ff409c5c4c86b1640b7db4f987c23308f98b09dc",
+      "archive": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/control-build-only-r4/native-products-recovery-r1/raw/build-native-scroll-control-only.stdout"
+    },
+    {
+      "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/build-native-scroll-control-only.stderr",
+      "bytes": 0,
+      "mode": 420,
+      "allocatedBytes": 0,
+      "mtimeNs": 1791679416834162140,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archive": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/control-build-only-r4/native-products-recovery-r1/raw/build-native-scroll-control-only.stderr"
+    },
+    {
+      "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/SourceFixtureControl_iphonesimulator26.5-arm64.xctestrun",
+      "bytes": 4818,
+      "mode": 420,
+      "allocatedBytes": 8192,
+      "mtimeNs": 1791679416808897286,
+      "sha256": "89c7581f035a6456575a020c9b83c0d0ae6b9884a882db5e432fb8990480dc7f",
+      "archive": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/control-build-only-r4/native-products-recovery-r1/raw/SourceFixtureControl_iphonesimulator26.5-arm64.xctestrun"
+    }
+  ],
+  "actualBoundedLogProvenance": [
+    {
+      "line": 259,
+      "text": "SwiftCompile normal arm64 /tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/control/ControlHost.swift (in target 'ControlHost' from project 'SourceFixtureControl')"
+    },
+    {
+      "line": 265,
+      "text": "SwiftCompile normal arm64 /tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/control/ControlHost.swift (in target 'ControlHost' from project 'SourceFixtureControl')"
+    },
+    {
+      "line": 427,
+      "text": "SwiftCompile normal arm64 /tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/control/SourceFixtureControl.swift (in target 'SourceFixtureControl' from project 'SourceFixtureControl')"
+    },
+    {
+      "line": 441,
+      "text": "SwiftCompile normal arm64 /tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/control/SourceFixtureNativeScrollControl.swift (in target 'SourceFixtureControl' from project 'SourceFixtureControl')"
+    },
+    {
+      "line": 507,
+      "text": "    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/lipo /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Xcode/Agents/XCTRunner.app/XCTRunner -output /tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/SourceFixtureControl-Runner -extract arm64"
+    },
+    {
+      "line": 561,
+      "text": "** TEST BUILD SUCCEEDED **"
+    }
+  ],
+  "actualNativeMachOs": [
+    {
+      "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/ControlHost.app/ControlHost",
+      "bytes": 75688,
+      "mode": 493,
+      "allocatedBytes": 77824,
+      "mtimeNs": 1791679414435487987,
+      "sha256": "8dd33f77d2460f15b756633fb56d844806798f3ebc80ad8cc60c8a5a9522f9c0",
+      "container": "thin64",
+      "magic": "0xfeedfacf",
+      "cpuType": 16777228,
+      "cpuSubtype": 0
+    },
+    {
+      "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/PlugIns/SourceFixtureControl.xctest/SourceFixtureControl",
+      "bytes": 115928,
+      "mode": 493,
+      "allocatedBytes": 118784,
+      "mtimeNs": 1791679416599275034,
+      "sha256": "317e67f7e876874f80114777af6cca2b7781de7d85157ffd51491482fcfb0dca",
+      "container": "thin64",
+      "magic": "0xfeedfacf",
+      "cpuType": 16777228,
+      "cpuSubtype": 0
+    },
+    {
+      "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/SourceFixtureControl-Runner",
+      "bytes": 113616,
+      "mode": 493,
+      "allocatedBytes": 114688,
+      "mtimeNs": 1791679416696253221,
+      "sha256": "7e36729d4fbf984e023e98952e7a2b878c735240c41c14f1f8a6b1544b20d233",
+      "container": "FAT32",
+      "magic": "0xcafebabe",
+      "numberOfSlices": 1,
+      "cpuType": 16777228,
+      "cpuSubtype": 0,
+      "sliceOffset": 16384,
+      "sliceBytes": 97232,
+      "alignmentPower": 14,
+      "sliceEndsAtEOF": true,
+      "innerMagic": "0xfeedfacf",
+      "sliceSHA256": "f65a42300d12f70f7a7918c7e21bd819a0ce055418822ed7c6ab60a50bda9b46",
+      "sdkSource": {
+        "path": "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Xcode/Agents/XCTRunner.app/XCTRunner",
+        "bytes": 179152,
+        "mode": 493,
+        "allocatedBytes": 36864,
+        "mtimeNs": 1781596637000000000,
+        "sha256": "0b2b1d93c8be1d082aaa2339d0f6f2e39784512a88fad696db667b4a7ab680e9"
+      },
+      "sdkArm64SliceOffset": 81920,
+      "sdkArm64SliceBytes": 97232,
+      "sdkArm64SliceByteIdentical": true,
+      "generalArchitectureWaiver": false
+    }
+  ],
+  "actualIdentities": [
+    {
+      "identity": "app.slax.reader.sourcefixture.controlhost",
+      "actualInfo": {
+        "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/ControlHost.app/Info.plist",
+        "bytes": 762,
+        "mode": 420,
+        "allocatedBytes": 4096,
+        "mtimeNs": 1791679409465760594,
+        "sha256": "3c8a48776172856ec2402968212febf84edb87a1f2cad31561019f8c597e460d"
+      },
+      "platform": "iphonesimulator"
+    },
+    {
+      "identity": "app.slax.reader.sourcefixture.control.xctrunner",
+      "actualInfo": {
+        "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Info.plist",
+        "bytes": 8362,
+        "mode": 420,
+        "allocatedBytes": 12288,
+        "mtimeNs": 1791679416693682802,
+        "sha256": "255046e606a18faee6ffd1b01ee810bfe43a505c7f7871f97f0418b8f4d1a876"
+      },
+      "platform": "iphonesimulator"
+    },
+    {
+      "identity": "app.slax.reader.sourcefixture.control",
+      "actualInfo": {
+        "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/PlugIns/SourceFixtureControl.xctest/Info.plist",
+        "bytes": 725,
+        "mode": 420,
+        "allocatedBytes": 4096,
+        "mtimeNs": 1791679414586959818,
+        "sha256": "7370225a4471893fae090abf85b971bd0b6c3215f8fa5f234bcd333424872ba5"
+      },
+      "platform": "iphonesimulator"
+    }
+  ],
+  "actualXctestrun": {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/SourceFixtureControl_iphonesimulator26.5-arm64.xctestrun",
+    "bytes": 4818,
+    "mode": 420,
+    "allocatedBytes": 8192,
+    "mtimeNs": 1791679416808897286,
+    "sha256": "89c7581f035a6456575a020c9b83c0d0ae6b9884a882db5e432fb8990480dc7f",
+    "formatVersion": 1,
+    "module": "SourceFixtureControl",
+    "targetConfiguration": {
+      "BlueprintName": "SourceFixtureControl",
+      "BlueprintProviderName": "SourceFixtureControl",
+      "BlueprintProviderRelativePath": "SourceFixtureControl.xcodeproj",
+      "BundleIdentifiersForCrashReportEmphasis": [
+        "app.slax.reader.sourcefixture.control",
+        "app.slax.reader.sourcefixture.controlhost"
+      ],
+      "CommandLineArguments": [],
+      "DefaultTestExecutionTimeAllowance": 600,
+      "DependentProductPaths": [
+        "__TESTROOT__/Debug-iphonesimulator/ControlHost.app",
+        "__TESTROOT__/Debug-iphonesimulator/SourceFixtureControl-Runner.app",
+        "__TESTROOT__/Debug-iphonesimulator/SourceFixtureControl-Runner.app/PlugIns/SourceFixtureControl.xctest"
+      ],
+      "DiagnosticCollectionPolicy": 1,
+      "EnvironmentVariables": {
+        "APP_DISTRIBUTOR_ID_OVERRIDE": "com.apple.AppStore",
+        "DYLD_INSERT_LIBRARIES": "/usr/lib/libRPAC.dylib",
+        "OS_ACTIVITY_DT_MODE": "YES",
+        "PERFC_ENABLE_EXTENDED_DIAGNOSTIC_FORMAT": "1",
+        "PERFC_ENABLE_PROFILE_MODE": "1",
+        "PERFC_RESET_INSERT_LIBRARIES": "1",
+        "PERFC_SUPPRESS_SYSTEM_REPORTS": "1",
+        "SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
+        "TERM": "dumb"
+      },
+      "IsUITestBundle": true,
+      "IsXCTRunnerHostedTestBundle": true,
+      "PreferredScreenCaptureFormat": "screenRecording",
+      "ProductModuleName": "SourceFixtureControl",
+      "RunOrder": 0,
+      "SystemAttachmentLifetime": "deleteOnSuccess",
+      "TestBundlePath": "__TESTHOST__/PlugIns/SourceFixtureControl.xctest",
+      "TestHostBundleIdentifier": "app.slax.reader.sourcefixture.control.xctrunner",
+      "TestHostPath": "__TESTROOT__/Debug-iphonesimulator/SourceFixtureControl-Runner.app",
+      "TestLanguage": "",
+      "TestRegion": "",
+      "TestTimeoutsEnabled": false,
+      "TestingEnvironmentVariables": {
+        "DYLD_FRAMEWORK_PATH": "__TESTROOT__/Debug-iphonesimulator:__PLATFORMS__/iPhoneSimulator.platform/Developer/Library/Frameworks",
+        "DYLD_INSERT_LIBRARIES": "/usr/lib/libRPAC.dylib",
+        "DYLD_LIBRARY_PATH": "__TESTROOT__/Debug-iphonesimulator:__PLATFORMS__/iPhoneSimulator.platform/Developer/usr/lib",
+        "PERFC_SUPPRESS_SYSTEM_REPORTS": "1",
+        "XCODE_SCHEME_NAME": "SourceFixtureControl",
+        "__XCODE_BUILT_PRODUCTS_DIR_PATHS": "__TESTROOT__/Debug-iphonesimulator",
+        "__XPC_DYLD_FRAMEWORK_PATH": "__TESTROOT__/Debug-iphonesimulator",
+        "__XPC_DYLD_LIBRARY_PATH": "__TESTROOT__/Debug-iphonesimulator"
+      },
+      "ToolchainsSettingValue": [],
+      "UITargetAppCommandLineArguments": [],
+      "UITargetAppEnvironmentVariables": {
+        "APP_DISTRIBUTOR_ID_OVERRIDE": "com.apple.AppStore",
+        "DYLD_FRAMEWORK_PATH": "__TESTROOT__/Debug-iphonesimulator",
+        "DYLD_LIBRARY_PATH": "__TESTROOT__/Debug-iphonesimulator",
+        "XCODE_SCHEME_NAME": "SourceFixtureControl",
+        "__XCODE_BUILT_PRODUCTS_DIR_PATHS": "__TESTROOT__/Debug-iphonesimulator",
+        "__XPC_DYLD_FRAMEWORK_PATH": "__TESTROOT__/Debug-iphonesimulator",
+        "__XPC_DYLD_LIBRARY_PATH": "__TESTROOT__/Debug-iphonesimulator"
+      },
+      "UITargetAppPath": "__TESTROOT__/Debug-iphonesimulator/ControlHost.app",
+      "UITargetAppPerformanceAntipatternCheckerEnabled": true,
+      "UserAttachmentLifetime": "deleteOnSuccess"
+    }
+  },
+  "compiledProducts": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/control-build-only-r4/native-products-recovery-r1/compiled-products.json",
+    "bytes": 26925,
+    "mode": 420,
+    "allocatedBytes": 28672,
+    "mtimeNs": 1791679647021437454,
+    "sha256": "6ea6b9d328a8897eda2625ba67ac24ca9b1a9c4a64e89368ba1ca7941bd44876"
+  },
+  "retainedBasisVerification": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/control-build-only-r4/native-products-recovery-r1/retained-basis-verification.json",
+    "bytes": 109482,
+    "mode": 420,
+    "allocatedBytes": 110592,
+    "mtimeNs": 1791679647020658973,
+    "sha256": "1985c2cdffb7cb554670f03ed66b04045c4d0dd1fd9fba77563cac3b267ae086"
+  },
+  "productFiles": 52,
+  "productLogicalBytes": 21556237,
+  "resourceObservationFromActualCommand": {
+    "minimumFreeObservedBytes": 3969441792,
+    "maximumAllocatedObservedBytes": 85966848,
+    "maximumProductLogicalObservedBytes": 21556237
+  },
+  "readOnlyRevalidation": {
+    "retained113": true,
+    "signedSource109": true,
+    "currentFiveControl": true,
+    "allReferenceBindings": true,
+    "productClosedSetAndMetadataBeforeAfter": true,
+    "oldFailureUnchanged": true
+  },
+  "reviewPasses": {
+    "Bugs": "Recover only this observed exact FAT32 single arm64 Apple runner; host/test remain thin arm64. All actual products, command buffers and input copies are bound. No executor rewrite, retry or broad architecture waiver.",
+    "Security": "Only named public isolated fixture artifacts; no production identity/AppGroup, credentials, compiler, signing, device, process or cleanup invocation.",
+    "Compliance": "OpenSpec expo-mobile-migration. Completed helper compilation is distinct from native execution, source240 callback or visual/gesture acceptance."
+  },
+  "sourceRecopied": false,
+  "sourceRecompiled": false,
+  "sourceResigned": false,
+  "controlRecompiled": false,
+  "executorEdited": false,
+  "deviceCommands": false,
+  "cleanup": false,
+  "nativeReaderExecuted": false,
+  "native240Accepted": false,
+  "sourceCallbackObserved": false,
+  "nativeGestureVerified": false,
+  "nativeTestsExecuted": false,
+  "publisherArtifact": false,
+  "generalArchitectureWaiver": false
+}

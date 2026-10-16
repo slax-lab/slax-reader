@@ -1,0 +1,92 @@
+{
+  "kind": "original-source-native-initial-batch",
+  "schemaVersion": 1,
+  "appId": "com.slax.reader.fixture",
+  "testRunner": "com.slax.reader.fixture.test/com.slax.reader.fixtures.FixtureRunner",
+  "device": "emulator-5560",
+  "fontScale": 1.5,
+  "driverSha256": "1f46e72b31c5fb6d81f86631e8354280bda0b6e0f4e2a2c7f154ac6f283092df",
+  "records": [
+    {
+      "name": "settings",
+      "route": "Settings",
+      "initialOnly": true,
+      "isolatedActionIndex": null,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/settings-982fcd11-747b-476e-9ddf-5b32e4f60d4d",
+      "elapsedSeconds": 9.567,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "eac29984637ca922cdae9d4844da809bd6b03db58a1c4b4c92a6faba56c8bee1",
+      "capturedAtMillis": 1791661740075,
+      "files": [
+        {
+          "path": "settings/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "settings/00-initial.png",
+          "sha256": "df9ca9a3036fa2fd6bb9a869c9dbe108c0c7d6a33e1cb5b064faba1a96f4e6e8",
+          "bytes": 140020
+        },
+        {
+          "path": "settings/instrumentation.log",
+          "sha256": "97a50f2f0366aef06213e563557a287e1d95436289d8a201f21cd368242d3f7c",
+          "bytes": 83
+        },
+        {
+          "path": "settings/00-initial.json",
+          "sha256": "773922f1ec2a7ac759307a0f2db109a1417b69f9d0203a7d0a99afb330b79701",
+          "bytes": 2857
+        }
+      ]
+    },
+    {
+      "name": "feedback-error",
+      "route": "Feedback",
+      "initialOnly": true,
+      "isolatedActionIndex": null,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/feedback-error-b4e41d2d-05dc-44c1-93ee-481cc6a13504",
+      "elapsedSeconds": 7.362,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "eac29984637ca922cdae9d4844da809bd6b03db58a1c4b4c92a6faba56c8bee1",
+      "capturedAtMillis": 1791661747515,
+      "files": [
+        {
+          "path": "feedback-error/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "feedback-error/00-initial.png",
+          "sha256": "40877bba0da7c9403227a9dfe5f9b9745cc2d835a86e22934bc4ed1b6304f3c2",
+          "bytes": 76684
+        },
+        {
+          "path": "feedback-error/instrumentation.log",
+          "sha256": "cf0fbff3dcd9e2729d63abd28e9337e699f6e7ea274188a2fa0e245ce93ea1ca",
+          "bytes": 83
+        },
+        {
+          "path": "feedback-error/00-initial.json",
+          "sha256": "a8c2f22fbebeb2c7724950320d52ff6838866415ec86e8dfb746eb1facdd8d76",
+          "bytes": 1810
+        }
+      ]
+    }
+  ],
+  "sourceParity": "unverified",
+  "limitations": [
+    "Each original route is launched fresh with unchanged source screen code and shared synthetic inputs.",
+    "Initial-only captures execute no declared preparation action; isolated action captures execute only their recorded action index.",
+    "Compose control/DOM preparation is not a native touch/gesture acceptance record.",
+    "Native foreground checks and PNG capture do not replace visual/state inspection or target matching."
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "kind": "controlled-fixture-input-revision",
+  "version": 1,
+  "revision": "source-native-clipped-rectangle-background-u",
+  "fixtureSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "previousDriver": "target-driver-t.json",
+  "driver": "target-driver-u.json",
+  "changedFiles": [
+    {
+      "path": "modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxRingView.kt",
+      "previousSha256": "f1fd9656b97fe28f0af180f0c4cb3d741da45ac22121962b722e21c72270aa0c",
+      "sha256": "42312e968327c5ef66c845e05ab9f554fce7837c0ba8c65d09d29b1ee847dafb"
+    }
+  ],
+  "nativeAndroidChanged": true,
+  "nativeIosChanged": false
+}

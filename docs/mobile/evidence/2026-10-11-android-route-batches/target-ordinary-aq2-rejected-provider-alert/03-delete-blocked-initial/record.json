@@ -1,0 +1,65 @@
+{
+  "name": "delete-blocked-initial",
+  "result": "native-candidate-captured",
+  "expectedRoute": "DeleteAccount",
+  "observedRoute": {
+    "name": "DeleteAccount",
+    "key": "DeleteAccount-2XKflDqvvEvIIiEKQq9ln"
+  },
+  "focusedWindow": "mCurrentFocus=Window{6aacde5 u0 com.slax.reader.uifixture/com.slax.reader.uifixture.MainActivity}",
+  "nativeInput": null,
+  "nativeInteractionVerified": false,
+  "expectedNativeState": [],
+  "forbiddenNativeState": [],
+  "preparedActionIndices": null,
+  "preparationOnly": false,
+  "preparedScenario": "delete-blocked",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "nativeMeasurements": {
+    "platform": "android",
+    "osVersion": "14",
+    "deviceModel": "sdk_gphone64_arm64",
+    "viewport": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "screen": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "pixelRatio": 2.625,
+    "fontScale": 1,
+    "fontScaleProfile": "default",
+    "safeArea": {
+      "left": 0,
+      "bottom": 24,
+      "right": 0,
+      "top": 51.80952453613281
+    },
+    "appearance": "light"
+  },
+  "visualInspection": "pending",
+  "sourceParity": "unverified",
+  "capturedAtMillis": 1791660733758,
+  "files": [
+    {
+      "path": "03-delete-blocked-initial/native.png",
+      "sha256": "84cbde4ec2687fec5b2d3ce8c4676c4a4d561748e24f4dcd8d0092925ce9d837",
+      "bytes": 275624
+    },
+    {
+      "path": "03-delete-blocked-initial/runtime-context.json",
+      "sha256": "059464c9672e057911a8caad277639e9ab085ab018fa6d68e0995c54892ad437",
+      "bytes": 2348
+    },
+    {
+      "path": "03-delete-blocked-initial/native-hierarchy.xml",
+      "sha256": "c3fb31a832c95453f3555d937759d064723b170519bb176e4ddf6cb86c0ce097",
+      "bytes": 6272
+    }
+  ]
+}

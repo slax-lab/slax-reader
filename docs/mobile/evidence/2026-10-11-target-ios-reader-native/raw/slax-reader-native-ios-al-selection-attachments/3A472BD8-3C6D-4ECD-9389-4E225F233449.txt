@@ -1,0 +1,122 @@
+Application, 0x116c37ac0, pid: 86172, label: 'Slax Reader' <App element pid: 86172>
+  Window (Main), 0x116c37c00, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4506533888.4>
+    Other, 0x116c375c0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4508745728.5>
+      Other, 0x116c37e80, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4550821760.6>
+        Other, 0x116c37200, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4507145024.7>
+          Other, 0x116c37d40, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4780296704.8>
+            Other, 0x116c36300, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4779600832.9>
+              Other, 0x116c35680, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4798727680.10>
+                Other, 0x116c35a40, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4798614144.11>
+                  Other, 0x116c36080, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4798624000.13>
+                    Other, 0x116c35e00, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4507145920.15>
+                      NavigationBar, 0x116c35900, {{0.0, 62.0}, {402.0, 54.0}}, identifier: 'RNSScreen' <AX element pid: 86172, elementOrHash.elementID: 5185031936.19>
+                        Button, 0x116c35f40, {{16.0, 62.0}, {44.0, 44.0}}, identifier: 'BackButton', label: 'Library' <AX element pid: 86172, elementOrHash.elementID: 5567251136.22>
+                        Other, 0x116c35400, {{334.0, 62.0}, {48.0, 44.0}} <AX element pid: 86172, elementOrHash.elementID: 5186805184.226>
+                          Other, 0x116c35b80, {{334.0, 62.0}, {48.0, 44.0}} <AX element pid: 86172, elementOrHash.elementID: 5574914304.228>
+                      Other, 0x116c37980, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4507141888.17>
+                        Other, 0x116c357c0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 5186807424.227>
+                          Other, 0x116c35540, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4506397184.229>
+                            Other, 0x116cfde00, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 5191467776.26>
+                              Other, 0x116d40dc0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4798616832.27>
+                                Other, 0x116d403c0, {{0.0, -80.0}, {402.0, 402.0}} <AX element pid: 86172, elementOrHash.elementID: 5185028096.81>
+                                  Other, 0x116d40500, {{0.0, -80.0}, {402.0, 402.0}}, identifier: 'reader-article-header' <AX element pid: 86172, elementOrHash.elementID: 5191026176.90>
+                                  StaticText, 0x116d40640, {{20.0, 26.0}, {362.0, 90.0}}, label: 'A fixed title with English and 中文 for line wrapping, images, tables, formulas, comments and highlights' <AX element pid: 86172, elementOrHash.elementID: 5190855168.115>
+                                    StaticText, 0x116d40780, {{20.0, 26.0}, {362.0, 90.0}}, label: 'A fixed title with English and 中文 for line wrapping, images, tables, formulas, comments and highlights' <AX element pid: 86172, elementOrHash.elementID: 5681514688.233>
+                                  StaticText, 0x116d40a00, {{20.0, 128.0}, {117.0, 20.0}}, label: '2026-10-10 12:00' <AX element pid: 86172, elementOrHash.elementID: 5191176576.35>
+                                    StaticText, 0x116d408c0, {{20.0, 128.0}, {117.0, 20.0}}, label: '2026-10-10 12:00' <AX element pid: 86172, elementOrHash.elementID: 5681518288.234>
+                                  Link, 0x116d40000, {{137.0, 128.0}, {101.0, 20.0}}, label: 'View Original' <AX element pid: 86172, elementOrHash.elementID: 5190900480.30>
+                                  Other, 0x116d40140, {{20.0, 164.0}, {74.7, 22.0}}, identifier: 'tag_item' <AX element pid: 86172, elementOrHash.elementID: 5191090176.231>
+                                  StaticText, 0x116d40c80, {{27.0, 166.0}, {60.7, 18.0}}, label: 'Fixture tag' <AX element pid: 86172, elementOrHash.elementID: 5191183744.38>
+                                    StaticText, 0x116d40b40, {{27.0, 166.0}, {60.7, 18.0}}, label: 'Fixture tag' <AX element pid: 86172, elementOrHash.elementID: 5681522768.235>
+                                  Button, 0x116d42800, {{102.7, 164.0}, {21.0, 21.0}}, label: 'Tags' <AX element pid: 86172, elementOrHash.elementID: 5191026944.98>
+                                  Button, 0x116d40280, {{20.0, 206.0}, {362.0, 92.0}}, label: 'Overview: A deterministic summary of the mixed article.
+固定摘要用于核对中英文排版。 ' <AX element pid: 86172, elementOrHash.elementID: 4798739200.77>
+                                Other, 0x116db0000, {{0.0, 0.0}, {402.0, 874.0}}, identifier: 'reader-screen' <AX element pid: 86172, elementOrHash.elementID: 5190905856.130>
+                                Other, 0x116db0140, {{0.0, 0.0}, {402.0, 874.0}}, identifier: 'reader-container' <AX element pid: 86172, elementOrHash.elementID: 5191037696.103>
+                                Other, 0x116db0280, {{0.0, 0.0}, {402.0, 874.0}}, identifier: 'reader-document' <AX element pid: 86172, elementOrHash.elementID: 4798654464.230>
+                                  WebView, 0x116db03c0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4551275008.232>
+                                    WebView, 0x116db0500, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4551269888.236>
+                                      Other, 0x116db0640, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 5215396160.237>
+                                        Other, 0x116db0780, {{0.0, 0.0}, {402.0, 170.8}} <AX element pid: 86172, elementOrHash.elementID: 5567270400.240>
+                                      WebView, 0x116db08c0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4507631616.238>
+                                        Other, 0x116db0a00, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 15994588785042548360.9999>
+                                          Other, 0x116db0b40, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 92766, elementOrHash.elementID: 4379865232.3>
+                                            Other, 0x116db0c80, {{0.0, 322.0}, {402.0, 874.0}} <AX element pid: 92766, elementOrHash.elementID: 4610186720.4>
+                                              Other, 0x116db0dc0, {{0.0, 322.0}, {402.0, 1440.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610185280.5>
+                                                Other, 0x116db0f00, {{20.0, 322.0}, {362.0, 1240.0}}, label: 'A stable outline heading, 文章', Focused <AX element pid: 92766, elementOrHash.elementID: 4610187136.6>
+                                                  Other, 0x116db1040, {{20.0, 322.0}, {362.0, 28.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610187488.7>
+                                                    StaticText, 0x116db1180, {{20.0, 326.0}, {46.0, 20.0}}, label: 'Alpha', value: Alpha , Focused <AX element pid: 92766, elementOrHash.elementID: 4610189248.23>
+                                                    StaticText, 0x116db12c0, {{65.0, 326.0}, {35.0, 20.0}}, label: 'bold', value: bold, Focused <AX element pid: 92766, elementOrHash.elementID: 4610189376.24>
+                                                    StaticText, 0x116db1400, {{99.0, 326.0}, {37.0, 20.0}}, label: 'end.', value:  end., Focused <AX element pid: 92766, elementOrHash.elementID: 4610189440.25>
+                                                  Other, 0x116db1540, {{20.0, 374.0}, {362.0, 28.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610187520.8>
+                                                    StaticText, 0x116db1680, {{20.0, 378.0}, {56.0, 20.0}}, label: 'Second', value: Second, Focused <AX element pid: 92766, elementOrHash.elementID: 4610189856.26>
+                                                    StaticText, 0x116db17c0, {{75.0, 378.0}, {164.0, 20.0}}, label: 'paragraph with quote.', value:  paragraph with qu..., Focused <AX element pid: 92766, elementOrHash.elementID: 4610189920.27>
+                                                  Other, 0x116db1900, {{20.0, 426.0}, {362.0, 30.0}}, label: 'A stable outline heading', value: 2, Focused <AX element pid: 92766, elementOrHash.elementID: 4610187552.9>
+                                                    StaticText, 0x116db1a40, {{20.0, 428.0}, {221.0, 25.0}}, label: 'A stable outline heading', value: A stable outline h..., Focused <AX element pid: 92766, elementOrHash.elementID: 4610190208.28>
+                                                  Other, 0x116db1b80, {{20.0, 480.0}, {362.0, 84.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610187584.10>
+                                                    StaticText, 0x116db1cc0, {{20.0, 484.0}, {362.0, 76.0}}, label: '中文段落验证字体回退、换行与标点。Mixed English and Chinese content stays identical across both applications.', value: 中文段落验证字体回退、换行与标点。M..., Focused <AX element pid: 92766, elementOrHash.elementID: 4610190432.29>
+                                                  Other, 0x116db1e00, {{20.0, 588.0}, {362.0, 56.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610187616.11>
+                                                    Other, 0x116db1f40, {{66.0, 588.0}, {316.0, 28.0}}, label: 'One', Focused <AX element pid: 92766, elementOrHash.elementID: 4610190656.30>
+                                                      StaticText, 0x116db2080, {{66.0, 592.0}, {30.0, 20.0}}, label: 'One', value: One, Focused <AX element pid: 92766, elementOrHash.elementID: 4610195136.46>
+                                                    Other, 0x116db21c0, {{66.0, 616.0}, {316.0, 28.0}}, label: 'Two with emphasis', Focused <AX element pid: 92766, elementOrHash.elementID: 4610190688.31>
+                                                      StaticText, 0x116db2300, {{66.0, 620.0}, {69.0, 20.0}}, label: 'Two with', value: Two with , Focused <AX element pid: 92766, elementOrHash.elementID: 4610195360.47>
+                                                      StaticText, 0x116db2440, {{134.0, 620.0}, {70.0, 20.0}}, label: 'emphasis', value: emphasis, Focused <AX element pid: 92766, elementOrHash.elementID: 4610195424.48>
+                                                  Other, 0x116db2580, {{20.0, 668.0}, {362.0, 56.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610187648.12>
+                                                    Other, 0x116db26c0, {{46.0, 668.0}, {336.0, 28.0}}, label: '1. Ordered item', Focused <AX element pid: 92766, elementOrHash.elementID: 4610191040.32>
+                                                      StaticText, 0x116db2800, {{20.0, 673.0}, {8.0, 20.0}}, label: '1', Focused <AX element pid: 92766, elementOrHash.elementID: 4610191136.49>
+                                                      StaticText, 0x116db2940, {{27.0, 673.0}, {5.0, 20.0}}, label: '.', Focused <AX element pid: 92766, elementOrHash.elementID: 4610191168.50>
+                                                      StaticText, 0x116db2a80, {{46.0, 672.0}, {96.0, 20.0}}, label: 'Ordered item', value: Ordered item, Focused <AX element pid: 92766, elementOrHash.elementID: 4610167776.51>
+                                                    Other, 0x116db2bc0, {{46.0, 696.0}, {336.0, 28.0}}, label: '2. Another item', Focused <AX element pid: 92766, elementOrHash.elementID: 4610191072.33>
+                                                      StaticText, 0x116db2d00, {{20.0, 701.0}, {10.0, 20.0}}, label: '2', Focused <AX element pid: 92766, elementOrHash.elementID: 4610167296.52>
+                                                      StaticText, 0x116db2e40, {{29.0, 701.0}, {5.0, 20.0}}, label: '.', Focused <AX element pid: 92766, elementOrHash.elementID: 4610167328.53>
+                                                      StaticText, 0x116db2f80, {{46.0, 700.0}, {94.0, 20.0}}, label: 'Another item', value: Another item, Focused <AX element pid: 92766, elementOrHash.elementID: 4610167168.54>
+                                                  Other, 0x116db30c0, {{20.0, 724.0}, {362.0, 24.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610187680.13>
+                                                    StaticText, 0x116db3200, {{35.0, 726.0}, {108.0, 20.0}}, label: 'A quote with a', value: A quote with a , Focused <AX element pid: 92766, elementOrHash.elementID: 4610191456.34>
+                                                    Link, 0x116db3340, {{142.0, 726.0}, {131.0, 20.0}}, label: 'public original link', Focused <AX element pid: 92766, elementOrHash.elementID: 4610191488.35>
+                                                      StaticText, 0x116db3480, {{142.0, 726.0}, {131.0, 20.0}}, label: 'public original link', value: public original link, Focused <AX element pid: 92766, elementOrHash.elementID: 4610168096.55>
+                                                    StaticText, 0x116db35c0, {{272.0, 726.0}, {6.0, 20.0}}, label: '.', value: ., Focused <AX element pid: 92766, elementOrHash.elementID: 4610191520.36>
+                                                  Other, 0x116db3700, {{20.0, 772.0}, {362.0, 92.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610187712.14>
+                                                    Other, 0x116db3840, {{36.0, 788.0}, {330.0, 60.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610191872.37>
+                                                      StaticText, 0x116db3980, {{42.0, 794.0}, {231.0, 47.0}}, label: 'const value = 42;
+console.log(value < 50);', value: const value = 42;
+..., Focused <AX element pid: 92766, elementOrHash.elementID: 4610165472.56>
+                                                  Other, 0x116db3ac0, {{20.0, 888.0}, {220.0, 104.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610187744.15>
+                                                    Other, 0x116db3c00, {{21.0, 889.0}, {218.0, 52.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610192128.38>
+                                                      Other, 0x116db3d40, {{21.0, 889.0}, {110.0, 52.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610192160.57>
+                                                        StaticText, 0x116db3e80, {{37.0, 904.0}, {77.0, 20.0}}, label: 'Heading A', value: Heading A, Focused <AX element pid: 92766, elementOrHash.elementID: 4610170016.63>
+                                                      Other, 0x116dc0000, {{130.0, 889.0}, {109.0, 52.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610192192.58>
+                                                        StaticText, 0x116dc0140, {{146.0, 904.0}, {77.0, 20.0}}, label: 'Heading B', value: Heading B, Focused <AX element pid: 92766, elementOrHash.elementID: 4610170240.64>
+                                                    Other, 0x116dc0280, {{21.0, 941.0}, {218.0, 50.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610192256.39>
+                                                      Other, 0x116dc03c0, {{21.0, 941.0}, {110.0, 50.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610192288.59>
+                                                        StaticText, 0x116dc0500, {{37.0, 956.0}, {43.0, 20.0}}, label: 'Cell A', value: Cell A, Focused <AX element pid: 92766, elementOrHash.elementID: 4610170464.65>
+                                                      Other, 0x116dc0640, {{130.0, 941.0}, {109.0, 50.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610192320.60>
+                                                        StaticText, 0x116dc0780, {{146.0, 956.0}, {43.0, 20.0}}, label: 'Cell B', value: Cell B, Focused <AX element pid: 92766, elementOrHash.elementID: 4610170688.66>
+                                                  Other, 0x116dc08c0, {{20.0, 1016.0}, {362.0, 28.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610187776.16>
+                                                    StaticText, 0x116dc0a00, {{20.0, 1020.0}, {45.0, 20.0}}, label: 'x² + y²', value: x² + y², Focused <AX element pid: 92766, elementOrHash.elementID: 4610192736.40>
+                                                  Image, 0x116dc0b40, {{22.0, 1046.0}, {172.0, 216.0}}, label: 'Fixture artwork', Focused <AX element pid: 92766, elementOrHash.elementID: 4610187840.17>
+                                                  StaticText, 0x116dc0c80, {{180.0, 1044.0}, {13.0, 19.0}}, label: '···', Focused <AX element pid: 92766, elementOrHash.elementID: 4610187904.18>
+                                                  Other, 0x116dc0dc0, {{20.0, 1296.0}, {362.0, 80.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610187968.19>
+                                                    Button, 0x116dc0f00, {{20.0, 1296.0}, {362.0, 28.0}}, label: 'More, More', Focused <AX element pid: 92766, elementOrHash.elementID: 4610193248.41>
+                                                      Button, 0x116dc1040, {{36.0, 1300.0}, {38.0, 20.0}}, label: 'More', value: ▼ More, Focused <AX element pid: 92766, elementOrHash.elementID: 4610166272.61>
+                                                    Other, 0x116dc1180, {{20.0, 1348.0}, {362.0, 28.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610193312.42>
+                                                      StaticText, 0x116dc12c0, {{20.0, 1352.0}, {145.0, 20.0}}, label: 'Expandable content', value: Expandable content, Focused <AX element pid: 92766, elementOrHash.elementID: 4610166176.62>
+                                                  Other, 0x116dc1400, {{20.0, 1400.0}, {362.0, 28.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610188000.20>
+                                                    StaticText, 0x116dc1540, {{20.0, 1404.0}, {264.0, 20.0}}, label: 'The quote says `hello` and ${value}.', value: The quote says `he..., Focused <AX element pid: 92766, elementOrHash.elementID: 4610193600.43>
+                                                  Other, 0x116dc1680, {{20.0, 1452.0}, {362.0, 30.0}}, label: 'Final heading', value: 3, Focused <AX element pid: 92766, elementOrHash.elementID: 4610188032.21>
+                                                    StaticText, 0x116dc17c0, {{20.0, 1454.0}, {122.0, 25.0}}, label: 'Final heading', value: Final heading, Focused <AX element pid: 92766, elementOrHash.elementID: 4610193824.44>
+                                                  Other, 0x116dc1900, {{20.0, 1506.0}, {362.0, 56.0}}, Focused <AX element pid: 92766, elementOrHash.elementID: 4610188064.22>
+                                                    StaticText, 0x116dc1a40, {{20.0, 1510.0}, {362.0, 48.0}}, label: 'Final paragraph for scroll restoration and outline anchors.', value: Final paragraph fo..., Focused <AX element pid: 92766, elementOrHash.elementID: 4610194048.45>
+                                      Other, 0x116dc1b80, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 5215397504.239>
+                                Other, 0x116dc1cc0, {{0.0, 916.0}, {402.0, 50.0}} <AX element pid: 86172, elementOrHash.elementID: 5191038464.134>
+                                  Other, 0x116dc1e00, {{91.7, 916.0}, {50.0, 50.0}} <AX element pid: 86172, elementOrHash.elementID: 5190902016.39>
+                                    Button, 0x116dc1f40, {{96.7, 921.0}, {40.0, 40.0}}, label: 'Expand' <AX element pid: 86172, elementOrHash.elementID: 5190908928.168>
+                                  Other, 0x116dc2080, {{153.7, 916.0}, {95.0, 50.0}} <AX element pid: 86172, elementOrHash.elementID: 5190896640.136>
+                                    Button, 0x116dc21c0, {{161.7, 923.0}, {36.0, 36.0}}, label: 'Star' <AX element pid: 86172, elementOrHash.elementID: 5185032704.49>
+                                    Button, 0x116dc2300, {{204.7, 923.0}, {36.0, 36.0}}, label: 'Archive' <AX element pid: 86172, elementOrHash.elementID: 5185040384.113>
+                                  Other, 0x116dc2440, {{260.7, 916.0}, {50.0, 50.0}} <AX element pid: 86172, elementOrHash.elementID: 5191036160.86>
+                                    Button, 0x116dc2580, {{267.7, 923.0}, {36.0, 36.0}}, label: 'Outline' <AX element pid: 86172, elementOrHash.elementID: 5191025408.91>
+                      Other, 0x116dc26c0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4777605120.18>
+                        Other, 0x116dc2800, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4508760064.21>
+                Other, 0x116dc2940, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4798728448.12>
+                  Other, 0x116dc2a80, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4798729216.14>
+                    Other, 0x116dc2bc0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 86172, elementOrHash.elementID: 4798645248.16>

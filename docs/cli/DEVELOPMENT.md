@@ -20,10 +20,11 @@ pnpm test:cli-tooling
 
 `pnpm cli -- dev` watches the build; `pnpm cli -- start <arguments>` runs the built CLI. Dispatcher help is `pnpm cli -- --help`. The CLI does not load `deploy/local` environment files or need Docker, `setup:all`, or local backend services for build/tests. Existing preflight/setup orchestration remains limited to API, Web and Extension.
 
-Tests use isolated temporary configuration, synthetic keys and a local HTTP server, exercising real executable processes. Package verification packs and installs the archive into a separate directory, then verifies the installed binary and authenticated local requests. To verify an already packed archive without repacking:
+Tests use isolated temporary configuration, synthetic keys and a local HTTP server, exercising real executable processes. Package verification packs and installs the archive into a separate directory, then verifies the installed binary and authenticated local requests. To verify an already packed archive without repacking, supply its path. Release automation also supplies the validated derived version as the second argument for dev/beta archives:
 
 ```bash
-pnpm cli -- test:package /absolute/path/to/slax-lab-reader-cli-1.0.0.tgz
+pnpm cli -- test:package /absolute/path/to/slax-lab-reader-cli-1.0.2.tgz
+pnpm cli -- test:package /absolute/path/to/slax-lab-reader-cli-1.0.2-dev.tgz 1.0.2-dev
 ```
 
 ## Authentication and shared contracts

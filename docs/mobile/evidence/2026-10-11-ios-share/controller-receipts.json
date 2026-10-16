@@ -1,0 +1,93 @@
+{
+  "controlledFixture": true,
+  "receipts": [
+    {
+      "kind": "prepared",
+      "scenario": "signed-out",
+      "serial": 1
+    },
+    {
+      "kind": "prepared",
+      "scenario": "cancel",
+      "serial": 2
+    },
+    {
+      "kind": "native-collection",
+      "scenario": "cancel",
+      "serial": 2,
+      "targetUrl": "https://share-fixture.test/controlled-article",
+      "responseStatus": 200,
+      "disconnectedBeforeResponse": true
+    },
+    {
+      "kind": "prepared",
+      "scenario": "expired",
+      "serial": 3
+    },
+    {
+      "kind": "native-collection",
+      "scenario": "expired",
+      "serial": 3,
+      "targetUrl": "https://share-fixture.test/controlled-article",
+      "responseStatus": 401,
+      "disconnectedBeforeResponse": false
+    },
+    {
+      "kind": "prepared",
+      "scenario": "failed",
+      "serial": 4
+    },
+    {
+      "kind": "native-collection",
+      "scenario": "failed",
+      "serial": 4,
+      "targetUrl": "https://share-fixture.test/controlled-article",
+      "responseStatus": 503,
+      "disconnectedBeforeResponse": false
+    },
+    {
+      "kind": "prepared",
+      "scenario": "legacy-success",
+      "serial": 5
+    },
+    {
+      "kind": "native-collection",
+      "scenario": "legacy-success",
+      "serial": 5,
+      "targetUrl": "https://share-fixture.test/controlled-article",
+      "responseStatus": 200,
+      "disconnectedBeforeResponse": false
+    },
+    {
+      "kind": "prepared",
+      "scenario": "rejected",
+      "serial": 6
+    },
+    {
+      "kind": "native-collection",
+      "scenario": "rejected",
+      "serial": 6,
+      "targetUrl": "https://share-fixture.test/controlled-article",
+      "responseStatus": 400,
+      "disconnectedBeforeResponse": false
+    },
+    {
+      "kind": "prepared",
+      "scenario": "signed-out",
+      "serial": 7
+    },
+    {
+      "kind": "prepared",
+      "scenario": "success",
+      "serial": 8
+    },
+    {
+      "kind": "native-collection",
+      "scenario": "success",
+      "serial": 8,
+      "targetUrl": "https://share-fixture.test/controlled-article",
+      "responseStatus": 200,
+      "disconnectedBeforeResponse": false
+    }
+  ]
+}

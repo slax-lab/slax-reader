@@ -1,0 +1,98 @@
+{
+  "kind": "slax-controlled-source-valid-legacy-inputs",
+  "version": 1,
+  "scenario": "source-valid-visible-v1",
+  "createdAt": "2026-10-01T09:41:00.000Z",
+  "tag": {
+    "id": "tag-1",
+    "user_id": "synthetic-user",
+    "tag_name": "offline",
+    "display": "1",
+    "source": "mine",
+    "created_at": "2026-10-01T09:41:00.000Z"
+  },
+  "bookmark": {
+    "id": "bookmark-1",
+    "user_id": "synthetic-user",
+    "alias_title": "Offline article",
+    "is_read": 0,
+    "archive_status": 0,
+    "is_starred": 0,
+    "type": 0,
+    "created_at": "2026-10-01T09:41:00.000Z",
+    "updated_at": "2026-10-01T09:41:00.000Z",
+    "deleted_at": null,
+    "starred_at": null,
+    "archived_at": null
+  },
+  "bookmarkDetails": {
+    "uuid": "article-1",
+    "title": "Offline article",
+    "byline": "Controlled fixture author",
+    "status": "success",
+    "host_url": "https://offline.invalid",
+    "site_name": "Controlled offline fixture",
+    "target_url": "https://offline.invalid/article-1",
+    "description": "An original SDK article retained through the Expo migration.",
+    "content_icon": "",
+    "published_at": "2026-10-01T09:41:00.000Z",
+    "content_cover": "",
+    "content_word_count": 661
+  },
+  "share": {
+    "uuid": "share-bookmark-1",
+    "is_enable": true,
+    "show_line": true,
+    "allow_line": true,
+    "created_at": "2026-10-01T09:41:00.000Z",
+    "share_code": "controlled-offline-share",
+    "show_comment": true,
+    "allow_comment": true,
+    "show_userinfo": true,
+    "allow_access": 1
+  },
+  "updatedShare": {
+    "is_enable": false,
+    "allow_access": 1
+  },
+  "comment": {
+    "id": "comment-1",
+    "user_bookmark_uuid": "bookmark-1",
+    "type": 2,
+    "source": [{"type": "text", "path": "article#controlled-offline > p#controlled-quote", "start": 0, "end": 26}],
+    "comment": "Pending comment",
+    "approx_source": {
+      "exact": "Controlled offline fixture",
+      "prefix": "",
+      "suffix": ". This passage carries an original offline comment.",
+      "position_start": 0,
+      "position_end": 26,
+      "raw_text": "Controlled offline fixture"
+    },
+    "content": [{"type": "text", "text": "Controlled offline fixture", "src": ""}],
+    "is_deleted": 0,
+    "created_at": "2026-10-01T09:41:00.000Z",
+    "metadata": {
+      "root_id": null,
+      "user_id": "synthetic-user",
+      "parent_id": null,
+      "source_type": null,
+      "source_id": null,
+      "bookmark_id": "bookmark-1"
+    }
+  },
+  "localJson": {
+    "overview": "Offline summary",
+    "is_downloaded": 2,
+    "read_position": "348.25",
+    "outline_read_position": "12",
+    "is_auto_cached": 0,
+    "future_field": {"preserve": true}
+  },
+  "article": {
+    "quote": "Controlled offline fixture. This passage carries an original offline comment.",
+    "sectionTitle": "Preserved offline reading",
+    "paragraph": "The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.",
+    "paragraphCount": 18
+  }
+}

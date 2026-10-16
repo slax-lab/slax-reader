@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "caseId": "library.populated",
+  "platform": "android",
+  "locale": "en",
+  "sourceManifestSha256": "3501089ae75682a823afdfb54ccf243d32cbc56eba1f84bd70c68afafc1f2943",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "fixtureScenario": "library-populated",
+  "nativeInteractionVerified": false,
+  "kind": "native-ui-capture",
+  "clockVerification": "Agent inspected 9:41 in the captured native PNG after controlled emulator demo clock override.",
+  "measurementPrecision": "Native logical insets rounded to six decimals for cross-runtime Float/Double agreement; raw measurements are retained.",
+  "implementation": "target",
+  "captureMethod": "adb-screencap",
+  "stateAssertion": "Agent inspected unobscured native populated Library with six rows, collection switcher/new-item dots, footer and continue-reading card at measured fontScale 1. The actual displayed 09:41 matches source. Programmatic fixture routing does not prove native input.",
+  "actionDriverSha256": "bad86de45d0e307d5bbaa7d776d01eb8af4412e56673f58ddf15940c05572d97",
+  "conditions": {
+    "deviceModel": "sdk_gphone64_arm64",
+    "osVersion": "14",
+    "clock": "9:41",
+    "appearance": "light",
+    "fontScaleProfile": "default",
+    "fontScale": 1,
+    "widthPixels": 1080,
+    "heightPixels": 2400,
+    "pixelRatio": 2.625,
+    "safeArea": {
+      "left": 0,
+      "bottom": 24,
+      "right": 0,
+      "top": 51.809525
+    }
+  },
+  "image": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/android/en/library-populated/target-y-default/00-initial.png",
+    "sha256": "4ce1efc67512d07ad331b3c33b65f8b8843749b39ca9081c500d2d4a5edccb93"
+  },
+  "rawMetadata": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/android/en/library-populated/target-y-default/raw-context.json",
+    "sha256": "47771510e82bf97a271cb938348a3660603e158c43edf68109d7a3807dfc754b"
+  },
+  "capturedAtMillis": 1791652021448,
+  "actionDriverInputs": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-driver-y.json",
+    "sha256": "bad86de45d0e307d5bbaa7d776d01eb8af4412e56673f58ddf15940c05572d97"
+  },
+  "nativeApkSha256": "42fa86d27856f68013377facc834fc666f6850f43c392aba4a5bd97115fa21e3"
+}

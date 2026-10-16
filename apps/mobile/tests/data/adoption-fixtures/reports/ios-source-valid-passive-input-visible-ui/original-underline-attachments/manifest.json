@@ -1,0 +1,205 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "4A2BAA62-9899-46C2-837D-E857893F5F19.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "App UI hierarchy for app.slax_0_6328F2ED-69E4-4CB6-957C-3556DE8412D9.reader",
+        "timestamp" : 1791664219.178
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "58C4262F-DC80-4783-9AFE-C282B394E513",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-10-11 at 04.30.19 上午",
+        "timestamp" : 1791664219.178
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "F4F915FF-E0CB-4CAA-ADAA-60448DBA0559.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Pending comment\" StaticText`_0_704053B7-BA9B-425E-8BF6-5DEBE5E9E3EB.txt",
+        "timestamp" : 1791664218.956
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "C247B432-FACD-420A-A780-99D55B9D2BD9.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Pending comment\" StaticText`_0_278114BC-F389-4FEA-BA50-65C7B4DC5B38.txt",
+        "timestamp" : 1791664218.046
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "65D6F4FB-559F-4708-832B-795B33E462F0.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Pending comment\" StaticText`_0_E51FC0DE-D79A-4679-84C5-9175885A55F8.txt",
+        "timestamp" : 1791664217.05
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "B7679333-2283-46BD-8778-96553A7FB482.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Pending comment\" StaticText`_0_6B84BED7-FA64-4828-ACDD-CEE1B65F2B5E.txt",
+        "timestamp" : 1791664216.026
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "114CE949-E1C8-46F0-ADFC-D42A39767406.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Pending comment\" StaticText`_0_D5E1B13F-0D37-450E-868E-7D1CC4EE66A1.txt",
+        "timestamp" : 1791664215.001
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "58E110AE-53E1-4218-89FC-F3FB613ED070.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Pending comment\" StaticText`_0_26AC6B84-9B8A-4C8E-9DCB-B2F745372598.txt",
+        "timestamp" : 1791664213.962
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "D3F4E7F4-11E4-45F9-93CD-20D54CA88AF6.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Pending comment\" StaticText`_0_645E3539-41DC-4943-B30C-7690D9E59D8C.txt",
+        "timestamp" : 1791664213.041
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "3F45CCDC-AC91-4D27-B0A2-E03556DA43F5.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Pending comment\" StaticText`_0_D5528A27-E258-4FA6-A45B-D75EF7F6F6F9.txt",
+        "timestamp" : 1791664212.012
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "09BB0643-DFA7-4EF6-B771-906B57A0392D.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Pending comment\" StaticText`_0_F4CFE973-52CE-4037-80B2-E0F9E51AC4AE.txt",
+        "timestamp" : 1791664211.071
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "3ABD5856-29E2-4AD6-AF74-78A6D97E1E92.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Pending comment\" StaticText`_0_FCA92F54-A596-4FB5-BB3A-D0A2142E004B.txt",
+        "timestamp" : 1791664210.024
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "6637C765-24DE-44B4-AED8-D29E50B9EDCF",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-10-11 at 04.30.08 上午",
+        "timestamp" : 1791664208.406
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "2CEDAB75-DEE0-4082-B796-147761720439",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-10-11 at 04.30.08 上午",
+        "timestamp" : 1791664208.763
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "BE559CE2-A613-4C1C-9419-BD934B7A4D86.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-original-offline-underline-before-coordinate-tap-native-tree_0_E080A87C-84E1-4E42-A93B-475E3E5FA3F9.txt",
+        "timestamp" : 1791664208.343
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "16E18BC0-7732-47BA-8BC1-C65F2161C29E.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-original-offline-underline-before-coordinate-tap_0_1CA40225-7642-46B5-8C63-EDC2B8679A58.png",
+        "timestamp" : 1791664207.989
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "6C1A0B26-1CA1-4B13-A26E-4C39CDF353DF.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-observed-underline-hit-coordinate_0_899AAF83-356D-45DD-9FD5-A5AB5BDA4107.txt",
+        "timestamp" : 1791664207.855
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "48A0150F-0499-443B-9D32-C7409CCF4590.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Controlled offline fixture\" StaticText`_0_A557C14E-5C2B-4FAB-BF5A-AEB4ACF4AFB3.txt",
+        "timestamp" : 1791664206.472
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "6FD33892-C8CA-4705-A9EA-017C4CE1239A.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"Controlled offline fixture\" StaticText`_0_D08346CD-E34B-4F74-BA3A-A15D71A12628.txt",
+        "timestamp" : 1791664205.509
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "ADD40556-6B18-42AE-A5F8-E5A5576452D5",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-10-11 at 04.30.04 上午",
+        "timestamp" : 1791664204.364
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "60E1FFF0-FC8C-4CC9-8885-E0DD077122E9.mp4",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Screen Recording 2026-10-11 at 04.30.03 上午.mp4",
+        "timestamp" : 1791664203.957
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "7A38E80C-F318-4BF2-9D48-9F2DF5D7AE09.txt",
+        "isAssociatedWithFailure" : true,
+        "suggestedHumanReadableName" : "Complete Issue Description.txt"
+      }
+    ],
+    "testIdentifier" : "UpgradeVisibleControl/testOpenOriginalOfflineCommentAtObservedUnderline()",
+    "testIdentifierURL" : "test://com.apple.xcode/UpgradeVisibleControl/UpgradeVisibleControl/UpgradeVisibleControl/testOpenOriginalOfflineCommentAtObservedUnderline"
+  }
+]

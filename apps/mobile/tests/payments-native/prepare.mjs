@@ -1,0 +1,76 @@
+import assert from 'node:assert/strict';
+import {constants, cpSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statfsSync, writeFileSync} from 'node:fs';
+import {randomUUID} from 'node:crypto';
+import {spawnSync} from 'node:child_process';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {compiledSections, fixtureBundleIdentifier, generatedInputNames, localConfiguration, publicArtifactFiles, readPublicArtifactHashes, retainedApplicationName, retainedExecutableSHA256, sha256, sourceInputNames, verifyLocalConfiguration} from './prepare-lib.mjs';
+
+const here = path.dirname(fileURLToPath(import.meta.url)), mobile = path.resolve(here, '../..');
+const args = process.argv.slice(2), options = {};
+for (let index = 0; index < args.length; index += 2) {
+  assert(['--device', '--owner-directory', '--artifact'].includes(args[index]) && args[index + 1] && !options[args[index]], 'Use three distinct explicit public inputs'); options[args[index]] = args[index + 1];
+}
+assert(Object.keys(options).length === 3);
+const device = options['--device'], ownerDirectory = path.resolve(options['--owner-directory']), suppliedArtifact = path.resolve(options['--artifact']);
+assert(!lstatSync(suppliedArtifact).isSymbolicLink()); const artifact = realpathSync(suppliedArtifact);
+assert(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(device));
+assert(realpathSync(ownerDirectory) === ownerDirectory && path.dirname(ownerDirectory) === realpathSync(tmpdir()) && /^slax-native-local-storekit-[a-zA-Z0-9]+$/.test(path.basename(ownerDirectory)));
+const regular = file => {const stat = lstatSync(file); assert(stat.isFile() && !stat.isSymbolicLink()); return file;};
+const owner = JSON.parse(readFileSync(regular(path.join(ownerDirectory, 'fixture-owner.json')), 'utf8'));
+assert(owner.kind === 'slax-controlled-local-storekit-simulator' && owner.version === 1 && owner.device === device && /^[a-zA-Z0-9-]{1,64}$/.test(owner.runId) && owner.applicationBundleIdentifier === fixtureBundleIdentifier && owner.legacyApplicationAccess === false && owner.productionTransactions === false);
+assert(path.dirname(artifact) === realpathSync('/tmp/slax-mobile-native-artifacts') && path.basename(artifact) === retainedApplicationName, 'Only the retained public simulator artifact is allowed');
+// This complete filename/metadata pass precedes every artifact content read and clone.
+publicArtifactFiles(artifact);
+const space = statfsSync(ownerDirectory); assert(space.bavail * space.bsize >= 4 * 1024 ** 3, 'A fresh local StoreKit simulator requires at least 4 GiB free; preparation stopped');
+const command = (program, parameters) => {
+  const result = spawnSync(program, parameters, {encoding: 'utf8', timeout: 30000, maxBuffer: 2 * 1024 * 1024});
+  assert.equal(result.status, 0, `Controlled public ${program} command failed`); return result.stdout.trim();
+};
+const xcodeVersion = command('xcodebuild', ['-version']); assert(/^Xcode 26\.(?:[6-9]|[1-9][0-9])\b/m.test(xcodeVersion), 'Use the reviewed Xcode 26.6+ line; native runtime calibration remains mandatory');
+const devices = JSON.parse(command('xcrun', ['simctl', 'list', 'devices', 'available', '--json']));
+const matches = Object.entries(devices.devices).flatMap(([runtime, values]) => values.filter(value => value.udid === device).map(value => ({...value, runtime})));
+assert(matches.length === 1 && matches[0].state === 'Shutdown' && matches[0].name === owner.name && /^com\.apple\.CoreSimulator\.SimRuntime\.iOS-26-/.test(matches[0].runtime), 'Only the fresh, shutdown, separately owned iOS simulator may be prepared');
+command('codesign', ['--verify', '--deep', '--strict', artifact]);
+const infoFile = path.join(artifact, 'Info.plist'), info = JSON.parse(command('plutil', ['-convert', 'json', '-o', '-', infoFile]));
+assert(info.CFBundleIdentifier === 'app.slax.reader' && info.CFBundleExecutable === 'SlaxReader' && info.CFBundleShortVersionString === '1.0.25' && info.CFBundleVersion === '757');
+assert.equal(sha256(readFileSync(regular(path.join(artifact, info.CFBundleExecutable)))), retainedExecutableSHA256);
+const sections = compiledSections(path.join(artifact, info.CFBundleExecutable)), debugLibrarySHA256 = sha256(readFileSync(regular(path.join(artifact, 'SlaxReader.debug.dylib'))));
+const sourceArtifactHashes = readPublicArtifactHashes(artifact, file => readFileSync(regular(file)));
+const output = realpathSync(mkdtempSync(path.join(ownerDirectory, 'project-'))), cloned = path.join(output, 'LocalStoreKitFixture.app');
+// No operator/Firebase file or production entitlement is carried into this test identity.
+cpSync(artifact, cloned, {recursive: true, mode: constants.COPYFILE_FICLONE});
+rmSync(path.join(cloned, 'PlugIns'), {recursive: true, force: true});
+const fixtureInfo = {...info, CFBundleIdentifier: fixtureBundleIdentifier, CFBundleName: 'LocalStoreKitFixture', CFBundleDisplayName: 'Slax Local StoreKit Fixture', CFBundleURLTypes: [{CFBundleURLName: fixtureBundleIdentifier, CFBundleURLSchemes: ['slax-local-storekit-fixture']}], FirebaseAutomaticScreenReportingEnabled: false, FirebaseAnalyticsCollectionEnabled: false, FirebaseCrashlyticsCollectionEnabled: false, SlaxApiBaseURL: 'http://127.0.0.1:9', SlaxApiBetaURL: 'http://127.0.0.1:9'};
+writeFileSync(path.join(cloned, 'Info.plist'), JSON.stringify(fixtureInfo)); command('plutil', ['-convert', 'binary1', path.join(cloned, 'Info.plist')]);
+const entitlements = path.join(output, 'empty.entitlements'); writeFileSync(entitlements, '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict/></plist>\n', {flag: 'wx'});
+command('codesign', ['--force', '--sign', '-', '--entitlements', entitlements, cloned]); command('codesign', ['--verify', '--deep', '--strict', cloned]);
+assert.deepEqual(compiledSections(path.join(cloned, info.CFBundleExecutable)), sections);
+assert.equal(sha256(readFileSync(path.join(cloned, 'SlaxReader.debug.dylib'))), debugLibrarySHA256);
+const nonce = randomUUID(), configurationIdentifier = randomUUID(), prefix = `slax.local.fixture.${nonce.replaceAll('-', '')}.`;
+const seed = {device, runId: owner.runId, nonce, createdAt: Date.now(), bundleIdentifier: fixtureBundleIdentifier, orderId: randomUUID(), monthlyProduct: `${prefix}monthly`, calibrationProduct: `${prefix}probe`, configurationIdentifier};
+const configuration = localConfiguration(seed); verifyLocalConfiguration(configuration, seed);
+writeFileSync(path.join(output, 'Local.storekit'), JSON.stringify(configuration, null, 2) + '\n', {flag: 'wx'});
+writeFileSync(path.join(output, 'fixture-run.json'), JSON.stringify(seed, null, 2) + '\n', {flag: 'wx'});
+const template = path.join(mobile, 'fixtures/source-ios/control'), project = path.join(output, 'StoreKitFixtureControl.xcodeproj'); mkdirSync(path.join(project, 'xcshareddata/xcschemes'), {recursive: true});
+let source = readFileSync(regular(path.join(template, 'SourceFixtureControl.xcodeproj/project.pbxproj')), 'utf8').replaceAll('SourceFixtureControl', 'StoreKitFixtureControl').replaceAll('ControlHost', 'StoreKitFixtureHost').replaceAll('app.slax.reader.sourcefixture.controlhost', fixtureBundleIdentifier).replaceAll('app.slax.reader.sourcefixture.control', 'app.slax.reader.storekitfixture.control');
+source = source.replace('A00000000000000000000011, A00000000000000000000021', 'A00000000000000000000021, A00000000000000000000031, A00000000000000000000032');
+source = source.replace(/    A00000000000000000000011 = .*\n/, '').replace(/    A00000000000000000000014 = .*\n/, '');
+const script = 'set -eu\n/usr/bin/ditto "${PROJECT_DIR}/LocalStoreKitFixture.app" "${TARGET_BUILD_DIR}/${FULL_PRODUCT_NAME}"\n/usr/bin/codesign --verify --deep --strict "${TARGET_BUILD_DIR}/${FULL_PRODUCT_NAME}"\n';
+source = source.replace(/    A00000000000000000000013 = .*\n/, `    A00000000000000000000013 = {isa = PBXShellScriptBuildPhase; buildActionMask = 2147483647; files = (); inputPaths = (); outputPaths = (); runOnlyForDeploymentPostprocessing = 0; shellPath = /bin/sh; shellScript = ${JSON.stringify(script)};};\n`);
+source = source.replace('GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_UILaunchScreen_Generation = YES;', 'GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LocalStoreKitFixture.app/Info.plist; EXECUTABLE_NAME = SlaxReader; ENABLE_USER_SCRIPT_SANDBOXING = NO;');
+source = source.replace('buildPhases = (A00000000000000000000023)', 'buildPhases = (A00000000000000000000023, A00000000000000000000030)');
+source = source.replace('  };\n  rootObject', `    A00000000000000000000030 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A00000000000000000000033, A00000000000000000000034); runOnlyForDeploymentPostprocessing = 0;};\n    A00000000000000000000031 = {isa = PBXFileReference; lastKnownFileType = text.json; path = Local.storekit; sourceTree = "<group>";};\n    A00000000000000000000032 = {isa = PBXFileReference; lastKnownFileType = text.json; path = fixture-run.json; sourceTree = "<group>";};\n    A00000000000000000000033 = {isa = PBXBuildFile; fileRef = A00000000000000000000031;};\n    A00000000000000000000034 = {isa = PBXBuildFile; fileRef = A00000000000000000000032;};\n  };\n  rootObject`);
+assert(!source.includes('StoreKitFixtureHost.swift') && !source.includes('CODE_SIGN_ENTITLEMENTS') && source.includes('SDKROOT = iphonesimulator') && source.includes('CODE_SIGNING_ALLOWED = NO'));
+writeFileSync(path.join(project, 'project.pbxproj'), source, {flag: 'wx'});
+let scheme = readFileSync(regular(path.join(template, 'SourceFixtureControl.xcodeproj/xcshareddata/xcschemes/SourceFixtureControl.xcscheme')), 'utf8').replaceAll('SourceFixtureControl', 'StoreKitFixtureControl');
+scheme = scheme.replace('</TestAction>', '<StoreKitConfigurationFileReference identifier="../../Local.storekit" /></TestAction>');
+scheme = scheme.replace('</Scheme>', '<LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB"><BuildableProductRunnable runnableDebuggingMode="0"><BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="A00000000000000000000010" BuildableName="StoreKitFixtureHost.app" BlueprintName="StoreKitFixtureHost" ReferencedContainer="container:StoreKitFixtureControl.xcodeproj" /></BuildableProductRunnable><StoreKitConfigurationFileReference identifier="../../Local.storekit" /></LaunchAction></Scheme>');
+writeFileSync(path.join(project, 'xcshareddata/xcschemes/StoreKitFixtureControl.xcscheme'), scheme, {flag: 'wx'});
+writeFileSync(path.join(output, 'StoreKitFixtureControl.swift'), readFileSync(regular(path.join(here, 'StoreKitFixtureControl.swift'))), {flag: 'wx'});
+const inputs = sourceInputNames;
+const marker = {kind: 'slax-controlled-local-storekit-project', version: 1, device, runId: owner.runId, nonce, directory: output, deviceOwnerDirectory: ownerDirectory, clonedApplication: cloned, applicationBundleIdentifier: fixtureBundleIdentifier, storekitConfigurationIdentifier: configurationIdentifier, configurationSHA256: sha256(readFileSync(path.join(output, 'Local.storekit'))), seed, xcodeVersion, runtime: matches[0].runtime, sourceArtifact: artifact, sourceArtifactExecutableSHA256: retainedExecutableSHA256, sourceArtifactHashes, nativeFileBackedSections: sections, nativeSectionsUnchanged: true, mainDebugLibrarySHA256: debugLibrarySHA256, nativeDebugLibraryUnchanged: true, appGroupEntitlements: false, shareExtension: false, operatorFilesCopied: false, productionNetworkOrTelemetry: false, realAppleAccountUsed: false, purchaseExecuted: false, nativePreflightExecuted: false, compiledSchemeVerified: false, sourceInputs: Object.fromEntries(inputs.map(name => [name, sha256(readFileSync(regular(path.resolve(here, name))))]))};
+marker.generatedInputs = Object.fromEntries(generatedInputNames.map(name => [name, sha256(readFileSync(regular(path.join(output, name))))]));
+writeFileSync(path.join(output, 'fixture-owner.json'), JSON.stringify(marker, null, 2) + '\n', {flag: 'wx'});
+console.log(JSON.stringify({kind: marker.kind, directory: output, device, runId: owner.runId, nativePreflightExecuted: false, purchaseExecuted: false}));

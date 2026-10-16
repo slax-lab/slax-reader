@@ -1,0 +1,124 @@
+{
+  "kind": "scoped-native-raster-comparison",
+  "schemaVersion": 1,
+  "platform": "android",
+  "locale": "en",
+  "fixtureScenario": "library-populated",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "sourceDriver": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/source-driver-l/input-manifest.json",
+    "sha256": "25ec74a1d2192a2a9a30f22ccea0cc9ba6a02563cb3349e0811274887d9a3496"
+  },
+  "targetDriver": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-driver-o.json",
+    "sha256": "b62000f526df3e4547e8275db7058709cf3a1fa1ffca991a8e8aca8310cafba1"
+  },
+  "artifacts": {
+    "source.png": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/scoped-native-library-raster-o/source.png",
+      "sha256": "578d7977654431066f37ab0eab39897c167c4d4814b767891757ae793fd3f9e7"
+    },
+    "source-raw.json": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/scoped-native-library-raster-o/source-raw.json",
+      "sha256": "a3bd672f6a0a2d28e3e85ee27acc27e8dda984aaff0bcacf445884b49c18d340"
+    },
+    "target.png": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/scoped-native-library-raster-o/target.png",
+      "sha256": "5fdd428deabf67a6538eb36ec49813e03e1427666818c4d9e84192d9e2a3f557"
+    },
+    "target-raw.json": {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/scoped-native-library-raster-o/target-raw.json",
+      "sha256": "7f2727d21b9ea660bbdb09b6f7a4a51d767b327f9c95441388ff341b65f6802c"
+    }
+  },
+  "comparison": "exact original RGBA pixels; no alignment, resampling, masking, or color adjustment",
+  "regions": [
+    {
+      "id": "ownCollectionLabel",
+      "bounds": {
+        "x": 115,
+        "y": 423,
+        "width": 70,
+        "height": 40
+      },
+      "sourceRgbaSha256": "e9cd93dfb918d6ae4a38b80c7774dcd8d32a0cd8d7842b300b71adc66cb9ae86",
+      "targetRgbaSha256": "e9cd93dfb918d6ae4a38b80c7774dcd8d32a0cd8d7842b300b71adc66cb9ae86",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "activeCollectionLabel",
+      "bounds": {
+        "x": 265,
+        "y": 423,
+        "width": 205,
+        "height": 40
+      },
+      "sourceRgbaSha256": "dcadac22fb3bcdbaefa24cc97981cfc1c8af910c448a531df54a2520a32e0ed4",
+      "targetRgbaSha256": "dcadac22fb3bcdbaefa24cc97981cfc1c8af910c448a531df54a2520a32e0ed4",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "closedCollectionLabel",
+      "bounds": {
+        "x": 490,
+        "y": 423,
+        "width": 198,
+        "height": 40
+      },
+      "sourceRgbaSha256": "e317a4cb90d2e26f5089894b713771022237d569b151c4a60e067a3a90badedf",
+      "targetRgbaSha256": "e317a4cb90d2e26f5089894b713771022237d569b151c4a60e067a3a90badedf",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "expiredCollectionLabel",
+      "bounds": {
+        "x": 710,
+        "y": 423,
+        "width": 202,
+        "height": 42
+      },
+      "sourceRgbaSha256": "893617291f4f86db591f437d236bafc2b07d01bae68842347bd0099ab0f931b6",
+      "targetRgbaSha256": "893617291f4f86db591f437d236bafc2b07d01bae68842347bd0099ab0f931b6",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "continueReadingTitle",
+      "bounds": {
+        "x": 112,
+        "y": 2130,
+        "width": 538,
+        "height": 42
+      },
+      "sourceRgbaSha256": "95777a11952f0cbb2745118db63b59f3485caf4916b551bdfc4730fa99b52564",
+      "targetRgbaSha256": "95777a11952f0cbb2745118db63b59f3485caf4916b551bdfc4730fa99b52564",
+      "differentPixels": 0,
+      "pixelOffset": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  ],
+  "result": "passed-for-listed-regions-only",
+  "wholeScreenParity": "unverified",
+  "nativeInteractionVerified": false,
+  "limitations": [
+    "Only listed default-font English/light Android text regions match.",
+    "Avatar/border rendering, footer/title layout, full screen and remaining required profiles/gestures are pending."
+  ]
+}

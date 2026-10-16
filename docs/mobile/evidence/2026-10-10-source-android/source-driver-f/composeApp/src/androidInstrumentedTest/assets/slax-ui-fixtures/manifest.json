@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "synthetic": true,
+  "nativeExecution": "pending-adapter-and-device",
+  "files": [
+    {
+      "path": "scenarios.json",
+      "sha256": "38c8ace92d4734e3b70d260adb6d6d3e842c6dba52d81fb1b7f68fe70e2f63e8"
+    },
+    {
+      "path": "articles/delete-notice.html",
+      "sha256": "f83d131b138eaafc6e1770348911dd4311e8a16b52e157701bb98f4a4b5b9414"
+    },
+    {
+      "path": "articles/long.html",
+      "sha256": "84e955134d8983ee3395e9079bdb2e4bb07b4b9834cd304d99ff8535b2d05a23"
+    },
+    {
+      "path": "articles/mixed.html",
+      "sha256": "31a896cf24248a45c8a6b5aa92a23a244cab3c562bbf40848d5e13a48b41ec6b"
+    },
+    {
+      "path": "articles/privacy.html",
+      "sha256": "0548ddb5faf187897be0d6c9ed41b894f9676b057769077c41ee0701cebd7d39"
+    },
+    {
+      "path": "articles/rss.html",
+      "sha256": "6c906184ccba93cc799cb78a7f24cfc4a271bd3d7f05d050ca15a370e2d00b17"
+    },
+    {
+      "path": "articles/short.html",
+      "sha256": "4b0fd49b289bada48313ebb2352f6432b5b6e4ac4099ae93cf85f41aafbf63c8"
+    },
+    {
+      "path": "articles/terms.html",
+      "sha256": "337e42fd530f1773636c832fd0d3bd29a01dbc9bdc0e49bde645c0d897c75f2d"
+    },
+    {
+      "path": "articles/video.html",
+      "sha256": "2ece02793942a0afd29b6bea357215b592c79114a324080e31bfc098fca5a0cd"
+    },
+    {
+      "path": "documents.ts",
+      "sha256": "0ea89fbaa8230bf7d123e7a06d0ba579f89361200105ef640db875506e8a1361"
+    },
+    {
+      "path": "resources.ts",
+      "sha256": "96e03add074ba683f47bb9023d3a730a3e9135cc20473355c082f1181737c1b7"
+    }
+  ],
+  "scenarioCount": 29,
+  "sourceCheckoutModified": false
+}

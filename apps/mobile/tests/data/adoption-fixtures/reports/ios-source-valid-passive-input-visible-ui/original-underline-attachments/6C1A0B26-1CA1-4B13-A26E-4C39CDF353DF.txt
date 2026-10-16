@@ -1,0 +1,1 @@
+Observed quote frame=(20.0, 185.0, 178.0, 20.0); underline native point=(109.0, 204.0)

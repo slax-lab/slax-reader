@@ -1,0 +1,41 @@
+{
+  "kind": "independent-source-valid-native-service-review",
+  "recordedAt": "2026-10-10T19:47:05.116863+00:00",
+  "reviewer": "parent implementation agent independent of fixture author/executor",
+  "reportSHA256": "19ab5db83da66175fc6b5fb8eb9834bab1274c603b72e9a97f766b030ba45ffb",
+  "publicSourceHashesVerified": 15,
+  "nativeSdkCompletions": [
+    {
+      "transactionId": 1,
+      "clientIds": [
+        1,
+        2
+      ]
+    },
+    {
+      "transactionId": 2,
+      "clientIds": [
+        3,
+        4
+      ]
+    },
+    {
+      "transactionId": 3,
+      "clientIds": [
+        5,
+        6
+      ]
+    }
+  ],
+  "sqlOperationsVerified": 6,
+  "originalOfflineOperations": 4,
+  "postUpgradeOfflineOperations": 2,
+  "passes": {
+    "bugs": "Exact three SDK transaction completions and six SQL operations; source-valid metadata preserves complete JSON values.",
+    "security": "Owned synthetic loopback service only, no persisted credentials or publisher signing; own resource cleanup retained all old/new device sandboxes.",
+    "compliance": "Interruption and synchronization evidence is bounded to this iOS simulator. Default application startup, visible UI, Android full-row workflow and publisher upgrade remain incomplete."
+  },
+  "importantFindings": [],
+  "previousFailedRunRetained": true,
+  "visualOrWholeMigrationAcceptance": false
+}

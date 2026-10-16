@@ -1,0 +1,22 @@
+{
+  "kind": "controlled-fixture-input-revision",
+  "version": 1,
+  "revision": "source-native-single-line-row-and-footer-p",
+  "fixtureSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "previousDriver": "target-driver-o.json",
+  "driver": "target-driver-p.json",
+  "changedFiles": [
+    {
+      "path": "src/screens/LibraryScreen.tsx",
+      "previousSha256": "7834d710de7fb2b8ed953abb82b89f6c983ebc03acab5befc3fa9c05770086bc",
+      "sha256": "a154c525a97baf7d3ee671836cd823c65016ab368e3b1c4ae8241426570dc60c"
+    },
+    {
+      "path": "src/components/BookmarkRow.tsx",
+      "previousSha256": "e49cfefa08a66fae11d2ab36e0992817083aea80368bc19dcf03166876ea9130",
+      "sha256": "30beea59fb5022a5bdaed8abd9db13dfe1d44f99c169c66ccbefb63b8c92d016"
+    }
+  ],
+  "nativeAndroidChanged": false,
+  "nativeIosChanged": false
+}

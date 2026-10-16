@@ -1,0 +1,18 @@
+{
+  "kind": "fresh-shell-host-guards-initial-negative",
+  "command": [
+    "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+    "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/fresh-shell/guards.test.py",
+    "-v"
+  ],
+  "exitCode": 1,
+  "tests": 15,
+  "passed": 14,
+  "failed": 1,
+  "nativeCompilerCommands": 0,
+  "nativeSigningCommands": 0,
+  "deviceCommands": 0,
+  "databaseQueries": 0,
+  "reason": "Pending buffered bytes plus record reserve exceeded cap in an empty root but pre-loop totals were not yet checked. The test exercised the production resource_status function.",
+  "rawWasCapturedOnRepeatedUnfixedHostRun": true
+}

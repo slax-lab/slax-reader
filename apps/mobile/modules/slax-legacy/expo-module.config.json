@@ -1,0 +1,5 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": { "modules": ["SlaxLegacyModule"] },
+  "android": { "modules": ["com.slax.reader.legacy.SlaxLegacyModule"] }
+}

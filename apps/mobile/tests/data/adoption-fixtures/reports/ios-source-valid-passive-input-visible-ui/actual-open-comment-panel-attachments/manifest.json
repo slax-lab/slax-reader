@@ -1,0 +1,26 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "1B698696-774F-48F4-A36C-348700365873.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-loaded-reader-inspection-native-tree_0_1F99AA8C-379E-480E-9BCA-2E304D46CA75.txt",
+        "timestamp" : 1791664308.578
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "A50BDA04-E20D-4562-B0A7-DE8966EF74EE.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-loaded-reader-inspection_0_2370D991-412D-4026-A4C5-8CF921066457.png",
+        "timestamp" : 1791664307.94
+      }
+    ],
+    "testIdentifier" : "UpgradeVisibleControl/testInspectLoadedReader()",
+    "testIdentifierURL" : "test://com.apple.xcode/UpgradeVisibleControl/UpgradeVisibleControl/UpgradeVisibleControl/testInspectLoadedReader"
+  }
+]

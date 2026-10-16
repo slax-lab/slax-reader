@@ -1,0 +1,269 @@
+{
+  "kind": "slax-post-aw4-conditional-ui-refresh-plan",
+  "version": 1,
+  "preparedAt": "2026-10-10T22:56:56.741021+00:00",
+  "status": "proposed-not-executed; DATA-inputs-pending",
+  "mutationsPerformed": {
+    "productionSource": false,
+    "stage": false,
+    "metro": false,
+    "nativeBuild": false,
+    "device": false,
+    "specsOrCoverage": false,
+    "evidenceDocsOnly": true
+  },
+  "base": {
+    "stage": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3",
+    "actualMarkerSha256": "dee6cc6040c6574b621a2e49a791b8bf285fc4960ccdee3318df4ac4577dc801",
+    "generatedInputsVerified": 372,
+    "allMatchActualStage": true,
+    "aw4InputReport": {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-bridge-aw4-inputs/report.json",
+      "sha256": "fb12bea439b0ea9473bd0ed9c67f3fbc09cc931c1ff449ab7d8de22fe6e93d01",
+      "bytes": 9645
+    },
+    "aw4Archive": {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-bridge-aw4-inputs/aw4-inputs.zip",
+      "sha256": "fcd66592522f0c2727c57a0a7108dc807f0cf5ccaf4b7b98d71b48efe7f1ea6c",
+      "bytes": 1628942
+    },
+    "finalSignedNativeArtifactAndAlphaReceipt": "pending Reader completion and explicit window release"
+  },
+  "productPlan": {
+    "observedClosure": {
+      "path": "docs/mobile/evidence/2026-10-11-post-aw4-ui-refresh-plan/revision-r1/observed-closure.json",
+      "sha256": "f41f1220bef859a46a72da8b0966adbe4e1bd44d8d580bef461b0ac769aca95b",
+      "bytes": 41488
+    },
+    "files": 120,
+    "observedDeltas": [
+      {
+        "path": "src/components/RssFeed.tsx",
+        "observedCurrentSha256": "d9bb1cb9c3068f3325f48a4d343a0adbb861a750322a55120dd79a1b61427dbb",
+        "stageSha256": "bc8cf9edf9403ecaf8164efa0d4cd567e7fcc6795832c10e4a3770a26d1b4c36",
+        "bytes": 14494,
+        "inputStatus": "observed-stable",
+        "archive": "docs/mobile/evidence/2026-10-11-post-aw4-ui-refresh-plan/revision-r1/proposed-inputs/src/components/RssFeed.tsx"
+      },
+      {
+        "path": "src/components/SourceDrawer.tsx",
+        "observedCurrentSha256": "6b0bf005e6a4a17f75feea6baf1505b028abe64b5975253ad1f2a4f5e141d817",
+        "stageSha256": null,
+        "bytes": 3832,
+        "inputStatus": "observed-stable",
+        "archive": "docs/mobile/evidence/2026-10-11-post-aw4-ui-refresh-plan/revision-r1/proposed-inputs/src/components/SourceDrawer.tsx"
+      },
+      {
+        "path": "src/components/SourceRing.tsx",
+        "observedCurrentSha256": "5d9d5d6b75141e5deb5f3d58f990118d2c41c27581058e27bec9b83523c2ecba",
+        "stageSha256": "df784b9e982adbd3985f8311cadc79e957e7dff1daace8633be52939c3b159c0",
+        "bytes": 2669,
+        "inputStatus": "observed-stable",
+        "archive": "docs/mobile/evidence/2026-10-11-post-aw4-ui-refresh-plan/revision-r1/proposed-inputs/src/components/SourceRing.tsx"
+      },
+      {
+        "path": "src/components/drawer-motion.ts",
+        "observedCurrentSha256": "ad6cb89cec76c0fac43db94cdf5ef9617708efd5ce553c98d27bd3441dbe83f1",
+        "stageSha256": null,
+        "bytes": 408,
+        "inputStatus": "observed-stable",
+        "archive": "docs/mobile/evidence/2026-10-11-post-aw4-ui-refresh-plan/revision-r1/proposed-inputs/src/components/drawer-motion.ts"
+      },
+      {
+        "path": "src/components/feed-scroll.ts",
+        "observedCurrentSha256": "5f14c845257fc7588550a253880595a12453d3a8836a4c05739d8f87be06304c",
+        "stageSha256": null,
+        "bytes": 3273,
+        "inputStatus": "observed-stable",
+        "archive": "docs/mobile/evidence/2026-10-11-post-aw4-ui-refresh-plan/revision-r1/proposed-inputs/src/components/feed-scroll.ts"
+      },
+      {
+        "path": "src/controlled-upgrade-visibility.ts",
+        "observedCurrentSha256": "9fa6c60108745f3c6363e28b79304c68d1969dc536c25fd3fbca9bce1d85b209",
+        "stageSha256": null,
+        "bytes": 7534,
+        "inputStatus": "pending-DATA-stable-receipt"
+      },
+      {
+        "path": "src/data/cache.ts",
+        "observedCurrentSha256": "c179fe23d8d128c115ae397083ef5179fc5c884364b4c720af13f84500ce8481",
+        "stageSha256": "32c4d10b353fa2d7a1cddeb8c96303a4606b5da874a888d9a983c90d19c27106",
+        "bytes": 3297,
+        "inputStatus": "observed-stable",
+        "archive": "docs/mobile/evidence/2026-10-11-post-aw4-ui-refresh-plan/revision-r1/proposed-inputs/src/data/cache.ts"
+      },
+      {
+        "path": "src/reader/ImageGallery.tsx",
+        "observedCurrentSha256": "42d8395bae1b3713cfedeb17bec0305147250506fad2d916da0755a132dd38fc",
+        "stageSha256": "bd7aa29c82e308eea81c0907fb923e1913a23c176e0382081a350d6b87b3ac4f",
+        "bytes": 9813,
+        "inputStatus": "observed-stable",
+        "archive": "docs/mobile/evidence/2026-10-11-post-aw4-ui-refresh-plan/revision-r1/proposed-inputs/src/reader/ImageGallery.tsx"
+      },
+      {
+        "path": "src/reader/gallery-resource.ts",
+        "observedCurrentSha256": "88c059045da40299fc4a8e7f217142127409c1c439777047b3bcf2724007ec1a",
+        "stageSha256": null,
+        "bytes": 1791,
+        "inputStatus": "observed-stable",
+        "archive": "docs/mobile/evidence/2026-10-11-post-aw4-ui-refresh-plan/revision-r1/proposed-inputs/src/reader/gallery-resource.ts"
+      },
+      {
+        "path": "src/runtime.tsx",
+        "observedCurrentSha256": "0fd77a26611c2ce93d2f0b5e4c7b58e971daa56864c26a6939faf5268eae7a72",
+        "stageSha256": "18b4a75beace74f8ea86b8d4b92af20cd768b57b7396cd4ce90fd9dbe075f439",
+        "bytes": 10809,
+        "inputStatus": "pending-DATA-stable-receipt"
+      },
+      {
+        "path": "src/screens/LibraryScreen.tsx",
+        "observedCurrentSha256": "e0ec9a9d5ab42ff505cfd8440a85aee932287bcb1214182f034bdb8c4b5f1cd1",
+        "stageSha256": "6476a6135fba762f74187428a4c405f011e223f3ea1a6e6f9b7d8d9756f0d651",
+        "bytes": 27116,
+        "inputStatus": "observed-stable",
+        "archive": "docs/mobile/evidence/2026-10-11-post-aw4-ui-refresh-plan/revision-r1/proposed-inputs/src/screens/LibraryScreen.tsx"
+      },
+      {
+        "path": "src/screens/ReaderScreen.tsx",
+        "observedCurrentSha256": "9b74a014c44225d61a469d922caa538e118f320c137f9e1493ba19fce39db3b7",
+        "stageSha256": "7103eb8e074b055a7e78690bdd62e6cc4d92622a6cde89c726623a0192c02805",
+        "bytes": 59598,
+        "inputStatus": "observed-stable",
+        "archive": "docs/mobile/evidence/2026-10-11-post-aw4-ui-refresh-plan/revision-r1/proposed-inputs/src/screens/ReaderScreen.tsx"
+      }
+    ],
+    "stableDeltaCount": 10,
+    "pendingMandatoryImports": [
+      "src/controlled-upgrade-visibility.ts",
+      "src/runtime.tsx"
+    ],
+    "pendingReason": "DATA confirms ControlledUpgrade provider/helper still being prepared. Their observed hashes are diagnostic only; no final frozen snapshot is claimed. Stable receipt and a new full revision are required before refresh.",
+    "dependencyVersionsExactlyEqual": true,
+    "sharedScenarioSha256": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f",
+    "sharedScenarioMatchesStage": true
+  },
+  "nativeBoundary": {
+    "slaxPlatformAllCurrentMatchesStage": true,
+    "currentProductionLegacyDivergences": [
+      {
+        "path": "modules/slax-legacy/ios/DatabaseIdentity.swift",
+        "observedCurrentSha256": "f8f020698a160425d5be842d276f23b0294291a8ab96e07c4db185289aba806a",
+        "compiledStageSha256": null,
+        "matches": false,
+        "copyIntoLaterRevision": false
+      },
+      {
+        "path": "modules/slax-legacy/ios/SlaxLegacyModule.swift",
+        "observedCurrentSha256": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3",
+        "compiledStageSha256": "e651f37b5e22e689c9789a3c51a0839c5afb2b039c14417060012987890eda9c",
+        "matches": false,
+        "copyIntoLaterRevision": false
+      }
+    ],
+    "policy": "Preserve every compiled aw4 native byte and completed Pod/native artifact receipt. Do not copy current DatabaseIdentity.swift or changed SlaxLegacyModule.swift. FixtureMobileProvider does not construct production legacy ownership; this UI-only revision cannot validate current production legacy native changes.",
+    "apiReuse": "Later Gallery/feed/drawer/RSS TS uses existing native Reader and Ring props; no new native ABI, dependency, prebuild or pods are proposed. Any discovered required ABI/native mismatch stops this plan and requires separate build allocation.",
+    "androidParagraph": "Do not copy uncompiled paragraph native candidate. Existing av ancestry/ink mismatch remains pending; TS refresh cannot validate it."
+  },
+  "executionPrerequisites": [
+    "Reader finalizes, signs and verifies aw4 binary and preserves exact native/Pod/source ancestry; Alpha pass or fail stays truthful.",
+    "Root explicitly releases stage/owned Metro and allocates a single device foreground window.",
+    "DATA returns stable provider/helper hashes; re-read complete 120-file-plus-any-new-import closure and publish a distinct final immutable snapshot.",
+    "Rehash aw4 base marker/generated files, stable10 archives, fixture scenario/doc/artwork bytes and dependency/native ancestry. Keep historical captures/spec/coverage unchanged."
+  ],
+  "refreshSequence": [
+    "Preserve released aw4 marker, completed signed app and native build/Pod receipts.",
+    "Copy only changed/new verified TS from full src/embedded/imported-fixture product closure; include final actual runtime/helper import closure. Keep fixture index/config/identity and native bytes unchanged.",
+    "Create a fresh stage revision and archive actual changed bytes plus all generated digests. Update current sourceFileDigests only for deliberately refreshed inputs; keep retained ancestry and every historical marker unchanged.",
+    "Verify closed imports and native/dependency/Pod invariants, isolated .uifixture identity, source URL resolution wholly inside stage and network guards.",
+    "After explicit release only, restart verified owned Metro8083 with current fixture settings and EXPO_NO_DOTENV=1/EXPO_NO_TELEMETRY=1/EXPO_NO_LAZY=1. Never address Metro8084.",
+    "Freeze later stage for complete batch. Bind native executable/build receipt separately from new JS manifest/Metro resolver in each report."
+  ],
+  "existingDriverInputs": [
+    {
+      "path": "apps/mobile/tooling/fixture-android-batch.py",
+      "sha256": "238fe40b4ba3bade16acd5af432515b5c0284ffbfda57d81aa7262fc1eccbb72",
+      "bytes": 32659
+    },
+    {
+      "path": "apps/mobile/tooling/fixture-control.mjs",
+      "sha256": "5b7a4c4fbc01e1e0e8ad5930a0a69485594691f4c9baca6ce582497fb6ed9bdf",
+      "bytes": 7385
+    },
+    {
+      "path": "apps/mobile/fixtures/target-ios-control/TargetFixtureControl.swift",
+      "sha256": "88c43c84ffa6872afd322dce60260d50c5c68c48d038c164e1d2943cfa2d204b",
+      "bytes": 5383
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/ReaderNativeControl.swift",
+      "sha256": "84daeb26cde784efd06fed3e6c08dad55dac785ef987ac175e16408c6ef0b91f",
+      "bytes": 9974
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/main.swift",
+      "sha256": "2dc7c3b99f139409a23be314545ee291345f5c92cf45d00c61de92fc7ecf4377",
+      "bytes": 13057
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/control/SourceFixtureControl.swift",
+      "sha256": "75e86e298857a4580deceddf1123562acc0d8d71ed571c3e2f6174df2dfb824c",
+      "bytes": 3425
+    },
+    {
+      "path": "apps/mobile/fixtures/source-ios/FixtureReaderStep.swift",
+      "sha256": "7dd09392d7e7fe6e16b90c69ab3d42b4b8590a062c73dc35647dc3f4d62d7c41",
+      "bytes": 5860
+    }
+  ],
+  "batches": [
+    {
+      "family": "Android native navigation/forms/delete",
+      "readyDriver": "apps/mobile/tooling/fixture-android-batch.py",
+      "commands": [
+        "python3 apps/mobile/tooling/fixture-android-batch.py --device emulator-5560 --output <fresh-own-directory> --mode navigation",
+        "python3 apps/mobile/tooling/fixture-android-batch.py --device emulator-5560 --output <different-fresh-own-directory> --mode native-controls",
+        "python3 apps/mobile/tooling/fixture-android-batch.py --device emulator-5560 --output <different-fresh-own-directory> --mode native-delete-controls"
+      ],
+      "proof": "Actual Menu/Settings/modal dismiss/Back/About/Reader/root stack plus native preferences, Feedback keyboard/error/dismiss, notice native bottom/confirmation/denied/dismiss. Preserve input and failed after-guards. Preparation is not native interaction. Default and1.5 profiles retain source typography/av native limitations."
+    },
+    {
+      "family": "iOS representative route and RSS states",
+      "cases": [
+        "library-populated",
+        "rss-populated",
+        "rss-truncated",
+        "rss-save-error",
+        "reader-mixed",
+        "settings",
+        "feedback-error",
+        "delete-blocked"
+      ],
+      "proof": "Actual clean foreground, zero-alerts, native route/body/readiness, equal locale/appearance/font/safe area/scale/09:41. About has no standalone shared case: reach by actual Library menu. RSS saving/failure/retry/saved captured only if really visible; adding a finite delayed state needs separate closed declared revision. Reader actual240/bridge counts must be measured. Gallery prepared-open alone is not pinch/pan/doubletap/dismiss proof.",
+      "driverStatus": "Existing native foreground/Reader control reusable; additional exact RSS/gallery native AX input guards still need implementation and allocation."
+    },
+    {
+      "family": "Feed and drawer native behavior",
+      "driverStatus": "Not ready; exact scoped native input driver required. Host prop and installed RN algorithm tests are insufficient.",
+      "proof": "Native scroll Inbox/RSS/return with first visible stableID and measured offset, source/collection reset and owner isolation. Same-feed off-top live prepend preserves visible article. Current short corpus may be too short; if so declare a new long/live input for both apps before execution. Sorting/deletion native semantics stay separate. Genuine horizontal open/close/cancel, vertical child/row swipe conflict, Back arbitration,300ms animation/scrim both platforms."
+    },
+    {
+      "family": "Original iOS genuine measured matched240",
+      "driverStatus": "Proposed source-only tiny XCTest and extra readonly UIKit sampling; not implemented or run.",
+      "rawJFramework": {
+        "path": "/private/tmp/slax-source-ui-fixture-ios-j/composeApp/build/bin/iosSimulatorArm64/debugFramework/SlaxSourceFixture.framework/SlaxSourceFixture",
+        "sha256": "1bc0873e19287f6b8cfc99bb9106d124e67a1343bfc06e227f0bce93ce9da38d"
+      },
+      "knownGap": "Historical source j/l requested240 but observed0. It is not a restored240 matched baseline.",
+      "steps": [
+        "Reuse original compiled j Compose framework/callpath; separately hashbind new readonly Swift shell and XCTest driver without original Kotlin/UI edits or KMP rebuild.",
+        "Fresh reader-mixed requires actual prepared source status, rendered nonempty body/bridge, foreground/zero-alerts and exactly one attached original WK with measured frame/viewport/content extent.",
+        "Current main.swift sampler stops after20 samples. Add bounded new readonly before/after sampling; do not substitute old initial samples for post-gesture data.",
+        "Compose WK lacks XCUI WebView element. A native app coordinate drag may target only the actual unique WK frame recorded by UIKit; reject unknown/ambiguous views.",
+        "Use finite slow genuine native vertical drags and readonly offset/inset/scale observations. Bounded correction can use observed residual only; no setContentOffset/window.scrollTo/bridge scroll command/saved-value injection.",
+        "Capture only when actual position240 is stable and measured, then compare with measured target240 under equal state/viewport. If native gestures cannot reach240, preserve failed/unmatched evidence rather than claiming requested240.",
+        "Archive all before/after samples, native inputs/readiness/body/frame, source framework/shell/test/binary and target native/JS ancestry. Source restore-from-saved240 and approximate-only mark behavior remain explicit separate gaps."
+      ]
+    }
+  ],
+  "acceptance": "No tasks/cases become complete from this plan. All338 profile cases/native input/visual/source restoration remain pending; no tolerance, coverage reduction or TestFlight authorization is inferred."
+}

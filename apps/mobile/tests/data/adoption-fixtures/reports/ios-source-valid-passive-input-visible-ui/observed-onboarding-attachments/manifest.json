@@ -1,0 +1,44 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "25B67E52-0523-41A9-A3F1-1B8FD07E35DF.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-library-after-development-onboarding-native-tree_0_A9962379-9568-47AD-96E7-9E036BF8B5C2.txt",
+        "timestamp" : 1791664193.044
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "8DC93A75-E8B1-4391-8A32-B388132908B2.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-library-after-development-onboarding_0_FA07FF9D-5EDA-4D95-BF18-55FF53E92C3B.png",
+        "timestamp" : 1791664192.934
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "656A3D40-3C27-460D-A1A7-857792EC5DA7.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-observed-development-onboarding-native-tree_0_27437F4B-7DD2-428C-B822-2A3013F9192F.txt",
+        "timestamp" : 1791664188.692
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+        "deviceName" : "Slax-visible-upgrade-v2-26e97e7d",
+        "exportedFileName" : "6CAC52C4-AC63-4E0B-871D-0309C1728D1A.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "source-valid-upgrade-observed-development-onboarding_0_F97F74FB-5C62-420E-BA91-09859C174FBB.png",
+        "timestamp" : 1791664188.419
+      }
+    ],
+    "testIdentifier" : "UpgradeVisibleControl/testDismissObservedDevelopmentOnboarding()",
+    "testIdentifierURL" : "test://com.apple.xcode/UpgradeVisibleControl/UpgradeVisibleControl/UpgradeVisibleControl/testDismissObservedDevelopmentOnboarding"
+  }
+]

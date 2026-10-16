@@ -1,0 +1,15 @@
+{
+  "kind": "slax-original-share-finite-native-sampler",
+  "version": 1,
+  "device": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+  "sourceHost": "app.slax.reader.sourcesharefixture",
+  "productionMainMustStayClosed": true,
+  "testRun": "/private/tmp/slax-source-share-control-build/Build/Products/SourceShareControl_iphonesimulator26.5-arm64-x86_64.xctestrun",
+  "testRunSHA256": "3c431e44a3f5ea470da2965844d732e83d3a86f40a9592304e51f58cde7b0d01",
+  "samplerSHA256": "eca3865dc634504392864b027de04f3c868495714ae3b0ac65acbecd2c9443cc",
+  "startedAt": 1791658235847,
+  "maximumFrames": 70,
+  "maximumSamplingMilliseconds": 18000,
+  "originalSwiftAndTimingChanged": false,
+  "nativeVisualAcceptance": "unverified"
+}
