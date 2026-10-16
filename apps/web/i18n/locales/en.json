@@ -105,7 +105,8 @@
       "copy_link": "Copy Link",
       "more": "More",
       "send": "Send",
-      "share_twitter": "Share on X"
+      "share_twitter": "Share on X",
+      "listen_from_here": "Listen from here"
     },
     "payment": {
       "completed": "Payment Completed",
@@ -564,6 +565,48 @@
       "show_transcript": "Show original transcript",
       "hide_transcript": "Hide original transcript",
       "seek": "Jump to {time}"
+    },
+    "podcast_player": {
+      "play": "Play",
+      "pause": "Pause",
+      "back": "Back 15 seconds",
+      "forward": "Forward 15 seconds",
+      "progress": "Playback position",
+      "speed": "Playback speed",
+      "back_to_current": "Back to current",
+      "error": "This audio cannot be played here. Open the original page to listen."
+    },
+    "podcast": {
+      "stalled": "Could not get the latest status.",
+      "check_again": "Check again",
+      "queued": "The transcript is queued.",
+      "transcribing": "Transcribing the audio. A long episode can take 10 to 30 minutes.",
+      "writing": "Writing the readable transcript. This takes a few minutes.",
+      "translating": "Translating into {language}…",
+      "ready_reload": "The readable transcript is ready.",
+      "show_article": "Show it",
+      "limit_reached": "You reached today’s limit of new episodes. Try again tomorrow.",
+      "failed": "Could not make the readable transcript.",
+      "retry": "Retry",
+      "translation_failed": "Could not translate this episode.",
+      "reason": {
+        "too_long": "This episode is too long. Episodes up to 3 hours are supported.",
+        "budget_exceeded": "This episode is too long. Episodes up to 3 hours are supported.",
+        "no_speech": "Little or no speech was found in this episode.",
+        "language_unsupported": "Only Chinese and English episodes are supported.",
+        "moderation": "This episode cannot be transcribed.",
+        "no_audio": "No audio was found for this episode."
+      },
+      "original": "Original",
+      "translation": "Translation",
+      "view": "Text version",
+      "seek": "Play from {time}",
+      "lang": {
+        "en": "English",
+        "zh": "Chinese"
+      },
+      "not_started": "The transcript has not started.",
+      "start": "Start"
     }
   },
   "docs": {
@@ -1225,6 +1268,10 @@
         "youtube_article": {
           "name": "YouTube AI articles",
           "desc": "Turns the transcript of a saved YouTube video into a readable article in your AI language. Videos that rely on visuals are skipped, and you can still generate them by hand."
+        },
+        "podcast": {
+          "name": "Podcast transcripts",
+          "desc": "Save a podcast episode (Xiaoyuzhou, Apple Podcasts, an RSS feed or an audio link) and read it as a clean transcript with speakers and time stamps. Play the audio on the page and listen from any paragraph. Episodes in another language get a translation. Chinese and English only, up to 3 hours, 5 new episodes a day."
         }
       },
       "navigation": {

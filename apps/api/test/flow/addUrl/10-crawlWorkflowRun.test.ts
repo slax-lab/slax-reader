@@ -61,6 +61,7 @@ import { ImportService } from '@/domain/import'
 import { MultiLangError } from '@/utils/multiLangError'
 import { ErrorName } from '@/const/err'
 import { YoutubeArticleService } from '@/domain/youtubeArticle'
+import { PodcastService } from '@/domain/podcast'
 import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
 import { OpenAIModerationClient, ModerationResult } from '@/infra/external/openaiModeration'
 import {
@@ -757,5 +758,60 @@ describe('CrawlWorkflow → YouTube AI article trigger', () => {
     await runWorkflow(wf, { url: YT })
     expect(uph.processPostHandler).toHaveBeenCalled()
     expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'www.youtube.com', 'complete', 'success')
+  })
+})
+
+describe('CrawlWorkflow → podcast route', () => {
+  const XYZ = 'https://www.xiaoyuzhoufm.com/episode/6ac821ae848a38b151b0d593'
+  const INFO = { kind: 'xiaoyuzhou', pageUrl: XYZ, audioUrl: 'https://media.xyzcdn.net/a.m4a', title: 'E255' }
+
+  function wirePodcast(labOn: boolean) {
+    const w = wireWorkflow()
+    const pod = { triggerAfterCrawl: vi.fn().mockResolvedValue(undefined) }
+    // A podcast link is not a gated save route, so the URL gate always passes
+    const lab = { isEnabled: vi.fn().mockResolvedValue(labOn), assertUrlAllowed: vi.fn().mockResolvedValue(undefined) }
+    mockResolveMap.set(PodcastService, pod)
+    mockResolveMap.set(LabService, lab)
+    mockResolveMap.set(SlaxAlertBotClient, { crawl: { pushMessage: vi.fn().mockResolvedValue(undefined) } })
+    ;(w.bs as any).updateBookmarkModerationResult = vi.fn().mockResolvedValue(undefined)
+    ;(w.bs as any).disableBookmarkShare = vi.fn().mockResolvedValue(undefined)
+    ;(w.cs as any).fetchPodcastData = vi.fn().mockResolvedValue(INFO)
+    ;(w.cs as any).parseAndSavePodcast = vi.fn().mockResolvedValue({ ...STANDARD_CRAWL_RESULT, title: 'E255' })
+    w.cs.fetchRegular.mockResolvedValue({ content: '<p>page</p>', url: XYZ, title: 'T' })
+    w.cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+    return { ...w, pod, lab }
+  }
+
+  test('Labs on: the episode is saved by the podcast path and triggered inside a step', async () => {
+    const { wf, cs, pod, lab } = wirePodcast(true)
+    const step = createMockStep()
+    await runWorkflow(wf, { url: XYZ }, step)
+    expect(lab.isEnabled).toHaveBeenCalledWith(1, 'podcast')
+    expect((cs as any).parseAndSavePodcast).toHaveBeenCalledWith(expect.anything(), INFO, 42, expect.any(String))
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(pod.triggerAfterCrawl).toHaveBeenCalledWith(expect.anything(), 42, 1)
+    expect(step.do.mock.calls.map((c: any[]) => c[0])).toContain('podcast-trigger')
+  })
+
+  test('Labs off: the link is saved as a normal page, nothing podcast runs', async () => {
+    const { wf, cs, pod } = wirePodcast(false)
+    await runWorkflow(wf, { url: XYZ })
+    expect((cs as any).fetchPodcastData).not.toHaveBeenCalled()
+    expect(cs.parseAndSaveContent).toHaveBeenCalled()
+    expect(pod.triggerAfterCrawl).not.toHaveBeenCalled()
+  })
+
+  test('not an episode after all (a feed without audio): normal page', async () => {
+    const { wf, cs, pod } = wirePodcast(true)
+    ;(cs as any).fetchPodcastData.mockResolvedValue(null)
+    await runWorkflow(wf, { url: 'https://example.com/blog/feed' })
+    expect(cs.parseAndSaveContent).toHaveBeenCalled()
+    expect(pod.triggerAfterCrawl).not.toHaveBeenCalled()
+  })
+
+  test('a normal link never asks Labs', async () => {
+    const { wf, lab } = wirePodcast(true)
+    await runWorkflow(wf)
+    expect(lab.isEnabled).not.toHaveBeenCalled()
   })
 })

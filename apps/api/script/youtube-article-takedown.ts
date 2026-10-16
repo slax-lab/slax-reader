@@ -28,21 +28,23 @@ export interface TakedownResult {
 
 export async function takedownVideo(client: Pick<Client, 'query'>, videoId: string, apply: boolean): Promise<TakedownResult> {
   assertVideoId(videoId)
-  const rows = Number((await client.query<{ n: string }>('SELECT count(*)::text AS n FROM "sr_youtube_article" WHERE "video_id" = $1', [videoId])).rows[0].n)
+  const rows = Number(
+    (await client.query<{ n: string }>(`SELECT count(*)::text AS n FROM "sr_youtube_article" WHERE "media_kind" = 'youtube' AND "video_id" = $1`, [videoId])).rows[0].n
+  )
   if (!apply) return { video_id: videoId, rows, marked: 0, applied: false }
 
   await client.query('BEGIN')
   try {
     const res = await client.query(
-      `UPDATE "sr_youtube_article" SET "status" = 'takedown', "lease_until" = NULL, "next_retry_at" = NULL, "updated_at" = now() WHERE "video_id" = $1`,
+      `UPDATE "sr_youtube_article" SET "status" = 'takedown', "lease_until" = NULL, "next_retry_at" = NULL, "updated_at" = now() WHERE "media_kind" = 'youtube' AND "video_id" = $1`,
       [videoId]
     )
     let marked = res.rowCount ?? 0
     if (marked === 0) {
       // No row yet: a marker row blocks future saves of this video
       const ins = await client.query(
-        `INSERT INTO "sr_youtube_article" ("video_id", "source_hash", "target_language", "prompt_version", "status", "updated_at")
-         VALUES ($1, 'takedown', 'en', 'v1', 'takedown', now()) ON CONFLICT DO NOTHING`,
+        `INSERT INTO "sr_youtube_article" ("media_kind", "video_id", "source_hash", "target_language", "prompt_version", "status", "updated_at")
+         VALUES ('youtube', $1, 'takedown', 'en', 'v1', 'takedown', now()) ON CONFLICT DO NOTHING`,
         [videoId]
       )
       marked = ins.rowCount ?? 0

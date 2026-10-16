@@ -84,6 +84,7 @@ interface __BaseEnv_Env {
   TIKHUB_TOKEN: string
   X_CLIENT_SECRET: string
   VERTEX_API_KEY: string
+  ASSEMBLYAI_API_KEY: string
   JIZHILE_API_KEY: string
   POWERSYNC_JWK_PRIVATE_KEY: string
   OPENAI_MODERATION_KEYS: string
@@ -99,6 +100,7 @@ interface __BaseEnv_Env {
   CRAWL_WORKFLOW: Workflow /* CrawlWorkflow from reader-core */
   CONTENT_VALIDATION_WORKFLOW: Workflow /* ContentValidationWorkflow from reader-core */
   YOUTUBE_ARTICLE_WORKFLOW: Workflow /* YoutubeArticleWorkflow from reader-core */
+  PODCAST_WORKFLOW: Workflow /* PodcastWorkflow from reader-core */
   IMPORT_PARSE_WORKFLOW: Workflow /* ImportParseWorkflow from reader-core */
 }
 declare namespace Cloudflare {

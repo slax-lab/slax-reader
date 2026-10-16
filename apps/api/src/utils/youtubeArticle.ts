@@ -107,7 +107,7 @@ export function expectedChunkCostUsd(promptTokens: number): number {
   return estimateCostUsd(promptTokens, Math.min(YOUTUBE_ARTICLE_LIMITS.maxOutputTokens, promptTokens * 2 + 500))
 }
 
-function formatTimestamp(ms: number): string {
+export function formatTimestamp(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000))
   const h = Math.floor(total / 3600)
   const m = Math.floor((total % 3600) / 60)
@@ -409,14 +409,24 @@ function articleText(doc: YoutubeArticleDocument): string {
   return [doc.lede, ...doc.sections.flatMap(s => [s.heading, ...s.paragraphs.map(p => p.text)])].join('\n')
 }
 
+/** Podcast articles reuse the checks with their own bounds; YouTube uses the defaults. */
+export interface ArticleQualityOptions {
+  /** Allowed article/source length ratio. Default: lengthBounds(captionText, doc.language). */
+  bounds?: [number, number]
+  /** Text a speaker name must appear in to be kept. Default: the captions. */
+  speakerText?: string
+  /** Minimum CJK share of a zh paragraph. Default 0.5; spoken Chinese with English terms needs less. */
+  zhMinCjkRatio?: number
+}
+
 /**
  * Check the merged article against its captions. Mutates only `speaker`: a name the captions never
  * mention is set to null and counted. Everything else is reported, the caller decides.
  */
-export function checkArticleQuality(doc: YoutubeArticleDocument, cues: YoutubeCaptionCue[], captionText: string): YoutubeArticleQuality {
+export function checkArticleQuality(doc: YoutubeArticleDocument, cues: YoutubeCaptionCue[], captionText: string, options: ArticleQualityOptions = {}): YoutubeArticleQuality {
   const failed = new Set<YoutubeArticleCheck>()
   const cueIndex = new Map(cues.map((c, i) => [c.id, i]))
-  const lowerCaption = captionText.toLowerCase()
+  const lowerCaption = (options.speakerText ?? captionText).toLowerCase()
   const paragraphs = doc.sections.flatMap(s => s.paragraphs)
 
   let speakerDropped = 0
@@ -445,7 +455,9 @@ export function checkArticleQuality(doc: YoutubeArticleDocument, cues: YoutubeCa
     lastFirst = first
   }
 
-  const okParagraphs = paragraphs.filter(p => hasNoLetters(p.text) || (doc.language === 'zh' ? cjkRatio(p.text) >= 0.5 : cjkRatio(p.text) <= 0.05)).length
+  const okParagraphs = paragraphs.filter(
+    p => hasNoLetters(p.text) || (doc.language === 'zh' ? cjkRatio(p.text) >= (options.zhMinCjkRatio ?? 0.5) : cjkRatio(p.text) <= 0.05)
+  ).length
   const languageOk = paragraphs.length === 0 ? 0 : okParagraphs / paragraphs.length
   if (languageOk < 0.95) failed.add('wrong_language')
 
@@ -462,7 +474,7 @@ export function checkArticleQuality(doc: YoutubeArticleDocument, cues: YoutubeCa
     .replace(/\s+/g, '').length
   const captionChars = captionText.replace(/\s+/g, '').length
   const ratio = captionChars === 0 ? 0 : articleChars / captionChars
-  const bounds = lengthBounds(captionText, doc.language)
+  const bounds = options.bounds ?? lengthBounds(captionText, doc.language)
   if (ratio < bounds[0] || ratio > bounds[1]) failed.add('length_ratio')
 
   const seen = new Set<string>()

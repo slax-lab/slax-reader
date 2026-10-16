@@ -26,14 +26,19 @@ const YOUTUBE_URLS = [
 ]
 
 describe('registry', () => {
-  test('RSS, YouTube, YouTube AI articles, and PDF are active and disabled by default', async () => {
+  test('RSS, YouTube, YouTube AI articles, PDF, and podcast articles are active and disabled by default', async () => {
     const { service } = wire()
     expect(await service.listForUser(1)).toEqual([
       { key: 'rss', status: 'active', enabled: false, enabled_at: null },
       { key: 'youtube', status: 'active', enabled: false, enabled_at: null },
       { key: 'youtube_article', status: 'active', enabled: false, enabled_at: null },
-      { key: 'pdf', status: 'active', enabled: false, enabled_at: null }
+      { key: 'pdf', status: 'active', enabled: false, enabled_at: null },
+      { key: 'podcast', status: 'active', enabled: false, enabled_at: null }
     ])
+  })
+
+  test('podcast gates no save route: without it, podcast links save as normal pages', () => {
+    expect(Object.values(LabService.GATED_ROUTES)).not.toContain('podcast')
   })
 
   test('youtube_article gates no save route, only the article', () => {

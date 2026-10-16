@@ -74,11 +74,13 @@ export class MarkModal extends Base implements IMarkModal {
     isStroked?: boolean
     // 本人已评论该划线时隐藏「评论」项
     hideComment?: boolean
+    // 选区在播客段落里：显示「从这里听」
+    allowListen?: boolean
     callback?: (type: MenuType, event: MouseEvent) => void
     positionCallback?: (position: { x: number; y: number }) => void
     noActionCallback?: () => void
   }) => {
-    const { event, isStroked, hideComment, callback, positionCallback, noActionCallback } = options
+    const { event, isStroked, hideComment, allowListen, callback, positionCallback, noActionCallback } = options
     const { containerDom, allowAction, allowChatbot } = this.config
 
     if (!containerDom || this.isPanelExist(containerDom)) {
@@ -133,7 +135,8 @@ export class MarkModal extends Base implements IMarkModal {
       allowChatbot: allowChatbot ?? true,
       dark: !!isInIframe,
       isStroked: !!isStroked,
-      hideComment: !!hideComment
+      hideComment: !!hideComment,
+      allowListen: !!allowListen
     })
 
     const onDismiss = () => {

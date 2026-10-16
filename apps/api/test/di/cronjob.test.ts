@@ -27,7 +27,7 @@ describe('handleCronjob', () => {
     const waits: Promise<unknown>[] = []
     await handleCronjob(container, { cron: '*/5 * * * *' }, {} as Env, { waitUntil: (p: Promise<unknown>) => waits.push(p) } as any)
     await Promise.all(waits)
-    expect(called.sort()).toEqual(['checkImportProgress', 'recoverDeletedUsers', 'recoverPayments', 'refreshRss', 'sweepYoutubeArticles'])
+    expect(called.sort()).toEqual(['checkImportProgress', 'recoverDeletedUsers', 'recoverPayments', 'refreshRss', 'sweepPodcasts', 'sweepYoutubeArticles'])
   })
 
   test('a schedule with one job runs just that job; an unknown schedule runs nothing', async () => {

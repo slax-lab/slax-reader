@@ -29,6 +29,7 @@ import { CrawlService } from '../../domain/crawl'
 import { LabService } from '../../domain/lab'
 import { SearchService } from '../../domain/search'
 import { YoutubeArticleRepo } from '../../infra/repository/dbYoutubeArticle'
+import { PodcastArticleRepo, PodcastEpisodeRepo } from '../../infra/repository/dbPodcastArticle'
 import { CollectionRepo } from '../../infra/repository/dbCollection'
 import { LogsService } from '../../domain/logs'
 import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
@@ -56,6 +57,7 @@ import { QueueClient } from '../../infra/queue/queueClient'
 import { TelegramBotService } from '../../domain/telegram'
 import { MonitoringOrchestrator } from '../../domain/orchestrator/monitor'
 import { AigcBatchOrchestrator } from '../../domain/orchestrator/aigc'
+import { PodcastService } from '../../domain/podcast'
 import { RssService } from '../../domain/rss'
 import { SubscriptionOrchestrator } from '../../domain/orchestrator/subscription'
 import { SubscriptionAppleService } from '../../domain/subscriptionApple'
@@ -75,6 +77,7 @@ import { EmailService } from '../../domain/email'
 import { ContentOrchestrator } from '../../domain/orchestrator/content'
 import { BookmarkJob } from '../../handler/cron/bookmarkJob'
 import { CollectionJob } from '../../handler/cron/collectionJob'
+import { PodcastJob } from '../../handler/cron/podcastJob'
 import { RssJob } from '../../handler/cron/rssJob'
 import { SubscriptionJob } from '../../handler/cron/subscriptionJob'
 import { UserDeletionJob } from '../../handler/cron/userDeletionJob'
@@ -96,6 +99,7 @@ import { ImageController } from '../../handler/http/imageController'
 import { MarkController } from '../../handler/http/markController'
 import { McpServerController } from '../../handler/http/mcpController'
 import { MetricsController } from '../../handler/http/metricsController'
+import { PodcastController } from '../../handler/http/podcastController'
 import { PromotionController } from '../../handler/http/promotionController'
 import { RssController } from '../../handler/http/rssController'
 import { ShareController } from '../../handler/http/shareController'
@@ -135,7 +139,8 @@ container.register(BookmarkService, {
       container.resolve(CrawlService),
       container.resolve(LabService),
       container.resolve(SearchService),
-      container.resolve(YoutubeArticleRepo)
+      container.resolve(YoutubeArticleRepo),
+      container.resolve(PodcastArticleRepo)
     )
 })
 
@@ -150,7 +155,9 @@ container.register(CrawlService, {
       container.resolve(BookmarkRepo),
       container.resolve(LogsService),
       container.resolve(SlaxAlertBotClient),
-      container.resolve(YoutubeArticleRepo)
+      container.resolve(YoutubeArticleRepo),
+      container.resolve(PodcastEpisodeRepo),
+      container.resolve(PodcastArticleRepo)
     )
 })
 
@@ -189,6 +196,22 @@ container.register(MarkService, {
 container.register(NotificationService, {
   useFactory: container =>
     new NotificationService(container.resolve(UserRepo), container.resolve(BookmarkRepo), container.resolve(CollectionRepo), container.resolve(NotificationMessage))
+})
+
+container.register(PodcastService, {
+  useFactory: container =>
+    new PodcastService(
+      container.resolve(PodcastEpisodeRepo),
+      container.resolve(PodcastArticleRepo),
+      container.resolve(BookmarkService),
+      container.resolve(BookmarkRepo),
+      container.resolve(SearchService),
+      container.resolve(LabService),
+      container.resolve(UserRepo),
+      lazy(() => container.resolve(RedisClient)),
+      lazy(() => container.resolve(BucketClient)),
+      container.resolve(SlaxAlertBotClient)
+    )
 })
 
 container.register(RssService, {
@@ -436,6 +459,10 @@ container.register(CollectionJob, {
   useFactory: container => new CollectionJob(container.resolve(CollectionService))
 })
 
+container.register(PodcastJob, {
+  useFactory: container => new PodcastJob(container.resolve(PodcastService))
+})
+
 container.register(RssJob, {
   useFactory: container => new RssJob(container.resolve(RssService))
 })
@@ -526,6 +553,14 @@ container.register(MarkRepo, {
       lazy(() => container.resolve(PRISIMA_CLIENT)),
       lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT))
     )
+})
+
+container.register(PodcastArticleRepo, {
+  useFactory: container => new PodcastArticleRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
+})
+
+container.register(PodcastEpisodeRepo, {
+  useFactory: container => new PodcastEpisodeRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
 
 container.register(ReportRepo, {
@@ -634,6 +669,10 @@ container.register(McpServerController, {
 
 container.register(MetricsController, {
   useFactory: container => new MetricsController(container.resolve(DashboardService), container.resolve(LogsService))
+})
+
+container.register(PodcastController, {
+  useFactory: container => new PodcastController(container.resolve(PodcastService))
 })
 
 container.register(PromotionController, {

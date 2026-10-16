@@ -105,7 +105,8 @@
       "copy_link": "复制链接",
       "more": "更多",
       "send": "发送",
-      "share_twitter": "分享到 X"
+      "share_twitter": "分享到 X",
+      "listen_from_here": "从这里听"
     },
     "payment": {
       "completed": "已完成支付",
@@ -565,6 +566,48 @@
       "show_transcript": "显示原始字幕",
       "hide_transcript": "隐藏原始字幕",
       "seek": "跳到 {time}"
+    },
+    "podcast_player": {
+      "play": "播放",
+      "pause": "暂停",
+      "back": "后退 15 秒",
+      "forward": "前进 15 秒",
+      "progress": "播放进度",
+      "speed": "播放速度",
+      "back_to_current": "回到当前",
+      "error": "这段音频无法在这里播放，请打开原网页收听。"
+    },
+    "podcast": {
+      "stalled": "暂时获取不到最新状态。",
+      "check_again": "重新查看",
+      "queued": "转写排队中。",
+      "transcribing": "正在转写音频。长节目需要 10 到 30 分钟。",
+      "writing": "正在整理文字稿，需要几分钟。",
+      "translating": "正在翻译成{language}……",
+      "ready_reload": "文字稿已整理好。",
+      "show_article": "显示文字稿",
+      "limit_reached": "今天的新节目数已用完，明天再试。",
+      "failed": "文字稿整理失败。",
+      "retry": "重试",
+      "translation_failed": "这期节目翻译失败。",
+      "reason": {
+        "too_long": "这期节目太长，目前支持 3 小时以内。",
+        "budget_exceeded": "这期节目太长，目前支持 3 小时以内。",
+        "no_speech": "这期节目几乎没有人声。",
+        "language_unsupported": "目前只支持中文和英文节目。",
+        "moderation": "这期节目无法转写。",
+        "no_audio": "没有找到这期节目的音频。"
+      },
+      "original": "原文",
+      "translation": "译文",
+      "view": "文字稿",
+      "seek": "从 {time} 播放",
+      "lang": {
+        "en": "英文",
+        "zh": "中文"
+      },
+      "not_started": "文字稿还没有开始生成。",
+      "start": "开始"
     }
   },
   "docs": {
@@ -1226,6 +1269,10 @@
         "youtube_article": {
           "name": "YouTube AI 整理稿",
           "desc": "把收藏的 YouTube 视频字幕整理成一篇可读的文章，语言跟随你的 AI 语言设置。依赖画面的视频不自动整理，你可以手动生成。"
+        },
+        "podcast": {
+          "name": "播客文字稿",
+          "desc": "收藏一集播客（小宇宙、Apple Podcasts、RSS 或音频链接），读整理好的文字稿：分段、说话人、时间戳。可以在页面里播放，从任意段落开始听。外语节目会附译文。只支持中文和英文，3 小时以内，每天 5 集新节目。"
         }
       },
       "navigation": {
