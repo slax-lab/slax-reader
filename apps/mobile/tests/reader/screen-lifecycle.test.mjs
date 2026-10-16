@@ -124,7 +124,7 @@ for (const {platform, kind, initialRssError} of [
     '../data': {bookmarkCacheKey, bookmarkDisplayTitle: record => record.title, collectionMarkPolicy: () => ({showMarks: true, showProfile: false}), PERSONAL_MARK_POLICY: {showMarks: true, showProfile: false}, PENDING_COLLECTION_MARK_POLICY: {}, PREFERENCE_KEYS},
     '../runtime': {useReadingMobile: () => React.useContext(Context), useMobile: () => React.useContext(Context), useControlledUpgradeReaderObserver: () => undefined},
     '../rss/controller': {reportRssSaved: (...saved) => savedEntries.push(saved), rssErrorCode}, '../theme': {mobileColors: {}, mobileTypography: {}},
-    '../native/reader': {readerNativeAdapter: {}}, '../native/platform': {},
+    '../native/reader': {readerNativeAdapter: {}}, '../native/image-actions': {imageActionPort: {save: async () => {}, share: async () => {}}}, '../native/platform': {},
     '../telemetry': {useTelemetry: () => telemetry}, '../reader/share': {},
     '../reader': {ReaderWebView: React.forwardRef((props, ref) => {readerProps = props; React.useImperativeHandle(ref, () => ({commitExit: async () => {committedExits++}, clearSelection: async () => {}, flushPosition: async () => {}}), []); return null}), toolbarVisible: coordinates.toolbarVisible},
     '../reader/input': input,

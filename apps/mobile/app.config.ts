@@ -57,6 +57,8 @@ const config: ExpoConfig = {
     'expo-localization',
     'expo-apple-authentication',
     ['expo-iap', {module: 'expo-iap'}],
+    // Reader images are only ever saved (never read back): add-only iOS access, no Android media-read permissions.
+    ['expo-media-library', {photosPermission: false, savePhotosPermission: 'Slax Reader saves images you choose from articles to your photo library.', granularPermissions: []}],
     ...providerPlugins,
   ],
 };

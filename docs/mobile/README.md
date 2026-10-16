@@ -49,7 +49,7 @@ The application floor is Android API 26 and iOS 16.4. The approved runtime is Ex
 | `EXPO_PUBLIC_SLAX_GOOGLE_WEB_CLIENT_ID` | Google ID-token audience for the existing backend |
 | `EXPO_PUBLIC_SLAX_GOOGLE_IOS_CLIENT_ID` | iOS Google client identifier |
 | `EXPO_PUBLIC_SLAX_GOOGLE_IOS_URL_SCHEME` | Reversed iOS client identifier registered by the provider plugin |
-| `apps/mobile/package.json`: `version` / `buildNumber` | Canonical native marketing version and build code; together represent `1.0.25(768)`; environment version overrides are ignored |
+| `apps/mobile/package.json`: `version` / `buildNumber` | Canonical native marketing version and build code; together represent `1.0.25(769)`; environment version overrides are ignored |
 | `apps/mobile/package.json`: `previousBuildNumber` | Confirmed previous build bound, strictly lower than `buildNumber`; update before another store release |
 | `SLAX_APPLE_TEAM_ID` | Public publisher team identifier for the guarded iOS archive/export/upload commands using the existing Xcode account |
 

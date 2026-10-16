@@ -216,6 +216,9 @@ PODS:
     - ExpoModulesCore
   - ExpoLogBox (57.0.4):
     - React-Core
+  - ExpoMediaLibrary (57.0.5):
+    - ExpoModulesCore
+    - React-Core
   - ExpoModulesCore (57.0.21):
     - ExpoModulesJSI
     - hermes-engine
@@ -256,6 +259,8 @@ PODS:
   - ExpoSecureStore (57.0.4):
     - ExpoModulesCore
   - ExpoSensors (57.0.3):
+    - ExpoModulesCore
+  - ExpoSharing (57.0.23):
     - ExpoModulesCore
   - EXUpdatesInterface (57.0.2):
     - ExpoModulesCore
@@ -2742,6 +2747,7 @@ DEPENDENCIES:
   - "ExpoKeepAwake (from `../../../node_modules/.pnpm/expo-keep-awake@57.0.2_expo@57.0.27_react@19.2.3/node_modules/expo-keep-awake/ios`)"
   - "ExpoLocalization (from `../../../node_modules/.pnpm/expo-localization@57.0.2_expo@57.0.27_react@19.2.3/node_modules/expo-localization/ios`)"
   - "ExpoLogBox (from `../../../node_modules/.pnpm/@expo+log-box@57.0.4_@expo+dom-webview@57.0.1_expo@57.0.27_react-native@0.86.3_@babel+c_caeed061c67a23196bae8342694342a8/node_modules/@expo/log-box`)"
+  - "ExpoMediaLibrary (from `../../../node_modules/.pnpm/expo-media-library@57.0.5_expo@57.0.27_react-native@0.86.3_@babel+core@7.29.7_supports-_88d0d1c43014d0c783b6f1371c75100b/node_modules/expo-media-library/ios/ExpoMediaLibrary.podspec`)"
   - "ExpoModulesCore (from `../../../node_modules/.pnpm/expo-modules-core@57.0.21_react-native-worklets@0.10.1_@babel+core@7.29.7_supports-colo_5d620c8689dac526b4233538a0024e50/node_modules/expo-modules-core/ExpoModulesCore.podspec`)"
   - "ExpoModulesJSI (from `../../../node_modules/.pnpm/expo-modules-jsi@57.1.1_react-native@0.86.3_@babel+core@7.29.7_supports-color@10.2.2__@_fe1c7b041e3df5b9a093698e1e7660d5/node_modules/expo-modules-jsi/apple`)"
   - "ExpoModulesWorklets (from `../../../node_modules/.pnpm/expo-modules-core@57.0.21_react-native-worklets@0.10.1_@babel+core@7.29.7_supports-colo_5d620c8689dac526b4233538a0024e50/node_modules/expo-modules-core/ExpoModulesWorklets.podspec`)"
@@ -2749,6 +2755,7 @@ DEPENDENCIES:
   - "ExpoNetwork (from `../../../node_modules/.pnpm/expo-network@57.0.2_expo@57.0.27_react@19.2.3/node_modules/expo-network/ios`)"
   - "ExpoSecureStore (from `../../../node_modules/.pnpm/expo-secure-store@57.0.4_expo@57.0.27/node_modules/expo-secure-store/ios`)"
   - "ExpoSensors (from `../../../node_modules/.pnpm/expo-sensors@57.0.3_expo@57.0.27_react-native@0.86.3_@babel+core@7.29.7_supports-color@_511aeef0bd1ab498d31c2ed073daafef/node_modules/expo-sensors/ios`)"
+  - "ExpoSharing (from `../../../node_modules/.pnpm/expo-sharing@57.0.23_expo@57.0.27_react-native@0.86.3_@babel+core@7.29.7_supports-color_58dfc7c45578c2ec9074c8c78ec76b32/node_modules/expo-sharing/ios`)"
   - "EXUpdatesInterface (from `../../../node_modules/.pnpm/expo-updates-interface@57.0.2_expo@57.0.27/node_modules/expo-updates-interface/ios`)"
   - "FBLazyVector (from `../../../node_modules/.pnpm/react-native@0.86.3_@babel+core@7.29.7_supports-color@10.2.2__@react-native+metro-confi_8dee5640e6d386a1f18e14694ea5bd32/node_modules/react-native/Libraries/FBLazyVector`)"
   - GoogleUtilities
@@ -2911,6 +2918,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.pnpm/expo-localization@57.0.2_expo@57.0.27_react@19.2.3/node_modules/expo-localization/ios"
   ExpoLogBox:
     :path: "../../../node_modules/.pnpm/@expo+log-box@57.0.4_@expo+dom-webview@57.0.1_expo@57.0.27_react-native@0.86.3_@babel+c_caeed061c67a23196bae8342694342a8/node_modules/@expo/log-box"
+  ExpoMediaLibrary:
+    :podspec: "../../../node_modules/.pnpm/expo-media-library@57.0.5_expo@57.0.27_react-native@0.86.3_@babel+core@7.29.7_supports-_88d0d1c43014d0c783b6f1371c75100b/node_modules/expo-media-library/ios/ExpoMediaLibrary.podspec"
   ExpoModulesCore:
     :podspec: "../../../node_modules/.pnpm/expo-modules-core@57.0.21_react-native-worklets@0.10.1_@babel+core@7.29.7_supports-colo_5d620c8689dac526b4233538a0024e50/node_modules/expo-modules-core/ExpoModulesCore.podspec"
   ExpoModulesJSI:
@@ -2925,6 +2934,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.pnpm/expo-secure-store@57.0.4_expo@57.0.27/node_modules/expo-secure-store/ios"
   ExpoSensors:
     :path: "../../../node_modules/.pnpm/expo-sensors@57.0.3_expo@57.0.27_react-native@0.86.3_@babel+core@7.29.7_supports-color@_511aeef0bd1ab498d31c2ed073daafef/node_modules/expo-sensors/ios"
+  ExpoSharing:
+    :path: "../../../node_modules/.pnpm/expo-sharing@57.0.23_expo@57.0.27_react-native@0.86.3_@babel+core@7.29.7_supports-color_58dfc7c45578c2ec9074c8c78ec76b32/node_modules/expo-sharing/ios"
   EXUpdatesInterface:
     :path: "../../../node_modules/.pnpm/expo-updates-interface@57.0.2_expo@57.0.27/node_modules/expo-updates-interface/ios"
   FBLazyVector:
@@ -3132,6 +3143,7 @@ SPEC CHECKSUMS:
   ExpoKeepAwake: 72af0b3be3615e59bc819d26061ff4e06b155ee0
   ExpoLocalization: f204d4ca963bfcea932068a978247878f664f5a4
   ExpoLogBox: 80957303325cd4439137765c90a87d7f22aaf2ff
+  ExpoMediaLibrary: 341321256621e7bf220b6272c42fedcb095607d0
   ExpoModulesCore: be4232e47a2e85126659a1f21c9ae9cac593573f
   ExpoModulesJSI: 9e2ac522bf1ce86b7b1f8f0bb8ef87b20156e38b
   ExpoModulesWorklets: 1916bfde983876e6caf849398b91a0b492b73869
@@ -3139,6 +3151,7 @@ SPEC CHECKSUMS:
   ExpoNetwork: 7a7a7e0123d1ac5efc742b7b29e43102be5634bf
   ExpoSecureStore: ff1fd5e073957417ba8f9dec0bebcbd55a60e747
   ExpoSensors: a2f4f23f3648c1124923be5356a0d1737d87bde6
+  ExpoSharing: a717847b4fff66f008f884329f1af9fe74c7f4ce
   EXUpdatesInterface: 4c96533f11c8cefe879bd506564cc2d537f56804
   FBLazyVector: 2138c6c2ab66c31bf5754dc18097fbc498a49c7f
   Firebase: 5523dd53ebe603451b4e1befcd99fa20a5c015cd

@@ -38,11 +38,13 @@ export interface ZoomableImageProps {
   onDismiss(): void;
   onLoad?(): void;
   onError?(): void;
+  /** Long press on the resting active page opens image actions (save/share). */
+  onLongPress?(): void;
   retention?: DecodedImageRetention;
   children?: React.ReactNode;
 }
 
-export function ZoomableImage({uri, identity, width, height, active, pageOffset, page, pageCount, onPage, onDismiss, onLoad, onError, retention, children}: ZoomableImageProps) {
+export function ZoomableImage({uri, identity, width, height, active, pageOffset, page, pageCount, onPage, onDismiss, onLoad, onError, onLongPress, retention, children}: ZoomableImageProps) {
   const scale = useSharedValue(1), x = useSharedValue(0), y = useSharedValue(0);
   const fitWidth = useSharedValue(width), fitHeight = useSharedValue(height);
   const startX = useSharedValue(0), startY = useSharedValue(0), startPage = useSharedValue(0), originPage = useSharedValue(page);
@@ -133,8 +135,12 @@ export function ZoomableImage({uri, identity, width, height, active, pageOffset,
       scale.value = withTiming(next, {duration: 220, reduceMotion: ReduceMotion.System});
     });
     const tap = Gesture.Tap().enabled(active).maxDistance(8).onEnd((_event, succeeded) => {if (succeeded) runOnJS(onDismiss)();});
-    return Gesture.Race(Gesture.Simultaneous(pinch, pan), Gesture.Exclusive(doubleTap, tap));
-  }, [active, uri, width, height, page, pageCount, onPage, onDismiss, pageOffset, scale, x, y, startX, startY, startPage, originPage, fitWidth, fitHeight, pinchScale, pinchX, pinchY, focalX, focalY, pinching, blockedPan, blockedPinch, tracking]);
+    if (!onLongPress) return Gesture.Race(Gesture.Simultaneous(pinch, pan), Gesture.Exclusive(doubleTap, tap));
+    const longPress = Gesture.LongPress().enabled(active && !!uri).minDuration(450).maxDistance(10).onStart(() => {
+      if (!pinching.value && Math.abs(pageOffset.value - page * width) <= width * 0.02) runOnJS(onLongPress)();
+    });
+    return Gesture.Race(Gesture.Simultaneous(pinch, pan), longPress, Gesture.Exclusive(doubleTap, tap));
+  }, [active, uri, width, height, page, pageCount, onPage, onDismiss, onLongPress, pageOffset, scale, x, y, startX, startY, startPage, originPage, fitWidth, fitHeight, pinchScale, pinchX, pinchY, focalX, focalY, pinching, blockedPan, blockedPinch, tracking]);
   const style = useAnimatedStyle(() => ({transform: [{translateX: x.value}, {translateY: y.value}, {scale: scale.value}]}));
   return <GestureDetector gesture={gesture}><View collapsable={false} style={{width, height, overflow: 'hidden'}}>
     {uri ? <Animated.View style={[StyleSheet.absoluteFill, style]}><AppImage source={uri} identity={identity} fit="contain" maxPixels={4 * 1024 * 1024} active={active} retention={retention} transition={0} style={StyleSheet.absoluteFill} onLoad={loaded} onError={onError} /></Animated.View> : null}

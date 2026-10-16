@@ -22,8 +22,10 @@ interface ContentProps {
 }
 export function ReaderContent({isPdf, isPreview, loading, html, pdfProps, htmlProps, hostKey, top, header, title, contentError, nativeFailure, rssError, t, reload, retryPdf, retryNative}: ContentProps) {
   return <>
-    {isPdf ? pdfProps && !contentError ? <PdfWebView key={hostKey} {...pdfProps} /> :
-      <View style={styles.center} testID="reader-pdf-loading-or-error">{loading ? <><SourceCircularProgress color={C.accent} /><SourceText>{t('pdf_loading')}</SourceText></> : <><SourceText>{contentError || t('pdf_load_failed')}</SourceText><TextAction label={t('rss_retry')} onPress={retryPdf} /></>}</View> :
+    {/* A PDF opens like an article: header first, body skeleton until its pages are ready; no loading label. */}
+    {isPdf ? pdfProps && !contentError ? <PdfWebView key={hostKey} {...pdfProps} placeholder={<ReaderSkeleton lines />} /> :
+      loading && !contentError ? <ReaderSkeleton topSpacer={top + 44} header={title ? header : undefined} /> :
+      <View style={styles.center} testID="reader-pdf-loading-or-error"><SourceText>{contentError || t('pdf_load_failed')}</SourceText><TextAction label={t('rss_retry')} onPress={retryPdf} /></View> :
       html !== null ? <ReaderWebView key={hostKey} {...htmlProps} /> :
       isPreview ? <View testID="reader-rss-loading-or-error" style={styles.center}>{loading ? <SourceCircularProgress color={C.rssAccent} /> : <><SourceText>{t(`rss_error_${rssError ?? 'source_unavailable'}`)}</SourceText><TextAction label={t('rss_retry')} onPress={() => reload()} /></>}</View> :
       loading ? <ReaderSkeleton topSpacer={top + 44} header={title ? header : undefined} /> :

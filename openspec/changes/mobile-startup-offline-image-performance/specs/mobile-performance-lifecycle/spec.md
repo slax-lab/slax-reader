@@ -187,6 +187,34 @@ Cached readable content SHALL NOT wait for an unconditional animation timer or m
 - **WHEN** reduced motion is enabled or a gesture reverses/cancels an in-progress transition
 - **THEN** the surface finishes in a coherent accessible state with no stale completion action or unintended navigation
 
+### Requirement: PDF documents open like articles
+
+A PDF reader SHALL present the article header as soon as it is available and show the ordinary article body skeleton beneath it until the PDF document reports ready, both while its descriptor is loading and while its pages initialize. The reader SHALL NOT show a PDF-specific loading label or centered loading spinner; genuine failures keep the existing retry presentation and assistive technology still receives a non-visual loading status.
+
+#### Scenario: A PDF is opened
+- **WHEN** a user opens a PDF bookmark whose pages are not yet ready
+- **THEN** the title, metadata, tags and overview appear first and a body skeleton fills the reading area until the pages are ready, without a "Loading PDF" message
+
+### Requirement: Sidebar motion settles over the remaining distance
+
+The library sidebar SHALL settle with a short emphasized-decelerate motion whose duration scales with the distance remaining after a drag, remain interruptible from its in-flight position, and honor reduced motion.
+
+#### Scenario: The user releases a partially opened sidebar
+- **WHEN** a drag leaves the sidebar most of the way open and the user releases it
+- **THEN** it completes in proportionally less time than a full open, and a reversed gesture continues from the actual current position
+
+### Requirement: Reader images offer long-press save and share actions
+
+A still long press on an article image or on the current fullscreen gallery image SHALL open a bottom action sheet with Save to Photos, Share and a separated Cancel. The selected action SHALL start only after the sheet's dismissal completes. Saving SHALL request write-only photo-library access, store a correctly typed copy of the app-owned offline image and report success, permission denial or failure; sharing SHALL present the system share sheet for that copy. Long presses SHALL NOT open the gallery, a tap action, text selection or the system image callout, and stale results after replacement, account change or closing SHALL be discarded.
+
+#### Scenario: The user long-presses an article image
+- **WHEN** a user holds an article image still and chooses Save to Photos
+- **THEN** the sheet closes, the image is saved to the photo library after write-only permission is granted, and a brief saved notice appears without opening the gallery
+
+#### Scenario: The user shares an image from the gallery
+- **WHEN** a user long-presses the current fullscreen image and chooses Share
+- **THEN** the system share sheet presents above the gallery with the image after the action sheet has dismissed
+
 ### Requirement: Performance delivery is verified on the shipped build
 
 Completion SHALL require passing standard mobile checks and relevant native behavior on the actual deliverable, with Release performance evidence distinguishing first presentation, admitted local-data readiness, download behavior, input responsiveness and memory. The authorized TestFlight delivery SHALL preserve production configuration, signing and main/share identities with monotonically incremented build metadata. Git delivery SHALL use the task branch and a PR to `dev`; upload acceptance, Apple processing and tester availability SHALL be reported separately. Cleanup SHALL remove only task-owned outputs after recording delivery evidence and SHALL preserve operator credentials, shared caches and required recovery/symbolication records.

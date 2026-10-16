@@ -65,6 +65,26 @@ export function ReaderToolbar({visible, collection, youtube, starred, archived, 
   </SourceSheetModal>
 }
 
+/** WeChat-style long-press image sheet: save and share above a separated cancel row. */
+export function ImageActionSheet({visible, t, onSave, onShare, onCancel, onDidDismiss}: {visible: boolean; t: Translate; onSave(): void; onShare(): void; onCancel(): void; onDidDismiss(): void}) {
+  const inset = useSafeAreaInsets()
+  const row = (testID: string, label: string, press: () => void) => <Pressable testID={testID} accessibilityRole="button" onPress={press}
+    style={({pressed}) => [styles.imageActionRow, pressed && {backgroundColor: C.pressedOverlay}]}><SourceText style={styles.imageActionText}>{label}</SourceText></Pressable>
+  return <SourceSheetModal visible={visible} onDismiss={onCancel} onDidDismiss={onDidDismiss}>
+    <View testID="reader-image-actions" style={[styles.imageActionSheet, {paddingBottom: inset.bottom}]}>
+      {row('reader-image-save', t('image_action_save'), onSave)}
+      <View style={styles.imageActionDivider} />
+      {row('reader-image-share', t('image_action_share'), onShare)}
+      <View style={styles.imageActionGap} />
+      {row('reader-image-cancel', t('btn_cancel'), onCancel)}
+    </View>
+  </SourceSheetModal>
+}
+export function ImageActionNotice({message}: {message: string | null}) {
+  if (!message) return null
+  return <View pointerEvents="none" accessibilityLiveRegion="polite" style={styles.imageNotice}><SourceText style={[T.helper, {color: C.surface}]}>{message}</SourceText></View>
+}
+
 export {CommentPanel, type CommentMenuAnchor} from './components/CommentPanel'
 
 export {OutlineSheet} from './components/OutlineSheet'
@@ -88,6 +108,10 @@ export function TranscriptSheet({visible, cues, currentTime, t, onSeek, onClose}
 const styles = StyleSheet.create({
   selectionContainer: {position: 'absolute', left: 0, right: 0, alignItems: 'center'}, selectionMenu: {flexDirection: 'row', height: 44, borderRadius: 8, overflow: 'hidden', backgroundColor: C.selectionMenu}, selectionAction: {flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12},
   floating: {position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 12}, floatingPill: {height: 50, borderRadius: 25, backgroundColor: C.surface, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.surface, shadowColor: '#000000', shadowOpacity: 0.16, shadowRadius: 40, shadowOffset: {width: 0, height: 10}, elevation: 8}, floatingCircle: {width: 50, height: 50, borderRadius: 25, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.16, shadowRadius: 40, shadowOffset: {width: 0, height: 10}, elevation: 8},
+  imageActionSheet: {backgroundColor: C.surface, borderTopLeftRadius: 12, borderTopRightRadius: 12, overflow: 'hidden'},
+  imageActionRow: {height: 56, alignItems: 'center', justifyContent: 'center'}, imageActionText: {fontSize: 17, lineHeight: 22, color: C.text},
+  imageActionDivider: {height: StyleSheet.hairlineWidth, backgroundColor: C.border}, imageActionGap: {height: 8, backgroundColor: C.background},
+  imageNotice: {position: 'absolute', top: 120, alignSelf: 'center', backgroundColor: C.bodyText, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10},
   readerSheet: {borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: C.readerBackground, overflow: 'hidden', maxHeight: '96%'},
   toolbarSheet: {backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 24, paddingHorizontal: 12}, toolbarGrid: {flexDirection: 'row', flexWrap: 'wrap', rowGap: 24}, toolbarItem: {width: '25%', alignItems: 'center'}, toolbarIcon: {width: 56, height: 56, borderRadius: 16, backgroundColor: C.background, alignItems: 'center', justifyContent: 'center'},
   commentMeta: {fontSize: 12, lineHeight: 16.5, color: C.mutedText}, commentAction: {flexDirection: 'row', alignItems: 'center', gap: 5},

@@ -39,6 +39,8 @@ export interface PdfWebViewProps {
   initialPosition?: number | null
   labels?: Partial<PdfLabels>
   header?: React.ReactNode
+  /** Shown beneath the header until the document reports ready, like an article skeleton. */
+  placeholder?: React.ReactNode
   headerSafeAreaPoints?: number
   commentPanelVisible?: boolean
   isRouteRemoved?: () => boolean
@@ -132,7 +134,7 @@ const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(
   }, [send])
   const nativeContext: ReaderNativeContext = {pageId: props.pageId, cacheKey: props.cacheKey, cacheDirectory: props.cacheDirectory,
     resourceOwner: props.resourceOwner, pdfMode: true, protectedHosts: ['slax.com'], imageProxyOrigins: [], suppressSelectionMenu: true, scrollsToTop: !props.commentPanelVisible}
-  const scrollHost = usePdfScrollHost({context: nativeContext, ready, active: foreground, activation, header: props.header, headerSafeAreaPoints: props.headerSafeAreaPoints, style: props.style,
+  const scrollHost = usePdfScrollHost({context: nativeContext, ready, active: foreground, activation, header: props.header, placeholder: props.placeholder, headerSafeAreaPoints: props.headerSafeAreaPoints, style: props.style,
     onViewport: viewport => send({kind: 'viewport', ...viewport}), onInitialLayout: async () => {
       const generation = lifecycleGeneration.current
       initializationScroll.current = null

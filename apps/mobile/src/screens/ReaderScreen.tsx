@@ -9,7 +9,9 @@ import {mobileColors as C, mobileTypography as T} from '../theme'
 import {readerNativeAdapter} from '../native/reader'
 import {useTelemetry} from '../telemetry'
 import type {ReaderEvent} from '../reader'
-import {FloatingActions, ReaderToolbar, SelectionMenu, TranscriptSheet} from '../reader/ReaderOverlays'
+import {FloatingActions, ImageActionNotice, ImageActionSheet, ReaderToolbar, SelectionMenu, TranscriptSheet} from '../reader/ReaderOverlays'
+import {imageActionPort} from '../native/image-actions'
+import type {ImageActionSurface} from '../reader/state/useImageActions'
 import {ImageGallery} from '../reader/ImageGallery'
 import {ReaderAiOutline, ReaderAiOverview, ReaderAiExcerpt, ReaderCommentPanel} from '../reader/components/ReaderFeatureViews'
 import {ReaderTagSheet} from '../reader/TagSheet'
@@ -66,7 +68,7 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
   const ai = useReaderAi(scope, {api, local: repositories?.local, network: fixtureOnly?.network, subscribed: bookmark.subscribed, platform: config.platform, telemetry, clearSelection, subscription: () => subscriptionCommand.current(), document})
   const interactions = useReaderInteractions(scope, {isIos, nativeResourceOwner, fixtureOnly: Boolean(fixtureOnly), settings, writePreferences, cache, telemetry, api,
     document, annotations, bookmark, ai, presentation, operationError: life.operationError, clearError: life.clearError,
-    feedback: entryPoint => navigation.navigate('Feedback', {bookmarkId, title, targetUrl: originalUrl, entryPoint, type: 'parse_error'})})
+    feedback: entryPoint => navigation.navigate('Feedback', {bookmarkId, title, targetUrl: originalUrl, entryPoint, type: 'parse_error'}), imageActions: imageActionPort})
   selectionCommand.current = () => {void annotations.clearSelection()}
   subscriptionCommand.current = () => {
     if (config.platform === 'ios') {telemetry.firebase('subscription', 'view', {source: 'dialog'}); navigation.navigate('Subscription')}
@@ -128,6 +130,12 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
   }, [isPreview, isAccountActive, repositories, cacheKey])
   const reload = useEvent((force?: boolean) => void document.load(force))
   const retryNative = useEvent(() => run(document.retryNative()))
+  const images = interactions.imageActions
+  const openGalleryImageAction = useCallback((source: string) => images.open(source, 'gallery'), [images.open])
+  // Each surface owns its own sheet/notice so a gallery action presents inside the gallery modal.
+  const imageActionSheet = (surface: ImageActionSurface) => images.request?.surface === surface ?
+    <ImageActionSheet visible={images.visible} t={t} onSave={images.save} onShare={images.share} onCancel={images.cancel} onDidDismiss={images.dismissed} /> : null
+  const imageActionNotice = (surface: ImageActionSurface) => images.notice?.surface === surface ? <ImageActionNotice message={t(`image_action_${images.notice.kind}`)} /> : null
   const footer = useMemo(() => isPreview ? <View style={{paddingHorizontal: 20, paddingTop: 24, paddingBottom: 24 + safeArea.bottom}}><View style={{height: 0.5, backgroundColor: '#E9E5DF', marginBottom: 20}} />{saveButton}</View> : undefined,
     [isPreview, safeArea.bottom, saveButton])
 
@@ -166,7 +174,8 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
       position={ai.position.current} t={t} onClose={() => ai.close('hidden')} onCollapse={() => ai.close('collapsed')} onRetry={() => void ai.load('outline', true)} onPosition={ai.updatePosition} onLink={ai.link} />
     <TranscriptSheet visible={interactions.transcriptVisible} cues={interactions.cues} currentTime={interactions.youtubeTime} t={t} onClose={interactions.closeTranscript} onSeek={interactions.seek} />
     {interactions.gallery ? <ImageGallery errorLabel={t('rss_image_failed')} images={interactions.gallery.images} index={interactions.gallery.index} resolveUri={interactions.resolveGalleryUri}
-      visible={life.routeVisible && appActive} allowNetworkFallback={!fixtureOnly} isActive={isAccountActive} onDismiss={interactions.closeGallery} /> : null}
+      visible={life.routeVisible && appActive} allowNetworkFallback={!fixtureOnly} isActive={isAccountActive} onDismiss={interactions.closeGallery}
+      onImageLongPress={openGalleryImageAction}>{imageActionSheet('gallery')}{imageActionNotice('gallery')}</ImageGallery> : null}
     <PdfNotesSheet visible={isPdf && annotations.pdfNotesVisible && appActive && life.routeVisible && policy.showMarks} marks={annotations.pdfMarkInfos} bottom={safeArea.bottom} t={t} onClose={annotations.closeNotes} onSelect={mark => run(annotations.openNote(mark))} />
     <ReaderAiOverview state={ai.overview} visible={interactions.overlay === 'overview'} isPdf={isPdf} pdfTextMessage={document.pdfTextMessage} loadingLabel={t('pdf_loading')}
       title={t('overview_dialog_title')} closeLabel={t('btn_close')} onClose={interactions.closeOverview} />
@@ -179,6 +188,7 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
       discard={{visible: annotations.discard !== null, cancel: annotations.cancelDiscard, confirm: annotations.discardDraft}}
       comment={{visible: annotations.deletingComment !== null, cancel: annotations.cancelDelete, confirm: () => run(annotations.confirmDelete())}}
       error={{message: life.operationError, close: life.clearError}} />
+    {imageActionSheet('document')}{imageActionNotice('document')}
     {annotations.copied ? <View pointerEvents="none" style={styles.copyToast}><SourceText style={[T.helper, {color: C.surface}]}>{t('comment_panel_copied')}</SourceText></View> : null}
   </View>
 }

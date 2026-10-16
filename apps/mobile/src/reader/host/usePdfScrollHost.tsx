@@ -11,7 +11,7 @@ import type {ReaderNativeContext} from '../native.ts'
 import {isReaderOperationCancelled, readerOperationCancelled} from '../bridge.ts'
 
 export function usePdfScrollHost(options: {
-  context: ReaderNativeContext; ready: boolean; active?: boolean; activation?: number; header?: React.ReactNode; headerSafeAreaPoints?: number; style?: StyleProp<ViewStyle>
+  context: ReaderNativeContext; ready: boolean; active?: boolean; activation?: number; header?: React.ReactNode; placeholder?: React.ReactNode; headerSafeAreaPoints?: number; style?: StyleProp<ViewStyle>
   onViewport(viewport: ReaderHostViewport): void; onInitialLayout(): Promise<unknown> | void
   onScrollMetrics?(positionPixels: number, nearBottom: boolean): void; onError(error: unknown): void; onOperationError?(error: unknown): void
 }) {
@@ -177,7 +177,10 @@ export function usePdfScrollHost(options: {
     const header = options.header ? <View onLayout={event => setHeaderHeight(event.nativeEvent.layout.height)}>{options.header}</View> : null
     const Overlay = readerNativeAdapter.OverlayComponent
     const visible = headerHeight === 0 || offset.current + headerHeight < geometry.current.headerHeightPoints
-    return <View ref={container} testID="pdf-reader-container" style={[styles.root, options.style]} onLayout={event => {
+    // Until the first ready event the body area shows the article skeleton; it never covers an unmeasured header.
+    const placeholder = options.placeholder && !options.ready && (!options.header || headerHeight > 0)
+      ? <View pointerEvents="none" testID="pdf-reader-placeholder" style={[styles.placeholder, {top: options.header ? headerHeight : 0}]}>{options.placeholder}</View> : null
+    const host = <View ref={container} testID="pdf-reader-container" style={[styles.root, options.style]} onLayout={event => {
       const height = event.nativeEvent.layout.height
       measuredViewport.current = height; setViewportHeight(height)
       container.current?.measureInWindow((_x, y) => setScreenTop(y))
@@ -192,9 +195,12 @@ export function usePdfScrollHost(options: {
         headerHeightPoints={geometry.current.headerHeightPoints} style={styles.header}>{header}</Overlay>
         : <View ref={fallbackHeader} pointerEvents={visible ? 'auto' : 'none'} style={[styles.header, {transform: [{translateY: -Math.max(0, offset.current + headerHeight)}]}]}>{header}</View> : null}</>}
     </View>
+    // The skeleton layer sits beside the unchanged scroll host so showing or hiding it never remounts the document.
+    return options.placeholder === undefined ? host : <View style={styles.layer}>{host}{placeholder}</View>
   }
   return {platform, documentHeight, setDocumentHeight: (height: number) => {heightRef.current = height; setDocumentHeight(height)}, nativeLoad, nativeScroll, selectionY, scrollToDocument, publish,
     wrap, documentStyle: platform === 'android' ? {height: documentHeight, flex: 0, backgroundColor: 'transparent'} : styles.document,
     contentInset: platform === 'ios' ? {top: headerHeight, bottom: 0, left: 0, right: 0} : undefined}
 }
-const styles = StyleSheet.create({root: {flex: 1, backgroundColor: '#FCFCFC'}, document: {flex: 1, backgroundColor: 'transparent'}, header: {position: 'absolute', top: 0, left: 0, right: 0}})
+const styles = StyleSheet.create({root: {flex: 1, backgroundColor: '#FCFCFC'}, document: {flex: 1, backgroundColor: 'transparent'}, header: {position: 'absolute', top: 0, left: 0, right: 0},
+  layer: {flex: 1}, placeholder: {position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: 4, backgroundColor: '#FCFCFC', overflow: 'hidden'}})

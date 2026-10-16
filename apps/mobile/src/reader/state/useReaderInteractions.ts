@@ -9,6 +9,7 @@ import {rssImageUrl, youtubeCues} from '../model'
 import {toolbarVisible} from '../index'
 import {useReducedMotion} from '../../motion/useReducedMotion'
 import type {ReaderEvent} from '../types'
+import {useImageActions, type ImageActionPort} from './useImageActions'
 import type {useReaderAi} from './useReaderAi'
 import type {useReaderAnnotations} from './useReaderAnnotations'
 import type {useReaderBookmark} from './useReaderBookmark'
@@ -24,6 +25,7 @@ interface InteractionPorts {
   presentation: ReaderPresentationIdentity
   operationError: string | null; clearError(): void
   feedback(entryPoint: 'detail_error' | 'bookmark_detail'): void
+  imageActions?: ImageActionPort
 }
 export function useReaderInteractions(scope: ReaderScope, ports: InteractionPorts) {
   const {cacheKey, currentUserId, isPreview, isAccountActive, mounted, foreground, reader, fail} = scope
@@ -47,6 +49,8 @@ export function useReaderInteractions(scope: ReaderScope, ports: InteractionPort
     animation.start(); return () => animation.stop()
   }, [headerMoreOffset, toolbarIsVisible, reducedMotion])
   const [gallery, setGallery] = useState<{images: string[]; index: number} | null>(null)
+  const resolveGalleryUri = useCallback((uri: string, signal?: AbortSignal) => resolveGalleryImage(cache, cacheKey, uri, {fetch: expoFetch, allowNetwork: !fixtureOnly, isActive: isAccountActive, signal}), [cache, cacheKey, fixtureOnly, isAccountActive])
+  const imageActions = useImageActions({port: ports.imageActions, resolveUri: resolveGalleryUri, isActive: isAccountActive})
   const [transcriptVisible, setTranscriptVisible] = useState(false), [youtubeTime, setYoutubeTime] = useState(-1)
   const cues = useCues(document.html)
   useLayoutEffect(() => {setOverlay(null); setExternalUrl(null); setGallery(null); setTranscriptVisible(false); setYoutubeTime(-1); setToolbarIsVisible(true); clearError()}, [cacheKey])
@@ -144,18 +148,21 @@ export function useReaderInteractions(scope: ReaderScope, ports: InteractionPort
       if (isPreview && !rssImageUrl(event.src)) return
       const images = (event.allImages.length ? event.allImages : [event.src]).filter(url => !isPreview || rssImageUrl(url))
       void clearSelection(); setGallery({images, index: Math.max(0, images.indexOf(event.src))})
+    } else if (event.type === 'imageLongPress') {
+      if (isPreview && !rssImageUrl(event.src)) return
+      void clearSelection(); imageActions.open(event.src, 'document')
     } else if (event.type === 'tap' && !document.scrollInfo.current.nearBottom && document.scrollInfo.current.position > 10) setToolbarIsVisible(value => !value)
     else if (event.type === 'refreshContent') void document.load(true)
     else if (event.type === 'feedback') ports.feedback('detail_error')
   }
-  const resolveGalleryUri = useCallback((uri: string, signal?: AbortSignal) => resolveGalleryImage(cache, cacheKey, uri, {fetch: expoFetch, allowNetwork: !fixtureOnly, isActive: isAccountActive, signal}), [cache, cacheKey, fixtureOnly, isAccountActive])
   const cancelPending = () => {pendingExternal.current = null; pendingToolbar.current = null}
   const scroll = (position: number, nearBottom: boolean) => {if (isAccountActive()) {document.scrollInfo.current = {position, nearBottom}; setToolbarIsVisible(toolbarVisible(position, nearBottom))}}
   return {overlay, toolbarId, toolbarIsVisible, headerMoreOffset, externalUrl, externalDialogId, doNotAlert, gallery, transcriptVisible, youtubeTime, cues,
-    showToolbar, dismissToolbar, toolbarDidDismiss, action, external, confirmExternal, externalDidDismiss, cancelExternal, showOverview, closeOverview, handleEvent, resolveGalleryUri, cancelPending, scroll,
+    showToolbar, dismissToolbar, toolbarDidDismiss, action, external, confirmExternal, externalDidDismiss, cancelExternal, showOverview, closeOverview, handleEvent, resolveGalleryUri, cancelPending, scroll, imageActions,
+    openGalleryImageAction: (source: string) => imageActions.open(source, 'gallery'),
     closeOverlay: () => setOverlay(null), showSubscription: () => setOverlay('subscription'), revoke: () => {setOverlay(null); clearError()},
     showTags: () => {telemetry.firebase('bookmark', 'use_tag'); setOverlay('tags')}, toggleAlert: () => setDoNotAlert(value => !value),
-    closeGallery: () => setGallery(null), showTranscript: () => setTranscriptVisible(true), closeTranscript: () => setTranscriptVisible(false),
+    closeGallery: () => {if (imageActions.request?.surface === 'gallery') imageActions.reset(); setGallery(null)}, showTranscript: () => setTranscriptVisible(true), closeTranscript: () => setTranscriptVisible(false),
     seek: (seconds: number) => {setTranscriptVisible(false); run(reader.current?.seekYoutube(seconds))}}
 }
 

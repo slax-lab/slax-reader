@@ -1,8 +1,8 @@
 {
   "name": "@apps/slax-reader-mobile",
   "version": "1.0.25",
-  "buildNumber": 768,
-  "previousBuildNumber": 767,
+  "buildNumber": 769,
+  "previousBuildNumber": 768,
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -56,10 +56,12 @@
     "expo-iap": "6.0.0",
     "expo-image": "~57.0.5",
     "expo-localization": "~57.0.2",
+    "expo-media-library": "~57.0.5",
     "expo-modules-core": "~57.0.21",
     "expo-network": "~57.0.2",
     "expo-secure-store": "~57.0.4",
     "expo-sensors": "~57.0.3",
+    "expo-sharing": "~57.0.23",
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",

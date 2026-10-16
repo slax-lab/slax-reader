@@ -407,6 +407,7 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
     if (!event) {nativeEventCounts.current.rejectedMessages++; observeInput({pageId: props.pageId, stage: 'received', eventCode: 0, parsed: false, markValid: false}); return}
     if (exited.current) return
     if (event.type === 'inputObservation') {observeInput({pageId: props.pageId, stage: 'dom', snapshot: event.snapshot}); return}
+    if (event.type === 'imageLongPress' && !readerAllowsImage(event.src, protectedHosts, imageProxyOrigins)) return
     if (event.type === 'imageClick') {
       if (!readerAllowsImage(event.src, protectedHosts, imageProxyOrigins)) return
       event.allImages = event.allImages.filter(url => readerAllowsImage(url, protectedHosts, imageProxyOrigins))

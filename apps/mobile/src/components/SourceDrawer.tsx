@@ -3,7 +3,7 @@ import {BackHandler, Platform, Pressable, StyleSheet, View} from 'react-native';
 import {Gesture, GestureDetector, type PanGesture} from 'react-native-gesture-handler';
 import Animated, {cancelAnimation, Easing, ReduceMotion, runOnJS, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 import {useFocusEffect} from '@react-navigation/native';
-import {motionDuration} from '../motion/policy';
+import {drawerSettleDuration} from '../motion/policy';
 
 const touchSlop = Platform.OS === 'ios' ? 10 : 8;
 const DrawerGesture = createContext<PanGesture | null>(null);
@@ -30,7 +30,8 @@ export function SourceDrawer({open, onOpenChange, width, drawer, children, testI
     'worklet';
     const owner = ++generation.value;
     cancelAnimation(motion);
-    motion.value = withTiming(next ? 1 : 0, {duration: motionDuration.drawer, easing: Easing.inOut(Easing.ease), reduceMotion: ReduceMotion.System}, finished => {
+    // Emphasized decelerate: the panel leaves quickly and eases into place over only the remaining distance.
+    motion.value = withTiming(next ? 1 : 0, {duration: drawerSettleDuration(motion.value, next ? 1 : 0), easing: Easing.bezier(0.05, 0.7, 0.1, 1), reduceMotion: ReduceMotion.System}, finished => {
       if (finished && !next && generation.value === owner) runOnJS(show)(false, owner);
     });
   }, [motion, generation, show]);

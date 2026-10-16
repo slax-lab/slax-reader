@@ -37,8 +37,12 @@ interface Props {
   allowNetworkFallback?: boolean
   visible?: boolean
   isActive?(): boolean
+  /** Long press on the current image; receives its original (remote) source. */
+  onImageLongPress?(source: string): void
+  /** Rendered inside the gallery modal so sheets and notices present above the fullscreen images. */
+  children?: React.ReactNode
 }
-export function ImageGallery({isActive = alwaysActive, visible = true, ...props}: Props) {
+export function ImageGallery({isActive = alwaysActive, visible = true, children, ...props}: Props) {
   const counter = useRef(0)
   const inputs = useRef<unknown[]>([])
   const next = [props.images, props.resolveUri, props.allowNetworkFallback, isActive]
@@ -58,10 +62,11 @@ export function ImageGallery({isActive = alwaysActive, visible = true, ...props}
   return <Modal visible={active} animationType={reducedMotion ? 'none' : 'fade'} onRequestClose={props.onDismiss} statusBarTranslucent>
     <GestureHandlerRootView style={styles.root}>
       {active ? <GalleryPager key={identity} {...props} index={index} onIndex={changed} identity={identity} isActive={isActive} /> : null}
+      {active ? children : null}
     </GestureHandlerRootView>
   </Modal>
 }
-function GalleryPager({images, index: initialIndex, resolveUri, onDismiss, errorLabel, identity, isActive, onIndex}: Props & {identity: number; isActive(): boolean; onIndex(index: number): void}) {
+function GalleryPager({images, index: initialIndex, resolveUri, onDismiss, errorLabel, identity, isActive, onIndex, onImageLongPress}: Props & {identity: number; isActive(): boolean; onIndex(index: number): void}) {
   const viewport = useWindowDimensions()
   const [index, setIndex] = useState(() => Math.max(0, Math.min(initialIndex, images.length - 1)))
   const current = useRef(index)
@@ -91,14 +96,14 @@ function GalleryPager({images, index: initialIndex, resolveUri, onDismiss, error
     onAccessibilityAction={event => step(event.nativeEvent.actionName === 'increment' ? 1 : -1)} onAccessibilityEscape={dismiss}>
     {pages.map(page => <GalleryImage key={`${page}:${images[page]}`} source={images[page]} identity={`${identity}:${page}:${images[page]}`} page={page} pageCount={images.length}
       width={viewport.width} height={viewport.height} active={page === index} pageOffset={pageOffset} onPage={commit} onDismiss={dismiss}
-      resolveUri={resolveUri} isActive={isActive} errorLabel={errorLabel} retention={retention} />)}
+      resolveUri={resolveUri} isActive={isActive} errorLabel={errorLabel} retention={retention} onLongPress={onImageLongPress} />)}
     {images.length > 1 ? <SourceText pointerEvents="none" style={styles.count}>{index + 1} / {images.length}</SourceText> : null}
   </View>
 }
-function GalleryImage({source, identity, page, pageCount, width, height, active, pageOffset, onPage, onDismiss, resolveUri, isActive, errorLabel, retention}: {
+function GalleryImage({source, identity, page, pageCount, width, height, active, pageOffset, onPage, onDismiss, resolveUri, isActive, errorLabel, retention, onLongPress}: {
   source: string; identity: string; page: number; pageCount: number; width: number; height: number; active: boolean
   pageOffset: SharedValue<number>; onPage(page: number): void; onDismiss(): void
-  resolveUri: Props['resolveUri']; isActive(): boolean; errorLabel: string; retention: DecodedImageRetention
+  resolveUri: Props['resolveUri']; isActive(): boolean; errorLabel: string; retention: DecodedImageRetention; onLongPress?(source: string): void
 }) {
   const request = useMemo(() => ({controller: new AbortController(), active: true, revision: 0}), [source, identity, resolveUri, isActive])
   const [result, setResult] = useState<{request: typeof request; uri: string | null; failed: boolean; loaded: boolean} | null>(null)
@@ -119,10 +124,11 @@ function GalleryImage({source, identity, page, pageCount, width, height, active,
   const load = useCallback(() => {if (current()) setResult(value => value?.request === request ? {...value, loaded: true} : value)}, [request, current])
   const fail = useCallback(() => {if (current()) setResult(value => value?.request === request ? {...value, failed: true, loaded: false} : value)}, [request, current])
   const value = result?.request === request && current() ? result : null
+  const longPress = useCallback(() => onLongPress?.(source), [onLongPress, source])
   const style = useAnimatedStyle(() => ({transform: [{translateX: page * width - pageOffset.value}]}))
   return <Animated.View accessibilityElementsHidden={!active} importantForAccessibility={active ? 'auto' : 'no-hide-descendants'} style={[styles.page, {width, height}, style]}>
     <ZoomableImage uri={value?.failed ? null : value?.uri ?? null} identity={identity} width={width} height={height} active={active} pageOffset={pageOffset}
-      page={page} pageCount={pageCount} onPage={onPage} onDismiss={onDismiss} onLoad={load} onError={fail} retention={retention}>
+      page={page} pageCount={pageCount} onPage={onPage} onDismiss={onDismiss} onLoad={load} onError={fail} retention={retention} onLongPress={onLongPress ? longPress : undefined}>
       {!value?.failed && !value?.loaded ? <View pointerEvents="none" style={styles.center}><ActivityIndicator color="#FFFFFF" /></View> : null}
       {value?.failed ? <View pointerEvents="none" style={styles.center}><SourceText style={styles.error}>{errorLabel}</SourceText></View> : null}
     </ZoomableImage>
