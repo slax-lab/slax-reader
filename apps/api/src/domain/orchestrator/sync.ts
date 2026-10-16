@@ -159,10 +159,11 @@ export class SyncOrchestrator {
     }
 
     const privateJwk = JSON.parse(ctx.env.POWERSYNC_JWK_PRIVATE_KEY.replace(/\\/g, ''))
+    const issuedAt = Math.floor(Date.now() / 1000)
     const jwt = await new SignJWT(payload)
       .setProtectedHeader({ alg: 'RS256', kid: privateJwk.kid })
-      .setIssuedAt()
-      .setExpirationTime('5m')
+      .setIssuedAt(issuedAt)
+      .setExpirationTime(issuedAt + 24 * 60 * 60 - 1)
       .sign(await crypto.subtle.importKey('jwk', privateJwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']))
 
     return { token: jwt, endpoint: ctx.env.POWERSYNC_SG_API_URL }
