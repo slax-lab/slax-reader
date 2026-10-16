@@ -145,6 +145,14 @@ Mobile image presentation SHALL share consistent loading, error, identity and de
 - **WHEN** a user pinches or double-taps an image, interrupts the animation, then pans to an edge
 - **THEN** the transformation continues from the actual current geometry and hands off to paging without a jump or stale transform
 
+#### Scenario: The user swipes again before the first page settles in application JS
+- **WHEN** a second swipe begins after the first page transition settled on the UI runtime but before application JS observed it
+- **THEN** the second swipe continues from the settled position and both transitions take effect, without snapping back to the earlier page
+
+#### Scenario: Small images and revisited gallery pages are shown
+- **WHEN** an avatar or list thumbnail renders, or the user returns to a gallery page that recently left the prepared window
+- **THEN** the thumbnail displays through the platform image cache without waiting behind fullscreen decodes, and the revisited page reuses its retained decode within a bounded memory budget
+
 #### Scenario: An old image resolves after replacement
 - **WHEN** a prior page, source or account finishes loading after replacement
 - **THEN** it cannot display over the current image or change the replacement loading/error state
@@ -156,6 +164,11 @@ Typing a comment or receiving AI chunks SHALL update the relevant presentation w
 #### Scenario: The user types during AI streaming
 - **WHEN** the comment editor receives input while AI results stream
 - **THEN** the document host remains mounted with its position and selection context, and updates are confined to the relevant editor/AI presentation
+
+#### Scenario: The user scrolls an article
+- **WHEN** an HTML article is dragged or flung
+- **THEN** native header/footer overlays follow every frame while application JS receives bounded scroll samples and the exact settled offset
+- **AND** toolbar, selection, header and comment-panel updates do not rerender the article host unless its document, marks, header content or geometry change
 
 #### Scenario: A reader route becomes covered
 - **WHEN** another application route covers the reader while the application stays foregrounded

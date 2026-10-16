@@ -2,11 +2,30 @@ import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import {ActivityIndicator, AppState, Modal, StyleSheet, View, useWindowDimensions} from 'react-native'
 import {GestureHandlerRootView} from 'react-native-gesture-handler'
 import Animated, {cancelAnimation, useAnimatedStyle, useSharedValue, type SharedValue} from 'react-native-reanimated'
+import type {ImageRef} from 'expo-image'
 import {SourceText} from '../components'
+import type {DecodedImageRetention} from '../components/AppImage'
 import {ZoomableImage} from '../components/ZoomableImage'
 import {useReducedMotion} from '../motion/useReducedMotion'
-import {galleryPage} from './gallery-geometry'
 export {imageFit} from './gallery-geometry'
+
+/** Decoded pages that left the current±1 window stay reusable until this budget or the gallery closes. */
+const DECODED_RETENTION_BYTES = 40 * 1024 * 1024
+function decodedRetention(budget: number): DecodedImageRetention & {close(): void} {
+  const entries = new Map<string, {image: ImageRef; bytes: number}>()
+  let total = 0, closed = false
+  const drop = (key: string) => {const entry = entries.get(key); if (!entry) return; entries.delete(key); total -= entry.bytes; entry.image.release()}
+  return {
+    take(key) {const entry = entries.get(key); if (!entry) return null; entries.delete(key); total -= entry.bytes; return entry.image},
+    keep(key, image) {
+      const bytes = Math.max(1, (Number(image.width) || 0) * (Number(image.height) || 0) * (Number(image.scale) || 1) ** 2 * 4)
+      if (closed || bytes > budget) {image.release(); return}
+      drop(key); entries.set(key, {image, bytes}); total += bytes
+      for (const oldest of [...entries.keys()]) {if (total <= budget) break; drop(oldest)}
+    },
+    close() {closed = true; for (const key of [...entries.keys()]) drop(key)},
+  }
+}
 
 const alwaysActive = () => true
 interface Props {
@@ -44,36 +63,42 @@ export function ImageGallery({isActive = alwaysActive, visible = true, ...props}
 }
 function GalleryPager({images, index: initialIndex, resolveUri, onDismiss, errorLabel, identity, isActive, onIndex}: Props & {identity: number; isActive(): boolean; onIndex(index: number): void}) {
   const viewport = useWindowDimensions()
-  const [index, setIndex] = useState(Math.max(0, Math.min(initialIndex, images.length - 1)))
-  const pageOffset = useSharedValue(0), pageGeneration = useSharedValue(0)
+  const [index, setIndex] = useState(() => Math.max(0, Math.min(initialIndex, images.length - 1)))
+  const current = useRef(index)
+  // The UI runtime owns the absolute strip position; JS only learns which page settled.
+  const pageOffset = useSharedValue(index * viewport.width)
   const mounted = useRef(true)
-  useLayoutEffect(() => {pageGeneration.value++; cancelAnimation(pageOffset); pageOffset.value = 0}, [index, viewport.width, viewport.height, pageOffset, pageGeneration])
+  const retention = useMemo(() => decodedRetention(DECODED_RETENTION_BYTES), [])
+  useLayoutEffect(() => {cancelAnimation(pageOffset); pageOffset.value = current.current * viewport.width}, [viewport.width, pageOffset])
   useEffect(() => {
     mounted.current = true
-    return () => {mounted.current = false; pageGeneration.value++; cancelAnimation(pageOffset)}
-  }, [pageOffset, pageGeneration])
-  const commit = useCallback((displacement: number, velocity: number, generation?: number) => {
-    if (!mounted.current || !isActive() || generation !== undefined && generation !== pageGeneration.value) return
-    pageGeneration.value++; cancelAnimation(pageOffset)
-    const next = galleryPage(index, displacement, velocity, viewport.width, images.length)
-    if (next === index) pageOffset.value = 0
-    else {setIndex(next); onIndex(next)}
-  }, [isActive, images.length, viewport.width, index, onIndex, pageOffset, pageGeneration])
+    return () => {mounted.current = false; cancelAnimation(pageOffset); retention.close()}
+  }, [pageOffset, retention])
+  const commit = useCallback((page: number) => {
+    const next = Math.max(0, Math.min(images.length - 1, page))
+    if (!mounted.current || !isActive() || next === current.current) return
+    current.current = next; setIndex(next); onIndex(next)
+  }, [images.length, isActive, onIndex])
+  const step = useCallback((delta: number) => {
+    const next = Math.max(0, Math.min(images.length - 1, current.current + delta))
+    if (!mounted.current || !isActive() || next === current.current) return
+    cancelAnimation(pageOffset); pageOffset.value = next * viewport.width; commit(next)
+  }, [images.length, isActive, pageOffset, viewport.width, commit])
   const dismiss = useCallback(() => {if (mounted.current && isActive()) onDismiss()}, [onDismiss, isActive])
   const pages = [index - 1, index, index + 1].filter(value => value >= 0 && value < images.length)
   return <View testID="reader-image-gallery" style={styles.root} accessibilityViewIsModal accessibilityRole="adjustable"
     accessibilityValue={{min: 1, max: images.length, now: index + 1}} accessibilityActions={[{name: 'increment'}, {name: 'decrement'}]}
-    onAccessibilityAction={event => commit(event.nativeEvent.actionName === 'increment' ? -viewport.width : viewport.width, 0, pageGeneration.value)} onAccessibilityEscape={dismiss}>
-    {pages.map(page => <GalleryImage key={`${page}:${images[page]}`} source={images[page]} identity={`${identity}:${page}:${images[page]}`} relative={page - index}
-      width={viewport.width} height={viewport.height} active={page === index} canPrevious={index > 0} canNext={index < images.length - 1}
-      pageOffset={pageOffset} pageGeneration={pageGeneration} onPage={commit} onDismiss={dismiss} resolveUri={resolveUri} isActive={isActive} errorLabel={errorLabel} />)}
+    onAccessibilityAction={event => step(event.nativeEvent.actionName === 'increment' ? 1 : -1)} onAccessibilityEscape={dismiss}>
+    {pages.map(page => <GalleryImage key={`${page}:${images[page]}`} source={images[page]} identity={`${identity}:${page}:${images[page]}`} page={page} pageCount={images.length}
+      width={viewport.width} height={viewport.height} active={page === index} pageOffset={pageOffset} onPage={commit} onDismiss={dismiss}
+      resolveUri={resolveUri} isActive={isActive} errorLabel={errorLabel} retention={retention} />)}
     {images.length > 1 ? <SourceText pointerEvents="none" style={styles.count}>{index + 1} / {images.length}</SourceText> : null}
   </View>
 }
-function GalleryImage({source, identity, relative, width, height, active, canPrevious, canNext, pageOffset, pageGeneration, onPage, onDismiss, resolveUri, isActive, errorLabel}: {
-  source: string; identity: string; relative: number; width: number; height: number; active: boolean; canPrevious: boolean; canNext: boolean
-  pageOffset: SharedValue<number>; pageGeneration: SharedValue<number>; onPage(displacement: number, velocity: number, generation: number): void; onDismiss(): void
-  resolveUri: Props['resolveUri']; isActive(): boolean; errorLabel: string
+function GalleryImage({source, identity, page, pageCount, width, height, active, pageOffset, onPage, onDismiss, resolveUri, isActive, errorLabel, retention}: {
+  source: string; identity: string; page: number; pageCount: number; width: number; height: number; active: boolean
+  pageOffset: SharedValue<number>; onPage(page: number): void; onDismiss(): void
+  resolveUri: Props['resolveUri']; isActive(): boolean; errorLabel: string; retention: DecodedImageRetention
 }) {
   const request = useMemo(() => ({controller: new AbortController(), active: true, revision: 0}), [source, identity, resolveUri, isActive])
   const [result, setResult] = useState<{request: typeof request; uri: string | null; failed: boolean; loaded: boolean} | null>(null)
@@ -94,10 +119,10 @@ function GalleryImage({source, identity, relative, width, height, active, canPre
   const load = useCallback(() => {if (current()) setResult(value => value?.request === request ? {...value, loaded: true} : value)}, [request, current])
   const fail = useCallback(() => {if (current()) setResult(value => value?.request === request ? {...value, failed: true, loaded: false} : value)}, [request, current])
   const value = result?.request === request && current() ? result : null
-  const style = useAnimatedStyle(() => ({transform: [{translateX: relative * width + pageOffset.value}]}))
-  return <Animated.View pointerEvents={active ? 'auto' : 'none'} accessibilityElementsHidden={!active} importantForAccessibility={active ? 'auto' : 'no-hide-descendants'} style={[styles.page, {width, height}, style]}>
+  const style = useAnimatedStyle(() => ({transform: [{translateX: page * width - pageOffset.value}]}))
+  return <Animated.View accessibilityElementsHidden={!active} importantForAccessibility={active ? 'auto' : 'no-hide-descendants'} style={[styles.page, {width, height}, style]}>
     <ZoomableImage uri={value?.failed ? null : value?.uri ?? null} identity={identity} width={width} height={height} active={active} pageOffset={pageOffset}
-      pageGeneration={pageGeneration} canPrevious={canPrevious} canNext={canNext} onPage={onPage} onDismiss={onDismiss} onLoad={load} onError={fail}>
+      page={page} pageCount={pageCount} onPage={onPage} onDismiss={onDismiss} onLoad={load} onError={fail} retention={retention}>
       {!value?.failed && !value?.loaded ? <View pointerEvents="none" style={styles.center}><ActivityIndicator color="#FFFFFF" /></View> : null}
       {value?.failed ? <View pointerEvents="none" style={styles.center}><SourceText style={styles.error}>{errorLabel}</SourceText></View> : null}
     </ZoomableImage>

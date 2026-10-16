@@ -50,15 +50,19 @@ async function mountedGallery(props, run) {
   const settle = async () => {await act(async () => {await new Promise(resolve => setTimeout(resolve, 0));});};
   const unmount = async () => {if (mounted) {await act(async () => root.unmount()); mounted = false;}};
   const gesture = (name, taps) => motion.detectors().flatMap(value => value.toGestureArray()).find(value => value.handlerName === name && value.config.enabled && (taps === undefined || value.config.numberOfTaps === taps));
-  const swipe = async (translationX = -200, velocityX = -300, flush = true) => {
-    await act(async () => {const pan = gesture('PanGestureHandler'), event = {translationX, translationY: 0, velocityX, numberOfPointers: 1};
+  // A swipe starts on the page under the finger: the JS-active page, or an explicit detector when JS is behind.
+  const activePan = () => motion.detectors().find(value => value.toGestureArray().some(item => item.handlerName === 'TapGestureHandler' && item.config.enabled && item.config.numberOfTaps !== 2))
+    ?.toGestureArray().find(item => item.handlerName === 'PanGestureHandler');
+  const frames = () => {for (let frame = 0; frame < 200 && motion.pending(); frame++) motion.advance(16);};
+  const swipe = async (translationX = -200, velocityX = -300, flush = true, pan = activePan()) => {
+    await act(async () => {const event = {translationX, translationY: 0, velocityX, numberOfPointers: 1};
       pan.handlers.onStart(event); pan.handlers.onUpdate(event); pan.handlers.onEnd(event, true); pan.handlers.onFinalize(event, true);
-      motion.advance(250); if (flush) motion.flushJS();});
+      frames(); if (flush) motion.flushJS();});
     await settle();
   };
   try {
     await render(); await settle();
-    await run({window, settle, unmount, render, imageProps: () => imageProps, motion, gesture, swipe,
+    await run({window, settle, unmount, render, imageProps: () => imageProps, motion, gesture, swipe, activePan,
       background: async state => {native.AppState.currentState = state; await act(async () => {for (const listener of appListeners) listener(state);});},
       resize: async value => {viewport = value; await render();}});
   } finally {
@@ -89,16 +93,30 @@ test('continuous paging prepares only current and neighbors, cancelling pages ou
   });
 });
 
-test('queued page settlement cannot win over a newer pinch, and background restores the selected page', async () => {
+test('a pinch on a page that is leaving cannot revert its settled page, and background restores the selected page', async () => {
   const calls = [], images = ['https://images.test/0.png', 'https://images.test/1.png'];
   await mountedGallery({images, resolveUri: async (uri, signal) => {calls.push(signal); return `file:///${images.indexOf(uri)}.png`;}}, async ({window, swipe, motion, gesture, background}) => {
     await swipe(-200, -300, false);
     await act(async () => {gesture('PinchGestureHandler').handlers.onStart({focalX: 195, focalY: 422}); motion.flushJS();});
-    assert.equal(window.document.body.textContent, '1 / 2');
+    assert.equal(window.document.body.textContent, '2 / 2', 'The strip already rests on the next page; a stale page pinch neither zooms nor snaps it back');
     await act(async () => gesture('PinchGestureHandler').handlers.onFinalize({}, true));
     await swipe(); assert.equal(shown(window), 'file:///1.png');
     await background('background'); assert.ok(calls.every(signal => signal.aborted)); assert.equal(shown(window), null);
     await background('active'); assert.equal(shown(window), 'file:///1.png'); assert.equal(window.document.body.textContent, '2 / 2');
+  });
+});
+
+test('a second swipe before JS commits the first continues from the settled strip instead of snapping back', async () => {
+  const images = ['https://images.test/0.png', 'https://images.test/1.png', 'https://images.test/2.png'];
+  await mountedGallery({images, resolveUri: async uri => `file:///${images.indexOf(uri)}.png`}, async ({window, swipe, motion, settle}) => {
+    const [, nextPage] = motion.detectors().map(value => value.toGestureArray().find(item => item.handlerName === 'PanGestureHandler'));
+    await swipe(-200, -300, false);
+    assert.equal(window.document.body.textContent, '1 / 3', 'JS has not yet learned the first settled page');
+    await swipe(-200, -300, false, nextPage);
+    await act(async () => motion.flushJS()); await settle();
+    assert.equal(window.document.body.textContent, '3 / 3', 'Both swipes land; neither is rejected as stale');
+    assert.equal(shown(window), 'file:///2.png');
+    assert.ok(motion.values.some(value => value.value === 780), 'The absolute strip rests on the third page');
   });
 });
 

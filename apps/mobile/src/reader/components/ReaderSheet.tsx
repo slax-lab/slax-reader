@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react'
-import {Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View} from 'react-native'
+import {Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View, useWindowDimensions} from 'react-native'
 import Reanimated, {cancelAnimation, Easing as UiEasing, ReduceMotion, runOnJS, useSharedValue, withTiming, useAnimatedStyle} from 'react-native-reanimated'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {SourceSheetModal} from '../../components/SourceSheetModal'
@@ -10,7 +10,8 @@ export function ReaderSheet({visible, onDismiss, children, testID, inline = fals
   const [keyboardVisible, setKeyboardVisible] = useState(false)
   const [mounted, setMounted] = useState(visible)
   const motion = useSharedValue(0)
-  const [sheetHeight, setSheetHeight] = useState(0)
+  // Before the first layout the sheet is treated as window-tall, so the opening frame starts off screen instead of at rest.
+  const sheetHeight = useSharedValue(useWindowDimensions().height)
   const retained = useRef(children), lifetime = useRef({visible, generation: 0, alive: true})
   lifetime.current.visible = visible
   if (visible) retained.current = children
@@ -37,10 +38,10 @@ export function ReaderSheet({visible, onDismiss, children, testID, inline = fals
     return () => {show.remove(); hide.remove()}
   }, [comment])
   const backdropStyle = useAnimatedStyle(() => ({opacity: comment ? motion.value : 1}))
-  const sheetStyle = useAnimatedStyle(() => ({transform: [{translateY: (1 - motion.value) * sheetHeight}]}))
+  const sheetStyle = useAnimatedStyle(() => ({transform: [{translateY: (1 - motion.value) * sheetHeight.value}]}))
   const content = <KeyboardAvoidingView style={{flex: 1, justifyContent: 'flex-end'}} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <Reanimated.View style={[StyleSheet.absoluteFill, {backgroundColor: C.scrim}, backdropStyle]}><Pressable accessible={false} onPress={onDismiss} style={StyleSheet.absoluteFill} /></Reanimated.View>
-    <Reanimated.View testID={testID} accessibilityViewIsModal onLayout={comment ? event => setSheetHeight(event.nativeEvent.layout.height) : undefined} style={[styles.readerSheet, {marginTop: inset.top + 36, paddingBottom: inset.bottom}, comment && {maxHeight: '80%', flexShrink: 1, marginTop: 0, backgroundColor: C.background, paddingBottom: keyboardVisible ? 8 : inset.bottom}, comment && sheetStyle]}>{comment && !visible ? retained.current : children}</Reanimated.View>
+    <Reanimated.View testID={testID} accessibilityViewIsModal onLayout={comment ? event => {sheetHeight.value = event.nativeEvent.layout.height} : undefined} style={[styles.readerSheet, {marginTop: inset.top + 36, paddingBottom: inset.bottom}, comment && {maxHeight: '80%', flexShrink: 1, marginTop: 0, backgroundColor: C.background, paddingBottom: keyboardVisible ? 8 : inset.bottom}, comment && sheetStyle]}>{comment && !visible ? retained.current : children}</Reanimated.View>
   </KeyboardAvoidingView>
   if (inline) return (comment ? mounted || visible : visible) ? <View pointerEvents={visible ? 'auto' : 'none'} accessibilityElementsHidden={!visible} importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'} style={[StyleSheet.absoluteFill, {zIndex: 5}]}>{content}</View> : null
   return <SourceSheetModal visible={visible} onDismiss={onDismiss}><View testID={testID} accessibilityViewIsModal style={[styles.readerSheet, {marginTop: inset.top + 36, paddingBottom: inset.bottom}]}>{children}</View></SourceSheetModal>

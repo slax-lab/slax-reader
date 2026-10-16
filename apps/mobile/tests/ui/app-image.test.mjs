@@ -72,3 +72,32 @@ test('AppImage decode failure retains fallback and unmounted work releases its r
     await act(async () => requests[1].resolve({width: 1, height: 1, release() {released++;}})); assert.equal(released, 1);
   });
 });
+
+test('AppImage displays thumbnails through the native memory cache without occupying the decode queue', async () => {
+  await host(async ({render, requests, value}) => {
+    let loads = 0, errors = 0;
+    await render({source: 'https://images.test/avatar.png', maxPixels: 126 ** 2, fallback: 'default_avatar', label: 'Avatar', onLoad: () => loads++, onError: () => errors++});
+    assert.equal(requests.length, 0, 'An avatar never waits behind gallery decodes');
+    assert.equal(value().source.uri, 'https://images.test/avatar.png'); assert.equal(value().cachePolicy, 'memory'); assert.equal(value().allowDownscaling, true);
+    assert.equal(value().placeholder, 91, 'The fallback paints while the remote image loads');
+    await act(async () => value().onLoad({source: {width: 300, height: 300}})); assert.equal(loads, 1);
+    await render({source: 'javascript:alert(1)', maxPixels: 126 ** 2, fallback: 'default_avatar', onError: () => errors++});
+    assert.equal(errors, 1); assert.equal(value().source, 91); assert.equal(value().onError, undefined);
+  });
+});
+
+test('AppImage reuses a gallery-retained decode instead of decoding the same page again', async () => {
+  await host(async ({render, unmount, requests, value}) => {
+    const kept = new Map(); let released = 0, loads = 0;
+    const retention = {take: key => {const image = kept.get(key) ?? null; kept.delete(key); return image;}, keep: (key, image) => {kept.set(key, image);}};
+    const image = {width: 2048, height: 1024, release() {released++;}};
+    await render({source: 'file:///page-1.png', maxPixels: 4 * 1024 * 1024, retention, onLoad: () => loads++});
+    await act(async () => requests[0].resolve(image)); assert.equal(loads, 1);
+    await render({source: 'file:///page-3.png', maxPixels: 4 * 1024 * 1024, retention, onLoad: () => loads++});
+    assert.equal(kept.size, 1, 'The page that left the window keeps its decoded image'); assert.equal(released, 0);
+    await render({source: 'file:///page-1.png', maxPixels: 4 * 1024 * 1024, retention, onLoad: () => loads++});
+    assert.equal(requests.length, 2, 'Returning to the page does not decode it again'); assert.equal(value().source, image); assert.equal(loads, 2);
+    await unmount(); await act(async () => requests[1].resolve({width: 1, height: 1, release() {released++;}}));
+    assert.equal(released, 1, 'The abandoned replacement decode is released');
+  });
+});

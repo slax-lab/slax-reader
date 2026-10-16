@@ -7,7 +7,8 @@ function pump() {
     void job.run().finally(() => {active--; pump();});
   }
 }
-export function decodeImage<T extends {release(): void}>(load: () => Promise<T>, signal: AbortSignal): Promise<T> {
+/** `urgent` admits the visible image ahead of queued neighbours; it never preempts running work. */
+export function decodeImage<T extends {release(): void}>(load: () => Promise<T>, signal: AbortSignal, urgent = false): Promise<T> {
   return new Promise((resolve, reject) => {
     const abortError = () => Object.assign(new Error('Image decode cancelled'), {name: 'AbortError'});
     let cancelled = false, running = false;
@@ -32,6 +33,6 @@ export function decodeImage<T extends {release(): void}>(load: () => Promise<T>,
     };
     if (signal.aborted) {job.cancel(); return;}
     if (pending.length >= 128) {reject(new Error('Image decode queue is full')); return;}
-    signal.addEventListener('abort', job.cancel, {once: true}); pending.push(job); pump();
+    signal.addEventListener('abort', job.cancel, {once: true}); if (urgent) pending.unshift(job); else pending.push(job); pump();
   });
 }

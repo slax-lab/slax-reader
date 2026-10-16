@@ -29,8 +29,8 @@ export function useReaderBookmark(scope: ReaderScope, ports: BookmarkPorts) {
   useLayoutEffect(() => {setRecord(null); setCollectionSettings(null)}, [cacheKey])
   const metadata = useMemo(() => jsonObject(record?.metadata), [record?.metadata])
   const policy = useMemo(() => isPreview ? {...PENDING_COLLECTION_MARK_POLICY, isCollection: false} : isCollection ? record ? collectionMarkPolicy(metadata.share ? jsonObject(metadata.share) : null, collectionSettings ?? undefined) : PENDING_COLLECTION_MARK_POLICY : PERSONAL_MARK_POLICY, [isPreview, isCollection, record, metadata, collectionSettings])
-  const selectedTagIds = jsonArray<string>(metadata.tags)
-  const selectedTags = tags.filter(tag => selectedTagIds.includes(tag.id))
+  const selectedTagIds = useMemo(() => jsonArray<string>(metadata.tags), [metadata])
+  const selectedTags = useMemo(() => tags.filter(tag => selectedTagIds.includes(tag.id)), [tags, selectedTagIds])
 
   useEffect(() => {
     if (!repositories || isPreview || !isAccountActive()) return

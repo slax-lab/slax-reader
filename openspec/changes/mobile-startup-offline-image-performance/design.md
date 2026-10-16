@@ -109,6 +109,8 @@ Adopt reusable remote image presentation for avatars and RSS where it preserves 
 
 Alternative rejected: treating Expo Image source transition as a gesture pager, a new third-party gallery library, or relying on purgeable display caches for promised offline availability.
 
+Post-delivery review corrections (no new dependencies): the gallery strip is an absolute UI-runtime position (`page × width`) settled with a velocity-carrying, overshoot-clamped spring; JS commits are idempotent page numbers, so a commit arriving late can neither be rejected nor snap the strip back. Every mounted page can begin a swipe, while pinch/double-tap remain limited to the resting active page. Thumbnails at or below 512×512 px use Expo's native memory cache and downscaling instead of the shared two-slot decoder; fullscreen pages keep explicit capped decoding, the visible page is admitted ahead of queued neighbours, and decoded pages leaving the current±1 window are retained under a 40 MiB gallery-scoped budget that is released when the gallery closes.
+
 ### 8. Isolate actual rendering work and visible lifecycle
 
 Introduce explicit feature stores/props where high-frequency state changes occur. Draft state belongs to the editor interaction owner; AI presentation subscribes to its own bounded stream updates; the article/PDF host receives only document/geometry/annotation changes and remains stable. Memoization is applied after stabilizing inputs, not as a substitute for ownership.
@@ -120,6 +122,8 @@ Route visibility and App foreground are distinct inputs. Hidden optional work is
 Replace SourceSheet's JS continuous drag with UI gestures. Restore the intended row long-press spring/shadow. Centralize reduced-motion/interrupt/completion handling for menus, comment surfaces, floating actions and gallery. Local star/archive mutations can start immediately; native modal/browser/share presentation still waits for actual dismissal completion.
 
 Alternative rejected: moving all Reader state into another large hook, blindly freezing every offscreen route, or restoring KMP's fixed 250ms wait against the current contract.
+
+Post-delivery review corrections: HTML article scroll metrics are sampled during user drag/fling (iOS native 50 ms with trailing and end/settle emissions; Android outer scroller 48 ms plus drag/momentum end), while native overlays still follow every frame and PDF virtualization and programmatic scrolls stay per frame. The memoized HTML host receives identity-stable header/footer elements and live-only callbacks; its final position flush stays memoized on its account/document inputs so a retired document keeps its own fence. PDF host callbacks intentionally remain per-render closures because each captures the host lease that rejects retired callbacks. After restore, Android content-size growth no longer rerenders the page. iOS persists the compiled content-rule list under a build- and content-derived name and removes only previous builds' lists, so cold launches reuse the same security policy without recompiling it.
 
 ### 9. Validate structural invariants and the actual native deliverable
 

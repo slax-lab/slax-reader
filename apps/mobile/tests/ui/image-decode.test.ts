@@ -17,3 +17,14 @@ test('image decode limits native work, removes queued cancellation and releases 
   first.resolve(value); second.resolve(value); assert.equal(await two, value);
   await Promise.resolve(); assert.equal(released, 1);
 });
+
+test('the visible image is admitted ahead of queued neighbour decodes', async () => {
+  const held = [deferred<{release(): void}>(), deferred<{release(): void}>()], order: string[] = [];
+  const value = {release() {}}, signal = new AbortController().signal;
+  const a = decodeImage(() => held[0]!.promise, signal), b = decodeImage(() => held[1]!.promise, signal);
+  const neighbour = decodeImage(async () => {order.push('neighbour'); return value;}, signal);
+  const visible = decodeImage(async () => {order.push('visible'); return value;}, signal, true);
+  held[0]!.resolve(value); held[1]!.resolve(value);
+  await Promise.all([a, b, neighbour, visible]);
+  assert.deepEqual(order, ['visible', 'neighbour']);
+});
