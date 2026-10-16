@@ -33,6 +33,7 @@ export function selectScopes(paths) {
     if (/^tooling\/(web|extension|api|mobile|cli)\.mjs$/.test(path)) add([path.split('/')[1].split('.')[0], 'tooling'], path)
     if (/^tooling\/cli.*\.mjs$/.test(path) || /^\.github\/workflows\/cli-.*\.yml$/.test(path)) add(['cliTooling'], path)
     if (/^tooling\/extension-release.*\.(mjs|py)$/.test(path) || path === '.github/workflows/extension-release.yml' || path === 'tooling/cli-release.mjs' || path === 'tooling/extension.mjs') add(['extensionTooling'], path)
+    if (path === 'apps/web/env.schema.ts') add(['extensionTooling'], path)
     if (path === '.github/workflows/cli-ci.yml') add(['cli'], path)
     if (/^tooling\//.test(path) && !/^tooling\/cli/.test(path)) add(['tooling'], path)
     if (path.startsWith('deploy/mobile/') && !(path.split('/').length === 3 && readmeName.test(path.split('/')[2]))) add(['mobile'], path)

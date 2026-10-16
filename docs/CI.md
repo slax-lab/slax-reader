@@ -21,11 +21,12 @@ The detector uses the PR's actual base branch and includes earlier PR commits, r
 | `tooling/pnpm-command.mjs` | All dispatcher consumers and tooling checks |
 | CLI release tooling or workflow | Controlled CLI release tests, without Web/Extension application suites |
 | Extension release tooling, ZIP inspector, or workflow | Controlled Extension release tests, without Web/Extension application suites |
+| `apps/web/env.schema.ts` | Web and root tooling checks, plus Extension release tests that consume the shared schema |
 | Workflow sources | Root tooling and workflow contract tests, plus their directly affected suites |
 | API deployment template/local infrastructure | API and root configuration tooling checks |
 | Mobile deployment inputs | Mobile; no API suite solely due to the `deploy` directory |
 | Ordinary Mobile guides/deployment README | No application compilation or bundling solely for prose |
-| Mobile evidence and non-Markdown manifests | Mobile tests consuming those records, without an application bundle |
+| Mobile evidence and non-Markdown manifests | Real ledger/source identity and referenced-artifact validation through `verify-baseline.mjs`, plus Mobile tests, without an application bundle |
 | Design references | Design provenance and icon provenance checks |
 | Icon validation tools | Icon validation and their tooling tests |
 | Root manifest, shared lockfile, workspace configuration, `.npmrc` | Conservative full validation |

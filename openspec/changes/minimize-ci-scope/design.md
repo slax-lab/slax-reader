@@ -54,6 +54,8 @@ Initial scope matrix:
 
 Do not discard arbitrary Markdown or JSON by extension: Nuxt content and Mobile evidence are executable or validator-consumed inputs. Ordinary prose exceptions must be explicit; unfamiliar application paths remain conservative. Mobile evidence validation currently includes source replay and database-identity records under docs/mobile, so removing that directory wholesale would lose real coverage.
 
+Evidence-only Mobile CI runs `apps/mobile/assets/verify-baseline.mjs` before its unit suite. Protocol fixtures alone do not validate the repository's actual `docs/mobile/coverage.json`, its source identity, or referenced artifact hashes. The Web schema at `apps/web/env.schema.ts` also selects Extension release tooling because its shared-configuration fallback imports that schema directly; it does not select the unrelated Extension application suite.
+
 ### 2. Separate checks by purpose and remove repeated application validation
 
 Frontend CI retains its workflow identity but separates Web, Extension, and shared prerequisite handling. Keep pnpm icons:check before accepting selected Web checks, preserving runtime-icon-registry. Move root tooling validation out of unconditional Web/Extension and duplicate CLI matrix execution; retain actual CLI compatibility coverage on Node 22.22.2 and 24.15.0. Existing CLI workflow fixtures that currently require pnpm test:preflight inside each matrix job must instead verify that its relevant coverage is selected in the tooling lane.

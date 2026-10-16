@@ -50,4 +50,5 @@ jobs:
           node-version: 22.22.2
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: node apps/mobile/assets/verify-baseline.mjs
       - run: pnpm --filter @apps/slax-reader-mobile test

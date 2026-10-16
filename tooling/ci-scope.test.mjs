@@ -55,6 +55,15 @@ test('Extension release fixtures retain coverage without selecting unrelated app
   for (const path of ['apps/web/page.vue', 'apps/extension/AGENTS.md', 'tooling/cli-release.test.mjs']) assert.equal(selectScopes([path]).scopes.extensionTooling, false)
 })
 
+test('the Web schema selects its Extension release consumer without unrelated application suites', () => {
+  const path = 'apps/web/env.schema.ts'
+  const result = selectScopes([path])
+  assert.deepEqual(selectedApps([path]), ['web'])
+  assert.equal(result.scopes.tooling, true)
+  assert.equal(result.scopes.extensionTooling, true)
+  assert.deepEqual(result.reasons.extensionTooling, [path])
+})
+
 test('design, icons and configuration guards retain their exact validation inputs', () => {
   for (const path of ['DESIGN.md', 'docs/design/reference/example.svg', 'tooling/design-reference.mjs']) assert.equal(selectScopes([path]).scopes.design, true)
   assert.equal(selectScopes(['docs/design/reference/example.svg']).scopes.icons, true)

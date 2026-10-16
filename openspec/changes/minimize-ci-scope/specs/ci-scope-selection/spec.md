@@ -73,6 +73,18 @@ CI SHALL distinguish application execution inputs, root tooling tests, ordinary 
 - **WHEN** a Mobile manifest, fixture record, or evidence input consumed by existing validation changes
 - **THEN** its relevant validation still runs
 
+#### Scenario: Mobile evidence is changed without application source changes
+
+- **WHEN** only the real Mobile coverage ledger, source manifest, or referenced evidence changes
+- **THEN** CI validates the repository ledger's source identity and referenced artifact integrity, in addition to protocol unit tests
+- **AND** malformed ledgers, stale source identities, and tampered referenced artifacts fail without application bundling
+
+#### Scenario: Extension release consumes a Web schema change
+
+- **WHEN** apps/web/env.schema.ts changes
+- **THEN** Extension release-tooling validation runs alongside the Web and root tooling checks because its configuration fallback imports that schema
+- **AND** unrelated application suites are not selected solely for that schema change
+
 #### Scenario: Web icons change
 
 - **WHEN** Web icon source, registry metadata, generated registry output, or its validation inputs change

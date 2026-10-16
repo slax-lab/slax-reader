@@ -32,3 +32,8 @@
 - [x] 5.1 Integrate current dev without dropping Extension publication-fixture coverage; verify the Extension workflow, ZIP inspector, app inputs, and shared release helper select the dedicated tooling lane while publication remains non-canceling.
 - [x] 5.2 Correct the API root-command contract for test:ci and validate cancellation isolation; verify the API contract and fixtures for successive heads, separate PRs, and separate workflows pass.
 - [x] 5.3 Run affected validation and all three pre-push review passes; resolve integration conflicts, record the evidence, and prepare the update to PR #238 without publishing a release.
+
+## 6. Review coverage fixes
+
+- [x] 6.1 Restore real Mobile ledger and referenced-artifact validation in evidence-only CI; verify valid repository evidence passes and malformed ledgers, stale source identities, and tampered referenced artifacts fail without application bundling.
+- [x] 6.2 Select Extension release tooling for its shared Web schema input; verify actual workflow routing, rerun affected checks and the three pre-push review passes, and prepare the update to PR #238.
