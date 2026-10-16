@@ -41,6 +41,14 @@ Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comme
 - Backend validation and deployment commands must be documented through the root abstraction and preserve the distinction between local setup, offline checks and explicitly authorized remote operations.
 - The runtime Worker type generator may use an isolated temporary directory to prevent secret/configuration discovery; this is an internal safety boundary, not a developer-facing working-directory requirement.
 
+## Package Version Decisions
+
+- For changes to CLI, Extension, or Mobile logic, shipped UI/assets, runtime dependencies, native integration, or build/package output, assess which applications are affected. Include indirect effects from shared packages, API contracts, tooling, and configuration outside the application directory. Documentation-only or test-only changes that do not affect shipped behavior or package output are exempt.
+- After preparing and validating the changes, before committing, pushing, or handing them off as ready, ask the human whether to increment the affected application's `package.json` version: CLI uses `apps/cli/package.json`, Extension uses `apps/extension/package.json`, and Mobile uses `apps/mobile/package.json`. Combine affected applications into one question, giving each current version, recommended new version/bump type, and reason. Follow an explicit version decision already given for this task without asking again.
+- Continue implementation and independent checks while the decision is pending, but wait for an explicit answer before changing version metadata or finalizing the task. Do not assume either approval or refusal. If no answer is available, report the version decision as pending.
+- If approved, update the affected manifests in the same task branch and PR, following each application's release constraints. CLI and Extension keep their stable source versions; CI derives channel suffixes. For Mobile, include `buildNumber` and `previousBuildNumber` in the decision as appropriate, follow `docs/mobile/RELEASE.md`, and regenerate native metadata through the existing tooling. If declined, preserve the versions and record that decision in the task/PR summary.
+- Verify the relevant CI release conditions when explaining the effect of a bump. Version approval authorizes the agreed metadata change; signing, uploading, and store publication still follow their existing authorization requirements. Mobile CI currently performs checks and JavaScript bundle validation only.
+
 ## Development Workflow — OpenSpec Required
 
 This repo uses OpenSpec for spec-driven development. Living specs live in `openspec/specs/` (organized by product capability, not by package); in-flight work lives in `openspec/changes/`.
