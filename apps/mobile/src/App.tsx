@@ -7,18 +7,22 @@ import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
 import {MobileProvider, useMobile} from './runtime';
 import {mobileColors as C} from './theme';
 import type {RootStackParams} from './navigation/types';
-import {LoginScreen, ReauthenticationScreen} from './screens/LoginScreen';
-import {LibraryScreen} from './screens/LibraryScreen';
-import {ReaderScreen} from './screens/ReaderScreen';
-import {SettingsScreen} from './screens/SettingsScreen';
-import {AboutScreen} from './screens/AboutScreen';
-import {FeedbackScreen} from './screens/FeedbackScreen';
-import {DeleteAccountScreen} from './screens/DeleteAccountScreen';
-import {SubscriptionScreen} from './screens/SubscriptionScreen';
-import {DebugScreen} from './screens/DebugScreen';
 import {useTelemetry} from './telemetry';
 import {SourceLine} from './components/SourceLine';
 import {AppRecoveryScreen} from './screens/AppRecoveryScreen';
+
+const screens = {
+  Login: () => require('./screens/LoginScreen').LoginScreen,
+  Library: () => require('./screens/LibraryScreen').LibraryScreen,
+  Reader: () => require('./screens/ReaderScreen').ReaderScreen,
+  Reauthenticate: () => require('./screens/LoginScreen').ReauthenticationScreen,
+  Settings: () => require('./screens/SettingsScreen').SettingsScreen,
+  About: () => require('./screens/AboutScreen').AboutScreen,
+  Feedback: () => require('./screens/FeedbackScreen').FeedbackScreen,
+  DeleteAccount: () => require('./screens/DeleteAccountScreen').DeleteAccountScreen,
+  Subscription: () => require('./screens/SubscriptionScreen').SubscriptionScreen,
+  Debug: () => require('./screens/DebugScreen').DebugScreen,
+};
 
 const Stack = createNativeStackNavigator<RootStackParams>();
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
@@ -56,16 +60,16 @@ export function ApplicationRoutes() {
   if (session.status === 'loading') return <View testID="app-startup-surface" style={{flex: 1, backgroundColor: C.background}} />;
   return <NavigationContainer ref={navigationRef} onReady={reportRoutes} onStateChange={reportRoutes}>
     <Stack.Navigator screenOptions={{headerTintColor: C.text, headerStyle: {backgroundColor: C.background}, headerTitleAlign: 'center', headerTitleStyle: {fontSize: 17, fontWeight: '500'}, contentStyle: {backgroundColor: C.background}, headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal'}}>
-      {session.status === 'unauthenticated' ? <Stack.Screen name="Login" component={LoginScreen} options={{headerShown: false}}/> : <Stack.Group navigationKey={session.session.userId}>
-        <Stack.Screen name="Library" component={LibraryScreen} options={{headerShown: false}}/>
-        <Stack.Screen name="Reauthenticate" component={ReauthenticationScreen} options={{title: t('reauthenticate_title'), headerTitle: sourceHeaderTitle}}/>
-        <Stack.Screen name="Reader" component={ReaderScreen} options={{title: '', headerStyle: {backgroundColor: C.readerBackground}}}/>
-        <Stack.Screen name="Settings" component={SettingsScreen} options={{title: t('setting_title'), headerTitle: sourceHeaderTitle}}/>
-        <Stack.Screen name="About" component={AboutScreen} options={{title: t('sidebar_about')}}/>
-        <Stack.Screen name="Debug" component={DebugScreen} options={{title: 'Debug'}}/>
-        <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} options={{title: t('setting_delete_account')}}/>
-        <Stack.Screen name="Subscription" component={SubscriptionScreen} options={{title: 'Pro Reader', headerTitleStyle: {fontSize: 20, fontWeight: '500'}}}/>
-        <Stack.Screen name="Feedback" component={FeedbackScreen} options={{title: t('sidebar_feedback'), headerTitle: sourceHeaderTitle}}/>
+      {session.status === 'unauthenticated' ? <Stack.Screen name="Login" getComponent={screens.Login} options={{headerShown: false}}/> : <Stack.Group navigationKey={session.session.userId}>
+        <Stack.Screen name="Library" getComponent={screens.Library} options={{headerShown: false}}/>
+        <Stack.Screen name="Reauthenticate" getComponent={screens.Reauthenticate} options={{title: t('reauthenticate_title'), headerTitle: sourceHeaderTitle}}/>
+        <Stack.Screen name="Reader" getComponent={screens.Reader} options={{title: '', headerStyle: {backgroundColor: C.readerBackground}}}/>
+        <Stack.Screen name="Settings" getComponent={screens.Settings} options={{title: t('setting_title'), headerTitle: sourceHeaderTitle}}/>
+        <Stack.Screen name="About" getComponent={screens.About} options={{title: t('sidebar_about')}}/>
+        <Stack.Screen name="Debug" getComponent={screens.Debug} options={{title: 'Debug'}}/>
+        <Stack.Screen name="DeleteAccount" getComponent={screens.DeleteAccount} options={{title: t('setting_delete_account')}}/>
+        <Stack.Screen name="Subscription" getComponent={screens.Subscription} options={{title: 'Pro Reader', headerTitleStyle: {fontSize: 20, fontWeight: '500'}}}/>
+        <Stack.Screen name="Feedback" getComponent={screens.Feedback} options={{title: t('sidebar_feedback'), headerTitle: sourceHeaderTitle}}/>
       </Stack.Group>}
     </Stack.Navigator>
   </NavigationContainer>;

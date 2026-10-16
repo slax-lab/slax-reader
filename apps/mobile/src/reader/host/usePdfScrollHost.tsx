@@ -2,6 +2,8 @@ import React, {useCallback, useEffect, useRef, useState} from 'react'
 import {PixelRatio, Platform, ScrollView, StyleSheet, View} from 'react-native'
 import type {StyleProp, ViewStyle} from 'react-native'
 import type {WebViewProps} from 'react-native-webview'
+import Animated, {cancelAnimation, Easing, ReduceMotion, runOnJS, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated'
+import {motionDuration} from '../../motion/policy'
 import {readerNativeAdapter} from '../../native/reader'
 import {ReaderNativeAttachment} from '../native-attachment.ts'
 import {readerNearBottom, scrollPointsToLegacyPosition, selectionScreenYToContainerPoints} from '../coordinates.ts'
@@ -11,7 +13,7 @@ import type {ReaderNativeContext} from '../native.ts'
 import {isReaderOperationCancelled, readerOperationCancelled} from '../bridge.ts'
 
 export function usePdfScrollHost(options: {
-  context: ReaderNativeContext; ready: boolean; active?: boolean; activation?: number; header?: React.ReactNode; headerSafeAreaPoints?: number; style?: StyleProp<ViewStyle>
+  context: ReaderNativeContext; ready: boolean; active?: boolean; activation?: number; header?: React.ReactNode; placeholder?: React.ReactNode; covered?: boolean; headerSafeAreaPoints?: number; style?: StyleProp<ViewStyle>
   onViewport(viewport: ReaderHostViewport): void; onInitialLayout(): Promise<unknown> | void
   onScrollMetrics?(positionPixels: number, nearBottom: boolean): void; onError(error: unknown): void; onOperationError?(error: unknown): void
 }) {
@@ -177,7 +179,7 @@ export function usePdfScrollHost(options: {
     const header = options.header ? <View onLayout={event => setHeaderHeight(event.nativeEvent.layout.height)}>{options.header}</View> : null
     const Overlay = readerNativeAdapter.OverlayComponent
     const visible = headerHeight === 0 || offset.current + headerHeight < geometry.current.headerHeightPoints
-    return <View ref={container} testID="pdf-reader-container" style={[styles.root, options.style]} onLayout={event => {
+    const host = <View ref={container} testID="pdf-reader-container" style={[styles.root, options.style]} onLayout={event => {
       const height = event.nativeEvent.layout.height
       measuredViewport.current = height; setViewportHeight(height)
       container.current?.measureInWindow((_x, y) => setScreenTop(y))
@@ -192,9 +194,32 @@ export function usePdfScrollHost(options: {
         headerHeightPoints={geometry.current.headerHeightPoints} style={styles.header}>{header}</Overlay>
         : <View ref={fallbackHeader} pointerEvents={visible ? 'auto' : 'none'} style={[styles.header, {transform: [{translateY: -Math.max(0, offset.current + headerHeight)}]}]}>{header}</View> : null}</>}
     </View>
+    // The cover sits beside the unchanged scroll host so showing or hiding it never remounts the document.
+    return options.placeholder === undefined ? host : <View style={styles.layer}>{host}<PdfLoadingCover covered={options.covered !== false}>{options.placeholder}</PdfLoadingCover></View>
   }
   return {platform, documentHeight, setDocumentHeight: (height: number) => {heightRef.current = height; setDocumentHeight(height)}, nativeLoad, nativeScroll, selectionY, scrollToDocument, publish,
     wrap, documentStyle: platform === 'android' ? {height: documentHeight, flex: 0, backgroundColor: 'transparent'} : styles.document,
     contentInset: platform === 'ios' ? {top: headerHeight, bottom: 0, left: 0, right: 0} : undefined}
 }
-const styles = StyleSheet.create({root: {flex: 1, backgroundColor: '#FCFCFC'}, document: {flex: 1, backgroundColor: 'transparent'}, header: {position: 'absolute', top: 0, left: 0, right: 0}})
+const styles = StyleSheet.create({root: {flex: 1, backgroundColor: '#FCFCFC'}, document: {flex: 1, backgroundColor: 'transparent'}, header: {position: 'absolute', top: 0, left: 0, right: 0},
+  layer: {flex: 1}, cover: {position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#FCFCFC', overflow: 'hidden'}})
+
+/**
+ * Covers the whole host with the article skeleton until the first visible page is painted, then fades out once and unmounts.
+ * The cover is hidden from assistive technology; the host's own header stays reachable beneath it.
+ */
+function PdfLoadingCover({covered, children}: {covered: boolean; children: React.ReactNode}) {
+  const [mounted, setMounted] = useState(covered)
+  const opacity = useSharedValue(covered ? 1 : 0)
+  useEffect(() => {
+    cancelAnimation(opacity)
+    if (covered) {opacity.value = 1; setMounted(true); return}
+    opacity.value = withTiming(0, {duration: motionDuration.contentReveal, easing: Easing.out(Easing.ease), reduceMotion: ReduceMotion.System}, finished => {
+      if (finished) runOnJS(setMounted)(false)
+    })
+  }, [covered, opacity])
+  const style = useAnimatedStyle(() => ({opacity: opacity.value}))
+  if (!mounted) return null
+  return <Animated.View testID="pdf-reader-placeholder" pointerEvents={covered ? 'auto' : 'none'} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
+    style={[styles.cover, style]}>{children}</Animated.View>
+}

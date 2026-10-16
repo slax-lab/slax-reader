@@ -106,7 +106,7 @@ for (const {platform, kind, initialRssError} of [
     rssSave: async id => {rssSaves.push(id); if (holdSave) await new Promise(resolve => {releaseRssSave = resolve}); if (failRssSave) throw new Error('invalid_feed'); return {bookmark_user_uuid: 'fixture-saved-bookmark'}},
     getBookmarkRawContent: async () => '<p>Refreshed fixture article</p>',
   }
-  const runtime = {beginArticleAccess: () => () => {}, getNativeResourceOwner: () => null}
+  const runtime = {beginArticleAccess: () => () => {}, getNativeResourceOwner: () => null, getArticleContent: (_id, _owner, signal) => api.getBookmarkRawContent(_id, signal)}
   const network = {isConnected: true, isInternetReachable: true}
   const telemetry = {element: (...event) => nativeEvents.push(event), firebase: (...event) => nativeEvents.push(event)}
   const boundaries = {
@@ -115,20 +115,22 @@ for (const {platform, kind, initialRssError} of [
     react: React,
     'react-native': {ActivityIndicator: nil, Animated: {Value: class {constructor(value) {this.value = value}}, View: primitive,
       timing: (_value, config) => ({start() {headerAnimations.push(config)}, stop() {}})}, Easing: {bezier: (...points) => points},
+      AccessibilityInfo: {isReduceMotionEnabled: async () => false, addEventListener: () => ({remove() {}})},
       AppState: {addEventListener: () => ({remove() {}})}, Platform: {OS: platform}, Linking: {}, Pressable: primitive, ScrollView: primitive, StyleSheet: {create: value => value}, TextInput: nil, View: primitive},
     'expo-clipboard': {}, 'expo-network': {}, 'expo-file-system': {}, 'expo/fetch': {fetch: async () => {throw new Error('An isolated document fixture must not fetch images')}}, '@react-navigation/native': {usePreventRemove(blocked) {backBlocked = blocked}},
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34, left: 0, right: 0})},
     '../components': components,
     '../components/SourceRing': {SourceCircularProgress},
     '../data': {bookmarkCacheKey, bookmarkDisplayTitle: record => record.title, collectionMarkPolicy: () => ({showMarks: true, showProfile: false}), PERSONAL_MARK_POLICY: {showMarks: true, showProfile: false}, PENDING_COLLECTION_MARK_POLICY: {}, PREFERENCE_KEYS},
-    '../runtime': {useMobile: () => React.useContext(Context), useControlledUpgradeReaderObserver: () => undefined},
+    '../runtime': {useReadingMobile: () => React.useContext(Context), useMobile: () => React.useContext(Context), useControlledUpgradeReaderObserver: () => undefined},
     '../rss/controller': {reportRssSaved: (...saved) => savedEntries.push(saved), rssErrorCode}, '../theme': {mobileColors: {}, mobileTypography: {}},
-    '../native/reader': {readerNativeAdapter: {}}, '../native/platform': {},
+    '../native/reader': {readerNativeAdapter: {}}, '../native/image-actions': {imageActionPort: {save: async () => {}, share: async () => {}}}, '../native/platform': {},
     '../telemetry': {useTelemetry: () => telemetry}, '../reader/share': {},
     '../reader': {ReaderWebView: React.forwardRef((props, ref) => {readerProps = props; React.useImperativeHandle(ref, () => ({commitExit: async () => {committedExits++}, clearSelection: async () => {}, flushPosition: async () => {}}), []); return null}), toolbarVisible: coordinates.toolbarVisible},
     '../reader/input': input,
     '../reader/ReaderOverlays': {CommentPanel: props => {commentVisible = props.visible; return null}, FloatingActions: nil, OutlineSheet: nil, ReaderToolbar: props => {toolbarVisible = props.visible; toolbarProps = props; return null}, SelectionMenu: props => {selectionMenuProps = props; return null}, TranscriptSheet: nil},
     '../reader/ImageGallery': {ImageGallery: props => {galleryProps = props; return null}}, '../reader/OverviewViews': {OverviewDialog: nil, OverviewExcerpt: nil},
+    '../reader/components/CommentPanel': {CommentPanel: props => {commentVisible = props.visible; return null}}, '../reader/components/OutlineSheet': {OutlineSheet: nil},
     '../reader/gallery-resource': {resolveGalleryImage},
     '../reader/ReaderSkeleton': {ReaderSkeleton: props => {skeletonProps = props; return null}},
     '../reader/TagSheet': {ReaderTagSheet: nil}, '../reader/model': model,
@@ -137,7 +139,7 @@ for (const {platform, kind, initialRssError} of [
   }
   const exported = await loadComponent('../../src/screens/ReaderScreen.tsx', boundaries)
   const listeners = new Map()
-  const navigation = {setOptions: value => {options = value}, navigate() {}, goBack() {}, addListener: (name, callback) => {listeners.set(name, callback); return () => listeners.delete(name)}}
+  const navigation = {isFocused: () => true, setOptions: value => {options = value}, navigate() {}, goBack() {}, addListener: (name, callback) => {listeners.set(name, callback); return () => listeners.delete(name)}}
   function Harness() {
     const [settings, setSettings] = React.useState({user_id: 'fixture-user'})
     React.useEffect(() => preferences.subscribe(setSettings), [])

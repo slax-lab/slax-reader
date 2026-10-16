@@ -229,7 +229,7 @@
 				E31FB22396EA4356A913D751 /* Copy Files */,
 				DA9297358C54B99035753761 /* [CP] Embed Pods Frameworks */,
 				47388F017C615D16EEE67630 /* [CP-User] [RNFB] Core Configuration */,
-				88FB529CFC76BFE337F6D6D4 /* [CP-User] [RNFB] Crashlytics Configuration */,
+				F185437FC892BF1C2CDCB139 /* [CP-User] [RNFB] Crashlytics Configuration */,
 			);
 			buildRules = (
 			);
@@ -398,6 +398,7 @@
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/ExpoConstants_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoFileSystem/ExpoFileSystem_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoLocalization/ExpoLocalization_privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoMediaLibrary/ExpoMediaLibrary_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/FirebaseCore/FirebaseCore_Privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/FirebaseCoreExtension/FirebaseCoreExtension_Privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/FirebaseCoreInternal/FirebaseCoreInternal_Privacy.bundle",
@@ -425,6 +426,7 @@
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoConstants_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoFileSystem_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoLocalization_privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoMediaLibrary_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/FirebaseCore_Privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/FirebaseCoreExtension_Privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/FirebaseCoreInternal_Privacy.bundle",
@@ -450,20 +452,6 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SlaxReader/Pods-SlaxReader-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		88FB529CFC76BFE337F6D6D4 /* [CP-User] [RNFB] Crashlytics Configuration */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}",
-				"$(BUILT_PRODUCTS_DIR)/$(INFOPLIST_PATH)",
-			);
-			name = "[CP-User] [RNFB] Crashlytics Configuration";
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "#!/usr/bin/env bash\n#\n# Copyright (c) 2016-present Invertase Limited & Contributors\n#\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n# you may not use this library except in compliance with the License.\n# You may obtain a copy of the License at\n#\n#   http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\n#\nset -e\n\nif [[ ${PODS_ROOT} && -f \"${PODS_ROOT}/FirebaseCrashlytics/run\" ]]; then\n  echo \"info: Exec FirebaseCrashlytics Run from Pods\"\n  \"${PODS_ROOT}/FirebaseCrashlytics/run\"\nelif [[ -f \"${PROJECT_DIR}/FirebaseCrashlytics.framework/run\" ]]; then\n  echo \"info: Exec FirebaseCrashlytics Run from framework\"\n  \"${PROJECT_DIR}/FirebaseCrashlytics.framework/run\"\nelse\n  # SPM: upload-symbols is at a known path in the SourcePackages checkout.\n  # BUILD_DIR is typically DerivedData/Project-hash/Build/Products — strip from /Build onward\n  # to get the DerivedData project root where SourcePackages lives.\n  SPM_CRASHLYTICS_DIR=\"${BUILD_DIR%Build/*}SourcePackages/checkouts/firebase-ios-sdk/Crashlytics\"\n  SPM_UPLOAD_SYMBOLS=\"${SPM_CRASHLYTICS_DIR}/upload-symbols\"\n  if [[ -x \"${SPM_UPLOAD_SYMBOLS}\" ]]; then\n    echo \"info: Exec FirebaseCrashlytics upload-symbols from SPM\"\n    \"${SPM_UPLOAD_SYMBOLS}\" -gsp \"${PROJECT_DIR}/GoogleService-Info.plist\" -p ios \"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}\"\n  elif [[ -f \"${SPM_UPLOAD_SYMBOLS}\" ]]; then\n    echo \"info: Exec FirebaseCrashlytics upload-symbols from SPM (chmod +x)\"\n    chmod +x \"${SPM_UPLOAD_SYMBOLS}\"\n    \"${SPM_UPLOAD_SYMBOLS}\" -gsp \"${PROJECT_DIR}/GoogleService-Info.plist\" -p ios \"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}\"\n  else\n    echo \"warning: FirebaseCrashlytics run script not found at CocoaPods, framework, or SPM paths. Skipping dSYM upload.\"\n    echo \"warning: Checked: \\${PODS_ROOT}/FirebaseCrashlytics/run, \\${PROJECT_DIR}/FirebaseCrashlytics.framework/run, ${SPM_UPLOAD_SYMBOLS}\"\n  fi\nfi\n";
-		};
 		DA9297358C54B99035753761 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -473,6 +461,13 @@
 				"${PODS_ROOT}/Target Support Files/Pods-SlaxReader/Pods-SlaxReader-frameworks.sh",
 				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoFileSystem/ExpoFileSystem.framework/ExpoFileSystem",
 				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoFont/ExpoFont.framework/ExpoFont",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoImage/ExpoImage.framework/ExpoImage",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoImage/SDWebImage.framework/SDWebImage",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoImage/SDWebImageAVIFCoder.framework/SDWebImageAVIFCoder",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoImage/SDWebImageSVGCoder.framework/SDWebImageSVGCoder",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoImage/SDWebImageWebPCoder.framework/SDWebImageWebPCoder",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoImage/libavif.framework/libavif",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoMediaLibrary/ExpoMediaLibrary.framework/ExpoMediaLibrary",
 				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoModulesCore/ExpoModulesCore.framework/ExpoModulesCore",
 				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoModulesJSI/ExpoModulesJSI.framework/ExpoModulesJSI",
 				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ExpoModulesWorklets/ExpoModulesWorklets.framework/ExpoModulesWorklets",
@@ -485,6 +480,13 @@
 			outputPaths = (
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ExpoFileSystem.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ExpoFont.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ExpoImage.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/SDWebImage.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/SDWebImageAVIFCoder.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/SDWebImageSVGCoder.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/SDWebImageWebPCoder.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/libavif.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ExpoMediaLibrary.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ExpoModulesCore.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ExpoModulesJSI.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ExpoModulesWorklets.framework",
@@ -497,6 +499,20 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SlaxReader/Pods-SlaxReader-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
+		};
+		F185437FC892BF1C2CDCB139 /* [CP-User] [RNFB] Crashlytics Configuration */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}",
+				"$(BUILT_PRODUCTS_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "[CP-User] [RNFB] Crashlytics Configuration";
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "#!/usr/bin/env bash\n#\n# Copyright (c) 2016-present Invertase Limited & Contributors\n#\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n# you may not use this library except in compliance with the License.\n# You may obtain a copy of the License at\n#\n#   http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\n#\nset -e\n\nif [[ ${PODS_ROOT} && -f \"${PODS_ROOT}/FirebaseCrashlytics/run\" ]]; then\n  echo \"info: Exec FirebaseCrashlytics Run from Pods\"\n  \"${PODS_ROOT}/FirebaseCrashlytics/run\"\nelif [[ -f \"${PROJECT_DIR}/FirebaseCrashlytics.framework/run\" ]]; then\n  echo \"info: Exec FirebaseCrashlytics Run from framework\"\n  \"${PROJECT_DIR}/FirebaseCrashlytics.framework/run\"\nelse\n  # SPM: upload-symbols is at a known path in the SourcePackages checkout.\n  # BUILD_DIR is typically DerivedData/Project-hash/Build/Products — strip from /Build onward\n  # to get the DerivedData project root where SourcePackages lives.\n  SPM_CRASHLYTICS_DIR=\"${BUILD_DIR%Build/*}SourcePackages/checkouts/firebase-ios-sdk/Crashlytics\"\n  SPM_UPLOAD_SYMBOLS=\"${SPM_CRASHLYTICS_DIR}/upload-symbols\"\n  if [[ -x \"${SPM_UPLOAD_SYMBOLS}\" ]]; then\n    echo \"info: Exec FirebaseCrashlytics upload-symbols from SPM\"\n    \"${SPM_UPLOAD_SYMBOLS}\" -gsp \"${PROJECT_DIR}/GoogleService-Info.plist\" -p ios \"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}\"\n  elif [[ -f \"${SPM_UPLOAD_SYMBOLS}\" ]]; then\n    echo \"info: Exec FirebaseCrashlytics upload-symbols from SPM (chmod +x)\"\n    chmod +x \"${SPM_UPLOAD_SYMBOLS}\"\n    \"${SPM_UPLOAD_SYMBOLS}\" -gsp \"${PROJECT_DIR}/GoogleService-Info.plist\" -p ios \"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}\"\n  else\n    echo \"warning: FirebaseCrashlytics run script not found at CocoaPods, framework, or SPM paths. Skipping dSYM upload.\"\n    echo \"warning: Checked: \\${PODS_ROOT}/FirebaseCrashlytics/run, \\${PROJECT_DIR}/FirebaseCrashlytics.framework/run, ${SPM_UPLOAD_SYMBOLS}\"\n  fi\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -597,7 +613,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = SlaxShare/SlaxShare.entitlements;
-				CURRENT_PROJECT_VERSION = 766;
+				CURRENT_PROJECT_VERSION = 770;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = SlaxShare/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
@@ -811,7 +827,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = SlaxShare/SlaxShare.entitlements;
-				CURRENT_PROJECT_VERSION = 766;
+				CURRENT_PROJECT_VERSION = 770;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
 					"$(inherited)",

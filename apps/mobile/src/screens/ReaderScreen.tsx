@@ -4,14 +4,16 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {SourceText} from '../components'
 import {bookmarkCacheKey, type PreferenceValues} from '../data'
 import type {MobileScreenProps} from '../navigation/types'
-import {useMobile, useControlledUpgradeReaderObserver} from '../runtime'
+import {useReadingMobile, useControlledUpgradeReaderObserver} from '../runtime'
 import {mobileColors as C, mobileTypography as T} from '../theme'
 import {readerNativeAdapter} from '../native/reader'
 import {useTelemetry} from '../telemetry'
 import type {ReaderEvent} from '../reader'
-import {CommentPanel, FloatingActions, OutlineSheet, ReaderToolbar, SelectionMenu, TranscriptSheet} from '../reader/ReaderOverlays'
+import {FloatingActions, ImageActionNotice, ImageActionSheet, ReaderToolbar, SelectionMenu, TranscriptSheet} from '../reader/ReaderOverlays'
+import {imageActionPort} from '../native/image-actions'
+import type {ImageActionSurface} from '../reader/state/useImageActions'
 import {ImageGallery} from '../reader/ImageGallery'
-import {OverviewDialog} from '../reader/OverviewViews'
+import {ReaderAiOutline, ReaderAiOverview, ReaderAiExcerpt, ReaderCommentPanel} from '../reader/components/ReaderFeatureViews'
 import {ReaderTagSheet} from '../reader/TagSheet'
 import {sourceStableId} from '../reader/model'
 import {readerAccountActive, updateReaderPreferences} from '../reader/account'
@@ -28,8 +30,14 @@ import {useReaderInteractions} from '../reader/state/useReaderInteractions'
 import {useReaderDiagnostics} from '../reader/diagnostics/useReaderDiagnostics'
 import type {ReaderDocumentTransitions} from '../reader/state/types'
 
+/** Identity-stable wrapper that always calls the latest render's handler, so memoized hosts are not rerendered by new closures. */
+function useEvent<A extends unknown[], R>(handler: (...args: A) => R): (...args: A) => R {
+  const latest = useRef(handler); latest.current = handler
+  return useCallback((...args: A) => latest.current(...args), [])
+}
+
 export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
-  const {runtime, api, repositories, cache, preferences, settings, session, sessions, t, config, fixtureOnly, nativeResourceOwner} = useMobile()
+  const {runtime, api, repositories, cache, preferences, settings, session, sessions, t, config, fixtureOnly, nativeResourceOwner} = useReadingMobile()
   const observer = useControlledUpgradeReaderObserver(), safeArea = useSafeAreaInsets(), telemetry = useTelemetry()
   const isIos = Platform.OS === 'ios', controlledFixture = Boolean(__DEV__ && fixtureOnly)
   const resourceOwnerAtMount = useRef(nativeResourceOwner).current
@@ -45,8 +53,12 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
   const clearSelection = useCallback(() => selectionCommand.current(), [])
   const subscriptionCommand = useRef<() => void>(() => {})
   const life = useReaderLifecycle(identity, {navigation, routeKey: route.key, t, isAccountActive, writePreferences})
-  const scope = {...identity, mounted: life.mounted, foreground: life.foreground, appActive: life.appActive, reader: life.reader, isAccountActive, fail: life.fail, t}
+  const scope = {...identity, mounted: life.mounted, foreground: life.foreground, appActive: life.appActive, routeVisible: life.routeVisible, transitionReady: life.transitionReady, reader: life.reader, isAccountActive, fail: life.fail, t}
   const {reader, appActive, fail} = life
+  useLayoutEffect(() => {
+    if (!isAccountActive()) return
+    return runtime.beginArticleAccess(cacheKey)
+  }, [runtime, cacheKey, isAccountActive])
   const run = (work: Promise<unknown> | undefined) => {void work?.catch(fail)}
   const bookmark = useReaderBookmark(scope, {repositories, cache, config, fixtureOnly: Boolean(fixtureOnly), telemetry, clearSelection, goBack: () => navigation.goBack()})
   const document = useReaderDocument(scope, {runtime, api, repositories, cache, fixtureOnly, nativeResourceOwner, resourceOwnerAtMount, stableUserId, record: bookmark.record, transitions})
@@ -56,7 +68,7 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
   const ai = useReaderAi(scope, {api, local: repositories?.local, network: fixtureOnly?.network, subscribed: bookmark.subscribed, platform: config.platform, telemetry, clearSelection, subscription: () => subscriptionCommand.current(), document})
   const interactions = useReaderInteractions(scope, {isIos, nativeResourceOwner, fixtureOnly: Boolean(fixtureOnly), settings, writePreferences, cache, telemetry, api,
     document, annotations, bookmark, ai, presentation, operationError: life.operationError, clearError: life.clearError,
-    feedback: entryPoint => navigation.navigate('Feedback', {bookmarkId, title, targetUrl: originalUrl, entryPoint, type: 'parse_error'})})
+    feedback: entryPoint => navigation.navigate('Feedback', {bookmarkId, title, targetUrl: originalUrl, entryPoint, type: 'parse_error'}), imageActions: imageActionPort})
   selectionCommand.current = () => {void annotations.clearSelection()}
   subscriptionCommand.current = () => {
     if (config.platform === 'ios') {telemetry.firebase('subscription', 'view', {source: 'dialog'}); navigation.navigate('Subscription')}
@@ -84,22 +96,56 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
   }), [navigation, headerMore, isPreview])
   const [containerHeight, setContainerHeight] = useState(1)
   const infoPack = useMemo(() => ({metadataUrl: originalUrl, bookmarkId, platform: config.platform, version: config.version}), [originalUrl, bookmarkId, config.platform, config.version])
-  const saveButton = <RssSaveButton loading={document.loading} rss={document.rss} t={t} onSave={() => run(document.saveRss())} />
-  const header = isPreview ? <RssReaderHeader top={safeArea.top} rss={document.rss} error={document.rssError} originalUrl={originalUrl} saveButton={saveButton} t={t} onOriginal={() => bookmark.openOriginal(originalUrl)} /> :
+  // Header, footer and HTML host callbacks keep their identity across toolbar/selection/panel/AI updates so the
+  // memoized HTML document host only rerenders when its document, marks, geometry or header content change.
+  // Its live-only callbacks (events, scroll, links) are never invoked after unmount, so they may read the latest render.
+  const saveRss = useEvent(() => run(document.saveRss()))
+  const openOriginal = useEvent(() => bookmark.openOriginal(originalUrl))
+  const showOverview = useEvent(() => interactions.showOverview())
+  const showTags = useEvent(() => interactions.showTags())
+  const saveButton = useMemo(() => <RssSaveButton loading={document.loading} rss={document.rss} t={t} onSave={saveRss} />, [document.loading, document.rss, t, saveRss])
+  const overview = useMemo(() => <ReaderAiExcerpt state={ai.overview} prefix={t('overview_prefix')} onPress={showOverview} />, [ai.overview, t, showOverview])
+  const header = useMemo(() => isPreview ? <RssReaderHeader top={safeArea.top} rss={document.rss} error={document.rssError} originalUrl={originalUrl} saveButton={saveButton} t={t} onOriginal={openOriginal} /> :
     <ReaderHeader top={safeArea.top} title={title} record={bookmark.record} pdf={document.pdf} isPdf={isPdf} originalUrl={originalUrl} isCollection={isCollection}
-      selectedTags={bookmark.selectedTags} overview={ai.overview.content} t={t} onOriginal={() => bookmark.openOriginal(originalUrl)} onTags={interactions.showTags} onOverview={interactions.showOverview} />
-  const {pdf, html, contentError, pdfDownloading, documentReady} = document
+      selectedTags={bookmark.selectedTags} overview={overview} t={t} onOriginal={openOriginal} onTags={showTags} onOverview={showOverview} />,
+  [isPreview, safeArea.top, document.rss, document.rssError, originalUrl, saveButton, t, openOriginal, title, bookmark.record, document.pdf, isPdf, isCollection, bookmark.selectedTags, overview, showTags, showOverview])
+  const {pdf, html, contentError, documentReady} = document
   const {panel, selection, policy = bookmark.policy} = {...annotations, policy: bookmark.policy}
-  const isRouteRemoved = () => !navigation.getState().routes.some(value => value.key === route.key)
-  const hostShared = {cacheKey, resourceOwner: resourceOwnerAtMount, currentUserId: stableUserId, marks: annotations.markDetail, initialPosition: document.initialPosition,
-    header, headerSafeAreaPoints: isIos ? safeArea.top : 0, commentPanelVisible: Boolean(panel), isRouteRemoved}
+  const isRouteRemoved = useEvent(() => !navigation.getState().routes.some(value => value.key === route.key))
+  const commentPanelVisible = Boolean(panel), headerSafeAreaPoints = isIos ? safeArea.top : 0
+  const hostShared = useMemo(() => ({cacheKey, resourceOwner: resourceOwnerAtMount, currentUserId: stableUserId, marks: annotations.markDetail, initialPosition: document.initialPosition,
+    header, headerSafeAreaPoints, commentPanelVisible, isRouteRemoved}),
+  [cacheKey, resourceOwnerAtMount, stableUserId, annotations.markDetail, document.initialPosition, header, headerSafeAreaPoints, commentPanelVisible, isRouteRemoved])
+  const htmlEvent = useEvent(event)
+  const htmlExternalUrl = useEvent((url: string) => interactions.external(url))
+  const htmlPositionChange = useEvent((position: number, nearBottom: boolean) => interactions.scroll(position, nearBottom))
+  const fixtureLifecycle = useEvent((value: Parameters<NonNullable<typeof diagnostics.onFixtureLifecycle>>[0]) => diagnostics.onFixtureLifecycle?.(value))
+  const observation = useEvent((value: Parameters<NonNullable<typeof diagnostics.onObservation>>[0]) => diagnostics.onObservation?.(value))
+  // A retired document's final flush must keep its own account/document fence, so this is memoized on those inputs only.
+  const persistence = useRef({persistHtml: document.persistHtml, positionPersisted: diagnostics.positionPersisted})
+  persistence.current = {persistHtml: document.persistHtml, positionPersisted: diagnostics.positionPersisted}
+  const htmlPositionFlush = useCallback(async (position: number, reason: Parameters<typeof diagnostics.positionPersisted>[1], pageId: string) => {
+    if (isPreview || !isAccountActive() || !repositories) return
+    await persistence.current.persistHtml(position); await persistence.current.positionPersisted(position, reason, pageId)
+  }, [isPreview, isAccountActive, repositories, cacheKey])
+  const reload = useEvent((force?: boolean) => void document.load(force))
+  const retryNative = useEvent(() => run(document.retryNative()))
+  const images = interactions.imageActions
+  const openGalleryImageAction = useCallback((source: string) => images.open(source, 'gallery'), [images.open])
+  // Each surface owns its own sheet/notice so a gallery action presents inside the gallery modal.
+  const imageActionSheet = (surface: ImageActionSurface) => images.request?.surface === surface ?
+    <ImageActionSheet visible={images.visible} t={t} onSave={images.save} onShare={images.share} onCancel={images.cancel} onDidDismiss={images.dismissed} /> : null
+  const imageActionNotice = (surface: ImageActionSurface) => images.notice?.surface === surface ? <ImageActionNotice message={t(`image_action_${images.notice.kind}`)} /> : null
+  const footer = useMemo(() => isPreview ? <View style={{paddingHorizontal: 20, paddingTop: 24, paddingBottom: 24 + safeArea.bottom}}><View style={{height: 0.5, backgroundColor: '#E9E5DF', marginBottom: 20}} />{saveButton}</View> : undefined,
+    [isPreview, safeArea.bottom, saveButton])
 
   return <View style={styles.root} testID="reader-screen" onLayout={event => setContainerHeight(event.nativeEvent.layout.height)}>
     <ReaderContent isPdf={isPdf} isPreview={isPreview} loading={document.loading} html={html} hostKey={`${cacheKey}:${pdf?.document_id ?? ''}:${document.readerGeneration}`}
       top={safeArea.top} title={title} header={header} contentError={contentError} nativeFailure={document.nativeFailure} rssError={document.rssError} t={t}
-      reload={force => void document.load(force)} retryPdf={document.retryPdf} retryNative={() => run(document.retryNative())}
+      reload={reload} retryPdf={document.retryPdf} retryNative={retryNative}
       pdfProps={pdf ? {...hostShared, ref: document.attachPdfHost, style: {flex: 1}, descriptor: pdf, cacheDirectory: fixtureOnly?.pdfNativeOwner ? undefined : fixtureOnly?.dataDirectory,
         readRange: document.readPdfRange, labels: {loading: t('pdf_loading'), error: t('pdf_load_failed'), mark: t('pdf_notes')},
+        // PDF callbacks stay per-render closures: each captures its own host lease, which keeps a retired host's late callbacks inert.
         onEvent: (value, pageId) => {if (document.isPdfHostCurrent()) event(value, pageId)},
         onOperationError: error => {if (!document.contentErrorSnapshot.current && document.isPdfHostCurrent()) fail(error)}, onError: document.pdfError,
         onPositionChange: position => {if (document.isPdfHostCurrent()) document.pdfPosition.current = position},
@@ -107,10 +153,9 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
       } : null}
       htmlProps={{...hostShared, ref: reader, cacheDirectory: fixtureOnly?.dataDirectory, html: html ?? '', baseUrl: config.webUrl, infoPack,
         rewriteImageTransports: !isPreview || Boolean(__DEV__ && fixtureOnly), footerOnlyForLongDocument: true, nativeAdapter: readerNativeAdapter,
-        onEvent: event, onError: fail, onExternalUrl: interactions.external, onPositionChange: interactions.scroll,
-        footer: isPreview ? <View style={{paddingHorizontal: 20, paddingTop: 24, paddingBottom: 24 + safeArea.bottom}}><View style={{height: 0.5, backgroundColor: '#E9E5DF', marginBottom: 20}} />{saveButton}</View> : undefined,
-        onFixtureLifecycle: diagnostics.onFixtureLifecycle, onObservation: diagnostics.onObservation,
-        onPositionFlush: async (position, reason, pageId) => {if (isPreview || !isAccountActive() || !repositories) return; await document.persistHtml(position); await diagnostics.positionPersisted(position, reason, pageId)},
+        onEvent: htmlEvent, onError: fail, onExternalUrl: htmlExternalUrl, onPositionChange: htmlPositionChange, footer,
+        onFixtureLifecycle: diagnostics.onFixtureLifecycle ? fixtureLifecycle : undefined, onObservation: diagnostics.onObservation ? observation : undefined,
+        onPositionFlush: htmlPositionFlush,
       }} />
     {!isPreview ? <FloatingActions visible={interactions.toolbarIsVisible && !panel} isCollection={isCollection} starred={Boolean(bookmark.record?.isStarred)} archived={Boolean(bookmark.record?.archiveStatus)}
       outlineCollapsed={ai.outlineStatus === 'collapsed'} t={t} onStar={() => bookmark.toggle('isStarred')} onArchive={() => bookmark.toggle('archiveStatus')} onMore={interactions.showToolbar} onOutline={ai.expand} /> : null}
@@ -118,21 +163,22 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
       allowLine={policy.allowLine} allowComment={policy.allowComment} t={t} onCopy={() => run(annotations.copyText())} onHighlight={() => run(annotations.highlight())} onComment={() => run(annotations.startComment())} /> : null}
     <ReaderToolbar key={`reader-toolbar-${interactions.toolbarId}`} visible={!isPreview && interactions.overlay === 'toolbar'} collection={isCollection} youtube={Boolean(html?.includes('<youtube-player'))}
       starred={Boolean(bookmark.record?.isStarred)} archived={Boolean(bookmark.record?.archiveStatus)}
-      pdf={isPdf ? {downloadDisabled: !pdf || Boolean(contentError) || pdfDownloading || !appActive, downloading: pdfDownloading, notesEnabled: Boolean(pdf && documentReady && !contentError && policy.showMarks && annotations.pdfMarkInfos.length)} : undefined}
+      pdf={isPdf ? {notesEnabled: Boolean(pdf && documentReady && !contentError && policy.showMarks && annotations.pdfMarkInfos.length)} : undefined}
       t={t} onDismiss={interactions.dismissToolbar} onDidDismiss={interactions.toolbarDidDismiss} onAction={interactions.action} />
-    <CommentPanel visible={Boolean(panel)} mark={panel?.mark ?? null} text={panel?.text ?? ''} draft={annotations.draft} reply={annotations.reply} currentUserAvatar={String(bookmark.user.picture ?? '')}
-      hideProfiles={!policy.showProfile} allowLine={policy.allowLine} allowComment={policy.allowComment} autoFocus={appActive && (panel?.autoFocus ?? false)} busy={annotations.markBusy}
-      menu={appActive ? annotations.commentMenu : null} onMenu={annotations.setCommentMenu} t={t} onDraft={annotations.setDraft} onClose={annotations.dismissPanel}
+    <ReaderCommentPanel visible={Boolean(panel)} mark={panel?.mark ?? null} text={panel?.text ?? ''} draftState={annotations.draftState} reply={annotations.reply} currentUserAvatar={String(bookmark.user.picture ?? '')}
+      hideProfiles={!policy.showProfile} allowLine={policy.allowLine} allowComment={policy.allowComment} autoFocus={appActive && life.routeVisible && life.transitionReady && (panel?.autoFocus ?? false)} busy={annotations.markBusy}
+      menu={appActive && life.routeVisible ? annotations.commentMenu : null} onMenu={annotations.setCommentMenu} t={t} onClose={annotations.dismissPanel}
       onCopy={() => run(annotations.copyText())} onCopyComment={comment => run(annotations.copyComment(comment))} onHighlight={() => run(annotations.highlight())} onReply={annotations.replyTo}
       onDelete={annotations.requestDelete} canDelete={annotations.canDelete} onSubmit={() => run(annotations.submitComment())} />
-    <OutlineSheet status={ai.outlineStatus} toolbarVisible={interactions.toolbarIsVisible && !panel} onExpand={ai.expand} markdown={ai.outline.content} pending={ai.outline.pending} busy={ai.outline.busy}
-      error={ai.outline.error} position={ai.position.current} t={t} onClose={() => ai.close('hidden')} onCollapse={() => ai.close('collapsed')} onRetry={() => void ai.load('outline', true)} onPosition={ai.updatePosition} onLink={ai.link} />
+    <ReaderAiOutline state={ai.outline} status={ai.outlineStatus} toolbarVisible={interactions.toolbarIsVisible && !panel} onExpand={ai.expand}
+      position={ai.position.current} t={t} onClose={() => ai.close('hidden')} onCollapse={() => ai.close('collapsed')} onRetry={() => void ai.load('outline', true)} onPosition={ai.updatePosition} onLink={ai.link} />
     <TranscriptSheet visible={interactions.transcriptVisible} cues={interactions.cues} currentTime={interactions.youtubeTime} t={t} onClose={interactions.closeTranscript} onSeek={interactions.seek} />
     {interactions.gallery ? <ImageGallery errorLabel={t('rss_image_failed')} images={interactions.gallery.images} index={interactions.gallery.index} resolveUri={interactions.resolveGalleryUri}
-      allowNetworkFallback={!fixtureOnly} isActive={isAccountActive} onDismiss={interactions.closeGallery} /> : null}
-    <PdfNotesSheet visible={isPdf && annotations.pdfNotesVisible && appActive && policy.showMarks} marks={annotations.pdfMarkInfos} bottom={safeArea.bottom} t={t} onClose={annotations.closeNotes} onSelect={mark => run(annotations.openNote(mark))} />
-    <OverviewDialog visible={interactions.overlay === 'overview'} content={ai.overview.content || (isPdf ? document.pdfTextMessage || ai.overview.error || (ai.overview.busy ? t('pdf_loading') : '') : '')}
-      takeaways={ai.overview.takeaways} title={t('overview_dialog_title')} closeLabel={t('btn_close')} onClose={interactions.closeOverview} />
+      visible={life.routeVisible && appActive} allowNetworkFallback={!fixtureOnly} isActive={isAccountActive} onDismiss={interactions.closeGallery}
+      onImageLongPress={openGalleryImageAction}>{imageActionSheet('gallery')}{imageActionNotice('gallery')}</ImageGallery> : null}
+    <PdfNotesSheet visible={isPdf && annotations.pdfNotesVisible && appActive && life.routeVisible && policy.showMarks} marks={annotations.pdfMarkInfos} bottom={safeArea.bottom} t={t} onClose={annotations.closeNotes} onSelect={mark => run(annotations.openNote(mark))} />
+    <ReaderAiOverview state={ai.overview} visible={interactions.overlay === 'overview'} isPdf={isPdf} pdfTextMessage={document.pdfTextMessage} loadingLabel={t('pdf_loading')}
+      title={t('overview_dialog_title')} closeLabel={t('btn_close')} onClose={interactions.closeOverview} />
     <ReaderTagSheet visible={interactions.overlay === 'tags'} tags={bookmark.tags} remoteIds={bookmark.selectedTagIds} t={t} onDismiss={interactions.closeOverlay} onError={fail}
       onConfirm={ids => {run(bookmark.updateTags(ids)); interactions.closeOverlay()}} onCreate={bookmark.createTag} />
     <ReaderDialogs active={appActive && isAccountActive()} overlay={interactions.overlay} t={t} closeOverlay={interactions.closeOverlay}
@@ -142,6 +188,7 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
       discard={{visible: annotations.discard !== null, cancel: annotations.cancelDiscard, confirm: annotations.discardDraft}}
       comment={{visible: annotations.deletingComment !== null, cancel: annotations.cancelDelete, confirm: () => run(annotations.confirmDelete())}}
       error={{message: life.operationError, close: life.clearError}} />
+    {imageActionSheet('document')}{imageActionNotice('document')}
     {annotations.copied ? <View pointerEvents="none" style={styles.copyToast}><SourceText style={[T.helper, {color: C.surface}]}>{t('comment_panel_copied')}</SourceText></View> : null}
   </View>
 }

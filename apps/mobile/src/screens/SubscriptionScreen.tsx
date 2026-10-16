@@ -9,7 +9,16 @@ import {useTelemetry} from '../telemetry';
 import {fixtureDocument} from '../native/fixture-document';
 
 export function SubscriptionScreen() {
-  const {payments: controller, webSession, config, fixtureOnly} = useMobile();
+  const {payments: controller, webSession, acquireWebSession, api, runtime, nativeResourceOwner, sessions, config, fixtureOnly} = useMobile();
+  useEffect(() => acquireWebSession?.(), [acquireWebSession]);
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || fixtureOnly || !nativeResourceOwner) return;
+    const request = new AbortController(), scope = sessions.captureRequestScope();
+    void controller.loadProducts(async () => {
+      const result = await api.getIAPProductIds(request.signal); scope.assertCurrent(); return result.products;
+    }, () => !request.signal.aborted && runtime.getNativeResourceOwner() === nativeResourceOwner);
+    return () => request.abort();
+  }, [controller, api, runtime, nativeResourceOwner, sessions, fixtureOnly]);
   const telemetry = useTelemetry();
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [loading, setLoading] = useState(true);

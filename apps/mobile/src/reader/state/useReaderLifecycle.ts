@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState} from 'react'
+import {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react'
 import {AppState} from 'react-native'
 import {PREFERENCE_KEYS} from '../../data'
 import type {MobileScreenProps} from '../../navigation/types'
@@ -22,6 +22,9 @@ export function useReaderLifecycle(identity: ReaderIdentity, ports: {
   const foreground = useRef(AppState.currentState == null || AppState.currentState === 'active')
   const reader = useRef<ReaderHandle | null>(null)
   const [appActive, setAppActive] = useState(foreground.current)
+  const [routeVisible, setRouteVisible] = useState(() => navigation.isFocused())
+  const [transitionReady, setTransitionReady] = useState(false)
+  const routeFocused = useRef(routeVisible)
   const [operationError, setOperationError] = useState<string | null>(null)
   const pendingError = useRef<string | null>(null)
   const commands = useRef<ReaderExitPorts | null>(null)
@@ -35,6 +38,25 @@ export function useReaderLifecycle(identity: ReaderIdentity, ports: {
     else pendingError.current = message
   }, [t, isAccountActive])
   const clearError = useCallback(() => {pendingError.current = null; setOperationError(null)}, [])
+  useLayoutEffect(() => {
+    routeFocused.current = navigation.isFocused(); setRouteVisible(routeFocused.current)
+    foreground.current = routeFocused.current && (AppState.currentState == null || AppState.currentState === 'active')
+    const focus = navigation.addListener('focus', () => {
+      routeFocused.current = true; setRouteVisible(true)
+      foreground.current = AppState.currentState == null || AppState.currentState === 'active'
+      if (foreground.current && pendingError.current && isAccountActive()) {setOperationError(pendingError.current); pendingError.current = null}
+    })
+    const blur = navigation.addListener('blur', () => {
+      routeFocused.current = false; foreground.current = false; setRouteVisible(false)
+      commands.current?.background(); commands.current?.persist(); void commands.current?.flushOutline('background').catch(fail)
+    })
+    let transitioning = false
+    const start = navigation.addListener('transitionStart', () => {transitioning = true; setTransitionReady(false)})
+    const end = navigation.addListener('transitionEnd', () => {transitioning = false; setTransitionReady(true)})
+    const cancel = navigation.addListener('gestureCancel', () => {transitioning = false; setTransitionReady(true)})
+    const frame = requestAnimationFrame(() => {if (!transitioning && navigation.isFocused()) setTransitionReady(true)})
+    return () => {cancelAnimationFrame(frame); focus(); blur(); start(); end(); cancel()}
+  }, [navigation, isAccountActive, fail])
   useEffect(() => {
     mounted.current = true
     return () => {mounted.current = false; commands.current?.abort(); commands.current?.persist(); void commands.current?.flushOutline('exit').catch(() => undefined)}
@@ -51,7 +73,7 @@ export function useReaderLifecycle(identity: ReaderIdentity, ports: {
   }, [navigation, routeKey, fail])
   useEffect(() => {
     const subscription = AppState.addEventListener('change', state => {
-      foreground.current = state === 'active'; setAppActive(foreground.current)
+      foreground.current = state === 'active' && routeFocused.current; setAppActive(state === 'active')
       if (!foreground.current) commands.current?.background()
       else if (mounted.current && isAccountActive() && pendingError.current) {setOperationError(pendingError.current); pendingError.current = null}
     })
@@ -60,7 +82,7 @@ export function useReaderLifecycle(identity: ReaderIdentity, ports: {
   useEffect(() => {
     void writePreferences(next => {delete next[PREFERENCE_KEYS.continueReading]}).catch(fail)
     const subscription = AppState.addEventListener('change', state => {
-      if (!isAccountActive()) return
+      if (!isAccountActive() || !routeFocused.current) return
       if (state === 'active') void writePreferences(next => {delete next[PREFERENCE_KEYS.continueReading]}).catch(fail)
       else {
         void commands.current?.flushOutline('background').catch(fail)
@@ -69,5 +91,5 @@ export function useReaderLifecycle(identity: ReaderIdentity, ports: {
     })
     return () => subscription.remove()
   }, [bookmarkId, collectionOwnerId, collectionId, isPreview, writePreferences, isAccountActive])
-  return {mounted, foreground, reader, appActive, isAccountActive, fail, operationError, clearError, commands, title}
+  return {mounted, foreground, reader, appActive, routeVisible, transitionReady, isAccountActive, fail, operationError, clearError, commands, title}
 }

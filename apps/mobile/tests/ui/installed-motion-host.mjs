@@ -30,6 +30,10 @@ export function installedMotionHost(View, {reducedMotion = false, deferJS = fals
   const gh = dirname(require.resolve('react-native-gesture-handler/package.json'));
   const base = installed(resolve(gh, 'src/handlers/gestures/gesture.ts'), {'../getNextHandlerTag': {getNextHandlerTag: () => 1}, '../../utils': {isRemoteDebuggingEnabled: () => false}});
   const {PanGesture} = installed(resolve(gh, 'src/handlers/gestures/panGesture.ts'), {'./gesture': base});
+  const {PinchGesture} = installed(resolve(gh, 'src/handlers/gestures/pinchGesture.ts'), {'./gesture': base});
+  const {TapGesture} = installed(resolve(gh, 'src/handlers/gestures/tapGesture.ts'), {'./gesture': base});
+  const {NativeGesture} = installed(resolve(gh, 'src/handlers/gestures/nativeGesture.ts'), {'./gesture': base});
+  const {ComposedGesture, SimultaneousGesture, ExclusiveGesture} = installed(resolve(gh, 'src/handlers/gestures/gestureComposition.ts'), {'./gesture': base});
   const ra = dirname(require.resolve('react-native-reanimated/package.json'));
   const {Bezier} = installed(resolve(ra, 'src/Bezier.ts'));
   const {Easing} = installed(resolve(ra, 'src/Easing.ts'), {'./Bezier': {Bezier}});
@@ -44,11 +48,14 @@ export function installedMotionHost(View, {reducedMotion = false, deferJS = fals
   const {withTiming} = installed(resolve(ra, 'src/animation/timing.ts'), {'../Easing': {Easing}, './util': animationUtil});
   const {withDelay} = installed(resolve(ra, 'src/animation/delay.ts'), {'./util': animationUtil});
   const {withSequence} = installed(resolve(ra, 'src/animation/sequence.ts'), {'./util': animationUtil, '../common': {logger: {warn() {}}}});
+  const springConfigs = installed(resolve(ra, 'src/animation/spring/springConfigs.ts'));
+  const springUtils = installed(resolve(ra, 'src/animation/spring/springUtils.ts'), {'../../common': {logger: {warn() {}}}});
+  const {withSpring} = installed(resolve(ra, 'src/animation/spring/spring.ts'), {'../util': animationUtil, './springConfigs': springConfigs, './springUtils': springUtils});
   const animations = new Map(), values = [], detectors = new Map(), jsCalls = [], queuedJS = [], started = [];
   let now = 1;
   function cancelAnimation(value) {const animation = animations.get(value); if (animation) {animations.delete(value); animation.callback?.(false);}}
   const reanimated = {
-    __esModule: true, default: {View}, withTiming, withDelay, withSequence, Easing, ReduceMotion, cancelAnimation,
+    __esModule: true, default: {View, ScrollView: View}, withTiming, withDelay, withSequence, withSpring, Easing, ReduceMotion, cancelAnimation,
     runOnJS: callback => (...args) => {jsCalls.push(callback); if (deferJS) queuedJS.push(() => callback(...args)); else return callback(...args);},
     useSharedValue(initial) {
       return React.useMemo(() => {let current = initial; const value = {get value() {return current;}, set value(next) {
@@ -57,8 +64,16 @@ export function installedMotionHost(View, {reducedMotion = false, deferJS = fals
       }, frame(next) {current = next;}}; values.push(value); return value;}, []);
     },
     useAnimatedStyle: callback => callback(),
+    useAnimatedScrollHandler: callback => callback,
   };
-  const gestures = {Gesture: {Pan: () => new PanGesture()}, GestureDetector: function GestureDetector({gesture, children}) {const key = React.useRef(Symbol()).current; React.useLayoutEffect(() => {detectors.set(key, gesture); return () => detectors.delete(key);}); return React.createElement(View, null, children);}};
+  const gestures = {Gesture: {
+    Pan: () => new PanGesture(), Pinch: () => new PinchGesture(), Tap: () => new TapGesture(), Native: () => new NativeGesture(),
+    Race: (...children) => new ComposedGesture(...children), Simultaneous: (...children) => new SimultaneousGesture(...children), Exclusive: (...children) => new ExclusiveGesture(...children),
+  }, GestureHandlerRootView: View, GestureDetector: function GestureDetector({gesture, children}) {
+    const key = React.useRef(Symbol()).current;
+    React.useLayoutEffect(() => {gesture.prepare(); detectors.set(key, gesture); return () => detectors.delete(key);});
+    return React.createElement(View, null, children);
+  }};
   return {reanimated, gestures, values, jsCalls, started, detectors: () => [...detectors.values()],
     setReducedMotion(value) {systemMotion.value = value;},
     flushJS() {while (queuedJS.length) queuedJS.shift()();},

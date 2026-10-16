@@ -1,0 +1,65 @@
+{
+  "kind": "slax-ios-release-evidence",
+  "change": "mobile-startup-offline-image-performance",
+  "version": "1.0.25",
+  "build": "769",
+  "previousBuild": "768",
+  "team": "8G3A932HJG",
+  "date": "2026-10-16",
+  "scope": [
+    "PDF opens like an article: header then body skeleton, no PDF loading label",
+    "faster sidebar settle over the remaining distance",
+    "long-press Save to Photos / Share / Cancel for article and gallery images (expo-media-library write-only, expo-sharing)"
+  ],
+  "validation": {
+    "check": {
+      "tests": 1279,
+      "pass": 1274,
+      "fail": 5,
+      "skipped": 0,
+      "cancelled": 0,
+      "log": "task worktree .local/release-769/check.log",
+      "note": "single full run as requested; the 5 failures (2 test-harness realm comparisons in the new image-actions test, 4 PDF scroll-host cases from a changed container child shape) were fixed and only the two affected files were rerun"
+    },
+    "rerun": {
+      "files": [
+        "tests/reader/pdf-scroll-host.test.mjs",
+        "tests/reader/image-actions.test.mjs"
+      ],
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "log": "task worktree .local/release-769/rerun.log"
+    },
+    "typecheck": "tsc --noEmit passed",
+    "architecture": "203 modules, 0 violations",
+    "openspecValidate": "43/43 passed",
+    "gitDiffCheck": "passed",
+    "nativeMetadata": "build numbers 768→769; iOS adds NSPhotoLibraryAddUsageDescription only (no read usage string); Android adds READ_MEDIA_VISUAL_USER_SELECTED and the library's legacy storage flag; Podfile.lock adds ExpoMediaLibrary and ExpoSharing"
+  },
+  "stages": {
+    "archive": {
+      "status": "succeeded",
+      "signedIPhoneOS": true,
+      "report": ".local/release-769/reports/archive-report.json"
+    },
+    "export": {
+      "status": "succeeded",
+      "ipaSHA256": "f6b54fabdf70a15946928c69685604b1125519737452e0c5f144ea9a30fb1ea4",
+      "report": ".local/release-769/reports/export-report.json"
+    },
+    "upload": {
+      "status": "xcode-upload-command-succeeded",
+      "appleProcessing": "Xcode reported 'Uploaded package is processing' at 2026-10-16 07:13:11 UTC",
+      "report": ".local/release-769/reports/upload-report.json",
+      "testFlightProcessingConfirmed": false
+    }
+  },
+  "limitations": [
+    "App Store Connect completion of processing and TestFlight tester availability are not independently verified: no App Store Connect API credentials are available to local tooling.",
+    "The full suite was run once; after fixing its 5 failures only the two affected test files were rerun, not the whole suite.",
+    "Long-press save/share, PDF skeleton timing and sidebar feel were not exercised on a physical device; the Android build was regenerated but not compiled or packaged.",
+    "dSYM upload warnings for prebuilt frameworks may limit symbolication of those frames.",
+    "Unrelated local EAS configuration was kept out of this build and commit."
+  ]
+}

@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react'
-import {ActivityIndicator, AppState, Keyboard, Modal, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions} from 'react-native'
+import {ActivityIndicator, AppState, Keyboard, Modal, Pressable, StyleSheet, TextInput, View, useWindowDimensions, FlatList} from 'react-native'
 import type {MobileAssetName} from '../../../assets'
 import {SourceAvatar, SourceIcon, SourceText} from '../../components'
 import {mobileColors as C, mobileTypography as T} from '../../theme'
@@ -27,11 +27,21 @@ export function CommentPanel({visible, mark, text, draft, reply, currentUserAvat
     const subscription = AppState.addEventListener('change', state => {if (state !== 'active') {clearTimeout(timer); focusConsumed.current = true}})
     return () => {clearTimeout(timer); subscription.remove()}
   }, [visible, autoFocus, allowComment])
-  const allComments = (comments: ReaderComment[]): ReaderComment[] => comments.flatMap(comment => [comment, ...allComments(comment.children)])
-  const selectedComment = visible && menu ? allComments(mark?.comments ?? []).find(comment => comment.markId === menu.markId && !comment.isDeleted) : undefined
+  const flattenedComments = React.useMemo(() => {
+    const rows: {comment: ReaderComment; depth: number}[] = [], seen = new Set<number>()
+    const stack = (mark?.comments ?? []).map(comment => ({comment, depth: 0})).reverse()
+    while (stack.length) {
+      const item = stack.pop()!
+      if (seen.has(item.comment.markId)) continue
+      seen.add(item.comment.markId); rows.push(item)
+      for (let index = item.comment.children.length - 1; index >= 0; index--) stack.push({comment: item.comment.children[index], depth: item.depth + 1})
+    }
+    return rows
+  }, [mark?.comments])
+  const selectedComment = visible && menu ? flattenedComments.find(item => item.comment.markId === menu.markId && !item.comment.isDeleted)?.comment : undefined
   useEffect(() => {if (menu && !selectedComment) onMenu(null)}, [menu, selectedComment, onMenu])
   const stroke = Boolean(mark?.stroke.length)
-  const row = (comment: ReaderComment, child = false): React.ReactNode => <View key={comment.markId} style={child ? {marginLeft: 28} : undefined}>
+  const row = React.useCallback((comment: ReaderComment, child = false): React.ReactElement => <View key={comment.markId} style={child ? {marginLeft: 28} : undefined}>
     <Pressable testID={`reader-comment-${comment.markId}`} accessibilityRole="button" disabled={comment.isDeleted}
       onPress={() => {if (allowComment && !comment.isDeleted) {onReply(comment); input.current?.focus()}}}
       onLongPress={event => {if (!comment.isDeleted) onMenu({markId: comment.markId, x: event.nativeEvent.pageX, y: event.nativeEvent.pageY - event.nativeEvent.locationY})}}
@@ -41,8 +51,9 @@ export function CommentPanel({visible, mark, text, draft, reply, currentUserAvat
         <SourceText numberOfLines={1} style={styles.commentMeta}>{sourceDisplayTime(comment.createdAt) || comment.createdAt}</SourceText>
       </View>
       <SourceText style={{fontSize: 15, lineHeight: 24, color: C.text, marginTop: 8, paddingLeft: 28, paddingRight: 20}}>{comment.isDeleted ? t('comment_panel_deleted') : comment.comment}</SourceText>
-    </Pressable>{comment.children.map(replyComment => row(replyComment, true))}
-  </View>
+    </Pressable>
+  </View>, [allowComment, onReply, onMenu, selectedComment?.markId, hideProfiles, t])
+  const renderComment = React.useCallback(({item}: {item: {comment: ReaderComment; depth: number}}) => row(item.comment, item.depth > 0), [row])
   const action = (name: MobileAssetName, label: string, description: string, press: () => void, loading = false) => <Pressable accessibilityRole="button" accessibilityLabel={description} disabled={loading} accessibilityState={{disabled: loading}} onPress={press} hitSlop={8} style={({pressed}) => [styles.commentAction, {opacity: pressed ? .5 : 1}]}>
     {loading ? <ActivityIndicator size={18} color={C.secondaryText} /> : <SourceIcon name={name} size={20} />}<SourceText style={[T.helper, {color: loading ? '#33333366' : C.secondaryText}]}>{label}</SourceText>
   </Pressable>
@@ -56,7 +67,7 @@ export function CommentPanel({visible, mark, text, draft, reply, currentUserAvat
           {stroke || allowLine ? action(stroke ? 'ic_comment_panel_highlighted' : 'ic_comment_panel_highlight', t(stroke ? 'comment_panel_remove_highlight' : 'comment_panel_highlight'), t(stroke ? 'comment_panel_remove_highlight_desc' : 'comment_panel_add_highlight_desc'), onHighlight, busy) : null}
         </View>
       </View>
-      {mark?.comments.length ? <ScrollView testID="reader-comment-list" style={{flexGrow: 0, flexShrink: 1, backgroundColor: C.surface, borderTopWidth: .5, borderTopColor: '#33333314'}} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" onScrollBeginDrag={() => Keyboard.dismiss()} scrollEnabled={!selectedComment} contentContainerStyle={{paddingBottom: 52}}>{mark.comments.map(comment => row(comment))}</ScrollView> : null}
+      {mark?.comments.length ? <FlatList testID="reader-comment-list" style={{flexGrow: 0, flexShrink: 1, backgroundColor: C.surface, borderTopWidth: .5, borderTopColor: '#33333314'}} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" onScrollBeginDrag={() => Keyboard.dismiss()} scrollEnabled={!selectedComment} contentContainerStyle={{paddingBottom: 52}} data={flattenedComments} extraData={selectedComment?.markId} keyExtractor={item => String(item.comment.markId)} initialNumToRender={12} maxToRenderPerBatch={8} windowSize={5} renderItem={renderComment} /> : null}
       {allowComment ? <View style={styles.commentEditor}>
         <View style={styles.commentInputContainer}>
           {!hideProfiles ? <View style={{paddingTop: 7}}><SourceAvatar uri={currentUserAvatar} size={24} label={t('comment_panel_current_user_avatar')} /></View> : null}

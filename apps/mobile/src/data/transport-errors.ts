@@ -1,6 +1,11 @@
 export const PDF_REQUEST_TIMEOUT_MS = 120000;
 export const PDF_REQUEST_MAX_ATTEMPTS = 3;
 export const PDF_RETRY_DELAYS_MS = [1000, 2000] as const;
+export function retryAfterMs(value: string | null, now = Date.now()): number {
+  if (!value) return 0;
+  const delay = /^\d+$/.test(value) ? Number(value) * 1000 : Date.parse(value) - now;
+  return Number.isFinite(delay) && delay > 0 ? Math.min(delay, 7 * 24 * 60 * 60 * 1000) : 0;
+}
 export type DataErrorStage = 'api' | 'pdf-metadata' | 'pdf-range' | 'pdf-upload';
 export type DataErrorKind = 'network' | 'timeout' | 'http' | 'protocol' | 'cancelled' | 'session' | 'unknown';
 export type DataErrorCode = 'network_unavailable' | 'request_timeout' | 'http_unauthorized' | 'http_forbidden' | 'http_not_found' | 'http_precondition_failed' | 'http_range_not_satisfiable' | 'http_rate_limited' | 'http_server_error' | 'http_error' | 'pdf_metadata_invalid' | 'pdf_identity_mismatch' | 'pdf_range_invalid' | 'pdf_length_invalid' | 'pdf_stream_unavailable' | 'pdf_body_invalid' | 'pdf_upload_invalid' | 'operation_cancelled' | 'session_changed' | 'unknown';
@@ -15,6 +20,11 @@ export class DataTransportError extends Error {
     this.name = 'DataTransportError'; this.kind = kind; this.stage = stage;
     this.code = kind === 'timeout' ? 'request_timeout' : 'network_unavailable';
   }
+}
+export class NativePdfTransportError extends Error {
+  readonly code: 'pdf_body_invalid' | 'resource_busy';
+  readonly kind: 'protocol' | 'unknown';
+  constructor(code: 'pdf_body_invalid' | 'resource_busy') {super('PDF transfer rejected'); this.code = code; this.kind = code === 'pdf_body_invalid' ? 'protocol' : 'unknown';}
 }
 export const isNetworkTransportError = (error: unknown): error is DataTransportError => error instanceof DataTransportError && error.kind === 'network';
 export const httpErrorCode = (status: number): DataErrorCode => {

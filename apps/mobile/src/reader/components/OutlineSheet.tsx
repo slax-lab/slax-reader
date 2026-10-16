@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react'
 import {ActivityIndicator, Pressable, StyleSheet, View, useWindowDimensions} from 'react-native'
-import Reanimated, {cancelAnimation, Easing as UiEasing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming} from 'react-native-reanimated'
+import Reanimated, {cancelAnimation, Easing as UiEasing, ReduceMotion, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming} from 'react-native-reanimated'
+import {useReducedMotion} from '../../motion/useReducedMotion'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {SourceIcon, SourceText, TextAction} from '../../components'
 import {mobileColors as C, mobileTypography as T} from '../../theme'
@@ -10,14 +11,14 @@ import type {Translate} from '../state/types'
 import {IconAction} from './IconAction'
 
 export function OutlineSheet({status, toolbarVisible, markdown, pending, busy, error, position, t, onClose, onCollapse, onExpand, onRetry, onLink, onPosition}: {status: OutlineStatus; toolbarVisible: boolean; markdown: string; pending: boolean; busy: boolean; error: string | null; position: number; t: Translate; onClose(): void; onCollapse(): void; onExpand(): void; onRetry(): void; onLink(href: string): void; onPosition(position: number): void}) {
-  const viewport = useWindowDimensions(), inset = useSafeAreaInsets()
+  const viewport = useWindowDimensions(), inset = useSafeAreaInsets(), reducedMotion = useReducedMotion()
   const previous = useRef<OutlineStatus>('hidden')
   const [contentReady, setContentReady] = useState(false)
   const background = useSharedValue(0), expanded = useSharedValue(0), slide = useSharedValue(1), collapsed = useSharedValue(0), morph = useSharedValue(0), morphAlpha = useSharedValue(0)
   const values = React.useMemo(() => ({background, expanded, slide, collapsed, morph, morphAlpha}), [background, expanded, slide, collapsed, morph, morphAlpha])
   const toolbarOffset = useSharedValue(toolbarVisible ? 0 : 150)
   useEffect(() => {
-    toolbarOffset.value = withTiming(toolbarVisible ? 0 : 150, {duration: 300, easing: UiEasing.bezier(.4, 0, .2, 1)})
+    toolbarOffset.value = withTiming(toolbarVisible ? 0 : 150, {duration: 300, easing: UiEasing.bezier(.4, 0, .2, 1), reduceMotion: ReduceMotion.System})
     return () => cancelAnimation(toolbarOffset)
   }, [toolbarVisible, toolbarOffset])
   useEffect(() => {
@@ -25,11 +26,12 @@ export function OutlineSheet({status, toolbarVisible, markdown, pending, busy, e
     previous.current = status
     if (status === 'expanded') setContentReady(true)
     for (const key of Object.keys(values) as (keyof typeof values)[]) {
-      const steps = motion[key].map(step => withDelay(step.delay ?? 0, withTiming(step.toValue, {duration: step.duration, easing: step.linear ? UiEasing.linear : UiEasing.bezier(.4, 0, .2, 1)})))
+      if (reducedMotion) {cancelAnimation(values[key]); values[key].value = motion[key].at(-1)!.toValue; continue}
+      const steps = motion[key].map(step => withDelay(step.delay ?? 0, withTiming(step.toValue, {duration: step.duration, easing: step.linear ? UiEasing.linear : UiEasing.bezier(.4, 0, .2, 1), reduceMotion: ReduceMotion.System})))
       values[key].value = withSequence(steps[0]!, ...steps.slice(1))
     }
     return () => {for (const value of Object.values(values)) cancelAnimation(value)}
-  }, [status, values])
+  }, [status, values, reducedMotion])
   const height = viewport.height - inset.top - 36, bottom = inset.bottom + 24
   const backgroundStyle = useAnimatedStyle(() => ({opacity: background.value}))
   const morphStyle = useAnimatedStyle(() => ({opacity: morphAlpha.value, width: 50 + (viewport.width - 50) * morph.value, height: 50 + (height - 50) * morph.value,

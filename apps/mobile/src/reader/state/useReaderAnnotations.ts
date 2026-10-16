@@ -6,6 +6,7 @@ import type {MarkCommentProfile, MarkRecord, PERSONAL_MARK_POLICY} from '../../d
 import {buildReaderMarks, jsonObject, refreshSelectedMark, selectionForMark, selectionPaths, sourceStableId, sourceStrokeToRemove} from '../model'
 import type {ReaderComment, ReaderEvent, ReaderMarkItem, ReaderSelection} from '../types'
 import type {MobileContext, ReaderScope} from './types'
+import {FeatureState} from './feature-state'
 
 interface AnnotationPorts {
   repositories: Pick<NonNullable<MobileContext['repositories']>, 'watchComments' | 'addMark' | 'deleteMark' | 'local'> | null
@@ -23,7 +24,9 @@ export function useReaderAnnotations(scope: ReaderScope, ports: AnnotationPorts)
   const [marks, setMarks] = useState<MarkRecord[]>([]), [markProfiles, setMarkProfiles] = useState<MarkCommentProfile[]>([])
   const [selection, setSelection] = useState<{mark: ReaderMarkItem; text: string; y: number} | null>(null)
   const [panel, setPanel] = useState<{mark: ReaderMarkItem; text: string; autoFocus: boolean; captured?: ReaderSelection} | null>(null)
-  const [draft, setDraft] = useState(''), [reply, setReply] = useState<ReaderComment | null>(null)
+  const draftState = useMemo(() => new FeatureState(''), [cacheKey, isAccountActive])
+  const setDraft = draftState.set
+  const [reply, setReply] = useState<ReaderComment | null>(null)
   const [markBusy, setMarkBusy] = useState(false), [discard, setDiscard] = useState<'panel' | null>(null)
   const [deletingComment, setDeletingComment] = useState<ReaderComment | null>(null)
   const [commentMenu, setCommentMenu] = useState<{markId: number; x: number; y: number} | null>(null)
@@ -31,7 +34,7 @@ export function useReaderAnnotations(scope: ReaderScope, ports: AnnotationPorts)
   const clearSelection = useCallback(() => {setSelection(null); return reader.current?.clearSelection().catch(() => undefined)}, [])
   const revoke = useCallback(() => {
     setSelection(null); setPdfMarkInfos([]); setPdfNotesVisible(false); setPanel(null); setDraft(''); setReply(null); setCommentMenu(null); setDeletingComment(null); setDiscard(null)
-  }, [])
+  }, [setDraft])
   useLayoutEffect(() => {setMarks([]); setMarkProfiles([]); revoke()}, [cacheKey, revoke])
   const markDetail = useMemo(() => {
     try {return buildReaderMarks(marks, markProfiles, user, policy)}
@@ -45,19 +48,19 @@ export function useReaderAnnotations(scope: ReaderScope, ports: AnnotationPorts)
     return () => {active = false; unsubscribe()}
   }, [repositories, bookmarkId, collectionOwnerId, isCollection, isPreview, policy.showMarks, isAccountActive])
   useEffect(() => {
-    if (!documentReady || !appActive || !bookmarkId || !policy.showMarks || !policy.showProfile || !repositories || !isAccountActive()) return
+    if (!documentReady || !appActive || scope.routeVisible === false || !bookmarkId || !policy.showMarks || !policy.showProfile || !repositories || !isAccountActive()) return
     const unknown = marks.some(mark => {const id = String(jsonObject(mark.metadata).user_id ?? ''); return id && id !== currentUserId && !markProfiles.some(profile => profile.uuid === id)})
     if (!unknown) return
     const controller = new AbortController()
     void api.getMarkUsers(bookmarkId, controller.signal).then(profiles => {if (!controller.signal.aborted && isAccountActive()) {setMarkProfiles(profiles); return repositories.local.update(cacheKey, {mark_users: JSON.stringify(profiles)})}}).catch(() => undefined)
     return () => controller.abort()
-  }, [documentReady, appActive, api, bookmarkId, cacheKey, marks, markProfiles, repositories, currentUserId, policy.showMarks, policy.showProfile, isAccountActive])
+  }, [documentReady, appActive, scope.routeVisible, api, bookmarkId, cacheKey, marks, markProfiles, repositories, currentUserId, policy.showMarks, policy.showProfile, isAccountActive])
   useEffect(() => {if (!policy.showMarks) {setSelection(null); setPanel(null); setDraft(''); setReply(null); setCommentMenu(null); setDeletingComment(null)}}, [policy.showMarks])
   useEffect(() => {if (!panel) setCommentMenu(null)}, [panel])
   useEffect(() => {if ('error' in markDetail && markDetail.error) fail(new Error(markDetail.error))}, [markDetail, fail])
   useEffect(() => {if (!copied) return; const timer = setTimeout(() => setCopied(false), 1500); return () => clearTimeout(timer)}, [copied])
   const dismissPanel = () => {
-    if (draft.trim()) {setDiscard('panel'); return}
+    if (draftState.getSnapshot().trim()) {setDiscard('panel'); return}
     setPanel(null); setReply(null); void clearSelection()
   }
   const copyText = async () => {
@@ -108,16 +111,17 @@ export function useReaderAnnotations(scope: ReaderScope, ports: AnnotationPorts)
     await clearSelection()
   }
   const submitComment = async () => {
-    if (!repositories || !panel || !draft.trim() || !policy.allowComment || markBusy || !currentUserId || !isAccountActive()) return
+    if (!repositories || !panel || !draftState.getSnapshot().trim() || !policy.allowComment || markBusy || !currentUserId || !isAccountActive()) return
     const captured = panel.captured ?? selectionForMark(panel.mark, panel.text)
     assertCurrentSelection(captured.source)
     const parent = reply ? marks.find(mark => sourceStableId(mark.id) === reply.markId) : null
     const rootId = parent ? String(jsonObject(parent.metadata).root_id || parent.id) : null
+    const submitted = draftState.getSnapshot()
     setMarkBusy(true)
     try {
-      await repositories.addMark({bookmarkId, userId: currentUserId, type: parent ? 3 : 2, source: selectionPaths(captured), approxSource: captured.approx_source, selectContent: captured.select_content, comment: draft.trim(), parentId: parent?.id, rootId, markPolicy: policy})
-      if (mounted.current) {setDraft(''); setReply(null); await clearSelection()}
-    } finally {if (mounted.current) setMarkBusy(false)}
+      await repositories.addMark({bookmarkId, userId: currentUserId, type: parent ? 3 : 2, source: selectionPaths(captured), approxSource: captured.approx_source, selectContent: captured.select_content, comment: submitted.trim(), parentId: parent?.id, rootId, markPolicy: policy})
+      if (mounted.current && isAccountActive()) {if (draftState.getSnapshot() === submitted) setDraft(''); setReply(null); await clearSelection()}
+    } finally {if (mounted.current && isAccountActive()) setMarkBusy(false)}
   }
   const handleEvent = (event: ReaderEvent) => {
     if ((event.type === 'textSelected' || event.type === 'markClicked') && event.mark && isPdf) {
@@ -151,7 +155,7 @@ export function useReaderAnnotations(scope: ReaderScope, ports: AnnotationPorts)
     if (record && isAccountActive()) await repositories?.deleteMark(record.id, policy, currentUserId)
   }
   const discardDraft = () => {setDiscard(null); setDraft(''); setReply(null); setPanel(null); void clearSelection()}
-  return {markDetail, selection, panel, draft, reply, markBusy, discard, deletingComment, commentMenu, copied, pdfMarkInfos, pdfNotesVisible,
+  return {markDetail, selection, panel, draftState, reply, markBusy, discard, deletingComment, commentMenu, copied, pdfMarkInfos, pdfNotesVisible,
     clearSelection, dismissPanel, copyText, highlight, startComment, submitComment, handleEvent, openNote, copyComment, canDelete, requestDelete, confirmDelete, discardDraft, revoke,
     hydrateProfiles: setMarkProfiles, documentChanged: () => {setSelection(null); setPdfMarkInfos([])}, background: () => setPanel(previous => previous ? {...previous, autoFocus: false} : null),
     setDraft, setCommentMenu, replyTo: (value: ReaderComment | null) => {setReply(value); setDraft('')}, cancelDelete: () => setDeletingComment(null), cancelDiscard: () => setDiscard(null),

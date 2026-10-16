@@ -3,17 +3,20 @@ import { Animated, Modal, Pressable, StyleSheet, useWindowDimensions } from 'rea
 import type { MobileAssetName } from '../../assets';
 import { mobileColors as C, mobileLayout as L, mobileTypography as T } from '../theme';
 import { SourceIcon, SourceText } from './SourceUI';
+import {useReducedMotion} from '../motion/useReducedMotion';
 
 export interface SourceMenuItem {label: string; icon?: MobileAssetName; selected?: boolean; color?: string; disabled?: boolean; onPress(): void}
 export function SourceMenu({visible, onDismiss, items, anchor, width = L.menuWidth}: {visible: boolean; onDismiss(): void; items: SourceMenuItem[]; anchor: {x: number; y: number}; width?: number}) {
-  const window = useWindowDimensions();
+  const window = useWindowDimensions(), reducedMotion = useReducedMotion();
   const [mounted, setMounted] = React.useState(visible), presented = React.useRef(visible), motion = React.useRef(new Animated.Value(0)).current;
   React.useEffect(() => {
     if (!visible && !presented.current) return;
+    let active = true;
     if (visible) {presented.current = true; setMounted(true);}
-    Animated.timing(motion, {toValue: visible ? 1 : 0, duration: visible ? 200 : 150, useNativeDriver: true}).start(({finished}) => {if (finished && !visible) {presented.current = false; setMounted(false);}});
-    return () => motion.stopAnimation();
-  }, [visible, motion]);
+    const animation = Animated.timing(motion, {toValue: visible ? 1 : 0, duration: reducedMotion ? 0 : visible ? 200 : 150, useNativeDriver: true});
+    animation.start(({finished}) => {if (active && finished && !visible) {presented.current = false; setMounted(false);}});
+    return () => {active = false; animation.stop();};
+  }, [visible, motion, reducedMotion]);
   if (!mounted && !visible) return null;
   const height = items.length * L.menuRowHeight + 36;
   return <Modal transparent presentationStyle="overFullScreen" visible={mounted || visible} animationType="none" statusBarTranslucent onRequestClose={onDismiss}>

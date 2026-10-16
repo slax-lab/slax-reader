@@ -40,7 +40,7 @@ export function RssReaderHeader({top, rss, error, originalUrl, saveButton, t, on
 }
 
 export function ReaderHeader({top, title, record, pdf, isPdf, originalUrl, isCollection, selectedTags, overview, t, onOriginal, onTags, onOverview}: {
-  top: number; title: string; record: BookmarkRecord | null; pdf: PdfDescriptor | null; isPdf: boolean; originalUrl: string; isCollection: boolean; selectedTags: TagRecord[]; overview: string; t: Translate; onOriginal(): void; onTags(): void; onOverview(): void
+  top: number; title: string; record: BookmarkRecord | null; pdf: PdfDescriptor | null; isPdf: boolean; originalUrl: string; isCollection: boolean; selectedTags: TagRecord[]; overview: React.ReactNode; t: Translate; onOriginal(): void; onTags(): void; onOverview(): void
 }) {
   return <View style={[styles.header, {paddingTop: top + 44}]} testID="reader-article-header">
     <SourceText numberOfLines={3} style={T.detailTitle}>{title}</SourceText>
@@ -48,7 +48,7 @@ export function ReaderHeader({top, title, record, pdf, isPdf, originalUrl, isCol
       {!isPdf || originalUrl ? <Pressable testID="reader-original" onPress={onOriginal} accessibilityRole="link"><SourceText style={[T.metadata, {color: C.link, marginLeft: 16}]}>{t('detail_view_original')}</SourceText></Pressable> : null}</View>
     {!isCollection ? <View style={styles.tags}>{selectedTags.map(tag => <View testID="tag_item" style={styles.tag} key={tag.id}><SourceText style={{fontSize: 12, lineHeight: 18, color: '#A68F5B'}}>{tag.tag_name}</SourceText></View>)}
       <Pressable accessibilityRole="button" accessibilityLabel={t('tags_title')} onPress={onTags} style={[styles.tag, {width: 21, height: 21, paddingHorizontal: 0, alignItems: 'center', justifyContent: 'center'}]}><SourceIcon name="ic_xs_yellow_plus" size={8} /></Pressable></View> : null}
-    <OverviewExcerpt content={overview} prefix={t('overview_prefix')} onPress={onOverview} />
+    {typeof overview === 'string' ? <OverviewExcerpt content={overview} prefix={t('overview_prefix')} onPress={onOverview} /> : overview}
   </View>
 }
 

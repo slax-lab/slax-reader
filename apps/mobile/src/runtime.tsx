@@ -36,11 +36,14 @@ export interface MobileContextValue {
   config: typeof mobileConfig;
   payments: PaymentController;
   webSession: {ready: boolean; error: Error|null};
+  acquireWebSession?(): () => void;
   telemetryOverride?: MobileTelemetry;
   fixtureOnly?: {network: {isConnected: boolean; isInternetReachable: boolean|null}; dataDirectory: string; pdfNativeOwner?: true; nativePdfImport?: 'seeded-synthetic-only'; deleteNoticeHtml?: string; agreementHtml?: Partial<Record<'terms'|'privacy', string>>; subscriptionHtml?: string; authenticate?(provider: LoginProvider): Promise<LoginRequest|null>};
   retryStart(): Promise<void>;
 }
 const MobileContext = createContext<MobileContextValue | null>(null);
+const ReadingContext = createContext<MobileContextValue | null>(null);
+const unpreparedWebSession = {ready: false, error: null};
 
 /** Numeric and boolean observations only; no document, selection, session or credential data. */
 export type ControlledUpgradeReaderObservation = (
@@ -58,7 +61,7 @@ export function useControlledUpgradeReaderObserver(): ControlledUpgradeReaderObs
 export function FixtureMobileProvider({value, children}: {value: MobileContextValue; children: React.ReactNode}) {
   if (!__DEV__) throw new Error('UI fixtures are unavailable in production builds');
   if (!value.fixtureOnly?.dataDirectory.includes('/slax-ui-fixtures/')) throw new Error('UI fixtures require an isolated cache scope');
-  return <MobileContext.Provider value={value}>{children}</MobileContext.Provider>;
+  return <MobileContext.Provider value={value}><ReadingContext.Provider value={value}>{children}</ReadingContext.Provider></MobileContext.Provider>;
 }
 
 /** Only an original synthetic native installation may render its actual migrated services. */
@@ -86,7 +89,7 @@ export function ControlledUpgradeFixtureProvider({value, device, onReaderObserva
     validatePreReconnectVisibility(source, request, read('native-upgrade-offline-report.json'), value.nativeResourceOwner);
   } else validatePostServiceVisibility(Platform.OS, device, read('native-service-report.json'), read('native-runtime-start-report.json'));
   return <ControlledUpgradeReaderContext.Provider value={onReaderObservation}>
-    <MobileContext.Provider value={value}>{children}</MobileContext.Provider>
+    <MobileContext.Provider value={value}><ReadingContext.Provider value={value}>{children}</ReadingContext.Provider></MobileContext.Provider>
   </ControlledUpgradeReaderContext.Provider>;
 }
 
@@ -99,6 +102,12 @@ export function MobileProvider({children}: {children: React.ReactNode}) {
   const [payments] = useState(() => new PaymentController(createExpoStore(), runtime.sessions, runtime.preferences, runtime.api.checkIapResult));
   const [webSession, setWebSession] = useState<{ready: boolean; error: Error|null; token: string|null; owner: string|null}>({ready: false, error: null, token: null, owner: null});
   const cookieSerial = useRef(Promise.resolve());
+  const [webConsumers, setWebConsumers] = useState(0);
+  const acquireWebSession = useCallback(() => {
+    setWebConsumers(count => count + 1);
+    let released = false;
+    return () => {if (!released) {released = true; setWebConsumers(count => Math.max(0, count - 1));}};
+  }, []);
   const token = session.status === 'authenticated' ? session.session.token : null;
   const userId = session.status === 'authenticated' ? session.session.userId : null;
   const reauthenticationRequired = credentialState.status === 'reauthentication-required';
@@ -107,26 +116,24 @@ export function MobileProvider({children}: {children: React.ReactNode}) {
     let mounted = true;
     const current = () => mounted && runtime.sessions.getSnapshot() === session && runtime.getNativeResourceOwner() === nativeResourceOwner;
     setWebSession({ready: false, error: null, token, owner: nativeResourceOwner});
-    cookieSerial.current = cookieSerial.current.catch(() => undefined).then(async () => {
-      if (token) await runtime.sessions.prepareRequest?.();
-      if (current()) return setWebSessionCookie(mobileConfig.webUrl, token, mobileConfig.webDomain);
-    }).then(() => { if (current()) setWebSession({ready: true, error: null, token, owner: nativeResourceOwner}); }).catch(reason => {
-      if (current()) setWebSession({ready: false, error: reason instanceof Error ? reason : new Error('Unable to prepare the web session'), token, owner: nativeResourceOwner});
+    const install = Boolean(token && nativeResourceOwner && webConsumers > 0 && !reauthenticationRequired);
+    const prepare = install ? runtime.sessions.prepareRequest() : Promise.resolve();
+    void prepare.then(() => {
+      if (!current()) return;
+      cookieSerial.current = cookieSerial.current.catch(() => undefined).then(async () => {
+        if (current()) await setWebSessionCookie(mobileConfig.webUrl, install ? token : null, mobileConfig.webDomain);
+      });
+      return cookieSerial.current;
+    }).then(() => {if (current() && install) setWebSession({ready: true, error: null, token, owner: nativeResourceOwner});}).catch(reason => {
+      if (current() && install) setWebSession({ready: false, error: reason instanceof Error ? reason : new Error('Unable to prepare the web session'), token, owner: nativeResourceOwner});
     });
-    return () => { mounted = false; };
-  }, [runtime, session, token, nativeResourceOwner, reauthenticationRequired]);
+    return () => {mounted = false;};
+  }, [runtime, session, token, nativeResourceOwner, reauthenticationRequired, webConsumers > 0]);
   useEffect(() => {
     if (Platform.OS !== 'ios' || !userId || upgrade.status !== 'ready' || reauthenticationRequired) return;
-    let alive = true;
-    const scope = runtime.sessions.captureRequestScope();
-    const request = new AbortController();
-    void payments.loadProducts(async () => {
-      const {products} = await runtime.api.getIAPProductIds(request.signal);
-      scope.assertCurrent();
-      return products;
-    }, () => alive && !request.signal.aborted && runtime.getNativeResourceOwner() === nativeResourceOwner);
-    return () => { alive = false; request.abort(); void payments.stop().catch(() => undefined); };
-  }, [runtime, payments, userId, session, nativeResourceOwner, upgrade.status, reauthenticationRequired]);
+    void payments.listen();
+    return () => {void payments.stop().catch(() => undefined);};
+  }, [payments, userId, nativeResourceOwner, upgrade.status, reauthenticationRequired]);
   useEffect(() => {
     const update = (state: string) => {void runtime.setForeground(state === 'active').catch(() => undefined);};
     if (AppState.currentState) update(AppState.currentState);
@@ -158,9 +165,17 @@ export function MobileProvider({children}: {children: React.ReactNode}) {
   const value = useMemo<MobileContextValue>(() => ({
     runtime, api: runtime.api, preferences, sessions: runtime.sessions, nativeResourceOwner,
     repositories, cache, session, upgrade, credentialState, settings, locale, t, config, payments,
-    webSession: visibleWebSession, retryStart,
-  }), [runtime, preferences, nativeResourceOwner, repositories, cache, session, upgrade, credentialState, settings, locale, t, config, payments, visibleWebSession, retryStart]);
-  return <MobileContext.Provider value={value}>{children}</MobileContext.Provider>;
+    webSession: visibleWebSession, acquireWebSession, retryStart,
+  }), [runtime, preferences, nativeResourceOwner, repositories, cache, session, upgrade, credentialState, settings, locale, t, config, payments, visibleWebSession, acquireWebSession, retryStart]);
+  const reading = useMemo<MobileContextValue>(() => ({runtime, api: runtime.api, preferences, sessions: runtime.sessions, nativeResourceOwner,
+    repositories, cache, session, upgrade, settings, locale, t, config, payments, webSession: unpreparedWebSession, retryStart}),
+  [runtime, preferences, nativeResourceOwner, repositories, cache, session, upgrade, settings, locale, t, config, payments, retryStart]);
+  return <MobileContext.Provider value={value}><ReadingContext.Provider value={reading}>{children}</ReadingContext.Provider></MobileContext.Provider>;
+}
+export function useReadingMobile(): MobileContextValue {
+  const context = useContext(ReadingContext);
+  if (!context) throw new Error('MobileProvider is missing');
+  return context;
 }
 export function useMobile(): MobileContextValue {
   const context = useContext(MobileContext);

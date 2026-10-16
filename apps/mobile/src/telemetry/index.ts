@@ -1,4 +1,4 @@
-import {useMobile, type MobileContextValue} from '../runtime';
+import {useReadingMobile, type MobileContextValue} from '../runtime';
 import {loadLegacyBridge} from '../data/native-storage.ts';
 import {createMobileTelemetry, type MobileTelemetry} from './core.ts';
 import {firebaseSink} from './firebase.ts';
@@ -23,4 +23,4 @@ export function telemetryFor(context: MobileContextValue): MobileTelemetry {
   entry.locale = context.locale;
   return entry.telemetry;
 }
-export function useTelemetry(): MobileTelemetry {return telemetryFor(useMobile());}
+export function useTelemetry(): MobileTelemetry {return telemetryFor(useReadingMobile());}

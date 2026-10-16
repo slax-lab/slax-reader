@@ -21,7 +21,7 @@ const lifecycle = {disposed: false, failed: false, active: true, generation: 0}
 let documentReady = false
 const ports: PdfRuntimePorts = {lifecycle, post, emit, error}
 const transport = createPdfTransport(options, host.__SLAX_PDF_ASSETS__, ports)
-const pages = createPdfPages(root, options, {...ports, clearSelection: () => selection.clear(), drawMarks: number => marks.drawPage(number)})
+const pages = createPdfPages(root, options, {...ports, clearSelection: () => selection.clear(), drawMarks: number => {marks.drawPage(number); post({kind: 'painted', page: number})}})
 const marks = createPdfMarks(root, options, {emit, getPage: pages.getPage, pageNumbers: pages.pageNumbers})
 const selection = createPdfSelection(root, options, {...ports, getViewport: number => pages.getPage(number)?.viewport, findMark: marks.find})
 

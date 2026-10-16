@@ -39,6 +39,8 @@ export interface PdfWebViewProps {
   initialPosition?: number | null
   labels?: Partial<PdfLabels>
   header?: React.ReactNode
+  /** Article header + skeleton that covers the host until the restored first visible page is painted, then fades out. */
+  placeholder?: React.ReactNode
   headerSafeAreaPoints?: number
   commentPanelVisible?: boolean
   isRouteRemoved?: () => boolean
@@ -95,6 +97,25 @@ const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(
   const bufferedReady = useRef(false), bufferedHeight = useRef<number | null>(null)
   const sequence = useRef(0)
   const [ready, setReady] = useState(false)
+  // The cover lifts only once the restored position's page has painted, so the reader never shows empty page slots or a restore jump.
+  const [presentable, setPresentable] = useState(false)
+  const reveal = useRef({done: false, restored: false, visible: null as number | null, painted: new Set<number>()})
+  const revealIfPainted = useCallback(() => {
+    const state = reveal.current
+    if (state.done || !state.restored) return
+    const pages = callbacks.current.descriptor.pages
+    const initial = Math.max(1, Math.floor(callbacks.current.initialPosition ?? 1))
+    const target = state.visible ?? (pages ? Math.min(pages, initial) : initial)
+    if (!state.painted.has(target)) return
+    state.done = true; state.painted.clear()
+    setPresentable(true)
+  }, [])
+  useEffect(() => {
+    if (!ready || presentable) return
+    // Safety net for a page that cannot report painting (inactive host, failed restore): never keep the cover indefinitely.
+    const timer = setTimeout(() => {reveal.current.done = true; setPresentable(true)}, 2000)
+    return () => clearTimeout(timer)
+  }, [ready, presentable])
   const pending = useRef(new Map<string, {operation: string; resolve(value: unknown): void; reject(reason: Error): void; timer?: ReturnType<typeof setTimeout>}>())
   const ranges = useRef(new Map<string, AbortController>())
   const acknowledgments = useRef(new Map<string, {offset: number; resolve(): void; reject(reason: Error): void; timer: ReturnType<typeof setTimeout>}>())
@@ -132,13 +153,15 @@ const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(
   }, [send])
   const nativeContext: ReaderNativeContext = {pageId: props.pageId, cacheKey: props.cacheKey, cacheDirectory: props.cacheDirectory,
     resourceOwner: props.resourceOwner, pdfMode: true, protectedHosts: ['slax.com'], imageProxyOrigins: [], suppressSelectionMenu: true, scrollsToTop: !props.commentPanelVisible}
-  const scrollHost = usePdfScrollHost({context: nativeContext, ready, active: foreground, activation, header: props.header, headerSafeAreaPoints: props.headerSafeAreaPoints, style: props.style,
+  const scrollHost = usePdfScrollHost({context: nativeContext, ready, active: foreground, activation, header: props.header, placeholder: props.placeholder, covered: !presentable, headerSafeAreaPoints: props.headerSafeAreaPoints, style: props.style,
     onViewport: viewport => send({kind: 'viewport', ...viewport}), onInitialLayout: async () => {
       const generation = lifecycleGeneration.current
       initializationScroll.current = null
       await request('restore', props.initialPosition ?? 1)
       await initializationScroll.current
       if (exited.current || !active.current || generation !== lifecycleGeneration.current) throw readerOperationCancelled()
+      reveal.current.restored = true
+      revealIfPainted()
     }, onScrollMetrics: props.onScrollMetrics, onError: report, onOperationError: reportOperation})
   useEffect(() => {
     if (!foreground || exited.current) return
@@ -258,6 +281,12 @@ const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(
     if (message.kind === 'position' && finite(message.position) && message.position >= 1 && message.position < (props.descriptor.pages ?? 100000) + 1 && typeof message.nearBottom === 'boolean') {
       writer.current?.update(message.position)
       callbacks.current.onPositionChange?.(message.position, message.nearBottom)
+      // Only positions reported after the restore scroll settled describe the page the reader will actually reveal.
+      if (!reveal.current.done && reveal.current.restored) {reveal.current.visible = Math.floor(message.position); revealIfPainted()}
+      return
+    }
+    if (message.kind === 'painted') {
+      if (!reveal.current.done && Number.isSafeInteger(message.page) && (message.page as number) >= 1) {reveal.current.painted.add(message.page as number); revealIfPainted()}
       return
     }
     if (message.kind === 'documentHeight' && finite(message.height) && message.height > 0) {scrollHost.setDocumentHeight(message.height); return}

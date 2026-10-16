@@ -1,6 +1,6 @@
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { AppState, PixelRatio, Platform, ScrollView, StyleSheet, View } from 'react-native'
-import type { LayoutChangeEvent, StyleProp, ViewStyle } from 'react-native'
+import type { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, StyleProp, ViewStyle } from 'react-native'
 import { WebView } from 'react-native-webview'
 import type { WebViewMessageEvent, WebViewProps } from 'react-native-webview'
 import { isReaderOperationCancelled, parseReaderSelection, ReaderBridgeSession } from './bridge.ts'
@@ -12,6 +12,9 @@ import { composeReaderDocument } from './document.ts'
 import {mobileConfig} from '../config'
 import {READER_ORIGIN, readerProtectedHosts, readerAllowsUrl, readerAllowsImage, readerImageProxyOrigins} from './security.ts'
 
+// The header lives inside the Android outer scroller, so article JS only needs sampled metrics while
+// moving plus the exact drag/fling end offset. The PDF host keeps per-frame metrics for virtualization.
+const ANDROID_ARTICLE_SCROLL_SAMPLE_MS = 48
 const protectedHosts = readerProtectedHosts(mobileConfig)
 const imageProxyOrigins = readerImageProxyOrigins(mobileConfig)
 import type { ReaderNativeAdapter, ReaderNativeContext } from './native.ts'
@@ -110,10 +113,11 @@ export interface ReaderWebViewProps {
 interface ReaderPageProps extends ReaderWebViewProps { pageId: string }
 
 /** Replacing article contents creates a new isolated document/bridge generation. */
-export const ReaderWebView = forwardRef<ReaderHandle, ReaderWebViewProps>(function ReaderWebView(props, ref) {
+// Shallow-equal props skip the whole document host; ReaderScreen keeps callbacks/elements identity-stable.
+export const ReaderWebView = memo(forwardRef<ReaderHandle, ReaderWebViewProps>(function ReaderWebView(props, ref) {
   const pageId = useMemo(() => `reader-${++pageSequence}`, [props.cacheKey, props.html, props.rewriteImageTransports, props.resourceOwner, props.currentUserId, props.baseUrl])
   return <ReaderPage key={pageId} {...props} pageId={pageId} ref={ref} />
-})
+}))
 
 const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage(props, ref) {
   const platform = Platform.OS === 'ios' ? 'ios' : 'android'
@@ -148,8 +152,9 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
   const [attachedNativeTag, setAttachedNativeTag] = useState<number | null>(null)
   const [androidContentHeight, setAndroidContentHeight] = useState(0)
   const [androidViewportHeight, setAndroidViewportHeight] = useState(0)
+  const androidContent = useRef(0)
   const androidScrollLayout = useRef({contentHeightPoints: 0, viewportHeightPoints: 0})
-  androidScrollLayout.current = {contentHeightPoints: androidContentHeight, viewportHeightPoints: androidViewportHeight}
+  androidScrollLayout.current = {contentHeightPoints: androidContent.current, viewportHeightPoints: androidViewportHeight}
   const nativeEventCounts = useRef({loadStarts: 0, loadEnds: 0, messages: 0, rejectedMessages: 0})
   const documentState = useRef({ready, documentLoaded, documentHeightPoints: documentHeight})
   documentState.current = {ready, documentLoaded, documentHeightPoints: documentHeight}
@@ -402,6 +407,7 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
     if (!event) {nativeEventCounts.current.rejectedMessages++; observeInput({pageId: props.pageId, stage: 'received', eventCode: 0, parsed: false, markValid: false}); return}
     if (exited.current) return
     if (event.type === 'inputObservation') {observeInput({pageId: props.pageId, stage: 'dom', snapshot: event.snapshot}); return}
+    if (event.type === 'imageLongPress' && !readerAllowsImage(event.src, protectedHosts, imageProxyOrigins)) return
     if (event.type === 'imageClick') {
       if (!readerAllowsImage(event.src, protectedHosts, imageProxyOrigins)) return
       event.allImages = event.allImages.filter(url => readerAllowsImage(url, protectedHosts, imageProxyOrigins))
@@ -447,6 +453,12 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
     if (exited.current) return
     void nativeAttachment.current?.attach(nativeTag, nativeContextRef.current).catch(reportError)
   }
+  // Content growth (image loads) only gates the initial restore; afterwards it no longer rerenders the page.
+  const contentSizeChanged = (height: number) => {
+    androidContent.current = height; androidScrollLayout.current.contentHeightPoints = height
+    if (!initialPositionConsumed.current) setAndroidContentHeight(height)
+  }
+  const nativeScrollMetrics = (event: NativeSyntheticEvent<NativeScrollEvent>) => updatePosition(event.nativeEvent.contentOffset.y, event.nativeEvent.contentSize.height, event.nativeEvent.layoutMeasurement.height)
   const onNativeScroll: NonNullable<WebViewProps['onScroll']> = event => {
     if (platform !== 'ios') return
     updatePosition(event.nativeEvent.contentOffset.y, event.nativeEvent.contentSize.height, event.nativeEvent.layoutMeasurement.height)
@@ -456,12 +468,15 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
     container.current?.measureInWindow((_x, y) => setScreenTop(y))
   }
   const DocumentWebView = props.nativeAdapter?.HostComponent ?? WebView
+  const documentSource = useMemo(() => ({html: document, baseUrl: READER_ORIGIN}), [document])
+  const documentStyle = useMemo(() => platform === 'android' ? {height: documentHeight, backgroundColor: 'transparent'} : styles.document, [platform, documentHeight])
+  const documentContainerStyle = useMemo(() => platform === 'android' ? {flex: 0, height: documentHeight} : styles.document, [platform, documentHeight])
   const articleView = <DocumentWebView
     ref={webView}
-    source={{ html: document, baseUrl: READER_ORIGIN }}
+    source={documentSource}
     nativeConfig={props.nativeAdapter?.nativeConfig(nativeContext)}
-    style={platform === 'android' ? { height: documentHeight, backgroundColor: 'transparent' } : styles.document}
-    containerStyle={platform === 'android' ? { flex: 0, height: documentHeight } : styles.document}
+    style={documentStyle}
+    containerStyle={documentContainerStyle}
     onMessage={receive}
     onLoadStart={onNativeLoad}
     onLoadEnd={() => {nativeEventCounts.current.loadEnds++; setDocumentLoaded(true)}}
@@ -500,10 +515,10 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
   const overlayProps = {pageId: props.pageId, topInsetPoints: geometry.topInsetPoints, headerHeightPoints: geometry.headerHeightPoints}
 
   return <View ref={container} style={[styles.root, props.style]} onLayout={onContainerLayout} testID="reader-container">
-    {platform === 'android' ? <ScrollView ref={outerScroll} showsVerticalScrollIndicator={false} scrollEventThrottle={16}
+    {platform === 'android' ? <ScrollView ref={outerScroll} showsVerticalScrollIndicator={false} scrollEventThrottle={ANDROID_ARTICLE_SCROLL_SAMPLE_MS}
       onLayout={event => setAndroidViewportHeight(event.nativeEvent.layout.height)}
-      onContentSizeChange={(_width, height) => setAndroidContentHeight(height)}
-      onScroll={event => updatePosition(event.nativeEvent.contentOffset.y, event.nativeEvent.contentSize.height, event.nativeEvent.layoutMeasurement.height)}>
+      onContentSizeChange={(_width, height) => contentSizeChanged(height)}
+      onScroll={nativeScrollMetrics} onScrollEndDrag={nativeScrollMetrics} onMomentumScrollEnd={nativeScrollMetrics}>
       {measuredHeader}{articleView}
       {footer ? <View onLayout={event => setFooterHeight(event.nativeEvent.layout.height)}>{footer}</View> : null}
     </ScrollView> : <>

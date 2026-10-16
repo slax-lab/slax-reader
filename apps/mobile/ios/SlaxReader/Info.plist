@@ -48,7 +48,7 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>766</string>
+    <string>770</string>
     <key>FirebaseAutomaticScreenReportingEnabled</key>
     <false/>
     <key>ITSAppUsesNonExemptEncryption</key>
@@ -72,6 +72,8 @@
     <string>Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.</string>
     <key>NSMotionUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your device motion</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Slax Reader saves images you choose from articles to your photo library.</string>
     <key>RCTMetroPort</key>
     <string>$(RCT_METRO_PORT)</string>
     <key>RCTNewArchEnabled</key>

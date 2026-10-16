@@ -108,7 +108,7 @@ async function harness(root, platform = 'ios', development = false) {
     const {LibraryScreen} = await load('../../src/screens/LibraryScreen.tsx', {
       ...common, './LibraryDataStatus': {LibraryDataStatus: nil}, '@react-navigation/native': navigation, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'expo-network': {useNetworkState: () => ({isConnected: true})},
       '../telemetry': {useTelemetry: () => telemetry}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: v.native('SourceShape')}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
-      '../components': {...v.ui, BookmarkRow: nil, LinkInputDialog, RssFeed: nil, RssFeedSwitcher: nil, SourceAvatar: nil, SourceMenu: nil}, '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, './collection-selection': await load('../../src/screens/collection-selection.ts'), '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../utils/source-time': await load('../../src/utils/source-time.ts'), '../components/PdfImportDialog': {PdfImportDialog}, '../pdf/usePdfLab': {usePdfLab},
+      '../components': {...v.ui, BookmarkRow: nil, LinkInputDialog, RssFeed: nil, RssFeedSwitcher: nil, SourceAvatar: nil, SourceMenu: nil}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, './collection-selection': await load('../../src/screens/collection-selection.ts'), '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../utils/source-time': await load('../../src/utils/source-time.ts'), '../components/PdfImportDialog': {PdfImportDialog}, '../pdf/usePdfLab': {usePdfLab},
     });
     const navigator = {navigate: (...args) => h.navigations.push(args)};
     h.render = () => root.render(React.createElement(LibraryScreen, {navigation: navigator}));
@@ -280,6 +280,18 @@ test('PDF Labs hook aborts old account/focus requests, rejects stale results and
   await act(async () => pending.resolve({features: [{key: 'pdf', enabled: true}]})); assert.equal(h.labState.enabled, false);
   h.labs = async () => ({features: [{key: 'pdf', enabled: true}]}); h.focused = true; await act(async () => h.render());
   assert.equal(h.labState.enabled, true); assert.equal(h.labState.busy, false);
+}));
+
+test('PDF Labs retains admitted state during a same-owner refocus refresh', async () => mounted(async root => {
+  const h = await harness(root);
+  h.labs = async () => ({features: [{key: 'pdf', enabled: true}]});
+  await h.loadHook(); assert.equal(h.labState.ready, true); assert.equal(h.labState.enabled, true);
+  h.focused = false; await act(async () => h.render());
+  const pending = deferred(); h.labs = () => pending.promise;
+  h.focused = true; await act(async () => h.render());
+  assert.equal(h.labState.ready, true); assert.equal(h.labState.enabled, true); assert.equal(h.labState.busy, true);
+  await act(async () => pending.resolve({features: []}));
+  assert.equal(h.labState.enabled, false); assert.equal(h.labState.busy, false);
 }));
 
 test('Settings PDF switch uses server state, disables while changing, and offers retry after Labs rejection', async () => mounted(async root => {

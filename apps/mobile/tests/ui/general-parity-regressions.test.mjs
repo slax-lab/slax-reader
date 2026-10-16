@@ -41,7 +41,7 @@ function views() {
     React.useImperativeHandle(ref, () => ({focus() {}, scrollToOffset() {}, measureInWindow(callback) {callback(0, 0, 300, 40);}}), []);
     return React.createElement('div', null, visible && !props.visible ? null : name === 'FlatList' ? [props.ListHeaderComponent, props.children] : props.children);
   });
-  const primitives = Object.fromEntries(['View', 'Text', 'Pressable', 'TextInput', 'Image', 'ScrollView', 'ActivityIndicator', 'FlatList'].map(name => [name, native(name)]));
+  const primitives = Object.fromEntries(['View', 'Text', 'Pressable', 'TextInput', 'Image', 'ScrollView', 'ActivityIndicator', 'FlatList', 'AppImage'].map(name => [name, native(name)]));
   const ui = Object.fromEntries(['SourceText', 'SourceButton', 'SourceIcon', 'TextAction', 'Divider', 'SourceProgress'].map(name => [name, native(name)]));
   return {nodes, native, primitives: {...primitives, Modal: native('Modal', true)}, ui: {...ui, SourceDialog: native('SourceDialog', true), SourceSheet: native('SourceSheet', true)}, all: name => [...nodes.values()].filter(node => node.name === name).map(node => node.props), one: (name, predicate = () => true) => {const matches = [...nodes.values()].filter(node => node.name === name && predicate(node.props)); assert.equal(matches.length, 1, `${name}: expected one node, got ${matches.length}`); return matches[0].props;}};
 }
@@ -157,7 +157,7 @@ test('mounted RSS editor retains add draft on dismissal/failure, clears on succe
   let state = {enabled: true, busy: false, selected: 'feed-a', subscriptions: [{id: 'feed-a', feed_url: 'https://source.test/feed.xml', remark: 'Original', next_allowed_at: '2020-01-01T00:00:00Z'}], entries: [], ready: true, hasMore: false};
   const controller = {add: async (...values) => {additions.push(values); return ok;}, edit: async (...values) => {edits.push(values); return true;}};
   const {RssFeed} = await load('../../src/components/RssFeed.tsx', {
-    react: React, 'react-native': {...v.primitives, StyleSheet: {create: value => value, absoluteFill: {}}}, '../runtime': {useMobile: () => ({t: value => value})}, '../rss/controller': {rssDisplayName: source => source.remark}, '../theme': theme, './SourceUI': v.ui, './SourceMenu': {SourceMenu: v.native('SourceMenu')}, './fixture-actions': {}, './feed-scroll': {useFeedScrollPosition: () => ({events: {}, reset() {}})},
+    react: React, 'react-native': {...v.primitives, StyleSheet: {create: value => value, absoluteFill: {}}}, '../runtime': {useMobile: () => ({t: value => value})}, '../rss/controller': {rssDisplayName: source => source.remark}, '../theme': theme, './SourceUI': v.ui, './SourceMenu': {SourceMenu: v.native('SourceMenu')}, './AppImage': {AppImage: v.native('AppImage')}, './fixture-actions': {}, './feed-scroll': {useFeedScrollPosition: () => ({events: {}, reset() {}})},
   });
   const position = {source: 'feed-a', select() {}};
   const onDismissAdd = () => {adding = false;};
@@ -248,7 +248,7 @@ for (const zone of ['Asia/Shanghai', 'America/Los_Angeles']) test(`mounted Libra
       '@react-navigation/native': {useFocusEffect: callback => React.useEffect(callback, [callback])}, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'expo-network': {useNetworkState: () => ({isConnected: true})},
       '../telemetry': {useTelemetry: () => telemetry}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: v.native('SourceShape')}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
       './LibraryDataStatus': {LibraryDataStatus: nil}, '../components/PdfImportDialog': {PdfImportDialog: nil}, '../pdf/usePdfLab': {usePdfLab: () => ({ready: true, enabled: false})},
-      '../components': components, '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => context}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../utils/source-time': time,
+      '../components': components, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => context}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../utils/source-time': time,
     }, {Date: class extends Date {static now() {return Date.UTC(2026, 9, 11, 12);}}});
     await act(async () => root.render(React.createElement(LibraryScreen, {navigation: {navigate() {}}})));
     assert.equal(v.all('View').some(props => props.testID === 'library-collection-strip'), false, 'No collection must not reserve a selector strip');

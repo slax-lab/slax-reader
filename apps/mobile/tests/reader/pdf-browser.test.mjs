@@ -456,3 +456,66 @@ for (const platform of ['ios', 'android']) test(`PDF ${platform} native boundary
     await host.unmount();
   });
 });
+
+test('PDF reveal waits for the restored visible page to paint, with a bounded fallback', nativeBoundary, async () => {
+  await withNativeHost(async host => {
+    let config, webProps, hostOptions
+    const sent = [], fallbacks = []
+    const origin = 'https://pdf.reader.slax.invalid/'
+    const WebView = React.forwardRef((props, ref) => {
+      webProps = props
+      React.useImperativeHandle(ref, () => ({injectJavaScript(script) {sent.push(JSON.parse(script.slice('window.__slaxPdfReceive?.('.length, -');true;'.length)))}, stopLoading() {}}))
+      return React.createElement('div')
+    })
+    const adapter = {HostComponent: WebView, nativeConfig: context => ({props: context})}
+    const scrollHost = {usePdfScrollHost(options) {
+      hostOptions = options
+      return {platform: 'ios', setDocumentHeight() {}, nativeLoad() {}, nativeScroll() {}, selectionY: () => undefined, scrollToDocument: () => Promise.resolve(), publish() {},
+        wrap: document => document, documentStyle: {}, contentInset: undefined}
+    }}
+    const globals = {Uint8Array, btoa,
+      setTimeout: (callback, ms) => {if (ms === 2000) {fallbacks.push(callback); return -fallbacks.length} return setTimeout(callback, ms)},
+      clearTimeout: id => {if (typeof id === 'number' && id < 0) fallbacks[-id - 1] = null; else clearTimeout(id)}}
+    const {PdfWebView} = await loadComponent('../../src/reader/PdfWebView.tsx', {
+      react: React, 'react-native': {...host.native, AppState: {currentState: 'active', addEventListener: () => ({remove() {}})}},
+      '../native/reader': {readerNativeAdapter: adapter}, '@slax-reader/contracts/pdf': pdfContracts,
+      './pdf-document.ts': {PDF_ORIGIN: origin, PDF_BRIDGE_CHUNK_BYTES: 131072, composePdfDocument(value) {config = value; return '<html></html>'}},
+      './host/usePdfScrollHost.tsx': scrollHost, './pdf-errors.ts': pdfErrors, './recovery.ts': recovery, '../data/transport-errors.ts': transportErrors,
+      './bridge.ts': readerBridge, './position.ts': {ReaderPositionWriter},
+    }, globals)
+    const props = {descriptor: {document_id: 'c'.repeat(64), size: 1024, filename: 'fixture.pdf', pages: 8}, cacheKey: 'account/reveal', currentUserId: 1, initialPosition: 3.25,
+      readRange: () => new Promise(() => {}), placeholder: React.createElement('section')}
+    await host.render(React.createElement(PdfWebView, props))
+    const receive = message => webProps.onMessage({nativeEvent: {url: origin, data: JSON.stringify({channel: 'slax-pdf', pageId: config.pageId, ...message})}})
+    assert.equal(hostOptions.covered, true)
+    await act(async () => receive({kind: 'event', event: {type: 'domReady'}}))
+    await act(async () => receive({kind: 'painted', page: 1}))
+    assert.equal(hostOptions.covered, true, 'Ready and an early page paint do not reveal empty slots before the restore')
+    const restored = hostOptions.onInitialLayout()
+    const restore = sent.findLast(message => message.operation === 'restore')
+    assert.equal(restore.argument, 3.25)
+    await act(async () => {receive({kind: 'result', id: restore.id, result: null}); await restored})
+    assert.equal(hostOptions.covered, true, 'The restored page has not painted yet')
+    await act(async () => receive({kind: 'painted', page: 3}))
+    assert.equal(hostOptions.covered, false, 'The restored page painting lifts the cover')
+
+    await host.render(React.createElement(PdfWebView, {...props, cacheKey: 'account/reveal-moved'}))
+    await act(async () => receive({kind: 'event', event: {type: 'domReady'}}))
+    const moved = hostOptions.onInitialLayout()
+    await act(async () => {receive({kind: 'result', id: sent.findLast(message => message.operation === 'restore').id, result: null}); await moved})
+    await act(async () => receive({kind: 'position', position: 4.5, nearBottom: false}))
+    await act(async () => receive({kind: 'painted', page: 3}))
+    assert.equal(hostOptions.covered, true, 'The reported visible page, not the requested one, decides the reveal')
+    await act(async () => receive({kind: 'painted', page: 4}))
+    assert.equal(hostOptions.covered, false)
+
+    await host.render(React.createElement(PdfWebView, {...props, cacheKey: 'account/reveal-fallback'}))
+    await act(async () => receive({kind: 'event', event: {type: 'domReady'}}))
+    assert.equal(hostOptions.covered, true)
+    const fallback = fallbacks.findLast(Boolean)
+    assert.ok(fallback, 'A ready document schedules the bounded reveal fallback')
+    await act(async () => fallback())
+    assert.equal(hostOptions.covered, false, 'A page that never reports painting cannot keep the cover forever')
+    await host.unmount()
+  })
+})

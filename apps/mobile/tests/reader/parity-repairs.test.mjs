@@ -131,22 +131,46 @@ test('actual outline keeps source footer actions, native-safe transient states a
 }))
 
 test('actual gallery resets old zoom only after a committed page, not cancelled edge gestures', nativeBoundary, async () => withNativeHost(async host => {
-  const {ImageGallery} = await loadComponent('../../src/reader/ImageGallery.tsx', {react: React, 'react-native': host.native, '../components': host.components, './gallery-resource': {isCustomGalleryImage}})
+  const {installedMotionHost} = await import('../ui/installed-motion-host.mjs')
+  const motion = installedMotionHost(host.native.View)
+  const {ImageGallery} = await loadComponent('../../src/reader/ImageGallery.tsx', {
+    react: React, 'react-native': host.native, 'react-native-reanimated': motion.reanimated, 'react-native-gesture-handler': motion.gestures,
+    '../components': host.components, '../components/AppImage': {AppImage: props => props.children ?? null}, './gallery-resource': {isCustomGalleryImage},
+  })
+  const gesture = name => motion.detectors().flatMap(value => value.toGestureArray()).find(value => value.handlerName === name && value.config.enabled)
+  const snapshot = () => motion.values.map(value => value.value)
+  const changed = before => motion.values.slice(0, before.length).filter((value, index) => value.value !== before[index])
+  const count = () => /(\d+ \/ \d+)/.exec(host.window.document.body.textContent)?.[1]
+  const press = async action => act(async () => action())
+  const pinch = async scale => press(() => {const event = {scale, focalX: 195, focalY: 400}
+    gesture('PinchGestureHandler').handlers.onStart(event); gesture('PinchGestureHandler').handlers.onUpdate(event); gesture('PinchGestureHandler').handlers.onFinalize(event, true)})
+  const drag = async (translationX, velocityX = 0, reserve) => {
+    const before = snapshot()
+    const event = {translationX, translationY: 0, velocityX, numberOfPointers: 1}
+    await press(() => {gesture('PanGestureHandler').handlers.onStart(event); gesture('PanGestureHandler').handlers.onUpdate(event)})
+    const offset = reserve === undefined ? undefined : changed(before).find(value => value.value === reserve)
+    if (reserve !== undefined) assert.equal(offset?.value, reserve, `A drag of ${translationX} reserves a page offset of ${reserve}`)
+    await press(() => {gesture('PanGestureHandler').handlers.onEnd(event, true); gesture('PanGestureHandler').handlers.onFinalize(event, true)
+      for (let frame = 0; frame < 200 && motion.pending(); frame++) motion.advance(16)})
+    return offset
+  }
   await host.render(React.createElement(ImageGallery, {images: ['https://fixture.test/a', 'https://fixture.test/b'], index: 0, resolveUri: async uri => `file:///fixture/${uri.endsWith('/a') ? 'a' : 'b'}.png`, onDismiss() {}, errorLabel: 'error'}))
-  const event = (x = 100, second) => ({nativeEvent: {touches: [{pageX: x, pageY: 100}, ...(second === undefined ? [] : [{pageX: second, pageY: 100}])]}})
-  await act(async () => {host.gestures().onPanResponderGrant(event(100, 200)); host.gestures().onPanResponderMove(event(0, 300), {dx: 0, dy: 0}); host.gestures().onPanResponderRelease(event(), {dx: 0, dy: 0})})
-  assert.equal(host.values[0].value, 3)
-  const drag = async dx => act(async () => {host.gestures().onPanResponderGrant(event()); host.gestures().onPanResponderMove(event(), {dx, dy: 0}); host.gestures().onPanResponderRelease(event(), {dx, dy: 0})})
+  assert.equal(count(), '1 / 2')
+  const resting = snapshot(); await pinch(3)
+  const zoom = changed(resting).filter(value => value.value === 3)
+  assert.equal(zoom.length, 1, 'Only the active page zoom records the pinch scale')
   await drag(-390)
-  assert.equal(host.values[0].value, 3)
-  assert.equal(host.values[1].value, -390)
-  await drag(-30)
-  assert.equal(host.values[0].value, 3, 'An uncommitted edge swipe retains zoom')
-  await drag(-100)
-  assert.equal(host.window.document.body.textContent, '2 / 2')
-  assert.equal(host.values[0].value, 1)
-  await drag(100)
-  assert.equal(host.window.document.body.textContent, '1 / 2')
-  assert.equal(host.values[0].value, 1, 'Returning to a retired page starts fitted')
-  assert.equal(host.values[1].value, 0); assert.equal(host.values[2].value, 0)
+  assert.equal(zoom[0].value, 3)
+  const reserved = await drag(-30, 0, 30)
+  assert.equal(reserved.value, 0, 'An uncommitted edge swipe returns the strip to its page')
+  assert.equal(zoom[0].value, 3, 'An uncommitted edge swipe retains zoom')
+  assert.equal(count(), '1 / 2')
+  const committed = await drag(-100, 0, 100)
+  assert.equal(count(), '2 / 2')
+  assert.equal(committed.value, 390, 'The absolute strip rests on the committed page')
+  assert.equal(zoom[0].value, 1, 'The retired page resets its zoom once it commits a replacement')
+  const returned = await drag(100, 0, 290)
+  assert.equal(count(), '1 / 2')
+  assert.equal(returned.value, 0)
+  assert.equal(zoom[0].value, 1, 'Returning to a retired page starts fitted')
 }))

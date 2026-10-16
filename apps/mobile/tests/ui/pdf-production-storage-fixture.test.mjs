@@ -39,13 +39,34 @@ function fixture(t, platform = 'android', development = true) {
     async bytes() {return new Uint8Array(fs.readFileSync(fileURLToPath(this.uri)));} create() {fs.writeFileSync(fileURLToPath(this.uri), '', {flag: 'wx'});} write(value) {fs.writeFileSync(fileURLToPath(this.uri), value);}
     moveSync(target, options) {assert.equal(options, undefined); assert.equal(target.exists, false); fs.renameSync(fileURLToPath(this.uri), fileURLToPath(target.uri)); this.uri = target.uri; state.moves++;}
   }
-  const native = {uuid: {v4: () => `unique-${state.moves}`}, requireNativeModule(name) {
+  const admitted = (root, relative) => {
+    state.calls.push({root, relative});
+    if (state.deny || fileURLToPath(root) !== expectedRoot || !relative.startsWith('pdf/') || relative.split('/').some(part => part === '..')) throw new Error('Unsafe PDF cache path');
+    return path.join(storageRoot, relative);
+  };
+  const nativeStorage = {
+    async writeBytes(root, _owner, relative, bytes, versioned) {
+      assert.equal(versioned, true); const entries = `${admitted(root, relative)}.entries`; fs.mkdirSync(entries, {recursive: true});
+      const target = path.join(entries, 'committed.data'), temporary = path.join(entries, 'pending.tmp');
+      await fs.promises.writeFile(temporary, bytes); await fs.promises.rename(temporary, target); state.moves++; return pathToFileURL(target).href;
+    },
+    async readBytes(root, _owner, relative, versioned) {assert.equal(versioned, true); const file = `${admitted(root, relative)}.entries/committed.data`; return fs.existsSync(file) ? new Uint8Array(await fs.promises.readFile(file)) : null;},
+    async size(root, _owner, relative, versioned) {assert.equal(versioned, true); const file = `${admitted(root, relative)}.entries/committed.data`; return fs.existsSync(file) ? (await fs.promises.stat(file)).size : null;},
+    async list(root, _owner, relative, versioned) {
+      assert.equal(versioned, true); const directory = admitted(root, relative), result = [];
+      const visit = async (directory, prefix) => {if (!fs.existsSync(directory)) return; for (const entry of await fs.promises.readdir(directory, {withFileTypes: true})) if (entry.isDirectory()) {if (entry.name.endsWith('.entries')) result.push(`${prefix}/${entry.name.slice(0, -8)}`); else await visit(path.join(directory, entry.name), `${prefix}/${entry.name}`);}};
+      await visit(directory, relative); return result;
+    },
+    async remove(root, _owner, relative, versioned) {await fs.promises.rm(admitted(root, relative) + (versioned ? '.entries' : ''), {recursive: true, force: true});},
+  };
+  const native = {requireNativeModule(name) {
     if (name === 'ExponentConstants') return {manifest: platform === 'android' ? JSON.stringify(state.config) : state.config};
-    assert.equal(name, 'SlaxCachePaths');
-    return {pdfCacheFileUri(root, relative) {state.calls.push({root, relative}); if (state.deny || fileURLToPath(root) !== expectedRoot || !relative.startsWith('pdf/') || relative.split('/').some(part => part === '..')) return null; return pathToFileURL(path.join(storageRoot, relative)).href;}};
+    assert.equal(name, 'SlaxStorage'); return nativeStorage;
   }};
   const expo = {Directory, File, Paths: {cache: new Directory(cache)}};
-  const {PdfFileStorage} = load('../../src/data/pdf-file-storage.ts', {'expo-file-system': expo, 'expo-modules-core': native, './pdf-sha256.ts': {Sha256}});
+  const abort = load('../../src/utils/abort.ts', {});
+  const {NativeFileStore} = load('../../src/data/native-file-store.ts', {'expo-modules-core': native, '../utils/abort.ts': abort});
+  const {PdfFileStorage} = load('../../src/data/pdf-file-storage.ts', {'./native-file-store.ts': {NativeFileStore}, './pdf-sha256.ts': {Sha256}});
   const {createFixtureProductionPdfStorage} = load('../../fixtures/pdf-production-storage.ts', {'expo-file-system': expo, 'expo-modules-core': native, 'react-native': {Platform: {OS: platform}}, '../src/data/pdf-file-storage': {PdfFileStorage}, '../src/data/pdf-sha256': {Sha256}, './isolation': {assertFixtureScope}}, development);
   return {state, marker, markerPath, scope, expectedRoot, storageRoot, Directory, PdfFileStorage, create: () => createFixtureProductionPdfStorage(scope, () => {if (!state.active) throw new Error('Account revoked');})};
 }
@@ -60,7 +81,7 @@ for (const platform of ['android', 'ios']) test(`${platform} diagnostic executes
   assert.ok(f.state.calls.length > 10); assert.ok(f.state.calls.every(call => call.relative.startsWith(adapter.prefix.slice(0, -1))));
   await adapter.storage.writeAtomic(`${adapter.prefix}doc/manifest.json`, new Uint8Array([1]));
   assert.equal(fs.existsSync(path.join(f.storageRoot, adapter.prefix, 'doc/manifest.json.entries')), true);
-  f.state.active = false; adapter.cleanup();
+  f.state.active = false; await adapter.cleanup();
   assert.equal(fs.existsSync(path.join(f.storageRoot, adapter.prefix)), false); assert.equal(fs.readFileSync(neighbor, 'utf8'), 'foreign');
 });
 

@@ -7,7 +7,9 @@ import {openInAppBrowser} from '../../native/platform'
 import {resolveGalleryImage} from '../gallery-resource'
 import {rssImageUrl, youtubeCues} from '../model'
 import {toolbarVisible} from '../index'
+import {useReducedMotion} from '../../motion/useReducedMotion'
 import type {ReaderEvent} from '../types'
+import {useImageActions, type ImageActionPort} from './useImageActions'
 import type {useReaderAi} from './useReaderAi'
 import type {useReaderAnnotations} from './useReaderAnnotations'
 import type {useReaderBookmark} from './useReaderBookmark'
@@ -23,12 +25,13 @@ interface InteractionPorts {
   presentation: ReaderPresentationIdentity
   operationError: string | null; clearError(): void
   feedback(entryPoint: 'detail_error' | 'bookmark_detail'): void
+  imageActions?: ImageActionPort
 }
 export function useReaderInteractions(scope: ReaderScope, ports: InteractionPorts) {
   const {cacheKey, currentUserId, isPreview, isAccountActive, mounted, foreground, reader, fail} = scope
   const {isIos, nativeResourceOwner, fixtureOnly, settings, writePreferences, cache, telemetry, api, document, annotations, bookmark, ai, presentation, operationError, clearError} = ports
   const {title, isPdf} = presentation
-  const {panel, selection, draft, discard, deletingComment, commentMenu, pdfNotesVisible, clearSelection} = annotations
+  const {panel, selection, discard, deletingComment, commentMenu, pdfNotesVisible, clearSelection} = annotations
   const run = (work: Promise<unknown> | undefined) => {void work?.catch(fail)}
   const [overlay, setOverlay] = useState<ReaderOverlay>(null)
   const [toolbarId, setToolbarId] = useState(0), toolbarSequence = useRef(0)
@@ -40,12 +43,14 @@ export function useReaderInteractions(scope: ReaderScope, ports: InteractionPort
   const cancelExternal = useCallback(() => {pendingExternal.current = null; setExternalUrl(null)}, [])
   useLayoutEffect(() => () => {pendingExternal.current = null}, [cacheKey, currentUserId, nativeResourceOwner, isAccountActive])
   const [doNotAlert, setDoNotAlert] = useState(false), [toolbarIsVisible, setToolbarIsVisible] = useState(true)
-  const headerMoreOffset = useRef(new Animated.Value(0)).current
+  const headerMoreOffset = useRef(new Animated.Value(0)).current, reducedMotion = useReducedMotion()
   useEffect(() => {
-    const animation = Animated.timing(headerMoreOffset, {toValue: toolbarIsVisible ? 0 : -100, duration: 300, easing: Easing.bezier(.4, 0, .2, 1), useNativeDriver: true})
+    const animation = Animated.timing(headerMoreOffset, {toValue: toolbarIsVisible ? 0 : -100, duration: reducedMotion ? 0 : 300, easing: Easing.bezier(.4, 0, .2, 1), useNativeDriver: true})
     animation.start(); return () => animation.stop()
-  }, [headerMoreOffset, toolbarIsVisible])
+  }, [headerMoreOffset, toolbarIsVisible, reducedMotion])
   const [gallery, setGallery] = useState<{images: string[]; index: number} | null>(null)
+  const resolveGalleryUri = useCallback((uri: string, signal?: AbortSignal) => resolveGalleryImage(cache, cacheKey, uri, {fetch: expoFetch, allowNetwork: !fixtureOnly, isActive: isAccountActive, signal}), [cache, cacheKey, fixtureOnly, isAccountActive])
+  const imageActions = useImageActions({port: ports.imageActions, resolveUri: resolveGalleryUri, isActive: isAccountActive})
   const [transcriptVisible, setTranscriptVisible] = useState(false), [youtubeTime, setYoutubeTime] = useState(-1)
   const cues = useCues(document.html)
   useLayoutEffect(() => {setOverlay(null); setExternalUrl(null); setGallery(null); setTranscriptVisible(false); setYoutubeTime(-1); setToolbarIsVisible(true); clearError()}, [cacheKey])
@@ -111,7 +116,6 @@ export function useReaderInteractions(scope: ReaderScope, ports: InteractionPort
     else if (id === 'archive') bookmark.toggle('archiveStatus')
     else if (id === 'outline') ai.open()
     else if (id === 'transcript') setTranscriptVisible(true)
-    else if (id === 'pdf-download') run(document.downloadPdf())
     else if (id === 'pdf-notes') annotations.openNotes()
     else if (id === 'edit') {telemetry.element('bookmark_edit_title_button', 'detail'); bookmark.setDraftTitle(title.replace(/\s+/g, ' ').trim()); setOverlay('edit')}
     else if (id === 'delete') {telemetry.element('bookmark_delete_button', 'detail'); setOverlay('delete')}
@@ -126,6 +130,9 @@ export function useReaderInteractions(scope: ReaderScope, ports: InteractionPort
   }
   const action = (id: string) => {
     if (overlay !== 'toolbar' || toolbarId !== toolbarSequence.current || pendingToolbar.current || !mounted.current || !isAccountActive()) return
+    if (id === 'star' || id === 'archive') {
+      toolbarSequence.current++; setOverlay(null); performToolbarAction(id); return
+    }
     pendingToolbar.current = {id: toolbarId, run: () => performToolbarAction(id), isActive: isAccountActive}
     setOverlay(null); if (!isIos) toolbarDidDismiss()
   }
@@ -141,18 +148,21 @@ export function useReaderInteractions(scope: ReaderScope, ports: InteractionPort
       if (isPreview && !rssImageUrl(event.src)) return
       const images = (event.allImages.length ? event.allImages : [event.src]).filter(url => !isPreview || rssImageUrl(url))
       void clearSelection(); setGallery({images, index: Math.max(0, images.indexOf(event.src))})
+    } else if (event.type === 'imageLongPress') {
+      if (isPreview && !rssImageUrl(event.src)) return
+      void clearSelection(); imageActions.open(event.src, 'document')
     } else if (event.type === 'tap' && !document.scrollInfo.current.nearBottom && document.scrollInfo.current.position > 10) setToolbarIsVisible(value => !value)
     else if (event.type === 'refreshContent') void document.load(true)
     else if (event.type === 'feedback') ports.feedback('detail_error')
   }
-  const resolveGalleryUri = useCallback((uri: string, signal?: AbortSignal) => resolveGalleryImage(cache, cacheKey, uri, {fetch: expoFetch, allowNetwork: !fixtureOnly, isActive: isAccountActive, signal}), [cache, cacheKey, fixtureOnly, isAccountActive])
   const cancelPending = () => {pendingExternal.current = null; pendingToolbar.current = null}
   const scroll = (position: number, nearBottom: boolean) => {if (isAccountActive()) {document.scrollInfo.current = {position, nearBottom}; setToolbarIsVisible(toolbarVisible(position, nearBottom))}}
   return {overlay, toolbarId, toolbarIsVisible, headerMoreOffset, externalUrl, externalDialogId, doNotAlert, gallery, transcriptVisible, youtubeTime, cues,
-    showToolbar, dismissToolbar, toolbarDidDismiss, action, external, confirmExternal, externalDidDismiss, cancelExternal, showOverview, closeOverview, handleEvent, resolveGalleryUri, cancelPending, scroll,
+    showToolbar, dismissToolbar, toolbarDidDismiss, action, external, confirmExternal, externalDidDismiss, cancelExternal, showOverview, closeOverview, handleEvent, resolveGalleryUri, cancelPending, scroll, imageActions,
+    openGalleryImageAction: (source: string) => imageActions.open(source, 'gallery'),
     closeOverlay: () => setOverlay(null), showSubscription: () => setOverlay('subscription'), revoke: () => {setOverlay(null); clearError()},
     showTags: () => {telemetry.firebase('bookmark', 'use_tag'); setOverlay('tags')}, toggleAlert: () => setDoNotAlert(value => !value),
-    closeGallery: () => setGallery(null), showTranscript: () => setTranscriptVisible(true), closeTranscript: () => setTranscriptVisible(false),
+    closeGallery: () => {if (imageActions.request?.surface === 'gallery') imageActions.reset(); setGallery(null)}, showTranscript: () => setTranscriptVisible(true), closeTranscript: () => setTranscriptVisible(false),
     seek: (seconds: number) => {setTranscriptVisible(false); run(reader.current?.seekYoutube(seconds))}}
 }
 

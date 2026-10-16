@@ -76,7 +76,7 @@ test('mounted RSS uses its retained source identity rather than resetting each t
     react: React, 'react-native': {FlatList, View: primitive, Pressable: primitive, ScrollView: primitive, Image: nil, TextInput: nil, ActivityIndicator: nil, StyleSheet: {create: value => value}},
     '../runtime': {useMobile: () => ({t: value => value})}, '../rss/controller': {rssDisplayName: () => 'Feed'}, '../theme': {mobileColors: {}, mobileTypography: {}},
     './SourceUI': {SourceButton: nil, SourceDialog: nil, SourceIcon: nil, SourceSheet: nil, SourceText: primitive, SourceProgress: nil, TextAction: nil, Divider: nil}, './SourceMenu': {SourceMenu: nil},
-    './fixture-actions': {}, './feed-scroll': scrolling,
+    './AppImage': {AppImage: nil}, './fixture-actions': {}, './feed-scroll': scrolling,
   });
   const state = () => ({enabled: true, selected, subscriptions: [], entries, ready: true, busy: false, hasMore: false});
   const dismiss = () => {}, controller = {};
@@ -155,7 +155,7 @@ test('actual Library preserves both modes through toggles and gives a new native
     '@react-navigation/native': {useFocusEffect: callback => React.useEffect(callback, [callback])}, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 0, bottom: 0})}, 'expo-network': {useNetworkState: () => ({isConnected: true})},
     '../telemetry': {useTelemetry: () => telemetry}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: primitive}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
     './LibraryDataStatus': {LibraryDataStatus: nil}, '../components/PdfImportDialog': {PdfImportDialog: nil}, '../pdf/usePdfLab': {usePdfLab: () => ({ready: true, enabled: false})},
-    '../components': {...components, RssFeed, ScreenSurface: primitive, SourceText: primitive, SourceMenu: props => {menus.push(props); return null;}}, '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => ({...context, nativeResourceOwner: owner})},
+    '../components': {...components, RssFeed, ScreenSurface: primitive, SourceText: primitive, SourceMenu: props => {menus.push(props); return null;}}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => ({...context, nativeResourceOwner: owner})},
     '../theme': {mobileColors: {}, mobileLayout: {drawerMaximumWidth: 320, librarySwipeActionHeight: 53}, mobileTypography: {}}, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../utils/source-time': await load('../../src/utils/source-time.ts', {}), '../components/feed-scroll': {...scrolling, useFeedScrollPosition: (...args) => {const value = scrolling.useFeedScrollPosition(...args); inboxPosition = args[0]; inboxReset = value.reset; return value;}}, '../components/SourceDrawer': {SourceDrawer: primitive},
   });
   const render = () => React.createElement(LibraryScreen, {navigation: {navigate() {}}});

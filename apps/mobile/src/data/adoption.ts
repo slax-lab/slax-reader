@@ -1,6 +1,7 @@
 import type {PreferenceStore} from './preferences.ts';
 import type {AdoptionEvidence, DatabaseLocation, DatabaseLogicalIdentity, LegacyInventory} from './upgrade.ts';
 import {verifiedDatabaseLocation} from './upgrade.ts';
+import {createInstallationBinding, DATABASE_STORAGE_TABLES, INSTALLATION_KEY, initializedDatabaseLocation, readInstallationBinding, validateDatabaseSchema} from './installation.ts';
 
 export interface DatabaseSnapshot {
   databasePath: string; formatVersion: number; userVersion: number; integrityValid: boolean;
@@ -13,7 +14,7 @@ export interface DatabaseInspector {
   inspectAcceptedDatabase?(path: string): Promise<DatabaseSchemaSnapshot>;
 }
 const JOURNAL = '_slax_database_adoption_v1';
-const DATA_TABLES = ['sr_user', 'sr_user_tag', 'sr_platform_bind', 'sr_user_notification', 'sr_user_bookmark', 'sr_user_subscription', 'sr_user_collection_subscriber', 'sr_user_collection', 'sr_sharer_setting', 'sr_collection_bookmark', 'sr_user_bookmark_stats', 'sr_bookmark_comment'].map(table => `ps_data__${table}`).concat('ps_data_local__local_bookmark_info').sort();
+const DATA_TABLES = DATABASE_STORAGE_TABLES;
 interface Journal { path: string; phase: 'opening' | 'accepted' | 'failed'; before: DatabaseSnapshot; targetSdk: string; logicalIdentity?: DatabaseLogicalIdentity; profile?: string; schemaVersion?: string }
 export class DatabaseAdoptionRejected extends Error {
   constructor(message: string) {super(message); this.name = 'DatabaseAdoptionRejected';}
@@ -50,12 +51,36 @@ export async function openVerifiedDatabase<T extends {close(): Promise<unknown>}
   inventory: LegacyInventory; evidence?: AdoptionEvidence; inspector: DatabaseInspector; preferences: PreferenceStore;
   open(location: DatabaseLocation): Promise<T>;
 }): Promise<T> {
+  const values = await options.preferences.read();
+  const binding = readInstallationBinding(values[INSTALLATION_KEY]);
+  const profile = options.evidence?.report ?? 'slax-native-format14-schema2-v1';
+  if (binding) {
+    if (binding.profile !== profile || !options.inspector.inspectAcceptedDatabase) throw new DatabaseAdoptionRejected('The initialized database profile requires recovery');
+    const location = initializedDatabaseLocation(binding, options.inventory);
+    const path = `${location.dbLocation}/${location.dbFilename}`;
+    validateDatabaseSchema(await options.inspector.inspectAcceptedDatabase(path), path);
+    return options.open(location);
+  }
+  if (options.inventory.initializedDatabase) throw new DatabaseAdoptionRejected('The initialized database record changed during startup');
   const location = verifiedDatabaseLocation(options.inventory, options.evidence);
-  if (!location.adopted) return options.open(location);
-  const path = options.evidence!.databasePath;
+  const path = `${location.dbLocation}/${location.dbFilename}`;
+  const persistBinding = async () => {
+    if (!options.inspector.inspectAcceptedDatabase) return;
+    const next = createInstallationBinding(location, options.inventory, profile);
+    if (next) await options.preferences.update(values => {values[INSTALLATION_KEY] = JSON.stringify(next);});
+  };
+  const openAccepted = async (verifySchema = false) => {
+    const database = await options.open(location);
+    try {
+      if (verifySchema && options.inspector.inspectAcceptedDatabase) validateDatabaseSchema(await options.inspector.inspectAcceptedDatabase(path), path);
+      await persistBinding();
+      return database;
+    } catch (error) {await database.close(); throw error;}
+  };
+  if (!location.adopted) return openAccepted(true);
   const logicalIdentity = options.inventory.databaseIdentities?.[path];
   if (logicalIdentity && !validLogicalIdentity(logicalIdentity, path)) throw new DatabaseAdoptionRejected('The native logical database identity is incomplete');
-  const stored = (await options.preferences.read())[JOURNAL];
+  const stored = values[JOURNAL];
   let previous: Journal | undefined, prior: DatabaseSnapshot | undefined;
   if (stored !== undefined) {
     try {previous = JSON.parse(String(stored)) as Journal;} catch {throw new DatabaseAdoptionRejected('The existing migration checkpoint cannot be read; original data is retained');}
@@ -63,9 +88,9 @@ export async function openVerifiedDatabase<T extends {close(): Promise<unknown>}
     prior = priorSnapshotAtCurrentPath(previous, path, logicalIdentity);
     if (previous.phase === 'failed') throw new DatabaseAdoptionRejected('The previous adoption failed verification; automatic rollback is blocked');
     if (!['opening', 'accepted'].includes(previous.phase)) throw new DatabaseAdoptionRejected('Unknown migration checkpoint; original data is retained');
-    if (previous.phase === 'accepted' && previous.path === path && previous.logicalIdentity && logicalIdentity && previous.profile === options.evidence!.report && previous.schemaVersion === options.evidence!.schemaVersion && options.inspector.inspectAcceptedDatabase) {
+    if (previous.phase === 'accepted' && previous.logicalIdentity && logicalIdentity && previous.profile === options.evidence!.report && previous.schemaVersion === options.evidence!.schemaVersion && options.inspector.inspectAcceptedDatabase) {
       const schema = await options.inspector.inspectAcceptedDatabase(path);
-      if (schema.databasePath === path && schema.formatVersion === 14 && schema.userVersion === 1 && Array.isArray(schema.storageTables) && JSON.stringify([...schema.storageTables].sort()) === JSON.stringify(DATA_TABLES)) return options.open(location);
+      if (schema.databasePath === path && schema.formatVersion === 14 && schema.userVersion === 1 && Array.isArray(schema.storageTables) && JSON.stringify([...schema.storageTables].sort()) === JSON.stringify(DATA_TABLES)) return openAccepted();
     }
   }
   const before = await options.inspector.inspectLegacyDatabase(path);
@@ -84,7 +109,11 @@ export async function openVerifiedDatabase<T extends {close(): Promise<unknown>}
       throw new DatabaseAdoptionRejected('Database initialization changed pending or offline data; automatic rollback is blocked');
     }
     journal.phase = 'accepted';
-    await options.preferences.update(values => {values[JOURNAL] = JSON.stringify(journal);});
+    const initialized = options.inspector.inspectAcceptedDatabase ? createInstallationBinding(location, options.inventory, profile) : null;
+    await options.preferences.update(values => {
+      values[JOURNAL] = JSON.stringify(journal);
+      if (initialized) values[INSTALLATION_KEY] = JSON.stringify(initialized);
+    });
     return database;
   } catch (error) {
     // Leave an opening checkpoint on interruption: retry is allowed only after a fresh unchanged snapshot.

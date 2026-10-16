@@ -103,7 +103,8 @@ test('accepted same-owner same-profile startup verifies only schema and leaves t
     inspectLegacyDatabase: async () => {throw new Error('Full data hashing is forbidden for accepted startup');},
     inspectAcceptedDatabase: async () => {events.push('schema'); return relocatedSnapshot();},
   }, open: async () => {events.push('open'); return {close: async () => {}};}});
-  assert.deepEqual(events, ['schema', 'open']); assert.equal(storage.revision, 0);
+  assert.deepEqual(events, ['schema', 'open']); assert.equal(storage.revision, 1);
+  assert.equal(JSON.parse(String(storage.values._slax_database_installation_v1)).mode, 'adopted');
   assert.deepEqual(JSON.parse(String(storage.values._slax_database_adoption_v1)), previous);
 });
 

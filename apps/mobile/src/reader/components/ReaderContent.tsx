@@ -3,13 +3,16 @@ import {StyleSheet, View} from 'react-native'
 import {SourceText, TextAction} from '../../components'
 import {SourceCircularProgress} from '../../components/SourceRing'
 import {mobileColors as C, mobileTypography as T} from '../../theme'
-import {PdfWebView} from '../PdfWebView'
 import {ReaderWebView} from '../index'
 import {ReaderSkeleton} from '../ReaderSkeleton'
 import type {Translate} from '../state/types'
 
-type PdfProps = React.ComponentProps<typeof PdfWebView>
+type PdfProps = React.ComponentProps<typeof import('../PdfWebView').PdfWebView>
 type HtmlProps = React.ComponentProps<typeof ReaderWebView>
+function PdfWebView(props: PdfProps) {
+  const Viewer = (require('../PdfWebView') as typeof import('../PdfWebView')).PdfWebView
+  return <Viewer {...props} />
+}
 interface ContentProps {
   isPdf: boolean; isPreview: boolean; loading: boolean; html: string | null
   pdfProps: PdfProps | null; htmlProps: HtmlProps
@@ -19,8 +22,10 @@ interface ContentProps {
 }
 export function ReaderContent({isPdf, isPreview, loading, html, pdfProps, htmlProps, hostKey, top, header, title, contentError, nativeFailure, rssError, t, reload, retryPdf, retryNative}: ContentProps) {
   return <>
-    {isPdf ? pdfProps && !contentError ? <PdfWebView key={hostKey} {...pdfProps} /> :
-      <View style={styles.center} testID="reader-pdf-loading-or-error">{loading ? <><SourceCircularProgress color={C.accent} /><SourceText>{t('pdf_loading')}</SourceText></> : <><SourceText>{contentError || t('pdf_load_failed')}</SourceText><TextAction label={t('rss_retry')} onPress={retryPdf} /></>}</View> :
+    {/* A PDF opens like an article: the same header + skeleton covers the host until its first visible page is painted. */}
+    {isPdf ? pdfProps && !contentError ? <PdfWebView key={hostKey} {...pdfProps} placeholder={<ReaderSkeleton topSpacer={top + 44} header={title ? header : undefined} />} /> :
+      loading && !contentError ? <ReaderSkeleton topSpacer={top + 44} header={title ? header : undefined} /> :
+      <View style={styles.center} testID="reader-pdf-loading-or-error"><SourceText>{contentError || t('pdf_load_failed')}</SourceText><TextAction label={t('rss_retry')} onPress={retryPdf} /></View> :
       html !== null ? <ReaderWebView key={hostKey} {...htmlProps} /> :
       isPreview ? <View testID="reader-rss-loading-or-error" style={styles.center}>{loading ? <SourceCircularProgress color={C.rssAccent} /> : <><SourceText>{t(`rss_error_${rssError ?? 'source_unavailable'}`)}</SourceText><TextAction label={t('rss_retry')} onPress={() => reload()} /></>}</View> :
       loading ? <ReaderSkeleton topSpacer={top + 44} header={title ? header : undefined} /> :

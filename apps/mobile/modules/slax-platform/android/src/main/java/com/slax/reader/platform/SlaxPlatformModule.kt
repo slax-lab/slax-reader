@@ -38,11 +38,7 @@ class SlaxPlatformModule : Module() {
       activity.startActivity(intent)
     }.runOnQueue(expo.modules.kotlin.functions.Queues.MAIN)
     AsyncFunction("readerResourceOwner") { SlaxReaderView.currentOwner() }.runOnQueue(expo.modules.kotlin.functions.Queues.MAIN)
-    AsyncFunction("loadReaderImage") { id: String, url: String, owner: String, hosts: List<String>, proxies: List<String>, promise: Promise ->
-      SlaxReaderImages.load(appContext.reactContext ?: error("Reader context unavailable"), id, url, owner, hosts, proxies, promise)
-    }.runOnQueue(expo.modules.kotlin.functions.Queues.MAIN)
-    AsyncFunction("cancelReaderImage") { id: String -> SlaxReaderImages.cancel(id) }.runOnQueue(expo.modules.kotlin.functions.Queues.MAIN)
-    AsyncFunction("revokeReaderResources") { SlaxReaderImages.cancelAll(); SlaxReaderView.revokeAllResources() }.runOnQueue(expo.modules.kotlin.functions.Queues.MAIN)
+    AsyncFunction("revokeReaderResources") { SlaxReaderView.revokeAllResources() }.runOnQueue(expo.modules.kotlin.functions.Queues.MAIN)
     AsyncFunction("activateReaderResources") { owner: String -> SlaxReaderView.activateResources(owner) }.runOnQueue(expo.modules.kotlin.functions.Queues.MAIN)
     AsyncFunction("setWebSessionCookie") { origin: String, token: String?, domain: String, promise: Promise ->
       val uri = URI(origin)

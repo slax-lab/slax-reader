@@ -9,16 +9,14 @@ private final class Task: NSObject, WKURLSchemeTask {
   var finished = false
   var failed = false
   var responses = 0
+  var chunks: [Int] = []
   var response: URLResponse?
+  var onChunk: (() -> Void)?
   init(_ url: String, range: String? = nil) { var request = URLRequest(url: URL(string: url)!); request.setValue(range, forHTTPHeaderField: "Range"); self.request = request }
-  func didReceive(_ response: URLResponse) { responses += 1; self.response = response }
-  func didReceive(_ data: Data) { bytes.append(data) }
-  func didFinish() { finished = true }
-  func didFailWithError(_ error: Error) { failed = true }
-}
-
-private final class MissingMimeResponse: URLResponse, @unchecked Sendable {
-  override var mimeType: String? { nil }
+  func didReceive(_ response: URLResponse) { precondition(Thread.isMainThread); responses += 1; self.response = response }
+  func didReceive(_ data: Data) { precondition(Thread.isMainThread); chunks.append(data.count); bytes.append(data); onChunk?() }
+  func didFinish() { precondition(Thread.isMainThread); finished = true }
+  func didFailWithError(_ error: Error) { precondition(Thread.isMainThread); failed = true }
 }
 
 @main struct Host {
@@ -30,6 +28,9 @@ private final class MissingMimeResponse: URLResponse, @unchecked Sendable {
   static func main() throws {
     let manager = FileManager.default
     let caches = manager.urls(for: .cachesDirectory, in: .userDomainMask).first!
+    let testHome = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SLAX_RESOURCE_TEST_HOME"]!).resolvingSymlinksInPath().path
+    precondition(caches.resolvingSymlinksInPath().path.hasPrefix(testHome + "/"))
+    try SlaxStorageOwner.activate("synthetic-owner")
     let root = caches.appendingPathComponent("slax-ui-fixtures/cache-host-\(UUID().uuidString)")
     try manager.createDirectory(at: root, withIntermediateDirectories: true)
     defer { try? manager.removeItem(at: root) }
@@ -89,7 +90,7 @@ private final class MissingMimeResponse: URLResponse, @unchecked Sendable {
     let configuration = SlaxResourceStream.configuration()
     precondition(configuration.httpCookieStorage == nil && !configuration.httpShouldSetCookies && configuration.urlCredentialStorage == nil && configuration.urlCache == nil)
     let redirectTask = Task("slaxstatics://public.test/a")
-    let stream = SlaxResourceStream(task: redirectTask, original: URL(string: "https://public.test/a")!, cache: { nil }, cached: { nil }, allowsNetwork: true, security: policy, hasOwnership: { true }, done: {})
+    let stream = SlaxResourceStream(task: redirectTask, original: URL(string: "https://public.test/a")!, allowsNetwork: true, security: policy, hasOwnership: { true }, done: {})
     let session = URLSession(configuration: configuration)
     let network = session.dataTask(with: URL(string: "https://public.test/a")!)
     let response = HTTPURLResponse(url: URL(string: "https://public.test/a")!, statusCode: 302, httpVersion: nil, headerFields: [:])!
@@ -100,25 +101,12 @@ private final class MissingMimeResponse: URLResponse, @unchecked Sendable {
     stream.urlSession(session, task: network, willPerformHTTPRedirection: response, newRequest: URLRequest(url: URL(string: "https://auth.example/a")!)) { precondition($0 == nil) }
     precondition(redirectTask.failed)
     session.invalidateAndCancel()
-    for mime in ["text/html", "application/json", "application/octet-stream"] {
-      let rejected = Task("slaxstatics://public.test/a")
-      let imageStream = SlaxResourceStream(task: rejected, original: URL(string: "https://public.test/a")!, cache: { nil }, cached: { nil }, allowsNetwork: true, security: policy, hasOwnership: { true }, done: {})
-      imageStream.urlSession(session, dataTask: network, didReceive: URLResponse(url: URL(string: "https://public.test/a")!, mimeType: mime, expectedContentLength: 5, textEncodingName: nil)) { precondition($0 == .cancel) }
+    for mime in ["text/html", "application/json", "application/octet-stream", "image/png"] {
+      let rejected = Task("slaxmedias://public.test/a")
+      let mediaStream = SlaxResourceStream(task: rejected, original: URL(string: "https://public.test/a")!, allowsNetwork: true, security: policy, hasOwnership: { true }, done: {})
+      mediaStream.urlSession(session, dataTask: network, didReceive: URLResponse(url: URL(string: "https://public.test/a")!, mimeType: mime, expectedContentLength: 5, textEncodingName: nil)) { precondition($0 == .cancel) }
       precondition(rejected.failed && rejected.responses == 0)
     }
-    for privateImage in [false, true] {
-      let missingMime = Task("slaxstatics://public.test/a")
-      let imageStream = SlaxResourceStream(task: missingMime, original: URL(string: "https://public.test/a")!, cache: { nil }, cached: { nil }, allowsNetwork: true, security: policy, privateImage: privateImage, hasOwnership: { true }, done: {})
-      let response = MissingMimeResponse(url: URL(string: "https://public.test/a")!, mimeType: nil, expectedContentLength: 5, textEncodingName: nil)
-      precondition(response.mimeType == nil)
-      imageStream.urlSession(session, dataTask: network, didReceive: response) { precondition($0 == (privateImage ? .cancel : .allow)) }
-      precondition(missingMime.failed == privateImage && missingMime.responses == (privateImage ? 0 : 1))
-      imageStream.cancel()
-    }
-    let imagePromise = ExpoModulesCore.Promise()
-    try SlaxReaderImages.load("cancel-image", raw: "https://public.invalid/image.png", owner: "synthetic-owner", hosts: ["auth.example"], proxies: [], promise: imagePromise)
-    SlaxReaderImages.cancel("cancel-image")
-    precondition(imagePromise.error != nil && imagePromise.value == nil)
     let missing = SlaxResourceHandler(); missing.hasResourceOwnership = { true }
     let refused = Task("slaxstatics://example.com/a"); missing.start(refused); precondition(refused.failed)
     for raw in ["slaxstatics://auth.example/a", "slaxstatics://r.slax.com/a"] { let denied = Task(raw); handler.start(denied); precondition(denied.failed && denied.responses == 0) }
@@ -185,6 +173,58 @@ private final class MissingMimeResponse: URLResponse, @unchecked Sendable {
     let closed = Task("slaxstatics://example.com/image")
     handler.start(closed)
     precondition(closed.failed && closed.bytes.isEmpty)
-    print("Production Swift resources: legacy nested reads, symlink/traversal isolation, cancellation, ownership revocation and close passed (macOS host only).")
+    precondition(support.resolvingSymlinksInPath().path.hasPrefix(testHome + "/"))
+    let imagePolicy = try SlaxReaderSecurity(["localhost", "auth.example"])
+    let expectedImage = Data((0..<(256 * 1024 + 7)).map {UInt8($0 % 251)})
+    func counts() -> [String: Int] { (try? JSONSerialization.jsonObject(with: Data(contentsOf: URL(string: mediaHost + "/image-counts")!)) as? [String: Int]) ?? [:] }
+    func release(_ key: String) { _ = try? Data(contentsOf: URL(string: mediaHost + "/release-image?key=" + key)!) }
+    func imageHandler(_ key: String) -> SlaxResourceHandler {
+      let value = SlaxResourceHandler(); value.cacheKey = key; value.resourceOwner = "synthetic-owner"; value.security = imagePolicy; value.hasResourceOwnership = {true}; return value
+    }
+    func imageTask(_ path: String) -> Task { Task(mediaHost.replacingOccurrences(of: "http:", with: "slaxstatic:") + "/image-" + path) }
+    let staging = caches.appendingPathComponent("slax-image-transfers"), abandoned = staging.appendingPathComponent("process-0000")
+    try manager.createDirectory(at: abandoned, withIntermediateDirectories: true)
+    try Data("partial".utf8).write(to: abandoned.appendingPathComponent("partial.tmp"))
+    let untouched = root.appendingPathComponent("untouched"); try Data("keep".utf8).write(to: untouched)
+    try manager.createSymbolicLink(at: abandoned.appendingPathComponent("link"), withDestinationURL: untouched)
+    let operatorFile = staging.appendingPathComponent("operator-state"); try Data("keep".utf8).write(to: operatorFile)
+    let native = SlaxImageModule().definition()
+    func resolve(_ key: String, _ path: String, network: Bool = true) throws -> ExpoModulesCore.Promise {
+      let id = try native.begin("synthetic-owner"), promise = ExpoModulesCore.Promise()
+      native.resolve("synthetic-owner", id, ["directory": support.path, "key": key, "url": mediaHost + "/image-" + path,
+        "hosts": ["localhost", "auth.example"], "proxies": [], "allowNetwork": network, "strict": true], promise)
+      return promise
+    }
+    let web = imageHandler("shared-article"), shared = imageTask("held-shared")
+    web.start(shared); spin {counts()["held-shared"] == 1}
+    let pin = try SlaxImageResources.registry().acquire(owner: "synthetic-owner", url: URL(string: mediaHost + "/image-held-shared")!, policy: imagePolicy)
+    let sharedPromise = try resolve("shared-article", "held-shared")
+    release("held-shared"); spin {shared.finished || shared.failed}; spin {sharedPromise.value != nil || sharedPromise.error != nil}
+    precondition(shared.finished && shared.bytes == expectedImage && shared.chunks.allSatisfy {$0 <= 65536})
+    precondition(counts()["held-shared"] == 1 && sharedPromise.error == nil)
+    let sharedURI = (sharedPromise.value as! [String: Any])["uri"] as! String
+    let persisted = try Data(contentsOf: URL(string: sharedURI)!); precondition(persisted == expectedImage)
+    pin.close(); web.close()
+    let untouchedBytes = try Data(contentsOf: untouched), operatorBytes = try Data(contentsOf: operatorFile)
+    precondition(!manager.fileExists(atPath: abandoned.path)); precondition(untouchedBytes == Data("keep".utf8) && operatorBytes == Data("keep".utf8))
+    let offline = imageHandler("shared-article"), offlineTask = imageTask("held-shared"); offline.start(offlineTask); spin {offlineTask.finished || offlineTask.failed}
+    precondition(offlineTask.finished && offlineTask.bytes == expectedImage && counts()["held-shared"] == 1); offline.close()
+    let transient = imageHandler("transient-article"), cancelled = imageTask("held-retained")
+    transient.start(cancelled); spin {counts()["held-retained"] == 1}
+    let retained = try SlaxImageResources.registry().acquire(owner: "synthetic-owner", url: URL(string: mediaHost + "/image-held-retained")!, policy: imagePolicy)
+    let retainedPromise = try resolve("retained-article", "held-retained")
+    transient.close(); release("held-retained"); spin {retainedPromise.value != nil || retainedPromise.error != nil}
+    precondition(cancelled.responses == 0 && cancelled.bytes.isEmpty && !cancelled.finished)
+    precondition(counts()["held-retained"] == 1 && (retainedPromise.value as? [String: Any])?["uri"] != nil); retained.close()
+    let interrupted = imageHandler("shared-article"), firstChunk = imageTask("held-shared")
+    firstChunk.onChunk = {interrupted.close()}; interrupted.start(firstChunk); spin {!firstChunk.bytes.isEmpty}
+    RunLoop.main.run(until: Date().addingTimeInterval(0.1)); precondition(firstChunk.chunks.count == 1 && !firstChunk.finished)
+    let failedImage = imageHandler("bad-image"), invalidImage = imageTask("html"); failedImage.start(invalidImage); spin {invalidImage.failed || invalidImage.finished}; precondition(invalidImage.failed && invalidImage.bytes.isEmpty); failedImage.close()
+    let missingMime = imageHandler("missing-mime"), mimeTask = imageTask("mime"); missingMime.start(mimeTask); spin {mimeTask.failed || mimeTask.finished}; precondition(mimeTask.finished && mimeTask.bytes == expectedImage); missingMime.close()
+    let stale = imageHandler("old-account"), staleTask = imageTask("held-stale"); stale.start(staleTask); spin {counts()["held-stale"] == 1}
+    try SlaxStorageOwner.activate("replacement-owner"); stale.close(); SlaxImageModule.revokeAll(); release("held-stale")
+    RunLoop.main.run(until: Date().addingTimeInterval(0.2)); precondition(staleTask.responses == 0 && staleTask.bytes.isEmpty)
+    let drained = try SlaxImageResources.registry().close(); precondition(drained.wait(timeout: .now() + 5) == .success)
+    print("Production Swift resources: shared WebView/module images, bounded main delivery, cancellation, legacy paths, media and scoped recovery passed (macOS host only).")
   }
 }

@@ -1,7 +1,7 @@
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, PixelRatio, Pressable, StyleSheet, View } from 'react-native';
 import {Gesture, GestureDetector} from 'react-native-gesture-handler';
-import Reanimated, {cancelAnimation, Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
+import Reanimated, {cancelAnimation, Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withSpring, withTiming} from 'react-native-reanimated';
 import {motionDuration} from '../motion/policy';
 import {useReducedMotion} from '../motion/useReducedMotion';
 import {useDrawerGesture} from './SourceDrawer';
@@ -68,7 +68,13 @@ export const BookmarkRow = memo(function BookmarkRow({item, sort, owned, onOpen,
     if (drawerGesture) gesture.blocksExternalGesture(drawerGesture);
     return gesture;
   }, [owned, menu, max, offset, dragStart, dragging, touchX, touchY, drawerGesture, generation, settleOffset]);
-  const rowStyle = useAnimatedStyle(() => ({transform: [{translateX: offset.value}, {scale: menu ? 1.05 : 1}], backgroundColor: C.readerBackground}));
+  const lift = useSharedValue(0);
+  useEffect(() => {
+    lift.value = withSpring(menu ? 1 : 0, {damping: 18, stiffness: 260, reduceMotion: ReduceMotion.System});
+    return () => cancelAnimation(lift);
+  }, [menu, lift]);
+  const rowStyle = useAnimatedStyle(() => ({transform: [{translateX: offset.value}, {scale: 1 + lift.value * 0.05}], backgroundColor: C.readerBackground,
+    shadowColor: '#000000', shadowOpacity: lift.value * 0.14, shadowRadius: lift.value * 12, shadowOffset: {width: 0, height: 4}, elevation: lift.value * 8}));
   function settle() {settleOffset(0);}
   function perform(work: () => Promise<unknown> | undefined, elementId: string, swipe = false) {settle(); const operation = work(); if (!operation) return; void operation.then(() => {telemetry.element(elementId, 'bookmarks'); if (swipe) telemetry.firebase('bookmark_list', 'item_interact', {element: elementId === 'bookmark_star_button' ? 'star' : 'archive', source: 'inbox'});}).catch(onError);}
   const state = item.downloadStatus === 1 ? 'DOWNLOADING' : item.downloadStatus === 2 ? 'COMPLETED' : item.downloadStatus === 3 ? 'FAILED' : 'NONE';

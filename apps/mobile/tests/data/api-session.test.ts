@@ -322,3 +322,16 @@ test('failed native resource revocation prevents clearing and exposing the next 
   assert.equal(databaseCleared, false); assert.equal(cacheCleared, false);
   assert.equal((await preferences.read()).continue_reading_bookmark, 'old-a');
 });
+
+test('account cleanup awaits native cache deletion and retains recovery preferences when it fails', async () => {
+  const preferences = new PreferenceStore(new MemoryPreferences({continue_reading_bookmark: 'old-a'}));
+  let resolve!: () => void;
+  const held = new Promise<void>(yes => {resolve = yes;}), events: string[] = [];
+  const clearing = clearAccountData({async disconnectAndClear() {events.push('database');}}, {async clearArticles() {events.push('files'); await held; events.push('files-complete');}}, preferences, async () => {events.push('revoke');});
+  for (let index = 0; index < 5; index++) await Promise.resolve();
+  assert.deepEqual(events, ['revoke', 'database', 'files']); assert.equal((await preferences.read()).continue_reading_bookmark, 'old-a');
+  resolve(); await clearing; assert.equal((await preferences.read()).continue_reading_bookmark, undefined);
+  await preferences.update(values => {values.continue_reading_bookmark = 'recovery';});
+  await assert.rejects(clearAccountData({async disconnectAndClear() {}}, {async clearArticles() {throw new Error('Disk removal failed');}}, preferences, async () => {}), /Disk removal failed/);
+  assert.equal((await preferences.read()).continue_reading_bookmark, 'recovery');
+});

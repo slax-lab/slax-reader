@@ -47,6 +47,37 @@ async function host(t, scenario = 'reader-pdf-import') {
   }
   const applicationRoot = path.join(directory, 'com.slax.reader.uifixture');
   const Paths = {cache: new Directory(applicationRoot, 'cache'), document: new Directory(applicationRoot, 'documents')}, appListeners = new Set();
+  let resourceOwner = null;
+  const storagePath = (root, owner, relative) => {
+    const directory = root.startsWith('file:') ? fileURLToPath(root) : root;
+    assert.equal(owner, resourceOwner); assert(relative.split('/').every(part => part !== '..'));
+    if (relative.startsWith('pdf/')) {assert.equal(directory, applicationRoot); events.push(['pdf-path', relative]); return path.join(applicationRoot, 'files', relative);}
+    assert(relative === 'bookmark' || relative.startsWith('bookmark/'));
+    assert(directory === applicationRoot || directory.startsWith(path.join(applicationRoot, 'cache/slax-ui-fixtures') + path.sep));
+    return path.join(directory, relative);
+  };
+  const writes = new Map();
+  const nativeStorage = {
+    beginWrite(owner) {assert.equal(owner, resourceOwner); const id = randomUUID(); writes.set(id, owner); return id;},
+    endWrite(owner, id) {if (writes.get(id) === owner) writes.delete(id);},
+    writeBlock(root, owner, id, relative, bytes) {return nativeStorage.writeBytes(root, owner, relative, bytes, true, () => {assert.equal(writes.get(id), owner);});},
+    async writeText(root, owner, relative, text) {const file = storagePath(root, owner, relative); await fs.promises.mkdir(path.dirname(file), {recursive: true}); await fs.promises.writeFile(file, text); return pathToFileURL(file).href;},
+    async readText(root, owner, relative) {const file = storagePath(root, owner, relative); return fs.existsSync(file) ? fs.promises.readFile(file, 'utf8') : null;},
+    async writeBytes(root, owner, relative, bytes, versioned, check = () => {}) {
+      assert.equal(versioned, true); check(); const entries = `${storagePath(root, owner, relative)}.entries`; await fs.promises.mkdir(entries, {recursive: true});
+      const temporary = path.join(entries, `${randomUUID()}.tmp`), target = path.join(entries, 'committed.data');
+      try {await fs.promises.writeFile(temporary, bytes); storagePath(root, owner, relative); check(); await fs.promises.rename(temporary, target); return pathToFileURL(target).href;}
+      finally {await fs.promises.rm(temporary, {force: true});}
+    },
+    async readBytes(root, owner, relative, versioned) {assert.equal(versioned, true); const file = `${storagePath(root, owner, relative)}.entries/committed.data`; return fs.existsSync(file) ? new Uint8Array(await fs.promises.readFile(file)) : null;},
+    async size(root, owner, relative, versioned) {assert.equal(versioned, true); const file = `${storagePath(root, owner, relative)}.entries/committed.data`; return fs.existsSync(file) ? (await fs.promises.stat(file)).size : null;},
+    async list(root, owner, relative, versioned) {
+      assert.equal(versioned, true); const directory = storagePath(root, owner, relative), result = [];
+      const visit = async (directory, prefix) => {if (!fs.existsSync(directory)) return; for (const entry of await fs.promises.readdir(directory, {withFileTypes: true})) if (entry.isDirectory()) {if (entry.name.endsWith('.entries')) result.push(`${prefix}/${entry.name.slice(0, -8)}`); else await visit(path.join(directory, entry.name), `${prefix}/${entry.name}`);}};
+      await visit(directory, relative); return result;
+    },
+    async remove(root, owner, relative, versioned) {await fs.promises.rm(storagePath(root, owner, relative) + (versioned ? '.entries' : ''), {recursive: true, force: true});},
+  };
   function load(filename) {
     filename = path.resolve(filename); if (modules.has(filename)) return modules.get(filename);
     if (filename.endsWith('.json')) return JSON.parse(fs.readFileSync(filename, 'utf8'));
@@ -56,10 +87,10 @@ async function host(t, scenario = 'reader-pdf-import') {
       if (name === 'expo-file-system') return {Directory, File, Paths};
       if (name === 'expo/fetch') return {fetch: (...args) => {events.push(['expo-fetch']); return fetch(...args);}};
       if (name === 'react-native') return {Platform: {OS: 'android'}, AppState: {currentState: 'active', addEventListener(_event, listener) {appListeners.add(listener); return {remove() {appListeners.delete(listener);}};}}};
-      if (name === 'expo-modules-core') return {uuid: {v4: randomUUID}, requireNativeModule: module => module === 'ExponentConstants' ? {manifest: JSON.stringify({slug: 'slax-reader-ui-fixture', scheme: 'slaxreader-ui-fixture', ios: {bundleIdentifier: 'app.slax.reader.uifixture'}, android: {package: 'com.slax.reader.uifixture'}})} : {imageCacheFileUri: (root, _key, relative) => pathToFileURL(path.join(root, relative)).href, pdfCacheFileUri(root, relative) {assert.equal(fileURLToPath(root), applicationRoot); events.push(['pdf-path', relative]); return pathToFileURL(path.join(applicationRoot, 'files', relative)).href;}}};
+      if (name === 'expo-modules-core') return {uuid: {v4: randomUUID}, requireNativeModule: module => module === 'SlaxStorage' ? nativeStorage : module === 'ExponentConstants' ? {manifest: JSON.stringify({slug: 'slax-reader-ui-fixture', scheme: 'slaxreader-ui-fixture', ios: {bundleIdentifier: 'app.slax.reader.uifixture'}, android: {package: 'com.slax.reader.uifixture'}})} : {imageCacheFileUri: (root, _key, relative) => pathToFileURL(path.join(root, relative)).href, pdfCacheFileUri(root, relative) {assert.equal(fileURLToPath(root), applicationRoot); events.push(['pdf-path', relative]); return pathToFileURL(path.join(applicationRoot, 'files', relative)).href;}}};
       if (name === '@powersync/react-native') return {PowerSyncDatabase: Database, Table, Schema, column: {text: 'TEXT', integer: 'INTEGER'}};
       if (name === '../src/config') return {mobileConfig: {platform: 'android'}};
-      if (name === '../src/native/platform') return {activateReaderResources: async owner => events.push(['activate', owner]), revokeReaderResources: async () => events.push(['revoke'])};
+      if (name === '../src/native/platform') return {activateReaderResources: async owner => {resourceOwner = owner; events.push(['activate', owner]);}, revokeReaderResources: async () => {resourceOwner = null; events.push(['revoke']);}};
       if (name === '@slax-reader/contracts/pdf') return load(path.resolve(mobile, '../../packages/contracts/src/pdf.ts'));
       let target = path.resolve(path.dirname(filename), name); if (!path.extname(target)) target = fs.existsSync(`${target}.ts`) ? `${target}.ts` : path.join(target, 'index.ts'); return load(target);
     }}, {filename}); return exports;

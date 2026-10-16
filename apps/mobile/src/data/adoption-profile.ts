@@ -12,7 +12,7 @@ export const REVIEWED_ADOPTION_PROFILE = Object.freeze({
     ios: 'e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3',
   }),
   nativeCompatibilitySources: Object.freeze([
-    Object.freeze({platform: 'android', path: 'modules/slax-legacy/android/src/main/java/com/slax/reader/legacy/SlaxLegacyModule.kt', sha256: '487b780bb58831a2ec2e0452d7077961002764c09a45dbe06f0aa067c8040ef5'}),
+    Object.freeze({platform: 'android', path: 'modules/slax-legacy/android/src/main/java/com/slax/reader/legacy/SlaxLegacyModule.kt', reviewedSource: 'tests/data/adoption-fixtures/reviewed-native/SlaxLegacyModule.kt', sha256: '487b780bb58831a2ec2e0452d7077961002764c09a45dbe06f0aa067c8040ef5'}),
     Object.freeze({platform: 'ios', path: 'modules/slax-legacy/ios/SlaxLegacyModule.swift', reviewedSource: 'tests/data/adoption-fixtures/reviewed-native/SlaxLegacyModule.swift', sha256: 'e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3'}),
     Object.freeze({platform: 'ios', path: 'modules/slax-legacy/ios/DatabaseIdentity.swift', sha256: 'f8f020698a160425d5be842d276f23b0294291a8ab96e07c4db185289aba806a'}),
     Object.freeze({platform: 'ios', path: 'modules/slax-legacy/ios/DatabaseInspection.swift', reviewedSource: 'tests/data/adoption-fixtures/reviewed-native/DatabaseInspection.swift', sha256: '8dcd9b4ff0d188cb70a1c4f347848a61fc98b5b94b1463723a717db82b10ff02'}),
