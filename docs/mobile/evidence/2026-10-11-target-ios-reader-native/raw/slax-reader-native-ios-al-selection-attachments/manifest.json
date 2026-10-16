@@ -1,0 +1,107 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "3A472BD8-3C6D-4ECD-9389-4E225F233449.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "App UI hierarchy for app.slax.reader_0_798313A0-D016-4BCB-BB95-61E4004A37A0.uifixture",
+        "timestamp" : 1791659275.674
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "8A3667E4-4C7B-4A03-BB50-A8C9645C0A3A",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-10-11 at 03.07.55 上午",
+        "timestamp" : 1791659275.674
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "EAED5A16-0AF6-423C-9C8F-86FF0C47194A.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"selection_action_bar\" Other`_0_AEA527DB-A84F-4115-B6AA-E88B768D64A4.txt",
+        "timestamp" : 1791659275.56
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "B21AADA7-1599-4E80-8CB6-143145FE1C65.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"selection_action_bar\" Other`_0_2CBB3E57-5F09-482F-A94F-6A8CC96D6A38.txt",
+        "timestamp" : 1791659274.557
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "82E6CE4E-293D-40C4-A1F9-F029779CC50B.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"selection_action_bar\" Other`_0_69B72DD9-5FA4-4FAA-B1EE-733021164FD5.txt",
+        "timestamp" : 1791659273.597
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "AF4DBC67-CEAE-451A-831A-4142AEDF9A32.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"selection_action_bar\" Other`_0_BE1754E1-4483-47D5-961B-7B3A02DD7BB1.txt",
+        "timestamp" : 1791659272.575
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "DBF95D2A-1F6D-48BD-9647-F44C241C3C77.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"selection_action_bar\" Other`_0_E0783175-B2D6-4F5B-AF14-8AECF4A3C6A9.txt",
+        "timestamp" : 1791659271.582
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "2F447906-DBB5-4E97-8595-DE334CA91913.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "App UI hierarchy for com.apple_0_3CD405C9-0496-42AE-A46D-5036C56E8EC8.springboard",
+        "timestamp" : 1791659269.186
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "86C57C0D-0097-4A71-B201-AE9FA9C99EED",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-10-11 at 03.07.49 上午",
+        "timestamp" : 1791659269.186
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "C9D41660-06AC-411B-A773-521E6A35E0E6.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `Alert (First Match)`_0_DE1EB890-A4AE-461A-BBB3-876E182A171D.txt",
+        "timestamp" : 1791659269.12
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "D9720EE9-F592-4E89-8413-389BB55C0D58.mp4",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Screen Recording 2026-10-11 at 03.07.48 上午.mp4",
+        "timestamp" : 1791659268.042
+      }
+    ],
+    "testIdentifier" : "ReaderNativeControl/testNativeBackClearsPreparedSelection()",
+    "testIdentifierURL" : "test://com.apple.xcode/ReaderNativeControl/ReaderNativeControl/ReaderNativeControl/testNativeBackClearsPreparedSelection"
+  }
+]

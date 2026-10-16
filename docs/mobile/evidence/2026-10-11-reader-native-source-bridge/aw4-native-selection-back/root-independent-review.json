@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "status": "root-independent-one-native-selection-back-evidence-verified",
+  "sourceReport": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/report.json",
+    "sha256": "8fae372f9bb0dccfbf901d5178c9288596451f81a23fa0aaf769d47fb00e7989"
+  },
+  "artifactFilesVerified": 23,
+  "completedXcresultRegularMembersVerifiedAgainstRawAndZip": 38,
+  "actualOneNativeBackPassed": true,
+  "selectionMenuAndNativeRangeCleared": true,
+  "readerAndActual240Retained": true,
+  "fixtureDeviceReleased": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-device-window-release/report.json",
+    "sha256": "c3d912e3dfeb015a90bdefd241a95ec9807e8aeec75af744fff3e6ac71cf9c38"
+  },
+  "scopeLimit": "Same aw4 Alpha selection only, no second Back, cross-paragraph or current refreshed TS/provider/upgrade/publisher acceptance.",
+  "createdAt": 1791675376.0043352
+}

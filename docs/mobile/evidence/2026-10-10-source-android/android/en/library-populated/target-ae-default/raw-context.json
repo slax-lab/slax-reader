@@ -1,0 +1,40 @@
+{
+  "controlledFixture": true,
+  "fixtureVersion": 1,
+  "scenario": "library-populated",
+  "inputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "locale": "en",
+  "nativeMeasurements": {
+    "platform": "android",
+    "osVersion": "14",
+    "deviceModel": "sdk_gphone64_arm64",
+    "viewport": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "screen": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "pixelRatio": 2.625,
+    "fontScale": 1,
+    "fontScaleProfile": "default",
+    "safeArea": {
+      "left": 0,
+      "bottom": 24,
+      "right": 0,
+      "top": 51.80952453613281
+    },
+    "appearance": "light"
+  },
+  "measuredAt": "2026-10-10T17:57:49.051Z",
+  "displayedClock": "pending-native-frame-inspection",
+  "simulatedNetworkAndSync": true,
+  "nativeExecution": "pending-capture",
+  "preparedActions": [],
+  "sourceParity": "unverified"
+}

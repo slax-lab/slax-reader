@@ -1,0 +1,131 @@
+{
+  "date": "2026-10-10",
+  "kind": "mobile-ci-local-trigger-verification",
+  "status": "passed",
+  "method": "Parse committed workflow YAML and evaluate representative positive glob path sets; compare existing API workflows byte-for-byte against origin/dev. No GitHub run or remote operation is performed.",
+  "cases": [
+    {
+      "case": "mobile implementation",
+      "changedPaths": [
+        "apps/mobile/src/screens/ReaderScreen.tsx"
+      ],
+      "eligible": {
+        "mobile-ci.yml": true,
+        "api-ci.yml": false,
+        "api-deploy.yml": false
+      }
+    },
+    {
+      "case": "mobile documentation",
+      "changedPaths": [
+        "docs/mobile/README.md"
+      ],
+      "eligible": {
+        "mobile-ci.yml": true,
+        "api-ci.yml": false,
+        "api-deploy.yml": false
+      }
+    },
+    {
+      "case": "mobile workflow",
+      "changedPaths": [
+        ".github/workflows/mobile-ci.yml"
+      ],
+      "eligible": {
+        "mobile-ci.yml": true,
+        "api-ci.yml": false,
+        "api-deploy.yml": false
+      }
+    },
+    {
+      "case": "root dependency",
+      "changedPaths": [
+        "pnpm-lock.yaml"
+      ],
+      "eligible": {
+        "mobile-ci.yml": true,
+        "api-ci.yml": true,
+        "api-deploy.yml": true
+      }
+    },
+    {
+      "case": "root workspace",
+      "changedPaths": [
+        "pnpm-workspace.yaml"
+      ],
+      "eligible": {
+        "mobile-ci.yml": true,
+        "api-ci.yml": true,
+        "api-deploy.yml": true
+      }
+    },
+    {
+      "case": "shared contract",
+      "changedPaths": [
+        "packages/contracts/src/rss.ts"
+      ],
+      "eligible": {
+        "mobile-ci.yml": true,
+        "api-ci.yml": true,
+        "api-deploy.yml": true
+      }
+    },
+    {
+      "case": "API implementation",
+      "changedPaths": [
+        "apps/api/src/index.ts"
+      ],
+      "eligible": {
+        "mobile-ci.yml": false,
+        "api-ci.yml": true,
+        "api-deploy.yml": true
+      }
+    },
+    {
+      "case": "unrelated web presentation",
+      "changedPaths": [
+        "apps/web/app.vue"
+      ],
+      "eligible": {
+        "mobile-ci.yml": false,
+        "api-ci.yml": false,
+        "api-deploy.yml": false
+      }
+    }
+  ],
+  "existingApiWorkflows": [
+    {
+      "path": ".github/workflows/api-ci.yml",
+      "sha256": "7f0c8c7edc91e4b3bec13baa7fc4e877eef26ea43ec25dfeb1b683c7a95f5639",
+      "byteIdenticalToOriginDev": true
+    },
+    {
+      "path": ".github/workflows/api-deploy.yml",
+      "sha256": "a7e649ee4ea590292387aa248ef94b9d77cbe21b344c14af7bf73efe21086ceb",
+      "byteIdenticalToOriginDev": true
+    }
+  ],
+  "workflowInputs": [
+    {
+      "path": ".github/workflows/mobile-ci.yml",
+      "sha256": "9ddbd1a9951623f761ff2c4e2eea3446b4655f76597504d893d672cb71b6a4e7"
+    },
+    {
+      "path": ".github/workflows/api-ci.yml",
+      "sha256": "7f0c8c7edc91e4b3bec13baa7fc4e877eef26ea43ec25dfeb1b683c7a95f5639"
+    },
+    {
+      "path": ".github/workflows/api-deploy.yml",
+      "sha256": "a7e649ee4ea590292387aa248ef94b9d77cbe21b344c14af7bf73efe21086ceb"
+    }
+  ],
+  "localChecksAlreadyObserved": [
+    "Main Android and iOS development native builds; main JavaScript static/tests and both-platform export recorded in main-development.json."
+  ],
+  "remoteWorkflowExecuted": false,
+  "limitations": [
+    "These local path checks do not establish GitHub-hosted runner execution.",
+    "Root dependencies intentionally remain API-relevant under the unchanged API policy.",
+    "Native UI, provider/payment/crash, release signing and upgrade acceptance remain separate requirements."
+  ]
+}

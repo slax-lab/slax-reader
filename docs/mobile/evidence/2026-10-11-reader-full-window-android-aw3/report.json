@@ -1,0 +1,82 @@
+{
+  "kind": "android-reader-native-initial-position-observation",
+  "schemaVersion": 1,
+  "revision": "aw3",
+  "inputEvidence": [
+    {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/target-driver-aw3.json",
+      "sha256": "ca0badee057adbb23f3001a930c08c16f2c15a7dcdadbbf564a3daf37e6cbe13"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/target-input-update-aw3.json",
+      "sha256": "97eec653cf92f936abbbec8bc578870ca8fa1fb663eb38b5b0bcce44340acd1a"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/target-driver-aw2.json",
+      "sha256": "0b0a62088eb1fc33018c02f9e243719611e26ab9de9273fdf1b4fe0187ba8b89"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-10-source-android/target-apk-artifact-av.json",
+      "sha256": "c050a4378bbed0860fb7ab823d709590e4e478b92ea0df755081c17e43461264"
+    }
+  ],
+  "appId": "com.slax.reader.uifixture",
+  "device": "emulator-5560",
+  "fixtureInputSha256": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f",
+  "actualPosition": {
+    "controlledFixture": true,
+    "fixtureVersion": 1,
+    "cacheKey": "00000003-0000-4000-8000-000000000001",
+    "requestedPixels": 240,
+    "consumed": true,
+    "observed": {
+      "scrollPoints": 91.42857360839844,
+      "contentHeightPoints": 1852.952392578125,
+      "viewportHeightPoints": 914.2857055664062,
+      "positionPixels": 240.0000057220459
+    },
+    "geometry": {
+      "pixelRatio": 2.625,
+      "topInsetPoints": 392.76190185546875,
+      "headerHeightPoints": 392.76190185546875,
+      "containerScreenTopPoints": 0,
+      "webViewScreenTopPoints": 301.3333282470703,
+      "viewportHeightPoints": 914.2857055664062
+    },
+    "scrollContainer": {
+      "contentHeightPoints": 1853.7142333984375,
+      "viewportHeightPoints": 914.2857055664062
+    },
+    "bridge": {
+      "pageId": "reader-1",
+      "ready": true,
+      "documentLoaded": true,
+      "documentHeightPoints": 1461,
+      "nativeTag": 824,
+      "loadStarts": 1,
+      "loadEnds": 1,
+      "messages": 13,
+      "rejectedMessages": 0
+    },
+    "scrollTrace": [
+      {
+        "scrollPoints": 91.42857360839844,
+        "contentHeightPoints": 1852.952392578125,
+        "viewportHeightPoints": 914.2857055664062,
+        "insetPoints": 392.76190185546875,
+        "restoreConsumed": true
+      }
+    ]
+  },
+  "nativeInitialRestoreResult": "passed-scoped-real-callback",
+  "cleanFocusedNativeFrame": true,
+  "nativeGestureVerified": false,
+  "sourceVisualParity": "unverified",
+  "limitations": [
+    "The requested initial position is240 original raw pixels. Actual native callback reports240.0000057220459 due floating point scale conversion; the callback and frame are retained verbatim.",
+    "No position is inferred from consumed=true, and no synthetic native callback or expected size was injected.",
+    "This scope validates saved-position restoration and full-window layout only, not full visual parity or interaction matrix.",
+    "aw2 negative callback evidence remains immutable.",
+    "Stage edits stopped after this capture for the separate allocated iOS native-input window."
+  ]
+}

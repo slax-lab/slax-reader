@@ -1,0 +1,27 @@
+{
+  "status": "producer-passed-upgrade-pending",
+  "date": "2026-10-10",
+  "controlledEmulator": "slax-migration-controlled",
+  "serial": "emulator-5560",
+  "producer": "powersync-kotlin-1.14.1",
+  "coreVersion": "0.5.1/d6c157e7",
+  "androidBundleId": "com.slax.reader",
+  "databasePathReportedByOldSDK": "/data/data/com.slax.reader/databases/powersync.db",
+  "oldSDKClosedBeforeMarker": true,
+  "oldTransactions": 2,
+  "oldOperationCount": 4,
+  "oldOperationIDs": [
+    "tag-1",
+    "bookmark-1",
+    "bookmark-1",
+    "comment-1"
+  ],
+  "originalAndroidXDataStore": "1.2.1",
+  "markerSHA256": "0a566634914395445bee8f5ff9591a635a0325d11ff6a4898df0a263aac9e2ba",
+  "publicDebugCertificateSHA256": "fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c",
+  "sameIdentityUpgradeExecuted": false,
+  "nativeDriverExecuted": false,
+  "serviceReconnect": false,
+  "releaseSignedUpgrade": false,
+  "kernelResolvedDatabasePath": "/data/user/0/com.slax.reader/databases/powersync.db"
+}

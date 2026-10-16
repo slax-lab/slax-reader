@@ -1,0 +1,59 @@
+{
+  "kind": "authorized-testflight-crash-repair",
+  "version": "1.0.25",
+  "build": "766",
+  "previousBuild": "765",
+  "productionApiOrigin": "https://api-reader.slax.com",
+  "testApiOriginExcluded": "https://reader-api.slax.dev",
+  "mainApplicationId": "app.slax.reader",
+  "shareApplicationId": "app.slax.reader.share",
+  "team": "8G3A932HJG",
+  "appGroup": "group.app.slax.reader",
+  "mainFirebaseResourceAndIntegrationVerified": true,
+  "shareFirebaseRequired": false,
+  "archive": {
+    "completedAt": "2026-10-14T04:08:55.806Z",
+    "mainBinarySHA256": "afc447fd967e57a4c8b9ba23dbf38478fcc07479826c92759ce9a05772c55860",
+    "shareBinarySHA256": "cbe715c30f93c9859ca7b33eb62f425a422b6b90c606c5e74fc32a67d752b154",
+    "mainAndShareSignatureIdentityVersionAppGroupVerified": true,
+    "productionMetadataAndJavaScriptVerified": true,
+    "requiredDynamicDependenciesVerified": true,
+    "executablesChecked": 11
+  },
+  "localExport": {
+    "completedAt": "2026-10-14T04:12:04.651Z",
+    "ipaSHA256": "d123e16eeb07b6410162958d630b157304467d93245c9dfce6404e092d5fe7b4",
+    "mainBinarySHA256": "11bddb86abf080b652768e619d47a9bc134d6c7692cb8bd383a6dae9552396c9",
+    "shareBinarySHA256": "3325dc9ef4c8ff7734a41f55946ba75861e5a3de29ec0d7093e90f807c7206b3",
+    "mainAndShareSignatureIdentityVersionAppGroupVerified": true,
+    "productionMetadataAndJavaScriptVerified": true,
+    "requiredDynamicDependenciesVerified": true,
+    "hashScope": "Inspected local export; Xcode subsequently exports the same verified archive for upload. This is not a hash of the bytes received by Apple."
+  },
+  "upload": {
+    "completedAt": "2026-10-14T04:14:51.947Z",
+    "commandSucceeded": true,
+    "appleMessages": ["Uploaded package is processing.", "Upload succeeded."],
+    "processingCompleteVerified": false,
+    "testerAvailabilityVerified": false,
+    "nonBlockingWarnings": [
+      "Missing prebuilt React.framework dSYM",
+      "Missing prebuilt ReactNativeDependencies.framework dSYM",
+      "Missing prebuilt hermesvm.framework dSYM"
+    ]
+  },
+  "verification": {
+    "productionReleaseSimulatorColdLaunchesToLogin": 2,
+    "standardMobileCheck": "passed",
+    "testsPassed": 1025,
+    "testsFailed": 0,
+    "testsSkipped": 0,
+    "typecheck": "passed",
+    "startupEvidence": "../2026-10-14-production-startup/verification.json",
+    "actualGoogleProviderLoginVerified": false,
+    "physicalDeviceVerified": false,
+    "fullNativePdfAnnotationAcceptanceVerified": false
+  },
+  "backendDeployed": false,
+  "publicAppStorePublicationAttempted": false
+}

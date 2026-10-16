@@ -1,0 +1,20 @@
+{
+  "kind": "root-one-fresh-native-alpha-allocation",
+  "version": 1,
+  "phase": "alpha",
+  "executorSHA256": "e1a113bad199a30854fa1565fed21bece6b131221228c6f53a1f562788ea1ca0",
+  "runtimePolicySHA256": "3d2e60cb398c8e2127bbf26e5fb2376186e6bede295d2fce4ce48f3e4e30d5d7",
+  "basePlanSHA256": "f0e459b257a912de98d63ef1dad09e4beadab4249972daf00f2fa1dd32992c98",
+  "runRoot": "/private/tmp/slax-reader-fresh-alpha-cross-38ce646b95414adf8aabe2776c313ca4",
+  "device": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+  "ownedMigrationDevices": [
+    "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+    "88E63005-F681-45A6-AF8D-BEFE4E27584D"
+  ],
+  "exclusiveDeviceLoan": true,
+  "onlyTestIdentifier": "ReaderNativeControl/ReaderNativeControl/testNativeLongPressOriginalBodyWord",
+  "attempts": 1,
+  "noNativeCompile": true,
+  "nonce": "ed1b3911-5046-4314-87c7-b88c5dd7ee92",
+  "expiresAtUnixSeconds": 1791685986.714798
+}

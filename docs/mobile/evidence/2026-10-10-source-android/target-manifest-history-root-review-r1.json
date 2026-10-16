@@ -1,0 +1,43 @@
+{
+  "kind": "historical-target-manifest-metadata-independent-review",
+  "recordedAt": "2026-10-10T21:35:08.013358+00:00",
+  "openSpec": "expo-mobile-migration",
+  "reviewedReport": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-generated-manifest-history-audit.json",
+    "sha256": "ab2bdae3066400401697802cac5091f50aa218b792c9a2297e0ddd15bf970361"
+  },
+  "actualCurrentSourceInputs": [
+    {
+      "path": "apps/mobile/fixtures/FixtureApp.tsx",
+      "sha256": "2a16e73447168e9959c347094c830ce1bfdac1c8df011ff63139fdeedafcbd1b",
+      "affectedDeclarations": 7
+    },
+    {
+      "path": "apps/mobile/src/App.tsx",
+      "sha256": "09de329ac84f3069b2d605a7a155580f786b03a077f2e1ebbf2db92df8821a0d",
+      "affectedDeclarations": 8
+    },
+    {
+      "path": "apps/mobile/src/screens/DeleteAccountScreen.tsx",
+      "sha256": "f65cc0da04e5508bf7d12ccd4125f47762dd85eca040e47baeefc2c62d984265",
+      "affectedDeclarations": 10
+    },
+    {
+      "path": "apps/mobile/src/screens/notice-read-gate.ts",
+      "sha256": "7c2c029b9f10bbeff44df0d2c54cf6d4f4b399a35f0c470aba8476dbc87fd1db",
+      "affectedDeclarations": 10
+    }
+  ],
+  "independentlyVerifiedStaleDeclarations": 35,
+  "reviewPasses": {
+    "Bugs": "The enumerated 35 source/generated digest disagreements and capture-report hashes are accurate.",
+    "Security": "Review reads only the enumerated public source and evidence files.",
+    "Compliance": "The report preserves historical failures and limits; no complete old-stage replay or visual acceptance is claimed."
+  },
+  "nativeExecutionPerformed": false,
+  "historicalCompleteByteReplayEstablished": false,
+  "visualParityAccepted": false,
+  "limitations": [
+    "Current source hashes cannot establish exact byte closure of older stages; historical captures and independently grounded scoped input evidence remain retained."
+  ]
+}

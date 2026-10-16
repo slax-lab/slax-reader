@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "status": "post-complete-module-cache-only-cleanup-accounting",
+  "roots": [
+    {
+      "path": "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata",
+      "conservativeOwnedBytes": 2757889999
+    },
+    {
+      "path": "/tmp/slax-reader-nativebridge-ios-aw4-build",
+      "conservativeOwnedBytes": 235658
+    },
+    {
+      "path": "/tmp/slax-reader-nativebridge-ios-aw4-resume",
+      "conservativeOwnedBytes": 14690479
+    },
+    {
+      "path": "/tmp/slax-reader-nativebridge-ios-aw4-continue-product",
+      "conservativeOwnedBytes": 16636174
+    },
+    {
+      "path": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+      "conservativeOwnedBytes": 16660155
+    }
+  ],
+  "ownedBytes": 2806112465,
+  "budgetBytes": 3758096384,
+  "freeBytes": 4969762816,
+  "floorBytes": 3221225472,
+  "alphaPreInstallReserveBytes": 644245094,
+  "noProductsCopiedOrDeviceCalls": true
+}

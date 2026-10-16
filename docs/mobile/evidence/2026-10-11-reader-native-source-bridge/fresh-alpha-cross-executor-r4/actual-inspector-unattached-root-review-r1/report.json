@@ -1,0 +1,320 @@
+{
+  "kind": "root-actual-fresh-alpha-r4-fixture-inspector-unattached-negative",
+  "version": 1,
+  "openSpecChange": "expo-mobile-migration",
+  "runRoot": "/private/tmp/slax-reader-fresh-alpha-cross-1b39303dfecd4db394e2b95c27e9a962",
+  "elapsedSeconds": 30.612707459000006,
+  "exitCode": 1,
+  "rawReceiptSHA256": "ce889046b037b3c51f11a757dc6fa7a04e4c0247dac43f016e15c17a344d1e71",
+  "rawArchives": [
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/receipt.json",
+      "bytes": 444799,
+      "sha256": "ce889046b037b3c51f11a757dc6fa7a04e4c0247dac43f016e15c17a344d1e71"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/alpha-allocation.json",
+      "bytes": 899,
+      "sha256": "2dd618b227d1590332ead1a8644233d2eceeee80672452ba6e4afdc50f0cefc6"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/03.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/11.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/07.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/15.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/17.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/09.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/05.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/13.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/01.stdout",
+      "bytes": 93,
+      "sha256": "b6d1968e032cda2426b5c461e59263a8d461cc25231bea57f2518f204a10c0a8"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/01.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/13.stderr",
+      "bytes": 403,
+      "sha256": "2b91601b056ba179542e41fbc34855c876ce2caf795cc9b8d84be3f0d347944e"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/05.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/17.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/09.stdout",
+      "bytes": 33,
+      "sha256": "78d537481ab25dbdfea2187a158fcf2c580d47a76b0abf752b9a10df1aae0268"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/15.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/07.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/11.stderr",
+      "bytes": 407,
+      "sha256": "14fbd85e3cf001605decf07f669e21a8d2ba8894cc6b18259ee18ac151afbdf4"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/03.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/06.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/18.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/14.stderr",
+      "bytes": 391,
+      "sha256": "b0fa967ac90d31a68c1f3ff6d84eec4c3268fc32f848ba5ecb0433de1eae18af"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/02.stdout",
+      "bytes": 100,
+      "sha256": "e56900e883325135ff0bc1ce647d160091061fec28620c1bad686e29c1fc4a83"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/10.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/12.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/00.stdout",
+      "bytes": 17185,
+      "sha256": "dfda70058f1540960315ac502cb989b4be43dbe6a8c8232a1cf9915c0aee5cd3"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/08.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/16.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/04.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/04.stdout",
+      "bytes": 287,
+      "sha256": "85ae4ced9bc5ef9349ca95481c6b2a85fe467e4a34ca8060109ff3a4a58103c8"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/08.stdout",
+      "bytes": 17183,
+      "sha256": "6810a5fdbad3353dee1ba7b7cd20119046dae1f9f60e7245f21805f9bad4daf2"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/16.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/00.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/12.stderr",
+      "bytes": 395,
+      "sha256": "c6d53cbe8c60955a8b2c9a79cbf81b6a272792892f9782506a69177dfecac81a"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/10.stderr",
+      "bytes": 738,
+      "sha256": "3afb9fcfc72f3aee8d073f7d3c5d4df6f6867d317715cac4e830d4d820af75e9"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/02.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/14.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/06.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/actual-inspector-unattached-root-review-r1/raw/18.stdout",
+      "bytes": 17185,
+      "sha256": "eed5baf1ab81aa9826622dd5a2723cf55b21285046c8a20728ca644136e78297"
+    }
+  ],
+  "commands": 19,
+  "actualNativeAlphaCommands": 0,
+  "actualNativeCrossCommands": 0,
+  "exactMetroOwnerAdmitted": {
+    "ownedPID": 93891,
+    "argv": "/usr/local/bin/node node_modules/expo/bin/cli start --dev-client --port 8083 --max-workers 1",
+    "cwd": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3",
+    "psRawSHA256": "b6d1968e032cda2426b5c461e59263a8d461cc25231bea57f2518f204a10c0a8",
+    "lsofRawSHA256": "e56900e883325135ff0bc1ce647d160091061fec28620c1bad686e29c1fc4a83",
+    "cwdFields": [
+      "p93891",
+      "fcwd",
+      "n/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3"
+    ]
+  },
+  "failedCommand": {
+    "argv": [
+      "/usr/local/bin/node",
+      "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tooling/fixture-control.mjs",
+      "--platform",
+      "ios",
+      "--device",
+      "SlaxColdShareControlled-20261011-Mg6KLJ",
+      "--case",
+      "reader-mixed",
+      "--locale",
+      "en",
+      "--font-scale",
+      "1"
+    ],
+    "timeoutSeconds": 5,
+    "ownedPID": 16180,
+    "exitCode": 1,
+    "stopped": "ValueError: Allocated command exited nonzero",
+    "stdout": "/private/tmp/slax-reader-fresh-alpha-cross-1b39303dfecd4db394e2b95c27e9a962/logs/10.stdout",
+    "stderr": "/private/tmp/slax-reader-fresh-alpha-cross-1b39303dfecd4db394e2b95c27e9a962/logs/10.stderr",
+    "elapsedSeconds": 0.9447152919999979,
+    "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdoutBytes": 0,
+    "stderrSHA256": "3afb9fcfc72f3aee8d073f7d3c5d4df6f6867d317715cac4e830d4d820af75e9",
+    "stderrBytes": 738
+  },
+  "actualRefusal": "Exactly one matching independent UI fixture target must be attached",
+  "inspectorMatchCountUnknown": true,
+  "launchWasSimctlLaunchWithoutDevClientURL": true,
+  "actualNoDevClientConnectionCauseProved": false,
+  "ownedShutdownReadback": true,
+  "old63And53And377And148Unchanged": true,
+  "finalResources": {
+    "elapsedSeconds": 30.528907624999988,
+    "freeBytes": 4358983680,
+    "owned": {
+      "logicalBytes": 44018456,
+      "allocatedBytes": 44400640,
+      "files": 155
+    },
+    "helpers": {
+      "containers": [
+        {
+          "path": "/Users/daguang/Library/Developer/CoreSimulator/Devices/B85A7582-A0A7-4A0F-9BF0-8424330859F3/data/Containers/Bundle/Application/B35E67E5-4C80-4B45-8BDA-131B48F7D5EE",
+          "identifier": "app.slax.reader.readernativefixture.control.xctrunner",
+          "logicalBytes": 20258646,
+          "allocatedBytes": 20369408,
+          "files": 41
+        },
+        {
+          "path": "/Users/daguang/Library/Developer/CoreSimulator/Devices/B85A7582-A0A7-4A0F-9BF0-8424330859F3/data/Containers/Bundle/Application/087F11BD-EF1C-4BCA-8EC3-76DB8CDEB3D9",
+          "identifier": "app.slax.reader.crossparagraphfixture.control.xctrunner",
+          "logicalBytes": 20626224,
+          "allocatedBytes": 20742144,
+          "files": 41
+        },
+        {
+          "path": "/Users/daguang/Library/Developer/CoreSimulator/Devices/B85A7582-A0A7-4A0F-9BF0-8424330859F3/data/Containers/Data/Application/CE62D2B2-8054-4406-996A-291776333EEC",
+          "identifier": "app.slax.reader.readernativefixture.control.xctrunner",
+          "logicalBytes": 591,
+          "allocatedBytes": 8192,
+          "files": 2
+        },
+        {
+          "path": "/Users/daguang/Library/Developer/CoreSimulator/Devices/B85A7582-A0A7-4A0F-9BF0-8424330859F3/data/Containers/Data/Application/69E9B4B6-C877-42DC-812E-E389C9E83BA7",
+          "identifier": "app.slax.reader.crossparagraphfixture.control.xctrunner",
+          "logicalBytes": 1307,
+          "allocatedBytes": 8192,
+          "files": 2
+        }
+      ],
+      "logicalBytes": 40886768,
+      "allocatedBytes": 41127936
+    },
+    "freshUIScopes": {
+      "scopes": [],
+      "seenNewScopeNames": [],
+      "newParentLogicalBytes": 0,
+      "newParentAllocatedBytes": 0,
+      "logicalBytes": 0,
+      "allocatedBytes": 0
+    },
+    "logBytes": 54400
+  },
+  "crossGrantAbsent": true,
+  "acceptance": {
+    "nativeAlpha": false,
+    "nativeCross": false,
+    "fullVisual": false,
+    "migration": false,
+    "publisher": false
+  },
+  "next": "Review isolated explicit developer-client URL and finite readiness protocol; no reuse of this consumed attempt."
+}

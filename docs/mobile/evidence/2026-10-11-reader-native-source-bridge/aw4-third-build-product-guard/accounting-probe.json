@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "status": "guard-probe-passed",
+  "precedingRunnerSha256": "27e9fb1b585cadf97c90b6cfe20aa7069912112f4b7a5a160b287e9dd5287a05",
+  "owner": {
+    "kind": "slax-reader-nativebridge-ui-build",
+    "version": 1,
+    "stage": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3",
+    "markerSha256": "dee6cc6040c6574b621a2e49a791b8bf285fc4960ccdee3318df4ac4577dc801",
+    "derivedData": "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata",
+    "logRoot": "/tmp/slax-reader-nativebridge-ios-aw4-continue-product",
+    "identity": "app.slax.reader.uifixture",
+    "arm64Only": true,
+    "jobs": 1,
+    "newProductBudget": 3758096384,
+    "minimumFree": 3221225472,
+    "noDeviceCalls": true,
+    "resumedOwnedDD": true,
+    "precedingLogRoots": [
+      "/tmp/slax-reader-nativebridge-ios-aw4-build",
+      "/tmp/slax-reader-nativebridge-ios-aw4-resume"
+    ],
+    "includesAllDistinctAw4BuildLogs": true,
+    "precedingOwnerSha256": "7bd23cef466589eaddc6be05c875a3047963afe48d62214d4e3c3d593666723c",
+    "precedingFailureSha256": "600b54faa605fa9e3f751d79ed3b3bb276e8d6a55eeaf6ca9c61c0f40774f3ef"
+  },
+  "sample": {
+    "at": 1791670397280,
+    "freeBytes": 4068646912,
+    "ownedBytes": 3061044098,
+    "sparseCompilationCache": [
+      {
+        "relativePath": "CompilationCache.noindex/generic/v1.1/v8.data",
+        "logicalBytes": 17179869184,
+        "allocatedBytes": 16384
+      },
+      {
+        "relativePath": "CompilationCache.noindex/generic/v1.1/v8.index",
+        "logicalBytes": 8589934592,
+        "allocatedBytes": 16384
+      },
+      {
+        "relativePath": "CompilationCache.noindex/generic/v1.1/v3.actions",
+        "logicalBytes": 1073741824,
+        "allocatedBytes": 16384
+      }
+    ]
+  },
+  "otherProductsUseConservativeLogicalSize": true
+}

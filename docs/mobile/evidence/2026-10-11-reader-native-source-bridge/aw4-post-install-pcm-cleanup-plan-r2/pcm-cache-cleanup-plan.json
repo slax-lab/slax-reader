@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "status": "r2-corrective-pcm-cache-only-recovery-awaiting-root-review-no-removal",
+  "derivedDataCanonical": "/private/tmp/slax-reader-nativebridge-ios-aw4-deriveddata",
+  "ownedBuildOwner": {
+    "path": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache/owner.json",
+    "sha256": "2128b590d0f0acdbebf722803327df9bfd374927329cdb9178115ec3374a06a7",
+    "markerSha256": "dee6cc6040c6574b621a2e49a791b8bf285fc4960ccdee3318df4ac4577dc801"
+  },
+  "cacheCanonical": "/private/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/Build/Intermediates.noindex/ExplicitPrecompiledModules",
+  "cacheLstat": {
+    "directory": true,
+    "symlink": false
+  },
+  "cacheInventory": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-post-install-pcm-cleanup-plan/pcm-cache-inventory.json",
+    "sha256": "cc0b91d52427cb3e58db7a155b37bff5e693b8e130fcbf636c8177b89095790f",
+    "entries": 4065,
+    "logicalFileBytes": 778258933,
+    "allocatedFileBytes": 789962752
+  },
+  "protectedInventory": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-post-install-pcm-cleanup-plan/protected-dd-inventory.json",
+    "sha256": "23b7970c10ba42b2e334bc9b2bf8af1b3be43963a997b8ff1a2a4080a93e51e2",
+    "entries": 24101
+  },
+  "protectedLogs": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-post-install-pcm-cleanup-plan/protected-five-log-trees.json",
+    "sha256": "567c9b756c79eb87d15976d0222e8a399db2e62c3ebe749c8b7d4967c499e56b",
+    "entries": 41
+  },
+  "externalProtection": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-post-install-pcm-cleanup-plan/external-protection.json",
+    "sha256": "6af70cd3e069b4cc874c76575569bea39027e6d94c27ecd04e48b83540a40f56"
+  },
+  "completeAppAndDsym": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-post-install-pcm-cleanup-plan/complete-signed-app-and-dsym.json",
+    "sha256": "5c716246acc4a92e787d3d14e6a71df4d96739d7fc7c510e1b9106464a596fdf",
+    "entries": 252
+  },
+  "onlyRemoval": "Exact immutable ExplicitPrecompiledModules inventory in completed owned aw4 DD; keep all other DD/stage/log/helper/device/app/data paths",
+  "forbiddenRemoval": [
+    "Products",
+    "XCBuildData",
+    "Index",
+    "CompilationCache",
+    "helper",
+    "other DD",
+    "stage",
+    "device or AppGroup data"
+  ],
+  "noActiveOwnedBuildProcess": true,
+  "noAppRebuildPodsCodegenOrHelperCompilePermitted": true,
+  "minimumFreeBytes": 3221225472,
+  "unchangedBudgetBytes": 3758096384,
+  "beforeAccounting": {
+    "ownedIncludingInstalledAppCopy": 2951673895,
+    "freeBytes": 3715391488
+  },
+  "singleAlphaInputStillPending": true,
+  "installedAppProtection": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-post-install-pcm-cleanup-plan/installed-app-protection.json",
+    "sha256": "52d772dd39d9013d20dbd26f02ba83c304f227f83830234ac41ad256aa10629e",
+    "regularFiles": 148,
+    "observedSourceModeDifferences": 10
+  },
+  "expectedRemovalParentMetadataChange": {
+    "path": "Build/Intermediates.noindex",
+    "kind": "directory",
+    "beforeMode": 493,
+    "beforeMtimeNs": 1791671145712043498,
+    "beforeLogicalBytes": 288,
+    "device": 16777233,
+    "inode": 180821553,
+    "beforeChildren": [
+      "EagerLinkingTBDs",
+      "ExplicitPrecompiledModules",
+      "Pods.build",
+      "PrecompiledHeaders",
+      "SlaxReader.build",
+      "SwiftExplicitPrecompiledModules",
+      "XCBuildData"
+    ],
+    "onlyAllowedChildRemoval": "ExplicitPrecompiledModules",
+    "afterRequired": "Same inode/device/type/mode and exact original children minus this cache; directory mtime/size change expected from child deletion, never normalized"
+  },
+  "precedingR1Plan": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-post-install-pcm-cleanup-plan/pcm-cache-cleanup-plan.json",
+    "sha256": "4e4a10aa3012ae874b06722c45ceb127903b191ff87cb1a514d162da5b07c626",
+    "receiptAbsent": true
+  },
+  "resourceMetadata": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-post-install-pcm-cleanup-plan-r2/system-memory-metadata.json",
+    "sha256": "0a23139b52c36df629ffdc28620109513d2148c3a0c8ec0006d8f760a70f340c"
+  },
+  "correctiveRecoveryMayBeginBelowMinimumFree": true,
+  "recoveryExceptionScope": "Only this exact reviewed PCM inventory deletion; this does not authorize app/helper build, device/input or any other removal below the existing 3 GiB floor",
+  "afterRequired": "Recompute exact free and owned bytes; keep Alpha paused until unchanged 3 GiB floor and separate pre-input reserve are satisfied",
+  "currentFreeBytesBeforeRecovery": 2596302848,
+  "inputBuildOrDeviceMutationAuthorizedByThisPlan": false
+}

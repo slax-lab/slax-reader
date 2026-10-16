@@ -1,0 +1,645 @@
+{
+  "kind": "slax-controlled-passive-input-visible-upgrade-independent-review",
+  "version": 1,
+  "recordedAt": "2026-10-10T20:45:21.689092+00:00",
+  "openSpecChange": "expo-mobile-migration",
+  "reviewedReport": {
+    "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui.json",
+    "sha256": "aca037e517a32eb1fc102d3cb8335d414b3376fb1beba4c300cc62b0d8cd10ec"
+  },
+  "reviewedCleanup": {
+    "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui-cleanup.json",
+    "sha256": "d96ba531ece52b349eb51b61f5382f1888455f429a43f5d92fd3dc9a1b33cef9"
+  },
+  "historicalSourceBindings": {
+    "passiveInputReport": {
+      "path": "docs/mobile/evidence/2026-10-11-reader-passive-input/report.json",
+      "sha256": "6182a86567345b3d08ce4f6982294a16b33090e2b7037d1e03ae073df50991cb"
+    },
+    "matchingInputHashes": {
+      "apps/mobile/src/reader/input.ts": "f58cba33f6ec817c2b28a1239de401751d755b4282c08f7319ec26fda03a0b8c",
+      "apps/mobile/src/reader/types.ts": "9665e33212f163f8e9e9cd4a1391e3eeb60e9e15fe7f0a5f728bcab875afb13d",
+      "apps/mobile/src/reader/bridge.ts": "b5d2b33140ba85bf5ea44ab9aae5ecde9f8933413e9f74664042bf72d2618efd",
+      "apps/mobile/src/reader/document.ts": "2951b3451dd46b9196c7d61ca7a10f3b07ca0b2ab896456454027735be409906",
+      "apps/mobile/src/reader/ReaderWebView.tsx": "b182b5050f2683f7d070d83ee9d92eb270799231ff6fee2a2318ecd63a8c9948",
+      "apps/mobile/src/screens/ReaderScreen.tsx": "7533b969b830bb2b50c1440746fe2ce1f214ac3a653b1a95b985eaf72b5d84a2",
+      "apps/mobile/assets/embedded/js/react-native-host.js": "fe1809f006dcbc91995cd508d36e287e2acda6e6294acee78e8cad0653922bc2",
+      "apps/mobile/src/reader/embedded.generated.ts": "d4fce6797ce13cc2e3366bd30a9941f244593db250728b750d66edcc7dbda1ae",
+      "apps/mobile/src/reader/index.ts": "7629fb901942b5ad7cc3c672ba39d9a1fb471839a239bfcc546aa893a44b7712",
+      "apps/mobile/src/runtime.tsx": "18b4a75beace74f8ea86b8d4b92af20cd768b57b7396cd4ce90fd9dbe075f439",
+      "apps/mobile/tests/reader/input.test.mjs": "9eb843073adb38a6d8f5ba00063a6eba227202d15d76d6751b3fc17020c37a2e",
+      "apps/mobile/tests/reader/dom.test.mjs": "901bb6a364ae541267dcd14bcfaa6c8e2a31cadb50a20fd8ffd1905c4e8ca668",
+      "apps/mobile/tests/reader/screen-lifecycle.test.mjs": "d2b81c959473d3057a20d3b16ffefd27b8f584e7ec0461ff1b1fddfcf492dc6e"
+    },
+    "recordedFrozenInputs": {
+      "apps/mobile/src/reader/input.ts": "f58cba33f6ec817c2b28a1239de401751d755b4282c08f7319ec26fda03a0b8c",
+      "apps/mobile/src/reader/types.ts": "9665e33212f163f8e9e9cd4a1391e3eeb60e9e15fe7f0a5f728bcab875afb13d",
+      "apps/mobile/src/reader/bridge.ts": "b5d2b33140ba85bf5ea44ab9aae5ecde9f8933413e9f74664042bf72d2618efd",
+      "apps/mobile/src/reader/document.ts": "2951b3451dd46b9196c7d61ca7a10f3b07ca0b2ab896456454027735be409906",
+      "apps/mobile/src/reader/ReaderWebView.tsx": "b182b5050f2683f7d070d83ee9d92eb270799231ff6fee2a2318ecd63a8c9948",
+      "apps/mobile/src/screens/ReaderScreen.tsx": "7533b969b830bb2b50c1440746fe2ce1f214ac3a653b1a95b985eaf72b5d84a2",
+      "apps/mobile/assets/embedded/js/react-native-host.js": "fe1809f006dcbc91995cd508d36e287e2acda6e6294acee78e8cad0653922bc2",
+      "apps/mobile/src/reader/embedded.generated.ts": "d4fce6797ce13cc2e3366bd30a9941f244593db250728b750d66edcc7dbda1ae",
+      "apps/mobile/src/reader/index.ts": "7629fb901942b5ad7cc3c672ba39d9a1fb471839a239bfcc546aa893a44b7712",
+      "apps/mobile/src/runtime.tsx": "18b4a75beace74f8ea86b8d4b92af20cd768b57b7396cd4ce90fd9dbe075f439",
+      "apps/mobile/tests/reader/input.test.mjs": "9eb843073adb38a6d8f5ba00063a6eba227202d15d76d6751b3fc17020c37a2e",
+      "apps/mobile/tests/reader/dom.test.mjs": "901bb6a364ae541267dcd14bcfaa6c8e2a31cadb50a20fd8ffd1905c4e8ca668",
+      "apps/mobile/tests/reader/screen-lifecycle.test.mjs": "d2b81c959473d3057a20d3b16ffefd27b8f584e7ec0461ff1b1fddfcf492dc6e",
+      "apps/mobile/src/components/SourceUI.tsx": "f36fa4ce71906c96e3d4fade725aff44522a15bc1987d5dcf381acf0d85651f2",
+      "apps/mobile/src/components/source-font-scaling.ts": "f808a0dd21e5b45ee407ed068f16cec67084493b086e848c036bf4f9ebbc45bb",
+      "apps/mobile/src/App.tsx": "09de329ac84f3069b2d605a7a155580f786b03a077f2e1ebbf2db92df8821a0d",
+      "apps/mobile/src/data/runtime.ts": "0df561a63c028c87e44bc511f41ee78c604001baf31a27613239cb0559f718ba",
+      "apps/mobile/src/data/adoption-profile.ts": "0782206ef8680766f1c12c88661df9c702b52ec37c48b0da6a8e762715c6624b",
+      "apps/mobile/tests/data/NativeUpgradeVisibleFixtureApp.tsx": "7c19bf4152218974aed8b11216e1b4a7f1d6cf4667c59be8d1eb01337dcf88a9",
+      "apps/mobile/tests/data/NativeAdoptionFixtureApp.tsx": "e7da534d9a4cd081c2634870322c96c25b7952dcf567e44ffcab89dfb74f64b0",
+      "apps/mobile/tests/data/adoption-fixtures/tooling/visible-upgrade-control.mjs": "e07d80e7fb3f68b1327c9e24a1e5da8b0ff433fc922e217077c6bae9f822b392"
+    },
+    "notCurrentSourceOrNewNativeBinaryProof": true
+  },
+  "verifiedRawArtifacts": [
+    {
+      "name": "fixture-run.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/fixture-run.json",
+      "sha256": "7e0b19c3ec1c657391af827ae9c9695703a1e831228eb3db3442adffd1f3009b"
+    },
+    {
+      "name": "launched.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/launched.json",
+      "sha256": "d9da25801191d2da780d75dcc9944507b44af40d6728cc98ea543d782dfd282b"
+    },
+    {
+      "name": "native-upgrade-ui-request.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/native-upgrade-ui-request.json",
+      "sha256": "086f88c1bd03c04e65816527b627d296ab3758f67a260f8400d7905fc9a30875"
+    },
+    {
+      "name": "initial-inspection-result.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/initial-inspection-result.json",
+      "sha256": "e6fc5849acf7c30c9b1e17629106efb43eb3d67fcb061809c91018e1acf76141"
+    },
+    {
+      "name": "initial-inspection-xctest.log",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/initial-inspection-xctest.log",
+      "sha256": "28117209eafc935db3c8a58feeb9c5f559ca470548472ff37c1129a4747397ae"
+    },
+    {
+      "name": "initial-inspection-before-context.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/initial-inspection-before-context.json",
+      "sha256": "85cb2ea0869e238f8ab7ff843c1db4af43a017195c67f27c74f5b13b345a4727"
+    },
+    {
+      "name": "initial-inspection-after-context.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/initial-inspection-after-context.json",
+      "sha256": "fa8fc3aee2507c3ee6243af438da7daf1539f5103feea6ec3c6ae3633d9a5129"
+    },
+    {
+      "name": "initial-inspection-attachments/08B7C0DB-0E65-4E58-AA31-D11EC77CCF28.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/initial-inspection-attachments/08B7C0DB-0E65-4E58-AA31-D11EC77CCF28.png",
+      "sha256": "26939468586686d0ec2eb3e7f82a3976962f118347f1bcebaf02bcc3584f8261"
+    },
+    {
+      "name": "initial-inspection-attachments/66C98297-E57C-4178-B1E0-CA12C80D2C05.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/initial-inspection-attachments/66C98297-E57C-4178-B1E0-CA12C80D2C05.txt",
+      "sha256": "96d468b2bae060e5f43f867088fe9a585028f077326b261f5e8faba7dded83e6"
+    },
+    {
+      "name": "initial-inspection-attachments/manifest.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/initial-inspection-attachments/manifest.json",
+      "sha256": "b3a6f408cf066f23409054aa31533d769a0550d912bca38641fad13f1fa4e066"
+    },
+    {
+      "name": "observed-onboarding-result.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-result.json",
+      "sha256": "64613e5f0e16ccb8b217c2e46709c079119d5a43f872518e3effe0eafb98c363"
+    },
+    {
+      "name": "observed-onboarding-xctest.log",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-xctest.log",
+      "sha256": "b8debeb01fbf2e70b6455d97315c3c8a620aa383b6aeda5b57c4ad1becbd9811"
+    },
+    {
+      "name": "observed-onboarding-before-context.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-before-context.json",
+      "sha256": "e881c0e754dc087b30e20162fdd77d3e76bb113f267bb5ee886b756b1a909223"
+    },
+    {
+      "name": "observed-onboarding-after-context.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-after-context.json",
+      "sha256": "d9dae7aac11e2b1c90db8ec4a0578a99f612c0a066c9f74d94bed9c78650c97d"
+    },
+    {
+      "name": "observed-onboarding-attachments/25B67E52-0523-41A9-A3F1-1B8FD07E35DF.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-attachments/25B67E52-0523-41A9-A3F1-1B8FD07E35DF.txt",
+      "sha256": "e54eb466c41102f1f567075128fe670fe260c08f0fc0061c4eff5059c4173328"
+    },
+    {
+      "name": "observed-onboarding-attachments/656A3D40-3C27-460D-A1A7-857792EC5DA7.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-attachments/656A3D40-3C27-460D-A1A7-857792EC5DA7.txt",
+      "sha256": "6fc67d0610cc1c4f0ca15fe6a8d16532ee933d44aac4fcf2aa9eae8cb4d51b9e"
+    },
+    {
+      "name": "observed-onboarding-attachments/6CAC52C4-AC63-4E0B-871D-0309C1728D1A.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-attachments/6CAC52C4-AC63-4E0B-871D-0309C1728D1A.png",
+      "sha256": "dfac23febe16159401d6ac26c44930a17f6a8c094dee6948070ff9aee440f791"
+    },
+    {
+      "name": "observed-onboarding-attachments/8DC93A75-E8B1-4391-8A32-B388132908B2.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-attachments/8DC93A75-E8B1-4391-8A32-B388132908B2.png",
+      "sha256": "946014fc8fe91d63ca602f8c83129df7ff63345ec2932421c16f0c0e3ecbffbf"
+    },
+    {
+      "name": "observed-onboarding-attachments/manifest.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-attachments/manifest.json",
+      "sha256": "99b1abf6b16aaa27d182b1d74291b367b3a6bba88e0f01ca94f2397ba096b6cb"
+    },
+    {
+      "name": "original-underline-result.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-result.json",
+      "sha256": "de92f53489bc3517fa4a01dbf1a155319b1019a90ac2b0ca725d3af682b95aae"
+    },
+    {
+      "name": "original-underline-xctest.log",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-xctest.log",
+      "sha256": "e03db847efdebd9700d821f29b4d1a7ef4c76bea9d25a58a00a48cbb60710011"
+    },
+    {
+      "name": "original-underline-before-context.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-before-context.json",
+      "sha256": "52400ad368126ce89c66adcc42346ea576963ad38f205f6b9a5b4cd6b0506743"
+    },
+    {
+      "name": "original-underline-after-context.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-after-context.json",
+      "sha256": "4bc8e3e7fbd3ac49458dd386022b0f608c08eb91ebd9b0c188003549f16e25bc"
+    },
+    {
+      "name": "original-underline-after-observations.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-after-observations.json",
+      "sha256": "eaca7d1b1b6e9c27c31510163bfb48c40aab3244b5ec6ff2d69436dbfe28fc21"
+    },
+    {
+      "name": "original-underline-attachments/09BB0643-DFA7-4EF6-B771-906B57A0392D.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/09BB0643-DFA7-4EF6-B771-906B57A0392D.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4"
+    },
+    {
+      "name": "original-underline-attachments/114CE949-E1C8-46F0-ADFC-D42A39767406.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/114CE949-E1C8-46F0-ADFC-D42A39767406.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4"
+    },
+    {
+      "name": "original-underline-attachments/16E18BC0-7732-47BA-8BC1-C65F2161C29E.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/16E18BC0-7732-47BA-8BC1-C65F2161C29E.png",
+      "sha256": "cc8f3a607b73f8c35e90a535d73d90b4e96c4fc278f9b869a0d7e9847c5024cd"
+    },
+    {
+      "name": "original-underline-attachments/3ABD5856-29E2-4AD6-AF74-78A6D97E1E92.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/3ABD5856-29E2-4AD6-AF74-78A6D97E1E92.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4"
+    },
+    {
+      "name": "original-underline-attachments/3F45CCDC-AC91-4D27-B0A2-E03556DA43F5.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/3F45CCDC-AC91-4D27-B0A2-E03556DA43F5.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4"
+    },
+    {
+      "name": "original-underline-attachments/48A0150F-0499-443B-9D32-C7409CCF4590.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/48A0150F-0499-443B-9D32-C7409CCF4590.txt",
+      "sha256": "5c233867e2541d38d0595898d61c3cfbd6d1669078c58b62b2fcae279958e0b9"
+    },
+    {
+      "name": "original-underline-attachments/4A2BAA62-9899-46C2-837D-E857893F5F19.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/4A2BAA62-9899-46C2-837D-E857893F5F19.txt",
+      "sha256": "fa8b467c1282cf6fc20a56b180039aec27fe3a7ad82c6d74c4263b55fa0ed4db"
+    },
+    {
+      "name": "original-underline-attachments/58E110AE-53E1-4218-89FC-F3FB613ED070.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/58E110AE-53E1-4218-89FC-F3FB613ED070.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4"
+    },
+    {
+      "name": "original-underline-attachments/60E1FFF0-FC8C-4CC9-8885-E0DD077122E9.mp4",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/60E1FFF0-FC8C-4CC9-8885-E0DD077122E9.mp4",
+      "sha256": "4f8d58d9f2ca2b8db0a5dcc5950157025ffa6b3427285c84e596f023a11c6188"
+    },
+    {
+      "name": "original-underline-attachments/65D6F4FB-559F-4708-832B-795B33E462F0.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/65D6F4FB-559F-4708-832B-795B33E462F0.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4"
+    },
+    {
+      "name": "original-underline-attachments/6C1A0B26-1CA1-4B13-A26E-4C39CDF353DF.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/6C1A0B26-1CA1-4B13-A26E-4C39CDF353DF.txt",
+      "sha256": "0cbb30c98dd18289697a49432c7bc795fe8391d6e23706283e4dbeb2abf8a084"
+    },
+    {
+      "name": "original-underline-attachments/6FD33892-C8CA-4705-A9EA-017C4CE1239A.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/6FD33892-C8CA-4705-A9EA-017C4CE1239A.txt",
+      "sha256": "5c233867e2541d38d0595898d61c3cfbd6d1669078c58b62b2fcae279958e0b9"
+    },
+    {
+      "name": "original-underline-attachments/7A38E80C-F318-4BF2-9D48-9F2DF5D7AE09.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/7A38E80C-F318-4BF2-9D48-9F2DF5D7AE09.txt",
+      "sha256": "dfbe5632ac7c871372324928c57b4ce26f8bac5362f1c13e70ddb82cafdf6db7"
+    },
+    {
+      "name": "original-underline-attachments/B7679333-2283-46BD-8778-96553A7FB482.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/B7679333-2283-46BD-8778-96553A7FB482.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4"
+    },
+    {
+      "name": "original-underline-attachments/BE559CE2-A613-4C1C-9419-BD934B7A4D86.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/BE559CE2-A613-4C1C-9419-BD934B7A4D86.txt",
+      "sha256": "f2c5a07e88662e4e7f331613a71e271d0879ec03addcf87d5cff61b3ed1add8c"
+    },
+    {
+      "name": "original-underline-attachments/C247B432-FACD-420A-A780-99D55B9D2BD9.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/C247B432-FACD-420A-A780-99D55B9D2BD9.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4"
+    },
+    {
+      "name": "original-underline-attachments/D3F4E7F4-11E4-45F9-93CD-20D54CA88AF6.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/D3F4E7F4-11E4-45F9-93CD-20D54CA88AF6.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4"
+    },
+    {
+      "name": "original-underline-attachments/F4F915FF-E0CB-4CAA-ADAA-60448DBA0559.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/F4F915FF-E0CB-4CAA-ADAA-60448DBA0559.txt",
+      "sha256": "4c3eee2f5eeeb1385b538504c12721a41d17d792c522e290b6f9fc19e07be6e4"
+    },
+    {
+      "name": "original-underline-attachments/manifest.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-attachments/manifest.json",
+      "sha256": "713c5affc498a138c94a1a8c8360541a2e08e282cdcacea3c325cab9ef756b89"
+    },
+    {
+      "name": "actual-open-comment-panel-result.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-result.json",
+      "sha256": "1513655567cff7057bf84cf15d1e8133412a9636263920c30347991bb8c478c8"
+    },
+    {
+      "name": "actual-open-comment-panel-xctest.log",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-xctest.log",
+      "sha256": "da30d97905ff6f1e95b89ebd44e41abd8469ad3ab236980876de95c7f08145e5"
+    },
+    {
+      "name": "actual-open-comment-panel-before-context.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-before-context.json",
+      "sha256": "3fc81fe423b1be4928d5941f32ebe4e709da815c78c7c2e778c7ee53634a9838"
+    },
+    {
+      "name": "actual-open-comment-panel-after-context.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-after-context.json",
+      "sha256": "e782f54a16bec172eedfb20056b60927132baee57e4a7123ec3c48e85550299e"
+    },
+    {
+      "name": "actual-open-comment-panel-before-observations.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-before-observations.json",
+      "sha256": "eaca7d1b1b6e9c27c31510163bfb48c40aab3244b5ec6ff2d69436dbfe28fc21"
+    },
+    {
+      "name": "actual-open-comment-panel-after-observations.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-after-observations.json",
+      "sha256": "eaca7d1b1b6e9c27c31510163bfb48c40aab3244b5ec6ff2d69436dbfe28fc21"
+    },
+    {
+      "name": "actual-open-comment-panel-attachments/1B698696-774F-48F4-A36C-348700365873.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-attachments/1B698696-774F-48F4-A36C-348700365873.txt",
+      "sha256": "c2b38605e843fd4cedf573206697fa8d81d9ae2d876acd48d32384c9266cd410"
+    },
+    {
+      "name": "actual-open-comment-panel-attachments/A50BDA04-E20D-4562-B0A7-DE8966EF74EE.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-attachments/A50BDA04-E20D-4562-B0A7-DE8966EF74EE.png",
+      "sha256": "18e93ee7339d5aa0cfd23aae1826134e91d327614e3c961229f82c55b16d5064"
+    },
+    {
+      "name": "actual-open-comment-panel-attachments/manifest.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-attachments/manifest.json",
+      "sha256": "7162eb501d815ff4af62fa094c8474d3cd2d9382f34c35475265281db2fe316e"
+    },
+    {
+      "name": "observed-logbox-close-result.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-result.json",
+      "sha256": "333870fdf025cdf2db89bd0b4b6f7797b1ec773a6194b9703ac8d8239dedadff"
+    },
+    {
+      "name": "observed-logbox-close-xctest.log",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-xctest.log",
+      "sha256": "49ccf49ddf93aa443b280ef1576effdff0c4cf63ef5d8476847b122c08bcfca6"
+    },
+    {
+      "name": "observed-logbox-close-before-context.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-before-context.json",
+      "sha256": "b03748fd78f48ef331333bad1f9fca6321e0496f1859efb205deed2030eaf893"
+    },
+    {
+      "name": "observed-logbox-close-after-context.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-after-context.json",
+      "sha256": "662ba6a28a004c03188721223de489b58de8812eb5f28a9f12f968b31ae08f17"
+    },
+    {
+      "name": "observed-logbox-close-before-observations.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-before-observations.json",
+      "sha256": "eaca7d1b1b6e9c27c31510163bfb48c40aab3244b5ec6ff2d69436dbfe28fc21"
+    },
+    {
+      "name": "observed-logbox-close-after-observations.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-after-observations.json",
+      "sha256": "eaca7d1b1b6e9c27c31510163bfb48c40aab3244b5ec6ff2d69436dbfe28fc21"
+    },
+    {
+      "name": "observed-logbox-close-attachments/2282C4CB-CCA9-402F-AF3B-4502130227D4.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-attachments/2282C4CB-CCA9-402F-AF3B-4502130227D4.txt",
+      "sha256": "30b68736eb21f01bdd17f191b501d57055705bd5a211c76413e09f0213307aaf"
+    },
+    {
+      "name": "observed-logbox-close-attachments/52528498-E3F3-4A05-90D1-E4CDBB51CB13.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-attachments/52528498-E3F3-4A05-90D1-E4CDBB51CB13.png",
+      "sha256": "a07f30f00c5597d86af6502f23e084316548b8fec6ed6004cda6568d4dd318e3"
+    },
+    {
+      "name": "observed-logbox-close-attachments/76F61B8B-F821-4FEF-8696-5C29DF2D2A7B.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-attachments/76F61B8B-F821-4FEF-8696-5C29DF2D2A7B.png",
+      "sha256": "a07f30f00c5597d86af6502f23e084316548b8fec6ed6004cda6568d4dd318e3"
+    },
+    {
+      "name": "observed-logbox-close-attachments/EE90F5EF-DFB2-436E-AD88-96F37BE21BB6.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-attachments/EE90F5EF-DFB2-436E-AD88-96F37BE21BB6.txt",
+      "sha256": "3543a25f4cd6ba97836eb5102804a2694c426be7c86c9971455c9583657f7180"
+    },
+    {
+      "name": "observed-logbox-close-attachments/manifest.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-attachments/manifest.json",
+      "sha256": "79ea6673e0230d992c2982775d7b37d64a8d027608d3e39666c734ded54e0ff4"
+    },
+    {
+      "name": "real-native-back-result.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-result.json",
+      "sha256": "465a9994075596f22e08e82cf6a275b53ee2dfea39d22e13576ac55e01ae4760"
+    },
+    {
+      "name": "real-native-back-xctest.log",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-xctest.log",
+      "sha256": "8ac5edfde35bfa10691d352117d94e246db4a533062b04cbc4ed1f4e98c15b5b"
+    },
+    {
+      "name": "real-native-back-before-context.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-before-context.json",
+      "sha256": "75da7ac0e7e1c9ca6eaa5f1e63881a151ab0012cb79ed381fc209933ee23c470"
+    },
+    {
+      "name": "real-native-back-after-context.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-after-context.json",
+      "sha256": "f105bd4171079cf9f86f818d3cd7d1d857d09eb8cd1e87e2907e7063b6c99bc8"
+    },
+    {
+      "name": "real-native-back-before-observations.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-before-observations.json",
+      "sha256": "eaca7d1b1b6e9c27c31510163bfb48c40aab3244b5ec6ff2d69436dbfe28fc21"
+    },
+    {
+      "name": "real-native-back-after-observations.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-after-observations.json",
+      "sha256": "ae1dbb48368deb5db8cb0a196a7ef768a8953b56247a9fd2f9a1ea7ab33daa66"
+    },
+    {
+      "name": "real-native-back-attachments/17A6283A-B17B-4D62-A486-F0502EA355EB.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/17A6283A-B17B-4D62-A486-F0502EA355EB.png",
+      "sha256": "a07f30f00c5597d86af6502f23e084316548b8fec6ed6004cda6568d4dd318e3"
+    },
+    {
+      "name": "real-native-back-attachments/21229979-76C5-43BE-8F8D-7EC0CF74B3BF.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/21229979-76C5-43BE-8F8D-7EC0CF74B3BF.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187"
+    },
+    {
+      "name": "real-native-back-attachments/23A5078C-BA42-41BF-9A8E-A0C99A0347A4.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/23A5078C-BA42-41BF-9A8E-A0C99A0347A4.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187"
+    },
+    {
+      "name": "real-native-back-attachments/26D8B968-472D-43D5-939A-B81A0C8AB647.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/26D8B968-472D-43D5-939A-B81A0C8AB647.txt",
+      "sha256": "65459fdc7bee9e6a72a02e6541b856c4fed3940fa2a50c51f8fc1e85da328a44"
+    },
+    {
+      "name": "real-native-back-attachments/33C64EDA-4A12-4B24-8A79-07A3948CC86A.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/33C64EDA-4A12-4B24-8A79-07A3948CC86A.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187"
+    },
+    {
+      "name": "real-native-back-attachments/4FF450FA-BC91-457C-AE34-1418EE966EC2.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/4FF450FA-BC91-457C-AE34-1418EE966EC2.txt",
+      "sha256": "8f9fa1a1c75bf34151d6d0660cf2456469e3a17b139718cd6dbfb97c75995bfb"
+    },
+    {
+      "name": "real-native-back-attachments/501E1BDD-22FA-4BA9-B0C0-00DD6A2744AD.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/501E1BDD-22FA-4BA9-B0C0-00DD6A2744AD.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187"
+    },
+    {
+      "name": "real-native-back-attachments/61138550-D498-41E5-B182-940EA0793CB0.mp4",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/61138550-D498-41E5-B182-940EA0793CB0.mp4",
+      "sha256": "be8ae4523106172d6ef2eae5a43e662b38b112d3b09379165d582f89fb4e4a26"
+    },
+    {
+      "name": "real-native-back-attachments/9723AF5F-020C-48F1-9053-AA96E9D624B0.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/9723AF5F-020C-48F1-9053-AA96E9D624B0.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187"
+    },
+    {
+      "name": "real-native-back-attachments/9CCD7F24-5839-458A-BCEE-993262B65892.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/9CCD7F24-5839-458A-BCEE-993262B65892.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187"
+    },
+    {
+      "name": "real-native-back-attachments/E1152878-EB6F-4194-840D-8E87F9834373.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/E1152878-EB6F-4194-840D-8E87F9834373.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187"
+    },
+    {
+      "name": "real-native-back-attachments/E33DE0EF-B293-417F-865C-1B789A174ABB.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/E33DE0EF-B293-417F-865C-1B789A174ABB.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187"
+    },
+    {
+      "name": "real-native-back-attachments/FC79A844-4E61-4266-8436-CD1AD3421059.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/FC79A844-4E61-4266-8436-CD1AD3421059.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187"
+    },
+    {
+      "name": "real-native-back-attachments/FFC32F4C-809F-4371-8D36-D331EF14C58A.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/FFC32F4C-809F-4371-8D36-D331EF14C58A.txt",
+      "sha256": "4dd093aacbc68859918e0882a6524fc732b01dcc2b0dd77d21e3a2b793bf4187"
+    },
+    {
+      "name": "real-native-back-attachments/manifest.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-attachments/manifest.json",
+      "sha256": "7242f7bf78c1ac33381fb59ffc07767084cf1580eb138f10835ec71bae12096d"
+    },
+    {
+      "name": "real-native-back-second-result.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-result.json",
+      "sha256": "d4cae3310d3082ce835ca0a42ac19a18efc8921401a1e3aa64f0677ca849b090"
+    },
+    {
+      "name": "real-native-back-second-xctest.log",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-xctest.log",
+      "sha256": "6803c57f14b7a63eefd8d1a3a9bf043e1a71820f177b553ba270ae7ca19a8658"
+    },
+    {
+      "name": "real-native-back-second-before-context.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-before-context.json",
+      "sha256": "a9203207f7332b5f644fa379927ec1641630b6f965090c7777f17573f6128aee"
+    },
+    {
+      "name": "real-native-back-second-after-context.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-after-context.json",
+      "sha256": "89e516850845b788957aff73b6d13888df3f2b7bc56d8fbfe1518d0eabdde1bf"
+    },
+    {
+      "name": "real-native-back-second-before-observations.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-before-observations.json",
+      "sha256": "ae1dbb48368deb5db8cb0a196a7ef768a8953b56247a9fd2f9a1ea7ab33daa66"
+    },
+    {
+      "name": "real-native-back-second-after-observations.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-after-observations.json",
+      "sha256": "a1c5fea3efbff46b916b5b0d546b450879c7fa929a413ffa46590670e6033322"
+    },
+    {
+      "name": "real-native-back-second-attachments/3746E8F8-09BF-4AD2-B34E-ECD876EDF929.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-attachments/3746E8F8-09BF-4AD2-B34E-ECD876EDF929.png",
+      "sha256": "6648fa1816500731dfb2541310f8e8d2d2c22ba27245650fe5c87a0f613c26fb"
+    },
+    {
+      "name": "real-native-back-second-attachments/92BBDB26-8489-41BF-9E0F-086244DC60B9.png",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-attachments/92BBDB26-8489-41BF-9E0F-086244DC60B9.png",
+      "sha256": "74f8bc47609defb63f3c74c3214d6698745113c5b98128a18baa3389949ea85c"
+    },
+    {
+      "name": "real-native-back-second-attachments/D134C3EA-875A-4EC3-856C-F9C251EEB592.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-attachments/D134C3EA-875A-4EC3-856C-F9C251EEB592.txt",
+      "sha256": "0e6a5d2ab1d4e1c10071eccf06d33ab7c43abbfbd3ad1a42d8eeb6402f19cb82"
+    },
+    {
+      "name": "real-native-back-second-attachments/D82DC173-BEE0-49B4-B383-CC8A2BC5111A.txt",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-attachments/D82DC173-BEE0-49B4-B383-CC8A2BC5111A.txt",
+      "sha256": "71102a355be93b48d50779c24515214ee99adc931278798415edffb7954fb02e"
+    },
+    {
+      "name": "real-native-back-second-attachments/manifest.json",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-attachments/manifest.json",
+      "sha256": "4ffbaa1ca942ea55a8c718f698a0f8f2bf22a3b29090da326a4d69d5594b320c"
+    },
+    {
+      "name": "controlled-start.mjs",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/controlled-start.mjs",
+      "sha256": "d6f89432bbb3e4154f1a02a3aac56df7d83c6beb0dfa01a60f920e37119e4fbd"
+    },
+    {
+      "name": "controlled-test.mjs",
+      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/controlled-test.mjs",
+      "sha256": "83eaf7f961a9edbb4bbd4e2712d82e2ae708612b83157e242bb8759e468759c2"
+    }
+  ],
+  "guardedBeforeAndAfterContexts": [
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/initial-inspection-before-context.json",
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/initial-inspection-after-context.json",
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-before-context.json",
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-onboarding-after-context.json",
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-before-context.json",
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/original-underline-after-context.json",
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-before-context.json",
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-after-context.json",
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-before-context.json",
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/observed-logbox-close-after-context.json",
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-before-context.json",
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-after-context.json",
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-before-context.json",
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-after-context.json"
+  ],
+  "actualNativeExecution": {
+    "testsExecuted": 7,
+    "testsPassed": 5,
+    "testsFailed": 2,
+    "exitStatuses": [
+      0,
+      0,
+      65,
+      0,
+      0,
+      65,
+      0
+    ],
+    "failedResultsPreserved": true,
+    "mainPid": 23837,
+    "device": "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+    "nonce": "892f62ab-a252-4dbd-9168-545c99aeeead",
+    "nativeResourceOwner": "2463a390-8aae-4e37-9f5e-66dad16cdea6",
+    "freshBindingFromExternalGuards": true,
+    "retainedHelperDoesNotItselfProveFreshNonce": true
+  },
+  "independentFindings": [
+    {
+      "status": "confirmed",
+      "claim": "One genuine native tap on the retained original mark reached the unmodified source handler, parsed valid mark message, and active reader screen. The native panel and Pending comment are visible in the archived screenshot and exact accessibility tree.",
+      "evidence": "The panel occurs once; the comment is one Other element and zero StaticText elements. The original helper assertion therefore failed despite a visible comment."
+    },
+    {
+      "status": "confirmed",
+      "claim": "The first genuine Back dismissed the comment panel and kept the same Reader route. A second genuine Back returned to Library with index zero and no remaining back route.",
+      "evidence": "The first helper expected Library too early and exited 65; later exact native tree has no panel/comment, while route remains Reader. The second helper exited zero; the attachment manifest identifies 3746E8F8 as Library after Back, not the 92BB screenshot before Back."
+    },
+    {
+      "status": "confirmed",
+      "claim": "Unmount, dispose request, position flush completion and native detach completion were recorded in order for reader-1/native tag 404.",
+      "evidence": "Actual bounded observer events and route contexts share the externally guarded fresh run."
+    },
+    {
+      "status": "open",
+      "claim": "This run retained local position 351 physical pixels; the earlier source value 348.25 differs by 2.75. Exact source restoration remains unaccepted."
+    },
+    {
+      "status": "open",
+      "claim": "The controlled offline SDK retry caused a development LogBox to reappear. These are functional captures; full clean-frame visual parity is unaccepted."
+    },
+    {
+      "status": "open",
+      "claim": "Target-generated pending operations 7, 8 and 9 remain in the preserved sandbox and were not uploaded. The automatic personal-bookmark read write is absent from the original source and is being removed in a separate subsequent patch."
+    },
+    {
+      "status": "bounded",
+      "claim": "Process termination removed the matching request and released OS resources. No post-exit SDK owner probe or new-owner graceful close is claimed."
+    }
+  ],
+  "reviewPasses": {
+    "bugs": "Scoped interaction and back claims agree with exact raw evidence; both failed helper results remain visible. The pending automatic read mutation is a separate unresolved source-parity issue at this snapshot.",
+    "security": "Controlled native routes used the retained real SDK/database/cache; no fixture-only rows, DOM interaction injection, account transaction or forwarded production transport is claimed. The observer exposes bounded counts and flags.",
+    "compliance": "The scoped migration evidence does not complete full native, visual, publisher-upgrade or TestFlight acceptance. No task was checked solely from helper fixes that have not compiled or executed."
+  },
+  "inspectedScreenshots": [
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/actual-open-comment-panel-attachments/A50BDA04-E20D-4562-B0A7-DE8966EF74EE.png",
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-attachments/92BBDB26-8489-41BF-9E0F-086244DC60B9.png",
+    "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-attachments/3746E8F8-09BF-4AD2-B34E-ECD876EDF929.png"
+  ],
+  "scope": {
+    "legacyCommentTapConfirmed": true,
+    "transientBackThenLibraryConfirmed": true,
+    "nativeSelectionPublicationVerified": false,
+    "wholeMigrationAcceptance": false,
+    "visualParity": false,
+    "exactFractionalPositionParity": false,
+    "androidFullRowUpgradeAcceptance": false,
+    "currentQueueUploadAcceptance": false,
+    "publisherSignedUpgrade": false,
+    "testFlight": false
+  },
+  "helperPatch": {
+    "path": "apps/mobile/tests/data/adoption-fixtures/native/UpgradeVisibleControl.swift",
+    "recordedSHA256": "9149d10516fe5894ddff6c7f3fa5256df0dedda2a94aa0a83d5ede86f6c9a291",
+    "compiledOrExecuted": false,
+    "notUsedAsPositiveExecutionProof": true
+  },
+  "historicalReportsAndSandboxesPreserved": true
+}

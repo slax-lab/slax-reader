@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "status": "readonly-candidate-inventory-not-approved-no-removal",
+  "candidateCanonical": "/private/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/Build/Intermediates.noindex/ExplicitPrecompiledModules",
+  "ownedBuildOwner": {
+    "path": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache/owner.json",
+    "sha256": "2128b590d0f0acdbebf722803327df9bfd374927329cdb9178115ec3374a06a7"
+  },
+  "signedBuildReceipt": {
+    "path": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache/report.json",
+    "sha256": "be0e72740b63b30b8e7a249ea3661e087456169050c0ac79d0b872415b0ea77d"
+  },
+  "inventory": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-post-install-readonly-cache-candidate/candidate-inventory.json",
+    "sha256": "cc0b91d52427cb3e58db7a155b37bff5e693b8e130fcbf636c8177b89095790f",
+    "entries": 4065,
+    "logicalRegularBytes": 778258933,
+    "allocatedRegularBytes": 789962752
+  },
+  "noRemovalAppMutationBuildOrDeviceInput": true,
+  "protectedTreeInventoryStillRequiredBeforeAnyRemoval": true,
+  "floorBytes": 3221225472,
+  "preInputFreeBytes": 3733729280,
+  "alphaInputPending": true
+}

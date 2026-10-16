@@ -1,0 +1,162 @@
+Attributes: Application, 0x112c00140, pid: 23837, label: 'Slax Reader'
+Element subtree:
+ →Application, 0x112c00140, pid: 23837, label: 'Slax Reader'
+    Window, 0x112c017c0, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x112c01900, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x112c01a40, {{0.0, 0.0}, {402.0, 874.0}}
+          Other, 0x112c01b80, {{0.0, 0.0}, {402.0, 874.0}}
+            Other, 0x112c01cc0, {{0.0, 0.0}, {402.0, 874.0}}
+              Other, 0x112c01e00, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x112c01f40, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x112c02080, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x112c021c0, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x112c02300, {{0.0, 0.0}, {402.0, 874.0}}
+                        Other, 0x112c02440, {{0.0, 0.0}, {402.0, 874.0}}
+                          Other, 0x112c02580, {{0.0, 0.0}, {402.0, 874.0}}
+                            Other, 0x112c026c0, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x112c02800, {{0.0, 0.0}, {402.0, 874.0}}
+                                Other, 0x112c02940, {{0.0, 0.0}, {402.0, 874.0}}
+                                  Other, 0x112c02a80, {{0.0, 0.0}, {402.0, 72.0}}
+                                  Other, 0x112c02bc0, {{0.0, 0.0}, {402.0, 874.0}}
+                                  Button, 0x112c02d00, {{0.0, 62.0}, {78.0, 44.0}}, label: 'Menu'
+                                    Other, 0x112c02e40, {{70.0, 88.0}, {8.0, 8.0}}
+                                  Button, 0x112c02f80, {{90.0, 67.0}, {222.0, 34.0}}, label: 'Switch List'
+                                  Button, 0x112c030c0, {{330.0, 62.0}, {72.0, 44.0}}, label: 'Add Link'
+                                  Other, 0x112c03200, {{0.0, 106.0}, {402.0, 96.0}}
+                                    ScrollView, 0x112c03340, {{0.0, 106.0}, {402.0, 96.0}}
+                                      Other, 0x112c03480, {{0.0, 106.0}, {112.0, 96.0}}
+                                        Other, 0x112c035c0, {{0.0, 106.0}, {112.0, 96.0}}
+                                          Other, 0x112c03700, {{20.0, 118.0}, {72.0, 68.0}}, label: '我的, 我的', Selected
+                                      Other, 0x112c03840, {{369.0, 106.0}, {30.0, 96.0}}, label: '垂直滚动条, 1页', value: 0%
+                                        Other, 0x112c03980, {{396.0, 109.0}, {3.0, 90.0}}
+                                      Other, 0x112c03ac0, {{369.0, 106.0}, {30.0, 96.0}}, label: '垂直滚动条, 1页', value: 0%
+                                        Other, 0x112c03c00, {{396.0, 109.0}, {3.0, 90.0}}
+                                  Other, 0x112c03d40, {{0.0, 202.0}, {402.0, 672.0}}
+                                    Other, 0x112c03e80, {{0.0, 202.0}, {402.0, 672.0}}
+                                      ScrollView, 0x102e6ed00, {{0.0, 202.0}, {402.0, 672.0}}
+                                        Other, 0x102e6ee40, {{0.0, 202.0}, {402.0, 199.7}}
+                                          Other, 0x102e6ef80, {{0.0, 202.0}, {402.0, 199.7}}
+                                            Other, 0x102e6f0c0, {{0.0, 210.0}, {402.0, 53.0}}
+                                            Other, 0x102e6f200, {{0.0, 210.0}, {402.0, 53.0}}
+                                              Button, 0x102e6f340, {{0.0, 210.0}, {402.0, 53.0}}, label: 'Controlled actual service offline edit'
+                                            Button, 0x102e6f480, {{292.0, 221.7}, {40.0, 30.0}}, label: '取消加星'
+                                            Button, 0x102e6f5c0, {{344.0, 221.7}, {40.0, 30.0}}, label: '归档'
+                                            Other, 0x102e6f700, {{24.0, 263.0}, {354.0, 0.7}}
+                                            StaticText, 0x102e6f840, {{0.0, 297.7}, {402.0, 20.0}}, label: '没有更多了'
+                                              StaticText, 0x102e6f980, {{0.0, 297.7}, {402.0, 20.0}}, label: '没有更多了'
+                                        Other, 0x102e6fac0, {{369.0, 230.0}, {30.0, 582.0}}, label: '垂直滚动条, 1页', value: 0%
+                                          Other, 0x102e6fc00, {{396.0, 233.0}, {3.0, 576.0}}
+                                        Other, 0x102e6fd40, {{62.0, 841.0}, {278.0, 30.0}}, label: '水平滚动条, 1页', value: 0%
+                                          Other, 0x102e6fe80, {{65.0, 868.0}, {272.0, 3.0}}
+                                        Other, 0x112c60000, {{369.0, 230.0}, {30.0, 582.0}}, label: '垂直滚动条, 1页', value: 0%
+                                          Other, 0x112c60140, {{396.0, 233.0}, {3.0, 576.0}}
+                                        Other, 0x112c60280, {{62.0, 841.0}, {278.0, 30.0}}, label: '水平滚动条, 1页', value: 0%
+                                          Other, 0x112c603c0, {{65.0, 868.0}, {272.0, 3.0}}
+                        Other, 0x112c60500, {{0.0, 0.0}, {402.0, 874.0}}
+                          Other, 0x112c60640, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x112c60780, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x112c608c0, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x112c60a00, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x112c60b40, {{10.0, 786.7}, {382.0, 67.3}}
+                    Other, 0x112c60c80, {{10.0, 786.7}, {382.0, 48.3}}
+                      Other, 0x112c60dc0, {{10.0, 787.3}, {382.0, 48.0}}
+                        Other, 0x112c60f00, {{10.0, 787.7}, {382.0, 48.0}}, label: '!, [PowerSync]: Sync error ApiError: Controlled offline transport refuses forwarding'
+    Window (Main), 0x112c61040, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x112c61180, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x112c612c0, {{0.0, 0.0}, {402.0, 874.0}}
+          Other, 0x112c61400, {{-402.0, -874.0}, {1206.0, 2622.0}}
+          Other, 0x112c61540, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x112c61680, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x112c617c0, {{-402.0, -874.0}, {1206.0, 2622.0}}
+        Other, 0x112c61900, {{8.0, 385.3}, {386.0, 480.7}}
+          Other, 0x112c61a40, {{8.0, 385.3}, {386.0, 480.7}}
+            Other, 0x112c61b80, {{8.0, 385.3}, {386.0, 480.7}}
+              Other, 0x112c61cc0, {{8.0, 385.3}, {386.0, 480.7}}
+                Other, 0x112c61e00, {{8.0, 385.3}, {386.0, 480.7}}
+                  Other, 0x112c61f40, {{8.0, 385.3}, {386.0, 480.7}}
+                    Other, 0x112c62080, {{8.0, 385.3}, {386.0, 480.7}}
+                      Other, 0x112c621c0, {{8.0, 385.3}, {386.0, 480.7}}
+                        Other, 0x112c62300, {{8.0, 385.3}, {386.0, 480.7}}
+                          Other, 0x112c62440, {{8.0, 385.3}, {386.0, 480.7}}
+                            Other, 0x112c62580, {{8.0, 385.3}, {386.0, 480.7}}
+                              Image, 0x112c626c0, {{23.4, 400.6}, {36.5, 36.5}}
+                              StaticText, 0x112c62800, {{71.4, 401.3}, {92.8, 19.5}}, label: 'Slax Reader'
+                              StaticText, 0x112c62940, {{71.4, 422.7}, {175.4, 13.8}}, label: 'Runtime version: exposdk:57.0.0'
+                              Button, 0x112c62a80, {{344.1, 401.6}, {34.6, 34.6}}, identifier: 'xmark', label: '关闭'
+                              ScrollView, 0x112c62bc0, {{8.0, 452.5}, {386.0, 413.5}}
+                                Other, 0x112c62d00, {{8.0, 452.5}, {386.0, 851.1}}
+                                  Button, 0x112c62e40, {{23.4, 467.8}, {173.8, 53.8}}, label: 'Reload'
+                                    Image, 0x112c62f80, {{43.2, 486.1}, {14.1, 17.3}}, identifier: 'arrow.clockwise', label: '刷新'
+                                    StaticText, 0x112c630c0, {{69.5, 485.0}, {50.3, 19.5}}, label: 'Reload'
+                                  Button, 0x112c63200, {{204.8, 467.8}, {173.8, 53.8}}, label: 'Go home'
+                                    Image, 0x112c63340, {{222.1, 486.1}, {19.2, 17.0}}, identifier: 'house.fill', label: '主页'
+                                    StaticText, 0x112c63480, {{250.9, 485.0}, {66.6, 19.5}}, label: 'Go home'
+                                  StaticText, 0x112c635c0, {{23.4, 552.3}, {38.7, 13.8}}, label: 'TOOLS'
+                                  Button, 0x112c63700, {{23.4, 573.8}, {355.3, 53.8}}, label: 'Source code explorer'
+                                    Image, 0x112c63840, {{41.9, 592.7}, {16.6, 16.0}}, identifier: 'map', label: '显示地图'
+                                    StaticText, 0x112c63980, {{69.5, 590.9}, {155.9, 19.5}}, label: 'Source code explorer'
+                                    Image, 0x112c63ac0, {{356.9, 595.5}, {5.8, 9.9}}, identifier: 'chevron.right', label: '前进'
+                                  Button, 0x112c63c00, {{23.4, 627.9}, {355.3, 53.8}}, label: 'Toggle performance monitor'
+                                    Image, 0x112c63d40, {{42.2, 646.8}, {16.3, 16.3}}, identifier: 'speedometer', label: '速度'
+                                    StaticText, 0x112c63e80, {{69.5, 645.0}, {208.0, 19.5}}, label: 'Toggle performance monitor'
+                                  Button, 0x112c68000, {{23.4, 682.0}, {355.3, 53.8}}, label: 'Toggle element inspector'
+                                    Image, 0x112c68140, {{42.6, 701.2}, {15.7, 15.7}}, identifier: 'viewfinder', label: '扫描'
+                                    StaticText, 0x112c68280, {{69.5, 699.1}, {185.3, 19.5}}, label: 'Toggle element inspector'
+                                  Button, 0x112c683c0, {{23.4, 736.1}, {355.3, 53.8}}, label: 'Open DevTools'
+                                    Image, 0x112c68500, {{40.6, 755.9}, {19.2, 14.1}}, identifier: 'chevron.left.chevron.right', label: 'chevron.left.chevron.right'
+                                    StaticText, 0x112c68640, {{69.5, 753.2}, {110.4, 19.5}}, label: 'Open DevTools'
+                                  Image, 0x112c68780, {{43.2, 810.3}, {13.8, 17.6}}, identifier: 'figure.run', label: '跑步'
+                                  StaticText, 0x112c688c0, {{69.5, 809.2}, {86.7, 19.5}}, label: 'Fast refresh'
+                                  Switch, 0x112c68a00, {{163.9, 805.5}, {199.4, 26.9}}, value: 1
+                                    StaticText, 0x112c68b40, {{0.0, 0.0}, {0.0, 0.0}}
+                                    Switch, 0x112c68c80, {{304.7, 805.5}, {60.5, 26.9}}, value: 1
+                                  Image, 0x112c68dc0, {{42.6, 867.6}, {16.0, 18.6}}, identifier: 'hand.tap', label: 'hand.tap'
+                                  StaticText, 0x112c68f00, {{69.5, 867.1}, {90.9, 19.5}}, label: 'Tools button'
+                                  Switch, 0x112c69040, {{168.0, 863.4}, {195.2, 26.9}}, value: 0
+                                    StaticText, 0x112c69180, {{0.0, 0.0}, {0.0, 0.0}}
+                                    Switch, 0x112c692c0, {{304.7, 863.4}, {60.5, 26.9}}, value: 0
+                                  Button, 0x112c69400, {{23.4, 936.4}, {355.3, 67.5}}, label: 'Connected to:、http://127.0.0.1:8084'
+                                    StaticText, 0x112c69540, {{38.7, 951.8}, {93.5, 17.3}}, label: 'Connected to:'
+                                    StaticText, 0x112c69680, {{38.7, 971.3}, {134.1, 17.3}}, label: 'http://127.0.0.1:8084'
+                                    Image, 0x112c697c0, {{349.5, 962.3}, {12.2, 15.4}}, identifier: 'doc.on.clipboard', label: '粘贴'
+                                  StaticText, 0x112c69900, {{23.4, 1034.7}, {46.4, 13.8}}, label: 'SYSTEM'
+                                  StaticText, 0x112c69a40, {{38.7, 1071.0}, {54.7, 19.5}}, label: 'Version'
+                                  StaticText, 0x112c69b80, {{329.7, 1071.0}, {33.6, 19.5}}, label: '1.0.0'
+                                  StaticText, 0x112c69cc0, {{38.7, 1121.6}, {117.5, 19.5}}, label: 'Runtime version'
+                                  StaticText, 0x112c69e00, {{253.5, 1121.6}, {109.8, 19.5}}, label: 'exposdk:57.0.0'
+                                  Button, 0x112c69f40, {{38.7, 1156.9}, {324.5, 50.3}}, label: 'Copy system info'
+                                    StaticText, 0x112c6a080, {{38.7, 1172.2}, {126.1, 19.5}}, label: 'Copy system info'
+                                    Image, 0x112c6a1c0, {{349.5, 1174.2}, {12.2, 15.4}}, identifier: 'doc.on.clipboard', label: '粘贴'
+                                  Button, 0x112c6a300, {{23.4, 1237.9}, {355.3, 50.3}}, label: 'Open React Native dev menu'
+                                Other, 0x112c6a440, {{362.3, 452.5}, {28.8, 359.0}}, label: '垂直滚动条, 3页', value: 0%
+                                  Other, 0x112c6a580, {{388.2, 455.4}, {2.9, 116.2}}
+                                Other, 0x112c6a6c0, {{362.3, 452.5}, {28.8, 359.0}}, label: '垂直滚动条, 3页', value: 0%
+                                  Other, 0x112c6a800, {{388.2, 455.4}, {2.9, 116.2}}
+                              ScrollView, 0x112c6a940, {{8.0, 452.5}, {386.0, 413.5}}
+                                Other, 0x112c6aa80, {{8.0, 452.5}, {386.0, 383.4}}
+                                  Image, 0x112c6abc0, {{166.1, 487.0}, {69.8, 76.8}}, label: 'dev-tools'
+                                  StaticText, 0x112c6ad00, {{23.4, 598.4}, {349.2, 38.7}}, label: 'This is the developer menu. It gives you access to useful tools in development builds.'
+                                  StaticText, 0x112c6ae40, {{23.4, 648.7}, {336.4, 58.9}}, label: 'You can open it at any time by pressing the blue button with the gear icon, or with the ⌃ + d keyboard shortcut.'
+                                  StaticText, 0x112c6af80, {{23.4, 711.4}, {330.9, 49.6}}, label: '(Connect Hardware Keyboard must be enabled on your simulator to use this shortcut, you can toggle it with ⌘ + shift + K.)'
+                                  Button, 0x112c6b0c0, {{23.4, 776.4}, {355.3, 44.2}}, label: 'Continue'
+                                Other, 0x112c6b200, {{362.3, 452.5}, {28.8, 359.0}}, label: '垂直滚动条, 2页', value: 0%
+                                  Other, 0x112c6b340, {{388.2, 455.4}, {2.9, 247.1}}
+                                Other, 0x112c6b480, {{362.3, 452.5}, {28.8, 359.0}}, label: '垂直滚动条, 2页', value: 0%
+                                  Other, 0x112c6b5c0, {{388.2, 455.4}, {2.9, 247.1}}
+                      Other, 0x112c6b700, {{8.0, 385.3}, {386.0, 480.7}}
+                        Other, 0x112c6b840, {{8.0, 385.3}, {386.0, 480.7}}
+          Other, 0x112c6b980, {{8.0, 385.3}, {386.0, 480.7}}
+            Other, 0x112c6bac0, {{8.0, 385.3}, {386.0, 480.7}}
+              Other, 0x112c6bc00, {{8.0, 385.3}, {386.0, 480.7}}
+                Other, 0x112c6bd40, {{8.0, 385.3}, {386.0, 480.7}}
+                  Other, 0x112c6be80, {{8.0, 385.3}, {386.0, 480.7}}
+                    Other, 0x112c74000, {{8.0, 385.3}, {386.0, 480.7}}
+                Other, 0x112c74140, {{8.0, 385.3}, {386.0, 480.7}}
+                  Other, 0x112c74280, {{8.0, 385.3}, {386.0, 480.7}}
+Path to element:
+ →Application, 0x112c00140, pid: 23837, label: 'Slax Reader'
+Query chain:
+ →Find: Application 'app.slax.reader'
+  Output: {
+    Application, 0x112c743c0, pid: 23837, label: 'Slax Reader'
+  }

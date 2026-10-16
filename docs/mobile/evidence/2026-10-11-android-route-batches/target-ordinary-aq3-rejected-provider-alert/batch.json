@@ -1,0 +1,47 @@
+{
+  "kind": "isolated-target-native-route-batch",
+  "schemaVersion": 1,
+  "appId": "com.slax.reader.uifixture",
+  "device": "emulator-5560",
+  "driverSha256": "adfb7464e4da1685dfefafd3cfb5c92ff07118389badd23326b287f85ff11540",
+  "records": [
+    {
+      "name": "settings-initial",
+      "result": "failed",
+      "error": "Settings native language control is missing",
+      "nativeInteractionVerified": false,
+      "nativeInput": null,
+      "capturedAtMillis": 1791660905625,
+      "sourceParity": "unverified",
+      "files": [
+        {
+          "path": "01-settings-initial/rejected-diagnostic.png",
+          "sha256": "0bb359af39c549c84089c88a966e787df398cbdd2458fdeec2f0f6abf7e9f507",
+          "bytes": 119780
+        }
+      ]
+    },
+    {
+      "name": "feedback-error-initial",
+      "result": "failed",
+      "error": "Feedback native input is missing",
+      "nativeInteractionVerified": false,
+      "nativeInput": null,
+      "capturedAtMillis": 1791660910603,
+      "sourceParity": "unverified",
+      "files": [
+        {
+          "path": "02-feedback-error-initial/rejected-diagnostic.png",
+          "sha256": "b958874be17b8a59535606719671dfbfa88941e5d82bcc6e938c54ef9431107e",
+          "bytes": 84670
+        }
+      ]
+    }
+  ],
+  "overallParity": "unverified",
+  "limitations": [
+    "Native route/control guards do not replace inspection of the candidate PNG.",
+    "Prepared routes/actions are distinct from logged native input.",
+    "Source matching, remaining locales/profiles and complete state matrix remain pending."
+  ]
+}

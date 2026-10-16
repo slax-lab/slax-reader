@@ -1,0 +1,54 @@
+{
+  "kind": "original-source-native-prepared-action-batch",
+  "schemaVersion": 1,
+  "appId": "com.slax.reader.fixture",
+  "testRunner": "com.slax.reader.fixture.test/com.slax.reader.fixtures.FixtureRunner",
+  "device": "emulator-5560",
+  "driverSha256": "57c5c0b827b2abcba8718c3e65a9293d887b2820e1af4fd16eb830fb4abf7fae",
+  "records": [
+    {
+      "name": "reader-mixed",
+      "route": "Reader",
+      "initialOnly": false,
+      "isolatedActionIndex": 1,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/reader-mixed-5b748e60-4261-4e5e-a774-4379a4847634",
+      "elapsedSeconds": 9.114,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "3ca3e217457d081080a12d21732de7cad34215dfacccef9627cbd9db16c3cca8",
+      "capturedAtMillis": 1791659309807,
+      "files": [
+        {
+          "path": "reader-mixed/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "reader-mixed/02-open-comment.png",
+          "sha256": "3d80fb92c379bc2ba8eb2d336988e190419033598ea09e7ecbc5b5a378183e88",
+          "bytes": 181005
+        },
+        {
+          "path": "reader-mixed/instrumentation.log",
+          "sha256": "272dac2f018a4f23e290983ad4b6afb5b4134b718b59a57df5dffb8264166652",
+          "bytes": 83
+        },
+        {
+          "path": "reader-mixed/02-open-comment.json",
+          "sha256": "75c447093290547d93fb1bd385e8c2aa1d1c121a5d870ecb137e5b7c88c14454",
+          "bytes": 4961
+        }
+      ]
+    }
+  ],
+  "sourceParity": "unverified",
+  "limitations": [
+    "Each original route is launched fresh with unchanged source screen code and shared synthetic inputs.",
+    "Initial-only captures execute no declared preparation action; isolated action captures execute only their recorded action index.",
+    "Compose control/DOM preparation is not a native touch/gesture acceptance record.",
+    "Native foreground checks and PNG capture do not replace visual/state inspection or target matching."
+  ]
+}

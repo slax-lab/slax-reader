@@ -1,0 +1,78 @@
+{
+  "kind": "fresh-source-ios-shell-link-build-plan",
+  "version": 1,
+  "status": "prepared-only",
+  "openSpecChange": "expo-mobile-migration",
+  "executor": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/fresh-shell/build.py",
+    "bytes": 22165,
+    "sha256": "69db1f25ad7805c09440593aaa067a39068f2844230d5e40c9ec3b9bd573b5e1"
+  },
+  "manifest": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/fresh-shell/inputs.json",
+    "bytes": 74836,
+    "sha256": "664c10e80677e5699871fc8908a70a00d228eeaa944b9292889f1dd1eeb2e036"
+  },
+  "outputRoot": "/private/tmp/slax-source-fresh-shell-build-460d8701-3eb5-4443-9cd6-a415c2b8e07c",
+  "runtimeGrantPath": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/fresh-shell-sdk-packaging-preparation-r1/root-build-allocation.json",
+  "allowedCommands": [
+    "swiftc fresh shell only with explicit platform_version ios-simulator16.4/26.5",
+    "codesign --force --sign - fresh .app only",
+    "codesign --verify --deep --strict fresh .app",
+    "codesign --display --entitlements :- fresh .app"
+  ],
+  "explicitSDKArgumentVector": [
+    "-Xlinker",
+    "-platform_version",
+    "-Xlinker",
+    "ios-simulator",
+    "-Xlinker",
+    "16.4",
+    "-Xlinker",
+    "26.5"
+  ],
+  "actualMetadataRequiredBeforeFirstSign": {
+    "platform": 7,
+    "minimumOS": "16.4.0",
+    "SDK": "26.5.0"
+  },
+  "copyInputs": {
+    "sourceAppRegularFiles": 109,
+    "shellSwiftFiles": 2,
+    "retained113InputsAreReadonlyVerifiedOnly": true,
+    "whole113Recopy": false,
+    "old52ControlCompileOrCopy": false,
+    "rawJCompile": false
+  },
+  "permittedChangedFreshAppFiles": [
+    "SlaxSourceFixtureApp",
+    "_CodeSignature/CodeResources"
+  ],
+  "allCopiedFrameworkInfoResourceBytesUnchanged": true,
+  "old44AndOriginalProductionCodeMutation": false,
+  "manualMachOPatching": false,
+  "windowFrameOrPositionOverride": false,
+  "budget": {
+    "capBytes": 268435456,
+    "floorBytes": 3221225472,
+    "preFreeBytes": 3865470567,
+    "totalSeconds": 120,
+    "swiftSeconds": 60,
+    "signSeconds": 15,
+    "verifySeconds": 15,
+    "inspectSeconds": 15,
+    "commandOutputBytes": 8388608,
+    "recordBytes": 262144,
+    "maximumEntries": 4096,
+    "monitorSeconds": 0.1
+  },
+  "resourceAccounting": "All new root file/directory allocated blocks plus buffered output and record reserve count toward256MiB. All regular logical bytes plus buffered output and record reserve independently count toward256MiB. No sparse apparent exceptions. Whole global availability floor3GiB throughout; pre-copy3.6GiB.",
+  "generatedRace": "Only vanished lstat entries beneath new swift-module-cache/temporary can be skipped while own child is running; all other errors refuse. Final stopped-process scan is strict.",
+  "grant": "Default performs read-only admission; execute requires exact new Root allocation path+SHA, schema/nonce/window/output/executor/manifest/plan/budget binding, and exclusive native slot. Existing or aliased output refused. No implicit or consumed-grant reuse.",
+  "failure": "Only own process group may be killed on timeout/cap/monitor refusal; buffered logs and command receipt survive. No retries, cleanup, global cache or operator input access. Failure never signs or becomes complete.",
+  "reportScope": "Actual fresh shell built/signed/verified only after commands0, exact actualLC metadata before+after, no entitlements, full109 tree retained except two allowed fresh files, original inputs unchanged and final strict accounting. Existing33section proof is referenced historical, framework bytes stay identical. No device/native240/persistence/directcallback/visual/publisher claim.",
+  "newDeviceAllocationRequired": true,
+  "separateDatabaseAllocationRequired": true,
+  "futureRuntimeR1Updated": false,
+  "knownFailClosedCacheRisk": "Every symlink/special entry in the fresh output is refused, including a transient compiler PCM lock symlink. A cold shell build could fail closed on such a link; this plan does not permit links or copy a warm cache automatically. Root separately observed the settled Source44 cache metadata as101 regular files/1directory/0links,54017902 logical/54231040 allocated bytes; that is a possible future independently reviewed copy candidate only, never current scope."
+}

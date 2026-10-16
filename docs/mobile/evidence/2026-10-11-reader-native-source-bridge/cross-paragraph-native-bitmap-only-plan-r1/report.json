@@ -1,0 +1,50 @@
+{
+  "kind": "compiled-cross-bitmap-only-native-preparation-receipt",
+  "version": 1,
+  "openSpecChange": "expo-mobile-migration",
+  "status": "prepared-only-root-native-test-allocation-required",
+  "inputs": [
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-plan-r1/plan.json",
+      "bytes": 11525,
+      "sha256": "bac663b00c3737a9fed4cedfdcd703256a3e43790f48797c1d45e263fed7a280"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-plan-r1/compiled-products.json",
+      "bytes": 14286,
+      "sha256": "cce42c80ced776af71199d7cb72b75c663dc2bbeeea7d7539a5d7b8a36b2b2b0"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-plan-r1/README.md",
+      "bytes": 3415,
+      "sha256": "be6c300662177324f5bfac46517c66964aca98e7a22e5f91b3af3324c35725be"
+    }
+  ],
+  "actualReadOnlyChecks": {
+    "compiledRegularProducts": 53,
+    "allActualHashesAndModesMatch": true,
+    "productsContainNoSymlinks": true,
+    "actualXctestrunFormatVersion": 1,
+    "onlyExpectedModuleAndMetadata": true,
+    "actualArm64HostAndTestHeadersBoundInCompletedReceipt": true,
+    "publicBindings": 6,
+    "selectedBitmapClassHasNoTargetActivationOrInput": true,
+    "packagedCgBIPngDistinctFromArchivedInput": true,
+    "nativePNGOrientationStillPending": true,
+    "rootActualCompiledReviewBound": true
+  },
+  "proposedRuntimeFloorBytes": 3221225472,
+  "proposedRuntimeNewLogicalAllocatedCapBytes": 134217728,
+  "runRoot": "/private/tmp/slax-reader-cross-bitmap-run-3abcabe0aa6046fa986950d38ce5cea8",
+  "runRootCreated": false,
+  "actions": {
+    "compiler": false,
+    "nativeTests": false,
+    "device": false,
+    "nativeProductCopy": false,
+    "DDMutation": false,
+    "stageMetro": false,
+    "cleanup": false
+  },
+  "rootIndependentExecutionReviewAndNewAllocationRequired": true
+}

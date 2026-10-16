@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: the actual completed Alpha ancestry can be bound but does not certify current live state
+ok 1 - the actual completed Alpha ancestry can be bound but does not certify current live state
+  ---
+  duration_ms: 0.619416
+  type: 'test'
+  ...
+# Subtest: new scope/source, incomplete results and synthetic or repeated input cannot reuse old Alpha proof
+ok 2 - new scope/source, incomplete results and synthetic or repeated input cannot reuse old Alpha proof
+  ---
+  duration_ms: 0.584583
+  type: 'test'
+  ...
+# Subtest: the actual native Alpha observation is insufficient for cross-paragraph acceptance
+ok 3 - the actual native Alpha observation is insufficient for cross-paragraph acceptance
+  ---
+  duration_ms: 0.230709
+  type: 'test'
+  ...
+# Subtest: the guard admits a same-page extended range crossing the actual second native text frame
+ok 4 - the guard admits a same-page extended range crossing the actual second native text frame
+  ---
+  duration_ms: 0.139083
+  type: 'test'
+  ...
+# Subtest: multiple paths within the first paragraph are insufficient
+ok 5 - multiple paths within the first paragraph are insufficient
+  ---
+  duration_ms: 0.149542
+  type: 'test'
+  ...
+# Subtest: synthetic preparation, stale page and unreturned application selection fail closed
+ok 6 - synthetic preparation, stale page and unreturned application selection fail closed
+  ---
+  duration_ms: 0.266959
+  type: 'test'
+  ...
+# Subtest: unsupported viewport, native scroll loss and a collapsed or unsettled range fail closed
+ok 7 - unsupported viewport, native scroll loss and a collapsed or unsettled range fail closed
+  ---
+  duration_ms: 0.262166
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 49.952875

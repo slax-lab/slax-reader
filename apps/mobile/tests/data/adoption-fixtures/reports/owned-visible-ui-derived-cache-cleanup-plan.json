@@ -1,0 +1,2322 @@
+{
+  "kind": "slax-controlled-visible-ui-rebuildable-cache-cleanup-plan",
+  "version": 1,
+  "recordedAt": "2026-10-10T20:41:50.183Z",
+  "project": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-upgrade-ui-LEePuR",
+  "fixtureOwnerSHA256": "61fb33081bc59465e57497360f48472791c45125e37147bbb075904efec25298",
+  "acceptedNativeReportSHA256": "aca037e517a32eb1fc102d3cb8335d414b3376fb1beba4c300cc62b0d8cd10ec",
+  "generatedSwiftSourceSHA256": "15c5f8ba2450c1a1d00af2a874b9ed49185e56cfce75e56cdfcdb2e6795bb807",
+  "retainedProducts": {
+    "UpgradeVisibleControl-Runner.app/PlugIns/UpgradeVisibleControl.xctest/UpgradeVisibleControl": "48410d7dc3fd5a83cbe823f9e54cd02e64f12a1e94610697db6f535fd172e99e"
+  },
+  "records": [
+    {
+      "directory": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-upgrade-ui-LEePuR/DerivedData/ModuleCache.noindex",
+      "files": [
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/Accessibility-1Z316V48C4FD4.pcm",
+          "bytes": 23656,
+          "sha256": "5b2604ee5b419fa5f045c6c498bdbab98d3beac68051343b89de12b7fc0c56bd"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/CFNetwork-3MVTA3VYEJCA3.pcm",
+          "bytes": 24476,
+          "sha256": "83df2a3b605e8f1da819eb10dd70e41decb3bff39ccddeb30a59d05e8ea3d3e3"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/CoreFoundation-3PRXEYCYTZ0ZF.pcm",
+          "bytes": 85104,
+          "sha256": "1ebb0d6e6832818c632ba605761bc8bf7fea778e15b0e46f91d8371d744dcc96"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/CoreGraphics-19GMCQK1P6XM3.pcm",
+          "bytes": 41320,
+          "sha256": "5087207251f6ec1df3b3598ffcab3b1275a6142adcc7d983f624c0383722c030"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/CoreImage-3UI8NCSPFINZ0.pcm",
+          "bytes": 33716,
+          "sha256": "022cc6693806ebda7d4e288299a58e88ed83a826afb5437fad5d4838af032a10"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/CoreText-2C7KN0R8TNZFM.pcm",
+          "bytes": 32236,
+          "sha256": "cdcae3985c34ec45193c4291820fa90c62666f47c6ed4a6a72df69bf358f7757"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/CoreTransferable-16AVK0JPGWW6Y.pcm",
+          "bytes": 19968,
+          "sha256": "a1f47017faa3a1bc768c9a944ffa17f7945ddd4fbaa9c1fa5f3a53ca25b2f129"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/CoreVideo-1DGLWUSJV0EV.pcm",
+          "bytes": 34540,
+          "sha256": "8dc7f3703c4f0697aa2c2e63d0e40c749710d738c251fbe9c24f4181ef3ae8ab"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/Darwin-3OSIGR9MJU32L.pcm",
+          "bytes": 980532,
+          "sha256": "59911679a96905b20cb8c3c922ab68e11a2c0e14ccb34fdd5119584c07ca2ae0"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/DataDetection-VKJA9VK2L9FR.pcm",
+          "bytes": 20604,
+          "sha256": "2138fb332e9f36af5f4a7f1317f30a276150cb6b3442e32046c6712ad55f9cdf"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/DeveloperToolsSupport-2B3PEGL0O3SHB.pcm",
+          "bytes": 18696,
+          "sha256": "400e437bb9a94124161db054b95747448f122487ca8ecea6800d7ed3c5ce6e61"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/Dispatch-D5NPGC7AJE6P.pcm",
+          "bytes": 51320,
+          "sha256": "9f9799e5773b479d88821f715d393ff1db60282060aeece6a415dacb06b92fd3"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/FileProvider-2O2DCCNZ1P9DX.pcm",
+          "bytes": 31080,
+          "sha256": "18bb070b291fbf2469c5ba45992428a517e9761c89e9505b695609b9e66f6d5c"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/Foundation-2D6I54GZO0EPV.pcm",
+          "bytes": 97208,
+          "sha256": "e84650eca5b8979fca8f6070bed670e14c4559a25fd756fbf54a9a2dafb10d9b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/IOSurface-2GMZHIFU9GAVA.pcm",
+          "bytes": 25476,
+          "sha256": "3c7dd1e225e125e45e641d80f4acef0059a2a8abb646a685044293fdedc849d8"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/ImageIO-2XWEP1ZDFHQCN.pcm",
+          "bytes": 29224,
+          "sha256": "39d64ae5df7a152a80362e6b225149590dc0709f1d04bb3103b66a1ac5de0261"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/MachO-VOOC4S47JZYB.pcm",
+          "bytes": 63748,
+          "sha256": "64f3d1cbd5fd3f1f9e40fb6713b72b0d0e1300ac05ba908d3d49fca6262a02bf"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/Metal-2AOW5MNXUO3VM.pcm",
+          "bytes": 50476,
+          "sha256": "ec112c84a5989923761db1c3fb92da94ee2c35c7e761bbe148bd3e33b2cd2afe"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/OSLog-3SZK3I11U7OTF.pcm",
+          "bytes": 22348,
+          "sha256": "68234adac1c3d2ecbd9b296158bd2383a566dba746b19ae413bd098991506882"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/ObjectiveC-2PWORDSQEHK5X.pcm",
+          "bytes": 36224,
+          "sha256": "a8f71bbccbb12369f4901fd692eee9f09d8c7bc48bbd42fd79f3828fdd47e546"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/OpenGLES-3VQGO085QDZ2H.pcm",
+          "bytes": 143940,
+          "sha256": "e951e6c55837efd22bf5cb4212bc31630d5c71e9c315a18b85dcc96cb8dd4beb"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/QuartzCore-1PGA94LEHPAST.pcm",
+          "bytes": 36800,
+          "sha256": "af333aff495ae6ac1c0bf4e8c2ea9802444a09c2654b75e0a5d6d2b2748bad51"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/Security-4T9WYUES29A1.pcm",
+          "bytes": 30460,
+          "sha256": "95412badaac1fa275c3cd1d784dd041147b70b28231731c54dcb341b9c808426"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/Spatial-1HOKQLWXNANNU.pcm",
+          "bytes": 33536,
+          "sha256": "90740e3171116512a21f1deab66d9379940637821cc138646e61c6b032dd092c"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/SwiftShims-ETMZL06LU75E.pcm",
+          "bytes": 39296,
+          "sha256": "791ed16252af2dd851b7b48241c9f515ba901e1dc01d6b23dfb841dfa51f7b1b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/SwiftUICore-QNUEZR0E8HH6.pcm",
+          "bytes": 22140,
+          "sha256": "b2a6b7b1d5d562905bec7941c96fd1caafd54ce1658cba859caa0eb3b9208a95"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/Symbols-1DNV4QDBC5QS9.pcm",
+          "bytes": 20188,
+          "sha256": "b5d700ac526721462e33f8845e48baad6345c073eb4d9da151cf91611b7d208b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/UIKit-1WUOUYQ3HJCSW.pcm",
+          "bytes": 144548,
+          "sha256": "b6a81933aacd6372d64626f803d286b5d0c999487787fa2fa5278809bf4ebc2b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/UIUtilities-2FUK9RCX1V5JB.pcm",
+          "bytes": 21380,
+          "sha256": "41d4362377485b6feab0d2b7ddbfa0763d8f67a286a3737a94dae73d4ad0e0ac"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/UniformTypeIdentifiers-J2SEKBNCVKL8.pcm",
+          "bytes": 23312,
+          "sha256": "20409bc9773e413361a17b5e5c5a52501633a615baff3827d8bd98a00acd10a4"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/UserNotifications-1FJPVU08305M0.pcm",
+          "bytes": 23832,
+          "sha256": "14cb26ee7f53ce900b1c7e1b5f2f17924ce3a62718b5ab18561707ff3f0c9602"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/XPC-1VUX2ZXXZNY4I.pcm",
+          "bytes": 41216,
+          "sha256": "b5eb81337c3a05e9311cb0738f75e73da7b97f9d469cd0e0d26a860dc143522e"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/_AvailabilityInternal-1VVNCHK8CCI1.pcm",
+          "bytes": 444360,
+          "sha256": "4988712d98825e8045531ba6a78d04988601b8210121aa8c73107c057023f2e8"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/_Builtin_float-2OQWMRBVRD4OJ.pcm",
+          "bytes": 25504,
+          "sha256": "92eb62f9978a2e3ffa9495af0385c975401248e6558f1898593e222fae70e1a6"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/_Builtin_intrinsics-2OQWMRBVRD4OJ.pcm",
+          "bytes": 1077436,
+          "sha256": "8bc2ec35b493ea8c8127859f1f7627fd4f0c60c0337b395d12af5e51a241caba"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/_Builtin_inttypes-2OQWMRBVRD4OJ.pcm",
+          "bytes": 19852,
+          "sha256": "cec9ba060e7366623e051bd0f6ebbf6003d398b39ecd604b57ae992c10a56266"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/_Builtin_limits-2OQWMRBVRD4OJ.pcm",
+          "bytes": 21772,
+          "sha256": "be294438998549e4f5cc51d6166899f6a1515ebe8704de4a314cddf1ede9b366"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/_Builtin_stdarg-2OQWMRBVRD4OJ.pcm",
+          "bytes": 21140,
+          "sha256": "7a0596231a08eab6a10e166020e8268fe9a2273ccdce1ea4efe67cf64a9dd0f8"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/_Builtin_stdatomic-2OQWMRBVRD4OJ.pcm",
+          "bytes": 26336,
+          "sha256": "d2e61e704288e46dfe6d4e855fefcff36f3e82aaf327280901a26a8b831b24dd"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/_Builtin_stdbool-2OQWMRBVRD4OJ.pcm",
+          "bytes": 19140,
+          "sha256": "36c42bf818dde50fd336add2ff0c711d515419f19cf1b9d03a6fa98d350c0b64"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/_Builtin_stddef-2OQWMRBVRD4OJ.pcm",
+          "bytes": 22028,
+          "sha256": "03821804abeaedfa3e99896d6e775729e072f93ed9b0432c2612cb041d355b93"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/_Builtin_stdint-2OQWMRBVRD4OJ.pcm",
+          "bytes": 19428,
+          "sha256": "68d71333bb482ffc4936f4e001e3d39052cf07a3d43c0939422483ab73243eae"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/_Builtin_tgmath-2OQWMRBVRD4OJ.pcm",
+          "bytes": 19816,
+          "sha256": "d1ecbddc00c3281d15a2839eb6c9e191fab94873db5f1c597e3c355e16cd8692"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/_DarwinFoundation1-1VVNCHK8CCI1.pcm",
+          "bytes": 193784,
+          "sha256": "10a5cbb02063aea8d7d2913a10e50821fc6ae30a72f7f0a49696d73c7a167cfa"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/_DarwinFoundation2-VWZR1UH1FZG0.pcm",
+          "bytes": 109504,
+          "sha256": "87dc81d107b76d1bdd096777fc0ae28361e7906269ee54f81688b8c7f37e493d"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/_DarwinFoundation3-15DVCJU77XYIF.pcm",
+          "bytes": 119240,
+          "sha256": "840c016cb5fdf08a01f759b5a7ed15ceddf6267c739ee2d6ffbd7132be9daefc"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/_SwiftConcurrencyShims-ETMZL06LU75E.pcm",
+          "bytes": 18912,
+          "sha256": "f6b54dd74a9ae38e382d93c44b6345aae156309edaae48ae306798ece9129294"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/os-35YBQJQ2YC966.pcm",
+          "bytes": 58848,
+          "sha256": "f8634c8d3e34704db64da63bc440f2dccfa6c3efaed9e6679e095ce175b03113"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/os_object-35YBQJQ2YC966.pcm",
+          "bytes": 27752,
+          "sha256": "4a27e92b325bec93359225d7695c42e901f7d4c4bc644e36ff1bb02bad5272bc"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/os_workgroup-35YBQJQ2YC966.pcm",
+          "bytes": 26468,
+          "sha256": "c7648ff518cd4b5d91376f6a4cd0d3e76658bf82617ea0348542dd61de89fc0b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/ptrauth-2OQWMRBVRD4OJ.pcm",
+          "bytes": 24892,
+          "sha256": "13eae5ff74e13197163cd44d63c205a342463daec9c66fdb932498670946c0e9"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/ptrcheck-2OQWMRBVRD4OJ.pcm",
+          "bytes": 21768,
+          "sha256": "670b1b55ae4ec369d1172576c30a421e88de30893b52a45c75d76f325f60045b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/simd-1UMVU90N80PW8.pcm",
+          "bytes": 44464,
+          "sha256": "c1ecf1b7ee85a128661b5159eab263b624e1561a7d374f7cb20e33f7325bc7b3"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/13CTWU54IWCH1/sys_types-VWZR1UH1FZG0.pcm",
+          "bytes": 19304,
+          "sha256": "ae8c51914db0621433492efc97d5cb411ff0eabebfbc2b9a3e68f9d9b71059bb"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/Accessibility-1Z316V48C4FD4.pcm",
+          "bytes": 28620,
+          "sha256": "cc8832c042786c1cee4deb6903613fb9c21b614c5cf1188263b616b75828bb9b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/CFNetwork-3MVTA3VYEJCA3.pcm",
+          "bytes": 29324,
+          "sha256": "cade8ef6b9c84de8ca4b9fcfaee80cd220d810dfd916e1c60e218ead222de79c"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/CoreFoundation-3PRXEYCYTZ0ZF.pcm",
+          "bytes": 89152,
+          "sha256": "2f41a5132f8b883f2550b62ff04fcc96ee4b8911afc8ef9b3cc55f9367a464d2"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/CoreGraphics-19GMCQK1P6XM3.pcm",
+          "bytes": 46396,
+          "sha256": "be9aab9ce7f0ced539dd7672526f2f33f2927e13d1011f36c125c1534f3a653d"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/CoreImage-3UI8NCSPFINZ0.pcm",
+          "bytes": 38300,
+          "sha256": "2b2bc6ffda71e8fde6f5a58180da09abc1a57e3ed010d8901e7416032070a36d"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/CoreText-2C7KN0R8TNZFM.pcm",
+          "bytes": 36796,
+          "sha256": "cbe1f077a0b31be3912000a2fcca94a1d5b23dadfa237c6bcd94659c94844016"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/CoreTransferable-16AVK0JPGWW6Y.pcm",
+          "bytes": 24992,
+          "sha256": "ab9b918bb06b124eb4b6662524686c6a74cba408222e114f18bb076a3888fc86"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/CoreVideo-1DGLWUSJV0EV.pcm",
+          "bytes": 39116,
+          "sha256": "c9793577b6a5b0eb3b0c20ef979c62e4d31af9ae0fe5162e7bfe643bf45b4c05"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/Darwin-3OSIGR9MJU32L.pcm",
+          "bytes": 955676,
+          "sha256": "32077a8c8797022e27323a8a74fbbdcfaef0cf514e5f7a9cb1a18c372c438049"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/DataDetection-VKJA9VK2L9FR.pcm",
+          "bytes": 25568,
+          "sha256": "93227bd369d23b64ab600372892b206ea8b6e92223bfc2d2469034d8d7e8a7fb"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/DeveloperToolsSupport-2B3PEGL0O3SHB.pcm",
+          "bytes": 24060,
+          "sha256": "091a57e76455a287c80717f758aabe686832b5e8a6346b4d88caa74f2f8a0905"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/Dispatch-D5NPGC7AJE6P.pcm",
+          "bytes": 55344,
+          "sha256": "9446b463eebd02abd0d531cc52ed94d3b37e9475cece37ae003c9f0a77a1b375"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/FileProvider-2O2DCCNZ1P9DX.pcm",
+          "bytes": 35928,
+          "sha256": "9a17cbb0db49dcaae489d675e6364f19e5484c59502f29dc94fb4f12d065aefe"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/Foundation-2D6I54GZO0EPV.pcm",
+          "bytes": 103400,
+          "sha256": "6a3187a17b0f920106d57ffc92cb12893ffcfb4924fe87d3ccd052639f100442"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/IOSurface-2GMZHIFU9GAVA.pcm",
+          "bytes": 30452,
+          "sha256": "68c27e0cd1600d541125fed30551684b613a5602660f2dd02c958e5cb5f402c6"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/ImageIO-2XWEP1ZDFHQCN.pcm",
+          "bytes": 33804,
+          "sha256": "1ed5b399bd9bf96b58f308d97a7707cfd47f081934351cf1320effa28b0f2d47"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/MachO-VOOC4S47JZYB.pcm",
+          "bytes": 67800,
+          "sha256": "22979d6f5d0b2dd5726d004ee038262c63eb03634743dfa4900b6424db210673"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/Metal-2AOW5MNXUO3VM.pcm",
+          "bytes": 55048,
+          "sha256": "f72381fa1194bfdded911e3b4328d2c384e60a0417d5736310830fa4f70587a4"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/OSLog-3SZK3I11U7OTF.pcm",
+          "bytes": 27320,
+          "sha256": "b9e8add2c0d369263b07fd51e59dc05da983d87da141e4d5e2af98b299b8164b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/ObjectiveC-2PWORDSQEHK5X.pcm",
+          "bytes": 41344,
+          "sha256": "84a59d0e651630c0f093113ba0df854a0eb7d0ad644b61d86fa1ae19ab07012b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/OpenGLES-3VQGO085QDZ2H.pcm",
+          "bytes": 148020,
+          "sha256": "4a63bd798a704bb12206b157a15324ec2d0cd02683e036158fb2dc8a2d7e9d8a"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/QuartzCore-1PGA94LEHPAST.pcm",
+          "bytes": 41656,
+          "sha256": "fe8a427dc6a320e5a1da3d0a999c6f447f3a553528a7a8da8205f42fc2a3fd6a"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/Security-4T9WYUES29A1.pcm",
+          "bytes": 35028,
+          "sha256": "48888b0896bca7825adf8d208da0be9c45918e0771698400df07225057012d21"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/Spatial-1HOKQLWXNANNU.pcm",
+          "bytes": 38060,
+          "sha256": "60e138365d25515bb3c92ea892f2a6f335e1b397a8c427715b93083a29785eac"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/SwiftShims-ETMZL06LU75E.pcm",
+          "bytes": 44772,
+          "sha256": "84db3ef98275b04657174b0cd92cdad2a7542427e6b4f8d00444bb8731109900"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/SwiftUICore-QNUEZR0E8HH6.pcm",
+          "bytes": 27168,
+          "sha256": "3ab8374a7a1c6bf733e83f8ef5a8dfb6a8f3a03fdb4064c7c2dae2527bf76c7b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/Symbols-1DNV4QDBC5QS9.pcm",
+          "bytes": 25148,
+          "sha256": "3962af0e9a2299732fb6de6f76f7122b7e6f4df4eb34f8b7d909413c6b7165c8"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/UIKit-1WUOUYQ3HJCSW.pcm",
+          "bytes": 149124,
+          "sha256": "220fcc46b232b6322c044e414bc252442e0f608361342c34546694c0ce483640"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/UIUtilities-2FUK9RCX1V5JB.pcm",
+          "bytes": 26356,
+          "sha256": "3ed3126fc26403d40492f212bda0738dcee3dddebdca11f33f46ff0107a46b7b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/UniformTypeIdentifiers-J2SEKBNCVKL8.pcm",
+          "bytes": 28164,
+          "sha256": "03c59140948453d7812de92b776b58acf26f3696f3720ad23057edb488dfcf7e"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/UserNotifications-1FJPVU08305M0.pcm",
+          "bytes": 28856,
+          "sha256": "482c903ebeb39a9a7e101111f876223138aa266639611ee5ef8fa4705a2b6d5a"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/XCTest-14AOSAVXE7G74.pcm",
+          "bytes": 75032,
+          "sha256": "afa6468e6398bb36a3c2c258f1a74fd03688700903c38aad600bd81088e29b00"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/XCUIAutomation-SCAC13SRQRDD.pcm",
+          "bytes": 32120,
+          "sha256": "7fb2d5935a82afc33e68c2c9eeba58bd00d8abad79f1a1f7ded9fdf6809e8457"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/XPC-1VUX2ZXXZNY4I.pcm",
+          "bytes": 46328,
+          "sha256": "050534390780bc6f1776f605dc88be09079cc556376b08461a55cdc7317ca326"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/_AvailabilityInternal-1VVNCHK8CCI1.pcm",
+          "bytes": 448904,
+          "sha256": "02a3ba5380bf619047d50051c9887d42e519f8606ff1f81abf6165a9b8655c0b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/_Builtin_float-2OQWMRBVRD4OJ.pcm",
+          "bytes": 29900,
+          "sha256": "2ca90eed8a4b0dbad02dcff813b555c87bf5e6ff7b94aa8eaa015d4bbe0d7bcd"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/_Builtin_intrinsics-2OQWMRBVRD4OJ.pcm",
+          "bytes": 1050352,
+          "sha256": "cdbed2cd0472eb96b680877d094d833588438ba0c79c0240c71842d2509d2f08"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/_Builtin_inttypes-2OQWMRBVRD4OJ.pcm",
+          "bytes": 24816,
+          "sha256": "61df6435a8b16e3348c07b4de6dca2db7272ca71950efcc4b1eb12369eb5ab6e"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/_Builtin_limits-2OQWMRBVRD4OJ.pcm",
+          "bytes": 26624,
+          "sha256": "6a68dda0990b7fc3a05321906892e5b1dbfa9e3d5bb49e1b1296e28a06bea69a"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/_Builtin_stdarg-2OQWMRBVRD4OJ.pcm",
+          "bytes": 26344,
+          "sha256": "61d5f282fbcad7ec10872c9f380e3eefd727a95de40ad1fcc84ac5229ba8dd10"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/_Builtin_stdatomic-2OQWMRBVRD4OJ.pcm",
+          "bytes": 30900,
+          "sha256": "d7b4fe7cb1f6dad6e4c88695c3ca9736e45a398d1117d4e72394a1f9eaece2f9"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/_Builtin_stdbool-2OQWMRBVRD4OJ.pcm",
+          "bytes": 24448,
+          "sha256": "085573dd4615f7f20dcc91f44deca49d663185f37606160d436bf4bd3747f0a9"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/_Builtin_stddef-2OQWMRBVRD4OJ.pcm",
+          "bytes": 27220,
+          "sha256": "36037630b29b11b3154c8ce3dff0b9bebe3d34b2ff6f4a7fb10d3bd70cb62bc9"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/_Builtin_stdint-2OQWMRBVRD4OJ.pcm",
+          "bytes": 24396,
+          "sha256": "1ef6b248cf95bdcc7eb3472ef0c1bd0158ac2b10bb2fc0c0ca65781f6477f249"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/_Builtin_tgmath-2OQWMRBVRD4OJ.pcm",
+          "bytes": 24780,
+          "sha256": "eb19d291277352a94551ebf0c809b883eeba25b4b9d74aff6b05459edf1fdac3"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/_DarwinFoundation1-1VVNCHK8CCI1.pcm",
+          "bytes": 198048,
+          "sha256": "8e5e6b37139bea776e03c47411b4108427aad501c680ec787345a4b3af611359"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/_DarwinFoundation2-VWZR1UH1FZG0.pcm",
+          "bytes": 113516,
+          "sha256": "dcd68d80861f45ac2673e26536207114d9cc13b76277b787e2663fcbc3c016cc"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/_DarwinFoundation3-15DVCJU77XYIF.pcm",
+          "bytes": 123336,
+          "sha256": "8fe3d5bfaa603218da13e8e8c3e48209827b8f853893710e0b4d9e79d8fd938b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/_SwiftConcurrencyShims-ETMZL06LU75E.pcm",
+          "bytes": 24220,
+          "sha256": "15bf9f48a4fd289d7cdb123ecb01799e9b9cfd8af97f179eb8cd4a1f37396e2d"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/os-35YBQJQ2YC966.pcm",
+          "bytes": 62876,
+          "sha256": "f907385c90f2fa96c3d40ce54148d491f1940cdbd1c299f0fbb1b0d489fd0cf5"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/os_object-35YBQJQ2YC966.pcm",
+          "bytes": 32328,
+          "sha256": "3036bbf17eacdc11e32477b66bb4ca5893cc708632765fe7b60b465eeda84e10"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/os_workgroup-35YBQJQ2YC966.pcm",
+          "bytes": 31300,
+          "sha256": "b1051b3138dd265bc538dbde695151bb9ef65199fd2177516bca88ad206155ed"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/ptrauth-2OQWMRBVRD4OJ.pcm",
+          "bytes": 29812,
+          "sha256": "6fbd63491da063e322327317ce5015f82c6521c998c0f750a438f35944b26b35"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/ptrcheck-2OQWMRBVRD4OJ.pcm",
+          "bytes": 26992,
+          "sha256": "d9d48cf8d7e9e11c4d0749bc16f2ca316ee806650eecae68965b848805b4eb25"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/simd-1UMVU90N80PW8.pcm",
+          "bytes": 48328,
+          "sha256": "e4142f1de49406d004b0ea56fec2dfc71001467b140b68dbfd2996182d66d033"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/2NUIIMYSNDF9P/sys_types-VWZR1UH1FZG0.pcm",
+          "bytes": 24268,
+          "sha256": "ead29d624fab219b2179e13d1d2cd16f46a2eb649fc7e4ba7cd9b7e731b622c0"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/Accessibility-1Z316V48C4FD4.pcm",
+          "bytes": 28620,
+          "sha256": "c72997e524086c28e88c4e0813ef89ef9abd2f5b3e636dacc2342478811e8af6"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/CFNetwork-3MVTA3VYEJCA3.pcm",
+          "bytes": 29324,
+          "sha256": "b195c2bbcb0033d9c025181d732851c214b920e65b3b7e2801e428030c1359b2"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/CoreFoundation-3PRXEYCYTZ0ZF.pcm",
+          "bytes": 89152,
+          "sha256": "6bae942b3d69e324b0a13633ac132968249ba3fc5c4392a56934a11086066bf9"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/CoreGraphics-19GMCQK1P6XM3.pcm",
+          "bytes": 46396,
+          "sha256": "2934e3d100a7bcfa4696672a7264c72eed834e90e5a323770e5c6a4a102cfd55"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/CoreImage-3UI8NCSPFINZ0.pcm",
+          "bytes": 38300,
+          "sha256": "fdff70120389401de2453a8f6c845cf50095e50394fa5664f17d3c1a57a7fbef"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/CoreText-2C7KN0R8TNZFM.pcm",
+          "bytes": 36796,
+          "sha256": "73666beb6122e51ba9b8cc07534dacdff4738760b0c3bf40deadc745b8277ea8"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/CoreTransferable-16AVK0JPGWW6Y.pcm",
+          "bytes": 24992,
+          "sha256": "b22fba2ff448fcfa5f83c671d732b2107645c31c363b4272b8ecd1a9ba3c2850"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/CoreVideo-1DGLWUSJV0EV.pcm",
+          "bytes": 39116,
+          "sha256": "dd1dd7b54b9235b76ab0ca5df165d8adf4c0714c9b175a1f60b85c31de9d07fc"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/Darwin-3OSIGR9MJU32L.pcm",
+          "bytes": 955676,
+          "sha256": "4adfdab5c0f953c63224f5cfb8ff48152a080a717e8d24d231f476c79520d536"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/DataDetection-VKJA9VK2L9FR.pcm",
+          "bytes": 25568,
+          "sha256": "637338872fc804229cea908218f53868e6c03e8dda99a5d414e0379308016077"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/DeveloperToolsSupport-2B3PEGL0O3SHB.pcm",
+          "bytes": 24060,
+          "sha256": "a4e9da82a7fc2dd7e22bb67819d389475df142779d49764f4fd6937dae437ea5"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/Dispatch-D5NPGC7AJE6P.pcm",
+          "bytes": 55344,
+          "sha256": "be366a6cc3a67c91de7ddfd4a5612cacf465994408f4a65110a3057deb665291"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/FileProvider-2O2DCCNZ1P9DX.pcm",
+          "bytes": 35928,
+          "sha256": "178cfcf1bcddcae2f8a7d9f3d84ef7ddcad0d19cc9ef2d6c22d32eead45d4e83"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/Foundation-2D6I54GZO0EPV.pcm",
+          "bytes": 103400,
+          "sha256": "eb3e0649435dcd7e3633b063d986ea1cd1a2a8db91777de6a90839a203067c0b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/IOSurface-2GMZHIFU9GAVA.pcm",
+          "bytes": 30452,
+          "sha256": "db99063774ea7e63c5fdd3bb6d52d3b06245ea7e49979b32d90ab09b6f976c8f"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/ImageIO-2XWEP1ZDFHQCN.pcm",
+          "bytes": 33804,
+          "sha256": "398bc1955a7c8a57700730ad077a5e56919ee3a812029c9d6f92e081e9a1b18f"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/MachO-VOOC4S47JZYB.pcm",
+          "bytes": 67800,
+          "sha256": "e4e08b7b233b4f63cec7c1d9244be6c02e8e15d626a4f9aca55dee726bd7f822"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/Metal-2AOW5MNXUO3VM.pcm",
+          "bytes": 55048,
+          "sha256": "b1e3345f32c5f453ba37dadd5180ed30d3975b8bf03a8246f7bbd234969c8b2f"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/OSLog-3SZK3I11U7OTF.pcm",
+          "bytes": 27320,
+          "sha256": "92efa921051872b315cc147b7f1859eec2460b9cc8352b3cd32ca488daea6d08"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/ObjectiveC-2PWORDSQEHK5X.pcm",
+          "bytes": 41344,
+          "sha256": "c89a14132627dd1913a153dddaa64e1a521bd9befb02db019a68ab9f8a621161"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/OpenGLES-3VQGO085QDZ2H.pcm",
+          "bytes": 148020,
+          "sha256": "97303d18a4ca9387a074044673b3f6950f7525ed8ae111a2ff8a07a4d0d7e6d4"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/QuartzCore-1PGA94LEHPAST.pcm",
+          "bytes": 41656,
+          "sha256": "59727eaa1f72b385e4233ed5f1bfdae34819dd02f6ab3d02a3fc86fd69aa8c77"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/Security-4T9WYUES29A1.pcm",
+          "bytes": 35028,
+          "sha256": "99c0439e61f43877253a8ed6bf9f81e9998dc8d2ff142f682c741902bdf72435"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/Spatial-1HOKQLWXNANNU.pcm",
+          "bytes": 38060,
+          "sha256": "dfdde435b68673312b7cbd56053b17eefb20a8df880f6cf1c0fea36e654c3554"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/SwiftShims-ETMZL06LU75E.pcm",
+          "bytes": 44772,
+          "sha256": "6708babf27ebbf5201b57ccf0c47a8a49891e3946f573286b76ebc6e5e6d2f80"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/SwiftUICore-QNUEZR0E8HH6.pcm",
+          "bytes": 27168,
+          "sha256": "f169bc20dcec31b4cbeb61223e0a3edfd2acab1c04ed1aafd72f69c15796437b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/Symbols-1DNV4QDBC5QS9.pcm",
+          "bytes": 25148,
+          "sha256": "11d3484a782e1fdbbe2dfb18ea96bd3e30a86483dd5a287c56d7283632ba80c6"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/UIKit-1WUOUYQ3HJCSW.pcm",
+          "bytes": 149124,
+          "sha256": "1202541e9254d693a125f82d8ab39b7a34ef620b9a0c42a97b1b1080f3e0241c"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/UIUtilities-2FUK9RCX1V5JB.pcm",
+          "bytes": 26356,
+          "sha256": "2fc6a73df4a180e6401c2e00d4c16de08bad5f274fda3cef99f5c73791e66bb3"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/UniformTypeIdentifiers-J2SEKBNCVKL8.pcm",
+          "bytes": 28164,
+          "sha256": "602a38c0e3994a1e92f73a7f544a31ecc335819cfefb5dc15b975494c88fac6f"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/UserNotifications-1FJPVU08305M0.pcm",
+          "bytes": 28856,
+          "sha256": "b2151dd0bfd8482a23d73b7752f898fe97ce3624d3f8c7953d61bbb3fe1d2084"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/XPC-1VUX2ZXXZNY4I.pcm",
+          "bytes": 46328,
+          "sha256": "dd459c3e048c5d1a984d60785e406db2dc73d0ec1c655a0851d45c685a1f7638"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/_AvailabilityInternal-1VVNCHK8CCI1.pcm",
+          "bytes": 448904,
+          "sha256": "f98df100dd8e617786faf5c1962f99f77051a93953d8d4bf13e24824f461d80b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/_Builtin_float-2OQWMRBVRD4OJ.pcm",
+          "bytes": 29900,
+          "sha256": "273aa3cf87aa07a131cd54d2e5e83ef17c9d37f699783985b2d6eb965eefb3ad"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/_Builtin_intrinsics-2OQWMRBVRD4OJ.pcm",
+          "bytes": 1050352,
+          "sha256": "2413b71fb82d6abeba0777250fdc9fb18035096d041f95ea29112300e870d24b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/_Builtin_inttypes-2OQWMRBVRD4OJ.pcm",
+          "bytes": 24816,
+          "sha256": "c236e5308194aa9d4103176a6de450c2d723185a0fce127807e83dc5610cbfaa"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/_Builtin_limits-2OQWMRBVRD4OJ.pcm",
+          "bytes": 26624,
+          "sha256": "9282dd8a22e17d7627135d694890d6f0a0eb80d5d1d5fac1be2648bbb7f40cf9"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/_Builtin_stdarg-2OQWMRBVRD4OJ.pcm",
+          "bytes": 26344,
+          "sha256": "ffacd461f9178f28b1f7221a197634a24efee8cdfc51b902a219b75d559697e6"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/_Builtin_stdatomic-2OQWMRBVRD4OJ.pcm",
+          "bytes": 30900,
+          "sha256": "4c4804771d874560b3f40f8d9bd2976a93561129ced5c057e7f685c5e2555a36"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/_Builtin_stdbool-2OQWMRBVRD4OJ.pcm",
+          "bytes": 24448,
+          "sha256": "9d62e0302e38c0514e001e9b496cb9a793883bd4b05689903dfaebfe1aa437e3"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/_Builtin_stddef-2OQWMRBVRD4OJ.pcm",
+          "bytes": 27220,
+          "sha256": "400579d10b98465f6e671b0a951f76cb42f7f64e3fab89138cdaaf15c29de11d"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/_Builtin_stdint-2OQWMRBVRD4OJ.pcm",
+          "bytes": 24396,
+          "sha256": "2913f04606161ea325d59fc7491b3e8c3113d860a0f977cb80e8851a85671c56"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/_Builtin_tgmath-2OQWMRBVRD4OJ.pcm",
+          "bytes": 24780,
+          "sha256": "9fbc6478ff7859417d06d51365961e80e1862d78d94c283999f3216175123d59"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/_DarwinFoundation1-1VVNCHK8CCI1.pcm",
+          "bytes": 198048,
+          "sha256": "163ab323473a5efb3c30a79827a45af2fe45ed664c6ad3d2cabac9eeaadbcaf4"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/_DarwinFoundation2-VWZR1UH1FZG0.pcm",
+          "bytes": 113516,
+          "sha256": "3c8b6b6e3b2724983f7d547ca3c0662f514d7abdf91cab99bfb56bc2f288cac0"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/_DarwinFoundation3-15DVCJU77XYIF.pcm",
+          "bytes": 123336,
+          "sha256": "14c35510e6eb3f0a8fb9a9c9330a4a7c8c04a6a83fcf2ce0dd2812a8741191ac"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/_SwiftConcurrencyShims-ETMZL06LU75E.pcm",
+          "bytes": 24220,
+          "sha256": "299dad6574e43c6d0f4435d2c5c76ee9361ec1fb11fd2edc803568fbbf6f5d38"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/os-35YBQJQ2YC966.pcm",
+          "bytes": 62876,
+          "sha256": "45cc92a36304cdbc676350f42b37a716e2f0ac8a2be1fd65987e2e39e32f715b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/os_object-35YBQJQ2YC966.pcm",
+          "bytes": 32328,
+          "sha256": "40e81bc1f62dbc9ff5f858c0e55fedcd50f04d20586cbb2406a6740ecdcaef89"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/os_workgroup-35YBQJQ2YC966.pcm",
+          "bytes": 31300,
+          "sha256": "489f817477544b50bd9b158358c877f1402b893730c4965a964cb248d07ad75a"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/ptrauth-2OQWMRBVRD4OJ.pcm",
+          "bytes": 29812,
+          "sha256": "6593bd900310b344c1b8aeafc9fc23632f93569a5462785e0053ca54060f0be4"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/ptrcheck-2OQWMRBVRD4OJ.pcm",
+          "bytes": 26992,
+          "sha256": "ddc60feb3d299fd8a4704e30209033cd83224d2796b82f04bcb4383b9e2a6158"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/simd-1UMVU90N80PW8.pcm",
+          "bytes": 48328,
+          "sha256": "f8e6f0f607b5d10850315ca393da9109324664d63be4fffe6dcac2d0eb850ce5"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/3BSCF7GQRY2D0/sys_types-VWZR1UH1FZG0.pcm",
+          "bytes": 24268,
+          "sha256": "6e127b8b27f9463670726e81519edd24da55b97083fa48dd311cc6f4cd60d009"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Accessibility-ATRCEQL09U04EYP8XSM9NKYVG.pcm",
+          "bytes": 255320,
+          "sha256": "ffed3ed781d84a2bf8af73e2262a77b0f26f877681f93e624e2a4759c47e03ba"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Accessibility-DUU5DRPDQ3KPUMDDLFWBNZTFB.pcm",
+          "bytes": 282808,
+          "sha256": "ce9c11cd840238e24ccf2a891bc218262b21e96331d0c7bbef89052136c80dd9"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CFNetwork-1HPAS8L3YDD9N7RD1RCO7H8EE.pcm",
+          "bytes": 344320,
+          "sha256": "154a73caf16623c0b91192dc0dd582bfaf8b8e78c36844f555e1e617cbebb9b8"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CFNetwork-6UY3AZUYYFJ7FO3ASGC06GWJ0.pcm",
+          "bytes": 320888,
+          "sha256": "8ef02081b0e307a906bed9d08e35c18f3442681993a7d9b98f3f2eaacf2906fc"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/Accessibility-1Z316V48C4FD4.pcm",
+          "bytes": 23656,
+          "sha256": "380016a1e7fabb7c6af853cc89d9429cc6028a0770d22641a8cb55f92da32486"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/CFNetwork-3MVTA3VYEJCA3.pcm",
+          "bytes": 24472,
+          "sha256": "f0403a018b67317d2bb2b9889f720fdc5f057e465950ba85e4beb8774ce13ce8"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/CoreFoundation-3PRXEYCYTZ0ZF.pcm",
+          "bytes": 85104,
+          "sha256": "c7ab990aaddfc74570374c3dbc0ce2e36c747490f4210d44061e327e0f1ff3e0"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/CoreGraphics-19GMCQK1P6XM3.pcm",
+          "bytes": 41316,
+          "sha256": "ca37d75563937dd153575b3bb2fef113ed2d3722fac29e48bd2e4afe4fdd8088"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/CoreImage-3UI8NCSPFINZ0.pcm",
+          "bytes": 33708,
+          "sha256": "c0723ae7027f3341bd767eadd4e86c61b2ea78d21b4f865121f5d6a0612d0fe6"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/CoreText-2C7KN0R8TNZFM.pcm",
+          "bytes": 32236,
+          "sha256": "08a0fbdea0e61461f202ef5ea6053d7bcc67fd8f978f43335400d1c8716376b2"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/CoreTransferable-16AVK0JPGWW6Y.pcm",
+          "bytes": 19968,
+          "sha256": "d0032e97b769b4c315c5a633f6805eca1c860b054728c8e53180a159db652996"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/CoreVideo-1DGLWUSJV0EV.pcm",
+          "bytes": 34536,
+          "sha256": "87cfa4bd0b1a71c0a620bb20daa89748618f6eb4eed315ca55c32232f8872827"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/Darwin-3OSIGR9MJU32L.pcm",
+          "bytes": 980532,
+          "sha256": "2a2c411acd58ff0d816759d9cf054471610d6236fd7b9e46da7497d8492857b4"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/DataDetection-VKJA9VK2L9FR.pcm",
+          "bytes": 20604,
+          "sha256": "8263ed0a90bb408273dc64b840ac982a0087b8a1ad1158386f7eb5ee4ee0d118"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/DeveloperToolsSupport-2B3PEGL0O3SHB.pcm",
+          "bytes": 18696,
+          "sha256": "a45505f1632fed4a5d3abbe9676de10fc981496b71174c34cecf9bbb6e8aa30d"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/Dispatch-D5NPGC7AJE6P.pcm",
+          "bytes": 51320,
+          "sha256": "4ec393a7b38e8f811ddce734a7e74859945da57cc3de6527ce2bc5d3c02f9462"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/FileProvider-2O2DCCNZ1P9DX.pcm",
+          "bytes": 31076,
+          "sha256": "bfbd0665f365f02cdbb80bec7108bc7d8233c8d1e8d40105c8d5db5cd4c7f2b6"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/Foundation-2D6I54GZO0EPV.pcm",
+          "bytes": 97208,
+          "sha256": "9af3e58facf9b7509635abe69680832e35daee6e8172a9dd09d0ee69a647008e"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/IOSurface-2GMZHIFU9GAVA.pcm",
+          "bytes": 25472,
+          "sha256": "596a50409dd3b6593a4ada09f7155730b4ec5fb0f8f74fbf38b5fb875f768f2c"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/ImageIO-2XWEP1ZDFHQCN.pcm",
+          "bytes": 29220,
+          "sha256": "4b54db9a6d3e7956ed4d66544c8fccc54f1ffcbf6539f983b4f850e071f01a6a"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/MachO-VOOC4S47JZYB.pcm",
+          "bytes": 63748,
+          "sha256": "29dc4d5b3eec19fea71854fb13452ebe34555c8d9181e3d3a981953165c8d679"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/Metal-2AOW5MNXUO3VM.pcm",
+          "bytes": 50476,
+          "sha256": "f459727db0fb03cab6183dafcdd87f144732e9ca34cd9a012d326fc502ce9fe8"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/OSLog-3SZK3I11U7OTF.pcm",
+          "bytes": 22348,
+          "sha256": "b0fcabd3d1fb6811adc9d36baa2939deab0095608135ca02e21e308fa892a093"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/ObjectiveC-2PWORDSQEHK5X.pcm",
+          "bytes": 36224,
+          "sha256": "dd90cd9164619f579f7f444fee0783293c0a520b7b23b56bdf1e76d47d8eb398"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/OpenGLES-3VQGO085QDZ2H.pcm",
+          "bytes": 143940,
+          "sha256": "0d6e767d8f6d6e9eb7e98d0aea392dd74baa1016ee12aa199267a32b36f0b063"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/QuartzCore-1PGA94LEHPAST.pcm",
+          "bytes": 36796,
+          "sha256": "8cdd1dbb636a0226907c037c406ef872b406a828a440b44d097668dc6bbfba83"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/Security-4T9WYUES29A1.pcm",
+          "bytes": 30460,
+          "sha256": "176b1018b2a36900a8c1647c875aa1806440067bd25e45063060f68b70384cac"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/Spatial-1HOKQLWXNANNU.pcm",
+          "bytes": 33532,
+          "sha256": "cbaab8c9bde77a190469cc3137321614c384b449cde6f24bc67dd454fa3208f8"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/SwiftShims-ETMZL06LU75E.pcm",
+          "bytes": 39296,
+          "sha256": "9fa6061caf0dd495537c5aa13914d55fb45dbb16d05e76aea5754dd1b2cf2fc0"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/SwiftUICore-QNUEZR0E8HH6.pcm",
+          "bytes": 22140,
+          "sha256": "36cbc316bd9de351a7883b9bd99e1e0596d0761abdaf948b794aa86ab6480c56"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/Symbols-1DNV4QDBC5QS9.pcm",
+          "bytes": 20184,
+          "sha256": "47e21342370840595c50f6605b5bc82a5dba83240e9198e872b4f5ea634e7701"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/UIKit-1WUOUYQ3HJCSW.pcm",
+          "bytes": 144548,
+          "sha256": "3b83e15530779fca98d1d45d37a5e82ee57965f6800967f1ceb0e9e29b1b2f58"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/UIUtilities-2FUK9RCX1V5JB.pcm",
+          "bytes": 21380,
+          "sha256": "6cd88ad38d3703c7511ee8adf6e005167300a4d79a649414d8dc29a3e11fb6f2"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/UniformTypeIdentifiers-J2SEKBNCVKL8.pcm",
+          "bytes": 23312,
+          "sha256": "72f3d936239bec36ac44e20df6184524cd34c509409737251a20f566ec65e624"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/UserNotifications-1FJPVU08305M0.pcm",
+          "bytes": 23828,
+          "sha256": "1ec6d1c54f1b37ea48d7408b89c6e20f94f26f1eb90fe58b84dbe93631df19df"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/XCTest-14AOSAVXE7G74.pcm",
+          "bytes": 69936,
+          "sha256": "98f4ce01f4a315b01a41de9e4d2322563153fdb5c4364c6d9d5d15f4f0e85e0a"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/XCUIAutomation-SCAC13SRQRDD.pcm",
+          "bytes": 27132,
+          "sha256": "d1cdd56d6a137b9753785dfdc6b660e20a0ea79c8e9177332dada59e780e6455"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/XPC-1VUX2ZXXZNY4I.pcm",
+          "bytes": 41216,
+          "sha256": "474654d0cfbca80e443fc98ca772a05c514c0e7dd69e6c12c8f7bc8107e9af9c"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/_AvailabilityInternal-1VVNCHK8CCI1.pcm",
+          "bytes": 444360,
+          "sha256": "1da39f41959e1b83221986337748625a558f313668e8a96260dc13b4bf7243b8"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/_Builtin_float-2OQWMRBVRD4OJ.pcm",
+          "bytes": 25504,
+          "sha256": "4eb1c6f308762e3292143c6bdd54bac9b0d30b25df7d80475e549498419e3afd"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/_Builtin_intrinsics-2OQWMRBVRD4OJ.pcm",
+          "bytes": 1077436,
+          "sha256": "fec390682329edef56e95a8a4d793aec14ef0e1e1f138fd3f6f9683c9aa70f86"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/_Builtin_inttypes-2OQWMRBVRD4OJ.pcm",
+          "bytes": 19848,
+          "sha256": "b840426338cf68bad7f402d31d40550796daa147a520c9e325d0878bcbb87b2e"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/_Builtin_limits-2OQWMRBVRD4OJ.pcm",
+          "bytes": 21768,
+          "sha256": "4da78475735e3b19648e38f008fc7a4d1752352a44a5945e6b2ffef0813cfa2d"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/_Builtin_stdarg-2OQWMRBVRD4OJ.pcm",
+          "bytes": 21136,
+          "sha256": "6a493bfd2b09eab37f5074baed9669b29a75cb4115aa44b27a5554707f7fe61d"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/_Builtin_stdatomic-2OQWMRBVRD4OJ.pcm",
+          "bytes": 26336,
+          "sha256": "732565f96bd4d0f464908644afbe22fc6a704aa4e6932dd6c04763b9aea2189f"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/_Builtin_stdbool-2OQWMRBVRD4OJ.pcm",
+          "bytes": 19140,
+          "sha256": "d48e15570fb01029682d1aa9713bf3c6edd1284e09da69ae8149f8873e024287"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/_Builtin_stddef-2OQWMRBVRD4OJ.pcm",
+          "bytes": 22024,
+          "sha256": "b809539e2ce41dfa5d81d67294ce92d6aab14131e6eabbe405710b336b0c0806"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/_Builtin_stdint-2OQWMRBVRD4OJ.pcm",
+          "bytes": 19424,
+          "sha256": "ee979b4625811e2886900ba9cb03ca5340bc534a254453e812908848f0c74e97"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/_Builtin_tgmath-2OQWMRBVRD4OJ.pcm",
+          "bytes": 19812,
+          "sha256": "0c0120c24911d0d98897cb36fa02bce945deedec85e612f14c3f16d098b2b959"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/_DarwinFoundation1-1VVNCHK8CCI1.pcm",
+          "bytes": 193780,
+          "sha256": "bb37dea1e61363ed414e47b652a1a24713b38f94e5bbd6f9fce2e3b765e51b7a"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/_DarwinFoundation2-VWZR1UH1FZG0.pcm",
+          "bytes": 109504,
+          "sha256": "8290deba9d787d99f74f68e8fdb23ceb06c2f2a9edfa4ce1e1646a82053c7a87"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/_DarwinFoundation3-15DVCJU77XYIF.pcm",
+          "bytes": 119240,
+          "sha256": "3403f52bb9b6c72f4559b968c2c22bdbbe5dd9117c22c086a1f47572b3d1dc70"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/_SwiftConcurrencyShims-ETMZL06LU75E.pcm",
+          "bytes": 18912,
+          "sha256": "cdbbf06ad30baac5cce5246f258247929b727e12783a527d5e93e14ba2c44f22"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/os-35YBQJQ2YC966.pcm",
+          "bytes": 58844,
+          "sha256": "42d4ec739fe47b6f97e06384ca015ab9223d10bcd47daddc4e0cf5e559be105b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/os_object-35YBQJQ2YC966.pcm",
+          "bytes": 27748,
+          "sha256": "43f1dccb0e113ba73e341ea6c77921554d5dda468100d021c07ab278f725a8ca"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/os_workgroup-35YBQJQ2YC966.pcm",
+          "bytes": 26464,
+          "sha256": "0020f74c3d24688c799ff7fa50569fc40997cce0aa8c8b144771f9aa278c2444"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/ptrauth-2OQWMRBVRD4OJ.pcm",
+          "bytes": 24888,
+          "sha256": "a83224bc2c95d10d33b51a8a795c3ac05911d4c2b1026b2871a3471d421fd529"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/ptrcheck-2OQWMRBVRD4OJ.pcm",
+          "bytes": 21768,
+          "sha256": "29ee53158c8824b9f9b65b938a2c65b5d24c3b9992a39f7e4c7f2e77d521a68f"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/simd-1UMVU90N80PW8.pcm",
+          "bytes": 44460,
+          "sha256": "11162b4b4064bbe009216ac3c13c47559c3cab521774e14e01a428e5a4c13237"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CO57YJLVAXUY/sys_types-VWZR1UH1FZG0.pcm",
+          "bytes": 19300,
+          "sha256": "e0213d062e658e13dd053037a3177c09514c2aa0e34ee08ab5a4a9ef3a6642b9"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CoreFoundation-1UHCKEAQAESKCFW8F5V0TJL72.pcm",
+          "bytes": 1296696,
+          "sha256": "0ddaaa11ce1d822bbcaf6b1352a20ec68db8d1e25fb4e5538524c9c426a6460c"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CoreFoundation-8JEO6ZOKAI8RW1VIBBBX5VTG.pcm",
+          "bytes": 1336888,
+          "sha256": "f17f1504dd926f20f5320b8ca57b2854883821e8fa2d78ec67342d2ae425f3aa"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CoreGraphics-CW86W0DIW5AQ50PG5KMHJF45P.pcm",
+          "bytes": 933896,
+          "sha256": "8be221719b43093f6961ef13c608dac5ccb6ce8bccd08e3ee4b831a1fd7bbc72"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CoreGraphics-DWTJEGXNHDRU2K4LA9N8X4H17.pcm",
+          "bytes": 966216,
+          "sha256": "6095a54a24457e9b89b839c8c502941a6c54e74ad5e014bdcc4dbd02d5345992"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CoreImage-51DB30DTQR5FYNY1L7NRW9Q1J.pcm",
+          "bytes": 1295456,
+          "sha256": "f1d91fc227a2252143d53d68c483599d4578461cc96159a4a481c024042b20b4"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CoreImage-BIX3XJ3T5KVEPQOPKXOJQLGWA.pcm",
+          "bytes": 1267520,
+          "sha256": "5702302c7b7c1662cd70ae2ab4dabdcb94aa35515d2883e9e0c32f282c5dac3a"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CoreText-3PEKSRNDK8ZJIMN64TFTTPL7E.pcm",
+          "bytes": 1002608,
+          "sha256": "8f50eba932b7e1e2ca4ada048068df06c3b61fcb04797d612fdcac01a1c18bfe"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CoreText-7R44XJL7E5UC0G5PMLK7G1Y73.pcm",
+          "bytes": 1026608,
+          "sha256": "70791af347f7e87e6a71789e8b639d3d4a08cf84ed1c1e0dc782b4c3b7274a24"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CoreTransferable-73U9CA7XDDDLDAZK69DPOICFU.pcm",
+          "bytes": 53760,
+          "sha256": "4b6c78d667e835a3d1e6f8444a48e82e47b33bed6dd3bf5b54682c0cadb4f927"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CoreTransferable-984I96GWIKBY1RBT9JPPHRFFM.pcm",
+          "bytes": 26072,
+          "sha256": "8214c3405611e23adae94f93537e90f5b29af94ca066adf79d36708ecda24a62"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CoreVideo-3P729HB0CAZFM013ZE1V84XK4.pcm",
+          "bytes": 370216,
+          "sha256": "73dd84211a203f5ffc1fdba20a7734f0193dfcf863192b5f0a3336f44cdb34e1"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/CoreVideo-8ZFHG3TZE52GFOJ5PO8WI6YWM.pcm",
+          "bytes": 402152,
+          "sha256": "fd2e80151cc31a4e6e33ed463565cf47460d00acb82bd9fe17927e29bcba5a13"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Darwin-76WZO2H96RV5L1DOWWFOTDTA9.pcm",
+          "bytes": 3995496,
+          "sha256": "ab6a420d46d6b5d3ab345e99810a04b6fa8961313c32326c1a78706b88c7e135"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Darwin-NDG80I7V6K6VZPD2TBXVAMY0.pcm",
+          "bytes": 3999456,
+          "sha256": "24583ae175ff17eceffa83d8bd088ac73e9e793da6dd69e6a210a82948769077"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/DataDetection-5KXZD7RLWLTJO867WHXQE52H0.pcm",
+          "bytes": 53184,
+          "sha256": "dbd452d93ff74b90afa15ae16348072ca08d6e9c760ddacd7616a699228c0e9c"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/DataDetection-8WBGOWLNBBSGEJ5BSWCHEEP79.pcm",
+          "bytes": 81368,
+          "sha256": "263ad178892e89210ab893cbbb40ad65568c3cd3418509875a4bbe2a2750f917"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/DeveloperToolsSupport-BTAEZKLDJ0G66E4TLLW28HO3G.pcm",
+          "bytes": 36776,
+          "sha256": "0dbb57aa39f2909e93a9706e79a7e14308a2de4ef6737cc3707567e980772576"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/DeveloperToolsSupport-JNSXRGJQ11IZDESW4H8RX1FD.pcm",
+          "bytes": 21856,
+          "sha256": "b9f95e953f2a16cd112d080f1b7e6fc7d4876cc07ddee4ee3707aa84766adfc8"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Dispatch-2VY8J4WZPX7MBNKNPZWJSN2YM.pcm",
+          "bytes": 289792,
+          "sha256": "0aad929ef6f3716c01708b23d405fde5812b45127db4cbf080b9115bb5989fbf"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Dispatch-JFK7EODK2E28TVA3CPJARCU9.pcm",
+          "bytes": 310392,
+          "sha256": "b6f8fdcb1cfed279dd6604062e76dc80549246cc999a29283163dc30f7faf6a1"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/FileProvider-5BLQNGLEKIS7SVREDQPPJM7YR.pcm",
+          "bytes": 529744,
+          "sha256": "d606e96ed98252e4b1a174eabd91146494cf1cf7767aca8087e38002fcf22fc4"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/FileProvider-DUE2CJCBGDD08F8HD1XGFOZQT.pcm",
+          "bytes": 497872,
+          "sha256": "8c2cbbcaf7640bbf3f078e98d04f6f84a69e8c39e92841e1ee61ad7ee6f26535"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Foundation-7PK8XOICSGO3XBKRU1Y3GXKH3.pcm",
+          "bytes": 5804544,
+          "sha256": "4c2660ca3a1a0dfb063551d014be4a03382f21bcadde8e54145f1af0e6dd1e47"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Foundation-F359YHB3Z356MZ9EKJLHMRZBV.pcm",
+          "bytes": 5830576,
+          "sha256": "3f8ed9f4ebb2a05330bf864321e52b663d395ee51e7d553dacca9b43ba8d502f"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/IOSurface-C1YTEHPBUETW1V789BSHN6LC3.pcm",
+          "bytes": 193760,
+          "sha256": "38313bc6ad4503f28d1c3df7eebe0af49a2634aae167f868b22fe8d2331d8e7c"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/IOSurface-Y736G8P45FODQZ9ME0WBQR8W.pcm",
+          "bytes": 224416,
+          "sha256": "440b0df6e5a65d7fcff8b841d21493d1af1b61bdddf4bf2bf9f1cfd8bed7a257"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/ImageIO-6X7XNR1Y5T33UAK8JCPF063WK.pcm",
+          "bytes": 948952,
+          "sha256": "6eb610bd75b3fdce6c839f5d4ed62387394b7b51bbd559a7f5c8ff901f997e7e"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/ImageIO-EBF31IR5016DWVS5G4KV8KTMG.pcm",
+          "bytes": 924760,
+          "sha256": "d1cc370896041e9e92d139dfe409d80800b6f359052dde48a4b4d8dd2445abe1"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/MachO-3W9TRC5VEA9RKQFJP14UWDQ2E.pcm",
+          "bytes": 457304,
+          "sha256": "207141849282fe1f897e853b7fa8d3636ae5649d16df6c7334c9b43ab7d2a6e4"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/MachO-BJPOJ7XW3JCXVR6XWCYF267WI.pcm",
+          "bytes": 477984,
+          "sha256": "634343b11de308e8ab1811a3ea881a9a2d16fc3a21b17aa05ee6a5cd1f43231e"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Metal-9AWESUEI6EOUSQEB3VK0QAEBJ.pcm",
+          "bytes": 2124000,
+          "sha256": "82dc677ef4a8f51f1728a9d17c5b427519de806b677b23e2ef99d6a116a415ab"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Metal-BVF5CBU007NSS1K2NCSQNMMCY.pcm",
+          "bytes": 2150584,
+          "sha256": "4aaf51b60d900c52894d3ab02970587314fff3870c76b76783919f664d3061a0"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/OSLog-5WU64OPE5FLEGRE12G3ZV1BTC.pcm",
+          "bytes": 154264,
+          "sha256": "1af7a3439c46ea42c5c97af9b10ea2772b144df9a506e3fe7fe16457bec0cc4c"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/OSLog-6611RFK7B236F59I0ZCMA2F7B.pcm",
+          "bytes": 126200,
+          "sha256": "7258689720908425ab8b853f44cdac9c88a8817fd5effadec868dd6f57481cc1"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/ObjectiveC-79I3QQ5W8N2VNQ5AEDPS0E1JP.pcm",
+          "bytes": 283784,
+          "sha256": "dd19c5eec2e0421713bb6016c1b5d6a2a32ee335315775ed878acc94f3b48a65"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/ObjectiveC-CYA1OT62N81LA8LPQ6O9NRCDL.pcm",
+          "bytes": 304440,
+          "sha256": "c52ca7fe35f7c6fef0517adb3fd468f5ca60f5d2ded5ab710ae93d42e53c3886"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/OpenGLES-3MF7K5GMMUHGO6UIIFJFTFCGO.pcm",
+          "bytes": 1080448,
+          "sha256": "e3394d879c0bd1acccfde0aea9fb88bf60bf2467f149939ebe7a5ea7741d5696"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/OpenGLES-6D1IPAWPH3CFMQICU5YAQOR30.pcm",
+          "bytes": 1053904,
+          "sha256": "1b4ea8f5d98bc0f61cbcf5aba4856167d09351f61ee7f9f2d267d3641e24312b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/QuartzCore-5ADHPN0NJHLZW6H4SVYCGVKA2.pcm",
+          "bytes": 686216,
+          "sha256": "7109cfa2a1388ff54f4851251c85167f4ab44c61e9965cde89f00197562b6979"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/QuartzCore-9ZLDN89LD28BULRO4QM39UMBW.pcm",
+          "bytes": 718248,
+          "sha256": "1f713baabd92946cf1141fa1d2d19d2e266b3d5cf3621045702003e31b2fb34e"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Security-DKDPQI8LJK2BIQF2BAFWTMYN7.pcm",
+          "bytes": 849592,
+          "sha256": "677dda17a78c3f148ff961707c9fdac04696721af8b8e702eed04a3b7db7eabe"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Security-DY1NYPTIQ1IPMAUSAUI05APZ9.pcm",
+          "bytes": 873024,
+          "sha256": "339b4b6d8aa67fdfdd880f8f3c084469d102421d7fbbd4ca5deb67f01dcbb6f5"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Session.modulevalidation",
+          "bytes": 192,
+          "sha256": "fc8293a660a785fbc0d8802eeb6532865eca9b4e940330b9af058b8047c162c5"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Spatial-77K8TGJ5C04KA67A2248D5054.pcm",
+          "bytes": 2018552,
+          "sha256": "cecef6738cc4c01df25cf5bb027514de3fc42db28e694d873c0e1f27af04a13c"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Spatial-DMSTCU3K2JHHIO4PXRY5E8TIN.pcm",
+          "bytes": 2001640,
+          "sha256": "991dc00377623729f113f0a64c029a48b87b78daf4f8eac5ac2186ea857f6556"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/SwiftShims-1ECIICA0C4YFF9ZKXKBZDNDSI.pcm",
+          "bytes": 140224,
+          "sha256": "ff38d97f2d094ff51d9d9124a1b4ec79a93f2135e1c5d26ab64157f17113c2db"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/SwiftShims-1TOPVPN2134YRPIPZAU1WCRH2.pcm",
+          "bytes": 154272,
+          "sha256": "4de72df3e085ddb240b30ed5946cf066321efa2315d6d7737a8cc2aa74d9c774"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/SwiftUICore-56UQU42VK0ALQDDJPGI0RQ9WO.pcm",
+          "bytes": 58968,
+          "sha256": "ba677758730dfde399ad0c7defe022afa7c05c1088f6b98fd96da2c5fcf9c7bf"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/SwiftUICore-BKFEDDZ55KL62GFB7CXARWALH.pcm",
+          "bytes": 30088,
+          "sha256": "1d22cc1dbbcbf3664808c7ab408660a86df3d3f9a7bc752cf958654167898e47"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Symbols-DYT5Q4XAC1TL3QNOXOS7MDO2C.pcm",
+          "bytes": 137448,
+          "sha256": "2eb433efc3aed144e9f3ebe824cbf73282a9b2a1b3c42e878f7dae7f725a55ab"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/Symbols-EGI1SMBPC3PWMLDO1E1YJAXPY.pcm",
+          "bytes": 110032,
+          "sha256": "5f6cb5426c0b2f3498b253b0e321d5a793d94d63f22eda4bf4e333a31b784050"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/UIKit-5FTJD5G9DXK9O135UJ7OZUODB.pcm",
+          "bytes": 10772768,
+          "sha256": "60f18be087b9967ed679457c629aa909f73b3216e37379673132da12baef258f"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/UIKit-9L463V0L5VAODGZQBR006M4GG.pcm",
+          "bytes": 10800568,
+          "sha256": "15c0e7cf4715528cb644bff0386cb7c08a8e30c1ca547ef6dc6ff841567ac570"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/UIUtilities-6IPGFN7BF82H6FWZTAWGITOL.pcm",
+          "bytes": 44112,
+          "sha256": "1d2843d582d0cea7aa739a0e083b32da6b70e23ab890d5b3166cb286524f97f5"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/UIUtilities-E6H8TCI4VJ39QYFRV8R5Z37GF.pcm",
+          "bytes": 71488,
+          "sha256": "c617447271cf4a619447aeb75f00e5f97f28136ed52d2db0b316c3b357c7e099"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/UniformTypeIdentifiers-BM7PIVSGN5LMUR69T7BDP7DFT.pcm",
+          "bytes": 201600,
+          "sha256": "92a50f4dc59deddd0fefc87cbd5af99ca42724da996df58a9533285f30be9bd7"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/UniformTypeIdentifiers-EJJVBX8G6BNFKOVPUBYY29HXK.pcm",
+          "bytes": 230048,
+          "sha256": "d8d586af737554622377920d9e1dc534ac58d26008ed51bda679c4b17049d5ae"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/UserNotifications-1JCVSBV34S5IQ9L3JIZW6OLD3.pcm",
+          "bytes": 292024,
+          "sha256": "5ca1a706ed10271b622bcaec01c77f47c6cf1ba949123941c3296aa0f206d3f8"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/UserNotifications-5074XCMB9QWKZDT70CTM23QJA.pcm",
+          "bytes": 263584,
+          "sha256": "6dbf7c6248f4ce1c4b6e342b279c1dee49e54e51f9f3a60b831f597f59ae66d9"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/XPC-36K9VZBZX8SKVECGO0LJSGLCQ.pcm",
+          "bytes": 294296,
+          "sha256": "033b69cfd77d9b667ae891e1b94dae4293b5e41a1d177ca38ff997d6f65eeba5"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/XPC-8L95IKNSDZAETWR7CVGWR4N5A.pcm",
+          "bytes": 271504,
+          "sha256": "8ba1a4104b6888f22e2c0551875da2504c57e84ea864b3a0abd4d2ba5a651aac"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_AvailabilityInternal-3YQO51CP457RMVG3X2RC2MB33.pcm",
+          "bytes": 582712,
+          "sha256": "6a685041e216af0a8dfeb6ab4411e105778a0f6949ff40c054962b81d2ba9a96"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_AvailabilityInternal-A89PAFWRGDMH289SJM765R8X9.pcm",
+          "bytes": 596336,
+          "sha256": "06055be2f43a1f065dc5ff3db11cc4414db8dea091c167b107d1c09684d3816d"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_float-3YBJLWW758YYTK6ATFSEP92QZ.pcm",
+          "bytes": 46096,
+          "sha256": "0d97824bc44200eb84409b196ac76c9c95d5c1bcf9d940195797e3964e8a77d9"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_float-CCMATP385M4E3T1915W6JNIU9.pcm",
+          "bytes": 32096,
+          "sha256": "3c41b3d86de650e1d256b64ade20c1e4913a5c62037a3276121a4743ed63534e"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_intrinsics-1A68YTXFRC1H0ELPGDTZCMGWA.pcm",
+          "bytes": 5753440,
+          "sha256": "4da4d97ed9affa399cc9dde02f07c7a43f0ea929ca3964b4a777f7c4b8a9c1ed"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_intrinsics-2D5ZL77QTGARYNWMQ5Z9OEXYA.pcm",
+          "bytes": 3272200,
+          "sha256": "8aa5d59c0c974b063bc34002a303a29bd24a301e737b28c5daba4dd27f675b8a"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_inttypes-1MV9W5I32LEK7NI3DB34N5SI1.pcm",
+          "bytes": 44712,
+          "sha256": "c26fefed0db9d7ed03beb4251f2bc90995ad93c4df3e2b7301356173d0fb1904"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_inttypes-3FWQ3O29M990O8MJR83OCQQ35.pcm",
+          "bytes": 25224,
+          "sha256": "a9e3f703cf9dd680fcd272bd099e3bb9f02c0edbf88c0cf0715909e737e86fe6"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_limits-366KEBVX0TWLRUBP7SHFBURP0.pcm",
+          "bytes": 27840,
+          "sha256": "98758bad8170a3e7eaea0f39305259e2588b3ed3fe39e6563581cfb1243bfce2"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_limits-OYMTNKMVSCUYG05CACB901V3.pcm",
+          "bytes": 44824,
+          "sha256": "a3ce76cf781894ffaf96d1ccb9a9ab018ab0555817927ea6f4cfd6b34a04b22e"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_stdarg-5RS7RLO4OUR62YFPZ25FE1A4I.pcm",
+          "bytes": 26872,
+          "sha256": "2cf951ef6598856da5751ef56e1e53cf3a81a511aed3a1c8ddf499fef45fab69"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_stdarg-AGRIGJALGCCHJKAHR2NBDVSK5.pcm",
+          "bytes": 41816,
+          "sha256": "0e129a14d3c67c5759f53a88492b7bd5dae99444a417a9b78afcdf85ff683176"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_stdatomic-2IR6815P9OYONKOIAA50KPT9P.pcm",
+          "bytes": 53424,
+          "sha256": "b1623df503d5f1e0c9e7dc409ee641763a2c898b98bd463657802ee26921d412"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_stdatomic-63F9X57WAUJOFNPA81O0ZW2HJ.pcm",
+          "bytes": 72568,
+          "sha256": "9ff9277ced27e989eb07f28672892a29ad15e73de38dc53f811a64fef7c05848"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_stdbool-8IO595UJFNDHK7YBUS75EQ88E.pcm",
+          "bytes": 23464,
+          "sha256": "e3ccdf40ff2cb1d581de251ec7d2882008cf48a9c2ddb3ca1210b9b12401971b"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_stdbool-F09GPLII0MQC1LFR5UYHDO5N3.pcm",
+          "bytes": 38856,
+          "sha256": "1445039164d9d5ba2acddfa2ffcf624c32a27ad34cd2e5ccf1910d917672c881"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_stddef-4BKW62OV4TM0ZGV4BQYIY8W90.pcm",
+          "bytes": 43592,
+          "sha256": "2746120e37fdcc99cd440e5abcd9e921011614181b8ada8a3f7017517f291b9e"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_stddef-AYMQUYZ7BF0OME9CXN7FTH9O8.pcm",
+          "bytes": 28376,
+          "sha256": "c98b12db842866b7d078d9109f9485960d8cb8682df55e88ef7d2c6f3d7fa486"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_stdint-6M0BIER4RI91L61OQVG5X5HNC.pcm",
+          "bytes": 24568,
+          "sha256": "13352ea79025c6eed1906e8a35b42251325dbcc720761dde6482ec4e1cc58efc"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_stdint-EFQM9ZUHNYI8HQ8KDPPITD6GA.pcm",
+          "bytes": 44056,
+          "sha256": "acdee54324315ca2c2868d23bfd7a1a5056715d31b825f1c69d987e794b94366"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_tgmath-30X6U2LPCWF0G1SYSYRHG7VG9.pcm",
+          "bytes": 25352,
+          "sha256": "48fde45e842dc2556a4a3098a10fa3fbae89cea13c95bf72841ff92e7ca9c584"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_Builtin_tgmath-9F7IDYAT1PV6LG5450V8MR6VB.pcm",
+          "bytes": 44832,
+          "sha256": "744456d605daf493f926553e1833428eafac38147a18263b949f451436fe07ab"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_DarwinFoundation1-2K9294IMKTLTDK7RZ55MSXGFJ.pcm",
+          "bytes": 462160,
+          "sha256": "2ef374063b9872440a89a569dc81d7dae9dd6e4bc4450dfccdc52244631335bb"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_DarwinFoundation1-9A4U1MEJ0YBC8DI39399HSS74.pcm",
+          "bytes": 468744,
+          "sha256": "f482e53219d6ea24120bd7ba1cd06a70e3d0294c7d5e72b705e1ed73f9cb752f"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_DarwinFoundation2-5O2ICUC9YI4HGA0YH3PEX4HT0.pcm",
+          "bytes": 478968,
+          "sha256": "5342356c7676050100f9970ce86d239458ffb0b2f3522082e13897e09fb69965"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_DarwinFoundation2-DLZUKM7PGA4WIG4XOKLCU1QV2.pcm",
+          "bytes": 497120,
+          "sha256": "9ef136c5fa6faa7d46e3bbb7b49fd7d82109c07a6109d09462378b3d7d657457"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_DarwinFoundation3-31NJPGTAB9ABSHC9LGNOXO1FV.pcm",
+          "bytes": 691640,
+          "sha256": "c9817050986166618139736f3e5e5a42e4c0bb9056b73a2ed6d74a837e525068"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_DarwinFoundation3-BWIHFAVP6L0AZECY1Z1SDE6DI.pcm",
+          "bytes": 633048,
+          "sha256": "f589a8f0f8721622ead29fb087c9be567ef6b9313cc2e547dcbe53cb7e5cbc81"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_SwiftConcurrencyShims-BRRPH8ZHMMMJZX3O72Q5XXAQE.pcm",
+          "bytes": 23704,
+          "sha256": "55b379fed94ae1a1f379d655a67fcb084da70b8384eca93bc2a816e4ef2c42de"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/_SwiftConcurrencyShims-DFRWQQ27449OZVN8KWZQZOOBI.pcm",
+          "bytes": 39088,
+          "sha256": "2679deb8c90c7f9e45b7e9ec2b5299d1ff34869cf9e831b9b8bb8e63c200c362"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/modules.timestamp",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/os-9BT7MME209ELTJF360VV8SZ0S.pcm",
+          "bytes": 146664,
+          "sha256": "f4459dd072e411d6ba6aff020d785e8b9ac831933598a60fc76574e14aa3e40a"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/os-BYUVGW0O04DEX4G884KETEWOO.pcm",
+          "bytes": 170456,
+          "sha256": "01d669fb7d8ea2a5d2e6010b4979713262649f1c2fc2f081fbbf341bac6d9d09"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/os_object-49BGGC2KRIJ02UHRL26UQ14NQ.pcm",
+          "bytes": 40976,
+          "sha256": "54a3e3301ca5ba787b9fe803e5d3e12eeca8f99dcddb1306cdd7aa25b9d07090"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/os_object-53I7AIG1WCX48ORDRRFOIO9B.pcm",
+          "bytes": 62936,
+          "sha256": "84255ddf479be95bfc10dcc071e22a7613aadc97559f703f32728689fead2934"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/os_workgroup-1T97RMVR5LALR96705B71Y2C1.pcm",
+          "bytes": 96696,
+          "sha256": "926e2927aeff2264fbb347c387aef1122f1cfe7420d44afbc1d25a4a76011aa5"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/os_workgroup-7SUWR0TY9WYXL15SBB3J3KB7S.pcm",
+          "bytes": 74568,
+          "sha256": "2d2b4994afac6e027330e965e3b77a9f34d3b0aa90c8f45c23ee32473780adc8"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/ptrauth-5EMQ3OG7BQ6TZUSW6W48QZW3F.pcm",
+          "bytes": 50864,
+          "sha256": "badebcf4bb623ec7880595c138d1271b5a2d7c05a949f7109dadae3b9ec08151"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/ptrauth-8DNPLLZREIOMMQG8DY432X2L0.pcm",
+          "bytes": 36040,
+          "sha256": "6653ffc61bb131e9520eeda5ff825be4ac52e3a622eb604b0abf88d9257c9621"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/ptrcheck-2U22R4BMAEK1KZ96Q29NDS9JT.pcm",
+          "bytes": 41880,
+          "sha256": "98cc9d96d64ab49463dd3ab2d36e8a014d736827dfcc0aa89fafa20d5e44e8df"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/ptrcheck-E9JVBJ9QI99LD53HMTQB0IX9Z.pcm",
+          "bytes": 26632,
+          "sha256": "5483eca83b497b65c79c38515a99d92e005d80ebf7620d4c7243dade11cd4587"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/simd-11ZGPKQO4P3W7Z5Z8TBDXGCBF.pcm",
+          "bytes": 3943416,
+          "sha256": "5ef46aa666f45155fdf40d59d7a48262e549bf8eb6207d1fbfe912e1251d6370"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/simd-EI5L34K01RUW6QA1D0MVEH2E5.pcm",
+          "bytes": 3962160,
+          "sha256": "6986379145dc5bde48bb7ced4f8e9d30397a14bbc50fea494ebfac138e2a8873"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/sys_types-BLNG2TV4BXP2VZ5O6JMTF7D36.pcm",
+          "bytes": 24328,
+          "sha256": "72ca0a80c29128d53f97e33c3c0ce52bc2eec4db0f5184a356522404ed8357c3"
+        },
+        {
+          "path": "DerivedData/ModuleCache.noindex/sys_types-DKPMSZIZFWA48BA3LI21TO5F2.pcm",
+          "bytes": 43808,
+          "sha256": "27525211ecabb25dee1596d3eae92b69d9fc83edd4560a76526a5b020d3fb1cc"
+        }
+      ],
+      "fileBytes": 116401392
+    },
+    {
+      "directory": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-upgrade-ui-LEePuR/DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build",
+      "files": [
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl-dbf2b57df322fb28a646e01845dd3aad-VFS-iphonesimulator/all-product-headers.yaml",
+          "bytes": 49,
+          "sha256": "b7e056c85f6e2f66a633e7400ddda88868fad5ed81b8d4e9d53287984ca925fa"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/DerivedSources/UpgradeVisibleControl-Swift.h",
+          "bytes": 25785,
+          "sha256": "ce54fd55a3a63a47c5da92134f141b3e9e06ac6e1dbb23d3f4d34c37e767ac41"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/Binary/UpgradeVisibleControl",
+          "bytes": 113528,
+          "sha256": "f6432110beb9086d143c5834ad7f24b5d106659abce3ffd05b7b23fd517e6039"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl-OutputFileMap.json",
+          "bytes": 3647,
+          "sha256": "bb438d16d0364671b66ae22fff832568714182158bc3bf68b7d06d1ba5ff10d7"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl-Swift.h",
+          "bytes": 12824,
+          "sha256": "fe46d161a0df74d2c2cb1cce3f2c576ab14db15318e7455ae73107347ae77263"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl-dependencies-2.json",
+          "bytes": 39295,
+          "sha256": "0088e0e40749d1dd55de6505641190f879d8cebadcdeedfa583bdc0de9b98597"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl-linker-args.resp",
+          "bytes": 8299,
+          "sha256": "ff52a76f5f592bb591da756418d1075475f2e4a2df1b581a4f69b66991aedf1e"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl-primary-emit-module.d",
+          "bytes": 73337,
+          "sha256": "1d1358f0032ee493f22b575b91907717aa94c0a6802d405becb20c0980adf6bc"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl-primary-emit-module.dia",
+          "bytes": 268,
+          "sha256": "2c72d5afff8cce441f2f8299a18215b0bf79605aa7eb05839e38f7949b46c0e2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl-primary.priors",
+          "bytes": 40800,
+          "sha256": "d8135bb7c12942b90d36efb6e98d9e633e1df7e1cfa8c45b78078973e72ba1d4"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl.LinkFileList",
+          "bytes": 243,
+          "sha256": "9cc6a6b2158bf730574c4fc3400f98fbd4230ab42c0fac21ae709e6bb4cf318e"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl.SwiftConstValuesFileList",
+          "bytes": 258,
+          "sha256": "d2edecd7edee1781845a8876eecaab4d1cbd191793e88299967a960adadb991e"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl.SwiftFileList",
+          "bytes": 108,
+          "sha256": "21b4004be46916e9ad234824c99a77b2651805fcfd392f9231a995abce879fe2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl.abi.json",
+          "bytes": 149,
+          "sha256": "4277ac6b49f8511196028a5ac20f5b1b1dfa754c24615d34068089f0b1739728"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl.d",
+          "bytes": 18325,
+          "sha256": "469d4e3d13051b6bee0cbc4a98d709bccacbbd5b68aae97aaa397b579dc4c0c0"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl.dependency-scan.dia",
+          "bytes": 268,
+          "sha256": "2c72d5afff8cce441f2f8299a18215b0bf79605aa7eb05839e38f7949b46c0e2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl.dia",
+          "bytes": 268,
+          "sha256": "2c72d5afff8cce441f2f8299a18215b0bf79605aa7eb05839e38f7949b46c0e2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl.o",
+          "bytes": 129072,
+          "sha256": "715e6047b34affabbe67acc2e43a0c9a64331be45740ca99e3658ca1f39e3c0e"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl.swiftconstvalues",
+          "bytes": 2,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl.swiftdeps",
+          "bytes": 40508,
+          "sha256": "578ac13a267794a1bac95e0b7d0717ecb4a86c0d957ecc58fab15671e7e8d25c"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl.swiftdoc",
+          "bytes": 436,
+          "sha256": "883c1a152e81aad542649595d1486e051f8d50ad42b78c9b51eb4f3d422854d6"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl.swiftmodule",
+          "bytes": 41524,
+          "sha256": "a01fb897c328fbb07f960db26c5e81f47f7f95f91a515abe1112432a4b6497f5"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl.swiftsourceinfo",
+          "bytes": 720,
+          "sha256": "49ad5a8818d9d52b18a4ec699007723ee921a2bf949aea5a896b2a2231ea3840"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl_const_extract_protocols.json",
+          "bytes": 340,
+          "sha256": "6cf900edb7742ddc71ca3dcdff826e5b19256680ea93f1ae108e98ed95da07fa"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/arm64/UpgradeVisibleControl_dependency_info.dat",
+          "bytes": 229513,
+          "sha256": "ec8b27cf488bf852c40874d4ddc7a9749fd1b7d1d8f8404d0f886597152ac9ff"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/Binary/UpgradeVisibleControl",
+          "bytes": 81448,
+          "sha256": "466a5ad27b5dc4e2771d40f71bb6f764ea38a3def8e2de666ec763f47feb49ec"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/ExtractedAppShortcutsMetadata.stringsdata",
+          "bytes": 86,
+          "sha256": "fade1183c559caa37637ef02f22cf9d81c0e9511cb36ce2f4677be5161fc531a"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl-OutputFileMap.json",
+          "bytes": 3660,
+          "sha256": "2e69dee71c9f8d1dbe7f6bb82702e1155a6ac658af2f3215aa76c7e3b8882fb4"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl-Swift.h",
+          "bytes": 12824,
+          "sha256": "fe46d161a0df74d2c2cb1cce3f2c576ab14db15318e7455ae73107347ae77263"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl-dependencies-1.json",
+          "bytes": 39330,
+          "sha256": "7075205a6c2db6993bfab3aaff9dbad72fd31bd72b0103723d7bb0c2295ac6f1"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl-linker-args.resp",
+          "bytes": 8332,
+          "sha256": "e0f0a66be993564fb70809a4d6499bb0d84c7784d24c395fb44f19bb3c931146"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl-primary-emit-module.d",
+          "bytes": 73489,
+          "sha256": "354ff7f679c55954349eeead3bb964d2ae1856bb7957ee77a049c67847a3abd7"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl-primary-emit-module.dia",
+          "bytes": 268,
+          "sha256": "2c72d5afff8cce441f2f8299a18215b0bf79605aa7eb05839e38f7949b46c0e2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl-primary.priors",
+          "bytes": 40812,
+          "sha256": "eb2272b6576fefc2cc7fc2474760903d7ee247930faa994360c93c511f084f01"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl.LinkFileList",
+          "bytes": 244,
+          "sha256": "ddad5cde038c435a5bb80bcb06c01717ebd6fef7c4817c51a1b5c053cb0608a7"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl.SwiftConstValuesFileList",
+          "bytes": 258,
+          "sha256": "d2edecd7edee1781845a8876eecaab4d1cbd191793e88299967a960adadb991e"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl.SwiftFileList",
+          "bytes": 108,
+          "sha256": "21b4004be46916e9ad234824c99a77b2651805fcfd392f9231a995abce879fe2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl.abi.json",
+          "bytes": 149,
+          "sha256": "4277ac6b49f8511196028a5ac20f5b1b1dfa754c24615d34068089f0b1739728"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl.d",
+          "bytes": 18363,
+          "sha256": "1325de873cc3057b350063d565b51a7a77843421cf5735899f113f1157153962"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl.dependency-scan.dia",
+          "bytes": 268,
+          "sha256": "2c72d5afff8cce441f2f8299a18215b0bf79605aa7eb05839e38f7949b46c0e2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl.dia",
+          "bytes": 268,
+          "sha256": "2c72d5afff8cce441f2f8299a18215b0bf79605aa7eb05839e38f7949b46c0e2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl.o",
+          "bytes": 119368,
+          "sha256": "e0328d0b748b330c506021d3069bf4b1178a08482f32af1fc137899b2439b6d2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl.swiftconstvalues",
+          "bytes": 2,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl.swiftdeps",
+          "bytes": 40520,
+          "sha256": "4c477439d688351a6cc5955a547c185e0a1aa6190f64ade5b2a1cd618aedd2b2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl.swiftdoc",
+          "bytes": 436,
+          "sha256": "b4b71c7cfb458a7aa00d6d071635e2affa0e8a27cd7b0664c37692b53946a48f"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl.swiftmodule",
+          "bytes": 41532,
+          "sha256": "09e31aab139d795f37552f9eb1dd0bb4762953b69f2aba5139f4e40e19222ef1"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl.swiftsourceinfo",
+          "bytes": 720,
+          "sha256": "6fa1930f3efcf646dd50ff964774a20c257d09a2e287e0993f8dd360538244ca"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl_const_extract_protocols.json",
+          "bytes": 340,
+          "sha256": "6cf900edb7742ddc71ca3dcdff826e5b19256680ea93f1ae108e98ed95da07fa"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/Objects-normal/x86_64/UpgradeVisibleControl_dependency_info.dat",
+          "bytes": 229550,
+          "sha256": "ca88bd47af61dcc05c888628e61aa87e72be627132453d9eb9fa5c0cbea524bc"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/ProductTypeInfoPlistAdditions.plist",
+          "bytes": 68,
+          "sha256": "b83daf4e9d94c078d01a3ef769b17843211ecf7a1aa751324696005b57c9815d"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/SwiftStdLibToolInputDependencies.dep",
+          "bytes": 366,
+          "sha256": "4a264353fe076237cbec04fbe6764566d0e5d8f505a60dcac078fadcfb08b5e8"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/UpgradeVisibleControl-all-non-framework-target-headers.hmap",
+          "bytes": 121,
+          "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/UpgradeVisibleControl-all-target-headers.hmap",
+          "bytes": 121,
+          "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/UpgradeVisibleControl-generated-files.hmap",
+          "bytes": 121,
+          "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/UpgradeVisibleControl-own-target-headers.hmap",
+          "bytes": 121,
+          "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/UpgradeVisibleControl-project-headers.hmap",
+          "bytes": 121,
+          "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/UpgradeVisibleControl.DependencyMetadataFileList",
+          "bytes": 192,
+          "sha256": "2d69b5ecbbe0af9ced7eda4d6ecfb1ce8943ac7d1b797eb0a3034dde467b74ea"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/UpgradeVisibleControl.DependencyStaticMetadataFileList",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/UpgradeVisibleControl.hmap",
+          "bytes": 121,
+          "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleControl.build/empty-UpgradeVisibleControl.plist",
+          "bytes": 181,
+          "sha256": "97704a8960b4facceef54397a08fb5d0a456247c3627359215aa2a27df22656c"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/DerivedSources/UpgradeVisibleHost-Swift.h",
+          "bytes": 26925,
+          "sha256": "a8ec0c3f95fbe4dfca9bcc7872e5827a83cdc4af74b5e8de519c0dfd12cdb5ce"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/Binary/UpgradeVisibleHost",
+          "bytes": 76080,
+          "sha256": "f6545fab9e37ea53cf56142a3861cd2286a4daf4cbfb87a2436dd140471217bc"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost-OutputFileMap.json",
+          "bytes": 3566,
+          "sha256": "d8ee1f1261e90e0b39530560a8b3d273a01eb5b5e73f4a5d9a371b352fb27c56"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost-Swift.h",
+          "bytes": 13394,
+          "sha256": "64934da35197914deb5a53bfc00a43ffa9d2a6a115531eab6276970bb141415b"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost-dependencies-2.json",
+          "bytes": 37644,
+          "sha256": "71eaee15bad6eb1948a34666ed8d5421f455cce7f078ac96f5bc2e30411d9fe8"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost-linker-args.resp",
+          "bytes": 7857,
+          "sha256": "ad9130317e9ef94e0a18cde21079694d70d43f7e6fd9569a9702c3a2b22b59d6"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost-primary-emit-module.d",
+          "bytes": 69233,
+          "sha256": "a99b6a435e7a2ba7d9e676b7fdc6651c3fb43aa8eb593b6efc46455fe242b908"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost-primary-emit-module.dia",
+          "bytes": 268,
+          "sha256": "2c72d5afff8cce441f2f8299a18215b0bf79605aa7eb05839e38f7949b46c0e2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost-primary.priors",
+          "bytes": 33276,
+          "sha256": "d10515b417ea72dd3ced9758b01f36384dd68513446fc045e728ad6afb6707a4"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost.LinkFileList",
+          "bytes": 237,
+          "sha256": "d06b78dd1663c82436823ff0ebcfb9eba90871602a0d217b7521539a43e3b7d6"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost.SwiftConstValuesFileList",
+          "bytes": 252,
+          "sha256": "64873ee9db8eff82da60444c50fffc79d218e99d562a57e906e9362c5ace67f1"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost.SwiftFileList",
+          "bytes": 105,
+          "sha256": "1b6af0f01cd873a7a85e64fbd33e444f001708bd4977c4adc6e09363c89d92ef"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost.abi.json",
+          "bytes": 149,
+          "sha256": "4277ac6b49f8511196028a5ac20f5b1b1dfa754c24615d34068089f0b1739728"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost.d",
+          "bytes": 17299,
+          "sha256": "378caf5a2c8305cb7aa289ba36c7ef47711a08ae97b39961ce22733a04cb33b9"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost.dependency-scan.dia",
+          "bytes": 268,
+          "sha256": "2c72d5afff8cce441f2f8299a18215b0bf79605aa7eb05839e38f7949b46c0e2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost.dia",
+          "bytes": 268,
+          "sha256": "2c72d5afff8cce441f2f8299a18215b0bf79605aa7eb05839e38f7949b46c0e2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost.o",
+          "bytes": 68160,
+          "sha256": "420e6024842307d7b29a51d170ba6e2d9178acda759d4fa684461422e7d9178e"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost.swiftconstvalues",
+          "bytes": 2,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost.swiftdeps",
+          "bytes": 33032,
+          "sha256": "4a8e8b08362220f98409b4544c26be2a67c6a8cc458ce55f186b6590ad5cc8d7"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost.swiftdoc",
+          "bytes": 432,
+          "sha256": "fddf8218eff3890c94b3d6369863a011238bc8ed35176e83a310ab5efb6c247a"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost.swiftmodule",
+          "bytes": 61592,
+          "sha256": "f9544211360d2052e2d2d5c5e0a37c34606d19979393d039b85ee5c84dbdd09f"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost.swiftsourceinfo",
+          "bytes": 716,
+          "sha256": "937f16d34e4fcd4ecbb7d927c1ee2c231b134eb5720cb178351698dc46747860"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost_const_extract_protocols.json",
+          "bytes": 340,
+          "sha256": "6cf900edb7742ddc71ca3dcdff826e5b19256680ea93f1ae108e98ed95da07fa"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/arm64/UpgradeVisibleHost_dependency_info.dat",
+          "bytes": 181574,
+          "sha256": "55c760d26600aa6becbe6db547a3f048977561800cb247d10032e5d1e9dd5dc9"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/Binary/UpgradeVisibleHost",
+          "bytes": 50048,
+          "sha256": "4a7e3dbb475799ce5e3fdbba31ea03446e0f0585baa9f5929409e7af63be4692"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/ExtractedAppShortcutsMetadata.stringsdata",
+          "bytes": 86,
+          "sha256": "cdb9d064502ae1dd746e305c937f92480147276c2c17210d1bab98a48a294296"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost-OutputFileMap.json",
+          "bytes": 3579,
+          "sha256": "579ba28f6a705e87d7d8d1d243819b8a2bbc4f3f3a038d29d7a0b70f18bcda87"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost-Swift.h",
+          "bytes": 13394,
+          "sha256": "64934da35197914deb5a53bfc00a43ffa9d2a6a115531eab6276970bb141415b"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost-dependencies-1.json",
+          "bytes": 37681,
+          "sha256": "61d16a9a1149c5c0d4ac359ea4baaa4009765c3e17a0d73c466956684143e456"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost-linker-args.resp",
+          "bytes": 7892,
+          "sha256": "6f141e0f59690fd0506c69ddb459772e182ae36f70b926fac1d21c9217bcd204"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost-primary-emit-module.d",
+          "bytes": 69377,
+          "sha256": "b4f36c59d4e3b00be0f32f843ec96518d64dd2fd8282d324d28b8225091b7f63"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost-primary-emit-module.dia",
+          "bytes": 268,
+          "sha256": "2c72d5afff8cce441f2f8299a18215b0bf79605aa7eb05839e38f7949b46c0e2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost-primary.priors",
+          "bytes": 33292,
+          "sha256": "09e423159b0680e06de3a5e483837b277dfa9548eb141e1eb2358ea3b63937d7"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost.LinkFileList",
+          "bytes": 238,
+          "sha256": "64039b265ef64a8b992c8b5e6524a671c115df9dc9b2c40aaebca72baec41b6d"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost.SwiftConstValuesFileList",
+          "bytes": 252,
+          "sha256": "64873ee9db8eff82da60444c50fffc79d218e99d562a57e906e9362c5ace67f1"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost.SwiftFileList",
+          "bytes": 105,
+          "sha256": "1b6af0f01cd873a7a85e64fbd33e444f001708bd4977c4adc6e09363c89d92ef"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost.abi.json",
+          "bytes": 149,
+          "sha256": "4277ac6b49f8511196028a5ac20f5b1b1dfa754c24615d34068089f0b1739728"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost.d",
+          "bytes": 17335,
+          "sha256": "c428969612b4feb7d66886afb77d87afeab7e31eb10ed8a71cd76d8158fd208a"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost.dependency-scan.dia",
+          "bytes": 268,
+          "sha256": "2c72d5afff8cce441f2f8299a18215b0bf79605aa7eb05839e38f7949b46c0e2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost.dia",
+          "bytes": 268,
+          "sha256": "2c72d5afff8cce441f2f8299a18215b0bf79605aa7eb05839e38f7949b46c0e2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost.o",
+          "bytes": 57304,
+          "sha256": "2df1d250667a50f955f6e399f02862a528bc91a5213ba0a566f1a5f53a7e3a3a"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost.swiftconstvalues",
+          "bytes": 2,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost.swiftdeps",
+          "bytes": 33048,
+          "sha256": "16d6a286a7ab637b7be3ae8051789ff5c333457704296e40be2b08268717f5ed"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost.swiftdoc",
+          "bytes": 432,
+          "sha256": "08f4e4e18103524d7905191017fa1dbe7e1cba07a0fff4e0526becc8aa77e062"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost.swiftmodule",
+          "bytes": 61600,
+          "sha256": "ecc97dd05da93b7de2877c3c6d94b809d035a75e103b45a036a2ea82155edd44"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost.swiftsourceinfo",
+          "bytes": 716,
+          "sha256": "77428152316acaefce8a2417e73b2f9a138191ee52ff778b1be22767190f3f14"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost_const_extract_protocols.json",
+          "bytes": 340,
+          "sha256": "6cf900edb7742ddc71ca3dcdff826e5b19256680ea93f1ae108e98ed95da07fa"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/Objects-normal/x86_64/UpgradeVisibleHost_dependency_info.dat",
+          "bytes": 181613,
+          "sha256": "8bc00fa08ffb7a4a85f5a54401d679659ff671ad304319894c8f315168584db2"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/SwiftStdLibToolInputDependencies.dep",
+          "bytes": 191,
+          "sha256": "9940fca374540acd0b9897da1acf5c3cad9b91ac7a19e540645195892981c6b4"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/UpgradeVisibleHost-all-non-framework-target-headers.hmap",
+          "bytes": 121,
+          "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/UpgradeVisibleHost-all-target-headers.hmap",
+          "bytes": 121,
+          "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/UpgradeVisibleHost-generated-files.hmap",
+          "bytes": 121,
+          "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/UpgradeVisibleHost-own-target-headers.hmap",
+          "bytes": 121,
+          "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/UpgradeVisibleHost-project-headers.hmap",
+          "bytes": 121,
+          "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/UpgradeVisibleHost.DependencyMetadataFileList",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/UpgradeVisibleHost.DependencyStaticMetadataFileList",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/UpgradeVisibleHost.hmap",
+          "bytes": 121,
+          "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/UpgradeVisibleControl.build/Debug-iphonesimulator/UpgradeVisibleHost.build/empty-UpgradeVisibleHost.plist",
+          "bytes": 181,
+          "sha256": "97704a8960b4facceef54397a08fb5d0a456247c3627359215aa2a27df22656c"
+        }
+      ],
+      "fileBytes": 2696528
+    },
+    {
+      "directory": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-upgrade-ui-LEePuR/DerivedData/Build/Intermediates.noindex/ExplicitPrecompiledModules",
+      "files": [],
+      "fileBytes": 0
+    },
+    {
+      "directory": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-upgrade-ui-LEePuR/DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules",
+      "files": [
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/XCTest-304UF1XZTG3LQ.swiftmodule",
+          "bytes": 115500,
+          "sha256": "409a9faecbc8a0bc83de90ac4ca5d8eaf50c8dec3b01841c6a1822f5709fe1f6"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/XCTest-4G0I5E63W7C616GU5L0TBIHRF.pcm",
+          "bytes": 403672,
+          "sha256": "341a808ce90ddb387853cb8d236449e15e3527f8af48a5d5ea607be85f95ce9f"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/XCTest-BIO4XL5FHM9S7B0WSYEFYRPXR.pcm",
+          "bytes": 431560,
+          "sha256": "9a6dba026b017f0ed4704f9d7b6e8292d2252f9bea78b21e1467e626d6348163"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/XCTest-L67YXIVRQCXB.swiftmodule",
+          "bytes": 115500,
+          "sha256": "11bbab7b68530cb2d636f9e3390e7ab4d389202726f72f11add3b558ae375402"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/XCUIAutomation-3S9M6C1SCMSRQ.swiftmodule",
+          "bytes": 36680,
+          "sha256": "f9ead27f12d7213426cee9b84ca7d204201b5438e76e2eb6c5177120339f9dd1"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/XCUIAutomation-4ZMJGAHZQSMKZ56VXRPQGIFMH.pcm",
+          "bytes": 331960,
+          "sha256": "055d4e15e224ae50ac28a7040f637799b226b57846677e9537f9997e846a1e49"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/XCUIAutomation-7SISRLLYEX23.swiftmodule",
+          "bytes": 36680,
+          "sha256": "af35bc4e38b523cd9f5f6ff8933f68ec7ca2dd48cd0f7b78ac46175f3c603f9f"
+        },
+        {
+          "path": "DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/XCUIAutomation-AMBU08DQ7NE76658SQ7EYZSXR.pcm",
+          "bytes": 359624,
+          "sha256": "5340d3f6c5ae592fa12544c1afe333e36166913d9e6743d3660f8d069a893df4"
+        }
+      ],
+      "fileBytes": 1831176
+    }
+  ],
+  "totalFileBytes": 120929096,
+  "removed": false,
+  "productsSourcesLogsXcresultsDatabasesAndDeviceSandboxesPreserved": true,
+  "excludedBuildDatabaseDirectory": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-upgrade-ui-LEePuR/DerivedData/Build/Intermediates.noindex/XCBuildData",
+  "sharedOrOperatorCachesTouched": false
+}

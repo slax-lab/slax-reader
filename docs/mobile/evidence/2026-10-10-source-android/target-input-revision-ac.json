@@ -1,0 +1,12 @@
+{
+  "revision": "ac",
+  "previousRevision": "ab",
+  "changes": [
+    "fixtures/FixtureApp.tsx",
+    "tooling/fixture-control.mjs"
+  ],
+  "nativeInputsChanged": false,
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "scope": "Development-client-only preparation; no native interaction or parity proof",
+  "driverSha256": "ab54bd02969bc7b95124cb7f46527945c817b14f6413438f2e54c63bbfca3c42"
+}

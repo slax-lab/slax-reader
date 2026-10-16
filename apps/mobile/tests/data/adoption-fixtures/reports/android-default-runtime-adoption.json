@@ -1,0 +1,151 @@
+{
+  "kind": "slax-controlled-android-default-runtime-adoption",
+  "version": 1,
+  "status": "passed",
+  "recordedAt": "2026-10-10T18:52:20.195Z",
+  "platform": "android-emulator",
+  "device": "emulator-5562",
+  "application": {
+    "bundleIdentifier": "com.slax.reader",
+    "version": "1.0.0",
+    "buildNumber": "1",
+    "artifact": "/tmp/slax-mobile-native-artifacts/slax-reader-debug-identity.apk",
+    "installedApkSHA256": "c2dcdc430514343aafd02c1a8ee8c6f769ba0b51c10b524b0e830b4487e89faa",
+    "publicCertificateSHA256": "fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c",
+    "publisherSigned": false,
+    "signature": "Public generated Android debug identity; predates selected iOS757 metadata"
+  },
+  "nativeReport": {
+    "kind": "slax-controlled-normal-runtime-start-report",
+    "version": 1,
+    "status": "passed",
+    "platform": "android",
+    "device": "emulator-5562",
+    "nonce": "f6d4f871-fb52-40fd-aa6e-0b932cc8c6cc",
+    "requestedAt": 1791658248025,
+    "normalCreateMobileDataRuntimeExecuted": true,
+    "explicitAdoptionEvidenceProvided": false,
+    "defaultProfile": "slax-powersync-format14-schema2-v1",
+    "actualNativeInventoryAndInspector": true,
+    "actualNativeAccountResourceActivation": true,
+    "schemaInitializationSnapshotUnchanged": true,
+    "firstInspection": {
+      "databasePath": "/data/data/com.slax.reader/databases/powersync.db",
+      "integrityValid": true,
+      "formatVersion": 14,
+      "userVersion": 1,
+      "storageTables": [
+        "ps_data__sr_bookmark_comment",
+        "ps_data__sr_collection_bookmark",
+        "ps_data__sr_platform_bind",
+        "ps_data__sr_sharer_setting",
+        "ps_data__sr_user",
+        "ps_data__sr_user_bookmark",
+        "ps_data__sr_user_bookmark_stats",
+        "ps_data__sr_user_collection",
+        "ps_data__sr_user_collection_subscriber",
+        "ps_data__sr_user_notification",
+        "ps_data__sr_user_subscription",
+        "ps_data__sr_user_tag",
+        "ps_data_local__local_bookmark_info"
+      ],
+      "pendingOperations": 0,
+      "pendingTransactions": 0,
+      "queueDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "dataDigest": "7315b7df376dc56c128a3d30195aabb1941441aa9b408ab1020922c9652f8816",
+      "localDigest": "0ad784ce90ceab3799a6996e3cde9946b64e3534a36badeb2a4db6d91128cccc"
+    },
+    "afterSchemaInspection": {
+      "databasePath": "/data/data/com.slax.reader/databases/powersync.db",
+      "integrityValid": true,
+      "formatVersion": 14,
+      "userVersion": 1,
+      "storageTables": [
+        "ps_data__sr_bookmark_comment",
+        "ps_data__sr_collection_bookmark",
+        "ps_data__sr_platform_bind",
+        "ps_data__sr_sharer_setting",
+        "ps_data__sr_user",
+        "ps_data__sr_user_bookmark",
+        "ps_data__sr_user_bookmark_stats",
+        "ps_data__sr_user_collection",
+        "ps_data__sr_user_collection_subscriber",
+        "ps_data__sr_user_notification",
+        "ps_data__sr_user_subscription",
+        "ps_data__sr_user_tag",
+        "ps_data_local__local_bookmark_info"
+      ],
+      "pendingOperations": 0,
+      "pendingTransactions": 0,
+      "queueDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "dataDigest": "7315b7df376dc56c128a3d30195aabb1941441aa9b408ab1020922c9652f8816",
+      "localDigest": "0ad784ce90ceab3799a6996e3cde9946b64e3534a36badeb2a4db6d91128cccc"
+    },
+    "coreVersion": "0.5.3/2ba6b280",
+    "originalBookmarkTagCommentAvailableInNormalRepositories": true,
+    "originalReadPosition": 348.25,
+    "originalHiddenJsonRetained": true,
+    "originalCacheReadByNormalAccountCache": true,
+    "completedServiceReportMd5": "b1d684e9c3550270551db987ae496f74",
+    "deniedRequestPaths": [
+      "/m",
+      "/v1/user/refresh",
+      "/v1/sync/token",
+      "/v1/sync/token"
+    ],
+    "networkRequestsForwarded": 0,
+    "shutdownReleasedDatabaseAndNativeResourceOwner": true,
+    "productionDefaultProfileWired": true,
+    "visibleLibraryOrReaderUiAcceptance": false,
+    "publisherUpgrade": false,
+    "testFlight": false
+  },
+  "acceptedProfileProof": "src/data/adoption-profile.ts",
+  "originalServiceReport": {
+    "path": "apps/mobile/tests/data/adoption-fixtures/reports/android-original-queue-real-service.json",
+    "sha256": "5ada6e8518df019fb02e9f638cea271cfd54cd36aa885c7bfe734976ac57949a"
+  },
+  "preferenceCasEvidence": {
+    "path": "apps/mobile/tests/data/adoption-fixtures/reports/android-native-preference-cas.json",
+    "sha256": "989ec8496b9338454b5e36a20f21eaf460603a65fe05aad9b7d7fe0f55c8e203"
+  },
+  "sourceInputs": [
+    {
+      "path": "apps/mobile/tests/data/NativeRuntimeStartupFixture.ts",
+      "sha256": "77c05e98dbd3fc9152afaec6baa894aa8a7c0aae39ab8376e0da86e531c1b43f"
+    },
+    {
+      "path": "apps/mobile/tests/data/NativeAdoptionFixtureApp.tsx",
+      "sha256": "59eed2b26b9246a6c06c40e5023aba1d3f6b0ee32dabf318bb6a5e6fdd39d88e"
+    },
+    {
+      "path": "apps/mobile/src/data/runtime.ts",
+      "sha256": "0df561a63c028c87e44bc511f41ee78c604001baf31a27613239cb0559f718ba"
+    },
+    {
+      "path": "apps/mobile/src/data/adoption-profile.ts",
+      "sha256": "0782206ef8680766f1c12c88661df9c702b52ec37c48b0da6a8e762715c6624b"
+    },
+    {
+      "path": "apps/mobile/src/data/adoption.ts",
+      "sha256": "adaa415c44b41746a19a06f7fcf743ef07a39cb997737a27145671dfdf600ae3"
+    },
+    {
+      "path": "apps/mobile/src/data/upgrade.ts",
+      "sha256": "400e9ee274e497b2f77820452add0e5668270a0bd6e51b8a6ebf21c605ee3632"
+    }
+  ],
+  "cleanup": {
+    "matchingRequestRemoved": true,
+    "appForceStopped": true,
+    "sandboxPreserved": true,
+    "noUninstallNoDataClear": true
+  },
+  "scope": {
+    "constrainedProductionDefaultProfileEnabled": true,
+    "visibleLibraryReaderAcceptance": false,
+    "publisherUpgrade": false,
+    "testFlight": false,
+    "wholeMigrationAccepted": false
+  }
+}

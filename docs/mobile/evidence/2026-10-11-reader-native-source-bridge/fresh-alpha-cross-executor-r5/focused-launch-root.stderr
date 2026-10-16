@@ -1,0 +1,10 @@
+test_independent_openurl_is_exact_only_device_origin_and_scheme (__main__.Guards) ... ok
+test_readiness_and_prepare_have_finite_budget_inside_same_global_window (__main__.Guards) ... ok
+test_actual_public_generator_and_signed_info_keep_independent_scheme (__main__.Guards) ... ok
+test_actual_node_snapshot_new_root_passes_root_admission_without_scope_creation (__main__.Guards) ... ok
+test_actual_node_snapshot_prior_roots_reject_before_old_scope_file_read (__main__.Guards) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.128s
+
+OK

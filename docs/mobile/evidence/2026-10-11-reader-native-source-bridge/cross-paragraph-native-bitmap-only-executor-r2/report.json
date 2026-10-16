@@ -1,0 +1,94 @@
+{
+  "kind": "prepared-cross-paragraph-bitmap-only-executor-review-inputs",
+  "version": 2,
+  "openSpecChange": "expo-mobile-migration",
+  "status": "prepared-only-awaiting-independent-review-and-fresh-root-grant",
+  "inputs": [
+    {
+      "current": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/run-bitmap-only.py",
+        "bytes": 23883,
+        "sha256": "4a62ae0ed3608833acd73f921a3199df394fd2932e865fc8c32a89ac284f2952"
+      },
+      "archive": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r2/inputs/run-bitmap-only.py",
+        "bytes": 23883,
+        "sha256": "4a62ae0ed3608833acd73f921a3199df394fd2932e865fc8c32a89ac284f2952"
+      }
+    },
+    {
+      "current": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/bitmap-runtime-policy.json",
+        "bytes": 2765,
+        "sha256": "d60716eacb3ffe193fc5fbdd537a5e7ba6afb379d2953ffff1df1cbf744ad625"
+      },
+      "archive": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r2/inputs/bitmap-runtime-policy.json",
+        "bytes": 2765,
+        "sha256": "d60716eacb3ffe193fc5fbdd537a5e7ba6afb379d2953ffff1df1cbf744ad625"
+      }
+    },
+    {
+      "current": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/bitmap-runtime-guards.test.py",
+        "bytes": 10455,
+        "sha256": "2679ddba91114b22ce6ee1477cacc34c173cac9d0009a0265067f3fbd44da288"
+      },
+      "archive": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r2/inputs/bitmap-runtime-guards.test.py",
+        "bytes": 10455,
+        "sha256": "2679ddba91114b22ce6ee1477cacc34c173cac9d0009a0265067f3fbd44da288"
+      }
+    }
+  ],
+  "basePlan": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-plan-r1/plan.json",
+    "bytes": 11525,
+    "sha256": "bac663b00c3737a9fed4cedfdcd703256a3e43790f48797c1d45e263fed7a280"
+  },
+  "logs": [
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r2/logs/slax-cross-bitmap-r2-host-guards-frozen.log",
+      "bytes": 877,
+      "sha256": "537037a5116448ef6fcbfb80e9a81fe92415d19900fcafa43dd6cff071310833"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r2/logs/slax-cross-bitmap-r2-readonly-preflight-frozen.log",
+      "bytes": 406,
+      "sha256": "eb45f411bb30fef81a4104a6cc010949d9b4f58661289ac3bd2a17bb13c75045"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r2/logs/slax-cross-bitmap-r2-readonly-preflight-initial-failure.log",
+      "bytes": 104,
+      "sha256": "93b67d2cb74fdfe373b86009f8d298fb4c6b8bdb1641e1273fc6d4666ef22eec"
+    }
+  ],
+  "initialHostFailureSummary": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r2/first-host-failure-summary.json",
+    "bytes": 409,
+    "sha256": "1c05b68b3e956274eb35fcedb7ea50992d9888b8b5d3cd8a0c118073a3500c7c"
+  },
+  "actualChecks": {
+    "hostTests": 9,
+    "passed": 9,
+    "skipped": 0,
+    "mockedProcessesOnly": true,
+    "readonlyPreflightPassed": true,
+    "compiledProductsVerified": 53,
+    "frozenGeneratedStageFilesVerified": 377,
+    "nativeRunRootCreated": false
+  },
+  "nativeExecuted": false,
+  "deviceInvoked": false,
+  "originalProductsCopied": false,
+  "compilerInvoked": false,
+  "stageMetroModified": false,
+  "bitmapAcceptance": false,
+  "coverageModified": false,
+  "rootIndependentReviewAndFreshAllocationRequired": true,
+  "README": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r2/README.md",
+    "bytes": 2713,
+    "sha256": "5efa748273a803e801513dbf50deb1206b4db8e6734e6a26ec656ba3bb9a9493"
+  }
+}

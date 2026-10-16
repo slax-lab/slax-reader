@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "status": "actual-completed-arm64-debug-public-ad-hoc-fixture-signed-not-installed",
+  "actualBuildSucceeded": true,
+  "signedBuildReceipt": {
+    "path": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache/report.json",
+    "sha256": "be0e72740b63b30b8e7a249ea3661e087456169050c0ac79d0b872415b0ea77d"
+  },
+  "signatureInspection": [
+    {
+      "command": [
+        "codesign",
+        "--display",
+        "--verbose=2",
+        "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/Build/Products/Debug-iphonesimulator/SlaxReader.app"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/slax-reader-aw4-public-sign-ba391fab-1ee8-484d-9c95-1ecb4021ee6d/actual-public-signature.log",
+      "sha256": "dc3c9bd1b8b6ae467c4e35806e3702bfc5ec86852f48f05e968094d7e665612b"
+    },
+    {
+      "command": [
+        "codesign",
+        "--display",
+        "--entitlements",
+        "-",
+        "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/Build/Products/Debug-iphonesimulator/SlaxReader.app"
+      ],
+      "exitCode": 0,
+      "log": "/tmp/slax-reader-aw4-public-sign-ba391fab-1ee8-484d-9c95-1ecb4021ee6d/actual-public-entitlements.log",
+      "sha256": "1f8221062b9c87d5a55ba3ea6ff69c07156fb27f63fe3ea424e6b3a436449d8b"
+    }
+  ],
+  "actualEntitlements": {},
+  "appGroupEntitlementAbsent": true,
+  "appleSignInEntitlementAbsent": true,
+  "publisherIdentityOrTeamClaim": false,
+  "bundleIdentifier": "app.slax.reader.uifixture",
+  "build": "1",
+  "nativeExecutable": {
+    "path": "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/Build/Products/Debug-iphonesimulator/SlaxReader.app/SlaxReader",
+    "sha256": "30303f6fa005ad2da4376dcc4be93da5b12d363947b441c642319ba86d4f0b3c"
+  },
+  "nativeDebugDylib": {
+    "path": "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/Build/Products/Debug-iphonesimulator/SlaxReader.app/SlaxReader.debug.dylib",
+    "sha256": "b175f0fa4df38c7e91360b978721d69414efe677309dbe763a42f5de5a64ebe5"
+  },
+  "completeSignedAppManifest": {
+    "path": "/tmp/slax-reader-aw4-public-sign-ba391fab-1ee8-484d-9c95-1ecb4021ee6d/complete-signed-app-manifest.json",
+    "sha256": "6570567571698574073f3eed6bba121fed39267b3e9fe8f98dc4aa2e15c7e68e",
+    "regularFiles": 148
+  },
+  "fixtureOnly": true,
+  "noInstallOrDeviceCalls": true,
+  "noMainOrGroupAccess": true,
+  "freeBytes": 4969848832,
+  "productVersion": "1.0.0"
+}

@@ -1,0 +1,20 @@
+{
+  "kind": "root-cross-paragraph-r2-actual-negative-review",
+  "version": 1,
+  "openSpec": "expo-mobile-migration",
+  "rawReceiptSHA256": "ae7dea7f5da7d92c3affe27d266c41d854e7d63f12d0bec9884e8047946422dc",
+  "rawLogSHA256": "89a13e611adcbecef6ca1a5a84d45bea94a78b007dda74f04eb746b62f90652f",
+  "rawOwnerSHA256": "2d97497b4c9802eac1749b420530d2b2e6974e7e35997a00306c0a7736c255b8",
+  "exitCode": -15,
+  "elapsedSeconds": 2.550336958,
+  "refused": "All distinct owned products/logs exceed250MiB",
+  "observedAllocatedBytes": 3256320,
+  "apparentLogicalBytes": 26846613101,
+  "actualCachePathRule": "Xcode appends SDKStatCaches.noindex to SDK_STAT_CACHE_DIR, producing the unexpected duplicate directory. Fixed cache-base setting will preserve the direct-only sparse guard.",
+  "nativeTestsExecuted": false,
+  "devicesAccessed": false,
+  "compiledCopiesStillMatch": true,
+  "sourceClosureStillMatch": true,
+  "rawDirectoryRetained": "/private/tmp/slax-reader-cross-paragraph-build-520eeb57afaf413ca5e23e4fbd2a6f88",
+  "recordedAt": 1791678770.2979379
+}

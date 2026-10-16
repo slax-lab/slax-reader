@@ -1,0 +1,9 @@
+# Completed aw4 simulator build
+
+The actual arm64 Debug Xcode build completed with exit code zero and `BUILD SUCCEEDED`. The first three resource interruptions and the fourth wrapper's refusal before signing remain separate historical observations. The fourth refusal followed a successful complete application build; it does not convert the earlier incomplete applications into completed builds.
+
+The completed application was retained in its original owned DerivedData location. The unsigned application and dSYM inventory, completed raw build log, all 372 frozen staged inputs, and actual Pods source membership are recorded in `../aw4-completed-build-before-signing/`. The reviewed second removal affected only its exact `ModuleCache.noindex` inventory; all 28,164 other entries were verified unchanged before and after removal. No app rebuild, CocoaPods deployment, or code generation ran afterward.
+
+The signing-only receipt and updated complete application manifest are saved here. Actual signature inspection reports an ad hoc signature, no team identifier, and empty entitlements. This is the isolated `app.slax.reader.uifixture` simulator application, version `1.0.0 (1)`, without an AppGroup. It is not the `1.0.25 (757)` distribution application and supplies no publisher, physical-device, or TestFlight evidence.
+
+The executable after signing is `30303f6fa005ad2da4376dcc4be93da5b12d363947b441c642319ba86d4f0b3c`; its debug dylib is `b175f0fa4df38c7e91360b978721d69414efe677309dbe763a42f5de5a64ebe5`. The application manifest binds all 148 signed regular files. Actual native selection remains pending in this build record and must be assessed from a separate fresh native-input report, including its pre-input scope, position observation, native frames and accessibility tree, and completed or incomplete XCTest result.

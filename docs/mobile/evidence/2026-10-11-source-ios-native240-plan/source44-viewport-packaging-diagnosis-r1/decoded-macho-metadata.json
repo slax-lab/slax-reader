@@ -1,0 +1,68 @@
+{
+  "kind": "readonly-source44-wrapper-macho-metadata",
+  "version": 1,
+  "shell": {
+    "file": {
+      "path": "/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/SlaxSourceFixtureApp.app/SlaxSourceFixtureApp",
+      "bytes": 365408,
+      "sha256": "a3fde1b120433684d1faee39e55eddb451c699fa1a3ca3695bbe25b31a29f672"
+    },
+    "magic": "MH_MAGIC_64",
+    "cpuType": "CPU_TYPE_ARM64",
+    "cpuSubtype": 0,
+    "fileType": 2,
+    "loadCommands": 43,
+    "loadCommandBytes": 5152,
+    "LC_BUILD_VERSION": {
+      "commandIndex": 11,
+      "fileOffset": 3304,
+      "commandBytes": 32,
+      "platform": 7,
+      "minimumOS": "16.4.0",
+      "SDK": "16.4.0",
+      "tools": [
+        {
+          "tool": 3,
+          "packedVersion": 83034112,
+          "version": "1267.0.0"
+        }
+      ]
+    },
+    "parseMethod": "Read-only Python struct header/load-command decoding; no otool/vtool/compiler/loader invoked"
+  },
+  "unchangedSignedOriginalJFramework": {
+    "file": {
+      "path": "/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/SlaxSourceFixtureApp.app/Frameworks/SlaxSourceFixture.framework/SlaxSourceFixture",
+      "bytes": 105442800,
+      "sha256": "2855e20b05230e95218c545d18085ea83e0d34ff75178f2d563f48a54b9b8670"
+    },
+    "magic": "MH_MAGIC_64",
+    "cpuType": "CPU_TYPE_ARM64",
+    "cpuSubtype": 0,
+    "fileType": 6,
+    "loadCommands": 40,
+    "loadCommandBytes": 5280,
+    "LC_BUILD_VERSION": {
+      "commandIndex": 10,
+      "fileOffset": 3440,
+      "commandBytes": 32,
+      "platform": 7,
+      "minimumOS": "15.0.0",
+      "SDK": "26.4.0",
+      "tools": [
+        {
+          "tool": 3,
+          "packedVersion": 83034112,
+          "version": "1267.0.0"
+        }
+      ]
+    },
+    "parseMethod": "Read-only Python struct header/load-command decoding; no otool/vtool/compiler/loader invoked"
+  },
+  "boundPublicSDK": {
+    "path": "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk",
+    "Version": "26.5",
+    "CanonicalName": "iphonesimulator26.5",
+    "BuildVersionPlatformID": "7"
+  }
+}

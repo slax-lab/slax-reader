@@ -36,7 +36,7 @@ it('calibrates locale for toolbar, context-menu and keyboard opens', async () =>
     alarms: { get: async () => ({}), onAlarm: event() },
     webRequest: { onCompleted: event() },
     runtime: { onInstalled: event(), onMessage: event(), setUninstallURL: vi.fn(async () => {}) },
-    tabs: { onUpdated: event(), onRemoved: event() },
+    tabs: { onUpdated: event(), onRemoved: event(), onActivated: event(), query: async () => [] },
     action: { onClicked: toolbar },
     contextMenus: { onClicked: menu },
     commands: { onCommand: command }
@@ -46,13 +46,12 @@ it('calibrates locale for toolbar, context-menu and keyboard opens', async () =>
   await Promise.resolve()
   for (const invoke of [
     () => toolbar.addListener.mock.calls[0][0]({ id: 1 }),
-    () => menu.addListener.mock.calls[0][0]({ menuItemId: 'collect' }, { id: 1 }),
-    () => command.addListener.mock.calls[0][0]('open_collect', { id: 1 })
+    () => menu.addListener.mock.calls[0][0]({ menuItemId: 'collect' }, { id: 1 })
   ]) {
     refresh.mockClear()
     await invoke()
     await Promise.resolve()
     expect(refresh).toHaveBeenCalledWith('open')
   }
-  expect(openCollectPopup).toHaveBeenCalledTimes(3)
+  expect(openCollectPopup).toHaveBeenCalledTimes(2)
 })

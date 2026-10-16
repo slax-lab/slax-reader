@@ -1,0 +1,13 @@
+{
+  "command": [
+    "codesign",
+    "--force",
+    "--deep",
+    "--sign",
+    "-",
+    "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/Build/Products/Debug-iphonesimulator/SlaxReader.app"
+  ],
+  "exitCode": 0,
+  "durationMs": 706,
+  "logSha256": "881ea4374dee84f0500c586b933a98b3196c75179ff9ce6bd7684af86d516d27"
+}

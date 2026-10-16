@@ -1,0 +1,68 @@
+{
+  "name": "login-success-prepared-01-accept-agreement",
+  "result": "native-candidate-captured",
+  "expectedRoute": null,
+  "observedRoute": {
+    "key": "Library-6T9AlvWYRQ5X8DOqKqTJ_",
+    "name": "Library"
+  },
+  "focusedWindow": "mCurrentFocus=Window{6aacde5 u0 com.slax.reader.uifixture/com.slax.reader.uifixture.MainActivity}",
+  "nativeInput": null,
+  "nativeInteractionVerified": false,
+  "expectedNativeState": [],
+  "forbiddenNativeState": [],
+  "preparedActionIndices": [
+    0,
+    1
+  ],
+  "preparationOnly": true,
+  "preparedScenario": "login-success",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "nativeMeasurements": {
+    "platform": "android",
+    "osVersion": "14",
+    "deviceModel": "sdk_gphone64_arm64",
+    "viewport": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "screen": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "pixelRatio": 2.625,
+    "fontScale": 1,
+    "fontScaleProfile": "default",
+    "safeArea": {
+      "left": 0,
+      "bottom": 24,
+      "right": 0,
+      "top": 51.80952453613281
+    },
+    "appearance": "light"
+  },
+  "visualInspection": "pending",
+  "sourceParity": "unverified",
+  "capturedAtMillis": 1791660180710,
+  "files": [
+    {
+      "path": "40-login-success-prepared-01-accept-agreement/native.png",
+      "sha256": "de7f25f4a694aeb5c10bba676659c3c2f98478a42604c7cc3c3fa07ae8315946",
+      "bytes": 82872
+    },
+    {
+      "path": "40-login-success-prepared-01-accept-agreement/runtime-context.json",
+      "sha256": "59d8ef51c888d83190f1c42f6ebc7660f4a9149ded917c816d0faf6fc85dcfed",
+      "bytes": 2559
+    },
+    {
+      "path": "40-login-success-prepared-01-accept-agreement/native-hierarchy.xml",
+      "sha256": "c3fb31a832c95453f3555d937759d064723b170519bb176e4ddf6cb86c0ce097",
+      "bytes": 6272
+    }
+  ]
+}

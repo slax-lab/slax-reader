@@ -1,0 +1,391 @@
+{
+  "kind": "original-source-native-scroll-device-orchestration-plan",
+  "version": 1,
+  "openSpecChange": "expo-mobile-migration",
+  "status": "prepared-only-control-build-receipt-and-root-device-allocation-required",
+  "device": {
+    "UDID": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+    "name": "SlaxColdShareControlled-20261011-Mg6KLJ",
+    "deviceType": "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+    "requiredInitialState": "Shutdown",
+    "noOtherBootedOwnedSimulator": true,
+    "readOnlyDevicePlist": {
+      "path": "/Users/daguang/Library/Developer/CoreSimulator/Devices/B85A7582-A0A7-4A0F-9BF0-8424330859F3/device.plist",
+      "bytes": 727,
+      "sha256": "f1a92a1df02a554133e8c60a985f5ce17209244bc5a32a9fff14518c8bd80834"
+    },
+    "lastRelease": {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-device-window-release/report.json",
+      "bytes": 1120,
+      "sha256": "c3d912e3dfeb015a90bdefd241a95ec9807e8aeec75af744fff3e6ac71cf9c38"
+    }
+  },
+  "sourceApp": {
+    "bundleIdentifier": "app.slax.reader.sourcefixture",
+    "path": "/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/SlaxSourceFixtureApp.app",
+    "signedAppPositiveScope": {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/native-generated-race-r3/actual-native-shell-and-control-failure/report.json",
+      "bytes": 53743,
+      "sha256": "fd6008ac11bf127c652e4743e3ea35ff53f437c0c3b153e64d00a0463ba075b3"
+    },
+    "regularFileCount": 109,
+    "logicalBytes": 109680679,
+    "executableSHA256": "a3fde1b120433684d1faee39e55eddb451c699fa1a3ca3695bbe25b31a29f672",
+    "signedFrameworkSHA256": "2855e20b05230e95218c545d18085ea83e0d34ff75178f2d563f48a54b9b8670",
+    "rawJFrameworkSHA256": "1bc0873e19287f6b8cfc99bb9106d124e67a1343bfc06e227f0bce93ce9da38d",
+    "unchanged33FileBackedSections": true,
+    "full109RegularFileManifestReverifyBeforeInstall": true,
+    "controlsCompiled": false
+  },
+  "requiredCompletedControlBinding": {
+    "author": "Reader control-only follow-on build",
+    "status": "pending-actual-build",
+    "admission": "Refuse until Root independently accepts the complete actual build receipt, one actual xctestrun/FormatVersion, exact source/project/scheme closure, full regular-product manifest, actual thin-arm64 host/runner/test Mach-Os. No filename/hash inferred from old helpers.",
+    "testModule": "SourceFixtureControl",
+    "testClass": "SourceFixtureNativeScrollControl",
+    "testMethod": "testPerformOneMeasuredOriginalReaderNativeDrag",
+    "exactOnlyTesting": "SourceFixtureControl/SourceFixtureNativeScrollControl/testPerformOneMeasuredOriginalReaderNativeDrag",
+    "oldHelperUsed": false
+  },
+  "publicInputBindings": [
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/main.swift",
+      "bytes": 25031,
+      "sha256": "541b9d3c032bdefaf0f5dec5727295ede887f0e186712cadf1738b0e856891af"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/SourceFixtureNativeScrollControl.swift",
+      "bytes": 5870,
+      "sha256": "98b48d7137a89842444210c826d839e7a8575ae1d7a4cfe9c058b3e81cff2807"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/prepare-native-scroll.py",
+      "bytes": 7072,
+      "sha256": "3b4528e9ea1d5b2b3c4740fa51e9f364118cd2d5004f7907150f202a97322dba"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/native-device-orchestration-r1/original-position-interface-audit.json",
+      "bytes": 6176,
+      "sha256": "5bec9e78c0e5c69fe274884bb06aedc5d1d43ada4cd7c82db1a1940b14284885"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-post-aw4-ui-refresh-plan/revision-r2/one-apply-result/report.json",
+      "bytes": 4126,
+      "sha256": "4466b8da3eea84a99e796e854eb88ae9eac01202a0d8d7c998256af12f473c82"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-post-aw4-ui-refresh-plan/revision-r2/owned-metro-restart/report.json",
+      "bytes": 905,
+      "sha256": "9017c2b820359b618af92e6e1f5129c84afdbba1324740fddbf52073a26f6aaf"
+    }
+  ],
+  "matchedConditions": {
+    "scenario": "reader-mixed",
+    "locale": "en",
+    "selectedActionIndex": -1,
+    "readerStep": "none",
+    "fixtureInputSHA256": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f",
+    "sourceManifestSHA256": "3501089ae75682a823afdfb54ccf243d32cbc56eba1f84bd70c68afafc1f2943",
+    "statusClock": "09:41",
+    "appearance": "light",
+    "contentSizeCategory": "large",
+    "expectedNativeCategory": "UICTContentSizeCategoryL",
+    "widthPoints": 402,
+    "heightPoints": 874,
+    "scale": 3,
+    "safeTopPoints": 62,
+    "safeBottomPoints": 34,
+    "OS": "iOS26.5"
+  },
+  "resourceProposalRequiresRootReview": {
+    "preFreeBytes": 3865470566,
+    "floorBytes": 3221225472,
+    "maximumDistinctNewOwnLogicalAndAllocatedBytes": 268435456,
+    "maximumRunLogBytes": 8388608,
+    "maximumEachObservationBytes": 1048576,
+    "totalSetupAndObservationAndReleaseSeconds": 180,
+    "observerTotalSeconds": 90,
+    "observerPreparationSeconds": 30,
+    "observerAfterPreparedSeconds": 60,
+    "maximumPhysicalDrags": 3,
+    "maximumOneNativeTestSeconds": 25,
+    "minimumRemainingLiveObservationBeforeNativeTestSeconds": 30,
+    "resourcePollingSeconds": 0.5,
+    "terminationReserveSeconds": 4,
+    "noBudgetIncreaseOrAutomaticRetry": true,
+    "accounting": "Count full newly installed source app and helper/runner copies conservatively, own runtime DB/observer files, all result bundles/logs/requests/copies, every allocated output block; observe B85 allocated growth separately and stop if any aggregate floor/budget guard cannot be verified. No build/cache/metadata exception is needed for test-without-building.",
+    "unknownSimulatorColdBootGrowth": "Record pre/post actual free space and B85 data allocation; no guessed allocation may prove admission.",
+    "releaseReserveSeconds": 35,
+    "launchAdmission": "Do not launch the source observer unless at least125 seconds of the180-second overall slot remain:90-second source observation plus35-second bounded fixture release reserve. Stop before input if less than30 seconds remain in its live60-second window."
+  },
+  "futureExactCommandTemplates": [
+    {
+      "stage": "owned-device-admission",
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "list",
+        "devices",
+        "--json"
+      ],
+      "timeoutSeconds": 10,
+      "require": "Exact device identity/runtime/name and Shutdown; Root confirms all other device loans closed. No mutation."
+    },
+    {
+      "stage": "boot-owned-device",
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "boot",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3"
+      ],
+      "timeoutSeconds": 15
+    },
+    {
+      "stage": "wait-owned-device",
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "bootstatus",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "-b"
+      ],
+      "timeoutSeconds": 45
+    },
+    {
+      "stage": "condition-clock",
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "status_bar",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "override",
+        "--time",
+        "09:41",
+        "--dataNetwork",
+        "wifi",
+        "--wifiMode",
+        "active",
+        "--wifiBars",
+        "3",
+        "--cellularMode",
+        "active",
+        "--cellularBars",
+        "4",
+        "--batteryState",
+        "charged",
+        "--batteryLevel",
+        "100"
+      ],
+      "timeoutSeconds": 10
+    },
+    {
+      "stage": "condition-appearance",
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "ui",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "appearance",
+        "light"
+      ],
+      "timeoutSeconds": 10
+    },
+    {
+      "stage": "condition-font-scale",
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "ui",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "content_size",
+        "large"
+      ],
+      "timeoutSeconds": 10
+    },
+    {
+      "stage": "install-only-isolated-source-app",
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "install",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/SlaxSourceFixtureApp.app"
+      ],
+      "timeoutSeconds": 20,
+      "require": "Execute before the launch template; full reviewed app109 hashes, signed isolated identity, unchanged J33 sections."
+    },
+    {
+      "stage": "condition-source-only-language",
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "launch",
+        "--terminate-running-process",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "app.slax.reader.sourcefixture",
+        "--scenario",
+        "reader-mixed",
+        "--fixture-locale",
+        "en",
+        "--fixture-action-index",
+        "-1",
+        "--fixture-reader-step",
+        "none",
+        "--fixture-native-scroll-observation",
+        "<one-fresh-reviewed-run-UUID>",
+        "-AppleLanguages",
+        "(en)",
+        "-AppleLocale",
+        "en_US"
+      ],
+      "timeoutSeconds": 10,
+      "require": "After unique source fixture install below; explicit app-scoped language args, no global preference mutation."
+    },
+    {
+      "stage": "resolve-source-fixture-data-only",
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "get_app_container",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "app.slax.reader.sourcefixture",
+        "data"
+      ],
+      "timeoutSeconds": 10,
+      "require": "One regular source app container under this exact B85; never request app.slax.reader or an App Group."
+    },
+    {
+      "stage": "prepare-one-fresh-physical-request",
+      "argv": [
+        "<bound-existing-python3>",
+        "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/prepare-native-scroll.py",
+        "--observation",
+        "<owned-run>/before-N/fixture-native-reader-observation.json",
+        "--gesture-index",
+        "<next-unused-1..3>",
+        "--output",
+        "<owned-run>/request-N.json"
+      ],
+      "timeoutSeconds": 2,
+      "require": "Copy actual current source Library/Application Support/fixture-native-reader-observation.json, same nonce/webIdentity/canonical hashes; three settled real samples, last<=2s; no source file modification."
+    },
+    {
+      "stage": "perform-one-native-body-drag",
+      "argv": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+        "test-without-building",
+        "-xctestrun",
+        "<owned-run>/request-N.xctestrun",
+        "-destination",
+        "platform=iOS Simulator,id=B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "-parallel-testing-enabled",
+        "NO",
+        "-maximum-concurrent-test-simulator-destinations",
+        "1",
+        "-jobs",
+        "1",
+        "-only-testing:SourceFixtureControl/SourceFixtureNativeScrollControl/testPerformOneMeasuredOriginalReaderNativeDrag",
+        "-resultBundlePath",
+        "<owned-run>/request-N.xcresult"
+      ],
+      "timeoutSeconds": 25,
+      "require": "Fresh current measured request, Root control receipt admitted, unique index, at least30s observer live budget remaining; no build step, no fake scroll or gestures beyond actual copied driver."
+    },
+    {
+      "stage": "capture-current-original-frame",
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "io",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "screenshot",
+        "<owned-run>/source-observed-position-candidate.png"
+      ],
+      "timeoutSeconds": 10,
+      "require": "Same source foreground/zero alerts/current nonce/body ready; attach contemporaneous raw KVO/viewport/context and screenshot time, do not accept from filename."
+    },
+    {
+      "stage": "release-only-source-fixture",
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "terminate",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "app.slax.reader.sourcefixture"
+      ],
+      "timeoutSeconds": 10
+    },
+    {
+      "stage": "clear-only-own-clock-override",
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "status_bar",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "clear"
+      ],
+      "timeoutSeconds": 10
+    },
+    {
+      "stage": "preserve-and-shutdown-owned-device",
+      "argv": [
+        "/usr/bin/xcrun",
+        "simctl",
+        "shutdown",
+        "B85A7582-A0A7-4A0F-9BF0-8424330859F3"
+      ],
+      "timeoutSeconds": 15
+    }
+  ],
+  "actualExecutionOrder": [
+    "Root allocation/admission/resource baseline",
+    "Boot+condition+verify app hashes",
+    "Install isolated source then launch single nonce",
+    "Get source-only data path and poll<=30s for exact real prepared/body/window conditions",
+    "Save clean initial raw observation/PNG before input",
+    "At most3 request/Test/readback cycles inside live60s; finite remaining time may admit fewer",
+    "Archive actual candidate frame/raw geometry/real KVO/test result then release source only/clock/B85"
+  ],
+  "compiledXctestrunRequestTransport": {
+    "originalReceiptAndBytesImmutable": true,
+    "ownedNewCopyOnly": true,
+    "observedFormatVersionRequired": 1,
+    "targetNameRequired": "SourceFixtureControl",
+    "onlyEnvironmentAddition": "EnvironmentVariables.SLAX_SOURCE_NATIVE_SCROLL_REQUEST = exact UTF8 request JSON<=16KiB",
+    "absoluteTestRootRelocation": "Replacing __TESTROOT__ in copied plist string values with the actual verified product root is mandatory when owned run copy resides elsewhere. Preserve __TESTHOST__/__PLATFORMS__ semantics; compare recursive diff: only test-root relocation plus one explicit environment addition allowed.",
+    "noNewTestsOrPaths": "Require actual SourceFixtureControl scheme/membership and exact only-testing; reject other targets, missing products, symlinks, unexpected formats."
+  },
+  "postInputVerification": {
+    "sameObservationNonceAndWebIdentity": true,
+    "sameFixtureStatusAndCanonicalInputs": true,
+    "sourceForegroundAndZeroAlerts": true,
+    "atLeastOneRealPostBeforeCountNativeOffsetKVO": true,
+    "threeSettledFreshActualSamples": true,
+    "bodyAndBridgeReady": true,
+    "rawOffsetInsetViewportContentKept": true,
+    "noToleranceRoundingOrAcceptedProjection": "Record raw CGFloat pixel projection and sourceCallbackFloat32PositionPixels separately. The latter is arithmetic, not observed Kotlin callback. Any unknown/failed/no-change/stale case is preserved as negative/pending.",
+    "gestureProof": "Actual completed xcresult selector1pass/0fail/0skip, request+before/after attachments and current physical input count; command0 alone is insufficient."
+  },
+  "ledgerRequired": [
+    "Root allocation exact reviewed plan/preflight hashes; actual device name/runtime/UDID/state/conditions readback; pre/post/free-space samples; source app109 install hashes; compiled control receipt/xctestrun/runner/test/host/dependencies; original and owned copied xctestrun diff; each request raw observation SHA and nonce/index; exact argv/exit/timeout/stdout/stderr for every command; initial/final/failed native observations/status/viewport/screenshots; raw native KVO event sequences; completed xcresult raw/regular manifest/archive hash; fixture-only release+shutdown and main-not-running/no-group-access assertions"
+  ],
+  "acceptance": {
+    "sourceRequested240IsProof": false,
+    "nativeGestureCompletionIs240Proof": false,
+    "float32ProjectionIsActualKotlinCallback": false,
+    "actualKotlinCallbackPending": true,
+    "fullSourceTargetVisualParityPending": true,
+    "historicalSourceLUnchanged": true,
+    "coverageStateChange": false
+  },
+  "prohibited": [
+    "No original client/worktree/compiled J modifications, KMP relink, native compiler, source DB setter, UIKit scroll setter or JS scroll command.",
+    "No other apps/main/groups/config/secrets/accounts/data reset/erase/uninstall/cleanup.",
+    "No stage/Metro change; current377 marker916255 and owned Metro93891 stay untouched.",
+    "No automatic native-test retry, app relaunch to hide failure or enlarged time/output/space allowance.",
+    "Do not mark source callback240 from requested240, arithmetic Float32 projection, seeded local row or native XCTest completion."
+  ],
+  "rootIndependentReviewAndFreshDeviceAllocationRequired": true
+}

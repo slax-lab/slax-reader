@@ -2,34 +2,52 @@
   <section class="pdf-reader" :class="{ 'pdf-original-colors': !themePaper, 'pdf-pages-spaced': pageSpacing }" ref="root" :aria-label="t('pdf.reader')">
     <div v-show="!isH5 || !panelOpen" class="pdf-control-rail" :class="{ expanded: controlsOpen }" :style="{ right: !isH5 && panelOpen ? `${panelWidth}px` : undefined }">
       <button class="pdf-control-toggle" :aria-label="t('pdf.controls')" :title="t('pdf.controls')" :aria-expanded="controlsOpen" aria-controls="pdf-page-controls" @click="controlsOpen = !controlsOpen">
-        <span class="pdf-current-page"><span>{{ currentPage }}</span><span class="pdf-page-total">/ {{ pages || '—' }}</span></span>
-        <svg class="pdf-toggle-icon" :class="{ open: controlsOpen }" width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        <span class="pdf-current-page"><span class="pdf-page-now">{{ currentPage }}</span><span class="pdf-page-rule" aria-hidden="true" /><span class="pdf-handle-total">{{ pages || '—' }}</span></span>
+        <svg class="pdf-toggle-icon" :class="{ open: controlsOpen }" width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m10 3.5-4.5 4.5 4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
       </button>
-      <div v-show="controlsOpen" id="pdf-page-controls" class="pdf-toolbar" role="toolbar" aria-orientation="vertical" :aria-label="t('pdf.controls')">
-        <div class="pdf-page-navigation" role="group" :aria-label="t('pdf.page')">
-          <button class="pdf-page-button" :disabled="!pages || currentPage <= 1" :aria-label="t('pdf.previous')" :title="t('pdf.previous')" @click="goTo(currentPage - 1)">
-            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m12 5.5-4.5 4.5 4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
-          </button>
-          <label class="pdf-page-label"><span class="sr-only">{{ t('pdf.page') }}</span><input type="number" inputmode="numeric" :value="currentPage" min="1" :max="pages" :disabled="!pages" @change="goTo(Number(($event.target as HTMLInputElement).value))" /><span class="pdf-page-total">/ {{ pages || '—' }}</span></label>
-          <button class="pdf-page-button" :disabled="!pages || currentPage >= pages" :aria-label="t('pdf.next')" :title="t('pdf.next')" @click="goTo(currentPage + 1)">
-            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5.5 4.5 4.5-4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
-          </button>
+      <Transition name="pdf-panel">
+        <div v-show="controlsOpen" id="pdf-page-controls" class="pdf-toolbar" role="toolbar" aria-orientation="vertical" :aria-label="t('pdf.controls')">
+          <div class="pdf-page-navigation pdf-segment" role="group" :aria-label="t('pdf.page')">
+            <button class="pdf-page-button" :disabled="!pages || currentPage <= 1" :aria-label="t('pdf.previous')" :title="t('pdf.previous')" @click="goTo(currentPage - 1)">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m10 3.5-4.5 4.5 4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </button>
+            <label class="pdf-page-label"><span class="sr-only">{{ t('pdf.page') }}</span><input type="number" inputmode="numeric" :value="currentPage" min="1" :max="pages" :disabled="!pages" @change="goTo(Number(($event.target as HTMLInputElement).value))" /><span class="pdf-page-total">/ {{ pages || '—' }}</span></label>
+            <button class="pdf-page-button" :disabled="!pages || currentPage >= pages" :aria-label="t('pdf.next')" :title="t('pdf.next')" @click="goTo(currentPage + 1)">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </button>
+          </div>
+          <div class="pdf-zoom-controls pdf-segment">
+            <button :disabled="!pages || scale <= 0.25" :aria-label="t('pdf.zoom_out')" :title="t('pdf.zoom_out')" @click="zoom(-0.25)">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+            </button>
+            <output class="pdf-scale">{{ Math.round(scale * 100) }}%</output>
+            <button :disabled="!pages || scale >= 3" :aria-label="t('pdf.zoom_in')" :title="t('pdf.zoom_in')" @click="zoom(0.25)">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8h9M8 3.5v9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+            </button>
+          </div>
+          <div class="pdf-rows">
+            <button class="pdf-row" :disabled="!pages" @click="fitWidth">
+              <svg class="pdf-row-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 3v10M13.5 3v10M5.5 8h5M5.5 8 7.5 6M5.5 8 7.5 10M10.5 8 8.5 6M10.5 8 8.5 10" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              <span class="pdf-row-label">{{ t('pdf.fit') }}</span>
+            </button>
+            <div class="pdf-control-divider" />
+            <button class="pdf-row" role="switch" :aria-checked="!themePaper" :disabled="!pages" @click="themePaper = !themePaper">
+              <svg class="pdf-row-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="5.25" stroke="currentColor" stroke-width="1.25" /><path d="M8 2.75a5.25 5.25 0 0 1 0 10.5z" fill="currentColor" /></svg>
+              <span class="pdf-row-label">{{ t('pdf.original_colors') }}</span>
+              <span class="pdf-switch" aria-hidden="true" />
+            </button>
+            <button class="pdf-row" role="switch" :aria-checked="pageSpacing" :disabled="!pages" @click="pageSpacing = !pageSpacing">
+              <svg class="pdf-row-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3" y="2.5" width="10" height="4.5" rx="1" stroke="currentColor" stroke-width="1.25" /><rect x="3" y="9" width="10" height="4.5" rx="1" stroke="currentColor" stroke-width="1.25" /></svg>
+              <span class="pdf-row-label">{{ t('pdf.page_spacing') }}</span>
+              <span class="pdf-switch" aria-hidden="true" />
+            </button>
+          </div>
         </div>
-        <div class="pdf-control-divider" />
-        <div class="pdf-zoom-controls">
-          <button :disabled="!pages || scale <= 0.25" :aria-label="t('pdf.zoom_out')" :title="t('pdf.zoom_out')" @click="zoom(-0.25)">−</button>
-          <output class="pdf-scale">{{ Math.round(scale * 100) }}%</output>
-          <button :disabled="!pages || scale >= 3" :aria-label="t('pdf.zoom_in')" :title="t('pdf.zoom_in')" @click="zoom(0.25)">+</button>
-        </div>
-        <button :disabled="!pages" :title="t('pdf.fit')" @click="fitWidth">{{ t('pdf.fit') }}</button>
-        <div class="pdf-control-divider" />
-        <button :disabled="!pages" :aria-pressed="!themePaper" @click="themePaper = !themePaper">{{ t(themePaper ? 'pdf.original_colors' : 'pdf.theme_colors') }}</button>
-        <button :disabled="!pages" :aria-pressed="pageSpacing" @click="pageSpacing = !pageSpacing">{{ t('pdf.page_spacing') }}</button>
-      </div>
+      </Transition>
     </div>
     <p v-if="loading || error" class="pdf-status" role="status">{{ error || t('pdf.loading') }}<button v-if="error" @click="loadDocument">{{ t('pdf.retry') }}</button></p>
     <p v-if="pdf.text_status !== 'ready'" class="pdf-text-status" role="status">{{ t(`pdf.text_${pdf.text_status}`) }}</p>
-    <div class="pdfViewer" ref="viewerElement" tabindex="0" :aria-label="t('pdf.reader')" @pointerup="queueSelection" @keyup="queueSelection" @click="onPdfClick" />
+    <div class="pdfViewer" ref="viewerElement" tabindex="0" :aria-label="t('pdf.reader')" @pointerdown="onViewerPointerDown" @keyup="queueSelection" @click="onPdfClick" />
     <div v-if="draft" ref="selectionMenu" class="pdf-selection-actions" :style="selectionStyle" role="toolbar" :aria-label="t('pdf.selection_actions')" @pointerdown.prevent @keydown.esc="clearDraft">
       <PdfSelectionMenu :key="draft.id" :allow-action="allowAction" :is-stroked="hasOwnStroke" :saving="saving"
         :allow-chatbot="pdf.text_status === 'ready' && adapters.allowChatbot !== false"
@@ -54,6 +72,7 @@ import { capturePdfSelection, findPdfTextRange, quadToViewport } from './geometr
 import { InlinePdfViewer } from './InlinePdfViewer'
 import { themedPdfPageView } from './ThemedPdfPageView'
 import { placeSelectionMenu } from './selectionPosition'
+import { createSelectionScheduler } from './selectionScheduler'
 import PdfSelectionMenu from './PdfSelectionMenu.client.vue'
 import { MenuType } from '../Selection/type'
 import { copyText } from '@commons/frontend-utils/string'
@@ -106,8 +125,9 @@ let pendingQuote: { page: number; text: string } | undefined
 let quoteFlash: PdfMarkSource | undefined
 let quoteTimer: ReturnType<typeof setTimeout> | undefined
 let fit = true
-let selectionTimer: ReturnType<typeof setTimeout> | undefined
-let selectionEvent: Event | undefined
+// Opens the selection menu only after the pointer is released and its click has been dispatched.
+const selectionScheduler = createSelectionScheduler(event => captureSelection(event))
+let stopPointerWatch: (() => void) | undefined
 let selectionAnchor: { range: Range; offsetX: number; offsetY: number } | undefined
 let observedWidth = 0
 let markClick: Parameters<IMarkRenderer['setMarkClickHandler']>[0]
@@ -331,11 +351,26 @@ function captureSelection(event?: Event) {
   }
   void nextTick(positionSelectionMenu)
 }
-function queueSelection(event?: Event) {
-  if (event) selectionEvent = event
-  clearTimeout(selectionTimer)
-  // Show the shared outside-click menu after the selecting click has completed.
-  selectionTimer = setTimeout(() => { captureSelection(selectionEvent); selectionEvent = undefined }, 180)
+function queueSelection(event?: Event) { selectionScheduler.queue(event) }
+function onViewerPointerDown(event: PointerEvent) {
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+  stopPointerWatch?.()
+  selectionScheduler.press()
+  // Listen on the document so a drag that ends outside the viewer still releases the hold.
+  const end = (done: Event) => {
+    stopPointerWatch?.()
+    // Only a real pointerup carries the release position the menu anchors to.
+    selectionScheduler.release(done.type === 'pointerup' ? done : undefined)
+  }
+  document.addEventListener('pointerup', end, true)
+  document.addEventListener('pointercancel', end, true)
+  window.addEventListener('blur', end)
+  stopPointerWatch = () => {
+    document.removeEventListener('pointerup', end, true)
+    document.removeEventListener('pointercancel', end, true)
+    window.removeEventListener('blur', end)
+    stopPointerWatch = undefined
+  }
 }
 function onSelectionChange() { queueSelection() }
 function positionSelectionMenu() {
@@ -450,7 +485,7 @@ onMounted(() => {
   if (viewerElement.value) resizeObserver.observe(viewerElement.value)
 })
 onBeforeUnmount(() => {
-  generation++; cancelAnimationFrame(redrawFrame); clearTimeout(selectionTimer); clearTimeout(quoteTimer); resizeObserver?.disconnect()
+  generation++; cancelAnimationFrame(redrawFrame); selectionScheduler.dispose(); stopPointerWatch?.(); clearTimeout(quoteTimer); resizeObserver?.disconnect()
   document.removeEventListener('selectionchange', onSelectionChange)
   window.removeEventListener('scroll', positionSelectionMenu, true)
   window.removeEventListener('resize', positionSelectionMenu)
@@ -465,6 +500,8 @@ defineExpose({ findQuote, revealMark })
 <style scoped lang="scss">
 .pdf-reader { position: relative; width: 100%; min-width: 0; margin-top: 8px; color: var(--slax-text); }
 .pdf-control-rail {
+  /* Concentric with the panel: panel radius minus its 6px padding (squares off in e-ink, where --slax-radius is 4px). */
+  --pdf-item-radius: calc(var(--slax-radius) - 6px);
   position: fixed;
   right: env(safe-area-inset-right, 0px);
   top: calc(var(--slax-header-h-snapshot) + 20px);
@@ -473,62 +510,166 @@ defineExpose({ findQuote, revealMark })
   color: var(--slax-text-muted);
   font-family: var(--slax-font-sans);
 }
+/* Collapsed handle: the page as a small fraction, with a chevron that points where the panel opens. */
 .pdf-control-toggle {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   width: 44px;
-  min-height: 76px;
-  padding: 10px 2px;
+  min-height: 72px;
+  padding: 10px 2px 8px;
   border: 1px solid var(--slax-border);
   border-right: 0;
   border-radius: var(--slax-radius-sm) 0 0 var(--slax-radius-sm);
-  background: var(--slax-surface);
+  background-color: var(--slax-surface-solid);
+  box-shadow: var(--slax-shadow-sm);
   color: var(--slax-text-muted);
   cursor: pointer;
+  transition: color var(--slax-dur-fast), border-color var(--slax-dur-fast);
 }
+/* The tint is layered over the opaque surface so page content never shows through the handle. */
 .pdf-control-toggle:hover, .pdf-control-toggle[aria-expanded='true'] {
   color: var(--slax-accent);
-  background: var(--slax-surface-solid);
+  background-image: linear-gradient(var(--slax-accent-bg), var(--slax-accent-bg));
 }
-.pdf-toggle-icon { flex: none; }
-.pdf-toggle-icon.open { transform: rotate(90deg); }
+.pdf-control-toggle[aria-expanded='true'] { border-color: var(--slax-accent-soft); }
+.pdf-toggle-icon { flex: none; transition: transform var(--slax-dur-fast); }
+.pdf-toggle-icon.open { transform: rotate(180deg); }
 .pdf-current-page {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  font-size: var(--slax-fs-meta);
-  font-weight: 500;
-  line-height: 1.2;
+  gap: 4px;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.pdf-page-total { color: var(--slax-text-muted); font-size: var(--slax-fs-aux); font-weight: 400; font-variant-numeric: tabular-nums; }
+.pdf-page-now { font-size: var(--slax-fs-meta); font-weight: 600; color: var(--slax-text); }
+.pdf-control-toggle:hover .pdf-page-now, .pdf-control-toggle[aria-expanded='true'] .pdf-page-now { color: var(--slax-accent); }
+.pdf-page-rule { width: 14px; height: 1px; background: var(--slax-border-strong); }
+.pdf-handle-total { font-size: var(--slax-fs-tag); font-weight: 400; color: var(--slax-text-muted); }
 .pdf-toolbar {
   position: absolute;
   top: 0;
   right: 52px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   box-sizing: border-box;
-  width: 224px;
+  width: 232px;
   max-height: calc(100dvh - var(--slax-header-h-snapshot) - 112px);
-  padding: 8px;
+  padding: 6px;
   overflow-x: hidden;
   overflow-y: auto;
   border: 1px solid var(--slax-border);
-  border-radius: var(--slax-radius-sm);
+  border-radius: var(--slax-radius);
+  background: var(--slax-surface-solid);
+  box-shadow: var(--slax-shadow-warm);
+}
+.pdf-panel-enter-from, .pdf-panel-leave-to { opacity: 0; transform: translateX(8px); }
+.pdf-panel-enter-active, .pdf-panel-leave-active { transition: opacity var(--slax-dur-fast) ease, transform var(--slax-dur-fast) ease; }
+/* Page stepper and zoom share one segmented field: [button | value | button]. */
+.pdf-segment {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  align-items: stretch;
+  min-height: 36px;
+  overflow: hidden;
+  border: 1px solid var(--slax-border);
+  border-radius: var(--pdf-item-radius);
+  background: var(--slax-bg);
+}
+.pdf-segment > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--slax-text-muted);
+  cursor: pointer;
+  transition: color var(--slax-dur-fast), background-color var(--slax-dur-fast);
+}
+.pdf-segment > button:first-child { border-right: 1px solid var(--slax-border); }
+.pdf-segment > button:last-child { border-left: 1px solid var(--slax-border); }
+.pdf-segment > button:hover:not(:disabled) { color: var(--slax-accent); background: var(--slax-accent-bg); }
+.pdf-segment > button:active:not(:disabled) { color: var(--slax-accent); background: var(--slax-accent-soft); }
+.pdf-page-label { display: flex; align-items: center; justify-content: center; gap: 2px; min-width: 0; font-size: var(--slax-fs-aux); white-space: nowrap; }
+.pdf-page-label input {
+  box-sizing: border-box;
+  width: 40px;
+  min-width: 0;
+  height: 28px;
+  padding: 0 2px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--pdf-item-radius) - 2px);
+  background: transparent;
+  color: var(--slax-text);
+  text-align: right;
+  font: inherit;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  appearance: textfield;
+  transition: border-color var(--slax-dur-fast);
+}
+.pdf-page-label input:hover:not(:disabled) { border-color: var(--slax-border-strong); }
+.pdf-page-label input::-webkit-inner-spin-button, .pdf-page-label input::-webkit-outer-spin-button { margin: 0; appearance: none; }
+.pdf-page-label input:disabled { opacity: .4; }
+.pdf-page-total { color: var(--slax-text-muted); font-variant-numeric: tabular-nums; }
+.pdf-scale { display: flex; align-items: center; justify-content: center; font-size: var(--slax-fs-aux); font-weight: 500; color: var(--slax-text); font-variant-numeric: tabular-nums; }
+/* Actions and switches: icon, label, and for switches a track whose knob position shows the state. */
+.pdf-rows { display: flex; flex-direction: column; gap: 2px; }
+.pdf-control-divider { height: 1px; margin: 4px 6px; background: var(--slax-border); }
+.pdf-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--pdf-item-radius);
+  background: transparent;
+  color: var(--slax-text);
+  font: inherit;
+  font-size: var(--slax-fs-aux);
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--slax-dur-fast);
+}
+.pdf-row:hover:not(:disabled) { background: var(--slax-accent-bg); }
+.pdf-row:active:not(:disabled) { background: var(--slax-accent-soft); }
+.pdf-row-icon { flex: none; color: var(--slax-text-muted); transition: color var(--slax-dur-fast); }
+.pdf-row[aria-checked='true'] .pdf-row-icon { color: var(--slax-accent); }
+.pdf-row-label { flex: 1; min-width: 0; }
+/* Same metrics and colours as SwitchToggle.vue in Settings. */
+.pdf-switch {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--slax-text-light) 40%, transparent);
+  transition: background-color var(--slax-dur-normal);
+}
+.pdf-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
   background: var(--slax-surface-solid);
   box-shadow: var(--slax-shadow-sm);
+  transition: transform var(--slax-dur-normal);
 }
-.pdf-page-navigation { display: grid; grid-template-columns: 36px minmax(0, 1fr) 36px; align-items: center; gap: 4px; }
-.pdf-page-button { display: flex; align-items: center; justify-content: center; }
-.pdf-control-divider { height: 1px; background: var(--slax-border); margin: 4px 2px; }
-.pdf-toolbar button, .pdf-status button {
+.pdf-row[aria-checked='true'] .pdf-switch { background: var(--slax-accent); }
+.pdf-row[aria-checked='true'] .pdf-switch::after { transform: translateX(16px); }
+.pdf-status button {
   min-height: 36px;
   min-width: 36px;
   padding: 6px 10px;
@@ -540,38 +681,16 @@ defineExpose({ findQuote, revealMark })
   font-size: var(--slax-fs-aux);
   line-height: 1.4;
   cursor: pointer;
+  transition: color var(--slax-dur-fast), background-color var(--slax-dur-fast);
 }
-.pdf-toolbar .pdf-page-button { padding: 0; }
-button:hover:not(:disabled) { color: var(--slax-accent); background: var(--slax-accent-bg); }
-button:active:not(:disabled) { color: var(--slax-accent); background: var(--slax-accent-soft); }
+.pdf-status button:hover:not(:disabled) { color: var(--slax-accent); background: var(--slax-accent-bg); }
+.pdf-status button:active:not(:disabled) { color: var(--slax-accent); background: var(--slax-accent-soft); }
 button:disabled { opacity: .4; cursor: default; }
 button:focus-visible, input:focus-visible, .pdfViewer:focus-visible { outline: 2px solid var(--slax-accent); outline-offset: -2px; }
-.pdf-page-label { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; font-size: var(--slax-fs-aux); white-space: nowrap; }
-.pdf-page-label input {
-  box-sizing: border-box;
-  width: 44px;
-  min-width: 0;
-  min-height: 36px;
-  padding: 4px;
-  border: 1px solid var(--slax-border);
-  border-radius: 6px;
-  background: var(--slax-bg);
-  color: var(--slax-text);
-  text-align: center;
-  font: inherit;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  appearance: textfield;
-}
-.pdf-page-label input::-webkit-inner-spin-button, .pdf-page-label input::-webkit-outer-spin-button { margin: 0; appearance: none; }
-.pdf-page-label input:disabled { opacity: .4; }
-.pdf-zoom-controls { display: grid; grid-template-columns: 36px minmax(0, 1fr) 36px; align-items: center; gap: 4px; }
-.pdf-scale { font-size: var(--slax-fs-aux); text-align: center; font-variant-numeric: tabular-nums; }
 .pdf-status, .pdf-text-status { padding: 12px; font-size: var(--slax-fs-aux); color: var(--slax-text-muted); }
 .pdfViewer { padding: 0; }
 :deep(.pdf-page-slot) { width: 100%; overflow-x: auto; overflow-y: hidden; margin-bottom: 0; scroll-margin-top: calc(var(--slax-header-h-snapshot) + 16px); }
 .pdf-pages-spaced :deep(.pdf-page-slot) { margin-bottom: 20px; }
-.pdf-toolbar button[aria-pressed='true'] { color: var(--slax-accent); background: var(--slax-accent-bg); }
 :deep(.pdfViewer .page) { margin: 0 auto; border: 0; box-shadow: none; flex-shrink: 0; background: transparent; }
 .pdf-original-colors :deep(.pdfViewer .page) { background: var(--page-bg-color); }
 .pdf-selection-actions { position: fixed; z-index: 46; max-width: calc(100vw - 24px); }
@@ -584,13 +703,21 @@ button:focus-visible, input:focus-visible, .pdfViewer:focus-visible { outline: 2
 :deep(.pdf-mark-hover .pdf-mark-line) { stroke: var(--slax-accent); }
 :deep(.pdf-mark-active .pdf-mark-fill), :deep(g:focus .pdf-mark-fill), :deep(.pdf-quote-flash) { fill: var(--slax-quote-highlight); }
 :deep(.pdfViewer .page) { color-scheme: light; }
+/* pdf.js paints text-layer selections with the system AccentColor (blue). Use the same --slax-selection as article
+   text. The layer's glyphs are transparent over the canvas, so only the background changes; pdf.js's own
+   `selectionRendering` state is left alone. */
+:deep(.textLayer:not(.selectionRendering) ::selection) { background: var(--slax-selection); }
+/* The layer sits above the canvas, so e-ink's opaque selection grey would hide the glyphs underneath: use the same
+   grey as a translucent ink overlay instead. */
+:global([data-slax-theme='eink'] .pdf-reader .textLayer:not(.selectionRendering) ::selection) { background: rgba(0, 0, 0, 0.13); }
 @media (max-width: 768px) {
   .pdf-control-rail { top: calc(var(--slax-header-h-mobile) + 12px); }
-  .pdf-toolbar { width: 236px; max-width: calc(100vw - 68px - env(safe-area-inset-right, 0px)); max-height: calc(100dvh - var(--slax-header-h-mobile) - 100px); }
-  .pdf-toolbar button, .pdf-page-label input { min-height: 44px; min-width: 44px; }
-  .pdf-page-navigation, .pdf-zoom-controls { grid-template-columns: 44px minmax(0, 1fr) 44px; }
+  .pdf-toolbar { width: 244px; max-width: calc(100vw - 68px - env(safe-area-inset-right, 0px)); max-height: calc(100dvh - var(--slax-header-h-mobile) - 100px); }
+  .pdf-segment { grid-template-columns: 44px minmax(0, 1fr) 44px; min-height: 44px; }
+  .pdf-page-label input { height: 36px; }
+  .pdf-row { min-height: 44px; }
   .pdf-selection-actions { width: max-content; }
   :deep(.pdf-page-slot) { scroll-margin-top: calc(var(--slax-header-h-mobile) + 16px); }
 }
-@media (prefers-reduced-motion: reduce) { .pdf-reader * { scroll-behavior: auto; } }
+@media (prefers-reduced-motion: reduce) { .pdf-reader * { scroll-behavior: auto; transition: none; } }
 </style>

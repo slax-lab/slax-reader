@@ -1,0 +1,7 @@
+{
+  "chunk_id": "cd02f5",
+  "wall_time_seconds": 0.115831667,
+  "exit_code": 0,
+  "original_token_count": 51,
+  "output": "{\"status\": \"twelve-declared-ts-deltas-refreshed-stage-frozen-no-runtime-execution\", \"recordDirectory\": \"/private/tmp/slax-ui-ts-refresh-c34117fd-c20b-4300-81c0-f2eddbb2a6e9-apply\", \"stageMutated\": true}\n"
+}

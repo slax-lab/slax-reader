@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "status": "native-source-handler-implemented-native-compile-and-wk-retest-pending",
+  "openSpec": "expo-mobile-migration",
+  "triggeringNegativeReport": {
+    "path": "docs/mobile/evidence/2026-10-11-target-ios-reader-native-longpress/negative-alpha-report.json",
+    "sha256": "b3e4dbf5f61333e9f7bb7927a18ba32a942ab49d832f97ddec46bc2bde3f5f67"
+  },
+  "sourceBridgeUnchanged": {
+    "path": "apps/mobile/assets/embedded/js/webview-bridge.js",
+    "sha256": "cc943378a1de086b4dfc1c628e50618b187ae515fa256210bf2f51ac26038225",
+    "matchesPinnedOriginal": true
+  },
+  "changedInputs": [
+    {
+      "path": "apps/mobile/modules/slax-platform/ios/SlaxReaderView.swift",
+      "sha256": "869daa1a3e44d0e0cf9de0332b5e34ba08fb75137b4ea8449848f4179e05c5cf"
+    },
+    {
+      "path": "apps/mobile/assets/embedded/js/react-native-host.js",
+      "sha256": "57a8c9a334f80f850eee51702743d8e53f4280ea3d5733130d9e259c05c28840"
+    },
+    {
+      "path": "apps/mobile/src/reader/embedded.generated.ts",
+      "sha256": "4eb8c31a5ab497ab326a2c1c9873e44de0ebaee1fe117ae1543d64f8f26aabfe"
+    },
+    {
+      "path": "apps/mobile/tests/reader/bridge.test.mjs",
+      "sha256": "bcdc10e1944dd4c7ad365584b094b164f79f00bc7122aae7d886accf4f49a1a4"
+    },
+    {
+      "path": "apps/mobile/tests/reader/dom.test.mjs",
+      "sha256": "57cca885de2d9c677cca8f0ba3f755b83c21efbe34ff2285f96321a681ff2e8f"
+    },
+    {
+      "path": "docs/mobile/reader-compatibility.md",
+      "sha256": "d2432a6b2dbb471bffe7611280fc5fa323aab5531364df07df865d29fdbc5c78"
+    }
+  ],
+  "validation": {
+    "beforeDynamicNamespaceRegression": {
+      "tests": 11,
+      "passed": 10,
+      "failed": 1,
+      "skipped": 0
+    },
+    "afterBridgeAndActualOriginalDOM": {
+      "tests": 28,
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0
+    },
+    "typecheckExitCode": 0,
+    "nativeCompileExecuted": false,
+    "nativeDeviceRetestExecuted": false
+  },
+  "behavior": {
+    "handlerRegisteredBeforeWKConstruction": "NativeBridge; existing slaxReader retained",
+    "nativeGuard": [
+      "weak owner",
+      "main-frame",
+      "resource ownership",
+      "immutable page and document generation",
+      "one native view per ReaderPage document",
+      "detach removes both handlers"
+    ],
+    "hostGuard": [
+      "active document",
+      "matching captured pageId",
+      "bounded raw JSON object",
+      "existing post normalization/geometry/counters/envelope"
+    ],
+    "syntheticSelectionPublished": false,
+    "originalBridgeModified": false,
+    "nativeInputsExecuted": false
+  },
+  "artifacts": [
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/slax-reader-real-wk-bridge-before.log",
+      "sha256": "766ba724da9473a128dbc2ed03a0424b5c725fa4cb6eeb05643bc1cb3880cda9",
+      "bytes": 4140
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/slax-reader-real-wk-bridge-after.log",
+      "sha256": "19c019ea21a984bd153bb207b3bdf129dfeabe4546ec2dd04dd1fb150007453a",
+      "bytes": 7808
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/slax-reader-real-wk-bridge-typecheck.log",
+      "sha256": "ca3b4d9c4799386b6456a46be35dca73309f4f0d75d6920d784efaceffd00ae3",
+      "bytes": 54
+    }
+  ],
+  "limitations": [
+    "The real WK missing handler was observed only in the allocated isolated UI fixture; the reason property assignment was not retained is an inference.",
+    "Earlier original-installation mark/comment positive evidence remains unchanged.",
+    "DOM tests model a dynamic native namespace and real original SelectionMonitor; they do not replace actual WK/native validation.",
+    "No Swift compilation or second native input was performed for the correction."
+  ]
+}

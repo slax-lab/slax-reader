@@ -1,0 +1,5 @@
+Query chain:
+ →Find: Application 'app.slax.reader'
+  ↪︎Find: Descendants matching type StaticText
+    ↪︎Find: Elements matching predicate '"Pending comment" IN identifiers'
+      ↪︎Find: First Match

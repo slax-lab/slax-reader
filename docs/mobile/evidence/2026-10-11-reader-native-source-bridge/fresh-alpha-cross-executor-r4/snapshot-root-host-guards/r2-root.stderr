@@ -1,0 +1,11 @@
+file:///Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/inputs/snapshot-check.mjs:8
+if (!['alpha','cross'].includes(mode)||root!==expectedRoot||process.argv.length!==4) throw Error('Unallocated snapshot check');
+                                                                                           ^
+
+Error: Unallocated snapshot check
+    at file:///Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/inputs/snapshot-check.mjs:8:92
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.22.3

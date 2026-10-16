@@ -1,0 +1,33 @@
+{
+  "formatVersion": 1,
+  "status": "exact-signed-simulator-fixture-and-bounded-alpha-input-plan-reviewed",
+  "signedReceiptSha256": "be0e72740b63b30b8e7a249ea3661e087456169050c0ac79d0b872415b0ea77d",
+  "signedManifestSha256": "6570567571698574073f3eed6bba121fed39267b3e9fe8f98dc4aa2e15c7e68e",
+  "signedRegularFileHashesVerified": 148,
+  "signatureInspectionHashesVerified": true,
+  "fixtureEntitlements": {},
+  "bundleIdentifier": "app.slax.reader.uifixture",
+  "fixtureVersion": "1.0.0 (1)",
+  "nativeExecutable": {
+    "path": "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/Build/Products/Debug-iphonesimulator/SlaxReader.app/SlaxReader",
+    "sha256": "30303f6fa005ad2da4376dcc4be93da5b12d363947b441c642319ba86d4f0b3c"
+  },
+  "nativeDebugDylib": {
+    "path": "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/Build/Products/Debug-iphonesimulator/SlaxReader.app/SlaxReader.debug.dylib",
+    "sha256": "b175f0fa4df38c7e91360b978721d69414efe677309dbe763a42f5de5a64ebe5"
+  },
+  "alphaRunnerSha256": "e696580c1dc25d4e09ec84872efe853e6741cb12394a1e93e8518ffff23935d8",
+  "helperOwnerSha256": "08c63578421a2f7ea8929c27cae4aacc197455004263dde4ba404d0ae3aa3a1c",
+  "alphaScope": "Only one actual native long-press Alpha input against a freshly independently selected reader-mixed generation restored to observed240physical pixels, using the existing bound test-without-building helper; completed raw native result must be reviewed separately. No DOM range preparation or synthetic selection publishing.",
+  "resourceLimits": {
+    "ownedProductsAndLogsGiB": 3.5,
+    "minimumFreeGiB": 3,
+    "preInstallReserveGiB": 0.6,
+    "testSeconds": 120,
+    "ownedTestIncrementMiB": 256,
+    "readerInstalledCopyMiBMax": 200
+  },
+  "noDeviceOrMutationPerformed": true,
+  "publisherReleaseOrTestFlight": false,
+  "nativeSelectionVerdict": "pending"
+}

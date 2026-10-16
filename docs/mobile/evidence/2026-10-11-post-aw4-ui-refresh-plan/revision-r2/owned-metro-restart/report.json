@@ -1,0 +1,21 @@
+{
+  "kind": "slax-root-owned-metro-current-ui-stage-restart",
+  "status": "owned-metro8083-current-stage-running",
+  "oldOwnedPidTerminated": 18591,
+  "newOwnedPid": 93891,
+  "currentStageMarkerSha256": "916255118823ed8d2764c333b4d135d0b0278b3b0edba2a38d48762ceaf2d4f3",
+  "verifiedStageInputCount": 377,
+  "port": 8083,
+  "otherPortsAddressed": false,
+  "startupReportSha256": "34442ee66058cf88d0e2db35bf07bc0cfca71a282606432b80df89b368fd98d3",
+  "startupLogSnapshotSha256": "faae280b3edf211f8ff75f1e95011b55e526c1c58e5d052edd8cd3aa4aed6055",
+  "executorSha256": "2bf363135f64d2f894135b38b29fce995fdbe2ef12ca3d2a6a8b20c7196df8fe",
+  "nativeDeviceCommands": false,
+  "runtimeVisualAcceptance": false,
+  "logIsLiveAtTemporaryLocation": true,
+  "noDotenvOrTelemetry": true,
+  "offline": true,
+  "explicitControlledUiFixture": true,
+  "maximumWorkers": 1,
+  "createdAt": "2026-10-11T00:03:27.217760+00:00"
+}

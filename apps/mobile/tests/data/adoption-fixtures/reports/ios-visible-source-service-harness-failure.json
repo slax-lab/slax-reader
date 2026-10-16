@@ -1,0 +1,271 @@
+{
+  "kind": "slax-controlled-visible-fixture-harness-failure",
+  "status": "failed",
+  "device": "468A1F1E-408C-4B74-922E-1EB216A446E0",
+  "runId": "controlled-ios-visible-upgrade-20261011",
+  "originalProducerInputsSHA256": "d3844fa4d0465665b1f90e68bf9215e84902bb8b56f6e9dc165630967547c3f0",
+  "harnessRejectedDottedMetadataFieldsBeforeSql": true,
+  "productionFourHundredFallbackConsumedRejectedTransaction": true,
+  "originalTx2WireChanges": [
+    {
+      "table": "sr_user_bookmark",
+      "id": "bookmark-1",
+      "op": "PATCH",
+      "data": {
+        "is_starred": "1",
+        "metadata.tags": "[\"tag-1\",\"tag-2\"]",
+        "metadata.share.is_enable": "false",
+        "starred_at": "2026-10-01T09:41:00.000Z"
+      },
+      "preData": {
+        "is_starred": "0",
+        "metadata.tags": "[\"tag-1\"]",
+        "metadata.share.is_enable": "true",
+        "starred_at": null
+      }
+    },
+    {
+      "table": "sr_bookmark_comment",
+      "id": "comment-1",
+      "op": "PUT",
+      "data": {
+        "approx_source": "{\"exact\":\"Controlled offline fixture\",\"prefix\":\"\",\"suffix\":\". This passage carries an original offline comment.\",\"position_start\":0,\"position_end\":26,\"raw_text\":\"Controlled offline fixture\"}",
+        "comment": "Pending comment",
+        "content": "[{\"type\":\"text\",\"text\":\"Controlled offline fixture\",\"src\":\"\"}]",
+        "created_at": "2026-10-01T09:41:00.000Z",
+        "is_deleted": "0",
+        "metadata": "{\"root_id\":null,\"user_id\":\"synthetic-user\",\"parent_id\":null,\"source_type\":null,\"source_id\":null,\"bookmark_id\":\"bookmark-1\"}",
+        "source": "[{\"type\":\"text\",\"path\":\"article#controlled-offline > p#controlled-quote\",\"start\":0,\"end\":26}]",
+        "type": "2",
+        "user_bookmark_uuid": "bookmark-1"
+      },
+      "preData": null
+    }
+  ],
+  "untransmittedDerivedShareField": {
+    "field": "allow_access",
+    "before": 1,
+    "after": 0,
+    "transmitted": false
+  },
+  "visibleUiAcceptance": false,
+  "publisherSignedUpgrade": false,
+  "testFlightUpload": false,
+  "recordedAt": "2026-10-10T19:30:42.790Z",
+  "sourceInputHashes": {
+    "apps/mobile/tests/data/adoption-fixtures/visible-legacy-inputs.json": "d3844fa4d0465665b1f90e68bf9215e84902bb8b56f6e9dc165630967547c3f0",
+    "apps/mobile/tests/data/adoption-fixtures/tooling/visible-producer-project.mjs": "dcc536594c1a101c80a1d92789d7d75f679d98979f96698edfaffe77c0a54b88",
+    "apps/mobile/tests/data/adoption-fixtures/tooling/real-service.mjs": "5bf7870943c3f4ca8f33bfc98c2892f26210a6aa608cba45b4ccf670626e3632",
+    "apps/mobile/tests/data/NativeServiceReconnectFixture.ts": "df90fbb64d8b765916b9c9ee52415e6da2ab4b527b42bbb60594cfb86ba2b038",
+    "apps/mobile/src/data/uploader.ts": "f3279efbb7d89337072cc96db3dbe86246b8e4b5b551bbf8cd89de5e059845ca",
+    "apps/mobile/src/data/adoption.ts": "adaa415c44b41746a19a06f7fcf743ef07a39cb997737a27145671dfdf600ae3",
+    "apps/mobile/src/data/connector.ts": "bf3b1d425aadff664a94cb681c41752a7cbc0897f1c8b4101d736bafa982d23d",
+    "apps/mobile/src/data/api.ts": "27f99d1a2e3b9353c3e0f82fa487c724e5891d17940236cfca719e9e20ae195e"
+  },
+  "actualServerReceiptDiagnostic": {
+    "rows": [
+      [
+        {
+          "id": "tag-1",
+          "op": "PUT",
+          "data": {
+            "source": "mine",
+            "display": "1",
+            "user_id": "synthetic-user",
+            "tag_name": "offline",
+            "created_at": "2026-10-01T09:41:00.000Z"
+          },
+          "table": "sr_user_tag",
+          "preData": null
+        },
+        {
+          "id": "bookmark-1",
+          "op": "PUT",
+          "data": {
+            "type": "0",
+            "is_read": "0",
+            "user_id": "synthetic-user",
+            "metadata": "{\"tags\":[\"tag-1\"],\"share\":{\"uuid\":\"share-bookmark-1\",\"is_enable\":true,\"show_line\":true,\"allow_line\":true,\"created_at\":\"2026-10-01T09:41:00.000Z\",\"share_code\":\"controlled-offline-share\",\"show_comment\":true,\"allow_comment\":true,\"show_userinfo\":true,\"allow_access\":1},\"bookmark\":{\"uuid\":\"article-1\",\"title\":\"Offline article\",\"byline\":\"Controlled fixture author\",\"status\":\"success\",\"host_url\":\"https://offline.invalid\",\"site_name\":\"Controlled offline fixture\",\"target_url\":\"https://offline.invalid/article-1\",\"description\":\"An original SDK article retained through the Expo migration.\",\"content_icon\":\"\",\"published_at\":\"2026-10-01T09:41:00.000Z\",\"content_cover\":\"\",\"content_word_count\":661}}",
+            "created_at": "2026-10-01T09:41:00.000Z",
+            "is_starred": "0",
+            "updated_at": "2026-10-01T09:41:00.000Z",
+            "alias_title": "Offline article",
+            "archive_status": "0"
+          },
+          "table": "sr_user_bookmark",
+          "preData": null
+        }
+      ],
+      [
+        {
+          "id": "bookmark-1",
+          "op": "PATCH",
+          "data": {
+            "alias_title": "Controlled actual service offline edit"
+          },
+          "table": "sr_user_bookmark",
+          "preData": {
+            "alias_title": "Offline article"
+          }
+        },
+        {
+          "id": "tag-service-ios-controlled-ios-visible-upgrade-20261",
+          "op": "PUT",
+          "data": {
+            "display": "Before service",
+            "user_id": "synthetic-user",
+            "tag_name": "actual-service"
+          },
+          "table": "sr_user_tag",
+          "preData": null
+        }
+      ]
+    ],
+    "materializedLegacyRows": {
+      "sr_user_tag": [
+        {
+          "id": "tag-1",
+          "user_id": "synthetic-user",
+          "tag_name": "offline",
+          "display": "1",
+          "source": "mine",
+          "last_used_at": null,
+          "created_at": "2026-10-01T09:41:00.000Z"
+        }
+      ],
+      "sr_user_bookmark": [
+        {
+          "id": "bookmark-1",
+          "user_id": "synthetic-user",
+          "created_at": "2026-10-01T09:41:00.000Z",
+          "updated_at": "2026-10-01T09:41:00.000Z",
+          "alias_title": "Controlled actual service offline edit",
+          "deleted_at": null,
+          "starred_at": "2026-10-01T09:41:00.000Z",
+          "archived_at": null,
+          "metadata": "{\"tags\":[\"tag-1\"],\"share\":{\"uuid\":\"share-bookmark-1\",\"is_enable\":true,\"show_line\":true,\"allow_line\":true,\"created_at\":\"2026-10-01T09:41:00.000Z\",\"share_code\":\"controlled-offline-share\",\"show_comment\":true,\"allow_comment\":true,\"show_userinfo\":true,\"allow_access\":1},\"bookmark\":{\"uuid\":\"article-1\",\"title\":\"Offline article\",\"byline\":\"Controlled fixture author\",\"status\":\"success\",\"host_url\":\"https://offline.invalid\",\"site_name\":\"Controlled offline fixture\",\"target_url\":\"https://offline.invalid/article-1\",\"description\":\"An original SDK article retained through the Expo migration.\",\"content_icon\":\"\",\"published_at\":\"2026-10-01T09:41:00.000Z\",\"content_cover\":\"\",\"content_word_count\":661}}",
+          "is_read": 0,
+          "archive_status": 0,
+          "is_starred": 0,
+          "type": 0
+        }
+      ],
+      "sr_bookmark_comment": [
+        {
+          "id": "comment-1",
+          "source": "[{\"type\":\"text\",\"path\":\"article#controlled-offline > p#controlled-quote\",\"start\":0,\"end\":26}]",
+          "user_bookmark_uuid": "bookmark-1",
+          "comment": "Pending comment",
+          "approx_source": "{\"exact\":\"Controlled offline fixture\",\"prefix\":\"\",\"suffix\":\". This passage carries an original offline comment.\",\"position_start\":0,\"position_end\":26,\"raw_text\":\"Controlled offline fixture\"}",
+          "content": "[{\"type\":\"text\",\"text\":\"Controlled offline fixture\",\"src\":\"\"}]",
+          "created_at": "2026-10-01T09:41:00.000Z",
+          "metadata": "{\"root_id\":null,\"user_id\":\"synthetic-user\",\"parent_id\":null,\"source_type\":null,\"source_id\":null,\"bookmark_id\":\"bookmark-1\"}",
+          "type": 2,
+          "is_deleted": 0
+        }
+      ]
+    },
+    "replicationSlots": [
+      {
+        "active": true,
+        "confirmedFlushLsn": "0/1584E18"
+      }
+    ],
+    "traffic": {
+      "streamHttpRequests": 2,
+      "webSocketUpgrades": 0,
+      "serverToClientBytes": 2943
+    }
+  },
+  "actualServiceStatus": {
+    "runId": "controlled-ios-visible-upgrade-20261011",
+    "initialized": true,
+    "platform": "ios",
+    "rejectedUploads": 15,
+    "committedUploads": [
+      [
+        {
+          "table": "sr_user_tag",
+          "id": "tag-1",
+          "op": "PUT",
+          "data": {
+            "created_at": "2026-10-01T09:41:00.000Z",
+            "display": "1",
+            "source": "mine",
+            "tag_name": "offline",
+            "user_id": "synthetic-user"
+          },
+          "preData": null
+        },
+        {
+          "table": "sr_user_bookmark",
+          "id": "bookmark-1",
+          "op": "PUT",
+          "data": {
+            "alias_title": "Offline article",
+            "archive_status": "0",
+            "created_at": "2026-10-01T09:41:00.000Z",
+            "is_read": "0",
+            "is_starred": "0",
+            "metadata": "{\"tags\":[\"tag-1\"],\"share\":{\"uuid\":\"share-bookmark-1\",\"is_enable\":true,\"show_line\":true,\"allow_line\":true,\"created_at\":\"2026-10-01T09:41:00.000Z\",\"share_code\":\"controlled-offline-share\",\"show_comment\":true,\"allow_comment\":true,\"show_userinfo\":true,\"allow_access\":1},\"bookmark\":{\"uuid\":\"article-1\",\"title\":\"Offline article\",\"byline\":\"Controlled fixture author\",\"status\":\"success\",\"host_url\":\"https://offline.invalid\",\"site_name\":\"Controlled offline fixture\",\"target_url\":\"https://offline.invalid/article-1\",\"description\":\"An original SDK article retained through the Expo migration.\",\"content_icon\":\"\",\"published_at\":\"2026-10-01T09:41:00.000Z\",\"content_cover\":\"\",\"content_word_count\":661}}",
+            "type": "0",
+            "updated_at": "2026-10-01T09:41:00.000Z",
+            "user_id": "synthetic-user"
+          },
+          "preData": null
+        }
+      ],
+      [
+        {
+          "table": "sr_user_bookmark",
+          "id": "bookmark-1",
+          "op": "PATCH",
+          "data": {
+            "alias_title": "Controlled actual service offline edit"
+          },
+          "preData": {
+            "alias_title": "Offline article"
+          }
+        },
+        {
+          "table": "sr_user_tag",
+          "id": "tag-service-ios-controlled-ios-visible-upgrade-20261",
+          "op": "PUT",
+          "data": {
+            "display": "Before service",
+            "tag_name": "actual-service",
+            "user_id": "synthetic-user"
+          },
+          "preData": null
+        }
+      ]
+    ],
+    "mutations": [],
+    "allowUploads": true,
+    "traffic": {
+      "streamHttpRequests": 2,
+      "webSocketUpgrades": 0,
+      "serverToClientBytes": 2835
+    }
+  },
+  "failedNativeReport": {
+    "status": "failed",
+    "platform": "ios",
+    "runId": "controlled-ios-visible-upgrade-20261011",
+    "serviceReconnect": false,
+    "productionAdoptionEnabled": false,
+    "credentialsPersisted": false
+  },
+  "sameIdentityReplacement": {
+    "bundle": "app.slax.reader",
+    "targetExecutableSHA256": "afca590846175cce828b550f5c92b17096b706c214de67ea1d6d1a380eebd97f",
+    "priorContainer": "/Users/daguang/Library/Developer/CoreSimulator/Devices/468A1F1E-408C-4B74-922E-1EB216A446E0/data/Containers/Data/Application/EAFDA6E8-604F-4A03-8D1D-6325467647A7",
+    "currentContainer": "/Users/daguang/Library/Developer/CoreSimulator/Devices/468A1F1E-408C-4B74-922E-1EB216A446E0/data/Containers/Data/Application/26B58BC9-27B8-4D7F-BB4E-4EECE0482E1F",
+    "oldMarkerAndDatabaseRetained": true,
+    "uninstall": false,
+    "dataClear": false,
+    "publisherSigning": false
+  },
+  "scope": "Separate failed full-row fixture: the harness rejected source-compatible dotted metadata PATCH before SQL, so compatible HTTP400 rejection isolation consumed tx2. Not an adoption/queue-loss proof; not visible UI acceptance. Historical original-six reports remain immutable.",
+  "ownResourcesCleaned": false
+}

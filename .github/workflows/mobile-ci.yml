@@ -1,0 +1,51 @@
+name: Mobile CI
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/**'
+      - 'docs/mobile/**'
+      - 'packages/contracts/**'
+      - 'tooling/mobile.mjs'
+      - 'tooling/pnpm-command.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/mobile-ci.yml'
+  push:
+    branches: [dev, beta, main]
+    paths:
+      - 'apps/mobile/**'
+      - 'docs/mobile/**'
+      - 'packages/contracts/**'
+      - 'tooling/mobile.mjs'
+      - 'tooling/pnpm-command.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/mobile-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EXPO_NO_DOTENV: '1'
+  CI: '1'
+
+jobs:
+  static:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm mobile -- check
+      - run: pnpm mobile -- bundle

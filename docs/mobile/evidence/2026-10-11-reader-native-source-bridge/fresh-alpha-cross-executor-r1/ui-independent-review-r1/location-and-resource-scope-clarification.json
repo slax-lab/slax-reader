@@ -1,0 +1,27 @@
+{
+  "kind": "independent-r1-review-location-and-resource-scope-clarification",
+  "unchangedPriorReview": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/ui-independent-review-r1/report.json",
+    "bytes": 6686,
+    "sha256": "5e992296d2c830d8083c8c2f6b2ab981c0e0b25907cc9720bae217b11f0b6977"
+  },
+  "findingExactLines": {
+    "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/inputs/run-fresh-alpha-cross.py",
+    "initialFalseLine": 395,
+    "crossMethodLine": 557,
+    "nativeResultAndPostCaptureLine": 571,
+    "lateTrueLine": 573
+  },
+  "resourceScopeAudit": {
+    "upstreamPlanSHA256": "f0e459b257a912de98d63ef1dad09e4beadab4249972daf00f2fa1dd32992c98",
+    "originalLiteralCapKeys": [
+      "maxNewRunRootAndAllOwnedHelperContainerLogicalBytes",
+      "maxNewRunRootAndAllOwnedHelperContainerAllocatedBytes"
+    ],
+    "originalExecutorAccounting": "RUN root plus all admitted owned helper roots; fresh UI scope bytes were outside that originally prepared definition.",
+    "actualSourceRuntime": "createFixtureRuntime creates per-launch SQLite, HTML, artwork and JSON in a new synthetic UI scope. An initial library-populated scope can be transient before reader-mixed case selection.",
+    "rootAuthorizedR2": "Conservatively count at most two fresh admitted synthetic library-populated/reader-mixed scopes, only direct old name/lstat baseline, bounded known marker then stat fresh tree, exact controller URI for reader-mixed, no old scopes/database contents/whole UIData. Preserve256MiB/3GiB/180 limits.",
+    "nativeOrAppDataActionsPerformed": false
+  },
+  "testsExecution": "Deferred to final frozen r2 as stated by the unchanged r1 review."
+}

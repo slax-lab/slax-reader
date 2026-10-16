@@ -1,19 +1,9 @@
 <template>
   <Transition name="popup">
-    <div class="slax-popup" :class="{ 'slax-popup-loading': isLoading }" v-show="showPopup" v-on-click-outside="closePopup">
-      <div class="header">
-        <div class="status">
-          <DotLoading v-if="isLoading" />
-          <img v-if="!isLoading && tipsDisplay?.kind === 'message' && tipsDisplay.key === 'collection_successful'" class="smile" src="@/assets/smile_face.svg" />
-          <span>{{ isLoading ? loadingTitle : statusTitle }}</span>
-        </div>
-        <button v-if="!isLoading" @click="closePopup">
-          <img src="@/assets/close.svg" />
-        </button>
-      </div>
-      <div class="title">
-        <span class="">{{ title }}</span>
-      </div>
+    <CollectFeedback v-show="showPopup" v-on-click-outside="closePopup"
+      :title="title" :status="isLoading ? loadingTitle : statusTitle" :loading="isLoading"
+      :success="tipsDisplay?.kind === 'message' && tipsDisplay.key === 'collection_successful'"
+      :close-label="$t('pdf_save.close')" @close="closePopup">
       <a v-if="labBlocked" class="lab-link" :href="labsUrl" target="_blank" rel="noopener">{{ t('open_labs_in_settings') }}</a>
       <div class="content" v-show="!isLoading">
         <div class="slax-buttons collected" v-if="bookmarkId > 0 && false">
@@ -25,14 +15,14 @@
           <button class="add" @click="addBookmark">{{ t('recollection') }}</button>
         </div>
       </div>
-    </div>
+    </CollectFeedback>
   </Transition>
 </template>
 <script lang="ts" setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { onUnmounted } from 'vue'
 
-import DotLoading from './DotLoading.vue'
+import CollectFeedback from './CollectFeedback.vue'
 
 import { BookmarkActionType, type MessageType, MessageTypeAction } from '@/config/message'
 
@@ -290,42 +280,8 @@ const closePopup = () => {
 
 <style lang="scss" scoped>
 .slax-popup {
-  --style: fixed top-2 right-2 w-75 z-99999999 bg-white rounded-2xl p-5 pt-6 box-border overflow-hidden shadow shadow-(md gray-400) select-none transition-max-height duration-250
-    delay-0 ease-in-out max-h-50 overflow-hidden border-(solid 1px #3333330d) '@dark:(shadow-(md slate-3))';
-  box-shadow: 0px 20px 60px 0px #0000001a;
-
-  &.slax-popup-loading {
-    --style: max-h-130px;
-  }
-
-  .header {
-    --style: flex justify-between items-center;
-
-    .status {
-      --style: text-#999999 text-13px line-height-18px flex items-center;
-      & > * {
-        --style: 'not-first:ml-8px';
-      }
-
-      .smile {
-        --style: animate-tada;
-      }
-    }
-
-    button {
-      --style: 'flex-center w-16px h-16px p-0 hover:(scale-120 opacity-80) active:(scale-130) duration-250 transition-all';
-      img {
-        --style: w-full h-full;
-      }
-    }
-  }
-
   .lab-link {
     --style: block mt-2 text-13px underline cursor-pointer text-#16b998;
-  }
-
-  .title {
-    --style: mt-16px font-bold text-(16px align-left ellipsis #0f1419) line-height-24px overflow-hidden line-clamp-2 break-all;
   }
 
   .content {

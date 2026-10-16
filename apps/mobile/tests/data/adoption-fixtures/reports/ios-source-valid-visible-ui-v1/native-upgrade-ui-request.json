@@ -1,0 +1,10 @@
+{
+  "kind": "slax-controlled-visible-upgrade-request",
+  "version": 1,
+  "platform": "ios",
+  "device": "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+  "runId": "controlled-ios-visible-upgrade-v2-20261011",
+  "nonce": "5460a82a-34f9-4938-b361-b79b50b44819",
+  "requestedAt": 1791662334275,
+  "visibleInputsSHA256": "bd660fd48fbdecd7c9eb599ce701281fdf6c6ff78d716cab945cdcfc0d59d110"
+}

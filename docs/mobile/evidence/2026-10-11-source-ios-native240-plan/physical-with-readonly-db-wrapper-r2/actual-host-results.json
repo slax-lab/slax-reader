@@ -1,0 +1,60 @@
+{
+  "kind": "source-physical-readonly-db-wrapper-host-results",
+  "version": 2,
+  "status": "prepared-only",
+  "hostGuards": {
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0
+  },
+  "databaseOpenedDuringTheseChecks": false,
+  "deviceOrCompilerCommandsExecuted": false,
+  "runRootCreated": false,
+  "commands": [
+    {
+      "name": "guards",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-B",
+        "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/native-scroll-db-runtime-guards.test.py",
+        "-v"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.11239425,
+      "raw": {
+        "stdout": {
+          "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/raw-final-r2/guards.stdout",
+          "bytes": 135,
+          "sha256": "665a37c78c704d86cca46dabc44c69494e667d186177abd34c2b2a49feab501d"
+        },
+        "stderr": {
+          "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/raw-final-r2/guards.stderr",
+          "bytes": 2067,
+          "sha256": "0d2432ada8ac2dcdaeebafe6e9e1d956b5310de5dbc4ebbf95cd6600b3975df5"
+        }
+      }
+    },
+    {
+      "name": "readonly",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-B",
+        "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/run-native-scroll-with-db.py"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.39137020899999997,
+      "raw": {
+        "stdout": {
+          "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/raw-final-r2/readonly.stdout",
+          "bytes": 135,
+          "sha256": "665a37c78c704d86cca46dabc44c69494e667d186177abd34c2b2a49feab501d"
+        },
+        "stderr": {
+          "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/raw-final-r2/readonly.stderr",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    }
+  ]
+}

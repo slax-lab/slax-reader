@@ -1,0 +1,163 @@
+--- docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/inputs/run-fresh-alpha-cross.py
++++ docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r2/inputs/run-fresh-alpha-cross.py
+@@ -184,10 +184,79 @@
+     value = os.statvfs('/private/tmp'); return value.f_bavail * value.f_frsize
+ 
+ 
+-def resource_guard(own, helpers, free, logs, initial=False):
++def scope_metadata_baseline(data_root):
++    """Direct child names/lstat only; never inspect an existing scope's contents."""
++    require(data_root == UI_DATA and all(not p.is_symlink() for p in (data_root, *data_root.parents)), 'Unclosed UI data root')
++    base = data_root / 'Library/Caches/slax-ui-fixtures'
++    require(all(not p.is_symlink() for p in (base, *base.parents)), 'Unsafe UI scope parent')
++    if not base.exists():
++        return {'parent': str(base), 'parentExisted': False, 'children': {}}
++    require(stat.S_ISDIR(base.lstat().st_mode), 'UI scope parent is not a directory')
++    children = list(base.iterdir()); require(len(children) <= 1000, 'Scope metadata baseline bound')
++    rows = {}
++    for child in children:
++        item = child.lstat()
++        require(stat.S_ISDIR(item.st_mode), 'Existing scope child symlink/non-directory refused')
++        rows[child.name] = {'mode': item.st_mode, 'device': item.st_dev, 'inode': item.st_ino,
++                            'logicalBytes': item.st_size, 'allocatedBytes': item.st_blocks * 512}
++    return {'parent': str(base), 'parentExisted': True, 'children': rows}
++
++
++def fresh_scope_accounting(data_root, baseline, seen, current_scope=None):
++    """Only new, marker-proved reader/bootstrap scopes enter the unchanged cap."""
++    require(data_root == UI_DATA, 'Unclosed UI data root')
++    base = data_root / 'Library/Caches/slax-ui-fixtures'
++    require(baseline['parent'] == str(base) and all(not p.is_symlink() for p in (base, *base.parents)), 'Different/symlink scope parent')
++    if not base.exists():
++        require(not baseline['parentExisted'] and current_scope is None and not seen, 'Scope parent vanished')
++        return {'scopes': [], 'seenNewScopeNames': [], 'logicalBytes': 0, 'allocatedBytes': 0}
++    parent = base.lstat(); require(stat.S_ISDIR(parent.st_mode), 'Scope parent must be a directory')
++    children = list(base.iterdir()); require(len(children) <= 1002, 'Scope child metadata bound')
++    names = {p.name for p in children}
++    require(set(baseline['children']) <= names, 'Existing scope directory vanished')
++    require(len(set(seen) | (names - set(baseline['children']))) <= 2, 'More than one reader and one bootstrap scope refused')
++    entries = []
++    for child in children:
++        item = child.lstat(); require(stat.S_ISDIR(item.st_mode), 'Scope child symlink/non-directory refused')
++        if child.name in baseline['children']:
++            prior = baseline['children'][child.name]
++            require((item.st_mode, item.st_dev, item.st_ino) == (prior['mode'], prior['device'], prior['inode']), 'Existing scope metadata identity changed')
++            continue
++        match = re.fullmatch(r'(reader-mixed|library-populated)-[0-9]+-[a-f0-9]+', child.name)
++        require(match is not None, 'Unknown new scope name refused before marker read')
++        scenario = match.group(1)
++        marker = child / 'slax-fixture.json'
++        require(regular(marker).st_size <= 1024, 'Fresh scope marker exceeds1KiB')
++        raw = marker.read_bytes()
++        value = json.loads(raw)
++        require(isinstance(value, dict) and value.get('controlledFixture') is True and type(value.get('fixtureVersion')) is int and
++                value == {'controlledFixture': True, 'fixtureVersion': 1, 'scenario': scenario, 'inputSha256': INPUT_SHA}, 'Unknown new scope marker refused')
++        require(not any(name != child.name and row['scenario'] == scenario for name, row in seen.items()), 'More than one reader and one bootstrap scope refused')
++        require(child.name not in seen or seen[child.name]['scenario'] == scenario, 'New scope identity changed')
++        # Marker proof precedes metadata-only tree accounting. No SQLite, HTML,
++        # image or old scope content is read by the resource watcher.
++        seen[child.name] = {'scenario': scenario, 'markerSHA256': hashlib.sha256(raw).hexdigest()}
++        require(len(seen) <= 2 and len({row['scenario'] for row in seen.values()}) == len(seen), 'More than one reader and one bootstrap scope refused')
++        if current_scope is not None and scenario == 'reader-mixed':
++            require(current_scope == child.as_uri() + '/', 'New Reader scope differs from exact controller scope')
++        entries.append({'path': str(child), 'scenario': scenario, 'markerSHA256': seen[child.name]['markerSHA256'], **tree(child)})
++    if current_scope is not None:
++        require(any(row['scenario'] == 'reader-mixed' and current_scope == Path(row['path']).as_uri() + '/' for row in entries), 'Exact current Reader scope missing or predates launch')
++    # A newly created parent belongs to this run; an existing parent is only
++    # enumerated, never charged as though its historical contents were new.
++    parent_logical = 0 if baseline['parentExisted'] else parent.st_size
++    parent_allocated = 0 if baseline['parentExisted'] else parent.st_blocks * 512
++    return {'scopes': entries, 'seenNewScopeNames': sorted(seen), 'newParentLogicalBytes': parent_logical,
++            'newParentAllocatedBytes': parent_allocated,
++            'logicalBytes': sum(row['logicalBytes'] for row in entries) + parent_logical,
++            'allocatedBytes': sum(row['allocatedBytes'] for row in entries) + parent_allocated}
++
++
++def resource_guard(own, helpers, free, logs, initial=False, scopes=None):
++    scopes = scopes or {'logicalBytes': 0, 'allocatedBytes': 0}
+     require(free >= (PRE if initial else FLOOR), '3GiB free floor / 0.6GiB admission reserve crossed')
+-    require(own['logicalBytes'] + helpers['logicalBytes'] + RECEIPT_RESERVE <= CAP and
+-            own['allocatedBytes'] + helpers['allocatedBytes'] + RECEIPT_RESERVE <= CAP, 'All distinct owned artifacts exceed256MiB')
++    require(own['logicalBytes'] + helpers['logicalBytes'] + scopes['logicalBytes'] + RECEIPT_RESERVE <= CAP and
++            own['allocatedBytes'] + helpers['allocatedBytes'] + scopes['allocatedBytes'] + RECEIPT_RESERVE <= CAP, 'All distinct owned artifacts exceed256MiB')
+     require(logs <= LOG_CAP, 'Combined command logs exceed8MiB')
+ 
+ 
+@@ -230,6 +299,10 @@
+     require(policy['limits'] == {'globalSeconds': TOTAL, 'releaseSeconds': RESERVE, 'killGraceSeconds': GRACE,
+             'testSeconds': TEST, 'utilitySeconds': UTILITY, 'preFreeBytes': PRE, 'floorBytes': FLOOR,
+             'logicalAndAllocatedCapBytes': CAP, 'combinedLogCapBytes': LOG_CAP, 'receiptReserveBytes': RECEIPT_RESERVE}, 'Resource bounds cannot change')
++    require(policy['freshScopeAccounting'] == {'parent': str(UI_DATA / 'Library/Caches/slax-ui-fixtures'), 'maximumNewScopes': 2,
++            'allowedCases': ['reader-mixed', 'library-populated'], 'markerBytes': 1024,
++            'inputSHA256': INPUT_SHA, 'oldScopeContentsRead': False, 'sqliteContentsRead': False,
++            'same256MiBCap': True}, 'Fresh scope accounting cannot expand')
+     require(len(policy['ownInputs'])==4 and {e['path'] for e in policy['ownInputs']} == {str(Path(__file__).resolve()), str(HERE/'runtime-guards.test.py'),
+             str(HERE/'snapshot-check.mjs'), str(HERE/'installed-helpers-forward-admission.json')}, 'Unclosed executor inputs')
+     require({e['path'] for e in policy['additionalPublicInputs']} == ADDITIONAL and len(policy['additionalPublicInputs'])==len(ADDITIONAL), 'Unclosed additional public files')
+@@ -389,10 +462,13 @@
+         self.policy,self.products,self.baseline=policy,products,baseline
+         self.started=time.monotonic(); self.started_unix=time.time(); self.process=None; self.boot=False
+         self.commands=[]; self.samples=[]; self.scope=None; self.live=None
++        self.scope_baseline = scope_metadata_baseline(UI_DATA); self.fresh_scopes_seen = {}
+         self.receipt={'kind':'fresh-native-alpha-cross-one-owner-attempt','version':1,'executorSHA256':sha(Path(__file__).resolve()),
+             'runtimePolicySHA256':sha(POLICY),'basePlanSHA256':BASE_SHA,'device':DEVICE,'ownerPID':os.getpid(),
+             'windowStartedUnixSeconds':self.started_unix,'alphaAllocationSHA256':allocation_sha,'alphaNonce':allocation['nonce'],
+-            'commands':self.commands,'resourceSamples':self.samples,'status':'started','crossInputIssued':False,
++            'commands':self.commands,'resourceSamples':self.samples,'status':'started',
++            'scopeMetadataBaseline':self.scope_baseline,'crossNativeCommandIssued':False,'crossActualInputStatus':'not-issued',
++            'crossPostInputScopeAccepted':False,
+             'nativeAlphaAccepted':False,'nativeCrossAccepted':False,'publisherBuild':False,'sourceDirectKotlinCallback':False}
+         RUN.mkdir(mode=0o700);(RUN/'logs').mkdir();(RUN/'tmp').mkdir();(RUN/'snapshots').mkdir(); self.save()
+ 
+@@ -408,10 +484,11 @@
+ 
+     def resources(self, active=False):
+         own=tree(RUN); installed=helper_accounting(self.baseline,active)
++        fresh_scopes = fresh_scope_accounting(UI_DATA, self.scope_baseline, self.fresh_scopes_seen, self.scope)
+         logs=sum(regular(p).st_size for p in (RUN/'logs').iterdir())
+-        sample={'elapsedSeconds':TOTAL-self.remaining(),'freeBytes':free_bytes(),'owned':own,'helpers':installed,'logBytes':logs}
++        sample={'elapsedSeconds':TOTAL-self.remaining(),'freeBytes':free_bytes(),'owned':own,'helpers':installed,'freshUIScopes':fresh_scopes,'logBytes':logs}
+         require(len(self.samples)<1024,'Resource sampler bound');self.samples.append(sample)
+-        resource_guard(own,installed,sample['freeBytes'],logs)
++        resource_guard(own,installed,sample['freeBytes'],logs,scopes=fresh_scopes)
+         return sample
+ 
+     def stop(self, process):
+@@ -435,7 +512,12 @@
+                 if k in os.environ:env[k]=os.environ[k]
+             with out.open('xb') as stdout,err.open('xb') as stderr:
+                 process=subprocess.Popen(argv,stdout=stdout,stderr=stderr,cwd=RUN,env=env,start_new_session=True)
+-                self.process=process;record['ownedPID']=process.pid;self.save()
++                self.process=process;record['ownedPID']=process.pid
++                if argv == test_command('cross'):
++                    self.receipt['crossNativeCommandIssued'] = True
++                    self.receipt['crossNativeCommandPID'] = process.pid
++                    self.receipt['crossActualInputStatus'] = 'unknown-after-native-command'
++                self.save()
+                 while process.poll() is None:
+                     require(time.monotonic()-started<budget,'Owned command deadline exhausted')
+                     if release:
+@@ -510,6 +592,11 @@
+         exact_summary(json.loads(summary.read_text()),phase)
+         tests=self.command([XCRUN,'xcresulttool','get','test-results','tests','--path',str(RUN/(phase+'.xcresult'))])
+         exact_test_nodes(json.loads(tests.read_text()),phase)
++        if phase == 'cross':
++            self.receipt['crossActualInputStatus'] = 'observed-through-completed-native-selector'
++            self.receipt['crossCompletedSelectorEvidence'] = {'summarySHA256': sha(summary), 'testsSHA256': sha(tests),
++                                                              'selector': SELECTORS['cross']}
++            self.save()
+         self.command([XCRUN,'xcresulttool','export','attachments','--path',str(RUN/(phase+'.xcresult')),'--output-path',str(RUN/(phase+'-attachments'))])
+         files=records(RUN/(phase+'.xcresult'));self.write(RUN/(phase+'-xcresult-manifest.json'),files)
+         return {'summary':{'path':str(summary),'sha256':sha(summary)},'tests':{'path':str(tests),'sha256':sha(tests)},
+@@ -568,9 +655,9 @@
+         remaining_for_cross(TOTAL-self.remaining());self.capture('cross-before')
+         self.command([NODE,str(HERE/'snapshot-check.mjs'),'alpha',str(RUN)])
+         self.receipt['crossAllocationSHA256']=submitted['crossAllocationSHA256'];self.receipt['crossTestAuthorized']=True;self.save()
+-        raw=self.native_result('cross');self.capture('cross-after')
++        raw=self.native_result('cross');self.receipt['crossRaw']=raw;self.save();self.capture('cross-after')
+         self.command([NODE,str(HERE/'snapshot-check.mjs'),'cross',str(RUN)])
+-        self.receipt['crossRaw']=raw;self.receipt['crossInputIssued']=True;self.receipt['status']='raw-cross-result-awaiting-independent-native-review'
++        self.receipt['crossPostInputScopeAccepted']=True;self.receipt['status']='raw-cross-result-awaiting-independent-native-review'
+ 
+     def release(self):
+         if self.boot:

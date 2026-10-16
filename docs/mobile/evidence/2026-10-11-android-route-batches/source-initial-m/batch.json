@@ -1,0 +1,953 @@
+{
+  "kind": "original-source-native-initial-batch",
+  "schemaVersion": 1,
+  "appId": "com.slax.reader.fixture",
+  "testRunner": "com.slax.reader.fixture.test/com.slax.reader.fixtures.FixtureRunner",
+  "device": "emulator-5560",
+  "driverSha256": "a250ba7abb6b79f43616b0852dc13d2c6c8bd4302e941dd1850405cfa392aa0f",
+  "records": [
+    {
+      "name": "library-populated",
+      "route": "Library",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/library-populated-b580c482-2ea0-4e2b-84c5-0225ba78ddf2",
+      "elapsedSeconds": 8.19,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657432022,
+      "files": [
+        {
+          "path": "library-populated/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "library-populated/00-initial.png",
+          "sha256": "578d7977654431066f37ab0eab39897c167c4d4814b767891757ae793fd3f9e7",
+          "bytes": 114982
+        },
+        {
+          "path": "library-populated/instrumentation.log",
+          "sha256": "62cbbd6acab79bdea1d0639445c8725e9afb88a8286813f6a558efe7503ef126",
+          "bytes": 83
+        },
+        {
+          "path": "library-populated/00-initial.json",
+          "sha256": "9177cfe2e504b593bbf91cc8a78fd645c97bfd06d17c45ece767fb3893f43719",
+          "bytes": 3343
+        }
+      ]
+    },
+    {
+      "name": "library-empty",
+      "route": "Library",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/library-empty-3c9af865-cf9c-4cbb-bd79-234c4925c1fe",
+      "elapsedSeconds": 7.184,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657439740,
+      "files": [
+        {
+          "path": "library-empty/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "library-empty/00-initial.png",
+          "sha256": "1083706ea228c5d2b1416df2762c5801905244951dba78399e727be71bdb2dfc",
+          "bytes": 76087
+        },
+        {
+          "path": "library-empty/instrumentation.log",
+          "sha256": "02a1fb73c33005ae882a1e9258b5d191ab575e0d5b8238b4a48d1fbae9c82872",
+          "bytes": 83
+        },
+        {
+          "path": "library-empty/00-initial.json",
+          "sha256": "33b5f83412958c05c0b913e36acb3c6a84c07dce52918c4375600537c7a20075",
+          "bytes": 2601
+        }
+      ]
+    },
+    {
+      "name": "library-unsynced",
+      "route": "Library",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/library-unsynced-7e3cdd1a-c116-4e5c-9012-39f5bd05d5e9",
+      "elapsedSeconds": 8.254,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657448198,
+      "files": [
+        {
+          "path": "library-unsynced/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "library-unsynced/00-initial.png",
+          "sha256": "d295a9530f7d67593193ae5d404097ce966683b9640af2036a928e9906a195d7",
+          "bytes": 86950
+        },
+        {
+          "path": "library-unsynced/instrumentation.log",
+          "sha256": "00f15ba617af15f0adb3eac778b8d30bba0f8970e9f962318607b310d5a53233",
+          "bytes": 83
+        },
+        {
+          "path": "library-unsynced/00-initial.json",
+          "sha256": "b11e4755bbf9e4b81abb0d9c73b7586a289b72aa82c6c17468dab7c5b2a99d21",
+          "bytes": 3023
+        }
+      ]
+    },
+    {
+      "name": "offline-cached",
+      "route": "Reader",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/offline-cached-8a11e3e9-6378-4cb6-aecf-3fae9bdc3075",
+      "elapsedSeconds": 7.577,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657456181,
+      "files": [
+        {
+          "path": "offline-cached/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "offline-cached/00-initial.png",
+          "sha256": "4701a25fdada7134b598e5306d59cab8223aa4af9672a299c4f3509a9679fc0d",
+          "bytes": 253839
+        },
+        {
+          "path": "offline-cached/instrumentation.log",
+          "sha256": "489d8e01442a04678dfb418bc70fcaa9bcd018a0319b6790363ecaf9f057f7f6",
+          "bytes": 83
+        },
+        {
+          "path": "offline-cached/00-initial.json",
+          "sha256": "a04014baffe8d7e7a2e8286842cb67509a3471be387ada5f1ef3367cbfc913f6",
+          "bytes": 2862
+        }
+      ]
+    },
+    {
+      "name": "reader-mixed",
+      "route": "Reader",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/reader-mixed-01554804-070d-4f81-86d5-5537da16f515",
+      "elapsedSeconds": 7.471,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657463645,
+      "files": [
+        {
+          "path": "reader-mixed/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "reader-mixed/00-initial.png",
+          "sha256": "34948627198ee6350b8100b4a5e2a8424101a0028d35cda7ab2d3f60f0ad7a13",
+          "bytes": 252691
+        },
+        {
+          "path": "reader-mixed/instrumentation.log",
+          "sha256": "dab4f755991d29994109d1c4aaf5a8e7de2f2be6d830212770254049d8f0d502",
+          "bytes": 83
+        },
+        {
+          "path": "reader-mixed/00-initial.json",
+          "sha256": "96c65da27a5f47bc060200c43c521afbb8809a52a2f8f2f8fa617642c65ead1c",
+          "bytes": 2860
+        }
+      ]
+    },
+    {
+      "name": "reader-long",
+      "route": "Reader",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/reader-long-6dc41e74-d32d-462e-99db-162fe07212ef",
+      "elapsedSeconds": 7.22,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657471047,
+      "files": [
+        {
+          "path": "reader-long/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "reader-long/00-initial.png",
+          "sha256": "4ffa82a0e86e4270438b61adcabc19565219c6b978872eab74408f4986daa77f",
+          "bytes": 327428
+        },
+        {
+          "path": "reader-long/instrumentation.log",
+          "sha256": "edfda2a63415fd40dec488761fafaf135214fc967b09368c79ff8dd4a3cd4963",
+          "bytes": 82
+        },
+        {
+          "path": "reader-long/00-initial.json",
+          "sha256": "b1aa8570e1146ab3f854f3b3707e174fcae9705e97bbcfba94bd378f7af2f314",
+          "bytes": 2633
+        }
+      ]
+    },
+    {
+      "name": "reader-video",
+      "route": "Reader",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/reader-video-8912aa8c-f876-45bc-91f5-3763ec708f4a",
+      "elapsedSeconds": 8.935,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657479844,
+      "files": [
+        {
+          "path": "reader-video/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "reader-video/00-initial.png",
+          "sha256": "90555c465d43894b35a3ba9c37939e28bc5933123d4940a4d90e59bc46f400f1",
+          "bytes": 83574
+        },
+        {
+          "path": "reader-video/instrumentation.log",
+          "sha256": "1a4804a756675dbf133c16e354a05b85feb809c5c31e9ec3d49cc9687c2665dd",
+          "bytes": 82
+        },
+        {
+          "path": "reader-video/00-initial.json",
+          "sha256": "3cbffcea49965770c0c8d386a4487c8dd5b2a8b4dec18d20305aadc19bea5442",
+          "bytes": 2625
+        }
+      ]
+    },
+    {
+      "name": "reader-collection",
+      "route": "Reader",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/reader-collection-b6881f70-bc01-4719-8dea-8a4b7b4cebaf",
+      "elapsedSeconds": 8.004,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657487746,
+      "files": [
+        {
+          "path": "reader-collection/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "reader-collection/00-initial.png",
+          "sha256": "0397207b7bc56f05c333de338920c47192f4fd61d4de00f794ab09140e1f96f9",
+          "bytes": 230528
+        },
+        {
+          "path": "reader-collection/instrumentation.log",
+          "sha256": "e6b5dd9a5693722e37a65427bd39b8f445ed628332ee97da195628579f28b181",
+          "bytes": 83
+        },
+        {
+          "path": "reader-collection/00-initial.json",
+          "sha256": "ca26131c544a0a2a4025a34de8a3294bae4b22c7adc3d466dc826aae71e528fd",
+          "bytes": 2679
+        }
+      ]
+    },
+    {
+      "name": "reader-load-error",
+      "route": "Reader",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "failed",
+      "reason": "Original native instrumentation did not pass; inspect scoped instrumentation.log",
+      "files": [
+        {
+          "path": "reader-load-error/instrumentation.log",
+          "sha256": "6228f6fa0ba182d7480ab0b421e5c5209e344526d5b96dee516a4d5af7c25f9d",
+          "bytes": 1171
+        }
+      ]
+    },
+    {
+      "name": "reader-ai-empty",
+      "route": "Reader",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/reader-ai-empty-c9f66d6c-bc1a-427e-ab24-13303cb24e4d",
+      "elapsedSeconds": 11.615,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657521190,
+      "files": [
+        {
+          "path": "reader-ai-empty/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "reader-ai-empty/00-initial.png",
+          "sha256": "c7332a8b5def5cf26b50e415a7936454263211bbbce50fffea88c7b771db8a9d",
+          "bytes": 240747
+        },
+        {
+          "path": "reader-ai-empty/instrumentation.log",
+          "sha256": "0a23bbba6909bb2c012058171d543851eb975a41716855a7a5f16cd7e790c200",
+          "bytes": 83
+        },
+        {
+          "path": "reader-ai-empty/00-initial.json",
+          "sha256": "6c93cbaae6154164f6f85b2db7b1feadc993d87ef92d18c84026e8b2d8792948",
+          "bytes": 2807
+        }
+      ]
+    },
+    {
+      "name": "reader-ai-stream",
+      "route": "Reader",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/reader-ai-stream-e4187676-3ade-4f3e-b566-bb0a98c6bee1",
+      "elapsedSeconds": 10.757,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657531859,
+      "files": [
+        {
+          "path": "reader-ai-stream/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "reader-ai-stream/00-initial.png",
+          "sha256": "6465c57f18e90856f1761ae7abd14052d9aa91c22b1fb2acc004aaf91ee71d1e",
+          "bytes": 240848
+        },
+        {
+          "path": "reader-ai-stream/instrumentation.log",
+          "sha256": "71062192c9fd20ecb3f14f533577b8a805d42561ce6e9633499fbf9431947555",
+          "bytes": 83
+        },
+        {
+          "path": "reader-ai-stream/00-initial.json",
+          "sha256": "789cbf4d29a448ea8fd874187195f683c414fcf0c094bad7c173145d0778a35f",
+          "bytes": 2808
+        }
+      ]
+    },
+    {
+      "name": "reader-ai-error",
+      "route": "Reader",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/reader-ai-error-c968be05-9352-49f9-97dc-c5fcf0501944",
+      "elapsedSeconds": 9.96,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657543034,
+      "files": [
+        {
+          "path": "reader-ai-error/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "reader-ai-error/00-initial.png",
+          "sha256": "6c68392a7b64fe3f8b6a408a3a50fe009358e89511002c76301c908d15a500f9",
+          "bytes": 236647
+        },
+        {
+          "path": "reader-ai-error/instrumentation.log",
+          "sha256": "e1e9512b849e9a25a94928eabafb7797173a7f28118aad0ebbbd83d42b408513",
+          "bytes": 83
+        },
+        {
+          "path": "reader-ai-error/00-initial.json",
+          "sha256": "8321832205f1039bbbad1a22f2facdef3e18be70c09bed6f578173260ee5fe0f",
+          "bytes": 2550
+        }
+      ]
+    },
+    {
+      "name": "rss-populated",
+      "route": "Library",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/rss-populated-1f2cc0aa-4815-4ee1-bff4-2fd7d39f5c6b",
+      "elapsedSeconds": 9.162,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657552298,
+      "files": [
+        {
+          "path": "rss-populated/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "rss-populated/00-initial.png",
+          "sha256": "578d7977654431066f37ab0eab39897c167c4d4814b767891757ae793fd3f9e7",
+          "bytes": 114982
+        },
+        {
+          "path": "rss-populated/instrumentation.log",
+          "sha256": "3d8a648178d72993fb020e11f078ed69571783112c2c17d30d33d03d57d04d23",
+          "bytes": 83
+        },
+        {
+          "path": "rss-populated/00-initial.json",
+          "sha256": "54c1005d9f85cf23d9e87b8f3a932757bbdb39bdbef37abfff2b3c533c6c9e7b",
+          "bytes": 3339
+        }
+      ]
+    },
+    {
+      "name": "rss-disabled",
+      "route": "Settings",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/rss-disabled-dfb27e6e-02fb-44b0-8776-7f0e2786dee4",
+      "elapsedSeconds": 6.225,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657559268,
+      "files": [
+        {
+          "path": "rss-disabled/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "rss-disabled/00-initial.png",
+          "sha256": "ef67f386bd23ecd2acf791c0b739f03e84e18e2b5d1b80e93ac024ed3265e5eb",
+          "bytes": 96159
+        },
+        {
+          "path": "rss-disabled/instrumentation.log",
+          "sha256": "f4cd96d002b1920af7b6c642b8812b41f35cbbf33b5b87499faec9b69eb58e67",
+          "bytes": 83
+        },
+        {
+          "path": "rss-disabled/00-initial.json",
+          "sha256": "5913fa967399bf8b754f4250984087ad6c57e07e5b781e8894a88499057689e7",
+          "bytes": 2842
+        }
+      ]
+    },
+    {
+      "name": "rss-error",
+      "route": "Library",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/rss-error-3339950e-c8d3-4d17-beed-6ed6f1bb3ac2",
+      "elapsedSeconds": 6.468,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657565772,
+      "files": [
+        {
+          "path": "rss-error/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "rss-error/00-initial.png",
+          "sha256": "578d7977654431066f37ab0eab39897c167c4d4814b767891757ae793fd3f9e7",
+          "bytes": 114982
+        },
+        {
+          "path": "rss-error/instrumentation.log",
+          "sha256": "62a3de16b378ceee2581776ef0399a433fbca99b42d51495218247d4a1aa07d4",
+          "bytes": 82
+        },
+        {
+          "path": "rss-error/00-initial.json",
+          "sha256": "ac38723b593249c2eb0e0a410730e054bd13b221d9f31d893198aeda33ed28dd",
+          "bytes": 3335
+        }
+      ]
+    },
+    {
+      "name": "rss-truncated",
+      "route": "Reader",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "failed",
+      "reason": "Original native instrumentation did not pass; inspect scoped instrumentation.log",
+      "files": [
+        {
+          "path": "rss-truncated/instrumentation.log",
+          "sha256": "bb6e87e98f55bf24735a4cc21901ba042bd2a141ff21c48b458a48642a4f4ad9",
+          "bytes": 19876
+        }
+      ]
+    },
+    {
+      "name": "rss-history-loading",
+      "route": "Library",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/rss-history-loading-7249f89c-b484-4e63-9ae0-85006e86314f",
+      "elapsedSeconds": 8.11,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657610531,
+      "files": [
+        {
+          "path": "rss-history-loading/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "rss-history-loading/00-initial.png",
+          "sha256": "578d7977654431066f37ab0eab39897c167c4d4814b767891757ae793fd3f9e7",
+          "bytes": 114982
+        },
+        {
+          "path": "rss-history-loading/instrumentation.log",
+          "sha256": "9f47a7de7a275a50dba794c73b14fb7b255b3fd1583931699f7e247919791e31",
+          "bytes": 83
+        },
+        {
+          "path": "rss-history-loading/00-initial.json",
+          "sha256": "39911d228d800454bb54775ba3ad38eae122cfc162951ca06146c5320d58c8e8",
+          "bytes": 3345
+        }
+      ]
+    },
+    {
+      "name": "rss-history-retry",
+      "route": "Library",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/rss-history-retry-bf04a096-ef31-4454-ac53-67cbb6df14c9",
+      "elapsedSeconds": 7.432,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657618296,
+      "files": [
+        {
+          "path": "rss-history-retry/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "rss-history-retry/00-initial.png",
+          "sha256": "578d7977654431066f37ab0eab39897c167c4d4814b767891757ae793fd3f9e7",
+          "bytes": 114982
+        },
+        {
+          "path": "rss-history-retry/instrumentation.log",
+          "sha256": "34970c8be3eecc2937a23e69d3ea3c24290d8167f7cd941a1fc1e57d1a61bab2",
+          "bytes": 83
+        },
+        {
+          "path": "rss-history-retry/00-initial.json",
+          "sha256": "1bd476f4e3049394ed8bc8afa58e7ada6fd6f221dd872f878fea5650215d419e",
+          "bytes": 3343
+        }
+      ]
+    },
+    {
+      "name": "rss-refresh-limited",
+      "route": "Library",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/rss-refresh-limited-fe332de0-7f73-42bd-9e79-c45d3f3c78cd",
+      "elapsedSeconds": 6.615,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657625076,
+      "files": [
+        {
+          "path": "rss-refresh-limited/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "rss-refresh-limited/00-initial.png",
+          "sha256": "578d7977654431066f37ab0eab39897c167c4d4814b767891757ae793fd3f9e7",
+          "bytes": 114982
+        },
+        {
+          "path": "rss-refresh-limited/instrumentation.log",
+          "sha256": "3faf72b9ee0889c34ee0bfdae061be4ff82596b0943e1d32035300f920576442",
+          "bytes": 83
+        },
+        {
+          "path": "rss-refresh-limited/00-initial.json",
+          "sha256": "51eaa2e411b945c1ce75df9638e34da021b48ec35ad1689b71218fb519203f63",
+          "bytes": 3345
+        }
+      ]
+    },
+    {
+      "name": "rss-save-error",
+      "route": "Reader",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "failed",
+      "reason": "Original native instrumentation did not pass; inspect scoped instrumentation.log",
+      "files": [
+        {
+          "path": "rss-save-error/instrumentation.log",
+          "sha256": "be45cbf3a0ccfe079b139c8e0a1bb401ef6c0798fa3ce5251434cf2b6be56cf8",
+          "bytes": 19876
+        }
+      ]
+    },
+    {
+      "name": "settings",
+      "route": "Settings",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/settings-40e81a26-8ac7-4e90-a52d-287ab59c02b4",
+      "elapsedSeconds": 7.314,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657668954,
+      "files": [
+        {
+          "path": "settings/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "settings/00-initial.png",
+          "sha256": "acd9be6009fd1897c7f20e8ae24ed1c87bf36a4dfa0a3669c2ed07b6abdbb2dc",
+          "bytes": 96921
+        },
+        {
+          "path": "settings/instrumentation.log",
+          "sha256": "41125b9e72a6e78fd33af65fd0bf2ed20b15a5a0b4c8b7155d69544bcd2dbb2a",
+          "bytes": 83
+        },
+        {
+          "path": "settings/00-initial.json",
+          "sha256": "fe158ab336ec48d5acb2609cf968eb6369f16acf3659de5a78f67c0f5b16e609",
+          "bytes": 2838
+        }
+      ]
+    },
+    {
+      "name": "feedback-error",
+      "route": "Feedback",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/feedback-error-05de2ee6-96cb-4735-9e1f-4026d86658d4",
+      "elapsedSeconds": 6.25,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657675467,
+      "files": [
+        {
+          "path": "feedback-error/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "feedback-error/00-initial.png",
+          "sha256": "305b391ac6464d8290a5df6bb5a589b648aa2541ccfc4b2c709390916f32a82c",
+          "bytes": 56609
+        },
+        {
+          "path": "feedback-error/instrumentation.log",
+          "sha256": "b6b9920d358b30267021a4ee3305b3b54751a9bb723ad174d73e1accb164edd9",
+          "bytes": 83
+        },
+        {
+          "path": "feedback-error/00-initial.json",
+          "sha256": "10c7f40b6d917214fbd95f4a63f590733fa87bbefefe5144fa57df8d62ca57f5",
+          "bytes": 1795
+        }
+      ]
+    },
+    {
+      "name": "delete-blocked",
+      "route": "DeleteAccount",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "unsupported",
+      "reason": "Original source capture adapter does not bind this route/state",
+      "files": []
+    },
+    {
+      "name": "upgrade-pending",
+      "route": "Library",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "unsupported",
+      "reason": "Original source capture adapter does not bind this route/state",
+      "files": []
+    },
+    {
+      "name": "login",
+      "route": "Login",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/login-865bf71b-dd13-44a0-a7aa-675d3fc0bdc1",
+      "elapsedSeconds": 6.515,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657682355,
+      "files": [
+        {
+          "path": "login/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "login/00-initial.png",
+          "sha256": "66c01c45cd56083249756bc2ababe0fb3123a966a97d0d4575970ed5e6b758ba",
+          "bytes": 199129
+        },
+        {
+          "path": "login/instrumentation.log",
+          "sha256": "1e1bf4e97649861f6820e7281ce4def6e570bf071e78e95f5ed06ae75c6f842f",
+          "bytes": 83
+        },
+        {
+          "path": "login/00-initial.json",
+          "sha256": "35a0ac0c779892e71c034b3d17797f81ffa934d2d0b9adea0a4505820e087314",
+          "bytes": 1605
+        }
+      ]
+    },
+    {
+      "name": "login-agreements",
+      "route": "Login",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/login-agreements-7619421e-595b-4bad-8e5d-a484ab49ee7f",
+      "elapsedSeconds": 6.507,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657688972,
+      "files": [
+        {
+          "path": "login-agreements/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "login-agreements/00-initial.png",
+          "sha256": "66c01c45cd56083249756bc2ababe0fb3123a966a97d0d4575970ed5e6b758ba",
+          "bytes": 199129
+        },
+        {
+          "path": "login-agreements/instrumentation.log",
+          "sha256": "edb2d232dbf6b6ec1d38d3fc393720a2f0472b83c3d0dc11a2b2ea22c0a5736e",
+          "bytes": 83
+        },
+        {
+          "path": "login-agreements/00-initial.json",
+          "sha256": "5baa668123fef8867987fbf00e820e2941199ee9de920864a9b2e1af57756e03",
+          "bytes": 1616
+        }
+      ]
+    },
+    {
+      "name": "login-cancelled",
+      "route": "Login",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/login-cancelled-dfacf9f2-6e29-492c-b1f9-54e9c088db50",
+      "elapsedSeconds": 6.261,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657695557,
+      "files": [
+        {
+          "path": "login-cancelled/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "login-cancelled/00-initial.png",
+          "sha256": "66c01c45cd56083249756bc2ababe0fb3123a966a97d0d4575970ed5e6b758ba",
+          "bytes": 199129
+        },
+        {
+          "path": "login-cancelled/instrumentation.log",
+          "sha256": "4e0609b8a4fdc644d21c289556dc94d0d7f39d9c7f3b2fd0fc3850b681717088",
+          "bytes": 83
+        },
+        {
+          "path": "login-cancelled/00-initial.json",
+          "sha256": "b4acad7a0af48fa502160460a77091776f7468d1d0aa5d9d9ebb3b329e7df59b",
+          "bytes": 1615
+        }
+      ]
+    },
+    {
+      "name": "login-error",
+      "route": "Login",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/login-error-d4d28a6d-a3cf-4bad-963b-001f800475b3",
+      "elapsedSeconds": 6.172,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657701791,
+      "files": [
+        {
+          "path": "login-error/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "login-error/00-initial.png",
+          "sha256": "66c01c45cd56083249756bc2ababe0fb3123a966a97d0d4575970ed5e6b758ba",
+          "bytes": 199129
+        },
+        {
+          "path": "login-error/instrumentation.log",
+          "sha256": "6d389bc8b86062e5dcc0e1505fff7135bd9d21c7bfc6e891896ac5fe4e66d6f0",
+          "bytes": 82
+        },
+        {
+          "path": "login-error/00-initial.json",
+          "sha256": "51d4d53c0332e20549f1b6ed705b266c7c6af675ff96149b16c03075a80b8969",
+          "bytes": 1611
+        }
+      ]
+    },
+    {
+      "name": "login-success",
+      "route": "Login",
+      "initialOnly": true,
+      "nativeInteractionVerified": false,
+      "visualInspection": "pending",
+      "sourceParity": "unverified",
+      "result": "native-candidate-captured",
+      "externalCaptureDirectory": "/sdcard/Android/data/com.slax.reader.fixture/files/captures/login-success-56b26aa8-f9c4-434c-80f8-70ce0b687105",
+      "elapsedSeconds": 6.064,
+      "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+      "driverBuildSha256": "d2ab3fbad35e4672d59f072397e1f226fe42df37d3e9aa7a090a48049866702c",
+      "capturedAtMillis": 1791657708040,
+      "files": [
+        {
+          "path": "login-success/slax-fixture.json",
+          "sha256": "e4add851b39e2a7faebf2750d60cde2ae023a92d76291a0f3106c6aee6efa2ee",
+          "bytes": 126
+        },
+        {
+          "path": "login-success/00-initial.png",
+          "sha256": "66c01c45cd56083249756bc2ababe0fb3123a966a97d0d4575970ed5e6b758ba",
+          "bytes": 199129
+        },
+        {
+          "path": "login-success/instrumentation.log",
+          "sha256": "8836914a1351ba2f01d2f6c861a5363714563f7a3539a759d69b1bc8a93cbec7",
+          "bytes": 83
+        },
+        {
+          "path": "login-success/00-initial.json",
+          "sha256": "3079fd24e7fedd6b89148efb87147e7a8e37aaeee9bf207bf788d266bd9d6500",
+          "bytes": 1613
+        }
+      ]
+    }
+  ],
+  "sourceParity": "unverified",
+  "limitations": [
+    "Each original route is launched fresh with unchanged source screen code and shared synthetic inputs.",
+    "Initial-only captures execute no declared preparation action.",
+    "Native foreground checks and PNG capture do not replace visual/state inspection or target matching."
+  ]
+}

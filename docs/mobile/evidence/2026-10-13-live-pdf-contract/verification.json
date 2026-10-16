@@ -1,0 +1,45 @@
+{
+  "kind": "authorized-test-environment-contract-verification",
+  "environment": "https://reader-api.slax.dev",
+  "credentialSource": "user-provided; used in memory; not persisted in project files",
+  "metadata": {
+    "path": "/v1/bookmark/metadata",
+    "descriptorField": "data.pdf",
+    "status": 200,
+    "pages": 41,
+    "sizeBytes": 2924012
+  },
+  "binary": {
+    "path": "/v1/bookmark/pdf",
+    "client": "actual SlaxApi.getPdfRange with Node fetch",
+    "rangeRequests": 12,
+    "allStatuses": 206,
+    "etagPresent": false,
+    "rangeAndLengthChecksPassed": true,
+    "completeSha256MatchesDescriptor": true
+  },
+  "rendering": {
+    "implementation": "current bundled PDF.js document and real module worker in headless Chromium",
+    "documentPages": 41,
+    "firstPageTextLayerPresent": true,
+    "lastPageRendered": true,
+    "pdfToolbarPresent": false,
+    "workerCount": 1,
+    "pageErrors": 0,
+    "nativeAcceptance": false
+  },
+  "credentials": {
+    "mainRefreshSucceeded": true,
+    "mainIssuedLifetimeSeconds": 1296000,
+    "powerSyncAcquisitionSucceeded": true,
+    "powerSyncIssuedLifetimeSeconds": 300,
+    "powerSyncSubjectIsUuid": true,
+    "powerSyncSubjectEqualsMainEncodedId": false,
+    "newTokensWrittenToDisk": false
+  },
+  "limits": [
+    "This does not prove the final native Expo app renders this authorized document.",
+    "This does not establish PowerSync connection, synchronization, or cold-start lifecycle correctness.",
+    "No backend deployment, bookmark mutation, annotation write, or new application publication was performed."
+  ]
+}

@@ -92,6 +92,11 @@ CLAUDE.local.md
 # Operator-owned API deployment configuration
 deploy/local/api.toml
 
+# Mobile operator inputs stay outside Expo's regenerated native projects.
+deploy/mobile/*
+!deploy/mobile/README.md
+!deploy/mobile/.env.example
+
 # Legacy local config paths remain ignored during migration
 deploy/cloudflare/api.toml
 deploy/cloudflare/.generated/

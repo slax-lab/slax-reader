@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "caseId": "library.populated",
+  "platform": "android",
+  "locale": "en",
+  "sourceManifestSha256": "3501089ae75682a823afdfb54ccf243d32cbc56eba1f84bd70c68afafc1f2943",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "fixtureScenario": "library-populated",
+  "nativeInteractionVerified": false,
+  "kind": "native-ui-capture",
+  "clockVerification": "Agent inspected 9:41 in the captured native PNG after controlled emulator demo clock override.",
+  "measurementPrecision": "Native logical insets rounded to six decimals for cross-runtime Float/Double agreement; raw measurements are retained.",
+  "implementation": "target",
+  "captureMethod": "adb-screencap",
+  "stateAssertion": "Agent inspected unobscured native populated Library with six prepared rows, collection switcher/new-item dots, footer and continue-reading card at measured fontScale 1. Displayed09:41 is visible. Programmatic routing is not native input acceptance; this one platform/locale/appearance/font profile does not establish full parity.",
+  "actionDriverSha256": "c1f95aba9a13387c98eb3c65a8421daa49e84944aae54953df9499175ba6e1b3",
+  "conditions": {
+    "deviceModel": "sdk_gphone64_arm64",
+    "osVersion": "14",
+    "clock": "9:41",
+    "appearance": "light",
+    "fontScaleProfile": "default",
+    "fontScale": 1,
+    "widthPixels": 1080,
+    "heightPixels": 2400,
+    "pixelRatio": 2.625,
+    "safeArea": {
+      "left": 0,
+      "bottom": 24,
+      "right": 0,
+      "top": 51.809525
+    }
+  },
+  "image": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/android/en/library-populated/target-v-default/00-initial.png",
+    "sha256": "026bb9f9889543e786ef4b4cb5b4489350e2f02ee64d37388737abc3b2d290ff"
+  },
+  "rawMetadata": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/android/en/library-populated/target-v-default/raw-context.json",
+    "sha256": "ea7319d3580c2757d007a808da9fe7ff7c10570a25222743481a56472ec53412"
+  },
+  "capturedAtMillis": 1791650479303,
+  "actionDriverInputs": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-driver-v.json",
+    "sha256": "c1f95aba9a13387c98eb3c65a8421daa49e84944aae54953df9499175ba6e1b3"
+  },
+  "nativeApkSha256": "6e32d4f3f62aa89aaa2c732333f1612a18cb21531bdcec783b9fd274d7ae2990"
+}

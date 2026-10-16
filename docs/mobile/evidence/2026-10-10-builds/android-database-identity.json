@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-10",
+  "kind": "main-android-database-identity-development-build",
+  "status": "passed",
+  "command": "JAVA_HOME=<Java 17> ANDROID_HOME=<Android SDK> pnpm mobile -- build:android --no-daemon --max-workers=1 -Dorg.gradle.jvmargs=-Xmx1g -PreactNativeArchitectures=arm64-v8a",
+  "result": "BUILD SUCCESSFUL in 7m 4s; 986 tasks, 118 executed, 868 up-to-date",
+  "artifact": {
+    "path": "/tmp/slax-mobile-native-artifacts/slax-reader-debug-identity.apk",
+    "bytes": 99307848,
+    "sha256": "c2dcdc430514343aafd02c1a8ee8c6f769ba0b51c10b524b0e830b4487e89faa",
+    "kind": "Development APK, arm64-v8a, development signing identity"
+  },
+  "log": {
+    "path": "/tmp/slax-mobile-android-identity-build.log",
+    "sha256": "5cecdb10a1f9431778b2ff141a64684cf7ece7f187b6a68066f98018a14dbe7c"
+  },
+  "publicSourceInputsCapturedAfterBuild": [
+    {
+      "path": "apps/mobile/modules/slax-legacy/android/src/main/java/com/slax/reader/legacy/SlaxLegacyModule.kt",
+      "sha256": "487b780bb58831a2ec2e0452d7077961002764c09a45dbe06f0aa067c8040ef5"
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/ios/DatabaseIdentity.swift",
+      "sha256": "f8f020698a160425d5be842d276f23b0294291a8ab96e07c4db185289aba806a"
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/ios/SlaxLegacyModule.swift",
+      "sha256": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3"
+    },
+    {
+      "path": "apps/mobile/src/data/adoption.ts",
+      "sha256": "f1d50fdfcba53d760ed8fc52736a0e3d5789278596fc97baeba30d830596656c"
+    },
+    {
+      "path": "apps/mobile/src/data/upgrade.ts",
+      "sha256": "400e9ee274e497b2f77820452add0e5668270a0bd6e51b8a6ebf21c605ee3632"
+    }
+  ],
+  "androidNativeLogicalIdentityCompiled": true,
+  "iosNativeLogicalIdentityCompiled": false,
+  "runtimeIdentityValuesVerified": true,
+  "normalRuntimeLaunchVerified": false,
+  "releaseBuild": false,
+  "publisherSignedUpgradeVerified": false,
+  "productionAdoptionEnabled": false,
+  "limitations": [
+    "A later controlled Android run verified the native logical identity bridge and same-path post-adoption fault recovery. It does not establish first-adoption interruption, container relocation or repeated first-adoption installation.",
+    "The iOS source hashes record the associated source change; this Android artifact does not verify those Swift files.",
+    "The user-selected 1.0.25 (757) release inputs have not yet been applied to this development APK."
+  ],
+  "runtimeIdentityEvidence": {
+    "path": "apps/mobile/tests/data/adoption-fixtures/reports/android-native-faults.json",
+    "sha256": "a1e555f1db66b1e2407f7f3f57bcbb30b7734e89150b84cf3789fbcf4385a38a",
+    "scope": "Controlled same-path fault recovery after a previously completed genuine old-to-Expo adoption; not a first-adoption interruption or a repeated first-adoption installation",
+    "nativeLogicalIdentity": {
+      "owner": "android:com.slax.reader:/data/data/com.slax.reader/files",
+      "relativePath": "databases/powersync.db"
+    },
+    "firstAdoptionInterruptionVerified": false,
+    "containerRelocationVerified": false,
+    "repeatedFirstAdoptionInstallationVerified": false
+  }
+}

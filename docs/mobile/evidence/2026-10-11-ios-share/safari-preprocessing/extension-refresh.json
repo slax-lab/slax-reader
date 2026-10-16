@@ -1,0 +1,24 @@
+{
+  "recordedAt": "2026-10-10T18:14:55.656Z",
+  "runId": "controlled-ios-cold-share-20261011",
+  "device": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+  "controlledFixture": true,
+  "productionRequests": false,
+  "publisherSigned": false,
+  "compiledMainLibraryUnchanged": true,
+  "compiledExtensionRebuiltFromCurrentOwnedSource": true,
+  "nativeSourceInputs": {
+    "ShareViewController.swift": "2f6c9f613c776dc456934d5ee7c14a5c687b4d438af9ca36451c132dfd8ca46b",
+    "SharedPreferences.swift": "9ec8056affcb8ff8cd34d68a9170c5ce2b94a6147560210aaadda280289e62ee",
+    "ShareCollector.swift": "9f8edd6c618a58b03e65b4c57a1c3309dd951f4539796492d428eb0fc4c9c186",
+    "SharePage.swift": "773d375552cd23046066dc770de345290a986fd0ee6a65e9daf700bfa4624b5f",
+    "ExtensionClass.js": "966b78103c172b4d983973431179530a791658d3770dfc2d1c03d3e1281c7482"
+  },
+  "pluginSHA256": "2eaa9359985689401ed4193b1239887c772431d9f2db28fffdf352ba73d5a130",
+  "buildLogSHA256": "8d3f004543aeebf36e0e22c682ce4fe12abe1ba7a5c2bc256217a7d66c9f7d01",
+  "compiledUniversalExecutableSHA256": "27a745f9c31cbc825bb7776074e6f291f63a58e099b22dd1331394a826fb0842",
+  "mainDebugLibrarySHA256": "fee1f8564edcefbd7f9d7a5d175ab6291c946afff2f7a44dd69eb45a8b2f950d",
+  "sdkPropertyListIdentifier": "com.apple.property-list",
+  "compiledArm64ExecutableSHA256": "8feaa4dfa35c638f4eaece315f1e7854ba818a85c6691c4e866ea0ea0a03b236",
+  "stagedArm64ExecutableSHA256": "a021888eb0c49253d9caeb4a4d9e22bffd1c9c0805419a7c22f3bef2295199db"
+}

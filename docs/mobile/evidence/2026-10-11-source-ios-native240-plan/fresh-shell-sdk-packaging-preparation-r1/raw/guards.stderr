@@ -1,0 +1,21 @@
+test_actual_old_sdk_never_reaches_signing_and_preserves_partial_log (__main__.FreshShellGuards) ... ok
+test_buffers_and_record_reserve_count_before_archive (__main__.FreshShellGuards) ... ok
+test_cap_scope_extra_field_expiry_identity_and_alias_refuse (__main__.FreshShellGuards) ... ok
+test_exact_fresh_grant_admits_no_command_or_output_creation (__main__.FreshShellGuards) ... ok
+test_failed_compile_retains_primary_exit_and_never_signs (__main__.FreshShellGuards) ... ok
+test_final_accounting_refusal_cannot_leave_positive_result (__main__.FreshShellGuards) ... ok
+test_floor_deadline_and_special_entry_refuse (__main__.FreshShellGuards) ... ok
+test_info_or_original_framework_change_never_reaches_sign (__main__.FreshShellGuards) ... ok
+test_monitor_exception_retains_actual_host_output_and_kills_only_own_child (__main__.FreshShellGuards) ... ok
+test_only_live_generated_lstat_rename_can_be_skipped (__main__.FreshShellGuards) ... ok
+test_other_generated_errors_never_become_rename_exceptions (__main__.FreshShellGuards) ... ok
+test_platform_deployment_architecture_duplicate_and_truncation_refuse (__main__.FreshShellGuards) ... ok
+test_real_parser_distinguishes_actual_old_sdk_from_current_sdk (__main__.FreshShellGuards) ... ok
+test_secret_path_refused_before_any_read (__main__.FreshShellGuards) ... ok
+test_success_orchestration_is_shell_only_no_device_acceptance (__main__.FreshShellGuards) ... ok
+test_whole_logical_sparse_bytes_have_no_exception (__main__.FreshShellGuards) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.170s
+
+OK

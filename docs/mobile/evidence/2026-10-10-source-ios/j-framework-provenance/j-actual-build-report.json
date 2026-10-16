@@ -1,0 +1,264 @@
+{
+  "controlledFixture": true,
+  "fixtureVersion": 1,
+  "sourceCommit": "9951904405159f49f24effd4d42815f77ff33442",
+  "sourceManifestSha256": "3501089ae75682a823afdfb54ccf243d32cbc56eba1f84bd70c68afafc1f2943",
+  "copiedPinnedFiles": 356,
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "sourceCheckoutModified": false,
+  "originalBuildConfigurationCopied": false,
+  "androidAdapter": "not-built-in-this-stage",
+  "sourceReaderAdapter": "compiled-native-execution-unverified",
+  "sourceIosAdapter": "compiled-in-real-kotlin-framework",
+  "sourceNativeBuild": "debug-framework-and-public-ad-hoc-simulator-app-built",
+  "nativeVisualAcceptance": "unverified",
+  "overlayDigests": [
+    {
+      "path": "SOURCE-HARNESS.md",
+      "sha256": "09d06dd20f8de7385a25e3e51de53f202f21f0cdb95fc2ab23a60d2495b28ff5"
+    },
+    {
+      "path": "build.gradle.kts",
+      "sha256": "dcd0adf7929f8007de42d62be79fece3df4c06c8ef889a46774d5bb4e0e43bd8"
+    },
+    {
+      "path": "composeApp/build.gradle.kts",
+      "sha256": "5bd98128ed2666c59c1b651e6a31f1539cbc201216bf79ff51e769f25be4fd38"
+    },
+    {
+      "path": "composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/articles/delete-notice.html",
+      "sha256": "f83d131b138eaafc6e1770348911dd4311e8a16b52e157701bb98f4a4b5b9414"
+    },
+    {
+      "path": "composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/articles/long.html",
+      "sha256": "84e955134d8983ee3395e9079bdb2e4bb07b4b9834cd304d99ff8535b2d05a23"
+    },
+    {
+      "path": "composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/articles/mixed.html",
+      "sha256": "31a896cf24248a45c8a6b5aa92a23a244cab3c562bbf40848d5e13a48b41ec6b"
+    },
+    {
+      "path": "composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/articles/privacy.html",
+      "sha256": "0548ddb5faf187897be0d6c9ed41b894f9676b057769077c41ee0701cebd7d39"
+    },
+    {
+      "path": "composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/articles/rss.html",
+      "sha256": "6c906184ccba93cc799cb78a7f24cfc4a271bd3d7f05d050ca15a370e2d00b17"
+    },
+    {
+      "path": "composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/articles/short.html",
+      "sha256": "4b0fd49b289bada48313ebb2352f6432b5b6e4ac4099ae93cf85f41aafbf63c8"
+    },
+    {
+      "path": "composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/articles/terms.html",
+      "sha256": "337e42fd530f1773636c832fd0d3bd29a01dbc9bdc0e49bde645c0d897c75f2d"
+    },
+    {
+      "path": "composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/articles/video.html",
+      "sha256": "51b9bcde940986e7b0ce82778932a694c3c1de6d421615b8365cb32aeb3b9f3d"
+    },
+    {
+      "path": "composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/documents.ts",
+      "sha256": "14e51a5c163e6c13e7dc327afa207a77056f32335b574d9c2d76c37f081bfa21"
+    },
+    {
+      "path": "composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/manifest.json",
+      "sha256": "2f019f61c23e9b1546da118c93ab57cfa9d8ba01ccface50620970ddfeee4260"
+    },
+    {
+      "path": "composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/resources.ts",
+      "sha256": "96e03add074ba683f47bb9023d3a730a3e9135cc20473355c082f1181737c1b7"
+    },
+    {
+      "path": "composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/scenarios.json",
+      "sha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4"
+    },
+    {
+      "path": "composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/source-capture-inputs.json",
+      "sha256": "1a734f137ba466478882ed6905b01e02e1c45b9035cd5476bd9034194bf9c720"
+    },
+    {
+      "path": "composeApp/src/androidMain/AndroidManifest.xml",
+      "sha256": "61415eefa1da4ff771a2550dc7e7bb8fdf6747313780d44266a53368ff895f6b"
+    },
+    {
+      "path": "composeApp/src/commonMain/kotlin/app/slax/reader/SlaxConfig.kt",
+      "sha256": "cc9d7b518f52e430fe01b4193e56d204e0569024e99ca39169d70eae1dde879c"
+    },
+    {
+      "path": "composeApp/src/fixtureInstrumentedTest/kotlin/com/slax/reader/fixtures/FixturePayload.kt",
+      "sha256": "a7f4c24f7647ed8b84b9564c40f23978db981cfe6ccc94ca2aa0520a65900faf"
+    },
+    {
+      "path": "composeApp/src/fixtureInstrumentedTest/kotlin/com/slax/reader/fixtures/FixtureReaderHttp.kt",
+      "sha256": "d7475ae514d45dfa652b081e1869122d1d5e6f02c7253bee153267ba02ca0168"
+    },
+    {
+      "path": "composeApp/src/fixtureInstrumentedTest/kotlin/com/slax/reader/fixtures/FixtureRunner.kt",
+      "sha256": "e7abfea07791140d5c75006e9b217474a7e8c66ce755cd9510360ca181fdec99"
+    },
+    {
+      "path": "composeApp/src/fixtureInstrumentedTest/kotlin/com/slax/reader/fixtures/FixtureWebViewHost.kt",
+      "sha256": "54abdc7225fc9c7c25668b8da639e3fe9717789e411797d88fa342fd73e500cf"
+    },
+    {
+      "path": "composeApp/src/fixtureInstrumentedTest/kotlin/com/slax/reader/fixtures/SourceReaderAdapter.kt",
+      "sha256": "1372e859ad7ca188055fd09574a9f1738068637e640200fdf4248e84d3deb637"
+    },
+    {
+      "path": "composeApp/src/fixtureInstrumentedTest/kotlin/com/slax/reader/fixtures/SourceReferenceFixtureTest.kt",
+      "sha256": "918065794d4049ce8624065bea9ca8f7d5d4b62f7349ddb9bb00163a8cb1919a"
+    },
+    {
+      "path": "composeApp/src/fixtureIosMain/cinterop/FixtureFoundation.h",
+      "sha256": "afc1638ce6d646891317f07590b548501fbe6d7067f4ea6f34784a3c4c0074db"
+    },
+    {
+      "path": "composeApp/src/fixtureIosMain/cinterop/fixture-foundation.def",
+      "sha256": "9998938548711a56eadee9a5f1920f1941c58899a531cb470c6cac00153992c5"
+    },
+    {
+      "path": "composeApp/src/fixtureIosMain/kotlin/com/slax/reader/fixtures/FixtureGoogle.kt",
+      "sha256": "d13a806f5202ded59bad4cc668e506adf943fa7f0fdda8ba4121cd3f3f6f6d29"
+    },
+    {
+      "path": "composeApp/src/fixtureIosMain/kotlin/com/slax/reader/fixtures/FixtureOriginalWebView.kt",
+      "sha256": "6f5ef62f5fbd78ca41a6cc7e921a0c93f81a4657da1b4aa3861695b3598f2a15"
+    },
+    {
+      "path": "composeApp/src/fixtureIosMain/kotlin/com/slax/reader/fixtures/FixturePayload.kt",
+      "sha256": "a7f4c24f7647ed8b84b9564c40f23978db981cfe6ccc94ca2aa0520a65900faf"
+    },
+    {
+      "path": "composeApp/src/fixtureIosMain/kotlin/com/slax/reader/fixtures/FixturePlatform.kt",
+      "sha256": "79a449c12378d56159e4e3439aebb57d186fc9346a546e1581fcf053dec57e6e"
+    },
+    {
+      "path": "composeApp/src/fixtureIosMain/kotlin/com/slax/reader/fixtures/FixturePolicy.kt",
+      "sha256": "4a9c1909a38075a82c066dc06109eb715b8c8c7e9143e9226fbcda2823d79927"
+    },
+    {
+      "path": "composeApp/src/fixtureIosMain/kotlin/com/slax/reader/fixtures/FixturePreferences.kt",
+      "sha256": "92e8764cc13bc03fc8c8cace7a371422d99ef00e37dca5bbd46a8e50a5595db1"
+    },
+    {
+      "path": "composeApp/src/fixtureIosMain/kotlin/com/slax/reader/fixtures/FixtureReaderHttp.kt",
+      "sha256": "d7475ae514d45dfa652b081e1869122d1d5e6f02c7253bee153267ba02ca0168"
+    },
+    {
+      "path": "composeApp/src/fixtureIosMain/kotlin/com/slax/reader/fixtures/FixtureWebViewHost.kt",
+      "sha256": "f5796fb0c7b5c2d417906e62f73f02a6ed124f1da3d40dac4702d0c9641aa1ba"
+    },
+    {
+      "path": "composeApp/src/fixtureIosMain/kotlin/com/slax/reader/fixtures/SourceFixture.kt",
+      "sha256": "a047472d90157f52826e7d173944b73e14840bfcb30547ddb9a2a03465e13685"
+    },
+    {
+      "path": "composeApp/src/fixtureIosMain/kotlin/com/slax/reader/fixtures/SourceReaderAdapter.kt",
+      "sha256": "43030e4b9c53c8cb30976599dcc267aec29b7bb9e8752e8369cebda1bb59595a"
+    },
+    {
+      "path": "composeApp/src/fixtureMain/kotlin/FixtureFirebase.kt",
+      "sha256": "b1fd2461f03c012d5e861cb55bddc66449feda9c91707e0c57b74b2d0b64749e"
+    },
+    {
+      "path": "composeApp/src/fixtureMain/kotlin/SourceFixtureActivity.kt",
+      "sha256": "578136e272fc0e01b4bed35a636847e84d12eb93d5e066c59bb3a17695778fc4"
+    },
+    {
+      "path": "gradle.properties",
+      "sha256": "c889cf6076232ac97e44d97a2d24ab26c3764fcfea7f24b1a367cd81175e173b"
+    },
+    {
+      "path": "ios-harness/Info.plist",
+      "sha256": "468ccc8cc8e1cd60d2a85056d0f6d5c7892f1369763ce4e5a97530436f51b746"
+    },
+    {
+      "path": "ios-harness/main.swift",
+      "sha256": "1f34534c49a6104207899e86c2efee880abccb1d6042214844231a76d4e96b78"
+    },
+    {
+      "path": "ios-harness/slax-ui-fixtures/articles/delete-notice.html",
+      "sha256": "f83d131b138eaafc6e1770348911dd4311e8a16b52e157701bb98f4a4b5b9414"
+    },
+    {
+      "path": "ios-harness/slax-ui-fixtures/articles/long.html",
+      "sha256": "84e955134d8983ee3395e9079bdb2e4bb07b4b9834cd304d99ff8535b2d05a23"
+    },
+    {
+      "path": "ios-harness/slax-ui-fixtures/articles/mixed.html",
+      "sha256": "31a896cf24248a45c8a6b5aa92a23a244cab3c562bbf40848d5e13a48b41ec6b"
+    },
+    {
+      "path": "ios-harness/slax-ui-fixtures/articles/privacy.html",
+      "sha256": "0548ddb5faf187897be0d6c9ed41b894f9676b057769077c41ee0701cebd7d39"
+    },
+    {
+      "path": "ios-harness/slax-ui-fixtures/articles/rss.html",
+      "sha256": "6c906184ccba93cc799cb78a7f24cfc4a271bd3d7f05d050ca15a370e2d00b17"
+    },
+    {
+      "path": "ios-harness/slax-ui-fixtures/articles/short.html",
+      "sha256": "4b0fd49b289bada48313ebb2352f6432b5b6e4ac4099ae93cf85f41aafbf63c8"
+    },
+    {
+      "path": "ios-harness/slax-ui-fixtures/articles/terms.html",
+      "sha256": "337e42fd530f1773636c832fd0d3bd29a01dbc9bdc0e49bde645c0d897c75f2d"
+    },
+    {
+      "path": "ios-harness/slax-ui-fixtures/articles/video.html",
+      "sha256": "51b9bcde940986e7b0ce82778932a694c3c1de6d421615b8365cb32aeb3b9f3d"
+    },
+    {
+      "path": "ios-harness/slax-ui-fixtures/documents.ts",
+      "sha256": "14e51a5c163e6c13e7dc327afa207a77056f32335b574d9c2d76c37f081bfa21"
+    },
+    {
+      "path": "ios-harness/slax-ui-fixtures/manifest.json",
+      "sha256": "2f019f61c23e9b1546da118c93ab57cfa9d8ba01ccface50620970ddfeee4260"
+    },
+    {
+      "path": "ios-harness/slax-ui-fixtures/resources.ts",
+      "sha256": "96e03add074ba683f47bb9023d3a730a3e9135cc20473355c082f1181737c1b7"
+    },
+    {
+      "path": "ios-harness/slax-ui-fixtures/scenarios.json",
+      "sha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4"
+    },
+    {
+      "path": "settings.gradle.kts",
+      "sha256": "4628d891046f051184d5f4b6dfe3762b6807cd41ec532e9223fcabf5325a6b80"
+    },
+    {
+      "path": "ios-harness/slax-ui-fixtures/source-capture-inputs.json",
+      "sha256": "525601860f46476da8e5dcb78c4bbec015cf877e6a4eace472a34a6295c8f829"
+    }
+  ],
+  "platform": "ios-simulator-arm64",
+  "bundleIdentifier": "app.slax.reader.sourcefixture",
+  "excludedIosPlatformFactories": [
+    "MainViewController.kt",
+    "FirebaseHelper.ios.kt",
+    "IapHelper.ios.kt",
+    "ShareHelper.ios.kt",
+    "GoogleSignIn.ios.kt",
+    "PreferencesDataStore.ios.kt",
+    "WebViewHelper.ios.kt"
+  ],
+  "platformDifferences": [
+    "memory DataStore instead of production App Group",
+    "synthetic provider callbacks; no Firebase/StoreKit/share SDK",
+    "original WKWebView helper plus two precompiled network-rule additions and explicit external Safari rejection",
+    "direct initial route with original UIKit/Compose controller; native navigation input pending",
+    "sanitized Objective-C KVO protocol interop supplies original platform.foundation namespace; compiler opts in to ExperimentalForeignApi",
+    "Reader primes the concrete shared user/subscription DAO values from a preceding Library lifecycle",
+    "remote legal documents replaced with the same shared local fixture pages"
+  ],
+  "simulatorOnly": true,
+  "packagingDriverSha256": "5415b1e39c1f26aae4caf863175583f8063a995b63f76ad696c0875c69882e58",
+  "simulatorInstall": "not-performed-by-build-driver",
+  "nativeInteractionVerified": false,
+  "appPath": "/private/tmp/slax-source-ui-fixture-ios-j/ios-harness/build/SlaxSourceFixtureApp.app",
+  "executableSha256": "f4d29ff51be154e4b26ac891d25d08fe8acf640cb28a779447aadb1d7b0ffd48",
+  "frameworkSha256": "2855e20b05230e95218c545d18085ea83e0d34ff75178f2d563f48a54b9b8670"
+}

@@ -14,6 +14,7 @@ This contract applies to:
 
 - the reader Web application in `apps/web`;
 - the browser Extension in `apps/extension`;
+- the Android and iOS Mobile application in `apps/mobile`;
 - shared UI assets introduced for both applications;
 - UI-related tests, tooling, screenshots, and generated renderers.
 
@@ -35,6 +36,7 @@ Public article content, third-party iframes, email markup, Open Graph/Satori out
 | `apps/web/styles/theme.tokens.css` | Current executable values for the Web core theme |
 | `apps/web/app/assets/styles/fork.tokens.css` | Current executable values for Web-only business surfaces and known theme debt |
 | Extension-owned styles | Current executable values for the Extension profile |
+| `apps/mobile/src/theme/index.ts` | Current executable values for the Mobile profile |
 | UnoCSS configuration | A selective utility bridge over runtime tokens |
 | `docs/design/reference/` | A provenance-stamped, non-normative design snapshot |
 | Vue components and pages | Consumers of the contract; existing code may contain legacy exceptions |
@@ -64,7 +66,7 @@ Consistency means preserving semantic roles and interaction behavior. It does no
 
 ### 4.1 Shared semantic layer
 
-Both UI applications share these concepts:
+All UI applications share these concepts:
 
 - background, surface, text, muted text, border, accent, danger, and selection roles;
 - primary, secondary, destructive, disabled, hover, focus, selected, and loading states;
@@ -89,9 +91,23 @@ The Web application uses a warm paper visual system with light, dark, and e-ink 
 The Extension currently uses a compact, fixed-dark interface with its own typography, dimensions, and surface values. It is a separate profile, not an incomplete copy of the Web theme.
 
 - Preserve the Extension's compact density unless a reviewed design change says otherwise.
+- The existing light collection-confirmation popup is a local renderer exception. The approved `extension-support-pdf` correction reuses this same component in the existing in-page overlay for PDF feedback; when file access prevents injection, permission guidance uses the toolbar action bubble; preserve its existing palette without importing Web tokens. The one deliberate difference is the PDF save surface (`apps/extension/src/entrypoints/pdf-save`): its muted text (`#666`) and accent text (`#33709f`) are darker than the page-save popup's `#999` and `#5490c2` so 13px text and actions reach 4.5:1 on white. The page-save popup in `Collect.vue` keeps the original values until a reviewed change updates it.
 - Do not import the Web token file or silently replace Extension values with Web values.
 - New repeated Extension colors or dimensions should gain Extension-owned semantic variables.
 - A future shared token package must expose shared roles and profile-specific values rather than forcing one application's palette onto the other.
+
+### 4.4 Mobile profile
+
+The Mobile application preserves the existing Android/iOS application's presentation during the approved `expo-mobile-migration` change. Its executable values live in `apps/mobile/src/theme/index.ts`; original artwork and conversion provenance live in `apps/mobile/assets`. The source baseline and state coverage are recorded in `docs/mobile/migration-baseline.md`, `source-manifest.json`, and `coverage.json` in that directory.
+
+- Preserve the source light application shell (`#F5F5F3`), reader background (`#FCFCFC`), white surfaces, green action color (`#16B998`), and distinct RSS treatment. Do not import Web or Extension profile values.
+- Treat the shell, scoped HTML reader document, and operating-system surfaces as separate renderers. The shell and source reader document remain light under a dark system appearance; the original iOS share panel and system controls retain their source native appearance behavior.
+- Keep source component measurements in logical dp/points. Asset pixel dimensions do not define their display sizes. Compute safe-area, keyboard, and native-header insets at runtime; do not replace them with a fixed guessed status-bar height.
+- The source ships no font files. Preserve its authored sizes, weights, line heights, and default-family intent, then establish actual wrapping and font metrics from matched Android and iOS source renders. A named reader serif fallback is not evidence that the font is available.
+- Keep Chinese and English labels, source accessibility names and scaling, selected/pressed/disabled/loading/error states, and source motion intent. The user's performance-first follow-up explicitly permits eliminating artificial readiness waits and unnecessary loading transitions; content readiness must not be delayed solely to reproduce a timer. Interactive tracking should remain coupled to native input rather than waiting for React renders. Typography or unrelated control-layout changes still require explicit review rather than being assumed necessary for the framework migration.
+- Use genuine platform-native navigation and back controls. Their documented control region and necessary native treatment are the requested visual exception; adjacent headers, tools, titles, and reading content remain subject to source comparison. Do not mask entire headers or replace the native control with the old raster back arrow.
+- Preserve source vectors through recorded deterministic conversion or native resources. A new runtime asset renderer requires the migration's dependency approval. Preserve fixed brand paint and licensing notices.
+- Verify every recorded screen and state using source and target native renders on matched platform/device/OS/locale/appearance/font-scale/data settings. Static token checks and browser previews do not establish one-to-one parity. Missing native render evidence remains incomplete.
 
 ## 5. Tokens and utilities
 
@@ -159,6 +175,8 @@ The Web core layout treats `768px` as its primary mobile transition. Individual 
 | Public article iframe and Shadow DOM content | Inject only the scoped token declarations needed by the renderer |
 | Open Graph, Satori, canvas, charts, and exported images | Renderer-owned palette; document deliberate fixed colors |
 | Extension | Fixed-dark profile until a separate reviewed theme change is implemented |
+| Mobile shell and embedded reader | Preserve the source light profile; compare source/target under light and dark system appearance |
+| Mobile native system and share surfaces | Preserve source platform appearance, system bars, insets, and the narrowly documented native-back exception |
 | Brand and service logos | Preserve approved fixed colors unless a monochrome variant is explicitly supplied |
 
 When touching a legacy row, preserve current behavior or create an OpenSpec change for the visible theme migration. Do not broaden an unrelated task into an unreviewed theme rewrite.

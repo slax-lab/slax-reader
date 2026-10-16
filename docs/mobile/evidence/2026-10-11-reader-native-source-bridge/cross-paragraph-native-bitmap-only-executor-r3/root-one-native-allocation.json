@@ -1,0 +1,21 @@
+{
+  "kind": "root-one-cross-bitmap-only-native-allocation",
+  "version": 1,
+  "executorSHA256": "f6fe990218d61e4e400790ce0b748d50b6cc84e54ecf82b4a59f6384474d390f",
+  "runtimePolicySHA256": "44a4bfc2226e31c7ae8df893f4ec0fba316f6f47cb88ee9e9962609ecc5be531",
+  "basePlanSHA256": "540ec48c9d0cfc5e52d7c814be8f05f671b1abf7654f1163a65ec4e5fa90503a",
+  "runRoot": "/private/tmp/slax-reader-cross-bitmap-run-0076bd11ce2242fe920dbba736f5e29f",
+  "device": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+  "onlyTestIdentifier": "CrossParagraphControl/ReaderCrossParagraphBitmapPreflight/testArchivedNativeSelectionHandlesBitmapOrientation",
+  "attempts": 1,
+  "noTargetInput": true,
+  "exclusiveDeviceLoan": true,
+  "ownedMigrationDevices": [
+    "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+    "88E63005-F681-45A6-AF8D-BEFE4E27584D"
+  ],
+  "allOwnedMigrationLoansReleased": true,
+  "expiresAtUnixSeconds": 1791681176.742771,
+  "rootReviewSHA256": "16ef6bc55fcd16040ea469b9d391603586c6debc695576f43ac8a9936b415810",
+  "nonce": "ae217991-ed2e-4bba-a7f0-e17288245115"
+}

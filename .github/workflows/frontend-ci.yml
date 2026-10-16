@@ -15,6 +15,7 @@ on:
       - 'packages/frontend-utils/**'
       - 'packages/selection/**'
       - 'tooling/*.mjs'
+      - 'tooling/extension-release-archive.py'
       - 'tooling/*.d.mts'
       - 'deploy/cloudflare/api.toml.example'
       - 'deploy/local/.env.web.example'
@@ -24,6 +25,7 @@ on:
       - 'pnpm-workspace.yaml'
       - '.github/workflows/frontend-ci.yml'
       - '.github/workflows/web-deploy.yml'
+      - '.github/workflows/extension-release.yml'
   push:
     branches: [main]
     paths:
@@ -39,6 +41,7 @@ on:
       - 'packages/frontend-utils/**'
       - 'packages/selection/**'
       - 'tooling/*.mjs'
+      - 'tooling/extension-release-archive.py'
       - 'tooling/*.d.mts'
       - 'deploy/cloudflare/api.toml.example'
       - 'deploy/local/.env.web.example'
@@ -48,6 +51,7 @@ on:
       - 'pnpm-workspace.yaml'
       - '.github/workflows/frontend-ci.yml'
       - '.github/workflows/web-deploy.yml'
+      - '.github/workflows/extension-release.yml'
 
 permissions:
   contents: read
@@ -76,6 +80,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:preflight
+      - run: pnpm test:extension-tooling
       - run: pnpm design:check
       - run: pnpm icons:test
       - run: pnpm icons:check

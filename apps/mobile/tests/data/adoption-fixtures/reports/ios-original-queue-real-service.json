@@ -1,0 +1,802 @@
+{
+  "kind": "slax-native-original-queue-real-service-first-upgrade",
+  "version": 1,
+  "status": "passed",
+  "recordedAt": "2026-10-10T17:09:02.268Z",
+  "platform": "ios-simulator",
+  "device": "522DD84F-0407-4707-BBAB-0263B4ACE2DA",
+  "runtime": "iOS 26.5 arm64",
+  "fixtureOwner": {
+    "kind": "slax-controlled-native-first-service-ios",
+    "version": 1,
+    "runId": "controlled-ios-first-service-20261011",
+    "directory": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-native-first-service-ios-BptEWH",
+    "device": "522DD84F-0407-4707-BBAB-0263B4ACE2DA",
+    "previousDevice": "2B9DDD06-0C55-4D1A-B03E-35006A7D1849",
+    "previousDataPreserved": true,
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+    "deviceType": "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro",
+    "createdAt": "2026-10-10T17:00:37.880Z",
+    "syntheticOnly": true,
+    "status": "booted",
+    "originalIdentityAbsentBeforeInstall": true
+  },
+  "oldProducer": {
+    "sdk": "powersync-kotlin-1.14.1",
+    "coreVersion": "0.5.1/d6c157e7",
+    "pid": 39620,
+    "binarySHA256": "fd557f4b20448c17e7bff875ce45795ed92c3788d6274929e5e57969a32c84f4",
+    "markerSHA256": "7f5b33e2fcd3eb3aaed03596e69a3d794451e34edc774815835fcdaaac7eaf55",
+    "originalDatabasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/522DD84F-0407-4707-BBAB-0263B4ACE2DA/data/Containers/Data/Application/78595EE8-F66A-47E6-8B2E-D715868EE3D7/Library/Application Support/databases/powersync.db",
+    "pendingOperations": 4,
+    "pendingTransactions": 2,
+    "closedBeforeMarker": true
+  },
+  "newApplication": {
+    "bundleIdentifier": "app.slax.reader",
+    "version": "1.0.25",
+    "buildNumber": "757",
+    "artifact": "/tmp/slax-mobile-native-artifacts/SlaxReader-ios-debug-identity-757-group-only.app",
+    "executableSHA256": "afca590846175cce828b550f5c92b17096b706c214de67ea1d6d1a380eebd97f",
+    "signature": "Public ad hoc simulator App Group entitlement only",
+    "deepStrictSignatureVerified": true,
+    "publisherSigned": false,
+    "releaseArchive": false
+  },
+  "sameIdentityReplacement": {
+    "withoutUninstallOrDataClear": true,
+    "preservedDataContainer": true,
+    "finalDatabasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/522DD84F-0407-4707-BBAB-0263B4ACE2DA/data/Containers/Data/Application/9F3CD522-07E9-428C-9C8E-790640FB4CD0/Library/Application Support/databases/powersync.db"
+  },
+  "firstSdkInterruption": {
+    "state": {
+      "kind": "slax-native-adoption-fault-state",
+      "version": 1,
+      "runId": "controlled-ios-first-service-20261011",
+      "phase": "hold-before-first-sdk-open",
+      "requestedAt": 1791651773584,
+      "writtenAt": 1791651794426,
+      "readyForExternalKill": true,
+      "baseline": {
+        "storageTables": [
+          "ps_data__sr_bookmark_comment",
+          "ps_data__sr_collection_bookmark",
+          "ps_data__sr_platform_bind",
+          "ps_data__sr_sharer_setting",
+          "ps_data__sr_user",
+          "ps_data__sr_user_bookmark",
+          "ps_data__sr_user_bookmark_stats",
+          "ps_data__sr_user_collection",
+          "ps_data__sr_user_collection_subscriber",
+          "ps_data__sr_user_notification",
+          "ps_data__sr_user_subscription",
+          "ps_data__sr_user_tag",
+          "ps_data_local__local_bookmark_info"
+        ],
+        "queueDigest": "d6da8bcc4fd59fa587e60e491cedbd5a651577b96b79eb28a0ded03a18158f75",
+        "formatVersion": 14,
+        "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/522DD84F-0407-4707-BBAB-0263B4ACE2DA/data/Containers/Data/Application/9F3CD522-07E9-428C-9C8E-790640FB4CD0/Library/Application Support/databases/powersync.db",
+        "dataDigest": "86860d8dbfd69f910a128209c9659bde1bacd9470f7479caa98d1d87ab34c308",
+        "userVersion": 1,
+        "pendingOperations": 4,
+        "pendingTransactions": 2,
+        "integrityValid": true,
+        "localDigest": "d021bc0c950ac956ae3d84c257c9715374b9d8b57c9ee75c230b07b18ba3534a"
+      },
+      "sdkOpened": false
+    },
+    "ownerProbeWhileHeld": {
+      "kind": "slax-native-owner-probe",
+      "platform": "ios-simulator",
+      "acquired": false,
+      "errno": 35
+    },
+    "signal": {
+      "kind": "slax-native-fault-kill",
+      "platform": "ios",
+      "device": "522DD84F-0407-4707-BBAB-0263B4ACE2DA",
+      "pid": 39855,
+      "signal": "SIGKILL"
+    },
+    "ownerProbeAfterKill": {
+      "kind": "slax-native-owner-probe",
+      "platform": "ios-simulator",
+      "acquired": true,
+      "errno": 0
+    },
+    "sdkOpenedBeforeKill": false
+  },
+  "actualUploadFailureInterruption": {
+    "state": {
+      "kind": "slax-native-adoption-fault-state",
+      "version": 1,
+      "runId": "controlled-ios-first-service-20261011",
+      "phase": "hold-service-first-upgrade",
+      "requestedAt": 1791651911752,
+      "writtenAt": 1791651916805,
+      "readyForExternalKill": true,
+      "baseline": {
+        "formatVersion": 14,
+        "userVersion": 1,
+        "localDigest": "d021bc0c950ac956ae3d84c257c9715374b9d8b57c9ee75c230b07b18ba3534a",
+        "integrityValid": true,
+        "storageTables": [
+          "ps_data__sr_bookmark_comment",
+          "ps_data__sr_collection_bookmark",
+          "ps_data__sr_platform_bind",
+          "ps_data__sr_sharer_setting",
+          "ps_data__sr_user",
+          "ps_data__sr_user_bookmark",
+          "ps_data__sr_user_bookmark_stats",
+          "ps_data__sr_user_collection",
+          "ps_data__sr_user_collection_subscriber",
+          "ps_data__sr_user_notification",
+          "ps_data__sr_user_subscription",
+          "ps_data__sr_user_tag",
+          "ps_data_local__local_bookmark_info"
+        ],
+        "pendingOperations": 6,
+        "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/522DD84F-0407-4707-BBAB-0263B4ACE2DA/data/Containers/Data/Application/9F3CD522-07E9-428C-9C8E-790640FB4CD0/Library/Application Support/databases/powersync.db",
+        "pendingTransactions": 3,
+        "dataDigest": "42b49e65d0c5eb38505373c10a6ca713e8505eaa7a6e756ddb9307eea8c0fe4c",
+        "queueDigest": "2130f843a8e38dc020c5526e4bc1ebc67029c34d27df7bda04cf48b102032efc"
+      },
+      "offlineQueue": [
+        {
+          "transactionId": 1,
+          "crud": [
+            {
+              "clientId": 1,
+              "id": "tag-1",
+              "op": "PUT",
+              "table": "sr_user_tag",
+              "opData": {
+                "display": "Offline",
+                "tag_name": "offline",
+                "user_id": "synthetic-user"
+              },
+              "previousValues": null
+            },
+            {
+              "clientId": 2,
+              "id": "bookmark-1",
+              "op": "PUT",
+              "table": "sr_user_bookmark",
+              "opData": {
+                "alias_title": "Offline article",
+                "is_starred": 0,
+                "metadata": "{\"tags\":[\"tag-1\"],\"share\":{\"allow_access\":1}}",
+                "user_id": "synthetic-user"
+              },
+              "previousValues": null
+            }
+          ]
+        },
+        {
+          "transactionId": 2,
+          "crud": [
+            {
+              "clientId": 3,
+              "id": "bookmark-1",
+              "op": "PATCH",
+              "table": "sr_user_bookmark",
+              "opData": {
+                "is_starred": 1,
+                "metadata": "{\"tags\":[\"tag-1\",\"tag-2\"],\"share\":{\"allow_access\":0}}"
+              },
+              "previousValues": {
+                "is_starred": 0,
+                "metadata": "{\"tags\":[\"tag-1\"],\"share\":{\"allow_access\":1}}"
+              }
+            },
+            {
+              "clientId": 4,
+              "id": "comment-1",
+              "op": "PUT",
+              "table": "sr_bookmark_comment",
+              "opData": {
+                "comment": "Pending comment",
+                "metadata": "{\"thread\":\"thread-1\"}",
+                "source": "{\"start_offset\":3,\"end_offset\":12}"
+              },
+              "previousValues": null
+            }
+          ]
+        },
+        {
+          "transactionId": 3,
+          "crud": [
+            {
+              "clientId": 5,
+              "id": "bookmark-1",
+              "op": "PATCH",
+              "table": "sr_user_bookmark",
+              "opData": {
+                "alias_title": "Controlled actual service offline edit"
+              },
+              "previousValues": {
+                "alias_title": "Offline article"
+              }
+            },
+            {
+              "clientId": 6,
+              "id": "tag-service-ios-controlled-ios-first-service-2026101",
+              "op": "PUT",
+              "table": "sr_user_tag",
+              "opData": {
+                "display": "Before service",
+                "tag_name": "actual-service",
+                "user_id": "synthetic-user"
+              },
+              "previousValues": null
+            }
+          ]
+        }
+      ],
+      "legacyPreferenceFingerprint": "3f827733345f4601dd9ce6941242ab02931b19821cac162b5b256f272fd8d5ff",
+      "localJson": "{\"overview\":\"Offline summary\",\"is_downloaded\":1,\"read_position\":\"348.25\",\"outline_read_position\":\"12\",\"is_auto_cached\":0,\"future_field\":{\"preserve\":true}}"
+    },
+    "serverStatusBeforeKill": {
+      "runId": "controlled-ios-first-service-20261011",
+      "initialized": true,
+      "platform": "ios",
+      "rejectedUploads": 12,
+      "committedUploads": [],
+      "mutations": [],
+      "allowUploads": false,
+      "traffic": {
+        "streamHttpRequests": 1,
+        "webSocketUpgrades": 0,
+        "serverToClientBytes": 992
+      }
+    },
+    "ownerProbeWhileHeld": {
+      "kind": "slax-native-owner-probe",
+      "platform": "ios-simulator",
+      "acquired": false,
+      "errno": 35
+    },
+    "signal": {
+      "kind": "slax-native-fault-kill",
+      "platform": "ios",
+      "device": "522DD84F-0407-4707-BBAB-0263B4ACE2DA",
+      "pid": 41050,
+      "signal": "SIGKILL"
+    },
+    "ownerProbeAfterKill": {
+      "kind": "slax-native-owner-probe",
+      "platform": "ios-simulator",
+      "acquired": true,
+      "errno": 0
+    },
+    "resumePid": 41674
+  },
+  "nativeReport": {
+    "status": "passed",
+    "platform": "ios",
+    "runId": "controlled-ios-first-service-20261011",
+    "coreVersion": "0.5.3/2ba6b280",
+    "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/522DD84F-0407-4707-BBAB-0263B4ACE2DA/data/Containers/Data/Application/9F3CD522-07E9-428C-9C8E-790640FB4CD0/Library/Application Support/databases/powersync.db",
+    "serviceReconnect": true,
+    "productionAdoptionEnabled": false,
+    "originalLegacyFirstQueueUpload": true,
+    "originalQueueOperations": 4,
+    "actualServiceProcessKillRecovery": true,
+    "offlineTransaction": [
+      {
+        "transactionId": 1,
+        "crud": [
+          {
+            "clientId": 1,
+            "id": "tag-1",
+            "op": "PUT",
+            "table": "sr_user_tag",
+            "opData": {
+              "display": "Offline",
+              "tag_name": "offline",
+              "user_id": "synthetic-user"
+            },
+            "previousValues": null
+          },
+          {
+            "clientId": 2,
+            "id": "bookmark-1",
+            "op": "PUT",
+            "table": "sr_user_bookmark",
+            "opData": {
+              "alias_title": "Offline article",
+              "is_starred": 0,
+              "metadata": "{\"tags\":[\"tag-1\"],\"share\":{\"allow_access\":1}}",
+              "user_id": "synthetic-user"
+            },
+            "previousValues": null
+          }
+        ]
+      },
+      {
+        "transactionId": 2,
+        "crud": [
+          {
+            "clientId": 3,
+            "id": "bookmark-1",
+            "op": "PATCH",
+            "table": "sr_user_bookmark",
+            "opData": {
+              "is_starred": 1,
+              "metadata": "{\"tags\":[\"tag-1\",\"tag-2\"],\"share\":{\"allow_access\":0}}"
+            },
+            "previousValues": {
+              "is_starred": 0,
+              "metadata": "{\"tags\":[\"tag-1\"],\"share\":{\"allow_access\":1}}"
+            }
+          },
+          {
+            "clientId": 4,
+            "id": "comment-1",
+            "op": "PUT",
+            "table": "sr_bookmark_comment",
+            "opData": {
+              "comment": "Pending comment",
+              "metadata": "{\"thread\":\"thread-1\"}",
+              "source": "{\"start_offset\":3,\"end_offset\":12}"
+            },
+            "previousValues": null
+          }
+        ]
+      },
+      {
+        "transactionId": 3,
+        "crud": [
+          {
+            "clientId": 5,
+            "id": "bookmark-1",
+            "op": "PATCH",
+            "table": "sr_user_bookmark",
+            "opData": {
+              "alias_title": "Controlled actual service offline edit"
+            },
+            "previousValues": {
+              "alias_title": "Offline article"
+            }
+          },
+          {
+            "clientId": 6,
+            "id": "tag-service-ios-controlled-ios-first-service-2026101",
+            "op": "PUT",
+            "table": "sr_user_tag",
+            "opData": {
+              "display": "Before service",
+              "tag_name": "actual-service",
+              "user_id": "synthetic-user"
+            },
+            "previousValues": null
+          }
+        ]
+      }
+    ],
+    "actualRetryRetainsQueue": true,
+    "exactServerSqlReceipts": [
+      [
+        {
+          "id": "tag-1",
+          "op": "PUT",
+          "data": {
+            "display": "Offline",
+            "user_id": "synthetic-user",
+            "tag_name": "offline"
+          },
+          "table": "sr_user_tag",
+          "preData": null
+        },
+        {
+          "id": "bookmark-1",
+          "op": "PUT",
+          "data": {
+            "user_id": "synthetic-user",
+            "metadata": "{\"tags\":[\"tag-1\"],\"share\":{\"allow_access\":1}}",
+            "is_starred": "0",
+            "alias_title": "Offline article"
+          },
+          "table": "sr_user_bookmark",
+          "preData": null
+        },
+        {
+          "id": "bookmark-1",
+          "op": "PATCH",
+          "data": {
+            "metadata": "{\"tags\":[\"tag-1\",\"tag-2\"],\"share\":{\"allow_access\":0}}",
+            "is_starred": "1"
+          },
+          "table": "sr_user_bookmark",
+          "preData": {
+            "metadata": "{\"tags\":[\"tag-1\"],\"share\":{\"allow_access\":1}}",
+            "is_starred": "0"
+          }
+        },
+        {
+          "id": "comment-1",
+          "op": "PUT",
+          "data": {
+            "source": "{\"start_offset\":3,\"end_offset\":12}",
+            "comment": "Pending comment",
+            "metadata": "{\"thread\":\"thread-1\"}"
+          },
+          "table": "sr_bookmark_comment",
+          "preData": null
+        },
+        {
+          "id": "bookmark-1",
+          "op": "PATCH",
+          "data": {
+            "alias_title": "Controlled actual service offline edit"
+          },
+          "table": "sr_user_bookmark",
+          "preData": {
+            "alias_title": "Offline article"
+          }
+        },
+        {
+          "id": "tag-service-ios-controlled-ios-first-service-2026101",
+          "op": "PUT",
+          "data": {
+            "display": "Before service",
+            "user_id": "synthetic-user",
+            "tag_name": "actual-service"
+          },
+          "table": "sr_user_tag",
+          "preData": null
+        }
+      ]
+    ],
+    "realNativeSdkCompletions": [
+      {
+        "transactionId": 1,
+        "clientIds": [
+          1,
+          2
+        ]
+      },
+      {
+        "transactionId": 2,
+        "clientIds": [
+          3,
+          4
+        ]
+      },
+      {
+        "transactionId": 3,
+        "clientIds": [
+          5,
+          6
+        ]
+      }
+    ],
+    "materializedLegacyRows": {
+      "sr_user_tag": [
+        {
+          "id": "tag-1",
+          "user_id": "synthetic-user",
+          "tag_name": "offline",
+          "display": "Offline",
+          "source": null,
+          "last_used_at": null,
+          "created_at": null
+        }
+      ],
+      "sr_user_bookmark": [
+        {
+          "id": "bookmark-1",
+          "user_id": "synthetic-user",
+          "created_at": null,
+          "updated_at": null,
+          "alias_title": "Controlled actual service offline edit",
+          "deleted_at": null,
+          "starred_at": null,
+          "archived_at": null,
+          "metadata": "{\"tags\":[\"tag-1\",\"tag-2\"],\"share\":{\"allow_access\":0}}",
+          "is_read": null,
+          "archive_status": null,
+          "is_starred": 1,
+          "type": null
+        }
+      ],
+      "sr_bookmark_comment": [
+        {
+          "id": "comment-1",
+          "source": "{\"start_offset\":3,\"end_offset\":12}",
+          "user_bookmark_uuid": null,
+          "comment": "Pending comment",
+          "approx_source": null,
+          "content": null,
+          "created_at": null,
+          "metadata": "{\"thread\":\"thread-1\"}",
+          "type": null,
+          "is_deleted": null
+        }
+      ]
+    },
+    "replicationCheckpointObserved": true,
+    "defaultTransportReplicated": true,
+    "explicitWebSocketReplicated": true,
+    "traffic": {
+      "streamHttpRequests": 2,
+      "webSocketUpgrades": 1,
+      "serverToClientBytes": 3762
+    },
+    "originalPreferencesUntouched": true,
+    "completeLocalJsonUntouched": true,
+    "originalCacheRetained": true,
+    "pendingOperations": 0,
+    "credentialsPersisted": false
+  },
+  "nativeReportSHA256": "0e327ad5519176b8499eb6b718daffe4a3185f5a0dfc4381651207f6316d9bcf",
+  "serverReceipts": {
+    "rows": [
+      [
+        {
+          "id": "tag-1",
+          "op": "PUT",
+          "data": {
+            "display": "Offline",
+            "user_id": "synthetic-user",
+            "tag_name": "offline"
+          },
+          "table": "sr_user_tag",
+          "preData": null
+        },
+        {
+          "id": "bookmark-1",
+          "op": "PUT",
+          "data": {
+            "user_id": "synthetic-user",
+            "metadata": "{\"tags\":[\"tag-1\"],\"share\":{\"allow_access\":1}}",
+            "is_starred": "0",
+            "alias_title": "Offline article"
+          },
+          "table": "sr_user_bookmark",
+          "preData": null
+        },
+        {
+          "id": "bookmark-1",
+          "op": "PATCH",
+          "data": {
+            "metadata": "{\"tags\":[\"tag-1\",\"tag-2\"],\"share\":{\"allow_access\":0}}",
+            "is_starred": "1"
+          },
+          "table": "sr_user_bookmark",
+          "preData": {
+            "metadata": "{\"tags\":[\"tag-1\"],\"share\":{\"allow_access\":1}}",
+            "is_starred": "0"
+          }
+        },
+        {
+          "id": "comment-1",
+          "op": "PUT",
+          "data": {
+            "source": "{\"start_offset\":3,\"end_offset\":12}",
+            "comment": "Pending comment",
+            "metadata": "{\"thread\":\"thread-1\"}"
+          },
+          "table": "sr_bookmark_comment",
+          "preData": null
+        },
+        {
+          "id": "bookmark-1",
+          "op": "PATCH",
+          "data": {
+            "alias_title": "Controlled actual service offline edit"
+          },
+          "table": "sr_user_bookmark",
+          "preData": {
+            "alias_title": "Offline article"
+          }
+        },
+        {
+          "id": "tag-service-ios-controlled-ios-first-service-2026101",
+          "op": "PUT",
+          "data": {
+            "display": "Before service",
+            "user_id": "synthetic-user",
+            "tag_name": "actual-service"
+          },
+          "table": "sr_user_tag",
+          "preData": null
+        }
+      ]
+    ],
+    "materializedLegacyRows": {
+      "sr_user_tag": [
+        {
+          "id": "tag-1",
+          "user_id": "synthetic-user",
+          "tag_name": "offline",
+          "display": "Offline",
+          "source": null,
+          "last_used_at": null,
+          "created_at": null
+        }
+      ],
+      "sr_user_bookmark": [
+        {
+          "id": "bookmark-1",
+          "user_id": "synthetic-user",
+          "created_at": null,
+          "updated_at": null,
+          "alias_title": "Controlled actual service offline edit",
+          "deleted_at": null,
+          "starred_at": null,
+          "archived_at": null,
+          "metadata": "{\"tags\":[\"tag-1\",\"tag-2\"],\"share\":{\"allow_access\":0}}",
+          "is_read": null,
+          "archive_status": null,
+          "is_starred": 1,
+          "type": null
+        }
+      ],
+      "sr_bookmark_comment": [
+        {
+          "id": "comment-1",
+          "source": "{\"start_offset\":3,\"end_offset\":12}",
+          "user_bookmark_uuid": null,
+          "comment": "Pending comment",
+          "approx_source": null,
+          "content": null,
+          "created_at": null,
+          "metadata": "{\"thread\":\"thread-1\"}",
+          "type": null,
+          "is_deleted": null
+        }
+      ]
+    },
+    "replicationSlots": [
+      {
+        "active": true,
+        "confirmedFlushLsn": "0/15C10C0"
+      }
+    ],
+    "traffic": {
+      "streamHttpRequests": 2,
+      "webSocketUpgrades": 1,
+      "serverToClientBytes": 3819
+    }
+  },
+  "serverReceiptsSHA256": "bef2df001c4cc51b1461f6c6db2de0955f72ea7763d4d4fd81d792dd2c750b54",
+  "persistedNativeRows": {
+    "mode": "read-only SQLite after native fixture closed",
+    "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/522DD84F-0407-4707-BBAB-0263B4ACE2DA/data/Containers/Data/Application/9F3CD522-07E9-428C-9C8E-790640FB4CD0/Library/Application Support/databases/powersync.db",
+    "materializedLegacyRows": {
+      "sr_user_tag": [
+        {
+          "id": "tag-1",
+          "user_id": "synthetic-user",
+          "tag_name": "offline",
+          "display": "Offline",
+          "source": null,
+          "last_used_at": null,
+          "created_at": null
+        }
+      ],
+      "sr_user_bookmark": [
+        {
+          "id": "bookmark-1",
+          "user_id": "synthetic-user",
+          "created_at": null,
+          "updated_at": null,
+          "alias_title": "Controlled actual service offline edit",
+          "deleted_at": null,
+          "starred_at": null,
+          "archived_at": null,
+          "metadata": "{\"tags\":[\"tag-1\",\"tag-2\"],\"share\":{\"allow_access\":0}}",
+          "is_read": null,
+          "archive_status": null,
+          "is_starred": 1,
+          "type": null
+        }
+      ],
+      "sr_bookmark_comment": [
+        {
+          "id": "comment-1",
+          "source": "{\"start_offset\":3,\"end_offset\":12}",
+          "user_bookmark_uuid": null,
+          "comment": "Pending comment",
+          "approx_source": null,
+          "content": null,
+          "created_at": null,
+          "metadata": "{\"thread\":\"thread-1\"}",
+          "type": null,
+          "is_deleted": null
+        }
+      ]
+    },
+    "pendingOperations": 0,
+    "completeLocalJsonUnchanged": true,
+    "writesOrNewSdkOwner": false
+  },
+  "ownedService": {
+    "marker": {
+      "kind": "slax-controlled-native-real-service",
+      "version": 1,
+      "runId": "controlled-ios-first-service-20261011",
+      "prefix": "slax-native-efa338a9",
+      "network": "slax-native-efa338a9-net",
+      "networks": [
+        "slax-native-efa338a9-net",
+        "slax-native-efa338a9-gateway"
+      ],
+      "containers": [
+        "slax-native-efa338a9-source",
+        "slax-native-efa338a9-storage",
+        "slax-native-efa338a9-sync"
+      ],
+      "volumes": [
+        "slax-native-efa338a9-source-data",
+        "slax-native-efa338a9-storage-data"
+      ],
+      "sourceImage": "postgres@sha256:f02121de6f74d30d8a94cd1d9584125e2178d7e6c377d8130112d4e52d867995",
+      "serviceImage": "journeyapps/powersync-service@sha256:413a0c813e96935ebe7203b5759f8a594a7b7cd8aa42134713e63af637e0f079",
+      "imageIDs": {
+        "journeyapps/powersync-service@sha256:413a0c813e96935ebe7203b5759f8a594a7b7cd8aa42134713e63af637e0f079": "sha256:413a0c813e96935ebe7203b5759f8a594a7b7cd8aa42134713e63af637e0f079",
+        "postgres@sha256:f02121de6f74d30d8a94cd1d9584125e2178d7e6c377d8130112d4e52d867995": "sha256:f02121de6f74d30d8a94cd1d9584125e2178d7e6c377d8130112d4e52d867995"
+      },
+      "privateKeyPersisted": false,
+      "tokensPersisted": false,
+      "syncOrigin": "http://127.0.0.1:59995",
+      "apiOrigin": "http://127.0.0.1:59996",
+      "serviceConfigSHA256": "10d9482ec6eb6cdbf1f433fdff7b627806517c08580fd5197ed0f88fdfd7b4aa",
+      "publicJwkSHA256": "f4d2a4bd22c17cfcae9360db102cbf65592c263f521c03b534994c371e1c2c7d"
+    },
+    "cachedImagesOnly": true,
+    "containerPullPolicy": "never",
+    "postgresContainers": 2,
+    "postgresMemoryMiB": 256,
+    "serviceMemoryMiB": 512,
+    "postgresPublishedPorts": false,
+    "servicePublishedPort": {
+      "host": "127.0.0.1",
+      "port": 32769
+    },
+    "privateKeyPersisted": false,
+    "tokensPersisted": false,
+    "cleanup": {
+      "status": "owned-resources-removed",
+      "controllerTerminated": true,
+      "readerAppTerminated": true,
+      "ownedContainersRemoved": 3,
+      "ownedVolumesRemoved": 2,
+      "ownedNetworksRemoved": 2,
+      "unrelatedResourcesRemoved": false
+    }
+  },
+  "sourceInputs": {
+    "apps/mobile/src/data/adoption.ts": "f1d50fdfcba53d760ed8fc52736a0e3d5789278596fc97baeba30d830596656c",
+    "apps/mobile/src/data/upgrade.ts": "400e9ee274e497b2f77820452add0e5668270a0bd6e51b8a6ebf21c605ee3632",
+    "apps/mobile/src/data/schema.ts": "a987c5085226f51516c128bf38b698ae2bea657744bb7e9a619fd58042f84ada",
+    "apps/mobile/src/data/api.ts": "79be519a6b3fdeb25cbfbc75b7c0a080a5da5ac8be8287c226ba10c153f837b5",
+    "apps/mobile/src/data/connector.ts": "bf3b1d425aadff664a94cb681c41752a7cbc0897f1c8b4101d736bafa982d23d",
+    "apps/mobile/src/data/uploader.ts": "f3279efbb7d89337072cc96db3dbe86246b8e4b5b551bbf8cd89de5e059845ca",
+    "apps/mobile/src/data/legacy-preferences.ts": "827d92242c628f738fde3eaf7ac801d156e4088445984dad2e069fcddcb439b3",
+    "apps/mobile/src/domain/session.ts": "f708ba51902975891d97fb7e4afbbfe5669939416d6d06223dabdba4c68d6d32",
+    "apps/mobile/tests/data/NativeServiceReconnectFixture.ts": "6fea8b656eea696daeef583f9959fe7e9aa71d66801d631392e283b2a4dea880",
+    "apps/mobile/tests/data/NativeAdoptionFixtureApp.tsx": "31087be80a11fa599489c3cbd130942558001895648f2e889d920541214e94f1",
+    "apps/mobile/tests/data/adoption-fixtures/tooling/real-service.mjs": "5bf7870943c3f4ca8f33bfc98c2892f26210a6aa608cba45b4ccf670626e3632",
+    "apps/mobile/tests/data/adoption-fixtures/tooling/native-fault-control.mjs": "265fae3d369f840f8ea23890c01482958b4ff9a238caeb9371a619bfd946dfda"
+  },
+  "scope": {
+    "originalLegacyFirstQueueUpload": true,
+    "actualOriginalAndNewOperations": 6,
+    "realNativeSdkCompletionOrder": true,
+    "syntheticUploadCompletion": false,
+    "actualPowerSyncPostgreSqlAndApi": true,
+    "actualHttp503AndProcessKillRecovery": true,
+    "actualDefaultTransportAndExplicitWebSocket": true,
+    "productionDefaultTransportChanged": false,
+    "productionAdoptionEnabled": false,
+    "publisherSigned": false,
+    "testFlightProcessingConfirmed": false
+  },
+  "limitations": [
+    "The source and service data are deliberately synthetic; the native original/new SDKs, process kills, upload requests, server commits and replication are real.",
+    "The artifact is an ad hoc simulator development build. Publisher-signed upgrade, release archive and TestFlight processing remain separate acceptance.",
+    "Android fresh first-upgrade interruption, repeated-installation and original-queue real service upload remain pending. Native cross-process preference CAS, background suspension and extension cold launch are separate pending checks."
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "sourceRepository": "slax-reader-client",
+  "sourceCommit": "9951904405159f49f24effd4d42815f77ff33442",
+  "baseline": "Current audited working tree; source is retained read-only. These embedded paths were clean at import.",
+  "license": "Apache-2.0; existing bundled-code notices remain in source files.",
+  "files": [
+    {
+      "path": "css/reset.css",
+      "sourcePath": "public/embedded/css/reset.css",
+      "sha256": "8c432276c23a9417bfbfdaee785c9abf074e1c86976fce70ae499f6d77fbcf3a",
+      "bytes": 872,
+      "transformation": "byte-for-byte"
+    },
+    {
+      "path": "css/article.css",
+      "sourcePath": "public/embedded/css/article.css",
+      "sha256": "eaec206eee3165366c34c8e1cbdd9d33af2bbde4313a698afd62daa6857f5729",
+      "bytes": 9657,
+      "transformation": "byte-for-byte"
+    },
+    {
+      "path": "css/mark.css",
+      "sourcePath": "public/embedded/css/mark.css",
+      "sha256": "49141a462a4aac0ef5fd24ed891da25b71dc22e8bfbcbd367ece25c430c25a0d",
+      "bytes": 1462,
+      "transformation": "byte-for-byte"
+    },
+    {
+      "path": "css/bottom-line.css",
+      "sourcePath": "public/embedded/css/bottom-line.css",
+      "sha256": "d51b9ee9e1677d9ced9dec1cdc8ddda4ad0662ed61703335981aeae1024912d2",
+      "bytes": 702,
+      "transformation": "byte-for-byte"
+    },
+    {
+      "path": "js/webview-bridge.js",
+      "sourcePath": "public/embedded/js/webview-bridge.js",
+      "sha256": "cc943378a1de086b4dfc1c628e50618b187ae515fa256210bf2f51ac26038225",
+      "bytes": 132641,
+      "transformation": "byte-for-byte"
+    },
+    {
+      "path": "html/webview-template.html",
+      "sourcePath": "public/embedded/html/webview-template.html",
+      "sha256": "a46d963da7f4334527293ed7e0c5f11798f02583e8ec234989820c58491884a9",
+      "bytes": 6008,
+      "transformation": "byte-for-byte"
+    },
+    {
+      "path": "html/error.html",
+      "sourcePath": "public/embedded/html/error.html",
+      "sha256": "83288a404403dbf49883a836090cec86f0603a29696342c4585a25e7b5ff4ae3",
+      "bytes": 4567,
+      "transformation": "byte-for-byte"
+    },
+    {
+      "path": "image/error.png",
+      "sourcePath": "public/embedded/image/error.png",
+      "sha256": "288f91013cf501544241447d8f7b4cde2c912d0ae42186bc68f073f633b327d7",
+      "bytes": 29568,
+      "transformation": "byte-for-byte"
+    },
+    {
+      "path": "SOURCE-LICENSE.txt",
+      "sourcePath": "LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357,
+      "transformation": "byte-for-byte"
+    }
+  ]
+}
