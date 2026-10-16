@@ -18,6 +18,6 @@
 - [x] 3.1 Run the local pre-push review from `REVIEW.md` and resolve Important findings.
 - [x] 3.2 Open the PR with `OpenSpec: podcast-article`, stacked on `youtube-ai-article`.
 - [x] 3.5 Resolve the PR review Nits and add the contract step of `youtube-ai-article` (see `validation.md`).
-- [ ] 3.6 Merge only after `youtube-ai-article` runs in production; this migration drops the P0 unique key.
+- [x] 3.6 Merged into `feat/youtube-ai-article` (PR #220), so this migration ships with `youtube-ai-article`. Promote `dev` → `beta` → `main` in one pass; the P0 caption write fails softly in the window (see `design.md`).
 - [ ] 3.3 Before this PR merges (a merge to `dev` deploys and runs migrations): add `ASSEMBLYAI_API_KEY` to `[vars]` and the `PODCAST_WORKFLOW` binding to the private configuration TOML; locally, add the key to `deploy/local/.dev.vars`.
 - [ ] 3.4 After deploy: enable `podcast` for internal accounts and test the three episode kinds listed in the design.

@@ -20,5 +20,5 @@
 - [x] 3.2 Open the PR to `dev` with `OpenSpec: youtube-ai-article`.
 - [ ] 3.3 Before this PR merges (a merge to `dev` deploys and runs migrations): add the `YOUTUBE_ARTICLE_WORKFLOW` binding to the private configuration TOML.
 - [x] 3.5 Resolve the PR review findings: expand-only migration, save-triggered starts count against the daily limit, and the Nits listed in `validation.md`.
-- [ ] 3.6 Merge `podcast-article` (which drops the old unique key) only after this change runs in production.
+- [x] 3.6 `podcast-article` (which drops the old unique key) was merged into this branch (PR #220); both ship in one release. Promote `dev` → `beta` → `main` in one pass to keep the beta-to-production window short.
 - [ ] 3.4 After deploy: enable `youtube_article` for internal accounts and check about 10 real videos for faithfulness and cost.

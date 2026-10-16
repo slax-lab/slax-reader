@@ -72,11 +72,11 @@ The podcast status and translation endpoints SHALL apply the snapshot read rule 
 
 ### Requirement: Media article migration compatible with deployed code
 
-The migration SHALL NOT rename or drop tables or columns. It SHALL add `media_kind` with default `youtube`, the media article version key and the podcast episode table. It SHALL drop the P0 unique key `(video_id, source_hash, prompt_version)`, and SHALL reach beta only after `youtube-ai-article` runs in production, because only the P0 code writes through that key.
+The migration SHALL NOT rename or drop tables or columns. It SHALL add `media_kind` with default `youtube`, the media article version key and the podcast episode table. It SHALL drop the P0 unique key `(video_id, source_hash, prompt_version)`; only the P0 code writes through that key, and it does so in a step that never fails the save.
 
 #### Scenario: Production code during the beta migration
-- **WHEN** beta has applied the migration and production runs `youtube-ai-article`
-- **THEN** that code reads and writes YouTube article rows as before
+- **WHEN** beta has applied the migration and production runs `youtube-ai-article` or the P0 code
+- **THEN** `youtube-ai-article` reads and writes YouTube article rows as before, and a P0 save still succeeds while its caption row write fails softly
 
 #### Scenario: Several languages after the contract step
 - **WHEN** an owner in another language opens a video whose caption version already has a row

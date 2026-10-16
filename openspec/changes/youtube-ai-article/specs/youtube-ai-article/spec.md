@@ -92,13 +92,13 @@ The bookmark page SHALL show the article below the player, outside the original 
 
 ### Requirement: Migration compatible with deployed code
 
-The migration SHALL NOT drop or rename a table, column or unique key that the deployed code writes through. It SHALL keep the unique key `(video_id, source_hash, prompt_version)` until a later contract migration. While that key exists, the system SHALL keep one language row per caption version and SHALL answer `unavailable` for another language instead of failing.
+The `youtube_article_target_language` migration SHALL NOT drop or rename a table, column or unique key. It SHALL add `target_language` and the language-aware unique key. The P0 unique key `(video_id, source_hash, prompt_version)` is dropped by the `media_article` migration of `podcast-article`, which ships in the same release. While that key exists, the system SHALL keep one language row per caption version and SHALL answer `unavailable` for another language instead of failing.
 
 #### Scenario: Production code during the beta migration
-- **WHEN** beta has applied the migration and production still runs the P0 code
-- **THEN** the P0 caption write succeeds as before
+- **WHEN** beta has applied both migrations and production still runs the P0 code
+- **THEN** a YouTube save in production still succeeds; its caption row and ref write fails softly and is logged, and a later save of the bookmark records them
 
-#### Scenario: Second language before the contract migration
+#### Scenario: Second language while the P0 key exists
 - **WHEN** an owner in another language opens a video whose caption version already has a row
 - **THEN** the status is `unavailable` and the request does not fail
 

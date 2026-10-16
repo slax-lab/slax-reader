@@ -16,7 +16,7 @@ This work was built and reviewed in the legacy repositories (`unnoo/slax_reader_
 - Limit cost: $1 per episode, 5 new episodes per user per day, $30 per day site-wide, and 3 hours per episode.
 - Run the work in a new `PodcastWorkflow`. Add `GET /v1/podcast/status` and `/translation` (owner and share visitors, by the snapshot access rule), `POST /v1/podcast/retry` (owner only), and a 5-minute sweep.
 - Generalise the YouTube article repository to a media article repository with a `media_kind` column. The database tables keep their names, and the migration adds the new column, key and table.
-- Drop the P0 unique key `(video_id, source_hash, prompt_version)` that `youtube-ai-article` kept (its contract step), so a caption version can hold several language rows again. This change must reach beta only after `youtube-ai-article` runs in production.
+- Drop the P0 unique key `(video_id, source_hash, prompt_version)` that `youtube-ai-article` kept (its contract step), so a caption version can hold several language rows again. This change ships in the same release as `youtube-ai-article` (PR #220 was merged into its branch); see the design for the beta-to-production window.
 - Show a sticky audio player, transcript status, "listen from here" on paragraphs and selections, and the translation on the bookmark page.
 - Add the `PODCAST_WORKFLOW` binding to `deploy/cloudflare/api.toml.example` and the `ASSEMBLYAI_API_KEY` secret to the Worker environment type.
 
