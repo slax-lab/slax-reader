@@ -37,3 +37,9 @@
 
 - [x] 6.1 Restore real Mobile ledger and referenced-artifact validation in evidence-only CI; verify valid repository evidence passes and malformed ledgers, stale source identities, and tampered referenced artifacts fail without application bundling.
 - [x] 6.2 Select Extension release tooling for its shared Web schema input; verify actual workflow routing, rerun affected checks and the three pre-push review passes, and prepare the update to PR #238.
+
+## 7. Independent daily validation
+
+- [x] 7.1 Integrate current dev and add a daily 04:23 Asia/Shanghai/manual full-validation caller on dev; reuse the six validation workflows without path selection, publication, or write permissions.
+- [x] 7.2 Verify all-false/skipped-detector full coverage, configuration guards, PR detection failures, cancellation, dev-ref enforcement, and concurrency isolation under a shared caller.
+- [x] 7.3 Update CI operations and verification evidence, run affected checks and strict OpenSpec validation, complete the three local review passes, and prepare the update to PR #238.

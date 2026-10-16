@@ -1,10 +1,17 @@
 name: CLI CI
 on:
   pull_request: null
+  workflow_call:
+    inputs:
+      full_validation:
+        description: Run all checks without scope detection
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   changes:
+    if: ${{ !inputs.full_validation }}
     runs-on: ubuntu-latest
     outputs:
       cli: ${{ steps.scope.outputs.cli }}
@@ -37,7 +44,7 @@ jobs:
       - run: pnpm cli -- test
       - run: pnpm cli -- test:package
     needs: changes
-    if: ${{ needs.changes.outputs.cli == 'true' }}
+    if: ${{ !cancelled() && (inputs.full_validation || (needs.changes.result == 'success' && needs.changes.outputs.cli == 'true')) }}
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-cli-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true

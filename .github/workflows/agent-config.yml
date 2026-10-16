@@ -4,6 +4,12 @@
 name: agent-config
 on:
   pull_request: null
+  workflow_call:
+    inputs:
+      full_validation:
+        description: Run all checks without scope detection
+        type: boolean
+        default: false
 jobs:
   guard:
     # The release-branches ruleset requires this exact job name.
@@ -16,37 +22,38 @@ jobs:
           persist-credentials: false
       - id: scope
         uses: ./.github/actions/ci-scope
+        if: ${{ !inputs.full_validation }}
       - uses: pnpm/action-setup@v6
         if: >-
-          steps.scope.outputs.rulesync == 'true' || steps.scope.outputs.openspec == 'true' || steps.scope.outputs.ghAw
+          inputs.full_validation || steps.scope.outputs.rulesync == 'true' || steps.scope.outputs.openspec == 'true' || steps.scope.outputs.ghAw
           == 'true'
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
         if: >-
-          steps.scope.outputs.rulesync == 'true' || steps.scope.outputs.openspec == 'true' || steps.scope.outputs.ghAw
+          inputs.full_validation || steps.scope.outputs.rulesync == 'true' || steps.scope.outputs.openspec == 'true' || steps.scope.outputs.ghAw
           == 'true'
       - run: pnpm install --frozen-lockfile
         if: >-
-          steps.scope.outputs.rulesync == 'true' || steps.scope.outputs.openspec == 'true' || steps.scope.outputs.ghAw
+          inputs.full_validation || steps.scope.outputs.rulesync == 'true' || steps.scope.outputs.openspec == 'true' || steps.scope.outputs.ghAw
           == 'true'
       - name: rulesync drift check
         run: |
           pnpm exec rulesync doctor --strict
           pnpm exec rulesync generate --check
-        if: steps.scope.outputs.rulesync == 'true'
+        if: inputs.full_validation || steps.scope.outputs.rulesync == 'true'
       - name: openspec validate
         run: pnpm exec openspec validate --all --strict
         env:
           OPENSPEC_TELEMETRY: '0'
           OPENSPEC_NO_UPDATE_CHECK: '1'
-        if: steps.scope.outputs.openspec == 'true'
+        if: inputs.full_validation || steps.scope.outputs.openspec == 'true'
       - name: Install gh-aw CLI (pinned)
         uses: github/gh-aw/actions/setup-cli@v0.88.7
         with:
           version: v0.88.7
-        if: steps.scope.outputs.ghAw == 'true'
+        if: inputs.full_validation || steps.scope.outputs.ghAw == 'true'
       - name: gh-aw compile drift check
         run: |
           set -euo pipefail
@@ -66,9 +73,9 @@ jobs:
             exit 1
           fi
           echo "Compiled workflows match their sources."
-        if: steps.scope.outputs.ghAw == 'true'
+        if: inputs.full_validation || steps.scope.outputs.ghAw == 'true'
 permissions:
   contents: read
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-agent-config-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true

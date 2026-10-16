@@ -1,16 +1,23 @@
 name: Mobile CI
 on:
   pull_request: null
+  workflow_call:
+    inputs:
+      full_validation:
+        description: Run all checks without scope detection
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-mobile-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 env:
   EXPO_NO_DOTENV: '1'
   CI: '1'
 jobs:
   changes:
+    if: ${{ !inputs.full_validation }}
     runs-on: ubuntu-latest
     outputs:
       mobile: ${{ steps.scope.outputs.mobile }}
@@ -35,11 +42,11 @@ jobs:
       - run: pnpm mobile -- check
       - run: pnpm mobile -- bundle
     needs: changes
-    if: ${{ needs.changes.outputs.mobile == 'true' }}
+    if: ${{ !cancelled() && (inputs.full_validation || (needs.changes.result == 'success' && needs.changes.outputs.mobile == 'true')) }}
   evidence:
     runs-on: ubuntu-24.04
     needs: changes
-    if: ${{ needs.changes.outputs.mobileEvidence == 'true' && needs.changes.outputs.mobile != 'true' }}
+    if: ${{ !cancelled() && !inputs.full_validation && needs.changes.result == 'success' && needs.changes.outputs.mobileEvidence == 'true' && needs.changes.outputs.mobile != 'true' }}
     steps:
       - uses: actions/checkout@v4
         with:

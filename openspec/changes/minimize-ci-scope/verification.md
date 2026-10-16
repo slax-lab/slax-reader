@@ -68,3 +68,25 @@ Completed the local pre-push review under `REVIEW.md` against the full PR diff a
 - Bugs: Verified evidence-only and mixed application/evidence routing, real validator failure propagation, Web-schema release consumers, complete-diff selection, stable required-status wiring, and unchanged release/deployment serialization. Both Important findings are resolved; no unresolved Important findings remain.
 - Security: Verified read-only workflow permissions, argument-array subprocess execution, child-process input overlays with JSON-escaped literals, cleanup of temporary test files, and the absence of new credentials or publication operations. No Important findings.
 - Compliance: Verified the implementation against both capability deltas, including the explicit real-evidence and cross-application schema scenarios, and all 20 completed tasks. No Important findings.
+
+## Independent daily full validation
+
+Date: 2026-10-16. The human requested the scheduled full-coverage follow-up described in [PR comment 6211394910](https://github.com/slax-lab/slax-reader/pull/238#issuecomment-6211394910). Integrated origin/dev at fb36b40 through merge commit 0afff18, resolving the Mobile workflow conflict by preserving this PR's complete-diff selection and evidence lane. The newly extracted reader-embed package retains conservative application coverage through the existing unknown-shared-package policy. No application implementation was authored for this follow-up, and package output/version metadata is unchanged relative to current dev.
+
+Added Full CI at 04:23 Asia/Shanghai daily, with manual dispatch on dev. The source guard fails explicitly for another ref. All six reusable validation workflows receive a typed `full_validation: true`, skip selection entirely, and run their existing suites. Full Web/Mobile validation includes icon and real evidence checks without repeating their standalone lanes. All configuration guards run regardless of changed paths. Per-suite concurrency identities prevent a shared caller from canceling sibling suites; PR and full-run groups remain independent. Deployment, publication, AI review, and their serialization are unchanged.
+
+| Check | Result |
+| --- | --- |
+| pnpm install --frozen-lockfile --offline | Passed after integrating dev |
+| pnpm test:ci | 21 passed; includes all-false outputs and output-access rejection in full mode, skipped detection, explicit status-function routing, PR failure/cancellation, dev-ref guard execution, all six caller edges, configuration-step coverage, and shared-caller concurrency isolation |
+| pnpm test:preflight | 104 passed; 2 existing opt-in runtime checks skipped |
+| pnpm test:cli-tooling | 29 passed, including actual package consumers and controlled publication recovery |
+| pnpm test:extension-tooling | 18 passed |
+| actionlint v1.7.12 | All seven changed/new validation workflows passed; shellcheck integration disabled |
+| pnpm exec openspec validate --all --strict | 47 passed, 0 failed |
+| bash tooling/check-gh-aw-drift.sh | Full pinned compilation passed; generated outputs unchanged |
+| git diff --check | Passed |
+
+The local pre-push Bugs, Security, and Compliance passes under REVIEW.md were completed against the full PR diff relative to current dev and this follow-up, using OpenSpec change minimize-ci-scope. Bugs: verified independence from selection, skipped-needs execution, failure propagation, immutable caller revision defaults, inherited configuration behavior, scope coverage, and cancellation isolation. Security: verified contents-read permissions, no inherited secrets, safe ref interpolation through an environment variable, no publication/deployment calls, and no new credential inputs. Compliance: verified both capability deltas and all 23 completed tasks, including the explicitly adopted daily-validation scope. No unresolved Important findings remain.
+
+The new schedule cannot run until its workflow is present on the default branch, currently dev. No manual hosted full run, deployment, or publication was started during local verification. GitHub schedules are best effort and can be delayed; the operations guide documents manual execution and the default-branch assumption.

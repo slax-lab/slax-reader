@@ -88,6 +88,16 @@ Create table-driven selection fixtures covering every matrix row, unions of scop
 
 Extend controlled release process fixtures with unrelated Web/Mobile commits, multiple channels, promotion merges, first-channel fallback, a manifest-only release, malformed history, an existing candidate tag, changed notes, and resumed asset upload. Assert the Release POST contains the explicit CLI body and lacks generate_release_notes. Preserve exact-byte package checks and no-write failure tests. Local verification must not create public tags, Releases, or npm versions.
 
+### 6. Add independent daily full validation
+
+The human adopted the follow-up in PR #238 comment 6211394910. Add `full-ci.yml`, scheduled at 20:23 UTC (04:23 Asia/Shanghai the following day) and available through `workflow_dispatch`. Require the dev ref before running the suites; dev is the repository's default branch, which GitHub uses for schedules. Results remain visible in Actions without adding messaging or publication jobs.
+
+Expose the six existing validation workflows through `workflow_call` with a boolean `full_validation` input, defaulting to false. The daily caller passes true to every workflow. Full mode skips the change detector and unconditionally enables the application, tooling, design, and configuration validations. Standalone icon and evidence lanes remain unnecessary because the full Web and Mobile suites already execute those validators. PR mode keeps complete-diff selection and fails when detection fails.
+
+Jobs depending on the skipped detector use an explicit cancellation status function and distinguish successful PR selection from full mode, so GitHub's implicit success condition cannot silently skip daily checks. Configuration steps honor full mode without consulting scope outputs. Each reusable workflow includes its own identity in its concurrency key because the GitHub workflow context belongs to the caller; daily calls cannot cancel sibling suites or PR runs. The parent daily workflow serializes its own runs without canceling executing validation. No deployment, release, AI review, or write-permission workflow is called.
+
+Regression fixtures evaluate the workflow graph with every selection output false and the detector skipped, cover detector failure and cancellation in PR mode, verify all six calls and configuration steps, exercise the dev-ref guard, and test concurrency isolation under the shared caller name.
+
 ## Risks / Trade-offs
 
 - Incorrect routing could silently omit checks. Mitigation: consumer matrix fixtures, conservative unknown inputs, workflow-output wiring checks, and visible detection failures.

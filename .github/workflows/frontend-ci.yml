@@ -1,10 +1,17 @@
 name: Frontend CI
 on:
   pull_request: null
+  workflow_call:
+    inputs:
+      full_validation:
+        description: Run all checks without scope detection
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   changes:
+    if: ${{ !inputs.full_validation }}
     runs-on: ubuntu-latest
     outputs:
       web: ${{ steps.scope.outputs.web }}
@@ -47,7 +54,7 @@ jobs:
       - run: pnpm --filter @slax-reader/selection typecheck
       - run: pnpm web -- test
     needs: changes
-    if: ${{ needs.changes.outputs.web == 'true' }}
+    if: ${{ !cancelled() && (inputs.full_validation || (needs.changes.result == 'success' && needs.changes.outputs.web == 'true')) }}
   extension:
     runs-on: ubuntu-latest
     env:
@@ -75,7 +82,7 @@ jobs:
       - run: pnpm --filter @slax-reader/selection typecheck
       - run: pnpm extension -- test
     needs: changes
-    if: ${{ needs.changes.outputs.extension == 'true' }}
+    if: ${{ !cancelled() && (inputs.full_validation || (needs.changes.result == 'success' && needs.changes.outputs.extension == 'true')) }}
   design:
     runs-on: ubuntu-latest
     steps:
@@ -84,11 +91,11 @@ jobs:
           persist-credentials: false
       - run: node tooling/design-reference.mjs
     needs: changes
-    if: ${{ needs.changes.outputs.design == 'true' }}
+    if: ${{ !cancelled() && (inputs.full_validation || (needs.changes.result == 'success' && needs.changes.outputs.design == 'true')) }}
   icons:
     runs-on: ubuntu-latest
     needs: changes
-    if: ${{ needs.changes.outputs.icons == 'true' && needs.changes.outputs.web != 'true' }}
+    if: ${{ !cancelled() && !inputs.full_validation && needs.changes.result == 'success' && needs.changes.outputs.icons == 'true' && needs.changes.outputs.web != 'true' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -102,5 +109,5 @@ jobs:
       - run: pnpm icons:test
       - run: pnpm icons:check
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-frontend-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true

@@ -1,0 +1,58 @@
+name: Full CI
+
+on:
+  schedule:
+    # 04:23 Asia/Shanghai; GitHub schedules use UTC and the default branch (dev).
+    - cron: '23 20 * * *'
+  workflow_dispatch: null
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-ci-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  source:
+    if: github.repository == 'slax-lab/slax-reader'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the dev branch
+        env:
+          CI_REF: ${{ github.ref }}
+        run: |
+          if [ "$CI_REF" != 'refs/heads/dev' ]; then
+            echo '::error::Full CI runs on dev. Select dev when dispatching this workflow.'
+            exit 1
+          fi
+  frontend:
+    needs: source
+    uses: ./.github/workflows/frontend-ci.yml
+    with:
+      full_validation: true
+  api:
+    needs: source
+    uses: ./.github/workflows/api-ci.yml
+    with:
+      full_validation: true
+  mobile:
+    needs: source
+    uses: ./.github/workflows/mobile-ci.yml
+    with:
+      full_validation: true
+  cli:
+    needs: source
+    uses: ./.github/workflows/cli-ci.yml
+    with:
+      full_validation: true
+  tooling:
+    needs: source
+    uses: ./.github/workflows/tooling-ci.yml
+    with:
+      full_validation: true
+  agent-config:
+    needs: source
+    uses: ./.github/workflows/agent-config.yml
+    with:
+      full_validation: true

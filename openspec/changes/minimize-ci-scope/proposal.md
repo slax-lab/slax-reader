@@ -10,6 +10,7 @@ The current CI filters select whole application suites for unrelated tooling, de
 - Separate Web and Extension validation within Frontend CI; route root tooling tests to their own scoped checks instead of running application suites for every `tooling/*.mjs` edit.
 - Replace API's `deploy/**` catch-all with API-specific inputs. Distinguish ordinary documentation from executable inputs and evidence consumed by checks.
 - Run full application validation on pull requests, remove duplicate post-merge application CI, and cancel superseded read-only PR runs. Keep release builds, exact-archive smoke checks, deployment prerequisites, and release serialization.
+- Add daily full validation on dev at 04:23 Asia/Shanghai, plus a manual entry point, independently of the path-to-scope policy. Reuse the existing read-only suites and include all configuration guards.
 - Keep the required `agent-config drift check` context present for every PR while running rulesync, OpenSpec, and gh-aw compilation only when their inputs change. Configuration drift and detection failures must still fail visibly.
 - Generate CLI-only Release descriptions from an explicit previous CLI release baseline and relevant source paths, replacing repository-wide automatic notes. Preserve stable/dev/beta distribution and existing package/checksum identities.
 - Document the selection matrix and verify both avoided work and retained required coverage with controlled fixtures.

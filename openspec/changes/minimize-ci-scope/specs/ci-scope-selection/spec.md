@@ -124,3 +124,29 @@ Full application CI SHALL run for affected PRs and SHALL NOT repeat solely becau
 - **WHEN** a newer head supersedes in-progress read-only application CI
 - **THEN** the obsolete run is canceled and the new run validates all affected scopes of the PR
 - **AND** an executing publication or deployment is not canceled by that policy
+
+### Requirement: Independent daily full validation detects selection gaps
+
+CI SHALL schedule full validation of dev daily at 04:23 Asia/Shanghai and expose the same validation through manual dispatch on dev. It SHALL reuse the existing Web, Extension, API, Mobile, CLI, tooling, design/icon, Mobile evidence, rulesync, OpenSpec, and gh-aw checks without calling the scope detector or relying on its outputs. Failures SHALL be visible in Actions. Scheduled validation SHALL NOT deploy, publish, invoke AI review, or require write permissions. Full-mode concurrency SHALL remain isolated across reusable suites and from PR validation.
+
+#### Scenario: Scope rules omit every consumer
+
+- **WHEN** daily or manual full validation runs with all detector outputs absent or false
+- **THEN** every validation scope runs through its existing suite or application prerequisite without evaluating the detector
+- **AND** a skipped detector does not skip dependent full-validation jobs
+
+#### Scenario: Configuration inputs have not changed
+
+- **WHEN** full validation runs without a configuration diff
+- **THEN** rulesync, strict OpenSpec validation, and full pinned gh-aw compilation with orphan detection all run
+
+#### Scenario: A manual run targets another branch
+
+- **WHEN** the full-validation entry point is dispatched on a ref other than dev
+- **THEN** its source guard fails explicitly before running the suites
+
+#### Scenario: Reusable suites share a daily caller
+
+- **WHEN** the daily workflow calls its validation suites in parallel
+- **THEN** concurrency groups do not cancel sibling suites or PR validation
+- **AND** existing release and deployment serialization remains independent
