@@ -54,6 +54,10 @@ After client detail loading, the PDF header SHALL display available author metad
 - **WHEN** an uploaded PDF detail is loaded
 - **THEN** its source shows local upload, its filename, and any available author without exposing a synthetic link
 
+#### Scenario: Source and title spacing
+- **WHEN** a PDF detail shows its source badge above the title
+- **THEN** the badge uses the same size, shape and weight as the web-article source badge, and the same divider and spacing separate it from the title as in an HTML article
+
 #### Scenario: Scanned PDF author metadata
 - **WHEN** a scanned PDF has author metadata but no selectable text
 - **THEN** its author remains available for display while AI retains the empty-text state
@@ -265,6 +269,22 @@ PDF upload, preview, selection actions, and notes SHALL follow the existing read
 #### Scenario: Selection actions follow the passage
 - **WHEN** the owner selects PDF text with a mouse, touch, or keyboard
 - **THEN** highlight/comment actions appear beside the mouse release or selection endpoint, stay within the visual viewport, follow the selected passage when scrolling, and hide while the passage is outside the viewport
+
+#### Scenario: Selection actions survive the release click
+- **WHEN** the owner drags to select PDF text, pauses for longer than the selection debounce, and then releases the mouse
+- **THEN** the actions do not open while the button is held, open shortly after release, and are not dismissed by the click the release generates, so highlight, comment, copy and ask-AI can be chosen
+
+#### Scenario: Selected PDF text uses the article selection color
+- **WHEN** the reader selects text on a PDF page
+- **THEN** the selection is painted with the same selection color as article text in the light, dark and e-ink themes, the page glyphs stay readable through it (in e-ink as a translucent overlay rather than an opaque fill), and it no longer uses the browser's system accent color
+
+#### Scenario: Drag ends outside the reader
+- **WHEN** the owner releases the pointer outside the PDF reader or the window loses focus during a drag
+- **THEN** the selection is still captured once and no pointer hold is left active
+
+#### Scenario: Control rail switches show their state without color alone
+- **WHEN** the PDF control rail is expanded
+- **THEN** original colors and page gaps are switches with a fixed label whose knob position and filled track show the state, exposed as `role="switch"` with `aria-checked`, built from the Web theme tokens including radius and matching the Settings switch, and any open or hover motion is skipped when the user has asked for reduced motion
 
 #### Scenario: H5 notes and keyboard
 - **WHEN** the owner opens a selection's notes and focuses the composer on H5

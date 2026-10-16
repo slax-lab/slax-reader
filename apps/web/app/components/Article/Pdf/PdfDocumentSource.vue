@@ -5,7 +5,7 @@
     <span class="pdf-source-label">{{ t('component.snapshot_article_source.label') }}</span>
     <span class="pdf-source-label">{{ pdf.source === 'upload' ? t('pdf.local_upload') : pdf.filename }}</span>
     <span v-if="pdf.source === 'upload'" class="pdf-source-name" :title="pdf.filename">{{ pdf.filename }}</span>
-    <span v-if="author?.trim()" aria-hidden="true">·</span>
+    <span v-if="author?.trim()" class="pdf-source-separator" aria-hidden="true">·</span>
     <span v-if="author?.trim()" class="pdf-source-author" :title="author">{{ author }}</span>
   </div>
 </template>
@@ -29,14 +29,17 @@ const { t } = useI18n()
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  max-width: 100%;
+  max-width: min(100%, 520px);
+  width: fit-content;
   padding: 3px 10px;
-  font-size: var(--slax-fs-aux);
+  font-size: var(--slax-fs-tag);
+  font-weight: 400;
   color: var(--slax-text-muted);
   background: var(--slax-accent-bg);
-  border-radius: var(--slax-radius-sm);
+  border-radius: 20px;
 }
-.pdf-source-label { flex-shrink: 0; }
+.pdf-source-label, .pdf-source-separator { flex-shrink: 0; }
+.pdf-source-name { font-weight: 500; }
 .pdf-source-name, .pdf-source-author {
   color: var(--slax-accent);
   overflow: hidden;
