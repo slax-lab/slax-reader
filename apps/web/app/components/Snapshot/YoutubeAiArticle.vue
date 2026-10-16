@@ -10,24 +10,12 @@
 
     <!-- One live region that stays in the DOM, so every status change is announced -->
     <div class="yt-ai-status-region" role="status" aria-live="polite">
-      <p v-if="loadFailed" class="yt-ai-status">
-        {{ $t('component.youtube_article.load_failed') }}
-        <button type="button" class="yt-ai-action" @click="start">{{ $t('component.youtube_article.retry') }}</button>
-      </p>
-      <p v-else-if="isWorking && !timedOut" class="yt-ai-status">
-        <span class="i-svg-spinners:90-ring yt-ai-spinner" aria-hidden="true"></span>
-        {{ $t('component.youtube_article.preparing') }}
-      </p>
-      <p v-else-if="isWorking && timedOut" class="yt-ai-status">{{ $t('component.youtube_article.timeout') }}</p>
-      <p v-else-if="status === 'skipped'" class="yt-ai-status">
-        {{ $t('component.youtube_article.skipped') }}
-        <button v-if="state?.can_generate" type="button" class="yt-ai-action" :disabled="acting" @click="generate">{{ $t('component.youtube_article.generate') }}</button>
-      </p>
-      <p v-else-if="status === 'failed'" class="yt-ai-status">
-        {{ $t('component.youtube_article.failed') }}
-        <button v-if="state?.can_retry" type="button" class="yt-ai-action" :disabled="acting" @click="retry">{{ $t('component.youtube_article.retry') }}</button>
-      </p>
-      <p v-else-if="status === 'limit_reached'" class="yt-ai-status">{{ $t('component.youtube_article.limit_reached') }}</p>
+      <YoutubeArticleStatus :state="state" :is-working="isWorking" :timed-out="timedOut" :acting="acting" :first="loadFailed" @generate="generate" @retry="retry">
+        <template #first>
+          {{ $t('component.youtube_article.load_failed') }}
+          <button type="button" class="yt-status-action" @click="start">{{ $t('component.youtube_article.retry') }}</button>
+        </template>
+      </YoutubeArticleStatus>
     </div>
 
     <!-- Text bindings only: model output can never become markup -->
@@ -50,6 +38,8 @@
 </template>
 
 <script lang="ts" setup>
+import YoutubeArticleStatus from '~/components/Snapshot/YoutubeArticleStatus.vue'
+
 import { useYoutubeArticle } from '~/composables/bookmark/useYoutubeArticle'
 
 const props = withDefaults(
@@ -146,37 +136,6 @@ onBeforeUnmount(() => {
 
   &:hover {
     text-decoration: underline;
-  }
-}
-
-.yt-ai-status {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--slax-text-light);
-}
-
-.yt-ai-spinner {
-  width: 1em;
-  height: 1em;
-}
-
-.yt-ai-action {
-  padding: 4px 12px;
-  border: 1px solid var(--slax-accent);
-  border-radius: 6px;
-  background: transparent;
-  font-size: 13px;
-  color: var(--slax-accent);
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: default;
   }
 }
 

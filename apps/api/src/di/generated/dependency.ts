@@ -36,6 +36,7 @@ import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
 import { LogsRepo } from '../../infra/repository/dbLogs'
 import { BookmarkService } from '../../domain/bookmark'
 import { LabRepo } from '../../infra/repository/dbLab'
+import { MediaBodyService } from '../../domain/mediaBody'
 import { RssRepo } from '../../infra/repository/dbRss'
 import { RssContent } from '../../domain/rss/content'
 import { GA4AnalyticsClient } from '../../infra/external/ga4Analytics'
@@ -193,6 +194,17 @@ container.register(MarkService, {
   useFactory: container => new MarkService(container.resolve(BookmarkRepo), container.resolve(MarkRepo), container.resolve(CollectionRepo), container.resolve(UserRepo))
 })
 
+container.register(MediaBodyService, {
+  useFactory: container =>
+    new MediaBodyService(
+      container.resolve(BookmarkService),
+      container.resolve(BookmarkRepo),
+      container.resolve(SearchService),
+      container.resolve(MarkRepo),
+      lazy(() => container.resolve(BucketClient))
+    )
+})
+
 container.register(NotificationService, {
   useFactory: container =>
     new NotificationService(container.resolve(UserRepo), container.resolve(BookmarkRepo), container.resolve(CollectionRepo), container.resolve(NotificationMessage))
@@ -204,8 +216,7 @@ container.register(PodcastService, {
       container.resolve(PodcastEpisodeRepo),
       container.resolve(PodcastArticleRepo),
       container.resolve(BookmarkService),
-      container.resolve(BookmarkRepo),
-      container.resolve(SearchService),
+      container.resolve(MediaBodyService),
       container.resolve(LabService),
       container.resolve(UserRepo),
       lazy(() => container.resolve(RedisClient)),
@@ -322,7 +333,8 @@ container.register(YoutubeArticleService, {
       lazy(() => container.resolve(RedisClient)),
       lazy(() => container.resolve(BucketClient)),
       container.resolve(SlaxAlertBotClient),
-      container.resolve(CrawlService)
+      container.resolve(CrawlService),
+      container.resolve(MediaBodyService)
     )
 })
 

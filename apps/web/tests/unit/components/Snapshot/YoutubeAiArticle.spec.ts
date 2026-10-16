@@ -77,7 +77,7 @@ describe('YoutubeAiArticle', () => {
     routeGet([state(), state(), state({ status: 'generating' }), state({ status: 'validating' }), ready()])
     const wrapper = mount()
     await flushPromises()
-    expect(wrapper.find('.yt-ai-status').text()).toContain('Preparing the article')
+    expect(wrapper.find('.yt-status').text()).toContain('Preparing the article')
     expect(mockGet.mock.calls[0]![0]).toMatchObject({ query: { bookmark_uid: 'ub-1' } })
 
     for (const [delay, expected] of [
@@ -108,7 +108,7 @@ describe('YoutubeAiArticle', () => {
     await flushPromises()
     await vi.advanceTimersByTimeAsync(11 * 60_000)
     const calls = statusCalls()
-    expect(wrapper.find('.yt-ai-status').text()).toContain('taking longer than usual')
+    expect(wrapper.find('.yt-status').text()).toContain('taking longer than usual')
     await vi.advanceTimersByTimeAsync(5 * 60_000)
     expect(statusCalls()).toBe(calls)
     expect(calls).toBeLessThan(50)
@@ -129,11 +129,11 @@ describe('YoutubeAiArticle', () => {
     mockPost.mockResolvedValue(state())
     const wrapper = mount()
     await flushPromises()
-    expect(wrapper.find('.yt-ai-status').text()).toContain('relies on visuals')
-    await wrapper.find('.yt-ai-action').trigger('click')
+    expect(wrapper.find('.yt-status').text()).toContain('relies on visuals')
+    await wrapper.find('.yt-status-action').trigger('click')
     await flushPromises()
     expect(mockPost).toHaveBeenCalledWith({ url: '/v1/youtube_article/generate', body: { bookmark_uid: 'ub-1' } })
-    expect(wrapper.find('.yt-ai-status').text()).toContain('Preparing')
+    expect(wrapper.find('.yt-status').text()).toContain('Preparing')
     await vi.advanceTimersByTimeAsync(2000)
     await flushPromises()
     expect(wrapper.find('.yt-ai-body').exists()).toBe(true)
@@ -143,7 +143,7 @@ describe('YoutubeAiArticle', () => {
     routeGet([state({ status: 'skipped' })])
     const wrapper = mount()
     await flushPromises()
-    expect(wrapper.find('.yt-ai-action').exists()).toBe(false)
+    expect(wrapper.find('.yt-status-action').exists()).toBe(false)
   })
 
   it('failed with can_retry → "Retry" posts retry', async () => {
@@ -151,8 +151,8 @@ describe('YoutubeAiArticle', () => {
     mockPost.mockResolvedValue(state())
     const wrapper = mount()
     await flushPromises()
-    expect(wrapper.find('.yt-ai-status').text()).toContain('Could not generate')
-    await wrapper.find('.yt-ai-action').trigger('click')
+    expect(wrapper.find('.yt-status').text()).toContain('Could not generate')
+    await wrapper.find('.yt-status-action').trigger('click')
     await flushPromises()
     expect(mockPost).toHaveBeenCalledWith({ url: '/v1/youtube_article/retry', body: { bookmark_uid: 'ub-1' } })
   })
@@ -161,7 +161,7 @@ describe('YoutubeAiArticle', () => {
     routeGet([state({ status: 'limit_reached' })])
     const wrapper = mount()
     await flushPromises()
-    expect(wrapper.find('.yt-ai-status').text()).toContain('Daily limit reached')
+    expect(wrapper.find('.yt-status').text()).toContain('Daily limit reached')
   })
 
   it('a visitor reading another language gets a note', async () => {
@@ -290,7 +290,7 @@ describe('YoutubeAiArticle', () => {
     expect(wrapper.text()).toContain('Could not load the article.')
 
     routeGet([ready()])
-    await wrapper.find('.yt-ai-action').trigger('click')
+    await wrapper.find('.yt-status-action').trigger('click')
     await flushPromises()
     expect(wrapper.find('.yt-ai-body').text()).toContain('Body text.')
     expect(wrapper.text()).not.toContain('Could not load the article.')

@@ -46,6 +46,8 @@ export interface RunnerDeps {
   model: ArticleModel
   /** Adds one call's estimated cost to the site-wide daily spend. */
   addCost: (usd: number) => Promise<void>
+  /** Write the ready article into the body of every bookmark that takes it. Returns the count. */
+  publishBodies: (articleId: number) => Promise<number>
 }
 
 export type RunnerOutcome = 'ready' | 'not_claimed' | 'gone' | 'skipped' | 'failed' | 'retry' | 'superseded'
@@ -72,6 +74,7 @@ interface StoredChunk {
 const DB_STEP = { retries: { limit: 3, delay: '5 seconds', backoff: 'exponential' as const }, timeout: '1 minute' }
 const CHUNK_STEP = { retries: { limit: 2, delay: '30 seconds', backoff: 'exponential' as const }, timeout: '5 minutes' }
 const ASSEMBLE_STEP = { retries: { limit: 2, delay: '10 seconds', backoff: 'exponential' as const }, timeout: '3 minutes' }
+const PUBLISH_STEP = { retries: { limit: 3, delay: '30 seconds', backoff: 'exponential' as const }, timeout: '5 minutes' }
 
 function log(event: string, p: YoutubeArticleWorkflowParams, extra: Record<string, unknown> = {}) {
   // ids, hashes and counts only; never caption or article text
@@ -270,6 +273,13 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
     }
     await step.do('drop-chunks', DB_STEP, () => deletePrefix(deps, youtubeArticleChunkPrefix(p.videoId, p.sourceHash, p.targetLanguage, p.promptVersion)))
     log('ready', p, { cost_usd: assembled.quality.cost_usd, paragraphs: assembled.quality.metrics.paragraphs })
+    try {
+      const bookmarks = await step.do('publish-body', PUBLISH_STEP, () => deps.publishBodies(p.articleId))
+      log('bodies_published', p, { bookmarks })
+    } catch (err) {
+      // The article is ready and served below the body; the owner's next status request writes the body
+      log('bodies_failed', p, { error: (err instanceof Error ? err.message : String(err)).slice(0, 120) })
+    }
     return 'ready'
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

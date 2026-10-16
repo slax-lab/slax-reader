@@ -3,8 +3,7 @@ import type { LazyInstance } from '@/decorators/lazy'
 import { ContextManager } from '@/utils/context'
 import { BookmarkService } from '@/domain/bookmark'
 import { LabService } from '@/domain/lab'
-import { SearchService } from '@/domain/search'
-import { BookmarkRepo } from '@/infra/repository/dbBookmark'
+import { MediaBodyService } from '@/domain/mediaBody'
 import { UserRepo } from '@/infra/repository/dbUser'
 import { RedisClient } from '@/infra/repository/redisClient'
 import { BucketClient } from '@/infra/repository/bucketClient'
@@ -95,8 +94,7 @@ export class PodcastService {
     @inject(PodcastEpisodeRepo) private episodes: PodcastEpisodeRepo,
     @inject(PodcastArticleRepo) private articles: PodcastArticleRepo,
     @inject(BookmarkService) private bookmarkService: BookmarkService,
-    @inject(BookmarkRepo) private bookmarkRepo: BookmarkRepo,
-    @inject(SearchService) private searchService: SearchService,
+    @inject(MediaBodyService) private bodies: MediaBodyService,
     @inject(LabService) private labService: LabService,
     @inject(UserRepo) private userRepo: UserRepo,
     @inject(RedisClient) private redis: LazyInstance<RedisClient>,
@@ -315,7 +313,12 @@ export class PodcastService {
 
   // ---------- bodies ----------
 
-  /** Write the ready original-language article into the body of every bookmark of the episode. */
+  /**
+   * Write the ready original-language article into the body of every bookmark of the episode.
+   * Unlike YouTube, marks do not keep the old body: the podcast's first body is only the player and
+   * show notes, the transcript exists nowhere else on the page, and the page has no "article below
+   * the body" fallback. Marks on the show notes lose their anchor; that is the accepted trade-off.
+   */
   public async publishBodies(ctx: ContextManager, sourceId: string): Promise<number> {
     const ep = await this.episodes.findBySourceId(sourceId)
     const lang = podcastLanguage(ep?.language)
@@ -348,22 +351,9 @@ export class PodcastService {
     return { html: renderPodcastBody({ info, article: { doc, version: this.versionOf(row), cues: transcript.cues } }), text: renderPodcastText({ info, doc }) }
   }
 
-  /**
-   * Replace one bookmark's body objects in place (same keys), then its word count and search index.
-   * The cached AI overview was made from the show notes: it is deleted, so it is made again from the article.
-   */
+  /** The cached AI overview was made from the show notes: writeBody deletes it, so it is made again from the article. */
   private async writeBody(ctx: ContextManager, bookmarkId: number, userId: number, body: { html: string; text: string }): Promise<boolean> {
-    const bookmark = await this.bookmarkService.getBookmarkById(bookmarkId)
-    if (!bookmark?.content_key || bookmark.moderation_result > 0) return false
-    const bucket = this.bucket().R2Bucket
-    await bucket.put(bookmark.content_key, body.html)
-    if (bookmark.content_md_key) await bucket.put(bookmark.content_md_key, body.text)
-    await this.bookmarkRepo.updateBookmarkWordCount(bookmarkId, body.text.length)
-    await this.bookmarkRepo.deleteBookmarkSummary(bookmarkId, userId)
-    const results = await this.searchService.addSearchRecord(ctx, bookmarkId, bookmark.title || '', body.text).catch(err => [{ status: 'rejected' as const, reason: err }])
-    const rejected = (results ?? []).filter(r => r.status === 'rejected')
-    if (rejected.length) console.error(`Podcast body search index failed for bookmark ${bookmarkId}: ${rejected.length} part(s)`)
-    return true
+    return this.bodies.writeBody(ctx, bookmarkId, userId, body)
   }
 
   /** Transcript moderation hit: every bookmark of the episode is flagged and loses its share, like a crawl hit. */

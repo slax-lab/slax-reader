@@ -403,6 +403,10 @@ export interface YoutubeArticleState {
   can_retry: boolean
   article_url: string | null
   updated_at: string | null
+  /** 'article': the body holds, or will hold, this viewer's article. 'transcript': marks keep the body as it is, so the article shows below it */
+  body_mode?: 'article' | 'transcript'
+  /** The bookmark body holds this viewer's article now */
+  body_ready?: boolean
 }
 
 /** Structured article, /v1/youtube_article/content. Rendered with text bindings only, never as HTML. */
