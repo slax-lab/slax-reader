@@ -11,7 +11,7 @@ try {
   modules = await Promise.all(['happy-dom', 'parse5'].map(name => import(pathToFileURL(require.resolve(name, {paths})).href)));
 } catch {}
 const options = {skip: modules ? false : 'Existing HTML5 parser and DOM test runtime are unavailable'};
-const template = await readFile(new URL('../../assets/embedded/html/error.html', import.meta.url), 'utf8');
+const template = await readFile(new URL('../../../../packages/reader-embed/assets/html/error.html', import.meta.url), 'utf8');
 const adapter = await readFile(new URL('../../fixtures/source-android/SourceReaderAdapter.kt', import.meta.url), 'utf8');
 const predicate = adapter.match(/return probeDocument\(html, """(\(function\(\)\{var root=document\.querySelector\('\.slax-reader-notfound-container'\)[\s\S]*?)"""\)/)?.[1];
 assert.ok(predicate, 'The regression evaluates the actual source adapter readiness predicate');

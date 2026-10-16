@@ -1,3 +1,4 @@
+import {readerCompatibilityPlugin} from '../../../../packages/reader-embed/compatibility.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
@@ -42,7 +43,7 @@ function fixturePdf(count = 12, passwordProtected = false) {
 }
 
 test('PDF WebView document uses real worker, bounded pages, exact selections, local resources and isolated transport', {skip: !chromium || !existsSync(chrome), timeout: 60000}, async () => {
-  const runtime = await build({entryPoints: [new URL('../../src/reader/pdf-runtime.ts', import.meta.url).pathname], bundle: true, write: false, platform: 'browser', format: 'iife', target: ['safari16.4', 'chrome110'], minify: true, legalComments: 'inline'});
+  const runtime = await build({plugins: [readerCompatibilityPlugin(new URL('../../src/reader/', import.meta.url).pathname)], entryPoints: [new URL('../../src/reader/pdf-runtime.ts', import.meta.url).pathname], bundle: true, write: false, platform: 'browser', format: 'iife', target: ['safari16.4', 'chrome110'], minify: true, legalComments: 'inline'});
   const assets = JSON.parse(readFileSync(new URL('../../assets/pdf/bundle.json', import.meta.url), 'utf8'));
   assert.equal(assets.script, runtime.outputFiles[0].text, 'Generated PDF assets must contain the current extracted runtime');
   const output = await build({entryPoints: [new URL('../../src/reader/pdf-document.ts', import.meta.url).pathname], bundle: true, write: false, platform: 'node', format: 'esm',

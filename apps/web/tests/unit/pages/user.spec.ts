@@ -73,6 +73,10 @@ beforeEach(() => {
   mockAnalyticsLog.mockClear()
   mockToastShowToast.mockClear()
   labFeatures = []
+  // useState is shared across mounts in one nuxt app, so clear what an earlier case loaded
+  const labs = useLabFeatures()
+  labs.features.value = []
+  labs.loaded.value = false
   mockGet.mockImplementation(dispatchGet)
 })
 
@@ -204,7 +208,7 @@ describe('pages/user', () => {
 
     it.each([false, true])('omits hidden-only Labs and safely handles the deep link when enabled=%s', async enabled => {
       mockRoute.hash = '#labs'
-      labFeatures = ['youtube', 'pdf'].map(key => ({ key, status: 'active', enabled, enabled_at: enabled ? '2026-09-08T00:00:00.000Z' : null }))
+      labFeatures = ['youtube'].map(key => ({ key, status: 'active', enabled, enabled_at: enabled ? '2026-09-08T00:00:00.000Z' : null }))
       const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView')
       const wrapper = mountWithApp(UserPage, { global: { stubs } })
       await flushPromises()
@@ -216,6 +220,16 @@ describe('pages/user', () => {
       expect(mockGet).toHaveBeenCalledWith({ url: '/v1/user/labs' })
       expect(scroll).not.toHaveBeenCalled()
       scroll.mockRestore()
+    })
+
+    it('shows the Labs card and Features navigation when PDF is the only visible row', async () => {
+      labFeatures = ['youtube', 'pdf'].map(key => ({ key, status: 'active', enabled: false, enabled_at: null }))
+      const wrapper = mountWithApp(UserPage, { global: { stubs } })
+      await flushPromises()
+      expect(wrapper.find('#labs').exists()).toBe(true)
+      expect(wrapper.find('.settings-nav a[href="#features"]').exists()).toBe(true)
+      expect(wrapper.findAll('#labs .lab-row')).toHaveLength(1)
+      expect(wrapper.find('#labs .lab-name span').text()).toBe('PDF bookmarks')
     })
 
     it('opens the existing Labs deep link after a delayed visible Labs response', async () => {

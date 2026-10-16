@@ -318,6 +318,9 @@ importers:
       ua-parser-js:
         specifier: ^2.0.10
         version: 2.0.10
+      unpdf:
+        specifier: 1.8.1
+        version: 1.8.1(@napi-rs/canvas@1.0.10)
       vue:
         specifier: 3.5.42
         version: 3.5.42(typescript@6.0.3)
@@ -466,6 +469,9 @@ importers:
       '@slax-reader/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@slax-reader/reader-embed':
+        specifier: workspace:*
+        version: link:../../packages/reader-embed
       expo:
         specifier: 57.0.27
         version: 57.0.27(3810eaa9a3af0e9da91ef1c32c23eed3)
@@ -980,6 +986,15 @@ importers:
       '@types/lodash-es':
         specifier: ^4.17.12
         version: 4.17.12
+
+  packages/reader-embed:
+    dependencies:
+      '@slax-reader/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      pdfjs-dist:
+        specifier: 6.4.299
+        version: 6.4.299
 
   packages/selection:
     dependencies:

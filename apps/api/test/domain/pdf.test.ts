@@ -1,9 +1,17 @@
 import { describe, expect, it, vi } from 'vitest'
-import { PDF_MAX_BYTES, bookmarkContentType, pdfMetadataAuthor, pdfByteRange, pdfResponseHeaders, validatePdfSources } from '@slax-reader/contracts/pdf'
-import { extractPdfText, pdfHash, readPdfBody } from '../../src/utils/pdf'
+import { PDF_MAX_BYTES, bookmarkContentType, pdfMetadataAuthor, pdfMetadataTitle, pdfByteRange, pdfResponseHeaders, validatePdfSources } from '@slax-reader/contracts/pdf'
+import { extractPdfText, extractPdfMetadata, pdfHash, readPdfBody } from '../../src/utils/pdf'
 import { pdfFixture } from '../helpers/pdfFixture'
 
 describe('PDF ingestion and extraction', () => {
+  it('reads Unicode metadata before text extraction and prefers XMP over document-info Title', async () => {
+    expect(await extractPdfMetadata(pdfFixture(['Text'], [], '文档 标题'))).toMatchObject({ title: '文档 标题' })
+    expect(await extractPdfMetadata(pdfFixture(['Text'], [], 'Info Title', undefined, ' 真正的 XMP 标题 '))).toMatchObject({ title: '真正的 XMP 标题' })
+    expect(await extractPdfText(pdfFixture(['Text'], [], 'Info Title', undefined, 'XMP Title'))).toMatchObject({ title: 'XMP Title' })
+    expect(await extractPdfMetadata(pdfFixture(['Text'], [], ' Info Title ', undefined, ' '))).toMatchObject({ title: 'Info Title' })
+    expect(await extractPdfMetadata(new TextEncoder().encode('%PDF-invalid'))).toEqual({})
+  })
+
   it('extracts document-info authors alongside text, including image-only pages', async () => {
     expect(await extractPdfText(pdfFixture(['Hello'], [], 'Paper', ' Jane Doe; John Smith '))).toMatchObject({ title: 'Paper', author: 'Jane Doe; John Smith', status: 'ready' })
     expect(await extractPdfText(pdfFixture([''], [], undefined, 'Jane Doe'))).toMatchObject({ author: 'Jane Doe', status: 'empty' })
@@ -23,7 +31,6 @@ describe('PDF ingestion and extraction', () => {
     expect(result.pages).toBe(2)
     expect(result.text).toContain('## Page 1\n\nHello PDF')
     expect(result.text).toContain('## Page 2\n\nSecond page')
-
   })
   it('reports scans with no text and parse failures explicitly', async () => {
     expect(await extractPdfText(pdfFixture(['']))).toMatchObject({ text: '', status: 'empty', pages: 1 })
@@ -33,14 +40,29 @@ describe('PDF ingestion and extraction', () => {
     const chunk = new Uint8Array(512 * 1024)
     chunk.set(new TextEncoder().encode('%PDF-1.7'))
     let count = 0
-    const body = new ReadableStream<Uint8Array>({ pull(controller) { count++ < 100 ? controller.enqueue(chunk) : controller.close() } })
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        count++ < 100 ? controller.enqueue(chunk) : controller.close()
+      }
+    })
     expect((await readPdfBody(body, String(PDF_MAX_BYTES))).byteLength).toBe(PDF_MAX_BYTES)
     await expect(readPdfBody(new Response(chunk).body, String(PDF_MAX_BYTES + 1))).rejects.toThrow()
     await expect(readPdfBody(new Response(chunk).body, '100')).rejects.toThrow()
   })
   it('cancels invalid bodies and rejects empty content', async () => {
     const cancel = vi.fn()
-    await expect(readPdfBody(new ReadableStream({ start(c) { c.enqueue(new TextEncoder().encode('not a PDF')); c.close() }, cancel }), '9')).rejects.toThrow()
+    await expect(
+      readPdfBody(
+        new ReadableStream({
+          start(c) {
+            c.enqueue(new TextEncoder().encode('not a PDF'))
+            c.close()
+          },
+          cancel
+        }),
+        '9'
+      )
+    ).rejects.toThrow()
     await expect(readPdfBody(new Response('').body, '0')).rejects.toThrow()
   })
   it('cancels a stalled upload at its deadline', async () => {
@@ -52,11 +74,21 @@ describe('PDF ingestion and extraction', () => {
       await vi.advanceTimersByTimeAsync(100)
       await assertion
       expect(cancel).toHaveBeenCalled()
-    } finally { vi.useRealTimers() }
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 
 describe('PDF contracts', () => {
+  it('normalizes metadata title precedence, empty values and length without changing filenames', () => {
+    expect(pdfMetadataTitle('  XMP\n 标题  ', 'Info')).toBe('XMP 标题')
+    expect(pdfMetadataTitle(' \u0000 ', ' Info\tTitle ')).toBe('Info Title')
+    expect(pdfMetadataTitle(undefined, ' ')).toBeUndefined()
+    expect(pdfMetadataTitle({}, 'Fallback')).toBe('Fallback')
+    expect(pdfMetadataTitle('a'.repeat(600), undefined)).toHaveLength(500)
+  })
+
   it('normalizes XMP author lists, prefers them to Info Author, and tolerates missing metadata', () => {
     expect(pdfMetadataAuthor([' Jane\nDoe ', 'John Smith', null], 'Fallback')).toBe('Jane Doe, John Smith')
     expect(pdfMetadataAuthor('XMP Author', 'Info Author')).toBe('XMP Author')
@@ -65,12 +97,27 @@ describe('PDF contracts', () => {
     expect(pdfMetadataAuthor('a'.repeat(600), undefined)?.length).toBe(500)
   })
 
-  it.each([[0, 'article'], [1, 'shortcut'], [2, 'pdf']])('maps persisted type %s', (type, name) => expect(bookmarkContentType(Number(type))).toBe(name))
-  it.each([['bytes=2-4', { offset: 2, length: 3 }], ['bytes=-4', { offset: 6, length: 4 }], ['bytes=7-', { offset: 7, length: 3 }], ['bytes=0-99', { offset: 0, length: 10 }]])('handles range %s', (value, range) => expect(pdfByteRange(String(value), 10)).toEqual(range))
+  it.each([
+    [0, 'article'],
+    [1, 'shortcut'],
+    [2, 'pdf']
+  ])('maps persisted type %s', (type, name) => expect(bookmarkContentType(Number(type))).toBe(name))
+  it.each([
+    ['bytes=2-4', { offset: 2, length: 3 }],
+    ['bytes=-4', { offset: 6, length: 4 }],
+    ['bytes=7-', { offset: 7, length: 3 }],
+    ['bytes=0-99', { offset: 0, length: 10 }]
+  ])('handles range %s', (value, range) => expect(pdfByteRange(String(value), 10)).toEqual(range))
   it.each(['bytes=10-', 'bytes=4-2', 'bytes=-0', 'bytes=0-1,4-5', 'bytes=90071992547409930-'])('rejects %s', value => expect(() => pdfByteRange(value, 10)).toThrow())
   it('returns private inline PDF headers with safe filenames', () => {
     const headers = pdfResponseHeaders('test\r\n.pdf', 10, { offset: 2, length: 3 })
-    expect(headers).toMatchObject({ 'Content-Type': 'application/pdf', 'Content-Length': '3', 'Content-Range': 'bytes 2-4/10', 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' })
+    expect(headers).toMatchObject({
+      'Content-Type': 'application/pdf',
+      'Content-Length': '3',
+      'Content-Range': 'bytes 2-4/10',
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff'
+    })
     expect(headers['Content-Disposition']).not.toContain('\r')
   })
   it('validates geometry and identity, preserving the legacy shape', () => {

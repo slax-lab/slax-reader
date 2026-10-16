@@ -32,15 +32,19 @@ PDF bookmarks SHALL be an active, disabled-by-default per-user Labs feature. The
 
 ### Requirement: PDF title uses embedded metadata when available
 
-PDF extraction SHALL prefer a nonempty XMP `dc:title`, then document-info `Title`, and fall back to the filename. It SHALL prefer XMP `dc:creator`, including author lists, then document-info `Author`, and save usable author text in the existing byline. Missing authors SHALL remain empty; creation software SHALL NOT be substituted for an author. Metadata read failure SHALL not prevent preview or text extraction. User alias titles SHALL remain unchanged. The client MAY supplement missing author display from metadata of its already-loaded PDF without changing persisted data.
+PDF extraction SHALL prefer a nonempty XMP `dc:title`, then document-info `Title`, then a confidently identified selectable first-page heading, and finally fall back to the filename. First-page detection SHALL be bounded, exclude rotated margin text and ordinary body paragraphs, and join adjacent aligned title lines. Ambiguous or unavailable headings SHALL retain the filename fallback. Cached explicit saves SHALL refresh discoverable titles from immutable stored bytes without replacing the file or modifying user aliases. It SHALL prefer XMP `dc:creator`, including author lists, then document-info `Author`, and save usable author text in the existing byline. Missing authors SHALL remain empty; creation software SHALL NOT be substituted for an author. Metadata read failure SHALL not prevent preview or text extraction. User alias titles SHALL remain unchanged. The client MAY supplement missing author display from metadata of its already-loaded PDF without changing persisted data.
 
 #### Scenario: Embedded title is available
 - **WHEN** a PDF with a metadata title completes extraction
 - **THEN** the bookmark base title uses the normalized metadata title instead of the filename
 
 #### Scenario: PDF has no embedded title
-- **WHEN** metadata is absent or unreadable
+- **WHEN** metadata is absent or unreadable and no first-page heading can be confidently identified
 - **THEN** the bookmark retains a filename-derived title and its normal extraction state
+
+#### Scenario: Visible title exists without title metadata
+- **WHEN** a selectable first-page title is prominent above body text but embedded title fields are empty
+- **THEN** the bookmark uses the complete visible heading and excludes a rotated margin identifier
 
 ### Requirement: PDF preview displays source and available authors
 
@@ -53,6 +57,10 @@ After client detail loading, the PDF header SHALL display available author metad
 #### Scenario: Uploaded PDF source
 - **WHEN** an uploaded PDF detail is loaded
 - **THEN** its source shows local upload, its filename, and any available author without exposing a synthetic link
+
+#### Scenario: Source and title spacing
+- **WHEN** a PDF detail shows its source badge above the title
+- **THEN** the badge uses the same size, shape and weight as the web-article source badge, and the same divider and spacing separate it from the title as in an HTML article
 
 #### Scenario: Scanned PDF author metadata
 - **WHEN** a scanned PDF has author metadata but no selectable text
@@ -265,6 +273,22 @@ PDF upload, preview, selection actions, and notes SHALL follow the existing read
 #### Scenario: Selection actions follow the passage
 - **WHEN** the owner selects PDF text with a mouse, touch, or keyboard
 - **THEN** highlight/comment actions appear beside the mouse release or selection endpoint, stay within the visual viewport, follow the selected passage when scrolling, and hide while the passage is outside the viewport
+
+#### Scenario: Selection actions survive the release click
+- **WHEN** the owner drags to select PDF text, pauses for longer than the selection debounce, and then releases the mouse
+- **THEN** the actions do not open while the button is held, open shortly after release, and are not dismissed by the click the release generates, so highlight, comment, copy and ask-AI can be chosen
+
+#### Scenario: Selected PDF text uses the article selection color
+- **WHEN** the reader selects text on a PDF page
+- **THEN** the selection is painted with the same selection color as article text in the light, dark and e-ink themes, the page glyphs stay readable through it (in e-ink as a translucent overlay rather than an opaque fill), and it no longer uses the browser's system accent color
+
+#### Scenario: Drag ends outside the reader
+- **WHEN** the owner releases the pointer outside the PDF reader or the window loses focus during a drag
+- **THEN** the selection is still captured once and no pointer hold is left active
+
+#### Scenario: Control rail switches show their state without color alone
+- **WHEN** the PDF control rail is expanded
+- **THEN** original colors and page gaps are switches with a fixed label whose knob position and filled track show the state, exposed as `role="switch"` with `aria-checked`, built from the Web theme tokens including radius and matching the Settings switch, and any open or hover motion is skipped when the user has asked for reduced motion
 
 #### Scenario: H5 notes and keyboard
 - **WHEN** the owner opens a selection's notes and focuses the composer on H5

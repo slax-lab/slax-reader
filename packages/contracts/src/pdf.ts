@@ -3,6 +3,21 @@ export type BookmarkContentType = 'article' | 'shortcut' | 'pdf'
 export const bookmarkContentType = (type: number): BookmarkContentType => type === 2 ? 'pdf' : type === 1 ? 'shortcut' : 'article'
 export const isPdfContentKey = (key?: string | null): boolean => !!key?.startsWith('pdf/body/') && key.endsWith('.pdf')
 
+export interface PdfUploadResult {
+  bookmark_id: number
+  bookmark_uid: string
+  /** Older servers may omit the title. */
+  title?: string
+}
+
+/** Use the same document title for collection feedback and persisted bookmarks. */
+export function pdfMetadataTitle(xmp: unknown, info: unknown): string | undefined {
+  const normalize = (value: unknown) => typeof value === 'string'
+    ? value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500) || undefined
+    : undefined
+  return normalize(xmp) || normalize(info)
+}
+
 /** Prefer document authors in XMP over the document-info fallback. */
 export function pdfMetadataAuthor(creator: unknown, author: unknown): string | undefined {
   const normalize = (value: unknown): string | undefined => {

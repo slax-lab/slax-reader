@@ -66,6 +66,8 @@ export enum MessageTypeAction {
   QueryHTMLContent = 'query-html-content',
   OpenWelcome = 'open-welcome-tab',
   ShowCollectPopup = 'show-collect-popup',
+  ShowPdfCollectPopup = 'show-pdf-collect-popup',
+  PdfCollectSurfaceUpdate = 'pdf-collect-surface-update',
   HideCollectPopup = 'hide-collect-popup',
   QueryBookmarkChange = 'query-bookmark-change',
   CheckLogined = 'check-logined',

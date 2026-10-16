@@ -1,7 +1,7 @@
 import type {PowerSyncCredentials} from '@powersync/common';
 import {SessionChangedError} from '../domain/session.ts';
 import type {SessionAuthority} from '../domain/session.ts';
-import {jwtTiming, SYNC_MAX_LIFETIME_MS, syncTokenExpiresAt} from '../domain/token-policy.ts';
+import {jwtTiming, SYNC_EXPECTED_LIFETIME_SECONDS, syncTokenExpiresAt} from '../domain/token-policy.ts';
 import {throwIfAborted} from '../utils/abort.ts';
 import {PreferenceStore, PREFERENCE_KEYS as K} from './preferences.ts';
 import {uploadPendingTransactions} from './uploader.ts';
@@ -41,7 +41,7 @@ export function createSyncConnector(api: SlaxApi, preferences: PreferenceStore, 
         const credentials = {endpoint: localEndpoint ?? received.endpoint, token: received.token, expiresAt: expiration ?? undefined};
         if (!credentials.endpoint || !expiration) throw new Error('Invalid or expired synchronization credentials');
         const timing = jwtTiming(received.token)!;
-        if (timing.iat !== undefined && (timing.exp - timing.iat) * 1000 !== SYNC_MAX_LIFETIME_MS) console.warn('sync_credential_lifetime_contract_mismatch', {issuedLifetimeSeconds: timing.exp - timing.iat});
+        if (timing.iat !== undefined && timing.exp - timing.iat !== SYNC_EXPECTED_LIFETIME_SECONDS) console.warn('sync_credential_lifetime_contract_mismatch', {issuedLifetimeSeconds: timing.exp - timing.iat});
         let accepted = false;
         await preferences.update(next => {
           check(); accepted = next[K.token] === session.token && next[K.userId] === session.userId;

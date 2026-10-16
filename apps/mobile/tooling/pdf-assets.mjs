@@ -1,4 +1,5 @@
 import {build, transform} from 'esbuild';
+import {readerCompatibilityPlugin} from '../../../packages/reader-embed/compatibility.mjs';
 import {createRequire} from 'node:module';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -36,7 +37,7 @@ const key=url=>{if(typeof url!=='string'||!url.startsWith('slax-pdf-resource:'))
 globalThis.__slaxPdfResourceBytes=url=>decode(resources[key(url)]);
 const modules=new Map();globalThis.__slaxPdfResourceModule=url=>{const k=key(url);if(!k.endsWith('_fallback.js'))throw Error('Blocked module');if(!modules.has(k))modules.set(k,URL.createObjectURL(new Blob([decode(resources[k])],{type:'text/javascript'})));return modules.get(k)};`;
 const workerBundle = await transform(resourceHook + worker, {minify: true, format: 'esm', target: ['safari16.4', 'chrome110'], legalComments: 'inline'});
-const viewer = await build({entryPoints: [join(mobile, 'src/reader/pdf-runtime.ts')], bundle: true, write: false,
+const viewer = await build({plugins: [readerCompatibilityPlugin(join(mobile, 'src/reader'))], entryPoints: [join(mobile, 'src/reader/pdf-runtime.ts')], bundle: true, write: false,
   format: 'iife', platform: 'browser', target: ['safari16.4', 'chrome110'], minify: true, legalComments: 'inline'});
 const asset = {version, script: viewer.outputFiles[0].text, worker: workerBundle.code, resources};
 const json = JSON.stringify(asset);

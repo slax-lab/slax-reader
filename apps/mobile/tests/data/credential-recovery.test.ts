@@ -118,21 +118,23 @@ test('offline and timeout refresh failures retain typed fallback during backoff;
   }
 });
 
-test('scoped PowerSync accepts UUID subjects distinct from encoded login ids and reports the real five-minute contract', async context => {
+for (const lifetime of [86399, 86400, 300]) {
+test(`scoped PowerSync preserves ownership and diagnoses the ${lifetime}-second signed lifetime`, async context => {
   const storage = new MemoryPreferences(sessionValues()), preferences = new PreferenceStore(storage);
   const sessions = new SessionController(preferences, {enter: async () => {}, leave: async () => {}}, () => 1000);
   await sessions.restore(); let calls = 0;
   const warning = context.mock.method(console, 'warn', () => {});
-  const token = testJwt('00000000-0000-4000-8000-000000000001', 1300, 1000);
+  const token = testJwt('00000000-0000-4000-8000-000000000001', 1000 + lifetime, 1000);
   const api = {options: {baseUrl: 'https://api.example'}, getSyncToken: async () => {calls++; return {endpoint: 'https://sync.example', token};}} as unknown as SlaxApi;
   const connector = createSyncConnector(api, preferences, sessions, undefined, () => 1000000);
-  assert.equal((await connector.fetchCredentials())?.expiresAt?.getTime(), 1300000);
-  assert.deepEqual(warning.mock.calls[0].arguments, ['sync_credential_lifetime_contract_mismatch', {issuedLifetimeSeconds: 300}]);
+  assert.equal((await connector.fetchCredentials())?.expiresAt?.getTime(), (1000 + lifetime) * 1000);
+  assert.deepEqual(warning.mock.calls.map(call => call.arguments), lifetime === 86399 ? [] : [['sync_credential_lifetime_contract_mismatch', {issuedLifetimeSeconds: lifetime}]]);
   connector.resume(); assert.equal((await connector.fetchCredentials())?.token, token); assert.equal(calls, 1);
   await preferences.update(values => {values.powersync_user_id = 'other';});
   connector.resume(); await connector.fetchCredentials(); assert.equal(calls, 2);
   api.options.baseUrl = 'https://other.example'; connector.resume(); await connector.fetchCredentials(); assert.equal(calls, 3);
 });
+}
 
 test('restore after local unauthenticated publication preserves snapshot and identity guards', async () => {
   const sessions = new SessionController(new PreferenceStore(new MemoryPreferences()), {enter: async () => {}, leave: async () => {}});
