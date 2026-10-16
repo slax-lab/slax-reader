@@ -40,7 +40,7 @@ describe('useLabFeatures', () => {
   })
 
   describe('Settings visibility', () => {
-    it.each(['youtube', 'pdf'])('hides %s only from Settings', async key => {
+    it.each(['youtube'])('hides %s only from Settings', async key => {
       const feature = { key, status: 'active' as const, enabled: true, enabled_at: '2026-09-08T00:00:00.000Z' }
       mockGet.mockResolvedValue({ features: [feature] })
       const labs = useLabFeatures()
@@ -52,7 +52,7 @@ describe('useLabFeatures', () => {
       expect(mockPost).not.toHaveBeenCalled()
     })
 
-    it.each(['rss', 'future-feature'])('keeps %s eligible for Settings', key => {
+    it.each(['rss', 'pdf', 'future-feature'])('keeps %s eligible for Settings', key => {
       expect(isLabVisibleInSettings(key)).toBe(true)
     })
   })

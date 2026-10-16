@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 
 import CollectPopup from '@/components/Collect.vue'
+import { mountPdfCollectSurface } from '@/utils/pdfSurface'
 import SidePanel from '@/components/SidePanel.vue'
 
 import { MessageTypeAction } from '@/config/message'
@@ -26,6 +27,7 @@ export default defineContentScript({
   runAt: 'document_idle',
   cssInjectionMode: 'ui',
   async main(ctx) {
+    const isPdf = location.protocol === 'file:' || document.contentType?.split(';', 1)[0].trim().toLowerCase() === 'application/pdf'
     const localeClient = initializeLocaleClient()
     const stopRelay = startLocaleRelay()
     let invalidated = false
@@ -61,6 +63,7 @@ export default defineContentScript({
         container.style.position = 'fixed'
         container.style.visibility = 'visible'
         container.style.zIndex = '99999999999'
+        if (isPdf) return mountPdfCollectSurface(container)
         const app = createApp(CollectPopup, {
           browser
         })
@@ -76,13 +79,18 @@ export default defineContentScript({
 
     // Register the probe as soon as the collector can receive commands. The sidebar may
     // still be initializing, and SPA navigations need a reply without remounting this UI.
-    const onReadyProbe = (message: unknown, _sender: Browser.runtime.MessageSender, sendResponse: (response: { ready: boolean }) => void) => {
+    const onReadyProbe = (message: unknown, _sender: Browser.runtime.MessageSender, sendResponse: (response: { ready: boolean; kind: 'html' | 'pdf' }) => void) => {
       if ((message as { action?: string } | null)?.action !== MessageTypeAction.ContentScriptReady) return false
-      sendResponse({ ready: true })
+      sendResponse({ ready: true, kind: isPdf ? 'pdf' : 'html' })
       return false
     }
     browser.runtime.onMessage.addListener(onReadyProbe)
     ctx.onInvalidated(() => browser.runtime.onMessage.removeListener(onReadyProbe))
+
+    if (isPdf) {
+      void browser.runtime.sendMessage({ action: MessageTypeAction.ContentScriptReady }).catch(() => {})
+      return
+    }
 
     const panelUI = await createShadowRootUi(ctx, {
       name: 'slax-reader-panel',

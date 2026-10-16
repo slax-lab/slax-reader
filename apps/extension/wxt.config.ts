@@ -74,13 +74,11 @@ export default defineConfig({
     key: EXTENSION_KEYS[env as keyof typeof EXTENSION_KEYS] ?? EXTENSION_KEYS.development,
     description: 'An AI-powered browser extension that generates outlines and highlights key points to enhance your web reading experience.',
     default_locale: 'en',
-    permissions: ['storage', 'tabs', 'activeTab', 'sidePanel', 'cookies', 'contextMenus', 'alarms', 'offscreen', 'webRequest'],
-    host_permissions: (
-      {
-        production: ['https://*.slax.app/', 'https://*.slax.com/'],
-        beta: ['https://*.slax.app/', 'https://*.slax.com/']
-      } as Record<string, string[]>
-    )[env] ?? developmentHostPermissions,
+    permissions: ['storage', 'tabs', 'activeTab', 'scripting', 'sidePanel', 'cookies', 'contextMenus', 'alarms', 'offscreen', 'webRequest'],
+    host_permissions: [...(({
+      production: ['https://*.slax.app/', 'https://*.slax.com/'],
+      beta: ['https://*.slax.app/', 'https://*.slax.com/']
+    } as Record<string, string[]>)[env] ?? developmentHostPermissions), 'file:///*'],
     content_security_policy: {
       extension_pages: "script-src 'self'; object-src 'self'"
     },
@@ -98,9 +96,10 @@ export default defineConfig({
       '48': 'icon/48.png',
       '128': 'icon/128.png'
     },
+    web_accessible_resources: [{ resources: ['pdf-save.html'], matches: ['<all_urls>'] }],
     minimum_chrome_version: '115',
     commands: {
-      open_collect: {
+      _execute_action: {
         suggested_key: {
           default: 'Alt+Y',
           mac: 'Alt+Y',

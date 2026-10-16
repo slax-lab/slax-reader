@@ -114,7 +114,7 @@ export class BrowserService {
   }
 
   private static async isContentScriptReady(tab: Browser.tabs.Tab): Promise<boolean> {
-    if (tab.id == null || !tab.url || (!tab.url.startsWith('http://') && !tab.url.startsWith('https://'))) return false
+    if (tab.id == null || !tab.url || (!tab.url.startsWith('http://') && !tab.url.startsWith('https://') && !tab.url.startsWith('file:'))) return false
     if (this.readyTabIds.has(tab.id)) return true
     await this.readyTabsTransition
     const stored = await browser.storage.session.get(CONTENT_SCRIPT_READY_TABS)
@@ -173,15 +173,26 @@ export class BrowserService {
 
   static async openCollectPopup(tab: Browser.tabs.Tab, command = 'open_collect', authService: AuthSession): Promise<void> {
     if (command !== 'open_collect') return
+    tab = { ...tab }
     try {
-      if (!(await authService.checkLogin())) {
-        console.info('[collect] login required')
+      const { configurePdfAction, openPdfAction, openPdfSave } = await import('./pdfOperations')
+      if (tab.url?.startsWith('file:') && !(await browser.extension.isAllowedFileSchemeAccess())) {
+        await openPdfAction(tab)
         return
       }
-      if (!(await this.waitForContentScript(tab))) {
-        console.warn('[collect] content script not ready', { tabId: tab.id })
-        return
+      if (!/^(https?:\/\/|file:)/.test(tab.url || '')) { await openPdfAction(tab); return }
+      let ready = await this.waitForContentScript(tab)
+      if (!ready && tab.id != null) {
+        try {
+          await browser.scripting.executeScript({ target: { tabId: tab.id, frameIds: [0] }, files: ['/content-scripts/content.js'] })
+          ready = await this.waitForContentScript(tab)
+        } catch { /* Restricted sources still use the anchored toolbar recovery UI. */ }
       }
+      if (!ready) { await openPdfAction(tab); return }
+      const probe = await browser.tabs.sendMessage(tab.id!, { action: MessageTypeAction.ContentScriptReady })
+      await configurePdfAction(tab)
+      if (probe?.kind === 'pdf' || tab.url?.startsWith('file:')) { await openPdfSave(tab); return }
+      if (!(await authService.checkLogin())) return
       await browser.tabs.sendMessage(tab.id!, { action: MessageTypeAction.ShowCollectPopup })
       analytics.track('click_extension_collect')
     } catch (error) {

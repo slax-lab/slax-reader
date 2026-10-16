@@ -318,6 +318,9 @@ importers:
       ua-parser-js:
         specifier: ^2.0.10
         version: 2.0.10
+      unpdf:
+        specifier: 1.8.1
+        version: 1.8.1(@napi-rs/canvas@1.0.10)
       vue:
         specifier: 3.5.42
         version: 3.5.42(typescript@6.0.3)
