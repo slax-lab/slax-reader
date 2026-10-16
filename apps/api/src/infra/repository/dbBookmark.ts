@@ -508,7 +508,11 @@ export class BookmarkRepo {
     return await this.prismaPg().sr_bookmark.update({ where: { id: bmId }, data: { updated_at: new Date(), ...info } })
   }
 
-  public async completePdfBookmark(bookmarkId: number, info: bookmarkParsePO, documentId: string) {
+  public async updatePdfMetadata(bookmarkId: number, info: { title: string; byline?: string }) {
+    return await this.prismaPg().sr_bookmark.update({ where: { id: bookmarkId }, data: { ...info, updated_at: new Date() } })
+  }
+
+  public async completePdfBookmark(bookmarkId: number, info: Pick<bookmarkParsePO, 'status'> & Partial<bookmarkParsePO>, documentId: string) {
     return this.prismaPg().$transaction(async tx => {
       await tx.sr_bookmark.update({ where: { id: bookmarkId }, data: { ...info, updated_at: new Date() } })
       const relations = await tx.sr_user_bookmark.findMany({ where: { bookmark_id: bookmarkId }, select: { id: true, metadata: true } })

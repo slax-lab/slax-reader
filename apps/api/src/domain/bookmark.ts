@@ -1,5 +1,5 @@
-import { bookmarkContentType, isPdfContentKey, PDF_MAX_BYTES, pdfByteRange, pdfResponseHeaders, type PdfDescriptor } from '@slax-reader/contracts/pdf'
-import { readPdfBody, pdfFilename, pdfHash, extractPdfText, hasPdfSignature, PdfSaveInProgressError } from '@/utils/pdf'
+import { bookmarkContentType, isPdfContentKey, PDF_MAX_BYTES, pdfByteRange, pdfResponseHeaders, type PdfDescriptor, type PdfUploadResult } from '@slax-reader/contracts/pdf'
+import { readPdfBody, pdfFilename, pdfHash, extractPdfText, extractPdfMetadata, hasPdfSignature, PdfSaveInProgressError } from '@/utils/pdf'
 import { publicFetch } from '@/utils/publicFetch'
 import type { MarkDetail } from '@slax-reader/contracts'
 import type { BookmarkExportResponse, AddBookmarkRequest as addBookmarkReq, AddUrlBookmarkRequest as addUrlBookmarkReq } from '@slax-reader/contracts'
@@ -583,14 +583,16 @@ export class BookmarkService {
       // A competing request owns this file and its cleanup; never overwrite it.
       if (!saved) throw new PdfSaveInProgressError()
     }
+    let title = filename.replace(/\.pdf$/i, '')
     try {
-      const result = extract ? await extractPdfText(bytes) : { text: '', pages: 0, status: 'pending' as const, title: undefined, author: undefined }
+      const result = extract ? await extractPdfText(bytes) : { ...(await extractPdfMetadata(bytes)), text: '', pages: 0, status: 'pending' as const }
+      title = result.title || title
       if (result.text) await bucket.put(textKey, result.text, { httpMetadata: { contentType: 'text/plain; charset=utf-8' } })
       await bucket.put(stateKey, JSON.stringify({ text_status: result.status, pages: result.pages }), { httpMetadata: { contentType: 'application/json' } })
       await this.bookmarkRepo.completePdfBookmark(
         bookmarkId,
         {
-          title: result.title || filename.replace(/\.pdf$/i, ''),
+          title,
           byline: result.author || '',
           content_key: key,
           content_md_key: result.text ? textKey : '',
@@ -607,6 +609,7 @@ export class BookmarkService {
       throw error
     }
     await this.searchService.clearSearchCache(ctx, ctx.getUserId())
+    return title
   }
 
   /** Existing files are immutable so saved page anchors retain their identity. */
@@ -629,19 +632,23 @@ export class BookmarkService {
           bookmark.content_key
         )
       } else {
-        await object.body.cancel()
+        // An explicit cached save must also repair filename titles produced by
+        // older extractors, without downloading or replacing the original PDF.
+        const metadata = await readPdfBody(object.body, String(object.size))
+          .then(extractPdfMetadata)
+          .catch(() => ({}) as { title?: string; author?: string })
         await this.bookmarkRepo.completePdfBookmark(
           bookmarkId,
           {
-            content_key: bookmark.content_key,
-            content_md_key: bookmark.content_md_key,
-            content_word_count: bookmark.content_word_count,
-            status: queueStatus.SUCCESS,
-            published_at: bookmark.published_at,
-            site_name: bookmark.site_name
+            ...(metadata.title ? { title: metadata.title } : {}),
+            ...(metadata.author ? { byline: metadata.author } : {}),
+            // Leave extraction fields untouched: a concurrent workflow may
+            // have completed since this bookmark snapshot was read.
+            status: queueStatus.SUCCESS
           },
           object.customMetadata?.sha256 || ''
         )
+        if (metadata.title && metadata.title !== bookmark.title) await this.searchService.clearSearchCache(ctx, ctx.getUserId())
       }
       return true
     }
@@ -693,7 +700,7 @@ export class BookmarkService {
     return true
   }
 
-  public async uploadPdf(ctx: ContextManager, request: Request) {
+  public async uploadPdf(ctx: ContextManager, request: Request): Promise<PdfUploadResult> {
     await this.labService.assertEnabled(ctx, 'pdf')
     let filename: string
     try {
@@ -713,12 +720,22 @@ export class BookmarkService {
     if (!bookmark) throw CreateBookmarkFailError()
     const relation = await this.bookmarkRepo.getUserBookmarkWithDetail(bookmark.id, ctx.getUserId())
     if (!relation) throw BookmarkNotFoundError()
+    let title = bookmark.title || filename.replace(/\.pdf$/i, '')
     if (!isPdfContentKey(bookmark.content_key)) {
       try {
-        await this.persistPdf(ctx, bookmark.id, relation.uuid, bytes, filename, 'upload', false)
+        title = await this.persistPdf(ctx, bookmark.id, relation.uuid, bytes, filename, 'upload', false)
       } catch (error) {
         if (!(error instanceof PdfSaveInProgressError)) await this.bookmarkRepo.updateBookmarkStatus(bookmark.id, queueStatus.FAILED)
         throw error
+      }
+    } else {
+      // Explicitly saving the same bytes also repairs older filename titles,
+      // without replacing files, extraction state or the user's alias.
+      const metadata = await extractPdfMetadata(bytes)
+      if (metadata.title && metadata.title !== title) {
+        title = metadata.title
+        await this.bookmarkRepo.updatePdfMetadata(bookmark.id, { title, ...(metadata.author ? { byline: metadata.author } : {}) })
+        await this.searchService.clearSearchCache(ctx, ctx.getUserId())
       }
     }
     const descriptor = await this.getPdfDescriptor(bookmark.content_key || `pdf/body/${relation.uuid}.pdf`, relation.uuid)
@@ -730,7 +747,7 @@ export class BookmarkService {
         ctx
       )
     }
-    return { bookmark_id: ctx.hashIds.encodeId(bookmark.id), bookmark_uid: relation.uuid }
+    return { bookmark_id: ctx.hashIds.encodeId(bookmark.id), bookmark_uid: relation.uuid, title }
   }
 
   public async bookmarkArchive(ctx: ContextManager, bmId: number, status: string) {

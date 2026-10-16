@@ -25,7 +25,7 @@ vi.mock('~/components/Toast', () => ({
 }))
 
 const rss = () => ({ key: 'rss', status: 'active', enabled: false, enabled_at: null })
-const hiddenFeatures = (enabled = false) => ['youtube', 'pdf'].map(key => ({ key, status: 'active', enabled, enabled_at: enabled ? '2026-09-08T00:00:00.000Z' : null }))
+const hiddenFeatures = (enabled = false) => ['youtube'].map(key => ({ key, status: 'active', enabled, enabled_at: enabled ? '2026-09-08T00:00:00.000Z' : null }))
 
 const mountSection = async (features: unknown[]) => {
   mockGet.mockResolvedValue({ features })
@@ -64,8 +64,8 @@ describe('UserLabSection', () => {
   })
 
   it('renders RSS and omits hidden and untranslated features', async () => {
-    const [youtube, pdf] = hiddenFeatures()
-    const wrapper = await mountSection([youtube, rss(), pdf, { ...rss(), key: 'no_such_feature' }])
+    const [youtube] = hiddenFeatures()
+    const wrapper = await mountSection([youtube, rss(), { ...rss(), key: 'no_such_feature' }])
     expect(wrapper.find('#labs.settings-card').exists()).toBe(true)
     expect(wrapper.find('.title').text()).toBe('Labs')
     expect(wrapper.find('.intro').text()).toContain('still rough')
@@ -76,7 +76,15 @@ describe('UserLabSection', () => {
     expect(rows[0]!.find('.lab-desc').text()).toContain('Browse your feeds')
     expect(rows[0]!.find('.switch-toggle').classes()).not.toContain('on')
     expect(wrapper.text()).not.toContain('YouTube videos')
-    expect(wrapper.text()).not.toContain('PDF bookmarks')
+  })
+
+  it('renders the PDF bookmarks row and toggles it', async () => {
+    const wrapper = await mountSection([{ key: 'pdf', status: 'active', enabled: false, enabled_at: null }])
+    const row = wrapper.find('.lab-row')
+    expect(row.find('.lab-name span').text()).toBe('PDF bookmarks')
+    await row.find('button').trigger('click')
+    await flushPromises()
+    expect(mockPost).toHaveBeenCalledWith({ url: '/v1/user/setting/enable', body: { key: 'lab:pdf' } })
   })
 
   it.each([
@@ -91,7 +99,6 @@ describe('UserLabSection', () => {
     expect(wrapper.find('.lab-row').exists()).toBe(false)
     expect(labs.features.value).toEqual(original)
     expect(labs.isEnabled('youtube')).toBe(enabled)
-    expect(labs.isEnabled('pdf')).toBe(enabled)
     expect(mockPost).not.toHaveBeenCalled()
   })
 

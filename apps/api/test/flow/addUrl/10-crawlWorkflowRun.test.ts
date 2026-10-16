@@ -39,7 +39,9 @@ vi.mock('@/utils/context', () => ({
   ContextManager: vi.fn().mockImplementation((_ctx: any, env: any) => {
     let userId = 0
     return {
-      setUserInfo: vi.fn((id: number) => { userId = id }),
+      setUserInfo: vi.fn((id: number) => {
+        userId = id
+      }),
       getUserId: () => userId,
       setHashIds: vi.fn(),
       env,
@@ -198,7 +200,11 @@ describe('CrawlWorkflow fetch step 状态转换', () => {
     expect(bs.capturePdf).toHaveBeenCalled()
     expect(cs.fetchRegular).not.toHaveBeenCalled()
     expect(cs.parseAndSaveContent).not.toHaveBeenCalled()
-    expect(uph.processPostHandler).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ textContent: expect.stringContaining('Page 1') }))
+    expect(uph.processPostHandler).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ title: 'PDF', textContent: expect.stringContaining('Page 1') })
+    )
   })
   test('PDF scans finish capture without dispatching empty text to post-processing AI', async () => {
     const { wf, cs, bs, uph } = wireWorkflow()
@@ -404,7 +410,10 @@ describe('CrawlWorkflow weixin 路由', () => {
   test('PDF Labs rejection is terminal, marks the pending save failed, and skips fault alerts and HTML parsing', async () => {
     const { wf, bs, cs, uph } = wireWorkflow()
     bs.capturePdf.mockRejectedValue(new MultiLangError(ErrorName.LAB_FEATURE_DISABLED, 400, { en: 'PDF bookmarks are still in Labs' }))
-    await expect(runWorkflow(wf, { url: 'https://example.com/download' })).rejects.toMatchObject({ name: 'NonRetryableError', message: expect.stringContaining('pdf_lab_disabled:') })
+    await expect(runWorkflow(wf, { url: 'https://example.com/download' })).rejects.toMatchObject({
+      name: 'NonRetryableError',
+      message: expect.stringContaining('pdf_lab_disabled:')
+    })
     expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
     expect(cs.pushBookmarkFailureAlert).not.toHaveBeenCalled()
     expect(cs.fetchRegular).not.toHaveBeenCalled()

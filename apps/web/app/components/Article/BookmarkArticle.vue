@@ -11,7 +11,7 @@
       />
       <PdfDocumentSource v-if="isPdf && detail.pdf" :pdf="detail.pdf" :url="detail.target_url"
         :site-name="detail.site_name" :host-url="detail.host_url" :author="pdfAuthor" />
-      <div v-if="!isPdf" class="article-divider" />
+      <div v-if="!isPdf || detail.pdf" class="article-divider" />
       <h1 class="article-title" :title="title">{{ title }}</h1>
       <BookmarkTags
         v-if="effAllowTagged"

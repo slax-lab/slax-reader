@@ -5,15 +5,30 @@ vi.mock('@/handler/http/mcpController', () => ({ McpServerController: class {} }
 import { BookmarkService } from '../../src/domain/bookmark'
 import { publicFetch } from '../../src/utils/publicFetch'
 import { pdfFixture } from '../helpers/pdfFixture'
+import { pdfWithVisibleTitle, visiblePdfTitle } from '../helpers/pdfTitleFixture'
 import { createMockCtx } from '../helpers/mockFactory'
 import { getRouter } from '@/di/generated/readerRouter'
 import { LabService } from '@/domain/lab'
 
 function wire() {
   const bytes = pdfFixture()
-  const object = () => ({ size: bytes.length, customMetadata: { filename: 'test.pdf', sha256: 'a'.repeat(64), source: 'url', text_status: 'ready' }, body: new Response(bytes).body, text: vi.fn() })
-  const bucket = { head: vi.fn().mockResolvedValue(null), get: vi.fn().mockImplementation(async (key: string) => key.startsWith('pdf/meta/') ? { json: async () => ({ text_status: 'ready', pages: 1 }) } : object()), put: vi.fn().mockResolvedValue({}), delete: vi.fn().mockResolvedValue(undefined) }
-  const repo = { getBookmarkById: vi.fn().mockResolvedValue({ content_key: '' }), completePdfBookmark: vi.fn().mockResolvedValue(undefined) }
+  const object = () => ({
+    size: bytes.length,
+    customMetadata: { filename: 'test.pdf', sha256: 'a'.repeat(64), source: 'url', text_status: 'ready' },
+    body: new Response(bytes).body,
+    text: vi.fn()
+  })
+  const bucket = {
+    head: vi.fn().mockResolvedValue(null),
+    get: vi.fn().mockImplementation(async (key: string) => (key.startsWith('pdf/meta/') ? { json: async () => ({ text_status: 'ready', pages: 1 }) } : object())),
+    put: vi.fn().mockResolvedValue({}),
+    delete: vi.fn().mockResolvedValue(undefined)
+  }
+  const repo = {
+    getBookmarkById: vi.fn().mockResolvedValue({ content_key: '' }),
+    completePdfBookmark: vi.fn().mockResolvedValue(undefined),
+    updatePdfMetadata: vi.fn().mockResolvedValue(undefined)
+  }
   const labRepo = { isEnabled: vi.fn().mockResolvedValue(true) }
   const labs = new (LabService as any)(labRepo) as LabService
   const service = Object.assign(Object.create(BookmarkService.prototype), {
@@ -41,6 +56,45 @@ describe('PDF bookmark persistence', () => {
     vi.mocked(publicFetch).mockImplementation(async () => new Response(pdfFixture(['Hello'], [], 'Actual Paper Title'), { headers: { 'Content-Type': 'application/pdf' } }))
     await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://example.com/1234.pdf')
     expect(repo.completePdfBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ title: 'Actual Paper Title' }), expect.anything())
+  })
+  it('persists a visible first-page title when the online PDF has empty metadata', async () => {
+    const { service, repo } = wire()
+    vi.mocked(publicFetch).mockImplementation(async () => new Response(pdfWithVisibleTitle(), { headers: { 'Content-Type': 'application/pdf' } }))
+    await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://arxiv.org/pdf/2406.00845')
+    expect(repo.completePdfBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ title: visiblePdfTitle }), expect.anything())
+  })
+  it('repairs a cached filename title from the stored PDF without refetching or replacing any object', async () => {
+    const { service, bucket, repo } = wire()
+    const bytes = pdfWithVisibleTitle()
+    repo.getBookmarkById.mockResolvedValue({ title: '2406.00845', content_key: 'pdf/body/saved.pdf', content_md_key: 'text/pdf/saved.txt', content_word_count: 999 })
+    bucket.head.mockResolvedValue({ size: bytes.length, customMetadata: { filename: '2406.00845.pdf' } })
+    bucket.get.mockImplementation(async (key: string) =>
+      key.startsWith('pdf/meta/')
+        ? { json: async () => ({ text_status: 'ready', pages: 10 }) }
+        : { size: bytes.length, customMetadata: { filename: '2406.00845.pdf', sha256: 'a'.repeat(64) }, body: new Response(bytes).body }
+    )
+    expect(await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://arxiv.org/pdf/2406.00845')).toBe(true)
+    expect(repo.completePdfBookmark).toHaveBeenCalledWith(10, { title: visiblePdfTitle, status: 'success' }, 'a'.repeat(64))
+    const update = repo.completePdfBookmark.mock.calls[0][1]
+    expect(update).not.toHaveProperty('alias_title')
+    expect(update).not.toHaveProperty('content_md_key')
+    expect(update).not.toHaveProperty('content_word_count')
+    expect(publicFetch).not.toHaveBeenCalled()
+    expect(bucket.put).not.toHaveBeenCalled()
+    expect(bucket.delete).not.toHaveBeenCalled()
+    expect((service as any).searchService.clearSearchCache).toHaveBeenCalledOnce()
+  })
+  it('keeps cached titles and successful state if title discovery is unavailable', async () => {
+    const { service, bucket, repo } = wire()
+    const bytes = new TextEncoder().encode('%PDF-unreadable')
+    repo.getBookmarkById.mockResolvedValue({ title: 'Existing Title', content_key: 'pdf/body/saved.pdf', content_md_key: '' })
+    bucket.get.mockImplementation(async (key: string) =>
+      key.startsWith('pdf/meta/') ? { json: async () => ({ text_status: 'empty', pages: 1 }) } : { size: bytes.length, customMetadata: {}, body: new Response(bytes).body }
+    )
+    expect(await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://example.com/cached.pdf')).toBe(true)
+    expect(repo.completePdfBookmark.mock.calls[0][1]).not.toHaveProperty('title')
+    expect(repo.completePdfBookmark.mock.calls[0][1].status).toBe('success')
+    expect(bucket.put).not.toHaveBeenCalled()
   })
   it.each(['application/pdf', 'APPLICATION/PDF', 'application/pdf; charset=binary'])(
     'detects extensionless responses from %s and persists original plus AI text before type completion',
@@ -258,6 +312,56 @@ describe('PDF upload', () => {
       3,
       expect.anything()
     )
+  })
+  it('persists and returns the embedded title before the upload is acknowledged, with text still pending', async () => {
+    const { service, bucket, repo } = uploadWire()
+    bucket.get.mockResolvedValue({ json: async () => ({ text_status: 'pending', pages: 0 }) })
+    let saved: Uint8Array | undefined
+    bucket.put.mockImplementation(async (key: string, value: unknown) => {
+      if (key.endsWith('.pdf')) {
+        saved = new Uint8Array(value as Uint8Array)
+        bucket.head.mockResolvedValue({ size: saved.length, customMetadata: { source: 'upload', filename: 'download.pdf' } })
+      }
+      return {}
+    })
+    const bytes = pdfFixture(['Text is extracted later'], [], 'Info Title', undefined, ' 实际 PDF 标题 ')
+    const original = bytes.slice()
+    const ctx = createMockCtx({ userId: 7, hashIds: { encodeId: (id: number) => id + 1000 } })
+    const result = await service.uploadPdf(ctx, new Request('https://reader.test/upload?filename=download.pdf', { method: 'POST', body: bytes }))
+    expect(result).toEqual({ bookmark_id: 1010, bookmark_uid: 'saved', title: '实际 PDF 标题' })
+    expect(saved).toEqual(original)
+    expect(repo.completePdfBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ title: '实际 PDF 标题', content_md_key: '', status: 'success' }), expect.anything())
+    expect(repo.completePdfBookmark.mock.calls[0][1]).not.toHaveProperty('alias_title')
+    expect(bucket.put).toHaveBeenCalledWith('pdf/meta/saved.json', JSON.stringify({ text_status: 'pending', pages: 0 }), expect.anything())
+    expect((service as any).crawlService.createWorkflow).toHaveBeenCalledOnce()
+  })
+  it('keeps the stored title and user alias on duplicate upload instead of replacing them with a new filename', async () => {
+    const { service, create, bucket, object } = uploadWire(true)
+    create.mockResolvedValue({ id: 10, content_key: 'pdf/body/saved.pdf', title: 'Stored Metadata Title' })
+    bucket.head.mockResolvedValue(object())
+    const result = await service.uploadPdf(createMockCtx(), new Request('https://reader.test/upload?filename=other-name.pdf', { method: 'POST', body: pdfFixture() }))
+    expect(result.title).toBe('Stored Metadata Title')
+    expect(bucket.put).not.toHaveBeenCalled()
+  })
+  it('repairs an older filename title on explicit duplicate save without replacing bytes or extraction state', async () => {
+    const { service, create, bucket, repo, object } = uploadWire(true)
+    create.mockResolvedValue({ id: 10, content_key: 'pdf/body/saved.pdf', title: 'download' })
+    bucket.head.mockResolvedValue(object())
+    const result = await service.uploadPdf(
+      createMockCtx(),
+      new Request('https://reader.test/upload?filename=download.pdf', { method: 'POST', body: pdfFixture(['Text'], [], 'Actual Paper Title', 'Jane Doe') })
+    )
+    expect(result.title).toBe('Actual Paper Title')
+    expect(repo.updatePdfMetadata).toHaveBeenCalledWith(10, { title: 'Actual Paper Title', byline: 'Jane Doe' })
+    expect(bucket.put).not.toHaveBeenCalled()
+    expect(repo.completePdfBookmark).not.toHaveBeenCalled()
+    expect((service as any).crawlService.createWorkflow).not.toHaveBeenCalled()
+  })
+  it('returns a filename fallback when metadata is unreadable without blocking original-file storage', async () => {
+    const { service, repo } = uploadWire()
+    const result = await service.uploadPdf(createMockCtx(), new Request('https://reader.test/upload?filename=fallback.pdf', { method: 'POST', body: '%PDF-invalid' }))
+    expect(result.title).toBe('fallback')
+    expect(repo.completePdfBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ title: 'fallback', content_md_key: '', status: 'success' }), expect.anything())
   })
   it('reuses duplicate uploads without replacing files or restarting completed extraction', async () => {
     const { service, bucket, object } = uploadWire(true)
