@@ -703,6 +703,13 @@ button:focus-visible, input:focus-visible, .pdfViewer:focus-visible { outline: 2
 :deep(.pdf-mark-hover .pdf-mark-line) { stroke: var(--slax-accent); }
 :deep(.pdf-mark-active .pdf-mark-fill), :deep(g:focus .pdf-mark-fill), :deep(.pdf-quote-flash) { fill: var(--slax-quote-highlight); }
 :deep(.pdfViewer .page) { color-scheme: light; }
+/* pdf.js paints text-layer selections with the system AccentColor (blue). Use the same --slax-selection as article
+   text. The layer's glyphs are transparent over the canvas, so only the background changes; pdf.js's own
+   `selectionRendering` state is left alone. */
+:deep(.textLayer:not(.selectionRendering) ::selection) { background: var(--slax-selection); }
+/* The layer sits above the canvas, so e-ink's opaque selection grey would hide the glyphs underneath: use the same
+   grey as a translucent ink overlay instead. */
+:global([data-slax-theme='eink'] .pdf-reader .textLayer:not(.selectionRendering) ::selection) { background: rgba(0, 0, 0, 0.13); }
 @media (max-width: 768px) {
   .pdf-control-rail { top: calc(var(--slax-header-h-mobile) + 12px); }
   .pdf-toolbar { width: 244px; max-width: calc(100vw - 68px - env(safe-area-inset-right, 0px)); max-height: calc(100dvh - var(--slax-header-h-mobile) - 100px); }

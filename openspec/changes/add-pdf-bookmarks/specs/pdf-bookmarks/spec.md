@@ -274,6 +274,10 @@ PDF upload, preview, selection actions, and notes SHALL follow the existing read
 - **WHEN** the owner drags to select PDF text, pauses for longer than the selection debounce, and then releases the mouse
 - **THEN** the actions do not open while the button is held, open shortly after release, and are not dismissed by the click the release generates, so highlight, comment, copy and ask-AI can be chosen
 
+#### Scenario: Selected PDF text uses the article selection color
+- **WHEN** the reader selects text on a PDF page
+- **THEN** the selection is painted with the same selection color as article text in the light, dark and e-ink themes, the page glyphs stay readable through it (in e-ink as a translucent overlay rather than an opaque fill), and it no longer uses the browser's system accent color
+
 #### Scenario: Drag ends outside the reader
 - **WHEN** the owner releases the pointer outside the PDF reader or the window loses focus during a drag
 - **THEN** the selection is still captured once and no pointer hold is left active
