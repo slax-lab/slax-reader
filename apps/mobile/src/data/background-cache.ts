@@ -26,6 +26,9 @@ export {PERSONAL_CACHE_SQL, COLLECTION_CACHE_SQL, LOCAL_CACHE_SQL} from './repos
 type PdfIntent = {task: Task; manual: boolean; completion?: Promise<void>};
 type LegacyEviction = {completion: Promise<void>; release: () => void};
 const PDF_BLOCK_BYTES = 256 * 1024;
+const COLLECTION_CONTEXT_PREFIX = 'collection:';
+const articleContext = (owner?: string) => owner ? `${COLLECTION_CONTEXT_PREFIX}${owner}` : 'personal';
+const articleContextOwner = (context: string) => context.startsWith(COLLECTION_CONTEXT_PREFIX) ? context.slice(COLLECTION_CONTEXT_PREFIX.length) : undefined;
 const abortError = () => Object.assign(new Error('PDF request cancelled'), {name: 'AbortError'});
 const denied = (error: unknown) => !!error && typeof error === 'object' && 'status' in error && [401, 403, 404, 412].includes(Number(error.status));
 function waitFor<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
@@ -477,7 +480,7 @@ export class BackgroundArticleCache {
     }
     for (const key of this.recovered) if (this.locals.get(key)?.downloaded) this.recovered.delete(key);
     this.retries.update(this.plan.tasks.keys(), this.networkReady);
-    this.resources.cancelQueued(identity => identity.kind === 'article' && !this.plan.tasks.has(bookmarkCacheKey(identity.resource, identity.context.startsWith('collection:') ? identity.context.slice(11) : undefined)));
+    this.resources.cancelQueued(identity => identity.kind === 'article' && !this.plan.tasks.has(bookmarkCacheKey(identity.resource, articleContextOwner(identity.context))));
     for (const key of this.reconsider) changed.add(key);
     this.reconsider.clear();
     for (const domain of ['personal', 'collection'] as const) {
@@ -569,7 +572,7 @@ export class BackgroundArticleCache {
     this.active(); throwIfAborted(signal);
     const key = bookmarkCacheKey(id, owner), body = this.articleBodies.get(key);
     if (body?.content !== undefined) return Promise.resolve().then(() => {this.active(); throwIfAborted(signal); return body.content!;});
-    return this.resources.acquire({identity: {kind: 'article', context: owner ? `collection:${owner}` : 'personal', resource: id},
+    return this.resources.acquire({identity: {kind: 'article', context: articleContext(owner), resource: id},
       host: this.options.apiOrigin ?? 'api', domain: owner ? 'collection' : 'personal', lane: 'body', run: async request => {
         const content = await this.options.content(id, owner, request); this.active(); throwIfAborted(request);
         const pending = this.articleBodies.get(key); if (pending) pending.content = content;

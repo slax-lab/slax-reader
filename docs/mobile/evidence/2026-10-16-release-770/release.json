@@ -1,0 +1,58 @@
+{
+  "kind": "slax-ios-release-evidence",
+  "change": "mobile-startup-offline-image-performance",
+  "version": "1.0.25",
+  "build": "770",
+  "previousBuild": "769",
+  "team": "8G3A932HJG",
+  "date": "2026-10-16",
+  "scope": [
+    "revert the build-769 sidebar settle (crashed on drag release) to the previous 300 ms Easing.inOut(Easing.ease) animation",
+    "flash-free PDF opening: the same header + skeleton covers the host until the restored visible page has painted (2 s fallback after ready), then fades out over 160 ms with reduced motion honored",
+    "prune expired staged image copies on reader mount and after sharing; shared collection cache-context helpers"
+  ],
+  "validation": {
+    "check": {
+      "tests": 1283,
+      "pass": 1283,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "log": "task worktree .local/release-770/check.log",
+      "note": "single full run as requested, before the build-number increment; the increment changes only package/native version metadata"
+    },
+    "typecheck": "tsc --noEmit passed",
+    "architecture": "203 modules, 0 violations",
+    "embeddedAssets": "generate-assets --check passed; PDF bundle regenerated for the runtime change",
+    "openspecValidate": "47/47 passed",
+    "gitDiffCheck": "passed",
+    "workletCompilation": "usePdfScrollHost and SourceDrawer compiled through the installed react-native-worklets Babel plugin: no worklet uses default parameters; the fade callback captures only runOnJS and setMounted",
+    "nativeMetadata": "build numbers 769→770 only (main/share CFBundleVersion, CURRENT_PROJECT_VERSION, Android versionCode and SlaxVersionCode); Podfile.lock unchanged"
+  },
+  "stages": {
+    "archive": {
+      "status": "succeeded",
+      "signedIPhoneOS": true,
+      "completedAt": "2026-10-16T08:13:50.491Z",
+      "report": ".local/release-770/reports/archive-report.json"
+    },
+    "export": {
+      "status": "succeeded",
+      "ipaSHA256": "0f7449446ff0d2cce03092d24a1353ad02b125ff8e3cc7e6350454b47923bb1f",
+      "completedAt": "2026-10-16T08:15:06.959Z",
+      "report": ".local/release-770/reports/export-report.json"
+    },
+    "upload": {
+      "status": "xcode-upload-command-succeeded",
+      "appleProcessing": "Xcode reported 'Uploaded package is processing' at 2026-10-16 08:18:16 UTC",
+      "report": ".local/release-770/reports/upload-report.json",
+      "testFlightProcessingConfirmed": false
+    }
+  },
+  "limitations": [
+    "App Store Connect completion of processing and TestFlight tester availability are not independently verified: no App Store Connect API credentials are available to local tooling.",
+    "The sidebar drag, PDF reveal timing and image long-press actions were not exercised on a physical device; the Android project was regenerated but not compiled or packaged.",
+    "dSYM upload warnings for prebuilt frameworks may limit symbolication of those frames.",
+    "Unrelated local EAS configuration was kept out of this build and commit."
+  ]
+}

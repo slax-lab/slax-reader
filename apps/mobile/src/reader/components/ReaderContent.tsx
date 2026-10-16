@@ -22,8 +22,8 @@ interface ContentProps {
 }
 export function ReaderContent({isPdf, isPreview, loading, html, pdfProps, htmlProps, hostKey, top, header, title, contentError, nativeFailure, rssError, t, reload, retryPdf, retryNative}: ContentProps) {
   return <>
-    {/* A PDF opens like an article: header first, body skeleton until its pages are ready; no loading label. */}
-    {isPdf ? pdfProps && !contentError ? <PdfWebView key={hostKey} {...pdfProps} placeholder={<ReaderSkeleton lines />} /> :
+    {/* A PDF opens like an article: the same header + skeleton covers the host until its first visible page is painted. */}
+    {isPdf ? pdfProps && !contentError ? <PdfWebView key={hostKey} {...pdfProps} placeholder={<ReaderSkeleton topSpacer={top + 44} header={title ? header : undefined} />} /> :
       loading && !contentError ? <ReaderSkeleton topSpacer={top + 44} header={title ? header : undefined} /> :
       <View style={styles.center} testID="reader-pdf-loading-or-error"><SourceText>{contentError || t('pdf_load_failed')}</SourceText><TextAction label={t('rss_retry')} onPress={retryPdf} /></View> :
       html !== null ? <ReaderWebView key={hostKey} {...htmlProps} /> :

@@ -7,6 +7,8 @@ export interface ImageActionPort {
   share(uri: string): Promise<void>
   feedback?(): void
   isPermissionDenied?(error: unknown): boolean
+  /** Removes expired staged copies left behind by earlier shares. */
+  prune?(): void
 }
 export type ImageActionNotice = 'saved' | 'save_failed' | 'save_permission' | 'share_failed'
 type Choice = 'save' | 'share'
@@ -36,6 +38,7 @@ export function useImageActions({port, resolveUri, isActive}: {
     setVisible(false); setRequest(null)
   }, [])
   useEffect(() => reset(), [resolveUri, reset])
+  useEffect(() => {try {current.current.port?.prune?.()} catch {}}, [port])
   useEffect(() => () => {work.current?.abort(); if (noticeTimer.current) clearTimeout(noticeTimer.current)}, [])
   const open = useCallback((source: string, surface: ImageActionSurface) => {
     if (!current.current.port || !current.current.isActive() || !source) return

@@ -13,7 +13,7 @@ Mobile's normal startup still carries legacy-discovery work, while automatic art
 - Automatically cache PDFs under the same eligibility, retention and cache-window policy as ordinary articles, with no standalone PDF offline-download button. Preserve integrity/access checks while improving offline metadata admission and coalescing full-body responses from servers that ignore Range.
 - Add the user-requested `expo-image` integration, reusable image/zoom presentation and continuous UI-thread gallery paging with bounded preparation and decoding.
 - Isolate draft/AI/document updates, virtualize comments, gate optional hidden-route work, incrementally refresh Markdown, and complete interruptible/reduced-motion behavior and immediate local-action feedback.
-- Open PDFs like articles (header first, then a body skeleton until pages are ready, with no PDF loading label), speed up sidebar settling, and add WeChat-style long-press Save to Photos / Share / Cancel actions for reader and gallery images.
+- Open PDFs like articles (header first, then a body skeleton until pages are ready, with no PDF loading label), and add WeChat-style long-press Save to Photos / Share / Cancel actions for reader and gallery images.
 - Validate the actual deliverable, increment the package build monotonically, upload a production-configured publisher-signed TestFlight build, push one feature branch/PR, and clean only task-owned build outputs after preserving delivery evidence.
 
 ## Capabilities

@@ -4,7 +4,6 @@ import vm from 'node:vm'
 import {readFile} from 'node:fs/promises'
 import {imageExportType, stagedImageExpired, stagedImageName} from '../../src/domain/image-export.ts'
 import {parseReaderMessage} from '../../src/reader/bridge.ts'
-import {drawerSettleDuration, motionDuration} from '../../src/motion/policy.ts'
 import {React, act, loadComponent, withNativeHost} from './parity-host.mjs'
 
 const bytes = values => Uint8Array.from(values)
@@ -69,14 +68,6 @@ test('in-document long press posts image actions and suppresses the following ta
   window.__SlaxReaderHost.teardown()
 })
 
-test('sidebar settle time covers only the remaining distance', () => {
-  assert.equal(motionDuration.drawer, 220)
-  assert.equal(drawerSettleDuration(0, 1), 220)
-  assert.equal(drawerSettleDuration(0.75, 1), 120, 'Short completions keep a minimum perceivable duration')
-  assert.equal(drawerSettleDuration(0.3, 1), 154)
-  assert.equal(drawerSettleDuration(1, 1), 0)
-})
-
 test('image actions start only after the sheet dismisses and report save results per surface', async () => withNativeHost(async host => {
   const {useImageActions} = await loadComponent('../../src/reader/state/useImageActions.ts', {react: React})
   const calls = [], gate = {}
@@ -113,4 +104,21 @@ test('image actions start only after the sheet dismisses and report save results
   await act(async () => state.share()); await act(async () => state.dismissed())
   active = false; release(); await host.settle()
   assert.equal(calls.some(([name]) => name === 'share'), false, 'A result after the account becomes inactive is discarded')
+}))
+
+test('image actions prune expired staged copies once per port and tolerate prune failures', async () => withNativeHost(async host => {
+  const {useImageActions} = await loadComponent('../../src/reader/state/useImageActions.ts', {react: React})
+  let prunes = 0, failing = false
+  const port = {async save() {}, async share() {}, prune() {prunes++; if (failing) throw new Error('disk')}}
+  const resolveUri = async uri => uri
+  let state
+  function Harness() {state = useImageActions({port, resolveUri, isActive: () => true}); return null}
+  await host.render(React.createElement(Harness))
+  await host.render(React.createElement(Harness))
+  assert.equal(prunes, 1, 'Re-rendering with the same port does not rescan the staging directory')
+  failing = true
+  const other = {...port}
+  function Replaced() {state = useImageActions({port: other, resolveUri, isActive: () => true}); return null}
+  await host.render(React.createElement(Replaced))
+  assert.equal(prunes, 2); assert.equal(state.visible, false, 'A failed prune never breaks the reader')
 }))

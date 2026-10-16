@@ -189,19 +189,15 @@ Cached readable content SHALL NOT wait for an unconditional animation timer or m
 
 ### Requirement: PDF documents open like articles
 
-A PDF reader SHALL present the article header as soon as it is available and show the ordinary article body skeleton beneath it until the PDF document reports ready, both while its descriptor is loading and while its pages initialize. The reader SHALL NOT show a PDF-specific loading label or centered loading spinner; genuine failures keep the existing retry presentation and assistive technology still receives a non-visual loading status.
+A PDF reader SHALL present the article header as soon as it is available and show the ordinary article body skeleton beneath it, with the same layout while its descriptor loads and while its pages initialize, until the page at the restored reading position has painted; the skeleton SHALL then fade out briefly (immediately with reduced motion) instead of exposing empty page slots, a restore jump or an unpainted frame. A bounded fallback SHALL reveal the document if painting is never reported. The reader SHALL NOT show a PDF-specific loading label or centered loading spinner; genuine failures keep the existing retry presentation and assistive technology still receives a non-visual loading status.
 
 #### Scenario: A PDF is opened
 - **WHEN** a user opens a PDF bookmark whose pages are not yet ready
 - **THEN** the title, metadata, tags and overview appear first and a body skeleton fills the reading area until the pages are ready, without a "Loading PDF" message
 
-### Requirement: Sidebar motion settles over the remaining distance
-
-The library sidebar SHALL settle with a short emphasized-decelerate motion whose duration scales with the distance remaining after a drag, remain interruptible from its in-flight position, and honor reduced motion.
-
-#### Scenario: The user releases a partially opened sidebar
-- **WHEN** a drag leaves the sidebar most of the way open and the user releases it
-- **THEN** it completes in proportionally less time than a full open, and a reversed gesture continues from the actual current position
+#### Scenario: PDF pages finish loading
+- **WHEN** the PDF reports ready and its restored visible page paints
+- **THEN** the skeleton fades into the painted page without the whole screen flashing, blanking or jumping, and touches reach the document once the fade starts
 
 ### Requirement: Reader images offer long-press save and share actions
 
