@@ -14,7 +14,7 @@ See proposal.md for motivation. The signer currently uses separate clock reads f
 
 - Read the current Unix time once, rounded down to whole seconds. Set `iat` to that value and `exp` to that value plus 86,399. This retains the requested one-second margin and avoids separate relative clock reads changing the signed lifetime across a second boundary.
 - Use a generated in-memory RSA test key and verify the actual signed token, including acceptance before expiration and rejection at expiration. Keep private test material out of files and logs.
-- Retain existing claims and response fields. No client update is required because both clients use the server's signed `exp`.
+- Retain existing claims and response fields. Both clients use the server's signed `exp`. Update the mobile diagnostic's expected issuance to 86,399 seconds separately from its 24-hour cache ceiling; preserve expiry handling for previously issued credentials.
 
 ## Risks / Trade-offs
 

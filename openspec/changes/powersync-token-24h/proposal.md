@@ -8,6 +8,7 @@ PowerSync credentials currently expire after five minutes, causing frequent cred
 
 - Set PowerSync JWT expiration to exactly 86,399 seconds after its issued-at timestamp, calculated from one clock reading.
 - Verify the signed token's lifetime, audience, subject, signing metadata, and expiration boundary with synthetic test keys.
+- Align the mobile credential lifetime diagnostic with 86,399-second issuance while retaining signed-expiry caching and its separate 24-hour ceiling.
 - Preserve login token policy and the existing sync endpoint response.
 
 ## Capabilities
@@ -22,4 +23,4 @@ None.
 
 ## Impact
 
-The implementation affects `apps/api/src/domain/orchestrator/sync.ts` and focused backend tests. Web and mobile clients already consume the signed expiry. There are no API shape, dependency, schema, configuration, or UI changes. Existing tokens retain their signed expiration; new tokens receive the new lifetime after deployment.
+The implementation affects backend token issuance, the mobile credential lifetime diagnostic, focused backend/mobile tests, and mobile compatibility documentation. Web and mobile clients continue consuming the signed expiry. There are no API shape, dependency, schema, configuration, or UI changes. Existing tokens retain their signed expiration; new tokens receive the new lifetime after deployment.

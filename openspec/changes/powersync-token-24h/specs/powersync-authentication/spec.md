@@ -21,3 +21,19 @@ The system SHALL issue PowerSync JWTs with integer Unix-second `iat` and `exp` c
 - **WHEN** a correctly signed PowerSync token is validated immediately before its expiration
 - **THEN** it is still valid
 - **AND** validation at or after expiration rejects the token as expired
+
+### Requirement: Mobile credential lifetime diagnostics match backend issuance
+
+The mobile client SHALL expect a signed lifetime of 86,399 seconds when checking newly acquired PowerSync credentials for contract drift. It SHALL continue reporting different signed lifetimes without changing actual signed-expiry validation, the pre-expiry safety window, account/origin ownership, or the independent 24-hour cache ceiling.
+
+#### Scenario: Expected issuance does not trigger a mismatch warning
+
+- **WHEN** the mobile client acquires a valid token whose `exp - iat` is 86,399 seconds
+- **THEN** it does not report a credential lifetime contract mismatch
+- **AND** it uses that token's signed expiration for its SDK credentials
+
+#### Scenario: A different issuance lifetime remains observable
+
+- **WHEN** the mobile client acquires a valid token whose signed lifetime is 300 or 86,400 seconds
+- **THEN** it reports the actual issued lifetime as a contract mismatch
+- **AND** it continues respecting that token's signed expiration and account/origin ownership
