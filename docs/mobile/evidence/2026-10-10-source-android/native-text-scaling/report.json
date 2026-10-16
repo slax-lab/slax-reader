@@ -1,0 +1,79 @@
+{
+  "kind": "compiled-native-font-scaling-check",
+  "schemaVersion": 1,
+  "result": "passed",
+  "comparisons": 196,
+  "originalComposeVersion": "1.11.2",
+  "nativeInputVerified": false,
+  "inputs": [
+    {
+      "path": "apps/mobile/modules/slax-platform/android/src/main/java/com/slax/reader/platform/SlaxTextScaling.kt",
+      "sha256": "f8c236d5dc8e3f1417b2327ee12548795bd651b85b3bcd9bd53a2e89f223331d"
+    },
+    {
+      "path": "apps/mobile/tests/ui/native-text-scaling-host.kt",
+      "sha256": "7596d05fe2a0c55a95cfd3c84550ed9463fc66cd1df92efbe737c4220d2dacea"
+    },
+    {
+      "path": "apps/mobile/tests/ui/native-text-scaling-host.mjs",
+      "sha256": "0167d40df8349a4e0b5aff392c013b4eb8e4501ae5fd97d7b1c74965d20d467b"
+    }
+  ],
+  "publicOriginalDependencies": [
+    {
+      "path": "/tmp/slax-source-ui-fixture-gradle-home/caches/8.13/transforms/2f69156d1ee848f6661f26e24ffbdf91/transformed/ui-unit/jars/classes.jar",
+      "sha256": "acbd2eaee145d5a1910ab9e5a56d35679fc26ff95110ae46c9dd36186edea8b8"
+    },
+    {
+      "path": "/tmp/slax-source-ui-fixture-gradle-home/caches/modules-2/files-2.1/androidx.collection/collection-jvm/1.5.0/7ba2c69414d46ebc2dd76598bdd0a75c54281a57/collection-jvm-1.5.0.jar",
+      "sha256": "70b35924e4babcdffa37d0e575ee039c56a2d97123342624c48b603233704341"
+    }
+  ],
+  "log": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/native-text-scaling/host-check.log",
+    "sha256": "338634cb334790c1ac096b6684ad16375c575d3b64756515acce82ba29bfde77"
+  },
+  "nativeCompilation": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/target-build-t.json",
+    "sha256": "6715c910f48bae5b9a53b0a77cae60216c39b2bfbbb0348c7cad9e87ccda76ef"
+  },
+  "method": "Compile the application converter and run JVM reflection against the installed pinned original Compose converter; do not compare copied expected tables.",
+  "fontScaleInputs": [
+    0.85,
+    1,
+    1.01,
+    1.03,
+    1.1,
+    1.15,
+    1.2,
+    1.3,
+    1.5,
+    1.65,
+    1.8,
+    2,
+    2.009,
+    2.4
+  ],
+  "spInputs": [
+    0,
+    5,
+    8,
+    11,
+    12,
+    15,
+    17,
+    20,
+    24,
+    30,
+    50,
+    100,
+    120,
+    -11
+  ],
+  "enlargedFontNativeVisualParity": "unverified",
+  "scopedEnlargedFontVisualEvidence": {
+    "path": "docs/mobile/evidence/2026-10-10-source-android/scoped-native-library-fontscale-1_5-y/report.json",
+    "sha256": "81e2eeb22471e5199084e8b12f3c88dc040a38695db72d93bb607723b5d7f9eb",
+    "result": "passed-for-listed-regions-only"
+  }
+}

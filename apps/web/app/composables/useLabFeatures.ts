@@ -9,7 +9,7 @@ import Toast, { ToastType } from '~/components/Toast'
 export const LAB_FEATURE_DISABLED = 'LAB_FEATURE_DISABLED'
 
 // YouTube AI articles need YouTube saving, so the row is hidden with it
-const HIDDEN_IN_SETTINGS = new Set(['youtube', 'youtube_article', 'pdf'])
+const HIDDEN_IN_SETTINGS = new Set(['youtube', 'youtube_article'])
 
 export const isLabVisibleInSettings = (key: string): boolean => !HIDDEN_IN_SETTINGS.has(key)
 

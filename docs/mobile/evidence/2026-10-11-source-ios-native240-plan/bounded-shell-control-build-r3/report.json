@@ -1,0 +1,63 @@
+{
+  "kind": "slax-original-ios-native240-bounded-build-preparation-receipt",
+  "version": 3,
+  "openSpec": "expo-mobile-migration",
+  "status": "prepared-host-guards-passed-no-native-execution",
+  "executorSHA256": "8bea9edba09f8468e1cb9cda85c99bc02feec162bf85b84f15e24cf760240a6e",
+  "inputsManifestSHA256": "6c22360986c860aeb4a6bf20b6ac78958d48258a45bae2f296c05f7b8cb77b9f",
+  "executionPlanSHA256": "1dd47ab030fea1c69c57b21dbe2e92761dc09aa2796cf3e8cff6715329942ab1",
+  "checks": [
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 apps/mobile/fixtures/source-ios/control/build-native-scroll.py",
+      "exitCode": 0,
+      "logSHA256": "0aaa12f3581a84c0807d76ec2ecb7120c3b2b5cbd777fb2f906e025b91110d46",
+      "result": {
+        "status": "prepared-closed-inputs-verified-no-command-execution",
+        "inputsSHA256": "6c22360986c860aeb4a6bf20b6ac78958d48258a45bae2f296c05f7b8cb77b9f",
+        "copyInputs": 113,
+        "compilerOrDeviceExecuted": false
+      }
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/guard-tests.py",
+      "exitCode": 0,
+      "passed": 8,
+      "skipped": 0,
+      "logSHA256": "391d46ec1bcabdb02d1be279331c9de904faf6c4dea9123a48ffc8245b708b80",
+      "guardSourceSHA256": "0d965c82b8178bbc414264b06e34cc600322a02420c5ccf31a24f052e6ee5e5d",
+      "nativeSubprocesses": "Popen patched to reject; actual executor allocation/file/resource logic checked on owned host files."
+    }
+  ],
+  "preparedInputCorrection": {
+    "oldManifestSHA256": "bd089bac61f4b4d515c09a36860e9ad8be8da5310bc6fdbf83930efdd6701129",
+    "newManifestSHA256": "6c22360986c860aeb4a6bf20b6ac78958d48258a45bae2f296c05f7b8cb77b9f",
+    "reason": "Use .app extension for the packaged source application; this was corrected before any native invocation.",
+    "historicalNativeEvidenceChanged": false
+  },
+  "resourceSnapshotBeforeAnyNativeAllocation": {
+    "freeBytes": 4545458176,
+    "timeUnixSeconds": 1791677655.061483,
+    "notAResourceGrant": true
+  },
+  "reviewPasses": {
+    "Bugs": "Self-audit corrected bundle destination and final failure reporting. Fresh output/hash closure, command groups, complete process deadline, sparse/allocated limits and report guard reviewed. Host tests do not prove native build success.",
+    "Security": "Only declared public inputs/tool binaries; no inherited operator environment, accounts, secrets, remote service or device commands. Allocation rejects changed tool/fixture/unknown fields; source and generated symlinks bounded.",
+    "Compliance": "expo-mobile-migration full native parity intent; reuse genuine original J Compose/WK implementation and canonical case, preserve all pending states. No transformed UI or requested-value acceptance."
+  },
+  "scope": {
+    "nativeCompilerExecuted": false,
+    "deviceCommandsExecuted": false,
+    "kmpRelink": false,
+    "productionSourceChanged": false,
+    "sourceClientChanged": false,
+    "uiStageChanged": false,
+    "metroChanged": false,
+    "native240Accepted": false,
+    "coverageOrSpecPromoted": false
+  },
+  "pending": [
+    "Root independent review and explicit native-build allocation.",
+    "Actual isolated Swift shell/XCTest build with bounded artifacts.",
+    "Separate signed-helper/device allocation, genuine native scroll and actual readonly evidence."
+  ]
+}

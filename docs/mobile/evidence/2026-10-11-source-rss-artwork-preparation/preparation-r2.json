@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "openSpec": "expo-mobile-migration",
+  "recordedAt": "2026-10-10T22:01:03.676318+00:00",
+  "status": "case-corrected-source-resource-preparation-and-closed-replay-passed-native-pending",
+  "priorReportSha256": "b520950ba6603e1580c11f0302ca228f9e0eb73ecae85ee845ce920e9515b382",
+  "priorAttempt": "First new replay test stopped on an incorrectly capitalized original helper metadata key before any native build. The actual pinned filename is WebviewHelper.android.kt. Prior inputs and failed test log are retained.",
+  "output": "/private/tmp/slax-source-ui-fixture-rss-resources-7d19bdd4c637",
+  "markerSha256": "1043da70fef8b30f26942e27fe2578c13802613884e4dc0bbc2601a15dfc3511",
+  "closedOverlayArchive": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-rss-artwork-preparation/source-inputs-r2",
+  "overlayFiles": 30,
+  "originalHelper": {
+    "path": "composeApp/src/androidMain/kotlin/com/slax/reader/utils/WebviewHelper.android.kt",
+    "sha256": "c587ba8de0fbf3eeba7a78e4de05d2cb20fcc381c7d8b606975138bd03b49917",
+    "bytes": 17963,
+    "gitStatus": "  ",
+    "role": "production-source-or-asset"
+  },
+  "derivative": {
+    "originalHelperPath": "composeApp/src/androidMain/kotlin/com/slax/reader/utils/WebviewHelper.android.kt",
+    "originalHelperSha256": "c587ba8de0fbf3eeba7a78e4de05d2cb20fcc381c7d8b606975138bd03b49917",
+    "controlledHelperPath": "composeApp/src/fixtureMain/kotlin/FixtureWebViewHelper.android.kt",
+    "controlledHelperSha256": "f3f16b35692c30137370ded0f564e8eba8cbf88b7e0e4bd16eea47309583905a",
+    "exactInsertion": "                        com.slax.reader.fixtures.FixtureReaderResources.intercept(request)?.let { return it }\n",
+    "declaredHttpsImagesOnly": true,
+    "otherHttpRequestsDeniedLocally": true,
+    "internetPermissionAdded": false,
+    "nativeResourceExecution": "pending"
+  },
+  "closedReplayPassed": true,
+  "nativeBuildPerformed": false,
+  "nativeResourceExecution": "pending"
+}

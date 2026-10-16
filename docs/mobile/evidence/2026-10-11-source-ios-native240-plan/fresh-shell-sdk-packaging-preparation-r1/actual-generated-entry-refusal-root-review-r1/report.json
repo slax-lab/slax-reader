@@ -1,0 +1,1530 @@
+{
+  "kind": "root-actual-source-fresh-shell-r1-generated-entry-refusal",
+  "version": 1,
+  "openSpecChange": "expo-mobile-migration",
+  "rawRecords": [
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/fresh-shell-sdk-packaging-preparation-r1/actual-generated-entry-refusal-root-review-r1/raw/failure.json",
+      "bytes": 2930,
+      "sha256": "38f31f734d6d76db5466f4e3cfffc3eb57c64e7433204a20f166f3ca97b0d851"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/fresh-shell-sdk-packaging-preparation-r1/actual-generated-entry-refusal-root-review-r1/raw/compile-fresh-shell.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/fresh-shell-sdk-packaging-preparation-r1/actual-generated-entry-refusal-root-review-r1/raw/compile-fresh-shell.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/fresh-shell-sdk-packaging-preparation-r1/actual-generated-entry-refusal-root-review-r1/raw/root-build-allocation.json",
+      "bytes": 1323,
+      "sha256": "0a82fd1e0c5cc15a7a6db4f31ac3a9bc6f09b1254822dd4e0dba971ae8f8f7d7"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/fresh-shell-sdk-packaging-preparation-r1/actual-generated-entry-refusal-root-review-r1/raw/root-preexecution-review.json",
+      "bytes": 1254,
+      "sha256": "46a3fece607f13cb3d5f89abc26b38579f7a5c14d8f08e429ba2cd99c9c68cbc"
+    }
+  ],
+  "elapsedSeconds": 1.536292333,
+  "commands": [
+    {
+      "label": "compile-fresh-shell",
+      "argv": [
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+        "-parse-as-library",
+        "-swift-version",
+        "5",
+        "-target",
+        "arm64-apple-ios16.4-simulator",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk",
+        "-module-cache-path",
+        "/private/tmp/slax-source-fresh-shell-build-460d8701-3eb5-4443-9cd6-a415c2b8e07c/swift-module-cache",
+        "-Xcc",
+        "-fmodules-cache-path=/private/tmp/slax-source-fresh-shell-build-460d8701-3eb5-4443-9cd6-a415c2b8e07c/swift-module-cache",
+        "-F",
+        "/private/tmp/slax-source-ui-fixture-ios-j/composeApp/build/bin/iosSimulatorArm64/debugFramework",
+        "-framework",
+        "SlaxSourceFixture",
+        "-framework",
+        "UIKit",
+        "-framework",
+        "Foundation",
+        "-framework",
+        "WebKit",
+        "-Xlinker",
+        "-rpath",
+        "-Xlinker",
+        "@executable_path/Frameworks",
+        "-Xlinker",
+        "-platform_version",
+        "-Xlinker",
+        "ios-simulator",
+        "-Xlinker",
+        "16.4",
+        "-Xlinker",
+        "26.5",
+        "/private/tmp/slax-source-fresh-shell-build-460d8701-3eb5-4443-9cd6-a415c2b8e07c/shell/main.swift",
+        "/private/tmp/slax-source-fresh-shell-build-460d8701-3eb5-4443-9cd6-a415c2b8e07c/shell/FixtureReaderStep.swift",
+        "-o",
+        "/private/tmp/slax-source-fresh-shell-build-460d8701-3eb5-4443-9cd6-a415c2b8e07c/SlaxSourceFixtureApp.app/SlaxSourceFixtureApp"
+      ],
+      "exitCode": -9,
+      "stopped": "unexpected-owned-entry",
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "specificObservedEntryUnknown": true,
+  "laterOwnTreeNoLinks": true,
+  "laterOwnTreeMetadata": [
+    {
+      "path": "compile-fresh-shell.stderr",
+      "mode": "0o100644",
+      "logicalBytes": 0,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "swift-module-cache",
+      "mode": "0o40755",
+      "logicalBytes": 1440,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "shell",
+      "mode": "0o40755",
+      "logicalBytes": 128,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "owner.json",
+      "mode": "0o100644",
+      "logicalBytes": 1323,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "compile-fresh-shell.stdout",
+      "mode": "0o100644",
+      "logicalBytes": 0,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "temporary",
+      "mode": "0o40755",
+      "logicalBytes": 96,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app",
+      "mode": "0o40755",
+      "logicalBytes": 256,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "failure.json",
+      "mode": "0o100644",
+      "logicalBytes": 2930,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "closed-inputs.json",
+      "mode": "0o100644",
+      "logicalBytes": 74836,
+      "allocatedBytes": 77824
+    },
+    {
+      "path": "swift-module-cache/Distributed-19XSUNB379WD7.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 2275,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/_DarwinFoundation2-36MEYFRVFDQV0.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 1304,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/LocalAuthentication-12O367JWZP939.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 5197,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/FileProvider-3C1VBJSY2C1AH.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 5398,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/CoreImage-2RCF9ZFB1T2VO.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 6328,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/Metal-17MYRNIB8JA4G.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 5082,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/Observation-2RAXXBAIY14G.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 2274,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/_StringProcessing-21BOD1BECUU1D.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 943,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/Dispatch-3QAM96CGK10ZQ.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 3187,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/QuartzCore-24O5BV3191NBN.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 6333,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/Combine-3U7T54XN6ND7E.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 2505,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1",
+      "mode": "0o40750",
+      "logicalBytes": 1952,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "swift-module-cache/_Concurrency-25A8AJ2V52HN.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 930,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/DataDetection-3M8L60Y67UAOE.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 4966,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/Network-FIDL1QNFUY91.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 5653,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/SwiftUICore-2995VDUSIO5VH.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 9295,
+      "allocatedBytes": 12288
+    },
+    {
+      "path": "swift-module-cache/ObjectiveC-3UI07YHATN9CY.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 2622,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/CoreText-2QDWT6IULILS4.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 5991,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/CoreVideo-2AOJSO0TCOBAO.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 5947,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/_DarwinFoundation1-38QQFR3SVVJMY.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 946,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/UniformTypeIdentifiers-2P50R8F3W2ZI7.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 5165,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/Darwin-11IUAQRTLW8FG.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 1871,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/Foundation-2FGCHC7K6VU11.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 4721,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/Spatial-2MGIMWNUCVMJ0.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 2658,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/WebKit-MMB8O8CNO8JW.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 11782,
+      "allocatedBytes": 12288
+    },
+    {
+      "path": "swift-module-cache/CoreGraphics-FIO12R1CWMGF.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 5160,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/Swift-2JSS7FXTI0KEF.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 720,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/UIKit-3QUMNVBBNH76J.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 10759,
+      "allocatedBytes": 12288
+    },
+    {
+      "path": "swift-module-cache/System-UPVQJY1LG4R.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 2463,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/CoreTransferable-1S2HY2H679I1Z.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 5729,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/XPC-1QX4KFBJ369H9.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 3505,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/OSLog-1NULEDUZ0SLVY.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 5226,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/simd-3RT5SUL7NPD81.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 2459,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/SwiftOnoneSupport-NJO3OXRQESVE.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 942,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/modules.timestamp",
+      "mode": "0o100644",
+      "logicalBytes": 0,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "swift-module-cache/_Builtin_float-ZDY5GHGUZ7I0.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 933,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/CryptoKit-2CBKFQVR3FM09.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 5412,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/os-16DW8A29G0FIJ.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 3831,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/_DarwinFoundation3-R694FMYGZROO.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 1506,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/CoreFoundation-313VJ6GTNLZRA.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 3398,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "swift-module-cache/DeveloperToolsSupport-D6HZM2VX2M55.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 5763,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/Symbols-3FGTGOK1ZWTTU.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 4943,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/Accessibility-GTTRN4NSBRIR.swiftmodule",
+      "mode": "0o100644",
+      "logicalBytes": 5404,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/UniformTypeIdentifiers-J2SEKBNCVKL8.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 227584,
+      "allocatedBytes": 229376
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/XPC-1VUX2ZXXZNY4I.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 289664,
+      "allocatedBytes": 290816
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/Dispatch-D5NPGC7AJE6P.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 306096,
+      "allocatedBytes": 307200
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/IOSurface-2GMZHIFU9GAVA.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 223704,
+      "allocatedBytes": 225280
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/FileProvider-2O2DCCNZ1P9DX.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 522656,
+      "allocatedBytes": 524288
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/Symbols-1DNV4QDBC5QS9.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 138112,
+      "allocatedBytes": 139264
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/DataDetection-VKJA9VK2L9FR.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 81448,
+      "allocatedBytes": 81920
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/OpenGLES-3VQGO085QDZ2H.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 1080208,
+      "allocatedBytes": 1081344
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/UserNotifications-1FJPVU08305M0.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 284976,
+      "allocatedBytes": 286720
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/LocalAuthentication-21P8QLSII9F36.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 245544,
+      "allocatedBytes": 245760
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/CoreTransferable-16AVK0JPGWW6Y.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 54952,
+      "allocatedBytes": 57344
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/ptrcheck-2OQWMRBVRD4OJ.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 43824,
+      "allocatedBytes": 45056
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/_Builtin_stdatomic-2OQWMRBVRD4OJ.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 74136,
+      "allocatedBytes": 77824
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/os_object-35YBQJQ2YC966.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 61672,
+      "allocatedBytes": 65536
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/ptrauth-2OQWMRBVRD4OJ.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 52808,
+      "allocatedBytes": 53248
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/DeveloperToolsSupport-2B3PEGL0O3SHB.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 38704,
+      "allocatedBytes": 40960
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/Metal-2AOW5MNXUO3VM.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 2103808,
+      "allocatedBytes": 2105344
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/_Builtin_inttypes-2OQWMRBVRD4OJ.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 46120,
+      "allocatedBytes": 49152
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/CoreVideo-1DGLWUSJV0EV.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 395112,
+      "allocatedBytes": 397312
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/_DarwinFoundation3-15DVCJU77XYIF.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 629544,
+      "allocatedBytes": 630784
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/Accessibility-1Z316V48C4FD4.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 277512,
+      "allocatedBytes": 278528
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/SwiftUICore-QNUEZR0E8HH6.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 59536,
+      "allocatedBytes": 61440
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/_Builtin_limits-2OQWMRBVRD4OJ.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 46248,
+      "allocatedBytes": 49152
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/SwiftShims-ETMZL06LU75E.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 156648,
+      "allocatedBytes": 159744
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/sys_types-VWZR1UH1FZG0.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 45248,
+      "allocatedBytes": 49152
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/_DarwinFoundation2-VWZR1UH1FZG0.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 487872,
+      "allocatedBytes": 491520
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/UIKit-1WUOUYQ3HJCSW.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 10593328,
+      "allocatedBytes": 10596352
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/SlaxSourceFixture-11YVVI1DN20YO.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 4478104,
+      "allocatedBytes": 4481024
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/QuartzCore-1PGA94LEHPAST.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 702584,
+      "allocatedBytes": 704512
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/os_workgroup-35YBQJQ2YC966.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 93576,
+      "allocatedBytes": 94208
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/MachO-VOOC4S47JZYB.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 475824,
+      "allocatedBytes": 479232
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/CFNetwork-3MVTA3VYEJCA3.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 339512,
+      "allocatedBytes": 339968
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/_Builtin_stdint-2OQWMRBVRD4OJ.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 45480,
+      "allocatedBytes": 49152
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/_Builtin_stdbool-2OQWMRBVRD4OJ.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 40624,
+      "allocatedBytes": 40960
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/CoreGraphics-19GMCQK1P6XM3.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 948648,
+      "allocatedBytes": 950272
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/CoreText-2C7KN0R8TNZFM.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 1016296,
+      "allocatedBytes": 1019904
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/ObjectiveC-2PWORDSQEHK5X.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 301016,
+      "allocatedBytes": 303104
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/Spatial-1HOKQLWXNANNU.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 2006088,
+      "allocatedBytes": 2007040
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/_AvailabilityInternal-1VVNCHK8CCI1.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 597808,
+      "allocatedBytes": 598016
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/_DarwinFoundation1-1VVNCHK8CCI1.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 465592,
+      "allocatedBytes": 466944
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/_Builtin_float-2OQWMRBVRD4OJ.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 48048,
+      "allocatedBytes": 49152
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/Network-UWJUCELCM741.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 743192,
+      "allocatedBytes": 745472
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/_Builtin_stdarg-2OQWMRBVRD4OJ.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 43800,
+      "allocatedBytes": 45056
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/_Builtin_stddef-2OQWMRBVRD4OJ.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 45640,
+      "allocatedBytes": 49152
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/os-35YBQJQ2YC966.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 167240,
+      "allocatedBytes": 167936
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/WebKit-23SEQNFKX4U22.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 878688,
+      "allocatedBytes": 880640
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/UIUtilities-2FUK9RCX1V5JB.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 72408,
+      "allocatedBytes": 73728
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/_SwiftConcurrencyShims-ETMZL06LU75E.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 41016,
+      "allocatedBytes": 45056
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/simd-1UMVU90N80PW8.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 3958168,
+      "allocatedBytes": 3960832
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/Security-4T9WYUES29A1.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 864528,
+      "allocatedBytes": 868352
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/_Builtin_tgmath-2OQWMRBVRD4OJ.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 46096,
+      "allocatedBytes": 49152
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/Foundation-2D6I54GZO0EPV.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 5765160,
+      "allocatedBytes": 5767168
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/OSLog-3SZK3I11U7OTF.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 152152,
+      "allocatedBytes": 155648
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/Darwin-3OSIGR9MJU32L.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 3983728,
+      "allocatedBytes": 3985408
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/_Builtin_intrinsics-2OQWMRBVRD4OJ.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 3274960,
+      "allocatedBytes": 3276800
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/ImageIO-2XWEP1ZDFHQCN.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 945632,
+      "allocatedBytes": 946176
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/CoreFoundation-3PRXEYCYTZ0ZF.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 1312856,
+      "allocatedBytes": 1314816
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/CoreImage-3UI8NCSPFINZ0.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 1282968,
+      "allocatedBytes": 1286144
+    },
+    {
+      "path": "swift-module-cache/3DJ9UKO8E7AK1/dnssd-273WI0LW9M0J3.pcm",
+      "mode": "0o100644",
+      "logicalBytes": 140808,
+      "allocatedBytes": 143360
+    },
+    {
+      "path": "shell/FixtureReaderStep.swift",
+      "mode": "0o100644",
+      "logicalBytes": 5860,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "shell/main.swift",
+      "mode": "0o100644",
+      "logicalBytes": 25031,
+      "allocatedBytes": 28672
+    },
+    {
+      "path": "temporary/TemporaryDirectory.8DTXOH",
+      "mode": "0o40700",
+      "logicalBytes": 128,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "temporary/TemporaryDirectory.8DTXOH/main-1.o",
+      "mode": "0o100644",
+      "logicalBytes": 380224,
+      "allocatedBytes": 380928
+    },
+    {
+      "path": "temporary/TemporaryDirectory.8DTXOH/.keep-directory",
+      "mode": "0o100644",
+      "logicalBytes": 0,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/_CodeSignature",
+      "mode": "0o40755",
+      "logicalBytes": 96,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/SlaxSourceFixtureApp",
+      "mode": "0o100755",
+      "logicalBytes": 365408,
+      "allocatedBytes": 368640
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/slax-ui-fixtures",
+      "mode": "0o40755",
+      "logicalBytes": 256,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources",
+      "mode": "0o40755",
+      "logicalBytes": 96,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/Frameworks",
+      "mode": "0o40755",
+      "logicalBytes": 96,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/Info.plist",
+      "mode": "0o100644",
+      "logicalBytes": 1035,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/_CodeSignature/CodeResources",
+      "mode": "0o100644",
+      "logicalBytes": 43818,
+      "allocatedBytes": 45056
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/slax-ui-fixtures/resources.ts",
+      "mode": "0o100644",
+      "logicalBytes": 8369,
+      "allocatedBytes": 12288
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/slax-ui-fixtures/articles",
+      "mode": "0o40755",
+      "logicalBytes": 320,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/slax-ui-fixtures/source-capture-inputs.json",
+      "mode": "0o100644",
+      "logicalBytes": 343,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/slax-ui-fixtures/documents.ts",
+      "mode": "0o100644",
+      "logicalBytes": 23166,
+      "allocatedBytes": 24576
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/slax-ui-fixtures/manifest.json",
+      "mode": "0o100644",
+      "logicalBytes": 1623,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/slax-ui-fixtures/scenarios.json",
+      "mode": "0o100644",
+      "logicalBytes": 1756477,
+      "allocatedBytes": 1757184
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/slax-ui-fixtures/articles/delete-notice.html",
+      "mode": "0o100644",
+      "logicalBytes": 2710,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/slax-ui-fixtures/articles/video.html",
+      "mode": "0o100644",
+      "logicalBytes": 1260,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/slax-ui-fixtures/articles/short.html",
+      "mode": "0o100644",
+      "logicalBytes": 67,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/slax-ui-fixtures/articles/terms.html",
+      "mode": "0o100644",
+      "logicalBytes": 355,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/slax-ui-fixtures/articles/long.html",
+      "mode": "0o100644",
+      "logicalBytes": 16183,
+      "allocatedBytes": 16384
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/slax-ui-fixtures/articles/mixed.html",
+      "mode": "0o100644",
+      "logicalBytes": 1206,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/slax-ui-fixtures/articles/rss.html",
+      "mode": "0o100644",
+      "logicalBytes": 368,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/slax-ui-fixtures/articles/privacy.html",
+      "mode": "0o100644",
+      "logicalBytes": 355,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources",
+      "mode": "0o40755",
+      "logicalBytes": 96,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources",
+      "mode": "0o40755",
+      "logicalBytes": 128,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable",
+      "mode": "0o40755",
+      "logicalBytes": 2848,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/files",
+      "mode": "0o40755",
+      "logicalBytes": 96,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_radio_disabled.png",
+      "mode": "0o100644",
+      "logicalBytes": 446,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/default_splash.png",
+      "mode": "0o100644",
+      "logicalBytes": 406053,
+      "allocatedBytes": 409600
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_xs_sidebar_config.png",
+      "mode": "0o100644",
+      "logicalBytes": 320,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_outline_collapsed.png",
+      "mode": "0o100644",
+      "logicalBytes": 342,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_outline_empty_inboxlist_icon.png",
+      "mode": "0o100644",
+      "logicalBytes": 1176,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_outline_dialog_shrink.png",
+      "mode": "0o100644",
+      "logicalBytes": 649,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_bottom_panel_delete.png",
+      "mode": "0o100644",
+      "logicalBytes": 968,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_bottom_panel_comment.png",
+      "mode": "0o100644",
+      "logicalBytes": 872,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_cell_more_archieve.png",
+      "mode": "0o100644",
+      "logicalBytes": 706,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_bottom_panel_underline.png",
+      "mode": "0o100644",
+      "logicalBytes": 524,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_xs_sidebar_logout.png",
+      "mode": "0o100644",
+      "logicalBytes": 568,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_outline_banner_analyzing.png",
+      "mode": "0o100644",
+      "logicalBytes": 744,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_menu_action_highlight.png",
+      "mode": "0o100644",
+      "logicalBytes": 409,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/inbox-more.png",
+      "mode": "0o100644",
+      "logicalBytes": 452,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_bottom_panel_share.png",
+      "mode": "0o100644",
+      "logicalBytes": 814,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_continue_reading_close.png",
+      "mode": "0o100644",
+      "logicalBytes": 412,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_app_logo.png",
+      "mode": "0o100644",
+      "logicalBytes": 5948,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_comment_panel_copy.png",
+      "mode": "0o100644",
+      "logicalBytes": 441,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_cell_more_star.png",
+      "mode": "0o100644",
+      "logicalBytes": 667,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_rss_refresh.xml",
+      "mode": "0o100644",
+      "logicalBytes": 457,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_sm_back.png",
+      "mode": "0o100644",
+      "logicalBytes": 225,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_rss_save.xml",
+      "mode": "0o100644",
+      "logicalBytes": 377,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_bottom_panel_chatbot.png",
+      "mode": "0o100644",
+      "logicalBytes": 1045,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/compose-multiplatform.xml",
+      "mode": "0o100644",
+      "logicalBytes": 1493,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_floating_panel_archieve.png",
+      "mode": "0o100644",
+      "logicalBytes": 869,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_xs_sidebar_feedback.png",
+      "mode": "0o100644",
+      "logicalBytes": 660,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_xs_sidebar_about.png",
+      "mode": "0o100644",
+      "logicalBytes": 718,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_floating_panel_archieved.png",
+      "mode": "0o100644",
+      "logicalBytes": 4969,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_rss.xml",
+      "mode": "0o100644",
+      "logicalBytes": 485,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_xs_blue_down_arrow.png",
+      "mode": "0o100644",
+      "logicalBytes": 310,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_xs_inbox_add.png",
+      "mode": "0o100644",
+      "logicalBytes": 121,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_floating_panel_star.png",
+      "mode": "0o100644",
+      "logicalBytes": 864,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_outline_dialog_close.png",
+      "mode": "0o100644",
+      "logicalBytes": 437,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_floating_panel_more.png",
+      "mode": "0o100644",
+      "logicalBytes": 186,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_bottom_panel_summary.png",
+      "mode": "0o100644",
+      "logicalBytes": 456,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_cell_action_starred.png",
+      "mode": "0o100644",
+      "logicalBytes": 640,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_cell_more.png",
+      "mode": "0o100644",
+      "logicalBytes": 158,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_xs_sidebar_close.png",
+      "mode": "0o100644",
+      "logicalBytes": 380,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_circle_close_icon.png",
+      "mode": "0o100644",
+      "logicalBytes": 963,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_sm_google.png",
+      "mode": "0o100644",
+      "logicalBytes": 1515,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_cell_internet_downloading.png",
+      "mode": "0o100644",
+      "logicalBytes": 601,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_xs_yellow_plus.png",
+      "mode": "0o100644",
+      "logicalBytes": 146,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_bottom_panel_edittitle.png",
+      "mode": "0o100644",
+      "logicalBytes": 955,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_inbox_plane.png",
+      "mode": "0o100644",
+      "logicalBytes": 627,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_cell_action_archieved.png",
+      "mode": "0o100644",
+      "logicalBytes": 805,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_xs_tick_gray_outline_icon.png",
+      "mode": "0o100644",
+      "logicalBytes": 338,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_xs_tag_close.png",
+      "mode": "0o100644",
+      "logicalBytes": 266,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_sm_apple.png",
+      "mode": "0o100644",
+      "logicalBytes": 780,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_cell_action_archieve.png",
+      "mode": "0o100644",
+      "logicalBytes": 909,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_cell_tag.png",
+      "mode": "0o100644",
+      "logicalBytes": 603,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_agree_enable.png",
+      "mode": "0o100644",
+      "logicalBytes": 760,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_cell_internet_uncached.png",
+      "mode": "0o100644",
+      "logicalBytes": 586,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_menu_action_copy.png",
+      "mode": "0o100644",
+      "logicalBytes": 441,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_cell_more_edittitle.png",
+      "mode": "0o100644",
+      "logicalBytes": 485,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_outline_banner_analyzed.png",
+      "mode": "0o100644",
+      "logicalBytes": 764,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_inbox_tab.png",
+      "mode": "0o100644",
+      "logicalBytes": 123,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_bottom_panel_starred.png",
+      "mode": "0o100644",
+      "logicalBytes": 1995,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_cell_archived.png",
+      "mode": "0o100644",
+      "logicalBytes": 645,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_bottom_panel_pro.png",
+      "mode": "0o100644",
+      "logicalBytes": 1433,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_xs_sidebar_subscribe.png",
+      "mode": "0o100644",
+      "logicalBytes": 778,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_menu_action_comment.png",
+      "mode": "0o100644",
+      "logicalBytes": 540,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_comment_panel_highlighted.png",
+      "mode": "0o100644",
+      "logicalBytes": 415,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_bottom_panel_archieved.png",
+      "mode": "0o100644",
+      "logicalBytes": 2872,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_bottom_panel_feedback.png",
+      "mode": "0o100644",
+      "logicalBytes": 750,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_floating_panel_starred.png",
+      "mode": "0o100644",
+      "logicalBytes": 3205,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_continue_reading_icon.png",
+      "mode": "0o100644",
+      "logicalBytes": 629,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/bg_login.png",
+      "mode": "0o100644",
+      "logicalBytes": 75387,
+      "allocatedBytes": 77824
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_cell_action_star.png",
+      "mode": "0o100644",
+      "logicalBytes": 896,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_comment_panel_close.png",
+      "mode": "0o100644",
+      "logicalBytes": 420,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_cell_internet.png",
+      "mode": "0o100644",
+      "logicalBytes": 671,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_xs_sidebar_subscribed.png",
+      "mode": "0o100644",
+      "logicalBytes": 1893,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_bottom_panel_archieve.png",
+      "mode": "0o100644",
+      "logicalBytes": 1183,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_cell_more_delete.png",
+      "mode": "0o100644",
+      "logicalBytes": 722,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_comment_panel_highlight.png",
+      "mode": "0o100644",
+      "logicalBytes": 409,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_bottom_panel_star.png",
+      "mode": "0o100644",
+      "logicalBytes": 1158,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_agree_disable.png",
+      "mode": "0o100644",
+      "logicalBytes": 446,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_comment_panel_delete.png",
+      "mode": "0o100644",
+      "logicalBytes": 594,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_outline_banner_close.png",
+      "mode": "0o100644",
+      "logicalBytes": 412,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_radio_enabled.png",
+      "mode": "0o100644",
+      "logicalBytes": 615,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_comment_panel_share.png",
+      "mode": "0o100644",
+      "logicalBytes": 625,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_xs_dialog_close.png",
+      "mode": "0o100644",
+      "logicalBytes": 293,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/global-default-avatar.png",
+      "mode": "0o100644",
+      "logicalBytes": 6857,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_bottom_panel_transcript.xml",
+      "mode": "0o100644",
+      "logicalBytes": 855,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_cell_starred.png",
+      "mode": "0o100644",
+      "logicalBytes": 711,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_xs_sidebar_yellow_arrow.png",
+      "mode": "0o100644",
+      "logicalBytes": 230,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_cell_more_highlighted.png",
+      "mode": "0o100644",
+      "logicalBytes": 158,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/drawable/ic_outline_banner_expand.png",
+      "mode": "0o100644",
+      "logicalBytes": 215,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/compose-resources/composeResources/slax_reader_client.composeapp.generated.resources/files/share_logo.png",
+      "mode": "0o100644",
+      "logicalBytes": 5948,
+      "allocatedBytes": 8192
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/Frameworks/SlaxSourceFixture.framework",
+      "mode": "0o40755",
+      "logicalBytes": 224,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/Frameworks/SlaxSourceFixture.framework/_CodeSignature",
+      "mode": "0o40755",
+      "logicalBytes": 96,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/Frameworks/SlaxSourceFixture.framework/Headers",
+      "mode": "0o40755",
+      "logicalBytes": 96,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/Frameworks/SlaxSourceFixture.framework/SlaxSourceFixture",
+      "mode": "0o100644",
+      "logicalBytes": 105442800,
+      "allocatedBytes": 105443328
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/Frameworks/SlaxSourceFixture.framework/Modules",
+      "mode": "0o40755",
+      "logicalBytes": 96,
+      "allocatedBytes": 0
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/Frameworks/SlaxSourceFixture.framework/Info.plist",
+      "mode": "0o100644",
+      "logicalBytes": 938,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/Frameworks/SlaxSourceFixture.framework/_CodeSignature/CodeResources",
+      "mode": "0o100644",
+      "logicalBytes": 2280,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/Frameworks/SlaxSourceFixture.framework/Headers/SlaxSourceFixture.h",
+      "mode": "0o100644",
+      "logicalBytes": 1448787,
+      "allocatedBytes": 1449984
+    },
+    {
+      "path": "SlaxSourceFixtureApp.app/Frameworks/SlaxSourceFixture.framework/Modules/module.modulemap",
+      "mode": "0o100644",
+      "logicalBytes": 143,
+      "allocatedBytes": 4096
+    }
+  ],
+  "oldAndCopied109StillByteIdentical": true,
+  "ownedCompilerCountAtLaterObservation": 0,
+  "allCompilerOrServiceStopProved": false,
+  "minimumFreeBytesObserved": 4293636096,
+  "sdkMetadataNotReached": true,
+  "signingCommands": 0,
+  "deviceCommands": 0,
+  "databaseQueries": 0,
+  "acceptance": {
+    "newSDKBuild": false,
+    "native240": false,
+    "persisted240": false,
+    "wholeMigration": false,
+    "publisher": false
+  },
+  "next": "Consider separately reviewed exact settled101-file warm-cache copy in fresh root under unchanged256MiB logical/allocated cap; no link allowance or reuse."
+}

@@ -1,0 +1,35 @@
+{
+  "kind": "root-source-fresh-shell-r1-preexecution-review",
+  "version": 1,
+  "openSpecChange": "expo-mobile-migration",
+  "preparationSHA256": "a435ea6b9821c532150dcefc3f86c5f92def596640139c1609f65e43ecdcb270",
+  "independentReviewSHA256": "e00afb6e39a5856831268c87a702ffcd2f33dd7a054d22bd26bb723a95cf2454",
+  "executorSHA256": "69db1f25ad7805c09440593aaa067a39068f2844230d5e40c9ec3b9bd573b5e1",
+  "planSHA256": "a97c96c2b03d3622e264400b486dd3375c521cb0aec1ddbc4e6f4716fef5d38a",
+  "manifestSHA256": "664c10e80677e5699871fc8908a70a00d228eeaa944b9292889f1dd1eeb2e036",
+  "entireExecutorAnd16GuardsRead": true,
+  "currentReadonlyAdmissionExitCode": 0,
+  "closedBasis": {
+    "oldAppFiles": 109,
+    "retainedReadonlyInputs": 113,
+    "publicReferences": 17,
+    "shellSources": 2,
+    "boundTools": 2
+  },
+  "freeBytesBefore": 4404936704,
+  "ownedCompilerCount": 0,
+  "scope": "One Swift shell build and fresh simulator ad-hoc sign/verify; no KMP/control/device/database/Metro/cleanup",
+  "knownTemporaryLinkStrictRefusalRisk": true,
+  "passes": {
+    "Bugs": {
+      "Important": []
+    },
+    "Security": {
+      "Important": []
+    },
+    "Compliance": {
+      "Important": []
+    }
+  },
+  "nativePositionViewportMigrationPublisherAccepted": false
+}

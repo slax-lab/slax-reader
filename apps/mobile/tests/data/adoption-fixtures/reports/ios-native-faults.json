@@ -1,0 +1,135 @@
+{
+  "date": "2026-10-10",
+  "status": "passed",
+  "scope": "Controlled same-path fault recovery after a previously completed genuine old-to-Expo adoption; not a first-adoption interruption or repeated app installation",
+  "simulatorUUID": "32D9AFE0-32C7-443A-8FEC-3EBB42135386",
+  "nativeArtifact": "Historical group-only public ad hoc simulator artifact; native logical identity additions are not compiled into it",
+  "replacementAppExecutableSHA256": "5ad2419596c05396c1e9b306ba518acec9aec452fa901826cb2eab735612538a",
+  "coordinatorSourceSHA256": "f1d50fdfcba53d760ed8fc52736a0e3d5789278596fc97baeba30d830596656c",
+  "faultFixtureSourceSHA256": "10dc7dbff6d40335756b6a90efb79d85e34a232f5116d752c1a6aab36f863250",
+  "rawReportSHA256": "13260fa9d0111891cec6a5d8b75fd6d8ba0049ed7f032d5facee2f9383780a0d",
+  "nativeReport": {
+    "kind": "slax-native-adoption-fault-report",
+    "version": 1,
+    "events": [
+      {
+        "phase": "resume-before-sdk-open",
+        "status": "passed",
+        "platform": "ios",
+        "runId": "ios-fault-20261010",
+        "coreVersion": "0.5.3/2ba6b280",
+        "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/32D9AFE0-32C7-443A-8FEC-3EBB42135386/data/Containers/Data/Application/DA94D7FD-B7BB-404B-AE3D-FE0528BBE6F1/Library/Application Support/databases/powersync.db",
+        "pendingOperations": 0,
+        "completedOperations": 0,
+        "logicalIdentityReturned": false,
+        "containerRelocated": true,
+        "serviceReconnect": false,
+        "productionAdoptionEnabled": false
+      },
+      {
+        "phase": "resume-after-offline-commit",
+        "status": "passed",
+        "platform": "ios",
+        "runId": "ios-fault-20261010",
+        "coreVersion": "0.5.3/2ba6b280",
+        "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/32D9AFE0-32C7-443A-8FEC-3EBB42135386/data/Containers/Data/Application/DA94D7FD-B7BB-404B-AE3D-FE0528BBE6F1/Library/Application Support/databases/powersync.db",
+        "pendingOperations": 0,
+        "completedOperations": 2,
+        "logicalIdentityReturned": false,
+        "containerRelocated": true,
+        "serviceReconnect": false,
+        "productionAdoptionEnabled": false
+      },
+      {
+        "phase": "repeat-accepted",
+        "status": "passed",
+        "platform": "ios",
+        "runId": "ios-fault-20261010",
+        "coreVersion": "0.5.3/2ba6b280",
+        "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/32D9AFE0-32C7-443A-8FEC-3EBB42135386/data/Containers/Data/Application/DA94D7FD-B7BB-404B-AE3D-FE0528BBE6F1/Library/Application Support/databases/powersync.db",
+        "pendingOperations": 0,
+        "completedOperations": 0,
+        "logicalIdentityReturned": false,
+        "containerRelocated": true,
+        "serviceReconnect": false,
+        "productionAdoptionEnabled": false
+      }
+    ]
+  },
+  "externalProcessKills": [
+    {
+      "phase": "hold-before-sdk-open",
+      "pid": 71601,
+      "signal": "SIGKILL",
+      "openingCheckpointPersisted": true,
+      "sdkOpened": false
+    },
+    {
+      "phase": "hold-after-offline-commit",
+      "pid": 73475,
+      "signal": "SIGKILL",
+      "clientIds": [
+        7,
+        8
+      ],
+      "transactionIds": [
+        4
+      ]
+    }
+  ],
+  "committedStateSHA256": "5988b27385b79aca46db1f8332b5fadc521d64587f4c6a7e378afba372169a92",
+  "committedSnapshot": {
+    "pendingOperations": 2,
+    "storageTables": [
+      "ps_data__sr_bookmark_comment",
+      "ps_data__sr_collection_bookmark",
+      "ps_data__sr_platform_bind",
+      "ps_data__sr_sharer_setting",
+      "ps_data__sr_user",
+      "ps_data__sr_user_bookmark",
+      "ps_data__sr_user_bookmark_stats",
+      "ps_data__sr_user_collection",
+      "ps_data__sr_user_collection_subscriber",
+      "ps_data__sr_user_notification",
+      "ps_data__sr_user_subscription",
+      "ps_data__sr_user_tag",
+      "ps_data_local__local_bookmark_info"
+    ],
+    "dataDigest": "d108dbffc6b0a9d76ea3fbba9ae4537a5a9ab24b712d78a1f61e5b504896073d",
+    "queueDigest": "aa00a001e3e82003da9fe3cff6bf301001b63663c7d1e09c9cc2a35b08a4aeb9",
+    "userVersion": 1,
+    "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/32D9AFE0-32C7-443A-8FEC-3EBB42135386/data/Containers/Data/Application/DA94D7FD-B7BB-404B-AE3D-FE0528BBE6F1/Library/Application Support/databases/powersync.db",
+    "localDigest": "460fbc65ccaeb140ec20a8da3f4bf44e818320a22ed6f08e13b3723d43ea254e",
+    "formatVersion": 14,
+    "integrityValid": true,
+    "pendingTransactions": 1
+  },
+  "nativeCrossProcessOwnerProbe": {
+    "platform": "iOS Simulator",
+    "probeExecutableSHA256": "daec754cea27d555a21f19699f4e7e9a2fe8eefea5f98a68942e574b7d93d1c0",
+    "whileProductionModuleHeldLease": {
+      "acquired": false,
+      "errno": 35
+    },
+    "afterControlledSigkill": {
+      "acquired": true,
+      "errno": 0
+    },
+    "primitive": "Actual production SlaxLegacy flock holder and separately spawned iOS Simulator native executable using flock on the same App Group owner lock"
+  },
+  "preservedHistoricalAdoptionReportSHA256": "189c00cd59ffc22d1b5b3c8e8935f1e6f629540e27024ebcd6b121e1a3caea7b",
+  "installationPerformed": false,
+  "applicationDataReset": false,
+  "productionAdoptionEnabled": false,
+  "serviceReconnect": false,
+  "verificationNotExecuted": [
+    "firstOldToNewAdoptionInterruptedWithLegacyQueue",
+    "repeatedSameIdentityAppInstallationWithNewNativeLogicalIdentity",
+    "AndroidNativeCrossProcessContention",
+    "nativeCrossProcessPreferenceCAS",
+    "backgroundSuspension",
+    "extensionColdLaunch",
+    "realServiceReconnect",
+    "releaseSignedUpgrade"
+  ]
+}

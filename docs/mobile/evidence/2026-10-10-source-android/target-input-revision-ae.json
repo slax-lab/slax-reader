@@ -1,0 +1,12 @@
+{
+  "revision": "ae",
+  "previousRevision": "ad",
+  "changes": [
+    "fixtures/FixtureApp.tsx",
+    "tooling/fixture-control.mjs"
+  ],
+  "nativeInputsChanged": false,
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "scope": "Return actual scoped render metadata before route/config disposal; preparation only",
+  "driverSha256": "f2b4caf4db1ade090460f094252727ac4877a114a93a273c2389338d9aa26a3e"
+}

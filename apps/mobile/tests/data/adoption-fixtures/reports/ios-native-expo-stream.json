@@ -1,0 +1,163 @@
+{
+  "kind": "slax-ios-actual-native-expo-stream-verification",
+  "version": 1,
+  "status": "passed",
+  "recordedAt": "2026-10-10T18:43:39.895Z",
+  "platform": "ios-simulator",
+  "device": "522DD84F-0407-4707-BBAB-0263B4ACE2DA",
+  "application": {
+    "bundleIdentifier": "app.slax.reader",
+    "version": "1.0.25",
+    "buildNumber": "757",
+    "installedExecutableSHA256": "afca590846175cce828b550f5c92b17096b706c214de67ea1d6d1a380eebd97f",
+    "publisherSigned": false,
+    "signature": "Public AppGroup-only ad hoc simulator signature"
+  },
+  "nativeReport": {
+    "kind": "slax-controlled-native-stream-report",
+    "version": 1,
+    "status": "passed",
+    "platform": "ios",
+    "device": "522DD84F-0407-4707-BBAB-0263B4ACE2DA",
+    "nonce": "f746c2a1-184d-4c90-8530-913be052c61a",
+    "requestedAt": 1791657744059,
+    "transport": "SDK57 expo/fetch as injected by normal createMobileDataRuntime",
+    "productionSlaxApiExecuted": true,
+    "actualNativeHttpStream": true,
+    "timedStartedAt": 1791657747790,
+    "timedEvents": [
+      {
+        "receivedAt": 1791657747906,
+        "event": {
+          "type": "data",
+          "data": {
+            "overview": "真实流式首块"
+          }
+        }
+      },
+      {
+        "receivedAt": 1791657749625,
+        "event": {
+          "type": "data",
+          "data": {
+            "overview": "真实流式第二块"
+          }
+        }
+      },
+      {
+        "receivedAt": 1791657751028,
+        "event": {
+          "type": "done",
+          "data": {
+            "done": true
+          }
+        }
+      }
+    ],
+    "splitUtf8Preserved": true,
+    "finalUnterminatedLinePreserved": true,
+    "chunksYieldedBeforeResponseCompletion": true,
+    "cancelledAt": 1791657751119,
+    "cancellationName": "AbortError",
+    "cancelledEventCount": 1,
+    "rnSignalThrowIfAbortedAvailable": false,
+    "credentials": "Fixed explicitly synthetic fixture value; no persisted/operator session used",
+    "databaseOrPreferencesOpened": false,
+    "formalBackendContacted": false,
+    "visibleAiUiAcceptance": false,
+    "publisherRelease": false
+  },
+  "serverObservations": {
+    "kind": "slax-controlled-native-stream-observations",
+    "nonce": "f746c2a1-184d-4c90-8530-913be052c61a",
+    "observations": [
+      {
+        "mode": "timed-chunks",
+        "receivedAt": 1791657747821,
+        "events": [
+          {
+            "name": "first-complete-line",
+            "sentAt": 1791657747905
+          },
+          {
+            "name": "second-line",
+            "sentAt": 1791657749624
+          },
+          {
+            "name": "unterminated-final-line",
+            "sentAt": 1791657751025
+          }
+        ],
+        "responseClosedAt": 1791657751026,
+        "finalSentAt": 1791657751025,
+        "futureChunkSent": true
+      },
+      {
+        "mode": "cancel",
+        "receivedAt": 1791657751036,
+        "events": [
+          {
+            "name": "first-complete-line",
+            "sentAt": 1791657751117
+          }
+        ],
+        "responseClosedAt": 1791657751130,
+        "finalSentAt": null,
+        "futureChunkSent": false
+      }
+    ]
+  },
+  "ownedService": {
+    "owner": {
+      "kind": "slax-controlled-native-stream-service",
+      "version": 1,
+      "directory": "/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-native-stream-service-t8E5ou",
+      "nonce": "f746c2a1-184d-4c90-8530-913be052c61a",
+      "processId": 77148,
+      "createdAt": "2026-10-10T18:41:51.000Z",
+      "origin": "http://127.0.0.1:50028"
+    },
+    "loopbackBindOnly": true,
+    "requestBoundToFreshNonce": true,
+    "privateOrPersistedCredentialsUsed": false,
+    "requestHeadersAndBodiesLogged": false,
+    "stoppedOnlyVerifiedOwnedProcess": true,
+    "syntheticRequestRemoved": true
+  },
+  "productionCallerAudit": {
+    "onlyProductionFactory": "src/data/runtime.ts",
+    "transportInjection": "options.fetch ?? expoFetch",
+    "readerCaller": "src/screens/ReaderScreen.tsx",
+    "standaloneNodeDefaultUnchanged": true
+  },
+  "sourceInputs": [
+    {
+      "path": "apps/mobile/tests/data/NativeStreamingFixture.ts",
+      "sha256": "1670e5727df568c60ffdc265189755271d1f692313573960321bcfd6860af3e7"
+    },
+    {
+      "path": "apps/mobile/src/data/api.ts",
+      "sha256": "27f99d1a2e3b9353c3e0f82fa487c724e5891d17940236cfca719e9e20ae195e"
+    },
+    {
+      "path": "apps/mobile/src/data/runtime.ts",
+      "sha256": "0df561a63c028c87e44bc511f41ee78c604001baf31a27613239cb0559f718ba"
+    },
+    {
+      "path": "apps/mobile/src/utils/abort.ts",
+      "sha256": "10912d7e3a2267c44ed1fa07e286bc30deba884e8264f3e6984a643959c4a07d"
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/native-stream-service.mjs",
+      "sha256": "e6940943fac49a7dfb2884f189c5fa16d53c743d12b64b1db60056b5252fcb98"
+    }
+  ],
+  "scope": {
+    "realTimedHttpAndCancellation": true,
+    "backendAiInference": false,
+    "visibleAiUiAcceptance": false,
+    "androidNativeStreaming": false,
+    "publisherRelease": false,
+    "testFlight": false
+  }
+}

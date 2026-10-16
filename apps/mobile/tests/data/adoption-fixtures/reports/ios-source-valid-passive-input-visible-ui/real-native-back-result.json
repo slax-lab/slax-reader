@@ -1,0 +1,32 @@
+{
+  "kind": "slax-controlled-visible-passive-input-test",
+  "version": 1,
+  "test": "testNativeBackFromLoadedReader",
+  "name": "real-native-back",
+  "device": "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+  "nonce": "892f62ab-a252-4dbd-9168-545c99aeeead",
+  "nativeOwner": "2463a390-8aae-4e37-9f5e-66dad16cdea6",
+  "mainPid": 23837,
+  "startedAt": 1791664373143,
+  "finishedAt": 1791664407523,
+  "command": "xcodebuild",
+  "args": [
+    "-xctestrun",
+    "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-upgrade-ui-LEePuR/DerivedData/Build/Products/UpgradeVisibleControl_iphonesimulator26.5-arm64-x86_64.xctestrun",
+    "-destination",
+    "id=88E63005-F681-45A6-AF8D-BEFE4E27584D",
+    "-parallel-testing-enabled",
+    "NO",
+    "-resultBundlePath",
+    "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-native-visible-upgrade-ios-waradJ/passive-input-v2/real-native-back.xcresult",
+    "-only-testing:UpgradeVisibleControl/UpgradeVisibleControl/testNativeBackFromLoadedReader",
+    "test-without-building"
+  ],
+  "exitStatus": 65,
+  "signal": null,
+  "errorCode": null,
+  "logSHA256": "8ac5edfde35bfa10691d352117d94e246db4a533062b04cbc4ed1f4e98c15b5b",
+  "attachmentsExportStatus": 0,
+  "noNativeBuild": true,
+  "freshNonceBinding": "External exact live request/context/native owner/PID and source hashes rechecked before and after actual retained XCTest."
+}

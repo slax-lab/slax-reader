@@ -1,0 +1,547 @@
+[
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/build-receipt.json",
+    "bytes": 21453,
+    "sha256": "e9e3836a7820a3d516946fd60e035f5b7e656ea50f6afd3970fd750822c402bb"
+  },
+  {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r4/actual-build-root-review/report.json",
+    "bytes": 28453,
+    "sha256": "f75960cb3574cd31fa21f840404ec5ea5e589b74128a64d256629422e3e79152"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/owner.json",
+    "bytes": 1565,
+    "sha256": "f70b7a77c202e7a6d6a5d93adec577c0bba1bcf28f77043d58669cc603b586e1"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/failure.json",
+    "bytes": 2548,
+    "sha256": "91971c2cfa95b91beadd94f21075b7fec78697ab5928573602a663d9968de712"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/SourceFixtureControl_iphonesimulator26.5-arm64.xctestrun",
+    "bytes": 4818,
+    "sha256": "89c7581f035a6456575a020c9b83c0d0ae6b9884a882db5e432fb8990480dc7f"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/ControlHost.app/ControlHost",
+    "bytes": 75688,
+    "sha256": "8dd33f77d2460f15b756633fb56d844806798f3ebc80ad8cc60c8a5a9522f9c0"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/ControlHost.app/Info.plist",
+    "bytes": 762,
+    "sha256": "3c8a48776172856ec2402968212febf84edb87a1f2cad31561019f8c597e460d"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/ControlHost.app/PkgInfo",
+    "bytes": 8,
+    "sha256": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/ControlHost.app.dSYM/Contents/Info.plist",
+    "bytes": 670,
+    "sha256": "075e0b6a6eee9ad7dc03497268a714a5e850b5688461b02d5e27bee7d4bf5cfb"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/ControlHost.app.dSYM/Contents/Resources/DWARF/ControlHost",
+    "bytes": 1096992,
+    "sha256": "425b5c9f5fdfb270357386c902205357cda70a04a4bec1ccff1e39d4dd8a7288"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/ControlHost.app.dSYM/Contents/Resources/Relocations/aarch64/ControlHost.yml",
+    "bytes": 4740,
+    "sha256": "29dd9250d2eb71a656e3bf9712f12ce4827110758010c5934b5c5d44b2f3aabb"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/ControlHost.swiftmodule/arm64-apple-ios-simulator.abi.json",
+    "bytes": 149,
+    "sha256": "4277ac6b49f8511196028a5ac20f5b1b1dfa754c24615d34068089f0b1739728"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/ControlHost.swiftmodule/arm64-apple-ios-simulator.swiftdoc",
+    "bytes": 424,
+    "sha256": "31a307c652ef338ad8dfcb7ed1e5da2079257c5cbed8a0c61ba39262d639eadc"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/ControlHost.swiftmodule/arm64-apple-ios-simulator.swiftmodule",
+    "bytes": 61656,
+    "sha256": "e43d9db77db9ad93107de5902c48e4a6a081526f3fef3a108bbe900cb92e2cef"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/ControlHost.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo",
+    "bytes": 700,
+    "sha256": "b5ece7efdfd1650f75ea80a52636045c4ceacd71b51d475b659fe6bfcfc1392d"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Info.plist",
+    "bytes": 8362,
+    "sha256": "255046e606a18faee6ffd1b01ee810bfe43a505c7f7871f97f0418b8f4d1a876"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/PkgInfo",
+    "bytes": 8,
+    "sha256": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/SourceFixtureControl-Runner",
+    "bytes": 113616,
+    "sha256": "7e36729d4fbf984e023e98952e7a2b878c735240c41c14f1f8a6b1544b20d233"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/libXCTestSwiftSupport.dylib",
+    "bytes": 2052560,
+    "sha256": "547be7a8f425563f4ee23f9af749884abcbce56eb3b42714b69929d716e8a533"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/Testing.framework/Info.plist",
+    "bytes": 907,
+    "sha256": "bbcbea48c0dbd6882bcb7fb2301590da876c2e4a38af45f2f180576257ff1d4b"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/Testing.framework/Testing",
+    "bytes": 6920688,
+    "sha256": "1986afd2209b8bb14a58207eed68baf267f77e4c7737db20bea81ef58076187e"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/Testing.framework/version.plist",
+    "bytes": 516,
+    "sha256": "223a7e8eb1e41954e172a3fa1d67f2599f17e9e7aa7ebe6165469b21b17c9468"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/Testing.framework/_CodeSignature/CodeResources",
+    "bytes": 4470,
+    "sha256": "d4ea19a6205a1aa25fe00e49abf0cb86dfae23aed5a6cad58faf3a4bd21fbfbf"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTAutomationSupport.framework/Info.plist",
+    "bytes": 956,
+    "sha256": "5a4175b7974d1727ba93ff93c74c2390949150ad1e96091f270454eb8346e79b"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTAutomationSupport.framework/XCTAutomationSupport",
+    "bytes": 1553216,
+    "sha256": "dba609c844eaafabfd1448f019f9c4781dd0ae1c7b0a9c9b80ea13342468dbda"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTAutomationSupport.framework/version.plist",
+    "bytes": 518,
+    "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTAutomationSupport.framework/_CodeSignature/CodeResources",
+    "bytes": 2018,
+    "sha256": "698deeaefd9347e7585203a292ce3ff315a04b484247bee93e97cb86318c84b3"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTest.framework/Info.plist",
+    "bytes": 878,
+    "sha256": "909d0355c12c582734fd68afa4fe6c897ab55907364e6b618e7c083e2f03d758"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTest.framework/XCTest",
+    "bytes": 208400,
+    "sha256": "9704e507fe542166b80f96178194ec456180a6498af50858990d32671d05b349"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTest.framework/version.plist",
+    "bytes": 518,
+    "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTest.framework/_CodeSignature/CodeResources",
+    "bytes": 17362,
+    "sha256": "026b86d77c4f67c0c0c9b6dc0d5dc36c12fc487ad8e975262a9e132edff52b5a"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTestCore.framework/Info.plist",
+    "bytes": 886,
+    "sha256": "2f0d9073b2ed1feb101463b96c31c62efcc745438d19769b964d8c1fd09f8143"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTestCore.framework/XCTestCore",
+    "bytes": 4089904,
+    "sha256": "193ecdbb651f484a6e14f5d4dba4ef6de4b5e3aa46e53fa97bb6f1806bef71f3"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTestCore.framework/version.plist",
+    "bytes": 518,
+    "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTestCore.framework/_CodeSignature/CodeResources",
+    "bytes": 2018,
+    "sha256": "a4e4cb1b450b595cd79991e6a5bc1a00bedad7ef6b6f2cb402b562c45aee3ec4"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTestSupport.framework/Info.plist",
+    "bytes": 892,
+    "sha256": "b1e2907db77398ee443b5f99aae969be48e8f0627ff219cb164d9286d7145de8"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTestSupport.framework/XCTestSupport",
+    "bytes": 224912,
+    "sha256": "f48a2fc67431dd73c9238768ec6635ea8d311098aea8c7b2021920e34c4f5dc4"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTestSupport.framework/version.plist",
+    "bytes": 518,
+    "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCTestSupport.framework/_CodeSignature/CodeResources",
+    "bytes": 2018,
+    "sha256": "493bfa3cbc1033bef7ab5021c6c6423a3ed8bbd86b1fa7c294524777dee105b1"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCUIAutomation.framework/Info.plist",
+    "bytes": 894,
+    "sha256": "c8165e0af2a549416efc6dbe5d4bf3d8d306c42cb68d963c3f0b6d8f34457533"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCUIAutomation.framework/XCUIAutomation",
+    "bytes": 3643712,
+    "sha256": "94e82a956c1d5bdd596b020bd517e793a7534da3efe6468233909ae7a2629ff3"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCUIAutomation.framework/version.plist",
+    "bytes": 518,
+    "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCUIAutomation.framework/_CodeSignature/CodeResources",
+    "bytes": 9338,
+    "sha256": "04ef214a7112d65469abb1c4fca5e5222b7d7f84a1906bd107d780ceed580da2"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCUnit.framework/Info.plist",
+    "bytes": 878,
+    "sha256": "a05755dfb1b3c5fabe06e52ca0a5aafc57919ebcabf0bb10740bc04790ef5bb3"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCUnit.framework/XCUnit",
+    "bytes": 100640,
+    "sha256": "4d8ff95683584aeaa4d4e4c5699d4f9cc651ca8ac3cd0b9294a960eeccf2b803"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCUnit.framework/version.plist",
+    "bytes": 518,
+    "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/Frameworks/XCUnit.framework/_CodeSignature/CodeResources",
+    "bytes": 2018,
+    "sha256": "a6c97eddc25aff25229771a51202ff4ddc11234de78af235bd7661493ef4f3dc"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/PlugIns/SourceFixtureControl.xctest/Info.plist",
+    "bytes": 725,
+    "sha256": "7370225a4471893fae090abf85b971bd0b6c3215f8fa5f234bcd333424872ba5"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/PlugIns/SourceFixtureControl.xctest/SourceFixtureControl",
+    "bytes": 115928,
+    "sha256": "317e67f7e876874f80114777af6cca2b7781de7d85157ffd51491482fcfb0dca"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/PlugIns/SourceFixtureControl.xctest.dSYM/Contents/Info.plist",
+    "bytes": 666,
+    "sha256": "5db7e98cfa564c67c433c09da9bf6e32568fd4ffc85b4ab249af3b2e3908ce01"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/PlugIns/SourceFixtureControl.xctest.dSYM/Contents/Resources/DWARF/SourceFixtureControl",
+    "bytes": 1170352,
+    "sha256": "33dddf3434a7f79b5a2f398756f08711ab71bc8d2e02439b469c0c10c6cf7d16"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl-Runner.app/PlugIns/SourceFixtureControl.xctest.dSYM/Contents/Resources/Relocations/aarch64/SourceFixtureControl.yml",
+    "bytes": 14819,
+    "sha256": "7f55ff03eba2afc717685be0c2ecbff2cad953ce44fe2dd511f739c54d1c1074"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl.swiftmodule/arm64-apple-ios-simulator.abi.json",
+    "bytes": 149,
+    "sha256": "4277ac6b49f8511196028a5ac20f5b1b1dfa754c24615d34068089f0b1739728"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl.swiftmodule/arm64-apple-ios-simulator.swiftdoc",
+    "bytes": 432,
+    "sha256": "f46c7d88fb0ab8bc7dd2f17b4fb15f23f0bc83b1696b18e4c8cab770c5304525"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl.swiftmodule/arm64-apple-ios-simulator.swiftmodule",
+    "bytes": 40460,
+    "sha256": "48247b8d8d85ae175f79c2015a5a061c5bcddd1e20284523d55caae7848d7f02"
+  },
+  {
+    "path": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products/Debug-iphonesimulator/SourceFixtureControl.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo",
+    "bytes": 924,
+    "sha256": "3bf5101482030292b77a2ddb832a93261d6bb9a68dd8b7ff2158ba9d975adbc8"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/CrossParagraphControl_iphonesimulator26.5-arm64.xctestrun",
+    "bytes": 5145,
+    "sha256": "a5153a2a2d4c5417a8d06ca46de86f3cac778626a27929a01d87bb128464460c"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/CrossParagraphControl-Runner",
+    "bytes": 113616,
+    "sha256": "7e36729d4fbf984e023e98952e7a2b878c735240c41c14f1f8a6b1544b20d233"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Info.plist",
+    "bytes": 8372,
+    "sha256": "cfb415910d6ac761f2594bb7b6935b79989517efdbe96ab91042e83e72b74cec"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/PkgInfo",
+    "bytes": 8,
+    "sha256": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/libXCTestSwiftSupport.dylib",
+    "bytes": 2052560,
+    "sha256": "547be7a8f425563f4ee23f9af749884abcbce56eb3b42714b69929d716e8a533"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/Testing.framework/Info.plist",
+    "bytes": 907,
+    "sha256": "bbcbea48c0dbd6882bcb7fb2301590da876c2e4a38af45f2f180576257ff1d4b"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/Testing.framework/Testing",
+    "bytes": 6920688,
+    "sha256": "1986afd2209b8bb14a58207eed68baf267f77e4c7737db20bea81ef58076187e"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/Testing.framework/version.plist",
+    "bytes": 516,
+    "sha256": "223a7e8eb1e41954e172a3fa1d67f2599f17e9e7aa7ebe6165469b21b17c9468"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/Testing.framework/_CodeSignature/CodeResources",
+    "bytes": 4470,
+    "sha256": "d4ea19a6205a1aa25fe00e49abf0cb86dfae23aed5a6cad58faf3a4bd21fbfbf"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCTAutomationSupport.framework/Info.plist",
+    "bytes": 956,
+    "sha256": "5a4175b7974d1727ba93ff93c74c2390949150ad1e96091f270454eb8346e79b"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCTAutomationSupport.framework/XCTAutomationSupport",
+    "bytes": 1553216,
+    "sha256": "dba609c844eaafabfd1448f019f9c4781dd0ae1c7b0a9c9b80ea13342468dbda"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCTAutomationSupport.framework/version.plist",
+    "bytes": 518,
+    "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCTAutomationSupport.framework/_CodeSignature/CodeResources",
+    "bytes": 2018,
+    "sha256": "698deeaefd9347e7585203a292ce3ff315a04b484247bee93e97cb86318c84b3"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCTest.framework/Info.plist",
+    "bytes": 878,
+    "sha256": "909d0355c12c582734fd68afa4fe6c897ab55907364e6b618e7c083e2f03d758"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCTest.framework/XCTest",
+    "bytes": 208400,
+    "sha256": "9704e507fe542166b80f96178194ec456180a6498af50858990d32671d05b349"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCTest.framework/version.plist",
+    "bytes": 518,
+    "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCTest.framework/_CodeSignature/CodeResources",
+    "bytes": 17362,
+    "sha256": "026b86d77c4f67c0c0c9b6dc0d5dc36c12fc487ad8e975262a9e132edff52b5a"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCTestCore.framework/Info.plist",
+    "bytes": 886,
+    "sha256": "2f0d9073b2ed1feb101463b96c31c62efcc745438d19769b964d8c1fd09f8143"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCTestCore.framework/XCTestCore",
+    "bytes": 4089904,
+    "sha256": "193ecdbb651f484a6e14f5d4dba4ef6de4b5e3aa46e53fa97bb6f1806bef71f3"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCTestCore.framework/version.plist",
+    "bytes": 518,
+    "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCTestCore.framework/_CodeSignature/CodeResources",
+    "bytes": 2018,
+    "sha256": "a4e4cb1b450b595cd79991e6a5bc1a00bedad7ef6b6f2cb402b562c45aee3ec4"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCTestSupport.framework/Info.plist",
+    "bytes": 892,
+    "sha256": "b1e2907db77398ee443b5f99aae969be48e8f0627ff219cb164d9286d7145de8"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCTestSupport.framework/XCTestSupport",
+    "bytes": 224912,
+    "sha256": "f48a2fc67431dd73c9238768ec6635ea8d311098aea8c7b2021920e34c4f5dc4"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCTestSupport.framework/version.plist",
+    "bytes": 518,
+    "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCTestSupport.framework/_CodeSignature/CodeResources",
+    "bytes": 2018,
+    "sha256": "493bfa3cbc1033bef7ab5021c6c6423a3ed8bbd86b1fa7c294524777dee105b1"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCUIAutomation.framework/Info.plist",
+    "bytes": 894,
+    "sha256": "c8165e0af2a549416efc6dbe5d4bf3d8d306c42cb68d963c3f0b6d8f34457533"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCUIAutomation.framework/XCUIAutomation",
+    "bytes": 3643712,
+    "sha256": "94e82a956c1d5bdd596b020bd517e793a7534da3efe6468233909ae7a2629ff3"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCUIAutomation.framework/version.plist",
+    "bytes": 518,
+    "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCUIAutomation.framework/_CodeSignature/CodeResources",
+    "bytes": 9338,
+    "sha256": "04ef214a7112d65469abb1c4fca5e5222b7d7f84a1906bd107d780ceed580da2"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCUnit.framework/Info.plist",
+    "bytes": 878,
+    "sha256": "a05755dfb1b3c5fabe06e52ca0a5aafc57919ebcabf0bb10740bc04790ef5bb3"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCUnit.framework/XCUnit",
+    "bytes": 100640,
+    "sha256": "4d8ff95683584aeaa4d4e4c5699d4f9cc651ca8ac3cd0b9294a960eeccf2b803"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCUnit.framework/version.plist",
+    "bytes": 518,
+    "sha256": "610df6a865b3c4c8c7e86c4b30c672a5edf7f956ae2605502afdb819518bea78"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/Frameworks/XCUnit.framework/_CodeSignature/CodeResources",
+    "bytes": 2018,
+    "sha256": "a6c97eddc25aff25229771a51202ff4ddc11234de78af235bd7661493ef4f3dc"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/PlugIns/CrossParagraphControl.xctest/CrossParagraphControl",
+    "bytes": 136232,
+    "sha256": "a9d03ba39fd7a1bb08488950502c5f0f8e40081e8fadc345c49cf5adcd742724"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/PlugIns/CrossParagraphControl.xctest/Info.plist",
+    "bytes": 734,
+    "sha256": "e614ebe6bcbc729923551136c00347fd7fc181a1b44878cf45af0ae996a613be"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/PlugIns/CrossParagraphControl.xctest/reference-alpha.png",
+    "bytes": 255052,
+    "sha256": "7817b96dd4d2fd7117ac821dd25ffb6261c0f368bf3fa5b51d9275bc8f03bd8d"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/PlugIns/CrossParagraphControl.xctest.dSYM/Contents/Info.plist",
+    "bytes": 674,
+    "sha256": "0ffa027a0fc53e1d65f48b481084d338e02c79fbdef6c66a945907735f6a9cdd"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/PlugIns/CrossParagraphControl.xctest.dSYM/Contents/Resources/DWARF/CrossParagraphControl",
+    "bytes": 1242272,
+    "sha256": "a7ffbf65da670e984dd6a7543366c2315043f11a3bab068741a16cb148cd160c"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl-Runner.app/PlugIns/CrossParagraphControl.xctest.dSYM/Contents/Resources/Relocations/aarch64/CrossParagraphControl.yml",
+    "bytes": 18908,
+    "sha256": "c124a5cf5888f0f5b13458d14b86b5d6673b727711920dc44732b71d5ce097d7"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl.swiftmodule/arm64-apple-ios-simulator.abi.json",
+    "bytes": 149,
+    "sha256": "4277ac6b49f8511196028a5ac20f5b1b1dfa754c24615d34068089f0b1739728"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl.swiftmodule/arm64-apple-ios-simulator.swiftdoc",
+    "bytes": 436,
+    "sha256": "2886627438b74df890490ff907ddd4f0ba7e75a19897d6179ce965b245f4949f"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl.swiftmodule/arm64-apple-ios-simulator.swiftmodule",
+    "bytes": 44236,
+    "sha256": "1dd7757ff8670c208397ef6e797dbd5e48949fce1af5bdc049051d79056a8dcc"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphControl.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo",
+    "bytes": 728,
+    "sha256": "8a77da9a84a119e9f4ad9488fde7c5168bc3b2d2c76768f1c20fe2f58626c631"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphHost.app/CrossParagraphHost",
+    "bytes": 76096,
+    "sha256": "37a335fd01b7fe4b1e8744bf1161e569d050f99e613debffaca282be2c202d4c"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphHost.app/Info.plist",
+    "bytes": 779,
+    "sha256": "3963a47c7ed880d1fdf52f9d602ad60e5552e1ec421d83b3bd4d73301b76ced6"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphHost.app/PkgInfo",
+    "bytes": 8,
+    "sha256": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphHost.app.dSYM/Contents/Info.plist",
+    "bytes": 678,
+    "sha256": "f26c7ad925577c3bc29b8c30c99b8f14e7da9c7d9803a4496349bc88c8011173"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphHost.app.dSYM/Contents/Resources/DWARF/CrossParagraphHost",
+    "bytes": 1096416,
+    "sha256": "9168f55f1240004f85cff0057d4de4fffdec6d9ff58b853accd6206c4115a14b"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphHost.app.dSYM/Contents/Resources/Relocations/aarch64/CrossParagraphHost.yml",
+    "bytes": 4865,
+    "sha256": "26e64b77658bc135f228924f614ecbfe78f671d41a354271fdd092f509900553"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphHost.swiftmodule/arm64-apple-ios-simulator.abi.json",
+    "bytes": 149,
+    "sha256": "4277ac6b49f8511196028a5ac20f5b1b1dfa754c24615d34068089f0b1739728"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphHost.swiftmodule/arm64-apple-ios-simulator.swiftdoc",
+    "bytes": 432,
+    "sha256": "5e85144d9a5e1bbdb9bc7d23e058e16206fe619b90e31ed396f0d581c23bd00b"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphHost.swiftmodule/arm64-apple-ios-simulator.swiftmodule",
+    "bytes": 60764,
+    "sha256": "91cad056a963135687c98760052208143d88c3ef8aa86478abd95664401d37ca"
+  },
+  {
+    "path": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Build/Products/Debug-iphonesimulator/CrossParagraphHost.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo",
+    "bytes": 708,
+    "sha256": "1a5006834cae8f137292b873ae40a060f0aa522775f328fff1897d7580335ffe"
+  }
+]

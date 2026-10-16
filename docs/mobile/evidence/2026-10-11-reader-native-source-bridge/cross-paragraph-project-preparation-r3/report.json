@@ -1,0 +1,170 @@
+{
+  "kind": "cross-paragraph-project-actual-stat-cache-base-correction",
+  "version": 3,
+  "openSpecChange": "expo-mobile-migration",
+  "status": "prepared-only-no-native-invocation",
+  "projectInputs": [
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/ControlHost.swift",
+      "sha256": "243b419d3e02a29e2d8f3100ec5637a7a2e054970ac2a258c811027856246495",
+      "bytes": 726,
+      "archive": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r3/source-inputs/ControlHost.swift"
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/ReaderCrossParagraphControl.swift",
+      "sha256": "7c1b3720a67bf91b370f688524cc17f0d54d7f2387a2c53deba9a3be60d53d57",
+      "bytes": 14089,
+      "archive": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r3/source-inputs/ReaderCrossParagraphControl.swift"
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/reference-alpha.png",
+      "sha256": "0bee483fd7932174a320dbd4e89243ca66d03946fb63bd7144e9a0308f83e4c7",
+      "bytes": 349121,
+      "archive": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r3/source-inputs/reference-alpha.png"
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/CrossParagraphControl.xcodeproj/project.pbxproj",
+      "sha256": "a02314f60233488fc354f127be8171da055db792bfc75210ae9ce800a8019751",
+      "bytes": 5217,
+      "archive": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r3/source-inputs/CrossParagraphControl.xcodeproj/project.pbxproj"
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/CrossParagraphControl.xcodeproj/xcshareddata/xcschemes/CrossParagraphControl.xcscheme",
+      "sha256": "83f14f3116e6e28cb2edbece7030316125c2f11b3521a09ba6e1e89009ffeffa",
+      "bytes": 1433,
+      "archive": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r3/source-inputs/CrossParagraphControl.xcodeproj/xcshareddata/xcschemes/CrossParagraphControl.xcscheme"
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/build.py",
+      "sha256": "912ae76858274c9621164ea13c30bf29fc7537b75690345a93db02e1d90f5170",
+      "bytes": 16950,
+      "archive": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r3/source-inputs/build.py"
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/build-guards.test.py",
+      "sha256": "19040243227c51204ef65aa53c144dca8787f166bb24a1481b82881e12ea2836",
+      "bytes": 10455,
+      "archive": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r3/source-inputs/build-guards.test.py"
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/README.md",
+      "sha256": "98ade82d4edbebf9a1d71438c5935279ab82262a82d2607458cf30dbbc1cccd4",
+      "bytes": 5007,
+      "archive": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r3/source-inputs/README.md"
+    },
+    {
+      "path": "apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/build-plan.json",
+      "sha256": "1677345df75c00dd1d2c9cfc799e8f5079607e8fc7e46e20215f521b891c4f2b",
+      "bytes": 5282,
+      "archive": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r3/source-inputs/build-plan.json"
+    }
+  ],
+  "executor": {
+    "path": "apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/build.py",
+    "sha256": "912ae76858274c9621164ea13c30bf29fc7537b75690345a93db02e1d90f5170"
+  },
+  "boundPlan": {
+    "path": "apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/build-plan.json",
+    "sha256": "1677345df75c00dd1d2c9cfc799e8f5079607e8fc7e46e20215f521b891c4f2b",
+    "derivedDataRoot": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298",
+    "derivedDataCreated": false
+  },
+  "preservedR2": {
+    "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r2/report.json",
+    "sha256": "a70bcdcc8860043bcbbc75609dd31c04bc1de91378645128e16181ec3bfde438",
+    "allNineArchivedInputsUnchanged": true,
+    "rootReviewAndAllocation": {
+      "path": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r2/root-independent-preparation-review-and-allocation.json",
+      "sha256": "8e5bd826c7966b9defb96639114a1bbcd25783e6553a01d9a475338feccd8789"
+    },
+    "actualFailedAttempt": [
+      {
+        "path": "/private/tmp/slax-reader-cross-paragraph-build-520eeb57afaf413ca5e23e4fbd2a6f88/build-receipt.json",
+        "sha256": "ae7dea7f5da7d92c3affe27d266c41d854e7d63f12d0bec9884e8047946422dc",
+        "bytes": 2506,
+        "archive": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r3/actual-r2-negative/build-receipt.json"
+      },
+      {
+        "path": "/private/tmp/slax-reader-cross-paragraph-build-520eeb57afaf413ca5e23e4fbd2a6f88/build.log",
+        "sha256": "89a13e611adcbecef6ca1a5a84d45bea94a78b007dda74f04eb746b62f90652f",
+        "bytes": 23384,
+        "archive": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r3/actual-r2-negative/build.log"
+      },
+      {
+        "path": "/private/tmp/slax-reader-cross-paragraph-build-520eeb57afaf413ca5e23e4fbd2a6f88/.slax-cross-paragraph-owner.json",
+        "sha256": "2d97497b4c9802eac1749b420530d2b2e6974e7e35997a00306c0a7736c255b8",
+        "bytes": 532,
+        "archive": "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-project-preparation-r3/actual-r2-negative/.slax-cross-paragraph-owner.json"
+      }
+    ],
+    "failedDDReused": false
+  },
+  "actualDiagnosis": "The r2 native Xcode invocation appended SDKStatCaches.noindex to the supplied base, yielding SDKStatCaches.noindex/SDKStatCaches.noindex/<cache>.sdkstatcache. The direct-only guard refused its apparent size; no exception was widened.",
+  "exactOnlyExecutorChange": "SDK_STAT_CACHE_DIR=<freshOwnedDD> instead of <ownedDD>/SDKStatCaches.noindex. No compiler optimization, warning suppression, source exclusion, budget change or new flags.",
+  "unchanged": "250MiB allocated/true-logical cap,8MiB log,3GiB floor/.6GiB pre-reserve,180s/1job/arm64, exact sparse/active monitor rules and all driver/project/scheme/PNG/five protected legacy inputs.",
+  "actualChecks": [
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/build.py",
+      "exitCode": 0,
+      "logSHA256": "016fa8eb58222c26dad80a432c2acc824748fc526294368b10c7ce131f659e91",
+      "result": {
+        "status": "prepared-only-no-native-invocation",
+        "planSha256": "1677345df75c00dd1d2c9cfc799e8f5079607e8fc7e46e20215f521b891c4f2b",
+        "derivedDataRoot": "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298",
+        "command": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+          "-project",
+          "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/Project/CrossParagraphControl.xcodeproj",
+          "-scheme",
+          "CrossParagraphControl",
+          "-configuration",
+          "Debug",
+          "-sdk",
+          "iphonesimulator",
+          "-destination",
+          "generic/platform=iOS Simulator",
+          "-derivedDataPath",
+          "/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298",
+          "-jobs",
+          "1",
+          "ARCHS=arm64",
+          "ONLY_ACTIVE_ARCH=YES",
+          "CODE_SIGNING_ALLOWED=NO",
+          "INDEX_ENABLE_DATA_STORE=NO",
+          "COMPILATION_CACHE_ENABLE_CACHING=NO",
+          "CLANG_ENABLE_COMPILE_CACHE=NO",
+          "SWIFT_ENABLE_COMPILE_CACHE=NO",
+          "CLANG_MODULE_CACHE_PATH=/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/ModuleCache.noindex",
+          "MODULE_CACHE_DIR=/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298/ModuleCache.noindex",
+          "SDK_STAT_CACHE_DIR=/private/tmp/slax-reader-cross-paragraph-build-6e70ead59d6b4374b9f3dc3a95cb4298",
+          "build-for-testing"
+        ],
+        "nativeTestsExecuted": false,
+        "nativeCrossParagraphAccepted": false
+      },
+      "nativeSubprocess": false
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project/build-guards.test.py PreparedBuildGuards.test_sdk_stat_cache_base_is_the_exact_owned_derived_data -v",
+      "exitCode": 0,
+      "passed": 1,
+      "skipped": 0,
+      "logSHA256": "71c4890b28324a8315ef45cc9f4f3e8a48e09455d90af05cdfd756afb0411d68",
+      "scope": "Actual checked command base and the unchanged direct emitted path, no subprocess."
+    }
+  ],
+  "reviewPasses": {
+    "Bugs": "One observed native path-base issue corrected; no speculative change. Actual r3 compile remains pending.",
+    "Security": "Fresh exact DD namespace, prior negative bytes/Root allocation preserved, no reuse or cleanup.",
+    "Compliance": "expo-mobile-migration native selection helper preparation only; no build/test/range/parity acceptance."
+  },
+  "actions": {
+    "compiler": false,
+    "device": false,
+    "cleanup": false,
+    "stageOrMetro": false,
+    "sourceExclusion": false,
+    "nativeAcceptance": false
+  },
+  "rootIndependentReviewAndFreshAllocationRequired": true
+}

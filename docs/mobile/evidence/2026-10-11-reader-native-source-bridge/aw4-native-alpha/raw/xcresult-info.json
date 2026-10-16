@@ -1,0 +1,15 @@
+{
+  "dateCreated": "2026-10-10 23:20:50",
+  "externalLocations": [],
+  "rootId": {
+    "hash": "0~tZc1aooCSpSY_ME2XH_bSmhDutYr7JcjgNqEKnOK2qxDlWZAvIMe7A5_3H_rbZ5EOTe6zsx8ruFYjcHF1JzUFQ=="
+  },
+  "storage": {
+    "backend": "fileBacked2",
+    "compression": "standard"
+  },
+  "version": {
+    "major": 3,
+    "minor": 58
+  }
+}

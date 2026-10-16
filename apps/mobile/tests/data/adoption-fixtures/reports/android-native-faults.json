@@ -1,0 +1,160 @@
+{
+  "date": "2026-10-10",
+  "status": "passed",
+  "scope": "Controlled same-path fault recovery after a previously completed genuine old-to-Expo adoption; not a first-adoption interruption or a repeated first-adoption installation",
+  "emulatorSerial": "emulator-5560",
+  "androidApi": 34,
+  "nativeArtifact": "Current database-identity development APK, version 1/build 1, installed over the historical completed adoption using the same public debug certificate",
+  "replacementAPK_SHA256": "c2dcdc430514343aafd02c1a8ee8c6f769ba0b51c10b524b0e830b4487e89faa",
+  "publicDebugCertificateSHA256": "fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c",
+  "coordinatorSourceSHA256": "f1d50fdfcba53d760ed8fc52736a0e3d5789278596fc97baeba30d830596656c",
+  "faultFixtureSourceSHA256": "10dc7dbff6d40335756b6a90efb79d85e34a232f5116d752c1a6aab36f863250",
+  "controllerSourceSHA256": "8170cc2d51e7b823932a9e6b255667973a25e5c2574cf0f3ce840a0528e39626",
+  "nativeModuleSourceSHA256": "487b780bb58831a2ec2e0452d7077961002764c09a45dbe06f0aa067c8040ef5",
+  "rawReportSHA256": "c17ec568e1170bd0bb0d6f30a830a852ce1fa5b20713759403dd66f7e3b3e366",
+  "nativeReport": {
+    "kind": "slax-native-adoption-fault-report",
+    "version": 1,
+    "events": [
+      {
+        "phase": "repeat-accepted",
+        "status": "passed",
+        "platform": "android",
+        "runId": "android-fault-20261010",
+        "coreVersion": "0.5.3/2ba6b280",
+        "databasePath": "/data/data/com.slax.reader/databases/powersync.db",
+        "pendingOperations": 0,
+        "completedOperations": 0,
+        "logicalIdentityReturned": true,
+        "containerRelocated": false,
+        "serviceReconnect": false,
+        "productionAdoptionEnabled": false
+      },
+      {
+        "phase": "resume-before-sdk-open",
+        "status": "passed",
+        "platform": "android",
+        "runId": "android-fault-20261010",
+        "coreVersion": "0.5.3/2ba6b280",
+        "databasePath": "/data/data/com.slax.reader/databases/powersync.db",
+        "pendingOperations": 0,
+        "completedOperations": 0,
+        "logicalIdentityReturned": true,
+        "containerRelocated": false,
+        "serviceReconnect": false,
+        "productionAdoptionEnabled": false
+      },
+      {
+        "phase": "resume-after-offline-commit",
+        "status": "passed",
+        "platform": "android",
+        "runId": "android-fault-20261010",
+        "coreVersion": "0.5.3/2ba6b280",
+        "databasePath": "/data/data/com.slax.reader/databases/powersync.db",
+        "pendingOperations": 0,
+        "completedOperations": 2,
+        "logicalIdentityReturned": true,
+        "containerRelocated": false,
+        "serviceReconnect": false,
+        "productionAdoptionEnabled": false
+      },
+      {
+        "phase": "repeat-accepted",
+        "status": "passed",
+        "platform": "android",
+        "runId": "android-fault-20261010",
+        "coreVersion": "0.5.3/2ba6b280",
+        "databasePath": "/data/data/com.slax.reader/databases/powersync.db",
+        "pendingOperations": 0,
+        "completedOperations": 0,
+        "logicalIdentityReturned": true,
+        "containerRelocated": false,
+        "serviceReconnect": false,
+        "productionAdoptionEnabled": false
+      }
+    ]
+  },
+  "externalProcessKills": [
+    {
+      "phase": "hold-before-sdk-open",
+      "pid": 14120,
+      "signal": "SIGKILL",
+      "openingCheckpointPersisted": true,
+      "sdkOpened": false
+    },
+    {
+      "phase": "hold-after-offline-commit",
+      "pid": 14477,
+      "signal": "SIGKILL",
+      "clientIds": [
+        7,
+        8
+      ],
+      "transactionIds": [
+        4
+      ]
+    }
+  ],
+  "resumePIDs": [
+    14355,
+    14612
+  ],
+  "nativeLogicalIdentity": {
+    "owner": "android:com.slax.reader:/data/data/com.slax.reader/files",
+    "relativePath": "databases/powersync.db"
+  },
+  "committedStateSHA256": "392f88693415cedc0336e4c1eb8ecd1473641d59bca9bbd9be4e6bbdbe0442c6",
+  "committedSnapshot": {
+    "databasePath": "/data/data/com.slax.reader/databases/powersync.db",
+    "integrityValid": true,
+    "formatVersion": 14,
+    "userVersion": 1,
+    "storageTables": [
+      "ps_data__sr_bookmark_comment",
+      "ps_data__sr_collection_bookmark",
+      "ps_data__sr_platform_bind",
+      "ps_data__sr_sharer_setting",
+      "ps_data__sr_user",
+      "ps_data__sr_user_bookmark",
+      "ps_data__sr_user_bookmark_stats",
+      "ps_data__sr_user_collection",
+      "ps_data__sr_user_collection_subscriber",
+      "ps_data__sr_user_notification",
+      "ps_data__sr_user_subscription",
+      "ps_data__sr_user_tag",
+      "ps_data_local__local_bookmark_info"
+    ],
+    "pendingOperations": 2,
+    "pendingTransactions": 1,
+    "queueDigest": "aa00a001e3e82003da9fe3cff6bf301001b63663c7d1e09c9cc2a35b08a4aeb9",
+    "dataDigest": "57bb62a72b9ecd1ed19f982532b810323fc153336d266df3a8c50d30801e8f7d",
+    "localDigest": "1f90b521e8ce2680601252d281ce3426888a741f351e35d3a7e88bfad7e816df"
+  },
+  "nativeCrossProcessOwnerProbe": {
+    "platform": "Android API 34 controlled emulator",
+    "probeArchiveSHA256": "de126f321e05626fd52cd6bd8180ad8ac0823576c3ac49fbb20dae5df7d3787d",
+    "whileProductionModuleHeldLease": {
+      "acquired": false
+    },
+    "afterControlledSigkill": {
+      "acquired": true
+    },
+    "primitive": "Actual production SlaxLegacy FileChannel holder and separately executed Android Java process under the same controlled UID using FileChannel.tryLock on the same owner lock",
+    "archiveMode": "0444; Android 14 prohibits loading writable DEX"
+  },
+  "preservedHistoricalAdoptionReportSHA256": "cd6bf3193fc45ab0d3aa012fbd92170f253a35487872dd1f8dada4a61c2e77aa",
+  "installationPerformed": true,
+  "installationBeforeFaultPhases": true,
+  "applicationDataReset": false,
+  "productionAdoptionEnabled": false,
+  "serviceReconnect": false,
+  "verificationNotExecuted": [
+    "firstOldToNewAdoptionInterruptedWithLegacyQueue",
+    "freshOriginalProducerToIdentityBridgeThenRepeatedInstallation",
+    "nativeCrossProcessPreferenceCAS",
+    "backgroundSuspension",
+    "extensionColdLaunch",
+    "realServiceReconnect",
+    "releaseSignedUpgrade"
+  ]
+}

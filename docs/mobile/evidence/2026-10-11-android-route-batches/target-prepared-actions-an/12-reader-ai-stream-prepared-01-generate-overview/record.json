@@ -1,0 +1,71 @@
+{
+  "name": "reader-ai-stream-prepared-01-generate-overview",
+  "result": "native-candidate-captured",
+  "expectedRoute": null,
+  "observedRoute": {
+    "name": "Reader",
+    "params": {
+      "bookmarkId": "00000003-0000-4000-8000-000000000001"
+    },
+    "key": "Reader-aAgjxrciV3B3VoWQDpXl-"
+  },
+  "focusedWindow": "mCurrentFocus=Window{776f50d u0 com.slax.reader.uifixture/com.slax.reader.uifixture.MainActivity}",
+  "nativeInput": null,
+  "nativeInteractionVerified": false,
+  "expectedNativeState": [],
+  "forbiddenNativeState": [],
+  "preparedActionIndices": [
+    0,
+    1
+  ],
+  "preparationOnly": true,
+  "preparedScenario": "reader-ai-stream",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "nativeMeasurements": {
+    "platform": "android",
+    "osVersion": "14",
+    "deviceModel": "sdk_gphone64_arm64",
+    "viewport": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "screen": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "pixelRatio": 2.625,
+    "fontScale": 1,
+    "fontScaleProfile": "default",
+    "safeArea": {
+      "left": 0,
+      "bottom": 24,
+      "right": 0,
+      "top": 51.80952453613281
+    },
+    "appearance": "light"
+  },
+  "visualInspection": "pending",
+  "sourceParity": "unverified",
+  "capturedAtMillis": 1791659992547,
+  "files": [
+    {
+      "path": "12-reader-ai-stream-prepared-01-generate-overview/native.png",
+      "sha256": "73a6ec4cd370b0ba5ae79108f8c644139e4d7a3fff264890594c579eafeee1fc",
+      "bytes": 56250
+    },
+    {
+      "path": "12-reader-ai-stream-prepared-01-generate-overview/runtime-context.json",
+      "sha256": "d6fba090b916e72874c520e7a04b3e53583462a547f5d9429d6cde210d2ff8c3",
+      "bytes": 3150
+    },
+    {
+      "path": "12-reader-ai-stream-prepared-01-generate-overview/native-hierarchy.xml",
+      "sha256": "ff18130ff2645cb8c431e040bec26bbaa9b42ae83b49a1a2427db40f71b2dc33",
+      "bytes": 7874
+    }
+  ]
+}

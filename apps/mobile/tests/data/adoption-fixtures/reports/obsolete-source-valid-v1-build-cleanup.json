@@ -1,0 +1,132 @@
+{
+  "kind": "slax-controlled-obsolete-visible-v1-build-cleanup",
+  "version": 1,
+  "recordedAt": "2026-10-10T20:16:11.031Z",
+  "authorization": "Parent authorized removal of obsolete owned V1 native producer build outputs after marker/source/artifact verification.",
+  "buildReport": {
+    "path": "apps/mobile/tests/data/adoption-fixtures/reports/visible-legacy-producer-builds.json",
+    "sha256": "ccaec9a0260e18a773d581a5a6b797ca61b8cf7f35d0e3b6a2575a4d14fc034f"
+  },
+  "records": [
+    {
+      "platform": "ios",
+      "projectRoot": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-legacy-producer-g9oPM3",
+      "removedBuildDirectory": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-legacy-producer-g9oPM3/build",
+      "bytes": 117489775,
+      "files": 29,
+      "markerSHA256": "17397aea7a0b23f8a0bb3240c6898ab78fa111baf5efcae591986741bca95633",
+      "generatedSourceManifest": [
+        {
+          "path": "Info.plist",
+          "sha256": "a019feee47f4e400cd6a0a13f6bd4d0626d142a27ac4352e8e6341c11984ad29"
+        },
+        {
+          "path": "LegacyFixtureApp.swift",
+          "sha256": "5c800377a5b57e61507ee6b1662abd7dc0b2cb0767bc55e7da1b7c2ed871458b"
+        },
+        {
+          "path": "SlaxLegacyFixture.entitlements",
+          "sha256": "d30603c544890246eb9edf9015e2ee93cbe2303e6f804ac6fc61432ace1b0611"
+        },
+        {
+          "path": "build-app.mjs",
+          "sha256": "21788c1ceee22416a4a2013d17a78a4b35e4f51ba2862b46bf3e3cbfc6090b77"
+        },
+        {
+          "path": "build.gradle.kts",
+          "sha256": "b8753b71b9fdb42e119329556efe1d2fc6381abc7de56b060de788c9395c256b"
+        },
+        {
+          "path": "gradle.properties",
+          "sha256": "97dc787aa523ed89f558fc9e45a875847de881ca5f6bc197c3abc77fcccd3991"
+        },
+        {
+          "path": "settings.gradle.kts",
+          "sha256": "8e2e86f538d2106abc34e772224439a47107f898410bc3614d490b8f64c81f97"
+        },
+        {
+          "path": "src/commonMain/kotlin/com/slax/reader/data/database/Schema.kt",
+          "sha256": "344a7bcc6901c7d3b22052278bcc326bc1f84930bb65a7fb9d2efb7a61042cd5"
+        },
+        {
+          "path": "src/iosSimulatorArm64Main/kotlin/LegacyFixtureProducer.kt",
+          "sha256": "504df2072d250a4b3f91c20a723ccff13bc42e08b743ed8d2db6da9851e704e9"
+        },
+        {
+          "path": "visible-legacy-inputs.json",
+          "sha256": "d3844fa4d0465665b1f90e68bf9215e84902bb8b56f6e9dc165630967547c3f0"
+        }
+      ],
+      "artifactSHA256": "14182163d6e09ae719725e5d9f162ba1d1d5f8782b2f7b4ce1fcc41ddc066104",
+      "publicDebugCertSHA256": null
+    },
+    {
+      "platform": "android",
+      "projectRoot": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-legacy-producer-nGxrwB",
+      "removedBuildDirectory": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-legacy-producer-nGxrwB/build",
+      "bytes": 37934975,
+      "files": 251,
+      "markerSHA256": "9010696bba13a08b10fa3151c5ade98306b19ee7913010369e1282c4ef867d36",
+      "generatedSourceManifest": [
+        {
+          "path": "build.gradle.kts",
+          "sha256": "7059f4e70c890f2a001299d71b7d144908ba62e63045ebfd27bd5a0bdadda7d0"
+        },
+        {
+          "path": "gradle.properties",
+          "sha256": "97dc787aa523ed89f558fc9e45a875847de881ca5f6bc197c3abc77fcccd3991"
+        },
+        {
+          "path": "settings.gradle.kts",
+          "sha256": "6cc1b7088548bb7d46cf2f60d4cf5f534be023129557c9d825cd1486b327c7c3"
+        },
+        {
+          "path": "src/main/AndroidManifest.xml",
+          "sha256": "e2f3e78439897d353300d350be3907074f9d4707725ba1f89322ebbdfa4292c9"
+        },
+        {
+          "path": "src/main/java/com/slax/reader/LegacyFixtureActivity.kt",
+          "sha256": "11ce25b261dc9c2b14f1393e7f218b1b1e91077ad415afab94a95489c68083c6"
+        },
+        {
+          "path": "src/main/java/com/slax/reader/data/database/Schema.kt",
+          "sha256": "344a7bcc6901c7d3b22052278bcc326bc1f84930bb65a7fb9d2efb7a61042cd5"
+        },
+        {
+          "path": "visible-legacy-inputs.json",
+          "sha256": "d3844fa4d0465665b1f90e68bf9215e84902bb8b56f6e9dc165630967547c3f0"
+        }
+      ],
+      "artifactSHA256": "db5b770c0459a5ee51fcfd925da99f91a61153bfc1acb16f3b94c1a299811752",
+      "publicDebugCertSHA256": "fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c"
+    }
+  ],
+  "commands": [
+    {
+      "command": "codesign",
+      "args": [
+        "--verify",
+        "--deep",
+        "--strict",
+        "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-legacy-producer-g9oPM3/build/SlaxLegacyFixture.app"
+      ],
+      "status": 0
+    },
+    {
+      "command": "/Users/daguang/Library/Android/sdk/build-tools/36.0.0/apksigner",
+      "args": [
+        "verify",
+        "--print-certs",
+        "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-visible-legacy-producer-nGxrwB/build/outputs/apk/debug/slax-android-legacy-fixture-debug.apk"
+      ],
+      "status": 0
+    }
+  ],
+  "removed": true,
+  "currentV2ProducerAndMain757Preserved": true,
+  "allDeviceSandboxesPreserved": true,
+  "historicalRawReportsPreserved": true,
+  "publicSourceInputAndManifestPreserved": true,
+  "operatorAndSharedCachesTouched": false,
+  "totalFileBytes": 155424750
+}

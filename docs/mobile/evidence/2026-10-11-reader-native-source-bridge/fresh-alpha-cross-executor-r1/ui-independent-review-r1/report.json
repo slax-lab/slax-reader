@@ -1,0 +1,115 @@
+{
+  "kind": "independent-fresh-alpha-cross-preparation-review-r1",
+  "version": 1,
+  "openSpecChange": "expo-mobile-migration",
+  "status": "important-evidence-recording-finding-pending-narrow-r2",
+  "reviewer": "native_ui_acceptance",
+  "recordedAtUnixSeconds": 1791682558.513667,
+  "policy": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/REVIEW.md",
+    "bytes": 4519,
+    "sha256": "f971265251f4de7981958224e2d7eea4fefa270f0ba01aecc2e90820aa7ed7f3"
+  },
+  "reviewedAuthorReport": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/report.json",
+    "bytes": 5368,
+    "sha256": "00cd45c788c3b3a8389e3897c7208ebf1d8896d7611179e56a5cb1a842ad6307"
+  },
+  "inputs": [
+    {
+      "current": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/inputs/installed-helpers-forward-admission.json",
+        "bytes": 24439,
+        "sha256": "edf7dc74497fae0312ba5145774411276d5614742449f8f063dcbc666b870716"
+      },
+      "archived": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/ui-independent-review-r1/inputs/installed-helpers-forward-admission.json",
+        "bytes": 24439,
+        "sha256": "edf7dc74497fae0312ba5145774411276d5614742449f8f063dcbc666b870716"
+      }
+    },
+    {
+      "current": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/inputs/run-fresh-alpha-cross.py",
+        "bytes": 44802,
+        "sha256": "b90011fd4834415a0236a64201d9b828178cb44146e74e222841b3ef617ed18e"
+      },
+      "archived": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/ui-independent-review-r1/inputs/run-fresh-alpha-cross.py",
+        "bytes": 44802,
+        "sha256": "b90011fd4834415a0236a64201d9b828178cb44146e74e222841b3ef617ed18e"
+      }
+    },
+    {
+      "current": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/inputs/runtime-guards.test.py",
+        "bytes": 12726,
+        "sha256": "851e1f694d66a460d34a498e198c1267a67279b782107abadd5c805a0c0ee8a0"
+      },
+      "archived": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/ui-independent-review-r1/inputs/runtime-guards.test.py",
+        "bytes": 12726,
+        "sha256": "851e1f694d66a460d34a498e198c1267a67279b782107abadd5c805a0c0ee8a0"
+      }
+    },
+    {
+      "current": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/inputs/runtime-policy.json",
+        "bytes": 34697,
+        "sha256": "e98b4c008e43941e91de35566587d67fc99ba100cb438181f722d40ee52c01e1"
+      },
+      "archived": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/ui-independent-review-r1/inputs/runtime-policy.json",
+        "bytes": 34697,
+        "sha256": "e98b4c008e43941e91de35566587d67fc99ba100cb438181f722d40ee52c01e1"
+      }
+    },
+    {
+      "current": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/inputs/snapshot-check.mjs",
+        "bytes": 2254,
+        "sha256": "3fed60342c4e3fc6e40842440be81fd3a668565a22bc24d713372a601b799837"
+      },
+      "archived": {
+        "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/ui-independent-review-r1/inputs/snapshot-check.mjs",
+        "bytes": 2254,
+        "sha256": "3fed60342c4e3fc6e40842440be81fd3a668565a22bc24d713372a601b799837"
+      }
+    }
+  ],
+  "passes": {
+    "Bugs": {
+      "important": [
+        {
+          "file": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r1/inputs/run-fresh-alpha-cross.py",
+          "lines": [
+            394,
+            581,
+            588
+          ],
+          "title": "A post-input failure can falsely retain no Cross input issued",
+          "detail": "crossInputIssued starts false and turns true only after native_result, post-input capture and snapshot validation all complete. A real native drag followed by a failed observation therefore leaves a misleading false field despite the retained native command. The author acknowledged the finding and is preparing a separately archived r2 with durable command-issued plus unknown/observed actual-input status, without replacing r1."
+        }
+      ],
+      "nits": []
+    },
+    "Security": {
+      "important": [],
+      "nits": [],
+      "assessment": "Closed grants/selectors/current scope, exact compiled63/53 and installed148 file-backed app ancestry, full logical/allocated own-helper accounting, owned-process-group stop, bounded commands and only own helper/UI termination. No Main/AppGroup data reads, no compiler/Metro mutation, no arbitrary selection or native retry."
+    },
+    "Compliance": {
+      "important": [],
+      "nits": [],
+      "assessment": "Supports approved native cross-paragraph selection acceptance with two distinct same-window Root grants and an independent live Alpha frame/result barrier. Native flags remain unaccepted. Current stage377 and actual bitmap-only prerequisite are bound, historical Alpha remains ancestry only. Copy/highlight persistence, source callback and whole visual parity remain pending."
+    }
+  },
+  "checks": {
+    "independentFocusedExecution": "Deferred until the narrow r2 is frozen; no duplicate r1 host run. Author21/21 and readonly admission are hash-bound as prior author evidence only.",
+    "readEntireExecutor": true,
+    "readEntire21Guards": true,
+    "readOnlySnapshotGuardAndNativeSelectorSources": true
+  },
+  "nativeDeviceDBStageMetroCompilerActions": false,
+  "specOrCoverageChanges": false
+}

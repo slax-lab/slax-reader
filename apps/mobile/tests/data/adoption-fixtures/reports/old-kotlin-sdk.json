@@ -1,0 +1,68 @@
+{
+    "producer": "powersync-kotlin-1.14.1",
+    "coreVersion": "0.5.1/d6c157e7",
+    "transactions": [
+        {
+            "transactionId": 1,
+            "crud": [
+                {
+                    "clientId": 1,
+                    "id": "tag-1",
+                    "op": "PUT",
+                    "table": "sr_user_tag",
+                    "opData": {
+                        "display": "Offline",
+                        "tag_name": "offline",
+                        "user_id": "synthetic-user"
+                    },
+                    "previousValues": null
+                },
+                {
+                    "clientId": 2,
+                    "id": "bookmark-1",
+                    "op": "PUT",
+                    "table": "sr_user_bookmark",
+                    "opData": {
+                        "alias_title": "Offline article",
+                        "is_starred": "0",
+                        "metadata": "{\"tags\":[\"tag-1\"],\"share\":{\"allow_access\":1}}",
+                        "user_id": "synthetic-user"
+                    },
+                    "previousValues": null
+                }
+            ]
+        },
+        {
+            "transactionId": 2,
+            "crud": [
+                {
+                    "clientId": 3,
+                    "id": "bookmark-1",
+                    "op": "PATCH",
+                    "table": "sr_user_bookmark",
+                    "opData": {
+                        "is_starred": "1",
+                        "metadata": "{\"tags\":[\"tag-1\",\"tag-2\"],\"share\":{\"allow_access\":0}}"
+                    },
+                    "previousValues": {
+                        "is_starred": "0",
+                        "metadata": "{\"tags\":[\"tag-1\"],\"share\":{\"allow_access\":1}}"
+                    }
+                },
+                {
+                    "clientId": 4,
+                    "id": "comment-1",
+                    "op": "PUT",
+                    "table": "sr_bookmark_comment",
+                    "opData": {
+                        "comment": "Pending comment",
+                        "metadata": "{\"thread\":\"thread-1\"}",
+                        "source": "{\"start_offset\":3,\"end_offset\":12}"
+                    },
+                    "previousValues": null
+                }
+            ]
+        }
+    ],
+    "localJson": "{\"overview\":\"Offline summary\",\"is_downloaded\":1,\"read_position\":\"348.25\",\"outline_read_position\":\"12\",\"is_auto_cached\":0,\"future_field\":{\"preserve\":true}}"
+}

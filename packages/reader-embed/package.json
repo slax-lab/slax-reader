@@ -1,0 +1,15 @@
+{
+  "name": "@slax-reader/reader-embed",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./*": "./src/*.ts",
+    "./assets/*": "./assets/*"
+  },
+  "dependencies": {
+    "@slax-reader/contracts": "workspace:*",
+    "pdfjs-dist": "6.4.299"
+  }
+}

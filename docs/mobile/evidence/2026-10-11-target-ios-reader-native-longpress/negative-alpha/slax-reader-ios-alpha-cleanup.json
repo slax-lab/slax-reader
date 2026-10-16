@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "device": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+  "fixtureTerminated": true,
+  "simulatorShutdown": true,
+  "productionMainActivated": false,
+  "mainOrAppGroupTouched": false,
+  "dataReset": false,
+  "nativeLongPressPerformed": true,
+  "applicationSelectionMenuVisible": false,
+  "xcodeFinalizationStoppedByResourceGuard": true,
+  "furtherInputPerformed": false
+}

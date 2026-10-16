@@ -1,0 +1,9 @@
+{
+  "kind": "slax-controlled-source-valid-original-service-cleanup",
+  "runId": "controlled-ios-visible-upgrade-v2-20261011",
+  "device": "88E63005-F681-45A6-AF8D-BEFE4E27584D",
+  "ownedContainersVolumesNetworksRemoved": true,
+  "ownedControllerStopped": true,
+  "failed468SandboxPreserved": true,
+  "simulatorCurrentlyOwnedForNextCasAndVisibleChecks": true
+}

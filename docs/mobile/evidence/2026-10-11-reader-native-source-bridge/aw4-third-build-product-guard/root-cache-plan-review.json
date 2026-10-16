@@ -1,0 +1,29 @@
+{
+  "formatVersion": 1,
+  "openSpec": "expo-mobile-migration",
+  "scope": "Root read-only independent verification of only the owned ModuleCache.noindex cleanup plan; no complete application or native runtime claim.",
+  "planSha256": "d15e766004d482b283603e4560558b22587b3414f75db000b9ac7b680d65bfbb",
+  "failedReportSha256": "76d350b5b584517615f7d439b2f9b4454587d0a2678c3be09d32ab1cc7518e7a",
+  "ownerSha256": "3709ddf48b32bdd70bd845b84f904548e5504eb8710bdb1f61606cabe5858555",
+  "cacheEntries": 4804,
+  "protectedEntries": 27935,
+  "allActualEntriesVerified": 32739,
+  "regularContentHashesVerified": 30276,
+  "threeKnownSparseFilesMetadataVerified": true,
+  "fullTreeIdentityModeLengthAllocationAndHashesVerified": true,
+  "rawFailureLogAndGzipVerified": true,
+  "onlyAuthorizedRemoval": "/private/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/ModuleCache.noindex",
+  "forbiddenRemoval": [
+    "ExplicitPrecompiledModules",
+    "Products",
+    "XCBuildData",
+    "Index",
+    "CompilationCache",
+    "helper",
+    "other DD"
+  ],
+  "noDeletionInThisReview": true,
+  "buildSucceeded": false,
+  "nativeExecution": false,
+  "testFlightUploaded": false
+}

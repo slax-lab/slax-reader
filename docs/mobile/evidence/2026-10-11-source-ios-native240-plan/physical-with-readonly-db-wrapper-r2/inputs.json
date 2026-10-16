@@ -1,0 +1,160 @@
+{
+  "kind": "source-physical-db-wrapper-closed-public-input-archive",
+  "version": 2,
+  "entries": [
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/scenarios.json",
+      "bytes": 1756477,
+      "sha256": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/01-scenarios.json",
+      "archiveSHA256": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/native-scroll-db-runtime-guards.test.py",
+      "bytes": 20944,
+      "sha256": "cc555027ddb2d2b41386a927aa26da3261d17234a69c7e758c19d2332334701d",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/02-native-scroll-db-runtime-guards.test.py",
+      "archiveSHA256": "cc555027ddb2d2b41386a927aa26da3261d17234a69c7e758c19d2332334701d"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/native-scroll-runtime-plan.json",
+      "bytes": 11302,
+      "sha256": "d2c8eef0f51435e50a8846c804df41f16ab884533b281211980ac35206d9761a",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/03-native-scroll-runtime-plan.json",
+      "archiveSHA256": "d2c8eef0f51435e50a8846c804df41f16ab884533b281211980ac35206d9761a"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/observe-persisted-position.py",
+      "bytes": 16379,
+      "sha256": "a545d29be7a3a5c97fdb03aca92e277b3c6548d6430c39cb538a174aea703cf9",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/04-observe-persisted-position.py",
+      "archiveSHA256": "a545d29be7a3a5c97fdb03aca92e277b3c6548d6430c39cb538a174aea703cf9"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/persisted-position-guards.test.py",
+      "bytes": 12941,
+      "sha256": "c64f94c24d14cc3b479846ea21f89d1dab0ad88fd768feae8fbb1f471bfa0edf",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/05-persisted-position-guards.test.py",
+      "archiveSHA256": "c64f94c24d14cc3b479846ea21f89d1dab0ad88fd768feae8fbb1f471bfa0edf"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/run-native-scroll-with-db.py",
+      "bytes": 23587,
+      "sha256": "b347198bdd202ffd274e8719d559cbc09163cc7ac1d7422a51ace9ce386d9350",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/06-run-native-scroll-with-db.py",
+      "archiveSHA256": "b347198bdd202ffd274e8719d559cbc09163cc7ac1d7422a51ace9ce386d9350"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/run-native-scroll.py",
+      "bytes": 39239,
+      "sha256": "135bac87ef03df564958dd04657a8a705fb5c0f10524de2d05c1040c4d9d6c04",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/07-run-native-scroll.py",
+      "archiveSHA256": "135bac87ef03df564958dd04657a8a705fb5c0f10524de2d05c1040c4d9d6c04"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-native-scroll-executor-preparation-r1/ui-independent-review/report.json",
+      "bytes": 21856,
+      "sha256": "71b4bf3901efe068120a3bcc742db596668e088433afea911bd2820bb083aefc",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/08-report.json",
+      "archiveSHA256": "71b4bf3901efe068120a3bcc742db596668e088433afea911bd2820bb083aefc"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/plan.json",
+      "bytes": 13087,
+      "sha256": "09cc761bdc986148ce9f5eb3d452d2725e0b25aaaf82d06c78eb279e40380009",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/09-plan.json",
+      "archiveSHA256": "09cc761bdc986148ce9f5eb3d452d2725e0b25aaaf82d06c78eb279e40380009"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/report.json",
+      "bytes": 6929,
+      "sha256": "d699180e832846d650ccd0f15d8732c3f54465a0d90786c42adb0d1af8be0831",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/10-report.json",
+      "archiveSHA256": "d699180e832846d650ccd0f15d8732c3f54465a0d90786c42adb0d1af8be0831"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/sdk-path-evidence/common/default/ir/strings.knt",
+      "bytes": 154746,
+      "sha256": "1f56250952f066460356bb246f0eb8fddffb2ac677795cea81bbd94dc01f8fa6",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/11-strings.knt",
+      "archiveSHA256": "1f56250952f066460356bb246f0eb8fddffb2ac677795cea81bbd94dc01f8fa6"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/sdk-path-evidence/common/default/manifest",
+      "bytes": 1653,
+      "sha256": "9b4bf7539beca49ca53662d421bef00d290b2c79efaf2ca4a27b86887e073ef9",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/12-manifest",
+      "archiveSHA256": "9b4bf7539beca49ca53662d421bef00d290b2c79efaf2ca4a27b86887e073ef9"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/sdk-path-evidence/core/default/ir/strings.knt",
+      "bytes": 1853,
+      "sha256": "5a9407508d9a8456d77e5445744dedce9230663df4e5be54210143312890e396",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/13-strings.knt",
+      "archiveSHA256": "5a9407508d9a8456d77e5445744dedce9230663df4e5be54210143312890e396"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/sdk-path-evidence/core/default/manifest",
+      "bytes": 1817,
+      "sha256": "efd38b6f335918cc5bb5d7710ffd7dd1394ade56a9feb198df0a2b33ef5765da",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/14-manifest",
+      "archiveSHA256": "efd38b6f335918cc5bb5d7710ffd7dd1394ade56a9feb198df0a2b33ef5765da"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/source-physical-and-db-helper-root-review-r1/report.json",
+      "bytes": 8807,
+      "sha256": "bb2042a552eb0a6c614fbd656bf2eea982e0ed788f391eaa5cab3685dae3592f",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/15-report.json",
+      "archiveSHA256": "bb2042a552eb0a6c614fbd656bf2eea982e0ed788f391eaa5cab3685dae3592f"
+    },
+    {
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/com.powersync/common-iossimulatorarm64/1.14.1/422bf33418ff5afb57ac601d181291b2dcf9da5a/common-iosSimulatorArm64Main-1.14.1.klib",
+      "bytes": 500940,
+      "sha256": "ba6fdbc6947c177d664d1416f4ab9ca2fbb03a75835eb4287ce86569fe52b9ed",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/16-common-iosSimulatorArm64Main-1.14.1.klib",
+      "archiveSHA256": "ba6fdbc6947c177d664d1416f4ab9ca2fbb03a75835eb4287ce86569fe52b9ed"
+    },
+    {
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/com.powersync/core-iossimulatorarm64/1.14.1/3c19a01c6a6bad05ef29932361b9307b5f7c46b6/core-iosSimulatorArm64Main-1.14.1.klib",
+      "bytes": 7273,
+      "sha256": "9c603aa7c9807e245d414b3da3be0c35d1e44d726059898b66eb7ec6ff50dcab",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/17-core-iosSimulatorArm64Main-1.14.1.klib",
+      "archiveSHA256": "9c603aa7c9807e245d414b3da3be0c35d1e44d726059898b66eb7ec6ff50dcab"
+    },
+    {
+      "path": "/Users/daguang/project/slax-reader-client/composeApp/src/commonMain/kotlin/com/slax/reader/data/database/Schema.kt",
+      "bytes": 5868,
+      "sha256": "344a7bcc6901c7d3b22052278bcc326bc1f84930bb65a7fb9d2efb7a61042cd5",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/18-Schema.kt",
+      "archiveSHA256": "344a7bcc6901c7d3b22052278bcc326bc1f84930bb65a7fb9d2efb7a61042cd5"
+    },
+    {
+      "path": "/Users/daguang/project/slax-reader-client/composeApp/src/commonMain/kotlin/com/slax/reader/data/database/dao/LocalBookmark.kt",
+      "bytes": 12767,
+      "sha256": "06fd4fa1c5cc73cd4e220c5f069ad4f28015a6a9dd3adb1c08bc9a95c2f27a73",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/19-LocalBookmark.kt",
+      "archiveSHA256": "06fd4fa1c5cc73cd4e220c5f069ad4f28015a6a9dd3adb1c08bc9a95c2f27a73"
+    },
+    {
+      "path": "/Users/daguang/project/slax-reader-client/composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/ViewModel.kt",
+      "bytes": 31272,
+      "sha256": "2d8e7c5ef55ef2182b335f0ae099853ee8ad5b41a967cbbe05a1eb326822672b",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/20-ViewModel.kt",
+      "archiveSHA256": "2d8e7c5ef55ef2182b335f0ae099853ee8ad5b41a967cbbe05a1eb326822672b"
+    },
+    {
+      "path": "/private/tmp/slax-source-ui-fixture-ios-j/composeApp/src/fixtureIosMain/kotlin/com/slax/reader/fixtures/SourceFixture.kt",
+      "bytes": 16762,
+      "sha256": "a047472d90157f52826e7d173944b73e14840bfcb30547ddb9a2a03465e13685",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/21-SourceFixture.kt",
+      "archiveSHA256": "a047472d90157f52826e7d173944b73e14840bfcb30547ddb9a2a03465e13685"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/native-scroll-db-runtime-plan.json",
+      "bytes": 13731,
+      "sha256": "8b15345e7417e33da2503561c831a5f6eaf04befaf471bd0bf6ae667d6ae1a1b",
+      "archivePath": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/inputs/native-scroll-db-runtime-plan.json",
+      "archiveSHA256": "8b15345e7417e33da2503561c831a5f6eaf04befaf471bd0bf6ae667d6ae1a1b"
+    }
+  ]
+}

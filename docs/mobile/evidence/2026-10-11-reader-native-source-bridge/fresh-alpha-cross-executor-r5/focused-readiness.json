@@ -1,0 +1,9 @@
+{
+  "argv": [
+    "/usr/local/bin/node",
+    "--test",
+    "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r5/inputs/inspector-ready.test.mjs"
+  ],
+  "exitCode": 0,
+  "nativeDeviceCompilerMetroActions": false
+}

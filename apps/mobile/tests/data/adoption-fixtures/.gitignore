@@ -1,0 +1,11 @@
+**/.gradle/
+**/build/
+**/generated/
+**/new-owner/
+*.dylib
+*.so
+*.apk
+*.db
+*.db-wal
+*.db-shm
+local.properties

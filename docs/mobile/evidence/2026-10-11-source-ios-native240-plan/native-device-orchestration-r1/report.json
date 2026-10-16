@@ -1,0 +1,47 @@
+{
+  "kind": "original-source-native-scroll-orchestration-preparation-receipt",
+  "version": 1,
+  "openSpecChange": "expo-mobile-migration",
+  "status": "prepared-only-control-receipt-and-device-allocation-pending",
+  "inputs": [
+    {
+      "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/native-device-orchestration-r1/plan.json",
+      "bytes": 17047,
+      "sha256": "989582a55fa4221b83c6089125b598691487ef815e43fd0eb42ea29ed4c265eb"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/native-device-orchestration-r1/original-position-interface-audit.json",
+      "bytes": 6176,
+      "sha256": "5bec9e78c0e5c69fe274884bb06aedc5d1d43ada4cd7c82db1a1940b14284885"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/native-device-orchestration-r1/README.md",
+      "bytes": 5210,
+      "sha256": "0e2a41953032a09d5c74aa02504ae32e9cc443cae9b5ea453698b4c5eab11d1e"
+    }
+  ],
+  "actualChecks": {
+    "publicBindingsMatch": 6,
+    "originalCallpathAndActualJInterfaceHashesMatch": 7,
+    "allArchivedInterfaceBytesMatch": true,
+    "commandOrderInstallBeforeLaunch": true,
+    "subprocessTestsRun": false
+  },
+  "limitations": {
+    "sourceShellSignedVerified": true,
+    "newControlCompiledReceiptPending": true,
+    "rawKvoSeparateFromFloat32Projection": true,
+    "actualKotlinCallbackPending": true,
+    "sourceNative240Pending": true,
+    "wholeVisualMatrixPending": true
+  },
+  "actions": {
+    "device": false,
+    "compiler": false,
+    "database": false,
+    "sourceNativeEdit": false,
+    "stageMetro": false,
+    "cleanup": false
+  },
+  "rootIndependentReviewAndAllocationRequired": true
+}

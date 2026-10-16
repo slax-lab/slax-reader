@@ -1,0 +1,32 @@
+{
+  "command": "pod",
+  "args": [
+    "install",
+    "--deployment"
+  ],
+  "exitCode": 0,
+  "stopped": null,
+  "durationMs": 27731,
+  "lastSample": {
+    "at": 1791670424748,
+    "freeBytes": 4061966336,
+    "ownedBytes": 3061081206,
+    "sparseCompilationCache": [
+      {
+        "relativePath": "CompilationCache.noindex/generic/v1.1/v8.data",
+        "logicalBytes": 17179869184,
+        "allocatedBytes": 16384
+      },
+      {
+        "relativePath": "CompilationCache.noindex/generic/v1.1/v8.index",
+        "logicalBytes": 8589934592,
+        "allocatedBytes": 16384
+      },
+      {
+        "relativePath": "CompilationCache.noindex/generic/v1.1/v3.actions",
+        "logicalBytes": 1073741824,
+        "allocatedBytes": 16384
+      }
+    ]
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "name": "login-cancelled-prepared-00-begin-login",
+  "result": "native-candidate-captured",
+  "expectedRoute": null,
+  "observedRoute": {
+    "key": "Login-Rk097fa-mxsaAZ24w8S4X",
+    "name": "Login"
+  },
+  "focusedWindow": "mCurrentFocus=Window{b20d580 u0 com.slax.reader.uifixture/com.slax.reader.uifixture.MainActivity}",
+  "nativeInput": null,
+  "nativeInteractionVerified": false,
+  "expectedNativeState": [],
+  "forbiddenNativeState": [],
+  "preparedActionIndices": [
+    0
+  ],
+  "preparationOnly": true,
+  "preparedScenario": "login-cancelled",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "nativeMeasurements": {
+    "platform": "android",
+    "osVersion": "14",
+    "deviceModel": "sdk_gphone64_arm64",
+    "viewport": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "screen": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "pixelRatio": 2.625,
+    "fontScale": 1,
+    "fontScaleProfile": "default",
+    "safeArea": {
+      "left": 0,
+      "bottom": 24,
+      "right": 0,
+      "top": 51.80952453613281
+    },
+    "appearance": "light"
+  },
+  "visualInspection": "pending",
+  "sourceParity": "unverified",
+  "capturedAtMillis": 1791660151331,
+  "files": [
+    {
+      "path": "35-login-cancelled-prepared-00-begin-login/native.png",
+      "sha256": "3311bab2bd88dd300af0ca3c87a2ea9f845a73e8f00aaeee183d12fd91b72c12",
+      "bytes": 119964
+    },
+    {
+      "path": "35-login-cancelled-prepared-00-begin-login/runtime-context.json",
+      "sha256": "ab73312d25bc361de25a8d54a7e756bf759e69b4dfb9397384ebfad67578dd24",
+      "bytes": 2243
+    },
+    {
+      "path": "35-login-cancelled-prepared-00-begin-login/native-hierarchy.xml",
+      "sha256": "215991ad798c0ff7442bb9b93eb0ee8ccb8de4a52f887e233f18df53505bede0",
+      "bytes": 9687
+    }
+  ]
+}

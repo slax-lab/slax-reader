@@ -1,0 +1,14 @@
+{
+  "kind": "slax-reader-nativebridge-ui-build",
+  "version": 1,
+  "stage": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3",
+  "markerSha256": "dee6cc6040c6574b621a2e49a791b8bf285fc4960ccdee3318df4ac4577dc801",
+  "derivedData": "/tmp/slax-reader-nativebridge-ios-aw4-deriveddata",
+  "logRoot": "/tmp/slax-reader-nativebridge-ios-aw4-build",
+  "identity": "app.slax.reader.uifixture",
+  "arm64Only": true,
+  "jobs": 1,
+  "newProductBudget": 3006477107,
+  "minimumFree": 3221225472,
+  "noDeviceCalls": true
+}

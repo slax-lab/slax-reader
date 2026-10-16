@@ -1,0 +1,8 @@
+*.xcresult/
+*.xcresult.zip
+*.xcarchive/
+*.ipa
+*.apk
+*.aab
+*.dSYM/
+*.dSYM.zip

@@ -1,0 +1,22 @@
+{
+  "kind": "slax-root-ui-ts-refresh-allocation",
+  "stageRoot": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3",
+  "baseMarkerSha256": "dee6cc6040c6574b621a2e49a791b8bf285fc4960ccdee3318df4ac4577dc801",
+  "planSha256": "1469c5535815bc53accb93c146b9cf6b5e01cb2700345bd3d99f0ee44cb908b2",
+  "closureSha256": "ca483ab30a8f6163dc0256aaa64d2cf6a920eb7f66426841b742a3614913d589",
+  "executorSha256": "8bdefc85fbc0d30269475220ed5aa3e6b599bb42bd5f5e0fdd33ff83ac3d675c",
+  "nativeReceiptSha256": "a930b22a732f8f514af9ecc7ad0158c6434f6c3c53fd1deb3500cc628684def9",
+  "readerWindowReleased": true,
+  "rootHostAndHermesWindowComplete": true,
+  "googleProbeWindowComplete": true,
+  "stageAndMetroOwnedFrozen": true,
+  "allowNativeBuild": false,
+  "allowMetroCommand": false,
+  "allowDeviceCommand": false,
+  "createdAt": "2026-10-10T23:52:35.319344+00:00",
+  "freeBytesBeforeAllocation": 4596273152,
+  "googleResultScope": "Window released after D8 output guard stopped r1; Google builder and login acceptance remain pending.",
+  "oneExecutionOnly": true,
+  "recordDirectory": "/private/tmp/slax-ui-ts-refresh-c34117fd-c20b-4300-81c0-f2eddbb2a6e9-apply",
+  "review": "Root read complete executor; Bugs, Security, Compliance passes found no Important findings within the twelve declared TS-only refresh. Runtime, native identity and visual acceptance remain separate."
+}

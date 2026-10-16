@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: transparent;
+            padding: 20px;
+        }
+
+        .slax-reader-notfound-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            padding: 20px 0;
+        }
+
+        .img-404 {
+            width: 180px;
+            height: 180px;
+            background: url('data:image/png;base64,{{BACKGROUND}}') center center no-repeat;
+            background-size: contain;
+            margin-bottom: 28px;
+        }
+
+        .notfound-p {
+            font-size: 22px;
+            font-weight: 700;
+            color: #111827;
+            line-height: 1.4;
+            margin-bottom: 28px;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        .notfound-reason {
+            width: 100%;
+            max-width: 420px;
+            padding: 0 20px;
+        }
+
+        .notfound-reason p {
+            font-size: 15px;
+            font-weight: 600;
+            color: #374151;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .notfound-reason .detail {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.7;
+        }
+
+        .slax-reader-notfound-btn-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+            margin-top: 32px;
+            width: 100%;
+            max-width: 400px;
+            padding: 0 20px;
+        }
+
+        .slax-reader-notfound-btn {
+            width: 100%;
+            max-width: 280px;
+            padding: 14px 24px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .slax-reader-notfound-btn:first-child {
+            background-color: #ffffff;
+            color: #374151;
+            border: 1.5px solid #d1d5db;
+        }
+
+        .slax-reader-notfound-btn:first-child:hover {
+            background-color: #f9fafb;
+            border-color: #9ca3af;
+        }
+
+        .slax-reader-notfound-btn:first-child:active {
+            background-color: #f3f4f6;
+            transform: translateY(1px);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .slax-reader-notfound-btn:last-child {
+            background-color: #ffffff;
+            color: #374151;
+            border: 1.5px solid #d1d5db;
+        }
+
+        .slax-reader-notfound-btn:last-child:hover {
+            background-color: #f9fafb;
+            border-color: #9ca3af;
+        }
+
+        .slax-reader-notfound-btn:last-child:active {
+            background-color: #f3f4f6;
+            transform: translateY(1px);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        @media (max-width: 480px) {
+            .img-404 {
+                width: 140px;
+                height: 140px;
+                margin-bottom: 24px;
+            }
+
+            .notfound-p {
+                font-size: 19px;
+                margin-bottom: 24px;
+            }
+
+            .notfound-reason {
+                padding: 0 20px;
+            }
+
+            .notfound-reason p {
+                font-size: 14px;
+            }
+
+            .notfound-reason .detail {
+                font-size: 13px;
+                line-height: 1.6;
+            }
+
+            .slax-reader-notfound-btn-container {
+                margin-top: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="slax-reader-notfound-container">
+    <div class="img-404">
+    </div>
+    <p class="notfound-p">{{TITLE}}</p>
+    <div class="notfound-reason">
+        <p>{{REASON}}</p>
+        <div class="detail">{{DETAIL}}</div>
+    </div>
+    <div class="slax-reader-notfound-btn-container">
+        <button class="slax-reader-notfound-btn retry-btn">Retry</button>
+        <!-- <button class="slax-reader-notfound-btn feedback-btn">Feedback</button> -->
+    </div>
+</div>
+</body>
+</html>

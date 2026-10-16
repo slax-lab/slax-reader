@@ -1,0 +1,68 @@
+{
+  "name": "login-agreements-prepared-01-select-agreement",
+  "result": "native-candidate-captured",
+  "expectedRoute": null,
+  "observedRoute": {
+    "key": "Login-77PmoBe03oqM7oXJ2iOsP",
+    "name": "Login"
+  },
+  "focusedWindow": "mCurrentFocus=Window{19a782 u0 com.slax.reader.uifixture/com.slax.reader.uifixture.MainActivity}",
+  "nativeInput": null,
+  "nativeInteractionVerified": false,
+  "expectedNativeState": [],
+  "forbiddenNativeState": [],
+  "preparedActionIndices": [
+    0,
+    1
+  ],
+  "preparationOnly": true,
+  "preparedScenario": "login-agreements",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "nativeMeasurements": {
+    "platform": "android",
+    "osVersion": "14",
+    "deviceModel": "sdk_gphone64_arm64",
+    "viewport": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "screen": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "pixelRatio": 2.625,
+    "fontScale": 1,
+    "fontScaleProfile": "default",
+    "safeArea": {
+      "left": 0,
+      "bottom": 24,
+      "right": 0,
+      "top": 51.80952453613281
+    },
+    "appearance": "light"
+  },
+  "visualInspection": "pending",
+  "sourceParity": "unverified",
+  "capturedAtMillis": 1791660140047,
+  "files": [
+    {
+      "path": "33-login-agreements-prepared-01-select-agreement/native.png",
+      "sha256": "4f6a3311f0baa37ad63aa132140db5f0fc4720e2825347adafece3428c197576",
+      "bytes": 125141
+    },
+    {
+      "path": "33-login-agreements-prepared-01-select-agreement/runtime-context.json",
+      "sha256": "f9fd85dfcaf7149e08007415b1e08dacd3708b3d1ca0778c7f20c287875b302e",
+      "bytes": 2437
+    },
+    {
+      "path": "33-login-agreements-prepared-01-select-agreement/native-hierarchy.xml",
+      "sha256": "e656d2cb44ada39a5e942d57b749d0393b0969a0c13242501def2bf7af7958ec",
+      "bytes": 8478
+    }
+  ]
+}

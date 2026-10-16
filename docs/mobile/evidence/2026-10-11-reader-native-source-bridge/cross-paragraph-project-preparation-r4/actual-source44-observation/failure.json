@@ -1,0 +1,136 @@
+{
+  "kind": "slax-source-native-scroll-shell-control-build-result",
+  "version": 3,
+  "nonce": "1961a93c-3fbd-4c9f-a07e-ea77f165e81f",
+  "inputsSHA256": "6c22360986c860aeb4a6bf20b6ac78958d48258a45bae2f296c05f7b8cb77b9f",
+  "status": "failed-build-preserved-no-retry",
+  "commands": [
+    {
+      "label": "compile-source-swift-shell",
+      "argv": [
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+        "-parse-as-library",
+        "-swift-version",
+        "5",
+        "-target",
+        "arm64-apple-ios16.4-simulator",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk",
+        "-module-cache-path",
+        "/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/swift-module-cache",
+        "-Xcc",
+        "-fmodules-cache-path=/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/swift-module-cache",
+        "-F",
+        "/private/tmp/slax-source-ui-fixture-ios-j/composeApp/build/bin/iosSimulatorArm64/debugFramework",
+        "-framework",
+        "SlaxSourceFixture",
+        "-framework",
+        "UIKit",
+        "-framework",
+        "Foundation",
+        "-framework",
+        "WebKit",
+        "-Xlinker",
+        "-rpath",
+        "-Xlinker",
+        "@executable_path/Frameworks",
+        "/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/shell/main.swift",
+        "/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/shell/FixtureReaderStep.swift",
+        "-o",
+        "/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/SlaxSourceFixtureApp.app/SlaxSourceFixtureApp"
+      ],
+      "exitCode": 0,
+      "stopped": null,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "sign-copied-framework-ad-hoc",
+      "argv": [
+        "/usr/bin/codesign",
+        "--force",
+        "--sign",
+        "-",
+        "/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/SlaxSourceFixtureApp.app/Frameworks/SlaxSourceFixture.framework"
+      ],
+      "exitCode": 0,
+      "stopped": null,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "17075b0ca13ac71bd041023a4b81c7190c6d41b6fadc58d1bba869a01c54f268"
+    },
+    {
+      "label": "sign-isolated-source-app-ad-hoc",
+      "argv": [
+        "/usr/bin/codesign",
+        "--force",
+        "--sign",
+        "-",
+        "/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/SlaxSourceFixtureApp.app"
+      ],
+      "exitCode": 0,
+      "stopped": null,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "fc85ac9f63f91de9c3ad9dc8d0d8caee2d557a54edbd5167a0dc57124b81339f"
+    },
+    {
+      "label": "verify-isolated-source-app",
+      "argv": [
+        "/usr/bin/codesign",
+        "--verify",
+        "--deep",
+        "--strict",
+        "/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/SlaxSourceFixtureApp.app"
+      ],
+      "exitCode": 0,
+      "stopped": null,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "build-native-scroll-control-only",
+      "argv": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+        "build-for-testing",
+        "-project",
+        "/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/control/SourceFixtureControl.xcodeproj",
+        "-scheme",
+        "SourceFixtureControl",
+        "-configuration",
+        "Debug",
+        "-sdk",
+        "iphonesimulator",
+        "-destination",
+        "generic/platform=iOS Simulator",
+        "-derivedDataPath",
+        "/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/derived-data",
+        "-jobs",
+        "1",
+        "ARCHS=arm64",
+        "ONLY_ACTIVE_ARCH=YES",
+        "CODE_SIGNING_ALLOWED=NO",
+        "COMPILER_INDEX_STORE_ENABLE=NO",
+        "CLANG_ENABLE_COMPILE_CACHE=NO",
+        "SWIFT_ENABLE_COMPILE_CACHE=NO",
+        "COMPILATION_CACHE_ENABLE_CACHING=NO",
+        "CLANG_MODULE_CACHE_PATH=/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/derived-data/ModuleCache.noindex",
+        "MODULE_CACHE_DIR=/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/derived-data/ModuleCache.noindex",
+        "SDK_STAT_CACHE_DIR=/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/derived-data/SDKStatCaches.noindex"
+      ],
+      "exitCode": -9,
+      "stopped": "unexpected-large-owned-file",
+      "stdoutSHA256": "55e53b1a68376d325c3560bc65ef07133ea32062cc68302ef633f7fe8e59f41d",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "deviceCommands": false,
+  "kmpOrGradleCommands": false,
+  "metroCommands": false,
+  "native240Accepted": false,
+  "resourceObservation": {
+    "minimumFreeObservedBytes": 4072984576,
+    "maximumAllocatedObservedBytes": 270307328,
+    "maximumProductLogicalObservedBytes": 215661909
+  },
+  "elapsedSeconds": 20.062980167,
+  "error": "ValueError: Native command failed/stopped; preserve owned records, never retry"
+}

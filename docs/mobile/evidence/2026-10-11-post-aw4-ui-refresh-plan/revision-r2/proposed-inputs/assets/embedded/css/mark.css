@@ -1,0 +1,72 @@
+/* 划线评论单独注入 */
+
+slax-mark {
+    color: inherit;
+    position: relative;
+    transition: color 250ms;
+    -webkit-tap-highlight-color: #8AD8A866;
+}
+
+:root {
+    --slax-mark-border-color: #f6af69;
+    --slax-mark-border-color-alpha: #f6af69ee;
+    --slax-mark-highlight-bg: #FCF4E8;
+}
+
+slax-mark.comment,
+slax-mark.stroke {
+    cursor: pointer;
+    border-bottom: 1.5px dashed var(--slax-mark-border-color) !important;
+}
+
+slax-mark.self-stroke {
+    border-bottom: 1.5px solid var(--slax-mark-border-color) !important;
+}
+
+slax-mark.highlighted {
+    background-color: var(--slax-mark-highlight-bg);
+}
+
+slax-mark:has(img) {
+    padding: 0;
+    position: relative;
+    display: inline-block;
+}
+
+slax-mark:has(img).comment {
+    border: 2px dashed var(--slax-mark-border-color) !important;
+}
+
+slax-mark:has(img).stroke {
+    border: 2px solid var(--slax-mark-border-color) !important;
+}
+
+slax-mark:has(img)::after {
+    content: '···';
+    position: absolute;
+    height: 25px;
+    width: 25px;
+    padding-left: 0;
+    padding-right: 0;
+    border-radius: 50%;
+    background-color: var(--slax-mark-border-color-alpha);
+    right: -5px;
+    top: -5px;
+    line-height: 25px;
+    color: #fff;
+    font-size: 15px;
+    text-align: center;
+    transition: transform 250ms;
+}
+
+slax-mark:has(img) slax-mark {
+    padding: 0 !important;
+}
+
+slax-mark:has(img) slax-mark::after {
+    content: none;
+}
+
+slax-mark slax-mark {
+    border: none !important;
+}

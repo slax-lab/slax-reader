@@ -1,0 +1,154 @@
+Application, 0x1140021c0, pid: 23837, label: 'Slax Reader' <App element pid: 23837>
+  Window (Main), 0x1140035c0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 4347478016.4>
+    Other, 0x114001040, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 4349002240.5>
+      Other, 0x114003840, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 4349314304.8>
+        Other, 0x1140012c0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 4347907584.12>
+          Other, 0x114001900, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 4466001792.17>
+            Other, 0x114001400, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 4453978496.20>
+              Other, 0x114002300, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 4451301632.23>
+                Other, 0x114002440, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 4773481088.27>
+                  Other, 0x114002580, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 5158273024.33>
+                    Other, 0x1140026c0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 5137265792.38>
+                      NavigationBar, 0x114002800, {{0.0, 62.0}, {402.0, 54.0}}, identifier: 'RNSScreen' <AX element pid: 23837, elementOrHash.elementID: 5158928384.148>
+                        Button, 0x114002940, {{16.0, 62.0}, {44.0, 44.0}}, identifier: 'BackButton', label: 'Library' <AX element pid: 23837, elementOrHash.elementID: 5173622912.149>
+                        Button, 0x114002a80, {{334.0, 62.0}, {48.0, 44.0}}, identifier: 'reader-header-more', label: '分享' <AX element pid: 23837, elementOrHash.elementID: 5171851264.150>
+                      Other, 0x114002bc0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 4347917888.43>
+                        Other, 0x114002d00, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 5137282624.48>
+                          Other, 0x114002e40, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 4347223552.151>
+                            Other, 0x114002f80, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 5135255040.152>
+                              Other, 0x1140030c0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 5144721408.153>
+                                Other, 0x114001680, {{0.0, -117.0}, {402.0, 298.0}} <AX element pid: 23837, elementOrHash.elementID: 5171838976.170>
+                                  Other, 0x114003340, {{0.0, -117.0}, {402.0, 298.0}}, identifier: 'reader-article-header' <AX element pid: 23837, elementOrHash.elementID: 5171839744.171>
+                                  StaticText, 0x114003200, {{20.0, -11.0}, {362.0, 30.0}}, label: 'Controlled actual service offline edit' <AX element pid: 23837, elementOrHash.elementID: 4773486464.172>
+                                    StaticText, 0x114001180, {{20.0, -11.0}, {362.0, 30.0}}, label: 'Controlled actual service offline edit' <AX element pid: 23837, elementOrHash.elementID: 5398836112.180>
+                                  StaticText, 0x1068eaf80, {{20.0, 31.0}, {114.0, 20.0}}, label: '2026-10-01 17:41' <AX element pid: 23837, elementOrHash.elementID: 4773488256.173>
+                                    StaticText, 0x1068aa940, {{20.0, 31.0}, {114.0, 20.0}}, label: '2026-10-01 17:41' <AX element pid: 23837, elementOrHash.elementID: 5398836192.181>
+                                  Link, 0x1068aaa80, {{134.0, 31.0}, {85.7, 20.0}}, label: '查看原网页' <AX element pid: 23837, elementOrHash.elementID: 5171840512.174>
+                                  Other, 0x1068aabc0, {{20.0, 67.0}, {49.7, 22.0}}, identifier: 'tag_item' <AX element pid: 23837, elementOrHash.elementID: 5171841280.175>
+                                  StaticText, 0x1068aad00, {{27.0, 69.0}, {35.7, 18.0}}, label: 'offline' <AX element pid: 23837, elementOrHash.elementID: 4773490944.176>
+                                    StaticText, 0x1068ab0c0, {{27.0, 69.0}, {35.7, 18.0}}, label: 'offline' <AX element pid: 23837, elementOrHash.elementID: 5398836272.182>
+                                  Button, 0x1068aaf80, {{77.7, 67.0}, {21.0, 21.0}}, label: '标签' <AX element pid: 23837, elementOrHash.elementID: 5171842048.177>
+                                  Button, 0x1068aae40, {{20.0, 109.0}, {362.0, 48.0}}, label: '全文概要: Offline summary ' <AX element pid: 23837, elementOrHash.elementID: 5171842816.178>
+                                Other, 0x1068aa580, {{0.0, 0.0}, {402.0, 874.0}}, identifier: 'reader-screen' <AX element pid: 23837, elementOrHash.elementID: 5135264256.154>
+                                Other, 0x1068aa440, {{0.0, 0.0}, {402.0, 874.0}}, identifier: 'reader-container' <AX element pid: 23837, elementOrHash.elementID: 5135265792.155>
+                                Other, 0x1068aa300, {{0.0, 0.0}, {402.0, 874.0}}, identifier: 'reader-document' <AX element pid: 23837, elementOrHash.elementID: 5175280640.156>
+                                  WebView, 0x1068aa800, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 4450475520.158>
+                                    WebView, 0x1068aa080, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 4450472960.159>
+                                      Other, 0x1068aa1c0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 5173818496.160>
+                                        Other, 0x1068a9e00, {{0.0, 0.0}, {402.0, 170.8}} <AX element pid: 23837, elementOrHash.elementID: 5173823680.162>
+                                      WebView, 0x1068a9f40, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 4348186624.179>
+                                        Other, 0x1068a9b80, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 4169462550394928859.9999>
+                                          Other, 0x1068a9cc0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 24315, elementOrHash.elementID: 4312201296.3>
+                                            Other, 0x1068a9900, {{0.0, 181.0}, {402.0, 874.0}} <AX element pid: 24315, elementOrHash.elementID: 4375708192.4>
+                                              Other, 0x1068a9a40, {{0.0, 181.0}, {402.0, 3766.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375708672.5>
+                                                Other, 0x1068a9680, {{20.0, 181.0}, {362.0, 3566.0}}, label: 'Preserved offline reading, 文章', Focused <AX element pid: 24315, elementOrHash.elementID: 4375709184.6>
+                                                  Other, 0x1068a97c0, {{20.0, 181.0}, {362.0, 56.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375709536.7>
+                                                    StaticText, 0x1068a92c0, {{20.0, 185.0}, {178.0, 20.0}}, label: 'Controlled offline fixture', value: Controlled offline..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375711904.27>
+                                                    StaticText, 0x1068a9540, {{20.0, 185.0}, {362.0, 48.0}}, label: '. This passage carries an original offline comment.', value: . This passage car..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375711936.28>
+                                                  Other, 0x1068a9400, {{20.0, 261.0}, {362.0, 30.0}}, label: 'Preserved offline reading', value: 2, Focused <AX element pid: 24315, elementOrHash.elementID: 4375709568.8>
+                                                    StaticText, 0x1068a8b40, {{20.0, 263.0}, {231.0, 25.0}}, label: 'Preserved offline reading', value: Preserved offline ..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375710240.29>
+                                                  Other, 0x1068e7480, {{20.0, 315.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375709600.9>
+                                                    StaticText, 0x1068e5900, {{20.0, 319.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375712512.30>
+                                                  Other, 0x1068e5a40, {{20.0, 507.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375709632.10>
+                                                    StaticText, 0x1068e5680, {{20.0, 511.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375712768.31>
+                                                  Other, 0x1068e57c0, {{20.0, 699.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375709664.11>
+                                                    StaticText, 0x1068e5400, {{20.0, 703.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375713024.32>
+                                                  Other, 0x1068e5540, {{20.0, 891.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375709696.12>
+                                                    StaticText, 0x1068e5180, {{20.0, 895.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375713280.33>
+                                                  Other, 0x1068e52c0, {{20.0, 1083.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375709728.13>
+                                                    StaticText, 0x1068e4f00, {{20.0, 1087.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375713536.34>
+                                                  Other, 0x1068e5040, {{20.0, 1275.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375709760.14>
+                                                    StaticText, 0x1068e4c80, {{20.0, 1279.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375713792.35>
+                                                  Other, 0x1068e4dc0, {{20.0, 1467.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375709792.15>
+                                                    StaticText, 0x1068e4a00, {{20.0, 1471.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375714048.36>
+                                                  Other, 0x1068e4b40, {{20.0, 1659.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375709824.16>
+                                                    StaticText, 0x1068e4780, {{20.0, 1663.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375714304.37>
+                                                  Other, 0x1068e48c0, {{20.0, 1851.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375709856.17>
+                                                    StaticText, 0x1068e4500, {{20.0, 1855.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375714560.38>
+                                                  Other, 0x1068e4640, {{20.0, 2043.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375709888.18>
+                                                    StaticText, 0x1068e4280, {{20.0, 2047.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375714816.39>
+                                                  Other, 0x1068e43c0, {{20.0, 2235.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375709920.19>
+                                                    StaticText, 0x1068e4000, {{20.0, 2239.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375715072.40>
+                                                  Other, 0x1068e4140, {{20.0, 2427.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375709952.20>
+                                                    StaticText, 0x10688fc00, {{20.0, 2431.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375715328.41>
+                                                  Other, 0x10688c000, {{20.0, 2619.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375709984.21>
+                                                    StaticText, 0x10688c140, {{20.0, 2623.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375715584.42>
+                                                  Other, 0x10688c280, {{20.0, 2811.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375710016.22>
+                                                    StaticText, 0x10688c3c0, {{20.0, 2815.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375715840.43>
+                                                  Other, 0x10688fac0, {{20.0, 3003.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375710048.23>
+                                                    StaticText, 0x10688fe80, {{20.0, 3007.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375716096.44>
+                                                  Other, 0x10688d680, {{20.0, 3195.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375710080.24>
+                                                    StaticText, 0x10688fd40, {{20.0, 3199.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375716352.45>
+                                                  Other, 0x10688c8c0, {{20.0, 3387.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375710112.25>
+                                                    StaticText, 0x10688c640, {{20.0, 3391.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375716608.46>
+                                                  Other, 0x10688cb40, {{20.0, 3579.0}, {362.0, 168.0}}, Focused <AX element pid: 24315, elementOrHash.elementID: 4375710144.26>
+                                                    StaticText, 0x10688c780, {{20.0, 3583.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused <AX element pid: 24315, elementOrHash.elementID: 4375716896.47>
+                                      Other, 0x10688cc80, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 5173818048.161>
+                                Other, 0x10688ca00, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 5171843584.186>
+                                  Other, 0x10688d040, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 5171844352.187>
+                                  Other, 0x10688cdc0, {{0.0, 140.7}, {402.0, 733.3}}, identifier: 'reader-comment-panel' <AX element pid: 23837, elementOrHash.elementID: 5171845120.188>
+                                    Button, 0x10688d180, {{354.0, 148.7}, {40.0, 40.0}}, label: '关闭评论面板' <AX element pid: 23837, elementOrHash.elementID: 5399884544.189>
+                                    Other, 0x10688cf00, {{20.0, 196.7}, {362.0, 24.0}} <AX element pid: 23837, elementOrHash.elementID: 5402034176.190>
+                                      ScrollView, 0x10688c500, {{20.0, 196.7}, {362.0, 24.0}} <AX element pid: 23837, elementOrHash.elementID: 5402069504.198>
+                                        Other, 0x10688d400, {{20.0, 196.7}, {362.0, 24.0}} <AX element pid: 23837, elementOrHash.elementID: 5173863168.202>
+                                          Other, 0x10688d7c0, {{20.0, 196.7}, {362.0, 24.0}} <AX element pid: 23837, elementOrHash.elementID: 5603869440.210>
+                                            StaticText, 0x10688d540, {{20.0, 196.7}, {362.0, 24.0}}, label: 'Controlled offline fixture' <AX element pid: 23837, elementOrHash.elementID: 5401736320.218>
+                                              StaticText, 0x10688da40, {{20.0, 196.7}, {362.0, 24.0}}, label: 'Controlled offline fixture' <AX element pid: 23837, elementOrHash.elementID: 5603812416.224>
+                                        Other, 0x114058000, {{349.0, 196.7}, {30.0, 24.0}}, label: '垂直滚动条, 1页', value: 0% <AX element pid: 23837, elementOrHash.elementID: 5401331712.203>
+                                          Other, 0x114058140, {{376.0, 181.7}, {3.0, 36.0}} <AX element pid: 23837, elementOrHash.elementID: 5173869440.211>
+                                        Other, 0x114058280, {{20.0, 205.7}, {362.0, 12.0}}, label: '水平滚动条, 1页', value: 0% <AX element pid: 23837, elementOrHash.elementID: 5401331200.204>
+                                          Other, 0x1140583c0, {{23.0, 214.7}, {356.0, 3.0}} <AX element pid: 23837, elementOrHash.elementID: 5173868992.212>
+                                        Other, 0x114058500, {{349.0, 196.7}, {30.0, 24.0}}, label: '垂直滚动条, 1页', value: 0% <AX element pid: 23837, elementOrHash.elementID: 5401331712.203>
+                                          Other, 0x114058640, {{376.0, 181.7}, {3.0, 36.0}} <AX element pid: 23837, elementOrHash.elementID: 5173869440.211>
+                                        Other, 0x114058780, {{20.0, 205.7}, {362.0, 12.0}}, label: '水平滚动条, 1页', value: 0% <AX element pid: 23837, elementOrHash.elementID: 5401331200.204>
+                                          Other, 0x1140588c0, {{23.0, 214.7}, {356.0, 3.0}} <AX element pid: 23837, elementOrHash.elementID: 5173868992.212>
+                                    Button, 0x114058a00, {{294.0, 228.7}, {40.0, 40.0}}, label: '复制' <AX element pid: 23837, elementOrHash.elementID: 5399885312.191>
+                                    Button, 0x114058b40, {{342.0, 228.7}, {40.0, 40.0}}, label: '划线' <AX element pid: 23837, elementOrHash.elementID: 5399886080.192>
+                                    Other, 0x114058c80, {{0.0, 280.7}, {402.0, 495.0}} <AX element pid: 23837, elementOrHash.elementID: 5402035200.193>
+                                      ScrollView, 0x114058dc0, {{0.0, 280.7}, {402.0, 495.0}} <AX element pid: 23837, elementOrHash.elementID: 5402072064.199>
+                                        Other, 0x114058f00, {{0.0, 280.7}, {402.0, 100.0}} <AX element pid: 23837, elementOrHash.elementID: 5173864512.205>
+                                          Other, 0x114059040, {{0.0, 280.7}, {402.0, 100.0}} <AX element pid: 23837, elementOrHash.elementID: 5603870976.213>
+                                            Other, 0x114059180, {{20.0, 280.7}, {28.0, 28.0}} <AX element pid: 23837, elementOrHash.elementID: 5603901440.219>
+                                              Image, 0x1140592c0, {{20.0, 280.7}, {28.0, 28.0}}, label: '用户头像' <AX element pid: 23837, elementOrHash.elementID: 5400992640.225>
+                                            StaticText, 0x114059400, {{56.0, 280.7}, {326.0, 21.0}}, label: '未知用户' <AX element pid: 23837, elementOrHash.elementID: 5603902336.220>
+                                              StaticText, 0x114059540, {{56.0, 280.7}, {326.0, 21.0}}, label: '未知用户' <AX element pid: 23837, elementOrHash.elementID: 5603812256.226>
+                                            Other, 0x114059680, {{56.0, 301.7}, {326.0, 21.0}}, label: 'Pending comment' <AX element pid: 23837, elementOrHash.elementID: 5603872512.221>
+                                            StaticText, 0x1140597c0, {{56.0, 325.7}, {92.7, 24.0}}, label: '2026-10-01 17:41' <AX element pid: 23837, elementOrHash.elementID: 5603903232.222>
+                                              StaticText, 0x114059900, {{56.0, 325.7}, {92.7, 24.0}}, label: '2026-10-01 17:41' <AX element pid: 23837, elementOrHash.elementID: 5603812336.227>
+                                            Button, 0x114059a40, {{160.7, 322.7}, {30.0, 30.0}}, label: '删除' <AX element pid: 23837, elementOrHash.elementID: 5603874048.223>
+                                        Other, 0x114059b80, {{369.0, 280.7}, {30.0, 495.0}}, label: '垂直滚动条, 1页', value: 0% <AX element pid: 23837, elementOrHash.elementID: 5401332736.206>
+                                          Other, 0x114059cc0, {{396.0, 678.7}, {3.0, 94.0}} <AX element pid: 23837, elementOrHash.elementID: 5173903360.214>
+                                        Other, 0x114059e00, {{0.0, 742.7}, {402.0, 30.0}}, label: '水平滚动条, 1页', value: 0% <AX element pid: 23837, elementOrHash.elementID: 5401332224.207>
+                                          Other, 0x114059f40, {{3.0, 769.7}, {396.0, 3.0}} <AX element pid: 23837, elementOrHash.elementID: 5173869888.215>
+                                        Other, 0x11405a080, {{369.0, 280.7}, {30.0, 495.0}}, label: '垂直滚动条, 1页', value: 0% <AX element pid: 23837, elementOrHash.elementID: 5401332736.206>
+                                          Other, 0x11405a1c0, {{396.0, 678.7}, {3.0, 94.0}} <AX element pid: 23837, elementOrHash.elementID: 5173903360.214>
+                                        Other, 0x11405a300, {{0.0, 742.7}, {402.0, 30.0}}, label: '水平滚动条, 1页', value: 0% <AX element pid: 23837, elementOrHash.elementID: 5401332224.207>
+                                          Other, 0x11405a440, {{3.0, 769.7}, {396.0, 3.0}} <AX element pid: 23837, elementOrHash.elementID: 5173869888.215>
+                                    Other, 0x11405a580, {{0.0, 775.3}, {402.0, 64.3}} <AX element pid: 23837, elementOrHash.elementID: 5399886848.194>
+                                    Other, 0x11405a6c0, {{20.0, 794.0}, {28.0, 28.0}} <AX element pid: 23837, elementOrHash.elementID: 5401735424.195>
+                                      Image, 0x11405a800, {{20.0, 794.0}, {28.0, 28.0}}, label: '当前用户头像' <AX element pid: 23837, elementOrHash.elementID: 5400986880.200>
+                                    Other, 0x11405a940, {{56.0, 790.0}, {274.0, 36.0}} <AX element pid: 23837, elementOrHash.elementID: 5401726464.196>
+                                      TextView, 0x11405aa80, {{56.0, 790.0}, {274.0, 36.0}}, identifier: 'reader-comment-input', label: '发表评论' <AX element pid: 23837, elementOrHash.elementID: 4347572224.201>
+                                        Other, 0x11405abc0, {{297.0, 790.0}, {30.0, 36.0}}, label: '垂直滚动条, 1页', value: 0% <AX element pid: 23837, elementOrHash.elementID: 5401333760.208>
+                                          Other, 0x11405ad00, {{324.0, 809.0}, {3.0, 14.0}} <AX element pid: 23837, elementOrHash.elementID: 5173904256.216>
+                                        Other, 0x11405ae40, {{62.0, 805.0}, {268.0, 18.0}}, label: '水平滚动条, 1页', value: 0% <AX element pid: 23837, elementOrHash.elementID: 5401333248.209>
+                                          Other, 0x11405af80, {{65.0, 820.0}, {262.0, 3.0}} <AX element pid: 23837, elementOrHash.elementID: 5173903808.217>
+                                    Button, 0x11405b0c0, {{338.0, 788.0}, {44.0, 40.0}}, label: '发送', Disabled <AX element pid: 23837, elementOrHash.elementID: 5603868672.197>
+                                Other, 0x11405b200, {{0.0, 916.0}, {402.0, 50.0}} <AX element pid: 23837, elementOrHash.elementID: 5171845888.157>
+                                  Other, 0x11405b340, {{122.7, 916.0}, {95.0, 50.0}} <AX element pid: 23837, elementOrHash.elementID: 5171846656.163>
+                                    Button, 0x11405b480, {{130.7, 923.0}, {36.0, 36.0}}, label: '取消加星' <AX element pid: 23837, elementOrHash.elementID: 5171848192.165>
+                                    Button, 0x11405b5c0, {{173.7, 923.0}, {36.0, 36.0}}, label: '归档' <AX element pid: 23837, elementOrHash.elementID: 5171848960.166>
+                                  Other, 0x11405b700, {{229.7, 916.0}, {50.0, 50.0}} <AX element pid: 23837, elementOrHash.elementID: 5171847424.164>
+                                    Button, 0x11405b840, {{236.7, 923.0}, {36.0, 36.0}}, label: '提纲' <AX element pid: 23837, elementOrHash.elementID: 5171849728.167>
+                      Other, 0x11405b980, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 4465179648.44>
+                        Other, 0x11405bac0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 5137300992.49>
+                Other, 0x11405bc00, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 5135253504.28>
+                  Other, 0x11405bd40, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 5135254272.34>
+                    Other, 0x11405be80, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 4773528576.39>
+                Other, 0x11405c000, {{10.0, 786.7}, {382.0, 67.3}} <AX element pid: 23837, elementOrHash.elementID: 5144707968.29>
+                  Other, 0x11405c140, {{10.0, 786.7}, {382.0, 48.3}} <AX element pid: 23837, elementOrHash.elementID: 5158938368.35>
+                    Other, 0x11405c280, {{10.0, 787.3}, {382.0, 48.0}} <AX element pid: 23837, elementOrHash.elementID: 5158939136.40>
+                      Other, 0x11405c3c0, {{10.0, 787.7}, {382.0, 48.0}}, label: '!, [PowerSync]: Sync error ApiError: Controlled offline transport refuses forwarding' <AX element pid: 23837, elementOrHash.elementID: 5158939904.45>
+  Window, 0x11405c500, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 5399995136.183>
+    Other, 0x11405c640, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 5173812224.184>
+      Other, 0x11405c780, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 23837, elementOrHash.elementID: 5173818944.185>

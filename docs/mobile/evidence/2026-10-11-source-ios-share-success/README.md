@@ -1,0 +1,5 @@
+# Original iOS Share success frame
+
+The existing unique XCTest driver selected the inspected original Share activity and observed its real success status. A finite external raw-frame sampler captured the original green check icon and `Success!` label before the unchanged automatic dismissal. `raw-frames/frame-029.png` is the manually inspected candidate; all 34 raw frames and the actual native input result are retained. The earlier blank XCUI screenshot stays rejected in the preceding source Share evidence.
+
+The checksum-pinned original Swift controller and animation timing were unchanged. The local Swift `ComposeApp.ShareKt` boundary supplied only the deterministic result; original Kotlin, API, authentication and App Group behavior were not exercised. The production main app stayed closed. The actual clock was 02:50, so this candidate is not a matched whole-frame comparison with the earlier 09:41 target/source runs. Whole Share parity, publisher release and TestFlight acceptance remain pending.

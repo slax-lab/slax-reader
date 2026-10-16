@@ -1,0 +1,32 @@
+{
+  "status": "passed",
+  "date": "2026-10-10",
+  "scope": "Original Kotlin producer execution before replacement; subsequent Expo upgrade is recorded separately",
+  "simulatorUUID": "32D9AFE0-32C7-443A-8FEC-3EBB42135386",
+  "freshApplicationVerified": true,
+  "bundleIdentifier": "app.slax.reader",
+  "applicationGroup": "group.app.slax.reader",
+  "publicAdHocSigning": true,
+  "productionSigning": false,
+  "originalSdk": "powersync-kotlin-1.14.1",
+  "coreVersion": "0.5.1/d6c157e7",
+  "androidXDataStore": "1.2.1",
+  "schemaSHA256": "344a7bcc6901c7d3b22052278bcc326bc1f84930bb65a7fb9d2efb7a61042cd5",
+  "oldAppExecutableSHA256": "fd557f4b20448c17e7bff875ce45795ed92c3788d6274929e5e57969a32c84f4",
+  "oldAppPlatform": "IOSSIMULATOR",
+  "oldAppMinimumOS": "16.4",
+  "oldAppSDK": "26.5",
+  "databasePath": "/Users/daguang/Library/Developer/CoreSimulator/Devices/32D9AFE0-32C7-443A-8FEC-3EBB42135386/data/Containers/Data/Application/E89DAAA5-06C8-4B8F-81E0-C8BBAF43944F/Library/Application Support/databases/powersync.db",
+  "markerSHA256": "e476318c321b0b8d0b9df4f4ae943fed326d126cc6d45c14e86a1eb6715c24bb",
+  "transactionCount": 2,
+  "operationsPerTransaction": [
+    2,
+    2
+  ],
+  "operationCount": 4,
+  "closedOwnerMarker": true,
+  "serviceReconnect": false,
+  "expoNativeAdoptionExecuted": false,
+  "productionAdoptionEnabled": false,
+  "subsequentExpoAdoptionReport": "ios-native-adoption.json"
+}

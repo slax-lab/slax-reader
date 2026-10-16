@@ -1,0 +1,44 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "5457DC19-3A65-4580-AEE0-8E8D4FBE27A0.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-after-committed-native-edge-native-tree_0_6CCA3AED-39D0-40FC-AC44-FF9E5AA48340.txt",
+        "timestamp" : 1791659444.173
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "488FFA6D-F6FD-4F9D-8D30-30555130D93F.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-after-committed-native-edge_0_A958DB19-7B90-48C0-9447-A25D98DED02B.png",
+        "timestamp" : 1791659443.953
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "9E3DB04C-EB8B-42F2-818D-AAC91DED5B67.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-before-committed-native-edge-native-tree_0_60F0C3CE-A1EE-4052-884E-86D1C70262AD.txt",
+        "timestamp" : 1791659439.821
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "DAA8DC3E-E931-4138-B1ED-B3E4C3F7C688.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-before-committed-native-edge_0_A870DA36-2776-4572-A4C4-7F98DEF3E99E.png",
+        "timestamp" : 1791659439.368
+      }
+    ],
+    "testIdentifier" : "ReaderNativeControl/testCommittedNativeEdgePop()",
+    "testIdentifierURL" : "test://com.apple.xcode/ReaderNativeControl/ReaderNativeControl/ReaderNativeControl/testCommittedNativeEdgePop"
+  }
+]

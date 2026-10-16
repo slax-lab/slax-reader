@@ -1,0 +1,2182 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app",
+      "mode": 493,
+      "mtimeNs": 1791672930341115041,
+      "logicalBytes": 1248,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/AppAuthCore_Privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791672301000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/AppAuthCore_Privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791670010000000000,
+      "logicalBytes": 765,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "00f2d01ece50edb70dea33eb8c4720ee7396c4d8d36d99c32a6c4af08af228ae"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/AppAuthCore_Privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671715000000000,
+      "logicalBytes": 391,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "5ade962faaea1eddbbdd06c4cf8a872cec554f64c55a00e00136004d378e1ced"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/AppIcon60x60@2x.png",
+      "mode": 420,
+      "mtimeNs": 1791672356013280413,
+      "logicalBytes": 7075,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "c72397945bfb903da952ecd3d7f2c01d46ed08450fa17709da44a2d9be00fd82"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/AppIcon76x76@2x~ipad.png",
+      "mode": 420,
+      "mtimeNs": 1791672356011030783,
+      "logicalBytes": 10084,
+      "allocatedBytes": 12288,
+      "kind": "file",
+      "sha256": "d6aa08ec7b86e8222b7178b1e2e1b801bddf82d36c8fa57fc1f3dfd6250d659f"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Assets.car",
+      "mode": 420,
+      "mtimeNs": 1791672360460084975,
+      "logicalBytes": 322328,
+      "allocatedBytes": 323584,
+      "kind": "file",
+      "sha256": "4f4650a4a7dba2140a4e2f1b6a498e968b3154c104ffaa2af80d62b2d20a4ab6"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/EXConstants.bundle",
+      "mode": 493,
+      "mtimeNs": 1791672301000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/EXConstants.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791670010000000000,
+      "logicalBytes": 749,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "0064010184f74fb68a6d9841057fe57d711492e5017404519f62624c7cd844e8"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/EXConstants.bundle/app.config",
+      "mode": 420,
+      "mtimeNs": 1791672324000000000,
+      "logicalBytes": 1176,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "5a4b8ed237d2265e1e9b17733b0c3ac68b9f5ddc39754d8f6fbe06a706e6bded"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/EXDevLauncher.bundle",
+      "mode": 493,
+      "mtimeNs": 1791671643000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/EXDevLauncher.bundle/Assets.car",
+      "mode": 420,
+      "mtimeNs": 1791671640000000000,
+      "logicalBytes": 97752,
+      "allocatedBytes": 98304,
+      "kind": "file",
+      "sha256": "8846cd03b784103dab3e540a38e7df102b9896b37d5246acb7c7fe675d4fd556"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/EXDevLauncher.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791669414000000000,
+      "logicalBytes": 753,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "6275d24dc3b3dd40fedbe8972b35b10bf83e8fffeadffb8ce3fa26bf54cefbc5"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/EXDevMenu.bundle",
+      "mode": 493,
+      "mtimeNs": 1791671643000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/EXDevMenu.bundle/Assets.car",
+      "mode": 420,
+      "mtimeNs": 1791671638000000000,
+      "logicalBytes": 29192,
+      "allocatedBytes": 32768,
+      "kind": "file",
+      "sha256": "5e7376aa78bd776eb0a118d890b3718ec81228cf0293c46a2ea7fa21e22c1823"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/EXDevMenu.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791669412000000000,
+      "logicalBytes": 745,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "6f35d710a3cd1097cf38da82286c340c86d8a10cd118ec2ee71b21def4cd2348"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Expo.plist",
+      "mode": 420,
+      "mtimeNs": 1791672355124896233,
+      "logicalBytes": 173,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "05ba13f24655445d029d47b626ac23ce8003e2e0722b7f8926b82b89c94ec51b"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/ExpoConstants_privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791672301000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/ExpoConstants_privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791670010000000000,
+      "logicalBytes": 771,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "e22a563ece657cd6099a7b39e52b06979d069d3b0c19a3af05427b4e1ad0e713"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/ExpoConstants_privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671715000000000,
+      "logicalBytes": 607,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "2b2d8edb71d51c5b1f1ace4cdb28a94baf22fdde9bbf2e2bfc17d187ff7b5f47"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/ExpoFileSystem_privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791672295000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/ExpoFileSystem_privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791670010000000000,
+      "logicalBytes": 772,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "5a31eb014922ca3f82a11858e6f72afaa40a01cd2c4e2ac03dffadd323fdc0d6"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/ExpoLocalization_privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791672262000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/ExpoLocalization_privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791670008000000000,
+      "logicalBytes": 776,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "1df5eb92b978ca78e306a073de8d740f5755dcef9f1139a53f124edbab494d5f"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/ExpoLocalization_privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671715000000000,
+      "logicalBytes": 607,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "2b2d8edb71d51c5b1f1ace4cdb28a94baf22fdde9bbf2e2bfc17d187ff7b5f47"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FBLPromises_Privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791672167000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FBLPromises_Privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791669437000000000,
+      "logicalBytes": 765,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "63bfab3249d39bc0d051d3e18d4860f0d341419bc6d9523125aa60ee8f3ec29e"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FBLPromises_Privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671640000000000,
+      "logicalBytes": 373,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "74b0cd72fc23c1ef302f22ee2753f61817cdc5af0ff7a7f2d0632b524fb8acea"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FirebaseCoreExtension_Privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791672207000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FirebaseCoreExtension_Privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791670008000000000,
+      "logicalBytes": 787,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "a066370147e059ee1cecfe82a5fc991a84ad8287c913d48ae4b4f2c2cb5d45f5"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FirebaseCoreExtension_Privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671715000000000,
+      "logicalBytes": 478,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "1377eccedff8f8320f78040e9c9d3e17ecc0ea569594b56af0ef17be44197c7a"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FirebaseCoreInternal_Privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791672207000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FirebaseCoreInternal_Privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791670008000000000,
+      "logicalBytes": 785,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "16f5a1c1d9fc28d533cdb7899f1eb006cd8307dd7a60eddc72a2434cd4c487f5"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FirebaseCoreInternal_Privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 855,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "5b7fe979423dede3e08afc29a42f00f6086275dc548a84c29774235863eed3ef"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FirebaseCore_Privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791672260000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FirebaseCore_Privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791670008000000000,
+      "logicalBytes": 769,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "0a3ec264895e4f1f4e745296807a4ec685f29068ab6134a9f7d02ef987b93bbb"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FirebaseCore_Privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671715000000000,
+      "logicalBytes": 855,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "11e31f5f6b60e80ebd5901549fce5043f9af3e683f874022945000b405306c3f"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FirebaseCrashlytics_Privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791672204000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FirebaseCrashlytics_Privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791669983000000000,
+      "logicalBytes": 783,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "3612c6317598f8476196285e40fa04b51cd415fcdd3fdd4fcbbf2b5ff1eb2d99"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FirebaseCrashlytics_Privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1383,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "e9bcc6e9c7382bf506cadabe74cfd4ed155686806ba81c195a634b86aa5fcce0"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FirebaseInstallations_Privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791672202000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FirebaseInstallations_Privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791669983000000000,
+      "logicalBytes": 787,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "31aed5ea48de071bf5149212480feb787288bfd9238bdad2a64393ab8177fe23"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/FirebaseInstallations_Privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1105,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "cfbb3c4f76a66d53698bae91f7110c00f2148e6e6f13ad7d32592909bc010e51"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks",
+      "mode": 493,
+      "mtimeNs": 1791672382648585204,
+      "logicalBytes": 352,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoFileSystem.framework",
+      "mode": 493,
+      "mtimeNs": 1791672381225266808,
+      "logicalBytes": 160,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoFileSystem.framework/ExpoFileSystem",
+      "mode": 493,
+      "mtimeNs": 1791672381225031482,
+      "logicalBytes": 1883952,
+      "allocatedBytes": 1884160,
+      "kind": "file",
+      "sha256": "6586a2b752fa3f2a973b1ec09ec71c807f8f88650e88b742cf228e1b534b6c49"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoFileSystem.framework/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791643167000000000,
+      "logicalBytes": 746,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "5f9a269baff07c93ed53674b76667a8b84b8acd9aa6dd96d94c326bd1e7e6b7d"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoFileSystem.framework/_CodeSignature",
+      "mode": 493,
+      "mtimeNs": 1791643167000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoFileSystem.framework/_CodeSignature/CodeResources",
+      "mode": 420,
+      "mtimeNs": 1791643167000000000,
+      "logicalBytes": 1798,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "3ae83871cd2b1afb35fff45f2130a05d9cadeb11984ec8075e6d879c0d5b3ee3"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoFont.framework",
+      "mode": 493,
+      "mtimeNs": 1791672381264443983,
+      "logicalBytes": 160,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoFont.framework/ExpoFont",
+      "mode": 493,
+      "mtimeNs": 1791672381264226991,
+      "logicalBytes": 261056,
+      "allocatedBytes": 262144,
+      "kind": "file",
+      "sha256": "9f9d782bc51e8165e0352d28c2fc73167720848e9dbecffa0c846a621be33dde"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoFont.framework/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791643168000000000,
+      "logicalBytes": 728,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "7f0220334b9f441a188a322be1848cccabfdbf269a11846db72d2ebe2db3fb1a"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoFont.framework/_CodeSignature",
+      "mode": 493,
+      "mtimeNs": 1791643168000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoFont.framework/_CodeSignature/CodeResources",
+      "mode": 420,
+      "mtimeNs": 1791643168000000000,
+      "logicalBytes": 1798,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "31c71f755e0bfab32d7d59ab5d6fa0ac432864ecbdc952909c831823277e8a97"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoModulesCore.framework",
+      "mode": 493,
+      "mtimeNs": 1791672381377832570,
+      "logicalBytes": 160,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoModulesCore.framework/ExpoModulesCore",
+      "mode": 493,
+      "mtimeNs": 1791672381376452618,
+      "logicalBytes": 6403824,
+      "allocatedBytes": 6406144,
+      "kind": "file",
+      "sha256": "1050ac73fc86ceb3a3964d379e1c38f80a055c4f31aece772e68e2ceccdd71d5"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoModulesCore.framework/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791643169000000000,
+      "logicalBytes": 752,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "c7a9db6e207f3976f97f4f6c874051386107720fd2b1caeaa303a92298d0ded3"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoModulesCore.framework/_CodeSignature",
+      "mode": 493,
+      "mtimeNs": 1791643169000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoModulesCore.framework/_CodeSignature/CodeResources",
+      "mode": 420,
+      "mtimeNs": 1791643169000000000,
+      "logicalBytes": 1798,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "be77bfa5f44a69adb5417a40a35157acbef6c348a207f4a96db088fdfdb9abff"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoModulesJSI.framework",
+      "mode": 493,
+      "mtimeNs": 1791672381423724719,
+      "logicalBytes": 160,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoModulesJSI.framework/ExpoModulesJSI",
+      "mode": 493,
+      "mtimeNs": 1791672381423503352,
+      "logicalBytes": 938752,
+      "allocatedBytes": 942080,
+      "kind": "file",
+      "sha256": "de01a3b1c466234189d1674dc42c76232c8d1e0139c1d130c68741810f1bd0bb"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoModulesJSI.framework/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791669433000000000,
+      "logicalBytes": 737,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "c964095e1deab776210c8068f03a4d8241d686798882da78870471781a661869"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoModulesJSI.framework/_CodeSignature",
+      "mode": 493,
+      "mtimeNs": 1791669433000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoModulesJSI.framework/_CodeSignature/CodeResources",
+      "mode": 420,
+      "mtimeNs": 1791669433000000000,
+      "logicalBytes": 1798,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "5d2160a0ee446e0f0091d774bfd4e8dd490c62545168880f99592fe9862e6454"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoModulesWorklets.framework",
+      "mode": 493,
+      "mtimeNs": 1791672381461359990,
+      "logicalBytes": 160,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoModulesWorklets.framework/ExpoModulesWorklets",
+      "mode": 493,
+      "mtimeNs": 1791672381461177621,
+      "logicalBytes": 194624,
+      "allocatedBytes": 196608,
+      "kind": "file",
+      "sha256": "bf4238b047012ef8d6578d0720be031f99f878278713870b740c096b5bc61904"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoModulesWorklets.framework/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791643170000000000,
+      "logicalBytes": 764,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "fc9a8ff5386c6fbf5bfbcdbc48dfa9fec1ad8ca936d6cfd3c6851b7cfcc41ddf"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoModulesWorklets.framework/_CodeSignature",
+      "mode": 493,
+      "mtimeNs": 1791643170000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ExpoModulesWorklets.framework/_CodeSignature/CodeResources",
+      "mode": 420,
+      "mtimeNs": 1791643170000000000,
+      "logicalBytes": 1798,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "a0283877a2c602a1cff02e9849d60dcd2d58541a764efbd7595d99f96717fef9"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/React.framework",
+      "mode": 493,
+      "mtimeNs": 1791672382390296255,
+      "logicalBytes": 160,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/React.framework/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791643172000000000,
+      "logicalBytes": 724,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "c9be56123cc6ba97e94958755e20537471fd84b0c1cd579e4982ae9255816301"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/React.framework/React",
+      "mode": 420,
+      "mtimeNs": 1791672382390075054,
+      "logicalBytes": 68953936,
+      "allocatedBytes": 68956160,
+      "kind": "file",
+      "sha256": "864c00e8bdb03f621bae98b49481a0b16d45be1cec60973f2d40d39fc15442fe"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/React.framework/_CodeSignature",
+      "mode": 493,
+      "mtimeNs": 1791643171000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/React.framework/_CodeSignature/CodeResources",
+      "mode": 420,
+      "mtimeNs": 1791643171000000000,
+      "logicalBytes": 1798,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "9f22235918b33cc61280bff9f60b6fc25e491f693db5d1e0589a3e33eb952261"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework",
+      "mode": 493,
+      "mtimeNs": 1791672382513643161,
+      "logicalBytes": 256,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 761,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "043d66b265858b73ca23f8cbbf15e7043bb40f97e6104708e4f69d1f9d00fa96"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies",
+      "mode": 420,
+      "mtimeNs": 1791672382513129804,
+      "logicalBytes": 3589984,
+      "allocatedBytes": 3592192,
+      "kind": "file",
+      "sha256": "9af3e629a9eca31e3db48945107898c18d76de3edb804f5730a8bf056cbe3c9f"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle",
+      "mode": 493,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 160,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 669,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "16db1275ce3a9d70994d079ae4fe4e7f8894b2f92fb3c6b33b03fa3a2e5d0971"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 776,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "d3559c988dff940d4f758f37a0ba1863208304e33ab0b97c0e3dd5d3762f5f1d"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature",
+      "mode": 493,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 224,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeDirectory",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 156,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "178f3bdcfed97cc13ad4e518330448c56e00f47360560e105d55cfcd7598d9b8"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeRequirements",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 12,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "987920904eab650e75788c054aa0b0524e6a80bfc71aa32df8d237a61743f986"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeRequirements-1",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 204,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "d2393f211df2ea2bc6e03061789759c9818f99ffd177b408422ccf4d0b37f94e"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeResources",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 2032,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "557fba743e35172838832cca93f1d17e34b8bd696f96eeb3032e529502ea945e"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeSignature",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 0,
+      "allocatedBytes": 0,
+      "kind": "file",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle",
+      "mode": 493,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 160,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 669,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "5abf3977eef24726730e03a648dca022c8f993596e122cd94cf322985ac8ac76"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 552,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "0587d155c56a6f4f0647ebc6b6a0bd026615cd610ee8f209a9786b79a96ad335"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature",
+      "mode": 493,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 224,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeDirectory",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 156,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "25ccd0685a97962d86509fb66694af0eb207890862bcb49c3e14bd3ddbe4ddfc"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeRequirements",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 12,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "987920904eab650e75788c054aa0b0524e6a80bfc71aa32df8d237a61743f986"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeRequirements-1",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 204,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "dee967a352e0d990a9bc3d34c5a66c6597254ec4431de379acd35ef3fe94a03b"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeResources",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 2032,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "be2989a2daf02505cf3117ce99419580ce849fd1a8200c581bd9acdf8409a440"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeSignature",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 0,
+      "allocatedBytes": 0,
+      "kind": "file",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle",
+      "mode": 493,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 160,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 667,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "8b97a53cf72f56810fed094013c2f521c034e5267a495081570a861a0adc4c41"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 552,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "0587d155c56a6f4f0647ebc6b6a0bd026615cd610ee8f209a9786b79a96ad335"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature",
+      "mode": 493,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 224,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeDirectory",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 155,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "d7cb7c11cc0a0c8f4ee3e91df163b072d20f5258f28106b6c71a06a3a5d29383"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeRequirements",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 12,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "987920904eab650e75788c054aa0b0524e6a80bfc71aa32df8d237a61743f986"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeRequirements-1",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 203,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "e54537eaff8aa25202925da339bf7d4c92854298ba76e0417eec916e16c2a0ec"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeResources",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 2032,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "be2989a2daf02505cf3117ce99419580ce849fd1a8200c581bd9acdf8409a440"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeSignature",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 0,
+      "allocatedBytes": 0,
+      "kind": "file",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/_CodeSignature",
+      "mode": 493,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/ReactNativeDependencies.framework/_CodeSignature/CodeResources",
+      "mode": 420,
+      "mtimeNs": 1791643175000000000,
+      "logicalBytes": 1798,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "1b16b78c80abf2f78f9a3025803a6c9e69fc2484c1f16c84324b38928559bb33"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/hermesvm.framework",
+      "mode": 493,
+      "mtimeNs": 1791672382633539937,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/hermesvm.framework/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791643182000000000,
+      "logicalBytes": 866,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "0767523a61a3ab293e6e39ea3de61622d833f2dacee418afd89f6a57d67c8119"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/hermesvm.framework/hermesvm",
+      "mode": 493,
+      "mtimeNs": 1791672382632531472,
+      "logicalBytes": 6080376,
+      "allocatedBytes": 6066176,
+      "kind": "file",
+      "sha256": "bcc0317656151c4949e84944a671a217208f1ab7dbc162d20b048ae5437087c1"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/powersync-sqlite-core.framework",
+      "mode": 493,
+      "mtimeNs": 1791672382676522813,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/powersync-sqlite-core.framework/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791643183000000000,
+      "logicalBytes": 749,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "156e60c10a48ce4000da1eaa5c296cf0b26035544f1837c18d489f5518cac106"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Frameworks/powersync-sqlite-core.framework/powersync-sqlite-core",
+      "mode": 493,
+      "mtimeNs": 1791672382676359485,
+      "logicalBytes": 816616,
+      "allocatedBytes": 819200,
+      "kind": "file",
+      "sha256": "fdd3e699b3b10fab431cc3ccec9e551d69f269625d8276dc0b56fb9195f67c85"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GTMAppAuth_Privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791672201000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GTMAppAuth_Privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791669930000000000,
+      "logicalBytes": 763,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "2838e4d215ddcc9fd32391af044849cea4ddce297e05cdd61a77620c11515124"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GTMAppAuth_Privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 373,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "5a9b8fc0cddb10201bb47cc2804b3f004c7251476622d25bfc4eb54ed46e1084"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GTMSessionFetcher_Core_Privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791672196000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GTMSessionFetcher_Core_Privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791669930000000000,
+      "logicalBytes": 787,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "56177ab85b04394dd64304f92d3849dd9dc28ff33bafcfac07791f86a35493ae"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GTMSessionFetcher_Core_Privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 598,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "3e4a93cbe86acef7dd7e063a28c849992f556e7f52cadc5f37c1e8b0e1b54686"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleDataTransport_Privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791672196000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleDataTransport_Privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791669569000000000,
+      "logicalBytes": 782,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "791f79bd5fdd23c47eb538d54ece46f62d92fbfb0562d6c0d46944e65352e507"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleDataTransport_Privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1105,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "cfbb3c4f76a66d53698bae91f7110c00f2148e6e6f13ad7d32592909bc010e51"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle",
+      "mode": 493,
+      "mtimeNs": 1791672196000000000,
+      "logicalBytes": 1472,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791669567000000000,
+      "logicalBytes": 750,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "cdeb63122523d8707689f478f6acb8bc0c582a8af080acc591bc243f3f01bf6e"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 3756,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "9300972853096f7d570d6c4a4bf7152a36c798e89c4f0d81d3b4c6b5dfaddfd0"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/Roboto-Bold.ttf",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 127744,
+      "allocatedBytes": 131072,
+      "kind": "file",
+      "sha256": "594d74a49e307be7cc9e1ee5f1023684e6820cf11bcc968bee590391e1ad5a5a"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/ar.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/ar.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1759,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "b2cf9e8d9fc8ad0f9610b3e54ef0b8b494f021b7fa23acef6094b2205abe8c72"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/ca.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/ca.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1669,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "33e88ff500dc3db2462e2ac933c11c28929fad351f57b3e6d62ac44610ad61aa"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/cs.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/cs.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1615,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "51da08624c2a79de47c81683b29e8a1344a47887563be256e1a77a67f6be3544"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/da.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/da.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1611,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "e8261b9646d8ea89f7bf7a61a73aedce30fe51f68aa947ecbdfe8cc7e04db7da"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/de.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/de.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1703,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "16cd413df1ab77e509df76f873a5a687ffcf360b1f150743d934c5ab3377c228"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/el.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/el.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 2103,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "9cc0c1349cf665fc773330d31a2628f600a43caa8b5c880b034a5667f8f0fabc"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/en.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/en.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1547,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "c726a39c382e3f1a7c1f58ecf470f812da263749f930da87f7c0c3aa0ec648c2"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/en_GB.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/en_GB.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1547,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "a2bd782a051b1a0b3c437ec6a31e9bf7f6778995a72acc32a0eb4a6399ad1ac2"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/es.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/es.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1678,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "501e44c4f3bb9c05b13297c60240fd0e16e79f8a63e6fb25198208dcb9421ca6"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/es_MX.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/es_MX.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1607,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "84d327c7197b7e549a1e9e8d8bb3e1cb02e0282c6323e5fb3dde0a47395af634"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/fi.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/fi.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1640,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "0e99f31a89ead8cc0fc72ad6abdcc84abd26f699265eeff61a889b3739da773b"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/fr.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/fr.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1676,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "b5513877acf2d79c8f0eaff7fcde4aa165f3abb01611b606112602fd443777ba"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/fr_CA.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/fr_CA.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1657,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "f71092cf3fdba7e3e03d0d99748378b111947ca77a991830ddd24c39922b086e"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/google.png",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 834,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "f075b5b46a1ec4d77759f4d576d8e4a2bfc7279d1c52fb3bc80da1440e51e775"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/google@2x.png",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 2161,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "c91d5e0c0e213726b86a5e88e6c2ba3a1e0c207dfe968d1ad2893c2264ae5c0c"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/google@3x.png",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 5678,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "6af9656925517c05cf50c95823ccee96939353e387e61e2eaa9cc358a2e950c7"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/he.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/he.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1780,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "2ad0751665fa6100761107c40a08df049067400ed7d8d3fb42e3eec4567a60b0"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/hi.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/hi.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 2286,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "dd41d72736ab5f4a97d09ddb14c4800ee40b9bed2369d64f0c5ffab96a62461e"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/hr.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/hr.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1621,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "240fb2998ce9e3a796a97906fc6f960a5611c0784dc73b16cae914faed0a5bfe"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/hu.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/hu.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1663,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "1a8445f99c68fbb05f3714f80f70ed088a62371b5b9885e312b4516f07d89e4f"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/id.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/id.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1553,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "3f246fe3732f813c93a04952365102a965a2248ae24e504f19531398588b2bf9"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/it.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/it.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1570,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "4edc697cfa93600e8b6904d8722840355057bcb2e9c62426a97cecb642f633c8"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/ja.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/ja.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1711,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "864dce623eb1a99beea7e72a1db9008610c403c97585704c1f780b2089381114"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/ko.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/ko.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1634,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "021a829945c7e477b6e89a7cd9da683f5a29c0ffc0c012ee839baf50ef7ac013"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/ms.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/ms.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1565,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "cb6c11480bf45c4b99ac1c2dcfdb67a5f82a799917a2630d4fb3e961357b5c93"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/nb.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/nb.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1593,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "02a0ce4613ef0c23ec3f161d59d5c493e9de626c81b04be93180a11a42caeab0"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/nl.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/nl.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1606,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "49051865c00640eded4c359b1e820e11d1f191055dbb480591f9397d37ab5e0d"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/pl.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/pl.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1578,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "cc1ef4452fcc98acbeed22950bd7f0a22a579e025a8f50c78fdbb600ed38e55d"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/pt.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/pt.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1608,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "8789b92e1a14c1fd45f26619273c573d1b109e3cf400e56e80a5870baaebccee"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/pt_BR.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/pt_BR.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1608,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "8789b92e1a14c1fd45f26619273c573d1b109e3cf400e56e80a5870baaebccee"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/pt_PT.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/pt_PT.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1646,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "56004febb8c697dfc2844b493b2d1fda94f7d71881c5e9f457dd50b434600e99"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/ro.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/ro.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1598,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "af87451f0d584649dc36d5bd174adbf3aa7a490e7742272f2f7dd86e2262e3dd"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/ru.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/ru.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1954,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "1d379702a951ecf98843d957092a8c4afee3eefe866a6001643e3b77755dc5dc"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/sk.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/sk.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1665,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "3ff722865a3c2e610d9b84cb055d936320b83d66cafa24c8eb819368d41d5dac"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/sv.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/sv.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1579,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "101e93a9c6ce8a01e7a86337aa212f6881045411d6e45270179fef261861431e"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/th.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/th.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 2133,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "f3b0083f38b726109db921a7904a98de4a5017b978c5b09a8480c5447a3c4fc7"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/tr.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/tr.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1596,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "0d49eb542849a6b7c689a72562f7204ca7451ce1be2beaad0743520d9bab80d2"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/uk.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/uk.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1864,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "261c6ee81d9ffeb32feefaa9e2bf490ca6dbfa56e788432a95b4a333e2c7aeef"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/vi.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/vi.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1717,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "5dd81023a8de776c88096b792e07363668e595dead4be8e5219bbbdd88398fe0"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/zh_CN.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/zh_CN.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1489,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "5274434127f770963d92af8700a2b838cae491bb7608642d4ff2a517fb81d677"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/zh_TW.lproj",
+      "mode": 493,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleSignIn.bundle/zh_TW.lproj/GoogleSignIn.strings",
+      "mode": 420,
+      "mtimeNs": 1791671646000000000,
+      "logicalBytes": 1525,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "f0af4ba5c0339e860cb1b938679f8f4cd1f910401bbea187cfbb239ab13bb7e5"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleUtilities_Privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791672189000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleUtilities_Privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791669490000000000,
+      "logicalBytes": 773,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "35a6d2fccf675f42752de0e4dc75047a0ac1e06ba7e8ad87494a436060b304e6"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/GoogleUtilities_Privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671640000000000,
+      "logicalBytes": 1233,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "f81b5cf8f043662712eca9e9785767264cf190025fe7bdb49777296c068de53c"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791672383135582717,
+      "logicalBytes": 4373,
+      "allocatedBytes": 8192,
+      "kind": "file",
+      "sha256": "959fc81fc00bc81f893a39139b85c99c35b0abbe3718722046baf9e7d84f971c"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/PkgInfo",
+      "mode": 420,
+      "mtimeNs": 1791671145702335737,
+      "logicalBytes": 8,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791672355123823854,
+      "logicalBytes": 1042,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "47a8bbd6809d19e2b7035cea00f716c0a13e1737e9d6478cf2233ba203fd6313"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Promises_Privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791671735000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Promises_Privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791669414000000000,
+      "logicalBytes": 759,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "ba61d3190f4ed4f427aba989bce00fac014b27c7902a2ba7162b56e1b6d46de5"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/Promises_Privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671640000000000,
+      "logicalBytes": 373,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "74b0cd72fc23c1ef302f22ee2753f61817cdc5af0ff7a7f2d0632b524fb8acea"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/React-Core_privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791671643000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/React-Core_privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791669414000000000,
+      "logicalBytes": 764,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "4ecf38a7a6ac72fe2f7caf967a26dc32ae6b109d8b1aaa687d59a31f4b7160fe"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/React-Core_privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671640000000000,
+      "logicalBytes": 768,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "7c08969e459621a6ecec043ccdb9012651f185811945f75517c623dae2e11627"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/React-cxxreact_privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791671643000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/React-cxxreact_privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791669414000000000,
+      "logicalBytes": 772,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "ece0be3f351f842175623226353ff206a3e35e0c9c051784b1c177a57014da9d"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/React-cxxreact_privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671640000000000,
+      "logicalBytes": 552,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "0587d155c56a6f4f0647ebc6b6a0bd026615cd610ee8f209a9786b79a96ad335"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/React-timing_privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791671643000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/React-timing_privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791669414000000000,
+      "logicalBytes": 768,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "891730ff14c1e1ce00cf145c15ef5f068dcc00c7d6ab0faa1f82be6a36cd61f1"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/React-timing_privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671640000000000,
+      "logicalBytes": 553,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "23ddfa062a6d4392e65882d151fdececbd29904a227ad8918c0144ebc777ee61"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/SlaxReader",
+      "mode": 493,
+      "mtimeNs": 1791672930341003835,
+      "logicalBytes": 58272,
+      "allocatedBytes": 61440,
+      "kind": "file",
+      "sha256": "30303f6fa005ad2da4376dcc4be93da5b12d363947b441c642319ba86d4f0b3c"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/SlaxReader.debug.dylib",
+      "mode": 493,
+      "mtimeNs": 1791672374841636178,
+      "logicalBytes": 55446888,
+      "allocatedBytes": 55447552,
+      "kind": "file",
+      "sha256": "b175f0fa4df38c7e91360b978721d69414efe677309dbe763a42f5de5a64ebe5"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/SplashScreen.storyboardc",
+      "mode": 493,
+      "mtimeNs": 1791672355968058532,
+      "logicalBytes": 160,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/SplashScreen.storyboardc/EXPO-VIEWCONTROLLER-1-view-EXPO-ContainerView.nib",
+      "mode": 420,
+      "mtimeNs": 1791672355955219000,
+      "logicalBytes": 2143,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "783a69192d4e3c22c2309e33a2990a2c7a87445b5ddb1dcdbfcf8f7717952491"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/SplashScreen.storyboardc/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791672355963888000,
+      "logicalBytes": 225,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "74dbceed6cf0a5e5c69834793328c9783ecab1de482d4954e257ca2132b743af"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/SplashScreen.storyboardc/SplashScreenViewController.nib",
+      "mode": 420,
+      "mtimeNs": 1791672355963728000,
+      "logicalBytes": 1004,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "9c1a34c121d22479408cf0eaacb3491548ced16655799bae3b5f7f2380314ba8"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/_CodeSignature",
+      "mode": 493,
+      "mtimeNs": 1791672930340332515,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/_CodeSignature/CodeResources",
+      "mode": 420,
+      "mtimeNs": 1791672930340413430,
+      "logicalBytes": 48455,
+      "allocatedBytes": 49152,
+      "kind": "file",
+      "sha256": "3a4c600cf6716baa20e633af39bca7a67a20e0e47317af9189b15c7919a1deb8"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/__preview.dylib",
+      "mode": 493,
+      "mtimeNs": 1791672353027278107,
+      "logicalBytes": 16760,
+      "allocatedBytes": 20480,
+      "kind": "file",
+      "sha256": "e4657d1108ecfff27ee95226d678d2a5ae8e18faa9a96683e7fb622388da1d2c"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/nanopb_Privacy.bundle",
+      "mode": 493,
+      "mtimeNs": 1791671643000000000,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/nanopb_Privacy.bundle/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791669395000000000,
+      "logicalBytes": 757,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "0d2f884f7212672c062d0ef328b7fb0085dbab0c5db57c0a44284d1880b64d42"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/nanopb_Privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "mtimeNs": 1791671625000000000,
+      "logicalBytes": 374,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "729ba3cbd0f458c78cd61edf17350edafe0e34ca86e314ec64c8cb22ccd21b54"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app/openiap-versions.json",
+      "mode": 420,
+      "mtimeNs": 1791643182000000000,
+      "logicalBytes": 78,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "8ef32fea67a4983dd713ed008d4d8dbed7b71e9db2633f4937515f9e1aad65fe"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM",
+      "mode": 493,
+      "mtimeNs": 1791671161329445731,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents",
+      "mode": 493,
+      "mtimeNs": 1791671161587924897,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Info.plist",
+      "mode": 420,
+      "mtimeNs": 1791672383139474915,
+      "logicalBytes": 684,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "d0c43469d96e593182625083e2b7438479b6678d511f07a7158b4f0a7a24d8b7"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources",
+      "mode": 493,
+      "mtimeNs": 1791671166254381595,
+      "logicalBytes": 160,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/DWARF",
+      "mode": 493,
+      "mtimeNs": 1791671166643098769,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/DWARF/SlaxReader",
+      "mode": 420,
+      "mtimeNs": 1791672379819940909,
+      "logicalBytes": 16542,
+      "allocatedBytes": 20480,
+      "kind": "file",
+      "sha256": "c5137b96c692143dc43c5404f263038bdbfc3470c8bab73aee42a37dab3beaf6"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/DWARF/SlaxReader.debug.dylib",
+      "mode": 420,
+      "mtimeNs": 1791672379727085606,
+      "logicalBytes": 125138890,
+      "allocatedBytes": 125140992,
+      "kind": "file",
+      "sha256": "7fbaea52a16b413a42a24fef5df7ecb4ab6b86c9e7ca215c0c6232082f052c14"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Relocations",
+      "mode": 493,
+      "mtimeNs": 1791671166015314992,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Relocations/aarch64",
+      "mode": 493,
+      "mtimeNs": 1791671166643379260,
+      "logicalBytes": 128,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Relocations/aarch64/SlaxReader.debug.dylib.yml",
+      "mode": 420,
+      "mtimeNs": 1791672379477801218,
+      "logicalBytes": 30131127,
+      "allocatedBytes": 30134272,
+      "kind": "file",
+      "sha256": "a37d81247f8850c8085fef6fbfd3e5b1f0a70103319d7e71336beb4181448694"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Relocations/aarch64/SlaxReader.yml",
+      "mode": 420,
+      "mtimeNs": 1791672379819785040,
+      "logicalBytes": 198,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "8bea9683ad0a022571c207083ffbd78efe1691fdfc23700ff487fdf4b39a9b6b"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Swift",
+      "mode": 493,
+      "mtimeNs": 1791671166254452093,
+      "logicalBytes": 96,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Swift/aarch64",
+      "mode": 493,
+      "mtimeNs": 1791671166255226734,
+      "logicalBytes": 192,
+      "allocatedBytes": 0,
+      "kind": "directory"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Swift/aarch64/ExpoFileSystem.swiftinterface",
+      "mode": 420,
+      "mtimeNs": 1791672379482180566,
+      "logicalBytes": 2215,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "d507e7274c46a06fb9188225c21a5197781443ad8aac58ae963781371140e246"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Swift/aarch64/ExpoFont.swiftinterface",
+      "mode": 420,
+      "mtimeNs": 1791672379482460597,
+      "logicalBytes": 1352,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "4dfb2d21cbf3050a4623598f44a9299f6f0a971e9509e8e82cbb939d6b4c047d"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Swift/aarch64/ExpoModulesCore.swiftinterface",
+      "mode": 420,
+      "mtimeNs": 1791672379483064743,
+      "logicalBytes": 121717,
+      "allocatedBytes": 122880,
+      "kind": "file",
+      "sha256": "b4a207e3ee84b5c6c8a55d051a391288a44e5d20ae2dbdf5d3fcf27f3e3c5338"
+    },
+    {
+      "path": "Build/Products/Debug-iphonesimulator/SlaxReader.app.dSYM/Contents/Resources/Swift/aarch64/FirebaseAnalytics.swiftinterface",
+      "mode": 420,
+      "mtimeNs": 1791672379483396065,
+      "logicalBytes": 1243,
+      "allocatedBytes": 4096,
+      "kind": "file",
+      "sha256": "564b88f13f181a746ced861d8c3577de23a880c80cce063d9899c407677e8f6c"
+    }
+  ],
+  "copied": false,
+  "actualBuildSucceeded": true,
+  "installedUiFixture": true,
+  "publisherClaim": false
+}

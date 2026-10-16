@@ -10,12 +10,13 @@ Before changing UI design, styles, tokens, icons, or Vue presentation in `apps/w
 
 # Slax Reader Monorepo
 
-Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comment, and discuss. This monorepo consolidates all non-mobile codebases (migrated from the legacy polyrepos; some directories may still be empty while migration is in progress).
+Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comment, and discuss. This monorepo brings together the Web, browser extension, API, CLI, mobile apps, and shared packages; migration work remains tracked in OpenSpec.
 
 ## Repository Map
 
 - `apps/web` — web frontend (the reader at r.slax.com)
 - `apps/extension` — browser extension (Chrome/Edge)
+- `apps/mobile` — Expo / React Native Android and iOS app; scoped engineering rules live in its generated `AGENTS.md`
 - `apps/api` — API server (Cloudflare Workers: Core, Edge, AI, Browser)
 - `apps/api/script/deploy` — backend deployment, setup, and resource provisioning commands
 - `deploy/cloudflare` — public Cloudflare Worker template
@@ -32,13 +33,21 @@ Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comme
 - New team members set up their machine with the agent-executable runbook at `docs/LOCAL-SETUP.md`.
 - Install dependencies once at the repository root: `pnpm install --frozen-lockfile`.
 - Per-app scripts live with their app. The backend exposes its concrete commands from `apps/api/package.json`; the repository root provides the abstract entry `pnpm api -- <command>` so users do not need to change directories.
-- CLI commands use `pnpm cli -- <command>` (`build`, `dev`, `start`, `typecheck`, `test`, `test:package`). The CLI remains the public `@slax-lab/reader-cli` package, needs no deploy environment files for build/tests, and retains its existing user config namespace. See `docs/cli/DEVELOPMENT.md` and `docs/cli/RELEASE.md`; `cli-v<version>` tags on commits reachable from `main` trigger npm OIDC publication and matching GitHub Release assets.
+- CLI commands use `pnpm cli -- <command>` (`build`, `dev`, `start`, `typecheck`, `test`, `test:package`). The CLI remains the public `@slax-lab/reader-cli` package, needs no deploy environment files for build/tests, and retains its existing user config namespace. See `docs/cli/DEVELOPMENT.md` and `docs/cli/RELEASE.md`; merges into `dev`, `beta`, and `main` that change `apps/cli` and increase its stable package version automatically create channel tags and distribute validated archives. Dev/beta tags use `-dev`/`-beta` and GitHub Pre-Releases; main uses `cli-v<version>` with npm OIDC publication and matching stable GitHub Release assets.
 - Reusable repository tooling stays at the root. API-specific configuration, Prisma schemas and migrations, generated runtime types, source and tests stay in `apps/api/`; deployment templates and local infrastructure remain in `deploy/`.
 - The only public API template is `deploy/cloudflare/api.toml.example`; initialize ignored `deploy/local/api.toml` with `pnpm api -- config:init`. Dev, deploy, build and runtime types use that native Wrangler configuration (name/services/env, no custom workers tables). Local commands select env.dev if present; --env or SLAX_API_ENV explicitly selects a named environment. API-specific Prisma configs live in `apps/api/prisma/`.
 - Prisma and Cloudflare operational tools automatically load ignored `deploy/local/.env` (database URLs and CLI credentials), using this fixed repository-relative path. Existing process values take precedence; setup pins local database URLs. Build/types and dry-run plans do not load this file. Worker runtime secrets belong in ignored `deploy/local/.dev.vars` or Worker secrets, never TOML or generated Env types.
 - `pnpm api -- setup` validates operator-provided native Wrangler configuration and keys, runs pnpm exec wrangler login once in apps/api, then runs local infrastructure setup/migrations/generation through `apps/api/script/deploy/setup-backend.sh`, waits for PowerSync health and exits. Start Workers separately with pnpm api -- dev; setup never launches them. The combined dev:full command is removed. The root `pnpm setup:all` command runs API setup, Web setup, and Extension setup in order. setup never writes, migrates or backs up configuration or generates keys; missing files must be supplied by the operator. The local PowerSync public key is derived from POWERSYNC_JWK_PRIVATE_KEY in .dev.vars and passed to Compose in memory; obsolete separate key files are not required or rewritten. Invalid signing keys and service failures stop startup. `--check` is read-only and does not invoke login. Cloud services still require dedicated development resources. All deployment tools honor `SLAX_API_CONFIG` (root-relative or absolute), including types, D1 and resource tools; config:init only creates the default local file. CI may check out an independent configuration repository and use the manual/reusable API deploy workflow.
 - Backend validation and deployment commands must be documented through the root abstraction and preserve the distinction between local setup, offline checks and explicitly authorized remote operations.
 - The runtime Worker type generator may use an isolated temporary directory to prevent secret/configuration discovery; this is an internal safety boundary, not a developer-facing working-directory requirement.
+
+## Package Version Decisions
+
+- For changes to CLI, Extension, or Mobile logic, shipped UI/assets, runtime dependencies, native integration, or build/package output, assess which applications are affected. Include indirect effects from shared packages, API contracts, tooling, and configuration outside the application directory. Documentation-only or test-only changes that do not affect shipped behavior or package output are exempt.
+- After preparing and validating the changes, before committing, pushing, or handing them off as ready, ask the human whether to increment the affected application's `package.json` version: CLI uses `apps/cli/package.json`, Extension uses `apps/extension/package.json`, and Mobile uses `apps/mobile/package.json`. Combine affected applications into one question, giving each current version, recommended new version/bump type, and reason. Follow an explicit version decision already given for this task without asking again.
+- Continue implementation and independent checks while the decision is pending, but wait for an explicit answer before changing version metadata or finalizing the task. Do not assume either approval or refusal. If no answer is available, report the version decision as pending.
+- If approved, update the affected manifests in the same task branch and PR, following each application's release constraints. CLI and Extension keep their stable source versions; CI derives channel suffixes. For Mobile, include `buildNumber` and `previousBuildNumber` in the decision as appropriate, follow `docs/mobile/RELEASE.md`, and regenerate native metadata through the existing tooling. If declined, preserve the versions and record that decision in the task/PR summary.
+- Verify the relevant CI release conditions when explaining the effect of a bump. Version approval authorizes the agreed metadata change; signing, uploading, and store publication still follow their existing authorization requirements. Mobile CI currently performs checks and JavaScript bundle validation only.
 
 ## Development Workflow — OpenSpec Required
 

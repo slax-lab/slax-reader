@@ -1,0 +1,192 @@
+{
+  "version": 1,
+  "status": "real-Alpha-created-selection-dismissed-by-one-native-Back-Reader-retained",
+  "identity": "app.slax.reader.uifixture",
+  "fixtureVersion": "1.0.0",
+  "fixtureBuild": "1",
+  "publisherBuild": false,
+  "device": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+  "scopeUri": "file:///Users/daguang/Library/Developer/CoreSimulator/Devices/B85A7582-A0A7-4A0F-9BF0-8424330859F3/data/Containers/Data/Application/5E637416-B35B-4D03-9D31-093B3A22A6B9/Library/Caches/slax-ui-fixtures/reader-mixed-1791674424384-4b1c3afce40354/",
+  "parentAlphaReport": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-alpha/report.json",
+    "sha256": "f39c4a931eaa3e54dbae48cf460562709bc8ec760d254cf203a666c36e377f88",
+    "bytes": 15045
+  },
+  "reviewedPlanSha256": "e4775846e765db1fc72177f109ebb2e93727ee7a14012a1e61ec677c10cd739f",
+  "exactRunnerSha256": "3bd920beadd32a21a37ca04b571c42c81aabd921b5588e94e6cedf42453fe37c",
+  "nativeBuildReceipt": {
+    "path": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache/report.json",
+    "sha256": "be0e72740b63b30b8e7a249ea3661e087456169050c0ac79d0b872415b0ea77d"
+  },
+  "preInputSelectedCharacters": 5,
+  "preInputRangePaths": 1,
+  "nativeTests": {
+    "testName": "testNativeBackClearsPreparedSelection",
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "caseSeconds": 10.057
+  },
+  "wrapper": {
+    "exitCode": 0,
+    "refused": null,
+    "elapsedSeconds": 17.56259975,
+    "incrementBytes": 838631,
+    "finalFreeBytes": 4713598976
+  },
+  "actualInput": {
+    "type": "native-XCTest",
+    "oneNativeBackTap": true,
+    "newCasePrepared": false,
+    "domRangePrepared": false,
+    "syntheticSelectionPublished": false
+  },
+  "observed": {
+    "beforeMenuUniqueAndHittable": true,
+    "afterMenuMissingByNativeAssertion": true,
+    "afterBlueHandlesAbsentInNativeFrame": true,
+    "afterGenuineBackStillHittable": true,
+    "afterNativeForegroundReader": true,
+    "afterRoute": {
+      "name": "Reader",
+      "params": {
+        "bookmarkId": "00000003-0000-4000-8000-000000000001"
+      },
+      "key": "Reader-R2NzW-jopQHheVc-6dzQm"
+    },
+    "afterApplicationSelection": null,
+    "afterDomRangePresent": false,
+    "afterCapturedRange": null,
+    "iosSourceBridgePresent": true,
+    "sourceSelections": 1,
+    "sourceDeselections": 1,
+    "sourceErrors": 0,
+    "nativePositionPixelsStill": 240,
+    "documentReadyStill": true
+  },
+  "artifacts": [
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/completed-native.xcresult.zip",
+      "sha256": "275753850fe22b358d6f45d2a25154899768a3f9e734a51dfb76d663e5fe79ff",
+      "bytes": 772804
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/completed-xcresult-manifest.json",
+      "sha256": "199666eca31ffc2b7acfd64fbb1b9355ad87519f080c6eeb071f7580c47dad84",
+      "bytes": 12379
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/attachments/1449F957-4134-4E42-ACE5-6EDE83537F04.txt",
+      "sha256": "c7b67fdcb51924a47a55f8fa601bb29c7d1609105c10c38f90b7e0d8cc0b5375",
+      "bytes": 14492
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/attachments/8E5AF27A-A3FD-4497-AAD6-1AC6DC1BF7A2.txt",
+      "sha256": "d8d8c5813a2ba033d2ef7597ca8a750cd237b3d6a69f92961d7871152b0c513a",
+      "bytes": 15289
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/attachments/DCEBA715-8279-437D-BE91-6B4483D8F59C.png",
+      "sha256": "66c0502f41aada0e0b19ef1f8722e074393a0c54b5efcd80aa3941802de7dd4b",
+      "bytes": 304540
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/attachments/FD29174C-ECA3-4E53-B87D-89E74E257F35.png",
+      "sha256": "b579bbab06e708be6bc8f0d18a4d308492923a93cb9daffeed890adf6790ac88",
+      "bytes": 349845
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/attachments/manifest.json",
+      "sha256": "9d5390daa3645c5e729d9ef1f4c13a9ce3c3588d797cbf2c0d202db5a2075b14",
+      "bytes": 2196
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/completed-summary.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/completed-summary.stdout.json",
+      "sha256": "528506ab2b45fd0266f69de272f8f6f81c5f8b3d4c5096a3f6bcb7d58108a6ee",
+      "bytes": 1014
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/early-completed-summary.stderr.log",
+      "sha256": "0f5cb87abd2ebcf9b71594dc3085d0115390c1af86b0ab2ccf830ba62222a5bd",
+      "bytes": 209
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/early-completed-summary.stdout.json",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/extraction-status.json",
+      "sha256": "57e6b615326c683a3b98c45243d5015254df4261c571d47b11a2ebefc02f3285",
+      "bytes": 213
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/native.log",
+      "sha256": "055ef5ba306b513b64b772abad6525ba9de5a9675016cb84f456bcf79baa978e",
+      "bytes": 9731
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/post-input-reader-input.json",
+      "sha256": "194a1f5f9f5d010344e3797d86575e682a6858158deae13b4c060e0207d9e6ee",
+      "bytes": 14423
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/post-input-reader-lifecycle.json",
+      "sha256": "c2871de34ce8db2921141a3ad09bc37823e0a3d3d8e384e8d20728b88cdb818f",
+      "bytes": 787
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/post-input-reader-position.json",
+      "sha256": "77e8de64a1cd556356f4f6ae0d655bbc1ae22478bde658b17e3394d2e564966d",
+      "bytes": 846
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/post-input-reader-selection.json",
+      "sha256": "4db30be220892cda6b08711b176e7685aa8c0c539771c0004f8467150d088971",
+      "bytes": 1206
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/pre-input-observe.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/pre-input-observe.stdout.json",
+      "sha256": "3f4655989f811e62974d47bdb8c0cc1bdd0d81ffc863ee8445a688e13e34a2a2",
+      "bytes": 3453
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/pre-input-selection.json",
+      "sha256": "0c689e7af7c541a78e8b89ad3f1af718f71409516ce39fc9a1d1b83263a9cb6c",
+      "bytes": 1300
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/run.json",
+      "sha256": "4bc72b516838b6ff6c22e84d96c4bb2c86c7b826ec01b0b9d766948867c3e071",
+      "bytes": 5011
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/selection-observe.stdout.json",
+      "sha256": "c1a3313717c1453a4200c08db2184872f2f63a90e07b5dd458f5e17b0d7b966c",
+      "bytes": 3611
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back/raw/xcresult-info.json",
+      "sha256": "1f20e66781dda945e4135909daea1f1346a5fcc77cce809b89b68d8f12cd0210",
+      "bytes": 326
+    }
+  ],
+  "limits": [
+    "Scoped to the same actual single-word Alpha selection; no second Back, cross-paragraph handle dragging or mark creation was performed.",
+    "Native stack emitted transition-start and gesture-cancel during the prevented Back; this record does not claim a new edge-drag input.",
+    "Whole UI parity, provider/device/publisher and TestFlight acceptance remain pending.",
+    "Historical missing-menu/NativeBridge-false and resource-terminated incomplete results are unchanged."
+  ],
+  "createdAt": 1791675120.428034
+}

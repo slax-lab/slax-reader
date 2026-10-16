@@ -1,0 +1,248 @@
+{
+  "kind": "slax-controlled-ios-cross-process-native-preference-cas",
+  "version": 1,
+  "status": "passed",
+  "recordedAt": "2026-10-10T18:35:25.859Z",
+  "platform": "ios-simulator",
+  "device": "522DD84F-0407-4707-BBAB-0263B4ACE2DA",
+  "application": {
+    "bundleIdentifier": "app.slax.reader",
+    "version": "1.0.25",
+    "buildNumber": "757",
+    "artifact": "/tmp/slax-mobile-native-artifacts/SlaxReader-ios-debug-identity-757-group-only.app",
+    "installedExecutableSHA256": "afca590846175cce828b550f5c92b17096b706c214de67ea1d6d1a380eebd97f",
+    "sameRetainedCompiledMainNativeBridge": true,
+    "signature": "Public AppGroup-only ad hoc simulator signature",
+    "publisherSigned": false
+  },
+  "prerequisite": {
+    "report": "apps/mobile/tests/data/adoption-fixtures/reports/ios-original-queue-real-service.json",
+    "sha256": "daea6445855b441a4be37ad3d7fd695614f5d86c3236a3aa79059d4a8c43ab71",
+    "actualOriginalSixServiceUpload": true,
+    "completedServiceReportSHA256": "0e327ad5519176b8499eb6b718daffe4a3185f5a0dfc4381651207f6316d9bcf",
+    "originalReportBytesUnchanged": true
+  },
+  "probe": {
+    "kind": "slax-controlled-native-preference-probe",
+    "version": 1,
+    "platform": "ios",
+    "output": "/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-native-preference-probe-2MswIi",
+    "executable": "/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-native-preference-probe-2MswIi/SlaxPreferenceProbe",
+    "executableSHA256": "f804f72624960c10688043b803f0f19e8e94f5bdb7a9b46e8aa219827dcbb7d7",
+    "sourcePath": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/modules/slax-legacy/ios/SlaxLegacyModule.swift",
+    "sourceSHA256": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3",
+    "templatePath": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/tests/data/adoption-fixtures/native/PreferenceProbe.template.swift",
+    "templateSHA256": "745b44845eb5f6bc5d0f5cab24ee1408260c8d142150c0bc6099ca08ede9e6a5",
+    "literalBodySHA256": {
+      "lockingAndSnapshot": "fd9f09fcaef0fb1c0f529a66b7104184ee8853bed031b123a5d037b8fbafcf43",
+      "jsonMap": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "compareAndSwap": "b9ced0374b9a3b6ec78bc0925c9a224c54c5e64da452c1ef55996180316a8fd9"
+    },
+    "directoryResolutionOverride": "Only the explicitly guarded original-service synthetic fixture store",
+    "expoCallbackWrapperReplaced": true,
+    "productionBodiesModified": false,
+    "deviceExecuted": true,
+    "secondProcessUsesExtractedLiteralProductionLockSnapshotAndCasBodies": true,
+    "secondProcessExpoCallbackWrapperAdapted": true
+  },
+  "modes": [
+    {
+      "mode": "stale-cas",
+      "request": {
+        "kind": "slax-native-preference-cas-request",
+        "version": 1,
+        "platform": "ios",
+        "device": "522DD84F-0407-4707-BBAB-0263B4ACE2DA",
+        "nonce": "e7428b19-d2d4-4483-bac7-6306843b1707",
+        "requestedAt": 1791657229482,
+        "mode": "stale-cas",
+        "sourceSHA256": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3",
+        "serviceRunId": "controlled-ios-first-service-20261011"
+      },
+      "mainNativeReport": {
+        "kind": "slax-native-preference-cas-report",
+        "version": 1,
+        "status": "passed",
+        "platform": "ios",
+        "device": "522DD84F-0407-4707-BBAB-0263B4ACE2DA",
+        "mode": "stale-cas",
+        "nonce": "e7428b19-d2d4-4483-bac7-6306843b1707",
+        "requestedAt": 1791657229482,
+        "sourceSHA256": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3",
+        "beforeRevision": 6,
+        "afterRevision": 8,
+        "casResults": [
+          false,
+          true
+        ],
+        "probe": {
+          "applied": true,
+          "kind": "slax-native-preference-cas-probe",
+          "nonce": "e7428b19-d2d4-4483-bac7-6306843b1707",
+          "phase": "committed",
+          "pid": 73457,
+          "platform": "ios",
+          "requestedAt": 1791657229482,
+          "revisionAfter": 7,
+          "revisionBefore": 6,
+          "sourceSHA256": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3",
+          "version": 1
+        },
+        "mainUsesActualNativeBridge": true,
+        "secondProcessUsesLiteralNativeBodies": true,
+        "bothSettingsRetained": true,
+        "unrelatedPreferencesUnchanged": true,
+        "originalDataStoreUnchanged": true,
+        "databaseUnchanged": true,
+        "productionAdoptionEnabled": false,
+        "completedServiceReportMd5": "75588b047d17b2f82ba2ef85105eed5e"
+      },
+      "evidenceFiles": [
+        {
+          "file": "stale-cas-request.json",
+          "sha256": "4302d402de1e1ef64d39a0fe3f49082538854840eba1efaaa21eda34fe83d874"
+        },
+        {
+          "file": "stale-cas-state.json",
+          "sha256": "a2bd85930082b7074b215c18d082d452e369feb201b4ccbca82617e965184704"
+        },
+        {
+          "file": "stale-cas-probe.json",
+          "sha256": "621c4dade3a5e4d35f723913977415979976da6593225f41f474238d07055f1b"
+        },
+        {
+          "file": "stale-cas-report.json",
+          "sha256": "9fe355f1e313f791923ace76fc6af17ebe2cc7028c859782a7248a9c4190a073"
+        }
+      ]
+    },
+    {
+      "mode": "lock-read",
+      "request": {
+        "kind": "slax-native-preference-cas-request",
+        "version": 1,
+        "platform": "ios",
+        "device": "522DD84F-0407-4707-BBAB-0263B4ACE2DA",
+        "nonce": "d800ab6d-1781-4591-aa53-91feefb62c55",
+        "requestedAt": 1791657260468,
+        "mode": "lock-read",
+        "sourceSHA256": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3",
+        "serviceRunId": "controlled-ios-first-service-20261011"
+      },
+      "mainNativeReport": {
+        "kind": "slax-native-preference-cas-report",
+        "version": 1,
+        "status": "passed",
+        "platform": "ios",
+        "device": "522DD84F-0407-4707-BBAB-0263B4ACE2DA",
+        "mode": "lock-read",
+        "nonce": "d800ab6d-1781-4591-aa53-91feefb62c55",
+        "requestedAt": 1791657260468,
+        "sourceSHA256": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3",
+        "beforeRevision": 8,
+        "afterRevision": 8,
+        "casResults": [],
+        "probe": {
+          "heldAt": 1791657264781.6328,
+          "kind": "slax-native-preference-cas-probe",
+          "nonce": "d800ab6d-1781-4591-aa53-91feefb62c55",
+          "phase": "lock-released",
+          "pid": 73848,
+          "platform": "ios",
+          "releasedAt": 1791657272795.582,
+          "requestedAt": 1791657260468,
+          "sourceSHA256": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3",
+          "version": 1
+        },
+        "readStartedAt": 1791657264831,
+        "readFinishedAt": 1791657272797,
+        "mainUsesActualNativeBridge": true,
+        "secondProcessUsesLiteralNativeBodies": true,
+        "bothSettingsRetained": false,
+        "unrelatedPreferencesUnchanged": true,
+        "originalDataStoreUnchanged": true,
+        "databaseUnchanged": true,
+        "productionAdoptionEnabled": false,
+        "completedServiceReportMd5": "75588b047d17b2f82ba2ef85105eed5e"
+      },
+      "evidenceFiles": [
+        {
+          "file": "lock-read-request.json",
+          "sha256": "0333d2e0b812a5178fa5fee46a0258b54c986b52def871d143177d456f048bfc"
+        },
+        {
+          "file": "lock-read-state.json",
+          "sha256": "fadec70aaee6970285ab7130b12693821353b0094cbc4b610336584453c8b5ca"
+        },
+        {
+          "file": "lock-read-probe.json",
+          "sha256": "53712e91584fa3927a9eeeda3da90da174fae836d592c79c0b6be1d0065867cc"
+        },
+        {
+          "file": "lock-read-report.json",
+          "sha256": "02474bd50a797952b3211d548bbeb576e7b5e2c5b7de7a1818fdb3dfb8ea237d"
+        }
+      ]
+    }
+  ],
+  "checks": {
+    "actualMainBridge": true,
+    "staleCasRejectedThenRebased": true,
+    "separateNativeProcessFlockBlocksMainRead": true,
+    "allUnrelatedPreferenceValuesUnchanged": true,
+    "originalAndroidXDataStoreUnchanged": true,
+    "databaseRowsAndQueueUnchanged": true
+  },
+  "cleanup": {
+    "matchingRequestsRemoved": true,
+    "mainAppTerminated": true,
+    "syntheticPreferenceCasKeysAndReportsRetained": true,
+    "noUninstallNoDataClear": true
+  },
+  "sourceInputs": [
+    {
+      "path": "apps/mobile/tests/data/NativePreferenceCasFixture.ts",
+      "sha256": "982343632998a08b1d6a3c15786b5fb46c60bcc2e6ecb730204262c0dc5d6558"
+    },
+    {
+      "path": "apps/mobile/tests/data/NativeAdoptionFixtureApp.tsx",
+      "sha256": "5c8cf4d7f4b52a9ad244a0dda4c533d3c29c6225a28699a134644d8657b68b28"
+    },
+    {
+      "path": "apps/mobile/src/data/preferences.ts",
+      "sha256": "fd2debe5370cd1831be1cb377c22aec6243c0e53b4602ba229666e0ef38d90af"
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/native-preference-control.mjs",
+      "sha256": "84b3d4f84b7a8f3827176f0f48787e65237594b628dd977070fe5f1960001757"
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/preference-probe-source.mjs",
+      "sha256": "4749e5b43e8e0a87f42dfeec42f0e8b1e82ac6ad421f515af94968ea73955450"
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/tooling/build-preference-probe.mjs",
+      "sha256": "30b1c7bd52659e55c180b6f2c024b03dd051a6181956b544c97ad0bbeb254e68"
+    },
+    {
+      "path": "apps/mobile/tests/data/adoption-fixtures/native/PreferenceProbe.template.swift",
+      "sha256": "745b44845eb5f6bc5d0f5cab24ee1408260c8d142150c0bc6099ca08ede9e6a5"
+    },
+    {
+      "path": "apps/mobile/modules/slax-legacy/ios/SlaxLegacyModule.swift",
+      "sha256": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3"
+    },
+    {
+      "path": "docs/mobile/evidence/2026-10-10-builds/ios-database-identity-build.json",
+      "sha256": "4be12a8e09a60fc62d03bbb7a0f1e6b185613967177293a3057a046c3a95ff08"
+    }
+  ],
+  "scope": {
+    "productionAdoptionEnabledDuringThisRun": false,
+    "androidPreferenceCasExecuted": false,
+    "mainNativeSdkRecompiled": false,
+    "publisherUpgrade": false,
+    "testFlight": false,
+    "wholeMigrationAccepted": false
+  }
+}

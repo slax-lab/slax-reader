@@ -1,0 +1,50 @@
+{
+  "version": "1.0.25",
+  "build": 764,
+  "previousBuild": 763,
+  "kind": "user-authorized-preview-without-further-functional-tests",
+  "apiOrigin": "https://reader-api.slax.dev",
+  "rebasedOntoDev": "1912e3b9513db6979decf8cadbe597a3236568be",
+  "rebasedBranchHeadBeforeDeliveryCommit": "335497dc2e72379ec883e7e4867e414655d5b074",
+  "ios": {
+    "teamId": "8G3A932HJG",
+    "mainBundleId": "app.slax.reader",
+    "shareBundleId": "app.slax.reader.share",
+    "appGroup": "group.app.slax.reader",
+    "archiveSucceeded": true,
+    "exportSucceeded": true,
+    "mainAndShareSignaturesVerified": true,
+    "mainAndShareVersionsVerified": true,
+    "localExportIpaSha256": "48883bce887fbe9190a242195c0513870ece0b212c0541120d1c9a8ade521e68",
+    "hashScope": "Verified local export; Xcode separately exported the verified archive for upload.",
+    "uploadSucceeded": true,
+    "uploadCompletedAt": "2026-10-13T16:11:22Z",
+    "appleStatusAtUpload": "Uploaded package is processing.",
+    "testerInstallAvailabilityVerified": false,
+    "missingPrebuiltDsyms": ["React.framework", "ReactNativeDependencies.framework", "hermesvm.framework"]
+  },
+  "changes": [
+    "Existing PDF metadata and Range contracts without mandatory ETag",
+    "Integrated Reader scrolling without PDF-specific page controls or status badges",
+    "No PDF filename or raw URL metadata/title fallback in Reader header",
+    "Local-login-first startup with asynchronous verified data and credential readiness",
+    "Reader, PDF runtime, repository and settings responsibility extraction",
+    "Generated mobile engineering and task-owned cleanup rules"
+  ],
+  "verification": {
+    "historicalBeforeFinalHeaderChangeAndRebase": "1020 tests passed; typecheck and both JS bundles passed",
+    "additionalFunctionalTests": "not run at the final user instruction",
+    "ordinaryIosAppStartupAndTestAccountSync": "observed",
+    "completeLiveNativePdfHighlightCommentAcceptance": "not completed; explicitly deferred for this preview",
+    "backendDeployed": false,
+    "mainFirebaseAdmission": "passed",
+    "shareFirebaseRequired": false
+  },
+  "localReview": {
+    "policy": "REVIEW.md",
+    "openSpec": "expo-mobile-migration",
+    "passes": ["Bugs", "Security", "Compliance"],
+    "unresolvedImportantFindings": 0,
+    "limitations": "Native PDF annotation acceptance and full migration parity remain incomplete; the user explicitly authorized this preview without further tests."
+  }
+}

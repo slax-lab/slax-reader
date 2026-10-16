@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "status": "root-independent-scoped-native-alpha-evidence-verified",
+  "sourceReport": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-alpha/report.json",
+    "sha256": "f39c4a931eaa3e54dbae48cf460562709bc8ec760d254cf203a666c36e377f88"
+  },
+  "artifactFilesVerified": 37,
+  "xcresultRegularMembersVerifiedAgainstRawAndZip": 42,
+  "xcresultSummary": {
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0
+  },
+  "actualAlphaSelection": {
+    "textLength": 5,
+    "rangePaths": 1,
+    "nativeBridgePresent": true
+  },
+  "backPlanReviewed": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-selection-back-plan/plan.json",
+    "sha256": "e4775846e765db1fc72177f109ebb2e93727ee7a14012a1e61ec677c10cd739f"
+  },
+  "backExecutorReviewed": {
+    "path": "/tmp/slax-reader-aw4-selection-back-run.py",
+    "sha256": "3bd920beadd32a21a37ca04b571c42c81aabd921b5588e94e6cedf42453fe37c"
+  },
+  "scopeLimit": "One genuine Alpha long press only; no current cross-paragraph, navigation, matched visual, upgrade or publisher acceptance.",
+  "createdAt": 1791675002.7112188
+}

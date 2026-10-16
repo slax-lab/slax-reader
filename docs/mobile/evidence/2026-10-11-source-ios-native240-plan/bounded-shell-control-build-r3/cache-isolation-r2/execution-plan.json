@@ -1,0 +1,258 @@
+{
+  "kind": "slax-original-ios-native240-bounded-build-plan",
+  "version": 3,
+  "openSpec": "expo-mobile-migration",
+  "status": "prepared-only-root-native-allocation-required",
+  "executor": {
+    "path": "apps/mobile/fixtures/source-ios/control/build-native-scroll.py",
+    "sha256": "ababd6a1135be2813a76676beec11deccfdd3e921ebefc587a39234242aeb2d8",
+    "default": "Readonly hash/set/provenance preflight only; no subprocess.",
+    "execute": "PYTHONDONTWRITEBYTECODE=1 python3 apps/mobile/fixtures/source-ios/control/build-native-scroll.py --execute --output-root <fresh-owned-root> --allocation-file <new-root-allocation>"
+  },
+  "inputsManifest": {
+    "path": "docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/inputs.json",
+    "sha256": "6c22360986c860aeb4a6bf20b6ac78958d48258a45bae2f296c05f7b8cb77b9f",
+    "copyInputs": 113,
+    "copyLogicalBytes": 109914632,
+    "breakdown": {
+      "shell": 2,
+      "control": 5,
+      "plist": 1,
+      "rawJFramework": 4,
+      "originalPreparedComposeResources": 88,
+      "canonicalRuntimeAssetsAndCaptureInputs": 13
+    }
+  },
+  "basis": {
+    "rawJFrameworkMachO": "1bc0873e19287f6b8cfc99bb9106d124e67a1343bfc06e227f0bce93ce9da38d",
+    "baseJMarker": "ab978b840390b23bac06072599bd811bb262148d5a124ce37d0a64025597feb1",
+    "originalSourceManifest": "3501089ae75682a823afdfb54ccf243d32cbc56eba1f84bd70c68afafc1f2943",
+    "fixtureInput": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f",
+    "compiledOriginal356AndOverlay55": "Rehash unchanged actual historical J files; never reconstruct removed L stage.",
+    "rawFramework": "Actual original linked Kotlin/Compose J framework reused without KMP relink.",
+    "33FileBackedMachOSections": "Verify raw/signed packaged framework equality after public ad-hoc signing; raw framework remains unchanged.",
+    "canonicalRuntime": "SourceSession reads these runtime assets from the packaged bundle. Preserve actual compiled J actionDriver digest; bind new Swift/native driver independently.",
+    "compiledJAdapterScope": "Mixed cached Reader only. Canonical error/RSS acceptance is not inferred from the historical J adapter."
+  },
+  "budget": {
+    "minimumFreeBeforeBytes": 3865470567,
+    "minimumFreeDuringBytes": 3221225472,
+    "maximumNewAllocatedBytes": 402653184,
+    "maximumNewProductLogicalBytes": 402653184,
+    "maximumTotalSeconds": 300,
+    "swiftSeconds": 60,
+    "xcodebuildSeconds": 180,
+    "otherCommandSeconds": 15,
+    "maximumOutputBytesPerCommand": 262144,
+    "monitorIntervalSeconds": 0.1,
+    "jobs": 1,
+    "architecture": "arm64"
+  },
+  "resourceRules": {
+    "allocatedBlocks": "All new regular files/directories/cache/logs/copies count against384MiB.",
+    "logicalProducts": "App and DerivedData Build/Products sum against384MiB.",
+    "sparseException": "Only owned derived-data/SDKStatCaches.noindex/*.sdkstatcache may have larger apparent size; all actual allocated blocks still count.",
+    "hardCapMeaning": "Stop and retain failure at a cap/floor, not evidence the build fits.",
+    "noCleanup": "No cache deletion, global cleanup, retry or budget increase.",
+    "processStop": "SIGKILL only a process group created by this executor; stdout cap, per-command/total deadline and resource floor monitored during the complete process lifetime.",
+    "failureRecord": "Keep bounded command logs/failed result; rename any provisionally written completed record to rejected-completed-record if final resource guard fails."
+  },
+  "commands": [
+    {
+      "label": "compile-source-swift-shell",
+      "seconds": 60,
+      "argv": [
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+        "-parse-as-library",
+        "-swift-version",
+        "5",
+        "-target",
+        "arm64-apple-ios16.4-simulator",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk",
+        "-module-cache-path",
+        "<fresh /private/tmp/slax-source-native-scroll-build-UUID>/swift-module-cache",
+        "-Xcc",
+        "-fmodules-cache-path=<fresh /private/tmp/slax-source-native-scroll-build-UUID>/swift-module-cache",
+        "-F",
+        "/private/tmp/slax-source-ui-fixture-ios-j/composeApp/build/bin/iosSimulatorArm64/debugFramework",
+        "-framework",
+        "SlaxSourceFixture",
+        "-framework",
+        "UIKit",
+        "-framework",
+        "Foundation",
+        "-framework",
+        "WebKit",
+        "-Xlinker",
+        "-rpath",
+        "-Xlinker",
+        "@executable_path/Frameworks",
+        "<fresh /private/tmp/slax-source-native-scroll-build-UUID>/shell/main.swift",
+        "<fresh /private/tmp/slax-source-native-scroll-build-UUID>/shell/FixtureReaderStep.swift",
+        "-o",
+        "<fresh /private/tmp/slax-source-native-scroll-build-UUID>/SlaxSourceFixtureApp.app/SlaxSourceFixtureApp"
+      ]
+    },
+    {
+      "label": "sign-copied-framework-ad-hoc",
+      "seconds": 15,
+      "argv": [
+        "/usr/bin/codesign",
+        "--force",
+        "--sign",
+        "-",
+        "<fresh /private/tmp/slax-source-native-scroll-build-UUID>/SlaxSourceFixtureApp.app/Frameworks/SlaxSourceFixture.framework"
+      ]
+    },
+    {
+      "label": "sign-isolated-source-app-ad-hoc",
+      "seconds": 15,
+      "argv": [
+        "/usr/bin/codesign",
+        "--force",
+        "--sign",
+        "-",
+        "<fresh /private/tmp/slax-source-native-scroll-build-UUID>/SlaxSourceFixtureApp.app"
+      ]
+    },
+    {
+      "label": "verify-isolated-source-app",
+      "seconds": 15,
+      "argv": [
+        "/usr/bin/codesign",
+        "--verify",
+        "--deep",
+        "--strict",
+        "<fresh /private/tmp/slax-source-native-scroll-build-UUID>/SlaxSourceFixtureApp.app"
+      ]
+    },
+    {
+      "label": "build-native-scroll-control-only",
+      "seconds": 180,
+      "argv": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+        "build-for-testing",
+        "-project",
+        "<fresh /private/tmp/slax-source-native-scroll-build-UUID>/control/SourceFixtureControl.xcodeproj",
+        "-scheme",
+        "SourceFixtureControl",
+        "-configuration",
+        "Debug",
+        "-sdk",
+        "iphonesimulator",
+        "-destination",
+        "generic/platform=iOS Simulator",
+        "-derivedDataPath",
+        "<fresh /private/tmp/slax-source-native-scroll-build-UUID>/derived-data",
+        "-jobs",
+        "1",
+        "ARCHS=arm64",
+        "ONLY_ACTIVE_ARCH=YES",
+        "CODE_SIGNING_ALLOWED=NO",
+        "COMPILER_INDEX_STORE_ENABLE=NO",
+        "CLANG_ENABLE_COMPILE_CACHE=NO",
+        "SWIFT_ENABLE_COMPILE_CACHE=NO",
+        "COMPILATION_CACHE_ENABLE_CACHING=NO",
+        "CLANG_MODULE_CACHE_PATH=<fresh /private/tmp/slax-source-native-scroll-build-UUID>/derived-data/ModuleCache.noindex",
+        "MODULE_CACHE_DIR=<fresh /private/tmp/slax-source-native-scroll-build-UUID>/derived-data/ModuleCache.noindex",
+        "SDK_STAT_CACHE_DIR=<fresh /private/tmp/slax-source-native-scroll-build-UUID>/derived-data/SDKStatCaches.noindex"
+      ]
+    }
+  ],
+  "environment": {
+    "PATH": "/usr/bin:/bin",
+    "LANG": "C",
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "TMPDIR": "<fresh-owned-root>/temporary",
+    "inheritedOperatorEnvironment": false
+  },
+  "membership": {
+    "sourceApp": "app.slax.reader.sourcefixture",
+    "sourceShell": [
+      "main.swift",
+      "FixtureReaderStep.swift"
+    ],
+    "testScheme": "SourceFixtureControl",
+    "emptyHost": "app.slax.reader.sourcefixture.controlhost",
+    "testBundle": "app.slax.reader.sourcefixture.control",
+    "compiledTestSources": [
+      "SourceFixtureControl.swift",
+      "SourceFixtureNativeScrollControl.swift"
+    ],
+    "plannedOnlyTest": "SourceFixtureControl/SourceFixtureNativeScrollControl/testPerformOneMeasuredOriginalReaderNativeDrag",
+    "buildAction": "build-for-testing only on generic iOS Simulator; no test execution, install or boot."
+  },
+  "rootAllocation": {
+    "kind": "slax-root-source-native-scroll-build-allocation",
+    "version": 3,
+    "outputRoot": "/private/tmp/slax-source-native-scroll-build-<UUID>",
+    "inputsSHA256": "6c22360986c860aeb4a6bf20b6ac78958d48258a45bae2f296c05f7b8cb77b9f",
+    "executorSHA256": "ababd6a1135be2813a76676beec11deccfdd3e921ebefc587a39234242aeb2d8",
+    "sourceBaseMarkerSHA256": "ab978b840390b23bac06072599bd811bb262148d5a124ce37d0a64025597feb1",
+    "rawFrameworkMachOSHA256": "1bc0873e19287f6b8cfc99bb9106d124e67a1343bfc06e227f0bce93ce9da38d",
+    "fixtureInputSHA256": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f",
+    "exclusiveNativeSlot": true,
+    "allowSwiftAndXCTestBuildOnly": true,
+    "allowKmpOrGradle": false,
+    "allowDeviceCommands": false,
+    "allowMetroCommands": false,
+    "allowGlobalCleanup": false,
+    "nonce": "<UUID>",
+    "requestedAt": "<Unix milliseconds>",
+    "expiresAt": "<Unix milliseconds; <=requestedAt+600000>"
+  },
+  "futureDevicePlanOnly": {
+    "requiresSeparateRootAllocation": true,
+    "simulator": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+    "identity": "Only app.slax.reader.sourcefixture and its unique control helper; main/share/group closed and preserved.",
+    "conditions": {
+      "clock": "09:41",
+      "locale": "en",
+      "appearance": "light",
+      "contentSize": "UICTContentSizeCategoryL",
+      "viewportPoints": [
+        402,
+        874
+      ],
+      "scale": 3,
+      "safeAreaPoints": [
+        62,
+        34
+      ],
+      "canonicalFixture": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f"
+    },
+    "launchArguments": [
+      "--scenario",
+      "reader-mixed",
+      "--fixture-locale",
+      "en",
+      "--fixture-native-scroll-observation",
+      "<new-UUID>"
+    ],
+    "observation": "Fresh same-launch prepared status and real rich body/mark bridge; actual contentOffset/contentInset/contentSize/bounds KVO and settled finite samples of one WK identity.",
+    "gesture": "One request from a <=2-second native sample, one genuine body press(.1)/slow drag/hold(.1), max120points; at most three separately reviewed requests. No native content-offset setter, JavaScript scrolling or DB seeding.",
+    "driverWindow": "Observer preparation30s + post-prepared60s,300 samples/128events,90s maximum; actual XCTest must separately bind freshly signed helper products and exact request; no dialog dismissal.",
+    "acceptance": "Record before/after native inputs, original body/frame/readiness, raw CGFloat projection and separate Float32-equivalent source arithmetic. Neither requested240, rawY, test completion nor the projection alone promotes position/parity. Keep source restoration0/requested240 gap and exact density derivation limitation explicit. Stop with unmatched evidence when three genuine drags do not establish the required observed state.",
+    "targetComparison": "A separately allocated fresh target uses the same canonical fixture,09:41 and measured actual position; selected Alpha07:21 frame is not a matched visual baseline."
+  },
+  "scope": {
+    "nativeCompilerExecuted": false,
+    "deviceCommandsExecuted": false,
+    "kmpRelink": false,
+    "productionSourceChanged": false,
+    "sourceClientChanged": false,
+    "uiStageChanged": false,
+    "metroChanged": false,
+    "native240Accepted": false,
+    "coverageOrSpecPromoted": false
+  },
+  "cacheIsolationSupplement": {
+    "previousPreparedExecutorSHA256": "8bea9edba09f8468e1cb9cda85c99bc02feec162bf85b84f15e24cf760240a6e",
+    "previousPlanSHA256": "1dd47ab030fea1c69c57b21dbe2e92761dc09aa2796cf3e8cff6715329942ab1",
+    "reason": "Installed Xcode Swift cache setting inherits the general cache default independently of the Clang flag. Explicitly disable both; existing CLANG_MODULE_CACHE_PATH already maps to the Swift -module-cache-path flag. No unsupported SWIFT_MODULE_CACHE_PATH property is introduced.",
+    "budgetsChanged": false,
+    "inputsChanged": false,
+    "toolCommandsExecuted": false
+  }
+}

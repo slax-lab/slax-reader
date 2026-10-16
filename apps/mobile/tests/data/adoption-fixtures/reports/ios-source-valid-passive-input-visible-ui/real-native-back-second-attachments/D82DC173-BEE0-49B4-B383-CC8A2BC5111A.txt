@@ -1,0 +1,110 @@
+Attributes: Application, 0x107bf0c80, pid: 23837, label: 'Slax Reader'
+Element subtree:
+ →Application, 0x107bf0c80, pid: 23837, label: 'Slax Reader'
+    Window (Main), 0x107bf0dc0, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x107bf0f00, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x107bf1040, {{0.0, 0.0}, {402.0, 874.0}}
+          Other, 0x107bf1180, {{0.0, 0.0}, {402.0, 874.0}}
+            Other, 0x107bf12c0, {{0.0, 0.0}, {402.0, 874.0}}
+              Other, 0x107bf1400, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x107bf1540, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x107bf1680, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x107bf17c0, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x107bf1900, {{0.0, 0.0}, {402.0, 874.0}}
+                        NavigationBar, 0x107bf1a40, {{0.0, 62.0}, {402.0, 54.0}}, identifier: 'RNSScreen'
+                          Button, 0x107bf1b80, {{16.0, 62.0}, {44.0, 44.0}}, identifier: 'BackButton', label: 'Library'
+                          Button, 0x107bf1cc0, {{334.0, 62.0}, {48.0, 44.0}}, identifier: 'reader-header-more', label: '分享'
+                        Other, 0x107bf1e00, {{0.0, 0.0}, {402.0, 874.0}}
+                          Other, 0x107bf1f40, {{0.0, 0.0}, {402.0, 874.0}}
+                            Other, 0x107bf2080, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x107bf21c0, {{0.0, 0.0}, {402.0, 874.0}}
+                                Other, 0x107bf2300, {{0.0, 0.0}, {402.0, 874.0}}
+                                  Other, 0x107bf2440, {{0.0, -117.0}, {402.0, 298.0}}
+                                    Other, 0x107bf2580, {{0.0, -117.0}, {402.0, 298.0}}, identifier: 'reader-article-header'
+                                    StaticText, 0x107bf26c0, {{20.0, -11.0}, {362.0, 30.0}}, label: 'Controlled actual service offline edit'
+                                      StaticText, 0x107bf2800, {{20.0, -11.0}, {362.0, 30.0}}, label: 'Controlled actual service offline edit'
+                                    StaticText, 0x107bf2940, {{20.0, 31.0}, {114.0, 20.0}}, label: '2026-10-01 17:41'
+                                      StaticText, 0x107bf2a80, {{20.0, 31.0}, {114.0, 20.0}}, label: '2026-10-01 17:41'
+                                    Link, 0x107bf2bc0, {{134.0, 31.0}, {85.7, 20.0}}, label: '查看原网页'
+                                    Other, 0x107bf2d00, {{20.0, 67.0}, {49.7, 22.0}}, identifier: 'tag_item'
+                                    StaticText, 0x107bf2e40, {{27.0, 69.0}, {35.7, 18.0}}, label: 'offline'
+                                      StaticText, 0x107bf2f80, {{27.0, 69.0}, {35.7, 18.0}}, label: 'offline'
+                                    Button, 0x107bf30c0, {{77.7, 67.0}, {21.0, 21.0}}, label: '标签'
+                                    Button, 0x107bf3200, {{20.0, 109.0}, {362.0, 48.0}}, label: '全文概要: Offline summary '
+                                  Other, 0x107bf3340, {{0.0, 0.0}, {402.0, 874.0}}, identifier: 'reader-screen'
+                                  Other, 0x107bf3480, {{0.0, 0.0}, {402.0, 874.0}}, identifier: 'reader-container'
+                                  Other, 0x107bf35c0, {{0.0, 0.0}, {402.0, 874.0}}, identifier: 'reader-document'
+                                    WebView, 0x107bf3700, {{0.0, 0.0}, {402.0, 874.0}}
+                                      WebView, 0x107bf3840, {{0.0, 0.0}, {402.0, 874.0}}
+                                        WebView, 0x107bf3980, {{0.0, 0.0}, {402.0, 874.0}}
+                                          Other, 0x107bf3ac0, {{0.0, 0.0}, {402.0, 874.0}}
+                                            Other, 0x107bf3c00, {{0.0, 0.0}, {402.0, 874.0}}
+                                              Other, 0x107bf3d40, {{0.0, 181.0}, {402.0, 874.0}}
+                                                Other, 0x107bf3e80, {{0.0, 181.0}, {402.0, 3766.0}}, Focused
+                                                  Other, 0x107bca1c0, {{20.0, 181.0}, {362.0, 3566.0}}, label: 'Preserved offline reading, 文章', Focused
+                                                    Other, 0x107c24000, {{20.0, 181.0}, {362.0, 56.0}}, Focused
+                                                      StaticText, 0x107c24140, {{20.0, 185.0}, {178.0, 20.0}}, label: 'Controlled offline fixture', value: Controlled offline..., Focused
+                                                      StaticText, 0x107c24280, {{20.0, 185.0}, {362.0, 48.0}}, label: '. This passage carries an original offline comment.', value: . This passage car..., Focused
+                                                    Other, 0x107c243c0, {{20.0, 261.0}, {362.0, 30.0}}, label: 'Preserved offline reading', value: 2, Focused
+                                                      StaticText, 0x107c24500, {{20.0, 263.0}, {231.0, 25.0}}, label: 'Preserved offline reading', value: Preserved offline ..., Focused
+                                                    Other, 0x107c24640, {{20.0, 315.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c24780, {{20.0, 319.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c248c0, {{20.0, 507.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c24a00, {{20.0, 511.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c24b40, {{20.0, 699.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c24c80, {{20.0, 703.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c24dc0, {{20.0, 891.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c24f00, {{20.0, 895.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c25040, {{20.0, 1083.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c25180, {{20.0, 1087.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c252c0, {{20.0, 1275.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c25400, {{20.0, 1279.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c25540, {{20.0, 1467.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c25680, {{20.0, 1471.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c257c0, {{20.0, 1659.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c25900, {{20.0, 1663.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c25a40, {{20.0, 1851.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c25b80, {{20.0, 1855.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c25cc0, {{20.0, 2043.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c25e00, {{20.0, 2047.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c25f40, {{20.0, 2235.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c26080, {{20.0, 2239.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c261c0, {{20.0, 2427.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c26300, {{20.0, 2431.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c26440, {{20.0, 2619.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c26580, {{20.0, 2623.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c266c0, {{20.0, 2811.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c26800, {{20.0, 2815.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c26940, {{20.0, 3003.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c26a80, {{20.0, 3007.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c26bc0, {{20.0, 3195.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c26d00, {{20.0, 3199.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c26e40, {{20.0, 3387.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c26f80, {{20.0, 3391.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                                    Other, 0x107c270c0, {{20.0, 3579.0}, {362.0, 168.0}}, Focused
+                                                      StaticText, 0x107c27200, {{20.0, 3583.0}, {362.0, 160.0}}, label: 'The original Kotlin application saved this article before the upgrade. Its text remains available without contacting a content server. The new reader opens the same cache, keeps the offline comment and restores the saved reading position.', value: The original Kotli..., Focused
+                                  Other, 0x107c27340, {{0.0, 766.0}, {402.0, 50.0}}
+                                    Other, 0x107c27480, {{122.7, 766.0}, {95.0, 50.0}}
+                                      Button, 0x107c275c0, {{130.7, 773.0}, {36.0, 36.0}}, label: '取消加星'
+                                      Button, 0x107c27700, {{173.7, 773.0}, {36.0, 36.0}}, label: '归档'
+                                    Other, 0x107c27840, {{229.7, 766.0}, {50.0, 50.0}}
+                                      Button, 0x107c27980, {{236.7, 773.0}, {36.0, 36.0}}, label: '提纲'
+                        Other, 0x107c27ac0, {{0.0, 0.0}, {402.0, 874.0}}
+                          Other, 0x107c27c00, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x107c27d40, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x107c27e80, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x107c2c000, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x107c2c140, {{10.0, 786.7}, {382.0, 67.3}}
+                    Other, 0x107c2c280, {{10.0, 786.7}, {382.0, 48.3}}
+                      Other, 0x107c2c3c0, {{10.0, 787.3}, {382.0, 48.0}}
+                        Other, 0x107c2c500, {{10.0, 787.7}, {382.0, 48.0}}, label: '!, [PowerSync]: Sync error ApiError: Controlled offline transport refuses forwarding'
+    Window, 0x107c2c640, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x107c2c780, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x107c2c8c0, {{0.0, 0.0}, {402.0, 874.0}}
+Path to element:
+ →Application, 0x107bf0c80, pid: 23837, label: 'Slax Reader'
+Query chain:
+ →Find: Application 'app.slax.reader'
+  Output: {
+    Application, 0x107c2ca00, pid: 23837, label: 'Slax Reader'
+  }

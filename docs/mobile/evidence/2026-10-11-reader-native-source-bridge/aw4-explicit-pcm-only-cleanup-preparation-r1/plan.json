@@ -1,0 +1,88 @@
+{
+  "kind": "slax-aw4-explicit-pcm-only-cleanup-preparation",
+  "version": 1,
+  "status": "prepared-not-authorized-not-removed",
+  "openSpec": "expo-mobile-migration",
+  "derivedData": "/private/tmp/slax-reader-nativebridge-ios-aw4-deriveddata",
+  "onlyCandidate": "/private/tmp/slax-reader-nativebridge-ios-aw4-deriveddata/Build/Intermediates.noindex/ExplicitPrecompiledModules",
+  "allocatedCandidateBytes": 789962752,
+  "files": 4064,
+  "rootDirectoryOnly": true,
+  "protectedPodsBuildBytes": 583479296,
+  "proofScope": {
+    "retainedVendorLinkInputPCMReferences": 0,
+    "basis": "all-target-object-input-closure.json actual .d currentDependencyHashes; file-backed products/modules/headers retained",
+    "oldResponseFilesMayReferenceExplicitPCM": true,
+    "warmCurrentConsumerWillUseOwnModuleCache": true,
+    "futureImportedSwiftClangCompatibilityNotYetProven": true,
+    "oldNormalXcodeSchedulingReuseMayNeedPCMRebuild": true,
+    "actualResponseFilesWithExplicitPCMPath": []
+  },
+  "ownedOwner": {
+    "path": "/tmp/slax-reader-nativebridge-ios-aw4-post-cache/owner.json",
+    "sha256": "2128b590d0f0acdbebf722803327df9bfd374927329cdb9178115ec3374a06a7"
+  },
+  "currentStageMarker": {
+    "path": "/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-reader-ui-fixture-byWKU3/.slax-ui-fixture-project.json",
+    "sha256": "916255118823ed8d2764c333b4d135d0b0278b3b0edba2a38d48762ceaf2d4f3"
+  },
+  "fiveProtectedLogRoots": [
+    "/private/tmp/slax-reader-aw4-public-sign-ba391fab-1ee8-484d-9c95-1ecb4021ee6d",
+    "/private/tmp/slax-reader-nativebridge-ios-aw4-build",
+    "/private/tmp/slax-reader-nativebridge-ios-aw4-continue-product",
+    "/private/tmp/slax-reader-nativebridge-ios-aw4-post-cache",
+    "/private/tmp/slax-reader-nativebridge-ios-aw4-resume"
+  ],
+  "inputs": [
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-explicit-pcm-only-cleanup-preparation-r1/pcm-inventory.json",
+      "sha256": "4d49a23f57256d056e716a346df53818effa2c4391906816846476ce62a6f6a0",
+      "bytes": 1536721
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-explicit-pcm-only-cleanup-preparation-r1/protected-dd-and-pods-inventory.json",
+      "sha256": "8dad84cd2abee5e204ffcf0677059f5fb48ad7a7e43a2fa9786244252039bedc",
+      "bytes": 8907330
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-explicit-pcm-only-cleanup-preparation-r1/new-source-cross-protected-products.json",
+      "sha256": "a4aaa4d85ca46db53ee87b7df69d2baa68099353627cf268a1f03639cf7b27a2",
+      "bytes": 35111
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-post-install-pcm-pods-cleanup-plan-r4/two-root-cleanup-plan.json",
+      "sha256": "4efc46b1d2751df1895d9a02c33b9a026abf310fe466f6fd23d42c8f31b8f042",
+      "bytes": 5536
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-post-install-pcm-pods-cleanup-plan-r4/current-stage-native-log-protection.json",
+      "sha256": "a3a98357642ce8fba5e3beb02751819373fd31e85864c0399c39d6d1386f4f04",
+      "bytes": 81075
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-ios-upgrade-consumer-preparation-r2/all-target-object-input-closure.json",
+      "sha256": "f0073c753206015672cb01324e3819f28bd4d4db143d8580a743083360fd49eb",
+      "bytes": 5894354
+    }
+  ],
+  "preserve": [
+    "ALL Pods.build objects/dependency/response receipts",
+    "ALL app/framework/vendor/dSYM/xcresult/source/helper Products",
+    "current 377 UI stage and Metro93891",
+    "all five existing log ledger roots",
+    "all AVDs/simulators/journals/DBs/cache/preferences",
+    "Source c234 compiler0/recovery scopes; Cross6e70 actual compiled Products"
+  ],
+  "removed": false,
+  "nativeDeviceOrCompilerInvoked": false,
+  "cleanup": {
+    "oneAllocationRequired": true,
+    "overallSeconds": 120,
+    "verifyWholeClosedInputsBeforeDelete": true,
+    "noCleanupFallback": true,
+    "unlinkExactFlatFilesOnly": true,
+    "externalProductsBoundBeforeAndAfter": true,
+    "reportActualStatvfsNotExpectedReclaim": true
+  },
+  "executorSHA256": "32254a95e2a16d3edf98687cfab204fe19c429615b94f71a6e235f2b1fe10df9"
+}

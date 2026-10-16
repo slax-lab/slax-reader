@@ -1,0 +1,93 @@
+{
+  "appId": "com.slax.reader.uifixture",
+  "device": "sdk_gphone64_arm64 - 14 - API 34",
+  "scenario": "reader-collection",
+  "inputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "scopeUri": "file:///data/user/0/com.slax.reader.uifixture/cache/slax-ui-fixtures/reader-collection-1791657306626-b0dc61d54f7a3/",
+  "renderContext": {
+    "controlledFixture": true,
+    "fixtureVersion": 1,
+    "scenario": "reader-collection",
+    "inputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+    "locale": "en",
+    "nativeMeasurements": {
+      "platform": "android",
+      "osVersion": "14",
+      "deviceModel": "sdk_gphone64_arm64",
+      "viewport": {
+        "width": 411.42857142857144,
+        "height": 914.2857142857143,
+        "scale": 2.625,
+        "fontScale": 1
+      },
+      "screen": {
+        "width": 411.42857142857144,
+        "height": 914.2857142857143,
+        "scale": 2.625,
+        "fontScale": 1
+      },
+      "pixelRatio": 2.625,
+      "fontScale": 1,
+      "fontScaleProfile": "default",
+      "safeArea": {
+        "left": 0,
+        "bottom": 24,
+        "right": 0,
+        "top": 51.80952453613281
+      },
+      "appearance": "light"
+    },
+    "observedRoute": {
+      "name": "Reader",
+      "params": {
+        "bookmarkId": "00000003-0000-4000-8000-000000000001",
+        "collectionOwnerId": "00000014-0000-4000-8000-000000000001",
+        "collectionId": "00000011-0000-4000-8000-000000000001"
+      },
+      "key": "Reader-cbykP75sKApUHsGeyGR9d"
+    },
+    "observedNavigationState": {
+      "root": {
+        "stale": false,
+        "type": "stack",
+        "key": "stack-IhkqaTsknYQAip6DQZ5pJ",
+        "index": 1,
+        "routeNames": [
+          "Library",
+          "Reader",
+          "Settings",
+          "About",
+          "Debug",
+          "DeleteAccount",
+          "Subscription",
+          "Feedback"
+        ],
+        "routes": [
+          {
+            "name": "Library",
+            "key": "Library-BvR0rChOkDOPkkrYMWESi"
+          },
+          {
+            "name": "Reader",
+            "params": {
+              "bookmarkId": "00000003-0000-4000-8000-000000000001",
+              "collectionOwnerId": "00000014-0000-4000-8000-000000000001",
+              "collectionId": "00000011-0000-4000-8000-000000000001"
+            },
+            "key": "Reader-cbykP75sKApUHsGeyGR9d"
+          }
+        ],
+        "preloadedRoutes": []
+      },
+      "canGoBack": true
+    },
+    "measuredAt": "2026-10-10T18:35:09.008Z",
+    "displayedClock": "pending-native-frame-inspection",
+    "simulatedNetworkAndSync": true,
+    "nativeExecution": "pending-capture",
+    "preparedActions": [],
+    "sourceParity": "unverified"
+  },
+  "preparationOnly": false,
+  "nativeInteractionVerified": false
+}

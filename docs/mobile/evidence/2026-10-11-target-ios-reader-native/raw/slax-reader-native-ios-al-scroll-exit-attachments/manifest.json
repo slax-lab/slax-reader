@@ -1,0 +1,44 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "4337AE9C-B1B7-4808-8430-DEB8F89BBA00.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-after-native-scroll-exit-native-tree_0_30F20546-F59D-41FF-90C1-82B09CD2B631.txt",
+        "timestamp" : 1791659404.321
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "2F7D7018-F019-45F8-BBB9-476C58E3F13D.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-after-native-scroll-exit_0_E5A50EC0-F5B7-477A-8C84-02B4C2E3F1EB.png",
+        "timestamp" : 1791659404.121
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "02E55991-694B-48C0-8144-CDC933E5E745.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-before-native-scroll-exit-native-tree_0_B2635AEF-4AD7-415B-9013-05AB53731608.txt",
+        "timestamp" : 1791659398.011
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+        "deviceName" : "SlaxColdShareControlled-20261011-Mg6KLJ",
+        "exportedFileName" : "F012E1A4-1F88-4CB3-A71B-D786E067E208.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "reader-before-native-scroll-exit_0_95417FE4-9BFC-4F6B-95AE-3F6C10E7188A.png",
+        "timestamp" : 1791659397.595
+      }
+    ],
+    "testIdentifier" : "ReaderNativeControl/testNativeScrollThenHeaderBack()",
+    "testIdentifierURL" : "test://com.apple.xcode/ReaderNativeControl/ReaderNativeControl/ReaderNativeControl/testNativeScrollThenHeaderBack"
+  }
+]

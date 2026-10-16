@@ -1,0 +1,67 @@
+{
+  "name": "rss-history-retry-prepared-00-select-list",
+  "result": "native-candidate-captured",
+  "expectedRoute": null,
+  "observedRoute": {
+    "key": "Library-HXz9oi_UNkpY2AWp3Ll4E",
+    "name": "Library"
+  },
+  "focusedWindow": "mCurrentFocus=Window{26e0444 u0 com.slax.reader.uifixture/com.slax.reader.uifixture.MainActivity}",
+  "nativeInput": null,
+  "nativeInteractionVerified": false,
+  "expectedNativeState": [],
+  "forbiddenNativeState": [],
+  "preparedActionIndices": [
+    0
+  ],
+  "preparationOnly": true,
+  "preparedScenario": "rss-history-retry",
+  "fixtureInputSha256": "5b8ee1cbf4a48e13c64a83dda9161bbae308e451e47ac96fecbb1d9bf49e23b4",
+  "nativeMeasurements": {
+    "platform": "android",
+    "osVersion": "14",
+    "deviceModel": "sdk_gphone64_arm64",
+    "viewport": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "screen": {
+      "width": 411.42857142857144,
+      "height": 914.2857142857143,
+      "scale": 2.625,
+      "fontScale": 1
+    },
+    "pixelRatio": 2.625,
+    "fontScale": 1,
+    "fontScaleProfile": "default",
+    "safeArea": {
+      "left": 0,
+      "bottom": 24,
+      "right": 0,
+      "top": 51.80952453613281
+    },
+    "appearance": "light"
+  },
+  "visualInspection": "pending",
+  "sourceParity": "unverified",
+  "capturedAtMillis": 1791660065881,
+  "files": [
+    {
+      "path": "23-rss-history-retry-prepared-00-select-list/native.png",
+      "sha256": "7aa64b5b53cf4aff7a91727a4016471dbbeb97a1f9e89e891aadae5cad1e23af",
+      "bytes": 157192
+    },
+    {
+      "path": "23-rss-history-retry-prepared-00-select-list/runtime-context.json",
+      "sha256": "b679f1cbf15c9c3bdb71b632893dfa7f4ebb42acbbe836a476a646ed7542f8e4",
+      "bytes": 2409
+    },
+    {
+      "path": "23-rss-history-retry-prepared-00-select-list/native-hierarchy.xml",
+      "sha256": "7263078e3fca32ef6067e3a863cb4726460a4bc97dcdef15dd8c7bc324ec8076",
+      "bytes": 23368
+    }
+  ]
+}

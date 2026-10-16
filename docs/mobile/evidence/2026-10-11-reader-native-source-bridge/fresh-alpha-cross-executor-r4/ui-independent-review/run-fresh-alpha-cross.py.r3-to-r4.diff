@@ -1,0 +1,13 @@
+--- docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r3/inputs/run-fresh-alpha-cross.py
++++ docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r4/inputs/run-fresh-alpha-cross.py
+@@ -18,8 +18,8 @@
+ BASE = HERE.parents[1] / 'fresh-alpha-cross-plan-r1/plan.json'
+ BASE_SHA = 'f0e459b257a912de98d63ef1dad09e4beadab4249972daf00f2fa1dd32992c98'
+ POLICY = HERE / 'runtime-policy.json'
+-RUN = Path('/private/tmp/slax-reader-fresh-alpha-cross-70641adca8a446cbbeb6177a7e5dfe2c')
+-GRANTS = Path('/private/tmp/slax-reader-fresh-alpha-cross-grants-70641adca8a446cbbeb6177a7e5dfe2c')
++RUN = Path('/private/tmp/slax-reader-fresh-alpha-cross-1b39303dfecd4db394e2b95c27e9a962')
++GRANTS = Path('/private/tmp/slax-reader-fresh-alpha-cross-grants-1b39303dfecd4db394e2b95c27e9a962')
+ DEVICE = 'B85A7582-A0A7-4A0F-9BF0-8424330859F3'
+ OTHER = '88E63005-F681-45A6-AF8D-BEFE4E27584D'
+ NAME = 'SlaxColdShareControlled-20261011-Mg6KLJ'

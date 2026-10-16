@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/fresh-alpha-cross-executor-r5/inputs/runtime-guards.test.py",
+    "Guards.test_actual_node_snapshot_new_root_passes_root_admission_without_scope_creation",
+    "Guards.test_actual_node_snapshot_prior_roots_reject_before_old_scope_file_read"
+  ],
+  "exitCode": 0,
+  "reason": "Separate author-only raw child stdout/stderr retention; no additional native acceptance",
+  "nativeDeviceCompilerMetroActions": false
+}

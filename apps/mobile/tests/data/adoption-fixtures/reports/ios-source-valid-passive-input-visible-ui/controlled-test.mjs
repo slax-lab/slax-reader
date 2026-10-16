@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {closeSync, copyFileSync, existsSync, lstatSync, openSync, readFileSync, writeFileSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
+const root = '/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader';
+const output = '/private/var/folders/_l/80rthvqs2251jkn7spm33_s40000gn/T/slax-native-visible-upgrade-ios-waradJ/passive-input-v2';
+const tests = new Set(['testInspectLibrary', 'testDismissObservedDevelopmentOnboarding', 'testOpenOriginalOfflineCommentAtObservedUnderline', 'testOpenOriginalOfflineComment', 'testInspectLoadedReader', 'testNativeBackFromLoadedReader', 'testDismissObservedControlledOfflineLogBox']);
+const [test, name] = process.argv.slice(2);
+assert(tests.has(test) && /^[a-z-]{1,48}$/.test(name ?? ''));
+const read = file => {assert(lstatSync(file).isFile() && !lstatSync(file).isSymbolicLink()); return JSON.parse(readFileSync(file));};
+const sha = file => createHash('sha256').update(readFileSync(file)).digest('hex');
+const marker = read(output + '/launched.json');
+assert(marker.kind === 'slax-controlled-visible-passive-input-run' && marker.device === '88E63005-F681-45A6-AF8D-BEFE4E27584D' && marker.noNativeBuild && marker.noInjectedRowsHtmlPositionOrDomEvents);
+const guard = () => {
+  const request = read(marker.directory + '/native-upgrade-ui-request.json'), context = read(marker.directory + '/native-upgrade-ui-context.json');
+  assert(request.nonce === marker.nonce && request.requestedAt === marker.requestedAt && request.device === marker.device && request.runId === marker.runId);
+  assert(context.nonce === marker.nonce && context.requestedAt === marker.requestedAt && context.actualNativeResourceOwner === marker.actualNativeResourceOwner && context.networkRequestsForwarded === 0 && context.normalRuntimeReady && context.realProductionRoutesMounted && !context.fixtureOnlyProviderUsed && !context.simulatedUiRowsOrHtml);
+  for (const [file, digest] of Object.entries(marker.sourceInputHashes)) assert.equal(sha(root + '/' + file), digest, 'Source changed during native input phase');
+  const pid = spawnSync('ps', ['-p', String(marker.actualMainPid), '-o', 'comm='], {encoding: 'utf8', timeout: 5000});
+  assert(pid.status === 0 && pid.stdout.trim().endsWith('/SlaxReader'));
+  assert.equal(sha(marker.helperProject + '/DerivedData/Build/Products/Debug-iphonesimulator/UpgradeVisibleControl-Runner.app/PlugIns/UpgradeVisibleControl.xctest/UpgradeVisibleControl'), marker.helperExecutableSHA256);
+  return context;
+};
+const snapshot = label => {
+  const context = guard();
+  writeFileSync(output + '/' + name + '-' + label + '-context.json', JSON.stringify(context, null, 2) + '\n', {flag: 'wx'});
+  const source = marker.directory + '/native-upgrade-reader-lifecycle.json';
+  if (existsSync(source)) {const observations = read(source); if (observations.nonce === marker.nonce && observations.actualNativeResourceOwner === marker.actualNativeResourceOwner) copyFileSync(source, output + '/' + name + '-' + label + '-observations.json');}
+};
+snapshot('before');
+const result = output + '/' + name + '.xcresult'; assert(!existsSync(result));
+const log = output + '/' + name + '-xctest.log'; const descriptor = openSync(log, 'wx');
+const args = ['-xctestrun', marker.helperProject + '/DerivedData/Build/Products/UpgradeVisibleControl_iphonesimulator26.5-arm64-x86_64.xctestrun', '-destination', 'id=' + marker.device, '-parallel-testing-enabled', 'NO', '-resultBundlePath', result, '-only-testing:UpgradeVisibleControl/UpgradeVisibleControl/' + test, 'test-without-building'];
+const startedAt = Date.now();
+const run = spawnSync('xcodebuild', args, {stdio: ['ignore', descriptor, descriptor], timeout: 60000}); closeSync(descriptor);
+await new Promise(resolve => setTimeout(resolve, 1200)); snapshot('after');
+const exported = spawnSync('xcrun', ['xcresulttool', 'export', 'attachments', '--path', result, '--output-path', output + '/' + name + '-attachments'], {encoding: 'utf8', timeout: 30000});
+const report = {kind: 'slax-controlled-visible-passive-input-test', version: 1, test, name, device: marker.device, nonce: marker.nonce, nativeOwner: marker.actualNativeResourceOwner, mainPid: marker.actualMainPid, startedAt, finishedAt: Date.now(), command: 'xcodebuild', args, exitStatus: run.status, signal: run.signal, errorCode: run.error?.code ?? null, logSHA256: sha(log), attachmentsExportStatus: exported.status, noNativeBuild: true, freshNonceBinding: 'External exact live request/context/native owner/PID and source hashes rechecked before and after actual retained XCTest.'};
+writeFileSync(output + '/' + name + '-result.json', JSON.stringify(report, null, 2) + '\n', {flag: 'wx'});
+const obs = output + '/' + name + '-after-observations.json';
+const events = existsSync(obs) ? read(obs).events : [];
+console.log(JSON.stringify({test, exitStatus: run.status, attachmentsExportStatus: exported.status, observedRoute: guard().observedRoute?.name, input: events.filter(value => value.type === 'input').map(value => value.event), output}));

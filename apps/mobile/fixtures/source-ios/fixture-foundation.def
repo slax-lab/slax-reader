@@ -1,0 +1,5 @@
+language = Objective-C
+headers = FixtureFoundation.h
+headerFilter = FixtureFoundation.h
+package = platform.foundation
+linkerOpts = -framework Foundation

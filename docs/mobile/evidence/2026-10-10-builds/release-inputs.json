@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-10",
+  "kind": "human-selected-release-metadata",
+  "marketingVersion": "1.0.25",
+  "androidVersionCode": 757,
+  "iosBuildNumber": "757",
+  "iosShareBuildNumber": "757",
+  "humanConfirmedPreviousPublishedBuildsBelow": 757,
+  "previousBuildInputUpperBound": 756,
+  "actualPreviousPublishedBuildNumbers": null,
+  "previousBuildInputMeaning": "756 is the greatest possible integral previous build number allowed by the human confirmation; it is not a claimed historical published build.",
+  "generatedMetadataVerified": true,
+  "prebuild": {
+    "path": "/tmp/slax-mobile-release-metadata-prebuild.log",
+    "sha256": "ac3ced30b5982f2d772efb94e9ab7e5873afc05477524cc9b915ef705732ec17"
+  },
+  "releaseBuildVerified": false,
+  "publisherSigningVerified": false,
+  "storePublicationPerformed": false,
+  "finalDelivery": {
+    "humanAuthorizationDate": "2026-10-11",
+    "platform": "ios",
+    "destination": "existing TestFlight app",
+    "condition": "Complete migration acceptance before publisher-signed archive/export/upload",
+    "finalAndroidReleaseArtifactRequired": false,
+    "publicAppStorePublicationAuthorized": false,
+    "backendDeploymentAuthorized": false,
+    "archivePerformed": false,
+    "exportPerformed": false,
+    "uploadPerformed": false,
+    "testFlightProcessingVerified": false
+  }
+}

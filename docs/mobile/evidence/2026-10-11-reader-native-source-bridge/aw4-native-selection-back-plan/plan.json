@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "status": "prepared-only-one-native-Back-from-actual-Alpha-selection-awaiting-root-review",
+  "device": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
+  "appId": "app.slax.reader.uifixture",
+  "alphaPassedReport": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-alpha/report.json",
+    "sha256": "f39c4a931eaa3e54dbae48cf460562709bc8ec760d254cf203a666c36e377f88"
+  },
+  "alphaCompletedResult": "/tmp/slax-reader-ios-alpha-aw4-3fd5f035-26ea-41c1-b312-1f8c6babf6a2/native.xcresult",
+  "alphaRun": {
+    "path": "/tmp/slax-reader-ios-alpha-aw4-3fd5f035-26ea-41c1-b312-1f8c6babf6a2/run.json",
+    "sha256": "aa022baebdd656491eae50da7eaefd865cfbf310b34ece513cc2c190bd60b4eb"
+  },
+  "readonlySelectionSnapshot": {
+    "path": "/tmp/slax-reader-ios-alpha-aw4-3fd5f035-26ea-41c1-b312-1f8c6babf6a2/selection-readonly-snapshot.json",
+    "sha256": "b4492630236abf155de35a0d80272b8c0480d5c529e71281492bb5c72981c513"
+  },
+  "publishedNativeTree": {
+    "path": "/tmp/slax-reader-ios-alpha-aw4-3fd5f035-26ea-41c1-b312-1f8c6babf6a2/attachments/4B845D93-7494-4C80-8621-7B64D073D88D.txt",
+    "sha256": "8075576e58e336f096c7fba80fbf58a045e839c66b7edf918220ffe1bf3e4782"
+  },
+  "helperOwner": {
+    "path": "/tmp/slax-reader-native-control-build/.slax-reader-native-control-owner.json",
+    "sha256": "08c63578421a2f7ea8929c27cae4aacc197455004263dde4ba404d0ae3aa3a1c"
+  },
+  "xctestrun": {
+    "path": "/tmp/slax-reader-native-control-build/Build/Products/ReaderNativeControl_iphonesimulator26.5-arm64.xctestrun",
+    "sha256": "623f33be48065532daa5e82aa4121f79eaf912ec60ac92145af3eb10ee966f47"
+  },
+  "helperMachO": {
+    "path": "/tmp/slax-reader-native-control-build/Build/Products/Debug-iphonesimulator/ReaderNativeControl-Runner.app/PlugIns/ReaderNativeControl.xctest/ReaderNativeControl",
+    "sha256": "d0e743ecbb3047a14f709db741478914c6894ea4f28d6e40110fd2ce2dc74f6d"
+  },
+  "controlSource": {
+    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/reader-native-ios/control/ReaderNativeControl.swift",
+    "sha256": "84daeb26cde784efd06fed3e6c08dad55dac785ef987ac175e16408c6ef0b91f"
+  },
+  "testSelector": "ReaderNativeControl/ReaderNativeControl/testNativeBackClearsPreparedSelection",
+  "nativeInput": "One actual existing native BackButton tap after the unique hittable selection_action_bar is re-observed by the existing compiled XCTest.",
+  "expectedAssertions": [
+    "Actual application selection identifier disappears.",
+    "Reader stays runningForeground and its genuine BackButton remains hittable.",
+    "Main application and system alerts remain absent."
+  ],
+  "preflight": [
+    "Same frozen aw4 stage and signed/installed app byte bindings.",
+    "Same actual Alpha-created Reader scope; no fresh case or DOM selection preparation.",
+    "Read-only current selection snapshot must still show 5 characters/1 path, real iOS NativeBridge and application selection.",
+    "Existing helper refuses missing/ambiguous actual selection menu before native Back tap.",
+    "No different Slax simulator booted, no production main process.",
+    "Actual free >=3GiB+0.6GiB immediately before input."
+  ],
+  "commandFlags": [
+    "test-without-building",
+    "-parallel-testing-enabled NO",
+    "-maximum-concurrent-test-simulator-destinations 1",
+    "-jobs 1",
+    "-only-testing ReaderNativeControl/ReaderNativeControl/testNativeBackClearsPreparedSelection"
+  ],
+  "maximumSeconds": 120,
+  "maximumFollowOutputIncrementBytes": 67108864,
+  "maximumTotalOwnedProductBytes": 3758096384,
+  "minimumFreeBytes": 3221225472,
+  "minimumPreInputFreeWithReserveBytes": 3865470566,
+  "budgetIncludes": [
+    "Completed aw4 DD with only three approved sparse allocation exceptions.",
+    "All four native build log roots plus public signing log root.",
+    "Installed exact app conservative copy.",
+    "Existing Alpha raw/attachment output and preserved durable archive.",
+    "New follow-on result/logs and any existing-helper output increment."
+  ],
+  "forbidden": [
+    "App/helper compilation, pods/codegen, source/stage/Metro change.",
+    "DOM Range or selection prepare command, synthetic callback, new Reader scope.",
+    "A second Back or other native article/menu input.",
+    "Main/AppGroup/data reset, other devices or cleanup."
+  ],
+  "currentFreeBytes": 4717707264,
+  "noExecutionYet": true,
+  "preparedAt": 1791674718.290287
+}

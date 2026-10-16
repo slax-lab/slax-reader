@@ -1,0 +1,146 @@
+{
+  "kind": "slax-root-source-physical-and-readonly-db-helper-preparation-review",
+  "version": 1,
+  "openSpec": "expo-mobile-migration",
+  "inputs": [
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/run-native-scroll.py",
+      "bytes": 39239,
+      "sha256": "135bac87ef03df564958dd04657a8a705fb5c0f10524de2d05c1040c4d9d6c04"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/native-scroll-runtime-plan.json",
+      "bytes": 11302,
+      "sha256": "d2c8eef0f51435e50a8846c804df41f16ab884533b281211980ac35206d9761a"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/native-scroll-runtime-guards.test.py",
+      "bytes": 14598,
+      "sha256": "e090b163cfbccfd185c26a1b67648b9a28627366e78704c1fe00e52c7c6a6ed5"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/prepare-native-scroll.py",
+      "bytes": 7072,
+      "sha256": "3b4528e9ea1d5b2b3c4740fa51e9f364118cd2d5004f7907150f202a97322dba"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/SourceFixtureNativeScrollControl.swift",
+      "bytes": 5870,
+      "sha256": "98b48d7137a89842444210c826d839e7a8575ae1d7a4cfe9c058b3e81cff2807"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/observe-persisted-position.py",
+      "bytes": 16379,
+      "sha256": "a545d29be7a3a5c97fdb03aca92e277b3c6548d6430c39cb538a174aea703cf9"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/persisted-position-guards.test.py",
+      "bytes": 12941,
+      "sha256": "c64f94c24d14cc3b479846ea21f89d1dab0ad88fd768feae8fbb1f471bfa0edf"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-native-scroll-executor-preparation-r1/report.json",
+      "bytes": 10700,
+      "sha256": "eb63dccf4986f8563f51e20af925d499f7be48a2dbe7369188f98fb8ba63ee94"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/report.json",
+      "bytes": 6929,
+      "sha256": "d699180e832846d650ccd0f15d8732c3f54465a0d90786c42adb0d1af8be0831"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/plan.json",
+      "bytes": 13087,
+      "sha256": "09cc761bdc986148ce9f5eb3d452d2725e0b25aaaf82d06c78eb279e40380009"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-native-scroll-executor-preparation-r1/host-guards.log",
+      "bytes": 1078,
+      "sha256": "b8e9fca142518ba3d31c815010eb256018bc8bfbdd537aa337b04395e94b0630"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-native-scroll-executor-preparation-r1/readonly-preflight.log",
+      "bytes": 190,
+      "sha256": "df5f7ef0a6e2d37778f64ae995a0838fd3c01bee816dbf7164d5ed90c4046cb9"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/raw/default.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/raw/default.stdout.json",
+      "bytes": 474,
+      "sha256": "622312db21fb0f847dab2e5dbf43c46259272d138e5ef47db0dd98632eee54f3"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/raw/guards.stderr",
+      "bytes": 113,
+      "sha256": "5c2d1bb5b5d6f1e8052b0396282144c7e358222ac037a4e265003950fafa0371"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/raw/guards.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/daguang/project/slax-reader-client/composeApp/src/commonMain/kotlin/com/slax/reader/data/database/dao/LocalBookmark.kt",
+      "bytes": 12767,
+      "sha256": "06fd4fa1c5cc73cd4e220c5f069ad4f28015a6a9dd3adb1c08bc9a95c2f27a73"
+    },
+    {
+      "path": "/Users/daguang/project/slax-reader-client/composeApp/src/commonMain/kotlin/com/slax/reader/data/database/Schema.kt",
+      "bytes": 5868,
+      "sha256": "344a7bcc6901c7d3b22052278bcc326bc1f84930bb65a7fb9d2efb7a61042cd5"
+    },
+    {
+      "path": "/Users/daguang/project/slax-reader-client/composeApp/src/commonMain/kotlin/com/slax/reader/ui/bookmark/ViewModel.kt",
+      "bytes": 31272,
+      "sha256": "2d8e7c5ef55ef2182b335f0ae099853ee8ad5b41a967cbbe05a1eb326822672b"
+    },
+    {
+      "path": "/private/tmp/slax-source-ui-fixture-ios-j/composeApp/src/fixtureIosMain/kotlin/com/slax/reader/fixtures/SourceFixture.kt",
+      "bytes": 16762,
+      "sha256": "a047472d90157f52826e7d173944b73e14840bfcb30547ddb9a2a03465e13685"
+    },
+    {
+      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/scenarios.json",
+      "bytes": 1756477,
+      "sha256": "aaf4fdd7fd8b205ed6f2e297686f20bb3f523b680d35fc62effcdc8a2a4afe2f"
+    },
+    {
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/com.powersync/core-iossimulatorarm64/1.14.1/3c19a01c6a6bad05ef29932361b9307b5f7c46b6/core-iosSimulatorArm64Main-1.14.1.klib",
+      "bytes": 7273,
+      "sha256": "9c603aa7c9807e245d414b3da3be0c35d1e44d726059898b66eb7ec6ff50dcab"
+    },
+    {
+      "path": "/Users/daguang/.gradle/caches/modules-2/files-2.1/com.powersync/common-iossimulatorarm64/1.14.1/422bf33418ff5afb57ac601d181291b2dcf9da5a/common-iosSimulatorArm64Main-1.14.1.klib",
+      "bytes": 500940,
+      "sha256": "ba6fdbc6947c177d664d1416f4ab9ca2fbb03a75835eb4287ce86569fe52b9ed"
+    }
+  ],
+  "actualReadonlyClosureCheck": {
+    "sourceSignedFiles": 109,
+    "sourceRetainedInputs": 113,
+    "recoveredControlProducts": 52,
+    "currentAndCompiledControlInputs": 5,
+    "stageFiles": 377,
+    "exactAppleFat32OneArm64RunnerVerified": true,
+    "nativeOrDatabaseActions": false,
+    "runRootCreated": false
+  },
+  "reviewPasses": {
+    "Bugs": "Complete physical r1, immutable runtime plan, request builder/native Swift driver, 11 focused guards; complete fixed-row readonly helper/14 synthetic SQLite-WAL tests and preparation reports read. Physical result stays raw-only; genuine KVO movement and exact original samples required. DB helper refuses seed240 as before evidence and admits only actual stored0 then genuine input/debounce/stored240 with unchanged other fields. Xcode Python3.9 CASE size guard verified. Separate wrapper needs its own review and raw test tree/receipt/time binding.",
+    "Security": "Own Sourcefixture container identity and fresh UUID DB birth/inode baseline only; existing WAL/SHM, mode=ro/query_only, fixed bound ID/SQL,8 snapshots/12 aggregate SQL seconds. All exact current/compiled inputs and stage unchanged. Other simulator/container metadata only; no app-group or main contents. No symlink traversal; SHM read locks disclosed. No compiler/device/real DB executed by this review.",
+    "Compliance": "Approved complete expo-mobile-migration reader1:1/native behavior acceptance. This preparation has no Source240, callback, persistence, crossparagraph, full migration or TestFlight acceptance. Both fresh physical and distinct DB grants are necessary for the optional wrapper within unchanged180/90/256MiB."
+  },
+  "source240Accepted": false,
+  "nativeBuildDeviceDatabaseOrMetroActions": false,
+  "rootPhysicalOrDatabaseAllocationIssued": false,
+  "pending": [
+    "Independent immutable optional wrapper review",
+    "One actual Source physical+readonly persistent transition",
+    "Reader fresh Alpha/Cross genuine range",
+    "Whole matrix and final publisher iOS757/TestFlight"
+  ]
+}
