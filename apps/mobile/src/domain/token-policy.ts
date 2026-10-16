@@ -1,6 +1,7 @@
 export const MAIN_REFRESH_INTERVAL_SECONDS = 86400;
 export const TOKEN_EXPIRY_SKEW_MS = 60000;
 export const SYNC_MAX_LIFETIME_MS = 86400000;
+export const SYNC_EXPECTED_LIFETIME_SECONDS = 86399;
 export interface JwtTiming {exp: number; iat?: number; sub?: string}
 export function jwtTiming(token: string): JwtTiming | null {
   try {
