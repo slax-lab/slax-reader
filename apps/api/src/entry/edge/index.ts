@@ -109,4 +109,6 @@ export { ContentEntry }
 export { CrawlWorkflow } from './workflows/crawlWorkflow'
 export { ContentValidationWorkflow } from './workflows/contentValidationWorkflow'
 export { ImportParseWorkflow } from './workflows/importParseWorkflow'
+export { YoutubeArticleWorkflow } from './workflows/youtubeArticleWorkflow'
+export { PodcastWorkflow } from './workflows/podcastWorkflow'
 export { SlaxJieba, SlaxWebSocketServer, SlaxMcpServer, ScreenshotBrowser } from '../core'

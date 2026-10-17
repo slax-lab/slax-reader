@@ -24,6 +24,9 @@ import { OpenAIModerationClient, ModerationResult } from '@/infra/external/opena
 import { extractImageUrls } from '@/utils/htmlImages'
 import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
 import { EVENT_CONTEXT_KEY, type EventRequestContext } from '@/domain/events'
+import { YoutubeArticleService } from '@/domain/youtubeArticle'
+import { PodcastService, PODCAST_LAB } from '@/domain/podcast'
+import { classifyPodcastUrl } from '@/utils/podcastSource'
 
 export interface CrawlWorkflowParams {
   eventContext?: EventRequestContext
@@ -46,7 +49,7 @@ type FetchedPayload =
   | { kind: 'reddit'; resolvedUrl: string; data: RedditData; isSocialMedia: true }
   | { kind: 'zhihu'; resolvedUrl: string; data: ZhihuFetched; isSocialMedia: true }
   | { kind: 'pdf'; resolvedUrl: string; isSocialMedia: false }
-  | { kind: 'parsed'; resolvedUrl: string; data: CrawlResult; isSocialMedia: boolean }
+  | { kind: 'parsed'; resolvedUrl: string; data: CrawlResult; isSocialMedia: boolean; podcast?: boolean }
   | { kind: 'shortCircuit'; resolvedUrl: string; data: { title: string; textContent: string; byline: string }; isSocialMedia: false }
 
 export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> {
@@ -155,6 +158,16 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
             const fetchRes = { content: inlineContent, url: resolvedUrl, title: '' }
             const result = await trackStep('inline_content', () => crawlService.parseAndSaveContent(ctxManager, fetchRes, bookmarkId, userBookmarkUuid))
             return { kind: 'parsed', resolvedUrl, data: result, isSocialMedia: false }
+          }
+
+          // Podcast episodes, only for readers with the Labs switch on. Everyone else, and links that
+          // turn out not to be an episode (a feed without audio), keep the normal page route.
+          if (route === 'regular' && classifyPodcastUrl(resolvedUrl) && (await currentContainer.resolve(LabService).isEnabled(userId, PODCAST_LAB))) {
+            const info = await trackStep('podcast_fetching', () => crawlService.fetchPodcastData(resolvedUrl))
+            if (info) {
+              const result = await trackStep('podcast_parsing', () => crawlService.parseAndSavePodcast(ctxManager, info, bookmarkId, userBookmarkUuid))
+              return { kind: 'parsed', resolvedUrl, data: result, isSocialMedia: true, podcast: true }
+            }
           }
 
           switch (route) {
@@ -398,6 +411,29 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
         const errMsg = triggerErr instanceof Error ? triggerErr.message : String(triggerErr)
         console.error(`Failed to trigger content validation workflow for bookmark ${bookmarkId}: ${errMsg}`)
         await alertFailure('post_processing.content_validation', { bookmark_id: bookmarkId, url, domain: hostname, error: errMsg })
+      }
+    }
+
+    // YouTube AI article: queue the saver's language version and start it if the gate allows.
+    // Inside a step so a workflow replay does not start it twice; failures never touch the bookmark.
+    if (crawlResult && !isSoft404 && moderationResult === ModerationResult.NORMAL && fetched?.resolvedUrl && detectRoute(fetched.resolvedUrl) === 'youtube') {
+      try {
+        await step.do('youtube-article-trigger', { retries: { limit: 1, delay: '10 seconds' as const, backoff: 'constant' }, timeout: '1 minute' }, async () => {
+          await currentContainer.resolve(YoutubeArticleService).triggerAfterCrawl(ctxManager, bookmarkId, userId, crawlResult!.title)
+        })
+      } catch (err) {
+        console.error(`YouTube article trigger step failed for bookmark ${bookmarkId}: ${err instanceof Error ? err.message : String(err)}`)
+      }
+    }
+
+    // Podcast: start the transcript for a new episode, or copy a finished article into this bookmark.
+    if (crawlResult && moderationResult === ModerationResult.NORMAL && fetched?.kind === 'parsed' && fetched.podcast) {
+      try {
+        await step.do('podcast-trigger', { retries: { limit: 1, delay: '10 seconds' as const, backoff: 'constant' }, timeout: '2 minutes' }, async () => {
+          await currentContainer.resolve(PodcastService).triggerAfterCrawl(ctxManager, bookmarkId, userId)
+        })
+      } catch (err) {
+        console.error(`Podcast trigger step failed for bookmark ${bookmarkId}: ${err instanceof Error ? err.message : String(err)}`)
       }
     }
 

@@ -28,6 +28,8 @@ import {
 import { CrawlService } from '@/domain/crawl'
 import { Hashid } from '@/utils/hashids'
 import { LabService } from '@/domain/lab'
+import { YoutubeArticleRepo } from '@/infra/repository/dbYoutubeArticle'
+import { PodcastArticleRepo } from '@/infra/repository/dbPodcastArticle'
 import { SearchService } from '@/domain/search'
 import { BookmarkTag } from '@/domain/tag'
 import { supportedLang } from '@/const/lang'
@@ -108,7 +110,9 @@ export class BookmarkService {
     @inject(NotificationMessage) private notifyMessage: NotificationMessage,
     @inject(CrawlService) private crawlService: CrawlService,
     @inject(LabService) private labService: LabService,
-    @inject(SearchService) private searchService: SearchService
+    @inject(SearchService) private searchService: SearchService,
+    @inject(YoutubeArticleRepo) private youtubeArticleRepo: YoutubeArticleRepo,
+    @inject(PodcastArticleRepo) private podcastArticleRepo: PodcastArticleRepo
   ) {
     this.bookmarkData = bookmarkRepo
     this.bucketData = bucket
@@ -403,6 +407,16 @@ export class BookmarkService {
       } catch (error) {
         console.log('delete bookmark content key error:', bmPO)
       }
+      // YouTube article ref. Only here, where the bookmark row itself is gone: a shared (pre
+      // 2026-08-19) bookmark keeps its ref for the other users. The sweep removes unreferenced rows,
+      // so a ref left behind would keep the video's rows and captions forever: log it on its own.
+      await this.youtubeArticleRepo.unlinkBookmark(bmId).catch(error => {
+        console.error(`YouTube article ref unlink failed for bookmark ${bmId}: ${error instanceof Error ? error.message : String(error)}`)
+      })
+      // Podcast reference; the episode and its articles are swept once no bookmark points at them
+      await this.podcastArticleRepo.unlinkBookmark(bmId).catch(error => {
+        console.error(`Podcast ref unlink failed for bookmark ${bmId}: ${error instanceof Error ? error.message : String(error)}`)
+      })
     }
 
     // 删除share数据

@@ -125,6 +125,18 @@ export class MarkRepo {
     return row?.comment ?? ''
   }
 
+  /**
+   * Whether the shared body of a bookmark must be kept for marks: any reader's copy has a non-deleted
+   * highlight or comment (the body belongs to the shared bookmark row, while marks hang off each user
+   * bookmark), or `userId` has no copy of it, so an unknown state never loses marks.
+   */
+  async bodyHasMarks(bookmarkId: number, userId: number): Promise<boolean> {
+    const userBookmarks = await this.prismaPg().sr_user_bookmark.findMany({ where: { bookmark_id: bookmarkId }, select: { id: true, user_id: true } })
+    if (!userBookmarks.some(ub => ub.user_id === userId)) return true
+    const count = await this.prismaPg().sr_bookmark_comment.count({ where: { bookmark_id: { in: userBookmarks.map(ub => ub.id) }, is_deleted: false } })
+    return count > 0
+  }
+
   async list(userBmId: number) {
     return (
       await this.prismaPg().sr_bookmark_comment.findMany({

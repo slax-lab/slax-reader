@@ -525,6 +525,11 @@ export class BookmarkRepo {
     })
   }
 
+  /** The body was replaced (podcast article): keep the word count in step. */
+  public async updateBookmarkWordCount(bmId: number, count: number) {
+    return await this.prismaPg().sr_bookmark.update({ where: { id: bmId }, data: { content_word_count: count, updated_at: new Date() } })
+  }
+
   public async upsertBookmarkSummary(info: bookmarkSummaryPO) {
     const { bookmark_id, lang, user_id, ...infoWithoutIds } = info
     return await this.prismaPg().sr_bookmark_summary.upsert({

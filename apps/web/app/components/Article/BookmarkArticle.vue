@@ -24,6 +24,8 @@
         :readonly="!ready || !effAllowTagged"
       />
     </header>
+    <!-- Status above the body (podcast transcript). Outside .article-detail: marks and processors stay untouched -->
+    <slot name="before-body" />
     <ClientOnly v-if="isPdf">
       <PdfReader v-if="detail.pdf" :key="detail.pdf.document_id" :pdf="detail.pdf" :marks="pdfMarks" :ready="ready"
         :allow-action="adapters.allowActionOverride ?? allowAction" :bookmark-id="bookmarkId" :bookmark-uid="bookmarkUid"
@@ -35,6 +37,9 @@
     <div v-else class="article-detail article-body" ref="articleDetail" :class="{ [articleStyle]: true }">
       <div class="html-text" lang="en" v-html="articleHTML"></div>
     </div>
+    <!-- Content derived from the article (YouTube AI article). Outside .article-detail on purpose:
+         the original DOM, marks and processors stay untouched -->
+    <slot name="after-body" />
     <SnapshotArticleFooter v-if="!isPdf || detail.pdf" :via="footerVia" :show-via="footerShowVia" :collection="footerCollection" />
   </div>
 </template>

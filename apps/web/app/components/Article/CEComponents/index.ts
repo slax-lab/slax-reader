@@ -1,6 +1,7 @@
 import { defineCustomElement } from 'vue'
 
 import PhotoSwiperDots from './PhotoSwiperDots.ce.vue'
+import PodcastPlayer from './podcast/PodcastPlayer.ce.vue'
 import SocialPostFooterInfo from './social-post/SocialPostFooterInfo.ce.vue'
 import SocialPostUserInfo from './social-post/SocialPostUserInfo.ce.vue'
 import TweetFooterInfo from './tweet/TweetFooterInfo.ce.vue'
@@ -30,7 +31,8 @@ export const registerComponents = () => {
     'twwet-footer-info': TweetFooterInfoElement,
     'social-post-user-info': SocialPostUserInfoElement,
     'social-post-footer-info': SocialPostFooterInfoElement,
-    'youtube-player-view': YoutubePlayerElement
+    'youtube-player-view': YoutubePlayerElement,
+    'podcast-player-view': PodcastPlayerElement
   }
 
   Object.entries(refs).forEach(([key, value]) => {
@@ -52,3 +54,4 @@ export const TweetFooterInfoElement = defineCustomElement(TweetFooterInfo)
 export const SocialPostUserInfoElement = defineCustomElement(SocialPostUserInfo)
 export const SocialPostFooterInfoElement = defineCustomElement(SocialPostFooterInfo)
 export const YoutubePlayerElement = defineCustomElement(YoutubePlayer)
+export const PodcastPlayerElement = defineCustomElement(PodcastPlayer)

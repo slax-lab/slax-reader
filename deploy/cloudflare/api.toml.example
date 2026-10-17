@@ -183,6 +183,14 @@ class_name = "ContentValidationWorkflow"
 binding = "IMPORT_PARSE_WORKFLOW"
 name = "import-parse-workflow"
 class_name = "ImportParseWorkflow"
+[[workflows]]
+binding = "YOUTUBE_ARTICLE_WORKFLOW"
+name = "youtube-article-workflow"
+class_name = "YoutubeArticleWorkflow"
+[[workflows]]
+binding = "PODCAST_WORKFLOW"
+name = "podcast-workflow"
+class_name = "PodcastWorkflow"
 
 [triggers]
 crons = ["*/1 * * * *", "*/2 * * * *", "*/5 * * * *", "*/30 * * * *", "0 */1 * * *"]

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xml-stylesheet href="https://rss.buzzsprout.com/styles.xsl" type="text/xsl"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:podcast="https://podcastindex.org/namespace/1.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:psc="http://podlove.org/simple-chapters" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <atom:link href="https://rss.buzzsprout.com/1004689.rss" rel="self" type="application/rss+xml" />
+  <atom:link href="https://pubsubhubbub.appspot.com/" rel="hub" xmlns="http://www.w3.org/2005/Atom" />
+  <title>Tech Won&#39;t Save Us</title>
+
+  <lastBuildDate>Tue, 13 Oct 2026 23:58:52 -0400</lastBuildDate>
+  <link>https://techwontsave.us/</link>
+  <language>en-us</language>
+  <copyright>© 2026 Tech Won&#39;t Save Us</copyright>
+  <podcast:locked>yes</podcast:locked>
+  <podcast:funding url="https://patreon.com/techwontsaveus">Support this Podcast</podcast:funding>
+  <podcast:guid>978a8a9e-0d84-5102-a875-099ea8890207</podcast:guid>
+<podcast:podroll>
+    <podcast:remoteItem feedGuid="7dc59f40-bbbb-5354-81e0-cd0627b56b76" feedUrl="https://feeds.soundcloud.com/users/soundcloud:users:861066976/sounds.rss" />
+    <podcast:remoteItem feedGuid="c56a71a3-cf82-5db4-ab15-0aee6e098ad9" feedUrl="https://trashfuturepodcast.podbean.com/feed.xml" />
+    <podcast:remoteItem feedGuid="ff7d3ac4-dcd5-5079-b8bc-c1b8f0c85356" feedUrl="https://feeds.megaphone.fm/TBIEA2761282490" />
+    <podcast:remoteItem feedGuid="e7ad803f-ae92-500b-9227-b04150291ebb" feedUrl="https://feeds.libsyn.com/506498/rss" />
+  </podcast:podroll>
+  <itunes:author>Paris Marx</itunes:author>
+  <itunes:type>episodic</itunes:type>
+  <itunes:explicit>false</itunes:explicit>
+  <description><![CDATA[Silicon Valley wants to shape our future, but why should we let it? Every Thursday, Paris Marx is joined by a new guest to critically examine the tech industry, its big promises, and the people behind them. Tech Won’t Save Us challenges the notion that tech alone can drive our world forward by showing that separating tech from politics has consequences for us all, especially the most vulnerable. It’s not your usual tech podcast.]]></description>
+  <generator>Buzzsprout (https://www.buzzsprout.com)</generator>
+  <itunes:keywords>technology, silicon valley, politics, socialism, criticism, news, books, paris marx, tech criticism, future</itunes:keywords>
+  <itunes:owner>
+    <itunes:name>Paris Marx</itunes:name>
+  </itunes:owner>
+  <image>
+     <url>https://storage.buzzsprout.com/tutsi25s4vue63c1xwucuexriowa?.jpg</url>
+     <title>Tech Won&#39;t Save Us</title>
+     <link>https://techwontsave.us/</link>
+  </image>
+  <itunes:image href="https://storage.buzzsprout.com/tutsi25s4vue63c1xwucuexriowa?.jpg" />
+  <itunes:category text="Technology" />
+  <itunes:category text="News">
+    <itunes:category text="Tech News" />
+  </itunes:category>
+  <itunes:category text="Arts">
+    <itunes:category text="Books" />
+  </itunes:category>
+  <podcast:person role="host" href="https://parismarx.com" img="https://storage.buzzsprout.com/kylj0f4w6918cp8ot7mu0dsi55a4">Paris Marx</podcast:person>
+  <item>
+    <itunes:title>Brazil’s Data Center Boom is Enabled by Renewables Firms w/ Laís Martins</itunes:title>
+    <title>Brazil’s Data Center Boom is Enabled by Renewables Firms w/ Laís Martins</title>
+    <itunes:summary><![CDATA[Brazil’s renewable energy is being exploited to justify unnecessary data center construction. Laís Martins joins Paris Marx to discuss why the renewable energy sector is behind a rise in Brazilian data center development, how this is impacting communities, and the ways this greenwashing is redirecting funding away from more socially progressive projects. Laís Martins is a technology reporter at The Intercept Brasil. The podcast is made in partnership with The Nation. Production is by Kyla Hew...]]></itunes:summary>
+    <description><![CDATA[<p>Brazil’s renewable energy is being exploited to justify unnecessary data center construction. Laís Martins joins Paris Marx to discuss why the renewable energy sector is behind a rise in Brazilian data center development, how this is impacting communities, and the ways this greenwashing is redirecting funding away from more socially progressive projects.</p><p>Laís Martins is a technology reporter at <a href='https://www.intercept.com.br/equipe/lais-martins/'><em>The Intercept Brasil</em></a>.</p><p>The podcast is made in partnership with <em>The Nation</em>. Production is by Kyla Hewson. Support the show on <a href='https://www.patreon.com/techwontsaveus'>Patreon</a>.</p><p>Also mentioned in this episode:</p><ul><li>Preorder <em>Hyperscale</em> to support Paris at <a href='https://bookshop.org/a/18331/9798217048526'>Bookshop</a> or find more links at <a href='https://hyperscalebook.com/'>hyperscalebook.com</a>.</li><li>Laís has written about the connection between <a href='https://news.mongabay.com/2026/08/wind-energy-surplus-fuels-unregulated-data-centers-in-brazils-dry-land/'>wind energy and data center construction</a>.</li><li>Laís has written about the social impacts of the <a href='https://news.mongabay.com/2026/08/brazils-unique-data-center-boom-rides-on-clean-power-despite-social-burden/'>renewable energy driven data center build out in Brazil</a>.</li></ul><p><a rel="payment" href="https://patreon.com/techwontsaveus">Support the show</a></p>]]></description>
+    <content:encoded><![CDATA[<p>Brazil’s renewable energy is being exploited to justify unnecessary data center construction. Laís Martins joins Paris Marx to discuss why the renewable energy sector is behind a rise in Brazilian data center development, how this is impacting communities, and the ways this greenwashing is redirecting funding away from more socially progressive projects.</p><p>Laís Martins is a technology reporter at <a href='https://www.intercept.com.br/equipe/lais-martins/'><em>The Intercept Brasil</em></a>.</p><p>The podcast is made in partnership with <em>The Nation</em>. Production is by Kyla Hewson. Support the show on <a href='https://www.patreon.com/techwontsaveus'>Patreon</a>.</p><p>Also mentioned in this episode:</p><ul><li>Preorder <em>Hyperscale</em> to support Paris at <a href='https://bookshop.org/a/18331/9798217048526'>Bookshop</a> or find more links at <a href='https://hyperscalebook.com/'>hyperscalebook.com</a>.</li><li>Laís has written about the connection between <a href='https://news.mongabay.com/2026/08/wind-energy-surplus-fuels-unregulated-data-centers-in-brazils-dry-land/'>wind energy and data center construction</a>.</li><li>Laís has written about the social impacts of the <a href='https://news.mongabay.com/2026/08/brazils-unique-data-center-boom-rides-on-clean-power-despite-social-burden/'>renewable energy driven data center build out in Brazil</a>.</li></ul><p><a rel="payment" href="https://patreon.com/techwontsaveus">Support the show</a></p>]]></content:encoded>
+    <enclosure url="https://pscrb.fm/rss/p/www.buzzsprout.com/1004689/episodes/19917599-brazil-s-data-center-boom-is-enabled-by-renewables-firms-w-lais-martins.mp3" length="50187325" type="audio/mpeg" />
+    <itunes:author>Paris Marx; Laís Martins</itunes:author>
+    <guid isPermaLink="false">Buzzsprout-19917599</guid>
+    <pubDate>Thu, 08 Oct 2026 03:00:00 -0400</pubDate>
+    <podcast:transcript url="https://www.buzzsprout.com/1004689/19917599/transcript" type="text/html" />
+    <podcast:transcript url="https://www.buzzsprout.com/1004689/19917599/transcript.json" type="application/json" />
+    <podcast:transcript url="https://www.buzzsprout.com/1004689/19917599/transcript.srt" type="application/x-subrip" />
+    <podcast:transcript url="https://www.buzzsprout.com/1004689/19917599/transcript.vtt" type="text/vtt" />
+    <itunes:duration>4121</itunes:duration>
+    <itunes:keywords>brazil, lula, bolsonaro, latin america, south america, argentina, chile, paraguay, data center, tiktok, renewable energy, climate change, solar energy, wind energy</itunes:keywords>
+    <itunes:episode>349</itunes:episode>
+    <itunes:episodeType>full</itunes:episodeType>
+    <itunes:explicit>false</itunes:explicit>
+  </item>
+<item>
+    <itunes:title>The AI Buildout is a Boon for the Fossil Fuel Industry w/ Ketan Joshi</itunes:title>
+    <title>The AI Buildout is a Boon for the Fossil Fuel Industry w/ Ketan Joshi</title>
+    <itunes:summary><![CDATA[Tech companies are working with the fossil fuel industry to push unnecessary data center projects while misrepresenting the climate impact — and governments are letting it all happen. Ketan Joshi joins Paris Marx to discuss how the data center buildout is driving a surge in fossil fuel investment, and how it’s all playing out in Australia. Ketan Joshi is a climate writer and data analyst based in Oslo working with climate and environmental groups. The podcast is made in partnership with The N...]]></itunes:summary>
+    <description><![CDATA[<p>Tech companies are working with the fossil fuel industry to push unnecessary data center projects while misrepresenting the climate impact — and governments are letting it all happen. Ketan Joshi joins Paris Marx to discuss how the data center buildout is driving a surge in fossil fuel investment, and how it’s all playing out in Australia.</p><p>Ketan Joshi is a climate writer and data analyst based in Oslo working with climate and environmental groups.</p><p>The podcast is made in partnership with <em>The Nation</em>. Production is by Kyla Hewson. Support the show on <a href='https://www.patreon.com/techwontsaveus'>Patreon</a>.</p><p>Also mentioned in this episode:</p><ul><li>Click <a href='https://proton.me/l/mail-plans-aff-bigtech-alternative?url_id=860&amp;utm_campaign=ww-all-2c-mail-gro_aff-g_acq-partners_program&amp;utm_source=aid-tune-12694&amp;utm_medium=link&amp;utm_term=comparison_freedom_hfp_mail_landing&amp;utm_content=7&amp;affiliate=12694&amp;affiliateId=12694'>here</a> to get your first month of Proton Mail for just $1.</li><li>Preorder <em>Hyperscale</em> to support Paris at <a href='https://hyperscalebook.com/'>hyperscalebook.com</a>.</li><li>Ketan wrote a report on how <a href='https://beyondfossilfuels.org/wp-content/uploads/2026/02/AI-for-climate-claims-Report_FEB-2026_FINAL-2-16.pdf'>Big Tech is greenwashing</a> their destructive climate impacts.</li><li>Ketan worked with Greenpeace to put out a report on how <a href='https://www.greenpeace.org/international/publication/85809/nvidia-climate-hoax/'>NVIDIA is greenwashing</a> to hide their climate impacts.</li><li>Ketan worked with Greenpeace on a report that explores how <a href='https://www.greenpeace.org.au/greenpeace-reports/ai-data-centres-draining-energy-australia/'>Australia’s data center buildout</a> is completely derailing their renewable energy transition.</li></ul><p><a rel="payment" href="https://patreon.com/techwontsaveus">Support the show</a></p>]]></description>
+    <content:encoded><![CDATA[<p>Tech companies are working with the fossil fuel industry to push unnecessary data center projects while misrepresenting the climate impact — and governments are letting it all happen. Ketan Joshi joins Paris Marx to discuss how the data center buildout is driving a surge in fossil fuel investment, and how it’s all playing out in Australia.</p><p>Ketan Joshi is a climate writer and data analyst based in Oslo working with climate and environmental groups.</p><p>The podcast is made in partnership with <em>The Nation</em>. Production is by Kyla Hewson. Support the show on <a href='https://www.patreon.com/techwontsaveus'>Patreon</a>.</p><p>Also mentioned in this episode:</p><ul><li>Click <a href='https://proton.me/l/mail-plans-aff-bigtech-alternative?url_id=860&amp;utm_campaign=ww-all-2c-mail-gro_aff-g_acq-partners_program&amp;utm_source=aid-tune-12694&amp;utm_medium=link&amp;utm_term=comparison_freedom_hfp_mail_landing&amp;utm_content=7&amp;affiliate=12694&amp;affiliateId=12694'>here</a> to get your first month of Proton Mail for just $1.</li><li>Preorder <em>Hyperscale</em> to support Paris at <a href='https://hyperscalebook.com/'>hyperscalebook.com</a>.</li><li>Ketan wrote a report on how <a href='https://beyondfossilfuels.org/wp-content/uploads/2026/02/AI-for-climate-claims-Report_FEB-2026_FINAL-2-16.pdf'>Big Tech is greenwashing</a> their destructive climate impacts.</li><li>Ketan worked with Greenpeace to put out a report on how <a href='https://www.greenpeace.org/international/publication/85809/nvidia-climate-hoax/'>NVIDIA is greenwashing</a> to hide their climate impacts.</li><li>Ketan worked with Greenpeace on a report that explores how <a href='https://www.greenpeace.org.au/greenpeace-reports/ai-data-centres-draining-energy-australia/'>Australia’s data center buildout</a> is completely derailing their renewable energy transition.</li></ul><p><a rel="payment" href="https://patreon.com/techwontsaveus">Support the show</a></p>]]></content:encoded>
+    <enclosure url="https://pscrb.fm/rss/p/www.buzzsprout.com/1004689/episodes/19879814-the-ai-buildout-is-a-boon-for-the-fossil-fuel-industry-w-ketan-joshi.mp3" length="49870645" type="audio/mpeg" />
+    <itunes:author>Paris Marx, Ketan Joshi</itunes:author>
+    <guid isPermaLink="false">Buzzsprout-19879814</guid>
+    <pubDate>Thu, 01 Oct 2026 03:00:00 -0400</pubDate>
+    <podcast:transcript url="https://www.buzzsprout.com/1004689/19879814/transcript" type="text/html" />
+    <podcast:transcript url="https://www.buzzsprout.com/1004689/19879814/transcript.json" type="application/json" />
+    <podcast:transcript url="https://www.buzzsprout.com/1004689/19879814/transcript.srt" type="application/x-subrip" />
+    <podcast:transcript url="https://www.buzzsprout.com/1004689/19879814/transcript.vtt" type="text/vtt" />
+    <itunes:duration>4031</itunes:duration>
+    <itunes:keywords>climate change, data center, hyperscale, fossil fuels, emissions, renewable energy, energy transition, jensen huang, nvidia, australia</itunes:keywords>
+    <itunes:episode>348</itunes:episode>
+    <itunes:episodeType>full</itunes:episodeType>
+    <itunes:explicit>false</itunes:explicit>
+  </item>
+</channel>
+</rss>
