@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { readFileSync } from 'node:fs'
+import { selectScopes } from './ci-scope.mjs'
 
 const require = createRequire(import.meta.url)
 const { load } = createRequire(require.resolve('rulesync'))('js-yaml')
@@ -43,9 +44,16 @@ test('build has public inputs and no write token; only verified distribution can
 })
 
 test('PR validation includes workflow, ZIP inspector and focused root tests', () => {
-  const ci = load(read('.github/workflows/frontend-ci.yml'))
-  for (const event of ['pull_request', 'push']) for (const path of ['.github/workflows/extension-release.yml', 'tooling/extension-release-archive.py']) assert.ok(ci.on[event].paths.includes(path))
-  assert.ok(ci.jobs.check.steps.some(step => step.run === 'pnpm test:extension-tooling'))
+  const ci = load(read('.github/workflows/tooling-ci.yml'))
+  assert.deepEqual(Object.keys(ci.on).sort(), ['pull_request', 'workflow_call'])
+  assert.equal(ci.on.pull_request, null)
+  const job = ci.jobs['extension-release']
+  assert.equal(job.needs, 'changes')
+  assert.ok(job.steps.some(step => step.run === 'pnpm test:extension-tooling'))
+  for (const path of ['.github/workflows/extension-release.yml', 'tooling/extension-release-archive.py']) {
+    const outputs = Object.fromEntries(Object.entries(selectScopes([path]).scopes).map(([key, value]) => [key, String(value)]))
+    assert.equal(Function('needs', 'inputs', 'cancelled', `return (${job.if.replace(/^\$\{\{\s*|\s*\}\}$/g, '')})`)({ changes: { result: 'success', outputs } }, { full_validation: false }, () => false), true)
+  }
   const scripts = JSON.parse(read('package.json')).scripts
   for (const suite of ['extension-release', 'extension-release-source', 'extension-release-package', 'extension-release-workflow']) assert.ok(scripts['test:extension-tooling'].includes(`tooling/${suite}.test.mjs`))
 })

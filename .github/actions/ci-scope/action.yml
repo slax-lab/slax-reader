@@ -1,0 +1,51 @@
+name: Select CI scope
+description: Detect consumers from the complete pull request diff without installing dependencies
+outputs:
+  web:
+    description: Whether web validation is selected
+    value: ${{ steps.detect.outputs.web }}
+  extension:
+    description: Whether extension validation is selected
+    value: ${{ steps.detect.outputs.extension }}
+  api:
+    description: Whether api validation is selected
+    value: ${{ steps.detect.outputs.api }}
+  mobile:
+    description: Whether mobile validation is selected
+    value: ${{ steps.detect.outputs.mobile }}
+  cli:
+    description: Whether cli validation is selected
+    value: ${{ steps.detect.outputs.cli }}
+  tooling:
+    description: Whether tooling validation is selected
+    value: ${{ steps.detect.outputs.tooling }}
+  cliTooling:
+    description: Whether cliTooling validation is selected
+    value: ${{ steps.detect.outputs.cliTooling }}
+  extensionTooling:
+    description: Whether extension release tooling validation is selected
+    value: ${{ steps.detect.outputs.extensionTooling }}
+  design:
+    description: Whether design validation is selected
+    value: ${{ steps.detect.outputs.design }}
+  icons:
+    description: Whether icons validation is selected
+    value: ${{ steps.detect.outputs.icons }}
+  mobileEvidence:
+    description: Whether mobileEvidence validation is selected
+    value: ${{ steps.detect.outputs.mobileEvidence }}
+  rulesync:
+    description: Whether rulesync validation is selected
+    value: ${{ steps.detect.outputs.rulesync }}
+  openspec:
+    description: Whether openspec validation is selected
+    value: ${{ steps.detect.outputs.openspec }}
+  ghAw:
+    description: Whether ghAw validation is selected
+    value: ${{ steps.detect.outputs.ghAw }}
+runs:
+  using: composite
+  steps:
+    - id: detect
+      shell: bash
+      run: node tooling/ci-scope.mjs
