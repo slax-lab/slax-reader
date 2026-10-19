@@ -86,9 +86,8 @@ navigation spacer (52 points before RSS content). Native inset includes the
 status padding, while the source header-visibility and near-bottom measurements
 exclude it. The skeleton retains the source title, metadata and six body bars.
 Mounted component regressions cover this separation; the new full-window native
-render still requires a matched capture. The controlled original iOS run in
-`evidence/2026-10-10-source-ios/source-native-launch.json` observed position zero
-despite its saved 240-pixel fixture input. That original initial-callback timing
+render still requires a matched capture. The controlled original iOS run observed
+position zero despite its saved 240-pixel fixture input. That original initial-callback timing
 is recorded as a limitation and does not justify losing the target's saved
 position restoration.
 
@@ -214,7 +213,7 @@ dependency fetch or real network access. Its completed/partial/delayed-response
 cache, permanent-close, owner, and filename assertions are host execution
 evidence; Android WebView and iOS WebKit acceptance still require device runs.
 
-## Evidence and pending validation
+## Pending native validation
 
 The reader tests currently cover asset hashes, source-template integrity,
 dangerous command strings, malformed/stale messages, disposal/timeouts,
@@ -264,8 +263,7 @@ do not prove native selection gestures or touch delivery. YouTube events are not
 fabricated: playback and transcript commands remain incomplete without a real
 player or a separately documented local provider fixture.
 
-Main development Android/iOS builds are recorded separately in the build
-evidence. Required interaction checks are still pending:
+Main development Android/iOS builds are separate from these reader checks. Required interaction checks are still pending:
 device/simulator cross-paragraph selection, menu suppression, touch coordinate
 calibration, old-app read-position restoration, in-place upgrade with pending
 CRUD, image cache interception/offline failures, status-bar scrolling, real
@@ -282,10 +280,7 @@ it must retain the source iOS image preview and logo fallback on a real share sh
 
 ## Controlled input observations
 
-The actual isolated iOS Alpha long press in
-`evidence/2026-10-11-target-ios-reader-native-longpress/negative-alpha-report.json`
-produced a noncollapsed five-character DOM range, but the App selection menu did
-not appear. The original monitor processed that range; its actual
+The actual isolated iOS Alpha long press produced a noncollapsed five-character DOM range, but the App selection menu did not appear. The original monitor processed that range; its actual
 `webkit.messageHandlers.NativeBridge` was absent. That run remains a negative
 result, including the disk-guard termination during incomplete xcresult
 finalization. Earlier successful original-installation comment taps remain
@@ -382,7 +377,7 @@ additional check. Full size and SHA-256 validation still gate offline-complete
 status; a range response alone does not cryptographically verify an individual
 block. The current bundled PDF.js rendered the first and last pages in headless
 Chromium with one real module worker, zero page errors and no PDF toolbar; see
-[the bounded live-contract evidence](evidence/2026-10-13-live-pdf-contract/verification.json).
+the bounded live-contract record (retired).
 This is not native Expo rendering, cold-start lifecycle or PowerSync acceptance;
 those end-to-end checks remain pending.
 
@@ -464,8 +459,7 @@ local worker, resource loading, rendered pages, selection geometry and bounded
 page residency; check for skipped browser cases when the required local browser
 is absent. Neither browser execution nor host tests prove WKWebView/Android
 WebView selection handles, native keyboard/back behavior or visual acceptance.
-See [PDF fixture verification](fixture-acceptance.md#pdf-fixture-verification) for
-isolated native scenarios and evidence requirements.
+See `apps/mobile/fixtures/README.md` for isolated fixture preparation and verification.
 
 Scoped native menu/annotation checks now pass on the updated host. The isolated
 iOS 26.5 simulator's `strict14` run used a genuine long press and ordinary

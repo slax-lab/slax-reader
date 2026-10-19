@@ -31,9 +31,6 @@ outputs:
   icons:
     description: Whether icons validation is selected
     value: ${{ steps.detect.outputs.icons }}
-  mobileEvidence:
-    description: Whether mobileEvidence validation is selected
-    value: ${{ steps.detect.outputs.mobileEvidence }}
   rulesync:
     description: Whether rulesync validation is selected
     value: ${{ steps.detect.outputs.rulesync }}

@@ -12,23 +12,6 @@ from base64 import b64encode
 FIXTURES = Path(__file__).resolve().parent
 REPOSITORY = FIXTURES.parents[2]
 DENIED_NAME = re.compile(r"(^\.env(?:\.|$)|^\.dev\.vars(?:\.|$)|credential|secret|private.?key|keystore|GoogleService|google-services)", re.I)
-LEGACY_OVERLAY_FILES = {
-    'SOURCE-HARNESS.md', 'build.gradle.kts', 'composeApp/build.gradle.kts',
-    'settings.gradle.kts', 'gradle.properties',
-    'composeApp/src/androidMain/AndroidManifest.xml',
-    'composeApp/src/commonMain/kotlin/app/slax/reader/SlaxConfig.kt',
-    *('composeApp/src/fixtureMain/kotlin/' + name for name in ['FixtureFirebase.kt', 'SourceFixtureActivity.kt']),
-    *('composeApp/src/fixtureInstrumentedTest/kotlin/com/slax/reader/fixtures/' + name for name in
-      ['FixtureRunner.kt', 'FixturePayload.kt', 'FixtureWebViewHost.kt', 'FixtureReaderHttp.kt', 'SourceReaderAdapter.kt', 'SourceReferenceFixtureTest.kt']),
-    *('composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/' + name for name in
-      ['manifest.json', 'scenarios.json', 'documents.ts', 'resources.ts', 'source-capture-inputs.json',
-       'articles/delete-notice.html', 'articles/long.html', 'articles/mixed.html', 'articles/privacy.html',
-       'articles/rss.html', 'articles/short.html', 'articles/terms.html', 'articles/video.html']),
-}
-OVERLAY_FILES = LEGACY_OVERLAY_FILES | {
-    'composeApp/src/fixtureMain/kotlin/FixtureReaderResources.kt',
-    'composeApp/src/fixtureMain/kotlin/FixtureWebViewHelper.android.kt',
-}
 READER_HELPER = 'composeApp/src/androidMain/kotlin/com/slax/reader/utils/WebviewHelper.android.kt'
 READER_INTERCEPT_ANCHOR = '''                        val url = request?.url?.toString() ?: return null
 
@@ -53,81 +36,7 @@ def safe_relative(raw, patterns):
     return path
 
 
-def snapshot_inputs(snapshot, manifest, manifest_hash):
-    evidence_root = (REPOSITORY / 'docs/mobile/evidence').resolve(strict=True)
-    original = snapshot.absolute()
-    snapshot = snapshot.resolve(strict=True)
-    if evidence_root not in snapshot.parents or not snapshot.is_dir():
-        raise ValueError('Overlay replay requires an archived input directory under docs/mobile/evidence')
-    for candidate in [original, *original.parents]:
-        if candidate.is_symlink():
-            raise ValueError('Archived overlay directory cannot follow symlinks')
-        if candidate == evidence_root:
-            break
-    def archived_file(relative):
-        path = snapshot / relative
-        for candidate in [path, *path.parents]:
-            if candidate.is_symlink():
-                raise ValueError(f'Archived overlay cannot follow symlinks: {relative}')
-            if candidate == snapshot:
-                break
-        if not path.is_file() or snapshot not in path.resolve(strict=True).parents:
-            raise ValueError(f'Missing archived overlay: {relative}')
-        return path.read_bytes()
-    marker = json.loads(archived_file('input-manifest.json'))
-    if (marker.get('controlledFixture') is not True or marker.get('fixtureVersion') != 1
-            or marker.get('sourceCommit') != manifest['sourceCommit']
-            or marker.get('sourceManifestSha256') != manifest_hash
-            or marker.get('copiedPinnedFiles') != len(manifest['files'])
-            or marker.get('sourceCheckoutModified') is not False
-            or marker.get('originalBuildConfigurationCopied') is not False):
-        raise ValueError('Archived overlay does not match the pinned isolated source baseline')
-    entries = marker['overlayDigests']
-    paths = {entry['path'] for entry in entries}
-    if len(entries) != len(paths) or paths not in (LEGACY_OVERLAY_FILES, OVERLAY_FILES):
-        raise ValueError('Archived overlay must contain the exact closed capture input set')
-    records = []
-    for entry in entries:
-        relative = safe_relative(entry['path'], OVERLAY_FILES)
-        content = archived_file(relative)
-        if sha256(content).hexdigest() != entry['sha256']:
-            raise ValueError(f'Archived overlay checksum mismatch: {relative}')
-        records.append((relative, content))
-    by_path = {str(relative): content for relative, content in records}
-    if paths == OVERLAY_FILES:
-        resource = marker.get('androidReaderResourceInterception', {})
-        controlled_path = 'composeApp/src/fixtureMain/kotlin/FixtureWebViewHelper.android.kt'
-        original_hash = next(entry['sha256'] for entry in manifest['files'] if entry['path'] == READER_HELPER)
-        controlled = by_path[controlled_path]
-        insertion = READER_INTERCEPT_INSERTION.encode('utf-8')
-        if (resource.get('originalHelperPath') != READER_HELPER or resource.get('originalHelperSha256') != original_hash
-                or resource.get('controlledHelperPath') != controlled_path
-                or resource.get('controlledHelperSha256') != sha256(controlled).hexdigest()
-                or resource.get('exactInsertion') != READER_INTERCEPT_INSERTION
-                or controlled.count(insertion) != 1
-                or sha256(controlled.replace(insertion, b'', 1)).hexdigest() != original_hash
-                or resource.get('declaredHttpsImagesOnly') is not True
-                or resource.get('otherHttpRequestsDeniedLocally') is not True
-                or resource.get('internetPermissionAdded') is not False):
-            raise ValueError('Archived reader resource derivative differs from the pinned original helper')
-    asset_root = 'composeApp/src/androidInstrumentedTest/assets/slax-ui-fixtures/'
-    fixture_manifest = json.loads(by_path[asset_root + 'manifest.json'])
-    for entry in fixture_manifest['files']:
-        relative = safe_relative(entry['path'], ['scenarios.json', 'articles/*.html', 'documents.ts', 'resources.ts'])
-        if sha256(by_path[asset_root + str(relative)]).hexdigest() != entry['sha256']:
-            raise ValueError(f'Archived fixture checksum mismatch: {relative}')
-    fixture_hash = sha256(by_path[asset_root + 'scenarios.json']).hexdigest()
-    capture_inputs = json.loads(by_path[asset_root + 'source-capture-inputs.json'])
-    driver_entries = [entry for entry in entries if entry['path'] != asset_root + 'source-capture-inputs.json']
-    driver_hash = sha256(json.dumps(driver_entries, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
-    if marker.get('fixtureInputSha256') != fixture_hash or capture_inputs != {
-            'sourceCommit': manifest['sourceCommit'], 'sourceManifestSha256': manifest_hash,
-            'fixtureInputSha256': fixture_hash, 'actionDriverSha256': driver_hash}:
-        raise ValueError('Archived fixture/driver identity is inconsistent')
-    return marker, records
-
-
-def prepare(source, output, overlay_snapshot=None):
+def prepare(source, output):
     source = source.resolve(strict=True)
     output = output.resolve()
     temporary_roots = [Path('/tmp').resolve(), Path(tempfile.gettempdir()).resolve()]
@@ -139,7 +48,6 @@ def prepare(source, output, overlay_snapshot=None):
     manifest = json.loads(manifest_path.read_text())
     if manifest['inputPolicy']['strategy'] != 'closed path-and-extension whitelist':
         raise ValueError('Expected a closed source whitelist')
-    archived = snapshot_inputs(overlay_snapshot, manifest, sha256(manifest_path.read_bytes()).hexdigest()) if overlay_snapshot else None
     records = []
     for entry in manifest['files']:
         relative = safe_relative(entry['path'], manifest['inputPolicy']['includedPatterns'])
@@ -156,14 +64,6 @@ def prepare(source, output, overlay_snapshot=None):
         destination = output / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(content)
-    if archived:
-        marker, overlay_records = archived
-        for relative, content in overlay_records:
-            destination = output / relative
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(content)
-        (output / 'slax-source-fixture.json').write_text(json.dumps(marker, indent=2) + '\n')
-        return marker
     overlay = output / 'composeApp/src/fixtureInstrumentedTest/kotlin/com/slax/reader/fixtures'
     overlay.mkdir(parents=True)
     for name in ['FixtureRunner.kt', 'FixturePayload.kt', 'FixtureWebViewHost.kt', 'FixtureReaderHttp.kt', 'SourceReaderAdapter.kt', 'SourceReferenceFixtureTest.kt']:
@@ -261,10 +161,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--overlay-snapshot', type=Path, help='Replay the exact reviewed archived inputs instead of current overlays/fixtures')
     args = parser.parse_args()
     try:
-        marker = prepare(args.source, args.output, args.overlay_snapshot)
+        marker = prepare(args.source, args.output)
     except (ValueError, OSError, KeyError) as error:
         parser.exit(1, f'Source fixture preparation failed: {error}\n')
     print(json.dumps({'output': str(args.output.resolve()), **{key: value for key, value in marker.items() if key != 'overlayDigests'}, 'overlayFiles': len(marker['overlayDigests'])}, indent=2))

@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { appendFileSync, readFileSync, realpathSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 
-export const scopeNames = ['web', 'extension', 'api', 'mobile', 'cli', 'tooling', 'cliTooling', 'extensionTooling', 'design', 'icons', 'mobileEvidence', 'rulesync', 'openspec', 'ghAw']
+export const scopeNames = ['web', 'extension', 'api', 'mobile', 'cli', 'tooling', 'cliTooling', 'extensionTooling', 'design', 'icons', 'rulesync', 'openspec', 'ghAw']
 const apps = ['web', 'extension', 'api', 'mobile', 'cli']
 const frontend = ['web', 'extension']
 const guards = ['rulesync', 'openspec', 'ghAw']
@@ -40,7 +40,7 @@ export function selectScopes(paths) {
     if (path.startsWith('deploy/cloudflare/') || (path.startsWith('deploy/local/') && !/^deploy\/local\/\.env\.(web|extension)/.test(path))) add(['api', 'tooling'], path)
     if (/^deploy\/local\/\.env\.(web|extension)/.test(path)) add([path.split('/')[2].split('.')[2], 'tooling'], path)
     if (path === 'deploy/cloudflare/api.toml.example') add(['tooling'], path)
-    if (path.startsWith('docs/mobile/evidence/') || (path.startsWith('docs/mobile/') && !path.endsWith('.md'))) add(['mobileEvidence'], path)
+    if (path === 'docs/mobile/source-manifest.json') add(['mobile'], path)
     if (path.startsWith('docs/design/')) add(['design'], path)
     if (path === 'DESIGN.md' || /^\.rulesync\/rules\/(design-system|web-design|extension-design)\.md$/.test(path)) add(['design'], path)
     if (/^tooling\/design-reference/.test(path)) add(['design'], path)
@@ -52,7 +52,7 @@ export function selectScopes(paths) {
     if (path === '.github/workflows/agent-config.yml') add(guards, path)
     if (path === '.github/workflows/frontend-ci.yml') add([...frontend, 'design', 'icons', 'tooling'], path)
     if (/^\.github\/workflows\/api-(ci|deploy)\.yml$/.test(path)) add(['api'], path)
-    if (path === '.github/workflows/mobile-ci.yml') add(['mobile', 'mobileEvidence'], path)
+    if (path === '.github/workflows/mobile-ci.yml') add(['mobile'], path)
     if (path === '.github/workflows/web-deploy.yml') add(['tooling'], path)
     if (path === '.github/workflows/tooling-ci.yml') add(['tooling', 'cliTooling', 'extensionTooling'], path)
     if (path.startsWith('.github/workflows/')) add(['tooling'], path)
