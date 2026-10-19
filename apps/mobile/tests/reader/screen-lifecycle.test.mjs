@@ -59,7 +59,7 @@ for (const {platform, kind, initialRssError} of [
   for (const name of names) Object.defineProperty(globalThis, name, {value: name === 'IS_REACT_ACT_ENVIRONMENT' ? true : name === 'window' ? window : window[name], configurable: true, writable: true})
   const {createRoot} = await import('react-dom/client')
   const preferences = new PreferenceStore(new MemoryPreferences({user_id: 'fixture-user', continue_reading_bookmark: 'previous'}))
-  let preferenceWrites = 0, renders = 0, toolbarVisible = false, commentVisible = false, options, readerProps, selectionMenuProps, skeletonProps, galleryProps, refreshRows, articleReads = 0, backBlocked = false, toolbarProps, committedExits = 0
+  let preferenceWrites = 0, optionWrites = 0, renders = 0, toolbarVisible = false, commentVisible = false, options, readerProps, selectionMenuProps, skeletonProps, galleryProps, refreshRows, articleReads = 0, backBlocked = false, toolbarProps, committedExits = 0
   const bookmarkWrites = [], collectionReads = [], localWrites = [], rssSaves = [], savedEntries = [], imageReads = []
   let failRssSave = true
   let failRssDetail = initialRssError, retryAction, releaseRssDetail, releaseRssSave
@@ -139,7 +139,7 @@ for (const {platform, kind, initialRssError} of [
   }
   const exported = await loadComponent('../../src/screens/ReaderScreen.tsx', boundaries)
   const listeners = new Map()
-  const navigation = {isFocused: () => true, setOptions: value => {options = value}, navigate() {}, goBack() {}, addListener: (name, callback) => {listeners.set(name, callback); return () => listeners.delete(name)}}
+  const navigation = {isFocused: () => true, setOptions: value => {options = value; optionWrites++}, navigate() {}, goBack() {}, addListener: (name, callback) => {listeners.set(name, callback); return () => listeners.delete(name)}}
   function Harness() {
     const [settings, setSettings] = React.useState({user_id: 'fixture-user'})
     React.useEffect(() => preferences.subscribe(setSettings), [])
@@ -256,13 +256,19 @@ for (const {platform, kind, initialRssError} of [
     await act(async () => readerProps.onEvent({type: 'textSelected', mark: {stroke: []}, text: 'Near status bar', containerYPoints: 12}, 'fixture-page'))
     assert.equal(selectionMenuProps.minTop, platform === 'ios' ? 82 : 60, 'Source full-window menus use iOS status+20 and the Android fixed 60dp minimum')
     assert.equal(options.unstable_headerRightItems()[0].hidesSharedBackground, true, 'The adjacent source more action must not inherit the iOS 26 native back background exception')
-    await withRenderedElement(options.headerRight(), () => assert.equal(rendered.get('reader-header-more-container').pointerEvents, 'auto'))
-    await act(async () => {readerProps.onPositionChange(240, false)})
-    await withRenderedElement(options.headerRight(), () => {
+    const writesBeforeFlips = optionWrites
+    await withRenderedElement(options.headerRight(), async () => {
+      assert.equal(rendered.get('reader-header-more-container').pointerEvents, 'auto')
+      await act(async () => {readerProps.onPositionChange(240, false)})
       const hiddenMore = rendered.get('reader-header-more-container')
-      assert.equal(hiddenMore.pointerEvents, 'none')
+      assert.equal(hiddenMore.pointerEvents, 'none', 'The mounted native header item follows toolbar visibility without new options')
       assert.equal(hiddenMore.accessibilityElementsHidden, true)
+      await act(async () => {readerProps.onPositionChange(0, false)})
+      assert.equal(rendered.get('reader-header-more-container').pointerEvents, 'auto')
+      await act(async () => {readerProps.onPositionChange(240, false)})
     })
+    assert.equal(optionWrites, writesBeforeFlips, 'Toolbar flips do not reconfigure the native navigation header')
+    await withRenderedElement(options.headerRight(), () => assert.equal(rendered.get('reader-header-more-container').pointerEvents, 'none', 'A fresh header element reads the current visibility'))
     assert.equal(headerAnimations.at(-1).toValue, -100)
     assert.equal(headerAnimations.at(-1).duration, 300)
     assert.equal(headerAnimations.at(-1).useNativeDriver, true)

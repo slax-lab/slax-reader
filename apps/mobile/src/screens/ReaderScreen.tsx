@@ -88,8 +88,8 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
     showOverview: interactions.showOverview, openOutline: ai.open, loadAi: ai.load, showTranscript: interactions.showTranscript, closeTranscript: interactions.closeTranscript,
     saveRss: document.saveRss, flushOutline: () => ai.flush('background')})
   const event = (value: ReaderEvent, pageId: string) => {diagnostics.event(value, pageId); interactions.handleEvent(value)}
-  const headerMore = useCallback(() => <ReaderHeaderMore visible={interactions.toolbarIsVisible} offset={interactions.headerMoreOffset} t={t} onPress={interactions.showToolbar} />,
-    [interactions.toolbarIsVisible, interactions.headerMoreOffset, interactions.showToolbar, t])
+  const headerMore = useCallback(() => <ReaderHeaderMore visibility={interactions.headerMoreVisible} offset={interactions.headerMoreOffset} t={t} onPress={interactions.showToolbar} />,
+    [interactions.headerMoreVisible, interactions.headerMoreOffset, interactions.showToolbar, t])
   useLayoutEffect(() => navigation.setOptions({title: '', headerShadowVisible: false, headerTransparent: true,
     headerStyle: {backgroundColor: 'transparent'}, headerRight: isPreview ? undefined : headerMore,
     unstable_headerRightItems: isPreview ? undefined : () => [{type: 'custom', element: headerMore(), hidesSharedBackground: true}],
