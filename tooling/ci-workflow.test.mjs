@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { selectScopes, scopeNames } from './ci-scope.mjs'
+import { compareMobileVersion } from './mobile-eas-release.mjs'
 
 const require = createRequire(import.meta.url)
 const { load } = createRequire(require.resolve('rulesync'))('js-yaml')
@@ -240,4 +241,34 @@ test('CLI retains compatibility suites and publication/deployment retain their o
   assert.equal(release.concurrency['cancel-in-progress'], false)
   assert.equal(workflow('extension-release').concurrency['cancel-in-progress'], false)
   for (const name of ['api-deploy', 'web-deploy']) assert.equal(workflow(name).jobs.deploy.concurrency['cancel-in-progress'], false)
+})
+
+test('mobile EAS release preflight requires an increasing build with consistent metadata', () => {
+  const base = {version: '1.0.25', buildNumber: 771, previousBuildNumber: 770}
+  assert.deepEqual(compareMobileVersion(base, base), {changed: false, errors: []})
+  assert.deepEqual(compareMobileVersion(base, {...base, buildNumber: 772, previousBuildNumber: 771}), {changed: true, errors: []})
+  assert.match(compareMobileVersion(base, {...base, version: '1.0.26', previousBuildNumber: 771}).errors.join('\n'), /buildNumber must increase/)
+  assert.match(compareMobileVersion(base, {...base, buildNumber: 770, previousBuildNumber: 769}).errors.join('\n'), /buildNumber must increase/)
+  assert.match(compareMobileVersion(base, {...base, buildNumber: 772, previousBuildNumber: 772}).errors.join('\n'), /previousBuildNumber/)
+  assert.match(compareMobileVersion(base, {...base, version: '1.0.24', buildNumber: 772, previousBuildNumber: 771}).errors.join('\n'), /must not decrease/)
+})
+
+test('mobile EAS workflow gates the cloud build on preflight, Mobile CI, and no auto-submit', () => {
+  const w = workflow('mobile-eas-build')
+  assert.deepEqual(w.on.push.branches, ['dev'])
+  assert.equal(w.jobs.preflight.outputs.changed, '${{ steps.check.outputs.changed }}')
+  assert.equal(w.jobs.preflight.steps[0].with['fetch-depth'], 0)
+  const check = w.jobs.preflight.steps.find(step => step.id === 'check')
+  assert.equal(check.run, 'node tooling/mobile-eas-release.mjs')
+  assert.equal(w.jobs.mobile.uses, './.github/workflows/mobile-ci.yml')
+  assert.deepEqual(w.jobs.mobile.with, {full_validation: true})
+  assert.match(w.jobs.mobile.if, /needs\.preflight\.outputs\.changed == 'true'/)
+  assert.deepEqual(w.jobs.eas.needs, ['preflight', 'mobile'])
+  assert.match(w.jobs.eas.if, /needs\.preflight\.outputs\.changed == 'true'/)
+  assert.match(w.jobs.eas.if, /needs\.mobile\.result == 'success'/)
+  const build = w.jobs.eas.steps.find(step => step.run?.includes('eas build'))
+  assert.match(build.run, /--no-wait/)
+  assert.doesNotMatch(build.run, /--auto-submit/)
+  assert.equal(build['working-directory'], 'apps/mobile')
+  assert.equal(w.jobs.eas.permissions, undefined)
 })
