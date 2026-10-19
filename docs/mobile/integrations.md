@@ -16,6 +16,7 @@ The human approved the complete `expo-mobile-migration` proposal on 2026-10-10 a
 | Provider authentication | `expo-apple-authentication`, `react-native-nitro-google-signin`, `react-native-nitro-modules` | Approved |
 | iOS purchases | `expo-iap` | Approved |
 | Firebase wrappers | `@react-native-firebase/app`, `@react-native-firebase/analytics`, `@react-native-firebase/crashlytics` | Approved |
+| Production performance telemetry | SDK-57-compatible `expo-observe`; anonymous installation identity, filtered route parameters, debug/fixture dispatch disabled | Approved in `mobile-eas-observe`; additive to Firebase and first-party telemetry; requires a new native build and does not authorize an EAS Build migration or publication |
 
 Required transitive runtime dependencies belong to their approved integration; this does not approve unrelated optional packages. Source-native code may fill gaps. Further optional integrations still require specific human approval before adoption.
 

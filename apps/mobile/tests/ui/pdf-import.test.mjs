@@ -6,10 +6,12 @@ import {pathToFileURL} from 'node:url';
 import vm from 'node:vm';
 import ts from 'typescript';
 import React, {act} from 'react';
+import {observeRelativeBoundaries} from '../reader/observe-mock.mjs';
 
 const require = createRequire(import.meta.url);
 const domPath = require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]});
 async function load(file, boundaries = {}, globals = {}) {
+  boundaries = {...observeRelativeBoundaries(boundaries), ...boundaries};
   const code = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},
   }).outputText;
@@ -101,7 +103,10 @@ async function harness(root, platform = 'ios', development = false) {
   h.submit = () => act(async () => h.button('pdf_upload').onPress());
   h.background = state => act(async () => {native.AppState.currentState = state; for (const callback of listeners) callback(state);});
   h.listenerCount = () => listeners.size;
+  h.observeMarks = 0;
   h.loadLibrary = async () => {
+    let marked = false;
+    const markInteractive = () => {if (!marked) {marked = true; h.observeMarks++;}};
     const rssState = {enabled: false};
     class RssController {subscribe = () => () => {}; getSnapshot = () => rssState; activate() {} dispose() {} cancel() {} poll() {} async load() {}}
     class FeedScrollPosition {reset() {}}
@@ -110,6 +115,7 @@ async function harness(root, platform = 'ios', development = false) {
       ...common, './LibraryDataStatus': {LibraryDataStatus: nil}, '@react-navigation/native': navigation, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'expo-network': {useNetworkState: () => ({isConnected: true})},
       '../telemetry': {useTelemetry: () => telemetry}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: v.native('SourceShape')}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
       '../components': {...v.ui, BookmarkRow: nil, LinkInputDialog, RssFeed: nil, RssFeedSwitcher: nil, SourceAvatar: nil, SourceMenu: nil}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, './collection-selection': await load('../../src/screens/collection-selection.ts'), '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../utils/source-time': await load('../../src/utils/source-time.ts'), '../components/PdfImportDialog': {PdfImportDialog}, '../pdf/usePdfLab': {usePdfLab},
+      '../observe': {useObserveMarkInteractive: () => markInteractive, libraryIsInteractive: (rowsReady, error) => rowsReady || Boolean(error), libraryRecoveryVisible: (dataReady, upgradeStatus) => !dataReady && (upgradeStatus === 'error' || upgradeStatus === 'verification-required')},
     });
     const navigator = {navigate: (...args) => h.navigations.push(args)};
     h.render = () => root.render(React.createElement(LibraryScreen, {navigation: navigator}));
@@ -197,6 +203,18 @@ for (const failure of ['disabled', 'unavailable', 'upload']) test(`${failure} re
   await h.submit();
   assert.equal(h.pickCalls, 1); assert.equal(h.labsCalls.length, 2); assert.deepEqual(h.removed, [h.selected.uri]);
   assert.equal(h.watches.length, 1); assert.deepEqual(Array.from(h.watches[0].params), ['server-retry']); assert.deepEqual(h.saved, []);
+}));
+
+test('Library marks interactive only after the first rows snapshot', async () => mounted(async root => {
+  const h = await harness(root);
+  await h.loadLibrary();
+  assert.equal(h.observeMarks, 0);
+  const watch = h.bookmarkWatches.at(-1);
+  assert.ok(watch);
+  await act(async () => watch.rows([]));
+  assert.equal(h.observeMarks, 1);
+  await act(async () => watch.rows([]));
+  assert.equal(h.observeMarks, 1);
 }));
 
 for (const platform of ['ios', 'android']) test(`${platform} Library uploads a raw File at the inclusive limit and navigates only after the server row watcher`, async () => mounted(async root => {
