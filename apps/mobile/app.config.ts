@@ -42,6 +42,10 @@ const config: ExpoConfig = {
     ...(firebaseAndroidConfig ? {googleServicesFile: firebaseAndroidConfig} : {}),
     versionCode: Number(buildVersion.build),
     predictiveBackGestureEnabled: true,
+    // expo-sensors declares ACTIVITY_RECOGNITION for its Pedometer/DeviceMotion
+    // modules; the app only reads the accelerometer, so drop the permission and
+    // avoid the Play health-features declaration requirement.
+    blockedPermissions: ['android.permission.ACTIVITY_RECOGNITION'],
   },
   plugins: [
     ['./plugins/with-native-compatibility.cjs', {fixtureMode}],
