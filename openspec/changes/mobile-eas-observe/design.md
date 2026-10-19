@@ -35,7 +35,8 @@ Add `apps/mobile/src/observe/index.ts` as the only module that imports `expo-obs
 - export `ObserveRoot.wrap`/the wrapped root helper, `ObserveNavigationContainer`, and a `useObserveMarkInteractive` hook;
 - set `dispatchInDebug: false` so debug/fixture builds do not send production metrics;
 - filter all user-bearing route parameters (`bookmarkId`, `collectionId`, `collectionOwnerId`, `rssEntryId`, `title`, `targetUrl`, `openedFrom`, `entryPoint`) and leave only the route name for aggregation;
-- keep any best-effort Observe call inside a guard so a telemetry failure cannot propagate into product behavior.
+- keep any best-effort Observe call inside a guard so a telemetry failure cannot propagate into product behavior, including the SDK's asynchronous `markInteractive` rejection;
+- fall back to the plain root/navigation container only for errors raised by the Observe SDK (`[expo-observe]` messages), so application render errors still reach the existing boundaries and crash reporting.
 
 `src/App.tsx` imports this module, exports the Observe-wrapped product root, and uses `ObserveNavigationContainer` in place of `NavigationContainer`. The existing `navigationRef` is passed through unchanged.
 
@@ -54,6 +55,8 @@ Alternative considered: log a custom Observe event from `reportRoutes`. Rejected
 - `Reader`: when the document is ready or the normal error UI is interactive, not when background synchronization finishes.
 
 The first entry-screen marker defines app-wide TTI. Later route markers define route TTI. This keeps the metric truthful: a user can interact with the shell before sync completes, and Reader readiness is distinct from the app-wide first entry.
+
+The hook marks at most once per screen mount. A later state change on a still-mounted screen (a Library sort switch, a Reader retry) therefore cannot report a stale, inflated TTI for the original navigation. Returning to a still-mounted screen is measured by the SDK's `warm_ttr` rather than a new interactive marker. Readiness predicates live in the SDK-free `src/observe/readiness.ts` so screens and tests share one implementation.
 
 Alternative considered: mark on every screen mount. Rejected because it would report mount time as interactivity and would make Reader look fast while its document is still loading.
 
@@ -83,7 +86,7 @@ The host test loader asserts explicit boundaries for non-relative imports. Add a
 - **Telemetry failure affects startup** → keep Observe initialization best-effort and outside startup admission; no product state depends on Observe success.
 - **Prebuild without operator Firebase inputs removes main-app integration** → regenerate with the operator inputs present, inspect the diff, and never commit a Firebase-less native project.
 - **Archive fix verification** → the ccache path can only be exercised in a native archive with ccache enabled; record the operator/native result separately from unit tests.
-- **Watchdog/overhead** → Observe is best-effort; markInteractive is called once per entry route and does not gate rendering.
+- **Watchdog/overhead** → Observe is best-effort; markInteractive is called at most once per entry-screen mount and does not gate rendering.
 
 ## Migration Plan
 

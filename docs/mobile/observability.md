@@ -9,7 +9,7 @@ The mobile application reports production performance metrics through [EAS Obser
 - EAS Update download timing when the app is delivered through EAS Update. The current local-build workflow does not use EAS Update, so this metric remains absent until that integration is adopted.
 - Optional user-defined events and preview JS/native error reporting only when explicitly added.
 
-The app marks interactive when the entry route is usable: Login and Reauthenticate after their first interactive render, Library when the initial list state is renderable (including a legitimate empty or error state), and Reader when the document is ready or the normal error UI is interactive. Full PowerSync synchronization and automatic cache completion are not prerequisites.
+The app marks interactive when the entry route is usable: Login and Reauthenticate after their first interactive render, Library when the initial list state is renderable (including a legitimate empty or error state), and Reader when the document is ready or the normal error UI is interactive. Full PowerSync synchronization and automatic cache completion are not prerequisites. Each screen mount marks interactive at most once; returning to a still-mounted screen is reported through `warm_ttr`, not a second interactive marker.
 
 ## Configuration
 
@@ -19,7 +19,7 @@ The app marks interactive when the entry route is usable: Login and Reauthentica
 - Route names remain available for aggregation.
 - No credentials, tokens, article/document content, or unfiltered sensitive parameters are sent.
 
-`src/App.tsx` wraps the product root with `ObserveRoot` and uses `ObserveNavigationContainer` with the existing `navigationRef`. Entry screens call `useObserveMarkInteractive()` at their defined readiness point. Controlled fixtures and debug builds do not dispatch production metrics.
+`src/App.tsx` wraps the product root with `ObserveRoot` and uses `ObserveNavigationContainer` with the existing `navigationRef`. Entry screens call `useObserveMarkInteractive()` at their defined readiness point. Controlled fixtures and debug builds do not dispatch production metrics. If the SDK throws an `[expo-observe]` error, the root and navigation container fall back to their plain equivalents; any other render error still propagates to the app's boundaries.
 
 ## Prerequisites and build
 

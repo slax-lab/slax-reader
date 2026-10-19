@@ -47,24 +47,17 @@ test('fixture mode disables Observe dispatching', async () => {
 });
 
 test('route readiness predicates require rendered content or a normal error state', async () => {
-  const observe = await loadComponent('../../src/observe/index.ts', {
-    react: React,
-    '@react-navigation/native': {NavigationContainer: () => null},
-    'expo-observe': {Observe: {configure() {}}, ObserveRoot: {wrap: component => component}, useObserve: () => ({markInteractive() {}})},
-    'expo-observe/integrations/react-navigation': {ObserveNavigationContainer: () => null},
-  });
-  assert.equal(observe.libraryIsInteractive(false, null), false);
-  assert.equal(observe.libraryIsInteractive(true, null), true);
-  assert.equal(observe.libraryIsInteractive(false, new Error('blocked')), true);
-  assert.equal(observe.libraryRecoveryVisible(false, 'error'), true);
-  assert.equal(observe.libraryRecoveryVisible(false, 'verification-required'), true);
-  assert.equal(observe.libraryRecoveryVisible(false, 'checking'), false);
-  assert.equal(observe.libraryRecoveryVisible(true, 'error'), false);
-  assert.equal(observe.readerIsInteractive(false, null, null, null), false);
-  assert.equal(observe.readerIsInteractive(true, null, null, null), true);
-  assert.equal(observe.readerIsInteractive(false, new Error('blocked'), null, null), true);
-  assert.equal(observe.readerIsInteractive(false, null, 'source_unavailable', null), true);
-  assert.equal(observe.readerIsInteractive(false, null, null, 'native_failure'), true);
+  const readiness = await import('../../src/observe/readiness.ts');
+  assert.equal(readiness.libraryIsInteractive(false, true, 'ready'), false, 'Loading rows are not interactive');
+  assert.equal(readiness.libraryIsInteractive(true, true, 'ready'), true);
+  assert.equal(readiness.libraryIsInteractive(false, false, 'error'), true, 'The local-data recovery screen is interactive');
+  assert.equal(readiness.libraryIsInteractive(false, false, 'verification-required'), true);
+  assert.equal(readiness.libraryIsInteractive(false, false, 'checking'), false, 'Admission loading is not interactive');
+  assert.equal(readiness.readerIsInteractive(false, null, null, null), false);
+  assert.equal(readiness.readerIsInteractive(true, null, null, null), true);
+  assert.equal(readiness.readerIsInteractive(false, 'content failure', null, null), true);
+  assert.equal(readiness.readerIsInteractive(false, null, 'source_unavailable', null), true);
+  assert.equal(readiness.readerIsInteractive(false, null, null, 'native failure'), true);
 });
 
 test('Observe configuration failure is contained', async () => {
@@ -129,7 +122,7 @@ test('ObserveRoot falls back when the wrapped root throws', nativeBoundary, asyn
     '@react-navigation/native': {NavigationContainer: () => null},
     'expo-observe': {
       Observe: {configure() {}},
-      ObserveRoot: {wrap: () => () => {throw new Error('root failure');}},
+      ObserveRoot: {wrap: () => () => {throw new Error('[expo-observe] root failure');}},
       useObserve: () => ({markInteractive() {}}),
     },
     'expo-observe/integrations/react-navigation': {ObserveNavigationContainer: () => null},
@@ -149,10 +142,74 @@ test('ObserveNavigationContainer falls back when the SDK container throws', nati
       ObserveRoot: {wrap: component => component},
       useObserve: () => ({markInteractive() {}}),
     },
-    'expo-observe/integrations/react-navigation': {ObserveNavigationContainer: () => {throw new Error('navigation failure');}},
+    'expo-observe/integrations/react-navigation': {ObserveNavigationContainer: () => {throw new Error('[expo-observe] navigation failure');}},
   });
   await act(async () => host.render(React.createElement(loaded.ObserveNavigationContainer, {onReady() {}})));
   assert.ok(host.props.has('observe-navigation-fallback'));
+}));
+
+const sdkBoundaries = sdk => ({
+  react: React,
+  '@react-navigation/native': {NavigationContainer: () => null},
+  'expo-observe': {Observe: {configure() {}}, ObserveRoot: {wrap: component => component}, useObserve: () => ({markInteractive() {}}), ...sdk},
+  'expo-observe/integrations/react-navigation': {ObserveNavigationContainer: () => null},
+});
+
+test('the real hook marks once per mount across re-renders and repeated calls', nativeBoundary, async () => withNativeHost(async host => {
+  let marks = 0;
+  const loaded = await loadComponent('../../src/observe/index.ts', sdkBoundaries({useObserve: () => ({markInteractive() {marks++;}})}));
+  function Probe({ready}) {
+    const markInteractive = loaded.useObserveMarkInteractive();
+    React.useEffect(() => {if (ready) {markInteractive(); markInteractive();}}, [ready, markInteractive]);
+    return null;
+  }
+  await act(async () => host.render(React.createElement(Probe, {ready: false})));
+  assert.equal(marks, 0);
+  for (const ready of [true, false, true]) await act(async () => host.render(React.createElement(Probe, {ready})));
+  assert.equal(marks, 1);
+}));
+
+test('an async markInteractive rejection is contained instead of becoming an unhandled rejection', nativeBoundary, async () => withNativeHost(async host => {
+  const unhandled = [];
+  const listener = reason => unhandled.push(reason);
+  process.on('unhandledRejection', listener);
+  try {
+    const loaded = await loadComponent('../../src/observe/index.ts', sdkBoundaries({
+      useObserve: () => ({markInteractive: async () => {throw new Error('[expo-observe] markInteractive was called without an active React Navigation integration.');}}),
+    }));
+    function Probe() {
+      const markInteractive = loaded.useObserveMarkInteractive();
+      React.useEffect(() => {markInteractive();}, [markInteractive]);
+      return null;
+    }
+    await act(async () => host.render(React.createElement(Probe)));
+    await new Promise(resolve => setTimeout(resolve, 10));
+    assert.deepEqual(unhandled, []);
+  } finally {process.off('unhandledRejection', listener);}
+}));
+
+test('non-Observe errors propagate past the containment boundaries without engaging the fallback', nativeBoundary, async () => withNativeHost(async host => {
+  let fallbackRenders = 0;
+  const loaded = await loadComponent('../../src/observe/index.ts', {
+    ...sdkBoundaries({ObserveRoot: {wrap: component => props => React.createElement(component, props)}}),
+    '@react-navigation/native': {NavigationContainer: props => {fallbackRenders++; return React.createElement(host.native.View, props, props.children);}},
+    'expo-observe/integrations/react-navigation': {ObserveNavigationContainer: props => React.createElement(host.native.View, props, props.children)},
+  });
+  let caught;
+  class AppBoundary extends React.Component {
+    state = {error: null};
+    static getDerivedStateFromError(error) {return {error};}
+    componentDidCatch(error) {caught = error;}
+    render() {return this.state.error ? React.createElement(host.native.View, {testID: 'app-boundary'}) : this.props.children;}
+  }
+  const Screen = () => {throw new Error('screen crashed');};
+  await act(async () => host.render(React.createElement(AppBoundary, null, React.createElement(loaded.ObserveNavigationContainer, null, React.createElement(Screen)))));
+  assert.equal(caught?.message, 'screen crashed');
+  assert.equal(fallbackRenders, 0, 'An app error must not remount the navigator through the Observe fallback');
+  caught = undefined;
+  const Original = () => {throw new Error('root crashed');};
+  await act(async () => host.render(React.createElement(AppBoundary, {key: 'root'}, React.createElement(loaded.ObserveRoot.wrap(Original)))));
+  assert.equal(caught?.message, 'root crashed', 'An app root crash reaches the real boundary');
 }));
 
 test('ApplicationRoutes uses the Observe navigation container and preserves the existing navigation ref', nativeBoundary, async () => withNativeHost(async host => {

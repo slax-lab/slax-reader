@@ -4,7 +4,7 @@ import {NavigationContainer} from '@react-navigation/native';
 type ObserveSdk = {
   Observe: {configure(config: unknown): void};
   ObserveRoot: {wrap(component: React.ComponentType<any>): React.ComponentType<any>};
-  useObserve(): {markInteractive(): void};
+  useObserve(): {markInteractive(): unknown};
 };
 type NavigationSdk = {ObserveNavigationContainer: React.ComponentType<any>};
 
@@ -40,11 +40,17 @@ if (observe) {
   } catch {}
 }
 
-class ObserveBoundary extends React.Component<{fallback: React.ComponentType<any>; fallbackProps: any; children?: React.ReactNode}, {failed: boolean}> {
-  state = {failed: false};
-  static getDerivedStateFromError() { return {failed: true}; }
+// Only errors raised by the Observe SDK fall back; app errors keep propagating to
+// the real boundaries and crash reporting instead of being silently swallowed.
+const isObserveError = (error: unknown) => typeof (error as {message?: unknown} | null)?.message === 'string' && (error as {message: string}).message.startsWith('[expo-observe]');
+
+class ObserveBoundary extends React.Component<{fallback: React.ComponentType<any>; fallbackProps: any; children?: React.ReactNode}, {error: unknown; failed: boolean}> {
+  state = {error: null as unknown, failed: false};
+  static getDerivedStateFromError(error: unknown) { return {error, failed: isObserveError(error)}; }
   render() {
-    return this.state.failed ? React.createElement(this.props.fallback, this.props.fallbackProps) : this.props.children;
+    if (this.state.failed) return React.createElement(this.props.fallback, this.props.fallbackProps);
+    if (this.state.error) throw this.state.error;
+    return this.props.children;
   }
 }
 
@@ -52,12 +58,19 @@ const noop = () => {};
 const useNoopObserve = () => ({markInteractive: noop});
 const useSdkObserve = observe?.useObserve ?? useNoopObserve;
 
+/** Marks the calling screen interactive at most once per mount; Observe failures never reach the caller. */
 export function useObserveMarkInteractive() {
   const {markInteractive} = useSdkObserve();
   const latest = useRef(markInteractive);
   latest.current = markInteractive;
+  const marked = useRef(false);
   return useCallback(() => {
-    try { latest.current(); } catch {}
+    if (marked.current) return;
+    marked.current = true;
+    try {
+      const result: unknown = latest.current();
+      if (result && typeof (result as Promise<unknown>).then === 'function') (result as Promise<unknown>).catch(noop);
+    } catch {}
   }, []);
 }
 
@@ -83,7 +96,4 @@ export const ObserveNavigationContainer = React.forwardRef((props: any, ref: any
   );
 });
 
-export const libraryIsInteractive = (rowsReady: boolean, error: unknown) => rowsReady || Boolean(error);
-export const libraryRecoveryVisible = (dataReady: boolean, upgradeStatus: string) => !dataReady && (upgradeStatus === 'error' || upgradeStatus === 'verification-required');
-export const readerIsInteractive = (documentReady: boolean, contentError: unknown, rssError: unknown, nativeFailure: unknown) =>
-  documentReady || Boolean(contentError) || Boolean(rssError) || Boolean(nativeFailure);
+export {libraryIsInteractive, libraryRecoveryVisible, readerIsInteractive} from './readiness';

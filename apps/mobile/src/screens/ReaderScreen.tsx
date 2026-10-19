@@ -29,7 +29,8 @@ import {useReaderAi} from '../reader/state/useReaderAi'
 import {useReaderInteractions} from '../reader/state/useReaderInteractions'
 import {useReaderDiagnostics} from '../reader/diagnostics/useReaderDiagnostics'
 import type {ReaderDocumentTransitions} from '../reader/state/types'
-import {readerIsInteractive, useObserveMarkInteractive} from '../observe'
+import {useObserveMarkInteractive} from '../observe'
+import {readerIsInteractive} from '../observe/readiness'
 
 /** Identity-stable wrapper that always calls the latest render's handler, so memoized hosts are not rerendered by new closures. */
 function useEvent<A extends unknown[], R>(handler: (...args: A) => R): (...args: A) => R {

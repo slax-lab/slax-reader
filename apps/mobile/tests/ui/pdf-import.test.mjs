@@ -6,7 +6,7 @@ import {pathToFileURL} from 'node:url';
 import vm from 'node:vm';
 import ts from 'typescript';
 import React, {act} from 'react';
-import {observeRelativeBoundaries} from '../reader/observe-mock.mjs';
+import {countingObserve, observeRelativeBoundaries, readiness} from '../reader/observe-mock.mjs';
 
 const require = createRequire(import.meta.url);
 const domPath = require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]});
@@ -103,10 +103,9 @@ async function harness(root, platform = 'ios', development = false) {
   h.submit = () => act(async () => h.button('pdf_upload').onPress());
   h.background = state => act(async () => {native.AppState.currentState = state; for (const callback of listeners) callback(state);});
   h.listenerCount = () => listeners.size;
-  h.observeMarks = 0;
   h.loadLibrary = async () => {
-    let marked = false;
-    const markInteractive = () => {if (!marked) {marked = true; h.observeMarks++;}};
+    const observe = await countingObserve(load);
+    h.observeCounter = observe.counter;
     const rssState = {enabled: false};
     class RssController {subscribe = () => () => {}; getSnapshot = () => rssState; activate() {} dispose() {} cancel() {} poll() {} async load() {}}
     class FeedScrollPosition {reset() {}}
@@ -114,8 +113,8 @@ async function harness(root, platform = 'ios', development = false) {
     const {LibraryScreen} = await load('../../src/screens/LibraryScreen.tsx', {
       ...common, './LibraryDataStatus': {LibraryDataStatus: nil}, '@react-navigation/native': navigation, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'expo-network': {useNetworkState: () => ({isConnected: true})},
       '../telemetry': {useTelemetry: () => telemetry}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: v.native('SourceShape')}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
-      '../components': {...v.ui, BookmarkRow: nil, LinkInputDialog, RssFeed: nil, RssFeedSwitcher: nil, SourceAvatar: nil, SourceMenu: nil}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, './collection-selection': await load('../../src/screens/collection-selection.ts'), '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../utils/source-time': await load('../../src/utils/source-time.ts'), '../components/PdfImportDialog': {PdfImportDialog}, '../pdf/usePdfLab': {usePdfLab},
-      '../observe': {useObserveMarkInteractive: () => markInteractive, libraryIsInteractive: (rowsReady, error) => rowsReady || Boolean(error), libraryRecoveryVisible: (dataReady, upgradeStatus) => !dataReady && (upgradeStatus === 'error' || upgradeStatus === 'verification-required')},
+      '../components': {...v.ui, BookmarkRow: nil, LinkInputDialog, RssFeed: nil, RssFeedSwitcher: nil, SourceAvatar: nil, SourceMenu: props => {h.sortMenu = props; return null;}}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, './collection-selection': await load('../../src/screens/collection-selection.ts'), '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../utils/source-time': await load('../../src/utils/source-time.ts'), '../components/PdfImportDialog': {PdfImportDialog}, '../pdf/usePdfLab': {usePdfLab},
+      '../observe': observe.module, '../observe/readiness': readiness,
     });
     const navigator = {navigate: (...args) => h.navigations.push(args)};
     h.render = () => root.render(React.createElement(LibraryScreen, {navigation: navigator}));
@@ -205,16 +204,19 @@ for (const failure of ['disabled', 'unavailable', 'upload']) test(`${failure} re
   assert.equal(h.watches.length, 1); assert.deepEqual(Array.from(h.watches[0].params), ['server-retry']); assert.deepEqual(h.saved, []);
 }));
 
-test('Library marks interactive only after the first rows snapshot', async () => mounted(async root => {
+test('Library marks interactive once per mount through the real hook, not again after a sort switch', async () => mounted(async root => {
   const h = await harness(root);
   await h.loadLibrary();
-  assert.equal(h.observeMarks, 0);
-  const watch = h.bookmarkWatches.at(-1);
-  assert.ok(watch);
-  await act(async () => watch.rows([]));
-  assert.equal(h.observeMarks, 1);
-  await act(async () => watch.rows([]));
-  assert.equal(h.observeMarks, 1);
+  assert.equal(h.observeCounter.marks, 0, 'Loading rows are not interactive');
+  await act(async () => h.bookmarkWatches.at(-1).rows([]));
+  assert.equal(h.observeCounter.marks, 1, 'An empty first snapshot is a usable surface');
+  await act(async () => h.render());
+  assert.equal(h.observeCounter.marks, 1, 'Re-renders do not re-mark');
+  await act(async () => h.sortMenu.items.find(item => !item.selected).onPress());
+  const switched = h.bookmarkWatches.at(-1);
+  assert.notEqual(switched.sort, 'inbox', 'The sort switch starts a new rows watch');
+  await act(async () => switched.rows([]));
+  assert.equal(h.observeCounter.marks, 1, 'A sort switch resetting rowsReady must not report a late second TTI');
 }));
 
 for (const platform of ['ios', 'android']) test(`${platform} Library uploads a raw File at the inclusive limit and navigates only after the server row watcher`, async () => mounted(async root => {

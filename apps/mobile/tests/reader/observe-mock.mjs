@@ -1,4 +1,7 @@
 import React from 'react';
+import * as readiness from '../../src/observe/readiness.ts';
+
+export {readiness};
 
 export function observeBoundaries(boundaries = {}) {
   const NavigationContainer = boundaries['@react-navigation/native']?.NavigationContainer;
@@ -8,9 +11,6 @@ export function observeBoundaries(boundaries = {}) {
     ObserveRoot: {wrap: component => component},
     ObserveNavigationContainer,
     useObserveMarkInteractive: () => () => {},
-    libraryIsInteractive: (rowsReady, error) => rowsReady || Boolean(error),
-    libraryRecoveryVisible: (dataReady, upgradeStatus) => !dataReady && (upgradeStatus === 'error' || upgradeStatus === 'verification-required'),
-    readerIsInteractive: (documentReady, contentError, rssError, nativeFailure) => documentReady || Boolean(contentError) || Boolean(rssError) || Boolean(nativeFailure),
     Observe: {configure() {}, markInteractive() {}, reportError() {}},
     useObserve: () => ({markInteractive() {}}),
   };
@@ -27,6 +27,28 @@ export function observeRelativeBoundaries(boundaries = {}) {
     './observe': observe,
     '../observe': observe,
     '../../observe': observe,
+    '../observe/readiness': readiness,
     ...defaults,
   };
+}
+
+/**
+ * Loads the real src/observe module against a counting SDK stub, so screen tests
+ * exercise the production once-per-mount and failure-containment logic.
+ */
+export async function countingObserve(load) {
+  const counter = {marks: 0};
+  const sdk = {
+    Observe: {configure() {}},
+    ObserveRoot: {wrap: component => component},
+    useObserve: () => ({markInteractive() {counter.marks++;}}),
+  };
+  const module = await load('../../src/observe/index.ts', {
+    react: React,
+    '@react-navigation/native': {NavigationContainer: () => null},
+    'expo-observe': sdk,
+    'expo-observe/integrations/react-navigation': {ObserveNavigationContainer: () => null},
+    './readiness': readiness,
+  });
+  return {module, counter};
 }
