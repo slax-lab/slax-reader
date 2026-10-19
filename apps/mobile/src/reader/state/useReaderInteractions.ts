@@ -10,6 +10,7 @@ import {toolbarVisible} from '../index'
 import {useReducedMotion} from '../../motion/useReducedMotion'
 import type {ReaderEvent} from '../types'
 import {useImageActions, type ImageActionPort} from './useImageActions'
+import {FeatureState} from './feature-state'
 import type {useReaderAi} from './useReaderAi'
 import type {useReaderAnnotations} from './useReaderAnnotations'
 import type {useReaderBookmark} from './useReaderBookmark'
@@ -44,6 +45,9 @@ export function useReaderInteractions(scope: ReaderScope, ports: InteractionPort
   useLayoutEffect(() => () => {pendingExternal.current = null}, [cacheKey, currentUserId, nativeResourceOwner, isAccountActive])
   const [doNotAlert, setDoNotAlert] = useState(false), [toolbarIsVisible, setToolbarIsVisible] = useState(true)
   const headerMoreOffset = useRef(new Animated.Value(0)).current, reducedMotion = useReducedMotion()
+  // The native header item reads visibility from this store so toolbar flips do not reconfigure navigation options.
+  const headerMoreVisible = useRef(new FeatureState(true)).current
+  useLayoutEffect(() => headerMoreVisible.set(toolbarIsVisible), [headerMoreVisible, toolbarIsVisible])
   useEffect(() => {
     const animation = Animated.timing(headerMoreOffset, {toValue: toolbarIsVisible ? 0 : -100, duration: reducedMotion ? 0 : 300, easing: Easing.bezier(.4, 0, .2, 1), useNativeDriver: true})
     animation.start(); return () => animation.stop()
@@ -157,7 +161,7 @@ export function useReaderInteractions(scope: ReaderScope, ports: InteractionPort
   }
   const cancelPending = () => {pendingExternal.current = null; pendingToolbar.current = null}
   const scroll = (position: number, nearBottom: boolean) => {if (isAccountActive()) {document.scrollInfo.current = {position, nearBottom}; setToolbarIsVisible(toolbarVisible(position, nearBottom))}}
-  return {overlay, toolbarId, toolbarIsVisible, headerMoreOffset, externalUrl, externalDialogId, doNotAlert, gallery, transcriptVisible, youtubeTime, cues,
+  return {overlay, toolbarId, toolbarIsVisible, headerMoreVisible, headerMoreOffset, externalUrl, externalDialogId, doNotAlert, gallery, transcriptVisible, youtubeTime, cues,
     showToolbar, dismissToolbar, toolbarDidDismiss, action, external, confirmExternal, externalDidDismiss, cancelExternal, showOverview, closeOverview, handleEvent, resolveGalleryUri, cancelPending, scroll, imageActions,
     openGalleryImageAction: (source: string) => imageActions.open(source, 'gallery'),
     closeOverlay: () => setOverlay(null), showSubscription: () => setOverlay('subscription'), revoke: () => {setOverlay(null); clearError()},

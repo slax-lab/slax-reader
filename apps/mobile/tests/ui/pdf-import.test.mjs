@@ -55,7 +55,7 @@ function clock() {
 }
 async function harness(root, platform = 'ios', development = false) {
   const v = views(), timers = clock(), listeners = new Set();
-  const h = {v, timers, owner: 'account-a', focused: true, visible: true, selected: {uri: 'file:///cache/selected.pdf', name: 'Résumé.pdf', size: 1024}, pickCalls: 0, removed: [], files: [], labsCalls: [], uploads: [], watches: [], saved: [], dismissals: 0, changes: [], navigations: [], reset: [], created: [], clipboard: '', clipboardCalls: 0};
+  const h = {v, timers, owner: 'account-a', focused: true, visible: true, selected: {uri: 'file:///cache/selected.pdf', name: 'Résumé.pdf', size: 1024}, pickCalls: 0, removed: [], files: [], labsCalls: [], uploads: [], watches: [], bookmarkWatches: [], saved: [], dismissals: 0, changes: [], navigations: [], reset: [], created: [], clipboard: '', clipboardCalls: 0};
   h.labs = async () => ({features: [{key: 'pdf', enabled: true}, {key: 'rss', enabled: false}]});
   h.upload = async () => ({bookmark_uid: 'server-pdf'});
   h.pick = async () => h.selected;
@@ -74,7 +74,8 @@ async function harness(root, platform = 'ios', development = false) {
   };
   const repositories = {
     watchRows(sql, params, rows, error) {const watch = {sql, params, rows, error, stopped: 0}; h.watches.push(watch); return () => {watch.stopped++;};},
-    watchBookmarks: () => () => {}, watchCollections: () => () => {}, watchUser: () => () => {}, watchSubscription: () => () => {},
+    watchBookmarks(sort, rows) {const watch = {sort, rows, stopped: 0}; h.bookmarkWatches.push(watch); return () => {watch.stopped++;};},
+    watchCollections: () => () => {}, watchUser: () => () => {}, watchSubscription: () => () => {},
     createBookmark: async url => {h.created.push(url);},
   };
   const runtime = {getNativeResourceOwner: () => h.owner, getDatabase: () => null};
@@ -324,6 +325,28 @@ test('Library hides import until Labs grants PDF, then preserves manual URL vali
   await act(async () => h.v.one('TextInput').onChangeText('  https://source.test/article  ')); await act(async () => h.v.one('TextInput').onSubmitEditing());
   assert.deepEqual(h.created, ['https://source.test/article']); assert.equal(h.reset.at(-1), true);
   assert.equal(h.v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.testID === 'add-pdf-file')).visible, false); assert.equal(h.dialog().visible, false); assert.equal(h.pickCalls, 0);
+}));
+
+test('Library stops bookmark watches while blurred or backgrounded and keeps the last rows visible', async () => mounted(async root => {
+  const h = await harness(root); await h.loadLibrary();
+  const live = () => h.bookmarkWatches.filter(watch => !watch.stopped);
+  const shown = () => Array.from(h.v.one('FlatList').data, row => row.id);
+  assert.equal(live().length, 1); assert.equal(live()[0].sort, 'inbox');
+  await act(async () => live()[0].rows([{id: 'first'}]));
+  assert.deepEqual(shown(), ['first']);
+  h.focused = false; await act(async () => h.render());
+  assert.equal(live().length, 0, 'A blurred Library does not rerun its bookmark query on background writes');
+  assert.deepEqual(shown(), ['first'], 'Blurring keeps the published rows instead of clearing the list');
+  h.focused = true; await act(async () => h.render());
+  assert.equal(live().length, 1, 'Refocus resubscribes once');
+  assert.deepEqual(shown(), ['first']);
+  await act(async () => live()[0].rows([{id: 'second'}, {id: 'first'}]));
+  assert.deepEqual(shown(), ['second', 'first']);
+  await h.background('background');
+  assert.equal(live().length, 0, 'Backgrounding stops the bookmark query');
+  await h.background('active');
+  assert.equal(live().length, 1);
+  assert.equal(h.bookmarkWatches.length, 3);
 }));
 
 test('add-link keeps clipboard import and title-edit behavior separate from PDF handoff', async () => mounted(async root => {
