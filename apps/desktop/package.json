@@ -8,7 +8,7 @@
     "build": "node tooling/bundle.mjs --env main --host",
     "frontend:dev": "node tooling/assets.mjs && vite --host 127.0.0.1 --port 1420 --strictPort",
     "typecheck": "vue-tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:core": "cargo test -p slax-core",
     "ipc:generate": "node tooling/ipc.mjs",
     "ipc:check": "node tooling/ipc.mjs --check",
