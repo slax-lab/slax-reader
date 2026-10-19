@@ -110,8 +110,10 @@ openspec/
 .agents/
 .claude/
 .codex/
-tests/
-deploy/
+# Root-only trees. Mobile fixture sources under apps/mobile are statically
+# required by index.ts and must stay in the EAS archive.
+/tests/
+/deploy/
 AGENTS.md
 CLAUDE.md
 DESIGN.md
