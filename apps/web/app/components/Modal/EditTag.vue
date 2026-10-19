@@ -128,22 +128,19 @@ const deleteTag = async () => {
 
   isLoading.value = true
 
-  const res = await request().post<{ ok: boolean }>({
-    url: RESTMethodPath.DELETE_USER_TAG,
-    body: tagIdBody()
-  })
-
-  isLoading.value = false
-
-  if (res) {
-    closeModal()
-    emits('delete', props.tagId)
-  } else {
-    Toast.showToast({
-      text: t('common.tips.delete_tag_failed'),
-      type: ToastType.Error
+  try {
+    // Success has no data; the request layer returns '' after a 401 redirect.
+    const res = await request().post<void | ''>({
+      url: RESTMethodPath.DELETE_USER_TAG,
+      body: tagIdBody()
     })
+    if (res === '') return
+  } finally {
+    isLoading.value = false
   }
+
+  closeModal()
+  emits('delete', props.tagId)
 }
 
 // 移出“我的标签”：降回 auto；本地行经 sync 回流
