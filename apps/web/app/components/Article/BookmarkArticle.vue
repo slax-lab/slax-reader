@@ -46,8 +46,9 @@
 </template>
 
 <script lang="ts" setup>
-import type { ReaderSelection } from './Selection/ReaderSelection'
 import PdfDocumentSource from './Pdf/PdfDocumentSource.vue'
+
+import type { ReaderSelection } from './Selection/ReaderSelection'
 const PdfReader = defineAsyncComponent(() => import('./Pdf/PdfReader.client.vue'))
 import BookmarkTags from '~/components/BookmarkTags.vue'
 import SnapshotArticleFooter from '~/components/Snapshot/SnapshotArticleFooter.vue'
