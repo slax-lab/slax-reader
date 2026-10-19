@@ -7,6 +7,7 @@
 </template>
 
 <script lang="ts" setup>
+import {takeDesktopOAuth, desktopConsentPath, hasDesktopOAuth} from '~/utils/desktopAuth'
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 
@@ -40,7 +41,19 @@ if (import.meta.client) {
       await navigateTo('slaxrd://auth?code=' + code, { external: true })
       return
     }
-    const state = JSON.parse((route.query.state as string) || '{}') as State
+    let rawState: unknown
+    try {rawState = JSON.parse((route.query.state as string) || '{}')} catch {await navigateTo('/login?desktop_error=invalid', {replace: true}); return}
+    if (hasDesktopOAuth() || (rawState && typeof rawState === 'object' && 'desktop' in rawState)) {
+      try {
+        const pending = takeDesktopOAuth(rawState)
+        await auth.grantAuth(code, pending.redirectUri, '', pending.provider)
+        history.replaceState(null, '', '/auth')
+        await navigateTo(desktopConsentPath(pending.intent), {replace: true})
+      } catch {await navigateTo('/login?desktop_error=invalid', {replace: true})}
+      return
+    }
+    if (!rawState || typeof rawState !== 'object' || Array.isArray(rawState)) {await navigateTo('/login', {replace: true}); return}
+    const state = rawState as State
     await auth.grantAuth(code, state.redirectUrl, state.affCode, state.platform || 'google')
     state.target = state.target || '/bookmarks'
     loading.value = false

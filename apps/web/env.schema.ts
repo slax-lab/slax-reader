@@ -20,6 +20,7 @@ export const extensionsEnvSchema = baseEnvSchema.extend({
 // 网页环境变量 Schema（含 fork 专属的 Stripe 付费相关变量）
 export const dwebEnvSchema = baseEnvSchema.extend({
   DWEB_API_BASE_URL: z.string().startsWith('http'),
+  DESKTOP_AUTH_ENABLED: z.enum(['true', 'false']).default('false'),
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1),
   APPLE_OAUTH_CLIENT_ID: z.string().optional(),
   TURNSTILE_SITE_KEY: z.string().optional(),

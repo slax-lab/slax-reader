@@ -3,7 +3,32 @@
     "local_upload": "本地上传",
     "page_spacing": "显示页间距",
     "original_colors": "原色",
-    "reader": "PDF 阅读器", "controls": "PDF 阅读控制", "previous": "上一页", "next": "下一页", "page": "页码", "fit": "适合宽度", "zoom_out": "缩小", "zoom_in": "放大", "loading": "正在加载 PDF…", "retry": "重试", "load_failed": "无法打开此 PDF，请重试或上传有效文件。", "password": "暂不支持密码保护的 PDF。", "highlight": "划线", "remove_highlight": "删除划线", "comment": "评论", "ask_ai": "问 AI", "selection_actions": "选中文字操作", "selection_invalid": "无法定位选中文字，请重新选择。", "text_pending": "正在提取 PDF 文字以供 AI 分析…", "text_empty": "暂无可分析文字，扫描件仍可正常预览。", "text_failed": "PDF 文字提取失败，仍可正常预览文件。", "quote_not_found": "未能在 PDF 中定位这段引用。", "upload": "上传 PDF", "upload_limit": "单个 PDF，最大 50 MiB", "invalid_file": "请选择 PDF 文件。", "upload_failed": "PDF 上传失败，请重试。"
+    "reader": "PDF 阅读器",
+    "controls": "PDF 阅读控制",
+    "previous": "上一页",
+    "next": "下一页",
+    "page": "页码",
+    "fit": "适合宽度",
+    "zoom_out": "缩小",
+    "zoom_in": "放大",
+    "loading": "正在加载 PDF…",
+    "retry": "重试",
+    "load_failed": "无法打开此 PDF，请重试或上传有效文件。",
+    "password": "暂不支持密码保护的 PDF。",
+    "highlight": "划线",
+    "remove_highlight": "删除划线",
+    "comment": "评论",
+    "ask_ai": "问 AI",
+    "selection_actions": "选中文字操作",
+    "selection_invalid": "无法定位选中文字，请重新选择。",
+    "text_pending": "正在提取 PDF 文字以供 AI 分析…",
+    "text_empty": "暂无可分析文字，扫描件仍可正常预览。",
+    "text_failed": "PDF 文字提取失败，仍可正常预览文件。",
+    "quote_not_found": "未能在 PDF 中定位这段引用。",
+    "upload": "上传 PDF",
+    "upload_limit": "单个 PDF，最大 50 MiB",
+    "invalid_file": "请选择 PDF 文件。",
+    "upload_failed": "PDF 上传失败，请重试。"
   },
   "common": {
     "app": {
@@ -1418,5 +1443,20 @@
     "invalid": "此 KOC 邀请已失效。",
     "received": "你已经领取过 KOC 推荐奖励。",
     "unavailable": "当前订阅暂时无法领取此奖励，可稍后重新确认。"
+  },
+  "desktop_auth": {
+    "title": "授权 Slax Reader for Mac",
+    "description": "允许 Mac 客户端使用这个 Slax Reader 账号。",
+    "loading": "正在加载…",
+    "authorize": "授权此账号",
+    "open": "打开 Slax Reader",
+    "ready": "授权已准备好，请打开 Slax Reader 继续。",
+    "expired": "本次授权已过期，请重新开始。",
+    "restart": "重新授权",
+    "switch": "使用其他账号",
+    "cancel": "取消",
+    "failed": "暂时无法完成授权，请重试。",
+    "changed": "登录账号已变更，请核对此账号后重新授权。",
+    "invalid": "Mac 授权请求无效或暂不可用，请从 Mac 客户端重新发起。"
   }
 }

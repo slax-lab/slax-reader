@@ -4,6 +4,8 @@ enum StatusCode {
 
 enum RESTMethodPath {
   LOGIN = '/v1/user/login',
+  DESKTOP_AUTH_CODE = '/v1/auth/desktop/code',
+  DESKTOP_AUTH_EXCHANGE = '/v1/auth/desktop/exchange',
   ME = '/v1/user/me',
   BOOKMARK_EXISTS = '/v1/bookmark/exists',
   ADD_BOOKMARK = '/v1/bookmark/add',

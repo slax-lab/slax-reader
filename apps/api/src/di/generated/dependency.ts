@@ -34,6 +34,7 @@ import { CollectionRepo } from '../../infra/repository/dbCollection'
 import { LogsService } from '../../domain/logs'
 import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
 import { LogsRepo } from '../../infra/repository/dbLogs'
+import { DesktopAuthRepo } from '../../infra/repository/dbDesktopAuth'
 import { BookmarkService } from '../../domain/bookmark'
 import { LabRepo } from '../../infra/repository/dbLab'
 import { MediaBodyService } from '../../domain/mediaBody'
@@ -69,6 +70,7 @@ import { BookmarkOrchestrator } from '../../domain/orchestrator/bookmark'
 import { BookmarkAddOrchestrator } from '../../domain/orchestrator/bookmarkAdd'
 import { UrlParserHandler } from '../../domain/orchestrator/urlParser'
 import { CollectionOrchestrator } from '../../domain/orchestrator/collection'
+import { DesktopAuthService } from '../../domain/desktopAuth'
 import { MarkOrchestrator } from '../../domain/orchestrator/mark'
 import { DashboardService } from '../../domain/dashboard'
 import { ShareOrchestrator } from '../../domain/orchestrator/share'
@@ -95,6 +97,7 @@ import { ApiKeyController } from '../../handler/http/apiKeyController'
 import { BookmarkController } from '../../handler/http/bookmarkController'
 import { CallbackController } from '../../handler/http/callbackController'
 import { CollectionController } from '../../handler/http/collectionController'
+import { DesktopAuthController } from '../../handler/http/desktopAuthController'
 import { EventsController } from '../../handler/http/eventsController'
 import { ImageController } from '../../handler/http/imageController'
 import { MarkController } from '../../handler/http/markController'
@@ -164,6 +167,10 @@ container.register(CrawlService, {
 
 container.register(DashboardService, {
   useFactory: container => new DashboardService(container.resolve(LogsRepo), container.resolve(BookmarkRepo))
+})
+
+container.register(DesktopAuthService, {
+  useFactory: container => new DesktopAuthService(container.resolve(DesktopAuthRepo), container.resolve(UserRepo))
 })
 
 container.register(EmailService, {
@@ -551,6 +558,10 @@ container.register(CollectionRepo, {
   useFactory: container => new CollectionRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
 
+container.register(DesktopAuthRepo, {
+  useFactory: container => new DesktopAuthRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
+})
+
 container.register(LabRepo, {
   useFactory: container => new LabRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
@@ -661,6 +672,10 @@ container.register(CallbackController, {
 
 container.register(CollectionController, {
   useFactory: container => new CollectionController(container.resolve(CollectionService), container.resolve(CollectionOrchestrator))
+})
+
+container.register(DesktopAuthController, {
+  useFactory: container => new DesktopAuthController(container.resolve(DesktopAuthService))
 })
 
 container.register(EventsController, {

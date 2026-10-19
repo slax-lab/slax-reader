@@ -71,6 +71,10 @@
     "./pdf": {
       "types": "./src/pdf.ts",
       "default": "./src/pdf.ts"
+    },
+    "./desktop-auth": {
+      "types": "./src/desktop-auth.ts",
+      "default": "./src/desktop-auth.ts"
     }
   },
   "scripts": {

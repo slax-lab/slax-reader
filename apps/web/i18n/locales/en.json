@@ -3,7 +3,32 @@
     "local_upload": "Local upload",
     "page_spacing": "Show page gaps",
     "original_colors": "Original colors",
-    "reader": "PDF reader", "controls": "PDF controls", "previous": "Previous page", "next": "Next page", "page": "Page", "fit": "Fit width", "zoom_out": "Zoom out", "zoom_in": "Zoom in", "loading": "Loading PDF…", "retry": "Retry", "load_failed": "Unable to open this PDF. Retry or upload a valid file.", "password": "Password-protected PDFs are not supported yet.", "highlight": "Highlight", "remove_highlight": "Remove highlight", "comment": "Comment", "ask_ai": "Ask AI", "selection_actions": "Selected text actions", "selection_invalid": "Unable to locate the selected text. Please select it again.", "text_pending": "Preparing PDF text for AI…", "text_empty": "No analyzable text is available. Scanned PDFs can still be viewed.", "text_failed": "PDF text extraction failed. You can still view the file.", "quote_not_found": "This passage could not be located in the PDF.", "upload": "Upload PDF", "upload_limit": "One PDF, up to 50 MiB", "invalid_file": "Choose a PDF file.", "upload_failed": "PDF upload failed. Please retry."
+    "reader": "PDF reader",
+    "controls": "PDF controls",
+    "previous": "Previous page",
+    "next": "Next page",
+    "page": "Page",
+    "fit": "Fit width",
+    "zoom_out": "Zoom out",
+    "zoom_in": "Zoom in",
+    "loading": "Loading PDF…",
+    "retry": "Retry",
+    "load_failed": "Unable to open this PDF. Retry or upload a valid file.",
+    "password": "Password-protected PDFs are not supported yet.",
+    "highlight": "Highlight",
+    "remove_highlight": "Remove highlight",
+    "comment": "Comment",
+    "ask_ai": "Ask AI",
+    "selection_actions": "Selected text actions",
+    "selection_invalid": "Unable to locate the selected text. Please select it again.",
+    "text_pending": "Preparing PDF text for AI…",
+    "text_empty": "No analyzable text is available. Scanned PDFs can still be viewed.",
+    "text_failed": "PDF text extraction failed. You can still view the file.",
+    "quote_not_found": "This passage could not be located in the PDF.",
+    "upload": "Upload PDF",
+    "upload_limit": "One PDF, up to 50 MiB",
+    "invalid_file": "Choose a PDF file.",
+    "upload_failed": "PDF upload failed. Please retry."
   },
   "common": {
     "app": {
@@ -1416,5 +1441,20 @@
     "invalid": "This KOC invitation is no longer valid.",
     "received": "You have already received a KOC reward.",
     "unavailable": "This reward is unavailable for your current subscription. You can check again later."
+  },
+  "desktop_auth": {
+    "title": "Authorize Slax Reader for Mac",
+    "description": "Allow the Mac app to use this Slax Reader account.",
+    "loading": "Loading…",
+    "authorize": "Authorize this account",
+    "open": "Open Slax Reader",
+    "ready": "Your authorization is ready. Open Slax Reader to continue.",
+    "expired": "This authorization has expired. Start again to continue.",
+    "restart": "Start authorization again",
+    "switch": "Use another account",
+    "cancel": "Cancel",
+    "failed": "Authorization could not be completed. Please try again.",
+    "changed": "The signed-in account changed. Review this account and authorize again.",
+    "invalid": "This Mac authorization request is invalid or unavailable. Start again in Slax Reader for Mac."
   }
 }

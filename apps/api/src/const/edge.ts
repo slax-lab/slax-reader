@@ -8,6 +8,7 @@ export interface EdgeIdentity {
   email: string
   lang: string
   audience: 'reader'
+  client?: 'macos'
 }
 
 export const encodeEdgeIdentity = (id: EdgeIdentity): string => {

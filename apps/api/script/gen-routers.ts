@@ -40,6 +40,7 @@ const routeConfigurations: RouteConfig[] = [
       'src/handler/http/syncController.ts',
       'src/handler/http/promotionController.ts',
       'src/handler/http/apiKeyController.ts',
+      'src/handler/http/desktopAuthController.ts',
       'src/handler/http/eventsController.ts',
       'src/handler/http/metricsController.ts',
       'src/handler/http/youtubeArticleController.ts',

@@ -324,7 +324,12 @@ export class UserService {
     const info = await this.userRepo.getInfoByUserId(ctx.getUserId())
     if (!info || info.deleted_at) throw UserAccountDeletedError()
     const userToken = new Hashid(ctx.env).encodeId(ctx.getUserId())
-    return await new Auth(ctx.env).sign({ id: String(userToken), lang: info.lang, email: info.email })
+    return await new Auth(ctx.env).sign({
+      id: String(userToken),
+      lang: info.lang,
+      email: info.email,
+      ...(ctx.get('sessionClient') === 'macos' ? { client: 'macos' as const } : {})
+    })
   }
 
   /**

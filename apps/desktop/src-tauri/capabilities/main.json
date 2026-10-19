@@ -1,0 +1,1 @@
+{"identifier":"main","description":"App chrome only; article frames have no native capability","windows":["main"],"webviews":["main"],"permissions":["core:window:allow-start-dragging","core:event:allow-listen","core:event:allow-unlisten"]}

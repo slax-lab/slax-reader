@@ -1,0 +1,34 @@
+{
+  "local": {
+    "channel": "local",
+    "identifier": "app.slax.reader.mac.local",
+    "productName": "Slax Reader Local",
+    "apiOrigin": "http://localhost:8787",
+    "webOrigin": "http://localhost:3000",
+    "callbackScheme": "slaxreader-mac-local"
+  },
+  "preview": {
+    "channel": "dev",
+    "identifier": "app.slax.reader.mac.preview",
+    "productName": "Slax Reader Preview",
+    "apiOrigin": "https://reader-api.slax.dev",
+    "webOrigin": "https://r.slax.dev",
+    "callbackScheme": "slaxreader-mac-preview"
+  },
+  "beta": {
+    "channel": "beta",
+    "identifier": "app.slax.reader.mac.beta",
+    "productName": "Slax Reader Beta",
+    "apiOrigin": "https://api-reader-beta.slax.com",
+    "webOrigin": "https://r-beta.slax.com",
+    "callbackScheme": "slaxreader-mac-beta"
+  },
+  "main": {
+    "channel": "main",
+    "identifier": "app.slax.reader.mac",
+    "productName": "Slax Reader",
+    "apiOrigin": "https://api-reader.slax.com",
+    "webOrigin": "https://r.slax.com",
+    "callbackScheme": "slaxreader-mac"
+  }
+}

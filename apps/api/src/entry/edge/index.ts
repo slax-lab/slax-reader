@@ -95,7 +95,8 @@ async function forward(env: Env, request: Request, mode: ForwardMode, ctx: Conte
           enId: ctx.getEncodeUserId(),
           email: ctx.getUserEmail(),
           lang: ctx.getlang(),
-          audience: 'reader'
+          audience: 'reader',
+          ...(ctx.get('sessionClient') === 'macos' ? { client: 'macos' as const } : {})
         })
       )
     }

@@ -1,0 +1,37 @@
+name: Desktop CI
+on:
+  pull_request:
+    paths: ['apps/desktop/**', 'packages/reader-embed/**', 'packages/contracts/**', 'tooling/desktop.mjs', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', '.github/workflows/desktop-ci.yml']
+  push:
+    branches: [dev, beta, main]
+    paths: ['apps/desktop/**', 'packages/reader-embed/**', 'packages/contracts/**', 'tooling/desktop.mjs', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', '.github/workflows/desktop-ci.yml']
+permissions:
+  contents: read
+concurrency:
+  group: desktop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  desktop:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm desktop -- build:local --debug
+      - run: pnpm desktop -- check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: slax-reader-desktop-unsigned-${{ github.sha }}
+          path: |
+            apps/desktop/target/debug/bundle/macos/*.app
+            apps/desktop/.artifacts/manifest-local.json
