@@ -67,11 +67,12 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
   const rssState = useSyncExternalStore(rss.subscribe, rss.getSnapshot);
   const showError = useCallback((reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)), []);
   const [rowsReady, setRowsReady] = useState(false);
+  useEffect(() => {setRowsReady(false);}, [repositories, sort]);
   useEffect(() => {
-    setRowsReady(false);
     if (!repositories) {setRows([]); return;}
+    if (!clockActive) return;
     return repositories.watchBookmarks(sort, values => {setRows(values); setRowsReady(true);}, showError);
-  }, [repositories, sort, showError, setRows]);
+  }, [repositories, sort, clockActive, showError, setRows]);
   useEffect(() => repositories?.watchCollections(setCollections, showError), [repositories, showError]);
   useEffect(() => repositories?.watchUser(values => setUser(values[0] ?? {}), showError), [repositories, showError]);
   useEffect(() => repositories?.watchSubscription(values => setSubscription(values[0] ?? null), showError), [repositories, showError]);
@@ -88,7 +89,8 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
   }, [repositories, inboxScroll.reset]);
   const selectCollection = useCallback((id: string | null) => applyCollectionSelection(collectionSelection.select(id, collections)), [applyCollectionSelection, collectionSelection, collections]);
   useEffect(() => {void applyCollectionSelection(collectionSelection.reconcile(collections));}, [applyCollectionSelection, collectionSelection, collections]);
-  useEffect(() => {setCollectionRows([]); if (active) return repositories?.watchCollectionBookmarks(active.ownerId, setCollectionRows, showError);}, [repositories, active?.ownerId, showError, setCollectionRows]);
+  useEffect(() => {setCollectionRows([]);}, [repositories, active?.ownerId, setCollectionRows]);
+  useEffect(() => {if (active && clockActive) return repositories?.watchCollectionBookmarks(active.ownerId, setCollectionRows, showError);}, [repositories, active?.ownerId, clockActive, showError, setCollectionRows]);
   const collectionExpiry = active ? parseSourceTimestamp(active.subscriptionEndTime) : NaN;
   const subscriptionExpiry = parseSourceTimestamp(String(subscription?.subscription_end_time ?? subscription?.end_time ?? ''));
   useFocusEffect(useCallback(() => {
