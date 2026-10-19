@@ -32,6 +32,17 @@ export function compareMobileVersion(previous, current) {
   return {changed: true, errors}
 }
 
+export function validateMobileAppConfig(source) {
+  const errors = []
+  const platforms = /platforms:\s*\[([^\]]*)\]/.exec(source)?.[1] ?? ''
+  if (!/['"]android['"]/.test(platforms))
+    errors.push('apps/mobile/app.config.ts platforms must include android')
+  const extensions = /appExtensions:\s*\[\{([\s\S]*?)\}\]/.exec(source)?.[1] ?? ''
+  if (!/targetName:\s*['"]SlaxShare['"]/.test(extensions))
+    errors.push('apps/mobile/app.config.ts must declare targetName SlaxShare in appExtensions')
+  return errors
+}
+
 function validateEasConfiguration(errors) {
   try {
     const eas = JSON.parse(readFileSync(join(root, 'apps/mobile/eas.json'), 'utf8'))
@@ -44,11 +55,7 @@ function validateEasConfiguration(errors) {
   }
 
   try {
-    const appConfig = readFileSync(join(root, 'apps/mobile/app.config.ts'), 'utf8')
-    if (!appConfig.includes('appExtensions') || !appConfig.includes('SlaxShare'))
-      errors.push('apps/mobile/app.config.ts must declare the SlaxShare appExtensions target')
-    if (!appConfig.includes('android'))
-      errors.push('apps/mobile/app.config.ts must include the Android platform')
+    errors.push(...validateMobileAppConfig(readFileSync(join(root, 'apps/mobile/app.config.ts'), 'utf8')))
   } catch {
     errors.push('apps/mobile/app.config.ts is missing')
   }

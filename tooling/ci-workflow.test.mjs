@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { selectScopes, scopeNames } from './ci-scope.mjs'
-import { compareMobileVersion } from './mobile-eas-release.mjs'
+import { compareMobileVersion, validateMobileAppConfig } from './mobile-eas-release.mjs'
 
 const require = createRequire(import.meta.url)
 const { load } = createRequire(require.resolve('rulesync'))('js-yaml')
@@ -253,9 +253,31 @@ test('mobile EAS release preflight requires an increasing build with consistent 
   assert.match(compareMobileVersion(base, {...base, version: '1.0.24', buildNumber: 772, previousBuildNumber: 771}).errors.join('\n'), /must not decrease/)
 })
 
+test('mobile EAS preflight reads declared platforms and the SlaxShare target, not arbitrary substrings', () => {
+  assert.deepEqual(validateMobileAppConfig(`
+    platforms: ['ios', 'android'],
+    extra: { eas: { build: { experimental: { ios: {
+      appExtensions: [{ targetName: 'SlaxShare', bundleIdentifier: 'app.slax.reader.share' }],
+    } } } } },
+  `), [])
+  assert.match(validateMobileAppConfig(`
+    platforms: ['ios'],
+    extra: { eas: { build: { experimental: { ios: {
+      appExtensions: [{ targetName: 'OtherExtension' }],
+    } } } } },
+  `).join('\n'), /android/)
+  assert.match(validateMobileAppConfig(`
+    platforms: ['ios', 'android'],
+    extra: { eas: { build: { experimental: { ios: {
+      appExtensions: [{ targetName: 'OtherExtension' }],
+    } } } } },
+  `).join('\n'), /SlaxShare/)
+})
+
 test('mobile EAS workflow gates the cloud builds on preflight, Mobile CI, and no auto-submit', () => {
   const w = workflow('mobile-eas-build')
   assert.deepEqual(w.on.push.branches, ['dev'])
+  assert.match(w.concurrency.group, /github\.sha/)
   assert.equal(w.jobs.preflight.outputs.changed, '${{ steps.check.outputs.changed }}')
   assert.equal(w.jobs.preflight.steps[0].with['fetch-depth'], 0)
   const check = w.jobs.preflight.steps.find(step => step.id === 'check')
