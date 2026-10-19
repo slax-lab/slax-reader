@@ -47,6 +47,8 @@ function validateEasConfiguration(errors) {
     const appConfig = readFileSync(join(root, 'apps/mobile/app.config.ts'), 'utf8')
     if (!appConfig.includes('appExtensions') || !appConfig.includes('SlaxShare'))
       errors.push('apps/mobile/app.config.ts must declare the SlaxShare appExtensions target')
+    if (!appConfig.includes('android'))
+      errors.push('apps/mobile/app.config.ts must include the Android platform')
   } catch {
     errors.push('apps/mobile/app.config.ts is missing')
   }

@@ -253,7 +253,7 @@ test('mobile EAS release preflight requires an increasing build with consistent 
   assert.match(compareMobileVersion(base, {...base, version: '1.0.24', buildNumber: 772, previousBuildNumber: 771}).errors.join('\n'), /must not decrease/)
 })
 
-test('mobile EAS workflow gates the cloud build on preflight, Mobile CI, and no auto-submit', () => {
+test('mobile EAS workflow gates the cloud builds on preflight, Mobile CI, and no auto-submit', () => {
   const w = workflow('mobile-eas-build')
   assert.deepEqual(w.on.push.branches, ['dev'])
   assert.equal(w.jobs.preflight.outputs.changed, '${{ steps.check.outputs.changed }}')
@@ -267,6 +267,8 @@ test('mobile EAS workflow gates the cloud build on preflight, Mobile CI, and no 
   assert.match(w.jobs.eas.if, /needs\.preflight\.outputs\.changed == 'true'/)
   assert.match(w.jobs.eas.if, /needs\.mobile\.result == 'success'/)
   const build = w.jobs.eas.steps.find(step => step.run?.includes('eas build'))
+  assert.match(build.run, /--platform all/)
+  assert.doesNotMatch(build.run, /--platform ios/)
   assert.match(build.run, /--no-wait/)
   assert.doesNotMatch(build.run, /--auto-submit/)
   assert.equal(build['working-directory'], 'apps/mobile')

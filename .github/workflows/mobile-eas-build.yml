@@ -65,11 +65,11 @@ jobs:
         with:
           eas-version: 24.13.0
           token: ${{ secrets.EXPO_TOKEN }}
-      - name: Trigger EAS cloud build
+      - name: Trigger EAS cloud builds
         working-directory: apps/mobile
-        # Official EAS CI pattern: exit after submission; EAS performs the build.
-        run: eas build --platform ios --profile production --non-interactive --no-wait
+        # Official EAS CI pattern: exit after submission; EAS performs the builds.
+        run: eas build --platform all --profile production --non-interactive --no-wait
       - name: Record trigger
         run: |
-          echo "Triggered EAS build for ${{ needs.preflight.outputs.version }} (${{ needs.preflight.outputs.build }})." >> "$GITHUB_STEP_SUMMARY"
-          echo "The build continues on EAS; this workflow does not wait for it." >> "$GITHUB_STEP_SUMMARY"
+          echo "Triggered EAS builds for ${{ needs.preflight.outputs.version }} (${{ needs.preflight.outputs.build }}) on iOS and Android." >> "$GITHUB_STEP_SUMMARY"
+          echo "The builds continue on EAS; this workflow does not wait for them." >> "$GITHUB_STEP_SUMMARY"
