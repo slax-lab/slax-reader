@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 const root = new URL("../", import.meta.url);
 for (const [program, args] of [
+  ["node", ["tooling/assets.mjs"]],
   ["cargo", ["fmt", "--all", "--check"]],
   [
     "cargo",

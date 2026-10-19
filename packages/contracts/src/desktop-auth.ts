@@ -44,6 +44,6 @@ export function desktopConsentPath(intent: DesktopAuthIntent): string {
   return '/login?' + queryString({client: intent.client, code_challenge: intent.code_challenge, state: intent.state})
 }
 export function desktopCallback(code: string, state: string, environment: DesktopEnvironment = 'main'): string {
-  if (!isDesktopOpaque(code) || !isDesktopOpaque(state) || !Object.hasOwn(DESKTOP_CALLBACK_SCHEMES, environment)) throw new Error('Invalid desktop authorization')
+  if (!isDesktopOpaque(code) || !isDesktopOpaque(state) || !Object.prototype.hasOwnProperty.call(DESKTOP_CALLBACK_SCHEMES, environment)) throw new Error('Invalid desktop authorization')
   return DESKTOP_CALLBACK_SCHEMES[environment] + '://auth?' + queryString({code, state})
 }
