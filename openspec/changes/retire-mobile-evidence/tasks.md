@@ -16,8 +16,8 @@
 ## 3. Delete artifacts and archive completed changes
 
 - [x] 3.1 Delete the mobile evidence directory from the current tree.
-- [ ] 3.2 Record the user's manual acceptance of `expo-mobile-migration` and its evidence retirement, then archive it together with the completed Mobile application changes.
-- [ ] 3.3 Keep incomplete or unaccepted Mobile changes active and record any deferred archive decisions in the pull request.
+- [x] 3.2 Record the user's manual acceptance of `expo-mobile-migration` and its evidence retirement, then archive it together with the completed Mobile application changes.
+- [x] 3.3 Keep incomplete or unaccepted Mobile changes active and record any deferred archive decisions in the pull request.
 
 ## 4. Final verification
 
