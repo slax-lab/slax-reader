@@ -1,0 +1,159 @@
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.idea/
+.vscode/
+
+# Node dependencies
+# A trailing slash matches directories only, so a symlink named node_modules
+# (e.g. one created inside a git worktree to reuse the main checkout's deps)
+# would be committed and then break `pnpm install` in CI.
+node_modules
+
+# pnpm's in-project fallback store. When the home store is not writable — an
+# agent sandbox that grants write access only to the project, or a container
+# with just the project bind-mounted — pnpm creates its store inside the project
+# instead (see pnpm's storeDir setting). A `pnpm install` in a worktree then
+# leaves a ~165 MB store at the repository root. `node_modules/.pnpm-store`,
+# pnpm's other fallback location, is already covered by `node_modules` above.
+.pnpm-store/
+
+# API local configuration, generated deployments, and runtime state
+.vars.temp
+.wrangler
+.deploy/
+.worker-types-*/
+.worker-types-test-*/
+.apple-certs-*/
+.tmp-root-deployment-*/
+.tmp-setup-backend*/
+.tmp-root-tooling-*/
+deploy/cloudflare/*.local.toml
+deploy/local/.generated/
+deploy/local/powersync-local/*private*.json
+deploy/local/powersync-local/dev-jwks-public.json
+deploy/local/powersync-local/compose.env
+apps/api/src/infra/repository/db/*/generated/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# Logs
+*.log
+logs/
+
+# Env files / secrets -- never commit these, this repo is public
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+# Deploy examples are tracked; real local deploy files stay ignored.
+deploy/*/.env
+deploy/*/.env.*
+!.env.example
+!.env.sample
+!.dev.vars.example
+!deploy/*/.env.example
+# Web and Extension share deploy/local with the API; only their examples are tracked.
+!deploy/local/.env.web.example
+!deploy/local/.env.extension.example
+
+# Kimi Code CLI Tower mode local tooling state
+.tower/
+
+# Legacy task-worktree location, superseded by .local/worktrees/. Kept because
+# old worktree directories and scratch files still live here on some machines.
+.worktrees/
+
+# Local-only content: tutorials, drafts, scratch notes, task worktrees (under
+# .local/worktrees/), and other material that is useful on one machine but must
+# never be published. Keep such files here instead of adding one-off names to
+# .git/info/exclude, so the ignore list stays reviewable in the repository
+# rather than living in each clone.
+.local/
+
+# Agent tooling: personal/local files (generated artifacts ARE committed on purpose)
+rulesync.local.jsonc
+.rulesync.local/
+.rulesync/rules/.curated/
+.rulesync/rules/*.local.md
+AGENTS.local.md
+CLAUDE.local.md
+.claude/settings.local.json
+.kimi-code/local.toml
+
+# Operator-owned API deployment configuration
+deploy/local/api.toml
+
+# Mobile operator inputs stay outside Expo's regenerated native projects.
+deploy/mobile/*
+!deploy/mobile/README.md
+!deploy/mobile/.env.example
+
+# Legacy local config paths remain ignored during migration
+deploy/cloudflare/api.toml
+deploy/cloudflare/.generated/
+proxy
+apps/mobile/ios/
+apps/mobile/android/
+
+# EAS Build upload scope
+#
+# EAS archives from the Git repository root. While this file exists, EAS does
+# not consult any nested .gitignore (it uses .easignore instead), so generated
+# output from every workspace has to be listed here explicitly.
+#
+# Only apps/mobile and the shared packages it imports are needed to build the
+# mobile app. Excluding the other workspaces is safe: pnpm install still
+# resolves the remaining workspace projects from the same frozen lockfile.
+
+# Rust build output from apps/desktop. apps/desktop/.gitignore carries this
+# rule for Git, but EAS never reads it while .easignore exists.
+target/
+
+# Workspaces the mobile build never consumes.
+apps/api/
+apps/cli/
+apps/desktop/
+apps/extension/
+apps/web/
+
+# Repository documentation, specs, CI and agent tooling.
+docs/
+openspec/
+.github/
+.rulesync/
+.agents/
+.claude/
+.codex/
+tests/
+deploy/
+AGENTS.md
+CLAUDE.md
+DESIGN.md
+REVIEW.md
+README.md
+CODE_OF_CONDUCT.md
+
+# Mobile build output and local-only test inputs. The PDF bundle is regenerated
+# by the eas-build-post-install hook before the app is bundled.
+apps/mobile/.expo/
+apps/mobile/dist/
+apps/mobile/tests/
+apps/mobile/fixtures/
+apps/mobile/assets/pdf/bundle.json
+
+# Signing material is provided through EAS credentials and secrets.
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+GoogleService-Info.plist
+google-services.json

@@ -1,0 +1,12 @@
+{
+  "cli": { "version": ">= 24.13.0", "appVersionSource": "local" },
+  "build": {
+    "production": { "environment": "production" }
+  },
+  "submit": {
+    "production": {
+      "ios": { "ascAppId": "6596730998" },
+      "android": { "track": "internal" }
+    }
+  }
+}

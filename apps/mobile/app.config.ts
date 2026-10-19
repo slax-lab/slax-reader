@@ -61,6 +61,24 @@ const config: ExpoConfig = {
     ['expo-media-library', {photosPermission: false, savePhotosPermission: 'Slax Reader saves images you choose from articles to your photo library.', granularPermissions: []}],
     ...providerPlugins,
   ],
+  extra: {
+    eas: {
+      projectId: 'f8949909-ddbf-49f8-a42d-9e70a9c77fda',
+      ...(!uiFixture ? {
+        build: {
+          experimental: {
+            ios: {
+              appExtensions: [{
+                targetName: 'SlaxShare',
+                bundleIdentifier: 'app.slax.reader.share',
+                entitlements: {'com.apple.security.application-groups': ['group.app.slax.reader']},
+              }],
+            },
+          },
+        },
+      } : {}),
+    },
+  },
 };
 
 export default config;
