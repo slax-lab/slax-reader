@@ -11,10 +11,10 @@
 </template>
 
 <script setup lang="ts">
-import { useBookmarkFork } from '~/composables/useBookmarkFork'
 import { showLoginModal } from '~/components/Modal'
-import { useUserStore } from '~/stores/user'
 import Toast, { ToastType } from '~/components/Toast'
+import { useBookmarkFork } from '~/composables/useBookmarkFork'
+import { useUserStore } from '~/stores/user'
 
 const props = defineProps<{ bookmarkUid: string; canFork?: boolean; isOwner?: boolean }>()
 const { t } = useI18n()

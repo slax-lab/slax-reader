@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
 import SnapshotForkSource from '~~/app/components/Snapshot/SnapshotForkSource.vue'
+
 import { mountWithApp } from '~~/tests/setup/mount'
+import { describe, expect, it } from 'vitest'
 
 describe('SnapshotForkSource', () => {
   it('links separately to the source Reader snapshot and displays the permitted source name', () => {

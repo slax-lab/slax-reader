@@ -1,7 +1,7 @@
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mountWithApp } from '~~/tests/setup/mount'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { post, store, navigate, login, toast } = vi.hoisted(() => ({
   post: vi.fn(),
