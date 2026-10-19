@@ -48,9 +48,19 @@ export interface ShareBookmarkDetail extends Omit<Legacy.ShareBookmarkDetail, 'm
   tags: BookmarkTag[]
 }
 export interface CollectionBookmarkDetail extends Omit<Legacy.CollectionBookmarkDetail, 'marks' | 'tags'>, BaseBookmarkDetail {}
+
+/** Source identity is populated only when the source owner's display policy permits it. */
+export interface BookmarkForkInfo {
+  bookmark_uid: string
+  display_name?: string | null
+  user_id?: number | null
+}
+
 export interface SnapshotBookmarkDetail extends Omit<Legacy.SnapshotBookmarkDetail, 'marks' | 'tags'> {
   marks: MarkDetail
   tags: BookmarkTag[]
+  can_fork?: boolean
+  fork_info?: BookmarkForkInfo | null
 }
 
 export type SnapshotMetadata = Omit<SnapshotBookmarkDetail, 'content' | 'marks'> & {

@@ -62,6 +62,9 @@
       "edit": "修改",
       "edit_title": "修改标题",
       "feedback": "反馈",
+      "fork": "转存",
+      "forking": "转存中…",
+      "fork_description": "保存为私人副本",
       "report_issue": "反馈问题",
       "forward": "转发",
       "like": "点赞",
@@ -78,6 +81,7 @@
         "not_completed": "未完成支付"
       },
       "refetch": "重新抓取",
+      "retry": "重试",
       "remove_subscribe": "移除",
       "reply": "回复",
       "resubscribe": "重新订阅",
@@ -143,6 +147,8 @@
       "delete_tag_failed": "删除标签失败",
       "editname_success": "标题成功编辑",
       "fetch_error": "请求失败",
+      "fork_failed": "转存失败",
+      "fork_success": "已保存私人副本",
       "get_tag_list_failed": "获取标签列表失败",
       "invalid_invite_code": "无效邀请码",
       "operate_failed": "操作失败",
@@ -261,7 +267,10 @@
       "bookmarks_source": "书签来源："
     },
     "snapshot_article_source": {
-      "label": "来源："
+      "label": "来源：",
+      "fork_label": "转存：",
+      "fork_link_label": "转存来源：{name}",
+      "anonymous_source": "共享文章"
     },
     "chat_tips_message": {
       "generate_question_title": "读者最关心："

@@ -9,15 +9,16 @@
       <template #topbar>
         <SnapshotTopBar>
           <template #left>
-            <button class="app-name" @click="navigateTo('/')">
+            <button class="app-name" :aria-label="$t('common.app.name')" @click="navigateTo('/')">
               <img src="@images/icon-logo-bookmark.png" width="22" height="22" alt="" />
-              {{ $t('common.app.name') }}
+              <span class="app-name-text">{{ $t('common.app.name') }}</span>
             </button>
           </template>
           <template #theme-switcher>
             <ClientOnly><ThemeSwitcher /></ClientOnly>
           </template>
           <template #right>
+            <SnapshotForkButton :bookmark-uid="bookmarkUid" :can-fork="detail.can_fork" :is-owner="isOwner" />
             <SnapshotSharePopover :bookmark-uid="bookmarkUid" :can-manage-share="isOwner" :twitter-text="twitterShareText" />
             <div v-if="menuLoading" class="i-svg-spinners:90-ring w-1em text-txt"></div>
             <SnapshotMoreMenu v-else-if="moreMenuActions.length" :actions="moreMenuActions" @action="moreMenuClick" />
@@ -187,6 +188,7 @@ import BookmarkArticleLocalFirst from '@/components/Article/BookmarkArticleLocal
 import SnapshotMobileNotesEntry from '@/components/Snapshot/SnapshotMobileNotesEntry.vue'
 import ThemeSwitcher from '~/components/global/ThemeSwitcher.vue'
 import SnapshotDetailLayout from '~/components/Layouts/SnapshotDetailLayout.vue'
+import SnapshotForkButton from '~/components/Snapshot/SnapshotForkButton.vue'
 import SnapshotSidePanel from '~/components/Layouts/SnapshotSidePanel.vue'
 import PodcastBar from '~/components/Snapshot/PodcastBar.vue'
 import PodcastTranslation from '~/components/Snapshot/PodcastTranslation.vue'
@@ -1068,11 +1070,15 @@ renderServerData()
 
 <style lang="scss" scoped>
 @media (max-width: 768px) {
+  .bookmark-detail :deep(.topbar-right) { gap: 8px; }
   .bookmark-detail.is-pdf :deep(.comment-composer-send),
   .bookmark-detail.is-pdf :deep(.comment-meta-actions button),
   .bookmark-detail.is-pdf :deep(.comment-sub-actions button),
   .bookmark-detail.is-pdf :deep(.side-panel-tab),
   .bookmark-detail.is-pdf :deep(.side-panel-close) { min-height: 44px; min-width: 44px; }
+}
+@media (max-width: 480px) {
+  .bookmark-detail .app-name-text { display: none; }
 }
 .pdf-ai-unavailable { padding: 24px; font-size: var(--slax-fs-aux); line-height: 1.6; color: var(--slax-text-muted); }
 .bookmark-detail {

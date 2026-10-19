@@ -62,6 +62,9 @@
       "edit": "Edit",
       "edit_title": "Edit title",
       "feedback": "Feedback",
+      "fork": "Fork",
+      "forking": "Forking…",
+      "fork_description": "Save a private copy",
       "report_issue": "Report an issue",
       "forward": "Forward",
       "like": "Like",
@@ -78,6 +81,7 @@
         "not_completed": "Payment Not Completed"
       },
       "refetch": "Re-fetch",
+      "retry": "Try again",
       "remove_subscribe": "Remove",
       "reply": "Reply",
       "resubscribe": "Re-subscribe",
@@ -143,6 +147,8 @@
       "delete_tag_failed": "Delete tag failed",
       "editname_success": "Title edited successfully",
       "fetch_error": "Request failed",
+      "fork_failed": "Fork failed",
+      "fork_success": "Private copy saved",
       "get_tag_list_failed": "Get tag list failed",
       "invalid_invite_code": "Invalid invitation code",
       "operate_failed": "Operation failed",
@@ -261,7 +267,10 @@
       "bookmarks_source": "Bookmark source:"
     },
     "snapshot_article_source": {
-      "label": "Source:"
+      "label": "Source:",
+      "fork_label": "Fork:",
+      "fork_link_label": "Fork source: {name}",
+      "anonymous_source": "Shared snapshot"
     },
     "chat_tips_message": {
       "generate_question_title": "You might want to ask..."

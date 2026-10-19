@@ -8,6 +8,7 @@ enum RESTMethodPath {
   BOOKMARK_EXISTS = '/v1/bookmark/exists',
   ADD_BOOKMARK = '/v1/bookmark/add',
   ADD_URL_BOOKMARK = '/v1/bookmark/add_url',
+  BOOKMARK_FORK = '/v1/bookmark/fork',
   DELETE_BOOKMARK = '/v1/bookmark/del',
   TRASH_BOOKMARK = '/v1/bookmark/trash',
   REVERT_BOOKMARK = '/v1/bookmark/trash_revert',

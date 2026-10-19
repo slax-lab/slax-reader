@@ -11,6 +11,7 @@
       />
       <PdfDocumentSource v-if="isPdf && detail.pdf" :pdf="detail.pdf" :url="detail.target_url"
         :site-name="detail.site_name" :host-url="detail.host_url" :author="pdfAuthor" />
+      <SnapshotForkSource v-if="forkInfo" :info="forkInfo" />
       <div v-if="!isPdf || detail.pdf" class="article-divider" />
       <h1 class="article-title" :title="title">{{ title }}</h1>
       <BookmarkTags
@@ -51,6 +52,7 @@ const PdfReader = defineAsyncComponent(() => import('./Pdf/PdfReader.client.vue'
 import BookmarkTags from '~/components/BookmarkTags.vue'
 import SnapshotArticleFooter from '~/components/Snapshot/SnapshotArticleFooter.vue'
 import SnapshotArticleSource from '~/components/Snapshot/SnapshotArticleSource.vue'
+import SnapshotForkSource from '~/components/Snapshot/SnapshotForkSource.vue'
 
 import 'katex/dist/katex.css'
 import { registerComponents } from './CEComponents'
@@ -111,6 +113,7 @@ const bookmarkArticle = ref<HTMLDivElement>()
 const articleDetail = ref<HTMLDivElement>()
 const pdfSelection = shallowRef<ReaderSelection | null>(null)
 const isPdf = computed(() => !!props.detail.pdf || ('type' in props.detail && props.detail.type === 'pdf'))
+const forkInfo = computed(() => 'fork_info' in props.detail ? props.detail.fork_info : null)
 const pdfMetadata = shallowRef<{ author?: string }>()
 const pdfAuthor = computed(() => props.detail.byline?.trim() || pdfMetadata.value?.author)
 watch(() => props.detail.pdf?.document_id, () => { pdfMetadata.value = undefined })
