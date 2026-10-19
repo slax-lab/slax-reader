@@ -1,0 +1,75 @@
+name: Mobile EAS Build
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/contracts/**'
+      - 'packages/reader-embed/**'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - 'tooling/mobile-eas-release.mjs'
+      - '.github/workflows/mobile-eas-build.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-eas-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    if: github.repository == 'slax-lab/slax-reader'
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+      version: ${{ steps.check.outputs.version }}
+      build: ${{ steps.check.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.2
+      - id: check
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: node tooling/mobile-eas-release.mjs
+
+  mobile:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.changed == 'true' }}
+    uses: ./.github/workflows/mobile-ci.yml
+    with:
+      full_validation: true
+
+  eas:
+    needs: [preflight, mobile]
+    if: ${{ needs.preflight.outputs.changed == 'true' && needs.mobile.result == 'success' }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: mobile-eas-${{ needs.preflight.outputs.version }}-${{ needs.preflight.outputs.build }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.2
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: 24.13.0
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Trigger EAS cloud builds
+        working-directory: apps/mobile
+        # Official EAS CI pattern: exit after submission; EAS performs the builds.
+        run: eas build --platform all --profile production --non-interactive --no-wait
+      - name: Record trigger
+        run: |
+          echo "Triggered EAS builds for ${{ needs.preflight.outputs.version }} (${{ needs.preflight.outputs.build }}) on iOS and Android." >> "$GITHUB_STEP_SUMMARY"
+          echo "The builds continue on EAS; this workflow does not wait for them." >> "$GITHUB_STEP_SUMMARY"
