@@ -6,7 +6,7 @@ The former mobile evidence directory is deleted rather than archived in-tree. Th
 
 ## References
 
-Every external reference to the former evidence directory is removed or replaced with a retirement note. Historical material that must remain as a record says that evidence was retired and does not include a path into the deleted directory. Documentation and fixture guides describe the remaining checks and native acceptance limits without presenting retired artifacts as proof.
+Every external reference to the former evidence directory is removed. Files that cannot function without the deleted artifacts—capture executors, their runtime plans, archived-snapshot guard tests, and report bindings—are deleted rather than rewritten with a placeholder path. Native control sources, build drivers, and every check that runs without the artifacts are retained. Documentation and fixture guides describe the remaining checks and native acceptance limits without presenting retired artifacts as proof.
 
 ## Historical OpenSpec changes
 

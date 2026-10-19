@@ -18,7 +18,7 @@ The repository SHALL NOT retain the former mobile evidence directory, the eviden
 #### Scenario: Historical material mentions evidence
 
 - **WHEN** documentation, fixture material, or an archived OpenSpec record refers to the retired evidence
-- **THEN** it records retirement without a path into the deleted directory
+- **THEN** it records retirement without a path or placeholder path into the deleted directory
 
 ### Requirement: External evidence references are removed
 
@@ -31,5 +31,5 @@ Documentation, fixture guidance, tooling, tests, and active OpenSpec changes SHA
 
 #### Scenario: Historical reference cleanup
 
-- **WHEN** a historical fixture plan or report referenced a retired evidence artifact
-- **THEN** the reference is removed or replaced with a retirement note and does not become a broken executable path
+- **WHEN** a historical fixture plan, report, guard test, or capture executor depended on a retired evidence artifact
+- **THEN** the evidence binding and the dependent harness are removed, and no placeholder path is left in executable or plan data

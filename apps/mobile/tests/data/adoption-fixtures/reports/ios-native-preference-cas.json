@@ -231,10 +231,6 @@
     {
       "path": "apps/mobile/modules/slax-legacy/ios/SlaxLegacyModule.swift",
       "sha256": "e5f9ba9b9876201567a2aac59d3d2cc8b3189d43b1140b11fdb980a6c2579ae3"
-    },
-    {
-      "path": "retired-evidence",
-      "sha256": "4be12a8e09a60fc62d03bbb7a0f1e6b185613967177293a3057a046c3a95ff08"
     }
   ],
   "scope": {

@@ -10,7 +10,7 @@ The remaining cases perform an actual native Back tap, a slow eight-percent edge
 
 `testNativeLongPressOriginalBodyWord` accepts only the unique visible `Alpha` text inside `reader-document`, checks its actual frame is below native Back, and presses it for one second. It now requires the source `selection_action_bar` with its own Copy/Comment controls and checks for duplicate system edit actions. It never creates a DOM range, publishes a bridge event, dismisses an unknown menu, or chooses a replacement word. The earlier probe compiled in the historical build preparation; that build does not verify these additions. The aw4 native Alpha run observed five source characters, blue handles and the application menu. A separate native Back run dismissed that live selection while retaining Reader. Those scoped historical results do not establish duplicate-menu suppression, cross-paragraph selection, or current acceptance.
 
-The independent [cross-paragraph preparation](control/cross-paragraph/README.md) uses its own driver/project. It identifies the actual end handle from a native screenshot and plans a drag into the inspected second paragraph. Its offline guards and archived-frame analysis are not native acceptance.
+The independent [cross-paragraph preparation](control/cross-paragraph/README.md) uses its own driver/project. It identifies the actual end handle from a native screenshot and plans a drag into the inspected second paragraph. Its offline guards and archived-frame analysis were retired with the native evidence set and are not native acceptance.
 
 ## Targeted user5 regression preparation
 

@@ -9,7 +9,7 @@ The mobile evidence directory is a 190 MB historical record. Its coverage ledger
 - Delete the former mobile evidence directory, the evidence coverage ledger, the native-evidence verifier, and the evidence-only CI job.
 - Keep the existing source-manifest, source/asset, localization, fixture, and application checks in `pnpm mobile -- check`.
 - Remove external references to the retired evidence directory from documentation, fixture material, tooling, tests, and active OpenSpec changes.
-- Replace historical evidence links with an explicit retirement note rather than leaving broken paths.
+- Delete the capture harnesses, runtime plans, and report bindings that can only run against the retired artifacts instead of leaving placeholder paths; keep native control sources and every check that runs without the artifacts.
 - Archive completed Mobile application OpenSpec changes after their references are removed, and record the user's manual acceptance of `expo-mobile-migration` together with the evidence retirement.
 - Leave Git history unchanged; this change removes the artifacts from the current tree only.
 

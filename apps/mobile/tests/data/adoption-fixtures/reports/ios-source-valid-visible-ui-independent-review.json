@@ -12,10 +12,6 @@
     "sha256": "a999eba126507ba521d1235f7685dc98d4b836a6063fa8f441a45a6fa386dd24"
   },
   "historicalSourceBindings": {
-    "observerReview": {
-      "path": "retired-evidence",
-      "sha256": "b589dcb009b9e7c64a58f00445c5275cf9e80a0902a666926f36c6eff58f323e"
-    },
     "matchingInputHashes": {
       "apps/mobile/src/runtime.tsx": "33bd6a31099ac316efdd9836a94322ed1dffd884b81e48570cdc0ef65633b563",
       "apps/mobile/src/screens/ReaderScreen.tsx": "4088890b034e5a9efd26ac3278828efbcfe8f0ef03a27d49b240a9e00507fac7",

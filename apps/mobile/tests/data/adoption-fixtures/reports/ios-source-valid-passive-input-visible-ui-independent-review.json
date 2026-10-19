@@ -12,10 +12,6 @@
     "sha256": "d96ba531ece52b349eb51b61f5382f1888455f429a43f5d92fd3dc9a1b33cef9"
   },
   "historicalSourceBindings": {
-    "passiveInputReport": {
-      "path": "retired-evidence",
-      "sha256": "6182a86567345b3d08ce4f6982294a16b33090e2b7037d1e03ae073df50991cb"
-    },
     "matchingInputHashes": {
       "apps/mobile/src/reader/input.ts": "f58cba33f6ec817c2b28a1239de401751d755b4282c08f7319ec26fda03a0b8c",
       "apps/mobile/src/reader/types.ts": "9665e33212f163f8e9e9cd4a1391e3eeb60e9e15fe7f0a5f728bcab875afb13d",
@@ -531,11 +527,6 @@
       "name": "real-native-back-second-attachments/manifest.json",
       "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-attachments/manifest.json",
       "sha256": "4ffbaa1ca942ea55a8c718f698a0f8f2bf22a3b29090da326a4d69d5594b320c"
-    },
-    {
-      "name": "controlled-start.mjs",
-      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/controlled-start.mjs",
-      "sha256": "d6f89432bbb3e4154f1a02a3aac56df7d83c6beb0dfa01a60f920e37119e4fbd"
     },
     {
       "name": "controlled-test.mjs",

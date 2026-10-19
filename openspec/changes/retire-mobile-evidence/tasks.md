@@ -10,7 +10,7 @@
 ## 2. Remove external references
 
 - [x] 2.1 Remove evidence sections and links from `docs/mobile` and `docs/CI.md`; retain setup, source baseline, fixture, and release guidance.
-- [x] 2.2 Remove evidence paths from fixture guides, plans, scripts, and adoption reports, replacing historical references with an explicit retirement note.
+- [x] 2.2 Remove evidence paths from fixture guides, plans, scripts, and adoption reports, deleting capture harnesses and plan data that cannot run without the retired artifacts.
 - [x] 2.3 Clean evidence references from active OpenSpec changes without altering unrelated implementation requirements.
 
 ## 3. Delete artifacts and archive completed changes
