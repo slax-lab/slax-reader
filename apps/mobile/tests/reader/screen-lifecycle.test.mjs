@@ -60,6 +60,8 @@ for (const {platform, kind, initialRssError} of [
   const {createRoot} = await import('react-dom/client')
   const preferences = new PreferenceStore(new MemoryPreferences({user_id: 'fixture-user', continue_reading_bookmark: 'previous'}))
   let preferenceWrites = 0, optionWrites = 0, renders = 0, toolbarVisible = false, commentVisible = false, options, readerProps, selectionMenuProps, skeletonProps, galleryProps, refreshRows, articleReads = 0, backBlocked = false, toolbarProps, committedExits = 0
+  let readerMarks = 0, readerMarked = false
+  const markReaderInteractive = () => {if (!readerMarked) {readerMarked = true; readerMarks++;}}
   const bookmarkWrites = [], collectionReads = [], localWrites = [], rssSaves = [], savedEntries = [], imageReads = []
   let failRssSave = true
   let failRssDetail = initialRssError, retryAction, releaseRssDetail, releaseRssSave
@@ -126,7 +128,7 @@ for (const {platform, kind, initialRssError} of [
     '../rss/controller': {reportRssSaved: (...saved) => savedEntries.push(saved), rssErrorCode}, '../theme': {mobileColors: {}, mobileTypography: {}},
     '../native/reader': {readerNativeAdapter: {}}, '../native/image-actions': {imageActionPort: {save: async () => {}, share: async () => {}}}, '../native/platform': {},
     '../telemetry': {useTelemetry: () => telemetry}, '../reader/share': {},
-    '../reader': {ReaderWebView: React.forwardRef((props, ref) => {readerProps = props; React.useImperativeHandle(ref, () => ({commitExit: async () => {committedExits++}, clearSelection: async () => {}, flushPosition: async () => {}}), []); return null}), toolbarVisible: coordinates.toolbarVisible},
+    '../reader': {ReaderWebView: React.forwardRef((props, ref) => {readerProps = props; React.useEffect(() => {props.onEvent?.({type: 'domReady'}, 'fixture-page')}, []); React.useImperativeHandle(ref, () => ({commitExit: async () => {committedExits++}, clearSelection: async () => {}, flushPosition: async () => {}}), []); return null}), toolbarVisible: coordinates.toolbarVisible},
     '../reader/input': input,
     '../reader/ReaderOverlays': {CommentPanel: props => {commentVisible = props.visible; return null}, FloatingActions: nil, OutlineSheet: nil, ReaderToolbar: props => {toolbarVisible = props.visible; toolbarProps = props; return null}, SelectionMenu: props => {selectionMenuProps = props; return null}, TranscriptSheet: nil},
     '../reader/ImageGallery': {ImageGallery: props => {galleryProps = props; return null}}, '../reader/OverviewViews': {OverviewDialog: nil, OverviewExcerpt: nil},
@@ -136,6 +138,7 @@ for (const {platform, kind, initialRssError} of [
     '../reader/TagSheet': {ReaderTagSheet: nil}, '../reader/model': model,
     '../reader/position': {ReaderPositionWriter}, '../reader/recovery': {ReaderCrashRecovery}, '../reader/account': account,
     '../components/fixture-actions': {fixtureActions},
+    '../observe': {useObserveMarkInteractive: () => markReaderInteractive, readerIsInteractive: (documentReady, contentError, rssError, nativeFailure) => documentReady || Boolean(contentError) || Boolean(rssError) || Boolean(nativeFailure)},
   }
   const exported = await loadComponent('../../src/screens/ReaderScreen.tsx', boundaries)
   const listeners = new Map()
@@ -168,6 +171,7 @@ for (const {platform, kind, initialRssError} of [
       await act(async () => {retryAction.onPress()})
       assert.ok(readerProps, 'A successful retry mounts the actual returned RSS document')
     }
+    assert.equal(readerMarks, 1, 'Reader marks interactive once after its document or error surface is ready')
     assert.ok(preferenceWrites <= 2, `Expected bounded entry/title effects, got ${preferenceWrites}`)
     assert.equal((await preferences.read()).continue_reading_bookmark, undefined)
     const before = preferenceWrites

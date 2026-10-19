@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useCallback, useRef} from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 
 type ObserveSdk = {
@@ -49,13 +49,16 @@ class ObserveBoundary extends React.Component<{fallback: React.ComponentType<any
 }
 
 const noop = () => {};
+const useNoopObserve = () => ({markInteractive: noop});
+const useSdkObserve = observe?.useObserve ?? useNoopObserve;
 
 export function useObserveMarkInteractive() {
-  let markInteractive = noop;
-  if (observe) {
-    try { markInteractive = observe.useObserve().markInteractive; } catch { markInteractive = noop; }
-  }
-  return () => { try { markInteractive(); } catch {} };
+  const {markInteractive} = useSdkObserve();
+  const latest = useRef(markInteractive);
+  latest.current = markInteractive;
+  return useCallback(() => {
+    try { latest.current(); } catch {}
+  }, []);
 }
 
 export const ObserveRoot = {

@@ -101,6 +101,60 @@ test('marker call failures are contained', nativeBoundary, async () => withNativ
   await act(async () => host.render(React.createElement(Probe)));
 }));
 
+test('useObserveMarkInteractive returns a stable callback across renders', nativeBoundary, async () => withNativeHost(async host => {
+  const loaded = await loadComponent('../../src/observe/index.ts', {
+    react: React,
+    '@react-navigation/native': {NavigationContainer: () => null},
+    'expo-observe': {
+      Observe: {configure() {}},
+      ObserveRoot: {wrap: component => component},
+      useObserve: () => ({markInteractive() {}}),
+    },
+    'expo-observe/integrations/react-navigation': {ObserveNavigationContainer: () => null},
+  });
+  const callbacks = [];
+  function Probe({tick}) {
+    const markInteractive = loaded.useObserveMarkInteractive();
+    callbacks.push(markInteractive);
+    return React.createElement(host.native.View, {testID: `probe-${tick}`});
+  }
+  await act(async () => host.render(React.createElement(Probe, {tick: 0})));
+  await act(async () => host.render(React.createElement(Probe, {tick: 1})));
+  assert.equal(callbacks[0], callbacks[1]);
+}));
+
+test('ObserveRoot falls back when the wrapped root throws', nativeBoundary, async () => withNativeHost(async host => {
+  const loaded = await loadComponent('../../src/observe/index.ts', {
+    react: React,
+    '@react-navigation/native': {NavigationContainer: () => null},
+    'expo-observe': {
+      Observe: {configure() {}},
+      ObserveRoot: {wrap: () => () => {throw new Error('root failure');}},
+      useObserve: () => ({markInteractive() {}}),
+    },
+    'expo-observe/integrations/react-navigation': {ObserveNavigationContainer: () => null},
+  });
+  const Original = () => React.createElement(host.native.View, {testID: 'observe-root-fallback'});
+  const Wrapped = loaded.ObserveRoot.wrap(Original);
+  await act(async () => host.render(React.createElement(Wrapped)));
+  assert.ok(host.props.has('observe-root-fallback'));
+}));
+
+test('ObserveNavigationContainer falls back when the SDK container throws', nativeBoundary, async () => withNativeHost(async host => {
+  const loaded = await loadComponent('../../src/observe/index.ts', {
+    react: React,
+    '@react-navigation/native': {NavigationContainer: props => React.createElement(host.native.View, {...props, testID: 'observe-navigation-fallback'})},
+    'expo-observe': {
+      Observe: {configure() {}},
+      ObserveRoot: {wrap: component => component},
+      useObserve: () => ({markInteractive() {}}),
+    },
+    'expo-observe/integrations/react-navigation': {ObserveNavigationContainer: () => {throw new Error('navigation failure');}},
+  });
+  await act(async () => host.render(React.createElement(loaded.ObserveNavigationContainer, {onReady() {}})));
+  assert.ok(host.props.has('observe-navigation-fallback'));
+}));
+
 test('ApplicationRoutes uses the Observe navigation container and preserves the existing navigation ref', nativeBoundary, async () => withNativeHost(async host => {
   let observeRef, navigationRef, screens = [];
   const context = {session: {status: 'authenticated', session: {userId: 'fixture'}}, upgrade: {status: 'ready'}, t: key => key};
