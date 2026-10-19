@@ -14,7 +14,7 @@ import time
 import uuid
 
 ROOT = Path(__file__).resolve().parents[5]
-HERE = ROOT / 'docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/control-build-only-r4'
+HERE = ROOT / 'retired-evidence'
 BASIS_SHA256 = 'a1b2e7ecd628f2ee25c3f3dfbe1a21bdaa08341401cbc8bbb0a35f1d82ccec49'
 PREVIOUS_EXECUTOR_SHA256 = '040e3d55c2faf13efb7d2f3e8039c3b8a9893bdd4567f46e25384b50b8fd0d5b'
 CORE_PATH = ROOT / 'apps/mobile/fixtures/source-ios/control/build-native-scroll.py'
@@ -77,7 +77,7 @@ def owned_allocation(path, output, basis):
     core.require(output.parent == Path('/private/tmp') and not output.exists() and not output.is_symlink()
         and re.fullmatch(r'slax-source-native-scroll-control-[0-9a-f-]{36}', output.name), 'Fresh control-only root required')
     uuid.UUID(output.name.removeprefix('slax-source-native-scroll-control-'))
-    core.require(path.is_relative_to(ROOT / 'docs/mobile/evidence'), 'Root allocation must be a local evidence file')
+    core.require(path.is_relative_to(ROOT), 'Root allocation must be a historical allocation file')
     grant = json.loads(core.regular(path).read_bytes())
     expected = {'kind': 'slax-root-source-native-scroll-control-build-allocation', 'version': 4,
         'outputRoot': str(output), 'basisSHA256': BASIS_SHA256, 'executorSHA256': core.digest(Path(__file__).resolve()),

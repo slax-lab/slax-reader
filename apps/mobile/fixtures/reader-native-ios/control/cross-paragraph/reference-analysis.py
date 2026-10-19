@@ -6,7 +6,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[6]
-REFERENCE = ROOT / "docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-alpha"
+REFERENCE = ROOT / "retired-evidence"
 FILES = {
     "png": ("raw/attachments/83EE1EF4-C49A-4510-85A4-03B1E1EE7D46.png", "0bee483fd7932174a320dbd4e89243ca66d03946fb63bd7144e9a0308f83e4c7"),
     "ax": ("raw/attachments/4B845D93-7494-4C80-8621-7B64D073D88D.txt", "8075576e58e336f096c7fba80fbf58a045e839c66b7edf918220ffe1bf3e4782"),

@@ -12,9 +12,9 @@
   "sourceApp": "/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/SlaxSourceFixtureApp.app",
   "productRoot": "/private/tmp/slax-source-native-scroll-control-c2347154-a3a2-4ad8-bff0-d3e9cd84dd47/derived-data/Build/Products",
   "selector": "SourceFixtureControl/SourceFixtureNativeScrollControl/testPerformOneMeasuredOriginalReaderNativeDrag",
-  "allocationPath": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-native-scroll-executor-preparation-r1/root-one-native-allocation.json",
+  "allocationPath": "retired-evidence",
   "recoveryReport": {
-    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/control-build-only-r4/native-products-recovery-r1/report.json",
+    "path": "retired-evidence",
     "bytes": 15753,
     "sha256": "4f87630d7a646b47902524bf022991d478a0459379923d262a401b496b4595a6"
   },
@@ -75,37 +75,37 @@
       "sha256": "541b9d3c032bdefaf0f5dec5727295ede887f0e186712cadf1738b0e856891af"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/control-build-only-r4/native-products-recovery-r1/compiled-products.json",
+      "path": "retired-evidence",
       "bytes": 26925,
       "sha256": "6ea6b9d328a8897eda2625ba67ac24ca9b1a9c4a64e89368ba1ca7941bd44876"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/control-build-only-r4/native-products-recovery-r1/report.json",
+      "path": "retired-evidence",
       "bytes": 15753,
       "sha256": "4f87630d7a646b47902524bf022991d478a0459379923d262a401b496b4595a6"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/control-build-only-r4/native-products-recovery-r1/retained-basis-verification.json",
+      "path": "retired-evidence",
       "bytes": 109482,
       "sha256": "1985c2cdffb7cb554670f03ed66b04045c4d0dd1fd9fba77563cac3b267ae086"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/control-build-only-r4/native-products-recovery-r1-root-review.json",
+      "path": "retired-evidence",
       "bytes": 112785,
       "sha256": "30a1fa09e4fd662602eaa850be6f67d17f454726b7b009d84f3d27facb3bbe76"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/native-device-orchestration-r1/original-position-interface-audit.json",
+      "path": "retired-evidence",
       "bytes": 6176,
       "sha256": "5bec9e78c0e5c69fe274884bb06aedc5d1d43ada4cd7c82db1a1940b14284885"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/native-device-orchestration-r1/plan.json",
+      "path": "retired-evidence",
       "bytes": 17047,
       "sha256": "989582a55fa4221b83c6089125b598691487ef815e43fd0eb42ea29ed4c265eb"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/native-device-orchestration-r1/report.json",
+      "path": "retired-evidence",
       "bytes": 1686,
       "sha256": "3281d0fdcbb4965190b5b8daaf49b8d50d39b1d520d73072c66f13a740a0f6a9"
     },
@@ -163,7 +163,7 @@
     "candidateStop": "Stop input on raw CGFloat240 or separately named Float32 arithmetic240 and preserve both. Neither alone claims actual Kotlin callback, persistence, visual or full gesture parity. No fourth index/automatic retry/relaunch."
   },
   "optionalReadonlyDatabaseSupplement": {
-    "planPath": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-supplement-r1/plan.json",
+    "planPath": "retired-evidence",
     "status": "separate-preparation-not-in-executor",
     "readsDatabase": false,
     "writesDatabase": false,
@@ -176,7 +176,7 @@
   "rootIndependentReviewAndSeparateFreshAllocationRequired": true,
   "initialReadOnlyNegative": {
     "reason": "Manifest ordering comparison rejected identical52 actual files; expected list now canonicalized by relative path. No compiled bytes/modes changed.",
-    "archivePath": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-native-scroll-executor-preparation-r1/initial-preflight-negative",
+    "archivePath": "retired-evidence",
     "firstExecutorSHA256": "b489a0a751161cee8531b6fd77176ea9a05329ad4f36d4314fca594fcd846c63",
     "firstPlanSHA256": "eb587cf88bfb21e42885454abecfb8d7f6d8dc71072badf9795b9d22165841a3"
   }

@@ -14,7 +14,7 @@
     "sha256": "95c7053359d56e1e98981e9a2f2e7bb08db30c8fd8f4664f4d3001fdae5328b1"
   },
   "outputRoot": "/private/tmp/slax-source-fresh-shell-warm-build-56eee001-0d1a-49af-a27a-21463e9ded41",
-  "runtimeGrantPath": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/fresh-shell-warm-cache-preparation-r2/root-build-allocation.json",
+  "runtimeGrantPath": "retired-evidence",
   "allowedCommands": [
     "swiftc fresh shell only with explicit platform_version ios-simulator16.4/26.5",
     "codesign --force --sign - fresh .app only",
@@ -83,7 +83,7 @@
     "sha256": "a97c96c2b03d3622e264400b486dd3375c521cb0aec1ddbc4e6f4716fef5d38a"
   },
   "precedingActualNegative": {
-    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/fresh-shell-sdk-packaging-preparation-r1/actual-generated-entry-refusal-root-review-r1/report.json",
+    "path": "retired-evidence",
     "bytes": 53046,
     "sha256": "5c673512138ecddc4efdd11e3c310c69f8421f850bc86adbdb33dbe63d63802d"
   },

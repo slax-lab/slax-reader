@@ -24,7 +24,7 @@ const container = command('xcrun', ['simctl', 'get_app_container', device, 'app.
 const paths = read('/tmp/slax-visible-upgrade-v2-ios-paths.json');
 assert(container === paths.container && paths.device === device && paths.directory === path.join(container, 'Library/Application Support'));
 assert(!existsSync(path.join(paths.directory, 'native-upgrade-ui-request.json')));
-const review = read(root + '/docs/mobile/evidence/2026-10-11-reader-passive-input/report.json');
+const review = read(root + '/retired-evidence');
 for (const input of review.sourceInputs) assert.equal(sha(root + '/' + input.path), input.sha256, 'Reviewed input changed before fresh native run');
 const inputs = [...review.sourceInputs.map(value => value.path), ...[
   'src/components/SourceUI.tsx', 'src/components/source-font-scaling.ts', 'src/App.tsx', 'src/data/runtime.ts', 'src/data/adoption-profile.ts',

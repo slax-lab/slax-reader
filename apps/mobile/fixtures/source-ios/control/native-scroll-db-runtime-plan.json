@@ -9,8 +9,8 @@
   "observationNonce": "856734e5-2f5a-4e5a-924b-a597dfe1d45d",
   "device": "B85A7582-A0A7-4A0F-9BF0-8424330859F3",
   "selector": "SourceFixtureControl/SourceFixtureNativeScrollControl/testPerformOneMeasuredOriginalReaderNativeDrag",
-  "physicalAllocationPath": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-native-scroll-executor-preparation-r1/root-one-native-allocation.json",
-  "databaseAllocationPath": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/root-separate-database-allocation.json",
+  "physicalAllocationPath": "retired-evidence",
+  "databaseAllocationPath": "retired-evidence",
   "bindings": [
     {
       "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/scenarios.json",
@@ -48,42 +48,42 @@
       "sha256": "135bac87ef03df564958dd04657a8a705fb5c0f10524de2d05c1040c4d9d6c04"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-native-scroll-executor-preparation-r1/ui-independent-review/report.json",
+      "path": "retired-evidence",
       "bytes": 21856,
       "sha256": "71b4bf3901efe068120a3bcc742db596668e088433afea911bd2820bb083aefc"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/plan.json",
+      "path": "retired-evidence",
       "bytes": 13087,
       "sha256": "09cc761bdc986148ce9f5eb3d452d2725e0b25aaaf82d06c78eb279e40380009"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/report.json",
+      "path": "retired-evidence",
       "bytes": 6929,
       "sha256": "d699180e832846d650ccd0f15d8732c3f54465a0d90786c42adb0d1af8be0831"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/sdk-path-evidence/common/default/ir/strings.knt",
+      "path": "retired-evidence",
       "bytes": 154746,
       "sha256": "1f56250952f066460356bb246f0eb8fddffb2ac677795cea81bbd94dc01f8fa6"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/sdk-path-evidence/common/default/manifest",
+      "path": "retired-evidence",
       "bytes": 1653,
       "sha256": "9b4bf7539beca49ca53662d421bef00d290b2c79efaf2ca4a27b86887e073ef9"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/sdk-path-evidence/core/default/ir/strings.knt",
+      "path": "retired-evidence",
       "bytes": 1853,
       "sha256": "5a9407508d9a8456d77e5445744dedce9230663df4e5be54210143312890e396"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/readonly-persisted-position-helper-r2/sdk-path-evidence/core/default/manifest",
+      "path": "retired-evidence",
       "bytes": 1817,
       "sha256": "efd38b6f335918cc5bb5d7710ffd7dd1394ade56a9feb198df0a2b33ef5765da"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/source-physical-and-db-helper-root-review-r1/report.json",
+      "path": "retired-evidence",
       "bytes": 8807,
       "sha256": "bb2042a552eb0a6c614fbd656bf2eea982e0ed788f391eaa5cab3685dae3592f"
     },
@@ -168,11 +168,11 @@
     "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/source-ios/control/run-native-scroll-with-db.py",
     "--execute",
     "--allocation",
-    "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-native-scroll-executor-preparation-r1/root-one-native-allocation.json",
+    "retired-evidence",
     "--allocation-sha256",
     "<actual Root physical grant SHA>",
     "--database-allocation",
-    "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/root-separate-database-allocation.json",
+    "retired-evidence",
     "--database-allocation-sha256",
     "<actual Root separate DB grant SHA>"
   ],

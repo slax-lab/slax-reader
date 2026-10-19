@@ -3,8 +3,8 @@ import {readFile} from 'node:fs/promises';
 import test from 'node:test';
 import {bindGenuineAlphaContinuation, observeCrossParagraphRange} from './snapshot-guard.mjs';
 
-const original = JSON.parse(await readFile(new URL('../../../../../../docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-alpha/raw/selection-readonly-snapshot.json', import.meta.url), 'utf8'));
-const genuineReport = JSON.parse(await readFile(new URL('../../../../../../docs/mobile/evidence/2026-10-11-reader-native-source-bridge/aw4-native-alpha/report.json', import.meta.url), 'utf8'));
+const original = JSON.parse(await readFile(new URL('../../../../../../retired-evidence', import.meta.url), 'utf8'));
+const genuineReport = JSON.parse(await readFile(new URL('../../../../../../retired-evidence', import.meta.url), 'utf8'));
 const expected = Object.fromEntries(['device', 'scopeUri', 'inputSha256', 'stageMarkerSha256', 'installedExecutableSha256',
   'installedDebugDylibSha256', 'helperMachOSha256', 'xctestrunSha256'].map(key => [key, genuineReport[key]]));
 expected.cacheKey = original.cacheKey;

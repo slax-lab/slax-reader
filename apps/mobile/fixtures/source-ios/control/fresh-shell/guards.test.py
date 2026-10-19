@@ -110,7 +110,7 @@ class FreshShellGuards(unittest.TestCase):
                 self.status(live=True)
 
     def grant(self):
-        docs = self.root / 'docs/mobile/evidence/test'
+        docs = self.root / 'retired-evidence'
         docs.mkdir(parents=True)
         plan = docs / 'build-plan.json'
         plan.write_text('{}')

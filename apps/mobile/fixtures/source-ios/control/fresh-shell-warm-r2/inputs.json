@@ -4,7 +4,7 @@
   "openSpecChange": "expo-mobile-migration",
   "fixtureBundleIdentifier": "app.slax.reader.sourcefixture",
   "outputRoot": "/private/tmp/slax-source-fresh-shell-warm-build-56eee001-0d1a-49af-a27a-21463e9ded41",
-  "allocationPath": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/fresh-shell-warm-cache-preparation-r2/root-build-allocation.json",
+  "allocationPath": "retired-evidence",
   "oldApplication": {
     "path": "/private/tmp/slax-source-native-scroll-build-44e898c8-341b-4b07-b7d1-05be69d2b8b1/SlaxSourceFixtureApp.app",
     "tree": {
@@ -1282,39 +1282,39 @@
       "sha256": "96e03add074ba683f47bb9023d3a730a3e9135cc20473355c082f1181737c1b7"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/canonical-source-capture-inputs.json",
+      "path": "retired-evidence",
       "bytes": 343,
       "sha256": "db82d486f5c37d2f1d6a68a6193a95c35b27dbeafd4a6a7e5fe330e0d6eee45c"
     }
   ],
   "references": [
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/source44-viewport-packaging-diagnosis-r1/report.json",
+      "path": "retired-evidence",
       "bytes": 21412,
       "sha256": "b321fdb4edb5e103f37232e8d9be771204a42cbb8db0c103d2a067a1d144e2e9"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/source44-viewport-packaging-diagnosis-r1/fresh-wrapper-plan.json",
+      "path": "retired-evidence",
       "bytes": 7257,
       "sha256": "36c88b66d7e28024c9fe6a2c8d108b6d92fbf2f8e69fbada162381691f8e0792"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/source44-viewport-packaging-diagnosis-r1/decoded-macho-metadata.json",
+      "path": "retired-evidence",
       "bytes": 2152,
       "sha256": "a3b6271e41f3884265aabad740ad13a136845ca404823e21187c53b91968806c"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/native-generated-race-r3/actual-native-shell-and-control-failure/report.json",
+      "path": "retired-evidence",
       "bytes": 53743,
       "sha256": "fd6008ac11bf127c652e4743e3ea35ff53f437c0c3b153e64d00a0463ba075b3"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/control-build-only-r4/native-products-recovery-r1-root-review.json",
+      "path": "retired-evidence",
       "bytes": 112785,
       "sha256": "30a1fa09e4fd662602eaa850be6f67d17f454726b7b009d84f3d27facb3bbe76"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/inputs.json",
+      "path": "retired-evidence",
       "bytes": 67024,
       "sha256": "6c22360986c860aeb4a6bf20b6ac78958d48258a45bae2f296c05f7b8cb77b9f"
     },
@@ -1334,7 +1334,7 @@
       "sha256": "7dd09392d7e7fe6e16b90c69ab3d42b4b8590a062c73dc35647dc3f4d62d7c41"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/physical-with-readonly-db-wrapper-r2/actual-viewport-refusal-root-review-r1/report.json",
+      "path": "retired-evidence",
       "bytes": 36737,
       "sha256": "240f6f04e11da6365df1426b9fc7ff87d9ba7258dfa42eb9c6b91f372809c834"
     },
@@ -1344,17 +1344,17 @@
       "sha256": "3501089ae75682a823afdfb54ccf243d32cbc56eba1f84bd70c68afafc1f2943"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-10-source-ios/j-framework-provenance/source-j-framework-provenance.json",
+      "path": "retired-evidence",
       "bytes": 13751,
       "sha256": "d1e3d456d3fe534c7978024301b2ac64280e17d058b392a6b20f6900a13004c9"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-10-source-ios/j-framework-provenance/root-framework-provenance-review-r1.json",
+      "path": "retired-evidence",
       "bytes": 90235,
       "sha256": "2804d28807c247456207fc56e1887977d56497e69fcf4310e4531cf1cdd7155d"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/public-observer-driver-r3/report.json",
+      "path": "retired-evidence",
       "bytes": 3988,
       "sha256": "00e3ed47fec9a73ba394d962f845639848445602637c41e047dc3c63e5b9b743"
     },
@@ -1389,12 +1389,12 @@
       "sha256": "a97c96c2b03d3622e264400b486dd3375c521cb0aec1ddbc4e6f4716fef5d38a"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/fresh-shell-sdk-packaging-preparation-r1/report.json",
+      "path": "retired-evidence",
       "bytes": 11180,
       "sha256": "a435ea6b9821c532150dcefc3f86c5f92def596640139c1609f65e43ecdcb270"
     },
     {
-      "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/fresh-shell-sdk-packaging-preparation-r1/actual-generated-entry-refusal-root-review-r1/report.json",
+      "path": "retired-evidence",
       "bytes": 53046,
       "sha256": "5c673512138ecddc4efdd11e3c310c69f8421f850bc86adbdb33dbe63d63802d"
     }
@@ -1420,7 +1420,7 @@
   },
   "rawFrameworkParent": "/private/tmp/slax-source-ui-fixture-ios-j/composeApp/build/bin/iosSimulatorArm64/debugFramework",
   "historical33SectionsRootReview": {
-    "path": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3/native-generated-race-r3/actual-native-shell-and-control-failure/report.json",
+    "path": "retired-evidence",
     "bytes": 53743,
     "sha256": "fd6008ac11bf127c652e4743e3ea35ff53f437c0c3b153e64d00a0463ba075b3"
   },

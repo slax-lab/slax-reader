@@ -16,7 +16,7 @@ import time
 import uuid
 
 ROOT = Path(__file__).resolve().parents[5]
-HERE = ROOT / 'docs/mobile/evidence/2026-10-11-source-ios-native240-plan/bounded-shell-control-build-r3'
+HERE = ROOT / 'retired-evidence'
 INPUTS_SHA256 = '6c22360986c860aeb4a6bf20b6ac78958d48258a45bae2f296c05f7b8cb77b9f'
 
 
@@ -91,7 +91,7 @@ def owned_allocation(path, output, manifest):
     require(output.parent == Path('/private/tmp') and not output.exists() and not output.is_symlink()
         and re.fullmatch(r'slax-source-native-scroll-build-[0-9a-f-]{36}', output.name), 'Fresh exact owned output required')
     uuid.UUID(output.name.removeprefix('slax-source-native-scroll-build-'))
-    require(path.is_relative_to(ROOT / 'docs/mobile/evidence'), 'Root allocation must be a local evidence record')
+    require(path.is_relative_to(ROOT), 'Root allocation must be a historical allocation record')
     grant = json.loads(regular(path).read_bytes())
     now = int(time.time() * 1000)
     expected = {'kind': 'slax-root-source-native-scroll-build-allocation', 'version': 3,

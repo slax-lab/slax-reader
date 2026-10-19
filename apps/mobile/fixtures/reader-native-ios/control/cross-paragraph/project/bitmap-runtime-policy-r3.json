@@ -5,7 +5,7 @@
   "status": "prepared-only-no-native-test",
   "basePlanSHA256": "540ec48c9d0cfc5e52d7c814be8f05f671b1abf7654f1163a65ec4e5fa90503a",
   "runRoot": "/private/tmp/slax-reader-cross-bitmap-run-0076bd11ce2242fe920dbba736f5e29f",
-  "allocationPath": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-reader-native-source-bridge/cross-paragraph-native-bitmap-only-executor-r3/root-one-native-allocation.json",
+  "allocationPath": "retired-evidence",
   "limits": {
     "preFreeBytes": 3865470566,
     "floorBytes": 3221225472,

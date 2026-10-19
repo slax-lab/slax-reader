@@ -12,7 +12,7 @@ import subprocess
 import time
 
 REPO = Path(__file__).resolve().parents[7]
-EVIDENCE = REPO / 'docs/mobile/evidence/2026-10-11-reader-native-source-bridge'
+EVIDENCE = REPO / 'retired-evidence'
 BASE_PLAN = EVIDENCE / 'cross-paragraph-native-bitmap-only-plan-r2/plan.json'
 BASE_SHA = '540ec48c9d0cfc5e52d7c814be8f05f671b1abf7654f1163a65ec4e5fa90503a'
 POLICY = Path(__file__).with_name('bitmap-runtime-policy-r3.json')

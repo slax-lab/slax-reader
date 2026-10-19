@@ -13,7 +13,7 @@
   },
   "historicalSourceBindings": {
     "observerReview": {
-      "path": "docs/mobile/evidence/2026-10-11-controlled-upgrade-reader-observer/independent-review.json",
+      "path": "retired-evidence",
       "sha256": "b589dcb009b9e7c64a58f00445c5275cf9e80a0902a666926f36c6eff58f323e"
     },
     "matchingInputHashes": {

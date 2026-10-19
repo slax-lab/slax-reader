@@ -26,13 +26,12 @@ The detector uses the PR's actual base branch and includes earlier PR commits, r
 | API deployment template/local infrastructure | API and root configuration tooling checks |
 | Mobile deployment inputs | Mobile; no API suite solely due to the `deploy` directory |
 | Ordinary Mobile guides/deployment README | No application compilation or bundling solely for prose |
-| Mobile evidence and non-Markdown manifests | Real ledger/source identity and referenced-artifact validation through `verify-baseline.mjs`, plus Mobile tests, without an application bundle |
 | Design references | Design provenance and icon provenance checks |
 | Icon validation tools | Icon validation and their tooling tests |
 | Root manifest, shared lockfile, workspace configuration, `.npmrc` | Conservative full validation |
 | CI detector, detector tests, composite detection action | All scopes, to verify selection-policy changes |
 
-Documentation is not excluded merely by extension. Web Markdown content can be runtime input, and Mobile evidence includes Markdown files. Unknown application inputs remain conservative. The exact policy and its regression matrix live in `tooling/ci-scope.mjs` and `tooling/ci-scope.test.mjs`.
+Documentation is not excluded merely by extension. Web Markdown content can be runtime input, and Mobile fixture Markdown can be runtime input. Unknown application inputs remain conservative. The exact policy and its regression matrix live in `tooling/ci-scope.mjs` and `tooling/ci-scope.test.mjs`.
 
 Root dependency files intentionally retain broad coverage. This implementation does not infer individual dependency graphs from lockfile edits, select individual unit tests, or reuse validation across different PR heads.
 
@@ -56,7 +55,7 @@ Frontend, API, Mobile, CLI, Tooling, and agent-config use the caller workflow na
 
 The Full CI workflow also supports Actions **Run workflow**, selecting **dev**, or `gh workflow run full-ci.yml --ref dev`. A manual run targeting another ref fails its source guard with an explicit error.
 
-Full CI calls the six existing validation workflows with `full_validation: true`. It skips scope detection entirely and runs Web, Extension, API, Mobile, both CLI Node versions, all root tooling suites, design/icon validation, real Mobile evidence validation, rulesync, strict OpenSpec validation, and full pinned gh-aw compilation with orphan detection. Standalone icon/evidence jobs are unnecessary because full Web and Mobile validation already includes them. A stale path rule cannot suppress these checks, even if every scope output would be false.
+Full CI calls the six existing validation workflows with `full_validation: true`. It skips scope detection entirely and runs Web, Extension, API, Mobile, both CLI Node versions, all root tooling suites, design/icon validation, rulesync, strict OpenSpec validation, and full pinned gh-aw compilation with orphan detection. Standalone icon jobs are unnecessary because full Web and Mobile validation already includes them. A stale path rule cannot suppress these checks, even if every scope output would be false.
 
 Results and failures are visible in Actions. Daily and manual full runs serialize by ref without canceling an executing run; their child suites remain independent of each other and of PR validation. This workflow has read-only repository permissions and does not call deployment, publication, or AI review. Native Mobile builds remain outside the existing CI suite. No extra notification channel is configured.
 

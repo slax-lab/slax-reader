@@ -1,4 +1,0 @@
-Query chain:
- →Find: Application 'com.apple.springboard'
-  ↪︎Find: Descendants matching type Alert
-    ↪︎Find: First Match

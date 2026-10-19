@@ -13,7 +13,7 @@
   },
   "historicalSourceBindings": {
     "passiveInputReport": {
-      "path": "docs/mobile/evidence/2026-10-11-reader-passive-input/report.json",
+      "path": "retired-evidence",
       "sha256": "6182a86567345b3d08ce4f6982294a16b33090e2b7037d1e03ae073df50991cb"
     },
     "matchingInputHashes": {

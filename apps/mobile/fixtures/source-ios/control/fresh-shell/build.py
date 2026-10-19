@@ -199,7 +199,7 @@ def resource_status(output, began, expires, pending=0, allow_vanished=False, obs
 
 
 def allocation(path, expected_sha, manifest):
-    require(path == Path(manifest['allocationPath']) and path.is_relative_to(ROOT / 'docs/mobile/evidence'),
+    require(path == Path(manifest['allocationPath']) and path.is_relative_to(ROOT),
             'Exact local Root allocation required')
     require(re.fullmatch('[0-9a-f]{64}', expected_sha) and sha(path) == expected_sha and
             regular(path).st_size <= 16384, 'Root allocation digest/size mismatch')

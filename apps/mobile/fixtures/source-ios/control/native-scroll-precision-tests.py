@@ -12,8 +12,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[5]
 SWIFT = ROOT / 'apps/mobile/fixtures/source-ios/main.swift'
-R2 = ROOT / 'docs/mobile/evidence/2026-10-11-source-ios-native240-plan/public-observer-driver-r2/source-inputs/apps/mobile/fixtures/source-ios/main.swift'
-ORIGINAL = ROOT / 'docs/mobile/evidence/2026-10-11-source-ios-native240-plan/original-public-inputs/composeApp/src/iosMain/kotlin/com/slax/reader/utils/WebviewHelper.ios.kt'
+R2 = ROOT / 'retired-evidence'
+ORIGINAL = ROOT / 'retired-evidence'
 
 
 def f32(value):

@@ -14,7 +14,7 @@
     "sha256": "664c10e80677e5699871fc8908a70a00d228eeaa944b9292889f1dd1eeb2e036"
   },
   "outputRoot": "/private/tmp/slax-source-fresh-shell-build-460d8701-3eb5-4443-9cd6-a415c2b8e07c",
-  "runtimeGrantPath": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/docs/mobile/evidence/2026-10-11-source-ios-native240-plan/fresh-shell-sdk-packaging-preparation-r1/root-build-allocation.json",
+  "runtimeGrantPath": "retired-evidence",
   "allowedCommands": [
     "swiftc fresh shell only with explicit platform_version ios-simulator16.4/26.5",
     "codesign --force --sign - fresh .app only",
