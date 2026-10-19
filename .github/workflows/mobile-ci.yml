@@ -1,44 +1,34 @@
 name: Mobile CI
-
 on:
-  pull_request:
-    paths:
-      - 'apps/mobile/**'
-      - 'docs/mobile/**'
-      - 'packages/contracts/**'
-      - 'packages/reader-embed/**'
-      - 'tooling/mobile.mjs'
-      - 'tooling/pnpm-command.mjs'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/workflows/mobile-ci.yml'
-  push:
-    branches: [dev, beta, main]
-    paths:
-      - 'apps/mobile/**'
-      - 'docs/mobile/**'
-      - 'packages/contracts/**'
-      - 'packages/reader-embed/**'
-      - 'tooling/mobile.mjs'
-      - 'tooling/pnpm-command.mjs'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/workflows/mobile-ci.yml'
-
+  pull_request: null
+  workflow_call:
+    inputs:
+      full_validation:
+        description: Run all checks without scope detection
+        type: boolean
+        default: false
 permissions:
   contents: read
-
 concurrency:
-  group: mobile-${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-mobile-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
-
 env:
   EXPO_NO_DOTENV: '1'
   CI: '1'
-
 jobs:
+  changes:
+    if: ${{ !inputs.full_validation }}
+    runs-on: ubuntu-latest
+    outputs:
+      mobile: ${{ steps.scope.outputs.mobile }}
+      mobileEvidence: ${{ steps.scope.outputs.mobileEvidence }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: scope
+        uses: ./.github/actions/ci-scope
   static:
     runs-on: ubuntu-24.04
     steps:
@@ -46,8 +36,26 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.22.2'
+          node-version: 22.22.2
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm mobile -- check
       - run: pnpm mobile -- bundle
+    needs: changes
+    if: ${{ !cancelled() && (inputs.full_validation || (needs.changes.result == 'success' && needs.changes.outputs.mobile == 'true')) }}
+  evidence:
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: ${{ !cancelled() && !inputs.full_validation && needs.changes.result == 'success' && needs.changes.outputs.mobileEvidence == 'true' && needs.changes.outputs.mobile != 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.2
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node apps/mobile/assets/verify-baseline.mjs
+      - run: pnpm --filter @apps/slax-reader-mobile test
