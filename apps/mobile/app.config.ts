@@ -42,6 +42,10 @@ const config: ExpoConfig = {
     ...(firebaseAndroidConfig ? {googleServicesFile: firebaseAndroidConfig} : {}),
     versionCode: Number(buildVersion.build),
     predictiveBackGestureEnabled: true,
+    // expo-sensors declares ACTIVITY_RECOGNITION for its Pedometer/DeviceMotion
+    // modules; the app only reads the accelerometer, so drop the permission and
+    // avoid the Play health-features declaration requirement.
+    blockedPermissions: ['android.permission.ACTIVITY_RECOGNITION'],
   },
   plugins: [
     ['./plugins/with-native-compatibility.cjs', {fixtureMode}],
@@ -61,6 +65,24 @@ const config: ExpoConfig = {
     ['expo-media-library', {photosPermission: false, savePhotosPermission: 'Slax Reader saves images you choose from articles to your photo library.', granularPermissions: []}],
     ...providerPlugins,
   ],
+  extra: {
+    eas: {
+      projectId: 'f8949909-ddbf-49f8-a42d-9e70a9c77fda',
+      ...(!uiFixture ? {
+        build: {
+          experimental: {
+            ios: {
+              appExtensions: [{
+                targetName: 'SlaxShare',
+                bundleIdentifier: 'app.slax.reader.share',
+                entitlements: {'com.apple.security.application-groups': ['group.app.slax.reader']},
+              }],
+            },
+          },
+        },
+      } : {}),
+    },
+  },
 };
 
 export default config;
