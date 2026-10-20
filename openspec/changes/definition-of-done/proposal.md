@@ -34,5 +34,6 @@ None. `agentic-pr-review` deliberately defers review policy content to `REVIEW.m
 - `.github/PULL_REQUEST_TEMPLATE.md` (Test plan becomes an evidence requirement).
 - `openspec/config.yaml` (`operations.apply.guidance`).
 - `.github/workflows/agent-config.yml` (new OpenSpec skill drift check).
+- `tooling/ci-scope.mjs` and its test (the `openspec` scope now also triggers on the generated skill paths, so skill-only pull requests run the new check).
 - No application code, no APIs, no runtime dependencies.
 - Machine prerequisite: GitHub CLI v2.99.0+ (landed separately in `docs/LOCAL-SETUP.md`, PR #287); existing machines need a one-time `gh` upgrade, announced when this change merges.
