@@ -5,7 +5,7 @@
 - [x] 1.1 Split the persisted discovery/donation preference from publication readiness in `runtime.tsx`; pass `surfacesReady` separately to `SystemSurfacesController.reconcile`.
 - [x] 1.2 Stop deriving publication/revocation from `credentialState.status` in the adapter owner identity; keep credential readiness as a publish gate only.
 - [x] 1.3 Revoke only on explicit opt-out, sign-out, owner/origin change, or ineligible content. Keep catalog, donation IDs and pending receipts when not ready.
-- [x] 1.4 Republish and retry pending donations when readiness returns.
+- [x] 1.4 Preserve pending donations across a readiness pause; they remain retryable under the same owner.
 
 ## 2. Fix native registration and open intent
 

@@ -39,7 +39,7 @@ Not verified in the simulator:
 - Archive succeeded for `1.0.25 (777)` with main `app.slax.reader` and Share `app.slax.reader.share`, team `8G3A932HJG`, App Group `group.app.slax.reader`, verified signatures and Firebase admission version 2. The archive's extracted App Intents metadata reports `BookmarkEntity` with `com.apple.appintents.entity.Indexed` and `OpenBookmarkIntent` with `com.apple.link.systemProtocol.OpenEntity`; the generated provider includes `AppIntentsSetup`. Report: `/tmp/slax-777/archive/ios-release-report.json`.
 - Export succeeded. IPA SHA-256: `7fe7b07301468d25dbd14b9950fa45391bdd1901bb1c30e39a22917c1a1d2523`. Report: `/tmp/slax-777/export/ios-release-report.json`.
 - Xcode upload reported `Upload succeeded` and `Uploaded package is processing`; the local report records `testFlightProcessingConfirmed: false`. App Store Connect processing, processing completion and tester availability were not independently confirmed. Report: `/private/tmp/slax-777/export/upload-84bd9519-ea8a-4114-8c86-3dc7bff96bfe/ios-release-report.json`.
-- The release admission was adapted to accept the scene-based AppDelegate bootstrap (`FirebaseApp.configure()` before either the classic factory start or `super.application`), because the iOS 27 template starts React Native from `SceneDelegate`. The focused release suite passes 26/26.
+- The release admission was adapted to accept the scene-based AppDelegate bootstrap (`FirebaseApp.configure()` before either the classic factory start or `super.application`), because the iOS 27 template starts React Native from `SceneDelegate`. The focused release suite passes 27/27.
 
 Pull request: https://github.com/slax-lab/slax-reader/pull/310
 

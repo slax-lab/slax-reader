@@ -121,7 +121,10 @@ export function firebaseReleaseAdmission(iosRoot = path.join(appRoot, 'ios'), re
   checkFirebaseMetadata(readPlist(path.join(iosRoot, infoPath)), MAIN);
   const main = text(`${name}/AppDelegate.swift`).replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
   const sceneTemplate = /super\.application\(/.test(main);
-  firebaseRequirement(/^\s*import FirebaseCore\s*$/m.test(main) && /didFinishLaunchingWithOptions[\s\S]*?FirebaseApp\.configure\(\)/.test(main) && (sceneTemplate || /FirebaseApp\.configure\(\)[\s\S]*?factory\.startReactNative\(/.test(main)), 'main AppDelegate lacks Firebase initialization before React Native startup');
+  const launchesAfterConfigure = sceneTemplate
+    ? /FirebaseApp\.configure\(\)[\s\S]*?super\.application\(/.test(main)
+    : /FirebaseApp\.configure\(\)[\s\S]*?factory\.startReactNative\(/.test(main);
+  firebaseRequirement(/^\s*import FirebaseCore\s*$/m.test(main) && /didFinishLaunchingWithOptions[\s\S]*?FirebaseApp\.configure\(\)/.test(main) && launchesAfterConfigure, 'main AppDelegate lacks Firebase initialization before React Native startup');
   if (sceneTemplate) {
     const scenePath = path.join(iosRoot, `${name}/SceneDelegate.swift`);
     firebaseRequirement(regularFile(scenePath), 'scene-based AppDelegate is missing SceneDelegate.swift');
