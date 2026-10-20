@@ -1,6 +1,6 @@
 import React from 'react';
 import {PixelRatio, Platform, View, type ViewProps} from 'react-native';
-import {requireNativeViewManager} from 'expo-modules-core';
+import {requireNativeView} from 'expo';
 
 interface NativeRingProps extends ViewProps {
   diameter: number; thickness: number; segments: string; track: string;
@@ -14,7 +14,7 @@ export function SourceCircle({size, thickness, border, fill = '#00000000'}: {siz
   return <NativeRing pointerEvents="none" accessible={false} diameter={size} thickness={thickness} segments={JSON.stringify([{fraction: 1, color: border}])} track={fill}
     geometry="circle" revealDuration={0} indeterminate={false} style={{width: roundedSize, height: roundedSize}} />;
 }
-const NativeRing = requireNativeViewManager<NativeRingProps>('SlaxPlatform', 'SlaxRingView');
+const NativeRing = requireNativeView<NativeRingProps>('SlaxPlatform', 'SlaxRingView');
 
 /** The source cache canvas can draw half a stroke outside its logical layout bounds. */
 export function SourceRing({size, thickness, segments, track = '#E8E6E3', revealDuration = 0, indeterminate = false, geometry = 'cache'}: {

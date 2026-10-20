@@ -42,7 +42,7 @@ function provider(platform = 'ios', cacheRoot = platform === 'ios' ? directory :
     if (name === 'react-native') return {Platform: {OS: platform}};
     if (name === 'expo-file-system') return {File};
     if (name === './controlled-upgrade-visibility') return require('../../src/controlled-upgrade-visibility.ts');
-    assert(['expo-localization', './data', './i18n', './config', './payments/controller', './payments/expo-store', './native/platform'].includes(name), name);
+    assert(['expo-localization', './data', './i18n', './config', './payments/controller', './payments/expo-store', './native/platform', './system-actions/SaveURLHost', './system-actions/adapters', './widgets/adapters', './widgets/WidgetCleanupNotice'].includes(name), name);
     return {};
   }});
   const session = {status: 'authenticated', session: {userId: 'synthetic-user', token: 'fixture-auth-token-NOT-A-REAL-CREDENTIAL'}};

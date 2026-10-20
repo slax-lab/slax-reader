@@ -65,9 +65,9 @@ function fixture(t, platform = 'android', development = true) {
   }};
   const expo = {Directory, File, Paths: {cache: new Directory(cache)}};
   const abort = load('../../src/utils/abort.ts', {});
-  const {NativeFileStore} = load('../../src/data/native-file-store.ts', {'expo-modules-core': native, '../utils/abort.ts': abort});
+  const {NativeFileStore} = load('../../src/data/native-file-store.ts', {'expo': native, '../utils/abort.ts': abort});
   const {PdfFileStorage} = load('../../src/data/pdf-file-storage.ts', {'./native-file-store.ts': {NativeFileStore}, './pdf-sha256.ts': {Sha256}});
-  const {createFixtureProductionPdfStorage} = load('../../fixtures/pdf-production-storage.ts', {'expo-file-system': expo, 'expo-modules-core': native, 'react-native': {Platform: {OS: platform}}, '../src/data/pdf-file-storage': {PdfFileStorage}, '../src/data/pdf-sha256': {Sha256}, './isolation': {assertFixtureScope}}, development);
+  const {createFixtureProductionPdfStorage} = load('../../fixtures/pdf-production-storage.ts', {'expo-file-system': expo, 'expo': native, 'react-native': {Platform: {OS: platform}}, '../src/data/pdf-file-storage': {PdfFileStorage}, '../src/data/pdf-sha256': {Sha256}, './isolation': {assertFixtureScope}}, development);
   return {state, marker, markerPath, scope, expectedRoot, storageRoot, Directory, PdfFileStorage, create: () => createFixtureProductionPdfStorage(scope, () => {if (!state.active) throw new Error('Account revoked');})};
 }
 

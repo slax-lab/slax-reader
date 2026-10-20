@@ -31,7 +31,7 @@ async function fixture() {
     async remove(directory, captured, path, versioned) {calls.push({kind: 'remove', directory, owner: captured, path, versioned}); current(captured); for (const key of files.keys()) if (key === path || !versioned && key.startsWith(`${path}/`)) files.delete(key);},
   };
   const {PdfFileStorage} = await loadComponent('../../src/data/pdf-file-storage.ts', {
-    'expo-modules-core': {requireNativeModule: name => {assert.equal(name, 'SlaxStorage'); return native;}}, './pdf-sha256.ts': {Sha256},
+    'expo': {requireNativeModule: name => {assert.equal(name, 'SlaxStorage'); return native;}}, './pdf-sha256.ts': {Sha256},
   }, {TextEncoder});
   return {files, calls, storage: new PdfFileStorage('/app', () => {if (!active) throw new Error('revoked');}, 'account-a'),
     waitWrite(value) {writeWait = value;}, waitRead(value) {readWait = value;}, failWrite(value) {writeError = value;}, afterWrite(value) {afterWrite = value;},

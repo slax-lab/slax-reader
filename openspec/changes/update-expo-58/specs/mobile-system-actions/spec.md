@@ -1,0 +1,58 @@
+# Mobile System Actions
+
+## Purpose
+
+Let users save links and reopen eligible reading content through iOS system entry points while preserving account ownership, reliable recovery and metadata privacy.
+
+## ADDED Requirements
+
+### Requirement: Users can hand off a URL from Siri or Shortcuts
+
+On supported iOS systems, Mobile SHALL expose a save-to-Slax-Reader action accepting an absolute HTTP(S) URL and optional title. It SHALL open the application for processing when needed. Invalid or credential-bearing URLs MUST be rejected. A system acknowledgement SHALL distinguish queued handoff from confirmed saving; failure or offline delay MUST NOT be reported as a completed save.
+
+#### Scenario: Save runs while the application process is absent
+- **WHEN** the user invokes save with a valid URL while JavaScript is not running
+- **THEN** the invocation survives until application processing can begin
+- **AND** the application reports actual save completion or a recoverable pending/error state
+
+#### Scenario: Input is unsafe or the platform is unsupported
+- **WHEN** a save URL has an unsupported scheme or embedded credentials, or system actions are unavailable
+- **THEN** the input cannot trigger an authenticated save
+- **AND** the ordinary application remains usable
+
+### Requirement: Pending actions preserve ownership and tolerate replay
+
+Pending actions SHALL be processed only with a verified active account/origin, admitted data and valid credentials. Actions SHALL retain ownership across restarts; an action without provable ownership SHALL require an explicit claim before saving. Delivery replay SHALL not create duplicate local processing, repeated donations or premature acknowledgement. The application SHALL retain retryable failures and expose permanent failure/discard outcomes. Account replacement SHALL cancel obsolete work and prevent it from executing for the replacement account.
+
+#### Scenario: An invocation is delivered again after interruption
+- **WHEN** the same invocation arrives more than once, including after saving but before acknowledgement
+- **THEN** processing reconciles the completed operation and finishes acknowledgement safely
+- **AND** it does not silently repeat an already completed user action
+
+#### Scenario: Account changes before processing completes
+- **WHEN** a user signs out or replaces the account/API origin with an action pending or in flight
+- **THEN** the previous action cannot save or publish metadata under the new owner
+- **AND** stale callbacks cannot update the replacement session
+
+### Requirement: Spotlight and donations publish only eligible opted-in metadata
+
+System indexing and donations SHALL default off. When enabled, Mobile SHALL publish at most 100 recent eligible unarchived, non-deleted bookmarks from the active account using opaque identifiers, display titles and source hosts. Bodies, notes, highlights, credentials and full URLs SHALL NOT enter the catalog. Content marked private or lacking required eligibility SHALL be excluded. Disabling integration, deleting content, signing out or replacing the owner SHALL revoke obsolete catalog entries and donations, retrying failures without exposing new-owner data. Donations SHALL follow successful user actions only.
+
+#### Scenario: User enables system discovery
+- **WHEN** the authenticated user enables indexing and donations
+- **THEN** only the bounded eligible metadata appears in system discovery
+- **AND** failed or merely queued saves do not create successful-action donations
+
+#### Scenario: A catalog entry becomes ineligible
+- **WHEN** content is deleted, made private, or removed by opt-out/account replacement
+- **THEN** Mobile requests removal of its system metadata and retries failed removal
+- **AND** stale system results cannot authorize access to that content
+
+### Requirement: System content opens through current session admission
+
+Spotlight and intent content entry SHALL wait for current session and navigation readiness, resolve identifiers against the active account, and use ordinary Reader access rules. Invalid, deleted, private-to-another-owner or stale identifiers MUST NOT bypass admission.
+
+#### Scenario: A stale result opens during cold startup
+- **WHEN** the user opens an old system result before navigation or account data is ready
+- **THEN** routing waits and revalidates the identifier under the current account
+- **AND** unavailable content receives an ordinary recovery outcome without revealing another account's data

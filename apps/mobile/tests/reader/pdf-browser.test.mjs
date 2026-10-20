@@ -20,7 +20,7 @@ const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const require = createRequire(new URL('../../../extension/package.json', import.meta.url));
 let chromium;
 try {({chromium} = require('playwright-core'));} catch {}
-function fixturePdf(count = 12, passwordProtected = false) {
+function fixturePdf(count = 13, passwordProtected = false) {
   const objects = ['<< /Type /Catalog /Pages 2 0 R >>', '', '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
     '<< /Type /Font /Subtype /Type0 /BaseFont /HeiseiMin-W3 /Encoding /UniJIS-UTF16-H /DescendantFonts [5 0 R] >>',
     '<< /Type /Font /Subtype /CIDFontType0 /BaseFont /HeiseiMin-W3 /CIDSystemInfo << /Registry (Adobe) /Ordering (Japan1) /Supplement 6 >> /DW 1000 >>'];
@@ -81,7 +81,7 @@ test('PDF WebView document uses real worker, bounded pages, exact selections, lo
     await page.waitForFunction(() => document.querySelectorAll('.textLayer span').length > 3, {timeout: 20000});
     assert.equal(workers.length, 1, JSON.stringify({errors, warnings, messages}));
     await page.waitForFunction(() => document.querySelectorAll('.page > canvas').length === 6);
-    assert.equal(await page.locator('.page').count(), 12);
+    assert.equal(await page.locator('.page').count(), 13);
     assert.equal(await page.locator('.page > canvas').count(), 6);
     const pixels = await page.locator('.page > canvas').first().evaluate(canvas => Array.from(canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data).filter((value, index) => index % 4 !== 3 && value < 100).length);
     assert.ok(pixels > 100, 'canvas rendered actual PDF text');
@@ -184,6 +184,27 @@ test('PDF WebView document uses real worker, bounded pages, exact selections, lo
     const revealed = await page.locator('.page[data-page-number="7"] .mark-quad').first().boundingBox();
     assert.ok(revealed.y >= 0 && revealed.y < 80, JSON.stringify({revealed}));
     assert.ok(await page.locator('.page[data-page-number="7"]').evaluate(element => element.getBoundingClientRect().top) < -200, 'Note jump reveals the quad, not merely the page top');
+    await page.evaluate(() => window.__slaxPdfReceive({channel: 'slax-pdf', pageId: 'fixture', kind: 'layout', mode: 'spread', paneWidth: 160, gutter: 24}));
+    await page.waitForFunction(() => {
+      const first = document.querySelector('.page[data-page-number="7"]');
+      const second = document.querySelector('.page[data-page-number="8"]');
+      return first?.offsetTop === second?.offsetTop && Math.abs(first.getBoundingClientRect().width - 160) < 1;
+    });
+    await page.waitForFunction(() => document.querySelectorAll('.page[data-page-number="7"] .mark-quad').length > 0);
+    assert.ok(await page.locator('.page[data-page-number="7"] .mark-quad').count() > 0, 'Marks remain attached to the same page in the left pane');
+    await page.setViewportSize({width: 390, height: 240});
+    await command('spread-last', 'scrollToAnchor', '13');
+    await page.waitForFunction(() => document.querySelector('.page[data-page-number="13"] .textLayer span'));
+    assert.equal(await page.locator('.page[data-page-number="14"]').count(), 0, 'Odd final page has no fabricated partner');
+    await command('spread-position', 'position');
+    const spreadProgress = messages.filter(message => message.kind === 'position').at(-1).position;
+    assert.ok(spreadProgress >= 11 && spreadProgress < 14, `Spread progress remains page based: ${spreadProgress}`);
+    assert.ok(await page.locator('.page > canvas').count() <= 6, 'Spread rendering keeps the existing resident-page bound');
+    await page.evaluate(() => window.__slaxPdfReceive({channel: 'slax-pdf', pageId: 'fixture', kind: 'layout', mode: 'single', paneWidth: 0, gutter: 24}));
+    await page.waitForFunction(() => Math.abs(document.querySelector('.page[data-page-number="13"]').getBoundingClientRect().width - 374) < 1);
+    await command('single-position', 'position');
+    const singleProgress = messages.filter(message => message.kind === 'position').at(-1).position;
+    assert.ok(Math.abs(singleProgress - spreadProgress) < 0.15, `Returning to single-page preserves page and normalized position: ${spreadProgress} -> ${singleProgress}`);
     assert.deepEqual(requests, ['https://pdf.reader.slax.invalid/']);
     assert.deepEqual(errors, []);
     assert.ok(!warnings.some(value => /fake worker|Unable to load|CSP|Content Security Policy/.test(value)), warnings.join('\n'));
@@ -204,7 +225,7 @@ test('PDF WebView document uses real worker, bounded pages, exact selections, lo
     });
     await external.addInitScript(() => {window.ReactNativeWebView = {postMessage: value => window.nativePdfMessage(value)};});
     await external.goto('https://pdf.reader.slax.invalid/');
-    await external.waitForFunction(() => document.querySelectorAll('.page').length === 12);
+    await external.waitForFunction(() => document.querySelectorAll('.page').length === 13);
     assert.equal(await external.locator('.page > canvas').count(), 0, 'A document-height Android WebView must await its actual host viewport');
     const externalSend = message => external.evaluate(message => window.__slaxPdfReceive(message), {channel: 'slax-pdf', pageId: 'android-host', ...message});
     await externalSend({kind: 'viewport', offset: -240, height: 640});

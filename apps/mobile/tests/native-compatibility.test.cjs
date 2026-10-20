@@ -41,6 +41,7 @@ test('release signing removes template debug identity and remains operator manag
 test('owned native defaults preserve platform floors and the source light theme', async () => {
   const gradle = await mod('android', 'gradleProperties', [{type: 'property', key: 'android.minSdkVersion', value: '24'}]);
   assert.equal(gradle.find(item => item.key === 'android.minSdkVersion').value, '26');
+  assert.equal(gradle.find(item => item.key === 'android.compileSdkVersion').value, '37');
   assert.equal(gradle.find(item => item.key === 'android.targetSdkVersion').value, '36');
   const pods = await mod('ios', 'podfileProperties', {});
   assert.equal(pods['ios.deploymentTarget'], '16.4');

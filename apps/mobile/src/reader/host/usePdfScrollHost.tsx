@@ -1,6 +1,7 @@
+import type {ViewInstance, ScrollViewInstance} from 'react-native'
 import React, {useCallback, useEffect, useRef, useState} from 'react'
 import {PixelRatio, Platform, ScrollView, StyleSheet, View} from 'react-native'
-import type {StyleProp, ViewStyle} from 'react-native'
+import type {StyleProp, ViewStyle, NativeSyntheticEvent, NativeScrollEvent} from 'react-native'
 import type {WebViewProps} from 'react-native-webview'
 import Animated, {cancelAnimation, Easing, ReduceMotion, runOnJS, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated'
 import {motionDuration} from '../../motion/policy'
@@ -19,10 +20,11 @@ export function usePdfScrollHost(options: {
 }) {
   const platform = Platform.OS === 'ios' ? 'ios' : 'android'
   const callbacks = useRef(options); callbacks.current = options
-  const container = useRef<View>(null), outer = useRef<ScrollView>(null), fallbackHeader = useRef<View>(null)
+  const container = useRef<ViewInstance>(null), outer = useRef<ScrollViewInstance>(null), fallbackHeader = useRef<ViewInstance>(null)
   const tag = useRef<number | null>(null), touch = useRef<number | null>(null)
   const attachment = useRef<ReaderNativeAttachment | null>(null), insetWork = useRef(Promise.resolve())
   const offset = useRef(0), measuredViewport = useRef(0), nativeContentHeight = useRef(0), frame = useRef<ReturnType<typeof requestAnimationFrame> | null>(null)
+  const measuredWidth = useRef(0)
   const initialized = useRef(false), disposed = useRef(false)
   const lifetime = useRef(0), initialization = useRef<object | null>(null)
   const identity = useRef(options.context.pageId)
@@ -49,7 +51,8 @@ export function usePdfScrollHost(options: {
     screenTop, viewportHeight, scrollPoints: offset.current})
   const publish = useCallback(() => {
     if (disposed.current || !foreground.current || !callbacks.current.ready || measuredViewport.current <= 0) return
-    callbacks.current.onViewport(readerHostViewport(platform, offset.current, measuredViewport.current, geometry.current.topInsetPoints))
+    callbacks.current.onViewport({...readerHostViewport(platform, offset.current, measuredViewport.current, geometry.current.topInsetPoints),
+      width: measuredWidth.current})
   }, [platform])
   const scheduleViewport = useCallback(() => {
     if (frame.current !== null) return
@@ -168,7 +171,7 @@ export function usePdfScrollHost(options: {
     if (typeof target !== 'number' || !Number.isFinite(target)) {options.onError(new Error('Native reader view identity is unavailable')); return}
     void attachment.current?.attach(target, callbacks.current.context).catch(options.onError)
   }
-  const nativeScroll: NonNullable<WebViewProps['onScroll']> = event => {
+  const nativeScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (platform === 'ios') onScroll(event.nativeEvent.contentOffset.y, event.nativeEvent.contentSize.height, event.nativeEvent.layoutMeasurement.height)
   }
   const selectionY = (clientY: number | null | undefined) => {
@@ -181,6 +184,7 @@ export function usePdfScrollHost(options: {
     const visible = headerHeight === 0 || offset.current + headerHeight < geometry.current.headerHeightPoints
     const host = <View ref={container} testID="pdf-reader-container" style={[styles.root, options.style]} onLayout={event => {
       const height = event.nativeEvent.layout.height
+      measuredWidth.current = event.nativeEvent.layout.width
       measuredViewport.current = height; setViewportHeight(height)
       container.current?.measureInWindow((_x, y) => setScreenTop(y))
       scheduleViewport()

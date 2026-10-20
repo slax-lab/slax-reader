@@ -1,5 +1,5 @@
 import React, {useCallback, useLayoutEffect, useMemo, useRef, useState} from 'react'
-import {Platform, StyleSheet, View} from 'react-native'
+import {Platform, Pressable, StyleSheet, View} from 'react-native'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {SourceText} from '../components'
 import {bookmarkCacheKey, type PreferenceValues} from '../data'
@@ -88,8 +88,15 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
     showOverview: interactions.showOverview, openOutline: ai.open, loadAi: ai.load, showTranscript: interactions.showTranscript, closeTranscript: interactions.closeTranscript,
     saveRss: document.saveRss, flushOutline: () => ai.flush('background')})
   const event = (value: ReaderEvent, pageId: string) => {diagnostics.event(value, pageId); interactions.handleEvent(value)}
-  const headerMore = useCallback(() => <ReaderHeaderMore visibility={interactions.headerMoreVisible} offset={interactions.headerMoreOffset} t={t} onPress={interactions.showToolbar} />,
-    [interactions.headerMoreVisible, interactions.headerMoreOffset, interactions.showToolbar, t])
+  const dualPagePrototypeEnabled = Boolean(__DEV__ && fixtureOnly && isIos && settings.pdf_dual_page_prototype === true)
+  const showPdfPrototypeControl = Boolean(__DEV__ && fixtureOnly && isIos && isPdf)
+  const togglePdfPrototype = useCallback(() => {void writePreferences(values => {values.pdf_dual_page_prototype = values.pdf_dual_page_prototype !== true}).catch(fail)}, [writePreferences, fail])
+  const headerMore = useCallback(() => <View style={{flexDirection: 'row', alignItems: 'center'}}>
+    {showPdfPrototypeControl ? <Pressable accessibilityRole="switch" accessibilityLabel={`Dual-page prototype: ${dualPagePrototypeEnabled ? 'On' : 'Off'}`} accessibilityState={{checked: dualPagePrototypeEnabled}} testID="pdf-dual-page-prototype-toggle" onPress={togglePdfPrototype} style={({pressed}) => [styles.pdfPrototypeControl, pressed && {opacity: .5}]}>
+      <SourceText style={{fontSize: 13}}>{`Dual-page prototype: ${dualPagePrototypeEnabled ? 'On' : 'Off'}`}</SourceText>
+    </Pressable> : null}
+    <ReaderHeaderMore visibility={interactions.headerMoreVisible} offset={interactions.headerMoreOffset} t={t} onPress={interactions.showToolbar} />
+  </View>, [showPdfPrototypeControl, dualPagePrototypeEnabled, togglePdfPrototype, interactions.headerMoreVisible, interactions.headerMoreOffset, interactions.showToolbar, t])
   useLayoutEffect(() => navigation.setOptions({title: '', headerShadowVisible: false, headerTransparent: true,
     headerStyle: {backgroundColor: 'transparent'}, headerRight: isPreview ? undefined : headerMore,
     unstable_headerRightItems: isPreview ? undefined : () => [{type: 'custom', element: headerMore(), hidesSharedBackground: true}],
@@ -139,11 +146,12 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
   const footer = useMemo(() => isPreview ? <View style={{paddingHorizontal: 20, paddingTop: 24, paddingBottom: 24 + safeArea.bottom}}><View style={{height: 0.5, backgroundColor: '#E9E5DF', marginBottom: 20}} />{saveButton}</View> : undefined,
     [isPreview, safeArea.bottom, saveButton])
 
-  return <View style={styles.root} testID="reader-screen" onLayout={event => setContainerHeight(event.nativeEvent.layout.height)}>
+  return <View style={[styles.root, {marginLeft: safeArea.left, marginRight: safeArea.right}]} testID="reader-screen" onLayout={event => setContainerHeight(event.nativeEvent.layout.height)}>
     <ReaderContent isPdf={isPdf} isPreview={isPreview} loading={document.loading} html={html} hostKey={`${cacheKey}:${pdf?.document_id ?? ''}:${document.readerGeneration}`}
       top={safeArea.top} title={title} header={header} contentError={contentError} nativeFailure={document.nativeFailure} rssError={document.rssError} t={t}
       reload={reload} retryPdf={document.retryPdf} retryNative={retryNative}
       pdfProps={pdf ? {...hostShared, ref: document.attachPdfHost, style: {flex: 1}, descriptor: pdf, cacheDirectory: fixtureOnly?.pdfNativeOwner ? undefined : fixtureOnly?.dataDirectory,
+        adaptivePdf: {enabled: Boolean(__DEV__ && fixtureOnly && isIos && dualPagePrototypeEnabled)},
         readRange: document.readPdfRange, labels: {loading: t('pdf_loading'), error: t('pdf_load_failed'), mark: t('pdf_notes')},
         // PDF callbacks stay per-render closures: each captures its own host lease, which keeps a retired host's late callbacks inert.
         onEvent: (value, pageId) => {if (document.isPdfHostCurrent()) event(value, pageId)},
@@ -194,5 +202,6 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
 }
 const styles = StyleSheet.create({
   root: {flex: 1, backgroundColor: C.readerBackground},
+  pdfPrototypeControl: {minHeight: 44, paddingHorizontal: 12, justifyContent: 'center', borderRadius: 8, backgroundColor: C.surface},
   copyToast: {position: 'absolute', top: 120, alignSelf: 'center', backgroundColor: C.bodyText, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10},
 })

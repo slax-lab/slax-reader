@@ -25,7 +25,7 @@ export function memoryNativeFileStore(contents) {
   const filename = new URL('../../src/data/native-file-store.ts', import.meta.url), exports = {};
   const output = ts.transpileModule(readFileSync(filename, 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022}}).outputText;
   vm.runInNewContext(output, {exports, require(name) {
-    if (name === 'expo-modules-core') return {requireNativeModule: () => native};
+    if (name === 'expo') return {requireNativeModule: () => native};
     if (name === '../utils/abort.ts') return {throwIfAborted};
     throw new Error(`Unexpected native file adapter import ${name}`);
   }});

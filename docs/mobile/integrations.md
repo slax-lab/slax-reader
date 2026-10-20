@@ -4,7 +4,7 @@ The human approved the complete `expo-mobile-migration` proposal on 2026-10-10 a
 
 | Integration | Approved packages or runtime | Status |
 | --- | --- | --- |
-| Runtime and platform floor | Expo SDK 57, React Native, React; iOS 16.4+, Android API 26+ | Approved |
+| Runtime and platform floor | Expo SDK 58, React Native 0.88, React 19.3; iOS 16.4+, Android API 26+ | Upgrade approved on 2026-10-19; native acceptance remains pending |
 | Native navigation | `@react-navigation/native`, `@react-navigation/native-stack`, `react-native-screens`, `react-native-safe-area-context` | Approved |
 | Reading container | `react-native-webview` | Approved |
 | PDF reading | Locally bundled `pdfjs-dist@6.4.299` with `esbuild@0.28.2` asset tooling and project-owned file picker | Approved in the PDF follow-up; use the existing foreground queue, no OS background downloader or native PDF SDK |
@@ -18,6 +18,23 @@ The human approved the complete `expo-mobile-migration` proposal on 2026-10-10 a
 | Firebase wrappers | `@react-native-firebase/app`, `@react-native-firebase/analytics`, `@react-native-firebase/crashlytics` | Approved |
 
 Required transitive runtime dependencies belong to their approved integration; this does not approve unrelated optional packages. Source-native code may fill gaps. Further optional integrations still require specific human approval before adoption.
+
+On 2026-10-19, after reviewing `mobile-sdk58-native-experiences`, the human requested implementation. This approves the SDK-58 dependency/configuration upgrade and the named optional `expo-app-intents`, `expo-widgets`, `@expo/ui`, and `expo-hinge` integrations for board items 1–10 and 12. These feature integrations must wait until the base Android/iOS build gate passes. Their approval does not establish implementation or native acceptance. Item 11 (audio/TTS/lock-screen playback) is excluded. Work uses an independent worktree based on `feat/mobile-perf@960ccb5`; other mobile branches are not merge prerequisites. No version/build increment, store publication or remote deployment is authorized by this implementation instruction.
+
+On 2026-10-20, the human approved implementing the adaptive PDF prototype in the existing PDF.js renderer while retaining its single WebView/document owner. `expo-hinge` may provide pose effects but does not determine page layout; `@expo/ui` remains scoped to Widgets and Live Activity. This changes the implementation approach only: the opt-in, bounded resource ownership, offline bytes, progress/mark geometry, accessibility, reduced-motion, and earlier-OS/narrow-window fallback requirements remain in force.
+
+On 2026-10-20, the human set remaining interactive validation priority to the iOS Duo simulator. Do not run additional Android builds or physical-device acceptance for this task. Previously recorded Android base-gate results remain valid; Android-specific feature acceptance stays explicitly unverified. The manual Siri, login, and IAP acceptance steps remain listed for delivery but do not block the prioritized Duo simulator pass.
+
+The same approved task is now tracked as OpenSpec `update-expo-58` on `feat/update-expo-58`. At delivery, the human separately approved `1.0.25 (774)` and previous build bound 773 from the latest `origin/dev` source metadata. This is a source prior-build bound, not independently verified store history; signing, upload and publication remain separately authorized operations. Board item 11 and `expo-insights` remain excluded.
+
+### Remaining manual acceptance entry points
+
+These checks require a supported native iOS installation and a test account/store environment. They are separate from simulator source/unit validation and are not prerequisites to beginning the approved Duo simulator check.
+
+- **Siri/Shortcuts save:** From a terminated app, invoke “Save a link in Slax Reader” or “Save to Slax Reader” with an HTTP(S) URL. If signed out, complete Login first; return to the queued link and explicitly choose **Claim and save**. Verify the bookmark appears in Library only after the authenticated save completes. Repeat offline, restore connectivity, and use **Retry**; never treat app launch/queue handoff as save success.
+- **System search and suggestions:** Sign in, open the Library drawer’s **Settings** page, enable the system discovery and/or donation controls, and search for a recent eligible bookmark in Spotlight. Open it and verify it resolves in the currently admitted account. Turn the options off and confirm removal/retry behavior in the app; do not rely on OS metadata as authorization.
+- **Widgets and reading session:** On the Library drawer’s **Settings** page, enable only the desired count/title sharing and add the app widget from the supported home-screen gallery. Tap a listed article and verify normal account admission. From the same settings page, explicitly start a reading session, mark an unread inbox item as read from its row menu, and verify the count changes; stop the session and verify it ends. Opening, archiving or deleting an item must not count as a read.
+- **IAP:** Sign in, open **Library drawer → Subscription**, then use the configured sandbox store account to complete a purchase, cancel a purchase, and restore purchases. Verify entitlement state after each result and that cancellation does not grant entitlement.
 
 The first reply authorized navigation/WebView and SDK 57/iOS 16.4. The second authorized PowerSync/SQLite. The proposal approval explicitly requested implementation. The subsequent reply authorized the three development/system/gesture groups above. Later replies authorized the provider, purchase, and Firebase groups shown in the table.
 

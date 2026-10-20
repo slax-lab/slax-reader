@@ -19,6 +19,14 @@ export interface BookmarkRecord {
   contentType?: 'article' | 'shortcut' | 'pdf';
 }
 
+/** Minimal local projection used by opted-in OS search; article bodies and notes are never read. */
+export interface SystemCatalogBookmark {
+  id: string; title: string; aliasTitle: string; url: string; status: string; createdAt: string; archiveStatus: number;
+}
+
+export interface WidgetBookmarkSuggestion {id: string; title: string; savedAt: number}
+export interface WidgetLibrarySnapshot {unreadCount: number; suggestions: WidgetBookmarkSuggestion[]}
+
 export interface TagRecord {
   id: string;
   tag_name: string;

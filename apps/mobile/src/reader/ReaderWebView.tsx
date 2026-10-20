@@ -1,3 +1,4 @@
+import type {ViewInstance, ScrollViewInstance} from 'react-native'
 import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { AppState, PixelRatio, Platform, ScrollView, StyleSheet, View } from 'react-native'
 import type { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, StyleProp, ViewStyle } from 'react-native'
@@ -121,9 +122,9 @@ export const ReaderWebView = memo(forwardRef<ReaderHandle, ReaderWebViewProps>(f
 
 const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage(props, ref) {
   const platform = Platform.OS === 'ios' ? 'ios' : 'android'
-  const webView = useRef<WebView>(null)
-  const outerScroll = useRef<ScrollView>(null)
-  const container = useRef<View>(null)
+  const webView = useRef<WebView<unknown>>(null)
+  const outerScroll = useRef<ScrollViewInstance>(null)
+  const container = useRef<ViewInstance>(null)
   const callbacks = useRef(props)
   callbacks.current = props
   const session = useRef<ReaderBridgeSession | null>(null)
@@ -147,8 +148,8 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
   const [viewportHeight, setViewportHeight] = useState(0)
   const [screenTop, setScreenTop] = useState(0)
   const scrollPoints = useRef(0)
-  const fallbackHeader = useRef<View>(null)
-  const fallbackFooter = useRef<View>(null)
+  const fallbackHeader = useRef<ViewInstance>(null)
+  const fallbackFooter = useRef<ViewInstance>(null)
   const [attachedNativeTag, setAttachedNativeTag] = useState<number | null>(null)
   const [androidContentHeight, setAndroidContentHeight] = useState(0)
   const [androidViewportHeight, setAndroidViewportHeight] = useState(0)
@@ -459,7 +460,7 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
     if (!initialPositionConsumed.current) setAndroidContentHeight(height)
   }
   const nativeScrollMetrics = (event: NativeSyntheticEvent<NativeScrollEvent>) => updatePosition(event.nativeEvent.contentOffset.y, event.nativeEvent.contentSize.height, event.nativeEvent.layoutMeasurement.height)
-  const onNativeScroll: NonNullable<WebViewProps['onScroll']> = event => {
+  const onNativeScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (platform !== 'ios') return
     updatePosition(event.nativeEvent.contentOffset.y, event.nativeEvent.contentSize.height, event.nativeEvent.layoutMeasurement.height)
   }
@@ -467,7 +468,7 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
     setViewportHeight(event.nativeEvent.layout.height)
     container.current?.measureInWindow((_x, y) => setScreenTop(y))
   }
-  const DocumentWebView = props.nativeAdapter?.HostComponent ?? WebView
+  const DocumentWebView = props.nativeAdapter?.HostComponent ?? WebView<unknown>
   const documentSource = useMemo(() => ({html: document, baseUrl: READER_ORIGIN}), [document])
   const documentStyle = useMemo(() => platform === 'android' ? {height: documentHeight, backgroundColor: 'transparent'} : styles.document, [platform, documentHeight])
   const documentContainerStyle = useMemo(() => platform === 'android' ? {flex: 0, height: documentHeight} : styles.document, [platform, documentHeight])

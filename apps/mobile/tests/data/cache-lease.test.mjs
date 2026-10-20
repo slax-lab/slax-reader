@@ -22,7 +22,7 @@ function fixture(validate = (directory, key, path) => `file://${directory}/${pat
     if (name === 'expo-file-system') return {File};
     if (name === './native-file-store.ts') return native;
     if (name === './cache-paths.ts') return {imageCachePath, imageCacheReadPaths, normalizeImageUrl};
-    if (name === 'expo-modules-core') return {requireNativeModule(name) {assert.equal(name, 'SlaxCachePaths'); return {imageCacheFileUri: validate};}};
+    if (name === 'expo') return {requireNativeModule(name) {assert.equal(name, 'SlaxCachePaths'); return {imageCacheFileUri: validate};}};
     if (name === '../utils/abort.ts') return {throwIfAborted};
     throw new Error(`Unexpected cache import ${name}`);
   }}, {filename: filename.pathname});

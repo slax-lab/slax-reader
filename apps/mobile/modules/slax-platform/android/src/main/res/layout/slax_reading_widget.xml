@@ -1,0 +1,14 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/slax_widget_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:orientation="vertical"
+  android:padding="16dp"
+  android:background="#FFF8F5F0">
+  <TextView android:id="@+id/slax_widget_count" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Your reading list" android:textColor="#FF282828" android:textSize="20sp" android:textStyle="bold" />
+  <TextView android:id="@+id/slax_widget_message" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="Open Slax Reader" android:textColor="#FF555555" android:textSize="13sp" />
+  <TextView android:id="@+id/slax_widget_row_1" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:ellipsize="end" android:maxLines="1" android:textColor="#FF282828" android:textSize="14sp" />
+  <TextView android:id="@+id/slax_widget_row_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:ellipsize="end" android:maxLines="1" android:textColor="#FF282828" android:textSize="14sp" />
+  <TextView android:id="@+id/slax_widget_row_3" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:ellipsize="end" android:maxLines="1" android:textColor="#FF282828" android:textSize="14sp" />
+  <TextView android:id="@+id/slax_widget_updated" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:gravity="end" android:textColor="#FF777777" android:textSize="11sp" />
+</LinearLayout>

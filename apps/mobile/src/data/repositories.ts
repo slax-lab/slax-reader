@@ -9,6 +9,7 @@ import type {SqlDatabase} from './repositories/sql.ts';
 import type {
   BookmarkChanges,
   BookmarkRecord,
+  SystemCatalogBookmark,
   CollectionMarkPolicy,
   CollectionRecord,
   CollectionSettings,
@@ -16,12 +17,15 @@ import type {
   CreateMarkInput,
   MarkRecord,
   TagRecord,
+  WidgetLibrarySnapshot,
 } from './repositories/types.ts';
 
 export type {SqlDatabase, SqlSyncStream, SqlSyncStreamSubscription, SqlTransaction} from './repositories/sql.ts';
 export type {
   BookmarkChanges,
   BookmarkRecord,
+  SystemCatalogBookmark,
+  WidgetLibrarySnapshot,
   CollectionMarkPolicy,
   CollectionRecord,
   CollectionSettings,
@@ -76,6 +80,16 @@ export class MobileRepositories {
 
   getBookmark(id: string, ownerId?: string): Promise<BookmarkRecord | null> {
     return this.bookmarks.getBookmark(id, ownerId);
+  }
+
+  getSystemBookmark(id: string): Promise<SystemCatalogBookmark | null> {return this.bookmarks.getSystemBookmark(id);}
+
+  watchSystemCatalog(onRows: (rows: SystemCatalogBookmark[]) => void, onError?: (error: Error) => void) {
+    return this.bookmarks.watchSystemCatalog(onRows, onError);
+  }
+
+  watchWidgetSnapshot(onSnapshot: (snapshot: WidgetLibrarySnapshot) => void, onError?: (error: Error) => void) {
+    return this.bookmarks.watchWidgetSnapshot(onSnapshot, onError);
   }
 
   watchTags(onRows: (rows: TagRecord[]) => void, onError?: (error: Error) => void) {

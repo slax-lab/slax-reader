@@ -95,10 +95,16 @@ export function createPdfPages(root: HTMLElement, options: PdfRuntimeOptions, po
   }
   function resize() {
     if (!pdf || !layout.slots.length) return
-    void layout.resize(() => {
+    layout.resize(() => {
       renderEpoch++
       for (const number of resident.keys()) evict(number)
-    })?.catch(reason => error(reason, 'render'))
+    })
+  }
+  function setPresentation(mode: 'single' | 'spread', paneWidth: number, gutter: number) {
+    layout.setPresentation(mode, paneWidth, gutter, () => {
+      renderEpoch++
+      for (const number of resident.keys()) evict(number)
+    })
   }
   function scroll() {
     if (!positionFrame) positionFrame = requestAnimationFrame(() => {positionFrame = 0; layout.position(); schedule()})
@@ -137,6 +143,6 @@ export function createPdfPages(root: HTMLElement, options: PdfRuntimeOptions, po
     window.removeEventListener('scroll', scroll)
     for (const number of resident.keys()) evict(number)
   }
-  return {layout, initialize, schedule, suspend, cancelRendering, dispose,
+  return {layout, initialize, schedule, setPresentation, suspend, cancelRendering, dispose,
     getPage: (number: number) => resident.get(number), pageNumbers: () => resident.keys()}
 }

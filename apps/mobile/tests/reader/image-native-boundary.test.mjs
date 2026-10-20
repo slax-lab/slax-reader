@@ -21,7 +21,7 @@ function fixture(native) {
   const exports = {};
   const code = ts.transpileModule(source, {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022}}).outputText;
   vm.runInNewContext(code, {exports, URL, setTimeout, clearTimeout, require(name) {
-    if (name === 'expo-modules-core') return {requireNativeModule: () => native};
+    if (name === 'expo') return {requireNativeModule: () => native};
     if (name === '../config') return {mobileConfig: {webUrl: 'https://r.slax.com', webDomain: '.slax.com', apiUrl: origin, betaApiUrl: 'https://beta-api.other.test'}};
     if (name === '../reader/security.ts') return security;
     if (name === '../utils/abort.ts') return {throwIfAborted};

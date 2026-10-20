@@ -70,6 +70,12 @@ host.__slaxPdfReceive = message => {
     pages.layout.setViewport(message.offset, message.height)
     return
   }
+  if (message.kind === 'layout' && (message.mode === 'single' || message.mode === 'spread')) {
+    const paneWidth = typeof message.paneWidth === 'number' && Number.isFinite(message.paneWidth) ? message.paneWidth : 0
+    const gutter = typeof message.gutter === 'number' && Number.isFinite(message.gutter) ? message.gutter : 12
+    pages.setPresentation(message.mode, paneWidth, gutter)
+    return
+  }
   if (!lifecycle.active && message.kind !== 'command') return
   if (message.kind === 'rangeChunk' || message.kind === 'rangeError') {transport.receive(message); return}
   if (message.kind !== 'command' || typeof message.id !== 'string' || !message.id || message.id.length > 80) return

@@ -18,6 +18,12 @@ test('production provider keeps translation/config/context stable, backgrounds w
     './config': {mobileConfig: {apiUrl: 'https://api.test', betaApiUrl: 'https://beta.test', platform: 'android', version: 'test', buildNumber: '1'}},
     './payments/controller': {PaymentController: class {}}, './payments/expo-store': {createExpoStore: () => ({})},
     './native/platform': {setWebSessionCookie: async (...args) => {cookies.push(args);}}, './controlled-upgrade-visibility': {},
+    './system-actions/SaveURLHost': {SaveURLHost: () => null}, './widgets/WidgetCleanupNotice': {WidgetCleanupNotice: () => null},
+    './system-actions/adapters': {
+      createSaveURLController: () => ({subscribe: () => () => {}, getSnapshot: () => [], contextChanged: async () => {}, activate() {}, dispose() {}}),
+      createSystemSurfacesController: () => ({subscribe: () => () => {}, getSnapshot: () => false, activate() {}, reconcile: async () => {}, dispose() {}}),
+      createSystemEntryRouter: () => ({router: {subscribe: () => () => {}, getSnapshot: () => null, activate() {}, contextChanged: async () => {}, dispose() {}}, setNavigator() {}}),
+    }, './widgets/adapters': {createWidgetRuntime: () => {throw new Error('No native widget boundary was supplied');}},
   });
   function Consumer() {values.push(useMobile()); return null;}
   function SubscriptionConsumer() {const {acquireWebSession} = useMobile(); React.useEffect(() => acquireWebSession?.(), [acquireWebSession]); return null;}

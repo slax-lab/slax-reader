@@ -1,6 +1,6 @@
 import {bookmark, bookmarkCacheKey} from './records.ts';
 import type {RowWatch, SqlDatabase} from './sql.ts';
-import type {BookmarkChanges, BookmarkRecord, TagRecord} from './types.ts';
+import type {BookmarkChanges, BookmarkRecord, SystemCatalogBookmark, TagRecord, WidgetLibrarySnapshot} from './types.ts';
 
 const bookmarkFields = `b.id, b.alias_title, b.created_at, b.updated_at, b.metadata, json_extract(b.metadata, '$.bookmark.title') AS metadata_title, json_extract(b.metadata, '$.bookmark.target_url') AS metadata_url, json_extract(b.metadata, '$.bookmark.status') AS metadata_status, coalesce(json_extract(l.data, '$.is_downloaded'), 0) AS download_status, json_extract(l.data, '$.is_auto_cached') AS is_auto_cached`;
 const bookmarkColumns = `${bookmarkFields}, b.type AS content_type, b.user_id, b.archive_status, b.is_starred, b.is_read`;
@@ -43,6 +43,33 @@ export class BookmarkRepository {
       [cacheId, id, ...(ownerId ? [ownerId] : [])],
     );
     return row ? bookmark({...row, ...(ownerId ? {is_read: 0, archive_status: 0, is_starred: 1} : {})}) : null;
+  }
+
+  watchSystemCatalog(onRows: (rows: SystemCatalogBookmark[]) => void, onError?: (error: Error) => void) {
+    return this.rows.watchRows<SystemCatalogBookmark>(
+      `SELECT b.id, b.alias_title, b.created_at, b.archive_status, json_extract(b.metadata, '$.bookmark.title') AS title, json_extract(b.metadata, '$.bookmark.target_url') AS url, json_extract(b.metadata, '$.bookmark.status') AS status FROM sr_user_bookmark b WHERE b.archive_status = 0 AND b.deleted_at IS NULL AND json_extract(b.metadata, '$.bookmark.status') = 'success' ORDER BY b.created_at DESC LIMIT 100`,
+      [], onRows, onError, row => ({id: String(row.id ?? ''), aliasTitle: String(row.alias_title ?? ''), createdAt: String(row.created_at ?? ''), archiveStatus: Number(row.archive_status ?? 0), title: String(row.title ?? ''), url: String(row.url ?? ''), status: String(row.status ?? '')}),
+    );
+  }
+
+  async getSystemBookmark(id: string): Promise<SystemCatalogBookmark | null> {
+    const row = await this.database.getOptional<Record<string, unknown>>(
+      `SELECT b.id, b.alias_title, b.created_at, b.archive_status, json_extract(b.metadata, '$.bookmark.title') AS title, json_extract(b.metadata, '$.bookmark.target_url') AS url, json_extract(b.metadata, '$.bookmark.status') AS status FROM sr_user_bookmark b WHERE b.id = ? AND b.archive_status = 0 AND b.deleted_at IS NULL AND json_extract(b.metadata, '$.bookmark.status') = 'success'`, [id],
+    );
+    return row ? {id: String(row.id ?? ''), aliasTitle: String(row.alias_title ?? ''), createdAt: String(row.created_at ?? ''), archiveStatus: Number(row.archive_status ?? 0), title: String(row.title ?? ''), url: String(row.url ?? ''), status: String(row.status ?? '')} : null;
+  }
+
+  watchWidgetSnapshot(onSnapshot: (snapshot: WidgetLibrarySnapshot) => void, onError?: (error: Error) => void) {
+    return this.rows.watchRows<Record<string, unknown>>(
+      `SELECT 'count' AS kind, count(*) AS unread_count, '' AS id, '' AS title, '' AS saved_at FROM sr_user_bookmark WHERE is_read = 0 AND archive_status = 0 AND deleted_at IS NULL UNION ALL SELECT 'item' AS kind, 0 AS unread_count, b.id, coalesce(nullif(b.alias_title, ''), json_extract(b.metadata, '$.bookmark.title'), '') AS title, b.created_at AS saved_at FROM sr_user_bookmark b WHERE b.is_read = 0 AND b.archive_status = 0 AND b.deleted_at IS NULL ORDER BY kind ASC, saved_at DESC LIMIT 4`,
+      [], rows => {
+        const countRow = rows.find(row => row.kind === 'count');
+        const suggestions = rows.filter(row => row.kind === 'item').slice(0, 3).map(row => ({
+          id: String(row.id ?? ''), title: String(row.title ?? ''), savedAt: Date.parse(String(row.saved_at ?? '')) || 0,
+        })).filter(row => row.id.length > 0);
+        onSnapshot({unreadCount: Math.max(0, Number(countRow?.unread_count ?? 0)), suggestions});
+      }, onError,
+    );
   }
 
   watchTags(onRows: (rows: TagRecord[]) => void, onError?: (error: Error) => void) {

@@ -1,4 +1,4 @@
-import {requireNativeModule} from 'expo-modules-core';
+import {requireNativeModule} from 'expo';
 import {throwIfAborted} from '../utils/abort.ts';
 import type {ResourceFingerprint} from './resource-fingerprint.ts';
 

@@ -1,6 +1,6 @@
 import {Directory, File, Paths} from 'expo-file-system';
 import {Platform} from 'react-native';
-import {requireNativeModule} from 'expo-modules-core';
+import {requireNativeModule} from 'expo';
 import {PdfFileStorage} from '../src/data/pdf-file-storage';
 import {Sha256} from '../src/data/pdf-sha256';
 import {assertFixtureScope} from './isolation';

@@ -1,5 +1,5 @@
 import {Directory, File, Paths} from 'expo-file-system';
-import {uuid} from 'expo-modules-core';
+import {uuid} from 'expo';
 import type {PdfBlockStorage} from '../src/data/pdf-cache';
 import {Sha256} from '../src/data/pdf-sha256';
 import {assertFixtureScope} from './isolation';

@@ -16,7 +16,7 @@ async function fixture() {
     async read(owner, id) {state.calls.push(['read', owner, id]); await state.readGate; return state.chunks.shift() ?? null;},
   };
   const {createNativePdfFetch} = await loadComponent('../../src/data/native-pdf-transfer.ts', {
-    'expo-modules-core': {requireNativeModule: name => {assert.equal(name, 'SlaxPdfTransfer'); return native;}},
+    'expo': {requireNativeModule: name => {assert.equal(name, 'SlaxPdfTransfer'); return native;}},
     './transport-errors.ts': {DataTransportError, NativePdfTransportError}, '../utils/abort.ts': {throwIfAborted},
   }, {URL, Headers, ReadableStream, Uint8Array, Error});
   const fetch = createNativePdfFetch(() => state.owner ? {owner: state.owner, origin: state.origin} : null);

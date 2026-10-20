@@ -33,7 +33,7 @@ export function galleryCacheFixture(resolveImage) {
     if (name === 'expo-file-system') return {Directory, File};
     if (name === './cache-paths.ts') return {imageCachePath, imageCacheReadPaths, normalizeImageUrl};
     if (name === './native-file-store.ts') return native;
-    if (name === 'expo-modules-core') return {requireNativeModule() {return {imageCacheFileUri: (directory, _key, path) => `file://${directory}/${path}`};}};
+    if (name === 'expo') return {requireNativeModule() {return {imageCacheFileUri: (directory, _key, path) => `file://${directory}/${path}`};}};
     if (name === '../utils/abort.ts') return {throwIfAborted};
     throw new Error(`Unexpected native cache boundary: ${name}`);
   }}, {filename: filename.pathname});

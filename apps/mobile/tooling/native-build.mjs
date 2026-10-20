@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import {readFileSync} from 'node:fs';
 import {applyMobileEnvironment} from './deploy-environment.cjs';
 import {readBuildVersion} from './build-version.cjs';
+import {assertReleaseSigning} from '../plugins/android-release-signing.cjs';
 
 applyMobileEnvironment();
 
@@ -26,7 +27,7 @@ let command, args, cwd;
 if (platform === 'android') {
   command = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
   const native = readFileSync(`${app}/android/app/build.gradle`, 'utf8');
-  if (release && (!native.includes('// Slax release signing: operator-managed environment only.') || /release \{[^}]*signingConfig = signingConfigs.debug/.test(native))) throw new Error('Regenerate native projects: release builds cannot use the template debug signing identity.');
+  if (release) assertReleaseSigning(native);
   args = [release ? 'assembleRelease' : 'assembleDebug', ...forwarded];
   cwd = `${app}/android`;
 } else if (platform === 'ios') {

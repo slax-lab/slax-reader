@@ -19,7 +19,7 @@ node apps/mobile/assets/verify-baseline.mjs --source /path/to/slax-reader-client
 
 All root mobile commands set `EXPO_NO_DOTENV=1`. Native preparation/development and build/release commands explicitly load `deploy/mobile/.env`, with existing process values taking precedence, and discover Firebase/Android signing files under `deploy/mobile/ios` and `deploy/mobile/android`. Expo configuration and direct native build/release scripts use the same loader. Tests, type checking, JavaScript bundle checks, and controlled fixtures skip local configuration. API, Web, and Extension local configuration is not read, and other applications are not started. See [the mobile build-input layout](../../deploy/mobile/README.md) for restoration and signing setup. Never place tokens, signing credentials, private keys, or Firebase service configuration in public Expo variables or tracked files.
 
-For local development, install Android SDK 36, its build tools, the configured NDK, and Java 17; iOS requires macOS, Xcode, and CocoaPods. Native custom modules and OP-SQLite require a development build:
+For local development, install Android compile SDK 37, the template's build tools and configured NDK, and a supported JDK; Android target SDK remains 36 and the minimum remains 26. iOS requires macOS, Xcode, and CocoaPods. Native custom modules and OP-SQLite require a development build:
 
 ```sh
 pnpm mobile -- prebuild:clean --platform android
@@ -33,11 +33,15 @@ pnpm mobile -- build:ios
 pnpm mobile -- ios
 ```
 
-Use `prebuild:clean` for initial local setup or an explicitly requested clean native rebuild: Expo SDK 57 recreates the selected native directories, including development signing fixtures, and removes their existing build outputs. Retain needed artifacts outside those directories first and wait for active builds to finish. For later configuration updates, `pnpm mobile -- prebuild --platform android` or `ios` passes `--no-clean` to update the existing project while retaining build caches. Native reader/data/share implementation belongs in `apps/mobile/modules`, `apps/mobile/native`, and the configuration plugins. Keep operator signing/service files outside regenerated project directories. Both modes apply owned plugins; generated-project edits are not an implementation source. The unsigned iOS build targets a generic simulator; launching and testing requires a working simulator service or an explicitly selected test device.
+Use `prebuild:clean` for initial local setup or an explicitly requested clean native rebuild: Expo SDK 58 recreates the selected native directories, including development signing fixtures, and removes their existing build outputs. Retain needed artifacts outside those directories first and wait for active builds to finish. For later configuration updates, `pnpm mobile -- prebuild --platform android` or `ios` passes `--no-clean` to update the existing project while retaining build caches. Native reader/data/share implementation belongs in `apps/mobile/modules`, `apps/mobile/native`, and the configuration plugins. Keep operator signing/service files outside regenerated project directories. Both modes apply owned plugins; generated-project edits are not an implementation source. The unsigned iOS build targets a generic simulator; launching and testing requires a working simulator service or an explicitly selected test device.
 
 The app retains `com.slax.reader`, `app.slax.reader`, `app.slax.reader.share`, and `group.app.slax.reader`. A debug APK has a development signing identity; it cannot replace a store installation signed by the original publisher. Test same-identity replacement only on a fresh isolated target containing synthetic data, or through the operator's controlled signed-upgrade workflow.
 
-The application floor is Android API 26 and iOS 16.4. The approved runtime is Expo SDK 57, React Native 0.86, and React 19. All packages are locked. Mobile's React DOM peer is pinned to its React version for dependency resolution; the supported bundle platforms are Android and iOS.
+The application floor is Android API 26 and iOS 16.4. The approved SDK-58 upgrade uses Expo 58.0.16, React Native 0.88.0, React/React DOM 19.3.0, matching React types, and TypeScript 6.0.3. Packages are locked; the supported bundle platforms are Android and iOS. Native acceptance of the upgrade remains separate from successful generation, type checking and bundles; see the [upgrade verification record](sdk58-upgrade.md).
+
+Import native module/view helpers from the public `expo` API (`requireNativeModule`, `requireNativeView`); do not add a direct `expo-modules-core` dependency. SDK 58 uses a scene-based iOS lifecycle. The generated SceneDelegate owns window/React startup, while Expo forwards scene URL callbacks to the existing app-delegate subscribers. Configured main-app Firebase bootstrap is generated before consumers initialize, including templates without the old `factory.startReactNative` insertion point. Share remains Firebase-free.
+
+The tracked native directories are deliberate: contributors must regenerate after configuration/dependency changes, then build the generated output. `expo-doctor` can warn about app-config fields not being automatically synchronized in this layout; that warning does not replace prebuild or authorize accepting stale native projects.
 
 ## Public configuration
 
@@ -49,7 +53,7 @@ The application floor is Android API 26 and iOS 16.4. The approved runtime is Ex
 | `EXPO_PUBLIC_SLAX_GOOGLE_WEB_CLIENT_ID` | Google ID-token audience for the existing backend |
 | `EXPO_PUBLIC_SLAX_GOOGLE_IOS_CLIENT_ID` | iOS Google client identifier |
 | `EXPO_PUBLIC_SLAX_GOOGLE_IOS_URL_SCHEME` | Reversed iOS client identifier registered by the provider plugin |
-| `apps/mobile/package.json`: `version` / `buildNumber` | Canonical native marketing version and build code; together represent `1.0.25(770)`; environment version overrides are ignored |
+| `apps/mobile/package.json`: `version` / `buildNumber` | Canonical native marketing version and build code; together represent the user-approved source metadata `1.0.25(774)`; environment version overrides are ignored |
 | `apps/mobile/package.json`: `previousBuildNumber` | Confirmed previous build bound, strictly lower than `buildNumber`; update before another store release |
 | `SLAX_APPLE_TEAM_ID` | Public publisher team identifier for the guarded iOS archive/export/upload commands using the existing Xcode account |
 

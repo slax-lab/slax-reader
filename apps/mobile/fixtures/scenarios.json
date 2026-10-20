@@ -23415,6 +23415,146 @@
       ],
       "nativeExecution": "pending-adapter-and-device"
     },
+    "reader-pdf-odd": {
+      "route": {
+        "name": "Reader",
+        "params": {
+          "bookmarkId": "fixture-pdf-odd"
+        }
+      },
+      "payload": {
+        "settings": {
+          "user_language": "en",
+          "cache_count": 0,
+          "download_images": 0,
+          "user_setting_detail_do_not_alert": "true"
+        },
+        "session": {
+          "userId": "00000001-0000-4000-8000-000000000001",
+          "token": "fixture-only-never-use-for-auth",
+          "refreshedAt": 1791604800
+        },
+        "database": {
+          "sr_user": [
+            {
+              "id": "00000001-0000-4000-8000-000000000001",
+              "name": "Fixture Reader",
+              "email": "reader@example.test",
+              "picture": "",
+              "lang": "en",
+              "ai_lang": "en",
+              "timezone": "UTC"
+            }
+          ],
+          "sr_user_tag": [],
+          "sr_user_bookmark": [
+            {
+              "id": "fixture-pdf-odd",
+              "user_id": "00000001-0000-4000-8000-000000000001",
+              "alias_title": "",
+              "created_at": "2026-10-10T04:00:00Z",
+              "updated_at": "2026-10-10T04:00:00Z",
+              "starred_at": "",
+              "archived_at": "",
+              "deleted_at": null,
+              "is_read": 0,
+              "is_starred": 0,
+              "archive_status": 0,
+              "type": 2,
+              "metadata": "{\"tags\":[],\"bookmark\":{\"uuid\":\"fixture-pdf-odd\",\"title\":\"13-page adaptive PDF fixture\",\"target_url\":\"https://fixture-pages.test/thirteen-pages.pdf\",\"host_url\":\"https://fixture-pages.test\",\"site_name\":\"Fixture PDF\",\"description\":\"\",\"byline\":\"Fixture Author\",\"published_at\":\"2026-10-10T04:00:00Z\",\"status\":\"success\",\"content_cover\":\"\",\"content_icon\":\"\",\"content_word_count\":260,\"type\":2}}"
+            }
+          ],
+          "sr_bookmark_comment": [],
+          "sr_user_subscription": [],
+          "sr_user_collection": [],
+          "sr_user_collection_subscriber": [],
+          "sr_collection_bookmark": [],
+          "sr_sharer_setting": [],
+          "ps_data_local__local_bookmark_info": [
+            {
+              "id": "fixture-pdf-odd",
+              "data": "{\"id\":\"fixture-pdf-odd\",\"is_downloaded\":0,\"is_auto_cached\":1,\"overview\":\"Thirteen synthetic pages for spread pairing and odd-final-page interaction.\",\"outline\":\"- [Page 13](#page=13)\",\"mark_users\":\"[]\"}"
+            }
+          ]
+        },
+        "cache": [],
+        "pdf": [
+          {
+            "bookmarkId": "fixture-pdf-odd",
+            "document": "thirteen-pages"
+          }
+        ],
+        "network": {
+          "isConnected": true,
+          "isInternetReachable": true
+        },
+        "sync": {
+          "connected": true,
+          "connecting": false,
+          "hasSynced": true,
+          "uploading": false,
+          "downloading": false
+        },
+        "api": [
+          {
+            "method": "GET",
+            "path": "/v1/user/labs",
+            "query": {},
+            "status": 200,
+            "delayMs": 0,
+            "json": {
+              "code": 200,
+              "message": "Fixture response",
+              "data": {
+                "features": [
+                  {
+                    "key": "pdf",
+                    "enabled": true
+                  },
+                  {
+                    "key": "rss",
+                    "enabled": false
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "method": "GET",
+            "path": "/v1/mark/users",
+            "query": {},
+            "status": 200,
+            "delayMs": 0,
+            "json": {
+              "code": 200,
+              "message": "Fixture response",
+              "data": []
+            }
+          }
+        ]
+      },
+      "actions": [
+        {
+          "kind": "pdf-cache-status"
+        },
+        {
+          "kind": "pdf-fill-cache"
+        },
+        {
+          "kind": "pdf-network-offline"
+        },
+        {
+          "kind": "background-flush"
+        },
+        {
+          "kind": "pdf-cache-status"
+        },
+        {
+          "kind": "pdf-network-online"
+        }
+      ],
+      "nativeExecution": "pending-adapter-and-device"
+    },
     "reader-pdf-long": {
       "route": {
         "name": "Reader",

@@ -1,11 +1,12 @@
 const { withGradleProperties, withPodfileProperties, withPodfile, withAndroidManifest, withAppBuildGradle, withAndroidStyles } = require('expo/config-plugins');
 const withNativeBack = require('./with-native-back.cjs');
+const {marker, removeTemplateDebugSigning} = require('./android-release-signing.cjs');
 
 module.exports = function withNativeCompatibility(config, {fixtureMode = false} = {}) {
   const firebaseIosConfigured = !fixtureMode && Boolean(config.ios?.googleServicesFile);
   config = withNativeBack(config);
   config = withGradleProperties(config, mod => {
-    const values = { 'android.minSdkVersion': '26', 'android.compileSdkVersion': '36', 'android.targetSdkVersion': '36' };
+    const values = { 'android.minSdkVersion': '26', 'android.compileSdkVersion': '37', 'android.targetSdkVersion': '36' };
     for (const [key, value] of Object.entries(values)) {
       const property = mod.modResults.find(item => item.type === 'property' && item.key === key);
       if (property) property.value = value;
@@ -44,9 +45,8 @@ module.exports = function withNativeCompatibility(config, {fixtureMode = false} 
     return mod;
   });
   config = withAppBuildGradle(config, mod => {
-    const marker = '// Slax release signing: operator-managed environment only.';
+    mod.modResults.contents = removeTemplateDebugSigning(mod.modResults.contents);
     if (mod.modResults.contents.includes(marker)) return mod;
-    mod.modResults.contents = mod.modResults.contents.replace(/(\s+release \{)[\s\S]*?(signingConfig = signingConfigs.debug)/, '$1\n            signingConfig = null');
     mod.modResults.contents += `\n${marker}\nif (System.getenv('SLAX_MOBILE_UNSIGNED') != '1' && System.getenv('SLAX_ANDROID_KEYSTORE_PATH')) {\n    android.signingConfigs.create('slaxRelease') {\n        storeFile file(System.getenv('SLAX_ANDROID_KEYSTORE_PATH'))\n        storePassword System.getenv('SLAX_ANDROID_KEYSTORE_PASSWORD')\n        keyAlias System.getenv('SLAX_ANDROID_KEY_ALIAS')\n        keyPassword System.getenv('SLAX_ANDROID_KEY_PASSWORD')\n    }\n    android.buildTypes.release.signingConfig = android.signingConfigs.slaxRelease\n}\n`;
     return mod;
   });

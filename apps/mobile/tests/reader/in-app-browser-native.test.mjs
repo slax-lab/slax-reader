@@ -10,7 +10,7 @@ const compile = source => ts.transpileModule(source, {compilerOptions: {module: 
 function platform(native) {
   const module = {exports: {}}
   vm.runInNewContext(compile(platformSource), {module, exports: module.exports, URL, require(name) {
-    assert.equal(name, 'expo-modules-core')
+    assert.equal(name, 'expo')
     return {requireNativeModule: name => {assert.equal(name, 'SlaxPlatform'); return native}}
   }})
   return module.exports
@@ -69,7 +69,7 @@ test('Expo Reader imperative evaluation returns native completion and errors wit
       useRef: value => {const ref = {current: value}; nativeRef ??= ref; return ref}, useEffect() {},
       useImperativeHandle: (_ref, create) => {imperative = create()}}
     if (name === 'react-native') return {Platform: {OS: 'ios'}, StyleSheet: {create: value => value}, View: 'View'}
-    if (name === 'expo-modules-core') return {requireNativeViewManager: () => 'NativeView'}
+    if (name === 'expo') return {requireNativeView: () => 'NativeView'}
     throw new Error(name)
   }})
   module.exports.readerNativeAdapter.HostComponent({nativeConfig: {props: {pageId: 'page', cacheKey: 'key'}}, source: {html: '<p>body</p>'}}, {})

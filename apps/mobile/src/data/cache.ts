@@ -1,5 +1,5 @@
 import {File} from 'expo-file-system';
-import {requireNativeModule} from 'expo-modules-core';
+import {requireNativeModule} from 'expo';
 import {imageCachePath, imageCacheReadPaths} from './cache-paths.ts';
 import {throwIfAborted} from '../utils/abort.ts';
 import {NativeFileStore} from './native-file-store.ts';

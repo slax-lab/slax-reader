@@ -205,7 +205,7 @@ test('mounted RSS editor retains add draft on dismissal/failure, clears on succe
 
 test('actual iOS SourceLine forwards middle, clip and default tail truncation to UIKit text', async () => mounted(async root => {
   const v = views();
-  const {SourceLine} = await load('../../src/components/SourceLine.tsx', {react: React, 'react-native': {Platform: {OS: 'ios'}, useWindowDimensions: () => ({fontScale: 1})}, 'expo-modules-core': {requireNativeViewManager: () => {throw new Error('iOS must not load Android TextPaint');}}, './SourceUI': v.ui});
+  const {SourceLine} = await load('../../src/components/SourceLine.tsx', {react: React, 'react-native': {Platform: {OS: 'ios'}, useWindowDimensions: () => ({fontScale: 1})}, 'expo': {requireNativeView: () => {throw new Error('iOS must not load Android TextPaint');}}, './SourceUI': v.ui});
   for (const [ellipsis, expected] of [['middle', 'middle'], ['clip', 'clip'], [undefined, 'tail']]) {
     await act(async () => root.render(React.createElement(SourceLine, {text: 'A very long collection title', fontSize: 11, lineHeight: 14, color: '#999999', ellipsis})));
     assert.equal(v.one('SourceText').ellipsizeMode, expected); assert.equal(v.one('SourceText').numberOfLines, 1);
@@ -216,6 +216,7 @@ for (const platform of ['android', 'ios']) test(`actual ${platform} subscription
   const v = views(), screens = [];
   const boundaries = {
     react: React, 'react-native': {...v.primitives, Platform: {OS: platform}, StatusBar: nil, StyleSheet: {create: value => value}, useWindowDimensions: () => ({fontScale: 1})},
+    'expo-app-intents': {isAvailable: () => false, useAppIntents() {}}, './widgets/native-boundary': {createWidgetNativeBoundary: () => undefined},
     '@react-navigation/native': {NavigationContainer: v.native('NavigationContainer'), createNavigationContainerRef: () => React.createRef()}, '@react-navigation/native-stack': {createNativeStackNavigator: () => ({Navigator: v.native('Navigator'), Group: v.native('Group'), Screen: props => {screens.push(props); return null;}})},
     'react-native-gesture-handler': {GestureHandlerRootView: nil}, 'react-native-safe-area-context': {SafeAreaProvider: nil, SafeAreaView: nil}, './runtime': {MobileProvider: nil, useMobile: () => ({t: value => value, upgrade: {status: 'ready'}, session: {status: 'authenticated', session: {userId: 'user'}}})}, './theme': theme, './telemetry': {useTelemetry: () => telemetry}, './components/SourceLine': {SourceLine: nil},
   };
