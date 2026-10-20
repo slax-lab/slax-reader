@@ -11,8 +11,7 @@ on:
 
 permissions:
   contents: read
-  issues: write
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   diag:
@@ -31,7 +30,7 @@ jobs:
           echo '--- pull read ---'
           PR_INFO=$(gh api "repos/$REPO/pulls/$PR" --jq '[.state, .draft, .head.repo.full_name] | @tsv' 2>&1)
           echo "PR_INFO=[$PR_INFO] exit=$?"
-          echo '--- label create ---'
+          echo '--- label create (expected to fail without issues: write) ---'
           gh label create "zz-label-diagnostic" --repo "$REPO" --color ededed --description "diag" 2>&1; echo "create exit=$?"
           echo '--- add label (form) ---'
           gh api -X POST "repos/$REPO/issues/$PR/labels" -f "labels[]=zz-label-diagnostic" 2>&1; echo "add-form exit=$?"
