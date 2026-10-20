@@ -42,6 +42,7 @@ on:
 permissions:
   actions: read
   contents: read
+  issues: write
   pull-requests: read
   statuses: write
 
@@ -54,6 +55,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
           REPO: ${{ github.repository }}
+          # Cross-repository contract with slax-lab/slax-notify-bridge's
+          # per-repository notification policy: renaming it requires changing both.
+          READY_LABEL: ready-for-human-review
           # Read here rather than inferred, because the stage conclusions cannot
           # tell a paused run from a fork, a draft, or a request gh-aw declined —
           # all four are the same all-skipped shape. This is the same evaluation
@@ -285,3 +289,35 @@ jobs:
             -f context="$CONTEXT" \
             -f description="$desc" \
             -f target_url="https://github.com/$REPO/actions/runs/$RUN_ID" > /dev/null
+
+          # The label is the notification bridge's "automated checks are done"
+          # signal, not a merge gate: merging is still decided by the status just
+          # posted and the rest of the ruleset. It describes the pull request's
+          # *current* head, so a verdict about a superseded commit must not change
+          # what the open pull request says about itself.
+          if [ "$SHA" = "$PR_HEAD" ]; then
+            # A draft pull request cannot enter human review, so it must not carry
+            # this label even when the review was deliberately declined (which is a
+            # passing skip). The extra read is paid only for a passing head.
+            PR_DRAFT=false
+            if [ "$state" = "success" ]; then
+              PR_DRAFT=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.draft')
+            fi
+            if [ "$state" = "success" ] && [ "$PR_DRAFT" != "true" ]; then
+              # The GitHub API creates a missing label on first use; this call only
+              # gives it a stable colour and description.
+              gh label create "$READY_LABEL" \
+                --color 0e8a16 \
+                --description "Automated checks passed; ready for human review" \
+                > /dev/null 2>&1 || true
+              # Idempotent: adding a label that is already present changes nothing
+              # and emits no event, so a re-run of the gate cannot re-notify.
+              gh api -X POST "repos/$REPO/issues/$PR_NUMBER/labels" \
+                -f "labels[]=$READY_LABEL" > /dev/null
+            else
+              # A missing label is the normal path here; never fail the gate over
+              # an expected 404.
+              gh api -X DELETE "repos/$REPO/issues/$PR_NUMBER/labels/$READY_LABEL" \
+                > /dev/null 2>&1 || true
+            fi
+          fi
