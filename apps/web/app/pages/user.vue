@@ -110,7 +110,7 @@ import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { type UserDetailInfo } from '@slax-reader/contracts/interface'
 import { showFeedbackModal } from '~/components/Modal'
 import Toast, { ToastType } from '~/components/Toast'
-import { isLabVisibleInSettings, useLabFeatures } from '~/composables/useLabFeatures'
+import { useLabFeatures } from '~/composables/useLabFeatures'
 import { useUserStore } from '~/stores/user'
 
 const { t, te, locale } = useI18n()
@@ -127,7 +127,7 @@ const userInfo = ref<UserDetailInfo>()
 const loading = ref(true)
 const detail = ref<HTMLElement>()
 const labs = useLabFeatures()
-const hasLabs = computed(() => labs.features.value.some(feature => isLabVisibleInSettings(feature.key) && te(`page.user.labs.${feature.key}.name`)))
+const hasLabs = computed(() => labs.features.value.some(feature => te(`page.user.labs.${feature.key}.name`)))
 const sections = computed(() => [
   ...(userInfo.value ? ['account'] : []),
   'preferences',

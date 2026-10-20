@@ -60,7 +60,7 @@ The monorepo already has one read rule for snapshots: `BookmarkService.getBookma
 
 ### Labs and Settings
 
-`youtube_article` is a Labs feature, not a gated save route: without it, YouTube saves behave as before and the article API answers `unavailable`. The monorepo hides the `youtube` row in Settings (`hide-youtube-pdf-labs`). The article needs YouTube saving, so `isLabVisibleInSettings` hides `youtube_article` too. The backend still lists it, and enabled accounts keep it.
+`youtube_article` is a Labs feature, not a gated save route: without it, YouTube saves behave as before and the article API answers `unavailable`. The monorepo originally hid the `youtube` row in Settings (`hide-youtube-pdf-labs`), so the article row was hidden with it. `unhide-youtube-labs` now shows both rows; the backend always listed the feature, and enabled accounts keep it.
 
 ### Presentation
 
@@ -73,6 +73,6 @@ The monorepo keeps one public Wrangler template. The binding goes into `deploy/c
 ## Risks / Trade-offs
 
 - The migration is expand-only. It adds `target_language` and the new unique key, and it keeps the old key `(video_id, source_hash, prompt_version)`, because beta runs migrations against the production database before production code updates, and the production P0 code upserts on the old key. The contract migration in `podcast-article` drops the old key. Because PR #220 was merged into this branch, both ship in one release, and migrations run before the new code deploys, so this code never runs while the old key exists and writes language rows through the language-aware key only. The window that matters is on the production side: during the beta-to-production window, the P0 caption write in production fails softly (`saveYoutubeCaptionArtifacts` never throws), so a YouTube save by a Labs user in that window gets no article row until a later save. Promote `dev` → `beta` → `main` in one pass to keep that window short.
-- Prompt quality, validation thresholds and cost factors were tested only against a fake model. Mitigation: the feature is off by default and its Settings row is hidden; turn it on for internal accounts and calibrate with about 10 real videos first.
+- Prompt quality, validation thresholds and cost factors were tested only against a fake model. Mitigation: the feature is off by default (its Settings row is visible after `unhide-youtube-labs`); turn it on for internal accounts and calibrate with about 10 real videos first.
 - The Gemini list price is hard-coded. Mitigation: check against the Vertex price page before rollout.
 - Folding the transcript after the reading position is restored can shift the position for local-first owners. Accepted for Labs.
