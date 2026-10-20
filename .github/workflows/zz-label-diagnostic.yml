@@ -1,0 +1,41 @@
+name: Label diagnostic (temporary)
+
+# Throwaway probe for the ready-label gate failure. Exercises the exact write
+# calls an Actions token makes when adding a label to a pull request, using a
+# diagnostic label name so the notification bridge ignores it. Deleted before
+# any real change is proposed.
+
+on:
+  pull_request:
+    types: [synchronize]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe label APIs with the Actions token
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set +e
+          echo "gh-version: $(gh --version | head -1)"
+          echo '--- repo read ---'
+          gh api "repos/$REPO" --jq '.full_name' 2>&1; echo "repo-read exit=$?"
+          echo '--- pull read ---'
+          PR_INFO=$(gh api "repos/$REPO/pulls/$PR" --jq '[.state, .draft, .head.repo.full_name] | @tsv' 2>&1)
+          echo "PR_INFO=[$PR_INFO] exit=$?"
+          echo '--- label create ---'
+          gh label create "zz-label-diagnostic" --repo "$REPO" --color ededed --description "diag" 2>&1; echo "create exit=$?"
+          echo '--- add label (form) ---'
+          gh api -X POST "repos/$REPO/issues/$PR/labels" -f "labels[]=zz-label-diagnostic" 2>&1; echo "add-form exit=$?"
+          echo '--- add label (json) ---'
+          printf '{"labels":["zz-label-diagnostic"]}' | gh api -X POST "repos/$REPO/issues/$PR/labels" --input - 2>&1; echo "add-json exit=$?"
+          echo '--- remove label ---'
+          gh api -X DELETE "repos/$REPO/issues/$PR/labels/zz-label-diagnostic" 2>&1; echo "remove exit=$?"
