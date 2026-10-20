@@ -11,7 +11,7 @@ In CI this file is read **from the pull request's head branch**, so a pull reque
 Run three passes and tag each finding with its pass. Classify each finding as Important or Nit (defined below).
 
 - **Bugs**: logic errors, broken edge cases, subtle regressions
-- **Security**: injection risks, authentication gaps, secrets or PII in logs and error messages
+- **Security**: injection risks, authentication gaps, secrets or PII in logs and error messages, and deliberate threats — review the diff as if the author could be malicious: new dependencies without a stated need, obfuscated or encoded payloads, and network calls or file access that could move data beyond the feature's purpose
 - **Compliance**: the change matches its linked OpenSpec change artifacts (see below)
 
 ## What Important means here
@@ -22,6 +22,7 @@ Reserve Important for findings that:
 - lose or corrupt user data (bookmarks, highlights, comments)
 - corrupt the shared production database through schema migrations: the beta environment runs migrations against production PostgreSQL before code passes the `main` gate, so any migration that is incompatible with the code currently serving production — dropping or renaming tables/columns, changing column types, adding `NOT NULL` columns without defaults — is Important unless the change demonstrates an expand/contract split; applies when the diff touches `**/migrations/**` (e.g. `apps/api/prisma/migrations/`), `*.sql`, or ORM schema files (e.g. `schema.prisma`)
 - leak secrets or PII
+- introduce suspected malicious code: a backdoor, covert data exfiltration, or an unvetted dependency with install scripts or unexpected network/file access. Such a finding needs concrete evidence in the diff, not general suspicion; when uncertain, flag it and require a human reviewer's verdict before merge
 - break the cross-app API contracts in `packages/contracts`
 - diverge from the intent of the linked OpenSpec change
 

@@ -1,11 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { selectScopes, scopeNames } from './ci-scope.mjs'
 import { compareMobileVersion, validateMobileAppConfig } from './mobile-eas-release.mjs'
 
@@ -158,52 +155,7 @@ test('actual frontend and tooling job conditions avoid unrelated application wor
   assert.equal(evaluate(workflow('api-ci').jobs.check.if, { needs: needs(['deploy/mobile/tooling.cjs']) }), false)
   const mobile = workflow('mobile-ci').jobs
   assert.equal(evaluate(mobile.static.if, { needs: needs(['docs/mobile/README.md']) }), false)
-  assert.equal(evaluate(mobile.evidence.if, { needs: needs(['docs/mobile/evidence/report.json']) }), true)
-  assert.ok(!mobile.evidence.steps.some(s => /bundle|build:/.test(s.run || '')))
-})
-
-test('evidence-only CI validates the real Mobile ledger and rejects corrupted repository inputs', t => {
-  const mobile = workflow('mobile-ci').jobs
-  for (const path of ['docs/mobile/coverage.json', 'docs/mobile/evidence/capture.json']) {
-    const context = { needs: needs([path]) }
-    assert.equal(evaluate(mobile.static.if, context), false)
-    assert.equal(evaluate(mobile.evidence.if, context), true)
-  }
-  const command = mobile.evidence.steps.find(step => step.run === 'node apps/mobile/assets/verify-baseline.mjs')
-  assert.ok(command, 'Evidence-only CI must validate the repository ledger, not just protocol fixtures')
-  assert.ok(mobile.evidence.steps.indexOf(command) < mobile.evidence.steps.findIndex(step => step.run === 'pnpm --filter @apps/slax-reader-mobile test'))
-  assert.ok(!mobile.evidence.steps.some(step => /bundle|mobile -- check/.test(step.run || '')))
-
-  const root = fileURLToPath(new URL('../', import.meta.url))
-  const args = command.run.split(' ').slice(1)
-  const run = extra => spawnSync(process.execPath, [...extra, ...args], { cwd: root, encoding: 'utf8', timeout: 30000 })
-  const valid = run([])
-  assert.equal(valid.status, 0, valid.stderr)
-  assert.ok(JSON.parse(valid.stdout).coverageCases > 0)
-
-  const directory = mkdtempSync(join(tmpdir(), 'ci-evidence-'))
-  t.after(() => rmSync(directory, { recursive: true, force: true }))
-  const ledgerPath = join(root, 'docs/mobile/coverage.json')
-  const ledger = JSON.parse(readFileSync(ledgerPath, 'utf8'))
-  const artifact = ledger.cases.flatMap(item => item.evidence).find(item => item.path && item.sha256)
-  assert.ok(artifact, 'The repository ledger must exercise referenced-artifact validation')
-  for (const [name, path, bytes, diagnostic] of [
-    ['malformed ledger', ledgerPath, '{ invalid JSON', /SyntaxError/],
-    ['stale source identity', ledgerPath, JSON.stringify({ ...ledger, sourceManifestSha256: '0'.repeat(64) }), /AssertionError/],
-    ['tampered artifact', join(root, artifact.path), 'tampered artifact', /Native evidence hash mismatch/],
-  ]) {
-    const preload = join(directory, 'changed-input.mjs')
-    // Overlay one public input in the child process without modifying repository files.
-    writeFileSync(preload, `import fs from 'node:fs/promises';
-import { syncBuiltinESMExports } from 'node:module';
-const original = fs.readFile;
-fs.readFile = async (path, ...options) => String(path) === ${JSON.stringify(path)} ? Buffer.from(${JSON.stringify(bytes)}) : original(path, ...options);
-syncBuiltinESMExports();
-`)
-    const invalid = run(['--import', preload])
-    assert.equal(invalid.status, 1, name + ': ' + invalid.stderr)
-    assert.match(invalid.stderr, diagnostic, name)
-  }
+  assert.equal(mobile.evidence, undefined)
 })
 
 test('required configuration context performs detection directly and gates all expensive steps', () => {
@@ -274,7 +226,7 @@ test('mobile EAS preflight reads declared platforms and the SlaxShare target, no
   `).join('\n'), /SlaxShare/)
 })
 
-test('mobile EAS workflow gates the cloud builds on preflight, Mobile CI, and no auto-submit', () => {
+test('mobile EAS workflow gates the cloud builds on preflight and Mobile CI, then auto-submits', () => {
   const w = workflow('mobile-eas-build')
   assert.deepEqual(w.on.push.branches, ['dev'])
   assert.match(w.concurrency.group, /github\.sha/)
@@ -292,7 +244,8 @@ test('mobile EAS workflow gates the cloud builds on preflight, Mobile CI, and no
   assert.match(build.run, /--platform all/)
   assert.doesNotMatch(build.run, /--platform ios/)
   assert.match(build.run, /--no-wait/)
-  assert.doesNotMatch(build.run, /--auto-submit/)
+  assert.match(build.run, /--profile production/)
+  assert.match(build.run, /--auto-submit(?!-with-profile)/)
   assert.equal(build['working-directory'], 'apps/mobile')
   assert.equal(w.jobs.eas.permissions, undefined)
 })

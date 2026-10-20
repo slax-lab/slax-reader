@@ -27,6 +27,8 @@ import {PdfImportDialog} from '../components/PdfImportDialog';
 import {usePdfLab} from '../pdf/usePdfLab';
 import {LibraryDataStatus} from './LibraryDataStatus';
 import {useVisibleSnapshot} from '../components/useVisibleSnapshot';
+import {useObserveMarkInteractive} from '../observe';
+import {libraryIsInteractive} from '../observe/readiness';
 
 const sortKeys = {inbox: 'inbox_title', starred: 'inbox_starred', archived: 'inbox_archive'} as const;
 const bookmarkKey = (item: BookmarkRecord) => item.id;
@@ -39,6 +41,7 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
   const widgetStatus = useSyncExternalStore(widgets?.subscribe ?? noWidgetSubscribe, widgets?.getSnapshot ?? noWidgetSnapshot, widgets?.getSnapshot ?? noWidgetSnapshot);
   const dataReady = Boolean(repositories && nativeResourceOwner && upgrade.status === 'ready');
   const telemetry = useTelemetry();
+  const markInteractive = useObserveMarkInteractive();
   const pdfLab = usePdfLab();
   const [importingPdf, setImportingPdf] = useState(false);
   const insets = useSafeAreaInsets(), window = useWindowDimensions(), deviceNetwork = useNetworkState(), network = fixtureOnly?.network ?? deviceNetwork;
@@ -72,6 +75,8 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
   const rssState = useSyncExternalStore(rss.subscribe, rss.getSnapshot);
   const showError = useCallback((reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)), []);
   const [rowsReady, setRowsReady] = useState(false);
+  const interactive = libraryIsInteractive(rowsReady, dataReady, upgrade.status);
+  useEffect(() => {if (interactive) markInteractive();}, [interactive, markInteractive]);
   useEffect(() => {setRowsReady(false);}, [repositories, sort]);
   useEffect(() => {
     if (!repositories) {setRows([]); return;}

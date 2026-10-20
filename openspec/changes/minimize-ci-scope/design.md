@@ -52,9 +52,9 @@ Initial scope matrix:
 | Mobile deployment inputs | Mobile-related checks, never API solely for deploy directory membership |
 | root package.json, pnpm-workspace.yaml, pnpm-lock.yaml | Conservative full validation and relevant configuration guards |
 
-Do not discard arbitrary Markdown or JSON by extension: Nuxt content and Mobile evidence are executable or validator-consumed inputs. Ordinary prose exceptions must be explicit; unfamiliar application paths remain conservative. Mobile evidence validation currently includes source replay and database-identity records under docs/mobile, so removing that directory wholesale would lose real coverage.
+Do not discard arbitrary Markdown or JSON by extension: Nuxt content and Mobile fixture inputs are executable or validator-consumed inputs. Ordinary prose exceptions must be explicit; unfamiliar application paths remain conservative. The separate evidence-only Mobile job and coverage ledger were later retired in `retire-mobile-evidence`; source, asset, and fixture validation remain part of `pnpm mobile -- check`.
 
-Evidence-only Mobile CI runs `apps/mobile/assets/verify-baseline.mjs` before its unit suite. Protocol fixtures alone do not validate the repository's actual `docs/mobile/coverage.json`, its source identity, or referenced artifact hashes. The Web schema at `apps/web/env.schema.ts` also selects Extension release tooling because its shared-configuration fallback imports that schema directly; it does not select the unrelated Extension application suite.
+The Web schema at `apps/web/env.schema.ts` also selects Extension release tooling because its shared-configuration fallback imports that schema directly; it does not select the unrelated Extension application suite.
 
 ### 2. Separate checks by purpose and remove repeated application validation
 

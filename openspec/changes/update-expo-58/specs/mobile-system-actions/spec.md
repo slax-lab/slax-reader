@@ -34,14 +34,19 @@ Pending actions SHALL be processed only with a verified active account/origin, a
 - **THEN** the previous action cannot save or publish metadata under the new owner
 - **AND** stale callbacks cannot update the replacement session
 
-### Requirement: Spotlight and donations publish only eligible opted-in metadata
+### Requirement: Spotlight and donations publish only eligible metadata under current settings
 
-System indexing and donations SHALL default off. When enabled, Mobile SHALL publish at most 100 recent eligible unarchived, non-deleted bookmarks from the active account using opaque identifiers, display titles and source hosts. Bodies, notes, highlights, credentials and full URLs SHALL NOT enter the catalog. Content marked private or lacking required eligibility SHALL be excluded. Disabling integration, deleting content, signing out or replacing the owner SHALL revoke obsolete catalog entries and donations, retrying failures without exposing new-owner data. Donations SHALL follow successful user actions only.
+Per the explicit human approval on 2026-10-20, system indexing and donations SHALL default on for new or unset preferences. Each persisted explicit false preference SHALL remain disabled, and Settings SHALL permit independent opt-out. Default-enabled publication SHALL wait for loaded preferences, an authenticated admitted account and valid credentials; Login and unadmitted sessions SHALL NOT publish. When enabled, Mobile SHALL publish at most 100 recent successfully saved eligible unarchived, non-deleted bookmarks from the active account using opaque identifiers, display titles and source hosts. Bodies, notes, highlights, credentials and full URLs SHALL NOT enter the catalog. Content marked private or lacking required eligibility SHALL be excluded. Disabling integration, deleting content, signing out or replacing the owner SHALL revoke obsolete catalog entries and donations, retrying failures without exposing new-owner data. Donations SHALL follow successful user actions only.
 
-#### Scenario: User enables system discovery
-- **WHEN** the authenticated user enables indexing and donations
+#### Scenario: Default-enabled system discovery
+- **WHEN** loaded preferences have no explicit opt-out and the authenticated account has admitted data and valid credentials
 - **THEN** only the bounded eligible metadata appears in system discovery
 - **AND** failed or merely queued saves do not create successful-action donations
+
+#### Scenario: A stored opt-out survives startup
+- **WHEN** either integration has a persisted false preference or preference loading is incomplete
+- **THEN** startup cannot publish through that integration
+- **AND** enabling the other integration does not overwrite that choice or widget preferences
 
 #### Scenario: A catalog entry becomes ineligible
 - **WHEN** content is deleted, made private, or removed by opt-out/account replacement

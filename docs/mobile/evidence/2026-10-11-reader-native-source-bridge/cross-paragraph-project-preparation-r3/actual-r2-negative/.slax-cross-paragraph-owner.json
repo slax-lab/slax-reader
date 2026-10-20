@@ -1,9 +1,0 @@
-{
-  "kind": "cross-paragraph-native-build-owner",
-  "version": 1,
-  "derivedDataRoot": "/private/tmp/slax-reader-cross-paragraph-build-520eeb57afaf413ca5e23e4fbd2a6f88",
-  "projectRoot": "/Users/daguang/.codex/worktrees/expo-mobile-migration/slax-reader/apps/mobile/fixtures/reader-native-ios/control/cross-paragraph/project",
-  "planSha256": "46600c4c004a190e2e16cf7a9ee866ecf7fa81c5f63fcd6256a6016447448fc9",
-  "executorSha256": "f782a925463c1536de89d4b658ebf4b4f4d6be4e6f54072225cbbfcc18555c79",
-  "nativeTestsExecuted": false
-}

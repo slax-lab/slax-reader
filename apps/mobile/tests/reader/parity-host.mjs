@@ -6,6 +6,7 @@ import vm from 'node:vm'
 import ts from 'typescript'
 import React, {act} from 'react'
 import {motionModules} from '../ui/motion-modules.mjs'
+import {observeBoundaries} from './observe-mock.mjs'
 
 const require = createRequire(import.meta.url)
 let domModule = process.env.SLAX_READER_DOM_MODULE
@@ -32,7 +33,7 @@ export async function loadComponent(path, boundaries, globals = {}) {
     'expo-widgets': {}, '@expo/ui/swift-ui': {},
     ...boundaries,
   }
-  boundaries = {...motionModules(boundaries), ...boundaries}
+  boundaries = {...observeBoundaries(boundaries), ...motionModules(boundaries), ...boundaries}
   if (path.endsWith('/ReaderOverlays.tsx') && !boundaries['../components/SourceSheetModal']) {
     boundaries = {...boundaries, '../components/SourceSheetModal': await loadComponent('../../src/components/SourceSheetModal.tsx', {react: boundaries.react, 'react-native': boundaries['react-native'], '../theme': boundaries['../theme'], 'react-native-reanimated': boundaries['react-native-reanimated'], 'react-native-gesture-handler': boundaries['react-native-gesture-handler']}, globals)}
   }

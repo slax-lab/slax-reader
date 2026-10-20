@@ -1,6 +1,6 @@
 # Mobile Integration Approvals
 
-The human approved the complete `expo-mobile-migration` proposal on 2026-10-10 and explicitly requested implementation. The accepted scope remains the complete source application, one-to-one native UI evidence, genuine native back controls, and recoverable legacy offline data upgrades.
+The human approved the complete `expo-mobile-migration` proposal on 2026-10-10 and explicitly requested implementation. The accepted scope remains the complete source application, one-to-one native UI verification, genuine native back controls, and recoverable legacy offline data upgrades.
 
 | Integration | Approved packages or runtime | Status |
 | --- | --- | --- |
@@ -16,6 +16,7 @@ The human approved the complete `expo-mobile-migration` proposal on 2026-10-10 a
 | Provider authentication | `expo-apple-authentication`, `react-native-nitro-google-signin`, `react-native-nitro-modules` | Approved |
 | iOS purchases | `expo-iap` | Approved |
 | Firebase wrappers | `@react-native-firebase/app`, `@react-native-firebase/analytics`, `@react-native-firebase/crashlytics` | Approved |
+| Production performance telemetry | SDK-57-compatible `expo-observe`; anonymous installation identity, filtered route parameters, debug/fixture dispatch disabled | Approved in `mobile-eas-observe`; additive to Firebase and first-party telemetry; requires a new native build and does not authorize an EAS Build migration or publication |
 
 Required transitive runtime dependencies belong to their approved integration; this does not approve unrelated optional packages. Source-native code may fill gaps. Further optional integrations still require specific human approval before adoption.
 
@@ -38,7 +39,7 @@ These checks require a supported native iOS installation and a test account/stor
 
 The first reply authorized navigation/WebView and SDK 57/iOS 16.4. The second authorized PowerSync/SQLite. The proposal approval explicitly requested implementation. The subsequent reply authorized the three development/system/gesture groups above. Later replies authorized the provider, purchase, and Firebase groups shown in the table.
 
-The human selected `1.0.25 (757)` as the new version and confirmed that the previous published build numbers are below `757`. On 2026-10-11, the human further authorized packaging only iOS and uploading to the existing TestFlight app once the migration is complete. This authorizes the publisher-signed iOS archive/export/upload through existing opaque Apple account tooling after acceptance; it does not add optional dependencies or authorize public App Store publication, Android release distribution, or backend deployment. See [the release guide](release.md) for the required artifact and processing evidence.
+The human selected `1.0.25 (757)` as the new version and confirmed that the previous published build numbers are below `757`. On 2026-10-11, the human further authorized packaging only iOS and uploading to the existing TestFlight app once the migration is complete. This authorizes the publisher-signed iOS archive/export/upload through existing opaque Apple account tooling after acceptance; it does not add optional dependencies or authorize public App Store publication, Android release distribution, or backend deployment. See [the release guide](release.md) for the required artifact and processing status.
 
 Later on 2026-10-11, the human requested build `758`, then explicitly instructed immediate TestFlight preview delivery from the existing signed archive without waiting for complete acceptance or Firebase configuration. Apple accepted that upload; this did not certify full migration parity. On 2026-10-12, the human requested another build increment, TestFlight and Git delivery, followed by Slax-owned generated-output/cache/simulator cleanup. Build `1.0.25 (759)` was uploaded successfully. The user's subsequent UI refinements and no-collection header request authorize preview `1.0.25 (760)`, with previous uploaded build `759`, followed by Git delivery and Slax-only generated-output/cache/simulator cleanup. The same preview exception applies; incomplete physical-device performance, suspension and telemetry checks remain open. No public App Store publication, production backend deployment or unrelated project cleanup is authorized. Source and operator configuration are retained.
 

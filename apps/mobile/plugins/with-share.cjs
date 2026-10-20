@@ -111,6 +111,9 @@ function configureIosTarget(project, options) {
   for (const entry of list.buildConfigurations) {
     const settings = project.pbxXCBuildConfigurationSection()[entry.value].buildSettings;
     Object.assign(settings, {PRODUCT_BUNDLE_IDENTIFIER: `"${BUNDLE_ID}"`, PRODUCT_NAME: `"${TARGET}"`, INFOPLIST_FILE: `"${TARGET}/Info.plist"`, CODE_SIGN_ENTITLEMENTS: `"${TARGET}/SlaxShare.entitlements"`, IPHONEOS_DEPLOYMENT_TARGET: '16.4', SWIFT_VERSION: '5.9', TARGETED_DEVICE_FAMILY: '"1,2"', APPLICATION_EXTENSION_API_ONLY: 'YES', SKIP_INSTALL: 'YES', CURRENT_PROJECT_VERSION: options.versionCode, MARKETING_VERSION: options.versionName, GENERATE_INFOPLIST_FILE: 'NO'});
+    // SlaxShare is not a Pods target, so it must not inherit the project-level
+    // ccache wrappers that require PODS_ROOT.
+    Object.assign(settings, {CC: 'clang', CXX: '"clang++"', LD: 'clang', LDPLUSPLUS: '"clang++"'});
     const mainTarget = project.getFirstTarget().firstTarget;
     const mainList = project.pbxXCConfigurationList()[mainTarget.buildConfigurationList];
     const matching = mainList.buildConfigurations.find(item => item.comment === entry.comment);

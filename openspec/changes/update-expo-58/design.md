@@ -56,9 +56,9 @@ Use a single system-entry adapter for intent/Spotlight/widget navigation. Wait f
 
 Alternative considered: a new direct Swift authenticated save service or headless JS task. Rejected for MVP because it duplicates credential ownership and assumes unavailable background completion semantics.
 
-### 4. Publish a compact, opt-in system catalog
+### 4. Publish a compact system catalog with user-controlled settings
 
-Spotlight indexing and donations default off until enabled in app settings. First MVP indexes at most 100 recent, unarchived, non-deleted bookmarks belonging to the active account. Export only opaque stable identifiers, display title, and source host; omit article body, comments, highlights, full sensitive URLs, and content without explicit system-surface eligibility. The baseline has no private-article flag, so do not invent one or infer privacy from text; the user's explicit opt-in governs eligible metadata, and future privacy classifications must exclude items by default.
+On 2026-10-20, the human explicitly approved Spotlight indexing and donations defaulting on for new or unset preferences. Preserve each persisted explicit false value, and let users disable either integration independently in Settings. Await preference hydration, authenticated account admission and valid credentials before any default-enabled publication; Login and unadmitted sessions cannot publish. First MVP indexes at most 100 recent, unarchived, non-deleted bookmarks belonging to the active account. Export only opaque stable identifiers, display title, and source host; omit article body, comments, highlights, full sensitive URLs, and content without explicit system-surface eligibility. The baseline has no private-article flag, so do not invent one or infer privacy from text; the user's current system-discovery setting governs eligible metadata, and future privacy classifications must exclude items by default.
 
 Deletion, opt-out, sign-out and owner replacement revoke catalog and donations before a new owner publishes. Publish from admitted local snapshots with generation fencing and bounded/coalesced work. Donate only successfully completed user actions; replayed invocations do not create repeated donations. OS deletion failures remain visible/retryable; explain that published metadata is managed by the OS and is not a fresh authorization source.
 
@@ -87,7 +87,7 @@ Alternative considered: replace the PDF engine or add a second full Reader. Reje
 - SDK-58 native template/RNFirebase mismatch → exact insertion/idempotence checks plus configured and unconfigured native validation.
 - R8 removes reflective native paths → minified Release smoke and narrowly justified keep rules, without disabling R8 globally.
 - App Intents alpha API/queue limits and crash windows → pin the package, bound work, test duplicate/overflow/recovery behavior, and show queued versus completed states honestly.
-- OS system surfaces retain sensitive metadata → opt-in minimal catalogs, account fencing, deletion retries, and no credentials in extension snapshots.
+- OS system surfaces retain sensitive metadata → bounded minimal catalogs with independent Settings opt-outs, account fencing, deletion retries, and no credentials in extension snapshots.
 - New surfaces revive hidden Library work → publish from dedicated bounded snapshots rather than keeping the Library screen's full watchers active; rerun baseline performance regressions.
 - Xcode 26.6 cannot establish iOS-27.1/Duo acceptance → require an appropriate available Xcode/runtime before claiming the relevant native checks; retain independent Android/static work if unavailable.
 - Prototype targets alter signing/package output → regenerate targets from plugins, preserve Share, and request version metadata separately after validation.

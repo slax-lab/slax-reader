@@ -61,6 +61,7 @@
     "expo-iap": "6.0.0",
     "expo-image": "~58.0.16",
     "expo-localization": "~58.0.5",
+    "expo-observe": "~58.0.15",
     "expo-media-library": "~58.0.11",
     "expo-network": "~58.0.3",
     "expo-secure-store": "~58.0.2",

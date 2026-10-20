@@ -2,6 +2,7 @@ import {useCallback, useEffect, useRef, useState} from 'react';
 import type {PreferenceStore, PreferenceValues} from '../data/preferences';
 import type {MobileLocale} from '../i18n';
 import type {AccountScope} from './account-scope';
+import {systemSurfacePreferences} from './system-surface-preferences';
 
 export interface SettingsState {
   cacheCount: number;
@@ -53,8 +54,7 @@ export function useSettingsState(
     });
   }, [preferences, scope]);
   const images = (settings.download_images ?? 1) === 1;
-  const systemDiscovery = settings.system_discovery_enabled === true;
-  const systemDonations = settings.system_donations_enabled === true;
+  const {discovery: systemDiscovery, donations: systemDonations} = systemSurfacePreferences(settings);
   const widgetTitles = settings.widget_titles_enabled === true;
   const widgetCount = settings.widget_count_enabled === true;
   const adaptivePdfPrototype = settings.pdf_dual_page_prototype === true;

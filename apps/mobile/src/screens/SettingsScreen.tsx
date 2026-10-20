@@ -30,7 +30,7 @@ export function SettingsScreen({navigation}: MobileScreenProps<'Settings'>) {
   }, [navigation, t]);
 
   return <SettingsView t={t} locale={locale} state={state} rss={rss} pdf={pdf} showAdaptivePdfPrototype={Boolean(__DEV__ && mobile.fixtureOnly)} systemSurfaceFailed={systemSurfaceFailed} systemSurfaceAvailable={systemIntentsAvailable} widgetStatus={widgets ? widgetStatus : undefined} widgetCanStart={widgets?.canStart()}
-    onRetrySystemSurfaces={() => {void systemSurfaces?.reconcile(settings.system_discovery_enabled === true, settings.system_donations_enabled === true).then(() => systemSurfaces?.retryPendingDonations());}}
+    onRetrySystemSurfaces={() => {void systemSurfaces?.reconcile(state.systemDiscovery, state.systemDonations).then(() => systemSurfaces?.retryPendingDonations());}}
     onStartWidgetSession={() => {void widgets?.startReadingSession();}} onStopWidgetSession={() => {void widgets?.stopReadingSession();}} onRetryWidgets={() => {void widgets?.retry();}}
     onDeleteAccount={() => navigation.navigate('DeleteAccount')} />;
 }

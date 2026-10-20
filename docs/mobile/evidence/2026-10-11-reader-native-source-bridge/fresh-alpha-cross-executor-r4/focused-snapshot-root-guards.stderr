@@ -1,7 +1,0 @@
-test_actual_node_snapshot_new_root_passes_root_admission_without_scope_creation (__main__.Guards) ... ok
-test_actual_node_snapshot_prior_roots_reject_before_old_scope_file_read (__main__.Guards) ... ok
-
-----------------------------------------------------------------------
-Ran 2 tests in 0.101s
-
-OK

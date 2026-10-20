@@ -20,6 +20,7 @@ import type {SystemSurfacesController} from './system-actions/system-surfaces';
 import {createWidgetRuntime, type WidgetNativeBoundary} from './widgets/adapters';
 import type {WidgetRuntimeCoordinator} from './widgets/runtime-coordinator';
 import {WidgetCleanupNotice} from './widgets/WidgetCleanupNotice';
+import {systemSurfacePreferences} from './settings/system-surface-preferences';
 
 const idleCredentials: CredentialReadinessState = {status: 'idle'};
 const noCredentialSubscription = () => () => {};
@@ -125,6 +126,7 @@ export function MobileProvider({children, widgetBoundary, appIntents}: {children
   const upgrade = useSyncExternalStore(runtime.subscribeUpgrade, runtime.getUpgradeSnapshot);
   const credentialState = useSyncExternalStore(runtime.credentials?.subscribe ?? noCredentialSubscription, runtime.credentials?.getSnapshot ?? idleCredentialSnapshot);
   const [settings, setSettings] = useState<PreferenceValues>({});
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [payments] = useState(() => new PaymentController(createExpoStore(), runtime.sessions, runtime.preferences, runtime.api.checkIapResult));
   const [webSession, setWebSession] = useState<{ready: boolean; error: Error|null; token: string|null; owner: string|null}>({ready: false, error: null, token: null, owner: null});
   const cookieSerial = useRef(Promise.resolve());
@@ -139,7 +141,9 @@ export function MobileProvider({children, widgetBoundary, appIntents}: {children
   const reauthenticationRequired = credentialState.status === 'reauthentication-required';
   const nativeResourceOwner = runtime.getNativeResourceOwner();
   useEffect(() => {void systemActions.contextChanged();}, [systemActions, userId, runtime.api.options.baseUrl, nativeResourceOwner, upgrade.status, credentialState.status]);
-  useEffect(() => {systemSurfaces.activate(); void systemSurfaces.reconcile(settings.system_discovery_enabled === true, settings.system_donations_enabled === true); return () => systemSurfaces.dispose();}, [systemSurfaces, userId, runtime.api.options.baseUrl, nativeResourceOwner, upgrade.status, credentialState.status, settings.system_discovery_enabled, settings.system_donations_enabled]);
+  const surfacesReady = preferencesLoaded && Boolean(appIntents?.isAvailable() && userId && nativeResourceOwner && upgrade.status === 'ready' && credentialState.status === 'ready');
+  const {discovery: discoveryEnabled, donations: donationsEnabled} = systemSurfacePreferences(surfacesReady ? settings : null);
+  useEffect(() => {systemSurfaces.activate(); void systemSurfaces.reconcile(discoveryEnabled, donationsEnabled); return () => systemSurfaces.dispose();}, [systemSurfaces, userId, runtime.api.options.baseUrl, nativeResourceOwner, upgrade.status, credentialState.status, discoveryEnabled, donationsEnabled]);
   useEffect(() => {systemEntry.router.activate(); void systemEntry.router.contextChanged(); return () => systemEntry.router.dispose();}, [systemEntry, userId, nativeResourceOwner, runtime.api.options.baseUrl, upgrade.status, credentialState.status]);
   useEffect(() => {widgetRuntime?.activate(); return () => widgetRuntime?.dispose();}, [widgetRuntime]);
   useEffect(() => {
@@ -171,9 +175,10 @@ export function MobileProvider({children, widgetBoundary, appIntents}: {children
     return () => subscription.remove();
   }, [runtime, widgets]);
   useEffect(() => {
-    const unsubscribe = runtime.preferences.subscribe(setSettings);
+    const updateSettings = (value: PreferenceValues) => {setSettings(value); setPreferencesLoaded(true);};
+    const unsubscribe = runtime.preferences.subscribe(updateSettings);
     let mounted = true;
-    runtime.start().catch(() => undefined).then(() => runtime.preferences.read()).then(value => { if (mounted) setSettings(value); }).catch(() => undefined);
+    runtime.start().catch(() => undefined).then(() => runtime.preferences.read()).then(value => { if (mounted) updateSettings(value); }).catch(() => undefined);
     return () => { mounted = false; unsubscribe(); void runtime.stop(); };
   }, [runtime]);
   const locale = normalizeLocale(typeof settings.user_language === 'string' ? settings.user_language : getLocales()[0]?.languageTag);
@@ -183,7 +188,7 @@ export function MobileProvider({children, widgetBoundary, appIntents}: {children
   const retryFlight = useRef<Promise<void> | null>(null);
   const retryStart = useCallback(() => {
     if (retryFlight.current) return retryFlight.current;
-    const attempt = (async () => {await runtime.stop(); await runtime.start(); setSettings(await runtime.preferences.read());})()
+    const attempt = (async () => {setPreferencesLoaded(false); await runtime.stop(); await runtime.start(); setSettings(await runtime.preferences.read()); setPreferencesLoaded(true);})()
       .finally(() => {if (retryFlight.current === attempt) retryFlight.current = null;});
     retryFlight.current = attempt;
     return attempt;

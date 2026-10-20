@@ -8,20 +8,25 @@ export const resolveEnvLabel = (env: Env): EnvLabel => {
   return (env.RUN_ENV as string) === 'development' ? 'local' : 'test'
 }
 
-const pushWeComMessage = async (url: string, str: string) => {
+const postWebhook = async (url: string, payload: Record<string, unknown>): Promise<Response> => {
   const resp = (await fetch(url, {
     method: 'POST',
-    redirect: 'error',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      msgtype: 'markdown',
-      markdown: {
-        content: str
-      }
-    })
+    redirect: 'manual',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
   })) as Response
+  if (!resp.ok) {
+    await resp.body?.cancel().catch(() => {})
+    throw new Error(`Alert webhook request failed (HTTP ${resp.status})`)
+  }
+  return resp
+}
+
+const pushWeComMessage = async (url: string, str: string) => {
+  const resp = await postWebhook(url, {
+    msgtype: 'markdown',
+    markdown: { content: str }
+  })
   console.log(`push:`, await resp.text())
 }
 
@@ -47,40 +52,28 @@ const pushFeiShuTopicMessage = async (url: string, str: string) => {
     elements: content ? [{ tag: 'div', text: { tag: 'lark_md', content } }] : []
   }
 
-  const resp = (await fetch(url, {
-    method: 'POST',
-    redirect: 'error',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ msg_type: 'interactive', card })
-  })) as Response
+  const resp = await postWebhook(url, { msg_type: 'interactive', card })
   console.log(`push topic:`, await resp.text())
 }
 
 const pushFeiShuMessage = async (url: string, str: string) => {
-  const resp = (await fetch(url, {
-    method: 'POST',
-    redirect: 'error',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      msg_type: 'interactive',
-      card: {
-        config: {
-          wide_screen_mode: true
-        },
-        elements: [
-          {
-            tag: 'div',
-            text: {
-              tag: 'lark_md',
-              content: str
-            }
+  const resp = await postWebhook(url, {
+    msg_type: 'interactive',
+    card: {
+      config: {
+        wide_screen_mode: true
+      },
+      elements: [
+        {
+          tag: 'div',
+          text: {
+            tag: 'lark_md',
+            content: str
           }
-        ]
-      }
-    })
-  })) as Response
+        }
+      ]
+    }
+  })
   console.log(`push:`, await resp.text())
 }
 

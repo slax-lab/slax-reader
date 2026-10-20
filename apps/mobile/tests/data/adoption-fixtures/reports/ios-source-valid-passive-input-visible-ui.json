@@ -1818,10 +1818,6 @@
       "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/real-native-back-second-attachments/manifest.json",
       "sha256": "4ffbaa1ca942ea55a8c718f698a0f8f2bf22a3b29090da326a4d69d5594b320c"
     },
-    "controlled-start.mjs": {
-      "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/controlled-start.mjs",
-      "sha256": "d6f89432bbb3e4154f1a02a3aac56df7d83c6beb0dfa01a60f920e37119e4fbd"
-    },
     "controlled-test.mjs": {
       "path": "apps/mobile/tests/data/adoption-fixtures/reports/ios-source-valid-passive-input-visible-ui/controlled-test.mjs",
       "sha256": "83eaf7f961a9edbb4bbd4e2712d82e2ae708612b83157e242bb8759e468759c2"

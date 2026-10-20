@@ -15,6 +15,8 @@ PODS:
     - ReactNativeDependencies
   - DoubleConversion (1.1.6):
     - ReactNativeDependencies
+  - EASClient (58.0.2):
+    - ExpoModulesCore
   - EXConstants (58.0.12):
     - ExpoModulesCore
   - EXJSONUtils (58.0.1)
@@ -142,6 +144,31 @@ PODS:
     - ExpoUI
   - ExpoAppleAuthentication (58.0.2):
     - ExpoModulesCore
+  - ExpoAppMetrics (58.0.13):
+    - ExpoModulesCore
+    - EXUpdatesInterface
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-bridging
+    - React-Core
+    - React-Core-prebuilt
+    - React-cxxstableapi
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - ExpoAsset (58.0.17):
     - ExpoModulesCore
   - ExpoClipboard (58.0.3):
@@ -208,6 +235,32 @@ PODS:
     - RNWorklets
   - ExpoNetwork (58.0.3):
     - ExpoModulesCore
+  - ExpoObserve (58.0.15):
+    - EASClient
+    - ExpoAppMetrics
+    - ExpoModulesCore
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-bridging
+    - React-Core
+    - React-Core-prebuilt
+    - React-cxxstableapi
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - ExpoSecureStore (58.0.2):
     - ExpoModulesCore
   - ExpoSensors (58.0.4):
@@ -2627,6 +2680,7 @@ DEPENDENCIES:
   - AppCheckCore
   - boost (from `build/rndeps-facades/boost`)
   - DoubleConversion (from `build/rndeps-facades/DoubleConversion`)
+  - "EASClient (from `../../../node_modules/.pnpm/expo-eas-client@58.0.2/node_modules/expo-eas-client/ios`)"
   - "EXConstants (from `../../../node_modules/.pnpm/expo-constants@58.0.12_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_supports-col_fe73c32e4752cae85a769a0947c53812/node_modules/expo-constants/ios`)"
   - "EXJSONUtils (from `../../../node_modules/.pnpm/expo-json-utils@58.0.1/node_modules/expo-json-utils/ios`)"
   - "EXManifests (from `../../../node_modules/.pnpm/expo-manifests@58.0.1_expo@58.0.16/node_modules/expo-manifests/ios`)"
@@ -2637,6 +2691,7 @@ DEPENDENCIES:
   - "expo-dev-menu-interface (from `../../../node_modules/.pnpm/expo-dev-menu-interface@58.0.1_expo@58.0.16/node_modules/expo-dev-menu-interface/ios`)"
   - "ExpoAppIntents (from `../../../node_modules/.pnpm/expo-app-intents@0.5.10_@babel+core@7.29.7_supports-color@10.2.2__expo@58.0.16_react-do_bb8a012563ae4f5297e785b9bdb16cb3/node_modules/expo-app-intents/ios`)"
   - "ExpoAppleAuthentication (from `../../../node_modules/.pnpm/expo-apple-authentication@58.0.2_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_su_e24a8c83f07c992b336bb4eec1539ea2/node_modules/expo-apple-authentication/ios`)"
+  - "ExpoAppMetrics (from `../../../node_modules/.pnpm/expo-app-metrics@58.0.13_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_supports-c_5fc3128bb048a8cd0c18c6f7e2c241f3/node_modules/expo-app-metrics/ios`)"
   - "ExpoAsset (from `../../../node_modules/.pnpm/expo-asset@58.0.17_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_supports-color@1_d4fb38fb400d7aea9803a4ed1373d674/node_modules/expo-asset/ios`)"
   - "ExpoClipboard (from `../../../node_modules/.pnpm/expo-clipboard@58.0.3_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_supports-colo_722108183fc53dd0e70e11ca153b7d4e/node_modules/expo-clipboard/ios`)"
   - "ExpoDomWebView (from `../../../node_modules/.pnpm/@expo+dom-webview@58.0.2_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_supports-c_1e1f007b6e872ea905f15fc1f36f536a/node_modules/@expo/dom-webview/ios`)"
@@ -2655,6 +2710,7 @@ DEPENDENCIES:
   - "ExpoModulesWorklets (from `../../../node_modules/.pnpm/expo-modules-core@58.0.23_react-native-worklets@0.13.0_@babel+core@7.29.7_supports-colo_8a853c31c1aa5654085cb4efc726ede9/node_modules/expo-modules-core/ExpoModulesWorklets.podspec`)"
   - "ExpoModulesWorkletsAdapter (from `../../../node_modules/.pnpm/expo-modules-core@58.0.23_react-native-worklets@0.13.0_@babel+core@7.29.7_supports-colo_8a853c31c1aa5654085cb4efc726ede9/node_modules/expo-modules-core`)"
   - "ExpoNetwork (from `../../../node_modules/.pnpm/expo-network@58.0.3_expo@58.0.16_react@19.3.0/node_modules/expo-network/ios`)"
+  - "ExpoObserve (from `../../../node_modules/.pnpm/expo-observe@58.0.15_@react-navigation+native@7.5.0_react-native@0.88.0_@babel+core@7.2_c2d0e66880e82178942ce85586101ff0/node_modules/expo-observe/ios`)"
   - "ExpoSecureStore (from `../../../node_modules/.pnpm/expo-secure-store@58.0.2_expo@58.0.16/node_modules/expo-secure-store/ios`)"
   - "ExpoSensors (from `../../../node_modules/.pnpm/expo-sensors@58.0.4_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_supports-color@_fd5aaaf6d734681fc9659ecab8de677f/node_modules/expo-sensors/ios`)"
   - "ExpoSharing (from `../../../node_modules/.pnpm/expo-sharing@58.0.19_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_supports-color_99abbf6c6475ac8a2f8b894d3555f265/node_modules/expo-sharing/ios`)"
@@ -2795,6 +2851,8 @@ EXTERNAL SOURCES:
     :path: build/rndeps-facades/boost
   DoubleConversion:
     :path: build/rndeps-facades/DoubleConversion
+  EASClient:
+    :path: "../../../node_modules/.pnpm/expo-eas-client@58.0.2/node_modules/expo-eas-client/ios"
   EXConstants:
     :path: "../../../node_modules/.pnpm/expo-constants@58.0.12_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_supports-col_fe73c32e4752cae85a769a0947c53812/node_modules/expo-constants/ios"
   EXJSONUtils:
@@ -2815,6 +2873,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.pnpm/expo-app-intents@0.5.10_@babel+core@7.29.7_supports-color@10.2.2__expo@58.0.16_react-do_bb8a012563ae4f5297e785b9bdb16cb3/node_modules/expo-app-intents/ios"
   ExpoAppleAuthentication:
     :path: "../../../node_modules/.pnpm/expo-apple-authentication@58.0.2_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_su_e24a8c83f07c992b336bb4eec1539ea2/node_modules/expo-apple-authentication/ios"
+  ExpoAppMetrics:
+    :path: "../../../node_modules/.pnpm/expo-app-metrics@58.0.13_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_supports-c_5fc3128bb048a8cd0c18c6f7e2c241f3/node_modules/expo-app-metrics/ios"
   ExpoAsset:
     :path: "../../../node_modules/.pnpm/expo-asset@58.0.17_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_supports-color@1_d4fb38fb400d7aea9803a4ed1373d674/node_modules/expo-asset/ios"
   ExpoClipboard:
@@ -2851,6 +2911,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.pnpm/expo-modules-core@58.0.23_react-native-worklets@0.13.0_@babel+core@7.29.7_supports-colo_8a853c31c1aa5654085cb4efc726ede9/node_modules/expo-modules-core"
   ExpoNetwork:
     :path: "../../../node_modules/.pnpm/expo-network@58.0.3_expo@58.0.16_react@19.3.0/node_modules/expo-network/ios"
+  ExpoObserve:
+    :path: "../../../node_modules/.pnpm/expo-observe@58.0.15_@react-navigation+native@7.5.0_react-native@0.88.0_@babel+core@7.2_c2d0e66880e82178942ce85586101ff0/node_modules/expo-observe/ios"
   ExpoSecureStore:
     :path: "../../../node_modules/.pnpm/expo-secure-store@58.0.2_expo@58.0.16/node_modules/expo-secure-store/ios"
   ExpoSensors:
@@ -3068,6 +3130,7 @@ SPEC CHECKSUMS:
   AppCheckCore: e215d35177a9cf469927863e69c13e220df32a8b
   boost: 8502bfdc46e2804408af2e163049ece181009af4
   DoubleConversion: 501a575c40c0b50c89685762dd3e415e6bb26fb0
+  EASClient: 672e41a9aa3481e4f4efbea7fc001573d9a7fa85
   EXConstants: ff5c226215048137ea31d39fa460027a6daeeadc
   EXJSONUtils: d59bf6b18639752631a81818559b2675a46f99e2
   EXManifests: b0b83ad894166f7e080b18814c5e73aed46e366e
@@ -3078,6 +3141,7 @@ SPEC CHECKSUMS:
   expo-dev-menu-interface: d304e400271187edf1534704a4a05dcc140076e2
   ExpoAppIntents: 8cae8d37ef1754ffa42df1b8f93d66aa3fe6a544
   ExpoAppleAuthentication: 86e09d699399d4c09c2cb32bce32901a9d4ca334
+  ExpoAppMetrics: 4ad34daa0a3608847a47ed3482b82df2e66c0896
   ExpoAsset: a21dfe76346f30e600f2cc9cc835a6ede18ca39f
   ExpoClipboard: 4fe2f488588bef9708f9b7a9aacf11aa2c312300
   ExpoDomWebView: b2a6d681b9d34c23b1f584321386ca8da1d36afb
@@ -3096,6 +3160,7 @@ SPEC CHECKSUMS:
   ExpoModulesWorklets: a09d8313cdc714c0e539f5f432445d6a9783d2e2
   ExpoModulesWorkletsAdapter: af28304098cadef4feae172c37c0a4d2771c0416
   ExpoNetwork: 05cec4bdbf35b954ab0434f5ecfec363cf826b33
+  ExpoObserve: 906d8716cd9f7a9402b72bd409439ed4ee199c8c
   ExpoSecureStore: 64e1fe78b5b0a1edb61beff044bb2cad03084f9c
   ExpoSensors: c126f95565e222791ba5e9ce8535e4e2ecfad1c3
   ExpoSharing: 50a4b4e2686aa32214ffa1cbf1999b3db86f35e6

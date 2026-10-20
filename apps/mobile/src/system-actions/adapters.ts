@@ -50,7 +50,8 @@ export function createSystemSurfacesController(runtime: MobileDataRuntime, appIn
     },
     currentOwner() {
       const session = runtime.sessions.getSnapshot(), generation = runtime.getNativeResourceOwner();
-      return session.status === 'authenticated' && generation ? {userId: session.session.userId, origin: runtime.api.options.baseUrl, generation} : null;
+      return session.status === 'authenticated' && generation && runtime.getUpgradeSnapshot().status === 'ready' && runtime.credentials?.getSnapshot().status === 'ready'
+        ? {userId: session.session.userId, origin: runtime.api.options.baseUrl, generation} : null;
     },
   });
 }

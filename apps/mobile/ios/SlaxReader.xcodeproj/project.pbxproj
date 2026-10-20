@@ -110,6 +110,17 @@
 			path = "../app-intents";
 			sourceTree = SOURCE_ROOT;
 		};
+		6D24118187F940EDBE0AABF6 /* ../app-intents */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = "../app-intents";
+			sourceTree = SOURCE_ROOT;
+		};
 		D371764E23D743E8A1603835 /* ../app-intents */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -130,16 +141,6 @@
 			explicitFolders = (
 			);
 			path = "../app-intents";
-			sourceTree = SOURCE_ROOT;
-		};
-		6D24118187F940EDBE0AABF6 = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			name = app-intents;
-			path = ../app-intents;
 			sourceTree = SOURCE_ROOT;
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -267,7 +268,7 @@
 				6F746CAE70EF4FD1A78054EE /* ExpoWidgetsTarget */,
 				D371764E23D743E8A1603835 /* ../app-intents */,
 				D94AFA8051174ADDA742E5BC /* ../app-intents */,
-				6D24118187F940EDBE0AABF6 /* app-intents */,
+				6D24118187F940EDBE0AABF6 /* ../app-intents */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -344,7 +345,7 @@
 				56875120C2D84FDEBE020D8D /* ../app-intents */,
 				D371764E23D743E8A1603835 /* ../app-intents */,
 				D94AFA8051174ADDA742E5BC /* ../app-intents */,
-				6D24118187F940EDBE0AABF6 /* app-intents */,
+				6D24118187F940EDBE0AABF6 /* ../app-intents */,
 			);
 			name = SlaxReader;
 			productName = SlaxReader;
@@ -601,11 +602,14 @@
 			inputPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-SlaxReader/Pods-SlaxReader-resources.sh",
 				"${PODS_CONFIGURATION_BUILD_DIR}/AppAuth/AppAuthCore_Privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/EASClient/EASClient_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/EXConstants.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/ExpoConstants_privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoAppMetrics/ExpoAppMetrics_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoFileSystem/ExpoFileSystem_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoLocalization/ExpoLocalization_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoMediaLibrary/ExpoMediaLibrary_privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoObserve/ExpoObserve_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoWidgets/ExpoWidgets.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/FirebaseCore/FirebaseCore_Privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/FirebaseCoreExtension/FirebaseCoreExtension_Privacy.bundle",
@@ -629,11 +633,14 @@
 			name = "[CP] Copy Pods Resources";
 			outputPaths = (
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AppAuthCore_Privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EASClient_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXConstants.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoConstants_privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoAppMetrics_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoFileSystem_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoLocalization_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoMediaLibrary_privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoObserve_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoWidgets.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/FirebaseCore_Privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/FirebaseCoreExtension_Privacy.bundle",
@@ -791,7 +798,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
 				PRODUCT_BUNDLE_IDENTIFIER = app.slax.reader;
-				PRODUCT_NAME = "SlaxReader";
+				PRODUCT_NAME = SlaxReader;
 				SWIFT_OBJC_BRIDGING_HEADER = "SlaxReader/SlaxReader-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -823,7 +830,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
 				PRODUCT_BUNDLE_IDENTIFIER = app.slax.reader;
-				PRODUCT_NAME = "SlaxReader";
+				PRODUCT_NAME = SlaxReader;
 				SWIFT_OBJC_BRIDGING_HEADER = "SlaxReader/SlaxReader-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1015,15 +1022,19 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_ENTITLEMENTS = "SlaxShare/SlaxShare.entitlements";
+				CC = clang;
+				CODE_SIGN_ENTITLEMENTS = SlaxShare/SlaxShare.entitlements;
 				CURRENT_PROJECT_VERSION = 774;
+				CXX = "clang++";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
 					"$(inherited)",
 				);
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "SlaxShare/Info.plist";
+				INFOPLIST_FILE = SlaxShare/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				LD = clang;
+				LDPLUSPLUS = "clang++";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1031,8 +1042,8 @@
 				);
 				MARKETING_VERSION = 1.0.25;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = "app.slax.reader.share";
-				PRODUCT_NAME = "SlaxShare";
+				PRODUCT_BUNDLE_IDENTIFIER = app.slax.reader.share;
+				PRODUCT_NAME = SlaxShare;
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1065,11 +1076,15 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_ENTITLEMENTS = "SlaxShare/SlaxShare.entitlements";
+				CC = clang;
+				CODE_SIGN_ENTITLEMENTS = SlaxShare/SlaxShare.entitlements;
 				CURRENT_PROJECT_VERSION = 774;
+				CXX = "clang++";
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "SlaxShare/Info.plist";
+				INFOPLIST_FILE = SlaxShare/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				LD = clang;
+				LDPLUSPLUS = "clang++";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1077,8 +1092,8 @@
 				);
 				MARKETING_VERSION = 1.0.25;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = "app.slax.reader.share";
-				PRODUCT_NAME = "SlaxShare";
+				PRODUCT_BUNDLE_IDENTIFIER = app.slax.reader.share;
+				PRODUCT_NAME = SlaxShare;
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";

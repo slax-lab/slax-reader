@@ -47,7 +47,16 @@ function CaptureMeasurements({onMeasure}: {onMeasure(value: NativeMeasurements):
 }
 
 /** Separate development entry: production App never constructs this synthetic runtime. */
-export default function FixtureApp() {
+export default function FixtureEntry() {
+  if (!__DEV__) throw new Error('UI fixtures cannot run in a production build');
+  if (process.env.EXPO_PUBLIC_SLAX_WIDGET_FIXTURE === '1') {
+    const WidgetNativeFixture = require('./WidgetNativeFixture').default;
+    return <WidgetNativeFixture/>;
+  }
+  return <FixtureApp/>;
+}
+
+function FixtureApp() {
   if (!__DEV__) throw new Error('UI fixtures cannot run in a production build');
   const [scenarioName, setScenarioName] = useState(process.env.EXPO_PUBLIC_SLAX_UI_FIXTURE || 'library-populated');
   const [locale, setLocale] = useState(process.env.EXPO_PUBLIC_SLAX_UI_FIXTURE_LOCALE || 'en');
