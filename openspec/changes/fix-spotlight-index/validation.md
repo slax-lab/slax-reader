@@ -41,6 +41,8 @@ Not verified in the simulator:
 - Xcode upload reported `Upload succeeded` and `Uploaded package is processing`; the local report records `testFlightProcessingConfirmed: false`. App Store Connect processing, processing completion and tester availability were not independently confirmed. Report: `/private/tmp/slax-777/export/upload-84bd9519-ea8a-4114-8c86-3dc7bff96bfe/ios-release-report.json`.
 - The release admission was adapted to accept the scene-based AppDelegate bootstrap (`FirebaseApp.configure()` before either the classic factory start or `super.application`), because the iOS 27 template starts React Native from `SceneDelegate`. The focused release suite passes 26/26.
 
+Pull request: https://github.com/slax-lab/slax-reader/pull/310
+
 ## Review
 
 The local pre-push review is pending final diff inspection.

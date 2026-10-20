@@ -23,4 +23,4 @@
 - [x] 4.1 Build and install the iOS 27.1 Duo simulator app against the local test API and verify catalog publication and background persistence with the authorized test account; record the Shortcuts UI and hands-on donation receipt as not exercised headlessly.
 - [x] 4.2 Bump `apps/mobile/package.json` to build `777` with previous `776`, regenerate native metadata, and run the release checks. Adapt the Firebase release admission to the scene-based AppDelegate template so the authorized archive can be created.
 - [x] 4.3 Archive/export/upload the TestFlight build after the fix is verified; record the upload receipt and any unavailable processing checks.
-- [ ] 4.4 Push `feat/fix-spotlight-index` and open the pull request against `dev` with the required `OpenSpec:` line and validation evidence.
+- [x] 4.4 Push `feat/fix-spotlight-index` and open pull request #310 against `dev` with the required `OpenSpec:` line and validation evidence.
