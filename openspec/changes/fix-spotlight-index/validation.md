@@ -8,9 +8,9 @@ Date: 2026-10-20. Branch: `feat/fix-spotlight-index`, based on `origin/dev` (`64
 | --- | --- |
 | `node --experimental-strip-types --test apps/mobile/tests/system-actions/system-surfaces.test.mjs` | 17 passed, 0 failed. Includes new cases for not-ready preservation, resumption, explicit opt-out while not ready, and sign-out while not ready. |
 | `pnpm mobile -- typecheck` | Passed. |
-| `pnpm mobile -- check` | 1390 passed, 0 failed, 0 skipped. |
+| `pnpm mobile -- check` | 1391 passed, 0 failed, 0 skipped. |
 | `pnpm exec openspec validate --all --strict` | 71 passed, 0 failed. |
-| `node --experimental-strip-types --test apps/mobile/tests/release/ios-release.test.mjs` | 26 passed, 0 failed. The admission accepts the scene-based AppDelegate while still rejecting missing or commented Firebase initialization. |
+| `node --experimental-strip-types --test apps/mobile/tests/release/ios-release.test.mjs` | 27 passed, 0 failed. The admission accepts the scene-based AppDelegate while still rejecting missing or commented Firebase initialization. |
 | `git diff --check` | Clean. |
 
 ## Simulator exercise
@@ -45,4 +45,4 @@ Pull request: https://github.com/slax-lab/slax-reader/pull/310
 
 ## Review
 
-The local pre-push review is pending final diff inspection.
+The local pre-push review (`REVIEW.md` Bugs, Security and Compliance passes) found no Important findings. The automated PR review's nits were addressed: the readiness test now emits during the paused window, the release admission requires the Expo SceneDelegate for the scene template, and the proposal/validation artifacts list the release-tooling changes.

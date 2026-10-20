@@ -120,7 +120,15 @@ export function firebaseReleaseAdmission(iosRoot = path.join(appRoot, 'ios'), re
   text(infoPath);
   checkFirebaseMetadata(readPlist(path.join(iosRoot, infoPath)), MAIN);
   const main = text(`${name}/AppDelegate.swift`).replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
-  firebaseRequirement(/^\s*import FirebaseCore\s*$/m.test(main) && /didFinishLaunchingWithOptions[\s\S]*?FirebaseApp\.configure\(\)/.test(main) && /FirebaseApp\.configure\(\)[\s\S]*?(?:factory\.startReactNative\(|super\.application\()/.test(main), 'main AppDelegate lacks Firebase initialization before React Native startup');
+  const sceneTemplate = /super\.application\(/.test(main);
+  firebaseRequirement(/^\s*import FirebaseCore\s*$/m.test(main) && /didFinishLaunchingWithOptions[\s\S]*?FirebaseApp\.configure\(\)/.test(main) && (sceneTemplate || /FirebaseApp\.configure\(\)[\s\S]*?factory\.startReactNative\(/.test(main)), 'main AppDelegate lacks Firebase initialization before React Native startup');
+  if (sceneTemplate) {
+    const scenePath = path.join(iosRoot, `${name}/SceneDelegate.swift`);
+    firebaseRequirement(regularFile(scenePath), 'scene-based AppDelegate is missing SceneDelegate.swift');
+    const scene = readFileSync(scenePath, 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
+    publicInputs.push([`${name}/SceneDelegate.swift`, scene]);
+    firebaseRequirement(/class\s+SceneDelegate\s*:\s*ExpoAppSceneDelegate\b/.test(scene), 'scene-based AppDelegate lacks the Expo SceneDelegate bootstrap');
+  }
   const crashPhase = phases.find(phase => phase.isa === 'PBXShellScriptBuildPhase' && phase.name === '[CP-User] [RNFB] Crashlytics Configuration');
   const crashScript = crashPhase?.shellScript?.replace(/^\s*#.*$/gm, '') ?? '';
   firebaseRequirement(String(crashPhase?.runOnlyForDeploymentPostprocessing) === '0' && /^\s*"\$\{PODS_ROOT\}\/FirebaseCrashlytics\/run"\s*$/m.test(crashScript) && crashPhase.inputPaths?.some(value => value.includes('DWARF_DSYM_FILE_NAME')), 'main target lacks the active Crashlytics symbol-upload phase');

@@ -30,6 +30,7 @@ None. `mobile-system-actions` remains owned by the unarchived `update-expo-58` c
 
 - Mobile runtime/controller: `apps/mobile/src/runtime.tsx`, `apps/mobile/src/system-actions/system-surfaces.ts`, `apps/mobile/src/system-actions/adapters.ts`.
 - App-target Swift: `apps/mobile/app-intents/AppIntentsSetup.swift`, `apps/mobile/app-intents/OpenBookmarkIntent.swift`.
-- Tests: `apps/mobile/tests/system-actions/system-surfaces.test.mjs` and any host checks covering the surfaces controller.
+- Tests: `apps/mobile/tests/system-actions/system-surfaces.test.mjs` and host checks covering the surfaces controller; `apps/mobile/tests/release/ios-release.test.mjs` for the scene-template release admission.
+- Release tooling: `apps/mobile/tooling/ios-release.mjs` accepts the scene-based AppDelegate and requires the Expo SceneDelegate while preserving Firebase admission.
 - Release metadata: `apps/mobile/package.json` (`1.0.25`, build `777`, previous `776`) and regenerated native metadata.
 - No API, contract, database, web, extension, or dependency changes.

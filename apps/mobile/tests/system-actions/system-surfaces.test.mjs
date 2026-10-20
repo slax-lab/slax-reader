@@ -39,6 +39,9 @@ test('transient not-ready keeps catalog and donations for the same owner and res
   assert.equal(f.calls.filter(call => call[0] === 'catalog').length, catalogs);
   assert.equal(f.calls.filter(call => call[0] === 'delete').length, deletions);
   assert.ok(f.state.catalogOwner); assert.ok(f.state.donationOwner);
+  const pausedCalls = f.calls.length;
+  f.emit(); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.calls.length, pausedCalls, 'a paused controller must not publish a snapshot');
 
   await f.controller.reconcile(true, true, true);
   f.emit(); await new Promise(resolve => setImmediate(resolve));
