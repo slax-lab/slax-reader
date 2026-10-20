@@ -15,13 +15,23 @@ Change type: CI workflows plus a notification contract (observable behavior: pul
 - Both workflow files and the OpenSpec change were statically validated (above).
 - The companion removal workflow ran in a running environment on this pull request's `synchronize` event: run 39400716498 completed successfully, exercising the expected-404 delete path.
 - The repository's configuration guard on this pull request (`agent-config drift check`) passed, which exercised the pinned strict OpenSpec validation and the OpenSpec skill drift guard against a change that edits OpenSpec artifacts.
+- Label write permissions were probed on a real pull request with two throwaway workflows: with `issues: write` only (run 39410304244) `gh label create` succeeds but adding/removing a label on the pull request returns 403; with `pull-requests: write` only (run 39410437759) adding and removing the label on the pull request succeeds.
 - The declared behaviour of the label itself is exercised end-to-end only after this pull request merges; see the declared gaps.
 
 ## Not validated (declared gaps)
 
-- **The gate's label add/remove path cannot run before merge.** `workflow_run`-triggered workflows execute the definition from the default branch (`dev`), so the edited `pr-review-gate.yml` is only live after this pull request merges. Reason: GitHub's default-branch rule for `workflow_run`.
+- **The gate's label add/remove path cannot run before merge.** `workflow_run`-triggered workflows execute the definition from the default branch (`dev`), so the edited `pr-review-gate.yml` is only live after this pull request merges. Reason: GitHub's default-branch rule for `workflow_run`. The first attempt against a live pull request is what found the missing `pull-requests: write`; the fixed path is exercised after the follow-up fix merges and is tracked as tasks 2.2–2.4.
 - **The companion removal workflow** (`ready-for-review-label.yml`) runs on this pull request's `pull_request` events once the pull request exists; `opened` is deliberately not one of its triggers. Observed on this pull request: the `synchronize` event from commit `a9d5114` produced a successful run (run 39400716498) that exercised the delete path with the label absent (expected 404). A non-trivial removal (label present) still requires a pull request that has been gated, which requires the merge above.
 - **The Feishu announcement** depends on `slax-lab/slax-notify-bridge` being deployed with the consuming policy change after this pull request merges. Its real-machine checks are tracked in that repository as V15–V17 and here as tasks 2.2–2.5.
+
+## Real-machine finding: label writes need `pull-requests: write`
+
+Exercising the merged change on a real pull request (scratch PR #303) caught a defect that the static review could not: the gate run posted its status and then failed with `gh: Resource not accessible by integration (HTTP 403)` (gate run 39403843460), so the label was never added and the bridge never announced. The token log showed `Issues: write`, so the obvious permission was present; two throwaway probes against the same pull request isolated the real requirement — a label on a pull request is written through the issues API, but `issues: write` alone only covers repository-level label creation:
+
+- `issues: write` only: `gh label create` exits 0; `POST`/`DELETE /issues/{n}/labels` return 403.
+- `pull-requests: write` only: `POST`/`DELETE /issues/{n}/labels` succeed.
+
+The follow-up fix (this pull request) grants `pull-requests: write` to the gate and the companion workflow, keeps `issues: write` on the gate for the label's colour and description, and records the requirement in `docs/CI.md`. The companion workflow had the same gap; its removal calls were silently swallowed by the expected-404 handling, which is why the earlier PR-review rounds read it as healthy.
 
 ## Review round 1 (PR #301, 2026-10-20)
 

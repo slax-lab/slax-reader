@@ -42,8 +42,13 @@ on:
 permissions:
   actions: read
   contents: read
+  # `issues: write` lets the gate create the label object with its colour and
+  # description; adding or removing a label *on a pull request* additionally
+  # needs `pull-requests: write`. With `issues: write` alone the label call
+  # returns "Resource not accessible by integration" (HTTP 403), the status is
+  # still posted first, and the notification is silently lost.
   issues: write
-  pull-requests: read
+  pull-requests: write
   statuses: write
 
 jobs:

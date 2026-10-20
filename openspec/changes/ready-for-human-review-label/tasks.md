@@ -2,8 +2,8 @@
 
 ## 1. Workflows
 
-- [x] 1.1 `pr-review-gate.yml`: grant `issues: write`; after posting the status, add `ready-for-human-review` for an open, non-draft pull request whose head lives in this repository and whose reported commit is the current head, and remove it otherwise. Verification: YAML parse and diff review; the live add/remove run is deferred to 2.2/2.3 because `workflow_run` workflows only run the default branch's definition.
-- [x] 1.2 Add `.github/workflows/ready-for-review-label.yml`: remove the label on `synchronize`, `reopened`, `ready_for_review`, `converted_to_draft` and `closed`; ignore a missing label. Verification: YAML parse; a push to a ready pull request removes the label.
+- [x] 1.1 `pr-review-gate.yml`: grant `issues: write` (label creation) and `pull-requests: write` (labels on a pull request); after posting the status, add `ready-for-human-review` for an open, non-draft pull request whose head lives in this repository and whose reported commit is the current head, and remove it otherwise. Verification: YAML parse, diff review, and the live permission probes recorded in `validation.md`; the live add/remove run is deferred to 2.2/2.3 because `workflow_run` workflows only run the default branch's definition.
+- [x] 1.2 Add `.github/workflows/ready-for-review-label.yml` with `pull-requests: write`: remove the label on `synchronize`, `reopened`, `ready_for_review`, `converted_to_draft` and `closed`; ignore a missing label. Verification: YAML parse and the permission probes in `validation.md`; a push to a ready pull request removes the label (2.3).
 - [x] 1.3 `docs/CI.md`: document the label contract and its non-effect on mergeability. Verification: review the rendered section.
 
 ## 2. Verification

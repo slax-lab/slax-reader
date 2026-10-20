@@ -19,7 +19,10 @@ on:
     types: [synchronize, reopened, ready_for_review, converted_to_draft, closed]
 
 permissions:
-  issues: write
+  # Labels are written through the issues API, but on a pull request only
+  # `pull-requests: write` authorises the write; `issues: write` alone is
+  # rejected with "Resource not accessible by integration" (HTTP 403).
+  pull-requests: write
 
 jobs:
   drop:
