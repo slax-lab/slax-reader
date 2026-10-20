@@ -9,10 +9,11 @@ Date: 2026-10-20. Branch: `feat/fix-spotlight-index`, based on `origin/dev` (`64
 | `node --experimental-strip-types --test apps/mobile/tests/system-actions/system-surfaces.test.mjs` | 17 passed, 0 failed. Includes new cases for not-ready preservation, resumption, explicit opt-out while not ready, and sign-out while not ready. |
 | `node --experimental-strip-types --test apps/mobile/tests/system-actions/entry-router.test.mjs` | 7 passed, 0 failed. Includes repeated readiness context changes before a pending open invocation is allowed to navigate. |
 | `pnpm mobile -- typecheck` | Passed. |
-| `pnpm mobile -- check` | 1392 passed, 0 failed, 0 skipped. |
+| `pnpm mobile -- check` | 1393 passed, 0 failed, 0 skipped. |
 | `pnpm exec openspec validate --all --strict` | 71 passed, 0 failed. |
-| `node --experimental-strip-types --test apps/mobile/tests/release/ios-release.test.mjs` | 27 passed, 0 failed. The admission accepts the scene-based AppDelegate while still rejecting missing or commented Firebase initialization. |
+| `node --experimental-strip-types --test apps/mobile/tests/release/ios-release.test.mjs` | 28 passed, 0 failed. The admission accepts the scene-based AppDelegate while still rejecting missing or commented Firebase initialization. |
 | `git diff --check` | Clean. |
+| Android native metadata | `apps/mobile/android/app/build.gradle` `versionCode 778`; `AndroidManifest.xml` `SlaxVersionCode` 778; matches `apps/mobile/package.json`. |
 
 ## Simulator exercise
 

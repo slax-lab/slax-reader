@@ -133,7 +133,7 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
   useEffect(() => {void systemActions.contextChanged();}, [systemActions, userId, runtime.api.options.baseUrl, nativeResourceOwner, upgrade.status, credentialState.status]);
   const surfaceCapabilities = systemSurfaceCapabilities(Platform.OS, Platform.Version, Boolean(appIntents?.isAvailable()));
   const surfacesReady = preferencesLoaded && Boolean(surfaceCapabilities.intents && userId && nativeResourceOwner && upgrade.status === 'ready' && credentialState.status === 'ready');
-  const surfacesKnown = preferencesLoaded && (session.status === 'unauthenticated' || session.status === 'authenticated' && Boolean(nativeResourceOwner) && upgrade.status === 'ready');
+  const surfacesKnown = preferencesLoaded && (session.status === 'unauthenticated' || (session.status === 'authenticated' && Boolean(nativeResourceOwner) && upgrade.status === 'ready'));
   const surfacePreferences = systemSurfacePreferences(preferencesLoaded ? settings : null);
   const discoveryEnabled = surfacePreferences.discovery && surfaceCapabilities.discovery;
   const donationsEnabled = surfacePreferences.donations && surfaceCapabilities.donations;

@@ -30,7 +30,7 @@ Mobile SHALL revoke catalog entries and donations only when the corresponding se
 
 #### Scenario: Account or origin changes
 
-- **WHEN** the authenticated user, API origin or native owner generation changes
+- **WHEN** the authenticated user or API origin changes
 - **THEN** entries and donations belonging to the previous owner are revoked before the replacement owner publishes
 - **AND** a transient loss of readiness alone does not revoke them
 

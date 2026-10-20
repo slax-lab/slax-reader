@@ -15,7 +15,7 @@ Revoke the catalog and donations only when:
 
 - the corresponding preference is explicitly false;
 - no authenticated owner exists (sign-out);
-- the owner key changes (user, API origin or native generation);
+- the owner key changes (user or API origin);
 - content is deleted or the OS removal is pending (existing behavior).
 
 When the owner and preference are unchanged but `ready` is false, keep the existing catalog, donation IDs and pending receipts. When readiness returns, reconcile again and republish from the current local snapshot.
