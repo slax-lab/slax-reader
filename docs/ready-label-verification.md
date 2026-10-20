@@ -4,3 +4,9 @@ This file exists only to open a throwaway pull request that exercises the
 `ready-for-human-review` label contract end to end: automated review verdict →
 label maintenance → Feishu announcement. The pull request is closed unmerged
 after verification; nothing here is intended to stay.
+
+## Second push
+
+This second commit exercises the removal path: the companion workflow must drop
+`ready-for-human-review` when the head moves, and the bridge must not announce
+the pull request a second time when the new head becomes ready again.
