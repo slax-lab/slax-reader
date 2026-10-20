@@ -49,6 +49,16 @@ AI review, its pause control, `PR review gate`, and the watchdog retain their se
 
 Frontend, API, Mobile, CLI, Tooling, and agent-config use the caller workflow name, a distinct suite identity, and the PR number (or run ID outside PRs) as their concurrency key with `cancel-in-progress: true`. A new push cancels older running or pending validation for that same PR and workflow; other PRs and workflows remain independent. The suite identity prevents reusable workflows sharing the Full CI caller from canceling one another. CLI and Extension publication retain their non-canceling branch queues. Already-started runs created before this configuration existed are not retroactively placed in its concurrency groups.
 
+## Review readiness label
+
+`pr-review-gate.yml` also maintains a `ready-for-human-review` label on the pull request. It is a **fact**, not a gate: the required `PR review gate` status check remains the merge requirement, and the label changes nothing about merging.
+
+- The gate adds the label when the status it reports for the pull request's **current head** is a passing one — a completed review without Important findings, or a run deliberately declined (paused reviews, forks, budget stops). It removes the label when that status is a failure.
+- The label only ever describes a pull request that can enter human review: the gate adds it only for an open pull request that is not a draft and whose head branch lives in this repository. A draft, a closed pull request (a `/review` run can finish after a merge) and a fork (whose read-only companion could never drop a stale label) never carry it, and any stale label is removed.
+- A result about a superseded commit never touches the label. Only a verdict for the current head may change what the open pull request says about itself.
+- `ready-for-review-label.yml` removes the label on any event that invalidates the verified state: a new head, a reopen, a draft conversion, a ready-for-review transition (which starts a new review) and a close. Removal failures are ignored; a missing label is the normal path.
+- `slax-notify-bridge` consumes the label's `labeled` event to announce the human review in Feishu, instead of announcing the creation-time review request that CODEOWNERS fires before the automated verdict exists. The label name is a cross-repository contract: changing it requires updating both workflows here and the bridge's per-repository policy.
+
 ## Daily full validation
 
 `full-ci.yml` runs every day at 04:23 Asia/Shanghai (20:23 UTC the previous day), after this workflow is merged into dev. GitHub schedules run from the default branch, currently dev, and may be delayed under load. The workflow requires dev explicitly; keep that default-branch assumption in mind if repository settings change.
