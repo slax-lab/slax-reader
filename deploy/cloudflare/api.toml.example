@@ -18,6 +18,9 @@ enabled = true
 cpu_ms = 300000
 
 [vars]
+# Enable only after the additive desktop handoff migration and Web consent are deployed.
+DESKTOP_AUTH_ENABLED = "false"
+DESKTOP_AUTH_DEPLOYMENT_ID = ""
 # Local defaults. For remote deployment set RUN_ENV = "prod".
 # RUN_TYPE identifies the installation; STRIPE_LIVE_MODE must match the Reader Stripe key.
 RUN_ENV = "development"
@@ -208,3 +211,8 @@ localConnectionString = "postgresql://admin:admin@localhost:15432/slax-reader-lo
 name = "BOOKMARK_ADD_RATE_LIMITER"
 namespace_id = "1001"
 simple = { limit = 30, period = 60 }
+
+[[ratelimits]]
+name = "DESKTOP_AUTH_RATE_LIMITER"
+namespace_id = "1002"
+simple = { limit = 20, period = 60 }

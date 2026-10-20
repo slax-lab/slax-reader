@@ -15,6 +15,7 @@ This contract applies to:
 - the reader Web application in `apps/web`;
 - the browser Extension in `apps/extension`;
 - the Android and iOS Mobile application in `apps/mobile`;
+- the macOS Desktop application in `apps/desktop`;
 - shared UI assets introduced for both applications;
 - UI-related tests, tooling, screenshots, and generated renderers.
 
@@ -37,6 +38,7 @@ Public article content, third-party iframes, email markup, Open Graph/Satori out
 | `apps/web/app/assets/styles/fork.tokens.css` | Current executable values for Web-only business surfaces and known theme debt |
 | Extension-owned styles | Current executable values for the Extension profile |
 | `apps/mobile/src/theme/index.ts` | Current executable values for the Mobile profile |
+| `apps/desktop/src/styles/tokens.css` | Current executable values for the Desktop macOS profile |
 | UnoCSS configuration | A selective utility bridge over runtime tokens |
 | `docs/design/reference/` | A provenance-stamped, non-normative design snapshot |
 | Vue components and pages | Consumers of the contract; existing code may contain legacy exceptions |
@@ -109,6 +111,19 @@ The Mobile application preserves the existing Android/iOS application's presenta
 - Preserve source vectors through recorded deterministic conversion or native resources. A new runtime asset renderer requires the migration's dependency approval. Preserve fixed brand paint and licensing notices.
 - Verify every recorded screen and state using source and target native renders on matched platform/device/OS/locale/appearance/font-scale/data settings. Static token checks and browser previews do not establish one-to-one parity. Missing native render evidence remains incomplete.
 
+### 4.5 Desktop macOS profile
+
+The approved `add-macos-desktop` change introduces a native macOS shell with independently owned semantic tokens in `apps/desktop/src/styles/tokens.css`.
+
+- Use system typography, native overlay traffic lights, normal arrow cursors and native predefined text-editing menu items. Interface labels are not selectable; reading content and text controls remain selectable.
+- The shell presents three visually distinct warm-paper layers: the native sidebar material, a list surface with card-like article rows, and an opaque reading surface. The primary save action, active source, selected row, unread/processing state and keyboard focus MUST remain unambiguous, without turning pointer selection into a hard focus rectangle.
+- The shell follows system light/dark appearance or the user's explicit choice. The sidebar uses the system sidebar material with active-window behavior. Reduced transparency replaces translucent surfaces with opaque semantic surfaces; reduced motion suppresses nonessential movement at runtime.
+- The reviewed Desktop follow-up adopts the Web warm-paper and terracotta color semantics in Desktop-owned tokens, with system interface typography and editorial serif article headings. The native sidebar material remains in use.
+- HTML and PDF documents are separate fixed-light warm-paper renderers. Their colors are local renderer values and must not inherit dark shell tokens. Article headings scroll inside the document.
+- The library and RSS share a persistent three-column workspace with keyboard/pointer-resizable dividers and a collapsible icon sidebar; navigation must not replace the entire workspace.
+- Keep the reader opaque, controls visibly focused and localized English/Chinese labels reachable at the supported window bounds. Product icons are curated local inline geometry with decorative SVG semantics; controls own accessible names.
+- Optional Liquid Glass and public minimum-OS/distribution decisions remain gated by installed evidence and the deferred release decisions. Do not infer them from host build defaults.
+
 ## 5. Tokens and utilities
 
 ### 5.1 Token rules
@@ -177,6 +192,8 @@ The Web core layout treats `768px` as its primary mobile transition. Individual 
 | Extension | Fixed-dark profile until a separate reviewed theme change is implemented |
 | Mobile shell and embedded reader | Preserve the source light profile; compare source/target under light and dark system appearance |
 | Mobile native system and share surfaces | Preserve source platform appearance, system bars, insets, and the narrowly documented native-back exception |
+| Desktop macOS shell | Light/dark/system and runtime reduced transparency/motion |
+| Desktop article and PDF documents | Fixed light profile with sandboxed resources |
 | Brand and service logos | Preserve approved fixed colors unless a monochrome variant is explicitly supplied |
 
 When touching a legacy row, preserve current behavior or create an OpenSpec change for the visible theme migration. Do not broaden an unrelated task into an unreviewed theme rewrite.

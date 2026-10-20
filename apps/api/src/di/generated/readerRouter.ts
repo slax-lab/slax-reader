@@ -20,6 +20,7 @@ import { McpServerController } from '../../handler/http/mcpController'
 import { SyncController } from '../../handler/http/syncController'
 import { PromotionController } from '../../handler/http/promotionController'
 import { ApiKeyController } from '../../handler/http/apiKeyController'
+import { DesktopAuthController } from '../../handler/http/desktopAuthController'
 import { EventsController } from '../../handler/http/eventsController'
 import { MetricsController } from '../../handler/http/metricsController'
 import { YoutubeArticleController } from '../../handler/http/youtubeArticleController'
@@ -493,6 +494,14 @@ export function getRouter(container: Container) {
   router.get('/v1/user/api_keys', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(ApiKeyController)
     return await controller.handleListApiKeys(ctx, req)
+  })
+  router.post('/v1/auth/desktop/code', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(DesktopAuthController)
+    return await controller.code(ctx, req)
+  })
+  router.post('/v1/auth/desktop/exchange', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(DesktopAuthController)
+    return await controller.exchange(ctx, req)
   })
   router.post('/events', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(EventsController)

@@ -1,0 +1,208 @@
+/* Desktop's fixed-light document renderer. */
+html {
+  color-scheme: only light;
+  background: #fffcf5;
+  color: #29241d;
+  font:
+    17px/1.85 -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    "Hiragino Sans GB",
+    sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 54px clamp(28px, 7vw, 72px) 140px;
+  overflow-wrap: anywhere;
+}
+slax-heading {
+  display: block;
+  margin: 0 0 40px;
+  padding-bottom: 30px;
+  border-bottom: 1px solid rgba(34, 30, 24, 0.09);
+}
+slax-source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #8a7e6e;
+  font:
+    600 11px/1.5 -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+slax-source::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #b15433;
+}
+slax-title {
+  display: block;
+  font:
+    600 clamp(30px, 4vw, 40px) / 1.26 ui-serif,
+    "New York",
+    "Iowan Old Style",
+    Georgia,
+    "Songti SC",
+    serif;
+  letter-spacing: -0.8px;
+  color: #221e18;
+}
+slax-content {
+  display: block;
+}
+slax-content p {
+  margin: 0 0 1.4em;
+}
+slax-content h1,
+slax-content h2,
+slax-content h3,
+slax-content h4 {
+  color: #221e18;
+  font-family: ui-serif, "New York", "Iowan Old Style", Georgia, "Songti SC",
+    serif;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  line-height: 1.35;
+  margin: 1.9em 0 0.7em;
+}
+slax-content h1 {
+  font-size: 30px;
+}
+slax-content h2 {
+  font-size: 24px;
+}
+slax-content h3 {
+  font-size: 20px;
+}
+slax-content h4 {
+  font-size: 17px;
+}
+slax-content > :first-child {
+  margin-top: 0;
+}
+slax-content a {
+  color: #b15433;
+  text-decoration: underline;
+  text-decoration-color: rgba(177, 84, 51, 0.35);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+slax-content a:hover {
+  text-decoration-color: #b15433;
+}
+slax-content ul,
+slax-content ol {
+  padding-left: 1.4em;
+  margin: 0 0 1.4em;
+}
+slax-content li {
+  margin: 0.35em 0;
+}
+slax-content blockquote {
+  margin: 1.8em 0;
+  padding: 16px 20px;
+  border-left: 3px solid #b15433;
+  border-radius: 0 10px 10px 0;
+  background: #f7f0e5;
+  color: #5f5548;
+}
+slax-content blockquote p:last-child {
+  margin-bottom: 0;
+}
+slax-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.7em auto;
+  border-radius: 8px;
+  box-shadow:
+    0 1px 2px rgba(34, 30, 24, 0.08),
+    0 14px 38px rgba(34, 30, 24, 0.1);
+}
+slax-content figure {
+  margin: 1.8em 0;
+}
+slax-content figcaption {
+  margin-top: 10px;
+  color: #8a7e6e;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+slax-content hr {
+  border: 0;
+  border-top: 1px solid rgba(34, 30, 24, 0.12);
+  margin: 2.6em 0;
+}
+slax-content code {
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  font-size: 0.86em;
+  background: #f3ecdf;
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+}
+slax-content pre {
+  overflow: auto;
+  background: #f3ecdf;
+  border: 1px solid rgba(34, 30, 24, 0.07);
+  padding: 18px 20px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  line-height: 1.7;
+  margin: 1.8em 0;
+}
+slax-content pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+slax-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.8em 0;
+  font-size: 14px;
+}
+slax-content th,
+slax-content td {
+  border: 1px solid rgba(34, 30, 24, 0.12);
+  padding: 8px 10px;
+  text-align: left;
+}
+slax-content th {
+  background: #f3ecdf;
+  font-weight: 600;
+}
+slax-content video,
+slax-content iframe {
+  max-width: 100%;
+}
+::selection {
+  background: #e9c3ac;
+}
+@media (max-width: 640px) {
+  body {
+    padding: 36px 22px 100px;
+  }
+  slax-title {
+    font-size: 28px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}

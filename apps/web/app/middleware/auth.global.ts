@@ -8,6 +8,9 @@ export default defineNuxtRouteMiddleware((to, from) => {
     return
   }
 
+  // Desktop consent must remain reachable for both existing and new sessions.
+  if (to.path === '/login' && to.query.client !== undefined) return
+
   const isAnchorLink = to.path === from.path && to.hash !== from.hash
 
   if (isAnchorLink) {

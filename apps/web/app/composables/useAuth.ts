@@ -1,3 +1,4 @@
+import {startDesktopOAuth} from '~/utils/desktopAuth'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { useUserStore } from '~/stores/user'
@@ -14,7 +15,7 @@ const useAuth = {
       redirect_uri: `${$config.AUTH_BASE_URL}/auth`,
       scope: 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
       response_type: 'code',
-      state: JSON.stringify({
+      state: JSON.stringify(startDesktopOAuth(redirect, 'google', `${$config.AUTH_BASE_URL}/auth`) ?? {
         nonce: 'random',
         redirectUrl: `${$config.AUTH_BASE_URL}/auth`,
         target: redirect,
@@ -34,7 +35,7 @@ const useAuth = {
       redirect_uri: `${$config.AUTH_BASE_URL}/auth`,
       response_type: 'code',
       response_mode: 'query',
-      state: JSON.stringify({
+      state: JSON.stringify(startDesktopOAuth(redirect, 'apple', `${$config.AUTH_BASE_URL}/auth`) ?? {
         nonce: 'random',
         redirectUrl: `${$config.AUTH_BASE_URL}/auth`,
         target: redirect,

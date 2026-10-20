@@ -1,0 +1,102 @@
+:root {
+  color-scheme: light dark;
+  --desktop-font:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+    "Hiragino Sans GB", sans-serif;
+  --desktop-serif:
+    ui-serif, "New York", "Iowan Old Style", Georgia, "Songti SC", serif;
+  --desktop-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+
+  /* Shell surfaces: three deliberate layers over the native sidebar material. */
+  --desktop-canvas: #efe7d8;
+  --desktop-sidebar: rgba(242, 235, 223, 0.72);
+  --desktop-toolbar: rgba(249, 244, 234, 0.88);
+  --desktop-surface: #f8f3e9;
+  --desktop-raised: #fffdf7;
+  --desktop-sunken: #f1ebdf;
+
+  /* Ink */
+  --desktop-text: #221e18;
+  --desktop-muted: #6d6254;
+  --desktop-faint: #9c9080;
+
+  /* Lines and interaction states */
+  --desktop-border: rgba(34, 30, 24, 0.09);
+  --desktop-border-strong: rgba(34, 30, 24, 0.17);
+  --desktop-hairline: rgba(34, 30, 24, 0.07);
+  --desktop-accent: #b15433;
+  --desktop-accent-hover: #c05e3a;
+  --desktop-accent-text: #fffaf3;
+  --desktop-accent-soft: rgba(177, 84, 51, 0.11);
+  --desktop-accent-line: rgba(177, 84, 51, 0.3);
+  --desktop-selected: rgba(177, 84, 51, 0.1);
+  --desktop-hover: rgba(34, 30, 24, 0.045);
+  --desktop-danger: #b8433d;
+  --desktop-danger-soft: rgba(184, 67, 61, 0.1);
+  --desktop-focus: #b15433;
+  --desktop-focus-ring: rgba(177, 84, 51, 0.55);
+
+  /* Elevation */
+  --desktop-shadow: 0 24px 70px rgba(46, 35, 21, 0.16);
+  --desktop-shadow-float: 0 12px 32px rgba(46, 35, 21, 0.1);
+  --desktop-shadow-card: 0 2px 10px rgba(46, 35, 21, 0.06);
+  --desktop-shadow-soft: 0 1px 2px rgba(46, 35, 21, 0.05);
+
+  /* Shape and rhythm */
+  --desktop-radius-sm: 7px;
+  --desktop-radius-md: 10px;
+  --desktop-radius-lg: 14px;
+  --desktop-radius-xl: 20px;
+  --desktop-toolbar-height: 56px;
+
+  /* The embedded reader remains light in every shell appearance. */
+  --desktop-reader: #fffcf5;
+  --desktop-reader-text: #221e18;
+  --desktop-reader-muted: #6d6254;
+  --desktop-reader-faint: #9c9080;
+  --desktop-reader-border: rgba(34, 30, 24, 0.09);
+  --desktop-reader-surface: #f8f3e9;
+
+  font-family: var(--desktop-font);
+  color: var(--desktop-text);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+:root[data-appearance="dark"] {
+  color-scheme: dark;
+  --desktop-canvas: #100e0c;
+  --desktop-sidebar: rgba(27, 24, 20, 0.72);
+  --desktop-toolbar: rgba(24, 21, 17, 0.9);
+  --desktop-surface: #181511;
+  --desktop-raised: #221e19;
+  --desktop-sunken: #14110e;
+
+  --desktop-text: #eee7db;
+  --desktop-muted: #a89b89;
+  --desktop-faint: #877b6c;
+
+  --desktop-border: rgba(238, 231, 219, 0.09);
+  --desktop-border-strong: rgba(238, 231, 219, 0.18);
+  --desktop-hairline: rgba(238, 231, 219, 0.07);
+  --desktop-accent: #df835a;
+  --desktop-accent-hover: #ea936a;
+  --desktop-accent-text: #1c1713;
+  --desktop-accent-soft: rgba(223, 131, 90, 0.15);
+  --desktop-accent-line: rgba(223, 131, 90, 0.36);
+  --desktop-selected: rgba(223, 131, 90, 0.13);
+  --desktop-hover: rgba(238, 231, 219, 0.055);
+  --desktop-danger: #f1938a;
+  --desktop-danger-soft: rgba(241, 147, 138, 0.13);
+  --desktop-focus: #df835a;
+  --desktop-focus-ring: rgba(223, 131, 90, 0.6);
+
+  --desktop-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+  --desktop-shadow-float: 0 12px 32px rgba(0, 0, 0, 0.35);
+  --desktop-shadow-card: 0 2px 10px rgba(0, 0, 0, 0.24);
+  --desktop-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+:root[data-opaque="true"] {
+  --desktop-sidebar: var(--desktop-surface);
+  --desktop-toolbar: var(--desktop-surface);
+}

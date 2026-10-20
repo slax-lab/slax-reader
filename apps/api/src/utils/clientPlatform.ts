@@ -1,12 +1,12 @@
-export type ClientPlatform = 'web' | 'ios' | 'android' | 'extension'
+export type ClientPlatform = 'web' | 'ios' | 'android' | 'extension' | 'macos'
 
 const CLIENT_TYPE_HEADER = 'X-CLIENT-TYPE'
 // 客户端自报值，非白名单一律忽略
-const DECLARED: ReadonlySet<string> = new Set<ClientPlatform>(['web', 'ios', 'android', 'extension'])
+const DECLARED: ReadonlySet<string> = new Set<ClientPlatform>(['web', 'ios', 'android', 'extension', 'macos'])
 
 /** 解析 SlaxReader/<平台> <版本> 形态的 UA */
 export function parseClientSource(ua: string): { platform: ClientPlatform; version?: string } {
-  const match = ua.match(/^SlaxReader\/(iOS|Android)\s+(.+)$/i)
+  const match = ua.match(/^SlaxReader\/(iOS|Android|macOS)\s+(.+)$/i)
   if (match) return { platform: match[1].toLowerCase() as ClientPlatform, version: match[2] }
   return { platform: 'web' }
 }

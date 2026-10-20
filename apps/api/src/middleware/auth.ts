@@ -52,7 +52,7 @@ const parseWhiteEmails = (value: string | undefined): string[] =>
 
 const isWhiteEmail = (env: Env, email: string): boolean => parseWhiteEmails(env.WHITE_EMAILS).includes(email)
 
-export const isWhitelisted = (pathname: string): boolean => whiteList.some(item => pathname === item || pathname.startsWith(item + '/'))
+export const isWhitelisted = (pathname: string): boolean => pathname === '/v1/auth/desktop/exchange' || whiteList.some(item => pathname === item || pathname.startsWith(item + '/'))
 
 const isWhiteEmailExempt = (pathname: string): boolean => whiteEmailExemptPaths.some(item => pathname === item || pathname.startsWith(item + '/'))
 
@@ -74,13 +74,15 @@ const trustEdgeIdentity = (request: Request, ctx: ContextManager): boolean => {
       !Number.isSafeInteger(id.enId) ||
       id.enId < 1 ||
       typeof id.email !== 'string' ||
-      typeof id.lang !== 'string'
+      typeof id.lang !== 'string' ||
+      (id.client !== undefined && id.client !== 'macos')
     )
       throw UnauthorizedError()
   } catch {
     throw UnauthorizedError()
   }
   ctx.setUserInfo(id.deId, id.enId, id.email, id.lang)
+  ctx.set('sessionClient', id.client)
   ctx.setHashIds(new Hashid(ctx.env, id.deId))
 
   const pathname = new URL(request.url).pathname
@@ -143,6 +145,7 @@ export const authToken = async (ctx: ContextManager, token: string) => {
     if (!deId || isNaN(deId) || deId < 1) throw Failed(UnauthorizedError())
 
     ctx.setUserInfo(deId, enId, res.email, res.lang)
+    ctx.set('sessionClient', res.client)
     ctx.setHashIds(new Hashid(ctx.env, deId))
   } catch (err) {
     console.log(`auth failed: ${err}`)

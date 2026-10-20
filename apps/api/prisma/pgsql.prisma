@@ -38,6 +38,7 @@ model sr_user {
     snapshot_sharing Boolean   @default(true)
 
     subscription sr_user_subscription?
+    desktop_codes sr_desktop_auth_code[]
 
     @@index([account])
     @@index([invite_code])
@@ -882,4 +883,21 @@ model sr_podcast_episode {
     completed_at          DateTime?
 
     @@index([transcript_status, next_retry_at])
+}
+
+// Short-lived handoff credentials are independent of existing sessions.
+model sr_desktop_auth_code {
+    code_hash   String    @id @hyperdrive.VarChar(43)
+    user_id     Int
+    challenge   String    @hyperdrive.VarChar(43)
+    state_hash  String    @hyperdrive.VarChar(43)
+    deployment  String    @hyperdrive.VarChar(512)
+    created_at  DateTime  @default(now())
+    expires_at  DateTime  @default(dbgenerated("(CURRENT_TIMESTAMP + '00:02:00'::interval)"))
+    consumed_at DateTime?
+
+    user sr_user @relation(fields: [user_id], references: [id])
+
+    @@index([expires_at])
+    @@index([user_id])
 }

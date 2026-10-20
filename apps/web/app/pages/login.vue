@@ -1,7 +1,9 @@
 <template>
   <div class="auth-wrap">
     <div class="auth-stack">
-      <LoginView :redirect="redirect" :affcode="affcode" :has-invite="hasInvite">
+      <p v-if="desktopRequested && (!desktopIntent || !desktopEnabled)" role="alert">{{ t('desktop_auth.invalid') }}</p>
+      <DesktopConsent v-else-if="desktopIntent && desktopEnabled" :intent="desktopIntent" />
+      <LoginView v-else :redirect="redirect" :affcode="affcode" :has-invite="hasInvite">
         <template v-if="hasInvite" #invite>
           <LoginKocBanner :blogger-info="kocBloggerInfo" />
         </template>
@@ -11,6 +13,8 @@
 </template>
 
 <script lang="ts" setup>
+import DesktopConsent from '~/components/Login/DesktopConsent.vue'
+import {parseDesktopAuthIntent} from '@slax-reader/contracts/desktop-auth'
 import LoginView from '~/components/global/LoginView.vue'
 import LoginKocBanner from '~/components/Login/LoginKocBanner.vue'
 
@@ -18,6 +22,11 @@ import type { BloggerInfo } from '@slax-reader/contracts/interface'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 
 const route = useRoute()
+const desktopRequested = computed(() => route.query.client !== undefined)
+const desktopIntent = computed(() => parseDesktopAuthIntent(route.query))
+const runtime = useRuntimeConfig().public
+const localDesktop = runtime.slaxEnv === 'development' && import.meta.client && ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
+const desktopEnabled = localDesktop || runtime.DESKTOP_AUTH_ENABLED === 'true'
 const redirect = `${route.query.redirect || ''}`
 const affcode = `${route.query.aff || ''}`
 const bloggerParam = `${route.query.blogger || ''}`
@@ -47,11 +56,12 @@ const hasInvite = computed(() => showKocBanner && !!kocBloggerInfo.value)
 const { t } = useI18n()
 
 useHead({
-  titleTemplate: `${t('common.operate.login')} - ${t('common.app.name')}`
+  titleTemplate: `${t('common.operate.login')} - ${t('common.app.name')}`,
+  meta: [{name: 'referrer', content: desktopRequested.value ? 'no-referrer' : 'strict-origin-when-cross-origin'}]
 })
 
 onMounted(() => {
-  analyticsLog({ event: 'user_view_login' })
+  if (!desktopRequested.value) analyticsLog({ event: 'user_view_login' })
 })
 </script>
 

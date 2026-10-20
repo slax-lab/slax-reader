@@ -4,6 +4,7 @@ export interface AuthPayload extends JWTPayload {
   id: string
   lang: string
   email: string
+  client?: 'macos'
 }
 
 class Auth {
@@ -50,6 +51,7 @@ class Auth {
       algorithms: [this.info.parameter.alg],
       requiredClaims: ['exp', 'iat', 'iss', 'aud']
     })
+    if (verifyRes.payload.client !== undefined && verifyRes.payload.client !== 'macos') throw new Error('Invalid session client')
     return verifyRes.payload as AuthPayload
   }
 }

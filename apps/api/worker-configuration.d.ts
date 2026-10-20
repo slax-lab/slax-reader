@@ -20,6 +20,9 @@ interface __BaseEnv_Env {
   IMPORT_OTHER_SLOW: Queue
   USER_DELETION_QUEUE: Queue
   BOOKMARK_ADD_RATE_LIMITER: RateLimit
+  DESKTOP_AUTH_RATE_LIMITER?: RateLimit
+  DESKTOP_AUTH_ENABLED?: string
+  DESKTOP_AUTH_DEPLOYMENT_ID?: string
   BROWSER: BrowserRun
   AI: Ai
   SLAX_READER_STREAM_STREAM: import('cloudflare:pipelines').Pipeline<import('cloudflare:pipelines').PipelineRecord>
