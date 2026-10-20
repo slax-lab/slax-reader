@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   afterEach: vi.fn()
 }))
 
+mockNuxtImport('useAppConfig', () => () => ({ lcp: { anonymousPublicStartup: false } }))
 mockNuxtImport('useRuntimeConfig', () => () => ({
   public: { DWEB_API_BASE_URL: 'https://api.test', COOKIE_TOKEN_NAME: 'token' }
 }))
