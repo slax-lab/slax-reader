@@ -68,7 +68,7 @@ test('design, icons and configuration guards retain their exact validation input
   assert.equal(selectScopes(['docs/design/reference/example.svg']).scopes.icons, true)
   for (const path of ['apps/web/app/icons/registry.json', 'apps/web/app/icons/registry.generated.ts']) assert.equal(selectScopes([path]).scopes.icons, true)
   for (const path of ['.rulesync/rules/overview.md', 'apps/web/AGENTS.md', '.agents/skills/example/SKILL.md', 'rulesync.jsonc']) assert.equal(selectScopes([path]).scopes.rulesync, true)
-  assert.equal(selectScopes(['openspec/changes/example/tasks.md']).scopes.openspec, true)
+  for (const path of ['openspec/changes/example/tasks.md', '.agents/skills/openspec-propose/SKILL.md', '.claude/skills/openspec-propose/SKILL.md', '.claude/commands/opsx/propose.md']) assert.equal(selectScopes([path]).scopes.openspec, true)
   for (const path of ['.github/workflows/pr-review.md', '.github/workflows/shared/pr-review-core.md', '.github/workflows/pr-review.lock.yml', '.github/aw/actions-lock.json', '.github/workflows/aw.json', 'tooling/check-gh-aw-drift.sh']) assert.equal(selectScopes([path]).scopes.ghAw, true)
   const plain = selectScopes(['apps/web/app/pages/index.vue']).scopes
   for (const guard of ['rulesync', 'openspec', 'ghAw']) assert.equal(plain[guard], false)
