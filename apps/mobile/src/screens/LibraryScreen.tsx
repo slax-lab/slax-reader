@@ -27,6 +27,8 @@ import {PdfImportDialog} from '../components/PdfImportDialog';
 import {usePdfLab} from '../pdf/usePdfLab';
 import {LibraryDataStatus} from './LibraryDataStatus';
 import {useVisibleSnapshot} from '../components/useVisibleSnapshot';
+import {useObserveMarkInteractive} from '../observe';
+import {libraryIsInteractive} from '../observe/readiness';
 
 declare global {var __SLAX_UI_RSS_STATE__: unknown;}
 
@@ -37,6 +39,7 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
   const {t, repositories, preferences, runtime, api, sessions, config, fixtureOnly, nativeResourceOwner, upgrade, credentialState, retryStart} = useMobile();
   const dataReady = Boolean(repositories && nativeResourceOwner && upgrade.status === 'ready');
   const telemetry = useTelemetry();
+  const markInteractive = useObserveMarkInteractive();
   const pdfLab = usePdfLab();
   const [importingPdf, setImportingPdf] = useState(false);
   const insets = useSafeAreaInsets(), window = useWindowDimensions(), deviceNetwork = useNetworkState(), network = fixtureOnly?.network ?? deviceNetwork;
@@ -78,11 +81,14 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
   }, [fixtureOnly, rssState]);
   const showError = useCallback((reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)), []);
   const [rowsReady, setRowsReady] = useState(false);
+  const interactive = libraryIsInteractive(rowsReady, dataReady, upgrade.status);
+  useEffect(() => {if (interactive) markInteractive();}, [interactive, markInteractive]);
+  useEffect(() => {setRowsReady(false);}, [repositories, sort]);
   useEffect(() => {
-    setRowsReady(false);
     if (!repositories) {setRows([]); return;}
+    if (!clockActive) return;
     return repositories.watchBookmarks(sort, values => {setRows(values); setRowsReady(true);}, showError);
-  }, [repositories, sort, showError, setRows]);
+  }, [repositories, sort, clockActive, showError, setRows]);
   useEffect(() => repositories?.watchCollections(setCollections, showError), [repositories, showError]);
   useEffect(() => repositories?.watchUser(values => setUser(values[0] ?? {}), showError), [repositories, showError]);
   useEffect(() => repositories?.watchSubscription(values => setSubscription(values[0] ?? null), showError), [repositories, showError]);
@@ -99,7 +105,8 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
   }, [repositories, inboxScroll.reset]);
   const selectCollection = useCallback((id: string | null) => applyCollectionSelection(collectionSelection.select(id, collections)), [applyCollectionSelection, collectionSelection, collections]);
   useEffect(() => {void applyCollectionSelection(collectionSelection.reconcile(collections));}, [applyCollectionSelection, collectionSelection, collections]);
-  useEffect(() => {setCollectionRows([]); if (active) return repositories?.watchCollectionBookmarks(active.ownerId, setCollectionRows, showError);}, [repositories, active?.ownerId, showError, setCollectionRows]);
+  useEffect(() => {setCollectionRows([]);}, [repositories, active?.ownerId, setCollectionRows]);
+  useEffect(() => {if (active && clockActive) return repositories?.watchCollectionBookmarks(active.ownerId, setCollectionRows, showError);}, [repositories, active?.ownerId, clockActive, showError, setCollectionRows]);
   const collectionExpiry = active ? parseSourceTimestamp(active.subscriptionEndTime) : NaN;
   const subscriptionExpiry = parseSourceTimestamp(String(subscription?.subscription_end_time ?? subscription?.end_time ?? ''));
   useFocusEffect(useCallback(() => {

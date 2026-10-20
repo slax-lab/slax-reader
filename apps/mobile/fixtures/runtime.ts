@@ -138,7 +138,8 @@ export async function createFixtureRuntime(scenario: string, payload: FixturePay
     if (owner) await resourceTransition(async () => {if (fixtureResourceOwner === owner) {await revokeReaderResources(); fixtureResourceOwner = null;}});
   };
   const sessions = new SessionController(preferences, {async enter(session) {
-    if (!documents.size && !persistentRssFixture) return;
+    // Non-PDF scenarios need no native PDF resources, but data-gated screens still require an owner.
+    if (!documents.size && !persistentRssFixture) {if (!stopped) nativeResourceOwner = `fixture-${scope.name}`; return;}
     if (session.userId !== payload.session.userId) throw new Error('PDF fixture account has no prepared data');
     if (!database || !cache || stopped) throw new Error('PDF fixture database is unavailable');
     await revoke();

@@ -28,6 +28,7 @@ import {ApiError} from '../../src/data/api.ts'
 import {throwIfAborted} from '../../src/utils/abort.ts'
 import {resolveGalleryImage} from '../../src/reader/gallery-resource.ts'
 import {bookmarkCacheKey} from '../../src/data/repositories.ts'
+import * as readiness from '../../src/observe/readiness.ts'
 
 const require = createRequire(import.meta.url)
 let domModule = process.env.SLAX_READER_DOM_MODULE
@@ -35,6 +36,7 @@ if (!domModule) {
   try {domModule = require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]})} catch {}
 }
 const {loadComponent, withRenderedElement} = await import('./parity-host.mjs')
+const {countingObserve} = await import('./observe-mock.mjs')
 const rssExports = {}
 const rssCode = ts.transpileModule(await readFile(new URL('../../src/rss/controller.ts', import.meta.url), 'utf8'), {
   compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022},
@@ -59,7 +61,8 @@ for (const {platform, kind, initialRssError} of [
   for (const name of names) Object.defineProperty(globalThis, name, {value: name === 'IS_REACT_ACT_ENVIRONMENT' ? true : name === 'window' ? window : window[name], configurable: true, writable: true})
   const {createRoot} = await import('react-dom/client')
   const preferences = new PreferenceStore(new MemoryPreferences({user_id: 'fixture-user', continue_reading_bookmark: 'previous'}))
-  let preferenceWrites = 0, renders = 0, toolbarVisible = false, commentVisible = false, options, readerProps, selectionMenuProps, skeletonProps, galleryProps, refreshRows, articleReads = 0, backBlocked = false, toolbarProps, committedExits = 0
+  let preferenceWrites = 0, optionWrites = 0, renders = 0, toolbarVisible = false, commentVisible = false, options, readerProps, selectionMenuProps, skeletonProps, galleryProps, refreshRows, articleReads = 0, backBlocked = false, toolbarProps, committedExits = 0
+  const readerObserve = await countingObserve(loadComponent)
   const bookmarkWrites = [], collectionReads = [], localWrites = [], rssSaves = [], savedEntries = [], imageReads = []
   let failRssSave = true
   let failRssDetail = initialRssError, retryAction, releaseRssDetail, releaseRssSave
@@ -126,7 +129,7 @@ for (const {platform, kind, initialRssError} of [
     '../rss/controller': {reportRssSaved: (...saved) => savedEntries.push(saved), rssErrorCode}, '../theme': {mobileColors: {}, mobileTypography: {}},
     '../native/reader': {readerNativeAdapter: {}}, '../native/image-actions': {imageActionPort: {save: async () => {}, share: async () => {}}}, '../native/platform': {},
     '../telemetry': {useTelemetry: () => telemetry}, '../reader/share': {},
-    '../reader': {ReaderWebView: React.forwardRef((props, ref) => {readerProps = props; React.useImperativeHandle(ref, () => ({commitExit: async () => {committedExits++}, clearSelection: async () => {}, flushPosition: async () => {}}), []); return null}), toolbarVisible: coordinates.toolbarVisible},
+    '../reader': {ReaderWebView: React.forwardRef((props, ref) => {readerProps = props; React.useEffect(() => {props.onEvent?.({type: 'domReady'}, 'fixture-page')}, []); React.useImperativeHandle(ref, () => ({commitExit: async () => {committedExits++}, clearSelection: async () => {}, flushPosition: async () => {}}), []); return null}), toolbarVisible: coordinates.toolbarVisible},
     '../reader/input': input,
     '../reader/ReaderOverlays': {CommentPanel: props => {commentVisible = props.visible; return null}, FloatingActions: nil, OutlineSheet: nil, ReaderToolbar: props => {toolbarVisible = props.visible; toolbarProps = props; return null}, SelectionMenu: props => {selectionMenuProps = props; return null}, TranscriptSheet: nil},
     '../reader/ImageGallery': {ImageGallery: props => {galleryProps = props; return null}}, '../reader/OverviewViews': {OverviewDialog: nil, OverviewExcerpt: nil},
@@ -136,10 +139,11 @@ for (const {platform, kind, initialRssError} of [
     '../reader/TagSheet': {ReaderTagSheet: nil}, '../reader/model': model,
     '../reader/position': {ReaderPositionWriter}, '../reader/recovery': {ReaderCrashRecovery}, '../reader/account': account,
     '../components/fixture-actions': {fixtureActions},
+    '../observe': readerObserve.module, '../observe/readiness': readiness,
   }
   const exported = await loadComponent('../../src/screens/ReaderScreen.tsx', boundaries)
   const listeners = new Map()
-  const navigation = {isFocused: () => true, setOptions: value => {options = value}, navigate() {}, goBack() {}, addListener: (name, callback) => {listeners.set(name, callback); return () => listeners.delete(name)}}
+  const navigation = {isFocused: () => true, setOptions: value => {options = value; optionWrites++}, navigate() {}, goBack() {}, addListener: (name, callback) => {listeners.set(name, callback); return () => listeners.delete(name)}}
   function Harness() {
     const [settings, setSettings] = React.useState({user_id: 'fixture-user'})
     React.useEffect(() => preferences.subscribe(setSettings), [])
@@ -168,6 +172,7 @@ for (const {platform, kind, initialRssError} of [
       await act(async () => {retryAction.onPress()})
       assert.ok(readerProps, 'A successful retry mounts the actual returned RSS document')
     }
+    assert.equal(readerObserve.counter.marks, 1, 'Reader marks interactive once after its document or error surface is ready, including after retry')
     assert.ok(preferenceWrites <= 2, `Expected bounded entry/title effects, got ${preferenceWrites}`)
     assert.equal((await preferences.read()).continue_reading_bookmark, undefined)
     const before = preferenceWrites
@@ -256,13 +261,19 @@ for (const {platform, kind, initialRssError} of [
     await act(async () => readerProps.onEvent({type: 'textSelected', mark: {stroke: []}, text: 'Near status bar', containerYPoints: 12}, 'fixture-page'))
     assert.equal(selectionMenuProps.minTop, platform === 'ios' ? 82 : 60, 'Source full-window menus use iOS status+20 and the Android fixed 60dp minimum')
     assert.equal(options.unstable_headerRightItems()[0].hidesSharedBackground, true, 'The adjacent source more action must not inherit the iOS 26 native back background exception')
-    await withRenderedElement(options.headerRight(), () => assert.equal(rendered.get('reader-header-more-container').pointerEvents, 'auto'))
-    await act(async () => {readerProps.onPositionChange(240, false)})
-    await withRenderedElement(options.headerRight(), () => {
+    const writesBeforeFlips = optionWrites
+    await withRenderedElement(options.headerRight(), async () => {
+      assert.equal(rendered.get('reader-header-more-container').pointerEvents, 'auto')
+      await act(async () => {readerProps.onPositionChange(240, false)})
       const hiddenMore = rendered.get('reader-header-more-container')
-      assert.equal(hiddenMore.pointerEvents, 'none')
+      assert.equal(hiddenMore.pointerEvents, 'none', 'The mounted native header item follows toolbar visibility without new options')
       assert.equal(hiddenMore.accessibilityElementsHidden, true)
+      await act(async () => {readerProps.onPositionChange(0, false)})
+      assert.equal(rendered.get('reader-header-more-container').pointerEvents, 'auto')
+      await act(async () => {readerProps.onPositionChange(240, false)})
     })
+    assert.equal(optionWrites, writesBeforeFlips, 'Toolbar flips do not reconfigure the native navigation header')
+    await withRenderedElement(options.headerRight(), () => assert.equal(rendered.get('reader-header-more-container').pointerEvents, 'none', 'A fresh header element reads the current visibility'))
     assert.equal(headerAnimations.at(-1).toValue, -100)
     assert.equal(headerAnimations.at(-1).duration, 300)
     assert.equal(headerAnimations.at(-1).useNativeDriver, true)

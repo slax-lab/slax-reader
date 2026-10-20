@@ -98,7 +98,7 @@ The Extension currently uses a compact, fixed-dark interface with its own typogr
 
 ### 4.4 Mobile profile
 
-The Mobile application preserves the existing Android/iOS application's presentation during the approved `expo-mobile-migration` change. Its executable values live in `apps/mobile/src/theme/index.ts`; original artwork and conversion provenance live in `apps/mobile/assets`. The source baseline and state coverage are recorded in `docs/mobile/migration-baseline.md`, `source-manifest.json`, and `coverage.json` in that directory.
+The Mobile application preserves the existing Android/iOS application's presentation during the approved `expo-mobile-migration` change. Its executable values live in `apps/mobile/src/theme/index.ts`; original artwork and conversion provenance live in `apps/mobile/assets`. The source baseline is recorded in `docs/mobile/migration-baseline.md` and `source-manifest.json` in that directory.
 
 - Preserve the source light application shell (`#F5F5F3`), reader background (`#FCFCFC`), white surfaces, green action color (`#16B998`), and distinct RSS treatment. Do not import Web or Extension profile values.
 - Treat the shell, scoped HTML reader document, and operating-system surfaces as separate renderers. The shell and source reader document remain light under a dark system appearance; the original iOS share panel and system controls retain their source native appearance behavior.

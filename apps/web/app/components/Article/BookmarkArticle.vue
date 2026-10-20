@@ -62,6 +62,7 @@ import CursorToast from '~/components/CursorToast'
 import Toast, { ToastType } from '~/components/Toast'
 import { useArticleDetail } from '~/composables/bookmark/useArticle'
 import { useArticleSelection } from '~/composables/bookmark/useArticleSelection'
+import { applyArticleImageLoading } from '~/utils/articleImageLoading'
 
 const props = defineProps({
   detail: {
@@ -106,6 +107,7 @@ const emits = defineEmits(['screenLockUpdate', 'bookmarkUpdate', 'chatBotQuote',
 const adapters = inject(ArticleSelectionAdaptersKey, {})
 
 const { t } = useI18n()
+const appConfig = useAppConfig()
 const { detail } = toRefs(props)
 const bookmarkArticle = ref<HTMLDivElement>()
 const articleDetail = ref<HTMLDivElement>()
@@ -139,7 +141,10 @@ const articleStyle = computed(() => {
 })
 
 const articleHTML = computed(() => {
-  return detail.value.content?.replace(/<img/g, '<img loading="lazy"') || ''
+  return applyArticleImageLoading(detail.value.content || '', {
+    enabled: Boolean(appConfig.lcp?.articleImagePriority),
+    excludedPresentation: isPdf.value || articleStyle.value === ArticleStyle.PhotoSwipeTopic
+  })
 })
 
 // 划线/评论重逻辑唯一来源

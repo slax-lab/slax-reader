@@ -8,9 +8,9 @@ Real native startup exposed an existing admission mismatch: the current SDK crea
 
 ## Version decision
 
-The human explicitly requested keeping Mobile version `1.0.25`, build `771`, previous build `770`. This task must not increment or regenerate production version metadata; the release version will be assigned later in the task sequence. CLI and Extension shipped behavior are unaffected.
+The human explicitly declined an additional Mobile version bump. Native acceptance ran with version `1.0.25`, build `771`, previous build `770`. Integration with the latest `dev` inherits its already assigned version `1.0.25`, build `773`, previous build `772`; this task introduces no version metadata difference relative to that base. CLI and Extension shipped behavior are unaffected.
 
-The current Mobile EAS workflow requires a higher `buildNumber` on a push to `dev`, followed by successful Mobile CI, before submitting cloud builds. Keeping the manifest unchanged does not qualify this change for that automatic submission. Store publication remains a separate operation.
+Mobile CI performs checks and JavaScript bundle validation. The separate EAS workflow triggers cloud builds with automatic TestFlight/Play internal submission only after a `dev` push increases `buildNumber` and Mobile CI passes. This task adds no build-number increase relative to `dev`, so its merge alone does not qualify for that trigger. No cloud build, signing, submission, or store publication is performed by this task.
 
 ## Production rollout checklist
 
@@ -25,3 +25,13 @@ These are deployment steps for the release owner, not operations performed durin
 - For rollback, stop clients subscribing to `rss_v1` or remove that stream while retaining the additive columns. REST clients remain supported; do not roll back the database by dropping columns.
 
 See `verification.md`, the earlier seeded `native-verification.md`, and the real local sync evidence in `real-sync-verification.md` for actual results and their limits. No production migration, Sync Config publication, deployment or store submission is part of this verification task.
+
+## Integrated validation (2026-10-20)
+
+The feature commit was integrated with `origin/dev` at `a3fb9492`. The merge has no unresolved paths. `LibraryScreen.tsx` retains the upstream Observe interactivity signal and active-state bookmark/collection watch gating alongside RSS wiring; the persistent RSS fixture retains upstream native resource ownership for non-PDF scenarios; the adoption profile test no longer depends on native evidence artifacts retired by the target branch.
+
+The final host `SLAX_MOBILE_NO_LOCAL_CONFIG=1 EXPO_NO_DOTENV=1 pnpm mobile -- check` completed its static checks and TypeScript compilation, then exited 1 under concurrent Web typechecking: 1,327 of 1,329 tests passed, with the Kotlin image-registry compile reaching its 120-second timeout and the PDF browser test reaching its 60-second timeout. After the competing check finished, `node --experimental-strip-types --test apps/mobile/tests/data/image-registry-native.test.mjs` passed 2/2 and `node --experimental-strip-types --test apps/mobile/tests/reader/pdf-browser.test.mjs` passed 4/4. The full suite was not repeated. No simulator, Android runtime, bundle, or native build was run for integration validation.
+
+The Web typecheck initially could not resolve the merged lockfile's declared `parse5` package because its workspace link was absent. `pnpm install --frozen-lockfile --ignore-scripts` restored the missing link without changing the lockfile; `pnpm --filter @apps/slax-reader-dweb typecheck` then passed with exit 0. Nuxt reported absent optional public development settings and a Turnstile key; no credentials or secret files were used. The parent integration check also passed `pnpm exec openspec validate --all --strict` (65/65).
+
+The refreshed Bugs, Security and Compliance review against the latest `REVIEW.md` found no Important findings. The local feature diff matches `rss-local-first`; integration preserves the upstream Observe and retired-evidence changes. Existing real-sync and single-iOS-simulator evidence remains in the linked reports; this integration pass did not repeat native acceptance.

@@ -28,6 +28,10 @@ function setNaturalSize(img: HTMLImageElement, w: number, h: number) {
   Object.defineProperty(img, 'naturalHeight', { value: h, configurable: true })
 }
 
+function setComplete(img: HTMLImageElement, complete: boolean) {
+  Object.defineProperty(img, 'complete', { value: complete, configurable: true })
+}
+
 describe('ImageProcessor', () => {
   const processor = new ImageProcessor()
 
@@ -68,6 +72,116 @@ describe('ImageProcessor', () => {
     setNaturalSize(img, 4, 4)
     img.onload?.(new Event('load'))
     expect(img.getAttribute('style')).toContain('display: none')
+  })
+
+  it('cached successful images catch up after handlers are installed', () => {
+    const ctx = buildContext('<img src="https://x.com/cached.png">')
+    const img = ctx.container.querySelector('img') as HTMLImageElement
+    setComplete(img, true)
+    setNaturalSize(img, 800, 400)
+
+    processor.process(ctx)
+
+    expect(img.classList.contains('slax-image-loading')).toBe(false)
+    expect(img.onclick).not.toBeNull()
+  })
+
+  it('already failed images leave loading state and hide without waiting for a future load', () => {
+    const ctx = buildContext('<img src="https://x.com/failed.png">')
+    const img = ctx.container.querySelector('img') as HTMLImageElement
+    setComplete(img, true)
+    setNaturalSize(img, 0, 0)
+
+    processor.process(ctx)
+
+    expect(img.classList.contains('slax-image-loading')).toBe(false)
+    expect(img.style.display).toBe('none')
+  })
+
+  it('recovers from an error when the same image later reloads successfully', () => {
+    const ctx = buildContext('<img src="https://x.com/retry.png">')
+    const img = ctx.container.querySelector('img') as HTMLImageElement
+    processor.process(ctx)
+    img.onerror?.(new Event('error'))
+    setComplete(img, true)
+    setNaturalSize(img, 800, 400)
+    img.onload?.(new Event('load'))
+
+    expect(img.style.display).toBe('')
+    expect(img.classList.contains('slax-image-loading')).toBe(false)
+    expect(img.onclick).not.toBeNull()
+  })
+
+  it('repeated processing keeps one usable preview callback and clears normalized srcset', () => {
+    const ctx = buildContext('<img src="https://x.com/repeat.png" srcset="https://x.com/repeat@2x.png 2x">')
+    const img = ctx.container.querySelector('img') as HTMLImageElement
+    processor.process(ctx)
+    processor.process(ctx)
+    setComplete(img, true)
+    setNaturalSize(img, 800, 400)
+    img.onload?.(new Event('load'))
+    img.onclick?.call(img, new MouseEvent('click') as unknown as PointerEvent)
+
+    expect(img.srcset).toBe('')
+    expect(ctx.callbacks.showImagePreview).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([ArticleStyle.Default, ArticleStyle.PhotoSwipeTopic])('restores an error-hidden WeChat image on valid reload (%s)', articleStyle => {
+    const ctx = buildContext('<img src="https://mmbiz.qpic.cn/retry.png" style="display:inline-block;width:300px">', articleStyle, new URL('https://mp.weixin.qq.com/s/x'))
+    const img = ctx.container.querySelector('img')!
+    processor.process(ctx)
+    img.onerror?.(new Event('error'))
+    processor.process(ctx)
+    setNaturalSize(img, 800, 400)
+    img.onload?.(new Event('load'))
+    expect(img.style.display).toBe('inline-block')
+    expect(img.onclick).not.toBeNull()
+  })
+
+  it.each([4, 150])('keeps a settled %ipx WeChat image excluded from preview across setup reruns', width => {
+    const ctx = buildContext('<img src="https://mmbiz.qpic.cn/small.png">', ArticleStyle.Default, new URL('https://mp.weixin.qq.com/s/x'))
+    const img = ctx.container.querySelector('img')!
+    setComplete(img, true)
+    setNaturalSize(img, width, width)
+    processor.process(ctx)
+    processor.process(ctx)
+    img.onload?.(new Event('load'))
+    expect(img.classList.contains('slax-image-loading')).toBe(false)
+    expect(img.onclick).toBeNull()
+  })
+
+  it('clears an old preview handler when a replacement source is too small or fails', () => {
+    const ctx = buildContext('<img src="https://x.com/first.png">')
+    const img = ctx.container.querySelector('img')!
+    processor.process(ctx)
+    setNaturalSize(img, 800, 400)
+    img.onload?.(new Event('load'))
+    expect(img.onclick).not.toBeNull()
+    img.src = 'https://x.com/small.png'
+    setNaturalSize(img, 100, 100)
+    img.onload?.(new Event('load'))
+    expect(img.onclick).toBeNull()
+    setNaturalSize(img, 800, 400)
+    img.onload?.(new Event('load'))
+    img.onerror?.(new Event('error'))
+    expect(img.onclick).toBeNull()
+  })
+
+  it('waits for source normalization before classifying a responsive replacement as settled', async () => {
+    const ctx = buildContext('<img src="https://x.com/fallback.png" srcset="https://x.com/old.png 2x">')
+    const img = ctx.container.querySelector('img')!
+    setComplete(img, true)
+    setNaturalSize(img, 0, 0)
+    processor.process(ctx)
+    // The browser updates the image request in a microtask after srcset changes.
+    setComplete(img, false)
+    await Promise.resolve()
+    expect(img.style.display).not.toBe('none')
+    expect(img.classList.contains('slax-image-loading')).toBe(true)
+    setComplete(img, true)
+    setNaturalSize(img, 800, 400)
+    img.onload?.(new Event('load'))
+    expect(img.onclick).not.toBeNull()
   })
 
   it('img onload 中等宽度（<200）：以原 width 设样式', () => {
@@ -323,6 +437,21 @@ describe('ImageProcessor', () => {
     expect(img.style.width).toBe('100%')
     expect(img.style.height).toBe('auto')
     expect(ctx.cleanups).toHaveLength(0)
+  })
+
+  it('replaces the previous resize observer on repeated setup and cleans each observer once', () => {
+    const disconnect = vi.fn()
+    vi.stubGlobal('ResizeObserver', class {
+      observe = vi.fn()
+      disconnect = disconnect
+    })
+    const ctx = buildContext('<img src="https://mmbiz.qpic.cn/i.png" style="width:600px;height:300px">', ArticleStyle.Default, new URL('https://mp.weixin.qq.com/s/x'))
+    processor.process(ctx)
+    processor.process(ctx)
+    expect(disconnect).toHaveBeenCalledTimes(1)
+    ctx.cleanups.forEach(cleanup => cleanup())
+    ctx.cleanups.forEach(cleanup => cleanup())
+    expect(disconnect).toHaveBeenCalledTimes(2)
   })
 
   it.each([

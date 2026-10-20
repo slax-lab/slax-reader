@@ -1,6 +1,0 @@
-An error was encountered processing the command (domain=NSPOSIXErrorDomain, code=3):
-Simulator device failed to terminate app.slax.reader.readernativefixture.controlhost.
-found nothing to terminate
-Underlying error (domain=NSPOSIXErrorDomain, code=3):
-	The request to terminate "app.slax.reader.readernativefixture.controlhost" failed. found nothing to terminate
-	found nothing to terminate

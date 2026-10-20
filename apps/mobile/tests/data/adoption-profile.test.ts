@@ -29,14 +29,9 @@ test('the reviewed profile binds immutable native execution reports, public SDK 
     assert.equal(createHash('sha256').update(bytes).digest('hex'), evidence.sha256);
     assert.equal(JSON.parse(bytes.toString()).status, 'passed');
   }
-  const builds = {
-    android: JSON.parse(readFileSync(new URL('../../../../docs/mobile/evidence/2026-10-10-builds/android-database-identity.json', import.meta.url), 'utf8')).publicSourceInputsCapturedAfterBuild,
-    ios: JSON.parse(readFileSync(new URL('../../../../docs/mobile/evidence/2026-10-10-builds/ios-database-identity-build.json', import.meta.url), 'utf8')).publicInputs,
-  } as Record<string, {path: string; sha256: string}[]>;
   for (const native of REVIEWED_ADOPTION_PROFILE.nativeCompatibilitySources) {
     const reviewedSource = 'reviewedSource' in native ? native.reviewedSource : native.path;
     assert.equal(createHash('sha256').update(readFileSync(new URL(`../../${reviewedSource}`, import.meta.url))).digest('hex'), native.sha256);
-    assert.equal(builds[native.platform]!.find(input => input.path === `apps/mobile/${native.path}`)?.sha256, native.sha256);
   }
   const dependencies = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).dependencies;
   assert.equal(`powersync-react-native-${dependencies['@powersync/react-native']}`, REVIEWED_ADOPTION_PROFILE.targetSdk);

@@ -62,7 +62,7 @@ The implementation agent completed the REVIEW.md Bugs, Security, and Compliance 
 
 Production rollout order is API schema migration and API deployment, then publication of the production `rss_v1` Sync Config, then Web and Mobile clients. Production Sync Config authorization depends on `sr_rss_subscription`, `sr_rss_feed`, and `sr_rss_entry`, together with `sr_user` and `sr_user_lab_feature` for user and Labs gating. No production migration, service change, config publication, or deployment was performed here.
 
-The human explicitly decided to keep Mobile version `1.0.25`, build number `771`, and previous build number `770`; the release version will be assigned later in the task sequence. This task did not change version metadata.
+The human explicitly declined an additional Mobile version bump. Native acceptance used `1.0.25`, build `771`, previous build `770`. The final integration inherits the latest `dev` metadata (`1.0.25`, build `773`, previous build `772`) without introducing a manifest version difference relative to that base; see `delivery.md`.
 
 The native acceptance results and their distinct scopes are recorded in `native-verification.md` and `real-sync-verification.md`. Android simulator and physical-device acceptance were not run. Host tests and JavaScript bundle export do not establish offline behavior across all device platforms. Web SQLite still reads the full local entry result from the database; only row-to-contract mapping for the selected visible window plus one look-ahead row is bounded. REST history keeps the approved anchored re-walk behavior, whose cost grows with the expanded history depth.
 
