@@ -17,3 +17,5 @@ Date: 2026-10-20. Branch: `feat/unhide-youtube-labs`, based on `origin/dev` (`a3
 ## Review
 
 The local pre-push review from `REVIEW.md` found no Important findings across the Bugs, Security, and Compliance passes. The diff implements `unhide-youtube-labs`, and no dependency, contract, migration, or data-access code changes.
+
+The first CI review found one Important archive-order conflict: the completed but unarchived `extension-support-pdf` change still carried a `settings-labs-visibility` delta that modified the same requirement in the opposite direction. That delta is now removed because this change owns the capability, and the remaining references in `extension-support-pdf` and `youtube-ai-article` were reconciled. Only this change now carries a `settings-labs-visibility` delta.

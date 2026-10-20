@@ -11,7 +11,7 @@
 ## 2. Port the Web client
 
 - [x] 2.1 Merge the legacy P2 frontend diff into `apps/web` and `packages/contracts`; map `@commons/types/*` imports to `@slax-reader/contracts/*`; keep the PDF footer and page class from the monorepo.
-- [x] 2.2 Hide `youtube_article` in Settings together with `youtube`; verify the visibility unit test.
+- [x] 2.2 Hide `youtube_article` in Settings together with `youtube` at delivery time; verify the visibility unit test. `unhide-youtube-labs` later shows both rows.
 - [x] 2.3 Verify the new component tests, the Web test suite and typecheck; failures and type errors that also exist on `dev` stay out of scope.
 
 ## 3. Review and delivery

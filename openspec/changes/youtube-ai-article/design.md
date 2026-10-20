@@ -60,7 +60,7 @@ The monorepo already has one read rule for snapshots: `BookmarkService.getBookma
 
 ### Labs and Settings
 
-`youtube_article` is a Labs feature, not a gated save route: without it, YouTube saves behave as before and the article API answers `unavailable`. The monorepo hides the `youtube` row in Settings (`hide-youtube-pdf-labs`). The article needs YouTube saving, so `isLabVisibleInSettings` hides `youtube_article` too. The backend still lists it, and enabled accounts keep it.
+`youtube_article` is a Labs feature, not a gated save route: without it, YouTube saves behave as before and the article API answers `unavailable`. The monorepo originally hid the `youtube` row in Settings (`hide-youtube-pdf-labs`), so the article row was hidden with it. `unhide-youtube-labs` now shows both rows; the backend always listed the feature, and enabled accounts keep it.
 
 ### Presentation
 

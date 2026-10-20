@@ -9,7 +9,8 @@ Web Settings > Labs hides the YouTube videos (`youtube`) and YouTube AI articles
 - Show the `youtube` and `youtube_article` Labs rows in Web Settings with the same labels, order, and enable/disable behavior as every other row.
 - Remove the key-based hiding predicate entirely. Labs visibility is driven only by the account's Labs response and the presence of a translated name; PDF has been visible since `extension-support-pdf`.
 - Keep authorization unchanged: the backend `youtube` acquisition gate, stored enablement and timestamps, and access to existing bookmarks are untouched.
-- Update the `settings-labs-visibility` living spec, replacing the temporary hidden-control requirement with translated-row visibility, and reconcile the still-unarchived `youtube-ai-article` delta that requires the AI-article row to stay hidden.
+- Add a delta to `settings-labs-visibility`, replacing the temporary hidden-control requirement with translated-row visibility, and reconcile the still-unarchived `youtube-ai-article` delta that requires the AI-article row to stay hidden.
+- Remove the now-superseded `settings-labs-visibility` delta from the completed but unarchived `extension-support-pdf` change, so only this change modifies that capability and either archive order stays coherent.
 
 ## Capabilities
 
@@ -20,5 +21,5 @@ Web Settings > Labs hides the YouTube videos (`youtube`) and YouTube AI articles
 ## Impact
 
 - Web presentation and tests: `apps/web/app/composables/useLabFeatures.ts`, `apps/web/app/components/UserLabSection.vue`, `apps/web/app/pages/user.vue`, and their unit tests.
-- OpenSpec: this change and the unarchived `youtube-ai-article` spec delta.
+- OpenSpec: this change, the unarchived `youtube-ai-article` spec delta, and the superseded `settings-labs-visibility` delta removed from `extension-support-pdf`.
 - No API, contract, database, dependency, Extension, or Mobile changes. Save/upload gating and existing preferences keep their current behavior.

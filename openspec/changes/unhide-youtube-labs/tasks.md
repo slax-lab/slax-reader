@@ -4,7 +4,8 @@
 
 - [x] 1.1 Remove the key-based hiding set and predicate; filter Labs rows only by translated name in the Settings card and the Features navigation.
 - [x] 1.2 Update the Web unit tests so `youtube` and `youtube_article` render, toggle, and preserve their state, while untranslated rows stay hidden.
-- [x] 1.3 Update the unarchived `youtube-ai-article` delta so its Settings requirement matches the visible row.
+- [x] 1.3 Update the unarchived `youtube-ai-article` delta so its Settings requirement matches the visible row, and update its remaining hidden-row references.
+- [x] 1.4 Remove the superseded `settings-labs-visibility` delta from `extension-support-pdf` so only this change carries a delta for that capability.
 
 ## 2. Validate
 
