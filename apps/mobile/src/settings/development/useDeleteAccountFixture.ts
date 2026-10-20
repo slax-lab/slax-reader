@@ -27,7 +27,7 @@ export function useDeleteAccountFixture({fixture, observer, gate, read, state, w
   gate: NoticeReadGate;
   read: boolean;
   state: DeleteAccountState;
-  web: RefObject<WebView | null>;
+  web: RefObject<WebView<unknown> | null>;
 }) {
   useEffect(() => {
     if (!__DEV__ || !fixture) return;

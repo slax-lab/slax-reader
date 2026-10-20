@@ -28,6 +28,7 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   scheme: uiFixture ? fixtureScheme : [sourceAuth.iosApplicationScheme, 'slaxreader'],
+  experiments: {inlineModules: {watchedDirectories: fixtureMode ? [] : ['app-intents']}},
   icon: './assets/app-icon.png',
   ios: {
     bundleIdentifier: uiFixture ? fixtureIosId : 'app.slax.reader',
@@ -54,6 +55,8 @@ const config: ExpoConfig = {
   },
   plugins: [
     ['./plugins/with-native-compatibility.cjs', {fixtureMode}],
+    ...(!fixtureMode ? ['expo-app-intents'] : []),
+    './plugins/with-retire-reading-widgets.cjs',
     ...(firebaseIosConfig || firebaseAndroidConfig ? ['./plugins/with-firebase-bootstrap.cjs'] : []),
     ...(!uiFixture ? [['./plugins/with-share.cjs', {
       apiBaseUrl: process.env.EXPO_PUBLIC_SLAX_API_URL ?? 'https://api-reader.slax.com',

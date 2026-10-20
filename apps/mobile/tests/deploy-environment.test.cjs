@@ -90,8 +90,10 @@ function nativeFixture(t) {
     mkdirSync(path.dirname(target), {recursive: true});
     copyFileSync(path.join(__dirname, '../tooling', file), target);
   }
+  mkdirSync(path.join(f.root, 'apps/mobile/plugins'), {recursive: true});
+  copyFileSync(path.join(__dirname, '../plugins/android-release-signing.cjs'), path.join(f.root, 'apps/mobile/plugins/android-release-signing.cjs'));
   f.put('apps/mobile/package.json', JSON.stringify({version: '1.2.3', buildNumber: 12, previousBuildNumber: 11}));
-  f.put('apps/mobile/android/app/build.gradle', 'versionCode 12\nversionName "1.2.3"\n// Slax release signing: operator-managed environment only.\n');
+  f.put('apps/mobile/android/app/build.gradle', 'versionCode 12\nversionName "1.2.3"\nandroid { buildTypes { release { signingConfig = null } } }\n// Slax release signing: operator-managed environment only.\n');
   f.put('deploy/mobile/android/slax-reader.release.jks', 'synthetic test key');
   f.put('apps/mobile/android/gradlew', `#!${process.execPath}\nconsole.log(JSON.stringify({args:process.argv.slice(2),key:process.env.SLAX_ANDROID_KEYSTORE_PATH,alias:process.env.SLAX_ANDROID_KEY_ALIAS,password:process.env.SLAX_ANDROID_KEYSTORE_PASSWORD,keyPassword:process.env.SLAX_ANDROID_KEY_PASSWORD}));\n`, 0o755);
   f.run = () => spawnSync(process.execPath, [path.join(f.root, 'apps/mobile/tooling/native-build.mjs'), 'android', '--release', 'bundleRelease'], {cwd: tmpdir(), env: {PATH: process.env.PATH}, encoding: 'utf8', timeout: 10000});

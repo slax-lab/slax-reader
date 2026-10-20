@@ -17,7 +17,7 @@ async function fixture() {
     async purgeRemoval(directory, owner, path, generation) {calls.push(['purge', directory, owner, path, generation]); await wait; staged.delete(`${path}:${generation}`);},
   };
   const {NativeFileStore} = await loadComponent('../../src/data/native-file-store.ts', {
-    'expo-modules-core': {requireNativeModule: name => {assert.equal(name, 'SlaxStorage'); return native;}}, '../utils/abort.ts': {throwIfAborted},
+    'expo': {requireNativeModule: name => {assert.equal(name, 'SlaxStorage'); return native;}}, '../utils/abort.ts': {throwIfAborted},
   }, {Error});
   return {files: new NativeFileStore('/app', 'account-a', () => {if (!active) throw new Error('Account revoked');}), calls, handles, staged,
     hold(value) {wait = value;}, revoke() {active = false;}};

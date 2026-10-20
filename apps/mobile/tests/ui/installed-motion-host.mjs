@@ -28,7 +28,8 @@ function installed(file, boundaries = {}) {
 }
 export function installedMotionHost(View, {reducedMotion = false, deferJS = false} = {}) {
   const gh = dirname(require.resolve('react-native-gesture-handler/package.json'));
-  const base = installed(resolve(gh, 'src/handlers/gestures/gesture.ts'), {'../getNextHandlerTag': {getNextHandlerTag: () => 1}, '../../utils': {isRemoteDebuggingEnabled: () => false}});
+  const callbackTypes = installed(resolve(gh, 'src/CallbackType.ts'));
+  const base = installed(resolve(gh, 'src/handlers/gestures/gesture.ts'), {'../../CallbackType': callbackTypes, '../getNextHandlerTag': {getNextHandlerTag: () => 1}, '../../utils': {isRemoteDebuggingEnabled: () => false}});
   const {PanGesture} = installed(resolve(gh, 'src/handlers/gestures/panGesture.ts'), {'./gesture': base});
   const {PinchGesture} = installed(resolve(gh, 'src/handlers/gestures/pinchGesture.ts'), {'./gesture': base});
   const {TapGesture} = installed(resolve(gh, 'src/handlers/gestures/tapGesture.ts'), {'./gesture': base});
@@ -39,11 +40,14 @@ export function installedMotionHost(View, {reducedMotion = false, deferJS = fals
   const {Easing} = installed(resolve(ra, 'src/Easing.ts'), {'./Bezier': {Bezier}});
   const {ReduceMotion} = installed(resolve(ra, 'src/commonTypes.ts'));
   const systemMotion = {value: reducedMotion};
-  const animationUtil = installed(resolve(ra, 'src/animation/util.ts'), {
+  const commonAnimationUtil = installed(resolve(ra, 'src/animation/utilCommon.ts'), {
     'react-native-worklets': {createSerializable: value => value, serializableMappingCache: new Map(), RuntimeKind: {ReactNative: 1}},
     '../Colors': {isColor: () => false}, '../common': {SHOULD_BE_USE_WEB: true, logger: {warn() {}}},
     '../commonTypes': {ReduceMotion}, '../ReducedMotion': {ReducedMotionManager: {uiValue: systemMotion}},
     './transformationMatrix/matrixUtils': {isAffineMatrixFlat: () => false},
+  });
+  const animationUtil = installed(resolve(ra, 'src/animation/util.ts'), {
+    'react-native-worklets': {RuntimeKind: {ReactNative: 1}}, './utilCommon': commonAnimationUtil,
   });
   const {withTiming} = installed(resolve(ra, 'src/animation/timing.ts'), {'../Easing': {Easing}, './util': animationUtil});
   const {withDelay} = installed(resolve(ra, 'src/animation/delay.ts'), {'./util': animationUtil});

@@ -1,5 +1,7 @@
+import type {TextInputInstance} from 'react-native'
 import React, {useEffect, useRef, useState} from 'react'
-import {ActivityIndicator, AppState, Keyboard, Modal, Pressable, StyleSheet, TextInput, View, useWindowDimensions, FlatList} from 'react-native'
+import {ActivityIndicator, AppState, Keyboard, Modal, Pressable, StyleSheet, TextInput, View, FlatList} from 'react-native'
+import {SafeAreaProvider, useSafeAreaFrame, useSafeAreaInsets} from 'react-native-safe-area-context'
 import type {MobileAssetName} from '../../../assets'
 import {SourceAvatar, SourceIcon, SourceText} from '../../components'
 import {mobileColors as C, mobileTypography as T} from '../../theme'
@@ -17,8 +19,7 @@ export function CommentPanel({visible, mark, text, draft, reply, currentUserAvat
   onDraft(value: string): void; onClose(): void; onCopy(): void; onCopyComment(comment: ReaderComment): void; onHighlight(): void; onReply(comment: ReaderComment | null): void;
   onDelete(comment: ReaderComment): void; canDelete(comment: ReaderComment): boolean; onSubmit(): void;
 }) {
-  const viewport = useWindowDimensions(), input = useRef<TextInput>(null)
-  const [menuSize, setMenuSize] = useState({width: 0, height: 32})
+  const input = useRef<TextInputInstance>(null)
   const focusConsumed = useRef(false)
   useEffect(() => {
     if (!visible) {focusConsumed.current = false; return}
@@ -79,12 +80,23 @@ export function CommentPanel({visible, mark, text, draft, reply, currentUserAvat
     </View>
   </ReaderSheet>
     {selectedComment && menu ? <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={() => onMenu(null)}>
-      <Pressable testID="reader-comment-menu-dismiss" accessible={false} style={StyleSheet.absoluteFill} onPress={() => onMenu(null)} />
-      <View testID="reader-comment-menu" accessibilityViewIsModal onLayout={event => setMenuSize(event.nativeEvent.layout)} style={[styles.commentMenu, {left: Math.max(0, Math.min(menu.x - menuSize.width / 2, viewport.width - menuSize.width)), top: Math.max(0, menu.y - menuSize.height - 8)}]}>
+      <SafeAreaProvider><CommentActionMenu anchor={menu} onDismiss={() => onMenu(null)}>
         <Pressable testID="reader-comment-copy" accessibilityRole="button" onPress={() => {onMenu(null); onCopyComment(selectedComment)}} style={({pressed}) => [styles.commentMenuItem, {backgroundColor: pressed ? C.selectionMenuPressed : 'transparent'}]}><SourceIcon name="ic_menu_action_copy" size={20} /><SourceText style={styles.commentMenuText}>{t('comment_panel_copy')}</SourceText></Pressable>
         {canDelete(selectedComment) ? <Pressable testID="reader-comment-delete" accessibilityRole="button" onPress={() => {onMenu(null); onDelete(selectedComment)}} style={({pressed}) => [styles.commentMenuItem, {backgroundColor: pressed ? C.selectionMenuPressed : 'transparent'}]}><SourceIcon name="ic_comment_panel_delete" size={20} /><SourceText style={styles.commentMenuText}>{t('comment_panel_delete')}</SourceText></Pressable> : null}
-      </View>
+      </CommentActionMenu></SafeAreaProvider>
     </Modal> : null}
+  </>
+}
+function CommentActionMenu({anchor, onDismiss, children}: {anchor: CommentMenuAnchor; onDismiss(): void; children: React.ReactNode}) {
+  const frame = useSafeAreaFrame(), insets = useSafeAreaInsets()
+  const [size, setSize] = useState({width: 0, height: 32})
+  return <>
+    <Pressable testID="reader-comment-menu-dismiss" accessible={false} style={StyleSheet.absoluteFill} onPress={onDismiss} />
+    <View testID="reader-comment-menu" accessibilityViewIsModal onLayout={event => setSize(event.nativeEvent.layout)} style={[styles.commentMenu, {
+      maxWidth: Math.max(0, frame.width - insets.left - insets.right),
+      left: Math.max(insets.left, Math.min(anchor.x - size.width / 2, frame.width - insets.right - size.width)),
+      top: Math.max(insets.top, Math.min(anchor.y - size.height - 8, frame.height - insets.bottom - size.height)),
+    }]}>{children}</View>
   </>
 }
 const styles = StyleSheet.create({

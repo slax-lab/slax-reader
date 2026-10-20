@@ -127,7 +127,7 @@ def pdf_fixture(name, identifier, document, title, overview, page, offline=False
     record.update({"id": identifier, "type": 2})
     metadata = json.loads(record["metadata"])
     metadata["tags"] = []
-    metadata["bookmark"].update({"uuid": identifier, "type": 2, "site_name": "Fixture PDF", "content_word_count": 600 if document == "long-pages" else 160})
+    metadata["bookmark"].update({"uuid": identifier, "type": 2, "site_name": "Fixture PDF", "content_word_count": 600 if document == "long-pages" else 260 if document == "thirteen-pages" else 160})
     record["metadata"] = dumps(metadata)
     database = {table: [] for table in base["database"]}
     database.update({"sr_user": deepcopy(base["database"]["sr_user"]), "sr_user_bookmark": [record],
@@ -145,6 +145,7 @@ def pdf_fixture(name, identifier, document, title, overview, page, offline=False
     }, "actions": actions, "nativeExecution": "pending-adapter-and-device"}
 
 pdf_fixture("reader-pdf", "fixture-pdf-eight", "eight-pages", "Eight-page selectable PDF fixture", "Eight deterministic PDF pages, including a rotated third page.", 3)
+pdf_fixture("reader-pdf-odd", "fixture-pdf-odd", "thirteen-pages", "13-page adaptive PDF fixture", "Thirteen synthetic pages for spread pairing and odd-final-page interaction.", 13)
 pdf_fixture("reader-pdf-long", "fixture-pdf-long", "long-pages", "Thirty-page PDF range fixture", "Thirty deterministic PDF pages for bounded rendering and cache ranges.", 20)
 pdf_fixture("reader-pdf-offline", "fixture-pdf-offline", "eight-pages", "Fully cached offline PDF fixture", "A PDF cached through the production queue before the network becomes unavailable.", 3, offline=True)
 pdf_fixture("reader-pdf-import", "fixture-pdf-imported", "eight-pages", "Synthetic native PDF import", "The native picker copied the seeded PDF; upload and delayed synchronization are simulated locally.", 3)

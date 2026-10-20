@@ -66,10 +66,10 @@ target 'SlaxReader' do
   )
 
   post_install do |installer|
+
     if (ENV['RCT_USE_PREBUILT_RNCORE'] == '1' && ReactNativeCoreUtils.build_rncore_from_source()) || (ENV['RCT_USE_RN_DEP'] == '1' && ReactNativeDependenciesUtils.build_react_native_deps_from_source())
       raise 'Requested prebuilt React artifacts are unavailable. Restore artifact access and retry pod install; refusing an inconsistent native dependency graph.'
     end
-
 
     react_native_post_install(
       installer,
@@ -82,7 +82,7 @@ end
 
 # Slax unconfigured Firebase build phase: begin
 post_integrate do |installer|
-  unless true
+  unless false
     installer.aggregate_targets.map(&:user_project).uniq.each do |project|
       project.native_targets.each do |target|
         target.shell_script_build_phases.select { |phase| phase.name == '[CP-User] [RNFB] Crashlytics Configuration' }.each(&:remove_from_project)

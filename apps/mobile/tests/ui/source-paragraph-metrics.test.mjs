@@ -29,7 +29,7 @@ test('actual paragraph rejects delayed width, text and font metrics while retain
   const boundaries = {
     react: React,
     'react-native': {Platform: {OS: 'android'}, useWindowDimensions: () => ({fontScale, scale: 2.625, width: windowWidth, height: windowHeight})},
-    'expo-modules-core': {requireNativeViewManager: (module, view) => {
+    'expo': {requireNativeView: (module, view) => {
       assert.equal(module, 'SlaxPlatform'); assert.equal(view, 'SlaxTextView');
       return values => {props = values; return null;};
     }},
@@ -85,7 +85,7 @@ test('actual paragraph rejects delayed width, text and font metrics while retain
     const iosExports = {};
     const iosBoundaries = {...boundaries,
       'react-native': {...boundaries['react-native'], Platform: {OS: 'ios'}},
-      'expo-modules-core': {requireNativeViewManager: () => {throw new Error('An existing iOS binary must not request the Android paragraph view');}},
+      'expo': {requireNativeView: () => {throw new Error('An existing iOS binary must not request the Android paragraph view');}},
       './SourceUI': {SourceText: values => {props = values; return null;}},
     };
     vm.runInNewContext(source, {exports: iosExports, require: name => iosBoundaries[name]});

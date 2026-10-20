@@ -287,7 +287,7 @@ for (const platform of ['android', 'ios']) test(`actual ${platform} drawer uses 
 test('source circular progress forwards pinned center and saving geometry through the owned native ring', async () => {
   const {SourceCircularProgress} = await load('../../src/components/SourceRing.tsx', {
     react: React, 'react-native': {View: 'View', Platform: {OS: 'android'}, PixelRatio: {roundToNearestPixel: value => value}},
-    'expo-modules-core': {requireNativeViewManager: () => 'NativeRing'},
+    'expo': {requireNativeView: () => 'NativeRing'},
   });
   for (const props of [{color: '#B45837'}, {color: '#B45837', size: 14, thickness: 1.5}]) {
     const progress = SourceCircularProgress(props), ringElement = progress.props.children;

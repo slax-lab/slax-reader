@@ -1,6 +1,6 @@
 import React, {useState} from 'react';
 import {Platform, useWindowDimensions, type StyleProp, type ViewProps, type ViewStyle} from 'react-native';
-import {requireNativeViewManager} from 'expo-modules-core';
+import {requireNativeView} from 'expo';
 import {SourceText} from './SourceUI';
 import {sourceTextDimensions} from './source-font-scaling';
 
@@ -14,7 +14,7 @@ interface NativeParagraphProps extends ViewProps {
   measurementKey: string; ellipsis: 'end'; centerAsGroup: boolean;
   onTextMetrics(event: {nativeEvent: TextMetrics}): void;
 }
-const NativeText = Platform.OS === 'android' ? requireNativeViewManager<NativeParagraphProps>('SlaxPlatform', 'SlaxTextView') : null;
+const NativeText = Platform.OS === 'android' ? requireNativeView<NativeParagraphProps>('SlaxPlatform', 'SlaxTextView') : null;
 
 /** Plain paragraphs retain the source fractional paint and native trimmed line-height span. */
 export function SourceParagraph({text, fontSize, lineHeight, fontWeight = 400, color, alignment = 'left', maxLines = 0, style, testID, accessibilityLabel}: {

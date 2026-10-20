@@ -132,7 +132,8 @@ async function harness(root, platform = 'ios', development = false) {
     mobile.session = {status: 'authenticated', session: {userId: 'settings-user'}};
     mobile.sessions = {getSnapshot: () => mobile.session, captureIdentity: () => () => {}};
     const scope = await load('../../src/settings/account-scope.ts', {react: React});
-    const settingsState = await load('../../src/settings/useSettingsState.ts', {react: React});
+    const surfacePreferences = await load('../../src/settings/system-surface-preferences.ts');
+    const settingsState = await load('../../src/settings/useSettingsState.ts', {react: React, './system-surface-preferences': surfacePreferences});
     const rssLab = await load('../../src/settings/useRssLab.ts', {...common, '@react-navigation/native': navigation});
     const settingsView = await load('../../src/settings/SettingsView.tsx', {...common, '../components': v.ui, '../components/SourceParagraph': {SourceParagraph: nil}});
     const {SettingsScreen} = await load('../../src/screens/SettingsScreen.tsx', {

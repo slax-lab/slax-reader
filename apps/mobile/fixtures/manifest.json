@@ -5,7 +5,7 @@
   "files": [
     {
       "path": "scenarios.json",
-      "sha256": "73ac588c91c231c7ff8a5e17a0c1b2e984b062085c03730189b307d1095fe4aa"
+      "sha256": "fc2fbccb759f5f7a32ca9d1f8ea88e4d96b62c63d401bb61c1ef777dafd59123"
     },
     {
       "path": "articles/delete-notice.html",
@@ -48,6 +48,6 @@
       "sha256": "96e03add074ba683f47bb9023d3a730a3e9135cc20473355c082f1181737c1b7"
     }
   ],
-  "scenarioCount": 35,
+  "scenarioCount": 36,
   "sourceCheckoutModified": false
 }

@@ -1,4 +1,5 @@
 import React, {useEffect, useRef} from 'react';
+import * as AppIntents from 'expo-app-intents';
 import {Platform, StatusBar, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {createNavigationContainerRef} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
@@ -42,11 +43,12 @@ const sourceHeaderTitle = Platform.OS === 'android'
   : undefined;
 
 export function ApplicationRoutes() {
-  const {session, upgrade, retryStart, t} = useMobile();
+  const {session, upgrade, retryStart, t, systemEntry} = useMobile();
   const telemetry = useTelemetry();
   const reported = useRef(new Set<string>());
   const userId = session.status === 'authenticated' ? session.session.userId : null;
   useEffect(() => { telemetry.identify(userId); }, [telemetry, userId]);
+  useEffect(() => () => systemEntry?.setNavigator(null), [systemEntry]);
   function reportRoutes() {
     const state = navigationRef.getRootState();
     if (!state) return;
@@ -60,7 +62,7 @@ export function ApplicationRoutes() {
   }
   if (session.status === 'loading' && upgrade?.status === 'error') return <AppRecoveryScreen t={t} retryStart={retryStart}/>;
   if (session.status === 'loading') return <View testID="app-startup-surface" style={{flex: 1, backgroundColor: C.background}} />;
-  return <ObserveNavigationContainer ref={setObserveNavigationRef} onReady={reportRoutes} onStateChange={reportRoutes}>
+  return <ObserveNavigationContainer ref={setObserveNavigationRef} onReady={() => {reportRoutes(); systemEntry?.setNavigator(bookmarkId => navigationRef.navigate('Reader', {bookmarkId}));}} onStateChange={reportRoutes}>
     <Stack.Navigator screenOptions={{headerTintColor: C.text, headerStyle: {backgroundColor: C.background}, headerTitleAlign: 'center', headerTitleStyle: {fontSize: 17, fontWeight: '500'}, contentStyle: {backgroundColor: C.background}, headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal'}}>
       {session.status === 'unauthenticated' ? <Stack.Screen name="Login" getComponent={screens.Login} options={{headerShown: false}}/> : <Stack.Group navigationKey={session.session.userId}>
         <Stack.Screen name="Library" getComponent={screens.Library} options={{headerShown: false}}/>
@@ -86,7 +88,7 @@ class RuntimeBoundary extends React.Component<{children: React.ReactNode}, {erro
 }
 function App() {
   return <GestureHandlerRootView style={{flex: 1}}><SafeAreaProvider><StatusBar barStyle="dark-content"/>
-    <RuntimeBoundary><MobileProvider><ApplicationRoutes/></MobileProvider></RuntimeBoundary>
+    <RuntimeBoundary><MobileProvider appIntents={AppIntents}><ApplicationRoutes/></MobileProvider></RuntimeBoundary>
   </SafeAreaProvider></GestureHandlerRootView>;
 }
 export default ObserveRoot.wrap(App);

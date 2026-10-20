@@ -1,3 +1,4 @@
+import type {NativeSyntheticEvent, NativeScrollEvent} from 'react-native';
 import React, {useLayoutEffect, useRef} from 'react';
 import type {WebView} from 'react-native-webview';
 import type {MobileScreenProps} from '../navigation/types';
@@ -14,7 +15,7 @@ export function DeleteAccountScreen({navigation}: MobileScreenProps<'DeleteAccou
   const mobile = useMobile();
   const {t, api, sessions, config, fixtureOnly} = mobile;
   const scope = useAccountScope({...mobile, apiOrigin: config.apiUrl, fixture: Boolean(fixtureOnly)});
-  const web = useRef<WebView>(null);
+  const web = useRef<WebView<unknown>>(null);
   const noticeUrl = `${config.webUrl.replace(/\/$/, '')}/delete-account-notice`;
   const observer = useDeleteNoticeObserver(fixtureOnly);
   const notice = useDeleteNotice(noticeUrl, Boolean(fixtureOnly?.deleteNoticeHtml), observer);
@@ -44,7 +45,7 @@ export function DeleteAccountScreen({navigation}: MobileScreenProps<'DeleteAccou
       if (script !== null) web.current?.injectJavaScript(script);
     },
     onMessage: event => notice.message(event.nativeEvent.url, event.nativeEvent.data),
-    onScroll: ({nativeEvent: {contentOffset, contentSize, layoutMeasurement}}) => {
+    onScroll: ({nativeEvent: {contentOffset, contentSize, layoutMeasurement}}: NativeSyntheticEvent<NativeScrollEvent>) => {
       notice.scroll(contentSize.height, layoutMeasurement.height, contentOffset.y);
     },
     onShouldStartLoadWithRequest: request => notice.allows(request.url),

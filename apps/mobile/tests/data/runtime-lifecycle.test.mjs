@@ -35,7 +35,7 @@ test('production runtime suspends and resumes without closing the database or re
   class UnexpectedFileAccess {constructor() {assert.fail('Lifecycle transitions must not access PDF files');}}
   const {PdfFileStorage} = await loadComponent('../../src/data/pdf-file-storage.ts', {
     'expo-file-system': {Directory: UnexpectedFileAccess, File: UnexpectedFileAccess},
-    'expo-modules-core': {requireNativeModule: () => assert.fail('Lifecycle transitions must not resolve PDF paths'), uuid: {v4: () => assert.fail('Lifecycle transitions must not write PDF files')}},
+    'expo': {requireNativeModule: () => assert.fail('Lifecycle transitions must not resolve PDF paths'), uuid: {v4: () => assert.fail('Lifecycle transitions must not write PDF files')}},
     './pdf-sha256.ts': {Sha256},
   }, {TextEncoder});
   const {createMobileDataRuntime} = await loadComponent('../../src/data/runtime.ts', {

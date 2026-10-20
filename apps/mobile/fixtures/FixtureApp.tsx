@@ -3,7 +3,7 @@ import {ActivityIndicator, Dimensions, Linking, PixelRatio, Platform, StatusBar,
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {SafeAreaProvider, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {File} from 'expo-file-system';
-import {requireNativeModule} from 'expo-modules-core';
+import {requireNativeModule} from 'expo';
 import {ApplicationRoutes, navigationRef} from '../src/App';
 import {FixtureMobileProvider, type MobileContextValue} from '../src/runtime';
 import {mobileColors} from '../src/theme';

@@ -1,11 +1,12 @@
 import React, {createContext, useCallback, useContext, useEffect, useMemo, useRef, useState} from 'react';
 import {BackHandler, Platform, Pressable, StyleSheet, View} from 'react-native';
-import {Gesture, GestureDetector, type PanGesture} from 'react-native-gesture-handler';
+import {Gesture, GestureDetector} from 'react-native-gesture-handler';
 import Animated, {cancelAnimation, Easing, ReduceMotion, runOnJS, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 import {useFocusEffect} from '@react-navigation/native';
 import {motionDuration} from '../motion/policy';
 
 const touchSlop = Platform.OS === 'ios' ? 10 : 8;
+type PanGesture = ReturnType<typeof Gesture.Pan>;
 const DrawerGesture = createContext<PanGesture | null>(null);
 export function useDrawerGesture() {return useContext(DrawerGesture);}
 

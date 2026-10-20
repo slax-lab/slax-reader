@@ -1,3 +1,4 @@
+import type {ViewInstance} from 'react-native'
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, PixelRatio, Pressable, StyleSheet, View } from 'react-native';
 import {Gesture, GestureDetector} from 'react-native-gesture-handler';
@@ -22,7 +23,7 @@ export const BookmarkRow = memo(function BookmarkRow({item, sort, owned, onOpen,
   const offset = useSharedValue(0), dragStart = useSharedValue(0), dragging = useSharedValue(false), touchX = useSharedValue(0), touchY = useSharedValue(0);
   const generation = useSharedValue(0);
   const flash = useRef(new Animated.Value(0)).current, title = bookmarkDisplayTitle(item), oldTitle = useRef(title);
-  const row = useRef<View>(null), [menu, setMenu] = useState(false), [anchor, setAnchor] = useState({x: 0, y: 0});
+  const row = useRef<ViewInstance>(null), [menu, setMenu] = useState(false), [anchor, setAnchor] = useState({x: 0, y: 0});
   const menuMounted = useRef(false);
   if (menu) menuMounted.current = true;
   const max = owned ? sort === 'inbox' ? 130 : 70 : 0;

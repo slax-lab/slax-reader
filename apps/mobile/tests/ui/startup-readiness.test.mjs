@@ -181,6 +181,7 @@ test('mounted MobileProvider exposes no repository or cache before admission, ev
     react: React, 'react-native': {...host.native, Platform: {OS: 'android'}}, 'expo-localization': {getLocales: () => [{languageTag: 'en'}]}, 'expo-file-system': {},
     './data': {createMobileDataRuntime: () => runtime}, './i18n': {normalizeLocale: value => value, createTranslator: () => key => key}, './config': {mobileConfig: {apiUrl: 'https://fixture.test'}},
     './payments/controller': {PaymentController: class {}}, './payments/expo-store': {createExpoStore: () => ({})}, './native/platform': {setWebSessionCookie: async () => {}}, './controlled-upgrade-visibility': {},
+    './system-actions/SaveURLHost': {SaveURLHost: () => null}
   });
   function Probe() {visible = useMobile(); return null;}
   await host.render(React.createElement(MobileProvider, null, React.createElement(Probe)));

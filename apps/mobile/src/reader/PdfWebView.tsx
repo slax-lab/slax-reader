@@ -1,5 +1,5 @@
 import React, {forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} from 'react'
-import {AppState, Platform} from 'react-native'
+import {AppState, Platform, StyleSheet, View} from 'react-native'
 import type {StyleProp, ViewStyle} from 'react-native'
 import type {WebView} from 'react-native-webview'
 import {readerNativeAdapter} from '../native/reader'
@@ -13,10 +13,12 @@ import {ReaderPositionWriter} from './position.ts'
 import type {PositionFlushReason} from './position.ts'
 import type {ReaderEvent, ReaderMarkDetail, ReaderSelection} from './types.ts'
 import {usePdfScrollHost} from './host/usePdfScrollHost.tsx'
+import type {ReaderHostViewport} from './host/geometry.ts'
 import type {ReaderNativeContext} from './native.ts'
 import {pdfFailure, pdfFailureError} from './pdf-errors.ts'
 import {readerDocumentError, READER_PROCESS_GONE} from './recovery.ts'
 import {getDataErrorDiagnostic} from '../data/transport-errors.ts'
+import {choosePdfLayout} from './pdf/adaptive/policy.ts'
 
 export type {PdfSelection} from './pdf-types.ts'
 export interface PdfReaderHandle {
@@ -42,6 +44,8 @@ export interface PdfWebViewProps {
   /** Article header + skeleton that covers the host until the restored first visible page is painted, then fades out. */
   placeholder?: React.ReactNode
   headerSafeAreaPoints?: number
+  /** Explicit prototype opt-in. Host width is measured; provided insets are removed before the fit decision. */
+  adaptivePdf?: {enabled: boolean; safeAreaLeft?: number; safeAreaRight?: number}
   commentPanelVisible?: boolean
   isRouteRemoved?: () => boolean
   onScrollMetrics?: (positionPixels: number, nearBottom: boolean) => void
@@ -153,8 +157,21 @@ const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(
   }, [send])
   const nativeContext: ReaderNativeContext = {pageId: props.pageId, cacheKey: props.cacheKey, cacheDirectory: props.cacheDirectory,
     resourceOwner: props.resourceOwner, pdfMode: true, protectedHosts: ['slax.com'], imageProxyOrigins: [], suppressSelectionMenu: true, scrollsToTop: !props.commentPanelVisible}
+  const latestViewport = useRef<ReaderHostViewport | null>(null)
+  const applyLayout = useCallback((viewport: ReaderHostViewport) => {
+    const versionParts = String(Platform.Version).split('.').map(Number)
+    const supported = Platform.OS === 'ios' && (versionParts[0]! > 27 || versionParts[0] === 27 && (versionParts[1] ?? 0) >= 1)
+    const decision = choosePdfLayout({enabled: props.adaptivePdf?.enabled === true, supported,
+      windowWidth: Math.max(0, (viewport.width ?? 0) - 16), safeArea: {left: props.adaptivePdf?.safeAreaLeft ?? 0, right: props.adaptivePdf?.safeAreaRight ?? 0},
+      minPaneWidth: 320, gutter: 24})
+    send({kind: 'layout', mode: decision.mode, paneWidth: decision.paneWidth, gutter: 24})
+  }, [props.adaptivePdf?.enabled, props.adaptivePdf?.safeAreaLeft, props.adaptivePdf?.safeAreaRight, send])
   const scrollHost = usePdfScrollHost({context: nativeContext, ready, active: foreground, activation, header: props.header, placeholder: props.placeholder, covered: !presentable, headerSafeAreaPoints: props.headerSafeAreaPoints, style: props.style,
-    onViewport: viewport => send({kind: 'viewport', ...viewport}), onInitialLayout: async () => {
+    onViewport: viewport => {
+      latestViewport.current = viewport
+      send({kind: 'viewport', ...viewport})
+      applyLayout(viewport)
+    }, onInitialLayout: async () => {
       const generation = lifecycleGeneration.current
       initializationScroll.current = null
       await request('restore', props.initialPosition ?? 1)
@@ -163,6 +180,9 @@ const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(
       reveal.current.restored = true
       revealIfPainted()
     }, onScrollMetrics: props.onScrollMetrics, onError: report, onOperationError: reportOperation})
+  useEffect(() => {
+    if (latestViewport.current) applyLayout(latestViewport.current)
+  }, [applyLayout])
   useEffect(() => {
     if (!foreground || exited.current) return
     if (bufferedHeight.current !== null) {scrollHost.setDocumentHeight(bufferedHeight.current); bufferedHeight.current = null}
@@ -289,7 +309,9 @@ const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(
       if (!reveal.current.done && Number.isSafeInteger(message.page) && (message.page as number) >= 1) {reveal.current.painted.add(message.page as number); revealIfPainted()}
       return
     }
-    if (message.kind === 'documentHeight' && finite(message.height) && message.height > 0) {scrollHost.setDocumentHeight(message.height); return}
+    if (message.kind === 'documentHeight' && finite(message.height) && message.height > 0) {
+      scrollHost.setDocumentHeight(message.height); return
+    }
     if (message.kind === 'scroll' && finite(message.y) && typeof message.revealHeader === 'boolean') {
       if (message.restoreId !== undefined && (typeof message.restoreId !== 'string' || pending.current.get(message.restoreId)?.operation !== 'restore')) return
       const work = scrollHost.scrollToDocument(message.y, message.revealHeader)
@@ -334,7 +356,7 @@ const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(
     callbacks.current.onEvent?.(event, props.pageId)
   }
   const Host = readerNativeAdapter.HostComponent!
-  return scrollHost.wrap(<Host ref={view} source={{html, baseUrl: PDF_ORIGIN}} style={scrollHost.documentStyle} containerStyle={scrollHost.documentStyle}
+  return <View style={styles.debugRoot}>{scrollHost.wrap(<Host ref={view} source={{html, baseUrl: PDF_ORIGIN}} style={scrollHost.documentStyle} containerStyle={scrollHost.documentStyle}
     nativeConfig={readerNativeAdapter.nativeConfig(nativeContext)} onScroll={scrollHost.nativeScroll}
     contentInset={scrollHost.contentInset}
     onMessage={receive} onError={event => report(pdfFailureError(readerDocumentError(event.nativeEvent.code, 'PDF native document failed'), 'native'))}
@@ -363,5 +385,7 @@ const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(
     mixedContentMode="never" setSupportMultipleWindows={false} javaScriptCanOpenWindowsAutomatically={false}
     incognito cacheEnabled={false} textInteractionEnabled scrollEnabled={scrollHost.platform === 'ios'} nestedScrollEnabled={false}
     automaticallyAdjustContentInsets={false} showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false}
-    startInLoadingState={Boolean(props.renderLoading)} renderLoading={props.renderLoading} renderError={props.renderError} testID="pdf-document" />)
+    startInLoadingState={Boolean(props.renderLoading)} renderLoading={props.renderLoading} renderError={props.renderError} testID="pdf-document" />)}
+  </View>
 })
+const styles = StyleSheet.create({debugRoot: {flex: 1}})

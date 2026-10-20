@@ -59,7 +59,7 @@ export function useRssLab(api: Pick<SlaxApi, 'rssLabs' | 'rssEnable'>, scope: Ac
       }
     };
     if (observedScope.current !== scope) {observedScope.current = scope; setState(initial);}
-    update(AppState.currentState);
+    update(AppState.currentState ?? 'unknown');
     const subscription = AppState.addEventListener('change', update);
     return () => {
       cancel();

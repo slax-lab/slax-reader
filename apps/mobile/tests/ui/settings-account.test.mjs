@@ -108,7 +108,7 @@ async function harness(root) {
   const ui = Object.fromEntries(['ScreenSurface', 'SourceButton', 'SourceDialog', 'SourceIcon', 'SourceSwitch', 'SourceText', 'TextAction', 'Divider'].map(name => [name, native(name)]));
   const load = modules({
     react: React,
-    'react-native': {AppState: appState, StyleSheet: {create: value => value}, ...Object.fromEntries(['Pressable', 'ScrollView', 'View'].map(name => [name, native(name)]))},
+    'react-native': {AppState: appState, Platform: {OS: 'ios'}, StyleSheet: {create: value => value}, ...Object.fromEntries(['Pressable', 'ScrollView', 'View'].map(name => [name, native(name)]))},
     'react-native-webview': {WebView: native('WebView')},
     '@react-navigation/native': {useFocusEffect: callback => React.useEffect(() => h.focused ? callback() : undefined, [callback, h.focused])},
     '../runtime': {useMobile},

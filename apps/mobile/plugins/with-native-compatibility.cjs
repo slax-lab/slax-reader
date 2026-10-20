@@ -1,11 +1,39 @@
-const { withGradleProperties, withPodfileProperties, withPodfile, withAndroidManifest, withAppBuildGradle, withAndroidStyles } = require('expo/config-plugins');
+const { withGradleProperties, withPodfileProperties, withPodfile, withAndroidManifest, withAppBuildGradle, withAndroidStyles, withXcodeProject } = require('expo/config-plugins');
 const withNativeBack = require('./with-native-back.cjs');
+const {marker, removeTemplateDebugSigning} = require('./android-release-signing.cjs');
+
+/** Normalize our inline directory before Expo's post-mod updater compares raw path strings. */
+function normalizeAppIntentsGroups(project) {
+  const objects = project.hash.project.objects;
+  const section = objects.PBXFileSystemSynchronizedRootGroup ?? {};
+  const unquote = value => String(value ?? '').replace(/^"(.*)"$/, '$1');
+  const groups = Object.entries(section).filter(([id, group]) => !id.endsWith('_comment') && unquote(group.sourceTree) === 'SOURCE_ROOT' && unquote(group.path) === '../app-intents');
+  if (!groups.length) return project;
+  const settings = group => JSON.stringify([group.exceptions ?? [], group.explicitFileTypes ?? {}, group.explicitFolders ?? []]);
+  const [canonical, first] = groups[0];
+  if (groups.some(([, group]) => settings(group) !== settings(first))) throw new Error('Conflicting app-intents synchronized group settings; refusing to discard source exceptions');
+  const ids = new Set(groups.map(([id]) => id));
+  const normalizeReferences = references => {
+    const seen = new Set();
+    return references.map(reference => ids.has(reference.value) ? {...reference, value: canonical} : reference).filter(reference => {
+      if (!ids.has(reference.value)) return true;
+      if (seen.has(reference.value)) return false;
+      seen.add(reference.value); return true;
+    });
+  };
+  first.path = '../app-intents';
+  for (const [id] of groups.slice(1)) {delete section[id]; delete section[`${id}_comment`];}
+  for (const [id, group] of Object.entries(objects.PBXGroup ?? {})) if (!id.endsWith('_comment') && group.children) group.children = normalizeReferences(group.children);
+  for (const [id, target] of Object.entries(objects.PBXNativeTarget ?? {})) if (!id.endsWith('_comment') && target.fileSystemSynchronizedGroups) target.fileSystemSynchronizedGroups = normalizeReferences(target.fileSystemSynchronizedGroups);
+  return project;
+}
 
 module.exports = function withNativeCompatibility(config, {fixtureMode = false} = {}) {
   const firebaseIosConfigured = !fixtureMode && Boolean(config.ios?.googleServicesFile);
+  config = withXcodeProject(config, mod => {mod.modResults = normalizeAppIntentsGroups(mod.modResults); return mod;});
   config = withNativeBack(config);
   config = withGradleProperties(config, mod => {
-    const values = { 'android.minSdkVersion': '26', 'android.compileSdkVersion': '36', 'android.targetSdkVersion': '36' };
+    const values = { 'android.minSdkVersion': '26', 'android.compileSdkVersion': '37', 'android.targetSdkVersion': '36' };
     for (const [key, value] of Object.entries(values)) {
       const property = mod.modResults.find(item => item.type === 'property' && item.key === key);
       if (property) property.value = value;
@@ -44,9 +72,8 @@ module.exports = function withNativeCompatibility(config, {fixtureMode = false} 
     return mod;
   });
   config = withAppBuildGradle(config, mod => {
-    const marker = '// Slax release signing: operator-managed environment only.';
+    mod.modResults.contents = removeTemplateDebugSigning(mod.modResults.contents);
     if (mod.modResults.contents.includes(marker)) return mod;
-    mod.modResults.contents = mod.modResults.contents.replace(/(\s+release \{)[\s\S]*?(signingConfig = signingConfigs.debug)/, '$1\n            signingConfig = null');
     mod.modResults.contents += `\n${marker}\nif (System.getenv('SLAX_MOBILE_UNSIGNED') != '1' && System.getenv('SLAX_ANDROID_KEYSTORE_PATH')) {\n    android.signingConfigs.create('slaxRelease') {\n        storeFile file(System.getenv('SLAX_ANDROID_KEYSTORE_PATH'))\n        storePassword System.getenv('SLAX_ANDROID_KEYSTORE_PASSWORD')\n        keyAlias System.getenv('SLAX_ANDROID_KEY_ALIAS')\n        keyPassword System.getenv('SLAX_ANDROID_KEY_PASSWORD')\n    }\n    android.buildTypes.release.signingConfig = android.signingConfigs.slaxRelease\n}\n`;
     return mod;
   });
@@ -71,3 +98,4 @@ module.exports = function withNativeCompatibility(config, {fixtureMode = false} 
     return mod;
   });
 };
+module.exports.normalizeAppIntentsGroups = normalizeAppIntentsGroups;

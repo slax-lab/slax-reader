@@ -10,14 +10,14 @@ import type {DeleteAccountState} from './useDeleteAccountState';
 export interface DeleteAccountViewProps {
   t: ReturnType<typeof createTranslator>;
   state: DeleteAccountState;
-  web: RefObject<WebView | null>;
+  web: RefObject<WebView<unknown> | null>;
   notice: Pick<WebViewProps, 'source' | 'onLoadStart' | 'onError' | 'onHttpError' | 'onLoad' | 'onMessage' | 'onScroll' | 'onShouldStartLoadWithRequest'>;
 }
 
 export function DeleteAccountView({t, state, web, notice}: DeleteAccountViewProps) {
   return (
     <ScreenSurface sourceAppBar>
-      <WebView ref={web} {...notice} style={styles.notice} />
+      <WebView<unknown> ref={web} {...notice} style={styles.notice} />
       <View style={styles.footer}>
         <SourceButton
           label={t('delete_account_button')}

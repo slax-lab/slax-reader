@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Animated, Image, KeyboardAvoidingView, Modal, PixelRatio, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type ImageStyle, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
 import {SheetBody} from './SheetBody';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {SafeAreaProvider, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import { mobileAssets, type MobileAssetName } from '../../assets';
 import { mobileColors as C, mobileTypography as T } from '../theme';
 import { sourceTextDimensions } from './source-font-scaling';
@@ -11,7 +11,7 @@ import { SourceSheetModal } from './SourceSheetModal';
 export function SourceText({style, ...props}: TextProps) {
   const {fontScale} = useWindowDimensions();
   const dimensions = Platform.OS === 'android'
-    ? sourceTextDimensions(StyleSheet.flatten([styles.text, style]), fontScale, props.allowFontScaling !== false, props.maxFontSizeMultiplier)
+    ? sourceTextDimensions(StyleSheet.flatten([styles.text, style]) ?? {}, fontScale, props.allowFontScaling !== false, props.maxFontSizeMultiplier)
     : undefined;
   return <Text textBreakStrategy={Platform.OS === 'android' ? 'simple' : undefined}
     android_hyphenationFrequency={Platform.OS === 'android' ? 'none' : undefined}
@@ -74,14 +74,18 @@ export function SourceDialog({visible, onDismiss, onDidDismiss, title, children,
   visible: boolean; onDismiss(): void; onDidDismiss?(): void; title?: string; children?: React.ReactNode; actions?: React.ReactNode; testID?: string; compact?: boolean; dismissible?: boolean;
 }) {
   return <Modal visible={visible} transparent presentationStyle="overFullScreen" animationType="fade" statusBarTranslucent onDismiss={onDidDismiss} onRequestClose={() => { if (dismissible) onDismiss(); }}>
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modal}>
-      <Pressable accessibilityLabel="" accessible={false} onPress={() => { if (dismissible) onDismiss(); }} style={[StyleSheet.absoluteFill, styles.scrim]} />
+    <SafeAreaProvider>
+    <Pressable accessibilityLabel="" accessible={false} onPress={() => { if (dismissible) onDismiss(); }} style={[StyleSheet.absoluteFill, styles.scrim]} />
+    <SafeAreaView style={{flex: 1}} pointerEvents="box-none">
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modal} pointerEvents="box-none">
       <View accessibilityViewIsModal testID={testID} style={[styles.dialog, compact && styles.compactDialog]}>
         {title ? <SourceText accessibilityRole="header" style={[T.dialogTitle, styles.dialogTitle]}>{title}</SourceText> : null}
         {children}
         {actions ? <View style={styles.dialogActions}>{actions}</View> : null}
       </View>
     </KeyboardAvoidingView>
+    </SafeAreaView>
+    </SafeAreaProvider>
   </Modal>;
 }
 export function SourceSheet({visible, onDismiss, busy, children, style, contentContainerStyle, bottomPadding = 24, handleColor}: {visible: boolean; onDismiss(): void; busy?: boolean; children: React.ReactNode; style?: StyleProp<ViewStyle>; contentContainerStyle?: StyleProp<ViewStyle>; bottomPadding?: number; handleColor?: string}) {

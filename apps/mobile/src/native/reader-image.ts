@@ -1,4 +1,4 @@
-import {requireNativeModule} from 'expo-modules-core';
+import {requireNativeModule} from 'expo';
 import {mobileConfig} from '../config';
 import {readerProtectedHosts, readerImageProxyOrigins, readerAllowsImage} from '../reader/security.ts';
 import {throwIfAborted} from '../utils/abort.ts';

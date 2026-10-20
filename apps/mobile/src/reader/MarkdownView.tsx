@@ -1,3 +1,4 @@
+import type {NativeSyntheticEvent, NativeScrollEvent} from 'react-native'
 import React, { useEffect, useRef, useState } from 'react'
 import { PixelRatio } from 'react-native'
 import { WebView } from 'react-native-webview'
@@ -12,7 +13,7 @@ ${markdownDomScript}
 const source = {html: shell, baseUrl: 'https://outline.slax.invalid'}
 
 export function MarkdownView({markdown, initialPosition = 0, onLink, onPosition}: {markdown: string; initialPosition?: number; onLink(href: string): void; onPosition?(physicalPixels: number): void}) {
-  const view = useRef<WebView>(null)
+  const view = useRef<WebView<unknown>>(null)
   const [loaded, setLoaded] = useState(false)
   const restored = useRef(false)
   const restorePosition = useRef(initialPosition)
@@ -30,8 +31,8 @@ export function MarkdownView({markdown, initialPosition = 0, onLink, onPosition}
     })
     return () => cancelAnimationFrame(frame)
   }, [markdown, loaded])
-  return <WebView ref={view} source={source} style={{flex: 1, backgroundColor: '#FCFCFC'}}
-    onLoadEnd={() => setLoaded(true)} onScroll={event => {
+  return <WebView<unknown> ref={view} source={source} style={{flex: 1, backgroundColor: '#FCFCFC'}}
+    onLoadEnd={() => setLoaded(true)} onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
       if (!restored.current) return
       const position = Math.max(0, Math.round(event.nativeEvent.contentOffset.y * PixelRatio.get()))
       if (!Number.isFinite(position) || position === lastPosition.current) return

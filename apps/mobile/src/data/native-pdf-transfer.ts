@@ -1,4 +1,4 @@
-import {requireNativeModule} from 'expo-modules-core';
+import {requireNativeModule} from 'expo';
 import {throwIfAborted} from '../utils/abort.ts';
 import {DataTransportError, NativePdfTransportError} from './transport-errors.ts';
 

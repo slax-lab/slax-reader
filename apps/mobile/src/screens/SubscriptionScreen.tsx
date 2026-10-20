@@ -23,7 +23,7 @@ export function SubscriptionScreen() {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [loading, setLoading] = useState(true);
   const cookieReady = webSession.ready;
-  const view = useRef<WebView>(null);
+  const view = useRef<WebView<unknown>>(null);
   const busy = state.status === 'purchasing' || state.status === 'checking' || state.status === 'pending';
   usePreventRemove(busy, () => undefined);
   useEffect(() => {
@@ -36,7 +36,7 @@ export function SubscriptionScreen() {
   }, [state]);
   const url = `${config.webUrl}/subscription/inapp-purchase`;
   return <View style={{flex: 1, backgroundColor: C.background}}>
-    {cookieReady && <WebView ref={view} source={fixtureOnly ? {html: fixtureDocument(fixtureOnly.subscriptionHtml ?? '<html><head></head><body><p>Controlled subscription fixture. Store accounts and external content are disabled.</p></body></html>'), baseUrl: url} : {uri: url}} sharedCookiesEnabled={!fixtureOnly} incognito={Boolean(fixtureOnly)} javaScriptEnabled allowsInlineMediaPlayback onLoadEnd={() => setLoading(false)}
+    {cookieReady && <WebView<unknown> ref={view} source={fixtureOnly ? {html: fixtureDocument(fixtureOnly.subscriptionHtml ?? '<html><head></head><body><p>Controlled subscription fixture. Store accounts and external content are disabled.</p></body></html>'), baseUrl: url} : {uri: url}} sharedCookiesEnabled={!fixtureOnly} incognito={Boolean(fixtureOnly)} javaScriptEnabled allowsInlineMediaPlayback onLoadEnd={() => setLoading(false)}
       onShouldStartLoadWithRequest={(request: {url: string}) => !fixtureOnly || request.url === 'about:blank' || request.url === url}
       injectedJavaScriptBeforeContentLoaded={`window.NativeBridge={postMessage:function(data){window.ReactNativeWebView.postMessage(typeof data==='string'?data:JSON.stringify(data));}};window.webkit=window.webkit||{};window.webkit.messageHandlers=window.webkit.messageHandlers||{};window.webkit.messageHandlers.NativeBridge=window.NativeBridge;true;`}
       onMessage={event => {
