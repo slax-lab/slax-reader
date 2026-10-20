@@ -2,6 +2,16 @@
 
 OpenSpec: rss-local-first
 
+## Human hands-on verification and acceptance record
+
+- **Who:** daguang, the human requester.
+- **When:** 2026-10-20, Asia/Shanghai. The local RSS testing took place during this task before PR #298 was requested; the human subsequently explicitly confirmed that this testing had already happened when correcting the agent's claim that human acceptance was missing. This entry records that earlier activity retrospectively.
+- **Environment:** the actual local RSS page at `http://localhost:3000/?view=rss`, with RSS Labs enabled, in the project checkout moved from the RSS worktree for the human to run.
+- **Human feedback and adjustments:** the human ran RSS locally and reported that the Web list was still calling `/v1/rss/entries`, and that Labs was requested again after entering RSS. The follow-up keeps an owned RSS database local while first sync is pending, uses the existing loading state until local data is ready, removes REST list seeding after adding a source, and reuses/coalesces account-scoped Labs requests. Separately, the earlier screenshot feedback about excessive native RSS top whitespace was addressed in the original RSS feature delivery by removing the empty All-view toolbar; that earlier spacing change is not attributed to PR #298.
+- **Human confirmation:** the human explicitly states in the task conversation that the RSS UI was already tested locally. The agent had omitted this hands-on record and incorrectly described the omission as absence of human testing. Creating the PR and increasing the build are not used as substitutes for that direct confirmation. No repeat human test is being requested to repair a documentation omission.
+
+This record covers the human's reported local RSS testing and feedback. It does not invent per-state observations, a precise test time, or a new Expo 58 native-device acceptance run. The separately measured agent browser/network checks and historical native acceptance retain their own scope below.
+
 ## Rebase onto Expo 58 (2026-10-20)
 
 The human requested rebasing PR #298 onto `origin/dev`. The base is `9b472335` (Expo 58). The only conflict was `RssFeed.tsx`'s `ListEmptyComponent`: the resolution retains the upstream `undefined` empty-component value and `ViewInstance` ref typing while preserving the RSS `state.ready` guard and pending first-sync progress. No new visual behavior, API contract or migration is introduced by this resolution. The rebase initially inherited Mobile `1.0.25`, build `775`, previous `774`. Before pushing, the human explicitly requested a one-build increment for re-release: the final source keeps `1.0.25` and uses build `776`, previous `775`.
@@ -12,7 +22,7 @@ The human requested rebasing PR #298 onto `origin/dev`. The base is `9b472335` (
 
 Before this rebase, the agent exercised the authenticated local Web RSS page: reload made one Labs request and zero RSS list requests; source selection and a settled 65-second window made zero RSS list requests. The deployed test service was also exercised through an actual RSS-only PowerSync stream: after the operator's one-time equal-value source UPDATE, a completed checkpoint delivered one subscription, one feed and ten article rows without errors. Details and the separate unsuccessful isolated-service reproduction are in [verification.md](verification.md).
 
-Earlier single-iOS-simulator local synchronization, ownership, history exclusion, offline relaunch and reconnect evidence is in [real-sync-verification.md](real-sync-verification.md). Those native results used the earlier Expo 57 baseline and are not claimed as Expo 58 native acceptance. No simulator, Android runtime or native build is repeated for this rebase; only host regressions, typechecking and iOS JavaScript export are checked. The upstream SDK upgrade's device behavior is outside this conflict resolution's verification.
+Earlier single-iOS-simulator local synchronization, ownership, history exclusion, offline relaunch and reconnect evidence is in [real-sync-verification.md](real-sync-verification.md). Those native results used the earlier Expo 57 baseline and are not claimed as Expo 58 native acceptance. No simulator, Android runtime or native build is repeated for this rebase; host checks, native metadata generation and iOS JavaScript export are checked, without native compilation or simulator execution. The upstream SDK upgrade's device behavior is outside this conflict resolution's verification.
 
 The original follow-up PR passed seven Web suites (110 tests), Web typecheck and the official Mobile check (1,330 host tests), followed by the final cache-probe regressions (36 tests), Mobile typecheck and an iOS-only JavaScript export. These are historical pre-rebase checks; post-rebase results are recorded separately below.
 
