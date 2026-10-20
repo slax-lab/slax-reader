@@ -9,6 +9,8 @@ import {FixtureMemoryPreferences} from '../../fixtures/isolation.ts'
 const text = node => Array.isArray(node) ? node.map(text).join('') : React.isValidElement(node) ? text(node.props.children) : node ?? ''
 const deferred = () => {let resolve, reject; const promise = new Promise((yes, no) => {resolve = yes; reject = no}); return {promise, resolve, reject}}
 async function loginFixture(host, platform, run, props = {}) {
+  let marks = 0;
+  const markInteractive = () => {marks++;};
   const controls = new Map(), providers = [], requests = [], accepted = [], alerts = [], lifecycle = []
   let modal, phase = 'hidden', session = {status: 'unauthenticated'}, authenticate = async provider => ({provider})
   const primitive = props => {if (props.onPress) controls.set(props.accessibilityLabel ?? text(props.children), props); return React.createElement(host.native.View, props)}
@@ -25,15 +27,22 @@ async function loginFixture(host, platform, run, props = {}) {
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})}, 'react-native-webview': {WebView: () => null}, '../../assets': {mobileAssets: {}},
     '../auth/providers': {authenticate: provider => {providers.push({provider, phase}); return authenticate(provider)}}, '../runtime': {useMobile: () => mobile},
     '../theme': {mobileColors, mobileLayout, mobileTypography}, '../theme/testIds': {mobileTestIds: {}}, '../telemetry': {useTelemetry: () => ({element() {}, firebase() {}})}, '../native/fixture-document': {}, '../components/fixture-actions': {},
+    '../observe': {useObserveMarkInteractive: () => markInteractive},
   }, {Error})
   const render = () => host.render(React.createElement(LoginScreen, props))
   const press = key => act(async () => controls.get(key).onPress())
   await render()
-  await run({render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, useSessions: value => {mobile.sessions = value}, response: value => {loginResponse = value},
+  await run({render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, marks: () => marks, useSessions: value => {mobile.sessions = value}, response: value => {loginResponse = value},
     hydrate: () => {session = {status: 'unauthenticated'}},
     replaceIdentity: () => {identity++; session = {status: 'unauthenticated'}},
     setUser: () => {identity++; session = {status: 'authenticated', session: {userId: 'other', token: 'replacement'}}}, authenticate: value => {authenticate = value}})
 }
+
+for (const reauthenticating of [false, true]) test(`mounted ${reauthenticating ? 'reauthentication' : 'login'} marks interactive once after first render`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'ios', async fixture => {
+  assert.equal(fixture.marks(), 1);
+  await fixture.render();
+  assert.equal(fixture.marks(), 1);
+}, reauthenticating ? {reauthenticating: true, onAuthenticated() {}} : {})));
 
 for (const platform of ['ios', 'android']) test(`mounted ${platform} Google agreement continues only at its platform dismissal boundary`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, platform, async fixture => {
   await fixture.press('login_google')

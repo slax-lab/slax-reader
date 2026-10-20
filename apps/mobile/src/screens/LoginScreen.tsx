@@ -11,6 +11,7 @@ import {useTelemetry} from '../telemetry';
 import {fixtureDocument} from '../native/fixture-document';
 import {fixtureActions} from '../components/fixture-actions';
 import type {MobileScreenProps} from '../navigation/types';
+import {useObserveMarkInteractive} from '../observe';
 
 export function ReauthenticationScreen({navigation}: MobileScreenProps<'Reauthenticate'>) {
   return <LoginScreen reauthenticating onAuthenticated={() => navigation.goBack()}/>;
@@ -32,6 +33,8 @@ export function LoginScreen({reauthenticating = false, onAuthenticated}: {reauth
   const mounted = useRef(true);
   useLayoutEffect(() => {mounted.current = true; return () => {mounted.current = false; pending.current = null; providerGeneration.current++;};}, []);
   useLayoutEffect(() => () => {pending.current = null; providerGeneration.current++; active.current = false;}, [api, sessions]);
+  const markInteractive = useObserveMarkInteractive();
+  useEffect(() => {markInteractive();}, [markInteractive]);
   const sessionGuard = () => {
     const before = sessions.getSnapshot(), assertIdentity = sessions.captureIdentity();
     return () => {

@@ -1,6 +1,6 @@
 import React, {useEffect, useRef} from 'react';
 import {Platform, StatusBar, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
-import {NavigationContainer, createNavigationContainerRef} from '@react-navigation/native';
+import {createNavigationContainerRef} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import type {RootStackParams} from './navigation/types';
 import {useTelemetry} from './telemetry';
 import {SourceLine} from './components/SourceLine';
 import {AppRecoveryScreen} from './screens/AppRecoveryScreen';
+import {ObserveNavigationContainer, ObserveRoot} from './observe';
 
 const screens = {
   Login: () => require('./screens/LoginScreen').LoginScreen,
@@ -26,6 +27,7 @@ const screens = {
 
 const Stack = createNativeStackNavigator<RootStackParams>();
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
+const setObserveNavigationRef = (ref: unknown) => {navigationRef.current = ref as typeof navigationRef.current;};
 
 function SourceHeaderTitle({title}: {title: string}) {
   const {fontScale} = useWindowDimensions();
@@ -58,7 +60,7 @@ export function ApplicationRoutes() {
   }
   if (session.status === 'loading' && upgrade?.status === 'error') return <AppRecoveryScreen t={t} retryStart={retryStart}/>;
   if (session.status === 'loading') return <View testID="app-startup-surface" style={{flex: 1, backgroundColor: C.background}} />;
-  return <NavigationContainer ref={navigationRef} onReady={reportRoutes} onStateChange={reportRoutes}>
+  return <ObserveNavigationContainer ref={setObserveNavigationRef} onReady={reportRoutes} onStateChange={reportRoutes}>
     <Stack.Navigator screenOptions={{headerTintColor: C.text, headerStyle: {backgroundColor: C.background}, headerTitleAlign: 'center', headerTitleStyle: {fontSize: 17, fontWeight: '500'}, contentStyle: {backgroundColor: C.background}, headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal'}}>
       {session.status === 'unauthenticated' ? <Stack.Screen name="Login" getComponent={screens.Login} options={{headerShown: false}}/> : <Stack.Group navigationKey={session.session.userId}>
         <Stack.Screen name="Library" getComponent={screens.Library} options={{headerShown: false}}/>
@@ -72,7 +74,7 @@ export function ApplicationRoutes() {
         <Stack.Screen name="Feedback" getComponent={screens.Feedback} options={{title: t('sidebar_feedback'), headerTitle: sourceHeaderTitle}}/>
       </Stack.Group>}
     </Stack.Navigator>
-  </NavigationContainer>;
+  </ObserveNavigationContainer>;
 }
 
 class RuntimeBoundary extends React.Component<{children: React.ReactNode}, {error: Error|null}> {
@@ -82,9 +84,10 @@ class RuntimeBoundary extends React.Component<{children: React.ReactNode}, {erro
     return this.state.error ? <SafeAreaView style={styles.center}><Text style={styles.title}>Unable to start Slax Reader</Text><Text style={styles.message}>{this.state.error.message}</Text></SafeAreaView> : this.props.children;
   }
 }
-export default function App() {
+function App() {
   return <GestureHandlerRootView style={{flex: 1}}><SafeAreaProvider><StatusBar barStyle="dark-content"/>
     <RuntimeBoundary><MobileProvider><ApplicationRoutes/></MobileProvider></RuntimeBoundary>
   </SafeAreaProvider></GestureHandlerRootView>;
 }
+export default ObserveRoot.wrap(App);
 const styles = StyleSheet.create({center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: C.background}, title: {fontSize: 18, color: C.text, textAlign: 'center'}, message: {fontSize: 14, lineHeight: 21, color: C.secondaryText, textAlign: 'center', marginTop: 16}});

@@ -33,6 +33,7 @@ for (const loggedIn of [false, true]) test(`route registration initializes only 
     './screens/AppRecoveryScreen': {AppRecoveryScreen: Screen},
   };
   const {ApplicationRoutes} = moduleAt('../../src/App.tsx', name => {
+    if (name === './observe') return {ObserveRoot: {wrap: component => component}, ObserveNavigationContainer: primitive};
     if (Object.hasOwn(boundaries, name)) return boundaries[name];
     assert.match(name, /^\.\/screens\/\w+Screen$/);
     loaded.push(name);
