@@ -4,6 +4,11 @@ import {applyMobileEnvironment} from './tooling/deploy-environment.cjs';
 import {readBuildVersion} from './tooling/build-version.cjs';
 applyMobileEnvironment();
 const uiFixture = Boolean(process.env.EXPO_PUBLIC_SLAX_UI_FIXTURE);
+const fixtureIdentity = process.env.EXPO_PUBLIC_SLAX_UI_FIXTURE_ID ?? '';
+if (fixtureIdentity && (!uiFixture || !/^[a-z0-9]{1,24}$/.test(fixtureIdentity))) throw new Error('Fixture identity must be a lowercase alphanumeric suffix used only by UI fixtures');
+const fixtureAndroidId = `com.slax.reader.uifixture${fixtureIdentity ? `.${fixtureIdentity}` : ''}`;
+const fixtureIosId = `app.slax.reader.uifixture${fixtureIdentity ? `.${fixtureIdentity}` : ''}`;
+const fixtureScheme = `slaxreader-ui-fixture${fixtureIdentity ? `-${fixtureIdentity}` : ''}`;
 const fixtureMode = process.env.EXPO_PUBLIC_SLAX_ADOPTION_FIXTURE === '1' || uiFixture;
 const buildVersion = fixtureMode ? {version: '1.0.0', build: '1'} : readBuildVersion();
 const firebaseIosConfig = fixtureMode ? undefined : process.env.SLAX_MOBILE_FIREBASE_IOS_CONFIG;
@@ -22,10 +27,10 @@ const config: ExpoConfig = {
   version: buildVersion.version,
   orientation: 'portrait',
   userInterfaceStyle: 'light',
-  scheme: uiFixture ? 'slaxreader-ui-fixture' : [sourceAuth.iosApplicationScheme, 'slaxreader'],
+  scheme: uiFixture ? fixtureScheme : [sourceAuth.iosApplicationScheme, 'slaxreader'],
   icon: './assets/app-icon.png',
   ios: {
-    bundleIdentifier: uiFixture ? 'app.slax.reader.uifixture' : 'app.slax.reader',
+    bundleIdentifier: uiFixture ? fixtureIosId : 'app.slax.reader',
     ...(firebaseIosConfig ? {googleServicesFile: firebaseIosConfig} : {}),
     buildNumber: buildVersion.build,
     supportsTablet: true,
@@ -38,10 +43,14 @@ const config: ExpoConfig = {
       ...(fixtureMode ? {FIREBASE_ANALYTICS_COLLECTION_DEACTIVATED: true, FirebaseCrashlyticsCollectionEnabled: false} : {})},
   },
   android: {
-    package: uiFixture ? 'com.slax.reader.uifixture' : 'com.slax.reader',
+    package: uiFixture ? fixtureAndroidId : 'com.slax.reader',
     ...(firebaseAndroidConfig ? {googleServicesFile: firebaseAndroidConfig} : {}),
     versionCode: Number(buildVersion.build),
     predictiveBackGestureEnabled: true,
+    // expo-sensors declares ACTIVITY_RECOGNITION for its Pedometer/DeviceMotion
+    // modules; the app only reads the accelerometer, so drop the permission and
+    // avoid the Play health-features declaration requirement.
+    blockedPermissions: ['android.permission.ACTIVITY_RECOGNITION'],
   },
   plugins: [
     ['./plugins/with-native-compatibility.cjs', {fixtureMode}],
@@ -61,6 +70,24 @@ const config: ExpoConfig = {
     ['expo-media-library', {photosPermission: false, savePhotosPermission: 'Slax Reader saves images you choose from articles to your photo library.', granularPermissions: []}],
     ...providerPlugins,
   ],
+  extra: {
+    eas: {
+      projectId: 'f8949909-ddbf-49f8-a42d-9e70a9c77fda',
+      ...(!uiFixture ? {
+        build: {
+          experimental: {
+            ios: {
+              appExtensions: [{
+                targetName: 'SlaxShare',
+                bundleIdentifier: 'app.slax.reader.share',
+                entitlements: {'com.apple.security.application-groups': ['group.app.slax.reader']},
+              }],
+            },
+          },
+        },
+      } : {}),
+    },
+  },
 };
 
 export default config;

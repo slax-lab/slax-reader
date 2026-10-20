@@ -6,10 +6,12 @@ import {pathToFileURL} from 'node:url';
 import vm from 'node:vm';
 import ts from 'typescript';
 import React, {act} from 'react';
+import {observeRelativeBoundaries} from '../reader/observe-mock.mjs';
 
 const require = createRequire(import.meta.url);
 const domPath = require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]});
 async function load(file, boundaries) {
+  boundaries = {...observeRelativeBoundaries(boundaries), ...boundaries};
   const code = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},
   }).outputText;
@@ -62,6 +64,24 @@ test('actual feed hook preserves two unmounted feeds, fences provisional native 
   props.events.onScroll(observed(195)); assert.equal(rss.offset, 0, 'A late old scroll callback cannot undo the explicit reset');
   props.events.onScroll(observed(0)); props.events.onScrollBeginDrag(); props.events.onScroll(observed(75));
   assert.equal(rss.offset, 75);
+}));
+
+test('coarse scroll sampling still records the exact resting offset from drag and momentum end events', async () => mounted(async root => {
+  const {FeedScrollPosition, useFeedScrollPosition} = await load('../../src/components/feed-scroll.ts', {react: React});
+  const position = new FeedScrollPosition(), commands = []; let props;
+  function Feed() {const scrollTo = React.useCallback(offset => commands.push(offset), []); props = useFeedScrollPosition(position, scrollTo); return null;}
+  const observed = y => ({nativeEvent: {contentOffset: {y}, contentSize: {height: 2000}, layoutMeasurement: {height: 500}}});
+  await act(async () => root.render(React.createElement(Feed)));
+  assert.ok(props.events.scrollEventThrottle >= 32, 'Feed scroll callbacks are sampled below display rate');
+  props.events.onScrollBeginDrag(); props.events.onScroll(observed(180));
+  props.events.onScrollEndDrag(observed(212)); assert.equal(position.offset, 212);
+  props.events.onMomentumScrollEnd(observed(640.5)); assert.equal(position.offset, 640.5);
+  props.events.onMomentumScrollEnd(observed(1800)); assert.equal(position.offset, 1500, 'End events clamp to the scrollable range');
+  props.events.onMomentumScrollEnd(observed(0)); assert.equal(position.offset, 0);
+  position.offset = 420; await act(async () => root.render(React.createElement(Feed, {key: 'remount'})));
+  props.events.onMomentumScrollEnd(observed(0));
+  assert.equal(position.offset, 420, 'A provisional end event cannot overwrite a pending restore');
+  assert.deepEqual(commands, []);
 }));
 
 test('mounted RSS uses its retained source identity rather than resetting each time the mode is entered', async () => mounted(async root => {

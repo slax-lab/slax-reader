@@ -1,8 +1,8 @@
 {
   "name": "@apps/slax-reader-mobile",
   "version": "1.0.25",
-  "buildNumber": 770,
-  "previousBuildNumber": 769,
+  "buildNumber": 773,
+  "previousBuildNumber": 772,
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -17,6 +17,7 @@
     "prebuild:ios": "node tooling/pdf-assets.mjs",
     "prearchive:ios": "node tooling/pdf-assets.mjs",
     "prefixture:project": "node tooling/pdf-assets.mjs",
+    "eas-build-post-install": "node tooling/pdf-assets.mjs",
     "dev": "expo start --dev-client",
     "typecheck": "tsc --noEmit",
     "test": "node tooling/test.mjs",
@@ -46,6 +47,7 @@
     "@react-navigation/native": "7.5.0",
     "@react-navigation/native-stack": "7.20.0",
     "@slax-reader/contracts": "workspace:*",
+    "@slax-reader/reader-embed": "workspace:*",
     "expo": "57.0.27",
     "expo-apple-authentication": "~57.0.2",
     "expo-clipboard": "~57.0.2",
@@ -59,6 +61,7 @@
     "expo-media-library": "~57.0.5",
     "expo-modules-core": "~57.0.21",
     "expo-network": "~57.0.2",
+    "expo-observe": "~57.0.25",
     "expo-secure-store": "~57.0.4",
     "expo-sensors": "~57.0.3",
     "expo-sharing": "~57.0.23",
@@ -71,8 +74,7 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-webview": "13.16.1",
-    "react-native-worklets": "0.10.1",
-    "@slax-reader/reader-embed": "workspace:*"
+    "react-native-worklets": "0.10.1"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",

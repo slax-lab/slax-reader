@@ -267,10 +267,6 @@
     {
       "path": "apps/mobile/modules/slax-legacy/android/src/main/java/com/slax/reader/legacy/SlaxLegacyModule.kt",
       "sha256": "487b780bb58831a2ec2e0452d7077961002764c09a45dbe06f0aa067c8040ef5"
-    },
-    {
-      "path": "docs/mobile/evidence/2026-10-10-builds/android-database-identity.json",
-      "sha256": "b52042ae03daae6decaabab0fb188119a6e11cd9f5bbe589e11184290a31916c"
     }
   ],
   "scope": {

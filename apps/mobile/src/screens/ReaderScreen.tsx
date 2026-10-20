@@ -1,4 +1,4 @@
-import React, {useCallback, useLayoutEffect, useMemo, useRef, useState} from 'react'
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {Platform, StyleSheet, View} from 'react-native'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {SourceText} from '../components'
@@ -29,6 +29,8 @@ import {useReaderAi} from '../reader/state/useReaderAi'
 import {useReaderInteractions} from '../reader/state/useReaderInteractions'
 import {useReaderDiagnostics} from '../reader/diagnostics/useReaderDiagnostics'
 import type {ReaderDocumentTransitions} from '../reader/state/types'
+import {useObserveMarkInteractive} from '../observe'
+import {readerIsInteractive} from '../observe/readiness'
 
 /** Identity-stable wrapper that always calls the latest render's handler, so memoized hosts are not rerendered by new closures. */
 function useEvent<A extends unknown[], R>(handler: (...args: A) => R): (...args: A) => R {
@@ -39,6 +41,7 @@ function useEvent<A extends unknown[], R>(handler: (...args: A) => R): (...args:
 export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
   const {runtime, api, repositories, cache, preferences, settings, session, sessions, t, config, fixtureOnly, nativeResourceOwner} = useReadingMobile()
   const observer = useControlledUpgradeReaderObserver(), safeArea = useSafeAreaInsets(), telemetry = useTelemetry()
+  const markInteractive = useObserveMarkInteractive()
   const isIos = Platform.OS === 'ios', controlledFixture = Boolean(__DEV__ && fixtureOnly)
   const resourceOwnerAtMount = useRef(nativeResourceOwner).current
   const {bookmarkId, collectionOwnerId, collectionId, rssEntryId} = route.params
@@ -88,8 +91,8 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
     showOverview: interactions.showOverview, openOutline: ai.open, loadAi: ai.load, showTranscript: interactions.showTranscript, closeTranscript: interactions.closeTranscript,
     saveRss: document.saveRss, flushOutline: () => ai.flush('background')})
   const event = (value: ReaderEvent, pageId: string) => {diagnostics.event(value, pageId); interactions.handleEvent(value)}
-  const headerMore = useCallback(() => <ReaderHeaderMore visible={interactions.toolbarIsVisible} offset={interactions.headerMoreOffset} t={t} onPress={interactions.showToolbar} />,
-    [interactions.toolbarIsVisible, interactions.headerMoreOffset, interactions.showToolbar, t])
+  const headerMore = useCallback(() => <ReaderHeaderMore visibility={interactions.headerMoreVisible} offset={interactions.headerMoreOffset} t={t} onPress={interactions.showToolbar} />,
+    [interactions.headerMoreVisible, interactions.headerMoreOffset, interactions.showToolbar, t])
   useLayoutEffect(() => navigation.setOptions({title: '', headerShadowVisible: false, headerTransparent: true,
     headerStyle: {backgroundColor: 'transparent'}, headerRight: isPreview ? undefined : headerMore,
     unstable_headerRightItems: isPreview ? undefined : () => [{type: 'custom', element: headerMore(), hidesSharedBackground: true}],
@@ -109,7 +112,8 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
     <ReaderHeader top={safeArea.top} title={title} record={bookmark.record} pdf={document.pdf} isPdf={isPdf} originalUrl={originalUrl} isCollection={isCollection}
       selectedTags={bookmark.selectedTags} overview={overview} t={t} onOriginal={openOriginal} onTags={showTags} onOverview={showOverview} />,
   [isPreview, safeArea.top, document.rss, document.rssError, originalUrl, saveButton, t, openOriginal, title, bookmark.record, document.pdf, isPdf, isCollection, bookmark.selectedTags, overview, showTags, showOverview])
-  const {pdf, html, contentError, documentReady} = document
+  const {pdf, html, contentError, documentReady, nativeFailure, rssError} = document
+  useEffect(() => {if (readerIsInteractive(documentReady, contentError, rssError, nativeFailure)) markInteractive()}, [contentError, documentReady, markInteractive, nativeFailure, rssError])
   const {panel, selection, policy = bookmark.policy} = {...annotations, policy: bookmark.policy}
   const isRouteRemoved = useEvent(() => !navigation.getState().routes.some(value => value.key === route.key))
   const commentPanelVisible = Boolean(panel), headerSafeAreaPoints = isIos ? safeArea.top : 0

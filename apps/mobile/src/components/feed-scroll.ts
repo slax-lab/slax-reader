@@ -44,17 +44,8 @@ export function useFeedScrollPosition(position: FeedScrollPosition, scrollTo: (o
     position.reset(); pending.current = true; requested.current = 0; updateTop(0);
     if (current.active) scrollTo(0, animated);
   }, [position, scrollTo, updateTop]);
-  const events = useMemo(() => ({
-    onLayout: (event: {nativeEvent: {layout: {height: number}}}) => {if (isCurrent()) {viewport.current = event.nativeEvent.layout.height; attempt();}},
-    onContentSizeChange: (_width: number, height: number) => {
-      if (!isCurrent()) return;
-      const previous = content.current; content.current = height;
-      if (!pending.current && previous > height && viewport.current > 0) {position.offset = Math.min(position.offset, Math.max(0, height - viewport.current)); updateTop(position.offset);}
-      attempt();
-    },
-    onEndReached: ({distanceFromEnd}: {distanceFromEnd: number}) => {if (distanceFromEnd <= 0) attempt(true);},
-    onScrollBeginDrag: () => {if (isCurrent()) {pending.current = false; requested.current = null;}},
-    onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+  const events = useMemo(() => {
+    const observe = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       if (!isCurrent()) return;
       const native = event.nativeEvent;
       const height = native.contentSize?.height ?? content.current, visibleHeight = native.layoutMeasurement?.height ?? viewport.current;
@@ -65,9 +56,24 @@ export function useFeedScrollPosition(position: FeedScrollPosition, scrollTo: (o
         pending.current = false;
       }
       position.offset = value; updateTop(value);
-    },
-    scrollEventThrottle: 16,
-    onEndReachedThreshold: 0,
-  }), [isCurrent, attempt, position, updateTop]);
+    };
+    return {
+      onLayout: (event: {nativeEvent: {layout: {height: number}}}) => {if (isCurrent()) {viewport.current = event.nativeEvent.layout.height; attempt();}},
+      onContentSizeChange: (_width: number, height: number) => {
+        if (!isCurrent()) return;
+        const previous = content.current; content.current = height;
+        if (!pending.current && previous > height && viewport.current > 0) {position.offset = Math.min(position.offset, Math.max(0, height - viewport.current)); updateTop(position.offset);}
+        attempt();
+      },
+      onEndReached: ({distanceFromEnd}: {distanceFromEnd: number}) => {if (distanceFromEnd <= 0) attempt(true);},
+      onScrollBeginDrag: () => {if (isCurrent()) {pending.current = false; requested.current = null;}},
+      onScroll: observe,
+      // Sampling is coarse while moving; the end events record the exact resting offset.
+      onScrollEndDrag: observe,
+      onMomentumScrollEnd: observe,
+      scrollEventThrottle: 48,
+      onEndReachedThreshold: 0,
+    };
+  }, [isCurrent, attempt, position, updateTop]);
   return {reset, events, maintainVisibleContentPosition: atTop ? undefined : anchor};
 }

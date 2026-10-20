@@ -1,4 +1,4 @@
-import React from 'react'
+import React, {useSyncExternalStore} from 'react'
 import {Animated, Pressable, StyleSheet, View} from 'react-native'
 import type {RssEntryDetail} from '@slax-reader/contracts'
 import type {PdfDescriptor} from '@slax-reader/contracts/pdf'
@@ -9,8 +9,10 @@ import {mobileColors as C, mobileTypography as T} from '../../theme'
 import {OverviewExcerpt} from '../OverviewViews'
 import {sourceDisplayTime} from '../model'
 import type {Translate} from '../state/types'
+import type {FeatureState} from '../state/feature-state'
 
-export function ReaderHeaderMore({visible, offset, t, onPress}: {visible: boolean; offset: Animated.Value; t: Translate; onPress(): void}) {
+export function ReaderHeaderMore({visibility, offset, t, onPress}: {visibility: FeatureState<boolean>; offset: Animated.Value; t: Translate; onPress(): void}) {
+  const visible = useSyncExternalStore(visibility.subscribe, visibility.getSnapshot)
   return <Animated.View testID="reader-header-more-container" pointerEvents={visible ? 'auto' : 'none'} accessibilityElementsHidden={!visible}
     importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'} collapsable={false} style={{width: 48, height: 44, transform: [{translateY: offset}]}}>
     <Pressable testID="reader-header-more" accessibilityRole="button" accessibilityLabel={t('detail_toolbar_share')} onPress={onPress}

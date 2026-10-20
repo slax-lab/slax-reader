@@ -1,9 +1,0 @@
-# Native authentication verification
-
-`providers.test.mjs` executes the production TypeScript provider against explicit native boundaries. It covers the Android single-request bridge, cancellation without a fallback picker, missing client IDs/tokens, native failure propagation, the retained interactive iOS Google flow, and Apple login payloads. These tests do not authenticate a real account.
-
-`NativeGoogleOptionsProbe.java` is a prepared runtime check of the production `SlaxGoogleSignIn.request` builder. After a current native build includes that helper, compile the probe with the existing Android SDK tools and execute it only on a separately allocated controlled emulator with that exact build's classes. Bind the helper/module, probe, APK and runtime hashes to the result before treating it as evidence. The probe checks the real `GetGoogleIdOption`, its two source-compatible options, one-option request, client ID forwarding, and rejection of missing IDs. It never calls `CredentialManager.getCredential`, reads an account, or uses an operator client ID. No native build or probe execution has been completed for this change yet.
-
-The approved Nitro adapter already includes Credential Manager `1.6.0`, its Play Services adapter `1.6.0`, and Google ID `1.2.0`. SlaxPlatform declares those exact existing dependencies so its own bridge can compile against them. The Android bridge uses the legacy app's `filterByAuthorizedAccounts=false` and `autoSelectEnabled=true` in one `GetGoogleIdOption` request; iOS continues to use Nitro's interactive `createAccount` flow.
-
-Enabling automatic selection requests the original behavior; the provider still decides whether an account is eligible for automatic selection. The option does not guarantee a silent login. See the official [Google ID option API](https://developers.google.com/identity/android-credential-manager/android/reference/com/google/android/libraries/identity/googleid/GetGoogleIdOption.Builder).

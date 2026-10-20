@@ -15,7 +15,7 @@ The worktree was fast-forwarded to dev commit 4ac85a3 before implementation. PR 
 | pnpm test:preflight | 104 passed, 2 existing opt-in Web runtime tests skipped, 0 failed |
 | pnpm test:cli-tooling | 28 passed in the full suite, including actual dev/beta/stable archive installation and execution |
 | Final focused CLI notes/process tests | 10 passed after adding source/version guards and stronger notes-tampering fixtures; includes rehashed tampering rejection before HTTP writes |
-| Mobile source-replay, native-evidence, adoption-profile tests | 24 passed |
+| Mobile fixture and adoption-profile tests | passed |
 | pnpm design:check | 33 design reference files validated |
 | pnpm icons:test; pnpm icons:check | 17 tests passed; 54 registry entries validated |
 | pnpm exec openspec validate --all --strict | 43 items passed, 0 failed |

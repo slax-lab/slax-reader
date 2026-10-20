@@ -27,6 +27,10 @@ import {PdfImportDialog} from '../components/PdfImportDialog';
 import {usePdfLab} from '../pdf/usePdfLab';
 import {LibraryDataStatus} from './LibraryDataStatus';
 import {useVisibleSnapshot} from '../components/useVisibleSnapshot';
+import {useObserveMarkInteractive} from '../observe';
+import {libraryIsInteractive} from '../observe/readiness';
+
+declare global {var __SLAX_UI_RSS_STATE__: unknown;}
 
 const sortKeys = {inbox: 'inbox_title', starred: 'inbox_starred', archived: 'inbox_archive'} as const;
 const bookmarkKey = (item: BookmarkRecord) => item.id;
@@ -35,6 +39,7 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
   const {t, repositories, preferences, runtime, api, sessions, config, fixtureOnly, nativeResourceOwner, upgrade, credentialState, retryStart} = useMobile();
   const dataReady = Boolean(repositories && nativeResourceOwner && upgrade.status === 'ready');
   const telemetry = useTelemetry();
+  const markInteractive = useObserveMarkInteractive();
   const pdfLab = usePdfLab();
   const [importingPdf, setImportingPdf] = useState(false);
   const insets = useSafeAreaInsets(), window = useWindowDimensions(), deviceNetwork = useNetworkState(), network = fixtureOnly?.network ?? deviceNetwork;
@@ -63,15 +68,27 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
     inboxScroll.reset(); feedPositions.rss.reset(); feedPositions.rss.source = undefined; setDrawer(false); setAdd(false); setImportingPdf(false);
   }, [nativeResourceOwner, feedPositions, inboxScroll.reset]);
   const collectionSelection = useRef(new CollectionSelection()).current;
-  const rss = useMemo(() => new RssController(api, Date.now, () => runtime.getNativeResourceOwner() === nativeResourceOwner), [api, runtime, nativeResourceOwner]);
+  const rss = useMemo(() => new RssController(api, Date.now, () => runtime.getNativeResourceOwner() === nativeResourceOwner, dataReady ? repositories?.rss : undefined), [api, runtime, nativeResourceOwner, dataReady, repositories]);
   const rssState = useSyncExternalStore(rss.subscribe, rss.getSnapshot);
+  useEffect(() => {
+    if (!__DEV__ || !fixtureOnly) return;
+    globalThis.__SLAX_UI_RSS_STATE__ = {
+      ready: rssState.ready, enabled: rssState.enabled, busy: rssState.busy, selected: rssState.selected, error: rssState.error,
+      subscriptions: rssState.subscriptions.map(row => ({id: row.id, title: row.title, remark: row.remark})),
+      entries: rssState.entries.map(row => ({id: row.id, subscriptionId: row.subscription_id, title: row.title, bookmarkId: row.bookmark_user_uuid})),
+    };
+    return () => {if (globalThis.__SLAX_UI_RSS_STATE__) globalThis.__SLAX_UI_RSS_STATE__ = undefined;};
+  }, [fixtureOnly, rssState]);
   const showError = useCallback((reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)), []);
   const [rowsReady, setRowsReady] = useState(false);
+  const interactive = libraryIsInteractive(rowsReady, dataReady, upgrade.status);
+  useEffect(() => {if (interactive) markInteractive();}, [interactive, markInteractive]);
+  useEffect(() => {setRowsReady(false);}, [repositories, sort]);
   useEffect(() => {
-    setRowsReady(false);
     if (!repositories) {setRows([]); return;}
+    if (!clockActive) return;
     return repositories.watchBookmarks(sort, values => {setRows(values); setRowsReady(true);}, showError);
-  }, [repositories, sort, showError, setRows]);
+  }, [repositories, sort, clockActive, showError, setRows]);
   useEffect(() => repositories?.watchCollections(setCollections, showError), [repositories, showError]);
   useEffect(() => repositories?.watchUser(values => setUser(values[0] ?? {}), showError), [repositories, showError]);
   useEffect(() => repositories?.watchSubscription(values => setSubscription(values[0] ?? null), showError), [repositories, showError]);
@@ -88,7 +105,8 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
   }, [repositories, inboxScroll.reset]);
   const selectCollection = useCallback((id: string | null) => applyCollectionSelection(collectionSelection.select(id, collections)), [applyCollectionSelection, collectionSelection, collections]);
   useEffect(() => {void applyCollectionSelection(collectionSelection.reconcile(collections));}, [applyCollectionSelection, collectionSelection, collections]);
-  useEffect(() => {setCollectionRows([]); if (active) return repositories?.watchCollectionBookmarks(active.ownerId, setCollectionRows, showError);}, [repositories, active?.ownerId, showError, setCollectionRows]);
+  useEffect(() => {setCollectionRows([]);}, [repositories, active?.ownerId, setCollectionRows]);
+  useEffect(() => {if (active && clockActive) return repositories?.watchCollectionBookmarks(active.ownerId, setCollectionRows, showError);}, [repositories, active?.ownerId, clockActive, showError, setCollectionRows]);
   const collectionExpiry = active ? parseSourceTimestamp(active.subscriptionEndTime) : NaN;
   const subscriptionExpiry = parseSourceTimestamp(String(subscription?.subscription_end_time ?? subscription?.end_time ?? ''));
   useFocusEffect(useCallback(() => {
@@ -155,7 +173,7 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
         else throw new Error('Unknown fixture list');
         return true;
       }
-      if (action.kind === 'select-source') {if (rssSelected) await rss.select(String(action.id)); else {if (action.id !== null && !collections.some(value => value.id === action.id)) throw new Error('Unknown fixture collection'); await selectCollection(action.id as string | null);} return true;}
+      if (action.kind === 'select-source') {if (rssSelected) await rss.select(action.id === null ? null : String(action.id)); else {if (action.id !== null && !collections.some(value => value.id === action.id)) throw new Error('Unknown fixture collection'); await selectCollection(action.id as string | null);} return true;}
       if (action.kind === 'load-history') {
         if (!rssSelected) throw new Error('RSS is not selected');
         const disabled = rssState.busy || Boolean(rssState.retryAt && Date.parse(rssState.retryAt) > Date.now());

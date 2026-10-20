@@ -6,10 +6,12 @@ import {pathToFileURL} from 'node:url';
 import vm from 'node:vm';
 import ts from 'typescript';
 import React, {act} from 'react';
+import {countingObserve, observeRelativeBoundaries, readiness} from '../reader/observe-mock.mjs';
 
 const require = createRequire(import.meta.url);
 const domPath = require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]});
 async function load(file, boundaries = {}, globals = {}) {
+  boundaries = {...observeRelativeBoundaries(boundaries), ...boundaries};
   const code = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},
   }).outputText;
@@ -55,7 +57,7 @@ function clock() {
 }
 async function harness(root, platform = 'ios', development = false) {
   const v = views(), timers = clock(), listeners = new Set();
-  const h = {v, timers, owner: 'account-a', focused: true, visible: true, selected: {uri: 'file:///cache/selected.pdf', name: 'Résumé.pdf', size: 1024}, pickCalls: 0, removed: [], files: [], labsCalls: [], uploads: [], watches: [], saved: [], dismissals: 0, changes: [], navigations: [], reset: [], created: [], clipboard: '', clipboardCalls: 0};
+  const h = {v, timers, owner: 'account-a', focused: true, visible: true, selected: {uri: 'file:///cache/selected.pdf', name: 'Résumé.pdf', size: 1024}, pickCalls: 0, removed: [], files: [], labsCalls: [], uploads: [], watches: [], bookmarkWatches: [], saved: [], dismissals: 0, changes: [], navigations: [], reset: [], created: [], clipboard: '', clipboardCalls: 0};
   h.labs = async () => ({features: [{key: 'pdf', enabled: true}, {key: 'rss', enabled: false}]});
   h.upload = async () => ({bookmark_uid: 'server-pdf'});
   h.pick = async () => h.selected;
@@ -74,7 +76,8 @@ async function harness(root, platform = 'ios', development = false) {
   };
   const repositories = {
     watchRows(sql, params, rows, error) {const watch = {sql, params, rows, error, stopped: 0}; h.watches.push(watch); return () => {watch.stopped++;};},
-    watchBookmarks: () => () => {}, watchCollections: () => () => {}, watchUser: () => () => {}, watchSubscription: () => () => {},
+    watchBookmarks(sort, rows) {const watch = {sort, rows, stopped: 0}; h.bookmarkWatches.push(watch); return () => {watch.stopped++;};},
+    watchCollections: () => () => {}, watchUser: () => () => {}, watchSubscription: () => () => {},
     createBookmark: async url => {h.created.push(url);},
   };
   const runtime = {getNativeResourceOwner: () => h.owner, getDatabase: () => null};
@@ -101,6 +104,8 @@ async function harness(root, platform = 'ios', development = false) {
   h.background = state => act(async () => {native.AppState.currentState = state; for (const callback of listeners) callback(state);});
   h.listenerCount = () => listeners.size;
   h.loadLibrary = async () => {
+    const observe = await countingObserve(load);
+    h.observeCounter = observe.counter;
     const rssState = {enabled: false};
     class RssController {subscribe = () => () => {}; getSnapshot = () => rssState; activate() {} dispose() {} cancel() {} poll() {} async load() {}}
     class FeedScrollPosition {reset() {}}
@@ -108,7 +113,8 @@ async function harness(root, platform = 'ios', development = false) {
     const {LibraryScreen} = await load('../../src/screens/LibraryScreen.tsx', {
       ...common, './LibraryDataStatus': {LibraryDataStatus: nil}, '@react-navigation/native': navigation, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'expo-network': {useNetworkState: () => ({isConnected: true})},
       '../telemetry': {useTelemetry: () => telemetry}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: v.native('SourceShape')}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
-      '../components': {...v.ui, BookmarkRow: nil, LinkInputDialog, RssFeed: nil, RssFeedSwitcher: nil, SourceAvatar: nil, SourceMenu: nil}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, './collection-selection': await load('../../src/screens/collection-selection.ts'), '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../utils/source-time': await load('../../src/utils/source-time.ts'), '../components/PdfImportDialog': {PdfImportDialog}, '../pdf/usePdfLab': {usePdfLab},
+      '../components': {...v.ui, BookmarkRow: nil, LinkInputDialog, RssFeed: nil, RssFeedSwitcher: nil, SourceAvatar: nil, SourceMenu: props => {h.sortMenu = props; return null;}}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, './collection-selection': await load('../../src/screens/collection-selection.ts'), '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../utils/source-time': await load('../../src/utils/source-time.ts'), '../components/PdfImportDialog': {PdfImportDialog}, '../pdf/usePdfLab': {usePdfLab},
+      '../observe': observe.module, '../observe/readiness': readiness,
     });
     const navigator = {navigate: (...args) => h.navigations.push(args)};
     h.render = () => root.render(React.createElement(LibraryScreen, {navigation: navigator}));
@@ -196,6 +202,21 @@ for (const failure of ['disabled', 'unavailable', 'upload']) test(`${failure} re
   await h.submit();
   assert.equal(h.pickCalls, 1); assert.equal(h.labsCalls.length, 2); assert.deepEqual(h.removed, [h.selected.uri]);
   assert.equal(h.watches.length, 1); assert.deepEqual(Array.from(h.watches[0].params), ['server-retry']); assert.deepEqual(h.saved, []);
+}));
+
+test('Library marks interactive once per mount through the real hook, not again after a sort switch', async () => mounted(async root => {
+  const h = await harness(root);
+  await h.loadLibrary();
+  assert.equal(h.observeCounter.marks, 0, 'Loading rows are not interactive');
+  await act(async () => h.bookmarkWatches.at(-1).rows([]));
+  assert.equal(h.observeCounter.marks, 1, 'An empty first snapshot is a usable surface');
+  await act(async () => h.render());
+  assert.equal(h.observeCounter.marks, 1, 'Re-renders do not re-mark');
+  await act(async () => h.sortMenu.items.find(item => !item.selected).onPress());
+  const switched = h.bookmarkWatches.at(-1);
+  assert.notEqual(switched.sort, 'inbox', 'The sort switch starts a new rows watch');
+  await act(async () => switched.rows([]));
+  assert.equal(h.observeCounter.marks, 1, 'A sort switch resetting rowsReady must not report a late second TTI');
 }));
 
 for (const platform of ['ios', 'android']) test(`${platform} Library uploads a raw File at the inclusive limit and navigates only after the server row watcher`, async () => mounted(async root => {
@@ -324,6 +345,28 @@ test('Library hides import until Labs grants PDF, then preserves manual URL vali
   await act(async () => h.v.one('TextInput').onChangeText('  https://source.test/article  ')); await act(async () => h.v.one('TextInput').onSubmitEditing());
   assert.deepEqual(h.created, ['https://source.test/article']); assert.equal(h.reset.at(-1), true);
   assert.equal(h.v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.testID === 'add-pdf-file')).visible, false); assert.equal(h.dialog().visible, false); assert.equal(h.pickCalls, 0);
+}));
+
+test('Library stops bookmark watches while blurred or backgrounded and keeps the last rows visible', async () => mounted(async root => {
+  const h = await harness(root); await h.loadLibrary();
+  const live = () => h.bookmarkWatches.filter(watch => !watch.stopped);
+  const shown = () => Array.from(h.v.one('FlatList').data, row => row.id);
+  assert.equal(live().length, 1); assert.equal(live()[0].sort, 'inbox');
+  await act(async () => live()[0].rows([{id: 'first'}]));
+  assert.deepEqual(shown(), ['first']);
+  h.focused = false; await act(async () => h.render());
+  assert.equal(live().length, 0, 'A blurred Library does not rerun its bookmark query on background writes');
+  assert.deepEqual(shown(), ['first'], 'Blurring keeps the published rows instead of clearing the list');
+  h.focused = true; await act(async () => h.render());
+  assert.equal(live().length, 1, 'Refocus resubscribes once');
+  assert.deepEqual(shown(), ['first']);
+  await act(async () => live()[0].rows([{id: 'second'}, {id: 'first'}]));
+  assert.deepEqual(shown(), ['second', 'first']);
+  await h.background('background');
+  assert.equal(live().length, 0, 'Backgrounding stops the bookmark query');
+  await h.background('active');
+  assert.equal(live().length, 1);
+  assert.equal(h.bookmarkWatches.length, 3);
 }));
 
 test('add-link keeps clipboard import and title-edit behavior separate from PDF handoff', async () => mounted(async root => {

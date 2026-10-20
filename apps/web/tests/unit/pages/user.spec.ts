@@ -26,7 +26,7 @@ const { mockRoute, mockNavigateTo, mockRequest, mockGet, mockAnalyticsLog, mockT
     mockGet,
     mockAnalyticsLog: vi.fn(),
     mockToastShowToast: vi.fn(),
-    mockUseI18n: vi.fn(() => ({ locale: { value: 'en' }, t: mockT, te: () => true })),
+    mockUseI18n: vi.fn(() => ({ locale: { value: 'en' }, t: mockT, te: (key: string) => !key.includes('no_such_feature') })),
     mockShowFeedbackModal: vi.fn()
   }
 })
@@ -184,7 +184,7 @@ describe('pages/user', () => {
   })
 
   describe('section navigation', () => {
-    it('omits Features when there are no visible Labs and groups account, preferences, connections, data, support', async () => {
+    it('omits Features when Labs are empty and groups account, preferences, connections, data, support', async () => {
       const wrapper = mountWithApp(UserPage, { global: { stubs } })
       await flushPromises()
       expect(wrapper.findAll('.settings-nav a').map(link => link.attributes('href'))).toEqual(['#account', '#preferences', '#connections', '#data', '#support'])
@@ -206,9 +206,22 @@ describe('pages/user', () => {
       expect(wrapper.find('.settings-nav a[href="#data"]').attributes('aria-current')).toBe('location')
     })
 
-    it.each([false, true])('omits hidden-only Labs and safely handles the deep link when enabled=%s', async enabled => {
+    it.each([false, true])('shows the YouTube Labs row and Features navigation when enabled=%s', async enabled => {
+      labFeatures = [{ key: 'youtube', status: 'active', enabled, enabled_at: enabled ? '2026-09-08T00:00:00.000Z' : null }]
+      const wrapper = mountWithApp(UserPage, { global: { stubs } })
+      await flushPromises()
+      expect(wrapper.find('#labs').exists()).toBe(true)
+      expect(wrapper.find('.settings-nav a[href="#features"]').exists()).toBe(true)
+      expect((wrapper.find('#features').element as HTMLElement).style.display).not.toBe('none')
+      expect(wrapper.findAll('.settings-card')).toHaveLength(7)
+      expect(wrapper.findAll('#labs .lab-row')).toHaveLength(1)
+      expect(wrapper.find('#labs .lab-name span').text()).toBe('YouTube videos')
+      expect(mockGet).toHaveBeenCalledWith({ url: '/v1/user/labs' })
+    })
+
+    it('keeps the Labs deep link harmless when no row has a translated name', async () => {
       mockRoute.hash = '#labs'
-      labFeatures = ['youtube'].map(key => ({ key, status: 'active', enabled, enabled_at: enabled ? '2026-09-08T00:00:00.000Z' : null }))
+      labFeatures = [{ key: 'no_such_feature', status: 'active', enabled: false, enabled_at: null }]
       const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView')
       const wrapper = mountWithApp(UserPage, { global: { stubs } })
       await flushPromises()
@@ -222,14 +235,14 @@ describe('pages/user', () => {
       scroll.mockRestore()
     })
 
-    it('shows the Labs card and Features navigation when PDF is the only visible row', async () => {
+    it('shows YouTube and PDF rows when they are the only Labs features', async () => {
       labFeatures = ['youtube', 'pdf'].map(key => ({ key, status: 'active', enabled: false, enabled_at: null }))
       const wrapper = mountWithApp(UserPage, { global: { stubs } })
       await flushPromises()
       expect(wrapper.find('#labs').exists()).toBe(true)
       expect(wrapper.find('.settings-nav a[href="#features"]').exists()).toBe(true)
-      expect(wrapper.findAll('#labs .lab-row')).toHaveLength(1)
-      expect(wrapper.find('#labs .lab-name span').text()).toBe('PDF bookmarks')
+      expect(wrapper.findAll('#labs .lab-row')).toHaveLength(2)
+      expect(wrapper.findAll('#labs .lab-name span:first-child').map(node => node.text())).toEqual(['YouTube videos', 'PDF bookmarks'])
     })
 
     it('opens the existing Labs deep link after a delayed visible Labs response', async () => {

@@ -81,6 +81,7 @@ describe('客户端环境', () => {
     clearAuth.mockClear()
     cookieGet.mockReset().mockReturnValue(undefined)
     cookieSet.mockReset()
+    runtimeConfig.public.COOKIE_TOKEN_NAME = 'token'
     lastConfig.value = null
     requestModule = await import('~~/app/utils/request')
   })
@@ -90,12 +91,24 @@ describe('客户端环境', () => {
       cookieGet.mockReturnValue('client-token-x')
       expect(requestModule.getUserToken()).toBe('client-token-x')
       // 必须读 COOKIE_TOKEN_NAME 配置；这里同时锁定 useCookies().get 被调用，避免实现走到错误分支
-      expect(cookieGet).toHaveBeenCalledWith('token')
+      expect(cookieGet).toHaveBeenCalledWith('token', { doNotParse: true })
     })
 
     it('cookies.get 返回 undefined → 返回 undefined', () => {
       // beforeEach 已设 mockReset + mockReturnValue(undefined)，无需再设
       expect(requestModule.getUserToken()).toBeUndefined()
+    })
+
+    it.each([null, { id: 1 }, 42])('rejects non-string cookie values: %j', value => {
+      cookieGet.mockReturnValue(value)
+      expect(requestModule.getUserToken()).toBeUndefined()
+      expect(requestModule.haveRequestToken()).toBe(false)
+    })
+
+    it('does not read a cookie when its configured name is not a non-empty string', () => {
+      runtimeConfig.public.COOKIE_TOKEN_NAME = { token: 'token' } as never
+      expect(requestModule.getUserToken()).toBeUndefined()
+      expect(cookieGet).not.toHaveBeenCalled()
     })
   })
 

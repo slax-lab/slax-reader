@@ -5,6 +5,7 @@ import {CommentSubscriptions} from './repositories/comments.ts';
 import {LocalBookmarkRepository} from './repositories/local-metadata.ts';
 import {MarkRepository} from './repositories/marks.ts';
 import {RowWatcher} from './repositories/watch-rows.ts';
+import {RssRepository} from './repositories/rss.ts';
 import type {SqlDatabase} from './repositories/sql.ts';
 import type {
   BookmarkChanges,
@@ -38,6 +39,7 @@ export {collectionMarkPolicy, PERSONAL_MARK_POLICY, PENDING_COLLECTION_MARK_POLI
 export class MobileRepositories {
   readonly database: SqlDatabase;
   readonly local: LocalBookmarkRepository;
+  readonly rss: RssRepository;
   private readonly rows: RowWatcher;
   private readonly bookmarks: BookmarkRepository;
   private readonly collections: CollectionRepository;
@@ -48,6 +50,7 @@ export class MobileRepositories {
   constructor(database: SqlDatabase, uuid: () => string, now = () => new Date().toISOString()) {
     this.database = database;
     this.local = new LocalBookmarkRepository(database);
+    this.rss = new RssRepository(database);
     this.rows = new RowWatcher(database);
     this.bookmarks = new BookmarkRepository(database, this.rows, uuid, now);
     this.collections = new CollectionRepository(database, this.rows, now);

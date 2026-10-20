@@ -152,23 +152,6 @@ assert.equal(mobileLayout.iosSharePanelHeight, 180);
 const { mobileTestIds } = await loadOwnTypeScript('apps/mobile/src/theme/testIds.ts');
 assert.equal(new Set(Object.values(mobileTestIds)).size, Object.keys(mobileTestIds).length);
 
-const coverage = await json('docs/mobile/coverage.json');
-assert.equal(coverage.sourceManifestSha256, hash(manifestBytes));
-const caseIds = new Set();
-for (const item of coverage.cases) {
-  assert(!caseIds.has(item.id), `Duplicate coverage case: ${item.id}`);
-  caseIds.add(item.id);
-  for (const location of item.sourceLocations) {
-    assert(sourcePaths.has(location.path), `Coverage source absent from manifest: ${location.path}`);
-    assert(Number.isInteger(location.line) && location.line >= 1);
-  }
-  assert.deepEqual(item.requiredLocales, ['en', 'zh']);
-}
-assert(coverage.allowedVisualExclusions.find((item) => item.id === 'native-back')?.wholeHeaderExcluded === false);
-const {verifyCoverageEvidence} = await import('./native-evidence.mjs');
-const fixtureBundleBytes = await readFile(path.join(repoRoot, 'apps/mobile/fixtures/scenarios.json'));
-const fixtureBundle = JSON.parse(fixtureBundleBytes.toString('utf8'));
-const evidence = await verifyCoverageEvidence({coverage, repoRoot, sourceManifestSha256: hash(manifestBytes), fixtureInputSha256: hash(fixtureBundleBytes), scenarios: Object.keys(fixtureBundle.scenarios), fixtureBundleBytes});
 console.log(JSON.stringify({
   sourceFiles: manifest.files.length,
   sourceHashesVerified: sourceRoot !== null,
@@ -176,6 +159,4 @@ console.log(JSON.stringify({
   localizedKeys: Object.keys(catalogue.en).length,
   migrationProtectionKeys: Object.keys(appCatalogueModule.appMessages.en).length,
   stableTestIds: Object.keys(mobileTestIds).length,
-  coverageCases: coverage.cases.length,
-  ...evidence,
 }, null, 2));

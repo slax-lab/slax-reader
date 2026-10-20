@@ -5,7 +5,7 @@
 // demoteTag: 仅 source='mine' 显示按钮；request.post(DEMOTE_USER_TAG) → emit demote；失败 → Toast Error
 // 调 useScrollLock(window) - 用 vi.mock 绕开 happy-dom
 // editTagName: editname===tagName 或空 → closeModal；否则 request.post(UPDATE_USER_TAG) + emit success
-// deleteTag: request.post(DELETE_USER_TAG) → success → emit delete；失败 → Toast Error
+// deleteTag: empty success emits delete; request errors and expired sessions retain the dialog.
 // onKeyDown: composition 期间 / 非 Enter → 短路；否则 submitTagName
 import { ref } from 'vue'
 
@@ -17,7 +17,7 @@ import { mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockRequest, mockPost, mockToastShowToast } = vi.hoisted(() => {
-  const mockPost = vi.fn((): Promise<{ ok: boolean } | null> => Promise.resolve({ ok: true }))
+  const mockPost = vi.fn((): Promise<unknown> => Promise.resolve({ ok: true }))
   return {
     mockPost,
     mockRequest: vi.fn(() => ({ post: mockPost })),
@@ -48,6 +48,7 @@ describe('Modal/EditTag', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    vi.restoreAllMocks()
   })
 
   it('mount → 渲染 .edit-tag-modal + textarea + close + save 按钮', () => {
@@ -163,13 +164,38 @@ describe('Modal/EditTag', () => {
       expect(wrapper.emitted('delete')![0]).toEqual([5])
     })
 
-    it('失败（返 null）→ Toast Error + 不 emit delete', async () => {
-      mockPost.mockResolvedValueOnce(null)
+    it('空响应也视为成功 → 不显示失败 toast 并 emit delete', async () => {
+      mockPost.mockResolvedValueOnce(undefined)
       const wrapper = mountWithApp(EditTag, { props: { tagId: 5 } })
       const setup: any = (wrapper.vm as any).$.setupState
+
       await setup.deleteTag()
-      expect(mockToastShowToast).toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }))
+
+      expect(mockToastShowToast).not.toHaveBeenCalled()
+      expect(wrapper.emitted('delete')).toEqual([[5]])
+    })
+
+    it('请求层处理登录过期后返回空字符串 → 不 emit delete', async () => {
+      mockPost.mockResolvedValueOnce('')
+      const wrapper = mountWithApp(EditTag, { props: { tagId: 5 } })
+      const setup: any = (wrapper.vm as any).$.setupState
+
+      await setup.deleteTag()
+
+      expect(mockToastShowToast).not.toHaveBeenCalled()
       expect(wrapper.emitted('delete')).toBeUndefined()
+      expect(setup.isLoading).toBe(false)
+    })
+
+    it('请求 reject → 不 emit delete 并清除 loading', async () => {
+      mockPost.mockRejectedValueOnce(new Error('network'))
+      const wrapper = mountWithApp(EditTag, { props: { tagId: 5 } })
+      const setup: any = (wrapper.vm as any).$.setupState
+
+      await expect(setup.deleteTag()).rejects.toThrow('network')
+
+      expect(wrapper.emitted('delete')).toBeUndefined()
+      expect(setup.isLoading).toBe(false)
     })
 
     it('isLoading=true 期间 → 短路', async () => {
