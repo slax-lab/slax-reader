@@ -102,10 +102,10 @@ The `youtube_article_target_language` migration SHALL NOT drop or rename a table
 - **WHEN** an owner in another language opens a video whose caption version already has a row
 - **THEN** the system creates the row for that language
 
-### Requirement: Hidden Settings row for YouTube AI articles
+### Requirement: Visible Settings row for YouTube AI articles
 
-Web Settings SHALL omit the `youtube_article` Labs row while the `youtube` row is hidden, without changing the loaded Labs state or stored preferences.
+Web Settings SHALL show the `youtube_article` Labs row together with the `youtube` row when both names are translated, without changing the loaded Labs state or stored preferences.
 
 #### Scenario: Enabled account opens Settings
 - **WHEN** an account with `youtube_article` enabled opens Settings
-- **THEN** the row is absent, the feature stays enabled and no preference update is sent
+- **THEN** the row is present and enabled, and no preference update is sent

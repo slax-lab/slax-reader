@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'vitest'
-import { ARTICLE_QUALITY_SCORING_VERSION, formatArticleQualityComparison, formatArticleQualityReview, scoreArticleQuality, unavailableArticleQualityReview } from '@/utils/articleQualityScoring'
+import {
+  ARTICLE_QUALITY_SCORING_VERSION,
+  formatArticleQualityReview,
+  formatArticleQualitySummary,
+  scoreArticleQuality,
+  unavailableArticleQualityReview
+} from '@/utils/articleQualityScoring'
 
 const sourceImage = 'https://img.example.com/article.png'
 
@@ -71,19 +77,20 @@ describe('article quality scoring', () => {
     expect(formatArticleQualityReview()).toContain('评分不可用')
   })
 
-  test('formats parser comparison with selected parser and every candidate', () => {
-    const base = unavailableArticleQualityReview()
-    const text = formatArticleQualityComparison({
-      ...base,
-      selectedParser: 'defuddle',
-      parserReviews: [
-        { parser: 'readability', review: base },
-        { parser: 'defuddle', review: base }
-      ]
-    })
+  test('summarizes quality with the selected parser', () => {
+    const review = {
+      ...unavailableArticleQualityReview(),
+      status: 'scored' as const,
+      score: 0.986,
+      selectedParser: 'readability' as const
+    }
 
-    expect(text).toContain('最终选择 Defuddle')
-    expect(text).toContain('Readability：')
-    expect(text).toContain('Defuddle：')
+    expect(formatArticleQualitySummary(review)).toBe('综合完整度 98.6% （来自Readability）')
+    expect(formatArticleQualitySummary({ ...review, selectedParser: undefined })).toBe('综合完整度 98.6%')
+  })
+
+  test('keeps the unavailable explanation in the summary', () => {
+    expect(formatArticleQualitySummary()).toContain('评分不可用')
+    expect(formatArticleQualitySummary(unavailableArticleQualityReview())).toContain('评分不可用')
   })
 })

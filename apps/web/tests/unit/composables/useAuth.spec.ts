@@ -118,6 +118,13 @@ describe('useAuth', () => {
       expect(cookieSet).not.toHaveBeenCalled()
     })
 
+    it('rejects login success when the configured cookie name is invalid', async () => {
+      runtimeConfig.public.COOKIE_TOKEN_NAME = { token: 'token' } as never
+      mockPost.mockResolvedValueOnce({ token: 'tok-google' })
+      await expect(useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3')).rejects.toThrow(/COOKIE_TOKEN_NAME/)
+      expect(cookieSet).not.toHaveBeenCalled()
+    })
+
     it('platformType=apple 时使用 apple client_id', async () => {
       mockPost.mockResolvedValueOnce({ token: 'tok-apple' })
       await useAuth().grantAuth('code-2', 'https://auth.test/auth', 'aff4', 'apple')
@@ -128,6 +135,13 @@ describe('useAuth', () => {
   })
 
   describe('clearAuth', () => {
+    it('clears user state when the configured cookie name is invalid', async () => {
+      runtimeConfig.public.COOKIE_TOKEN_NAME = { token: 'token' } as never
+      await useAuth().clearAuth()
+      expect(cookieRemove).not.toHaveBeenCalled()
+      expect(clearUserInfo).toHaveBeenCalledOnce()
+    })
+
     // Chrome distinguishes host-only cookies from explicit-domain cookies,
     // even when both use the current hostname. Model that storage boundary.
     let cookies: Array<{ name: string; value: string; domain?: string; path: string }>

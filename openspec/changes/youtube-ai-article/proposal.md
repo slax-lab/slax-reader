@@ -14,7 +14,7 @@ This work was built and reviewed in the legacy repositories (`unnoo/slax_reader_
 - Limit cost: $0.30 per article version across all attempts, 20 automatic and 5 manual starts per user per day, and $20 per day site-wide with one alert.
 - Add `GET /v1/youtube_article/status` and `/content` (owner and share visitors, by the snapshot access rule), `POST /v1/youtube_article/generate` and `/retry` (owner only), and `POST /m/youtube_article/backfill` (team only).
 - Sweep on the existing 5-minute cron: recover dead runs, start deferred requests, delete article versions without a bookmark for 7 days, and clean up takedowns. Add `script/youtube-article-takedown.ts`.
-- Add the Labs feature `youtube_article`, off by default. Settings hides its row together with the hidden `youtube` row.
+- Add the Labs feature `youtube_article`, off by default. Settings showed its row hidden with `youtube` at delivery time; `unhide-youtube-labs` later shows both rows.
 - Keep the old unique key `(video_id, source_hash, prompt_version)` while production code still writes through it (expand/contract). Until `podcast-article` drops it, a caption version holds one language row.
 - Show the article below the player on the bookmark page, with generating, ready, skipped, failed, limit-reached and slow states. Render from structured data with text bindings only. Fold the original transcript when the article is ready and the bookmark has no marks.
 - Add the `YOUTUBE_ARTICLE_WORKFLOW` binding to `deploy/cloudflare/api.toml.example` and the Worker environment type.
@@ -35,7 +35,7 @@ None. The Settings rule for the new Labs row is an additional requirement in thi
 - Web: `apps/web` bookmark page, `BookmarkArticle` `after-body` slot, new `YoutubeAiArticle` component and composable, Labs visibility predicate, en/zh copy.
 - Contracts: `packages/contracts` API paths and response types.
 - Deployment: operators add the `YOUTUBE_ARTICLE_WORKFLOW` binding to their private Wrangler configuration before deploy, and run the Postgres migration.
-- Behaviour for users does not change until an account enables `youtube_article`. The Settings row is hidden, but hiding is a UI rule only, as for `youtube` and `pdf`: a signed-in user who knows the key can still enable it through `user/setting/enable`. The per-user daily limits and the site-wide daily budget bound the cost of such accounts.
+- Behaviour for users does not change until an account enables `youtube_article`. The Settings row is visible after `unhide-youtube-labs`; enabling remains a UI action only, and a signed-in user can also enable it through `user/setting/enable`. The per-user daily limits and the site-wide daily budget bound the cost of such accounts.
 
 ## Non-goals
 

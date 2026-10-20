@@ -71,51 +71,7 @@
 			};
 			explicitFolders = (
 			);
-			path = "../app-intents";
-			sourceTree = SOURCE_ROOT;
-		};
-		57EBED90145842FE8D696FC5 /* ../app-intents */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = "../app-intents";
-			sourceTree = SOURCE_ROOT;
-		};
-		6D24118187F940EDBE0AABF6 /* ../app-intents */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = "../app-intents";
-			sourceTree = SOURCE_ROOT;
-		};
-		D371764E23D743E8A1603835 /* ../app-intents */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = "../app-intents";
-			sourceTree = SOURCE_ROOT;
-		};
-		D94AFA8051174ADDA742E5BC /* ../app-intents */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = "../app-intents";
+			path = ../app-intents;
 			sourceTree = SOURCE_ROOT;
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -215,10 +171,6 @@
 				3D6C88F314B7137DB43B8C8B /* Pods */,
 				04010AF49F06AEAB3B1F7CA9 /* ExpoModulesProviders */,
 				56875120C2D84FDEBE020D8D /* ../app-intents */,
-				D371764E23D743E8A1603835 /* ../app-intents */,
-				D94AFA8051174ADDA742E5BC /* ../app-intents */,
-				6D24118187F940EDBE0AABF6 /* ../app-intents */,
-				57EBED90145842FE8D696FC5 /* ../app-intents */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -282,10 +234,6 @@
 			);
 			fileSystemSynchronizedGroups = (
 				56875120C2D84FDEBE020D8D /* ../app-intents */,
-				D371764E23D743E8A1603835 /* ../app-intents */,
-				D94AFA8051174ADDA742E5BC /* ../app-intents */,
-				6D24118187F940EDBE0AABF6 /* ../app-intents */,
-				57EBED90145842FE8D696FC5 /* ../app-intents */,
 			);
 			name = SlaxReader;
 			productName = SlaxReader;
@@ -627,7 +575,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
 				PRODUCT_BUNDLE_IDENTIFIER = app.slax.reader;
-				PRODUCT_NAME = SlaxReader;
+				PRODUCT_NAME = "SlaxReader";
 				SWIFT_OBJC_BRIDGING_HEADER = "SlaxReader/SlaxReader-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -659,7 +607,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
 				PRODUCT_BUNDLE_IDENTIFIER = app.slax.reader;
-				PRODUCT_NAME = SlaxReader;
+				PRODUCT_NAME = "SlaxReader";
 				SWIFT_OBJC_BRIDGING_HEADER = "SlaxReader/SlaxReader-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -852,15 +800,15 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CC = clang;
-				CODE_SIGN_ENTITLEMENTS = SlaxShare/SlaxShare.entitlements;
-				CURRENT_PROJECT_VERSION = 774;
+				CODE_SIGN_ENTITLEMENTS = "SlaxShare/SlaxShare.entitlements";
+				CURRENT_PROJECT_VERSION = 775;
 				CXX = "clang++";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
 					"$(inherited)",
 				);
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = SlaxShare/Info.plist;
+				INFOPLIST_FILE = "SlaxShare/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
 				LD = clang;
 				LDPLUSPLUS = "clang++";
@@ -871,8 +819,8 @@
 				);
 				MARKETING_VERSION = 1.0.25;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = app.slax.reader.share;
-				PRODUCT_NAME = SlaxShare;
+				PRODUCT_BUNDLE_IDENTIFIER = "app.slax.reader.share";
+				PRODUCT_NAME = "SlaxShare";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -884,11 +832,11 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CC = clang;
-				CODE_SIGN_ENTITLEMENTS = SlaxShare/SlaxShare.entitlements;
-				CURRENT_PROJECT_VERSION = 774;
+				CODE_SIGN_ENTITLEMENTS = "SlaxShare/SlaxShare.entitlements";
+				CURRENT_PROJECT_VERSION = 775;
 				CXX = "clang++";
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = SlaxShare/Info.plist;
+				INFOPLIST_FILE = "SlaxShare/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
 				LD = clang;
 				LDPLUSPLUS = "clang++";
@@ -899,8 +847,8 @@
 				);
 				MARKETING_VERSION = 1.0.25;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = app.slax.reader.share;
-				PRODUCT_NAME = SlaxShare;
+				PRODUCT_BUNDLE_IDENTIFIER = "app.slax.reader.share";
+				PRODUCT_NAME = "SlaxShare";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";

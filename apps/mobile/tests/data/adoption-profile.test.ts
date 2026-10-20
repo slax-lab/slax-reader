@@ -9,7 +9,7 @@ import type {DatabaseSnapshot} from '../../src/data/adoption.ts';
 import type {LegacyInventory} from '../../src/data/upgrade.ts';
 import {UpgradeVerificationRequired} from '../../src/data/upgrade.ts';
 import {PreferenceStore} from '../../src/data/preferences.ts';
-import {MOBILE_TABLES} from '../../src/data/schema.ts';
+import {LEGACY_DATABASE_STORAGE_TABLES} from '../../src/data/installation.ts';
 import {MemoryPreferences} from './helpers.ts';
 
 const android = (root = '/data/data/com.slax.reader'): LegacyInventory => {
@@ -71,7 +71,7 @@ test('unknown paths, owners, native identities and incomplete/multiple inventori
 
 test('profile evidence still requires the complete native snapshot before any SDK or checkpoint mutation', async () => {
   const inventory = ios(), evidence = deriveReviewedAdoptionEvidence(inventory, 'ios')!;
-  const snapshot: DatabaseSnapshot = {databasePath: evidence.databasePath, integrityValid: true, formatVersion: 14, userVersion: 1, storageTables: Object.keys(MOBILE_TABLES).map(table => `${table === 'local_bookmark_info' ? 'ps_data_local__' : 'ps_data__'}${table}`), pendingOperations: 4, pendingTransactions: 2, queueDigest: 'a'.repeat(64), dataDigest: 'b'.repeat(64), localDigest: 'c'.repeat(64)};
+  const snapshot: DatabaseSnapshot = {databasePath: evidence.databasePath, integrityValid: true, formatVersion: 14, userVersion: 1, storageTables: LEGACY_DATABASE_STORAGE_TABLES, pendingOperations: 4, pendingTransactions: 2, queueDigest: 'a'.repeat(64), dataDigest: 'b'.repeat(64), localDigest: 'c'.repeat(64)};
   for (const invalid of [{...snapshot, formatVersion: 15}, {...snapshot, userVersion: 2}, {...snapshot, integrityValid: false}, {...snapshot, storageTables: [...snapshot.storageTables, 'ps_data__unknown']}, {...snapshot, pendingOperations: -1}, {...snapshot, pendingTransactions: 0}, {...snapshot, pendingOperations: 0}, {...snapshot, pendingOperations: 1}, {...snapshot, queueDigest: ''}, {...snapshot, databasePath: '/another/powersync.db'}]) {
     let opens = 0; const storage = new MemoryPreferences({auth_token: 'synthetic-original-auth'});
     await assert.rejects(openVerifiedDatabase({inventory, evidence, preferences: new PreferenceStore(storage), inspector: {inspectLegacyDatabase: async () => invalid}, open: async () => {opens++; return {close: async () => {}};}}), DatabaseAdoptionRejected);

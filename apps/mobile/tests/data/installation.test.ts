@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {openVerifiedDatabase} from '../../src/data/adoption.ts';
-import {createInstallationBinding, DATABASE_STORAGE_TABLES, DatabaseInitializationError, INSTALLATION_KEY, initializedDatabaseLocation, readInstallationBinding} from '../../src/data/installation.ts';
+import {createInstallationBinding, LEGACY_DATABASE_STORAGE_TABLES, DATABASE_STORAGE_TABLES, DatabaseInitializationError, INSTALLATION_KEY, initializedDatabaseLocation, readInstallationBinding} from '../../src/data/installation.ts';
 import type {InstallationBinding} from '../../src/data/installation.ts';
 import type {LegacyInventory} from '../../src/data/upgrade.ts';
 import {PreferenceStore} from '../../src/data/preferences.ts';
@@ -33,6 +33,29 @@ test('a newly created database is bound only after successful initialization and
   const second = run(storage, {...inventory(), initializedDatabase: {path, mode: 'native'}}); await second.result;
   assert.deepEqual(second.events, ['schema', 'open']);
   assert.equal(storage.revision, revision);
+});
+
+test('fresh native user_version zero is admitted and resumes from the same bound database', async () => {
+  const storage = new MemoryPreferences(), nativeSchema = {...schema(), userVersion: 0};
+  const first = run(storage, inventory(), nativeSchema); await first.result;
+  assert.deepEqual(first.events, ['open', 'schema']);
+  assert.equal(readInstallationBinding(storage.values[INSTALLATION_KEY])?.mode, 'native');
+
+  const resumed = run(storage, {...inventory(), initializedDatabase: {path, mode: 'native'}}, nativeSchema); await resumed.result;
+  assert.deepEqual(resumed.events, ['schema', 'open']);
+  assert.equal(storage.revision, 1);
+});
+
+test('persisted adopted bindings reject user_version zero before opening and retain version one admission', async () => {
+  const currentInventory = {...inventory(), databaseCandidates: [path], initializedDatabase: {path, mode: 'adopted' as const}};
+  const adoptedBinding = createInstallationBinding({dbLocation: `${root}/files/slax-react-native`, dbFilename: 'powersync.db', adopted: true}, currentInventory, 'slax-native-format14-schema2-v1')!;
+  const rejected = run(new MemoryPreferences({[INSTALLATION_KEY]: JSON.stringify(adoptedBinding)}), currentInventory, {...schema(), userVersion: 0});
+  await assert.rejects(rejected.result, DatabaseInitializationError);
+  assert.deepEqual(rejected.events, ['schema']);
+
+  const accepted = run(new MemoryPreferences({[INSTALLATION_KEY]: JSON.stringify(adoptedBinding)}), currentInventory, schema());
+  await accepted.result;
+  assert.deepEqual(accepted.events, ['schema', 'open']);
 });
 
 test('initialized signed-in and signed-out relaunches use the same admitted database path', async () => {
@@ -77,14 +100,18 @@ test('foreign owner, wrong mode, missing identity and conflicting candidates can
 });
 
 test('schema failure prevents initialized SDK opening and failed fresh opening leaves no ready binding', async () => {
-  const current = run(new MemoryPreferences({[INSTALLATION_KEY]: JSON.stringify(binding())}), {...inventory(), initializedDatabase: {path, mode: 'native'}}, {...schema(), formatVersion: 99});
-  await assert.rejects(current.result, DatabaseInitializationError);
-  assert.deepEqual(current.events, ['schema']);
-  const fresh = new MemoryPreferences();
-  const invalid = run(fresh, inventory(), {...schema(), storageTables: []});
-  await assert.rejects(invalid.result, DatabaseInitializationError);
-  assert.deepEqual(invalid.events, ['open', 'schema', 'close']);
-  assert.equal(fresh.values[INSTALLATION_KEY], undefined);
+  for (const invalidSnapshot of [{...schema(), formatVersion: 99}, {...schema(), userVersion: 2}]) {
+    const current = run(new MemoryPreferences({[INSTALLATION_KEY]: JSON.stringify(binding())}), {...inventory(), initializedDatabase: {path, mode: 'native'}}, invalidSnapshot);
+    await assert.rejects(current.result, DatabaseInitializationError);
+    assert.deepEqual(current.events, ['schema']);
+  }
+  for (const invalidSnapshot of [{...schema(), storageTables: []}, {...schema(), userVersion: 2}]) {
+    const fresh = new MemoryPreferences();
+    const invalid = run(fresh, inventory(), invalidSnapshot);
+    await assert.rejects(invalid.result, DatabaseInitializationError);
+    assert.deepEqual(invalid.events, ['open', 'schema', 'close']);
+    assert.equal(fresh.values[INSTALLATION_KEY], undefined);
+  }
 });
 
 test('a failed installation-record commit closes the initialized database instead of publishing it', async () => {
@@ -99,6 +126,19 @@ test('native initialized inventory without its matching stored record is rejecte
   const current = run(new MemoryPreferences(), {...inventory(), initializedDatabase: {path, mode: 'native'}});
   await assert.rejects(current.result, /record changed/);
   assert.deepEqual(current.events, []);
+});
+
+test('initialized databases admit exactly legacy or current storage, never partial or foreign tables', async () => {
+  for (const storageTables of [LEGACY_DATABASE_STORAGE_TABLES, DATABASE_STORAGE_TABLES]) {
+    const current = run(new MemoryPreferences({[INSTALLATION_KEY]: JSON.stringify(binding())}), {...inventory(), initializedDatabase: {path, mode: 'native'}}, {...schema(), storageTables});
+    await current.result;
+    assert.deepEqual(current.events, ['schema', 'open']);
+  }
+  for (const storageTables of [LEGACY_DATABASE_STORAGE_TABLES.slice(1), DATABASE_STORAGE_TABLES.slice(1), [...LEGACY_DATABASE_STORAGE_TABLES, 'ps_data__unexpected'], [...DATABASE_STORAGE_TABLES, 'ps_data__unexpected']]) {
+    const current = run(new MemoryPreferences({[INSTALLATION_KEY]: JSON.stringify(binding())}), {...inventory(), initializedDatabase: {path, mode: 'native'}}, {...schema(), storageTables});
+    await assert.rejects(current.result, DatabaseInitializationError);
+    assert.deepEqual(current.events, ['schema']);
+  }
 });
 
 test('iOS initialization binding relocates only inside the same logical application container', () => {

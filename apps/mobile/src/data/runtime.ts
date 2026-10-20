@@ -26,7 +26,7 @@ import { loadLegacyBridge, nativePreferenceStorage } from './native-storage.ts';
 import type { SlaxLegacyBridge } from './native-storage.ts';
 import { PreferenceStore, PREFERENCE_KEYS as K } from './preferences.ts';
 import { MobileRepositories } from './repositories.ts';
-import { createMobileSchema, SYNC_PARAMETERS } from './schema.ts';
+import { createMobileSchema, LEGACY_MOBILE_TABLES, SYNC_PARAMETERS } from './schema.ts';
 import { UpgradeVerificationRequired } from './upgrade.ts';
 import type { AdoptionEvidence, LegacyInventory } from './upgrade.ts';
 
@@ -268,10 +268,13 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       adminCache = new ArticleFileCache(inventory.legacyDataDirectory, value => bridge.md5String(value), undefined, {bytes: async () => 0, remove: async () => {}, clear: () => adminPdf.clear()});
       const {PowerSyncDatabase} = await import('@powersync/react-native');
       const schema = await createMobileSchema();
-      database = await openVerifiedDatabase({inventory, evidence, inspector: bridge, preferences, open: location => activity.whileActive(async () => {
-        const opened = new PowerSyncDatabase({schema, database: {dbFilename: location.dbFilename, dbLocation: location.dbLocation}});
+      let adoptedLegacySchema = false;
+      database = await openVerifiedDatabase({inventory, evidence, inspector: bridge, preferences, open: (location, legacySchema) => activity.whileActive(async () => {
+        adoptedLegacySchema = legacySchema === true;
+        const opened = new PowerSyncDatabase({schema: legacySchema ? await createMobileSchema(LEGACY_MOBILE_TABLES) : schema, database: {dbFilename: location.dbFilename, dbLocation: location.dbLocation}});
         try {await opened.init(); return opened;} catch (error) {await opened.close(); throw error;}
       })});
+      if (adoptedLegacySchema) await database.updateSchema(schema);
       if (stopping) throw new AccountInactiveError();
     })();
     startPromise = (async () => {

@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import {openVerifiedDatabase, DatabaseAdoptionRejected} from '../../src/data/adoption.ts';
 import type {DatabaseSnapshot} from '../../src/data/adoption.ts';
 import type {LegacyInventory} from '../../src/data/upgrade.ts';
-import {MOBILE_TABLES} from '../../src/data/schema.ts';
+import {LEGACY_DATABASE_STORAGE_TABLES, DATABASE_STORAGE_TABLES} from '../../src/data/installation.ts';
 import {PreferenceStore} from '../../src/data/preferences.ts';
 import {MemoryPreferences} from './helpers.ts';
 
 const inventory = {scanComplete: true, databaseCandidates: ['/controlled/powersync.db'], legacyDataDirectory: '/controlled', newDatabaseDirectory: '/controlled/new'};
 const evidence = {databasePath: inventory.databaseCandidates[0]!, legacySdk: 'powersync-kotlin-1.14.1', targetSdk: 'powersync-react-native-2.3.1', schemaVersion: '2', supportedOnDiskAdoption: true, verifiedFixtures: {pendingQueue: true, transactionBoundaries: true, offlineRows: true, localJson: true, reconnectOrder: true}, report: 'synthetic unit profile; this is not native upgrade evidence'} as const;
-const snapshot = (): DatabaseSnapshot => ({databasePath: evidence.databasePath, formatVersion: 14, userVersion: 1, integrityValid: true, storageTables: Object.keys(MOBILE_TABLES).map(table => `${table === 'local_bookmark_info' ? 'ps_data_local__' : 'ps_data__'}${table}`), pendingOperations: 4, pendingTransactions: 2, queueDigest: 'a'.repeat(64), dataDigest: 'b'.repeat(64), localDigest: 'c'.repeat(64)});
+const snapshot = (): DatabaseSnapshot => ({databasePath: evidence.databasePath, formatVersion: 14, userVersion: 1, integrityValid: true, storageTables: LEGACY_DATABASE_STORAGE_TABLES, pendingOperations: 4, pendingTransactions: 2, queueDigest: 'a'.repeat(64), dataDigest: 'b'.repeat(64), localDigest: 'c'.repeat(64)});
 
 test('accepted adoption retains data and checkpoints before exposing the SDK owner', async () => {
   const storage = new MemoryPreferences({auth_token: 'synthetic-session'}), preferences = new PreferenceStore(storage), events: string[] = [];
@@ -37,10 +37,23 @@ test('interrupted opening can resume only while the complete queue and data snap
 });
 test('unknown legacy tables or storage format stop before opening any SDK', async () => {
   let opens = 0;
-  for (const invalid of [{...snapshot(), storageTables: [...snapshot().storageTables, 'ps_data__future_table']}, {...snapshot(), formatVersion: 15}, {...snapshot(), integrityValid: false}]) {
+  for (const invalid of [{...snapshot(), storageTables: [...snapshot().storageTables, 'ps_data__future_table']}, {...snapshot(), formatVersion: 15}, {...snapshot(), userVersion: 0}, {...snapshot(), userVersion: 2}, {...snapshot(), integrityValid: false}]) {
     await assert.rejects(openVerifiedDatabase({inventory, evidence, preferences: new PreferenceStore(new MemoryPreferences()), inspector: {inspectLegacyDatabase: async () => invalid}, open: async () => {opens++; return {close: async () => {}};}}), DatabaseAdoptionRejected);
   }
   assert.equal(opens, 0);
+});
+
+test('adopted initialized databases keep user_version 1 strict', async () => {
+  const previous = {...journal('accepted'), path: currentPath, before: relocatedSnapshot(), profile: evidence.report, schemaVersion: '2'};
+  for (const userVersion of [0, 2]) {
+    let opens = 0, legacyInspections = 0;
+    await assert.rejects(openVerifiedDatabase({inventory: relocatedInventory(), evidence: {...evidence, databasePath: currentPath}, preferences: new PreferenceStore(new MemoryPreferences({_slax_database_adoption_v1: JSON.stringify(previous)})), inspector: {
+      inspectLegacyDatabase: async () => {legacyInspections++; return {...snapshot(), userVersion};},
+      inspectAcceptedDatabase: async () => ({...relocatedSnapshot(), userVersion}),
+    }, open: async () => {opens++; return {close: async () => {}};}}), DatabaseAdoptionRejected);
+    assert.equal(opens, 0);
+    assert.equal(legacyInspections, 1);
+  }
 });
 
 const simulatorPrefix = '/Users/test/Library/Developer/CoreSimulator/Devices/32D9AFE0-32C7-443A-8FEC-3EBB42135386/data/Containers/Data/Application/';
@@ -106,6 +119,29 @@ test('accepted same-owner same-profile startup verifies only schema and leaves t
   assert.deepEqual(events, ['schema', 'open']); assert.equal(storage.revision, 1);
   assert.equal(JSON.parse(String(storage.values._slax_database_installation_v1)).mode, 'adopted');
   assert.deepEqual(JSON.parse(String(storage.values._slax_database_adoption_v1)), previous);
+});
+
+test('accepted adopted databases admit legacy and current table sets before SDK opening', async () => {
+  const previous = {...journal('accepted'), path: currentPath, before: relocatedSnapshot(), profile: evidence.report, schemaVersion: '2'};
+  for (const storageTables of [LEGACY_DATABASE_STORAGE_TABLES, DATABASE_STORAGE_TABLES]) {
+    const events: string[] = [];
+    await openVerifiedDatabase({inventory: relocatedInventory(), evidence: {...evidence, databasePath: currentPath}, preferences: new PreferenceStore(new MemoryPreferences({_slax_database_adoption_v1: JSON.stringify(previous)})), inspector: {
+      inspectLegacyDatabase: async () => {assert.fail('Accepted storage must not re-enter legacy adoption');},
+      inspectAcceptedDatabase: async () => ({...relocatedSnapshot(), storageTables}),
+    }, open: async (_location, legacySchema) => {assert.equal(legacySchema, undefined); events.push('open'); return {close: async () => {}};}});
+    assert.deepEqual(events, ['open']);
+  }
+});
+
+test('fresh Kotlin adoption rejects RSS tables and requests the unchanged legacy schema for checksum verification', async () => {
+  let opened = false;
+  await assert.rejects(openVerifiedDatabase({inventory, evidence, preferences: new PreferenceStore(new MemoryPreferences()), inspector: {
+    inspectLegacyDatabase: async () => ({...snapshot(), storageTables: DATABASE_STORAGE_TABLES}),
+  }, open: async () => {opened = true; return {close: async () => {}};}}), DatabaseAdoptionRejected);
+  assert.equal(opened, false);
+  await openVerifiedDatabase({inventory, evidence, preferences: new PreferenceStore(new MemoryPreferences()), inspector: {
+    inspectLegacyDatabase: async () => snapshot(),
+  }, open: async (_location, legacySchema) => {assert.equal(legacySchema, true); return {close: async () => {}};}});
 });
 
 test('unscoped, old-profile, interrupted and mismatched-schema checkpoints retain full verification', async () => {
