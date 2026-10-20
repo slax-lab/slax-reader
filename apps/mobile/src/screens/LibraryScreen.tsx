@@ -32,13 +32,9 @@ import {libraryIsInteractive} from '../observe/readiness';
 
 const sortKeys = {inbox: 'inbox_title', starred: 'inbox_starred', archived: 'inbox_archive'} as const;
 const bookmarkKey = (item: BookmarkRecord) => item.id;
-const noWidgetSubscribe = () => () => {};
-const idleWidgetSnapshot = Object.freeze({activityActive: false, failed: false});
-const noWidgetSnapshot = () => idleWidgetSnapshot;
 function FeedDivider() {return <Divider inset={24} />;}
 export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
-  const {t, repositories, preferences, runtime, api, sessions, config, fixtureOnly, nativeResourceOwner, upgrade, credentialState, retryStart, systemSurfaces, widgets} = useMobile();
-  const widgetStatus = useSyncExternalStore(widgets?.subscribe ?? noWidgetSubscribe, widgets?.getSnapshot ?? noWidgetSnapshot, widgets?.getSnapshot ?? noWidgetSnapshot);
+  const {t, repositories, preferences, runtime, api, sessions, config, fixtureOnly, nativeResourceOwner, upgrade, credentialState, retryStart, systemSurfaces} = useMobile();
   const dataReady = Boolean(repositories && nativeResourceOwner && upgrade.status === 'ready');
   const telemetry = useTelemetry();
   const markInteractive = useObserveMarkInteractive();
@@ -142,8 +138,8 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
         void systemSurfaces?.donateSuccessfulOpen(item.id, `manual-open-${Date.now()}-${++systemOpenSequence.current}`);
       }
     } else setProcessing(item.url);
-  }, [dataReady, nativeResourceOwner, runtime, repositories, activeId, active?.id, active?.ownerId, blocked, navigation, systemSurfaces, widgets]);
-  const renderBookmark = useCallback(({item}: {item: BookmarkRecord}) => <BookmarkRow item={item} sort={activeId ? 'inbox' : sort} owned={activeId === null} t={t} repositories={repositories} telemetry={telemetry} onOpen={openBookmark} onEdit={setEdit} onMarkRead={activeId === null && widgetStatus.activityActive && widgets ? bookmarkId => widgets.markRead(bookmarkId) : undefined} onError={showError} />, [activeId, sort, t, repositories, telemetry, openBookmark, widgetStatus.activityActive, widgets, showError]);
+  }, [dataReady, nativeResourceOwner, runtime, repositories, activeId, active?.id, active?.ownerId, blocked, navigation, systemSurfaces]);
+  const renderBookmark = useCallback(({item}: {item: BookmarkRecord}) => <BookmarkRow item={item} sort={activeId ? 'inbox' : sort} owned={activeId === null} t={t} repositories={repositories} telemetry={telemetry} onOpen={openBookmark} onEdit={setEdit} onError={showError} />, [activeId, sort, t, repositories, telemetry, openBookmark, showError]);
   const [headerHeight, setHeaderHeight] = useState<{key: string; height: number} | null>(null);
   const headerKey = `${collections.length > 0}:${active && !blocked && shownRows.length ? `${active.id}:${active.name}` : 'own'}:${window.fontScale}`;
   const measureHeader = useCallback((event: {nativeEvent: {layout: {height: number}}}) => {const height = event.nativeEvent.layout.height; setHeaderHeight(previous => previous?.key === headerKey && previous.height === height ? previous : {key: headerKey, height});}, [headerKey]);

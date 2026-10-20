@@ -51,15 +51,7 @@ const config: ExpoConfig = {
   plugins: [
     ['./plugins/with-native-compatibility.cjs', {fixtureMode}],
     ...(!fixtureMode ? ['expo-app-intents'] : []),
-    ...(!fixtureMode ? ['./plugins/with-slax-widget-target.cjs', ['expo-widgets', {
-      bundleIdentifier: 'app.slax.reader.widgets',
-      groupIdentifier: 'group.app.slax.reader',
-      enableAndroid: false,
-      enablePushNotifications: false,
-      frequentUpdates: false,
-      widgets: [],
-    }] as NonNullable<ExpoConfig['plugins']>[number]] : []),
-    ...(!fixtureMode ? ['./plugins/with-slax-android-widget.cjs'] : []),
+    './plugins/with-retire-reading-widgets.cjs',
     ...(firebaseIosConfig || firebaseAndroidConfig ? ['./plugins/with-firebase-bootstrap.cjs'] : []),
     ...(!uiFixture ? [['./plugins/with-share.cjs', {
       apiBaseUrl: process.env.EXPO_PUBLIC_SLAX_API_URL ?? 'https://api-reader.slax.com',

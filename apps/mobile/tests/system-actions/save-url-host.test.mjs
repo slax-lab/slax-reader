@@ -73,13 +73,13 @@ test('cold signed-out receipt stays queued and nonblocking until admitted owner 
   });
 });
 
-test('Android widget stale route presents unavailable recovery and can be discarded', async () => {
+test('Unsupported-platform stale system route presents unavailable recovery and can be discarded', async () => {
   await withNativeHost(async host => {
     let discarded = 0;
     const emptyReceipts = [];
     const controller = {subscribe: () => () => {}, getSnapshot: () => emptyReceipts, activate() {}, receive: async () => {}, dispose() {}};
-    const issue = {id: 'stale-widget', status: 'unavailable'};
-    const router = {subscribe: () => () => {}, getSnapshot: () => issue, receive: async () => {}, discardUnavailable: async id => {assert.equal(id, 'stale-widget'); discarded++;}};
+    const issue = {id: 'stale-system-entry', status: 'unavailable'};
+    const router = {subscribe: () => () => {}, getSnapshot: () => issue, receive: async () => {}, discardUnavailable: async id => {assert.equal(id, 'stale-system-entry'); discarded++;}};
     const ui = {
       SourceText: ({children, testID}) => React.createElement('div', {'data-testid': testID}, children),
       SourceButton: ({label, onPress, testID}) => React.createElement('button', {'data-testid': testID, onClick: onPress}, label),

@@ -10,7 +10,6 @@ import {mobileColors as C, mobileLayout as L, mobileTypography as T} from '../th
 import {mobileTestIds as IDs} from '../theme/testIds';
 import type {SettingsState} from './useSettingsState';
 import type {LabState} from './useRssLab';
-import type {WidgetCoordinatorStatus} from '../widgets/runtime-coordinator';
 
 export interface SettingsViewProps {
   t: ReturnType<typeof createTranslator>;
@@ -22,15 +21,11 @@ export interface SettingsViewProps {
   onDeleteAccount(): void;
   systemSurfaceFailed?: boolean;
   systemSurfaceAvailable?: boolean;
+  systemDiscoveryAvailable?: boolean;
   onRetrySystemSurfaces?(): void;
-  widgetStatus?: WidgetCoordinatorStatus;
-  widgetCanStart?: boolean;
-  onStartWidgetSession?(): void;
-  onStopWidgetSession?(): void;
-  onRetryWidgets?(): void;
 }
 
-export function SettingsView({t, locale, state, rss, pdf, showAdaptivePdfPrototype = false, onDeleteAccount, systemSurfaceFailed, systemSurfaceAvailable = false, onRetrySystemSurfaces, widgetStatus, widgetCanStart, onStartWidgetSession, onStopWidgetSession, onRetryWidgets}: SettingsViewProps) {
+export function SettingsView({t, locale, state, rss, pdf, showAdaptivePdfPrototype = false, onDeleteAccount, systemSurfaceFailed, systemSurfaceAvailable = false, systemDiscoveryAvailable = false, onRetrySystemSurfaces}: SettingsViewProps) {
   return (
     <ScreenSurface testID={IDs.SettingScreen} bottomInset={false} sourceAppBar>
       <ScrollView contentContainerStyle={styles.content}>
@@ -101,7 +96,7 @@ export function SettingsView({t, locale, state, rss, pdf, showAdaptivePdfPrototy
         {Platform.OS === 'ios' && systemSurfaceAvailable ? <View style={[styles.card, styles.labCard]}>
           <View style={[styles.row, styles.labRow]}>
             <SourceText style={T.button}>{t('system_discovery_title')}</SourceText>
-            <SourceSwitch label={t('system_discovery_title')} value={state.systemDiscovery} onChange={state.setSystemDiscovery} />
+            {systemDiscoveryAvailable ? <SourceSwitch label={t('system_discovery_title')} value={state.systemDiscovery} onChange={state.setSystemDiscovery} /> : <SourceText style={T.metadata}>{t('system_discovery_unavailable')}</SourceText>}
           </View>
           <SourceText style={[T.metadata, {color: C.secondaryText, marginBottom: 8}]}>{t('system_discovery_description')}</SourceText>
           <View style={[styles.row, styles.labRow]}>
@@ -110,28 +105,6 @@ export function SettingsView({t, locale, state, rss, pdf, showAdaptivePdfPrototy
           </View>
           <SourceText style={[T.metadata, {color: C.secondaryText}]}>{t('system_donations_description')}</SourceText>
           {systemSurfaceFailed ? <View style={{marginTop: 8}}><SourceText style={[T.metadata, {color: C.danger}]}>{t('system_surface_error')}</SourceText><TextAction label={t('rss_retry')} onPress={onRetrySystemSurfaces ?? (() => {})}/></View> : null}
-        </View> : null}
-        {widgetStatus ? <View style={[styles.card, styles.labCard]}>
-          <View style={[styles.row, styles.labRow]}>
-            <SourceText style={T.button}>{t('widget_title_optin')}</SourceText>
-            <SourceSwitch label={t('widget_title_optin')} value={state.widgetTitles} onChange={state.setWidgetTitles} />
-          </View>
-          <SourceText style={[T.metadata, {color: C.secondaryText, marginBottom: 8}]}>{t('widget_title_description')}</SourceText>
-          <View style={[styles.row, styles.labRow]}>
-            <SourceText style={T.button}>{t('widget_count_optin')}</SourceText>
-            <SourceSwitch label={t('widget_count_optin')} value={state.widgetCount} onChange={state.setWidgetCount} />
-          </View>
-          <SourceText style={[T.metadata, {color: C.secondaryText}]}>{t('widget_count_description')}</SourceText>
-          {widgetStatus.failed ? <View style={{marginTop: 8}}><SourceText style={[T.metadata, {color: C.danger}]}>{t('widget_snapshot_failed')}</SourceText><TextAction label={t('rss_retry')} onPress={onRetryWidgets ?? (() => {})}/></View> : null}
-          {Platform.OS === 'ios' ? <View style={{marginTop: 12}}>
-            <SourceText style={[T.button, {marginBottom: 8}]}>{t('widget_activity_title')}</SourceText>
-            <SourceText style={[T.metadata, {color: C.secondaryText, marginBottom: 8}]}>{t('widget_activity_description')}</SourceText>
-            {widgetStatus.activityActive
-              ? <SourceButton label={t('widget_activity_stop')} tone="surface" onPress={onStopWidgetSession ?? (() => {})} />
-              : widgetCanStart
-                ? <SourceButton label={t('widget_activity_start')} tone="surface" onPress={onStartWidgetSession ?? (() => {})} />
-                : <SourceText style={[T.metadata, {color: C.secondaryText}]}>{t('widget_activity_unavailable')}</SourceText>}
-          </View> : null}
         </View> : null}
         <SourceButton testID={IDs.SettingDeleteAccount} label={t('setting_delete_account')} tone="surface" destructive onPress={onDeleteAccount} style={{minHeight: 55}} />
       </ScrollView>

@@ -2,8 +2,6 @@ import AppIntents
 internal import ExpoAppIntents
 internal import ExpoModulesCore
 
-#if compiler(>=6.4)
-@available(iOS 27.0, macOS 27.0, *)
 struct OpenBookmarkDonationIntent: AppIntent, DonatableAppIntent {
   static let title: LocalizedStringResource = "Open Saved Article"
   static let description = IntentDescription("Open a saved article in Slax Reader.")
@@ -33,4 +31,3 @@ struct OpenBookmarkDonationIntent: AppIntent, DonatableAppIntent {
     return .result()
   }
 }
-#endif

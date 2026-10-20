@@ -27,7 +27,7 @@ struct BookmarkEntityQuery: EntityStringQuery {
   }
 }
 
-@available(iOS 18.0, macOS 15.0, *)
+@available(iOS 17.0, macOS 14.0, *)
 extension BookmarkEntityQuery: EnumerableEntityQuery {
   func allEntities() async throws -> [BookmarkEntity] {
     try await AppIntentEntityStore.shared.entities(ofKind: "bookmark")

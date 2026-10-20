@@ -9,8 +9,6 @@ export interface SettingsState {
   images: boolean;
   systemDiscovery: boolean;
   systemDonations: boolean;
-  widgetTitles: boolean;
-  widgetCount: boolean;
   adaptivePdfPrototype: boolean;
   language: boolean;
   error: string | null;
@@ -18,8 +16,6 @@ export interface SettingsState {
   toggleImages(): void;
   setSystemDiscovery(value: boolean): void;
   setSystemDonations(value: boolean): void;
-  setWidgetTitles(value: boolean): void;
-  setWidgetCount(value: boolean): void;
   setAdaptivePdfPrototype(value: boolean): void;
   showLanguage(): void;
   dismissLanguage(): void;
@@ -55,8 +51,6 @@ export function useSettingsState(
   }, [preferences, scope]);
   const images = (settings.download_images ?? 1) === 1;
   const {discovery: systemDiscovery, donations: systemDonations} = systemSurfacePreferences(settings);
-  const widgetTitles = settings.widget_titles_enabled === true;
-  const widgetCount = settings.widget_count_enabled === true;
   const adaptivePdfPrototype = settings.pdf_dual_page_prototype === true;
 
   return {
@@ -64,8 +58,6 @@ export function useSettingsState(
     images,
     systemDiscovery,
     systemDonations,
-    widgetTitles,
-    widgetCount,
     adaptivePdfPrototype,
     language,
     error,
@@ -73,8 +65,6 @@ export function useSettingsState(
     toggleImages: () => save('download_images', images ? 0 : 1),
     setSystemDiscovery: value => save('system_discovery_enabled', value),
     setSystemDonations: value => save('system_donations_enabled', value),
-    setWidgetTitles: value => save('widget_titles_enabled', value),
-    setWidgetCount: value => save('widget_count_enabled', value),
     setAdaptivePdfPrototype: value => save('pdf_dual_page_prototype', value),
     showLanguage: () => setLanguage(true),
     dismissLanguage: () => setLanguage(false),

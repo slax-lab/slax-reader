@@ -17,8 +17,8 @@ import {SourceLine} from './SourceLine';
 import { SourceMenu } from './SourceMenu';
 
 export type LibrarySort = 'inbox' | 'starred' | 'archived';
-type BookmarkRowProps = {item: BookmarkRecord; sort: LibrarySort; owned: boolean; onOpen(item: BookmarkRecord): void; onEdit(item: BookmarkRecord): void; onMarkRead?(bookmarkId: string): Promise<unknown>; onError(error: unknown): void; t: MobileContextValue['t']; repositories: MobileContextValue['repositories']; telemetry: MobileTelemetry};
-export const BookmarkRow = memo(function BookmarkRow({item, sort, owned, onOpen, onEdit, onMarkRead, onError, t, repositories, telemetry}: BookmarkRowProps) {
+type BookmarkRowProps = {item: BookmarkRecord; sort: LibrarySort; owned: boolean; onOpen(item: BookmarkRecord): void; onEdit(item: BookmarkRecord): void; onError(error: unknown): void; t: MobileContextValue['t']; repositories: MobileContextValue['repositories']; telemetry: MobileTelemetry};
+export const BookmarkRow = memo(function BookmarkRow({item, sort, owned, onOpen, onEdit, onError, t, repositories, telemetry}: BookmarkRowProps) {
   const drawerGesture = useDrawerGesture(), reducedMotion = useReducedMotion();
   const offset = useSharedValue(0), dragStart = useSharedValue(0), dragging = useSharedValue(false), touchX = useSharedValue(0), touchY = useSharedValue(0);
   const generation = useSharedValue(0);
@@ -95,7 +95,6 @@ export const BookmarkRow = memo(function BookmarkRow({item, sort, owned, onOpen,
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, {backgroundColor: '#000000', opacity: flash}]} />
     </Reanimated.View></GestureDetector>
     {owned && menuMounted.current ? <SourceMenu visible={menu} width={180} anchor={anchor} onDismiss={() => setMenu(false)} items={[
-      ...(onMarkRead && !item.isRead ? [{label: t('bookmark_mark_read'), icon: 'ic_xs_tick_gray_outline_icon' as const, onPress: () => perform(() => onMarkRead(item.id), 'bookmark_mark_read_button')}] : []),
       {label: t(item.isStarred ? 'bookmark_unstar' : 'bookmark_star'), icon: item.isStarred ? 'ic_floating_panel_starred' : 'ic_cell_more_star', onPress: () => perform(() => repositories?.updateBookmark(item.id, {isStarred: item.isStarred ? 0 : 1}), 'bookmark_star_button')},
       {label: t(item.archiveStatus ? 'bookmark_unarchive' : 'bookmark_archive'), icon: item.archiveStatus ? 'ic_floating_panel_archieved' : 'ic_cell_more_archieve', onPress: () => perform(() => repositories?.updateBookmark(item.id, {archiveStatus: item.archiveStatus ? 0 : 1}), 'bookmark_archive_button')},
       {label: t('bookmark_edit_title'), icon: 'ic_cell_more_edittitle', onPress: () => {onEdit(item); telemetry.element('bookmark_edit_title_button', 'bookmarks');}},

@@ -16,7 +16,7 @@ The human approved the complete `expo-mobile-migration` proposal on 2026-10-10 a
 | Provider authentication | `expo-apple-authentication`, `react-native-nitro-google-signin`, `react-native-nitro-modules` | Approved |
 | iOS purchases | `expo-iap` | Approved |
 | Firebase wrappers | `@react-native-firebase/app`, `@react-native-firebase/analytics`, `@react-native-firebase/crashlytics` | Approved |
-| Production performance telemetry | SDK-57-compatible `expo-observe`; anonymous installation identity, filtered route parameters, debug/fixture dispatch disabled | Approved in `mobile-eas-observe`; additive to Firebase and first-party telemetry; requires a new native build and does not authorize an EAS Build migration or publication |
+| Production performance telemetry | SDK-58-compatible `expo-observe`; anonymous installation identity, filtered route parameters, debug/fixture dispatch disabled | Approved in `mobile-eas-observe`; additive to Firebase and first-party telemetry; requires a new native build and does not authorize an EAS Build migration or publication |
 
 Required transitive runtime dependencies belong to their approved integration; this does not approve unrelated optional packages. Source-native code may fill gaps. Further optional integrations still require specific human approval before adoption.
 
@@ -28,13 +28,15 @@ On 2026-10-20, the human set remaining interactive validation priority to the iO
 
 The same approved task is now tracked as OpenSpec `update-expo-58` on `feat/update-expo-58`. At delivery, the human separately approved `1.0.25 (774)` and previous build bound 773 from the latest `origin/dev` source metadata. This is a source prior-build bound, not independently verified store history; signing, upload and publication remain separately authorized operations. Board item 11 and `expo-insights` remain excluded.
 
+
+Latest scope decision (2026-10-20): Home/Desktop Widgets and Live Activity are removed/deferred, including their implementation, settings, fixture, bridges/providers and native targets. `expo-widgets` is removed; `@expo/ui` stays because App Intents requires ExpoUI. Spotlight and donations default on for new/unset preferences while preserving explicit false. Generic intent/donation/revocation uses the effective iOS 16.4 floor, Spotlight indexing requires 18, EnumerableEntityQuery requires 17 and only optional reindex callbacks require 27. Settings reports unsupported indexing rather than disabling donation. Earlier approval paragraphs below/above are historical decisions superseded by this narrower scope.
+
 ### Remaining manual acceptance entry points
 
 These checks require a supported native iOS installation and a test account/store environment. They are separate from simulator source/unit validation and are not prerequisites to beginning the approved Duo simulator check.
 
 - **Siri/Shortcuts save:** From a terminated app, invoke “Save a link in Slax Reader” or “Save to Slax Reader” with an HTTP(S) URL. If signed out, complete Login first; return to the queued link and explicitly choose **Claim and save**. Verify the bookmark appears in Library only after the authenticated save completes. Repeat offline, restore connectivity, and use **Retry**; never treat app launch/queue handoff as save success.
-- **System search and suggestions:** Sign in, open the Library drawer’s **Settings** page, enable the system discovery and/or donation controls, and search for a recent eligible bookmark in Spotlight. Open it and verify it resolves in the currently admitted account. Turn the options off and confirm removal/retry behavior in the app; do not rely on OS metadata as authorization.
-- **Widgets and reading session:** On the Library drawer’s **Settings** page, enable only the desired count/title sharing and add the app widget from the supported home-screen gallery. Tap a listed article and verify normal account admission. From the same settings page, explicitly start a reading session, mark an unread inbox item as read from its row menu, and verify the count changes; stop the session and verify it ends. Opening, archiving or deleting an item must not count as a read.
+- **System search and suggestions:** Sign in, open the Library drawer’s **Settings** page, confirm the desired default-on controls (or retain explicit opt-outs), and on iOS 18+ search for a recent eligible bookmark in Spotlight. Open it and verify it resolves in the currently admitted account. Turn the options off and confirm removal/retry behavior in the app; do not rely on OS metadata as authorization.
 - **IAP:** Sign in, open **Library drawer → Subscription**, then use the configured sandbox store account to complete a purchase, cancel a purchase, and restore purchases. Verify entitlement state after each result and that cancellation does not grant entitlement.
 
 The first reply authorized navigation/WebView and SDK 57/iOS 16.4. The second authorized PowerSync/SQLite. The proposal approval explicitly requested implementation. The subsequent reply authorized the three development/system/gesture groups above. Later replies authorized the provider, purchase, and Firebase groups shown in the table.

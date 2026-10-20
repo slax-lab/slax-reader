@@ -5,8 +5,10 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import React from 'react';
 import {motionModules} from './motion-modules.mjs';
+import {safeAreaBoundary} from './safe-area-boundary.mjs';
 
 async function load(file, boundaries = {}) {
+  boundaries['react-native-safe-area-context'] = safeAreaBoundary(boundaries);
   if (file.endsWith('/SourceSheetModal.tsx')) boundaries = {...motionModules(boundaries), ...boundaries};
   const source = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},

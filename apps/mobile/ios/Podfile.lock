@@ -271,9 +271,6 @@ PODS:
     - ExpoModulesCore
     - ExpoModulesWorklets
     - React-RCTFabric
-  - ExpoWidgets (58.0.21):
-    - ExpoModulesCore
-    - ExpoUI
   - EXUpdatesInterface (58.0.1):
     - ExpoModulesCore
   - fast_float (8.0.0):
@@ -2715,7 +2712,6 @@ DEPENDENCIES:
   - "ExpoSensors (from `../../../node_modules/.pnpm/expo-sensors@58.0.4_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_supports-color@_fd5aaaf6d734681fc9659ecab8de677f/node_modules/expo-sensors/ios`)"
   - "ExpoSharing (from `../../../node_modules/.pnpm/expo-sharing@58.0.19_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_supports-color_99abbf6c6475ac8a2f8b894d3555f265/node_modules/expo-sharing/ios`)"
   - "ExpoUI (from `../../../node_modules/.pnpm/@expo+ui@58.0.21_@babel+core@7.29.7_supports-color@10.2.2__expo@58.0.16_react-dom@19.3._89de926a9fa50ceaf754ac8212f2d0ed/node_modules/@expo/ui/ios`)"
-  - "ExpoWidgets (from `../../../node_modules/.pnpm/expo-widgets@58.0.21_@babel+core@7.29.7_supports-color@10.2.2__expo@58.0.16_react-dom@1_32058346eeb1881b553682e83a82cef4/node_modules/expo-widgets/ios`)"
   - "EXUpdatesInterface (from `../../../node_modules/.pnpm/expo-updates-interface@58.0.1_expo@58.0.16/node_modules/expo-updates-interface/ios`)"
   - fast_float (from `build/rndeps-facades/fast_float`)
   - FBLazyVector (from `build/rncore-facades/FBLazyVector`)
@@ -2921,8 +2917,6 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.pnpm/expo-sharing@58.0.19_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_supports-color_99abbf6c6475ac8a2f8b894d3555f265/node_modules/expo-sharing/ios"
   ExpoUI:
     :path: "../../../node_modules/.pnpm/@expo+ui@58.0.21_@babel+core@7.29.7_supports-color@10.2.2__expo@58.0.16_react-dom@19.3._89de926a9fa50ceaf754ac8212f2d0ed/node_modules/@expo/ui/ios"
-  ExpoWidgets:
-    :path: "../../../node_modules/.pnpm/expo-widgets@58.0.21_@babel+core@7.29.7_supports-color@10.2.2__expo@58.0.16_react-dom@1_32058346eeb1881b553682e83a82cef4/node_modules/expo-widgets/ios"
   EXUpdatesInterface:
     :path: "../../../node_modules/.pnpm/expo-updates-interface@58.0.1_expo@58.0.16/node_modules/expo-updates-interface/ios"
   fast_float:
@@ -3165,7 +3159,6 @@ SPEC CHECKSUMS:
   ExpoSensors: c126f95565e222791ba5e9ce8535e4e2ecfad1c3
   ExpoSharing: 50a4b4e2686aa32214ffa1cbf1999b3db86f35e6
   ExpoUI: 2dfa03387386304db67c1fb125c67beec0813ae6
-  ExpoWidgets: b95d4b538c261a43a04045b0c8852bc5be087f17
   EXUpdatesInterface: 1c6a522d0eb0485f4de3fa55d0316288763b3f10
   fast_float: 7c925d1cebf8328d4018d061f49377e9f887e3b4
   FBLazyVector: fdebac2dfe9c53bca49f8218fbdf1e24e36c8be0
@@ -3288,6 +3281,6 @@ SPEC CHECKSUMS:
   SocketRocket: 37aec555668fb852ec12e3c0de59a86ca58f0871
   Yoga: d1c536142c5ff8ec8cd856ab2a7c227a1d875c8e
 
-PODFILE CHECKSUM: eff9d2e6d3e9883cf225f54edf80dde0e52cb982
+PODFILE CHECKSUM: c261c596a7faeaac3480888a14c1d114ef000e74
 
 COCOAPODS: 1.16.2

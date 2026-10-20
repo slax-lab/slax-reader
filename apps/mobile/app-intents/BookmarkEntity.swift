@@ -25,7 +25,6 @@ struct BookmarkEntity: AppEntity {
   }
 }
 
-@available(iOS 18.0, macOS 15.0, *)
 extension BookmarkEntity: AppIntentEntityRecordConvertible {}
 
 @available(iOS 18.0, macOS 15.0, *)

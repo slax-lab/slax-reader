@@ -218,7 +218,7 @@ for (const platform of ['android', 'ios']) test(`actual ${platform} subscription
   const v = views(), screens = [];
   const boundaries = {
     react: React, 'react-native': {...v.primitives, Platform: {OS: platform}, StatusBar: nil, StyleSheet: {create: value => value}, useWindowDimensions: () => ({fontScale: 1})},
-    'expo-app-intents': {isAvailable: () => false, useAppIntents() {}}, './widgets/native-boundary': {createWidgetNativeBoundary: () => undefined},
+    'expo-app-intents': {isAvailable: () => false, useAppIntents() {}},
     '@react-navigation/native': {NavigationContainer: v.native('NavigationContainer'), createNavigationContainerRef: () => React.createRef()}, '@react-navigation/native-stack': {createNativeStackNavigator: () => ({Navigator: v.native('Navigator'), Group: v.native('Group'), Screen: props => {screens.push(props); return null;}})},
     'react-native-gesture-handler': {GestureHandlerRootView: nil}, 'react-native-safe-area-context': {SafeAreaProvider: nil, SafeAreaView: nil}, './runtime': {MobileProvider: nil, useMobile: () => ({t: value => value, upgrade: {status: 'ready'}, session: {status: 'authenticated', session: {userId: 'user'}}})}, './theme': theme, './telemetry': {useTelemetry: () => telemetry}, './components/SourceLine': {SourceLine: nil},
   };

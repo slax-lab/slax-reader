@@ -12,9 +12,7 @@ final class AppIntentsSetup: Module {
         if #available(iOS 18.0, *) {
           AppEntityIdentifierRegistry.shared.registerIndexed("bookmark", as: BookmarkEntity.self)
         }
-        if #available(iOS 27.0, *) {
-          AppIntentDonationRegistry.shared.register("openBookmark", as: OpenBookmarkDonationIntent.self)
-        }
+        AppIntentDonationRegistry.shared.register("openBookmark", as: OpenBookmarkDonationIntent.self)
         AppShortcuts.updateAppShortcutParameters()
       }
     }

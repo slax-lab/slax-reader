@@ -21,7 +21,7 @@ for (const loggedIn of [false, true]) test(`route registration initializes only 
   const primitive = host.native.View;
   const boundaries = {
     react: React, 'react-native': {...host.native, Text: primitive, StatusBar: Screen},
-    'expo-app-intents': {isAvailable: () => false, useAppIntents() {}}, './widgets/native-boundary': {createWidgetNativeBoundary: () => undefined},
+    'expo-app-intents': {isAvailable: () => false, useAppIntents() {}},
     '@react-navigation/native': {NavigationContainer: primitive, createNavigationContainerRef: () => React.createRef()},
     '@react-navigation/native-stack': {createNativeStackNavigator: () => ({Navigator: primitive, Group: primitive, Screen: props => {
       routes.set(props.name, props);

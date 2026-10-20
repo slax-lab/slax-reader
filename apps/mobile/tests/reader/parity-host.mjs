@@ -7,6 +7,7 @@ import ts from 'typescript'
 import React, {act} from 'react'
 import {motionModules} from '../ui/motion-modules.mjs'
 import {observeBoundaries} from './observe-mock.mjs'
+import {safeAreaBoundary} from '../ui/safe-area-boundary.mjs'
 
 const require = createRequire(import.meta.url)
 let domModule = process.env.SLAX_READER_DOM_MODULE
@@ -30,12 +31,12 @@ export async function loadComponent(path, boundaries, globals = {}) {
   boundaries = {
     expo: {requireNativeModule() {throw new Error('Native Expo module unavailable in parity host');}},
     'expo-app-intents': {isAvailable: () => false, useAppIntents() {}, removePendingInvocationAsync: async () => {}, setEntityCatalogAsync: async () => {throw new Error('App Intents unavailable in parity host');}, deleteDonationsAsync: async () => {throw new Error('App Intents unavailable in parity host');}, donateIntentAsync: async () => {throw new Error('App Intents unavailable in parity host');}},
-    'expo-widgets': {}, '@expo/ui/swift-ui': {},
     ...boundaries,
   }
   boundaries = {...observeBoundaries(boundaries), ...motionModules(boundaries), ...boundaries}
+  boundaries['react-native-safe-area-context'] = safeAreaBoundary(boundaries)
   if (path.endsWith('/ReaderOverlays.tsx') && !boundaries['../components/SourceSheetModal']) {
-    boundaries = {...boundaries, '../components/SourceSheetModal': await loadComponent('../../src/components/SourceSheetModal.tsx', {react: boundaries.react, 'react-native': boundaries['react-native'], '../theme': boundaries['../theme'], 'react-native-reanimated': boundaries['react-native-reanimated'], 'react-native-gesture-handler': boundaries['react-native-gesture-handler']}, globals)}
+    boundaries = {...boundaries, '../components/SourceSheetModal': await loadComponent('../../src/components/SourceSheetModal.tsx', {react: boundaries.react, 'react-native': boundaries['react-native'], 'react-native-safe-area-context': boundaries['react-native-safe-area-context'], '../theme': boundaries['../theme'], 'react-native-reanimated': boundaries['react-native-reanimated'], 'react-native-gesture-handler': boundaries['react-native-gesture-handler']}, globals)}
   }
   if ((!boundaries['react-native-reanimated'] || !boundaries['react-native-gesture-handler']) && boundaries['react-native']?.View) {
     const {installedMotionHost} = await import('../ui/installed-motion-host.mjs')

@@ -7,3 +7,10 @@ export function systemSurfacePreferences(settings: PreferenceValues | null) {
     donations: settings !== null && (settings.system_donations_enabled ?? true) === true,
   };
 }
+
+/** Keep the App Intents deployment floor separate from Spotlight's IndexedEntity API. */
+export function systemSurfaceCapabilities(platform: string, version: string | number, nativeAvailable: boolean) {
+  const [major = 0, minor = 0] = String(version).split('.').map(Number);
+  const intents = nativeAvailable && platform === 'ios' && (major > 16 || major === 16 && minor >= 4);
+  return {intents, donations: intents, discovery: intents && major >= 18};
+}

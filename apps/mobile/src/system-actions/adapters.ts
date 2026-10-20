@@ -3,7 +3,6 @@ import {SaveURLController, type SaveReceipt} from './controller';
 import {SystemSurfacesController, type SurfaceState} from './system-surfaces';
 import type {SystemCatalogBookmark} from '../data/repositories/types';
 import {SystemEntryRouter, type SystemEntryReceipt} from './entry-router';
-import {WIDGET_ROUTE_MAP_KEY, type WidgetRouteMap} from '../widgets/route-map.ts';
 
 const JOURNAL_KEY = '_slax_system_action_save_url_v1';
 function decodeJournal(value: unknown): SaveReceipt[] {
@@ -78,8 +77,6 @@ export function createSystemEntryRouter(runtime: MobileDataRuntime, systemSurfac
       const session = runtime.sessions.getSnapshot(), generation = runtime.getNativeResourceOwner();
       if (session.status === 'authenticated' && generation) ownerKey = JSON.stringify([session.session.userId, runtime.api.options.baseUrl]);
       if (typeof value === 'string') {try {const state = JSON.parse(value) as SurfaceState; if (state.catalogOwner === ownerKey || state.donationOwner === ownerKey) mapped = state.catalogIdMap?.[id];} catch {}}
-      const widgetValue = preferences[WIDGET_ROUTE_MAP_KEY];
-      if (!mapped && typeof widgetValue === 'string') {try {const state = JSON.parse(widgetValue) as WidgetRouteMap; if (state.owner === ownerKey) mapped = state.ids[id];} catch {}}
       return mapped ? runtime.getRepositories()?.getSystemBookmark(mapped) ?? null : null;
     },
     navigate(id) {navigate?.(id);}, removeInvocation,

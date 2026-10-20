@@ -49,10 +49,6 @@
     </array>
     <key>CFBundleVersion</key>
     <string>774</string>
-    <key>ExpoWidgetsAppGroupIdentifier</key>
-    <string>group.app.slax.reader</string>
-    <key>ExpoWidgets_EnablePushNotifications</key>
-    <false/>
     <key>FirebaseAutomaticScreenReportingEnabled</key>
     <false/>
     <key>ITSAppUsesNonExemptEncryption</key>
@@ -78,10 +74,6 @@
     <string>Allow $(PRODUCT_NAME) to access your device motion</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>Slax Reader saves images you choose from articles to your photo library.</string>
-    <key>NSSupportsLiveActivities</key>
-    <true/>
-    <key>NSSupportsLiveActivitiesFrequentUpdates</key>
-    <false/>
     <key>RCTMetroPort</key>
     <string>$(RCT_METRO_PORT)</string>
     <key>RCTNewArchEnabled</key>

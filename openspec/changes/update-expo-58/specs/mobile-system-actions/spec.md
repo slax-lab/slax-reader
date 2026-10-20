@@ -46,7 +46,7 @@ Per the explicit human approval on 2026-10-20, system indexing and donations SHA
 #### Scenario: A stored opt-out survives startup
 - **WHEN** either integration has a persisted false preference or preference loading is incomplete
 - **THEN** startup cannot publish through that integration
-- **AND** enabling the other integration does not overwrite that choice or widget preferences
+- **AND** enabling the other integration does not overwrite that choice or the other integration preference
 
 #### Scenario: A catalog entry becomes ineligible
 - **WHEN** content is deleted, made private, or removed by opt-out/account replacement
@@ -61,3 +61,12 @@ Spotlight and intent content entry SHALL wait for current session and navigation
 - **WHEN** the user opens an old system result before navigation or account data is ready
 - **THEN** routing waits and revalidates the identifier under the current account
 - **AND** unavailable content receives an ordinary recovery outcome without revealing another account's data
+
+### Requirement: Each system capability uses its true minimum supported OS
+
+Ordinary save/open intents, entity lookup and donation/revocation SHALL remain available at the effective Expo/project iOS 16.4 floor. Spotlight IndexedEntity publication SHALL require iOS 18 independently. The optional EnumerableEntityQuery conformance SHALL require iOS 17, and optional IndexedEntityQuery reindex callbacks SHALL remain isolated to iOS 27. A newer optional conformance SHALL NOT raise the minimum for ordinary intents or donation. Unsupported Spotlight publication SHALL be skipped while preserving the user's preference and reporting its requirement in Settings, without turning ordinary donation into a recurring failure.
+
+#### Scenario: Donation remains available before Spotlight indexing
+- **WHEN** an admitted iOS 16.4–17 session has loaded default-on preferences and valid credentials
+- **THEN** successful user actions can be donated and revoked using the supported intent API
+- **AND** unsupported Spotlight indexing is skipped without replacing an explicit opt-out or raising the ordinary intent floor

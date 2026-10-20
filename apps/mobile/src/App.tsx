@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useRef} from 'react';
 import * as AppIntents from 'expo-app-intents';
 import {Platform, StatusBar, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {createNavigationContainerRef} from '@react-navigation/native';
@@ -11,7 +11,6 @@ import type {RootStackParams} from './navigation/types';
 import {useTelemetry} from './telemetry';
 import {SourceLine} from './components/SourceLine';
 import {AppRecoveryScreen} from './screens/AppRecoveryScreen';
-import {createWidgetNativeBoundary} from './widgets/native-boundary';
 import {ObserveNavigationContainer, ObserveRoot} from './observe';
 
 const screens = {
@@ -88,9 +87,8 @@ class RuntimeBoundary extends React.Component<{children: React.ReactNode}, {erro
   }
 }
 function App() {
-  const [widgetBoundary] = useState(createWidgetNativeBoundary);
   return <GestureHandlerRootView style={{flex: 1}}><SafeAreaProvider><StatusBar barStyle="dark-content"/>
-    <RuntimeBoundary><MobileProvider widgetBoundary={widgetBoundary} appIntents={AppIntents}><ApplicationRoutes/></MobileProvider></RuntimeBoundary>
+    <RuntimeBoundary><MobileProvider appIntents={AppIntents}><ApplicationRoutes/></MobileProvider></RuntimeBoundary>
   </SafeAreaProvider></GestureHandlerRootView>;
 }
 export default ObserveRoot.wrap(App);
