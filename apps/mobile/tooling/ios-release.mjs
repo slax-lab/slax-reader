@@ -120,7 +120,7 @@ export function firebaseReleaseAdmission(iosRoot = path.join(appRoot, 'ios'), re
   text(infoPath);
   checkFirebaseMetadata(readPlist(path.join(iosRoot, infoPath)), MAIN);
   const main = text(`${name}/AppDelegate.swift`).replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
-  firebaseRequirement(/^\s*import FirebaseCore\s*$/m.test(main) && /didFinishLaunchingWithOptions[\s\S]*?FirebaseApp\.configure\(\)\s*\n\s*factory\.startReactNative\(/.test(main), 'main AppDelegate lacks Firebase initialization before React Native startup');
+  firebaseRequirement(/^\s*import FirebaseCore\s*$/m.test(main) && /didFinishLaunchingWithOptions[\s\S]*?FirebaseApp\.configure\(\)/.test(main) && /FirebaseApp\.configure\(\)[\s\S]*?(?:factory\.startReactNative\(|super\.application\()/.test(main), 'main AppDelegate lacks Firebase initialization before React Native startup');
   const crashPhase = phases.find(phase => phase.isa === 'PBXShellScriptBuildPhase' && phase.name === '[CP-User] [RNFB] Crashlytics Configuration');
   const crashScript = crashPhase?.shellScript?.replace(/^\s*#.*$/gm, '') ?? '';
   firebaseRequirement(String(crashPhase?.runOnlyForDeploymentPostprocessing) === '0' && /^\s*"\$\{PODS_ROOT\}\/FirebaseCrashlytics\/run"\s*$/m.test(crashScript) && crashPhase.inputPaths?.some(value => value.includes('DWARF_DSYM_FILE_NAME')), 'main target lacks the active Crashlytics symbol-upload phase');

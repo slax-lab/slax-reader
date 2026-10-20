@@ -1,7 +1,7 @@
 import AppIntents
 internal import ExpoAppIntents
 
-struct OpenBookmarkIntent: AppIntent {
+struct OpenBookmarkIntent: OpenIntent {
   static let title: LocalizedStringResource = "Open Saved Article"
   static let description = IntentDescription("Open a saved article in Slax Reader.")
   static let openAppWhenRun = true

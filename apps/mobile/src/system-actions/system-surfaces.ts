@@ -34,7 +34,7 @@ export class SystemSurfacesController {
   getSnapshot = () => this.error;
   private report(failed: boolean) {this.error = failed; this.listeners.forEach(listener => listener(failed));}
   private enqueue(work: () => Promise<void>) {const next = this.serial.then(work, work); this.serial = next.catch(() => undefined); return next;}
-  reconcile(enabled: boolean, donationsEnabled: boolean) {
+  reconcile(enabled: boolean, donationsEnabled: boolean, ready = true) {
     this.enabled = enabled; this.donationsEnabled = donationsEnabled;
     const generation = ++this.generation; this.unsubscribe?.(); this.unsubscribe = undefined;
     return this.enqueue(async () => {
@@ -53,6 +53,7 @@ export class SystemSurfacesController {
         } catch {this.report(true); return;}
       }
       if (this.disposed || generation !== this.generation || !key) return;
+      if (!ready) return;
       if (enabled || donationsEnabled) {
         const current = () => !this.disposed && generation === this.generation && ownerKey(this.ports.currentOwner()) === key;
         this.unsubscribe = this.ports.watchSnapshot(rows => {

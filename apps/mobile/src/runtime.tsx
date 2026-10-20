@@ -133,10 +133,16 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
   useEffect(() => {void systemActions.contextChanged();}, [systemActions, userId, runtime.api.options.baseUrl, nativeResourceOwner, upgrade.status, credentialState.status]);
   const surfaceCapabilities = systemSurfaceCapabilities(Platform.OS, Platform.Version, Boolean(appIntents?.isAvailable()));
   const surfacesReady = preferencesLoaded && Boolean(surfaceCapabilities.intents && userId && nativeResourceOwner && upgrade.status === 'ready' && credentialState.status === 'ready');
-  const surfacePreferences = systemSurfacePreferences(surfacesReady ? settings : null);
+  const surfacesKnown = preferencesLoaded && (session.status === 'unauthenticated' || session.status === 'authenticated' && Boolean(nativeResourceOwner) && upgrade.status === 'ready');
+  const surfacePreferences = systemSurfacePreferences(preferencesLoaded ? settings : null);
   const discoveryEnabled = surfacePreferences.discovery && surfaceCapabilities.discovery;
   const donationsEnabled = surfacePreferences.donations && surfaceCapabilities.donations;
-  useEffect(() => {systemSurfaces.activate(); void systemSurfaces.reconcile(discoveryEnabled, donationsEnabled); return () => systemSurfaces.dispose();}, [systemSurfaces, userId, runtime.api.options.baseUrl, nativeResourceOwner, upgrade.status, credentialState.status, discoveryEnabled, donationsEnabled]);
+  useEffect(() => {
+    systemSurfaces.activate();
+    if (!surfacesKnown) return () => systemSurfaces.dispose();
+    void systemSurfaces.reconcile(discoveryEnabled, donationsEnabled, surfacesReady);
+    return () => systemSurfaces.dispose();
+  }, [systemSurfaces, surfacesKnown, userId, runtime.api.options.baseUrl, nativeResourceOwner, upgrade.status, credentialState.status, discoveryEnabled, donationsEnabled, surfacesReady]);
   useEffect(() => {systemEntry.router.activate(); void systemEntry.router.contextChanged(); return () => systemEntry.router.dispose();}, [systemEntry, userId, nativeResourceOwner, runtime.api.options.baseUrl, upgrade.status, credentialState.status]);
   useEffect(() => {
     let mounted = true;
