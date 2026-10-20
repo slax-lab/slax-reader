@@ -8,6 +8,12 @@
 
 **Migration**: Labs visibility is defined by `All translated Labs controls are visible`. Existing enabled state, enablement timestamps, and save/upload gates are unchanged.
 
+### Requirement: Labs navigation matches visible content
+
+**Reason**: The rule is restated with navigation tied to translated rows; the old wording described key-hidden rows that no longer exist.
+
+**Migration**: `Labs navigation follows translated rows` carries the same card, navigation, loading, and deep-link behavior.
+
 ## ADDED Requirements
 
 ### Requirement: All translated Labs controls are visible
@@ -26,6 +32,18 @@ Web Settings SHALL show every Labs row returned by the account's Labs response t
 - **WHEN** the response includes other feature keys
 - **THEN** translated features remain eligible for display and untranslated features remain absent
 
+### Requirement: Labs navigation follows translated rows
+
+Settings SHALL expose the Labs card and Features navigation destination only while at least one translated Labs row exists. Untranslated-only and empty responses SHALL leave no visible empty Features section, empty Labs card, or focusable navigation link to that section. Labs loading SHALL still occur when no visible rows are initially available.
+
+#### Scenario: Only untranslated rows are returned
+- **WHEN** the loaded response contains only features without translated names
+- **THEN** Settings shows neither the Labs card nor a visible Features heading or navigation link
+
+#### Scenario: Visible Labs arrive asynchronously
+- **WHEN** Settings initially has no loaded features and a later Labs response includes RSS
+- **THEN** RSS and the Features navigation destination become available normally
+
 ## MODIFIED Requirements
 
 ### Requirement: Settings visibility does not change entitlement
@@ -43,18 +61,6 @@ Showing Labs rows SHALL NOT remove features from the account's loaded Labs state
 #### Scenario: Remaining feature toggle fails
 - **WHEN** saving an RSS toggle change fails
 - **THEN** the control rolls back and reports its existing failure feedback without changing other features
-
-### Requirement: Labs navigation matches visible content
-
-Settings SHALL expose the Labs card and Features navigation destination only while at least one translated Labs row exists. Untranslated-only and empty responses SHALL leave no visible empty Features section, empty Labs card, or focusable navigation link to that section. Labs loading SHALL still occur when no visible rows are initially available.
-
-#### Scenario: Only hidden rows are returned
-- **WHEN** the loaded response contains only features without translated names
-- **THEN** Settings shows neither the Labs card nor a visible Features heading or navigation link
-
-#### Scenario: Visible Labs arrive asynchronously
-- **WHEN** Settings initially has no loaded features and a later Labs response includes RSS
-- **THEN** RSS and the Features navigation destination become available normally
 
 ### Requirement: Settings deep links remain safe
 

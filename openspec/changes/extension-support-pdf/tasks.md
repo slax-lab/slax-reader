@@ -95,7 +95,7 @@ Verification: `vue-tsc --noEmit` passes and the extension unit suite passes (23 
 ## 12. Restore the PDF Labs switch
 
 - [x] 12.1 Archive the merged `hide-youtube-pdf-labs` change (PR #212) so its settings visibility rules become a living spec, then modify them here: show the PDF bookmarks row and keep YouTube hidden, with matching Settings navigation and deep-link behavior. The Settings delta was later removed by `unhide-youtube-labs`, which now owns that capability.
-- [x] 12.2 Narrow the Web Settings visibility predicate to `youtube` only and update its component, composable and page tests, including a case that PDF renders and toggles with a `lab:pdf` enable request.
+- [x] 12.2 Narrow the Web Settings visibility predicate to `youtube` only and update its component, composable and page tests, including a case that PDF renders and toggles with a `lab:pdf` enable request. `unhide-youtube-labs` later removed that predicate; all translated Labs rows are visible.
 - [x] 12.3 Update the Extension's Labs-disabled copy in both locales to point users to Settings > Labs instead of saying the switch may be hidden, and reconcile the proposal, design and saving spec with the visible switch.
 
 Verification: the three Web suites for Labs pass (57 tests). Strict OpenSpec validation is rerun after these edits. This lifts the earlier temporary hiding of `pdf`; the Labs entitlement and backend gate are unchanged.

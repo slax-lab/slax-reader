@@ -73,7 +73,7 @@ For direct file upload, load existing read-only `GET /v1/user/labs` and expose t
 
 For online URLs, do not apply PDF gating based on suffix or an unavailable collector. Submit through the existing URL path and let response detection and the backend enforce acquisition policy; report synchronous errors and make clear that queued saves may later fail. Existing PDFs remain readable under existing access rules.
 
-The parallel settings-visibility work hides the PDF toggle without removing the server gate. Consequently users without existing opt-in cannot acquire PDFs through this extension; a settings link is guidance only, not a promise that an enable control exists. Show a truthful unavailable-for-account message when blocked, never auto-enable, expose a replacement enable toggle, or bypass the server. Availability for new users requires a separate human-approved product/gating change outside this proposal.
+At implementation time the parallel settings-visibility work hid the PDF toggle without removing the server gate; `unhide-youtube-labs` now shows it. Users without opt-in still cannot acquire PDFs through this extension until they turn the switch on; the settings link is guidance, not an automatic opt-in. Show a truthful unavailable-for-account message when blocked, never auto-enable, expose a replacement enable toggle, or bypass the server. Availability for new users requires a separate human-approved product/gating change outside this proposal.
 
 ### 6. Bind operations and privileged messages to trusted sources
 
