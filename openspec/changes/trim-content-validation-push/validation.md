@@ -18,6 +18,6 @@
 
 Change ID: `trim-content-validation-push`, matched to the result-card and quality-summary diff.
 
-- Bugs: message assembly retains title, URL, issue type, and description plus the issue-type gating; the summary handles scored, unlabeled, and unavailable reviews. No Important findings.
-- Security: the card no longer includes the AI confidence, evidence list, or screenshot link, and no new data is logged or exposed. No Important findings.
+- Bugs: message assembly retains title, URL, issue type, description, and the screenshot preview link plus the issue-type gating; the summary handles scored, unlabeled, and unavailable reviews. No Important findings.
+- Security: the card no longer includes the AI confidence or evidence list, and no new data is logged or exposed. No Important findings.
 - Compliance: implementation matches the proposal and the `content-validation-alerts` delta; all tasks are complete; API-only changes do not affect CLI, Extension, or Mobile package output. No Important findings.

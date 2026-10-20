@@ -233,7 +233,8 @@ export class ContentValidationWorkflow extends WorkflowEntrypoint<Env, ContentVa
             `**URL**: ${url}\n` +
             `**AI 分析结果**: ${result.issue_type}\n` +
             `**AI DESC**: ${result.description}\n` +
-            `**解析质量点评**: ${formatArticleQualitySummary(qualityReview)}`
+            `**解析质量点评**: ${formatArticleQualitySummary(qualityReview)}\n` +
+            `[📸 截图预览](${imageUrl})`
         )
       } catch (e) {
         console.error(`Failed to process validation result for bookmark ${bookmarkId}: ${e}`)

@@ -2,13 +2,13 @@
 
 ## Why
 
-The Content Validation card sent to the operations group includes every parser comparison, the AI confidence and evidence list, and a screenshot link. Routine cards are long and hard to scan even though operators only act on the issue type, the AI description, and the overall parse completeness.
+The Content Validation card sent to the operations group includes every parser comparison plus the AI confidence and evidence list. Routine cards are long and hard to scan even though operators only act on the issue type, the AI description, the overall parse completeness, and the screenshot preview.
 
 ## What Changes
 
-- Trim the Content Validation result card to title, URL, AI issue type, AI description, and a one-line parse quality summary.
+- Trim the Content Validation result card to title, URL, AI issue type, AI description, a one-line parse quality summary, and the screenshot preview link.
 - Present the parse quality summary as `综合完整度 <percent>% （来自<parser>）` using the selected parser, and keep the existing unavailable-score explanation when no score exists.
-- Remove the AI confidence, AI evidence, and screenshot preview fields from the result card.
+- Remove the AI confidence and AI evidence fields from the result card.
 - Keep issue classification gating and bookmark step events unchanged.
 
 ## Capabilities

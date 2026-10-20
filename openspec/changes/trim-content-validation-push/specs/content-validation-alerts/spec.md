@@ -8,17 +8,17 @@ Report Content Validation outcomes to the operations group with a concise card t
 
 ### Requirement: Concise validation result card
 
-The Content Validation result card SHALL contain the bookmark title, URL, AI issue type, AI description, and a one-line parse quality summary. It SHALL NOT include the AI confidence, the AI evidence list, or a screenshot preview link.
+The Content Validation result card SHALL contain the bookmark title, URL, AI issue type, AI description, a one-line parse quality summary, and the screenshot preview link. It SHALL NOT include the AI confidence or the AI evidence list.
 
 #### Scenario: Validation completes without issues
 
 - **WHEN** AI validation completes and reports issue type `none`
-- **THEN** the card contains the title, URL, `none`, the AI description, and the one-line parse quality summary
+- **THEN** the card contains the title, URL, `none`, the AI description, the one-line parse quality summary, and the screenshot preview link
 
 #### Scenario: Validation finds an issue
 
 - **WHEN** AI validation reports an issue with high confidence
-- **THEN** the card contains the same five fields and reports the issue type and AI description
+- **THEN** the card contains the same fields and reports the issue type and AI description
 
 ### Requirement: One-line parse quality summary
 

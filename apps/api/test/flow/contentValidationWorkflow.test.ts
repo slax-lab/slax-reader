@@ -125,7 +125,6 @@ describe('ContentValidationWorkflow 解析质量点评', () => {
     expect(message).toContain('**AI DESC**: 正常')
     expect(message).not.toContain('AI 置信度')
     expect(message).not.toContain('AI 证据')
-    expect(message).not.toContain('截图预览')
-    expect(message).not.toContain('images.example.com')
+    expect(message).toContain('[📸 截图预览](https://images.example.com/assets/screenshots/bookmark.jpg)')
   })
 })
