@@ -8,9 +8,11 @@ Real native startup exposed an existing admission mismatch: the current SDK crea
 
 ## Version decision
 
-The human explicitly declined an additional Mobile version bump. Native acceptance ran with version `1.0.25`, build `771`, previous build `770`. Integration with the latest `dev` inherits its already assigned version `1.0.25`, build `773`, previous build `772`; this task introduces no version metadata difference relative to that base. CLI and Extension shipped behavior are unaffected.
+The latest human decision explicitly approves a one-build increment for this follow-up release: keep Mobile version `1.0.25`, increase `buildNumber` from the rebased `dev` baseline's `775` to `776`, and set `previousBuildNumber` to `775`. This supersedes the earlier no-additional-bump decision. The previous bound is the approved source build, not independently verified store publication history. CLI and Extension shipped behavior are unaffected.
 
-Mobile CI performs checks and JavaScript bundle validation. The separate EAS workflow triggers cloud builds with automatic TestFlight/Play internal submission only after a `dev` push increases `buildNumber` and Mobile CI passes. This task adds no build-number increase relative to `dev`, so its merge alone does not qualify for that trigger. No cloud build, signing, submission, or store publication is performed by this task.
+Earlier native acceptance used `1.0.25`, build `771`, previous `770`; the first integration inherited `773`/`772`, and the Expo 58 rebase onto `origin/dev@9b472335` inherited `775`/`774`. These remain historical validation inputs.
+
+Mobile CI performs checks and JavaScript bundle validation. The separate EAS workflow triggers cloud builds with automatic TestFlight/Play internal submission after a `dev` push increases `buildNumber` and Mobile CI passes. This PR's approved increase now qualifies for that existing trigger when merged and validated, subject to the workflow's configured credentials. This local task does not directly trigger a cloud build, sign, upload or submit an artifact; public store release still follows its existing manual flow.
 
 ## Production rollout checklist
 

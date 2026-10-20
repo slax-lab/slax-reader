@@ -62,3 +62,5 @@
 - [x] 9.4 Cache the Labs response for the current browser account, coalesce concurrent page consumers, reject late responses from a replaced account, and refresh explicitly in settings without polling Labs from RSS.
 - [x] 9.5 Confirm the actual local service ACTIVE Sync Config includes `rss_v1`, then inspect the authenticated Web page and measure request counts across initialization, source changes and a full automatic-check interval; preserve existing browser data and local configuration.
 - [x] 9.6 Diagnose the deployed test environment's missing article rows, attempt isolated service reproduction with a small-model agent, verify recovery against the actual remote stream, and document the evidence and limits without resetting client or source databases; remove all new task-owned service resources.
+
+- [x] 9.7 Apply the subsequent explicit one-build release approval (`1.0.25`, build `776`, previous `775`), regenerate native metadata through the existing tooling, and verify main/share version agreement without running Android or native builds.
