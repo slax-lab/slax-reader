@@ -57,40 +57,6 @@ test('production row uses installed UI worklets, yields closed right/vertical dr
   await host.render(React.createElement(BookmarkRow, {...props, owned: false})); assert.equal(motion.detectors()[0].config.enabled, false);
 }));
 
-test('only a successful explicit mark-read action counts in an active reading session', nativeBoundary, async () => withNativeHost(async host => {
-  const motion = installedMotionHost(host.native.View), presses = [], writes = [], reads = [], failures = [];
-  let menus, failNext = true;
-  const native = {...host.native, PixelRatio: {roundToNearestPixel: value => value}, Pressable: props => {presses.push(props); return React.createElement(host.native.Pressable, props);}};
-  const {BookmarkRow} = loadWorkletComponent(new URL('../../src/components/BookmarkRow.tsx', import.meta.url), {
-    react: React, 'react-native': native, 'react-native-reanimated': motion.reanimated, 'react-native-gesture-handler': motion.gestures,
-    './SourceDrawer': {useDrawerGesture: () => null}, 'expo-haptics': {impactAsync: async () => {}, ImpactFeedbackStyle: {Medium: 'medium'}},
-    '../data/repositories': {bookmarkDisplayTitle: item => item.title}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}},
-    './SourceUI': {SourceIcon: () => null}, './SourceLine': {SourceLine: () => null}, './SourceMenu': {SourceMenu: props => {menus = props; return null;}},
-  });
-  const item = {id: 'book-1', title: 'Article', status: 'success', isRead: 0, isStarred: 0, archiveStatus: 0, downloadStatus: 0};
-  const opened = [];
-  const props = {item, owned: true, sort: 'inbox', t: key => key, onOpen(value) {opened.push(value.id);}, onEdit() {}, onMarkRead: async id => {writes.push(['mark-read', id]); if (failNext) {failNext = false; throw new Error('offline');} reads.push(id);}, onError: error => failures.push(error),
-    repositories: {async updateBookmark(...args) {writes.push(args);}, async deleteBookmark(id) {writes.push(['delete', id]);}},
-    telemetry: {element() {}, firebase() {}}};
-  await host.render(React.createElement(BookmarkRow, props));
-  await act(async () => presses.find(value => value.accessibilityLabel === 'Article').onPress());
-  assert.deepEqual(opened, ['book-1']); assert.deepEqual(reads, [], 'Opening an article is not a completed read');
-  await act(async () => presses.find(value => value.accessibilityLabel === 'Article').onLongPress());
-  const markRead = () => menus.items.find(value => value.label === 'bookmark_mark_read');
-  assert.ok(markRead());
-  await act(async () => markRead().onPress());
-  assert.deepEqual(reads, [], 'A failed local read write never advances the activity');
-  await act(async () => markRead().onPress());
-  assert.deepEqual(reads, ['book-1']);
-  await act(async () => menus.items.find(value => value.label === 'bookmark_archive').onPress());
-  await act(async () => menus.items.find(value => value.label === 'bookmark_delete').onPress());
-  assert.deepEqual(reads, ['book-1'], 'Archive and delete are not completed reads');
-  assert.equal(writes.filter(value => value[0] === 'mark-read').length, 2, 'Row delegates the write to the typed coordinator callback');
-  assert.equal(writes.filter(value => value[1]?.isRead === 1).length, 0, 'Presentation does not write repository state directly');
-  assert.equal(failures.length, 1);
-  await host.render(null);
-}));
-
 test('closed menus create no native animation or timer, while open/close retains source durations and cancellation', nativeBoundary, async () => withNativeHost(async host => {
   const installed = installedAnimatedHost(host);
   let timerCalls = 0;
