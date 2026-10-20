@@ -30,6 +30,11 @@ A change that alters observable behavior SHALL NOT be presented for review (pull
 - **WHEN** a change touches only documentation, comments, or typos
 - **THEN** it may be presented for review without running-environment verification, stating the exemption in its Test plan
 
+#### Scenario: UI-visible change carries the design verification matrix
+
+- **WHEN** a behavior change alters UI presentation
+- **THEN** the evidence includes screens across the themes, responsive widths, and recorded states that `DESIGN.md` requires, attached as pull request media
+
 #### Scenario: Mobile behavior change requires native acceptance
 
 - **WHEN** a behavior change affects the mobile app
