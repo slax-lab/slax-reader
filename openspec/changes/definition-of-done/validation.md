@@ -31,6 +31,6 @@ Change type: process/tooling (agent rules, review policy, PR template, CI guard)
 
 ## Not validated (declared gaps)
 
-- The new "OpenSpec skill drift check" step has not run in live CI; it will run on this very PR, because editing `agent-config.yml` triggers all guard scopes. Verified locally only.
+- ~~The new "OpenSpec skill drift check" step has not run in live CI~~ — closed on PR #297: the `agent-config drift check` job ran the new step in live CI and passed (log: "OpenSpec skill files match the pinned generator."). Locally drilled before that.
 - The review agent's Compliance step-5 behavior (flagging missing/empty/contradictory evidence) is observable only after merge, on a real behavior-changing PR. The policy text was checked against the spec requirement, but its enforcement quality is unverified.
 - gh v2.99.0+ `--attach` uploads were not exercised — this change produced no media evidence. The machine prerequisite landed separately in PR #287.
