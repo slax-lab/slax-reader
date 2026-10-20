@@ -61,14 +61,17 @@ export class RssService {
     if (!ctx.getUserId()) throw new RssError('not_found', 401)
     if (!(await this.labs.isEnabled(ctx.getUserId(), 'rss'))) throw new RssError('lab_disabled', 403)
   }
-  private async subscription(ctx: ContextManager, row: RssSubscriptionRow): Promise<RssSubscription> {
-    let icon: string | null = null
+  /** Signed favicon proxy URL; failures leave the source without an icon instead of hiding it. */
+  private async icon(ctx: ContextManager, siteUrl: string | null, feedUrl: string): Promise<string | null> {
     try {
-      const site = new URL(row.site_url || row.feed_url)
-      icon = await buildImageProxyUrl(ctx.env, new URL('/favicon.ico', site.origin).href, site.origin, 'rss')
+      const site = new URL(siteUrl || feedUrl)
+      return await buildImageProxyUrl(ctx.env, new URL('/favicon.ico', site.origin).href, site.origin, 'rss')
     } catch {
-      // An invalid site URL or proxy configuration must not hide the subscription.
+      return null
     }
+  }
+  private async subscription(ctx: ContextManager, row: RssSubscriptionRow): Promise<RssSubscription> {
+    const icon = await this.icon(ctx, row.site_url, row.feed_url)
     return {
       id: row.id,
       feed_url: row.feed_url,
@@ -106,7 +109,7 @@ export class RssService {
       claim = reserved.feed!
       const stored = await this.content.store(ctx.env, claim.id, fetched)
       if (stored.unchanged) throw new RssError('invalid_feed')
-      return this.subscription(ctx, await this.repo.finishAdd(ctx.getUserId(), claim, stored, remark))
+      return this.subscription(ctx, await this.repo.finishAdd(ctx.getUserId(), claim, stored, remark, await this.icon(ctx, stored.feed.site_url, url)))
     } catch (error) {
       const failure = error instanceof RssError ? error : new RssError('source_unavailable', 503)
       if (claim) await this.repo.failAdd(claim, failure)
@@ -140,7 +143,8 @@ export class RssService {
       } catch (error) {
         result = error instanceof RssError ? error : new RssError('source_unavailable', 502)
       }
-      await this.repo.finish(row, result)
+      const icon = result instanceof RssError ? null : await this.icon(ctx, result.unchanged ? row.site_url : result.feed.site_url, row.feed_url)
+      await this.repo.finish(row, result, icon)
     } catch (error) {
       if (!(error instanceof RssError)) console.error('RSS refresh commit failed')
     }
@@ -172,6 +176,7 @@ export class RssService {
       image_url: row.image_url,
       published_at: row.published_at?.toISOString() || null,
       first_seen_at: row.first_seen_at.toISOString(),
+      sort_at: row.sort_at.toISOString(),
       bookmark_user_uuid: row.bookmark_user_uuid
     }
   }
@@ -180,9 +185,13 @@ export class RssService {
     const limit = query.limit === undefined ? 20 : Number(query.limit)
     if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new RssError('not_found', 400)
     if (query.fetch_history !== undefined && query.fetch_history !== '1') throw new RssError('not_found', 400)
+    if (query.before !== undefined && (query.cursor !== undefined || !/^[a-f\d-]{36}$/.test(query.before))) throw new RssError('not_found', 400)
     const subscription = query.subscription_id || null
-    const cursor = decodeRssCursor(query.cursor, ctx.getUserId(), subscription)
-    let rows = await this.repo.entries(ctx.getUserId(), subscription, cursor, limit + 1)
+    // Local-first clients continue after their last local entry; reuse the authorized row as the cursor.
+    const anchor = query.before ? await this.repo.entry(ctx.getUserId(), query.before) : null
+    const cursor = anchor ? { at: anchor.sort_at, id: anchor.id } : decodeRssCursor(query.cursor, ctx.getUserId(), subscription)
+    const withHistory = !!anchor
+    let rows = await this.repo.entries(ctx.getUserId(), subscription, cursor, limit + 1, withHistory)
     let feeds = await this.repo.historyFeeds(ctx.getUserId(), subscription)
     if (query.fetch_history === '1' && rows.length < limit) {
       // Bound one click across All feeds; the oldest-checked source is selected first.
@@ -190,7 +199,7 @@ export class RssService {
       await Promise.all(candidates.map(row => this.loadHistory(ctx, row)))
       // Ownership can change while network/R2 work is in flight.
       await this.allowed(ctx)
-      rows = await this.repo.entries(ctx.getUserId(), subscription, cursor, limit + 1)
+      rows = await this.repo.entries(ctx.getUserId(), subscription, cursor, limit + 1, withHistory)
       feeds = await this.repo.historyFeeds(ctx.getUserId(), subscription)
     }
     const page = rows.slice(0, limit)
@@ -199,7 +208,13 @@ export class RssService {
     const hasMore = cachedMore || history.history_status !== 'exhausted'
     return {
       items: page.map(row => this.item(row)),
-      next_cursor: hasMore ? (page.length ? encodeRssCursor(ctx.getUserId(), subscription, page[page.length - 1]) : query.cursor || null) : null,
+      next_cursor: hasMore
+        ? page.length
+          ? encodeRssCursor(ctx.getUserId(), subscription, page[page.length - 1])
+          : anchor
+            ? encodeRssCursor(ctx.getUserId(), subscription, anchor)
+            : query.cursor || null
+        : null,
       has_more: hasMore,
       cached_more: cachedMore,
       ...history

@@ -91,7 +91,7 @@ export default function FixtureApp() {
       subscriptions = [adapter.preferences.subscribe(() => {void refresh();}), adapter.sessions.subscribe(() => {void refresh();})];
       const preparedActions: {action: FixtureAction; handler: string; nativeInteractionVerified: false}[] = [];
       let observedPreferenceValues: Record<string, unknown> | null = null;
-      const recordContext = () => new File(adapter.scopeUri, 'render-context.json').write(JSON.stringify({controlledFixture: true, fixtureVersion: 1, scenario: scenarioName, inputSha256: digest, locale: payload.settings.user_language, observedPreferenceValues, nativeMeasurements: measurements.current, observedRoute: navigationRef.isReady() ? navigationRef.getCurrentRoute() : null, observedNavigationState: navigationRef.isReady() ? {root: navigationRef.getRootState(), canGoBack: navigationRef.canGoBack()} : null, measuredAt: new Date().toISOString(), displayedClock: 'pending-native-frame-inspection', simulatedNetworkAndSync: true, nativeExecution: 'pending-capture', preparedActions, sourceParity: 'unverified'}));
+      const recordContext = () => new File(adapter.scopeUri, 'render-context.json').write(JSON.stringify({controlledFixture: true, fixtureVersion: 1, scenario: scenarioName, inputSha256: digest, locale: payload.settings.user_language, observedPreferenceValues, nativeMeasurements: measurements.current, observedRoute: navigationRef.isReady() ? navigationRef.getCurrentRoute() : null, observedNavigationState: navigationRef.isReady() ? {root: navigationRef.getRootState(), canGoBack: navigationRef.canGoBack()} : null, rssDatabasePersistence: adapter.rssDatabasePersistence, measuredAt: new Date().toISOString(), displayedClock: 'pending-native-frame-inspection', simulatedNetworkAndSync: true, nativeExecution: 'pending-capture', preparedActions, sourceParity: 'unverified'}));
       record.current = recordContext;
       globalThis.__SLAX_UI_FIXTURE__ = {scenario: scenarioName, locale: payload.settings.user_language as 'en'|'zh', inputSha256: digest, scopeUri: adapter.scopeUri, plannedActions: scenario.actions, setSync: adapter.setSync,
         async captureContext() {if (!active) throw new Error('Fixture scope was disposed'); const current = await adapter.preferences.read(); if (!active) throw new Error('Fixture scope was disposed'); observedPreferenceValues = {cache_count: current.cache_count, download_images: current.download_images, user_language: current.user_language}; recordContext(); const raw = await new File(adapter.scopeUri, 'render-context.json').text(); if (!active) throw new Error('Fixture scope was disposed'); return JSON.parse(raw);},
@@ -101,7 +101,7 @@ export default function FixtureApp() {
             if (!active) throw new Error('Fixture scope was disposed');
             const action = (typeof input === 'number' ? scenario.actions[input] : input) as FixtureAction;
             if (!action) throw new Error('Unknown fixture action index');
-            const handler = await adapter.perform(action);
+            const handler = action.kind === 'delete-bookmark' ? (await adapter.deleteBookmark(String(action.id)), 'fixture-runtime') : await adapter.perform(action);
             if (!active) throw new Error('Fixture scope was disposed');
             const result = {handler, nativeInteractionVerified: false as const}; preparedActions.push({action, ...result}); recordContext(); return result;
           } catch (reason) {

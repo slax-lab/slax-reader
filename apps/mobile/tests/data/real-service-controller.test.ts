@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {changesSql, validateSeed} from './adoption-fixtures/tooling/real-service.mjs';
-import {MOBILE_TABLES} from '../../src/data/schema.ts';
+import {LEGACY_MOBILE_TABLES} from '../../src/data/schema.ts';
 import {diffChanges} from '../../src/data/uploader.ts';
 import {readVisibleInputs} from './adoption-fixtures/tooling/visible-producer-project.mjs';
 import {materializedFixtureValuesMatch} from './native-service-materialization.ts';
@@ -21,7 +21,7 @@ test('the real-service SQL boundary quotes values and rejects unrelated tables, 
 });
 
 test('real-service initialization requires all synchronized tables and cannot import local-only metadata', () => {
-  const rows = Object.fromEntries(Object.entries(MOBILE_TABLES).filter(([, value]) => !value.options?.localOnly).map(([name]) => [name, []]));
+  const rows = Object.fromEntries(Object.entries(LEGACY_MOBILE_TABLES).filter(([, value]) => !value.options?.localOnly).map(([name]) => [name, []]));
   assert.equal(validateSeed(rows), rows);
   assert.throws(() => validateSeed({...rows, local_bookmark_info: []}));
   assert.throws(() => validateSeed({...rows, sr_user_tag: [{id: 'tag', private_extra: 'x'}]}));

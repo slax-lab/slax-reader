@@ -1,7 +1,7 @@
 import type {PreferenceStore} from './preferences.ts';
 import type {AdoptionEvidence, DatabaseLocation, DatabaseLogicalIdentity, LegacyInventory} from './upgrade.ts';
 import {verifiedDatabaseLocation} from './upgrade.ts';
-import {createInstallationBinding, DATABASE_STORAGE_TABLES, INSTALLATION_KEY, initializedDatabaseLocation, readInstallationBinding, validateDatabaseSchema} from './installation.ts';
+import {createInstallationBinding, LEGACY_DATABASE_STORAGE_TABLES, INSTALLATION_KEY, initializedDatabaseLocation, readInstallationBinding, supportedStorageTables, validateDatabaseSchema} from './installation.ts';
 
 export interface DatabaseSnapshot {
   databasePath: string; formatVersion: number; userVersion: number; integrityValid: boolean;
@@ -14,7 +14,7 @@ export interface DatabaseInspector {
   inspectAcceptedDatabase?(path: string): Promise<DatabaseSchemaSnapshot>;
 }
 const JOURNAL = '_slax_database_adoption_v1';
-const DATA_TABLES = DATABASE_STORAGE_TABLES;
+const DATA_TABLES = LEGACY_DATABASE_STORAGE_TABLES;
 interface Journal { path: string; phase: 'opening' | 'accepted' | 'failed'; before: DatabaseSnapshot; targetSdk: string; logicalIdentity?: DatabaseLogicalIdentity; profile?: string; schemaVersion?: string }
 export class DatabaseAdoptionRejected extends Error {
   constructor(message: string) {super(message); this.name = 'DatabaseAdoptionRejected';}
@@ -49,7 +49,7 @@ function priorSnapshotAtCurrentPath(previous: Journal, path: string, identity: D
 /** Only the migration coordinator may open an existing file, while holding the native ownership lease. */
 export async function openVerifiedDatabase<T extends {close(): Promise<unknown>}>(options: {
   inventory: LegacyInventory; evidence?: AdoptionEvidence; inspector: DatabaseInspector; preferences: PreferenceStore;
-  open(location: DatabaseLocation): Promise<T>;
+  open(location: DatabaseLocation, legacySchema?: boolean): Promise<T>;
 }): Promise<T> {
   const values = await options.preferences.read();
   const binding = readInstallationBinding(values[INSTALLATION_KEY]);
@@ -58,7 +58,7 @@ export async function openVerifiedDatabase<T extends {close(): Promise<unknown>}
     if (binding.profile !== profile || !options.inspector.inspectAcceptedDatabase) throw new DatabaseAdoptionRejected('The initialized database profile requires recovery');
     const location = initializedDatabaseLocation(binding, options.inventory);
     const path = `${location.dbLocation}/${location.dbFilename}`;
-    validateDatabaseSchema(await options.inspector.inspectAcceptedDatabase(path), path);
+    validateDatabaseSchema(await options.inspector.inspectAcceptedDatabase(path), path, binding.mode);
     return options.open(location);
   }
   if (options.inventory.initializedDatabase) throw new DatabaseAdoptionRejected('The initialized database record changed during startup');
@@ -72,7 +72,7 @@ export async function openVerifiedDatabase<T extends {close(): Promise<unknown>}
   const openAccepted = async (verifySchema = false) => {
     const database = await options.open(location);
     try {
-      if (verifySchema && options.inspector.inspectAcceptedDatabase) validateDatabaseSchema(await options.inspector.inspectAcceptedDatabase(path), path);
+      if (verifySchema && options.inspector.inspectAcceptedDatabase) validateDatabaseSchema(await options.inspector.inspectAcceptedDatabase(path), path, 'native');
       await persistBinding();
       return database;
     } catch (error) {await database.close(); throw error;}
@@ -90,7 +90,7 @@ export async function openVerifiedDatabase<T extends {close(): Promise<unknown>}
     if (!['opening', 'accepted'].includes(previous.phase)) throw new DatabaseAdoptionRejected('Unknown migration checkpoint; original data is retained');
     if (previous.phase === 'accepted' && previous.logicalIdentity && logicalIdentity && previous.profile === options.evidence!.report && previous.schemaVersion === options.evidence!.schemaVersion && options.inspector.inspectAcceptedDatabase) {
       const schema = await options.inspector.inspectAcceptedDatabase(path);
-      if (schema.databasePath === path && schema.formatVersion === 14 && schema.userVersion === 1 && Array.isArray(schema.storageTables) && JSON.stringify([...schema.storageTables].sort()) === JSON.stringify(DATA_TABLES)) return openAccepted();
+      if (schema.databasePath === path && schema.formatVersion === 14 && schema.userVersion === 1 && Array.isArray(schema.storageTables) && supportedStorageTables(schema.storageTables)) return openAccepted();
     }
   }
   const before = await options.inspector.inspectLegacyDatabase(path);
@@ -100,7 +100,7 @@ export async function openVerifiedDatabase<T extends {close(): Promise<unknown>}
   await options.preferences.update(values => {values[JOURNAL] = JSON.stringify(journal);});
   let database: T | undefined;
   try {
-    database = await options.open(location);
+    database = await options.open(location, true);
     const after = await options.inspector.inspectLegacyDatabase(path);
     validateDatabaseSnapshot(after, path);
     if (!unchangedDatabaseData(before, after)) {

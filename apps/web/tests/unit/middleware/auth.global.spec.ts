@@ -2,11 +2,12 @@
 // 覆盖：isServer 短路 / anchor link 短路 / fromAuth 跳过 / toLogin 跳过（已登录情况） / whitelist 跳过 /
 //      未登录 + 非白名单 → navigateTo /login + redirect query / 已登录 + toLogin → redirect param 优先 / 已登录 + toLogin 无 redirect → /bookmarks
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { useNuxtApp } from '#app'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockGet, mockNavigateTo, mockUseRuntimeConfig, mockIsServer } = vi.hoisted(() => ({
   mockGet: vi.fn(),
-  mockNavigateTo: vi.fn((arg: unknown, opts?: unknown) => ({ navigated: true, arg, opts })),
+  mockNavigateTo: vi.fn(),
   mockUseRuntimeConfig: vi.fn(() => ({ app: { baseURL: '/' }, public: { COOKIE_TOKEN_NAME: 'auth_token' } })),
   mockIsServer: { value: false }
 }))
@@ -23,11 +24,15 @@ vi.mock('@vueuse/integrations/useCookies', () => ({
   })
 }))
 
-vi.mock('@commons/frontend-utils/is', () => ({
-  get isServer() {
-    return mockIsServer.value
+vi.mock('@commons/frontend-utils/is', async importOriginal => {
+  const actual = await importOriginal<typeof import('@commons/frontend-utils/is')>()
+  return {
+    ...actual,
+    get isServer() {
+      return mockIsServer.value
+    }
   }
-}))
+})
 
 mockNuxtImport('navigateTo', () => mockNavigateTo)
 mockNuxtImport('useRuntimeConfig', () => mockUseRuntimeConfig)
@@ -69,6 +74,7 @@ function makeRoute(partial: Partial<RouteLoc> = {}): RouteLoc {
 
 async function runMiddleware(to: RouteLoc, from: RouteLoc) {
   // 重新 import 让 mockIsServer 生效（isServer 在模块顶层即被读，但 getter 形式可动态返回）
+  useNuxtApp().$config.public.COOKIE_TOKEN_NAME = 'auth_token'
   const mod = await import('~~/app/middleware/auth.global')
   return mod.default(to as never, from as never)
 }

@@ -40,7 +40,11 @@ export class AccountDatabaseLease implements SqlDatabase {
       const subscription = await stream.subscribe(options);
       if (typeof subscription?.unsubscribe !== 'function') throw new Error('PowerSync did not return a comment subscription handle');
       let released = false;
-      const scoped: SqlSyncStreamSubscription = {unsubscribe: () => {
+      const scoped: SqlSyncStreamSubscription = {waitForFirstSync: subscription.waitForFirstSync ? async signal => {
+        this.assertActive();
+        await subscription.waitForFirstSync!(signal);
+        this.assertActive();
+      } : undefined, unsubscribe: () => {
         if (released) return;
         released = true; this.subscriptions.delete(scoped);
         try {void Promise.resolve(subscription.unsubscribe()).catch(() => {});} catch {}

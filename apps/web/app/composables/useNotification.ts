@@ -1,3 +1,5 @@
+import { readStringCookie } from '~/utils/authCookie'
+
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { registerSW } from 'virtual:pwa-register'
@@ -6,6 +8,7 @@ const useNotification = () => {
   const isSupportedSW = computed(() => 'serviceWorker' in navigator)
   const isSupportedNotification = computed(() => 'Notification' in window)
   const $config = useRuntimeConfig().public
+  const cookies = useCookies()
 
   const registerWorker = async () => {
     if (!isSupportedSW.value) {
@@ -44,14 +47,15 @@ const useNotification = () => {
 
       if (!isGranted) return false
 
-      if (!$config.PUSH_API_PUBLIC_KEY) {
+      const pushPublicKey = typeof $config.PUSH_API_PUBLIC_KEY === 'string' ? $config.PUSH_API_PUBLIC_KEY : ''
+      if (!pushPublicKey) {
         console.error('PUSH_API_PUBLIC_KEY is not set')
         return false
       }
 
       const options = {
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array($config.PUSH_API_PUBLIC_KEY)
+        applicationServerKey: urlBase64ToUint8Array(pushPublicKey)
       }
 
       const subscription = await getSubscription()
@@ -72,8 +76,8 @@ const useNotification = () => {
   }
 
   const initWebsocket = async () => {
-    const cookies = useCookies().get('token')
-    if (!cookies) {
+    const token = readStringCookie($config.COOKIE_TOKEN_NAME, cookies)
+    if (!token) {
       console.warn('[slax] No token found for WebSocket connection')
       return
     }
@@ -83,7 +87,7 @@ const useNotification = () => {
       const sendData = {
         type: 'connect',
         data: {
-          url: `${baseUrl}${RESTMethodPath.CONNECT_MESSAGE}?token=${cookies}`
+          url: `${baseUrl}${RESTMethodPath.CONNECT_MESSAGE}?${new URLSearchParams({ token })}`
         }
       }
       await sendMessage(sendData)

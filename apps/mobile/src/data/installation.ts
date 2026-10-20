@@ -3,7 +3,13 @@ import type {DatabaseLocation, DatabaseLogicalIdentity, LegacyInventory} from '.
 export const INSTALLATION_KEY = '_slax_database_installation_v1';
 export const DATABASE_TARGET_SDK = 'powersync-react-native-2.3.1';
 export const DATABASE_SCHEMA_VERSION = '2';
-export const DATABASE_STORAGE_TABLES = ['sr_user', 'sr_user_tag', 'sr_platform_bind', 'sr_user_notification', 'sr_user_bookmark', 'sr_user_subscription', 'sr_user_collection_subscriber', 'sr_user_collection', 'sr_sharer_setting', 'sr_collection_bookmark', 'sr_user_bookmark_stats', 'sr_bookmark_comment'].map(table => `ps_data__${table}`).concat('ps_data_local__local_bookmark_info').sort();
+export const LEGACY_DATABASE_STORAGE_TABLES = ['sr_user', 'sr_user_tag', 'sr_platform_bind', 'sr_user_notification', 'sr_user_bookmark', 'sr_user_subscription', 'sr_user_collection_subscriber', 'sr_user_collection', 'sr_sharer_setting', 'sr_collection_bookmark', 'sr_user_bookmark_stats', 'sr_bookmark_comment'].map(table => `ps_data__${table}`).concat('ps_data_local__local_bookmark_info').sort();
+
+export const DATABASE_STORAGE_TABLES = [...LEGACY_DATABASE_STORAGE_TABLES, 'ps_data__sr_rss_subscription', 'ps_data__sr_rss_feed', 'ps_data__sr_rss_entry'].sort();
+export function supportedStorageTables(tables: string[]): boolean {
+  const actual = JSON.stringify([...tables].sort());
+  return [LEGACY_DATABASE_STORAGE_TABLES, DATABASE_STORAGE_TABLES].some(expected => actual === JSON.stringify(expected));
+}
 
 export interface DatabaseSchemaSnapshot {
   databasePath: string;
@@ -40,8 +46,9 @@ export function sameDatabaseIdentity(left: DatabaseLogicalIdentity, right: Datab
   return left.owner === right.owner && left.relativePath === right.relativePath && left.relocationPrefix === right.relocationPrefix;
 }
 
-export function validateDatabaseSchema(snapshot: DatabaseSchemaSnapshot, path: string): void {
-  if (!snapshot || snapshot.databasePath !== path || snapshot.formatVersion !== 14 || snapshot.userVersion !== 1 || !Array.isArray(snapshot.storageTables) || JSON.stringify([...snapshot.storageTables].sort()) !== JSON.stringify(DATABASE_STORAGE_TABLES)) throw new DatabaseInitializationError('The established database schema requires recovery');
+export function validateDatabaseSchema(snapshot: DatabaseSchemaSnapshot, path: string, mode: InstallationBinding['mode'] = 'adopted'): void {
+  const validUserVersion = mode === 'native' ? snapshot?.userVersion === 0 || snapshot?.userVersion === 1 : snapshot?.userVersion === 1;
+  if (!snapshot || snapshot.databasePath !== path || snapshot.formatVersion !== 14 || !validUserVersion || !Array.isArray(snapshot.storageTables) || !supportedStorageTables(snapshot.storageTables)) throw new DatabaseInitializationError('The established database schema requires recovery');
 }
 
 export function readInstallationBinding(value: unknown): InstallationBinding | null {
