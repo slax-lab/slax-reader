@@ -24,5 +24,5 @@
 ## 5. Dogfood, validate, and ship
 
 - [x] 5.1 Write this change's own `openspec/changes/definition-of-done/validation.md` following the new contract: commands run and results, what was exercised, and what was NOT verified (for example: the new CI drift check verified locally, not in a live CI run; the review agent's evidence-check behavior observable only after merge). Verify: the file exists and satisfies every clause a reviewer would check under the new `REVIEW.md` step 5.
-- [ ] 5.2 Run the local pre-push review from `REVIEW.md` (all three passes), resolve Important findings, and open the pull request whose body follows the upgraded template with `OpenSpec: definition-of-done`. Verify: the review reports no Important findings and the PR body carries the evidence summary linking `validation.md`.
+- [x] 5.2 Run the local pre-push review from `REVIEW.md` (all three passes), resolve Important findings, and open the pull request whose body follows the upgraded template with `OpenSpec: definition-of-done`. Verify: the review reports no Important findings and the PR body carries the evidence summary linking `validation.md`.
 - [ ] 5.3 [HUMAN] After merge: announce the Definition of Done and the one-time `gh` v2.99.0+ upgrade to the team. Verify: announcement sent in the team's IM channel.
