@@ -8,7 +8,7 @@ Defines when a change counts as done: a behavior change must be exercised in a r
 
 ### Requirement: Behavior changes are exercised in a running environment before review
 
-A change that alters observable behavior SHALL NOT be presented for review (pull request opened or marked ready) until the changed behavior has been exercised in a running environment. The scenarios to exercise SHALL be derived from the change's own delta-spec WHEN/THEN scenarios and proposal intent — they are the acceptance criteria — and from the affected app's documented smoke flows, which guard against regression. The exercise is driven by an agent wherever an agent can operate the environment (browser-use, computer-use, API calls); human verification is reserved for what an agent cannot judge, such as whether behavior matches design intent. Automated checks (typecheck, lint, unit and integration tests) MUST also run, but MUST NOT substitute for exercising the behavior. Declaring a verification gap — naming what was not verified and why — is acceptable; presenting the change with no account of verification is not. A change that touches code without altering observable behavior (a refactor) SHALL record smoke-level verification derived from its diff's touched surface and the affected app's documented smoke flows. Documentation- and typo-scale changes are exempt when they state the exemption.
+A change that alters observable behavior SHALL NOT be presented for review (pull request opened or marked ready) until the changed behavior has been exercised in a running environment. The scenarios to exercise SHALL be derived from the change's own delta-spec WHEN/THEN scenarios and proposal intent — they are the acceptance criteria — and from the affected app's documented smoke flows, which guard against regression. The exercise is driven by an agent wherever an agent can operate the environment (browser-use, computer-use, API calls); human verification is reserved for what an agent cannot judge, such as whether behavior matches design intent. For UI-visible changes this human judgment is a hard precondition for opening the pull request: the human exercises the change hands-on in the agent-prepared running environment, and the adjustment loop closes before the pull request opens — unlike agent-executable verification, this acceptance step has no declared-gap path. Automated checks (typecheck, lint, unit and integration tests) MUST also run, but MUST NOT substitute for exercising the behavior. Declaring a verification gap — naming what was not verified and why — is acceptable; presenting the change with no account of verification is not. A change that touches code without altering observable behavior (a refactor) SHALL record smoke-level verification derived from its diff's touched surface and the affected app's documented smoke flows. Documentation- and typo-scale changes are exempt when they state the exemption.
 
 #### Scenario: Behavior change is verified before its pull request
 
@@ -35,6 +35,11 @@ A change that alters observable behavior SHALL NOT be presented for review (pull
 - **WHEN** a behavior change alters UI presentation
 - **THEN** the evidence includes screens across the themes, responsive widths, and recorded states that `DESIGN.md` requires, attached as pull request media
 
+#### Scenario: UI-visible change is accepted hands-on before its pull request
+
+- **WHEN** a behavior change alters UI presentation or user-facing interaction and its implementation and agent-driven verification are complete
+- **THEN** the agent hands the human a running environment and the acceptance checklist, the human exercises the change hands-on and confirms it matches intent — any requested adjustments implemented and re-verified first — and only then is the pull request opened
+
 #### Scenario: Mobile behavior change requires native acceptance
 
 - **WHEN** a behavior change affects the mobile app
@@ -53,6 +58,11 @@ For a behavior change, the verification SHALL be recorded in `openspec/changes/<
 
 - **WHEN** part of the behavior could not be verified
 - **THEN** `validation.md` names what was not verified and why, and the Test plan says so
+
+#### Scenario: Human acceptance is recorded
+
+- **WHEN** a UI-visible change completes human acceptance
+- **THEN** `validation.md` records who accepted, on what date, and which adjustments were made during acceptance
 
 ### Requirement: Media evidence stays out of git history
 

@@ -71,6 +71,10 @@ The DoD names where "what to exercise" comes from: the change's delta-spec WHEN/
 
 `DESIGN.md` already requires agents to state which themes and responsive widths were verified before completing UI work, and to verify every recorded screen and state for mobile parity — but nothing binds that to evidence. For UI-visible changes, the DoD's evidence pack includes screens across that matrix, attached as pull request media. The division of labor is explicit: the agent produces the visual evidence pack (and may self-check against a design screenshot when one exists); the human judges whether the result matches design intent — the part an agent cannot judge. Extending delta-spec scenarios to describe visuals was rejected: WHEN/THEN scenarios carry behavior well but pixels poorly.
 
+### D11: Human hands-on acceptance precedes the pull request for UI-visible changes
+
+D10's division of labor gets a timing binding: the human's judgment of design intent happens before the pull request opens, not at review time. Screenshots and recordings are information-limited, and first-hand interaction surfaces feedback that often demands immediate adjustment — running that loop before the pull request keeps review focused on code and evidence instead of design discovery. The agent's deliverable at this stage is a running environment plus the acceptance checklist; the human's deliverable is a yes/adjust verdict, and adjustments re-enter implementation and re-verification. The acceptance (who, when, what was adjusted) is recorded in `validation.md` so the later review can see it happened. Unlike agent-executable verification, this step has no declared-gap path: the general "declared gap is acceptable" clause governs what the agent could not exercise, while human acceptance of UI-visible changes is a hard precondition for opening the pull request.
+
 ## Risks / Trade-offs
 
 - The review agent may misjudge evidence adequacy (false Important or false pass) → the declared-gap path is trivial to comply with; `/review` re-runs after fixes; recurring misjudgments are tracked in `REVIEW.md`'s Recurring findings table and promoted into rules by humans.
