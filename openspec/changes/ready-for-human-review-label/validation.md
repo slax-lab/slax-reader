@@ -13,12 +13,14 @@ Change type: CI workflows plus a notification contract (observable behavior: pul
 ## What was exercised
 
 - Both workflow files and the OpenSpec change were statically validated (above).
-- The declared behaviour of the label is exercised end-to-end only after this pull request merges; see the declared gaps.
+- The companion removal workflow ran in a running environment on this pull request's `synchronize` event: run 39400716498 completed successfully, exercising the expected-404 delete path.
+- The repository's configuration guard on this pull request (`agent-config drift check`) passed, which exercised the pinned strict OpenSpec validation and the OpenSpec skill drift guard against a change that edits OpenSpec artifacts.
+- The declared behaviour of the label itself is exercised end-to-end only after this pull request merges; see the declared gaps.
 
 ## Not validated (declared gaps)
 
 - **The gate's label add/remove path cannot run before merge.** `workflow_run`-triggered workflows execute the definition from the default branch (`dev`), so the edited `pr-review-gate.yml` is only live after this pull request merges. Reason: GitHub's default-branch rule for `workflow_run`.
-- **The companion removal workflow** (`ready-for-review-label.yml`) runs on this pull request's `pull_request` events once the pull request exists. Its first observable run is the `opened` event, where the label is absent, so the run exercises the expected-404 path only; a non-trivial removal (label present) requires a pull request that has been gated, which requires the merge above.
+- **The companion removal workflow** (`ready-for-review-label.yml`) runs on this pull request's `pull_request` events once the pull request exists; `opened` is deliberately not one of its triggers. Observed on this pull request: the `synchronize` event from commit `a9d5114` produced a successful run (run 39400716498) that exercised the delete path with the label absent (expected 404). A non-trivial removal (label present) still requires a pull request that has been gated, which requires the merge above.
 - **The Feishu announcement** depends on `slax-lab/slax-notify-bridge` being deployed with the consuming policy change after this pull request merges. Its real-machine checks are tracked in that repository as V15–V17 and here as tasks 2.2–2.5.
 
 ## Review round 1 (PR #301, 2026-10-20)
