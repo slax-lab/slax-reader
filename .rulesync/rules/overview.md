@@ -59,6 +59,17 @@ This repo uses OpenSpec for spec-driven development. Living specs live in `opens
 - Implementation-only changes (refactors, typos, comment/doc tweaks) MAY skip the proposal.
 - After editing specs or changes, run `openspec validate --all --strict`; it must pass before merge.
 
+## Definition of Done
+
+A change that alters observable behavior is done only when the changed behavior has been exercised in a running environment; automated checks (typecheck, lint, unit and integration tests) must also run, but never substitute for the exercise. What to exercise derives from the change's delta-spec WHEN/THEN scenarios and proposal intent — they are the acceptance criteria — plus the affected app's smoke flows in its development doc; a change without an OpenSpec proposal derives smoke-level verification from its diff's touched surface and the affected app's documented smoke flows, and documentation- or typo-scale changes are exempt when they say so.
+
+- Drive the exercise with an agent wherever an agent can operate the environment (browser-use, computer-use, API calls); human verification is reserved for what an agent cannot judge. Declaring a gap — "not verified, because …" — is acceptable evidence; silence is not.
+- Record verification in `openspec/changes/<change-id>/validation.md`: commands run and results, what was exercised in the running environment, and what was not verified with the reason. Summarize it in the pull request's Test plan with a link to that file; pull request bodies follow `.github/PULL_REQUEST_TEMPLATE.md`, never free text.
+- Screenshots and recordings upload with `gh --attach` (requires gh v2.99.0+) and are never committed to git. The text record must stand alone without the media — the automated review evaluates text only, and attachment links rot.
+- UI-visible changes additionally satisfy `DESIGN.md`'s verification matrix (themes, responsive widths, recorded states), and a human exercises the change hands-on in the agent-prepared running environment before the pull request opens: requested adjustments are implemented and re-verified first, the acceptance (who, when, what was adjusted) is recorded in `validation.md`, and this step has no declared-gap path.
+
+Per-app check commands and smoke flows: `docs/web/development.md`, `docs/extension/development.md`, `docs/api/DEVELOPMENT-DOCUMENT-EN.md`, `docs/cli/DEVELOPMENT.md`.
+
 ## Branching and Promotion
 
 The repository has three long-lived environment branches: `dev` (the default branch), `beta`, and `main`. Changes flow `dev` → `beta` → `main` through promotion pull requests, and all three reject direct pushes. Promotion pull requests merge with a **merge commit**, never rebase or squash: rebase and squash forge new SHAs for patches the source branch already carries, and once the histories diverge GitHub's trial-merge gate blocks every merge method until a sync-back merge re-converges them. If a promotion PR reports conflicts from such divergence, merge the target branch back into the source branch first (resolving in favor of the source branch's content), then merge the promotion. Sync-back pull requests merge with a **merge commit** too: a sync-back's entire purpose is making the target branch's tip an ancestor of the source branch, and squash or rebase would forge a new SHA for that tip instead, leaving the divergence — and the blocked promotion — exactly as it was.
@@ -75,6 +86,8 @@ Two structural wrinkles when running promotions. First, the required `PR review 
 `REVIEW.md` at the repo root is the single source of truth for review policy: review passes, Important-vs-Nit calibration, and the compliance pass against the PR's linked OpenSpec change. Any agent asked to review code or a PR MUST read and follow it. Behavior-changing PRs must name their change via an `OpenSpec: <change-id>` line in the PR body. `REVIEW.md` carries review instructions only — when editing it, never add operational documentation (triggers, gates, pausing, budget, troubleshooting); that belongs next to the workflows or in `docs/`.
 
 Agents MUST run the local pre-push review defined in `REVIEW.md` before pushing any behavior-changing diff — on every path, not only when explicitly asked to review. Follow its compliance pass to determine the change-id without a PR body, and resolve Important findings before pushing. This is a prompt-level duty: no hook or gate verifies it, so skipping it silently is a process violation.
+
+The author agent closes the review-feedback loop without waiting for a human IM reminder: poll the pull request's review comments (`gh pr view --comments`), resolve or explicitly answer every Important finding, and push the fixes. Pushing re-triggers the automated review; when no run fires for the pushed head, comment `/review` on the pull request. Human IM reminders are a fallback, not the mechanism.
 
 Review findings that recur are tracked in `REVIEW.md`'s "Recurring findings" section. When a human confirms a repeat, the pattern is promoted into these rules (edit `.rulesync/`, then `pnpm agent:sync`) so authoring agents avoid it from the next session. Agents must never promote patterns into the rules on their own.
 

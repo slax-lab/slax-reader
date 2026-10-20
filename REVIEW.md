@@ -46,6 +46,12 @@ Run this pass both for local pre-push review and for pull request review.
    - If no change-id can be determined for a behavior-changing diff, report that as an Important Compliance finding.
 3. Read `openspec/changes/<change-id>/`: `proposal.md`, `tasks.md`, `design.md` (if present), and the delta specs under `specs/`.
 4. Verify the implementation matches the change's stated intent and that tasks marked complete are actually implemented. Report divergences as Compliance findings.
+5. For a behavior-changing diff, check the verification-evidence trail (see "Definition of Done" in `AGENTS.md`):
+   - For a pull request: the body must follow the repository template and its Test plan must carry a real evidence trail — what was run, what was exercised in a running environment, and what was not verified and why — linking `openspec/changes/<change-id>/validation.md` when the details live there.
+   - For a local pre-push review: hold the change directory's `validation.md` (or the diff's stated exemption) to the same standard before pushing.
+   - A missing Test plan section, an empty or boilerplate evidence trail, or evidence contradicting observable facts (for example claiming a check that CI shows failing) is an Important Compliance finding.
+   - A declared gap ("X was not verified, because Y") is not a finding; whether the declared gap is acceptable is the human reviewer's decision. Implementation-only changes may state the `n/a`/exemption reason instead. This clause covers agent-executable verification only — the human acceptance in the next bullet admits no declared gap.
+   - For UI-visible changes, the trail must also record the human hands-on acceptance that preceded the pull request (who, when, what was adjusted); its absence is an Important Compliance finding.
 
 ## Do not report
 

@@ -49,6 +49,31 @@ jobs:
           OPENSPEC_TELEMETRY: '0'
           OPENSPEC_NO_UPDATE_CHECK: '1'
         if: inputs.full_validation || steps.scope.outputs.openspec == 'true'
+      - name: OpenSpec skill drift check
+        run: |
+          set -euo pipefail
+          # Regenerate the pinned @fission-ai/openspec skill/command files and
+          # fail when they drift from what is committed — the same
+          # regenerate-and-diff pattern as the gh-aw check below. Non-interactive
+          # because the ambient CI env var disables the CLI's prompts.
+          pnpm exec openspec update
+          # Only generated paths are inspected: hand-written files under
+          # .agents/ or .claude/ are not drift.
+          DRIFT=$(git status --porcelain -- \
+            '.agents/skills/' \
+            '.claude/skills/' \
+            '.claude/commands/opsx/')
+          if [ -n "$DRIFT" ]; then
+            echo "::error::OpenSpec skill files are out of date."
+            echo "Run 'pnpm exec openspec update' and commit the result."
+            echo "$DRIFT"
+            exit 1
+          fi
+          echo "OpenSpec skill files match the pinned generator."
+        env:
+          OPENSPEC_TELEMETRY: '0'
+          OPENSPEC_NO_UPDATE_CHECK: '1'
+        if: inputs.full_validation || steps.scope.outputs.openspec == 'true'
       - name: Install gh-aw CLI (pinned)
         uses: github/gh-aw/actions/setup-cli@v0.88.7
         with:
