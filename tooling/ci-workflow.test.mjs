@@ -226,7 +226,7 @@ test('mobile EAS preflight reads declared platforms and the SlaxShare target, no
   `).join('\n'), /SlaxShare/)
 })
 
-test('mobile EAS workflow gates the cloud builds on preflight, Mobile CI, and no auto-submit', () => {
+test('mobile EAS workflow gates the cloud builds on preflight and Mobile CI, then auto-submits', () => {
   const w = workflow('mobile-eas-build')
   assert.deepEqual(w.on.push.branches, ['dev'])
   assert.match(w.concurrency.group, /github\.sha/)
@@ -244,7 +244,8 @@ test('mobile EAS workflow gates the cloud builds on preflight, Mobile CI, and no
   assert.match(build.run, /--platform all/)
   assert.doesNotMatch(build.run, /--platform ios/)
   assert.match(build.run, /--no-wait/)
-  assert.doesNotMatch(build.run, /--auto-submit/)
+  assert.match(build.run, /--profile production/)
+  assert.match(build.run, /--auto-submit(?!-with-profile)/)
   assert.equal(build['working-directory'], 'apps/mobile')
   assert.equal(w.jobs.eas.permissions, undefined)
 })

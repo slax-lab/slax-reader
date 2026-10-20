@@ -34,19 +34,20 @@ The preflight SHALL require `appVersionSource: local`, `build.production.environ
 - **WHEN** the EAS profile, Android platform, share target, or archive rules are invalid
 - **THEN** the preflight fails before EAS is called
 
-### Requirement: Cloud builds cover both platforms and do not publish
+### Requirement: Cloud builds cover both platforms and are submitted for internal testing
 
-The workflow SHALL submit `eas build --platform all --profile production --non-interactive --no-wait`. It SHALL NOT submit to TestFlight or Play. GitHub SHALL provide only `EXPO_TOKEN`; EAS environment/file secrets and credentials remain EAS-owned.
+The workflow SHALL run `eas build --platform all --profile production --non-interactive --no-wait --auto-submit`. Each finished build SHALL be submitted with the `production` submit profile: iOS to TestFlight and Android to the Play internal track. The workflow SHALL NOT submit for App Store review or promote beyond the Play internal track. GitHub SHALL provide only `EXPO_TOKEN`; EAS environment/file secrets, signing credentials and submission credentials remain EAS-owned.
 
 #### Scenario: Successful trigger
 
 - **WHEN** all preconditions pass
-- **THEN** iOS and Android EAS builds are submitted and the workflow exits after submission
+- **THEN** iOS and Android EAS builds are queued with auto-submit and the workflow exits without waiting for them
 
-#### Scenario: Store publication
+#### Scenario: Store submission
 
 - **WHEN** the builds complete on EAS
-- **THEN** no store submission occurs unless a separate authorized operation runs
+- **THEN** the iOS build is uploaded to TestFlight and the Android build to the Play internal track
+- **AND** no App Store review submission or Play promotion beyond the internal track occurs
 
 ### Requirement: Trigger concurrency and visibility
 
