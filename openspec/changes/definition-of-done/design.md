@@ -63,6 +63,10 @@ Its spec deliberately defers policy content to `REVIEW.md` ("This specification 
 
 `.rulesync/rules/mobile-architecture.md` gains the evidence binding (native acceptance results are recorded in `validation.md` like any other verification); the generated `apps/mobile/AGENTS.md` keeps a single clause rather than a parallel process.
 
+### D9: Verification scenarios derive from the change's own spec, then the app's smoke flows
+
+The DoD names where "what to exercise" comes from: the change's delta-spec WHEN/THEN scenarios and proposal intent are the acceptance criteria — their quality is set at proposal review, when a human is already looking — and the affected app's development doc provides the standard smoke surface for regression. A change without an OpenSpec proposal derives smoke-level verification from its diff's touched surface; documentation- and typo-scale changes are exempt outright. This makes the OpenSpec artifacts load-bearing at verification time, not only at implementation time. A fixed global acceptance checklist was rejected: it cannot name change-specific behavior and would rot; curated per-app acceptance runbooks remain a follow-up (Non-Goals).
+
 ## Risks / Trade-offs
 
 - The review agent may misjudge evidence adequacy (false Important or false pass) → the declared-gap path is trivial to comply with; `/review` re-runs after fixes; recurring misjudgments are tracked in `REVIEW.md`'s Recurring findings table and promoted into rules by humans.

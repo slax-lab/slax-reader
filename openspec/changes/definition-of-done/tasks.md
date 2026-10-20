@@ -10,7 +10,7 @@
 ## 2. Review policy and pull request template
 
 - [ ] 2.1 Add step 5 to the Compliance pass in `REVIEW.md`: template/Test-plan presence, empty evidence trail, and evidence contradicting observable facts are Important Compliance findings; a declared "not verified, because" gap is not a finding. Verify: the step matches spec requirement "Review policy enforces the evidence contract" and adds no operational documentation (per `REVIEW.md`'s own scope rule).
-- [ ] 2.2 Upgrade `.github/PULL_REQUEST_TEMPLATE.md`: Test plan comment becomes an explicit evidence requirement (commands run, scenarios exercised, what was not verified and why, link to `validation.md`, media attached not committed); checklist updated accordingly. Verify: the rendered template shows the new Test plan guidance and consistent checklist items.
+- [ ] 2.2 Upgrade `.github/PULL_REQUEST_TEMPLATE.md`: Test plan comment becomes an explicit evidence requirement (commands run, scenarios exercised, what was not verified and why, link to `validation.md`, media attached not committed; documentation/typo-scale changes may write `n/a` with the reason, refactors state diff-derived smoke verification); checklist updated accordingly. Verify: the rendered template shows the new Test plan guidance and consistent checklist items.
 
 ## 3. OpenSpec apply-loop guidance
 

@@ -8,16 +8,26 @@ Defines when a change counts as done: a behavior change must be exercised in a r
 
 ### Requirement: Behavior changes are exercised in a running environment before review
 
-A change that alters observable behavior SHALL NOT be presented for review (pull request opened or marked ready) until the changed behavior has been exercised in a running environment. The exercise is driven by an agent wherever an agent can operate the environment (browser-use, computer-use, API calls); human verification is reserved for what an agent cannot judge, such as whether behavior matches design intent. Automated checks (typecheck, lint, unit and integration tests) MUST also run, but MUST NOT substitute for exercising the behavior. Declaring a verification gap — naming what was not verified and why — is acceptable; presenting the change with no account of verification is not. Implementation-only changes (refactors, typos, documentation) are exempt when they state the exemption.
+A change that alters observable behavior SHALL NOT be presented for review (pull request opened or marked ready) until the changed behavior has been exercised in a running environment. The scenarios to exercise SHALL be derived from the change's own delta-spec WHEN/THEN scenarios and proposal intent — they are the acceptance criteria — and from the affected app's documented smoke flows, which guard against regression. The exercise is driven by an agent wherever an agent can operate the environment (browser-use, computer-use, API calls); human verification is reserved for what an agent cannot judge, such as whether behavior matches design intent. Automated checks (typecheck, lint, unit and integration tests) MUST also run, but MUST NOT substitute for exercising the behavior. Declaring a verification gap — naming what was not verified and why — is acceptable; presenting the change with no account of verification is not. A change that touches code without altering observable behavior (a refactor) SHALL record smoke-level verification derived from its diff's touched surface and the affected app's documented smoke flows. Documentation- and typo-scale changes are exempt when they state the exemption.
 
 #### Scenario: Behavior change is verified before its pull request
 
 - **WHEN** an agent completes a behavior-changing implementation and prepares its pull request
 - **THEN** the pull request is not opened until the changed behavior has been exercised in a running environment, or a verification gap has been declared with its reason
 
-#### Scenario: Implementation-only change is exempt
+#### Scenario: Verification scenarios come from the change's spec
 
-- **WHEN** a change is implementation-only (refactor, typo, documentation)
+- **WHEN** a behavior change carries an OpenSpec change with delta-spec scenarios
+- **THEN** the exercised scenarios cover those WHEN/THEN scenarios and the proposal's intent before the pull request opens
+
+#### Scenario: Non-behavioral code change is smoke-tested from its diff
+
+- **WHEN** a change touches code without altering observable behavior (a refactor) and has no OpenSpec proposal
+- **THEN** the pull request records smoke-level verification of the diff's touched surface and the affected app's documented smoke flows
+
+#### Scenario: Documentation-only change is exempt
+
+- **WHEN** a change touches only documentation, comments, or typos
 - **THEN** it may be presented for review without running-environment verification, stating the exemption in its Test plan
 
 #### Scenario: Mobile behavior change requires native acceptance
