@@ -6,6 +6,7 @@
 - [x] 1.2 Stop deriving publication/revocation from `credentialState.status` in the adapter owner identity; keep credential readiness as a publish gate only.
 - [x] 1.3 Revoke only on explicit opt-out, sign-out, owner/origin change, or ineligible content. Keep catalog, donation IDs and pending receipts when not ready.
 - [x] 1.4 Preserve pending donations across a readiness pause; they remain retryable under the same owner.
+- [x] 1.5 Keep the entry router alive across readiness changes so a pending Spotlight open survives credential/native transitions; dispose it only on account/API-origin replacement or unmount.
 
 ## 2. Fix native registration and open intent
 
@@ -17,6 +18,7 @@
 - [x] 3.1 Add controller tests for background/not-ready preservation, readiness resumption, explicit opt-out, sign-out and owner replacement.
 - [x] 3.2 Cover successful manual and catalog-open donation behavior; native registration is confirmed by the generated provider and extracted metadata.
 - [x] 3.3 Run `pnpm mobile -- check`, targeted system-action tests, `openspec validate --all --strict`, and `git diff --check`; record results in `validation.md`.
+- [x] 3.4 Cover a pending entry invocation across repeated readiness context changes and verify it navigates only after readiness becomes true.
 
 ## 4. Simulator and delivery
 

@@ -29,3 +29,7 @@ When the owner and preference are unchanged but `ready` is false, keep the exist
 ## Open intent
 
 `OpenBookmarkIntent` already has the required `target` parameter and dispatch implementation. Conforming to `OpenIntent` lets Spotlight invoke it with the searched entity and keeps the existing `openBookmark` route as the single navigation path.
+
+## Entry router lifetime
+
+`SystemEntryRouter.dispose()` clears its in-memory pending map. The runtime effect that currently activates and disposes the router also depends on credential and native readiness, so a credential transition during cold start disposes the router after a pending `openBookmark` was received but before it is ready, and the invocation is lost. The router lifetime must follow the account/API-origin lifetime, not readiness. Readiness changes call `contextChanged()` and drain the existing pending map; account or origin replacement disposes the router and clears old pending work before the replacement owner is used.

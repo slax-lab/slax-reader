@@ -143,7 +143,15 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
     void systemSurfaces.reconcile(discoveryEnabled, donationsEnabled, surfacesReady);
     return () => systemSurfaces.dispose();
   }, [systemSurfaces, surfacesKnown, userId, runtime.api.options.baseUrl, nativeResourceOwner, upgrade.status, credentialState.status, discoveryEnabled, donationsEnabled, surfacesReady]);
-  useEffect(() => {systemEntry.router.activate(); void systemEntry.router.contextChanged(); return () => systemEntry.router.dispose();}, [systemEntry, userId, nativeResourceOwner, runtime.api.options.baseUrl, upgrade.status, credentialState.status]);
+  // The router outlives readiness changes; disposing it on a credential transition drops pending Spotlight opens.
+  useEffect(() => {
+    systemEntry.router.activate();
+    void systemEntry.router.contextChanged();
+    return () => systemEntry.router.dispose();
+  }, [systemEntry, userId, runtime.api.options.baseUrl]);
+  useEffect(() => {
+    void systemEntry.router.contextChanged();
+  }, [systemEntry, nativeResourceOwner, upgrade.status, credentialState.status]);
   useEffect(() => {
     let mounted = true;
     const current = () => mounted && runtime.sessions.getSnapshot() === session && runtime.getNativeResourceOwner() === nativeResourceOwner;

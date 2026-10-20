@@ -44,6 +44,28 @@ The indexed bookmark entity and the donatable open intent SHALL be registered sy
 - **THEN** the donation intent is already registered and the donation can be recorded
 - **AND** the open action is not left pending solely because registration was delayed
 
+### Requirement: Pending Spotlight entry survives readiness changes
+
+When a Spotlight open invocation arrives before the app is ready, Mobile SHALL retain it across credential, native-owner and upgrade readiness changes and route it once the current account, data and navigation are ready. An account or API-origin replacement SHALL discard pending entry work instead of navigating it under the replacement owner.
+
+#### Scenario: Cold-start open arrives before credentials are ready
+
+- **WHEN** the system delivers an indexed article open while credentials are still checking
+- **THEN** the invocation remains pending rather than being discarded by the readiness transition
+- **AND** once the account and navigation are ready, the article opens and the invocation is acknowledged
+
+#### Scenario: Credentials pause and resume
+
+- **WHEN** credential readiness pauses and later resumes while an open invocation is pending
+- **THEN** the invocation survives both transitions
+- **AND** it is not routed under a different account or API origin
+
+#### Scenario: Account replacement with pending entry
+
+- **WHEN** the account or API origin changes while an open invocation is pending
+- **THEN** the old invocation is discarded before the replacement owner is used
+- **AND** it cannot navigate content belonging to the previous account
+
 ### Requirement: Spotlight opens the selected entity
 
 The discoverable open action SHALL conform to the platform open-intent contract and SHALL route the selected entity through the existing account-scoped entry router. Invalid or unavailable entities SHALL use the existing recoverable outcome and MUST NOT bypass admission.

@@ -13,6 +13,7 @@ The same flow also delays native App Intents registration inside an asynchronous
 - Resume publication when preferences, session, native ownership, upgrade state and credentials are ready again.
 - Register the indexed entity and donation intent synchronously during `AppIntentsSetup.OnCreate`, before JavaScript can publish or donate.
 - Make `OpenBookmarkIntent` conform to `OpenIntent` so a Spotlight result opens its entity through the existing `openBookmark` route.
+- Keep the entry router alive across credential/native readiness changes; a pending Spotlight open invocation must survive until the app is ready instead of being cleared by a readiness-triggered disposal.
 - Add regression tests for background readiness loss, explicit opt-out, sign-out/owner replacement, donation persistence and resumption.
 - Bump the Mobile release build from `776` to `777` for the authorized TestFlight delivery.
 

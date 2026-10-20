@@ -24,6 +24,17 @@ test('cold Spotlight entry waits for current account admission and navigation re
   assert.equal(f.receipts[0].status, 'complete'); assert.equal(f.events.at(-1), 'receipt');
 });
 
+test('pending entry survives repeated readiness context changes before navigation is ready', async () => {
+  const f = setup(); await f.router.receive([invocation]);
+  assert.equal(f.calls.lookups, 0);
+  await f.router.contextChanged();
+  await f.router.contextChanged();
+  assert.equal(f.calls.lookups, 0);
+  f.ready(true); await f.router.contextChanged();
+  assert.deepEqual(f.events.slice(0, 4), [`lookup:${opaqueId}`, 'navigate:real-bookmark', `donate:${opaqueId}:open-1`, 'receipt']);
+  assert.equal(f.receipts[0].status, 'complete');
+});
+
 test('unavailable bookmark stays unacknowledged until explicit discard', async () => {
   const f = setup(); f.ready(true);
   // Replace the normal lookup with a current-account miss.
