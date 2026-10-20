@@ -2,7 +2,7 @@
 
 ## 1. Workflows
 
-- [x] 1.1 `pr-review-gate.yml`: grant `issues: write`; after posting the status, add `ready-for-human-review` when the current head's status is a passing one and remove it when it is a failure; skip both when the reported commit is not the current head. Verification: YAML parse, diff review, and a real gate run that adds/removes the label.
+- [x] 1.1 `pr-review-gate.yml`: grant `issues: write`; after posting the status, add `ready-for-human-review` for an open, non-draft pull request whose head lives in this repository and whose reported commit is the current head, and remove it otherwise. Verification: YAML parse and diff review; the live add/remove run is deferred to 2.2/2.3 because `workflow_run` workflows only run the default branch's definition.
 - [x] 1.2 Add `.github/workflows/ready-for-review-label.yml`: remove the label on `synchronize`, `reopened`, `ready_for_review`, `converted_to_draft` and `closed`; ignore a missing label. Verification: YAML parse; a push to a ready pull request removes the label.
 - [x] 1.3 `docs/CI.md`: document the label contract and its non-effect on mergeability. Verification: review the rendered section.
 

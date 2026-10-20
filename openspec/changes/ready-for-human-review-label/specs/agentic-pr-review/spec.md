@@ -2,7 +2,7 @@
 
 ### Requirement: The merge gate declares readiness for human review
 
-The system SHALL maintain the label `ready-for-human-review` on a pull request as the explicit state "automated checks finished with no blocker", consumed by notification tooling. The gate workflow MUST add the label when the status it reports for the pull request's **current head** is a passing result and the pull request is not a draft, and MUST remove it when that status is a failure or when the pull request is a draft. A result about a commit that is no longer the pull request's head MUST NOT change the label: only a status for the current head may update what the open pull request says about itself.
+The system SHALL maintain the label `ready-for-human-review` on a pull request as the explicit state "automated checks finished with no blocker", consumed by notification tooling. The gate workflow MUST add the label when the status it reports for the pull request's **current head** is a passing result, the pull request is open, is not a draft, and its head branch lives in this repository; it MUST remove the label when that status is a failure or when the pull request is a draft, is closed, or has a head branch in another repository. The label describes a pull request that can enter human review now, so a passing skip about a pull request that cannot enter human review MUST NOT add it. A result about a commit that is no longer the pull request's head MUST NOT change the label: only a status for the current head may update what the open pull request says about itself.
 
 The label MUST NOT change merge requirements: the required status check remains the only automated gate, and the label neither blocks nor authorises a merge. Adding an already-present label MUST be idempotent and MUST NOT be treated as an error. Removing a label that is not present MUST NOT be treated as an error.
 
@@ -16,6 +16,10 @@ A companion workflow MUST remove the label whenever the verified state no longer
 #### Scenario: A draft is never labelled
 - **WHEN** the review run is declined because the pull request is a draft (a passing skip), or the gate reports any result for a draft pull request
 - **THEN** the pull request does not carry `ready-for-human-review`
+
+#### Scenario: A closed or forked head is never labelled
+- **WHEN** a passing verdict arrives for a pull request that is closed, or whose head branch lives in another repository
+- **THEN** the pull request does not carry `ready-for-human-review`, and an existing label is removed
 
 #### Scenario: A failing gate removes the label
 

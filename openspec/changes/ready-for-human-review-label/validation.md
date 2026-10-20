@@ -7,7 +7,7 @@ Change type: CI workflows plus a notification contract (observable behavior: pul
 ## Commands run
 
 - `python3` YAML load of `.github/workflows/pr-review-gate.yml` and `.github/workflows/ready-for-review-label.yml` with `yaml.BaseLoader`, plus structural assertions on the gate's `permissions.issues`, the step's `READY_LABEL`, the companion's `on.pull_request.types` and its single job → passed.
-- `pnpm exec openspec validate --all --strict` → 52 passed, 0 failed.
+- `pnpm exec openspec validate --all --strict` → 70 passed, 0 failed (branch head; the count includes every active change in the repository).
 - `git diff origin/dev...HEAD` reviewed line by line against the change's delta-spec scenarios (label add, label removal, superseded result, draft exclusion, companion events, non-effect on mergeability).
 
 ## What was exercised
@@ -20,6 +20,17 @@ Change type: CI workflows plus a notification contract (observable behavior: pul
 - **The gate's label add/remove path cannot run before merge.** `workflow_run`-triggered workflows execute the definition from the default branch (`dev`), so the edited `pr-review-gate.yml` is only live after this pull request merges. Reason: GitHub's default-branch rule for `workflow_run`.
 - **The companion removal workflow** (`ready-for-review-label.yml`) runs on this pull request's `pull_request` events once the pull request exists. Its first observable run is the `opened` event, where the label is absent, so the run exercises the expected-404 path only; a non-trivial removal (label present) requires a pull request that has been gated, which requires the merge above.
 - **The Feishu announcement** depends on `slax-lab/slax-notify-bridge` being deployed with the consuming policy change after this pull request merges. Its real-machine checks are tracked in that repository as V15–V17 and here as tasks 2.2–2.5.
+
+## Review round 1 (PR #301, 2026-10-20)
+
+The automated review reported **no Important findings** and five Nits. Four were fixed before the next push:
+
+- `gh label create` now passes `--repo "$REPO"`; without it the call fails in a job with no checkout and the label would silently keep GitHub's default colour and description.
+- The gate now also requires the pull request to be open and its head to live in this repository before adding the label; a `/review` finishing after a merge can no longer label a closed pull request, and a fork's read-only companion can never leave a stale label behind.
+- The companion workflow's header comment and the docs/spec statements about forks were corrected to match the guards above.
+- This evidence trail's stale OpenSpec count and task 1.1's deferred "real gate run" wording were corrected.
+
+One Nit was answered, not fixed: a review run declined *because* the pull request was a draft can label it if the author marks it ready in the seconds before the gate executes (the head does not change, so the superseded-commit guard does not catch it). Closing that window needs the gate to apply its newer-run successor test to the label path as well; that is a larger change to the most sensitive workflow, so it is recorded here rather than folded into this one. The window is seconds long, and the next gate result corrects the label.
 
 ## Pre-push review (REVIEW.md, three passes)
 

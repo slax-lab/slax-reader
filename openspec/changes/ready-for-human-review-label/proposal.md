@@ -8,7 +8,7 @@ The gate already computes the only authoritative verdict, "no automated blocker"
 
 ## What Changes
 
-- `pr-review-gate.yml` maintains the label: a passing status for the pull request's current head adds it, a failing one removes it; a draft pull request never carries it, because it cannot enter human review. Results about a superseded commit never change it.
+- `pr-review-gate.yml` maintains the label: a passing status for the pull request's current head adds it, a failing one removes it; the label only describes a pull request that can enter human review, so a draft, a closed pull request, or one whose head lives in a fork never carries it. Results about a superseded commit never change it.
 - A new `ready-for-review-label.yml` removes the label whenever the verified state no longer applies: a new head, reopen, draft conversion, ready-for-review transition, or close. Its failures are ignored by design: a missing label is the normal path.
 - `docs/CI.md` documents the label contract, including that it does not change merge requirements.
 - The label name is a cross-repository contract with the bridge's per-repository notification policy (implemented in the same change set, separate repository).

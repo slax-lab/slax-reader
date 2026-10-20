@@ -296,17 +296,30 @@ jobs:
           # *current* head, so a verdict about a superseded commit must not change
           # what the open pull request says about itself.
           if [ "$SHA" = "$PR_HEAD" ]; then
-            # A draft pull request cannot enter human review, so it must not carry
-            # this label even when the review was deliberately declined (which is a
-            # passing skip). The extra read is paid only for a passing head.
-            PR_DRAFT=false
+            # A passing verdict is not enough on its own: this label describes a pull
+            # request that can enter human review now, and three conditions can make
+            # that false even for a passing skip. A draft cannot enter review; a
+            # closed pull request no longer can (a `/review` run can finish after a
+            # merge); and a fork's read-only companion could never drop a stale
+            # label. The extra read is paid only for a passing head.
+            PR_STATE=closed
+            PR_DRAFT=true
+            PR_HEAD_REPO=""
             if [ "$state" = "success" ]; then
-              PR_DRAFT=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.draft')
+              PR_INFO=$(gh api "repos/$REPO/pulls/$PR_NUMBER" \
+                --jq '[.state, .draft, .head.repo.full_name] | @tsv')
+              PR_STATE=$(cut -f1 <<<"$PR_INFO")
+              PR_DRAFT=$(cut -f2 <<<"$PR_INFO")
+              PR_HEAD_REPO=$(cut -f3 <<<"$PR_INFO")
             fi
-            if [ "$state" = "success" ] && [ "$PR_DRAFT" != "true" ]; then
+            if [ "$state" = "success" ] && [ "$PR_STATE" = "open" ] \
+              && [ "$PR_DRAFT" != "true" ] && [ "$PR_HEAD_REPO" = "$REPO" ]; then
               # The GitHub API creates a missing label on first use; this call only
-              # gives it a stable colour and description.
+              # gives it a stable colour and description. `--repo` is required: the
+              # job has no checkout, and `gh` resolves the repository from
+              # `--repo`/`GH_REPO`, not from GITHUB_REPOSITORY.
               gh label create "$READY_LABEL" \
+                --repo "$REPO" \
                 --color 0e8a16 \
                 --description "Automated checks passed; ready for human review" \
                 > /dev/null 2>&1 || true

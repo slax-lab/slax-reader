@@ -5,10 +5,10 @@ name: Ready-for-review label
 # notification bridge, so the group is told about a human review only when one can
 # actually start.
 #
-# The gate adds the label (only for the pull request's current head). This workflow
-# only drops it, whenever the verified state no longer applies. A missing label is
-# the normal path and must never fail anything: most pushes happen while the pull
-# request is not ready.
+# The gate adds the label, and only for an open, non-draft pull request whose head
+# lives in this repository. This workflow only drops it, whenever the verified
+# state no longer applies. A missing label is the normal path and must never fail
+# anything: most pushes happen while the pull request is not ready.
 #
 # Fork pull requests receive a read-only token here, so the delete fails silently.
 # That is harmless: the gate never labels a fork pull request, and the bridge
