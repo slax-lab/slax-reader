@@ -138,6 +138,7 @@ describe('bookmark metadata persistence', () => {
     Object.assign(service, {
       bookmarkRepo: {
         createBookmark: vi.fn().mockResolvedValue({ id: 42, status: 'SUCCESS' }),
+        reserveBookmarkWrite: vi.fn().mockResolvedValue({ id: 42, write_version: 1 }),
         createBookmarkRelation: vi.fn().mockResolvedValue({ bookmark_id: 42, created_at: oldDate, deleted_at: null }),
         createBookmarkChangeLog
       },
@@ -167,13 +168,13 @@ describe('bookmark metadata persistence', () => {
     expect(upsert.mock.calls[1][0].update.created_at).toBeInstanceOf(Date)
   })
 
-  it.each([null, new Date('2024-01-01')])('skips an existing bookmark, including trashed entries (%s)', async deletedAt => {
+  it.each([null, new Date('2024-01-01')])('reserves a new private version for an existing imported URL, including trashed entries (%s)', async deletedAt => {
     const service = Object.create(BookmarkService.prototype) as BookmarkService
     const getUserBookmark = vi.fn().mockResolvedValue({ bookmark_id: 42, deleted_at: deletedAt })
-    const createBookmarkBase = vi.fn()
+    const createBookmarkBase = vi.fn().mockResolvedValue({ id: 42, private_user: 1, write_version: 8 })
     Object.assign(service, { bookmarkData: { getBookmark: vi.fn().mockResolvedValue({ bookmark_id: 42 }), getUserBookmark }, createBookmarkBase, labService })
-    expect(await service.addUrlBookmarkItem(createMockCtx(), { target_url: 'https://example.com/a', tags: [], import_only: true })).toBeNull()
-    expect(createBookmarkBase).not.toHaveBeenCalled()
+    expect(await service.addUrlBookmarkItem(createMockCtx(), { target_url: 'https://example.com/a', tags: [], import_only: true })).toMatchObject({ bookmarkId: 42, privateUser: 1, writeVersion: 8, skipParse: false })
+    expect(createBookmarkBase).toHaveBeenCalledWith(expect.objectContaining({ privateUser: 1 }))
   })
 
   it('passes new import metadata into creation and crawls archived articles', async () => {
@@ -192,7 +193,7 @@ describe('bookmark metadata persistence', () => {
     expect(result?.skipParse).toBe(false)
   })
 
-  it.each(['processImportBookmark', 'processImportBookmarkSlow'] as const)('%s completes an existing-bookmark skip without a crawl or rollback relation', async method => {
+  it.each(['processImportBookmark', 'processImportBookmarkSlow'] as const)('%s completes a policy-skipped row without a crawl or rollback relation', async method => {
     const orchestrator = Object.create(ImportOrchestrator.prototype) as ImportOrchestrator
     const is = createMockImportService(),
       bs = createMockBookmarkService(),

@@ -55,6 +55,7 @@ export interface mediaArticlePO {
 
 /** Which source version a bookmark points at. One per bookmark. */
 export interface mediaArticleRefPO {
+  capture_version?: number
   id: number
   bookmark_id: number
   user_id: number
@@ -175,11 +176,18 @@ export abstract class MediaArticleRepo {
   }
 
   /** Point a bookmark at the caption version it was crawled with. A re-crawl moves the pointer. */
-  public async linkBookmark(input: { bookmark_id: number; user_id: number; source_id: string; source_hash: string }): Promise<mediaArticleRefPO> {
-    return this.prismaPg().sr_media_article_ref.upsert({
-      where: { bookmark_id: input.bookmark_id },
-      create: { ...input, media_kind: this.kind },
-      update: { user_id: input.user_id, media_kind: this.kind, source_id: input.source_id, source_hash: input.source_hash }
+  public async linkBookmark(input: { bookmark_id: number; user_id: number; source_id: string; source_hash: string; capture_version?: number }): Promise<mediaArticleRefPO | null> {
+    const captureVersion = input.capture_version ?? 0
+    return this.prismaPg().$transaction(async tx => {
+      const rows = await tx.$queryRaw<
+        Array<{ id: number }>
+      >`SELECT id FROM sr_bookmark WHERE id = ${input.bookmark_id} AND write_version = ${captureVersion} AND published_version = ${captureVersion} FOR UPDATE`
+      if (!rows.length || (await tx.sr_bookmark_fork.findFirst({ where: { current_target_id: input.bookmark_id }, select: { id: true } }))) return null
+      return tx.sr_media_article_ref.upsert({
+        where: { bookmark_id: input.bookmark_id },
+        create: { ...input, capture_version: captureVersion, media_kind: this.kind },
+        update: { user_id: input.user_id, media_kind: this.kind, source_id: input.source_id, source_hash: input.source_hash, capture_version: captureVersion }
+      })
     })
   }
 

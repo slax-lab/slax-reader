@@ -110,6 +110,37 @@ async function runWorkflow(wf: any, eventOverrides: Record<string, unknown> = {}
   return wf.run(event, mockStep)
 }
 
+describe('CrawlWorkflow write versions', () => {
+  test('does not let a pre-upgrade workflow without a version touch a newer private save', async () => {
+    const { wf, bs, cs, uph } = wireWorkflow()
+    bs.getBookmarkById.mockResolvedValue({ write_version: 2, published_version: 2, status: 'success', content_key: 'fork-body' })
+    await runWorkflow(wf)
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(bs.capturePdf).not.toHaveBeenCalled()
+    expect(uph.processPostHandler).not.toHaveBeenCalled()
+    expect(bs.updateBookmarkStatus).not.toHaveBeenCalled()
+  })
+
+  test('does not fetch or run post-processing for an obsolete accepted save', async () => {
+    const { wf, bs, cs, uph } = wireWorkflow()
+    bs.getBookmarkById.mockResolvedValue({ write_version: 4, published_version: 4, status: 'success', content_key: 'new-fork-body' })
+    await runWorkflow(wf, { writeVersion: 3 })
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(uph.processPostHandler).not.toHaveBeenCalled()
+    expect(bs.updateBookmarkStatus).not.toHaveBeenCalled()
+  })
+
+  test('carries the accepted write version to the parser', async () => {
+    const { wf, bs, cs } = wireWorkflow()
+    bs.getBookmarkById.mockResolvedValue({ write_version: 3, published_version: 2, status: 'success', content_key: 'old-body' })
+    ;(bs as any).updateBookmarkVersionStatus = vi.fn()
+    cs.fetchRegular.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, content: '<article>new content</article>', url: 'https://example.com/article' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+    await runWorkflow(wf, { writeVersion: 3 })
+    expect(cs.parseAndSaveContent).toHaveBeenCalledWith(expect.anything(), expect.anything(), 42, expect.objectContaining({ writeVersion: 3 }))
+  })
+})
+
 describe('CrawlWorkflow acquisition Labs gates', () => {
   const youtube = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
 
@@ -195,6 +226,17 @@ describe('CrawlWorkflow acquisition Labs gates', () => {
 })
 
 describe('CrawlWorkflow fetch step 状态转换', () => {
+  test('uses a cleaned fetch URL without changing the saved source URL in post-processing', async () => {
+    const { wf, cs, uph } = wireWorkflow()
+    const url = 'https://x.com/a?a=1&b=2'
+    cs.resolveShortLink.mockResolvedValue(url)
+    cs.fetchRegular.mockResolvedValue({ content: '<article>Article</article>', url: 'https://x.com/a', title: 'Article' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+    await runWorkflow(wf, { url })
+    expect(cs.fetchRegular).toHaveBeenCalledWith(expect.anything(), 'https://x.com/a')
+    expect(uph.processPostHandler).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ info: expect.objectContaining({ targetUrl: url }) }), expect.anything())
+  })
+
   test('PDF capture reuses text AI processing without invoking HTML parsing', async () => {
     const { wf, cs, bs, uph } = wireWorkflow()
     bs.capturePdf.mockResolvedValue(true)
@@ -667,6 +709,26 @@ describe('CrawlWorkflow post-processing step', () => {
 })
 
 describe('CrawlWorkflow import 追踪', () => {
+  test('duplicate workflow completion does not increment an already settled import', async () => {
+    const { wf, cs, bs, imp } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+    bs.updateBookmarkImportRelationStatus.mockResolvedValue(false)
+    await runWorkflow(wf, { importTaskId: 77 })
+    expect(imp.incrImportTask).not.toHaveBeenCalled()
+  })
+
+  test('a superseded import settles its accepted row without fetching or changing the newer bookmark', async () => {
+    const { wf, bs, cs, imp } = wireWorkflow()
+    bs.getBookmarkById.mockResolvedValue({ write_version: 4, published_version: 4, status: 'success' })
+    bs.updateBookmarkImportRelationStatus.mockResolvedValue(true)
+    await runWorkflow(wf, { writeVersion: 3, importTaskId: 77 })
+    expect(bs.updateBookmarkImportRelationStatus).toHaveBeenCalledWith(1, 42, 77, 2, 3)
+    expect(imp.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 77, 0, 1)
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(bs.updateBookmarkStatus).not.toHaveBeenCalled()
+  })
+
   test('成功 + importTaskId → update-import step 调用 (status=1, incr 1,0)', async () => {
     const { wf, cs, bs, imp } = wireWorkflow()
     cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
@@ -711,14 +773,11 @@ describe('CrawlWorkflow hostname 提取', () => {
     expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'github.com', expect.any(String), expect.any(String))
   })
 
-  test('无效 URL → "unknown"', async () => {
+  test('rejects an invalid acquisition URL while retaining the unknown hostname in tracking', async () => {
     const { wf, cs } = wireWorkflow()
-    cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'not-a-url', title: 'T' })
-    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
-
-    await runWorkflow(wf, { url: 'not-a-url' })
-
-    expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'unknown', expect.any(String), expect.any(String))
+    await expect(runWorkflow(wf, { url: 'not-a-url' })).rejects.toThrow('Invalid URL')
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(1, 'workflow_fetch.exhausted', expect.objectContaining({ domain: 'unknown' }))
   })
 })
 

@@ -23,12 +23,17 @@ export class BookmarkSearchRepo {
    * @param shard
    * @returns
    */
-  async createBookmarkRaw(shard: { shard_idx: number; bookmark_id: number; content: string; rawContent: string; rawTitle: string; title: string }[]) {
+  async createBookmarkRaw(
+    shard: { shard_idx: number; bookmark_id: number; content: string; rawContent: string; rawTitle: string; title: string }[],
+    assertLease?: () => Promise<void>
+  ) {
     if (shard.length < 1) return
     // 删除旧数据
     await this.prisma().$executeRaw`DELETE FROM slax_bookmark_raw WHERE bookmark_id = ${shard[0].bookmark_id}`
     // 拼接values
     const values = shard.map(item => Prisma.sql`(${item.shard_idx}, ${item.bookmark_id}, ${item.content}, ${item.rawContent}, ${item.title}, ${item.rawTitle})`)
+    // Recheck the PG lease after deletion in case it expired while D1 was responding.
+    await assertLease?.()
     // 插入新数据
     await this.prisma().$executeRaw`
       INSERT INTO slax_bookmark_raw (shard_idx, bookmark_id, content, raw_content, title, raw_title) 
@@ -104,6 +109,17 @@ export class BookmarkSearchRepo {
       .map(item => (item.status === 'fulfilled' ? item.value : []))
       .flat()
       .filter(item => !!item)
+  }
+
+  async upsertUserBookmarks(bookmarkId: number, userIds: number[]) {
+    if (!userIds.length) return
+    const createdAt = new Date().toISOString()
+    const values = userIds.map(userId => Prisma.sql`(${userId}, ${bookmarkId}, ${createdAt})`)
+    await this.prisma().$executeRaw`
+      INSERT INTO slax_user_bookmark (user_id, bookmark_id, created_at)
+      VALUES ${Prisma.join(values)}
+      ON CONFLICT (user_id, bookmark_id) DO NOTHING
+    `
   }
 
   async upsertUserBookmark(userId: number, bookmarkId: number) {

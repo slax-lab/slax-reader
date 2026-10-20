@@ -5,6 +5,7 @@ import { BookmarkService } from '../../domain/bookmark'
 import { ImportService } from '../../domain/import'
 import { AigcBatchOrchestrator } from '@/domain/orchestrator/aigc'
 import { MonitoringOrchestrator } from '@/domain/orchestrator/monitor'
+import { SearchService } from '@/domain/search'
 
 @injectable()
 export class BookmarkJob {
@@ -12,7 +13,8 @@ export class BookmarkJob {
     @inject(MonitoringOrchestrator) private monitoringOrchestrator: MonitoringOrchestrator,
     @inject(BookmarkService) private bookmarkService: BookmarkService,
     @inject(ImportService) private importService: ImportService,
-    @inject(AigcBatchOrchestrator) private aigcBatchOrchestrator: AigcBatchOrchestrator
+    @inject(AigcBatchOrchestrator) private aigcBatchOrchestrator: AigcBatchOrchestrator,
+    @inject(SearchService) private searchService: SearchService
   ) {}
 
   /**
@@ -39,5 +41,10 @@ export class BookmarkJob {
   @Scheduled('*/1 * * * *')
   public async detectStuckAndRetry(ctx: ContextManager) {
     await this.bookmarkService.detectStuckAndRetry(ctx)
+  }
+
+  @Scheduled('*/5 * * * *')
+  public async repairBookmarkSearchIndexes(ctx: ContextManager) {
+    await this.searchService.repairPendingIndexes(ctx)
   }
 }

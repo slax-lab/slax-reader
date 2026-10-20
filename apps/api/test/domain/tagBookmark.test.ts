@@ -28,7 +28,7 @@ describe('tagBookmark', () => {
     await svc.tagBookmark(ctx, 7, 42, ['创业', '无关'])
 
     expect(repo.getUserTagsByNames).toHaveBeenCalledWith(7, ['创业', '无关'])
-    expect(repo.upsertBookmarkTags).toHaveBeenCalledWith(42, 7, [{ id: 3, tag_name: '创业' }], 'ai')
+    expect(repo.upsertBookmarkTags).toHaveBeenCalledWith(42, 7, [{ id: 3, tag_name: '创业' }], 'ai', undefined)
     expect(repo.updateUserTagsDisplay).not.toHaveBeenCalled()
     expect(repo.createUserTag).not.toHaveBeenCalled()
     expect(repo.touchUserTagsLastUsed).not.toHaveBeenCalled()

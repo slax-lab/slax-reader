@@ -224,7 +224,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
   const users = opts.users ?? { [OWNER]: { ai_lang: '', lang: 'en' }, [VISITOR]: { ai_lang: 'zh', lang: 'zh' } }
   const labOn = new Set(opts.labOn ?? [OWNER])
   const ub = { user_id: OWNER, deleted_at: null as Date | null, metadata: { share: { is_enable: true } } as unknown, moderation_result: 0 }
-  const bookmarks = new Map<number, { title: string; content_key: string | null; content_md_key: string | null; moderation_result: number }>([
+  const bookmarks = new Map<number, { title: string; content_key: string | null; content_md_key: string | null; moderation_result: number; content_word_count?: number; write_version?: number; published_version?: number }>([
     [BOOKMARK, { title: 'Ep', content_key: 'html/body/u1.html', content_md_key: 'text/body/u1.txt', moderation_result: 0 }]
   ])
   const bookmarkService = {
@@ -242,7 +242,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
         : null
     ),
     getBookmarkById: vi.fn(async (id: number) => bookmarks.get(id) ?? null),
-    updateBookmarkModerationResult: vi.fn(async () => ({})),
+    updateBookmarkModerationResult: vi.fn(async () => true),
     disableBookmarkShare: vi.fn(async () => ({})),
     // The real access rule; the share record comes from ub.metadata.share
     getBookmarkReadAccess: vi.fn(async (ctx: { getUserId(): number }, uuid: string) =>
@@ -257,8 +257,25 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
       )
     )
   }
-  const bookmarkRepo = { updateBookmarkWordCount: vi.fn(async () => ({})), deleteBookmarkSummary: vi.fn(async () => ({})) }
-  const searchService = { addSearchRecord: vi.fn(async () => [{ status: 'fulfilled', value: [] }]) }
+  const summaries = new Map<number, string>([[BOOKMARK, 'Summary of the original body']])
+  const staged = new Map<string, { bookmarkId: number; version: number }>()
+  const bookmarkRepo = {
+    getCurrentBookmarkFork: vi.fn(async () => null),
+    stageBookmarkObjects: vi.fn(async (bookmarkId: number, version: number, contentKey: string) => {
+      staged.set(contentKey, { bookmarkId, version })
+    }),
+    publishMediaBookmarkBody: vi.fn(async (bookmarkId: number, version: number, previousKey: string, info: { content_key: string; content_md_key: string; content_word_count: number }) => {
+      const bookmark = bookmarks.get(bookmarkId)
+      const stage = staged.get(info.content_key)
+      if (!bookmark || !stage || stage.bookmarkId !== bookmarkId || stage.version !== version) return false
+      if ((bookmark.write_version ?? 0) !== version || (bookmark.published_version ?? 0) !== version || bookmark.content_key !== previousKey) return false
+      Object.assign(bookmark, info)
+      staged.delete(info.content_key)
+      summaries.delete(bookmarkId)
+      return true
+    })
+  }
+  const searchService = { addSearchRecordByBmId: vi.fn(async () => [{ status: 'fulfilled', value: [] }]) }
   const labService = {
     isEnabled: vi.fn(async (userId: number) => labOn.has(userId)),
     disabledError: vi.fn(() => Object.assign(new Error('lab'), { name: ErrorName.LAB_FEATURE_DISABLED }))
@@ -314,7 +331,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
     objects.set(en.article_key!, JSON.stringify(articleDoc('en')))
     return { ep, en }
   }
-  return { service, eps, arts, redis, ub, bookmarks, bookmarkService, bookmarkRepo, searchService, labOn, objects, create, ctx, alertBot, readyEpisode }
+  return { service, eps, arts, redis, ub, bookmarks, bookmarkService, bookmarkRepo, summaries, searchService, labOn, objects, create, ctx, alertBot, readyEpisode }
 }
 
 describe('triggerAfterCrawl', () => {
@@ -353,12 +370,12 @@ describe('triggerAfterCrawl', () => {
     const w = wire()
     w.readyEpisode()
     await w.service.triggerAfterCrawl(w.ctx(OWNER), BOOKMARK, OWNER)
-    expect(w.objects.get('html/body/u1.html')).toContain('<article class="slax-pod-article"')
-    expect(w.objects.get('text/body/u1.txt')).toContain('Second.')
-    expect(w.bookmarkRepo.updateBookmarkWordCount).toHaveBeenCalledWith(BOOKMARK, expect.any(Number))
-    expect(w.searchService.addSearchRecord).toHaveBeenCalledWith(expect.anything(), BOOKMARK, 'Ep', expect.stringContaining('Second.'))
+    expect(w.objects.get(w.bookmarks.get(BOOKMARK)!.content_key!)).toContain('<article class="slax-pod-article"')
+    expect(w.objects.get(w.bookmarks.get(BOOKMARK)!.content_md_key!)).toContain('Second.')
+    expect(w.bookmarks.get(BOOKMARK)?.content_word_count).toBe(w.objects.get(w.bookmarks.get(BOOKMARK)!.content_md_key!)!.length)
+    expect(w.searchService.addSearchRecordByBmId).toHaveBeenCalledWith(expect.anything(), BOOKMARK)
     // the overview made from the show notes is dropped, so it is made again from the article
-    expect(w.bookmarkRepo.deleteBookmarkSummary).toHaveBeenCalledWith(BOOKMARK, OWNER)
+    expect(w.summaries.has(BOOKMARK)).toBe(false)
     expect(w.create).not.toHaveBeenCalled()
     expect(w.redis.store.get(`podcast:${OWNER}:${today()}`)).toBeUndefined()
   })
@@ -477,10 +494,10 @@ describe('bodies, moderation, translations', () => {
     w.arts.refs.push({ id: 2, bookmark_id: 101, user_id: 9, media_kind: 'podcast', source_id: SOURCE, source_hash: HASH, created_at: new Date(), updated_at: new Date() })
     w.arts.refs.push({ id: 3, bookmark_id: 102, user_id: 9, media_kind: 'podcast', source_id: SOURCE, source_hash: 'old', created_at: new Date(), updated_at: new Date() })
     expect(await w.service.publishBodies(w.ctx(0), SOURCE)).toBe(1)
-    expect(w.objects.has('html/body/u1.html')).toBe(true)
+    expect(w.objects.has(w.bookmarks.get(BOOKMARK)!.content_key!)).toBe(true)
     expect(w.objects.has('html/body/u2.html')).toBe(false)
     expect(w.objects.has('html/body/u3.html')).toBe(false)
-    expect(w.objects.get('html/body/u1.html')).toContain('data-media-seek="12000"')
+    expect(w.objects.get(w.bookmarks.get(BOOKMARK)!.content_key!)).toContain('data-media-seek="12000"')
   })
 
   test('nothing to publish before the article is ready', async () => {

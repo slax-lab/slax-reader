@@ -151,31 +151,38 @@ export class ImportService {
     console.log(`import task ${item.id} finished - success: ${progress.success}, failed: ${progress.failed}`)
   }
 
-  /** Redis holds the live counters; when it is unavailable, count import relations so status never errors. */
+  /** Reconcile live Redis counters with durable terminal rows, including lost increments. */
   private async readImportProgress(userId: number, id: number): Promise<importProgress> {
     const read = (key: { getString(): Promise<string> }) =>
       key.getString().then(value => {
         if (value === '' || value == null || !Number.isSafeInteger(Number(value)) || Number(value) < 0) throw new Error('Missing or invalid import counter')
         return Number(value)
       })
-    const [current, success, failed] = await Promise.allSettled([
+    const [current, success, failed, relationCounts] = await Promise.allSettled([
       Promise.resolve().then(() => read(this.redisClient().userImportProcess(userId, id))),
       Promise.resolve().then(() => read(this.redisClient().userImportSuccess(userId, id))),
-      Promise.resolve().then(() => read(this.redisClient().userImportFailed(userId, id)))
+      Promise.resolve().then(() => read(this.redisClient().userImportFailed(userId, id))),
+      Promise.resolve().then(() => this.bookmarkData.countImportRelationStatus(id))
     ])
+    const successCount = relationCounts.status === 'fulfilled' ? (relationCounts.value[1] ?? 0) : 0
+    const failedCount = relationCounts.status === 'fulfilled' ? (relationCounts.value[2] ?? 0) : 0
     if (current.status === 'fulfilled') {
+      // Redis also counts skipped rows that have no relation. Durable terminal rows
+      // provide a lower bound after an increment fails; never add both totals together.
+      const successTotal = Math.max(success.status === 'fulfilled' ? success.value : 0, successCount)
+      const failedTotal = Math.max(failed.status === 'fulfilled' ? failed.value : 0, failedCount)
       return {
-        current: current.value,
-        success: success.status === 'fulfilled' ? success.value : 0,
-        failed: failed.status === 'fulfilled' ? failed.value : 0,
+        current: Math.max(current.value, successTotal + failedTotal),
+        success: successTotal,
+        failed: failedTotal,
         source: 'redis'
       }
     }
     console.error(`import progress redis read failed for task ${id}: ${current.reason}`)
-    const counts = await this.bookmarkData.countImportRelationStatus(id)
-    const successCount = counts[1] ?? 0
-    const failedCount = counts[2] ?? 0
-    return { current: successCount + failedCount, success: successCount, failed: failedCount, source: 'db' }
+    if (relationCounts.status === 'fulfilled') {
+      return { current: successCount + failedCount, success: successCount, failed: failedCount, source: 'db' }
+    }
+    throw relationCounts.reason
   }
 
   previewImport(type: string, blob: string, includeFeed = false) {

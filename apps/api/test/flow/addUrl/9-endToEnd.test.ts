@@ -35,12 +35,13 @@ describe('Twitter 短链全链路', () => {
   test('resolve → addByUrl → twitter route', async () => {
     const { orch, bs, cs } = wireOrch()
     cs.resolveFinalUrl.mockResolvedValue('https://x.com/real/status/123')
-    bs.addUrlBookmark.mockResolvedValue({ info: { bookmarkId: 10, targetUrl: 'https://x.com/real/status/123', userId: 1 } })
+    bs.addUrlBookmark.mockResolvedValue({ info: { bookmarkId: 10, targetUrl: 'https://x.com/i/status/123', userId: 1 } })
     const ctx = createMockCtx()
     const req = { target_url: 'https://x.com/i/status/123', target_title: '', tags: [] }
 
     const result = await orch.addByUrl(ctx, req)
-    expect(req.target_url).toBe('https://x.com/real/status/123')
+    expect(req.target_url).toBe('https://x.com/i/status/123')
+    expect(result.workflowParams!.url).toBe('https://x.com/real/status/123')
     expect(detectRoute(result.workflowParams!.url)).toBe('twitter')
   })
 })

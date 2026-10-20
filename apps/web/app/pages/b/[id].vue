@@ -28,7 +28,7 @@
 
       <BookmarkArticleLocalFirst
         v-if="detail"
-        :key="`${detail.pdf?.document_id ?? 'title'}-${bodyKey}`"
+        :key="`${detail.pdf?.url ?? detail.pdf?.document_id ?? 'title'}-${bodyKey}`"
         ref="bookmarkArticle"
         :detail="detail"
         :marks="marks"
@@ -283,6 +283,12 @@ const { data: pageData, error, refresh: refreshContent } = await useAsyncData(`c
   return res
 })
 
+// Client navigation may reuse data for a UUID whose body was overwritten elsewhere.
+// Revalidate once on mount so the page shows its latest committed body and attribution.
+if (import.meta.client) {
+  onMounted(() => refreshContent().catch(() => {}))
+}
+
 const clientReady = import.meta.client ? new Promise<void>(resolve => onNuxtReady(resolve)) : undefined
 const pdfPlaceholder = ref<PdfTitlePreview>()
 watch(() => pageData.value?.metadata, metadata => {
@@ -359,6 +365,13 @@ const marks = computed<MarkDetail>(() => {
 const localHasRow = computed(() => localFirst.value && !!localRow?.row.value)
 const localTitle = computed<string | null>(() => (localFirst.value ? (localRow?.row.value?.m_title ?? null) : null))
 const localAlias = computed<string | null>(() => (localFirst.value ? (localRow?.row.value?.alias_title ?? null) : null))
+// PowerSync relation updates its existing `updated_at` when the publication
+// trigger mirrors a newer bookmark body. Refresh an already-open snapshot when
+// that local timestamp changes; archive/star changes may cause a harmless refetch.
+watch(() => (localFirst.value ? localRow?.row.value?.updated_at : null), (revision, previous) => {
+  if (!import.meta.client || !localFirst.value || !revision || revision === previous) return
+  void refreshContent().catch(() => {})
+})
 
 const detail = computed<SnapshotBookmarkDetail | null>(() => {
   const meta = (pageData.value?.metadata ?? pdfPlaceholder.value) as SnapshotMetadata | undefined
@@ -514,9 +527,13 @@ async function initializeClientDetail() {
   localReady.value = true
   if (!localFirst.value) await loadMarks()
 }
-async function retryPdfContent() {
-  await refreshContent()
-  if (!error.value) await initializeClientDetail()
+async function retryPdfContent(done?: () => void) {
+  try {
+    await refreshContent()
+    if (!error.value) await initializeClientDetail()
+  } finally {
+    done?.()
+  }
 }
 
 // visitor：AI 看 outline，评论看 marks
@@ -536,10 +553,12 @@ const podcastShowsTranslation = computed(() => isPodcast.value && podcastMode.va
 // The cleaned transcript replaced the player-only body: load it and mount the article again, so the
 // processors run and marks are drawn on the new body
 const bodyKey = ref(0)
+watch(() => pageData.value?.body, (body, previous) => {
+  // Article processors and selection anchors are initialized when the component mounts.
+  if (body !== previous) bodyKey.value++
+})
 const refreshBody = async () => {
   await refreshNuxtData(`content-${uuid}`)
-  // Remount only for a new body; the status bar (inside the article) asks again a little later
-  if (isPodcast.value ? podcastBodyHasArticle.value : youtubeBodyHasArticle.value) bodyKey.value++
 }
 // YouTube AI article: the cleaned article becomes the body (status bar above it while it is made).
 // A bookmark that keeps the raw transcript body (marks on it) shows the article below the body as before

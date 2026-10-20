@@ -194,21 +194,35 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
       )
     )
   }
-  const bookmarks = new Map<number, { title: string; content_key: string | null; content_md_key: string | null; moderation_result: number }>([
+  const bookmarks = new Map<number, { title: string; content_key: string | null; content_md_key: string | null; moderation_result: number; content_word_count?: number; write_version?: number; published_version?: number }>([
     [BOOKMARK, { title: 'Attention', content_key: 'html/body/u1.html', content_md_key: 'text/body/u1.txt', moderation_result: 0 }]
   ])
   /** Live marks per user bookmark id: the owner's copy is the bookmark id + 1000, a co-reader's + 2000. */
   const marks = new Map<number, { is_deleted: boolean }[]>()
+  const summaries = new Map<number, string>([[BOOKMARK, 'Summary of the original body']])
+  const staged = new Map<string, { bookmarkId: number; version: number }>()
   const bookmarkRepo = {
     getUserBookmark: vi.fn(async (bmId: number) => (bookmarks.has(bmId) ? { id: bmId + 1000 } : null)),
-    updateBookmarkWordCount: vi.fn(async () => ({})),
-    deleteBookmarkSummary: vi.fn(async () => ({}))
+    getCurrentBookmarkFork: vi.fn(async () => null),
+    stageBookmarkObjects: vi.fn(async (bookmarkId: number, version: number, contentKey: string) => {
+      staged.set(contentKey, { bookmarkId, version })
+    }),
+    publishMediaBookmarkBody: vi.fn(async (bookmarkId: number, version: number, previousKey: string, info: { content_key: string; content_md_key: string; content_word_count: number }) => {
+      const bookmark = bookmarks.get(bookmarkId)
+      const stage = staged.get(info.content_key)
+      if (!bookmark || !stage || stage.bookmarkId !== bookmarkId || stage.version !== version) return false
+      if ((bookmark.write_version ?? 0) !== version || (bookmark.published_version ?? 0) !== version || bookmark.content_key !== previousKey) return false
+      Object.assign(bookmark, info)
+      staged.delete(info.content_key)
+      summaries.delete(bookmarkId)
+      return true
+    })
   }
   const markRepo = {
     // No copy of the bookmark counts as marked, like the real query
     bodyHasMarks: vi.fn(async (bmId: number) => !bookmarks.has(bmId) || [bmId + 1000, bmId + 2000].some(id => (marks.get(id) ?? []).some(m => !m.is_deleted)))
   }
-  const searchService = { addSearchRecord: vi.fn(async () => [{ status: 'fulfilled', value: [] }]) }
+  const searchService = { addSearchRecordByBmId: vi.fn(async () => [{ status: 'fulfilled', value: [] }]) }
   const labService = {
     isEnabled: vi.fn(async (userId: number) => labOn.has(userId)),
     disabledError: vi.fn(() => Object.assign(new Error('lab'), { name: ErrorName.LAB_FEATURE_DISABLED }))
@@ -256,7 +270,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
     return c
   }
   repo.refs.push({ id: 1, bookmark_id: BOOKMARK, user_id: OWNER, source_id: VIDEO, source_hash: HASH, created_at: new Date(), updated_at: new Date() })
-  return { service, repo, redis, bookmark, labOn, users, objects, create, ctx, alertBot, crawlService, bookmarks, marks, bookmarkRepo, searchService }
+  return { service, repo, redis, bookmark, labOn, users, objects, create, ctx, alertBot, crawlService, bookmarks, marks, bookmarkRepo, summaries, searchService }
 }
 
 const today = () => new Date().toISOString().slice(0, 10).replace(/-/g, '')
@@ -745,8 +759,9 @@ describe('the article as the bookmark body', () => {
     const w = wire()
     const row = ready(w)
     expect(await w.service.publishBodies(w.ctx(0), row.id)).toBe(1)
+    expect(w.objects.get('html/body/u1.html')).toBe(RAW_BODY)
 
-    const html = w.objects.get('html/body/u1.html')!
+    const html = w.objects.get(w.bookmarks.get(BOOKMARK)!.content_key!)!
     expect(html).toContain(`<youtube-player data-video-id="${VIDEO}" data-cues="`)
     expect(playerCues(html)).toEqual([
       { t: 0, text: 'so um <b>hello</b>' },
@@ -767,12 +782,12 @@ describe('the article as the bookmark body', () => {
     expect(html).toContain('A lede &lt;script&gt;alert(1)&lt;/script&gt;')
     expect(html).toContain('Intro &amp; &quot;more&quot;')
 
-    const text = w.objects.get('text/body/u1.txt')!
+    const text = w.objects.get(w.bookmarks.get(BOOKMARK)!.content_md_key!)!
     expect(text).toContain('And world, and more.')
     expect(text).not.toContain('so um')
-    expect(w.bookmarkRepo.updateBookmarkWordCount).toHaveBeenCalledWith(BOOKMARK, text.length)
-    expect(w.bookmarkRepo.deleteBookmarkSummary).toHaveBeenCalledWith(BOOKMARK, OWNER)
-    expect(w.searchService.addSearchRecord).toHaveBeenCalledWith(expect.anything(), BOOKMARK, 'Attention', text)
+    expect(w.bookmarks.get(BOOKMARK)?.content_word_count).toBe(text.length)
+    expect(w.summaries.has(BOOKMARK)).toBe(false)
+    expect(w.searchService.addSearchRecordByBmId).toHaveBeenCalledWith(expect.anything(), BOOKMARK)
   })
 
   test('a body with highlights or comments is never rewritten; deleted marks do not count', async () => {
@@ -780,8 +795,8 @@ describe('the article as the bookmark body', () => {
     const row = ready(w)
     w.marks.set(BOOKMARK + 1000, [{ is_deleted: false }])
     expect(await w.service.publishBodies(w.ctx(0), row.id)).toBe(0)
-    expect(w.objects.get('html/body/u1.html')).toBe(RAW_BODY)
-    expect(w.bookmarkRepo.updateBookmarkWordCount).not.toHaveBeenCalled()
+    expect(w.objects.get(w.bookmarks.get(BOOKMARK)!.content_key!)).toBe(RAW_BODY)
+    expect(w.bookmarkRepo.publishMediaBookmarkBody).not.toHaveBeenCalled()
 
     w.marks.set(BOOKMARK + 1000, [{ is_deleted: true }])
     expect(await w.service.publishBodies(w.ctx(0), row.id)).toBe(1)
@@ -792,7 +807,7 @@ describe('the article as the bookmark body', () => {
     const row = ready(w)
     w.marks.set(BOOKMARK + 2000, [{ is_deleted: false }])
     expect(await w.service.publishBodies(w.ctx(0), row.id)).toBe(0)
-    expect(w.objects.get('html/body/u1.html')).toBe(RAW_BODY)
+    expect(w.objects.get(w.bookmarks.get(BOOKMARK)!.content_key!)).toBe(RAW_BODY)
   })
 
   test('every bookmark of the video that wants the language gets it; other languages, Labs off and flagged ones do not', async () => {
@@ -819,14 +834,17 @@ describe('the article as the bookmark body', () => {
     // a bookmark of an older caption version is not touched
     w.repo.refs.push({ id: 300, bookmark_id: 300, user_id: 20, source_id: VIDEO, source_hash: 'old', created_at: new Date(), updated_at: new Date() } as any)
     expect(await w.service.publishBodies(w.ctx(0), row.id)).toBe(2)
-    expect([...w.objects.keys()].filter(k => k.startsWith('html/body/')).sort()).toEqual(['html/body/200.html', 'html/body/u1.html'])
+    expect([...w.objects.keys()].filter(k => k.startsWith('html/body/media/')).sort()).toEqual([
+      w.bookmarks.get(BOOKMARK)!.content_key!, w.bookmarks.get(200)!.content_key!
+    ].sort())
+    expect([210, 220, 230].map(id => w.bookmarks.get(id)!.content_key)).toEqual(['html/body/210.html', 'html/body/220.html', 'html/body/230.html'])
   })
 
   test('a later save of a processed video gets the body at once, with no workflow and no daily count', async () => {
     const w = wire()
     ready(w)
     await w.service.triggerAfterCrawl(w.ctx(OWNER), BOOKMARK, OWNER, 'Attention')
-    expect(w.objects.get('html/body/u1.html')).toContain('data-slax-derived="youtube-article"')
+    expect(w.objects.get(w.bookmarks.get(BOOKMARK)!.content_key!)).toContain('data-slax-derived="youtube-article"')
     expect(w.create).not.toHaveBeenCalled()
     expect(w.redis.store.size).toBe(0)
   })
@@ -837,7 +855,7 @@ describe('the article as the bookmark body', () => {
     await w.service.triggerAfterCrawl(w.ctx(OWNER), BOOKMARK, OWNER, 't')
     const res = await w.service.getStatus(w.ctx(OWNER), UUID)
     expect(res).toMatchObject({ status: 'skipped', body_mode: 'article', body_ready: false })
-    expect(w.objects.get('html/body/u1.html')).toBe(RAW_BODY)
+    expect(w.objects.get(w.bookmarks.get(BOOKMARK)!.content_key!)).toBe(RAW_BODY)
     expect(w.create).not.toHaveBeenCalled()
   })
 
@@ -846,19 +864,19 @@ describe('the article as the bookmark body', () => {
     ready(w)
     const res = await w.service.getStatus(w.ctx(OWNER), UUID)
     expect(res).toMatchObject({ status: 'ready', body_mode: 'article', body_ready: true })
-    expect(w.objects.get('html/body/u1.html')).toContain('data-slax-derived="youtube-article"')
+    expect(w.objects.get(w.bookmarks.get(BOOKMARK)!.content_key!)).toContain('data-slax-derived="youtube-article"')
 
     // already there: read only
-    w.bookmarkRepo.updateBookmarkWordCount.mockClear()
+    w.bookmarkRepo.publishMediaBookmarkBody.mockClear()
     expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ body_ready: true })
-    expect(w.bookmarkRepo.updateBookmarkWordCount).not.toHaveBeenCalled()
+    expect(w.bookmarkRepo.publishMediaBookmarkBody).not.toHaveBeenCalled()
   })
 
   test('status: a visitor reads the body state but never writes it', async () => {
     const w = wire({ users: { [OWNER]: { ai_lang: '', lang: 'en' }, [VISITOR]: { ai_lang: '', lang: 'en' } } })
     ready(w)
     expect(await w.service.getStatus(w.ctx(VISITOR), UUID)).toMatchObject({ status: 'ready', body_mode: 'article', body_ready: false })
-    expect(w.objects.get('html/body/u1.html')).toBe(RAW_BODY)
+    expect(w.objects.get(w.bookmarks.get(BOOKMARK)!.content_key!)).toBe(RAW_BODY)
   })
 
   test('status: marks keep the transcript body and the article below it', async () => {
@@ -866,7 +884,7 @@ describe('the article as the bookmark body', () => {
     ready(w)
     w.marks.set(BOOKMARK + 1000, [{ is_deleted: false }])
     expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'ready', body_mode: 'transcript', body_ready: false })
-    expect(w.objects.get('html/body/u1.html')).toBe(RAW_BODY)
+    expect(w.objects.get(w.bookmarks.get(BOOKMARK)!.content_key!)).toBe(RAW_BODY)
   })
 
   test('status: marks made on the article body keep body_mode article', async () => {
@@ -880,7 +898,7 @@ describe('the article as the bookmark body', () => {
   test('status: a failed body write answers body_ready false instead of failing the request', async () => {
     const w = wire()
     ready(w)
-    w.bookmarkRepo.updateBookmarkWordCount.mockRejectedValueOnce(new Error('pg blip'))
+    w.bookmarkRepo.publishMediaBookmarkBody.mockRejectedValueOnce(new Error('pg blip'))
     expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'ready', body_mode: 'article', body_ready: false })
   })
 
@@ -902,17 +920,17 @@ describe('the article as the bookmark body', () => {
     w.bookmarks.get(BOOKMARK)!.moderation_result = 1
     row.status = 'takedown'
     expect((await w.service.takedown(w.ctx(0), VIDEO)).bodies).toBe(1)
-    expect(w.objects.get('html/body/u1.html')).not.toContain('slax-pod-article')
+    expect(w.objects.get(w.bookmarks.get(BOOKMARK)!.content_key!)).not.toContain('slax-pod-article')
   })
 
   test('takedown clears the article even when the body cues can not be read', async () => {
     const w = wire()
     const row = ready(w)
     await w.service.publishBodies(w.ctx(0), row.id)
-    w.objects.set('html/body/u1.html', w.objects.get('html/body/u1.html')!.replace('data-cues="', 'data-cues-broken="'))
+    w.objects.set(w.bookmarks.get(BOOKMARK)!.content_key!, w.objects.get(w.bookmarks.get(BOOKMARK)!.content_key!)!.replace('data-cues="', 'data-cues-broken="'))
     row.status = 'takedown'
     expect((await w.service.takedown(w.ctx(0), VIDEO)).bodies).toBe(1)
-    const html = w.objects.get('html/body/u1.html')!
+    const html = w.objects.get(w.bookmarks.get(BOOKMARK)!.content_key!)!
     expect(html).not.toContain('slax-pod-article')
     expect(html).toContain('youtube-player')
   })
@@ -924,10 +942,10 @@ describe('the article as the bookmark body', () => {
     row.status = 'takedown'
     const res = await w.service.takedown(w.ctx(0), VIDEO)
     expect(res.bodies).toBe(1)
-    const html = w.objects.get('html/body/u1.html')!
+    const html = w.objects.get(w.bookmarks.get(BOOKMARK)!.content_key!)!
     expect(html).toContain('slax-yt-transcript')
     expect(html).not.toContain('slax-pod-article')
     expect(playerCues(html)).toHaveLength(2)
-    expect(w.objects.get('text/body/u1.txt')).toBe('so um <b>hello</b> and "world" & more')
+    expect(w.objects.get(w.bookmarks.get(BOOKMARK)!.content_md_key!)).toBe('so um <b>hello</b> and "world" & more')
   })
 })

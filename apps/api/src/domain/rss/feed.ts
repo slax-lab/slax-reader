@@ -2,7 +2,6 @@ import { DOMParser } from 'linkedom'
 import { publicFetch } from '@/utils/publicFetch'
 import { publicTarget } from '@/utils/publicTargetPolicy'
 import { hashSHA256 } from '@/utils/strings'
-import { processTargetUrl } from '@/utils/urlPolicie'
 import type { RssErrorCode } from '@slax-reader/contracts'
 import { SlaxFetch } from '@/infra/external/remoteFetcher'
 
@@ -185,7 +184,7 @@ export async function parseFeed(xml: string, base: string, now = new Date()): Pr
     const rawUrl =
       linkFor(entry, itemBase) ||
       (!atom && guid && guid.getAttribute('isPermaLink') !== 'false' && /^https?:\/\//i.test(guid.textContent?.trim() || '') ? safeFeedUrl(guid.textContent, itemBase) : null)
-    const article_url = rawUrl ? processTargetUrl(new URL(rawUrl)) : null
+    const article_url = rawUrl ? new URL(rawUrl).toString() : null
     const rawContent = child(entry, 'encoded') || child(entry, 'content') || child(entry, 'description') || child(entry, 'summary')
     const contentType = rawContent?.getAttribute('type')
     let raw = rawContent?.textContent || ''

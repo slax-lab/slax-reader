@@ -30,7 +30,7 @@ import { ContentParser } from '../utils/parser'
 import { ZyteTimeoutError } from '../const/err'
 import { fetchResult } from '../utils/browser'
 import { BucketClient } from '../infra/repository/bucketClient'
-import { BookmarkRepo, queueStatus } from '../infra/repository/dbBookmark'
+import { BookmarkRepo, queueStatus, type bookmarkParsePO } from '../infra/repository/dbBookmark'
 import { inject, injectable } from '@/decorators/di'
 import { LazyInstance } from '@/decorators/lazy'
 import { ContextManager } from '@/utils/context'
@@ -51,6 +51,14 @@ import { scoreArticleQuality, unavailableArticleQualityReview, type ArticleQuali
 import { bookmarkEventProperties, EVENT_CONTEXT_KEY, getEventContext, submitServerEvent } from './events'
 import { isToutiaoShareUrl, parseToutiaoArticleUrl, resolveToutiaoUrl } from '../utils/toutiaoUrl'
 import type { ToutiaoArticle } from '../const/moreapi/toutiao'
+
+export type CrawlWriteTarget = string | { uuid: string; writeVersion: number }
+
+export class SupersededBookmarkWriteError extends Error {
+  constructor() {
+    super('Bookmark write superseded by a newer save')
+  }
+}
 
 export type TwitterFetched =
   | { kind: 'tweet'; tweetInfo: TweetInfo; quoteTweetHtml: string }
@@ -149,7 +157,8 @@ export class CrawlService {
         console.log(`Failed to create workflow for bookmark ${params.bookmarkId} (attempt ${attempt}/${maxRetries}): ${err}`)
 
         if (attempt === maxRetries) {
-          await this.bookmarkRepo.updateBookmarkStatus(params.bookmarkId, queueStatus.FAILED)
+          if (params.writeVersion != null) await this.bookmarkRepo.updateBookmarkVersionStatus(params.bookmarkId, params.writeVersion, queueStatus.FAILED)
+          else await this.bookmarkRepo.updateBookmarkStatus(params.bookmarkId, queueStatus.FAILED)
           const errMsg = err instanceof MultiLangError ? err.message : err instanceof Error ? err.message : String(err)
           await this.sendAddBookmarkStepEvent(params.userId, params.bookmarkId, hostname, 'workflow_creation', 'failed', errMsg, trackingContext)
           await this.pushBookmarkFailureAlert(params.userId, 'workflow_creation', {
@@ -186,7 +195,8 @@ export class CrawlService {
         console.log(`Failed to create import parse workflow for bookmark ${params.bookmarkId} (attempt ${attempt}/${maxRetries}): ${err}`)
 
         if (attempt === maxRetries) {
-          await this.bookmarkRepo.updateBookmarkStatus(params.bookmarkId, queueStatus.FAILED)
+          if (params.writeVersion != null) await this.bookmarkRepo.updateBookmarkVersionStatus(params.bookmarkId, params.writeVersion, queueStatus.FAILED)
+          else await this.bookmarkRepo.updateBookmarkStatus(params.bookmarkId, queueStatus.FAILED)
           const errMsg = err instanceof MultiLangError ? err.message : err instanceof Error ? err.message : String(err)
           await this.sendAddBookmarkStepEvent(params.userId, params.bookmarkId, hostname, 'import_parse_workflow_creation', 'failed', errMsg, trackingContext)
           await this.pushBookmarkFailureAlert(params.userId, 'import_parse_workflow_creation', {
@@ -371,12 +381,12 @@ export class CrawlService {
     return url
   }
 
-  public async fetchAndSaveTwitter(ctx: ContextManager, url: string, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async fetchAndSaveTwitter(ctx: ContextManager, url: string, bookmarkId: number, userBookmarkUuid: CrawlWriteTarget): Promise<CrawlResult> {
     const fetched = await this.fetchTwitterData(ctx, url)
     return await this.parseAndSaveTwitter(ctx, fetched, bookmarkId, userBookmarkUuid)
   }
 
-  public async fetchAndSaveTwitterArticle(ctx: ContextManager, url: string, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async fetchAndSaveTwitterArticle(ctx: ContextManager, url: string, bookmarkId: number, userBookmarkUuid: CrawlWriteTarget): Promise<CrawlResult> {
     const fetched = await this.fetchTwitterData(ctx, url)
     return await this.parseAndSaveTwitter(ctx, fetched, bookmarkId, userBookmarkUuid)
   }
@@ -384,7 +394,7 @@ export class CrawlService {
   /**
    * 抓取并保存小红书
    */
-  public async fetchAndSaveXiaohongshu(ctx: ContextManager, url: string, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async fetchAndSaveXiaohongshu(ctx: ContextManager, url: string, bookmarkId: number, userBookmarkUuid: CrawlWriteTarget): Promise<CrawlResult> {
     const data = await this.fetchXhsData(ctx.env, url)
     return await this.parseAndSaveXhs(ctx, data, url, bookmarkId, userBookmarkUuid)
   }
@@ -392,7 +402,7 @@ export class CrawlService {
   /**
    * 抓取并保存微博（thin wrapper，实际逻辑在 fetchWeiboData + parseAndSaveWeibo）
    */
-  public async fetchAndSaveWeibo(ctx: ContextManager, url: string, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async fetchAndSaveWeibo(ctx: ContextManager, url: string, bookmarkId: number, userBookmarkUuid: CrawlWriteTarget): Promise<CrawlResult> {
     const data = await this.fetchWeiboData(ctx.env, url)
     return await this.parseAndSaveWeibo(ctx, data, url, bookmarkId, userBookmarkUuid)
   }
@@ -400,7 +410,7 @@ export class CrawlService {
   /**
    * 抓取并保存Reddit（thin wrapper，实际逻辑在 fetchRedditData + parseAndSaveReddit）
    */
-  public async fetchAndSaveReddit(ctx: ContextManager, url: string, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async fetchAndSaveReddit(ctx: ContextManager, url: string, bookmarkId: number, userBookmarkUuid: CrawlWriteTarget): Promise<CrawlResult> {
     const data = await this.fetchRedditData(ctx.env, url)
     return await this.parseAndSaveReddit(ctx, data, url, bookmarkId, userBookmarkUuid)
   }
@@ -474,10 +484,22 @@ export class CrawlService {
     }
   }
 
-  private static contentKeys(userBookmarkUuid: string) {
+  private static contentKeys(userBookmarkUuid: CrawlWriteTarget) {
+    const version = typeof userBookmarkUuid === 'string' ? 0 : userBookmarkUuid.writeVersion
+    const uuid = typeof userBookmarkUuid === 'string' ? userBookmarkUuid : userBookmarkUuid.uuid
+    const path = `${uuid}/${version}/${crypto.randomUUID()}`
     return {
-      contentKey: `html/body/${userBookmarkUuid}.html`,
-      textKey: `text/body/${userBookmarkUuid}.txt`
+      contentKey: `html/body/${path}.html`,
+      textKey: `text/body/${path}.txt`
+    }
+  }
+
+  private async publishContent(bookmarkId: number, target: CrawlWriteTarget, info: bookmarkParsePO) {
+    const version = typeof target === 'string' ? 0 : target.writeVersion
+    const published = await this.bookmarkRepo.publishBookmarkVersion(bookmarkId, version, info)
+    if (!published) {
+      await this.bucketClient().R2Bucket.delete([info.content_key, ...(info.content_md_key ? [info.content_md_key] : [])])
+      throw new SupersededBookmarkWriteError()
     }
   }
 
@@ -525,7 +547,13 @@ export class CrawlService {
     }
   }
 
-  public async parseAndSaveYoutube(ctx: ContextManager, fetched: YoutubeFetched, originalUrl: string, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async parseAndSaveYoutube(
+    ctx: ContextManager,
+    fetched: YoutubeFetched,
+    originalUrl: string,
+    bookmarkId: number,
+    userBookmarkUuid: CrawlWriteTarget
+  ): Promise<CrawlResult> {
     const html = HtmlBuilder.buildYoutube(fetched.videoId, fetched.cues)
     const textContent = fetched.cues.length > 0 ? fetched.cues.map(c => c.text).join(' ') : fetched.title
 
@@ -543,7 +571,7 @@ export class CrawlService {
         publishedTime: new Date()
       }
     })
-    await this.saveYoutubeCaptionArtifacts(ctx, fetched, bookmarkId)
+    await this.saveYoutubeCaptionArtifacts(ctx, fetched, bookmarkId, typeof userBookmarkUuid === 'string' ? 0 : userBookmarkUuid.writeVersion)
     return result
   }
 
@@ -554,7 +582,7 @@ export class CrawlService {
    * source and point this bookmark at it. Never throws: the bookmark is already saved and its
    * status must not depend on any of this. Logs carry ids, hashes and counts only, never the transcript.
    */
-  public async saveYoutubeCaptionArtifacts(ctx: ContextManager, fetched: YoutubeFetched, bookmarkId: number): Promise<void> {
+  public async saveYoutubeCaptionArtifacts(ctx: ContextManager, fetched: YoutubeFetched, bookmarkId: number, captureVersion = 0): Promise<void> {
     const { videoId, caption } = fetched
     // An unavailable provider is not evidence that the video has no captions. Do not overwrite
     // the shared no-caption evaluation (or its bookmark reference) with a transient failure.
@@ -601,7 +629,13 @@ export class CrawlService {
         status: eligibility.decision === 'generate' ? 'pending' : 'skipped',
         eligibility
       })
-      await this.youtubeArticleRepo.linkBookmark({ bookmark_id: bookmarkId, user_id: ctx.getUserId(), source_id: videoId, source_hash: sourceHash })
+      await this.youtubeArticleRepo.linkBookmark({
+        bookmark_id: bookmarkId,
+        user_id: ctx.getUserId(),
+        source_id: videoId,
+        source_hash: sourceHash,
+        capture_version: captureVersion
+      })
       console.log(
         `YouTube caption saved for bookmark ${bookmarkId}: video=${videoId} hash=${sourceHash.slice(0, 12)} cues=${caption?.cues.length ?? 0} chars=${plainText.length} decision=${eligibility.decision} reasons=${eligibility.reason_codes.join(',') || '-'}`
       )
@@ -674,7 +708,7 @@ export class CrawlService {
   }
 
   /** First body of a podcast bookmark (player and notes), the episode row and the bookmark's reference to it. */
-  public async parseAndSavePodcast(ctx: ContextManager, info: PodcastEpisodeInfo, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async parseAndSavePodcast(ctx: ContextManager, info: PodcastEpisodeInfo, bookmarkId: number, userBookmarkUuid: CrawlWriteTarget): Promise<CrawlResult> {
     const html = HtmlBuilder.buildPodcast({ ...info })
     const textContent = renderPodcastText({ info })
     const result = await this.parseAndSaveSocialMedia(ctx, {
@@ -691,24 +725,30 @@ export class CrawlService {
         publishedTime: info.publishedAt ?? new Date()
       }
     })
-    await this.savePodcastEpisode(ctx, info, bookmarkId)
+    await this.savePodcastEpisode(ctx, info, bookmarkId, typeof userBookmarkUuid === 'string' ? 0 : userBookmarkUuid.writeVersion)
     return result
   }
 
   /** Episode row and bookmark reference. Never throws: the bookmark is already saved. */
-  public async savePodcastEpisode(ctx: ContextManager, info: PodcastEpisodeInfo, bookmarkId: number): Promise<void> {
+  public async savePodcastEpisode(ctx: ContextManager, info: PodcastEpisodeInfo, bookmarkId: number, captureVersion = 0): Promise<void> {
     if (!info.audioUrl) return
     try {
       const sourceId = await podcastSourceId(info.audioUrl)
       const episode = await this.podcastEpisodeRepo.upsertFromInfo(sourceId, info)
-      await this.podcastArticleRepo.linkBookmark({ bookmark_id: bookmarkId, user_id: ctx.getUserId(), source_id: sourceId, source_hash: episode.transcript_hash ?? '' })
+      await this.podcastArticleRepo.linkBookmark({
+        bookmark_id: bookmarkId,
+        user_id: ctx.getUserId(),
+        source_id: sourceId,
+        source_hash: episode.transcript_hash ?? '',
+        capture_version: captureVersion
+      })
       console.log(`Podcast episode saved for bookmark ${bookmarkId}: episode=${episode.id} source=${sourceId} kind=${info.kind} status=${episode.transcript_status}`)
     } catch (err) {
       console.error(`Podcast episode save failed for bookmark ${bookmarkId}: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
 
-  public async parseAndSaveContent(ctx: ContextManager, fetchRes: fetchResult, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async parseAndSaveContent(ctx: ContextManager, fetchRes: fetchResult, bookmarkId: number, userBookmarkUuid: CrawlWriteTarget): Promise<CrawlResult> {
     if (detectRoute(fetchRes.url) === 'regular') {
       const selected = await this.createBestParseRes(ctx, fetchRes)
       if (isDynamicLoadingPlaceholder(selected.parseRes.title, selected.parseRes.textContent)) {
@@ -726,7 +766,7 @@ export class CrawlService {
     return SocialMediaApi.fetchToutiao(ctx.env, url)
   }
 
-  public async parseAndSaveToutiao(ctx: ContextManager, fetched: ToutiaoArticle, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async parseAndSaveToutiao(ctx: ContextManager, fetched: ToutiaoArticle, bookmarkId: number, userBookmarkUuid: CrawlWriteTarget): Promise<CrawlResult> {
     const fetchRes = { url: fetched.canonicalUrl, content: fetched.html, title: fetched.title }
     // TikHub supplies the article body already. Generic extraction drops its lead image and some paragraphs.
     const document = ContentParser.getDocument(parseHTML(fetched.html).document.body.innerHTML)
@@ -747,7 +787,7 @@ export class CrawlService {
     return this.scoreAndSaveArticle(parseRes, fetchRes, bookmarkId, userBookmarkUuid)
   }
 
-  private async scoreAndSaveArticle(parseRes: Preparse, fetchRes: fetchResult, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  private async scoreAndSaveArticle(parseRes: Preparse, fetchRes: fetchResult, bookmarkId: number, userBookmarkUuid: CrawlWriteTarget): Promise<CrawlResult> {
     let qualityReview: ArticleQualityReview
     try {
       qualityReview = scoreArticleQuality({
@@ -826,14 +866,16 @@ export class CrawlService {
     return parseRes
   }
 
-  protected async saveParseRes(parseRes: Preparse, bookmarkId: number, userBookmarkUuid: string, qualityReview?: ArticleQualityReview): Promise<CrawlResult> {
+  protected async saveParseRes(parseRes: Preparse, bookmarkId: number, userBookmarkUuid: CrawlWriteTarget, qualityReview?: ArticleQualityReview): Promise<CrawlResult> {
     const { contentKey, textKey } = CrawlService.contentKeys(userBookmarkUuid)
+
+    await this.bookmarkRepo.stageBookmarkObjects(bookmarkId, typeof userBookmarkUuid === 'string' ? 0 : userBookmarkUuid.writeVersion, contentKey, [contentKey, textKey])
 
     await Promise.all([
       this.bucketClient().putIfKeyExists(textKey, parseRes.textContent),
       this.bucketClient().putIfKeyExists(contentKey, parseRes.contentDocument.documentElement.outerHTML)
     ])
-    await this.bookmarkRepo.updateBookmark(bookmarkId, {
+    await this.publishContent(bookmarkId, userBookmarkUuid, {
       title: parseRes.title,
       description: parseRes.excerpt || '',
       content_word_count: parseRes.textContent.length,
@@ -907,7 +949,7 @@ export class CrawlService {
   /**
    * parse 阶段：拿 TwitterFetched 构建 html + Imager + R2 + DB。
    */
-  public async parseAndSaveTwitter(ctx: ContextManager, fetched: TwitterFetched, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async parseAndSaveTwitter(ctx: ContextManager, fetched: TwitterFetched, bookmarkId: number, userBookmarkUuid: CrawlWriteTarget): Promise<CrawlResult> {
     if (fetched.kind === 'article') {
       return await this.parseAndSaveTwitterArticleFromFetched(ctx, fetched, bookmarkId, userBookmarkUuid)
     }
@@ -918,13 +960,14 @@ export class CrawlService {
     await new Imager(ctx.env).batchReplaceImage(new URL(tweetInfo.url), document)
 
     const { contentKey, textKey } = CrawlService.contentKeys(userBookmarkUuid)
+    await this.bookmarkRepo.stageBookmarkObjects(bookmarkId, typeof userBookmarkUuid === 'string' ? 0 : userBookmarkUuid.writeVersion, contentKey, [contentKey, textKey])
     const textContent = tweetInfo.text
     const cleanText = tweetInfo.text.replaceAll('\n', ' ')
     const title = `Tweet: ${cleanText.substring(0, 30)}`
     const byline = tweetInfo.author.name
 
     await Promise.all([this.bucketClient().putIfKeyExists(textKey, textContent), this.bucketClient().putIfKeyExists(contentKey, document.documentElement.outerHTML)])
-    await this.bookmarkRepo.updateBookmark(bookmarkId, {
+    await this.publishContent(bookmarkId, userBookmarkUuid, {
       title,
       description: cleanText.substring(0, 30),
       content_word_count: textContent.length,
@@ -951,7 +994,7 @@ export class CrawlService {
     ctx: ContextManager,
     fetched: Extract<TwitterFetched, { kind: 'article' }>,
     bookmarkId: number,
-    userBookmarkUuid: string
+    userBookmarkUuid: CrawlWriteTarget
   ): Promise<CrawlResult> {
     const { sourceUrl, viaFxEmbedHtml, fallbackTweetInfo } = fetched
     let parseRes: Preparse
@@ -998,7 +1041,7 @@ export class CrawlService {
       html: string
       originalUrl: string
       bookmarkId: number
-      userBookmarkUuid: string
+      userBookmarkUuid: CrawlWriteTarget
       meta: { title: string; textContent: string; excerpt: string; byline: string; siteName: string; publishedTime: Date }
     }
   ): Promise<CrawlResult> {
@@ -1006,9 +1049,13 @@ export class CrawlService {
     await new Imager(ctx.env).batchReplaceImage(new URL(opts.originalUrl), document)
 
     const { contentKey, textKey } = CrawlService.contentKeys(opts.userBookmarkUuid)
+    await this.bookmarkRepo.stageBookmarkObjects(opts.bookmarkId, typeof opts.userBookmarkUuid === 'string' ? 0 : opts.userBookmarkUuid.writeVersion, contentKey, [
+      contentKey,
+      textKey
+    ])
 
     await Promise.all([this.bucketClient().putIfKeyExists(textKey, opts.meta.textContent), this.bucketClient().putIfKeyExists(contentKey, document.documentElement.outerHTML)])
-    await this.bookmarkRepo.updateBookmark(opts.bookmarkId, {
+    await this.publishContent(opts.bookmarkId, opts.userBookmarkUuid, {
       title: opts.meta.title,
       description: opts.meta.excerpt,
       content_word_count: opts.meta.textContent.length,
@@ -1038,7 +1085,7 @@ export class CrawlService {
     return xhsData
   }
 
-  public async parseAndSaveXhs(ctx: ContextManager, xhsData: XHSData, originalUrl: string, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async parseAndSaveXhs(ctx: ContextManager, xhsData: XHSData, originalUrl: string, bookmarkId: number, userBookmarkUuid: CrawlWriteTarget): Promise<CrawlResult> {
     return this.parseAndSaveSocialMedia(ctx, {
       html: HtmlBuilder.buildXhs(xhsData),
       originalUrl,
@@ -1062,7 +1109,7 @@ export class CrawlService {
     return weiboData
   }
 
-  public async parseAndSaveWeibo(ctx: ContextManager, weiboData: WeiboData, originalUrl: string, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async parseAndSaveWeibo(ctx: ContextManager, weiboData: WeiboData, originalUrl: string, bookmarkId: number, userBookmarkUuid: CrawlWriteTarget): Promise<CrawlResult> {
     return this.parseAndSaveSocialMedia(ctx, {
       html: HtmlBuilder.buildWeibo(weiboData),
       originalUrl,
@@ -1086,7 +1133,7 @@ export class CrawlService {
     return redditData
   }
 
-  public async parseAndSaveReddit(ctx: ContextManager, redditData: RedditData, originalUrl: string, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async parseAndSaveReddit(ctx: ContextManager, redditData: RedditData, originalUrl: string, bookmarkId: number, userBookmarkUuid: CrawlWriteTarget): Promise<CrawlResult> {
     return this.parseAndSaveSocialMedia(ctx, {
       html: HtmlBuilder.buildReddit(redditData),
       originalUrl,
@@ -1103,7 +1150,7 @@ export class CrawlService {
     })
   }
 
-  public async parseAndSaveZhihu(ctx: ContextManager, data: ZhihuFetched, originalUrl: string, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async parseAndSaveZhihu(ctx: ContextManager, data: ZhihuFetched, originalUrl: string, bookmarkId: number, userBookmarkUuid: CrawlWriteTarget): Promise<CrawlResult> {
     const { document } = parseHTML(data.content)
     document.querySelectorAll('noscript').forEach(node => node.remove())
     document.querySelectorAll('img').forEach(img => {
@@ -1169,7 +1216,7 @@ export class CrawlService {
   }
 
   /** parse：legacy 用 HTML；tikhub 合成 swiper/文章页后走 parseAndSaveContent */
-  public async parseAndSaveWeixin(ctx: ContextManager, fetched: WeixinFetched, url: string, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async parseAndSaveWeixin(ctx: ContextManager, fetched: WeixinFetched, url: string, bookmarkId: number, userBookmarkUuid: CrawlWriteTarget): Promise<CrawlResult> {
     if (fetched.source === 'legacy') {
       return await this.parseAndSaveContent(ctx, fetched.fetchRes, bookmarkId, userBookmarkUuid)
     }

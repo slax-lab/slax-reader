@@ -8,8 +8,14 @@ afterEach(() => vi.restoreAllMocks())
 
 function createService() {
   const putIfKeyExists = vi.fn().mockResolvedValue(undefined)
-  const updateBookmark = vi.fn().mockResolvedValue(undefined)
-  const service = new CrawlService(() => ({ putIfKeyExists }) as any, { updateBookmark } as any, {} as any, {} as any, {} as any)
+  const updateBookmark = vi.fn().mockResolvedValue(true)
+  const service = new CrawlService(
+    () => ({ putIfKeyExists }) as any,
+    { updateBookmark, stageBookmarkObjects: vi.fn().mockResolvedValue(undefined), publishBookmarkVersion: updateBookmark } as any,
+    {} as any,
+    {} as any,
+    {} as any
+  )
 
   return { service, putIfKeyExists, updateBookmark }
 }
@@ -70,7 +76,7 @@ describe('regular page parsing', () => {
     expect(result.title).toBe('Example article')
     expect(result.textContent).toContain('normal article')
     expect(putIfKeyExists).toHaveBeenCalledTimes(2)
-    expect(updateBookmark).toHaveBeenCalledWith(42, expect.objectContaining({ status: 'success' }))
+    expect(updateBookmark).toHaveBeenCalledWith(42, 0, expect.objectContaining({ status: 'success' }))
   })
 
   test.each([
@@ -85,7 +91,7 @@ describe('regular page parsing', () => {
       'bookmark-uuid'
     )
     expect(result.textContent).toContain(text)
-    expect(updateBookmark).toHaveBeenCalledWith(42, expect.objectContaining({ status: 'success' }))
+    expect(updateBookmark).toHaveBeenCalledWith(42, 0, expect.objectContaining({ status: 'success' }))
   })
 })
 

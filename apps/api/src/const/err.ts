@@ -307,7 +307,11 @@ export const DajialaArticleUnavailableError = (detail?: string): MultiLangError 
 }
 export const DeleteImportFailedBookmarkFailError = (): MultiLangError => NewError(ErrorName.DELETE_IMPORT_FAILED_BOOKMARK_FAIL, 400)
 export const PdfTextUnavailableError = (): MultiLangError =>
-  new MultiLangError(ErrorName.PDF_TEXT_UNAVAILABLE, 422, { en: 'No analyzable PDF text is available', zh: '暂无可分析文字', es: 'No hay texto PDF disponible para analizar' })
+  new MultiLangError(ErrorName.PDF_TEXT_UNAVAILABLE, 422, {
+    en: 'No analyzable PDF text is available',
+    zh: '暂无可分析文字',
+    es: 'No hay texto PDF disponible para analizar'
+  })
 export const BookmarkContentNotFoundError = (): MultiLangError => NewError(ErrorName.BOOKMARK_CONTENT_NOT_FOUND, 404)
 export const BookmarkOverviewContentError = (): MultiLangError => NewError(ErrorName.BOOKMARK_OVERVIEW_CONTENT_ERROR, 500)
 export const AccountDeletionNotAllowedError = (reason?: string): MultiLangError => {
@@ -350,10 +354,19 @@ export const ShareContentNotSupportedError = (): MultiLangError => NewError(Erro
 export const SyncTableRuleError = (): MultiLangError => NewError(ErrorName.SYNC_TABLE_RULE_ERROR, 400)
 export const SyncTableTagNameError = (): MultiLangError => NewError(ErrorName.SYNC_TABLE_TAG_NAME_ERROR, 400)
 /** Message carries the feature's display name so clients can show it as-is. */
-export const LabFeatureDisabledError = (featureName: { [lang in Language]?: string }): MultiLangError => {
+export const LabFeatureDisabledError = (featureName: {
+  [lang in Language]?: string
+}): MultiLangError => {
   const messages = loadErrorMessages(ErrorName.LAB_FEATURE_DISABLED)
   for (const lang of Object.keys(messages) as Language[]) {
     messages[lang] = (messages[lang] || '').replace('{feature}', featureName[lang] || featureName.en || '')
   }
   return new MultiLangError(ErrorName.LAB_FEATURE_DISABLED, 400, messages)
 }
+
+export const BookmarkWriteConflictError = (): MultiLangError =>
+  new MultiLangError(ErrorName.BOOKMARK_WRITE_CONFLICT, 409, {
+    en: 'A newer save is already in progress. Please retry.',
+    zh: '已有新的收藏任务，请重试。',
+    es: 'Hay un guardado más reciente en curso. Inténtalo de nuevo.'
+  })

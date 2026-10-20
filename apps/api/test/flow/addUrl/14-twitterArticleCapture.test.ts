@@ -274,11 +274,11 @@ describe("X Article provider fallback", () => {
 		);
 		expect(result.textContent).toBe(tweet.text);
 		expect(put).toHaveBeenCalledWith(
-			"html/body/article-test.html",
+			expect.stringMatching(/^html\/body\/article-test\/0\/[0-9a-f-]+\.html$/),
 			expect.stringContaining("quoted content")
 		);
 		expect(put).toHaveBeenCalledWith(
-			"html/body/article-test.html",
+			expect.stringMatching(/^html\/body\/article-test\/0\/[0-9a-f-]+\.html$/),
 			expect.stringContaining("original.jpg")
 		);
 	});
@@ -362,9 +362,10 @@ describe("X Article provider fallback", () => {
 			"article-test"
 		);
 		expect(result.textContent).toBe(tweet.text);
-		expect(put).toHaveBeenCalledWith("text/body/article-test.txt", tweet.text);
-		expect(repo.updateBookmark).toHaveBeenCalledWith(
+		expect(put).toHaveBeenCalledWith(expect.stringMatching(/^text\/body\/article-test\/0\/[0-9a-f-]+\.txt$/), tweet.text);
+		expect(repo.publishBookmarkVersion).toHaveBeenCalledWith(
 			42,
+			0,
 			expect.objectContaining({ status: "success" })
 		);
 		expect(api).toHaveBeenCalledOnce();
@@ -407,18 +408,19 @@ describe("X Article provider fallback", () => {
 			);
 			expect(result.textContent).toContain(BODY);
 			expect(put).toHaveBeenCalledWith(
-				"text/body/article-test.txt",
+				expect.stringMatching(/^text\/body\/article-test\/0\/[0-9a-f-]+\.txt$/),
 				expect.stringContaining(BODY)
 			);
 			expect(put).toHaveBeenCalledWith(
-				"html/body/article-test.html",
+				expect.stringMatching(/^html\/body\/article-test\/0\/[0-9a-f-]+\.html$/),
 				expect.stringContaining(BODY)
 			);
-			expect(repo.updateBookmark).toHaveBeenCalledWith(
+			expect(repo.publishBookmarkVersion).toHaveBeenCalledWith(
 				42,
+				0,
 				expect.objectContaining({ status: "success", title: "完整文章" })
 			);
-			expect(repo.updateBookmark.mock.calls[0][1]).not.toHaveProperty(
+			expect(repo.publishBookmarkVersion.mock.calls[0][2]).not.toHaveProperty(
 				"target_url"
 			);
 		}

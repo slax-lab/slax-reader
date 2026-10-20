@@ -71,3 +71,22 @@ export interface RemoveBookmarkTagRequest extends BookmarkRef {
 export interface AddBookmarkResponse {
   bmId: number | ''
 }
+
+export interface BookmarkForkRequest {
+  bookmark_uid: string
+}
+
+export type BookmarkWriteMode = 'created' | 'overwritten'
+
+export interface BookmarkForkInfo {
+  bookmark_uid: string
+  display_name?: string | null
+  user_id?: number | null
+}
+
+export interface BookmarkForkResponse {
+  bookmark_uid: string
+  bookmark_id: number
+  write_mode: BookmarkWriteMode
+  fork_info: BookmarkForkInfo | null
+}

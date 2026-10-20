@@ -1,5 +1,4 @@
 import { DOMParser } from 'linkedom'
-import { processTargetUrl } from '@/utils/urlPolicie'
 
 export const MAX_IMPORT_BYTES = 25 * 1024 * 1024
 export const MAX_IMPORT_RECORDS = 10_000
@@ -9,6 +8,8 @@ export const isNewImportSource = (value: string): value is NewImportSource => ne
 
 export interface ImportRecord {
   target_url: string
+  /** The original URL is retained for strict Reader recognition before normalization. */
+  raw_target_url?: string
   target_title: string
   tags: string[]
   saved_at?: string
@@ -254,7 +255,8 @@ export function parseImport(source: NewImportSource, blob: string, includeFeed =
     }
     let record: ImportRecord
     try {
-      const url = new URL(string(source === 'pinboard' ? row.href : row.URL).trim())
+      const raw_target_url = string(source === 'pinboard' ? row.href : row.URL)
+      const url = new URL(raw_target_url.trim())
       if (!['http:', 'https:'].includes(url.protocol)) throw new Error()
       const pin = source === 'pinboard',
         insta = source === 'instapaper'
@@ -266,7 +268,8 @@ export function parseImport(source: NewImportSource, blob: string, includeFeed =
       const tags = pin ? string(row.tags).split(/\s+/) : readTagList(string(insta ? row.Tags : row['Document tags']))
       if (insta && folder && !['unread', 'archive', 'starred'].includes(folder.toLowerCase())) tags.push(folder)
       record = {
-        target_url: processTargetUrl(url),
+        target_url: url.toString(),
+        raw_target_url,
         target_title: string(pin ? row.description : row.Title),
         tags: uniqueTags(tags),
         saved_at,

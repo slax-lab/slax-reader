@@ -135,14 +135,14 @@ describe('parseAndSavePodcast', () => {
     const { svc, putIfKeyExists, br, episodes, articles } = wire()
     const ctx = createMockCtx({ userId: 5 })
     const result = await svc.parseAndSavePodcast(ctx, info, 10, 'ub-10')
-    expect(result.contentKey).toBe('html/body/ub-10.html')
-    const html = putIfKeyExists.mock.calls.find(c => c[0] === 'html/body/ub-10.html')![1] as string
+    expect(result.contentKey).toEqual(expect.stringMatching(/^html\/body\/ub-10\/0\/.*\.html$/))
+    const html = putIfKeyExists.mock.calls.find(c => String(c[0]).startsWith('html/body/ub-10/0/'))![1] as string
     expect(html).toContain('<slax-media data-kind="audio" data-src="https://cdn.example.com/ep.mp3"')
     expect(html).toContain('<h2>Show notes</h2>')
-    expect(br.updateBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ title: 'Ep 1', site_name: 'Show', byline: 'Host', status: 'success' }))
+    expect(br.publishBookmarkVersion).toHaveBeenCalledWith(10, 0, expect.objectContaining({ title: 'Ep 1', site_name: 'Show', byline: 'Host', status: 'success' }))
     const sourceId = await podcastSourceId(info.audioUrl)
     expect(episodes.upsertFromInfo).toHaveBeenCalledWith(sourceId, info)
-    expect(articles.linkBookmark).toHaveBeenCalledWith({ bookmark_id: 10, user_id: 5, source_id: sourceId, source_hash: '' })
+    expect(articles.linkBookmark).toHaveBeenCalledWith({ bookmark_id: 10, capture_version: 0, user_id: 5, source_id: sourceId, source_hash: '' })
   })
 
   test('an episode already transcribed: the reference points at its transcript', async () => {
@@ -155,10 +155,10 @@ describe('parseAndSavePodcast', () => {
   test('Spotify: embed body, no episode row; a database error never fails the save', async () => {
     const { svc, putIfKeyExists, episodes } = wire()
     await svc.parseAndSavePodcast(createMockCtx(), { ...info, kind: 'spotify', audioUrl: '', embedUrl: 'https://open.spotify.com/embed/episode/x' }, 10, 'ub-10')
-    expect(putIfKeyExists.mock.calls.find(c => c[0] === 'html/body/ub-10.html')![1]).toContain('slax-pod-embed')
+    expect(putIfKeyExists.mock.calls.find(c => String(c[0]).startsWith('html/body/ub-10/0/'))![1]).toContain('slax-pod-embed')
     expect(episodes.upsertFromInfo).not.toHaveBeenCalled()
 
     episodes.upsertFromInfo.mockRejectedValue(new Error('pg down'))
-    await expect(svc.parseAndSavePodcast(createMockCtx(), info, 11, 'ub-11')).resolves.toMatchObject({ contentKey: 'html/body/ub-11.html' })
+    await expect(svc.parseAndSavePodcast(createMockCtx(), info, 11, 'ub-11')).resolves.toMatchObject({ contentKey: expect.stringMatching(/^html\/body\/ub-11\/0\/.*\.html$/) })
   })
 })

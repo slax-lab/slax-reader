@@ -19,7 +19,8 @@ import {
 } from '@test/helpers/mockFactory'
 
 function wireHandler() {
-  const bs = createMockBookmarkService()
+  const bs = { ...createMockBookmarkService(), tagBookmark: vi.fn().mockResolvedValue(1) }
+  bs.getBookmarkById.mockResolvedValue({ id: 42, write_version: 0, published_version: 0, content_key: 'body-a', content_md_key: 'text-a', moderation_result: 0 })
   const tg = createMockTelegramBotService()
   const search = createMockSearchService()
   const user = createMockUserService()
@@ -60,7 +61,8 @@ function makeTaskInfo(overrides: Record<string, unknown> = {}) {
   } as any
 }
 
-const parseRes = { title: 'Test', textContent: 'Test content', byline: 'Author' }
+const parseRes = { title: 'Test', textContent: 'Test content', byline: 'Author', contentKey: 'body-a' }
+const revision = { writeVersion: 0, publishedVersion: 0, contentKey: 'body-a', contentMdKey: 'text-a' }
 
 async function callAndAwait(handler: UrlParserHandler, ctx: any, taskInfo: any, res = parseRes) {
   await handler.processPostHandler(ctx, taskInfo, res)
@@ -90,21 +92,21 @@ describe('telegramCallback', () => {
 })
 
 describe('searchCallback', () => {
-  test('成功 → addSearchRecord + track(embedding, success)', async () => {
+  test('成功 → addSearchRecordByBmId + track(embedding, success)', async () => {
     const { handler, search, logs } = wireHandler()
     const ctx = createMockCtx()
 
     await callAndAwait(handler, ctx, makeTaskInfo())
 
-    expect(search.addSearchRecord).toHaveBeenCalledWith(ctx, 42, 'Test', 'Test content')
+    expect(search.addSearchRecordByBmId).toHaveBeenCalledWith(ctx, 42)
     expect(logs.track).toHaveBeenCalledWith(1, 'bookmark_add_step', expect.objectContaining({
       step_name: 'embedding', status: 'success'
     }))
   })
 
-  test('addSearchRecord 内部 rejected（embedding 真失败）→ track(embedding, failed) + pushBookmarkFailureAlert', async () => {
+  test('addSearchRecordByBmId 内部 rejected（embedding 真失败）→ track(embedding, failed) + pushBookmarkFailureAlert', async () => {
     const { handler, search, logs, crawl } = wireHandler()
-    search.addSearchRecord.mockResolvedValue([
+    search.addSearchRecordByBmId.mockResolvedValue([
       { status: 'fulfilled', value: [] },
       { status: 'rejected', reason: new Error('vector db error') }
     ])
@@ -120,9 +122,9 @@ describe('searchCallback', () => {
     }))
   })
 
-  test('addSearchRecord 全 fulfilled → track(embedding, success)', async () => {
+  test('addSearchRecordByBmId 全 fulfilled → track(embedding, success)', async () => {
     const { handler, search, logs } = wireHandler()
-    search.addSearchRecord.mockResolvedValue([
+    search.addSearchRecordByBmId.mockResolvedValue([
       { status: 'fulfilled', value: [] },
       { status: 'fulfilled', value: [] }
     ])
@@ -208,7 +210,7 @@ describe('tagsAndOverviewCallback', () => {
 
     await callAndAwait(handler, ctx, makeTaskInfo())
 
-    expect(bs.createBookmarkOverview).toHaveBeenCalledWith(1, 42, '', expect.stringContaining('Summary'))
+    expect(bs.createBookmarkOverview).toHaveBeenCalledWith(1, 42, '', expect.stringContaining('Summary'), revision)
   })
 
   test('overview 为空 → 跳过写入', async () => {
@@ -224,7 +226,7 @@ describe('tagsAndOverviewCallback', () => {
   })
 
   test('tags 非空 + bookmarkTags 已存在 → 不写入新 tags', async () => {
-    const { handler, user, aigc, tags } = wireHandler()
+    const { handler, user, aigc, tags, bs } = wireHandler()
     user.getUserSubscriptionInfo.mockResolvedValue({ subscription_end_at: new Date(Date.now() + 86400000) })
     user.getUserInfo.mockResolvedValue({ ai_lang: 'en' })
     aigc.generateOverviewTag.mockResolvedValue({ overview: '', key_takeaways: [], tags: ['tech'] })
@@ -237,7 +239,7 @@ describe('tagsAndOverviewCallback', () => {
   })
 
   test('tags 非空 + 无匹配 userTags → 不写入', async () => {
-    const { handler, user, aigc, tags } = wireHandler()
+    const { handler, user, aigc, tags, bs } = wireHandler()
     user.getUserSubscriptionInfo.mockResolvedValue({ subscription_end_at: new Date(Date.now() + 86400000) })
     user.getUserInfo.mockResolvedValue({ ai_lang: 'en' })
     aigc.generateOverviewTag.mockResolvedValue({ overview: '', key_takeaways: [], tags: ['tech'] })
@@ -251,7 +253,7 @@ describe('tagsAndOverviewCallback', () => {
   })
 
   test('tags 非空 + 全通过 → upsertBookmarkTags', async () => {
-    const { handler, user, aigc, tags } = wireHandler()
+    const { handler, user, aigc, tags, bs } = wireHandler()
     user.getUserSubscriptionInfo.mockResolvedValue({ subscription_end_at: new Date(Date.now() + 86400000) })
     user.getUserInfo.mockResolvedValue({ ai_lang: 'en' })
     aigc.generateOverviewTag.mockResolvedValue({ overview: '', key_takeaways: [], tags: ['tech'] })
@@ -262,11 +264,12 @@ describe('tagsAndOverviewCallback', () => {
 
     await callAndAwait(handler, ctx, makeTaskInfo())
 
-    expect(tags.upsertBookmarkTags).toHaveBeenCalledWith(42, 1, [{ id: 1, name: 'tech' }])
+    expect(bs.tagBookmark).toHaveBeenCalledWith(ctx, 1, 42, ['tech'], revision)
+    expect(tags.updateUserTagsDisplay).not.toHaveBeenCalled()
   })
 
   test('tags 非空 → 我的标签优先、截到 3 个、词表外的丢弃', async () => {
-    const { handler, user, aigc, tags } = wireHandler()
+    const { handler, user, aigc, tags, bs } = wireHandler()
     user.getUserSubscriptionInfo.mockResolvedValue({ subscription_end_at: new Date(Date.now() + 86400000) })
     user.getUserInfo.mockResolvedValue({ ai_lang: 'zh' })
     aigc.generateOverviewTag.mockResolvedValue({ overview: '', key_takeaways: [], tags: ['技术', '创业', '人工智能', '育儿', '无关'] })
@@ -282,7 +285,8 @@ describe('tagsAndOverviewCallback', () => {
 
     await callAndAwait(handler, ctx, makeTaskInfo())
 
-    expect(tags.updateUserTagsDisplay).toHaveBeenCalledWith(1, ['创业', '育儿', '技术'])
+    expect(bs.tagBookmark).toHaveBeenCalledWith(ctx, 1, 42, ['创业', '育儿', '技术'], revision)
+    expect(tags.updateUserTagsDisplay).not.toHaveBeenCalled()
     expect(aigc.generateOverviewTag).toHaveBeenCalledWith(
       ctx,
       expect.anything(),
@@ -325,14 +329,14 @@ describe('updateUserBookmarkCreateAtCallback', () => {
 
     await callAndAwait(handler, ctx, makeTaskInfo())
 
-    expect(search.addSearchRecord).toHaveBeenCalled()
+    expect(search.addSearchRecordByBmId).toHaveBeenCalled()
   })
 })
 
 describe('Promise.allSettled 隔离', () => {
   test('一个回调失败不影响其他', async () => {
     const { handler, search, bs } = wireHandler()
-    search.addSearchRecord.mockRejectedValue(new Error('search fail'))
+    search.addSearchRecordByBmId.mockRejectedValue(new Error('search fail'))
     const ctx = createMockCtx()
 
     await callAndAwait(handler, ctx, makeTaskInfo())

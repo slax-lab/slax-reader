@@ -24,9 +24,9 @@ describe('inlineContent + regular URL → 直接 parseAndSaveContent', () => {
     const inline = '<html><head><title>Client</title></head><body><article><p>Client-provided content long enough for parsing by Readability engine.</p></article></body></html>'
     const result = await svc.parseAndSaveContent(createMockCtx(), { content: inline, url: 'https://example.com/page', title: '' }, 88, 'ub-uuid-88')
     expect(result.title).toBeTruthy()
-    expect(result.contentKey).toBe('html/body/ub-uuid-88.html')
+    expect(result.contentKey).toMatch(/^html\/body\/ub-uuid-88\/0\/[0-9a-f-]+\.html$/)
     expect(putIfKeyExists).toHaveBeenCalledTimes(2)
-    expect(br.updateBookmark).toHaveBeenCalledWith(88, expect.objectContaining({ status: 'success' }))
+    expect(br.publishBookmarkVersion).toHaveBeenCalledWith(88, 0, expect.objectContaining({ status: 'success' }))
   })
 })
 

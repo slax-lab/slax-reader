@@ -17,7 +17,7 @@ vi.mock('@/decorators/route', () => ({
 }))
 
 import { BookmarkAddOrchestrator } from '@/domain/orchestrator/bookmarkAdd'
-import { processTargetUrl } from '@/utils/urlPolicie'
+import { prepareFetchUrl, processTargetUrl } from '@/utils/urlPolicie'
 import {
   createMockCtx, createMockBookmarkService, createMockCrawlService,
   createMockRequest
@@ -175,22 +175,29 @@ describe('BookmarkAddOrchestrator.addByUrl 异常处理', () => {
   })
 })
 
-describe('processTargetUrl', () => {
-  test('x.com → 去除 query 参数', () => {
-    expect(processTargetUrl(new URL('https://x.com/user/status/123?ref=home'))).toBe('https://x.com/user/status/123')
+describe('bookmark and acquisition URL separation', () => {
+  test.each([
+    'https://x.com/user/status/123?a=1&b=2#section',
+    'https://twitter.com/user/status/456?s=20&ref=home',
+    'https://mp.weixin.qq.com/s?__biz=MzA3&mid=123&poc_token=secret',
+    'https://example.com/page?id=1'
+  ])('keeps the complete bookmark identity: %s', input => {
+    const url = new URL(input)
+    expect(processTargetUrl(url)).toBe(input)
+    expect(url.toString()).toBe(input)
   })
 
-  test('twitter.com → 去除 query 参数', () => {
-    expect(processTargetUrl(new URL('https://twitter.com/user/status/456?s=20'))).toBe('https://twitter.com/user/status/456')
-  })
-
-  test('mp.weixin.qq.com → 去除 poc_token 保留其他', () => {
-    const result = processTargetUrl(new URL('https://mp.weixin.qq.com/s?__biz=MzA3&mid=123&poc_token=secret'))
-    expect(result).not.toContain('poc_token')
-    expect(result).toContain('__biz=MzA3')
-  })
-
-  test('普通 URL → 不变', () => {
-    expect(processTargetUrl(new URL('https://example.com/page?id=1'))).toBe('https://example.com/page?id=1')
+  test.each([
+    ['https://x.com/a?a=1&b=2&c=3', 'https://x.com/a'],
+    ['https://twitter.com/a?a=1&a=2&b=3', 'https://twitter.com/a'],
+    ['https://mp.weixin.qq.com/s?__biz=MzA3&mid=123&poc_token=secret', 'https://mp.weixin.qq.com/s?__biz=MzA3&mid=123'],
+    ['https://example.com/page?id=1', 'https://example.com/page?id=1']
+  ])('prepares an idempotent fetch URL without mutating the identity: %s', (input, expected) => {
+    const url = new URL(input)
+    const result = prepareFetchUrl(url)
+    expect(result).toBe(expected)
+    expect(prepareFetchUrl(result)).toBe(expected)
+    expect(url.toString()).toBe(input)
+    expect(processTargetUrl(url)).toBe(input)
   })
 })

@@ -5,6 +5,7 @@ import { UserRepo, platformBindType } from '@/infra/repository/dbUser'
 import { Hashid } from '@/utils/hashids'
 import { hashSHA256 } from '@/utils/strings'
 import { URLPolicie } from '@/utils/urlPolicie'
+import { parseReaderBookmarkUrl } from '@/utils/readerBookmarkUrl'
 import { i18n } from '@/const/i18n'
 
 export interface callbackPayload {
@@ -83,9 +84,12 @@ export class TelegramBotService {
     const match = text.match(`(https?)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]`)
     if (!match || match.length < 1) return
 
+    // Preserve the complete token for Reader recognition; the legacy matcher trims query/hash endings.
+    const rawToken = text.slice(match.index ?? 0).match(/^[^\s<>"']+/)?.[0] ?? match[0]
+    const readerUrl = parseReaderBookmarkUrl(rawToken, this.env)
     const url = new URL(match[0])
     const policie = new URLPolicie(this.env, url)
-    if (policie.isBlocked()) {
+    if (!readerUrl && policie.isBlocked()) {
       await ctx.reply(this.t.telegramBlockedUrl({}))
       return
     }
@@ -93,7 +97,7 @@ export class TelegramBotService {
     try {
       const user = await this.userRepo.getUserByPlatform('telegram', String(telegramId))
       return {
-        url: url.toString(),
+        url: readerUrl?.canonicalUrl ?? url.toString(),
         chatId: ctx.chatId,
         msgId: ctx.msgId,
         userId: user.user_id

@@ -3,6 +3,7 @@ import type { LazyInstance } from '../decorators/lazy'
 import { PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
 import { PRISIMA_HYPERDRIVE_CLIENT } from '../const/symbol'
 import { UserRepo } from '../infra/repository/dbUser'
+import { deletePrivateBookmarkBatch } from '../infra/repository/bookmarkObjectLifecycle'
 
 @injectable()
 export class UserDeletionService {
@@ -151,10 +152,17 @@ export class UserDeletionService {
   }
 
   private async deletePrivateBookmarks(userId: number): Promise<void> {
-    const result = await this.prismaPg().sr_bookmark.deleteMany({
-      where: { private_user: userId }
-    })
-    console.log(`Deleted ${result.count} private bookmarks`)
+    let count = 0
+    while (true) {
+      const deleted = await this.prismaPg().$transaction(tx => deletePrivateBookmarkBatch(tx, userId))
+      count += deleted.length
+      if (deleted.length < 100) break
+    }
+    // Target-owned rows only. Another user's completed Fork retains its independent copy/lineage.
+    await this.prismaPg().sr_bookmark_fork.deleteMany({ where: { target_user_id: userId } })
+    await this.prismaPg().sr_bookmark_fork_operation.deleteMany({ where: { user_id: userId } })
+    await this.prismaPg().sr_bookmark_save_receipt.deleteMany({ where: { user_id: userId } })
+    console.log(`Deleted ${count} private bookmarks; object cleanup is queued`)
   }
 
   private async deleteBookmarkOverviews(userId: number): Promise<void> {

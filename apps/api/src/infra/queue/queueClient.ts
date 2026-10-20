@@ -5,6 +5,7 @@ import type { EventRequestContext } from '@/utils/eventContext'
 
 export interface parseMessage {
   targetUrl: string
+  writeVersion?: number
   resource: string
   parserType: parserType
   bookmarkId: number
@@ -26,6 +27,8 @@ export interface queueParseMessage extends parseMessage {
   userId: number
   privateUser: number
   skipParse: boolean
+  saveReplayed?: boolean
+  createdTarget?: boolean
 }
 
 export interface queueRetryParseMessage extends parseMessage {

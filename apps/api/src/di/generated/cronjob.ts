@@ -1,5 +1,6 @@
 import { Container } from '../../decorators/di'
 import { ContextManager } from '@/utils/context'
+import { BookmarkForkJob } from '../../handler/cron/bookmarkForkJob'
 import { BookmarkJob } from '../../handler/cron/bookmarkJob'
 import { CollectionJob } from '../../handler/cron/collectionJob'
 import { PodcastJob } from '../../handler/cron/podcastJob'
@@ -9,6 +10,10 @@ import { UserDeletionJob } from '../../handler/cron/userDeletionJob'
 import { YoutubeArticleJob } from '../../handler/cron/youtubeArticleJob'
 
 export const handleCronjob = async (container: Container, event: any, env: Env, exec: ExecutionContext) => {
+  const repairForkOperations = async () => {
+    const controller = container.resolve(BookmarkForkJob)
+    exec.waitUntil(controller.repairForkOperations(new ContextManager(exec, env)))
+  }
   const clearExpiredTrashedBookmark = async () => {
     const controller = container.resolve(BookmarkJob)
     exec.waitUntil(controller.clearExpiredTrashedBookmark(new ContextManager(exec, env)))
@@ -24,6 +29,10 @@ export const handleCronjob = async (container: Container, event: any, env: Env, 
   const detectStuckAndRetry = async () => {
     const controller = container.resolve(BookmarkJob)
     exec.waitUntil(controller.detectStuckAndRetry(new ContextManager(exec, env)))
+  }
+  const repairBookmarkSearchIndexes = async () => {
+    const controller = container.resolve(BookmarkJob)
+    exec.waitUntil(controller.repairBookmarkSearchIndexes(new ContextManager(exec, env)))
   }
   const recomputeCollectionSubscriberActive = async () => {
     const controller = container.resolve(CollectionJob)
@@ -51,10 +60,12 @@ export const handleCronjob = async (container: Container, event: any, env: Env, 
   }
 
   const cronTasks: Array<[string, () => Promise<void>]> = [
+    ['*/5 * * * *', repairForkOperations],
     ['0 */1 * * *', clearExpiredTrashedBookmark],
     ['*/5 * * * *', checkImportProgress],
     ['*/2 * * * *', monitorTwitterBookmarks],
     ['*/1 * * * *', detectStuckAndRetry],
+    ['*/5 * * * *', repairBookmarkSearchIndexes],
     ['*/30 * * * *', recomputeCollectionSubscriberActive],
     ['*/5 * * * *', sweepPodcasts],
     ['*/5 * * * *', refreshRss],

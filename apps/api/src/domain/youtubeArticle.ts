@@ -395,7 +395,7 @@ export class YoutubeArticleService {
       // Rendered once for all bookmarks, and only when one of them takes it
       if (rendered === undefined) rendered = await this.renderBody(row)
       if (!rendered) return count
-      if (await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered)) count++
+      if (await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered, { captureVersion: ref.capture_version })) count++
     }
     return count
   }
@@ -403,7 +403,10 @@ export class YoutubeArticleService {
   private async publishBodyFor(ctx: ContextManager, bookmarkId: number, userId: number, row: youtubeArticlePO): Promise<boolean> {
     if (!(await this.wantsBody(bookmarkId, userId, row))) return false
     const rendered = await this.renderBody(row)
-    return rendered ? this.bodies.writeBody(ctx, bookmarkId, userId, rendered) : false
+    const ref = await this.repo.findRef(bookmarkId)
+    return rendered && ref && ref.source_id === row.source_id && ref.source_hash === row.source_hash
+      ? this.bodies.writeBody(ctx, bookmarkId, userId, rendered, { captureVersion: ref.capture_version })
+      : false
   }
 
   /** The owner has the switch on and reads this language, and nobody marked the body. Marks are checked last, closest to the write. */
@@ -445,7 +448,7 @@ export class YoutubeArticleService {
       const cues = playerCues(html) ?? []
       // Same text the crawl writes: the caption lines joined
       const body = { html: HtmlBuilder.buildYoutube(videoId, cues), text: cues.map(c => c.text).join(' ') }
-      const written = await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, body, { force: true }).catch(() => false)
+      const written = await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, body, { force: true, captureVersion: ref.capture_version }).catch(() => false)
       if (written) count++
       else failed.push(ref.bookmark_id)
     }

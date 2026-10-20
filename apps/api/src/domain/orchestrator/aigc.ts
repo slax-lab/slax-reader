@@ -7,6 +7,7 @@ import { TagService } from '@/domain/tag'
 import type { BookmarkTag } from '@/domain/tag'
 import { BatchJobStatus } from '@/infra/external/batchCompletion'
 import { AigcBatchTaskPO, AigcBatchTaskStatus } from '@/infra/repository/dbBookmark'
+import type { BookmarkContentRevision } from '@/infra/repository/dbBookmark'
 import { Hashid } from '@/utils/hashids'
 import { MixTagsOverviewResult, OverviewObjectStreamResult } from '@/domain/aigc'
 
@@ -56,6 +57,31 @@ export class AigcBatchOrchestrator {
 
       if (state === BatchJobStatus.SUCCEEDED) {
         try {
+          const current = await this.bookmarkService.getBookmarkById(task.bookmark_id)
+          let contentRevision: BookmarkContentRevision | undefined
+          try {
+            const metadata = task.result_data ? (JSON.parse(task.result_data) as { contentRevision?: BookmarkContentRevision }) : null
+            const candidate = metadata?.contentRevision
+            if (candidate && typeof candidate.writeVersion === 'number' && typeof candidate.publishedVersion === 'number' && candidate.contentKey && candidate.contentMdKey) {
+              contentRevision = candidate
+            }
+          } catch {
+            contentRevision = undefined
+          }
+          // Tasks created before revision metadata existed cannot be proven to match
+          // the body that produced the batch response. Discard them conservatively.
+          if (
+            !current ||
+            !contentRevision ||
+            current.write_version !== contentRevision.writeVersion ||
+            current.published_version !== contentRevision.publishedVersion ||
+            current.content_key !== contentRevision.contentKey ||
+            current.content_md_key !== contentRevision.contentMdKey
+          ) {
+            await this.bookmarkService.updateAigcBatchTaskStatus(task.batch_request_id, AigcBatchTaskStatus.FAILED, '', 'stale or unversioned content revision')
+            counters.failed++
+            continue
+          }
           if (!result.response?.inlinedResponses?.inlinedResponses?.[0]?.response?.candidates?.[0]?.content?.parts?.[0]?.text) {
             throw new Error('Empty AI response')
           }
@@ -89,7 +115,7 @@ export class AigcBatchOrchestrator {
           }
 
           if (overview.length > 0) {
-            await this.bookmarkService.createBookmarkOverview(task.user_id, task.bookmark_id, '', JSON.stringify({ overview, key_takeaways }))
+            await this.bookmarkService.createBookmarkOverview(task.user_id, task.bookmark_id, '', JSON.stringify({ overview, key_takeaways }), contentRevision)
           }
 
           if (tags.length > 0) {
@@ -111,7 +137,7 @@ export class AigcBatchOrchestrator {
               const tags = await this.tagService.getBookmarkTags(ctx, task.user_id, task.bookmark_id)
               // 如果Tags不为空，则代表此前用户已经手动打过了，此时不去替换结果
               if (tags.length < 1) {
-                await this.bookmarkService.tagBookmark(ctx, task.user_id, task.bookmark_id, availableTags)
+                await this.bookmarkService.tagBookmark(ctx, task.user_id, task.bookmark_id, availableTags, contentRevision)
               }
             }
           }

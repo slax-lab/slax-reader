@@ -34,6 +34,10 @@ const onFork = async () => {
     const result = await fork(props.bookmarkUid)
     if (result?.bookmark_uid) {
       Toast.showToast({ text: t('common.tips.fork_success'), type: ToastType.Success })
+      // A destination may already have a cached useAsyncData entry after an earlier visit.
+      // The Fork service can overwrite that stable UUID, so force the next page load to read
+      // the newly committed content and lineage metadata.
+      clearNuxtData(`content-${result.bookmark_uid}`)
       await navigateTo(`/b/${encodeURIComponent(result.bookmark_uid)}`)
     }
   } catch {

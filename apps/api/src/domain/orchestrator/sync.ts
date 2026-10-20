@@ -1,7 +1,7 @@
 import { inject, injectable } from '@/decorators/di'
 import { UserService } from '@/domain/user'
 import { DBSyncBatchOperation, type SyncCommitObserver } from '@/infra/repository/dbSyncBatch'
-import { QueueClient, queueRetryParseMessage, callbackType } from '@/infra/queue/queueClient'
+import { QueueClient } from '@/infra/queue/queueClient'
 import { ContextManager } from '@/utils/context'
 import { parserType, URLPolicie } from '@/utils/urlPolicie'
 import { CrawlService } from '@/domain/crawl'
@@ -14,6 +14,16 @@ import { bookmarkEventProperties, getEventContext, submitServerEvent } from '@/d
 import { ErrorMarkTypeError, ErrorParam, SyncTableRuleError, SyncTableTagNameError, UserNotFoundError } from '@/const/err'
 import { SignJWT } from 'jose'
 import { markType } from '@/infra/repository/dbMark'
+import { BookmarkForkService } from '@/domain/bookmarkFork'
+import { parseReaderBookmarkUrl } from '@/utils/readerBookmarkUrl'
+
+/** A committed save whose parser workflow was not accepted must stay in the client upload queue. */
+export class SyncWorkflowDispatchError extends Error {
+  constructor(public readonly cause: unknown) {
+    super('Bookmark workflow dispatch failed')
+    this.name = 'SyncWorkflowDispatchError'
+  }
+}
 
 export type SyncExecOperation = 'PUT' | 'PATCH' | 'DELETE'
 
@@ -145,7 +155,8 @@ export class SyncOrchestrator {
     @inject(GA4AnalyticsClient) private ga4Client: GA4AnalyticsClient,
     @inject(LogsService) private logsService: LogsService,
     @inject(CollectionRepo) private collectionRepo: CollectionRepo,
-    @inject(BookmarkSearchRepo) private bookmarkSearchRepo: BookmarkSearchRepo
+    @inject(BookmarkSearchRepo) private bookmarkSearchRepo: BookmarkSearchRepo,
+    @inject(BookmarkForkService) private bookmarkForkService: BookmarkForkService
   ) {}
 
   /** sign token */
@@ -174,30 +185,81 @@ export class SyncOrchestrator {
     if (!userInfo.uuid) throw UserNotFoundError()
 
     const userId = ctx.getUserId()
-    const orderedOperations: OrderedSyncOperation[] = []
-
     for (const change of changes) {
-      if (change.table === 'sr_user_bookmark') {
-        this.processUserBookmarkChange(change, userId, orderedOperations)
-      } else if (change.table === 'sr_user_tag' && change.op === 'PUT') {
-        this.processUserTagChange(change, userId, orderedOperations)
-      } else if (change.table === 'sr_bookmark_comment') {
-        this.processUserBookmarkCommentChange(change, userId, orderedOperations)
-      } else {
-        throw SyncTableRuleError()
+      // Parse the complete batch before a Fork performs its independently committed copy.
+      const operations: OrderedSyncOperation[] = []
+      if (change.table === 'sr_user_bookmark') this.processUserBookmarkChange(change, userId, operations)
+      else if (change.table === 'sr_user_tag' && change.op === 'PUT') this.processUserTagChange(change, userId, operations)
+      else if (change.table === 'sr_bookmark_comment') this.processUserBookmarkCommentChange(change, userId, operations)
+      else throw SyncTableRuleError()
+      for (const operation of operations) {
+        if (operation.type === 'create_bookmark') new URL(operation.data.targetUrl)
+      }
+    }
+    const observer = this.syncCommitObserver(ctx)
+    const uuidMap = new Map<string, string>()
+    const pending: SyncChangeItem[] = []
+    let hasDeleteRestore = false
+    const flush = async () => {
+      if (pending.length === 0) return
+      const orderedOperations: OrderedSyncOperation[] = []
+      for (const original of pending.splice(0)) {
+        const change = this.remapSyncChange(original, uuidMap)
+        if (change.table === 'sr_user_bookmark') this.processUserBookmarkChange(change, userId, orderedOperations)
+        else if (change.table === 'sr_user_tag' && change.op === 'PUT') this.processUserTagChange(change, userId, orderedOperations)
+        else if (change.table === 'sr_bookmark_comment') this.processUserBookmarkCommentChange(change, userId, orderedOperations)
+        else throw SyncTableRuleError()
+      }
+      hasDeleteRestore ||= orderedOperations.some(op => op.type === 'delete_bookmark' || op.type === 'restore_bookmark')
+      const result = observer ? await this.dbSyncBatch.executeOrderedOperations(orderedOperations, observer) : await this.dbSyncBatch.executeOrderedOperations(orderedOperations)
+      for (const newBookmark of result) {
+        if (newBookmark.requestedBookmarkUuid && newBookmark.bookmarkUuid) uuidMap.set(newBookmark.requestedBookmarkUuid, newBookmark.bookmarkUuid)
+        if (!newBookmark.replayed || newBookmark.replayWorkflow) await this.sendRetryParseEvent(ctx, newBookmark)
       }
     }
 
-    const observer = this.syncCommitObserver(ctx)
-    const result = observer ? await this.dbSyncBatch.executeOrderedOperations(orderedOperations, observer) : await this.dbSyncBatch.executeOrderedOperations(orderedOperations)
-    for (const newBookmark of result) {
-      await this.sendRetryParseEvent(ctx, newBookmark)
+    for (const change of changes) {
+      const reader = this.readerBookmarkChange(ctx, change)
+      if (!reader) {
+        pending.push(change)
+        continue
+      }
+
+      await flush()
+      const forkResult = await this.bookmarkForkService.fork(ctx, { bookmark_uid: reader.bookmarkUid }, `sync-fork:${change.id}:${reader.bookmarkUid}`, change.id)
+      uuidMap.set(change.id, forkResult.bookmark_uid)
+      const initialState: Record<string, string> = {}
+      if (change.data?.archive_status !== undefined) initialState.archive_status = change.data.archive_status
+      if (change.data?.is_starred !== undefined) initialState.is_starred = change.data.is_starred
+      if (Object.keys(initialState).length > 0) pending.push({ table: 'sr_user_bookmark', id: change.id, op: 'PATCH', data: initialState })
     }
+    await flush()
 
     // 同步删除/恢复需补清缓存
-    if (orderedOperations.some(op => op.type === 'delete_bookmark' || op.type === 'restore_bookmark')) {
+    if (hasDeleteRestore) {
       await this.searchService.clearSearchCache(ctx, userId)
     }
+    return uuidMap
+  }
+
+  private readerBookmarkChange(ctx: ContextManager, change: SyncChangeItem): { bookmarkUid: string } | null {
+    if (change.table !== 'sr_user_bookmark' || change.op !== 'PUT' || !change.data?.metadata) return null
+    try {
+      const metadata = JSON.parse(change.data.metadata.replaceAll('\\\\', '')) as SyncChangeUserBookmarkMetadata
+      const target = metadata.bookmark?.target_url
+      if (!target) return null
+      const parsed = parseReaderBookmarkUrl(target, ctx.env)
+      return parsed ? { bookmarkUid: parsed.bookmarkUid } : null
+    } catch {
+      return null
+    }
+  }
+
+  private remapSyncChange(change: SyncChangeItem, uuidMap: Map<string, string>): SyncChangeItem {
+    const mappedId = change.table === 'sr_user_bookmark' && change.op !== 'PUT' ? (uuidMap.get(change.id) ?? change.id) : change.id
+    const data = change.data ? { ...change.data } : change.data
+    if (data?.user_bookmark_uuid && uuidMap.has(data.user_bookmark_uuid)) data.user_bookmark_uuid = uuidMap.get(data.user_bookmark_uuid)!
+    return { ...change, id: mappedId, data }
   }
 
   private appendCommentOperation(change: SyncChangeItem, userId: number, operations: OrderedSyncOperation[]) {
@@ -380,9 +442,12 @@ export class SyncOrchestrator {
 
     const rest = changes.filter(c => c.table !== 'sr_user_collection_subscriber')
     if (rest.length > 0) {
-      await this.commitBookmarkChanges(ctx, rest)
+      const uuidMap = await this.commitBookmarkChanges(ctx, rest)
       // 落库成功后再埋，避免误记
-      this.trackBookmarkChanges(ctx, rest)
+      this.trackBookmarkChanges(
+        ctx,
+        rest.map(change => this.remapSyncChange(change, uuidMap))
+      )
     }
   }
 
@@ -481,7 +546,11 @@ export class SyncOrchestrator {
     })
   }
 
-  public async sendRetryParseEvent(ctx: ContextManager, newBookmark: { bookmarkId: number; targetUrl: string; userId: number }) {
+  public async sendRetryParseEvent(
+    ctx: ContextManager,
+    newBookmark: { bookmarkId: number; targetUrl: string; userId: number; writeVersion?: number; replayed?: boolean; replayWorkflow?: boolean }
+  ) {
+    if (newBookmark.replayed && !newBookmark.replayWorkflow) return
     try {
       await this.bookmarkSearchRepo.upsertUserBookmark(newBookmark.userId, newBookmark.bookmarkId)
       await this.searchService.clearSearchCache(ctx, newBookmark.userId)
@@ -489,19 +558,19 @@ export class SyncOrchestrator {
       console.error(`Failed to sync search relation for bookmark ${newBookmark.bookmarkId}:`, error)
     }
 
+    const police = new URLPolicie(ctx.env, newBookmark.targetUrl)
+    const pType = police.getParserType()
+
+    if (pType === parserType.BLOCK_PARSE) return
+
+    ctx.execution.waitUntil(
+      this.ga4Client.trackEvent(newBookmark.userId, 'bookmark_add_start', {
+        channel: 'powersync_batch',
+        method: 'manual_paste'
+      })
+    )
+
     try {
-      const police = new URLPolicie(ctx.env, newBookmark.targetUrl)
-      const pType = police.getParserType()
-
-      if (pType === parserType.BLOCK_PARSE) return
-
-      ctx.execution.waitUntil(
-        this.ga4Client.trackEvent(newBookmark.userId, 'bookmark_add_start', {
-          channel: 'powersync_batch',
-          method: 'manual_paste'
-        })
-      )
-
       await this.crawlService.createWorkflow(
         ctx.env,
         {
@@ -512,16 +581,17 @@ export class SyncOrchestrator {
           userLang: ctx.getlang(),
           callbackChatId: 0,
           callbackOriginMessageId: 0,
-          ignoreGenerateTag: false
+          ignoreGenerateTag: false,
+          ...(newBookmark.writeVersion == null ? {} : { writeVersion: newBookmark.writeVersion })
         },
         3,
         ctx
       )
-
-      ctx.execution.waitUntil(this.logsService.track(newBookmark.userId, 'bookmark_add', { bookmark_id: newBookmark.bookmarkId, channel: 'powersync_batch', status: 'success' }))
     } catch (error) {
       console.error(`Failed to create crawl workflow for bookmark ${newBookmark.bookmarkId}:`, error)
       ctx.execution.waitUntil(this.logsService.track(newBookmark.userId, 'bookmark_add', { bookmark_id: newBookmark.bookmarkId, channel: 'powersync_batch', status: 'failed' }))
+      throw new SyncWorkflowDispatchError(error)
     }
+    ctx.execution.waitUntil(this.logsService.track(newBookmark.userId, 'bookmark_add', { bookmark_id: newBookmark.bookmarkId, channel: 'powersync_batch', status: 'success' }))
   }
 }

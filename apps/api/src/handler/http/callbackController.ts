@@ -21,12 +21,15 @@ import { LogsService } from '@/domain/logs'
 import { LabService } from '@/domain/lab'
 import { i18n } from '@/const/i18n'
 import { MultiLangError } from '@/utils/multiLangError'
+import { BookmarkAddOrchestrator } from '@/domain/orchestrator/bookmarkAdd'
+import { parseReaderBookmarkUrl } from '@/utils/readerBookmarkUrl'
 
 @Controller('/callback')
 export class CallbackController {
   constructor(
     @inject(TelegramBotService) private telegramBotService: TelegramBotService,
     @inject(BookmarkService) private bookmarkService: BookmarkService,
+    @inject(BookmarkAddOrchestrator) private bookmarkAddOrchestrator: BookmarkAddOrchestrator,
     @inject(SubscriptionService) private subscriptionService: SubscriptionService,
     @inject(SubscriptionAppleService) private appleSubscription: SubscriptionAppleService,
     @inject(SubscriptionOrchestrator) private subscriptionOrchestrator: SubscriptionOrchestrator,
@@ -61,6 +64,25 @@ export class CallbackController {
       ctxManager.setUserInfo(res.userId, enUserId, '', lang)
       let addRes: Awaited<ReturnType<BookmarkService['addUrlBookmark']>>
       try {
+        if (parseReaderBookmarkUrl(res.url, ctxManager.env)) {
+          const fork = await this.bookmarkAddOrchestrator.addByUrl(
+            ctxManager,
+            { target_url: res.url, tags: [] },
+            {
+              idempotencyKey: `telegram:${res.chatId}:${res.msgId}`
+            }
+          )
+          if (!fork.forkResult) throw new Error('Reader Fork did not return a result')
+          ctxManager.execution.waitUntil(
+            this.logsService.track(res.userId, 'bookmark_add', { channel: 'telegram', bookmark_id: fork.bookmarkId, status: 'success', write_mode: fork.forkResult.write_mode })
+          )
+          await tgSvc.sendProcessSuccess(ctx, fork.forkResult.bookmark_id, {
+            chat_id: res.chatId,
+            origin_message_id: res.msgId
+          })
+          return
+        }
+
         addRes = await this.bookmarkService.addUrlBookmark(ctxManager, { target_url: res.url, tags: [] }, callbackType.CALLBACK_TELEGRAM, {
           chat_id: res.chatId,
           origin_message_id: res.msgId
@@ -99,6 +121,7 @@ export class CallbackController {
           userLang: ctxManager.getlang(),
           callbackChatId: res.chatId,
           callbackOriginMessageId: res.msgId,
+          writeVersion: addRes.info.writeVersion,
           ignoreGenerateTag: false
         })
       }

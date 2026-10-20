@@ -385,78 +385,104 @@ export class SearchService {
     return result
   }
 
-  public async addSearchRecordByBmId(ctx: ContextManager, bookmarkId: number) {
-    const bookmark = await this.bookmarkRepo.getBookmarkById(bookmarkId)
-    if (!bookmark) throw BookmarkNotFoundError()
-    if (!bookmark.content_md_key) throw BookmarkNotFoundError()
-    const content = await ctx.env.OSS.get(bookmark.content_md_key)
-    if (!content) throw BookmarkNotFoundError()
-    const normalizer = new Normalizer(ctx.env)
-
-    const body = await content.text()
-    return await Promise.allSettled([
-      this.semanticNormalize(ctx, normalizer, bookmarkId, bookmark.title, body),
-      this.fulltextNormalize(ctx, normalizer, bookmarkId, bookmark.title, body)
-    ])
-  }
-
-  public async addSearchRecord(ctx: ContextManager, bookmarkId: number, title: string, content: string) {
-    const normalizer = new Normalizer(ctx.env)
-    return await Promise.allSettled([this.fulltextNormalize(ctx, normalizer, bookmarkId, title, content), this.semanticNormalize(ctx, normalizer, bookmarkId, title, content)])
-  }
-
   /**
-   * 全文搜索内容归一化
+   * Rebuild both search projections from the currently committed R2 body. The input title/body
+   * passed by older callers is deliberately ignored so a late parser callback cannot index an
+   * uncommitted or superseded snapshot.
    */
-  public async fulltextNormalize(ctx: ContextManager, normalizer: Normalizer, bookmarkId: number, title: string, content: string) {
+  public async addSearchRecordByBmId(ctx: ContextManager, bookmarkId: number): Promise<PromiseSettledResult<unknown>[]> {
     try {
-      const res = await normalizer.processFulltext(title, content)
-      if (res.length < 1) {
-        console.log(`fulltext normalize failed, bookmarkId: ${bookmarkId}, content is empty`)
-        return []
-      }
-      return await this.bookmarkSearchRepo.createBookmarkRaw(
-        res.map((item, idx) => ({
+      await this.indexCurrentBookmark(ctx, bookmarkId)
+      return [
+        { status: 'fulfilled', value: undefined },
+        { status: 'fulfilled', value: undefined }
+      ]
+    } catch (reason) {
+      return [
+        { status: 'rejected', reason },
+        { status: 'rejected', reason }
+      ]
+    }
+  }
+
+  /** Compatibility entry retained for queue/media callers; content is read from the committed body. */
+  public async addSearchRecord(ctx: ContextManager, bookmarkId: number, _title?: string, _content?: string) {
+    return await this.addSearchRecordByBmId(ctx, bookmarkId)
+  }
+
+  public async indexCurrentBookmark(ctx: ContextManager, bookmarkId: number): Promise<boolean> {
+    const bookmark = await this.bookmarkRepo.getBookmarkById(bookmarkId)
+    if (!bookmark?.content_key) throw BookmarkNotFoundError()
+    await this.bookmarkRepo.markBookmarkSearchIndexPending(bookmarkId, bookmark.content_key)
+    let body = ''
+    if (bookmark.content_md_key) {
+      const contentObject = await ctx.env.OSS.get(bookmark.content_md_key)
+      if (!contentObject) throw BookmarkNotFoundError()
+      body = await contentObject.text()
+    }
+    // PDFs without extracted text still have a useful title-only search projection.
+    const title = bookmark.title || bookmark.target_url
+    const normalizer = new Normalizer(ctx.env)
+    // Normalization and embedding may take minutes. Only bounded index writes occur under the
+    // row lock, which rechecks the unique body pointer after normalization has finished.
+    const [fulltext, semantic, userIds] = await Promise.all([
+      normalizer.processFulltext(title, body),
+      normalizer.processSemantic(bookmarkId, title, body),
+      this.bookmarkRepo.getBookmarkUserIds(bookmarkId)
+    ])
+    if (!fulltext.length || !semantic.length || semantic.some(item => !item.embedding.length)) {
+      throw new Error(`Search normalization failed for bookmark ${bookmarkId}`)
+    }
+    const existingShard = await this.bookmarkRepo.getVectorShard(bookmarkId)
+    const shard = existingShard || (await this.bookmarkRepo.upsertVectorShard(bookmarkId, Math.floor(Math.random() * 5)))
+    if (!shard) throw new Error(`create semantic vector shard failed, bookmarkId: ${bookmarkId}`)
+
+    const committed = await this.bookmarkRepo.commitBookmarkSearchIndex(bookmarkId, bookmark.content_key, async assertLease => {
+      await assertLease()
+      await this.bookmarkSearchRepo.createBookmarkRaw(
+        fulltext.map((item, idx) => ({
           bookmark_id: bookmarkId,
           content: item.normalized_content,
           rawContent: item.raw_content,
           title: item.normalized_title,
           rawTitle: item.raw_title,
           shard_idx: idx
-        }))
+        })),
+        assertLease
       )
-    } catch (e) {
-      console.log(e, 'fulltextNormalize error')
-      throw e
-    }
-  }
-
-  /**
-   * 语义搜索内容归一化
-   */
-  public async semanticNormalize(ctx: ContextManager, normalizer: Normalizer, bookmarkId: number, title: string, content: string) {
-    try {
-      const normalized = await normalizer.processSemantic(bookmarkId, title, content)
-      console.log(`semantic normalize, bookmarkId: ${bookmarkId}, normalized: ${normalized.length}`)
-      // 先判断是否存在，如果存在则删除后重新写入
-      const shard = await this.bookmarkRepo.upsertVectorShard(bookmarkId, Math.floor(Math.random() * 5))
-      if (!shard) {
-        console.error(`create semantic vector shard failed, bookmarkId: ${bookmarkId}`)
-        return
-      }
-
+      await assertLease()
+      await this.bookmarkSearchRepo.upsertUserBookmarks(bookmarkId, userIds)
+      await assertLease()
       await this.dbVectorize.deleteVector(bookmarkId, shard.bucket_idx)
-      const res = await this.dbVectorize.upsertVector(
+      await assertLease()
+      await this.dbVectorize.upsertVector(
         bookmarkId,
         shard.bucket_idx,
-        normalized.map(item => ({ vecId: item.id, vector: item.embedding }))
+        semantic.map(item => ({ vecId: item.id, vector: item.embedding }))
       )
-      console.log(`create semantic vector, bookmarkId: ${bookmarkId}, shardIdx: ${shard.bucket_idx}, mutaionsId: ${JSON.stringify(res)}`)
-      return res
-    } catch (e) {
-      console.log(e, 'semanticNormalize error')
-      throw e
+      await assertLease()
+      return true
+    })
+    if (!committed.committed) throw new Error(`Bookmark ${bookmarkId} changed before search index commit`)
+    await Promise.allSettled(userIds.map(userId => this.clearSearchCache(ctx, userId)))
+    return true
+  }
+
+  /** Retry published body stages whose search projections were interrupted. */
+  public async repairPendingIndexes(ctx: ContextManager, limit = 20): Promise<number> {
+    const pending = await this.bookmarkRepo.listPendingBookmarkIndexStages(limit)
+    let completed = 0
+    for (const { bookmark_id: bookmarkId } of pending) {
+      // Rotate failed work behind other pending bookmarks so an unavailable provider/body cannot
+      // starve the rest of the queue. Rows stay pending across worker restarts.
+      await this.bookmarkRepo.touchPendingBookmarkIndexStages(bookmarkId)
+      try {
+        if (await this.indexCurrentBookmark(ctx, bookmarkId)) completed++
+      } catch (error) {
+        console.error(`bookmark search repair failed for ${bookmarkId}: ${error instanceof Error ? error.message : String(error)}`)
+      }
     }
+    return completed
   }
 
   /**

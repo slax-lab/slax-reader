@@ -17,7 +17,17 @@ import { CommentTooLongError, ErrorMarkTypeError, MarkLineTooLongError, ShareAct
 import { markType } from '@/infra/repository/dbMark'
 
 export type prismaTx = Omit<HyperdrivePrismaClient<Prisma.PrismaClientOptions>, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>
-export type executeFunction = (tx: prismaTx, operation: OrderedSyncOperation) => Promise<{ bookmarkId: number; targetUrl: string; userId: number } | null | void>
+export interface SyncBookmarkWrite {
+  bookmarkId: number
+  targetUrl: string
+  userId: number
+  writeVersion: number
+  bookmarkUuid: string
+  requestedBookmarkUuid: string
+  replayed?: boolean
+  replayWorkflow?: boolean
+}
+export type executeFunction = (tx: prismaTx, operation: OrderedSyncOperation) => Promise<SyncBookmarkWrite | null | void>
 
 export interface SyncEntitySnapshot {
   uuid: string
@@ -44,11 +54,12 @@ export class DBSyncBatchOperation {
   constructor(@inject(PRISIMA_HYPERDRIVE_CLIENT) public prismaHyperdrive: LazyInstance<HyperdrivePrismaClient>) {}
 
   /** execute */
-  public async executeOrderedOperations(operations: OrderedSyncOperation[], observer?: SyncCommitObserver): Promise<{ bookmarkId: number; targetUrl: string; userId: number }[]> {
+  public async executeOrderedOperations(operations: OrderedSyncOperation[], observer?: SyncCommitObserver): Promise<SyncBookmarkWrite[]> {
     if (operations.length === 0) return []
 
-    const newBookmarks: { bookmarkId: number; targetUrl: string; userId: number }[] = []
+    const newBookmarks: SyncBookmarkWrite[] = []
     const mutations: CommittedSyncMutation[] = []
+    const uuidRemap = new Map<string, string>()
     const executeMap: Record<string, executeFunction> = {
       create_tag: this.executeCreateTag,
       create_bookmark: this.executeCreateBookmark,
@@ -63,12 +74,17 @@ export class DBSyncBatchOperation {
 
     await this.prismaHyperdrive().$transaction(async tx => {
       for (const operation of operations) {
-        const before = observer ? await this.eventSnapshot(tx, operation) : null
-        const result = await executeMap[operation.type].bind(this)(tx, operation)
+        const mappedOperation = this.remapOperation(operation, uuidRemap)
+        const before = observer ? await this.eventSnapshot(tx, mappedOperation) : null
+        const result = await executeMap[mappedOperation.type].bind(this)(tx, mappedOperation)
         if (result) newBookmarks.push(result)
-        if (observer) {
-          const after = await this.eventSnapshot(tx, operation)
-          if (before || after) mutations.push({ operation, before, after })
+        if (result?.requestedBookmarkUuid && result.bookmarkUuid && result.requestedBookmarkUuid !== result.bookmarkUuid) {
+          uuidRemap.set(result.requestedBookmarkUuid, result.bookmarkUuid)
+        }
+        if (observer && !result?.replayed) {
+          const publishedOperation = result && mappedOperation.type === 'create_bookmark' ? { ...mappedOperation, bookmarkUuid: result.bookmarkUuid } : mappedOperation
+          const after = await this.eventSnapshot(tx, publishedOperation)
+          if (before || after) mutations.push({ operation: publishedOperation, before, after })
         }
       }
     })
@@ -83,6 +99,20 @@ export class DBSyncBatchOperation {
     }
 
     return newBookmarks
+  }
+
+  private remapOperation(operation: OrderedSyncOperation, uuidRemap: Map<string, string>): OrderedSyncOperation {
+    const mapUuid = (uuid: string) => uuidRemap.get(uuid) ?? uuid
+    // A PUT UUID identifies the client operation; remapping it would create a new receipt on retry.
+    if (operation.type === 'create_bookmark') return operation
+    if (operation.type === 'create_comment') {
+      return { ...operation, data: { ...operation.data, userBookmarkUuid: mapUuid(operation.data.userBookmarkUuid) } }
+    }
+    if ('bookmarkUuid' in operation) {
+      const bookmarkUuid = mapUuid(operation.bookmarkUuid)
+      return { ...operation, bookmarkUuid }
+    }
+    return operation
   }
 
   private async eventSnapshot(tx: prismaTx, operation: OrderedSyncOperation): Promise<SyncEntitySnapshot | null> {
@@ -127,10 +157,34 @@ export class DBSyncBatchOperation {
   }
 
   /** create bookmark */
-  public async executeCreateBookmark(tx: prismaTx, operation: OrderedSyncOperation): Promise<{ bookmarkId: number; targetUrl: string; userId: number } | null> {
+  public async executeCreateBookmark(tx: prismaTx, operation: OrderedSyncOperation): Promise<SyncBookmarkWrite | null> {
     if (operation.type !== 'create_bookmark') return null
 
-    const { targetUrl, title, thumbnail, description, isArchive, isNewBookmark } = operation.data as CreateBookmarkData
+    const { targetUrl: rawTargetUrl, title, thumbnail, description, isArchive } = operation.data as CreateBookmarkData
+    const targetUrl = new URL(rawTargetUrl).toString()
+    const now = new Date()
+    const receiptKey = `sync:${operation.bookmarkUuid}`
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`bookmark-save:${operation.userId}:${receiptKey}`}, 0))`
+    const receipt = await tx.sr_bookmark_save_receipt.findUnique({
+      where: { user_id_operation_key: { user_id: operation.userId, operation_key: receiptKey } }
+    })
+    if (receipt) {
+      const current = await tx.sr_bookmark.findUnique({
+        where: { id: receipt.target_bookmark_id },
+        select: { target_url: true, write_version: true, published_version: true }
+      })
+      const replayWorkflow = !!current && current.write_version === receipt.write_version && current.published_version < receipt.write_version
+      return {
+        bookmarkId: receipt.target_bookmark_id,
+        targetUrl: current?.target_url ?? targetUrl,
+        userId: operation.userId,
+        writeVersion: receipt.write_version,
+        bookmarkUuid: receipt.target_uuid,
+        requestedBookmarkUuid: operation.bookmarkUuid,
+        replayed: true,
+        replayWorkflow
+      }
+    }
 
     const bookmark = await tx.sr_bookmark.upsert({
       where: { target_url_private_user: { target_url: targetUrl, private_user: operation.userId } },
@@ -143,12 +197,14 @@ export class DBSyncBatchOperation {
         description: description || '',
         private_user: operation.userId,
         status: 'pending',
-        created_at: new Date(),
-        updated_at: new Date(),
-        published_at: new Date()
+        created_at: now,
+        updated_at: now,
+        published_at: now,
+        write_version: 1
       },
       update: {
-        updated_at: new Date()
+        updated_at: now,
+        write_version: { increment: 1 }
       }
     })
 
@@ -161,8 +217,9 @@ export class DBSyncBatchOperation {
     }
 
     // re-save bumps created_at (save time, tops inbox); replay may re-top
+    let relation: { uuid: string }
     if (existingByUuid) {
-      await tx.sr_user_bookmark.update({
+      relation = await tx.sr_user_bookmark.update({
         where: { uuid: operation.bookmarkUuid, user_id: operation.userId },
         data: {
           bookmark_id: bookmark.id,
@@ -174,7 +231,7 @@ export class DBSyncBatchOperation {
         }
       })
     } else {
-      await tx.sr_user_bookmark.upsert({
+      relation = await tx.sr_user_bookmark.upsert({
         where: { user_id_bookmark_id: { user_id: operation.userId, bookmark_id: bookmark.id } },
         create: {
           uuid: operation.bookmarkUuid,
@@ -200,15 +257,25 @@ export class DBSyncBatchOperation {
       where: { user_id: operation.userId, bookmark_id: bookmark.id }
     })
 
-    if (isNewBookmark) {
-      return {
-        bookmarkId: bookmark.id,
-        targetUrl: targetUrl,
-        userId: operation.userId
+    await tx.sr_bookmark_save_receipt.create({
+      data: {
+        user_id: operation.userId,
+        operation_key: receiptKey,
+        target_bookmark_id: bookmark.id,
+        target_uuid: relation.uuid,
+        write_version: bookmark.write_version,
+        created_at: now
       }
-    }
+    })
 
-    return null
+    return {
+      bookmarkId: bookmark.id,
+      targetUrl,
+      userId: operation.userId,
+      writeVersion: bookmark.write_version,
+      bookmarkUuid: relation.uuid,
+      requestedBookmarkUuid: operation.bookmarkUuid
+    }
   }
 
   /** update bookmark */

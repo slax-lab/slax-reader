@@ -47,6 +47,7 @@ export function createMockEnv(runType = 'dev') {
 
 export function createMockBookmarkService() {
   return {
+    isBookmarkVersionCurrent: vi.fn().mockResolvedValue(true),
     capturePdf: vi.fn().mockResolvedValue(false),
     getPdfDescriptor: vi.fn().mockResolvedValue(undefined),
     addUrlBookmark: vi.fn(),
@@ -57,7 +58,7 @@ export function createMockBookmarkService() {
     updateBookmarkStatus: vi.fn().mockResolvedValue(undefined),
     createBookmarkBase: vi.fn(),
     createBookmarkImportRelation: vi.fn().mockResolvedValue(undefined),
-    updateBookmarkImportRelationStatus: vi.fn().mockResolvedValue(undefined),
+    updateBookmarkImportRelationStatus: vi.fn().mockResolvedValue(true),
     createBookmarkOverview: vi.fn().mockResolvedValue(undefined),
     updateUserBookmarkCreateAt: vi.fn().mockResolvedValue(undefined),
     getBookmarkContent: vi.fn().mockResolvedValue(null),
@@ -112,6 +113,8 @@ export function createMockBookmarkRepo() {
     createBookmarkRelation: vi.fn().mockResolvedValue({ bookmark_id: 1, created_at: new Date(), deleted_at: null }),
     updateBookmarkStatus: vi.fn().mockResolvedValue(undefined),
     updateBookmark: vi.fn().mockResolvedValue(undefined),
+    stageBookmarkObjects: vi.fn().mockResolvedValue(undefined),
+    publishBookmarkVersion: vi.fn().mockResolvedValue(true),
     createUserTag: vi.fn(),
     createUserTags: vi.fn().mockResolvedValue([]),
     createBookmarkTag: vi.fn().mockResolvedValue(undefined),
@@ -134,7 +137,7 @@ export function createMockBookmarkRepo() {
     updateUserTagsDisplay: vi.fn().mockResolvedValue([]),
     upsertBookmarkTags: vi.fn().mockResolvedValue(undefined),
     createBookmarkImportRelation: vi.fn().mockResolvedValue(undefined),
-    updateBookmarkImportRelationStatus: vi.fn().mockResolvedValue(undefined),
+    updateBookmarkImportRelationStatus: vi.fn().mockResolvedValue(true),
     getBookmarkById: vi.fn().mockResolvedValue(null),
     createBookmarkChangeLog: vi.fn().mockResolvedValue(undefined),
     findStuckBookmarks: vi.fn().mockResolvedValue([]),
@@ -168,7 +171,7 @@ export function createMockUrlParserHandler() {
 // ---- SearchService ----
 
 export function createMockSearchService() {
-  return { addSearchRecord: vi.fn().mockResolvedValue(undefined) }
+  return { addSearchRecord: vi.fn().mockResolvedValue(undefined), addSearchRecordByBmId: vi.fn().mockResolvedValue([{ status: 'fulfilled', value: undefined }, { status: 'fulfilled', value: undefined }]) }
 }
 
 // ---- UserService ----

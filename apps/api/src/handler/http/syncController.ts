@@ -2,12 +2,12 @@ import { Controller } from '@/decorators/controller'
 import { Post } from '@/decorators/route'
 import { ContextManager } from '@/utils/context'
 import { inject } from '@/decorators/di'
-import { Successed } from '@/utils/responseUtils'
-import { SyncOrchestrator } from '@/domain/orchestrator/sync'
+import { Panic, Successed } from '@/utils/responseUtils'
+import { SyncOrchestrator, SyncWorkflowDispatchError } from '@/domain/orchestrator/sync'
 import { RequestUtils } from '@/utils/requestUtils'
 import { SyncChangeItem } from '@/domain/orchestrator/sync'
 import { Failed } from '@/utils/responseUtils'
-import { ErrorParam } from '@/const/err'
+import { ErrorName, ErrorParam } from '@/const/err'
 import { UserDeletionService } from '@/domain/userDeletion'
 
 @Controller('/v1/sync')
@@ -36,6 +36,7 @@ export class SyncController {
       await this.syncOrchestrator.syncChanges(ctx, req)
     } catch (error) {
       console.error('handleSyncSaveRequest failed', { userId: ctx.getUserId(), count: req.length })
+      if (error instanceof SyncWorkflowDispatchError) return Panic(ErrorName.SERVER_ERROR, 503, 'Bookmark processing is temporarily unavailable. Retry the sync batch.')
       return Failed(ErrorParam())
     }
     return Successed({ status: true })

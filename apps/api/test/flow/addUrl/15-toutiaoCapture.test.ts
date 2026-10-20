@@ -45,14 +45,15 @@ describe('Toutiao bookmark capture', () => {
       byline: fetched.author,
       siteName: 'Toutiao',
       publishedTime: new Date(fetched.publishedAt!),
-      contentKey: 'html/body/toutiao-test.html'
+      contentKey: expect.stringMatching(/^html\/body\/toutiao-test\/0\/[0-9a-f-]+\.html$/)
     })
     expect(result.textContent).toContain(paragraph.trim())
     expect(images).toHaveBeenCalledOnce()
-    expect(bucket.putIfKeyExists).toHaveBeenCalledWith('text/body/toutiao-test.txt', expect.stringContaining(paragraph.trim()))
-    expect(bucket.putIfKeyExists).toHaveBeenCalledWith('html/body/toutiao-test.html', expect.stringContaining('https://reader-img.slax.dev/proxied.jpg'))
-    expect(repo.updateBookmark).toHaveBeenCalledWith(
+    expect(bucket.putIfKeyExists).toHaveBeenCalledWith(expect.stringMatching(/^text\/body\/toutiao-test\/0\/[0-9a-f-]+\.txt$/), expect.stringContaining(paragraph.trim()))
+    expect(bucket.putIfKeyExists).toHaveBeenCalledWith(expect.stringMatching(/^html\/body\/toutiao-test\/0\/[0-9a-f-]+\.html$/), expect.stringContaining('https://reader-img.slax.dev/proxied.jpg'))
+    expect(repo.publishBookmarkVersion).toHaveBeenCalledWith(
       42,
+      0,
       expect.objectContaining({ title: fetched.title, byline: fetched.author, published_at: new Date(fetched.publishedAt!), site_name: 'Toutiao', status: 'success' })
     )
     expect(result.qualityReview).toBeDefined()

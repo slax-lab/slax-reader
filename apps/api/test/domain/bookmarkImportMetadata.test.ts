@@ -42,6 +42,7 @@ describe('bookmark import metadata', () => {
     Object.assign(service, {
       bookmarkRepo: {
         createBookmark: vi.fn().mockResolvedValue({ id: 42, status: queueStatus.SUCCESS }),
+        reserveBookmarkWrite: vi.fn().mockResolvedValue({ id: 42, write_version: 1 }),
         createBookmarkRelation,
         createBookmarkChangeLog
       },

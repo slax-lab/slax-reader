@@ -5,7 +5,6 @@ import { SocialMediaApi } from '../../infra/external/socialMedia'
 import { CrawlService } from '../crawl'
 import { BookmarkRepo, TweetMentionPO } from '@/infra/repository/dbBookmark'
 import { BookmarkService } from '../bookmark'
-import { processTargetUrl } from '@/utils/urlPolicie'
 import { UserRepo } from '@/infra/repository/dbUser'
 
 @injectable()
@@ -119,7 +118,7 @@ export class MonitoringOrchestrator {
   private async createBookmarkFromMention(ctx: ContextManager, userId: number, targetUrl: string, tweet: TweetMentionPO) {
     try {
       const target_url = new URL(targetUrl)
-      const processedUrl = processTargetUrl(target_url)
+      const processedUrl = target_url.toString()
 
       const lastBm = await this.bookmarkData.getBookmark(processedUrl, userId)
 
@@ -156,7 +155,8 @@ export class MonitoringOrchestrator {
         userLang: ctx.getlang(),
         callbackChatId: 0,
         callbackOriginMessageId: 0,
-        ignoreGenerateTag: true
+        ignoreGenerateTag: true,
+        writeVersion: bmInfo.write_version
       })
       console.log(`Created workflow for bookmark ${bmInfo.id}`)
     } catch (error) {

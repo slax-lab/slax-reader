@@ -13,7 +13,7 @@ export class BucketClient {
   }
 
   public async putIfKeyExists(key?: string, val?: any): Promise<R2Object | null> {
-    if (!key || !val) return null
+    if (!key || val === undefined || val === null) return null
     return this.R2Bucket.put(key, val)
   }
 
@@ -41,5 +41,33 @@ export class BucketClient {
   public getIfKeyExists(key: string): Promise<R2Object | null> {
     if (!key) return Promise.resolve(null)
     return this.R2Bucket.get(key)
+  }
+
+  /** Copy an object using its streaming body and preserve R2 metadata. */
+  public async copyObject(sourceKey: string, destinationKey: string): Promise<R2Object> {
+    const source = await this.R2Bucket.get(sourceKey)
+    if (!source?.body) throw new Error(`R2 source object not found: ${sourceKey}`)
+    return this.R2Bucket.put(destinationKey, source.body, {
+      httpMetadata: source.httpMetadata,
+      customMetadata: source.customMetadata
+    })
+  }
+
+  public async copyObjects(entries: Array<{ sourceKey: string; destinationKey: string }>) {
+    const copied: string[] = []
+    try {
+      for (const entry of entries) {
+        await this.copyObject(entry.sourceKey, entry.destinationKey)
+        copied.push(entry.destinationKey)
+      }
+      return copied
+    } catch (error) {
+      await Promise.allSettled(copied.map(key => this.R2Bucket.delete(key)))
+      throw error
+    }
+  }
+
+  public async deleteObjects(keys: string[]) {
+    await Promise.all(keys.filter(Boolean).map(key => this.R2Bucket.delete(key)))
   }
 }

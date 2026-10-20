@@ -92,35 +92,40 @@ export class URLPolicie {
   }
 }
 
-const PreparseHost: Map<string, (u: URL) => string> = new Map([
+const FetchUrlPreprocessor: Map<string, (u: URL) => void> = new Map([
   [
     'x.com',
     (u: URL) => {
-      u.searchParams.forEach((value, key) => u.searchParams.delete(key))
-      return u.toString()
+      u.search = ''
     }
   ],
   [
     'twitter.com',
     (u: URL) => {
-      u.searchParams.forEach((value, key) => u.searchParams.delete(key))
-      return u.toString()
+      u.search = ''
     }
   ],
   [
     'mp.weixin.qq.com',
     (u: URL) => {
       u.searchParams.delete('poc_token')
-      return u.toString()
     }
   ]
 ])
 
-export const processTargetUrl = (targetUrl: URL) => {
-  let processedUrl = targetUrl.toString()
-  const preFunc = PreparseHost.get(targetUrl.host)
-  if (preFunc) {
-    processedUrl = preFunc(targetUrl).toString()
-  }
-  return processedUrl
+/**
+ * Serialize the URL used as the bookmark identity and Source value.
+ * This intentionally keeps every query parameter and the hash. URL's own
+ * serialization only applies URL-standard syntax normalization.
+ */
+export const processTargetUrl = (targetUrl: URL | string) => (targetUrl instanceof URL ? targetUrl : new URL(targetUrl)).toString()
+
+/**
+ * Prepare a URL for acquisition only. The input is cloned so callers keep the
+ * complete target URL for persistence, deduplication, and Source display.
+ */
+export const prepareFetchUrl = (targetUrl: URL | string) => {
+  const url = new URL(targetUrl instanceof URL ? targetUrl.toString() : targetUrl)
+  FetchUrlPreprocessor.get(url.host)?.(url)
+  return url.toString()
 }

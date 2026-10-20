@@ -8,7 +8,8 @@ import type {
   AddBookmarkTagRequest,
   SetBookmarkTagsRequest,
   RemoveBookmarkTagRequest,
-  AddBookmarkResponse
+  AddBookmarkResponse,
+  BookmarkForkRequest
 } from '@slax-reader/contracts'
 import { decodeIdList } from './tagController'
 import { Failed, Successed } from '../../utils/responseUtils'
@@ -36,6 +37,7 @@ import { LabService } from '../../domain/lab'
 import { ImportFormatError, isNewImportSource, readImportBody } from '@/utils/importFormats'
 import { submitServerEvent, bookmarkEventProperties as propertiesForBookmark, getEventContext, type BookmarkEventProperties } from '../../domain/events'
 import { URLPolicie } from '@/utils/urlPolicie'
+import { BookmarkForkService } from '@/domain/bookmarkFork'
 
 @Controller('/v1/bookmark')
 export class BookmarkController {
@@ -50,8 +52,18 @@ export class BookmarkController {
     @inject(UrlParserHandler) private urlParserHandler: UrlParserHandler,
     @inject(UserDeletionService) private userDeletionService: UserDeletionService,
     @inject(CrawlService) private crawlService: CrawlService,
-    @inject(LogsService) private logsService: LogsService
+    @inject(LogsService) private logsService: LogsService,
+    @inject(BookmarkForkService) private bookmarkForkService: BookmarkForkService
   ) {}
+
+  @Post('/fork')
+  public async handleForkBookmarkRequest(ctx: ContextManager, request: Request) {
+    await this.userDeletionService.ensureUserNotDeleted(ctx.getUserId())
+    const req = await RequestUtils.json<BookmarkForkRequest>(request).catch(() => null)
+    if (!req || typeof req.bookmark_uid !== 'string' || !req.bookmark_uid) return Failed(ErrorParam())
+    const idempotencyKey = request.headers.get('Idempotency-Key') ?? undefined
+    return Successed(await this.bookmarkForkService.fork(ctx, req, idempotencyKey))
+  }
 
   @Post('/upload_pdf')
   public async handlePdfUpload(ctx: ContextManager, request: Request) {
@@ -146,10 +158,12 @@ export class BookmarkController {
     console.log(`user ${ctx.getUserId()} add ${req.target_url} ${req.target_title} bookmark`)
 
     try {
-      const result = await this.bookmarkAddOrchestrator.addByContent(ctx, req)
+      const result = await this.bookmarkAddOrchestrator.addByContent(ctx, req, { idempotencyKey: request.headers.get('Idempotency-Key') ?? undefined })
 
       ctx.execution.waitUntil(this.logsService.track(ctx.getUserId(), 'bookmark_add', { bookmark_id: result.bookmarkId, status: 'success' }))
       await this.submitBookmarkEvent(ctx, request, 'bookmark_saved', result.bookmarkId)
+
+      if (result.forkResult) return Successed({ ...result.forkResult, bmId: result.forkResult.bookmark_id })
 
       if (result.isShortcut) {
         return Successed({ bmId: ctx.hashIds.encodeId(result.bookmarkId) } satisfies AddBookmarkResponse)
@@ -179,15 +193,22 @@ export class BookmarkController {
 
     console.log(`user ${ctx.getUserId()} add ${req.target_url} ${req.target_title} bookmark`)
 
+    const rawTargetUrl = req.target_url
     if (!req.target_url.startsWith('https://') && !req.target_url.startsWith('http://')) {
       req.target_url = 'https://' + req.target_url
     }
 
     try {
-      const result = await this.bookmarkAddOrchestrator.addByUrl(ctx, req, { callback: callbackType.NOT_CALLBACK })
+      const result = await this.bookmarkAddOrchestrator.addByUrl(ctx, req, {
+        rawTargetUrl,
+        callback: callbackType.NOT_CALLBACK,
+        idempotencyKey: request.headers.get('Idempotency-Key') ?? undefined
+      })
 
       ctx.execution.waitUntil(this.logsService.track(ctx.getUserId(), 'bookmark_add', { bookmark_id: result.bookmarkId, status: 'success' }))
       await this.submitBookmarkEvent(ctx, request, 'bookmark_saved', result.bookmarkId)
+
+      if (result.forkResult) return Successed({ ...result.forkResult, bmId: result.forkResult.bookmark_id })
 
       // 非 shortcut 触发 workflow
       if (!result.isShortcut && result.workflowParams) {

@@ -7,7 +7,7 @@ export class VectorizeRepo {
   constructor(@inject(VECTORIZE_CLIENTS) private vectorize: LazyInstance<VectorizeIndex[]>) {}
 
   async upsertVector(bookmarkId: number, shardIdx: number, shardList: { vecId: string; vector: number[] }[]) {
-    if (shardIdx < 0 || shardIdx > this.vectorize().length) return
+    if (shardIdx < 0 || shardIdx >= this.vectorize().length) throw new Error(`Invalid Vectorize shard ${shardIdx}`)
     const vectorize = this.vectorize()[shardIdx]
     try {
       return await vectorize.upsert(
@@ -20,8 +20,8 @@ export class VectorizeRepo {
         }))
       )
     } catch (e) {
-      console.log(e, 'upsertVector error')
-      return []
+      console.error(e, 'upsertVector error')
+      throw e
     }
   }
 

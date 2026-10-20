@@ -14,6 +14,7 @@ import { MultiLangError } from '@/utils/multiLangError'
 import { BucketClient } from '@/infra/repository/bucketClient'
 import type { LazyInstance } from '@/decorators/lazy'
 import { isProhibitedContentUrl } from '@/utils/prohibitedContentDetector'
+import { bookmarkContentRevision } from '@/infra/repository/dbBookmark'
 
 @injectable()
 export class BookmarkOrchestrator {
@@ -373,6 +374,8 @@ export class BookmarkOrchestrator {
     if (isProhibitedContentUrl(bookmark.target_url)) throw ProhibitedContentError()
     if (bookmark.moderation_result > 0) throw ProhibitedContentError()
 
+    const contentRevision = bookmarkContentRevision(bookmark)
+
     ctx.set('ai_lang', user.ai_lang)
 
     const textContent = await this.bookmarkSvc.getBookmarkContent(bookmark.content_md_key)
@@ -387,7 +390,14 @@ export class BookmarkOrchestrator {
       const result = await this.aigcSvc.generateOverviewTag(ctx, bookmark.title, textContent, bookmark.byline || '', userTags)
 
       if (result.overview.length > 0) {
-        await this.bookmarkSvc.createBookmarkOverview(userId, bookmark.id, '', JSON.stringify({ overview: result.overview || '', key_takeaways: result.key_takeaways }))
+        const saved = await this.bookmarkSvc.createBookmarkOverview(
+          userId,
+          bookmark.id,
+          '',
+          JSON.stringify({ overview: result.overview || '', key_takeaways: result.key_takeaways }),
+          contentRevision
+        )
+        if (!saved) return
         await this.writeProgress({ ...writerBaseParams, data: { overview: result.overview || '' } })
         await this.writeProgress({ ...writerBaseParams, data: { key_takeaways: result.key_takeaways || '' } })
       }
@@ -400,17 +410,18 @@ export class BookmarkOrchestrator {
       }
 
       // mine first, then auto, capped at 3
-      const availableTagNames: string[] = []
-      for (const userTag of pickTagsForBookmark(result.tags, userTags)) {
-        availableTagNames.push(userTag.name)
+      const availableTags = pickTagsForBookmark(result.tags, userTags)
+      const savedTags = await this.bookmarkSvc.tagBookmark(
+        ctx,
+        userId,
+        bmId,
+        availableTags.map(tag => tag.name),
+        contentRevision
+      )
+      if (savedTags === undefined) return
+      for (const userTag of availableTags) {
         await this.writeProgress({ ...writerBaseParams, data: { tag: { id: userTag.id, name: userTag.name } } })
       }
-
-      // 并发执行标签更新操作
-      const updateRes = await this.tagSvc.updateUserTagsDisplay(userId, availableTagNames)
-      if (!updateRes) return
-
-      await this.tagSvc.upsertBookmarkTags(bmId, userId, updateRes)
     } catch (error) {
       console.error('Generate overview stream failed:', error)
       throw error
@@ -432,6 +443,8 @@ export class BookmarkOrchestrator {
     if (!bookmark?.content_md_key) throw BookmarkNotFoundError()
     if (isProhibitedContentUrl(bookmark.target_url)) throw ProhibitedContentError()
     if (bookmark.moderation_result > 0) throw ProhibitedContentError()
+
+    const contentRevision = bookmarkContentRevision(bookmark)
 
     ctx.set('ai_lang', user.ai_lang)
 
@@ -456,7 +469,7 @@ export class BookmarkOrchestrator {
 
       if (outline.length > 0) {
         await this.writeProgress({ ...writerBaseParams, data: { outline: outline || '' } })
-        bmId > 0 && (await this.bookmarkSvc.saveSummary(ctx, bmId, result.model, outline, result.model))
+        bmId > 0 && (await this.bookmarkSvc.saveSummary(ctx, bmId, result.model, outline, result.model, contentRevision))
       }
     } catch (error) {
       console.error('Generate outline stream failed:', error)

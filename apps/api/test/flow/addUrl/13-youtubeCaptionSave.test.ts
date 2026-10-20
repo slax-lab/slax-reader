@@ -50,22 +50,22 @@ describe('parseAndSaveYoutube with captions', () => {
     const { svc, putIfKeyExists, br } = wire()
     const result = await svc.parseAndSaveYoutube(createMockCtx(), fetched(), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 10, 'ub-10')
 
-    expect(result.contentKey).toBe('html/body/ub-10.html')
-    expect(br.updateBookmark).toHaveBeenCalledWith(
-      10,
-      expect.objectContaining({ status: 'success', site_name: 'YouTube', content_key: 'html/body/ub-10.html', content_md_key: 'text/body/ub-10.txt' })
+    expect(result.contentKey).toEqual(expect.stringMatching(/^html\/body\/ub-10\/0\/.*\.html$/))
+    expect(br.publishBookmarkVersion).toHaveBeenCalledWith(
+      10, 0,
+      expect.objectContaining({ status: 'success', site_name: 'YouTube', content_key: expect.stringMatching(/^html\/body\/ub-10\/0\/.*\.html$/), content_md_key: expect.stringMatching(/^text\/body\/ub-10\/0\/.*\.txt$/) })
     )
 
     const keys = putKeys(putIfKeyExists)
     expect(keys).toHaveLength(4)
-    expect(keys).toContain('text/body/ub-10.txt')
-    expect(keys).toContain('html/body/ub-10.html')
+    expect(keys).toContainEqual(expect.stringMatching(/^text\/body\/ub-10\/0\/.*\.txt$/))
+    expect(keys).toContainEqual(expect.stringMatching(/^html\/body\/ub-10\/0\/.*\.html$/))
     const captionKey = keys.find(k => k.endsWith('.json'))!
     const captionTextKey = keys.find(k => k.startsWith('youtube/canonical/') && k.endsWith('.txt'))!
     expect(captionKey).toMatch(/^youtube\/canonical\/captions\/dQw4w9WgXcQ\/[0-9a-f]{64}\.json$/)
     expect(captionTextKey).toBe(captionKey.replace(/\.json$/, '.txt'))
 
-    const html = putIfKeyExists.mock.calls.find(c => c[0] === 'html/body/ub-10.html')![1] as string
+    const html = putIfKeyExists.mock.calls.find(c => String(c[0]).startsWith('html/body/ub-10/0/'))![1] as string
     expect(html).toContain('<youtube-player data-video-id="dQw4w9WgXcQ" data-cues=')
     expect(html).toContain('class="slax-yt-transcript"')
     expect(html).not.toContain('start_ms')
@@ -99,7 +99,7 @@ describe('parseAndSaveYoutube with captions', () => {
     expect(row.eligibility).toMatchObject({ rules_version: 1, decision: 'generate', reason_codes: [] })
 
     expect(repo.linkBookmark).toHaveBeenCalledTimes(1)
-    expect(repo.linkBookmark).toHaveBeenCalledWith({ bookmark_id: 10, user_id: 1, source_id: 'dQw4w9WgXcQ', source_hash: row.source_hash })
+    expect(repo.linkBookmark).toHaveBeenCalledWith({ bookmark_id: 10, capture_version: 0, user_id: 1, source_id: 'dQw4w9WgXcQ', source_hash: row.source_hash })
     expect(repo.linkBookmark.mock.invocationCallOrder[0]).toBeGreaterThan(repo.recordEvaluation.mock.invocationCallOrder[0])
   })
 
@@ -119,7 +119,7 @@ describe('parseAndSaveYoutube with captions', () => {
     await b.svc.parseAndSaveYoutube(createMockCtx({ userId: 2 }), fetched(), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 11, 'ub-11')
     expect(a.repo.recordEvaluation.mock.calls[0][0]).toEqual(b.repo.recordEvaluation.mock.calls[0][0])
     expect(putKeys(a.putIfKeyExists).filter(k => k.startsWith('youtube/'))).toEqual(putKeys(b.putIfKeyExists).filter(k => k.startsWith('youtube/')))
-    expect(a.repo.linkBookmark.mock.calls[0][0]).toMatchObject({ bookmark_id: 10, user_id: 1 })
+    expect(a.repo.linkBookmark.mock.calls[0][0]).toMatchObject({ bookmark_id: 10, capture_version: 0, user_id: 1 })
     expect(b.repo.linkBookmark.mock.calls[0][0]).toMatchObject({ bookmark_id: 11, user_id: 2 })
   })
 })
@@ -129,9 +129,9 @@ describe('parseAndSaveYoutube without captions', () => {
     const { svc, putIfKeyExists, repo, br } = wire()
     await svc.parseAndSaveYoutube(createMockCtx(), fetched({ cues: [], caption: null, hasCaption: false }), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 10, 'ub-10')
 
-    expect(putKeys(putIfKeyExists)).toEqual(expect.arrayContaining(['text/body/ub-10.txt', 'html/body/ub-10.html']))
+    expect(putKeys(putIfKeyExists)).toEqual(expect.arrayContaining([expect.stringMatching(/^text\/body\/ub-10\/0\/.*\.txt$/), expect.stringMatching(/^html\/body\/ub-10\/0\/.*\.html$/)]))
     expect(putIfKeyExists).toHaveBeenCalledTimes(2)
-    expect(br.updateBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ status: 'success' }))
+    expect(br.publishBookmarkVersion).toHaveBeenCalledWith(10, 0, expect.objectContaining({ status: 'success' }))
     const row = repo.recordEvaluation.mock.calls[0][0]
     expect(row).toMatchObject({ caption_key: null, caption_text_key: null, caption_language: null, caption_kind: null, status: 'skipped' })
     expect(row.eligibility.reason_codes).toEqual(['no_caption'])
@@ -145,15 +145,15 @@ describe('failures never touch the bookmark', () => {
     const { svc, repo, br } = wire()
     repo.recordEvaluation.mockRejectedValueOnce(new Error('pg down'))
     const result = await svc.parseAndSaveYoutube(createMockCtx(), fetched(), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 10, 'ub-10')
-    expect(result.contentKey).toBe('html/body/ub-10.html')
-    expect(br.updateBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ status: 'success' }))
+    expect(result.contentKey).toEqual(expect.stringMatching(/^html\/body\/ub-10\/0\/.*\.html$/))
+    expect(br.publishBookmarkVersion).toHaveBeenCalledWith(10, 0, expect.objectContaining({ status: 'success' }))
   })
 
   test('bookmark link failing → bookmark still success', async () => {
     const { svc, repo, br } = wire()
     repo.linkBookmark.mockRejectedValueOnce(new Error('pg down'))
     await expect(svc.parseAndSaveYoutube(createMockCtx(), fetched(), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 10, 'ub-10')).resolves.toBeTruthy()
-    expect(br.updateBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ status: 'success' }))
+    expect(br.publishBookmarkVersion).toHaveBeenCalledWith(10, 0, expect.objectContaining({ status: 'success' }))
   })
 
   test('caption object write failing → bookmark still success, no job row', async () => {
@@ -162,7 +162,7 @@ describe('failures never touch the bookmark', () => {
       if (key.startsWith('youtube/canonical/')) throw new Error('r2 down')
     })
     await expect(svc.parseAndSaveYoutube(createMockCtx(), fetched(), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 10, 'ub-10')).resolves.toBeTruthy()
-    expect(br.updateBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ status: 'success' }))
+    expect(br.publishBookmarkVersion).toHaveBeenCalledWith(10, 0, expect.objectContaining({ status: 'success' }))
     expect(repo.recordEvaluation).not.toHaveBeenCalled()
   })
 })
@@ -184,7 +184,7 @@ describe('target language and takedown', () => {
     expect(putKeys(putIfKeyExists).filter(k => k.startsWith('youtube/'))).toEqual([])
     expect(repo.recordEvaluation).not.toHaveBeenCalled()
     expect(repo.linkBookmark).not.toHaveBeenCalled()
-    expect(br.updateBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ status: 'success' }))
+    expect(br.publishBookmarkVersion).toHaveBeenCalledWith(10, 0, expect.objectContaining({ status: 'success' }))
   })
 })
 

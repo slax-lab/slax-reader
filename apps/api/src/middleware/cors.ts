@@ -3,7 +3,7 @@ import { deploymentOrigin } from '@/utils/deploymentOrigin'
 
 export const corsHeader = {
   server: 'slax-reader',
-  'Access-Control-Allow-Headers': 'Authorization, Content-Type, Range, X-Device-ID, X-CLIENT-TYPE, X-CLIENT-VERSION, X-CLIENT-LOCALE',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, Range, Idempotency-Key, X-Device-ID, X-CLIENT-TYPE, X-CLIENT-VERSION, X-CLIENT-LOCALE',
   'Access-Control-Allow-Methods': 'POST, GET, HEAD, OPTIONS, DELETE, PUT',
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Max-Age': '86400'
@@ -92,7 +92,7 @@ export const cors = async (request: Request, ctx: ContextManager) => {
       ...requestCorsHeaders(request, ctx.env?.FRONT_END_URL)
     }
     if (request.url.includes('/m')) {
-      headers['Access-Control-Allow-Headers'] = 'Authorization, Content-Type, X-Device-ID, X-CLIENT-TYPE, X-ACTION-TYPE, X-CLIENT-VERSION, X-CLIENT-LOCALE'
+      headers['Access-Control-Allow-Headers'] = 'Authorization, Content-Type, Idempotency-Key, X-Device-ID, X-CLIENT-TYPE, X-ACTION-TYPE, X-CLIENT-VERSION, X-CLIENT-LOCALE'
     }
     return new Response(null, {
       status: 204,

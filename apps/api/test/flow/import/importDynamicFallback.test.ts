@@ -16,6 +16,11 @@ const empty = { url: good.url, content: '<html><body><div id="app"></div><script
 afterEach(() => vi.restoreAllMocks())
 
 describe('safe import dynamic rendering fallback', () => {
+  test('cleans only the acquisition URL for imported X articles', async () => {
+    const headless = vi.spyOn(SlaxFetch.prototype, 'headless').mockResolvedValue(good)
+    await fetchImportContent({} as Env, 'https://x.com/a?a=1&b=2')
+    expect(headless).toHaveBeenCalledWith('https://x.com/a')
+  })
   test('executes the real fetcher fallback from an empty browser service response to rendered supplier HTML', async () => {
     const browser = vi.fn().mockResolvedValue(Response.json({ data: empty }))
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ statusCode: 200, url: good.url, browserHtml: good.content }))

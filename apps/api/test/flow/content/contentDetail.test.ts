@@ -15,7 +15,7 @@ const BM = {
   target_url: 'https://example.com/article', site_name: 'Example', content_icon: '',
   content_cover: 'https://example.com/cover.jpg', content_key: 'html/parse/old.html',
   content_md_key: 'mk', content_word_count: 500, description: 'A test article',
-  byline: 'Author', private_user: 0, status: 'success',
+  byline: 'Author', private_user: 0, status: 'success', write_version: 2, published_version: 1,
   created_at: new Date('2026-01-01'), updated_at: new Date('2026-01-02'), published_at: new Date('2026-01-01')
 }
 
@@ -34,6 +34,7 @@ const share = (o: Record<string, any> = {}) => ({
 function wire() {
   const bs = {
     getPdfDescriptor: vi.fn().mockResolvedValue(undefined),
+    getForkInfo: vi.fn().mockResolvedValue(null),
     getUserBookmarkByUuidWithDetail: vi.fn(),
     getBookmarkOutline: vi.fn().mockResolvedValue(null)
   }
@@ -57,6 +58,68 @@ function wire() {
 }
 
 describe('getContentMeta', () => {
+  test('readable complete article exposes Fork capability and stored source attribution', async () => {
+    const { orch, bs } = wire()
+    const ctx = createMockCtx({ userId: 20 })
+    bs.getUserBookmarkByUuidWithDetail.mockResolvedValue(ub({ metadata: { share: share() } }))
+    bs.getForkInfo.mockResolvedValue({ bookmark_uid: 'source-uuid', display_name: 'Source author', user_id: 99 })
+    const result = await orch.getContentMeta(ctx, 'ub-uuid')
+    expect(result.can_fork).toBe(true)
+    expect(result.fork_info).toEqual({ bookmark_uid: 'source-uuid', display_name: 'Source author', user_id: 99 })
+    expect(bs.getForkInfo).toHaveBeenCalledWith(10, ctx, 1)
+  })
+
+  test('looks up attribution for the captured body revision when a newer write is in progress', async () => {
+    const { orch, bs } = wire()
+    const ctx = createMockCtx({ userId: 20 })
+    bs.getUserBookmarkByUuidWithDetail.mockResolvedValue(ub({ bookmark: { ...BM, content_key: 'old-body', write_version: 5, published_version: 4 } }))
+    bs.getForkInfo.mockImplementation(async (_id, _ctx, version) => ({ bookmark_uid: version === 4 ? 'old-source' : 'new-source' }))
+    const result = await orch.getContentMeta(ctx, 'ub-uuid')
+    expect(result.content_key).toBe('old-body')
+    expect(result.fork_info?.bookmark_uid).toBe('old-source')
+  })
+
+  test.each([
+    { status: 'pending' },
+    { status: 'failed' },
+    { content_key: '' },
+    { content_md_key: '' }
+  ])('incomplete content does not advertise Fork: %s', async fields => {
+    const { orch, bs } = wire()
+    bs.getUserBookmarkByUuidWithDetail.mockResolvedValue(ub({ bookmark: { ...BM, ...fields } }))
+    expect((await orch.getContentMeta(createMockCtx({ userId: 0 }), 'ub-uuid')).can_fork).toBe(false)
+  })
+
+  test('URL shortcuts do not advertise Fork even with stale content keys', async () => {
+    const { orch, bs } = wire()
+    bs.getUserBookmarkByUuidWithDetail.mockResolvedValue(ub({ type: 1 }))
+    expect((await orch.getContentMeta(createMockCtx({ userId: 0 }), 'ub-uuid')).can_fork).toBe(false)
+  })
+
+  test('content metadata excludes internal publication and lineage fields', async () => {
+    const { orch, bs } = wire()
+    bs.getUserBookmarkByUuidWithDetail.mockResolvedValue(ub({ bookmark: {
+      ...BM,
+      write_version: 12n,
+      published_version: 11n,
+      future_internal_field: 'private implementation value'
+    } }))
+    bs.getForkInfo.mockResolvedValue({ bookmark_uid: 'source-uuid', display_name: null, user_id: null, source_owner_id: 12345, destination_bookmark_id: 10 })
+    const result = await orch.getContentMeta(createMockCtx({ userId: 0 }), 'ub-uuid')
+    expect(result.fork_info).toEqual({ bookmark_uid: 'source-uuid', display_name: null, user_id: null })
+    for (const key of ['id', 'private_user', 'content_md_key', 'write_version', 'published_version', 'future_internal_field']) {
+      expect(result).not.toHaveProperty(key)
+    }
+    expect(() => JSON.stringify(result)).not.toThrow()
+  })
+
+  test('unreadable content never loads Fork attribution', async () => {
+    const { orch, bs } = wire()
+    bs.getUserBookmarkByUuidWithDetail.mockResolvedValue(ub({ metadata: { share: share({ is_enable: false }) } }))
+    await expect(orch.getContentMeta(createMockCtx({ userId: 0 }), 'ub-uuid')).rejects.toThrow()
+    expect(bs.getForkInfo).not.toHaveBeenCalled()
+  })
+
   test.each([10, 0])('includes the PDF type and descriptor for permitted viewer %s', async userId => {
     const { orch, bs } = wire()
     const pdf = { url: '/api/content/ub-uuid/pdf', document_id: 'a'.repeat(64), text_status: 'ready' }
@@ -65,6 +128,14 @@ describe('getContentMeta', () => {
     const result = await orch.getContentMeta(createMockCtx({ userId }), 'ub-uuid')
     expect(result.type).toBe('pdf')
     expect(result.pdf).toEqual(pdf)
+  })
+
+  test('does not advertise Fork for a PDF whose text sidecar is still pending', async () => {
+    const { orch, bs } = wire()
+    bs.getPdfDescriptor.mockResolvedValue({ url: '/api/content/ub-uuid/pdf', document_id: 'a'.repeat(64), text_status: 'pending' })
+    bs.getUserBookmarkByUuidWithDetail.mockResolvedValue(ub({ type: 2, bookmark: { ...BM, content_key: 'pdf/body/ub-uuid.pdf' }, metadata: { share: share() } }))
+    const result = await orch.getContentMeta(createMockCtx({ userId: 0 }), 'ub-uuid')
+    expect(result.can_fork).toBe(false)
   })
   test.each([0, 20, 10])('hidden profile does not expose collection identity to viewer %s; owner retains footer', async userId => {
     const { orch, bs, cs } = wire()
@@ -85,6 +156,8 @@ describe('getContentMeta', () => {
     const res = await orch.getContentMeta(createMockCtx({ userId: 10 }), 'ub-uuid')
     expect(res.role).toBe('owner')
     expect(res.content_key).toBe('html/parse/old.html')
+    expect(res.can_fork).toBe(false)
+    expect(res.fork_info).toBeNull()
     expect(res).toHaveProperty('archived')
   })
 

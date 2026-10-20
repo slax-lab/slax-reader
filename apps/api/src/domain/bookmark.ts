@@ -3,7 +3,17 @@ import { readPdfBody, pdfFilename, pdfHash, extractPdfText, extractPdfMetadata, 
 import { publicFetch } from '@/utils/publicFetch'
 import type { MarkDetail } from '@slax-reader/contracts'
 import type { BookmarkExportResponse, AddBookmarkRequest as addBookmarkReq, AddUrlBookmarkRequest as addUrlBookmarkReq } from '@slax-reader/contracts'
-import { bookmarkPO, BookmarkRepo, queueStatus, bookmarkParsePO, AigcBatchTaskStatus, bookmarkFetchRetryStatus, bookmarkParseStatus } from '@/infra/repository/dbBookmark'
+import {
+  bookmarkPO,
+  BookmarkRepo,
+  queueStatus,
+  bookmarkParsePO,
+  AigcBatchTaskStatus,
+  bookmarkFetchRetryStatus,
+  bookmarkParseStatus,
+  bookmarkContentRevision,
+  type BookmarkContentRevision
+} from '@/infra/repository/dbBookmark'
 import { BucketClient } from '@/infra/repository/bucketClient'
 import { inject, injectable } from '@/decorators/di'
 import type { LazyInstance } from '@/decorators/lazy'
@@ -25,7 +35,7 @@ import {
   UserNotFoundError,
   BlockTargetUrlError
 } from '@/const/err'
-import { CrawlService } from '@/domain/crawl'
+import { CrawlService, SupersededBookmarkWriteError } from '@/domain/crawl'
 import { Hashid } from '@/utils/hashids'
 import { LabService } from '@/domain/lab'
 import { YoutubeArticleRepo } from '@/infra/repository/dbYoutubeArticle'
@@ -46,7 +56,9 @@ export type { AddBookmarkRequest as addBookmarkReq } from '@slax-reader/contract
 export type { AddUrlBookmarkRequest as addUrlBookmarkReq } from '@slax-reader/contracts'
 export type { BookmarkExistsResponse as userBookmarkExistsResp } from '@slax-reader/contracts'
 
-type UserBookmarkListRow = Prisma.sr_user_bookmarkGetPayload<{ include: { bookmark: true; sr_user_bookmark_tag: true } }>
+type UserBookmarkListRow = Prisma.sr_user_bookmarkGetPayload<{
+  include: { bookmark: true; sr_user_bookmark_tag: true }
+}>
 
 export interface BookmarkDetailResp {
   bookmark_id?: number
@@ -90,7 +102,9 @@ export type MarkPathItem =
 
 export type UpdateParseQueueRetryOptions =
   | { status: bookmarkFetchRetryStatus.PENDING; retryCount?: number }
-  | { status: bookmarkFetchRetryStatus.SUCCESS | bookmarkFetchRetryStatus.FAILED }
+  | {
+      status: bookmarkFetchRetryStatus.SUCCESS | bookmarkFetchRetryStatus.FAILED
+    }
   | { status: bookmarkFetchRetryStatus.PARSING; retryCount: number }
 
 @injectable()
@@ -132,7 +146,13 @@ export class BookmarkService {
     siteName?: string
     isArchive?: boolean
     importMetadata?: { savedAt?: Date; starred: boolean }
+    /** Internal import queue key used to make a replay reuse its accepted write version. */
+    saveOperationKey?: string
+    importTags?: string[]
   }) {
+    const privateUser = options.privateUser ?? options.ctx.getUserId()
+    if (!Number.isSafeInteger(privateUser) || privateUser < 1 || privateUser !== options.ctx.getUserId()) throw ErrorParam()
+
     if (options.type === 1) {
       const urlEntity = new URL(options.targetUrl)
       const paths = urlEntity.pathname.split('/')
@@ -150,30 +170,57 @@ export class BookmarkService {
       target_url: options.targetUrl,
       content_icon: options.icon ?? '',
       content_cover: options.cover ?? '',
-      private_user: options.privateUser ?? 0,
+      private_user: privateUser,
       description: options.description ?? '',
       site_name: options.siteName ?? ''
     }
 
     const status = options.type === 1 ? queueStatus.SUCCESS : queueStatus.PENDING
-    const bmInfo = await this.bookmarkRepo.createBookmark(bookmarkPO, status)
-    if (!bmInfo) return null
+    let bmInfo: Awaited<ReturnType<BookmarkRepo['createBookmark']>>
+    let relation: Awaited<ReturnType<BookmarkRepo['createBookmarkRelation']>>
+    let replayed = false
+    let createdTarget = false
+    if (options.saveOperationKey) {
+      const saved = await this.bookmarkRepo.createBookmarkWithSaveReceipt(
+        bookmarkPO,
+        status,
+        options.ctx.getUserId(),
+        options.type,
+        options.isArchive || false,
+        options.importMetadata,
+        options.saveOperationKey,
+        options.importTags
+      )
+      bmInfo = saved.bookmark
+      relation = saved.relation
+      replayed = saved.replayed
+      createdTarget = saved.createdTarget
+      await this.bookmarkSearchRepo.upsertUserBookmark(options.ctx.getUserId(), bmInfo.id)
+    } else {
+      bmInfo = await this.bookmarkRepo.createBookmark(bookmarkPO, status)
+      if (!bmInfo) return null
+      const write = await this.bookmarkRepo.reserveBookmarkWrite(bmInfo.id)
 
-    if (bmInfo.status === queueStatus.FAILED) {
-      // 如果是失败了的状态那就调整成重新解析状态
-      await this.bookmarkRepo.updateBookmarkStatus(bmInfo.id, queueStatus.PENDING_RETRY)
+      if (bmInfo.status === queueStatus.FAILED) {
+        // 如果是失败了的状态那就调整成重新解析状态
+        await this.bookmarkRepo.updateBookmarkVersionStatus(bmInfo.id, write.write_version, queueStatus.PENDING_RETRY)
+      }
+
+      const relationResults = await Promise.all([
+        this.bookmarkSearchRepo.upsertUserBookmark(options.ctx.getUserId(), bmInfo.id),
+        this.bookmarkRepo.createBookmarkRelation(options.ctx.getUserId(), bmInfo.id, options.type, options.isArchive || false, options.importMetadata)
+      ])
+      relation = relationResults[1]
+      bmInfo = { ...bmInfo, ...write }
     }
 
-    const [_, relation] = await Promise.all([
-      this.bookmarkSearchRepo.upsertUserBookmark(options.ctx.getUserId(), bmInfo.id),
-      this.bookmarkRepo.createBookmarkRelation(options.ctx.getUserId(), bmInfo.id, options.type, options.isArchive || false, options.importMetadata)
-    ])
+    if (!bmInfo) return null
 
-    if (relation.deleted_at) {
+    if (relation?.deleted_at && !replayed) {
       await this.trashRevertBookmark(options.ctx, relation.bookmark_id)
     }
 
-    if (relation) {
+    if (relation && !replayed) {
       // 在数据库中增加收藏添加记录
       try {
         const changeTime = options.importMetadata ? new Date() : relation.created_at
@@ -192,9 +239,13 @@ export class BookmarkService {
       }
     }
 
-    await this.searchService.clearSearchCache(options.ctx, options.ctx.getUserId())
+    if (!replayed) await this.searchService.clearSearchCache(options.ctx, options.ctx.getUserId())
 
-    return bmInfo
+    return {
+      ...bmInfo,
+      saveReplayed: replayed,
+      saveCreatedTarget: createdTarget
+    }
   }
 
   /**
@@ -241,6 +292,7 @@ export class BookmarkService {
           callback: callbackType.NOT_CALLBACK,
           ignoreGenerateTag: false,
           privateUser: bmInfo.private_user,
+          writeVersion: bmInfo.write_version,
           targetTitle: target_title ?? '',
           skipParse: false
         }
@@ -314,6 +366,7 @@ export class BookmarkService {
           callbackPayload,
           ignoreGenerateTag: false,
           privateUser: bmInfo.private_user,
+          writeVersion: bmInfo.write_version,
           skipParse: false
         }
       }
@@ -464,12 +517,13 @@ export class BookmarkService {
   public async bookmarkExists(ctx: ContextManager, targetUrl: string) {
     const uUrl = new URL(targetUrl)
     const police = new URLPolicie(ctx.env, uUrl)
-    let privateUser = 0
-    if (police.isClientParse()) privateUser = ctx.getUserId()
+    // New saves are private for every parser. Keep the public lookup only as a
+    // compatibility fallback for historical private_user=0 rows.
+    const privateUser = ctx.getUserId()
     if (police.isUrlShortcut()) uUrl.searchParams.forEach((value, key) => uUrl.searchParams.delete(key))
 
     const bmRepo = this.bookmarkRepo
-    const res = await bmRepo.getBookmark(uUrl.toString(), privateUser)
+    const res = (await bmRepo.getBookmark(uUrl.toString(), privateUser)) ?? (await bmRepo.getBookmark(uUrl.toString(), 0))
 
     let relatetion
     if (res && res.bookmark_id) relatetion = await bmRepo.getUserBookmark(res.bookmark_id, ctx.getUserId())
@@ -538,9 +592,18 @@ export class BookmarkService {
     if (!object) return
     const meta = object.customMetadata ?? {}
     const state = await this.bucket().R2Bucket.get(contentKey.replace('pdf/body/', 'pdf/meta/').replace(/\.pdf$/, '.json'))
-    const text = state ? await state.json<{ text_status: PdfDescriptor['text_status']; pages: number }>() : { text_status: 'pending' as const, pages: 0 }
+    const text = state
+      ? await state.json<{
+          text_status: PdfDescriptor['text_status']
+          pages: number
+        }>()
+      : { text_status: 'pending' as const, pages: 0 }
     return {
-      url: `/api/content/${encodeURIComponent(uuid)}/pdf`,
+      // Keep range requests pinned to the immutable object selected by this
+      // metadata response. The binary endpoint still re-authorizes every
+      // request, but rejects a later request when the bookmark now points at a
+      // newer object so PDF.js cannot mix revisions in one document.
+      url: `/api/content/${encodeURIComponent(uuid)}/pdf?revision=${encodeURIComponent(contentKey)}`,
       filename: meta.filename || 'document.pdf',
       size: object.size,
       document_id: meta.sha256 || '',
@@ -554,6 +617,13 @@ export class BookmarkService {
     const access = await this.getBookmarkReadAccess(ctx, uuid)
     const key = access?.bookmark.bookmark.content_key
     if (!key || !isPdfContentKey(key)) return new Response(null, { status: 404 })
+    const requestedRevision = new URL(request.url).searchParams.get('revision')
+    if (requestedRevision !== null && requestedRevision !== key) {
+      return new Response(null, {
+        status: 409,
+        headers: { 'Cache-Control': 'private, no-store' }
+      })
+    }
     const bucket = this.bucket().R2Bucket
     const object = await bucket.head(key)
     if (!object) return new Response(null, { status: 404 })
@@ -561,12 +631,21 @@ export class BookmarkService {
     try {
       range = pdfByteRange(request.headers.get('Range'), object.size)
     } catch {
-      return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${object.size}`, 'Cache-Control': 'private, no-store' } })
+      return new Response(null, {
+        status: 416,
+        headers: {
+          'Content-Range': `bytes */${object.size}`,
+          'Cache-Control': 'private, no-store'
+        }
+      })
     }
     const headers = pdfResponseHeaders(object.customMetadata?.filename || 'document.pdf', object.size, range)
     if (request.method === 'HEAD') return new Response(null, { status: range ? 206 : 200, headers })
     const body = await bucket.get(key, range ? { range } : undefined)
-    return new Response(body?.body ?? null, { status: body ? (range ? 206 : 200) : 404, headers })
+    return new Response(body?.body ?? null, {
+      status: body ? (range ? 206 : 200) : 404,
+      headers
+    })
   }
 
   private async persistPdf(
@@ -577,13 +656,16 @@ export class BookmarkService {
     filename: string,
     source: 'url' | 'upload',
     extract: boolean,
-    existingKey?: string
+    existingKey?: string,
+    writeVersion?: number,
+    expectedContentKey?: string
   ) {
     const bucket = this.bucket().R2Bucket
     const documentId = await pdfHash(bytes)
-    const key = existingKey || `pdf/body/${uuid}.pdf`
+    const key = writeVersion != null ? `pdf/body/${uuid}.v${writeVersion}.${randomUUID()}.pdf` : existingKey || `pdf/body/${uuid}.pdf`
     const textKey = key.replace('pdf/body/', 'text/pdf/').replace(/\.pdf$/, '.txt')
     const stateKey = key.replace('pdf/body/', 'pdf/meta/').replace(/\.pdf$/, '.json')
+    if (writeVersion != null) await this.bookmarkRepo.stageBookmarkObjects(bookmarkId, writeVersion, key, [key, textKey, stateKey])
     const previous = await bucket.head(key)
     // PDF.js takes ownership of the input buffer. Persist it before extraction,
     // so a second 50 MiB copy is unnecessary and the original stays immutable.
@@ -599,25 +681,42 @@ export class BookmarkService {
     }
     let title = filename.replace(/\.pdf$/i, '')
     try {
-      const result = extract ? await extractPdfText(bytes) : { ...(await extractPdfMetadata(bytes)), text: '', pages: 0, status: 'pending' as const }
+      const result = extract
+        ? await extractPdfText(bytes)
+        : {
+            ...(await extractPdfMetadata(bytes)),
+            text: '',
+            pages: 0,
+            status: 'pending' as const
+          }
       title = result.title || title
-      if (result.text) await bucket.put(textKey, result.text, { httpMetadata: { contentType: 'text/plain; charset=utf-8' } })
+      if (result.text)
+        await bucket.put(textKey, result.text, {
+          httpMetadata: { contentType: 'text/plain; charset=utf-8' }
+        })
       await bucket.put(stateKey, JSON.stringify({ text_status: result.status, pages: result.pages }), { httpMetadata: { contentType: 'application/json' } })
-      await this.bookmarkRepo.completePdfBookmark(
-        bookmarkId,
-        {
-          title,
-          byline: result.author || '',
-          content_key: key,
-          content_md_key: result.text ? textKey : '',
-          content_word_count: result.text.length,
-          status: queueStatus.SUCCESS,
-          published_at: new Date(),
-          site_name: ''
-        },
-        documentId
-      )
+      const publication = {
+        title,
+        byline: result.author || '',
+        content_key: key,
+        content_md_key: result.text ? textKey : '',
+        content_word_count: result.text.length,
+        status: queueStatus.SUCCESS,
+        published_at: new Date(),
+        site_name: ''
+      }
+      if (writeVersion != null) {
+        const published = await this.bookmarkRepo.completePdfBookmarkVersion(bookmarkId, writeVersion, publication, documentId, expectedContentKey)
+        if (!published) throw new SupersededBookmarkWriteError()
+      } else {
+        const published = await this.bookmarkRepo.completePdfBookmark(bookmarkId, publication, documentId)
+        if (published === false) throw new SupersededBookmarkWriteError()
+      }
     } catch (error) {
+      if (writeVersion != null && !(error instanceof SupersededBookmarkWriteError)) {
+        const committed = await this.bookmarkRepo.getBookmarkById(bookmarkId)
+        if (committed?.content_key === key) return title
+      }
       if (!previous) await bucket.delete([key, textKey, stateKey]).catch(() => {})
       else await bucket.delete([textKey, stateKey]).catch(() => {})
       throw error
@@ -627,9 +726,32 @@ export class BookmarkService {
   }
 
   /** Existing files are immutable so saved page anchors retain their identity. */
-  public async capturePdf(ctx: ContextManager, bookmarkId: number, uuid: string, url: string): Promise<boolean> {
+  public async capturePdf(ctx: ContextManager, bookmarkId: number, uuid: string, url: string, writeVersion?: number): Promise<boolean> {
+    if (writeVersion != null && !(await this.bookmarkRepo.isBookmarkVersionCurrent(bookmarkId, writeVersion))) throw new SupersededBookmarkWriteError()
     const bookmark = await this.bookmarkRepo.getBookmarkById(bookmarkId)
-    if (bookmark && isPdfContentKey(bookmark.content_key)) {
+    if (writeVersion != null && bookmark && isPdfContentKey(bookmark.content_key)) {
+      const descriptor = await this.getPdfDescriptor(bookmark.content_key, uuid)
+      if (bookmark.published_version === writeVersion && descriptor?.text_status !== 'pending') return true
+      if (url.startsWith('slax-pdf:') || bookmark.published_version === writeVersion) {
+        const object = await this.bucket().R2Bucket.get(bookmark.content_key)
+        if (!object) throw BookmarkContentNotFoundError()
+        const bytes = await readPdfBody(object.body, String(object.size))
+        await this.persistPdf(
+          ctx,
+          bookmarkId,
+          uuid,
+          bytes,
+          object.customMetadata?.filename || 'document.pdf',
+          object.customMetadata?.source === 'upload' ? 'upload' : 'url',
+          true,
+          undefined,
+          writeVersion,
+          bookmark.published_version === writeVersion ? bookmark.content_key : undefined
+        )
+        return true
+      }
+    }
+    if (writeVersion == null && bookmark && isPdfContentKey(bookmark.content_key)) {
       const object = await this.bucket().R2Bucket.get(bookmark.content_key)
       if (!object) throw new Error('Stored PDF file is unavailable')
       const descriptor = await this.getPdfDescriptor(bookmark.content_key, uuid)
@@ -710,7 +832,7 @@ export class BookmarkService {
       name = decodeURIComponent(path)
     } catch {}
     if (!/\.pdf$/i.test(name)) name += '.pdf'
-    await this.persistPdf(ctx, bookmarkId, uuid, bytes, pdfFilename(name), 'url', true)
+    await this.persistPdf(ctx, bookmarkId, uuid, bytes, pdfFilename(name), 'url', true, undefined, writeVersion)
     return true
   }
 
@@ -730,16 +852,26 @@ export class BookmarkService {
     }
     const hash = await pdfHash(bytes)
     const target = `slax-pdf://${ctx.getUserId()}/${hash}`
-    const bookmark = await this.createBookmarkBase({ ctx, targetUrl: target, hostUrl: '', title: filename.replace(/\.pdf$/i, ''), type: 2, privateUser: ctx.getUserId() })
+    const bookmark = await this.createBookmarkBase({
+      ctx,
+      targetUrl: target,
+      hostUrl: '',
+      title: filename.replace(/\.pdf$/i, ''),
+      type: 2,
+      privateUser: ctx.getUserId()
+    })
     if (!bookmark) throw CreateBookmarkFailError()
     const relation = await this.bookmarkRepo.getUserBookmarkWithDetail(bookmark.id, ctx.getUserId())
     if (!relation) throw BookmarkNotFoundError()
     let title = bookmark.title || filename.replace(/\.pdf$/i, '')
-    if (!isPdfContentKey(bookmark.content_key)) {
+    if (bookmark.write_version || !isPdfContentKey(bookmark.content_key)) {
       try {
-        title = await this.persistPdf(ctx, bookmark.id, relation.uuid, bytes, filename, 'upload', false)
+        title = await this.persistPdf(ctx, bookmark.id, relation.uuid, bytes, filename, 'upload', false, undefined, bookmark.write_version)
       } catch (error) {
-        if (!(error instanceof PdfSaveInProgressError)) await this.bookmarkRepo.updateBookmarkStatus(bookmark.id, queueStatus.FAILED)
+        if (!(error instanceof PdfSaveInProgressError)) {
+          if (bookmark.write_version) await this.bookmarkRepo.updateBookmarkVersionStatus(bookmark.id, bookmark.write_version, queueStatus.FAILED)
+          else await this.bookmarkRepo.updateBookmarkStatus(bookmark.id, queueStatus.FAILED)
+        }
         throw error
       }
     } else {
@@ -748,20 +880,35 @@ export class BookmarkService {
       const metadata = await extractPdfMetadata(bytes)
       if (metadata.title && metadata.title !== title) {
         title = metadata.title
-        await this.bookmarkRepo.updatePdfMetadata(bookmark.id, { title, ...(metadata.author ? { byline: metadata.author } : {}) })
+        await this.bookmarkRepo.updatePdfMetadata(bookmark.id, {
+          title,
+          ...(metadata.author ? { byline: metadata.author } : {})
+        })
         await this.searchService.clearSearchCache(ctx, ctx.getUserId())
       }
     }
-    const descriptor = await this.getPdfDescriptor(bookmark.content_key || `pdf/body/${relation.uuid}.pdf`, relation.uuid)
+    const savedBookmark = bookmark.write_version ? await this.bookmarkRepo.getBookmarkById(bookmark.id) : bookmark
+    const descriptor = await this.getPdfDescriptor(savedBookmark?.content_key || `pdf/body/${relation.uuid}.pdf`, relation.uuid)
     if (descriptor?.text_status === 'pending') {
       await this.crawlService.createWorkflow(
         ctx.env,
-        { url: target, bookmarkId: bookmark.id, userId: ctx.getUserId(), enUserId: ctx.hashIds.encodeId(ctx.getUserId()), userLang: ctx.get('user_lang') || 'en' },
+        {
+          url: target,
+          bookmarkId: bookmark.id,
+          writeVersion: bookmark.write_version,
+          userId: ctx.getUserId(),
+          enUserId: ctx.hashIds.encodeId(ctx.getUserId()),
+          userLang: ctx.get('user_lang') || 'en'
+        },
         3,
         ctx
       )
     }
-    return { bookmark_id: ctx.hashIds.encodeId(bookmark.id), bookmark_uid: relation.uuid, title }
+    return {
+      bookmark_id: ctx.hashIds.encodeId(bookmark.id),
+      bookmark_uid: relation.uuid,
+      title
+    }
   }
 
   public async bookmarkArchive(ctx: ContextManager, bmId: number, status: string) {
@@ -824,8 +971,53 @@ export class BookmarkService {
     return resolveBookmarkReadAccess(this.bookmarkRepo, this.userRepo, ctx.getUserId(), uuid)
   }
 
+  public async getForkInfo(bookmarkId: number, ctx: ContextManager, publishedVersion: number) {
+    const row = await this.bookmarkRepo.getBookmarkForkForVersion(bookmarkId, publishedVersion)
+    if (!row) return null
+    if (!row.show_userinfo)
+      return {
+        bookmark_uid: row.source_uuid,
+        display_name: null,
+        user_id: null
+      }
+    return {
+      bookmark_uid: row.source_uuid,
+      display_name: row.display_name || null,
+      user_id: ctx ? ctx.hashIds.encodeId(row.source_user_id) : null
+    }
+  }
+
+  public async refreshBookmarkPublication(ctx: ContextManager, bookmarkId: number, userId: number) {
+    const bookmark = await this.bookmarkRepo.getBookmarkById(bookmarkId)
+    if (!bookmark || bookmark.private_user !== userId) return
+    await this.bookmarkSearchRepo.upsertUserBookmark(userId, bookmarkId)
+    const results = await this.searchService.addSearchRecordByBmId(ctx, bookmarkId)
+    if (results.some(result => result.status === 'rejected')) throw new Error('Bookmark search refresh failed')
+    await this.searchService.clearSearchCache(ctx, userId)
+    const changedAt = new Date()
+    await this.bookmarkRepo.createBookmarkChangeLog(userId, bookmark.target_url, bookmarkId, 'add', changedAt)
+    const userHashIds = new Hashid(ctx.env, userId)
+    await this.notifyMessage.sendBookmarkChange(ctx.env, {
+      user_id: userId,
+      bookmark_id: userHashIds.encodeId(bookmarkId),
+      target_url: bookmark.target_url,
+      action: 'add',
+      created_at: changedAt
+    })
+  }
+
   /** 获取当前用户有权访问的书签ID */
-  public async getBookmarkId(ctx: ContextManager, params: { bmId?: number; shareCode?: string; cbId?: number; collectionCode?: string; bmUId?: string; uBmId?: string }) {
+  public async getBookmarkId(
+    ctx: ContextManager,
+    params: {
+      bmId?: number
+      shareCode?: string
+      cbId?: number
+      collectionCode?: string
+      bmUId?: string
+      uBmId?: string
+    }
+  ) {
     const { bmId, shareCode, cbId, collectionCode, bmUId, uBmId } = params
     const userId = ctx.getUserId()
     if (bmId) {
@@ -865,18 +1057,18 @@ export class BookmarkService {
    * AI attaches vocabulary words to a bookmark. Names are resolved without touching
    * ownership or display, links are written with source "ai", last_used_at stays put.
    */
-  public async tagBookmark(ctx: ContextManager, userId: number, bmId: number, tags: string[]) {
+  public async tagBookmark(ctx: ContextManager, userId: number, bmId: number, tags: string[], revision?: BookmarkContentRevision) {
     if (tags.length < 1) return
     // a plain lookup: the bookmark may belong to several users and a name that is not in
     // this user's live vocabulary must be dropped, never created
     const rows = await this.bookmarkRepo.getUserTagsByNames(userId, tags)
     if (rows.length < 1) return
-    await this.bookmarkRepo.upsertBookmarkTags(bmId, userId, rows, 'ai')
+    return await this.bookmarkRepo.upsertBookmarkTags(bmId, userId, rows, 'ai', revision)
   }
 
   /** 创建书签概述 */
-  public async createBookmarkOverview(userId: number, bookmarkId: number, overview: string, content: string) {
-    return await this.bookmarkRepo.createBookmarkOverview(userId, bookmarkId, overview, content)
+  public async createBookmarkOverview(userId: number, bookmarkId: number, overview: string, content: string, revision?: BookmarkContentRevision) {
+    return await this.bookmarkRepo.createBookmarkOverview(userId, bookmarkId, overview, content, revision)
   }
 
   /** 获取用户书签概述 */
@@ -901,7 +1093,9 @@ export class BookmarkService {
         last_retry_at: new Date()
       })
     } else if ([bookmarkFetchRetryStatus.SUCCESS, bookmarkFetchRetryStatus.FAILED, bookmarkFetchRetryStatus.PARSING].indexOf(options.status) !== -1) {
-      await this.bookmarkRepo.updateBookmarkFetchRetry(bookmarkId, { status: options.status })
+      await this.bookmarkRepo.updateBookmarkFetchRetry(bookmarkId, {
+        status: options.status
+      })
     }
   }
 
@@ -910,7 +1104,9 @@ export class BookmarkService {
     const bmRepo = this.bookmarkRepo
 
     // 找出retry表中，pending状态的书签
-    const list = await bmRepo.getFilterBookmarkFetchRetries({ status: bookmarkFetchRetryStatus.PENDING })
+    const list = await bmRepo.getFilterBookmarkFetchRetries({
+      status: bookmarkFetchRetryStatus.PENDING
+    })
     if (!list) {
       return
     }
@@ -938,7 +1134,9 @@ export class BookmarkService {
     for (const item of res) {
       const bmInfo = await bmRepo.getBookmarkById(item.bookmark_id)
       if (!bmInfo) {
-        await bmRepo.updateBookmarkFetchRetry(item.bookmark_id, { status: bookmarkFetchRetryStatus.FAILED })
+        await bmRepo.updateBookmarkFetchRetry(item.bookmark_id, {
+          status: bookmarkFetchRetryStatus.FAILED
+        })
         continue
       }
 
@@ -946,14 +1144,18 @@ export class BookmarkService {
       const urlPolicie = new URLPolicie(ctx.env, target_url)
 
       if (urlPolicie.isBlocked()) {
-        await bmRepo.updateBookmarkFetchRetry(item.bookmark_id, { status: bookmarkFetchRetryStatus.FAILED })
+        await bmRepo.updateBookmarkFetchRetry(item.bookmark_id, {
+          status: bookmarkFetchRetryStatus.FAILED
+        })
         continue
       }
 
       const { retry_count, user_ids } = item
 
       // 更新状态为QUEUEING
-      await bmRepo.updateBookmarkFetchRetry(item.bookmark_id, { status: bookmarkFetchRetryStatus.QUEUEING })
+      await bmRepo.updateBookmarkFetchRetry(item.bookmark_id, {
+        status: bookmarkFetchRetryStatus.QUEUEING
+      })
 
       if (!urlPolicie.isUrlShortcut()) {
         await this.queue().pushRetryMessage(ctx, {
@@ -1024,8 +1226,24 @@ export class BookmarkService {
     return await this.bookmarkRepo.getUserBookmark(bmId, userId)
   }
 
+  public async stageBookmarkObjects(bookmarkId: number, version: number, contentKey: string, keys: string[]) {
+    return this.bookmarkRepo.stageBookmarkObjects(bookmarkId, version, contentKey, keys)
+  }
+
+  public async publishBookmarkVersion(bookmarkId: number, version: number, info: bookmarkParsePO) {
+    return this.bookmarkRepo.publishBookmarkVersion(bookmarkId, version, info)
+  }
+
+  public async isBookmarkVersionCurrent(bookmarkId: number, version: number) {
+    return this.bookmarkRepo.isBookmarkVersionCurrent(bookmarkId, version)
+  }
+
   public async updateBookmark(bmId: number, info: bookmarkParsePO) {
     return await this.bookmarkRepo.updateBookmark(bmId, info)
+  }
+
+  public async updateBookmarkVersionStatus(bmId: number, version: number, status: queueStatus) {
+    return this.bookmarkRepo.updateBookmarkVersionStatus(bmId, version, status)
   }
 
   public async updateBookmarkStatus(bmId: number, status: queueStatus) {
@@ -1097,7 +1315,16 @@ export class BookmarkService {
       })
   }
 
-  public async getUserBookmarkSummary(ctx: ContextManager, params: { bmId?: number; shareCode?: string; cbId?: number; collectionCode?: string; bmUId?: string }) {
+  public async getUserBookmarkSummary(
+    ctx: ContextManager,
+    params: {
+      bmId?: number
+      shareCode?: string
+      cbId?: number
+      collectionCode?: string
+      bmUId?: string
+    }
+  ) {
     const bookmarkId = await this.getBookmarkId(ctx, params)
     if (!bookmarkId || bookmarkId < 1) throw ErrorParam()
 
@@ -1117,9 +1344,16 @@ export class BookmarkService {
     return await this.bookmarkRepo.getUserBookmarkSummary(bmId, userId, lang)
   }
 
-  async saveSummary(ctx: ContextManager, bmId: number, provider: string, content: string, model: string) {
-    const info = { content: content, ai_name: provider || '', ai_model: model || '', bookmark_id: bmId, user_id: ctx.getUserId(), lang: ctx.get('ai_lang') }
-    await this.bookmarkRepo.upsertBookmarkSummary(info)
+  async saveSummary(ctx: ContextManager, bmId: number, provider: string, content: string, model: string, revision?: BookmarkContentRevision) {
+    const info = {
+      content: content,
+      ai_name: provider || '',
+      ai_model: model || '',
+      bookmark_id: bmId,
+      user_id: ctx.getUserId(),
+      lang: ctx.get('ai_lang')
+    }
+    return await this.bookmarkRepo.upsertBookmarkSummary(info, revision)
   }
 
   public getQueue(): LazyInstance<QueueClient> {
@@ -1128,8 +1362,23 @@ export class BookmarkService {
 
   public async getBookmarkTitleContent(
     ctx: ContextManager,
-    params: { bmId?: number; shareCode?: string; cbId?: number; collectionCode?: string; title?: string; content?: string; bmUId?: string }
-  ): Promise<{ title: string; content: string; bmId: number; targetUrl: string; moderationResult: number }> {
+    params: {
+      bmId?: number
+      shareCode?: string
+      cbId?: number
+      collectionCode?: string
+      title?: string
+      content?: string
+      bmUId?: string
+    }
+  ): Promise<{
+    title: string
+    content: string
+    bmId: number
+    targetUrl: string
+    moderationResult: number
+    contentRevision?: BookmarkContentRevision
+  }> {
     const { bmId, shareCode, cbId, collectionCode, title, content, bmUId } = params
 
     const emptyId = !bmId && !shareCode && !cbId && !bmUId
@@ -1138,7 +1387,13 @@ export class BookmarkService {
       return { title, content, bmId: 0, targetUrl: '', moderationResult: 0 }
     }
 
-    const bookmarkId = await this.getBookmarkId(ctx, { bmId, shareCode, cbId, collectionCode, bmUId })
+    const bookmarkId = await this.getBookmarkId(ctx, {
+      bmId,
+      shareCode,
+      cbId,
+      collectionCode,
+      bmUId
+    })
     if (!bookmarkId || bookmarkId < 1) throw ErrorParam()
 
     const bookmark = await this.getBookmarkById(bookmarkId)
@@ -1151,7 +1406,14 @@ export class BookmarkService {
 
     if (!body) throw BookmarkContentNotFoundError()
 
-    return { title: bookmark.title, content: body, bmId: bookmarkId, targetUrl: bookmark.target_url, moderationResult: bookmark.moderation_result }
+    return {
+      title: bookmark.title,
+      content: body,
+      bmId: bookmarkId,
+      targetUrl: bookmark.target_url,
+      moderationResult: bookmark.moderation_result,
+      contentRevision: bookmarkContentRevision(bookmark)
+    }
   }
 
   private static readonly EXPORT_PAGE_SIZE = 500
@@ -1176,7 +1438,10 @@ export class BookmarkService {
       return {
         url: row.bookmark.target_url,
         title: row.alias_title || row.bookmark.title || row.bookmark.target_url,
-        tags: row.sr_user_bookmark_tag.map(tag => ({ name: tag.tag_name, source: tag.source })),
+        tags: row.sr_user_bookmark_tag.map(tag => ({
+          name: tag.tag_name,
+          source: tag.source
+        })),
         saved_at: row.created_at.toISOString(),
         is_read: row.is_read,
         is_archived: row.archive_status === 1,
@@ -1186,12 +1451,19 @@ export class BookmarkService {
     })
 
     if (!hasMore) return { items, next_cursor: null }
-    const next = this.encodeExportCursor({ user: userId, after: pageRows[pageRows.length - 1]!.id, upper: parsed.upper })
+    const next = this.encodeExportCursor({
+      user: userId,
+      after: pageRows[pageRows.length - 1]!.id,
+      upper: parsed.upper
+    })
     return { items, next_cursor: next }
   }
 
   private encodeExportCursor(payload: { user: number; after: number; upper: number }) {
-    const raw = JSON.stringify({ v: BookmarkService.EXPORT_CURSOR_VERSION, ...payload })
+    const raw = JSON.stringify({
+      v: BookmarkService.EXPORT_CURSOR_VERSION,
+      ...payload
+    })
     return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
   }
 
@@ -1251,7 +1523,7 @@ export class BookmarkService {
     }
   }
 
-  public async addUrlBookmarkItem(ctx: ContextManager, item: addUrlBookmarkReq) {
+  public async addUrlBookmarkItem(ctx: ContextManager, item: addUrlBookmarkReq & { saveOperationKey?: string }) {
     // 跳过非法的URL
     let target_url: URL
     try {
@@ -1291,7 +1563,6 @@ export class BookmarkService {
         throw error
       }
     }
-    if (item.import_only && lastBm?.bookmark_id && (await this.bookmarkData.getUserBookmark(lastBm.bookmark_id, privateUser))) return null
     const bmInfo = await this.createBookmarkBase({
       ctx,
       targetUrl,
@@ -1303,7 +1574,14 @@ export class BookmarkService {
       cover: lastBm?.content_cover ?? item.thumbnail ?? '',
       description: item.description ?? '',
       isArchive: item.is_archive ?? false,
-      importMetadata: item.import_only ? { savedAt: item.saved_at ? new Date(item.saved_at) : undefined, starred: item.is_starred ?? false } : undefined
+      importMetadata: item.import_only
+        ? {
+            savedAt: item.saved_at ? new Date(item.saved_at) : undefined,
+            starred: item.is_starred ?? false
+          }
+        : undefined,
+      saveOperationKey: item.saveOperationKey,
+      importTags: item.saveOperationKey ? item.tags : undefined
     })
 
     if (!bmInfo) {
@@ -1311,7 +1589,7 @@ export class BookmarkService {
       return null
     }
 
-    if (item.tags.length > 0) {
+    if (!item.saveOperationKey && item.tags.length > 0) {
       try {
         // 导入来的词进自动标签（用户在标签页确认后才算我的标签），关联算用户贴的，隐藏过的词恢复显示
         const tagResults = await this.bookmarkData.updateUserTagsDisplay(ctx.getUserId(), item.tags, true, 'auto')
@@ -1336,6 +1614,9 @@ export class BookmarkService {
       callback: callbackType.NOT_CALLBACK,
       ignoreGenerateTag: true,
       privateUser: bmInfo.private_user,
+      writeVersion: bmInfo.write_version,
+      saveReplayed: Boolean(bmInfo.saveReplayed),
+      createdTarget: Boolean(bmInfo.saveCreatedTarget),
       skipParse: item.import_only ? false : item.is_archive || false
     }
   }
@@ -1369,24 +1650,26 @@ export class BookmarkService {
       title: res.title,
       textContent: textContent,
       byline: res.byline,
-      privateUser: res.private_user
+      privateUser: res.private_user,
+      contentKey: res.content_key,
+      contentRevision: bookmarkContentRevision(res)
     }
   }
 
-  public async updateBookmarkModerationResult(bmId: number, moderationResult: number) {
-    return this.bookmarkData.updateBookmarkModerationResult(bmId, moderationResult)
+  public async updateBookmarkModerationResult(bmId: number, moderationResult: number, writeVersion?: number) {
+    return this.bookmarkData.updateBookmarkModerationResult(bmId, moderationResult, writeVersion)
   }
 
   public async disableBookmarkShare(bmId: number, userId: number) {
     return this.bookmarkData.disableBookmarkShareUpsert(bmId, userId)
   }
 
-  public async createBookmarkImportRelation(userId: number, bookmarkId: number, importTaskId: number) {
-    return this.bookmarkData.createBookmarkImportRelation(userId, bookmarkId, importTaskId)
+  public async createBookmarkImportRelation(userId: number, bookmarkId: number, importTaskId: number, write?: { version: number; createdTarget: boolean }) {
+    return this.bookmarkData.createBookmarkImportRelation(userId, bookmarkId, importTaskId, write)
   }
 
-  public async updateBookmarkImportRelationStatus(userId: number, bookmarkId: number, importTaskId: number, status: number) {
-    return this.bookmarkData.updateBookmarkImportRelationStatus(userId, bookmarkId, importTaskId, status)
+  public async updateBookmarkImportRelationStatus(userId: number, bookmarkId: number, importTaskId: number, status: number, writeVersion?: number) {
+    return this.bookmarkData.updateBookmarkImportRelationStatus(userId, bookmarkId, importTaskId, status, writeVersion)
   }
 
   /** 获取导入失败的书签列表 */
@@ -1412,7 +1695,7 @@ export class BookmarkService {
     const deletePromises = []
     for (let i = 0; i < bookmarkIds.length; i += 50) {
       const batch = bookmarkIds.slice(i, i + 50)
-      deletePromises.push(this.bookmarkData.batchDeleteBookmarksByIds(userId, batch))
+      deletePromises.push(this.bookmarkData.batchDeleteBookmarksByIds(userId, batch, importId))
     }
 
     try {
@@ -1423,8 +1706,8 @@ export class BookmarkService {
     }
   }
 
-  public async createAigcBatchTask(userId: number, bookmarkId: number, batchId: string, taskType: string) {
-    return this.bookmarkData.createAigcBatchTask(userId, bookmarkId, batchId, taskType)
+  public async createAigcBatchTask(userId: number, bookmarkId: number, batchId: string, taskType: string, revision?: BookmarkContentRevision) {
+    return this.bookmarkData.createAigcBatchTask(userId, bookmarkId, batchId, taskType, revision)
   }
 
   public async getUnfinishedAigcBatchTasks(taskType: string) {
@@ -1465,7 +1748,16 @@ export class BookmarkService {
     }
   }
 
-  private async processStuckBookmark(ctx: ContextManager, bm: { id: number; target_url: string; status: string; created_at: Date; user_id: number }) {
+  private async processStuckBookmark(
+    ctx: ContextManager,
+    bm: {
+      id: number
+      target_url: string
+      status: string
+      created_at: Date
+      user_id: number
+    }
+  ) {
     const hostname = (() => {
       try {
         return new URL(bm.target_url).hostname || 'unknown'
@@ -1505,9 +1797,11 @@ export class BookmarkService {
       console.error(`User not found for bookmark ${bm.id} with user_id ${bm.user_id}`)
       return
     }
+    const current = await this.bookmarkData.getBookmarkById(bm.id)
     await this.crawlService.createWorkflow(ctx.env, {
       url: bm.target_url,
       bookmarkId: bm.id,
+      ...(current?.write_version ? { writeVersion: current.write_version } : {}),
       userId: bm.user_id,
       enUserId,
       userLang: userInfo.ai_lang || 'en',
@@ -1515,5 +1809,8 @@ export class BookmarkService {
       callbackOriginMessageId: 0,
       ignoreGenerateTag: false
     })
+  }
+  public async applyForkImportMetadata(ctx: ContextManager, data: Parameters<BookmarkRepo['applyForkImportMetadata']>[1]) {
+    return await this.bookmarkData.applyForkImportMetadata(ctx.getUserId(), data)
   }
 }

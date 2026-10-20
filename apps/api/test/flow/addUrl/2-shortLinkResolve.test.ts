@@ -41,13 +41,16 @@ describe('tryResolveShortLink 分支', () => {
     expect(cs.resolveFinalUrl).not.toHaveBeenCalled()
   })
 
-  test('needsResolve=true + 解析成功 → req.target_url 被替换', async () => {
+  test('uses the resolved URL only for fetching while retaining the submitted identity', async () => {
     const { orch, bs, cs } = wire()
     cs.resolveFinalUrl.mockResolvedValue('https://x.com/real/status/123')
-    bs.addUrlBookmark.mockResolvedValue(1)
-    const req = { target_url: 'https://x.com/i/status/123', target_title: '', tags: [] }
-    await orch.addByUrl(createMockCtx(), req)
-    expect(req.target_url).toBe('https://x.com/real/status/123')
+    const targetUrl = 'https://x.com/i/status/123?a=1&b=2'
+    bs.addUrlBookmark.mockResolvedValue({ info: { bookmarkId: 1, userId: 7, targetUrl } })
+    const req = { target_url: targetUrl, target_title: '', tags: [] }
+    const result = await orch.addByUrl(createMockCtx(), req)
+    expect(req.target_url).toBe(targetUrl)
+    expect(bs.addUrlBookmark).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ target_url: targetUrl }), expect.anything(), expect.anything())
+    expect(result.workflowParams?.url).toBe('https://x.com/real/status/123')
   })
 
   test('needsResolve=true + resolveFinalUrl 返回 null → 保留原 URL', async () => {

@@ -41,7 +41,7 @@
 
       <BookmarkArticle
         v-if="detail"
-        :key="detail.pdf?.document_id ?? 'title'"
+        :key="detail.pdf?.url ?? detail.pdf?.document_id ?? 'title'"
         ref="bookmarkArticle"
         :detail="detail"
         :marks="marks"
@@ -150,6 +150,8 @@ import SnapshotSharePopover from '~/components/Snapshot/SnapshotSharePopover.vue
 import SnapshotTopBar from '~/components/Snapshot/SnapshotTopBar.vue'
 import TopTips from '~/components/Tips/TopTips.vue'
 
+import { pdfTitlePreview } from '~/utils/pdfPreview'
+
 import type { MarkDetail, ShareBookmarkDetail } from '@commons/frontend-types/models'
 import { formatDate } from '@commons/frontend-utils/date'
 import { isClient, isServer } from '@commons/frontend-utils/is'
@@ -162,7 +164,6 @@ import Toast, { ToastType } from '~/components/Toast'
 import { useBookmark } from '~/composables/bookmark/useBookmark'
 import { useCommentPanel } from '~/composables/useCommentPanel'
 import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
-import { pdfTitlePreview } from '~/utils/pdfPreview'
 
 const { t } = useI18n()
 const router = useRoute()
@@ -343,10 +344,10 @@ const loadMarks = async () => {
   }
 }
 
-const loadBookmarkDetail = async () => {
+const loadBookmarkDetail = async (done?: () => void) => {
   pdfLoadError.value = false
   try {
-    if (!detail.value || (detail.value.type === 'pdf' && !detail.value.pdf)) {
+    if (done || !detail.value || (detail.value.type === 'pdf' && !detail.value.pdf)) {
       const data = await detailRequest.get<ShareBookmarkDetail>({
         url: RESTMethodPath.SHARE_BOOKMARK_DETAIL,
         query: { share_code: shareCode }
@@ -358,6 +359,8 @@ const loadBookmarkDetail = async () => {
     await loadMarks()
   } catch {
     pdfLoadError.value = detail.value?.type === 'pdf'
+  } finally {
+    done?.()
   }
 }
 

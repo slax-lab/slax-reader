@@ -1,4 +1,4 @@
-import { bookmarkContentType } from '@slax-reader/contracts/pdf'
+import { bookmarkContentType, isPdfContentKey } from '@slax-reader/contracts/pdf'
 import { inject, injectable } from '@/decorators/di'
 import { BookmarkService } from '@/domain/bookmark'
 import { CollectionService } from '@/domain/collection'
@@ -35,19 +35,48 @@ export class ContentOrchestrator {
     const showMarks = isOwner || !share || (share.show_comment && share.show_line)
     const trace = showTrace ? await this.loadTrace(ctx, ub.bookmark_id, ub.id, ub.user_id, { nick_name: owner.nick_name, avatar: owner.avatar }, showMarks) : EMPTY_TRACE
 
-    const { id, content_key, content_md_key, private_user, created_at, updated_at, published_at, ...bookmarkMeta } = ub.bookmark
+    const bookmark = ub.bookmark
+    const pdf = await this.bookmarkService.getPdfDescriptor(bookmark.content_key, ub.uuid)
+    const forkInfo = await this.bookmarkService.getForkInfo(ub.bookmark_id, ctx, bookmark.published_version)
+    const fork_info = forkInfo
+      ? {
+          bookmark_uid: forkInfo.bookmark_uid,
+          ...(forkInfo.display_name !== undefined ? { display_name: forkInfo.display_name } : {}),
+          ...(forkInfo.user_id !== undefined ? { user_id: forkInfo.user_id } : {})
+        }
+      : null
 
+    // Explicit fields keep database publication versions and internal metadata out
+    // of the response as the storage schema evolves.
     const base = {
-      ...bookmarkMeta,
+      uuid: bookmark.uuid,
+      title: bookmark.title,
+      host_url: bookmark.host_url,
+      target_url: bookmark.target_url,
+      site_name: bookmark.site_name,
+      content_icon: bookmark.content_icon,
+      content_cover: bookmark.content_cover,
+      content_word_count: bookmark.content_word_count,
+      description: bookmark.description,
+      byline: bookmark.byline,
+      status: bookmark.status,
       ...trace,
-      created_at: created_at.toISOString(),
-      updated_at: updated_at.toISOString(),
-      published_at: published_at.toISOString(),
+      created_at: bookmark.created_at.toISOString(),
+      updated_at: bookmark.updated_at.toISOString(),
+      published_at: bookmark.published_at.toISOString(),
       bookmark_uuid: ub.uuid,
       user_id: ctx.hashIds.encodeId(ub.user_id),
-      content_key,
+      content_key: bookmark.content_key,
+      can_fork:
+        !isOwner &&
+        ub.type !== 1 &&
+        bookmark.status === 'success' &&
+        !!bookmark.content_key &&
+        !!bookmark.content_md_key &&
+        (!isPdfContentKey(bookmark.content_key) || pdf?.text_status === 'ready'),
+      fork_info,
       type: bookmarkContentType(ub.type),
-      pdf: await this.bookmarkService.getPdfDescriptor(content_key, ub.uuid),
+      pdf,
       alias_title: ub.alias_title,
       role: isOwner ? 'owner' : 'visitor'
     }

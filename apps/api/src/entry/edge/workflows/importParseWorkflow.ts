@@ -4,13 +4,13 @@ import { NonRetryableError } from 'cloudflare:workflows'
 import { LabService } from '@/domain/lab'
 import { initializeInfrastructure, initializeCore } from '@/di/generated/dependency'
 import { ContextManager } from '@/utils/context'
-import { CrawlService, CrawlResult } from '@/domain/crawl'
+import { CrawlService, CrawlResult, SupersededBookmarkWriteError } from '@/domain/crawl'
 import { UrlParserHandler } from '@/domain/orchestrator/urlParser'
 import { BookmarkService } from '@/domain/bookmark'
 import { ImportService } from '@/domain/import'
 import { Hashid } from '@/utils/hashids'
 import { queueStatus } from '@/infra/repository/dbBookmark'
-import { parserType } from '@/utils/urlPolicie'
+import { parserType, prepareFetchUrl } from '@/utils/urlPolicie'
 import { SlaxFetch } from '@/infra/external/remoteFetcher'
 import { EVENT_CONTEXT_KEY, type EventRequestContext } from '@/domain/events'
 import { publicTarget } from '@/utils/publicTargetPolicy'
@@ -25,7 +25,7 @@ const hasImportContent = (result: fetchResult): boolean => {
 }
 
 export const fetchImportContent = async (env: Env, input: string): Promise<fetchResult> => {
-  const url = publicTarget(input).href
+  const url = prepareFetchUrl(publicTarget(input).href)
   const fetcher = new SlaxFetch(env)
   const accept = (result: fetchResult) => {
     publicTarget(result.url)
@@ -51,6 +51,7 @@ export interface ImportParseWorkflowParams {
   eventContext?: EventRequestContext
   url: string
   bookmarkId: number
+  writeVersion?: number
   userId: number
   enUserId: number
   userLang: string
@@ -78,10 +79,23 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
     const urlParserHandler = currentContainer.resolve(UrlParserHandler)
     const importService = currentContainer.resolve(ImportService)
 
-    const { url, bookmarkId, userId, importTaskId, ignoreGenerateTag } = event.payload
+    const { url, bookmarkId, userId, importTaskId, ignoreGenerateTag, writeVersion } = event.payload
     const userBookmark = await bookmarkService.getUserBookmark(bookmarkId, userId)
     if (!userBookmark) throw new Error(`user_bookmark not found: bookmark=${bookmarkId} user=${userId}`)
     const userBookmarkUuid = userBookmark.uuid
+    const settleImport = async (status: 1 | 2) => {
+      const first = await bookmarkService.updateBookmarkImportRelationStatus(userId, bookmarkId, importTaskId, status, ...(writeVersion == null ? [] : [writeVersion]))
+      if (first) await importService.incrImportTask(ctxManager, userId, importTaskId, status === 1 ? 1 : 0, status === 2 ? 1 : 0)
+    }
+    const isCurrent = async () => {
+      const current = ((await bookmarkService.getBookmarkById(bookmarkId))?.write_version ?? 0) === (writeVersion ?? 0)
+      if (!current) await settleImport(2)
+      return current
+    }
+    if (!(await isCurrent())) return
+    const writeTarget = writeVersion ? { uuid: userBookmarkUuid, writeVersion } : userBookmarkUuid
+    const updateStatus = (status: queueStatus) =>
+      writeVersion ? bookmarkService.updateBookmarkVersionStatus(bookmarkId, writeVersion, status) : bookmarkService.updateBookmarkStatus(bookmarkId, status)
     const hostname = (() => {
       try {
         return new URL(url).hostname || 'unknown'
@@ -93,8 +107,7 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
     console.log(`ImportParse workflow started for bookmark ${bookmarkId} with URL: ${url}`)
 
     const markImportFailed = async () => {
-      await bookmarkService.updateBookmarkImportRelationStatus(userId, bookmarkId, importTaskId, 2).catch(e => console.error(`import relation update failed: ${e}`))
-      await importService.incrImportTask(ctxManager, userId, importTaskId, 0, 1).catch(e => console.error(`import incr failed: ${e}`))
+      await settleImport(2).catch(e => console.error(`import failure tracking failed: ${e}`))
     }
 
     // Step 1: Fetch — 检查缓存，然后 headless browser 抓取
@@ -107,11 +120,11 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
           timeout: '2 minutes'
         },
         async (): Promise<CrawlResult & { pdf?: boolean }> => {
-          publicTarget(url)
+          const fetchUrl = prepareFetchUrl(publicTarget(url).href)
           try {
-            if (await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, url)) {
+            if (await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, fetchUrl, writeVersion ?? 0)) {
               const stored = await bookmarkService.getBookmarkById(bookmarkId)
-              return { title: stored?.title || '', textContent: '', byline: '', pdf: true }
+              return { title: stored?.title || '', textContent: '', byline: '', contentKey: stored?.content_key, pdf: true }
             }
           } catch (error) {
             if (LabService.isLabDisabledError(error)) throw new NonRetryableError(`pdf_lab_disabled:${error instanceof Error ? error.message : String(error)}`)
@@ -119,25 +132,31 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
           }
           // 缓存命中检查
           const existingData = await bookmarkService.getBookmarkTitleAndTextContentTry(bookmarkId)
-          if (existingData?.privateUser === 0) {
+          const stored = await bookmarkService.getBookmarkById(bookmarkId)
+          if (existingData && (existingData.privateUser === 0 || (writeVersion != null && stored?.published_version === writeVersion))) {
             await crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, hostname, 'content_fetch_cached', 'success')
             return {
               title: existingData.title,
               textContent: existingData.textContent,
-              byline: existingData.byline
+              byline: existingData.byline,
+              contentKey: existingData.contentKey
             }
           }
 
-          await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.PARSEING)
+          await updateStatus(queueStatus.PARSEING)
 
           const fetchRes = await fetchImportContent(this.env, url)
-          return await crawlService.parseAndSaveContent(ctxManager, fetchRes, bookmarkId, userBookmarkUuid)
+          return await crawlService.parseAndSaveContent(ctxManager, fetchRes, bookmarkId, writeTarget)
         }
       )
     } catch (err) {
+      if (err instanceof SupersededBookmarkWriteError || !(await isCurrent())) {
+        await settleImport(2)
+        return
+      }
       const errMsg = err instanceof Error ? err.message : String(err)
       console.error(`ImportParse workflow fetch failed for bookmark ${bookmarkId}: ${errMsg}`)
-      await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.FAILED)
+      await updateStatus(queueStatus.FAILED)
       if (!errMsg.startsWith('pdf_lab_disabled:'))
         await crawlService.pushBookmarkFailureAlert(userId, 'import_parse_workflow.fetch', {
           bookmark_id: bookmarkId,
@@ -159,7 +178,7 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
           timeout: '10 minutes'
         },
         async () => {
-          if (!crawlResult) return
+          if (!(await isCurrent()) || !crawlResult) return
           if (crawlResult.pdf) {
             const stored = await bookmarkService.getBookmarkById(bookmarkId)
             crawlResult.textContent = stored?.content_md_key ? (await bookmarkService.getBookmarkContent(stored.content_md_key)) || '' : ''
@@ -172,6 +191,7 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
               info: {
                 userId,
                 bookmarkId,
+                writeVersion,
                 targetUrl: url,
                 callback: 0,
                 callbackPayload: {},
@@ -186,12 +206,17 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
             {
               title: crawlResult.title,
               textContent: crawlResult.textContent,
-              byline: crawlResult.byline
+              byline: crawlResult.byline,
+              contentKey: crawlResult.contentKey
             }
           )
         }
       )
     } catch (err) {
+      if (err instanceof SupersededBookmarkWriteError || !(await isCurrent())) {
+        await settleImport(2)
+        return
+      }
       const errMsg = err instanceof Error ? err.message : String(err)
       console.error(`ImportParse post-processing failed for bookmark ${bookmarkId}: ${errMsg}`)
       await crawlService.pushBookmarkFailureAlert(userId, 'import_parse_workflow.post_processing', {
@@ -206,8 +231,7 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
     // Step 3: 更新导入进度
     try {
       await step.do('update-import', { retries: { limit: 2, delay: '3 seconds' as const, backoff: 'constant' as const }, timeout: '1 minute' }, async () => {
-        await bookmarkService.updateBookmarkImportRelationStatus(userId, bookmarkId, importTaskId, 1)
-        await importService.incrImportTask(ctxManager, userId, importTaskId, 1, 0)
+        await settleImport(1)
       })
     } catch (err) {
       console.error(`Import tracking failed for bookmark ${bookmarkId}: ${err}`)

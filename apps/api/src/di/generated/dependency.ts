@@ -30,11 +30,12 @@ import { LabService } from '../../domain/lab'
 import { SearchService } from '../../domain/search'
 import { YoutubeArticleRepo } from '../../infra/repository/dbYoutubeArticle'
 import { PodcastArticleRepo, PodcastEpisodeRepo } from '../../infra/repository/dbPodcastArticle'
+import { BookmarkForkRepo } from '../../infra/repository/dbBookmarkFork'
+import { BookmarkService } from '../../domain/bookmark'
 import { CollectionRepo } from '../../infra/repository/dbCollection'
 import { LogsService } from '../../domain/logs'
 import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
 import { LogsRepo } from '../../infra/repository/dbLogs'
-import { BookmarkService } from '../../domain/bookmark'
 import { LabRepo } from '../../infra/repository/dbLab'
 import { MediaBodyService } from '../../domain/mediaBody'
 import { RssRepo } from '../../infra/repository/dbRss'
@@ -47,6 +48,7 @@ import { MarkService } from '../../domain/mark'
 import { CollectionService } from '../../domain/collection'
 import { NotificationService } from '../../domain/notification'
 import { UserService } from '../../domain/user'
+import { BookmarkForkService } from '../../domain/bookmarkFork'
 import { ImportService } from '../../domain/import'
 import { ShareService } from '../../domain/share'
 import { SubscriptionServiceMain } from '../../domain/subscriptionMain'
@@ -76,6 +78,7 @@ import { SyncOrchestrator } from '../../domain/orchestrator/sync'
 import { ImportOrchestrator } from '../../domain/orchestrator/import'
 import { EmailService } from '../../domain/email'
 import { ContentOrchestrator } from '../../domain/orchestrator/content'
+import { BookmarkForkJob } from '../../handler/cron/bookmarkForkJob'
 import { BookmarkJob } from '../../handler/cron/bookmarkJob'
 import { CollectionJob } from '../../handler/cron/collectionJob'
 import { PodcastJob } from '../../handler/cron/podcastJob'
@@ -142,6 +145,18 @@ container.register(BookmarkService, {
       container.resolve(SearchService),
       container.resolve(YoutubeArticleRepo),
       container.resolve(PodcastArticleRepo)
+    )
+})
+
+container.register(BookmarkForkService, {
+  useFactory: container =>
+    new BookmarkForkService(
+      container.resolve(BookmarkForkRepo),
+      container.resolve(BookmarkService),
+      lazy(() => container.resolve(BucketClient)),
+      container.resolve(UserRepo),
+      container.resolve(BookmarkSearchRepo),
+      container.resolve(VectorizeRepo)
     )
 })
 
@@ -357,7 +372,7 @@ container.register(BookmarkOrchestrator, {
 })
 
 container.register(BookmarkAddOrchestrator, {
-  useFactory: container => new BookmarkAddOrchestrator(container.resolve(BookmarkService), container.resolve(CrawlService))
+  useFactory: container => new BookmarkAddOrchestrator(container.resolve(BookmarkService), container.resolve(CrawlService), container.resolve(BookmarkForkService))
 })
 
 container.register(CollectionOrchestrator, {
@@ -392,7 +407,8 @@ container.register(ImportOrchestrator, {
       container.resolve(ImportService),
       lazy(() => container.resolve(KVClient)),
       container.resolve(BookmarkService),
-      container.resolve(CrawlService)
+      container.resolve(CrawlService),
+      container.resolve(BookmarkForkService)
     )
 })
 
@@ -438,7 +454,8 @@ container.register(SyncOrchestrator, {
       container.resolve(GA4AnalyticsClient),
       container.resolve(LogsService),
       container.resolve(CollectionRepo),
-      container.resolve(BookmarkSearchRepo)
+      container.resolve(BookmarkSearchRepo),
+      container.resolve(BookmarkForkService)
     )
 })
 
@@ -462,9 +479,19 @@ container.register(RssContent, {
   useFactory: container => new RssContent(lazy(() => container.resolve(BucketClient)))
 })
 
+container.register(BookmarkForkJob, {
+  useFactory: container => new BookmarkForkJob(container.resolve(BookmarkForkService))
+})
+
 container.register(BookmarkJob, {
   useFactory: container =>
-    new BookmarkJob(container.resolve(MonitoringOrchestrator), container.resolve(BookmarkService), container.resolve(ImportService), container.resolve(AigcBatchOrchestrator))
+    new BookmarkJob(
+      container.resolve(MonitoringOrchestrator),
+      container.resolve(BookmarkService),
+      container.resolve(ImportService),
+      container.resolve(AigcBatchOrchestrator),
+      container.resolve(SearchService)
+    )
 })
 
 container.register(CollectionJob, {
@@ -541,6 +568,10 @@ container.register(BookmarkRepo, {
       lazy(() => container.resolve(PRISIMA_CLIENT)),
       lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT))
     )
+})
+
+container.register(BookmarkForkRepo, {
+  useFactory: container => new BookmarkForkRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
 
 container.register(BookmarkSearchRepo, {
@@ -640,7 +671,8 @@ container.register(BookmarkController, {
       container.resolve(UrlParserHandler),
       container.resolve(UserDeletionService),
       container.resolve(CrawlService),
-      container.resolve(LogsService)
+      container.resolve(LogsService),
+      container.resolve(BookmarkForkService)
     )
 })
 
@@ -649,6 +681,7 @@ container.register(CallbackController, {
     new CallbackController(
       container.resolve(TelegramBotService),
       container.resolve(BookmarkService),
+      container.resolve(BookmarkAddOrchestrator),
       container.resolve(SubscriptionService),
       container.resolve(SubscriptionAppleService),
       container.resolve(SubscriptionOrchestrator),

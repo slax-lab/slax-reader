@@ -3,16 +3,18 @@ import { flushPromises } from '@vue/test-utils'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { post, store, navigate, login, toast } = vi.hoisted(() => ({
+const { post, store, navigate, login, toast, clearData } = vi.hoisted(() => ({
   post: vi.fn(),
   store: { isLogin: true },
   navigate: vi.fn(),
   login: vi.fn(),
-  toast: vi.fn()
+  toast: vi.fn(),
+  clearData: vi.fn()
 }))
 
 mockNuxtImport('request', () => () => ({ post }))
 mockNuxtImport('navigateTo', () => navigate)
+mockNuxtImport('clearNuxtData', () => clearData)
 mockNuxtImport('useRequestURL', () => () => new URL('https://r.slax.com/b/source-uuid?highlight=mark'))
 vi.mock('~/stores/user', () => ({ useUserStore: () => store }))
 vi.mock('~/components/Modal', () => ({ showLoginModal: login }))
@@ -52,6 +54,8 @@ describe('SnapshotForkButton', () => {
     expect(wrapper.get('button').attributes('aria-busy')).toBe('true')
     resolve({ bookmark_uid: 'destination-uuid', write_mode: 'created', fork_info: null })
     await flushPromises()
+    expect(clearData).toHaveBeenCalledWith('content-destination-uuid')
+    expect(clearData.mock.invocationCallOrder[0]).toBeLessThan(navigate.mock.invocationCallOrder[0]!)
     expect(navigate).toHaveBeenCalledWith('/b/destination-uuid')
   })
 

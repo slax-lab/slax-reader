@@ -40,22 +40,40 @@ export class MediaBodyService {
     return obj ? obj.text() : null
   }
 
-  /**
-   * Replace one bookmark's body objects in place (same keys), then its word count and search index.
-   * The cached AI overview was made from the old body: it is deleted, so it is made again from the new one.
-   * A flagged bookmark is not written, except with `force` (the takedown restore must reach it too).
-   */
-  public async writeBody(ctx: ContextManager, bookmarkId: number, userId: number, body: { html: string; text: string }, opts: { force?: boolean } = {}): Promise<boolean> {
+  /** Stage media output, then publish only while its capture and body pointer remain current. */
+  public async writeBody(
+    ctx: ContextManager,
+    bookmarkId: number,
+    userId: number,
+    body: { html: string; text: string },
+    opts: { force?: boolean; captureVersion?: number } = {}
+  ): Promise<boolean> {
     const bookmark = await this.bookmarkService.getBookmarkById(bookmarkId)
+    const version = opts.captureVersion ?? 0
     if (!bookmark?.content_key || (bookmark.moderation_result > 0 && !opts.force)) return false
+    if ((bookmark.write_version ?? 0) !== version || (bookmark.published_version ?? 0) !== version) return false
+    if (await this.bookmarkRepo.getCurrentBookmarkFork(bookmarkId)) return false
+    const suffix = `${bookmarkId}/${version}/${crypto.randomUUID()}`
+    const contentKey = `html/body/media/${suffix}.html`
+    const textKey = `text/body/media/${suffix}.txt`
     const bucket = this.bucket().R2Bucket
-    // The HTML goes last: it carries the version marker that says the body is written, so a failure
-    // before it leaves the old body in place and the next status read or run writes everything again
-    if (bookmark.content_md_key) await bucket.put(bookmark.content_md_key, body.text)
-    await this.bookmarkRepo.updateBookmarkWordCount(bookmarkId, body.text.length)
-    await this.bookmarkRepo.deleteBookmarkSummary(bookmarkId, userId)
-    await bucket.put(bookmark.content_key, body.html)
-    const results = await this.searchService.addSearchRecord(ctx, bookmarkId, bookmark.title || '', body.text).catch(err => [{ status: 'rejected' as const, reason: err }])
+    await this.bookmarkRepo.stageBookmarkObjects(bookmarkId, version, contentKey, [contentKey, textKey])
+    const writes = await Promise.allSettled([bucket.put(textKey, body.text), bucket.put(contentKey, body.html)])
+    const failed = writes.find(r => r.status === 'rejected')
+    if (failed?.status === 'rejected') {
+      await bucket.delete([contentKey, textKey]).catch(() => {})
+      throw failed.reason
+    }
+    const published = await this.bookmarkRepo.publishMediaBookmarkBody(bookmarkId, version, bookmark.content_key, {
+      content_key: contentKey,
+      content_md_key: textKey,
+      content_word_count: body.text.length
+    })
+    if (!published) {
+      await bucket.delete([contentKey, textKey])
+      return false
+    }
+    const results = await this.searchService.addSearchRecordByBmId(ctx, bookmarkId).catch(err => [{ status: 'rejected' as const, reason: err }])
     const rejected = (results ?? []).filter(r => r.status === 'rejected')
     if (rejected.length) console.error(`Media body search index failed for bookmark ${bookmarkId}: ${rejected.length} part(s)`)
     return true

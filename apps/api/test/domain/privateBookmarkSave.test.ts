@@ -34,6 +34,11 @@ function createCtx() {
 
 function syncTx(privateUser = userId) {
   return {
+    $executeRaw: vi.fn(),
+    sr_bookmark_save_receipt: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: vi.fn()
+    },
     sr_bookmark: {
       upsert: vi.fn().mockResolvedValue({ id: 11, target_url: targetUrl, private_user: privateUser }),
       update: vi.fn()
@@ -41,7 +46,7 @@ function syncTx(privateUser = userId) {
     sr_user_bookmark: {
       findUnique: vi.fn().mockResolvedValue(null),
       update: vi.fn(),
-      upsert: vi.fn()
+      upsert: vi.fn().mockResolvedValue({ uuid: 'bookmark-uuid' })
     },
     sr_user_delete_bookmark: { deleteMany: vi.fn() }
   }
@@ -49,6 +54,29 @@ function syncTx(privateUser = userId) {
 
 describe('bookmark save privacy', () => {
   beforeEach(() => vi.clearAllMocks())
+
+  test.each([
+    'https://x.com/a?a=1&b=2',
+    'https://twitter.com/a?a=1&b=2#section',
+    'https://mp.weixin.qq.com/s?__biz=article&poc_token=token&mid=123'
+  ])('retains the complete identity URL across inline, URL, import and PowerSync saves: %s', async url => {
+    const { service, createBookmarkBase, bookmarkRepo } = createService()
+    await service.addBookmark(createCtx(), { target_url: url, target_title: 'Article', target_icon: '', taget_cover: '', content: '<article>body</article>', description: '', tag: [] })
+    await service.addUrlBookmark(createCtx(), { target_url: url, target_title: 'Article', tags: [] }, callbackType.NOT_CALLBACK)
+    await service.addUrlBookmarkItem(createCtx(), { target_url: url, target_title: 'Article', tags: [] })
+
+    expect(bookmarkRepo.getBookmark.mock.calls).toEqual([[url, userId], [url, userId], [url, userId]])
+    expect(createBookmarkBase.mock.calls.map(([input]) => input.targetUrl)).toEqual([url, url, url])
+
+    const tx = syncTx()
+    const repo = new DBSyncBatchOperation((() => undefined) as never)
+    const result = await repo.executeCreateBookmark(tx as never, { ...operation, data: { ...operation.data, targetUrl: url } })
+    expect(tx.sr_bookmark.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { target_url_private_user: { target_url: url, private_user: userId } },
+      create: expect.objectContaining({ target_url: url })
+    }))
+    expect(result?.targetUrl).toBe(url)
+  })
 
   test('addBookmark creates the article for the current user', async () => {
     const { service, createBookmarkBase, bookmarkRepo } = createService()

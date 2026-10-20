@@ -28,10 +28,10 @@
     <!-- Status above the body (podcast transcript). Outside .article-detail: marks and processors stay untouched -->
     <slot name="before-body" />
     <ClientOnly v-if="isPdf">
-      <PdfReader v-if="detail.pdf" :key="detail.pdf.document_id" :pdf="detail.pdf" :marks="pdfMarks" :ready="ready"
+      <PdfReader v-if="detail.pdf" :key="detail.pdf.url" :pdf="detail.pdf" :marks="pdfMarks" :ready="ready"
         :allow-action="adapters.allowActionOverride ?? allowAction" :bookmark-id="bookmarkId" :bookmark-uid="bookmarkUid"
         :share-code="shareCode" :owner-user-id="bookmarkUserId" :collection="pdfCollection" :adapters="adapters"
-        @selection="pdfSelection = $event" @quote="emits('chatBotQuote', $event)" @metadata="pdfMetadata = $event" />
+        @selection="pdfSelection = $event" @quote="emits('chatBotQuote', $event)" @metadata="pdfMetadata = $event" @retry="done => emits('retryPdf', done)" />
       <p v-else class="pdf-load-status" role="status">{{ t(pdfLoadError ? 'pdf.load_failed' : 'pdf.loading') }}<button v-if="pdfLoadError" @click="emits('retryPdf')">{{ t('pdf.retry') }}</button></p>
     </ClientOnly>
     <!-- 保留 .article-detail ref + articleStyle class，processors 管道 / mark 绘制依赖 -->

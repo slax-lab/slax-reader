@@ -78,7 +78,7 @@ export class AigcController {
       }
     }
 
-    const { title, content, bmId, moderationResult } = await this.bookmarkService.getBookmarkTitleContent(ctx, {
+    const { title, content, bmId, moderationResult, contentRevision } = await this.bookmarkService.getBookmarkTitleContent(ctx, {
       bmId: req.bm_id,
       shareCode: req.share_code,
       cbId: req.cb_id,
@@ -90,7 +90,7 @@ export class AigcController {
     if (moderationResult > 0) throw ProhibitedContentError()
     ctx.execution.waitUntil(
       aiSvc.bookmarkSummary(ctx, content, writable, async result => {
-        bmId > 0 && (await this.bookmarkService.saveSummary(ctx, bmId, result.provider, result.response, result.model))
+        bmId > 0 && contentRevision && (await this.bookmarkService.saveSummary(ctx, bmId, result.provider, result.response, result.model, contentRevision))
       })
     )
 

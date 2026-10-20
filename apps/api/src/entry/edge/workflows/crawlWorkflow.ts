@@ -3,7 +3,7 @@ import { WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from 'cloudflare:work
 import { NonRetryableError } from 'cloudflare:workflows'
 import { initializeInfrastructure, initializeCore } from '@/di/generated/dependency'
 import { ContextManager } from '@/utils/context'
-import { CrawlService, CrawlResult, TwitterFetched, ZhihuFetched } from '@/domain/crawl'
+import { CrawlService, CrawlResult, SupersededBookmarkWriteError, TwitterFetched, ZhihuFetched } from '@/domain/crawl'
 import type { XHSData, WeiboData } from '@/const/moreapi/base'
 import type { RedditData } from '@/const/moreapi/reddit'
 import { isWeixinImageShower, isWeixinLegacyImageShower } from '@/const/moreapi/weixin'
@@ -12,7 +12,7 @@ import { BookmarkService } from '@/domain/bookmark'
 import { LabService } from '@/domain/lab'
 import { Hashid } from '@/utils/hashids'
 import { queueStatus } from '@/infra/repository/dbBookmark'
-import { parserType } from '@/utils/urlPolicie'
+import { parserType, prepareFetchUrl } from '@/utils/urlPolicie'
 import { TelegramBotService } from '@/domain/telegram'
 import { MultiLangError } from '@/utils/multiLangError'
 import { ErrorName } from '@/const/err'
@@ -40,6 +40,7 @@ export interface CrawlWorkflowParams {
   ignoreGenerateTag?: boolean
   inlineContent?: string
   importTaskId?: number
+  writeVersion?: number
 }
 
 type FetchedPayload =
@@ -50,7 +51,7 @@ type FetchedPayload =
   | { kind: 'zhihu'; resolvedUrl: string; data: ZhihuFetched; isSocialMedia: true }
   | { kind: 'pdf'; resolvedUrl: string; isSocialMedia: false }
   | { kind: 'parsed'; resolvedUrl: string; data: CrawlResult; isSocialMedia: boolean; podcast?: boolean }
-  | { kind: 'shortCircuit'; resolvedUrl: string; data: { title: string; textContent: string; byline: string }; isSocialMedia: false }
+  | { kind: 'shortCircuit'; resolvedUrl: string; data: { title: string; textContent: string; byline: string; contentKey?: string }; isSocialMedia: false }
 
 export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> {
   async run(event: WorkflowEvent<CrawlWorkflowParams>, step: WorkflowStep) {
@@ -71,7 +72,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     const telegramBotSvc = currentContainer.resolve(TelegramBotService)
     const alertBot = currentContainer.resolve(SlaxAlertBotClient)
 
-    const { url, bookmarkId, userId, callbackChatId, callbackOriginMessageId, ignoreGenerateTag, inlineContent } = event.payload
+    const { url, bookmarkId, userId, callbackChatId, callbackOriginMessageId, ignoreGenerateTag, inlineContent, writeVersion } = event.payload
     const hostname = (() => {
       try {
         return new URL(url).hostname || 'unknown'
@@ -83,6 +84,24 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     const userBookmark = await bookmarkService.getUserBookmark(bookmarkId, userId)
     if (!userBookmark) throw new NonRetryableError(`user_bookmark not found: bookmark=${bookmarkId} user=${userId}`)
     const userBookmarkUuid = userBookmark.uuid
+    const settleImport = async (status: 1 | 2) => {
+      const taskId = event.payload.importTaskId
+      if (!taskId) return
+      const first = await bookmarkService.updateBookmarkImportRelationStatus(userId, bookmarkId, taskId, status, ...(writeVersion == null ? [] : [writeVersion]))
+      if (first) {
+        const importService = currentContainer.resolve(ImportService)
+        await importService.incrImportTask(ctxManager, userId, taskId, status === 1 ? 1 : 0, status === 2 ? 1 : 0)
+      }
+    }
+    const isCurrent = async () => {
+      const current = ((await bookmarkService.getBookmarkById(bookmarkId))?.write_version ?? 0) === (writeVersion ?? 0)
+      if (!current) await settleImport(2)
+      return current
+    }
+    if (!(await isCurrent())) return
+    const writeTarget = writeVersion ? { uuid: userBookmarkUuid, writeVersion } : userBookmarkUuid
+    const updateStatus = (status: queueStatus) =>
+      writeVersion ? bookmarkService.updateBookmarkVersionStatus(bookmarkId, writeVersion, status) : bookmarkService.updateBookmarkStatus(bookmarkId, status)
 
     const alertFailure = (scope: string, meta: Record<string, unknown>) =>
       crawlService.pushBookmarkFailureAlert(userId, scope, meta).catch(e => console.error(`alertFailure ${scope} failed: ${e}`))
@@ -119,27 +138,27 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           timeout: '5 minutes'
         },
         async (): Promise<FetchedPayload> => {
-          await assertUrlCaptureAllowed(url)
+          const captureUrl = prepareFetchUrl(url)
+          await assertUrlCaptureAllowed(captureUrl)
           const stored = await bookmarkService.getBookmarkById(bookmarkId)
-          if (stored?.content_key?.startsWith('pdf/body/')) {
-            await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, url)
-            return { kind: 'pdf', resolvedUrl: url, isSocialMedia: false }
+          if (stored?.content_key?.startsWith('pdf/body/') && (await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, captureUrl, writeVersion ?? 0))) {
+            return { kind: 'pdf', resolvedUrl: captureUrl, isSocialMedia: false }
           }
           // 检查是否已有内容
           const existingData = await bookmarkService.getBookmarkTitleAndTextContentTry(bookmarkId)
-          if (existingData?.privateUser === 0) {
+          if (existingData && (existingData.privateUser === 0 || (writeVersion != null && stored?.published_version === writeVersion))) {
             await crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, hostname, 'content_fetch_cached', 'success')
             return {
               kind: 'shortCircuit',
               resolvedUrl: url,
-              data: { title: existingData.title, textContent: existingData.textContent, byline: existingData.byline },
+              data: { title: existingData.title, textContent: existingData.textContent, byline: existingData.byline, contentKey: existingData.contentKey },
               isSocialMedia: false
             }
           }
 
-          await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.PARSEING)
+          await updateStatus(queueStatus.PARSEING)
 
-          const resolvedUrl = await crawlService.resolveShortLink(ctxManager, url)
+          const resolvedUrl = prepareFetchUrl(await crawlService.resolveShortLink(ctxManager, url))
           if (resolvedUrl !== url) {
             console.log(`Resolved short link: ${url} -> ${resolvedUrl}`)
             await assertUrlCaptureAllowed(resolvedUrl)
@@ -148,7 +167,8 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           const route = detectRoute(resolvedUrl)
           if (route === 'regular') {
             try {
-              if (await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, resolvedUrl)) return { kind: 'pdf', resolvedUrl, isSocialMedia: false }
+              if (await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, resolvedUrl, writeVersion ?? 0))
+                return { kind: 'pdf', resolvedUrl, isSocialMedia: false }
             } catch (error) {
               if (error instanceof MultiLangError && error.name === ErrorName.LAB_FEATURE_DISABLED) throw new NonRetryableError(`pdf_lab_disabled:${error.getMessage}`)
               throw error
@@ -156,7 +176,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           }
           if (inlineContent && route === 'regular') {
             const fetchRes = { content: inlineContent, url: resolvedUrl, title: '' }
-            const result = await trackStep('inline_content', () => crawlService.parseAndSaveContent(ctxManager, fetchRes, bookmarkId, userBookmarkUuid))
+            const result = await trackStep('inline_content', () => crawlService.parseAndSaveContent(ctxManager, fetchRes, bookmarkId, writeTarget))
             return { kind: 'parsed', resolvedUrl, data: result, isSocialMedia: false }
           }
 
@@ -165,7 +185,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           if (route === 'regular' && classifyPodcastUrl(resolvedUrl) && (await currentContainer.resolve(LabService).isEnabled(userId, PODCAST_LAB))) {
             const info = await trackStep('podcast_fetching', () => crawlService.fetchPodcastData(resolvedUrl))
             if (info) {
-              const result = await trackStep('podcast_parsing', () => crawlService.parseAndSavePodcast(ctxManager, info, bookmarkId, userBookmarkUuid))
+              const result = await trackStep('podcast_parsing', () => crawlService.parseAndSavePodcast(ctxManager, info, bookmarkId, writeTarget))
               return { kind: 'parsed', resolvedUrl, data: result, isSocialMedia: true, podcast: true }
             }
           }
@@ -173,7 +193,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           switch (route) {
             case 'toutiao': {
               const data = await trackStep('toutiao_fetching', () => crawlService.fetchToutiaoData(ctxManager, resolvedUrl))
-              const result = await trackStep('parsing', () => crawlService.parseAndSaveToutiao(ctxManager, data, bookmarkId, userBookmarkUuid))
+              const result = await trackStep('parsing', () => crawlService.parseAndSaveToutiao(ctxManager, data, bookmarkId, writeTarget))
               return { kind: 'parsed', resolvedUrl: data.canonicalUrl, data: result, isSocialMedia: false }
             }
             case 'twitter':
@@ -209,28 +229,32 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
 
               // 图片流视为社媒：跳过 soft404 与内容校验（tikhub 用字段、legacy 用原始 HTML 特征）
               const isImageShower = data.source === 'tikhub' ? isWeixinImageShower(data.content) : isWeixinLegacyImageShower(data.fetchRes.content)
-              const result = await trackStep('parsing', () => crawlService.parseAndSaveWeixin(ctxManager, data, resolvedUrl, bookmarkId, userBookmarkUuid))
+              const result = await trackStep('parsing', () => crawlService.parseAndSaveWeixin(ctxManager, data, resolvedUrl, bookmarkId, writeTarget))
               return { kind: 'parsed', resolvedUrl, data: result, isSocialMedia: isImageShower }
             }
             case 'youtube': {
               const normalized = normalizeYoutubeUrl(resolvedUrl)
               const fetched = await trackStep('youtube_fetching', () => crawlService.fetchYoutubeData(ctxManager, normalized))
-              const result = await trackStep('youtube_parsing', () => crawlService.parseAndSaveYoutube(ctxManager, fetched, normalized, bookmarkId, userBookmarkUuid))
+              const result = await trackStep('youtube_parsing', () => crawlService.parseAndSaveYoutube(ctxManager, fetched, normalized, bookmarkId, writeTarget))
               return { kind: 'parsed', resolvedUrl: normalized, data: result, isSocialMedia: true }
             }
             default: {
               const fetchRes = await trackStep('zyte_fetching', () => crawlService.fetchRegular(ctxManager, resolvedUrl))
-              const result = await trackStep('parsing', () => crawlService.parseAndSaveContent(ctxManager, fetchRes, bookmarkId, userBookmarkUuid))
+              const result = await trackStep('parsing', () => crawlService.parseAndSaveContent(ctxManager, fetchRes, bookmarkId, writeTarget))
               return { kind: 'parsed', resolvedUrl, data: result, isSocialMedia: false }
             }
           }
         }
       )
     } catch (err) {
+      if (err instanceof SupersededBookmarkWriteError || !(await isCurrent())) {
+        await settleImport(2)
+        return
+      }
       const errMsg = err instanceof Error ? err.message : String(err)
       console.error(`Crawl workflow fetch failed for bookmark ${bookmarkId}: ${errMsg}`)
 
-      await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.FAILED)
+      await updateStatus(queueStatus.FAILED)
 
       const scope = err instanceof NonRetryableError ? 'workflow_fetch.business_terminal' : 'workflow_fetch.exhausted'
       if (!errMsg.startsWith('pdf_lab_disabled:') && !errMsg.startsWith('url_lab_disabled:'))
@@ -241,12 +265,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           user_id: userId,
           error: errMsg
         })
-      // 导入追踪：fetch 失败
-      if (event.payload.importTaskId) {
-        await bookmarkService.updateBookmarkImportRelationStatus(userId, bookmarkId, event.payload.importTaskId, 2).catch(e => console.error(`import relation update failed: ${e}`))
-        const importService = currentContainer.resolve(ImportService)
-        await importService.incrImportTask(ctxManager, userId, event.payload.importTaskId, 0, 1).catch(e => console.error(`import incr failed: ${e}`))
-      }
+      await settleImport(2).catch(e => console.error(`import failure tracking failed: ${e}`))
 
       throw err
     }
@@ -255,13 +274,19 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
 
     if (fetched.kind === 'pdf') {
       const stored = await bookmarkService.getBookmarkById(bookmarkId)
-      crawlResult = { title: stored?.title || '', textContent: stored?.content_md_key ? (await bookmarkService.getBookmarkContent(stored.content_md_key)) || '' : '', byline: '' }
+      crawlResult = {
+        title: stored?.title || '',
+        textContent: stored?.content_md_key ? (await bookmarkService.getBookmarkContent(stored.content_md_key)) || '' : '',
+        byline: '',
+        contentKey: stored?.content_key
+      }
     } else if (fetched.kind === 'shortCircuit') {
       // bookmark 已有内容，跳过 parse
       crawlResult = {
         title: fetched.data.title,
         textContent: fetched.data.textContent,
         byline: fetched.data.byline,
+        contentKey: fetched.data.contentKey,
         siteName: ''
       }
     } else if (fetched.kind === 'parsed') {
@@ -282,19 +307,20 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
               switch (fetched.kind) {
                 case 'twitter':
                 case 'twitter_article':
-                  return await crawlService.parseAndSaveTwitter(ctxManager, fetched.data, bookmarkId, userBookmarkUuid)
+                  return await crawlService.parseAndSaveTwitter(ctxManager, fetched.data, bookmarkId, writeTarget)
                 case 'xhs':
-                  return await crawlService.parseAndSaveXhs(ctxManager, fetched.data, fetched.resolvedUrl, bookmarkId, userBookmarkUuid)
+                  return await crawlService.parseAndSaveXhs(ctxManager, fetched.data, fetched.resolvedUrl, bookmarkId, writeTarget)
                 case 'weibo':
-                  return await crawlService.parseAndSaveWeibo(ctxManager, fetched.data, fetched.resolvedUrl, bookmarkId, userBookmarkUuid)
+                  return await crawlService.parseAndSaveWeibo(ctxManager, fetched.data, fetched.resolvedUrl, bookmarkId, writeTarget)
                 case 'reddit':
-                  return await crawlService.parseAndSaveReddit(ctxManager, fetched.data, fetched.resolvedUrl, bookmarkId, userBookmarkUuid)
+                  return await crawlService.parseAndSaveReddit(ctxManager, fetched.data, fetched.resolvedUrl, bookmarkId, writeTarget)
                 case 'zhihu':
-                  return await crawlService.parseAndSaveZhihu(ctxManager, fetched.data, fetched.resolvedUrl, bookmarkId, userBookmarkUuid)
+                  return await crawlService.parseAndSaveZhihu(ctxManager, fetched.data, fetched.resolvedUrl, bookmarkId, writeTarget)
                 default:
                   throw new NonRetryableError(`unexpected kind in parse step: ${(fetched as any).kind}`)
               }
             } catch (err) {
+              if (err instanceof SupersededBookmarkWriteError) throw err
               if (err instanceof NonRetryableError) throw err
               const errMsg = err instanceof Error ? err.message : String(err)
               await crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, hostname, 'parsing', 'failed', errMsg, ctxManager)
@@ -304,10 +330,14 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
         )
         await crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, hostname, 'parsing', 'success')
       } catch (err) {
+        if (err instanceof SupersededBookmarkWriteError || !(await isCurrent())) {
+          await settleImport(2)
+          return
+        }
         const errMsg = err instanceof Error ? err.message : String(err)
         console.error(`Crawl workflow parse failed for bookmark ${bookmarkId}: ${errMsg}`)
 
-        await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.FAILED)
+        await updateStatus(queueStatus.FAILED)
         await alertFailure('workflow_parse.error', {
           bookmark_id: bookmarkId,
           url,
@@ -316,18 +346,13 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           error: errMsg
         })
 
-        // 导入追踪：parse 失败
-        if (event.payload.importTaskId) {
-          await bookmarkService
-            .updateBookmarkImportRelationStatus(userId, bookmarkId, event.payload.importTaskId, 2)
-            .catch(e => console.error(`import relation update failed: ${e}`))
-          const importService = currentContainer.resolve(ImportService)
-          await importService.incrImportTask(ctxManager, userId, event.payload.importTaskId, 0, 1).catch(e => console.error(`import incr failed: ${e}`))
-        }
+        await settleImport(2).catch(e => console.error(`import failure tracking failed: ${e}`))
 
         throw err
       }
     }
+    if (!(await isCurrent())) return
+
     // 软404检测（仅非社交媒体来源）
     const isSocialMedia = fetched.isSocialMedia
     let isSoft404 = false
@@ -367,7 +392,12 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
               console.log(`Moderation result for bookmark ${bookmarkId}: ${result} (images=${imageUrls.length})`)
             }
 
-            await bookmarkService.updateBookmarkModerationResult(bookmarkId, result)
+            if (!(await isCurrent())) return ModerationResult.NORMAL
+            const moderationWriteAccepted =
+              writeVersion == null
+                ? await bookmarkService.updateBookmarkModerationResult(bookmarkId, result)
+                : await bookmarkService.updateBookmarkModerationResult(bookmarkId, result, writeVersion)
+            if (writeVersion != null && moderationWriteAccepted === false) return ModerationResult.NORMAL
 
             if (result !== ModerationResult.NORMAL) {
               // 命中审核内容：关闭分享（无记录则创建全关闭记录），并推飞书。=1 色情=提醒(蓝)，=2 极度危险=警告(橙)
@@ -445,6 +475,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           timeout: '10 minutes'
         },
         async () => {
+          if (!(await isCurrent())) return
           if (fetched?.kind === 'pdf' && !crawlResult?.textContent) return
           if (!crawlResult) {
             console.error(`No crawl result available for post-processing of bookmark ${bookmarkId}`)
@@ -461,6 +492,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
               info: {
                 userId,
                 bookmarkId,
+                writeVersion,
                 targetUrl: url,
                 callback: callbackChatId ? 1 : 0,
                 callbackPayload: {
@@ -478,13 +510,18 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
             {
               title: crawlResult.title,
               textContent: crawlResult.textContent,
-              byline: crawlResult.byline
+              byline: crawlResult.byline,
+              contentKey: crawlResult.contentKey
             }
           )
         }
       )
       await crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, hostname, 'post_processing', 'success')
     } catch (err) {
+      if (err instanceof SupersededBookmarkWriteError || !(await isCurrent())) {
+        await settleImport(2)
+        return
+      }
       const errMsg = err instanceof Error ? err.message : String(err)
       console.error(`Post-processing failed for bookmark ${bookmarkId}: ${errMsg}`)
       await alertFailure('post_processing.failed', { bookmark_id: bookmarkId, url, domain: hostname, error: errMsg })
@@ -499,9 +536,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     if (event.payload.importTaskId) {
       try {
         await step.do('update-import', { retries: { limit: 2, delay: '3 seconds' as const, backoff: 'constant' }, timeout: '1 minute' }, async () => {
-          const importService = currentContainer.resolve(ImportService)
-          await bookmarkService.updateBookmarkImportRelationStatus(userId, bookmarkId, event.payload.importTaskId!, 1)
-          await importService.incrImportTask(ctxManager, userId, event.payload.importTaskId!, 1, 0)
+          await settleImport(1)
         })
       } catch (err) {
         console.error(`Import tracking failed for bookmark ${bookmarkId}: ${err}`)

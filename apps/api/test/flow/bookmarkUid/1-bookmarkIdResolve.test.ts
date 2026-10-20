@@ -143,7 +143,14 @@ describe('BookmarkService.getBookmarkTitleContent', () => {
     expect(svc.getBookmarkId).toHaveBeenCalledWith(expect.anything(), { bmId: undefined, shareCode: undefined, cbId: undefined, bmUId: 'bm-uuid' })
     // 正文必须按 content_md_key 取（而非 content_key），否则取错 key 也能蒙混返回内容
     expect(svc.getBookmarkContent).toHaveBeenCalledWith('md/42.md')
-    expect(res).toEqual({ title: 'Real Title', content: '正文内容', bmId: 42, targetUrl: 'https://example.com/article', moderationResult: 0 })
+    expect(res).toEqual({
+      title: 'Real Title',
+      content: '正文内容',
+      bmId: 42,
+      targetUrl: 'https://example.com/article',
+      moderationResult: 0,
+      contentRevision: { writeVersion: 0, publishedVersion: 0, contentKey: '', contentMdKey: 'md/42.md' }
+    })
   })
 
   test('解析到 id 但书签缺失 / 无 content_md_key → 抛 BookmarkNotFoundError', async () => {

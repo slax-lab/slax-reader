@@ -5,6 +5,10 @@ vi.mock('@/utils/publicFetch', async importOriginal => ({ ...(await importOrigin
 const rss = (items = '') => `<rss version="2.0"><channel><title>Example</title><link>https://example.com</link>${items}</channel></rss>`
 
 describe('RSS parsing', () => {
+  test('preserves full article query strings before RSS entries become bookmarks', async () => {
+    const feed = await parseFeed(rss('<item><title>Article</title><link>https://x.com/a?a=1&amp;b=2</link></item>'), 'https://example.com/feed')
+    expect(feed.items[0].article_url).toBe('https://x.com/a?a=1&b=2')
+  })
   test.each(['next', 'prev-archive'])('reads RSS %s links without loading the next page', async rel => {
     const fetch = vi.mocked(publicFetch)
     const calls = fetch.mock.calls.length

@@ -29,6 +29,7 @@ function wire() {
   const bs = new (BookmarkService as any)(repo, undefined, undefined, undefined, undefined, userRepo) as BookmarkService
   bs.getBookmarkContent = vi.fn().mockResolvedValue('body')
   bs.getBookmarkOutline = vi.fn().mockResolvedValue('outline')
+  bs.getForkInfo = vi.fn().mockResolvedValue(null)
   const users = { getUserBriefInfo: vi.fn().mockImplementation(async show => ({ nick_name: show ? 'Owner' : '', avatar: show ? 'avatar' : '' })), getOwnerShareInfo: vi.fn().mockResolvedValue({ nick_name: 'Owner', avatar: 'avatar' }) }
   const marks = { getBookmarkMarkList: vi.fn().mockImplementation(async (_ctx, p) => p.isShowMarks ? { mark_list: [{ comment: 'private comment' }], user_list: { 42: { username: 'hidden-participant', avatar: 'hidden-avatar' } } } : { mark_list: [], user_list: {} }), getFirstComment: vi.fn().mockResolvedValue('private comment') }
   const tags = { getBookmarkTags: vi.fn().mockResolvedValue(['private tag']) }

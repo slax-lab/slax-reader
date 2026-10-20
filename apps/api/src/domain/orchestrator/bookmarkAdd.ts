@@ -6,15 +6,20 @@ import { callbackType } from '../../infra/queue/queueClient'
 import type { addBookmarkReq, addUrlBookmarkReq } from '@/domain/bookmark'
 import { needsResolve } from '../../utils/platformDetector'
 import { LabService } from '../lab'
+import { BookmarkForkService } from '../bookmarkFork'
+import type { BookmarkForkResponse } from '@slax-reader/contracts'
+import { parseReaderBookmarkUrl } from '@/utils/readerBookmarkUrl'
 
 export interface PreWorkflowResult {
   bookmarkId: number
   isShortcut: boolean
+  forkResult?: BookmarkForkResponse
   workflowParams: {
     url: string
     bookmarkId: number
     userId: number
     inlineContent?: string
+    writeVersion?: number
   } | null
 }
 
@@ -22,13 +27,21 @@ export interface PreWorkflowResult {
 export class BookmarkAddOrchestrator {
   constructor(
     @inject(BookmarkService) private bookmarkService: BookmarkService,
-    @inject(CrawlService) private crawlService: CrawlService
+    @inject(CrawlService) private crawlService: CrawlService,
+    @inject(BookmarkForkService) private bookmarkForkService: BookmarkForkService
   ) {}
 
-  public async addByUrl(ctx: ContextManager, req: addUrlBookmarkReq, opts: { callback?: callbackType; callbackPayload?: any } = {}): Promise<PreWorkflowResult> {
+  public async addByUrl(
+    ctx: ContextManager,
+    req: addUrlBookmarkReq,
+    opts: { callback?: callbackType; callbackPayload?: any; idempotencyKey?: string; rawTargetUrl?: string } = {}
+  ): Promise<PreWorkflowResult> {
+    const forkResult = await this.tryForkReaderUrl(ctx, opts.rawTargetUrl ?? req.target_url, opts.idempotencyKey)
+    if (forkResult) return forkResult
+
     try {
-      // 解短链降级：失败时仍用原 URL，但同步告警
-      await this.tryResolveShortLink(ctx, req)
+      // Resolve acquisition links without changing the saved URL identity.
+      const fetchUrl = await this.tryResolveShortLink(ctx, req.target_url)
 
       const res = await this.bookmarkService.addUrlBookmark(ctx, req, opts.callback ?? callbackType.NOT_CALLBACK, opts.callbackPayload ?? {})
 
@@ -42,8 +55,9 @@ export class BookmarkAddOrchestrator {
         bookmarkId: res.info.bookmarkId,
         isShortcut: false,
         workflowParams: {
-          url: res.info.targetUrl,
+          url: fetchUrl ?? res.info.targetUrl,
           bookmarkId: res.info.bookmarkId,
+          writeVersion: res.info.writeVersion,
           userId: res.info.userId
         }
       }
@@ -63,7 +77,10 @@ export class BookmarkAddOrchestrator {
     }
   }
 
-  public async addByContent(ctx: ContextManager, req: addBookmarkReq): Promise<PreWorkflowResult & { resource?: string }> {
+  public async addByContent(ctx: ContextManager, req: addBookmarkReq, opts: { idempotencyKey?: string } = {}): Promise<PreWorkflowResult & { resource?: string }> {
+    const forkResult = await this.tryForkReaderUrl(ctx, req.target_url, opts.idempotencyKey)
+    if (forkResult) return forkResult
+
     try {
       const res = await this.bookmarkService.addBookmark(ctx, req)
 
@@ -77,6 +94,7 @@ export class BookmarkAddOrchestrator {
         workflowParams: {
           url: res.info.targetUrl,
           bookmarkId: res.info.bookmarkId,
+          writeVersion: res.info.writeVersion,
           userId: res.info.userId,
           inlineContent: res.info.resource && res.info.resource.length > 0 ? res.info.resource : undefined
         },
@@ -99,7 +117,7 @@ export class BookmarkAddOrchestrator {
 
   public async kickoffWorkflow(
     ctx: ContextManager,
-    params: { url: string; bookmarkId: number; userId: number; inlineContent?: string },
+    params: { url: string; bookmarkId: number; userId: number; inlineContent?: string; writeVersion?: number },
     opts: { callbackChatId?: number; callbackOriginMessageId?: number; ignoreGenerateTag?: boolean } = {}
   ) {
     try {
@@ -114,6 +132,7 @@ export class BookmarkAddOrchestrator {
           callbackChatId: opts.callbackChatId ?? 0,
           callbackOriginMessageId: opts.callbackOriginMessageId ?? 0,
           ignoreGenerateTag: opts.ignoreGenerateTag ?? false,
+          writeVersion: params.writeVersion,
           inlineContent: params.inlineContent
         },
         3,
@@ -124,17 +143,29 @@ export class BookmarkAddOrchestrator {
     }
   }
 
-  private async tryResolveShortLink(ctx: ContextManager, req: addUrlBookmarkReq) {
-    if (!needsResolve(req.target_url)) return
+  private async tryForkReaderUrl(ctx: ContextManager, targetUrl: string, idempotencyKey?: string): Promise<PreWorkflowResult | null> {
+    const readerUrl = parseReaderBookmarkUrl(targetUrl, ctx.env)
+    if (!readerUrl) return null
+
+    const forkResult = await this.bookmarkForkService.fork(ctx, { bookmark_uid: readerUrl.bookmarkUid }, idempotencyKey)
+    return {
+      bookmarkId: ctx.hashIds.decodeId(Number(forkResult.bookmark_id)),
+      isShortcut: false,
+      workflowParams: null,
+      forkResult
+    }
+  }
+
+  private async tryResolveShortLink(ctx: ContextManager, targetUrl: string): Promise<string | undefined> {
+    if (!needsResolve(targetUrl)) return
     try {
-      const url = await this.crawlService.resolveFinalUrl(ctx, req.target_url)
-      if (url) req.target_url = url
+      return (await this.crawlService.resolveFinalUrl(ctx, targetUrl)) || undefined
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e)
-      console.error(`resolveFinalUrl failed for ${req.target_url}, falling back to original: ${errMsg}`)
+      console.error(`resolveFinalUrl failed for ${targetUrl}, falling back to original: ${errMsg}`)
       ctx.execution.waitUntil(
         this.crawlService.pushBookmarkFailureAlert(ctx.getUserId(), 'pre_workflow.resolve_short_link_failed', {
-          url: req.target_url,
+          url: targetUrl,
           user_id: ctx.getUserId(),
           error: errMsg
         })

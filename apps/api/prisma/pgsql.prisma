@@ -65,11 +65,104 @@ model sr_bookmark {
     created_at         DateTime
     updated_at         DateTime
     published_at       DateTime
+    write_version      Int      @default(0)
+    published_version  Int      @default(0)
 
     userBookmarks        sr_user_bookmark[]
     sr_user_bookmark_tag sr_user_bookmark_tag[]
+    forks                sr_bookmark_fork[]
 
     @@unique([target_url, private_user])
+    @@index([private_user, id])
+    @@index([content_key])
+    @@index([content_md_key])
+}
+
+model sr_bookmark_fork {
+    id                 Int      @id @default(autoincrement())
+    target_bookmark_id Int
+    current_target_id  Int?     @unique
+    target_user_id     Int
+    source_bookmark_id Int
+    source_user_id     Int
+    source_uuid        String
+    source_url         String   @default("")
+    display_name       String?
+    show_userinfo      Boolean  @default(false)
+    idempotency_key    String?
+    write_version      Int
+    status             String   @default("current")
+    created_at         DateTime @default(now())
+    updated_at         DateTime @default(now())
+
+    target_bookmark sr_bookmark @relation(fields: [target_bookmark_id], references: [id])
+
+    @@index([target_bookmark_id, status])
+    @@index([target_bookmark_id, write_version, id(sort: Desc)])
+    @@index([source_bookmark_id])
+    @@index([target_user_id, source_user_id])
+    @@index([target_user_id, idempotency_key])
+}
+
+model sr_bookmark_fork_operation {
+    id                 Int      @id @default(autoincrement())
+    user_id            Int
+    idempotency_key    String
+    source_uuid        String
+    target_bookmark_id Int
+    target_uuid        String
+    write_version      Int
+    write_mode         String
+    attempt_token      String   @default("")
+    cleanup_token      String?
+    status             String   @default("copying")
+    staged_keys        String[] @default([])
+    result             Json?
+    error_code         String?
+    created_at         DateTime @default(now())
+    updated_at         DateTime @default(now())
+
+    @@unique([user_id, idempotency_key])
+    @@index([status, updated_at])
+    @@index([target_bookmark_id, status])
+}
+
+// Durable PowerSync PUT receipt. Replayed client UUIDs must resolve to the
+// stable destination/version already accepted, even after a later Fork write.
+model sr_bookmark_save_receipt {
+    id                 Int      @id @default(autoincrement())
+    user_id            Int
+    operation_key      String
+    target_bookmark_id Int
+    target_uuid        String
+    write_version      Int
+    created_target     Boolean  @default(false)
+    created_at         DateTime @default(now())
+
+    @@unique([user_id, operation_key])
+    @@index([target_bookmark_id])
+}
+
+// R2 staging is durable; publication and cleanup compete through this row.
+model sr_bookmark_object_stage {
+    id              String   @id @default(dbgenerated("gen_random_uuid()"))
+    content_key     String   @unique
+    bookmark_id     Int
+    write_version   Int
+    keys            String[]
+    status          String   @default("staged")
+    cleanup_token   String?
+    cleanup_after   DateTime @default(dbgenerated("CURRENT_TIMESTAMP + interval '1 hour'"))
+    cleanup_completed_at DateTime?
+    created_at      DateTime @default(now())
+    updated_at      DateTime @default(now())
+    indexed_at      DateTime?
+    index_attempted_at DateTime?
+
+    @@index([status, cleanup_after])
+    @@index([bookmark_id, status, updated_at])
+    // Prisma 7.2 cannot express partial indexes. The lifecycle migration owns
+    // sr_bookmark_object_stage_pending_index_idx for the search repair queue.
 }
 
 model sr_user_bookmark {
@@ -408,9 +501,13 @@ model sr_bookmark_import_relation {
     import_id   Int      @default(0)
     // 1-success, 2-failed
     status      Int      @default(0)
+    write_version Int?
+    created_target Boolean?
     created_at  DateTime @default(now())
 
     @@index([user_id, import_id, bookmark_id])
+    @@index([import_id, status], map: "sr_bm_import_relation_progress_idx")
+    @@index([user_id, bookmark_id, import_id, write_version], map: "sr_bm_import_relation_revision_idx")
 }
 
 model sr_aigc_batch_task {
@@ -773,6 +870,7 @@ model sr_media_article_ref {
     media_kind  String   @default("youtube")
     source_id   String   @map("video_id")
     source_hash String
+    capture_version Int @default(0)
     created_at  DateTime @default(now())
     updated_at  DateTime @updatedAt
 

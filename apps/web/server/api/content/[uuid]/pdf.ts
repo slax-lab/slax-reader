@@ -1,6 +1,8 @@
 import { isPdfContentKey, pdfByteRange, pdfResponseHeaders } from '@slax-reader/contracts/pdf'
+import { getRequestURL, setResponseHeader } from 'h3'
 
 export default defineEventHandler(async event => {
+  setResponseHeader(event, 'Cache-Control', 'private, no-store')
   if (!['GET', 'HEAD'].includes(event.method)) throw createError({ statusCode: 405 })
   const uuid = event.context.params?.uuid
   if (!uuid) throw createError({ statusCode: 400 })
@@ -13,6 +15,10 @@ export default defineEventHandler(async event => {
   if (!response.ok) throw createError({ statusCode: response.status })
   const metadata = await response.json() as { content_key?: string }
   if (!isPdfContentKey(metadata.content_key)) throw createError({ statusCode: 404 })
+  const requestedRevision = getRequestURL(event).searchParams.get('revision')
+  if (requestedRevision && requestedRevision !== metadata.content_key) {
+    throw createError({ statusCode: 409, statusMessage: 'PDF revision changed' })
+  }
   const object = await OSS.head(metadata.content_key!)
   if (!object) throw createError({ statusCode: 404 })
   let range: ReturnType<typeof pdfByteRange>

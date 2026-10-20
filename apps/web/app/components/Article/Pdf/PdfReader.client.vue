@@ -45,7 +45,7 @@
         </div>
       </Transition>
     </div>
-    <p v-if="loading || error" class="pdf-status" role="status">{{ error || t('pdf.loading') }}<button v-if="error" @click="loadDocument">{{ t('pdf.retry') }}</button></p>
+    <p v-if="loading || error" class="pdf-status" role="status">{{ error || t('pdf.loading') }}<button v-if="error" @click="retryDocument">{{ t('pdf.retry') }}</button></p>
     <p v-if="pdf.text_status !== 'ready'" class="pdf-text-status" role="status">{{ t(`pdf.text_${pdf.text_status}`) }}</p>
     <div class="pdfViewer" ref="viewerElement" tabindex="0" :aria-label="t('pdf.reader')" @pointerdown="onViewerPointerDown" @keyup="queueSelection" @click="onPdfClick" />
     <div v-if="draft" ref="selectionMenu" class="pdf-selection-actions" :style="selectionStyle" role="toolbar" :aria-label="t('pdf.selection_actions')" @pointerdown.prevent @keydown.esc="clearDraft">
@@ -57,29 +57,30 @@
 </template>
 
 <script setup lang="ts">
-import { MarkManager, type IMarkRenderer, type IMarkModal, type SelectionConfig } from '@slax-reader/selection'
-import { MarkType } from '@slax-reader/contracts/interface'
-import { validatePdfSources, pdfMetadataAuthor, type PdfDescriptor, type PdfMarkSource } from '@slax-reader/contracts/pdf'
-import type { MarkDetail } from '@commons/frontend-types/models'
-import type { MarkItemInfo, QuoteData } from '@slax-reader/selection/types'
-import type { EventBus } from 'pdfjs-dist/types/web/pdf_viewer'
-import type { PDFDocumentLoadingTask } from 'pdfjs-dist/types/src/display/api'
+import PdfSelectionMenu from './PdfSelectionMenu.client.vue'
+
+import 'pdfjs-dist/web/pdf_viewer.css'
 import { DwebBookmarkProvider, DwebEnvironmentAdapter, DwebHttpClient, DwebI18nService, DwebToastService, DwebUserProvider } from '../Selection/adapters'
 import type { ArticleSelectionAdapters } from '../Selection/injection'
 import type { ReaderSelection } from '../Selection/ReaderSelection'
-import Toast, { ToastType } from '~/components/Toast'
+import { MenuType } from '../Selection/type'
 import { capturePdfSelection, findPdfTextRange, quadToViewport } from './geometry'
 import { InlinePdfViewer } from './InlinePdfViewer'
-import { themedPdfPageView } from './ThemedPdfPageView'
 import { placeSelectionMenu } from './selectionPosition'
 import { createSelectionScheduler } from './selectionScheduler'
-import PdfSelectionMenu from './PdfSelectionMenu.client.vue'
-import { MenuType } from '../Selection/type'
+import { themedPdfPageView } from './ThemedPdfPageView'
+import type { MarkDetail } from '@commons/frontend-types/models'
 import { copyText } from '@commons/frontend-utils/string'
+import { MarkType } from '@slax-reader/contracts/interface'
+import { type PdfDescriptor, type PdfMarkSource,pdfMetadataAuthor, validatePdfSources } from '@slax-reader/contracts/pdf'
+import { type IMarkModal, type IMarkRenderer, MarkManager, type SelectionConfig } from '@slax-reader/selection'
+import type { MarkItemInfo, QuoteData } from '@slax-reader/selection/types'
 import CursorToast from '~/components/CursorToast'
+import Toast, { ToastType } from '~/components/Toast'
 import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
 import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
-import 'pdfjs-dist/web/pdf_viewer.css'
+import type { PDFDocumentLoadingTask } from 'pdfjs-dist/types/src/display/api'
+import type { EventBus } from 'pdfjs-dist/types/web/pdf_viewer'
 
 const props = defineProps<{
   pdf: PdfDescriptor
@@ -93,7 +94,7 @@ const props = defineProps<{
   collection?: { code: string; cb_id: number }
   adapters: ArticleSelectionAdapters
 }>()
-const emit = defineEmits<{ selection: [selection: ReaderSelection | null]; quote: [quote: QuoteData]; metadata: [metadata: { author?: string }] }>()
+const emit = defineEmits<{ selection: [selection: ReaderSelection | null]; quote: [quote: QuoteData]; metadata: [metadata: { author?: string }]; retry: [done: () => void] }>()
 const { t } = useI18n()
 const colorMode = useColorMode()
 const themePaper = ref(true)
@@ -467,6 +468,14 @@ async function loadDocument() {
     error.value = t((failure as Error)?.name === 'PasswordException' ? 'pdf.password' : 'pdf.load_failed')
     loading.value = false
   }
+}
+async function retryDocument() {
+  // Refresh the descriptor before retrying. An overwrite changes the URL key
+  // and remounts this component; a transient failure can reuse this instance.
+  const currentGeneration = generation
+  await new Promise<void>(resolve => emit('retry', resolve))
+  await nextTick()
+  if (currentGeneration === generation && viewerElement.value) await loadDocument()
 }
 watch(() => [props.marks, props.ready] as const, () => { if (props.ready && manager) void manager.drawMarks(props.marks ?? { mark_list: [], user_list: {} }) }, { deep: true })
 watch(() => [colorMode.value, themePaper.value], async () => { clearDraft(); await nextTick(); if (viewer && root.value) viewer.setPageColors(readPageColors()) })

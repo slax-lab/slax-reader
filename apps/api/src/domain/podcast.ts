@@ -330,14 +330,15 @@ export class PodcastService {
     let count = 0
     for (const ref of await this.articles.listEpisodeRefs(sourceId)) {
       if (ref.source_hash !== ep.transcript_hash) continue
-      if (await this.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered)) count++
+      if (await this.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered, ref.capture_version)) count++
     }
     return count
   }
 
   private async publishBodyFor(ctx: ContextManager, bookmarkId: number, userId: number, ep: podcastEpisodePO, row: mediaArticlePO): Promise<boolean> {
     const rendered = await this.renderBody(ep, row)
-    return rendered ? this.writeBody(ctx, bookmarkId, userId, rendered) : false
+    const ref = await this.articles.findRef(bookmarkId)
+    return rendered && ref && ref.source_id === ep.source_id && ref.source_hash === row.source_hash ? this.writeBody(ctx, bookmarkId, userId, rendered, ref.capture_version) : false
   }
 
   private async renderBody(ep: podcastEpisodePO, row: mediaArticlePO): Promise<{ html: string; text: string } | null> {
@@ -352,15 +353,19 @@ export class PodcastService {
   }
 
   /** The cached AI overview was made from the show notes: writeBody deletes it, so it is made again from the article. */
-  private async writeBody(ctx: ContextManager, bookmarkId: number, userId: number, body: { html: string; text: string }): Promise<boolean> {
-    return this.bodies.writeBody(ctx, bookmarkId, userId, body)
+  private async writeBody(ctx: ContextManager, bookmarkId: number, userId: number, body: { html: string; text: string }, captureVersion?: number): Promise<boolean> {
+    return this.bodies.writeBody(ctx, bookmarkId, userId, body, { captureVersion })
   }
 
   /** Transcript moderation hit: every bookmark of the episode is flagged and loses its share, like a crawl hit. */
   public async flagBookmarks(sourceId: string, result: number): Promise<number> {
     const refs = await this.articles.listEpisodeRefs(sourceId)
     for (const ref of refs) {
-      await this.bookmarkService.updateBookmarkModerationResult(ref.bookmark_id, result)
+      const accepted =
+        ref.capture_version == null
+          ? await this.bookmarkService.updateBookmarkModerationResult(ref.bookmark_id, result)
+          : await this.bookmarkService.updateBookmarkModerationResult(ref.bookmark_id, result, ref.capture_version)
+      if (accepted === false) continue
       await this.bookmarkService.disableBookmarkShare(ref.bookmark_id, ref.user_id)
     }
     await this.alertBot.crawl

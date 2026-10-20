@@ -6,6 +6,14 @@ const readerHeader = ['Title', 'URL', 'ID', 'Document tags', 'Saved date', 'Read
 const readerRow = (url: string, location = 'later', tags = "['a, b', '中文']", date = '2023-09-18 03:15:32.264000+00:00') => ['Title', url, 'id', tags, date, '1', location, 'True']
 
 describe('export parsing', () => {
+  it('keeps full query strings as distinct import identities and preserves duplicate metadata', () => {
+    const first = 'https://x.com/a?a=1&b=2'
+    const second = 'https://x.com/a?a=3&b=2'
+    const result = parseImport('readwise', csv([readerHeader, readerRow(first), readerRow(second), readerRow(first)]))
+    expect(result.duplicate_count).toBe(1)
+    expect(result.records.map(record => record.target_url)).toEqual([first, second])
+  })
+
   it('produces equivalent Pinboard metadata for JSON, HTML and XML', () => {
     const json = JSON.stringify([
       { href: 'https://example.com/a', description: 'A & B', tags: 'one two', time: '2024-09-25T23:05:21Z', toread: 'yes', extended: 'Do not import notes' }

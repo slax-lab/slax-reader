@@ -26,6 +26,7 @@ function wire() {
   }
   const repo = {
     getBookmarkById: vi.fn().mockResolvedValue({ content_key: '' }),
+    stageBookmarkObjects: vi.fn().mockResolvedValue(undefined),
     completePdfBookmark: vi.fn().mockResolvedValue(undefined),
     updatePdfMetadata: vi.fn().mockResolvedValue(undefined)
   }
@@ -42,6 +43,65 @@ function wire() {
 }
 beforeEach(() => vi.mocked(publicFetch).mockReset())
 describe('PDF bookmark persistence', () => {
+  it('publishes a new PDF revision conditionally without touching old object keys', async () => {
+    const { service, bucket, repo, bytes } = wire()
+    Object.assign(repo, { isBookmarkVersionCurrent: vi.fn().mockResolvedValue(true), completePdfBookmarkVersion: vi.fn().mockResolvedValue(true) })
+    repo.getBookmarkById.mockResolvedValue({ content_key: 'pdf/body/old.pdf', content_md_key: 'text/pdf/old.txt', write_version: 2, published_version: 1 })
+    vi.mocked(publicFetch).mockImplementation(async () => new Response(bytes, { headers: { 'Content-Type': 'application/pdf' } }))
+    await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://example.com/new.pdf', 2)
+    expect((repo as any).completePdfBookmarkVersion).toHaveBeenCalledWith(
+      10,
+      2,
+      expect.objectContaining({ content_key: expect.stringMatching(/^pdf\/body\/uuid\.v2\./) }),
+      expect.any(String),
+      undefined
+    )
+    expect(bucket.put.mock.calls.every(call => call[0] !== 'pdf/body/old.pdf')).toBe(true)
+    expect(repo.completePdfBookmark).not.toHaveBeenCalled()
+  })
+
+  it('uses a staged unique revision for an explicit legacy queue version', async () => {
+    const { service, bucket, repo, bytes } = wire()
+    Object.assign(repo, { isBookmarkVersionCurrent: vi.fn().mockResolvedValue(true), completePdfBookmarkVersion: vi.fn().mockResolvedValue(true) })
+    repo.getBookmarkById.mockResolvedValue({ content_key: '', write_version: 0, published_version: 0 })
+    vi.mocked(publicFetch).mockImplementation(async () => new Response(bytes, { headers: { 'Content-Type': 'application/pdf' } }))
+    await service.capturePdf(createMockCtx(), 10, 'uuid', 'https://example.com/new.pdf', 0)
+    const key = bucket.put.mock.calls[0][0]
+    expect(key).toMatch(/^pdf\/body\/uuid\.v0\.[a-f0-9-]+\.pdf$/)
+    expect(repo.stageBookmarkObjects).toHaveBeenCalledWith(10, 0, key, expect.arrayContaining([key]))
+    expect((repo as any).completePdfBookmarkVersion).toHaveBeenCalledWith(10, 0, expect.objectContaining({ content_key: key }), expect.any(String), undefined)
+    expect(repo.completePdfBookmark).not.toHaveBeenCalled()
+  })
+
+  it('rejects a delayed legacy PDF publication without changing its previously committed file or sidecars', async () => {
+    const { service, bucket, repo } = wire()
+    const bytes = pdfFixture(['Uploaded text'], [], 'Uploaded Document Title')
+    Object.assign(repo, { isBookmarkVersionCurrent: vi.fn().mockResolvedValue(true), completePdfBookmarkVersion: vi.fn().mockResolvedValue(false) })
+    repo.getBookmarkById.mockResolvedValue({ content_key: 'pdf/body/saved.pdf', write_version: 0, published_version: 0 })
+    bucket.head.mockImplementation(async (key: string) =>
+      key === 'pdf/body/saved.pdf' ? { size: bytes.length, customMetadata: { source: 'upload', filename: 'upload.pdf' } } : null
+    )
+    bucket.get.mockImplementation(async (key: string) =>
+      key.startsWith('pdf/meta/')
+        ? { json: async () => ({ text_status: 'pending', pages: 0 }) }
+        : { size: bytes.length, customMetadata: { source: 'upload', filename: 'upload.pdf' }, body: new Response(bytes).body }
+    )
+    await expect(service.capturePdf(createMockCtx(), 10, 'uuid', 'slax-pdf://7/hash', 0)).rejects.toThrow('superseded')
+    const key = bucket.put.mock.calls[0][0]
+    expect(key).toMatch(/^pdf\/body\/uuid\.v0\./)
+    expect(bucket.put.mock.calls.every(call => !['pdf/body/saved.pdf', 'text/pdf/saved.txt', 'pdf/meta/saved.json'].includes(call[0]))).toBe(true)
+    expect(bucket.delete.mock.calls[0][0]).not.toContain('pdf/body/saved.pdf')
+    expect((repo as any).completePdfBookmarkVersion).toHaveBeenCalledWith(10, 0, expect.objectContaining({ content_key: key }), expect.any(String), 'pdf/body/saved.pdf')
+  })
+
+  it('does not publish or mutate PDF content for a superseded workflow', async () => {
+    const { service, bucket, repo } = wire()
+    Object.assign(repo, { isBookmarkVersionCurrent: vi.fn().mockResolvedValue(false), completePdfBookmarkVersion: vi.fn() })
+    await expect(service.capturePdf(createMockCtx(), 10, 'uuid', 'https://example.com/new.pdf', 2)).rejects.toThrow()
+    expect(bucket.put).not.toHaveBeenCalled()
+    expect(publicFetch).not.toHaveBeenCalled()
+  })
+
   it('rejects a response-detected extensionless PDF with Labs off before full download or storage', async () => {
     const { service, bucket, repo, bytes, labRepo } = wire()
     labRepo.isEnabled.mockResolvedValue(false)
@@ -407,6 +467,14 @@ describe('PDF upload', () => {
   })
 })
 describe('PDF file delivery', () => {
+  it('pins descriptor URLs to immutable keys even when legacy metadata has no content hash', async () => {
+    const { service, bucket, object } = wire()
+    bucket.head.mockResolvedValue({ ...object(), customMetadata: { filename: 'legacy.pdf' } })
+    const descriptor = await service.getPdfDescriptor('pdf/body/legacy.pdf', 'uuid')
+    const url = new URL(descriptor!.url, 'https://example.com')
+    expect(url.searchParams.get('revision')).toBe('pdf/body/legacy.pdf')
+    expect(descriptor?.document_id).toBe('')
+  })
   it('keeps authorized existing PDFs readable after PDF Labs is disabled', async () => {
     const { service, bucket, object, labRepo } = wire()
     labRepo.isEnabled.mockResolvedValue(false)
@@ -436,5 +504,30 @@ describe('PDF file delivery', () => {
     expect(range.status).toBe(206)
     expect(bucket.get).toHaveBeenCalledWith('pdf/body/uuid.pdf', { range: { offset: 0, length: 4 } })
     expect((await service.getPdfResponse(createMockCtx(), 'uuid', new Request('https://example.com', { headers: { Range: 'bytes=999999-' } }))).status).toBe(416)
+  })
+  it('rejects a stale revision before reading any range bytes', async () => {
+    const { service, bucket, object } = wire()
+    Object.assign(service, { getBookmarkReadAccess: vi.fn().mockResolvedValue({ bookmark: { bookmark: { content_key: 'pdf/body/new.pdf' } } }) })
+    bucket.head.mockResolvedValue(object())
+    const response = await service.getPdfResponse(
+      createMockCtx(),
+      'uuid',
+      new Request('https://example.com/api/content/uuid/pdf?revision=pdf%2Fbody%2Fold.pdf', { headers: { Range: 'bytes=0-3' } })
+    )
+    expect(response.status).toBe(409)
+    expect(bucket.head).not.toHaveBeenCalled()
+    expect(bucket.get).not.toHaveBeenCalled()
+  })
+  it('serves a range only when the requested revision matches the authorized pointer', async () => {
+    const { service, bucket, object } = wire()
+    Object.assign(service, { getBookmarkReadAccess: vi.fn().mockResolvedValue({ bookmark: { bookmark: { content_key: 'pdf/body/new.pdf' } } }) })
+    bucket.head.mockResolvedValue(object())
+    const response = await service.getPdfResponse(
+      createMockCtx(),
+      'uuid',
+      new Request('https://example.com/api/content/uuid/pdf?revision=pdf%2Fbody%2Fnew.pdf', { headers: { Range: 'bytes=0-3' } })
+    )
+    expect(response.status).toBe(206)
+    expect(bucket.get).toHaveBeenCalledWith('pdf/body/new.pdf', { range: { offset: 0, length: 4 } })
   })
 })

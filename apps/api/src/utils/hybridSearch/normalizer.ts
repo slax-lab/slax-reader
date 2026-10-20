@@ -101,7 +101,11 @@ export class Normalizer {
     const processedText = this.preprocessForSemantic(`${title} ${content}`)
     const chunks = this.semanticSplit(processedText)
 
-    return (await embedding(this.env, chunks)).map((item, idx) => {
+    const vectors = await embedding(this.env, chunks)
+    if (vectors.length !== chunks.length || vectors.some(item => !item.embedding?.length || item.embedding.some(value => !Number.isFinite(value)))) {
+      throw new Error('Semantic normalization returned an incomplete embedding response')
+    }
+    return vectors.map((item, idx) => {
       return { id: `${bmId}_${idx}`, embedding: item.embedding }
     })
   }
@@ -212,7 +216,7 @@ export class Normalizer {
       method: 'POST',
       body: JSON.stringify({ text })
     })
-    if (!res.ok) return ''
+    if (!res.ok) throw new Error(`Fulltext normalization failed: HTTP ${res.status}`)
 
     const { data: segments } = await res.json<{ data: string[] }>()
 

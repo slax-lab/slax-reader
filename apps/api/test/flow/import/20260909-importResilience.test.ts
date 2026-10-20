@@ -46,7 +46,7 @@ function wireService(options: { redis?: (userId: number, id: number) => any; tas
   const redis = options.redis ?? redisDown
   Object.assign(service, {
     bookmarkData: repo,
-    redisClient: () => ({ userImportProcess: redis, userImportSuccess: redis, userImportFailed: redis })
+    redisClient: () => ({ userImportProcess: redis, userImportSuccess: redis, userImportFailed: () => redisValue('0') })
   })
   return { service, repo, ctx: createMockCtx() }
 }
@@ -73,11 +73,11 @@ describe('import progress without Redis', () => {
     expect(repo.countImportRelationStatus).toHaveBeenCalledWith(7)
   })
 
-  it('reads Redis counters when they are available', async () => {
+  it('preserves available Redis counters while checking durable terminal progress', async () => {
     const { service, ctx, repo } = wireService({ tasks: [task()], redis: () => redisValue('18') })
     const [info] = await service.getImportInfo(ctx)
-    expect(info).toMatchObject({ current_count: 18, success_total: 18, failed_total: 18 })
-    expect(repo.countImportRelationStatus).not.toHaveBeenCalled()
+    expect(info).toMatchObject({ current_count: 18, success_total: 18, failed_total: 0 })
+    expect(repo.countImportRelationStatus).toHaveBeenCalledWith(7)
   })
 
   it('reports live progress for every processing task and stored totals for finished ones', async () => {
@@ -98,6 +98,58 @@ describe('import progress without Redis', () => {
 })
 
 describe('cron task check', () => {
+  it('settles durable completed relations when a Redis increment failed and replay does not increment again', async () => {
+    const { service, ctx, repo } = wireService({ tasks: [task()], relationCounts: { 1: 18, 2: 2 }, redis: () => redisValue('19') })
+    Object.assign(service, {
+      redisClient: () => ({
+        userImportProcess: () => redisValue('19'),
+        userImportSuccess: () => redisValue('17'),
+        userImportFailed: () => redisValue('2')
+      })
+    })
+    const [info] = await service.getImportInfo(ctx)
+    expect(info).toMatchObject({ current_count: 20, success_total: 18, failed_total: 2 })
+    await service.checkImportTaskProcess(ctx)
+    expect(repo.updateImportTaskCounters).toHaveBeenCalledWith(7, 18, 2)
+    expect(repo.updateBookmarkImportTask).toHaveBeenCalledWith(7, 3, '')
+  })
+
+  it('does not add a category deficit twice when the total increment already succeeded', async () => {
+    const { service, ctx, repo } = wireService({ tasks: [task()], relationCounts: { 1: 18, 2: 2 } })
+    Object.assign(service, {
+      redisClient: () => ({
+        userImportProcess: () => redisValue('20'),
+        userImportSuccess: () => redisValue('17'),
+        userImportFailed: () => redisValue('2')
+      })
+    })
+    const [info] = await service.getImportInfo(ctx)
+    expect(info).toMatchObject({ current_count: 20, success_total: 18, failed_total: 2 })
+    await service.checkImportTaskProcess(ctx)
+    expect(repo.updateImportTaskCounters).toHaveBeenCalledWith(7, 18, 2)
+  })
+
+  it('preserves Redis-only skipped rows while filling a durable failed-count deficit', async () => {
+    const { service, ctx, repo } = wireService({ tasks: [task()], relationCounts: { 1: 15, 2: 2 } })
+    Object.assign(service, {
+      redisClient: () => ({
+        userImportProcess: () => redisValue('19'),
+        userImportSuccess: () => redisValue('18'),
+        userImportFailed: () => redisValue('1')
+      })
+    })
+    const [info] = await service.getImportInfo(ctx)
+    expect(info).toMatchObject({ current_count: 20, success_total: 18, failed_total: 2 })
+    await service.checkImportTaskProcess(ctx)
+    expect(repo.updateBookmarkImportTask).toHaveBeenCalledWith(7, 3, '')
+  })
+
+  it('keeps Redis progress available when the database progress read fails', async () => {
+    const { service, ctx, repo } = wireService({ tasks: [task()], redis: () => redisValue('12') })
+    repo.countImportRelationStatus.mockRejectedValue(new Error('db unavailable'))
+    const [info] = await service.getImportInfo(ctx)
+    expect(info).toMatchObject({ current_count: 12, success_total: 12, failed_total: 0 })
+  })
   it('settles completed tasks even when constructing the Redis client throws', async () => {
     const { service, ctx, repo } = wireService({ tasks: [task()], relationCounts: { 1: 20 } })
     Object.assign(service, {
@@ -133,7 +185,7 @@ describe('cron task check', () => {
   it('completes a task whose counters reached the batch count and clears its counters', async () => {
     const { service, ctx, repo } = wireService({ tasks: [task()], redis: () => redisValue('20') })
     await service.checkImportTaskProcess(ctx)
-    expect(repo.updateImportTaskCounters).toHaveBeenCalledWith(7, 20, 20)
+    expect(repo.updateImportTaskCounters).toHaveBeenCalledWith(7, 20, 0)
     expect(repo.updateBookmarkImportTask).toHaveBeenCalledWith(7, 3, '')
   })
 
@@ -204,6 +256,7 @@ describe('parse post-processing keeps the imported saved time', () => {
     const handler = new (UrlParserHandler as any)()
     Object.assign(handler, {
       bookmarkSvc: bs,
+      bookmarkService: bs,
       telegramBotSvc: createMockTelegramBotService(),
       searchSvc: createMockSearchService(),
       userSvc: createMockUserService(),

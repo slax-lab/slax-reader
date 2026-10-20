@@ -36,9 +36,9 @@ describe('parseAndSaveTwitter', () => {
     expect(result.textContent).toBe('Hello from test tweet!')
     expect(result.siteName).toBe('Twitter')
     expect(result.byline).toBe('User')
-    expect(result.contentKey).toBe('html/body/ub-uuid-10.html')
+    expect(result.contentKey).toEqual(expect.stringMatching(/^html\/body\/ub-uuid-10\/0\/.*\.html$/))
     expect(putIfKeyExists).toHaveBeenCalledTimes(2)
-    expect(br.updateBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ status: 'success', site_name: 'Twitter' }))
+    expect(br.publishBookmarkVersion).toHaveBeenCalledWith(10, 0, expect.objectContaining({ status: 'success', site_name: 'Twitter' }))
   })
 
   test('title 截断 = "Tweet: " + cleanText.substring(0,30)', async () => {
@@ -48,7 +48,7 @@ describe('parseAndSaveTwitter', () => {
       quoteTweetHtml: ''
     }
     const { svc } = wire()
-    const result = await svc.parseAndSaveTwitter(createMockCtx(), long, 1)
+    const result = await svc.parseAndSaveTwitter(createMockCtx(), long, 1, 'ub-uuid-1')
     expect(result.title).toBe('Tweet: ' + 'A'.repeat(30))
   })
 })
@@ -61,12 +61,12 @@ describe('parseAndSaveXhs', () => {
       time: 1705276800000, images: [], video: null,
       interact_info: { comment_count: 5, share_count: 3, liked_count: 50 }
     } as any
-    const result = await svc.parseAndSaveXhs(createMockCtx(), data, 'https://xiaohongshu.com/explore/abc', 20)
+    const result = await svc.parseAndSaveXhs(createMockCtx(), data, 'https://xiaohongshu.com/explore/abc', 20, 'ub-uuid-20')
     expect(result.title).toBe('RedNote By: 好物')
     expect(result.byline).toBe('用户A')
     expect(result.siteName).toBe('RedNote')
     expect(putIfKeyExists).toHaveBeenCalledTimes(2)
-    expect(br.updateBookmark).toHaveBeenCalledWith(20, expect.objectContaining({ site_name: 'RedNote' }))
+    expect(br.publishBookmarkVersion).toHaveBeenCalledWith(20, 0, expect.objectContaining({ site_name: 'RedNote' }))
   })
 
   test('user 为 null → byline=""', async () => {
@@ -75,7 +75,7 @@ describe('parseAndSaveXhs', () => {
       title: '笔记', desc: '内容', user: null, time: null, images: [],
       interact_info: { comment_count: 0, share_count: 0, liked_count: 0 }
     } as any
-    const result = await svc.parseAndSaveXhs(createMockCtx(), data, 'https://xiaohongshu.com/explore/x', 21)
+    const result = await svc.parseAndSaveXhs(createMockCtx(), data, 'https://xiaohongshu.com/explore/x', 21, 'ub-uuid-21')
     expect(result.byline).toBe('')
   })
 })
@@ -87,16 +87,16 @@ describe('parseAndSaveWeibo', () => {
       id: '500', text: '<p>微博内容</p>', text_raw: '微博内容',
       user: { screen_name: '用户' }, created_at: 'Mon Jan 15 10:00:00 +0800 2024', pics: []
     } as any
-    const result = await svc.parseAndSaveWeibo(createMockCtx(), data, 'https://weibo.com/1/a', 30)
+    const result = await svc.parseAndSaveWeibo(createMockCtx(), data, 'https://weibo.com/1/a', 30, 'ub-uuid-30')
     expect(result.title).toContain('Weibo by 用户')
     expect(result.textContent).toBe('微博内容')
-    expect(br.updateBookmark).toHaveBeenCalledWith(30, expect.objectContaining({ site_name: 'Weibo' }))
+    expect(br.publishBookmarkVersion).toHaveBeenCalledWith(30, 0, expect.objectContaining({ site_name: 'Weibo' }))
   })
 
   test('text_raw 为空 → 降级用 text', async () => {
     const { svc } = wire()
     const data = { id: '1', text: 'fallback text', text_raw: '', user: { screen_name: 'u' }, created_at: 'Mon Jan 15 10:00:00 +0800 2024' } as any
-    const result = await svc.parseAndSaveWeibo(createMockCtx(), data, 'https://weibo.com/1/a', 31)
+    const result = await svc.parseAndSaveWeibo(createMockCtx(), data, 'https://weibo.com/1/a', 31, 'ub-uuid-31')
     expect(result.textContent).toBe('fallback text')
   })
 })
@@ -108,11 +108,11 @@ describe('parseAndSaveReddit', () => {
       title: 'TIL', content: 'Fact here', author: { name: 'user1' }, subreddit: { name: 'todayilearned' },
       createdAt: '2024-01-15T10:00:00Z', comments: [], media: { type: 'none' }, score: 100, url: 'https://reddit.com/r/t/comments/a/'
     } as any
-    const result = await svc.parseAndSaveReddit(createMockCtx(), data, 'https://reddit.com/r/t/comments/a/', 40)
+    const result = await svc.parseAndSaveReddit(createMockCtx(), data, 'https://reddit.com/r/t/comments/a/', 40, 'ub-uuid-40')
     expect(result.title).toBe('TIL')
     expect(result.byline).toBe('u/user1')
     expect(result.siteName).toBe('r/todayilearned')
-    expect(br.updateBookmark).toHaveBeenCalledWith(40, expect.objectContaining({ site_name: 'r/todayilearned' }))
+    expect(br.publishBookmarkVersion).toHaveBeenCalledWith(40, 0, expect.objectContaining({ site_name: 'r/todayilearned' }))
   })
 })
 
@@ -126,11 +126,11 @@ describe('parseAndSaveContent (普通页面)', () => {
     }
     const result = await svc.parseAndSaveContent(createMockCtx(), fetchRes, 50, 'ub-uuid-50')
     expect(result.title).toBeTruthy()
-    expect(result.contentKey).toBe('html/body/ub-uuid-50.html')
+    expect(result.contentKey).toEqual(expect.stringMatching(/^html\/body\/ub-uuid-50\/0\/.*\.html$/))
     expect(result.qualityReview?.status).toBe('scored')
     expect(result.qualityReview?.version).toBe('slax-corpus-scoring-v3')
     expect(putIfKeyExists).toHaveBeenCalledTimes(2)
-    expect(br.updateBookmark).toHaveBeenCalledWith(50, expect.objectContaining({ status: 'success' }))
+    expect(br.publishBookmarkVersion).toHaveBeenCalledWith(50, 0, expect.objectContaining({ status: 'success' }))
   })
 
   test('空 HTML → 返回空字段 (不抛异常)', async () => {
@@ -138,7 +138,7 @@ describe('parseAndSaveContent (普通页面)', () => {
     const result = await svc.parseAndSaveContent(createMockCtx(), { url: 'https://a.com', content: '<html><body></body></html>', title: '' }, 51, 'ub-uuid-51')
     expect(result.title).toBe('')
     expect(result.textContent).toBe('')
-    expect(br.updateBookmark).toHaveBeenCalledWith(51, expect.objectContaining({ content_word_count: 0 }))
+    expect(br.publishBookmarkVersion).toHaveBeenCalledWith(51, 0, expect.objectContaining({ content_word_count: 0 }))
   })
 })
 
@@ -148,7 +148,7 @@ describe('saveParseRes 内部逻辑', () => {
     const { document } = parseHTML('<html><body><p>X</p></body></html>')
     const parseRes = { title: 'T', textContent: 'X', contentDocument: document, content: '', excerpt: '', byline: '', siteName: '', publishedTime: new Date(), length: 1, dir: '', lang: '' }
     const result = await (svc as any).saveParseRes(parseRes, 99, 'ub-uuid-99')
-    expect(result.contentKey).toBe('html/body/ub-uuid-99.html')
+    expect(result.contentKey).toEqual(expect.stringMatching(/^html\/body\/ub-uuid-99\/0\/.*\.html$/))
   })
 
   test('同时写 html + txt 到 R2', async () => {
@@ -166,7 +166,7 @@ describe('saveParseRes 内部逻辑', () => {
     const { document } = parseHTML('<html><body><p>C</p></body></html>')
     const parseRes = { title: 'T', textContent: 'C', contentDocument: document, content: '', excerpt: 'E', byline: 'B', siteName: 'S', publishedTime: pub, length: 1, dir: '', lang: '' }
     const result = await (svc as any).saveParseRes(parseRes, 77, 'ub-uuid-77')
-    expect(br.updateBookmark).toHaveBeenCalledWith(77, {
+    expect(br.publishBookmarkVersion).toHaveBeenCalledWith(77, 0, {
       title: 'T', description: 'E', content_word_count: 1,
       content_key: result.contentKey, content_md_key: expect.stringContaining('text/body/'),
       status: 'success', byline: 'B', site_name: 'S', published_at: pub

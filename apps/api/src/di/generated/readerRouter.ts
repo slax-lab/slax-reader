@@ -42,6 +42,10 @@ export function getRouter(container: Container) {
     const controller = container.resolve(AigcController)
     return await controller.handleCompletionsRequest(ctx, req)
   })
+  router.post('/v1/bookmark/fork', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(BookmarkController)
+    return await controller.handleForkBookmarkRequest(ctx, req)
+  })
   router.post('/v1/bookmark/upload_pdf', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(BookmarkController)
     return await controller.handlePdfUpload(ctx, req)
