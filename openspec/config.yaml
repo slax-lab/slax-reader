@@ -25,4 +25,5 @@ schema: spec-driven
 operations:
   apply:
     guidance:
+      - "Before suggesting a pull request, record verification in openspec/changes/<change-id>/validation.md and summarize it in the pull request's Test plan (see the Definition of Done in AGENTS.md)."
       - "When all tasks are checked off, run the local pre-push review defined in REVIEW.md (all three passes) and resolve Important findings before suggesting archive or a pull request."
