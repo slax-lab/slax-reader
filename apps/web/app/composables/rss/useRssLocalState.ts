@@ -44,7 +44,9 @@ export function useRssLocalState(db: RssLocalDatabase, active: Ref<boolean>, acc
   const limit = computed(() => (pages.has(selected.value) ? Infinity : limits.get(selected.value) || RSS_LOCAL_PAGE))
   const local = useLocalRss(selected, active, limit, computed(() => new Set(removed.keys())))
   const synced = ref(false)
+  const streamUnavailable = ref(false)
   const ready = computed(() => active.value && (synced.value || local.subscriptions.value.length > 0) && !local.isLoading.value && !local.error.value)
+  const unavailable = computed(() => !!local.error.value || (streamUnavailable.value && !ready.value))
 
   const added = reactive(new Map<string, RssSubscription>())
   const renamed = reactive(new Map<string, { remark: string | null; previous: string | null | undefined }>())
@@ -63,6 +65,7 @@ export function useRssLocalState(db: RssLocalDatabase, active: Ref<boolean>, acc
     handle?.unsubscribe()
     handle = undefined
     synced.value = false
+    streamUnavailable.value = false
     added.clear()
     renamed.clear()
     removed.clear()
@@ -86,7 +89,7 @@ export function useRssLocalState(db: RssLocalDatabase, active: Ref<boolean>, acc
       await local.refresh()
       if (stamp === generation) synced.value = true
     } catch {
-      // The REST list stays in place when the stream cannot be subscribed.
+      if (stamp === generation) streamUnavailable.value = true
     }
   }
   watch(
@@ -251,18 +254,9 @@ export function useRssLocalState(db: RssLocalDatabase, active: Ref<boolean>, acc
     }
     if (page) pages.set(source, page)
   }
-  /** After an add: the confirmed first REST page of the new source, shown until its rows sync. Failures are ignored. */
-  const seed = async (source: string) => {
-    const current = claim(source)
-    try {
-      const page = await walk(source, null, 1, current, {}, true)
-      if (page) pages.set(source, page)
-    } catch {
-      // The synced rows still arrive; Load more can retry the REST window.
-    }
-  }
   return {
     ready,
+    unavailable,
     subscriptions,
     entries,
     hasMore,
@@ -270,7 +264,6 @@ export function useRssLocalState(db: RssLocalDatabase, active: Ref<boolean>, acc
     retryAt,
     cursor,
     loadMore,
-    seed,
     add: (row: RssSubscription) => {
       removed.delete(row.id)
       added.set(row.id, row)

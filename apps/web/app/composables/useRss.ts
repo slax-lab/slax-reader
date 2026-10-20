@@ -21,10 +21,8 @@ export const rssSourceText = (name: string) => name.normalize('NFKC').match(/\p{
 
 /**
  * Owned by the kept-alive Inbox panel; caches are never shared between accounts or SSR requests.
- * With local-first storage the lists come from synced rows once the RSS stream has synced, or immediately when rows from
- * an earlier sync exist; until then, without local storage, or while the local database does not belong to the signed-in
- * account, they come from the REST cache below. Local rows of the current account provisionally enable RSS until the
- * laboratory response arrives. Writes always use REST.
+ * An owned local database supplies the lists, showing loading until its first sync or cached rows are ready. REST lists
+ * are used only without owned local storage or after a local failure. Writes and explicit history still use REST.
  */
 export function useRss() {
   const labs = useLabFeatures(),
@@ -66,18 +64,19 @@ export function useRss() {
       )
     : null
   const live = computed(() => !!local?.ready.value)
-  // Public list refs read synced rows once live; writes (and every REST path) target the REST cache.
+  const localMode = computed(() => enabled.value && !!local && !!owned?.value && !local.unavailable.value)
+  // Pending synchronization stays local; writes on the fallback path target only the REST cache.
   const view = <T>(rest: Ref<T>, synced: () => T) =>
     computed<T>({
-      get: () => (live.value ? synced() : rest.value),
+      get: () => (localMode.value ? synced() : rest.value),
       set: value => {
         rest.value = value
       }
     })
   const subscriptions = view(restSubscriptions, () => local!.subscriptions.value),
-    entries = view(restEntries, () => local!.entries.value),
+    entries = view(restEntries, () => (live.value ? local!.entries.value : [])),
     cursor = view(restCursor, () => local!.cursor.value),
-    hasMore = view(restHasMore, () => local!.hasMore.value),
+    hasMore = view(restHasMore, () => live.value && local!.hasMore.value),
     historyStatus = view(restHistoryStatus, () => local!.historyStatus.value),
     retryAt = view(restRetryAt, () => local!.retryAt.value)
   const fail = (e: unknown) => {
@@ -110,16 +109,16 @@ export function useRss() {
   watch(enabled, value => {
     if (!value) clear()
   })
-  // Losing ownership (e.g. the database is reassigned) falls back to the REST list.
-  watch(
-    () => !!owned?.value,
-    value => {
-      if (!value && enabled.value && user.userInfo?.userId) {
-        clear()
-        void initialize(true)
-      }
+  // Losing usable local storage falls back; acquiring it invalidates any in-flight REST list walk.
+  watch(localMode, value => {
+    if (value) {
+      generation++
+      loading.value = false
+    } else if (enabled.value && user.userInfo?.userId) {
+      clear()
+      void initialize(true)
     }
-  )
+  })
   watch([live, () => local?.subscriptions.value], () => {
     if (live.value && selected.value && !local!.subscriptions.value.some(row => row.id === selected.value)) void select('')
   })
@@ -145,8 +144,8 @@ export function useRss() {
   }
   const reload = async (more = false) => {
     if (!enabled.value || loading.value || (more && !hasMore.value)) return
-    if (live.value) {
-      if (more) await loadMoreLocal()
+    if (localMode.value) {
+      if (more && live.value) await loadMoreLocal()
       return
     }
     const source = selected.value,
@@ -157,7 +156,7 @@ export function useRss() {
     try {
       if (more) {
         const result = await fetchPage(source, restCursor.value, true)
-        if (stamp !== generation || !enabled.value) return
+        if (stamp !== generation || !enabled.value || localMode.value) return
         if (!result) throw new Error('source_unavailable')
       }
       // Revalidate every loaded page before swapping the list, preserving pagination and old rows while loading.
@@ -169,7 +168,7 @@ export function useRss() {
       let page: RssEntriesResponse
       do {
         const result = await fetchPage(source, next)
-        if (stamp !== generation || !enabled.value) return
+        if (stamp !== generation || !enabled.value || localMode.value) return
         if (!result) throw new Error('source_unavailable')
         page = result
         items.push(...page.items)
@@ -203,7 +202,7 @@ export function useRss() {
     loading.value = false
     const cached = cache.get(id)
     restoreList(cached)
-    if (live.value) return
+    if (localMode.value) return
     if (force || !cached || Date.now() - cached.updatedAt >= CACHE_TTL) await reload()
   }
   const initialize = async (force = false) => {
@@ -220,7 +219,7 @@ export function useRss() {
         if (local && enabled.value && (live.value || !labs.loaded.value)) return
         throw e
       }
-      if (!enabled.value || initialization !== initializeGeneration || account !== session || live.value) return
+      if (!enabled.value || initialization !== initializeGeneration || account !== session || localMode.value) return
       const result = await request().get<RssSubscriptionsResponse>({ url: '/v1/rss/subscriptions' })
       if (initialization !== initializeGeneration || account !== session) return
       if (!result) throw new Error('source_unavailable')
@@ -237,7 +236,7 @@ export function useRss() {
           .filter(row => ids.has(row.subscription_id))
           .map(row => ({ ...row, source_title: rssSubscriptionName(result.items.find(sub => sub.id === row.subscription_id)!) }))
       }
-      if (live.value) return
+      if (localMode.value) return
       if (selected.value && !ids.has(selected.value)) {
         await select('')
         return
@@ -281,8 +280,6 @@ export function useRss() {
       restSubscriptions.value = [...restSubscriptions.value.filter(item => item.id !== row.id), row]
       cache.delete('')
       await select(row.id)
-      // Like the native client, show the confirmed first page of the new source before its rows sync.
-      if (live.value && account === session) await local!.seed(row.id)
     })
   const update = (id: string, remark: string) =>
     mutate(async () => {
@@ -317,7 +314,7 @@ export function useRss() {
       const id = selected.value,
         account = session
       if (!id) {
-        if (!live.value) await initialize(true)
+        if (!localMode.value) await initialize(true)
         return
       }
       const result = await request().post<RssRefreshResponse>({ url: `/v1/rss/subscriptions/${encodeURIComponent(id)}/refresh` })
@@ -375,7 +372,7 @@ export function useRss() {
     retryAt,
     enabled,
     loading,
-    initializing,
+    initializing: computed(() => initializing.value || (enabled.value && localMode.value && !live.value)),
     detailLoading,
     pending,
     error,

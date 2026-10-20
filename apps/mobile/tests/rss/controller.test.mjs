@@ -118,7 +118,7 @@ function localFixture(t, overrides = {}) {
     rssLabs: async () => ({features: [{key: 'rss', enabled: true}]}),
     rssSubscriptions: async () => {calls.push('subscriptions'); return {items: [source]};},
     rssEntries: async (...args) => {calls.push(args); return page;},
-    rssAdd: async () => ({...source, id: 'added'}),
+    rssAdd: async () => {calls.push('add'); return {...source, id: 'added'};},
     rssUpdate: async (id, remark) => ({...source, id, remark}),
     rssRemove: async () => ({}),
     rssRefresh: async () => ({status: 'accepted', next_allowed_at: '2026-11-01T00:00:00Z'}),
@@ -133,13 +133,21 @@ function localFixture(t, overrides = {}) {
     bookmarks: next => {bookmarks = next; saved?.(new Map([...next].filter(([url]) => savedUrls.includes(url))));}, savedUrls: () => savedUrls};
 }
 
-test('local RSS keeps REST until first stream sync, then watches without REST list polling', async t => {
+test('owned local RSS stays loading without list REST until first sync, then reads and polls locally', async t => {
   const f = localFixture(t);
   await f.controller.load();
+  assert.equal(f.controller.getSnapshot().enabled, true);
+  assert.equal(f.controller.getSnapshot().ready, false, 'An owned but unsynced local database is still loading');
+  assert.equal(f.calls.some(call => call === 'subscriptions' || Array.isArray(call)), false, 'Pending local ownership must not seed lists from REST');
+  await f.controller.load();
+  await f.controller.select(null);
+  f.controller.poll();
+  await flush();
+  assert.equal(f.calls.some(call => call === 'subscriptions' || Array.isArray(call)), false, 'Reload, source selection, and polling stay local while first sync is pending');
   f.subscriptions([{...source, title: 'Local title'}]);
   f.entries([{...entry, id: 'local'}]);
-  assert.equal(f.controller.getSnapshot().entries[0].id, entry.id);
   f.ready();
+  assert.equal(f.controller.getSnapshot().ready, true);
   assert.equal(f.controller.getSnapshot().entries[0].id, 'local');
   assert.equal(f.controller.getSnapshot().subscriptions[0].title, 'Local title');
   const requests = f.calls.length;
@@ -147,15 +155,22 @@ test('local RSS keeps REST until first stream sync, then watches without REST li
   assert.equal(f.calls.length, requests);
 });
 
-test('late REST fallback cannot replace a synced local list', async t => {
-  let release, started;
-  const waiting = new Promise(resolve => {started = resolve;});
-  const response = new Promise(resolve => {release = resolve;});
-  const f = localFixture(t, {rssEntries: async () => {started(); return response;}});
-  const loading = f.controller.load(); await waiting;
+test('an admitted cached database is readable while its first sync is pending', async t => {
+  const f = localFixture(t);
+  f.local.hasCachedData = async () => true;
+  await f.controller.load();
+  assert.equal(f.controller.getSnapshot().ready, true);
+  assert.equal(f.controller.getSnapshot().entries[0].id, entry.id);
+  assert.equal(f.calls.some(call => call === 'subscriptions' || Array.isArray(call)), false);
+});
+
+test('owned pending local startup never starts a list REST request that can replace the synced list', async t => {
+  const f = localFixture(t);
+  await f.controller.load();
+  assert.equal(f.calls.some(call => Array.isArray(call)), false);
   f.entries([{...entry, id: 'local'}]); f.ready();
-  release(page); await loading;
   assert.equal(f.controller.getSnapshot().entries[0].id, 'local');
+  assert.equal(f.calls.some(call => Array.isArray(call)), false);
 });
 
 test('local RSS overlays confirmed add, rename, refresh, remove and reader saves until sync agrees', async t => {
@@ -217,17 +232,17 @@ test('local callbacks cannot publish after account replacement or disabled lab',
   f.entries([entry]); f.ready(); f.subscriptions([source]);
   assert.equal(f.controller.getSnapshot().entries.length, 0);
   const g = localFixture(t); await g.controller.load(); g.revoke(); g.ready(); g.entries([{...entry, id: 'stale'}]);
-  assert.equal(g.controller.getSnapshot().entries[0].id, entry.id);
+  assert.equal(g.controller.getSnapshot().entries.length, 0, 'A revoked account cannot publish rows from a late local callback');
 });
 
-test('writes before the first stream sync keep the REST reload, and a local watch failure falls back to REST', async t => {
+test('local add before first sync is mutation-only while a hard local watch failure falls back to REST', async t => {
   const f = localFixture(t); let failEntries;
   const watchEntries = f.local.watchEntries;
   f.local.watchEntries = (id, callback, onError) => {failEntries = onError; return watchEntries(id, callback, onError);};
   await f.controller.load();
-  const before = f.calls.filter(call => call === 'subscriptions').length;
+  const before = f.calls.length;
   await f.controller.add('https://added.invalid', '');
-  assert.equal(f.calls.filter(call => call === 'subscriptions').length, before + 1);
+  assert.deepEqual(f.calls.slice(before), ['add'], 'A local-mode add only performs its REST mutation and waits for the sync stream');
   f.ready();
   const fallback = f.calls.filter(call => call === 'subscriptions').length;
   failEntries(new Error('watch failed')); await flush();
@@ -235,7 +250,7 @@ test('writes before the first stream sync keep the REST reload, and a local watc
   assert.equal(f.controller.getSnapshot().error, null, 'A working REST fallback hides the local failure');
   assert.equal(f.controller.getSnapshot().entries[0].id, entry.id);
   const requests = f.calls.length; await f.controller.load();
-  assert.ok(f.calls.length > requests, 'REST lists load again after the local source failed');
+  assert.equal(f.calls.length, requests, 'A successfully restored local mode prevents recurring REST list loads');
 });
 
 test('a local failure only surfaces an error when the REST fallback also fails', async t => {
@@ -251,13 +266,11 @@ test('a local failure only surfaces an error when the REST fallback also fails',
   assert.equal(f.controller.getSnapshot().entries[0].id, entry.id, 'The last list stays visible');
 });
 
-test('local add shows the confirmed first REST page and source switches hide other sources at once', async t => {
+test('local add is mutation-only and source switches hide other sources at once', async t => {
   const f = localFixture(t); await f.controller.load(); f.ready();
-  f.api.rssEntries = async (...args) => {f.calls.push(args); return {...page, items: [{...entry, id: 'added-entry', subscription_id: 'added'}], next_cursor: 'added-cursor'};};
   await f.controller.add('https://added.invalid', '');
-  assert.deepEqual(f.calls.at(-1).slice(0, 3), ['added', undefined, false]);
-  assert.deepEqual(Array.from(f.controller.getSnapshot().entries, row => row.id), ['added-entry']);
-  assert.equal(f.controller.getSnapshot().cursor, 'added-cursor');
+  assert.equal(f.calls.at(-1), 'add');
+  assert.equal(f.calls.some(call => Array.isArray(call)), false);
   await f.controller.select(null);
   f.local.watchEntries = () => () => {};
   f.entries([entry, {...entry, id: 'other', subscription_id: 'added'}]);
@@ -471,9 +484,69 @@ test('a cached RSS watcher setup exception uses the REST fallback', async t => {
   f.local.watchSubscriptions = () => {throw new Error('watch setup failed');};
   await f.controller.load();
   await flush();
-  assert.equal(f.controller.getSnapshot().entries[0].id, entry.id);
   assert.equal(f.controller.getSnapshot().error, null);
   assert.ok(f.calls.includes('subscriptions'));
+  assert.ok(f.calls.some(call => Array.isArray(call)), 'A synchronous watcher setup failure falls back to the REST entry list');
+});
+
+test('a current-owner cache probe rejection falls back to Labs and REST lists', async t => {
+  let probes = 0, labs = 0;
+  const f = localFixture(t, {rssLabs: async () => {labs++; return {features: [{key: 'rss', enabled: true}]};}});
+  f.local.hasCachedData = async () => {probes++; throw new Error('local query failed');};
+
+  assert.equal(await f.controller.load(), true);
+  assert.equal(probes, 1);
+  assert.equal(labs, 1);
+  assert.ok(f.calls.includes('subscriptions'));
+  assert.ok(f.calls.some(call => Array.isArray(call)), 'An admitted-owner probe failure must fall back to the REST entry list');
+  assert.equal(f.controller.getSnapshot().enabled, true);
+  assert.equal(f.controller.getSnapshot().error, null);
+});
+
+test('a later explicit load can retry and recover local RSS after a cache probe fallback', async t => {
+  let probes = 0, labs = 0;
+  const f = localFixture(t, {rssLabs: async () => {labs++; return {features: [{key: 'rss', enabled: true}]};}});
+  f.local.hasCachedData = async () => {
+    probes++;
+    if (probes === 1) throw new Error('temporary local query failure');
+    return true;
+  };
+
+  assert.equal(await f.controller.load(), true);
+  assert.equal(f.controller.getSnapshot().ready, true);
+  const restCalls = f.calls.length;
+  assert.equal(await f.controller.load(), true);
+  assert.equal(probes, 2);
+  assert.equal(labs, 2, 'A recovered cache returns immediately and only starts the background Labs verification');
+  assert.equal(f.calls.length, restCalls);
+  assert.equal(f.controller.getSnapshot().entries[0].id, entry.id);
+  assert.equal(f.controller.getSnapshot().error, null);
+});
+
+test('a delayed cache probe rejection after cancellation, disposal, or account-scope replacement is ignored', async t => {
+  for (const lifecycle of ['cancel', 'dispose', 'account-scope replacement']) await t.test(lifecycle, async () => {
+    let rejectProbe, started, labs = 0;
+    const pending = new Promise((_resolve, reject) => {rejectProbe = reject;});
+    const probeStarted = new Promise(resolve => {started = resolve;});
+    const f = localFixture(t, {rssLabs: async () => {labs++; return {features: [{key: 'rss', enabled: true}]};}});
+    f.local.hasCachedData = () => {started(); return pending;};
+
+    let scopeCurrent = true;
+    f.api.options = {sessions: {captureRequestScope: () => ({assertCurrent() {if (!scopeCurrent) throw new Error('Account scope replaced');}})}};
+    const loading = f.controller.load();
+    await probeStarted;
+    if (lifecycle === 'cancel') f.controller.cancel();
+    else if (lifecycle === 'dispose') f.controller.dispose();
+    else {scopeCurrent = false; f.revoke();}
+    const beforeReject = f.controller.getSnapshot();
+
+    rejectProbe(new Error('late cache query failure'));
+    assert.equal(await loading, false);
+    await flush();
+    assert.deepEqual(f.controller.getSnapshot(), beforeReject, 'A stale probe failure cannot mutate the retired controller state');
+    assert.equal(labs, 0, 'A stale probe failure cannot start Labs or REST fallback');
+    assert.deepEqual(f.calls, []);
+  });
 });
 
 /** Server semantics: `before` lists rows after the anchor plus newer history rows; cursors are plain; history loads only on short pages. */

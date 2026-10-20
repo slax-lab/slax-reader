@@ -145,21 +145,30 @@ const restList = () =>
   get.mockImplementation(({ url }) => Promise.resolve(url.endsWith('/subscriptions') ? { items: [restSub('a')] } : page([restEntry('rest')], { has_more: true, next_cursor: 'r2' })))
 
 describe('RSS local mode', () => {
-  it('subscribes to rss_v1 and keeps the REST list until the first sync completes', async () => {
-    restList()
+  it('keeps an owned empty local database loading without list REST until first sync', async () => {
     const rss = create()
     expect(database.syncStream).toHaveBeenCalledWith('rss_v1')
     expect(stream.subscribe).toHaveBeenCalledWith({ ttl: 7 * 24 * 3600 })
     await rss.initialize()
-    expect(rss.subscriptions.value.map(x => x.id)).toEqual(['a'])
-    expect(rss.entries.value.map(x => x.id)).toEqual(['rest'])
+    expect(get).not.toHaveBeenCalled()
+    expect(rss.initializing.value).toBe(true)
+    expect(rss.subscriptions.value).toEqual([])
+    expect(rss.entries.value).toEqual([])
+    await rss.reload()
+    await rss.select('b')
+    await rss.reload(true)
+    expect(get).not.toHaveBeenCalled()
+    expect(rss.initializing.value).toBe(true)
+    await rss.select(null)
     tables.entries.value = [row('one', 'a', '2026-10-18 12:00:00'), row('two', 'b')]
-    expect(rss.entries.value.map(x => x.id)).toEqual(['rest'])
     tables.subscriptions.value = [sub('a'), sub('b')]
+    expect(rss.entries.value.map(x => x.id)).toEqual(['one', 'two'])
+    expect(rss.initializing.value).toBe(false)
     stream.firstSync.resolve()
     await flushPromises()
     expect(rss.subscriptions.value.map(x => x.id)).toEqual(['a', 'b'])
     expect(rss.entries.value.map(x => x.id)).toEqual(['one', 'two'])
+    expect(rss.initializing.value).toBe(false)
     expect(rss.hasMore.value).toBe(true)
     expect(rss.historyStatus.value).toBe('available')
     get.mockClear()
@@ -181,9 +190,7 @@ describe('RSS local mode', () => {
     await flushPromises()
     expect(rss.subscriptions.value.map(x => x.id)).toEqual(['a', 'b', 'c'])
 
-    expect(get).toHaveBeenCalledOnce()
-    expect(get.mock.lastCall![0].query).toEqual({ subscription_id: 'c', limit: '20' })
-    get.mockClear()
+    expect(get).not.toHaveBeenCalled()
 
     post.mockResolvedValueOnce(undefined)
     await rss.remove('b')
@@ -381,19 +388,55 @@ describe('RSS local mode', () => {
     expect(get.mock.calls[1][0].query).toEqual({ before: 'a2', limit: '20' })
   })
 
-  it('keeps an add successful when the first page of the new source cannot be fetched', async () => {
+  it('keeps an add successful without seeding the new source from REST', async () => {
     const rss = await live()
     post.mockResolvedValueOnce(restSub('c'))
-    get.mockRejectedValueOnce(new Error('offline'))
     await rss.add('https://example.com/c.xml')
     expect(rss.error.value).toBe('')
     expect(rss.selected.value).toBe('c')
     expect(rss.subscriptions.value.map(x => x.id)).toEqual(['a', 'b', 'c'])
     post.mockResolvedValueOnce(restSub('d'))
-    get.mockResolvedValueOnce(page([restEntry('d1', 'd')], { next_cursor: 'd2', has_more: true }))
     await rss.add('https://example.com/d.xml')
-    expect(rss.entries.value.map(x => x.id)).toEqual(['d1'])
-    expect(rss.cursor.value).toBe('d2')
+    expect(rss.selected.value).toBe('d')
+    expect(rss.subscriptions.value.map(x => x.id)).toEqual(['a', 'b', 'c', 'd'])
+    expect(get).not.toHaveBeenCalled()
+  })
+
+  it('local add before first sync performs only the mutation and waits for the synced source', async () => {
+    const rss = create()
+    post.mockResolvedValueOnce(restSub('c'))
+    await rss.initialize()
+    expect(rss.initializing.value).toBe(true)
+    await rss.add('https://example.com/c.xml')
+    expect(post).toHaveBeenCalledOnce()
+    expect(get).not.toHaveBeenCalled()
+    expect(rss.selected.value).toBe('c')
+    expect(rss.subscriptions.value.map(x => x.id)).toEqual(['c'])
+    expect(rss.initializing.value).toBe(true)
+    tables.subscriptions.value = [sub('c')]
+    tables.entries.value = [row('c1', 'c')]
+    stream.firstSync.resolve()
+    await flushPromises()
+    expect(rss.entries.value.map(x => x.id)).toEqual(['c1'])
+    expect(get).not.toHaveBeenCalled()
+  })
+
+  it('replacing the account while its local stream is pending cancels the old first-sync owner', async () => {
+    const rss = create()
+    await rss.initialize()
+    expect(rss.initializing.value).toBe(true)
+    user.userInfo = { userId: 2 }
+    await flushPromises()
+    expect(stream.handles[0].unsubscribe).toHaveBeenCalledOnce()
+    expect(stream.subscribe).toHaveBeenCalledTimes(2)
+    expect(rss.initializing.value).toBe(true)
+    tables.subscriptions.value = [sub('b')]
+    tables.entries.value = [row('new-account', 'b')]
+    stream.firstSync.resolve()
+    await flushPromises()
+    expect(rss.subscriptions.value.map(x => x.id)).toEqual(['b'])
+    expect(rss.entries.value.map(x => x.id)).toEqual(['new-account'])
+    expect(get).not.toHaveBeenCalled()
   })
 
   it('reveals hidden local rows before requesting REST after the last displayed row', async () => {

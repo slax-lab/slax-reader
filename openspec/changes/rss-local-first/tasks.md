@@ -53,3 +53,14 @@
 - [x] 8.4 Admit the real SDK's native-created `user_version=0` database on fresh and initialized startup without changing the strict Kotlin-adoption profile, ownership checks or table validation; verify rejected unknown profiles and repeat native acceptance on the same untouched database.
 - [x] 8.5 Remove the native All view's empty 48-point source-action toolbar and verify compact first-row spacing plus selected-source refresh/menu access on the same iOS simulator.
 - [x] 8.6 Review the added harness and results, preserve the explicit version decision, validate OpenSpec, and remove all resources, simulators, caches and temporary artifacts created by this acceptance run after recording durable evidence.
+
+## 9. Local list startup correction
+
+- [x] 9.1 Keep owned local RSS clients in a loading state until first synchronization and local queries complete; initialization, selection and polling must not fetch REST subscription or entry lists merely because synchronization is pending.
+- [x] 9.2 Remove REST entry-list seeding after a confirmed subscription add in local mode; publish the subscription overlay and obtain its latest entries through synchronization. Preserve explicit REST history and unavailable-storage fallback.
+- [x] 9.3 Have `gpt-6-luna high` add and execute regressions for pending synchronization, cached startup, subscription additions, explicit history and genuine fallback, and run affected typechecks; record results and clean only new task-owned outputs.
+- [x] 9.4 Cache the Labs response for the current browser account, coalesce concurrent page consumers, reject late responses from a replaced account, and refresh explicitly in settings without polling Labs from RSS.
+- [x] 9.5 Confirm the actual local service ACTIVE Sync Config includes `rss_v1`, then inspect the authenticated Web page and measure request counts across initialization, source changes and a full automatic-check interval; preserve existing browser data and local configuration.
+- [x] 9.6 Diagnose the deployed test environment's missing article rows, attempt isolated service reproduction with a small-model agent, verify recovery against the actual remote stream, and document the evidence and limits without resetting client or source databases; remove all new task-owned service resources.
+
+- [x] 9.7 Apply the subsequent explicit one-build release approval (`1.0.25`, build `776`, previous `775`), regenerate native metadata through the existing tooling, and verify main/share version agreement without running Android or native builds.

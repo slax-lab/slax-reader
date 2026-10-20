@@ -43,9 +43,10 @@ export class RssController {
   private history = new Map<string | null, HistoryWalk>();
   private savedWatch: (() => void) | null = null; private savedKey = ''; private savedEpoch = 0; private savedRows = new Map<string, string>();
   private fallbackPending = false;
+  private localUnavailable = false;
   constructor(private api: SlaxApi, private now = Date.now, private isAccountActive = () => true, private local?: import('../data/repositories/rss.ts').RssLocalSource) {}
   private startLocal(cached = false) {
-    if (!this.local || this.stopLocal) return;
+    if (!this.local || this.stopLocal || this.localUnavailable) return;
     const epoch = ++this.localEpoch;
     const active = () => epoch === this.localEpoch && !this.disposed && this.isAccountActive() && this.state.enabled;
     const failed = () => {if (active()) this.localFailed();};
@@ -110,9 +111,9 @@ export class RssController {
   }
   /** A local query failure falls back to REST; only a REST failure surfaces an error. */
   private localFailed() {
-    const wasReady = this.localReady;
+    this.localUnavailable = true;
     this.clearLocal();
-    if (!wasReady || !this.state.enabled) return;
+    if (!this.state.enabled) return;
     if (this.state.busy) {this.fallbackPending = true; return;}
     void this.run(run => this.reload(run, true, true));
   }
@@ -218,7 +219,8 @@ export class RssController {
       return false;
     } finally {
       if (stamp === this.generation && !this.disposed && this.isAccountActive()) {
-        this.request = null; this.update({busy: false, ...(this.current(run) ? {ready: true} : {})});
+        const waiting = this.stopLocal && (!this.localReady || this.localSubscriptions === null || this.localEntries === null);
+        this.request = null; this.update({busy: false, ...(this.current(run) ? {ready: !waiting} : {})});
         if (this.fallbackPending) {this.fallbackPending = false; if (this.state.enabled && !this.localReady) void this.run(next => this.reload(next, true, true));}
       }
     }
@@ -286,6 +288,7 @@ export class RssController {
     }).finally(() => {if (this.labRequest === controller) this.labRequest = null;});
   }
   private async reload(run: RssRun, force = false, keep = false) {
+    if (this.stopLocal) return;
     const subscriptions = (await this.checked(() => this.api.rssSubscriptions(run.signal), run)).items;
     this.assertCurrent(run);
     if (this.localReady) return;
@@ -302,8 +305,11 @@ export class RssController {
     if (!this.localReady) this.show(loaded);
   }
   load = () => this.run(async run => {
+    this.localUnavailable = false;
     if (!this.stopLocal && this.local?.hasCachedData) {
-      const cached = await this.checked(() => this.local!.hasCachedData!(), run);
+      let cached = false;
+      try {cached = await this.checked(() => this.local!.hasCachedData!(), run);}
+      catch {this.assertCurrent(run); this.localUnavailable = true;}
       if (cached) {this.update({enabled: true}); this.startLocal(true);}
     }
     if (this.localReady) {this.verifyCachedLab(); this.publishLocal(); return;}
@@ -311,15 +317,14 @@ export class RssController {
     this.assertCurrent(run);
     if (!enabled) {this.clearLocal(); this.lists.clear(); this.update({...emptyState(), ready: true, busy: true}); return;}
     this.update({enabled}); this.startLocal();
-    if (this.localReady) {this.publishLocal(); return;}
+    if (this.stopLocal) {this.publishLocal(); return;}
     await this.reload(run);
   });
   select = (id: string | null) => this.run(async run => {
     if (id !== null && !this.state.subscriptions.some(item => item.id === id)) return;
     if (this.localReady) this.update({selected: id, entries: id === null ? this.state.entries : this.state.entries.filter(row => row.subscription_id === id)});
     else this.update({selected: id});
-    if (this.stopLocal) this.watchLocalEntries();
-    if (this.localReady) return;
+    if (this.stopLocal) {if (this.localReady) this.watchLocalEntries(); return;}
     const existing = this.lists.get(id);
     if (existing) this.show(existing); else this.update({entries: [], cursor: null, hasMore: false, historyStatus: 'exhausted', retryAt: null});
     if (existing && existing.versions === this.versions(id) && this.now() - existing.savedAt < 60000) return;
@@ -327,6 +332,7 @@ export class RssController {
     if (!this.localReady) this.show(loaded);
   });
   more = () => this.run(async run => {
+    if (this.stopLocal && !this.localReady) return;
     if (!this.state.hasMore || (this.state.retryAt && Date.parse(this.state.retryAt) > this.now())) return;
     const selected = this.state.selected;
     if (this.localReady) {
@@ -356,12 +362,10 @@ export class RssController {
       this.subscriptionOverlays.set(added.id, added); this.removed.delete(added.id);
       if (this.localSubscriptions) this.retireSubscriptionOverlays(this.localSubscriptions);
     }
-    if (this.localReady) {
+    if (this.stopLocal) {
       this.update({subscriptions: [...this.state.subscriptions.filter(row => row.id !== added.id), added], selected: added.id, entries: [], cursor: null, hasMore: true});
-      this.watchLocalEntries();
-      const first = await this.checked(() => this.api.rssEntries(added.id, undefined, false, run.signal), run).catch(() => null);
-      this.assertCurrent(run);
-      if (this.localReady) {if (first) this.history.set(added.id, {...first, anchor: null, pages: 1}); this.watchSaved(); this.publishLocal(); return;}
+      if (this.localReady) this.watchLocalEntries();
+      this.publishLocal(); return;
     }
     this.update({selected: added.id, entries: [], cursor: null, hasMore: false, historyStatus: 'exhausted', retryAt: null}); await this.reload(run, true);
   });
@@ -385,9 +389,9 @@ export class RssController {
       this.removed.set(id, this.localSubscriptions?.some(row => row.id === id) ?? false);
       this.subscriptionOverlays.delete(id); this.remarkOverlays.delete(id); this.refreshOverlays.delete(id); this.history.delete(id); this.watchSaved();
     }
-    if (this.localReady) {
+    if (this.stopLocal) {
       this.update({subscriptions: this.state.subscriptions.filter(row => row.id !== id), entries: this.state.entries.filter(row => row.subscription_id !== id)});
-      if (this.state.selected === id) {this.update({selected: null}); this.watchLocalEntries();}
+      if (this.state.selected === id) {this.update({selected: null}); if (this.localReady) this.watchLocalEntries();}
       this.publishLocal(); return;
     }
     await this.reload(run, true);
@@ -399,14 +403,14 @@ export class RssController {
     const synced = this.localSubscriptions?.find(item => item.id === id);
     if (this.localReady && synced && Date.parse(synced.next_allowed_at) >= Date.parse(result.next_allowed_at)) {this.publishLocal(); return;}
     if (this.stopLocal) this.refreshOverlays.set(id, {next: result.next_allowed_at, previous: source.last_success_at});
-    if (this.localReady) {
+    if (this.stopLocal) {
       this.update({subscriptions: this.state.subscriptions.map(row => row.id === id ? {...row, refreshing: true, next_allowed_at: result.next_allowed_at} : row)});
       return;
     }
     await this.reload(run, true);
   });
   poll = () => {
-    if (this.localReady) return;
+    if (this.stopLocal) return;
     const interval = this.state.subscriptions.some(item => item.refreshing) ? 5000 : 60000;
     if (!this.state.enabled || this.state.busy || this.now() - this.lastPollAt < interval) return;
     this.lastPollAt = this.now(); void this.run(run => this.reload(run));
