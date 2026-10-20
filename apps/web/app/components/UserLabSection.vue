@@ -30,7 +30,7 @@ const pending = ref<string | null>(null)
 const rows = computed(() => labs.features.value.filter(feature => te(`page.user.labs.${feature.key}.name`)))
 
 onMounted(() => {
-  labs.fetch()
+  labs.fetch(true)
 })
 
 const onToggle = async (key: string) => {

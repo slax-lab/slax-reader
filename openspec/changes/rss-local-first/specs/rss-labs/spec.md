@@ -41,7 +41,7 @@ Web and the native app SHALL keep the user's RSS subscriptions, the metadata of 
 
 #### Scenario: Enabled user opens RSS on a new client
 - **WHEN** a user with the RSS laboratory enabled opens RSS on a client that supports local RSS data
-- **THEN** the client shows a loading state until the first local synchronization completes, then shows the same subscriptions and latest entries as the REST API without an empty-state flash
+- **THEN** the client shows a loading state until the first local synchronization and local queries complete, then shows the same subscriptions and latest entries as the REST API without an empty-state flash; initialization, source selection and automatic checks do not request REST subscription or entry lists while synchronization is pending
 
 #### Scenario: Shared feed does not leak other subscribers
 - **WHEN** two users subscribe to the same feed with different display names
@@ -82,3 +82,11 @@ Web and the native app SHALL keep the user's RSS subscriptions, the metadata of 
 #### Scenario: A later rename skips the intermediate synchronized value
 - **WHEN** a confirmed rename is followed by a different synchronized remark from another device before the client observes the intermediate remark
 - **THEN** the later synchronized remark is displayed and a temporary rename overlay cannot hide it
+
+#### Scenario: Add a subscription on a local client
+- **WHEN** an owned local RSS client receives a confirmed subscription addition before its latest entries synchronize
+- **THEN** the client immediately shows the confirmed subscription and receives its latest entries through local synchronization, without requesting a REST entry list to seed the source; explicit history loading continues to use the history API
+
+#### Scenario: Repeated RSS activation and automatic checks
+- **WHEN** the sidebar and RSS panel initialize for the same account, the user switches sources, or automatic list checks run
+- **THEN** concurrent Labs consumers share one request and a successful response is reused for that browser account instead of polling Labs; explicit settings refresh and account changes may obtain a new response, and a late response from a replaced account cannot alter the active account
