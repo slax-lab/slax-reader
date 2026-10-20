@@ -61,7 +61,8 @@ const qualityReview = {
   headingRecall: 1,
   structure: 0.9,
   hardFailures: [],
-  comment: '综合完整度 92.0%'
+  comment: '综合完整度 92.0%',
+  selectedParser: 'readability' as const
 }
 
 function createStep() {
@@ -115,7 +116,16 @@ describe('ContentValidationWorkflow 解析质量点评', () => {
       step
     )
 
-    expect(mocks.pushMessage).toHaveBeenCalledWith(expect.stringContaining('**解析质量点评**:\n综合完整度 92.0%'))
-    expect(mocks.pushMessage).toHaveBeenCalledWith(expect.stringContaining('https://images.example.com/assets/screenshots/bookmark.jpg'))
+    expect(mocks.pushMessage).toHaveBeenCalledWith(expect.stringContaining('**解析质量点评**: 综合完整度 92.0% （来自Readability）'))
+
+    const message = mocks.pushMessage.mock.calls[0][0] as string
+    expect(message).toContain('**Title**: Test Article')
+    expect(message).toContain('**URL**: https://example.com/article')
+    expect(message).toContain('**AI 分析结果**: none')
+    expect(message).toContain('**AI DESC**: 正常')
+    expect(message).not.toContain('AI 置信度')
+    expect(message).not.toContain('AI 证据')
+    expect(message).not.toContain('截图预览')
+    expect(message).not.toContain('images.example.com')
   })
 })

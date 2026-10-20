@@ -9,7 +9,7 @@ import { deriveScreenshotKey } from '@/utils/async'
 import { ServerError, AIError } from '@/const/err'
 import { CrawlService } from '@/domain/crawl'
 import { isProhibitedContentUrl } from '@/utils/prohibitedContentDetector'
-import { formatArticleQualityComparison, type ArticleQualityReview } from '@/utils/articleQualityScoring'
+import { formatArticleQualitySummary, type ArticleQualityReview } from '@/utils/articleQualityScoring'
 import { EVENT_CONTEXT_KEY, type EventRequestContext } from '@/domain/events'
 
 export interface ContentValidationWorkflowParams {
@@ -220,7 +220,6 @@ export class ContentValidationWorkflow extends WorkflowEntrypoint<Env, ContentVa
         if (result.issue_type === 'none' || result.confidence !== 'high' || !Array.isArray(result.evidence) || result.evidence.length === 0) {
           result = { ...result, has_issues: false, issue_type: 'none' }
         }
-        const statusEmoji = result.has_issues ? '❌' : '✅'
 
         await crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, host, 'content_validation_run', 'success')
         if (result.has_issues) {
@@ -230,15 +229,11 @@ export class ContentValidationWorkflow extends WorkflowEntrypoint<Env, ContentVa
         }
 
         await alertBot.crawl.pushMessage(
-          `${statusEmoji} **Content Validation**\n` +
-            `**Title**: ${title}\n` +
+          `**Title**: ${title}\n` +
             `**URL**: ${url}\n` +
             `**AI 分析结果**: ${result.issue_type}\n` +
             `**AI DESC**: ${result.description}\n` +
-            `**AI 置信度**: ${result.confidence || 'unknown'}\n` +
-            (result.evidence?.length ? `**AI 证据**: ${result.evidence.join('；')}\n` : '') +
-            `**解析质量点评**:\n${formatArticleQualityComparison(qualityReview)}\n` +
-            `[📸 截图预览](${imageUrl})`
+            `**解析质量点评**: ${formatArticleQualitySummary(qualityReview)}`
         )
       } catch (e) {
         console.error(`Failed to process validation result for bookmark ${bookmarkId}: ${e}`)

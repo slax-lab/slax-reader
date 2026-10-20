@@ -365,17 +365,10 @@ export const scoreArticleQuality = ({ sourceHtml, candidateHtml, url }: ArticleQ
 
 export const formatArticleQualityReview = (review?: ArticleQualityReview): string => review?.comment || '评分不可用（没有可比对的原始 HTML）'
 
-export const formatArticleQualityComparison = (review?: ArticleQualityReview): string => {
-  if (!review) return '评分不可用（没有可比对的原始 HTML）'
-  if (!review.parserReviews?.length) return formatArticleQualityReview(review)
+const parserLabels: Record<ParserName, string> = { readability: 'Readability', defuddle: 'Defuddle' }
 
-  const parserLabel: Record<ParserName, string> = { readability: 'Readability', defuddle: 'Defuddle' }
-  const selected = review.selectedParser ? `；最终选择 ${parserLabel[review.selectedParser]}` : ''
-  const details = review.parserReviews
-    .map(item => {
-      const suffix = item.error ? `；错误：${item.error}` : ''
-      return `${parserLabel[item.parser]}：${formatArticleQualityReview(item.review)}${suffix}`
-    })
-    .join('\n')
-  return `${formatArticleQualityReview(review)}${selected}\n${details}`
+export const formatArticleQualitySummary = (review?: ArticleQualityReview): string => {
+  if (!review || review.status === 'unavailable' || review.score === null) return formatArticleQualityReview(review)
+  const source = review.selectedParser ? ` （来自${parserLabels[review.selectedParser]}）` : ''
+  return `综合完整度 ${(review.score * 100).toFixed(1)}%${source}`
 }
