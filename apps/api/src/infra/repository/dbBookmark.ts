@@ -920,11 +920,14 @@ export class BookmarkRepo {
   }
 
   public async upsertVectorShard(bookmarkId: number, shardIdx: number) {
-    return await this.prismaPg().sr_bookmark_vector_shard.upsert({
-      where: { bookmark_id: bookmarkId },
-      create: { bookmark_id: bookmarkId, bucket_idx: shardIdx, created_at: new Date() },
-      update: { created_at: new Date() }
-    })
+    // Allocate atomically and return the winning bucket when indexing tasks race.
+    const [shard] = await this.prismaPg().$queryRaw<bookmarkShardPO[]>`
+      INSERT INTO public.sr_bookmark_vector_shard (bookmark_id, bucket_idx, created_at)
+      VALUES (${bookmarkId}, ${shardIdx}, ${new Date()})
+      ON CONFLICT (bookmark_id) DO UPDATE SET created_at = EXCLUDED.created_at
+      RETURNING id, bookmark_id, bucket_idx, created_at
+    `
+    return shard
   }
 
   public async getVectorShard(bookmarkId: number) {
