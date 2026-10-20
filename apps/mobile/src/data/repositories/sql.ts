@@ -1,6 +1,6 @@
 import type {SyncStreamSubscribeOptions, SyncStreamSubscription} from '@powersync/common';
 
-export type SqlSyncStreamSubscription = Pick<SyncStreamSubscription, 'unsubscribe'>;
+export type SqlSyncStreamSubscription = Pick<SyncStreamSubscription, 'unsubscribe'> & Partial<Pick<SyncStreamSubscription, 'waitForFirstSync'>>;
 
 export interface SqlSyncStream {
   subscribe(options?: SyncStreamSubscribeOptions): Promise<SqlSyncStreamSubscription>;

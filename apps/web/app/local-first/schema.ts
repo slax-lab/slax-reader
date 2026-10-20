@@ -33,6 +33,38 @@ export const sr_user = new Table({
   invite_code: column.text
 })
 
+export const sr_rss_subscription = new Table({
+  feed_id: column.text,
+  remark: column.text,
+  created_at: column.text
+})
+
+export const sr_rss_feed = new Table({
+  feed_url: column.text,
+  title: column.text,
+  site_url: column.text,
+  icon_url: column.text,
+  last_checked_at: column.text,
+  last_success_at: column.text,
+  next_fetch_at: column.text,
+  next_allowed_at: column.text,
+  error: column.text,
+  refreshing_until: column.text
+})
+
+export const sr_rss_entry = new Table({
+  feed_id: column.text,
+  title: column.text,
+  author: column.text,
+  summary: column.text,
+  article_url: column.text,
+  image_url: column.text,
+  published_at: column.text,
+  first_seen_at: column.text,
+  sort_at: column.text,
+  content_truncated: column.integer
+})
+
 // sr_user_tag：用户标签
 export const sr_user_tag = new Table(
   {
@@ -144,6 +176,9 @@ export const local_reading_state = new Table(
 export const AppSchema = new Schema({
   sr_user,
   sr_user_subscription,
+  sr_rss_subscription,
+  sr_rss_feed,
+  sr_rss_entry,
   sr_user_bookmark,
   sr_user_tag,
   sr_bookmark_comment,

@@ -28,6 +28,8 @@ import {usePdfLab} from '../pdf/usePdfLab';
 import {LibraryDataStatus} from './LibraryDataStatus';
 import {useVisibleSnapshot} from '../components/useVisibleSnapshot';
 
+declare global {var __SLAX_UI_RSS_STATE__: unknown;}
+
 const sortKeys = {inbox: 'inbox_title', starred: 'inbox_starred', archived: 'inbox_archive'} as const;
 const bookmarkKey = (item: BookmarkRecord) => item.id;
 function FeedDivider() {return <Divider inset={24} />;}
@@ -63,8 +65,17 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
     inboxScroll.reset(); feedPositions.rss.reset(); feedPositions.rss.source = undefined; setDrawer(false); setAdd(false); setImportingPdf(false);
   }, [nativeResourceOwner, feedPositions, inboxScroll.reset]);
   const collectionSelection = useRef(new CollectionSelection()).current;
-  const rss = useMemo(() => new RssController(api, Date.now, () => runtime.getNativeResourceOwner() === nativeResourceOwner), [api, runtime, nativeResourceOwner]);
+  const rss = useMemo(() => new RssController(api, Date.now, () => runtime.getNativeResourceOwner() === nativeResourceOwner, dataReady ? repositories?.rss : undefined), [api, runtime, nativeResourceOwner, dataReady, repositories]);
   const rssState = useSyncExternalStore(rss.subscribe, rss.getSnapshot);
+  useEffect(() => {
+    if (!__DEV__ || !fixtureOnly) return;
+    globalThis.__SLAX_UI_RSS_STATE__ = {
+      ready: rssState.ready, enabled: rssState.enabled, busy: rssState.busy, selected: rssState.selected, error: rssState.error,
+      subscriptions: rssState.subscriptions.map(row => ({id: row.id, title: row.title, remark: row.remark})),
+      entries: rssState.entries.map(row => ({id: row.id, subscriptionId: row.subscription_id, title: row.title, bookmarkId: row.bookmark_user_uuid})),
+    };
+    return () => {if (globalThis.__SLAX_UI_RSS_STATE__) globalThis.__SLAX_UI_RSS_STATE__ = undefined;};
+  }, [fixtureOnly, rssState]);
   const showError = useCallback((reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)), []);
   const [rowsReady, setRowsReady] = useState(false);
   useEffect(() => {
@@ -155,7 +166,7 @@ export function LibraryScreen({navigation}: MobileScreenProps<'Library'>) {
         else throw new Error('Unknown fixture list');
         return true;
       }
-      if (action.kind === 'select-source') {if (rssSelected) await rss.select(String(action.id)); else {if (action.id !== null && !collections.some(value => value.id === action.id)) throw new Error('Unknown fixture collection'); await selectCollection(action.id as string | null);} return true;}
+      if (action.kind === 'select-source') {if (rssSelected) await rss.select(action.id === null ? null : String(action.id)); else {if (action.id !== null && !collections.some(value => value.id === action.id)) throw new Error('Unknown fixture collection'); await selectCollection(action.id as string | null);} return true;}
       if (action.kind === 'load-history') {
         if (!rssSelected) throw new Error('RSS is not selected');
         const disabled = rssState.busy || Boolean(rssState.retryAt && Date.parse(rssState.retryAt) > Date.now());

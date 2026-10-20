@@ -802,6 +802,7 @@ model sr_rss_feed {
     history_seen    String[]  @default([])
     history_checked_at DateTime?
     history_retry_at DateTime?
+    icon_url        String?
     created_at      DateTime  @default(now())
 
     @@index([next_fetch_at], map: "sr_rss_feed_due")
@@ -833,6 +834,7 @@ model sr_rss_entry {
     first_seen_at     DateTime  @default(now())
     sort_at           DateTime
     updated_at        DateTime  @default(now())
+    is_history        Boolean   @default(false)
 
     @@unique([feed_id, entry_key])
     @@index([feed_id, sort_at(sort: Desc), id(sort: Desc)], map: "sr_rss_entry_page")

@@ -26,6 +26,7 @@ export interface RssFeedRow {
   history_seen: string[]
   history_checked_at: Date | null
   history_retry_at: Date | null
+  icon_url?: string | null
   claimed?: boolean
 }
 export interface RssSubscriptionRow extends RssFeedRow {
@@ -132,12 +133,12 @@ export class RssRepo {
       return { feed: await this.lease(tx, feed.id) }
     })
   }
-  async finishAdd(userId: number, row: RssFeedRow, result: Exclude<StoredFeedResult, { unchanged: true }>, remark: string | null) {
+  async finishAdd(userId: number, row: RssFeedRow, result: Exclude<StoredFeedResult, { unchanged: true }>, remark: string | null, icon: string | null = null) {
     return this.prismaPg().$transaction(
       async tx => {
         await this.active(tx, userId)
         if (!(await this.lockLease(tx, row))) throw new RssError('source_unavailable', 503)
-        await this.writeFeed(tx, row.id, result)
+        await this.writeFeed(tx, row.id, result, icon)
         return this.attach(tx, userId, row.id, remark)
       },
       { timeout: 30_000 }
@@ -266,7 +267,8 @@ export class RssRepo {
     const next = new Date(Math.max(now.valueOf() + backoff, error.nextAllowedAt?.valueOf() || 0))
     await tx.$executeRaw`UPDATE sr_rss_feed SET error=${error.code},failure_count=failure_count+1,last_checked_at=${now},next_fetch_at=${next},next_allowed_at=${next},lease_token=NULL,lease_until=NULL WHERE id=${row.id}`
   }
-  async finish(row: RssFeedRow, result: StoredFeedResult | RssError): Promise<boolean> {
+  /** `icon` is the signed favicon URL for local clients; null keeps the stored value. */
+  async finish(row: RssFeedRow, result: StoredFeedResult | RssError, icon: string | null = null): Promise<boolean> {
     return this.prismaPg().$transaction(
       async tx => {
         if (!(await this.lockLease(tx, row))) return false
@@ -275,7 +277,7 @@ export class RssRepo {
           return false
         }
         if (result instanceof RssError) await this.writeFailure(tx, row, result)
-        else await this.writeFeed(tx, row.id, result)
+        else await this.writeFeed(tx, row.id, result, icon)
         return true
       },
       { timeout: 30_000 }
@@ -284,12 +286,16 @@ export class RssRepo {
   private async writeItems(tx: Tx, id: string, items: StoredFeedItem[], undated?: Date, history = false) {
     const now = new Date()
     for (const item of items) {
-      await tx.$executeRaw`INSERT INTO sr_rss_entry(feed_id,entry_key,article_url,title,author,summary,content_key,content_truncated,image_url,published_at,first_seen_at,sort_at)
-        VALUES(${id},${item.entry_key},${item.article_url},${item.title},${item.author},${item.summary},${item.content_key},${item.content_truncated},${item.image_url},${item.published_at},${now},${item.published_at || undated || now})
-        ON CONFLICT(feed_id,entry_key) DO UPDATE SET article_url=EXCLUDED.article_url,title=EXCLUDED.title,author=EXCLUDED.author,summary=EXCLUDED.summary,content_key=EXCLUDED.content_key,content_truncated=EXCLUDED.content_truncated,image_url=EXCLUDED.image_url,published_at=EXCLUDED.published_at,sort_at=COALESCE(EXCLUDED.published_at,sr_rss_entry.sort_at),updated_at=${now} WHERE NOT ${history}`
+      // History rows stay out of the synced latest-page window until the latest page lists them.
+      // Unchanged items are skipped so clients receive no redundant shared-cache changes.
+      await tx.$executeRaw`INSERT INTO sr_rss_entry(feed_id,entry_key,article_url,title,author,summary,content_key,content_truncated,image_url,published_at,first_seen_at,sort_at,is_history)
+        VALUES(${id},${item.entry_key},${item.article_url},${item.title},${item.author},${item.summary},${item.content_key},${item.content_truncated},${item.image_url},${item.published_at},${now},${item.published_at || undated || now},${history})
+        ON CONFLICT(feed_id,entry_key) DO UPDATE SET article_url=EXCLUDED.article_url,title=EXCLUDED.title,author=EXCLUDED.author,summary=EXCLUDED.summary,content_key=EXCLUDED.content_key,content_truncated=EXCLUDED.content_truncated,image_url=EXCLUDED.image_url,published_at=EXCLUDED.published_at,sort_at=COALESCE(EXCLUDED.published_at,sr_rss_entry.sort_at),is_history=false,updated_at=${now}
+        WHERE NOT ${history} AND (sr_rss_entry.article_url,sr_rss_entry.title,sr_rss_entry.author,sr_rss_entry.summary,sr_rss_entry.content_key,sr_rss_entry.content_truncated,sr_rss_entry.image_url,sr_rss_entry.published_at,sr_rss_entry.sort_at,sr_rss_entry.is_history)
+          IS DISTINCT FROM (EXCLUDED.article_url,EXCLUDED.title,EXCLUDED.author,EXCLUDED.summary,EXCLUDED.content_key,EXCLUDED.content_truncated,EXCLUDED.image_url,EXCLUDED.published_at,COALESCE(EXCLUDED.published_at,sr_rss_entry.sort_at),false)`
     }
   }
-  private async writeFeed(tx: Tx, id: string, result: StoredFeedResult) {
+  private async writeFeed(tx: Tx, id: string, result: StoredFeedResult, icon: string | null = null) {
     const now = new Date(),
       next = new Date(now.valueOf() + RSS_LIMITS.intervalMs)
     if (!result.unchanged) {
@@ -303,7 +309,7 @@ export class RssRepo {
         await tx.$executeRaw`UPDATE sr_rss_feed SET history_url=${nextUrl},history_seen=${seen}::text[],history_checked_at=${now},history_retry_at=NULL WHERE id=${id}`
       }
     }
-    await tx.$executeRaw`UPDATE sr_rss_feed SET error=NULL,failure_count=0,last_checked_at=${now},last_success_at=${now},next_fetch_at=${next},lease_token=NULL,lease_until=NULL WHERE id=${id}`
+    await tx.$executeRaw`UPDATE sr_rss_feed SET error=NULL,failure_count=0,last_checked_at=${now},last_success_at=${now},next_fetch_at=${next},lease_token=NULL,lease_until=NULL,icon_url=COALESCE(${icon}::text,icon_url) WHERE id=${id}`
   }
   async prune() {
     const before = new Date(Date.now() - RSS_LIMITS.retentionDays * 24 * 3600_000),
@@ -326,13 +332,17 @@ export class RssRepo {
       await tx.$executeRaw`DELETE FROM sr_rss_save_job j WHERE NOT EXISTS(SELECT 1 FROM sr_bookmark b JOIN sr_user u ON u.id=j.user_id AND u.deleted_at IS NULL WHERE b.id=j.bookmark_id)`
     })
   }
-  async entries(userId: number, subscription: string | null, cursor: RssCursor | null, limit: number): Promise<RssEntryRow[]> {
+  /**
+   * `withHistory` also returns history rows newer than the cursor: local-first clients only hold
+   * latest-page rows, so history rows above their oldest local row would otherwise never be listed.
+   */
+  async entries(userId: number, subscription: string | null, cursor: RssCursor | null, limit: number, withHistory = false): Promise<RssEntryRow[]> {
     return this.prismaPg().$queryRaw`SELECT e.*,s.id AS subscription_id,COALESCE(NULLIF(s.remark,''),f.title) AS source_title,ub.uuid AS bookmark_user_uuid
       FROM sr_rss_entry e JOIN sr_rss_feed f ON f.id=e.feed_id JOIN sr_rss_subscription s ON s.feed_id=e.feed_id
       LEFT JOIN sr_bookmark b ON b.target_url=e.article_url AND b.private_user=${userId}
       LEFT JOIN sr_user_bookmark ub ON ub.bookmark_id=b.id AND ub.user_id=${userId} AND ub.deleted_at IS NULL
       WHERE s.user_id=${userId} AND EXISTS(SELECT 1 FROM sr_user u WHERE u.id=s.user_id AND u.deleted_at IS NULL) AND (${subscription}::text IS NULL OR s.id=${subscription})
-        AND (${cursor?.at || null}::timestamp IS NULL OR (e.sort_at,e.id)<(${cursor?.at || null}::timestamp,${cursor?.id || ''}::text))
+        AND (${cursor?.at || null}::timestamp IS NULL OR (e.sort_at,e.id)<(${cursor?.at || null}::timestamp,${cursor?.id || ''}::text) OR (${withHistory} AND e.is_history))
       ORDER BY e.sort_at DESC,e.id DESC LIMIT ${limit}`
   }
   async entry(userId: number, id: string): Promise<RssEntryRow> {

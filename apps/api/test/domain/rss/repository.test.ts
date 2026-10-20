@@ -87,6 +87,8 @@ beforeAll(async () => {
   await db.exec(await readFile(timelineIndex, 'utf8'))
   const history = new URL('../../../prisma/pg_migrations/20260923065020/migration.sql', import.meta.url)
   await db.exec(await readFile(history, 'utf8'))
+  const localFirst = new URL('../../../prisma/pg_migrations/20261019090000_rss_local_first/migration.sql', import.meta.url)
+  await db.exec(await readFile(localFirst, 'utf8'))
   repo = new RssRepo(() => adapter(db))
 }, 30_000)
 beforeEach(async () => {
@@ -383,5 +385,74 @@ describe('shared Feed ownership and lifecycle', () => {
     expect((await db.query('SELECT * FROM sr_rss_feed')).rows).toEqual([])
     expect((await db.query('SELECT * FROM sr_rss_entry')).rows).toEqual([])
     expect((await db.query('SELECT * FROM sr_user_bookmark')).rows).toHaveLength(1)
+  })
+})
+
+describe('local-first synced window', () => {
+  const stable = (result: Awaited<ReturnType<typeof feed>>) => ({
+    ...result,
+    feed: { ...result.feed, items: result.feed.items.map(({ content_html, ...item }) => ({ ...item, content_key: 'rss-content/test/' + item.entry_key })) }
+  })
+  test('history rows stay outside the latest-page window until the latest page lists them', async () => {
+    const sub = await add(1, 'https://example.com/feed', await feed('<item><guid>head</guid><title>Head</title></item>'))
+    await db.query("UPDATE sr_rss_feed SET history_url='https://example.com/archive'")
+    const claim = await repo.claimHistory(1, sub.feed_id)
+    expect(claim).not.toBeNull()
+    const archive = stable(await feed('<item><guid>old</guid><title>Old archived</title></item><item><guid>head</guid><title>Archive copy</title></item>'))
+    expect(await repo.finishHistory(claim!, 'https://example.com/archive', archive)).toBe(true)
+    // entry_key is a digest of the GUID, so identify rows by their stable article titles.
+    const rows = async () => Object.fromEntries((await db.query<{ is_history: boolean; title: string }>('SELECT is_history,title FROM sr_rss_entry')).rows.map(row => [row.title, row.is_history]))
+    // A history copy of an already cached latest item neither overwrites it nor hides it.
+    expect(await rows()).toEqual({ Head: false, 'Old archived': true })
+    await due(sub.id)
+    await repo.finish(await repo.claim(1, sub.id), stable(await feed('<item><guid>old</guid><title>Old archived</title></item>')))
+    expect(await rows()).toEqual({ Head: false, 'Old archived': false })
+  })
+  test('unchanged latest-page items are not rewritten', async () => {
+    const body = '<item><guid>a</guid><title>A</title></item><item><guid>b</guid><title>B</title></item>'
+    const sub = await add(1, 'https://example.com/feed', await feed(body))
+    await db.query("UPDATE sr_rss_entry SET updated_at='2000-01-01'")
+    await due(sub.id)
+    await repo.finish(await repo.claim(1, sub.id), stable(await feed(body)))
+    const updated = async () => Object.fromEntries((await db.query<{ title: string; updated_at: Date }>('SELECT title,updated_at FROM sr_rss_entry')).rows.map(row => [row.title, row.updated_at.getUTCFullYear()]))
+    // The first add stored random keys; the stable refresh changes them once, then stays put.
+    await db.query("UPDATE sr_rss_entry SET updated_at='2000-01-01'")
+    await due(sub.id)
+    await repo.finish(await repo.claim(1, sub.id), stable(await feed('<item><guid>a</guid><title>A</title></item><item><guid>b</guid><title>B changed</title></item>')))
+    expect(await updated()).toEqual({ A: 2000, 'B changed': new Date().getUTCFullYear() })
+  })
+  test('stores the signed favicon on add and keeps it when a refresh cannot build one', async () => {
+    const pending = await repo.beginAdd(1, 'https://example.com/feed', null)
+    await repo.finishAdd(1, pending.feed!, stored(await feed()), null, 'https://images.example/icon?m=rss')
+    const icon = async () => (await db.query<{ icon_url: string | null }>('SELECT icon_url FROM sr_rss_feed')).rows[0].icon_url
+    expect(await icon()).toBe('https://images.example/icon?m=rss')
+    const [sub] = await repo.subscriptions(1)
+    await due(sub.id)
+    await repo.finish(await repo.claim(1, sub.id), { unchanged: true }, null)
+    expect(await icon()).toBe('https://images.example/icon?m=rss')
+    await due(sub.id)
+    await repo.finish(await repo.claim(1, sub.id), { unchanged: true }, 'https://images.example/new?m=rss')
+    expect(await icon()).toBe('https://images.example/new?m=rss')
+  })
+})
+
+describe('continuing after a local entry', () => {
+  test('includes history rows newer than the anchor across feeds and keeps timeline order', async () => {
+    const daily = await add(1, 'https://example.com/daily', await feed('<item><guid>d</guid><title>Daily latest</title><pubDate>Tue, 22 Sep 2026 00:00:00 GMT</pubDate></item>'))
+    await add(1, 'https://example.com/monthly', await feed('<item><guid>m</guid><title>Monthly latest</title><pubDate>Sat, 01 Aug 2026 00:00:00 GMT</pubDate></item>'))
+    // History pages of the daily feed (possibly fetched by another subscriber) sit above the monthly anchor.
+    await db.query(
+      `INSERT INTO sr_rss_entry(feed_id,entry_key,title,summary,content_key,sort_at,is_history) VALUES
+        ($1,'h-new','Daily history new','', 'rss-content/x/1','2026-09-10',true),
+        ($1,'h-old','Daily history old','', 'rss-content/x/2','2026-07-01',true)`,
+      [daily.feed_id]
+    )
+    const latest = await repo.entries(1, null, null, 20)
+    const anchor = latest.find(row => row.title === 'Monthly latest')!
+    const cursor = { at: anchor.sort_at, id: anchor.id }
+    expect((await repo.entries(1, null, cursor, 20)).map(row => row.title)).toEqual(['Daily history old'])
+    expect((await repo.entries(1, null, cursor, 20, true)).map(row => row.title)).toEqual(['Daily history new', 'Daily history old'])
+    // A selected source only sees its own rows.
+    expect((await repo.entries(1, daily.id, cursor, 20, true)).map(row => row.title)).toEqual(['Daily history new', 'Daily history old'])
   })
 })

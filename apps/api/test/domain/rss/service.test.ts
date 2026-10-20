@@ -214,6 +214,41 @@ describe('RSS service boundaries', () => {
     ] as const)
       expect(() => decodeRssCursor(raw, user, feed)).toThrow('not_found')
   })
+  test('continues after an authorized local entry and rejects ambiguous positions', async () => {
+    const { service, repo, ctx } = wire()
+    const anchor = { ...article(), id: 'cccccccc-cccc-cccc-cccc-cccccccccccc', sort_at: new Date('2026-09-20') }
+    repo.entry.mockResolvedValue(anchor)
+    repo.entries.mockResolvedValue([])
+    repo.historyFeeds.mockResolvedValue([{ id: 'feed', history_url: 'https://example.com/older', history_checked_at: new Date(), error: null }])
+    const page = await service.entries(ctx, { before: anchor.id })
+    expect(repo.entry).toHaveBeenCalledWith(7, anchor.id)
+    expect(repo.entries).toHaveBeenCalledWith(7, null, { at: anchor.sort_at, id: anchor.id }, 21, true)
+    expect(page.items).toEqual([])
+    // An empty page still continues from the anchor instead of restarting at the top.
+    expect(decodeRssCursor(page.next_cursor!, 7, null)).toEqual({ at: anchor.sort_at, id: anchor.id })
+    await expect(service.entries(ctx, { before: anchor.id, cursor: page.next_cursor! })).rejects.toMatchObject({ code: 'not_found', status: 400 })
+    await expect(service.entries(ctx, { before: 'not-an-id' })).rejects.toMatchObject({ code: 'not_found', status: 400 })
+    repo.entry.mockRejectedValue(new RssError('not_found', 404))
+    await expect(service.entries(ctx, { before: anchor.id })).rejects.toMatchObject({ code: 'not_found', status: 404 })
+  })
+  test('explicit history after a local entry loads history and re-queries with the same anchor', async () => {
+    const { service, repo, ctx } = wire()
+    const anchor = { ...article(), id: 'cccccccc-cccc-cccc-cccc-cccccccccccc', sort_at: new Date('2026-09-20') }
+    const candidate = { id: 'feed', feed_url: 'https://example.com/rss', history_url: 'https://example.com/older', history_checked_at: new Date(), error: null }
+    repo.entry.mockResolvedValue(anchor)
+    repo.entries.mockResolvedValueOnce([]).mockResolvedValueOnce([article()])
+    repo.historyFeeds.mockResolvedValue([candidate])
+    repo.claimHistory.mockResolvedValue({ ...candidate, lease_token: 'lease' })
+    const fetch = vi.spyOn(feedApi, 'fetchFeed').mockResolvedValue({ unchanged: true })
+    try {
+      const page = await service.entries(ctx, { before: anchor.id, fetch_history: '1' })
+      expect(repo.claimHistory).toHaveBeenCalled()
+      expect(repo.entries).toHaveBeenNthCalledWith(2, 7, null, { at: anchor.sort_at, id: anchor.id }, 21, true)
+      expect(page.items.map(item => item.sort_at)).toEqual([article().sort_at.toISOString()])
+    } finally {
+      fetch.mockRestore()
+    }
+  })
   test('does not dispatch a second refresh for an existing lease', async () => {
     const { service, ctx, repo } = wire()
     repo.claim.mockResolvedValue({ claimed: false, next_allowed_at: new Date() })
@@ -320,13 +355,14 @@ describe('RSS shared cache service', () => {
     bucket.client.putIfKeyExists.mockRejectedValueOnce(new Error('offline'))
     await service.refresh(ctx, 'sub')
     await (ctx.execution.waitUntil as ReturnType<typeof vi.fn>).mock.calls[0][0]
-    expect(repo.finish).toHaveBeenCalledWith(claim, expect.objectContaining({ code: 'source_unavailable' }))
+    expect(repo.finish).toHaveBeenCalledWith(claim, expect.objectContaining({ code: 'source_unavailable' }), null)
     repo.contentKeys.mockClear()
     bucket.client.putIfKeyExists.mockClear()
     fetch.mockResolvedValue({ unchanged: true })
     await service.refresh(ctx, 'sub')
     await (ctx.execution.waitUntil as ReturnType<typeof vi.fn>).mock.calls[1][0]
-    expect(repo.finish).toHaveBeenLastCalledWith(claim, { unchanged: true })
+    // 304 still records the signed favicon for local clients.
+    expect(repo.finish).toHaveBeenLastCalledWith(claim, { unchanged: true }, expect.stringContaining('m=rss'))
     expect(repo.contentKeys).not.toHaveBeenCalled()
     expect(bucket.client.putIfKeyExists).not.toHaveBeenCalled()
     fetch.mockRestore()
@@ -334,7 +370,7 @@ describe('RSS shared cache service', () => {
   test('stored HTML is returned unchanged without image reparsing or writes', async () => {
     const { service, repo, ctx, bucket } = wire()
     bucket.objects.set('rss-content/feed/body', { body: '<p>One</p><p>Two</p>', uploaded: new Date() })
-    repo.entry.mockResolvedValue({ id: 'id', content_key: 'rss-content/feed/body', first_seen_at: new Date() })
+    repo.entry.mockResolvedValue({ id: 'id', content_key: 'rss-content/feed/body', first_seen_at: new Date(), sort_at: new Date() })
     expect((await service.detail(ctx, 'id')).content_html).toBe('<p>One</p><p>Two</p>')
     expect(bucket.client.putIfKeyExists).not.toHaveBeenCalled()
   })
