@@ -36,7 +36,7 @@ Clean and repeated native generation SHALL retain the main app and Share identit
 
 ### Requirement: Base native acceptance precedes feature adoption
 
-The base upgrade SHALL pass Android Debug and minified unsigned Release builds and iOS Debug and unsigned simulator Release builds before new intent, widget or adaptive-reading dependencies/targets are introduced. Native smoke acceptance SHALL identify platform/runtime/configuration and distinguish simulator, physical-device and live-service coverage. Unavailable prerequisites MUST leave their acceptance incomplete.
+The base upgrade SHALL pass Android Debug and minified unsigned Release builds and iOS Debug and unsigned simulator Release builds before new intent or adaptive-reading dependencies/targets are introduced. Native evidence SHALL identify platform/runtime/configuration and distinguish automated, simulator and user-run service coverage. Per the human decision on 2026-10-20, unavailable user-owned hands-on, account/service and older-OS checks SHALL be recorded as unverified rather than agent PR merge prerequisites; they SHALL NOT be represented as passed. This allocation does not relax runtime behavior, authentication, privacy or account-isolation requirements, and does not waive reproducible simulator defects.
 
 #### Scenario: A base build fails
 - **WHEN** either platform fails its base native build or a required native integration is broken

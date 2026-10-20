@@ -15,6 +15,10 @@ Mobile needs a verified Expo SDK 58 foundation before adding system entry points
 - Remove the previously staged widget/Live Activity implementation, native bridges/providers/targets, settings, fixtures and dedicated dependency. Preserve standalone Share and its App Group. Retain `@expo/ui` because `expo-app-intents` requires ExpoUI.
 - Add an opt-in adaptive two-page PDF.js layout for supported Duo/window geometries, retaining the existing single-WebView document owner, single-page fallback and PDF data/security boundaries. Respect measured all-edge scene safe bounds across Inbox, drawer, Reader and anchored menus during posture changes. Use `expo-hinge` for optional pose effects; `@expo/ui` is not used for PDF presentation.
 
+## PR verification ownership — human decision, 2026-10-20
+
+PR delivery is assessed from the recorded automated checks, native generation/build evidence and authorized Duo simulator observations. The human owns hands-on device, authenticated-provider, configured-service, sandbox-purchase and older-OS exploration. Those checks are outside the agent delivery checklist and are not merge prerequisites or missing-test Compliance findings for this PR. An unperformed check remains unverified; this decision does not assert that it passed. Existing runtime behavior, authentication/admission, account isolation, privacy, revocation and minimum-OS contracts remain unchanged. Actual reproducible simulator defects, including the PDF tail/spread continuity issue, remain separately tracked and are not waived by this policy.
+
 ## Capabilities
 
 ### New Capabilities

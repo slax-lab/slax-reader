@@ -20,13 +20,17 @@ Observed baseline:
 
 The old counts (55 type errors / 185 test failures) describe an earlier upgrade investigation and are not current measurements. The active migration's SDK-57 pin is a known historical spec conflict, explicitly superseded for this task by proposal approval. Do not edit another change's delta. If mobile runtime requirements become canonical before merge, read that version and add the precise runtime delta here, preserving its other obligations.
 
-At delivery, the human approved marketing version `1.0.25`, build `774`, and previous build bound `773`. The previous bound comes from the latest `origin/dev` source metadata; it is not evidence of a published store build. Apply the values through the canonical manifest and existing native generators, preserving historical build evidence and all incomplete acceptance tasks.
+At delivery, the human approved marketing version `1.0.25`, build `774`, and previous build bound `773`. The previous bound comes from the latest `origin/dev` source metadata; it is not evidence of a published store build. Apply the values through the canonical manifest and existing native generators, preserving historical build evidence and accurately scoped remaining simulator work.
 
 ## Goals / Non-Goals
 
 **Goals:** isolate upgrade regressions before feature adoption; retain recoverable offline data and account ownership; keep entry points behind typed controllers; use system surfaces without starting a second application runtime or database owner.
 
 **Non-Goals:** audio/TTS, new backend endpoints, navigation migration, replacing the PDF engine, enabling experimental module/SPM pipelines, remote activity pushes, or changing ordinary Reader defaults. Home/Desktop Widgets and Live Activity are outside current delivery after the human removal decision on 2026-10-20; Duo remains a prototype with explicit native acceptance.
+
+## PR verification ownership — human decision, 2026-10-20
+
+PR delivery is assessed from the recorded automated checks, native generation/build evidence and authorized Duo simulator observations. The human owns hands-on device, authenticated-provider, configured-service, sandbox-purchase and older-OS exploration. Those checks are outside the agent delivery checklist and are not merge prerequisites or missing-test Compliance findings for this PR. An unperformed check remains unverified; this decision does not assert that it passed. Existing runtime behavior, authentication/admission, account isolation, privacy, revocation and minimum-OS contracts remain unchanged. Actual reproducible simulator defects, including the PDF tail/spread continuity issue, remain separately tracked and are not waived by this policy.
 
 ## Decisions
 
@@ -96,7 +100,7 @@ Alternative considered: replace the PDF engine or add a second full Reader. Reje
 1. Review this proposal, including the four optional package groups. No application code has been changed during planning.
 2. Capture current SDK-57 check/bundle results and task-owned build output locations, then upgrade only dependencies and owned generators.
 3. Generate and build both platforms; stop additional feature work on a red native build. Record toolchain, runtime, configuration, and passed/blocked checks without copying credentials.
-4. Clear strict types/harness failures and exercise login, Share, IAP, HTML/PDF, cold/offline relaunch, synchronization and images. Sandbox purchases and provider callbacks need actual supported native targets; mocks do not certify them.
+4. Clear strict types/harness failures, record actual build/CI coverage, and exercise the authorized Duo HTML/PDF and layout scenarios. Provider, service-backed and sandbox-purchase exploration is user-owned outside PR gates; automated coverage does not certify those manual outcomes.
 5. Implement the save spike, then MVP and adaptive prototype in that order, validating native targets after each dependency/target addition.
 6. Run integrated checks and the three `REVIEW.md` passes. Obtain the human's Mobile version/build decision, regenerate metadata if approved, and recheck affected output. Reconcile canonical runtime specs if present, validate OpenSpec, and prepare one PR targeting `dev` after accounting for the temporary base's inherited diff.
 7. Keep task work recoverable. Roll back an unshipped failing stage by reverting its owned dependency/plugin/source commits and regenerating; do not remove offline data or overwrite operator inputs. Archive only after merge. Publication and remote deployment require their own authorization.
