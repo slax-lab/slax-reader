@@ -1,3 +1,5 @@
+import type {BookmarkRecord} from './repositories/types.ts';
+import type {BookmarkSearchHit, BookmarkSearchRequest} from '@slax-reader/contracts';
 import type { ApiResponse, RssSubscriptionsResponse, RssSubscription, RssRefreshResponse, RssEntriesResponse, RssEntryDetail, RssSaveResponse, AddRssSubscriptionRequest, UpdateRssSubscriptionRequest, AddUrlBookmarkRequest, JsonValue } from '@slax-reader/contracts';
 import type { SessionAuthority } from '../domain/session.ts';
 import {throwIfAborted} from '../utils/abort.ts';
@@ -307,6 +309,14 @@ export class SlaxApi {
     } catch (error) {check(); throw error;}
     finally {clearTimeout(timer); signal?.removeEventListener('abort', abort); if (response?.body && !response.body.locked) void response.body.cancel().catch(() => undefined);}
   };
+  searchBookmarks = (query: BookmarkSearchRequest, signal?: AbortSignal) => this.request<BookmarkSearchHit[]>('/v1/bookmark/search', 'POST', query, undefined, signal);
+  getSearchBookmark = (bookmarkId: string | number, signal?: AbortSignal) => this.request<{bookmark_user_uuid?: string; uuid?: string; title?: string}>('/v1/bookmark/detail', 'GET', undefined, {bookmark_id: String(bookmarkId)}, signal);
+  async getRemoteBookmark(id: string, signal?: AbortSignal): Promise<BookmarkRecord | null> {
+    const value = await this.request<{uuid: string; bookmark_user_uuid: string; title: string; alias_title: string; target_url: string; status: string; created_at: string; updated_at: string; archive_status: number; is_starred: boolean; is_read: boolean; type: 'article' | 'shortcut' | 'pdf'; tags?: {uuid?: string}[]}>('/v1/bookmark/metadata', 'GET', undefined, {bookmark_uid: id}, signal);
+    if (value.bookmark_user_uuid !== id) throw new ApiError(502, 'Bookmark identity changed');
+    const session = await this.options.sessions.getSession();
+    return {id, userId: session?.userId ?? '', aliasTitle: value.alias_title, title: value.title, url: value.target_url, status: value.status, createdAt: value.created_at, updatedAt: value.updated_at, archiveStatus: value.archive_status, isStarred: value.is_starred ? 1 : 0, isRead: value.is_read ? 1 : 0, contentType: value.type, metadata: JSON.stringify({tags: (value.tags ?? []).flatMap(tag => tag.uuid ? [tag.uuid] : []), bookmark: value}), downloadStatus: 0, isAutoCached: true};
+  }
   getSyncToken = (signal?: AbortSignal) => this.request<SyncCredentials>('/v1/sync/token', 'POST', undefined, undefined, signal);
   uploadChanges = (changes: SyncChange[]) => this.request<{status: boolean}>('/v1/sync/changes', 'POST', changes);
   async getBookmarkRawContent(bookmarkId: string, signal?: AbortSignal): Promise<string> {

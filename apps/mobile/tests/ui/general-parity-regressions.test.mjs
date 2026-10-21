@@ -11,7 +11,10 @@ import {observeRelativeBoundaries} from '../reader/observe-mock.mjs';
 const require = createRequire(import.meta.url);
 const domPath = require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]});
 async function load(file, boundaries = {}, globals = {}) {
-  boundaries = {...observeRelativeBoundaries(boundaries), ...boundaries};
+  const passthrough = ({children}) => children ?? null;
+  const drawer = {SourceDrawer: passthrough, DrawerScrollBoundary: passthrough, useDrawerGesture: () => null, useDrawerInput: () => null};
+  boundaries = {'./SourceDrawer': drawer, '../components/SourceDrawer': drawer, '../components/SearchGlyph': {SearchGlyph: () => null},
+    ...observeRelativeBoundaries(boundaries), ...boundaries};
   const code = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},
   }).outputText;
@@ -238,7 +241,7 @@ for (const zone of ['Asia/Shanghai', 'America/Los_Angeles']) test(`mounted Libra
     const v = views(), selection = await load('../../src/screens/collection-selection.ts');
     let onCollections, onSubscription;
     const rows = [{id: 'shared-bookmark', title: 'Shared'}];
-    const subscriptions = {watchBookmarks: () => () => {}, watchCollections: callback => {onCollections = callback; return () => {};}, watchUser: () => () => {}, watchSubscription: callback => {onSubscription = callback; return () => {};}, watchCollectionBookmarks: (_owner, callback) => {callback(rows); return () => {};}};
+    const subscriptions = {library: {watch: (_sort, owner, callback) => {if (owner) callback(rows); return () => {};}}, watchLibraryCollections: callback => {onCollections = callback; callback([]); return () => {};}, watchLibraryUser: () => () => {}, watchBookmarks: () => () => {}, watchCollections: callback => {onCollections = callback; return () => {};}, watchUser: () => () => {}, watchSubscription: callback => {onSubscription = callback; return () => {};}, watchCollectionBookmarks: (_owner, callback) => {callback(rows); return () => {};}};
     const rssState = {enabled: false};
     class RssController {subscribe = () => () => {}; getSnapshot = () => rssState; activate() {} dispose() {} cancel() {} poll() {} async load() {}}
     const context = {t: key => key, repositories: subscriptions, preferences: {}, runtime: {getDatabase: () => null, getNativeResourceOwner: () => 'owner'}, api: {}, sessions: {}, config: {platform: 'ios'}, nativeResourceOwner: 'owner', upgrade: {status: 'ready'}};
@@ -249,11 +252,11 @@ for (const zone of ['Asia/Shanghai', 'America/Los_Angeles']) test(`mounted Libra
     const {LibraryScreen} = await load('../../src/screens/LibraryScreen.tsx', {
       react: React, 'react-native': {...v.primitives, Animated: {}, AppState: {currentState: 'active', addEventListener: () => ({remove() {}})}, Linking: {}, PixelRatio: {roundToNearestPixel: value => value}, Platform: {OS: 'ios', select: values => values.default}, StyleSheet: {create: value => value, absoluteFill: {}}, useWindowDimensions: () => ({width: 375, height: 800})},
       '@react-navigation/native': {useFocusEffect: callback => React.useEffect(callback, [callback])}, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'expo-network': {useNetworkState: () => ({isConnected: true})},
-      '../telemetry': {useTelemetry: () => telemetry}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: v.native('SourceShape')}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
+      '../telemetry': {useTelemetry: () => telemetry}, '../components/LibrarySyncAvatar': {LibrarySyncAvatar: nil}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: v.native('SourceShape')}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
       './LibraryDataStatus': {LibraryDataStatus: nil}, '../components/PdfImportDialog': {PdfImportDialog: nil}, '../pdf/usePdfLab': {usePdfLab: () => ({ready: true, enabled: false})},
-      '../components': components, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => context}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../utils/source-time': time,
+      '../components': components, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => context}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer'), DrawerScrollBoundary: ({children}) => children}, '../utils/source-time': time,
     }, {Date: class extends Date {static now() {return Date.UTC(2026, 9, 11, 12);}}});
-    await act(async () => root.render(React.createElement(LibraryScreen, {navigation: {navigate() {}}})));
+    await act(async () => root.render(React.createElement(LibraryScreen, {navigation: {navigate() {}}, route: {params: {}}})));
     assert.equal(v.all('View').some(props => props.testID === 'library-collection-strip'), false, 'No collection must not reserve a selector strip');
     const collection = {id: 'shared', name: 'Shared', ownerId: 'owner', status: 1, hasNew: false, subscriptionEndTime: '2026-10-11 13:00:00'};
     await act(async () => {onCollections([collection]); onSubscription([{subscription_end_time: collection.subscriptionEndTime}]);});

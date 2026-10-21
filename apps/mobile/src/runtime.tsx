@@ -1,3 +1,4 @@
+import {AvatarResourcesContext} from './components/AvatarResources';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {AppState, Platform} from 'react-native';
 import { getLocales } from 'expo-localization';
@@ -213,7 +214,7 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
   [runtime, preferences, nativeResourceOwner, systemSurfaces, systemEntry, repositories, cache, session, upgrade, settings, locale, t, config, payments, retryStart]);
   const saveOwner = session.status === 'authenticated' && nativeResourceOwner ? {userId: session.session.userId, origin: apiUrl, generation: nativeResourceOwner} : null;
   const saveReady = Boolean(saveOwner && upgrade.status === 'ready' && credentialState.status === 'ready' && repositories);
-  return <MobileContext.Provider value={value}><ReadingContext.Provider value={reading}>{children}<SaveURLHost controller={systemActions} router={systemEntry.router} owner={saveOwner} ready={saveReady} appIntents={appIntents} t={t}/></ReadingContext.Provider></MobileContext.Provider>;
+  return <MobileContext.Provider value={value}><ReadingContext.Provider value={reading}><AvatarResourcesContext.Provider value={dataReady ? runtime.getAvatarCache?.() ?? null : null}>{children}<SaveURLHost controller={systemActions} router={systemEntry.router} owner={saveOwner} ready={saveReady} appIntents={appIntents} t={t}/></AvatarResourcesContext.Provider></ReadingContext.Provider></MobileContext.Provider>;
 }
 export function useReadingMobile(): MobileContextValue {
   const context = useContext(ReadingContext);

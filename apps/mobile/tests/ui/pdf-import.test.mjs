@@ -11,7 +11,10 @@ import {countingObserve, observeRelativeBoundaries, readiness} from '../reader/o
 const require = createRequire(import.meta.url);
 const domPath = require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]});
 async function load(file, boundaries = {}, globals = {}) {
-  boundaries = {...observeRelativeBoundaries(boundaries), ...boundaries};
+  const passthrough = ({children}) => children ?? null;
+  const drawer = {SourceDrawer: passthrough, DrawerScrollBoundary: passthrough, useDrawerGesture: () => null, useDrawerInput: () => null};
+  boundaries = {'./SourceDrawer': drawer, '../components/SourceDrawer': drawer, '../components/SearchGlyph': {SearchGlyph: () => null},
+    ...observeRelativeBoundaries(boundaries), ...boundaries};
   const code = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},
   }).outputText;
@@ -77,16 +80,19 @@ async function harness(root, platform = 'ios', development = false) {
   const repositories = {
     watchRows(sql, params, rows, error) {const watch = {sql, params, rows, error, stopped: 0}; h.watches.push(watch); return () => {watch.stopped++;};},
     watchBookmarks(sort, rows) {const watch = {sort, rows, stopped: 0}; h.bookmarkWatches.push(watch); return () => {watch.stopped++;};},
+    library: {watch(sort, _owner, rows) {const watch = {sort, rows, stopped: 0}; h.bookmarkWatches.push(watch); return () => {watch.stopped++;};}},
+    watchLibraryCollections: () => () => {}, watchLibraryUser: () => () => {},
     watchCollections: () => () => {}, watchUser: () => () => {}, watchSubscription: () => () => {},
     createBookmark: async url => {h.created.push(url);},
   };
   const runtime = {getNativeResourceOwner: () => h.owner, getDatabase: () => null};
-  const mobile = {t: value => value, api, repositories, runtime, preferences: {update: async () => {}}, sessions: {}, settings: {}, locale: 'en', config: {platform}, upgrade: {status: 'ready'}};
+  const mobile = {t: value => value, api, repositories, runtime, preferences: {read: async () => ({}), update: async () => {}}, sessions: {}, settings: {}, locale: 'en', config: {platform}, upgrade: {status: 'ready'}};
   Object.assign(runtime, {getRepositories: () => repositories, getAccountPreferences: () => mobile.preferences, getUpgradeSnapshot: () => mobile.upgrade});
   const useMobile = () => ({...mobile, nativeResourceOwner: h.owner, fixtureOnly: h.fixtureOnly});
   const navigation = {useFocusEffect: callback => React.useEffect(() => h.focused ? callback() : undefined, [callback, h.focused])};
   const native = {...v.primitives, Platform: {OS: platform, select: values => values[platform] ?? values.default}, StyleSheet: {create: value => value, absoluteFill: {}}, PixelRatio: {roundToNearestPixel: value => value}, Animated: {}, Linking: {}, useWindowDimensions: () => ({width: 375, height: 800, fontScale: 1}), AppState: {currentState: 'active', addEventListener(name, callback) {assert.equal(name, 'change'); listeners.add(callback); return {remove() {listeners.delete(callback);}};}}};
-  const common = {react: React, 'react-native': native, '../runtime': {useMobile}, '../theme': theme, '../theme/testIds': {mobileTestIds: {AddLinkDialog: 'add-link', AddLinkError: 'link-error'}}, './SourceUI': v.ui};
+  const labsCache = await load('../../src/settings/labs-cache.ts');
+  const common = {react: React, 'react-native': native, '../runtime': {useMobile}, '../theme': theme, '../theme/testIds': {mobileTestIds: {AddLinkDialog: 'add-link', AddLinkError: 'link-error'}}, './SourceUI': v.ui, '../settings/labs-cache': labsCache};
   const {PdfImportDialog} = await load('../../src/components/PdfImportDialog.tsx', {...common, 'expo-file-system': {File}, '@slax-reader/contracts/pdf': contracts, '../native/pdf-import': {pickPdf() {h.pickCalls++; return h.pick();}, removePickedPdf: async uri => {h.removed.push(uri);}}}, {...timers, __DEV__: development});
   const {LinkInputDialog} = await load('../../src/components/LinkInputDialog.tsx', {...common, 'expo-clipboard': {getStringAsync: async () => {h.clipboardCalls++; return h.clipboard;}}}, timers);
   const {usePdfLab} = await load('../../src/pdf/usePdfLab.ts', {...common, '@react-navigation/native': navigation});
@@ -112,12 +118,12 @@ async function harness(root, platform = 'ios', development = false) {
     const reset = value => h.reset.push(value);
     const {LibraryScreen} = await load('../../src/screens/LibraryScreen.tsx', {
       ...common, './LibraryDataStatus': {LibraryDataStatus: nil}, '@react-navigation/native': navigation, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'expo-network': {useNetworkState: () => ({isConnected: true})},
-      '../telemetry': {useTelemetry: () => telemetry}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: v.native('SourceShape')}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
-      '../components': {...v.ui, BookmarkRow: nil, LinkInputDialog, RssFeed: nil, RssFeedSwitcher: nil, SourceAvatar: nil, SourceMenu: props => {h.sortMenu = props; return null;}}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, './collection-selection': await load('../../src/screens/collection-selection.ts'), '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../utils/source-time': await load('../../src/utils/source-time.ts'), '../components/PdfImportDialog': {PdfImportDialog}, '../pdf/usePdfLab': {usePdfLab},
+      '../telemetry': {useTelemetry: () => telemetry}, '../components/LibrarySyncAvatar': {LibrarySyncAvatar: nil}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: v.native('SourceShape')}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
+      '../components': {...v.ui, BookmarkRow: nil, LinkInputDialog, RssFeed: nil, RssFeedSwitcher: nil, SourceAvatar: nil, SourceMenu: props => {h.sortMenu = props; return null;}}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, './collection-selection': await load('../../src/screens/collection-selection.ts'), '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer'), DrawerScrollBoundary: ({children}) => children}, '../utils/source-time': await load('../../src/utils/source-time.ts'), '../components/PdfImportDialog': {PdfImportDialog}, '../pdf/usePdfLab': {usePdfLab},
       '../observe': observe.module, '../observe/readiness': readiness,
     });
     const navigator = {navigate: (...args) => h.navigations.push(args)};
-    h.render = () => root.render(React.createElement(LibraryScreen, {navigation: navigator}));
+    h.render = () => root.render(React.createElement(LibraryScreen, {navigation: navigator, route: {params: {}}}));
     await act(async () => h.render());
   };
   h.openLibraryImport = async () => {
@@ -134,7 +140,7 @@ async function harness(root, platform = 'ios', development = false) {
     const scope = await load('../../src/settings/account-scope.ts', {react: React});
     const surfacePreferences = await load('../../src/settings/system-surface-preferences.ts');
     const settingsState = await load('../../src/settings/useSettingsState.ts', {react: React, './system-surface-preferences': surfacePreferences});
-    const rssLab = await load('../../src/settings/useRssLab.ts', {...common, '@react-navigation/native': navigation});
+    const rssLab = await load('../../src/settings/useRssLab.ts', {...common, '@react-navigation/native': navigation, './labs-cache': labsCache});
     const settingsView = await load('../../src/settings/SettingsView.tsx', {...common, '../components': v.ui, '../components/SourceParagraph': {SourceParagraph: nil}});
     const {SettingsScreen} = await load('../../src/screens/SettingsScreen.tsx', {
       ...common, '../pdf/usePdfLab': {usePdfLab}, '../settings/account-scope': scope,

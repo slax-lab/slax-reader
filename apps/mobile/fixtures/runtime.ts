@@ -217,6 +217,7 @@ export async function createFixtureRuntime(scenario: string, payload: FixturePay
     const payments = new PaymentController({async start() {}, async products() {}, async purchase() {throw new Error('Native purchases are disabled in UI fixtures');}, async finish() {}, async restore() {return [];}, async pending() {return [];}, async entitlements() {return [];}, async stop() {}}, sessions, preferences, async () => ({ok: false}));
     const worker = () => {if (!queue || stopped) throw new Error('This fixture has no active PDF cache scope'); return queue;};
     const runtime: MobileDataRuntime = {preferences, sessions, api,
+      markLibraryPresented() {}, getAvatarCache: () => null,
       setForeground: active => controls.setForeground(active), async start() {},
       async stop() {stopped = true; controls.dispose(); activityListener?.remove(); stopPdfActions?.(); await revoke(); await database?.close(); database = null; repositories = null; cache = null; if (seedDirectory?.exists) seedDirectory.delete();},
       getAccountPreferences: () => {const account = lease; return account ? preferences.scoped(() => account.assertActive()) : preferences;},

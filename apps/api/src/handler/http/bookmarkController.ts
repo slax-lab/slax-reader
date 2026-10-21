@@ -1,3 +1,4 @@
+import { parseBookmarkSearchRequest } from '@slax-reader/contracts'
 import type {
   AddBookmarkRequest,
   AddUrlBookmarkRequest,
@@ -523,10 +524,10 @@ export class BookmarkController {
    */
   @Post('/search')
   public async handleUserBookmarkSearchRequest(ctx: ContextManager, request: Request) {
-    const params = await RequestUtils.json<{ keyword: string }>(request)
-    if (!params || !params.keyword) return Failed(ErrorParam())
+    const params = parseBookmarkSearchRequest(await RequestUtils.json<unknown>(request))
+    if (!params) return Failed(ErrorParam())
 
-    const searchResult = await this.searchService.hybridSearch(ctx, params.keyword)
+    const searchResult = await this.searchService.hybridSearch(ctx, params.keyword, [], params.tag_uuids)
     return Successed(
       searchResult.map(item => {
         item.bookmark_id = ctx.hashIds.encodeId(item.bookmark_id)

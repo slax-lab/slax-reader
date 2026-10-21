@@ -1,12 +1,12 @@
 import React from 'react';
 import {Pressable, StyleSheet, View} from 'react-native';
-import {SourceProgress, SourceText} from '../components';
+import {SourceText} from '../components';
 import type {MobileContextValue} from '../runtime';
 import {mobileColors as C} from '../theme';
 
 export function LibraryDataStatus({upgrade, t, retryStart}: Pick<MobileContextValue, 'upgrade' | 't' | 'retryStart'>) {
   if (upgrade.status !== 'verification-required' && upgrade.status !== 'error') {
-    return <View testID="library-local-data-loading" accessibilityState={{busy: true}} style={styles.loading}><SourceProgress /></View>;
+    return <View testID="library-local-data-loading" accessibilityState={{busy: true}} />;
   }
   return <View testID="library-local-data-recovery" style={styles.recovery}>
     <SourceText style={styles.title}>{t(upgrade.status === 'verification-required' ? 'upgrade_required_title' : 'data_open_failed_title')}</SourceText>
@@ -16,7 +16,6 @@ export function LibraryDataStatus({upgrade, t, retryStart}: Pick<MobileContextVa
 }
 
 const styles = StyleSheet.create({
-  loading: {paddingHorizontal: 24, paddingTop: 24},
   recovery: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24},
   title: {fontSize: 18, color: C.text, textAlign: 'center'},
   message: {fontSize: 14, lineHeight: 21, color: C.secondaryText, textAlign: 'center', marginTop: 16},

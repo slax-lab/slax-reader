@@ -4,9 +4,9 @@ import {systemBookmarkId, toBookmarkEntities} from '../../src/system-actions/cat
 
 const row = (id, overrides = {}) => ({id, title: 'Article title', aliasTitle: '', url: 'https://example.com/private/path?token=secret', status: 'success', createdAt: '2026-10-20', archiveStatus: 0, ...overrides});
 
-test('system catalog keeps at most 100 recent eligible title/host/opaque-id fields and strips full URLs', () => {
-  const result = toBookmarkEntities(Array.from({length: 120}, (_, index) => row(`id-${index}`)));
-  assert.equal(result.length, 100); assert.equal(result[0].id, systemBookmarkId('', 'id-0'));
+test('system catalog keeps at most 500 recent eligible title/host/opaque-id fields and strips full URLs', () => {
+  const result = toBookmarkEntities(Array.from({length: 520}, (_, index) => row(`id-${index}`)));
+  assert.equal(result.length, 500); assert.equal(result[0].id, systemBookmarkId('', 'id-0'));
   assert.deepEqual(result[0], {id: systemBookmarkId('', 'id-0'), title: 'Article title', subtitle: 'example.com', synonyms: [], metadata: {sourceHost: 'example.com'}});
   assert.equal(JSON.stringify(result).includes('/private/path'), false); assert.equal(JSON.stringify(result).includes('secret'), false);
 });

@@ -108,7 +108,7 @@ test('fixture runtime activates a unique native reader owner and obsolete dispos
   class File extends Directory {write(value) {files.set(this.uri, value);} async text() {return files.get(this.uri);}}
   class Database {async init() {} async writeTransaction(work) {await work({execute: async () => {}});} async close() {events.push('close');}}
   class Sessions {constructor(_preferences, lifecycle) {this.lifecycle = lifecycle;} async restore() {await this.lifecycle.enter({userId: 'fixture-user'});} getSnapshot() {return {status: 'authenticated'};}}
-  class Cache {constructor(dataDirectory) {this.dataDirectory = dataDirectory;}}
+  class Cache {constructor(dataDirectory) {this.dataDirectory = dataDirectory;} setAvatarCache(avatars) {this.avatars = avatars;}}
   class Queue {start() {events.push('start');} cancel() {} async stop() {} async pdfCacheStatus() {return {complete: false, downloadedBytes: 0, totalBytes: 0};}}
   class Lease {assertActive() {} invalidate() {} async drainWrites() {}}
   const boundaries = {...Object.fromEntries(runtimeImports.map(name => [name, {}])),

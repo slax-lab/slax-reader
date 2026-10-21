@@ -91,7 +91,8 @@ describe('search highlight rendering boundary', () => {
       delete: vi.fn()
     }
     const repo = {
-      getUserBookmarkUuidsByBmIds: vi.fn().mockResolvedValue(new Map([[11, 'fts-uuid'], [12, 'vector-uuid']]))
+      getUserBookmarkUuidsByBmIds: vi.fn().mockResolvedValue(new Map([[11, 'fts-uuid'], [12, 'vector-uuid']])),
+      getSearchEligibleBookmarks: vi.fn().mockResolvedValue([{bookmark_id: 11}, {bookmark_id: 12}])
     }
     const searchRepo = {
       seachBM25: vi.fn().mockResolvedValue([{
@@ -124,5 +125,26 @@ describe('search highlight rendering boundary', () => {
     expect(kv.get.mock.calls.map(([key]) => key).sort()).toEqual([...cached.keys()].sort())
     expect(kv.put).not.toHaveBeenCalled()
     expect(kv.delete).not.toHaveBeenCalled()
+  })
+
+  test('rejects unknown or foreign requested tags before consulting cached FTS or vector candidates', async () => {
+    const kv = { get: vi.fn(), put: vi.fn(), delete: vi.fn() }
+    const repo = {getSearchEligibleBookmarks: vi.fn().mockResolvedValue([])}
+    const searchRepo = {seachBM25: vi.fn(), getBookmarkRaw: vi.fn()}
+    const vectorRepo = {seachVector: vi.fn()}
+    const service = new SearchService(
+      repo as never,
+      {getUserSubscriptionInfo: vi.fn().mockResolvedValue(null)} as never,
+      searchRepo as never,
+      vectorRepo as never
+    )
+
+    const results = await service.hybridSearch({getUserId: () => 7, env: {KV: kv}} as never, 'private term', [], ['foreign-tag'])
+
+    expect(results).toEqual([])
+    expect(repo.getSearchEligibleBookmarks).toHaveBeenCalledWith(7, ['foreign-tag'])
+    expect(kv.get).not.toHaveBeenCalled()
+    expect(searchRepo.seachBM25).not.toHaveBeenCalled()
+    expect(vectorRepo.seachVector).not.toHaveBeenCalled()
   })
 })

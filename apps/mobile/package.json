@@ -1,8 +1,8 @@
 {
   "name": "@apps/slax-reader-mobile",
   "version": "1.0.25",
-  "buildNumber": 778,
-  "previousBuildNumber": 777,
+  "buildNumber": 782,
+  "previousBuildNumber": 781,
   "private": true,
   "main": "index.ts",
   "scripts": {

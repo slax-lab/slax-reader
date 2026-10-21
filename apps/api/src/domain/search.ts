@@ -124,7 +124,7 @@ export class SearchService {
     }))
   }
 
-  public async hybridSearch(ctx: ContextManager, fulltextContent: string, vectorizeContent: string[] = []) {
+  public async hybridSearch(ctx: ContextManager, fulltextContent: string, vectorizeContent: string[] = [], tagUuids: string[] = []) {
     const userInfo = await this.subscriptionRepo.getUserSubscriptionInfo(ctx.getUserId())
     if (userInfo?.subscription_end_time && userInfo.subscription_end_time > new Date()) {
       if (vectorizeContent.length < 1) vectorizeContent = [fulltextContent]
@@ -132,6 +132,8 @@ export class SearchService {
     if (fulltextContent.length < 1 && vectorizeContent.length < 1) return []
     if (vectorizeContent.length < 1) vectorizeContent = [fulltextContent]
 
+    const eligible = new Set((await this.bookmarkRepo.getSearchEligibleBookmarks(ctx.getUserId(), tagUuids)).map(row => row.bookmark_id))
+    if (!eligible.size) return []
     const normalizer = new Normalizer(ctx.env)
     // 查找用户拥有的bookmark list
     const t1 = performance.now()
@@ -143,7 +145,7 @@ export class SearchService {
     ])
     console.log(`get base data time: ${performance.now() - t1} ms`)
 
-    const bmList = bmListRes.status === 'fulfilled' ? bmListRes.value : []
+    const bmList = bmListRes.status === 'fulfilled' ? bmListRes.value.filter(row => eligible.has(row.bmId)) : []
     const vectorizeResult = vectorizeResultRes.status === 'fulfilled' ? vectorizeResultRes.value : []
     const jbSearchContent = jbSearchContentRes.status === 'fulfilled' ? jbSearchContentRes.value : ''
 
@@ -192,9 +194,9 @@ export class SearchService {
     const matchedIds = Object.keys(hybridSearchMap).map(Number)
 
     const t3 = performance.now()
-    const [rawList, uuidMap] = await Promise.all([
+    const [rawList, currentRows] = await Promise.all([
       returnTableIds.length > 0 ? this.bookmarkSearchRepo.getBookmarkRaw(returnTableIds) : Promise.resolve([] as Awaited<ReturnType<BookmarkSearchRepo['getBookmarkRaw']>>),
-      this.bookmarkRepo.getUserBookmarkUuidsByBmIds(ctx.getUserId(), matchedIds)
+      this.bookmarkRepo.getSearchEligibleBookmarks(ctx.getUserId(), tagUuids, matchedIds)
     ])
 
     rawList.forEach(item => {
@@ -205,6 +207,8 @@ export class SearchService {
     console.log(`get raw & uuid data cost: ${performance.now() - t3} ms`)
 
     // return processHybridSearchRerank(env, fulltextContent, hybridSearchMap)
+    const uuidMap = new Map(currentRows.map(row => [row.bookmark_id, row.uuid]))
+    for (const id of matchedIds) if (!uuidMap.has(id)) delete hybridSearchMap[id]
     return this.processHybridSearchList(hybridSearchMap, uuidMap)
   }
 
@@ -303,7 +307,7 @@ export class SearchService {
     // bm25单次搜50条左右的文章效率最高
     // 分割bmIds为50条一组
     // WARING: 这里只能是50条，不能改为别的。如果要改，必须要用explain Query plan真实SQL检查一次是否会全表搜索
-    const bmIdGroups = userBookmarkItem.map((_, i) => userBookmarkItem.slice(i * 50, (i + 1) * 50))
+    const bmIdGroups = Array.from({ length: Math.ceil(userBookmarkItem.length / 50) }, (_, i) => userBookmarkItem.slice(i * 50, (i + 1) * 50))
     const fullTextPromises = []
     for (const bmIdGroup of bmIdGroups) {
       if (bmIdGroup.length < 1) continue
@@ -315,7 +319,7 @@ export class SearchService {
       )
     }
 
-    console.log(`user ${ctx.getUserId()} fulltext search, \nsearch content: ${jbSearchContent}, bmIds: ${userBookmarkItem.length}, tasks: ${fullTextPromises.length}`)
+    console.log(`fulltext search candidates: ${userBookmarkItem.length}, tasks: ${fullTextPromises.length}`)
 
     const res = (await Promise.allSettled(fullTextPromises))
       .filter(item => item.status === 'fulfilled')

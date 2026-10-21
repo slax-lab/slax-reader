@@ -64,3 +64,12 @@ See [deployment](CLOUDFLARE-DEPLOY-EN.md) for explicitly authorized cloud operat
 ## Full development startup and external CI configuration
 
 After preparing development resources and environment files, run `pnpm api -- setup`; `setup --check` performs local prerequisite checks only. Setup performs Wrangler login, initializes dependencies, applies migrations and generates code, then exits. Run `pnpm api -- dev` separately to start Workers. Vectorize/AI still require cloud resources. All tools honor `SLAX_API_CONFIG` (absolute or repository-root relative); types also accepts `--config`. Merged releases use the single merged-PR deployment workflow with private declarative configuration and environment-scoped Actions Secrets. See the [current setup and merged-release CI guide](DEV-AND-CI-EN.md) and [Docker adapter research (Chinese)](DOCKER-ADAPTER-RESEARCH-CN.md).
+
+
+## Saved-article search filters
+
+`POST /v1/bookmark/search` accepts `{ "keyword": "reader", "tag_uuids": [] }`. Existing keyword-only clients remain compatible. Keywords are trimmed, nonempty and at most 500 Unicode code points; an optional list contains at most 20 tag UUIDs. Repeated UUIDs are deduplicated. All tags must belong to the authenticated user and every selected tag must be attached to a candidate's current nondeleted saved bookmark. Unknown/foreign tags yield no results. Fulltext and vector retrieval share this candidate boundary, with live ownership/tag revalidation before response publication.
+
+The endpoint searches only the caller's saved titles and bodies. Unsaved RSS and other users' Collection bodies are not a cloud search scope. Uploaded and URL-captured PDFs enter both index paths after successful asynchronous text extraction and indexing; file-storage success or pending/empty/failed extraction does not prove searchable body coverage. Production index rebuilding and deployment are separate operator actions.
+
+Mobile Search runs local metadata retrieval while typing and invokes this API on explicit keyword submission. The optional filters and additive `bookmark_user_uuid` plus action-state fields in bookmark metadata support not-yet-synchronized saved hits without creating a second synchronized record.

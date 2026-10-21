@@ -31,6 +31,10 @@ export async function loadComponent(path, boundaries, globals = {}) {
   boundaries = {
     expo: {requireNativeModule() {throw new Error('Native Expo module unavailable in parity host');}},
     'expo-app-intents': {isAvailable: () => false, useAppIntents() {}, removePendingInvocationAsync: async () => {}, setEntityCatalogAsync: async () => {throw new Error('App Intents unavailable in parity host');}, deleteDonationsAsync: async () => {throw new Error('App Intents unavailable in parity host');}, donateIntentAsync: async () => {throw new Error('App Intents unavailable in parity host');}},
+    'expo-image': {Image: () => null, loadAsync: async () => ({width: 1, height: 1, release() {}})},
+    'expo-haptics': {impactAsync: async () => {}, notificationAsync: async () => {}, selectionAsync: async () => {}},
+    'expo-clipboard': {getStringAsync: async () => '', setStringAsync: async () => {}},
+    '@slax-reader/contracts/pdf': {PDF_MAX_BYTES: 50 * 1024 * 1024},
     ...boundaries,
   }
   boundaries = {...observeBoundaries(boundaries), ...motionModules(boundaries), ...boundaries}
@@ -46,6 +50,18 @@ export async function loadComponent(path, boundaries, globals = {}) {
   const entry = new URL(path, import.meta.url)
   const normalize = url => url.href.replace(/\.(tsx?|jsx?)$/, '').replace(/\/index$/, '')
   const mapped = new Map(Object.entries(boundaries).map(([name, value]) => [name.startsWith('.') ? normalize(new URL(name, entry)) : name, value]))
+  const fallbackLocalBoundary = url => {
+    const name = url.pathname.split('/').at(-1)?.replace(/\.(tsx?|jsx?)$/, '')
+    if (name === 'AvatarResources') return {AvatarResourcesContext: React.createContext(null), useAvatarResource: (_slot, url) => url}
+    if (name === 'SearchGlyph') return {SearchGlyph: () => null}
+    if (name === 'SourceDrawer') return {
+      SourceDrawer: ({children}) => children ?? null,
+      DrawerScrollBoundary: ({children}) => children ?? null,
+      useDrawerGesture: () => null,
+      useDrawerInput: () => null,
+    }
+    return undefined
+  }
   const modules = new Map()
   const load = async url => {
     const key = normalize(url)
@@ -61,7 +77,12 @@ export async function loadComponent(path, boundaries, globals = {}) {
     const imports = new Map()
     for (const match of code.matchAll(/require\(["']([^"']+)["']\)/g)) {
       const name = match[1]
-      if (name.startsWith('.')) imports.set(name, await load(new URL(name, resolved)))
+      if (name.startsWith('.')) {
+        const dependency = new URL(name, resolved), key = normalize(dependency)
+        const fallback = fallbackLocalBoundary(dependency)
+        if (!mapped.has(key) && fallback) mapped.set(key, fallback)
+        imports.set(name, await load(dependency))
+      }
       else {assert.ok(mapped.has(name), `Unexpected native parity boundary: ${name} in ${resolved.pathname}`); imports.set(name, mapped.get(name))}
     }
     vm.runInNewContext(code, {exports, __DEV__: true, AbortController, Date, URL, setTimeout, clearTimeout, ...frameBoundary, ...globals, require: name => imports.get(name)}, {filename: resolved.pathname})
@@ -104,7 +125,7 @@ export async function withNativeHost(run) {
     Animated: {Value, View: primitive, timing, sequence: group, parallel: group},
     Easing: {bezier: (...points) => points, linear: 'linear', cubic: 'cubic', out: value => value}, StyleSheet: {create: value => value, absoluteFill: {position: 'absolute', top: 0, left: 0, right: 0, bottom: 0}},
     AccessibilityInfo: {isReduceMotionEnabled: async () => false, addEventListener: () => ({remove() {}})},
-    Platform: {OS: 'ios'}, useWindowDimensions: () => ({width: 390, height: 844}),
+    Platform: {OS: 'ios'}, PixelRatio: {roundToNearestPixel: value => Math.round(value)}, useWindowDimensions: () => ({width: 390, height: 844}),
     Keyboard: {addListener: (name, callback) => {keyboard.set(name, callback); return {remove() {keyboard.delete(name)}}}, dismiss() {dismisses++}},
     AppState: {addEventListener: () => ({remove() {}})},
     PanResponder: {create(value) {gestures = value; return {panHandlers: {}}}},

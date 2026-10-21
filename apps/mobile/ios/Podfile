@@ -82,7 +82,7 @@ end
 
 # Slax unconfigured Firebase build phase: begin
 post_integrate do |installer|
-  unless false
+  unless true
     installer.aggregate_targets.map(&:user_project).uniq.each do |project|
       project.native_targets.each do |target|
         target.shell_script_build_phases.select { |phase| phase.name == '[CP-User] [RNFB] Crashlytics Configuration' }.each(&:remove_from_project)

@@ -1,3 +1,4 @@
+import {useAvatarResource} from './AvatarResources';
 import React from 'react';
 import { ActivityIndicator, Animated, Image, KeyboardAvoidingView, Modal, PixelRatio, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type ImageStyle, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
 import {SheetBody} from './SheetBody';
@@ -22,8 +23,9 @@ export function SourceIcon({name, size = 24, label, style, testID}: {name: Mobil
   const roundedSize = Platform.OS === 'android' ? PixelRatio.roundToNearestPixel(size) : size;
   return <Image testID={testID} source={mobileAssets[name]} resizeMode="contain" accessibilityLabel={label} accessible={Boolean(label)} style={[{width: roundedSize, height: roundedSize, flexShrink: 0}, style]} />;
 }
-export function SourceAvatar({uri, size = 40, label}: {uri?: string; size?: number; label?: string}) {
-  return <SourceAvatarImage key={uri ?? ''} uri={uri} size={size} label={label} />;
+export function SourceAvatar({uri, size = 40, label, resourceKey}: {uri?: string; size?: number; label?: string; resourceKey?: string}) {
+  const local = useAvatarResource(resourceKey ?? uri ?? '', uri);
+  return <SourceAvatarImage key={local ?? ''} uri={local} size={size} label={label} />;
 }
 function SourceAvatarImage({uri, size, label}: {uri?: string; size: number; label?: string}) {
   const [failed, setFailed] = React.useState(false);

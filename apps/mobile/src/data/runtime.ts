@@ -1,3 +1,5 @@
+import {createAvatarCache} from './native-avatar-cache.ts';
+import type {AvatarCache} from './avatar-cache.ts';
 import type {PowerSyncDatabase as Database} from '@powersync/react-native';
 import {fetch as expoFetch} from 'expo/fetch';
 import { SessionController } from '../domain/session.ts';
@@ -42,6 +44,9 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   let accountPreferences: PreferenceStore | null = null;
   let nativeResourceOwner: string | null = null;
   let backgroundCache: BackgroundArticleCache | null = null;
+  let avatars: AvatarCache | null = null;
+  let libraryPresented = false;
+  let pendingWarmup: (() => void) | undefined;
   let cancelWarmup: (() => void) | undefined;
   const scheduleWarmup = (worker: BackgroundArticleCache, generation: number) => {
     cancelWarmup?.();
@@ -49,6 +54,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       cancelWarmup = undefined;
       if (!stopping && generation === accountGeneration && backgroundCache === worker && activity.isForeground()) worker.start();
     };
+    if (!libraryPresented) {pendingWarmup = run; cancelWarmup = () => {pendingWarmup = undefined;}; return;}
     const idle = globalThis as typeof globalThis & {requestIdleCallback?: (callback: () => void, options: {timeout: number}) => number; cancelIdleCallback?: (id: number) => void};
     if (typeof idle.requestIdleCallback === 'function' && typeof idle.cancelIdleCallback === 'function') {
       const id = idle.requestIdleCallback(run, {timeout: 1500});
@@ -70,6 +76,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     if (!stopping) void backgroundCache?.setOnline(state !== 'offline').catch(() => undefined);
   });
   const connectAccount = (opened: Database, generation: number): Promise<void> => {
+    if (!libraryPresented) return Promise.resolve();
     if (connecting) return connecting;
     const current = () => !connectionRequested && !stopping && activity.isForeground() && generation === accountGeneration && database === opened && !!accountLease;
     const attempt = readiness.ensure().then(async () => {
@@ -106,8 +113,10 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     },
   });
   const revokeAccountScope = () => {
+    libraryPresented = false; pendingWarmup = undefined;
     accountGeneration++; cancelWarmup?.(); cancelWarmup = undefined; connecting = undefined; connectionRequested = false; connector.invalidate(); clearSyncRetry(); syncFailures = 0;
     const previousBackground = backgroundCache; backgroundCache = null; previousBackground?.cancel();
+    avatars?.dispose(); avatars = null;
     accountLease?.invalidate(); accountLease = null; accountPreferences = null; nativeResourceOwner = null; repositories = null; cache = null;
     return previousBackground;
   };
@@ -163,7 +172,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       accountLease = lease;
       nativeResourceOwner = owner;
       accountPreferences = preferences.scoped(() => lease.assertActive());
-      repositories = new MobileRepositories(lease, () => bridge.newIdentifier());
+      repositories = new MobileRepositories(lease, () => bridge.newIdentifier(), undefined, (id, signal) => api.getRemoteBookmark(id, signal));
       const origin = api.options.baseUrl;
       const pdfAccountGuard = () => {lease.assertActive(); if (api.options.baseUrl !== origin) throw new AccountInactiveError();};
       const pdfGuard = () => {pdfAccountGuard(); if (!activity.isForeground()) throw new AccountInactiveError();};
@@ -174,6 +183,8 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
         bytes: key => pdf.bytes(key), remove: async (key, check) => {lease.assertActive(); await accountWorker?.forgetPdf(key); pdfGuard(); check?.(); await pdf.remove(key, check);}, clear: () => pdfStorage.clearScope(JSON.stringify([origin, session.userId])),
       }, owner, loadReaderImage);
       const accountCache = cache;
+      avatars = createAvatarCache(directory, owner, JSON.stringify([origin, session.userId]), pdfAccountGuard, value => bridge.md5String(value), options.fetch ?? expoFetch);
+      accountCache.setAvatarCache(avatars);
       const removal = {
         async stage(key: string, value: string, signal: AbortSignal) {
           const rollback = await Promise.allSettled([accountCache.stageRemoval(key, value, signal), pdf.stageRemoval(key, value, signal)]);
@@ -321,9 +332,17 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     readPdfRange: (bookmarkId: string, descriptor: PdfDescriptor, begin: number, end: number, ownerId?: string, signal?: AbortSignal) => backgroundCache ? backgroundCache.readPdfRange(bookmarkId, descriptor, begin, end, ownerId, signal) : Promise.reject(new AccountInactiveError()),
     cachePdf: (bookmarkId: string, ownerId?: string) => backgroundCache ? backgroundCache.cachePdf(bookmarkId, ownerId) : Promise.reject(new AccountInactiveError()),
     pdfCacheStatus: (bookmarkId: string, ownerId?: string) => backgroundCache ? backgroundCache.pdfCacheStatus(bookmarkId, ownerId) : Promise.reject(new AccountInactiveError()),
+    markLibraryPresented() {
+      if (libraryPresented || stopping || !accountLease || upgradeState.status !== 'ready') return;
+      libraryPresented = true;
+      const warmup = pendingWarmup; pendingWarmup = undefined;
+      if (warmup && activity.isForeground()) warmup();
+      if (database && activity.isForeground()) void connectAccount(database, accountGeneration);
+    },
     getDatabase: () => database,
     getRepositories: () => repositories,
     getCache: () => cache,
+    getAvatarCache: () => avatars,
     getUpgradeSnapshot: () => upgradeState,
     subscribeUpgrade: (listener: (state: UpgradeState) => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
   };

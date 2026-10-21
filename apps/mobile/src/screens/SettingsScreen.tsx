@@ -19,7 +19,7 @@ export function SettingsScreen({navigation}: MobileScreenProps<'Settings'>) {
   const systemSurfaces = mobile.systemSurfaces;
   const systemSurfacesReady = mobile.credentialState?.status === 'ready';
   const systemSurfaceFailed = useSyncExternalStore(systemSurfaces?.subscribe ?? (() => () => {}), systemSurfaces?.getSnapshot ?? (() => false), systemSurfaces?.getSnapshot ?? (() => false));
-  const rss = useRssLab(api, scope);
+  const rss = useRssLab(api, scope, preferences);
   const pdf = usePdfLab();
   useLayoutEffect(() => {
     navigation.setOptions({title: t('setting_title'), headerTitleAlign: 'center'});

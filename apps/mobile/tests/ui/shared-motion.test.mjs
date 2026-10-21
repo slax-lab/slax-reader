@@ -85,7 +85,7 @@ test('row cancellation cannot finish a newer drag and reduced motion skips title
   };
   const {BookmarkRow} = loadWorkletComponent(new URL('../../src/components/BookmarkRow.tsx', import.meta.url), {
     react: React, 'react-native': native, 'react-native-reanimated': motion.reanimated, 'react-native-gesture-handler': motion.gestures,
-    './SourceDrawer': {useDrawerGesture: () => null}, 'expo-haptics': {impactAsync: async () => {}, ImpactFeedbackStyle: {Medium: 'medium'}},
+    './SourceDrawer': {useDrawerGesture: () => null, useDrawerInput: () => null}, 'expo-haptics': {impactAsync: async () => {}, ImpactFeedbackStyle: {Medium: 'medium'}},
     '../data/repositories': {bookmarkDisplayTitle: item => item.title}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}},
     './SourceUI': {SourceIcon: () => null}, './SourceLine': {SourceLine: () => null}, './SourceMenu': {SourceMenu: () => null},
   });

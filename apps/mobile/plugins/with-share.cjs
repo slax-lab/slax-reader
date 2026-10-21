@@ -48,6 +48,7 @@ function writeIosFiles(platformRoot, projectRoot, options) {
     CFBundleDisplayName: 'Slax Reader', CFBundleExecutable: '$(EXECUTABLE_NAME)', CFBundleIdentifier: '$(PRODUCT_BUNDLE_IDENTIFIER)', CFBundleInfoDictionaryVersion: '6.0', CFBundleName: '$(PRODUCT_NAME)', CFBundlePackageType: 'XPC!',
     CFBundleShortVersionString: options.versionName, CFBundleVersion: options.versionCode,
     SlaxApiBaseURL: options.apiBaseUrl, SlaxApiBetaURL: options.apiBetaUrl,
+    RCTNewArchEnabled: true,
     NSExtension: {
       NSExtensionAttributes: {NSExtensionActivationRule: {NSExtensionActivationSupportsText: true, NSExtensionActivationSupportsWebURLWithMaxCount: 1, NSExtensionActivationSupportsWebPageWithMaxCount: 1}, NSExtensionJavaScriptPreprocessingFile: 'ExtensionClass'},
       NSExtensionPointIdentifier: 'com.apple.share-services', NSExtensionPrincipalClass: '$(PRODUCT_MODULE_NAME).ShareViewController',

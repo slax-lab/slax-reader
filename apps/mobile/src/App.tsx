@@ -1,7 +1,7 @@
 import React, {useEffect, useRef} from 'react';
 import * as AppIntents from 'expo-app-intents';
 import {Platform, StatusBar, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
-import {createNavigationContainerRef} from '@react-navigation/native';
+import {createNavigationContainerRef, StackActions} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
@@ -16,6 +16,7 @@ import {ObserveNavigationContainer, ObserveRoot} from './observe';
 const screens = {
   Login: () => require('./screens/LoginScreen').LoginScreen,
   Library: () => require('./screens/LibraryScreen').LibraryScreen,
+  Search: () => require('./screens/SearchScreen').SearchScreen,
   Reader: () => require('./screens/ReaderScreen').ReaderScreen,
   Reauthenticate: () => require('./screens/LoginScreen').ReauthenticationScreen,
   Settings: () => require('./screens/SettingsScreen').SettingsScreen,
@@ -62,11 +63,12 @@ export function ApplicationRoutes() {
   }
   if (session.status === 'loading' && upgrade?.status === 'error') return <AppRecoveryScreen t={t} retryStart={retryStart}/>;
   if (session.status === 'loading') return <View testID="app-startup-surface" style={{flex: 1, backgroundColor: C.background}} />;
-  return <ObserveNavigationContainer ref={setObserveNavigationRef} onReady={() => {reportRoutes(); systemEntry?.setNavigator(bookmarkId => navigationRef.navigate('Reader', {bookmarkId}));}} onStateChange={reportRoutes}>
+  return <ObserveNavigationContainer ref={setObserveNavigationRef} onReady={() => {reportRoutes(); systemEntry?.setNavigator(bookmarkId => navigationRef.dispatch(StackActions.push('Reader', {bookmarkId})));}} onStateChange={reportRoutes}>
     <Stack.Navigator screenOptions={{headerTintColor: C.text, headerStyle: {backgroundColor: C.background}, headerTitleAlign: 'center', headerTitleStyle: {fontSize: 17, fontWeight: '500'}, contentStyle: {backgroundColor: C.background}, headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal'}}>
       {session.status === 'unauthenticated' ? <Stack.Screen name="Login" getComponent={screens.Login} options={{headerShown: false}}/> : <Stack.Group navigationKey={session.session.userId}>
         <Stack.Screen name="Library" getComponent={screens.Library} options={{headerShown: false}}/>
         <Stack.Screen name="Reauthenticate" getComponent={screens.Reauthenticate} options={{title: t('reauthenticate_title'), headerTitle: sourceHeaderTitle}}/>
+        <Stack.Screen name="Search" getComponent={screens.Search} options={{title: t('search_action')}}/>
         <Stack.Screen name="Reader" getComponent={screens.Reader} options={{title: '', headerStyle: {backgroundColor: C.readerBackground}}}/>
         <Stack.Screen name="Settings" getComponent={screens.Settings} options={{title: t('setting_title'), headerTitle: sourceHeaderTitle}}/>
         <Stack.Screen name="About" getComponent={screens.About} options={{title: t('sidebar_about')}}/>

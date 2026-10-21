@@ -1,3 +1,4 @@
+import FirebaseCore
 internal import Expo
 import React
 import ReactAppDependencyProvider
@@ -13,6 +14,10 @@ class AppDelegate: ExpoAppDelegate, ExpoReactNativeFactoryProvider {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    // Slax main-app Firebase bootstrap; scenes can connect after this returns.
+    if FirebaseApp.app() == nil {
+      FirebaseApp.configure()
+    }
     let delegate = ReactNativeDelegate()
     let factory = ExpoReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
