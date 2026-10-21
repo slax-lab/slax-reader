@@ -1,3 +1,5 @@
+import { SHARE_PATH } from '../utils/shareCache'
+
 import { getRequestURL, setResponseHeader } from 'h3'
 
 export default defineNitroPlugin(nitroApp => {
@@ -5,7 +7,7 @@ export default defineNitroPlugin(nitroApp => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const event = ctx?.event as any
     if (!event) return
-    if (!/^\/b\/[^/]+\/?$/.test(getRequestURL(event).pathname)) return
+    if (!SHARE_PATH.test(getRequestURL(event).pathname)) return
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r = response as any

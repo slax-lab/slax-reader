@@ -618,7 +618,7 @@ export class BookmarkService {
     const key = access?.bookmark.bookmark.content_key
     if (!key || !isPdfContentKey(key)) return new Response(null, { status: 404 })
     const requestedRevision = new URL(request.url).searchParams.get('revision')
-    if (requestedRevision !== null && requestedRevision !== key) {
+    if (requestedRevision && requestedRevision !== key) {
       return new Response(null, {
         status: 409,
         headers: { 'Cache-Control': 'private, no-store' }
@@ -972,6 +972,7 @@ export class BookmarkService {
   }
 
   public async getForkInfo(bookmarkId: number, ctx: ContextManager, publishedVersion: number) {
+    if (publishedVersion === 0) return null
     const row = await this.bookmarkRepo.getBookmarkForkForVersion(bookmarkId, publishedVersion)
     if (!row) return null
     if (!row.show_userinfo)

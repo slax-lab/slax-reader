@@ -29,6 +29,12 @@ describe('rateLimit middleware', () => {
     expect(limit).toHaveBeenCalledWith({ key: 'uid:42' })
   })
 
+  test('limits fork requests by user id', async () => {
+    const limit = vi.fn().mockResolvedValue({ success: true })
+    await rateLimit(new Request('https://reader-api.slax.dev/v1/bookmark/fork', { method: 'POST' }), mockCtx(42, { limit }))
+    expect(limit).toHaveBeenCalledWith({ key: 'uid:42' })
+  })
+
   test('throws 429 when limit exceeded', async () => {
     const limit = vi.fn().mockResolvedValue({ success: false })
     const req = new Request('https://reader-api.slax.dev/v1/bookmark/add_url', { method: 'POST' })

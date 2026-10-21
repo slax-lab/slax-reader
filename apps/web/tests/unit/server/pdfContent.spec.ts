@@ -30,7 +30,7 @@ beforeEach(() => {
   bucket.get.mockResolvedValue({ body: new Response('%PDF-test!').body, text: vi.fn() })
 })
 const context = () => ({ params: { uuid: 'saved' }, cloudflare: { env: { OSS: bucket, BACKEND: { fetch: fetchMetadata } } } })
-const call = (method = 'GET', range?: string, revision?: string) => handler({ method, path: revision ? `/api/content/saved/pdf?revision=${encodeURIComponent(revision)}` : '/', headers: { cookie: 'token=fixture', ...(range ? { range } : {}) }, context: context() })
+const call = (method = 'GET', range?: string, revision?: string) => handler({ method, path: revision !== undefined ? `/api/content/saved/pdf?revision=${encodeURIComponent(revision)}` : '/', headers: { cookie: 'token=fixture', ...(range ? { range } : {}) }, context: context() })
 describe('same-origin PDF delivery', () => {
   it.each([401, 403, 404])('checks current access before reading a file when metadata returns %s', async status => {
     fetchMetadata.mockResolvedValue(new Response(null, { status }))
@@ -65,6 +65,10 @@ describe('same-origin PDF delivery', () => {
     expect((await call('GET', 'bytes=0-3', 'pdf/body/old.pdf')).status).toBe(409)
     expect(bucket.head).not.toHaveBeenCalled()
     expect(bucket.get).not.toHaveBeenCalled()
+  })
+  it('treats an empty revision query as an omitted revision', async () => {
+    expect((await call('GET', undefined, '')).status).toBe(200)
+    expect(bucket.head).toHaveBeenCalledWith('pdf/body/saved.pdf')
   })
   it('serves a range for the current revision token', async () => {
     expect((await call('GET', 'bytes=0-3', 'pdf/body/saved.pdf')).status).toBe(206)

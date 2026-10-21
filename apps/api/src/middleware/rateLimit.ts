@@ -5,7 +5,8 @@ import { captureEventContext, submitServerEvent } from '../domain/events'
 
 const rateLimitedRoutes: Array<{ path: string; method: string }> = [
   { path: '/v1/bookmark/add', method: 'POST' },
-  { path: '/v1/bookmark/add_url', method: 'POST' }
+  { path: '/v1/bookmark/add_url', method: 'POST' },
+  { path: '/v1/bookmark/fork', method: 'POST' }
 ]
 
 export const rateLimit = async (request: Request, ctx: ContextManager) => {

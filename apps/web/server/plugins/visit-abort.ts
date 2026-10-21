@@ -1,6 +1,6 @@
+import { SHARE_PATH } from '../utils/shareCache'
 import { getUserAgent, isBotUserAgent, resolveVisitorId } from '../utils/visitor'
 
-const SHARE_PATH = /^\/b\/([^/]+)\/?$/
 // code 段限定 [a-zA-Z0-9]+，与 track 端点、后端 validator 同一口径
 // 照抄 /b 的 [^/]+ 会把 /c/%20 这类扫描请求也上报
 const COLLECTION_PATH = /^\/c\/([a-zA-Z0-9]+)\/?$/

@@ -520,6 +520,14 @@ describe('PDF file delivery', () => {
     expect(bucket.head).not.toHaveBeenCalled()
     expect(bucket.get).not.toHaveBeenCalled()
   })
+  it('treats an empty revision query as an omitted revision', async () => {
+    const { service, bucket, object } = wire()
+    Object.assign(service, { getBookmarkReadAccess: vi.fn().mockResolvedValue({ bookmark: { bookmark: { content_key: 'pdf/body/new.pdf' } } }) })
+    bucket.head.mockResolvedValue(object())
+    const response = await service.getPdfResponse(createMockCtx(), 'uuid', new Request('https://example.com/api/content/uuid/pdf?revision='))
+    expect(response.status).toBe(200)
+    expect(bucket.head).toHaveBeenCalledWith('pdf/body/new.pdf')
+  })
   it('serves a range only when the requested revision matches the authorized pointer', async () => {
     const { service, bucket, object } = wire()
     Object.assign(service, { getBookmarkReadAccess: vi.fn().mockResolvedValue({ bookmark: { bookmark: { content_key: 'pdf/body/new.pdf' } } }) })
