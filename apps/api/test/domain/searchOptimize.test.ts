@@ -45,7 +45,7 @@ describe('search optimization bounds', () => {
       seachBM25Batch: vi.fn(async (_ctx: unknown, rowIdGroups: number[][], _keyword: string, onRows?: (rows: unknown[]) => void) => {
         groups.push(...rowIdGroups)
         onRows?.([])
-        return []
+        return { rows: [], complete: true }
       })
     }
     const service = new SearchService({} as never, searchRepo as never, {} as never)
@@ -65,7 +65,7 @@ describe('search optimization bounds', () => {
       seachBM25Batch: vi.fn(async (_ctx: unknown, rowIdGroups: number[][], _keyword: string, onRows?: (rows: unknown[]) => void) => {
         groups.push(...rowIdGroups)
         onRows?.([])
-        return []
+        return { rows: [], complete: true }
       })
     }
     const service = new SearchService({} as never, searchRepo as never, {} as never)
@@ -97,7 +97,7 @@ describe('search optimization bounds', () => {
     const searchRepo = {
       seachBM25Batch: vi.fn(async (_ctx: unknown, _groups: number[][], _keyword: string, onRows?: (rows: unknown[]) => void) => {
         onRows?.([fulltextRow(11)])
-        return []
+        return { rows: [], complete: true }
       }),
       getBookmarkRaw: vi.fn().mockResolvedValue([])
     }

@@ -176,7 +176,7 @@ export class SearchService {
     const [bmListRes, vectorizeResultRes, jbSearchContentRes] = await Promise.allSettled([
       this.getUserBookmarkItem(ctx),
       embedding(ctx.env, vectorizeContent, ctx.execution),
-      normalizer.processSearchKeyword(fulltextContent)
+      normalizer.processSearchKeyword(fulltextContent, ctx.execution)
     ])
     console.log(`get base data time: ${performance.now() - t1} ms`)
 
@@ -187,10 +187,11 @@ export class SearchService {
     // 混合搜索
     const t2 = performance.now()
     let [fulltextResult, semanticResult] = await Promise.allSettled([this.fulltextSearch(ctx, jbSearchContent, bmList), this.semanticSearch(ctx, vectorizeResult, bmList)])
-    const fulltextRes = fulltextResult.status === 'fulfilled' ? fulltextResult.value : []
+    const fulltextItems = fulltextResult.status === 'fulfilled' ? fulltextResult.value.items : []
+    const fulltextComplete = fulltextResult.status === 'fulfilled' && fulltextResult.value.complete
     const semanticRes = semanticResult.status === 'fulfilled' ? semanticResult.value : []
 
-    console.log(`hybrid search time: ${performance.now() - t2} ms, fulltext: ${fulltextRes.length}, semantic: ${semanticRes.length}`)
+    console.log(`hybrid search time: ${performance.now() - t2} ms, fulltext: ${fulltextItems.length}, semantic: ${semanticRes.length}`)
 
     // 搜索结果拼接
     const hybridSearchMap: Record<number, hybridSearchItem> = {}
@@ -198,7 +199,7 @@ export class SearchService {
     const returnTableIds: number[] = []
 
     // 全文搜索结果
-    fulltextRes.forEach(item => {
+    fulltextItems.forEach(item => {
       hybridSearchMap[item.bookmark_id] = {
         vs_score: 0,
         fts_score: item.score,
@@ -240,7 +241,13 @@ export class SearchService {
     const result = this.finalizeHybridSearchList(ranked.filter(item => uuidMap.has(item.bookmark_id)).slice(0, SEARCH_RESULT_LIMIT), uuidMap)
     console.log(`get raw & uuid data cost: ${performance.now() - t3} ms`)
 
-    this.writeSearchCache(ctx, cacheKey, result, SEARCH_RESULT_CACHE_TTL)
+    const cacheable =
+      bmListRes.status === 'fulfilled' &&
+      vectorizeResultRes.status === 'fulfilled' &&
+      jbSearchContentRes.status === 'fulfilled' &&
+      fulltextComplete &&
+      semanticResult.status === 'fulfilled'
+    if (cacheable) this.writeSearchCache(ctx, cacheKey, result, SEARCH_RESULT_CACHE_TTL)
     return result
   }
 
@@ -347,8 +354,8 @@ export class SearchService {
    * @param userBookmarkItem
    * @returns
    */
-  public async fulltextSearch(ctx: ContextManager, jbSearchContent: string, userBookmarkItem: userBookmarkItem[]): Promise<fulltextMatchItem[]> {
-    if (userBookmarkItem.length < 1 || jbSearchContent.length < 1) return []
+  public async fulltextSearch(ctx: ContextManager, jbSearchContent: string, userBookmarkItem: userBookmarkItem[]): Promise<{ items: fulltextMatchItem[]; complete: boolean }> {
+    if (userBookmarkItem.length < 1 || jbSearchContent.length < 1) return { items: [], complete: true }
 
     const t1 = performance.now()
     // bm25单次搜50条左右的文章效率最高
@@ -369,13 +376,13 @@ export class SearchService {
       (a, b) => Math.abs(b.score) - Math.abs(a.score) || a.bookmark_id - b.bookmark_id
     )
 
-    await this.bookmarkSearchRepo.seachBM25Batch(ctx, bmIdGroups, jbSearchContent, rows => {
+    const { complete } = await this.bookmarkSearchRepo.seachBM25Batch(ctx, bmIdGroups, jbSearchContent, rows => {
       for (const row of rows) collector.push(row)
     })
 
     const res = collector.values()
-    console.log(`fulltext search time: ${performance.now() - t1} ms, candidates: ${items.length}, groups: ${bmIdGroups.length}, result: ${res.length}`)
-    return res
+    console.log(`fulltext search time: ${performance.now() - t1} ms, candidates: ${items.length}, groups: ${bmIdGroups.length}, result: ${res.length}, complete: ${complete}`)
+    return { items: res, complete }
   }
 
   /**

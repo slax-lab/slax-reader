@@ -102,7 +102,7 @@ describe('search highlight rendering boundary', () => {
           title_snippet: fts.highlight_title,
           content_snippet: fts.highlight_content
         }])
-        return []
+        return { rows: [], complete: true }
       }),
       getBookmarkRaw: vi.fn().mockResolvedValue([{ bookmark_id: 12, raw_title: vector.title, raw_content: vector.content }])
     }

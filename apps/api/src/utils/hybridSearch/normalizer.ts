@@ -58,7 +58,7 @@ export class Normalizer {
     return result.data
   }
 
-  async processSearchKeyword(keyword: string): Promise<string> {
+  async processSearchKeyword(keyword: string, execution?: ExecutionContext): Promise<string> {
     keyword = keyword.replace(/[^\w\s\u4e00-\u9fff]/g, ' ')
     const searchTerms = keyword.split(/\s+/).filter(term => term.trim().length > 0)
     if (searchTerms.length === 0) return ''
@@ -71,6 +71,7 @@ export class Normalizer {
       // Cache is best-effort.
     }
 
+    let usedFallback = false
     // 分词处理
     const termSegments = await Promise.all(
       searchTerms.map(async term => {
@@ -80,8 +81,10 @@ export class Normalizer {
             .map(item => item.trim())
             .filter(item => !!item && item.length > 0)
             .join(' ')
+          if (!joined) usedFallback = true
           return joined || term
         } catch {
+          usedFallback = true
           return term
         }
       })
@@ -100,10 +103,10 @@ export class Normalizer {
     }
 
     const result = `(${titleQueries.join(' AND ')}) OR (${contentQueries.join(' AND ')})`
-    try {
-      void Promise.resolve(this.env.KV.put(cacheKey, result, { expirationTtl: segmentCacheTtl })).catch(() => {})
-    } catch {
-      // Cache is best-effort.
+    if (!usedFallback) {
+      const write = Promise.resolve(this.env.KV.put(cacheKey, result, { expirationTtl: segmentCacheTtl }))
+      if (execution?.waitUntil) execution.waitUntil(write)
+      else void write.catch(() => {})
     }
     return result
   }

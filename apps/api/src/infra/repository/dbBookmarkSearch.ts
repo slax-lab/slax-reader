@@ -13,6 +13,15 @@ export interface bookmarkRowPO {
   bookmark_id: number
 }
 
+export interface bookmarkSearchRow {
+  bookmark_id: number
+  score: number
+  content_snippet: string
+  title_snippet: string
+  raw_content: string
+  raw_title: string
+}
+
 @injectable()
 export class BookmarkSearchRepo {
   /**
@@ -69,9 +78,9 @@ export class BookmarkSearchRepo {
     ctx: ContextManager,
     rowIdGroups: number[][],
     keyword: string,
-    onRows?: (rows: { bookmark_id: number; score: number; content_snippet: string; title_snippet: string; raw_content: string; raw_title: string }[]) => void
-  ) {
-    if (rowIdGroups.length < 1) return []
+    onRows?: (rows: bookmarkSearchRow[]) => void
+  ): Promise<{ rows: bookmarkSearchRow[]; complete: boolean }> {
+    if (rowIdGroups.length < 1) return { rows: [], complete: true }
 
     const statements = rowIdGroups.map(rowIds => {
       if (rowIds.length < 1 || rowIds.length > 50) throw new Error('fulltext groups must contain 1-50 row ids')
@@ -99,14 +108,15 @@ export class BookmarkSearchRepo {
       return ctx.env.DB_FULLTEXT.prepare(sql).bind(...rowIds, keyword)
     })
 
-    const rows: { bookmark_id: number; score: number; content_snippet: string; title_snippet: string; raw_content: string; raw_title: string }[] = []
+    const rows: bookmarkSearchRow[] = []
+    let complete = true
     let matchCount = 0
     const started = performance.now()
 
     for (let i = 0; i < statements.length; i += FTS_BATCH_SIZE) {
       try {
         const results = await ctx.env.DB_FULLTEXT.batch(statements.slice(i, i + FTS_BATCH_SIZE))
-        const batchRows: typeof rows = []
+        const batchRows: bookmarkSearchRow[] = []
         for (const result of results) {
           for (const row of (result.results ?? []) as Array<Record<string, unknown>>) {
             batchRows.push({
@@ -123,14 +133,15 @@ export class BookmarkSearchRepo {
         if (onRows) onRows(batchRows)
         else rows.push(...batchRows)
       } catch (e) {
+        complete = false
         console.error(`seachBM25Batch error (groups=${rowIdGroups.length}): ${e instanceof Error ? e.message : String(e)}`)
       }
     }
 
     console.log(
-      `seachBM25Batch time: ${performance.now() - started} ms, groups: ${rowIdGroups.length}, batches: ${Math.ceil(statements.length / FTS_BATCH_SIZE)}, matches: ${matchCount}`
+      `seachBM25Batch time: ${performance.now() - started} ms, groups: ${rowIdGroups.length}, batches: ${Math.ceil(statements.length / FTS_BATCH_SIZE)}, matches: ${matchCount}, complete: ${complete}`
     )
-    return rows
+    return { rows, complete }
   }
 
   async getBookmarkRaw(bookmarkIds: number[]) {

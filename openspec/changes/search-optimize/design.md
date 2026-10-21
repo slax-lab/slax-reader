@@ -20,7 +20,7 @@ Statements are sent in groups of 10 with `DB_FULLTEXT.batch()`. The SQL text and
 
 - `FTS_CANDIDATE_LIMIT = 300`: candidate map pruned at 500 entries so memory stays bounded; a candidate outside the top 300 of any processed subset cannot enter the final top 300.
 - `SEARCH_RESULT_LIMIT = 100`: RRF ranks are computed over the merged candidates, then only the top 100 are highlighted and returned.
-- `MAX_FTS_GROUPS = 600` / `MAX_FTS_ROWS = 30000`: leaves headroom under the 1,000-subrequest invocation limit after accounting for the vector candidate calls (about 300 at 30,000 rows) and the raw/UUID reads. Candidates are ordered by newest `slax_bookmark_raw.id`; truncation is logged.
+- `MAX_FTS_ROWS = 30000` (600 groups at 50 rows each): leaves headroom under the 1,000-subrequest invocation limit after accounting for the vector candidate calls (about 300 at 30,000 rows) and the raw/UUID reads. Candidates are ordered by newest `slax_bookmark_raw.id`; truncation is logged.
 
 ## Highlight
 

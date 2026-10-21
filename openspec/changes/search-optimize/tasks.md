@@ -5,7 +5,7 @@
 - [x] 1.1 Correct fulltext grouping to `ceil(rows / 50)` and order the row list by newest raw id.
 - [x] 1.2 Add `seachBM25Batch` using `DB_FULLTEXT.batch()` in 10-statement groups; keep the rowid-scoped SQL and 50-row bindings unchanged.
 - [x] 1.3 Collect at most 300 fulltext candidates (pruned at 500) and publish at most 100 RRF results.
-- [x] 1.4 Apply the 900-group / 45,000-row guardrail with `search_scope_truncated` logging.
+- [x] 1.4 Apply the 600-group / 30,000-row guardrail with `search_scope_truncated` logging.
 
 ## 2. Highlighting
 

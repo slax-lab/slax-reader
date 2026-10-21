@@ -22,7 +22,8 @@
 - Fulltext grouping: 120 rows produced three groups of 50/50/20; 30,010 rows produced 600 groups and stopped at the 30,000-row cap.
 - Candidate bounds: 150 ranked items published 100 results; the candidate collector matched a full sort on 2,000 synthetic items.
 - Cache: the second identical search returned the cached result and did not call fulltext again; `clearSearchCache` rotated `search:gen` and deleted row/shard maps. Row/shard map TTLs remain 300 s because a shared bookmark can be re-indexed by another owner without clearing this user's cache.
-- Result-cache key/TTL: written as `search:res:v1:<userId>:<generation>:<hash>` with `expirationTtl: 300`.
+- Result-cache key/TTL: written as `search:res:v1:<userId>:<generation>:<hash>` with `expirationTtl: 300`; writes are skipped when any retrieval stage rejects or a fulltext batch reports incomplete.
+- Segmentation cache writes use `execution.waitUntil` and are skipped when any term falls back after a timeout or empty segmentation.
 - Raw writes: 17 shards produced one DELETE plus two INSERT statements (96 and 6 bound parameters) in one D1 batch; replacing the bookmark left one row.
 - Highlight: existing security/output cases and 3,000 randomized inputs matched byte-for-byte; the large-text regression stayed below the 2 s test budget.
 - Embedding cache/timeout: a repeated query used one provider call, and an aborted provider returned no new embedding.
