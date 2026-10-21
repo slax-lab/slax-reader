@@ -45,7 +45,7 @@ describe('search highlight rendering boundary', () => {
   })
 
   test.each(['fts', 'hybrid', 'vector'] as const)('renders only generated attribute-free marks for %s results', type => {
-    const service = new SearchService({} as never, {} as never, {} as never, {} as never)
+    const service = new SearchService({} as never, {} as never, {} as never)
     const item = makeItem(type)
     const [result] = service.processHybridSearchList({ 11: item }, new Map([[11, 'bookmark-uuid']]))
 
@@ -65,7 +65,7 @@ describe('search highlight rendering boundary', () => {
 
   test.each(['fts', 'hybrid', 'vector'] as const)('also escapes the rerank output for %s results', async type => {
     vi.mocked(rerank).mockResolvedValue([{ index: 0, score: 0.9 }])
-    const service = new SearchService({} as never, {} as never, {} as never, {} as never)
+    const service = new SearchService({} as never, {} as never, {} as never)
     const item = makeItem(type)
     const [result] = await service.processHybridSearchRerank({ env: {} } as never, 'saved', { 11: item })
 
@@ -82,8 +82,7 @@ describe('search highlight rendering boundary', () => {
     const vector = makeItem('vector')
     const cached = new Map([
       ['search:bm_shard:7', JSON.stringify([{ bookmark_id: 11, bucket_idx: 0 }, { bookmark_id: 12, bucket_idx: 0 }])],
-      ['search:bm_rows:7', JSON.stringify([{ bookmark_id: 11, id: 21 }, { bookmark_id: 12, id: 22 }])],
-      ['search:valid_bm_ids:7', JSON.stringify([11, 12])]
+      ['search:bm_rows:7', JSON.stringify([{ bookmark_id: 11, id: 21 }, { bookmark_id: 12, id: 22 }])]
     ])
     const kv = {
       get: vi.fn(async (key: string) => cached.get(key) ?? null),
@@ -94,27 +93,25 @@ describe('search highlight rendering boundary', () => {
       getUserBookmarkUuidsByBmIds: vi.fn().mockResolvedValue(new Map([[11, 'fts-uuid'], [12, 'vector-uuid']]))
     }
     const searchRepo = {
-      seachBM25: vi.fn().mockResolvedValue([{
-        bookmark_id: 11,
-        score: -2,
-        raw_title: fts.title,
-        raw_content: fts.content,
-        title_snippet: fts.highlight_title,
-        content_snippet: fts.highlight_content
-      }]),
+      seachBM25Batch: vi.fn(async (_ctx: unknown, _groups: number[][], _keyword: string, onRows: (rows: unknown[]) => void) => {
+        onRows([{
+          bookmark_id: 11,
+          score: -2,
+          raw_title: fts.title,
+          raw_content: fts.content,
+          title_snippet: fts.highlight_title,
+          content_snippet: fts.highlight_content
+        }])
+        return { rows: [], complete: true }
+      }),
       getBookmarkRaw: vi.fn().mockResolvedValue([{ bookmark_id: 12, raw_title: vector.title, raw_content: vector.content }])
     }
-    const service = new SearchService(
-      repo as never,
-      { getUserSubscriptionInfo: vi.fn().mockResolvedValue(null) } as never,
-      searchRepo as never,
-      { seachVector: vi.fn().mockResolvedValue({ count: 1, matches: [{ id: '12_0', score: 0.9 }] }) } as never
-    )
+    const service = new SearchService(repo as never, searchRepo as never, { seachVector: vi.fn().mockResolvedValue({ count: 1, matches: [{ id: '12_0', score: 0.9 }] }) } as never)
 
     const results = await service.hybridSearch({ getUserId: () => 7, env: { KV: kv } } as never, 'saved')
 
     expect(results).toHaveLength(2)
-    expect(searchRepo.seachBM25).toHaveBeenCalledWith([21, 22], 'saved')
+    expect(searchRepo.seachBM25Batch).toHaveBeenCalledWith(expect.anything(), [[22, 21]], 'saved', expect.any(Function))
     expect(searchRepo.getBookmarkRaw).toHaveBeenCalledWith([12])
     expect(results.map(item => item.type).sort()).toEqual(['fts', 'vector'])
     for (const result of results) {

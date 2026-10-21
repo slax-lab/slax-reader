@@ -193,7 +193,7 @@ name = "podcast-workflow"
 class_name = "PodcastWorkflow"
 
 [triggers]
-crons = ["*/1 * * * *", "*/2 * * * *", "*/5 * * * *", "*/30 * * * *", "0 */1 * * *"]
+crons = ["*/1 * * * *", "*/2 * * * *", "*/5 * * * *", "*/30 * * * *", "0 */1 * * *", "17 3 * * *"]
 
 [[hyperdrive]]
 binding = "HYPERDRIVE"
