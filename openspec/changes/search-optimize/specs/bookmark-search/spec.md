@@ -39,22 +39,6 @@ The service SHALL collect at most 300 fulltext candidates, publish at most 100 r
 - **WHEN** multiple matching shards map to the same bookmark id
 - **THEN** only the best-scoring shard is retained for that bookmark
 
-### Requirement: Search caches are bounded and invalidated
-
-The service SHALL cache final results for 300 seconds, query embeddings for 7 days, and keyword segmentation for 30 days. User search caches MUST be invalidated by a generation nonce on bookmark create, delete, trash, restore, and successful index completion.
-
-#### Scenario: The same search is repeated
-
-- **WHEN** the same user repeats a keyword within 300 seconds without a bookmark change
-- **THEN** the cached result is returned without fulltext, vector, or embedding calls
-
-#### Scenario: A bookmark changes
-
-- **WHEN** a bookmark is created, deleted, trashed, restored, or finishes indexing
-- **THEN** the user's generation nonce changes
-- **AND** prior result-cache entries are no longer reachable
-- **AND** row and shard map caches are deleted
-
 ### Requirement: Search degrades instead of failing on external timeouts
 
 Embedding SHALL time out at 800 ms, each vector query at 500 ms, and keyword segmentation at 500 ms. A timeout MUST leave fulltext results available.

@@ -14,14 +14,7 @@ export interface semanticShard {
   embedding: number[]
 }
 
-const segmentCachePrefix = 'search:seg:v1:'
-const segmentCacheTtl = 2592000
 const segmentTimeoutMs = 500
-
-const hashText = async (text: string): Promise<string> => {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
-  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
-}
 
 const withTimeout = async <T>(promise: Promise<T>, ms: number): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -58,20 +51,11 @@ export class Normalizer {
     return result.data
   }
 
-  async processSearchKeyword(keyword: string, execution?: ExecutionContext): Promise<string> {
+  async processSearchKeyword(keyword: string): Promise<string> {
     keyword = keyword.replace(/[^\w\s\u4e00-\u9fff]/g, ' ')
     const searchTerms = keyword.split(/\s+/).filter(term => term.trim().length > 0)
     if (searchTerms.length === 0) return ''
 
-    const cacheKey = segmentCachePrefix + (await hashText(keyword))
-    try {
-      const cached = await this.env.KV.get(cacheKey)
-      if (cached) return cached
-    } catch {
-      // Cache is best-effort.
-    }
-
-    let usedFallback = false
     // 分词处理
     const termSegments = await Promise.all(
       searchTerms.map(async term => {
@@ -81,10 +65,8 @@ export class Normalizer {
             .map(item => item.trim())
             .filter(item => !!item && item.length > 0)
             .join(' ')
-          if (!joined) usedFallback = true
           return joined || term
         } catch {
-          usedFallback = true
           return term
         }
       })
@@ -102,13 +84,7 @@ export class Normalizer {
       contentQueries.push(`(${otherTerms.map(item => `content:"${item}"`).join(' OR ')})`)
     }
 
-    const result = `(${titleQueries.join(' AND ')}) OR (${contentQueries.join(' AND ')})`
-    if (!usedFallback) {
-      const write = Promise.resolve(this.env.KV.put(cacheKey, result, { expirationTtl: segmentCacheTtl }))
-      if (execution?.waitUntil) execution.waitUntil(write)
-      else void write.catch(() => {})
-    }
-    return result
+    return `(${titleQueries.join(' AND ')}) OR (${contentQueries.join(' AND ')})`
   }
   /**
    * 处理文本内容，返回分片结果

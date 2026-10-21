@@ -26,26 +26,13 @@ Statements are sent in groups of 10 with `DB_FULLTEXT.batch()`. The SQL text and
 
 The replacement preserves `TARGET_LENGTH = 60`, `MIN_WINDOW_SIZE = 60`, and the 5-character window step. It lowercases the article once, deduplicates snippet tokens, and computes the same density ranges with a difference array. Verified byte-identical output on the existing highlight suite and 3,000 randomized inputs. Measured 20 KB / 30 occurrences: 1.41 ms to 0.108 ms; 50 KB / 100 occurrences: 6.09 ms to 0.280 ms; pathological 50 KB / 32 repeated tokens: 714.7 ms to 1.05 ms.
 
-## Caches
-
-| Key | TTL | Invalidation |
-| --- | ---: | --- |
-| `search:res:v1:<userId>:<gen>:<sha256(keyword\|tags)>` | 300 s | generation nonce |
-| `search:emb:v1:jina-clip-v2:1024:<sha256(text)>` | 604,800 s | natural expiry |
-| `search:seg:v1:<sha256(keyword)>` | 2,592,000 s | natural expiry |
-| `search:gen:<userId>` | 2,592,000 s | replaced on bookmark change / index completion |
-| `search:bm_rows:<userId>` | 300 s | deleted on bookmark change / index completion |
-| `search:bm_shard:<userId>` | 300 s | deleted on bookmark change / index completion |
-
-KV requires a minimum TTL of 60 s. Writes use `ctx.execution.waitUntil` when available. Cache failures are best-effort and never fail a search. Row/shard maps stay at 5 minutes: a shared bookmark may be indexed by one owner while other owners keep the same bookmark id, so only the indexing user's cache is cleared; a longer TTL would make the other owners miss the new raw row or shard assignment.
-
 ## Ownership and eligibility
 
 `search:valid_bm_ids` and the inert subscription lookup are removed. The row and shard maps may contain trashed bookmarks, so the final 300 candidate IDs are validated in one Postgres query (`user_id`, `deleted_at IS NULL`, `bookmark_id IN (...)`) that also returns UUIDs. The existing `getUserBookmarkUuidsByBmIds` gains `deleted_at: null` and is used for this bounded validation.
 
 ## Timeouts
 
-- Embedding: `AbortController` at 800 ms; return cached embeddings and no new vector for the request.
+- Embedding: `AbortController` at 800 ms; the request continues without vectors.
 - Vectorize: 500 ms per query; rejected queries are dropped and fulltext results remain.
 - jieba: 500 ms; fall back to an FTS phrase query built from sanitized terms.
 
@@ -62,3 +49,4 @@ A `SearchJob` cron runs daily at `17 3 * * *` and executes the FTS5 `optimize` c
 - Changing the rowid-scoped fulltext SQL, the 50-row group size, or the vector `N/100` fan-out.
 - Tag filtering (owned by `mobile-library-local-first-search`).
 - Read replication configuration, pagination UI, or an interactive search-as-you-type experience.
+- New KV caches for results, query embeddings, or keyword segmentation; the existing 5-minute row/shard maps are unchanged.

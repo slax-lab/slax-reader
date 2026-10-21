@@ -27,17 +27,6 @@ function createKV() {
   }
 }
 
-function fulltextRow(bookmarkId: number, score = -2) {
-  return {
-    bookmark_id: bookmarkId,
-    score,
-    raw_title: 'title',
-    raw_content: 'body',
-    title_snippet: '[highlight]body[/highlight]',
-    content_snippet: '[highlight]body[/highlight]'
-  }
-}
-
 describe('search optimization bounds', () => {
   test('groups 120 rows into three 50-row statements', async () => {
     const groups: number[][] = []
@@ -90,36 +79,13 @@ describe('search optimization bounds', () => {
     expect(results[0].final_score).toBeGreaterThanOrEqual(results[results.length - 1].final_score)
   })
 
-  test('serves a repeated search from the result cache', async () => {
-    const kv = createKV()
-    kv.store.set('search:bm_shard:7', JSON.stringify([]))
-    kv.store.set('search:bm_rows:7', JSON.stringify([{ bookmark_id: 11, id: 21 }]))
-    const searchRepo = {
-      seachBM25Batch: vi.fn(async (_ctx: unknown, _groups: number[][], _keyword: string, onRows?: (rows: unknown[]) => void) => {
-        onRows?.([fulltextRow(11)])
-        return { rows: [], complete: true }
-      }),
-      getBookmarkRaw: vi.fn().mockResolvedValue([])
-    }
-    const repo = { getUserBookmarkUuidsByBmIds: vi.fn().mockResolvedValue(new Map([[11, 'uuid-11']])) }
-    const service = new SearchService(repo as never, searchRepo as never, { seachVector: vi.fn().mockResolvedValue({ count: 0, matches: [] }) } as never)
-    const ctx = { getUserId: () => 7, env: { KV: kv } } as never
-
-    const first = await service.hybridSearch(ctx, 'saved')
-    const second = await service.hybridSearch(ctx, 'saved')
-
-    expect(first).toEqual(second)
-    expect(searchRepo.seachBM25Batch).toHaveBeenCalledTimes(1)
-    expect(kv.put).toHaveBeenCalledWith(expect.stringMatching(/^search:res:v1:7:/), expect.any(String), { expirationTtl: 300 })
-  })
-
-  test('rotates the generation nonce and clears row/shard caches', async () => {
+  test('clears row/shard caches without writing', async () => {
     const kv = createKV()
     const service = new SearchService({} as never, {} as never, {} as never)
 
     await service.clearSearchCache({ env: { KV: kv } } as never, 7)
 
-    expect(kv.put).toHaveBeenCalledWith('search:gen:7', expect.any(String), { expirationTtl: 2592000 })
+    expect(kv.put).not.toHaveBeenCalled()
     expect(kv.delete).toHaveBeenCalledWith('search:bm_rows:7')
     expect(kv.delete).toHaveBeenCalledWith('search:bm_shard:7')
   })

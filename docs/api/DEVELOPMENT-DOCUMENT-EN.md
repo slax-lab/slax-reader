@@ -67,4 +67,4 @@ After preparing development resources and environment files, run `pnpm api -- se
 
 ## Saved-article search
 
-`POST /v1/bookmark/search` keeps the rowid-scoped fulltext query and its 50-row groups. Each request searches at most 600 groups (the 30,000 newest indexed rows), returns at most 100 ranked results, and caches repeated results for 300 seconds. The `17 3 * * *` FTS `optimize` cron is registered by the Worker, but operators must also add that expression to their private API configuration; `deploy/cloudflare/api.toml.example` includes it.
+`POST /v1/bookmark/search` keeps the rowid-scoped fulltext query and its 50-row groups. Each request searches at most 600 groups (the 30,000 newest indexed rows) and returns at most 100 ranked results. The `17 3 * * *` FTS `optimize` cron is registered by the Worker, but operators must also add that expression to their private API configuration; `deploy/cloudflare/api.toml.example` includes it.

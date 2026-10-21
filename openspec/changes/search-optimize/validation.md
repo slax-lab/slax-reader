@@ -21,12 +21,10 @@
 
 - Fulltext grouping: 120 rows produced three groups of 50/50/20; 30,010 rows produced 600 groups and stopped at the 30,000-row cap.
 - Candidate bounds: 150 ranked items published 100 results; the candidate collector matched a full sort on 2,000 synthetic items.
-- Cache: the second identical search returned the cached result and did not call fulltext again; `clearSearchCache` rotated `search:gen` and deleted row/shard maps. Row/shard map TTLs remain 300 s because a shared bookmark can be re-indexed by another owner without clearing this user's cache.
-- Result-cache key/TTL: written as `search:res:v1:<userId>:<generation>:<hash>` with `expirationTtl: 300`; writes are skipped when any retrieval stage rejects or a fulltext batch reports incomplete.
-- Segmentation cache writes use `execution.waitUntil` and are skipped when any term falls back after a timeout or empty segmentation.
+- Caches: no result, embedding, or segmentation KV cache is written; a search writes only the existing 300 s row/shard maps, and `clearSearchCache` deletes them without writing (unit-tested, not re-run on workerd).
 - Raw writes: 17 shards produced one DELETE plus two INSERT statements (96 and 6 bound parameters) in one D1 batch; replacing the bookmark left one row.
 - Highlight: existing security/output cases and 3,000 randomized inputs matched byte-for-byte; the large-text regression stayed below the 2 s test budget.
-- Embedding cache/timeout: a repeated query used one provider call, and an aborted provider returned no new embedding.
+- Embedding timeout: an aborted provider returned no embedding.
 - Vector timeout: a never-resolving vector query was dropped after 500 ms.
 - FTS optimize command: executed against Miniflare D1 in a standalone measurement (data blocks 1,515,630 to 1,176,877 bytes; query median 338 ms to 317 ms).
 
@@ -39,4 +37,4 @@
 
 ## Human acceptance
 
-The human requested the exact bounds and cache TTLs and asked for this change to be implemented and submitted as `feat/search-optimize`. No separate hands-on UI acceptance was performed; the result cap must be reviewed as an API behavior change.
+The human requested the exact bounds, later asked to drop the result, embedding, and segmentation caches, and asked for this change to be implemented and submitted as `feat/search-optimize`. No separate hands-on UI acceptance was performed; the result cap must be reviewed as an API behavior change.

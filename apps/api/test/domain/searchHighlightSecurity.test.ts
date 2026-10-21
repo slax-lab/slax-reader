@@ -118,8 +118,8 @@ describe('search highlight rendering boundary', () => {
       expect(expectSafeMarkup(result.highlight_title)).toBe(fts.title)
       expect(expectSafeMarkup(result.highlight_content)).toBe(fts.content)
     }
-    expect(kv.get.mock.calls.map(([key]) => key)).toEqual(expect.arrayContaining([...cached.keys(), 'search:gen:7']))
-    expect(kv.put).toHaveBeenCalledWith(expect.stringMatching(/^search:res:v1:7:/), expect.any(String), { expirationTtl: 300 })
+    expect(kv.get.mock.calls.map(([key]) => key).sort()).toEqual([...cached.keys()].sort())
+    expect(kv.put).not.toHaveBeenCalled()
     expect(kv.delete).not.toHaveBeenCalled()
   })
 })

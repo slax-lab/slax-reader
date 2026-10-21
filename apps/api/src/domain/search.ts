@@ -16,15 +16,6 @@ export const FTS_CANDIDATE_LIMIT = 300
 const VECTOR_CANDIDATE_LIMIT = 150
 const FTS_CANDIDATE_PRUNE_AT = 500
 export const MAX_FTS_ROWS = 30000
-const SEARCH_RESULT_CACHE_TTL = 300
-const SEARCH_MAP_CACHE_TTL = 300
-const SEARCH_GENERATION_TTL = 2592000
-const SEARCH_CACHE_VERSION = 'v1'
-
-const sha256Hex = async (value: string): Promise<string> => {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
-  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
-}
 
 export interface userBookmarkItem {
   bmId: number
@@ -88,7 +79,7 @@ export class SearchService {
       const shardStr = await ctx.env.KV.get(`search:bm_shard:${userId}`)
       if (!shardStr) {
         shardList = await this.bookmarkRepo.getBookmarkVectorShard(userId)
-        await this.cachePut(ctx, `search:bm_shard:${userId}`, JSON.stringify(shardList), SEARCH_MAP_CACHE_TTL)
+        await ctx.env.KV.put(`search:bm_shard:${userId}`, JSON.stringify(shardList), { expirationTtl: 60 * 5 })
       } else {
         shardList = JSON.parse(shardStr) as bookmarkShardPO[]
       }
@@ -98,7 +89,7 @@ export class SearchService {
       const rowStr = await ctx.env.KV.get(`search:bm_rows:${userId}`)
       if (!rowStr) {
         rowIds = await this.bookmarkSearchRepo.getUserBookmarkRawIds(userId)
-        await this.cachePut(ctx, `search:bm_rows:${userId}`, JSON.stringify(rowIds), SEARCH_MAP_CACHE_TTL)
+        await ctx.env.KV.put(`search:bm_rows:${userId}`, JSON.stringify(rowIds), { expirationTtl: 60 * 5 })
       } else {
         rowIds = JSON.parse(rowStr) as bookmarkRowPO[]
       }
@@ -127,47 +118,9 @@ export class SearchService {
     }))
   }
 
-  private async cachePut(ctx: ContextManager, key: string, value: string, ttl: number): Promise<void> {
-    const write = Promise.resolve(ctx.env.KV.put(key, value, { expirationTtl: ttl }))
-    if (ctx.execution?.waitUntil) {
-      ctx.execution.waitUntil(write)
-      return
-    }
-    await write
-  }
-
-  private async readSearchCache<T>(ctx: ContextManager, key: string): Promise<T | null> {
-    try {
-      const raw = await ctx.env.KV.get(key)
-      return raw ? (JSON.parse(raw) as T) : null
-    } catch {
-      return null
-    }
-  }
-
-  private writeSearchCache(ctx: ContextManager, key: string, value: unknown, ttl: number): void {
-    void this.cachePut(ctx, key, JSON.stringify(value), ttl).catch(() => {})
-  }
-
-  private async searchGeneration(ctx: ContextManager, userId: number): Promise<string> {
-    try {
-      return (await ctx.env.KV.get(`search:gen:${userId}`)) ?? '0'
-    } catch {
-      return '0'
-    }
-  }
-
   public async hybridSearch(ctx: ContextManager, fulltextContent: string, vectorizeContent: string[] = []) {
     if (fulltextContent.length < 1 && vectorizeContent.length < 1) return []
     if (vectorizeContent.length < 1) vectorizeContent = [fulltextContent]
-
-    const userId = ctx.getUserId()
-    const cacheKey = `search:res:${SEARCH_CACHE_VERSION}:${userId}:${await this.searchGeneration(ctx, userId)}:${await sha256Hex(`${fulltextContent}\u0000${vectorizeContent.join('\u0000')}`)}`
-    const cached = await this.readSearchCache<hybridSearchResultItem[]>(ctx, cacheKey)
-    if (cached) {
-      console.log(`[cache] search hit user ${userId}`)
-      return cached
-    }
 
     const normalizer = new Normalizer(ctx.env)
     // 查找用户拥有的bookmark list
@@ -175,8 +128,8 @@ export class SearchService {
 
     const [bmListRes, vectorizeResultRes, jbSearchContentRes] = await Promise.allSettled([
       this.getUserBookmarkItem(ctx),
-      embedding(ctx.env, vectorizeContent, ctx.execution),
-      normalizer.processSearchKeyword(fulltextContent, ctx.execution)
+      embedding(ctx.env, vectorizeContent),
+      normalizer.processSearchKeyword(fulltextContent)
     ])
     console.log(`get base data time: ${performance.now() - t1} ms`)
 
@@ -187,8 +140,7 @@ export class SearchService {
     // 混合搜索
     const t2 = performance.now()
     let [fulltextResult, semanticResult] = await Promise.allSettled([this.fulltextSearch(ctx, jbSearchContent, bmList), this.semanticSearch(ctx, vectorizeResult, bmList)])
-    const fulltextItems = fulltextResult.status === 'fulfilled' ? fulltextResult.value.items : []
-    const fulltextComplete = fulltextResult.status === 'fulfilled' && fulltextResult.value.complete
+    const fulltextItems = fulltextResult.status === 'fulfilled' ? fulltextResult.value : []
     const semanticRes = semanticResult.status === 'fulfilled' ? semanticResult.value : []
 
     console.log(`hybrid search time: ${performance.now() - t2} ms, fulltext: ${fulltextItems.length}, semantic: ${semanticRes.length}`)
@@ -237,17 +189,10 @@ export class SearchService {
 
     const ranked = this.rankHybridSearchList(hybridSearchMap)
     const candidateIds = ranked.slice(0, FTS_CANDIDATE_LIMIT).map(item => item.bookmark_id)
-    const uuidMap = await this.bookmarkRepo.getUserBookmarkUuidsByBmIds(userId, candidateIds)
+    const uuidMap = await this.bookmarkRepo.getUserBookmarkUuidsByBmIds(ctx.getUserId(), candidateIds)
     const result = this.finalizeHybridSearchList(ranked.filter(item => uuidMap.has(item.bookmark_id)).slice(0, SEARCH_RESULT_LIMIT), uuidMap)
     console.log(`get raw & uuid data cost: ${performance.now() - t3} ms`)
 
-    const cacheable =
-      bmListRes.status === 'fulfilled' &&
-      vectorizeResultRes.status === 'fulfilled' &&
-      jbSearchContentRes.status === 'fulfilled' &&
-      fulltextComplete &&
-      semanticResult.status === 'fulfilled'
-    if (cacheable) this.writeSearchCache(ctx, cacheKey, result, SEARCH_RESULT_CACHE_TTL)
     return result
   }
 
@@ -354,8 +299,8 @@ export class SearchService {
    * @param userBookmarkItem
    * @returns
    */
-  public async fulltextSearch(ctx: ContextManager, jbSearchContent: string, userBookmarkItem: userBookmarkItem[]): Promise<{ items: fulltextMatchItem[]; complete: boolean }> {
-    if (userBookmarkItem.length < 1 || jbSearchContent.length < 1) return { items: [], complete: true }
+  public async fulltextSearch(ctx: ContextManager, jbSearchContent: string, userBookmarkItem: userBookmarkItem[]): Promise<fulltextMatchItem[]> {
+    if (userBookmarkItem.length < 1 || jbSearchContent.length < 1) return []
 
     const t1 = performance.now()
     // bm25单次搜50条左右的文章效率最高
@@ -382,7 +327,7 @@ export class SearchService {
 
     const res = collector.values()
     console.log(`fulltext search time: ${performance.now() - t1} ms, candidates: ${items.length}, groups: ${bmIdGroups.length}, result: ${res.length}, complete: ${complete}`)
-    return { items: res, complete }
+    return res
   }
 
   /**
@@ -446,22 +391,15 @@ export class SearchService {
     const normalizer = new Normalizer(ctx.env)
 
     const body = await content.text()
-    const results = await Promise.allSettled([
+    return await Promise.allSettled([
       this.semanticNormalize(ctx, normalizer, bookmarkId, bookmark.title, body),
       this.fulltextNormalize(ctx, normalizer, bookmarkId, bookmark.title, body)
     ])
-    if (results.some(result => result.status === 'fulfilled')) await this.clearSearchCache(ctx, ctx.getUserId()).catch(() => {})
-    return results
   }
 
   public async addSearchRecord(ctx: ContextManager, bookmarkId: number, title: string, content: string) {
     const normalizer = new Normalizer(ctx.env)
-    const results = await Promise.allSettled([
-      this.fulltextNormalize(ctx, normalizer, bookmarkId, title, content),
-      this.semanticNormalize(ctx, normalizer, bookmarkId, title, content)
-    ])
-    if (results.some(result => result.status === 'fulfilled')) await this.clearSearchCache(ctx, ctx.getUserId()).catch(() => {})
-    return results
+    return await Promise.allSettled([this.fulltextNormalize(ctx, normalizer, bookmarkId, title, content), this.semanticNormalize(ctx, normalizer, bookmarkId, title, content)])
   }
 
   /**
@@ -529,12 +467,7 @@ export class SearchService {
    * 同步清除搜索缓存
    */
   public async clearSearchCache(ctx: ContextManager, userId: number) {
-    await Promise.all([
-      ctx.env.KV.put(`search:gen:${userId}`, crypto.randomUUID(), { expirationTtl: SEARCH_GENERATION_TTL }),
-      ctx.env.KV.delete(`search:valid_bm_ids:${userId}`),
-      ctx.env.KV.delete(`search:bm_shard:${userId}`),
-      ctx.env.KV.delete(`search:bm_rows:${userId}`)
-    ])
+    await Promise.all([ctx.env.KV.delete(`search:valid_bm_ids:${userId}`), ctx.env.KV.delete(`search:bm_shard:${userId}`), ctx.env.KV.delete(`search:bm_rows:${userId}`)])
     console.log(`[cache] cleared search cache for user ${userId}`)
   }
 }

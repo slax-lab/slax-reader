@@ -12,12 +12,9 @@
 - [x] 2.1 Replace `mapHighlight` with the O(n+k) difference-array implementation preserving the 60-character output.
 - [x] 2.2 Highlight only the published results.
 
-## 3. Caches and ownership
+## 3. Ownership
 
-- [x] 3.1 Add result, embedding, and segmentation KV caches with the fixed TTLs and key formats.
-- [x] 3.2 Add the generation-nonce invalidation path and keep row/shard map TTLs at five minutes so shared-bookmark indexing cannot stale other owners for an hour.
-- [x] 3.3 Remove the inert subscription lookup and `search:valid_bm_ids`; validate the final 300 candidates with `deleted_at IS NULL`.
-- [x] 3.4 Invalidate search caches after successful fulltext/vector indexing.
+- [x] 3.1 Remove the inert subscription lookup and `search:valid_bm_ids`; validate the final 300 candidates with `deleted_at IS NULL`.
 
 ## 4. Resilience and writes
 
@@ -31,7 +28,7 @@
 
 ## 6. Verification
 
-- [x] 6.1 Update existing search tests and add coverage for grouping, top-K bounds, cache invalidation, timeouts, and raw-write chunking.
+- [x] 6.1 Update existing search tests and add coverage for grouping, top-K bounds, timeouts, and raw-write chunking.
 - [x] 6.2 Run API typecheck, search tests, full relevant test suite, lint, and `openspec validate --all --strict`.
 - [x] 6.3 Exercise the search endpoint locally against workerd D1 with a synthetic library and record timings/bounds in `validation.md`.
 - [x] 6.4 Run the `REVIEW.md` Bugs/Security/Compliance passes and resolve Important findings before pushing.
