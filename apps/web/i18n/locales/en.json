@@ -128,6 +128,13 @@
       }
     },
     "tips": {
+      "in_app_browser": {
+        "title": "Open this page in your browser",
+        "message_before": "For the best experience, tap",
+        "message_after": "in the top-right corner and choose Open in browser.",
+        "message_accessible": "For the best experience, tap the more options menu in the top-right corner and choose Open in browser.",
+        "close": "Dismiss external browser tip"
+      },
       "access_unavailable": {
         "bookmark_footer": "(Content page upper right corner - Share - Copy link)",
         "desc": "Please contact the publisher to get the correct sharing address",
