@@ -92,7 +92,7 @@ describe('InAppBrowserTip', () => {
     expect(wrapper.find('.message').text()).toContain(copy.after)
     expect(wrapper.find('.message').text()).not.toContain('…')
     expect(wrapper.find('.message .sr-only').text()).toBe(copy.accessible)
-    expect(wrapper.find('.message .menu-icon').exists()).toBe(true)
+    expect(wrapper.find('.message .menu-icon-horizontal').exists()).toBe(true)
     expect(wrapper.get('button').attributes('aria-label')).toBe(copy.close)
     expect(document.activeElement).toBe(focused)
     expect(wrapper.findAll('svg').every(icon => icon.attributes('aria-hidden') === 'true')).toBe(true)

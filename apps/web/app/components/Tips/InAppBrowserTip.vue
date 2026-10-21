@@ -22,7 +22,7 @@
         <p class="message">
           <span class="message-visual" aria-hidden="true">
             <span>{{ t('common.tips.in_app_browser.message_before') }}</span>
-            <AppIcon class="menu-icon" name="snapshot.more" :size="16" />
+            <AppIcon class="menu-icon menu-icon-horizontal" name="snapshot.more" :size="16" />
             <span>{{ t('common.tips.in_app_browser.message_after') }}</span>
           </span>
           <span class="sr-only">{{ t('common.tips.in_app_browser.message_accessible') }}</span>
@@ -248,6 +248,7 @@ watch(() => route.path, evaluateVisibility)
 .message { margin-top: 4px; color: var(--slax-text-muted); font-size: var(--slax-fs-aux); line-height: 1.45; }
 .message-visual { display: inline; }
 .menu-icon { display: inline-block; margin-inline: 0.18em; vertical-align: -0.18em; color: var(--slax-text); }
+.menu-icon-horizontal { transform: rotate(90deg); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .close-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -6px -2px 0 0; padding: 0; color: var(--slax-text-muted); line-height: 1; cursor: pointer; background: transparent; border: 0; border-radius: 50%; }
 .close-button:hover { color: var(--slax-text); background: var(--slax-accent-bg); }
