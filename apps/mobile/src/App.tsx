@@ -18,7 +18,6 @@ const screens = {
   Library: () => require('./screens/LibraryScreen').LibraryScreen,
   Search: () => require('./screens/SearchScreen').SearchScreen,
   Reader: () => require('./screens/ReaderScreen').ReaderScreen,
-  Reauthenticate: () => require('./screens/LoginScreen').ReauthenticationScreen,
   Settings: () => require('./screens/SettingsScreen').SettingsScreen,
   About: () => require('./screens/AboutScreen').AboutScreen,
   Feedback: () => require('./screens/FeedbackScreen').FeedbackScreen,
@@ -67,8 +66,7 @@ export function ApplicationRoutes() {
     <Stack.Navigator screenOptions={{headerTintColor: C.text, headerStyle: {backgroundColor: C.background}, headerTitleAlign: 'center', headerTitleStyle: {fontSize: 17, fontWeight: '500'}, contentStyle: {backgroundColor: C.background}, headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal'}}>
       {session.status === 'unauthenticated' ? <Stack.Screen name="Login" getComponent={screens.Login} options={{headerShown: false}}/> : <Stack.Group navigationKey={session.session.userId}>
         <Stack.Screen name="Library" getComponent={screens.Library} options={{headerShown: false}}/>
-        <Stack.Screen name="Reauthenticate" getComponent={screens.Reauthenticate} options={{title: t('reauthenticate_title'), headerTitle: sourceHeaderTitle}}/>
-        <Stack.Screen name="Search" getComponent={screens.Search} options={{title: t('search_action')}}/>
+        <Stack.Screen name="Search" getComponent={screens.Search} options={{title: t('search_action'), headerStyle: {backgroundColor: C.readerBackground}}}/>
         <Stack.Screen name="Reader" getComponent={screens.Reader} options={{title: '', headerStyle: {backgroundColor: C.readerBackground}}}/>
         <Stack.Screen name="Settings" getComponent={screens.Settings} options={{title: t('setting_title'), headerTitle: sourceHeaderTitle}}/>
         <Stack.Screen name="About" getComponent={screens.About} options={{title: t('sidebar_about')}}/>

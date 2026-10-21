@@ -34,13 +34,15 @@ test('shared reduced-motion subscription fences stale initial reads, removed lis
 }));
 
 for (const reducedMotion of [false, true]) test(`drawer fences delayed UI-to-JS completion, reverses and resizes (reduced=${reducedMotion})`, nativeBoundary, async () => withNativeHost(async host => {
-  let overlay, drawerStyle, back, update;
+  let overlay, surface, drawerStyle, back, update;
   const changes = [];
   const View = props => {
     if ('accessibilityViewIsModal' in props) overlay = props;
+    else if ('collapsable' in props) surface = props;
     if (props.testID === 'drawer') drawerStyle = props.style;
     return React.createElement(host.native.View, props);
   };
+  const live = () => overlay.pointerEvents !== 'none' || surface.pointerEvents !== 'none';
   const motion = installedMotionHost(View, {reducedMotion, deferJS: true});
   const {SourceDrawer} = loadWorkletComponent(new URL('../../src/components/SourceDrawer.tsx', import.meta.url), {
     react: React, 'react-native': {...host.native, View, BackHandler: {addEventListener: (_name, handler) => {back = handler; return {remove() {back = undefined;}};}}},
@@ -51,9 +53,9 @@ for (const reducedMotion of [false, true]) test(`drawer fences delayed UI-to-JS 
   function Harness() {const [open, setOpen] = React.useState(false); update = setOpen; return React.createElement(SourceDrawer, {testID: 'drawer', open, width, onOpenChange: next => {changes.push(next); setOpen(next);}, drawer: 'Drawer', children: 'Feed'});}
   const render = () => host.render(React.createElement(Harness));
   const drag = (gesture, dx, success = true) => {gesture.handlers.onStart(); gesture.handlers.onUpdate({translationX: dx}); gesture.handlers.onEnd({velocityX: 0}, success); gesture.handlers.onFinalize({}, success);};
-  await render(); assert.equal(overlay.pointerEvents, 'none');
+  await render(); assert.equal(overlay.pointerEvents, 'none'); assert.ok(live(), 'Closed drawer leaves the feed interactive');
   await act(async () => {drag(motion.detectors()[0], 220); motion.advance(reducedMotion ? 0 : 300); motion.flushJS();});
-  assert.deepEqual(changes, [true]); assert.equal(overlay.pointerEvents, 'auto'); assert.equal(motion.values[0].value, 1); assert.ok(back);
+  assert.deepEqual(changes, [true]); assert.equal(overlay.pointerEvents, 'auto'); assert.ok(live(), 'Open drawer keeps its dismiss surface interactive'); assert.equal(motion.values[0].value, 1); assert.ok(back);
   await act(async () => update(false));
   await act(async () => motion.advance(reducedMotion ? 0 : 300));
   const oldClose = motion.started.at(-1);
@@ -66,7 +68,7 @@ for (const reducedMotion of [false, true]) test(`drawer fences delayed UI-to-JS 
   width = 480; await render();
   assert.equal(drawerStyle[0].width, 480); assert.equal(drawerStyle[1].transform[0].translateX, 0);
   await act(async () => {drag(motion.detectors()[1], -400); motion.advance(reducedMotion ? 0 : 300); motion.flushJS();});
-  assert.deepEqual(changes, [true, false]); assert.equal(overlay.pointerEvents, 'none'); assert.equal(back, undefined);
+  assert.deepEqual(changes, [true, false]); assert.equal(overlay.pointerEvents, 'none'); assert.ok(live(), 'Closing the drawer restores feed interaction'); assert.equal(back, undefined);
   await act(async () => {drag(motion.detectors()[0], 400); motion.advance(reducedMotion ? 0 : 300); drag(motion.detectors()[1], -400); motion.advance(reducedMotion ? 0 : 300); drag(motion.detectors()[0], 400); motion.advance(reducedMotion ? 0 : 300); motion.flushJS();});
   assert.deepEqual(changes, [true, false, true], 'Only the last rapid-reversal gesture may publish its open callback');
   await act(async () => update(false)); const active = motion.started.at(-1);

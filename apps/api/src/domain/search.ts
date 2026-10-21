@@ -208,8 +208,13 @@ export class SearchService {
 
     // return processHybridSearchRerank(env, fulltextContent, hybridSearchMap)
     const uuidMap = new Map(currentRows.map(row => [row.bookmark_id, row.uuid]))
+    const metadata = new Map(currentRows.map(row => [row.bookmark_id, row]))
     for (const id of matchedIds) if (!uuidMap.has(id)) delete hybridSearchMap[id]
-    return this.processHybridSearchList(hybridSearchMap, uuidMap)
+    return this.processHybridSearchList(hybridSearchMap, uuidMap).map(item => ({
+      ...item,
+      target_url: metadata.get(item.bookmark_id)?.bookmark?.target_url ?? '',
+      created_at: metadata.get(item.bookmark_id)?.created_at?.toISOString() ?? ''
+    }))
   }
 
   public async processHybridSearchRerank(ctx: ContextManager, keyword: string, hybridSearchMap: Record<number, hybridSearchItem>) {

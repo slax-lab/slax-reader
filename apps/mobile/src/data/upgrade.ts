@@ -8,6 +8,8 @@ export interface DatabaseLogicalIdentity { owner: string; relativePath: string; 
 export interface DatabaseOwnership {
   /** Acquires the exclusive SDK owner; iOS private-container ownership is process-local. */
   beginDataOwnership(): Promise<LegacyInventory>;
+  /** Development-only fast path: owns the current database slot without scanning or adopting legacy files. */
+  beginFreshDataOwnership?(): Promise<LegacyInventory>;
   endDataOwnership(): Promise<void>;
 }
 export interface AdoptionEvidence {

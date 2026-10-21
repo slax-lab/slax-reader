@@ -2,6 +2,10 @@ export interface BookmarkSearchRequest {keyword: string; tag_uuids?: string[]}
 export interface BookmarkSearchHit {
   bookmark_id: string | number; bookmark_user_uuid?: string;
   highlight_title: string; highlight_content: string;
+  /** Added metadata; optional while clients may still reach an older API. */
+  target_url?: string;
+  /** ISO 8601 time when the active user saved the article. */
+  created_at?: string;
   final_score: number; vs_score: number; fts_score: number; type: 'fts' | 'vector' | 'hybrid';
 }
 export function parseBookmarkSearchRequest(value: unknown): BookmarkSearchRequest | null {

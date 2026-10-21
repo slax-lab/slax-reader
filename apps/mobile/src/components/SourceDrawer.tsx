@@ -78,7 +78,7 @@ export function SourceDrawer({open, onOpenChange, width, drawer, children, testI
   const drawerStyle = useAnimatedStyle(() => ({transform: [{translateX: (motion.value - 1) * width}]}));
   return <DrawerInput.Provider value={locked}><DrawerGesture.Provider value={opening}><View style={{flex: 1}}>
     <GestureDetector gesture={opening}><View collapsable={false} style={{flex: 1}} pointerEvents={visible || open ? 'none' : 'auto'} importantForAccessibility={visible ? 'no-hide-descendants' : 'auto'} accessibilityElementsHidden={visible}>{children}</View></GestureDetector>
-    <GestureDetector gesture={closing}><View collapsable={false} pointerEvents={visible ? 'auto' : 'none'} style={StyleSheet.absoluteFill} accessibilityViewIsModal={visible} accessibilityElementsHidden={!visible} importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'} onAccessibilityEscape={dismiss}>
+    <GestureDetector gesture={closing}><View collapsable={false} pointerEvents={visible || open ? 'auto' : 'none'} style={StyleSheet.absoluteFill} accessibilityViewIsModal={visible} accessibilityElementsHidden={!visible} importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'} onAccessibilityEscape={dismiss}>
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, {backgroundColor: 'rgba(0, 0, 0, 0.32)'}, scrimStyle]} />
       <Pressable accessible={false} style={StyleSheet.absoluteFill} onPress={dismiss} />
       <Animated.View testID={testID} style={[{width, height: '100%'}, drawerStyle]}>{drawer}</Animated.View>

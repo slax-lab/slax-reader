@@ -1,6 +1,6 @@
 import type {PreferenceStore} from './preferences.ts';
 import type {AdoptionEvidence, DatabaseLocation, DatabaseLogicalIdentity, LegacyInventory} from './upgrade.ts';
-import {verifiedDatabaseLocation} from './upgrade.ts';
+import {UpgradeVerificationRequired, verifiedDatabaseLocation} from './upgrade.ts';
 import {createInstallationBinding, LEGACY_DATABASE_STORAGE_TABLES, INSTALLATION_KEY, initializedDatabaseLocation, readInstallationBinding, supportedStorageTables, validateDatabaseSchema} from './installation.ts';
 
 export interface DatabaseSnapshot {
@@ -48,9 +48,13 @@ function priorSnapshotAtCurrentPath(previous: Journal, path: string, identity: D
 }
 /** Only the migration coordinator may open an existing file, while holding the native ownership lease. */
 export async function openVerifiedDatabase<T extends {close(): Promise<unknown>}>(options: {
-  inventory: LegacyInventory; evidence?: AdoptionEvidence; inspector: DatabaseInspector; preferences: PreferenceStore;
+  inventory: LegacyInventory; evidence?: AdoptionEvidence; inspector: DatabaseInspector; preferences: PreferenceStore; fresh?: boolean;
   open(location: DatabaseLocation, legacySchema?: boolean): Promise<T>;
 }): Promise<T> {
+  if (options.fresh) {
+    if (!options.inventory.scanComplete || !options.inventory.newDatabaseDirectory) throw new UpgradeVerificationRequired(options.inventory);
+    return options.open({dbFilename: 'powersync.db', dbLocation: options.inventory.newDatabaseDirectory, adopted: false});
+  }
   const values = await options.preferences.read();
   const binding = readInstallationBinding(values[INSTALLATION_KEY]);
   const profile = options.evidence?.report ?? 'slax-native-format14-schema2-v1';

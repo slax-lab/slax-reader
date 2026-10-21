@@ -152,6 +152,18 @@ class SlaxLegacyModule : Module() {
       } catch (error: Throwable) { releaseOwner(); throw error }
     }
     AsyncFunction("endDataOwnership") { releaseOwner() }
+    AsyncFunction("beginFreshDataOwnership") {
+      // Development storage intentionally skips the exclusive ownership lease so a JS reload can reopen it.
+      try {
+        val root = context.dataDir.canonicalFile
+        val newDirectory = databaseDirectory.absoluteFile
+        check(newDirectory.canonicalFile == newDirectory && newDirectory.path.startsWith(root.path + File.separator)) { "Database directory requires recovery" }
+        check(newDirectory.exists() || newDirectory.mkdirs()) { "Cannot create database directory" }
+        val path = File(newDirectory, "powersync.db").path
+        synchronized(ownerMutex) { databaseCandidates = setOf(path) }
+        mapOf("scanComplete" to true, "databaseCandidates" to emptyList<String>(), "legacyDataDirectory" to root.path, "newDatabaseDirectory" to newDirectory.path)
+      } catch (error: Throwable) { throw error }
+    }
     AsyncFunction("inspectLegacyDatabase") { path: String -> inspectDatabase(path) }
     AsyncFunction("inspectAcceptedDatabase") { path: String -> inspectDatabase(path, true) }
     OnDestroy { releaseOwner() }

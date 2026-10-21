@@ -44,24 +44,22 @@ Alternative rejected: hiding a spinner while leaving the same blocking work, add
 
 ### 2. Fullscreen search composition and navigation
 
-Add a native Search route, an icon beside the existing plus button, and a localized accessible name. Retain the centered Inbox title, safe areas and existing Mobile tokens. Search uses the native route back affordance, a growing tokenized input and an adjacent Search action; the keyboard Search/Enter invokes the same submit command. Focus the input on entry. Back with the keyboard open follows native dismissal; returning to Library or from Reader preserves source selection, query and list position under the same owner.
+Add a native Search route and an accessible icon beside the existing plus action. Preserve native navigation/back, runtime safe areas and input focus. Use the Mobile reader background and application-owned semantic search colors; this human-reviewed typography/layout exception is recorded in `DESIGN.md`.
 
-Order inside the search screen:
+Order inside the screen:
 
-1. Search input containing removable selected-tag chips and editable free text, plus submit action.
-2. One horizontal tag rail; selecting an item toggles its chip.
-3. Collection source section, then RSS source section.
-4. Unified article result section, containing own bookmarks, permitted local collection articles and local RSS entries, with source attribution.
+1. One stable full-width input, clear action and integrated submit control; noncomposing keyboard Search/Enter invokes the same command.
+2. A separate compact condition row for the active source and tag summary. Selected tags do not squeeze the text editor.
+3. Up to four local inline tag suggestions when the current text ends in `#` or `#prefix`, plus an action to browse all tags.
+4. Nonempty collapsible Collection, RSS and personal-article sections in one virtualized FlatList. Source rows use consistent avatars/icons and article rows use quiet separators, two-line snippets and a host/date footer.
 
-With no keyword/tags, show the source sections and a neutral search hint, not all articles. Source sections filter locally by collection name/description and feed title/remark/site. Selecting a Collection/RSS source opens that existing Library source without inventing remote source search. Article results open their existing Reader context. RSS sections respect the existing Labs availability; search does not enable a disabled feature.
-
-A selected personal tag constrains article results to tagged personal bookmarks, including an RSS/collection URL only when it is also an owned saved bookmark. Source sections then show a short localized explanation rather than suggesting their untagged content satisfies the filter. No implicit new tags are created. This is a deliberate default because Collections/feeds have no personal tag relation today.
+Selecting a Collection/RSS source stays in Search, scopes its local query, clears personal tags and avoids cloud retrieval. Scoped results omit redundant source headers. Personal tag selection clears a source and omits untagged Collection/RSS sections. RSS availability follows the existing Labs gate. Back/Reader return preserves the current route state.
 
 ### 3. Query and tag semantics
 
-The query model stores `{text, tagUuids}` separately. `#prefix` starts local tag suggestions; choosing a suggestion, or committing an unambiguous exact name on space/submit, converts it into a chip. Unknown/ambiguous names remain editable with feedback and do not become a silently broader API query. Typing `#` alone does not submit an empty query. Match tags against current local names but submit stable UUIDs; deduplicate UUIDs. Backspace at an empty text segment selects/removes the trailing chip; each chip also has an accessible remove action. Keep Chinese IME composition intact: Enter that confirms composition is not a search submission. Support paste, Chinese text, leading/trailing spaces and tag names containing spaces through suggestion selection.
+Store `{text, tagUuids, source?}` independently. Selecting a local `#prefix` suggestion consumes that token and uses the tag UUID. The bottom panel supports searchable multi-selection, visible checked state, reset and Done; it uses an explicit viewport-derived height, keyboard/safe-area insets, fixed controls and an independently scrolling list. Avoid percentage heights through intrinsic wrappers, which caused clipping and incorrect anchoring on the reviewed iPhone.
 
-Multiple selected tags use AND, consistent with the existing backend multi-tag bookmark filter. Keywords AND tags. Tag-only queries execute locally; empty text never triggers embedding or a cloud all-document listing. Hidden tags are omitted from the default rail but remain available through explicit matching suggestions. Deleted tags invalidate the chip and cancel stale remote results rather than silently dropping its constraint.
+Unknown/ambiguous tag names remain editable with feedback and never broaden a cloud query. The default panel excludes hidden tags except already selected ones; explicit typed suggestions may find them. Backspace at empty text removes the trailing condition. Selecting tags through the panel also consumes a trailing typed tag token. Preserve Chinese IME composition: confirming composition does not submit. Multiple tags use AND with the keyword; tag-only queries stay local. Source and personal-tag conditions are mutually exclusive, including when selecting an inline suggestion from a source scope.
 
 ### 4. Local search is independent of the visible Inbox window
 
@@ -75,13 +73,15 @@ Rank local results by exact/prefix title, title substring, then description/site
 
 Extend the shared request shape compatibly to `{keyword, tag_uuids?: string[]}`. Omitted/empty tags preserve the current endpoint contract. Validate a nonempty trimmed keyword with a 500 Unicode code-point length bound and at most 20 distinct valid UUIDs. Resolve tag ownership in PostgreSQL; malformed input fails validation, and unknown/foreign tags produce no matches without revealing their owner. Use live user-bookmark/tag relations to build the owned, nondeleted, all-tags candidate set before fulltext shard-row and vector candidate retrieval. Recheck current ownership/tags before response publication; a five-minute unfiltered membership cache is insufficient as the final authority. Do not post-filter only a global vector top-K, which loses valid tagged matches. Preserve the shard selection changes already in the baseline. Do not log search text, document snippets, tokens, or tag names in new instrumentation.
 
-The user explicitly confirmed title-plus-body retrieval. Keep existing FTS/semantic ranking and safe highlight handling; no embedding migration is required. A Search button or valid noncomposing Enter captures immutable text/tags/account/origin/generation. One submit means one remote attempt at a time; retries are explicit and bounded. Editing any constraint cancels/invalidate the attempt; a later response cannot overwrite newer results. Remote failures appear as a small inline retry state while local results remain usable.
+The user explicitly confirmed title-plus-body retrieval. Keep existing FTS/semantic ranking and safe highlight handling; no embedding migration is required. A Search button or valid noncomposing Enter captures immutable text/tags/account/origin/generation. One submit means one remote attempt at a time; retries are explicit and bounded. Editing any constraint cancels/invalidate the attempt; a later response cannot overwrite newer results. Cloud failures leave local results silently usable; only local repository failures expose a retry. Recommitting the same query preserves existing rows and the active local subscription while cloud work runs.
 
 Use typed result identities: `own:<bookmark_user_uuid>`, `collection:<owner>:<bookmark>`, `rss:<entry>`. Merge remote records only into personal bookmark identities; prefer the returned user UUID, resolve legacy encoded bookmark IDs through a typed metadata adapter when necessary, and support remote hits not yet synchronized locally. Keep local title/alias metadata authoritative when present and attach remote snippets/match sources. Render highlights as safe native text runs, not untrusted HTML.
 
 Preserve the current local order during enrichment, enhance existing rows in place and append remote-only rows in backend rank order. Do not mix incomparable SQL match weights with RRF scores. Collapse RSS/Collection duplicates into an owned result only when a verified saved-bookmark relation exists; URL equality alone never merges different permission contexts. For selected tags, immediate local tag edits override stale cloud membership until sync catches up.
 
 Alternative rejected: network calls on every keystroke, client-only API tag filtering, scoring all sources with arbitrary combined numeric weights, and dropping local results during cloud requests.
+
+The final ownership/tag admission query also projects `bookmark.target_url` and the active user's save `created_at`. Return them additively as `target_url` and ISO `created_at`; older clients ignore them and newer clients tolerate older servers omitting them. Candidate enumeration stays narrow. This avoids a detail request for every modern hit. Local nonempty URL/date remain authoritative; cloud metadata fills missing fields. Display only a real host and available date, retaining category headings without a repeated saved-article footer label.
 
 ### 6. PDF search coverage is present in code and must be exercised
 
@@ -135,5 +135,9 @@ Release the lock only when dismissal finishes, including cancelled-open and inte
 2. Capture a reproducible baseline, implement local presentation/cache and drawer changes, then API filtering and local/cloud search, then measured PDF/list optimizations.
 3. Run focused behavioral suites, root Mobile/API checks, native builds where affected, and actual Android/iOS plus local API acceptance. Record all results/gaps in this change's `validation.md`; planning does not pre-create successful evidence.
 4. Prepare the running UI for the human's required hands-on review, implement adjustments and record who/when/what was accepted before opening a PR. Run the local review policy before any behavior-changing push.
-5. Ask the combined application version decision after implementation checks. Current observed Mobile metadata is `1.0.25 (781)`, previous `780`; a proposed next patch/build must be rechecked against the then-current source and release conditions. Do not change it during planning or assume prior build approval covers this work. Mobile CI checks/bundles do not publish a store build.
+5. The human explicitly approved `1.0.25 (783)`, previous bound `782`, for the final follow-up. Regenerate native metadata with existing tooling. Mobile CI checks/bundles do not publish a store build.
 6. An API deployment is separate authorization. Rollback the new route/filter calls and feature changes through the same branch/PR workflow; old keyword-only clients remain compatible and no sync data migration needs reversal. New derived avatar resources are safely disposable.
+
+## Search feedback refinement — 2026-10-21
+
+Track local debounce/query pending state separately from explicit cloud work. Show progress at the submit action and, when there is no article group yet, the pending-results area without clearing useful same-query rows; the final human feedback removes progress next to the article heading. Render Collection, RSS and article group headings only when that group has matches. Each accessible heading independently collapses/expands its contents and reports expanded state. Suppress false empty results while a query is pending. Preserve Mobile tokens and use a geometrically joined diagonal search lens/handle in Inbox. The LAN development session reads only ignored `deploy/mobile/.env`; its adapter is tracked, while the supplied credential and generated session cache stay local-only.

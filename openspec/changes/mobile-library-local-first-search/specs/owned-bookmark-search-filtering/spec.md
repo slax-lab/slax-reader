@@ -54,3 +54,12 @@ PDF text successfully extracted through URL capture or file upload SHALL enter t
 - **WHEN** extraction succeeds but a fulltext or vector write fails
 - **THEN** the failure remains visible to the existing processing diagnostics and retry path
 - **AND** successful byte storage alone does not establish complete search coverage
+
+### Requirement: Admitted hits expose origin and user save time compatibly
+
+The final current-ownership/tag admission SHALL project each returned bookmark's target URL and the active user's save timestamp. The API SHALL return additive `target_url` and ISO `created_at` fields without changing existing identifiers, ranking or highlights. Candidate enumeration before retrieval SHALL remain narrow; metadata MUST NOT be obtained from an unadmitted candidate or another user's save relation. Shared clients SHALL tolerate omission by older servers.
+
+#### Scenario: Fulltext or vector retrieval finds a current owned bookmark
+- **WHEN** either branch contributes a hit that passes final admission
+- **THEN** its response includes the target URL and that user's saved-at timestamp
+- **AND** a candidate whose ownership is revoked before admission contributes neither a hit nor metadata

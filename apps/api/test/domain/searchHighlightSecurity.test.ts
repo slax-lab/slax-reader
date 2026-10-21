@@ -92,7 +92,10 @@ describe('search highlight rendering boundary', () => {
     }
     const repo = {
       getUserBookmarkUuidsByBmIds: vi.fn().mockResolvedValue(new Map([[11, 'fts-uuid'], [12, 'vector-uuid']])),
-      getSearchEligibleBookmarks: vi.fn().mockResolvedValue([{bookmark_id: 11}, {bookmark_id: 12}])
+      getSearchEligibleBookmarks: vi.fn().mockResolvedValue([
+        {bookmark_id: 11, uuid: 'fts-uuid', created_at: new Date('2026-10-16T12:02:00Z'), bookmark: {target_url: 'https://fts.example/article'}},
+        {bookmark_id: 12, uuid: 'vector-uuid', created_at: new Date('2026-09-22T14:33:00Z'), bookmark: {target_url: 'https://vector.example/article'}}
+      ])
     }
     const searchRepo = {
       seachBM25: vi.fn().mockResolvedValue([{
@@ -122,10 +125,26 @@ describe('search highlight rendering boundary', () => {
       expect(expectSafeMarkup(result.highlight_title)).toBe(fts.title)
       expect(expectSafeMarkup(result.highlight_content)).toBe(fts.content)
     }
+    expect(results.find(item => item.bookmark_id === 11)).toMatchObject({target_url: 'https://fts.example/article', created_at: '2026-10-16T12:02:00.000Z'});
+    expect(results.find(item => item.bookmark_id === 12)).toMatchObject({target_url: 'https://vector.example/article', created_at: '2026-09-22T14:33:00.000Z'});
+    expect(repo.getSearchEligibleBookmarks).toHaveBeenLastCalledWith(7, [], [11, 12]);
     expect(kv.get.mock.calls.map(([key]) => key).sort()).toEqual([...cached.keys()].sort())
     expect(kv.put).not.toHaveBeenCalled()
     expect(kv.delete).not.toHaveBeenCalled()
   })
+
+  test('does not expose result metadata after current ownership admission rejects a hit', async () => {
+    const repo = {getSearchEligibleBookmarks: vi.fn()
+      .mockResolvedValueOnce([{bookmark_id: 11, uuid: 'owned'}, {bookmark_id: 99, uuid: 'removed'}])
+      .mockResolvedValueOnce([{bookmark_id: 11, uuid: 'owned', created_at: new Date('2026-10-21T00:00:00Z'), bookmark: {target_url: 'https://owned.example/article'}}])};
+    const service = new SearchService(repo as never, {getUserSubscriptionInfo: vi.fn().mockResolvedValue(null)} as never, {} as never, {} as never);
+    vi.spyOn(service, 'getUserBookmarkItem').mockResolvedValue([{bmId: 11, shardIdx: 0, rowId: 1}, {bmId: 99, shardIdx: 0, rowId: 2}]);
+    vi.spyOn(service, 'fulltextSearch').mockResolvedValue([11, 99].map(bookmark_id => ({bookmark_id, score: -2, raw_title: 'Title', raw_content: 'Body', title_snippet: 'Title', content_snippet: 'Body'})));
+    vi.spyOn(service, 'semanticSearch').mockResolvedValue([]);
+    const results = await service.hybridSearch({getUserId: () => 7, env: {}} as never, 'body');
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({bookmark_id: 11, bookmark_user_uuid: 'owned', target_url: 'https://owned.example/article', created_at: '2026-10-21T00:00:00.000Z'});
+  });
 
   test('rejects unknown or foreign requested tags before consulting cached FTS or vector candidates', async () => {
     const kv = { get: vi.fn(), put: vi.fn(), delete: vi.fn() }

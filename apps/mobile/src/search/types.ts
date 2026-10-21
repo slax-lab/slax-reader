@@ -1,8 +1,9 @@
-export interface SearchQuery {text: string; tagUuids: string[]}
+export interface SearchSource {kind: 'collection' | 'rss'; id: string; ownerId?: string; label?: string}
+export interface SearchQuery {text: string; tagUuids: string[]; source?: SearchSource}
 export interface SearchArticle {
   key: string; kind: 'own' | 'collection' | 'rss'; id: string;
   title: string; description: string; url: string; source: string; time: string;
-  collectionId?: string; ownerId?: string; savedId?: string; snippet?: string;
+  collectionId?: string; ownerId?: string; subscriptionId?: string; savedId?: string; snippet?: string;
 }
 export interface SearchPage {items: SearchArticle[]; hasMore: boolean}
 export interface SearchLocalPort {

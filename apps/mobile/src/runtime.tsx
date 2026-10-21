@@ -130,6 +130,14 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
   const token = session.status === 'authenticated' ? session.session.token : null;
   const userId = session.status === 'authenticated' ? session.session.userId : null;
   const reauthenticationRequired = credentialState.status === 'reauthentication-required';
+  const reauthSignOut = useRef(false);
+  useEffect(() => {
+    if (credentialState.status !== 'reauthentication-required') {reauthSignOut.current = false; return;}
+    if (reauthSignOut.current) return;
+    reauthSignOut.current = true;
+    // Rejected credentials do not ask for the previous account; drop the session and keep local data for Settings cleanup.
+    void runtime.sessions.signOut(false).catch(() => undefined);
+  }, [runtime, credentialState.status]);
   const nativeResourceOwner = runtime.getNativeResourceOwner();
   useEffect(() => {void systemActions.contextChanged();}, [systemActions, userId, runtime.api.options.baseUrl, nativeResourceOwner, upgrade.status, credentialState.status]);
   const surfaceCapabilities = systemSurfaceCapabilities(Platform.OS, Platform.Version, Boolean(appIntents?.isAvailable()));
@@ -191,7 +199,7 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
   const locale = normalizeLocale(typeof settings.user_language === 'string' ? settings.user_language : getLocales()[0]?.languageTag);
   const t = useMemo(() => createTranslator(locale), [locale]);
   const apiUrl = runtime.api.options.baseUrl;
-  const config = useMemo(() => ({...mobileConfig, apiUrl, isBeta: apiUrl === mobileConfig.betaApiUrl}), [apiUrl]);
+  const config = useMemo(() => ({...mobileConfig, apiUrl, isBeta: !mobileConfig.development && apiUrl === mobileConfig.betaApiUrl}), [apiUrl]);
   const retryFlight = useRef<Promise<void> | null>(null);
   const retryStart = useCallback(() => {
     if (retryFlight.current) return retryFlight.current;

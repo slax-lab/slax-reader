@@ -33,7 +33,7 @@ import { UpgradeVerificationRequired } from './upgrade.ts';
 import type { AdoptionEvidence, LegacyInventory } from './upgrade.ts';
 
 export type UpgradeState = {status: 'idle' | 'checking' | 'ready'} | {status: 'verification-required'; inventory: LegacyInventory} | {status: 'error'; error: Error};
-export interface MobileDataRuntimeOptions extends Omit<MobileApiOptions, 'sessions'> { betaBaseUrl?: string; nativeBridge?: SlaxLegacyBridge; adoptionEvidence?: AdoptionEvidence; localSyncEndpoint?: string; network?: NetworkAvailabilitySource }
+export interface MobileDataRuntimeOptions extends Omit<MobileApiOptions, 'sessions'> { betaBaseUrl?: string; nativeBridge?: SlaxLegacyBridge; adoptionEvidence?: AdoptionEvidence; localSyncEndpoint?: string; network?: NetworkAvailabilitySource; freshStorage?: boolean }
 /** Construct once at the app root; start before mounting account-bound watchers. */
 export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   const bridge = options.nativeBridge ?? loadLegacyBridge();
@@ -73,12 +73,23 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   let syncRetry: ReturnType<typeof setTimeout> | undefined, syncFailures = 0;
   const clearSyncRetry = () => {if (syncRetry !== undefined) clearTimeout(syncRetry); syncRetry = undefined;};
   const network = new NetworkAvailability(options.network ?? nativeNetwork, state => {
-    if (!stopping) void backgroundCache?.setOnline(state !== 'offline').catch(() => undefined);
+    if (__DEV__) console.log('[mobile] network state', state);
+    if (stopping) return;
+    if (state === 'offline') {
+      if (__DEV__) console.log('[mobile] sync paused while offline');
+      connector.pause(); connectionRequested = false; clearSyncRetry();
+      void database?.disconnect().catch(() => undefined);
+    }
+    void backgroundCache?.setOnline(state !== 'offline').catch(() => undefined);
+    if (state === 'online' && activity.isForeground() && database && accountLease) {
+      connector.resume();
+      void connectAccount(database, accountGeneration);
+    }
   });
   const connectAccount = (opened: Database, generation: number): Promise<void> => {
-    if (!libraryPresented) return Promise.resolve();
+    if (!libraryPresented || network.getSnapshot() === 'offline') return Promise.resolve();
     if (connecting) return connecting;
-    const current = () => !connectionRequested && !stopping && activity.isForeground() && generation === accountGeneration && database === opened && !!accountLease;
+    const current = () => !connectionRequested && !stopping && activity.isForeground() && generation === accountGeneration && database === opened && !!accountLease && network.getSnapshot() !== 'offline';
     const attempt = readiness.ensure().then(async () => {
       if (!current()) return;
       const credentials = await connector.prepareConnection();
@@ -272,15 +283,15 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     storageReady = (async () => {
       await environmentReady;
       if (stopping) throw new AccountInactiveError();
-      const inventory = await bridge.beginDataOwnership(); hasLease = true;
+      const inventory = await (options.freshStorage && bridge.beginFreshDataOwnership ? bridge.beginFreshDataOwnership() : bridge.beginDataOwnership()); hasLease = true;
       if (stopping) throw new AccountInactiveError();
-      const evidence = options.adoptionEvidence ?? deriveReviewedAdoptionEvidence(inventory, options.platform);
+      const evidence = options.freshStorage ? undefined : options.adoptionEvidence ?? deriveReviewedAdoptionEvidence(inventory, options.platform);
       const adminPdf = new PdfFileStorage(inventory.legacyDataDirectory);
       adminCache = new ArticleFileCache(inventory.legacyDataDirectory, value => bridge.md5String(value), undefined, {bytes: async () => 0, remove: async () => {}, clear: () => adminPdf.clear()});
       const {PowerSyncDatabase} = await import('@powersync/react-native');
       const schema = await createMobileSchema();
       let adoptedLegacySchema = false;
-      database = await openVerifiedDatabase({inventory, evidence, inspector: bridge, preferences, open: (location, legacySchema) => activity.whileActive(async () => {
+      database = await openVerifiedDatabase({inventory, evidence, inspector: bridge, preferences, fresh: options.freshStorage, open: (location, legacySchema) => activity.whileActive(async () => {
         adoptedLegacySchema = legacySchema === true;
         const opened = new PowerSyncDatabase({schema: legacySchema ? await createMobileSchema(LEGACY_MOBILE_TABLES) : schema, database: {dbFilename: location.dbFilename, dbLocation: location.dbLocation}});
         try {await opened.init(); return opened;} catch (error) {await opened.close(); throw error;}
@@ -299,6 +310,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
         }).catch(() => undefined);
       } catch (reason) {
         const error = reason instanceof Error ? reason : new Error('Application data initialization failed');
+        if (__DEV__) console.error('[mobile] data initialization failed', error);
         network.stop(); readiness.pause(); connector.pause();
         const previousBackground = revokeAccountScope(); await previousBackground?.stop(); adminCache = null;
         if (!stopping) emit(error instanceof UpgradeVerificationRequired ? {status: 'verification-required', inventory: error.inventory} : {status: 'error', error});

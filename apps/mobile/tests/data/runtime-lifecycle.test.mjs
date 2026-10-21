@@ -56,7 +56,7 @@ test('production runtime suspends and resumes without closing the database or re
   await assert.rejects(runtime.getArticleContent('book'), /inactive/i);
   await runtime.start(); runtime.markLibraryPresented(); await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(networkReads, 1); assert.doesNotThrow(cachedAccess);
-  networkListener({isConnected: false}); assert.equal(events.at(-1), 'network-false');
+  networkListener({isConnected: false}); assert.equal(events.at(-1), 'network-false'); assert.ok(events.includes('disconnect'), 'Offline disconnects PowerSync instead of retrying');
   const count = events.length; networkListener({isConnected: false}); assert.equal(events.length, count);
   networkListener({isConnected: true}); assert.equal(events.at(-1), 'network-true');
   const request = new AbortController();

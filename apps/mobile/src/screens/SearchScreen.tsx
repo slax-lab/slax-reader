@@ -1,37 +1,96 @@
-import React from 'react';
-import {FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View} from 'react-native';
+import React, {useMemo, useRef, useState} from 'react';
+import {ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {SourceAvatar, SourceText, TextAction} from '../components';
+import {SourceText, TextAction} from '../components/SourceUI';
+import {SearchGlyph} from '../components/SearchGlyph';
 import {SearchInput} from '../search/SearchInput';
+import {SearchArticleRow, SearchSourceRow} from '../search/SearchResultRow';
+import {SearchChevron} from '../search/SearchSymbols';
+import {groupSearchResults} from '../search/group';
+import {searchRows, type SearchRow, type SearchSection} from '../search/presentation';
 import {useLibrarySearch} from '../search/useLibrarySearch';
 import type {SearchArticle} from '../search/types';
 import type {MobileScreenProps} from '../navigation/types';
 import {mobileColors as C} from '../theme';
 import {parseSourceTimestamp} from '../utils/source-time';
+
 export function SearchScreen({navigation}: MobileScreenProps<'Search'>) {
   const search = useLibrarySearch(), {t, state} = search, insets = useSafeAreaInsets();
-  const keyword = state.query.text.toLocaleLowerCase(), tagged = search.selected.length > 0 || state.query.tagUuids.length > 0;
-  function open(item: SearchArticle) {
-    navigation.navigate('Reader', item.kind === 'rss' ? {bookmarkId: '', rssEntryId: item.id, openedFrom: 'rss'} : {bookmarkId: item.id, ...(item.kind === 'collection' ? {collectionId: item.collectionId, collectionOwnerId: item.ownerId} : {})});
+  const surface = useRef<React.ComponentRef<typeof View>>(null);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [collapsed, setCollapsed] = useState<Record<SearchSection, boolean>>({collections: false, rss: false, articles: false});
+  const keyword = state.query.text.toLocaleLowerCase(), source = state.query.source;
+  const tagged = !source && (search.selected.length > 0 || state.query.tagUuids.length > 0);
+  const active = Boolean(search.text.trim() || tagged || source);
+  const searching = state.busy || state.localBusy;
+  const sections = useMemo(() => {
+    const collections = search.invalid || tagged ? [] : source ? search.collections.filter(value => source.kind === 'collection' && value.id === source.id) :
+      search.collections.filter(value => value.status === 1 && parseSourceTimestamp(value.subscriptionEndTime) > Date.now() && `${value.name} ${value.description}`.toLocaleLowerCase().includes(keyword));
+    const feeds = search.invalid || tagged ? [] : source ? search.feeds.filter(value => source.kind === 'rss' && value.id === source.id) :
+      search.feeds.filter(value => `${value.title} ${value.remark ?? ''} ${value.site_url ?? ''}`.toLocaleLowerCase().includes(keyword));
+    return groupSearchResults(search.collections, search.feeds, collections, feeds, state.items);
+  }, [search.collections, search.feeds, search.invalid, tagged, source, keyword, state.items]);
+  const rows = useMemo(() => searchRows(sections, collapsed, source), [sections, collapsed, source]);
+  const canLoadMore = rows.some(row => row.type === 'article') && state.hasMore;
+  function open(article: SearchArticle) {
+    navigation.navigate('Reader', article.kind === 'rss' ? {bookmarkId: '', rssEntryId: article.id, openedFrom: 'rss'} :
+      {bookmarkId: article.id, ...(article.kind === 'collection' ? {collectionId: article.collectionId, collectionOwnerId: article.ownerId} : {})});
   }
-  const sources = <View style={styles.sources}>
-    {tagged ? <SourceText style={styles.hint}>{t('search_tag_scope')}</SourceText> : <>
-      <SourceText accessibilityRole="header" style={styles.heading}>{t('search_collections')}</SourceText>
-      {search.collections.filter(source => source.status === 1 && parseSourceTimestamp(source.subscriptionEndTime) > Date.now() && `${source.name} ${source.description}`.toLocaleLowerCase().includes(keyword)).map(source => <Pressable accessibilityRole="button" key={source.id} onPress={() => navigation.popTo('Library', {source: {kind: 'collection', id: source.id}})} style={styles.source}><SourceAvatar resourceKey={`collection:${source.id}`} uri={source.avatar} size={32}/><SourceText style={styles.sourceText}>{source.name}</SourceText></Pressable>)}
-      <SourceText accessibilityRole="header" style={styles.heading}>{t('rss_feeds')}</SourceText>
-      {search.feeds.filter(source => `${source.title} ${source.remark ?? ''} ${source.site_url ?? ''}`.toLocaleLowerCase().includes(keyword)).map(source => <Pressable accessibilityRole="button" key={source.id} onPress={() => navigation.popTo('Library', {source: {kind: 'rss', id: source.id}})} style={styles.source}><SourceText style={styles.sourceText}>{source.remark || source.title}</SourceText></Pressable>)}
-    </>}
-    {keyword || tagged ? <SourceText accessibilityRole="header" style={styles.heading}>{t('search_articles')}</SourceText> : <SourceText style={styles.hint}>{t('search_hint')}</SourceText>}
-    {search.invalid ? <SourceText accessibilityRole="alert" style={[styles.hint, {color: C.danger}]}>{t('search_unknown_tag')}</SourceText> : null}
-    {state.busy ? <SourceText accessibilityLiveRegion="polite" style={styles.hint}>{t('search_enriching')}</SourceText> : null}
-    {state.error ? <View><SourceText style={styles.hint}>{t('search_remote_failed')}</SourceText><TextAction label={t('rss_retry')} onPress={search.submit}/></View> : null}
+  function renderRow({item}: {item: SearchRow}) {
+    if (item.type === 'article') return <SearchArticleRow article={item.article} nested={item.nested} query={keyword} onOpen={open}/>;
+    if (item.type === 'source') return <SearchSourceRow row={item} query={keyword} t={t} onSelect={search.selectSource}/>;
+    const label = t(item.scoped ? 'search_source_articles' : item.section === 'collections' ? 'search_collections' : item.section === 'rss' ? 'rss_feeds' : 'search_articles');
+    const count = t(item.section === 'articles' ? 'search_article_count' : 'search_source_count').replace('{count}', String(item.count));
+    return <Pressable testID={`search-section-${item.section}`} accessibilityRole="button" accessibilityLabel={`${label}, ${count}`}
+      accessibilityState={{expanded: !collapsed[item.section]}} onPress={() => setCollapsed(value => ({...value, [item.section]: !value[item.section]}))}
+      style={({pressed}) => [styles.heading, pressed && styles.pressed]}>
+      <SourceText style={styles.headingText}>{label}</SourceText><SourceText style={styles.count}>{count}</SourceText>
+      <View style={styles.chevron}><SearchChevron down={!collapsed[item.section]}/></View>
+    </Pressable>;
+  }
+  const pending = searching && !rows.some(row => row.type === 'section' && row.section === 'articles');
+  const header = <View>
+    {pending ? <View testID="search-results-loading" accessibilityLiveRegion="polite" style={styles.progress}>
+      <ActivityIndicator size="small" color={C.searchActionText}/><SourceText style={styles.helper}>{t(state.busy ? 'search_enriching' : 'search_searching')}</SourceText>
+    </View> : null}
+    {state.localError ? <View style={styles.error}>
+      <SourceText accessibilityRole="alert" style={styles.helper}>{t('search_local_failed')}</SourceText>
+      <TextAction label={t('rss_retry')} color={C.searchActionText} onPress={() => search.controller.retryLocal()}/>
+    </View> : null}
   </View>;
-  return <KeyboardAvoidingView style={{flex: 1, backgroundColor: C.background}} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={insets.top + 44}>
-    <SearchInput text={search.text} selected={search.selected} tags={search.tags} onText={search.setText} onTags={search.setSelected} onSubmit={search.submit} busy={state.busy} t={t}/>
-    <FlatList testID="library-search-results" keyboardShouldPersistTaps="handled" data={state.items} keyExtractor={item => item.key} ListHeaderComponent={sources} contentContainerStyle={{paddingBottom: insets.bottom + 24}}
-      renderItem={({item}) => <Pressable accessibilityRole="button" accessibilityLabel={item.title} onPress={() => open(item)} style={styles.result}><SourceText numberOfLines={2} style={styles.resultTitle}>{item.title || item.url}</SourceText>{item.source ? <SourceText style={styles.hint}>{item.source}</SourceText> : null}<SourceText numberOfLines={3} style={styles.hint}>{item.snippet || item.description}</SourceText></Pressable>}
-      ListEmptyComponent={keyword || tagged ? <SourceText style={[styles.hint, {paddingHorizontal: 24}]}>{t('search_no_local')}</SourceText> : undefined}
-      ListFooterComponent={state.hasMore ? <TextAction label={t('search_more')} onPress={() => search.controller.more()}/> : undefined}/>
-  </KeyboardAvoidingView>;
+  const empty = !searching && !search.invalid && !state.localError && !rows.length ? <View testID="search-empty" style={styles.empty}>
+    <View style={styles.emptyMark}><SearchGlyph/></View>
+    <SourceText style={styles.emptyTitle}>{t(active ? 'search_empty_title' : 'search_start_title')}</SourceText>
+    {source ? <SourceText style={styles.emptyScope}>{source.label}</SourceText> : null}
+    <SourceText style={styles.emptyHint}>{t(source ? 'search_empty_source' : tagged ? 'search_empty_tags' : active ? 'search_no_local' : 'search_start_hint')}</SourceText>
+    {source ? <TextAction label={t('search_all_sources')} color={C.searchActionText} onPress={() => search.selectSource(undefined)}/> :
+      tagged ? <TextAction label={t('search_reset_tags')} color={C.searchActionText} onPress={() => search.setSelected([])}/> : null}
+  </View> : undefined;
+  return <View ref={surface} style={styles.screen} onLayout={() => surface.current?.measureInWindow((_x, y) => setKeyboardOffset(y))}>
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={keyboardOffset}>
+      <SearchInput text={search.text} selected={search.selected} tags={search.tags} sourceLabel={source?.label} sourceKind={source?.kind} invalid={search.invalid}
+        onClearSource={() => search.selectSource(undefined)} onText={search.setText} onTags={search.setSelected} onSubmit={search.submit} busy={state.busy} searching={searching} t={t}/>
+      <FlatList testID="library-search-results" data={rows} keyExtractor={row => row.key} renderItem={renderRow}
+        keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{paddingBottom: insets.bottom + 24}}
+        ListHeaderComponent={header} ListEmptyComponent={empty} initialNumToRender={12}
+        ListFooterComponent={canLoadMore ? <TextAction label={t('search_more')} color={C.searchActionText} disabled={searching} onPress={() => search.controller.more()}/> : undefined}/>
+    </KeyboardAvoidingView>
+  </View>;
 }
-const styles = StyleSheet.create({sources: {paddingHorizontal: 24, paddingBottom: 12}, heading: {fontSize: 16, fontWeight: '600', marginTop: 16, marginBottom: 8, color: C.text}, source: {minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8}, sourceText: {fontSize: 16, color: C.bodyText, flex: 1}, hint: {fontSize: 14, lineHeight: 20, color: C.secondaryText, paddingVertical: 4}, result: {paddingHorizontal: 24, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border, backgroundColor: C.readerBackground}, resultTitle: {fontSize: 16, lineHeight: 24, color: C.text}});
+
+const styles = StyleSheet.create({
+  screen: {flex: 1, backgroundColor: C.readerBackground},
+  helper: {fontSize: 13, lineHeight: 20, color: C.searchSecondaryText, flexShrink: 1},
+  heading: {minHeight: 48, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8},
+  headingText: {fontSize: 12, lineHeight: 18, fontWeight: '600', color: C.searchSecondaryText, letterSpacing: 0.2},
+  count: {fontSize: 12, lineHeight: 18, color: C.searchSecondaryText},
+  chevron: {marginLeft: 'auto'},
+  progress: {minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 10},
+  error: {paddingHorizontal: 20, paddingVertical: 12, alignItems: 'flex-start'},
+  empty: {paddingHorizontal: 32, paddingTop: 48, gap: 10, alignItems: 'center'},
+  emptyMark: {width: 52, height: 52, borderRadius: 18, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 4},
+  emptyTitle: {fontSize: 17, lineHeight: 25, fontWeight: '500', color: C.text, textAlign: 'center'},
+  emptyScope: {fontSize: 14, lineHeight: 21, color: C.bodyText, textAlign: 'center'},
+  emptyHint: {fontSize: 14, lineHeight: 22, color: C.searchSecondaryText, textAlign: 'center', maxWidth: 280},
+  pressed: {backgroundColor: C.pressedOverlay},
+});

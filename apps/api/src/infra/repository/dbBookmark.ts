@@ -98,6 +98,13 @@ export interface bookmarkChangePO {
   created_at: Date
 }
 
+export interface searchEligibleBookmarkPO {
+  bookmark_id: number
+  uuid: string
+  created_at?: Date
+  bookmark?: { target_url: string }
+}
+
 export interface bookmarkActionChangePO {
   user_id: number
   bookmark_id: number
@@ -947,7 +954,7 @@ export class BookmarkRepo {
   }
 
   /** Live search admission; cached shard membership never grants ownership. */
-  public async getSearchEligibleBookmarks(userId: number, tagUuids: string[] = [], bookmarkIds?: number[]) {
+  public async getSearchEligibleBookmarks(userId: number, tagUuids: string[] = [], bookmarkIds?: number[]): Promise<searchEligibleBookmarkPO[]> {
     const tags = tagUuids.length ? await this.prismaPg().sr_user_tag.findMany({ where: { user_id: userId, uuid: { in: tagUuids } }, select: { id: true } }) : []
     if (tags.length !== tagUuids.length) return []
     return this.prismaPg().sr_user_bookmark.findMany({
@@ -957,7 +964,11 @@ export class BookmarkRepo {
         ...(bookmarkIds ? { bookmark_id: { in: bookmarkIds } } : {}),
         AND: tags.map(tag => ({ sr_user_bookmark_tag: { some: { user_id: userId, tag_id: tag.id, is_deleted: false } } }))
       },
-      select: { bookmark_id: true, uuid: true }
+      select: {
+        bookmark_id: true,
+        uuid: true,
+        ...(bookmarkIds ? { created_at: true, bookmark: { select: { target_url: true } } } : {})
+      }
     })
   }
 

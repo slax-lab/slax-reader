@@ -7,6 +7,7 @@ export const mobileConfig = {
   apiUrl: process.env.EXPO_PUBLIC_SLAX_API_URL ?? 'https://api-reader.slax.com',
   betaApiUrl: process.env.EXPO_PUBLIC_SLAX_BETA_API_URL ?? 'https://api-reader-beta.slax.com',
   isBeta: false,
+  development: false,
   webUrl: process.env.EXPO_PUBLIC_SLAX_WEB_URL ?? 'https://r.slax.com',
   webDomain: process.env.EXPO_PUBLIC_SLAX_WEB_DOMAIN ?? '.slax.com',
   version: Constants.expoConfig?.version ?? '1.0.0',
