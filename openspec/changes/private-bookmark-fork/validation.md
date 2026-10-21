@@ -5,10 +5,11 @@
 The implementation was validated with the following checks before opening the pull request:
 
 - API focused Fork, publication, cleanup, URL-save, and PDF tests passed.
+- Follow-up API review tests passed: 36 tests across Fork service and import flows; Web Fork-button tests passed: 5 tests.
 - API full suite passed with 198 tests passed and 12 skipped.
-- Web Fork, PDF, and cache focused tests passed with 22 tests passed.
+- Web Fork, PDF, and cache focused tests passed with 22 tests passed before the follow-up changes; the follow-up Fork-button suite passed with 5 tests.
 - API typecheck passed.
-- Web typecheck passed.
+- Web typecheck was attempted; the local baseline currently reports 10 unrelated errors in `useAuth`, `useNotification`, the auth middleware, the user store, and request utilities. No error points to the Fork component or its test.
 - API lint passed with no errors; the reported warnings were pre-existing.
 - `git diff --check` passed.
 - `openspec validate --all --strict` passed with 52 items passed and 0 failed.
