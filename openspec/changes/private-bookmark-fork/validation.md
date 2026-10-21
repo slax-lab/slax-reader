@@ -15,6 +15,7 @@ The implementation was validated with the following checks before opening the pu
 - `openspec validate --all --strict` passed with 52 items passed and 0 failed.
 - The local Bugs, Security, and Compliance review found no Important findings.
 - CI follow-up Nit fixes were covered by API PDF revision, Fork lineage, and rate-limit tests (64 focused API tests passing) plus Web PDF/cache tests (14 passing): empty PDF revisions now have the same semantics on API and Web, legacy bookmarks avoid an unnecessary lineage query, Fork requests use the bookmark-save limiter, and `/b/<uuid>` matching is shared by Web cache and visit tracking.
+- The latest review follow-up covers Fork publication retry fairness: failed indexing side effects now wait for the five-minute retry window and rotate their `updated_at`, while unversioned AIGC batch callbacks remain intentionally discarded per the design's stale-write protection.
 
 ## Running behavior exercised
 

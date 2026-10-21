@@ -151,6 +151,9 @@ export class BookmarkForkService {
       await this.bookmarkService.refreshBookmarkPublication(ctx, operation.target_bookmark_id, operation.user_id)
       await this.forkRepo.complete(operation.id, operation.attempt_token)
     } catch (error) {
+      await this.forkRepo.touchIndexing(operation.id, operation.attempt_token).catch(touchError => {
+        console.error(`Failed to rotate Fork publication retry ${operation.id}: ${touchError instanceof Error ? touchError.message : String(touchError)}`)
+      })
       console.error(`Fork publication side effects pending for operation ${operation.id}: ${error instanceof Error ? error.message : String(error)}`)
     }
   }

@@ -44,6 +44,7 @@ function setup() {
     publish: vi.fn().mockResolvedValue(true),
     fail: vi.fn().mockResolvedValue(undefined),
     complete: vi.fn().mockResolvedValue(undefined),
+    touchIndexing: vi.fn().mockResolvedValue(undefined),
     listPending: vi.fn().mockResolvedValue([]),
     claimStaleStages: vi.fn().mockResolvedValue([]),
     getVectorBucket: vi.fn().mockResolvedValue(null),
@@ -147,6 +148,7 @@ describe('BookmarkForkService', () => {
     const result = await s.service.fork(s.ctx, { bookmark_uid: 'source-uuid' })
     expect(result.bookmark_uid).toBe('target-uuid')
     expect(s.forkRepo.complete).not.toHaveBeenCalled()
+    expect(s.forkRepo.touchIndexing).toHaveBeenCalledWith(1, 'attempt-1')
     expect(s.bucket.deleteObjects).not.toHaveBeenCalled()
   })
 

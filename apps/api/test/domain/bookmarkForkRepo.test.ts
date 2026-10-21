@@ -44,6 +44,7 @@ function setup(previous: any = null, currentVersion = 2) {
     sr_bookmark_fork_operation: {
       findUnique: vi.fn(async () => (operation ? { ...operation } : null)),
       findFirst: vi.fn(async ({ where }: any) => (matchesOperation(where) ? { target_bookmark_id: 80, write_version: operation.write_version } : null)),
+      findMany: vi.fn(async () => (operation ? [{ ...operation }] : [])),
       create: vi.fn(async ({ data }: any) => {
         operation = { id: 1, result: null, ...data }
         return { ...operation }
@@ -139,5 +140,24 @@ describe('Fork operation retry fencing', () => {
     expect(s.operation().status).toBe('cleaning')
     await s.repo.fail(stale.id, stale.attempt_token, 'done', true, secondToken!)
     expect(s.operation().status).toBe('abandoned')
+  })
+
+  it('rotates failed indexing retries without changing their durable state', async () => {
+    const s = setup({ status: 'indexing', updated_at: new Date(0) }, 2)
+    await s.repo.touchIndexing(1, 'old-attempt')
+    expect(s.operation().status).toBe('indexing')
+    expect(s.operation().updated_at.getTime()).toBeGreaterThan(0)
+  })
+
+  it('defers indexing retries until the five-minute repair window', async () => {
+    const s = setup({ status: 'indexing', updated_at: new Date(Date.now() - 60_000) }, 2)
+    s.db.sr_bookmark_fork_operation.findMany.mockImplementation(async ({ where }: any) => {
+      const indexing = where.OR.find((item: any) => item.status === 'indexing')
+      return s.operation()!.updated_at < indexing.updated_at.lt ? [{ ...s.operation() }] : []
+    })
+    expect(await s.repo.listPending()).toEqual([])
+
+    s.operation()!.updated_at = new Date(Date.now() - 6 * 60_000)
+    expect(await s.repo.listPending()).toHaveLength(1)
   })
 })

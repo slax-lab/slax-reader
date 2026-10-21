@@ -327,6 +327,23 @@ export class BookmarkForkRepo {
     })
   }
 
+  /**
+   * Rotate a failed indexing attempt behind newer work without changing its
+   * durable state. The scheduled repair query orders by updated_at, so leaving
+   * a repeatedly failing operation at its original timestamp can starve newer
+   * operations from the bounded repair window.
+   */
+  public async touchIndexing(operationId: number, attemptToken: string) {
+    await this.prisma().sr_bookmark_fork_operation.updateMany({
+      where: {
+        id: operationId,
+        attempt_token: attemptToken,
+        status: 'indexing'
+      },
+      data: { updated_at: new Date() }
+    })
+  }
+
   public async fail(operationId: number, attemptToken: string, errorCode: string, abandoned = false, cleanupToken?: string) {
     await this.prisma().sr_bookmark_fork_operation.updateMany({
       where: {
@@ -346,11 +363,12 @@ export class BookmarkForkRepo {
 
   public async listPending() {
     const cutoff = new Date(Date.now() - 60 * 60 * 1000)
+    const indexingRetryCutoff = new Date(Date.now() - 5 * 60 * 1000)
     return (
       await this.prisma().sr_bookmark_fork_operation.findMany({
         where: {
           OR: [
-            { status: 'indexing' },
+            { status: 'indexing', updated_at: { lt: indexingRetryCutoff } },
             {
               status: { in: ['copying', 'failed', 'cleaning'] },
               updated_at: { lt: cutoff }
