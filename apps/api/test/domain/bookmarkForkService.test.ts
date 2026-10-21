@@ -54,6 +54,7 @@ function setup() {
   const bookmarkService = {
     getBookmarkReadAccess: vi.fn().mockResolvedValue({ bookmark: source, share: { is_enable: true, show_userinfo: true } }),
     refreshBookmarkPublication: vi.fn().mockResolvedValue(undefined),
+    updateBookmarkVersionStatus: vi.fn().mockResolvedValue(undefined),
     getBookmarkById: vi.fn().mockRejectedValue(new Error('bookmark deleted'))
   }
   const bucket = {
@@ -169,6 +170,7 @@ describe('BookmarkForkService', () => {
     s.forkRepo.publish.mockResolvedValue(false)
     await expect(s.service.fork(s.ctx, { bookmark_uid: 'source-uuid' })).rejects.toBeTruthy()
     expect(s.forkRepo.fail).toHaveBeenCalled()
+    expect(s.bookmarkService.updateBookmarkVersionStatus).toHaveBeenCalledWith(80, 1, 'failed')
     expect(s.bucket.deleteObjects).toHaveBeenCalledWith(['html/body/fork/target-uuid.v1.attempt-1.html', 'text/body/fork/target-uuid.v1.attempt-1.txt'])
   })
 

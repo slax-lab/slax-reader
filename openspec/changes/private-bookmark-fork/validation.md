@@ -20,6 +20,7 @@ The implementation was validated with the following checks before opening the pu
 - Two local development accounts successfully Forked Reader snapshots owned by another account.
 - A human reviewer ran the local Web smoke test on 2026-10-21: opened another user's shared `/b/<uuid>` snapshot, clicked the visible Fork action, verified the copied private bookmark and Source/Fork attribution, and then overwrote it through Add URL to confirm newest-data-wins. No UI adjustment was needed after the check.
 - A Forked bookmark was overwritten through the normal URL-save path, confirming the same-user same-URL newest-data-wins behavior.
+- A forced post-`begin()` Fork publication failure was exercised; a new target is marked `failed` under its write-version fence, while an overwrite target keeps its previously committed body readable.
 - The local R2 cleanup job was triggered manually and the retired object lifecycle was inspected.
 
 ## Remaining gaps

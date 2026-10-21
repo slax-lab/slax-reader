@@ -124,6 +124,15 @@ export class BookmarkForkService {
       const committed = await this.forkRepo.findOperation(userId, requestKey)
       if (committed?.result) return committed.result as unknown as BookmarkForkResponse
       await this.forkRepo.fail(operation.id, operation.attempt_token, error instanceof Error ? error.name : 'copy_failed')
+      try {
+        // A newly created target has no committed body, so make a failed Fork
+        // visible as failed instead of letting the generic stuck-crawl rescue
+        // treat it as an ordinary URL save. The conditional repository update
+        // preserves an existing readable body on overwrite targets.
+        await this.bookmarkService.updateBookmarkVersionStatus(operation.target_bookmark_id, operation.write_version, queueStatus.FAILED)
+      } catch (statusError) {
+        console.error(`Failed to mark Fork target ${operation.target_bookmark_id} as failed: ${statusError instanceof Error ? statusError.message : String(statusError)}`)
+      }
       await this.bucket().deleteObjects(stagedKeys)
       throw error
     }
