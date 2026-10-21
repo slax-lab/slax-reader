@@ -639,7 +639,7 @@ export class BookmarkService {
         }
       })
     }
-    const headers = pdfResponseHeaders(object.customMetadata?.filename || 'document.pdf', object.size, range)
+    const headers = pdfResponseHeaders(object.customMetadata?.filename || 'document.pdf', object.size, range, object.customMetadata?.sha256)
     if (request.method === 'HEAD') return new Response(null, { status: range ? 206 : 200, headers })
     const body = await bucket.get(key, range ? { range } : undefined)
     return new Response(body?.body ?? null, {

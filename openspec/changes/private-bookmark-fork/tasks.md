@@ -50,3 +50,7 @@
 - [x] Retire replaced revisions transactionally and reclaim all private revisions after bookmark/account deletion without affecting other users' Fork copies.
 - [x] Bound stage cleanup/search repair work, preserve retries and settling windows, and prune completed cleanup tombstones.
 - [x] Add query-driven indexes and verify migration compatibility, PostgreSQL query plans, publication, cleanup failures, and account deletion.
+
+## 10. Native PDF overwrite regression
+
+- [x] Return a validated SHA-256 ETag from both PDF delivery endpoints and verify same-size overwrites with the real Mobile range and acquisition clients.

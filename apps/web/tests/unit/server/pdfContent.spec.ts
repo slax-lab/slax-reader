@@ -39,6 +39,7 @@ describe('same-origin PDF delivery', () => {
     expect(bucket.get).not.toHaveBeenCalled()
   })
   it('forwards the cookie token and streams a private byte range', async () => {
+    bucket.head.mockResolvedValue({ size: 10, customMetadata: { filename: 'saved.pdf', sha256: 'a'.repeat(64) } })
     const response = await call('GET', 'bytes=-4')
     expect(response.status).toBe(206)
     expect(fetchMetadata).toHaveBeenCalledWith('https://content.internal/content/meta?uuid=saved', { headers: { Authorization: 'Bearer fixture' } })
@@ -47,6 +48,7 @@ describe('same-origin PDF delivery', () => {
     expect(headers.get('content-type')).toBe('application/pdf')
     expect(headers.get('content-range')).toBe('bytes 6-9/10')
     expect(headers.get('cache-control')).toBe('private, no-store')
+    expect(headers.get('etag')).toBe(`"${'a'.repeat(64)}"`)
   })
   it('returns full HEAD headers without reading a body and rejects an unsatisfiable range', async () => {
     expect((await call('HEAD')).status).toBe(200)

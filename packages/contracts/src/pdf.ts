@@ -80,12 +80,14 @@ export function pdfByteRange(header: string | null, size: number): { offset: num
   return { offset: start, length: end - start + 1 }
 }
 
-export function pdfResponseHeaders(filename: string, size: number, range?: { offset: number; length: number }): Record<string, string> {
+export function pdfResponseHeaders(filename: string, size: number, range?: { offset: number; length: number }, documentId?: string): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/pdf', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store',
     'Accept-Ranges': 'bytes', 'Content-Length': String(range?.length ?? size),
     'Content-Disposition': `inline; filename="document.pdf"; filename*=UTF-8''${encodeURIComponent(filename.replace(/[\r\n]/g, ''))}`
   }
+  // Native clients validate this digest before accepting bytes from a stable bookmark URL.
+  if (documentId && /^[a-f0-9]{64}$/.test(documentId)) headers.ETag = `"${documentId}"`
   if (range) headers['Content-Range'] = `bytes ${range.offset}-${range.offset + range.length - 1}/${size}`
   return headers
 }

@@ -40,6 +40,8 @@ Each write gets a monotonic version for the target. Publication uses a condition
 
 Copy R2 objects through streaming bodies where possible and preserve relevant HTTP/custom metadata. Derive PDF sidecars from the source `content_key`; require body and metadata completeness and a usable text state for v1. Do not copy image proxy objects unless a later audit finds a destination-specific dependency.
 
+Web PDF descriptor URLs bind range requests to an immutable content key. Native clients address the API by bookmark UUID and already check a strong SHA-256 ETag against their descriptor's `document_id`. Both PDF delivery endpoints return the selected object's valid SHA-256 as ETag, without an additional storage read, so existing native clients reject mixed revisions after an overwrite. Missing legacy hashes omit ETag and retain the Web revision check.
+
 ### Lineage and side effects
 
 Use a dedicated `sr_bookmark_fork` table with current/superseded status, source/target IDs and URL, display-name snapshot/visibility, operation version, timestamps, and cleanup/error fields. Keep current lineage unique per destination target; optionally retain superseded rows for audit. Do not store lineage in PowerSync-maintained metadata.

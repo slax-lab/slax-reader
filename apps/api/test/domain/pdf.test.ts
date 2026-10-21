@@ -110,15 +110,20 @@ describe('PDF contracts', () => {
   ])('handles range %s', (value, range) => expect(pdfByteRange(String(value), 10)).toEqual(range))
   it.each(['bytes=10-', 'bytes=4-2', 'bytes=-0', 'bytes=0-1,4-5', 'bytes=90071992547409930-'])('rejects %s', value => expect(() => pdfByteRange(value, 10)).toThrow())
   it('returns private inline PDF headers with safe filenames', () => {
-    const headers = pdfResponseHeaders('test\r\n.pdf', 10, { offset: 2, length: 3 })
+    const headers = pdfResponseHeaders('test\r\n.pdf', 10, { offset: 2, length: 3 }, 'a'.repeat(64))
     expect(headers).toMatchObject({
       'Content-Type': 'application/pdf',
       'Content-Length': '3',
       'Content-Range': 'bytes 2-4/10',
+      ETag: `"${'a'.repeat(64)}"`,
       'Cache-Control': 'private, no-store',
       'X-Content-Type-Options': 'nosniff'
     })
     expect(headers['Content-Disposition']).not.toContain('\r')
+  })
+
+  it('omits an ETag when the stored PDF has no valid content hash', () => {
+    expect(pdfResponseHeaders('document.pdf', 10, undefined, 'legacy')).not.toHaveProperty('ETag')
   })
   it('validates geometry and identity, preserving the legacy shape', () => {
     const source = { type: 'pdf', version: 1, page: 1, document_id: 'a'.repeat(64), text: 'Hello', quads: [[0, 1, 2, 1, 2, 0, 0, 0]] }

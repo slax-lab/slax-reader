@@ -68,6 +68,12 @@ The system SHALL publish new HTML, text, and supported PDF body/text/meta object
 - **WHEN** a supported PDF is forked
 - **THEN** the source body key and its derived text/meta sidecars are copied from the source record's actual content key, not guessed from a UUID
 
+#### Scenario: Native PDF ranges span an overwrite
+
+- **WHEN** a native client holding an earlier PDF descriptor requests another byte range after the same bookmark has been overwritten
+- **THEN** PDF responses with a valid stored SHA-256 include that digest as a strong ETag so existing native clients reject changed content before accepting or caching bytes
+- **AND** legacy PDFs without a valid digest remain readable through the revision-bound Web URL
+
 ### Requirement: Fork lineage and source privacy
 
 The system SHALL record the current source-to-destination lineage separately from user bookmark metadata, and SHALL apply the existing per-share `show_userinfo`, owner, and `snapshot_sharing` policy when storing and displaying source identity.

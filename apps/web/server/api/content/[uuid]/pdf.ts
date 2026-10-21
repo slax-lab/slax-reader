@@ -26,7 +26,7 @@ export default defineEventHandler(async event => {
   catch {
     return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${object.size}`, 'Cache-Control': 'private, no-store' } })
   }
-  const headers = pdfResponseHeaders(object.customMetadata?.filename || 'document.pdf', object.size, range)
+  const headers = pdfResponseHeaders(object.customMetadata?.filename || 'document.pdf', object.size, range, object.customMetadata?.sha256)
   if (event.method === 'HEAD') return new Response(null, { status: range ? 206 : 200, headers })
   const body = await OSS.get(metadata.content_key!, range ? { range } : undefined)
   if (!body) throw createError({ statusCode: 404 })

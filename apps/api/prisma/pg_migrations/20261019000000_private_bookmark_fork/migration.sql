@@ -121,4 +121,3 @@ CREATE INDEX "sr_bookmark_object_stage_status_indexed_at_idx" ON "sr_bookmark_ob
 
 -- CreateIndex
 CREATE INDEX "sr_bookmark_object_stage_bookmark_id_write_version_idx" ON "sr_bookmark_object_stage"("bookmark_id", "write_version");
-
