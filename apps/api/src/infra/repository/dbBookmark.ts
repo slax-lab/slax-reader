@@ -263,7 +263,7 @@ export class BookmarkRepo {
   public async getUserBookmarkUuidsByBmIds(userId: number, bmIds: number[]): Promise<Map<number, string>> {
     if (bmIds.length < 1) return new Map()
     const rows = await this.prismaPg().sr_user_bookmark.findMany({
-      where: { user_id: userId, bookmark_id: { in: bmIds } },
+      where: { user_id: userId, bookmark_id: { in: bmIds }, deleted_at: null },
       select: { bookmark_id: true, uuid: true }
     })
     return new Map(rows.map(row => [row.bookmark_id, row.uuid]))

@@ -1,7 +1,6 @@
 import { BookmarkSearchRepo, bookmarkRowPO } from '@/infra/repository/dbBookmarkSearch'
 import { BookmarkRepo, bookmarkShardPO } from '@/infra/repository/dbBookmark'
 import { inject, injectable } from '@/decorators/di'
-import { SubscriptionRepo } from '@/infra/repository/dbSubscription'
 import { VectorizeRepo } from '@/infra/repository/dbVectorize'
 import { ContextManager } from '@/utils/context'
 import { Normalizer } from '@/utils/hybridSearch/normalizer'
@@ -10,6 +9,22 @@ import { mapHighlight } from '@/utils/hybridSearch/highlightMatch'
 import { BookmarkNotFoundError } from '@/const/err'
 import { rerank } from '@/utils/hybridSearch/rerank'
 import { escapeHtml } from '@/utils/escape'
+import { CandidateCollector } from '@/utils/hybridSearch/topCandidates'
+
+export const SEARCH_RESULT_LIMIT = 100
+export const FTS_CANDIDATE_LIMIT = 300
+const VECTOR_CANDIDATE_LIMIT = 150
+const FTS_CANDIDATE_PRUNE_AT = 500
+export const MAX_FTS_ROWS = 30000
+const SEARCH_RESULT_CACHE_TTL = 300
+const SEARCH_MAP_CACHE_TTL = 300
+const SEARCH_GENERATION_TTL = 2592000
+const SEARCH_CACHE_VERSION = 'v1'
+
+const sha256Hex = async (value: string): Promise<string> => {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+}
 
 export interface userBookmarkItem {
   bmId: number
@@ -48,11 +63,17 @@ export interface hybridSearchItem {
   type: 'fts' | 'vector' | 'hybrid'
 }
 
+export interface hybridSearchResultItem extends hybridSearchItem {
+  final_score: number
+  bookmark_user_uuid?: string
+}
+
+export type rankedHybridSearchItem = hybridSearchItem & { final_score: number }
+
 @injectable()
 export class SearchService {
   constructor(
     @inject(BookmarkRepo) private bookmarkRepo: BookmarkRepo,
-    @inject(SubscriptionRepo) private subscriptionRepo: SubscriptionRepo,
     @inject(BookmarkSearchRepo) private bookmarkSearchRepo: BookmarkSearchRepo,
     @inject(VectorizeRepo) private dbVectorize: VectorizeRepo
   ) {}
@@ -62,13 +83,12 @@ export class SearchService {
 
     let shardList: bookmarkShardPO[] = []
     let rowIds: bookmarkRowPO[] = []
-    let validBookmarkIds: number[] = []
 
     const getShardData = async () => {
       const shardStr = await ctx.env.KV.get(`search:bm_shard:${userId}`)
       if (!shardStr) {
         shardList = await this.bookmarkRepo.getBookmarkVectorShard(userId)
-        await ctx.env.KV.put(`search:bm_shard:${userId}`, JSON.stringify(shardList), { expirationTtl: 60 * 5 })
+        await this.cachePut(ctx, `search:bm_shard:${userId}`, JSON.stringify(shardList), SEARCH_MAP_CACHE_TTL)
       } else {
         shardList = JSON.parse(shardStr) as bookmarkShardPO[]
       }
@@ -78,40 +98,23 @@ export class SearchService {
       const rowStr = await ctx.env.KV.get(`search:bm_rows:${userId}`)
       if (!rowStr) {
         rowIds = await this.bookmarkSearchRepo.getUserBookmarkRawIds(userId)
-        await ctx.env.KV.put(`search:bm_rows:${userId}`, JSON.stringify(rowIds), { expirationTtl: 60 * 5 })
+        await this.cachePut(ctx, `search:bm_rows:${userId}`, JSON.stringify(rowIds), SEARCH_MAP_CACHE_TTL)
       } else {
         rowIds = JSON.parse(rowStr) as bookmarkRowPO[]
       }
     }
 
-    const getValidIds = async () => {
-      const validStr = await ctx.env.KV.get(`search:valid_bm_ids:${userId}`)
-      if (!validStr) {
-        const validBms = await this.bookmarkRepo.getUserBookmarkIds(userId)
-        validBookmarkIds = validBms.map(item => item.bookmark_id)
-        await ctx.env.KV.put(`search:valid_bm_ids:${userId}`, JSON.stringify(validBookmarkIds), { expirationTtl: 60 * 5 })
-      } else {
-        validBookmarkIds = JSON.parse(validStr) as number[]
-      }
-    }
-
-    await Promise.allSettled([getShardData(), getRowData(), getValidIds()])
-
-    // 创建有效书签ID集合，用于过滤回收站书签
-    const validBookmarkSet = new Set(validBookmarkIds)
+    await Promise.allSettled([getShardData(), getRowData()])
 
     const bmMap = new Map<number, { shardIdx: number; rowId: number }>()
 
     shardList.forEach(item => {
-      if (validBookmarkSet.has(item.bookmark_id)) {
-        bmMap.set(item.bookmark_id, { shardIdx: item.bucket_idx, rowId: 0 })
-      }
+      bmMap.set(item.bookmark_id, { shardIdx: item.bucket_idx, rowId: 0 })
     })
     rowIds.forEach(item => {
-      if (!validBookmarkSet.has(item.bookmark_id)) return // 过滤掉回收站书签
       const existing = bmMap.get(item.bookmark_id)
       if (existing) {
-        existing.rowId = item.id
+        if (!existing.rowId) existing.rowId = item.id
       } else {
         bmMap.set(item.bookmark_id, { shardIdx: 0, rowId: item.id })
       }
@@ -124,13 +127,47 @@ export class SearchService {
     }))
   }
 
-  public async hybridSearch(ctx: ContextManager, fulltextContent: string, vectorizeContent: string[] = []) {
-    const userInfo = await this.subscriptionRepo.getUserSubscriptionInfo(ctx.getUserId())
-    if (userInfo?.subscription_end_time && userInfo.subscription_end_time > new Date()) {
-      if (vectorizeContent.length < 1) vectorizeContent = [fulltextContent]
+  private async cachePut(ctx: ContextManager, key: string, value: string, ttl: number): Promise<void> {
+    const write = Promise.resolve(ctx.env.KV.put(key, value, { expirationTtl: ttl }))
+    if (ctx.execution?.waitUntil) {
+      ctx.execution.waitUntil(write)
+      return
     }
+    await write
+  }
+
+  private async readSearchCache<T>(ctx: ContextManager, key: string): Promise<T | null> {
+    try {
+      const raw = await ctx.env.KV.get(key)
+      return raw ? (JSON.parse(raw) as T) : null
+    } catch {
+      return null
+    }
+  }
+
+  private writeSearchCache(ctx: ContextManager, key: string, value: unknown, ttl: number): void {
+    void this.cachePut(ctx, key, JSON.stringify(value), ttl).catch(() => {})
+  }
+
+  private async searchGeneration(ctx: ContextManager, userId: number): Promise<string> {
+    try {
+      return (await ctx.env.KV.get(`search:gen:${userId}`)) ?? '0'
+    } catch {
+      return '0'
+    }
+  }
+
+  public async hybridSearch(ctx: ContextManager, fulltextContent: string, vectorizeContent: string[] = []) {
     if (fulltextContent.length < 1 && vectorizeContent.length < 1) return []
     if (vectorizeContent.length < 1) vectorizeContent = [fulltextContent]
+
+    const userId = ctx.getUserId()
+    const cacheKey = `search:res:${SEARCH_CACHE_VERSION}:${userId}:${await this.searchGeneration(ctx, userId)}:${await sha256Hex(`${fulltextContent}\u0000${vectorizeContent.join('\u0000')}`)}`
+    const cached = await this.readSearchCache<hybridSearchResultItem[]>(ctx, cacheKey)
+    if (cached) {
+      console.log(`[cache] search hit user ${userId}`)
+      return cached
+    }
 
     const normalizer = new Normalizer(ctx.env)
     // 查找用户拥有的bookmark list
@@ -138,7 +175,7 @@ export class SearchService {
 
     const [bmListRes, vectorizeResultRes, jbSearchContentRes] = await Promise.allSettled([
       this.getUserBookmarkItem(ctx),
-      embedding(ctx.env, vectorizeContent),
+      embedding(ctx.env, vectorizeContent, ctx.execution),
       normalizer.processSearchKeyword(fulltextContent)
     ])
     console.log(`get base data time: ${performance.now() - t1} ms`)
@@ -189,23 +226,22 @@ export class SearchService {
         }
       })
 
-    const matchedIds = Object.keys(hybridSearchMap).map(Number)
-
     const t3 = performance.now()
-    const [rawList, uuidMap] = await Promise.all([
-      returnTableIds.length > 0 ? this.bookmarkSearchRepo.getBookmarkRaw(returnTableIds) : Promise.resolve([] as Awaited<ReturnType<BookmarkSearchRepo['getBookmarkRaw']>>),
-      this.bookmarkRepo.getUserBookmarkUuidsByBmIds(ctx.getUserId(), matchedIds)
-    ])
-
+    const rawList = returnTableIds.length > 0 ? await this.bookmarkSearchRepo.getBookmarkRaw(returnTableIds) : []
     rawList.forEach(item => {
       if (!hybridSearchMap[item.bookmark_id]) return
       hybridSearchMap[item.bookmark_id].highlight_title = item.raw_title
       hybridSearchMap[item.bookmark_id].highlight_content = item.raw_content
     })
+
+    const ranked = this.rankHybridSearchList(hybridSearchMap)
+    const candidateIds = ranked.slice(0, FTS_CANDIDATE_LIMIT).map(item => item.bookmark_id)
+    const uuidMap = await this.bookmarkRepo.getUserBookmarkUuidsByBmIds(userId, candidateIds)
+    const result = this.finalizeHybridSearchList(ranked.filter(item => uuidMap.has(item.bookmark_id)).slice(0, SEARCH_RESULT_LIMIT), uuidMap)
     console.log(`get raw & uuid data cost: ${performance.now() - t3} ms`)
 
-    // return processHybridSearchRerank(env, fulltextContent, hybridSearchMap)
-    return this.processHybridSearchList(hybridSearchMap, uuidMap)
+    this.writeSearchCache(ctx, cacheKey, result, SEARCH_RESULT_CACHE_TTL)
+    return result
   }
 
   public async processHybridSearchRerank(ctx: ContextManager, keyword: string, hybridSearchMap: Record<number, hybridSearchItem>) {
@@ -241,16 +277,12 @@ export class SearchService {
   /**
    * 混合搜索结果排序
    */
-  processHybridSearchList = (hybridSearchMap: Record<number, hybridSearchItem>, uuidMap: Map<number, string> = new Map(), RRF_K: number = 60) => {
+  rankHybridSearchList = (hybridSearchMap: Record<number, hybridSearchItem>, RRF_K: number = 60): rankedHybridSearchItem[] => {
     // 预处理
     const processedItems = Object.values(hybridSearchMap).map(item => ({
       ...item,
       vs_score: item.vs_score ?? 0,
-      fts_score: Math.abs(item.fts_score ?? 0),
-      highlight_content: item.type !== 'vector' ? mapHighlight(item.content ?? '', item.highlight_content) : escapeHtml(item.highlight_content),
-      highlight_title: item.type !== 'vector' ? mapHighlight(item.title ?? '', item.highlight_title) : escapeHtml(item.highlight_title),
-      title: undefined,
-      content: undefined
+      fts_score: Math.abs(item.fts_score ?? 0)
     }))
 
     // 获取向量搜索排名
@@ -279,12 +311,31 @@ export class SearchService {
 
       return {
         ...item,
-        bookmark_user_uuid: uuidMap.get(item.bookmark_id),
         final_score: finalScore
       }
     })
 
-    return scoredItems.sort((a, b) => b.final_score - a.final_score)
+    return scoredItems.sort((a, b) => b.final_score - a.final_score || a.bookmark_id - b.bookmark_id)
+  }
+
+  finalizeHybridSearchList = (ranked: rankedHybridSearchItem[], uuidMap: Map<number, string> = new Map()): hybridSearchResultItem[] => {
+    return ranked.map(item => ({
+      ...item,
+      bookmark_user_uuid: uuidMap.get(item.bookmark_id),
+      highlight_content: item.type !== 'vector' ? mapHighlight(item.content ?? '', item.highlight_content) : escapeHtml(item.highlight_content),
+      highlight_title: item.type !== 'vector' ? mapHighlight(item.title ?? '', item.highlight_title) : escapeHtml(item.highlight_title),
+      title: undefined,
+      content: undefined
+    }))
+  }
+
+  processHybridSearchList = (
+    hybridSearchMap: Record<number, hybridSearchItem>,
+    uuidMap: Map<number, string> = new Map(),
+    RRF_K: number = 60,
+    limit: number = SEARCH_RESULT_LIMIT
+  ) => {
+    return this.finalizeHybridSearchList(this.rankHybridSearchList(hybridSearchMap, RRF_K).slice(0, limit), uuidMap)
   }
 
   /**
@@ -303,34 +354,27 @@ export class SearchService {
     // bm25单次搜50条左右的文章效率最高
     // 分割bmIds为50条一组
     // WARING: 这里只能是50条，不能改为别的。如果要改，必须要用explain Query plan真实SQL检查一次是否会全表搜索
-    const bmIdGroups = userBookmarkItem.map((_, i) => userBookmarkItem.slice(i * 50, (i + 1) * 50))
-    const fullTextPromises = []
-    for (const bmIdGroup of bmIdGroups) {
-      if (bmIdGroup.length < 1) continue
-      fullTextPromises.push(
-        this.bookmarkSearchRepo.seachBM25(
-          bmIdGroup.map(item => item.rowId),
-          jbSearchContent
-        )
-      )
+    const ordered = userBookmarkItem.filter(item => item.rowId > 0).sort((a, b) => b.rowId - a.rowId)
+    const truncated = ordered.length > MAX_FTS_ROWS
+    const items = truncated ? ordered.slice(0, MAX_FTS_ROWS) : ordered
+    if (truncated) {
+      console.log(`search_scope_truncated user=${ctx.getUserId()} total=${ordered.length} searched=${items.length}`)
     }
 
-    console.log(`user ${ctx.getUserId()} fulltext search, \nsearch content: ${jbSearchContent}, bmIds: ${userBookmarkItem.length}, tasks: ${fullTextPromises.length}`)
+    const bmIdGroups = Array.from({ length: Math.ceil(items.length / 50) }, (_, i) => items.slice(i * 50, (i + 1) * 50).map(item => item.rowId)).filter(group => group.length > 0)
+    const collector = new CandidateCollector<fulltextMatchItem>(
+      FTS_CANDIDATE_LIMIT,
+      FTS_CANDIDATE_PRUNE_AT,
+      item => item.bookmark_id,
+      (a, b) => Math.abs(b.score) - Math.abs(a.score) || a.bookmark_id - b.bookmark_id
+    )
 
-    const res = (await Promise.allSettled(fullTextPromises))
-      .filter(item => item.status === 'fulfilled')
-      .flatMap(item => item.value)
-      .filter(item => !!item)
-      .sort((a, b) => b.score - a.score)
+    await this.bookmarkSearchRepo.seachBM25Batch(ctx, bmIdGroups, jbSearchContent, rows => {
+      for (const row of rows) collector.push(row)
+    })
 
-    console.log(`fulltext search time: ${performance.now() - t1} ms`)
-    // const consoleRes = res.map(item => ({
-    //   bookmark_id: item.bookmark_id,
-    //   score: item.score,
-    //   content_snippet: item.content_snippet,
-    //   title_snippet: item.title_snippet
-    // }))
-    // console.log(`fulltext search result: ${JSON.stringify(consoleRes)}`)
+    const res = collector.values()
+    console.log(`fulltext search time: ${performance.now() - t1} ms, candidates: ${items.length}, groups: ${bmIdGroups.length}, result: ${res.length}`)
     return res
   }
 
@@ -380,6 +424,7 @@ export class SearchService {
         }))
       )
       .sort((a, b) => b.score - a.score)
+      .slice(0, VECTOR_CANDIDATE_LIMIT)
 
     console.log(`semantic search time: ${performance.now() - t1} ms`)
     return result
@@ -394,15 +439,22 @@ export class SearchService {
     const normalizer = new Normalizer(ctx.env)
 
     const body = await content.text()
-    return await Promise.allSettled([
+    const results = await Promise.allSettled([
       this.semanticNormalize(ctx, normalizer, bookmarkId, bookmark.title, body),
       this.fulltextNormalize(ctx, normalizer, bookmarkId, bookmark.title, body)
     ])
+    if (results.some(result => result.status === 'fulfilled')) await this.clearSearchCache(ctx, ctx.getUserId()).catch(() => {})
+    return results
   }
 
   public async addSearchRecord(ctx: ContextManager, bookmarkId: number, title: string, content: string) {
     const normalizer = new Normalizer(ctx.env)
-    return await Promise.allSettled([this.fulltextNormalize(ctx, normalizer, bookmarkId, title, content), this.semanticNormalize(ctx, normalizer, bookmarkId, title, content)])
+    const results = await Promise.allSettled([
+      this.fulltextNormalize(ctx, normalizer, bookmarkId, title, content),
+      this.semanticNormalize(ctx, normalizer, bookmarkId, title, content)
+    ])
+    if (results.some(result => result.status === 'fulfilled')) await this.clearSearchCache(ctx, ctx.getUserId()).catch(() => {})
+    return results
   }
 
   /**
@@ -416,14 +468,17 @@ export class SearchService {
         return []
       }
       return await this.bookmarkSearchRepo.createBookmarkRaw(
-        res.map((item, idx) => ({
-          bookmark_id: bookmarkId,
-          content: item.normalized_content,
-          rawContent: item.raw_content,
-          title: item.normalized_title,
-          rawTitle: item.raw_title,
-          shard_idx: idx
-        }))
+        ctx,
+        res.map((item, idx) => {
+          return {
+            bookmark_id: bookmarkId,
+            content: item.normalized_content,
+            rawContent: item.raw_content,
+            title: item.normalized_title,
+            rawTitle: item.raw_title,
+            shard_idx: idx
+          }
+        })
       )
     } catch (e) {
       console.log(e, 'fulltextNormalize error')
@@ -438,6 +493,10 @@ export class SearchService {
     try {
       const normalized = await normalizer.processSemantic(bookmarkId, title, content)
       console.log(`semantic normalize, bookmarkId: ${bookmarkId}, normalized: ${normalized.length}`)
+      if (normalized.length < 1) {
+        console.log(`semantic normalize failed, bookmarkId: ${bookmarkId}, embeddings are empty`)
+        return []
+      }
       // 先判断是否存在，如果存在则删除后重新写入
       const shard = await this.bookmarkRepo.upsertVectorShard(bookmarkId, Math.floor(Math.random() * 5))
       if (!shard) {
@@ -463,7 +522,12 @@ export class SearchService {
    * 同步清除搜索缓存
    */
   public async clearSearchCache(ctx: ContextManager, userId: number) {
-    await Promise.all([ctx.env.KV.delete(`search:valid_bm_ids:${userId}`), ctx.env.KV.delete(`search:bm_shard:${userId}`), ctx.env.KV.delete(`search:bm_rows:${userId}`)])
+    await Promise.all([
+      ctx.env.KV.put(`search:gen:${userId}`, crypto.randomUUID(), { expirationTtl: SEARCH_GENERATION_TTL }),
+      ctx.env.KV.delete(`search:valid_bm_ids:${userId}`),
+      ctx.env.KV.delete(`search:bm_shard:${userId}`),
+      ctx.env.KV.delete(`search:bm_rows:${userId}`)
+    ])
     console.log(`[cache] cleared search cache for user ${userId}`)
   }
 }

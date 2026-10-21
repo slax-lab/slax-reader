@@ -14,6 +14,27 @@ export interface semanticShard {
   embedding: number[]
 }
 
+const segmentCachePrefix = 'search:seg:v1:'
+const segmentCacheTtl = 2592000
+const segmentTimeoutMs = 500
+
+const hashText = async (text: string): Promise<string> => {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+const withTimeout = async <T>(promise: Promise<T>, ms: number): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('timeout')), ms)
+  })
+  try {
+    return await Promise.race([promise, timeout])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
 export class Normalizer {
   private ngramLengths = [1, 2, 3]
   private static maxDOCount = 20
@@ -42,13 +63,27 @@ export class Normalizer {
     const searchTerms = keyword.split(/\s+/).filter(term => term.trim().length > 0)
     if (searchTerms.length === 0) return ''
 
+    const cacheKey = segmentCachePrefix + (await hashText(keyword))
+    try {
+      const cached = await this.env.KV.get(cacheKey)
+      if (cached) return cached
+    } catch {
+      // Cache is best-effort.
+    }
+
     // 分词处理
     const termSegments = await Promise.all(
       searchTerms.map(async term => {
-        return (await this.cut(term, true))
-          .map(item => item.trim())
-          .filter(item => !!item && item.length > 0)
-          .join(' ')
+        try {
+          const segments = await withTimeout(this.cut(term, true), segmentTimeoutMs)
+          const joined = segments
+            .map(item => item.trim())
+            .filter(item => !!item && item.length > 0)
+            .join(' ')
+          return joined || term
+        } catch {
+          return term
+        }
       })
     )
 
@@ -64,7 +99,13 @@ export class Normalizer {
       contentQueries.push(`(${otherTerms.map(item => `content:"${item}"`).join(' OR ')})`)
     }
 
-    return `(${titleQueries.join(' AND ')}) OR (${contentQueries.join(' AND ')})`
+    const result = `(${titleQueries.join(' AND ')}) OR (${contentQueries.join(' AND ')})`
+    try {
+      void Promise.resolve(this.env.KV.put(cacheKey, result, { expirationTtl: segmentCacheTtl })).catch(() => {})
+    } catch {
+      // Cache is best-effort.
+    }
+    return result
   }
   /**
    * 处理文本内容，返回分片结果
@@ -100,8 +141,10 @@ export class Normalizer {
   async processSemantic(bmId: number, title: string, content: string): Promise<semanticShard[]> {
     const processedText = this.preprocessForSemantic(`${title} ${content}`)
     const chunks = this.semanticSplit(processedText)
+    const embeddings = await embedding(this.env, chunks)
+    if (embeddings.length !== chunks.length) return []
 
-    return (await embedding(this.env, chunks)).map((item, idx) => {
+    return embeddings.map((item, idx) => {
       return { id: `${bmId}_${idx}`, embedding: item.embedding }
     })
   }

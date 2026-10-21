@@ -2,6 +2,20 @@ import { inject, singleton } from '@/decorators/di'
 import { VECTORIZE_CLIENTS } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
 
+const VECTOR_QUERY_TIMEOUT_MS = 500
+
+const withTimeout = async <T>(promise: Promise<T>, ms: number): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('vector query timeout')), ms)
+  })
+  try {
+    return await Promise.race([promise, timeout])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
 @singleton()
 export class VectorizeRepo {
   constructor(@inject(VECTORIZE_CLIENTS) private vectorize: LazyInstance<VectorizeIndex[]>) {}
@@ -43,10 +57,13 @@ export class VectorizeRepo {
 
     const settled = await Promise.allSettled(
       idBatches.map(batch =>
-        vectorize.query(searchContent, {
-          topK,
-          filter: { bookmark_id: { $in: batch } } as unknown as VectorizeVectorMetadataFilter
-        })
+        withTimeout(
+          vectorize.query(searchContent, {
+            topK,
+            filter: { bookmark_id: { $in: batch } } as unknown as VectorizeVectorMetadataFilter
+          }),
+          VECTOR_QUERY_TIMEOUT_MS
+        )
       )
     )
 

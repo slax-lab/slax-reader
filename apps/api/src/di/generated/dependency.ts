@@ -80,6 +80,7 @@ import { BookmarkJob } from '../../handler/cron/bookmarkJob'
 import { CollectionJob } from '../../handler/cron/collectionJob'
 import { PodcastJob } from '../../handler/cron/podcastJob'
 import { RssJob } from '../../handler/cron/rssJob'
+import { SearchJob } from '../../handler/cron/searchJob'
 import { SubscriptionJob } from '../../handler/cron/subscriptionJob'
 import { UserDeletionJob } from '../../handler/cron/userDeletionJob'
 import { YoutubeArticleJob } from '../../handler/cron/youtubeArticleJob'
@@ -238,8 +239,7 @@ container.register(RssService, {
 })
 
 container.register(SearchService, {
-  useFactory: container =>
-    new SearchService(container.resolve(BookmarkRepo), container.resolve(SubscriptionRepo), container.resolve(BookmarkSearchRepo), container.resolve(VectorizeRepo))
+  useFactory: container => new SearchService(container.resolve(BookmarkRepo), container.resolve(BookmarkSearchRepo), container.resolve(VectorizeRepo))
 })
 
 container.register(ShareService, {
@@ -477,6 +477,10 @@ container.register(PodcastJob, {
 
 container.register(RssJob, {
   useFactory: container => new RssJob(container.resolve(RssService))
+})
+
+container.register(SearchJob, {
+  useFactory: () => new SearchJob()
 })
 
 container.register(SubscriptionJob, {

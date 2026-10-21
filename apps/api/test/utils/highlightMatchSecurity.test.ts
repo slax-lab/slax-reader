@@ -61,4 +61,12 @@ describe('mapHighlight HTML output', () => {
     expect(html).toBe(`<mark>${escapeHtml(token)}</mark>`)
     expect(renderHighlight(html).textContent).toBe(token)
   })
+
+  test('processes a large repeated-token article within the search budget', () => {
+    const text = 'needle '.repeat(30000)
+    const started = Date.now()
+    const html = mapHighlight(text, '[highlight]needle[/highlight]')
+    expect(html).toContain('<mark>needle</mark>')
+    expect(Date.now() - started).toBeLessThan(2000)
+  })
 })

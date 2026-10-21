@@ -64,3 +64,7 @@ See [deployment](CLOUDFLARE-DEPLOY-EN.md) for explicitly authorized cloud operat
 ## Full development startup and external CI configuration
 
 After preparing development resources and environment files, run `pnpm api -- setup`; `setup --check` performs local prerequisite checks only. Setup performs Wrangler login, initializes dependencies, applies migrations and generates code, then exits. Run `pnpm api -- dev` separately to start Workers. Vectorize/AI still require cloud resources. All tools honor `SLAX_API_CONFIG` (absolute or repository-root relative); types also accepts `--config`. Merged releases use the single merged-PR deployment workflow with private declarative configuration and environment-scoped Actions Secrets. See the [current setup and merged-release CI guide](DEV-AND-CI-EN.md) and [Docker adapter research (Chinese)](DOCKER-ADAPTER-RESEARCH-CN.md).
+
+## Saved-article search
+
+`POST /v1/bookmark/search` keeps the rowid-scoped fulltext query and its 50-row groups. Each request searches at most 600 groups (the 30,000 newest indexed rows), returns at most 100 ranked results, and caches repeated results for 300 seconds. The `17 3 * * *` FTS `optimize` cron is registered by the Worker, but operators must also add that expression to their private API configuration; `deploy/cloudflare/api.toml.example` includes it.

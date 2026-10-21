@@ -1,7 +1,12 @@
 import { PrismaClient, Prisma } from '@prisma/client'
-import { inject, injectable, singleton } from '@/decorators/di'
-import { PRISIMA_FULLTEXT_CLIENT, VECTORIZE_CLIENTS } from '@/const/symbol'
+import { inject, injectable } from '@/decorators/di'
+import { PRISIMA_FULLTEXT_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
+import { ContextManager } from '@/utils/context'
+
+const RAW_INSERT_CHUNK_SIZE = 16
+const FTS_BATCH_SIZE = 10
+const MAX_RAW_ROWS = 30000
 
 export interface bookmarkRowPO {
   id: number
@@ -23,17 +28,20 @@ export class BookmarkSearchRepo {
    * @param shard
    * @returns
    */
-  async createBookmarkRaw(shard: { shard_idx: number; bookmark_id: number; content: string; rawContent: string; rawTitle: string; title: string }[]) {
+  async createBookmarkRaw(ctx: ContextManager, shard: { shard_idx: number; bookmark_id: number; content: string; rawContent: string; rawTitle: string; title: string }[]) {
     if (shard.length < 1) return
-    // 删除旧数据
-    await this.prisma().$executeRaw`DELETE FROM slax_bookmark_raw WHERE bookmark_id = ${shard[0].bookmark_id}`
-    // 拼接values
-    const values = shard.map(item => Prisma.sql`(${item.shard_idx}, ${item.bookmark_id}, ${item.content}, ${item.rawContent}, ${item.title}, ${item.rawTitle})`)
-    // 插入新数据
-    await this.prisma().$executeRaw`
-      INSERT INTO slax_bookmark_raw (shard_idx, bookmark_id, content, raw_content, title, raw_title) 
-      VALUES ${Prisma.join(values)}
-    `
+    const statements = [ctx.env.DB_FULLTEXT.prepare('DELETE FROM slax_bookmark_raw WHERE bookmark_id = ?').bind(shard[0].bookmark_id)]
+
+    for (let i = 0; i < shard.length; i += RAW_INSERT_CHUNK_SIZE) {
+      const chunk = shard.slice(i, i + RAW_INSERT_CHUNK_SIZE)
+      const placeholders = chunk.map(() => '(?,?,?,?,?,?)').join(',')
+      const values = chunk.flatMap(item => [item.shard_idx, item.bookmark_id, item.content, item.rawContent, item.title, item.rawTitle])
+      statements.push(
+        ctx.env.DB_FULLTEXT.prepare(`INSERT INTO slax_bookmark_raw (shard_idx, bookmark_id, content, raw_content, title, raw_title) VALUES ${placeholders}`).bind(...values)
+      )
+    }
+
+    await ctx.env.DB_FULLTEXT.batch(statements)
   }
 
   async deleteBookmarkRaw(bookmarkId: number) {
@@ -42,25 +50,36 @@ export class BookmarkSearchRepo {
 
   async getUserBookmarkRawIds(userId: number) {
     try {
-      return await this.prisma().$queryRaw<bookmarkRowPO[]>`SELECT id, br.bookmark_id FROM slax_bookmark_raw br
+      const rows = await this.prisma().$queryRaw<bookmarkRowPO[]>`SELECT id, br.bookmark_id FROM slax_bookmark_raw br
         INNER JOIN (SELECT bookmark_id FROM slax_user_bookmark WHERE user_id = ${userId}) ub
-        ON br.bookmark_id = ub.bookmark_id;`
+        ON br.bookmark_id = ub.bookmark_id
+        ORDER BY br.id DESC
+        LIMIT ${MAX_RAW_ROWS};`
+      if (rows.length >= MAX_RAW_ROWS) {
+        console.log(`search_scope_truncated user=${userId} searched=${rows.length}`)
+      }
+      return rows
     } catch (e) {
       console.log(e, 'getUserBookmarkRawIds error')
       return []
     }
   }
 
-  async seachBM25(rowIds: number[], keyword: string) {
-    try {
-      const t1 = performance.now()
-      if (rowIds.length < 1) return []
+  async seachBM25Batch(
+    ctx: ContextManager,
+    rowIdGroups: number[][],
+    keyword: string,
+    onRows?: (rows: { bookmark_id: number; score: number; content_snippet: string; title_snippet: string; raw_content: string; raw_title: string }[]) => void
+  ) {
+    if (rowIdGroups.length < 1) return []
 
-      const res = await this.prisma().$queryRaw<{ bookmark_id: number; score: number; content_snippet: string; title_snippet: string; raw_content: string; raw_title: string }[]>`
-        WITH filtered_ids AS (
+    const statements = rowIdGroups.map(rowIds => {
+      if (rowIds.length < 1 || rowIds.length > 50) throw new Error('fulltext groups must contain 1-50 row ids')
+      const placeholders = rowIds.map(() => '?').join(',')
+      const sql = `WITH filtered_ids AS (
             SELECT DISTINCT r.id, r.bookmark_id, r.raw_content, r.raw_title
             FROM slax_bookmark_raw r
-            where id in (${Prisma.join(rowIds)})
+            where id in (${placeholders})
         ),
         search_results AS (
             SELECT
@@ -74,16 +93,44 @@ export class BookmarkSearchRepo {
                 raw_title
             FROM filtered_ids f
             INNER JOIN slax_fts_bookmark ON slax_fts_bookmark.rowid = f.id
-            WHERE slax_fts_bookmark match ${keyword}
+            WHERE slax_fts_bookmark match ?
         )
-        SELECT * FROM search_results;`
-      const t2 = performance.now()
-      console.log(`seachBM25 time: ${t2 - t1} ms`)
-      return res
-    } catch (e) {
-      console.error(`seachBM25 error (rowIds=${rowIds.length}, keyword=${keyword}): ${e instanceof Error ? e.message : String(e)}`)
-      throw e
+        SELECT * FROM search_results`
+      return ctx.env.DB_FULLTEXT.prepare(sql).bind(...rowIds, keyword)
+    })
+
+    const rows: { bookmark_id: number; score: number; content_snippet: string; title_snippet: string; raw_content: string; raw_title: string }[] = []
+    let matchCount = 0
+    const started = performance.now()
+
+    for (let i = 0; i < statements.length; i += FTS_BATCH_SIZE) {
+      try {
+        const results = await ctx.env.DB_FULLTEXT.batch(statements.slice(i, i + FTS_BATCH_SIZE))
+        const batchRows: typeof rows = []
+        for (const result of results) {
+          for (const row of (result.results ?? []) as Array<Record<string, unknown>>) {
+            batchRows.push({
+              bookmark_id: Number(row.bookmark_id),
+              score: Number(row.score),
+              content_snippet: String(row.content_snippet ?? ''),
+              title_snippet: String(row.title_snippet ?? ''),
+              raw_content: String(row.raw_content ?? ''),
+              raw_title: String(row.raw_title ?? '')
+            })
+          }
+        }
+        matchCount += batchRows.length
+        if (onRows) onRows(batchRows)
+        else rows.push(...batchRows)
+      } catch (e) {
+        console.error(`seachBM25Batch error (groups=${rowIdGroups.length}): ${e instanceof Error ? e.message : String(e)}`)
+      }
     }
+
+    console.log(
+      `seachBM25Batch time: ${performance.now() - started} ms, groups: ${rowIdGroups.length}, batches: ${Math.ceil(statements.length / FTS_BATCH_SIZE)}, matches: ${matchCount}`
+    )
+    return rows
   }
 
   async getBookmarkRaw(bookmarkIds: number[]) {
