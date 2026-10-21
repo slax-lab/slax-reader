@@ -10,4 +10,5 @@
 - [x] Add pointer drag dismissal with upward threshold, rebound, pointer cancellation cleanup, and reduced-motion handling.
 - [x] Refine the card visual hierarchy with semantic theme tokens, icon badge, drag affordance, safe-area sizing, and localized title copy.
 - [x] Add tests for localStorage state validation, first/second manual close behavior, cooldown expiry, drag dismissal, rebound, and external-browser false positives.
+- [x] Replace the ellipsis glyph with the registered more-menu icon and refine the accent rail and card boundary while preserving accessible localized text.
 - [x] Run targeted Web tests, typecheck, lint, and `openspec validate --all --strict`; inspect the final diff and perform the repository review pass before handoff.

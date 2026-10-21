@@ -130,7 +130,9 @@
     "tips": {
       "in_app_browser": {
         "title": "建议在浏览器中打开",
-        "message": "为获得更好的使用体验，请点击右上角的 …，选择“在浏览器中打开”。",
+        "message_before": "为获得更好的使用体验，请点击右上角的",
+        "message_after": "，选择“在浏览器中打开”。",
+        "message_accessible": "为获得更好的使用体验，请点击右上角的更多菜单，选择“在浏览器中打开”。",
         "close": "关闭外部浏览器提示"
       },
       "access_unavailable": {

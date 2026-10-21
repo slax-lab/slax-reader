@@ -19,7 +19,14 @@
       <div class="tip-icon" aria-hidden="true"><AppIcon name="rss.external" :size="18" /></div>
       <div class="tip-content">
         <p class="title">{{ t('common.tips.in_app_browser.title') }}</p>
-        <p class="message">{{ t('common.tips.in_app_browser.message') }}</p>
+        <p class="message">
+          <span class="message-visual" aria-hidden="true">
+            <span>{{ t('common.tips.in_app_browser.message_before') }}</span>
+            <AppIcon class="menu-icon" name="snapshot.more" :size="16" />
+            <span>{{ t('common.tips.in_app_browser.message_after') }}</span>
+          </span>
+          <span class="sr-only">{{ t('common.tips.in_app_browser.message_accessible') }}</span>
+        </p>
       </div>
       <button class="close-button" type="button" :aria-label="t('common.tips.in_app_browser.close')" @click="dismiss">
         <AppIcon name="rss.close" :size="18" />
@@ -195,14 +202,14 @@ watch(() => route.path, evaluateVisibility)
   width: auto;
   max-width: min(420px, calc(100vw - 24px));
   margin-inline: auto;
-  padding: 18px 8px 12px 14px;
+  padding: 18px 8px 12px 20px;
   box-sizing: border-box;
   color: var(--slax-text);
   font-family: var(--slax-font-sans);
   background: var(--slax-surface-solid);
-  border: 1px solid var(--slax-border-strong);
-  border-radius: var(--slax-radius);
-  box-shadow: var(--slax-shadow-modal);
+  border: 1px solid color-mix(in srgb, var(--slax-accent) 18%, var(--slax-border-strong));
+  border-radius: calc(var(--slax-radius) + 2px);
+  box-shadow: var(--slax-shadow-modal), inset 0 1px 0 var(--slax-inset-hi);
   user-select: none;
   touch-action: none;
   will-change: transform;
@@ -210,7 +217,23 @@ watch(() => route.path, evaluateVisibility)
   transition: transform var(--slax-dur-normal) var(--slax-ease-spring), box-shadow var(--slax-dur-fast) ease;
 }
 
-.in-app-browser-tip::before { position: absolute; inset: 10px auto 10px 0; width: 3px; content: ''; background: var(--slax-accent); border-radius: 0 3px 3px 0; }
+.in-app-browser-tip::before {
+  position: absolute;
+  inset: 12px auto 12px 8px;
+  width: 3px;
+  content: '';
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--slax-accent) 72%, transparent) 18%,
+    var(--slax-accent) 50%,
+    color-mix(in srgb, var(--slax-accent) 72%, transparent) 82%,
+    transparent
+  );
+  border-radius: 999px;
+  opacity: 0.86;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--slax-accent) 18%, transparent);
+}
 
 @supports (backdrop-filter: blur(1px)) {
   .in-app-browser-tip { background: var(--slax-surface); backdrop-filter: var(--slax-blur); }
@@ -218,11 +241,14 @@ watch(() => route.path, evaluateVisibility)
 .in-app-browser-tip.is-dragging { cursor: grabbing; transition: none; }
 .in-app-browser-tip.is-dismissing { pointer-events: none; }
 .drag-handle { position: absolute; top: 7px; left: 50%; width: 30px; height: 3px; background: var(--slax-border-strong); border-radius: 999px; transform: translateX(-50%); }
-.tip-icon { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 32px; height: 32px; margin-top: 1px; color: var(--slax-accent); background: var(--slax-accent-bg); border-radius: 10px; }
+.tip-icon { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 32px; height: 32px; margin-top: 1px; color: var(--slax-accent); background: var(--slax-accent-bg); border: 1px solid color-mix(in srgb, var(--slax-accent) 18%, transparent); border-radius: 10px; box-shadow: inset 0 1px 0 var(--slax-inset-hi); }
 .tip-content { flex: 1; min-width: 0; padding-top: 1px; }
 .title, .message { margin: 0; overflow-wrap: anywhere; }
 .title { font-size: var(--slax-fs-meta); font-weight: 650; line-height: 1.3; letter-spacing: -0.01em; }
 .message { margin-top: 4px; color: var(--slax-text-muted); font-size: var(--slax-fs-aux); line-height: 1.45; }
+.message-visual { display: inline; }
+.menu-icon { display: inline-block; margin-inline: 0.18em; vertical-align: -0.18em; color: var(--slax-text); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .close-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -6px -2px 0 0; padding: 0; color: var(--slax-text-muted); line-height: 1; cursor: pointer; background: transparent; border: 0; border-radius: 50%; }
 .close-button:hover { color: var(--slax-text); background: var(--slax-accent-bg); }
 .close-button:active { color: var(--slax-accent); background: var(--slax-selection); }

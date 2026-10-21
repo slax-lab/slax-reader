@@ -14,13 +14,15 @@ export const EMPTY_IN_APP_BROWSER_TIP_STATE: InAppBrowserTipState = {
 const isValidState = (value: unknown): value is InAppBrowserTipState => {
   if (!value || typeof value !== 'object') return false
   const state = value as Partial<InAppBrowserTipState>
-  return Number.isFinite(state.manualCloseCount)
-    && Number.isInteger(state.manualCloseCount)
-    && state.manualCloseCount >= 0
-    && state.manualCloseCount <= 2
-    && Number.isFinite(state.cooldownUntil)
-    && state.cooldownUntil >= 0
-    && (state.manualCloseCount === 2 ? state.cooldownUntil > 0 : state.cooldownUntil === 0)
+  const { manualCloseCount, cooldownUntil } = state
+  if (typeof manualCloseCount !== 'number' || typeof cooldownUntil !== 'number') return false
+  return Number.isFinite(manualCloseCount)
+    && Number.isInteger(manualCloseCount)
+    && manualCloseCount >= 0
+    && manualCloseCount <= 2
+    && Number.isFinite(cooldownUntil)
+    && cooldownUntil >= 0
+    && (manualCloseCount === 2 ? cooldownUntil > 0 : cooldownUntil === 0)
 }
 
 const copyState = (state: InAppBrowserTipState): InAppBrowserTipState => ({ ...state })

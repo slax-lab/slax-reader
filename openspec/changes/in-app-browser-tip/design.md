@@ -45,6 +45,8 @@ The card accepts primary pointer gestures outside interactive controls. Pointer 
 
 The card uses existing `--slax-surface-solid`, `--slax-text`, `--slax-text-muted`, `--slax-border`, `--slax-accent`, `--slax-shadow-sm`, radius, font-size, and duration tokens. E-ink mode inherits the existing no-shadow/no-blur token values. The close control has a visible focus ring and a touch target larger than its icon.
 
+The instruction renders the registered `snapshot.more` menu icon inline instead of using an ellipsis glyph. The visual card uses a softened accent rail inset from the edge, a subtle accent-tinted boundary, and an inset highlight so the emphasis remains legible without reading as a hard border. Screen readers receive a localized text equivalent for the icon-led instruction.
+
 ## Risks / Trade-offs
 
 - **[Risk] Third-party apps change their user-agent strings.** → Keep the classifier pure, add representative fixtures, document that unknown values remain hidden, and expand only from observed real-device samples.

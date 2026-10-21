@@ -84,11 +84,15 @@ describe('InAppBrowserTip', () => {
     focused.focus()
     const wrapper = await mountTip(locale)
     const copy = locale === 'en'
-      ? { title: 'Open this page in your browser', message: 'For the best experience, tap … in the top-right corner and choose Open in browser.', close: 'Dismiss external browser tip' }
-      : { title: '建议在浏览器中打开', message: '为获得更好的使用体验，请点击右上角的 …，选择“在浏览器中打开”。', close: '关闭外部浏览器提示' }
+      ? { title: 'Open this page in your browser', before: 'For the best experience, tap', after: 'in the top-right corner and choose Open in browser.', accessible: 'For the best experience, tap the more options menu in the top-right corner and choose Open in browser.', close: 'Dismiss external browser tip' }
+      : { title: '建议在浏览器中打开', before: '为获得更好的使用体验，请点击右上角的', after: '，选择“在浏览器中打开”。', accessible: '为获得更好的使用体验，请点击右上角的更多菜单，选择“在浏览器中打开”。', close: '关闭外部浏览器提示' }
     expect(wrapper.find('[role="status"]').attributes('aria-live')).toBe('polite')
     expect(wrapper.text()).toContain(copy.title)
-    expect(wrapper.text()).toContain(copy.message)
+    expect(wrapper.find('.message').text()).toContain(copy.before)
+    expect(wrapper.find('.message').text()).toContain(copy.after)
+    expect(wrapper.find('.message').text()).not.toContain('…')
+    expect(wrapper.find('.message .sr-only').text()).toBe(copy.accessible)
+    expect(wrapper.find('.message .menu-icon').exists()).toBe(true)
     expect(wrapper.get('button').attributes('aria-label')).toBe(copy.close)
     expect(document.activeElement).toBe(focused)
     expect(wrapper.findAll('svg').every(icon => icon.attributes('aria-hidden') === 'true')).toBe(true)
