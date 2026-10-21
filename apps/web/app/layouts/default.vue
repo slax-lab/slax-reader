@@ -3,11 +3,13 @@
     <NuxtPwaAssets v-if="showPwaManifest" />
     <NuxtPage :keepalive="{ include: cacheRoutes }" />
     <ClientOnly><KocPromotionHost /></ClientOnly>
+    <ClientOnly><InAppBrowserTip /></ClientOnly>
   </div>
 </template>
 
 <script setup lang="ts">
 import KocPromotionHost from '~/components/Promotion/KocPromotionHost.vue'
+import InAppBrowserTip from '~/components/Tips/InAppBrowserTip.vue'
 
 import { getPreferredLanguage, isSlaxReaderApp } from '~/utils/environment'
 

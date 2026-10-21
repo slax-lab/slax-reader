@@ -128,6 +128,11 @@
       }
     },
     "tips": {
+      "in_app_browser": {
+        "title": "建议在浏览器中打开",
+        "message": "为获得更好的使用体验，请点击右上角的 …，选择“在浏览器中打开”。",
+        "close": "关闭外部浏览器提示"
+      },
       "access_unavailable": {
         "bookmark_footer": "（内容页右上角 - 分享 - 复制链接）",
         "desc": "请联系发布者获取正确的分享地址",
