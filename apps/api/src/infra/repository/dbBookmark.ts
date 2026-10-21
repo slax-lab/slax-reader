@@ -1001,6 +1001,10 @@ export class BookmarkRepo {
   }
 
   public async updateBookmarkStatus(bmId: number, status: queueStatus) {
+    // Legacy workflows must not change the status of a bookmark that already has
+    // committed content. Keeping the last successful body readable is safer than
+    // allowing an old failure callback to mark it failed; versioned writes use the
+    // conditional method above.
     return await this.prismaPg().sr_bookmark.updateMany({ where: { id: bmId, write_version: 0, content_key: '' }, data: { status, updated_at: new Date() } })
   }
 

@@ -9,6 +9,7 @@ import { LabService } from '../lab'
 import { BookmarkForkService } from '../bookmarkFork'
 import type { BookmarkForkResponse } from '@slax-reader/contracts'
 import { parseReaderBookmarkUrl } from '@/utils/readerBookmarkUrl'
+import { ErrorParam } from '@/const/err'
 
 export interface PreWorkflowResult {
   bookmarkId: number
@@ -148,8 +149,10 @@ export class BookmarkAddOrchestrator {
     if (!readerUrl) return null
 
     const forkResult = await this.bookmarkForkService.fork(ctx, { bookmark_uid: readerUrl.bookmarkUid }, idempotencyKey)
+    const bookmarkId = ctx.hashIds.decodeId(Number(forkResult.bookmark_id))
+    if (!Number.isSafeInteger(bookmarkId) || bookmarkId < 1) throw ErrorParam()
     return {
-      bookmarkId: ctx.hashIds.decodeId(Number(forkResult.bookmark_id)),
+      bookmarkId,
       isShortcut: false,
       workflowParams: null,
       forkResult

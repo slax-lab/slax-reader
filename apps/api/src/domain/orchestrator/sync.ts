@@ -144,6 +144,24 @@ export interface SyncChangeUserBookmarkShare {
   show_userinfo?: boolean
 }
 
+function parseSyncBookmarkMetadata(raw: string): SyncChangeUserBookmarkMetadata {
+  const parse = (value: string): unknown => {
+    let parsed: unknown = value
+    for (let attempt = 0; attempt < 2 && typeof parsed === 'string'; attempt++) parsed = JSON.parse(parsed)
+    return parsed
+  }
+
+  for (const candidate of [raw, raw.replaceAll('\\\\', '')]) {
+    try {
+      const parsed = parse(candidate)
+      if (parsed && typeof parsed === 'object') return parsed as SyncChangeUserBookmarkMetadata
+    } catch {
+      // Try the compatibility representation below.
+    }
+  }
+  throw ErrorParam()
+}
+
 @injectable()
 export class SyncOrchestrator {
   constructor(
@@ -245,7 +263,7 @@ export class SyncOrchestrator {
   private readerBookmarkChange(ctx: ContextManager, change: SyncChangeItem): { bookmarkUid: string } | null {
     if (change.table !== 'sr_user_bookmark' || change.op !== 'PUT' || !change.data?.metadata) return null
     try {
-      const metadata = JSON.parse(change.data.metadata.replaceAll('\\\\', '')) as SyncChangeUserBookmarkMetadata
+      const metadata = parseSyncBookmarkMetadata(change.data.metadata)
       const target = metadata.bookmark?.target_url
       if (!target) return null
       const parsed = parseReaderBookmarkUrl(target, ctx.env)
@@ -330,7 +348,7 @@ export class SyncOrchestrator {
 
     // create new bookmark
     if (change.op === 'PUT' && change.data.hasOwnProperty('metadata')) {
-      const bookmarkData = JSON.parse(change.data['metadata'].replaceAll('\\\\', '')) as SyncChangeUserBookmarkMetadata
+      const bookmarkData = parseSyncBookmarkMetadata(change.data['metadata'])
       if (!bookmarkData.bookmark) throw ErrorParam()
       operations.push({
         type: 'create_bookmark',

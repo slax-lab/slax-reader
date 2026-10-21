@@ -94,6 +94,18 @@ describe('PowerSync Reader snapshot saves', () => {
     expect(w.dbSyncBatch.executeOrderedOperations).not.toHaveBeenCalled()
   })
 
+  test('preserves escaped backslashes in ordinary bookmark metadata', async () => {
+    const w = wire()
+    const change = create('https://example.com/article')
+    change.data!.metadata = JSON.stringify({ bookmark: { target_url: 'https://example.com/article', title: 'C:\\\\Users\\\\Reader' } })
+
+    await w.orchestrator.syncChanges(w.ctx, [change])
+
+    expect(w.dbSyncBatch.executeOrderedOperations.mock.calls[0][0]).toContainEqual(
+      expect.objectContaining({ type: 'create_bookmark', data: expect.objectContaining({ title: 'C:\\\\Users\\\\Reader' }) })
+    )
+  })
+
   test('a direct save replay remaps later changes across a Fork boundary without crawling', async () => {
     const w = wire()
     w.dbSyncBatch.executeOrderedOperations.mockResolvedValueOnce([{

@@ -62,6 +62,12 @@ for (const method of ['url', 'inline'] as const) {
 }
 
 describe('Reader URL-save identity', () => {
+  test('rejects an invalid encoded Fork id instead of returning bookmarkId zero', async () => {
+    const f = fixture()
+    f.ctx.hashIds.decodeId = vi.fn().mockReturnValue(0)
+    await expect(f.orchestrator.addByUrl(f.ctx, request())).rejects.toBeTruthy()
+  })
+
   test.each([
     `${sourceUrl}?bookmark_uid=someone-else`,
     `${sourceUrl}#article`,
