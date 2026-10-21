@@ -51,7 +51,13 @@ export class BookmarkForkService {
     if (pdf) {
       const metaKey = article.content_key.replace('pdf/body/', 'pdf/meta/').replace(/\.pdf$/, '.json')
       const metadata = await this.bucket().R2Bucket.get(metaKey)
-      const state = metadata ? await metadata.json<{ text_status: string; pages: number }>() : null
+      let state: { text_status: string; pages: number } | null = null
+      try {
+        const value = metadata ? await metadata.json<unknown>() : null
+        if (value && typeof value === 'object') state = value as { text_status: string; pages: number }
+      } catch {
+        state = null
+      }
       if (!state || state.text_status !== 'ready') throw BookmarkContentNotFoundError()
       const body = await this.bucket().R2Bucket.head(article.content_key)
       documentId = body?.customMetadata?.sha256
@@ -136,7 +142,7 @@ export class BookmarkForkService {
       await this.bookmarkService.refreshBookmarkPublication(ctx, operation.target_bookmark_id, operation.user_id)
       await this.forkRepo.complete(operation.id, operation.attempt_token)
     } catch (error) {
-      console.error(`Fork publication side effects pending for operation ${operation.id}:`, error)
+      console.error(`Fork publication side effects pending for operation ${operation.id}: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
@@ -151,7 +157,7 @@ export class BookmarkForkService {
           await this.bucket().deleteObjects(operation.staged_keys)
           await this.forkRepo.fail(operation.id, operation.attempt_token, 'abandoned_copy', true, cleanupToken)
         } catch (error) {
-          console.error(`Fork object cleanup failed for operation ${operation.id}:`, error)
+          console.error(`Fork object cleanup failed for operation ${operation.id}: ${error instanceof Error ? error.message : String(error)}`)
         }
       }
     }
@@ -174,7 +180,7 @@ export class BookmarkForkService {
         await this.forkRepo.completeStageCleanup(stage.id, token, 'deleted')
       } catch (error) {
         await this.forkRepo.completeStageCleanup(stage.id, token, 'cleaning').catch(() => {})
-        console.error(`Bookmark object stage cleanup failed for ${stage.id}:`, error)
+        console.error(`Bookmark object stage cleanup failed for ${stage.id}: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
   }

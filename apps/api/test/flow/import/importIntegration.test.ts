@@ -206,4 +206,23 @@ describe('bookmark metadata persistence', () => {
     expect(bs.createBookmarkImportRelation).not.toHaveBeenCalled()
     expect(cs.createWorkflow).not.toHaveBeenCalled()
   })
+
+  it('rejects an invalid encoded Fork id instead of applying import metadata to bookmark zero', async () => {
+    const orchestrator = Object.create(ImportOrchestrator.prototype) as ImportOrchestrator
+    const ctx = createMockCtx({ hashIds: { decodeId: vi.fn().mockReturnValue(0) } })
+    const fork = vi.fn().mockResolvedValue({ bookmark_uid: 'target-uuid', bookmark_id: 'bad-id' })
+    const applyForkImportMetadata = vi.fn()
+    Object.assign(orchestrator, {
+      bookmarkForkService: { fork },
+      bookmarkService: { applyForkImportMetadata },
+      trackImportedBookmark: vi.fn()
+    })
+
+    const result = await (orchestrator as any).processReaderForkImports(ctx, { id: 1, info: { id: 42, idx: 0, type: 'pinboard' } }, [
+      { item: { target_url: 'https://reader.example.com/b/source-uuid' }, index: 0, readerUid: 'source-uuid' }
+    ])
+
+    expect(result).toEqual({ succeeded: 0, failed: 1 })
+    expect(applyForkImportMetadata).not.toHaveBeenCalled()
+  })
 })

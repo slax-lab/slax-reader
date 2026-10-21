@@ -41,8 +41,17 @@ describe('SnapshotForkButton', () => {
     store.isLogin = false
     const wrapper = await mountButton()
     await wrapper.get('button').trigger('click')
-    expect(login).toHaveBeenCalledWith({ redirect: 'https://r.slax.com/b/source-uuid?highlight=mark' })
+    expect(login).toHaveBeenCalledWith({ redirect: window.location.href })
     expect(post).not.toHaveBeenCalled()
+  })
+
+  it('uses the current snapshot route when the page instance is reused', async () => {
+    store.isLogin = false
+    const wrapper = await mountButton()
+    window.history.pushState({}, '', '/b/other-uuid')
+    await wrapper.get('button').trigger('click')
+    expect(login).toHaveBeenCalledWith({ redirect: window.location.href })
+    window.history.pushState({}, '', '/')
   })
 
   it('disables the action while saving and opens the returned private snapshot', async () => {

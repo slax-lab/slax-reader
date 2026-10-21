@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { BookmarkForkService } from '@/domain/bookmarkFork'
+import { ErrorName } from '@/const/err'
 
 function setup() {
   const source = {
@@ -182,5 +183,15 @@ describe('BookmarkForkService', () => {
       { sourceKey: 'pdf/meta/legacy-hash.json', destinationKey: 'pdf/meta/fork/target-uuid.v1.attempt-1.json' },
       { sourceKey: 'text/pdf/legacy-hash/extracted.txt', destinationKey: 'text/body/fork/target-uuid.v1.attempt-1.txt' }
     ])
+  })
+
+  it('maps malformed PDF metadata to BookmarkContentNotFoundError', async () => {
+    const s = setup()
+    s.source.type = 2
+    s.source.bookmark.content_key = 'pdf/body/legacy-hash.pdf'
+    s.source.bookmark.content_md_key = 'text/pdf/legacy-hash/extracted.txt'
+    s.bucket.R2Bucket.get.mockResolvedValue({ json: async () => { throw new SyntaxError('invalid metadata') } })
+
+    await expect(s.service.fork(s.ctx, { bookmark_uid: 'source-uuid' })).rejects.toMatchObject({ name: ErrorName.BOOKMARK_CONTENT_NOT_FOUND })
   })
 })

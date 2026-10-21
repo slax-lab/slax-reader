@@ -18,7 +18,6 @@ import { useUserStore } from '~/stores/user'
 
 const props = defineProps<{ bookmarkUid: string; canFork?: boolean; isOwner?: boolean }>()
 const { t } = useI18n()
-const redirectHref = useRequestURL().href
 const { loading, error, fork } = useBookmarkFork()
 const userStore = useUserStore()
 const visible = computed(() => !!props.bookmarkUid && props.canFork === true && props.isOwner !== true)
@@ -26,7 +25,7 @@ const visible = computed(() => !!props.bookmarkUid && props.canFork === true && 
 const onFork = async () => {
   if (!visible.value || loading.value) return
   if (!userStore.isLogin) {
-    showLoginModal({ redirect: redirectHref })
+    showLoginModal({ redirect: location.href })
     return
   }
 

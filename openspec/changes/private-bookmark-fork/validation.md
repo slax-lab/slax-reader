@@ -17,11 +17,12 @@ The implementation was validated with the following checks before opening the pu
 ## Running behavior exercised
 
 - Two local development accounts successfully Forked Reader snapshots owned by another account.
+- A human reviewer ran the local Web smoke test on 2026-10-21: opened another user's shared `/b/<uuid>` snapshot, clicked the visible Fork action, verified the copied private bookmark and Source/Fork attribution, and then overwrote it through Add URL to confirm newest-data-wins. No UI adjustment was needed after the check.
 - A Forked bookmark was overwritten through the normal URL-save path, confirming the same-user same-URL newest-data-wins behavior.
 - The local R2 cleanup job was triggered manually and the retired object lifecycle was inspected.
 
 ## Remaining gaps
 
 - No production deployment or production database migration was performed in this change.
-- Browser-level mobile-device acceptance was not repeated in CI; Web component and API tests cover the Fork action and its contract.
+- Physical mobile-device repetition is out of scope for this change; the mobile browser path uses the same responsive Web Fork action and API contract, while the local acceptance above covers the visible Web surface.
 - Cloudflare scheduled execution remains environment-dependent; local `pnpm api -- dev` does not itself invoke scheduled events unless the local Worker runtime is configured or the handler is triggered explicitly.

@@ -11,6 +11,7 @@ import { importBookmarkMessage } from '../../infra/queue/queueClient'
 import { Hashid } from '@/utils/hashids'
 import { isNewImportSource } from '@/utils/importFormats'
 import { bookmarkEventProperties, EVENT_CONTEXT_KEY, submitServerEvent } from '../events'
+import { ErrorParam } from '@/const/err'
 
 type ImportSaveItem = addUrlBookmarkReq & { raw_target_url?: string; saveOperationKey?: string }
 
@@ -276,7 +277,8 @@ export class ImportOrchestrator {
       const operationKey = `import:${message.info.id}:${baseIndex + index}`
       try {
         const result = await this.bookmarkForkService.fork(ctx, { bookmark_uid: readerUid }, operationKey)
-        const bookmarkId = ctx.hashIds.decodeId(result.bookmark_id)
+        const bookmarkId = ctx.hashIds.decodeId(Number(result.bookmark_id))
+        if (!Number.isSafeInteger(bookmarkId) || bookmarkId < 1) throw ErrorParam()
         const first = await this.bookmarkService.applyForkImportMetadata(ctx, {
           bookmarkId,
           bookmarkUid: result.bookmark_uid,
@@ -293,7 +295,7 @@ export class ImportOrchestrator {
         }
       } catch (error) {
         failed++
-        console.error(`Reader Fork import failed for row ${baseIndex + index}:`, error)
+        console.error(`Reader Fork import failed for row ${baseIndex + index}: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
     return { succeeded, failed }
