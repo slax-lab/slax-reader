@@ -1,7 +1,16 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { PGlite } from '@electric-sql/pglite'
+import { createServer } from 'node:http'
+import { once } from 'node:events'
+import { FeedService } from '@/domain/feed'
+import { RssService } from '@/domain/rss'
+import { RssContent } from '@/domain/rss/content'
+import { FeedController } from '@/handler/http/feedController'
+import { createMockCtx } from '@test/helpers/mockFactory'
+import { memoryRssBucket } from './testBucket'
 import { readFile } from 'node:fs/promises'
 import { RssRepo } from '@/infra/repository/dbRss'
+import { FeedRepo } from '@/infra/repository/dbFeed'
 import { LabRepo } from '@/infra/repository/dbLab'
 import { RssError, parseFeed } from '@/domain/rss/feed'
 
@@ -89,6 +98,7 @@ beforeAll(async () => {
   await db.exec(await readFile(history, 'utf8'))
   const localFirst = new URL('../../../prisma/pg_migrations/20261019090000_rss_local_first/migration.sql', import.meta.url)
   await db.exec(await readFile(localFirst, 'utf8'))
+  await db.exec(await readFile(new URL('../../../prisma/pg_migrations/20261022090000_newsletter_feed/migration.sql', import.meta.url), 'utf8'))
   repo = new RssRepo(() => adapter(db))
 }, 30_000)
 beforeEach(async () => {
@@ -401,7 +411,8 @@ describe('local-first synced window', () => {
     const archive = stable(await feed('<item><guid>old</guid><title>Old archived</title></item><item><guid>head</guid><title>Archive copy</title></item>'))
     expect(await repo.finishHistory(claim!, 'https://example.com/archive', archive)).toBe(true)
     // entry_key is a digest of the GUID, so identify rows by their stable article titles.
-    const rows = async () => Object.fromEntries((await db.query<{ is_history: boolean; title: string }>('SELECT is_history,title FROM sr_rss_entry')).rows.map(row => [row.title, row.is_history]))
+    const rows = async () =>
+      Object.fromEntries((await db.query<{ is_history: boolean; title: string }>('SELECT is_history,title FROM sr_rss_entry')).rows.map(row => [row.title, row.is_history]))
     // A history copy of an already cached latest item neither overwrites it nor hides it.
     expect(await rows()).toEqual({ Head: false, 'Old archived': true })
     await due(sub.id)
@@ -414,7 +425,10 @@ describe('local-first synced window', () => {
     await db.query("UPDATE sr_rss_entry SET updated_at='2000-01-01'")
     await due(sub.id)
     await repo.finish(await repo.claim(1, sub.id), stable(await feed(body)))
-    const updated = async () => Object.fromEntries((await db.query<{ title: string; updated_at: Date }>('SELECT title,updated_at FROM sr_rss_entry')).rows.map(row => [row.title, row.updated_at.getUTCFullYear()]))
+    const updated = async () =>
+      Object.fromEntries(
+        (await db.query<{ title: string; updated_at: Date }>('SELECT title,updated_at FROM sr_rss_entry')).rows.map(row => [row.title, row.updated_at.getUTCFullYear()])
+      )
     // The first add stored random keys; the stable refresh changes them once, then stays put.
     await db.query("UPDATE sr_rss_entry SET updated_at='2000-01-01'")
     await due(sub.id)
@@ -454,5 +468,168 @@ describe('continuing after a local entry', () => {
     expect((await repo.entries(1, null, cursor, 20, true)).map(row => row.title)).toEqual(['Daily history new', 'Daily history old'])
     // A selected source only sees its own rows.
     expect((await repo.entries(1, daily.id, cursor, 20, true)).map(row => row.title)).toEqual(['Daily history new', 'Daily history old'])
+  })
+})
+
+const newsletter = async (url = 'newsletter:opaque', userId = 1) => {
+  const source = (
+    await db.query<{ id: string }>(
+      "INSERT INTO sr_rss_feed(feed_url,kind,title,last_success_at,next_fetch_at,next_allowed_at,history_url,history_checked_at) VALUES($1,'newsletter','Sender',now(),now()-interval '1 day',now()-interval '1 day','https://invalid.example/history',now()) RETURNING id",
+      [url]
+    )
+  ).rows[0]
+  const subscription = (
+    await db.query<{ id: string }>('INSERT INTO sr_rss_subscription(user_id,feed_id,remark) VALUES($1,$2,$3) RETURNING id', [userId, source.id, 'Private sender'])
+  ).rows[0]
+  const entry = (
+    await db.query<{ id: string; content_key: string }>(
+      "INSERT INTO sr_rss_entry(feed_id,entry_key,title,summary,content_key,article_url,first_seen_at,sort_at) VALUES($1,'mail','Mail','Summary',$2,'https://example.com/mail',now()-interval '60 days',now()) RETURNING id,content_key",
+      [source.id, 'rss-content/' + source.id + '/mail']
+    )
+  ).rows[0]
+  return { feed_id: source.id, id: subscription.id, entry }
+}
+describe('RSS compatibility with newsletter sources', () => {
+  test('legacy reads and history hide newsletter subscriptions and entries', async () => {
+    const mail = await newsletter()
+    await add(1, 'https://example.com/feed', await feed())
+    expect((await repo.subscriptions(1)).map(row => row.feed_url)).toEqual(['https://example.com/feed'])
+    expect((await repo.entries(1, null, null, 20)).map(row => row.title)).toEqual(['One'])
+    expect((await repo.historyFeeds(1, null)).map(row => row.feed_url)).toEqual(['https://example.com/feed'])
+    await expect(repo.entry(1, mail.entry.id)).rejects.toMatchObject({ code: 'not_found' })
+    expect(await repo.contentKeys(mail.feed_id)).toEqual(new Map())
+  })
+  test('legacy mutations cannot change a newsletter source or subscription', async () => {
+    const mail = await newsletter('https://example.com/collision')
+    await expect(repo.updateRemark(1, mail.id, 'Changed')).rejects.toMatchObject({ code: 'not_found' })
+    await expect(repo.claim(1, mail.id)).rejects.toMatchObject({ code: 'not_found' })
+    await expect(repo.claimHistory(1, mail.feed_id)).rejects.toMatchObject({ code: 'not_found' })
+    await expect(repo.save(1, mail.entry.id, 'https://example.com/mail')).rejects.toMatchObject({ code: 'not_found' })
+    expect(await repo.hasActiveSubscribers(mail.feed_id)).toBe(false)
+    expect(await repo.reuseForAdd(1, 'https://example.com/collision', null)).toBeNull()
+    await expect(repo.beginAdd(1, 'https://example.com/collision', null)).rejects.toMatchObject({ code: 'not_found' })
+    await repo.remove(1, mail.id)
+    expect((await db.query('SELECT remark FROM sr_rss_subscription WHERE id=$1', [mail.id])).rows).toEqual([{ remark: 'Private sender' }])
+    expect((await db.query('SELECT title,lease_token FROM sr_rss_feed WHERE id=$1', [mail.feed_id])).rows).toEqual([{ title: 'Sender', lease_token: null }])
+  })
+  test('newsletter subscriptions do not consume RSS quota or enter polling', async () => {
+    for (let i = 0; i < 20; i++) await newsletter('newsletter:' + i)
+    const rss = await add(1, 'https://example.com/rss', await feed())
+    await due(rss.id)
+    expect((await repo.claimDue()).map(row => row.id)).toEqual([rss.feed_id])
+  })
+  test('thirty-day pruning preserves newsletter entries while generic orphan and R2 cleanup still applies', async () => {
+    const mail = await newsletter()
+    const rss = await add(1, 'https://example.com/rss', await feed())
+    await db.query("UPDATE sr_rss_entry SET first_seen_at=now()-interval '60 days' WHERE feed_id=$1", [rss.feed_id])
+    await repo.prune()
+    expect((await db.query('SELECT id FROM sr_rss_entry')).rows).toEqual([{ id: mail.entry.id }])
+    expect((await db.query('SELECT history_url FROM sr_rss_feed WHERE id=$1', [mail.feed_id])).rows[0]).toEqual({ history_url: 'https://invalid.example/history' })
+    expect(await repo.referencedContent([mail.entry.content_key])).toEqual([mail.entry.content_key])
+    await db.query('DELETE FROM sr_rss_subscription WHERE id=$1', [mail.id])
+    await db.query("UPDATE sr_rss_feed SET created_at=now()-interval '2 hours' WHERE id=$1", [mail.feed_id])
+    await repo.prune()
+    expect((await db.query('SELECT id FROM sr_rss_entry')).rows).toEqual([])
+    expect(await repo.referencedContent([mail.entry.content_key])).toEqual([])
+    expect((await db.query('SELECT id FROM sr_rss_feed WHERE id=$1', [mail.feed_id])).rows).toEqual([])
+  })
+})
+
+describe('unified Feed PostgreSQL reads', () => {
+  const unified = () => new FeedRepo(() => adapter(db))
+  test('each enabled Lab admits only the active owner and its matching source kind', async () => {
+    const mail = await newsletter()
+    const rss = await add(1, 'https://example.com/rss', await feed())
+    const facade = unified()
+    expect(await facade.enabledKinds(1)).toEqual(['rss'])
+    expect((await facade.subscriptions(1, ['rss', 'newsletter'])).map(row => row.id)).toEqual([rss.id])
+    await expect(facade.entry(1, mail.entry.id, ['rss', 'newsletter'])).rejects.toMatchObject({ code: 'not_found' })
+    await db.query("INSERT INTO sr_user_lab_feature VALUES(1,'newsletter',true)")
+    expect(await facade.enabledKinds(1)).toEqual(['newsletter', 'rss'])
+    expect((await facade.entries(1, ['rss', 'newsletter'], null, null, 20)).map(row => row.kind).sort()).toEqual(['newsletter', 'rss'])
+    expect(await facade.entry(1, mail.entry.id, ['newsletter'])).toMatchObject({ kind: 'newsletter', bookmark_user_uuid: null })
+    await expect(facade.entry(2, mail.entry.id, ['newsletter'])).rejects.toMatchObject({ code: 'not_found' })
+    await db.query("UPDATE sr_user_lab_feature SET enabled=false WHERE user_id=1 AND feature='rss'")
+    expect((await facade.entries(1, ['rss', 'newsletter'], null, null, 20)).map(row => row.id)).toEqual([mail.entry.id])
+    expect(await facade.historyFeeds(1, null)).toEqual([])
+    await db.query('UPDATE sr_user SET deleted_at=now() WHERE id=1')
+    expect(await facade.enabledKinds(1)).toEqual([])
+    expect(await facade.subscriptions(1, ['newsletter'])).toEqual([])
+    expect(await facade.entries(1, ['newsletter'], null, null, 20)).toEqual([])
+    await expect(facade.entry(1, mail.entry.id, ['newsletter'])).rejects.toMatchObject({ code: 'not_found' })
+  })
+  test('filters the selected subscription and preserves RSS local-anchor history ordering', async () => {
+    const mail = await newsletter()
+    const rss = await add(1, 'https://example.com/rss', await feed())
+    await db.query("INSERT INTO sr_user_lab_feature VALUES(1,'newsletter',true)")
+    const facade = unified()
+    const [anchor] = await facade.entries(1, ['rss', 'newsletter'], rss.id, null, 20)
+    await db.query(
+      "INSERT INTO sr_rss_entry(feed_id,entry_key,title,summary,content_key,sort_at,is_history) VALUES($1,'history','Archive','','rss-content/history/body',now()+interval '1 day',true)",
+      [rss.feed_id]
+    )
+    expect((await facade.entries(1, ['rss', 'newsletter'], rss.id, { at: anchor.sort_at, id: anchor.id }, 20, true)).map(row => row.title)).toEqual(['Archive'])
+    expect((await facade.entries(1, ['rss', 'newsletter'], mail.id, null, 20)).map(row => row.title)).toEqual(['Mail'])
+    expect((await facade.historyFeeds(1, null)).map(row => row.id)).toEqual([rss.feed_id])
+    expect(await facade.historyFeeds(1, mail.id)).toEqual([])
+  })
+})
+
+describe('Feed HTTP exercise with PostgreSQL and cached content', () => {
+  test('serves mixed data, rejects foreign access, and revokes newsletter bodies on a live Lab toggle', async () => {
+    const mail = await newsletter()
+    await add(1, 'https://example.com/rss', await feed())
+    await db.query("INSERT INTO sr_user_lab_feature VALUES(1,'newsletter',true)")
+    const bucket = memoryRssBucket()
+    bucket.objects.set(mail.entry.content_key, { body: '<p>Cached newsletter body</p>', uploaded: new Date() })
+    const content = new RssContent(() => bucket.client as never)
+    const rss = new RssService(repo, {} as never, {} as never, {} as never, {} as never, content)
+    const service = new FeedService(new FeedRepo(() => adapter(db)), rss, content)
+    const controller = new FeedController(service)
+    // Authentication itself belongs to the Worker smoke suite; supply only fixture identities here.
+    const server = createServer(async (incoming, outgoing) => {
+      try {
+        const request = new Request('http://localhost' + incoming.url)
+        const ctx = createMockCtx({ userId: Number(incoming.headers['x-fixture-user'] || 1) })
+        const path = new URL(request.url).pathname
+        const response =
+          path === '/v1/feed/subscriptions'
+            ? await controller.listSubscriptions(ctx, request)
+            : path === '/v1/feed/entries'
+              ? await controller.listEntries(ctx, request)
+              : await controller.entry(ctx, request)
+        outgoing.writeHead(response.status, Object.fromEntries(response.headers))
+        outgoing.end(await response.text())
+      } catch {
+        outgoing.writeHead(500)
+        outgoing.end()
+      }
+    })
+    server.listen(0, '127.0.0.1')
+    await once(server, 'listening')
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('Missing loopback server address')
+    const base = 'http://127.0.0.1:' + address.port
+    try {
+      const subscriptions = await fetch(base + '/v1/feed/subscriptions')
+      expect(subscriptions.headers.get('Cache-Control')).toBe('private, no-store')
+      expect((await subscriptions.json()).data.items.map((row: { kind: string }) => row.kind).sort()).toEqual(['newsletter', 'rss'])
+      const list = await fetch(base + '/v1/feed/entries')
+      expect((await list.json()).data.items.map((row: { kind: string }) => row.kind).sort()).toEqual(['newsletter', 'rss'])
+      const detail = await fetch(base + '/v1/feed/entries/' + mail.entry.id)
+      expect((await detail.json()).data).toMatchObject({ kind: 'newsletter', content_html: '<p>Cached newsletter body</p>' })
+      const foreign = await fetch(base + '/v1/feed/entries/' + mail.entry.id, { headers: { 'x-fixture-user': '2' } })
+      expect(foreign.status).toBe(404)
+      await db.query("UPDATE sr_user_lab_feature SET enabled=false WHERE user_id=1 AND feature='newsletter'")
+      const revoked = await fetch(base + '/v1/feed/entries/' + mail.entry.id)
+      expect(revoked.status).toBe(404)
+      const remaining = await fetch(base + '/v1/feed/entries')
+      expect((await remaining.json()).data.items.map((row: { kind: string }) => row.kind)).toEqual(['rss'])
+      await db.query('UPDATE sr_user_lab_feature SET enabled=false WHERE user_id=1')
+      const empty = await fetch(base + '/v1/feed/entries')
+      expect((await empty.json()).data).toMatchObject({ items: [], has_more: false, history_status: 'exhausted' })
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close(error => (error ? reject(error) : resolve())))
+    }
   })
 })

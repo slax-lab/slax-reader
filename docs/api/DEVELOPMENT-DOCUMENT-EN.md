@@ -75,3 +75,5 @@ The endpoint searches only the caller's saved titles and bodies. Unsaved RSS and
 Mobile Search runs local metadata retrieval while typing and invokes this API on explicit keyword submission. The optional filters and additive `bookmark_user_uuid` plus action-state fields in bookmark metadata support not-yet-synchronized saved hits without creating a second synchronized record.
 
 Search hits also return additive `target_url` and `created_at` metadata. `created_at` is the authenticated user's save time in ISO format, not an article publication date. These values are read in the final batched current-ownership/tag admission lookup; initial candidate enumeration still selects only IDs. Existing identifiers, rank and highlight fields remain unchanged, and newer clients tolerate older servers omitting the additive metadata. No schema migration or per-hit detail request is required.
+
+For Newsletter receiving, unified Feed APIs, dev console steps and acceptance cases, see [Newsletter dev pilot](NEWSLETTER-DEV-PILOT.md).

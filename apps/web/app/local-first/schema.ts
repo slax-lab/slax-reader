@@ -40,6 +40,7 @@ export const sr_rss_subscription = new Table({
 })
 
 export const sr_rss_feed = new Table({
+  kind: column.text,
   feed_url: column.text,
   title: column.text,
   site_url: column.text,

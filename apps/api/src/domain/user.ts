@@ -336,8 +336,6 @@ export class UserService {
    */
   public async saveUserSetting(ctx: ContextManager, data: { key: string; value: string }): Promise<undefined> {
     if (data.key === 'account') {
-      // 判断唯一、长度、是不是特定字符
-      await this.userRepo.getInfo({ account: data.value })
       await this.userRepo.updateUserName(ctx.getUserId(), data.value)
     } else if (data.key === 'lang') {
       await this.userRepo.updateUserLang(ctx.getUserId(), data.value)

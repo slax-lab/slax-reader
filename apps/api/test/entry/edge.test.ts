@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   handleImageProxy: vi.fn().mockResolvedValue(new Response('image', { headers: { 'content-type': 'image/jpeg' } })),
+  email: vi.fn(),
   queue: vi.fn(),
   scheduled: vi.fn()
 }))
@@ -11,6 +12,7 @@ vi.mock('@/handler/http/imageProxy', () => ({ handleImageProxy: mocks.handleImag
 vi.mock('@/entry/core', () => {
   const WorkerClass = class {}
   return {
+    handleEmailEvent: mocks.email,
     handleQueueEvent: mocks.queue,
     handleScheduledEvent: mocks.scheduled,
     SlaxJieba: WorkerClass,
@@ -34,6 +36,13 @@ import { Hashid } from '@/utils/hashids'
 import { EDGE_SECRET_HEADER, EDGE_IDENTITY_HEADER } from '@/const/edge'
 
 describe('edge routing', () => {
+  test('dispatches incoming email separately from HTTP authentication', async () => {
+    const message = { to: 'test@slax.dev' } as ForwardableEmailMessage
+    const env = {} as Env,
+      ctx = {} as ExecutionContext
+    await edge.email(message, env, ctx)
+    expect(mocks.email).toHaveBeenCalledWith(message, env, ctx)
+  })
   test('forwards Reader identity verified by Core and strips the external bearer', async () => {
     const env = {
       JWT_SECRET_TEXT: 'test-secret-32-bytes-minimum-long-string',

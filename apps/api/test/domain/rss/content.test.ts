@@ -50,6 +50,25 @@ describe('RSS R2 content', () => {
     expect(stored.feed.items[0]).not.toHaveProperty('content_html')
     expect(stored.feed.items[0].content_key).toMatch(/^rss-content\/feed\//)
   })
+  test('retains truncation detected before R2 storage', async () => {
+    const { content, ctx } = setup()
+    const parsed = await parseFeed(
+      '<rss><channel><item><guid>large</guid><description><![CDATA[<p>' + 'x'.repeat(230 * 1024) + '</p>]]></description></item></channel></rss>',
+      'https://example.com/rss'
+    )
+    expect(parsed.items[0].content_truncated).toBe(true)
+    const stored = await content.store(ctx.env, 'feed', { unchanged: false, feed: parsed, etag: null, lastModified: null })
+    if (stored.unchanged) throw new Error('Expected stored body')
+    expect(stored.feed.items[0].content_truncated).toBe(true)
+  })
+  test('carries truncation discovered by the storage sanitizer into entry metadata', async () => {
+    const { content, ctx } = setup()
+    const parsed = await parseFeed('<rss><channel><item><guid>large</guid><description>Body</description></item></channel></rss>', 'https://example.com/rss')
+    parsed.items[0].content_html = '<p>' + 'x'.repeat(230 * 1024) + '</p>'
+    const stored = await content.store(ctx.env, 'feed', { unchanged: false, feed: parsed, etag: null, lastModified: null })
+    if (stored.unchanged) throw new Error('Expected stored body')
+    expect(stored.feed.items[0].content_truncated).toBe(true)
+  })
   test('unchanged HTML reuses the referenced object even when the source returns 200', async () => {
     const { content, ctx, client } = setup()
     const item = { content_html: '<p>Same</p>', image_url: null, article_url: null }

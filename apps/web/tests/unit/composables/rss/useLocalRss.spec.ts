@@ -62,6 +62,22 @@ afterEach(() => {
 })
 
 describe('useLocalRss', () => {
+  it('filters disabled kinds in memory and defaults legacy rows to RSS', () => {
+    const kinds = ref<any[]>(['rss'])
+    const scope = effectScope()
+    scopes.push(scope)
+    const local = scope.run(() => useLocalRss(ref(''), ref(true), Infinity, new Set(), kinds))!
+    const [subscriptions, entries] = queries.slice(-3)
+    subscriptions!.data.value = [source, { ...source, id: 'mail', kind: 'newsletter' }]
+    entries!.data.value = [article('rss'), { ...article('mail', 'mail'), kind: 'newsletter' }]
+    expect(local.subscriptions.value.map(row => row.id)).toEqual(['sub-1'])
+    expect(local.entries.value.map(row => row.id)).toEqual(['rss'])
+    kinds.value = ['newsletter']
+    expect(local.subscriptions.value.map(row => row.id)).toEqual(['mail'])
+    expect(local.entries.value.map(row => row.id)).toEqual(['mail'])
+    expect(local.entries.value[0].kind).toBe('newsletter')
+  })
+
   it('joins feeds and subscriptions in timeline order and resolves saved state from local bookmarks', () => {
     const { subscriptions, entries, saved } = create()
     expect(subscriptions.sql.value).toContain('FROM sr_rss_subscription s JOIN sr_rss_feed f ON f.id = s.feed_id')
@@ -83,6 +99,7 @@ describe('useLocalRss', () => {
     expect(local.subscriptions.value).toEqual([
       {
         id: 'sub-1',
+        kind: 'rss',
         feed_url: 'https://example.com/feed.xml',
         title: 'Example',
         remark: 'Daily',
@@ -98,6 +115,7 @@ describe('useLocalRss', () => {
     ])
     expect(local.entries.value[0]).toEqual({
       id: 'one',
+      kind: 'rss',
       subscription_id: 'sub-1',
       source_title: 'Daily',
       title: 'one',
@@ -135,7 +153,7 @@ describe('useLocalRss', () => {
     expect(query.sql.value).toMatch(/WHERE 0$/)
     expect(present.value).toBe(false)
     enabled.value = true
-    expect(query.sql.value).toBe('SELECT 1 AS present FROM sr_rss_subscription LIMIT 1')
+    expect(query.sql.value).toContain("WHERE COALESCE(f.kind, 'rss') = 'rss' LIMIT 1")
     expect(present.value).toBe(true)
     query.data.value = []
     expect(present.value).toBe(false)
@@ -157,7 +175,9 @@ describe('useLocalRss', () => {
     let mappedTitles = 0
     const rows = Array.from({ length: 140 }, (_, index) => {
       const row: Record<string, unknown> = article(`row-${index}`, index % 2 ? 'b' : 'a')
-      Object.defineProperty(row, 'title', {get: () => {mappedTitles++; return `row-${index}`;}})
+      Object.defineProperty(row, 'title', {get: () => {mappedTitles++
+          return `row-${index}`
+        }})
       return row
     })
     entries.data.value = rows
@@ -176,7 +196,9 @@ describe('useLocalRss', () => {
     const rows = Array.from({ length: 120 }, (_, index) => {
       const subscription = index < 65 ? 'a' : 'b'
       const row: Record<string, unknown> = article(`row-${index}`, subscription)
-      Object.defineProperty(row, 'title', {get: () => {subscription === 'a' ? mappedA++ : mappedB++; return `row-${index}`;}})
+      Object.defineProperty(row, 'title', {get: () => {subscription === 'a' ? mappedA++ : mappedB++
+          return `row-${index}`
+        }})
       return row
     })
     entries.data.value = rows

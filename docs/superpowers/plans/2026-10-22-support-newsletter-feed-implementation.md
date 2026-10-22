@@ -1,0 +1,9 @@
+# Newsletter and Feed implementation plan
+
+Execute openspec/changes/support-newsletter-feed/tasks.md in the isolated feat/support-newsletter-feed worktree. The reviewed feasibility document is background; the change proposal/design/specs are the implementation contract.
+
+1. Add schema and migration, permanent address registry and case-insensitive account-setting transaction. Test against embedded PostgreSQL, including conflicts, rename, retirement and repeated provision.
+2. Independently add RSS kind isolation and Feed facade/contracts/PowerSync; use database ownership, Labs and cursor tests. Keep legacy Mobile interfaces unchanged.
+3. Add pinned bounded MIME parsing, receipt-backed email acceptance, synchronous opportunistic publication plus leased cron recovery. Test duplicates, parser attacks, R2/DB failures, quotas and disable/delete races.
+4. Integrate Web with both data kinds, separate streams, setup/address form and safe reader. Exercise component tests and real browser states using existing design tokens.
+5. Generate code from sources, run relevant checks, perform bug/security/compliance review and record running evidence. Present dev exact-route setup and test plan. Human UI acceptance is required before PR; remote resources and production activation are separate operator steps.

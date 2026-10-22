@@ -18,6 +18,9 @@ enabled = true
 cpu_ms = 300000
 
 [vars]
+# Receiving is opt-in after RSS kind isolation and matching sync rules are live.
+NEWSLETTER_ENABLED = "false"
+NEWSLETTER_DOMAIN = ""
 # Local defaults. For remote deployment set RUN_ENV = "prod".
 # RUN_TYPE identifies the installation; STRIPE_LIVE_MODE must match the Reader Stripe key.
 RUN_ENV = "development"

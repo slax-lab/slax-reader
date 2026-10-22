@@ -3,13 +3,14 @@ import assert from 'node:assert/strict'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { request as nodeRequest } from 'node:http'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, symlinkSync, readFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { Auth } from '../../src/utils/jwt'
 import { Hashid } from '../../src/utils/hashids'
 import { ROOT } from '../../script/deploy/dev-local'
 import { LocalResources } from './localResources'
+import { API_ROOT } from '../../script/root'
 
 let httpPort = 8787
 
@@ -86,6 +87,8 @@ async function main() {
     return { status: response.status, body }
   }
   try {
+    // Optional offline Corepack cache seed contains only the public package-manager distribution.
+    if (process.argv[2] === '--corepack-archive' && process.argv[3]) resources.command('corepack', ['install', '--global', '--cache-only', resolve(process.argv[3])])
     resources.command('pnpm', ['exec', 'wrangler', '--version'])
     httpPort = await new Promise<number>((resolve, reject) => {
       const server = createServer()
@@ -102,6 +105,9 @@ async function main() {
     const vars = {
       RUN_ENV: 'development',
       RUN_TYPE: 'dev',
+      NEWSLETTER_ENABLED: 'true',
+      NEWSLETTER_DOMAIN: 'slax.dev',
+      IMAGER_CHECK_DIGST_SALT: 'isolated-newsletter-images',
       JWT_ALGORITHMS: 'HS256',
       JWT_EXPIRES: '3600',
       JWT_ISSUER: 'isolated-http-smoke',
@@ -157,6 +163,11 @@ async function main() {
           name: 'root-tooling-local-edge',
           main: localPath('apps/api/src/entry/edge/index.ts'),
           services: [{ binding: 'CORE', service: 'root-tooling-local-core' }],
+          hyperdrive: [
+            { binding: 'HYPERDRIVE', id: '00000000000000000000000000000002', localConnectionString: url('http_reader') },
+            { binding: 'HYPERDRIVE_LOGS', id: '00000000000000000000000000000003', localConnectionString: url('http_logs') }
+          ],
+          r2_buckets: [{ binding: 'OSS', bucket_name: 'http-reader' }],
           ratelimits: [{ name: 'BOOKMARK_ADD_RATE_LIMITER', namespace_id: '1001', simple: { limit: 30, period: 60 } }]
         },
         null,
@@ -186,12 +197,35 @@ async function main() {
     `
     )
     const token = await new Auth(vars as Env).sign({ id: String(new Hashid(vars as Env).encodeId(1)), email: 'saver@smoke.invalid', lang: 'en' })
+    // Use the loader API: the tsx CLI IPC socket exceeds macOS path limits in long worktrees.
+    const toolchain = resolve(resources.workspace, 'toolchain')
+    mkdirSync(toolchain)
+    const version = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8'))
+      .packageManager.split('@')
+      .at(-1)
+      .split('+')[0]
+    const cachedPnpm = resolve(resources.home, 'cache/node/corepack/v1/pnpm', version, 'bin/pnpm.cjs')
+    if (process.argv[2] === '--corepack-archive') symlinkSync(cachedPnpm, resolve(toolchain, 'pnpm'))
     worker = spawn(
-      'pnpm',
-      ['api', '--', 'dev:local', '--edge-config', edgeConfig, '--core-config', coreConfig, '--state', state, '--env-file', resources.emptyEnv, '--port', String(httpPort)],
+      process.execPath,
+      [
+        '--import',
+        'tsx',
+        'script/deploy/dev-local.ts',
+        '--edge-config',
+        edgeConfig,
+        '--core-config',
+        coreConfig,
+        '--state',
+        state,
+        '--env-file',
+        resources.emptyEnv,
+        '--port',
+        String(httpPort)
+      ],
       {
-        cwd: ROOT,
-        env: { ...resources.env, SLAX_API_INHERIT_PROCESS_GROUP: '1' },
+        cwd: API_ROOT,
+        env: { ...resources.env, PATH: toolchain + ':' + resources.env.PATH, TSX_TSCONFIG_PATH: resolve(API_ROOT, 'tsconfig.json'), SLAX_API_INHERIT_PROCESS_GROUP: '1' },
         detached: true,
         stdio: ['ignore', 'pipe', 'pipe']
       }
@@ -228,6 +262,67 @@ async function main() {
       assert.equal(response.headers.get('Access-Control-Allow-Origin'), origin === vars.FRONT_END_URL ? origin : '*')
     }
     evidence.customFrontendCors = 'exact configured origin allowed; attacker suffix rejected'
+    // Exercise actual Edge email dispatch, generated DI/router, Prisma transactions and local R2.
+    const mailHeaders = { Authorization: `Bearer ${token}` }
+    assert.equal(
+      (
+        await request('newsletter-account', '/v1/user/setting', {
+          method: 'POST',
+          headers: { ...mailHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'account', value: 'newsletter-smoke' })
+        })
+      ).body.code,
+      200
+    )
+    assert.equal(
+      (
+        await request('newsletter-enable', '/v1/user/setting/enable', {
+          method: 'POST',
+          headers: { ...mailHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'lab:newsletter' })
+        })
+      ).body.code,
+      200
+    )
+    const address = await request('newsletter-address', '/v1/user/newsletter_address', { method: 'POST', headers: mailHeaders })
+    assert.equal(address.body.data.address, 'newsletter-smoke@slax.dev')
+    const rawMail =
+      'From: Smoke Weekly <weekly@example.com>\r\nTo: ignored@other.example\r\nSubject: Newsletter runtime smoke\r\nMessage-ID: <newsletter-runtime-smoke@example.com>\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Runtime newsletter body</p><script>throw 1</script><img src="cid:part">'
+    for (let repeat = 0; repeat < 2; repeat++) {
+      const response = await localFetch(`http://localhost:${httpPort}/cdn-cgi/local/email?from=bounce%40example.com&to=newsletter-smoke%40slax.dev`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'message/rfc822' },
+        body: rawMail
+      })
+      assert.equal(response.status, 200, await response.text())
+    }
+    await poll(() => resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_newsletter_receipt WHERE state='done'") === '1', 'newsletter publication')
+    const feed = await request('newsletter-feed', '/v1/feed/entries', { headers: mailHeaders })
+    assert.equal(feed.body.data.items.length, 1)
+    assert.equal(feed.body.data.items[0].kind, 'newsletter')
+    const entryId = feed.body.data.items[0].id
+    const detail = await request('newsletter-body', `/v1/feed/entries/${entryId}`, { headers: mailHeaders })
+    assert.ok(detail.body.data.content_html.includes('Runtime newsletter body'))
+    assert.ok(!/script|cid:/.test(detail.body.data.content_html))
+    const subscriptions = await request('newsletter-sources', '/v1/feed/subscriptions', { headers: mailHeaders })
+    assert.equal(subscriptions.body.data.items[0].kind, 'newsletter')
+    const disabled = await request('newsletter-disable', '/v1/user/setting/disable', {
+      method: 'POST',
+      headers: { ...mailHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'lab:newsletter' })
+    })
+    assert.equal(disabled.body.code, 200)
+    assert.equal((await request('newsletter-hidden', '/v1/feed/entries', { headers: mailHeaders })).body.data.items.length, 0)
+    assert.equal((await request('newsletter-denied', `/v1/feed/entries/${entryId}`, { headers: mailHeaders })).body.code, 404)
+    const rejection = await localFetch(`http://localhost:${httpPort}/cdn-cgi/local/email?from=bounce%40example.com&to=unknown%40slax.dev`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'message/rfc822' },
+      body: rawMail
+    })
+    evidence.newsletterRejection = { status: rejection.status, body: await rejection.text() }
+    assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_newsletter_receipt'), '1')
+    evidence.newsletterRuntime = 'actual local Edge email twice -> one receipt/entry; R2 body through Core; disabled reads denied; unknown recipient creates no receipt'
+
     const listPath = '/v1/bookmark/list?page=1&size=20'
     for (const [label, headers] of [
       ['unauthorized', {}],
@@ -309,6 +404,7 @@ async function main() {
     evidence.status = 'failed'
     evidence.error = String(error)
     console.error(error)
+    console.error(workerLog.slice(-16000))
     process.exitCode = 1
   } finally {
     if (worker?.pid) {

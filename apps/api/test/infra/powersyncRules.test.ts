@@ -94,7 +94,7 @@ describe('PowerSync collection rules', () => {
   test('gates on-demand RSS data by laboratory, ownership and the latest-page window', () => {
     const rss = stream('rss_v1')
     expect(rss).toContain('auto_subscribe: false')
-    expect(rss).not.toContain("connection.parameter(")
+    expect(rss).not.toContain('connection.parameter(')
     expect(rss.match(/lab\.feature = 'rss' AND lab\.enabled = true/g)).toHaveLength(2)
     expect(rss.match(/rss_user\.uuid = auth\.user_id\(\)\s+AND rss_user\.deleted_at IS NULL/g)).toHaveLength(2)
     // A feed_id filter would put every subscriber's display name into a shared bucket.
@@ -102,6 +102,25 @@ describe('PowerSync collection rules', () => {
     expect(rss).toMatch(/FROM sr_rss_feed\s+WHERE id IN rss_feed_ids/)
     expect(rss).toMatch(/FROM sr_rss_entry\s+WHERE feed_id IN rss_feed_ids\s+AND is_history = false/)
     for (const internal of ['etag', 'last_modified', 'lease_token', 'content_key', 'entry_key', 'history_url']) expect(rss).not.toContain(internal)
+  })
+
+  test('RSS and newsletter streams use disjoint source sets without expanding legacy RSS columns', () => {
+    const rss = stream('rss_v1')
+    const newsletter = stream('newsletter_v1')
+    expect(rss).toContain("source.kind = 'rss'")
+    expect(rss).toContain('AND feed_id IN rss_feed_ids')
+    const legacyQueries = rss.split('    queries:')[1]
+    expect(legacyQueries).not.toMatch(/\bkind\b/)
+    expect(newsletter).toContain('auto_subscribe: false')
+    expect(newsletter).toContain("source.kind = 'newsletter'")
+    expect(newsletter.match(/lab\.feature = 'newsletter' AND lab\.enabled = true/g)).toHaveLength(2)
+    expect(newsletter.match(/newsletter_user\.uuid = auth\.user_id\(\)\s+AND newsletter_user\.deleted_at IS NULL/g)).toHaveLength(2)
+    expect(newsletter).toMatch(/FROM sr_rss_subscription\s+WHERE user_id IN newsletter_user_ids\s+AND feed_id IN newsletter_feed_ids/)
+    expect(newsletter).toMatch(/SELECT id, kind, feed_url, title, site_url, icon_url/)
+    expect(newsletter).toMatch(/FROM sr_rss_feed\s+WHERE id IN newsletter_feed_ids/)
+    expect(newsletter).toMatch(/FROM sr_rss_entry\s+WHERE feed_id IN newsletter_feed_ids\s+AND is_history = false/)
+    for (const internal of ['etag', 'last_modified', 'lease_token', 'content_key', 'entry_key', 'history_url', 'sr_newsletter_address', 'sr_newsletter_message'])
+      expect(newsletter).not.toContain(internal)
   })
 
   test('never compares a connection parameter with an IN list', () => {

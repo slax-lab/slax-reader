@@ -1,3 +1,4 @@
+import { NewsletterService, receiveNewsletterEmail } from '@/domain/newsletter'
 import { SlaxJieba } from '@/utils/hybridSearch/jieba'
 import { MultiLangError } from '@/utils/multiLangError'
 import { Failed } from '@/utils/responseUtils'
@@ -51,6 +52,17 @@ async function handleFetch(request: Request, env: Env, ctx: ExecutionContext) {
   await ctxManager.cleanup()
 
   return response
+}
+
+export async function handleEmailEvent(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext) {
+  const ctxManager = new ContextManager(ctx, env)
+  const currentContainer = container.clone()
+  initializeInfrastructure(ctxManager, currentContainer)
+  try {
+    await receiveNewsletterEmail(message, env, currentContainer.resolve(NewsletterService))
+  } finally {
+    await ctxManager.cleanup()
+  }
 }
 
 export async function handleQueueEvent(batch: MessageBatch, env: Env, ctx: ExecutionContext) {

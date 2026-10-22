@@ -72,6 +72,8 @@ beforeEach(() => {
   })
   rss = {
     enabled: Vue.ref(true),
+    rssEnabled: Vue.ref(true),
+    newsletterEnabled: Vue.ref(false),
     entries: Vue.ref([entry]),
     subscriptions: Vue.ref([source]),
     selected: Vue.ref('a'),
@@ -105,12 +107,37 @@ afterEach(() => {
 function panel() {
   const wrapper = mount(RssPanel, {
     props: { active: true, search: '', listMode: 'card' },
-    global: { mocks: { $t: translate }, stubs: { NuxtLink: { template: '<a><slot /></a>' } } }
+    global: { mocks: { $t: translate }, stubs: {
+        NewsletterAddress: true,
+        NuxtLink: { template: '<a><slot /></a>' } } }
   })
   mounted.push(wrapper)
   return wrapper
 }
 describe('RSS inside Inbox', () => {
+  it('shows Newsletter with a sender fallback and no RSS management or save controls', async () => {
+    rss.rssEnabled.value = false
+    rss.newsletterEnabled.value = true
+    rss.entries.value = [{ ...entry, kind: 'newsletter', article_url: null }]
+    rss.subscriptions.value = [{ ...source, kind: 'newsletter', feed_url: '', icon_url: null }]
+    const wrapper = panel()
+    expect(wrapper.find('.source-fallback').text()).toBe('My')
+    expect(wrapper.get('.source-tile[title="My feed"]').attributes('aria-label')).toBe('My feed')
+    expect(wrapper.find('button[aria-label="rss.edit"]').exists()).toBe(false)
+    expect(wrapper.find('button[aria-label="rss.remove"]').exists()).toBe(false)
+    expect(wrapper.find('.save-action').exists()).toBe(false)
+    expect(wrapper.findAll('button').some(button => button.text() === 'rss.add')).toBe(false)
+  })
+
+  it('explains how to receive the first Newsletter when RSS is disabled', () => {
+    rss.rssEnabled.value = false
+    rss.newsletterEnabled.value = true
+    rss.entries.value = []
+    rss.subscriptions.value = []
+    const wrapper = panel()
+    expect(wrapper.text()).toContain('newsletter.no_messages')
+    expect(wrapper.text()).toContain('newsletter.empty_hint')
+  })
   it('places RSS immediately below Inbox in the shared sidebar', async () => {
     const wrapper = mount(TabsSidebar, { global: { mocks: { $t: translate } } })
     mounted.push(wrapper)
@@ -119,7 +146,7 @@ describe('RSS inside Inbox', () => {
     await buttons[1].trigger('click')
     expect(wrapper.emitted('changeTab')?.[0]).toEqual(['rss', 1])
   })
-  it('shows RSS from local rows before the laboratory response and hides it once disabled', async () => {
+  it('keeps Feed visible before the laboratory response and after both Labs are disabled', async () => {
     const enabled = Vue.ref(false)
     labs = { loaded: Vue.ref(false), isEnabled: () => enabled.value, fetch: vi.fn().mockRejectedValue(new Error('offline')) }
     localDatabase = {}
@@ -130,15 +157,15 @@ describe('RSS inside Inbox', () => {
     expect(wrapper.findAll('button').map(button => button.text())).toContain('rss.title')
     labs.loaded.value = true
     await Vue.nextTick()
-    expect(wrapper.findAll('button').map(button => button.text())).not.toContain('rss.title')
+    expect(wrapper.findAll('button').map(button => button.text())).toContain('rss.title')
   })
-  it('keeps RSS hidden without a laboratory response or local rows', async () => {
+  it('keeps Feed visible without a laboratory response or local rows', async () => {
     labs = { loaded: Vue.ref(false), isEnabled: () => true, fetch: vi.fn().mockRejectedValue(new Error('offline')) }
     localDatabase = {}
     const wrapper = mount(TabsSidebar, { global: { mocks: { $t: translate } } })
     mounted.push(wrapper)
     await flushPromises()
-    expect(wrapper.findAll('button').map(button => button.text())).not.toContain('rss.title')
+    expect(wrapper.findAll('button').map(button => button.text())).toContain('rss.title')
   })
   it('reuses Inbox layout controls and keeps article nodes while refreshing or switching tabs', async () => {
     const wrapper = panel(),

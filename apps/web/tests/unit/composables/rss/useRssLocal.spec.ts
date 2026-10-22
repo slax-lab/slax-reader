@@ -127,7 +127,7 @@ const live = async () => {
 }
 beforeEach(() => {
   const enabled = ref(true)
-  labs = { loaded: ref(true), isEnabled: () => enabled.value, fetch: vi.fn(), enabled }
+  labs = { loaded: ref(true), isEnabled: (key: string) => key === 'rss' && enabled.value, fetch: vi.fn(), enabled }
   user = reactive({ userInfo: { userId: 1 } })
   stream = createStream()
   database = stream.db
@@ -145,6 +145,43 @@ const restList = () =>
   get.mockImplementation(({ url }) => Promise.resolve(url.endsWith('/subscriptions') ? { items: [restSub('a')] } : page([restEntry('rest')], { has_more: true, next_cursor: 'r2' })))
 
 describe('RSS local mode', () => {
+  it('subscribes each kind independently and keeps healthy RSS cache when Newsletter fails', async () => {
+    const newsletter = ref(true)
+    labs.isEnabled = (key: string) => key === 'rss' || newsletter.value
+    const mailHandle = {
+      waitForFirstSync: () => Promise.reject(new Error('offline')),
+      unsubscribe: vi.fn()
+    }
+    database.syncStream = vi.fn((name: string) => (name === 'newsletter_v1' ? { subscribe: async () => mailHandle } : { subscribe: stream.subscribe }))
+    const rss = create()
+    tables.subscriptions.value = [sub('a'), sub('mail', { kind: 'newsletter' })]
+    tables.entries.value = [row('one'), { ...row('mail', 'mail'), kind: 'newsletter' }]
+    stream.firstSync.resolve()
+    await flushPromises()
+    expect(database.syncStream.mock.calls.map(([name]: any[]) => name)).toEqual(['rss_v1', 'newsletter_v1'])
+    expect(rss.entries.value.map(row => row.id)).toEqual(['one', 'mail'])
+    expect(get).not.toHaveBeenCalled()
+    newsletter.value = false
+    await flushPromises()
+    expect(mailHandle.unsubscribe).toHaveBeenCalledOnce()
+    expect(stream.handles[0].unsubscribe).not.toHaveBeenCalled()
+    expect(rss.entries.value.map(row => row.id)).toEqual(['one'])
+  })
+
+  it('retains loaded RSS history when only Newsletter is disabled', async () => {
+    const newsletter = ref(true)
+    labs.isEnabled = (key: string) => key === 'rss' || newsletter.value
+    const rss = create()
+    tables.subscriptions.value = [sub('a'), sub('mail', { kind: 'newsletter' })]
+    tables.entries.value = [row('one')]
+    stream.firstSync.resolve()
+    await flushPromises()
+    get.mockResolvedValueOnce(page([restEntry('older'), restEntry('mail-old', 'mail', undefined, { kind: 'newsletter' })]))
+    await rss.reload(true)
+    newsletter.value = false
+    await flushPromises()
+    expect(rss.entries.value.map(row => row.id)).toEqual(['one', 'older'])
+  })
   it('keeps an owned empty local database loading without list REST until first sync', async () => {
     const rss = create()
     expect(database.syncStream).toHaveBeenCalledWith('rss_v1')
@@ -232,7 +269,7 @@ describe('RSS local mode', () => {
     get.mockResolvedValueOnce(page([restEntry('one'), restEntry('older', 'a', '2026-10-02T00:00:00.000Z')], { next_cursor: 'c2', has_more: true, cached_more: true, history_status: 'available' }))
     await rss.reload(true)
     expect(get).toHaveBeenCalledOnce()
-    expect(get.mock.lastCall![0]).toMatchObject({ url: '/v1/rss/entries', query: { fetch_history: '1', limit: '20', subscription_id: 'a', before: 'one' } })
+    expect(get.mock.lastCall![0]).toMatchObject({ url: '/v1/feed/entries', query: { fetch_history: '1', limit: '20', subscription_id: 'a', before: 'one' } })
     expect(rss.entries.value.map(x => x.id)).toEqual(['one', 'older'])
     get.mockClear()
     get

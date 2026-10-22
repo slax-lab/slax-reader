@@ -70,7 +70,7 @@ export class RssService {
       return null
     }
   }
-  private async subscription(ctx: ContextManager, row: RssSubscriptionRow): Promise<RssSubscription> {
+  async subscription(ctx: ContextManager, row: RssSubscriptionRow): Promise<RssSubscription> {
     const icon = await this.icon(ctx, row.site_url, row.feed_url)
     return {
       id: row.id,
@@ -164,7 +164,7 @@ export class RssService {
     }
     await this.dispatchSaves(ctx)
   }
-  private item(row: RssEntryRow): RssEntry {
+  item(row: RssEntryRow): RssEntry {
     return {
       id: row.id,
       subscription_id: row.subscription_id,
@@ -189,6 +189,7 @@ export class RssService {
     const subscription = query.subscription_id || null
     // Local-first clients continue after their last local entry; reuse the authorized row as the cursor.
     const anchor = query.before ? await this.repo.entry(ctx.getUserId(), query.before) : null
+    if (anchor && subscription && anchor.subscription_id !== subscription) throw new RssError('not_found', 404)
     const cursor = anchor ? { at: anchor.sort_at, id: anchor.id } : decodeRssCursor(query.cursor, ctx.getUserId(), subscription)
     const withHistory = !!anchor
     let rows = await this.repo.entries(ctx.getUserId(), subscription, cursor, limit + 1, withHistory)
@@ -220,7 +221,7 @@ export class RssService {
       ...history
     }
   }
-  private async loadHistory(ctx: ContextManager, candidate: RssFeedRow) {
+  async loadHistory(ctx: ContextManager, candidate: RssFeedRow) {
     // Existing feeds need one unconditional head read to discover paging links.
     // Then fetch at most one archive page. New feeds already have this metadata.
     const attempts = candidate.history_checked_at ? 1 : 2

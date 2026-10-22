@@ -15,6 +15,8 @@ import { ShareController } from '../../handler/http/shareController'
 import { SubscriptionController } from '../../handler/http/subscriptionController'
 import { TagController } from '../../handler/http/tagController'
 import { RssController } from '../../handler/http/rssController'
+import { FeedController } from '../../handler/http/feedController'
+import { NewsletterController } from '../../handler/http/newsletterController'
 import { UserController } from '../../handler/http/userController'
 import { McpServerController } from '../../handler/http/mcpController'
 import { SyncController } from '../../handler/http/syncController'
@@ -377,6 +379,26 @@ export function getRouter(container: Container) {
   router.post('/v1/rss/entries/:id/save', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(RssController)
     return await controller.saveEntry(ctx, req)
+  })
+  router.get('/v1/feed/subscriptions', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(FeedController)
+    return await controller.listSubscriptions(ctx, req)
+  })
+  router.get('/v1/feed/entries', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(FeedController)
+    return await controller.listEntries(ctx, req)
+  })
+  router.get('/v1/feed/entries/:id', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(FeedController)
+    return await controller.entry(ctx, req)
+  })
+  router.get('/v1/user/newsletter_address', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(NewsletterController)
+    return await controller.address(ctx, req)
+  })
+  router.post('/v1/user/newsletter_address', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(NewsletterController)
+    return await controller.provision(ctx, req)
   })
   router.post('/v1/user/login', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(UserController)
