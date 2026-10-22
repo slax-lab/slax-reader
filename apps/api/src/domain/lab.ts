@@ -32,7 +32,10 @@ export class LabService {
     return {
       rss: { status: 'active', name: { zh: 'RSS 订阅', en: 'RSS feeds', es: 'Fuentes RSS' } },
       youtube: { status: 'active', name: { zh: 'YouTube 视频', en: 'YouTube videos', es: 'Los vídeos de YouTube' } },
-      pdf: { status: 'active', name: { zh: 'PDF 收藏', en: 'PDF bookmarks', es: 'Los documentos PDF' } }
+      youtube_article: { status: 'active', name: { zh: 'YouTube AI 整理稿', en: 'YouTube AI articles', es: 'Los artículos de IA de YouTube' } },
+      pdf: { status: 'active', name: { zh: 'PDF 收藏', en: 'PDF bookmarks', es: 'Los documentos PDF' } },
+      // Not a gated route: without the switch, podcast links keep saving as normal pages
+      podcast: { status: 'active', name: { zh: '播客整理稿', en: 'Podcast articles', es: 'Los artículos de pódcast' } }
     }
   }
 

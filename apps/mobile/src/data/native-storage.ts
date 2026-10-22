@@ -1,4 +1,4 @@
-import { requireNativeModule } from 'expo-modules-core';
+import { requireNativeModule } from 'expo';
 import type { PreferenceSnapshot, PreferenceStorage, PreferenceValues } from './preferences.ts';
 import type { LegacyPreferenceSource } from './legacy-preferences.ts';
 import type { DatabaseOwnership } from './upgrade.ts';

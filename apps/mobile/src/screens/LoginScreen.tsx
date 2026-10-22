@@ -10,13 +10,9 @@ import {mobileTestIds} from '../theme/testIds';
 import {useTelemetry} from '../telemetry';
 import {fixtureDocument} from '../native/fixture-document';
 import {fixtureActions} from '../components/fixture-actions';
-import type {MobileScreenProps} from '../navigation/types';
+import {useObserveMarkInteractive} from '../observe';
 
-export function ReauthenticationScreen({navigation}: MobileScreenProps<'Reauthenticate'>) {
-  return <LoginScreen reauthenticating onAuthenticated={() => navigation.goBack()}/>;
-}
-
-export function LoginScreen({reauthenticating = false, onAuthenticated}: {reauthenticating?: boolean; onAuthenticated?(): void} = {}) {
+export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) {
   const {api, sessions, t, config, fixtureOnly} = useMobile();
   const telemetry = useTelemetry();
   const {width, height} = useWindowDimensions();
@@ -32,14 +28,14 @@ export function LoginScreen({reauthenticating = false, onAuthenticated}: {reauth
   const mounted = useRef(true);
   useLayoutEffect(() => {mounted.current = true; return () => {mounted.current = false; pending.current = null; providerGeneration.current++;};}, []);
   useLayoutEffect(() => () => {pending.current = null; providerGeneration.current++; active.current = false;}, [api, sessions]);
+  const markInteractive = useObserveMarkInteractive();
+  useEffect(() => {markInteractive();}, [markInteractive]);
   const sessionGuard = () => {
     const before = sessions.getSnapshot(), assertIdentity = sessions.captureIdentity();
     return () => {
       try {assertIdentity();} catch {return false;}
       const current = sessions.getSnapshot();
-      return reauthenticating
-        ? before.status === 'authenticated' && current.status === 'authenticated' && before.session.userId === current.session.userId
-        : before.status === 'unauthenticated' && current.status === 'unauthenticated';
+      return before.status === 'unauthenticated' && current.status === 'unauthenticated';
     };
   };
   async function login(provider: LoginProvider, allowed = sessionGuard()) {
@@ -54,14 +50,12 @@ export function LoginScreen({reauthenticating = false, onAuthenticated}: {reauth
       if (!request || !current()) return;
       const result = await api.login(request);
       if (!current()) return;
-      const accept = reauthenticating ? sessions.reauthenticate.bind(sessions) : sessions.accept.bind(sessions);
-      await accept(result.token, result.user_id, assertCurrent => {
+      await sessions.accept(result.token, result.user_id, assertCurrent => {
         isCurrentSession = () => {try {assertCurrent(); return true;} catch {return false;}};
       });
       if (current()) onAuthenticated?.();
     } catch (error) {
-      const mismatch = error && typeof error === 'object' && 'code' in error && error.code === 'session_account_mismatch';
-      if (current()) Alert.alert(t('login_failed'), mismatch ? t('reauthenticate_account_mismatch') : error instanceof Error ? error.message : t('login_failed'), [{text: t('btn_ok')}]);
+      if (current()) Alert.alert(t('login_failed'), error instanceof Error ? error.message : t('login_failed'), [{text: t('btn_ok')}]);
     } finally {if (generation === providerGeneration.current) {active.current = false; if (mounted.current) setLoading(null);}}
   }
   function openAgreement(tab: 'terms'|'privacy', provider: LoginProvider|null = null) {
@@ -114,10 +108,10 @@ export function LoginScreen({reauthenticating = false, onAuthenticated}: {reauth
   return <View style={[styles.root, {paddingBottom: insets.bottom}]}>
     <View style={styles.top}>
       <View style={{height: Math.min(width * 128 / 375, 128)}}/>
-      <Text style={styles.title}>{t(reauthenticating ? 'reauthenticate_title' : 'login_welcome_title')}</Text>
+      <Text style={styles.title}>{t('login_welcome_title')}</Text>
       <View>
         <Image source={mobileAssets.bg_login} style={{width, aspectRatio: L.loginArtworkAspectRatio}} resizeMode="contain"/>
-        <Text style={styles.subtitle}>{t(reauthenticating ? 'reauthenticate_message' : 'login_welcome_subtitle')}</Text>
+        <Text style={styles.subtitle}>{t('login_welcome_subtitle')}</Text>
       </View>
     </View>
     <View style={styles.bottom}>

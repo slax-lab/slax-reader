@@ -187,14 +187,54 @@
         listen(document, 'touchstart', function(event) {
             if (event.touches.length === 1) latestTouchClientY = event.touches[0].clientY;
         }, { passive: true });
+        // A still long press on an article image opens native image actions instead of the gallery or a tap.
+        // The system image callout/drag stays disabled; any finger movement, a second finger or a text selection cancels.
+        if (typeof document.createElement === 'function') {
+            var imageStyle = document.createElement('style');
+            imageStyle.textContent = 'img{-webkit-touch-callout:none;-webkit-user-drag:none}';
+            (document.head || document.documentElement).appendChild(imageStyle);
+        }
+        var press = null, pressFired = false;
+        function cancelPress() { if (press) { clearTimeout(press.timer); press = null; } }
+        function pressImage(target) {
+            var image = target && typeof target.closest === 'function' ? target.closest('img') : null;
+            return image && (image.currentSrc || image.src) ? image : null;
+        }
+        listen(document, 'touchstart', function(event) {
+            cancelPress(); pressFired = false;
+            var touch = event.touches[0], image = event.touches.length === 1 ? pressImage(event.target) : null;
+            var selection = window.getSelection();
+            if (!image || !touch || (selection && !selection.isCollapsed)) return;
+            press = { x: touch.clientX, y: touch.clientY, timer: setTimeout(function() {
+                press = null;
+                if (!active) return;
+                pressFired = true;
+                var current = window.getSelection();
+                if (current && !current.isCollapsed) current.removeAllRanges();
+                post({ type: 'imageLongPress', src: image.currentSrc || image.src });
+            }, 450) };
+        }, { passive: true, capture: true });
+        listen(document, 'touchmove', function(event) {
+            var touch = event.touches[0];
+            if (press && (!touch || event.touches.length > 1 || Math.abs(touch.clientX - press.x) > 10 || Math.abs(touch.clientY - press.y) > 10)) cancelPress();
+        }, { passive: true, capture: true });
+        listen(document, 'touchcancel', cancelPress, { passive: true, capture: true });
+        listen(document, 'contextmenu', function(event) { if (pressImage(event.target)) event.preventDefault(); }, true);
+        listen(document, 'click', function(event) {
+            if (!pressFired) return;
+            pressFired = false;
+            event.preventDefault(); event.stopImmediatePropagation();
+        }, true);
         var start = null;
         listen(document, 'touchstart', function(event) {
             var touch = event.touches[0];
             start = touch ? { x: touch.clientX, y: touch.clientY } : null;
         }, { passive: true });
         listen(document, 'touchend', function(event) {
+            cancelPress();
             var touch = event.changedTouches[0];
             var selection = window.getSelection();
+            if (pressFired) { start = null; return; }
             if (touch && start && Math.abs(touch.clientX - start.x) < 10 &&
                 Math.abs(touch.clientY - start.y) < 10 && (!selection || selection.isCollapsed)) {
                 post({ type: 'tap' });

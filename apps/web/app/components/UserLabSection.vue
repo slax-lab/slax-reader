@@ -20,16 +20,17 @@
 <script lang="ts" setup>
 import SwitchToggle from '~/components/SwitchToggle.vue'
 
-import { isLabVisibleInSettings, useLabFeatures } from '~/composables/useLabFeatures'
+import { useLabFeatures } from '~/composables/useLabFeatures'
 
 const { te } = useI18n()
 const labs = useLabFeatures()
 const pending = ref<string | null>(null)
 
-const rows = computed(() => labs.features.value.filter(feature => isLabVisibleInSettings(feature.key) && te(`page.user.labs.${feature.key}.name`)))
+// The backend can add a feature before the web copy ships; rows without a translated name stay hidden
+const rows = computed(() => labs.features.value.filter(feature => te(`page.user.labs.${feature.key}.name`)))
 
 onMounted(() => {
-  labs.fetch()
+  labs.fetch(true)
 })
 
 const onToggle = async (key: string) => {

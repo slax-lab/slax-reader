@@ -1,9 +1,12 @@
+import {DrawerScrollBoundary} from './SourceDrawer';
+import type {ViewInstance} from 'react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, PixelRatio, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import type { RssEntry, RssSubscription } from '@slax-reader/contracts';
 import { useMobile } from '../runtime';
 import { rssDisplayName, type RssController, type RssState } from '../rss/controller';
 import { mobileColors as C, mobileTypography as T } from '../theme';
+import { AppImage } from './AppImage';
 import { SourceButton, SourceDialog, SourceIcon, SourceSheet, SourceText, SourceProgress, TextAction, Divider } from './SourceUI';
 import { SourceMenu } from './SourceMenu';
 import {fixtureActions} from './fixture-actions';
@@ -19,17 +22,24 @@ export function rssSourceText(name: string) {
   return name.slice(first).match(/^[\p{L}\p{M}]+/u)?.[0].split(/[\u3400-\u9fff\uf900-\ufaff]/)[0] || 'RSS';
 }
 function SafeRssImage({url, size, sourceName}: {url?: string | null; size: number; sourceName?: string}) {
-  const {fixtureOnly, cache} = useMobile(), remote = rssImage(url);
-  const prepared = fixtureOnly && remote ? cache?.imageFile('rss-fixture', remote) : null;
-  const uri = fixtureOnly ? prepared?.exists ? prepared.uri : null : remote;
-  return <RssImageTransport key={uri ?? ''} uri={uri} size={size} sourceName={sourceName} />;
+  const {fixtureOnly, cache, nativeResourceOwner} = useMobile(), remote = rssImage(url);
+  const key = `${nativeResourceOwner ?? ''}:${remote ?? ''}`;
+  const [resolved, setResolved] = useState<{key: string; uri: string | null} | null>(null);
+  useEffect(() => {
+    if (!cache || !remote) return;
+    const controller = new AbortController();
+    const work = fixtureOnly ? cache.getResourceUri('rss-fixture', remote) : cache.ensureImage('rss-images', remote, undefined, controller.signal);
+    void work.then(uri => {if (!controller.signal.aborted) setResolved({key, uri});}, () => {if (!controller.signal.aborted) setResolved({key, uri: null});});
+    return () => controller.abort();
+  }, [cache, remote, key, fixtureOnly]);
+  return <RssImageTransport key={key} uri={resolved?.key === key ? resolved.uri : null} size={size} sourceName={sourceName} />;
 }
 function RssImageTransport({uri, size, sourceName}: {uri: string | null; size: number; sourceName?: string}) {
   const [loaded, setLoaded] = useState(false), [failed, setFailed] = useState(false);
   const text = sourceName ? rssSourceText(sourceName) : null;
   return <View style={[styles.image, {width: size, height: size, borderRadius: sourceName ? size / 2 : 10}]}>
     {!loaded ? text ? <SourceText numberOfLines={1} style={{color: C.rssAccent, fontSize: text.length === 1 ? 20 : 10}}>{text}</SourceText> : <SourceIcon name="ic_rss" size={size > 60 ? 28 : 24} /> : null}
-    {uri && !failed ? <Image source={{uri}} resizeMode={sourceName ? 'contain' : 'cover'} onLoad={() => setLoaded(true)} onError={() => {setFailed(true); setLoaded(false);}} style={[StyleSheet.absoluteFill, {borderRadius: sourceName ? size / 2 : 10}]} /> : null}
+    {uri && !failed ? <AppImage source={uri} maxPixels={Math.ceil(size * PixelRatio.get()) ** 2} fit={sourceName ? 'contain' : 'cover'} onLoad={() => setLoaded(true)} onError={() => {setFailed(true); setLoaded(false);}} style={[StyleSheet.absoluteFill, {borderRadius: sourceName ? size / 2 : 10}]} /> : null}
   </View>;
 }
 export function RssFeedSwitcher({state, controller, onAdd}: {state: RssState; controller: RssController; onAdd(): void}) {
@@ -44,7 +54,7 @@ export function RssFeedSwitcher({state, controller, onAdd}: {state: RssState; co
 }
 function displayTime(raw: string) { const date = new Date(raw); if (!Number.isFinite(date.getTime())) return ''; const pad = (v: number) => String(v).padStart(2, '0'); return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`; }
 export function RssFeed({state, controller, adding, onDismissAdd, onRequestAdd, onOpenSettings, onOpen, scrollPosition, active = true, header}: {state: RssState; controller: RssController; adding: boolean; onDismissAdd(): void; onRequestAdd(): void; onOpenSettings(): void; onOpen(entry: RssEntry): void; scrollPosition: FeedScrollPosition; active?: boolean; header?: React.ReactNode}) {
-  const {t, fixtureOnly} = useMobile(); const list = useRef<FlatList<RssEntry>>(null), toolbar = useRef<View>(null);
+  const {t, fixtureOnly} = useMobile(); const list = useRef<FlatList<RssEntry>>(null), toolbar = useRef<ViewInstance>(null);
   const scrollTo = useCallback((offset: number, animated = false) => list.current?.scrollToOffset({offset, animated}), []);
   const scroll = useFeedScrollPosition(scrollPosition, scrollTo, true, state.selected);
   const [editing, setEditing] = useState<RssSubscription | null>(null), [removing, setRemoving] = useState<RssSubscription | null>(null), [menu, setMenu] = useState(false), [anchor, setAnchor] = useState({x: 0, y: 0}), [now, setNow] = useState(Date.now());
@@ -76,19 +86,19 @@ export function RssFeed({state, controller, adding, onDismissAdd, onRequestAdd, 
     });
   }, [fixtureOnly, current]);
   return <View style={{flex: 1, backgroundColor: C.readerBackground}}>
-    <FlatList key={state.selected} ref={list} {...scroll.events} maintainVisibleContentPosition={{minIndexForVisible: 0}} data={state.enabled ? state.entries : []} keyExtractor={entry => entry.id} contentContainerStyle={{paddingBottom: 16}}
+    <DrawerScrollBoundary><FlatList key={state.selected} ref={list} {...scroll.events} maintainVisibleContentPosition={{minIndexForVisible: 0}} data={state.enabled ? state.entries : []} keyExtractor={entry => entry.id} contentContainerStyle={{paddingBottom: 16}}
       ListHeaderComponent={<>
         {header}
-        {state.busy ? <SourceProgress height={2} color={C.rssAccent} /> : null}
+        {state.busy || state.enabled && !state.ready ? <SourceProgress height={2} color={C.rssAccent} /> : null}
         {state.error ? <View style={{paddingHorizontal: 24, paddingVertical: 12}}><SourceText style={[T.metadata, {color: C.danger}]}>{t(`rss_error_${state.error}`)}</SourceText><TextAction label={t('rss_retry')} onPress={() => void controller.load()} disabled={state.busy} /></View> : null}
         {!state.enabled && state.ready && !state.busy ? <TextAction label={t('rss_open_settings')} onPress={onOpenSettings} /> : null}
-        {state.enabled ? <View ref={toolbar} style={styles.toolbar}>{current ? <><Pressable accessibilityRole="button" accessibilityLabel={t('rss_refresh')} disabled={!canRefresh} onPress={() => void controller.refresh(current.id)} style={{padding: 12, opacity: canRefresh ? 1 : 0.4}}><SourceIcon name="ic_rss_refresh" size={20} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel={t('rss_source_menu')} onPress={openMenu} style={{padding: 12}}><SourceIcon name="ic_floating_panel_more" size={20} /></Pressable></> : null}</View> : null}
+        {state.enabled && current ? <View ref={toolbar} style={styles.toolbar}><Pressable accessibilityRole="button" accessibilityLabel={t('rss_refresh')} disabled={!canRefresh} onPress={() => void controller.refresh(current.id)} style={{padding: 12, opacity: canRefresh ? 1 : 0.4}}><SourceIcon name="ic_rss_refresh" size={20} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel={t('rss_source_menu')} onPress={openMenu} style={{padding: 12}}><SourceIcon name="ic_floating_panel_more" size={20} /></Pressable></View> : null}
         {current?.error ? <SourceText style={{fontSize: 12, color: C.danger, marginHorizontal: 24}}>{t(`rss_error_${current.error}`)}</SourceText> : null}
       </>}
-      ListEmptyComponent={state.enabled && !state.busy ? <View style={styles.empty}><SourceIcon name="ic_rss" size={36} /><SourceText style={[T.metadata, {color: C.mutedText, textAlign: 'center'}]}>{t(state.subscriptions.length ? 'rss_empty' : 'rss_no_sources')}</SourceText>{!state.subscriptions.length ? <TextAction label={t('rss_add')} color={C.rssAccent} onPress={onRequestAdd} /> : null}</View> : null}
+      ListEmptyComponent={state.enabled && state.ready && !state.busy ? <View style={styles.empty}><SourceIcon name="ic_rss" size={36} /><SourceText style={[T.metadata, {color: C.mutedText, textAlign: 'center'}]}>{t(state.subscriptions.length ? 'rss_empty' : 'rss_no_sources')}</SourceText>{!state.subscriptions.length ? <TextAction label={t('rss_add')} color={C.rssAccent} onPress={onRequestAdd} /> : null}</View> : undefined}
       renderItem={renderEntry}
       ItemSeparatorComponent={RssDivider}
-      ListFooterComponent={state.enabled && state.hasMore ? <View style={{alignItems: 'center', padding: 24}}><TextAction label={t('rss_more')} disabled={state.busy || Boolean(state.retryAt && Date.parse(state.retryAt) > now)} onPress={() => void controller.more()} />{state.historyStatus === 'retry' || state.historyStatus === 'loading' ? <SourceText style={{fontSize: 12, color: C.mutedText}}>{t(state.historyStatus === 'retry' ? 'rss_history_retry' : 'rss_history_loading')}</SourceText> : null}</View> : state.enabled && state.entries.length && !state.busy ? <SourceText style={[T.metadata, {color: C.mutedText, marginHorizontal: 24, marginVertical: 34}]}>{t('rss_history_end')}</SourceText> : null} />
+      ListFooterComponent={state.enabled && state.hasMore ? <View style={{alignItems: 'center', padding: 24}}><TextAction label={t('rss_more')} disabled={state.busy || Boolean(state.retryAt && Date.parse(state.retryAt) > now)} onPress={() => void controller.more()} />{state.historyStatus === 'retry' || state.historyStatus === 'loading' ? <SourceText style={{fontSize: 12, color: C.mutedText}}>{t(state.historyStatus === 'retry' ? 'rss_history_retry' : 'rss_history_loading')}</SourceText> : null}</View> : state.enabled && state.entries.length && !state.busy ? <SourceText style={[T.metadata, {color: C.mutedText, marginHorizontal: 24, marginVertical: 34}]}>{t('rss_history_end')}</SourceText> : undefined} /></DrawerScrollBoundary>
     {current ? <SourceMenu visible={menu} anchor={anchor} onDismiss={() => setMenu(false)} items={[{label: t(current.refreshing ? 'rss_refreshing' : 'rss_refresh'), disabled: !canRefresh, onPress: () => void controller.refresh(current.id)}, {label: t('rss_edit'), disabled: state.busy, onPress: () => setEditing(current)}, {label: t('rss_remove'), disabled: state.busy, onPress: () => setRemoving(current)}]} /> : null}
     <RssEditor visible={adding && state.enabled} controller={controller} state={state} onDismiss={onDismissAdd} />
     <RssEditor visible={Boolean(editing)} source={editing ?? undefined} controller={controller} state={state} onDismiss={() => setEditing(null)} />

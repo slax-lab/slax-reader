@@ -2,7 +2,7 @@ import {Platform} from 'react-native';
 import {File, Paths} from 'expo-file-system';
 import {fetch as expoFetch} from 'expo/fetch';
 import {PowerSyncDatabase, SyncStreamConnectionMethod} from '@powersync/react-native';
-import {createMobileSchema, MOBILE_TABLES, SYNC_PARAMETERS} from '../../src/data/schema.ts';
+import {createMobileSchema, LEGACY_MOBILE_TABLES, SYNC_PARAMETERS} from '../../src/data/schema.ts';
 import {loadLegacyBridge, nativePreferenceStorage} from '../../src/data/native-storage.ts';
 import {PreferenceStore} from '../../src/data/preferences.ts';
 import type {PreferenceSnapshot, PreferenceStorage, PreferenceValues} from '../../src/data/preferences.ts';
@@ -160,7 +160,7 @@ export async function runNativeServiceReconnectFixture() {
     }
     if (!resuming) {
       const rows: Record<string, object[]> = {};
-      for (const [name, table] of Object.entries(MOBILE_TABLES)) if (!table.options?.localOnly) rows[name] = await database.getAll(`SELECT * FROM ${name} ORDER BY id`);
+      for (const [name, table] of Object.entries(LEGACY_MOBILE_TABLES)) if (!table.options?.localOnly) rows[name] = await database.getAll(`SELECT * FROM ${name} ORDER BY id`);
       await api.request('/fixture/init', 'POST', {runId: request.runId, platform: Platform.OS, rows});
       progress('server-seeded');
     } else {

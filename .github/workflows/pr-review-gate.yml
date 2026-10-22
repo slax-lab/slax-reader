@@ -16,7 +16,19 @@ name: PR review gate
 #   * `activation: skipped` — the run was *declined*, not stopped. gh-aw compiles
 #     the pause switch, the fork check, and the draft and stack checks onto
 #     `pre_activation`, and its membership decision onto `activation` itself, so
-#     every deliberate skip lands here. Passes, as a skip.
+#     every deliberate skip lands here. Passes, as a skip — except on the on-demand
+#     path, which is triggered by every pull request comment and compiles the
+#     `/review` match and the actor admission onto `pre_activation` as well: a
+#     comment that is not an accepted request creates an all-skipped run that is
+#     not a review at all. For a declined run of that shape the gate confirms the
+#     triggering comment before reporting it (the run name carries the comment id;
+#     the Issues API confirms the body, the actor and the pull request) and reports
+#     nothing when the trigger was not an accepted `/review` request. The
+#     `pre_activation: success, activation: skipped` shape is different — the
+#     request was admitted and the membership decision declined it — and keeps its
+#     passing skip unconfirmed, as before. Without the all-skipped distinction a
+#     passing skip would overwrite the head's real verdict (PR #307) and claim a
+#     readiness the run never earned.
 #   * `pre_activation` and `activation` both `success` — the run started, and the
 #     agent/verdict jobs below decide the outcome.
 #   * anything else — fail closed. That includes the case this rule was written
@@ -42,7 +54,13 @@ on:
 permissions:
   actions: read
   contents: read
-  pull-requests: read
+  # `issues: write` lets the gate create the label object with its colour and
+  # description; adding or removing a label *on a pull request* additionally
+  # needs `pull-requests: write`. With `issues: write` alone the label call
+  # returns "Resource not accessible by integration" (HTTP 403), the status is
+  # still posted first, and the notification is silently lost.
+  issues: write
+  pull-requests: write
   statuses: write
 
 jobs:
@@ -54,6 +72,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
           REPO: ${{ github.repository }}
+          # Cross-repository contract with slax-lab/slax-notify-bridge's
+          # per-repository notification policy: renaming it requires changing both.
+          READY_LABEL: ready-for-human-review
           # Read here rather than inferred, because the stage conclusions cannot
           # tell a paused run from a fork, a draft, or a request gh-aw declined —
           # all four are the same all-skipped shape. This is the same evaluation
@@ -68,6 +89,10 @@ jobs:
           WF=$(basename "$(jq -r '.path' <<<"$RUN")")
           EVENT=$(jq -r '.event' <<<"$RUN")
           REVIEWED_SHA=$(jq -r '.head_sha' <<<"$RUN")
+          # The on-demand wrapper's run name carries both "#<n>" (the reviewed
+          # pull request) and "comment <id>" (the triggering comment). The id is
+          # what lets the gate confirm that a declined on-demand run was actually
+          # a requested review; workflow_run itself carries no comment.
           TITLE=$(jq -r '.display_title // ""' <<<"$RUN")
           PR_NUMBER=$(sed -n 's/.*#\([0-9][0-9]*\).*/\1/p' <<<"$TITLE" | head -1)
 
@@ -110,6 +135,54 @@ jobs:
           verdict=${verdict:-missing}
           pre=${pre:-missing}
           activation=${activation:-missing}
+
+          # The on-demand wrapper is triggered by *every* pull request comment and
+          # moves the `/review` match and the actor admission onto `pre_activation`,
+          # so a comment that is not an accepted request leaves `pre_activation`
+          # and `activation` both skipped — the same shape as a declined automatic
+          # run. A decline is passing evidence only when the trigger really asked
+          # for the review, so the gate confirms the comment carried in the run
+          # name before reporting such a run. An unconfirmed trigger reports
+          # nothing: a run created before this change (its name has no comment id),
+          # a deleted comment, or a failed lookup is not a review, and a passing
+          # skip for it would overwrite the head's real verdict (PR #307).
+          #
+          # The confirmation mirrors the three comment forms gh-aw v0.88.7
+          # accepts and its actor admission, and checks that the comment belongs to
+          # this pull request on a pull request (the command path admits requests
+          # only there, never on a plain issue). The comment's current body must
+          # also predate this run: an edit after the run creates its own run, so a
+          # later body cannot be the trigger of this one.
+          confirm_accepted_request() {
+            local comment_id="$1" run_created comment comment_updated body_ok actor_ok issue_ok
+            [ -n "$comment_id" ] || return 1
+            [ -n "${PR_NUMBER:-}" ] || return 1
+            run_created=$(jq -r '.created_at // ""' <<<"$RUN") || return 1
+            comment=$(gh api "repos/$REPO/issues/comments/$comment_id" 2>/dev/null) || return 1
+            comment_updated=$(jq -r '.updated_at // .created_at // ""' <<<"$comment") || return 1
+            [ -n "$run_created" ] && [ -n "$comment_updated" ] || return 1
+            if [ "$comment_updated" \> "$run_created" ]; then
+              return 1
+            fi
+            body_ok=$(jq -r '(.body == "/review") or (.body | startswith("/review ")) or (.body | startswith("/review\n"))' <<<"$comment") || return 1
+            actor_ok=$(jq -r '(.author_association == "OWNER") or (.author_association == "MEMBER") or (.author_association == "COLLABORATOR")' <<<"$comment") || return 1
+            issue_ok=$(jq -r --arg suffix "/issues/$PR_NUMBER" '.issue_url | endswith($suffix)' <<<"$comment") || return 1
+            [ "$body_ok" = "true" ] && [ "$actor_ok" = "true" ] && [ "$issue_ok" = "true" ] || return 1
+            # Capture rather than pipe into `grep -q`: the producer closing early
+            # would make pipefail read a successful match as a failed confirmation.
+            is_pr=$(gh api "repos/$REPO/issues/$PR_NUMBER" --jq 'has("pull_request")' 2>/dev/null) || return 1
+            [ "$is_pr" = "true" ]
+          }
+
+          if [ "$WF" = "pr-review-command.lock.yml" ] && [ "$pre" = "skipped" ] && [ "$activation" = "skipped" ]; then
+            COMMENT_ID=$(sed -n 's/.* comment \([0-9][0-9]*\).*/\1/p' <<<"$TITLE" | head -1)
+            if confirm_accepted_request "${COMMENT_ID:-}"; then
+              echo "Run $RUN_ID was created by an accepted /review request (comment ${COMMENT_ID:-}); reporting the decline."
+            else
+              echo "Run $RUN_ID was not a requested review (trigger '${COMMENT_ID:-none}' not confirmed); leaving the status and label untouched."
+              exit 0
+            fi
+          fi
 
           # Which commit the result belongs to. `pull_request` runs are checked out
           # as the merge commit (`refs/pull/N/merge`), which is NOT the commit a
@@ -285,3 +358,48 @@ jobs:
             -f context="$CONTEXT" \
             -f description="$desc" \
             -f target_url="https://github.com/$REPO/actions/runs/$RUN_ID" > /dev/null
+
+          # The label is the notification bridge's "automated checks are done"
+          # signal, not a merge gate: merging is still decided by the status just
+          # posted and the rest of the ruleset. It describes the pull request's
+          # *current* head, so a verdict about a superseded commit must not change
+          # what the open pull request says about itself.
+          if [ "$SHA" = "$PR_HEAD" ]; then
+            # A passing verdict is not enough on its own: this label describes a pull
+            # request that can enter human review now, and three conditions can make
+            # that false even for a passing skip. A draft cannot enter review; a
+            # closed pull request no longer can (a `/review` run can finish after a
+            # merge); and a fork's read-only companion could never drop a stale
+            # label. The extra read is paid only for a passing head.
+            PR_STATE=closed
+            PR_DRAFT=true
+            PR_HEAD_REPO=""
+            if [ "$state" = "success" ]; then
+              PR_INFO=$(gh api "repos/$REPO/pulls/$PR_NUMBER" \
+                --jq '[.state, .draft, .head.repo.full_name] | @tsv')
+              PR_STATE=$(cut -f1 <<<"$PR_INFO")
+              PR_DRAFT=$(cut -f2 <<<"$PR_INFO")
+              PR_HEAD_REPO=$(cut -f3 <<<"$PR_INFO")
+            fi
+            if [ "$state" = "success" ] && [ "$PR_STATE" = "open" ] \
+              && [ "$PR_DRAFT" != "true" ] && [ "$PR_HEAD_REPO" = "$REPO" ]; then
+              # The GitHub API creates a missing label on first use; this call only
+              # gives it a stable colour and description. `--repo` is required: the
+              # job has no checkout, and `gh` resolves the repository from
+              # `--repo`/`GH_REPO`, not from GITHUB_REPOSITORY.
+              gh label create "$READY_LABEL" \
+                --repo "$REPO" \
+                --color 0e8a16 \
+                --description "Automated checks passed; ready for human review" \
+                > /dev/null 2>&1 || true
+              # Idempotent: adding a label that is already present changes nothing
+              # and emits no event, so a re-run of the gate cannot re-notify.
+              gh api -X POST "repos/$REPO/issues/$PR_NUMBER/labels" \
+                -f "labels[]=$READY_LABEL" > /dev/null
+            else
+              # A missing label is the normal path here; never fail the gate over
+              # an expected 404.
+              gh api -X DELETE "repos/$REPO/issues/$PR_NUMBER/labels/$READY_LABEL" \
+                > /dev/null 2>&1 || true
+            fi
+          fi

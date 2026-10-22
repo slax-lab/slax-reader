@@ -1,17 +1,33 @@
-import {Directory, File} from 'expo-file-system';
-import {requireNativeModule} from 'expo-modules-core';
+import {File} from 'expo-file-system';
+import {requireNativeModule} from 'expo';
 import {imageCachePath, imageCacheReadPaths} from './cache-paths.ts';
 import {throwIfAborted} from '../utils/abort.ts';
+import {NativeFileStore} from './native-file-store.ts';
+import type {ImageResourceResolver} from './image-resource.ts';
 export {imageCachePath, normalizeImageUrl} from './cache-paths.ts';
-function fileUri(path: string) { return path.startsWith('file://') ? path : `file://${path}`; }
 function safeKey(key: string) { if (!key || /[^\w-]/.test(key)) throw new Error('Invalid article cache key'); return key; }
 export class ArticleFileCache {
   readonly dataDirectory: string;
   private md5: (url: string) => string;
   private guard: () => void;
-  private pdf?: {bytes(key: string): Promise<number>; remove(key: string, check?: () => void): Promise<void>; clear(): void};
-  constructor(dataDirectory: string, md5: (url: string) => string, assertActive: () => void = () => {}, pdf?: {bytes(key: string): Promise<number>; remove(key: string, check?: () => void): Promise<void>; clear(): void}) { this.dataDirectory = dataDirectory; this.md5 = md5; this.guard = assertActive; this.pdf = pdf; }
-  articleFile(key: string) { this.guard(); return new File(fileUri(`${this.dataDirectory}/bookmark/${safeKey(key)}/content.html`)); }
+  private pdf?: {bytes(key: string): Promise<number>; remove(key: string, check?: () => void): Promise<void>; clear(): void | Promise<void>};
+  private files: NativeFileStore;
+  private readonly owner: string | null;
+  private readonly resolveImage?: ImageResourceResolver;
+  private avatars?: {clear(): Promise<void>; bytes(): Promise<number>};
+  setAvatarCache(avatars: {clear(): Promise<void>; bytes(): Promise<number>}) {this.avatars = avatars;}
+  clearAvatarCache() {return this.avatars?.clear();}
+  avatarBytes() {return this.avatars?.bytes() ?? Promise.resolve(0);}
+  private accessBarrier?: (key: string, signal?: AbortSignal) => Promise<void>;
+  setAccessBarrier(barrier: (key: string, signal?: AbortSignal) => Promise<void>) {this.accessBarrier = barrier;}
+  private async access(key: string, signal?: AbortSignal) {this.guard(); throwIfAborted(signal); await this.accessBarrier?.(safeKey(key), signal); this.guard(); throwIfAborted(signal);}
+  stageRemoval(key: string, generation: string, signal: AbortSignal) {return this.files.stageRemoval(`bookmark/${safeKey(key)}`, generation, signal);}
+  restoreRemoval(key: string, generation: string) {return this.files.restoreRemoval(`bookmark/${safeKey(key)}`, generation);}
+  purgeRemoval(key: string, generation: string) {return this.files.purgeRemoval(`bookmark/${safeKey(key)}`, generation);}
+  constructor(dataDirectory: string, md5: (url: string) => string, assertActive: () => void = () => {}, pdf?: {bytes(key: string): Promise<number>; remove(key: string, check?: () => void): Promise<void>; clear(): void | Promise<void>}, owner: string | null = null, resolveImage?: ImageResourceResolver) {
+    this.dataDirectory = dataDirectory; this.md5 = md5; this.guard = assertActive; this.pdf = pdf; this.owner = owner; this.resolveImage = resolveImage;
+    this.files = new NativeFileStore(dataDirectory, owner, assertActive);
+  }
   private imageAt(key: string, path: string): File | null {
     this.guard();
     const uri = requireNativeModule<{imageCacheFileUri(directory: string, key: string, path: string): string | null}>('SlaxCachePaths').imageCacheFileUri(this.dataDirectory, safeKey(key), path);
@@ -23,43 +39,55 @@ export class ArticleFileCache {
     if (!file) throw new Error('Unsafe article image cache path');
     return file;
   }
-  private cachedImage(key: string, url: string): File | null {
+  private async cachedImage(key: string, url: string): Promise<File | null> {
     this.guard();
     for (const path of imageCacheReadPaths(safeKey(key), url, this.md5)) {
       const file = this.imageAt(key, path);
-      if (file?.exists && file.size > 0) {this.guard(); return file;}
+      if (file && (await this.files.size(path) ?? 0) > 0) {this.guard(); return file;}
     }
     return null;
   }
-  async readArticle(key: string): Promise<string | null> { const file = this.articleFile(key); const value = file.exists ? await file.text() : null; this.guard(); return value; }
-  writeArticle(key: string, html: string) { const file = this.articleFile(key); file.parentDirectory.create({intermediates: true, idempotent: true}); file.write(html); }
-  articleBytes(key: string): number | Promise<number> {
-    const file = this.articleFile(key), html = file.exists ? file.size : 0;
-    return this.pdf ? this.pdf.bytes(safeKey(key)).then(bytes => {this.guard(); return html + bytes;}) : html;
+  async readArticle(key: string): Promise<string | null> {await this.access(key); return this.files.readText(`bookmark/${safeKey(key)}/content.html`);}
+  async writeArticle(key: string, html: string, signal?: AbortSignal): Promise<void> {
+    await this.access(key, signal); throwIfAborted(signal);
+    const path = `bookmark/${safeKey(key)}/content.html`;
+    if (signal) await this.files.writeArticle(path, html, signal); else await this.files.writeText(path, html);
   }
-  imageBytes(key: string): number {
-    this.guard();
-    const directory = new Directory(fileUri(`${this.dataDirectory}/bookmark/${safeKey(key)}/images`));
-    const measure = (value: Directory): number => value.exists ? value.list().reduce((total, item) => total + (item instanceof Directory ? measure(item) : item.size), 0) : 0;
-    return measure(directory);
+  articleFingerprint(key: string) {return this.files.fingerprint(`bookmark/${safeKey(key)}/content.html`);}
+  contentFingerprint(html: string) {return this.files.textFingerprint(html);}
+  async articleBytes(key: string): Promise<number> {
+    const html = await this.files.size(`bookmark/${safeKey(key)}/content.html`), pdf = await this.pdf?.bytes(key) ?? 0;
+    this.guard(); return (html ?? 0) + pdf;
   }
-  removeArticleContent(key: string): boolean | Promise<boolean> {
-    const file = this.articleFile(key), removed = file.exists; if (removed) file.delete();
-    return this.pdf ? this.pdf.remove(safeKey(key)).then(() => {this.guard(); return true;}) : removed;
+  async imageBytes(key: string): Promise<number> {return this.files.measure(`bookmark/${safeKey(key)}/images`);}
+  async removeArticleContent(key: string): Promise<boolean> {
+    const path = `bookmark/${safeKey(key)}/content.html`, size = await this.files.size(path);
+    await this.files.remove(path); await this.pdf?.remove(key); this.guard(); return size !== null || !!this.pdf;
   }
-  removeImages(key: string): void { this.guard(); const directory = new Directory(fileUri(`${this.dataDirectory}/bookmark/${safeKey(key)}/images`)); if (directory.exists) directory.delete(); }
-  removeArticle(key: string, check: () => void = () => {}): void | Promise<void> { this.guard(); check(); const directory = new Directory(fileUri(`${this.dataDirectory}/bookmark/${safeKey(key)}`)); if (directory.exists) directory.delete(); return this.pdf?.remove(key, check); }
-  clearArticles() { this.guard(); const directory = new Directory(fileUri(`${this.dataDirectory}/bookmark`)); if (directory.exists) directory.delete(); this.pdf?.clear(); }
-  async getResourceUri(key: string, customUrl: string): Promise<string | null> { return this.cachedImage(key, customUrl)?.uri ?? null; }
-  /** Fetch into memory or non-account staging; commit only while the captured account lease is live. */
-  async ensureImage(key: string, url: string, load: () => Promise<Uint8Array>, signal?: AbortSignal): Promise<string | null> {
-    throwIfAborted(signal);
-    const cached = this.cachedImage(key, url);
+  async removeImages(key: string): Promise<void> {await this.files.remove(`bookmark/${safeKey(key)}/images`);}
+  async removeArticle(key: string, check: () => void = () => {}): Promise<void> {
+    this.guard(); check(); await this.files.remove(`bookmark/${safeKey(key)}`); check(); await this.pdf?.remove(key, check); this.guard(); check();
+  }
+  async clearArticles(): Promise<void> {await this.files.remove('bookmark'); await this.pdf?.clear(); this.guard();}
+  private async nativeImage(key: string, url: string, allowNetwork: boolean, signal?: AbortSignal, strict = true): Promise<string | null> {
+    this.guard(); throwIfAborted(signal);
+    if (!this.owner || !this.resolveImage) throw new Error('Image resource owner unavailable');
+    const resource = await this.resolveImage({directory: this.dataDirectory, key: safeKey(key), url, owner: this.owner, allowNetwork, strict}, signal);
+    this.guard(); throwIfAborted(signal); return resource?.uri ?? null;
+  }
+  async getResourceUri(key: string, customUrl: string): Promise<string | null> {
+    await this.access(key);
+    return this.resolveImage ? this.nativeImage(key, customUrl, false) : (await this.cachedImage(key, customUrl))?.uri ?? null;
+  }
+  async ensureImage(key: string, url: string, load?: () => Promise<Uint8Array>, signal?: AbortSignal, strict = true): Promise<string | null> {
+    throwIfAborted(signal); await this.access(key, signal); throwIfAborted(signal);
+    if (this.resolveImage) return this.nativeImage(key, url, true, signal, strict);
+    const cached = await this.cachedImage(key, url); throwIfAborted(signal); this.guard();
     if (cached) return cached.uri;
+    if (!load) return null;
     const bytes = await load(); throwIfAborted(signal); this.guard();
     if (!bytes.byteLength) return null;
-    const file = this.imageFile(key, url);
-    file.parentDirectory.create({intermediates: true, idempotent: true}); this.imageFile(key, url).write(bytes);
-    return file.uri;
+    this.imageFile(key, url);
+    return this.files.writeImage(imageCachePath(key, url, this.md5), bytes, signal);
   }
 }

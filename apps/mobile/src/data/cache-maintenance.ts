@@ -14,6 +14,8 @@ export function formatCacheSize(bytes: number): string {
   return megabytes >= 0.1 ? `${(Math.floor(megabytes * 10) / 10).toFixed(1)} MB` : '< 0.1 MB';
 }
 export interface CacheMaintenanceFiles {
+  avatarBytes?(): Promise<number>;
+  clearAvatarCache?(): Promise<void> | void;
   articleBytes(key: string): number | Promise<number>;
   imageBytes(key: string): number | Promise<number>;
   removeArticleContent(key: string): boolean | Promise<boolean>;
@@ -34,6 +36,7 @@ export class CacheMaintenance {
   }
   private async measure(ids: string[]): Promise<CacheUsage> {
     const usage = emptyCacheUsage();
+    usage.images += await this.files.avatarBytes?.() ?? 0;
     for (const id of ids) {this.guard(); usage.article += await this.files.articleBytes(id); this.guard(); usage.images += await this.files.imageBytes(id); this.guard();}
     const expression = cacheOtherFields.map(field => `length(CAST(coalesce(json_extract(data, '$.${field}'), '') AS BLOB))`).join(' + ');
     const row = await this.database.getOptional<{bytes: number}>(`SELECT coalesce(sum(${expression}), 0) AS bytes FROM ps_data_local__local_bookmark_info`);
@@ -45,6 +48,7 @@ export class CacheMaintenance {
     return this.serialize(async () => {
       if (!selected.length) return 0;
       const ids = await this.manualIds(), before = await this.measure(ids);
+      if (selected.includes('images')) await this.files.clearAvatarCache?.();
       if (selected.includes('article')) {
         for (const id of ids) {
           this.guard(); const removed = await this.files.removeArticleContent(id); this.guard();

@@ -75,9 +75,9 @@ export function decodeLegacyPreferences(bytes: Uint8Array): PreferenceValues {
   return values;
 }
 export interface LegacyPreferenceSource { readLegacyPreferences(): Promise<{bytes: number[]; fingerprint: string} | null> }
-export async function migrateLegacyPreferences(store: PreferenceStore, source: LegacyPreferenceSource): Promise<'migrated' | 'already-migrated' | 'new-install'> {
+export async function migrateLegacyPreferences(store: PreferenceStore, source: LegacyPreferenceSource, snapshot?: PreferenceValues): Promise<'migrated' | 'already-migrated' | 'new-install'> {
   const key = '_slax_preferences_migration_v1';
-  if ((await store.read())[key]) return 'already-migrated';
+  if ((snapshot ?? await store.read())[key]) return 'already-migrated';
   const legacy = await source.readLegacyPreferences();
   const values = legacy ? decodeLegacyPreferences(new Uint8Array(legacy.bytes)) : {};
   await store.update(next => {

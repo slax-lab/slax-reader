@@ -520,3 +520,147 @@ test('total filesystem mutation failure remains denied across cache instances un
   await peer.setMetadata('book', pdf); await peer.writeBlock('book', pdf, 0, bytes);
   assert.deepEqual(await peer.read('book', pdf, 0, 3), bytes.slice(0, 3));
 });
+
+async function* stream(bytes: Uint8Array, size = 93_137) {
+  for (let offset = 0; offset < bytes.length; offset += size) yield bytes.subarray(offset, offset + size);
+}
+const manifestValue = (storage: MemoryStorage) => JSON.parse(new TextDecoder().decode(storage.files.get(manifestPath(storage))!));
+
+test('full PDF streams publish bounded atomic blocks and arbitrary ranges survive a cold storage restart', async () => {
+  const {cache, storage} = setup(), bytes = data(PDF_BLOCK_SIZE * 5 + 19), pdf = descriptor(bytes);
+  await cache.setMetadata('book', pdf); storage.calls = [];
+  await cache.writeComplete('book', pdf, stream(bytes));
+  const manifest = manifestValue(storage);
+  assert.match(manifest.generation, /^full-/);
+  const writes = storage.calls.filter(call => call.method === 'writeAtomic' && call.path.endsWith('.block'));
+  assert.equal(writes.length, 6); assert(writes.every(call => call.size! <= PDF_BLOCK_SIZE));
+  assert(writes.every(call => call.path.includes(`/${manifest.generation}/`)));
+  const restartedStorage = new MemoryStorage(); restartedStorage.files = storage.files;
+  const restarted = new PdfBlockCache(restartedStorage, 'https://api.example/account-1', () => {});
+  assert.deepEqual(await restarted.read('book', pdf, PDF_BLOCK_SIZE - 3, PDF_BLOCK_SIZE * 4 + 3), bytes.slice(PDF_BLOCK_SIZE - 3, PDF_BLOCK_SIZE * 4 + 3));
+  assert.equal(await restarted.verify('book', pdf), true); assert.equal(await restarted.bytes('book'), bytes.length);
+  await restarted.setMetadata('book', {...pdf, filename: 'renamed.pdf', text_status: 'empty'});
+  assert.equal(manifestValue(storage).generation, manifest.generation);
+  assert.equal(await restarted.verify('book', pdf), true);
+  storage.files.get(writes[2].path)![7] ^= 1;
+  assert.equal(await restarted.verify('book', pdf), false);
+});
+
+test('a held complete stream neither publishes partial staging nor blocks cached ranges or metadata updates', {timeout: 3000}, async () => {
+  const {cache, storage} = setup(), bytes = data(PDF_BLOCK_SIZE + 19), pdf = descriptor(bytes);
+  await cache.setMetadata('book', pdf); await cache.writeBlock('book', pdf, 0, bytes.subarray(0, PDF_BLOCK_SIZE));
+  const entered = deferred(), release = deferred();
+  const writing = cache.writeComplete('book', pdf, (async function* () {yield bytes.subarray(0, PDF_BLOCK_SIZE); entered.resolve(); await release.promise; yield bytes.subarray(PDF_BLOCK_SIZE);})());
+  try {
+    await entered.promise;
+    assert.equal(manifestValue(storage).generation, undefined);
+    assert.deepEqual(await cache.read('book', pdf, 0, 11), bytes.slice(0, 11));
+    assert.equal(await cache.read('book', pdf, PDF_BLOCK_SIZE, pdf.size), null);
+    assert.deepEqual(await cache.status('book'), {downloadedBytes: PDF_BLOCK_SIZE, totalBytes: bytes.length, complete: false});
+    await cache.setMetadata('book', {...pdf, filename: 'current.pdf'});
+  } finally {release.resolve(); await writing;}
+  assert.equal((await cache.metadata('book'))?.filename, 'current.pdf'); assert.equal(await cache.verify('book', pdf), true);
+});
+
+for (const failure of ['truncated', 'overflow', 'hash', 'chunk-limit'] as const) {
+  test(`invalid full PDF ${failure} never contaminates prior readable blocks`, async () => {
+    const {cache, storage} = setup(), bytes = data(PDF_BLOCK_SIZE + 19), pdf = await populate(cache, bytes);
+    const before = new Map([...storage.files].map(([path, value]) => [path, value.slice()]));
+    const invalid = failure === 'truncated' ? bytes.slice(0, -1) : failure === 'overflow' ? new Uint8Array(bytes.length + 1) : bytes.slice();
+    if (failure === 'hash') invalid[0] ^= 1;
+    const chunks = failure === 'chunk-limit' ? (async function* () {yield new Uint8Array(PDF_MAX_RANGE_BYTES + 1);})() : stream(invalid);
+    await assert.rejects(cache.writeComplete('book', pdf, chunks), error => (error as {code?: string}).code === 'offline_integrity_invalid');
+    assert.deepEqual(storage.files, before); assert.equal(await cache.verify('book', pdf), true);
+  });
+}
+
+for (const phase of ['before', 'after'] as const) {
+  test(`full PDF manifest ${phase}-commit failure does not delete any published generation`, async () => {
+    const {cache, storage} = setup(), bytes = data(PDF_BLOCK_SIZE + 7), pdf = await populate(cache, bytes);
+    storage[phase] = (method, path) => {if (method === 'writeAtomic' && path.endsWith('/manifest.json')) throw new Error('publication interrupted');};
+    await assert.rejects(cache.writeComplete('book', pdf, stream(bytes)), /publication interrupted/);
+    storage[phase] = undefined;
+    const restartStorage = new MemoryStorage(); restartStorage.files = storage.files;
+    const restarted = new PdfBlockCache(restartStorage, 'https://api.example/account-1', () => {});
+    assert.equal(await restarted.verify('book', pdf), true);
+    assert.equal(!!manifestValue(storage).generation, phase === 'after');
+    await restarted.setMetadata('book', pdf);
+    assert.equal([...storage.files.keys()].filter(path => path.endsWith('.block')).length, 2);
+  });
+}
+
+test('cancelling a staged full stream deletes only its private blocks and retains a complete previous generation', async () => {
+  const {cache, storage} = setup(), bytes = data(PDF_BLOCK_SIZE + 13), pdf = descriptor(bytes), abort = new AbortController();
+  await cache.setMetadata('book', pdf); await cache.writeComplete('book', pdf, stream(bytes));
+  const before = new Map([...storage.files].map(([path, value]) => [path, value.slice()]));
+  await assert.rejects(cache.writeComplete('book', pdf, (async function* () {yield bytes.subarray(0, PDF_BLOCK_SIZE); abort.abort(); yield bytes.subarray(PDF_BLOCK_SIZE);})(), abort.signal), {name: 'AbortError'});
+  assert.deepEqual(storage.files, before); assert.equal(await cache.verify('book', pdf), true);
+});
+
+for (const operation of ['denial', 'remove', 'identity'] as const) {
+  test(`${operation} proceeds during a held full PDF stream and fences its late commit`, {timeout: 3000}, async () => {
+    const {cache, storage} = setup(), bytes = data(PDF_BLOCK_SIZE + 13), pdf = await populate(cache, bytes);
+    const entered = deferred(), release = deferred();
+    const writing = cache.writeComplete('book', pdf, (async function* () {yield bytes.subarray(0, PDF_BLOCK_SIZE); entered.resolve(); await release.promise; yield bytes.subarray(PDF_BLOCK_SIZE);})());
+    const rejected = assert.rejects(writing, /revoked|identity/);
+    try {
+      await entered.promise;
+      if (operation === 'denial') await cache.invalidate('book');
+      else if (operation === 'remove') {await cache.remove('book'); await populate(cache, bytes);}
+      else await cache.setMetadata('book', {...pdf, size: pdf.size + 1});
+    } finally {release.resolve(); await rejected;}
+    assert.equal([...storage.files.keys()].some(path => path.includes('/full-')), false);
+    if (operation === 'remove') assert.equal(await cache.verify('book', pdf), true);
+    else assert.equal(await cache.read('book', pdf, 0, 10), null);
+  });
+}
+
+test('recovery prunes interrupted and replaced full generations only within the admitted bookmark', async () => {
+  const {cache, storage} = setup(), bytes = data(PDF_BLOCK_SIZE + 7), pdf = descriptor(bytes);
+  await populate(cache, bytes); await populate(cache, bytes, 'other');
+  const prefix = manifestPath(storage).replace(/manifest.json$/, '');
+  const orphan = `${prefix}${pdf.document_id}-${pdf.size}/full-interrupted/0.block`;
+  storage.files.set(orphan, bytes.slice(0, PDF_BLOCK_SIZE));
+  const previousRead = storage.list.bind(storage);
+  storage.list = async prefix => [...await previousRead(prefix), `${prefix}../unrelated`, `${prefix}${pdf.document_id}-${pdf.size}/full-../0.block`];
+  const restarted = new PdfBlockCache(storage, 'https://api.example/account-1', () => {});
+  assert.equal(await restarted.verify('book', pdf), true);
+  await restarted.writeComplete('book', pdf, stream(bytes));
+  assert.equal(storage.files.has(orphan), false); assert.equal(await cache.verify('other', pdf), true);
+  const first = manifestValue(storage).generation;
+  await restarted.writeComplete('book', pdf, stream(bytes));
+  assert.notEqual(manifestValue(storage).generation, first);
+  assert.equal([...storage.files.keys()].filter(path => path.startsWith(prefix) && path.endsWith('.block')).length, 2);
+  assert.equal(storage.calls.some(call => call.method === 'remove' && call.path.includes('..')), false);
+});
+
+test('concurrent metadata reads do not alter the generation of an in-progress block scan', {timeout: 3000}, async () => {
+  const {cache, storage} = setup(), bytes = data(PDF_BLOCK_SIZE + 17), pdf = descriptor(bytes);
+  await cache.setMetadata('book', pdf); await cache.writeComplete('book', pdf, stream(bytes));
+  const entered = deferred(), release = deferred(), metadataEntered = deferred(), metadataRelease = deferred();
+  let holdMetadata = false, first = true;
+  storage.before = async (method, path) => {
+    if (method === 'read' && path.endsWith('.block') && first) {first = false; entered.resolve(); await release.promise;}
+    if (holdMetadata && method === 'read' && path.endsWith('/manifest.json')) {metadataEntered.resolve(); await metadataRelease.promise;}
+  };
+  const verifying = cache.verify('book', pdf); await entered.promise;
+  holdMetadata = true; const reading = cache.metadata('book'); await metadataEntered.promise;
+  try {release.resolve(); assert.equal(await verifying, true);} finally {metadataRelease.resolve(); await reading;}
+});
+
+test('unsafe full generation names fail closed before block I/O', async () => {
+  const {cache, storage} = setup(), bytes = data(17), pdf = await populate(cache, bytes), path = manifestPath(storage), manifest = manifestValue(storage);
+  for (const generation of ['../other', 'full-../../other', 'full-one/two', '', 'full-', 1, 'full-' + 'x'.repeat(101)]) {
+    storage.files.set(path, encoder.encode(JSON.stringify({...manifest, generation}))); storage.calls = [];
+    assert.equal(await cache.metadata('book'), null); assert.equal(await cache.read('book', pdf, 0, 3), null);
+    assert.equal(storage.calls.some(call => call.path.endsWith('.block')), false);
+  }
+});
+
+test('a delayed unverified range cannot overwrite an already verified complete generation', async () => {
+  const {cache, storage} = setup(), bytes = data(PDF_BLOCK_SIZE + 3), pdf = descriptor(bytes);
+  await cache.setMetadata('book', pdf); await cache.writeComplete('book', pdf, stream(bytes)); storage.calls = [];
+  await cache.writeBlock('book', pdf, 0, new Uint8Array(PDF_BLOCK_SIZE));
+  assert.equal(storage.calls.some(call => call.method === 'writeAtomic'), false);
+  assert.deepEqual(await cache.read('book', pdf, 0, 11), bytes.slice(0, 11)); assert.equal(await cache.verify('book', pdf), true);
+});

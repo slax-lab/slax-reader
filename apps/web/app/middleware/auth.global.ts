@@ -1,8 +1,9 @@
-import { isServer } from '@commons/frontend-utils/is'
+import { readStringCookie } from '~/utils/authCookie'
 
+import { isServer } from '@commons/frontend-utils/is'
 import { useCookies } from '@vueuse/integrations/useCookies'
 
-const { get } = useCookies()
+const cookies = useCookies()
 export default defineNuxtRouteMiddleware((to, from) => {
   if (isServer) {
     return
@@ -39,7 +40,7 @@ export default defineNuxtRouteMiddleware((to, from) => {
   const isSharePage = /(^|\/)b\/[^/]+\/?$/.test(to.path)
 
   const ignoreAuth = isToAuthWhiteList || isSharePage
-  const needAuth = get ? !get(useNuxtApp().$config.public.COOKIE_TOKEN_NAME) : true
+  const needAuth = !readStringCookie(useNuxtApp().$config.public.COOKIE_TOKEN_NAME, cookies)
 
   if (needAuth) {
     if (!ignoreAuth) {

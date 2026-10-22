@@ -11,7 +11,7 @@ In CI this file is read **from the pull request's head branch**, so a pull reque
 Run three passes and tag each finding with its pass. Classify each finding as Important or Nit (defined below).
 
 - **Bugs**: logic errors, broken edge cases, subtle regressions
-- **Security**: injection risks, authentication gaps, secrets or PII in logs and error messages
+- **Security**: injection risks, authentication gaps, secrets or PII in logs and error messages, and deliberate threats — review the diff as if the author could be malicious: new dependencies without a stated need, obfuscated or encoded payloads, and network calls or file access that could move data beyond the feature's purpose
 - **Compliance**: the change matches its linked OpenSpec change artifacts (see below)
 
 ## What Important means here
@@ -22,6 +22,7 @@ Reserve Important for findings that:
 - lose or corrupt user data (bookmarks, highlights, comments)
 - corrupt the shared production database through schema migrations: the beta environment runs migrations against production PostgreSQL before code passes the `main` gate, so any migration that is incompatible with the code currently serving production — dropping or renaming tables/columns, changing column types, adding `NOT NULL` columns without defaults — is Important unless the change demonstrates an expand/contract split; applies when the diff touches `**/migrations/**` (e.g. `apps/api/prisma/migrations/`), `*.sql`, or ORM schema files (e.g. `schema.prisma`)
 - leak secrets or PII
+- introduce suspected malicious code: a backdoor, covert data exfiltration, or an unvetted dependency with install scripts or unexpected network/file access. Such a finding needs concrete evidence in the diff, not general suspicion; when uncertain, flag it and require a human reviewer's verdict before merge
 - break the cross-app API contracts in `packages/contracts`
 - diverge from the intent of the linked OpenSpec change
 
@@ -45,6 +46,12 @@ Run this pass both for local pre-push review and for pull request review.
    - If no change-id can be determined for a behavior-changing diff, report that as an Important Compliance finding.
 3. Read `openspec/changes/<change-id>/`: `proposal.md`, `tasks.md`, `design.md` (if present), and the delta specs under `specs/`.
 4. Verify the implementation matches the change's stated intent and that tasks marked complete are actually implemented. Report divergences as Compliance findings.
+5. For a behavior-changing diff, check the verification-evidence trail (see "Definition of Done" in `AGENTS.md`):
+   - For a pull request: the body must follow the repository template and its Test plan must carry a real evidence trail — what was run, what was exercised in a running environment, and what was not verified and why — linking `openspec/changes/<change-id>/validation.md` when the details live there.
+   - For a local pre-push review: hold the change directory's `validation.md` (or the diff's stated exemption) to the same standard before pushing.
+   - A missing Test plan section, an empty or boilerplate evidence trail, or evidence contradicting observable facts (for example claiming a check that CI shows failing) is an Important Compliance finding.
+   - A declared gap ("X was not verified, because Y") is not a finding; whether the declared gap is acceptable is the human reviewer's decision. This clause covers agent-executable verification only — the human acceptance in the next bullet admits no declared gap.
+   - For UI-visible changes, the trail must also record the human hands-on acceptance that preceded the pull request (who, when, what was adjusted); its absence is an Important Compliance finding.
 
 ## Do not report
 

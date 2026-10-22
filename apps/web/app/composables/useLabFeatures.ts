@@ -5,10 +5,12 @@ import { RequestError } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { LabFeature } from '@slax-reader/contracts/interface'
 import Toast, { ToastType } from '~/components/Toast'
+import { getUserToken } from '~/utils/request'
+import { getTokenUserId } from '~/utils/sessionOwner'
+
+const requests = new WeakMap<object, { owner: string | null; promise: Promise<void> }>()
 
 export const LAB_FEATURE_DISABLED = 'LAB_FEATURE_DISABLED'
-
-export const isLabVisibleInSettings = (key: string): boolean => key !== 'youtube'
 
 // Mirrors the backend gate: a YouTube video URL (watch / youtu.be / shorts / live / embed with an 11-char id)
 const YOUTUBE_VIDEO_RE = /^https?:\/\/(?:(?:www\.|m\.|music\.)?youtube\.com\/(?:watch\?(?:[^#]*&)?v=|(?:shorts|live|embed)\/)|youtu\.be\/)([A-Za-z0-9_-]{11})(?![A-Za-z0-9_-])/i
@@ -19,15 +21,43 @@ const GATED: Array<{ key: string; test: (url: string) => boolean }> = [{ key: 'y
 export const gatedFeatureForUrl = (url: string): string | null => GATED.find(g => g.test(url))?.key ?? null
 
 export const useLabFeatures = () => {
+  const app = useNuxtApp()
   const features = useState<LabFeature[]>('lab-features', () => [])
   const loaded = useState<boolean>('lab-features-loaded', () => false)
 
+  const owner = useState<string | null | undefined>('lab-features-owner', () => undefined)
+  const currentOwner = (): string | null => {
+    let account: string | null = null
+    app.runWithContext(() => {
+      account = getTokenUserId(getUserToken())
+    })
+    return account
+  }
+
   const t = (key: string) => useNuxtApp().$i18n.t(key)
 
-  const fetch = async () => {
-    const res = await request().get<{ features: LabFeature[] }>({ url: RESTMethodPath.USER_LABS })
-    features.value = res?.features ?? []
-    loaded.value = true
+  const fetch = (force = false): Promise<void> => {
+    const account = currentOwner()
+    if (owner.value !== account) {
+      features.value = []
+      loaded.value = false
+      owner.value = account
+    }
+    const pending = requests.get(app)
+    if (pending?.owner === account) return pending.promise
+    if (loaded.value && !force) return Promise.resolve()
+    const entry = { owner: account, promise: Promise.resolve() }
+    entry.promise = request().get<{ features: LabFeature[] }>({ url: RESTMethodPath.USER_LABS })
+      .then(res => {
+        if (requests.get(app) !== entry || currentOwner() !== account) return
+        features.value = res?.features ?? []
+        loaded.value = true
+      })
+      .finally(() => {
+        if (requests.get(app) === entry) requests.delete(app)
+      })
+    requests.set(app, entry)
+    return entry.promise
   }
 
   const isEnabled = (key: string) => features.value.some(f => f.key === key && f.enabled)

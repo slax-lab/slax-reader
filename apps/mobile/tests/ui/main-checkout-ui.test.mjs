@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {React, act, nativeBoundary, loadComponent, withNativeHost, flattenStyle} from '../reader/parity-host.mjs';
-import {mobileColors, mobileTypography} from '../../src/theme/index.ts';
+import {mobileColors, mobileLayout, mobileTypography} from '../../src/theme/index.ts';
 import * as coordinates from '../../src/reader/coordinates.ts';
 import * as model from '../../src/reader/model.ts';
 import * as motion from '../../src/reader/outline-motion.ts';
@@ -14,7 +14,7 @@ test('startup renders only the default surface until the current account is read
     '@react-navigation/native': {NavigationContainer: host.native.View, createNavigationContainerRef: () => ({})},
     '@react-navigation/native-stack': {createNativeStackNavigator: () => ({Navigator: host.native.View, Group: host.native.View, Screen: props => {screens.push(props.name); return null;}})},
     'react-native-gesture-handler': {GestureHandlerRootView: host.native.View}, 'react-native-safe-area-context': {SafeAreaProvider: host.native.View, SafeAreaView: host.native.View},
-    './runtime': {useMobile: () => context, MobileProvider: nil}, './theme': {mobileColors}, './telemetry': {useTelemetry: () => ({identify() {}})}, './components/SourceLine': {SourceLine: nil},
+    './runtime': {useMobile: () => context, MobileProvider: nil}, './theme': {mobileColors, mobileLayout, mobileTypography}, './telemetry': {useTelemetry: () => ({identify() {}})}, './components/SourceLine': {SourceLine: nil},
     './screens/AppRecoveryScreen': {AppRecoveryScreen: nil},
   };
   for (const name of ['Login','Library','Reader','Settings','About','Feedback','DeleteAccount','Subscription','Debug']) boundaries[`./screens/${name}Screen`] = {[`${name}Screen`]: nil};
@@ -33,7 +33,7 @@ test('startup renders only the default surface until the current account is read
 test('more and archive artwork remains present and icon dimensions cannot shrink in its button', nativeBoundary, async () => withNativeHost(async host => {
   const artwork = Object.fromEntries(['ic_floating_panel_more','ic_floating_panel_archieve','ic_floating_panel_archieved'].map(name => [name, {uri: `bundled:${name}`} ]));
   const {SourceIcon} = await loadComponent('../../src/components/SourceUI.tsx', {react: React, 'react-native': host.native,
-    'react-native-safe-area-context': {}, '../../assets': {mobileAssets: artwork}, '../theme': {mobileColors, mobileTypography}, './source-font-scaling': {}, './SourceSheetModal': {},
+    'react-native-safe-area-context': {}, '../../assets': {mobileAssets: artwork}, '../theme': {mobileColors, mobileTypography}, './source-font-scaling': {}, './AppImage': {AppImage: host.native.Image}, './SourceSheetModal': {},
   });
   for (const name of Object.keys(artwork)) {
     const image = SourceIcon({name, size: 24});

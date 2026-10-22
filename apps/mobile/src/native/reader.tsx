@@ -1,11 +1,11 @@
 import React, {forwardRef, useEffect, useImperativeHandle, useRef} from 'react';
 import {Platform, StyleSheet, View} from 'react-native';
 import type {ViewProps, NativeSyntheticEvent} from 'react-native';
-import {requireNativeViewManager} from 'expo-modules-core';
+import {requireNativeView} from 'expo';
 import type {WebView, WebViewProps} from 'react-native-webview';
 import type {ReaderNativeAdapter, ReaderNativeContext, ReaderNativeOverlayProps} from '../reader/native';
 
-const NativeOverlay = Platform.OS === 'ios' ? requireNativeViewManager<ReaderNativeOverlayProps>('SlaxPlatform', 'SlaxReaderOverlayView') : undefined;
+const NativeOverlay = Platform.OS === 'ios' ? requireNativeView<ReaderNativeOverlayProps>('SlaxPlatform', 'SlaxReaderOverlayView') : undefined;
 
 interface NativeReaderRef {
   injectJavaScript(script: string): Promise<void>;
@@ -28,12 +28,12 @@ interface NativeReaderProps extends ViewProps {
   onEvent(event: NativeSyntheticEvent<NativeReaderEvent>): void;
   ref?: React.Ref<NativeReaderRef>;
 }
-const NativeView = requireNativeViewManager<NativeReaderProps>('SlaxPlatform', 'SlaxReaderView');
+const NativeView = requireNativeView<NativeReaderProps>('SlaxPlatform', 'SlaxReaderView');
 const refs = new Map<number, NativeReaderRef>();
 const touchListeners = new Map<number, Set<(screenY: number) => void>>();
 function view(id: number) { const ref = refs.get(id); if (!ref) throw new Error('Reader page is no longer attached'); return ref; }
 
-const NativeReaderHost = forwardRef<WebView, WebViewProps>(function NativeReaderHost(props, outerRef) {
+const NativeReaderHost = forwardRef<WebView<unknown>, WebViewProps>(function NativeReaderHost(props, outerRef) {
   const nativeRef = useRef<NativeReaderRef|null>(null);
   const attachedRef = useRef<NativeReaderRef|null>(null);
   const identity = useRef<number|null>(null);
@@ -54,7 +54,7 @@ const NativeReaderHost = forwardRef<WebView, WebViewProps>(function NativeReader
       }
     },
     stopLoading: () => {void nativeRef.current?.stopLoading().catch(() => undefined);},
-  } as unknown as WebView), []);
+  } as unknown as WebView<unknown>), []);
   useEffect(() => () => {
     disposed.current = true;
     if (identity.current !== null) { refs.delete(identity.current); touchListeners.delete(identity.current); }

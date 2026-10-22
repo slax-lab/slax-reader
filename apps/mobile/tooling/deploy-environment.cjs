@@ -31,10 +31,11 @@ function parseConfiguration(content, filename) {
   return parseEnv(content);
 }
 
-/** @param {{root?: string, processEnvironment?: NodeJS.ProcessEnv, readLocal?: boolean}} [options] */
-function loadMobileEnvironment({root = path.resolve(__dirname, '../../..'), processEnvironment = process.env, readLocal = true} = {}) {
+/** @param {{root?: string, processEnvironment?: NodeJS.ProcessEnv, readLocal?: boolean, development?: boolean}} [options] */
+function loadMobileEnvironment({root = path.resolve(__dirname, '../../..'), processEnvironment = process.env, readLocal = true, development = false} = {}) {
   const directory = path.resolve(root, 'deploy/mobile');
   const inherited = Object.fromEntries(Object.entries(processEnvironment).filter(([, value]) => value !== undefined));
+  if (!development) for (const key of Object.keys(inherited)) if (key.startsWith('SLAX_MOBILE_DEV_')) delete inherited[key];
   const fixture = inherited.EXPO_PUBLIC_SLAX_ADOPTION_FIXTURE === '1' || Boolean(inherited.EXPO_PUBLIC_SLAX_UI_FIXTURE);
   if (!readLocal || fixture || inherited.SLAX_MOBILE_NO_LOCAL_CONFIG === '1') return {directory, environment: inherited, files: []};
 
@@ -49,6 +50,7 @@ function loadMobileEnvironment({root = path.resolve(__dirname, '../../..'), proc
     files.push('deploy/mobile/.env');
   }
   const environment = {...local, ...inherited};
+  if (!development) for (const key of Object.keys(environment)) if (key.startsWith('SLAX_MOBILE_DEV_')) delete environment[key];
   for (const [name, relative] of Object.entries(DEFAULT_FILES)) {
     if (environment[name]) {
       environment[name] = path.resolve(root, environment[name]);

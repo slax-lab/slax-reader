@@ -227,3 +227,34 @@ for (const platform of ['android', 'ios']) test(`${platform} deferred scrolling 
     if (platform === 'ios') nativeCompletions[3]()
   })
 })
+
+test('PDF loading cover keeps the article skeleton until revealed, then fades without blocking touches and unmounts', nativeBoundary, async () => {
+  await withNativeHost(async host => {
+    const {installedMotionHost} = await import('../ui/installed-motion-host.mjs')
+    const motion = installedMotionHost(host.native.View)
+    const adapter = {OverlayComponent: host.native.View, attach: async () => {}, detach: async () => {}, subscribeTouch: () => () => {}, setScrollsToTop: async () => {}, updateInsets: async () => {}, scrollTo: async () => {}}
+    const {usePdfScrollHost} = await loadComponent('../../src/reader/host/usePdfScrollHost.tsx', {react: React, 'react-native': {...host.native, PixelRatio: {get: () => 3}},
+      'react-native-reanimated': motion.reanimated, '../../native/reader': {readerNativeAdapter: adapter}, '../native-attachment.ts': {ReaderNativeAttachment},
+      '../coordinates.ts': coordinates, './geometry.ts': geometry, '../bridge.ts': bridge}, {requestAnimationFrame: callback => setTimeout(callback, 0), cancelAnimationFrame: clearTimeout})
+    let setCovered
+    function Probe() {
+      const [covered, update] = React.useState(true); setCovered = update
+      const current = usePdfScrollHost({context: {pageId: 'pdf-cover', scrollsToTop: true}, ready: true, covered, header: React.createElement('header'),
+        placeholder: React.createElement('section', {'data-testid': 'skeleton'}), onViewport() {}, onInitialLayout() {}, onError() {}})
+      return current.wrap(React.createElement('article'))
+    }
+    const cover = () => host.window.document.querySelector('[data-testid="pdf-reader-placeholder"]')
+    await host.render(React.createElement(Probe))
+    assert.ok(cover()?.querySelector('[data-testid="skeleton"]'), 'Ready alone does not lift the cover')
+    assert.ok(host.window.document.querySelector('[data-testid="pdf-reader-container"] header'), 'The host header stays mounted beneath the cover')
+    const shown = host.props.get('pdf-reader-placeholder')
+    assert.equal(shown.pointerEvents, 'auto'); assert.equal(shown.accessibilityElementsHidden, true); assert.equal(shown.importantForAccessibility, 'no-hide-descendants')
+    assert.equal(shown.style[0].top, 0, 'The cover spans the header too, so no unmeasured frame shows through')
+    await act(async () => setCovered(false))
+    assert.ok(cover(), 'The cover fades instead of disappearing in one frame')
+    assert.equal(host.props.get('pdf-reader-placeholder').pointerEvents, 'none', 'A fading cover never blocks the revealed document')
+    assert.equal(motion.started.at(-1).toValue, 0)
+    await act(async () => motion.advance(1000))
+    assert.equal(cover(), null, 'The finished cover unmounts')
+  })
+})

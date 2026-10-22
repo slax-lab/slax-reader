@@ -104,7 +104,8 @@
       "copy_link": "Copy Link",
       "more": "More",
       "send": "Send",
-      "share_twitter": "Share on X"
+      "share_twitter": "Share on X",
+      "listen_from_here": "Listen from here"
     },
     "payment": {
       "completed": "Payment Completed",
@@ -127,6 +128,13 @@
       }
     },
     "tips": {
+      "in_app_browser": {
+        "title": "Open this page in your browser",
+        "message_before": "For the best experience, tap",
+        "message_after": "in the top-right corner and choose Open in browser.",
+        "message_accessible": "For the best experience, tap the more options menu in the top-right corner and choose Open in browser.",
+        "close": "Dismiss external browser tip"
+      },
       "access_unavailable": {
         "bookmark_footer": "(Content page upper right corner - Share - Copy link)",
         "desc": "Please contact the publisher to get the correct sharing address",
@@ -544,6 +552,69 @@
     "transcript_panel": {
       "empty": "No transcript available",
       "title": "Transcript"
+    },
+    "youtube_article": {
+      "title": "AI article",
+      "preparing": "Preparing the article, this usually takes 1 to 3 minutes",
+      "timeout": "The article is taking longer than usual. Come back later to read it.",
+      "skipped": "This video relies on visuals, so no article was generated.",
+      "generate": "Generate anyway",
+      "failed": "Could not generate the article.",
+      "retry": "Retry",
+      "load_failed": "Could not load the article.",
+      "limit_reached": "Daily limit reached, try again tomorrow.",
+      "language_note": "This article is in {language}",
+      "lang": {
+        "en": "English",
+        "zh": "Chinese"
+      },
+      "show_transcript": "Show original transcript",
+      "hide_transcript": "Hide original transcript",
+      "seek": "Jump to {time}",
+      "ready_reload": "The article is ready.",
+      "show_article": "Show it"
+    },
+    "podcast_player": {
+      "play": "Play",
+      "pause": "Pause",
+      "back": "Back 15 seconds",
+      "forward": "Forward 15 seconds",
+      "progress": "Playback position",
+      "speed": "Playback speed",
+      "back_to_current": "Back to current",
+      "error": "This audio cannot be played here. Open the original page to listen."
+    },
+    "podcast": {
+      "stalled": "Could not get the latest status.",
+      "check_again": "Check again",
+      "queued": "The transcript is queued.",
+      "transcribing": "Transcribing the audio. A long episode can take 10 to 30 minutes.",
+      "writing": "Writing the readable transcript. This takes a few minutes.",
+      "translating": "Translating into {language}…",
+      "ready_reload": "The readable transcript is ready.",
+      "show_article": "Show it",
+      "limit_reached": "You reached today’s limit of new episodes. Try again tomorrow.",
+      "failed": "Could not make the readable transcript.",
+      "retry": "Retry",
+      "translation_failed": "Could not translate this episode.",
+      "reason": {
+        "too_long": "This episode is too long. Episodes up to 3 hours are supported.",
+        "budget_exceeded": "This episode is too long. Episodes up to 3 hours are supported.",
+        "no_speech": "Little or no speech was found in this episode.",
+        "language_unsupported": "Only Chinese and English episodes are supported.",
+        "moderation": "This episode cannot be transcribed.",
+        "no_audio": "No audio was found for this episode."
+      },
+      "original": "Original",
+      "translation": "Translation",
+      "view": "Text version",
+      "seek": "Play from {time}",
+      "lang": {
+        "en": "English",
+        "zh": "Chinese"
+      },
+      "not_started": "The transcript has not started.",
+      "start": "Start"
     }
   },
   "docs": {
@@ -1201,6 +1272,14 @@
           "name": "PDF bookmarks",
           "desc": "Save PDF links or upload PDFs to read, highlight, comment, and analyze extractable text.",
           "blocked": "PDF bookmarks are still in Labs. Turn it on in Settings, then save again"
+        },
+        "youtube_article": {
+          "name": "YouTube AI articles",
+          "desc": "Turns the transcript of a saved YouTube video into a readable article in your AI language. The article takes the place of the raw captions on the page, and its time stamps play the video from there. Videos that rely on visuals are skipped, and you can still generate them by hand."
+        },
+        "podcast": {
+          "name": "Podcast transcripts",
+          "desc": "Save a podcast episode (Xiaoyuzhou, Apple Podcasts, an RSS feed or an audio link) and read it as a clean transcript with speakers and time stamps. Play the audio on the page and listen from any paragraph. Episodes in another language get a translation. Chinese and English only, up to 3 hours, 5 new episodes a day."
         }
       },
       "navigation": {

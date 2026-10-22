@@ -16,8 +16,12 @@ const exports = {};
 vm.runInNewContext(compile('../../fixtures/transport.ts'), {exports, URL, Response: NativeResponse, Headers: NativeHeaders, ReadableStream, TextEncoder, TextDecoder, setTimeout, clearTimeout, require(path) {assert.equal(path, '../src/utils/abort'); return abortExports;}});
 const transportErrors = {};
 vm.runInNewContext(compile('../../src/data/transport-errors.ts'), {exports: transportErrors, Error});
-const apiExports = {};
-const apiImports = {'../utils/abort.ts': abortExports, '@slax-reader/contracts/pdf': pdfContracts, './transport-errors.ts': transportErrors};
+const apiExports = {}, sharedRequest = {};
+vm.runInNewContext(compile('../../src/data/shared-request.ts'), {exports: sharedRequest, AbortController: NativeAbortController, setTimeout, clearTimeout, require(path) {assert.equal(path, '../utils/abort.ts'); return abortExports;}});
+const apiImports = {'../utils/abort.ts': abortExports, '@slax-reader/contracts/pdf': pdfContracts, './transport-errors.ts': transportErrors, './shared-request.ts': sharedRequest};
+const boundedBody = {};
+vm.runInNewContext(compile('../../src/data/bounded-body.ts'), {exports: boundedBody, TextEncoder, TextDecoder, require(path) {assert.equal(path, '../utils/abort.ts'); return abortExports;}});
+apiImports['./bounded-body.ts'] = boundedBody;
 vm.runInNewContext(compile('../../src/data/api.ts'), {exports: apiExports, URL, AbortController: NativeAbortController, TextDecoder, setTimeout, clearTimeout, require(path) {assert.ok(Object.hasOwn(apiImports, path), `Unexpected API import: ${path}`); return apiImports[path];}});
 const payload = {network: {isInternetReachable: true}, api: [{method: 'GET', path: '/v1/user/labs', query: {}, status: 200, delayMs: 0, json: {code: 200, data: {features: [{key: 'rss', enabled: true}]}}}]};
 test('fixture API works with the exact React Native AbortController dependency', async () => {
@@ -93,4 +97,22 @@ for (const endpoint of ['metadata?bookmark_uid=synthetic-pdf', 'upload_pdf']) te
   await assert.rejects(response.body.getReader().read(), error => error.name === 'AbortError');
   const fresh = await f.fetch(`https://fixture-api.test/v1/bookmark/${endpoint}`, {...options, signal: undefined});
   await fresh.body.cancel(); assert.equal((await fresh.body.getReader().read()).done, true);
+});
+
+test('full PDF acquisition streams and cancels with the exact React Native AbortController', async () => {
+  const descriptor = {url: '/v1/bookmark/pdf?bookmark_uid=doc', filename: 'doc.pdf', size: 8, document_id: 'a'.repeat(64), source: 'upload', text_status: 'ready'};
+  for (const cancel of [false, true]) {
+    const controller = new NativeAbortController(); let sent = false, cancelled = false, start;
+    const started = new Promise(resolve => {start = resolve;});
+    const response = {status: 200, headers: new NativeHeaders({'Content-Type': 'application/pdf', 'Content-Length': '8'}), body: new ReadableStream({
+      pull(stream) {start(); if (cancel) return; if (sent) stream.close(); else {sent = true; stream.enqueue(new TextEncoder().encode('%PDF-1.4'));}},
+      cancel() {cancelled = true;},
+    }, {highWaterMark: 0})};
+    const api = new apiExports.SlaxApi({baseUrl: 'https://fixture-api.test', platform: 'ios', version: 'fixture', sessions: {getSession: async () => ({token: 'synthetic', userId: 'fixture'})}, fetch: async () => response});
+    const values = [];
+    const work = api.acquirePdf('doc', descriptor, 0, 8, async chunks => {for await (const value of chunks) values.push(...value);}, controller.signal);
+    if (cancel) {const rejected = assert.rejects(work, {name: 'AbortError'}); await started; controller.abort(); await rejected; assert.equal(cancelled, true);}
+    else {assert.equal((await work).kind, 'complete'); assert.equal(new TextDecoder().decode(new Uint8Array(values)), '%PDF-1.4');}
+    assert.equal(response.body.locked, false);
+  }
 });

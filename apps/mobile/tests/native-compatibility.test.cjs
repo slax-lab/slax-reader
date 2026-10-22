@@ -8,6 +8,38 @@ async function mod(platform, name, input, fixtureMode = false) {
   return (await config.mods[platform][name]({modResults: input, modRequest: {}, modRawConfig: {}})).modResults;
 }
 
+test('inline App Intents generation reuses one normalized group and preserves other directories and targets', async () => {
+  const groups = {
+    KEEP: {isa: 'PBXFileSystemSynchronizedRootGroup', path: '"../app-intents"', sourceTree: 'SOURCE_ROOT', exceptions: []},
+    KEEP_comment: '../app-intents',
+    DUP: {isa: 'PBXFileSystemSynchronizedRootGroup', name: 'app-intents', path: '../app-intents', sourceTree: 'SOURCE_ROOT', explicitFileTypes: {}, explicitFolders: []},
+    DUP_comment: 'app-intents',
+    OTHER: {path: '../other-modules', sourceTree: 'SOURCE_ROOT'},
+    RELATIVE: {path: '../app-intents', sourceTree: '"<group>"'},
+  };
+  const objects = {PBXFileSystemSynchronizedRootGroup: groups,
+    PBXGroup: {ROOT: {children: [{value: 'KEEP'}, {value: 'DUP'}, {value: 'OTHER'}, {value: 'RELATIVE'}]}},
+    PBXNativeTarget: {MAIN: {name: 'SlaxReader', fileSystemSynchronizedGroups: [{value: 'DUP'}, {value: 'KEEP'}, {value: 'OTHER'}]}, SHARE: {name: 'SlaxShare', fileSystemSynchronizedGroups: [{value: 'OTHER'}]}},
+  };
+  const project = {hash: {project: {objects}}};
+  await mod('ios', 'xcodeproj', project);
+  assert.equal(groups.KEEP.path, '../app-intents', 'Expo compares the raw unquoted path after config mods');
+  assert.deepEqual(Object.keys(groups).sort(), ['KEEP', 'KEEP_comment', 'OTHER', 'RELATIVE']);
+  assert.deepEqual(objects.PBXGroup.ROOT.children.map(ref => ref.value), ['KEEP', 'OTHER', 'RELATIVE']);
+  assert.deepEqual(objects.PBXNativeTarget.MAIN.fileSystemSynchronizedGroups.map(ref => ref.value), ['KEEP', 'OTHER']);
+  assert.deepEqual(objects.PBXNativeTarget.SHARE.fileSystemSynchronizedGroups, [{value: 'OTHER'}]);
+  const once = JSON.stringify(objects);
+  await mod('ios', 'xcodeproj', project);
+  assert.equal(JSON.stringify(objects), once);
+});
+
+test('inline group cleanup refuses conflicting source exclusions before modifying the project', () => {
+  const objects = {PBXFileSystemSynchronizedRootGroup: {A: {path: '../app-intents', sourceTree: 'SOURCE_ROOT'}, B: {path: '"../app-intents"', sourceTree: 'SOURCE_ROOT', exceptions: [{value: 'EXCEPTION'}]}}};
+  const before = JSON.stringify(objects);
+  assert.throws(() => plugin.normalizeAppIntentsGroups({hash: {project: {objects}}}), /Conflicting app-intents/);
+  assert.equal(JSON.stringify(objects), before);
+});
+
 test('manifest overrides library analytics defaults and removes fixture flags on production regeneration', async () => {
   const manifest = {manifest: {$: {}, application: [{$: {}, 'meta-data': [{$: {'android:name': 'unrelated', 'android:value': 'preserved'}}]}]}};
   await mod('android', 'manifest', manifest, true);
@@ -41,6 +73,7 @@ test('release signing removes template debug identity and remains operator manag
 test('owned native defaults preserve platform floors and the source light theme', async () => {
   const gradle = await mod('android', 'gradleProperties', [{type: 'property', key: 'android.minSdkVersion', value: '24'}]);
   assert.equal(gradle.find(item => item.key === 'android.minSdkVersion').value, '26');
+  assert.equal(gradle.find(item => item.key === 'android.compileSdkVersion').value, '37');
   assert.equal(gradle.find(item => item.key === 'android.targetSdkVersion').value, '36');
   const pods = await mod('ios', 'podfileProperties', {});
   assert.equal(pods['ios.deploymentTarget'], '16.4');

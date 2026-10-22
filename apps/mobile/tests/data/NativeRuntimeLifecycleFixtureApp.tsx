@@ -50,7 +50,7 @@ export default function NativeRuntimeLifecycleFixtureApp() {
       const bookmark = await repositories.createBookmark('https://lifecycle-fixture.test/article');
       await repositories.updateBookmark(bookmark, {aliasTitle: 'Native lifecycle offline bookmark'});
       await repositories.local.update(bookmark, {read_position: '123', future_field: {preserve: true}});
-      cache.writeArticle(bookmark, '<html><body>Synthetic lifecycle article</body></html>');
+      await cache.writeArticle(bookmark, '<html><body>Synthetic lifecycle article</body></html>');
       const pending = async () => {
         const operations: unknown[] = [];
         for await (const transaction of database.getCrudTransactions()) {

@@ -14,6 +14,16 @@ The source manifest keeps the stable base version throughout `dev → beta → m
 
 Each tag has its own Release in `slax-lab/slax-reader`. Downloads include `slax-lab-reader-cli-<release-version>.tgz`, `SHA256SUMS`, and generated release notes. The archive is an installable npm package, not a native standalone executable. GitHub's source ZIP/TAR downloads are the tagged monorepo, not the packaged CLI.
 
+### CLI release descriptions
+
+New Releases use an explicit CLI-scoped description rather than GitHub's repository-wide automatic PR list. Entries group changed CLI package/command files, shared contracts used by CLI, and CLI tooling/documentation, with source commit references. Unrelated Web, Extension, API, and Mobile changes and promotion PR summaries are excluded. A manifest-only release states the version update without claiming new features.
+
+The comparison starts at the highest lower CLI base version in the same channel whose tag is an ancestor of the selected source. A first dev/beta release falls back to the highest lower ancestor stable CLI tag. If no applicable tag exists, the description identifies the first-release case and includes available CLI history. Other product tags and the current candidate tag do not become baselines. Missing or shallow history fails instead of producing broad fallback notes.
+
+Preparation saves `RELEASE_NOTES.md` and binds its source, baseline, and digest to the transferred release metadata. Distribution verifies those notes against the selected history before writes. A partial-release retry uses the prepared description to create a missing Release, while asset reconciliation preserves an existing Release's description. This does not rewrite historical Releases automatically. GitHub's automatic source ZIP/TAR downloads continue to contain the whole tagged repository.
+
+The [CI scope guide](../CI.md) explains which source and tooling changes run CLI compatibility or publication-fixture checks.
+
 The first implementation PR deliberately raises the base version to `1.0.2`, so its merge into dev tests `cli-v1.0.2-dev`. Promotion then tests `cli-v1.0.2-beta` and `cli-v1.0.2`, provided each destination previously had a lower CLI version. Later versions are chosen explicitly in reviewed CLI PRs. Promoting an existing base version does not require another edit when it increases the destination's previous version. One promotion carrying several intermediate versions releases only the resulting manifest version.
 
 ## One-time setup

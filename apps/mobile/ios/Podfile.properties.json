@@ -1,7 +1,7 @@
 {
   "expo.jsEngine": "hermes",
   "EX_DEV_CLIENT_NETWORK_INSPECTOR": "true",
-  "expo.inlineModules.watchedDirectories": "[]",
+  "expo.inlineModules.watchedDirectories": "[\"app-intents\"]",
   "expo.inlineModules.xcodeProjectTargets": "{\"mainTarget\":\"SlaxReader\",\"targets\":[]}",
   "ios.deploymentTarget": "16.4",
   "ios.useFrameworks": "static"

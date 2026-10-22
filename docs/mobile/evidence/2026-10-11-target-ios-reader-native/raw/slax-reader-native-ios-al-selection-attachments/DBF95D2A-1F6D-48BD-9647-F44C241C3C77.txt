@@ -1,5 +1,0 @@
-Query chain:
- →Find: Application 'app.slax.reader.uifixture'
-  ↪︎Find: Descendants matching type Other
-    ↪︎Find: Elements matching predicate '"selection_action_bar" IN identifiers'
-      ↪︎Find: First Match

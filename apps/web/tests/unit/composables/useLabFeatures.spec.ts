@@ -4,10 +4,10 @@
 import { RequestError } from '@commons/frontend-utils/request'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
-import { isLabVisibleInSettings, useLabFeatures } from '~~/app/composables/useLabFeatures'
+import { useLabFeatures } from '~~/app/composables/useLabFeatures'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGet, mockPost, mockRequest, mockToastShowToast, mockNavigateTo } = vi.hoisted(() => {
+const { mockGet, mockPost, mockRequest, mockToastShowToast, mockNavigateTo, mockGetUserToken } = vi.hoisted(() => {
   const mockGet = vi.fn()
   const mockPost = vi.fn()
   return {
@@ -15,7 +15,8 @@ const { mockGet, mockPost, mockRequest, mockToastShowToast, mockNavigateTo } = v
     mockPost,
     mockRequest: vi.fn(() => ({ get: mockGet, post: mockPost })),
     mockToastShowToast: vi.fn(),
-    mockNavigateTo: vi.fn()
+    mockNavigateTo: vi.fn(),
+    mockGetUserToken: vi.fn(() => null as string | null)
   }
 })
 
@@ -26,35 +27,32 @@ vi.mock('~/components/Toast', () => ({
   default: { showToast: mockToastShowToast },
   ToastType: { Success: 'success', Error: 'error', Normal: 'normal' }
 }))
+vi.mock('~/utils/request', async importOriginal => ({
+  ...(await importOriginal<typeof import('~/utils/request')>()),
+  request: mockRequest,
+  getUserToken: mockGetUserToken
+}))
 
 const youtube = () => ({ key: 'youtube', status: 'active' as const, enabled: false, enabled_at: null })
+const deferred = <T>() => {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>(r => (resolve = r))
+  return { promise, resolve }
+}
+const tokenFor = (id: number) => {
+  const claims = btoa(JSON.stringify({ id }))
+  return `header.${claims.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')}.signature`
+}
 
 describe('useLabFeatures', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockGetUserToken.mockReturnValue(null)
     mockPost.mockResolvedValue('ok')
     // useState 在同一个 nuxt app 里跨用例共享，每个用例先清掉
     const labs = useLabFeatures()
     labs.features.value = []
     labs.loaded.value = false
-  })
-
-  describe('Settings visibility', () => {
-    it.each(['youtube'])('hides %s only from Settings', async key => {
-      const feature = { key, status: 'active' as const, enabled: true, enabled_at: '2026-09-08T00:00:00.000Z' }
-      mockGet.mockResolvedValue({ features: [feature] })
-      const labs = useLabFeatures()
-      await labs.fetch()
-
-      expect(isLabVisibleInSettings(key)).toBe(false)
-      expect(labs.features.value).toEqual([feature])
-      expect(labs.isEnabled(key)).toBe(true)
-      expect(mockPost).not.toHaveBeenCalled()
-    })
-
-    it.each(['rss', 'pdf', 'future-feature'])('keeps %s eligible for Settings', key => {
-      expect(isLabVisibleInSettings(key)).toBe(true)
-    })
   })
 
   describe('fetch', () => {
@@ -72,6 +70,58 @@ describe('useLabFeatures', () => {
       const labs = useLabFeatures()
       await labs.fetch()
       expect(labs.features.value).toEqual([])
+    })
+
+    it('coalesces an in-flight request and reuses the loaded result for the same account', async () => {
+      mockGetUserToken.mockReturnValue(tokenFor(41))
+      const response = deferred<{ features: ReturnType<typeof youtube>[] }>()
+      mockGet.mockReturnValueOnce(response.promise)
+      const labs = useLabFeatures()
+
+      const first = labs.fetch()
+      const second = labs.fetch()
+      expect(mockGet).toHaveBeenCalledOnce()
+      response.resolve({ features: [youtube()] })
+      await Promise.all([first, second])
+      await labs.fetch()
+
+      expect(mockGet).toHaveBeenCalledOnce()
+      expect(labs.loaded.value).toBe(true)
+      expect(labs.features.value).toEqual([youtube()])
+    })
+
+    it('force refresh bypasses the same-account cache', async () => {
+      mockGetUserToken.mockReturnValue(tokenFor(42))
+      mockGet.mockResolvedValueOnce({ features: [youtube()] })
+        .mockResolvedValueOnce({ features: [{ ...youtube(), enabled: true }] })
+      const labs = useLabFeatures()
+
+      await labs.fetch()
+      await labs.fetch(true)
+
+      expect(mockGet).toHaveBeenCalledTimes(2)
+      expect(labs.features.value[0]?.enabled).toBe(true)
+    })
+
+    it('ignores a late response from the previous account', async () => {
+      const oldResponse = deferred<{ features: ReturnType<typeof youtube>[] }>()
+      const newResponse = deferred<{ features: ReturnType<typeof youtube>[] }>()
+      mockGetUserToken.mockReturnValue(tokenFor(43))
+      mockGet.mockReturnValueOnce(oldResponse.promise).mockReturnValueOnce(newResponse.promise)
+      const labs = useLabFeatures()
+
+      const oldRequest = labs.fetch()
+      mockGetUserToken.mockReturnValue(tokenFor(44))
+      const newRequest = labs.fetch()
+      expect(mockGet).toHaveBeenCalledTimes(2)
+
+      newResponse.resolve({ features: [{ ...youtube(), enabled: true }] })
+      await newRequest
+      oldResponse.resolve({ features: [youtube()] })
+      await oldRequest
+
+      expect(labs.loaded.value).toBe(true)
+      expect(labs.features.value[0]?.enabled).toBe(true)
     })
   })
 

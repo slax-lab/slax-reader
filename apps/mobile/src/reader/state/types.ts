@@ -19,6 +19,8 @@ export interface ReaderLifetime {
   mounted: RefObject<boolean>
   foreground: RefObject<boolean>
   appActive: boolean
+  routeVisible?: boolean
+  transitionReady?: boolean
   isAccountActive(): boolean
 }
 export interface ReaderScope extends ReaderIdentity, ReaderLifetime {

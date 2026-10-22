@@ -6,7 +6,7 @@ import {RuntimeActivity} from '../../src/data/runtime-activity.ts';
 import {AccountDatabaseLease, AccountInactiveError} from '../../src/data/account-lease.ts';
 import {PreferenceStore, PREFERENCE_KEYS} from '../../src/data/preferences.ts';
 import {SessionController} from '../../src/domain/session.ts';
-import {CredentialReadiness} from '../../src/domain/credential-readiness.ts';
+import {CredentialReadiness, ReauthenticationRequiredError, CredentialsUnavailableError} from '../../src/domain/credential-readiness.ts';
 import {createMobileApi} from '../../src/data/api.ts';
 import {createSyncConnector} from '../../src/data/connector.ts';
 import {clearAccountData} from '../../src/data/account-cleanup.ts';
@@ -26,9 +26,10 @@ async function fixture(refresh, storage = new MemoryPreferences({auth_token: 'ol
     async disconnectAndClear() {if (cleanupFailure) throw cleanupFailure; clears++; pending = 0;}
     async execute() {pending++;} async writeTransaction(work) {return work(this);}
   }
-  class Cache {constructor(directory) {this.dataDirectory = directory;} clearArticles() {events.push('clear-files');}}
+  class Cache {constructor(directory) {this.dataDirectory = directory;} setAccessBarrier(barrier) {this.barrier = barrier;} setAvatarCache(avatars) {this.avatars = avatars;} clearArticles() {events.push('clear-files');}}
   class Worker {
     constructor(options) {this.options = options; this.request = new AbortController();}
+    async setOnline() {}
     start() {this.pending = this.options.content('cached-bookmark', undefined, this.request.signal).catch(() => undefined);}
     async pause() {this.cancel(); await this.pending;} resume() {} cancel() {this.request.abort();}
     async stop() {this.cancel(); await this.pending;} beginForeground() {return () => {};}
@@ -42,9 +43,12 @@ async function fixture(refresh, storage = new MemoryPreferences({auth_token: 'ol
     return Response.json({code: 200, data: {ok: true}});
   };
   const {createMobileDataRuntime} = await loadComponent('../../src/data/runtime.ts', {
-    'expo/fetch': {fetch}, '../domain/session.ts': {SessionController}, '../domain/credential-readiness.ts': {CredentialReadiness}, './api.ts': {createMobileApi},
+    'expo/fetch': {fetch}, '../domain/session.ts': {SessionController}, '../domain/credential-readiness.ts': {CredentialReadiness, ReauthenticationRequiredError, CredentialsUnavailableError}, './api.ts': {createMobileApi},
     './pdf-cache.ts': {PdfBlockCache}, './pdf-file-storage.ts': {PdfFileStorage: PdfStorage}, './cache.ts': {ArticleFileCache: Cache}, './account-cleanup.ts': {clearAccountData},
     './account-lease.ts': {AccountDatabaseLease, AccountInactiveError}, './background-cache.ts': {BackgroundArticleCache: Worker}, './runtime-activity.ts': {RuntimeActivity},
+    './native-network.ts': {nativeNetwork: {read: async () => ({}), subscribe: () => () => {}}},
+    './native-pdf-transfer.ts': {createNativePdfFetch: () => assert.fail('Explicit injected transport must remain authoritative')},
+    '../native/reader-image': {loadReaderImage: async () => assert.fail('No image request expected in credential fixture')},
     './image-fetch.ts': {fetchCacheImage: async () => {}}, '../native/platform': {activateReaderResources: async () => {events.push('activate'); if (activationFailure) throw activationFailure;}, revokeReaderResources: async () => {events.push('revoke');}},
     './connector.ts': {createSyncConnector}, './adoption.ts': {openVerifiedDatabase}, './adoption-profile.ts': {deriveReviewedAdoptionEvidence: () => undefined},
     './legacy-preferences.ts': {migrateLegacyPreferences: async () => {if (migrationFailure) throw migrationFailure;}}, './native-storage.ts': {loadLegacyBridge: () => bridge, nativePreferenceStorage: () => storage},
@@ -62,7 +66,7 @@ test('cold startup publishes local account and verified data without awaiting pr
   const ordinary = f.runtime.api.request('/v1/user/me').catch(error => error);
   await starting; assert.equal(f.runtime.sessions.getSnapshot().status, 'authenticated'); assert.equal(f.runtime.getUpgradeSnapshot().status, 'ready'); assert(f.runtime.getRepositories());
   assert.deepEqual(f.sent.map(item => item.path), ['/v1/user/refresh']); assert.equal(f.events.includes('connect'), false);
-  gate.resolve(); await starting; await ordinary; await until(() => f.events.includes('connect'));
+  gate.resolve(); await starting; f.runtime.markLibraryPresented(); await ordinary; await until(() => f.events.includes('connect'));
   assert(f.events.indexOf('sync-credentials') < f.events.indexOf('connect'));
   assert.equal(f.runtime.sessions.getSnapshot().status, 'authenticated');
   assert(f.events.indexOf('refresh') < f.events.indexOf('sync-credentials'));
@@ -88,7 +92,7 @@ test('cold startup network failure retains local account, pending writes and ret
   assert.deepEqual(f.sent.map(item => item.path), ['/v1/user/refresh']); assert.equal(f.events.includes('connect'), false);
   await assert.rejects(f.runtime.api.request('/v1/user/me'), /awaiting refresh/); assert.equal(f.pending, 3); assert.equal(f.clears, 0);
   const owner = f.runtime.getNativeResourceOwner(); offline = false;
-  await f.runtime.credentials.retry(); await until(() => f.events.includes('connect'));
+  f.runtime.markLibraryPresented(); await f.runtime.credentials.retry(); await until(() => f.events.includes('connect'));
   assert.equal(f.runtime.getNativeResourceOwner(), owner); assert.equal(f.pending, 3); assert.equal(f.clears, 0);
   assert(f.sent.filter(item => item.path !== '/v1/user/refresh').every(item => item.bearer === 'Bearer recovered'));
 });
@@ -105,7 +109,7 @@ test('refresh 401 with a waiting cache worker requires reauthentication without 
   assert.equal(f.sent.filter(value => value.path === '/v1/user/refresh').length, 1);
   assert.equal(f.pending, 3); assert.equal(f.clears, 0);
   const owner = f.runtime.getNativeResourceOwner();
-  await f.runtime.sessions.reauthenticate('reauthenticated', 'account'); await until(() => f.events.includes('connect'));
+  f.runtime.markLibraryPresented(); await f.runtime.sessions.reauthenticate('reauthenticated', 'account'); await until(() => f.events.includes('connect'));
   assert.equal(f.runtime.getNativeResourceOwner(), owner); assert.equal(f.pending, 3); assert.equal(f.clears, 0);
   await f.runtime.sessions.signOut(); assert.equal(f.clears, 1);
 });
@@ -150,8 +154,8 @@ test('same runtime stop and start reconnects with a fresh main token without for
   const storage = new MemoryPreferences({auth_token: 'current', user_id: 'account', last_refresh_time: String(Math.floor(Date.now() / 1000))});
   const f = await fixture(async () => assert.fail('Fresh token must not refresh'), storage);
   context.after(() => f.runtime.stop());
-  await f.runtime.start(); await until(() => f.events.filter(value => value === 'connect').length === 1);
-  await f.runtime.stop(); await f.runtime.start(); await until(() => f.events.filter(value => value === 'connect').length === 2);
+  await f.runtime.start(); f.runtime.markLibraryPresented(); await until(() => f.events.filter(value => value === 'connect').length === 1);
+  await f.runtime.stop(); await f.runtime.start(); f.runtime.markLibraryPresented(); await until(() => f.events.filter(value => value === 'connect').length === 2);
   assert.equal(f.pending, 3); assert.equal(f.clears, 0);
 });
 
@@ -164,7 +168,7 @@ test('login during deferred database admission publishes local account but expos
   await until(() => f.runtime.sessions.getSnapshot().status === 'authenticated');
   assert.deepEqual(states, ['authenticated']); assert.equal(f.runtime.getRepositories(), null); assert.equal(f.runtime.getNativeResourceOwner(), null);
   assert.equal(f.events.includes('connect'), false);
-  gate.resolve(); await login; await starting; await until(() => f.events.includes('connect'));
+  gate.resolve(); await login; await starting; f.runtime.markLibraryPresented(); await until(() => f.events.includes('connect'));
   assert(f.runtime.getRepositories()); assert.equal(f.clears, 1);
 });
 

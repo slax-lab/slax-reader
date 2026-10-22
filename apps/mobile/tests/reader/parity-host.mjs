@@ -6,6 +6,8 @@ import vm from 'node:vm'
 import ts from 'typescript'
 import React, {act} from 'react'
 import {motionModules} from '../ui/motion-modules.mjs'
+import {observeBoundaries} from './observe-mock.mjs'
+import {safeAreaBoundary} from '../ui/safe-area-boundary.mjs'
 
 const require = createRequire(import.meta.url)
 let domModule = process.env.SLAX_READER_DOM_MODULE
@@ -13,19 +15,53 @@ if (!domModule) {
   try {domModule = require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]})} catch {}
 }
 export const nativeBoundary = {skip: !domModule && 'An existing happy-dom runtime is required'}
+const frames = new Map()
+let frameId = 0
+// Native frame boundary: work scheduled for the next frame runs after the current synchronous
+// task completes, so fixtures observe frame-deferred readiness once they await.
+const frameBoundary = {
+  requestAnimationFrame: callback => {const id = ++frameId; frames.set(id, callback); queueMicrotask(() => {const pending = frames.get(id); frames.delete(id); pending?.(0)}); return id},
+  cancelAnimationFrame: id => frames.delete(id),
+}
 export {React, act}
 export async function loadComponent(path, boundaries, globals = {}) {
-  boundaries = {...motionModules(boundaries), ...boundaries}
-  if (path.endsWith('/ReaderOverlays.tsx') && !boundaries['../components/SourceSheetModal']) {
-    boundaries = {...boundaries, '../components/SourceSheetModal': await loadComponent('../../src/components/SourceSheetModal.tsx', {react: boundaries.react, 'react-native': boundaries['react-native'], '../theme': boundaries['../theme']}, globals)}
+  // Host-mounted UI has no Expo native modules. Tests that exercise a native
+  // boundary provide their own implementation, overriding these unavailable
+  // defaults explicitly.
+  boundaries = {
+    expo: {requireNativeModule() {throw new Error('Native Expo module unavailable in parity host');}},
+    'expo-app-intents': {isAvailable: () => false, useAppIntents() {}, removePendingInvocationAsync: async () => {}, setEntityCatalogAsync: async () => {throw new Error('App Intents unavailable in parity host');}, deleteDonationsAsync: async () => {throw new Error('App Intents unavailable in parity host');}, donateIntentAsync: async () => {throw new Error('App Intents unavailable in parity host');}},
+    'expo-image': {Image: () => null, loadAsync: async () => ({width: 1, height: 1, release() {}})},
+    'expo-haptics': {impactAsync: async () => {}, notificationAsync: async () => {}, selectionAsync: async () => {}},
+    'expo-clipboard': {getStringAsync: async () => '', setStringAsync: async () => {}},
+    '@slax-reader/contracts/pdf': {PDF_MAX_BYTES: 50 * 1024 * 1024},
+    ...boundaries,
   }
-  if (path.endsWith('/ReaderOverlays.tsx') && !boundaries['react-native-reanimated']) {
+  boundaries = {...observeBoundaries(boundaries), ...motionModules(boundaries), ...boundaries}
+  boundaries['react-native-safe-area-context'] = safeAreaBoundary(boundaries)
+  if (path.endsWith('/ReaderOverlays.tsx') && !boundaries['../components/SourceSheetModal']) {
+    boundaries = {...boundaries, '../components/SourceSheetModal': await loadComponent('../../src/components/SourceSheetModal.tsx', {react: boundaries.react, 'react-native': boundaries['react-native'], 'react-native-safe-area-context': boundaries['react-native-safe-area-context'], '../theme': boundaries['../theme'], 'react-native-reanimated': boundaries['react-native-reanimated'], 'react-native-gesture-handler': boundaries['react-native-gesture-handler']}, globals)}
+  }
+  if ((!boundaries['react-native-reanimated'] || !boundaries['react-native-gesture-handler']) && boundaries['react-native']?.View) {
     const {installedMotionHost} = await import('../ui/installed-motion-host.mjs')
-    boundaries = {...boundaries, 'react-native-reanimated': installedMotionHost(boundaries['react-native'].View).reanimated}
+    const motion = installedMotionHost(boundaries['react-native'].View)
+    boundaries = {...boundaries, 'react-native-reanimated': boundaries['react-native-reanimated'] ?? motion.reanimated, 'react-native-gesture-handler': boundaries['react-native-gesture-handler'] ?? motion.gestures}
   }
   const entry = new URL(path, import.meta.url)
   const normalize = url => url.href.replace(/\.(tsx?|jsx?)$/, '').replace(/\/index$/, '')
   const mapped = new Map(Object.entries(boundaries).map(([name, value]) => [name.startsWith('.') ? normalize(new URL(name, entry)) : name, value]))
+  const fallbackLocalBoundary = url => {
+    const name = url.pathname.split('/').at(-1)?.replace(/\.(tsx?|jsx?)$/, '')
+    if (name === 'AvatarResources') return {AvatarResourcesContext: React.createContext(null), useAvatarResource: (_slot, url) => url}
+    if (name === 'SearchGlyph') return {SearchGlyph: () => null}
+    if (name === 'SourceDrawer') return {
+      SourceDrawer: ({children}) => children ?? null,
+      DrawerScrollBoundary: ({children}) => children ?? null,
+      useDrawerGesture: () => null,
+      useDrawerInput: () => null,
+    }
+    return undefined
+  }
   const modules = new Map()
   const load = async url => {
     const key = normalize(url)
@@ -41,10 +77,15 @@ export async function loadComponent(path, boundaries, globals = {}) {
     const imports = new Map()
     for (const match of code.matchAll(/require\(["']([^"']+)["']\)/g)) {
       const name = match[1]
-      if (name.startsWith('.')) imports.set(name, await load(new URL(name, resolved)))
+      if (name.startsWith('.')) {
+        const dependency = new URL(name, resolved), key = normalize(dependency)
+        const fallback = fallbackLocalBoundary(dependency)
+        if (!mapped.has(key) && fallback) mapped.set(key, fallback)
+        imports.set(name, await load(dependency))
+      }
       else {assert.ok(mapped.has(name), `Unexpected native parity boundary: ${name} in ${resolved.pathname}`); imports.set(name, mapped.get(name))}
     }
-    vm.runInNewContext(code, {exports, __DEV__: true, AbortController, Date, URL, setTimeout, clearTimeout, ...globals, require: name => imports.get(name)}, {filename: resolved.pathname})
+    vm.runInNewContext(code, {exports, __DEV__: true, AbortController, Date, URL, setTimeout, clearTimeout, ...frameBoundary, ...globals, require: name => imports.get(name)}, {filename: resolved.pathname})
     return exports
   }
   return load(entry)
@@ -78,13 +119,13 @@ export async function withNativeHost(run) {
   const timing = (value, config) => ({start(callback) {animations.push(config); value.setValue(config.toValue); callback?.({finished: true})}, stop() {}})
   const group = children => ({start(callback) {children.forEach(child => child.start()); callback?.({finished: true})}, stop() {children.forEach(child => child.stop())}})
   const native = {
-    View: primitive, Pressable: primitive, ScrollView: primitive, FlatList: primitive, TextInput: primitive, KeyboardAvoidingView: primitive,
+    View: primitive, Pressable: primitive, ScrollView: primitive, FlatList: props => React.createElement(primitive, props, props.data?.map((item, index) => React.createElement(React.Fragment, {key: props.keyExtractor?.(item, index) ?? index}, props.renderItem({item, index})))), TextInput: primitive, KeyboardAvoidingView: primitive,
     Modal: value => value.visible ? React.createElement(primitive, value) : null,
     ActivityIndicator: primitive, Image: primitive,
     Animated: {Value, View: primitive, timing, sequence: group, parallel: group},
     Easing: {bezier: (...points) => points, linear: 'linear', cubic: 'cubic', out: value => value}, StyleSheet: {create: value => value, absoluteFill: {position: 'absolute', top: 0, left: 0, right: 0, bottom: 0}},
     AccessibilityInfo: {isReduceMotionEnabled: async () => false, addEventListener: () => ({remove() {}})},
-    Platform: {OS: 'ios'}, useWindowDimensions: () => ({width: 390, height: 844}),
+    Platform: {OS: 'ios'}, PixelRatio: {roundToNearestPixel: value => Math.round(value)}, useWindowDimensions: () => ({width: 390, height: 844}),
     Keyboard: {addListener: (name, callback) => {keyboard.set(name, callback); return {remove() {keyboard.delete(name)}}}, dismiss() {dismisses++}},
     AppState: {addEventListener: () => ({remove() {}})},
     PanResponder: {create(value) {gestures = value; return {panHandlers: {}}}},

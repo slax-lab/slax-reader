@@ -18,7 +18,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
 async function load(file, boundaries = {}, globals = {}) {
   const output = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true}}).outputText;
   const exports = {};
-  vm.runInNewContext(output, {exports, __DEV__: true, setTimeout, clearTimeout, setInterval, clearInterval, ...globals, require(name) {assert.ok(Object.hasOwn(boundaries, name), name); return boundaries[name];}});
+  vm.runInNewContext(output, {exports, __DEV__: true, URL, setTimeout, clearTimeout, setInterval, clearInterval, ...globals, require(name) {assert.ok(Object.hasOwn(boundaries, name), name); return boundaries[name];}});
   return exports;
 }
 const runtimeImports = ['expo-file-system', 'react-native', '@powersync/react-native', '../src/data/preferences', '../src/domain/session', '../src/data/repositories', '../src/data/cache', '../src/data/api', '../src/data/schema', '../src/payments/controller', '../src/telemetry/core', '../src/config', '../src/i18n', './transport', './isolation', './documents', './resources', './pdf', '../src/data/background-cache', '../src/data/pdf-cache', './pdf-storage', '../src/data/account-lease', '../src/components/fixture-actions', '../src/native/platform', './pdf-import', './pdf-production-storage', 'expo/fetch', './pdf-http'];
@@ -108,7 +108,7 @@ test('fixture runtime activates a unique native reader owner and obsolete dispos
   class File extends Directory {write(value) {files.set(this.uri, value);} async text() {return files.get(this.uri);}}
   class Database {async init() {} async writeTransaction(work) {await work({execute: async () => {}});} async close() {events.push('close');}}
   class Sessions {constructor(_preferences, lifecycle) {this.lifecycle = lifecycle;} async restore() {await this.lifecycle.enter({userId: 'fixture-user'});} getSnapshot() {return {status: 'authenticated'};}}
-  class Cache {constructor(dataDirectory) {this.dataDirectory = dataDirectory;}}
+  class Cache {constructor(dataDirectory) {this.dataDirectory = dataDirectory;} setAvatarCache(avatars) {this.avatars = avatars;}}
   class Queue {start() {events.push('start');} cancel() {} async stop() {} async pdfCacheStatus() {return {complete: false, downloadedBytes: 0, totalBytes: 0};}}
   class Lease {assertActive() {} invalidate() {} async drainWrites() {}}
   const boundaries = {...Object.fromEntries(runtimeImports.map(name => [name, {}])),
@@ -147,7 +147,7 @@ test('mounted FixtureApp waits for foreground, records only completed actions, a
   class File {constructor(directory, name) {this.path = `${directory}/${name}`;} write(value) {files.set(this.path, value);} async text() {return files.get(this.path);}}
   const {default: FixtureApp} = await load('../../fixtures/FixtureApp.tsx', {
     react: React, 'react-native': {ActivityIndicator: primitive, View: primitive, Text: primitive, StatusBar: () => null, Platform: {OS: 'android', constants: {Release: 'test'}}, Dimensions: {get: () => ({})}, PixelRatio: {get: () => 1}, useColorScheme: () => 'light', useWindowDimensions: () => ({width: 400, height: 800, fontScale: 1}), Linking: {addEventListener(_name, handler) {urlHandler = handler; return {remove() {}};}, getInitialURL: async () => null}},
-    'react-native-gesture-handler': {GestureHandlerRootView: primitive}, 'react-native-safe-area-context': {SafeAreaProvider: primitive, useSafeAreaInsets: () => ({top: 0, bottom: 0, left: 0, right: 0})}, 'expo-file-system': {File}, 'expo-modules-core': {},
+    'react-native-gesture-handler': {GestureHandlerRootView: primitive}, 'react-native-safe-area-context': {SafeAreaProvider: primitive, useSafeAreaInsets: () => ({top: 0, bottom: 0, left: 0, right: 0})}, 'expo-file-system': {File}, 'expo': {},
     '../src/App': {ApplicationRoutes() {React.useEffect(() => {mounts++; return () => {mounts--;};}, []); return React.createElement('span', null, 'reader remains mounted');}, navigationRef: {isReady: () => false}}, '../src/runtime': {FixtureMobileProvider: primitive}, '../src/theme': {mobileColors: {}}, '../src/components/fixture-actions': {fixtureActions: router}, './runtime': {createFixtureRuntime: async () => api},
     './scenarios.json': {schemaVersion: 1, scenarios: {test: {route: {name: 'Library'}, payload, actions: [{kind: 'pdf-fill-cache'}]}}}, './manifest.json': {files: [{path: 'scenarios.json', sha256: 'prepared-digest'}]}, './commands': {parseFixtureCommand: () => ({kind: 'action', action: 0})},
   }, {globalThis: controlGlobal, process: {env: {EXPO_PUBLIC_SLAX_UI_FIXTURE: 'test'}}, console: {warn: value => warnings.push(value)}});

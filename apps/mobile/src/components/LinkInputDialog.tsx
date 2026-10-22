@@ -1,3 +1,4 @@
+import type {TextInputInstance} from 'react-native'
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -10,7 +11,7 @@ const links = /(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]
 export function LinkInputDialog({visible, onDismiss, onSubmit, initialTitle, onImportPdf}: {visible: boolean; onDismiss(): void; onSubmit(text: string): void; initialTitle?: string; onImportPdf?(): void}) {
   const {t, fixtureOnly} = useMobile(), edit = initialTitle !== undefined;
   const [text, setText] = useState(initialTitle ?? ''), [error, setError] = useState<{key: string; color: string} | null>(null);
-  const input = useRef<TextInput>(null), edited = useRef(false), pendingImport = useRef(false);
+  const input = useRef<TextInputInstance>(null), edited = useRef(false), pendingImport = useRef(false);
   const importCallback = useRef(onImportPdf); importCallback.current = onImportPdf;
   const completeImport = () => {if (pendingImport.current) {pendingImport.current = false; importCallback.current?.();}};
   useEffect(() => {if (visible) pendingImport.current = false;}, [visible]);

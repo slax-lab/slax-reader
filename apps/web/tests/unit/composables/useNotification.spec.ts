@@ -16,7 +16,8 @@ const { mockUseRuntimeConfig, mockRequest, mockPost, mockCookiesGet, mockRegiste
   const defaultRuntimeConfig = {
     public: {
       PUSH_API_PUBLIC_KEY: 'BHnRPP6OFmStcJX5T8Mg2BQ7Y5Lv1G3K9j-pXSlw5L9MQYXt5QF6sHN3VzGvUuJqLxRkPZcWmSdNbAEcDfHhT4M',
-      DWEB_API_BASE_URL: 'http://localhost:8787'
+      DWEB_API_BASE_URL: 'http://localhost:8787',
+      COOKIE_TOKEN_NAME: 'token'
     },
     app: { baseURL: '/' }
   }
@@ -206,6 +207,18 @@ describe('useNotification — full env', () => {
       await initWebsocket()
       expect(warnSpy).toHaveBeenCalledWith('[slax] No token found for WebSocket connection')
       expect(swReg.active.postMessage).not.toHaveBeenCalled()
+    })
+
+    it.each([null, { token: 'nested-token' }, 123])('ignores a non-string token value: %j', async value => {
+      const swReg = makeSwRegistration()
+      stubFullEnv(swReg)
+      mockCookiesGet.mockReturnValue(value)
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const { initWebsocket } = useNotification()
+      await initWebsocket()
+      expect(warnSpy).toHaveBeenCalledWith('[slax] No token found for WebSocket connection')
+      expect(swReg.active.postMessage).not.toHaveBeenCalled()
+      expect(mockCookiesGet).toHaveBeenCalledWith('token', { doNotParse: true })
     })
 
     it('C14: token 存在 → 拼 wss URL → swRegistration.active.postMessage 被调', async () => {

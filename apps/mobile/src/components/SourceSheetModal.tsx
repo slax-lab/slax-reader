@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {Animated, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindowDimensions} from 'react-native';
+import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
 import {mobileColors} from '../theme';
 import {motionDuration, motionDurationFor} from '../motion/policy';
 import {useReducedMotion} from '../motion/useReducedMotion';
@@ -43,15 +44,19 @@ export function SourceSheetModal({visible, onDismiss, onDidDismiss, dismissible 
   }, [visible, presented, shown, height, reducedMotion, progress]);
   return <Modal visible={presented} transparent presentationStyle="overFullScreen" animationType="none" statusBarTranslucent
     onShow={() => setShown(true)} onDismiss={completeDismissal} onRequestClose={() => {if (dismissible) onDismiss();}}>
+    <SafeAreaProvider>
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined} pointerEvents={visible ? 'auto' : 'none'}>
       <Animated.View testID="source-sheet-backdrop" style={[StyleSheet.absoluteFill, {backgroundColor: mobileColors.scrim, opacity: progress}]}>
         <Pressable accessible={false} style={StyleSheet.absoluteFill} onPress={() => {if (dismissible) onDismiss();}} />
       </Animated.View>
+      <SafeAreaView edges={['left', 'right']} style={{flexShrink: 1}} pointerEvents="box-none">
       <Animated.View testID="source-sheet-content" accessibilityViewIsModal onLayout={event => setHeight(previous => previous === event.nativeEvent.layout.height ? previous : event.nativeEvent.layout.height)}
         style={{maxHeight: '100%', opacity: reducedMotion ? progress : 1, transform: [{translateY: progress.interpolate({inputRange: [0, 1], outputRange: [reducedMotion ? 0 : height || windowHeight, 0]})}]}}>
         {visible ? children : retained.current}
       </Animated.View>
+      </SafeAreaView>
     </KeyboardAvoidingView>
+    </SafeAreaProvider>
   </Modal>;
 }
 const styles = StyleSheet.create({root: {flex: 1, justifyContent: 'flex-end'}});

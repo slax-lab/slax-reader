@@ -62,4 +62,97 @@
     background: var(--slax-accent-soft);
     border-color: var(--slax-accent);
   }
+
+  /* 播客整理稿：段首时间戳可点跳转，播放中的段落高亮；正文真实 HTML，便于划线评论 */
+  .slax-pod-lede {
+    margin: 0 0 24px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--slax-accent-bg);
+  }
+
+  .slax-pod-p {
+    margin-left: -12px;
+    margin-right: -12px;
+    padding: 4px 12px;
+    border-left: 2px solid transparent;
+    border-radius: 6px;
+    transition:
+      background 0.2s ease,
+      border-color 0.2s ease;
+    scroll-margin-top: calc(var(--slax-header-h-snapshot, 52px) + 96px);
+  }
+
+  .slax-pod-p.slax-pod-playing {
+    border-left-color: var(--slax-accent);
+    background: var(--slax-accent-bg);
+  }
+
+  .slax-pod-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-right: 8px;
+    padding: 0 7px;
+    border: 1px solid var(--slax-accent-soft);
+    border-radius: 6px;
+    background: var(--slax-accent-bg);
+    color: var(--slax-accent);
+    font-size: 0.75em;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.7;
+    vertical-align: 0.1em;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .slax-pod-time::before {
+    content: '';
+    border-style: solid;
+    border-width: 3.5px 0 3.5px 5px;
+    border-color: transparent transparent transparent currentColor;
+  }
+
+  .slax-pod-time:hover {
+    background: var(--slax-accent-soft);
+    border-color: var(--slax-accent);
+  }
+
+  .slax-pod-time:focus-visible {
+    outline: 2px solid var(--slax-accent);
+    outline-offset: 1px;
+  }
+
+  .slax-pod-speaker {
+    margin-right: 4px;
+    font-weight: 600;
+  }
+
+  .slax-pod-speaker::after {
+    content: ':';
+  }
+
+  .slax-pod-article[lang='zh'] .slax-pod-speaker::after {
+    content: '：';
+  }
+
+  .slax-pod-notes {
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px solid var(--slax-border);
+    color: var(--slax-text-light);
+    font-size: 0.9em;
+  }
+
+  .slax-pod-notes h2 {
+    font-size: 1em;
+  }
+
+  iframe.slax-pod-embed[src] {
+    min-height: 0;
+    height: 232px;
+    border-radius: 12px;
+  }
 }

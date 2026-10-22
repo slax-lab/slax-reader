@@ -19,8 +19,10 @@ if (!command || ['help', '-h', '--help'].includes(command)) {
   process.exitCode = 2;
 } else {
   const configurationCommands = new Set(['dev', 'config', 'prebuild', 'prebuild:clean', 'android', 'ios', 'pods', 'build:android', 'build:ios', 'archive:ios', 'export:ios', 'upload:ios']);
+  const release = args.some((value, index) => value === '--release' || ['--configuration', '--variant'].includes(value) && String(args[index + 1]).toLowerCase() === 'release');
+  const development = ['dev', 'ios', 'android'].includes(command) && !release;
   const environment = configurationCommands.has(command)
-    ? loadMobileEnvironment().environment
+    ? loadMobileEnvironment({development}).environment
     : {...process.env, SLAX_MOBILE_NO_LOCAL_CONFIG: '1'};
   const invocation = pnpmInvocation(['--filter', manifest.name, 'run', command, ...args]);
   const grouped = process.platform !== 'win32' && process.env.SLAX_APP_INHERIT_PROCESS_GROUP !== '1';

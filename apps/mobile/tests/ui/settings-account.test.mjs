@@ -108,7 +108,7 @@ async function harness(root) {
   const ui = Object.fromEntries(['ScreenSurface', 'SourceButton', 'SourceDialog', 'SourceIcon', 'SourceSwitch', 'SourceText', 'TextAction', 'Divider'].map(name => [name, native(name)]));
   const load = modules({
     react: React,
-    'react-native': {AppState: appState, StyleSheet: {create: value => value}, ...Object.fromEntries(['Pressable', 'ScrollView', 'View'].map(name => [name, native(name)]))},
+    'react-native': {AppState: appState, Platform: {OS: 'ios'}, StyleSheet: {create: value => value}, ...Object.fromEntries(['Pressable', 'ScrollView', 'View'].map(name => [name, native(name)]))},
     'react-native-webview': {WebView: native('WebView')},
     '@react-navigation/native': {useFocusEffect: callback => React.useEffect(() => h.focused ? callback() : undefined, [callback, h.focused])},
     '../runtime': {useMobile},
@@ -260,6 +260,18 @@ test('RSS foreground and focus own one subscription, cancellation, retry and mut
   assert.equal(h.listeners.size, 1);
   await act(async () => root.render(null));
   assert.equal(h.listeners.size, 0);
+}));
+
+test('RSS retains known state while a same-owner refocus request is pending', async () => mounted(async root => {
+  const h = await harness(root);
+  h.labs = async () => ({features: [{key: 'rss', enabled: true}]});
+  await h.renderRss(); assert.equal(h.rss.ready, true); assert.equal(h.rss.enabled, true);
+  h.focused = false; await h.rerender();
+  const pending = deferred(); h.labs = () => pending.promise;
+  h.focused = true; await h.rerender();
+  assert.equal(h.rss.ready, true); assert.equal(h.rss.enabled, true); assert.equal(h.rss.busy, true);
+  await act(async () => pending.resolve({features: []}));
+  assert.equal(h.rss.enabled, false); assert.equal(h.rss.busy, false);
 }));
 
 test('DeleteAccount real route keeps blank/native-only notices disabled, requires bottom and confirmation', async () => mounted(async root => {

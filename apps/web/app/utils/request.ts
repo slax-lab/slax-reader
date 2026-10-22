@@ -1,6 +1,6 @@
+import { configuredCookieName, readStringCookie } from './authCookie'
 import { isClient, isServer } from '@commons/frontend-utils/is'
 import { type FetchOptions, FetchRequest, type FetchResult, RequestError, RequestMethodType } from '@commons/frontend-utils/request'
-
 import { useCookies } from '@vueuse/integrations/useCookies'
 import Toast, { ToastType } from '~/components/Toast'
 
@@ -124,14 +124,14 @@ export const getClientEventHeaders = (): Record<string, string> => {
 }
 
 export const getUserToken = () => {
-  const COOKIE_TOKEN_NAME = useRuntimeConfig().public.COOKIE_TOKEN_NAME
+  const cookieName = configuredCookieName(useRuntimeConfig().public.COOKIE_TOKEN_NAME)
+  if (!cookieName) return undefined
 
   const getUserTokenClient = () => {
-    const cookies = useCookies()
-    return cookies.get(COOKIE_TOKEN_NAME)
+    return readStringCookie(cookieName)
   }
   const getUserTokenServer = () => {
-    return getRequestCookie(COOKIE_TOKEN_NAME)
+    return getRequestCookie(cookieName)
   }
   return isClient ? getUserTokenClient() : getUserTokenServer()
 }

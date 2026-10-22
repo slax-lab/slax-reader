@@ -2,14 +2,21 @@ import {useCallback, useEffect, useRef, useState} from 'react';
 import type {PreferenceStore, PreferenceValues} from '../data/preferences';
 import type {MobileLocale} from '../i18n';
 import type {AccountScope} from './account-scope';
+import {systemSurfacePreferences} from './system-surface-preferences';
 
 export interface SettingsState {
   cacheCount: number;
   images: boolean;
+  systemDiscovery: boolean;
+  systemDonations: boolean;
+  adaptivePdfPrototype: boolean;
   language: boolean;
   error: string | null;
   setCacheCount(value: number): void;
   toggleImages(): void;
+  setSystemDiscovery(value: boolean): void;
+  setSystemDonations(value: boolean): void;
+  setAdaptivePdfPrototype(value: boolean): void;
   showLanguage(): void;
   dismissLanguage(): void;
   selectLanguage(value: MobileLocale): void;
@@ -32,7 +39,7 @@ export function useSettingsState(
     return () => { if (lifetime.current === generation) lifetime.current = null; };
   }, [preferences, scope]);
 
-  const save = useCallback((key: string, value: string | number) => {
+  const save = useCallback((key: string, value: string | number | boolean) => {
     const generation = lifetime.current;
     const current = () => generation !== null && lifetime.current === generation && scope.isCurrent();
     if (!current()) return;
@@ -43,14 +50,22 @@ export function useSettingsState(
     });
   }, [preferences, scope]);
   const images = (settings.download_images ?? 1) === 1;
+  const {discovery: systemDiscovery, donations: systemDonations} = systemSurfacePreferences(settings);
+  const adaptivePdfPrototype = settings.pdf_dual_page_prototype === true;
 
   return {
     cacheCount: typeof settings.cache_count === 'number' ? settings.cache_count : 50,
     images,
+    systemDiscovery,
+    systemDonations,
+    adaptivePdfPrototype,
     language,
     error,
     setCacheCount: value => save('cache_count', value),
     toggleImages: () => save('download_images', images ? 0 : 1),
+    setSystemDiscovery: value => save('system_discovery_enabled', value),
+    setSystemDonations: value => save('system_donations_enabled', value),
+    setAdaptivePdfPrototype: value => save('pdf_dual_page_prototype', value),
     showLanguage: () => setLanguage(true),
     dismissLanguage: () => setLanguage(false),
     selectLanguage: value => {

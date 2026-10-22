@@ -175,6 +175,7 @@ vi.mock('~~/app/components/Article/processors', () => {
     ImageProcessor: class {},
     ListProcessor: class {},
     PhotoSwipeProcessor: class {},
+    PodcastProcessor: class {},
     PRELINE_FLAG_CLASS: 'preline-flag',
     PreLineProcessor: class {},
     SocialPostProcessor: class {},
@@ -352,11 +353,11 @@ describe('Article/BookmarkArticle', () => {
   })
 
   describe('handleHTML + handleDrawMark 流程', () => {
-    it('registers 18 processors and runs the DOM pipeline once after mounting', async () => {
+    it('registers 19 processors and runs the DOM pipeline once after mounting', async () => {
       mountWithApp(BookmarkArticle, { props: { detail: buildDetail() }, global: { stubs } })
       await flushPromises()
       await flushPromises()
-      expect(pipelineRegistered.length).toBe(18)
+      expect(pipelineRegistered.length).toBe(19)
       expect(pipelineRunCalls.length).toBe(1)
     })
 

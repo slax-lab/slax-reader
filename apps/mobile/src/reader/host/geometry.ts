@@ -1,6 +1,6 @@
 import type {ReaderGeometry} from '../coordinates.ts'
 
-export interface ReaderHostViewport {offset: number; height: number}
+export interface ReaderHostViewport {offset: number; height: number; width?: number}
 export function readerHostGeometry(platform: 'ios' | 'android', input: {
   pixelRatio: number; headerHeight: number; headerSafeArea: number; screenTop: number; viewportHeight: number; scrollPoints: number
 }, overrides?: Partial<ReaderGeometry>): ReaderGeometry {

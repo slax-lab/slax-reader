@@ -5,7 +5,8 @@ enum ShareCollector {
   static func collect(content: String, title: String?) async throws {
     guard let range = content.range(of: "^((https|http)?://)[^\\s]+", options: .regularExpression) else { throw ShareFailure.message("Not have URL content to collect.") }
     let values = try SharedPreferences.read()
-    guard let token = values["auth_token"] as? String, !token.isEmpty else { throw ShareFailure.message("Not have auth info, please login first.") }
+    guard values["_slax_sign_out_pending_v1"] as? Bool != true,
+      let token = values["auth_token"] as? String, !token.isEmpty else { throw ShareFailure.message("Not have auth info, please login first.") }
     let info = Bundle.main.infoDictionary ?? [:]
     let endpointKey = (values["selected_env"] as? String) == "BETA" ? "SlaxApiBetaURL" : "SlaxApiBaseURL"
     guard let base = info[endpointKey] as? String, let url = URL(string: "/v1/bookmark/add_url", relativeTo: URL(string: base))?.absoluteURL else { throw ShareFailure.message("Collection failed, please try again.") }

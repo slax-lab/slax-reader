@@ -18,9 +18,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // 注意：不在顶层 mockNuxtImport('useNuxtApp', ...)，否则会覆盖 setupNuxt 自身依赖的 nuxtApp 实例
 // （pinia payload-plugin / router plugin 都会在 init 期失败）。改为在用例内 vi.spyOn(store, 'changeLocalLocale')
 // 阻断真实副作用，等价覆盖 changeLocalLocale 是否被调用的验证目的
-const { haveRequestTokenMock, useI18nMock, mockPost, mockRequest, cookieGet, cookieSet, cookieRemove } = vi.hoisted(() => {
+const { haveRequestTokenMock, useI18nMock, mockPost, mockRequest, cookieGet, cookieSet, cookieRemove, useCookiesMock } = vi.hoisted(() => {
   const post = vi.fn()
   const get = vi.fn()
+  const cookieGet = vi.fn()
+  const cookieSet = vi.fn()
+  const cookieRemove = vi.fn()
+  const useCookies = vi.fn(() => ({ set: cookieSet, get: cookieGet, remove: cookieRemove }))
   return {
     haveRequestTokenMock: vi.fn(() => false),
     useI18nMock: vi.fn(() => ({ locale: { value: 'en' } })),
@@ -35,9 +39,10 @@ const { haveRequestTokenMock, useI18nMock, mockPost, mockRequest, cookieGet, coo
       upgrade: vi.fn(),
       uploadFile: vi.fn()
     })),
-    cookieGet: vi.fn(),
-    cookieSet: vi.fn(),
-    cookieRemove: vi.fn()
+    cookieGet,
+    cookieSet,
+    cookieRemove,
+    useCookiesMock: useCookies
   }
 })
 mockNuxtImport('haveRequestToken', () => haveRequestTokenMock)
@@ -58,7 +63,7 @@ mockNuxtImport('useRuntimeConfig', () => () => runtimeConfig)
 
 // useCookies 在 user.ts 顶部以显式路径 import，必须用 vi.mock 拦截模块路径（mockNuxtImport 不覆盖此场景）
 vi.mock('@vueuse/integrations/useCookies', () => ({
-  useCookies: () => ({ set: cookieSet, get: cookieGet, remove: cookieRemove })
+  useCookies: useCookiesMock
 }))
 
 describe('useUserStore - getters', () => {
@@ -218,6 +223,7 @@ describe('useUserStore - getters', () => {
 describe('useUserStore - 纯本地 state actions', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    useCookiesMock.mockReset().mockReturnValue({ set: cookieSet, get: cookieGet, remove: cookieRemove })
     haveRequestTokenMock.mockReset().mockReturnValue(false)
     useI18nMock.mockReset().mockReturnValue({ locale: { value: 'en' } })
     vi.useFakeTimers()
@@ -429,6 +435,7 @@ describe('useUserStore - account locale integration', () => {
   let apply: ReturnType<typeof vi.spyOn>
   beforeEach(() => {
     setActivePinia(createPinia())
+    useCookiesMock.mockReset().mockReturnValue({ set: cookieSet, get: cookieGet, remove: cookieRemove })
     currentToken = token(1)
     cookieGet.mockReset().mockImplementation(name => (name === 'token' ? currentToken : 'device'))
     cookieSet.mockReset().mockImplementation((name, value) => {
@@ -505,6 +512,13 @@ describe('useUserStore - account locale integration', () => {
     const store = useUserStore()
     await store.refreshUserToken()
     expect(cookieSet).toHaveBeenCalledWith('token', token(1, 2), expect.objectContaining({ path: '/', domain: '.example.com' }))
+  })
+  it('reuses the captured cookie handle while refreshing a token', async () => {
+    const store = useUserStore()
+    useCookiesMock.mockClear()
+    await store.refreshUserToken()
+    // One handle belongs to getClientEventHeaders/getDeviceId and one to the locale task adapter.
+    expect(useCookiesMock).toHaveBeenCalledTimes(2)
   })
   it('keeps token when a refresh fails', async () => {
     fetcher.mockRejectedValueOnce(new Error('offline'))

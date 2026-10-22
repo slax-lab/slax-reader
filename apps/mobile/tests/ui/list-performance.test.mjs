@@ -14,7 +14,7 @@ test('production row uses installed UI worklets, yields closed right/vertical dr
   const {BookmarkRow} = loadWorkletComponent(new URL('../../src/components/BookmarkRow.tsx', import.meta.url), {
     react: React, 'react-native': {...host.native, PixelRatio: {roundToNearestPixel: value => value}, Pressable: props => {presses.push(props); return React.createElement(host.native.Pressable, props);}},
     'react-native-gesture-handler': motion.gestures, 'react-native-reanimated': motion.reanimated,
-    './SourceDrawer': {useDrawerGesture: () => drawer}, 'expo-haptics': {impactAsync: async () => {}, ImpactFeedbackStyle: {Medium: 'medium'}},
+    './SourceDrawer': {useDrawerGesture: () => drawer, useDrawerInput: () => null}, 'expo-haptics': {impactAsync: async () => {}, ImpactFeedbackStyle: {Medium: 'medium'}},
     '../data/repositories': {bookmarkDisplayTitle: item => item.title}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}},
     './SourceUI': {SourceIcon: () => null}, './SourceLine': {SourceLine: () => {renders++; return null;}}, './SourceMenu': {SourceMenu: props => {menus = props; return null;}},
   });
@@ -99,7 +99,7 @@ test('RSS deadline ticks preserve row renders/callbacks and hidden feeds stop th
   const text = props => {if (props.children === 'Article') rowRenders++; return React.createElement(host.native.View, props);};
   const {RssFeed} = await loadComponent('../../src/components/RssFeed.tsx', {
     react: React, 'react-native': {...host.native, FlatList}, '../runtime': {useMobile: () => mobile}, '../rss/controller': {rssDisplayName: () => 'Feed'}, '../theme': theme,
-    './SourceUI': {...host.components, SourceText: text, SourceButton: nil, SourceDialog: nil, SourceSheet: nil, SourceProgress: nil, Divider: nil, TextAction: props => {actions.push(props); return null;}}, './SourceMenu': {SourceMenu: nil}, './fixture-actions': {}, './feed-scroll': scrolling,
+    './SourceUI': {...host.components, SourceText: text, SourceButton: nil, SourceDialog: nil, SourceSheet: nil, SourceProgress: nil, Divider: nil, TextAction: props => {actions.push(props); return null;}}, './SourceMenu': {SourceMenu: nil}, './AppImage': {AppImage: nil}, './fixture-actions': {}, './feed-scroll': scrolling,
   }, {Date: Clock, setInterval(callback) {const id = Symbol(); timers.set(id, callback); return id;}, clearInterval(id) {timers.delete(id);}});
   const position = new scrolling.FeedScrollPosition(), entry = {id: 'one', title: 'Article', summary: '', author: '', first_seen_at: '2026-10-11T09:00:00Z', article_url: 'https://example.test'};
   const state = {enabled: true, ready: true, busy: false, selected: 'feed', subscriptions: [{id: 'feed', next_allowed_at: new Date(now + 10000).toISOString()}], entries: [entry], hasMore: true, retryAt: new Date(now + 10000).toISOString()};

@@ -9,12 +9,21 @@ import {useTelemetry} from '../telemetry';
 import {fixtureDocument} from '../native/fixture-document';
 
 export function SubscriptionScreen() {
-  const {payments: controller, webSession, config, fixtureOnly} = useMobile();
+  const {payments: controller, webSession, acquireWebSession, api, runtime, nativeResourceOwner, sessions, config, fixtureOnly} = useMobile();
+  useEffect(() => acquireWebSession?.(), [acquireWebSession]);
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || fixtureOnly || !nativeResourceOwner) return;
+    const request = new AbortController(), scope = sessions.captureRequestScope();
+    void controller.loadProducts(async () => {
+      const result = await api.getIAPProductIds(request.signal); scope.assertCurrent(); return result.products;
+    }, () => !request.signal.aborted && runtime.getNativeResourceOwner() === nativeResourceOwner);
+    return () => request.abort();
+  }, [controller, api, runtime, nativeResourceOwner, sessions, fixtureOnly]);
   const telemetry = useTelemetry();
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [loading, setLoading] = useState(true);
   const cookieReady = webSession.ready;
-  const view = useRef<WebView>(null);
+  const view = useRef<WebView<unknown>>(null);
   const busy = state.status === 'purchasing' || state.status === 'checking' || state.status === 'pending';
   usePreventRemove(busy, () => undefined);
   useEffect(() => {
@@ -27,7 +36,7 @@ export function SubscriptionScreen() {
   }, [state]);
   const url = `${config.webUrl}/subscription/inapp-purchase`;
   return <View style={{flex: 1, backgroundColor: C.background}}>
-    {cookieReady && <WebView ref={view} source={fixtureOnly ? {html: fixtureDocument(fixtureOnly.subscriptionHtml ?? '<html><head></head><body><p>Controlled subscription fixture. Store accounts and external content are disabled.</p></body></html>'), baseUrl: url} : {uri: url}} sharedCookiesEnabled={!fixtureOnly} incognito={Boolean(fixtureOnly)} javaScriptEnabled allowsInlineMediaPlayback onLoadEnd={() => setLoading(false)}
+    {cookieReady && <WebView<unknown> ref={view} source={fixtureOnly ? {html: fixtureDocument(fixtureOnly.subscriptionHtml ?? '<html><head></head><body><p>Controlled subscription fixture. Store accounts and external content are disabled.</p></body></html>'), baseUrl: url} : {uri: url}} sharedCookiesEnabled={!fixtureOnly} incognito={Boolean(fixtureOnly)} javaScriptEnabled allowsInlineMediaPlayback onLoadEnd={() => setLoading(false)}
       onShouldStartLoadWithRequest={(request: {url: string}) => !fixtureOnly || request.url === 'about:blank' || request.url === url}
       injectedJavaScriptBeforeContentLoaded={`window.NativeBridge={postMessage:function(data){window.ReactNativeWebView.postMessage(typeof data==='string'?data:JSON.stringify(data));}};window.webkit=window.webkit||{};window.webkit.messageHandlers=window.webkit.messageHandlers||{};window.webkit.messageHandlers.NativeBridge=window.NativeBridge;true;`}
       onMessage={event => {

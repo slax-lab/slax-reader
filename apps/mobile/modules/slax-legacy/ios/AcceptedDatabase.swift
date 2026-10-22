@@ -51,3 +51,31 @@ func acceptedDatabaseCandidate(values: [String: Any], support: URL, shared: URL,
         (current["storageTables"] as? [String])?.sorted() == tables.sorted() else { return nil }
   return canonical
 }
+
+struct KnownInstallationDatabase {
+  let path: String
+  let mode: String
+}
+
+func initializedDatabaseCandidate(values: [String: Any], support: URL, shared: URL, bundleIdentifier: String) throws -> KnownInstallationDatabase? {
+  guard let raw = values["_slax_database_installation_v1"] else { return nil }
+  guard let encoded = raw as? String, let data = encoded.data(using: .utf8),
+        let record = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+        record["version"] as? Int == 1, record["state"] as? String == "ready",
+        record["targetSdk"] as? String == "powersync-react-native-2.3.1", record["schemaVersion"] as? String == "2",
+        let mode = record["mode"] as? String, ["native", "adopted"].contains(mode),
+        record["profile"] as? String == (mode == "native" ? "slax-native-format14-schema2-v1" : "slax-powersync-format14-schema2-v1"),
+        let priorPath = record["path"] as? String, let identity = record["identity"] as? [String: String] else { throw CocoaError(.fileReadCorruptFile) }
+  let file = support.appendingPathComponent(mode == "native" ? "slax-react-native/powersync.db" : "databases/powersync.db")
+  let current = legacyDatabaseIdentities([file.path], support: support, shared: shared, bundleIdentifier: bundleIdentifier)[file.path]
+  guard current == identity, let prefix = identity["relocationPrefix"], let relative = identity["relativePath"],
+        priorPath.hasPrefix(prefix), priorPath.hasSuffix("/" + relative),
+        !priorPath.unicodeScalars.contains(where: { $0.value < 32 || $0.value == 127 || $0.value == 92 }),
+        !priorPath.split(separator: "/", omittingEmptySubsequences: false).dropFirst().contains(where: { $0.isEmpty || $0 == "." || $0 == ".." }) else { throw CocoaError(.fileReadNoPermission) }
+  let suffix = String(priorPath.dropFirst(prefix.count))
+  guard let slash = suffix.firstIndex(of: "/"), UUID(uuidString: String(suffix[..<slash])) != nil,
+        String(suffix[suffix.index(after: slash)...]) == relative,
+        file.resolvingSymlinksInPath().path == file.path,
+        (try file.resourceValues(forKeys: [.isRegularFileKey])).isRegularFile == true else { throw CocoaError(.fileReadNoPermission) }
+  return KnownInstallationDatabase(path: file.path, mode: mode)
+}

@@ -38,6 +38,14 @@ Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comme
 - Backend validation and deployment commands must be documented through the root abstraction and preserve the distinction between local setup, offline checks and explicitly authorized remote operations.
 - The runtime Worker type generator may use an isolated temporary directory to prevent secret/configuration discovery; this is an internal safety boundary, not a developer-facing working-directory requirement.
 
+## Package Version Decisions
+
+- For changes to CLI, Extension, or Mobile logic, shipped UI/assets, runtime dependencies, native integration, or build/package output, assess which applications are affected. Include indirect effects from shared packages, API contracts, tooling, and configuration outside the application directory. Documentation-only or test-only changes that do not affect shipped behavior or package output are exempt.
+- After preparing and validating the changes, before committing, pushing, or handing them off as ready, ask the human whether to increment the affected application's `package.json` version: CLI uses `apps/cli/package.json`, Extension uses `apps/extension/package.json`, and Mobile uses `apps/mobile/package.json`. Combine affected applications into one question, giving each current version, recommended new version/bump type, and reason. Follow an explicit version decision already given for this task without asking again.
+- Continue implementation and independent checks while the decision is pending, but wait for an explicit answer before changing version metadata or finalizing the task. Do not assume either approval or refusal. If no answer is available, report the version decision as pending.
+- If approved, update the affected manifests in the same task branch and PR, following each application's release constraints. CLI and Extension keep their stable source versions; CI derives channel suffixes. For Mobile, include `buildNumber` and `previousBuildNumber` in the decision as appropriate, follow `docs/mobile/RELEASE.md`, and regenerate native metadata through the existing tooling. If declined, preserve the versions and record that decision in the task/PR summary.
+- Verify the relevant CI release conditions when explaining the effect of a bump. Version approval authorizes the agreed metadata change; signing, uploading, and store publication still follow their existing authorization requirements. Mobile CI currently performs checks and JavaScript bundle validation only.
+
 ## Development Workflow — OpenSpec Required
 
 This repo uses OpenSpec for spec-driven development. Living specs live in `openspec/specs/` (organized by product capability, not by package); in-flight work lives in `openspec/changes/`.
@@ -50,6 +58,17 @@ This repo uses OpenSpec for spec-driven development. Living specs live in `opens
   - Any tool: drive the OpenSpec CLI directly (`openspec list`, `openspec validate`, `openspec archive`).
 - Implementation-only changes (refactors, typos, comment/doc tweaks) MAY skip the proposal.
 - After editing specs or changes, run `openspec validate --all --strict`; it must pass before merge.
+
+## Definition of Done
+
+A change that alters observable behavior is done only when the changed behavior has been exercised in a running environment; automated checks (typecheck, lint, unit and integration tests) must also run, but never substitute for the exercise. What to exercise derives from the change's delta-spec WHEN/THEN scenarios and proposal intent — they are the acceptance criteria — plus the affected app's smoke flows in its development doc; a change without an OpenSpec proposal derives smoke-level verification from its diff's touched surface and the affected app's documented smoke flows, and documentation- or typo-scale changes are exempt when they say so.
+
+- Drive the exercise with an agent wherever an agent can operate the environment (browser-use, computer-use, API calls); human verification is reserved for what an agent cannot judge. Declaring a gap — "not verified, because …" — is acceptable evidence; silence is not.
+- Record verification in `openspec/changes/<change-id>/validation.md`: commands run and results, what was exercised in the running environment, and what was not verified with the reason. Summarize it in the pull request's Test plan with a link to that file; pull request bodies follow `.github/PULL_REQUEST_TEMPLATE.md`, never free text. A change without an OpenSpec proposal has no change directory — its Test plan entry is the record.
+- Screenshots and recordings upload with `gh --attach` (requires gh v2.99.0+) and are never committed to git. The text record must stand alone without the media — the automated review evaluates text only, and attachment links rot.
+- UI-visible changes additionally satisfy `DESIGN.md`'s verification matrix (themes, responsive widths, recorded states), and a human exercises the change hands-on in the agent-prepared running environment before the pull request opens: requested adjustments are implemented and re-verified first, the acceptance (who, when, what was adjusted) is recorded in `validation.md`, and this step has no declared-gap path.
+
+Per-app check commands and smoke flows: `docs/web/development.md`, `docs/extension/development.md`, `docs/api/DEVELOPMENT-DOCUMENT-EN.md`, `docs/cli/DEVELOPMENT.md`.
 
 ## Branching and Promotion
 
@@ -67,6 +86,8 @@ Two structural wrinkles when running promotions. First, the required `PR review 
 `REVIEW.md` at the repo root is the single source of truth for review policy: review passes, Important-vs-Nit calibration, and the compliance pass against the PR's linked OpenSpec change. Any agent asked to review code or a PR MUST read and follow it. Behavior-changing PRs must name their change via an `OpenSpec: <change-id>` line in the PR body. `REVIEW.md` carries review instructions only — when editing it, never add operational documentation (triggers, gates, pausing, budget, troubleshooting); that belongs next to the workflows or in `docs/`.
 
 Agents MUST run the local pre-push review defined in `REVIEW.md` before pushing any behavior-changing diff — on every path, not only when explicitly asked to review. Follow its compliance pass to determine the change-id without a PR body, and resolve Important findings before pushing. This is a prompt-level duty: no hook or gate verifies it, so skipping it silently is a process violation.
+
+The author agent closes the review-feedback loop without waiting for a human IM reminder: poll the pull request's review comments (`gh pr view --comments`), resolve or explicitly answer every Important finding, and push the fixes. Pushing re-triggers the automated review; when no run fires for the pushed head, comment `/review` on the pull request. Human IM reminders are a fallback, not the mechanism.
 
 Review findings that recur are tracked in `REVIEW.md`'s "Recurring findings" section. When a human confirms a repeat, the pattern is promoted into these rules (edit `.rulesync/`, then `pnpm agent:sync`) so authoring agents avoid it from the next session. Agents must never promote patterns into the rules on their own.
 

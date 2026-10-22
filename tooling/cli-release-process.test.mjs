@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { spawnSync, execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -35,7 +36,10 @@ for (const branch of ['dev', 'beta', 'main']) {
 import fs from 'node:fs'; const args=process.argv.slice(2); fs.appendFileSync(process.env.RELEASE_COMMANDS,JSON.stringify(args)+'\\n');
 if(args[0]==='merge-base'){process.exit(process.env.FAIL_ANCESTOR?1:0)}
 if(args[0]==='cat-file')process.exit(0);
-if(args[0]==='rev-parse')console.log('${sha}');
+if(args[0]==='rev-parse')console.log(args[1]==='--is-shallow-repository'?'false':'${sha}');
+else if(args[0]==='tag')process.exit(0);
+else if(args[0]==='log')console.log('${sha}');
+else if(args[0]==='ls-tree'||args[0]==='diff-tree')process.stdout.write('apps/cli/package.json\\0');
 else if(args[0]==='diff')console.log('apps/cli/package.json');
 else if(args[0]==='show'){const pkg=JSON.parse(fs.readFileSync('apps/cli/package.json','utf8'));if(args[1].startsWith('${before}'))pkg.version='1.0.1';console.log(JSON.stringify(pkg))}
 else throw Error('Unhandled git fixture command');`, { mode: 0o755 })
@@ -61,7 +65,7 @@ if(url.hostname!=='api.github.com')throw Error('Forbidden external request');
 if(url.pathname.endsWith('/git/refs')&&options.method==='POST'){if(process.env.FAIL_TAG)return result({},403);const body=JSON.parse(options.body);const tag={object:{type:'commit',sha:body.sha}};fs.writeFileSync(process.env.RELEASE_TAG,JSON.stringify(tag));return result(tag)}
 if(url.pathname.includes('/git/ref/tags/')){const tag=read(process.env.RELEASE_TAG);if(process.env.SWITCH_TAG&&++tagReads===2){tag.object.sha='c'.repeat(40);fs.writeFileSync(process.env.RELEASE_TAG,JSON.stringify(tag))}return tag?result(tag):result({},404)}
 let remote=read(process.env.RELEASE_REMOTE);
-if(url.pathname.endsWith('/releases')&&options.method==='POST'){const body=JSON.parse(options.body);remote={id:1,tag_name:body.tag_name,draft:false,prerelease:body.prerelease,assets:[]};fs.writeFileSync(process.env.RELEASE_REMOTE,JSON.stringify(remote));return result(remote)}
+if(url.pathname.endsWith('/releases')&&options.method==='POST'){const body=JSON.parse(options.body);remote={id:1,tag_name:body.tag_name,body:body.body,draft:false,prerelease:body.prerelease,assets:[]};fs.writeFileSync(process.env.RELEASE_REMOTE,JSON.stringify(remote));return result(remote)}
 if(url.pathname.includes('/releases/assets/')){const id=Number(url.pathname.split('/').at(-1));const asset=remote.assets.find(a=>a.id===id);return new Response(Buffer.from(asset.bytes,'base64'))}
 if(url.pathname.endsWith('/releases/latest'))return result({tag_name:'cli-v9.0.0'});
 if(url.pathname.includes('/releases/tags/'))return remote?result(remote):result({},404);
@@ -103,7 +107,9 @@ throw Error('Unhandled fixture request '+url.href)};
     assert.deepEqual(Buffer.from(remoteRelease.assets.find(a => a.name.endsWith('.tgz')).bytes, 'base64'), readFileSync(archive))
     const http = readFileSync(calls, 'utf8').trim().split('\n').map(JSON.parse)
     const creation = http.find(call => call.method === 'POST' && call.url.endsWith('/releases'))
-    assert.equal(JSON.parse(creation.body).generate_release_notes, true)
+    assert.equal(JSON.parse(creation.body).generate_release_notes, undefined)
+    assert.equal(JSON.parse(creation.body).body, readFileSync(join(first, 'RELEASE_NOTES.md'), 'utf8'))
+    assert.match(JSON.parse(creation.body).body, /CLI package version updated/)
     assert.equal(JSON.parse(creation.body).make_latest, 'false')
     assert.equal(JSON.parse(creation.body).target_commitish, sha)
     if (branch !== 'main') assert.ok(http.every(call => new URL(call.url).hostname !== 'registry.npmjs.org'))
@@ -111,6 +117,19 @@ throw Error('Unhandled fixture request '+url.href)};
     writeFileSync(remote, JSON.stringify(remoteRelease))
     assert.equal(run(mode, first, { RELEASE_ARCHIVE: archive }).status, 0)
     assert.equal(JSON.parse(readFileSync(remote, 'utf8')).assets.length, 2)
+    assert.equal(JSON.parse(readFileSync(remote, 'utf8')).body, remoteRelease.body)
+    const notes = readFileSync(join(first, 'RELEASE_NOTES.md'), 'utf8')
+    const beforeTamper = readFileSync(calls, 'utf8')
+    writeFileSync(join(first, 'RELEASE_NOTES.md'), notes + 'tampered')
+    assert.notEqual(run(mode, first, { RELEASE_ARCHIVE: archive }).status, 0)
+    assert.equal(readFileSync(calls, 'utf8'), beforeTamper)
+    const notesMetadataPath = join(first, 'release.json')
+    const notesMetadata = JSON.parse(readFileSync(notesMetadataPath, 'utf8'))
+    writeFileSync(notesMetadataPath, JSON.stringify({ ...notesMetadata, notes: { ...notesMetadata.notes, sha256: createHash('sha256').update(notes + 'tampered').digest('hex') } }))
+    assert.notEqual(run(mode, first, { RELEASE_ARCHIVE: archive }).status, 0)
+    assert.equal(readFileSync(calls, 'utf8'), beforeTamper)
+    writeFileSync(notesMetadataPath, JSON.stringify(notesMetadata))
+    writeFileSync(join(first, 'RELEASE_NOTES.md'), notes)
     const commands = readFileSync(commandLog, 'utf8').trim().split('\n').map(JSON.parse)
     assert.equal(commands.filter(args => args[0] === 'publish').length, branch === 'main' ? 1 : 0)
     assert.ok(commands.some(args => args.join(' ') === `merge-base --is-ancestor ${sha} origin/${branch}`))

@@ -18,6 +18,7 @@ import {
   ImageProcessor,
   ListProcessor,
   PhotoSwipeProcessor,
+  PodcastProcessor,
   PreLineProcessor,
   SocialPostProcessor,
   SpanProcessor,
@@ -131,6 +132,7 @@ export function useArticleSelection(p: UseArticleSelectionParams) {
       .register(new ListProcessor())
       .register(new AnchorProcessor())
       .register(new YoutubeProcessor())
+      .register(new PodcastProcessor())
       .register(new VideoProcessor())
       .register(new IFrameProcessor())
       .register(new WechatVideoProcessor())

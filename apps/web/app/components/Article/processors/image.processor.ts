@@ -49,6 +49,17 @@ function ensurePaddingAndHeightStyle(img: HTMLImageElement): void {
   img.setAttribute('style', `${trimmedStyle}${separator}${missing.join('; ')};`)
 }
 
+interface ImageLifecycleState {
+  authoredDisplaySize: boolean
+  hiddenByProcessor: boolean
+  previousDisplay: string
+}
+
+// Keep failure recovery state across repeated processor passes without adding
+// bookkeeping attributes to saved article markup.
+const imageLifecycleStates = new WeakMap<HTMLImageElement, ImageLifecycleState>()
+const resizeObserverCleanups = new WeakMap<HTMLElement, () => void>()
+
 export class ImageProcessor implements DOMProcessor {
   readonly name = 'ImageProcessor'
 
@@ -70,16 +81,25 @@ export class ImageProcessor implements DOMProcessor {
         return
       }
 
-      img.srcset = ''
-      img.onload = () => {
+      const state = imageLifecycleStates.get(img) ?? { authoredDisplaySize: hasDisplaySize(img), hiddenByProcessor: false, previousDisplay: '' }
+      imageLifecycleStates.set(img, state)
+      const changesSourceSelection = Boolean(img.getAttribute('srcset')) || Boolean(img.closest('picture')?.querySelector('source[srcset]'))
+      const handleLoad = () => {
         img.classList.remove(loadingKey)
+        if (state.hiddenByProcessor) {
+          img.style.display = state.previousDisplay
+          state.hiddenByProcessor = false
+        }
+        // A replacement source may make a previously previewable image too
+        // small. Clear the old action before classifying this completion.
+        img.onclick = null
 
         if (context.articleStyle === ArticleStyle.PhotoSwipeTopic) {
         } else {
           if (img.naturalWidth < 5 || img.naturalHeight < 5) {
             img.setAttribute('style', 'display: none;')
             return
-          } else if (img.naturalWidth < 200 && !(preserveStyle && hasDisplaySize(img))) {
+          } else if (img.naturalWidth < 200 && !(preserveStyle && state.authoredDisplaySize)) {
             img.setAttribute('style', `width: ${img.naturalWidth}px !important;`)
             return
           }
@@ -114,14 +134,21 @@ export class ImageProcessor implements DOMProcessor {
         }
       }
 
-      img.referrerPolicy = ''
-
-      img.onerror = () => {
+      const handleError = () => {
+        if (!state.hiddenByProcessor) state.previousDisplay = img.style.display
+        state.hiddenByProcessor = true
         img.classList.remove(loadingKey)
+        img.onclick = null
         img.style.display = 'none'
       }
 
+      img.onload = handleLoad
+
+      img.onerror = handleError
+      img.onclick = null
       img.classList.add(loadingKey)
+      if (img.getAttribute('srcset')) img.srcset = ''
+      if (img.referrerPolicy) img.referrerPolicy = ''
 
       const parentElement = img.parentElement
       const parentChilds = parentElement ? Array.from(parentElement.childNodes) : []
@@ -137,6 +164,17 @@ export class ImageProcessor implements DOMProcessor {
       if (isOnlyImages) {
         img.style.cssFloat = 'none'
       }
+
+      // The browser may have completed the request before handlers were
+      // installed. Source normalization queues a browser image-request update;
+      // inspect completion after that update rather than settling the old source.
+      const catchUp = () => {
+        if (img.onload !== handleLoad || !img.complete) return
+        if (img.naturalWidth > 0) handleLoad()
+        else handleError()
+      }
+      if (changesSourceSelection) queueMicrotask(catchUp)
+      else catchUp()
     })
 
     if (preserveStyle && context.articleStyle !== ArticleStyle.PhotoSwipeTopic) {
@@ -161,6 +199,7 @@ export class ImageProcessor implements DOMProcessor {
       fitOversizedImages()
       const view = context.container.ownerDocument.defaultView
       if (view?.ResizeObserver) {
+        resizeObserverCleanups.get(context.container)?.()
         let frame: number | undefined
         const observer = new view.ResizeObserver(() => {
           if (frame !== undefined) return
@@ -171,10 +210,16 @@ export class ImageProcessor implements DOMProcessor {
           })
         })
         observer.observe(context.container)
-        context.cleanups.push(() => {
+        let cleaned = false
+        const cleanup = () => {
+          if (cleaned) return
+          cleaned = true
           observer.disconnect()
           if (frame !== undefined) view.cancelAnimationFrame(frame)
-        })
+          if (resizeObserverCleanups.get(context.container) === cleanup) resizeObserverCleanups.delete(context.container)
+        }
+        resizeObserverCleanups.set(context.container, cleanup)
+        context.cleanups.push(cleanup)
       }
     }
   }

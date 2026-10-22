@@ -14,7 +14,9 @@ async function load(file, boundaries, globals = {}) {
   vm.runInNewContext(code, {exports, URL, Headers, Response, ReadableStream, TextEncoder, TextDecoder, Uint8Array, AbortController, TypeError, Error, setTimeout, clearTimeout, ...globals, require(name) {assert.ok(Object.hasOwn(boundaries, name), name); return boundaries[name];}}); return exports;
 }
 const {createFixtureFetch} = await load('../../fixtures/transport.ts', {'../src/utils/abort': {throwIfAborted}});
-const {createMobileApi} = await load('../../src/data/api.ts', {'../utils/abort.ts': {throwIfAborted}, '@slax-reader/contracts/pdf': contracts, './transport-errors.ts': transportErrors});
+const sharedRequest = await load('../../src/data/shared-request.ts', {'../utils/abort.ts': {throwIfAborted}});
+const boundedBody = await load('../../src/data/bounded-body.ts', {'../utils/abort.ts': {throwIfAborted}});
+const {createMobileApi} = await load('../../src/data/api.ts', {'../utils/abort.ts': {throwIfAborted}, '@slax-reader/contracts/pdf': contracts, './transport-errors.ts': transportErrors, './shared-request.ts': sharedRequest, './bounded-body.ts': boundedBody});
 async function fixture(publish) {
   const document = createFixturePdf('eight-pages'), records = [], published = [], timers = new Map(); let sequence = 0, active = true, ready = Promise.resolve();
   const {createFixturePdfImport} = await load('../../fixtures/pdf-import.ts', {'../src/data/pdf-sha256.ts': {Sha256}, '../src/utils/abort.ts': {throwIfAborted}}, {setTimeout(fn, delay) {const id = ++sequence; timers.set(id, {fn, delay}); return id;}, clearTimeout(id) {timers.delete(id);}});

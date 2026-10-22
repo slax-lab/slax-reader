@@ -125,7 +125,7 @@ for (const platform of ['ios', 'android']) test(`${platform} native adapter forw
       return React.createElement('div')
     })
     const {readerNativeAdapter} = await loadComponent('../../src/native/reader.tsx', {react: React, 'react-native': host.native,
-      'expo-modules-core': {requireNativeViewManager: (_module, name) => name === 'SlaxReaderView' ? NativeView : host.native.View}})
+      'expo': {requireNativeView: (_module, name) => name === 'SlaxReaderView' ? NativeView : host.native.View}})
     const context = {pageId: 'pdf-1', cacheKey: 'cache', cacheDirectory: '/controlled/slax-ui-fixtures/fixture', resourceOwner: 'account-owner', pdfMode: true, protectedHosts: ['slax.com'], imageProxyOrigins: [], suppressSelectionMenu: true, scrollsToTop: true}
     await host.render(React.createElement(readerNativeAdapter.HostComponent, {source: {html: '<html></html>', baseUrl: 'https://pdf.reader.slax.invalid/'}, nativeConfig: readerNativeAdapter.nativeConfig(context), onMessage: event => messages.push(event.nativeEvent)}))
     assert.equal(nativeProps.pdfMode, true)

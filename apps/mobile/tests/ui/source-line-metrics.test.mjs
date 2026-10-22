@@ -24,7 +24,7 @@ test('actual source line ignores delayed metrics from a previous text or font sc
   const boundaries = {
     react: React,
     'react-native': {Platform: {OS: 'android'}, useWindowDimensions: () => ({fontScale})},
-    'expo-modules-core': {requireNativeViewManager: (module, view) => {
+    'expo': {requireNativeView: (module, view) => {
       assert.equal(module, 'SlaxPlatform'); assert.equal(view, 'SlaxTextView');
       return values => {props = values; return null;};
     }},

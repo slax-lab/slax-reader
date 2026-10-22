@@ -6,18 +6,16 @@ import {pathToFileURL} from 'node:url';
 import vm from 'node:vm';
 import ts from 'typescript';
 import React, {act} from 'react';
-import {isCustomGalleryImage, resolveGalleryImage} from '../../src/reader/gallery-resource.ts';
-import {galleryCacheFixture, deferred, imageResponse, NativeAbortController} from './gallery-cache-fixture.mjs';
+import {resolveGalleryImage} from '../../src/reader/gallery-resource.ts';
+import * as geometry from '../../src/reader/gallery-geometry.ts';
+import {galleryCacheFixture, deferred, NativeAbortController} from './gallery-cache-fixture.mjs';
+import {installedMotionHost, loadWorkletComponent} from '../ui/installed-motion-host.mjs';
 
 const require = createRequire(import.meta.url);
-let domModule = process.env.SLAX_READER_DOM_MODULE;
-if (!domModule) {
-  try {domModule = require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]});} catch {}
-}
+const domModule = process.env.SLAX_READER_DOM_MODULE || require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]});
 const code = ts.transpileModule(await readFile(new URL('../../src/reader/ImageGallery.tsx', import.meta.url), 'utf8'), {
   compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},
 }).outputText;
-const nativeBoundary = {skip: !domModule && 'An existing happy-dom runtime is required'};
 
 async function mountedGallery(props, run) {
   const {Window} = await import(pathToFileURL(domModule).href), window = new Window();
@@ -25,25 +23,22 @@ async function mountedGallery(props, run) {
   const previous = new Map(names.map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
   for (const name of names) Object.defineProperty(globalThis, name, {value: name === 'IS_REACT_ACT_ENVIRONMENT' ? true : name === 'window' ? window : window[name], configurable: true, writable: true});
   const {createRoot} = await import('react-dom/client');
-  let imageProps, gestures, mounted = true, configuration = {index: 0, onDismiss() {}, errorLabel: 'image-load-failed', ...props};
-  const primitive = ({children}) => React.createElement('div', null, children);
-  class Value {setValue() {} stopAnimation() {}}
-  const boundaries = {
-    react: React,
-    'react-native': {
-      ActivityIndicator: () => React.createElement('div', {'data-busy': true}),
-      Animated: {Value, View: primitive, timing: () => ({start() {}}), parallel: () => ({start() {}})},
-      Image: value => {imageProps = value; return React.createElement('div', {'data-image-uri': value.source.uri});},
-      Modal: primitive, View: primitive, StyleSheet: {create: value => value, absoluteFill: {}},
-      useWindowDimensions: () => ({width: 390, height: 844}),
-      PanResponder: {create: value => {gestures = value; return {panHandlers: {}};}},
-    },
-    '../components': {SourceText: primitive},
-    './gallery-resource': {isCustomGalleryImage},
-  };
+  let imageProps, mounted = true, viewport = {width: 390, height: 844}, configuration = {index: 0, onDismiss() {}, errorLabel: 'image-load-failed', ...props};
+  const appListeners = new Set();
+  const primitive = ({children, testID}) => React.createElement('div', {'data-testid': testID}, children);
+  const motion = installedMotionHost(primitive, {deferJS: true});
+  const native = {ActivityIndicator: () => React.createElement('div', {'data-busy': true}),
+    AppState: {currentState: 'active', addEventListener: (_name, listener) => {appListeners.add(listener); return {remove: () => appListeners.delete(listener)};}},
+    Modal: primitive, View: primitive, StyleSheet: {create: value => value, absoluteFill: {}, absoluteFillObject: {}}, useWindowDimensions: () => viewport};
+  const {ZoomableImage} = loadWorkletComponent(new URL('../../src/components/ZoomableImage.tsx', import.meta.url), {
+    react: React, 'react-native': native, 'react-native-reanimated': motion.reanimated, 'react-native-gesture-handler': motion.gestures,
+    './AppImage': {AppImage: value => {if (value.active) imageProps = value; return React.createElement('div', {'data-image-uri': value.active ? value.source : undefined, 'data-prepared-uri': value.source});}},
+  });
+  const boundaries = {react: React, 'react-native': native, 'react-native-reanimated': motion.reanimated, 'react-native-gesture-handler': motion.gestures,
+    '../components': {SourceText: primitive}, '../components/ZoomableImage': {ZoomableImage}, '../motion/useReducedMotion': {useReducedMotion: () => false}, './gallery-geometry': geometry};
   const exported = {};
-  vm.runInNewContext(code, {exports: exported, AbortController: NativeAbortController, setTimeout, clearTimeout, require(name) {
-    assert.ok(Object.hasOwn(boundaries, name), `Unexpected native gallery boundary ${name}`); return boundaries[name];
+  vm.runInNewContext(code, {exports: exported, AbortController: NativeAbortController, require(name) {
+    assert.ok(Object.hasOwn(boundaries, name), `Unexpected gallery boundary ${name}`); return boundaries[name];
   }});
   const root = createRoot(window.document.body);
   function CommitProbe({callback}) {React.useLayoutEffect(() => callback?.(), [callback]); return null;}
@@ -54,138 +49,133 @@ async function mountedGallery(props, run) {
   };
   const settle = async () => {await act(async () => {await new Promise(resolve => setTimeout(resolve, 0));});};
   const unmount = async () => {if (mounted) {await act(async () => root.unmount()); mounted = false;}};
-  try {
-    await render();
+  const gesture = (name, taps) => motion.detectors().flatMap(value => value.toGestureArray()).find(value => value.handlerName === name && value.config.enabled && (taps === undefined || value.config.numberOfTaps === taps));
+  // A swipe starts on the page under the finger: the JS-active page, or an explicit detector when JS is behind.
+  const activePan = () => motion.detectors().find(value => value.toGestureArray().some(item => item.handlerName === 'TapGestureHandler' && item.config.enabled && item.config.numberOfTaps !== 2))
+    ?.toGestureArray().find(item => item.handlerName === 'PanGestureHandler');
+  const frames = () => {for (let frame = 0; frame < 200 && motion.pending(); frame++) motion.advance(16);};
+  const swipe = async (translationX = -200, velocityX = -300, flush = true, pan = activePan()) => {
+    await act(async () => {const event = {translationX, translationY: 0, velocityX, numberOfPointers: 1};
+      pan.handlers.onStart(event); pan.handlers.onUpdate(event); pan.handlers.onEnd(event, true); pan.handlers.onFinalize(event, true);
+      frames(); if (flush) motion.flushJS();});
     await settle();
-    await run({window, settle, unmount, render, imageProps: () => imageProps, gestures: () => gestures});
+  };
+  try {
+    await render(); await settle();
+    await run({window, settle, unmount, render, imageProps: () => imageProps, motion, gesture, swipe, activePan,
+      background: async state => {native.AppState.currentState = state; await act(async () => {for (const listener of appListeners) listener(state);});},
+      resize: async value => {viewport = value; await render();}});
   } finally {
     await unmount(); await window.happyDOM.close();
     for (const [name, descriptor] of previous) {if (descriptor) Object.defineProperty(globalThis, name, descriptor); else delete globalThis[name];}
   }
 }
 
-test('the actual gallery shows custom failures without bypassing its cache resolver through HTTP', nativeBoundary, async () => {
-  for (const result of [null, new Error('Synthetic download failure')]) {
-    await mountedGallery({images: ['slaxstatics://images.test/offline.png'], resolveUri: async () => {if (result instanceof Error) throw result; return result;}}, async ({window}) => {
-      assert.equal(window.document.querySelector('[data-image-uri]'), null);
-      assert.equal(window.document.body.textContent, 'image-load-failed');
+const shown = window => window.document.querySelector('[data-image-uri]')?.getAttribute('data-image-uri') ?? null;
+test('gallery fails closed for custom and HTTPS resources without a remote image fallback', async () => {
+  for (const source of ['slaxstatics://images.test/offline.png', 'https://images.test/rss.png']) for (const result of [null, new Error('Failure'), 'https://images.test/unsafe.png']) {
+    await mountedGallery({images: [source], resolveUri: async () => {if (result instanceof Error) throw result; return result;}}, async ({window}) => {
+      assert.equal(shown(window), null); assert.equal(window.document.body.textContent, 'image-load-failed');
     });
   }
 });
 
-test('the actual gallery never bypasses its credentialless resolver for ordinary HTTPS', nativeBoundary, async () => {
-  await mountedGallery({images: ['https://images.test/rss.png'], resolveUri: async () => null}, async ({window}) => {
-    assert.equal(window.document.querySelector('[data-image-uri]'), null);
-    assert.equal(window.document.body.textContent, 'image-load-failed');
-  });
-  await mountedGallery({images: ['https://images.test/rss.png'], resolveUri: async () => null, allowNetworkFallback: false}, async ({window}) => {
-    assert.equal(window.document.querySelector('[data-image-uri]'), null);
-    assert.equal(window.document.body.textContent, 'image-load-failed');
-  });
-});
-
-test('an actual gallery page gesture cancels its former request and ignores its late resolution', nativeBoundary, async () => {
-  const first = deferred(), calls = [];
-  await mountedGallery({images: ['slaxstatics://images.test/first.png', 'slaxstatics://images.test/second.png'], resolveUri: (uri, signal) => {
-    calls.push({uri, signal}); return calls.length === 1 ? first.promise : Promise.resolve('file:///second.png');
-  }}, async ({window, gestures, settle}) => {
-    await act(async () => {
-      const event = {nativeEvent: {touches: [{pageX: 100, pageY: 100}]}};
-      gestures().onPanResponderGrant(event);
-      gestures().onPanResponderMove(event, {dx: -100, dy: 0});
-      gestures().onPanResponderRelease(event, {dx: -100, dy: 0});
-    });
-    await settle();
-    assert.equal(calls.length, 2); assert.equal(calls[0].signal.aborted, true); assert.equal(calls[1].signal.aborted, false);
-    assert.equal(window.document.querySelector('[data-image-uri]').getAttribute('data-image-uri'), 'file:///second.png');
-    await act(async () => first.resolve('file:///late-first.png')); await settle();
-    assert.equal(window.document.querySelector('[data-image-uri]').getAttribute('data-image-uri'), 'file:///second.png');
-    assert.equal(window.document.body.textContent, '2 / 2');
+test('continuous paging prepares only current and neighbors, cancelling pages outside that window', async () => {
+  const first = deferred(), calls = [], images = Array.from({length: 5}, (_, i) => `https://images.test/${i}.png`);
+  await mountedGallery({images, resolveUri: (uri, signal) => {calls.push({uri, signal}); return uri === images[0] ? first.promise : Promise.resolve(`file:///${images.indexOf(uri)}.png`);}}, async ({window, swipe, settle}) => {
+    assert.equal(calls.length, 2); await swipe();
+    assert.equal(calls.length, 3); assert.equal(calls[0].signal.aborted, false, 'The former page remains a retained neighbor');
+    assert.equal(shown(window), 'file:///1.png');
+    await swipe(); assert.equal(calls.length, 4); assert.equal(calls[0].signal.aborted, true);
+    assert.equal(shown(window), 'file:///2.png'); assert.equal(window.document.body.textContent, '3 / 5');
+    await act(async () => first.resolve('file:///late-first.png')); await settle(); assert.equal(shown(window), 'file:///2.png');
+    assert.equal(window.document.querySelectorAll('[data-prepared-uri]').length, 3);
   });
 });
 
-test('unmounting the actual gallery cancels a held production download before cache commit', nativeBoundary, async () => {
+test('a pinch on a page that is leaving cannot revert its settled page, and background restores the selected page', async () => {
+  const calls = [], images = ['https://images.test/0.png', 'https://images.test/1.png'];
+  await mountedGallery({images, resolveUri: async (uri, signal) => {calls.push(signal); return `file:///${images.indexOf(uri)}.png`;}}, async ({window, swipe, motion, gesture, background}) => {
+    await swipe(-200, -300, false);
+    await act(async () => {gesture('PinchGestureHandler').handlers.onStart({focalX: 195, focalY: 422}); motion.flushJS();});
+    assert.equal(window.document.body.textContent, '2 / 2', 'The strip already rests on the next page; a stale page pinch neither zooms nor snaps it back');
+    await act(async () => gesture('PinchGestureHandler').handlers.onFinalize({}, true));
+    await swipe(); assert.equal(shown(window), 'file:///1.png');
+    await background('background'); assert.ok(calls.every(signal => signal.aborted)); assert.equal(shown(window), null);
+    await background('active'); assert.equal(shown(window), 'file:///1.png'); assert.equal(window.document.body.textContent, '2 / 2');
+  });
+});
+
+test('a second swipe before JS commits the first continues from the settled strip instead of snapping back', async () => {
+  const images = ['https://images.test/0.png', 'https://images.test/1.png', 'https://images.test/2.png'];
+  await mountedGallery({images, resolveUri: async uri => `file:///${images.indexOf(uri)}.png`}, async ({window, swipe, motion, settle}) => {
+    const [, nextPage] = motion.detectors().map(value => value.toGestureArray().find(item => item.handlerName === 'PanGestureHandler'));
+    await swipe(-200, -300, false);
+    assert.equal(window.document.body.textContent, '1 / 3', 'JS has not yet learned the first settled page');
+    await swipe(-200, -300, false, nextPage);
+    await act(async () => motion.flushJS()); await settle();
+    assert.equal(window.document.body.textContent, '3 / 3', 'Both swipes land; neither is rejected as stale');
+    assert.equal(shown(window), 'file:///2.png');
+    assert.ok(motion.values.some(value => value.value === 780), 'The absolute strip rests on the third page');
+  });
+});
+
+test('pinch and double-tap use installed UI gestures without continuous JS calls', async () => {
+  await mountedGallery({images: ['https://images.test/image.png'], resolveUri: async () => 'file:///image.png'}, async ({gesture, motion, imageProps, resize}) => {
+    await act(async () => imageProps().onLoad({width: 1000, height: 500}));
+    const before = motion.jsCalls.length;
+    await act(async () => {const pinch = gesture('PinchGestureHandler'); pinch.handlers.onStart({focalX: 195, focalY: 422}); pinch.handlers.onUpdate({scale: 3, focalX: 195, focalY: 422}); pinch.handlers.onFinalize({}, true);});
+    assert.equal(motion.jsCalls.length, before); assert.ok(motion.values.some(value => value.value === 3));
+    await act(async () => {gesture('TapGestureHandler', 2).handlers.onEnd({x: 195, y: 422}, true); motion.advance(250);});
+    assert.equal(motion.jsCalls.length, before);
+    await resize({width: 844, height: 390}); assert.ok(motion.values.some(value => value.value === 780), 'Fitted image width is recalculated after rotation');
+  });
+});
+
+test('unmounting gallery cancels a held production download before cache commit', async () => {
   const fixture = galleryCacheFixture(), body = deferred(), reading = deferred(); let requestSignal, pending;
-  const images = ['slaxstatics://images.test/offline.png'];
-  await mountedGallery({images, resolveUri: (uri, signal) => {
+  await mountedGallery({images: ['slaxstatics://images.test/offline.png'], resolveUri: (uri, signal) => {
     pending = resolveGalleryImage(fixture.cache, 'bookmark', uri, {allowNetwork: true, isActive: fixture.isActive, signal,
-      loadImage: async (_url, value) => {requestSignal = value; reading.resolve(); return new Uint8Array(await body.promise);}});
-    return pending;
+      loadImage: async (_url, value) => {requestSignal = value; reading.resolve(); return new Uint8Array(await body.promise);}}); return pending;
   }}, async ({unmount}) => {
-    await reading.promise; await unmount();
-    assert.equal(requestSignal.aborted, true);
-    body.resolve(new Uint8Array([1]).buffer);
-    await assert.rejects(pending, error => error.name === 'AbortError');
-    assert.equal(fixture.contents.size, 0);
+    await reading.promise; await unmount(); assert.equal(requestSignal.aborted, true);
+    body.resolve(new Uint8Array([1]).buffer); await assert.rejects(pending, {name: 'AbortError'}); assert.equal(fixture.contents.size, 0);
   });
 });
 
-test('a gallery result from an inactive account cannot start an ordinary HTTP fallback', nativeBoundary, async () => {
-  const response = deferred(); let active = true;
-  await mountedGallery({images: ['https://images.test/rss.png'], isActive: () => active, resolveUri: () => response.promise}, async ({window, settle}) => {
-    active = false; await act(async () => response.reject(new Error('Account scope ended'))); await settle();
-    assert.equal(window.document.querySelector('[data-image-uri]'), null);
+test('source and account replacement reject stale URI resolution and native callbacks', async () => {
+  const replacement = deferred(), resolveUri = uri => uri.endsWith('first.png') ? Promise.resolve('file:///first.png') : replacement.promise;
+  await mountedGallery({images: ['https://images.test/first.png'], resolveUri}, async ({window, imageProps, render, settle}) => {
+    const old = imageProps(); let duringCommit;
+    await render({images: ['https://images.test/replacement.png']}, () => {duringCommit = shown(window); old.onError(); old.onLoad({width: 90, height: 60});});
+    assert.equal(duringCommit, null); await settle(); assert.equal(window.document.body.textContent, '');
+    replacement.resolve('file:///replacement.png'); await settle(); await act(async () => old.onError());
+    assert.equal(shown(window), 'file:///replacement.png'); assert.ok(window.document.querySelector('[data-busy]'));
+  });
+  const held = deferred(); let active = true;
+  await mountedGallery({images: ['https://images.test/account.png'], isActive: () => active, resolveUri: () => held.promise}, async ({window, settle}) => {
+    active = false; held.resolve('file:///account.png'); await settle(); assert.equal(shown(window), null);
   });
 });
 
-test('the gallery default account predicate remains stable when its image finishes loading', nativeBoundary, async () => {
+test('loading publication does not restart a settled resolver and retired decode cannot fail a new page', async () => {
   let requests = 0;
-  await mountedGallery({images: ['slaxstatics://images.test/offline.png'], resolveUri: async () => {requests++; return 'file:///offline.png';}}, async ({imageProps, settle}) => {
-    await act(async () => imageProps().onLoad({nativeEvent: {source: {width: 100, height: 100}}})); await settle();
-    assert.equal(requests, 1, 'The loading state update must not cancel and restart its settled resolver');
+  await mountedGallery({images: ['https://images.test/first.png', 'https://images.test/second.png'], resolveUri: async uri => {requests++; return uri.endsWith('first.png') ? 'file:///first.png' : 'file:///second.png';}}, async ({window, imageProps, swipe}) => {
+    const old = imageProps(); await act(async () => old.onLoad({width: 100, height: 100})); assert.equal(requests, 2);
+    await swipe(); await act(async () => old.onError()); assert.equal(shown(window), 'file:///second.png');
+    assert.equal(window.document.body.textContent.includes('image-load-failed'), true, 'Only the retained old page reports its own decode failure');
+    await act(async () => imageProps().onLoad({width: 240, height: 160})); assert.equal(requests, 2);
   });
 });
 
-test('queued native image callbacks from an old page cannot finish or fail its replacement', nativeBoundary, async () => {
-  const second = deferred();
-  await mountedGallery({images: ['https://images.test/first.png', 'https://images.test/second.png'],
-    resolveUri: uri => uri.endsWith('first.png') ? Promise.resolve('file:///first.png') : second.promise}, async ({window, imageProps, gestures, settle}) => {
-    const old = imageProps();
-    await act(async () => {
-      const event = {nativeEvent: {touches: [{pageX: 100, pageY: 100}]}};
-      gestures().onPanResponderGrant(event); gestures().onPanResponderMove(event, {dx: -100, dy: 0}); gestures().onPanResponderRelease(event, {dx: -100, dy: 0});
-    });
-    await settle();
-    for (const deliver of [() => old.onLoad({nativeEvent: {source: {uri: 'file:///first.png', width: 120, height: 80}}}), () => old.onError({nativeEvent: {error: 'Old decode error'}})]) {
-      await act(async () => deliver()); await settle();
-      assert.ok(window.document.querySelector('[data-busy]'), 'An old decode callback cannot finish the replacement loading state');
-      assert.equal(window.document.body.textContent, '2 / 2', 'An old decode error cannot mark the replacement as failed');
-    }
-    second.resolve('file:///second.png'); await settle();
-    await act(async () => imageProps().onLoad({nativeEvent: {source: {uri: 'file:///second.png', width: 240, height: 160}}}));
-    assert.equal(window.document.querySelector('[data-busy]'), null, 'The current native load still finishes its own page');
-  });
-});
-
-test('same-page source replacement hides the former native image before passive cleanup and rejects its callbacks', nativeBoundary, async () => {
-  const replacement = deferred(), firstImages = ['https://images.test/first.png'];
-  const resolveUri = uri => uri.endsWith('first.png') ? Promise.resolve('file:///first.png') : replacement.promise;
-  await mountedGallery({images: firstImages, resolveUri}, async ({window, imageProps, render, settle}) => {
-    const old = imageProps(); let imageDuringCommit;
-    await render({images: ['https://images.test/replacement.png']}, () => {
-      imageDuringCommit = window.document.querySelector('[data-image-uri]')?.getAttribute('data-image-uri') ?? null;
-      old.onError({nativeEvent: {error: 'Queued source error'}});
-      old.onLoad({nativeEvent: {source: {uri: 'file:///first.png', width: 90, height: 60}}});
-    });
-    assert.equal(imageDuringCommit, null, 'The render transition must hide the old URI before passive request cleanup');
-    await settle();
-    assert.ok(window.document.querySelector('[data-busy]'));
-    assert.equal(window.document.body.textContent, '');
-    replacement.resolve('file:///replacement.png'); await settle();
-    await act(async () => old.onError({nativeEvent: {error: 'Former URI error'}})); await settle();
-    assert.equal(window.document.querySelector('[data-image-uri]').getAttribute('data-image-uri'), 'file:///replacement.png');
-    assert.equal(window.document.body.textContent, '');
-    assert.ok(window.document.querySelector('[data-busy]'), 'Only the replacement decode may finish its loading state');
-  });
-});
-
-test('native decode callbacks recheck account ownership before changing loading or error state', nativeBoundary, async () => {
-  let active = true;
-  await mountedGallery({images: ['https://images.test/account.png'], isActive: () => active, resolveUri: async () => 'file:///account.png'}, async ({window, imageProps, settle}) => {
-    const old = imageProps(); active = false;
-    await act(async () => old.onLoad({nativeEvent: {source: {uri: 'file:///account.png', width: 100, height: 100}}}));
-    await act(async () => old.onError({nativeEvent: {error: 'Revoked owner decode'}})); await settle();
-    assert.ok(window.document.querySelector('[data-busy]'), 'Revoked ownership cannot publish native load completion');
-    assert.equal(window.document.body.textContent, '', 'Revoked ownership cannot publish a new image error');
+test('mounted gallery uses production URI caching and fences cancelled native acquisition without byte loading', async () => {
+  const held = deferred(), entered = deferred(); let captured, capturedSignal, pending;
+  const fixture = galleryCacheFixture(async (request, signal) => {captured = request; capturedSignal = signal; entered.resolve(); return held.promise;});
+  await mountedGallery({images: ['https://images.test/native.png'], resolveUri: (uri, signal) => {
+    pending = resolveGalleryImage(fixture.cache, 'bookmark', uri, {allowNetwork: true, isActive: fixture.isActive, signal}); return pending;
+  }}, async ({unmount}) => {
+    await entered.promise; assert.equal(captured.owner, 'owner-a'); assert.equal(captured.allowNetwork, true); assert.equal(captured.strict, true);
+    await unmount(); assert.equal(capturedSignal.aborted, true); held.resolve({uri: 'file:///app/data/bookmark/bookmark/images/native.png', size: 3});
+    await assert.rejects(pending, {name: 'AbortError'});
   });
 });

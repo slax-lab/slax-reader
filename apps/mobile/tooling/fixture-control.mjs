@@ -11,11 +11,13 @@ const WebSocket = require(require.resolve('ws', {paths: [require.resolve('react-
 const args = process.argv.slice(2);
 const options = {};
 for (let i = 0; i < args.length; i += 2) {
-  if (!['--platform', '--device', '--case', '--locale', '--action', '--font-scale', '--observe'].includes(args[i]) || !args[i + 1] || Object.hasOwn(options, args[i])) throw new Error('Unexpected fixture control argument');
+  if (!['--platform', '--device', '--identity', '--port', '--case', '--locale', '--action', '--font-scale', '--observe'].includes(args[i]) || !args[i + 1] || Object.hasOwn(options, args[i])) throw new Error('Unexpected fixture control argument');
   options[args[i]] = args[i + 1];
 }
 const platform = options['--platform'], device = options['--device'], locale = options['--locale'] ?? 'en';
 if (!['ios', 'android'].includes(platform) || !device || !['en', 'zh'].includes(locale)) throw new Error('Select an explicit isolated platform, device name and supported locale');
+const port = options['--port'] === undefined ? 8083 : Number(options['--port']);
+if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Select a valid local Metro port');
 if ([options['--case'], options['--action'], options['--observe']].filter(Boolean).length !== 1 || (options['--observe'] && options['--observe'] !== 'current')) throw new Error('Select exactly one prepared case, action or current observation');
 const bundle = JSON.parse(await readFile(new URL('../fixtures/scenarios.json', import.meta.url), 'utf8'));
 const manifest = JSON.parse(await readFile(new URL('../fixtures/manifest.json', import.meta.url), 'utf8'));
@@ -27,9 +29,9 @@ const scenario = options['--case'];
 if (scenario && !Object.hasOwn(bundle.scenarios, scenario)) throw new Error('Unknown prepared fixture case');
 const action = options['--action'] ? JSON.parse(options['--action']) : null;
 if (action && (!action || typeof action !== 'object' || Array.isArray(action) || !/^[a-z-]+$/.test(action.kind))) throw new Error('Invalid prepared action');
-const targets = await (await fetch('http://127.0.0.1:8083/json/list', {signal: AbortSignal.timeout(5_000)})).json();
-const {appId, endpoint} = selectFixtureInspector(targets, platform, device);
-const socket = new WebSocket(endpoint, {origin: 'http://127.0.0.1:8083'});
+const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`, {signal: AbortSignal.timeout(5_000)})).json();
+const {appId, endpoint} = selectFixtureInspector(targets, platform, device, options['--identity'] ?? '', port);
+const socket = new WebSocket(endpoint, {origin: `http://127.0.0.1:${port}`});
 await new Promise((resolve, reject) => {
   const timer = setTimeout(() => reject(new Error('Fixture inspector connection timed out')), 5_000);
   socket.addEventListener('open', () => {clearTimeout(timer); resolve();}, {once: true});
@@ -39,7 +41,7 @@ const expression = `async function(){
   let current;for(let i=0;i<200;i++){current=globalThis.__SLAX_UI_FIXTURE__;if(current)break;await new Promise(resolve=>setTimeout(resolve,50));}
   if(!current||current.inputSha256!==${JSON.stringify(digest)}||!current.scopeUri.includes('/slax-ui-fixtures/'))throw Error('Unprepared or mismatched independent fixture runtime');
   ${scenario ? `const previousScope=current.scopeUri;current.selectCase(${JSON.stringify(scenario)},${JSON.stringify(locale)});
-  for(let i=0;i<200;i++){const next=globalThis.__SLAX_UI_FIXTURE__;if(next&&next.scopeUri!==previousScope&&next.scenario===${JSON.stringify(scenario)}&&next.locale===${JSON.stringify(locale)}&&next.inputSha256===${JSON.stringify(digest)}){try{const renderContext=await next.captureContext();if(renderContext.scenario===next.scenario&&renderContext.inputSha256===next.inputSha256&&renderContext.locale===next.locale&&renderContext.nativeMeasurements&&(${JSON.stringify(scenario && !bundle.scenarios[scenario].payload.upgrade ? bundle.scenarios[scenario].route.name : null)}===null||renderContext.observedRoute?.name===${JSON.stringify(scenario && !bundle.scenarios[scenario].payload.upgrade ? bundle.scenarios[scenario].route.name : null)})&&(${JSON.stringify(expectedFontScale)}===null||Math.abs(renderContext.nativeMeasurements.fontScale-${JSON.stringify(expectedFontScale)})<0.000001))return {scenario:next.scenario,inputSha256:next.inputSha256,scopeUri:next.scopeUri,locale:next.locale,renderContext,preparationOnly:true,nativeInteractionVerified:false};}catch{}}await new Promise(resolve=>setTimeout(resolve,50));}throw Error('Selected fixture preparation timed out');` : `return {${action ? `...await current.perform(${JSON.stringify(action)}),` : ''}scenario:current.scenario,inputSha256:current.inputSha256,scopeUri:current.scopeUri,renderContext:await current.captureContext(),preparationOnly:${Boolean(action)},nativeInteractionVerified:false};`}
+  for(let i=0;i<200;i++){const next=globalThis.__SLAX_UI_FIXTURE__;if(next&&next.scopeUri!==previousScope&&next.scenario===${JSON.stringify(scenario)}&&next.locale===${JSON.stringify(locale)}&&next.inputSha256===${JSON.stringify(digest)}){try{const renderContext=await next.captureContext();if(renderContext.scenario===next.scenario&&renderContext.inputSha256===next.inputSha256&&renderContext.locale===next.locale&&renderContext.nativeMeasurements&&(${JSON.stringify(scenario && !bundle.scenarios[scenario].payload.upgrade ? bundle.scenarios[scenario].route.name : null)}===null||renderContext.observedRoute?.name===${JSON.stringify(scenario && !bundle.scenarios[scenario].payload.upgrade ? bundle.scenarios[scenario].route.name : null)})&&(${JSON.stringify(expectedFontScale)}===null||Math.abs(renderContext.nativeMeasurements.fontScale-${JSON.stringify(expectedFontScale)})<0.000001))return {scenario:next.scenario,inputSha256:next.inputSha256,scopeUri:next.scopeUri,locale:next.locale,renderContext,preparationOnly:true,nativeInteractionVerified:false};}catch{}}await new Promise(resolve=>setTimeout(resolve,50));}throw Error('Selected fixture preparation timed out');` : `return {${action ? `...await current.perform(${JSON.stringify(action)}),` : ''}scenario:current.scenario,inputSha256:current.inputSha256,scopeUri:current.scopeUri,renderContext:await current.captureContext(),rssControllerSnapshot:globalThis.__SLAX_UI_RSS_STATE__??null,preparationOnly:${Boolean(action)},nativeInteractionVerified:false};`}
 }()`;
 let requestId = 0;
 async function evaluate(expression) {

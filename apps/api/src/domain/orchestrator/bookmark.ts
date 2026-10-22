@@ -156,6 +156,7 @@ export class BookmarkOrchestrator {
       title: bm.title,
       alias_title: res.alias_title,
       uuid: bm.uuid,
+      bookmark_user_uuid: res.uuid,
       description: bm.description,
       tags,
       created_at: bm.created_at,
@@ -166,6 +167,9 @@ export class BookmarkOrchestrator {
       target_url: bm.target_url,
       type: bookmarkContentType(res.type),
       pdf: await this.bookmarkService.getPdfDescriptor(bm.content_key, res.uuid),
+      archive_status: res.archive_status,
+      is_starred: res.is_starred,
+      is_read: res.is_read,
       status: bm.status
     }
   }

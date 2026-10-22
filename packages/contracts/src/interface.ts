@@ -389,6 +389,59 @@ export interface LabFeature {
   enabled_at: string | null
 }
 
+/** YouTube AI article status, /v1/youtube_article/status */
+export type YoutubeArticleStatus = 'unavailable' | 'limit_reached' | 'pending' | 'skipped' | 'generating' | 'validating' | 'ready' | 'failed'
+
+export interface YoutubeArticleState {
+  status: YoutubeArticleStatus
+  language: 'en' | 'zh' | null
+  requested_language: 'en' | 'zh'
+  eligibility: { decision: 'generate' | 'skip' | 'review'; reason_codes: string[] } | null
+  version: string | null
+  format: 'article' | 'dialogue' | null
+  can_generate: boolean
+  can_retry: boolean
+  article_url: string | null
+  updated_at: string | null
+  /** 'article': the body holds, or will hold, this viewer's article. 'transcript': marks keep the body as it is, so the article shows below it */
+  body_mode?: 'article' | 'transcript'
+  /** The bookmark body holds this viewer's article now */
+  body_ready?: boolean
+}
+
+/** Structured article, /v1/youtube_article/content. Rendered with text bindings only, never as HTML. */
+export interface YoutubeArticleContent {
+  version: string
+  language: 'en' | 'zh'
+  format: 'article' | 'dialogue'
+  lede: string
+  sections: { heading: string; start_ms: number; paragraphs: { speaker: string | null; text: string }[] }[]
+}
+
+export type PodcastTranscriptStatus = 'pending' | 'transcribing' | 'ready' | 'failed' | 'skipped' | 'unavailable'
+export type PodcastArticleStatus = 'pending' | 'generating' | 'validating' | 'ready' | 'failed' | 'skipped' | 'unavailable'
+
+/** /v1/podcast/status: transcript and article of the bookmark's episode, and a translation for the reader. */
+export interface PodcastState {
+  transcript: PodcastTranscriptStatus
+  article: PodcastArticleStatus
+  /** The bookmark body is the cleaned transcript */
+  body_ready: boolean
+  language: 'en' | 'zh' | null
+  /** too_long, no_speech, language_unsupported, moderation, limit_reached, ... */
+  reason: string | null
+  translation: { status: PodcastArticleStatus; language: 'en' | 'zh'; version: string | null } | null
+  can_retry: boolean
+}
+
+/** Structured translation, /v1/podcast/translation. Rendered with text bindings only, never as HTML. */
+export interface PodcastTranslation {
+  version: string
+  language: 'en' | 'zh'
+  lede: string
+  sections: { heading: string; start_ms: number; paragraphs: { speaker: string | null; text: string; start_ms: number }[] }[]
+}
+
 export interface UserShareCollectInfo {
   show_name: string
   price: number

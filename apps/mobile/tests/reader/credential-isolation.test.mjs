@@ -47,7 +47,8 @@ test('native document policy is required before load, origin is enforced, and au
   assert.match(kotlin, /loadDataWithBaseURL\(security!!\.documentOrigin/)
   assert.match(kotlin, /security\?\.allows\(url\) != true/)
   assert.match(reader, /readerProtectedHosts\(mobileConfig\)/)
-  assert.match(reader, /source=\{\{ html: document, baseUrl: READER_ORIGIN \}\}/)
+  assert.match(reader, /const documentSource = useMemo\(\(\) => \(\{html: document, baseUrl: READER_ORIGIN\}\), \[document\]\)/)
+  assert.match(reader, /source=\{documentSource\}/)
   assert.match(native, /protectedHosts=\{nativeProps\.protectedHosts\}/)
 })
 

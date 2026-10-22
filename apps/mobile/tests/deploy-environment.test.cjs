@@ -15,7 +15,12 @@ function fixture(t) {
     writeFileSync(filename, value, mode ? {mode} : undefined);
     return filename;
   }
-  return {root, put, load: processEnvironment => loadMobileEnvironment({root, processEnvironment: processEnvironment ?? {}})};
+  return {
+    root,
+    put,
+    load: processEnvironment => loadMobileEnvironment({root, processEnvironment: processEnvironment ?? {}}),
+    loadDevelopment: processEnvironment => loadMobileEnvironment({root, processEnvironment: processEnvironment ?? {}, development: true}),
+  };
 }
 
 test('default build files resolve without parsing opaque Firebase or signing contents', t => {
@@ -43,6 +48,20 @@ test('local credentials support quoted values and process overrides without muta
   assert.equal(result.environment.SHELL_ONLY, 'present');
   assert.deepEqual(result.files, ['deploy/mobile/.env']);
   assert.deepEqual(inherited, {SLAX_ANDROID_KEY_ALIAS: 'selected-key', SLAX_ANDROID_KEY_PASSWORD: '', SHELL_ONLY: 'present'});
+});
+
+test('development session values are loaded only for the development command', t => {
+  const f = fixture(t);
+  const session = 'SLAX_MOBILE_DEV_API_URL=http://192.168.9.185:8787\nSLAX_MOBILE_DEV_POWERSYNC_URL=http://192.168.9.185:18080\nSLAX_MOBILE_DEV_TOKEN=synthetic-token\n';
+  f.put('deploy/mobile/.env', session);
+  const build = f.load({SLAX_MOBILE_DEV_TOKEN: 'shell-token'});
+  for (const key of ['SLAX_MOBILE_DEV_API_URL', 'SLAX_MOBILE_DEV_POWERSYNC_URL', 'SLAX_MOBILE_DEV_TOKEN']) assert.equal(build.environment[key], undefined);
+  build.environment.SLAX_ONLY_BUILD = 'present';
+  const development = f.loadDevelopment({SLAX_MOBILE_DEV_TOKEN: 'shell-token'});
+  assert.equal(development.environment.SLAX_MOBILE_DEV_API_URL, 'http://192.168.9.185:8787');
+  assert.equal(development.environment.SLAX_MOBILE_DEV_POWERSYNC_URL, 'http://192.168.9.185:18080');
+  assert.equal(development.environment.SLAX_MOBILE_DEV_TOKEN, 'shell-token');
+  assert.equal(development.environment.SLAX_ONLY_BUILD, undefined);
 });
 
 test('explicit paths resolve against the repository root and shell paths override file paths', t => {
@@ -90,8 +109,10 @@ function nativeFixture(t) {
     mkdirSync(path.dirname(target), {recursive: true});
     copyFileSync(path.join(__dirname, '../tooling', file), target);
   }
+  mkdirSync(path.join(f.root, 'apps/mobile/plugins'), {recursive: true});
+  copyFileSync(path.join(__dirname, '../plugins/android-release-signing.cjs'), path.join(f.root, 'apps/mobile/plugins/android-release-signing.cjs'));
   f.put('apps/mobile/package.json', JSON.stringify({version: '1.2.3', buildNumber: 12, previousBuildNumber: 11}));
-  f.put('apps/mobile/android/app/build.gradle', 'versionCode 12\nversionName "1.2.3"\n// Slax release signing: operator-managed environment only.\n');
+  f.put('apps/mobile/android/app/build.gradle', 'versionCode 12\nversionName "1.2.3"\nandroid { buildTypes { release { signingConfig = null } } }\n// Slax release signing: operator-managed environment only.\n');
   f.put('deploy/mobile/android/slax-reader.release.jks', 'synthetic test key');
   f.put('apps/mobile/android/gradlew', `#!${process.execPath}\nconsole.log(JSON.stringify({args:process.argv.slice(2),key:process.env.SLAX_ANDROID_KEYSTORE_PATH,alias:process.env.SLAX_ANDROID_KEY_ALIAS,password:process.env.SLAX_ANDROID_KEYSTORE_PASSWORD,keyPassword:process.env.SLAX_ANDROID_KEY_PASSWORD}));\n`, 0o755);
   f.run = () => spawnSync(process.execPath, [path.join(f.root, 'apps/mobile/tooling/native-build.mjs'), 'android', '--release', 'bundleRelease'], {cwd: tmpdir(), env: {PATH: process.env.PATH}, encoding: 'utf8', timeout: 10000});
@@ -126,13 +147,19 @@ test('root mobile dispatcher loads native inputs, isolates offline commands and 
   const helper = path.join(f.root, 'apps/mobile/tooling/deploy-environment.cjs');
   mkdirSync(path.dirname(helper), {recursive: true});
   copyFileSync(path.join(__dirname, '../tooling/deploy-environment.cjs'), helper);
-  f.put('apps/mobile/package.json', JSON.stringify({name: '@fixture/mobile', scripts: {prebuild: 'fixture', check: 'fixture'}}));
-  f.put('bin/pnpm', `#!${process.execPath}\nconsole.log(JSON.stringify({args:process.argv.slice(2),alias:process.env.SLAX_ANDROID_KEY_ALIAS,skip:process.env.SLAX_MOBILE_NO_LOCAL_CONFIG,noDotenv:process.env.EXPO_NO_DOTENV}));\n`, 0o755);
+  f.put('apps/mobile/package.json', JSON.stringify({name: '@fixture/mobile', scripts: {dev: 'fixture', ios: 'fixture', prebuild: 'fixture', check: 'fixture'}}));
+  f.put('bin/pnpm', `#!${process.execPath}\nconsole.log(JSON.stringify({args:process.argv.slice(2),alias:process.env.SLAX_ANDROID_KEY_ALIAS,devApi:process.env.SLAX_MOBILE_DEV_API_URL,devToken:process.env.SLAX_MOBILE_DEV_TOKEN,skip:process.env.SLAX_MOBILE_NO_LOCAL_CONFIG,noDotenv:process.env.EXPO_NO_DOTENV}));\n`, 0o755);
   const run = args => spawnSync(process.execPath, [path.join(f.root, 'tooling/mobile.mjs'), ...args], {cwd: tmpdir(), env: {PATH: path.join(f.root, 'bin') + path.delimiter + process.env.PATH}, encoding: 'utf8', timeout: 10000});
-  f.put('deploy/mobile/.env', 'SLAX_ANDROID_KEY_ALIAS=synthetic-key\n');
-  const configured = run(['--', 'prebuild', '--platform', 'android']);
-  assert.equal(configured.status, 0, configured.stderr);
-  assert.deepEqual(JSON.parse(configured.stdout), {args: ['--filter', '@fixture/mobile', 'run', 'prebuild', '--platform', 'android'], alias: 'synthetic-key', noDotenv: '1'});
+  f.put('deploy/mobile/.env', 'SLAX_ANDROID_KEY_ALIAS=synthetic-key\nSLAX_MOBILE_DEV_API_URL=http://192.168.9.185:8787\nSLAX_MOBILE_DEV_POWERSYNC_URL=http://192.168.9.185:18080\nSLAX_MOBILE_DEV_TOKEN=synthetic-session\n');
+  const configured = JSON.parse(run(['--', 'prebuild', '--platform', 'android']).stdout);
+  assert.deepEqual(configured, {args: ['--filter', '@fixture/mobile', 'run', 'prebuild', '--platform', 'android'], alias: 'synthetic-key', noDotenv: '1'});
+  const development = run(['dev', '--lan']);
+  assert.equal(development.status, 0, development.stderr);
+  assert.deepEqual(JSON.parse(development.stdout), {args: ['--filter', '@fixture/mobile', 'run', 'dev', '--lan'], alias: 'synthetic-key', devApi: 'http://192.168.9.185:8787', devToken: 'synthetic-session', noDotenv: '1'});
+  const device = JSON.parse(run(['ios', '--device']).stdout);
+  assert.deepEqual(device, {args: ['--filter', '@fixture/mobile', 'run', 'ios', '--device'], alias: 'synthetic-key', devApi: 'http://192.168.9.185:8787', devToken: 'synthetic-session', noDotenv: '1'});
+  const release = JSON.parse(run(['ios', '--configuration', 'Release']).stdout);
+  assert.deepEqual(release, {args: ['--filter', '@fixture/mobile', 'run', 'ios', '--configuration', 'Release'], alias: 'synthetic-key', noDotenv: '1'});
   f.put('deploy/mobile/.env', 'PASSWORD="private-unclosed-value');
   const offline = run(['check']);
   assert.equal(offline.status, 0, offline.stderr);

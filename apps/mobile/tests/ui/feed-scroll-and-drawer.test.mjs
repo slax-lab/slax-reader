@@ -6,10 +6,15 @@ import {pathToFileURL} from 'node:url';
 import vm from 'node:vm';
 import ts from 'typescript';
 import React, {act} from 'react';
+import {observeRelativeBoundaries} from '../reader/observe-mock.mjs';
 
 const require = createRequire(import.meta.url);
 const domPath = require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]});
 async function load(file, boundaries) {
+  const passthrough = ({children}) => children ?? null;
+  const drawer = {SourceDrawer: passthrough, DrawerScrollBoundary: passthrough, useDrawerGesture: () => null, useDrawerInput: () => null};
+  boundaries = {'./SourceDrawer': drawer, '../components/SourceDrawer': drawer, '../components/SearchGlyph': {SearchGlyph: () => null},
+    ...observeRelativeBoundaries(boundaries), ...boundaries};
   const code = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},
   }).outputText;
@@ -64,6 +69,24 @@ test('actual feed hook preserves two unmounted feeds, fences provisional native 
   assert.equal(rss.offset, 75);
 }));
 
+test('coarse scroll sampling still records the exact resting offset from drag and momentum end events', async () => mounted(async root => {
+  const {FeedScrollPosition, useFeedScrollPosition} = await load('../../src/components/feed-scroll.ts', {react: React});
+  const position = new FeedScrollPosition(), commands = []; let props;
+  function Feed() {const scrollTo = React.useCallback(offset => commands.push(offset), []); props = useFeedScrollPosition(position, scrollTo); return null;}
+  const observed = y => ({nativeEvent: {contentOffset: {y}, contentSize: {height: 2000}, layoutMeasurement: {height: 500}}});
+  await act(async () => root.render(React.createElement(Feed)));
+  assert.ok(props.events.scrollEventThrottle >= 32, 'Feed scroll callbacks are sampled below display rate');
+  props.events.onScrollBeginDrag(); props.events.onScroll(observed(180));
+  props.events.onScrollEndDrag(observed(212)); assert.equal(position.offset, 212);
+  props.events.onMomentumScrollEnd(observed(640.5)); assert.equal(position.offset, 640.5);
+  props.events.onMomentumScrollEnd(observed(1800)); assert.equal(position.offset, 1500, 'End events clamp to the scrollable range');
+  props.events.onMomentumScrollEnd(observed(0)); assert.equal(position.offset, 0);
+  position.offset = 420; await act(async () => root.render(React.createElement(Feed, {key: 'remount'})));
+  props.events.onMomentumScrollEnd(observed(0));
+  assert.equal(position.offset, 420, 'A provisional end event cannot overwrite a pending restore');
+  assert.deepEqual(commands, []);
+}));
+
 test('mounted RSS uses its retained source identity rather than resetting each time the mode is entered', async () => mounted(async root => {
   const scrolling = await load('../../src/components/feed-scroll.ts', {react: React});
   const position = new scrolling.FeedScrollPosition(); position.source = 'feed-a'; position.offset = 270;
@@ -76,7 +99,7 @@ test('mounted RSS uses its retained source identity rather than resetting each t
     react: React, 'react-native': {FlatList, View: primitive, Pressable: primitive, ScrollView: primitive, Image: nil, TextInput: nil, ActivityIndicator: nil, StyleSheet: {create: value => value}},
     '../runtime': {useMobile: () => ({t: value => value})}, '../rss/controller': {rssDisplayName: () => 'Feed'}, '../theme': {mobileColors: {}, mobileTypography: {}},
     './SourceUI': {SourceButton: nil, SourceDialog: nil, SourceIcon: nil, SourceSheet: nil, SourceText: primitive, SourceProgress: nil, TextAction: nil, Divider: nil}, './SourceMenu': {SourceMenu: nil},
-    './fixture-actions': {}, './feed-scroll': scrolling,
+    './AppImage': {AppImage: nil}, './fixture-actions': {}, './feed-scroll': scrolling,
   });
   const state = () => ({enabled: true, selected, subscriptions: [], entries, ready: true, busy: false, hasMore: false});
   const dismiss = () => {}, controller = {};
@@ -146,19 +169,20 @@ test('actual Library preserves both modes through toggles and gives a new native
   const runtime = {getDatabase: () => null, getNativeResourceOwner: () => owner};
   const collections = [{id: 'collection-a', name: 'Collection', ownerId: 'owner-a', status: 1, subscriptionEndTime: '2080-01-01T00:00:00Z', hasNew: true}];
   const bookmarks = [{id: 'existing-bookmark'}];
-  const repositories = {watchBookmarks: (_sort, callback) => {inboxWatch = callback; callback(bookmarks); return () => {};}, watchCollections: callback => {callback(collections); return () => {};}, watchUser: () => () => {}, watchSubscription: () => () => {}, watchCollectionBookmarks: () => () => {}, markCollectionRead: async id => {markedRead.push(id);}};
+  const repositories = {library: {watch: (_sort, _owner, callback) => {inboxWatch = callback; callback(bookmarks); return () => {};}},
+    watchLibraryCollections: callback => {callback(collections); return () => {};}, watchLibraryUser: callback => {callback([]); return () => {};}, watchBookmarks: (_sort, callback) => {inboxWatch = callback; callback(bookmarks); return () => {};}, watchCollections: callback => {callback(collections); return () => {};}, watchUser: () => () => {}, watchSubscription: () => () => {}, watchCollectionBookmarks: () => () => {}, markCollectionRead: async id => {markedRead.push(id);}};
   Object.assign(runtime, {getRepositories: () => repositories, getAccountPreferences: () => preferences, getUpgradeSnapshot: () => ({status: 'ready'})});
   const context = {t: value => value, repositories, preferences, runtime, api, sessions: {}, config: {platform: 'android'}, upgrade: {status: 'ready'}};
   const components = Object.fromEntries(['BookmarkRow', 'Divider', 'LinkInputDialog', 'RssFeedSwitcher', 'SourceAvatar', 'SourceButton', 'SourceDialog', 'SourceIcon', 'SourceProgress', 'TextAction'].map(name => [name, nil]));
   const {LibraryScreen} = await load('../../src/screens/LibraryScreen.tsx', {
     react: React, 'react-native': {View: primitive, Pressable: props => {if (props.accessibilityRole === 'tab') tabs.push(props); return primitive(props);}, ScrollView: primitive, FlatList, ActivityIndicator: nil, Animated: {}, AppState: {currentState: 'active', addEventListener: () => ({remove() {}})}, Linking: {}, PixelRatio: {roundToNearestPixel: value => value}, Platform: {OS: 'android', select: values => values.android}, StyleSheet: {create: value => value, absoluteFill: {}}, useWindowDimensions: () => ({width: 400, height: 800})},
     '@react-navigation/native': {useFocusEffect: callback => React.useEffect(callback, [callback])}, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 0, bottom: 0})}, 'expo-network': {useNetworkState: () => ({isConnected: true})},
-    '../telemetry': {useTelemetry: () => telemetry}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: primitive}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
+    '../telemetry': {useTelemetry: () => telemetry}, '../components/LibrarySyncAvatar': {LibrarySyncAvatar: nil}, '../components/LibrarySyncStatus': {LibrarySyncStatus: nil}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: primitive}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
     './LibraryDataStatus': {LibraryDataStatus: nil}, '../components/PdfImportDialog': {PdfImportDialog: nil}, '../pdf/usePdfLab': {usePdfLab: () => ({ready: true, enabled: false})},
-    '../components': {...components, RssFeed, ScreenSurface: primitive, SourceText: primitive, SourceMenu: props => {menus.push(props); return null;}}, '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => ({...context, nativeResourceOwner: owner})},
-    '../theme': {mobileColors: {}, mobileLayout: {drawerMaximumWidth: 320, librarySwipeActionHeight: 53}, mobileTypography: {}}, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../utils/source-time': await load('../../src/utils/source-time.ts', {}), '../components/feed-scroll': {...scrolling, useFeedScrollPosition: (...args) => {const value = scrolling.useFeedScrollPosition(...args); inboxPosition = args[0]; inboxReset = value.reset; return value;}}, '../components/SourceDrawer': {SourceDrawer: primitive},
+    '../components': {...components, RssFeed, ScreenSurface: primitive, SourceText: primitive, SourceMenu: props => {menus.push(props); return null;}}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => ({...context, nativeResourceOwner: owner})},
+    '../theme': {mobileColors: {}, mobileLayout: {drawerMaximumWidth: 320, librarySwipeActionHeight: 53}, mobileTypography: {}}, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../utils/source-time': await load('../../src/utils/source-time.ts', {}), '../components/feed-scroll': {...scrolling, useFeedScrollPosition: (...args) => {const value = scrolling.useFeedScrollPosition(...args); inboxPosition = args[0]; inboxReset = value.reset; return value;}}, '../components/SourceDrawer': {SourceDrawer: primitive, DrawerScrollBoundary: ({children}) => children},
   });
-  const render = () => React.createElement(LibraryScreen, {navigation: {navigate() {}}});
+  const render = () => React.createElement(LibraryScreen, {navigation: {navigate() {}}, route: {params: {}}});
   const observe = (mode, y) => lists[mode].onScroll({nativeEvent: {contentOffset: {y}}});
   const restore = mode => {lists[mode].onLayout({nativeEvent: {layout: {height: 500}}}); lists[mode].onContentSizeChange(300, 1600);};
   const select = label => act(async () => menus.at(-1).items.find(item => item.label === label).onPress());
@@ -267,7 +291,7 @@ for (const platform of ['android', 'ios']) test(`actual ${platform} drawer uses 
 test('source circular progress forwards pinned center and saving geometry through the owned native ring', async () => {
   const {SourceCircularProgress} = await load('../../src/components/SourceRing.tsx', {
     react: React, 'react-native': {View: 'View', Platform: {OS: 'android'}, PixelRatio: {roundToNearestPixel: value => value}},
-    'expo-modules-core': {requireNativeViewManager: () => 'NativeRing'},
+    'expo': {requireNativeView: () => 'NativeRing'},
   });
   for (const props of [{color: '#B45837'}, {color: '#B45837', size: 14, thickness: 1.5}]) {
     const progress = SourceCircularProgress(props), ringElement = progress.props.children;
