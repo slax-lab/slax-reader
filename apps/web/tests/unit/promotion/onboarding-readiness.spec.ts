@@ -1,7 +1,8 @@
-import { describe, expect, it, beforeEach } from 'vitest'
 import { defineComponent, ref } from 'vue'
-import { mountWithApp } from '~~/tests/setup/mount'
+
 import { useOnboardingPending } from '~~/app/composables/bookmark/useOnboardingPending'
+import { mountWithApp } from '~~/tests/setup/mount'
+import { beforeEach,describe, expect, it } from 'vitest'
 
 beforeEach(() => {
   localStorage.clear()

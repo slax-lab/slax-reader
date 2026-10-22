@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { CrawlService } from '@/domain/crawl'
+import { FetchError, SlaxFetch } from '@/infra/external/remoteFetcher'
 import { podcastSourceId } from '@/utils/podcastSource'
 import { createMockCtx, createMockBucketClient, createMockBookmarkRepo, createMockLogsService, createMockAlertBot } from '@test/helpers/mockFactory'
 
@@ -50,10 +51,76 @@ function stubFetch(routes: Record<string, string | { status: number; location?: 
 afterEach(() => vi.unstubAllGlobals())
 
 describe('fetchPodcastData', () => {
-  test('小宇宙: audio, show and notes from the page', async () => {
-    stubFetch({ 'https://www.xiaoyuzhoufm.com/episode/': fixture('xiaoyuzhou-episode.html') })
-    const info = await wire().svc.fetchPodcastData('https://www.xiaoyuzhoufm.com/episode/6ac821ae848a38b151b0d593')
+  const ctx = createMockCtx()
+  const xiaoyuzhouUrl = 'https://www.xiaoyuzhoufm.com/episode/6ac821ae848a38b151b0d593'
+  const xiaoyuzhouFixture = () => ({ content: fixture('xiaoyuzhou-episode.html'), url: xiaoyuzhouUrl, title: '' })
+
+  test('小宇宙: the page always comes from Zyte browser mode, then audio, show and notes are parsed', async () => {
+    const { svc } = wire()
+    const page = vi.fn().mockResolvedValue(xiaoyuzhouFixture())
+    ;(svc as any).fetchPodcastPage = page
+    const info = await svc.fetchPodcastData(xiaoyuzhouUrl, ctx)
     expect(info).toMatchObject({ kind: 'xiaoyuzhou', showName: '硅谷101', language: 'zh', durationSec: 2773 })
+    expect(page).toHaveBeenCalledWith(expect.anything(), xiaoyuzhouUrl)
+  })
+
+  test('fetchPodcastPage asks Zyte for browser-rendered HTML', async () => {
+    const zyte = vi.spyOn(SlaxFetch.prototype, 'zyte').mockResolvedValue(xiaoyuzhouFixture())
+    try {
+      const svc = wire().svc
+      expect(await svc.fetchPodcastPage(ctx, xiaoyuzhouUrl)).toMatchObject({ content: expect.any(String), url: xiaoyuzhouUrl })
+      expect(zyte).toHaveBeenCalledWith(xiaoyuzhouUrl, true)
+    } finally {
+      zyte.mockRestore()
+    }
+  })
+
+  test('fetchPodcastPage falls back to ScrapingBot browser mode on a Zyte API error', async () => {
+    const zyte = vi.spyOn(SlaxFetch.prototype, 'zyte').mockRejectedValue(new FetchError(429, 'ZYTE API Error: 429 Too Many Requests'))
+    const bot = vi.spyOn(SlaxFetch.prototype, 'scrapingBot').mockResolvedValue(xiaoyuzhouFixture())
+    try {
+      expect(await wire().svc.fetchPodcastPage(ctx, xiaoyuzhouUrl)).toMatchObject({ content: expect.any(String), url: xiaoyuzhouUrl })
+      expect(bot).toHaveBeenCalledWith(xiaoyuzhouUrl, true)
+    } finally {
+      zyte.mockRestore()
+      bot.mockRestore()
+    }
+  })
+
+  test('fetchPodcastPage keeps a Zyte target 4xx terminal', async () => {
+    const zyte = vi.spyOn(SlaxFetch.prototype, 'zyte').mockRejectedValue(new FetchError(403, 'ZYTE target fetch failed: 403'))
+    const bot = vi.spyOn(SlaxFetch.prototype, 'scrapingBot').mockResolvedValue(xiaoyuzhouFixture())
+    try {
+      await expect(wire().svc.fetchPodcastPage(ctx, xiaoyuzhouUrl)).rejects.toThrow('ZYTE target fetch failed: 403')
+      expect(bot).not.toHaveBeenCalled()
+    } finally {
+      zyte.mockRestore()
+      bot.mockRestore()
+    }
+  })
+
+  test('fetchPodcastPage falls back to a direct public fetch when both providers fail', async () => {
+    const zyte = vi.spyOn(SlaxFetch.prototype, 'zyte').mockRejectedValue(new FetchError(500, 'ZYTE API Error: 500'))
+    const bot = vi.spyOn(SlaxFetch.prototype, 'scrapingBot').mockRejectedValue(new FetchError(500, 'SCRAPING BOT API Error: 500'))
+    stubFetch({ 'https://www.xiaoyuzhoufm.com/episode/': fixture('xiaoyuzhou-episode.html') })
+    try {
+      expect((await wire().svc.fetchPodcastPage(ctx, xiaoyuzhouUrl)).content).toBe(fixture('xiaoyuzhou-episode.html'))
+    } finally {
+      zyte.mockRestore()
+      bot.mockRestore()
+    }
+  })
+
+  test('小宇宙: a terminal Zyte target 4xx saves the link as a page', async () => {
+    const { svc } = wire()
+    ;(svc as any).fetchPodcastPage = vi.fn().mockRejectedValue(new FetchError(403, 'ZYTE target fetch failed: 403'))
+    expect(await svc.fetchPodcastData(xiaoyuzhouUrl, ctx)).toBeNull()
+  })
+
+  test('小宇宙: a Zyte API 4xx (rate limit or bad key) retries instead of saving a page', async () => {
+    const { svc } = wire()
+    ;(svc as any).fetchPodcastPage = vi.fn().mockRejectedValue(new FetchError(429, 'ZYTE API Error: 429 Too Many Requests'))
+    await expect(svc.fetchPodcastData(xiaoyuzhouUrl, ctx)).rejects.toThrow('ZYTE API Error: 429')
   })
 
   test('Apple: lookup, then the feed adds transcripts and the language tag', async () => {
@@ -62,7 +129,7 @@ describe('fetchPodcastData', () => {
     // The Daily's feed is not saved; give the Buzzsprout feed the same episode title so it matches
     const feed = fixture('buzzsprout-feed.xml').replaceAll('Brazil’s Data Center Boom is Enabled by Renewables Firms w/ Laís Martins', episode.trackName.replace(/&/g, '&amp;'))
     const seen = stubFetch({ 'https://itunes.apple.com/lookup': JSON.stringify(lookup), 'https://feeds.simplecast.com/': feed })
-    const info = await wire().svc.fetchPodcastData('https://podcasts.apple.com/us/podcast/x/id1200361736?i=1000796109623')
+    const info = await wire().svc.fetchPodcastData('https://podcasts.apple.com/us/podcast/x/id1200361736?i=1000796109623', ctx)
     expect(seen[0]).toBe('https://itunes.apple.com/lookup?id=1200361736&entity=podcastEpisode&limit=300')
     expect(info).toMatchObject({ kind: 'apple', showName: 'The Daily', language: 'en', languageTag: 'en-us' })
     expect(info!.transcripts.map(t => t.type)).toContain('text/vtt')
@@ -70,13 +137,13 @@ describe('fetchPodcastData', () => {
 
   test('Apple: a feed that fails keeps the lookup data', async () => {
     stubFetch({ 'https://itunes.apple.com/lookup': fixture('apple-lookup.json'), 'https://feeds.simplecast.com/': { status: 500 } })
-    const info = await wire().svc.fetchPodcastData('https://podcasts.apple.com/us/podcast/x/id1200361736?i=1000796109623')
+    const info = await wire().svc.fetchPodcastData('https://podcasts.apple.com/us/podcast/x/id1200361736?i=1000796109623', ctx)
     expect(info).toMatchObject({ kind: 'apple', durationSec: 1997 })
   })
 
   test('Apple: an episode the lookup does not list → null (saved as a page)', async () => {
     stubFetch({ 'https://itunes.apple.com/lookup': fixture('apple-lookup.json') })
-    expect(await wire().svc.fetchPodcastData('https://podcasts.apple.com/us/podcast/x/id1200361736?i=1')).toBeNull()
+    expect(await wire().svc.fetchPodcastData('https://podcasts.apple.com/us/podcast/x/id1200361736?i=1', ctx)).toBeNull()
   })
 
   test('feed: the newest episode; a blog feed or a non-feed page → null', async () => {
@@ -86,32 +153,34 @@ describe('fetchPodcastData', () => {
       'https://example.com/rss': '<html></html>'
     })
     const svc = wire().svc
-    expect(await svc.fetchPodcastData('https://feeds.buzzsprout.com/1004689.rss')).toMatchObject({ kind: 'feed', language: 'en' })
-    expect(await svc.fetchPodcastData('https://example.com/blog/feed')).toBeNull()
-    expect(await svc.fetchPodcastData('https://example.com/rss')).toBeNull()
+    expect(await svc.fetchPodcastData('https://feeds.buzzsprout.com/1004689.rss', ctx)).toMatchObject({ kind: 'feed', language: 'en' })
+    expect(await svc.fetchPodcastData('https://example.com/blog/feed', ctx)).toBeNull()
+    expect(await svc.fetchPodcastData('https://example.com/rss', ctx)).toBeNull()
   })
 
   test('direct audio needs no request; Spotify reads oembed and has no audio', async () => {
     const seen = stubFetch({ 'https://open.spotify.com/oembed': JSON.stringify({ title: 'Ep', thumbnail_url: 'https://i.scdn.co/x' }) })
     const svc = wire().svc
-    expect(await svc.fetchPodcastData('https://cdn.example.com/ep.mp3')).toMatchObject({ kind: 'audio', audioUrl: 'https://cdn.example.com/ep.mp3' })
+    expect(await svc.fetchPodcastData('https://cdn.example.com/ep.mp3', ctx)).toMatchObject({ kind: 'audio', audioUrl: 'https://cdn.example.com/ep.mp3' })
     expect(seen).toEqual([])
-    expect(await svc.fetchPodcastData('https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk')).toMatchObject({ kind: 'spotify', audioUrl: '', title: 'Ep' })
+    expect(await svc.fetchPodcastData('https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk', ctx)).toMatchObject({ kind: 'spotify', audioUrl: '', title: 'Ep' })
   })
 
   test('errors that will repeat save the link as a page (null): private redirect, 4xx, bad JSON', async () => {
+    const { svc } = wire()
     const seen = stubFetch({ 'https://feeds.example.com/': { status: 302, location: 'http://169.254.169.254/latest' } })
-    expect(await wire().svc.fetchPodcastData('https://feeds.example.com/show.rss')).toBeNull()
+    expect(await svc.fetchPodcastData('https://feeds.example.com/show.rss', ctx)).toBeNull()
     expect(seen).toEqual(['https://feeds.example.com/show.rss'])
-    stubFetch({})
-    expect(await wire().svc.fetchPodcastData('https://www.xiaoyuzhoufm.com/episode/abc')).toBeNull()
+    ;(svc as any).fetchPodcastPage = vi.fn().mockRejectedValue(new FetchError(404, 'ZYTE target fetch failed: 404'))
+    expect(await svc.fetchPodcastData('https://www.xiaoyuzhoufm.com/episode/abc', ctx)).toBeNull()
     stubFetch({ 'https://itunes.apple.com/lookup': '<html>' })
-    expect(await wire().svc.fetchPodcastData('https://podcasts.apple.com/us/podcast/x/id1?i=2')).toBeNull()
+    expect(await svc.fetchPodcastData('https://podcasts.apple.com/us/podcast/x/id1?i=2', ctx)).toBeNull()
   })
 
   test('errors that can pass (5xx) are thrown, so the crawl step retries', async () => {
-    stubFetch({ 'https://www.xiaoyuzhoufm.com/': { status: 503 } })
-    await expect(wire().svc.fetchPodcastData('https://www.xiaoyuzhoufm.com/episode/abc')).rejects.toThrow('http_503')
+    const { svc } = wire()
+    ;(svc as any).fetchPodcastPage = vi.fn().mockRejectedValue(new FetchError(503, 'ZYTE target fetch failed: 503'))
+    await expect(svc.fetchPodcastData('https://www.xiaoyuzhoufm.com/episode/abc', ctx)).rejects.toThrow('ZYTE target fetch failed: 503')
   })
 })
 

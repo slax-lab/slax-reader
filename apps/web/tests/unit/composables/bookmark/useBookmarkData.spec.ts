@@ -38,6 +38,13 @@ mockNuxtImport('request', () => mockRequest)
 mockNuxtImport('useI18n', () => mockUseI18n)
 mockNuxtImport('addChannelMessageHandler', () => mockAddChannelMessageHandler)
 mockNuxtImport('removeChannelMessageHandler', () => mockRemoveChannelMessageHandler)
+vi.mock('~/composables/useAccountContext', () => ({
+  useAccountContext: () => ({
+    accountKey: ref('test-account'),
+    sessionOwner: ref('test-owner'),
+    context: ref({ accountKey: 'test-account', sessionOwner: 'test-owner', serverUserId: 1, source: 'server', status: 'ready', generation: 0 })
+  })
+}))
 
 // useInfiniteScroll：setup 时异步调一次 callback 模拟首屏加载（与集成测试同款）
 vi.mock('@vueuse/core', async () => {

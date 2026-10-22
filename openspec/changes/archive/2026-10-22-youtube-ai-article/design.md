@@ -46,7 +46,7 @@ Captions are necessary but not sufficient. Zero-cost rules (caption density, noi
 
 | Limit | Value |
 |---|---|
-| Per article version, all attempts, failed calls included | $0.30 |
+| Per article version, all attempts, failed calls included | $1.00 |
 | Automatic starts per user per day (opening a bookmark or saving a video) | 20 |
 | Manual starts per user per day | 5 |
 | Site-wide model spend per UTC day | $20, then new runs are deferred and one alert is sent |

@@ -145,7 +145,10 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
     const prep = await step.do('prepare', DB_STEP, async () => {
       if (!(await deps.repo.renewLease(p.articleId, runId, lease))) throw new YoutubeArticleStop('lease_lost')
       const loaded = await loadPlan()
-      if ('reason' in loaded) return { kind: 'skip' as const, reason: loaded.reason }
+      if ('reason' in loaded) {
+        log('skipped', p, { reason: loaded.reason })
+        return { kind: 'skip' as const, reason: loaded.reason }
+      }
       const { plan } = loaded
       // A video whose expected cost does not fit the per-video budget is skipped before any call,
       // instead of spending most of the budget and failing near the end
@@ -153,10 +156,28 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         const prompt = buildSystemInstruction(p.targetLanguage, chunk, plan.chunks.length) + buildUserMessage(p.title, plan.cues.slice(chunk.start, chunk.end))
         return sum + expectedChunkCostUsd(estimateTokens(prompt))
       }, 0)
-      if (expected > YOUTUBE_ARTICLE_LIMITS.maxCostUsd) return { kind: 'skip' as const, reason: 'too_long' as const }
+      if (expected > YOUTUBE_ARTICLE_LIMITS.maxCostUsd) {
+        log('skipped', p, {
+          reason: 'too_long',
+          chunks: plan.chunks.length,
+          input_chars: plan.inputChars,
+          duration_ms: plan.durationMs,
+          expected_cost_usd: Number(expected.toFixed(5)),
+          max_cost_usd: YOUTUBE_ARTICLE_LIMITS.maxCostUsd
+        })
+        return { kind: 'skip' as const, reason: 'too_long' as const }
+      }
       // Earlier attempts already spent part of the budget: do not start a run the rest cannot pay for
       const spent = (await deps.repo.findById(p.articleId))?.cost_usd ?? 0
-      if (spent + expected > YOUTUBE_ARTICLE_LIMITS.maxCostUsd) return { kind: 'skip' as const, reason: 'budget_exceeded' as const }
+      if (spent + expected > YOUTUBE_ARTICLE_LIMITS.maxCostUsd) {
+        log('skipped', p, {
+          reason: 'budget_exceeded',
+          spent_cost_usd: Number(spent.toFixed(5)),
+          expected_cost_usd: Number(expected.toFixed(5)),
+          max_cost_usd: YOUTUBE_ARTICLE_LIMITS.maxCostUsd
+        })
+        return { kind: 'skip' as const, reason: 'budget_exceeded' as const }
+      }
       return { kind: 'ok' as const, chunkCount: plan.chunks.length, format: plan.format, inputChars: plan.inputChars, durationMs: plan.durationMs, expectedCostUsd: expected }
     })
     if (prep.kind === 'skip') return await finish(prep.reason === 'too_long' ? 'skipped' : 'failed', prep.reason)
@@ -189,6 +210,9 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
             model: YOUTUBE_ARTICLE_MODEL,
             temperature: 0.2,
             maxOutputTokens: YOUTUBE_ARTICLE_LIMITS.maxOutputTokens,
+            // Thinking tokens share maxOutputTokens. Without a bound the preview model can spend
+            // the whole budget thinking and return MAX_TOKENS, which the runner retries in vain.
+            thinkingConfig: { thinkingBudget: 2048 },
             responseMimeType: 'application/json',
             responseSchema: YOUTUBE_ARTICLE_RESPONSE_SCHEMA as unknown as VertexAIConfig['responseSchema']
           },
