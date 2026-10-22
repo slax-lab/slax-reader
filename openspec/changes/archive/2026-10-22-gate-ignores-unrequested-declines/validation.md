@@ -65,6 +65,18 @@ Real comment fixtures used: `/review` comment 6289543179 (`MEMBER`, `issue_url` 
 - **Independent review**: a separate read-only review agent replayed every row against the committed script, re-checked the confirmation fixtures and the delta/main-spec headers, and reported no Important findings; its two compliance Nits (the pause requirement and the unreported-head residual) and its two declared-gap suggestions (the membership-declined path and the author-association drift) were folded into this change before the follow-up push.
 - **Compliance**: the diff matches `openspec/changes/gate-ignores-unrequested-declines` — proposal What Changes, design D2–D5, the delta spec's merge-gate and readiness-label requirements, and the tasks marked complete. The only gh-aw change is the run-name value and its recompiled lock, both included; `docs/CI.md` and the gate header comment state the same rule the script implements. The pull request body names `OpenSpec: gate-ignores-unrequested-declines` and its Test plan summarizes this file; the live-drill gap is declared rather than implied.
 
+## Post-merge verification (2026-10-22)
+
+Environment: the parent change landed on `dev` in `5846f5c`; the drill branch is based on `247bd2f93e5fff159337415e749a68400dc294df` and its head is `696d3db07ca83c259de2ed9b95213d1ac4134a61`. The drill used throwaway pull request #328 (`chore/gate-unrequested-decline-drill`), closed unmerged; its branch was deleted and no repository variable is left set. Each status's `target_url` points at the review run it was reported for, not at the gate run that posted it; both are cited below.
+
+- **Automatic path unchanged (task 6.3).** #328's automatic review run `39707200527` finished with `No Important findings`; gate run `39707655045` posted status `56949757159` — `success — Reviewed: no Important findings` — at 01:47:05Z, and the readiness label was added at 01:47:07Z.
+- **A cancelled on-demand request still fails closed (task 6.1, baseline).** `/review` comment `6330712715` created on-demand run `39707770799`; the run was cancelled while queued/running, and gate run `39707904470` posted status `56949878022` — `failure — Review did not start (pre_activation: cancelled); failing closed` — at 01:49:45Z; the label was removed at 01:49:46Z.
+- **An ordinary comment reports nothing (task 6.1, the fix).** Prose comment `6330736818` created on-demand run `39707944691`, whose display title was `PR review (on demand) for #328 comment 6330736818` — the comment-id carrier renders live. Its gate run `39707950124` exited without posting: the `PR review gate` status count on the head stayed at two, the latest remained the failure above, and the label stayed absent. `origin/dev` before the change posted a passing skip for this exact shape on PR #307.
+- **Paused reviews (task 6.2).** With `PR_REVIEW_ENABLED=false`: prose comment `6330755780` created run `39708091533`; its gate run `39708098426` posted no status (count stayed two, latest still the failure). `/review` comment `6330766092` created run `39708174191`; gate run `39708179285` posted status `56950002459` — `success — Review not run (reviews are currently paused)` — at 01:52:35Z and added the label at 01:52:37Z. The variable was deleted afterwards (`gh variable list` empty).
+- **Cleanup.** #328 was closed unmerged and its branch deleted; the label-dropping companion ran on close. Nothing from the drill persists.
+
+The live evidence above closes the "Live gate behavior" and "Run-name rendering at runtime" gaps; the remaining declared gaps are unchanged.
+
 ## Review rounds
 
 ### Round 1 (PR #324, automated review run 39704908899, commit ca616c5)
