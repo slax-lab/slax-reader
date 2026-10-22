@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { allowedHead, assessSuiteGates, defaultTimeoutMs, deployWorkflows, pollIntervalMs, readInputs, readTimeout, reviewApprovers, runPromotionGate, suiteGates } from './promotion-gate.mjs'
+import { allowedHead, assessSuiteGates, checkRunName, createCheckRun, defaultTimeoutMs, deployWorkflows, pollIntervalMs, readInputs, readTimeout, reviewApprovers, runGateAndReport, runPromotionGate, suiteGates } from './promotion-gate.mjs'
 
 const require = createRequire(import.meta.url)
 const { load } = createRequire(require.resolve('rulesync'))('js-yaml')
@@ -15,6 +15,11 @@ const otherSha = 'c'.repeat(40)
 const inputs = (overrides = {}) => ({
   repository, number: 42, base: 'beta', head: 'dev', headSha,
   headRepository: repository, baseRepository: repository, author: 'author', ...overrides
+})
+const env = (overrides = {}) => ({
+  GITHUB_REPOSITORY: repository, GH_TOKEN: 'fixture-token', GITHUB_RUN_ID: '12345',
+  PR_NUMBER: '42', BASE_REF: 'beta', HEAD_REF: 'dev', HEAD_SHA: headSha,
+  HEAD_REPOSITORY: repository, BASE_REPOSITORY: repository, PR_AUTHOR: 'author', ...overrides
 })
 const options = (fetchImpl, overrides = {}) => ({ token: 'fixture-token', fetchImpl, wait: async () => {}, ...overrides })
 const response = body => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -37,6 +42,16 @@ const deploymentStatus = (runId, state = 'success', createdAt = '2026-10-22T03:2
 const workflowRun = (path, overrides = {}) => ({ path, head_sha: sourceSha, status: 'completed', conclusion: 'success', ...overrides })
 const review = (login, state, submitted = '2026-10-22T05:00:00Z') => ({ id: 1, user: { login }, state, submitted_at: submitted })
 
+function checkRunRoute(posted, status = 201) {
+  return [/\/check-runs$/, (url, request) => {
+    assert.equal(request.method, 'POST')
+    const body = JSON.parse(request.body)
+    posted.push(body)
+    if (status !== 201) return httpFailure(status)
+    return new Response(JSON.stringify({ id: 7, name: body.name, head_sha: body.head_sha, status: body.status, conclusion: body.conclusion }), { status, headers: { 'content-type': 'application/json' } })
+  }]
+}
+
 function betaDeploymentRoutes({ pulls = [mergedPull()], deployments = [deployment(11), deployment(12)], statuses = {}, runs = {} } = {}) {
   const deploymentHandlers = deployments.map(item => [new RegExp(`/deployments/${item.id}/statuses\\?`), typeof statuses[item.id] === 'function' ? statuses[item.id] : () => response(statuses[item.id] ?? [deploymentStatus(1000 + item.id)])])
   const runHandlers = Object.entries(runs).map(([id, run]) => [new RegExp(`/actions/runs/${id}$`), () => response(run)])
@@ -52,16 +67,16 @@ function betaDeploymentRoutes({ pulls = [mergedPull()], deployments = [deploymen
 const defaultDeploymentRuns = () => ({ 1011: workflowRun(deployWorkflows[0]), 1012: workflowRun(deployWorkflows[1]) })
 
 test('inputs require a complete beta/main pull request identity', () => {
-  const env = {
+  const values = {
     GITHUB_REPOSITORY: repository, PR_NUMBER: '42', BASE_REF: 'beta', HEAD_REF: 'dev', HEAD_SHA: headSha,
     HEAD_REPOSITORY: repository, BASE_REPOSITORY: repository, PR_AUTHOR: 'author'
   }
-  assert.deepEqual(readInputs(env), inputs())
+  assert.deepEqual(readInputs(values), inputs())
   for (const [key, value] of [
     ['GITHUB_REPOSITORY', 'not-a-repository'], ['PR_NUMBER', '0'], ['PR_NUMBER', '1.5'], ['BASE_REF', 'dev'],
     ['HEAD_REF', ''], ['HEAD_SHA', 'A'.repeat(40)], ['HEAD_REPOSITORY', ''], ['BASE_REPOSITORY', ''], ['PR_AUTHOR', '']
   ]) {
-    assert.throws(() => readInputs({ ...env, [key]: value }), /Missing|Invalid|only supports/, key)
+    assert.throws(() => readInputs({ ...values, [key]: value }), /Missing|Invalid|only supports/, key)
   }
 })
 
@@ -244,20 +259,96 @@ test('a dev-to-beta promotion never reads reviews or deployments', async () => {
   await runPromotionGate(inputs({}), options(routed(checksRoute(greenGates()))))
 })
 
-test('the workflow exposes one required promotion integrity job with read-only permissions', () => {
+test('a passing gate reports a promotion integrity check run on the head SHA', async () => {
+  const posted = []
+  const result = await runGateAndReport(env(), { fetchImpl: routed([...checksRoute(greenGates()), checkRunRoute(posted)]) })
+  assert.deepEqual(result, { reported: true, passed: true })
+  assert.equal(posted.length, 1)
+  assert.deepEqual(
+    { name: posted[0].name, head_sha: posted[0].head_sha, status: posted[0].status, conclusion: posted[0].conclusion },
+    { name: checkRunName, head_sha: headSha, status: 'completed', conclusion: 'success' }
+  )
+  assert.match(posted[0].output.title, /passed/)
+  assert.match(posted[0].output.summary, /dev -> beta/)
+  assert.equal(posted[0].details_url, `https://github.com/${repository}/actions/runs/12345`)
+})
+
+test('a failing verdict still reports a failing check run with an actionable summary', async () => {
+  const posted = []
+  const result = await runGateAndReport(env({ HEAD_REF: 'main' }), { fetchImpl: routed([checkRunRoute(posted)]) })
+  assert.equal(result.reported, true)
+  assert.equal(result.passed, false)
+  assert.match(result.message, /not an allowed source/)
+  assert.equal(posted[0].conclusion, 'failure')
+  assert.match(posted[0].output.summary, /not an allowed source/)
+  assert.match(posted[0].output.summary, /push a new commit|re-run this workflow/)
+})
+
+test('an evidence API error still reports a failing check run', async () => {
+  const posted = []
+  const routes = [
+    [/\/check-runs\?/, () => httpFailure(503)],
+    checkRunRoute(posted)
+  ]
+  const result = await runGateAndReport(env(), { fetchImpl: routed(routes), wait: async () => {} })
+  assert.equal(result.reported, true)
+  assert.equal(result.passed, false)
+  assert.equal(posted[0].conclusion, 'failure')
+  assert.match(posted[0].output.summary, /HTTP 503/)
+})
+
+test('invalid inputs are reported as a failing check run when the target identity is usable', async () => {
+  const posted = []
+  const result = await runGateAndReport(env({ BASE_REF: 'dev' }), { fetchImpl: routed([checkRunRoute(posted)]) })
+  assert.equal(result.reported, true)
+  assert.equal(result.passed, false)
+  assert.equal(posted[0].conclusion, 'failure')
+  assert.match(posted[0].output.summary, /only supports/)
+})
+
+test('an unreportable target leaves the verdict unreported', async () => {
+  const result = await runGateAndReport(env({ HEAD_SHA: 'not-a-sha' }), { fetchImpl: async () => assert.fail('must not call the API') })
+  assert.equal(result.reported, false)
+  assert.equal(result.passed, false)
+})
+
+test('a rejected check run creation leaves the verdict unreported', async () => {
+  const result = await runGateAndReport(env({ HEAD_REF: 'main' }), { fetchImpl: routed([checkRunRoute([], 500)]) })
+  assert.equal(result.reported, false)
+  assert.equal(result.passed, false)
+})
+
+test('a failed success report is never misreported as a gate failure', async () => {
+  const posted = []
+  const result = await runGateAndReport(env(), { fetchImpl: routed([...checksRoute(greenGates()), checkRunRoute(posted, 500)]), wait: async () => {} })
+  assert.equal(result.reported, false)
+  assert.equal(result.passed, false)
+  assert.equal(posted.length, 1)
+  assert.equal(posted[0].conclusion, 'success')
+})
+
+test('check run creation verifies the returned identity', async () => {
+  await assert.rejects(createCheckRun({
+    repository, headSha, token: 'fixture-token', conclusion: 'success', title: 'Promotion integrity passed', summary: 'fixture'
+  }, {
+    fetchImpl: async () => response({ name: 'wrong name', head_sha: headSha, status: 'completed', conclusion: 'success' })
+  }), /Could not verify/)
+})
+
+test('the workflow uses the trusted pull_request_target trigger and reports a distinct check run', () => {
   const workflow = load(readFileSync(new URL('../.github/workflows/promotion-gate.yml', import.meta.url), 'utf8'))
-  assert.deepEqual(workflow.on.pull_request, { types: ['opened', 'synchronize', 'reopened'], branches: ['beta', 'main'] })
-  assert.deepEqual(workflow.on.pull_request_review, { types: ['submitted', 'dismissed'] })
-  assert.deepEqual(workflow.permissions, { actions: 'read', checks: 'read', contents: 'read', deployments: 'read', 'pull-requests': 'read' })
+  assert.equal(workflow.on.pull_request, undefined)
+  assert.equal(workflow.on.pull_request_review, undefined)
+  assert.deepEqual(workflow.on.pull_request_target, { types: ['opened', 'synchronize', 'reopened'], branches: ['beta', 'main'] })
+  assert.deepEqual(workflow.permissions, { actions: 'read', checks: 'write', contents: 'read', deployments: 'read', 'pull-requests': 'read' })
   assert.deepEqual(Object.keys(workflow.jobs), ['gate'])
-  assert.equal(workflow.jobs.gate.name, 'promotion integrity')
-  assert.match(workflow.jobs.gate.if, /github\.event_name == 'pull_request'/)
-  assert.match(workflow.jobs.gate.if, /'beta'/)
-  assert.match(workflow.jobs.gate.if, /'main'/)
+  assert.equal(workflow.jobs.gate.name, 'Promotion gate runner')
+  assert.notEqual(workflow.jobs.gate.name, checkRunName)
   assert.equal(workflow.jobs.gate['timeout-minutes'], 60)
   assert.equal(workflow.concurrency['cancel-in-progress'], true)
   assert.match(workflow.concurrency.group, /pull_request\.number/)
   const checkout = workflow.jobs.gate.steps.find(step => step.uses?.startsWith('actions/checkout@'))
+  assert.equal(checkout.with.ref, '${{ github.event.pull_request.base.sha }}')
   assert.equal(checkout.with['persist-credentials'], false)
   const step = workflow.jobs.gate.steps.find(step => step.run === 'node tooling/promotion-gate.mjs')
   assert.ok(step)

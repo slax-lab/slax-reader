@@ -8,9 +8,13 @@ name: Promotion gate
 # hotfix/* for beta; beta or hotfix/* for main), the six application CI gates
 # succeeded on the head, and a hotfix carries a non-author approving review.
 #
-# Failing closed is the point: any unreadable or unexpected API shape fails the
-# check, like `PR review gate`. A wrong failure blocks one promotion until a
-# human looks; it never lets unvalidated content through.
+# Trust model: this workflow runs on `pull_request_target`. Its workflow file
+# comes from the default branch and the base commit is checked out explicitly,
+# so PR code is never executed. The verdict is an explicitly created check run
+# named `promotion integrity` on the pull request's head SHA (see the script), not
+# this job's own conclusion — the job is intentionally named differently. Every
+# error path still creates a failing check run, so a broken gate blocks the merge
+# instead of leaving the required context missing.
 #
 # The suite gates and the beta deployment are triggered around the same time as
 # this job, so the script polls both to a bounded deadline. Any completed
@@ -22,21 +26,19 @@ name: Promotion gate
 # merge commit, so the script resolves beta tip -> merged PR -> its head SHA ->
 # beta deployment records. See tooling/promotion-gate.mjs.
 #
-# `pull_request_review` re-evaluates the hotfix review assertion when an approval
-# (or dismissal) lands; otherwise the failed context could never turn green
-# without a new push. That event has no branch filter, so the job skips reviews
-# on pull requests that do not target beta or main.
+# `pull_request_review` is deliberately not a trigger: GitHub runs that event's
+# workflow file from the pull request's merge commit, which head branches can
+# edit, so it would let a hotfix self-certify the required check. After a hotfix
+# approval lands, re-run this workflow to re-evaluate the review assertion.
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened]
     branches: [beta, main]
-  pull_request_review:
-    types: [submitted, dismissed]
 
 permissions:
   actions: read
-  checks: read
+  checks: write
   contents: read
   deployments: read
   pull-requests: read
@@ -47,21 +49,18 @@ concurrency:
 
 jobs:
   gate:
-    name: promotion integrity
-    if: >-
-      github.event_name == 'pull_request' ||
-      github.event.pull_request.base.ref == 'beta' ||
-      github.event.pull_request.base.ref == 'main'
+    name: Promotion gate runner
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22.22.2
-      - name: Verify promotion provenance and validation evidence
+      - name: Report the promotion integrity verdict
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}

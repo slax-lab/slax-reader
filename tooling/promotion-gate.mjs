@@ -5,25 +5,34 @@ import { fileURLToPath } from 'node:url'
 // for pull requests entering beta and main: it asserts where the head came from
 // and that the validation owned by the source stage already succeeded.
 //
-// The suite gates and the beta deploy workflows are triggered by the same pull
-// request (or by the merge that produced its head), so they are usually still
-// running when this job starts. Evidence is therefore polled to a bounded
-// deadline instead of read once. Polling only defers the verdict: any completed
-// failure fails immediately, and every unreadable or unexpected answer fails the
-// gate. A wrong failure blocks one promotion until a human looks; it never
-// merges something unvalidated.
+// Trust model: the workflow runs on `pull_request_target`, from the default
+// branch's workflow file and with the base commit checked out, so PR code is
+// never executed. The verdict is an explicitly created check run named
+// `promotion integrity` on the pull request's head SHA; the workflow job's own
+// conclusion is not the gate. Every failure path still reports a failing check
+// run, so a broken gate blocks the merge instead of leaving the context missing.
+//
+// The suite gates and the beta deploy workflows are triggered around the same
+// time as this job, so evidence is polled to a bounded deadline instead of read
+// once. Polling only defers the verdict: any completed failure fails
+// immediately, and every unreadable or unexpected answer fails the gate. A wrong
+// failure blocks one promotion until a human looks; it never merges something
+// unvalidated.
 
 const api = 'https://api.github.com'
 const repositoryPattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
 const shaPattern = /^[a-f0-9]{40}$/
 const hotfixPattern = /^hotfix\/\S+$/
+const runIdPattern = /^[1-9][0-9]*$/
 const logUrlPattern = /\/actions\/runs\/([1-9][0-9]*)\/job\/[1-9][0-9]*$/
 const deployFailureStates = ['error', 'failure', 'inactive']
 const deployPendingStates = ['queued', 'in_progress', 'pending', 'waiting']
 const runFailureConclusions = ['failure', 'cancelled', 'timed_out', 'action_required', 'stale']
 const defaultTimeoutMs = 45 * 60_000
 const pollIntervalMs = 30_000
+const maxSummaryLength = 60_000
 
+export const checkRunName = 'promotion integrity'
 export const suiteGates = ['Web CI gate', 'Extension CI gate', 'API CI gate', 'Mobile CI gate', 'CLI CI gate', 'Tooling CI gate']
 export const deployWorkflows = ['.github/workflows/api-deploy.yml', '.github/workflows/web-deploy.yml']
 export { defaultTimeoutMs, pollIntervalMs }
@@ -293,12 +302,113 @@ export async function runPromotionGate(inputs, { token, fetchImpl = fetch, wait 
   log(`promotion integrity passed for ${inputs.head} -> ${inputs.base}`)
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  try {
-    const inputs = readInputs(process.env)
-    await runPromotionGate(inputs, { token: process.env.GH_TOKEN, timeoutMs: readTimeout(process.env), log: message => console.log(message) })
-  } catch (error) {
-    console.error(error instanceof GateError ? error.message : 'Promotion gate failed unexpectedly')
-    process.exitCode = 1
+function checkRunDetailsUrl(env, repository) {
+  const runId = env.GITHUB_RUN_ID
+  if (!runIdPattern.test(String(runId ?? '')) || !repositoryPattern.test(repository)) return undefined
+  return `https://github.com/${repository}/actions/runs/${runId}`
+}
+
+// The required context is this check run, not the workflow job. It is created
+// through the Checks API on the pull request's head SHA and verified on the way
+// back, so a renamed or mis-targeted run cannot silently satisfy the gate.
+export async function createCheckRun({ repository, headSha, token, conclusion, title, summary, detailsUrl }, { fetchImpl = fetch } = {}) {
+  if (!repositoryPattern.test(repository)) fail('Cannot report a promotion integrity verdict: invalid repository')
+  if (!shaPattern.test(headSha)) fail('Cannot report a promotion integrity verdict: invalid head SHA')
+  if (typeof token !== 'string' || !token) fail('Cannot report a promotion integrity verdict: missing token')
+  if (!['success', 'failure'].includes(conclusion)) fail('Cannot report a promotion integrity verdict: invalid conclusion')
+  if (typeof title !== 'string' || !title || typeof summary !== 'string' || !summary) fail('Cannot report a promotion integrity verdict: missing output')
+
+  const body = {
+    name: checkRunName,
+    head_sha: headSha,
+    status: 'completed',
+    conclusion,
+    output: { title: title.slice(0, 255), summary: summary.slice(0, maxSummaryLength) }
   }
+  if (detailsUrl) body.details_url = detailsUrl
+
+  let response
+  try {
+    response = await fetchImpl(`${api}/repos/${repository}/check-runs`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'slax-promotion-gate'
+      },
+      body: JSON.stringify(body),
+      redirect: 'error',
+      signal: AbortSignal.timeout(30_000)
+    })
+  } catch {
+    fail('Could not report the promotion integrity verdict (request failed)')
+  }
+  if (!response.ok) fail(`Could not report the promotion integrity verdict (HTTP ${response.status})`)
+  let created
+  try {
+    created = await response.json()
+  } catch {
+    fail('Could not verify the promotion integrity verdict')
+  }
+  if (created?.name !== checkRunName || created?.head_sha !== headSha || created?.status !== 'completed' || created?.conclusion !== conclusion) fail('Could not verify the promotion integrity verdict')
+}
+
+// CLI wrapper: run the gate, then report exactly one check run. A failing
+// verdict is reported as a failing check and does not fail the job — the check
+// is the merge gate. Only an unreportable verdict fails the job.
+export async function runGateAndReport(env = process.env, { fetchImpl = fetch, wait = delay, log = () => {}, errorLog = () => {} } = {}) {
+  const target = {
+    repository: env.GITHUB_REPOSITORY ?? '',
+    headSha: env.HEAD_SHA ?? '',
+    token: env.GH_TOKEN ?? '',
+    detailsUrl: checkRunDetailsUrl(env, env.GITHUB_REPOSITORY ?? '')
+  }
+  const source = `${env.HEAD_REF || '(unknown)'} -> ${env.BASE_REF || '(unknown)'}`
+
+  let inputs
+  try {
+    inputs = readInputs(env)
+    await runPromotionGate(inputs, { token: target.token, fetchImpl, wait, timeoutMs: readTimeout(env), log })
+  } catch (error) {
+    const message = error instanceof GateError ? error.message : 'Promotion gate failed unexpectedly'
+    errorLog(message)
+    try {
+      await createCheckRun({
+        ...target,
+        conclusion: 'failure',
+        title: 'Promotion integrity failed',
+        summary: `Promotion ${source} failed.\n\n${message}\n\nFix the failed condition and push a new commit, or re-run this workflow after the required approval lands; the check reports again on the current head.`
+      }, { fetchImpl })
+      return { reported: true, passed: false, message }
+    } catch (reportError) {
+      errorLog(reportError.message)
+      return { reported: false, passed: false, message }
+    }
+  }
+
+  const notes = [`Promotion ${inputs.head} -> ${inputs.base} passed on ${inputs.headSha}.`, `All ${suiteGates.length} application CI gates are green.`]
+  if (inputs.base === 'main' && inputs.head === 'beta') notes.push('The beta environment deployment evidence is green.')
+  if (hotfixPattern.test(inputs.head)) notes.push('The hotfix carries an approving review from a non-author.')
+  try {
+    await createCheckRun({
+      ...target,
+      conclusion: 'success',
+      title: 'Promotion integrity passed',
+      summary: notes.join(' ')
+    }, { fetchImpl })
+    return { reported: true, passed: true }
+  } catch (error) {
+    errorLog(error.message)
+    return { reported: false, passed: false, message: error.message }
+  }
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const result = await runGateAndReport(process.env, {
+    log: message => console.log(message),
+    errorLog: message => console.error(message)
+  })
+  if (!result.reported) process.exitCode = 1
 }
