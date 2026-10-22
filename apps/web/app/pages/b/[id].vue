@@ -9,15 +9,16 @@
       <template #topbar>
         <SnapshotTopBar>
           <template #left>
-            <button class="app-name" @click="navigateTo('/')">
+            <button class="app-name" :aria-label="$t('common.app.name')" @click="navigateTo('/')">
               <img src="@images/icon-logo-bookmark.png" width="22" height="22" alt="" />
-              {{ $t('common.app.name') }}
+              <span>{{ $t('common.app.name') }}</span>
             </button>
           </template>
           <template #theme-switcher>
             <ClientOnly><ThemeSwitcher /></ClientOnly>
           </template>
           <template #right>
+            <ClientOnly><SnapshotForkButton v-if="!isOwner && bookmarkUid" :bookmark-uid="bookmarkUid" /></ClientOnly>
             <SnapshotSharePopover :bookmark-uid="bookmarkUid" :can-manage-share="isOwner" :twitter-text="twitterShareText" />
             <div v-if="menuLoading" class="i-svg-spinners:90-ring w-1em text-txt"></div>
             <SnapshotMoreMenu v-else-if="moreMenuActions.length" :actions="moreMenuActions" @action="moreMenuClick" />
@@ -198,6 +199,7 @@ import SnapshotCommentList from '~/components/Snapshot/SnapshotCommentList.vue'
 import SnapshotMoreMenu, { type MoreMenuAction } from '~/components/Snapshot/SnapshotMoreMenu.vue'
 import SnapshotRightEdgeToolbar from '~/components/Snapshot/SnapshotRightEdgeToolbar.vue'
 import SnapshotSharePopover from '~/components/Snapshot/SnapshotSharePopover.vue'
+import SnapshotForkButton from '~/components/Snapshot/SnapshotForkButton.vue'
 import SnapshotTopBar from '~/components/Snapshot/SnapshotTopBar.vue'
 import SnapshotTranscriptPanel from '~/components/Snapshot/SnapshotTranscriptPanel.vue'
 import YoutubeAiArticle from '~/components/Snapshot/YoutubeAiArticle.vue'
@@ -251,8 +253,15 @@ const contentRequestHeaders = import.meta.server ? useRequestHeaders(['cookie'])
 const contentRequestEvent = import.meta.server ? useRequestEvent() : undefined
 const fetchContent = useRequestFetch()
 
-const { data: pageData, error, refresh: refreshContent } = await useAsyncData(`content-${uuid}`, async () => {
-  const res = await fetchContent<{ metadata: SnapshotMetadata; body: string | null }>(`/api/content/${uuid}`, {
+const {
+  data: pageData,
+  error,
+  refresh: refreshContent
+} = await useAsyncData(`content-${uuid}`, async () => {
+  const res = await fetchContent<{
+    metadata: SnapshotMetadata
+    body: string | null
+  }>(`/api/content/${uuid}`, {
     headers: contentRequestHeaders,
     onResponse({ response }) {
       contentResponseHeaders = new Headers(response.headers)
@@ -266,6 +275,7 @@ const { data: pageData, error, refresh: refreshContent } = await useAsyncData(`c
   }
 
   if (import.meta.server) {
+    if (contentRequestEvent) contentRequestEvent.context.__snapshotCacheMetadata = res.metadata
     const title = pdfTitlePreview(res.metadata)
     if (title) {
       const event = contentRequestEvent
@@ -1072,9 +1082,17 @@ renderServerData()
   .bookmark-detail.is-pdf :deep(.comment-meta-actions button),
   .bookmark-detail.is-pdf :deep(.comment-sub-actions button),
   .bookmark-detail.is-pdf :deep(.side-panel-tab),
-  .bookmark-detail.is-pdf :deep(.side-panel-close) { min-height: 44px; min-width: 44px; }
+  .bookmark-detail.is-pdf :deep(.side-panel-close) {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }
-.pdf-ai-unavailable { padding: 24px; font-size: var(--slax-fs-aux); line-height: 1.6; color: var(--slax-text-muted); }
+.pdf-ai-unavailable {
+  padding: 24px;
+  font-size: var(--slax-fs-aux);
+  line-height: 1.6;
+  color: var(--slax-text-muted);
+}
 .bookmark-detail {
   --slax-header-height: var(--slax-header-h-snapshot);
 
@@ -1087,6 +1105,17 @@ renderServerData()
     background: transparent;
     border: none;
     padding: 0;
+    white-space: nowrap;
+
+    @media (max-width: 380px) {
+      min-width: 44px;
+      min-height: 44px;
+      justify-content: center;
+
+      span {
+        display: none;
+      }
+    }
 
     img {
       flex-shrink: 0;

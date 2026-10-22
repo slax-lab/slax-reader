@@ -44,6 +44,7 @@ export class ContentOrchestrator {
       updated_at: updated_at.toISOString(),
       published_at: published_at.toISOString(),
       bookmark_uuid: ub.uuid,
+      has_fork: ub.forked_from_id != null,
       user_id: ctx.hashIds.encodeId(ub.user_id),
       content_key,
       type: bookmarkContentType(ub.type),

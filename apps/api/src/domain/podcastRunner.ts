@@ -86,6 +86,7 @@ export interface PodcastRunnerDeps {
   flagBookmarks(sourceId: string, result: number): Promise<number>
   /** Write the ready article into the body of every bookmark of the episode. Returns the count. */
   publishBodies(sourceId: string): Promise<number>
+  settleSnapshots(sourceId: string): Promise<number>
   /** Article languages the episode's readers need besides the original. */
   translationTargets(sourceId: string, original: PodcastLanguage): Promise<PodcastLanguage[]>
   /** Adds an estimated cost to the site-wide daily podcast spend. */
@@ -216,6 +217,7 @@ async function transcribe(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
     const status = await step.do(`episode-finish-${kind}`, DB_STEP, () => deps.episodes.finish(p.episodeId, { kind, error, clearJob }, { runId }))
     log('transcript_finished', p, { kind, error, status })
     if (status === null) return 'gone'
+    if (status !== 'pending') await step.do(`episode-settle-${kind}`, PUBLISH_STEP, () => deps.settleSnapshots(p.sourceId))
     return status === 'pending' ? 'retry' : (status as PodcastOutcome)
   }
 
@@ -472,6 +474,7 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
     const status = await step.do(`${prefix}-finish-${kind}`, DB_STEP, () => deps.articles.finishAttempt(job.articleId, { kind, error, quality }, { runId }))
     log('article_finished', p, { mode: job.mode, lang: job.lang, kind, error, status })
     if (status === null) return 'gone'
+    if (status !== 'pending') await step.do(`${prefix}-settle-${kind}`, PUBLISH_STEP, () => deps.settleSnapshots(p.sourceId))
     return status === 'pending' ? 'retry' : (status as PodcastOutcome)
   }
 
@@ -628,6 +631,7 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
     )
     // Article keys are the same for every run of a version; a row that moved on keeps them only if it published them
     if (!published) return 'gone'
+    await step.do(`${prefix}-settle-private`, PUBLISH_STEP, () => deps.settleSnapshots(p.sourceId))
     await step.do(`${prefix}-drop-chunks`, DB_STEP, () => deletePrefix(deps, chunkPrefix))
     log('article_ready', p, { mode: job.mode, lang: job.lang, cost_usd: assembled.quality.cost_usd, paragraphs: assembled.quality.metrics.paragraphs })
     return 'ready'

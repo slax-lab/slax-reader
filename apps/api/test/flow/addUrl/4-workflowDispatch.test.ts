@@ -25,8 +25,17 @@ function wireCrawlService() {
   const ls = createMockLogsService()
   const ab = createMockAlertBot()
   const svc = new (CrawlService as any)()
-  ;(svc as any).bucketClient = bc; ;(svc as any).bookmarkRepo = br
-  ;(svc as any).logsService = ls; ;(svc as any).alertBot = ab
+  ;(svc as any).bucketClient = bc
+  ;(svc as any).bookmarkRepo = br
+  ;(svc as any).logsService = ls
+  ;(svc as any).alertBot = ab
+  ;(svc as any).snapshotRepo = {
+    snapshot: vi.fn(async () => ({ updated_at: new Date('2026-10-22T00:00:00Z') })),
+    setCaptureStatus: vi.fn(async (id, _revision, status) => {
+      await br.updateBookmarkStatus(id, status)
+      return true
+    })
+  }
   return { svc: svc as CrawlService, br, ls, ab }
 }
 

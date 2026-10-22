@@ -1,4 +1,6 @@
-// 获取网站基本信息
+import { readerBookmarkUuid } from '@slax-reader/contracts'
+
+// Capture external pages; Reader links are copied by the server from their authorized snapshot.
 export const getWebSiteInfo = () => {
   const info: {
     target_url: string
@@ -24,6 +26,8 @@ export const getWebSiteInfo = () => {
     document.querySelector('meta[name="description"]')?.getAttribute('content') ||
     document.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
     ''
+
+  if (readerBookmarkUuid(info.target_url, [process.env.PUBLIC_BASE_URL])) return info
 
   const cloneDom = document.cloneNode(true) as Document
   Array.from(cloneDom.getElementsByTagName('slax-reader-modal') || []).forEach(element => element.remove())

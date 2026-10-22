@@ -3,13 +3,15 @@ import assert from 'node:assert/strict'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { request as nodeRequest } from 'node:http'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { relative, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { Auth } from '../../src/utils/jwt'
 import { Hashid } from '../../src/utils/hashids'
 import { ROOT } from '../../script/deploy/dev-local'
 import { LocalResources } from './localResources'
+import { prepareForkSmoke } from './forkSmoke'
 
 let httpPort = 8787
 
@@ -53,9 +55,13 @@ const localFetch = (url: string, options: RequestInit = {}) =>
 
 async function main() {
   const resources = new LocalResources()
+  // macOS Unix socket paths are limited to 104 bytes; worktree paths can exceed it.
+  const ipcTemp = mkdtempSync(resolve(tmpdir(), 'slax-http-'))
+  resources.env.TMPDIR = ipcTemp
   const evidence: Record<string, unknown> = {}
   let worker: ChildProcess | undefined
   let workerLog = ''
+  let forks: Awaited<ReturnType<typeof prepareForkSmoke>> | undefined
   const state = resolve(resources.workspace, 'state')
   const coreConfig = resolve(resources.workspace, 'core.json')
   const edgeConfig = resolve(resources.workspace, 'edge.json')
@@ -185,6 +191,7 @@ async function main() {
       INSERT INTO sr_bookmark_share (user_id,bookmark_id,share_code) VALUES (2,1,'SmokeA1');
     `
     )
+    if (process.env.FORK_SMOKE === '1') forks = await prepareForkSmoke(resources, pg.id, state)
     const token = await new Auth(vars as Env).sign({ id: String(new Hashid(vars as Env).encodeId(1)), email: 'saver@smoke.invalid', lang: 'en' })
     worker = spawn(
       'pnpm',
@@ -245,6 +252,7 @@ async function main() {
       assert.equal(response.body.code, 401)
     }
     const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+    if (forks) evidence.fork = await forks.exercise((path, init) => localFetch(`http://localhost:${httpPort}${path}`, init), headers, vars.FRONT_END_URL)
     const before = await request('list-before', listPath, { headers })
     assert.equal(before.status, 200)
     assert.equal(before.body.code, 200)
@@ -324,12 +332,14 @@ async function main() {
         /* already exited */
       }
     }
+    await forks?.dispose()
     resources.cleanup()
     writeFileSync(resolve(resources.workspace, 'worker.log'), workerLog)
     writeFileSync(resolve(resources.workspace, 'http-results.json'), JSON.stringify(evidence, null, 2))
     console.log(`HTTP acceptance: ${evidence.status}`)
     console.log(JSON.stringify(evidence, null, 2))
     resources.removeWorkspace()
+    rmSync(ipcTemp, { recursive: true, force: true })
   }
 }
 void main()

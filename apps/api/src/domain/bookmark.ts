@@ -39,6 +39,14 @@ import { authToken } from '@/middleware/auth'
 import { randomUUID } from 'crypto'
 import { selectDORegion } from '@/utils/location'
 import { resolveBookmarkReadAccess } from '@/utils/bookmarkAccess'
+import { readerBookmarkUuid } from '@slax-reader/contracts'
+import { BookmarkForkService } from './bookmarkFork'
+import { MediaSnapshotService } from './mediaSnapshot'
+import { snapshotBundleMembers } from '@/utils/snapshotBundle'
+import { forkError } from '@/utils/bookmarkForkError'
+
+type ImportedFork = { kind: 'completed'; bookmarkId: number; targetUrl: string; userId: number; skipParse: true; ignoreGenerateTag: true }
+type FailedImportedFork = { kind: 'failed'; targetUrl: string }
 
 export type { BookmarkExportItem } from '@slax-reader/contracts'
 export type { BookmarkExportResponse } from '@slax-reader/contracts'
@@ -112,7 +120,9 @@ export class BookmarkService {
     @inject(LabService) private labService: LabService,
     @inject(SearchService) private searchService: SearchService,
     @inject(YoutubeArticleRepo) private youtubeArticleRepo: YoutubeArticleRepo,
-    @inject(PodcastArticleRepo) private podcastArticleRepo: PodcastArticleRepo
+    @inject(PodcastArticleRepo) private podcastArticleRepo: PodcastArticleRepo,
+    @inject(BookmarkForkService) private forkService: BookmarkForkService,
+    @inject(MediaSnapshotService) private snapshots: MediaSnapshotService
   ) {
     this.bookmarkData = bookmarkRepo
     this.bucketData = bucket
@@ -254,12 +264,19 @@ export class BookmarkService {
    * 批量添加URL收藏
    */
   public async batchAddUrlBookmark(ctx: ContextManager, req: addUrlBookmarkReq[]) {
-    const batchMessage: queueParseMessage[] = []
+    const batchMessage: (queueParseMessage | ImportedFork | FailedImportedFork)[] = []
 
     for (const item of req) {
       if (!item.target_url || item.target_url === '') continue
 
-      const res = await this.addUrlBookmarkItem(ctx, item)
+      let res: queueParseMessage | ImportedFork | FailedImportedFork | null
+      try {
+        res = await this.addUrlBookmarkItem(ctx, item)
+      } catch (error) {
+        if (!readerBookmarkUuid(item.target_url, [ctx.env.FRONT_END_URL])) throw error
+        console.error('Reader link import failed', error)
+        res = { kind: 'failed', targetUrl: item.target_url }
+      }
       if (!res) continue
 
       batchMessage.push(res)
@@ -393,8 +410,8 @@ export class BookmarkService {
 
       try {
         const promiseList = [
-          this.bucket().R2Bucket.delete(bmPO.content_key || ''),
-          this.bucket().R2Bucket.delete(bmPO.content_md_key || ''),
+          this.bucket().R2Bucket.delete(snapshotBundleMembers(bmPO.content_key || '') ?? [bmPO.content_key || '', bmPO.content_md_key || ''].filter(Boolean)),
+          ctx.env.KV.delete(`snapshot-index:${bmId}`),
           ...(isPdfContentKey(bmPO.content_key) ? [this.bucket().R2Bucket.delete(bmPO.content_key!.replace('pdf/body/', 'pdf/meta/').replace(/\.pdf$/, '.json'))] : []),
           this.bookmarkSearchRepo.deleteBookmarkRaw(bmId)
         ]
@@ -462,14 +479,23 @@ export class BookmarkService {
 
   /** 收藏是否存在  */
   public async bookmarkExists(ctx: ContextManager, targetUrl: string) {
+    const readerUuid = readerBookmarkUuid(targetUrl, [ctx.env.FRONT_END_URL])
+    if (readerUuid) {
+      const destination = await this.forkService.lookup(ctx, readerUuid)
+      return {
+        exists: !!destination,
+        bookmark_uid: destination?.uuid,
+        bookmark_id: destination ? ctx.hashIds.encodeId(destination.bookmark_id) : 0,
+        parse_type: parserType.CLIENT_PARSE
+      }
+    }
     const uUrl = new URL(targetUrl)
     const police = new URLPolicie(ctx.env, uUrl)
-    let privateUser = 0
-    if (police.isClientParse()) privateUser = ctx.getUserId()
     if (police.isUrlShortcut()) uUrl.searchParams.forEach((value, key) => uUrl.searchParams.delete(key))
 
     const bmRepo = this.bookmarkRepo
-    const res = await bmRepo.getBookmark(uUrl.toString(), privateUser)
+    let res = await bmRepo.getBookmark(uUrl.toString(), ctx.getUserId())
+    if (!res) res = await bmRepo.getBookmark(uUrl.toString(), 0)
 
     let relatetion
     if (res && res.bookmark_id) relatetion = await bmRepo.getUserBookmark(res.bookmark_id, ctx.getUserId())
@@ -477,6 +503,7 @@ export class BookmarkService {
     return {
       exists: !!relatetion,
       bookmark_id: !!res?.bookmark_id ? ctx.hashIds.encodeId(res.bookmark_id) : 0,
+      bookmark_uid: relatetion?.uuid,
       parse_type: police.getParserType()
     }
   }
@@ -821,7 +848,9 @@ export class BookmarkService {
   }
 
   public async getBookmarkReadAccess(ctx: ContextManager, uuid: string) {
-    return resolveBookmarkReadAccess(this.bookmarkRepo, this.userRepo, ctx.getUserId(), uuid)
+    const access = await resolveBookmarkReadAccess(this.bookmarkRepo, this.userRepo, ctx.getUserId(), uuid)
+    if (access && !(await this.snapshots.allowsBody(access.bookmark.bookmark_id))) return null
+    return access
   }
 
   /** 获取当前用户有权访问的书签ID */
@@ -1241,6 +1270,8 @@ export class BookmarkService {
    * 添加收藏
    */
   public async addBookmark(ctx: ContextManager, req: addBookmarkReq) {
+    const source = readerBookmarkUuid(req?.target_url, [ctx.env.FRONT_END_URL])
+    if (source) return { kind: 'completed' as const, ...(await this.forkService.fork(ctx, source)) }
     // Labs gate runs before any row is written; the crawl workflow starts too late to stop it
     await this.labService.assertUrlAllowed(ctx, req.target_url)
     try {
@@ -1251,7 +1282,26 @@ export class BookmarkService {
     }
   }
 
-  public async addUrlBookmarkItem(ctx: ContextManager, item: addUrlBookmarkReq) {
+  public async addUrlBookmarkItem(ctx: ContextManager, item: addUrlBookmarkReq): Promise<queueParseMessage | ImportedFork | null> {
+    const source = readerBookmarkUuid(item.target_url, [ctx.env.FRONT_END_URL])
+    if (source) {
+      const result = await this.forkService.fork(ctx, source, {
+        savedAt: item.import_only && item.saved_at ? new Date(item.saved_at) : undefined,
+        starred: item.import_only ? item.is_starred : undefined,
+        archived: item.is_archive
+      })
+      if (result.disposition === 'created') {
+        if (item.tags?.length) {
+          const tags = await this.bookmarkData.updateUserTagsDisplay(ctx.getUserId(), item.tags, true, 'auto')
+          await this.bookmarkData.upsertBookmarkTags(result.bookmark_id, ctx.getUserId(), tags, 'user')
+          await this.bookmarkData.touchUserTagsLastUsed(
+            ctx.getUserId(),
+            tags.map(tag => tag.id)
+          )
+        }
+      }
+      return { kind: 'completed', bookmarkId: result.bookmark_id, targetUrl: item.target_url, userId: ctx.getUserId(), skipParse: true, ignoreGenerateTag: true }
+    }
     // 跳过非法的URL
     let target_url: URL
     try {
@@ -1341,6 +1391,8 @@ export class BookmarkService {
   }
 
   public async addUrlBookmark(ctx: ContextManager, req: addUrlBookmarkReq, callback: callbackType, callbackPayload: any = {}) {
+    const source = readerBookmarkUuid(req?.target_url, [ctx.env.FRONT_END_URL])
+    if (source) return { kind: 'completed' as const, ...(await this.forkService.fork(ctx, source)) }
     // Covers /add_url, Telegram and the CLI; the extension and iOS share go through addBookmark
     await this.labService.assertUrlAllowed(ctx, req.target_url)
     try {
@@ -1498,6 +1550,7 @@ export class BookmarkService {
   }
 
   private async kickoffWorkflowForRetry(ctx: ContextManager, bm: { id: number; target_url: string; user_id: number }) {
+    if (readerBookmarkUuid(bm.target_url, [ctx.env.FRONT_END_URL])) throw forkError()
     const hashids = new Hashid(ctx.env, bm.user_id)
     const enUserId = hashids.encodeId(bm.user_id)
     const userInfo = await this.userData.getUserInfo(bm.user_id)

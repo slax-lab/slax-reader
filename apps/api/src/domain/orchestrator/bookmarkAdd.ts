@@ -36,6 +36,9 @@ export class BookmarkAddOrchestrator {
       if (typeof res === 'number') {
         return { bookmarkId: res, isShortcut: true, workflowParams: null }
       }
+      if ('kind' in res) {
+        return { bookmarkId: res.bookmark_id, isShortcut: false, workflowParams: null }
+      }
 
       // 普通类型：需要触发 workflow
       return {
@@ -69,6 +72,9 @@ export class BookmarkAddOrchestrator {
 
       if (typeof res === 'number') {
         return { bookmarkId: res, isShortcut: true, workflowParams: null }
+      }
+      if ('kind' in res) {
+        return { bookmarkId: res.bookmark_id, isShortcut: false, workflowParams: null }
       }
 
       return {

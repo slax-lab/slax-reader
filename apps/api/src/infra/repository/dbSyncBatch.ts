@@ -15,6 +15,7 @@ import {
 } from '@/domain/orchestrator/sync'
 import { CommentTooLongError, ErrorMarkTypeError, MarkLineTooLongError, ShareActionNotAllowedError } from '@/const/err'
 import { markType } from '@/infra/repository/dbMark'
+import { failedReaderSaveUrl } from '@slax-reader/contracts'
 
 export type prismaTx = Omit<HyperdrivePrismaClient<Prisma.PrismaClientOptions>, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>
 export type executeFunction = (tx: prismaTx, operation: OrderedSyncOperation) => Promise<{ bookmarkId: number; targetUrl: string; userId: number } | null | void>
@@ -129,6 +130,41 @@ export class DBSyncBatchOperation {
   /** create bookmark */
   public async executeCreateBookmark(tx: prismaTx, operation: OrderedSyncOperation): Promise<{ bookmarkId: number; targetUrl: string; userId: number } | null> {
     if (operation.type !== 'create_bookmark') return null
+    if (operation.data.readerSourceUuid) {
+      const targetUrl = failedReaderSaveUrl(operation.data.targetUrl, operation.bookmarkUuid)
+      const existing = await tx.sr_user_bookmark.findUnique({ where: { uuid: operation.bookmarkUuid }, include: { bookmark: true } })
+      if (existing) {
+        if (existing.user_id !== operation.userId || existing.bookmark.target_url !== targetUrl || existing.bookmark.private_user !== operation.userId)
+          throw ShareActionNotAllowedError()
+        return null
+      }
+      const orphan = await tx.sr_bookmark.findUnique({ where: { target_url_private_user: { target_url: targetUrl, private_user: operation.userId } } })
+      if (orphan) throw ShareActionNotAllowedError()
+      const now = new Date()
+      const bookmark = await tx.sr_bookmark.create({
+        data: {
+          target_url: targetUrl,
+          host_url: new URL(targetUrl).origin,
+          private_user: operation.userId,
+          title: 'Open this Reader link and use Fork while online',
+          description: 'This queued save could not copy the snapshot. Open its Reader link and use Fork while connected.',
+          status: 'failed',
+          created_at: now,
+          updated_at: now,
+          published_at: now
+        }
+      })
+      await tx.sr_user_bookmark.create({
+        data: {
+          uuid: operation.bookmarkUuid,
+          user_id: operation.userId,
+          bookmark_id: bookmark.id,
+          archive_status: operation.data.isArchive ? 1 : 0,
+          updated_at: now
+        }
+      })
+      return null
+    }
 
     const { targetUrl, title, thumbnail, description, isArchive, isNewBookmark } = operation.data as CreateBookmarkData
 

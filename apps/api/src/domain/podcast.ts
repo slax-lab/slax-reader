@@ -4,6 +4,8 @@ import { ContextManager } from '@/utils/context'
 import { BookmarkService } from '@/domain/bookmark'
 import { LabService } from '@/domain/lab'
 import { MediaBodyService } from '@/domain/mediaBody'
+import { MediaSnapshotService } from '@/domain/mediaSnapshot'
+import { privateMediaVersion, type MediaSnapshot } from '@/utils/mediaSnapshot'
 import { UserRepo } from '@/infra/repository/dbUser'
 import { RedisClient } from '@/infra/repository/redisClient'
 import { BucketClient } from '@/infra/repository/bucketClient'
@@ -99,7 +101,8 @@ export class PodcastService {
     @inject(UserRepo) private userRepo: UserRepo,
     @inject(RedisClient) private redis: LazyInstance<RedisClient>,
     @inject(BucketClient) private bucket: LazyInstance<BucketClient>,
-    @inject(SlaxAlertBotClient) private alertBot: SlaxAlertBotClient
+    @inject(SlaxAlertBotClient) private alertBot: SlaxAlertBotClient,
+    @inject(MediaSnapshotService) private snapshots: MediaSnapshotService
   ) {}
 
   // ---------- access ----------
@@ -145,7 +148,24 @@ export class PodcastService {
       translation: null,
       can_retry: false
     }
-    if (access.flagged || !(await this.labService.isEnabled(access.ownerId, PODCAST_LAB))) return unavailable
+    if (access.flagged) return unavailable
+    let snapshot = (await this.snapshots.load(access.bookmarkId))?.media
+    if (snapshot?.kind === 'podcast') {
+      if (!(await this.snapshots.readable(snapshot))) return unavailable
+      if (access.isOwner && (await this.snapshots.settle(ctx, access.bookmarkId))) snapshot = (await this.snapshots.load(access.bookmarkId))!.media!
+      const wanted = await this.languageOf(ctx.getUserId() || access.ownerId)
+      const enabled = await this.labService.isEnabled(access.ownerId, PODCAST_LAB)
+      const result = this.privateStatus(snapshot, wanted, access, enabled)
+      if (enabled && access.isOwner && snapshot.mode === 'capture' && snapshot.transcript === 'pending') {
+        const ep = await this.findEpisodeFor(access.bookmarkId)
+        if (ep?.transcript_status === 'pending' && !ep.next_retry_at) {
+          result.can_retry = true
+          if (!(await this.dailyLeft(access.ownerId))) result.reason = 'limit_reached'
+        }
+      }
+      return result
+    }
+    if (!(await this.labService.isEnabled(access.ownerId, PODCAST_LAB))) return unavailable
     const ep = await this.findEpisodeFor(access.bookmarkId)
     if (!ep) return unavailable
 
@@ -193,6 +213,32 @@ export class PodcastService {
     return podcastArticleVersion(row.source_hash, row.target_language, row.schema_version, row.prompt_version)
   }
 
+  private privateStatus(snapshot: MediaSnapshot, wanted: PodcastLanguage, access: Access, acquisitionEnabled: boolean): PodcastStatusResponse {
+    const language = snapshot.player?.language ?? snapshot.defaultLanguage
+    const original = snapshot.variants[language]
+    const translation = wanted !== language ? snapshot.variants[wanted] : undefined
+    const state = (status: string | undefined): PodcastArticleApiStatus => {
+      if (!status || (!access.isOwner && (status === 'failed' || status === 'skipped'))) return 'unavailable'
+      return status as PodcastArticleApiStatus
+    }
+    return {
+      transcript: state(snapshot.transcript) as PodcastTranscriptApiStatus,
+      article: state(original?.status),
+      language,
+      body_ready: original?.status === 'ready' && snapshot.bodyLanguage === language,
+      reason: access.isOwner ? (snapshot.transcriptReason ?? original?.reason ?? null) : null,
+      can_retry:
+        acquisitionEnabled &&
+        access.isOwner &&
+        snapshot.mode === 'capture' &&
+        ((snapshot.transcript === 'failed' && !isPodcastFinalError(snapshot.transcriptReason)) ||
+          [original, translation].some(variant => variant?.status === 'failed' && !isFinalError(variant.reason))),
+      translation: translation
+        ? { status: state(translation.status), language: wanted, version: translation.status === 'ready' ? privateMediaVersion(snapshot, wanted) : null }
+        : null
+    }
+  }
+
   /**
    * One ready translation the bookmark can see, as structured text. Each paragraph carries the start
    * of its first cue, so the translation seeks like the original. Never accepts a raw object key.
@@ -200,7 +246,25 @@ export class PodcastService {
   public async getTranslation(ctx: ContextManager, bookmarkUid: string, version: string): Promise<PodcastTranslationResponse> {
     if (!version) throw ErrorParam()
     const access = await this.resolveAccess(ctx, bookmarkUid)
-    if (access.flagged || !(await this.labService.isEnabled(access.ownerId, PODCAST_LAB))) throw BookmarkNotFoundError()
+    if (access.flagged) throw BookmarkNotFoundError()
+    const snapshot = (await this.snapshots.load(access.bookmarkId))?.media
+    if (snapshot?.kind === 'podcast') {
+      if (!(await this.snapshots.readable(snapshot))) throw BookmarkNotFoundError()
+      const language = (['en', 'zh'] as const).find(
+        lang => lang !== snapshot.player?.language && privateMediaVersion(snapshot, lang) === version && snapshot.variants[lang]?.status === 'ready'
+      )
+      if (!language) throw BookmarkNotFoundError()
+      const content = snapshot.variants[language]!.content!
+      return {
+        ...content,
+        version,
+        sections: content.sections.map(section => ({
+          ...section,
+          paragraphs: section.paragraphs.map(p => ({ ...p, speaker: p.speaker ? speakerDisplay(p.speaker, language) : null }))
+        }))
+      }
+    }
+    if (!(await this.labService.isEnabled(access.ownerId, PODCAST_LAB))) throw BookmarkNotFoundError()
     const ep = await this.findEpisodeFor(access.bookmarkId)
     if (!ep?.transcript_hash || ep.transcript_status !== 'ready') throw BookmarkNotFoundError()
     const row = (await this.articles.listForSource(ep.source_id, ep.transcript_hash)).find(r => r.status === 'ready' && r.article_key && this.versionOf(r) === version)
@@ -232,9 +296,12 @@ export class PodcastService {
   public async retry(ctx: ContextManager, bookmarkUid: string): Promise<PodcastStatusResponse> {
     const access = await this.resolveAccess(ctx, bookmarkUid)
     if (!access.isOwner || access.flagged) throw BookmarkNotFoundError()
+    if ((await this.snapshots.load(access.bookmarkId))?.media?.mode === 'fork') throw BookmarkNotFoundError()
     if (!(await this.labService.isEnabled(access.ownerId, PODCAST_LAB))) throw this.labService.disabledError(PODCAST_LAB)
     const ep = await this.findEpisodeFor(access.bookmarkId)
     if (!ep) throw BookmarkNotFoundError()
+    await this.snapshots.settleSource(ctx, 'podcast', ep.source_id)
+    let requestedLanguage = await this.languageOf(access.ownerId)
 
     if (ep.transcript_status === 'failed') {
       if (!(await this.episodes.requeue(ep.id))) throw ErrorParam()
@@ -245,12 +312,23 @@ export class PodcastService {
       const rows = await this.articles.listForSource(ep.source_id, ep.transcript_hash)
       const lang = podcastLanguage(ep.language)
       const wanted = await this.languageOf(access.ownerId)
+      const snapshot = (await this.snapshots.load(access.bookmarkId))?.media
+      if (snapshot?.mode === 'capture') {
+        const retryLanguage = [lang, wanted].find(language => language && snapshot.variants[language]?.status === 'failed' && !isFinalError(snapshot.variants[language]?.reason))
+        const reusable = rows.find(row => row.target_language === retryLanguage && row.status === 'ready')
+        if (retryLanguage && reusable) {
+          await this.snapshots.openRequest(access.bookmarkId, retryLanguage)
+          return this.getStatus(ctx, bookmarkUid)
+        }
+      }
       const failed = rows.find(r => r.target_language === lang && r.status === 'failed') ?? rows.find(r => r.target_language === wanted && r.status === 'failed')
       if (!failed || !(await this.articles.requeue(failed.id, true))) throw ErrorParam()
+      requestedLanguage = failed.target_language as PodcastLanguage
     } else {
       throw ErrorParam()
     }
     const fresh = (await this.episodes.findById(ep.id)) ?? ep
+    await this.snapshots.openRequest(access.bookmarkId, requestedLanguage, ep.transcript_status !== 'ready')
     await this.start(ctx, fresh, 'retry')
     return this.getStatus(ctx, bookmarkUid)
   }
@@ -262,6 +340,8 @@ export class PodcastService {
    */
   public async triggerAfterCrawl(ctx: ContextManager, bookmarkId: number, userId: number): Promise<void> {
     try {
+      const snapshot = (await this.snapshots.load(bookmarkId))?.media
+      if (snapshot && (snapshot.mode === 'fork' || (snapshot.transcript !== 'pending' && !Object.values(snapshot.variants).some(variant => variant.status === 'pending')))) return
       if (!(await this.labService.isEnabled(userId, PODCAST_LAB))) return
       const ep = await this.findEpisodeFor(bookmarkId)
       if (!ep) return
@@ -320,22 +400,29 @@ export class PodcastService {
    * the body" fallback. Marks on the show notes lose their anchor; that is the accepted trade-off.
    */
   public async publishBodies(ctx: ContextManager, sourceId: string): Promise<number> {
+    const settled = await this.snapshots.settleSource(ctx, 'podcast', sourceId)
     const ep = await this.episodes.findBySourceId(sourceId)
     const lang = podcastLanguage(ep?.language)
-    if (!ep || ep.transcript_status !== 'ready' || !ep.transcript_hash || !lang) return 0
+    if (!ep || ep.transcript_status !== 'ready' || !ep.transcript_hash || !lang) return settled
     const row = await this.articles.findVersion(sourceId, ep.transcript_hash, lang)
-    if (row?.status !== 'ready') return 0
+    if (row?.status !== 'ready') return settled
     const rendered = await this.renderBody(ep, row)
     if (!rendered) return 0
-    let count = 0
+    let count = settled
     for (const ref of await this.articles.listEpisodeRefs(sourceId)) {
+      if ((await this.snapshots.load(ref.bookmark_id))?.managed) continue
       if (ref.source_hash !== ep.transcript_hash) continue
       if (await this.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered)) count++
     }
     return count
   }
 
+  public async settleSnapshots(ctx: ContextManager, sourceId: string) {
+    return this.snapshots.settleSource(ctx, 'podcast', sourceId)
+  }
+
   private async publishBodyFor(ctx: ContextManager, bookmarkId: number, userId: number, ep: podcastEpisodePO, row: mediaArticlePO): Promise<boolean> {
+    if ((await this.snapshots.load(bookmarkId))?.managed) return this.snapshots.settle(ctx, bookmarkId)
     const rendered = await this.renderBody(ep, row)
     return rendered ? this.writeBody(ctx, bookmarkId, userId, rendered) : false
   }
@@ -358,6 +445,7 @@ export class PodcastService {
 
   /** Transcript moderation hit: every bookmark of the episode is flagged and loses its share, like a crawl hit. */
   public async flagBookmarks(sourceId: string, result: number): Promise<number> {
+    await this.snapshots.denyPodcast(sourceId)
     const refs = await this.articles.listEpisodeRefs(sourceId)
     for (const ref of refs) {
       await this.bookmarkService.updateBookmarkModerationResult(ref.bookmark_id, result)
@@ -372,7 +460,17 @@ export class PodcastService {
   /** Languages the episode's readers (with the switch on) need besides the original. */
   public async translationTargets(sourceId: string, original: PodcastLanguage): Promise<PodcastLanguage[]> {
     const out = new Set<PodcastLanguage>()
-    const users = [...new Set((await this.articles.listEpisodeRefs(sourceId)).map(r => r.user_id))]
+    const users = new Set<number>()
+    for (const ref of await this.articles.listEpisodeRefs(sourceId)) {
+      const loaded = await this.snapshots.load(ref.bookmark_id)
+      if (!loaded?.managed) {
+        users.add(ref.user_id)
+        continue
+      }
+      const snapshot = loaded.media
+      if (snapshot?.mode !== 'capture' || !(await this.labService.isEnabled(ref.user_id, PODCAST_LAB))) continue
+      for (const lang of ['en', 'zh'] as const) if (lang !== original && snapshot.variants[lang]?.status === 'pending') out.add(lang)
+    }
     for (const userId of users) {
       if (!(await this.labService.isEnabled(userId, PODCAST_LAB))) continue
       const lang = await this.languageOf(userId)

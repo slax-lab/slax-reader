@@ -1,3 +1,4 @@
+import { createMockMediaSnapshots } from '@test/helpers/mockFactory'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { CrawlService } from '@/domain/crawl'
 import { createMockCtx } from '@test/helpers/mockFactory'
@@ -9,8 +10,9 @@ afterEach(() => vi.restoreAllMocks())
 function createService() {
   const putIfKeyExists = vi.fn().mockResolvedValue(undefined)
   const updateBookmark = vi.fn().mockResolvedValue(undefined)
-  const service = new CrawlService(() => ({ putIfKeyExists }) as any, { updateBookmark } as any, {} as any, {} as any, {} as any)
+  const service = new (CrawlService as any)(() => ({ putIfKeyExists }) as any, { updateBookmark } as any, {} as any, {} as any, {} as any)
 
+  service.snapshots = createMockMediaSnapshots(putIfKeyExists, updateBookmark)
   return { service, putIfKeyExists, updateBookmark }
 }
 

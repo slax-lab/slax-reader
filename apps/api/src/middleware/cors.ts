@@ -65,7 +65,7 @@ export const requestCorsHeaders = (request: Request, frontEndUrl?: string): Reco
 
 export const applyApiResponseHeaders = (response: Response, request: Request, frontEndUrl?: string): Response => {
   const path = new URL(request.url).pathname
-  if (path !== '/events' && path !== '/v1/bookmark/export') return response
+  if (!['/events', '/v1/bookmark/export', '/v1/bookmark/fork', '/v1/bookmark/fork_metadata'].includes(path)) return response
   const headers = new Headers(response.headers)
   headers.set('Cache-Control', 'private, no-store')
   if (path === '/events') {

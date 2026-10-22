@@ -1,3 +1,4 @@
+import { createMockMediaSnapshots } from '@test/helpers/mockFactory'
 /**
  * PodcastService: visibility, starts after a save, the daily and budget limits, retries, writing
  * the article into bookmark bodies, moderation, translations, and the sweep. Repositories are
@@ -291,7 +292,8 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
     userRepo,
     () => redis,
     () => bucket,
-    alertBot
+    alertBot,
+    createMockMediaSnapshots()
   ) as PodcastService
   const create = vi.fn(async () => ({}))
   const ctx = (userId: number) => {
@@ -544,5 +546,54 @@ describe('limits and sweep', () => {
     const started = w.create.mock.calls.map(c => (c[0] as { params: { episodeId: number } }).params.episodeId)
     expect(started).toEqual(expect.arrayContaining([deferred.id, done.id, republish.id]))
     expect(w.objects.has('podcast/canonical/transcripts/orphan/x.json')).toBe(false)
+  })
+})
+
+describe('private podcast requests', () => {
+  test('an owner retry reuses a ready canonical article without requeuing it', async () => {
+    const w = wire()
+    w.readyEpisode()
+    const snapshots = (w.service as any).snapshots
+    snapshots.load.mockResolvedValue({
+      media: {
+        kind: 'podcast',
+        mode: 'capture',
+        revision: 'r',
+        sourceId: SOURCE,
+        sourceHash: HASH,
+        defaultLanguage: 'en',
+        transcript: 'ready',
+        bodyLanguage: null,
+        player: { language: 'en' },
+        variants: { en: { status: 'failed' } }
+      }
+    })
+    await w.service.retry(w.ctx(OWNER), UUID)
+    expect(snapshots.openRequest).toHaveBeenCalledWith(BOOKMARK, 'en')
+    expect(w.arts.requeue).not.toHaveBeenCalled()
+    expect(w.create).not.toHaveBeenCalled()
+  })
+
+  test('a pending private transcript held by the daily limit offers an explicit retry', async () => {
+    const w = wire()
+    w.eps.add()
+    w.redis.store.set(`podcast:${OWNER}:${today()}`, 5)
+    const snapshots = (w.service as any).snapshots
+    snapshots.load.mockResolvedValue({
+      media: {
+        kind: 'podcast',
+        mode: 'capture',
+        revision: 'r',
+        sourceId: SOURCE,
+        sourceHash: '',
+        defaultLanguage: 'en',
+        transcript: 'pending',
+        bodyLanguage: null,
+        player: { language: 'en' },
+        variants: { en: { status: 'pending' } }
+      }
+    })
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ reason: 'limit_reached', can_retry: true })
+    expect(w.create).not.toHaveBeenCalled()
   })
 })

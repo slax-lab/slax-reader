@@ -83,6 +83,8 @@ export class CallbackController {
           chat_id: res.chatId,
           origin_message_id: res.msgId
         })
+      } else if ('kind' in addRes) {
+        await tgSvc.sendProcessSuccess(ctx, hashIds.encodeId(addRes.bookmark_id), { chat_id: res.chatId, origin_message_id: res.msgId })
       } else if (typeof addRes === 'object') {
         ctxManager.execution.waitUntil(this.logsService.track(res.userId, 'bookmark_add', { channel: 'telegram', status: 'success' }))
         ctxManager.execution.waitUntil(

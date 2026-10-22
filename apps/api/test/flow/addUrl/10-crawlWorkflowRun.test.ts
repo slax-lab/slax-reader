@@ -44,6 +44,8 @@ vi.mock('@/utils/context', () => ({
       }),
       getUserId: () => userId,
       setHashIds: vi.fn(),
+      set: vi.fn(),
+      get: vi.fn(),
       env,
       execution: { waitUntil: vi.fn((p: Promise<any>) => p.catch(() => {})) }
     }
@@ -81,6 +83,12 @@ import {
 function wireWorkflow(labsEnabled = true) {
   const cs = { ...createMockCrawlService(), fetchYoutubeData: vi.fn(), parseAndSaveYoutube: vi.fn() }
   const bs = createMockBookmarkService()
+  Object.assign(cs, {
+    setCaptureStatus: vi.fn(async (_ctx, id, status) => {
+      await bs.updateBookmarkStatus(id, status)
+      return true
+    })
+  })
   const uph = createMockUrlParserHandler()
   const tg = createMockTelegramBotService()
   const imp = createMockImportService()

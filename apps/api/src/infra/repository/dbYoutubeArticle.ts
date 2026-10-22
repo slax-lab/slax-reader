@@ -46,6 +46,7 @@ export class YoutubeArticleRepo extends MediaArticleRepo {
       JOIN "sr_user" u ON u."id" = ub."user_id"
       JOIN "sr_user_lab_feature" l ON l."user_id" = ub."user_id" AND l."feature" = 'youtube_article' AND l."enabled" = true
       WHERE ub."deleted_at" IS NULL
+        AND ub."forked_from_id" IS NULL AND b."content_key" NOT LIKE 'snapshots/%'
         AND (b."site_name" = 'YouTube' OR b."target_url" ~ 'youtu\.be/|youtube\.com/(watch|shorts|live|embed)')
         AND NOT EXISTS (SELECT 1 FROM "sr_youtube_article_ref" r WHERE r."bookmark_id" = ub."bookmark_id")
         ${beforeId ? Prisma.sql`AND ub."id" < ${beforeId}` : Prisma.empty}

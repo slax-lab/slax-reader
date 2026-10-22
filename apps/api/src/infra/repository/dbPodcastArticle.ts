@@ -23,8 +23,12 @@ export class PodcastArticleRepo extends MediaArticleRepo {
 
   /** The transcript is ready: point every bookmark of the episode at it. */
   public async setRefsHash(sourceId: string, sourceHash: string): Promise<number> {
-    const res = await this.prismaPg().sr_media_article_ref.updateMany({ where: { media_kind: this.kind, source_id: sourceId }, data: { source_hash: sourceHash } })
-    return res.count
+    return this.prismaPg().$executeRaw(Prisma.sql`
+      UPDATE sr_youtube_article_ref r SET source_hash = ${sourceHash}
+      FROM sr_bookmark b WHERE b.id = r.bookmark_id AND r.media_kind = ${this.kind} AND r.video_id = ${sourceId}
+        AND b.content_key NOT LIKE 'snapshots/%'
+        AND NOT EXISTS (SELECT 1 FROM sr_user_bookmark ub WHERE ub.bookmark_id = b.id AND ub.forked_from_id IS NOT NULL)
+    `)
   }
 
   /** A pending row nobody needs any more (its reader left): the sweep must not start it again. */

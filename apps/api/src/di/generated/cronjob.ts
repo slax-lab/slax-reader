@@ -4,6 +4,7 @@ import { BookmarkJob } from '../../handler/cron/bookmarkJob'
 import { CollectionJob } from '../../handler/cron/collectionJob'
 import { PodcastJob } from '../../handler/cron/podcastJob'
 import { RssJob } from '../../handler/cron/rssJob'
+import { SnapshotCleanupJob } from '../../handler/cron/snapshotCleanupJob'
 import { SubscriptionJob } from '../../handler/cron/subscriptionJob'
 import { UserDeletionJob } from '../../handler/cron/userDeletionJob'
 import { YoutubeArticleJob } from '../../handler/cron/youtubeArticleJob'
@@ -37,6 +38,10 @@ export const handleCronjob = async (container: Container, event: any, env: Env, 
     const controller = container.resolve(RssJob)
     exec.waitUntil(controller.refreshRss(new ContextManager(exec, env)))
   }
+  const sweepSnapshots = async () => {
+    const controller = container.resolve(SnapshotCleanupJob)
+    exec.waitUntil(controller.sweepSnapshots(new ContextManager(exec, env)))
+  }
   const recoverPayments = async () => {
     const controller = container.resolve(SubscriptionJob)
     exec.waitUntil(controller.recoverPayments(new ContextManager(exec, env)))
@@ -58,6 +63,7 @@ export const handleCronjob = async (container: Container, event: any, env: Env, 
     ['*/30 * * * *', recomputeCollectionSubscriberActive],
     ['*/5 * * * *', sweepPodcasts],
     ['*/5 * * * *', refreshRss],
+    ['*/5 * * * *', sweepSnapshots],
     ['*/5 * * * *', recoverPayments],
     ['*/5 * * * *', recoverDeletedUsers],
     ['*/5 * * * *', sweepYoutubeArticles]

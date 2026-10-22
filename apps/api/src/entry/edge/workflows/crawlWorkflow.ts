@@ -29,6 +29,7 @@ import { PodcastService, PODCAST_LAB } from '@/domain/podcast'
 import { classifyPodcastUrl } from '@/utils/podcastSource'
 
 export interface CrawlWorkflowParams {
+  captureRevision?: string
   eventContext?: EventRequestContext
   url: string
   bookmarkId: number
@@ -62,6 +63,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     ctxManager.setUserInfo(event.payload.userId, event.payload.enUserId, '', event.payload.userLang)
     ctxManager.setHashIds(hashids)
     if (event.payload.eventContext) ctxManager.set(EVENT_CONTEXT_KEY, event.payload.eventContext)
+    ctxManager.set('snapshotCaptureRevision', event.payload.captureRevision)
     initializeInfrastructure(ctxManager, currentContainer)
 
     const bookmarkService = currentContainer.resolve(BookmarkService)
@@ -83,6 +85,14 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     const userBookmark = await bookmarkService.getUserBookmark(bookmarkId, userId)
     if (!userBookmark) throw new NonRetryableError(`user_bookmark not found: bookmark=${bookmarkId} user=${userId}`)
     const userBookmarkUuid = userBookmark.uuid
+    if (!event.payload.captureRevision) {
+      const revision = await step.do('legacy-capture-revision', async () => {
+        const raw = await bookmarkService.getBookmarkById(bookmarkId)
+        if (!raw || raw.status === 'success') throw new Error('Capture already completed')
+        return raw.updated_at.toISOString()
+      })
+      ctxManager.set('snapshotCaptureRevision', revision)
+    }
 
     const alertFailure = (scope: string, meta: Record<string, unknown>) =>
       crawlService.pushBookmarkFailureAlert(userId, scope, meta).catch(e => console.error(`alertFailure ${scope} failed: ${e}`))
@@ -137,7 +147,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
             }
           }
 
-          await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.PARSEING)
+          if (!(await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.PARSEING))) throw new Error('Capture revision superseded')
 
           const resolvedUrl = await crawlService.resolveShortLink(ctxManager, url)
           if (resolvedUrl !== url) {
@@ -230,7 +240,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
       const errMsg = err instanceof Error ? err.message : String(err)
       console.error(`Crawl workflow fetch failed for bookmark ${bookmarkId}: ${errMsg}`)
 
-      await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.FAILED)
+      await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.FAILED)
 
       const scope = err instanceof NonRetryableError ? 'workflow_fetch.business_terminal' : 'workflow_fetch.exhausted'
       if (!errMsg.startsWith('pdf_lab_disabled:') && !errMsg.startsWith('url_lab_disabled:'))
@@ -307,7 +317,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
         const errMsg = err instanceof Error ? err.message : String(err)
         console.error(`Crawl workflow parse failed for bookmark ${bookmarkId}: ${errMsg}`)
 
-        await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.FAILED)
+        await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.FAILED)
         await alertFailure('workflow_parse.error', {
           bookmark_id: bookmarkId,
           url,

@@ -1,3 +1,4 @@
+import { createMockMediaSnapshots } from '@test/helpers/mockFactory'
 /**
  * YoutubeArticleService: who sees which article version, the three ways a generation starts, the
  * daily and budget limits, the sweep and takedown. The repository is an in-memory stand-in with
@@ -247,7 +248,8 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
     () => bucket,
     alertBot,
     crawlService,
-    new MediaBodyService(bookmarkService as any, bookmarkRepo as any, searchService as any, markRepo as any, (() => bucket) as any)
+    new MediaBodyService(bookmarkService as any, bookmarkRepo as any, searchService as any, markRepo as any, (() => bucket) as any),
+    createMockMediaSnapshots()
   ) as YoutubeArticleService
   const create = vi.fn(async () => ({}))
   const ctx = (userId: number) => {
@@ -929,5 +931,50 @@ describe('the article as the bookmark body', () => {
     expect(html).not.toContain('slax-pod-article')
     expect(playerCues(html)).toHaveLength(2)
     expect(w.objects.get('text/body/u1.txt')).toBe('so um <b>hello</b> and "world" & more')
+  })
+})
+
+describe('private capture requests', () => {
+  test('an owner can retry a failed private variant using an already ready canonical result', async () => {
+    const w = wire()
+    w.repo.add({ status: 'ready', article_key: 'ready.json' })
+    const snapshots = (w.service as any).snapshots
+    snapshots.load.mockResolvedValue({
+      media: {
+        kind: 'youtube',
+        mode: 'capture',
+        revision: 'r',
+        sourceId: VIDEO,
+        sourceHash: HASH,
+        defaultLanguage: 'en',
+        bodyLanguage: null,
+        variants: { en: { status: 'failed' } }
+      }
+    })
+    await w.service.request(w.ctx(OWNER), UUID, 'retry')
+    expect(snapshots.openRequest).toHaveBeenCalledWith(BOOKMARK, 'en')
+    expect(w.repo.requeue).not.toHaveBeenCalled()
+    expect(w.create).not.toHaveBeenCalled()
+  })
+
+  test('a pending private capture held by the daily limit exposes that status', async () => {
+    const w = wire()
+    w.repo.add({ status: 'pending' })
+    w.redis.store.set(`yt_article:${OWNER}:${today()}:auto`, 20)
+    const snapshots = (w.service as any).snapshots
+    snapshots.load.mockResolvedValue({
+      media: {
+        kind: 'youtube',
+        mode: 'capture',
+        revision: 'r',
+        sourceId: VIDEO,
+        sourceHash: HASH,
+        defaultLanguage: 'en',
+        bodyLanguage: null,
+        variants: { en: { status: 'pending' } }
+      }
+    })
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'limit_reached' })
+    expect(w.create).not.toHaveBeenCalled()
   })
 })

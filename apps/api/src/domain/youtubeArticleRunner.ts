@@ -48,6 +48,7 @@ export interface RunnerDeps {
   addCost: (usd: number) => Promise<void>
   /** Write the ready article into the body of every bookmark that takes it. Returns the count. */
   publishBodies: (articleId: number) => Promise<number>
+  settleSnapshots: (sourceId: string) => Promise<number>
 }
 
 export type RunnerOutcome = 'ready' | 'not_claimed' | 'gone' | 'skipped' | 'failed' | 'retry' | 'superseded'
@@ -120,6 +121,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
     const status = await step.do(`finish-${kind}`, DB_STEP, () => deps.repo.finishAttempt(p.articleId, { kind, error, quality }, { runId }))
     log('finished', p, { kind, error, status })
     if (status === null) return 'gone'
+    if (status !== 'pending') await step.do(`settle-${kind}`, PUBLISH_STEP, () => deps.settleSnapshots(p.videoId))
     return status === 'pending' ? 'retry' : (status as RunnerOutcome)
   }
 

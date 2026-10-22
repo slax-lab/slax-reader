@@ -1,5 +1,40 @@
 import { vi } from 'vitest'
 
+/** Adapter fixture; bundle atomicity and manifests are covered by the snapshot service tests. */
+export function createMockMediaSnapshots(put?: (key: string, value: string) => Promise<unknown>, update?: (id: number, fields: any) => Promise<unknown>) {
+  return {
+    load: vi.fn(async () => null),
+    readable: vi.fn(async () => true),
+    allowsBody: vi.fn(async () => true),
+    settle: vi.fn(async () => false),
+    settleSource: vi.fn(async () => 0),
+    openRequest: vi.fn(),
+    denyYoutube: vi.fn(),
+    denyPodcast: vi.fn(),
+    initialize: vi.fn(async (ref: any, userId: number, player?: any) => ({
+      schema: 1,
+      kind: ref.media_kind,
+      mode: 'capture',
+      revision: '',
+      sourceId: ref.source_id,
+      sourceHash: ref.source_hash,
+      inputFingerprint: ref.source_hash,
+      defaultLanguage: 'en',
+      transcript: 'pending',
+      bodyLanguage: null,
+      variants: { en: { status: 'pending' } },
+      player
+    })),
+    capture: vi.fn(async (id: number, uuid: string, body: { html: string; text: string }, fields: any, _media: any) => {
+      const content = { content_key: `snapshots/${uuid}/test/body.html`, content_md_key: `snapshots/${uuid}/test/body.txt`, content_word_count: body.text.length }
+      await put?.(content.content_md_key, body.text)
+      await put?.(content.content_key, body.html)
+      await update?.(id, { ...fields, ...content, status: 'success' })
+      return content
+    })
+  }
+}
+
 // ---- ContextManager ----
 
 export function createMockCtx(overrides: { userId?: number; encodeUserId?: number; lang?: string; envType?: string; platform?: string; hashIds?: Record<string, any> } = {}) {
@@ -246,6 +281,7 @@ export function createMockWorkflowEvent(overrides: Record<string, unknown> = {})
       callbackChatId: 0,
       callbackOriginMessageId: 0,
       ignoreGenerateTag: false,
+      captureRevision: '2026-10-22T00:00:00.000Z',
       ...overrides
     }
   }

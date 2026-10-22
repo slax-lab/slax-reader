@@ -1,7 +1,7 @@
-import { BCACHE_MAX_AGE, getEdgeCache, OWNER_UID_HEADER, ownerKey, SHARE_PATH, visitorKey } from '../utils/shareCache'
+import { BCACHE_MAX_AGE, getEdgeCache, SNAPSHOT_REVISION_HEADER, snapshotMetadataRevision, OWNER_UID_HEADER, ownerKey, SHARE_PATH, visitorKey } from '../utils/shareCache'
 
 export default defineNitroPlugin(nitroApp => {
-  nitroApp.hooks.hook('render:response', (response: unknown, ctx: { event?: unknown }) => {
+  nitroApp.hooks.hook('render:response', async (response: unknown, ctx: { event?: unknown }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const event = ctx?.event as any
     if (!event) return
@@ -13,7 +13,7 @@ export default defineNitroPlugin(nitroApp => {
     if (r?.statusCode !== 200 || typeof r?.body !== 'string') return
 
     const cache = getEdgeCache()
-    if (!cache) return
+    if (!cache || !event.context.__snapshotCacheMetadata) return
 
     const isOwner = !!event.context.__isOwner
     const bcacheType = isOwner ? 'owner' : 'visitor'
@@ -24,6 +24,7 @@ export default defineNitroPlugin(nitroApp => {
     headers.set('content-type', (r.headers?.['content-type'] as string) || 'text/html; charset=utf-8')
     headers.set('cache-control', `public, max-age=${BCACHE_MAX_AGE}`)
     headers.set('x-bcache-type', bcacheType)
+    headers.set(SNAPSHOT_REVISION_HEADER, await snapshotMetadataRevision(event.context.__snapshotCacheMetadata))
     const ownerUid = String(event.context.__ownerUid ?? '')
     if (ownerUid) headers.set(OWNER_UID_HEADER, ownerUid)
 

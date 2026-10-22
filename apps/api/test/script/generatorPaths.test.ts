@@ -143,9 +143,28 @@ describe('repository-root generator paths', () => {
       }
     })
     expect(reads).toEqual(
-      ['aigc', 'bookmark', 'callback', 'collection', 'mark', 'share', 'subscription', 'tag', 'rss', 'user', 'mcp', 'sync', 'promotion', 'apiKey', 'events', 'metrics', 'youtubeArticle', 'youtubeArticleAdmin', 'podcast'].map(name =>
-        path.join(API_ROOT, `src/handler/http/${name}Controller.ts`)
-      )
+      [
+        'aigc',
+        'bookmark',
+        'bookmarkFork',
+        'callback',
+        'collection',
+        'mark',
+        'share',
+        'subscription',
+        'tag',
+        'rss',
+        'user',
+        'mcp',
+        'sync',
+        'promotion',
+        'apiKey',
+        'events',
+        'metrics',
+        'youtubeArticle',
+        'youtubeArticleAdmin',
+        'podcast'
+      ].map(name => path.join(API_ROOT, `src/handler/http/${name}Controller.ts`))
     )
     expect(writes).toHaveBeenCalledWith(path.join(API_ROOT, 'src/di/generated/readerRouter.ts'), expect.stringContaining("from '../../handler/http/podcastController'"))
     expect(writes.mock.calls[0][1]).toContain("router.get('/fixture/test'")

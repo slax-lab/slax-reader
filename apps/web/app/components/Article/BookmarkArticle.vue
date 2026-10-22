@@ -9,8 +9,8 @@
         :author="detail.byline"
         :host-url="detail.host_url"
       />
-      <PdfDocumentSource v-if="isPdf && detail.pdf" :pdf="detail.pdf" :url="detail.target_url"
-        :site-name="detail.site_name" :host-url="detail.host_url" :author="pdfAuthor" />
+      <PdfDocumentSource v-if="isPdf && detail.pdf" :pdf="detail.pdf" :url="detail.target_url" :site-name="detail.site_name" :host-url="detail.host_url" :author="pdfAuthor" />
+      <SnapshotForkAttribution v-if="!isPdf || detail.pdf" :has-fork="forkMetadata?.has_fork ?? hasForkMarker" :attribution="forkMetadata?.fork" />
       <div v-if="!isPdf || detail.pdf" class="article-divider" />
       <h1 class="article-title" :title="title">{{ title }}</h1>
       <BookmarkTags
@@ -51,6 +51,8 @@ const PdfReader = defineAsyncComponent(() => import('./Pdf/PdfReader.client.vue'
 import BookmarkTags from '~/components/BookmarkTags.vue'
 import SnapshotArticleFooter from '~/components/Snapshot/SnapshotArticleFooter.vue'
 import SnapshotArticleSource from '~/components/Snapshot/SnapshotArticleSource.vue'
+import SnapshotForkAttribution from '~/components/Snapshot/SnapshotForkAttribution.vue'
+import { useBookmarkForkMetadata } from '~/composables/bookmark/useBookmarkFork'
 
 import 'katex/dist/katex.css'
 import { registerComponents } from './CEComponents'
@@ -115,12 +117,32 @@ const pdfSelection = shallowRef<ReaderSelection | null>(null)
 const isPdf = computed(() => !!props.detail.pdf || ('type' in props.detail && props.detail.type === 'pdf'))
 const pdfMetadata = shallowRef<{ author?: string }>()
 const pdfAuthor = computed(() => props.detail.byline?.trim() || pdfMetadata.value?.author)
-watch(() => props.detail.pdf?.document_id, () => { pdfMetadata.value = undefined })
-const pdfMarks = computed(() => adapters.markSource === 'props' ? props.marks : props.detail.marks ?? props.marks)
-const pdfCollection = computed(() => 'collection_info' in props.detail && props.detail.collection_info ? { code: props.detail.collection_info.collection_code, cb_id: props.detail.collection_info.cb_id } : undefined)
+watch(
+  () => props.detail.pdf?.document_id,
+  () => {
+    pdfMetadata.value = undefined
+  }
+)
+const pdfMarks = computed(() => (adapters.markSource === 'props' ? props.marks : (props.detail.marks ?? props.marks)))
+const pdfCollection = computed(() =>
+  'collection_info' in props.detail && props.detail.collection_info
+    ? {
+        code: props.detail.collection_info.collection_code,
+        cb_id: props.detail.collection_info.cb_id
+      }
+    : undefined
+)
 
 // 仅调用一次，模板与 composable 共用
 const { bookmarkId, shareCode, bookmarkUid, title, allowTagged, allowAction, bookmarkUserId, updateStarred } = useArticleDetail(detail)
+const forkMetadata = useBookmarkForkMetadata(
+  computed(() => {
+    const current = props.detail
+    if ('bookmark_user_uuid' in current && typeof current.bookmark_user_uuid === 'string') return current.bookmark_user_uuid
+    return isSnapshotBookmarkDetail(current) ? current.bookmark_uuid || '' : ''
+  })
+)
+const hasForkMarker = computed(() => 'has_fork' in props.detail && props.detail.has_fork === true)
 
 // inject 可覆盖，回退 allowTagged
 const effAllowTagged = computed(() => adapters.allowActionOverride ?? allowTagged.value)
@@ -202,8 +224,8 @@ const starBookmark = async (event: MouseEvent, isStar: boolean) => {
   }
 }
 
-const activeSelection = computed<ReaderSelection | null>(() => props.detail.pdf ? pdfSelection.value : articleSelectionRef.value)
-const findQuote = (quote: QuoteData) => props.detail.pdf ? pdfSelection.value?.findQuote(quote) : findHtmlQuote(quote)
+const activeSelection = computed<ReaderSelection | null>(() => (props.detail.pdf ? pdfSelection.value : articleSelectionRef.value))
+const findQuote = (quote: QuoteData) => (props.detail.pdf ? pdfSelection.value?.findQuote(quote) : findHtmlQuote(quote))
 defineExpose({ findQuote, articleSelection: activeSelection })
 </script>
 

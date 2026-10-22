@@ -250,6 +250,7 @@ function setup(
     moderate: vi.fn(async () => o.moderation ?? 0),
     flagBookmarks: vi.fn(async () => 2),
     publishBodies: vi.fn(async () => 2),
+    settleSnapshots: vi.fn(async () => 0),
     translationTargets: vi.fn(async () => o.targets ?? []),
     addCost: vi.fn(async () => {})
   }

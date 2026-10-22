@@ -22,6 +22,12 @@ describe('acceptance response contracts', () => {
     expect(response!.headers.get('Access-Control-Allow-Origin')).toBe('*')
   })
 
+  test.each(['/v1/bookmark/fork', '/v1/bookmark/fork_metadata'])('Fork middleware failures remain no-store at %s', path => {
+    const response = applyApiResponseHeaders(Failed(UnauthorizedError()), new Request(`https://reader-api.slax.dev${path}`))
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store')
+    expect(response.status).toBe(401)
+  })
+
   test.each([ErrorParam(), UnauthorizedError()])('export errors carry no-store and consistent status: %s', async error => {
     const response = applyApiResponseHeaders(Failed(error), new Request('https://reader-api.slax.dev/v1/bookmark/export?cursor=bad!'))
     expect(response.headers.get('Cache-Control')).toBe('private, no-store')

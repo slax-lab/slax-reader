@@ -6,6 +6,7 @@ import { SearchService } from '@/domain/search'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
 import { MarkRepo } from '@/infra/repository/dbMark'
 import { BucketClient } from '@/infra/repository/bucketClient'
+import { isManagedSnapshot } from '@/utils/snapshotBundle'
 
 /**
  * Writes a cleaned media article (podcast episode, YouTube video) into a bookmark body. Shared by
@@ -48,6 +49,8 @@ export class MediaBodyService {
   public async writeBody(ctx: ContextManager, bookmarkId: number, userId: number, body: { html: string; text: string }, opts: { force?: boolean } = {}): Promise<boolean> {
     const bookmark = await this.bookmarkService.getBookmarkById(bookmarkId)
     if (!bookmark?.content_key || (bookmark.moderation_result > 0 && !opts.force)) return false
+    // Managed revisions publish through MediaSnapshotService's immutable bundle and pointer CAS.
+    if (isManagedSnapshot(bookmark.content_key)) return false
     const bucket = this.bucket().R2Bucket
     // The HTML goes last: it carries the version marker that says the body is written, so a failure
     // before it leaves the old body in place and the next status read or run writes everything again

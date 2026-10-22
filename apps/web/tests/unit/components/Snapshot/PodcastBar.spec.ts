@@ -53,7 +53,16 @@ describe('podcastPhase', () => {
     expect(podcastPhase(state({ transcript: 'ready', article: 'generating' }) as never)).toBe('writing')
     expect(podcastPhase(state({ transcript: 'ready', article: 'pending' }) as never)).toBe('writing')
     expect(podcastPhase(state({ transcript: 'ready', article: 'failed' }) as never)).toBe('failed')
-    expect(podcastPhase(state({ transcript: 'ready', article: 'ready', body_ready: true }) as never)).toBe('done')
+    expect(
+      podcastPhase(
+        state({
+          transcript: 'ready',
+          article: 'ready',
+          body_ready: true
+        }) as never
+      )
+    ).toBe('done')
+    expect(podcastPhase(state({ transcript: 'ready', article: 'unavailable' }) as never)).toBe('hidden')
   })
 })
 

@@ -1,4 +1,13 @@
 {
+  "bookmark_fork": {
+    "action": "Fork",
+    "copying": "复制中…",
+    "label": "Fork:",
+    "generic_source": "Reader 收藏",
+    "unavailable": "来源已不可访问",
+    "offline": "请联网后再 Fork 这篇收藏。",
+    "failed": "复制未成功，请重试。"
+  },
   "pdf": {
     "local_upload": "本地上传",
     "page_spacing": "显示页间距",

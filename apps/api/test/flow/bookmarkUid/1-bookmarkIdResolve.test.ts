@@ -9,7 +9,7 @@ import { describe, test, expect, vi } from 'vitest'
 
 import { BookmarkService } from '@/domain/bookmark'
 import { BookmarkNotFoundError } from '@/const/err'
-import { createMockCtx } from '@test/helpers/mockFactory'
+import { createMockCtx, createMockMediaSnapshots } from '@test/helpers/mockFactory'
 
 function wire() {
   const repo = {
@@ -22,6 +22,7 @@ function wire() {
     getUserBookmarkByUId: vi.fn()
   }
   const svc = new (BookmarkService as any)()
+  ;(svc as any).snapshots = createMockMediaSnapshots()
   ;(svc as any).bookmarkRepo = repo
   ;(svc as any).userRepo = { getInfoByUserId: vi.fn().mockResolvedValue({ snapshot_sharing: true }) }
   return { svc: svc as BookmarkService, repo }
@@ -110,6 +111,7 @@ describe('BookmarkService.getBookmarkId', () => {
 describe('BookmarkService.getBookmarkTitleContent', () => {
   function svcWithStubs() {
     const svc = new (BookmarkService as any)()
+    ;(svc as any).snapshots = createMockMediaSnapshots()
     ;(svc as any).getBookmarkId = vi.fn()
     ;(svc as any).getBookmarkById = vi.fn()
     ;(svc as any).getBookmarkContent = vi.fn()

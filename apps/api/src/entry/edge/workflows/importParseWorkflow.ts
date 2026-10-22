@@ -48,6 +48,7 @@ export const fetchImportContent = async (env: Env, input: string): Promise<fetch
 }
 
 export interface ImportParseWorkflowParams {
+  captureRevision?: string
   eventContext?: EventRequestContext
   url: string
   bookmarkId: number
@@ -71,6 +72,7 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
     ctxManager.setUserInfo(event.payload.userId, event.payload.enUserId, '', event.payload.userLang)
     ctxManager.setHashIds(hashids)
     if (event.payload.eventContext) ctxManager.set(EVENT_CONTEXT_KEY, event.payload.eventContext)
+    ctxManager.set('snapshotCaptureRevision', event.payload.captureRevision)
     initializeInfrastructure(ctxManager, currentContainer)
 
     const bookmarkService = currentContainer.resolve(BookmarkService)
@@ -82,6 +84,14 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
     const userBookmark = await bookmarkService.getUserBookmark(bookmarkId, userId)
     if (!userBookmark) throw new Error(`user_bookmark not found: bookmark=${bookmarkId} user=${userId}`)
     const userBookmarkUuid = userBookmark.uuid
+    if (!event.payload.captureRevision) {
+      const revision = await step.do('legacy-capture-revision', async () => {
+        const raw = await bookmarkService.getBookmarkById(bookmarkId)
+        if (!raw || raw.status === 'success') throw new Error('Capture already completed')
+        return raw.updated_at.toISOString()
+      })
+      ctxManager.set('snapshotCaptureRevision', revision)
+    }
     const hostname = (() => {
       try {
         return new URL(url).hostname || 'unknown'
@@ -128,7 +138,7 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
             }
           }
 
-          await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.PARSEING)
+          if (!(await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.PARSEING))) throw new Error('Capture revision superseded')
 
           const fetchRes = await fetchImportContent(this.env, url)
           return await crawlService.parseAndSaveContent(ctxManager, fetchRes, bookmarkId, userBookmarkUuid)
@@ -137,7 +147,7 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
       console.error(`ImportParse workflow fetch failed for bookmark ${bookmarkId}: ${errMsg}`)
-      await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.FAILED)
+      await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.FAILED)
       if (!errMsg.startsWith('pdf_lab_disabled:'))
         await crawlService.pushBookmarkFailureAlert(userId, 'import_parse_workflow.fetch', {
           bookmark_id: bookmarkId,

@@ -4,9 +4,12 @@ import * as h3 from 'h3'
 import { loadContent } from '../../../server/utils/loadContent'
 
 vi.mock('#app/nuxt', async original => ({
-  ...(await original<Record<string, unknown>>()), useRuntimeConfig: () => ({ public: { COOKIE_TOKEN_NAME: 'token' } })
+  ...(await original<Record<string, unknown>>()),
+  useRuntimeConfig: () => ({ public: { COOKIE_TOKEN_NAME: 'token' } })
 }))
-vi.mock('../../../server/utils/serverTiming', () => ({ isServerTimingEnabled: () => false }))
+vi.mock('../../../server/utils/serverTiming', () => ({
+  isServerTimingEnabled: () => false
+}))
 const bucket = { head: vi.fn(), get: vi.fn() }
 const fetchMetadata = vi.fn()
 let handler: ReturnType<typeof h3.toPlainHandler>
@@ -20,11 +23,26 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks()
   fetchMetadata.mockImplementation(async () => new Response(JSON.stringify({ content_key: 'pdf/body/saved.pdf' })))
-  bucket.head.mockResolvedValue({ size: 10, customMetadata: { filename: 'saved.pdf' } })
-  bucket.get.mockResolvedValue({ body: new Response('%PDF-test!').body, text: vi.fn() })
+  bucket.head.mockResolvedValue({
+    size: 10,
+    customMetadata: { filename: 'saved.pdf' }
+  })
+  bucket.get.mockResolvedValue({
+    body: new Response('%PDF-test!').body,
+    text: vi.fn()
+  })
 })
-const context = () => ({ params: { uuid: 'saved' }, cloudflare: { env: { OSS: bucket, BACKEND: { fetch: fetchMetadata } } } })
-const call = (method = 'GET', range?: string) => handler({ method, path: '/', headers: { cookie: 'token=fixture', ...(range ? { range } : {}) }, context: context() })
+const context = () => ({
+  params: { uuid: 'saved' },
+  cloudflare: { env: { OSS: bucket, BACKEND: { fetch: fetchMetadata } } }
+})
+const call = (method = 'GET', range?: string) =>
+  handler({
+    method,
+    path: '/',
+    headers: { cookie: 'token=fixture', ...(range ? { range } : {}) },
+    context: context()
+  })
 describe('same-origin PDF delivery', () => {
   it.each([401, 403, 404])('checks current access before reading a file when metadata returns %s', async status => {
     fetchMetadata.mockResolvedValue(new Response(null, { status }))
@@ -55,13 +73,24 @@ describe('same-origin PDF delivery', () => {
   })
 })
 describe('SSR PDF content', () => {
+  it('uses the authorized stored content key even when an older conventional object exists', async () => {
+    fetchMetadata.mockResolvedValue(new Response(JSON.stringify({ content_key: 'snapshots/saved/revision/body.html' })))
+    bucket.get.mockImplementation(async (key: string) => ({
+      text: async () => (key.startsWith('snapshots/') ? 'Current private body' : 'Old body')
+    }))
+    const event = h3.createEvent({ headers: {} } as never, {} as never)
+    event.context = context()
+    expect((await loadContent(event, 'saved')).body).toBe('Current private body')
+  })
   it('returns metadata with no HTML body and never reads PDF bytes through text()', async () => {
     bucket.get.mockResolvedValue(null)
     const event = h3.createEvent({ headers: {} } as never, {} as never)
     event.context = context()
     const result = await loadContent(event, 'saved')
-    expect(result).toEqual({ metadata: { content_key: 'pdf/body/saved.pdf' }, body: null })
-    expect(bucket.get).toHaveBeenCalledTimes(1)
-    expect(bucket.get).toHaveBeenCalledWith('html/body/saved.html')
+    expect(result).toEqual({
+      metadata: { content_key: 'pdf/body/saved.pdf' },
+      body: null
+    })
+    expect(bucket.get).not.toHaveBeenCalled()
   })
 })

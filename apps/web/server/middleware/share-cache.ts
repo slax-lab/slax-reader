@@ -1,5 +1,5 @@
 import { isServerTimingEnabled } from '../utils/serverTiming'
-import { canUseVisitorCache, getEdgeCache, OWNER_UID_HEADER, ownerKey, SHARE_PATH, viewerId, visitorKey } from '../utils/shareCache'
+import { canUseVisitorCache, getEdgeCache, matchesCurrentSnapshot, OWNER_UID_HEADER, ownerKey, SHARE_PATH, viewerId, visitorKey } from '../utils/shareCache'
 
 export default defineEventHandler(async event => {
   if (event.method !== 'GET') return
@@ -22,11 +22,13 @@ export default defineEventHandler(async event => {
 
   const config = useRuntimeConfig(event)
   const tokenCookieName = config.public.COOKIE_TOKEN_NAME as string
-  const vid = viewerId(getCookie(event, tokenCookieName) || undefined)
+  const token = getCookie(event, tokenCookieName) || undefined
+  const vid = viewerId(token)
+  const backend = event.context.cloudflare?.env.BACKEND as unknown as Parameters<typeof matchesCurrentSnapshot>[1]
 
   if (vid) {
     const ownerCached = await cache.match(new Request(ownerKey(uuid)))
-    if (ownerCached && ownerCached.headers.get(OWNER_UID_HEADER) === vid) {
+    if (ownerCached && ownerCached.headers.get(OWNER_UID_HEADER) === vid && (await matchesCurrentSnapshot(ownerCached, backend, uuid, token, 'owner'))) {
       event.context.__isOwner = true
       setResponseHeader(event, 'content-type', ownerCached.headers.get('content-type') || 'text/html; charset=utf-8')
       setResponseHeader(event, 'x-bcache', 'hit')
@@ -43,6 +45,11 @@ export default defineEventHandler(async event => {
     return
   }
   if (!canUseVisitorCache(vid, visitorCached.headers.get(OWNER_UID_HEADER))) {
+    setLookupTiming()
+    return
+  }
+
+  if (!(await matchesCurrentSnapshot(visitorCached, backend, uuid, token, 'visitor'))) {
     setLookupTiming()
     return
   }
