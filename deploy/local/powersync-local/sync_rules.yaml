@@ -65,22 +65,6 @@ streams:
           AND authenticated_user.deleted_at IS NULL
           AND subscriber.is_deleted = false
 
-      ## 有效合集owner ids
-      open_collection_owner_ids: |
-        SELECT collection.owner_id
-        FROM sr_user_collection_subscriber AS subscriber
-        INNER JOIN sr_user_collection AS collection
-          ON subscriber.collection_id = collection.id
-        INNER JOIN sr_user AS owner
-          ON owner.id = collection.owner_id AND owner.deleted_at IS NULL
-        INNER JOIN sr_user AS authenticated_user
-          ON subscriber.user_id = authenticated_user.id
-        WHERE authenticated_user.uuid = auth.user_id()
-          AND authenticated_user.deleted_at IS NULL
-          AND subscriber.is_deleted = false
-          AND subscriber.is_active = true
-          AND collection.status = 1
-
     queries:
       ## 订阅的合集信息
       - |
@@ -112,7 +96,18 @@ streams:
           1 AS show_highlight,
           1 AS allow_access
         FROM sr_user_collection AS sr_sharer_setting
-        WHERE sr_sharer_setting.owner_id IN open_collection_owner_ids
+        WHERE sr_sharer_setting.owner_id IN (
+            SELECT collection.owner_id
+            FROM sr_user_collection_subscriber AS subscriber
+            INNER JOIN sr_user_collection AS collection
+              ON collection.id = subscriber.collection_id
+            WHERE subscriber.user_id IN current_user_id
+              AND subscriber.is_deleted = false
+              AND subscriber.is_active = true
+              AND collection.status = 1
+              AND collection.owner_deleted = false
+          )
+          AND sr_sharer_setting.status = 1
           AND connection.parameter('schema_version') = '2'
 
       ## 订阅的合集的书签列表
@@ -125,7 +120,17 @@ streams:
           sr_collection_bookmark.created_at,
           sr_collection_bookmark.updated_at
         FROM sr_user_bookmark AS sr_collection_bookmark
-        WHERE sr_collection_bookmark.user_id IN open_collection_owner_ids
+        WHERE sr_collection_bookmark.user_id IN (
+            SELECT collection.owner_id
+            FROM sr_user_collection_subscriber AS subscriber
+            INNER JOIN sr_user_collection AS collection
+              ON collection.id = subscriber.collection_id
+            WHERE subscriber.user_id IN current_user_id
+              AND subscriber.is_deleted = false
+              AND subscriber.is_active = true
+              AND collection.status = 1
+              AND collection.owner_deleted = false
+          )
           AND sr_collection_bookmark.is_starred = true
           AND sr_collection_bookmark.deleted_at IS NULL
           AND ifnull(json_extract(sr_collection_bookmark.metadata, '$.share.is_enable'), 1) = 1
@@ -140,7 +145,17 @@ streams:
           CAST(sr_user_bookmark_stats.owner_id AS TEXT) AS owner_id,
           sr_user_bookmark_stats.created_at
         FROM sr_user_bookmark_stats
-        WHERE sr_user_bookmark_stats.owner_id IN open_collection_owner_ids
+        WHERE sr_user_bookmark_stats.owner_id IN (
+            SELECT collection.owner_id
+            FROM sr_user_collection_subscriber AS subscriber
+            INNER JOIN sr_user_collection AS collection
+              ON collection.id = subscriber.collection_id
+            WHERE subscriber.user_id IN current_user_id
+              AND subscriber.is_deleted = false
+              AND subscriber.is_active = true
+              AND collection.status = 1
+              AND collection.owner_deleted = false
+          )
           AND sr_user_bookmark_stats.collection_id IS NOT NULL
           AND connection.parameter('schema_version') = '2'
 
@@ -167,17 +182,18 @@ streams:
       FROM sr_bookmark_comment
       INNER JOIN sr_user_bookmark AS bookmark
         ON bookmark.id = sr_bookmark_comment.bookmark_id
-      INNER JOIN sr_user_collection AS collection
-        ON collection.owner_id = bookmark.user_id
       INNER JOIN sr_user AS authenticated_user
         ON authenticated_user.uuid = auth.user_id()
-      INNER JOIN sr_user AS owner
-        ON owner.id = bookmark.user_id
       WHERE bookmark.uuid = subscription.parameter('bookmark_uuid')
         AND authenticated_user.deleted_at IS NULL
-        AND owner.deleted_at IS NULL
-        AND collection.status = 1
         AND bookmark.user_id = CAST(subscription.parameter('owner_id') AS INTEGER)
+        AND bookmark.user_id IN (
+          SELECT collection.owner_id
+          FROM sr_user_collection AS collection
+          WHERE collection.owner_id = CAST(subscription.parameter('owner_id') AS INTEGER)
+            AND collection.status = 1
+            AND collection.owner_deleted = false
+        )
         AND bookmark.is_starred = true
         AND bookmark.deleted_at IS NULL
         AND ifnull(json_extract(bookmark.metadata, '$.share.is_enable'), 1) = 1
@@ -188,31 +204,19 @@ streams:
   rss_v1:
     auto_subscribe: false
     accept_potentially_dangerous_queries: false
-    with:
-      rss_user_ids: |
-        SELECT rss_user.id
-        FROM sr_user AS rss_user
-        INNER JOIN sr_user_lab_feature AS lab
-          ON lab.user_id = rss_user.id AND lab.feature = 'rss' AND lab.enabled = true
-        WHERE rss_user.uuid = auth.user_id()
-          AND rss_user.deleted_at IS NULL
-
-      rss_feed_ids: |
-        SELECT subscription.feed_id
-        FROM sr_rss_subscription AS subscription
-        INNER JOIN sr_user AS rss_user
-          ON rss_user.id = subscription.user_id
-        INNER JOIN sr_user_lab_feature AS lab
-          ON lab.user_id = subscription.user_id AND lab.feature = 'rss' AND lab.enabled = true
-        WHERE rss_user.uuid = auth.user_id()
-          AND rss_user.deleted_at IS NULL
-
     queries:
       ## Bucket subscriptions by user so private remarks reach only their owner.
       - |
         SELECT id, feed_id, remark, created_at
         FROM sr_rss_subscription
-        WHERE user_id IN rss_user_ids
+        WHERE user_id IN current_user_id
+          AND user_id IN (
+            SELECT lab.user_id
+            FROM sr_user_lab_feature AS lab
+            WHERE lab.user_id IN current_user_id
+              AND lab.feature = 'rss'
+              AND lab.enabled = true
+          )
 
       ## Share feed metadata without fetch validators or lease tokens.
       - |
@@ -220,12 +224,34 @@ streams:
           last_checked_at, last_success_at, next_fetch_at, next_allowed_at,
           error, lease_until AS refreshing_until
         FROM sr_rss_feed
-        WHERE id IN rss_feed_ids
+        WHERE id IN (
+          SELECT subscription.feed_id
+          FROM sr_rss_subscription AS subscription
+          WHERE subscription.user_id IN current_user_id
+            AND subscription.user_id IN (
+              SELECT lab.user_id
+              FROM sr_user_lab_feature AS lab
+              WHERE lab.user_id IN current_user_id
+                AND lab.feature = 'rss'
+                AND lab.enabled = true
+            )
+        )
 
       ## Sync latest-page entries without history rows or content references.
       - |
         SELECT id, feed_id, title, author, summary, article_url, image_url,
           published_at, first_seen_at, sort_at, content_truncated
         FROM sr_rss_entry
-        WHERE feed_id IN rss_feed_ids
+        WHERE feed_id IN (
+          SELECT subscription.feed_id
+          FROM sr_rss_subscription AS subscription
+          WHERE subscription.user_id IN current_user_id
+            AND subscription.user_id IN (
+              SELECT lab.user_id
+              FROM sr_user_lab_feature AS lab
+              WHERE lab.user_id IN current_user_id
+                AND lab.feature = 'rss'
+                AND lab.enabled = true
+            )
+        )
           AND is_history = false

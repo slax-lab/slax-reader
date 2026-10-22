@@ -5,15 +5,36 @@ const rules = readFileSync(new URL('../../../../deploy/local/powersync-local/syn
 const stream = (name: string) => rules.match(new RegExp(`\\n  ${name}:([\\s\\S]*?)(?=\\n  [a-zA-Z_][\\w]*:|$)`))?.[1] || ''
 
 describe('PowerSync collection rules', () => {
+  test('anchors every collection lookup on the authenticated user or subscription parameters', () => {
+    expect(rules).not.toContain('open_collection_owner_ids')
+    expect(rules).not.toContain('INNER JOIN sr_user AS owner')
+    expect(rules).not.toMatch(/FROM sr_user AS owner/)
+    expect(rules).not.toContain('rss_user_ids')
+    expect(rules).not.toContain('rss_feed_ids')
+
+    const collections = stream('subscribed_collections')
+    expect(collections).not.toContain('INNER JOIN sr_user AS owner')
+    expect(collections.match(/subscriber\.user_id IN current_user_id/g)).toHaveLength(3)
+    expect(collections.match(/collection\.owner_deleted = false/g)).toHaveLength(3)
+
+    const comments = stream('collection_bookmark_comment')
+    expect(comments).not.toContain('INNER JOIN sr_user AS owner')
+    expect(comments).not.toContain('INNER JOIN sr_user_collection AS collection')
+    expect(comments).toContain("collection.owner_id = CAST(subscription.parameter('owner_id') AS INTEGER)")
+    expect(comments).toContain('collection.owner_deleted = false')
+  })
+
   test('all identity sources exclude tombstones, including explicit collection subscriptions', () => {
     expect(rules).toMatch(/WHERE uuid = auth\.user_id\(\)\s+AND deleted_at IS NULL/)
     const collections = stream('subscribed_collections')
-    expect(collections.match(/authenticated_user\.deleted_at IS NULL/g)).toHaveLength(2)
-    expect(collections).toContain('owner.deleted_at IS NULL')
+    expect(collections.match(/authenticated_user\.deleted_at IS NULL/g)).toHaveLength(1)
+    expect(collections.match(/collection\.owner_deleted = false/g)).toHaveLength(3)
+    expect(collections).not.toContain('owner.deleted_at IS NULL')
     const comments = stream('collection_bookmark_comment')
     expect(comments).toContain('authenticated_user.uuid = auth.user_id()')
     expect(comments).toContain('authenticated_user.deleted_at IS NULL')
-    expect(comments).toContain('owner.deleted_at IS NULL')
+    expect(comments).toContain('collection.owner_deleted = false')
+    expect(comments).not.toContain('owner.deleted_at IS NULL')
   })
 
   test('keeps personal sync version-neutral and gates collection auto-sync to v2', () => {
@@ -45,7 +66,9 @@ describe('PowerSync collection rules', () => {
     expect(subscribedCollections).toContain('FROM sr_user_collection AS sr_sharer_setting')
     expect(subscribedCollections).toContain('subscriber.is_active = true')
     expect(subscribedCollections).toContain('FROM sr_user_bookmark AS sr_collection_bookmark')
-    expect(subscribedCollections).toContain('sr_collection_bookmark.user_id IN open_collection_owner_ids')
+    expect(subscribedCollections).toContain('sr_collection_bookmark.user_id IN (')
+    expect(subscribedCollections).toContain('collection.owner_deleted = false')
+    expect(subscribedCollections).not.toContain('open_collection_owner_ids')
   })
 
   test('syncs a read-only default global setting per Collection owner', () => {
@@ -55,7 +78,8 @@ describe('PowerSync collection rules', () => {
     expect(subscribedCollections).toContain('0 AS allow_highlight')
     expect(subscribedCollections).toContain('1 AS show_highlight')
     expect(subscribedCollections).toContain('1 AS allow_access')
-    expect(subscribedCollections).toContain('sr_sharer_setting.owner_id IN open_collection_owner_ids')
+    expect(subscribedCollections).toContain('sr_sharer_setting.owner_id IN (')
+    expect(subscribedCollections).toContain('collection.owner_deleted = false')
   })
 
   test('syncs collection detail comments by owner and article policy without subscription gate', () => {
@@ -65,13 +89,14 @@ describe('PowerSync collection rules', () => {
     expect(collectionComments).toContain("ifnull(json_extract(bookmark.metadata, '$.share.show_line'), 1) = 1")
     expect(collectionComments).toContain("ifnull(json_extract(bookmark.metadata, '$.share.show_comment'), 1) = 1")
     expect(collectionComments).toContain("bookmark.user_id = CAST(subscription.parameter('owner_id') AS INTEGER)")
-    expect(collectionComments).toContain('INNER JOIN sr_user_collection AS collection')
+    expect(collectionComments).toContain('collection.status = 1')
+    expect(collectionComments).toContain('collection.owner_deleted = false')
+    expect(collectionComments).not.toContain('INNER JOIN sr_user_collection AS collection')
     expect(collectionComments).not.toContain('subscriber.is_active = true')
     // 关闭态合集不再下发评论；订阅门控仍然不加（见用例名 without subscription gate）
-    expect(collectionComments).toContain('collection.status = 1')
     expect(collectionComments).not.toContain('bookmark.user_id IN open_collection_owner_ids')
     expect(rules).not.toMatch(/share\.id\s+IS\s+NULL\s+OR/i)
-    expect(rules).not.toMatch(/OR\s+\(share\.is_enable/i)
+    expect(rules).not.toMatch(/OR\s*\(share\.is_enable/i)
     expect(rules).not.toContain('LEFT JOIN sr_bookmark_share')
     expect(rules).not.toContain('NOT EXISTS')
     expect(rules).not.toContain('bookmark.uuid NOT IN')
@@ -95,12 +120,13 @@ describe('PowerSync collection rules', () => {
     const rss = stream('rss_v1')
     expect(rss).toContain('auto_subscribe: false')
     expect(rss).not.toContain("connection.parameter(")
-    expect(rss.match(/lab\.feature = 'rss' AND lab\.enabled = true/g)).toHaveLength(2)
-    expect(rss.match(/rss_user\.uuid = auth\.user_id\(\)\s+AND rss_user\.deleted_at IS NULL/g)).toHaveLength(2)
-    // A feed_id filter would put every subscriber's display name into a shared bucket.
-    expect(rss).toMatch(/FROM sr_rss_subscription\s+WHERE user_id IN rss_user_ids/)
-    expect(rss).toMatch(/FROM sr_rss_feed\s+WHERE id IN rss_feed_ids/)
-    expect(rss).toMatch(/FROM sr_rss_entry\s+WHERE feed_id IN rss_feed_ids\s+AND is_history = false/)
+    expect(rss.match(/lab\.feature = 'rss'\s+AND lab\.enabled = true/g)).toHaveLength(3)
+    expect(rss.match(/lab\.user_id IN current_user_id/g)).toHaveLength(3)
+    expect(rss.match(/subscription\.user_id IN current_user_id/g)).toHaveLength(2)
+    // Feed and entry data must be reached through the user's subscriptions.
+    expect(rss).toMatch(/FROM sr_rss_feed\s+WHERE id IN \(\s+SELECT subscription\.feed_id/)
+    expect(rss).toMatch(/FROM sr_rss_entry\s+WHERE feed_id IN \(\s+SELECT subscription\.feed_id/)
+    expect(rss).toContain('AND is_history = false')
     for (const internal of ['etag', 'last_modified', 'lease_token', 'content_key', 'entry_key', 'history_url']) expect(rss).not.toContain(internal)
   })
 
@@ -115,7 +141,8 @@ describe('PowerSync collection rules', () => {
     expect(subscribedCollections).toContain("ifnull(json_extract(sr_collection_bookmark.metadata, '$.share.is_enable'), 1) = 1")
     expect(subscribedCollections).toContain('FROM sr_user_bookmark_stats')
     expect(subscribedCollections).not.toContain('FROM sr_user_bookmark_stats AS')
-    expect(subscribedCollections).toContain('WHERE sr_user_bookmark_stats.owner_id IN open_collection_owner_ids')
+    expect(subscribedCollections).toContain('sr_user_bookmark_stats.owner_id IN (')
+    expect(subscribedCollections).toContain('collection.owner_deleted = false')
     expect(subscribedCollections).toContain('sr_user_bookmark_stats.collection_id IS NOT NULL')
     expect(subscribedCollections).not.toMatch(/FROM sr_user_bookmark_stats[\s\S]*?INNER JOIN sr_user_bookmark/)
     expect(rules).not.toContain('collection_policy')
