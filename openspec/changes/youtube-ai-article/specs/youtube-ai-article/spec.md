@@ -36,7 +36,7 @@ Generation SHALL start only for an owner with the `youtube_article` Labs feature
 
 ### Requirement: Bounded cost
 
-The system SHALL stop spending on an article version above $0.30 across all attempts, SHALL allow at most 20 automatic and 5 manual starts per user per UTC day, and SHALL defer new runs and send one alert per day when site-wide spend reaches $20 in a UTC day.
+The system SHALL stop spending on an article version above $1.00 across all attempts, SHALL allow at most 20 automatic and 5 manual starts per user per UTC day, and SHALL defer new runs and send one alert per day when site-wide spend reaches $20 in a UTC day.
 
 #### Scenario: Daily automatic limit
 - **WHEN** an owner triggers the 21st automatic start in one UTC day
