@@ -4,7 +4,9 @@ OpenSpec: `support-newsletter-feed`.
 
 ## Scope and readiness
 
-The first pilot receives `<account>@slax.dev` through the existing Edge Worker **reader-backend**, whose custom domain is **reader-api.slax.dev**. Keep the active **Catch-all / Drop** rule. Production Newsletter routing is a separate decision; do not alter the Feishu MX records on slax.com.
+The required production address is `<account>@newsletterreader.slax.com`. The first Cloudflare dev pilot temporarily receives `<account>@slax.dev` through the existing Edge Worker **reader-backend**, whose custom domain is **reader-api.slax.dev**. Keep the active **Catch-all / Drop** rule. Production routing still requires separate configuration and verification; do not alter the Feishu MX records on slax.com.
+
+For fully local integration, `NEWSLETTER_DOMAIN` may use `newsletterreader.slax.com` and mail can be injected through the local Wrangler email endpoint. This matches the production address format without requiring DNS or Cloudflare console changes. It does not receive external SMTP traffic.
 
 Before enabling mail delivery, the release operator must:
 

@@ -2,7 +2,7 @@
 
 ## Environment and scope
 
-Branch `feat/support-newsletter-feed`, based on `origin/dev` `4fa9ff08`, in a new Codex-managed worktree. No remote deployment, DNS, Email Routing, private configuration or live database mutation has been performed. Synthetic local resources were created and removed by the HTTP smoke harness. No credentials or private configuration files were read or copied.
+Branch `feat/support-newsletter-feed`, based on `origin/dev` `4fa9ff08`, in a new Codex-managed worktree. No remote deployment, DNS, Email Routing, private configuration edit or remote database mutation has been performed. Synthetic local resources were created and removed by the HTTP smoke harness. A subsequent user-requested local integration environment applied the additive Newsletter migration to the existing local development PostgreSQL database and initialized worktree-local D1/R2 state. Existing operator configuration is loaded through normal application startup; secret file contents were not printed or copied by the agent.
 
 ## Automated checks
 
@@ -43,9 +43,21 @@ Browser matrix passed at **1440, 768 and 390px**, in **light, dark and eink**. F
 
 Findings repaired and covered: exact-768px shell/sidebar breakpoint mismatch, duplicate avatar text in source accessible names, Newsletter-only empty copy, second sanitizer losing truncation, unsafe relative srcset resolution, and stale processing across disable/re-enable. Screenshots are temporary local artifacts, not committed to Git.
 
+## Full local integration environment
+
+On 2026-10-22, started the feature worktree's actual API Workers (Edge 8787, Core 8686, AI 8788 and Browser 8789) and Web on port 3000. The local-only Newsletter configuration uses `NEWSLETTER_ENABLED=true` and `NEWSLETTER_DOMAIN=newsletterreader.slax.com`; this matches addresses locally without creating DNS or mail-routing records. Existing operator configuration remains unchanged. Cloud-only AI/browser-rendering/vector/analytics integrations are excluded from this local pilot.
+
+- `pnpm api -- migration:deploy:pgsql` with an explicit loopback development database applied `20261022090000_newsletter_feed`; local D1 and fulltext migration commands completed with no pending migrations.
+- A separate `newsletter-local-powersync` container on loopback port 18082 loads this branch's sync rules, uses its own local `newsletter_local_sync` storage database and the existing local source database. Its readiness endpoint returned HTTP 200; logs confirmed snapshot completion and activation of the PostgreSQL replication stream. Existing PowerSync containers were preserved.
+- `/ping` returned HTTP 200, unauthenticated Newsletter-address access returned the expected authorization error, and Web `/login` and `/bookmarks` returned HTTP 200. Browser inspection confirmed the rendered login controls.
+- A raw message injected through `/cdn-cgi/local/email` to an unbound local address returned HTTP 400 with the generic application rejection. A temporary local helper was provided for HTML, plain-text and duplicate Message-ID deliveries to the address copied from Web.
+- These startup and readiness checks do not independently establish every authenticated PowerSync stream or cross-user isolation scenario. The human's subsequent integration acceptance is recorded below; specific per-case results were not supplied.
+
 ## Human hands-on acceptance
 
 **yjc**, 2026-10-22, in this task before any PR: opened `http://localhost:3058/__sandbox/bootstrap`, exercised Feed switching, Newsletter body and address copying, and replied **“已操作，界面可以接受”**. No human-requested adjustment remained. Agent-discovered responsive/accessibility/empty-footer polish was then verified by the browser matrix. The review sandbox contains fixture data only.
+
+**Additional integration acceptance:** yjc, 2026-10-22, after the full local API/Web environment above was prepared, reported that testing matched expectations and authorized proceeding with the PR. No additional adjustment was requested. This supplements the earlier pre-PR UI acceptance; it does not claim external SMTP delivery or enumerate unreported test cases.
 
 ## Review and release assessment
 
@@ -55,7 +67,7 @@ Bugs, Security and Compliance passes resolve to OpenSpec `support-newsletter-fee
 
 - **Not deployed to slax.dev.** Matching real Edge/Core PostgreSQL/R2 bindings, private CI configuration, live hosted PowerSync rule publication and Cloudflare exact address rules require the dev release/operator sequence.
 - **No real external SMTP test.** Local email dispatch and application rejection are verified; sender bounce/delivery status and Cloudflare's behavior on an infrastructure failure before durable admission require a dedicated dev test. Post-admission publication recovery is covered locally.
-- **No live PowerSync server exercise.** Rule tests and client stream/cache tests pass; publish the rules to the matching dev service and verify cross-user/kind isolation with real synchronization before expanding the pilot.
+- **No hosted PowerSync acceptance.** The separate local server replicated successfully and the user accepted local integration testing, but hosted rule publication and explicit cross-user/kind isolation with real synchronization remain dev rollout checks before expanding the pilot.
 - Newsletter source management/automatic unsubscribe/Inbox save/attachments are deliberately absent. Subscribed mail has no 30-day expiration; monitor storage and pending-receipt age. The retry batch is capped at five per five-minute tick.
 
 Operator steps and human test cases: [Newsletter dev pilot](../../../docs/api/NEWSLETTER-DEV-PILOT.md). Beta/main admission stays off until all shared-database readers and sync rules have RSS kind isolation.
