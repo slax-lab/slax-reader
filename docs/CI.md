@@ -4,6 +4,41 @@ Application validation runs on pull requests, including promotion PRs, and throu
 
 The detector uses the PR's actual base branch and includes earlier PR commits, removed files, and both sides of a rename. It does not depend on GitHub's limited path-filter file window. Missing revisions, shallow history, and failed comparisons fail visibly rather than return an empty selection. The job summary lists selected and skipped scopes; detector output records the input paths that selected each scope.
 
+## Branch protection and required contexts
+
+Every long-lived branch rejects direct pushes, force-pushes, and deletion, and administrator bypass actors are configured in `pull_request` mode — an administrator can merge an exceptional pull request, but a direct push stays rejected even for them. The branches gate different decisions, so their entry conditions and required contexts differ:
+
+| Branch | Entry rule | Required contexts | Merge methods |
+| --- | --- | --- | --- |
+| `dev` | Any pull request | `agent-config drift check`, `PR review gate`, `Web CI gate`, `Extension CI gate`, `API CI gate`, `Mobile CI gate`, `CLI CI gate`, `Tooling CI gate` | merge, squash, rebase |
+| `beta` | Head is `dev` or `hotfix/*` | `promotion integrity`, `Web CI gate`, `Extension CI gate`, `API CI gate`, `Mobile CI gate`, `CLI CI gate`, `Tooling CI gate` | merge commit only |
+| `main` | Head is `beta` or `hotfix/*` | `promotion integrity` | merge commit only |
+
+Each application CI workflow ends in a terminal gate job whose name is a ruleset-referenced contract: `Web CI gate` and `Extension CI gate` in `frontend-ci.yml`, `API CI gate` in `api-ci.yml`, `Mobile CI gate` in `mobile-ci.yml`, `CLI CI gate` in `cli-ci.yml`, and `Tooling CI gate` in `tooling-ci.yml`. The gate fails when any job in its suite failed and succeeds otherwise, so a suite that `ci-scope` skipped reports success and never blocks. `tooling/ci-workflow.test.mjs` asserts the exact gate names and their `if: always()` wiring; renaming one without updating the rulesets strands its required context at "Expected" and blocks the branch.
+
+No approving review is required on `beta` or `main` for a promotion: the content was reviewed when it entered `dev`, and the administrator's merge is the designed release-decision act. A `hotfix/*` head never passed through `dev`, where reviews happen, so `promotion integrity` requires one approving review from an approver other than the hotfix author. On `main` the six suite gates are required through `promotion integrity` rather than as separate ruleset contexts; the promotion pull request still reports them because every pull request runs the application CI workflows.
+
+## Promotion integrity check
+
+`.github/workflows/promotion-gate.yml` runs on pull requests targeting `beta` and `main` and reports a single job, `promotion integrity`. The check fails closed on any shape it does not recognize and asserts:
+
+- The head branch is an allowed source: `dev` or `hotfix/*` for `beta`; `beta` or `hotfix/*` for `main`.
+- The six application CI gates are present and completed successfully on the pull request's head commit. A skipped suite gate counts as success only because `ci-scope` did not select that suite for the diff.
+- For a `beta` → `main` promotion, the head commit also has successful conclusions from the beta-environment deployment workflows (`api-deploy`, `web-deploy`). A `hotfix/*` head skips this evidence, because it never entered `beta`.
+- For a `hotfix/*` head, the pull request carries an approving review from someone other than its author; self-approval does not count. This lives in the gate rather than in the ruleset because rulesets cannot condition on a pull request's head branch — a ruleset-level review requirement would force reviews onto every promotion.
+
+The workflow reads check runs and pull requests with the repository `GITHUB_TOKEN` (`checks: read`, `pull-requests: read`); it does not need the administration permission that drift detection uses.
+
+## Ruleset state and drift detection
+
+The expected ruleset state is codified in `.github/rulesets.expected.json`, and `tooling/rulesets.mjs` compares it with the live repository:
+
+- `export` fetches the live rulesets, strips server-assigned identifiers and timestamps, normalizes key order, and writes the committed JSON.
+- `check` diffs the live rulesets against the committed JSON, prints per-rule differences, and exits non-zero on drift.
+- `apply` pushes the codified state to the GitHub API. Only a human administrator runs it locally with their own `gh` authentication; CI never applies rulesets, because mutation credentials in CI would turn any workflow compromise into a protection-removal primitive.
+
+`.github/workflows/ruleset-drift.yml` runs `check` daily off-peak and on `workflow_dispatch`, authenticating with the `RULESETS_READ_TOKEN` secret — a fine-grained PAT with repository Administration read, which `GITHUB_TOKEN` cannot be granted. It opens or updates one tracking issue when the live state drifts from the codified state or when the token is missing or expired, so silent non-detection is bounded. The comparison is deliberately not a required check: drift pages a human decision and never blocks a pull request. An intentional protection change updates the codified JSON and applies the live rulesets as part of the same change; the next scheduled run then reports no drift.
+
 ## Check ownership
 
 | Inputs | Validation |
@@ -37,7 +72,7 @@ Root dependency files intentionally retain broad coverage. This implementation d
 
 ## Required configuration check
 
-`agent-config drift check` remains present on every PR. Its detector runs inside that job so a detection error fails the required context directly. It installs dependencies only if rulesync, OpenSpec, or gh-aw validation is selected:
+`agent-config drift check` remains present on every PR and is a required context on `dev`. Its detector runs inside that job so a detection error fails the required context directly. It installs dependencies only if rulesync, OpenSpec, or gh-aw validation is selected:
 
 - Rulesync sources, generated agent paths, and toolchain inputs select rulesync checks.
 - OpenSpec artifacts/configuration and toolchain inputs select strict OpenSpec validation.
