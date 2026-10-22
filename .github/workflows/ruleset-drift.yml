@@ -53,15 +53,20 @@ jobs:
         run: |
           set -euo pipefail
           title='Ruleset drift check failed'
+          # The tracking issue is owned through a dedicated label, not its
+          # title, so a human-created issue with the same title is never
+          # adopted and overwritten.
+          label='ruleset-drift'
+          gh label create "$label" --repo "$GITHUB_REPOSITORY" --color 8B949E --description 'Ruleset drift tracking issue' --force > /dev/null
           if [ ! -f "$REPORT" ]; then
             echo 'The drift check failed before producing a report.' > "$REPORT"
           fi
           printf '\n\n---\nScheduled check: %s/%s/actions/runs/%s\n' \
             "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> "$REPORT"
-          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "$title in:title" --json number,title --jq "map(select(.title == \"$title\"))[0].number // empty")
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "$label" --json number,title --jq "map(select(.title == \"$title\"))[0].number // empty")
           if [ -n "$existing" ]; then
             gh issue edit "$existing" --repo "$GITHUB_REPOSITORY" --body-file "$REPORT"
             echo "Updated issue #$existing."
           else
-            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$REPORT"
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --label "$label" --body-file "$REPORT"
           fi

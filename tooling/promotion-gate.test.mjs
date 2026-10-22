@@ -52,12 +52,17 @@ function checkRunRoute(posted, status = 201) {
   }]
 }
 
-function betaDeploymentRoutes({ pulls = [mergedPull()], deployments = [deployment(11), deployment(12)], statuses = {}, runs = {} } = {}) {
+function betaDeploymentRoutes({ pulls = [mergedPull()], deployments = [deployment(11), deployment(12)], statuses = {}, runs = {}, registered = deployWorkflows } = {}) {
   const deploymentHandlers = deployments.map(item => [new RegExp(`/deployments/${item.id}/statuses\\?`), typeof statuses[item.id] === 'function' ? statuses[item.id] : () => response(statuses[item.id] ?? [deploymentStatus(1000 + item.id)])])
   const runHandlers = Object.entries(runs).map(([id, run]) => [new RegExp(`/actions/runs/${id}$`), () => response(run)])
   return [
     ...checksRoute(greenGates()),
     [/\/commits\/[a-f0-9]{40}\/pulls\?/, () => response(pulls)],
+    [/\/actions\/workflows\//, url => {
+      const path = deployWorkflows.find(candidate => url.includes(candidate))
+      const wasTriggered = path !== undefined && registered.includes(path)
+      return response({ total_count: wasTriggered ? 1 : 0, workflow_runs: wasTriggered ? [workflowRun(path)] : [] })
+    }],
     [/\/deployments\?sha=/, () => response(deployments)],
     ...deploymentHandlers,
     ...runHandlers
@@ -215,6 +220,28 @@ test('an unrelated environment deployment cannot substitute for a deploy workflo
   await assert.rejects(runPromotionGate(inputs({ base: 'main', head: 'beta' }), options(routed(routes), { timeoutMs: 0 })), /web-deploy\.yml: no beta deployment yet/)
 })
 
+test('a batch that triggered no deploy workflow needs no deployment evidence once the grace window passed', async () => {
+  const routes = betaDeploymentRoutes({ deployments: [], registered: [] })
+  await runPromotionGate(inputs({ base: 'main', head: 'beta' }), options(routed(routes), { deployRunGraceMs: 0 }))
+})
+
+test('within the grace window an unregistered deploy workflow stays pending instead of being excused', async () => {
+  const routes = betaDeploymentRoutes({ deployments: [], registered: [] })
+  await assert.rejects(
+    runPromotionGate(inputs({ base: 'main', head: 'beta' }), options(routed(routes), { timeoutMs: 0, deployRunGraceMs: 600_000 })),
+    /api-deploy\.yml: deploy workflow run not registered yet.*web-deploy\.yml: deploy workflow run not registered yet/
+  )
+})
+
+test('a batch that triggered only one deploy workflow requires evidence only from that one', async () => {
+  const routes = betaDeploymentRoutes({
+    deployments: [deployment(11)],
+    runs: { 1011: workflowRun(deployWorkflows[0]) },
+    registered: [deployWorkflows[0]]
+  })
+  await runPromotionGate(inputs({ base: 'main', head: 'beta' }), options(routed(routes), { deployRunGraceMs: 0 }))
+})
+
 test('a hotfix to main skips deploy evidence but requires a non-author approval', async () => {
   const hotfix = inputs({ base: 'main', head: 'hotfix/urgent' })
   const approved = routed([...checksRoute(greenGates()), [/\/pulls\/42\/reviews\?/, () => response([review('reviewer', 'APPROVED')])]])
@@ -363,7 +390,7 @@ test('the workflow uses the trusted pull_request_target trigger and reports a di
   assert.equal(workflow.concurrency['cancel-in-progress'], true)
   assert.match(workflow.concurrency.group, /pull_request\.number/)
   const checkout = workflow.jobs.gate.steps.find(step => step.uses?.startsWith('actions/checkout@'))
-  assert.equal(checkout.with.ref, '${{ github.event.pull_request.base.sha }}')
+  assert.equal(checkout.with.ref, '${{ github.event.repository.default_branch }}')
   assert.equal(checkout.with['persist-credentials'], false)
   const step = workflow.jobs.gate.steps.find(step => step.run === 'node tooling/promotion-gate.mjs')
   assert.ok(step)

@@ -9,8 +9,8 @@ name: Promotion gate
 # succeeded on the head, and a hotfix carries a non-author approving review.
 #
 # Trust model: this workflow runs on `pull_request_target`. Its workflow file
-# comes from the default branch and the base commit is checked out explicitly,
-# so PR code is never executed. The verdict is an explicitly created check run
+# and the checked-out script both come from the default branch, so PR code is
+# never executed. The verdict is an explicitly created check run
 # named `promotion integrity` on the pull request's head SHA (see the script), not
 # this job's own conclusion — the job is intentionally named differently. Every
 # error path still creates a failing check run, so a broken gate blocks the merge
@@ -24,7 +24,10 @@ name: Promotion gate
 # that produced the beta tip. Deploy workflows triggered by `pull_request_target`
 # attach their conclusions to the merged pull request's head SHA, not to the
 # merge commit, so the script resolves beta tip -> merged PR -> its head SHA ->
-# beta deployment records. See tooling/promotion-gate.mjs.
+# beta deployment records. Both deploy workflows are paths-filtered, so evidence
+# is required only from a workflow that registered a run for that head SHA; a
+# batch that triggered no deploy workflow needs none. See
+# tooling/promotion-gate.mjs.
 #
 # `pull_request_review` is deliberately not a trigger: GitHub runs that event's
 # workflow file from the pull request's merge commit, which head branches can
@@ -54,15 +57,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      # The workflow file itself comes from the default branch (pull_request_target),
-      # while this checkout pins the script to the PR's base commit. The two can
-      # differ by one promotion window; both are protected refs, and the base
-      # version is the contract of the branch being entered. Do not drop `ref` to
-      # "simplify" this: the default checkout commit is the default branch, not
-      # the PR base.
+      # The script is checked out from the default branch — the same source the
+      # workflow file itself comes from under pull_request_target, so pinning the
+      # script to the base commit bought no trust. It also could not work: the
+      # script does not exist on beta/main until the first promotion lands, so a
+      # base-pinned checkout would fail with "Cannot find module" and leave the
+      # required context unreported exactly when the gate first matters. The
+      # script reads everything through the API; this checkout only provides it.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:

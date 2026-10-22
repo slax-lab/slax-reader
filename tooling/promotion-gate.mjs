@@ -30,12 +30,13 @@ const deployPendingStates = ['queued', 'in_progress', 'pending', 'waiting']
 const runFailureConclusions = ['failure', 'cancelled', 'timed_out', 'action_required', 'stale']
 const defaultTimeoutMs = 45 * 60_000
 const pollIntervalMs = 30_000
+const defaultDeployRunGraceMs = 5 * 60_000
 const maxSummaryLength = 60_000
 
 export const checkRunName = 'promotion integrity'
 export const suiteGates = ['Web CI gate', 'Extension CI gate', 'API CI gate', 'Mobile CI gate', 'CLI CI gate', 'Tooling CI gate']
 export const deployWorkflows = ['.github/workflows/api-deploy.yml', '.github/workflows/web-deploy.yml']
-export { defaultTimeoutMs, pollIntervalMs }
+export { defaultTimeoutMs, pollIntervalMs, defaultDeployRunGraceMs }
 
 export class GateError extends Error {}
 export class ReviewApprovalRequired extends GateError {}
@@ -176,10 +177,17 @@ function newerDeployment(candidate, current) {
 // beta tip -> merged PR -> its head SHA -> beta deployment records on that SHA
 // -> the api-deploy and web-deploy runs that created them.
 //
+// Both deploy workflows are paths-filtered, so a batch that touched none of
+// their paths produces no run and no deployment — and must not be blocked by
+// evidence that can never exist. Evidence is required only from a workflow that
+// registered a run for the source commit; within the grace window a missing run
+// might simply not have registered yet, so it stays pending instead of being
+// excused.
+//
 // Returns { ready: false, pending } while a deployment is still running or has
 // not been recorded yet, and throws as soon as a deployment or workflow
 // concluded unsuccessfully.
-export async function inspectDeploymentEvidence(inputs, { token, fetchImpl }) {
+export async function inspectDeploymentEvidence(inputs, { token, fetchImpl, graceExpired = true }) {
   const pulls = await list(fetchImpl, token, `/repos/${inputs.repository}/commits/${inputs.headSha}/pulls`)
   const sources = [...new Set(pulls
     .filter(pull => pull && typeof pull.merged_at === 'string' && pull.merge_commit_sha === inputs.headSha && pull.base?.ref === 'beta')
@@ -188,8 +196,28 @@ export async function inspectDeploymentEvidence(inputs, { token, fetchImpl }) {
   if (sources.length > 1 || !shaPattern.test(sources[0] ?? '')) fail('Ambiguous beta provenance for the promotion head commit')
 
   const sourceSha = sources[0]
+
+  const triggered = new Map()
+  for (const path of deployWorkflows) {
+    const body = await github(fetchImpl, token, `/repos/${inputs.repository}/actions/workflows/${path}/runs?head_sha=${sourceSha}`)
+    const workflowRuns = body?.workflow_runs
+    if (!Array.isArray(workflowRuns)) fail('GitHub API returned an unexpected workflow-runs response')
+    if (workflowRuns.length >= 100) fail('GitHub API workflow-runs list exceeds the page budget')
+    triggered.set(path, workflowRuns.length > 0)
+  }
+
   const deployments = await list(fetchImpl, token, `/repos/${inputs.repository}/deployments?sha=${sourceSha}&environment=beta`)
-  if (deployments.length === 0) return { ready: false, pending: deployWorkflows.map(path => `${path}: no beta deployment yet`) }
+  if (deployments.length === 0) {
+    const pending = []
+    for (const path of deployWorkflows) {
+      if (!triggered.get(path)) {
+        if (!graceExpired) pending.push(`${path}: deploy workflow run not registered yet`)
+      } else {
+        pending.push(`${path}: no beta deployment yet`)
+      }
+    }
+    return { ready: pending.length === 0, pending }
+  }
 
   const evidence = new Map()
   for (const deployment of deployments) {
@@ -229,7 +257,13 @@ export async function inspectDeploymentEvidence(inputs, { token, fetchImpl }) {
   const pending = []
   for (const path of deployWorkflows) {
     const found = evidence.get(path)
-    if (!found) pending.push(`${path}: no beta deployment yet`)
+    if (!found) {
+      if (!triggered.get(path)) {
+        if (!graceExpired) pending.push(`${path}: deploy workflow run not registered yet`)
+      } else {
+        pending.push(`${path}: no beta deployment yet`)
+      }
+    }
     else if (found.state === 'failure') failed.push(`${path}: ${found.detail}`)
     else if (found.state === 'pending') pending.push(`${path}: ${found.detail}`)
   }
@@ -263,8 +297,9 @@ export async function reviewEvidence(inputs, { token, fetchImpl }) {
 
 // Shared poll: the suite gates and the beta deployment are independent, so one
 // deadline covers both and each poll re-checks whichever is still outstanding.
-export async function pollPromotionEvidence(inputs, { token, fetchImpl, wait = delay, intervalMs = pollIntervalMs, timeoutMs = defaultTimeoutMs, requireDeployment = false, log = () => {} }) {
-  const deadline = Date.now() + timeoutMs
+export async function pollPromotionEvidence(inputs, { token, fetchImpl, wait = delay, intervalMs = pollIntervalMs, timeoutMs = defaultTimeoutMs, deployRunGraceMs = defaultDeployRunGraceMs, requireDeployment = false, log = () => {} }) {
+  const startedAt = Date.now()
+  const deadline = startedAt + timeoutMs
   let deploymentReady = !requireDeployment
   while (true) {
     const runs = await list(fetchImpl, token, `/repos/${inputs.repository}/commits/${inputs.headSha}/check-runs?filter=all`)
@@ -273,7 +308,7 @@ export async function pollPromotionEvidence(inputs, { token, fetchImpl, wait = d
 
     let deploymentPending = []
     if (!deploymentReady) {
-      const deployment = await inspectDeploymentEvidence(inputs, { token, fetchImpl })
+      const deployment = await inspectDeploymentEvidence(inputs, { token, fetchImpl, graceExpired: Date.now() >= startedAt + deployRunGraceMs })
       deploymentReady = deployment.ready
       deploymentPending = deployment.pending ?? []
     }
@@ -286,13 +321,13 @@ export async function pollPromotionEvidence(inputs, { token, fetchImpl, wait = d
   }
 }
 
-export async function runPromotionGate(inputs, { token, fetchImpl = fetch, wait = delay, intervalMs = pollIntervalMs, timeoutMs = defaultTimeoutMs, log = () => {} } = {}) {
+export async function runPromotionGate(inputs, { token, fetchImpl = fetch, wait = delay, intervalMs = pollIntervalMs, timeoutMs = defaultTimeoutMs, deployRunGraceMs = defaultDeployRunGraceMs, log = () => {} } = {}) {
   if (typeof token !== 'string' || !token) fail('Missing GitHub token')
   const hotfix = allowedHead(inputs)
   log(`source allowed: ${inputs.head} -> ${inputs.base}`)
 
   const requireDeployment = inputs.base === 'main' && inputs.head === 'beta'
-  await pollPromotionEvidence(inputs, { token, fetchImpl, wait, intervalMs, timeoutMs, requireDeployment, log })
+  await pollPromotionEvidence(inputs, { token, fetchImpl, wait, intervalMs, timeoutMs, deployRunGraceMs, requireDeployment, log })
   log(`application CI gates: ${suiteGates.length}/${suiteGates.length} succeeded`)
   if (requireDeployment) log('beta deployment evidence: api-deploy and web-deploy succeeded')
 
