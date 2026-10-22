@@ -1,5 +1,12 @@
 # Tasks
 
+## Review follow-up — 2026-10-22
+
+- [x] R1 Restore search visibility after existing/own-source Fork restores without repeating creation notifications; verify both paths against a cached trashed-bookmark candidate set.
+- [x] R2 Keep managed media status available when best-effort catch-up fails, and allow explicit owner recovery after podcast input changes without changing frozen Forks or completed components; verify failure, retry, input guards and saved component preservation.
+- [x] R3 Consolidate snapshot publication and version-aware indexing; avoid redundant manifest/PDF reads and remove the unused podcast linking mode while preserving final policy/revision checks and recovery semantics.
+- [x] R4 Run focused/full API checks, required generators, disposable HTTP/R2/PostgreSQL recovery scenarios and independent Bugs/Security/Compliance review; record results and any remaining gaps in validation.md.
+
 ## 1. Approved baseline and additive contracts
 
 - [x] 1.1 Record human review of the proposal, including all-format media isolation and online-only creation; before managed-media implementation, sequence after the existing media changes' separate archive workflow, add scoped MODIFIED deltas to reconcile their living requirements, revalidate and obtain review; verify `validation.md` identifies the settled baseline and reconciled scope.

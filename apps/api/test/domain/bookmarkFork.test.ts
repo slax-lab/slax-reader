@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { SearchService } from '@/domain/search'
 import { BookmarkForkService } from '@/domain/bookmarkFork'
 import { memoryBucket } from '../utils/snapshotBucket'
 
@@ -36,6 +37,7 @@ describe('Fork service publication boundary', () => {
     effects = vi.fn(async () => {})
     service = Object.assign(Object.create(BookmarkForkService.prototype), {
       repo,
+      search: { clearSearchCache: async () => {} },
       bucket: () => ({ R2Bucket: bucket.bucket }),
       labs: { assertUrlAllowed: vi.fn(), assertEnabled: vi.fn() },
       media: { copyForFork: vi.fn() },
@@ -81,6 +83,32 @@ describe('Fork service publication boundary', () => {
     repo.existing.mockResolvedValue({ uuid: 'existing', bookmark_id: 20 })
     bucket.objects.clear()
     expect(await service.fork(ctx, source.uuid)).toMatchObject({ bookmark_uid: 'existing', disposition: 'already_saved' })
+    expect(repo.publish).not.toHaveBeenCalled()
+  })
+
+  it.each(['existing', 'ownSource'])('clears cached search visibility after %s restores a successful copy', async path => {
+    const cache = new Map([['search:valid_bm_ids:2', '[]']])
+    const restore = async () => ({ uuid: 'restored', bookmark_id: 20 })
+    repo[path] = vi.fn(restore)
+    if (path === 'ownSource') source.user_id = 2
+    const search = Object.create(SearchService.prototype)
+    Object.assign(service, { search })
+    const result = await service.fork(
+      {
+        ...ctx,
+        env: {
+          ...ctx.env,
+          KV: { delete: async (key: string) => cache.delete(key) }
+        }
+      },
+      source.uuid
+    )
+    expect(result).toMatchObject({
+      bookmark_uid: 'restored',
+      disposition: 'already_saved'
+    })
+    expect(cache.has('search:valid_bm_ids:2')).toBe(false)
+    expect(effects).not.toHaveBeenCalled()
     expect(repo.publish).not.toHaveBeenCalled()
   })
 

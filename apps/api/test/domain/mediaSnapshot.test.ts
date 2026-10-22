@@ -35,14 +35,17 @@ describe('private media publication', () => {
         return true
       })
     }
+    const settings = { enabled: true, language: 'en' }
     const service = Object.assign(Object.create(MediaSnapshotService.prototype), {
       repo,
+      labs: { isEnabled: async () => settings.enabled },
+      users: { getInfoByUserId: async () => ({ ai_lang: settings.language, lang: 'en' }) },
       bucket: () => ({ R2Bucket: memory.bucket }),
       youtube: { listForSource: vi.fn(async () => [row]) },
       marks: { bodyHasMarks: vi.fn(async () => marked) },
       effects: vi.fn(async () => {})
     }) as MediaSnapshotService
-    return { service, repo, raw, row, memory }
+    return { service, repo, raw, row, memory, settings }
   }
 
   it("pins a first terminal failure instead of consuming another user's later retry", async () => {
@@ -63,6 +66,26 @@ describe('private media publication', () => {
     expect(saved.bodyLanguage).toBeNull()
     expect(saved.variants.en?.content?.lede).toBe('Ready article')
     expect(await (await fixture.memory.bucket.get(fixture.raw.content_key))?.text()).toContain('Original transcript')
+  })
+
+  it.each(['disabled', 'language'])('keeps the transcript body when current YouTube promotion eligibility changes: %s', async change => {
+    const fixture = await captureFixture()
+    fixture.row.status = 'ready'
+    if (change === 'disabled') fixture.settings.enabled = false
+    else fixture.settings.language = 'zh'
+    expect(await fixture.service.settle({} as any, 1)).toBe(true)
+    const saved = (await fixture.service.load(1))!.media!
+    expect(saved.bodyLanguage).toBeNull()
+    expect(saved.variants.en?.content?.lede).toBe('Ready article')
+    expect(await (await fixture.memory.bucket.get(fixture.raw.content_key))?.text()).toContain('Original transcript')
+  })
+
+  it('promotes a pending YouTube article when current settings and marks allow it', async () => {
+    const fixture = await captureFixture()
+    fixture.row.status = 'ready'
+    expect(await fixture.service.settle({} as any, 1)).toBe(true)
+    expect((await fixture.service.load(1))!.media!.bodyLanguage).toBe('en')
+    expect(await (await fixture.memory.bucket.get(fixture.raw.content_key))?.text()).toContain('Ready article')
   })
 
   it('discards only its own attempt when a newer owner revision wins the CAS', async () => {

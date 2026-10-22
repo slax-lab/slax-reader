@@ -179,7 +179,6 @@ container.register(CrawlService, {
       container.resolve(SlaxAlertBotClient),
       container.resolve(YoutubeArticleRepo),
       container.resolve(PodcastEpisodeRepo),
-      container.resolve(PodcastArticleRepo),
       container.resolve(MediaSnapshotService),
       container.resolve(BookmarkForkRepo)
     )
@@ -505,7 +504,8 @@ container.register(UrlParserHandler, {
       container.resolve(TagService),
       container.resolve(UserService),
       container.resolve(CrawlService),
-      container.resolve(LogsService)
+      container.resolve(LogsService),
+      container.resolve(MediaSnapshotService)
     )
 })
 

@@ -9,6 +9,7 @@ export function createMockMediaSnapshots(put?: (key: string, value: string) => P
     settle: vi.fn(async () => false),
     settleSource: vi.fn(async () => 0),
     openRequest: vi.fn(),
+    repairIndex: vi.fn(async () => false),
     denyYoutube: vi.fn(),
     denyPodcast: vi.fn(),
     initialize: vi.fn(async (ref: any, userId: number, player?: any) => ({

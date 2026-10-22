@@ -39,11 +39,11 @@ export class BookmarkForkService {
     await this.labs.assertUrlAllowed(ctx, source.bookmark.target_url)
     const pdf = isPdfContentKey(source.bookmark.content_key)
     if (pdf) await this.labs.assertEnabled(ctx, 'pdf')
-    if (source.user_id === userId) return this.result(await this.repo.ownSource(userId, sourceUuid), 'already_saved')
+    if (source.user_id === userId) return this.existingResult(ctx, await this.repo.ownSource(userId, sourceUuid))
 
     const targetUrl = this.destinationUrl(source, userId)
     const existing = await this.repo.existing(userId, targetUrl)
-    if (existing) return this.result(existing, 'already_saved')
+    if (existing) return this.existingResult(ctx, existing)
     if (source.bookmark.status !== 'success') throw forkError()
 
     const uuid = crypto.randomUUID()
@@ -91,16 +91,24 @@ export class BookmarkForkService {
         const code = (error as { code?: string }).code
         if (code === 'P2002' || code === 'P2034') {
           await bundle.discard().catch(() => {})
-          if (winner) return this.result(winner, 'already_saved')
+          if (winner) return this.existingResult(ctx, winner)
         }
         throw forkError(ErrorName.FORK_STORAGE_UNAVAILABLE)
       }
     }
 
-    if (result.disposition === 'already_saved') await bundle.discard().catch(() => {})
+    if (result.disposition === 'already_saved') {
+      await bundle.discard().catch(() => {})
+      return this.existingResult(ctx, result.relation)
+    }
     // Side effects are outside the rollback scope. Failures must never delete a live bundle.
     await this.afterCommit(ctx, result.relation).catch(error => console.error('Fork indexing failed', error))
     return this.result(result.relation, result.disposition)
+  }
+
+  private async existingResult(ctx: ContextManager, relation: { uuid: string; bookmark_id: number }) {
+    await this.search.clearSearchCache(ctx, ctx.getUserId()).catch(error => console.error('Fork cache clearing failed', error))
+    return this.result(relation, 'already_saved')
   }
 
   private result(relation: { uuid: string; bookmark_id: number }, disposition: ForkBookmarkResponse['disposition']): CompletedFork {
@@ -137,12 +145,11 @@ export class BookmarkForkService {
 
   private async copyPdf(source: ForkSource, bundle: SnapshotBundle): Promise<ForkContent> {
     const key = source.bookmark.content_key
-    const binary = await bundle.read(key)
+    const keys = snapshotKeys(bundle.uuid, bundle.attempt, true)
+    const binary = await bundle.copy(key, keys.content_key)
     if (binary.customMetadata?.sha256 !== this.documentId(source)) throw forkError()
     const state = await (await bundle.read(key.replace('pdf/body/', 'pdf/meta/').replace(/\.pdf$/, '.json'))).json<{ text_status: string; pages: number }>()
     if (!['ready', 'empty', 'failed'].includes(state.text_status) || (state.text_status === 'ready') !== !!source.bookmark.content_md_key) throw forkError()
-    const keys = snapshotKeys(bundle.uuid, bundle.attempt, true)
-    await bundle.copy(key, keys.content_key)
     await bundle.put(keys.sidecar, JSON.stringify({ text_status: state.text_status, pages: state.pages }), { contentType: 'application/json' })
     if (state.text_status === 'ready') await bundle.copy(source.bookmark.content_md_key, keys.content_md_key)
     return { content_key: keys.content_key, content_md_key: state.text_status === 'ready' ? keys.content_md_key : '', content_word_count: source.bookmark.content_word_count }

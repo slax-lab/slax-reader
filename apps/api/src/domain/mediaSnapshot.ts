@@ -169,27 +169,34 @@ export class MediaSnapshotService {
     let input: PodcastSnapshotInput | undefined
     if (media.mode !== 'capture') return
     let rows: mediaArticlePO[]
+    let cues = media.cues
     if (media.kind === 'youtube') {
       rows = await this.youtube.listForSource(media.sourceId, media.sourceHash)
     } else {
       const ep = await this.episodes.findBySourceId(media.sourceId)
       if (!ep || (await podcastInputFingerprint(ep)) !== media.inputFingerprint || (media.sourceHash && ep.transcript_hash !== media.sourceHash)) {
-        this.stopPending(media)
+        this.stopPending(media, ep ? 'input_changed' : undefined)
         return
       }
       input = { sourceId: ep.source_id, fingerprint: media.inputFingerprint, transcriptHash: ep.transcript_hash }
       if (ep.transcript_status === 'failed' || ep.transcript_status === 'skipped') {
-        media.transcript = ep.transcript_status
-        media.transcriptReason = ep.error_message?.split(':')[0] || undefined
+        if (media.transcript !== 'ready') {
+          media.transcript = ep.transcript_status
+          media.transcriptReason = ep.error_message?.split(':')[0] || undefined
+        }
         this.stopPending(media)
         return input
       }
       if (ep.transcript_status !== 'ready' || !ep.transcript_hash || !ep.transcript_key) return
       media.sourceHash = ep.transcript_hash
+      const hadTranscript = media.transcript === 'ready'
       media.transcript = 'ready'
       const transcript = await (await bundle.read(ep.transcript_key)).json<PodcastTranscriptDocument>()
-      media.cues = transcript.cues
-      if (media.player) media.player.language = transcript.language
+      cues = transcript.cues
+      if (!hadTranscript) {
+        media.cues = transcript.cues
+        if (media.player) media.player.language = transcript.language
+      }
       if (!media.variants[transcript.language]) media.variants[transcript.language] = { status: 'pending' }
       rows = await this.podcasts.listForSource(media.sourceId, media.sourceHash)
     }
@@ -208,21 +215,28 @@ export class MediaSnapshotService {
         if (media.kind === 'youtube' && row.caption_key) media.cues = (await (await bundle.read(row.caption_key)).json<YoutubeCaptionDocument>()).cues
         variant.status = 'ready'
         variant.document = doc
-        variant.content = normalizedMediaContent(doc, media.cues ?? [])
+        variant.content = normalizedMediaContent(doc, cues ?? media.cues ?? [])
       }
       media.variants[lang] = variant
     }
     return input
   }
 
-  private stopPending(media: MediaSnapshot) {
-    if (media.transcript === 'pending') media.transcript = 'unavailable'
-    for (const variant of Object.values(media.variants)) if (variant.status === 'pending') variant.status = 'unavailable'
+  private stopPending(media: MediaSnapshot, reason?: string) {
+    if (media.transcript === 'pending') {
+      media.transcript = 'unavailable'
+      media.transcriptReason = reason
+    }
+    for (const variant of Object.values(media.variants))
+      if (variant.status === 'pending') {
+        variant.status = 'unavailable'
+        variant.reason = reason
+      }
   }
 
   /** Returns false for a completed/frozen request; callers keep the legacy path for unmanaged rows. */
-  async settle(ctx: ContextManager, bookmarkId: number): Promise<boolean> {
-    const loaded = await this.load(bookmarkId)
+  async settle(ctx: ContextManager, bookmarkId: number, loaded?: LoadedMediaSnapshot | null): Promise<boolean> {
+    loaded = loaded === undefined ? await this.load(bookmarkId) : loaded
     if (!loaded?.media || loaded.media.mode !== 'capture' || !(await this.readable(loaded.media))) return false
     const media = structuredClone(loaded.media)
     if (media.transcript !== 'pending' && !Object.values(media.variants).some(v => v.status === 'pending')) return false
@@ -230,29 +244,77 @@ export class MediaSnapshotService {
     const input = await this.collect(media, bundle)
     if (JSON.stringify(media) === JSON.stringify(loaded.media)) return false
     const original = media.kind === 'podcast' ? media.player?.language : media.defaultLanguage
-    if (original && media.variants[original]?.status === 'ready' && (media.kind === 'podcast' || !(await this.marks.bodyHasMarks(bookmarkId, loaded.raw.private_user))))
+    if (
+      original &&
+      media.variants[original]?.status === 'ready' &&
+      (media.kind === 'podcast' ||
+        ((await this.labs.isEnabled(loaded.raw.private_user, 'youtube_article')) &&
+          (await this.language(loaded.raw.private_user)) === original &&
+          !(await this.marks.bodyHasMarks(bookmarkId, loaded.raw.private_user))))
+    )
       media.bodyLanguage = original
     const published = await this.publish(loaded, media, undefined, bundle, false, input)
     if (published) await this.effects(ctx, bookmarkId).catch(error => console.error('Private media indexing failed', error))
     return published
   }
 
-  async settleSource(ctx: ContextManager, kind: 'youtube' | 'podcast', sourceId: string) {
+  async settleSource(ctx: ContextManager, kind: 'youtube' | 'podcast', sourceId: string, loaded?: Map<number, LoadedMediaSnapshot | null>) {
     const refs = kind === 'youtube' ? await this.youtube.listRefs(sourceId) : await this.podcasts.listEpisodeRefs(sourceId)
     let count = 0
-    for (const ref of refs) if (await this.settle(ctx, ref.bookmark_id)) count++
+    for (const ref of refs) {
+      const snapshot = await this.load(ref.bookmark_id)
+      loaded?.set(ref.bookmark_id, snapshot)
+      if (await this.settle(ctx, ref.bookmark_id, snapshot)) {
+        count++
+        if (loaded) loaded.set(ref.bookmark_id, await this.load(ref.bookmark_id))
+      }
+    }
     return count
   }
 
   /** Explicit owner retry opens only that owner's revision; prior captures settle before requeue. */
-  async openRequest(bookmarkId: number, language: MediaLanguage, transcript = false) {
+  async openRequest(bookmarkId: number, language: MediaLanguage, transcript = false, episode?: podcastEpisodePO) {
     const loaded = await this.load(bookmarkId)
     if (!loaded?.media) return
     if (loaded.media.mode === 'fork') throw BookmarkNotFoundError()
     const media = structuredClone(loaded.media)
-    media.variants[language] = { status: 'pending' }
-    if (transcript) media.transcript = 'pending'
-    if (!(await this.publish(loaded, media))) throw new Error('Private request revision changed')
+    const recoveringInput =
+      episode && media.kind === 'podcast' && (media.transcriptReason === 'input_changed' || Object.values(media.variants).some(variant => variant.reason === 'input_changed'))
+    let input: PodcastSnapshotInput | undefined
+    if (episode && media.kind === 'podcast') {
+      media.inputFingerprint = await podcastInputFingerprint(episode)
+      media.sourceHash = episode.transcript_hash ?? ''
+      input = {
+        sourceId: episode.source_id,
+        fingerprint: media.inputFingerprint,
+        transcriptHash: episode.transcript_hash
+      }
+      // Ready private components retain their saved player/cues. Only missing work adopts new inputs.
+      if (media.transcript !== 'ready') {
+        media.player = {
+          audioUrl: episode.audio_url,
+          title: episode.title,
+          showName: episode.show_name,
+          coverUrl: episode.cover_url,
+          durationSec: episode.duration_sec,
+          shownotes: episode.shownotes,
+          language: podcastLanguage(episode.language)
+        }
+        media.transcript = 'pending'
+        delete media.transcriptReason
+      }
+      for (const variant of Object.values(media.variants))
+        if (variant.status === 'unavailable' && variant.reason === 'input_changed') {
+          variant.status = 'pending'
+          delete variant.reason
+        }
+    }
+    if (!recoveringInput || media.variants[language]?.status !== 'ready') media.variants[language] = { status: 'pending' }
+    if (transcript && (!episode || media.transcript !== 'ready')) {
+      media.transcript = 'pending'
+      delete media.transcriptReason
+    }
+    if (!(await this.publish(loaded, media, undefined, undefined, false, input))) throw new Error('Private request revision changed')
   }
 
   /** Immutable body + manifest, then a short pointer CAS. Unknown commits retain their objects. */
@@ -263,6 +325,19 @@ export class MediaSnapshotService {
     bundle = new SnapshotBundle(this.bucket().R2Bucket, loaded.raw.userBookmarks[0].uuid),
     force = false,
     input?: PodcastSnapshotInput
+  ) {
+    return !!(await this.writeRevision(loaded.raw, media, body, bundle, {
+      mediaInput: input,
+      force
+    }))
+  }
+
+  private async writeRevision(
+    raw: RawSnapshot,
+    media: MediaSnapshot | null,
+    body: Body | undefined,
+    bundle: SnapshotBundle,
+    options: NonNullable<Parameters<BookmarkForkRepo['publishRevision']>[3]>
   ) {
     let publishing = false
     let contentKey = ''
@@ -284,7 +359,15 @@ export class MediaSnapshotService {
                 }
               : media.player
                 ? {
-                    html: renderPodcastBody({ info: media.player, article: { doc: variant.document, version, cues: (media.cues as PodcastCue[]) ?? [] } }),
+                    html: renderPodcastBody({
+                      info: media.player,
+                      article: {
+                        doc: variant.document,
+                        version,
+                        cues: (media.cues as PodcastCue[]) ?? [],
+                        paragraphStarts: variant.content?.sections.map(s => s.paragraphs.map(p => p.start_ms))
+                      }
+                    }),
                     text: renderPodcastText({ info: media.player, doc: variant.document })
                   }
                 : undefined
@@ -296,19 +379,24 @@ export class MediaSnapshotService {
             content_md_key: await bundle.write('body.txt', body.text, 'text/plain; charset=utf-8'),
             content_word_count: body.text.length
           }
-        : await bundle.copyHtml(loaded.raw.content_key)
+        : await bundle.copyHtml(raw.content_key)
       contentKey = content.content_key
       await bundle.write('media.json', JSON.stringify(media ?? { schema: 1, kind: 'html' }), 'application/json')
       await bundle.assertUnchanged()
       publishing = true
-      const published = await this.repo.publishRevision(loaded.raw.id, loaded.raw.content_key, content, { mediaRef: media ? this.ref(media) : undefined, mediaInput: input, force })
+      const published = await this.repo.publishRevision(raw.id, raw.content_key, content, { ...options, mediaRef: media ? this.ref(media) : undefined })
       if (!published) await bundle.discard()
-      return published
+      return published ? content : null
     } catch (error) {
       if (!publishing) await bundle.discard().catch(() => {})
       else {
-        const current = await this.repo.snapshot(loaded.raw.id).catch(() => null)
-        if (current?.content_key === contentKey) return true
+        const current = await this.repo.snapshot(raw.id).catch(() => null)
+        if (current?.content_key === contentKey)
+          return {
+            content_key: current.content_key,
+            content_md_key: current.content_md_key,
+            content_word_count: current.content_word_count
+          }
       }
       throw error
     }
@@ -321,11 +409,11 @@ export class MediaSnapshotService {
     await this.repairIndex(ctx, bookmarkId)
   }
 
-  async repairIndex(ctx: ContextManager, bookmarkId: number) {
+  async repairIndex(ctx: ContextManager, bookmarkId: number, managedOnly = false) {
     const current = await this.repo.snapshot(bookmarkId)
-    if (!current || !current.userBookmarks.length) return
+    if (!current || !current.userBookmarks.length || (managedOnly && !isManagedSnapshot(current.content_key))) return false
     const marker = `snapshot-index:${bookmarkId}`
-    if ((await ctx.env.KV.get(marker)) === current.content_key) return
+    if ((await ctx.env.KV.get(marker)) === current.content_key) return true
     await this.searchRepo.upsertUserBookmark(current.private_user, bookmarkId)
     const text = current.content_md_key ? await (await this.bucket().R2Bucket.get(current.content_md_key))?.text() : ''
     if (current.content_md_key && text === undefined) throw new Error('Private text missing during indexing')
@@ -335,9 +423,10 @@ export class MediaSnapshotService {
     if (fresh?.content_key !== current.content_key) {
       await ctx.env.KV.delete(marker)
       if (!fresh) await Promise.all([this.searchRepo.deleteUserBookmark(current.private_user, bookmarkId), this.searchRepo.deleteBookmarkRaw(bookmarkId)])
-      return
+      return true
     }
     await ctx.env.KV.put(marker, current.content_key)
+    return true
   }
 
   /** One acquisition's expected revision is carried by its durable workflow payload. */
@@ -351,37 +440,11 @@ export class MediaSnapshotService {
   ) {
     const raw = await this.repo.snapshot(bookmarkId)
     if (!raw || (expectedRevision && raw.updated_at.toISOString() !== expectedRevision)) throw new Error('Capture revision superseded')
-    const bundle = new SnapshotBundle(this.bucket().R2Bucket, uuid)
-    let publishing = false
-    let key = ''
-    try {
-      if (media) media.revision = bundle.attempt
-      const content = {
-        content_key: await bundle.write('body.html', body.html, 'text/html; charset=utf-8'),
-        content_md_key: await bundle.write('body.txt', body.text, 'text/plain; charset=utf-8'),
-        content_word_count: body.text.length
-      }
-      key = content.content_key
-      await bundle.write('media.json', JSON.stringify(media ?? { schema: 1, kind: 'html' }), 'application/json')
-      await bundle.assertUnchanged()
-      publishing = true
-      const success = await this.repo.publishRevision(bookmarkId, raw.content_key, content, {
-        fields: { ...fields, status: 'success' },
-        expectedUpdatedAt: raw.updated_at,
-        mediaRef: media ? this.ref(media) : undefined
-      })
-      if (!success) {
-        await bundle.discard()
-        throw new Error('Capture revision superseded')
-      }
-      return content
-    } catch (error) {
-      if (!publishing) await bundle.discard().catch(() => {})
-      else {
-        const current = await this.repo.snapshot(bookmarkId).catch(() => null)
-        if (current?.content_key === key) return { content_key: current.content_key, content_md_key: current.content_md_key, content_word_count: current.content_word_count }
-      }
-      throw error
-    }
+    const content = await this.writeRevision(raw, media, body, new SnapshotBundle(this.bucket().R2Bucket, uuid), {
+      fields: { ...fields, status: 'success' },
+      expectedUpdatedAt: raw.updated_at
+    })
+    if (!content) throw new Error('Capture revision superseded')
+    return content
   }
 }

@@ -1,6 +1,7 @@
 // PodcastBar + usePodcast
 // 覆盖：各阶段文案、轮询到完成即停、limit_reached 不再轮询、失败原因与重试、整理稿就绪自动换正文
 // （播放中则等用户点）、译文就绪默认切到译文且用户选择优先、访客隐藏、卸载停轮询
+import recoveryResponses from '../../../../../api/test/fixtures/podcast/recovery-status.json'
 import PodcastBar from '~~/app/components/Snapshot/PodcastBar.vue'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
@@ -173,6 +174,23 @@ describe('PodcastBar', () => {
     await flushPromises()
     expect(mockPost).toHaveBeenCalledWith(expect.objectContaining({ url: '/v1/podcast/retry', body: { bookmark_uid: 'ub-1' } }))
     expect(w2.text()).toContain('The transcript is queued')
+  })
+
+  it.each(['transcript', 'article', 'translation'] as const)('shows and executes the API input-change recovery contract for %s', async stage => {
+    const response = recoveryResponses[stage]
+    expect(podcastPhase(response as never)).toBe(stage === 'translation' ? 'done' : 'failed')
+    routeGet([response])
+    mockPost.mockResolvedValue(state({ transcript: 'pending' }))
+    const w = await mount({ bodyHasArticle: stage === 'translation' })
+    await flushPromises()
+    expect(w.find('.podcast-bar').exists()).toBe(true)
+    const retry = w.find('.pod-action')
+    expect(retry.exists()).toBe(true)
+    expect(retry.attributes('disabled')).toBeUndefined()
+    await retry.trigger('click')
+    await flushPromises()
+    expect(mockPost).toHaveBeenCalledWith(expect.objectContaining({ url: '/v1/podcast/retry', body: { bookmark_uid: 'ub-1' } }))
+    w.unmount()
   })
 
   it('a ready translation switches the view once; the reader can switch back', async () => {

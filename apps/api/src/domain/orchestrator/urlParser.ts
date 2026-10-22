@@ -1,6 +1,7 @@
 import { pickTagsForBookmark, groupVocabulary } from '@/utils/tags'
 import { inject, injectable } from '@/decorators/di'
 import { ContextManager } from '@/utils/context'
+import { MediaSnapshotService } from '@/domain/mediaSnapshot'
 import { BookmarkService } from '@/domain/bookmark'
 import { callbackType, QueueClient, queueParseMessage, queueThirdPartyMessage, receiveParseMessage, parseMessage, queueRetryParseMessage } from '@/infra/queue/queueClient'
 import { BucketClient } from '@/infra/repository/bucketClient'
@@ -48,7 +49,8 @@ export class UrlParserHandler {
     @inject(TagService) private tagService: TagService,
     @inject(UserService) private userSvc: UserService,
     @inject(CrawlService) private crawlSvc: CrawlService,
-    @inject(LogsService) private logsService: LogsService
+    @inject(LogsService) private logsService: LogsService,
+    @inject(MediaSnapshotService) private snapshots: MediaSnapshotService
   ) {
     this.bookmarkSvc = bookmarkService
     this.searchSvc = searchService
@@ -349,12 +351,13 @@ export class UrlParserHandler {
     const searchCallback = async () => {
       try {
         console.log(`add search record, bookmarkId: ${taskInfo.info.bookmarkId}`)
-        const results = await this.searchSvc.addSearchRecord(ctx, taskInfo.info.bookmarkId, parseRes.title, parseRes.textContent)
-        const rejected = (results || []).filter((r): r is PromiseRejectedResult => r.status === 'rejected')
-
-        if (rejected.length > 0) {
-          const errMsg = rejected.map(r => (r.reason instanceof Error ? r.reason.message : String(r.reason))).join('; ')
-          throw new Error(errMsg)
+        if (!(await this.snapshots.repairIndex(ctx, bookmarkId, true))) {
+          const results = await this.searchSvc.addSearchRecord(ctx, bookmarkId, parseRes.title, parseRes.textContent)
+          const rejected = (results || []).filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+          if (rejected.length > 0) {
+            const errMsg = rejected.map(r => (r.reason instanceof Error ? r.reason.message : String(r.reason))).join('; ')
+            throw new Error(errMsg)
+          }
         }
 
         await this.logsService.track(userId, 'bookmark_add_step', {

@@ -9,7 +9,7 @@ import { BucketClient } from '@/infra/repository/bucketClient'
 import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
 import { CrawlService } from '@/domain/crawl'
 import { MediaBodyService } from '@/domain/mediaBody'
-import { MediaSnapshotService } from '@/domain/mediaSnapshot'
+import { type LoadedMediaSnapshot, MediaSnapshotService } from '@/domain/mediaSnapshot'
 import { privateMediaVersion, type MediaSnapshot } from '@/utils/mediaSnapshot'
 import { HtmlBuilder, isSafeVideoId, type YoutubeCue } from '@/utils/htmlBuilder'
 import { renderMediaArticle } from '@/utils/podcastArticle'
@@ -176,10 +176,17 @@ export class YoutubeArticleService {
     const unavailable = this.response(requested, null, access, false)
 
     if (access.flagged) return unavailable
-    let snapshot = (await this.snapshots.load(access.bookmarkId))?.media
+    const loaded = await this.snapshots.load(access.bookmarkId)
+    let snapshot = loaded?.media
     if (snapshot?.kind === 'youtube') {
       if (!(await this.snapshots.readable(snapshot))) return unavailable
-      if (access.isOwner && (await this.snapshots.settle(ctx, access.bookmarkId))) snapshot = (await this.snapshots.load(access.bookmarkId))!.media!
+      if (access.isOwner) {
+        try {
+          if (await this.snapshots.settle(ctx, access.bookmarkId, loaded)) snapshot = (await this.snapshots.load(access.bookmarkId))!.media!
+        } catch (error) {
+          console.error('Private media status catch-up failed', error)
+        }
+      }
       const enabled = await this.labService.isEnabled(access.ownerId, YOUTUBE_ARTICLE_LAB)
       const result = this.privateStatus(snapshot, requested, access, enabled)
       // Only the pending request owned by this capture may initiate acquisition on open.
@@ -453,12 +460,13 @@ export class YoutubeArticleService {
   public async publishBodies(ctx: ContextManager, articleId: number): Promise<number> {
     const row = await this.repo.findById(articleId)
     if (!row) return 0
-    const settled = await this.snapshots.settleSource(ctx, 'youtube', row.source_id)
+    const loaded = new Map<number, LoadedMediaSnapshot | null>()
+    const settled = await this.snapshots.settleSource(ctx, 'youtube', row.source_id, loaded)
     if (row.status !== 'ready') return settled
     let rendered: { html: string; text: string } | null | undefined
     let count = settled
     for (const ref of await this.repo.listRefs(row.source_id, row.source_hash)) {
-      if (!(await this.wantsBody(ref.bookmark_id, ref.user_id, row))) continue
+      if (!(await this.wantsBody(ref.bookmark_id, ref.user_id, row, loaded.has(ref.bookmark_id) ? loaded.get(ref.bookmark_id) : undefined))) continue
       // Rendered once for all bookmarks, and only when one of them takes it
       if (rendered === undefined) rendered = await this.renderBody(row)
       if (!rendered) return count
@@ -472,15 +480,16 @@ export class YoutubeArticleService {
   }
 
   private async publishBodyFor(ctx: ContextManager, bookmarkId: number, userId: number, row: youtubeArticlePO): Promise<boolean> {
-    if ((await this.snapshots.load(bookmarkId))?.managed) return this.snapshots.settle(ctx, bookmarkId)
-    if (!(await this.wantsBody(bookmarkId, userId, row))) return false
+    const loaded = await this.snapshots.load(bookmarkId)
+    if (loaded?.managed) return this.snapshots.settle(ctx, bookmarkId, loaded)
+    if (!(await this.wantsBody(bookmarkId, userId, row, loaded))) return false
     const rendered = await this.renderBody(row)
     return rendered ? this.bodies.writeBody(ctx, bookmarkId, userId, rendered) : false
   }
 
   /** The owner has the switch on and reads this language, and nobody marked the body. Marks are checked last, closest to the write. */
-  private async wantsBody(bookmarkId: number, userId: number, row: youtubeArticlePO): Promise<boolean> {
-    if ((await this.snapshots.load(bookmarkId))?.managed) return false
+  private async wantsBody(bookmarkId: number, userId: number, row: youtubeArticlePO, loaded?: LoadedMediaSnapshot | null): Promise<boolean> {
+    if ((loaded === undefined ? await this.snapshots.load(bookmarkId) : loaded)?.managed) return false
     if (!(await this.labService.isEnabled(userId, YOUTUBE_ARTICLE_LAB))) return false
     if ((await this.languageOf(userId)) !== row.target_language) return false
     return !(await this.bodies.hasMarks(bookmarkId, userId))

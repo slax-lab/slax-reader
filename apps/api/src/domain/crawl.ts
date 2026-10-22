@@ -11,7 +11,7 @@ import { captionPlainText, captionSourceHash, youtubeCaptionKeys, type YoutubeCa
 import { evaluateYoutubeEligibility } from '../utils/youtubeEligibility'
 import { YoutubeArticleRepo, YOUTUBE_ARTICLE_PROMPT_VERSION, YOUTUBE_ARTICLE_SCHEMA_VERSION } from '../infra/repository/dbYoutubeArticle'
 import { youtubeArticleLanguage } from '@/utils/youtubeArticle'
-import { PodcastArticleRepo, PodcastEpisodeRepo, type podcastEpisodePO } from '../infra/repository/dbPodcastArticle'
+import { PodcastEpisodeRepo, type podcastEpisodePO } from '../infra/repository/dbPodcastArticle'
 import { fetchPublicText } from '@/infra/external/podcastFetch'
 import {
   appleLookupUrl,
@@ -122,7 +122,6 @@ export class CrawlService {
     @inject(SlaxAlertBotClient) private alertBot: SlaxAlertBotClient,
     @inject(YoutubeArticleRepo) private youtubeArticleRepo: YoutubeArticleRepo,
     @inject(PodcastEpisodeRepo) private podcastEpisodeRepo: PodcastEpisodeRepo,
-    @inject(PodcastArticleRepo) private podcastArticleRepo: PodcastArticleRepo,
     @inject(MediaSnapshotService) private snapshots: MediaSnapshotService,
     @inject(BookmarkForkRepo) private snapshotRepo: BookmarkForkRepo
   ) {}
@@ -727,7 +726,7 @@ export class CrawlService {
   public async parseAndSavePodcast(ctx: ContextManager, info: PodcastEpisodeInfo, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
     const html = HtmlBuilder.buildPodcast({ ...info })
     const textContent = renderPodcastText({ info })
-    const ref = await this.savePodcastEpisode(ctx, info, bookmarkId, false)
+    const ref = await this.savePodcastEpisode(info, bookmarkId)
     const media = ref ? await this.snapshots.initialize(ref, ctx.getUserId(), info, ref.podcastInput) : null
     const result = await this.parseAndSaveSocialMedia(ctx, {
       media,
@@ -747,18 +746,12 @@ export class CrawlService {
     return result
   }
 
-  /** Episode row and bookmark reference. Never throws: the bookmark is already saved. */
-  public async savePodcastEpisode(
-    ctx: ContextManager,
-    info: PodcastEpisodeInfo,
-    bookmarkId: number,
-    link = true
-  ): Promise<(MediaSnapshotRef & { podcastInput: podcastEpisodePO }) | undefined> {
+  /** Shared episode inputs for the private capture. Never throws: the bookmark is already saved. */
+  public async savePodcastEpisode(info: PodcastEpisodeInfo, bookmarkId: number): Promise<(MediaSnapshotRef & { podcastInput: podcastEpisodePO }) | undefined> {
     if (!info.audioUrl) return
     try {
       const sourceId = await podcastSourceId(info.audioUrl)
       const episode = await this.podcastEpisodeRepo.upsertFromInfo(sourceId, info)
-      if (link) await this.podcastArticleRepo.linkBookmark({ bookmark_id: bookmarkId, user_id: ctx.getUserId(), source_id: sourceId, source_hash: episode.transcript_hash ?? '' })
       console.log(`Podcast episode saved for bookmark ${bookmarkId}: episode=${episode.id} source=${sourceId} kind=${info.kind} status=${episode.transcript_status}`)
       return { media_kind: 'podcast', source_id: sourceId, source_hash: episode.transcript_hash ?? '', podcastInput: structuredClone(episode) }
     } catch (err) {

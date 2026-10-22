@@ -9,16 +9,9 @@ export interface PodcastSnapshotInput {
   transcriptHash: string | null
 }
 
-/** Lease, cost and scheduling updates do not change generation inputs. */
-export function podcastInputFingerprint(ep: {
-  audio_url: string
-  title: string
-  show_name: string
-  shownotes: string
-  duration_sec: number | null
-  publisher_transcripts: unknown
-}) {
-  return hashSHA256(JSON.stringify([ep.audio_url, ep.title, ep.show_name, ep.shownotes, ep.duration_sec, ep.publisher_transcripts]))
+/** Duration is enriched by transcription; only source inputs define the pending request identity. */
+export function podcastInputFingerprint(ep: { audio_url: string; title: string; show_name: string; shownotes: string; publisher_transcripts: unknown }) {
+  return hashSHA256(JSON.stringify([ep.audio_url, ep.title, ep.show_name, ep.shownotes, ep.publisher_transcripts]))
 }
 
 export type MediaLanguage = YoutubeArticleLanguage
