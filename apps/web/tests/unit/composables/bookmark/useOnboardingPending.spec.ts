@@ -1,7 +1,7 @@
-import { enableAutoUnmount } from '@vue/test-utils'
 // useOnboardingPending 单元测试
 import { defineComponent, ref } from 'vue'
 
+import { enableAutoUnmount } from '@vue/test-utils'
 import { useOnboardingPending } from '~~/app/composables/bookmark/useOnboardingPending'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'

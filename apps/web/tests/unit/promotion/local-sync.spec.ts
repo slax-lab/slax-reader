@@ -81,7 +81,7 @@ function mountLocal(alreadySynced = false) {
       isDataEmpty: data.isDataEmpty, isFirstLoad: data.isFirstLoad, onboardingReady: data.onboardingReady,
       confirmEmpty: data.confirmOnboardingEmpty, userId: ref(7)
     })
-    watch(flow.inboxState, value => { if (value === 'A') selectedOnboarding = true })
+    watch(flow.inboxState, value => { selectedOnboarding = value === 'A' }, { immediate: true })
     return () => null
   } }), { global: { plugins: [createPowerSyncPlugin({ database: env.db })] } })
   return {
@@ -179,8 +179,9 @@ it('does not use a profile response from a superseded session as local ownership
   const local = mountLocal(true)
   try {
     await flushPromises()
-    expect(local.selected()).toBe(false)
+    expect(local.selected()).toBe(true)
     env.token = `x.${btoa(JSON.stringify({ id: 'another-owner' }))}.x`
+    env.states.get('powersync-owner').value = 'another-owner'
     release({ userId: 7 })
     await flushPromises()
     expect(local.selected()).toBe(false)

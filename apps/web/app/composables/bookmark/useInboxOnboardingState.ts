@@ -1,6 +1,8 @@
 // inbox 空态三态判断
 import { computed, type ComputedRef, type Ref, ref, toValue, watch } from 'vue'
 
+import type { AccountContext } from '~/utils/accountContext'
+
 import { useOnboardingPending } from '~/composables/bookmark/useOnboardingPending'
 import { useExtensionDetection } from '~/composables/useExtensionDetection'
 
@@ -14,14 +16,18 @@ export const useInboxOnboardingState = (params: {
   isFirstLoad: Ref<boolean> | ComputedRef<boolean>
   onboardingReady?: Ref<boolean> | ComputedRef<boolean>
   confirmEmpty?: () => Promise<boolean>
-  userId: Ref<number | undefined> | ComputedRef<number | undefined>
+  account?: Ref<AccountContext> | ComputedRef<AccountContext>
+  userId?: Ref<number | undefined> | ComputedRef<number | undefined>
 }) => {
   const detection = useExtensionDetection()
-  const onboarding = useOnboardingPending(params.userId)
+  const account = params.account
+  const legacyUserId = params.userId
+  const accountValue = computed(() => account ? toValue(account) : { accountKey: null, sessionOwner: null, serverUserId: toValue(legacyUserId), source: 'server' as const, status: 'ready' as const, generation: 0 })
+  const onboarding = useOnboardingPending(account ?? legacyUserId)
   // 首次加载完成前不下结论，避免误判老用户
   const dataReady = computed(
     () =>
-      !!toValue(params.userId) &&
+      !!(accountValue.value.accountKey || accountValue.value.serverUserId) &&
       detection.checked.value &&
       toValue(params.subscriptionReady) &&
       (params.onboardingReady ? toValue(params.onboardingReady) : !toValue(params.isFirstLoad))
@@ -39,7 +45,7 @@ export const useInboxOnboardingState = (params: {
   const confirmedEmpty = ref<boolean | null>(null)
   if (params.confirmEmpty) {
     watch(
-      [candidate, () => toValue(params.userId), () => getUserToken()],
+      [candidate, () => accountValue.value.accountKey, () => accountValue.value.serverUserId, () => getUserToken()],
       async ([eligible], _previous, onCleanup) => {
         let current = true
         onCleanup(() => {
