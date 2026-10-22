@@ -107,6 +107,19 @@ public final class SlaxLegacyModule: Module {
       } catch { self.releaseOwner(); throw error }
     }
     AsyncFunction("endDataOwnership") { self.releaseOwner() }
+    AsyncFunction("beginFreshDataOwnership") { () -> [String: Any] in
+      guard Bundle.main.bundleIdentifier == "app.slax.reader" else { throw CocoaError(.fileReadNoPermission) }
+      // Development storage intentionally skips the exclusive ownership lease so a JS reload can reopen it.
+      do {
+        let manager = FileManager.default
+        let support = try manager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).resolvingSymlinksInPath()
+        let newDirectory = support.appendingPathComponent("slax-react-native", isDirectory: true)
+        try manager.createDirectory(at: newDirectory, withIntermediateDirectories: true)
+        let path = newDirectory.appendingPathComponent("powersync.db").path
+        Self.ownerMutex.lock(); self.databaseCandidates = [path]; Self.ownerMutex.unlock()
+        return ["scanComplete": true, "databaseCandidates": [String](), "legacyDataDirectory": support.path, "newDatabaseDirectory": newDirectory.path]
+      } catch { throw error }
+    }
     AsyncFunction("inspectLegacyDatabase") { (path: String) -> [String: Any] in
       let cancellation = DatabaseInspectionCancellation()
       let activity = try StorageActivity(name: "Slax database verification", cancel: { cancellation.cancelAndDrain() })

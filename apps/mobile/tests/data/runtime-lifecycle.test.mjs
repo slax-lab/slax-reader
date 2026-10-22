@@ -25,7 +25,7 @@ test('production runtime suspends and resumes without closing the database or re
     async execute() {pending++;}
     async writeTransaction(work) {return work(this);}
   }
-  class Cache {constructor(directory) {this.dataDirectory = directory;} setAccessBarrier(barrier) {this.barrier = barrier;}}
+  class Cache {constructor(directory) {this.dataDirectory = directory;} setAccessBarrier(barrier) {this.barrier = barrier;} setAvatarCache(avatars) {this.avatars = avatars;}}
   const articleCalls = [];
   class Worker {constructor(options) {cachedAccess = options.assertCachedAccess;} async setOnline(online) {events.push(`network-${online}`);} start() {events.push('cache-start');} async pause() {events.push('cache-pause');} resume() {events.push('cache-resume');} cancel() {} async stop() {} beginForeground() {return () => {};} async getArticleContent(...args) {articleCalls.push(args); return '<p>shared</p>';}}
   const bridge = {beginDataOwnership: async () => ({scanComplete: true, databaseCandidates: [], legacyDataDirectory: '/synthetic', newDatabaseDirectory: '/synthetic/new'}),
@@ -54,9 +54,9 @@ test('production runtime suspends and resumes without closing the database or re
   });
   const runtime = createMobileDataRuntime({baseUrl: 'https://synthetic.test', platform: 'ios', version: 'fixture', network});
   await assert.rejects(runtime.getArticleContent('book'), /inactive/i);
-  await runtime.start(); await new Promise(resolve => setTimeout(resolve, 0));
+  await runtime.start(); runtime.markLibraryPresented(); await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(networkReads, 1); assert.doesNotThrow(cachedAccess);
-  networkListener({isConnected: false}); assert.equal(events.at(-1), 'network-false');
+  networkListener({isConnected: false}); assert.equal(events.at(-1), 'network-false'); assert.ok(events.includes('disconnect'), 'Offline disconnects PowerSync instead of retrying');
   const count = events.length; networkListener({isConnected: false}); assert.equal(events.length, count);
   networkListener({isConnected: true}); assert.equal(events.at(-1), 'network-true');
   const request = new AbortController();

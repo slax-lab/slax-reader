@@ -1,3 +1,4 @@
+import {DrawerScrollBoundary} from './SourceDrawer';
 import type {ViewInstance} from 'react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, PixelRatio, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
@@ -85,7 +86,7 @@ export function RssFeed({state, controller, adding, onDismissAdd, onRequestAdd, 
     });
   }, [fixtureOnly, current]);
   return <View style={{flex: 1, backgroundColor: C.readerBackground}}>
-    <FlatList key={state.selected} ref={list} {...scroll.events} maintainVisibleContentPosition={{minIndexForVisible: 0}} data={state.enabled ? state.entries : []} keyExtractor={entry => entry.id} contentContainerStyle={{paddingBottom: 16}}
+    <DrawerScrollBoundary><FlatList key={state.selected} ref={list} {...scroll.events} maintainVisibleContentPosition={{minIndexForVisible: 0}} data={state.enabled ? state.entries : []} keyExtractor={entry => entry.id} contentContainerStyle={{paddingBottom: 16}}
       ListHeaderComponent={<>
         {header}
         {state.busy || state.enabled && !state.ready ? <SourceProgress height={2} color={C.rssAccent} /> : null}
@@ -97,7 +98,7 @@ export function RssFeed({state, controller, adding, onDismissAdd, onRequestAdd, 
       ListEmptyComponent={state.enabled && state.ready && !state.busy ? <View style={styles.empty}><SourceIcon name="ic_rss" size={36} /><SourceText style={[T.metadata, {color: C.mutedText, textAlign: 'center'}]}>{t(state.subscriptions.length ? 'rss_empty' : 'rss_no_sources')}</SourceText>{!state.subscriptions.length ? <TextAction label={t('rss_add')} color={C.rssAccent} onPress={onRequestAdd} /> : null}</View> : undefined}
       renderItem={renderEntry}
       ItemSeparatorComponent={RssDivider}
-      ListFooterComponent={state.enabled && state.hasMore ? <View style={{alignItems: 'center', padding: 24}}><TextAction label={t('rss_more')} disabled={state.busy || Boolean(state.retryAt && Date.parse(state.retryAt) > now)} onPress={() => void controller.more()} />{state.historyStatus === 'retry' || state.historyStatus === 'loading' ? <SourceText style={{fontSize: 12, color: C.mutedText}}>{t(state.historyStatus === 'retry' ? 'rss_history_retry' : 'rss_history_loading')}</SourceText> : null}</View> : state.enabled && state.entries.length && !state.busy ? <SourceText style={[T.metadata, {color: C.mutedText, marginHorizontal: 24, marginVertical: 34}]}>{t('rss_history_end')}</SourceText> : undefined} />
+      ListFooterComponent={state.enabled && state.hasMore ? <View style={{alignItems: 'center', padding: 24}}><TextAction label={t('rss_more')} disabled={state.busy || Boolean(state.retryAt && Date.parse(state.retryAt) > now)} onPress={() => void controller.more()} />{state.historyStatus === 'retry' || state.historyStatus === 'loading' ? <SourceText style={{fontSize: 12, color: C.mutedText}}>{t(state.historyStatus === 'retry' ? 'rss_history_retry' : 'rss_history_loading')}</SourceText> : null}</View> : state.enabled && state.entries.length && !state.busy ? <SourceText style={[T.metadata, {color: C.mutedText, marginHorizontal: 24, marginVertical: 34}]}>{t('rss_history_end')}</SourceText> : undefined} /></DrawerScrollBoundary>
     {current ? <SourceMenu visible={menu} anchor={anchor} onDismiss={() => setMenu(false)} items={[{label: t(current.refreshing ? 'rss_refreshing' : 'rss_refresh'), disabled: !canRefresh, onPress: () => void controller.refresh(current.id)}, {label: t('rss_edit'), disabled: state.busy, onPress: () => setEditing(current)}, {label: t('rss_remove'), disabled: state.busy, onPress: () => setRemoving(current)}]} /> : null}
     <RssEditor visible={adding && state.enabled} controller={controller} state={state} onDismiss={onDismissAdd} />
     <RssEditor visible={Boolean(editing)} source={editing ?? undefined} controller={controller} state={state} onDismiss={() => setEditing(null)} />

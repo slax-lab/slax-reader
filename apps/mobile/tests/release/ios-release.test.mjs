@@ -145,6 +145,27 @@ test('Firebase admission rejects absent or commented main initialization', t => 
   }
 });
 
+test('Firebase admission accepts the scene-based launch template', t => {
+  const fixture = firebaseFixture(t);
+  fixture.write('SlaxReader/AppDelegate.swift', 'import FirebaseCore\nfunc application(didFinishLaunchingWithOptions: Any) {\nFirebaseApp.configure()\nreturn super.application(didFinishLaunchingWithOptions: nil)\n}\n');
+  fixture.write('SlaxReader/SceneDelegate.swift', 'class SceneDelegate: ExpoAppSceneDelegate {}\n');
+  fixture.admit();
+});
+
+test('Firebase admission rejects scene configuration after the launch handoff', t => {
+  const fixture = firebaseFixture(t);
+  fixture.write('SlaxReader/AppDelegate.swift', 'import FirebaseCore\nfunc application(didFinishLaunchingWithOptions: Any) {\nreturn super.application(didFinishLaunchingWithOptions: nil)\n}\nfunc later() { FirebaseApp.configure() }\n');
+  fixture.write('SlaxReader/SceneDelegate.swift', 'class SceneDelegate: ExpoAppSceneDelegate {}\n');
+  assert.throws(fixture.admit, /lacks Firebase initialization/);
+});
+
+test('Firebase admission rejects a scene AppDelegate without the Expo SceneDelegate', t => {
+  const fixture = firebaseFixture(t);
+  fixture.write('SlaxReader/AppDelegate.swift', 'import FirebaseCore\nfunc application(didFinishLaunchingWithOptions: Any) {\nFirebaseApp.configure()\nreturn super.application(didFinishLaunchingWithOptions: nil)\n}\n');
+  fixture.write('SlaxReader/SceneDelegate.swift', 'class SceneDelegate {}\n');
+  assert.throws(fixture.admit, /SceneDelegate bootstrap/);
+});
+
 for (const mutate of [objects => {objects.SlaxReader.buildPhases = objects.SlaxReader.buildPhases.filter(id => id !== 'crash');}, objects => {objects.crash.shellScript = '# "${PODS_ROOT}/FirebaseCrashlytics/run"';}, objects => {objects.crash.runOnlyForDeploymentPostprocessing = '1';}]) {
   test('Firebase admission rejects a missing or inactive Crashlytics upload phase', t => {
     const fixture = firebaseFixture(t); mutate(fixture.objects); fixture.saveProject();

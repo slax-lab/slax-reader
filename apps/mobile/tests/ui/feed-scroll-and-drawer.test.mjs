@@ -11,7 +11,10 @@ import {observeRelativeBoundaries} from '../reader/observe-mock.mjs';
 const require = createRequire(import.meta.url);
 const domPath = require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]});
 async function load(file, boundaries) {
-  boundaries = {...observeRelativeBoundaries(boundaries), ...boundaries};
+  const passthrough = ({children}) => children ?? null;
+  const drawer = {SourceDrawer: passthrough, DrawerScrollBoundary: passthrough, useDrawerGesture: () => null, useDrawerInput: () => null};
+  boundaries = {'./SourceDrawer': drawer, '../components/SourceDrawer': drawer, '../components/SearchGlyph': {SearchGlyph: () => null},
+    ...observeRelativeBoundaries(boundaries), ...boundaries};
   const code = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},
   }).outputText;
@@ -166,19 +169,20 @@ test('actual Library preserves both modes through toggles and gives a new native
   const runtime = {getDatabase: () => null, getNativeResourceOwner: () => owner};
   const collections = [{id: 'collection-a', name: 'Collection', ownerId: 'owner-a', status: 1, subscriptionEndTime: '2080-01-01T00:00:00Z', hasNew: true}];
   const bookmarks = [{id: 'existing-bookmark'}];
-  const repositories = {watchBookmarks: (_sort, callback) => {inboxWatch = callback; callback(bookmarks); return () => {};}, watchCollections: callback => {callback(collections); return () => {};}, watchUser: () => () => {}, watchSubscription: () => () => {}, watchCollectionBookmarks: () => () => {}, markCollectionRead: async id => {markedRead.push(id);}};
+  const repositories = {library: {watch: (_sort, _owner, callback) => {inboxWatch = callback; callback(bookmarks); return () => {};}},
+    watchLibraryCollections: callback => {callback(collections); return () => {};}, watchLibraryUser: callback => {callback([]); return () => {};}, watchBookmarks: (_sort, callback) => {inboxWatch = callback; callback(bookmarks); return () => {};}, watchCollections: callback => {callback(collections); return () => {};}, watchUser: () => () => {}, watchSubscription: () => () => {}, watchCollectionBookmarks: () => () => {}, markCollectionRead: async id => {markedRead.push(id);}};
   Object.assign(runtime, {getRepositories: () => repositories, getAccountPreferences: () => preferences, getUpgradeSnapshot: () => ({status: 'ready'})});
   const context = {t: value => value, repositories, preferences, runtime, api, sessions: {}, config: {platform: 'android'}, upgrade: {status: 'ready'}};
   const components = Object.fromEntries(['BookmarkRow', 'Divider', 'LinkInputDialog', 'RssFeedSwitcher', 'SourceAvatar', 'SourceButton', 'SourceDialog', 'SourceIcon', 'SourceProgress', 'TextAction'].map(name => [name, nil]));
   const {LibraryScreen} = await load('../../src/screens/LibraryScreen.tsx', {
     react: React, 'react-native': {View: primitive, Pressable: props => {if (props.accessibilityRole === 'tab') tabs.push(props); return primitive(props);}, ScrollView: primitive, FlatList, ActivityIndicator: nil, Animated: {}, AppState: {currentState: 'active', addEventListener: () => ({remove() {}})}, Linking: {}, PixelRatio: {roundToNearestPixel: value => value}, Platform: {OS: 'android', select: values => values.android}, StyleSheet: {create: value => value, absoluteFill: {}}, useWindowDimensions: () => ({width: 400, height: 800})},
     '@react-navigation/native': {useFocusEffect: callback => React.useEffect(callback, [callback])}, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 0, bottom: 0})}, 'expo-network': {useNetworkState: () => ({isConnected: true})},
-    '../telemetry': {useTelemetry: () => telemetry}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: primitive}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
+    '../telemetry': {useTelemetry: () => telemetry}, '../components/LibrarySyncAvatar': {LibrarySyncAvatar: nil}, '../components/LibrarySyncStatus': {LibrarySyncStatus: nil}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: primitive}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
     './LibraryDataStatus': {LibraryDataStatus: nil}, '../components/PdfImportDialog': {PdfImportDialog: nil}, '../pdf/usePdfLab': {usePdfLab: () => ({ready: true, enabled: false})},
     '../components': {...components, RssFeed, ScreenSurface: primitive, SourceText: primitive, SourceMenu: props => {menus.push(props); return null;}}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => ({...context, nativeResourceOwner: owner})},
-    '../theme': {mobileColors: {}, mobileLayout: {drawerMaximumWidth: 320, librarySwipeActionHeight: 53}, mobileTypography: {}}, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../utils/source-time': await load('../../src/utils/source-time.ts', {}), '../components/feed-scroll': {...scrolling, useFeedScrollPosition: (...args) => {const value = scrolling.useFeedScrollPosition(...args); inboxPosition = args[0]; inboxReset = value.reset; return value;}}, '../components/SourceDrawer': {SourceDrawer: primitive},
+    '../theme': {mobileColors: {}, mobileLayout: {drawerMaximumWidth: 320, librarySwipeActionHeight: 53}, mobileTypography: {}}, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../utils/source-time': await load('../../src/utils/source-time.ts', {}), '../components/feed-scroll': {...scrolling, useFeedScrollPosition: (...args) => {const value = scrolling.useFeedScrollPosition(...args); inboxPosition = args[0]; inboxReset = value.reset; return value;}}, '../components/SourceDrawer': {SourceDrawer: primitive, DrawerScrollBoundary: ({children}) => children},
   });
-  const render = () => React.createElement(LibraryScreen, {navigation: {navigate() {}}});
+  const render = () => React.createElement(LibraryScreen, {navigation: {navigate() {}}, route: {params: {}}});
   const observe = (mode, y) => lists[mode].onScroll({nativeEvent: {contentOffset: {y}}});
   const restore = mode => {lists[mode].onLayout({nativeEvent: {layout: {height: 500}}}); lists[mode].onContentSizeChange(300, 1600);};
   const select = label => act(async () => menus.at(-1).items.find(item => item.label === label).onPress());

@@ -19,6 +19,7 @@ export function createPdfLayout(root: HTMLElement, options: PdfRuntimeOptions, p
   let presentation: 'single' | 'spread' = 'single'
   let spreadPaneWidth = 0
   let spreadGutter = 12
+  let zoom = 1
   const slots: HTMLElement[] = []
   const dimensions = new Map<number, {width: number; height: number}>()
   const offset = () => options.hostViewport ? hostOffset : scrollY
@@ -72,7 +73,7 @@ export function createPdfLayout(root: HTMLElement, options: PdfRuntimeOptions, p
   }
   function setSlotSize(number: number, width: number, height: number) {
     const available = presentation === 'spread' ? Math.max(100, spreadPaneWidth) : Math.max(100, document.documentElement.clientWidth - 16)
-    const scale = available / width
+    const scale = (available * zoom) / width
     const slot = slots[number - 1]!
     slot.style.width = `${width * scale}px`
     slot.style.height = `${height * scale}px`
@@ -137,6 +138,18 @@ export function createPdfLayout(root: HTMLElement, options: PdfRuntimeOptions, p
     publishHeight()
     if (restored && restore) {scrollToAnchor(number, fraction, revealHeader); ports.schedule(); position()}
   }
+  function setZoom(value: number, evictPages: () => void) {
+    const next = Math.max(1, Math.min(3, value))
+    if (Math.abs(next - zoom) < 0.001) return zoom
+    const anchor = capturePosition(), revealHeader = offset() < 0
+    zoom = next
+    evictPages()
+    const fallback = dimensions.get(1)
+    if (fallback) for (let number = 1; number <= slots.length; number++) {const size = dimensions.get(number) ?? fallback; setSlotSize(number, size.width, size.height)}
+    publishHeight()
+    if (restored) {scrollToAnchor(anchor.page, anchor.fraction, revealHeader); ports.schedule(); position()}
+    return zoom
+  }
   function setPresentation(mode: 'single' | 'spread', paneWidth = 0, gutter = 12, evictPages: () => void = () => {}) {
     if (mode === presentation && (mode === 'single' || paneWidth === spreadPaneWidth && gutter === spreadGutter)) return
     const anchor = capturePosition(), revealHeader = offset() < 0, sequence = ++presentationSequence
@@ -189,5 +202,5 @@ export function createPdfLayout(root: HTMLElement, options: PdfRuntimeOptions, p
     hostOffset = value; hostHeight = size
     if (lifecycle.active) {ports.schedule(); position()}
   }
-  return {slots, offset, height, publishHeight, visiblePage, position, measurePage, scrollPage, revealMark, restore, resize, initialize, restoreInitial, setViewport, setPresentation}
+  return {slots, offset, height, publishHeight, visiblePage, position, measurePage, scrollPage, revealMark, restore, resize, setZoom, getZoom: () => zoom, initialize, restoreInitial, setViewport, setPresentation}
 }

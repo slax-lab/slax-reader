@@ -9,16 +9,16 @@ struct BookmarkEntity: AppEntity {
 
   var id: String
   @Property(title: "Title") var title: String
-  @Property(title: "Source") var sourceHost: String?
+  @Property(title: "Source") var sourceHost: String
 
   init(record: AppIntentEntityRecord) {
     id = record.id
     title = record.title
-    sourceHost = record.metadata["sourceHost"] ?? record.subtitle
+    sourceHost = record.metadata["sourceHost"] ?? record.subtitle ?? ""
   }
 
   var displayRepresentation: DisplayRepresentation {
-    if let sourceHost, !sourceHost.isEmpty {
+    if !sourceHost.isEmpty {
       return DisplayRepresentation(title: "\(title)", subtitle: "\(sourceHost)")
     }
     return DisplayRepresentation(title: "\(title)")
@@ -36,9 +36,9 @@ extension BookmarkEntity: IndexedEntity {
     let attributes = CSSearchableItemAttributeSet(contentType: .text)
     attributes.title = title
     attributes.displayName = title
-    attributes.subject = sourceHost
+    attributes.subject = sourceHost.isEmpty ? nil : sourceHost
     attributes.domainIdentifier = Self.spotlightDomainIdentifier
-    attributes.keywords = ["Slax Reader", sourceHost].compactMap { $0 }
+    attributes.keywords = ["Slax Reader"] + (sourceHost.isEmpty ? [] : [sourceHost])
     return attributes
   }
 }

@@ -7,7 +7,7 @@ export const systemBookmarkId = (owner: string, id: string) => `b-${new Sha256()
 /** Projects a bounded admitted local snapshot to the only fields OS discovery may retain. */
 export function toBookmarkEntities(rows: readonly SystemCatalogBookmark[], owner = ''): BookmarkEntity[] {
   const entities: BookmarkEntity[] = [], ids = new Set<string>();
-  for (const row of rows.slice(0, 100)) {
+  for (const row of rows.slice(0, 500)) {
     if (row.status !== 'success' || row.archiveStatus !== 0 || !row.id || ids.has(row.id)) continue;
     const title = (row.aliasTitle.trim() || row.title.trim()).replace(/\s+/g, ' ').slice(0, 512);
     let host = '';

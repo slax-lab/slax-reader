@@ -26,6 +26,8 @@ export {PERSONAL_CACHE_SQL, COLLECTION_CACHE_SQL, LOCAL_CACHE_SQL} from './repos
 type PdfIntent = {task: Task; manual: boolean; completion?: Promise<void>};
 type LegacyEviction = {completion: Promise<void>; release: () => void};
 const PDF_BLOCK_BYTES = 256 * 1024;
+/** One fill step admits a full read window, letting its blocks fetch in parallel. */
+const PDF_DOWNLOAD_WINDOW_BYTES = 1024 * 1024;
 const COLLECTION_CONTEXT_PREFIX = 'collection:';
 const articleContext = (owner?: string) => owner ? `${COLLECTION_CONTEXT_PREFIX}${owner}` : 'personal';
 const articleContextOwner = (context: string) => context.startsWith(COLLECTION_CONTEXT_PREFIX) ? context.slice(COLLECTION_CONTEXT_PREFIX.length) : undefined;
@@ -111,6 +113,7 @@ export class BackgroundArticleCache {
   private manualRequests = new Set<string>();
   private pdfEpochs = new Map<string, number>();
   private pdfRangeSupport = new Map<string, boolean>();
+  private pdfRangeTransfers = new Map<string, {begin: number; end: number; identity: string; join(priority: boolean, signal?: AbortSignal): Promise<{begin: number; end: number}>}>();
   private pdfFullTransfers = new Map<string, {signal: AbortSignal; join(priority: boolean, signal?: AbortSignal): Promise<{begin: number; end: number}>}>();
   private running = {personal: 0, collection: 0};
   private pumping = false;
@@ -314,14 +317,24 @@ export class BackgroundArticleCache {
       this.pdfRangeSupport.delete(identity); this.pdfRangeSupport.set(identity, supported);
       if (this.pdfRangeSupport.size > 256) this.pdfRangeSupport.delete(this.pdfRangeSupport.keys().next().value!);
     };
-    for (let start = Math.floor(begin / PDF_BLOCK_BYTES) * PDF_BLOCK_BYTES; start < end; start += PDF_BLOCK_BYTES) {
-      const block = start, stop = Math.min(start + PDF_BLOCK_BYTES, descriptor.size);
+    const segments: {block: number; stop: number; shared?: boolean}[] = [];
+    const spanLimit = priority ? PDF_BLOCK_BYTES : PDF_DOWNLOAD_WINDOW_BYTES;
+    for (let block = Math.floor(begin / PDF_BLOCK_BYTES) * PDF_BLOCK_BYTES; block < end; block += PDF_BLOCK_BYTES) {
+      const stop = Math.min(block + PDF_BLOCK_BYTES, descriptor.size);
+      const cached = await pdf.cache.read(task.key, descriptor, block, stop); check();
+      if (cached) continue;
+      const shared = [...this.pdfRangeTransfers.values()].some(span => span.identity === identity && span.begin <= block && span.end >= stop);
+      const last = segments[segments.length - 1];
+      if (!shared && !last?.shared && last && last.stop === block && stop - last.block <= spanLimit) last.stop = stop;
+      else segments.push({block, stop, shared});
+    }
+    for (const {block, stop} of segments) {
       const acquire = async () => {
         for (let attempt = 0; attempt < 2; attempt++) {
           check();
           if (await pdf.cache.read(task.key, descriptor, block, stop)) {check(); return;}
           check();
-          const suffix = `${descriptor.document_id}:${descriptor.size}:${acquisition && !this.pdfRangeSupport.get(identity) ? 'acquisition' : block}`;
+          const suffix = `${descriptor.document_id}:${descriptor.size}:${acquisition && !this.pdfRangeSupport.get(identity) ? 'acquisition' : `${block}-${stop}`}`;
           const run = async (request: AbortSignal): Promise<{begin: number; end: number}> => {
             const assertRequest = () => {
               this.active(); throwIfAborted(request);
@@ -351,17 +364,29 @@ export class BackgroundArticleCache {
                   rangeSupport(false); return {begin: 0, end: descriptor.size};
                 }
                 if (result.begin !== block || result.bytes.byteLength !== stop - block) throw new Error('Invalid acquired PDF range');
-                await pdf.cache.writeBlock(task.key, descriptor, block, result.bytes, request); assertRequest(); rangeSupport(true);
+                for (let offset = block; offset < stop; offset += PDF_BLOCK_BYTES) {
+                  await pdf.cache.writeBlock(task.key, descriptor, offset, result.bytes.subarray(offset - block, Math.min(offset - block + PDF_BLOCK_BYTES, result.bytes.length)), request); assertRequest();
+                }
+                rangeSupport(true);
               } else {
                 const bytes = await pdf.range(id, descriptor.document_id, block, stop, request, descriptor.size);
-                assertRequest(); await pdf.cache.writeBlock(task.key, descriptor, block, bytes, request);
+                assertRequest();
+                for (let offset = block; offset < stop; offset += PDF_BLOCK_BYTES) {
+                  await pdf.cache.writeBlock(task.key, descriptor, offset, bytes.subarray(offset - block, Math.min(offset - block + PDF_BLOCK_BYTES, bytes.length)), request); assertRequest();
+                }
               }
               assertRequest(); return {begin: block, end: stop};
             } catch (error) {if (denied(error)) await this.invalidatePdf(task, error); else assertRequest(); throw error;}
             finally {if (this.pdfFullTransfers.get(identity)?.signal === request) this.pdfFullTransfers.delete(identity);}
           };
           const pending = this.pdfFullTransfers.get(identity);
-          const covered = await (pending && !pending.signal.aborted ? pending.join(priority, signal) : this.enqueuePdf(task, suffix, priority, run, signal));
+          const covering = [...this.pdfRangeTransfers.values()].find(span => span.identity === identity && span.begin <= block && span.end >= stop);
+          const spanKey = `${identity}:${block}:${stop}`;
+          const transfer = {begin: block, end: stop, identity, join: (priority: boolean, signal?: AbortSignal) => this.enqueuePdf(task, suffix, priority, run, signal)};
+          if (!covering) this.pdfRangeTransfers.set(spanKey, transfer);
+          let covered: {begin: number; end: number};
+          try {covered = await (pending && !pending.signal.aborted ? pending.join(priority, signal) : (covering ?? transfer).join(priority, signal));}
+          finally {if (this.pdfRangeTransfers.get(spanKey) === transfer) this.pdfRangeTransfers.delete(spanKey);}
           check(); const ready = await pdf.cache.read(task.key, descriptor, block, stop); check();
           if (ready) return;
           if (covered.begin <= block && covered.end >= stop) throw new Error('Acquired PDF range was not committed');
@@ -405,9 +430,11 @@ export class BackgroundArticleCache {
       const descriptor = await this.getPdfMetadata(task.id, task.owner, undefined, false);
       check();
       if (!intent.manual) await this.local.setAutoDownloadStatus(task.key, 1);
-      for (let begin = 0; begin < descriptor.size; begin += PDF_BLOCK_BYTES) {
+      // Automatic fills admit a whole window at once; an explicit manual pin stays block-sized.
+      const window = !intent.manual && pdf.acquire && pdf.cache.writeComplete ? PDF_DOWNLOAD_WINDOW_BYTES : PDF_BLOCK_BYTES;
+      for (let begin = 0; begin < descriptor.size; begin += window) {
         check();
-        await this.readPdfRange(task.id, descriptor, begin, Math.min(begin + PDF_BLOCK_BYTES, descriptor.size), task.owner, undefined, false);
+        await this.readPdfRange(task.id, descriptor, begin, Math.min(begin + window, descriptor.size), task.owner, undefined, false);
       }
       check();
       if (!await pdf.cache.verify(task.key, descriptor)) {

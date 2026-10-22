@@ -11,6 +11,16 @@ const inventory = {scanComplete: true, databaseCandidates: ['/controlled/powersy
 const evidence = {databasePath: inventory.databaseCandidates[0]!, legacySdk: 'powersync-kotlin-1.14.1', targetSdk: 'powersync-react-native-2.3.1', schemaVersion: '2', supportedOnDiskAdoption: true, verifiedFixtures: {pendingQueue: true, transactionBoundaries: true, offlineRows: true, localJson: true, reconnectOrder: true}, report: 'synthetic unit profile; this is not native upgrade evidence'} as const;
 const snapshot = (): DatabaseSnapshot => ({databasePath: evidence.databasePath, formatVersion: 14, userVersion: 1, integrityValid: true, storageTables: LEGACY_DATABASE_STORAGE_TABLES, pendingOperations: 4, pendingTransactions: 2, queueDigest: 'a'.repeat(64), dataDigest: 'b'.repeat(64), localDigest: 'c'.repeat(64)});
 
+test('fresh development storage opens the native slot without adoption inspection or binding', async () => {
+  const storage = new MemoryPreferences({_slax_database_installation_v1: '{"unrelated":true}', _slax_database_adoption_v1: '{"unrelated":true}'});
+  const preferences = new PreferenceStore(storage), events: string[] = [];
+  const opened = {close: async () => {}};
+  const result = await openVerifiedDatabase({inventory: {...inventory, databaseCandidates: []}, preferences, fresh: true, inspector: {inspectLegacyDatabase: async () => {events.push('inspect'); throw new Error('fresh storage must not inspect legacy files');}}, open: async location => {events.push('open'); assert.deepEqual(location, {dbFilename: 'powersync.db', dbLocation: '/controlled/new', adopted: false}); return opened;}});
+  assert.equal(result, opened);
+  assert.deepEqual(events, ['open']);
+  assert.deepEqual(Object.keys(storage.values).sort(), ['_slax_database_adoption_v1', '_slax_database_installation_v1']);
+});
+
 test('accepted adoption retains data and checkpoints before exposing the SDK owner', async () => {
   const storage = new MemoryPreferences({auth_token: 'synthetic-session'}), preferences = new PreferenceStore(storage), events: string[] = [];
   const opened = {close: async () => {events.push('close');}};

@@ -1,3 +1,4 @@
+import {AvatarResourcesContext} from './components/AvatarResources';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {AppState, Platform} from 'react-native';
 import { getLocales } from 'expo-localization';
@@ -129,15 +130,37 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
   const token = session.status === 'authenticated' ? session.session.token : null;
   const userId = session.status === 'authenticated' ? session.session.userId : null;
   const reauthenticationRequired = credentialState.status === 'reauthentication-required';
+  const reauthSignOut = useRef(false);
+  useEffect(() => {
+    if (credentialState.status !== 'reauthentication-required') {reauthSignOut.current = false; return;}
+    if (reauthSignOut.current) return;
+    reauthSignOut.current = true;
+    // Rejected credentials do not ask for the previous account; drop the session and keep local data for Settings cleanup.
+    void runtime.sessions.signOut(false).catch(() => undefined);
+  }, [runtime, credentialState.status]);
   const nativeResourceOwner = runtime.getNativeResourceOwner();
   useEffect(() => {void systemActions.contextChanged();}, [systemActions, userId, runtime.api.options.baseUrl, nativeResourceOwner, upgrade.status, credentialState.status]);
   const surfaceCapabilities = systemSurfaceCapabilities(Platform.OS, Platform.Version, Boolean(appIntents?.isAvailable()));
   const surfacesReady = preferencesLoaded && Boolean(surfaceCapabilities.intents && userId && nativeResourceOwner && upgrade.status === 'ready' && credentialState.status === 'ready');
-  const surfacePreferences = systemSurfacePreferences(surfacesReady ? settings : null);
+  const surfacesKnown = preferencesLoaded && (session.status === 'unauthenticated' || (session.status === 'authenticated' && Boolean(nativeResourceOwner) && upgrade.status === 'ready'));
+  const surfacePreferences = systemSurfacePreferences(preferencesLoaded ? settings : null);
   const discoveryEnabled = surfacePreferences.discovery && surfaceCapabilities.discovery;
   const donationsEnabled = surfacePreferences.donations && surfaceCapabilities.donations;
-  useEffect(() => {systemSurfaces.activate(); void systemSurfaces.reconcile(discoveryEnabled, donationsEnabled); return () => systemSurfaces.dispose();}, [systemSurfaces, userId, runtime.api.options.baseUrl, nativeResourceOwner, upgrade.status, credentialState.status, discoveryEnabled, donationsEnabled]);
-  useEffect(() => {systemEntry.router.activate(); void systemEntry.router.contextChanged(); return () => systemEntry.router.dispose();}, [systemEntry, userId, nativeResourceOwner, runtime.api.options.baseUrl, upgrade.status, credentialState.status]);
+  useEffect(() => {
+    systemSurfaces.activate();
+    if (!surfacesKnown) return () => systemSurfaces.dispose();
+    void systemSurfaces.reconcile(discoveryEnabled, donationsEnabled, surfacesReady);
+    return () => systemSurfaces.dispose();
+  }, [systemSurfaces, surfacesKnown, userId, runtime.api.options.baseUrl, nativeResourceOwner, upgrade.status, credentialState.status, discoveryEnabled, donationsEnabled, surfacesReady]);
+  // The router outlives readiness changes; disposing it on a credential transition drops pending Spotlight opens.
+  useEffect(() => {
+    systemEntry.router.activate();
+    void systemEntry.router.contextChanged();
+    return () => systemEntry.router.dispose();
+  }, [systemEntry, userId, runtime.api.options.baseUrl]);
+  useEffect(() => {
+    void systemEntry.router.contextChanged();
+  }, [systemEntry, nativeResourceOwner, upgrade.status, credentialState.status]);
   useEffect(() => {
     let mounted = true;
     const current = () => mounted && runtime.sessions.getSnapshot() === session && runtime.getNativeResourceOwner() === nativeResourceOwner;
@@ -176,7 +199,7 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
   const locale = normalizeLocale(typeof settings.user_language === 'string' ? settings.user_language : getLocales()[0]?.languageTag);
   const t = useMemo(() => createTranslator(locale), [locale]);
   const apiUrl = runtime.api.options.baseUrl;
-  const config = useMemo(() => ({...mobileConfig, apiUrl, isBeta: apiUrl === mobileConfig.betaApiUrl}), [apiUrl]);
+  const config = useMemo(() => ({...mobileConfig, apiUrl, isBeta: !mobileConfig.development && apiUrl === mobileConfig.betaApiUrl}), [apiUrl]);
   const retryFlight = useRef<Promise<void> | null>(null);
   const retryStart = useCallback(() => {
     if (retryFlight.current) return retryFlight.current;
@@ -199,7 +222,7 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
   [runtime, preferences, nativeResourceOwner, systemSurfaces, systemEntry, repositories, cache, session, upgrade, settings, locale, t, config, payments, retryStart]);
   const saveOwner = session.status === 'authenticated' && nativeResourceOwner ? {userId: session.session.userId, origin: apiUrl, generation: nativeResourceOwner} : null;
   const saveReady = Boolean(saveOwner && upgrade.status === 'ready' && credentialState.status === 'ready' && repositories);
-  return <MobileContext.Provider value={value}><ReadingContext.Provider value={reading}>{children}<SaveURLHost controller={systemActions} router={systemEntry.router} owner={saveOwner} ready={saveReady} appIntents={appIntents} t={t}/></ReadingContext.Provider></MobileContext.Provider>;
+  return <MobileContext.Provider value={value}><ReadingContext.Provider value={reading}><AvatarResourcesContext.Provider value={dataReady ? runtime.getAvatarCache?.() ?? null : null}>{children}<SaveURLHost controller={systemActions} router={systemEntry.router} owner={saveOwner} ready={saveReady} appIntents={appIntents} t={t}/></AvatarResourcesContext.Provider></ReadingContext.Provider></MobileContext.Provider>;
 }
 export function useReadingMobile(): MobileContextValue {
   const context = useContext(ReadingContext);

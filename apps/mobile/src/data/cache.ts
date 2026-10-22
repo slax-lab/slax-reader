@@ -14,6 +14,10 @@ export class ArticleFileCache {
   private files: NativeFileStore;
   private readonly owner: string | null;
   private readonly resolveImage?: ImageResourceResolver;
+  private avatars?: {clear(): Promise<void>; bytes(): Promise<number>};
+  setAvatarCache(avatars: {clear(): Promise<void>; bytes(): Promise<number>}) {this.avatars = avatars;}
+  clearAvatarCache() {return this.avatars?.clear();}
+  avatarBytes() {return this.avatars?.bytes() ?? Promise.resolve(0);}
   private accessBarrier?: (key: string, signal?: AbortSignal) => Promise<void>;
   setAccessBarrier(barrier: (key: string, signal?: AbortSignal) => Promise<void>) {this.accessBarrier = barrier;}
   private async access(key: string, signal?: AbortSignal) {this.guard(); throwIfAborted(signal); await this.accessBarrier?.(safeKey(key), signal); this.guard(); throwIfAborted(signal);}

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {React, act, nativeBoundary, loadComponent, withNativeHost, flattenStyle} from '../reader/parity-host.mjs';
-import {mobileColors, mobileTypography} from '../../src/theme/index.ts';
+import {mobileColors, mobileLayout, mobileTypography} from '../../src/theme/index.ts';
 import * as coordinates from '../../src/reader/coordinates.ts';
 import * as model from '../../src/reader/model.ts';
 import * as motion from '../../src/reader/outline-motion.ts';
@@ -14,7 +14,7 @@ test('startup renders only the default surface until the current account is read
     '@react-navigation/native': {NavigationContainer: host.native.View, createNavigationContainerRef: () => ({})},
     '@react-navigation/native-stack': {createNativeStackNavigator: () => ({Navigator: host.native.View, Group: host.native.View, Screen: props => {screens.push(props.name); return null;}})},
     'react-native-gesture-handler': {GestureHandlerRootView: host.native.View}, 'react-native-safe-area-context': {SafeAreaProvider: host.native.View, SafeAreaView: host.native.View},
-    './runtime': {useMobile: () => context, MobileProvider: nil}, './theme': {mobileColors}, './telemetry': {useTelemetry: () => ({identify() {}})}, './components/SourceLine': {SourceLine: nil},
+    './runtime': {useMobile: () => context, MobileProvider: nil}, './theme': {mobileColors, mobileLayout, mobileTypography}, './telemetry': {useTelemetry: () => ({identify() {}})}, './components/SourceLine': {SourceLine: nil},
     './screens/AppRecoveryScreen': {AppRecoveryScreen: nil},
   };
   for (const name of ['Login','Library','Reader','Settings','About','Feedback','DeleteAccount','Subscription','Debug']) boundaries[`./screens/${name}Screen`] = {[`${name}Screen`]: nil};

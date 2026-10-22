@@ -14,7 +14,7 @@ test('production row uses installed UI worklets, yields closed right/vertical dr
   const {BookmarkRow} = loadWorkletComponent(new URL('../../src/components/BookmarkRow.tsx', import.meta.url), {
     react: React, 'react-native': {...host.native, PixelRatio: {roundToNearestPixel: value => value}, Pressable: props => {presses.push(props); return React.createElement(host.native.Pressable, props);}},
     'react-native-gesture-handler': motion.gestures, 'react-native-reanimated': motion.reanimated,
-    './SourceDrawer': {useDrawerGesture: () => drawer}, 'expo-haptics': {impactAsync: async () => {}, ImpactFeedbackStyle: {Medium: 'medium'}},
+    './SourceDrawer': {useDrawerGesture: () => drawer, useDrawerInput: () => null}, 'expo-haptics': {impactAsync: async () => {}, ImpactFeedbackStyle: {Medium: 'medium'}},
     '../data/repositories': {bookmarkDisplayTitle: item => item.title}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}},
     './SourceUI': {SourceIcon: () => null}, './SourceLine': {SourceLine: () => {renders++; return null;}}, './SourceMenu': {SourceMenu: props => {menus = props; return null;}},
   });

@@ -8,7 +8,7 @@ import {verifyFixtureProject} from '../../tooling/fixture-project.mjs';
 const MOBILE_ROOT = realpathSync(path.resolve(fileURLToPath(new URL('../..', import.meta.url))));
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const NATIVE_BRIDGE = 'modules/slax-legacy/ios/SlaxLegacyModule.swift';
-const NATIVE_BRIDGE_SHA256 = 'c43c5264cd5490e00a8b35fa8b6d1e5cd7bcc52ccfcf59075d621b1a7159573e';
+const NATIVE_BRIDGE_SHA256 = '0f0811043ec1df060734f7ecfea06ef6931f08d10f6c0b3f4d3079772c0acca1';
 const TASK_BUNDLE_ID = 'app.slax.reader.uifixture.rssacceptance';
 const SOURCES = ['index.ts', 'src/components/RssFeed.tsx', 'src/data/installation.ts', 'src/data/adoption.ts', 'tests/data/RssRealSyncFixtureApp.tsx'];
 function scopedFile(root, relative) {
@@ -44,9 +44,9 @@ export function applyRssRealSyncNativeBridgeShim(source) {
     '  }',
     '',
   ].join('\n');
-  if (!output.includes(originalDirectory) || output.split('guard Bundle.main.bundleIdentifier == "app.slax.reader"').length !== 2 || output.split('bundleIdentifier: "app.slax.reader"').length !== 4) throw new Error('Real-sync fixture native bridge no longer matches its reviewed identity and storage guards');
+  if (!output.includes(originalDirectory) || output.split('guard Bundle.main.bundleIdentifier == "app.slax.reader"').length !== 3 || output.split('bundleIdentifier: "app.slax.reader"').length !== 4) throw new Error('Real-sync fixture native bridge no longer matches its reviewed identity and storage guards');
   output = output.replace(originalDirectory, fixtureDirectory)
-    .replace('guard Bundle.main.bundleIdentifier == "app.slax.reader"', `guard Bundle.main.bundleIdentifier == "${TASK_BUNDLE_ID}"`)
+    .replaceAll('guard Bundle.main.bundleIdentifier == "app.slax.reader"', `guard Bundle.main.bundleIdentifier == "${TASK_BUNDLE_ID}"`)
     .replaceAll('bundleIdentifier: "app.slax.reader"', `bundleIdentifier: "${TASK_BUNDLE_ID}"`);
   return Buffer.from(output);
 }

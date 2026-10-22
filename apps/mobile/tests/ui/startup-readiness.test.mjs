@@ -82,6 +82,8 @@ async function libraryFixture(host) {
     async update(edit) {calls.updates++; if (updateGate) await updateGate.promise; return store.update(edit);},
   };
   const repositories = {
+    library: {watch(_sort, _owner, callback) {calls.watches++; callback([]); return () => {};}},
+    watchLibraryCollections: callback => {callback([]); return () => {};}, watchLibraryUser: callback => {callback([]); return () => {};},
     watchBookmarks(_sort, callback) {calls.watches++; callback([]); return () => {};},
     watchCollections: callback => {callback([]); return () => {};}, watchUser: () => () => {}, watchSubscription: () => () => {},
   };
@@ -99,11 +101,11 @@ async function libraryFixture(host) {
   const {LibraryScreen} = await loadComponent('../../src/screens/LibraryScreen.tsx', {
     react: React, 'react-native': native, '@react-navigation/native': {useFocusEffect: callback => React.useEffect(callback, [callback])},
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'expo-network': {useNetworkState: () => ({isConnected: false})},
-    '../telemetry': {useTelemetry: () => telemetry}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: props => React.createElement(host.native.View, null, props.text)}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: primitive}, '../components/sync-state': {sourceSyncState: () => ({kind: 'offline'})}, '../components/fixture-actions': {},
+    '../telemetry': {useTelemetry: () => telemetry}, '../components/LibrarySyncAvatar': {LibrarySyncAvatar: nil}, '../components/LibrarySyncStatus': {LibrarySyncStatus: nil}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: props => React.createElement(host.native.View, null, props.text)}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: primitive}, '../components/sync-state': {sourceSyncState: () => ({kind: 'offline'})}, '../components/fixture-actions': {},
     '../components/PdfImportDialog': {PdfImportDialog: nil}, '../pdf/usePdfLab': {usePdfLab: () => ({ready: false, enabled: false})}, './LibraryDataStatus': {LibraryDataStatus},
-    '../components': components, '../data': {readContinueReading}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => context}, '../theme': theme, '../theme/testIds': {mobileTestIds: {EmptyInbox: 'empty-inbox'}}, './collection-selection': {CollectionSelection}, '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: props => React.createElement(host.native.View, null, props.children, props.open ? props.drawer : null)}, '../utils/source-time': {parseSourceTimestamp},
+    '../components': components, '../data': {readContinueReading}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => context}, '../theme': theme, '../theme/testIds': {mobileTestIds: {EmptyInbox: 'empty-inbox'}}, './collection-selection': {CollectionSelection}, '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: props => React.createElement(host.native.View, null, props.children, props.open ? props.drawer : null), DrawerScrollBoundary: ({children}) => children, useDrawerGesture: () => null, useDrawerInput: () => null}, '../utils/source-time': {parseSourceTimestamp},
   }, {setInterval, clearInterval});
-  const render = () => {controls.clear(); return host.render(React.createElement(LibraryScreen, {navigation: {navigate: (...args) => navigations.push(args)}}));};
+  const render = () => {controls.clear(); return host.render(React.createElement(LibraryScreen, {navigation: {navigate: (...args) => navigations.push(args)}, route: {params: {}}}));};
   return {context, controls, calls, navigations, store, render, list: () => listProps, contextValue,
     admit() {Object.assign(context, {repositories, preferences: accountPreferences, nativeResourceOwner: 'admitted-owner', upgrade: {status: 'ready'}});},
     readGate(value) {readGate = value;}, updateGate(value) {updateGate = value;},
@@ -128,14 +130,11 @@ test('mounted Library confines admission loading/recovery to data area and prese
   assert.ok((await f.store.read()).continue_reading_bookmark);
 }));
 
-test('mounted Library offers reauthentication without discarding its admitted data', nativeBoundary, async () => withNativeHost(async host => {
+test('mounted Library keeps admitted data without a previous-account reauthentication prompt', nativeBoundary, async () => withNativeHost(async host => {
   const f = await libraryFixture(host); f.admit();
   f.context.credentialState = {status: 'reauthentication-required'}; await f.render();
-  assert(host.window.document.querySelector('[data-testid="library-reauthentication"]'));
-  await act(async () => f.controls.get('reauthenticate_action').onPress());
-  assert.deepEqual(f.navigations, [['Reauthenticate']]);
-  f.context.credentialState = {status: 'ready'}; await f.render();
   assert.equal(host.window.document.querySelector('[data-testid="library-reauthentication"]'), null);
+  assert.deepEqual(f.navigations, []);
   assert.equal(f.calls.globalReads, 0);
 }));
 
@@ -165,11 +164,11 @@ for (const boundary of ['read', 'update']) test(`continue-reading ${boundary} co
 
 test('mounted MobileProvider exposes no repository or cache before admission, even with provisional runtime services', nativeBoundary, async () => withNativeHost(async host => {
   const listeners = new Set(), credentialListeners = new Set(), session = {status: 'authenticated', session: {userId: 'local', token: 'synthetic'}};
-  let upgrade = {status: 'checking'}, owner = 'provisional', visible, getters = 0, credentialState = {status: 'idle'}, restartGate, starts = 0, stops = 0;
+  let upgrade = {status: 'checking'}, owner = 'provisional', visible, getters = 0, credentialState = {status: 'idle'}, restartGate, starts = 0, stops = 0, signOuts = 0;
   const preferences = {subscribe: () => () => {}, read: async () => ({})};
-  const repositories = {}, cache = {};
+  const repositories = {library: {watch: () => () => {}}, watchLibraryCollections: () => () => {}, watchLibraryUser: () => () => {}}, cache = {};
   const runtime = {
-    sessions: {subscribe: () => () => {}, getSnapshot: () => session, prepareRequest: async () => {}},
+    sessions: {subscribe: () => () => {}, getSnapshot: () => session, prepareRequest: async () => {}, signOut: async clear => {signOuts++; assert.equal(clear, false);}},
     getUpgradeSnapshot: () => upgrade, subscribeUpgrade: callback => {listeners.add(callback); return () => listeners.delete(callback);},
     getNativeResourceOwner: () => owner, getAccountPreferences: () => owner ? preferences : null,
     getRepositories: () => {getters++; return repositories;}, getCache: () => {getters++; return cache;},
@@ -195,7 +194,7 @@ test('mounted MobileProvider exposes no repository or cache before admission, ev
   await act(async () => {owner = 'admitted'; upgrade = {status: 'ready'}; for (const callback of listeners) callback();});
   assert.equal(visible.repositories, repositories); assert.equal(visible.cache, cache);
   await act(async () => {credentialState = {status: 'reauthentication-required'}; for (const callback of credentialListeners) callback();});
-  assert.equal(visible.credentialState.status, 'reauthentication-required'); assert.equal(visible.repositories, repositories);
+  assert.equal(visible.credentialState.status, 'reauthentication-required'); assert.equal(visible.repositories, repositories); assert.equal(signOuts, 1, 'Rejected credentials drop the session without a previous-account prompt');
   restartGate = deferred();
   const first = visible.retryStart(), second = visible.retryStart();
   assert.equal(first, second); assert.equal(stops, 1);

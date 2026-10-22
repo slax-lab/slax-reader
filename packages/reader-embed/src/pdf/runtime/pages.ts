@@ -16,6 +16,49 @@ export function createPdfPages(root: HTMLElement, options: PdfRuntimeOptions, po
   let desired: number[] = []
   const resident = new Map<number, PdfResidentPage>()
   const layout = createPdfLayout(root, options, {...ports, getDocument: () => pdf, schedule})
+  const gestureEvents = ['gesturestart', 'gesturechange', 'gestureend'] as const
+  const gestureTarget = document as unknown as {
+    addEventListener(type: string, listener: EventListener, options?: AddEventListenerOptions): void
+    removeEventListener(type: string, listener: EventListener): void
+  }
+  let gestureStart = 1, gestureNext = 1, gesturing = false, gestureFrame = 0, gesturePreview = 1
+  const clampZoom = (value: number) => Math.max(1, Math.min(3, value))
+  function previewZoom(scale: number) {
+    gesturePreview = scale
+    if (gestureFrame) return
+    gestureFrame = requestAnimationFrame(() => {
+      gestureFrame = 0
+      root.style.transform = `translate3d(0, 0, 0) scale(${gesturePreview / gestureStart})`
+    })
+  }
+  function clearZoomPreview() {
+    if (gestureFrame) cancelAnimationFrame(gestureFrame)
+    gestureFrame = 0
+    root.style.transform = ''; root.style.transformOrigin = ''; root.style.willChange = ''
+  }
+  // WebKit page zoom blanks large PDF canvases. Preview with a composited transform, then re-render at the new scale.
+  const zoomGesture = (event: Event) => {
+    const scale = (event as Event & {scale?: number}).scale
+    if (event.type === 'gesturestart') {
+      gesturing = true; gestureStart = layout.getZoom(); gestureNext = gestureStart
+      root.style.transformOrigin = '0 0'; root.style.willChange = 'transform'; event.preventDefault(); return
+    }
+    if (!gesturing) return
+    if (event.type === 'gesturechange' && typeof scale === 'number' && Number.isFinite(scale)) {
+      gestureNext = clampZoom(gestureStart * scale)
+      previewZoom(gestureNext)
+      event.preventDefault(); return
+    }
+    if (event.type !== 'gestureend') return
+    gesturing = false; clearZoomPreview()
+    if (typeof scale === 'number' && Number.isFinite(scale)) gestureNext = clampZoom(gestureStart * scale)
+    if (Math.abs(gestureNext - layout.getZoom()) >= 0.001) {
+      layout.setZoom(gestureNext, () => {renderEpoch++; for (const number of resident.keys()) evict(number)})
+      schedule()
+    }
+    event.preventDefault()
+  }
+  for (const name of gestureEvents) gestureTarget.addEventListener(name, zoomGesture, {passive: false})
 
   function evict(number: number) {
     const state = resident.get(number)
@@ -90,7 +133,10 @@ export function createPdfPages(root: HTMLElement, options: PdfRuntimeOptions, po
           if (!number) break
           await renderPage(number)
         }
-      } finally {rendering = false}
+      } finally {
+        rendering = false
+        if (!lifecycle.disposed && !lifecycle.failed && lifecycle.active && desired.some(number => !resident.has(number))) schedule()
+      }
     })()
   }
   function resize() {
@@ -141,6 +187,7 @@ export function createPdfPages(root: HTMLElement, options: PdfRuntimeOptions, po
     suspend()
     resizeObserver.disconnect()
     window.removeEventListener('scroll', scroll)
+    for (const name of gestureEvents) gestureTarget.removeEventListener(name, zoomGesture)
     for (const number of resident.keys()) evict(number)
   }
   return {layout, initialize, schedule, setPresentation, suspend, cancelRendering, dispose,

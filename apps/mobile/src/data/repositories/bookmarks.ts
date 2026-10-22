@@ -47,7 +47,7 @@ export class BookmarkRepository {
 
   watchSystemCatalog(onRows: (rows: SystemCatalogBookmark[]) => void, onError?: (error: Error) => void) {
     return this.rows.watchRows<SystemCatalogBookmark>(
-      `SELECT b.id, b.alias_title, b.created_at, b.archive_status, json_extract(b.metadata, '$.bookmark.title') AS title, json_extract(b.metadata, '$.bookmark.target_url') AS url, json_extract(b.metadata, '$.bookmark.status') AS status FROM sr_user_bookmark b WHERE b.archive_status = 0 AND b.deleted_at IS NULL AND json_extract(b.metadata, '$.bookmark.status') = 'success' ORDER BY b.created_at DESC LIMIT 100`,
+      `SELECT b.id, b.alias_title, b.created_at, b.archive_status, json_extract(b.metadata, '$.bookmark.title') AS title, json_extract(b.metadata, '$.bookmark.target_url') AS url, json_extract(b.metadata, '$.bookmark.status') AS status FROM sr_user_bookmark b WHERE b.archive_status = 0 AND b.deleted_at IS NULL AND json_extract(b.metadata, '$.bookmark.status') = 'success' ORDER BY b.created_at DESC LIMIT 500`,
       [], onRows, onError, row => ({id: String(row.id ?? ''), aliasTitle: String(row.alias_title ?? ''), createdAt: String(row.created_at ?? ''), archiveStatus: Number(row.archive_status ?? 0), title: String(row.title ?? ''), url: String(row.url ?? ''), status: String(row.status ?? '')}),
     );
   }

@@ -27,6 +27,46 @@ test('catalog publication is opt-in, bounded by projected data, and cleared on o
   assert.ok(f.calls.some(call => call[0] === 'catalog' && call[2].length === 0)); assert.ok(f.watchStops > 0);
 });
 
+test('transient not-ready keeps catalog and donations for the same owner and resumes on ready', async () => {
+  const f = setup(); f.controller.activate(); await f.controller.reconcile(true, true);
+  f.emit(); await new Promise(resolve => setImmediate(resolve));
+  await f.controller.donateSuccessfulOpen('bookmark-1', 'manual-keep');
+  const catalogs = f.calls.filter(call => call[0] === 'catalog').length;
+  const deletions = f.calls.filter(call => call[0] === 'delete').length;
+  assert.ok(f.state.catalogOwner); assert.ok(f.state.donationOwner);
+
+  await f.controller.reconcile(true, true, false);
+  assert.equal(f.calls.filter(call => call[0] === 'catalog').length, catalogs);
+  assert.equal(f.calls.filter(call => call[0] === 'delete').length, deletions);
+  assert.ok(f.state.catalogOwner); assert.ok(f.state.donationOwner);
+  const pausedCalls = f.calls.length;
+  f.emit(); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.calls.length, pausedCalls, 'a paused controller must not publish a snapshot');
+
+  await f.controller.reconcile(true, true, true);
+  f.emit(); await new Promise(resolve => setImmediate(resolve));
+  assert.ok(f.calls.filter(call => call[0] === 'catalog' && call[2].length).length > 1);
+});
+
+test('explicit opt-out still revokes surfaces while not ready', async () => {
+  const f = setup(); f.controller.activate(); await f.controller.reconcile(true, true);
+  f.emit(); await new Promise(resolve => setImmediate(resolve));
+  await f.controller.reconcile(false, false, false);
+  assert.ok(f.calls.some(call => call[0] === 'catalog' && call[2].length === 0));
+  assert.ok(f.calls.some(call => call[0] === 'delete'));
+});
+
+test('signing out revokes surfaces even when publication is not ready', async () => {
+  const f = setup(); f.controller.activate(); await f.controller.reconcile(true, true);
+  f.emit(); await new Promise(resolve => setImmediate(resolve));
+  await f.controller.donateSuccessfulOpen('bookmark-1', 'manual-signout');
+  f.owner(null);
+  await f.controller.reconcile(true, true, false);
+  assert.ok(f.calls.some(call => call[0] === 'catalog' && call[2].length === 0));
+  assert.ok(f.calls.some(call => call[0] === 'delete'));
+  assert.equal(f.state.catalogOwner, undefined); assert.equal(f.state.donationOwner, undefined);
+});
+
 test('old owner catalog is revoked before replacement owner publishes', async () => {
   const f = setup(); f.controller.activate(); await f.controller.reconcile(true, false); f.emit(); await new Promise(resolve => setImmediate(resolve));
   const before = f.calls.length; f.owner(ownerB); await f.controller.reconcile(true, false);

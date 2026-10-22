@@ -42,7 +42,7 @@ function fixturePdf(count = 13, passwordProtected = false) {
   return Buffer.from(text);
 }
 
-test('PDF WebView document uses real worker, bounded pages, exact selections, local resources and isolated transport', {skip: !chromium || !existsSync(chrome), timeout: 60000}, async () => {
+test('PDF WebView document uses real worker, bounded pages, exact selections, local resources and isolated transport', {skip: !chromium || !existsSync(chrome), timeout: 120000}, async () => {
   const runtime = await build({plugins: [readerCompatibilityPlugin(new URL('../../src/reader/', import.meta.url).pathname)], entryPoints: [new URL('../../src/reader/pdf-runtime.ts', import.meta.url).pathname], bundle: true, write: false, platform: 'browser', format: 'iife', target: ['safari16.4', 'chrome110'], minify: true, legalComments: 'inline'});
   const assets = JSON.parse(readFileSync(new URL('../../assets/pdf/bundle.json', import.meta.url), 'utf8'));
   assert.equal(assets.script, runtime.outputFiles[0].text, 'Generated PDF assets must contain the current extracted runtime');
@@ -92,6 +92,30 @@ test('PDF WebView document uses real worker, bounded pages, exact selections, lo
     }), true);
     await assert.rejects(workers[0].evaluate(() => globalThis.__slaxPdfResourceBytes('https://example.com/private')));
     assert.ok(messages.filter(message => message.kind === 'range').length >= 2);
+    const zoomBaseWidth = await page.locator('.page[data-page-number="1"]').evaluate(element => element.getBoundingClientRect().width);
+    const gesture = (type, scale) => page.evaluate(({type, scale}) => {
+      const event = new Event(type, {bubbles: true, cancelable: true});
+      Object.defineProperty(event, 'scale', {value: scale});
+      document.dispatchEvent(event);
+    }, {type, scale});
+    await gesture('gesturestart', 1);
+    await gesture('gesturechange', 1.5);
+    await gesture('gestureend', 1.5);
+    await page.waitForFunction(width => {
+      const page = document.querySelector('.page[data-page-number="1"]');
+      return page && Math.abs(page.getBoundingClientRect().width - width * 1.5) < 2;
+    }, zoomBaseWidth, {polling: 100, timeout: 30000});
+    await page.waitForFunction(() => document.querySelector('.page[data-page-number="1"] canvas'), null, {polling: 100, timeout: 30000});
+    assert.equal(await page.evaluate(() => document.getElementById('pages').style.transform), '', 'Zoom commits through re-rendering instead of WebKit page zoom');
+    await gesture('gesturestart', 1);
+    await gesture('gesturechange', 1 / 1.5);
+    await gesture('gestureend', 1 / 1.5);
+    await page.waitForFunction(width => {
+      const page = document.querySelector('.page[data-page-number="1"]');
+      return page && Math.abs(page.getBoundingClientRect().width - width) < 2;
+    }, zoomBaseWidth, {polling: 100, timeout: 30000});
+    await page.waitForFunction(() => document.querySelector('.page[data-page-number="1"] canvas'), null, {polling: 100, timeout: 30000});
+    await page.waitForFunction(() => document.querySelectorAll('.page[data-page-number="1"] .textLayer span').length > 1, null, {polling: 100, timeout: 30000});
     await page.evaluate(() => {
       const spans = document.querySelectorAll('.page[data-page-number="1"] .textLayer span');
       const range = document.createRange();
@@ -159,8 +183,9 @@ test('PDF WebView document uses real worker, bounded pages, exact selections, lo
     assert.equal(await page.locator('.mark-quad').count(), count);
     await command('bad-anchor', 'scrollToAnchor', {page: 12});
     assert.equal(messages.find(message => message.id === 'bad-anchor').error, 'PDF command failed');
+    const scrollBeforeStale = await page.evaluate(() => scrollY);
     await command('stale', 'scrollToAnchor', '12', 'stale-page');
-    assert.equal(await page.evaluate(() => scrollY), 0);
+    assert.equal(await page.evaluate(() => scrollY), scrollBeforeStale, 'A stale navigation cannot move the restored position');
     assert.equal(await page.locator('#controls, #page, #zoom, #fit, button, input').count(), 0, 'PDF exposes no format-specific navigation chrome');
     await command('goto', 'scrollToAnchor', '12');
     await page.waitForFunction(() => document.querySelector('.page[data-page-number="12"] .textLayer span'));

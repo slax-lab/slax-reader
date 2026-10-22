@@ -1,3 +1,5 @@
+import {SearchRepository} from './repositories/search.ts';
+import {LibraryRepository, AccountSnapshot} from './repositories/library.ts';
 import {AccountRepository} from './repositories/account.ts';
 import {BookmarkRepository} from './repositories/bookmarks.ts';
 import {CollectionRepository} from './repositories/collections.ts';
@@ -8,6 +10,8 @@ import {RowWatcher} from './repositories/watch-rows.ts';
 import {RssRepository} from './repositories/rss.ts';
 import type {SqlDatabase} from './repositories/sql.ts';
 import type {
+  LibraryBookmark,
+  LibraryCollection,
   BookmarkChanges,
   BookmarkRecord,
   SystemCatalogBookmark,
@@ -22,6 +26,8 @@ import type {
 
 export type {SqlDatabase, SqlSyncStream, SqlSyncStreamSubscription, SqlTransaction} from './repositories/sql.ts';
 export type {
+  LibraryBookmark,
+  LibraryCollection,
   BookmarkChanges,
   BookmarkRecord,
   SystemCatalogBookmark,
@@ -42,21 +48,31 @@ export class MobileRepositories {
   readonly database: SqlDatabase;
   readonly local: LocalBookmarkRepository;
   readonly rss: RssRepository;
+  readonly library: LibraryRepository;
+  readonly search: SearchRepository;
+  private readonly libraryUser: AccountSnapshot<Record<string, unknown>[]>;
+  private readonly libraryCollections: AccountSnapshot<LibraryCollection[]>;
   private readonly rows: RowWatcher;
   private readonly bookmarks: BookmarkRepository;
   private readonly collections: CollectionRepository;
   private readonly account: AccountRepository;
   private readonly comments: CommentSubscriptions;
   private readonly marks: MarkRepository;
+  private readonly remoteBookmark?: (id: string, signal?: AbortSignal) => Promise<BookmarkRecord | null>;
 
-  constructor(database: SqlDatabase, uuid: () => string, now = () => new Date().toISOString()) {
+  constructor(database: SqlDatabase, uuid: () => string, now = () => new Date().toISOString(), remoteBookmark?: (id: string, signal?: AbortSignal) => Promise<BookmarkRecord | null>) {
     this.database = database;
+    this.remoteBookmark = remoteBookmark;
     this.local = new LocalBookmarkRepository(database);
     this.rss = new RssRepository(database);
+    this.library = new LibraryRepository(database);
+    this.search = new SearchRepository(database);
     this.rows = new RowWatcher(database);
     this.bookmarks = new BookmarkRepository(database, this.rows, uuid, now);
     this.collections = new CollectionRepository(database, this.rows, now);
     this.account = new AccountRepository(database, this.rows);
+    this.libraryUser = new AccountSnapshot((next, error) => this.rows.watchRows('SELECT id, name, picture FROM sr_user', [], next, error), database.accountSignal);
+    this.libraryCollections = new AccountSnapshot((next, error) => this.collections.watchLibrarySources(next, error), database.accountSignal);
     this.comments = new CommentSubscriptions(database);
     this.marks = new MarkRepository(database, uuid, now);
   }
@@ -79,8 +95,12 @@ export class MobileRepositories {
     return this.bookmarks.watchBookmarks(sort, onRows, onError);
   }
 
-  getBookmark(id: string, ownerId?: string): Promise<BookmarkRecord | null> {
-    return this.bookmarks.getBookmark(id, ownerId);
+  async getBookmark(id: string, ownerId?: string): Promise<BookmarkRecord | null> {
+    const record = await this.bookmarks.getBookmark(id, ownerId);
+    if (record || ownerId || !this.remoteBookmark) return record;
+    const remote = await this.remoteBookmark(id, this.database.accountSignal);
+    if (this.database.accountSignal?.aborted) throw new Error('Account changed');
+    return remote;
   }
 
   getSystemBookmark(id: string): Promise<SystemCatalogBookmark | null> {return this.bookmarks.getSystemBookmark(id);}
@@ -112,6 +132,10 @@ export class MobileRepositories {
   ) {
     return this.collections.watchCollectionSettings(ownerId, onRows, onError);
   }
+
+  watchLibraryUser(onRows: (rows: Record<string, unknown>[]) => void, onError?: (error: Error) => void) {return this.libraryUser.subscribe(onRows, onError);}
+
+  watchLibraryCollections(onRows: (rows: LibraryCollection[]) => void, onError?: (error: Error) => void) {return this.libraryCollections.subscribe(onRows, onError);}
 
   watchUser(onRows: (rows: Record<string, unknown>[]) => void, onError?: (error: Error) => void) {
     return this.account.watchUser(onRows, onError);
