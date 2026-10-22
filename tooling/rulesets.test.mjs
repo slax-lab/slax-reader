@@ -273,7 +273,11 @@ test('drift workflow is scheduled detection that never applies mutations', () =>
   const job = workflow.jobs.check
   assert.equal(job.if, undefined)
   const checkout = job.steps.find(step => step.uses?.startsWith('actions/checkout@'))
+  assert.equal(checkout.uses, 'actions/checkout@v4')
   assert.equal(checkout.with['persist-credentials'], false)
+  const setupNode = job.steps.find(step => step.uses?.startsWith('actions/setup-node@'))
+  assert.equal(setupNode.uses, 'actions/setup-node@v4')
+  assert.equal(setupNode.with['node-version'], '22.22.2')
   const check = job.steps.find(step => step.id === 'check')
   assert.equal(check['continue-on-error'], true)
   assert.equal(check.env.GH_TOKEN, '${{ secrets.RULESETS_READ_TOKEN }}')
