@@ -15,7 +15,7 @@
 ## 3. Drawer gesture convergence
 
 - [x] 3.1 Rework `SourceDrawer` so a microtask publishes only the latest resolved open/close result, a `published` ref deduplicates callbacks, and a cancelled or superseded gesture republishes its resolved committed state from `onFinalize`.
-- [x] 3.2 Remove the JS `committed` read from the hide callback, derive `locked`/`onInteractionChange` and pan enablement from `visible`, and drive content/dismiss-surface `pointerEvents` from `visible`; verify the closed drawer leaves content interactive and no overlay intercepts touches.
+- [x] 3.2 Remove the JS `committed` read from the hide callback, derive `locked`/`onInteractionChange` from `visible`, keep the opening pan enabled through its own visibility update, and drive content/dismiss-surface `pointerEvents` from `visible`; verify the closed drawer leaves content interactive and no overlay intercepts touches.
 - [x] 3.3 Add the superseded-close regression from `design.md` to `shared-motion.test.mjs`; verify it fails on the old state machine and passes with the new one, and that the existing rapid-reversal/reduced-motion drawer tests remain green (`pnpm mobile -- test`).
 
 ## 4. Verification

@@ -55,7 +55,7 @@ Alternative considered: crossfade every glyph swap. It smooths the visual but st
 - Keep `generation` only as the fence for stale animation completion callbacks that hide the drawer.
 - Treat the last published result as the settled external state: the `open` effect ignores callbacks this drawer itself initiated, so a late intermediate result cannot fight the animation already in flight.
 - Remove the JS-side read of `committed` from the hide callback: animation completion only sets visibility, so a stale shared-value read can no longer keep the drawer visible.
-- Derive `locked`, `onInteractionChange`, and both pan enablement flags from `visible`, instead of letting only the close animation callback unlock rows.
+- Derive `locked` and `onInteractionChange` from `visible`, and keep each pan enabled through its own transition: the opening pan stays enabled whenever the drawer is not simultaneously open and visible, so its own visibility update cannot cancel an active drag; the closing pan stays enabled while open or visible.
 - Drive content and dismiss-surface `pointerEvents` from `visible`, not from the possibly stale `open` prop.
 - Keep the existing timing animations, scrim, Back handler, and pan thresholds.
 

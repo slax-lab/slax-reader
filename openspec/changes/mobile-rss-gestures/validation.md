@@ -29,7 +29,9 @@ Focused suites also run directly:
 
 ## Review round
 
-- Local pre-push review found one Important bug: a short cancelled opening pan could leave row input locked because `show(false)` had no state change to drive the unlock effect. Fixed by restoring `locked.value = next` in the generation-fenced `show` callback, with the short-pan regression above; focused tests and typecheck re-ran successfully.
+- Local pre-push review found one Important bug: a short cancelled opening pan could leave row input locked because `show(false)` had no state change to drive the unlock effect. Fixed by restoring `locked.value = next` in the generation-fenced `show` callback, with the short-pan regression.
+- The automated PR review found one Important regression: enabling the opening pan from `visible` disabled an active drag as soon as its own `show(true)` flipped visibility, which cancels the gesture. The pan now stays enabled unless the drawer is both open and visible, and the regression test asserts `config.enabled` after that visibility flip and races both close drags before JS delivery.
+- Focused suites and typecheck re-ran successfully after both fixes.
 
 ## Running environment
 

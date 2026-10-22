@@ -101,10 +101,16 @@ test('a gesture that supersedes the first close still publishes the close and re
   assert.equal(openState, false, 'A short opening pan settles closed');
   assert.equal(lock.value, false, 'A cancelled short open restores row input');
   assert.deepEqual(changes, []);
-  await act(async () => {drag(motion.detectors()[0], 240, 500); motion.advance(300); motion.flushJS();});
+  const openingGesture = motion.detectors()[0];
+  await act(async () => {openingGesture.handlers.onStart(); motion.flushJS();});
+  assert.equal(openState, false, 'Visibility alone does not publish an open');
+  assert.equal(openingGesture.config.enabled, true, 'The active opening pan is not disabled by its own visibility update');
+  await act(async () => {openingGesture.handlers.onUpdate({translationX: 240}); openingGesture.handlers.onEnd({velocityX: 500}, true); openingGesture.handlers.onFinalize({}, true); motion.advance(300); motion.flushJS();});
   assert.equal(openState, true);
-  await act(async () => {drag(motion.detectors()[1], -240, -500);}); // close result still queued for JS
-  await act(async () => {drag(motion.detectors()[1], -20, -500);}); // a newer gesture bumps the UI generation
+  await act(async () => {
+    drag(motion.detectors()[1], -240, -500); // close result still queued for JS
+    drag(motion.detectors()[1], -20, -500); // a newer gesture supersedes it before JS runs
+  });
   await act(async () => {motion.flushJS(); motion.advance(300); motion.flushJS();});
   assert.equal(openState, false, 'A newer gesture must not swallow the close the parent still needs');
   assert.equal(overlay.pointerEvents, 'none', 'The closed drawer no longer intercepts touches');
