@@ -9,8 +9,11 @@ name: Promotion gate
 # succeeded on the head, and a hotfix carries a non-author approving review.
 #
 # Trust model: this workflow runs on `pull_request_target`. Its workflow file
-# and the checked-out script both come from the default branch, so PR code is
-# never executed. The verdict is an explicitly created check run
+# and the checked-out script both come from the default branch, so the only code
+# that runs comes from a reviewed, protected branch — for a dev -> beta
+# promotion the head IS the default branch, so the trust boundary is dev's
+# review process itself, not this checkout. The verdict is an explicitly created
+# check run
 # named `promotion integrity` on the pull request's head SHA (see the script), not
 # this job's own conclusion — the job is intentionally named differently. Every
 # error path still creates a failing check run, so a broken gate blocks the merge

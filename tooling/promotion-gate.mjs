@@ -199,7 +199,7 @@ export async function inspectDeploymentEvidence(inputs, { token, fetchImpl, grac
 
   const triggered = new Map()
   for (const path of deployWorkflows) {
-    const body = await github(fetchImpl, token, `/repos/${inputs.repository}/actions/workflows/${path}/runs?head_sha=${sourceSha}`)
+    const body = await github(fetchImpl, token, `/repos/${inputs.repository}/actions/workflows/${path}/runs?head_sha=${sourceSha}&per_page=100`)
     const workflowRuns = body?.workflow_runs
     if (!Array.isArray(workflowRuns)) fail('GitHub API returned an unexpected workflow-runs response')
     if (workflowRuns.length >= 100) fail('GitHub API workflow-runs list exceeds the page budget')
