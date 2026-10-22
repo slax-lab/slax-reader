@@ -148,7 +148,7 @@ test('fetches paginated ruleset lists and every ruleset detail', () => {
   const rulesets = fetchRulesets({ repository: 'example/reader', runGh })
   assert.deepEqual(rulesets.map(ruleset => ruleset.name), ['release-branches', 'release-beta'])
   assert.deepEqual(calls, [
-    ['api', '--paginate', '--slurp', 'repos/example/reader/rulesets'],
+    ['api', '--paginate', '--slurp', 'repos/example/reader/rulesets?includes_parents=false'],
     ['api', 'repos/example/reader/rulesets/7'],
     ['api', 'repos/example/reader/rulesets/9']
   ])

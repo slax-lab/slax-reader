@@ -213,7 +213,9 @@ export const resolveRepository = ({ option, env = process.env, runGh = defaultRu
 }
 
 export const fetchRulesets = ({ repository, runGh = defaultRunGh }) => {
-  const pages = JSON.parse(runGh(['api', '--paginate', '--slurp', `repos/${repository}/rulesets`]))
+  // includes_parents=false: an inherited org-level ruleset is not ours to diff,
+  // and its detail fetch against the repo endpoint would 404.
+  const pages = JSON.parse(runGh(['api', '--paginate', '--slurp', `repos/${repository}/rulesets?includes_parents=false`]))
   if (!Array.isArray(pages)) throw new Error('ruleset list response must be an array of pages')
   const summaries = pages.flat()
   return summaries.map(summary => {
