@@ -90,6 +90,11 @@ it.each([
   await nextTick()
   expect(data.onboardingReady.value).toBe(true)
   expect(data.isDataEmpty.value).toBe(true)
+  env.states.get('powersync-owner').value = null
+  await nextTick()
+  env.states.get('powersync-owner').value = owner
+  await nextTick()
+  expect(data.onboardingReady.value).toBe(true)
   query.emit({ data: [], isLoading: false, isFetching: false, error: Error('read failed') })
   await nextTick()
   expect(data.onboardingReady.value).toBe(false)

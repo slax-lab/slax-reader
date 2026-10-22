@@ -64,14 +64,21 @@ export const useBookmarkData = (
   if (syncStatus) {
     watch(
       () => localOwner.value,
-      (owner, previousOwner) => {
-        if (owner !== previousOwner) localSyncOwner.value = null
+      owner => {
+        // PowerSync account reconciliation briefly clears and restores the
+        // same owner on navigation. Only a different non-null owner means
+        // the local database must complete a fresh first sync.
+        if (owner && owner !== localSyncOwner.value) localSyncOwner.value = null
       },
       { flush: 'sync' }
     )
     watch(
       () => syncStatus.value?.hasSynced === true,
       (synced, previousSynced) => {
+        if (!synced) {
+          localSyncOwner.value = null
+          return
+        }
         if (synced && !previousSynced && localOwner.value) localSyncOwner.value = localOwner.value
       },
       { flush: 'sync' }

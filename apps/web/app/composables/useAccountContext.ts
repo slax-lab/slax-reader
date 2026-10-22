@@ -36,7 +36,6 @@ export const useAccountContext = () => {
     if (currentToken !== token.value) token.value = currentToken
     const nextVersion = tokenVersion.value
     const nextKey = accountKey.value
-    const nextOwner = sessionOwner.value
     if (nextVersion === observedTokenVersion && state.value.accountKey === nextKey) return
     observedTokenVersion = nextVersion
     state.value.accountKey = nextKey
@@ -45,7 +44,6 @@ export const useAccountContext = () => {
     state.value.source = nextKey ? 'local' : null
     state.value.status = nextKey ? 'local' : 'empty'
     state.value.generation++
-    void nextOwner
   }
 
   watch(
