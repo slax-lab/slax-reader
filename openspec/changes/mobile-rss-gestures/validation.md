@@ -35,15 +35,14 @@ Focused suites also run directly:
 
 ## Running environment
 
-- Android fixture project: `slax-reader-ui-fixture-T9cKY7` (generated with `pnpm mobile -- fixture:project --scenario rss-populated --locale en --platform android`).
-- The project was generated from this worktree, so it contains the changed JS sources. Reusing the previously installed fixture APK failed at startup (`ReferenceError: Property 'TextDecoder' doesn't exist`), so native acceptance requires a fresh fixture APK build.
-- **Human decision (2026-10-22):** the user waived native device verification for the download-icon flicker and accepted a successful JS bundle as the delivery gate for this change ("确保能Js bundle出来的话，就去提PR"). No hands-on native acceptance was performed before opening the pull request; this is the recorded acceptance decision rather than an unrecorded gap.
+- The automated fixture path was prepared (`slax-reader-ui-fixture-T9cKY7`) but the previously installed fixture APK was incompatible (`ReferenceError: Property 'TextDecoder' doesn't exist`), so the agent did not complete a device pass through that harness.
+- **Human hands-on acceptance (2026-10-22):** the repository owner reports exercising the changed interactions by hand on a device and accepting the result ("已经摸过了"); no adjustments were requested. The owner had initially accepted the JS bundle as the gate and confirmed the hands-on pass after the pull request was opened; this entry is the acceptance record.
 
 ## Not verified
 
-- Native Android/iOS interaction for any of the four scenarios. The prior fixture APK was incompatible (`TextDecoder` missing), and the user explicitly waived the device pass in favor of the JS bundle gate above.
-- Concurrent automatic article downloads on a device: the fixture scenarios seed static `is_downloaded` values and expose no control that starts or completes article caches, so the no-flash behavior is established by the mounted timer test. The user asked not to pursue this verification.
+- Concurrent automatic article downloads on a device: the fixture scenarios seed static `is_downloaded` values and expose no control that starts or completes article caches, so the no-flash behavior is established by the mounted timer test. The owner asked not to pursue this verification.
 - Frame-rate/smoothness claims: not measured; the change preserves the existing UI-thread animations and adds no per-frame React state.
+- The owner's hands-on pass is not itemized by device/platform or by each scenario's edge cases; it records acceptance of the four changed behaviors rather than a platform matrix.
 
 ## Version decision
 
