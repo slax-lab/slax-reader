@@ -1,0 +1,74 @@
+name: Promotion gate
+
+# The single required `promotion integrity` context for beta and main (design D2).
+#
+# Rulesets cannot restrict a pull request's head branch and cannot express "the
+# head already passed the previous stage's validation", so one companion gate
+# asserts both: the head is a sanctioned source for the target branch (dev or
+# hotfix/* for beta; beta or hotfix/* for main), the six application CI gates
+# succeeded on the head, and a hotfix carries a non-author approving review.
+#
+# Failing closed is the point: any unreadable or unexpected API shape fails the
+# check, like `PR review gate`. A wrong failure blocks one promotion until a
+# human looks; it never lets unvalidated content through.
+#
+# The suite gates and the beta deployment are triggered around the same time as
+# this job, so the script polls both to a bounded deadline. Any completed
+# failure fails immediately; a timeout names the contexts still outstanding.
+#
+# Beta deployment evidence for beta -> main goes through the merged pull request
+# that produced the beta tip. Deploy workflows triggered by `pull_request_target`
+# attach their conclusions to the merged pull request's head SHA, not to the
+# merge commit, so the script resolves beta tip -> merged PR -> its head SHA ->
+# beta deployment records. See tooling/promotion-gate.mjs.
+#
+# `pull_request_review` re-evaluates the hotfix review assertion when an approval
+# (or dismissal) lands; otherwise the failed context could never turn green
+# without a new push. That event has no branch filter, so the job skips reviews
+# on pull requests that do not target beta or main.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [beta, main]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  actions: read
+  checks: read
+  contents: read
+  deployments: read
+  pull-requests: read
+
+concurrency:
+  group: promotion-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: promotion integrity
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.event.pull_request.base.ref == 'beta' ||
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.2
+      - name: Verify promotion provenance and validation evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPOSITORY: ${{ github.event.pull_request.base.repo.full_name }}
+        run: node tooling/promotion-gate.mjs
