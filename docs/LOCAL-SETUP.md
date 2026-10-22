@@ -44,6 +44,9 @@ values.
 | pnpm    | exact version pinned in root `package.json` (`packageManager` field; `corepack enable` provides it) | `pnpm --version`                        |
 | Docker  | running daemon, Compose with `up --wait` support                                                    | `docker info && docker compose version` |
 | Git     | any recent version                                                                                  | `git --version`                         |
+| `gh` (GitHub CLI) | `v2.99.0` or later — pull request workflows attach evidence media with `gh --attach`, GA since v2.99.0 | `gh --version` |
+
+Existing machines only need a one-time upgrade (e.g. `brew upgrade gh` on macOS).
 
 Optional: Stripe CLI, only if you will work on payment webhooks.
 

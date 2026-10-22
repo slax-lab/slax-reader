@@ -5,8 +5,11 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import React from 'react';
 import {motionModules} from './motion-modules.mjs';
+import {safeAreaBoundary} from './safe-area-boundary.mjs';
 
 async function load(file, boundaries = {}) {
+  boundaries['./AvatarResources'] ??= {AvatarResourcesContext: React.createContext(null), useAvatarResource: (_slot, url) => url};
+  boundaries['react-native-safe-area-context'] = safeAreaBoundary(boundaries);
   if (file.endsWith('/SourceSheetModal.tsx')) boundaries = {...motionModules(boundaries), ...boundaries};
   const source = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},
@@ -41,10 +44,14 @@ test('actual SourceText responds to system font scale once while retaining style
   const theme = await load('../../src/theme/index.ts');
   let fontScale = 1;
   const flatten = values => Object.assign({}, ...values.flat(Infinity).filter(Boolean));
-  const native = {Platform: {OS: 'android'}, Text: 'Text', StyleSheet: {create: value => value, flatten, absoluteFill: {}}, useWindowDimensions: () => ({fontScale})};
+  const native = {Platform: {OS: 'android'}, Text: 'Text', View: 'View', StyleSheet: {create: value => value, flatten, absoluteFill: {}}, useWindowDimensions: () => ({fontScale})};
+  const {installedMotionHost} = await import('../ui/installed-motion-host.mjs');
+  const motion = installedMotionHost(native.View);
+  const sheetBody = await load('../../src/components/SheetBody.tsx', {react: React, 'react-native': native, 'react-native-gesture-handler': motion.gestures,
+    'react-native-reanimated': motion.reanimated, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 0, bottom: 0})}, '../theme': theme});
   const ui = await load('../../src/components/SourceUI.tsx', {
-    react: React, 'react-native': native, 'react-native-safe-area-context': {}, '../../assets': {mobileAssets: {}}, '../theme': theme, './source-font-scaling': scaling,
-    './SourceSheetModal': await load('../../src/components/SourceSheetModal.tsx', {react: React, 'react-native': native, '../theme': theme}),
+    react: React, 'react-native': native, 'react-native-safe-area-context': {}, '../../assets': {mobileAssets: {}}, '../theme': theme, './source-font-scaling': scaling, './SheetBody': sheetBody,
+    './AppImage': {AppImage: () => null}, './SourceSheetModal': await load('../../src/components/SourceSheetModal.tsx', {react: React, 'react-native': native, '../theme': theme}),
   });
   const props = {children: 'Synthetic accessible paragraph', accessibilityLabel: 'Synthetic paragraph', testID: 'source-paragraph', style: [{fontSize: 14}, {lineHeight: 20, marginTop: 16}]};
   const actual = override => ui.SourceText({...props, ...override}).props;

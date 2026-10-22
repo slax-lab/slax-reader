@@ -170,3 +170,11 @@ test('a stalled metadata request ends at the shared deadline without using an of
   assert.equal(calls, 1); assert.deepEqual(await f.cache.read('doc', descriptor, 0, 3), bytes);
   await f.worker.stop();
 });
+
+for (const kind of ['metadata', 'range', 'article']) test(`${kind} preserves Retry-After for the task scheduler instead of retrying HTTP 503 early`, async () => {
+  let calls = 0;
+  const client = api(async () => {calls++; return new Response('{}', {status: 503, headers: {'Content-Type': 'application/json', 'Retry-After': '60'}});});
+  const pending = kind === 'article' ? client.getBookmarkRawContent('doc') : invoke(client, kind);
+  await assert.rejects(pending, error => error instanceof ApiError && error.status === 503 && error.retryAfterMs === 60_000);
+  assert.equal(calls, 1);
+});

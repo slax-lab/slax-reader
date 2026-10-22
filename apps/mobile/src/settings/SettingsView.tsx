@@ -1,5 +1,5 @@
 import React from 'react';
-import {Pressable, ScrollView, StyleSheet, View} from 'react-native';
+import {Platform, Pressable, ScrollView, StyleSheet, View} from 'react-native';
 import {
   Divider, ScreenSurface, SourceButton, SourceDialog, SourceIcon,
   SourceSwitch, SourceText, TextAction,
@@ -17,10 +17,15 @@ export interface SettingsViewProps {
   state: SettingsState;
   rss: LabState;
   pdf: LabState;
+  showAdaptivePdfPrototype?: boolean;
   onDeleteAccount(): void;
+  systemSurfaceFailed?: boolean;
+  systemSurfaceAvailable?: boolean;
+  systemDiscoveryAvailable?: boolean;
+  onRetrySystemSurfaces?(): void;
 }
 
-export function SettingsView({t, locale, state, rss, pdf, onDeleteAccount}: SettingsViewProps) {
+export function SettingsView({t, locale, state, rss, pdf, showAdaptivePdfPrototype = false, onDeleteAccount, systemSurfaceFailed, systemSurfaceAvailable = false, systemDiscoveryAvailable = false, onRetrySystemSurfaces}: SettingsViewProps) {
   return (
     <ScreenSurface testID={IDs.SettingScreen} bottomInset={false} sourceAppBar>
       <ScrollView contentContainerStyle={styles.content}>
@@ -79,11 +84,28 @@ export function SettingsView({t, locale, state, rss, pdf, onDeleteAccount}: Sett
             <SourceSwitch label={t('pdf_title')} value={pdf.enabled} onChange={value => void pdf.load(value)} disabled={!pdf.ready || pdf.busy} />
           </View>
           <SourceText style={[T.metadata, {color: C.secondaryText, marginBottom: 8}]}>{t('pdf_enable_hint')}</SourceText>
+          {showAdaptivePdfPrototype ? <View style={styles.row}>
+            <SourceText style={T.button}>Dual-page prototype</SourceText>
+            <SourceSwitch label="Dual-page prototype" value={state.adaptivePdfPrototype} onChange={state.setAdaptivePdfPrototype} />
+          </View> : null}
           {pdf.failed ? <>
             <SourceText style={[T.metadata, {color: C.danger}]}>{t('pdf_labs_error')}</SourceText>
             <TextAction label={t('rss_retry')} onPress={() => void pdf.load()} />
           </> : null}
         </View>
+        {Platform.OS === 'ios' && systemSurfaceAvailable ? <View style={[styles.card, styles.labCard]}>
+          <View style={[styles.row, styles.labRow]}>
+            <SourceText style={T.button}>{t('system_discovery_title')}</SourceText>
+            {systemDiscoveryAvailable ? <SourceSwitch label={t('system_discovery_title')} value={state.systemDiscovery} onChange={state.setSystemDiscovery} /> : <SourceText style={T.metadata}>{t('system_discovery_unavailable')}</SourceText>}
+          </View>
+          <SourceText style={[T.metadata, {color: C.secondaryText, marginBottom: 8}]}>{t('system_discovery_description')}</SourceText>
+          <View style={[styles.row, styles.labRow]}>
+            <SourceText style={T.button}>{t('system_donations_title')}</SourceText>
+            <SourceSwitch label={t('system_donations_title')} value={state.systemDonations} onChange={state.setSystemDonations} />
+          </View>
+          <SourceText style={[T.metadata, {color: C.secondaryText}]}>{t('system_donations_description')}</SourceText>
+          {systemSurfaceFailed ? <View style={{marginTop: 8}}><SourceText style={[T.metadata, {color: C.danger}]}>{t('system_surface_error')}</SourceText><TextAction label={t('rss_retry')} onPress={onRetrySystemSurfaces ?? (() => {})}/></View> : null}
+        </View> : null}
         <SourceButton testID={IDs.SettingDeleteAccount} label={t('setting_delete_account')} tone="surface" destructive onPress={onDeleteAccount} style={{minHeight: 55}} />
       </ScrollView>
       <SourceDialog visible={state.language} onDismiss={state.dismissLanguage} title={t('setting_language')}>

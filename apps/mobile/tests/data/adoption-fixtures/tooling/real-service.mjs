@@ -7,12 +7,12 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {MOBILE_TABLES} from '../../../../src/data/schema.ts';
+import {LEGACY_MOBILE_TABLES} from '../../../../src/data/schema.ts';
 
 const PS_IMAGE = 'journeyapps/powersync-service@sha256:413a0c813e96935ebe7203b5759f8a594a7b7cd8aa42134713e63af637e0f079';
 const PG_IMAGE = 'postgres@sha256:f02121de6f74d30d8a94cd1d9584125e2178d7e6c377d8130112d4e52d867995';
 const LABEL = 'com.slax.native-fixture.owner';
-const tables = Object.fromEntries(Object.entries(MOBILE_TABLES).filter(([, value]) => !value.options?.localOnly));
+const tables = Object.fromEntries(Object.entries(LEGACY_MOBILE_TABLES).filter(([, value]) => !value.options?.localOnly));
 const hash = value => createHash('sha256').update(value).digest('hex');
 const quote = value => value === null ? 'NULL' : typeof value === 'number' && Number.isSafeInteger(value) ? String(value) : typeof value === 'string' ? `'${value.replaceAll("'", "''")}'` : assert.fail('Only primitive synthetic column values are accepted');
 const identifier = value => {assert(/^[a-z][a-z0-9_]*$/.test(value), 'Invalid SQL identifier'); return `"${value}"`;};

@@ -23,14 +23,14 @@ function run(args) {
 }
 try {
   const output = resolve(temporary, 'classes');
-  run(['-Xmx512m', '-cp', compiler, 'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler', '-no-stdlib', '-no-reflect', '-classpath', libraries, '-d', output, source, source.replace('SlaxResources.kt', 'SlaxCachePathsModule.kt'), source.replace('SlaxResources.kt', 'SlaxReaderSecurity.kt'), source.replace('SlaxResources.kt', 'SlaxReaderImages.kt'), ...readdirSync(directory).filter(name => name.endsWith('.kt')).map(name => resolve(directory, name))]);
+  run(['-Xmx512m', '-cp', compiler, 'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler', '-no-stdlib', '-no-reflect', '-classpath', libraries, '-d', output, source, source.replace('SlaxResources.kt', 'SlaxCachePaths.kt'), source.replace('SlaxResources.kt', 'SlaxCachePathsModule.kt'), source.replace('SlaxResources.kt', 'SlaxReaderSecurity.kt'), source.replace('SlaxResources.kt', 'SlaxFileStore.kt'), source.replace('SlaxResources.kt', 'SlaxImageRegistry.kt'), source.replace('SlaxResources.kt', 'SlaxImageModule.kt'), ...readdirSync(directory).filter(name => name.endsWith('.kt')).map(name => resolve(directory, name))]);
   run(['-cp', [output, libraries].join(delimiter), 'com.slax.reader.platform.HostKt']);
   if (process.platform === 'darwin') {
     const swiftSource = fileURLToPath(new URL('../../modules/slax-platform/ios/SlaxResourceHandler.swift', import.meta.url));
     const executable = resolve(temporary, 'swift-resources');
     for (const [command, args] of [
       ['xcrun', ['swiftc', '-swift-version', '5', '-emit-module', '-emit-library', '-module-name', 'ExpoModulesCore', resolve(directory, 'ExpoModulesCore.swift'), '-o', resolve(temporary, 'libExpoModulesCore.dylib')]],
-      ['xcrun', ['swiftc', '-swift-version', '5', '-D', 'DEBUG', '-I', temporary, '-L', temporary, '-lExpoModulesCore', '-Xlinker', '-rpath', '-Xlinker', temporary, swiftSource, swiftSource.replace('SlaxResourceHandler.swift', 'SlaxCachePathsModule.swift'), swiftSource.replace('SlaxResourceHandler.swift', 'SlaxReaderSecurity.swift'), swiftSource.replace('SlaxResourceHandler.swift', 'SlaxReaderImages.swift'), resolve(directory, 'ImageOwner.swift'), resolve(directory, 'Host.swift'), '-o', executable]],
+      ['xcrun', ['swiftc', '-swift-version', '5', '-D', 'DEBUG', '-I', temporary, '-L', temporary, '-lExpoModulesCore', '-Xlinker', '-rpath', '-Xlinker', temporary, swiftSource, swiftSource.replace('SlaxResourceHandler.swift', 'SlaxCachePaths.swift'), swiftSource.replace('SlaxResourceHandler.swift', 'SlaxCachePathsModule.swift'), swiftSource.replace('SlaxResourceHandler.swift', 'SlaxReaderSecurity.swift'), ...['SlaxFileStore.swift', 'SlaxImageRegistry.swift', 'SlaxImageModule.swift', 'SlaxWebImageTask.swift'].map(name => swiftSource.replace('SlaxResourceHandler.swift', name)), resolve(directory, 'ImageOwner.swift'), resolve(directory, 'Host.swift'), '-o', executable]],
       ['python3', [resolve(directory, 'media-server.py'), executable]],
     ]) {
       const result = spawnSync(command, args, {stdio: 'inherit', timeout: 120000});

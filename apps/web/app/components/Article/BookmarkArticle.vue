@@ -24,6 +24,8 @@
         :readonly="!ready || !effAllowTagged"
       />
     </header>
+    <!-- Status above the body (podcast transcript). Outside .article-detail: marks and processors stay untouched -->
+    <slot name="before-body" />
     <ClientOnly v-if="isPdf">
       <PdfReader v-if="detail.pdf" :key="detail.pdf.document_id" :pdf="detail.pdf" :marks="pdfMarks" :ready="ready"
         :allow-action="adapters.allowActionOverride ?? allowAction" :bookmark-id="bookmarkId" :bookmark-uid="bookmarkUid"
@@ -35,6 +37,9 @@
     <div v-else class="article-detail article-body" ref="articleDetail" :class="{ [articleStyle]: true }">
       <div class="html-text" lang="en" v-html="articleHTML"></div>
     </div>
+    <!-- Content derived from the article (YouTube AI article). Outside .article-detail on purpose:
+         the original DOM, marks and processors stay untouched -->
+    <slot name="after-body" />
     <SnapshotArticleFooter v-if="!isPdf || detail.pdf" :via="footerVia" :show-via="footerShowVia" :collection="footerCollection" />
   </div>
 </template>
@@ -57,6 +62,7 @@ import CursorToast from '~/components/CursorToast'
 import Toast, { ToastType } from '~/components/Toast'
 import { useArticleDetail } from '~/composables/bookmark/useArticle'
 import { useArticleSelection } from '~/composables/bookmark/useArticleSelection'
+import { applyArticleImageLoading } from '~/utils/articleImageLoading'
 
 const props = defineProps({
   detail: {
@@ -101,6 +107,7 @@ const emits = defineEmits(['screenLockUpdate', 'bookmarkUpdate', 'chatBotQuote',
 const adapters = inject(ArticleSelectionAdaptersKey, {})
 
 const { t } = useI18n()
+const appConfig = useAppConfig()
 const { detail } = toRefs(props)
 const bookmarkArticle = ref<HTMLDivElement>()
 const articleDetail = ref<HTMLDivElement>()
@@ -134,7 +141,10 @@ const articleStyle = computed(() => {
 })
 
 const articleHTML = computed(() => {
-  return detail.value.content?.replace(/<img/g, '<img loading="lazy"') || ''
+  return applyArticleImageLoading(detail.value.content || '', {
+    enabled: Boolean(appConfig.lcp?.articleImagePriority),
+    excludedPresentation: isPdf.value || articleStyle.value === ArticleStyle.PhotoSwipeTopic
+  })
 })
 
 // 划线/评论重逻辑唯一来源

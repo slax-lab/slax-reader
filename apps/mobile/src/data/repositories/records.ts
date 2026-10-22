@@ -49,7 +49,7 @@ export function collection(row: Readonly<Record<string, unknown>>): CollectionRe
   };
 }
 
-export function bookmarkDisplayTitle(record: Readonly<BookmarkRecord>) {
+export function bookmarkDisplayTitle(record: Readonly<Pick<BookmarkRecord, 'aliasTitle' | 'title' | 'url' | 'id'>>) {
   return (record.aliasTitle.trim() || record.title.trim() || record.url || record.id.slice(0, 5))
     .replace(/\s+/g, ' ')
     .trim();

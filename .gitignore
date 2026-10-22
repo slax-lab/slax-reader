@@ -41,6 +41,7 @@ apps/api/src/infra/repository/db/*/generated/
 dist/
 build/
 *.tsbuildinfo
+apps/mobile/android/.kotlin/
 
 # Test coverage
 coverage/

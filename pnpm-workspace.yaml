@@ -68,3 +68,20 @@ overrides:
 
 minimumReleaseAgeExclude:
   - expo-iap@6.0.0
+  - '@expo/cli@58.1.13'
+  - '@expo/metro-config@58.0.15'
+  - '@expo/router-server@58.0.15'
+  - '@expo/ui@58.0.21'
+  - babel-preset-expo@58.0.18
+  - expo-app-intents@0.5.10
+  - expo-asset@58.0.17
+  - expo-file-system@58.0.10
+  - expo-font@58.0.9
+  - expo-image@58.0.16
+  - expo-localization@58.0.5
+  - expo-media-library@58.0.11
+  - expo-modules-cli@0.3.1
+  - expo-modules-core@58.0.23
+  - expo-modules-jsi@58.0.16
+  - expo-widgets@58.0.21
+  - expo@58.0.16

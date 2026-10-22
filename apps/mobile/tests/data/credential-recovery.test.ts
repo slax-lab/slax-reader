@@ -25,6 +25,35 @@ test('same-account reauthentication preserves its admitted owner and offline pre
   assert.throws(obsolete, SessionChangedError);
 });
 
+test('rejected credentials can drop the session without clearing local data', async () => {
+  const storage = new MemoryPreferences({...sessionValues(), pending_fixture: 'preserved'});
+  const leaves: [string | null, boolean][] = [];
+  const sessions = new SessionController(new PreferenceStore(storage), {enter: async () => {}, leave: async (userId, clear) => {leaves.push([userId, clear]);}});
+  await sessions.restore();
+  await sessions.signOut(false);
+  assert.deepEqual(leaves, [['123456', false]]);
+  assert.equal(storage.values.auth_token, undefined);
+  assert.equal(storage.values.user_id, undefined);
+  assert.equal(storage.values.pending_fixture, 'preserved');
+  assert.equal(sessions.getSnapshot().status, 'unauthenticated');
+});
+
+test('login after retaining signed-out data clears the previous account before admitting another owner', async () => {
+  const storage = new MemoryPreferences(sessionValues());
+  const events: unknown[] = [];
+  const sessions = new SessionController(new PreferenceStore(storage), {
+    enter: async session => {events.push(['enter', session.userId]);},
+    leave: async (userId, clear) => {events.push(['leave', userId, clear]);},
+  });
+  await sessions.restore();
+  await sessions.signOut(false);
+  await sessions.accept('other-token', 'other');
+  assert.deepEqual(events, [
+    ['enter', '123456'], ['leave', '123456', false], ['leave', null, true], ['enter', 'other'],
+  ]);
+  assert.equal((await sessions.getSession())?.userId, 'other');
+});
+
 test('a different provider account cannot replace rejected credentials or offline state', async () => {
   const storage = new MemoryPreferences(sessionValues());
   const sessions = new SessionController(new PreferenceStore(storage), {enter: async () => {}, leave: async () => assert.fail('Reauthentication must not clear data')});

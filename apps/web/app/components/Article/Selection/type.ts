@@ -6,7 +6,9 @@ export enum MenuType {
   Stroke = 'stroke',
   Stroke_Delete = 'stroke_delete',
   Comment = 'comment',
-  Chatbot = 'chatbot'
+  Chatbot = 'chatbot',
+  // Podcast: play the audio from the start of the selected paragraph
+  Listen = 'listen'
 }
 
 export interface MarkItemInfo {

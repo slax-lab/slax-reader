@@ -19,6 +19,14 @@ export interface BookmarkRecord {
   contentType?: 'article' | 'shortcut' | 'pdf';
 }
 
+export type LibraryBookmark = Pick<BookmarkRecord, 'id' | 'aliasTitle' | 'title' | 'url' | 'status' | 'archiveStatus' | 'isStarred' | 'downloadStatus'>;
+
+/** Minimal local projection used by opted-in OS search; article bodies and notes are never read. */
+export interface SystemCatalogBookmark {
+  id: string; title: string; aliasTitle: string; url: string; status: string; createdAt: string; archiveStatus: number;
+}
+
+
 export interface TagRecord {
   id: string;
   tag_name: string;
@@ -102,3 +110,5 @@ export interface CommentWatchOptions {
   collectionOwnerId?: string;
   enabled?: boolean;
 }
+
+export type LibraryCollection = Pick<CollectionRecord, 'id' | 'name' | 'avatar' | 'ownerId' | 'status' | 'subscriptionEndTime' | 'hasNew'>;

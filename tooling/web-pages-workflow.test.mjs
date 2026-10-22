@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { selectScopes } from './ci-scope.mjs'
 
 const require = createRequire(import.meta.url)
 const { load } = createRequire(require.resolve('rulesync'))('js-yaml')
@@ -61,13 +62,16 @@ test('only the guarded publish step receives a Cloudflare Secret', () => {
   assert.ok(job.steps.some(step => step.run === 'node tooling/web-pages-deploy.mjs build'))
 })
 
-test('trigger and freshness scopes agree and frontend CI covers release workflow changes', () => {
+test('trigger and freshness scopes agree and tooling CI covers release workflow changes', () => {
   const diff = freshness.run.split('changed=$(git diff --name-only')[1].split(')')[0]
   const paths = [...diff.matchAll(/'([^']+)'/g)].map(match => match[1])
   assert.deepEqual(paths.sort(), [...workflow.on.pull_request_target.paths].sort())
   assert.ok(!paths.some(path => path.startsWith('apps/api/') || path.startsWith('apps/extension/') || path.startsWith('docs/')))
-  const frontend = load(readFileSync(new URL('../.github/workflows/frontend-ci.yml', import.meta.url), 'utf8'))
-  for (const trigger of ['pull_request', 'push']) assert.ok(frontend.on[trigger].paths.includes('.github/workflows/web-deploy.yml'))
+  const tooling = load(readFileSync(new URL('../.github/workflows/tooling-ci.yml', import.meta.url), 'utf8'))
+  assert.deepEqual(Object.keys(tooling.on).sort(), ['pull_request', 'workflow_call'])
+  assert.equal(tooling.on.pull_request, null)
+  assert.equal(selectScopes(['.github/workflows/web-deploy.yml']).scopes.tooling, true)
+  assert.ok(tooling.jobs.check.steps.some(step => step.run === 'pnpm test:preflight'))
   const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   assert.match(manifest.scripts['test:preflight'], /tooling\/web-pages-deploy\.test\.mjs/)
   assert.match(manifest.scripts['test:preflight'], /tooling\/web-pages-workflow\.test\.mjs/)

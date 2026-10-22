@@ -9,6 +9,7 @@ import kotlin.concurrent.thread
 
 private class Request(val payload: String, val blockHeaders: Boolean = false) {
   val opened = CountDownLatch(1)
+  val calls = java.util.concurrent.atomic.AtomicInteger()
   val headers = CountDownLatch(if (blockHeaders) 1 else 0)
   var disconnected = false
 }
@@ -16,18 +17,19 @@ private val requests = mutableMapOf<String, Request>()
 private fun await(latch: CountDownLatch) { check(latch.await(5, TimeUnit.SECONDS)) { "Fixture concurrency checkpoint timed out" } }
 private fun prepare(root: File, path: String, request: Request): SlaxResources {
   requests[path] = request
-  return SlaxResources(Context(root)).apply { cacheKey = "account-article"; security = SlaxReaderSecurity(listOf("auth.example", "localhost")) }
+  return SlaxResources(Context(root)).apply { resourceOwner = "synthetic-owner"; cacheKey = "account-article"; security = SlaxReaderSecurity(listOf("auth.example", "localhost")) }
 }
 private fun cacheFiles(root: File) = File(root, "bookmark").walkTopDown().filter { it.isFile }.toList()
 
 fun main() {
+  SlaxStorageOwner.activate("synthetic-owner")
   val server = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress("127.0.0.1", 0), 0)
   server.executor = java.util.concurrent.Executors.newCachedThreadPool { work -> Thread(work).apply { isDaemon = true } }
   server.createContext("/") { exchange ->
     val request = requests[exchange.requestURI.path]
     if (request == null) { exchange.sendResponseHeaders(404, -1); exchange.close() }
     else {
-      request.opened.countDown(); await(request.headers)
+      request.calls.incrementAndGet(); request.opened.countDown(); await(request.headers)
       check(exchange.requestHeaders.getFirst("Cookie") == null && exchange.requestHeaders.getFirst("Authorization") == null)
       exchange.responseHeaders.add("Content-Type", "image/jpeg")
       exchange.responseHeaders.add("Set-Cookie", "untrusted=synthetic; Path=/")
@@ -70,14 +72,19 @@ fun main() {
     override fun get(uri: java.net.URI, headers: Map<String, List<String>>): Map<String, List<String>> { globalCookieReads++; return mapOf("Cookie" to listOf("token=synthetic")) }
     override fun put(uri: java.net.URI, headers: Map<String, List<String>>) { error("Private Reader network wrote global cookies") }
   })
-  val root = Files.createTempDirectory("slax-native-resources-host-").toFile()
+  val root = Files.createTempDirectory("slax-native-resources-host-").toFile().canonicalFile
   try {
     val normalRoot = File(root, "normal").apply { mkdirs() }
+    val orphan = File(normalRoot, "cache/slax-image-transfers/process-0000").apply {mkdirs()}
+    File(orphan, "partial.tmp").writeText("incomplete")
+    val protectedFile = File(root, "protected-file").apply {writeText("keep")}
+    Files.createSymbolicLink(File(orphan, "link").toPath(), protectedFile.toPath())
+    val unrelated = File(normalRoot, "cache/slax-image-transfers/operator-state").apply {writeText("keep")}
     val signedPolicy = SlaxReaderSecurity(listOf("localhost"), listOf("http://localhost:${server.address.port}"))
     val signed = "http://localhost:${server.address.port}/static/image?m=rss&d=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&u=https%253A%252F%252Fpublic.test%252Fa.png&r=https%3A%2F%2Ffeed.test%2Fa"
     check(signedPolicy.imageOriginal(signed) != null && !signedPolicy.allows(signed))
     check(signedPolicy.imageOriginal(signed + "&d=bad") == null)
-    val proxy = SlaxResources(Context(normalRoot)).apply { security = signedPolicy }
+    val proxy = SlaxResources(Context(normalRoot)).apply { resourceOwner = "synthetic-owner"; security = signedPolicy }
     check(proxy.intercept(signed)!!.data.readBytes().isEmpty())
     proxy.intercept(signed, privateImage = true)!!.data.use { check(it.readBytes().contentEquals(byteArrayOf(1, 2, 3))) }
     val mediaUrl = signed.replace("http:", "slaxmedia:").replace("m=rss&", "")
@@ -93,11 +100,6 @@ fun main() {
     unsatisfied.data.close()
     val slowMedia = proxy.intercept(mediaUrl + "slow", mapOf("Range" to "bytes=2-5"))!!.data
     check(slowMedia.read() >= 0); proxy.close(); check(runCatching { slowMedia.readBytes() }.isFailure)
-    val promise = expo.modules.kotlin.Promise()
-    SlaxReaderImages.load(Context(normalRoot), "signed-image", signed, "synthetic-owner", listOf("localhost"), listOf("http://localhost:${server.address.port}"), promise)
-    val deadline = System.currentTimeMillis() + 5000
-    while (promise.value == null && promise.error == null && System.currentTimeMillis() < deadline) Thread.sleep(5)
-    check(promise.value == "AQID" && promise.error == null)
     val normal = prepare(normalRoot, "/normal.jpg", Request("complete-image"))
     normal.intercept("slaxstatic://$host/normal.jpg")!!.data.use { check(String(it.readBytes()) == "complete-image") }
     check(cacheFiles(normalRoot).single().readText() == "complete-image")
@@ -118,6 +120,14 @@ fun main() {
     normal.intercept("slaxstatic://$host/missing-mime")!!.data.use { check(it.readBytes().contentEquals(byteArrayOf(1, 2, 3))) }
     for (path in listOf("/not-image", "/too-large", "/missing-mime")) normal.intercept("http://$host$path", privateImage = true)!!.data.use { check(it.readBytes().isEmpty()) }
     check(protectedRequests == 0 && globalCookieReads == 0)
+    check(!orphan.exists() && unrelated.readText() == "keep" && protectedFile.readText() == "keep")
+    val priorFiles = cacheFiles(normalRoot).size
+    val preferences = File(normalRoot, "files/slax.preferences.v1.json").apply {parentFile.mkdirs(); writeText("{\"values\":{\"download_images\":0}}")}
+    requests["/no-retain.png"] = Request("visible-without-offline-retention")
+    normal.intercept("slaxstatic://$host/no-retain.png")!!.data.use {check(String(it.readBytes()) == "visible-without-offline-retention")}
+    check(cacheFiles(normalRoot).size == priorFiles)
+    normal.intercept("slaxstatic://$host/normal.jpg")!!.data.use {check(String(it.readBytes()) == "complete-image")}
+    preferences.delete()
     SlaxResources(Context(normalRoot)).intercept("http://$host/normal.jpg")!!.data.use { check(it.readBytes().isEmpty()) }
     normal.close()
 
@@ -126,9 +136,10 @@ fun main() {
     val stream = streaming.intercept("slaxstatic://$host/stream.jpg")!!.data
     check(stream.read() >= 0)
     streaming.close()
-    check(cacheFiles(streamRoot).isEmpty()) { "A revoked partial download survived" }
+    check(cacheFiles(streamRoot).single().readText() == "unfinished-image") { "A fully verified download must survive page closure" }
     File(streamRoot, "bookmark").deleteRecursively()
-    runCatching { stream.readBytes(); stream.close() }
+    check(runCatching { stream.readBytes() }.isFailure)
+    stream.close()
     check(!File(streamRoot, "bookmark").exists()) { "A revoked stream recreated the cache" }
 
     val delayedRoot = File(root, "delayed").apply { mkdirs() }
@@ -150,7 +161,7 @@ fun main() {
     check(afterClose.isEmpty()) { "A permanently closed handler accepted another request" }
     var activeOwner = "b"
     val lateViewRoot = File(root, "late-view").apply { mkdirs() }
-    val lateView = SlaxResources(Context(lateViewRoot)) { activeOwner == "a" }.apply { cacheKey = "account-article"; security = SlaxReaderSecurity(listOf("auth.example", "localhost")) }
+    val lateView = SlaxResources(Context(lateViewRoot)) { activeOwner == "a" }.apply { resourceOwner = "synthetic-owner"; cacheKey = "account-article"; security = SlaxReaderSecurity(listOf("auth.example", "localhost")) }
     lateView.intercept("slaxstatic://$host/unexpected.jpg")!!.data.use { check(it.readBytes().isEmpty()) }
     check(!File(lateViewRoot, "bookmark").exists()) { "A late old-account view accepted the new owner" }
     activeOwner = "a"
@@ -161,7 +172,7 @@ fun main() {
     lateView.close()
     val legacyRoot = File(root, "legacy").apply { mkdirs() }
     var legacyOwner = true
-    val legacy = SlaxResources(Context(legacyRoot)) { legacyOwner }.apply { cacheKey = "collection-owner-article"; security = SlaxReaderSecurity(listOf("auth.example", "localhost")) }
+    val legacy = SlaxResources(Context(legacyRoot)) { legacyOwner }.apply { resourceOwner = "synthetic-owner"; cacheKey = "collection-owner-article"; security = SlaxReaderSecurity(listOf("auth.example", "localhost")) }
     fun legacyFile(url: String): File {
       val hash = java.security.MessageDigest.getInstance("MD5").digest(url.toByteArray()).joinToString("") { "%02x".format(it.toInt() and 255) }
       val ext = url.substringAfterLast('.', "").substringBefore('?').substringBefore('&').take(10).lowercase().ifEmpty { "jpg" }
@@ -222,6 +233,41 @@ fun main() {
     check(pdfBridge(legacyRoot.path, pdfPath) == null)
     pdfFiles.delete()
     legacy.close()
-    println("Production Kotlin resources: legacy nested reads, symlink/traversal isolation, cache writes, revocation, and permanent close passed (host JVM only).")
+    fun moduleRequest(context: Context, key: String, url: String): Pair<expo.modules.kotlin.Promise, () -> Unit> {
+      val module = SlaxImageModule().apply {appContext.reactContext = context}.definition()
+      val id = module.synchronous["begin"]!!(arrayOf("synthetic-owner")) as String
+      val promise = expo.modules.kotlin.Promise()
+      module.functions["resolve"]!!(arrayOf("synthetic-owner", id, mapOf("directory" to context.dataDir.path, "key" to key, "url" to url,
+        "hosts" to listOf("auth.example", "localhost"), "proxies" to emptyList<String>(), "allowNetwork" to true, "strict" to true), promise))
+      return promise to {module.synchronous["end"]!!(arrayOf("synthetic-owner", id))}
+    }
+    fun waitingForImageCache() {
+      repeat(200) {
+        if (Thread.getAllStackTraces().any { (worker, trace) -> worker.name == "SlaxImageCache" && trace.any {frame -> frame.className.endsWith("SlaxImageRegistry\$Consumer") && frame.methodName == "await"} }) return
+        Thread.sleep(5)
+      }
+      error("Native image consumer did not join")
+    }
+    val sharedRoot = File(root, "shared-webview").apply {mkdirs()}
+    val sharedRequest = Request("one-shared-transfer", blockHeaders = true)
+    val web = prepare(sharedRoot, "/shared-webview.png", sharedRequest)
+    var webResult = ""
+    val webThread = thread {web.intercept("slaxstatic://$host/shared-webview.png")!!.data.use {webResult = String(it.readBytes())}}
+    await(sharedRequest.opened)
+    val (sharedPromise, endShared) = moduleRequest(Context(sharedRoot), "account-article", "http://$host/shared-webview.png")
+    waitingForImageCache(); sharedRequest.headers.countDown(); webThread.join(5000); sharedPromise.await(); endShared()
+    check(!webThread.isAlive && webResult == "one-shared-transfer" && sharedRequest.calls.get() == 1)
+    val sharedFile = File(java.net.URI((sharedPromise.value as Map<*, *>)["uri"] as String))
+    check(sharedFile.readText() == webResult); web.close()
+    val retainedRequest = Request("retained-after-web-close", blockHeaders = true)
+    val transient = prepare(sharedRoot, "/retained-webview.png", retainedRequest)
+    val transientThread = thread {transient.intercept("slaxstatic://$host/retained-webview.png")!!.data.use {check(it.readBytes().isEmpty())}}
+    await(retainedRequest.opened)
+    val (retainedPromise, endRetained) = moduleRequest(Context(sharedRoot), "retained-article", "http://$host/retained-webview.png")
+    waitingForImageCache(); transient.close(); retainedRequest.headers.countDown(); transientThread.join(5000); retainedPromise.await(); endRetained()
+    check(!transientThread.isAlive && retainedRequest.calls.get() == 1)
+    check(File(java.net.URI((retainedPromise.value as Map<*, *>)["uri"] as String)).readText() == "retained-after-web-close")
+    SlaxImageResources.registry(Context(sharedRoot)).close().get(5, TimeUnit.SECONDS)
+    println("Production Kotlin resources: shared WebView/module transfers, independent cancellation, legacy paths, media, revocation and close passed (host JVM only).")
   } finally { java.net.CookieHandler.setDefault(previousCookies); server.stop(0); root.deleteRecursively() }
 }

@@ -21,7 +21,7 @@ const lifecycle = {disposed: false, failed: false, active: true, generation: 0}
 let documentReady = false
 const ports: PdfRuntimePorts = {lifecycle, post, emit, error}
 const transport = createPdfTransport(options, host.__SLAX_PDF_ASSETS__, ports)
-const pages = createPdfPages(root, options, {...ports, clearSelection: () => selection.clear(), drawMarks: number => marks.drawPage(number)})
+const pages = createPdfPages(root, options, {...ports, clearSelection: () => selection.clear(), drawMarks: number => {marks.drawPage(number); post({kind: 'painted', page: number})}})
 const marks = createPdfMarks(root, options, {emit, getPage: pages.getPage, pageNumbers: pages.pageNumbers})
 const selection = createPdfSelection(root, options, {...ports, getViewport: number => pages.getPage(number)?.viewport, findMark: marks.find})
 
@@ -68,6 +68,12 @@ host.__slaxPdfReceive = message => {
   if (message.kind === 'lifecycle' && typeof message.active === 'boolean') {setActive(message.active); return}
   if (message.kind === 'viewport' && options.hostViewport && typeof message.offset === 'number' && Number.isFinite(message.offset) && typeof message.height === 'number' && Number.isFinite(message.height) && message.height > 0) {
     pages.layout.setViewport(message.offset, message.height)
+    return
+  }
+  if (message.kind === 'layout' && (message.mode === 'single' || message.mode === 'spread')) {
+    const paneWidth = typeof message.paneWidth === 'number' && Number.isFinite(message.paneWidth) ? message.paneWidth : 0
+    const gutter = typeof message.gutter === 'number' && Number.isFinite(message.gutter) ? message.gutter : 12
+    pages.setPresentation(message.mode, paneWidth, gutter)
     return
   }
   if (!lifecycle.active && message.kind !== 'command') return

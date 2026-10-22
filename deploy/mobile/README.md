@@ -27,6 +27,22 @@ The root `pnpm mobile -- <command>` entry loads `deploy/mobile/.env` for native 
 
 Tests, type checking, JavaScript bundle checks, and controlled fixture projects skip local configuration. Set `SLAX_MOBILE_NO_LOCAL_CONFIG=1` to explicitly disable local discovery for another invocation. A native command with no local files retains the unconfigured development path; signed releases still reject missing credentials and invalid version metadata.
 
+## Development session
+
+`pnpm mobile -- dev`, `pnpm mobile -- ios`, and `pnpm mobile -- android` optionally point the development bundle at a LAN API, PowerSync instance, and the human's test account:
+
+```dotenv
+SLAX_MOBILE_DEV_API_URL=http://192.168.1.10:8787
+SLAX_MOBILE_DEV_POWERSYNC_URL=http://192.168.1.10:18080
+SLAX_MOBILE_DEV_TOKEN=<reader session JWT>
+# Optional; defaults to the API hostname on port 3000.
+SLAX_MOBILE_DEV_WEB_URL=http://192.168.1.10:3000
+```
+
+Set all three required keys together. Without them, development keeps the normal provider sign-in and default origins. With only some of them, the development command stops with the missing key instead of silently mixing origins. A complete session replaces the API, beta API, web, and PowerSync origins in the development bundle, installs the supplied session through the normal account lifecycle before protected requests, and relays LAN addresses to the matching loopback services on this machine. Changing `SLAX_MOBILE_DEV_API_URL` signs out and clears the local account data on the next development start instead of migrating it to the new origin; reusing the same origin keeps the existing local database. Development starts also use the native fresh-storage slot: they open the current React Native database directory directly without scanning legacy Kotlin files, running adoption/upgrade verification, or taking the exclusive cross-process ownership lease. That lets a JS hot reload reopen the database instead of failing on a stale native lease. Rebuild the native app once after this tooling change to install the updated method; release builds keep the full adoption barrier and ownership lease. The relay rewrites the forwarded `Host` header to `localhost` so local API host routing accepts requests that arrive through the LAN address. The token never enters `EXPO_PUBLIC_*` variables or tracked files; Metro keeps a private generated copy under ignored `.local/mobile-development/`.
+
+- The session affects only development-serving commands: `dev`, `ios`, and `android`. Their Release variants (`--configuration Release`, `--variant release`, `--release`) and build, configuration, bundle, test, and fixture commands ignore these keys even when they are present. Restart the development command after changing the keys; Metro reads the session when it starts. Remove the keys to return to the normal defaults; the app then requires a regular sign-in for the selected environment. The supplied credential is personal debugging input: do not commit it or reuse it for release builds.
+
 Maintain public version metadata in `apps/mobile/package.json`, independently of this local directory:
 
 ```json

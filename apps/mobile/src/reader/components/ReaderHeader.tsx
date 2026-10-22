@@ -1,4 +1,4 @@
-import React from 'react'
+import React, {useSyncExternalStore} from 'react'
 import {Animated, Pressable, StyleSheet, View} from 'react-native'
 import type {RssEntryDetail} from '@slax-reader/contracts'
 import type {PdfDescriptor} from '@slax-reader/contracts/pdf'
@@ -9,8 +9,10 @@ import {mobileColors as C, mobileTypography as T} from '../../theme'
 import {OverviewExcerpt} from '../OverviewViews'
 import {sourceDisplayTime} from '../model'
 import type {Translate} from '../state/types'
+import type {FeatureState} from '../state/feature-state'
 
-export function ReaderHeaderMore({visible, offset, t, onPress}: {visible: boolean; offset: Animated.Value; t: Translate; onPress(): void}) {
+export function ReaderHeaderMore({visibility, offset, t, onPress}: {visibility: FeatureState<boolean>; offset: Animated.Value; t: Translate; onPress(): void}) {
+  const visible = useSyncExternalStore(visibility.subscribe, visibility.getSnapshot)
   return <Animated.View testID="reader-header-more-container" pointerEvents={visible ? 'auto' : 'none'} accessibilityElementsHidden={!visible}
     importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'} collapsable={false} style={{width: 48, height: 44, transform: [{translateY: offset}]}}>
     <Pressable testID="reader-header-more" accessibilityRole="button" accessibilityLabel={t('detail_toolbar_share')} onPress={onPress}
@@ -40,7 +42,7 @@ export function RssReaderHeader({top, rss, error, originalUrl, saveButton, t, on
 }
 
 export function ReaderHeader({top, title, record, pdf, isPdf, originalUrl, isCollection, selectedTags, overview, t, onOriginal, onTags, onOverview}: {
-  top: number; title: string; record: BookmarkRecord | null; pdf: PdfDescriptor | null; isPdf: boolean; originalUrl: string; isCollection: boolean; selectedTags: TagRecord[]; overview: string; t: Translate; onOriginal(): void; onTags(): void; onOverview(): void
+  top: number; title: string; record: BookmarkRecord | null; pdf: PdfDescriptor | null; isPdf: boolean; originalUrl: string; isCollection: boolean; selectedTags: TagRecord[]; overview: React.ReactNode; t: Translate; onOriginal(): void; onTags(): void; onOverview(): void
 }) {
   return <View style={[styles.header, {paddingTop: top + 44}]} testID="reader-article-header">
     <SourceText numberOfLines={3} style={T.detailTitle}>{title}</SourceText>
@@ -48,7 +50,7 @@ export function ReaderHeader({top, title, record, pdf, isPdf, originalUrl, isCol
       {!isPdf || originalUrl ? <Pressable testID="reader-original" onPress={onOriginal} accessibilityRole="link"><SourceText style={[T.metadata, {color: C.link, marginLeft: 16}]}>{t('detail_view_original')}</SourceText></Pressable> : null}</View>
     {!isCollection ? <View style={styles.tags}>{selectedTags.map(tag => <View testID="tag_item" style={styles.tag} key={tag.id}><SourceText style={{fontSize: 12, lineHeight: 18, color: '#A68F5B'}}>{tag.tag_name}</SourceText></View>)}
       <Pressable accessibilityRole="button" accessibilityLabel={t('tags_title')} onPress={onTags} style={[styles.tag, {width: 21, height: 21, paddingHorizontal: 0, alignItems: 'center', justifyContent: 'center'}]}><SourceIcon name="ic_xs_yellow_plus" size={8} /></Pressable></View> : null}
-    <OverviewExcerpt content={overview} prefix={t('overview_prefix')} onPress={onOverview} />
+    {typeof overview === 'string' ? <OverviewExcerpt content={overview} prefix={t('overview_prefix')} onPress={onOverview} /> : overview}
   </View>
 }
 

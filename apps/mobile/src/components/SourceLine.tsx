@@ -1,6 +1,6 @@
 import React, {useState} from 'react';
 import {Platform, useWindowDimensions, type StyleProp, type ViewProps, type ViewStyle} from 'react-native';
-import {requireNativeViewManager} from 'expo-modules-core';
+import {requireNativeView} from 'expo';
 import {SourceText} from './SourceUI';
 
 interface NativeTextProps extends ViewProps {
@@ -9,7 +9,7 @@ interface NativeTextProps extends ViewProps {
   centerAsGroup: boolean;
   onTextMetrics(event: {nativeEvent: {height: number; width: number; text: string; fontSize: number; fontWeight: number; fontScale: number}}): void;
 }
-const NativeText = Platform.OS === 'android' ? requireNativeViewManager<NativeTextProps>('SlaxPlatform', 'SlaxTextView') : null;
+const NativeText = Platform.OS === 'android' ? requireNativeView<NativeTextProps>('SlaxPlatform', 'SlaxTextView') : null;
 
 /** Plain source labels use Android TextPaint and iOS UIKit text with the requested truncation mode. */
 export function SourceLine({text, fontSize, lineHeight, fontWeight = 400, color, alignment = 'left', centerAsGroup = false, fitContent = false, ellipsis = 'end', style, testID}: {

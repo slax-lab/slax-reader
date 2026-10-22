@@ -26,7 +26,7 @@ export interface ReaderNativeContext {
 /** Implemented by application-owned native WebView extensions, not package patches. */
 export interface ReaderNativeAdapter {
   /** Expo host preserves the public WebView imperative/event contract in the new architecture. */
-  HostComponent?: ForwardRefExoticComponent<WebViewProps & RefAttributes<WebView>>
+  HostComponent?: ForwardRefExoticComponent<WebViewProps & RefAttributes<WebView<unknown>>>
   OverlayComponent?: ComponentType<ReaderNativeOverlayProps>
   /** Scheme handlers/interception and selection subclassing must exist before view creation. */
   nativeConfig(context: ReaderNativeContext): WebViewProps['nativeConfig']

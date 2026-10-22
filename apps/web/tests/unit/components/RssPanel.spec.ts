@@ -27,8 +27,14 @@ vi.mock('~/composables/useRss', async importOriginal => ({
   useRss: () => rss
 }))
 vi.mock('~/stores/user', () => ({ useUserStore: () => ({ userInfo: { userId: 1 } }) }))
-vi.mock('~/composables/useLabFeatures', () => ({
-  useLabFeatures: () => ({ loaded: Vue.ref(true), isEnabled: () => true, fetch: vi.fn().mockResolvedValue(undefined) })
+let labs: any
+vi.mock('~/composables/useLabFeatures', () => ({ useLabFeatures: () => labs }))
+let localDatabase: any
+const presence = Vue.ref<any[]>([])
+vi.mock('@powersync/vue', () => ({ useQuery: () => ({ data: presence, isLoading: Vue.ref(false), error: Vue.ref(undefined) }) }))
+vi.mock('~/composables/rss/useRssLocalState', () => ({
+  rssLocalDatabase: () => localDatabase,
+  rssLocalOwned: () => Vue.computed(() => true)
 }))
 vi.mock('~/composables/bookmark/useSidebarCollapsed', () => ({ useSidebarCollapsed: () => ({ collapsed: Vue.ref(false) }) }))
 const mounted: ReturnType<typeof mount>[] = []
@@ -54,6 +60,9 @@ const entry = {
   image_url: null
 }
 beforeEach(() => {
+  labs = { loaded: Vue.ref(true), isEnabled: () => true, fetch: vi.fn().mockResolvedValue(undefined) }
+  localDatabase = null
+  presence.value = []
   vi.spyOn(HTMLDialogElement.prototype, 'showModal').mockImplementation(function (this: HTMLDialogElement) {
     this.setAttribute('open', '')
   })
@@ -109,6 +118,27 @@ describe('RSS inside Inbox', () => {
     expect(buttons.slice(0, 3).map(button => button.text())).toEqual(['page.bookmarks_index.inbox', 'rss.title', 'page.bookmarks_index.starred'])
     await buttons[1].trigger('click')
     expect(wrapper.emitted('changeTab')?.[0]).toEqual(['rss', 1])
+  })
+  it('shows RSS from local rows before the laboratory response and hides it once disabled', async () => {
+    const enabled = Vue.ref(false)
+    labs = { loaded: Vue.ref(false), isEnabled: () => enabled.value, fetch: vi.fn().mockRejectedValue(new Error('offline')) }
+    localDatabase = {}
+    presence.value = [{ present: 1 }]
+    const wrapper = mount(TabsSidebar, { global: { mocks: { $t: translate } } })
+    mounted.push(wrapper)
+    await flushPromises()
+    expect(wrapper.findAll('button').map(button => button.text())).toContain('rss.title')
+    labs.loaded.value = true
+    await Vue.nextTick()
+    expect(wrapper.findAll('button').map(button => button.text())).not.toContain('rss.title')
+  })
+  it('keeps RSS hidden without a laboratory response or local rows', async () => {
+    labs = { loaded: Vue.ref(false), isEnabled: () => true, fetch: vi.fn().mockRejectedValue(new Error('offline')) }
+    localDatabase = {}
+    const wrapper = mount(TabsSidebar, { global: { mocks: { $t: translate } } })
+    mounted.push(wrapper)
+    await flushPromises()
+    expect(wrapper.findAll('button').map(button => button.text())).not.toContain('rss.title')
   })
   it('reuses Inbox layout controls and keeps article nodes while refreshing or switching tabs', async () => {
     const wrapper = panel(),

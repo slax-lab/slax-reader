@@ -1,0 +1,42 @@
+name: Ready-for-review label
+
+# Companion to the review gate. The `ready-for-human-review` label is the explicit
+# "automated checks finished with no blocker" state consumed by the Feishu
+# notification bridge, so the group is told about a human review only when one can
+# actually start.
+#
+# The gate adds the label, and only for an open, non-draft pull request whose head
+# lives in this repository. This workflow only drops it, whenever the verified
+# state no longer applies. A missing label is the normal path and must never fail
+# anything: most pushes happen while the pull request is not ready.
+#
+# Fork pull requests receive a read-only token here, so the delete fails silently.
+# That is harmless: the gate never labels a fork pull request, and the bridge
+# ignores non-team authors.
+
+on:
+  pull_request:
+    types: [synchronize, reopened, ready_for_review, converted_to_draft, closed]
+
+permissions:
+  # Labels are written through the issues API, but on a pull request only
+  # `pull-requests: write` authorises the write; `issues: write` alone is
+  # rejected with "Resource not accessible by integration" (HTTP 403).
+  pull-requests: write
+
+jobs:
+  drop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Drop the ready-for-human-review label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          LABEL: ready-for-human-review
+        run: |
+          set -euo pipefail
+          # 404 means the label is not on the pull request; that is expected on
+          # most events. Anything else is also ignored: the gate re-adds the label
+          # when the next verdict passes, and a stale label is never a gate.
+          gh api -X DELETE "repos/$REPO/issues/$PR/labels/$LABEL" > /dev/null 2>&1 || true

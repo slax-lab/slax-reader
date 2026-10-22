@@ -1,1 +1,0 @@
-/usr/local/bin/node node_modules/expo/bin/cli start --dev-client --port 8083 --max-workers 1

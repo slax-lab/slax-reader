@@ -1,3 +1,4 @@
+import CryptoKit
 import ExpoModulesCore
 import WebKit
 import UIKit
@@ -40,18 +41,43 @@ private enum SlaxReaderRuleLists {
     return cache
   }()
   private static var pending: [String: [(WKContentRuleList?, Error?) -> Void]] = [:]
+  private static var pruned = false
+  // Compiled lists persist across launches under a content-derived name. A new build gets a new prefix,
+  // so a stale list is never reused and previous builds' lists are removed once, never the current ones.
+  private static let prefix: String = {
+    let info = Bundle.main.infoDictionary
+    let build = "\(info?["CFBundleShortVersionString"] as? String ?? "0")-\(info?["CFBundleVersion"] as? String ?? "0")"
+    return "slax-reader-rules-\(build.replacingOccurrences(of: "[^A-Za-z0-9.-]", with: "_", options: .regularExpression))-"
+  }()
+  private static func ruleListName(_ rules: String) -> String {
+    prefix + SHA256.hash(data: Data(rules.utf8)).map { String(format: "%02x", $0) }.joined()
+  }
 
   static func load(_ rules: String, completion: @escaping (WKContentRuleList?, Error?) -> Void) {
     if let cached = cache.object(forKey: rules as NSString) { completion(cached, nil); return }
     if pending[rules] != nil { pending[rules]?.append(completion); return }
     pending[rules] = [completion]
-    let identifier = "slax-reader-\(UUID().uuidString)"
-    WKContentRuleListStore.default().compileContentRuleList(forIdentifier: identifier, encodedContentRuleList: rules) { list, error in
+    let name = ruleListName(rules)
+    let store: WKContentRuleListStore = WKContentRuleListStore.default()
+    let finish: (WKContentRuleList?, Error?) -> Void = { list, error in
       DispatchQueue.main.async {
-        WKContentRuleListStore.default().removeContentRuleList(forIdentifier: identifier) { _ in }
         if let list, error == nil { cache.setObject(list, forKey: rules as NSString) }
         let callbacks = pending.removeValue(forKey: rules) ?? []
         callbacks.forEach { $0(list, error) }
+        pruneOtherBuilds(store)
+      }
+    }
+    store.lookUpContentRuleList(forIdentifier: name) { stored, _ in
+      if let stored { finish(stored, nil); return }
+      store.compileContentRuleList(forIdentifier: name, encodedContentRuleList: rules, completionHandler: finish)
+    }
+  }
+  private static func pruneOtherBuilds(_ store: WKContentRuleListStore) {
+    guard !pruned else { return }
+    pruned = true
+    store.getAvailableContentRuleListIdentifiers { identifiers in
+      for stale in identifiers ?? [] where stale.hasPrefix("slax-reader-") && !stale.hasPrefix(prefix) {
+        store.removeContentRuleList(forIdentifier: stale) { _ in }
       }
     }
   }
@@ -64,10 +90,11 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
   static func activeReader(pageId: String) -> SlaxReaderView? { activeViews.allObjects.first { !$0.detached && $0.pageId == pageId } }
   static func owns(_ owner: String) -> Bool { activeOwner == owner }
   static func currentOwner() -> String? { activeOwner }
-  static func revokeAllResources() { activeOwner = nil; SlaxReaderImages.cancelAll(); activeViews.allObjects.forEach { $0.detach() } }
+  static func revokeAllResources() { try? SlaxStorageOwner.activate(nil); SlaxPdfTransfers.revokeAll(); SlaxImageModule.revokeAll(); activeOwner = nil; activeViews.allObjects.forEach { $0.detach() } }
   static func activateResources(_ owner: String) throws {
     guard owner.range(of: "^[A-Za-z0-9_-]+$", options: .regularExpression) != nil else { throw NSError(domain: "SlaxPlatform", code: 4, userInfo: [NSLocalizedDescriptionKey: "Invalid Reader owner"]) }
     if activeOwner != nil, activeOwner != owner { revokeAllResources() }
+    if activeOwner != owner { try SlaxStorageOwner.activate(owner) }
     activeOwner = owner
   }
   let onEvent = EventDispatcher()
@@ -91,7 +118,7 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
     if protectedHosts != nil && protectedHosts != hosts { detach(); return }
     protectedHosts = hosts
   }
-  var resourceOwner: String? { didSet { if oldValue != nil, oldValue != resourceOwner { detach() } } }
+  var resourceOwner: String? { didSet { if oldValue != nil, oldValue != resourceOwner { detach() }; resources.resourceOwner = resourceOwner } }
   private var ownsResources: Bool { !detached && !processGone && (resources.isFixture || resourceOwner != nil && resourceOwner == Self.activeOwner) }
   private var loaded: String?; private var detached = false; private var initializedInsets = false
   private var loadedPageId: String?; private var loadedGeneration: String?
@@ -293,7 +320,7 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
     webView.scrollView.setContentOffset(CGPoint(x: 0, y: (initializedInsets ? offset : 0) - top), animated: false)
     initializedInsets = true
   }
-  func detach() { guard !detached else { return }; detached = true; navigationGate.invalidate(); loadedGeneration = nil; cancelEvaluations(); pendingSourceReady = nil; contentSizeObservation = nil; NotificationCenter.default.removeObserver(self); Self.activeViews.remove(self); resources.close(); webView.stopLoading(); webView.configuration.userContentController.removeScriptMessageHandler(forName: "slaxReader"); webView.configuration.userContentController.removeScriptMessageHandler(forName: "NativeBridge"); webView.navigationDelegate = nil; webView.uiDelegate = nil; webView.scrollView.delegate = nil }
+  func detach() { guard !detached else { return }; detached = true; trailingScroll?.cancel(); trailingScroll = nil; navigationGate.invalidate(); loadedGeneration = nil; cancelEvaluations(); pendingSourceReady = nil; contentSizeObservation = nil; NotificationCenter.default.removeObserver(self); Self.activeViews.remove(self); resources.close(); webView.stopLoading(); webView.configuration.userContentController.removeScriptMessageHandler(forName: "slaxReader"); webView.configuration.userContentController.removeScriptMessageHandler(forName: "NativeBridge"); webView.navigationDelegate = nil; webView.uiDelegate = nil; webView.scrollView.delegate = nil }
   private func unexpectedNavigation() {
     guard !processGone else { return }
     emit("error", ["message": "Reader document navigation was rejected", "code": "documentNavigation"])
@@ -335,9 +362,34 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
       security.allows(url), action.navigationType == .linkActivated else { return nil }
     emit("external", ["url": url.absoluteString]); return nil
   }
+  // Native overlays follow every frame. Article JS only needs sampled metrics during a user drag or
+  // fling plus the exact settled offset; PDF virtualization and programmatic scrolls stay per frame.
+  private static let userScrollSampleInterval: CFTimeInterval = 0.05
+  private var lastScrollEmit: CFTimeInterval = 0
+  private var trailingScroll: DispatchWorkItem?
   func scrollViewDidScroll(_ scrollView: UIScrollView) {
     guard !detached, !processGone else { return }
     SlaxReaderOverlayView.update(pageId: pageId, scrollView: scrollView)
+    guard !pdfMode, scrollView.isDragging || scrollView.isDecelerating else { emitScroll(scrollView); return }
+    let elapsed = CACurrentMediaTime() - lastScrollEmit
+    if elapsed >= Self.userScrollSampleInterval { emitScroll(scrollView); return }
+    guard trailingScroll == nil else { return }
+    let work = DispatchWorkItem { [weak self, weak scrollView] in
+      guard let self, let scrollView else { return }
+      self.trailingScroll = nil
+      self.emitScroll(scrollView)
+    }
+    trailingScroll = work
+    DispatchQueue.main.asyncAfter(deadline: .now() + (Self.userScrollSampleInterval - elapsed), execute: work)
+  }
+  func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) { if !decelerate { emitScroll(scrollView) } }
+  func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) { emitScroll(scrollView) }
+  func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) { emitScroll(scrollView) }
+  func scrollViewDidScrollToTop(_ scrollView: UIScrollView) { emitScroll(scrollView) }
+  private func emitScroll(_ scrollView: UIScrollView) {
+    guard !detached, !processGone else { return }
+    trailingScroll?.cancel(); trailingScroll = nil
+    lastScrollEmit = CACurrentMediaTime()
     emit("scroll", ["y": scrollView.contentOffset.y, "contentHeight": scrollView.contentSize.height, "viewportHeight": scrollView.bounds.height, "viewportWidth": scrollView.bounds.width])
   }
 }

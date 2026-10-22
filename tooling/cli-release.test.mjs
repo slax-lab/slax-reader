@@ -130,9 +130,11 @@ test('full validation remains in PR CI and release preparation builds explicitly
   const workflow = readFileSync(new URL('../.github/workflows/cli-release.yml', import.meta.url), 'utf8')
   assert.match(ci, /^  pull_request:/m)
   assert.doesNotMatch(ci, /^  push:/m)
-  for (const command of ['pnpm cli -- typecheck', 'pnpm cli -- test', 'pnpm test:cli-tooling', 'pnpm test:preflight', 'pnpm cli -- test:package']) {
+  for (const command of ['pnpm cli -- typecheck', 'pnpm cli -- test', 'pnpm cli -- test:package']) {
     assert.ok(ci.split('\n').some(line => line.trim() === `- run: ${command}`), command)
   }
+  const tooling = readFileSync(new URL('../.github/workflows/tooling-ci.yml', import.meta.url), 'utf8')
+  for (const command of ['pnpm test:cli-tooling', 'pnpm test:preflight']) assert.ok(tooling.includes(`run: ${command}`))
   assert.doesNotMatch(workflow, /^      - run: pnpm (?:cli -- (?:typecheck|test)|test:cli-tooling|test:preflight)$/m)
   assert.match(workflow, /cli-release.mjs prepare/)
   assert.match(workflow, /cli-release.mjs smoke/)

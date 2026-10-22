@@ -1,5 +1,7 @@
+import type {TextInputInstance} from 'react-native'
 import React, {useEffect, useRef, useState} from 'react'
-import {ActivityIndicator, AppState, Keyboard, Modal, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions} from 'react-native'
+import {ActivityIndicator, AppState, Keyboard, Modal, Pressable, StyleSheet, TextInput, View, FlatList} from 'react-native'
+import {SafeAreaProvider, useSafeAreaFrame, useSafeAreaInsets} from 'react-native-safe-area-context'
 import type {MobileAssetName} from '../../../assets'
 import {SourceAvatar, SourceIcon, SourceText} from '../../components'
 import {mobileColors as C, mobileTypography as T} from '../../theme'
@@ -17,8 +19,7 @@ export function CommentPanel({visible, mark, text, draft, reply, currentUserAvat
   onDraft(value: string): void; onClose(): void; onCopy(): void; onCopyComment(comment: ReaderComment): void; onHighlight(): void; onReply(comment: ReaderComment | null): void;
   onDelete(comment: ReaderComment): void; canDelete(comment: ReaderComment): boolean; onSubmit(): void;
 }) {
-  const viewport = useWindowDimensions(), input = useRef<TextInput>(null)
-  const [menuSize, setMenuSize] = useState({width: 0, height: 32})
+  const input = useRef<TextInputInstance>(null)
   const focusConsumed = useRef(false)
   useEffect(() => {
     if (!visible) {focusConsumed.current = false; return}
@@ -27,11 +28,21 @@ export function CommentPanel({visible, mark, text, draft, reply, currentUserAvat
     const subscription = AppState.addEventListener('change', state => {if (state !== 'active') {clearTimeout(timer); focusConsumed.current = true}})
     return () => {clearTimeout(timer); subscription.remove()}
   }, [visible, autoFocus, allowComment])
-  const allComments = (comments: ReaderComment[]): ReaderComment[] => comments.flatMap(comment => [comment, ...allComments(comment.children)])
-  const selectedComment = visible && menu ? allComments(mark?.comments ?? []).find(comment => comment.markId === menu.markId && !comment.isDeleted) : undefined
+  const flattenedComments = React.useMemo(() => {
+    const rows: {comment: ReaderComment; depth: number}[] = [], seen = new Set<number>()
+    const stack = (mark?.comments ?? []).map(comment => ({comment, depth: 0})).reverse()
+    while (stack.length) {
+      const item = stack.pop()!
+      if (seen.has(item.comment.markId)) continue
+      seen.add(item.comment.markId); rows.push(item)
+      for (let index = item.comment.children.length - 1; index >= 0; index--) stack.push({comment: item.comment.children[index], depth: item.depth + 1})
+    }
+    return rows
+  }, [mark?.comments])
+  const selectedComment = visible && menu ? flattenedComments.find(item => item.comment.markId === menu.markId && !item.comment.isDeleted)?.comment : undefined
   useEffect(() => {if (menu && !selectedComment) onMenu(null)}, [menu, selectedComment, onMenu])
   const stroke = Boolean(mark?.stroke.length)
-  const row = (comment: ReaderComment, child = false): React.ReactNode => <View key={comment.markId} style={child ? {marginLeft: 28} : undefined}>
+  const row = React.useCallback((comment: ReaderComment, child = false): React.ReactElement => <View key={comment.markId} style={child ? {marginLeft: 28} : undefined}>
     <Pressable testID={`reader-comment-${comment.markId}`} accessibilityRole="button" disabled={comment.isDeleted}
       onPress={() => {if (allowComment && !comment.isDeleted) {onReply(comment); input.current?.focus()}}}
       onLongPress={event => {if (!comment.isDeleted) onMenu({markId: comment.markId, x: event.nativeEvent.pageX, y: event.nativeEvent.pageY - event.nativeEvent.locationY})}}
@@ -41,8 +52,9 @@ export function CommentPanel({visible, mark, text, draft, reply, currentUserAvat
         <SourceText numberOfLines={1} style={styles.commentMeta}>{sourceDisplayTime(comment.createdAt) || comment.createdAt}</SourceText>
       </View>
       <SourceText style={{fontSize: 15, lineHeight: 24, color: C.text, marginTop: 8, paddingLeft: 28, paddingRight: 20}}>{comment.isDeleted ? t('comment_panel_deleted') : comment.comment}</SourceText>
-    </Pressable>{comment.children.map(replyComment => row(replyComment, true))}
-  </View>
+    </Pressable>
+  </View>, [allowComment, onReply, onMenu, selectedComment?.markId, hideProfiles, t])
+  const renderComment = React.useCallback(({item}: {item: {comment: ReaderComment; depth: number}}) => row(item.comment, item.depth > 0), [row])
   const action = (name: MobileAssetName, label: string, description: string, press: () => void, loading = false) => <Pressable accessibilityRole="button" accessibilityLabel={description} disabled={loading} accessibilityState={{disabled: loading}} onPress={press} hitSlop={8} style={({pressed}) => [styles.commentAction, {opacity: pressed ? .5 : 1}]}>
     {loading ? <ActivityIndicator size={18} color={C.secondaryText} /> : <SourceIcon name={name} size={20} />}<SourceText style={[T.helper, {color: loading ? '#33333366' : C.secondaryText}]}>{label}</SourceText>
   </Pressable>
@@ -56,7 +68,7 @@ export function CommentPanel({visible, mark, text, draft, reply, currentUserAvat
           {stroke || allowLine ? action(stroke ? 'ic_comment_panel_highlighted' : 'ic_comment_panel_highlight', t(stroke ? 'comment_panel_remove_highlight' : 'comment_panel_highlight'), t(stroke ? 'comment_panel_remove_highlight_desc' : 'comment_panel_add_highlight_desc'), onHighlight, busy) : null}
         </View>
       </View>
-      {mark?.comments.length ? <ScrollView testID="reader-comment-list" style={{flexGrow: 0, flexShrink: 1, backgroundColor: C.surface, borderTopWidth: .5, borderTopColor: '#33333314'}} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" onScrollBeginDrag={() => Keyboard.dismiss()} scrollEnabled={!selectedComment} contentContainerStyle={{paddingBottom: 52}}>{mark.comments.map(comment => row(comment))}</ScrollView> : null}
+      {mark?.comments.length ? <FlatList testID="reader-comment-list" style={{flexGrow: 0, flexShrink: 1, backgroundColor: C.surface, borderTopWidth: .5, borderTopColor: '#33333314'}} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" onScrollBeginDrag={() => Keyboard.dismiss()} scrollEnabled={!selectedComment} contentContainerStyle={{paddingBottom: 52}} data={flattenedComments} extraData={selectedComment?.markId} keyExtractor={item => String(item.comment.markId)} initialNumToRender={12} maxToRenderPerBatch={8} windowSize={5} renderItem={renderComment} /> : null}
       {allowComment ? <View style={styles.commentEditor}>
         <View style={styles.commentInputContainer}>
           {!hideProfiles ? <View style={{paddingTop: 7}}><SourceAvatar uri={currentUserAvatar} size={24} label={t('comment_panel_current_user_avatar')} /></View> : null}
@@ -68,12 +80,23 @@ export function CommentPanel({visible, mark, text, draft, reply, currentUserAvat
     </View>
   </ReaderSheet>
     {selectedComment && menu ? <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={() => onMenu(null)}>
-      <Pressable testID="reader-comment-menu-dismiss" accessible={false} style={StyleSheet.absoluteFill} onPress={() => onMenu(null)} />
-      <View testID="reader-comment-menu" accessibilityViewIsModal onLayout={event => setMenuSize(event.nativeEvent.layout)} style={[styles.commentMenu, {left: Math.max(0, Math.min(menu.x - menuSize.width / 2, viewport.width - menuSize.width)), top: Math.max(0, menu.y - menuSize.height - 8)}]}>
+      <SafeAreaProvider><CommentActionMenu anchor={menu} onDismiss={() => onMenu(null)}>
         <Pressable testID="reader-comment-copy" accessibilityRole="button" onPress={() => {onMenu(null); onCopyComment(selectedComment)}} style={({pressed}) => [styles.commentMenuItem, {backgroundColor: pressed ? C.selectionMenuPressed : 'transparent'}]}><SourceIcon name="ic_menu_action_copy" size={20} /><SourceText style={styles.commentMenuText}>{t('comment_panel_copy')}</SourceText></Pressable>
         {canDelete(selectedComment) ? <Pressable testID="reader-comment-delete" accessibilityRole="button" onPress={() => {onMenu(null); onDelete(selectedComment)}} style={({pressed}) => [styles.commentMenuItem, {backgroundColor: pressed ? C.selectionMenuPressed : 'transparent'}]}><SourceIcon name="ic_comment_panel_delete" size={20} /><SourceText style={styles.commentMenuText}>{t('comment_panel_delete')}</SourceText></Pressable> : null}
-      </View>
+      </CommentActionMenu></SafeAreaProvider>
     </Modal> : null}
+  </>
+}
+function CommentActionMenu({anchor, onDismiss, children}: {anchor: CommentMenuAnchor; onDismiss(): void; children: React.ReactNode}) {
+  const frame = useSafeAreaFrame(), insets = useSafeAreaInsets()
+  const [size, setSize] = useState({width: 0, height: 32})
+  return <>
+    <Pressable testID="reader-comment-menu-dismiss" accessible={false} style={StyleSheet.absoluteFill} onPress={onDismiss} />
+    <View testID="reader-comment-menu" accessibilityViewIsModal onLayout={event => setSize(event.nativeEvent.layout)} style={[styles.commentMenu, {
+      maxWidth: Math.max(0, frame.width - insets.left - insets.right),
+      left: Math.max(insets.left, Math.min(anchor.x - size.width / 2, frame.width - insets.right - size.width)),
+      top: Math.max(insets.top, Math.min(anchor.y - size.height - 8, frame.height - insets.bottom - size.height)),
+    }]}>{children}</View>
   </>
 }
 const styles = StyleSheet.create({

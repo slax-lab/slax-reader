@@ -1,4 +1,5 @@
 import { getElementFullSelector } from '@commons/frontend-utils/dom'
+import { listenStartOf, seekTo } from '~/utils/podcastMedia'
 
 import type { MarkModal } from './modal'
 import { getUUID } from './tools'
@@ -191,9 +192,17 @@ export class DwebArticleSelection extends BaseArticleSelection {
 
       let menusY = 0
       this.rememberMenuSelection(range)
+      // Podcast paragraphs carry their start time: offer "listen from here"
+      const listenMs = this.config.iframe ? null : listenStartOf(range.startContainer)
       this.modal.showMenus({
         event: e,
+        allowListen: listenMs !== null,
         callback: (type: MenuType, event: MouseEvent) => {
+          if (type === ('listen' as MenuType)) {
+            if (listenMs !== null) seekTo(listenMs)
+            this.clearSelection()
+            return
+          }
           const currentInfo = this.currentMarkItemInfo.value
           if (!currentInfo) return
 

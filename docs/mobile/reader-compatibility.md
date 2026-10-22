@@ -48,8 +48,8 @@ not establish native gesture or visual acceptance.
 Outbound sharing uses the application-owned native `shareArticle` interface.
 iOS tries exactly the first two article image candidates, reuses the namespaced
 cache, and accepts an image only when both dimensions exceed 100 pixels. It falls
-back to the source `share_logo` asset. Metro HTTP assets are cached with the
-already approved Expo file API before passing a file URL to native code. Android
+back to the source `share_logo` asset. Metro HTTP assets use the same bounded
+native image URI resolver before passing a file URL to native code. Android
 retains the source text and subject chooser. Share-sheet preview behavior remains
 subject to native validation.
 
@@ -86,9 +86,8 @@ navigation spacer (52 points before RSS content). Native inset includes the
 status padding, while the source header-visibility and near-bottom measurements
 exclude it. The skeleton retains the source title, metadata and six body bars.
 Mounted component regressions cover this separation; the new full-window native
-render still requires a matched capture. The controlled original iOS run in
-`evidence/2026-10-10-source-ios/source-native-launch.json` observed position zero
-despite its saved 240-pixel fixture input. That original initial-callback timing
+render still requires a matched capture. The controlled original iOS run observed
+position zero despite its saved 240-pixel fixture input. That original initial-callback timing
 is recorded as a limitation and does not justify losing the target's saved
 position restoration.
 
@@ -96,15 +95,23 @@ Tag assignment retains the source's draft workflow: adding or removing a chip
 changes the draft until Confirm, while Cancel discards assignment changes. New
 tag creation persists immediately, and later repository acknowledgements
 reconcile the draft. Comment input retains the source's 1,500-character limit.
-Changing article route parameters resets article, annotation, AI and overlay
-state before binding the replacement article.
+Draft and AI stream publications have independent component subscriptions so
+keystrokes and chunks do not rerender the document owner. Threaded comments use
+stable-key virtualized rows. Changing article route parameters resets article,
+annotation, AI and overlay state before binding the replacement article. Optional
+work is gated by route visibility as well as App foreground; permission revocation
+and position persistence remain active. AI preparation waits for document and
+navigation-transition readiness without a fixed minimum content delay.
 
 Outline link escaping and streamed-link buffering are ported from
 `MarkdownHelper.kt`. The outline uses an application-owned Markdown-to-HTML
 renderer in an approved WebView, with headings, links, lists, code, quotes and
-tables. This renderer's typography and edge-case Markdown behavior still require
-comparison with the source Compose Markdown renderer. It is not evidence of
-visual parity.
+tables. The incremental parser retains stable completed blocks and reparses the
+changed tail; the WebView parses/replaces only changed blocks, retaining unchanged
+DOM nodes and scroll position. While a selection is active, only the latest update
+is retained until selection collapses. Position-only updates do not reparse text.
+Typography and edge-case Markdown behavior still require comparison with the
+source Compose Markdown renderer; these changes are not evidence of visual parity.
 
 ## Native adapter boundary
 
@@ -206,7 +213,7 @@ dependency fetch or real network access. Its completed/partial/delayed-response
 cache, permanent-close, owner, and filename assertions are host execution
 evidence; Android WebView and iOS WebKit acceptance still require device runs.
 
-## Evidence and pending validation
+## Pending native validation
 
 The reader tests currently cover asset hashes, source-template integrity,
 dangerous command strings, malformed/stale messages, disposal/timeouts,
@@ -256,23 +263,24 @@ do not prove native selection gestures or touch delivery. YouTube events are not
 fabricated: playback and transcript commands remain incomplete without a real
 player or a separately documented local provider fixture.
 
-Main development Android/iOS builds are recorded separately in the build
-evidence. Required interaction checks are still pending:
+Main development Android/iOS builds are separate from these reader checks. Required interaction checks are still pending:
 device/simulator cross-paragraph selection, menu suppression, touch coordinate
 calibration, old-app read-position restoration, in-place upgrade with pending
 CRUD, image cache interception/offline failures, status-bar scrolling, real
 YouTube playback and transcript seeks, gallery gestures, cancelled native back
 gestures, sheet keyboard behavior, and the source/new screenshot comparison.
-The source gallery is reimplemented with base React Native gestures; gesture and
-animation parity cannot be inferred from TypeScript tests. Sharing must retain
-the source iOS image preview and logo fallback on a real share sheet.
+The gallery uses reusable Expo image presentation with Gesture Handler/Reanimated
+pinch, focal double-tap zoom, bounded pan and continuous adjacent-page transforms.
+Only the current page and two neighbors prepare owned file URIs; each decoded
+image is capped at four megapixels with two concurrent decodes. Backgrounding
+cancels page resources while retaining the selected index. Native finger-driven
+paging, zoom and animation parity still require installed-app acceptance and
+cannot be inferred from TypeScript tests. Sharing reuses the owned resource URI;
+it must retain the source iOS image preview and logo fallback on a real share sheet.
 
 ## Controlled input observations
 
-The actual isolated iOS Alpha long press in
-`evidence/2026-10-11-target-ios-reader-native-longpress/negative-alpha-report.json`
-produced a noncollapsed five-character DOM range, but the App selection menu did
-not appear. The original monitor processed that range; its actual
+The actual isolated iOS Alpha long press produced a noncollapsed five-character DOM range, but the App selection menu did not appear. The original monitor processed that range; its actual
 `webkit.messageHandlers.NativeBridge` was absent. That run remains a negative
 result, including the disk-guard termination during incomplete xcresult
 finalization. Earlier successful original-installation comment taps remain
@@ -369,7 +377,7 @@ additional check. Full size and SHA-256 validation still gate offline-complete
 status; a range response alone does not cryptographically verify an individual
 block. The current bundled PDF.js rendered the first and last pages in headless
 Chromium with one real module worker, zero page errors and no PDF toolbar; see
-[the bounded live-contract evidence](evidence/2026-10-13-live-pdf-contract/verification.json).
+the bounded live-contract record (retired).
 This is not native Expo rendering, cold-start lifecycle or PowerSync acceptance;
 those end-to-end checks remain pending.
 
@@ -451,8 +459,7 @@ local worker, resource loading, rendered pages, selection geometry and bounded
 page residency; check for skipped browser cases when the required local browser
 is absent. Neither browser execution nor host tests prove WKWebView/Android
 WebView selection handles, native keyboard/back behavior or visual acceptance.
-See [PDF fixture verification](fixture-acceptance.md#pdf-fixture-verification) for
-isolated native scenarios and evidence requirements.
+See `apps/mobile/fixtures/README.md` for isolated fixture preparation and verification.
 
 Scoped native menu/annotation checks now pass on the updated host. The isolated
 iOS 26.5 simulator's `strict14` run used a genuine long press and ordinary

@@ -4,6 +4,7 @@ export const motionDuration = {
   titlePulse: 180,
   sheetEnter: 220,
   sheetExit: 160,
+  contentReveal: 160,
 } as const;
 
 export function motionDurationFor(duration: number, reducedMotion: boolean): number {

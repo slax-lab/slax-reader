@@ -91,6 +91,24 @@ describe('PowerSync collection rules', () => {
     expect(rules).not.toContain('FROM sr_bookmark_comment AS')
   })
 
+  test('gates on-demand RSS data by laboratory, ownership and the latest-page window', () => {
+    const rss = stream('rss_v1')
+    expect(rss).toContain('auto_subscribe: false')
+    expect(rss).not.toContain("connection.parameter(")
+    expect(rss.match(/lab\.feature = 'rss' AND lab\.enabled = true/g)).toHaveLength(2)
+    expect(rss.match(/rss_user\.uuid = auth\.user_id\(\)\s+AND rss_user\.deleted_at IS NULL/g)).toHaveLength(2)
+    // A feed_id filter would put every subscriber's display name into a shared bucket.
+    expect(rss).toMatch(/FROM sr_rss_subscription\s+WHERE user_id IN rss_user_ids/)
+    expect(rss).toMatch(/FROM sr_rss_feed\s+WHERE id IN rss_feed_ids/)
+    expect(rss).toMatch(/FROM sr_rss_entry\s+WHERE feed_id IN rss_feed_ids\s+AND is_history = false/)
+    for (const internal of ['etag', 'last_modified', 'lease_token', 'content_key', 'entry_key', 'history_url']) expect(rss).not.toContain(internal)
+  })
+
+  test('never compares a connection parameter with an IN list', () => {
+    // PowerSync rejects the whole Sync Config for this form, which stops all replication.
+    expect(rules).not.toMatch(/connection\.parameter\([^)]*\)\s+IN\s*\(/i)
+  })
+
   test('filters collection articles and reuses owner buckets for active Collection stats', () => {
     const subscribedCollections = stream('subscribed_collections')
 

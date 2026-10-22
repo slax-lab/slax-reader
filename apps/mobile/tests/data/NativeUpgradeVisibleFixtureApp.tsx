@@ -3,7 +3,7 @@ import {ActivityIndicator, Platform, StatusBar, Text, View} from 'react-native';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {File, Paths} from 'expo-file-system';
-import {requireNativeModule} from 'expo-modules-core';
+import {requireNativeModule} from 'expo';
 import {ApplicationRoutes, navigationRef} from '../../src/App';
 import {ControlledUpgradeFixtureProvider, type MobileContextValue, type ControlledUpgradeReaderObserver, type ControlledUpgradeReaderObservation} from '../../src/runtime';
 import {createMobileDataRuntime} from '../../src/data/runtime.ts';

@@ -39,6 +39,7 @@ test('share Xcode target generates once with original identity, source/resource 
   for (const reference of list.buildConfigurations) {
     const settings = project.pbxXCBuildConfigurationSection()[reference.value].buildSettings;
     assert.equal(settings.PRODUCT_BUNDLE_IDENTIFIER, '"app.slax.reader.share"'); assert.equal(settings.IPHONEOS_DEPLOYMENT_TARGET, '16.4'); assert.equal(settings.DEVELOPMENT_TEAM, 'fixture-team');
+    assert.equal(settings.CC, 'clang'); assert.equal(settings.CXX, '"clang++"'); assert.equal(settings.LD, 'clang'); assert.equal(settings.LDPLUSPLUS, '"clang++"');
   }
   assert.equal(target.buildPhases.length, 3);
   assert.equal(Object.hasOwn(project.pbxGroupByName('SlaxShare'), 'path'), false);

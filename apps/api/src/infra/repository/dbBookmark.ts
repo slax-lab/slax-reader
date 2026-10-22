@@ -98,6 +98,13 @@ export interface bookmarkChangePO {
   created_at: Date
 }
 
+export interface searchEligibleBookmarkPO {
+  bookmark_id: number
+  uuid: string
+  created_at?: Date
+  bookmark?: { target_url: string }
+}
+
 export interface bookmarkActionChangePO {
   user_id: number
   bookmark_id: number
@@ -525,6 +532,11 @@ export class BookmarkRepo {
     })
   }
 
+  /** The body was replaced (podcast article): keep the word count in step. */
+  public async updateBookmarkWordCount(bmId: number, count: number) {
+    return await this.prismaPg().sr_bookmark.update({ where: { id: bmId }, data: { content_word_count: count, updated_at: new Date() } })
+  }
+
   public async upsertBookmarkSummary(info: bookmarkSummaryPO) {
     const { bookmark_id, lang, user_id, ...infoWithoutIds } = info
     return await this.prismaPg().sr_bookmark_summary.upsert({
@@ -860,8 +872,8 @@ export class BookmarkRepo {
 
   public async batchGetBookmarkTitle(bookmarkIdList: number[]): Promise<bookmarkTitlePO[]> {
     return await this.prismaPg().$queryRaw<bookmarkTitlePO[]>(Prisma.sql`
-      SELECT title, u.id as user_bookmark_id 
-      FROM sr_bookmark b 
+      SELECT title, u.id as user_bookmark_id
+      FROM sr_bookmark b
       INNER JOIN sr_user_bookmark u ON b.id = u.bookmark_id
       WHERE u.id IN (${Prisma.join(bookmarkIdList)})`)
   }
@@ -901,7 +913,7 @@ export class BookmarkRepo {
 
   public async getFilterBookmarkFetchRetries(options: { status: bookmarkFetchRetryStatus }) {
     const res = await this.prismaPg().$queryRaw<{ bookmark_id: number; retry_counts: string; user_ids: string; created_at: string }[]>`
-    SELECT  bookmark_id, string_agg(retry_count::text, ',') as retry_counts, string_agg(user_id::text, ',') as user_ids, created_at FROM sr_bookmark_fetch_retry 
+    SELECT  bookmark_id, string_agg(retry_count::text, ',') as retry_counts, string_agg(user_id::text, ',') as user_ids, created_at FROM sr_bookmark_fetch_retry
       WHERE status = ${options.status}
       GROUP BY bookmark_id`
     return res || []
@@ -915,11 +927,14 @@ export class BookmarkRepo {
   }
 
   public async upsertVectorShard(bookmarkId: number, shardIdx: number) {
-    return await this.prismaPg().sr_bookmark_vector_shard.upsert({
-      where: { bookmark_id: bookmarkId },
-      create: { bookmark_id: bookmarkId, bucket_idx: shardIdx, created_at: new Date() },
-      update: { created_at: new Date() }
-    })
+    // Allocate atomically and return the winning bucket when indexing tasks race.
+    const [shard] = await this.prismaPg().$queryRaw<bookmarkShardPO[]>`
+      INSERT INTO public.sr_bookmark_vector_shard (bookmark_id, bucket_idx, created_at)
+      VALUES (${bookmarkId}, ${shardIdx}, ${new Date()})
+      ON CONFLICT (bookmark_id) DO UPDATE SET created_at = EXCLUDED.created_at
+      RETURNING id, bookmark_id, bucket_idx, created_at
+    `
+    return shard
   }
 
   public async getVectorShard(bookmarkId: number) {
@@ -938,17 +953,36 @@ export class BookmarkRepo {
     }
   }
 
+  /** Live search admission; cached shard membership never grants ownership. */
+  public async getSearchEligibleBookmarks(userId: number, tagUuids: string[] = [], bookmarkIds?: number[]): Promise<searchEligibleBookmarkPO[]> {
+    const tags = tagUuids.length ? await this.prismaPg().sr_user_tag.findMany({ where: { user_id: userId, uuid: { in: tagUuids } }, select: { id: true } }) : []
+    if (tags.length !== tagUuids.length) return []
+    return this.prismaPg().sr_user_bookmark.findMany({
+      where: {
+        user_id: userId,
+        deleted_at: null,
+        ...(bookmarkIds ? { bookmark_id: { in: bookmarkIds } } : {}),
+        AND: tags.map(tag => ({ sr_user_bookmark_tag: { some: { user_id: userId, tag_id: tag.id, is_deleted: false } } }))
+      },
+      select: {
+        bookmark_id: true,
+        uuid: true,
+        ...(bookmarkIds ? { created_at: true, bookmark: { select: { target_url: true } } } : {})
+      }
+    })
+  }
+
   public async getUserBookmarkIds(userId: number) {
     return await this.prismaPg().sr_user_bookmark.findMany({ where: { user_id: userId, deleted_at: null }, select: { bookmark_id: true } })
   }
 
   public async getAllBookmarkChanges(userId: number) {
     try {
-      const res = await this.prismaPg().$queryRaw<bookmarkChangePO[]>`SELECT sb.target_url, sb.id as bookmark_id, ub.created_at 
-      FROM sr_bookmark sb 
-      INNER JOIN 
-      (SELECT id, bookmark_id, user_id, created_at FROM sr_user_bookmark WHERE user_id = ${userId}) ub 
-      ON sb.id = ub.bookmark_id 
+      const res = await this.prismaPg().$queryRaw<bookmarkChangePO[]>`SELECT sb.target_url, sb.id as bookmark_id, ub.created_at
+      FROM sr_bookmark sb
+      INNER JOIN
+      (SELECT id, bookmark_id, user_id, created_at FROM sr_user_bookmark WHERE user_id = ${userId}) ub
+      ON sb.id = ub.bookmark_id
       ORDER BY ub.created_at DESC`
 
       return res
@@ -1028,7 +1062,7 @@ export class BookmarkRepo {
       INSERT INTO sr_user_tag(user_id, tag_name, display, source)
       SELECT ${userId}, tag_name, true, ${createSource}
       FROM UNNEST(${names}::text[]) AS tag_name
-      ON CONFLICT(user_id, tag_name) 
+      ON CONFLICT(user_id, tag_name)
       DO UPDATE SET display = CASE WHEN ${revive} THEN true ELSE sr_user_tag.display END
       RETURNING id, tag_name, source;
     `

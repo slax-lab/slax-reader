@@ -14,11 +14,11 @@ OpenSpec:
 
 ## Test plan
 
-<!-- How did you verify the change? What should a reviewer check? -->
+<!-- Evidence is required (see "Definition of Done" in AGENTS.md): commands run and their results; the scenarios exercised in a running environment, derived from the change's WHEN/THEN scenarios plus the app's smoke flows; what was NOT verified and why. Link openspec/changes/<change-id>/validation.md when details live there. Attach screenshots/recordings with `gh --attach` — never commit them; the text here must stand alone without media. UI-visible changes: record the pre-PR human hands-on acceptance (who, when, what was adjusted). Documentation/typo-scale changes: write "n/a" with the reason. Refactors: state the diff-derived smoke verification (the diff's touched surface plus the app's documented smoke flows). -->
 
 ## Checklist
 
-- [ ] Self-tested the change
+- [ ] Behavior exercised in a running environment and evidence recorded per the Test plan above (or exemption stated with its reason)
 - [ ] No new secrets or environment variables added
 - [ ] Documentation updated
 - [ ] Agent rules/permissions changes (if any) were made in `.rulesync/` and regenerated with `pnpm agent:sync` — never hand-edit `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.codex/`, or `.agents/`

@@ -51,7 +51,7 @@ async function fixture(t) {
   const exports = {}, filename = new URL('../../fixtures/pdf-storage.ts', import.meta.url);
   const code = ts.transpileModule(readFileSync(filename, 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022}}).outputText;
   let counter = 0;
-  const boundaries = {'expo-file-system': {Directory, File, Paths: {cache: new Directory(root)}}, 'expo-modules-core': {uuid: {v4: () => `test-${++counter}`}}, '../src/data/pdf-sha256': {Sha256}, './isolation': {assertFixtureScope}};
+  const boundaries = {'expo-file-system': {Directory, File, Paths: {cache: new Directory(root)}}, 'expo': {uuid: {v4: () => `test-${++counter}`}}, '../src/data/pdf-sha256': {Sha256}, './isolation': {assertFixtureScope}};
   vm.runInNewContext(code, {exports, TextEncoder, require(name) {assert.ok(Object.hasOwn(boundaries, name), name); return boundaries[name];}}, {filename: filename.pathname});
   const storage = new exports.FixturePdfStorage(scope, () => {if (!state.active) throw new Error('Fixture account revoked');});
   return {storage, state, scope, marker, files: () => readdirSync(fileURLToPath(scope), {recursive: true}).filter(name => statSync(path.join(fileURLToPath(scope), name)).isFile())};

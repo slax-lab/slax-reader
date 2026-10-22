@@ -527,3 +527,46 @@ describe('DwebArticleSelection', () => {
     })
   })
 })
+
+describe('DwebArticleSelection 播客「从这里听」', () => {
+  function trigger(html: string) {
+    const config = buildConfig()
+    const modal = buildModal()
+    const wrap = document.createElement('div')
+    wrap.innerHTML = html
+    config.containerDom!.appendChild(wrap)
+    const text = wrap.querySelector('.target')!.firstChild!
+    const range = document.createRange()
+    range.setStart(text, 0)
+    range.setEnd(text, 3)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+    mockManager.getElementInfo.mockReturnValue({
+      list: [{ type: 'text', text: 'abc', node: text, startOffset: 0, endOffset: 3 }],
+      approx: { exact: 'abc', prefix: '', suffix: '', position_start: 0, position_end: 3 }
+    })
+    mockManager.checkMarkSourceIsSame.mockReturnValue(false)
+    ;(config.monitorDom as unknown as { querySelector: (sel: string) => unknown }).querySelector = vi.fn(() => wrap.querySelector('.target'))
+    mockRenderer.getAllTextNodes.mockReturnValue([text])
+    const inst = new DwebArticleSelection(config, buildDeps(null), modal)
+    ;(inst as unknown as { handleMouseUp: (e: MouseEvent) => void }).handleMouseUp(new MouseEvent('mouseup'))
+    return { modal }
+  }
+
+  it('选区在播客段落里：菜单带 allowListen，点击派发 seek（段首秒数）', async () => {
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent')
+    const { modal } = trigger('<article class="slax-pod-article"><p data-start-ms="420000"><span class="target">abcdef</span></p></article>')
+    await vi.runAllTimersAsync()
+    const args = modal.showMenus.mock.calls[0]![0] as { allowListen: boolean; callback: (type: string, e: MouseEvent) => void }
+    expect(args.allowListen).toBe(true)
+    args.callback('listen', new MouseEvent('click'))
+    const seek = dispatchSpy.mock.calls.map(c => c[0] as CustomEvent).find(e => e.type === 'slax:youtube-seek')
+    expect(seek?.detail).toEqual({ t: 420 })
+  })
+
+  it('普通段落：没有「从这里听」', async () => {
+    const { modal } = trigger('<p data-start-ms="1000"><span class="target">abcdef</span></p>')
+    await vi.runAllTimersAsync()
+    expect((modal.showMenus.mock.calls[0]![0] as { allowListen: boolean }).allowListen).toBe(false)
+  })
+})

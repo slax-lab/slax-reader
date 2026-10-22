@@ -97,6 +97,8 @@ export function parseReaderMessage(message: string, pageId: string): ReaderEvent
       return string(payload.src) && Array.isArray(payload.allImages) && payload.allImages.every(string)
         ? { type: 'imageClick', src: payload.src, allImages: payload.allImages,
             index: integer(payload.index) ? payload.index : payload.allImages.indexOf(payload.src) } : null
+    case 'imageLongPress':
+      return string(payload.src) && payload.src ? { type: 'imageLongPress', src: payload.src } : null
     case 'scrollToPosition':
       return finite(payload.percentage) && payload.percentage >= 0 && payload.percentage <= 1
         ? { type: 'scrollToPosition', percentage: payload.percentage } : null

@@ -1,3 +1,4 @@
 const { getDefaultConfig } = require('expo/metro-config');
+const {configureDevelopmentMetro} = require('./tooling/development-metro.cjs');
 
-module.exports = getDefaultConfig(__dirname);
+module.exports = configureDevelopmentMetro(getDefaultConfig(__dirname), __dirname);

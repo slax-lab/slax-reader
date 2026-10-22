@@ -14,6 +14,12 @@ export function createPdfLayout(root: HTMLElement, options: PdfRuntimeOptions, p
   let heightPublished = 0
   let restored = false
   let restoreSequence = 0
+  let presentationSequence = 0
+  let presentationFrame = 0
+  let presentation: 'single' | 'spread' = 'single'
+  let spreadPaneWidth = 0
+  let spreadGutter = 12
+  let zoom = 1
   const slots: HTMLElement[] = []
   const dimensions = new Map<number, {width: number; height: number}>()
   const offset = () => options.hostViewport ? hostOffset : scrollY
@@ -21,35 +27,53 @@ export function createPdfLayout(root: HTMLElement, options: PdfRuntimeOptions, p
 
   function publishHeight(force = false) {
     const last = slots[slots.length - 1]
-    const value = last ? last.offsetTop + last.offsetHeight + 20 : root.offsetHeight
+    const value = last ? rowTop(slots.length) + rowHeight(slots.length) + 20 : root.offsetHeight
     if (value > 0 && (force || value !== heightPublished)) {heightPublished = value; post({kind: 'documentHeight', height: value})}
+  }
+  function rowFirst(number: number) {return presentation === 'spread' ? Math.floor((number - 1) / 2) * 2 + 1 : number}
+  function rowEnd(number: number) {return presentation === 'spread' ? Math.min(slots.length, rowFirst(number) + 1) : number}
+  function rowTop(number: number) {return slots[rowFirst(number) - 1]?.offsetTop ?? 0}
+  function rowHeight(number: number) {
+    const first = rowFirst(number), last = rowEnd(number)
+    return Math.max(1, ...slots.slice(first - 1, last).map(slot => slot.offsetHeight))
+  }
+  function pageHeight(number: number) {return Math.max(1, slots[number - 1]?.offsetHeight ?? 0)}
+  function capturePosition() {
+    const page = visiblePage(), top = Math.max(0, offset()), start = rowTop(page)
+    return {page, fraction: Math.max(0, Math.min(0.999999, (top - start) / pageHeight(page)))}
+  }
+  function scrollToAnchor(page: number, fraction: number, revealHeader = false, restoreId?: string) {
+    scrollDocument(rowTop(page) + pageHeight(page) * fraction, revealHeader, restoreId)
   }
   function scrollDocument(y: number, revealHeader = false, restoreId?: string) {
     if (options.hostViewport) post({kind: 'scroll', y, revealHeader, ...(restoreId ? {restoreId} : {})})
     else scrollTo({top: revealHeader ? 0 : y, behavior: 'instant'})
   }
   function visiblePage() {
-    let left = 0, right = slots.length - 1
+    const rows = presentation === 'spread' ? Math.ceil(slots.length / 2) : slots.length
+    let left = 0, right = rows - 1
     const top = Math.max(0, offset()) + 8
     while (left < right) {
       const middle = Math.floor((left + right) / 2)
-      const slot = slots[middle]!
-      if (slot.offsetTop + slot.offsetHeight < top) left = middle + 1
+      const page = presentation === 'spread' ? middle * 2 + 1 : middle + 1
+      if (rowTop(page) + rowHeight(page) < top) left = middle + 1
       else right = middle
     }
-    return left + 1
+    const first = presentation === 'spread' ? left * 2 + 1 : left + 1
+    const last = rowEnd(first)
+    for (let page = first; page <= last; page++) if (slots[page - 1]!.offsetTop + pageHeight(page) >= top) return page
+    return first
   }
   function position() {
-    if (!restored || !ports.getDocument() || !slots.length) return
+    if (presentationFrame || !restored || !ports.getDocument() || !slots.length) return
     const current = visiblePage()
-    const slot = slots[current - 1]!
     const top = Math.max(0, offset())
-    const fraction = Math.max(0, Math.min(0.999999, (top - slot.offsetTop) / Math.max(1, slot.offsetHeight)))
+    const fraction = Math.max(0, Math.min(0.999999, (top - rowTop(current)) / pageHeight(current)))
     post({kind: 'position', position: current + fraction, nearBottom: top + height() >= heightPublished - 32})
   }
   function setSlotSize(number: number, width: number, height: number) {
-    const available = Math.max(100, document.documentElement.clientWidth - 16)
-    const scale = available / width
+    const available = presentation === 'spread' ? Math.max(100, spreadPaneWidth) : Math.max(100, document.documentElement.clientWidth - 16)
+    const scale = (available * zoom) / width
     const slot = slots[number - 1]!
     slot.style.width = `${width * scale}px`
     slot.style.height = `${height * scale}px`
@@ -58,12 +82,11 @@ export function createPdfLayout(root: HTMLElement, options: PdfRuntimeOptions, p
   }
   function measurePage(number: number, base: PageViewport) {
     dimensions.set(number, {width: base.width, height: base.height})
-    const anchor = visiblePage(), anchorSlot = slots[anchor - 1]!
-    const before = anchorSlot.offsetTop, oldHeight = anchorSlot.offsetHeight
-    const fraction = Math.max(0, (offset() - before) / oldHeight)
+    const anchor = capturePosition()
+    const before = rowTop(anchor.page), oldHeight = pageHeight(anchor.page)
     const scale = setSlotSize(number, base.width, base.height)
     publishHeight()
-    if (restored && offset() >= 0 && number <= anchor && (before !== anchorSlot.offsetTop || oldHeight !== anchorSlot.offsetHeight)) scrollDocument(anchorSlot.offsetTop + fraction * anchorSlot.offsetHeight)
+    if (restored && offset() >= 0 && number <= anchor.page && (before !== rowTop(anchor.page) || oldHeight !== pageHeight(anchor.page))) scrollToAnchor(anchor.page, anchor.fraction)
     return scale
   }
   async function pageViewport(number: number) {
@@ -81,8 +104,7 @@ export function createPdfLayout(root: HTMLElement, options: PdfRuntimeOptions, p
   async function scrollPage(number: number, fraction = 0, revealHeader = false) {
     if (!Number.isSafeInteger(number) || number < 1 || number > slots.length) return false
     if (!await pageViewport(number)) return false
-    const slot = slots[number - 1]!
-    scrollDocument(slot.offsetTop + slot.offsetHeight * fraction, revealHeader)
+    scrollToAnchor(number, fraction, revealHeader)
     ports.schedule(); position()
     return true
   }
@@ -102,22 +124,60 @@ export function createPdfLayout(root: HTMLElement, options: PdfRuntimeOptions, p
     return (async () => {
       const number = Math.floor(initial)
       if (!await pageViewport(number) || !lifecycle.active || lifecycle.disposed || lifecycle.failed || generation !== lifecycle.generation || attempt !== restoreSequence) throw new Error('Restore cancelled')
-      const slot = slots[number - 1]!
-      scrollDocument(slot.offsetTop + slot.offsetHeight * (initial % 1), initial === 1, id)
+      scrollToAnchor(number, initial % 1, initial === 1, id)
       restored = true
       ports.schedule()
       complete()
     })()
   }
-  function resize(evictPages: () => void) {
-    const number = visiblePage(), slot = slots[number - 1]!
-    const revealHeader = offset() < 0
-    const fraction = Math.max(0, (offset() - slot.offsetTop) / slot.offsetHeight)
+  function resize(evictPages: () => void, anchor = capturePosition(), revealHeader = offset() < 0, restore = true) {
+    const {page: number, fraction} = anchor
     evictPages()
     const fallback = dimensions.get(1)!
     for (let number = 1; number <= slots.length; number++) {const size = dimensions.get(number) ?? fallback; setSlotSize(number, size.width, size.height)}
     publishHeight()
-    if (restored) return scrollPage(number, fraction, revealHeader)
+    if (restored && restore) {scrollToAnchor(number, fraction, revealHeader); ports.schedule(); position()}
+  }
+  function setZoom(value: number, evictPages: () => void) {
+    const next = Math.max(1, Math.min(3, value))
+    if (Math.abs(next - zoom) < 0.001) return zoom
+    const anchor = capturePosition(), revealHeader = offset() < 0
+    zoom = next
+    evictPages()
+    const fallback = dimensions.get(1)
+    if (fallback) for (let number = 1; number <= slots.length; number++) {const size = dimensions.get(number) ?? fallback; setSlotSize(number, size.width, size.height)}
+    publishHeight()
+    if (restored) {scrollToAnchor(anchor.page, anchor.fraction, revealHeader); ports.schedule(); position()}
+    return zoom
+  }
+  function setPresentation(mode: 'single' | 'spread', paneWidth = 0, gutter = 12, evictPages: () => void = () => {}) {
+    if (mode === presentation && (mode === 'single' || paneWidth === spreadPaneWidth && gutter === spreadGutter)) return
+    const anchor = capturePosition(), revealHeader = offset() < 0, sequence = ++presentationSequence
+    if (presentationFrame) {cancelAnimationFrame(presentationFrame); presentationFrame = 0}
+    presentation = mode
+    spreadPaneWidth = Math.max(100, paneWidth)
+    spreadGutter = Math.max(0, gutter)
+    root.style.display = mode === 'spread' ? 'grid' : ''
+    root.style.gridTemplateColumns = mode === 'spread' ? 'repeat(2, minmax(0, 1fr))' : ''
+    root.style.columnGap = mode === 'spread' ? `${spreadGutter}px` : ''
+    root.style.rowGap = mode === 'spread' ? '12px' : ''
+    for (const slot of slots) {
+      const number = Number(slot.dataset.pageNumber)
+      slot.style.gridColumn = mode === 'spread' ? String((number % 2) ? 1 : 2) : ''
+      slot.style.margin = mode === 'spread' ? '0 auto' : '0 auto 12px'
+    }
+    if (!slots.length) return
+    resize(evictPages, anchor, revealHeader, false)
+    // Let WebKit commit the new document height before asking the native scroll owner to restore
+    // a deep anchor. Otherwise scrollView.setContentOffset can clamp to the old spread height.
+    presentationFrame = requestAnimationFrame(() => {
+      presentationFrame = requestAnimationFrame(() => {
+        presentationFrame = 0
+        if (sequence !== presentationSequence || lifecycle.disposed || lifecycle.failed) return
+        scrollToAnchor(anchor.page, anchor.fraction, revealHeader)
+        ports.schedule()
+      })
+    })
   }
   function initialize(viewport: PageViewport, count: number) {
     dimensions.set(1, {width: viewport.width, height: viewport.height})
@@ -142,5 +202,5 @@ export function createPdfLayout(root: HTMLElement, options: PdfRuntimeOptions, p
     hostOffset = value; hostHeight = size
     if (lifecycle.active) {ports.schedule(); position()}
   }
-  return {slots, offset, height, publishHeight, visiblePage, position, measurePage, scrollPage, revealMark, restore, resize, initialize, restoreInitial, setViewport}
+  return {slots, offset, height, publishHeight, visiblePage, position, measurePage, scrollPage, revealMark, restore, resize, setZoom, getZoom: () => zoom, initialize, restoreInitial, setViewport, setPresentation}
 }

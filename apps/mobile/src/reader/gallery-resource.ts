@@ -25,13 +25,10 @@ export async function resolveGalleryImage(cache: ArticleFileCache | null, cacheK
   }
   const url = normalizeImageUrl(uri);
   if (!/^https?:\/\//.test(url)) return null;
-  const local = await cache.ensureImage(cacheKey, uri, async () => {
+  const local = await cache.ensureImage(cacheKey, uri, options.loadImage ? async () => {
     assertCurrent();
-    const load = options.loadImage ?? (await import('../native/reader-image')).loadReaderImage;
-    assertCurrent();
-    const bytes = await load(url, options.signal);
-    assertCurrent();
-    return bytes;
-  }, options.signal);
+    const bytes = await options.loadImage!(url, options.signal);
+    assertCurrent(); return bytes;
+  } : undefined, options.signal);
   assertCurrent(); return local;
 }

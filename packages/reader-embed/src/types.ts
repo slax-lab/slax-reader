@@ -71,6 +71,7 @@ export type ReaderEvent =
   | { type: 'markClicked'; markId: string; text: string; mark: ReaderMarkItem | null }
   | { type: 'markItemInfosChanged'; marks: ReaderMarkItem[] }
   | { type: 'imageClick'; src: string; allImages: string[]; index: number }
+  | { type: 'imageLongPress'; src: string }
   | { type: 'scrollToPosition'; percentage: number }
   | { type: 'scrollToTop' }
   | { type: 'refreshContent' }

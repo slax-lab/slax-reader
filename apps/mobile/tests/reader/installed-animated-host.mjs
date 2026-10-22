@@ -35,12 +35,15 @@ export function installedAnimatedHost(host) {
   }
   const helper = {API: api, shouldUseNativeDriver: config => config.useNativeDriver, assertNativeAnimatedModule() {}, generateNewNodeTag: () => ++nodeTag, generateNewAnimationId: () => ++animationId,
     transformDataType: value => value, nativeEventEmitter: {addListener: () => ({remove() {}})}}
-  const flags = {shouldUseAnimatedObjectForTransform: () => false, cxxNativeAnimatedEnabled: () => false, useSharedAnimatedBackend: () => false}
+  const flags = {shouldUseAnimatedObjectForTransform: () => false, cxxNativeAnimatedEnabled: () => false, useSharedAnimatedBackend: () => false,
+    animatedDeferStartOfTimingAnimations: () => false, animatedShouldSyncValueBeforeStartCallback: () => true,
+    animatedKeepListenersOnDetach: () => true}
   const boundaries = new Map([
     ['src/private/animated/NativeAnimatedHelper.js', helper],
     ['src/private/animated/NativeAnimatedValidation.js', {validateInterpolation() {}, validateStyles() {}, validateTransform() {}}],
     ['src/private/featureflags/ReactNativeFeatureFlags.js', flags],
     ['Libraries/ReactNative/RendererProxy.js', {findNodeHandle: () => 1}],
+    ['Libraries/ReactNative/FabricUIManager.js', {getFabricUIManager: () => null}],
     ['Libraries/ReactPrivate/ReactNativePrivateInterface.js', {getNodeFromPublicInstance: () => null}],
     ['Libraries/Utilities/Platform.js', {OS: 'android'}],
     ['Libraries/StyleSheet/normalizeColor.js', value => value],

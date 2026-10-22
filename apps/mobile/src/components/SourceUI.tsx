@@ -1,15 +1,18 @@
+import {useAvatarResource} from './AvatarResources';
 import React from 'react';
-import { ActivityIndicator, Animated, Image, KeyboardAvoidingView, Modal, PanResponder, PixelRatio, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type ImageSourcePropType, type ImageStyle, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, Animated, Image, KeyboardAvoidingView, Modal, PixelRatio, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type ImageStyle, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
+import {SheetBody} from './SheetBody';
+import {SafeAreaProvider, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import { mobileAssets, type MobileAssetName } from '../../assets';
 import { mobileColors as C, mobileTypography as T } from '../theme';
 import { sourceTextDimensions } from './source-font-scaling';
+import { AppImage } from './AppImage';
 import { SourceSheetModal } from './SourceSheetModal';
 
 export function SourceText({style, ...props}: TextProps) {
   const {fontScale} = useWindowDimensions();
   const dimensions = Platform.OS === 'android'
-    ? sourceTextDimensions(StyleSheet.flatten([styles.text, style]), fontScale, props.allowFontScaling !== false, props.maxFontSizeMultiplier)
+    ? sourceTextDimensions(StyleSheet.flatten([styles.text, style]) ?? {}, fontScale, props.allowFontScaling !== false, props.maxFontSizeMultiplier)
     : undefined;
   return <Text textBreakStrategy={Platform.OS === 'android' ? 'simple' : undefined}
     android_hyphenationFrequency={Platform.OS === 'android' ? 'none' : undefined}
@@ -20,14 +23,14 @@ export function SourceIcon({name, size = 24, label, style, testID}: {name: Mobil
   const roundedSize = Platform.OS === 'android' ? PixelRatio.roundToNearestPixel(size) : size;
   return <Image testID={testID} source={mobileAssets[name]} resizeMode="contain" accessibilityLabel={label} accessible={Boolean(label)} style={[{width: roundedSize, height: roundedSize, flexShrink: 0}, style]} />;
 }
-export function SourceAvatar({uri, size = 40, label}: {uri?: string; size?: number; label?: string}) {
-  return <SourceAvatarImage key={uri ?? ''} uri={uri} size={size} label={label} />;
+export function SourceAvatar({uri, size = 40, label, resourceKey}: {uri?: string; size?: number; label?: string; resourceKey?: string}) {
+  const local = useAvatarResource(resourceKey ?? uri ?? '', uri);
+  return <SourceAvatarImage key={local ?? ''} uri={local} size={size} label={label} />;
 }
 function SourceAvatarImage({uri, size, label}: {uri?: string; size: number; label?: string}) {
   const [failed, setFailed] = React.useState(false);
-  const source: ImageSourcePropType = uri && !failed ? {uri} : mobileAssets.global_default_avatar;
   const roundedSize = Platform.OS === 'android' ? PixelRatio.roundToNearestPixel(size) : size;
-  return <Image source={source} onError={() => setFailed(true)} accessibilityLabel={label} resizeMode="cover" style={{width: roundedSize, height: roundedSize, borderRadius: roundedSize / 2}} />;
+  return <AppImage source={uri && !failed ? uri : mobileAssets.global_default_avatar as number} fallback="global_default_avatar" maxPixels={Math.ceil(size * PixelRatio.get()) ** 2} onError={() => setFailed(true)} label={label} fit="cover" style={{width: roundedSize, height: roundedSize, borderRadius: roundedSize / 2}} />;
 }
 export function SourceButton({label, onPress, disabled, busy, destructive, testID, style, textStyle, tone = 'accent'}: {
   label: string; onPress(): void; disabled?: boolean; busy?: boolean; destructive?: boolean; testID?: string;
@@ -73,34 +76,23 @@ export function SourceDialog({visible, onDismiss, onDidDismiss, title, children,
   visible: boolean; onDismiss(): void; onDidDismiss?(): void; title?: string; children?: React.ReactNode; actions?: React.ReactNode; testID?: string; compact?: boolean; dismissible?: boolean;
 }) {
   return <Modal visible={visible} transparent presentationStyle="overFullScreen" animationType="fade" statusBarTranslucent onDismiss={onDidDismiss} onRequestClose={() => { if (dismissible) onDismiss(); }}>
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modal}>
-      <Pressable accessibilityLabel="" accessible={false} onPress={() => { if (dismissible) onDismiss(); }} style={[StyleSheet.absoluteFill, styles.scrim]} />
+    <SafeAreaProvider>
+    <Pressable accessibilityLabel="" accessible={false} onPress={() => { if (dismissible) onDismiss(); }} style={[StyleSheet.absoluteFill, styles.scrim]} />
+    <SafeAreaView style={{flex: 1}} pointerEvents="box-none">
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modal} pointerEvents="box-none">
       <View accessibilityViewIsModal testID={testID} style={[styles.dialog, compact && styles.compactDialog]}>
         {title ? <SourceText accessibilityRole="header" style={[T.dialogTitle, styles.dialogTitle]}>{title}</SourceText> : null}
         {children}
         {actions ? <View style={styles.dialogActions}>{actions}</View> : null}
       </View>
     </KeyboardAvoidingView>
+    </SafeAreaView>
+    </SafeAreaProvider>
   </Modal>;
 }
 export function SourceSheet({visible, onDismiss, busy, children, style, contentContainerStyle, bottomPadding = 24, handleColor}: {visible: boolean; onDismiss(): void; busy?: boolean; children: React.ReactNode; style?: StyleProp<ViewStyle>; contentContainerStyle?: StyleProp<ViewStyle>; bottomPadding?: number; handleColor?: string}) {
-  const inset = useSafeAreaInsets();
-  const drag = React.useRef(new Animated.Value(0)).current;
-  React.useEffect(() => {if (visible) drag.setValue(0);}, [visible, drag]);
-  const pan = React.useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_event, gesture) => !busy && Math.abs(gesture.dy) > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
-    onPanResponderMove: (_event, gesture) => drag.setValue(Math.max(0, gesture.dy)),
-    onPanResponderRelease: (_event, gesture) => {
-      if (!busy && (gesture.dy > 80 || gesture.vy > 1)) onDismiss();
-      else Animated.timing(drag, {toValue: 0, duration: 200, useNativeDriver: true}).start();
-    },
-    onPanResponderTerminate: () => Animated.timing(drag, {toValue: 0, duration: 200, useNativeDriver: true}).start(),
-  }), [busy, drag, onDismiss]);
   return <SourceSheetModal visible={visible} onDismiss={onDismiss} dismissible={!busy}>
-    <Animated.View accessibilityViewIsModal style={[styles.sheet, style, {paddingBottom: inset.bottom + bottomPadding, transform: [{translateY: drag}]}]}>
-      <View {...pan.panHandlers} style={{alignSelf: 'stretch'}}><View style={[styles.sheetHandle, handleColor ? {backgroundColor: handleColor} : undefined]} /></View>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[{gap: 16}, contentContainerStyle]}>{children}</ScrollView>
-    </Animated.View>
+    <SheetBody visible={visible} onDismiss={onDismiss} busy={busy} style={style} contentContainerStyle={contentContainerStyle} bottomPadding={bottomPadding} handleColor={handleColor}>{children}</SheetBody>
   </SourceSheetModal>;
 }
 const styles = StyleSheet.create({

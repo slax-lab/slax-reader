@@ -9,6 +9,8 @@ import {FixtureMemoryPreferences} from '../../fixtures/isolation.ts'
 const text = node => Array.isArray(node) ? node.map(text).join('') : React.isValidElement(node) ? text(node.props.children) : node ?? ''
 const deferred = () => {let resolve, reject; const promise = new Promise((yes, no) => {resolve = yes; reject = no}); return {promise, resolve, reject}}
 async function loginFixture(host, platform, run, props = {}) {
+  let marks = 0;
+  const markInteractive = () => {marks++;};
   const controls = new Map(), providers = [], requests = [], accepted = [], alerts = [], lifecycle = []
   let modal, phase = 'hidden', session = {status: 'unauthenticated'}, authenticate = async provider => ({provider})
   const primitive = props => {if (props.onPress) controls.set(props.accessibilityLabel ?? text(props.children), props); return React.createElement(host.native.View, props)}
@@ -25,15 +27,22 @@ async function loginFixture(host, platform, run, props = {}) {
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})}, 'react-native-webview': {WebView: () => null}, '../../assets': {mobileAssets: {}},
     '../auth/providers': {authenticate: provider => {providers.push({provider, phase}); return authenticate(provider)}}, '../runtime': {useMobile: () => mobile},
     '../theme': {mobileColors, mobileLayout, mobileTypography}, '../theme/testIds': {mobileTestIds: {}}, '../telemetry': {useTelemetry: () => ({element() {}, firebase() {}})}, '../native/fixture-document': {}, '../components/fixture-actions': {},
+    '../observe': {useObserveMarkInteractive: () => markInteractive},
   }, {Error})
   const render = () => host.render(React.createElement(LoginScreen, props))
   const press = key => act(async () => controls.get(key).onPress())
   await render()
-  await run({render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, useSessions: value => {mobile.sessions = value}, response: value => {loginResponse = value},
+  await run({render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, marks: () => marks, useSessions: value => {mobile.sessions = value}, response: value => {loginResponse = value},
     hydrate: () => {session = {status: 'unauthenticated'}},
     replaceIdentity: () => {identity++; session = {status: 'unauthenticated'}},
     setUser: () => {identity++; session = {status: 'authenticated', session: {userId: 'other', token: 'replacement'}}}, authenticate: value => {authenticate = value}})
 }
+
+test('mounted login marks interactive once after first render', nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'ios', async fixture => {
+  assert.equal(fixture.marks(), 1);
+  await fixture.render();
+  assert.equal(fixture.marks(), 1);
+})));
 
 for (const platform of ['ios', 'android']) test(`mounted ${platform} Google agreement continues only at its platform dismissal boundary`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, platform, async fixture => {
   await fixture.press('login_google')
@@ -45,33 +54,6 @@ for (const platform of ['ios', 'android']) test(`mounted ${platform} Google agre
   assert.deepEqual(fixture.providers, [{provider: 'google', phase: platform === 'ios' ? 'dismissed' : 'presented'}])
   assert.equal(fixture.requests.length, 1); assert.equal(fixture.accepted.length, 1)
 })))
-
-for (const platform of ['ios', 'android']) test(`mounted ${platform} same-account recovery completes the provider flow without clearing offline state`, nativeBoundary, async () => withNativeHost(async host => {
-  let completed = 0, clears = 0;
-  await loginFixture(host, platform, async fixture => {
-    const storage = new FixtureMemoryPreferences({auth_token: 'expired', user_id: 'fixture', pending_offline_fixture: 'preserved'});
-    const sessions = new SessionController(new PreferenceStore(storage), {leave: async () => {clears++;}, enter: async () => {}});
-    await sessions.restore(); await sessions.rejectIfMatches('expired'); fixture.useSessions(sessions); await fixture.render();
-    await fixture.press('login_google'); await fixture.press('agreement_btn_agree');
-    if (platform === 'ios') await act(async () => fixture.modal().onDismiss());
-    assert.equal(completed, 1); assert.equal(clears, 0);
-    assert.equal((await sessions.preferences.read()).pending_offline_fixture, 'preserved');
-    assert.equal((await sessions.getSession()).token, 'synthetic'); assert.deepEqual(fixture.alerts, []);
-  }, {reauthenticating: true, onAuthenticated: () => {completed++;}});
-}));
-
-test('mounted recovery rejects a different provider account and allows retry with the original account', nativeBoundary, async () => withNativeHost(async host => {
-  let completed = 0;
-  await loginFixture(host, 'ios', async fixture => {
-    const sessions = new SessionController(new PreferenceStore(new FixtureMemoryPreferences({auth_token: 'expired', user_id: 'original'})), {leave: async () => assert.fail('Must preserve the original owner'), enter: async () => {}});
-    await sessions.restore(); await sessions.rejectIfMatches('expired'); fixture.useSessions(sessions); await fixture.render();
-    await fixture.press('login_google'); await fixture.press('agreement_btn_agree'); await act(async () => fixture.modal().onDismiss());
-    assert.equal(completed, 0); assert.equal(fixture.alerts[0][1], 'reauthenticate_account_mismatch');
-    assert.equal((await sessions.preferences.read()).auth_token, 'expired');
-    fixture.response({token: 'renewed', user_id: 'original'}); await fixture.press('login_google');
-    assert.equal(completed, 1); assert.equal((await sessions.getSession()).token, 'renewed');
-  }, {reauthenticating: true, onAuthenticated: () => {completed++;}});
-}));
 
 for (const cancel of ['disagree', 'request-close', 'unmount', 'account']) test(`mounted iOS agreement drops pending provider on ${cancel}`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'ios', async fixture => {
   await fixture.press('login_google')

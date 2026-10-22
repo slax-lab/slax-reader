@@ -1,6 +1,11 @@
 <template>
   <div>
-    <SnapshotDetailLayout v-if="detail" class="bookmark-detail" :class="{ 'is-pdf': !!detail.pdf }" @close-panel="onUserPanelChange(null)">
+    <SnapshotDetailLayout
+      v-if="detail"
+      class="bookmark-detail"
+      :class="{ 'is-pdf': !!detail.pdf, 'yt-transcript-folded': youtubeArticleReady && !youtubeTranscriptShown, 'podcast-translated': podcastShowsTranslation }"
+      @close-panel="onUserPanelChange(null)"
+    >
       <template #topbar>
         <SnapshotTopBar>
           <template #left>
@@ -22,7 +27,7 @@
 
       <BookmarkArticleLocalFirst
         v-if="detail"
-        :key="detail.pdf?.document_id ?? 'title'"
+        :key="`${detail.pdf?.document_id ?? 'title'}-${bodyKey}`"
         ref="bookmarkArticle"
         :detail="detail"
         :marks="marks"
@@ -37,7 +42,40 @@
         @retry-pdf="retryPdfContent"
         @screen-lock-update="screenLockUpdate"
         @chat-bot-quote="onChatBotQuote"
-      />
+      >
+        <template #before-body>
+          <ClientOnly>
+            <PodcastBar
+              v-if="isPodcast && bookmarkUid"
+              v-model:mode="podcastMode"
+              :bookmark-uid="bookmarkUid"
+              :body-has-article="podcastBodyHasArticle"
+              @translation="podcastTranslation = $event"
+              @refresh-body="refreshBody"
+            />
+            <YoutubeArticleBar
+              v-if="youtubeArticleView === 'bar'"
+              :bookmark-uid="bookmarkUid"
+              :body-has-article="youtubeBodyHasArticle"
+              @refresh-body="refreshBody"
+              @fallback="youtubeArticleBelow = true"
+            />
+          </ClientOnly>
+        </template>
+        <template #after-body>
+          <ClientOnly>
+            <PodcastTranslation v-if="podcastShowsTranslation && podcastTranslation" :content="podcastTranslation" />
+            <YoutubeAiArticle
+              v-if="youtubeArticleView === 'below'"
+              :bookmark-uid="bookmarkUid"
+              :transcript-shown="youtubeTranscriptShown"
+              :has-transcript="youtubeCues.length > 0"
+              @ready="youtubeArticleReady = $event"
+              @toggle-transcript="youtubeTranscriptPref = !youtubeTranscriptShown"
+            />
+          </ClientOnly>
+        </template>
+      </BookmarkArticleLocalFirst>
 
       <template #right-edge-toolbar>
         <!-- visitor 无内容则隐藏整条侧栏 -->
@@ -150,6 +188,8 @@ import SnapshotMobileNotesEntry from '@/components/Snapshot/SnapshotMobileNotesE
 import ThemeSwitcher from '~/components/global/ThemeSwitcher.vue'
 import SnapshotDetailLayout from '~/components/Layouts/SnapshotDetailLayout.vue'
 import SnapshotSidePanel from '~/components/Layouts/SnapshotSidePanel.vue'
+import PodcastBar from '~/components/Snapshot/PodcastBar.vue'
+import PodcastTranslation from '~/components/Snapshot/PodcastTranslation.vue'
 import SnapshotAIPanel from '~/components/Snapshot/SnapshotAIPanel.vue'
 import SnapshotBottomToolbar, { type BottomToolbarAction } from '~/components/Snapshot/SnapshotBottomToolbar.vue'
 import SnapshotChatPanel from '~/components/Snapshot/SnapshotChatPanel.vue'
@@ -160,10 +200,13 @@ import SnapshotRightEdgeToolbar from '~/components/Snapshot/SnapshotRightEdgeToo
 import SnapshotSharePopover from '~/components/Snapshot/SnapshotSharePopover.vue'
 import SnapshotTopBar from '~/components/Snapshot/SnapshotTopBar.vue'
 import SnapshotTranscriptPanel from '~/components/Snapshot/SnapshotTranscriptPanel.vue'
+import YoutubeAiArticle from '~/components/Snapshot/YoutubeAiArticle.vue'
+import YoutubeArticleBar from '~/components/Snapshot/YoutubeArticleBar.vue'
 
 import { eventLog } from '@/utils/analytics'
 import { extractFirstContentImage } from '@/utils/ogImage'
 import { sortBookmarkTags } from '@/utils/tags'
+import { youtubeArticleView as pickYoutubeArticleView, youtubeBodyHasArticle as bodyHasYoutubeArticle } from '@/utils/youtubeBody'
 
 import { useLocalBookmarks } from '@/composables/bookmark/useLocalBookmarks'
 import { useLocalMarks } from '@/composables/bookmark/useLocalMarks'
@@ -173,6 +216,7 @@ import type { MarkDetail, SnapshotBookmarkDetail, SnapshotMetadata } from '@comm
 import { isClient, isServer } from '@commons/frontend-utils/is'
 import { extractHTMLTextContent } from '@commons/frontend-utils/parse'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
+import type { PodcastTranslation as PodcastTranslationContent } from '@slax-reader/contracts/interface'
 import { runArticleSsrProcessors } from '~/components/Article/processors/ssr-runner'
 import type { QuoteData } from '~/components/Chat/type'
 import CursorToast from '~/components/CursorToast'
@@ -481,10 +525,32 @@ const isPro = computed(() => !isSubscriptionExpired.value)
 const hasMarks = computed(() => marks.value?.mark_list?.some(m => !m.is_deleted) ?? false)
 
 const isYoutube = computed(() => /<youtube-player\b/i.test(detail.value?.content ?? ''))
+// Podcast body: the audio player, later with the cleaned transcript (slax-pod-article)
+const isPodcast = computed(() => /<slax-media\b[^>]*data-kind="audio"/i.test(detail.value?.content ?? ''))
+const podcastBodyHasArticle = computed(() => /class="slax-pod-article"/.test(detail.value?.content ?? ''))
+const podcastMode = ref<'original' | 'translation'>('original')
+const podcastTranslation = ref<PodcastTranslationContent | null>(null)
+const podcastShowsTranslation = computed(() => isPodcast.value && podcastMode.value === 'translation' && !!podcastTranslation.value)
+// The cleaned transcript replaced the player-only body: load it and mount the article again, so the
+// processors run and marks are drawn on the new body
+const bodyKey = ref(0)
+const refreshBody = async () => {
+  await refreshNuxtData(`content-${uuid}`)
+  // Remount only for a new body; the status bar (inside the article) asks again a little later
+  if (isPodcast.value ? podcastBodyHasArticle.value : youtubeBodyHasArticle.value) bodyKey.value++
+}
+// YouTube AI article: the cleaned article becomes the body (status bar above it while it is made).
+// A bookmark that keeps the raw transcript body (marks on it) shows the article below the body as before
+const youtubeBodyHasArticle = computed(() => bodyHasYoutubeArticle(detail.value?.content ?? ''))
+const youtubeArticleBelow = ref(false)
+const youtubeArticleView = computed(() =>
+  pickYoutubeArticleView({ isYoutube: isYoutube.value && !!bookmarkUid.value, below: youtubeArticleBelow.value })
+)
+// Media cues for the transcript panel: the YouTube player's, or the podcast player's once the transcript exists
 const youtubeCues = computed<{ t: number; text: string }[]>(() => {
   const content = detail.value?.content
   if (!content || typeof DOMParser === 'undefined') return []
-  const el = new DOMParser().parseFromString(content, 'text/html').querySelector('youtube-player')
+  const el = new DOMParser().parseFromString(content, 'text/html').querySelector('youtube-player, slax-media[data-kind="audio"]')
   const raw = el?.getAttribute('data-cues')
   if (!raw) return []
   try {
@@ -495,11 +561,22 @@ const youtubeCues = computed<{ t: number; text: string }[]>(() => {
   }
 })
 
+// YouTube AI article shown below the body: once it is ready the original transcript in the body is folded (hidden,
+// never removed, so marks and comments keep their place); the reader can show it again.
+// A transcript with highlights starts unfolded: a folded highlight cannot be reached from its comment card.
+const youtubeArticleReady = ref(false)
+const youtubeTranscriptPref = ref<boolean | null>(null)
+const youtubeTranscriptShown = computed(() => youtubeTranscriptPref.value ?? hasMarks.value)
+
+// The podcast body already is the transcript; the raw cues panel only exists once they do
+// A regex, not the parsed cues: the server has no DOMParser and must render the same panel list
+const hasTranscriptPanel = computed(() => isYoutube.value || (isPodcast.value && /<slax-media\b[^>]*data-cues=/i.test(detail.value?.content ?? '')))
+
 const sidePanels = computed<SnapshotPanelId[]>(() => {
-  if (isOwner.value) return isYoutube.value ? ['ai', 'transcript', 'chat', 'comment'] : ['ai', 'chat', 'comment']
+  if (isOwner.value) return hasTranscriptPanel.value ? ['ai', 'transcript', 'chat', 'comment'] : ['ai', 'chat', 'comment']
   const panels: SnapshotPanelId[] = []
   if (hasOutline.value) panels.push('ai')
-  if (isYoutube.value) panels.push('transcript')
+  if (hasTranscriptPanel.value) panels.push('transcript')
   if (hasMarks.value) panels.push('comment')
   return panels
 })
@@ -1020,6 +1097,17 @@ renderServerData()
 
 .comment-panel-wrap {
   --style: h-full flex flex-col overflow-hidden;
+}
+
+// The YouTube AI article is ready: fold the original transcript in the body. Hidden only, the DOM
+// stays, so marks and comments on it keep working when it is shown again; the side panel is unchanged
+.bookmark-detail.podcast-translated :deep(.slax-pod-article),
+.bookmark-detail.podcast-translated :deep(.slax-pod-notes) {
+  display: none;
+}
+
+.bookmark-detail.yt-transcript-folded :deep(.slax-yt-transcript) {
+  display: none;
 }
 
 .error {

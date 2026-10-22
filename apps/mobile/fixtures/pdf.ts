@@ -1,13 +1,13 @@
 import {Sha256} from '../src/data/pdf-sha256.ts';
 import type {PdfDescriptor} from '@slax-reader/contracts/pdf';
 
-export interface FixturePdfPlan {bookmarkId: string; document: 'eight-pages' | 'long-pages'; prepare?: 'complete'}
+export interface FixturePdfPlan {bookmarkId: string; document: 'eight-pages' | 'thirteen-pages' | 'long-pages'; prepare?: 'complete'}
 export interface FixturePdf {bytes: Uint8Array; descriptor: PdfDescriptor}
 export interface FixturePdfCounts {metadataRequests: number; rangeRequests: number; bytesServed: number; offlineRequests: number; rejectedRequests: number}
 
 export function createFixturePdf(document: FixturePdfPlan['document']): FixturePdf {
-  if (document !== 'eight-pages' && document !== 'long-pages') throw new Error('Unknown prepared PDF fixture');
-  const pages = document === 'eight-pages' ? 8 : 30;
+  if (document !== 'eight-pages' && document !== 'thirteen-pages' && document !== 'long-pages') throw new Error('Unknown prepared PDF fixture');
+  const pages = document === 'eight-pages' ? 8 : document === 'thirteen-pages' ? 13 : 30;
   const objects: string[] = [], pageIds = Array.from({length: pages}, (_, index) => 4 + index * 2);
   objects.push('<< /Type /Catalog /Pages 2 0 R >>');
   objects.push(`<< /Type /Pages /Count ${pages} /Kids [${pageIds.map(id => `${id} 0 R`).join(' ')}] >>`);

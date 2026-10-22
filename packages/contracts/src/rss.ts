@@ -61,6 +61,8 @@ export interface RssEntriesQuery {
   limit?: string;
   /** Only a deliberate Load more request may fetch history from the source. */
   fetch_history?: string;
+  /** Entry id to continue after, for clients rendering a local list; exclusive with cursor. */
+  before?: string;
 }
 
 export interface RssEntry {
@@ -75,6 +77,8 @@ export interface RssEntry {
   image_url: string | null;
   published_at: string | null;
   first_seen_at: string;
+  /** Timeline position (UTC ISO 8601); list order is sort_at DESC, id DESC. Optional for older servers. */
+  sort_at?: string;
   /** Existing user-bookmark relation UUID, independent of the RSS cache. */
   bookmark_user_uuid: string | null;
 }

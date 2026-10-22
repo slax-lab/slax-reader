@@ -20,11 +20,7 @@ public final class SlaxPlatformModule: Module {
       presenter.present(SFSafariViewController(url: url), animated: true) { promise.resolve(nil) }
     }.runOnQueue(.main)
     AsyncFunction("readerResourceOwner") { SlaxReaderView.currentOwner() }.runOnQueue(.main)
-    AsyncFunction("loadReaderImage") { (id: String, url: String, owner: String, hosts: [String], proxies: [String], promise: Promise) in
-      try SlaxReaderImages.load(id, raw: url, owner: owner, hosts: hosts, proxies: proxies, promise: promise)
-    }.runOnQueue(.main)
-    AsyncFunction("cancelReaderImage") { (id: String) in SlaxReaderImages.cancel(id) }.runOnQueue(.main)
-    AsyncFunction("revokeReaderResources") { SlaxReaderImages.cancelAll(); SlaxReaderView.revokeAllResources() }.runOnQueue(.main)
+    AsyncFunction("revokeReaderResources") { SlaxReaderView.revokeAllResources() }.runOnQueue(.main)
     AsyncFunction("activateReaderResources") { (owner: String) in try SlaxReaderView.activateResources(owner) }.runOnQueue(.main)
     AsyncFunction("setWebSessionCookie") { (origin: URL, token: String?, domain: String, promise: Promise) in
       guard origin.scheme == "https", let host = origin.host, token?.contains(";") != true, token?.contains("\n") != true, token?.contains("\r") != true else { throw NSError(domain: "SlaxPlatform", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid HTTPS session origin"] ) }

@@ -1,12 +1,13 @@
+import type {ViewInstance} from 'react-native'
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, PixelRatio, Pressable, StyleSheet, View } from 'react-native';
 import {Gesture, GestureDetector} from 'react-native-gesture-handler';
-import Reanimated, {cancelAnimation, Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
+import Reanimated, {cancelAnimation, Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withSpring, withTiming} from 'react-native-reanimated';
 import {motionDuration} from '../motion/policy';
 import {useReducedMotion} from '../motion/useReducedMotion';
-import {useDrawerGesture} from './SourceDrawer';
+import {useDrawerGesture, useDrawerInput} from './SourceDrawer';
 import * as Haptics from 'expo-haptics';
-import { bookmarkDisplayTitle, type BookmarkRecord } from '../data/repositories';
+import { bookmarkDisplayTitle, type LibraryBookmark } from '../data/repositories';
 import type {MobileContextValue} from '../runtime';
 import type {MobileTelemetry} from '../telemetry/core';
 import { mobileColors as C, mobileLayout as L } from '../theme';
@@ -16,13 +17,14 @@ import {SourceLine} from './SourceLine';
 import { SourceMenu } from './SourceMenu';
 
 export type LibrarySort = 'inbox' | 'starred' | 'archived';
-type BookmarkRowProps = {item: BookmarkRecord; sort: LibrarySort; owned: boolean; onOpen(item: BookmarkRecord): void; onEdit(item: BookmarkRecord): void; onError(error: unknown): void; t: MobileContextValue['t']; repositories: MobileContextValue['repositories']; telemetry: MobileTelemetry};
+type BookmarkRowProps = {item: LibraryBookmark; sort: LibrarySort; owned: boolean; onOpen(item: LibraryBookmark): void; onEdit(item: LibraryBookmark): void; onError(error: unknown): void; t: MobileContextValue['t']; repositories: MobileContextValue['repositories']; telemetry: MobileTelemetry};
 export const BookmarkRow = memo(function BookmarkRow({item, sort, owned, onOpen, onEdit, onError, t, repositories, telemetry}: BookmarkRowProps) {
+  const inputLock = useDrawerInput();
   const drawerGesture = useDrawerGesture(), reducedMotion = useReducedMotion();
   const offset = useSharedValue(0), dragStart = useSharedValue(0), dragging = useSharedValue(false), touchX = useSharedValue(0), touchY = useSharedValue(0);
   const generation = useSharedValue(0);
   const flash = useRef(new Animated.Value(0)).current, title = bookmarkDisplayTitle(item), oldTitle = useRef(title);
-  const row = useRef<View>(null), [menu, setMenu] = useState(false), [anchor, setAnchor] = useState({x: 0, y: 0});
+  const row = useRef<ViewInstance>(null), [menu, setMenu] = useState(false), [anchor, setAnchor] = useState({x: 0, y: 0});
   const menuMounted = useRef(false);
   if (menu) menuMounted.current = true;
   const max = owned ? sort === 'inbox' ? 130 : 70 : 0;
@@ -50,7 +52,8 @@ export const BookmarkRow = memo(function BookmarkRow({item, sort, owned, onOpen,
     const gesture = Gesture.Pan().enabled(owned && !menu).manualActivation(true)
       .onTouchesDown(event => {const touch = event.allTouches[0]; if (touch) {touchX.value = touch.absoluteX; touchY.value = touch.absoluteY;} dragging.value = false;})
       .onTouchesMove((event, manager) => {
-        if (dragging.value) return;
+        if (inputLock?.value) {manager.fail(); return;}
+        if (inputLock?.value || dragging.value) return;
         const touch = event.allTouches[0]; if (!touch) return;
         const dx = touch.absoluteX - touchX.value, dy = touch.absoluteY - touchY.value;
         if (Math.abs(dy) > 8 && Math.abs(dy) >= Math.abs(dx)) {manager.fail(); return;}
@@ -67,10 +70,16 @@ export const BookmarkRow = memo(function BookmarkRow({item, sort, owned, onOpen,
       .onFinalize((_event, succeeded) => {if (dragging.value && !succeeded) settleOffset(0);});
     if (drawerGesture) gesture.blocksExternalGesture(drawerGesture);
     return gesture;
-  }, [owned, menu, max, offset, dragStart, dragging, touchX, touchY, drawerGesture, generation, settleOffset]);
-  const rowStyle = useAnimatedStyle(() => ({transform: [{translateX: offset.value}, {scale: menu ? 1.05 : 1}], backgroundColor: C.readerBackground}));
+  }, [owned, menu, max, offset, dragStart, dragging, touchX, touchY, drawerGesture, generation, settleOffset, inputLock]);
+  const lift = useSharedValue(0);
+  useEffect(() => {
+    lift.value = withSpring(menu ? 1 : 0, {damping: 18, stiffness: 260, reduceMotion: ReduceMotion.System});
+    return () => cancelAnimation(lift);
+  }, [menu, lift]);
+  const rowStyle = useAnimatedStyle(() => ({transform: [{translateX: offset.value}, {scale: 1 + lift.value * 0.05}], backgroundColor: C.readerBackground,
+    shadowColor: '#000000', shadowOpacity: lift.value * 0.14, shadowRadius: lift.value * 12, shadowOffset: {width: 0, height: 4}, elevation: lift.value * 8}));
   function settle() {settleOffset(0);}
-  function perform(work: () => Promise<unknown> | undefined, elementId: string, swipe = false) {settle(); const operation = work(); if (!operation) return; void operation.then(() => {telemetry.element(elementId, 'bookmarks'); if (swipe) telemetry.firebase('bookmark_list', 'item_interact', {element: elementId === 'bookmark_star_button' ? 'star' : 'archive', source: 'inbox'});}).catch(onError);}
+  function perform(work: () => Promise<unknown> | undefined, elementId: string, swipe = false) {if (inputLock?.value) return; settle(); const operation = work(); if (!operation) return; void operation.then(() => {telemetry.element(elementId, 'bookmarks'); if (swipe) telemetry.firebase('bookmark_list', 'item_interact', {element: elementId === 'bookmark_star_button' ? 'star' : 'archive', source: 'inbox'});}).catch(onError);}
   const state = item.downloadStatus === 1 ? 'DOWNLOADING' : item.downloadStatus === 2 ? 'COMPLETED' : item.downloadStatus === 3 ? 'FAILED' : 'NONE';
   const statusIcon = sort === 'starred' ? 'ic_cell_starred' : sort === 'archived' ? 'ic_cell_archived' : item.downloadStatus === 1 ? 'ic_cell_internet_downloading' : item.downloadStatus === 2 ? 'ic_cell_internet' : 'ic_cell_internet_uncached';
   return <View ref={row} style={styles.container}>
@@ -79,8 +88,8 @@ export const BookmarkRow = memo(function BookmarkRow({item, sort, owned, onOpen,
       {sort !== 'starred' ? <Pressable accessibilityRole="button" accessibilityLabel={t(item.archiveStatus ? 'bookmark_unarchive' : 'bookmark_archive')} onPress={() => perform(() => repositories?.updateBookmark(item.id, {archiveStatus: item.archiveStatus ? 0 : 1}), 'bookmark_archive_button', true)} style={[styles.action, {backgroundColor: C.bodyText}]}><SourceIcon name={item.archiveStatus ? 'ic_cell_action_archieved' : 'ic_cell_action_archieve'} size={20} /></Pressable> : null}
     </View> : null}
     <GestureDetector gesture={pan}><Reanimated.View style={rowStyle}>
-      <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={() => {if (dragging.value) return; if (offset.value) settle(); else {if (owned && item.status === 'success') telemetry.element('bookmark_list_row', 'bookmarks'); onOpen(item);}}}
-        onLongPress={owned ? () => {if (dragging.value) return; void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); row.current?.measureInWindow((x, y, width) => {setAnchor({x: x + width - 188, y: y + 38}); setMenu(true);});} : undefined}
+      <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={() => {if (inputLock?.value || dragging.value) return; if (offset.value) settle(); else {if (owned && item.status === 'success') telemetry.element('bookmark_list_row', 'bookmarks'); onOpen(item);}}}
+        onLongPress={owned ? () => {if (inputLock?.value || dragging.value) return; void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); row.current?.measureInWindow((x, y, width) => {if (inputLock?.value) return; setAnchor({x: x + width - 188, y: y + 38}); setMenu(true);});} : undefined}
         style={({pressed}) => [styles.row, {backgroundColor: pressed ? '#0000000D' : C.readerBackground}]}>
         <View style={styles.status}><SourceIcon name={statusIcon} size={12} label={`Article · ${state}`} testID={IDs.BookmarkItemStatus} /></View>
         <SourceLine text={title} fontSize={16} lineHeight={24} color={C.text} style={{flex: 1, alignSelf: 'center'}} />

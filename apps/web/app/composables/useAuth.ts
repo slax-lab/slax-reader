@@ -1,3 +1,5 @@
+import { configuredCookieName, requireConfiguredCookieName } from '~/utils/authCookie'
+
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { useUserStore } from '~/stores/user'
@@ -67,28 +69,37 @@ const useAuth = {
       throw new Error('login failed')
     }
 
-    set($config.COOKIE_TOKEN_NAME, resp.token, { path: '/', expires: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), domain: `${$config.COOKIE_DOMAIN}` })
+    const cookieName = requireConfiguredCookieName($config.COOKIE_TOKEN_NAME)
+    const cookieDomain = typeof $config.COOKIE_DOMAIN === 'string' ? $config.COOKIE_DOMAIN : ''
+    set(cookieName, resp.token, {
+      path: '/',
+      expires: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+      ...(cookieDomain ? { domain: cookieDomain } : {})
+    })
     return resp.token
   },
   async clearAuth(): Promise<void> {
     const $config = useRuntimeConfig().public
-    const configuredDomain = `${$config.COOKIE_DOMAIN || ''}`.replace(/^\.+/, '').toLowerCase()
+    const cookieName = configuredCookieName($config.COOKIE_TOKEN_NAME)
+    const configuredDomain = (typeof $config.COOKIE_DOMAIN === 'string' ? $config.COOKIE_DOMAIN : '').replace(/^\.+/, '').toLowerCase()
     const hostname = typeof window === 'undefined' ? '' : window.location.hostname
     const domains = new Set([configuredDomain, hostname])
     const isIpAddress = (domain: string) => domain.includes(':') || /^\d+(\.\d+){3}$/.test(domain)
     const labels = configuredDomain.split('.')
     if (labels.length > 2 && !isIpAddress(configuredDomain)) domains.add(labels.slice(1).join('.'))
 
-    remove($config.COOKIE_TOKEN_NAME, { path: '/' })
-    // Host-only deletion does not remove an explicit-domain cookie at the
-    // same hostname. Expire every supported scope, even with duplicate names.
-    for (const domain of domains) {
-      if (!domain || isIpAddress(domain)) continue
-      try {
-        remove($config.COOKIE_TOKEN_NAME, { path: '/', domain })
-      } catch {
-        // An inapplicable legacy domain must not prevent the other scopes
-        // from being cleared (for example on a local development host).
+    if (cookieName) {
+      remove(cookieName, { path: '/' })
+      // Host-only deletion does not remove an explicit-domain cookie at the
+      // same hostname. Expire every supported scope, even with duplicate names.
+      for (const domain of domains) {
+        if (!domain || isIpAddress(domain)) continue
+        try {
+          remove(cookieName, { path: '/', domain })
+        } catch {
+          // An inapplicable legacy domain must not prevent the other scopes
+          // from being cleared (for example on a local development host).
+        }
       }
     }
     await useUserStore().clearUserInfo()

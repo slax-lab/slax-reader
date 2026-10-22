@@ -24,10 +24,11 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
     @Volatile private var activeOwner: String? = null
     fun owns(owner: String) = activeOwner == owner
     fun currentOwner() = activeOwner
-    fun revokeAllResources() { activeOwner = null; SlaxReaderImages.cancelAll(); activeViews.toList().forEach { it.detach() } }
+    fun revokeAllResources() { SlaxStorageOwner.activate(null); SlaxPdfTransfers.revokeAll(); SlaxImageModule.revokeAll(); activeOwner = null; activeViews.toList().forEach { it.detach() } }
     fun activateResources(owner: String) {
       require(Regex("^[A-Za-z0-9_-]+$").matches(owner)) { "Invalid Reader owner" }
       if (activeOwner != null && activeOwner != owner) revokeAllResources()
+      if (activeOwner != owner) SlaxStorageOwner.activate(owner)
       activeOwner = owner
     }
   }
@@ -37,7 +38,7 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
   @Volatile private var resourceOwner: String? = null
   fun setResourceOwner(owner: String?) {
     if (resourceOwner != null && resourceOwner != owner) { detach(); return }
-    resourceOwner = owner
+    resourceOwner = owner; resourceHandler.resourceOwner = owner
   }
   var html = ""
     set(value) { field = if (detached) "" else value }

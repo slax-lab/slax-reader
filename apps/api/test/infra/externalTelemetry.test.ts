@@ -30,7 +30,7 @@ describe('SlaxAlertBotClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe('https://alerts.example/stripe')
-    expect(init.redirect).toBe('error')
+    expect(init.redirect).toBe('manual')
     expect(JSON.parse(init.body)).toEqual({ msgtype: 'markdown', markdown: { content: 'payment notification' } })
   })
 
@@ -41,6 +41,41 @@ describe('SlaxAlertBotClient', () => {
     expect(body.msg_type).toBe('interactive')
     expect(body.card.header.title.content).toBe('Title 【BETA】')
     expect(body.card.elements[0].text.content).toBe('Content')
+  })
+
+  const notificationEnv = {
+    RUN_TYPE: 'prod',
+    STRIPE_PUSH_API: 'https://alerts.example/stripe',
+    REPORT_PUSH_API: 'https://alerts.example/report',
+    ERROR_LOG_PUSH_API: 'https://alerts.example/error',
+    CRAWL_PUSH_API: 'https://alerts.example/crawl'
+  } as Env
+
+  test.each(bots)('%s sends using Workers-compatible manual redirects', async bot => {
+    await new SlaxAlertBotClient(notificationEnv)[bot].pushMessage('Title\nContent')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe(`https://alerts.example/${bot}`)
+    expect(init).toMatchObject({ method: 'POST', redirect: 'manual', headers: { 'Content-Type': 'application/json' } })
+    const body = JSON.parse(init.body)
+    if (bot === 'stripe' || bot === 'error') expect(body).toEqual({ msgtype: 'markdown', markdown: { content: 'Title\nContent' } })
+    else if (bot === 'report') expect(body.card.elements[0].text.content).toBe('Title\nContent')
+    else expect(body.card.header.title.content).toBe('Title 【PROD】')
+  })
+
+  describe.each(bots)('%s HTTP failures', bot => {
+    test.each([301, 302, 303, 307, 308, 400, 429, 500, 503])('rejects HTTP %s without forwarding or exposing private details', async status => {
+      const response = new Response('private provider body', { status, headers: { Location: 'https://redirect.example/private' } })
+      const cancel = vi.spyOn(response.body!, 'cancel')
+      fetchMock.mockResolvedValueOnce(response)
+
+      await expect(new SlaxAlertBotClient(notificationEnv)[bot].pushMessage('private message')).rejects.toEqual(new Error(`Alert webhook request failed (HTTP ${status})`))
+
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(fetchMock.mock.calls[0][1].redirect).toBe('manual')
+      expect(cancel).toHaveBeenCalledOnce()
+      expect(console.log).not.toHaveBeenCalled()
+    })
   })
 
   test('本地即使配置告警也不外发且不打印消息', async () => {

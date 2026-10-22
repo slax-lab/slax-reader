@@ -103,12 +103,12 @@ export class SessionController implements SessionAuthority {
     catch (error) {current(); this.requestEpoch++; this.credentialsAvailable = false; this.lifecycle.failed?.(error); throw error;}
   }
   releaseLocalOwner() {this.activeUser = null; this.requestEpoch++; this.identityEpoch++;}
-  restoreLocal(): Promise<Session | null> {
+  restoreLocal(prepare: () => Promise<PreferenceValues> = () => this.preferences.read()): Promise<Session | null> {
     const current = this.captureIdentity();
     return this.exclusive(async () => {
       current();
       this.requestEpoch++; this.credentialsAvailable = true;
-      const values = await this.preferences.read(); current();
+      const values = await prepare(); current();
       const session = values[SIGN_OUT_PENDING] === true ? null : storedSession(values);
       this.identityEpoch++;
       this.emit(session ? {status: 'authenticated', session} : {status: 'unauthenticated'});
@@ -210,7 +210,7 @@ export class SessionController implements SessionAuthority {
     this.lifecycle.rejected?.();
     return true;
   }
-  clearIfMatches(token: string, scope?: SessionRequestScope): Promise<boolean> {
+  clearIfMatches(token: string, scope?: SessionRequestScope, clearLocal = true): Promise<boolean> {
     return this.exclusive(async () => {
       try { scope?.assertCurrent(); } catch (error) { if (error instanceof SessionChangedError) return false; throw error; }
       const previous = await this.readStoredSession();
@@ -227,7 +227,7 @@ export class SessionController implements SessionAuthority {
       this.emit({ status: 'loading' });
       this.activeUser = null; this.accountCleared = false;
       try {
-        await this.lifecycle.leave(previous.userId, true); identity();
+        await this.lifecycle.leave(previous.userId, clearLocal); identity();
         let cleared = false;
         await this.preferences.update(values => {
           identity();
@@ -235,7 +235,7 @@ export class SessionController implements SessionAuthority {
           if (values[K.token] === token) { clearTokens(values); cleared = true; }
         });
         this.activeUser = null;
-        this.accountCleared = true;
+        this.accountCleared = clearLocal;
         const current = await this.readStoredSession(); identity();
         this.credentialsAvailable = true;
         if (current) { await this.enterAccount(current); this.activeUser = current.userId; this.accountCleared = false; }
@@ -244,11 +244,11 @@ export class SessionController implements SessionAuthority {
       } catch (error) {identity(); this.lifecycle.failed?.(error); throw error;}
     });
   }
-  async signOut(): Promise<void> {
+  async signOut(clearLocal = true): Promise<void> {
     const scope = this.captureRequestScope();
     const session = await this.readStoredSession();
     scope.assertCurrent();
-    if (session) await this.clearIfMatches(session.token, scope);
+    if (session) await this.clearIfMatches(session.token, scope, clearLocal);
   }
   refreshIfNeeded(refresh: (token: string, signal?: AbortSignal) => Promise<string>, signal?: AbortSignal, assertCurrent = () => {}): Promise<void> {
     if (this.refreshFlight?.epoch === this.requestEpoch && !this.refreshFlight.signal?.aborted) return this.refreshFlight.promise;

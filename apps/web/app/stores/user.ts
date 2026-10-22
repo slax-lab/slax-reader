@@ -1,4 +1,5 @@
 import { createAccountLocaleRequest } from '../utils/accountLocaleRequest'
+import { readStringCookie, requireConfiguredCookieName } from '../utils/authCookie'
 import { notifyExtensionAccountLocaleInvalidated } from '../utils/extensionLocale'
 import { existingUserLocaleTasks, getUserLocaleTasks, type LocaleUserState } from '../utils/userLocaleTasks'
 
@@ -153,8 +154,7 @@ export const useUserStore = defineStore<'user', UserState, UserGetters, UserActi
         return
       }
 
-      const { get } = useCookies()
-      const token = get(useRuntimeConfig().public.COOKIE_TOKEN_NAME)
+      const token = readStringCookie(useRuntimeConfig().public.COOKIE_TOKEN_NAME)
       if (!token) {
         return
       }
@@ -228,8 +228,16 @@ export const localeTasksForStore = (store: LocaleUserState) => {
   const auth = useAuth()
   return getUserLocaleTasks(store, {
     api: createAccountLocaleRequest(),
-    getToken: () => (import.meta.server ? serverToken : cookies.get(config.COOKIE_TOKEN_NAME)),
-    setToken: token => cookies.set(config.COOKIE_TOKEN_NAME, token, { path: '/', expires: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), domain: `${config.COOKIE_DOMAIN}` }),
+    getToken: () => (import.meta.server ? serverToken : readStringCookie(config.COOKIE_TOKEN_NAME, cookies)),
+    setToken: token => {
+      const cookieName = requireConfiguredCookieName(config.COOKIE_TOKEN_NAME)
+      const cookieDomain = typeof config.COOKIE_DOMAIN === 'string' ? config.COOKIE_DOMAIN : ''
+      cookies.set(cookieName, token, {
+        path: '/',
+        expires: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+        ...(cookieDomain ? { domain: cookieDomain } : {})
+      })
+    },
     apply: locale => app.runWithContext(() => app.$i18n.setLocale(locale)),
     notify: notifyExtensionAccountLocaleInvalidated,
     expire: () =>
