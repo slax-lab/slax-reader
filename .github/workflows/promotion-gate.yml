@@ -1,0 +1,80 @@
+name: Promotion gate
+
+# The single required `promotion integrity` context for beta and main (design D2).
+#
+# Rulesets cannot restrict a pull request's head branch and cannot express "the
+# head already passed the previous stage's validation", so one companion gate
+# asserts both: the head is a sanctioned source for the target branch (dev or
+# hotfix/* for beta; beta or hotfix/* for main), the six application CI gates
+# succeeded on the head, and a hotfix carries a non-author approving review.
+#
+# Trust model: this workflow runs on `pull_request_target`. Its workflow file
+# comes from the default branch and the base commit is checked out explicitly,
+# so PR code is never executed. The verdict is an explicitly created check run
+# named `promotion integrity` on the pull request's head SHA (see the script), not
+# this job's own conclusion — the job is intentionally named differently. Every
+# error path still creates a failing check run, so a broken gate blocks the merge
+# instead of leaving the required context missing.
+#
+# The suite gates and the beta deployment are triggered around the same time as
+# this job, so the script polls both to a bounded deadline. Any completed
+# failure fails immediately; a timeout names the contexts still outstanding.
+#
+# Beta deployment evidence for beta -> main goes through the merged pull request
+# that produced the beta tip. Deploy workflows triggered by `pull_request_target`
+# attach their conclusions to the merged pull request's head SHA, not to the
+# merge commit, so the script resolves beta tip -> merged PR -> its head SHA ->
+# beta deployment records. See tooling/promotion-gate.mjs.
+#
+# `pull_request_review` is deliberately not a trigger: GitHub runs that event's
+# workflow file from the pull request's merge commit, which head branches can
+# edit, so it would let a hotfix self-certify the required check. After a
+# non-author approving review lands, re-run this workflow (Actions → re-run all
+# jobs) to re-evaluate the review assertion.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    branches: [beta, main]
+
+permissions:
+  actions: read
+  checks: write
+  contents: read
+  deployments: read
+  pull-requests: read
+
+concurrency:
+  group: promotion-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Promotion gate runner
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      # The workflow file itself comes from the default branch (pull_request_target),
+      # while this checkout pins the script to the PR's base commit. The two can
+      # differ by one promotion window; both are protected refs, and the base
+      # version is the contract of the branch being entered. Do not drop `ref` to
+      # "simplify" this: the default checkout commit is the default branch, not
+      # the PR base.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.2
+      - name: Report the promotion integrity verdict
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPOSITORY: ${{ github.event.pull_request.base.repo.full_name }}
+        run: node tooling/promotion-gate.mjs
