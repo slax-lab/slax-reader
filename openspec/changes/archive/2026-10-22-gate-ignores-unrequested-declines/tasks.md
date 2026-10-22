@@ -35,14 +35,14 @@
 
 ## 6. Post-merge live verification (before archive)
 
-- [ ] 6.1 On an open throwaway pull request, confirm a new on-demand run's display title carries the comment id, create a real gate failure (post `/review`, cancel the queued on-demand run), and then post an ordinary comment; verify the latest `PR review gate` status stays the failure, no new status is posted, and the label is not added.
-- [ ] 6.2 Pause drill: set `PR_REVIEW_ENABLED=false`, post an ordinary comment (gate reports nothing) and then a `/review` (gate reports `success — Review not run (reviews are currently paused)`), then delete the variable.
-- [ ] 6.3 Verify the ordinary automatic path on an open pull request still reports `Reviewed:` or a findings failure normally after merge.
-- [ ] 6.4 Record every drill (run/status/label ids, display titles and variable state) in `validation.md` before archiving.
+- [x] 6.1 On an open throwaway pull request, confirm a new on-demand run's display title carries the comment id, create a real gate failure (post `/review`, cancel the queued on-demand run), and then post an ordinary comment; verify the latest `PR review gate` status stays the failure, no new status is posted, and the label is not added.
+- [x] 6.2 Pause drill: set `PR_REVIEW_ENABLED=false`, post an ordinary comment (gate reports nothing) and then a `/review` (gate reports `success — Review not run (reviews are currently paused)`), then delete the variable.
+- [x] 6.3 Verify the ordinary automatic path on an open pull request still reports `Reviewed:` or a findings failure normally after merge.
+- [x] 6.4 Record every drill (run/status/label ids, display titles and variable state) in `validation.md` before archiving.
 
 ## 7. Archive and follow-ups outside this change
 
-- [ ] 7.1 After the implementation pull request merges and 6.x is recorded, archive in a separate small pull request: `openspec archive gate-ignores-unrequested-declines`; verify no active change remains and the requirements are folded into `openspec/specs/agentic-pr-review/spec.md`.
+- [x] 7.1 After the implementation pull request merges and 6.x is recorded, archive in a separate small pull request: `openspec archive gate-ignores-unrequested-declines`; verify no active change remains and the requirements are folded into `openspec/specs/agentic-pr-review/spec.md`.
 - [ ] 7.2 Re-read the gate's confirmation predicates against gh-aw's matcher at the next pin bump: the accepted `/review` forms, the actor admission and the pause switch are mirrored in the gate, and the run-name expression is the carrier between the workflows.
 - [ ] 7.3 Decide whether the watchdog should ignore declined on-demand runs when counting "a review run exists", so a head with no gate status and only such a run is alarmed on instead of staying `Expected`; `AGENTS.md`'s `/review` remedy is the interim answer.
 - [ ] 7.4 Decide whether the `pre_activation: success, activation: skipped` membership-declined shape should keep its passing skip if it is ever observed in practice; it is unchanged by this change.
