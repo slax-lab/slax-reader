@@ -28,8 +28,9 @@ name: Promotion gate
 #
 # `pull_request_review` is deliberately not a trigger: GitHub runs that event's
 # workflow file from the pull request's merge commit, which head branches can
-# edit, so it would let a hotfix self-certify the required check. After a hotfix
-# approval lands, re-run this workflow to re-evaluate the review assertion.
+# edit, so it would let a hotfix self-certify the required check. After a
+# non-author approving review lands, re-run this workflow (Actions → re-run all
+# jobs) to re-evaluate the review assertion.
 
 on:
   pull_request_target:
@@ -53,6 +54,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      # The workflow file itself comes from the default branch (pull_request_target),
+      # while this checkout pins the script to the PR's base commit. The two can
+      # differ by one promotion window; both are protected refs, and the base
+      # version is the contract of the branch being entered. Do not drop `ref` to
+      # "simplify" this: the default checkout commit is the default branch, not
+      # the PR base.
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.base.sha }}

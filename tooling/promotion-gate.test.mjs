@@ -284,6 +284,21 @@ test('a failing verdict still reports a failing check run with an actionable sum
   assert.match(posted[0].output.summary, /push a new commit|re-run this workflow/)
 })
 
+test('a hotfix review-only failure tells the approver exactly how to re-run the gate', async () => {
+  const posted = []
+  const routes = [
+    ...checksRoute(greenGates()),
+    [/\/pulls\/42\/reviews\?/, () => response([])],
+    checkRunRoute(posted)
+  ]
+  const result = await runGateAndReport(env({ BASE_REF: 'main', HEAD_REF: 'hotfix/urgent' }), { fetchImpl: routed(routes) })
+  assert.equal(result.reported, true)
+  assert.equal(result.passed, false)
+  assert.equal(posted[0].conclusion, 'failure')
+  assert.match(posted[0].output.summary, /approving review/)
+  assert.match(posted[0].output.summary, /After a non-author approving review lands, re-run this workflow \(Actions → re-run all jobs\) to re-evaluate\./)
+})
+
 test('an evidence API error still reports a failing check run', async () => {
   const posted = []
   const routes = [

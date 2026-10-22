@@ -38,6 +38,7 @@ export const deployWorkflows = ['.github/workflows/api-deploy.yml', '.github/wor
 export { defaultTimeoutMs, pollIntervalMs }
 
 export class GateError extends Error {}
+export class ReviewApprovalRequired extends GateError {}
 
 const fail = message => { throw new GateError(message) }
 const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
@@ -257,7 +258,7 @@ export function reviewApprovers(reviews, author) {
 
 export async function reviewEvidence(inputs, { token, fetchImpl }) {
   const reviews = await list(fetchImpl, token, `/repos/${inputs.repository}/pulls/${inputs.number}/reviews`)
-  if (reviewApprovers(reviews, inputs.author).length === 0) fail('Hotfix pull request requires an approving review from someone other than its author')
+  if (reviewApprovers(reviews, inputs.author).length === 0) throw new ReviewApprovalRequired('Hotfix pull request requires an approving review from someone other than its author')
 }
 
 // Shared poll: the suite gates and the beta deployment are independent, so one
@@ -373,13 +374,16 @@ export async function runGateAndReport(env = process.env, { fetchImpl = fetch, w
     await runPromotionGate(inputs, { token: target.token, fetchImpl, wait, timeoutMs: readTimeout(env), log })
   } catch (error) {
     const message = error instanceof GateError ? error.message : 'Promotion gate failed unexpectedly'
+    const guidance = error instanceof ReviewApprovalRequired
+      ? 'After a non-author approving review lands, re-run this workflow (Actions → re-run all jobs) to re-evaluate.'
+      : 'Fix the failed condition and push a new commit, or re-run this workflow after the required approval lands; the check reports again on the current head.'
     errorLog(message)
     try {
       await createCheckRun({
         ...target,
         conclusion: 'failure',
         title: 'Promotion integrity failed',
-        summary: `Promotion ${source} failed.\n\n${message}\n\nFix the failed condition and push a new commit, or re-run this workflow after the required approval lands; the check reports again on the current head.`
+        summary: `Promotion ${source} failed.\n\n${message}\n\n${guidance}`
       }, { fetchImpl })
       return { reported: true, passed: false, message }
     } catch (reportError) {
