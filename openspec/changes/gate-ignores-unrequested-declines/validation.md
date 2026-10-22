@@ -72,3 +72,7 @@ Real comment fixtures used: `/review` comment 6289543179 (`MEMBER`, `issue_url` 
 No Important findings. Two Nits, both fixed before the follow-up push: the gate header and `docs/CI.md` now scope the confirmation wording to the all-skipped declined shape and name the membership-declined shape as unchanged, and the tasks completed by the open PR and the pre-push review are checked off.
 
 An independent read-only review agent re-ran every replay row against the committed script, re-checked the confirmation fixtures, the delta headers and the tasks, and reported no Important findings. Its compliance Nits were fixed in the same round: a MODIFIED "Reviews can be paused without blocking merges" requirement scopes the pause's passing result to a review the pause declined, and the merge-gate requirement gains a scenario for the unreported-head residual. Its two suggested gaps (the unchanged membership-declined overwrite path and the author-association drift) are recorded above.
+
+### Round 2 (PR #324, automated review run 39705767146, commit 4d2c63f)
+
+No Important findings. Two Nits, both fixed before the next push: `docs/CI.md` now names the all-skipped shape instead of "declined before activation", which also described the unconfirmed membership-declined shape; and the pull-request predicate captures the `gh api` value instead of piping into `grep -q`, so a producer that closes early cannot turn a successful match into a failed confirmation through `pipefail`.

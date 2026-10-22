@@ -168,7 +168,10 @@ jobs:
             actor_ok=$(jq -r '(.author_association == "OWNER") or (.author_association == "MEMBER") or (.author_association == "COLLABORATOR")' <<<"$comment") || return 1
             issue_ok=$(jq -r --arg suffix "/issues/$PR_NUMBER" '.issue_url | endswith($suffix)' <<<"$comment") || return 1
             [ "$body_ok" = "true" ] && [ "$actor_ok" = "true" ] && [ "$issue_ok" = "true" ] || return 1
-            gh api "repos/$REPO/issues/$PR_NUMBER" --jq 'has("pull_request")' 2>/dev/null | grep -qx true
+            # Capture rather than pipe into `grep -q`: the producer closing early
+            # would make pipefail read a successful match as a failed confirmation.
+            is_pr=$(gh api "repos/$REPO/issues/$PR_NUMBER" --jq 'has("pull_request")' 2>/dev/null) || return 1
+            [ "$is_pr" = "true" ]
           }
 
           if [ "$WF" = "pr-review-command.lock.yml" ] && [ "$pre" = "skipped" ] && [ "$activation" = "skipped" ]; then
