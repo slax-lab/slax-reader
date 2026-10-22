@@ -44,10 +44,10 @@ test('row download status never flashes a clock for a fast cache and holds a rea
   assert.equal(icons.at(-1), 'ic_cell_internet');
 
   status = 'DOWNLOADING'; await render();
-  await act(async () => advance(300));
+  await act(async () => advance(100));
   const shown = icons.length;
   await host.render(null);
+  assert.equal(timers.size, 0, 'Unmount clears a pending status timer');
   await act(async () => advance(1000));
-  assert.equal(icons.length, shown, 'Unmount clears a pending status timer');
-  assert.equal(timers.size, 0);
+  assert.equal(icons.length, shown);
 }));
