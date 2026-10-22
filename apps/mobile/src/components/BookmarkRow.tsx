@@ -15,6 +15,7 @@ import { mobileTestIds as IDs } from '../theme/testIds';
 import { SourceIcon } from './SourceUI';
 import {SourceLine} from './SourceLine';
 import { SourceMenu } from './SourceMenu';
+import {BookmarkStatusIcon, bookmarkDownloadStatus} from './BookmarkStatusIcon';
 
 export type LibrarySort = 'inbox' | 'starred' | 'archived';
 type BookmarkRowProps = {item: LibraryBookmark; sort: LibrarySort; owned: boolean; onOpen(item: LibraryBookmark): void; onEdit(item: LibraryBookmark): void; onError(error: unknown): void; t: MobileContextValue['t']; repositories: MobileContextValue['repositories']; telemetry: MobileTelemetry};
@@ -80,8 +81,7 @@ export const BookmarkRow = memo(function BookmarkRow({item, sort, owned, onOpen,
     shadowColor: '#000000', shadowOpacity: lift.value * 0.14, shadowRadius: lift.value * 12, shadowOffset: {width: 0, height: 4}, elevation: lift.value * 8}));
   function settle() {settleOffset(0);}
   function perform(work: () => Promise<unknown> | undefined, elementId: string, swipe = false) {if (inputLock?.value) return; settle(); const operation = work(); if (!operation) return; void operation.then(() => {telemetry.element(elementId, 'bookmarks'); if (swipe) telemetry.firebase('bookmark_list', 'item_interact', {element: elementId === 'bookmark_star_button' ? 'star' : 'archive', source: 'inbox'});}).catch(onError);}
-  const state = item.downloadStatus === 1 ? 'DOWNLOADING' : item.downloadStatus === 2 ? 'COMPLETED' : item.downloadStatus === 3 ? 'FAILED' : 'NONE';
-  const statusIcon = sort === 'starred' ? 'ic_cell_starred' : sort === 'archived' ? 'ic_cell_archived' : item.downloadStatus === 1 ? 'ic_cell_internet_downloading' : item.downloadStatus === 2 ? 'ic_cell_internet' : 'ic_cell_internet_uncached';
+  const state = bookmarkDownloadStatus(item.downloadStatus);
   return <View ref={row} style={styles.container}>
     {owned ? <View style={styles.actions}>
       {sort !== 'archived' ? <Pressable accessibilityRole="button" accessibilityLabel={t(item.isStarred ? 'bookmark_unstar' : 'bookmark_star')} onPress={() => perform(() => repositories?.updateBookmark(item.id, {isStarred: item.isStarred ? 0 : 1}), 'bookmark_star_button', true)} style={[styles.action, {backgroundColor: '#FFB648'}]}><SourceIcon name={item.isStarred ? 'ic_cell_action_starred' : 'ic_cell_action_star'} size={20} /></Pressable> : null}
@@ -91,7 +91,7 @@ export const BookmarkRow = memo(function BookmarkRow({item, sort, owned, onOpen,
       <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={() => {if (inputLock?.value || dragging.value) return; if (offset.value) settle(); else {if (owned && item.status === 'success') telemetry.element('bookmark_list_row', 'bookmarks'); onOpen(item);}}}
         onLongPress={owned ? () => {if (inputLock?.value || dragging.value) return; void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); row.current?.measureInWindow((x, y, width) => {if (inputLock?.value) return; setAnchor({x: x + width - 188, y: y + 38}); setMenu(true);});} : undefined}
         style={({pressed}) => [styles.row, {backgroundColor: pressed ? '#0000000D' : C.readerBackground}]}>
-        <View style={styles.status}><SourceIcon name={statusIcon} size={12} label={`Article · ${state}`} testID={IDs.BookmarkItemStatus} /></View>
+        <BookmarkStatusIcon status={state} sort={sort} label={`Article · ${state}`} testID={IDs.BookmarkItemStatus} />
         <SourceLine text={title} fontSize={16} lineHeight={24} color={C.text} style={{flex: 1, alignSelf: 'center'}} />
       </Pressable>
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, {backgroundColor: '#000000', opacity: flash}]} />
@@ -104,4 +104,4 @@ export const BookmarkRow = memo(function BookmarkRow({item, sort, owned, onOpen,
     ]} /> : null}
   </View>;
 });
-const styles = StyleSheet.create({container: {height: PixelRatio.roundToNearestPixel(L.librarySwipeActionHeight), backgroundColor: C.readerBackground}, row: {height: PixelRatio.roundToNearestPixel(L.librarySwipeActionHeight), flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: L.libraryRowStartInset, paddingRight: L.libraryRowEndInset}, status: {width: 18, height: 18, borderRadius: 9, backgroundColor: C.background, justifyContent: 'center', alignItems: 'center'}, actions: {position: 'absolute', right: 18, top: 0, bottom: 0, flexDirection: 'row', gap: 12, alignItems: 'center'}, action: {width: 40, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center'}});
+const styles = StyleSheet.create({container: {height: PixelRatio.roundToNearestPixel(L.librarySwipeActionHeight), backgroundColor: C.readerBackground}, row: {height: PixelRatio.roundToNearestPixel(L.librarySwipeActionHeight), flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: L.libraryRowStartInset, paddingRight: L.libraryRowEndInset}, actions: {position: 'absolute', right: 18, top: 0, bottom: 0, flexDirection: 'row', gap: 12, alignItems: 'center'}, action: {width: 40, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center'}});

@@ -126,13 +126,37 @@ test('mounted RSS uses its retained source identity rather than resetting each t
   assert.deepEqual({...listProps.maintainVisibleContentPosition}, {minIndexForVisible: 0});
   assert.deepEqual(Array.from(listProps.data, value => listProps.keyExtractor(value)), ['prepended-entry', 'existing-entry']);
   assert.equal(position.offset, 270, 'A row update does not issue an application pixel reset');
-  const beforeSourceChange = listProps;
+  const beforeSourceChange = listProps, beforeSwitch = commands.length;
   selected = 'feed-b'; await act(async () => root.render(render()));
+  assert.equal(commands.length, beforeSwitch + 1, 'A source change issues exactly one scroll command');
   assert.equal(commands.at(-1).offset, 0); assert.equal(position.source, 'feed-b'); assert.equal(position.offset, 0);
-  assert.notEqual(listProps.instance, currentInstance, 'Changing RSS source replaces its native anchor state');
+  assert.equal(listProps.instance, currentInstance, 'Changing RSS source keeps the native list and source rail mounted');
+  assert.equal(listProps.maintainVisibleContentPosition, undefined, 'A new source starts with native anchoring disabled');
   listProps.onScroll({nativeEvent: {contentOffset: {y: 0}}});
   beforeSourceChange.onScrollBeginDrag(); beforeSourceChange.onScroll({nativeEvent: {contentOffset: {y: 400}}});
-  assert.equal(position.offset, 0, 'An old RSS source callback cannot move the newly selected source');
+  assert.equal(position.offset, 0, 'A callback captured for the old source cannot move the newly selected source');
+}));
+
+test('RSS rail offers All first and returns to the combined timeline from a source', async () => mounted(async root => {
+  const tabs = [], primitive = ({children}) => React.createElement('div', null, children);
+  const {RssFeedSwitcher} = await load('../../src/components/RssFeed.tsx', {
+    react: React, 'react-native': {FlatList: () => null, View: primitive, Pressable: props => {if (props.accessibilityRole === 'tab') tabs.push(props); return primitive(props);}, ScrollView: primitive, Image: () => null, TextInput: null, ActivityIndicator: null, StyleSheet: {create: value => value}},
+    '../runtime': {useMobile: () => ({t: value => value})}, '../rss/controller': {rssDisplayName: () => 'Feed'}, '../theme': {mobileColors: {}, mobileTypography: {}},
+    './SourceUI': {SourceButton: () => null, SourceDialog: () => null, SourceIcon: () => null, SourceText: primitive, SourceProgress: () => null, TextAction: () => null, Divider: () => null}, './SourceMenu': {SourceMenu: () => null},
+    './AppImage': {AppImage: () => null}, './fixture-actions': {}, './feed-scroll': await load('../../src/components/feed-scroll.ts', {react: React}),
+  });
+  const calls = [], state = {enabled: true, selected: null, subscriptions: [{id: 'feed-a', title: 'A'}, {id: 'feed-b', title: 'B'}], entries: [], ready: true, busy: false, hasMore: false};
+  const controller = {select: id => {calls.push(id); return Promise.resolve(true);}};
+  const render = () => React.createElement(RssFeedSwitcher, {state: {...state}, controller, onAdd() {}});
+  await act(async () => root.render(render()));
+  assert.equal(tabs.length, 3, 'All precedes the two subscriptions');
+  assert.equal(tabs[0].accessibilityLabel, 'rss_all'); assert.equal(tabs[0].accessibilityState.selected, true);
+  assert.equal(tabs[1].accessibilityState.selected, false);
+  await act(async () => tabs[0].onPress());
+  assert.deepEqual(calls, [null], 'All selects the combined timeline');
+  state.selected = 'feed-a'; tabs.length = 0; await act(async () => root.render(render()));
+  assert.equal(tabs[0].accessibilityState.selected, false);
+  assert.equal(tabs[1].accessibilityState.selected, true);
 }));
 
 test('feed cleanup rejects captured reset and native callbacks while StrictMode remount setup remains live', async () => mounted(async root => {
