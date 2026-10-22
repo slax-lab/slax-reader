@@ -17,6 +17,7 @@ test('production row uses installed UI worklets, yields closed right/vertical dr
     './SourceDrawer': {useDrawerGesture: () => drawer, useDrawerInput: () => null}, 'expo-haptics': {impactAsync: async () => {}, ImpactFeedbackStyle: {Medium: 'medium'}},
     '../data/repositories': {bookmarkDisplayTitle: item => item.title}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}},
     './SourceUI': {SourceIcon: () => null}, './SourceLine': {SourceLine: () => {renders++; return null;}}, './SourceMenu': {SourceMenu: props => {menus = props; return null;}},
+    './BookmarkStatusIcon': {BookmarkStatusIcon: () => null, bookmarkDownloadStatus: value => value === 1 ? 'DOWNLOADING' : value === 2 ? 'COMPLETED' : value === 3 ? 'FAILED' : 'NONE'},
   });
   const item = {id: 'one', title: 'Article', status: 'success', isStarred: 0, archiveStatus: 0, downloadStatus: 0};
   const props = {item, owned: true, sort: 'inbox', t: key => key, onOpen: value => opens.push(value.id), onEdit: value => edits.push(value.id), onError: error => failures.push(error), repositories: {updateBookmark: async (...args) => writes.push(args), deleteBookmark: async id => writes.push(['delete', id])}, telemetry: {element: (...args) => events.push(args), firebase() {}}};

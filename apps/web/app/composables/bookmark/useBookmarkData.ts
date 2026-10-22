@@ -4,7 +4,6 @@ import { computed, nextTick, onActivated, onDeactivated, onMounted, onUnmounted,
 
 import { bookmarkMatchesSourceDomain } from '~/utils/bookmarkSource'
 import type { ChannelMessageData } from '~/utils/channel'
-import { initialPromotionState } from '~/utils/promotionFlow'
 import { getTokenUserId } from '~/utils/sessionOwner'
 
 import { useLocalBookmarks } from '@/composables/bookmark/useLocalBookmarks'
@@ -17,6 +16,7 @@ import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { HighlightItem } from '@slax-reader/contracts/interface'
 import { useDebounceFn, useEventListener, useInfiniteScroll } from '@vueuse/core'
 import type { useBookmarkFilter } from '~/composables/bookmark/useBookmarkFilter'
+import { useAccountContext } from '~/composables/useAccountContext'
 import type { Ref } from 'vue'
 
 type BookmarkFilter = ReturnType<typeof useBookmarkFilter>
@@ -36,6 +36,7 @@ export const useBookmarkData = (
 ) => {
   const { t, locale } = useI18n()
   const { $powersync } = useNuxtApp()
+  const account = useAccountContext()
 
   // REST 列表（非 local tab，分页 push）
   const restBookmarks = ref<BookmarkItem[]>([])
@@ -56,7 +57,33 @@ export const useBookmarkData = (
   const local = canUseLocal ? useLocalBookmarks() : null
   const syncStatus = canUseLocal ? useStatus() : null
   const localOwner = useState<string | null>('powersync-owner', () => null)
-  const verifiedUser = useState('koc-promotion', initialPromotionState)
+  // A new PowerSync owner must complete a fresh first sync before local data can
+  // drive onboarding. This prevents a stale hasSynced=true snapshot from the
+  // previous account from being treated as ready during an account transition.
+  const localSyncOwner = ref<string | null>(syncStatus?.value?.hasSynced === true && localOwner.value ? localOwner.value : null)
+  if (syncStatus) {
+    watch(
+      () => localOwner.value,
+      owner => {
+        // PowerSync account reconciliation briefly clears and restores the
+        // same owner on navigation. Only a different non-null owner means
+        // the local database must complete a fresh first sync.
+        if (owner && owner !== localSyncOwner.value) localSyncOwner.value = null
+      },
+      { flush: 'sync' }
+    )
+    watch(
+      () => syncStatus.value?.hasSynced === true,
+      (synced, previousSynced) => {
+        if (!synced) {
+          localSyncOwner.value = null
+          return
+        }
+        if (synced && !previousSynced && localOwner.value) localSyncOwner.value = localOwner.value
+      },
+      { flush: 'sync' }
+    )
+  }
   // flag 关时不建，highlights 回退 REST
   const localMarks = canUseLocal && isHighlightLocalFirstEnabled() ? useLocalMarks() : null
 
@@ -126,12 +153,11 @@ export const useBookmarkData = (
         !localList!.error.value &&
         !localList!.isFetching.value &&
         syncStatus?.value?.hasSynced === true &&
-        !!verifiedUser.value.userId &&
-        !!verifiedUser.value.sessionOwner &&
-        localOwner.value === verifiedUser.value.sessionOwner &&
+        !!account.accountKey.value &&
+        localSyncOwner.value === localOwner.value &&
         localOwner.value === getTokenUserId(getUserToken())
       )
-    return restReady.value && restSession.value === getUserToken() && restOwner.value === verifiedUser.value.userId
+    return restReady.value && restSession.value === getUserToken() && restOwner.value !== null && restOwner.value === account.context.value.serverUserId
   })
 
   const confirmOnboardingEmpty = async () => {
@@ -139,7 +165,8 @@ export const useBookmarkData = (
     if (!local) return isDataEmpty.value
     const token = getUserToken()
     const owner = localOwner.value
-    const userId = verifiedUser.value.userId
+    const syncOwner = localSyncOwner.value
+    const accountKey = account.accountKey.value
     // Sync completion precedes throttled live-query notifications. Read the
     // committed database directly before treating a cached empty result as final.
     const rows = await $powersync!.getAll<{ is_empty: number }>(`
@@ -151,7 +178,7 @@ export const useBookmarkData = (
         WHERE COALESCE(s.is_cancelled, 0) != 1
       ) AS is_empty
     `)
-    return token === getUserToken() && owner === localOwner.value && userId === verifiedUser.value.userId && onboardingReady.value && rows[0]?.is_empty === 1
+    return token === getUserToken() && accountKey === account.accountKey.value && owner === localOwner.value && syncOwner === owner && onboardingReady.value && rows[0]?.is_empty === 1
   }
 
   // 切入 local 书签 tab 置 settling，结果刷新后清除
@@ -327,8 +354,8 @@ export const useBookmarkData = (
     const type = filter.filterStatus.value
     const seq = loadSeq
     const token = getUserToken()
-    const owner = verifiedUser.value.userId
-    const current = () => seq === loadSeq && token === getUserToken() && owner === verifiedUser.value.userId
+    const owner = account.context.value.serverUserId
+    const current = () => seq === loadSeq && token === getUserToken() && owner === account.context.value.serverUserId
     const markReady = () => {
       restSession.value = token
       restOwner.value = owner
@@ -384,7 +411,7 @@ export const useBookmarkData = (
   }
 
   watch(
-    [() => getUserToken(), () => verifiedUser.value.userId],
+    [() => getUserToken(), account.accountKey, () => account.context.value.serverUserId],
     () => {
       resetBookmarks()
       if (haveRequestToken()) void onLoadMore()

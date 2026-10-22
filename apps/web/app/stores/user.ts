@@ -1,4 +1,4 @@
-import { createAccountLocaleRequest } from '../utils/accountLocaleRequest'
+import { AccountLocaleStaleError, createAccountLocaleRequest } from '../utils/accountLocaleRequest'
 import { readStringCookie, requireConfiguredCookieName } from '../utils/authCookie'
 import { notifyExtensionAccountLocaleInvalidated } from '../utils/extensionLocale'
 import { existingUserLocaleTasks, getUserLocaleTasks, type LocaleUserState } from '../utils/userLocaleTasks'
@@ -7,6 +7,7 @@ import type { AppLocale } from '@commons/frontend-types/locale'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { type UserInfo } from '@slax-reader/contracts/interface'
 import { useCookies } from '@vueuse/integrations/useCookies'
+import { useAccountContext } from '~/composables/useAccountContext'
 import { type _GettersTree, defineStore } from 'pinia'
 
 interface UserState {
@@ -100,7 +101,18 @@ export const useUserStore = defineStore<'user', UserState, UserGetters, UserActi
     },
     // Identity-sensitive flows bypass the plugin's optional offline fallback.
     async refreshServerUserInfo(signal?: AbortSignal): Promise<UserInfo> {
-      return localeTasksForStore(this).read(signal)
+      const accountContext = useAccountContext()
+      const snapshot = accountContext.snapshot()
+      try {
+        const profile = await localeTasksForStore(this).read(signal)
+        accountContext.acceptServerUser(profile.userId, snapshot)
+        return profile
+      } catch (error) {
+        // A newer same-session read owns the identity result. An older read
+        // finishing with AccountLocaleStaleError must not clear that result.
+        if (!(error instanceof AccountLocaleStaleError)) accountContext.invalidateServerUser(snapshot)
+        throw error
+      }
     },
     async getUserInfo(options?: { refresh: boolean }): Promise<UserInfo> {
       if (options && options.refresh && this.isLogin) {
@@ -117,6 +129,7 @@ export const useUserStore = defineStore<'user', UserState, UserGetters, UserActi
       existingUserLocaleTasks(this)?.clear()
       this.user = null
       this.confirmedAccountLocale = null
+      useAccountContext().invalidateServerUser()
     },
     async changeLocalLocale(locale: string, displayOnly = false) {
       return localeTasksForStore(this).local(locale, displayOnly)

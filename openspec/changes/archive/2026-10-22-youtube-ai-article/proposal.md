@@ -11,7 +11,7 @@ This work was built and reviewed in the legacy repositories (`unnoo/slax_reader_
 - Generate one AI article per video, caption version and target language (`en` or `zh`). Every user who saved the video and reads in that language shares it.
 - Start generation after a save that passed moderation, when the owner opens a bookmark without a version in the owner's AI language, or when the owner asks for "generate anyway" or "retry". Visitors only read finished articles.
 - Run generation in a new `YoutubeArticleWorkflow`. Large data stays in R2; workflow steps return only keys and counts. Each run holds its row by `run_id`, so claim and publish are idempotent.
-- Limit cost: $0.30 per article version across all attempts, 20 automatic and 5 manual starts per user per day, and $20 per day site-wide with one alert.
+- Limit cost: $1.00 per article version across all attempts (the same per-item cap as a podcast episode), 20 automatic and 5 manual starts per user per day, and $20 per day site-wide with one alert. The original $0.30 cap was below the cost of a plan near the advertised 6-hour/40-chunk limits, so it silently skipped long videos as `too_long`.
 - Add `GET /v1/youtube_article/status` and `/content` (owner and share visitors, by the snapshot access rule), `POST /v1/youtube_article/generate` and `/retry` (owner only), and `POST /m/youtube_article/backfill` (team only).
 - Sweep on the existing 5-minute cron: recover dead runs, start deferred requests, delete article versions without a bookmark for 7 days, and clean up takedowns. Add `script/youtube-article-takedown.ts`.
 - Add the Labs feature `youtube_article`, off by default. Settings showed its row hidden with `youtube` at delivery time; `unhide-youtube-labs` later shows both rows.

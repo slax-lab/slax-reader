@@ -36,3 +36,19 @@ New UI uses existing `--slax-*` tokens and no `v-html`.
 ## Not validated
 
 No run with the real model, no run inside the Workers runtime, and no browser check of the bookmark page. Vertex keys and Worker secrets are not available locally.
+
+## Follow-up 2026-10-22: per-article budget
+
+Test-environment evidence: crawl instance `16454df9-6c20-44fb-aeee-7c38a9be8c68` triggered `yta-XVOhygutivE-c16085654bab-zh-v1-mviw0hw7`, whose `prepare` step returned `{"kind":"skip","reason":"too_long"}`. The video is 10,055 seconds (2h47m), inside the 6-hour limit, but the original $0.30 cap is below the expected ~$0.95 cost of a plan near the 40-chunk limit, so long videos were silently skipped as `too_long`. The cap is now $1.00, the same per-item cap as a podcast episode; the runner logs the expected cost when a plan is still skipped.
+
+The same test session exposed a second failure: the short video `LPZh9BOjkQs` (7,525 input chars, one chunk) ran `chunk-0` for five minutes and then failed three attempts with `chunk_truncated` (`finishReason=MAX_TOKENS`). Thinking tokens share `maxOutputTokens`, and the runner sent no budget, so the preview model could consume the whole 16,000-token output allowance while thinking. Both media runners now send `thinkingConfig: { thinkingBudget: 2048 }`, the same bound the Chat path uses; a runner test asserts every article call carries it and a podcast runner test does the same.
+
+A later retry (`yta-LPZh9BOjkQs-...-mvj4vnx9`, 14:02) got through `chunk-0` after two truncations, but `assemble` failed quality with `number_coverage: 5/7 = 0.714` (threshold 0.85). The caption numbers are `3, 24, 7, 2600, 10000, 100, 2017`; the likely misses are `10,000`/`100 million` rendered as Chinese numerals and the `24-7` pair. The user message now repeats the chunk's numeric tokens in a "Required numbers (write each exactly as digits, never as a word)" line, and the system rule explicitly forbids words or Chinese numerals. A utility test covers the list. The failed row stays retryable; a new attempt is needed after deploy.
+
+| Command | Result |
+| --- | --- |
+| `pnpm api -- test` | 2,319 passed, 71 skipped. |
+| `pnpm api -- typecheck` | Passed. |
+| `pnpm api -- lint` | 0 errors (341 pre-existing warnings). |
+
+Not validated: no new real-model run and no deployed-Worker run; neither the 2h47m video nor the short video was regenerated in this task.

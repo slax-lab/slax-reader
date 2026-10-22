@@ -1,3 +1,5 @@
+import { readAccountServerAlias } from '~/utils/accountContext'
+
 import type { PromotionReward } from '@slax-reader/contracts/interface'
 
 export type PromotionPhase = 'resolving' | 'idle' | 'checking' | 'offer' | 'submitting' | 'success' | 'deferred' | 'unavailable' | 'error' | 'invalid'
@@ -9,6 +11,7 @@ export interface PendingPromotion {
 }
 export interface PromotionState {
   userId: number | null
+  accountKey: string | null
   sessionOwner: string | null
   pending: PendingPromotion | null
   phase: PromotionPhase
@@ -16,23 +19,32 @@ export interface PromotionState {
   reward?: PromotionReward
   reason?: string
   intent?: string
+  contextResolved: boolean
 }
 export const initialPromotionState = (): PromotionState => ({
   userId: null,
+  accountKey: null,
   sessionOwner: null,
   pending: null,
   phase: 'resolving',
   durable: false,
   reward: undefined,
   reason: undefined,
-  intent: undefined
+  intent: undefined,
+  contextResolved: false
 })
 export const isPromotionSurface = (path: string) => ['/', '/bookmarks', '/onboarding'].includes(path)
 export const promotionIntent = (query: Record<string, unknown>) => JSON.stringify([query.activity_id, query.koc_deferred === 'true'])
 export const isInboxPath = (path: string) => path === '/' || path === '/bookmarks'
-export const promotionBlocksOnboarding = (state: PromotionState) => ['resolving', 'checking', 'offer', 'submitting', 'success', 'error'].includes(state.phase)
-export const promotionStorageKey = (id: number) => `slax_koc_pending_v1_${id}`
 const validBlogger = (id: unknown): id is string => typeof id === 'string' && /^[a-z0-9_]{1,80}$/.test(id)
+export const hasPromotionContext = (state: PromotionState, routeQuery: Record<string, unknown>) =>
+  (routeQuery.activity_type === 'blogger' && validBlogger(routeQuery.activity_id)) || !!state.pending || ['submitting', 'success'].includes(state.phase)
+export const promotionBlocksOnboarding = (state: PromotionState, hasContext = !!state.pending, contextResolved = state.contextResolved) => {
+  if (!contextResolved) return true
+  return hasContext && ['resolving', 'checking', 'offer', 'submitting', 'success', 'error'].includes(state.phase)
+}
+export const promotionStorageKey = (accountKey: string | number) => `slax_koc_pending_v2_${String(accountKey)}`
+export const promotionLegacyStorageKey = (id: number) => `slax_koc_pending_v1_${id}`
 export function parsePromotionStatus(value: unknown): { reason: string; reward?: PromotionReward } {
   const v = value as Record<string, unknown> | null
   if (!v || typeof v.status !== 'boolean') throw Error('Invalid promotion status')
@@ -60,22 +72,25 @@ export function createPromotionFlow(state: PromotionState, deps: Dependencies) {
   let generation = 0
   let loaded = false
   let validated = false
+  const legacyId = () => state.userId ?? readAccountServerAlias(state.accountKey)
+  const storageKeys = () => [state.accountKey ? promotionStorageKey(state.accountKey) : null, legacyId() ? promotionLegacyStorageKey(legacyId()!) : null].filter((key): key is string => !!key)
   const save = () => {
-    if (!state.userId || !state.pending || !validated) return
+    if (!state.pending || !validated || (!state.accountKey && !state.userId)) return
     try {
-      deps.storage().setItem(promotionStorageKey(state.userId), JSON.stringify(state.pending))
+      const key = state.accountKey ? promotionStorageKey(state.accountKey) : promotionLegacyStorageKey(state.userId!)
+      deps.storage().setItem(key, JSON.stringify(state.pending))
       state.durable = true
     } catch {
       state.durable = false
     }
   }
   const clear = () => {
-    if (state.userId) {
+    if (state.userId || state.accountKey) {
       try {
-        const key = promotionStorageKey(state.userId)
-        const raw = deps.storage().getItem(key)
+        const keys = storageKeys()
+        const raw = keys.map(key => deps.storage().getItem(key)).find(Boolean)
         const stored = raw ? JSON.parse(raw) : null
-        if (!stored || (stored.capturedAt === state.pending?.capturedAt && stored.blogger === state.pending?.blogger)) deps.storage().removeItem(key)
+        if (!stored || (stored.capturedAt === state.pending?.capturedAt && stored.blogger === state.pending?.blogger)) keys.forEach(key => deps.storage().removeItem(key))
       } catch {
         /* Server status remains authoritative on restore. */
       }
@@ -83,12 +98,16 @@ export function createPromotionFlow(state: PromotionState, deps: Dependencies) {
     state.pending = null
     state.durable = false
   }
-  const setAccount = (id: number | null) => {
-    if (id === state.userId) return
+  const setAccount = (id: number | null, accountKey: string | null = state.accountKey) => {
+    if (id === state.userId && accountKey === state.accountKey) return
+    const preserve =
+      accountKey === state.accountKey && (Boolean(accountKey) || state.userId === null)
+        ? { pending: state.pending, durable: state.durable, phase: state.phase, contextResolved: state.contextResolved }
+        : null
     generation++
     loaded = false
     validated = false
-    Object.assign(state, initialPromotionState(), { userId: id })
+    Object.assign(state, initialPromotionState(), { userId: id, accountKey, ...(preserve ?? {}) })
   }
   const check = async () => {
     if (!state.pending || !state.userId) return
@@ -123,13 +142,14 @@ export function createPromotionFlow(state: PromotionState, deps: Dependencies) {
     }
   }
   const enter = async (query: Record<string, unknown>) => {
-    if (!state.userId || state.phase === 'submitting' || state.phase === 'success') return
     const explicit = query.activity_type === 'blogger'
+    if (state.phase === 'submitting' || state.phase === 'success') return
     if (explicit) {
       state.intent = promotionIntent(query)
       if (!validBlogger(query.activity_id)) {
         generation++
         clear()
+        state.contextResolved = true
         state.phase = 'invalid'
         return
       }
@@ -139,13 +159,15 @@ export function createPromotionFlow(state: PromotionState, deps: Dependencies) {
       state.durable = false
       validated = false
       loaded = true
-      await check()
+      state.contextResolved = true
+      if (state.userId) await check()
+      else state.phase = 'resolving'
       return
     }
     if (loaded) return
     loaded = true
     try {
-      const raw = deps.storage().getItem(promotionStorageKey(state.userId))
+      const raw = storageKeys().map(key => deps.storage().getItem(key)).find(Boolean)
       const value = raw ? (JSON.parse(raw) as PendingPromotion) : null
       if (value?.version === 1 && validBlogger(value.blogger) && typeof value.deferred === 'boolean' && Number.isFinite(value.capturedAt)) {
         state.pending = value
@@ -154,8 +176,10 @@ export function createPromotionFlow(state: PromotionState, deps: Dependencies) {
     } catch {
       state.durable = false
     }
-    if (state.pending) await check()
+    if (state.pending && state.userId) await check()
+    else if (state.pending) state.phase = state.pending.deferred ? 'deferred' : 'resolving'
     else state.phase = 'idle'
+    state.contextResolved = true
   }
   const defer = () => {
     if (state.phase === 'submitting' || state.phase === 'success') return

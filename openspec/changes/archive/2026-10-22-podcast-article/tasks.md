@@ -21,3 +21,5 @@
 - [x] 3.6 Merged into `feat/youtube-ai-article` (PR #220), so this migration ships with `youtube-ai-article`. Promote `dev` → `beta` → `main` in one pass; the P0 caption write fails softly in the window (see `design.md`).
 - [ ] 3.3 Before this PR merges (a merge to `dev` deploys and runs migrations): add `ASSEMBLYAI_API_KEY` to `[vars]` and the `PODCAST_WORKFLOW` binding to the private configuration TOML; locally, add the key to `deploy/local/.dev.vars`.
 - [ ] 3.4 After deploy: enable `podcast` for internal accounts and test the three episode kinds listed in the design.
+- [x] 3.7 Add the `20261022140000_seed_podcast_lab_users` migration: accounts that already saved a podcast link get `podcast` on (an explicit off row is preserved), so internal testers do not depend on a manual Settings click.
+- [x] 3.8 Fetch the Xiaoyuzhou episode page through Zyte's browser mode (`browserHtml: true`) unconditionally (Xiaoyuzhou rejects the Worker's direct fetch with 403), parse the audio URL from that HTML, and hand it to AssemblyAI. Unit tests cover the browser-mode call and a terminal Zyte error.

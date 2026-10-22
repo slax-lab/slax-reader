@@ -162,11 +162,17 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
 
           // Podcast episodes, only for readers with the Labs switch on. Everyone else, and links that
           // turn out not to be an episode (a feed without audio), keep the normal page route.
-          if (route === 'regular' && classifyPodcastUrl(resolvedUrl) && (await currentContainer.resolve(LabService).isEnabled(userId, PODCAST_LAB))) {
-            const info = await trackStep('podcast_fetching', () => crawlService.fetchPodcastData(resolvedUrl))
-            if (info) {
-              const result = await trackStep('podcast_parsing', () => crawlService.parseAndSavePodcast(ctxManager, info, bookmarkId, userBookmarkUuid))
-              return { kind: 'parsed', resolvedUrl, data: result, isSocialMedia: true, podcast: true }
+          if (route === 'regular' && classifyPodcastUrl(resolvedUrl)) {
+            if (!(await labService.isEnabled(userId, PODCAST_LAB))) {
+              // The seed migration turns the switch on for accounts that already save podcasts; this
+              // line keeps the silent-page fallback visible for anyone who still has it off.
+              console.log(`Podcast link saved as a page for bookmark ${bookmarkId}: podcast Labs is off`)
+            } else {
+              const info = await trackStep('podcast_fetching', () => crawlService.fetchPodcastData(resolvedUrl, ctxManager))
+              if (info) {
+                const result = await trackStep('podcast_parsing', () => crawlService.parseAndSavePodcast(ctxManager, info, bookmarkId, userBookmarkUuid))
+                return { kind: 'parsed', resolvedUrl, data: result, isSocialMedia: true, podcast: true }
+              }
             }
           }
 
