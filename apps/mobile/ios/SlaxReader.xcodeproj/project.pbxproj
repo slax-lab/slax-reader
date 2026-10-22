@@ -820,7 +820,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CC = clang;
 				CODE_SIGN_ENTITLEMENTS = "SlaxShare/SlaxShare.entitlements";
-				CURRENT_PROJECT_VERSION = 783;
+				CURRENT_PROJECT_VERSION = 784;
 				CXX = "clang++";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
@@ -852,7 +852,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CC = clang;
 				CODE_SIGN_ENTITLEMENTS = "SlaxShare/SlaxShare.entitlements";
-				CURRENT_PROJECT_VERSION = 783;
+				CURRENT_PROJECT_VERSION = 784;
 				CXX = "clang++";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "SlaxShare/Info.plist";
