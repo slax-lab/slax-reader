@@ -73,3 +73,23 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:extension-tooling
+  tooling-gate:
+    # The dev and beta rulesets require this exact job name.
+    name: Tooling CI gate
+    if: always()
+    needs: [changes, check, cli-release, extension-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail when a suite job did not pass
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            case "$result" in
+              success|skipped) ;;
+              *)
+                echo "::error::Tooling CI gate fails closed: a needed job concluded '$result'."
+                exit 1
+                ;;
+            esac
+          done
