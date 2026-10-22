@@ -20,12 +20,15 @@ name: PR review gate
 #     path, which is triggered by every pull request comment and compiles the
 #     `/review` match and the actor admission onto `pre_activation` as well: a
 #     comment that is not an accepted request creates an all-skipped run that is
-#     not a review at all. For that path the gate confirms the triggering comment
-#     before reporting a decline (the run name carries the comment id; the Issues
-#     API confirms the body, the actor and the pull request) and reports nothing
-#     when the trigger was not an accepted `/review` request. Without that
-#     distinction a passing skip would overwrite the head's real verdict (PR #307)
-#     and claim a readiness the run never earned.
+#     not a review at all. For a declined run of that shape the gate confirms the
+#     triggering comment before reporting it (the run name carries the comment id;
+#     the Issues API confirms the body, the actor and the pull request) and reports
+#     nothing when the trigger was not an accepted `/review` request. The
+#     `pre_activation: success, activation: skipped` shape is different — the
+#     request was admitted and the membership decision declined it — and keeps its
+#     passing skip unconfirmed, as before. Without the all-skipped distinction a
+#     passing skip would overwrite the head's real verdict (PR #307) and claim a
+#     readiness the run never earned.
 #   * `pre_activation` and `activation` both `success` — the run started, and the
 #     agent/verdict jobs below decide the outcome.
 #   * anything else — fail closed. That includes the case this rule was written

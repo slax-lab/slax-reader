@@ -58,6 +58,11 @@ The system SHALL expose a status check whose name is stable across runs. That ch
 - **WHEN** a comment creates an on-demand run and the comment is not an accepted `/review` request (it does not request a review, its author is not admitted, its body is malformed, or it is on a plain issue), or the trigger cannot be read back (the comment is gone, or the run predates the run name carrying the comment id)
 - **THEN** the run is declined, the status check reports no status for it, and an existing result on the head — including a failure — is left in place
 
+#### Scenario: An unconfirmed on-demand run can leave a head unreported
+
+- **WHEN** a head's only review run is an unconfirmed on-demand run and the check reports nothing for it
+- **THEN** the head carries no result for this context until a later review run reports on it, and the pull request is blocked rather than falsely cleared
+
 #### Scenario: A skip description claims no unverified cause
 
 - **WHEN** a review run is declined and the status check reports the passing skip
@@ -113,3 +118,54 @@ A companion workflow MUST remove the label whenever the verified state no longer
 
 - **WHEN** an on-demand run is created by a trigger the gate does not confirm as an accepted `/review` request
 - **THEN** the gate reports no status for it and the pull request's `ready-for-human-review` label is unchanged
+
+### Requirement: Reviews can be paused without blocking merges
+
+The system SHALL provide a settings-only pause control that an operator can use to stop reviews for a period without editing repository files. The subject of the prohibitions below is this change's review system — the review agent, its deterministic jobs, and the command path that triggers it. They do not constrain people, who remain free to comment, approve, request reviews, or merge; they do not constrain GitHub; and they do not apply to other workflows.
+
+While reviews are paused, the system MUST NOT execute the review agent, MUST NOT make model-provider requests, and MUST NOT write review content to the pull request: no submitted review, no review summary, no inline review comment, and no reviewer request. The one permitted output is a short reply to an explicit on-demand request (`/review`) that names the paused subject as the automated review, says the pause is deliberate rather than a failure, and states that human review is unaffected; automatic runs stay silent. A status check is not written content, so the merge gate MUST still report a passing result for a review the pause declined (as a skipped check rather than as a completed review), and the pause itself MUST NOT add or dismiss approvals or block a merge. An on-demand run whose trigger is not an accepted review request is not a review the pause declined: it reports nothing, as the merge-gate requirement states. The pause covers on-demand runs as well as automatic ones, and restoring the control MUST resume reviews for pull requests opened or re-requested afterwards.
+
+#### Scenario: Pause stops execution and spend
+
+- **WHEN** an operator pauses reviews and a pull request is then opened
+- **THEN** no review agent executes, no model-provider request is made, and nothing is written to the pull request
+
+#### Scenario: A paused on-demand request is answered without a review
+
+- **WHEN** a user comments `/review` while reviews are paused
+- **THEN** no review agent executes, no review is published, and the only output is a reply saying that the automated review is paused, that the pause is deliberate, and that human review is unaffected
+
+#### Scenario: People are unaffected by the pause
+
+- **WHEN** reviews are paused and a person comments, approves, or requests a review on a pull request
+- **THEN** the system neither prevents nor reverses that action and reports no review of its own
+
+#### Scenario: Automatic runs stay silent while paused
+
+- **WHEN** a pull request is opened while reviews are paused and nobody requests a review
+- **THEN** nothing is written to the pull request and the only visible trace is the skipped check
+
+#### Scenario: Pausing does not disturb the merge path
+
+- **WHEN** an operator pauses reviews and a pull request is opened while the gate is a required check
+- **THEN** the gate reports a passing result, no approval is added or dismissed by the pause, and the pull request is not blocked by the absent review
+
+#### Scenario: An unrelated comment during a pause reports nothing
+
+- **WHEN** someone comments on a pull request while reviews are paused and the comment is not an accepted `/review` request
+- **THEN** the run is declined and the gate reports nothing for it; the head's existing result and the readiness label are untouched
+
+#### Scenario: Restoring the control resumes reviews
+
+- **WHEN** an operator restores the pause control and a new pull request is opened
+- **THEN** the review runs and its verdict is reported as before
+
+#### Scenario: Pausing requires no repository change
+
+- **WHEN** an operator pauses reviews for a day and later restores it
+- **THEN** no commit, recompilation, or workflow edit was required
+
+#### Scenario: A paused review is distinguishable from a completed review
+
+- **WHEN** a pull request is opened while reviews are paused
+- **THEN** the review's check reports as skipped and nothing is written to the pull request, so the pull request record distinguishes "not reviewed" from "reviewed and clean"

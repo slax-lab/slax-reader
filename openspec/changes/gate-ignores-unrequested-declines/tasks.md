@@ -26,12 +26,12 @@
 - [x] 4.1 Run `pnpm exec openspec validate --all --strict` and verify the delta touches only `agentic-pr-review` and passes strict validation after the implementation edits.
 - [x] 4.2 Run `pnpm exec rulesync doctor --strict`, `pnpm exec rulesync generate --check`, and `bash tooling/check-gh-aw-drift.sh`; verify all pass.
 - [x] 4.3 Write `openspec/changes/gate-ignores-unrequested-declines/validation.md`: commands run, the replay rows and results, what was exercised, and declared gaps — verify it reads completely without any media.
-- [ ] 4.4 Open the implementation pull request against `dev` with `OpenSpec: gate-ignores-unrequested-declines` in the body and a Test plan summarizing `validation.md`.
+- [x] 4.4 Open the implementation pull request against `dev` with `OpenSpec: gate-ignores-unrequested-declines` in the body and a Test plan summarizing `validation.md`.
 
 ## 5. Local review before push
 
-- [ ] 5.1 Run the three `REVIEW.md` passes (Bugs, Security, Compliance) on the final diff and resolve every Important finding before the pull request — verify the compliance pass reads this change's artifacts and the pull request body names the change id.
-- [ ] 5.2 Re-read the changed gate script for fail-open regressions: every unrecognized shape must still fall closed, no other workflow or event shape may be silenced by the new guard, and a confirmation failure must never create a passing skip.
+- [x] 5.1 Run the three `REVIEW.md` passes (Bugs, Security, Compliance) on the final diff and resolve every Important finding before the pull request — verify the compliance pass reads this change's artifacts and the pull request body names the change id.
+- [x] 5.2 Re-read the changed gate script for fail-open regressions: every unrecognized shape must still fall closed, no other workflow or event shape may be silenced by the new guard, and a confirmation failure must never create a passing skip.
 
 ## 6. Post-merge live verification (before archive)
 
