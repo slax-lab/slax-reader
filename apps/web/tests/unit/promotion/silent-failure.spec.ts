@@ -1,4 +1,4 @@
-import { hasPromotionContext, initialPromotionState, promotionBlocksOnboarding } from '~~/app/utils/promotionFlow'
+import { createPromotionFlow, hasPromotionContext, initialPromotionState, promotionBlocksOnboarding } from '~~/app/utils/promotionFlow'
 
 import { describe, expect, it } from 'vitest'
 
@@ -19,5 +19,24 @@ describe('promotion failure context', () => {
     expect(hasPromotionContext(state, {})).toBe(true)
     expect(promotionBlocksOnboarding(state, true, true)).toBe(true)
     expect(hasPromotionContext(state, { activity_type: 'blogger', activity_id: 'daguang' })).toBe(true)
+  })
+
+  it('does not block ordinary onboarding for a malformed blogger query', () => {
+    const state = { ...initialPromotionState(), phase: 'invalid' as const, contextResolved: true }
+    expect(hasPromotionContext(state, { activity_type: 'blogger', activity_id: 'not-valid!' })).toBe(false)
+    expect(promotionBlocksOnboarding(state, false, true)).toBe(false)
+  })
+
+  it('resolves an invalid explicit query so onboarding cannot remain blocked', async () => {
+    const state = initialPromotionState()
+    const flow = createPromotionFlow(state, {
+      storage: () => ({ getItem: () => null, setItem: () => {}, removeItem: () => {} }),
+      validate: async () => null,
+      status: async () => ({ status: false })
+    })
+    await flow.enter({ activity_type: 'blogger', activity_id: 'not-valid!' })
+    expect(state.phase).toBe('invalid')
+    expect(state.contextResolved).toBe(true)
+    expect(promotionBlocksOnboarding(state, false, state.contextResolved)).toBe(false)
   })
 })

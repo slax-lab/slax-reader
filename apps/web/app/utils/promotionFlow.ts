@@ -36,15 +36,15 @@ export const initialPromotionState = (): PromotionState => ({
 export const isPromotionSurface = (path: string) => ['/', '/bookmarks', '/onboarding'].includes(path)
 export const promotionIntent = (query: Record<string, unknown>) => JSON.stringify([query.activity_id, query.koc_deferred === 'true'])
 export const isInboxPath = (path: string) => path === '/' || path === '/bookmarks'
+const validBlogger = (id: unknown): id is string => typeof id === 'string' && /^[a-z0-9_]{1,80}$/.test(id)
 export const hasPromotionContext = (state: PromotionState, routeQuery: Record<string, unknown>) =>
-  routeQuery.activity_type === 'blogger' || !!state.pending || ['submitting', 'success'].includes(state.phase)
+  (routeQuery.activity_type === 'blogger' && validBlogger(routeQuery.activity_id)) || !!state.pending || ['submitting', 'success'].includes(state.phase)
 export const promotionBlocksOnboarding = (state: PromotionState, hasContext = !!state.pending, contextResolved = state.contextResolved) => {
   if (!contextResolved) return true
   return hasContext && ['resolving', 'checking', 'offer', 'submitting', 'success', 'error'].includes(state.phase)
 }
 export const promotionStorageKey = (accountKey: string | number) => `slax_koc_pending_v2_${String(accountKey)}`
 export const promotionLegacyStorageKey = (id: number) => `slax_koc_pending_v1_${id}`
-const validBlogger = (id: unknown): id is string => typeof id === 'string' && /^[a-z0-9_]{1,80}$/.test(id)
 export function parsePromotionStatus(value: unknown): { reason: string; reward?: PromotionReward } {
   const v = value as Record<string, unknown> | null
   if (!v || typeof v.status !== 'boolean') throw Error('Invalid promotion status')
@@ -149,6 +149,7 @@ export function createPromotionFlow(state: PromotionState, deps: Dependencies) {
       if (!validBlogger(query.activity_id)) {
         generation++
         clear()
+        state.contextResolved = true
         state.phase = 'invalid'
         return
       }

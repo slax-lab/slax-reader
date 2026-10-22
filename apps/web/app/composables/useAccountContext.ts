@@ -58,8 +58,8 @@ export const useAccountContext = () => {
 
   watch(
     [tokenVersion, accountKey, sessionOwner],
-    ([nextToken, nextKey, nextOwner], [previousToken, previousKey, previousOwner] = [null, null, null]) => {
-      if (nextToken === previousToken && nextKey === previousKey && nextOwner === previousOwner) return
+    ([nextToken, nextKey], [previousToken, previousKey] = [null, null]) => {
+      if (nextToken === previousToken && nextKey === previousKey) return
       sync()
     },
     { immediate: true }

@@ -35,4 +35,4 @@
 - [x] 6.1 Run the focused Web tests for account, onboarding, local readiness, promotion, and bookmarks integration; verify all targeted suites pass on the repository-supported Node runtime.
 - [ ] 6.2 Run `pnpm --filter @apps/slax-reader-dweb test`, `pnpm --filter @apps/slax-reader-dweb typecheck`, and `pnpm --filter @apps/slax-reader-dweb lint`; full tests pass, while typecheck and repository-wide lint remain blocked by pre-existing `parse5` type resolution and import-sort errors documented in `validation.md`.
 - [x] 6.3 Run `pnpm exec openspec validate --all --strict` and `git diff --check`; verify the new change validates and the working tree has no whitespace errors.
-- [x] 6.4 Perform the `REVIEW.md` Bugs, Security, and Compliance passes using `OpenSpec: decouple-koc-onboarding-identity`; no Important code or security finding remains. Human browser acceptance is still pending before push/PR.
+- [x] 6.4 Perform the `REVIEW.md` Bugs, Security, and Compliance passes using `OpenSpec: decouple-koc-onboarding-identity`; the malformed-query Important finding is fixed, and human browser acceptance remains pending.
