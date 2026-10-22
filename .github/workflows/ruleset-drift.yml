@@ -1,0 +1,67 @@
+# Detection only: this workflow never mutates rulesets. Drift or an unusable
+# token opens one tracking issue instead of failing silently.
+name: ruleset-drift
+on:
+  schedule:
+    # Daily at 03:17 UTC (11:17 Asia/Shanghai), away from the hourly peak.
+    - cron: '17 3 * * *'
+  workflow_dispatch: null
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: ruleset-drift
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Compare live rulesets with the codified state
+        id: check
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.RULESETS_READ_TOKEN }}
+          REPORT: ${{ runner.temp }}/ruleset-drift.md
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            {
+              echo '## Ruleset drift check could not run'
+              echo
+              echo 'The `RULESETS_READ_TOKEN` secret is missing, so the live rulesets were not read.'
+              echo 'Create a fine-grained token with repository Administration read permission and store it as the secret.'
+            } > "$REPORT"
+            exit 1
+          fi
+          set +e
+          node tooling/rulesets.mjs check > "$REPORT" 2>&1
+          status=$?
+          set -e
+          cat "$REPORT"
+          exit "$status"
+      - name: Open or update the tracking issue
+        if: steps.check.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPORT: ${{ runner.temp }}/ruleset-drift.md
+        run: |
+          set -euo pipefail
+          title='Ruleset drift check failed'
+          if [ ! -f "$REPORT" ]; then
+            echo 'The drift check failed before producing a report.' > "$REPORT"
+          fi
+          printf '\n\n---\nScheduled check: %s/%s/actions/runs/%s\n' \
+            "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> "$REPORT"
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "$title in:title" --json number,title --jq "map(select(.title == \"$title\"))[0].number // empty")
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --repo "$GITHUB_REPOSITORY" --body-file "$REPORT"
+            echo "Updated issue #$existing."
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$REPORT"
+          fi
