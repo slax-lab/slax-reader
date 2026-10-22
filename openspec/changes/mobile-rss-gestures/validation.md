@@ -45,6 +45,7 @@ Focused suites also run directly:
 - Concurrent automatic article downloads on a device: the fixture scenarios seed static `is_downloaded` values and expose no control that starts or completes article caches, so the no-flash behavior is established by the mounted timer test. The user asked not to pursue this verification.
 - Frame-rate/smoothness claims: not measured; the change preserves the existing UI-thread animations and adds no per-frame React state.
 
-## Open decision
+## Version decision
 
-- Mobile `apps/mobile/package.json` version bump (current `1.0.25`, build 783) is pending. No version metadata was changed in this branch; the pull request records the decision as pending.
+- Human approved a build-only increment on 2026-10-22: `version` stays `1.0.25`, `buildNumber` advances 783 → 784, `previousBuildNumber` becomes 783.
+- Updated `apps/mobile/package.json`, both iOS `CFBundleVersion` values, the app target's `CURRENT_PROJECT_VERSION`, Android `versionCode`, and the `SlaxVersionCode` manifest metadata. No signing, upload, or store publication was requested.

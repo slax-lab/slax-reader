@@ -23,4 +23,4 @@
 - [x] 4.1 Run `pnpm mobile -- check` (architecture, fixtures, RSS controller verify, typecheck, full test) and `pnpm mobile -- bundle`; record commands and results.
 - [x] 4.2 Exercise the four scenarios on Android and iOS in the fixture or development build, including switching All → source → All while scrolled, concurrent automatic downloads, and a second gesture during the first drawer close; record native evidence or an explicit gap in `validation.md`.
 - [x] 4.3 Run `pnpm exec openspec validate --all --strict` and `git diff --check`; record the results.
-- [ ] 4.4 Ask the human for the Mobile `apps/mobile/package.json` version decision (current `1.0.25`, build 783) before commit/hand-off and record the decision.
+- [x] 4.4 Ask the human for the Mobile `apps/mobile/package.json` version decision and record it: approved build-only increment to `1.0.25 (784)`, previous build 783.
