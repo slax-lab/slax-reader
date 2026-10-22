@@ -40,4 +40,4 @@ The user selected all formats and online-only creation on 2026-10-22. Detailed d
 
 ## Settled media dependency
 
-The previously merged media implementations (PR #219) are archived by the separate `docs/archive-media-specs` dependency, commit `2219c907`. This change now owns scoped modifications to the living `youtube-ai-article` and `podcast-article` capabilities. The modifications express the already-approved private capture and Fork isolation policy while preserving legacy unmanaged behavior, budgets, acquisition gates and moderation. Historical unchecked acceptance tasks remain unchanged in the archives.
+The previously merged media implementations (PR #219) are archived by the separate `docs/archive-media-specs` dependency, reconciled with current `dev` at commit `1041a594`. This change now owns scoped modifications to the living `youtube-ai-article` and `podcast-article` capabilities. The modifications express the already-approved private capture and Fork isolation policy while preserving legacy unmanaged behavior, budgets, acquisition gates and moderation. Historical unchecked acceptance tasks remain unchanged in the archives.

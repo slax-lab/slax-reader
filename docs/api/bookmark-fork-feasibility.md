@@ -123,7 +123,7 @@ These review resolutions are implemented in the task branch. Their automated and
 
 ## 10. Delivery prerequisites and evidence
 
-Formal artifacts are prepared in `openspec/changes/add-bookmark-fork`. The merged media changes were archived and synchronized in the separate `docs/archive-media-specs` dependency at `2219c907`. This change includes reviewed scoped MODIFIED deltas for the settled media capabilities, preserving their original scenarios while introducing private snapshot ownership.
+Formal artifacts are prepared in `openspec/changes/add-bookmark-fork`. The merged media changes were archived and synchronized in the separate `docs/archive-media-specs` dependency, reconciled with current `dev` at `1041a594`. This change includes reviewed scoped MODIFIED deltas for the settled media capabilities, preserving their original scenarios while introducing private snapshot ownership.
 
 Use additive migration first, then compatible API writers/readers, then Web/Extension entries. Keep the column and managed-content guards during rollback; old media writers are not safe rollback targets after private bundles exist. Remote deployment remains separate.
 
