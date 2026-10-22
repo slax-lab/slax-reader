@@ -1,10 +1,14 @@
 ---
 name: PR Review (on demand)
 description: Re-runs the pull request review when somebody comments /review.
-# The gate workflow parses "#<n>" from this run name to find the reviewed pull
-# request — essential here, because this workflow runs from the default branch
-# (issue_comment) so the run's head SHA is not the pull request head (design D4).
-run-name: "PR review (on demand) for #${{ github.event.issue.number || github.run_id }}"
+# The gate workflow parses "#<n>" and "comment <id>" from this run name — the
+# pull request it must report on and the comment that triggered the run. Both
+# are essential here: this workflow runs from the default branch (issue_comment),
+# so the run's head SHA is not the pull request head, and the gate's workflow_run
+# payload does not carry the comment (design D4). The comment id is what lets the
+# gate confirm that a declined run was actually a requested review before it
+# reports anything for it.
+run-name: "PR review (on demand) for #${{ github.event.issue.number || github.run_id }} comment ${{ github.event.comment.id || 'none' }}"
 # Separate from the automatic review workflow on purpose: a workflow that carries a
 # slash_command trigger also applies gh-aw's command-position check to the pull
 # request body, which silently skipped every automatic review (observed on #18:

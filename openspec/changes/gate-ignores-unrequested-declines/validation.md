@@ -1,0 +1,64 @@
+# Validation — gate-ignores-unrequested-declines
+
+Date: 2026-10-22
+
+Change type: CI workflow behavior (the required `PR review gate` status and the `ready-for-human-review` label). No application runtime behavior; UI-visible: n/a — there is no UI surface. Human hands-on acceptance: n/a — the running environment is the GitHub pull request and Actions.
+
+## Commands run
+
+- `gh aw compile --strict --purge --no-check-update` (gh-aw v0.88.7, the repository pin) → `Compiled 2 workflows: 2 succeeded, 0 warnings`; the only lock-file change is `pr-review-command.lock.yml` (run-name line plus the gh-aw metadata hash).
+- `bash tooling/check-gh-aw-drift.sh` with the change staged → `Compiled workflows match their sources.`
+- `pnpm exec openspec validate --all --strict` → `Totals: 70 passed, 0 failed (70 items)`.
+- `python3` YAML load of `.github/workflows/pr-review-gate.yml` and the frontmatter of `.github/workflows/pr-review-command.md` → parsed.
+- `pnpm exec rulesync doctor --strict` → no problems; `pnpm exec rulesync generate --check` → all files up to date; `CI=1 pnpm exec openspec update` → no generated-skill drift (`git status` clean for the generated paths).
+- Offline gate replay: the new gate script was extracted from the workflow's step `run:` block and executed against recorded GitHub data. A replay `gh` wrapper in `PATH` sends every GET to the real API and intercepts (and logs) every mutation (`-X POST`, `-X DELETE`, `gh label create`), so no status or label was written. For rows that need a run name or comment state the recorded data does not carry, `SYNTHETIC_TITLE` rewrites only the run object's `display_title` and `SYNTHETIC_COMMENT_UPDATED` rewrites only the comment's `updated_at`; jobs, pull request and review reads stay real.
+
+## What was exercised (offline replay against recorded runs)
+
+Replay rows below run the extracted script with `REPO=slax-lab/slax-reader`, `READY_LABEL=ready-for-human-review`, and the listed `RUN_ID`/`PAUSED`/`SYNTHETIC_TITLE`. "Old gate" rows run the `origin/dev` script against the same input for comparison.
+
+| Row | Input | New gate | Old gate |
+| --- | --- | --- | --- |
+| N1 | run 39414403579, real run name — declined on-demand run created by the prose comment 6289715051 | reports nothing: `was not a requested review (trigger 'none' not confirmed); leaving the status and label untouched` | posts `success — Review not run (not activated for this run)` on `153775b…` (O1) — the incident overwrite |
+| N2 | N1 with `PAUSED=true` | reports nothing (no pause exception for an unconfirmed trigger) | posts `success — Review not run (reviews are currently paused)` (O2) |
+| N3 | run 39414403579 with synthetic name `… for #307 comment 6289715051` | reports nothing: trigger not confirmed (the comment is prose) | posts `success — Review not run (not activated for this run)` (O3) |
+| N4 | run 39414403579 with synthetic name `… for #307 comment 6289543179` (the real `/review` comment on #307) | `was created by an accepted /review request`; classification `success — Review not run (not activated for this run)` | — |
+| N5 | N4 with `PAUSED=true` | `success — Review not run (reviews are currently paused)` — the pause keeps its passing skip | posts the same paused skip (O4) |
+| N6 | synthetic name with comment 999999999 (does not exist) | reports nothing | — |
+| N7 | synthetic name `… for #307 comment 6289414503` (a comment on PR #303) | reports nothing | — |
+| N8 | synthetic name `… for #303 comment 6289543179` (the comment belongs to #307) | reports nothing | — |
+| N9 | N4's input with the comment's `updated_at` overridden to `11:30:00Z`, after the run's `11:21:46Z` creation | reports nothing (the comment was edited after the run, so it cannot be that run's trigger) | — |
+| N10 | automatic fork run 35429105440 | `success — Review not run (not activated for this run)` | unchanged (O10) |
+| N11 | automatic draft run 35501003126 | `success — Review not run (not activated for this run)` | — |
+| N12 | activated clean review run 35499204394 | `success — Reviewed: no Important findings` | unchanged (O12) |
+| N13 | findings failure run 35431067850 | `failure — Review reported Important findings` | — |
+| N14 | stale-lock activation failure run 35490678495 | `failure — Review did not start (activation failed at 'Check workflow lock file'); failing closed` | unchanged (O14) |
+| N15 | command-workflow `pull_request` run 35499204404 | routing: `not a command. Leaving the status untouched.` | — |
+| N16 | manually cancelled run 39414147103 | `failure — Review did not start (pre_activation: cancelled); failing closed` — the same report the incident record shows at 11:21:15Z | — |
+
+Confirmed-trigger rows N4/N5 also exercise the status and label paths: the replay wrapper blocked and logged the `POST /statuses` call and the label `DELETE` for the now-closed PR #307, proving the arm that writes them was reached only for a confirmed request. The unconfirmed rows attempt no mutation at all, and the automatic fork row attempts its status write and label removal exactly as `origin/dev` does.
+
+The confirmation predicates were also exercised directly with local fixtures:
+
+- Body: `/review` → true; `/review please` → true; `/review` + newline → true; `/review\r\n` → false; ` /review` → false; `review` → false; `/reviewx` → false; `please /review` → false.
+- Actor: `OWNER`, `MEMBER`, `COLLABORATOR` → true; `CONTRIBUTOR`, `NONE` → false.
+- Issue: comment `issue_url` ending `/issues/307` for PR #307 → true; `/issues/303` → false; `/issues/3070` → false.
+- Pull request: `repos/slax-lab/slax-reader/issues/307` → `has("pull_request")` true; plain issue #323 → false.
+- Timestamp: a comment whose `updated_at` is later than the run's `created_at` is rejected before the body checks (replay N9; the comparison is a plain ISO-8601 string comparison on values of the same shape).
+
+Real comment fixtures used: `/review` comment 6289543179 (`MEMBER`, `issue_url` …/issues/307), prose comment 6289715051 (`MEMBER`, prose body), prose comment 6289414503 (on #303).
+
+## Not validated (declared gaps)
+
+- **Live gate behavior.** `workflow_run` only triggers workflows that exist on the default branch, so the merged gate cannot act on the branch that changes it. The post-merge drills in `tasks.md` 6.1–6.4 are the live evidence and will be recorded in the "Post-merge verification" section below before archive.
+- **Run-name rendering at runtime.** That GitHub renders `github.event.comment.id` into the on-demand `display_title` is verified only by the merge and the first live run; it is checked in drill 6.1.
+- **Partial jobs-read race (pre-existing).** The jobs API can be read before all jobs appear; the gate then fails closed with a spurious failure (observed on run 39420656163 outside this change). This change neither introduces nor removes that race; its guard relies on the same conclusions the rest of the gate reads.
+- **Cancelled-run successors cannot be replayed historically.** The gate's successor query lists workflow runs newest-first, so a month later the immediate successor of run 39414147103 is outside the page the query returns; N16 reproduces the incident-time failure rather than the later supersession. The cancelled path is unchanged by this change.
+- **Same-second comment edits.** GitHub timestamps have second precision, so an edit landing in the same second as the run's creation can evade the `updated_at` check and be confirmed against the edited body. The edit's own run reports separately; this is recorded rather than claimed closed.
+- **Membership-declined shape** (`pre_activation: success`, `activation: skipped`) has no recorded runtime sample; it keeps the existing passing-skip behavior and is unchanged structurally.
+
+## Pre-push review (REVIEW.md, three passes)
+
+- **Bugs**: the replay table above is the evidence. Unconfirmed triggers (prose, missing/cross-pull-request comment, plain issue, edited-after-run comment) report nothing; a confirmed `/review` decline keeps the passing skip, paused description included; automatic fork/draft runs, activated clean/findings runs and the stale-lock activation failure are unchanged; the routing rows still skip non-review runs. Fail-open checks done by reading the script: the confirmation gate is scoped to the on-demand workflow plus the all-skipped shape, an unconfirmed trigger can only suppress a report (it cannot create a passing skip or a label change), and every shape outside the passing branches still reaches the existing fail-closed classifier. The `updated_at` guard closes the edit-after-run false confirmation; the same-second edit is declared as a gap instead of claimed closed. The guard runs before the pull-request read, which also keeps a plain-issue comment from aborting the step on this path.
+- **Security**: no new secret, permission, dependency or network destination; the existing `issues: write`/`pull-requests: write` token reads the comment. Values reaching shell commands and API paths are numeric ids parsed from the workflow-set run name plus the pull request number; the comment body is only compared through jq predicates and never echoed or logged. The change removes a way for an unrelated comment to clear a failing required check and to add the readiness label; a failure verdict for unrequested triggers was deliberately rejected because any commenter could then block a merge and delete the label.
+- **Compliance**: the diff matches `openspec/changes/gate-ignores-unrequested-declines` — proposal What Changes, design D2–D5, the delta spec's merge-gate and readiness-label requirements, and the tasks marked complete. The only gh-aw change is the run-name value and its recompiled lock, both included; `docs/CI.md` and the gate header comment state the same rule the script implements. The pull request body names `OpenSpec: gate-ignores-unrequested-declines` and its Test plan summarizes this file; the live-drill gap is declared rather than implied.
