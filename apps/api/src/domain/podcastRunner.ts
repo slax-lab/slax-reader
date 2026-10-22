@@ -501,6 +501,8 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
         model: YOUTUBE_ARTICLE_MODEL,
         temperature: 0.2,
         maxOutputTokens: YOUTUBE_ARTICLE_LIMITS.maxOutputTokens,
+        // Thinking tokens share maxOutputTokens; bound them so a long transcript cannot truncate.
+        thinkingConfig: { thinkingBudget: 2048 },
         responseMimeType: 'application/json',
         responseSchema: schema as unknown as VertexAIConfig['responseSchema']
       },
