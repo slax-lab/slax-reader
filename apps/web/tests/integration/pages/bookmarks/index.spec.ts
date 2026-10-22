@@ -1,4 +1,10 @@
-import { enableAutoUnmount } from '@vue/test-utils'
+import { defineComponent, h, KeepAlive, nextTick, reactive, ref } from 'vue'
+
+import ReceiveSubscribeModal from '~/components/GetSubscribeModal.vue'
+
+import { initialPromotionState } from '~~/app/utils/promotionFlow'
+
+import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 // pages/bookmarks/index.vue 集成测试 — 完整覆盖（实测目标 90%+）
 // 关键约束（spec 修订 1-3 决议）：
 //  - useUserStore 全 vi.mock（mountWithApp 独立 Pinia 让 spyOn 失效）
@@ -8,13 +14,8 @@ import { enableAutoUnmount } from '@vue/test-utils'
 //  - VueUse helpers share one vi.mock factory; useScroll uses a hoisted plain { value: 0 } to avoid TDZ
 //  - 子组件 stub 必须设 name 字段（findComponent({ name }) 命中）+ 渲染 named slots
 //  - useUserStore mockUserInfo 字段必须包含 isLogin（user store getter 依赖 haveRequestToken）
-
 import { RESTMethodPath } from '@slax-reader/contracts/const'
-import ReceiveSubscribeModal from '~/components/GetSubscribeModal.vue'
-import { initialPromotionState } from '~~/app/utils/promotionFlow'
-import { defineComponent, h, KeepAlive, nextTick, reactive, ref } from 'vue'
-
-import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { enableAutoUnmount } from '@vue/test-utils'
 import { flushPromises } from '@vue/test-utils'
 import { baseBookmarkItem } from '~~/tests/fixtures/bookmark'
 import { baseUser } from '~~/tests/fixtures/user'
@@ -114,6 +115,18 @@ mockNuxtImport('analyticsLog', () => mockAnalyticsLog)
 mockNuxtImport('haveRequestToken', () => mockHaveRequestToken)
 mockNuxtImport('addChannelMessageHandler', () => mockAddChannelMessageHandler)
 mockNuxtImport('removeChannelMessageHandler', () => mockRemoveChannelMessageHandler)
+vi.mock('~/composables/useAccountContext', () => ({
+  useAccountContext: () => ({
+    accountKey: ref('test-account'),
+    sessionOwner: ref('test-owner'),
+    context: ref({ accountKey: 'test-account', sessionOwner: 'test-owner', serverUserId: 1, source: 'server', status: 'ready', generation: 0 }),
+    sync: vi.fn(),
+    snapshot: () => ({ accountKey: 'test-account', sessionOwner: 'test-owner', token: 'test-token' }),
+    acceptServerUser: vi.fn(),
+    invalidateServerUser: vi.fn(),
+    token: ref('test-token')
+  })
+}))
 
 vi.mock('~/composables/useNotification', () => ({
   default: mockUseNotificationDefault
@@ -212,7 +225,7 @@ describe('pages/bookmarks/index.vue', () => {
   beforeEach(() => {
     useState('onboarding-flags', () => ({})).value = {}
     localStorage.clear()
-    useState('koc-promotion', initialPromotionState).value = { ...initialPromotionState(), userId: baseUser.userId, phase: 'idle' }
+    useState('koc-promotion', initialPromotionState).value = { ...initialPromotionState(), userId: baseUser.userId, accountKey: 'test-account', phase: 'idle', contextResolved: true }
     vi.clearAllMocks()
     mockHaveRequestToken.mockReturnValue(false)
     capturedChannelHandler.value = null

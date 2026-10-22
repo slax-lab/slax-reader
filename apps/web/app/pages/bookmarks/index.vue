@@ -220,6 +220,7 @@ import { useInboxOnboardingState } from '~/composables/bookmark/useInboxOnboardi
 import { useListLayoutMode } from '~/composables/bookmark/useListLayoutMode'
 import { useRefreshIndicator } from '~/composables/bookmark/useRefreshIndicator'
 import { useKocPromotionFlow } from '~/composables/promotion/useKocPromotionFlow'
+import { useAccountContext } from '~/composables/useAccountContext'
 import { useUserStore } from '~/stores/user'
 
 const { t, locale } = useI18n()
@@ -255,6 +256,7 @@ const userInfo = ref<UserInfo>()
 const currentActivityId = 'platform_0527'
 const currentActivityType = 'platform_0527'
 const kocFlow = useKocPromotionFlow()
+const account = useAccountContext()
 const showReceiveSubscribe = ref(false)
 const ordinaryModalOpen = ref(false)
 
@@ -442,7 +444,7 @@ const { inboxState } = useInboxOnboardingState({
   isFirstLoad,
   onboardingReady,
   confirmEmpty: confirmOnboardingEmpty,
-  userId: kocFlow.userId
+  account: account.context
 })
 
 // 状态 A → 跳转 /onboarding

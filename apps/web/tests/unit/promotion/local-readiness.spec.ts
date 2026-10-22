@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { defineComponent, nextTick,ref } from 'vue'
+import { computed, defineComponent, nextTick, ref } from 'vue'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { createPowerSyncPlugin } from '@powersync/vue'
@@ -9,6 +9,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 const env = vi.hoisted(() => ({ db: null as any, states: new Map<string, any>(), token: null as any }))
 mockNuxtImport('useNuxtApp', () => () => ({ $powersync: env.db }))
+mockNuxtImport('useRuntimeConfig', () => () => ({ public: { COOKIE_TOKEN_NAME: 'token' } }))
 mockNuxtImport('useState', () => (key: string, init: () => unknown) => {
   if (!env.states.has(key)) env.states.set(key, ref(init()))
   return env.states.get(key)
@@ -17,6 +18,19 @@ mockNuxtImport('haveRequestToken', () => () => true)
 mockNuxtImport('getUserToken', () => () => env.token.value)
 mockNuxtImport('isLocalFirstEnabled', () => () => true)
 mockNuxtImport('isHighlightLocalFirstEnabled', () => () => false)
+mockNuxtImport('useAccountContext', () => () => ({
+  accountKey: computed(() => env.states.get('account-key')?.value ?? null),
+  sessionOwner: computed(() => {
+    try {
+      return String((JSON.parse(atob(env.token.value.split('.')[1])) as { id?: string | number }).id ?? '') || null
+    } catch {
+      return null
+    }
+  }),
+  context: computed(() => ({ accountKey: env.states.get('account-key')?.value ?? null, sessionOwner: env.token.value?.includes('another-owner') ? 'another-owner' : 'token-owner', serverUserId: env.states.get('server-user-id')?.value ?? null, source: 'server', status: 'ready', generation: 0 })),
+  acceptServerUser: vi.fn(),
+  invalidateServerUser: vi.fn()
+}))
 mockNuxtImport('useI18n', () => () => ({ t: (v: string) => v, locale: ref('en') }))
 mockNuxtImport('addChannelMessageHandler', () => () => {})
 mockNuxtImport('removeChannelMessageHandler', () => () => {})
@@ -25,6 +39,8 @@ enableAutoUnmount(afterEach)
 beforeEach(() => {
   env.states.clear()
   env.token = ref(`x.${btoa(JSON.stringify({ id: 'token-owner' }))}.x`)
+  env.states.set('account-key', ref('acct-token-owner'))
+  env.states.set('server-user-id', ref(7))
 })
 
 it.each([
@@ -74,6 +90,11 @@ it.each([
   await nextTick()
   expect(data.onboardingReady.value).toBe(true)
   expect(data.isDataEmpty.value).toBe(true)
+  env.states.get('powersync-owner').value = null
+  await nextTick()
+  env.states.get('powersync-owner').value = owner
+  await nextTick()
+  expect(data.onboardingReady.value).toBe(true)
   query.emit({ data: [], isLoading: false, isFetching: false, error: Error('read failed') })
   await nextTick()
   expect(data.onboardingReady.value).toBe(false)
@@ -83,7 +104,7 @@ it.each([
   expect(data.isDataEmpty.value).toBe(false)
   env.states.get('koc-promotion').value.sessionOwner = null
   await nextTick()
-  expect(data.onboardingReady.value).toBe(false)
+  expect(data.onboardingReady.value).toBe(true)
   env.states.get('koc-promotion').value.sessionOwner = owner
   env.token.value = `x.${btoa(JSON.stringify({ id: 'another-owner' }))}.x`
   await nextTick()

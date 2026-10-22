@@ -5,6 +5,8 @@ import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 import KocPromotionHost from '~~/app/components/Promotion/KocPromotionHost.vue'
 import OnboardingPage from '~~/app/pages/onboarding.vue'
 
+import { userStoreExtensionPlugin } from '~~/app/plugins/pinia'
+
 import { initialPromotionState } from '~~/app/utils/promotionFlow'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
@@ -13,7 +15,6 @@ import { mount } from '@vue/test-utils'
 import { useOnboardingPending } from '~~/app/composables/bookmark/useOnboardingPending'
 import { useKocPromotionFlow } from '~~/app/composables/promotion/useKocPromotionFlow'
 import { useUserStore } from '~~/app/stores/user'
-import { userStoreExtensionPlugin } from '~~/app/plugins/pinia'
 import { baseUser } from '~~/tests/fixtures/user'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
