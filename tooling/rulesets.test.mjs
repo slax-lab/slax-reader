@@ -272,7 +272,7 @@ test('codified state matches the per-branch protection contracts', () => {
   assert.equal(ruleOf(dev, 'pull_request').parameters.required_approving_review_count, 1)
   for (const ruleset of [beta, main]) {
     assert.deepEqual(ruleOf(ruleset, 'pull_request').parameters.allowed_merge_methods, ['merge'])
-    assert.equal(ruleOf(ruleset, 'pull_request').parameters.required_approving_review_count, 0)
+    assert.equal(ruleOf(ruleset, 'pull_request').parameters.required_approving_review_count, 1)
   }
 })
 
