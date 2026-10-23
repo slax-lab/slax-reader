@@ -8,7 +8,7 @@
 
 ### Capture
 
-The podcast branch runs in `CrawlWorkflow` after the PDF probe and the inline-content branch, only for `regular` routes whose URL `classifyPodcastUrl` recognises, and only when the owner has the `podcast` Labs feature. `podcast` is not a gated save route: without it, the link saves as before. All outbound fetches go through `fetchPublicText`, which screens every redirect hop and caps body size. Errors that will repeat (blocked address, too large, 4xx, unreadable answer) fall back to a normal page; transient errors throw, so the crawl step retries.
+The podcast branch runs in `CrawlWorkflow` after the PDF probe and the inline-content branch, only for `regular` routes whose URL `classifyPodcastUrl` recognises, and only when the owner has the `podcast` Labs feature. `podcast` is not a gated save route: without it, the link saves as before. The Xiaoyuzhou episode page is fetched through Zyte's browser mode (`browserHtml: true`) first, because Xiaoyuzhou rejects the Worker's direct fetch with HTTP 403 and the rendered HTML is stable across its JS-heavy pages; on an API-level Zyte failure or target 5xx it falls back to ScrapingBot browser mode and then a direct public fetch, so the route does not hard-depend on one provider. The parser extracts the audio URL from that HTML, and the audio URL is handed to AssemblyAI. Apple lookup, feeds and other public files go through `fetchPublicText`, which screens every redirect hop and caps body size. Errors that will repeat (blocked address, too large, 4xx, unreadable answer) fall back to a normal page; transient errors throw, so the crawl step retries.
 
 ### Transcript
 

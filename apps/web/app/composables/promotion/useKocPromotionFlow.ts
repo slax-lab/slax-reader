@@ -1,19 +1,25 @@
 import { computed } from 'vue'
 
 import { AccountLocaleStaleError } from '~/utils/accountLocaleRequest'
-import { createPromotionFlow, initialPromotionState, promotionBlocksOnboarding, promotionIntent } from '~/utils/promotionFlow'
+import { createPromotionFlow, hasPromotionContext, initialPromotionState, promotionBlocksOnboarding, promotionIntent } from '~/utils/promotionFlow'
 import { getTokenUserId } from '~/utils/sessionOwner'
 
 import { RESTMethodPath } from '@slax-reader/contracts/const'
+import { useAccountContext } from '~/composables/useAccountContext'
 import { useUserStore } from '~/stores/user'
 
 export const useKocPromotionFlow = () => {
   const state = useState('koc-promotion', initialPromotionState)
   const route = useRoute()
+  const account = useAccountContext()
   return {
     state,
-    blocksOnboarding: computed(() => promotionBlocksOnboarding(state.value) || (route.query.activity_type === 'blogger' && state.value.intent !== promotionIntent(route.query))),
+    blocksOnboarding: computed(() => {
+      const context = hasPromotionContext(state.value, route.query)
+      return promotionBlocksOnboarding(state.value, context, state.value.contextResolved) || (route.query.activity_type === 'blogger' && state.value.intent !== promotionIntent(route.query))
+    }),
     userId: computed(() => state.value.userId ?? undefined),
+    account,
     returnTarget: (path: '/' | '/onboarding') => ({
       path,
       query:
@@ -32,9 +38,10 @@ export const useKocPromotionFlow = () => {
 /** One layout host owns effects; pages only read the shared serializable state. */
 export const useKocPromotionController = () => {
   const { state } = useKocPromotionFlow()
+  const account = useAccountContext()
   const config = useRuntimeConfig()
   const userStore = useUserStore()
-  let session: string | undefined
+  let session: string | undefined = getUserToken()
   let identityGeneration = 0
   const api = async <T>(path: string, body?: unknown, query = ''): Promise<T> => {
     const token = getUserToken()
@@ -80,7 +87,8 @@ export const useKocPromotionController = () => {
       throw error
     })
     if (generation !== identityGeneration || current !== getUserToken() || !Number.isSafeInteger(profile?.userId) || profile.userId <= 0) throw Error('Unverified identity')
-    flow.setAccount(profile.userId)
+    account.acceptServerUser(profile.userId, account.snapshot())
+    flow.setAccount(profile.userId, account.accountKey.value)
     // The API profile ID and the JWT owner use different Hashid contexts.
     // Bind the local owner only after this session's server read succeeds.
     state.value.sessionOwner = getTokenUserId(current)
@@ -88,11 +96,11 @@ export const useKocPromotionController = () => {
   }
   const identify = async () => {
     const token = getUserToken() as string | undefined
-    if (token === session && state.value.userId) return true
+    if (token === session && state.value.userId && account.context.value.status === 'ready' && account.context.value.serverUserId === state.value.userId) return true
     session = token
     const generation = ++identityGeneration
     flow.invalidate()
-    flow.setAccount(null)
+    flow.setAccount(null, account.accountKey.value)
     state.value.phase = 'resolving'
     if (!token) {
       state.value.phase = 'idle'
@@ -102,9 +110,21 @@ export const useKocPromotionController = () => {
       await refreshProfile()
       return generation === identityGeneration
     } catch {
-      if (generation === identityGeneration) state.value.phase = 'error'
+      if (generation === identityGeneration) state.value.phase = state.value.pending ? 'error' : 'idle'
       return false
     }
   }
-  return { flow, state, identify, refreshProfile, sessionIsCurrent: () => session === getUserToken() }
+  return {
+    flow,
+    state,
+    identify,
+    refreshProfile,
+    sessionIsCurrent: () => {
+      const token = getUserToken()
+      if (!token || session !== token) return false
+      if (state.value.userId === null) return true
+      return session === token && account.context.value.status === 'ready' && account.context.value.serverUserId === state.value.userId
+    },
+    account
+  }
 }

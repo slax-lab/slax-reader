@@ -52,7 +52,7 @@ describe('pages/onboarding.vue', () => {
   beforeEach(() => {
     localStorage.clear()
     useState('onboarding-flags', () => ({})).value = {}
-    useState('koc-promotion', initialPromotionState).value = { ...initialPromotionState(), userId: baseUser.userId, phase: 'idle' }
+    useState('koc-promotion', initialPromotionState).value = { ...initialPromotionState(), userId: baseUser.userId, phase: 'idle', contextResolved: true }
     vi.clearAllMocks()
     mockNavigateTo.mockImplementation(() => Promise.resolve())
     mockGetUserInfo.mockResolvedValue(baseUser)
@@ -86,7 +86,7 @@ describe('pages/onboarding.vue', () => {
 
   it('allows mobile close without an account identity', async () => {
     vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Android)', platform: 'Linux armv8l', maxTouchPoints: 5 })
-    useState('koc-promotion', initialPromotionState).value = { ...initialPromotionState(), phase: 'idle' }
+    useState('koc-promotion', initialPromotionState).value = { ...initialPromotionState(), phase: 'idle', contextResolved: true }
     const wrapper = mountWithApp(OnboardingPage, { global: { stubs: { OnboardingTopBar: stubs.OnboardingTopBar } } })
     expect(wrapper.find('.hero-mobile-close').exists()).toBe(true)
     await wrapper.get('.hero-mobile-close').trigger('click')

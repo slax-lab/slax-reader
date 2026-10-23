@@ -1,5 +1,5 @@
 import { SocialMediaApi } from '../infra/external/socialMedia'
-import { SlaxFetch } from '../infra/external/remoteFetcher'
+import { FetchError, SlaxFetch } from '../infra/external/remoteFetcher'
 import { HtmlBuilder, YoutubeCue } from '../utils/htmlBuilder'
 import { extractYoutubeVideoId, shouldUseBrowserHtml } from '../utils/platformDetector'
 import { captionPlainText, captionSourceHash, youtubeCaptionKeys, type YoutubeCaptionDocument } from '../utils/youtubeCaption'
@@ -615,15 +615,21 @@ export class CrawlService {
    * episode after all (a feed without audio, an Apple episode the lookup does not list): the caller
    * then saves it as a normal page. Fetch errors are thrown, so the crawl step retries.
    */
-  public async fetchPodcastData(url: string): Promise<PodcastEpisodeInfo | null> {
+  public async fetchPodcastData(url: string, ctx: ContextManager): Promise<PodcastEpisodeInfo | null> {
     try {
-      return await this.readPodcastEpisode(url)
+      // Xiaoyuzhou episode pages are always fetched through Zyte's browser mode. The publisher
+      // blocks the Worker's direct fetch with 403; browser rendering is the stable path for its
+      // JS-heavy pages. The HTML is only needed to extract the audio URL handed to AssemblyAI.
+      return await this.readPodcastEpisode(url, async () => await this.fetchPodcastPage(ctx, url))
     } catch (err) {
       // An error that will repeat (blocked address, too large, 4xx, unreadable answer) is not worth a
       // retry: the link is saved as a normal page, as it was before the podcast route existed.
       // Errors that can pass (5xx, timeouts, network) are thrown, so the crawl step retries.
       const message = err instanceof Error ? err.message : String(err)
-      if (err instanceof SyntaxError || /^(blocked_url|too_large|too_many_redirects|http_4\d\d)/.test(message)) {
+      // Only the target's 4xx is terminal. Zyte's own 4xx (bad key, rate limit) is reported through
+      // the same FetchError shape but must retry, not silently turn every episode into a page.
+      const target4xx = err instanceof FetchError && err.message.startsWith('ZYTE target fetch failed:') && err.code >= 400 && err.code < 500
+      if (err instanceof SyntaxError || target4xx || /^(blocked_url|too_large|too_many_redirects|http_4\d\d)/.test(message)) {
         console.warn(`Podcast fetch for ${url} gave up (${message.slice(0, 80)}); saving as a page`)
         return null
       }
@@ -631,10 +637,34 @@ export class CrawlService {
     }
   }
 
-  private async readPodcastEpisode(url: string): Promise<PodcastEpisodeInfo | null> {
+  /**
+   * Xiaoyuzhou episode pages use Zyte's browser mode (rendered HTML) first. A target 4xx is terminal
+   * and becomes a normal page save; an API-level Zyte failure (missing key, auth, quota) or a target
+   * 5xx falls back to ScrapingBot's browser mode, then to a direct public fetch, so the podcast route
+   * does not hard-depend on one provider.
+   */
+  public async fetchPodcastPage(ctx: ContextManager, url: string): Promise<{ content: string; url: string }> {
+    const fetcher = new SlaxFetch(ctx.env)
+    try {
+      return await fetcher.zyte(url, true)
+    } catch (err) {
+      if (err instanceof FetchError && err.message.startsWith('ZYTE target fetch failed:') && err.code < 500) throw err
+      console.warn(`Zyte browser fetch failed for podcast page ${url}: ${err instanceof Error ? err.message : String(err)}; trying ScrapingBot`)
+    }
+    try {
+      return await fetcher.scrapingBot(url, true)
+    } catch (err) {
+      console.warn(`ScrapingBot browser fetch failed for podcast page ${url}: ${err instanceof Error ? err.message : String(err)}; trying a direct public fetch`)
+    }
+    return { content: await fetchPublicText(url, { maxBytes: 3 * 1024 * 1024, accept: 'text/html', browser: true }), url }
+  }
+
+  private async readPodcastEpisode(url: string, pageFetcher: () => Promise<{ content: string; url: string }>): Promise<PodcastEpisodeInfo | null> {
     const kind = classifyPodcastUrl(url)
     if (kind === 'xiaoyuzhou') {
-      const info = parseXiaoyuzhouPage(url, await fetchPublicText(url, { maxBytes: 3 * 1024 * 1024, accept: 'text/html' }))
+      // Use the URL the provider actually resolved, so a redirected episode slug is not stored stale.
+      const page = await pageFetcher()
+      const info = parseXiaoyuzhouPage(page.url, page.content)
       return info.audioUrl ? info : null
     }
     if (kind === 'apple') {

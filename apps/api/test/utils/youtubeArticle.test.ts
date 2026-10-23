@@ -14,6 +14,7 @@ import {
   escapeHtml,
   estimateCostUsd,
   estimateTokens,
+  expectedChunkCostUsd,
   lengthBounds,
   mergeChunkResults,
   parseChunkOutput,
@@ -128,6 +129,20 @@ describe('planYoutubeArticle', () => {
     expect(res.plan.durationMs).toBe(10000 + 4800)
     expect(res.plan.format).toBe('article')
   })
+
+  test('the most expensive plan inside the chunk ceiling stays inside the per-article budget', () => {
+    // ~1,300 × 90 CJK characters ≈ 39 chunks: close to the 40-chunk ceiling, same prompt shape the runner prices.
+    const doc = captionDoc(Array.from({ length: 1300 }, (_, i) => cue(i, `${'讲'.repeat(90)}${i}`, i * 1000)))
+    const res = planYoutubeArticle(doc)
+    expect(res.ok).toBe(true)
+    if (!res.ok) return
+    expect(res.plan.chunks.length).toBeGreaterThan(30)
+    const expected = res.plan.chunks.reduce((sum, chunk) => {
+      const prompt = buildSystemInstruction('zh', chunk, res.plan.chunks.length) + buildUserMessage('title', res.plan.cues.slice(chunk.start, chunk.end))
+      return sum + expectedChunkCostUsd(estimateTokens(prompt))
+    }, 0)
+    expect(expected).toBeLessThanOrEqual(YOUTUBE_ARTICLE_LIMITS.maxCostUsd)
+  })
 })
 
 describe('detectArticleFormat', () => {
@@ -159,6 +174,13 @@ describe('prompt', () => {
     expect(msg).toContain('Video title: Attention')
     expect(msg).toContain('c0042 [07:00] hello')
     expect(msg).toContain('c0043 [1:02:05] world')
+  })
+
+  test('user message repeats the numeric tokens that must stay as digits', () => {
+    const msg = buildUserMessage('Numbers', [cue(1, 'GPT-3 needs 2,600 years; read 24-7 for 10,000 years', 0)])
+    expect(msg).toContain('Required numbers')
+    expect(msg).toContain('2600')
+    expect(msg).toContain('10000')
   })
 })
 
