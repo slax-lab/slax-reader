@@ -33,7 +33,6 @@ import { PodcastArticleRepo, PodcastEpisodeRepo } from '../../infra/repository/d
 import { BookmarkForkService } from '../../domain/bookmarkFork'
 import { MediaSnapshotService } from '../../domain/mediaSnapshot'
 import { BookmarkForkRepo } from '../../infra/repository/dbBookmarkFork'
-import { SnapshotCleanupRepo } from '../../infra/repository/dbSnapshotCleanup'
 import { CollectionRepo } from '../../infra/repository/dbCollection'
 import { LogsService } from '../../domain/logs'
 import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
@@ -64,7 +63,7 @@ import { MonitoringOrchestrator } from '../../domain/orchestrator/monitor'
 import { AigcBatchOrchestrator } from '../../domain/orchestrator/aigc'
 import { PodcastService } from '../../domain/podcast'
 import { RssService } from '../../domain/rss'
-import { SnapshotCleanupService } from '../../domain/snapshotCleanup'
+import { SnapshotMaintenanceService } from '../../domain/snapshotMaintenance'
 import { SubscriptionOrchestrator } from '../../domain/orchestrator/subscription'
 import { SubscriptionAppleService } from '../../domain/subscriptionApple'
 import { UserDeletionService } from '../../domain/userDeletion'
@@ -85,7 +84,7 @@ import { BookmarkJob } from '../../handler/cron/bookmarkJob'
 import { CollectionJob } from '../../handler/cron/collectionJob'
 import { PodcastJob } from '../../handler/cron/podcastJob'
 import { RssJob } from '../../handler/cron/rssJob'
-import { SnapshotCleanupJob } from '../../handler/cron/snapshotCleanupJob'
+import { SnapshotMaintenanceJob } from '../../handler/cron/snapshotMaintenanceJob'
 import { SubscriptionJob } from '../../handler/cron/subscriptionJob'
 import { UserDeletionJob } from '../../handler/cron/userDeletionJob'
 import { YoutubeArticleJob } from '../../handler/cron/youtubeArticleJob'
@@ -163,8 +162,7 @@ container.register(BookmarkForkService, {
       container.resolve(SearchService),
       container.resolve(BookmarkRepo),
       container.resolve(MediaSnapshotService),
-      container.resolve(NotificationMessage),
-      container.resolve(SnapshotCleanupRepo)
+      container.resolve(NotificationMessage)
     )
 })
 
@@ -242,8 +240,7 @@ container.register(MediaSnapshotService, {
       container.resolve(MarkRepo),
       container.resolve(BookmarkRepo),
       container.resolve(SearchService),
-      container.resolve(BookmarkSearchRepo),
-      container.resolve(SnapshotCleanupRepo)
+      container.resolve(BookmarkSearchRepo)
     )
 })
 
@@ -289,14 +286,8 @@ container.register(ShareService, {
   useFactory: container => new ShareService(container.resolve(BookmarkRepo), container.resolve(UserRepo))
 })
 
-container.register(SnapshotCleanupService, {
-  useFactory: container =>
-    new SnapshotCleanupService(
-      lazy(() => container.resolve(BucketClient)),
-      container.resolve(BookmarkForkRepo),
-      container.resolve(MediaSnapshotService),
-      container.resolve(SnapshotCleanupRepo)
-    )
+container.register(SnapshotMaintenanceService, {
+  useFactory: container => new SnapshotMaintenanceService(container.resolve(BookmarkForkRepo), container.resolve(MediaSnapshotService))
 })
 
 container.register(SubscriptionService, {
@@ -372,7 +363,8 @@ container.register(UserDeletionService, {
   useFactory: container =>
     new UserDeletionService(
       lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)),
-      container.resolve(UserRepo)
+      container.resolve(UserRepo),
+      lazy(() => container.resolve(BucketClient))
     )
 })
 
@@ -534,8 +526,8 @@ container.register(RssJob, {
   useFactory: container => new RssJob(container.resolve(RssService))
 })
 
-container.register(SnapshotCleanupJob, {
-  useFactory: container => new SnapshotCleanupJob(container.resolve(SnapshotCleanupService))
+container.register(SnapshotMaintenanceJob, {
+  useFactory: container => new SnapshotMaintenanceJob(container.resolve(SnapshotMaintenanceService))
 })
 
 container.register(SubscriptionJob, {
@@ -648,10 +640,6 @@ container.register(ReportRepo, {
 
 container.register(RssRepo, {
   useFactory: container => new RssRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
-})
-
-container.register(SnapshotCleanupRepo, {
-  useFactory: container => new SnapshotCleanupRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
 
 container.register(SubscriptionRepo, {

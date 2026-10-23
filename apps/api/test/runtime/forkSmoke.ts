@@ -7,10 +7,7 @@ import { getPlatformProxy } from 'wrangler'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/hyperdrive-client'
 import { BookmarkForkRepo } from '../../src/infra/repository/dbBookmarkFork'
-import { BookmarkRepo } from '../../src/infra/repository/dbBookmark'
-import { SnapshotCleanupRepo } from '../../src/infra/repository/dbSnapshotCleanup'
-import { SnapshotCleanupService } from '../../src/domain/snapshotCleanup'
-import { SnapshotBundle, snapshotKeys, snapshotBundleMembers } from '../../src/utils/snapshotBundle'
+import { snapshotBundleMembers } from '../../src/utils/snapshotBundle'
 import { MediaSnapshotService } from '../../src/domain/mediaSnapshot'
 import { renderMediaArticle, renderPodcastBody, type PodcastPlayerInfo } from '../../src/utils/podcastArticle'
 import type { YoutubeArticleDocument } from '../../src/utils/youtubeArticle'
@@ -128,7 +125,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
     return {
       dispose: () => proxy.dispose(),
       sources,
-      async exercise(fetch: (path: string, init?: RequestInit) => Promise<Response>, headers: Record<string, string>, readerOrigin: string) {
+      async exercise(fetch: (path: string, init?: RequestInit) => Promise<Response>, headers: Record<string, string>, readerOrigin: string, encodeId: (id: number) => string) {
         const call = async (path: string, body?: unknown, asGuest = false) => {
           const response = await fetch(path, { headers: asGuest ? {} : headers, ...(body !== undefined ? { method: 'POST', body: JSON.stringify(body) } : {}) })
           const result = (await response.json()) as any
@@ -394,7 +391,6 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         try {
           const repo = new BookmarkForkRepo(() => client)
           const capture = Object.assign(Object.create(MediaSnapshotService.prototype), {
-            cleanup: new SnapshotCleanupRepo(() => client),
             repo,
             bucket: () => ({ R2Bucket: bucket })
           }) as MediaSnapshotService
@@ -418,81 +414,17 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
             assert.match(await ownBody.text(), new RegExp(text))
             assert.equal((await capture.load(dest.bookmark_id))?.media?.mode ?? 'html', kind === 'html' ? 'html' : 'capture')
           }
-          const cleanup = new SnapshotCleanupRepo(() => client)
-          const abandoned = new SnapshotBundle(bucket, randomUUID(), key => cleanup.registerBundle(key))
-          await abandoned.write('body.html', 'Interrupted write', 'text/html')
-          const abandonedKey = abandoned.keys[0]
-          const pdfAttempt = new SnapshotBundle(bucket, randomUUID(), key => cleanup.registerBundle(key))
-          const pdfKeys = snapshotKeys(pdfAttempt.uuid, pdfAttempt.attempt, true)
-          await pdfAttempt.put(pdfKeys.content_key, '%PDF-interrupted')
-          await pdfAttempt.put(pdfKeys.sidecar, '{}')
-          await pdfAttempt.put(pdfKeys.content_md_key, 'Interrupted text')
-          // Keep a live-reference candidate to exercise the final protection against false positives.
-          const live = (await repo.snapshot(saved.html.bookmark_id))!.content_key
-          await cleanup.registerBundle(live)
-          const active = new SnapshotBundle(bucket, randomUUID(), key => cleanup.registerBundle(key))
-          await active.write('body.html', 'Active attempt', 'text/html')
-          const deleted = saved.uploadedPdf
-          await client.sr_user_bookmark.deleteMany({
-            where: { bookmark_id: deleted.bookmark_id }
-          })
-          const bookmarks = Object.assign(Object.create(BookmarkRepo.prototype), { prismaPg: () => client }) as BookmarkRepo
-          assert.ok(await bookmarks.deleteBookmarkTry(deleted.bookmark_id, 1))
-          const retired = ['html', 'youtube', 'podcast'].map(kind => saved[kind].content_key)
-          const candidates = [...retired, abandonedKey, pdfKeys.content_key, live, deleted.content_key]
-          assert.equal(
-            await client.sr_snapshot_cleanup.count({
-              where: { bundle_key: { in: candidates } }
-            }),
-            candidates.length
-          )
-          await client.sr_snapshot_cleanup.updateMany({
-            where: { bundle_key: { in: candidates } },
-            data: { run_after: new Date(0), publish_until: null }
-          })
-          let failDelete = true
-          const sweeper = Object.assign(Object.create(SnapshotCleanupService.prototype), {
-            cleanup,
-            bucket: () => ({
-              R2Bucket: {
-                list: () => {
-                  throw new Error('Periodic R2 listing is forbidden')
-                },
-                delete: async (keys: string[]) => {
-                  if (keys.includes(abandonedKey) && failDelete) {
-                    failDelete = false
-                    throw new Error('Injected R2 delete failure')
-                  }
-                  await bucket.delete(keys)
-                }
-              }
-            })
-          }) as SnapshotCleanupService
-          await sweeper.sweepObjects()
-          assert.ok(await bucket.head(live))
-          assert.ok(await bucket.head(active.keys[0]))
-          assert.ok(await bucket.head(abandonedKey))
-          assert.equal(
-            await client.sr_snapshot_cleanup.count({
-              where: { bundle_key: { in: candidates } }
-            }),
-            1
-          )
-          for (const key of [...retired, pdfKeys.content_key, deleted.content_key]) {
-            for (const member of snapshotBundleMembers(key)!) assert.equal(await bucket.head(member), null)
+          for (const kind of ['html', 'youtube', 'podcast']) {
+            for (const key of snapshotBundleMembers(saved[kind].content_key)!) assert.equal(await bucket.head(key), null)
           }
-          await client.sr_snapshot_cleanup.update({
-            where: { bundle_key: abandonedKey },
-            data: { run_after: new Date(0) }
-          })
-          await sweeper.sweepObjects()
-          assert.equal(await bucket.head(abandonedKey), null)
-          assert.equal(
-            await client.sr_snapshot_cleanup.count({
-              where: { bundle_key: { in: candidates } }
-            }),
-            0
-          )
+          const deleted = saved.uploadedPdf
+          const deletion = await call('/v1/bookmark/del', { bookmark_id: encodeId(deleted.bookmark_id) })
+          assert.equal(deletion.result.code, 200)
+          for (let retry = 0; retry < 60 && (await bucket.head(deleted.content_key)); retry++) {
+            await new Promise(resolve => setTimeout(resolve, 100))
+          }
+          assert.equal(await client.sr_bookmark.findUnique({ where: { id: deleted.bookmark_id } }), null)
+          for (const key of snapshotBundleMembers(deleted.content_key)!) assert.equal(await bucket.head(key), null)
           const preserved = await fetch('/v1/bookmark/content', {
             method: 'POST',
             headers,
@@ -523,7 +455,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           podcastDurationCompletion: true,
           youtubePromotionEligibility: true,
           independentRecaptureAttribution: true,
-          targetedSnapshotCleanup: true
+          bestEffortSnapshotLifecycle: true
         }
       }
     }

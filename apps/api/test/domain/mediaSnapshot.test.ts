@@ -37,7 +37,6 @@ describe('private media publication', () => {
     }
     const settings = { enabled: true, language: 'en' }
     const service = Object.assign(Object.create(MediaSnapshotService.prototype), {
-      cleanup: { registerBundle: async () => {} },
       repo,
       labs: { isEnabled: async () => settings.enabled },
       users: { getInfoByUserId: async () => ({ ai_lang: settings.language, lang: 'en' }) },
@@ -48,6 +47,33 @@ describe('private media publication', () => {
     }) as MediaSnapshotService
     return { service, repo, raw, row, memory, settings }
   }
+
+  it('deletes the retired bundle only after successful publication', async () => {
+    const fixture = await captureFixture()
+    expect(await fixture.service.settle({} as any, 1)).toBe(true)
+    expect(await fixture.memory.bucket.head('snapshots/owner/old/body.html')).toBeNull()
+    expect(await fixture.memory.bucket.head('snapshots/owner/old/media.json')).toBeNull()
+    expect(await fixture.memory.bucket.head(fixture.raw.content_key)).not.toBeNull()
+  })
+
+  it('keeps a published revision successful when deletion of its predecessor fails', async () => {
+    const fixture = await captureFixture()
+    vi.spyOn(fixture.memory.bucket, 'delete').mockRejectedValue(new Error('R2 unavailable'))
+    expect(await fixture.service.settle({} as any, 1)).toBe(true)
+    expect(fixture.raw.content_key).not.toBe('snapshots/owner/old/body.html')
+    expect(await fixture.memory.bucket.head(fixture.raw.content_key)).not.toBeNull()
+  })
+
+  it('deletes the predecessor after reconciling an acknowledged-lost commit', async () => {
+    const fixture = await captureFixture()
+    fixture.repo.publishRevision.mockImplementationOnce(async (_id, _expected, content) => {
+      Object.assign(fixture.raw, content)
+      throw new Error('COMMIT acknowledgement lost')
+    })
+    expect(await fixture.service.settle({} as any, 1)).toBe(true)
+    expect(await fixture.memory.bucket.head('snapshots/owner/old/body.html')).toBeNull()
+    expect(await fixture.memory.bucket.head(fixture.raw.content_key)).not.toBeNull()
+  })
 
   it("pins a first terminal failure instead of consuming another user's later retry", async () => {
     const fixture = await captureFixture()
@@ -102,7 +128,6 @@ describe('private media publication', () => {
     const later = { ...captured, title: 'B', shownotes: 'Notes B' }
     const episodes = { findBySourceId: vi.fn(async () => later) }
     const service = Object.assign(Object.create(MediaSnapshotService.prototype), {
-      cleanup: { registerBundle: async () => {} },
       episodes,
       language: async () => 'en',
       labs: { isEnabled: async () => true }
@@ -135,11 +160,10 @@ describe('private media publication', () => {
       })
     )
     const service = Object.assign(Object.create(MediaSnapshotService.prototype), {
-      cleanup: { registerBundle: async () => {} },
       bucket: () => ({ R2Bucket: bucket }),
       repo: { mediaDenied: vi.fn(async () => false) }
     }) as MediaSnapshotService
-    const bundle = new SnapshotBundle(bucket, 'destination', async () => {})
+    const bundle = new SnapshotBundle(bucket, 'destination')
     const result = await service.copyForFork({ id: 1, content_key: key, private_user: 1 } as any, bundle)
     expect(result).toEqual({ ref: { media_kind: 'youtube', source_id: 'video', source_hash: 'hash' }, input: undefined })
     await bucket.delete([key, key.replace('body.html', 'media.json')])
@@ -161,7 +185,6 @@ describe('private media publication', () => {
       })
     }
     const service = Object.assign(Object.create(MediaSnapshotService.prototype), {
-      cleanup: { registerBundle: async () => {} },
       bucket: () => ({ R2Bucket: memory.bucket }),
       repo
     }) as MediaSnapshotService
@@ -172,5 +195,6 @@ describe('private media publication', () => {
       })
     ).rejects.toThrow()
     expect([...memory.objects.keys()].filter(key => !key.includes('/old/'))).toHaveLength(3)
+    expect(await memory.bucket.head('snapshots/owner/old/body.html')).not.toBeNull()
   })
 })

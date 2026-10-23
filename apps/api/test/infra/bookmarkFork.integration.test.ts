@@ -1,4 +1,3 @@
-import { SnapshotCleanupRepo } from '@/infra/repository/dbSnapshotCleanup'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/hyperdrive-client'
@@ -6,6 +5,7 @@ import { BookmarkForkRepo } from '@/infra/repository/dbBookmarkFork'
 import { podcastInputFingerprint } from '@/utils/mediaSnapshot'
 import { DBSyncBatchOperation } from '@/infra/repository/dbSyncBatch'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
+import { UserDeletionService } from '@/domain/userDeletion'
 import { MediaSnapshotService } from '@/domain/mediaSnapshot'
 import { memoryBucket } from '../utils/snapshotBucket'
 import { snapshotKeys } from '@/utils/snapshotBundle'
@@ -14,11 +14,7 @@ const url = process.env.FORK_TEST_DATABASE_URL
 describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
   const client = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) })
   const repo = new BookmarkForkRepo(() => client)
-  const cleanup = new SnapshotCleanupRepo(() => client)
-  const bundles: string[] = []
   const publish = async (data: Parameters<BookmarkForkRepo['publish']>[0]) => {
-    await cleanup.registerBundle(data.content.content_key)
-    bundles.push(data.content.content_key)
     return repo.publish(data)
   }
   const users: number[] = []
@@ -55,9 +51,6 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     await client.sr_user_bookmark.deleteMany({ where: { user_id: { in: users } } })
     await client.sr_bookmark.deleteMany({ where: { private_user: { in: users } } })
     await client.sr_user.deleteMany({ where: { id: { in: users } } })
-    await client.sr_snapshot_cleanup.deleteMany({
-      where: { bundle_key: { in: bundles } }
-    })
     await client.$disconnect()
   })
 
@@ -70,6 +63,59 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
       const { content_key, content_md_key } = snapshotKeys(crypto.randomUUID(), crypto.randomUUID())
       return { content_key, content_md_key, content_word_count: 4 }
     })()
+  })
+
+  it('deletes only the removed account managed bundles and tolerates R2 deletion failure', async () => {
+    const user = await client.sr_user.create({ data: { email: `${crypto.randomUUID()}@delete.test`, name: 'Removed', created_at: new Date(), last_login_at: new Date() } })
+    users.push(user.id)
+    const memory = memoryBucket()
+    for (const content_key of ['snapshots/removed/one/body.html', 'pdf/body/forks/removed/two.pdf']) {
+      await client.sr_bookmark.create({
+        data: {
+          target_url: `https://delete.test/${crypto.randomUUID()}`,
+          private_user: user.id,
+          content_key,
+          created_at: new Date(),
+          updated_at: new Date(),
+          published_at: new Date()
+        }
+      })
+      await memory.bucket.put(content_key, 'owned')
+    }
+    await memory.bucket.put('snapshots/other/one/body.html', 'keep')
+    const deletion = new UserDeletionService(
+      () => client,
+      {} as any,
+      () => ({ R2Bucket: memory.bucket }) as any
+    )
+    await deletion.cleanupUserData(user.id)
+    expect([...memory.objects.keys()]).toEqual(['snapshots/other/one/body.html'])
+    expect(await client.sr_bookmark.count({ where: { private_user: user.id } })).toBe(0)
+    expect(await client.sr_bookmark.findUnique({ where: { id: source!.bookmark_id } })).not.toBeNull()
+    await client.sr_bookmark.create({
+      data: {
+        target_url: `https://delete.test/${crypto.randomUUID()}`,
+        private_user: user.id,
+        content_key: 'snapshots/removed/failed/body.html',
+        created_at: new Date(),
+        updated_at: new Date(),
+        published_at: new Date()
+      }
+    })
+    const failedR2 = new UserDeletionService(
+      () => client,
+      {} as any,
+      () =>
+        ({
+          R2Bucket: {
+            delete: async () => {
+              throw new Error('R2 unavailable')
+            }
+          }
+        }) as any
+    )
+    await expect(failedR2.cleanupUserData(user.id)).resolves.toBeUndefined()
+    expect(await client.sr_bookmark.count({ where: { private_user: user.id } })).toBe(0)
   })
 
   it('publishes independent pointers and relational provenance without personal state', async () => {
@@ -237,7 +283,6 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     const memory = memoryBucket()
     await memory.bucket.put(relation.bookmark.content_key, '<article>Forked body</article>')
     const service = Object.assign(Object.create(MediaSnapshotService.prototype), {
-      cleanup: new SnapshotCleanupRepo(() => client),
       repo,
       bucket: () => ({ R2Bucket: memory.bucket })
     }) as MediaSnapshotService
@@ -301,8 +346,6 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
   it('keeps attribution during media settlement or policy publication', async () => {
     const { relation, before } = await recaptureFixture()
     const content = input().content
-    await cleanup.registerBundle(content.content_key)
-    bundles.push(content.content_key)
     expect(await repo.publishRevision(relation.bookmark_id, relation.bookmark.content_key, content)).toBe(true)
     expect(await client.sr_user_bookmark.findUnique({ where: { id: relation.id } })).toEqual(before)
   })

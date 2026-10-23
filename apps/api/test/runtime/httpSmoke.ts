@@ -252,7 +252,13 @@ async function main() {
       assert.equal(response.body.code, 401)
     }
     const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-    if (forks) evidence.fork = await forks.exercise((path, init) => localFetch(`http://localhost:${httpPort}${path}`, init), headers, vars.FRONT_END_URL)
+    if (forks)
+      evidence.fork = await forks.exercise(
+        (path, init) => localFetch(`http://localhost:${httpPort}${path}`, init),
+        headers,
+        vars.FRONT_END_URL,
+        id => new Hashid(vars as Env, 1).encodeId(id)
+      )
     const before = await request('list-before', listPath, { headers })
     assert.equal(before.status, 200)
     assert.equal(before.body.code, 200)

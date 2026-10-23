@@ -3,7 +3,6 @@ import { ErrorName } from '@slax-reader/contracts'
 import { forkError } from './bookmarkForkError'
 
 export const SNAPSHOT_PUBLICATION_MS = 5 * 60_000
-export const SNAPSHOT_CLEANUP_GRACE_MS = 24 * 60 * 60_000
 
 export function snapshotKeys(uuid: string, attempt: string, pdf = false) {
   return pdf
@@ -25,17 +24,22 @@ export function snapshotBundleMembers(key: string): string[] | null {
   return pdf ? Object.values(snapshotKeys(pdf[1], pdf[2], true)) : null
 }
 
+/** Call only after a confirmed replacement/deletion; uncertain commits keep their objects. */
+export async function deleteRetiredSnapshot(bucket: R2Bucket, key: string | undefined) {
+  const members = key ? snapshotBundleMembers(key) : null
+  if (!members) return
+  await bucket.delete(members).catch(error => console.error('Retired snapshot deletion failed', { key, error }))
+}
+
 /** One publication owns its immutable objects; callers decide when rollback is certain. */
 export class SnapshotBundle {
   readonly keys: string[] = []
   readonly sources = new Map<string, string>()
   readonly createdAt = Date.now()
-  private registration?: Promise<unknown>
   private bundleKey?: string
   constructor(
     readonly bucket: R2Bucket,
     readonly uuid: string,
-    private register: (bundleKey: string) => Promise<unknown>,
     readonly attempt = crypto.randomUUID()
   ) {}
 
@@ -69,10 +73,6 @@ export class SnapshotBundle {
     if (!members.includes(key) || Date.now() - this.createdAt >= SNAPSHOT_PUBLICATION_MS) throw forkError()
     if (this.bundleKey && this.bundleKey !== members[0]) throw forkError()
     this.bundleKey = members[0]
-    // Persist the whole deterministic bundle before any PUT, including ambiguous writes.
-    this.registration ??= this.register(members[0])
-    await this.registration
-    if (Date.now() - this.createdAt >= SNAPSHOT_PUBLICATION_MS) throw forkError()
     // Record before PUT: a failed acknowledgement may still leave an object.
     this.keys.push(key)
     const result = await this.bucket.put(key, value, {

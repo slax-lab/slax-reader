@@ -98,7 +98,6 @@ async function fixture(kind: 'youtube' | 'podcast') {
     })
   }
   const snapshots = Object.assign(Object.create(MediaSnapshotService.prototype), {
-    cleanup: { registerBundle: async () => {} },
     repo,
     bucket: () => ({ R2Bucket: memory.bucket }),
     youtube: articles,

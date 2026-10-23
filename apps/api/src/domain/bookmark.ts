@@ -42,7 +42,7 @@ import { resolveBookmarkReadAccess } from '@/utils/bookmarkAccess'
 import { readerBookmarkUuid } from '@slax-reader/contracts'
 import { BookmarkForkService } from './bookmarkFork'
 import { MediaSnapshotService } from './mediaSnapshot'
-import { snapshotBundleMembers } from '@/utils/snapshotBundle'
+import { snapshotBundleMembers, deleteRetiredSnapshot } from '@/utils/snapshotBundle'
 import { forkError } from '@/utils/bookmarkForkError'
 
 type ImportedFork = { kind: 'completed'; bookmarkId: number; targetUrl: string; userId: number; skipParse: true; ignoreGenerateTag: true }
@@ -630,7 +630,7 @@ export class BookmarkService {
       title = result.title || title
       if (result.text) await bucket.put(textKey, result.text, { httpMetadata: { contentType: 'text/plain; charset=utf-8' } })
       await bucket.put(stateKey, JSON.stringify({ text_status: result.status, pages: result.pages }), { httpMetadata: { contentType: 'application/json' } })
-      await this.bookmarkRepo.completePdfBookmark(
+      const retiredKey = await this.bookmarkRepo.completePdfBookmark(
         bookmarkId,
         {
           title,
@@ -645,6 +645,7 @@ export class BookmarkService {
         documentId,
         { clearForkProvenance: !existingKey, expectedRevision: existingKey ? undefined : ctx.get('snapshotCaptureRevision') }
       )
+      await deleteRetiredSnapshot(bucket, retiredKey)
     } catch (error) {
       if (!previous) await bucket.delete([key, textKey, stateKey]).catch(() => {})
       else await bucket.delete([textKey, stateKey]).catch(() => {})
@@ -1055,7 +1056,9 @@ export class BookmarkService {
   }
 
   public async updateBookmark(bmId: number, info: bookmarkParsePO) {
-    return await this.bookmarkRepo.updateBookmark(bmId, info)
+    const { bookmark, retiredKey } = await this.bookmarkRepo.updateBookmark(bmId, info)
+    await deleteRetiredSnapshot(this.bucket().R2Bucket, retiredKey)
+    return bookmark
   }
 
   public async updateBookmarkStatus(bmId: number, status: queueStatus) {

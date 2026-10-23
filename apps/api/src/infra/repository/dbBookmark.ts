@@ -5,7 +5,6 @@ import type { LazyInstance } from '@/decorators/lazy'
 import { MultiLangError } from '@/utils/multiLangError'
 import { DeleteImportFailedBookmarkFailError, BookmarkNotFoundError, CreateBookmarkShareUniqueFail, DeleteBookmarkFailError } from '@/const/err'
 import { PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
-import { retireSnapshot } from './dbSnapshotCleanup'
 
 export enum queueStatus {
   PENDING = 'pending',
@@ -238,7 +237,6 @@ export class BookmarkRepo {
           where: { id: bmId }
         })
         if (!bookmark || bookmark.private_user !== userId) return null
-        await retireSnapshot(tx, bookmark.content_key)
         await tx.$executeRaw`DELETE FROM sr_bookmark WHERE id = ${bmId}`
         return { bookmark_id: bookmark.id, ...bookmark }
       })
@@ -526,8 +524,7 @@ export class BookmarkRepo {
         where: { id: bmId },
         data: { updated_at: new Date(), ...info }
       })
-      if (before.content_key !== updated.content_key) await retireSnapshot(tx, before.content_key)
-      return updated
+      return { bookmark: updated, retiredKey: before.content_key !== updated.content_key ? before.content_key : undefined }
     })
   }
 
@@ -550,7 +547,6 @@ export class BookmarkRepo {
         where: { id: bookmarkId, ...(publication.expectedRevision ? { updated_at: new Date(publication.expectedRevision) } : {}) },
         data: { ...info, updated_at: new Date() }
       })
-      if (before.content_key !== raw.content_key) await retireSnapshot(tx, before.content_key)
       const relations = await tx.sr_user_bookmark.findMany({
         where: { bookmark_id: bookmarkId },
         select: { id: true, user_id: true, metadata: true }
@@ -565,6 +561,7 @@ export class BookmarkRepo {
           }
         })
       }
+      return before.content_key !== raw.content_key ? before.content_key : undefined
     })
   }
 

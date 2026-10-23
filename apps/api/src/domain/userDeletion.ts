@@ -3,13 +3,15 @@ import type { LazyInstance } from '../decorators/lazy'
 import { PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
 import { PRISIMA_HYPERDRIVE_CLIENT } from '../const/symbol'
 import { UserRepo } from '../infra/repository/dbUser'
-import { SNAPSHOT_CLEANUP_GRACE_MS } from '../utils/snapshotBundle'
+import { deleteRetiredSnapshot } from '../utils/snapshotBundle'
+import { BucketClient } from '../infra/repository/bucketClient'
 
 @injectable()
 export class UserDeletionService {
   constructor(
     @inject(PRISIMA_HYPERDRIVE_CLIENT) private prismaPg: LazyInstance<HyperdrivePrismaClient>,
-    @inject(UserRepo) private userRepo: UserRepo
+    @inject(UserRepo) private userRepo: UserRepo,
+    @inject(BucketClient) private bucket: LazyInstance<BucketClient>
   ) {}
 
   public async ensureUserNotDeleted(userId: number): Promise<void> {
@@ -152,19 +154,11 @@ export class UserDeletionService {
   }
 
   private async deletePrivateBookmarks(userId: number): Promise<void> {
-    // DELETE RETURNING and registration are one statement, including account-cleanup retries.
-    const [result] = await this.prismaPg().$queryRaw<{ count: bigint }[]>`
-      WITH deleted AS (
-        DELETE FROM sr_bookmark WHERE private_user = ${userId} RETURNING content_key
-      ), queued AS (
-        INSERT INTO sr_snapshot_cleanup (bundle_key, run_after)
-        SELECT DISTINCT content_key, CURRENT_TIMESTAMP + ${SNAPSHOT_CLEANUP_GRACE_MS} * interval '1 millisecond'
-        FROM deleted WHERE content_key ~ '^snapshots/[^/]+/[^/]+/body[.]html$'
-          OR content_key ~ '^pdf/body/forks/[^/]+/[^/]+[.]pdf$'
-        ON CONFLICT (bundle_key) DO UPDATE SET publish_until = NULL, lease_token = NULL, run_after = EXCLUDED.run_after
-        RETURNING bundle_key
-      ) SELECT count(*) FROM deleted`
-    console.log(`Deleted ${result.count} private bookmarks`)
+    // Retain keys from the rows actually deleted, without a separate cleanup ledger.
+    const deleted = await this.prismaPg().$queryRaw<{ content_key: string }[]>`
+      DELETE FROM sr_bookmark WHERE private_user = ${userId} RETURNING content_key`
+    for (const { content_key } of deleted) await deleteRetiredSnapshot(this.bucket().R2Bucket, content_key)
+    console.log(`Deleted ${deleted.length} private bookmarks`)
   }
 
   private async deleteBookmarkOverviews(userId: number): Promise<void> {

@@ -1,6 +1,13 @@
 # Tasks
 
-## Targeted cleanup follow-up — 2026-10-23
+## Remove automatic cleanup — 2026-10-23
+
+- [x] R10 Remove the unmerged cleanup table/migration, registration/retirement/claims and orphan sweep. Preserve immediate lifecycle deletion, uncertain-commit protection and bounded media/index maintenance.
+- [x] R11 Verify lifecycle deletion and failure isolation with focused regressions and disposable PostgreSQL/R2/HTTP exercises; regenerate, run API checks, review and record the accepted residual-file boundary.
+
+## Targeted cleanup follow-up — 2026-10-23 (superseded by R10–R11)
+
+The implementation and evidence below are historical; automatic reclamation is removed by the later user decision.
 
 - [x] R8 Replace periodic R2 listing with an additive PostgreSQL bundle ledger, indexed reference checks and bounded leased processing. Register before writes; atomically cancel publication and enqueue replacement/deletion. Cover HTML/media/PDF and preserve legacy cleanup.
 - [x] R9 Verify registration failure, publication/claim races, rollback, retries, stale acknowledgements and live-reference protection with regression tests and disposable PostgreSQL/R2/HTTP exercises. Regenerate, run API checks, document rollout limits, and complete Bugs/Security/Compliance review.
@@ -32,7 +39,7 @@
 - [x] 2.3 Implement confirmed/unknown commit reconciliation and post-commit side-effect separation; inject a commit-then-timeout and indexing failure to prove live objects remain readable.
 - [x] 2.4 Move new HTML capture/media bundle publication behind immutable pointers and make `content_key` authoritative in Web/API body readers; verify stale conventional UUID objects cannot mask a new revision and legacy reads remain available.
 - [x] 2.5 Implement historical-source HTML snapshot extraction from one validated body, with no URL refetch/provider parsing; verify destination text corresponds to that body while historical writers change their separate text object.
-- [x] 2.6 Add bounded attempt/superseded-bundle cleanup and complete-bundle deletion using existing scheduling infrastructure; verify active, referenced and uncertain-commit objects survive cleanup while proven orphans are eventually removed.
+- [x] 2.6 Provide best-effort immediate attempt/retired-bundle deletion and preserve complete-bundle permanent deletion; retain uncertain-commit objects and accept exceptional residual files without automatic reclamation.
 
 ## 3. All-format private snapshots
 

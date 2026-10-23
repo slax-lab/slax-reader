@@ -95,13 +95,11 @@ For historical HTML sources lacking coordinated immutable keys, capture one HTML
 
 Distinguish confirmed commit, confirmed rollback and unknown commit outcome. On lost COMMIT acknowledgement, query destination identity and exact keys using a fresh authoritative read. Keep objects while uncertain. Delete only this attempt's proven-unreferenced artifacts after a confirmed failure or unique-conflict loser. Search/notification failure after commit never rolls back storage.
 
-Register each immutable bundle in `sr_snapshot_cleanup` before its first R2 PUT. Store one canonical body key per bundle, an immutable nullable publication deadline, the next eligible cleanup time, a claim token and creation time. Registration failure prevents all writes. A bundle has at most five minutes to write/publish and becomes eligible for cleanup after 24 hours. Never reuse attempt keys. Keep ownership metadata for diagnostics, not discovery.
+The user accepted exceptional orphan objects on 2026-10-23. Do not register attempts, queue retired bundles, scan R2 or add cleanup tables/state fields. Remove the unmerged cleanup-ledger migration and its cleanup-only pointer indexes; the additive provenance migration remains.
 
-Publication must delete its still-publishable, unclaimed ledger row in the same PostgreSQL transaction as pointer publication. Missing, expired or claimed registration aborts publication. Replacement queues the previous managed bundle in that same transaction; this includes PDF recapture that returns to legacy PDF storage. Permanent raw-bookmark deletion locks the current row and queues its bundle before deleting it in one transaction. Account deletion atomically queues all deleted managed bundles with `DELETE RETURNING`; trash-only changes do not enqueue. Retirement clears publication eligibility. No R2 calls run inside these transactions.
+After confirmed publication, attempt immediate deletion of the previous managed bundle. Permanent bookmark and account deletion also attempt immediate deletion of their current managed bundles after deleting database records. Delete only deterministic members owned by that operation; legacy shared content retains its existing lifecycle. R2 deletion failure is logged and does not undo a successful publication or database deletion. Unknown commit outcomes retain both potentially live bundles. Worker termination, ambiguous writes/commits and failed R2 deletion can leave files indefinitely; no eventual reclamation is promised.
 
-The existing five-minute cron claims at most 100 due rows with `FOR UPDATE SKIP LOCKED`, moves their next-run time forward as a short lease, and assigns a token. Batch-check live content pointers using indexes on `content_key` and `content_md_key`. Referenced candidates are acknowledged without touching R2; uncertain reads retain every candidate. Delete only the deterministic three-member bundle of an unreferenced candidate, then acknowledge by key and token. Failed deletion or acknowledgement remains retryable; an expired worker cannot acknowledge a newer claim. Empty/already-deleted bundles are safe to retry. Immediate best-effort deletion may remain, with the durable candidate retained for confirmation. This cron never lists R2 objects. Existing media settlement/index repair remains a separate bounded pass.
-
-The migration is additive and must precede updated writers. Old deployments cannot register interrupted attempts: drain old writers before enabling the new cleanup path. If managed bundles already exist, perform an operator-authorized, one-time inventory/backfill of unreferenced candidates after the grace period; normal cron never performs this inventory. This change does not claim automatic recovery of pre-ledger orphan files. Canonical media refs and legacy mutable-key cleanup retain their existing lifecycle.
+Retain the existing five-minute bounded media settlement/index-repair pass under snapshot maintenance. It advances pending media results and repairs search entries, without listing or garbage-collecting R2. Existing recycle-bin, deleted-account and canonical YouTube/podcast retention jobs remain unchanged in purpose.
 
 ### 6. Format adapters
 
@@ -163,20 +161,20 @@ Keep this planning pass's delta ownership in `bookmark-fork` and `private-bookma
 
 - [All-format scope is broader than a Fork button] → Isolate artifact-bundle and media-snapshot helpers; preserve provider integrations and canonical generation rather than replacing them.
 - [One column does not enforce a foreign key] → Authorize on write, use immutable numeric identity and explicit unavailable-source display; no application ID recycling.
-- [R2 and PostgreSQL cannot commit together] → Immutable staging, pointer publication, authoritative reconciliation and proven-unreferenced cleanup.
+- [R2 and PostgreSQL cannot commit together] → Immutable staging, pointer publication, authoritative reconciliation and best-effort deletion after confirmed outcomes; exceptional orphan objects are accepted.
 - [Shared-cache identity disclosure] → Neutral SSR only, no-store live projection and account-scoped client state.
 - [Copied media outlives source] → Keep policy refs for global moderation/takedown; ordinary deletion/share revocation affects attribution only.
 - [Historical data remains shared] → Promise new managed captures/Forks only; no automatic migration or reassignment of historical public rows.
-- [Copied content consumes more R2 space] → Stream required objects, use bounded import concurrency, process registered old attempts, retain canonical GC tradeoff explicitly.
+- [Copied content consumes more R2 space] → Stream required objects, use bounded import concurrency, attempt immediate lifecycle deletion, accept exceptional residual files and retain canonical GC.
 - [Rollbacks to old writers could mutate media copies] → Disable new acquisition first and retain managed-key guards/readers; an old binary that ignores these guards is not a safe rollback target once managed captures exist.
 
 ## Migration Plan
 
 1. Review this proposal, format contract and media refinement. Reconfirm the settled source baseline and relevant active-change sequencing.
-2. Generate the additive provenance and cleanup-ledger migrations with `pnpm api -- gen:diff`, inspect it for additive compatibility, apply only to a disposable/local database with `pnpm api -- migration:local`, then regenerate with `pnpm api -- gen:all`.
+2. Generate the additive provenance migration with `pnpm api -- gen:diff`, inspect it for additive compatibility, apply only to a disposable/local database with `pnpm api -- migration:local`, then regenerate with `pnpm api -- gen:all`.
 3. Implement storage/read compatibility and provenance persistence before enabling new creation. Run focused tests, type/lint/build checks and real local HTTP/R2/database exercises.
 4. Deploy the additive migration before server selection/writes; deployment itself follows separate authorization. Release API support before Web/Extension entry points. Successful copies use existing sync delivery.
-5. On application rollback, retain the columns/table and managed-snapshot compatibility guards; disable creation without deleting copies or provenance. Do not roll readers/writers back to a version that treats managed media as live canonical content.
+5. On application rollback, retain the provenance column and managed-snapshot compatibility guards; disable creation without deleting copies or provenance. Do not roll readers/writers back to a version that treats managed media as live canonical content.
 6. Before PR, record runtime evidence, human UI acceptance, package-version decision for affected shipped apps and all three review passes in `validation.md`. Archive only after merge under repository policy.
 
 ## Implementation reconciliation — 2026-10-22

@@ -29,7 +29,7 @@ New Extension, URL, import and synchronized captures and new Forks SHALL own the
 
 ### Requirement: Coherent publication and recovery
 
-A successful snapshot SHALL expose a coherent set of required content artifacts. Partial copies, missing required objects or mixed revisions SHALL NOT be published as success. Uncertainty about database commit SHALL NOT cause deletion of potentially committed content. Post-commit indexing or notification failures SHALL NOT destroy the snapshot. Cleanup SHALL delete only artifacts proven unreferenced and outside active attempts.
+A successful snapshot SHALL expose a coherent set of required content artifacts. Partial copies, missing required objects or mixed revisions SHALL NOT be published as success. Uncertainty about database commit SHALL NOT cause deletion of potentially committed content. Post-commit indexing or notification failures SHALL NOT destroy the snapshot. Immediate deletion SHALL target only the confirmed failed attempt or a managed bundle retired by a confirmed replacement/deletion.
 
 #### Scenario: Partial object copy
 - **WHEN** one required artifact cannot be read or written
@@ -45,31 +45,27 @@ A successful snapshot SHALL expose a coherent set of required content artifacts.
 
 #### Scenario: Process exits before publication
 - **WHEN** an attempt leaves objects without publishing a destination
-- **THEN** a later bounded cleanup can remove them only after excluding live pointers and active attempts
+- **THEN** no completed destination is exposed and remaining objects may persist without automatic reclamation
 
-### Requirement: Durable targeted snapshot cleanup
+### Requirement: Best-effort snapshot lifecycle deletion
 
-The system SHALL register an immutable bundle before its first object write and cancel its registration atomically with successful pointer publication. It SHALL atomically register retired managed bundles when replacing or permanently deleting their database pointers, including account deletion. Scheduled cleanup SHALL process only a bounded set of due records, without listing R2, and SHALL preserve live references. Failed deletion, uncertain database reads and interrupted cleanup SHALL remain retryable. Expired or claimed attempts SHALL NOT publish.
-
-#### Scenario: Registration is unavailable
-- **WHEN** the cleanup registration cannot be persisted
-- **THEN** the attempt writes no R2 objects and exposes no completed copy
-
-#### Scenario: Cleanup races with publication
-- **WHEN** a cleanup worker claims an expired attempt while its publisher resumes
-- **THEN** the publisher cannot commit that bundle and cleanup cannot delete a successfully published bundle
+The system SHALL attempt immediate deletion of managed bundles after confirmed replacement or permanent bookmark/account deletion. Failed deletion SHALL NOT undo the successful database operation. It SHALL NOT add a cleanup table, cleanup state fields, R2 inventory scans or scheduled orphan reclamation. Existing bounded media settlement and index repair SHALL remain available.
 
 #### Scenario: Pointer replacement or permanent deletion rolls back
-- **WHEN** the database transaction fails
-- **THEN** the previous pointer remains live and retirement registration is rolled back with it
+- **WHEN** the database transaction fails or its outcome remains uncertain
+- **THEN** potentially live content is retained
 
-#### Scenario: Cleanup fails or loses its acknowledgement
-- **WHEN** R2 deletion or task acknowledgement fails, or the worker exits
-- **THEN** the record remains available after its lease and repeating deletion is safe; stale workers cannot acknowledge newer claims
+#### Scenario: Successful replacement
+- **WHEN** a new immutable bundle is confirmed published
+- **THEN** the previous managed bundle is deleted on a best-effort basis and the new bundle remains readable
 
-#### Scenario: Referenced candidate or uncertain lookup
-- **WHEN** a candidate remains referenced or reference lookup fails
-- **THEN** no objects are deleted; a referenced record can be removed and an uncertain record remains retryable
+#### Scenario: Immediate deletion fails
+- **WHEN** R2 deletion fails or the worker exits after the database operation
+- **THEN** the completed operation remains successful and residual objects may persist without a cleanup retry record
+
+#### Scenario: Scheduled maintenance
+- **WHEN** snapshot maintenance runs
+- **THEN** it performs bounded media settlement and index repair without collecting orphan objects
 
 ### Requirement: Article and shortcut fidelity
 
