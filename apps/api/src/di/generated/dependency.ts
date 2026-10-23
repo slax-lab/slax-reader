@@ -33,6 +33,7 @@ import { PodcastArticleRepo, PodcastEpisodeRepo } from '../../infra/repository/d
 import { BookmarkForkService } from '../../domain/bookmarkFork'
 import { MediaSnapshotService } from '../../domain/mediaSnapshot'
 import { BookmarkForkRepo } from '../../infra/repository/dbBookmarkFork'
+import { SnapshotCleanupRepo } from '../../infra/repository/dbSnapshotCleanup'
 import { CollectionRepo } from '../../infra/repository/dbCollection'
 import { LogsService } from '../../domain/logs'
 import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
@@ -162,7 +163,8 @@ container.register(BookmarkForkService, {
       container.resolve(SearchService),
       container.resolve(BookmarkRepo),
       container.resolve(MediaSnapshotService),
-      container.resolve(NotificationMessage)
+      container.resolve(NotificationMessage),
+      container.resolve(SnapshotCleanupRepo)
     )
 })
 
@@ -240,7 +242,8 @@ container.register(MediaSnapshotService, {
       container.resolve(MarkRepo),
       container.resolve(BookmarkRepo),
       container.resolve(SearchService),
-      container.resolve(BookmarkSearchRepo)
+      container.resolve(BookmarkSearchRepo),
+      container.resolve(SnapshotCleanupRepo)
     )
 })
 
@@ -291,7 +294,8 @@ container.register(SnapshotCleanupService, {
     new SnapshotCleanupService(
       lazy(() => container.resolve(BucketClient)),
       container.resolve(BookmarkForkRepo),
-      container.resolve(MediaSnapshotService)
+      container.resolve(MediaSnapshotService),
+      container.resolve(SnapshotCleanupRepo)
     )
 })
 
@@ -644,6 +648,10 @@ container.register(ReportRepo, {
 
 container.register(RssRepo, {
   useFactory: container => new RssRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
+})
+
+container.register(SnapshotCleanupRepo, {
+  useFactory: container => new SnapshotCleanupRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
 
 container.register(SubscriptionRepo, {

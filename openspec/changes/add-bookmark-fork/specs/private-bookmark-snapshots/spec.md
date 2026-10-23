@@ -47,6 +47,30 @@ A successful snapshot SHALL expose a coherent set of required content artifacts.
 - **WHEN** an attempt leaves objects without publishing a destination
 - **THEN** a later bounded cleanup can remove them only after excluding live pointers and active attempts
 
+### Requirement: Durable targeted snapshot cleanup
+
+The system SHALL register an immutable bundle before its first object write and cancel its registration atomically with successful pointer publication. It SHALL atomically register retired managed bundles when replacing or permanently deleting their database pointers, including account deletion. Scheduled cleanup SHALL process only a bounded set of due records, without listing R2, and SHALL preserve live references. Failed deletion, uncertain database reads and interrupted cleanup SHALL remain retryable. Expired or claimed attempts SHALL NOT publish.
+
+#### Scenario: Registration is unavailable
+- **WHEN** the cleanup registration cannot be persisted
+- **THEN** the attempt writes no R2 objects and exposes no completed copy
+
+#### Scenario: Cleanup races with publication
+- **WHEN** a cleanup worker claims an expired attempt while its publisher resumes
+- **THEN** the publisher cannot commit that bundle and cleanup cannot delete a successfully published bundle
+
+#### Scenario: Pointer replacement or permanent deletion rolls back
+- **WHEN** the database transaction fails
+- **THEN** the previous pointer remains live and retirement registration is rolled back with it
+
+#### Scenario: Cleanup fails or loses its acknowledgement
+- **WHEN** R2 deletion or task acknowledgement fails, or the worker exits
+- **THEN** the record remains available after its lease and repeating deletion is safe; stale workers cannot acknowledge newer claims
+
+#### Scenario: Referenced candidate or uncertain lookup
+- **WHEN** a candidate remains referenced or reference lookup fails
+- **THEN** no objects are deleted; a referenced record can be removed and an uncertain record remains retryable
+
 ### Requirement: Article and shortcut fidelity
 
 Article snapshots SHALL retain the captured body and a corresponding text representation without copying source-user state. Shortcuts SHALL retain their type, saved target and title without fabricating an article body or traversing their target. Externally referenced assets SHALL retain existing resource behavior; Fork SHALL NOT claim to archive every external resource.

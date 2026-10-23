@@ -6,6 +6,7 @@ import { BookmarkNotFoundError } from '@/const/err'
 import { ErrorName } from '@slax-reader/contracts'
 import { forkError } from '@/utils/bookmarkForkError'
 import { podcastInputFingerprint, type PodcastSnapshotInput } from '@/utils/mediaSnapshot'
+import { publishSnapshot, retireSnapshot } from './dbSnapshotCleanup'
 
 type Database = Prisma.TransactionClient
 export type MediaSnapshotRef = { media_kind: string; source_id: string; source_hash: string }
@@ -108,6 +109,7 @@ export class BookmarkForkRepo {
         const existing = await this.destination(input.userId, input.targetUrl, db)
         if (existing) return { disposition: 'already_saved' as const, relation: await this.restore(db, existing) }
 
+        await publishSnapshot(db, input.content.content_key)
         const now = new Date()
         const bookmark = await db.sr_bookmark.create({
           data: {
@@ -157,10 +159,6 @@ export class BookmarkForkRepo {
   /** Fresh authoritative lookup after a possibly acknowledged COMMIT. Never infer rollback from a read failure. */
   async reconcile(userId: number, targetUrl: string) {
     return this.destination(userId, targetUrl)
-  }
-
-  async referenced(keys: string[]) {
-    return !!(await this.client().sr_bookmark.findFirst({ where: { OR: [{ content_key: { in: keys } }, { content_md_key: { in: keys } }] }, select: { id: true } }))
   }
 
   async snapshot(bookmarkId: number) {
@@ -255,6 +253,8 @@ export class BookmarkForkRepo {
         data: { ...options.fields, ...content, updated_at: new Date() }
       })
       if (updated.count !== 1) return false
+      await publishSnapshot(db, content.content_key)
+      if (expectedKey !== content.content_key) await retireSnapshot(db, expectedKey)
       if (options.mediaRef || options.clearForkProvenance) {
         const raw = await db.sr_bookmark.findUniqueOrThrow({ where: { id: bookmarkId } })
         if (options.clearForkProvenance && raw.private_user > 0) {

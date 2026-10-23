@@ -31,6 +31,7 @@ import { toCompatCues, type YoutubeCaptionDocument } from '@/utils/youtubeCaptio
 import type { PodcastCue, PodcastTranscriptDocument } from '@/utils/podcastTranscript'
 import { HtmlBuilder } from '@/utils/htmlBuilder'
 import type { ContextManager } from '@/utils/context'
+import { SnapshotCleanupRepo } from '@/infra/repository/dbSnapshotCleanup'
 
 type RawSnapshot = NonNullable<Awaited<ReturnType<BookmarkForkRepo['snapshot']>>>
 export type LoadedMediaSnapshot = { raw: RawSnapshot; media: MediaSnapshot | null; managed: boolean }
@@ -49,7 +50,8 @@ export class MediaSnapshotService {
     @inject(MarkRepo) private marks: MarkRepo,
     @inject(BookmarkRepo) private bookmarks: BookmarkRepo,
     @inject(SearchService) private search: SearchService,
-    @inject(BookmarkSearchRepo) private searchRepo: BookmarkSearchRepo
+    @inject(BookmarkSearchRepo) private searchRepo: BookmarkSearchRepo,
+    @inject(SnapshotCleanupRepo) private cleanup: SnapshotCleanupRepo
   ) {}
 
   async load(bookmarkId: number): Promise<LoadedMediaSnapshot | null> {
@@ -240,7 +242,7 @@ export class MediaSnapshotService {
     if (!loaded?.media || loaded.media.mode !== 'capture' || !(await this.readable(loaded.media))) return false
     const media = structuredClone(loaded.media)
     if (media.transcript !== 'pending' && !Object.values(media.variants).some(v => v.status === 'pending')) return false
-    const bundle = new SnapshotBundle(this.bucket().R2Bucket, loaded.raw.userBookmarks[0].uuid)
+    const bundle = new SnapshotBundle(this.bucket().R2Bucket, loaded.raw.userBookmarks[0].uuid, key => this.cleanup.registerBundle(key))
     const input = await this.collect(media, bundle)
     if (JSON.stringify(media) === JSON.stringify(loaded.media)) return false
     const original = media.kind === 'podcast' ? media.player?.language : media.defaultLanguage
@@ -322,7 +324,7 @@ export class MediaSnapshotService {
     loaded: Pick<LoadedMediaSnapshot, 'raw'>,
     media: MediaSnapshot | null,
     body?: Body,
-    bundle = new SnapshotBundle(this.bucket().R2Bucket, loaded.raw.userBookmarks[0].uuid),
+    bundle = new SnapshotBundle(this.bucket().R2Bucket, loaded.raw.userBookmarks[0].uuid, key => this.cleanup.registerBundle(key)),
     force = false,
     input?: PodcastSnapshotInput
   ) {
@@ -440,7 +442,7 @@ export class MediaSnapshotService {
   ) {
     const raw = await this.repo.snapshot(bookmarkId)
     if (!raw || (expectedRevision && raw.updated_at.toISOString() !== expectedRevision)) throw new Error('Capture revision superseded')
-    const content = await this.writeRevision(raw, media, body, new SnapshotBundle(this.bucket().R2Bucket, uuid), {
+    const content = await this.writeRevision(raw, media, body, new SnapshotBundle(this.bucket().R2Bucket, uuid, key => this.cleanup.registerBundle(key)), {
       fields: { ...fields, status: 'success' },
       expectedUpdatedAt: raw.updated_at,
       clearForkProvenance: true

@@ -30,9 +30,12 @@ export class SnapshotBundle {
   readonly keys: string[] = []
   readonly sources = new Map<string, string>()
   readonly createdAt = Date.now()
+  private registration?: Promise<unknown>
+  private bundleKey?: string
   constructor(
     readonly bucket: R2Bucket,
     readonly uuid: string,
+    private register: (bundleKey: string) => Promise<unknown>,
     readonly attempt = crypto.randomUUID()
   ) {}
 
@@ -62,6 +65,14 @@ export class SnapshotBundle {
   }
 
   async put(key: string, value: string | ReadableStream, httpMetadata?: R2HTTPMetadata, metadata: Record<string, string> = {}) {
+    const members = Object.values(snapshotKeys(this.uuid, this.attempt, key.startsWith('pdf/') || key.startsWith('text/pdf/')))
+    if (!members.includes(key) || Date.now() - this.createdAt >= SNAPSHOT_PUBLICATION_MS) throw forkError()
+    if (this.bundleKey && this.bundleKey !== members[0]) throw forkError()
+    this.bundleKey = members[0]
+    // Persist the whole deterministic bundle before any PUT, including ambiguous writes.
+    this.registration ??= this.register(members[0])
+    await this.registration
+    if (Date.now() - this.createdAt >= SNAPSHOT_PUBLICATION_MS) throw forkError()
     // Record before PUT: a failed acknowledgement may still leave an object.
     this.keys.push(key)
     const result = await this.bucket.put(key, value, {

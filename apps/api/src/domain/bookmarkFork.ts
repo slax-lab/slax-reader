@@ -14,6 +14,7 @@ import { forkError } from '@/utils/bookmarkForkError'
 import { SnapshotBundle, snapshotKeys } from '@/utils/snapshotBundle'
 import { MediaSnapshotService } from './mediaSnapshot'
 import { NotificationMessage } from '@/infra/message/notification'
+import { SnapshotCleanupRepo } from '@/infra/repository/dbSnapshotCleanup'
 
 export type CompletedFork = ForkBookmarkResponse & { bookmark_id: number }
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -27,7 +28,8 @@ export class BookmarkForkService {
     @inject(SearchService) private search: SearchService,
     @inject(BookmarkRepo) private bookmarks: BookmarkRepo,
     @inject(MediaSnapshotService) private media: MediaSnapshotService,
-    @inject(NotificationMessage) private notifications: NotificationMessage
+    @inject(NotificationMessage) private notifications: NotificationMessage,
+    @inject(SnapshotCleanupRepo) private cleanup: SnapshotCleanupRepo
   ) {}
 
   async fork(ctx: ContextManager, sourceUuid: string, personal?: ForkPersonalState): Promise<CompletedFork> {
@@ -47,7 +49,7 @@ export class BookmarkForkService {
     if (source.bookmark.status !== 'success') throw forkError()
 
     const uuid = crypto.randomUUID()
-    const bundle = new SnapshotBundle(this.bucket().R2Bucket, uuid)
+    const bundle = new SnapshotBundle(this.bucket().R2Bucket, uuid, key => this.cleanup.registerBundle(key))
     let publicationStarted = false
     let result: Awaited<ReturnType<BookmarkForkRepo['publish']>>
     try {

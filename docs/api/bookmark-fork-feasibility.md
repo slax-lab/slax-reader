@@ -74,6 +74,10 @@ For new HTML/media writes, immutable bundles and expected-revision pointer updat
 
 Treat confirmed rollback, confirmed commit and unknown commit separately. A COMMIT timeout can occur after success: reconcile exact destination pointers via a fresh database read and retain objects while uncertain. Post-commit indexing/notification failures cannot delete live content. Cleanup deletes only proven-unreferenced, expired attempts or superseded bundles, excluding active attempts and uncertain outcomes.
 
+A narrow PostgreSQL cleanup ledger replaces recurring R2 inventory scans. Register one bundle before the first PUT, cancel it in the publication transaction, and enqueue the old bundle when its pointer is replaced or permanently deleted (including account deletion). A five-minute cron claims at most 100 due rows, batch-checks indexed live pointers and deletes only unreferenced bundles. Failed work becomes eligible again after a five-minute lease; token-checked acknowledgement follows successful deletion. Publication expires after five minutes, while cleanup waits 24 hours. No external queue or generic task framework is introduced.
+
+Roll out the additive cleanup-table/content-pointer-index migration before the API, and drain old writers. Pre-ledger orphan objects require a separately authorized one-time inventory/backfill if they exist; the recurring job never scans R2. Legacy mutable keys and the separate media settlement/index-repair pass retain their existing behavior.
+
 Source deletion or share revocation does not delete destination content. Destination deletion removes only its own bundle. Existing global moderation/takedown still applies.
 
 ## 7. All-format details

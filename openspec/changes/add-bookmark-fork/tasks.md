@@ -1,5 +1,10 @@
 # Tasks
 
+## Targeted cleanup follow-up — 2026-10-23
+
+- [x] R8 Replace periodic R2 listing with an additive PostgreSQL bundle ledger, indexed reference checks and bounded leased processing. Register before writes; atomically cancel publication and enqueue replacement/deletion. Cover HTML/media/PDF and preserve legacy cleanup.
+- [x] R9 Verify registration failure, publication/claim races, rollback, retries, stale acknowledgements and live-reference protection with regression tests and disposable PostgreSQL/R2/HTTP exercises. Regenerate, run API checks, document rollout limits, and complete Bugs/Security/Compliance review.
+
 ## Owner recapture follow-up — 2026-10-23
 
 - [x] R5 Record the approved provenance rule: clear only on successful independent owner publication, preserving failed/pending/no-op saves and metadata edits.

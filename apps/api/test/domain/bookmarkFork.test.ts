@@ -36,6 +36,7 @@ describe('Fork service publication boundary', () => {
     }
     effects = vi.fn(async () => {})
     service = Object.assign(Object.create(BookmarkForkService.prototype), {
+      cleanup: { registerBundle: async () => {} },
       repo,
       search: { clearSearchCache: async () => {} },
       bucket: () => ({ R2Bucket: bucket.bucket }),

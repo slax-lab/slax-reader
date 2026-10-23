@@ -70,6 +70,8 @@ model sr_bookmark {
     sr_user_bookmark_tag sr_user_bookmark_tag[]
 
     @@unique([target_url, private_user])
+    @@index([content_key])
+    @@index([content_md_key])
 }
 
 model sr_user_bookmark {
@@ -885,4 +887,15 @@ model sr_podcast_episode {
     completed_at          DateTime?
 
     @@index([transcript_status, next_retry_at])
+}
+
+// One retryable cleanup candidate per immutable snapshot bundle.
+model sr_snapshot_cleanup {
+    bundle_key    String    @id
+    publish_until DateTime? @hyperdrive.Timestamptz(3)
+    run_after     DateTime  @hyperdrive.Timestamptz(3)
+    lease_token   String?
+    created_at    DateTime  @default(now()) @hyperdrive.Timestamptz(3)
+
+    @@index([run_after])
 }

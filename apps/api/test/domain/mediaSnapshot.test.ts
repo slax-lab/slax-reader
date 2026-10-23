@@ -37,6 +37,7 @@ describe('private media publication', () => {
     }
     const settings = { enabled: true, language: 'en' }
     const service = Object.assign(Object.create(MediaSnapshotService.prototype), {
+      cleanup: { registerBundle: async () => {} },
       repo,
       labs: { isEnabled: async () => settings.enabled },
       users: { getInfoByUserId: async () => ({ ai_lang: settings.language, lang: 'en' }) },
@@ -101,6 +102,7 @@ describe('private media publication', () => {
     const later = { ...captured, title: 'B', shownotes: 'Notes B' }
     const episodes = { findBySourceId: vi.fn(async () => later) }
     const service = Object.assign(Object.create(MediaSnapshotService.prototype), {
+      cleanup: { registerBundle: async () => {} },
       episodes,
       language: async () => 'en',
       labs: { isEnabled: async () => true }
@@ -133,10 +135,11 @@ describe('private media publication', () => {
       })
     )
     const service = Object.assign(Object.create(MediaSnapshotService.prototype), {
+      cleanup: { registerBundle: async () => {} },
       bucket: () => ({ R2Bucket: bucket }),
       repo: { mediaDenied: vi.fn(async () => false) }
     }) as MediaSnapshotService
-    const bundle = new SnapshotBundle(bucket, 'destination')
+    const bundle = new SnapshotBundle(bucket, 'destination', async () => {})
     const result = await service.copyForFork({ id: 1, content_key: key, private_user: 1 } as any, bundle)
     expect(result).toEqual({ ref: { media_kind: 'youtube', source_id: 'video', source_hash: 'hash' }, input: undefined })
     await bucket.delete([key, key.replace('body.html', 'media.json')])
@@ -157,7 +160,11 @@ describe('private media publication', () => {
         throw new Error('offline')
       })
     }
-    const service = Object.assign(Object.create(MediaSnapshotService.prototype), { bucket: () => ({ R2Bucket: memory.bucket }), repo }) as MediaSnapshotService
+    const service = Object.assign(Object.create(MediaSnapshotService.prototype), {
+      cleanup: { registerBundle: async () => {} },
+      bucket: () => ({ R2Bucket: memory.bucket }),
+      repo
+    }) as MediaSnapshotService
     await expect(
       service.publish({ raw: { id: 1, content_key: 'snapshots/owner/old/body.html', userBookmarks: [{ uuid: 'owner' }] } } as any, null, {
         html: '<article>new</article>',

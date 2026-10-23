@@ -12,6 +12,7 @@ Readers need to save another user's Reader snapshot as their own durable copy, i
 - Clear current Fork attribution only when the owner independently acquires and publishes replacement content. Keep provenance for failures, metadata changes and saves that reuse existing content; retain the same bookmark UUID and personal state without another schema change.
 - Preserve one personal copy per original resource. Return an existing successful copy unchanged, restore a ready trashed copy, and distinguish pending, failed and deletion-in-progress destinations.
 - Make new private media captures and Forks own their stored content revisions. Shared generation remains a computation cache; later actions by another user cannot replace a completed private snapshot. Explicit owner refresh remains supported for ordinary captures.
+- Replace recurring R2 orphan scans with a PostgreSQL cleanup ledger: register before writes, cancel atomically on publication, and enqueue retired bundles on replacement or permanent deletion. Reuse the existing cron with bounded, leased retries.
 - Cover Extension/REST, Web, Telegram and supported bookmark imports. Give older queued Reader-URL sync operations a terminal visible failure without crawling the Reader shell or blocking unrelated sync work.
 
 ## Capabilities
@@ -29,7 +30,7 @@ Readers need to save another user's Reader snapshot as their own durable copy, i
 ## Impact
 
 - API: new Fork and uncached Fork-metadata endpoints; existing add adapters; bookmark/media orchestration, R2 publication/cleanup, sync compatibility, search and notification effects.
-- PostgreSQL: one additive nullable column, no provenance table, JSON provenance or mandatory historical backfill. Existing media references remain for moderation/takedown and retention.
+- PostgreSQL: one additive nullable provenance column, a narrow snapshot-cleanup table and content-pointer indexes; no provenance table, JSON provenance or mandatory historical backfill. Existing media references remain for moderation/takedown and retention.
 - Web/contracts: online command, typed responses, Source/Fork display, media snapshot version handling, SSR cache safety and Reader URL saved-state resolution. Extension integration requires release-impact assessment.
 - Delivery: additive migration first, API and client rollout, agent-driven runtime verification and human UI acceptance. No new external service or package is proposed.
 

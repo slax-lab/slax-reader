@@ -3,6 +3,7 @@ import type { LazyInstance } from '../decorators/lazy'
 import { PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
 import { PRISIMA_HYPERDRIVE_CLIENT } from '../const/symbol'
 import { UserRepo } from '../infra/repository/dbUser'
+import { SNAPSHOT_CLEANUP_GRACE_MS } from '../utils/snapshotBundle'
 
 @injectable()
 export class UserDeletionService {
@@ -151,9 +152,18 @@ export class UserDeletionService {
   }
 
   private async deletePrivateBookmarks(userId: number): Promise<void> {
-    const result = await this.prismaPg().sr_bookmark.deleteMany({
-      where: { private_user: userId }
-    })
+    // DELETE RETURNING and registration are one statement, including account-cleanup retries.
+    const [result] = await this.prismaPg().$queryRaw<{ count: bigint }[]>`
+      WITH deleted AS (
+        DELETE FROM sr_bookmark WHERE private_user = ${userId} RETURNING content_key
+      ), queued AS (
+        INSERT INTO sr_snapshot_cleanup (bundle_key, run_after)
+        SELECT DISTINCT content_key, CURRENT_TIMESTAMP + ${SNAPSHOT_CLEANUP_GRACE_MS} * interval '1 millisecond'
+        FROM deleted WHERE content_key ~ '^snapshots/[^/]+/[^/]+/body[.]html$'
+          OR content_key ~ '^pdf/body/forks/[^/]+/[^/]+[.]pdf$'
+        ON CONFLICT (bundle_key) DO UPDATE SET publish_until = NULL, lease_token = NULL, run_after = EXCLUDED.run_after
+        RETURNING bundle_key
+      ) SELECT count(*) FROM deleted`
     console.log(`Deleted ${result.count} private bookmarks`)
   }
 

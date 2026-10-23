@@ -5,6 +5,7 @@ import type { LazyInstance } from '@/decorators/lazy'
 import { MultiLangError } from '@/utils/multiLangError'
 import { DeleteImportFailedBookmarkFailError, BookmarkNotFoundError, CreateBookmarkShareUniqueFail, DeleteBookmarkFailError } from '@/const/err'
 import { PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
+import { retireSnapshot } from './dbSnapshotCleanup'
 
 export enum queueStatus {
   PENDING = 'pending',
@@ -231,12 +232,16 @@ export class BookmarkRepo {
 
   public async deleteBookmarkTry(bmId: number, userId: number): Promise<bookmarkPO | null> {
     try {
-      const bookmark = await this.prismaPg().sr_bookmark.findUnique({ where: { id: bmId } })
-      if (!bookmark || bookmark.private_user !== userId) return null
-
-      await this.prismaPg().$executeRaw`DELETE FROM sr_bookmark WHERE id = ${bmId}`
-
-      return { bookmark_id: bookmark.id, ...bookmark }
+      return await this.prismaPg().$transaction(async tx => {
+        await tx.$queryRaw`SELECT id FROM sr_bookmark WHERE id = ${bmId} FOR UPDATE`
+        const bookmark = await tx.sr_bookmark.findUnique({
+          where: { id: bmId }
+        })
+        if (!bookmark || bookmark.private_user !== userId) return null
+        await retireSnapshot(tx, bookmark.content_key)
+        await tx.$executeRaw`DELETE FROM sr_bookmark WHERE id = ${bmId}`
+        return { bookmark_id: bookmark.id, ...bookmark }
+      })
     } catch (e) {
       console.log(`delete bookmark failed:`, e)
       return null
@@ -512,7 +517,18 @@ export class BookmarkRepo {
   }
 
   public async updateBookmark(bmId: number, info: bookmarkParsePO) {
-    return await this.prismaPg().sr_bookmark.update({ where: { id: bmId }, data: { updated_at: new Date(), ...info } })
+    return this.prismaPg().$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM sr_bookmark WHERE id = ${bmId} FOR UPDATE`
+      const before = await tx.sr_bookmark.findUniqueOrThrow({
+        where: { id: bmId }
+      })
+      const updated = await tx.sr_bookmark.update({
+        where: { id: bmId },
+        data: { updated_at: new Date(), ...info }
+      })
+      if (before.content_key !== updated.content_key) await retireSnapshot(tx, before.content_key)
+      return updated
+    })
   }
 
   public async updatePdfMetadata(bookmarkId: number, info: { title: string; byline?: string }) {
@@ -526,11 +542,19 @@ export class BookmarkRepo {
     publication: { clearForkProvenance?: boolean; expectedRevision?: string } = {}
   ) {
     return this.prismaPg().$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM sr_bookmark WHERE id = ${bookmarkId} FOR UPDATE`
+      const before = await tx.sr_bookmark.findUniqueOrThrow({
+        where: { id: bookmarkId }
+      })
       const raw = await tx.sr_bookmark.update({
         where: { id: bookmarkId, ...(publication.expectedRevision ? { updated_at: new Date(publication.expectedRevision) } : {}) },
         data: { ...info, updated_at: new Date() }
       })
-      const relations = await tx.sr_user_bookmark.findMany({ where: { bookmark_id: bookmarkId }, select: { id: true, user_id: true, metadata: true } })
+      if (before.content_key !== raw.content_key) await retireSnapshot(tx, before.content_key)
+      const relations = await tx.sr_user_bookmark.findMany({
+        where: { bookmark_id: bookmarkId },
+        select: { id: true, user_id: true, metadata: true }
+      })
       for (const relation of relations) {
         await tx.sr_user_bookmark.update({
           where: { id: relation.id },
