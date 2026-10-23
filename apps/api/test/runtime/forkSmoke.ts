@@ -129,13 +129,24 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
       dispose: () => proxy.dispose(),
       sources,
       async exercise(fetch: (path: string, init?: RequestInit) => Promise<Response>, headers: Record<string, string>, readerOrigin: string, encodeId: (id: number) => string) {
-        const call = async (path: string, body?: unknown, asGuest = false) => {
+        const settled = async (uuid: string, expected = 'success') => {
+          for (let attempt = 0; attempt < 120; attempt++) {
+            const status = sql(`SELECT b.status FROM sr_bookmark b JOIN sr_user_bookmark ub ON ub.bookmark_id=b.id WHERE ub.uuid=${sqlString(uuid)}`)
+            if (status === expected) return
+            if (status === 'failed' && expected !== 'failed') throw new Error(`Fork ${uuid} failed`)
+            await new Promise(resolve => setTimeout(resolve, 250))
+          }
+          throw new Error(`Fork ${uuid} did not settle to ${expected}`)
+        }
+        const call = async (path: string, body?: unknown, asGuest = false, wait = true) => {
           const response = await fetch(path, { headers: asGuest ? {} : headers, ...(body !== undefined ? { method: 'POST', body: JSON.stringify(body) } : {}) })
           const result = (await response.json()) as any
+          if (wait && path === '/v1/bookmark/fork' && result.code === 200) await settled(result.data.bookmark_uid)
           return { response, result }
         }
         const saved: Record<string, any> = {}
         for (const [name, src] of Object.entries(sources)) {
+          console.log(`Fork HTTP exercise: ${name}`)
           const { response, result } = await call('/v1/bookmark/fork', { source_user_bookmark_uuid: src.uuid })
           assert.equal(response.status, 200, `${name}: ${JSON.stringify(result)}`)
           assert.equal(result.data.disposition, 'created')
@@ -169,6 +180,25 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           assert.equal(duplicate.result.data.disposition, 'updated')
           assert.equal(sql(`SELECT content_key FROM sr_bookmark WHERE id=${dest.bookmark_id}`), dest.content_key)
         }
+        // A missing copy object cannot prevent HTTP admission. The durable Workflow exhausts
+        // its finite retries, then an explicit retry succeeds once the source becomes available.
+        const deferred = source('deferred', 'https://fixture.invalid/deferred', 'legacy/deferred.html', '')
+        const accepted = await call('/v1/bookmark/fork', { source_user_bookmark_uuid: deferred.uuid }, false, false)
+        assert.equal(accepted.response.status, 200)
+        const admittedUuid = accepted.result.data.bookmark_uid
+        assert.notEqual(sql(`SELECT b.status FROM sr_bookmark b JOIN sr_user_bookmark ub ON ub.bookmark_id=b.id WHERE ub.uuid=${sqlString(admittedUuid)}`), 'success')
+        await settled(admittedUuid, 'failed')
+        const failedState = await call(`/v1/bookmark/fork_metadata?bookmark_uid=${deferred.uuid}`)
+        assert.equal(failedState.result.data.viewer_fork_status, 'failed')
+        await bucket.put(deferred.key, '<article>Recovered deferred source</article>')
+        const retried = await call('/v1/bookmark/fork', { source_user_bookmark_uuid: deferred.uuid })
+        assert.equal(retried.result.data.bookmark_uid, admittedUuid)
+        saved.deferred = json(
+          `SELECT ub.uuid,ub.bookmark_id,b.content_key,b.content_md_key FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id=ub.bookmark_id WHERE ub.uuid=${sqlString(admittedUuid)}`
+        )
+        assert.match(await (await bucket.get(saved.deferred.content_key))!.text(), /Recovered deferred source/)
+        assert.equal((await call(`/v1/bookmark/fork_metadata?bookmark_uid=${deferred.uuid}`)).result.data.viewer_fork_status, 'success')
+        assert.equal((await call(`/v1/bookmark/fork_metadata?bookmark_uid=${deferred.uuid}`, undefined, true)).result.data.viewer_fork_status, null)
         const originalHtmlKey = saved.html.content_key
         const refreshedHtml = '<article><h1>Independent article</h1><p>Original source body.</p><p>Refreshed source body.</p></article>'
         await bucket.put(html.key, refreshedHtml)
@@ -375,6 +405,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           })
           assert.equal(result.response.status, 200)
           assert.equal(result.result.code, 200)
+          await settled(saved.html.uuid)
           assert.equal(sql(`SELECT count(*) FROM sr_bookmark WHERE private_user=1 AND target_url=${sqlString(html.url)}`), '1')
         }
         const visible = await call(`/v1/bookmark/fork_metadata?bookmark_uid=${saved.html.uuid}`)
@@ -406,7 +437,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         assert.equal(translation.result.data.lede, 'podcast zh saved article')
         assert.equal(translation.result.data.sections[0].paragraphs[0].start_ms, 5000)
         // Exercise publication with real local PostgreSQL/R2, then read through Edge/Core HTTP.
-        // The fixture has no crawl workflow or external provider connection.
+        // The fixture uses the local Crawl Workflow and no external provider connection.
         const client = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl }) })
         try {
           const repo = new BookmarkForkRepo(() => client)
@@ -499,6 +530,9 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         }
         return {
           formats: Object.keys(sources),
+          asynchronousAdmission: true,
+          workflowFailureAndRetry: true,
+          viewerStatusIsolation: true,
           independent: true,
           repeatedRefresh: true,
           sourceDeletion: true,

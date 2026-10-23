@@ -33,7 +33,7 @@ A successful snapshot SHALL expose a coherent set of required content artifacts.
 
 #### Scenario: Partial object copy
 - **WHEN** one required artifact cannot be read or written
-- **THEN** a new destination is not published; an existing destination reports failure without deleting its live files, source files or competing-winner files
+- **THEN** a new destination is not marked successful; an admitted or existing destination reports failure without deleting its live files, source files or competing-winner files
 
 #### Scenario: Commit succeeds but acknowledgement is lost
 - **WHEN** the destination commits and the caller observes a database timeout

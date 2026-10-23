@@ -8,6 +8,7 @@ import type { XHSData, WeiboData } from '@/const/moreapi/base'
 import type { RedditData } from '@/const/moreapi/reddit'
 import { isWeixinImageShower, isWeixinLegacyImageShower } from '@/const/moreapi/weixin'
 import { UrlParserHandler } from '@/domain/orchestrator/urlParser'
+import { BookmarkForkService, type ForkWorkflowJob } from '@/domain/bookmarkFork'
 import { BookmarkService } from '@/domain/bookmark'
 import { LabService } from '@/domain/lab'
 import { Hashid } from '@/utils/hashids'
@@ -29,6 +30,7 @@ import { PodcastService, PODCAST_LAB } from '@/domain/podcast'
 import { classifyPodcastUrl } from '@/utils/podcastSource'
 
 export interface CrawlWorkflowParams {
+  fork?: ForkWorkflowJob
   captureRevision?: string
   eventContext?: EventRequestContext
   url: string
@@ -91,6 +93,20 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     if (event.payload.eventContext) ctxManager.set(EVENT_CONTEXT_KEY, event.payload.eventContext)
     ctxManager.set('snapshotCaptureRevision', event.payload.captureRevision)
     initializeInfrastructure(ctxManager, currentContainer)
+
+    if (event.payload.fork) {
+      const service = currentContainer.resolve(BookmarkForkService)
+      const job = event.payload.fork
+      try {
+        await step.do('copy-fork', { retries: { limit: 2, delay: '1 second', backoff: 'constant' }, timeout: '5 minutes' }, () =>
+          service.execute(ctxManager, event.payload.bookmarkId, job)
+        )
+      } catch (error) {
+        await step.do('fail-fork', () => service.failExecution(event.payload.bookmarkId, job))
+        throw error
+      }
+      return
+    }
 
     const bookmarkService = currentContainer.resolve(BookmarkService)
     const labService = currentContainer.resolve(LabService)

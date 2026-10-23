@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { request as nodeRequest } from 'node:http'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { relative, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -148,6 +148,7 @@ async function main() {
           ],
           kv_namespaces: [{ binding: 'KV', id: '00000000000000000000000000000001' }],
           r2_buckets: [{ binding: 'OSS', bucket_name: 'http-reader' }],
+          workflows: [{ binding: 'CRAWL_WORKFLOW', name: 'fork-smoke-crawl', class_name: 'CrawlWorkflow', script_name: 'root-tooling-local-edge' }],
           durable_objects: { bindings: [{ name: 'WEBSOCKET_SERVER', class_name: 'SlaxWebSocketServer' }] },
           migrations: [{ tag: 'v1', new_classes: ['SlaxWebSocketServer'] }]
         },
@@ -160,7 +161,9 @@ async function main() {
       JSON.stringify(
         {
           ...shared,
+          ...JSON.parse(readFileSync(coreConfig, 'utf8')),
           name: 'root-tooling-local-edge',
+          workflows: [{ binding: 'CRAWL_WORKFLOW', name: 'fork-smoke-crawl', class_name: 'CrawlWorkflow' }],
           main: localPath('apps/api/src/entry/edge/index.ts'),
           services: [{ binding: 'CORE', service: 'root-tooling-local-core' }],
           ratelimits: [{ name: 'BOOKMARK_ADD_RATE_LIMITER', namespace_id: '1001', simple: { limit: 30, period: 60 } }]
@@ -342,6 +345,7 @@ async function main() {
     resources.cleanup()
     writeFileSync(resolve(resources.workspace, 'worker.log'), workerLog)
     writeFileSync(resolve(resources.workspace, 'http-results.json'), JSON.stringify(evidence, null, 2))
+    if (evidence.status === 'failed') console.error(workerLog.slice(-16000))
     console.log(`HTTP acceptance: ${evidence.status}`)
     console.log(JSON.stringify(evidence, null, 2))
     resources.removeWorkspace()

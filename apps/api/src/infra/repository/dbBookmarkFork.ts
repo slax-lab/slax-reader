@@ -34,7 +34,7 @@ export type ForkPublication = {
   mediaRef?: MediaSnapshotRef
   mediaInput?: PodcastSnapshotInput
   personal?: ForkPersonalState
-  destination?: { id: number; bookmark_id: number; updated_at: Date }
+  destination?: { id: number; bookmark_id: number; updated_at: Date; requireLive?: boolean }
 }
 
 /** Convert only an explicitly saved historical relation; preserve its public identity and personal references. */
@@ -156,13 +156,13 @@ export class BookmarkForkRepo {
     )
   }
 
-  async ownsWrite(bookmarkId: number, revision: Date) {
+  async ownsWrite(bookmarkId: number, revision: Date, relation?: { id: number; uuid: string; user_id: number }) {
     return !!(await this.client().sr_bookmark.findFirst({
       where: {
         id: bookmarkId,
         updated_at: revision,
         status: 'parseing',
-        userBookmarks: { some: {} }
+        userBookmarks: { some: relation ? { ...relation, deleted_at: null } : {} }
       },
       select: { id: true }
     }))
@@ -226,32 +226,121 @@ export class BookmarkForkRepo {
     return db.sr_user_bookmark.update({ where: { id: relation.id }, data: { deleted_at: null, updated_at: new Date() }, include: { bookmark: true } })
   }
 
+  private async validateSource(db: Database, userId: number, source: ForkSource) {
+    // Keep source identity and access stable until the transaction commits.
+    await db.$queryRaw`SELECT id FROM sr_user WHERE id IN (${userId}, ${source.user_id}) FOR SHARE`
+    await db.$queryRaw`SELECT id FROM sr_user_bookmark WHERE id = ${source.id} FOR SHARE`
+    await db.$queryRaw`SELECT id FROM sr_bookmark WHERE id = ${source.bookmark_id} FOR SHARE`
+    await db.$queryRaw`SELECT id FROM sr_bookmark_share WHERE bookmark_id = ${source.bookmark_id} AND user_id = ${source.user_id} FOR SHARE`
+    const user = await db.sr_user.findUnique({ where: { id: userId } })
+    const current = await this.source(userId, source.uuid, db)
+    if (!user || user.deleted_at || !current || current.id !== source.id || current.bookmark_id !== source.bookmark_id) throw BookmarkNotFoundError()
+    const before = source.bookmark
+    const after = current.bookmark
+    if (
+      current.type !== source.type ||
+      (current.metadata as Prisma.JsonObject)?.pdf_document_id !== (source.metadata as Prisma.JsonObject)?.pdf_document_id ||
+      after.target_url !== before.target_url ||
+      after.content_key !== before.content_key ||
+      after.content_md_key !== before.content_md_key ||
+      after.status !== 'success' ||
+      after.moderation_result !== before.moderation_result ||
+      after.updated_at.getTime() !== before.updated_at.getTime()
+    )
+      throw forkError()
+
+    return current
+  }
+
+  /** Admission and the private write claim commit together, before any R2 operation. */
+  async admit(input: { userId: number; source: ForkSource; targetUrl: string; uuid: string }) {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.client().$transaction(
+          async db => {
+            const source = await this.validateSource(db, input.userId, input.source)
+            const find = () =>
+              db.sr_bookmark.findUnique({ where: { target_url_private_user: { target_url: input.targetUrl, private_user: input.userId } }, include: { userBookmarks: true } })
+            let raw = await find()
+            if (!raw) {
+              await privatizeLegacyBookmark(db, input.userId, input.targetUrl)
+              raw = await find()
+            }
+            if (raw) {
+              await db.$queryRaw`SELECT id FROM sr_bookmark WHERE id = ${raw.id} FOR UPDATE`
+              const relation = await db.sr_user_bookmark.findUnique({ where: { user_id_bookmark_id: { user_id: input.userId, bookmark_id: raw.id } }, include: { bookmark: true } })
+              if (!relation) throw forkError(ErrorName.FORK_DESTINATION_DELETING)
+              if (!['success', 'failed'].includes(relation.bookmark.status)) {
+                if (!relation.deleted_at && relation.forked_from_id === source.id) return { disposition: 'already_saved' as const, relation }
+                throw forkError(ErrorName.FORK_DESTINATION_IN_PROGRESS)
+              }
+              const now = new Date(Math.max(Date.now(), relation.bookmark.updated_at.getTime() + 1))
+              await db.sr_bookmark.update({ where: { id: raw.id }, data: { status: 'parseing', updated_at: now } })
+              // Preserve the existing body's attribution until successful publication.
+              const restored = await this.restore(db, { ...relation, bookmark: { ...relation.bookmark, status: 'parseing', updated_at: now } })
+              return { disposition: 'updated' as const, relation: restored }
+            }
+            const before = source.bookmark
+            const now = new Date()
+            const bookmark = await db.sr_bookmark.create({
+              data: {
+                title: before.title,
+                target_url: input.targetUrl,
+                host_url: before.host_url,
+                site_name: before.site_name,
+                content_icon: before.content_icon,
+                content_cover: before.content_cover,
+                description: before.description,
+                byline: before.byline,
+                published_at: before.published_at,
+                moderation_result: before.moderation_result,
+                private_user: input.userId,
+                status: 'parseing',
+                created_at: now,
+                updated_at: now
+              }
+            })
+            const relation = await db.sr_user_bookmark.create({
+              data: {
+                uuid: input.uuid,
+                user_id: input.userId,
+                bookmark_id: bookmark.id,
+                forked_from_id: source.id,
+                type: source.type,
+                updated_at: now
+              },
+              include: { bookmark: true }
+            })
+            return { disposition: 'created' as const, relation }
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 }
+        )
+      } catch (error) {
+        // A competing private-URL insert/claim wins; reload it without changing its timestamp.
+        if (attempt >= 2 || !['P2002', 'P2034'].includes((error as { code?: string }).code ?? '')) throw error
+      }
+    }
+  }
+
+  async viewerStatus(userId: number, sourceId: number, targetUrl: string): Promise<'pending' | 'success' | 'failed' | null> {
+    const relation = await this.client().sr_user_bookmark.findFirst({
+      where: { user_id: userId, deleted_at: null, bookmark: { target_url: targetUrl, private_user: userId } },
+      include: { bookmark: true }
+    })
+    if (!relation) return null
+    const status = relation.bookmark.status
+    if (['pending', 'pending_retry', 'parseing', 'retrying', 'pending_import'].includes(status)) return 'pending'
+    if (status === 'failed') return 'failed'
+    return status === 'success' && relation.forked_from_id === sourceId ? 'success' : null
+  }
+
   async publish(input: ForkPublication) {
     return this.client().$transaction(
       async db => {
         if (input.mediaRef) await this.assertMediaPolicy(db, input.mediaRef)
         if (input.mediaInput && !(await this.matchesMediaInput(db, input.mediaInput))) throw forkError()
-        // Lock identity/access rows until publication. R2 transfers have already finished.
-        await db.$queryRaw`SELECT id FROM sr_user WHERE id IN (${input.userId}, ${input.source.user_id}) FOR SHARE`
-        await db.$queryRaw`SELECT id FROM sr_user_bookmark WHERE id = ${input.source.id} FOR SHARE`
-        await db.$queryRaw`SELECT id FROM sr_bookmark WHERE id = ${input.source.bookmark_id} FOR SHARE`
-        await db.$queryRaw`SELECT id FROM sr_bookmark_share WHERE bookmark_id = ${input.source.bookmark_id} AND user_id = ${input.source.user_id} FOR SHARE`
-        const user = await db.sr_user.findUnique({ where: { id: input.userId } })
-        const current = await this.source(input.userId, input.source.uuid, db)
-        if (!user || user.deleted_at || !current || current.id !== input.source.id || current.bookmark_id !== input.source.bookmark_id) throw BookmarkNotFoundError()
+        const current = await this.validateSource(db, input.userId, input.source)
         const before = input.source.bookmark
-        const after = current.bookmark
-        if (
-          current.type !== input.source.type ||
-          (current.metadata as Prisma.JsonObject)?.pdf_document_id !== (input.source.metadata as Prisma.JsonObject)?.pdf_document_id ||
-          after.target_url !== before.target_url ||
-          after.content_key !== before.content_key ||
-          after.content_md_key !== before.content_md_key ||
-          after.status !== 'success' ||
-          after.moderation_result !== before.moderation_result ||
-          after.updated_at.getTime() !== before.updated_at.getTime()
-        )
-          throw forkError()
 
         const existing = input.destination ? null : await this.destination(input.userId, input.targetUrl, db)
         if (existing)
@@ -274,7 +363,8 @@ export class BookmarkForkRepo {
                 some: {
                   id: input.destination.id,
                   user_id: input.userId,
-                  uuid: input.uuid
+                  uuid: input.uuid,
+                  ...(input.destination.requireLive ? { deleted_at: null } : {})
                 }
               }
             },

@@ -1,7 +1,8 @@
 {
   "bookmark_fork": {
     "action": "Fork",
-    "copying": "复制中…",
+    "submitting": "提交中…",
+    "saved": "已 Fork",
     "label": "Fork:",
     "generic_source": "Reader 收藏",
     "unavailable": "来源已不可访问",

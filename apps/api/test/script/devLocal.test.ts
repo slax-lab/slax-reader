@@ -78,10 +78,23 @@ describe('explicit isolated local Worker launcher', () => {
     symlinkSync(ROOT, f.state, 'dir')
     expect(() => localDevOptions(f.args)).toThrow('without symlinks')
   })
-  test.each(['vectorize', 'ai', 'browser', 'queues', 'workflows', 'build', 'env'])('rejects unsupported %s configuration', key => {
+  test.each(['vectorize', 'ai', 'browser', 'queues', 'build', 'env'])('rejects unsupported %s configuration', key => {
     const f = fixture()
     writeFileSync(f.core, JSON.stringify({ ...f.coreData, [key]: {} }))
     expect(() => localDevOptions(f.args)).toThrow('minimal local binding')
+  })
+  test('allows only the declared local Crawl Workflow across Edge and Core', () => {
+    const f = fixture()
+    const workflow = { binding: 'CRAWL_WORKFLOW', name: 'local-crawl', class_name: 'CrawlWorkflow' }
+    writeFileSync(f.edge, JSON.stringify({ ...f.edgeData, workflows: [workflow] }))
+    writeFileSync(f.core, JSON.stringify({ ...f.coreData, workflows: [{ ...workflow, script_name: 'local-edge' }] }))
+    expect(localDevOptions(f.args).args).toContain('--local')
+    writeFileSync(f.core, JSON.stringify({ ...f.coreData, workflows: [{ ...workflow, script_name: 'remote-edge' }] }))
+    expect(() => localDevOptions(f.args)).toThrow('local Crawl Workflow')
+    writeFileSync(f.core, JSON.stringify({ ...f.coreData, workflows: [{ ...workflow, class_name: 'OtherWorkflow', script_name: 'local-edge' }] }))
+    expect(() => localDevOptions(f.args)).toThrow('local Crawl Workflow')
+    writeFileSync(f.core, JSON.stringify({ ...f.coreData, workflows: {} }))
+    expect(() => localDevOptions(f.args)).toThrow('local Crawl Workflow')
   })
   test('rejects remote Hyperdrive and unmatched service targets', () => {
     const f = fixture()

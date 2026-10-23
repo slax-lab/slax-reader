@@ -1,7 +1,8 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/hyperdrive-client'
 import { BookmarkForkRepo } from '@/infra/repository/dbBookmarkFork'
+import { BookmarkForkService } from '@/domain/bookmarkFork'
 import { podcastInputFingerprint } from '@/utils/mediaSnapshot'
 import { DBSyncBatchOperation } from '@/infra/repository/dbSyncBatch'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
@@ -63,6 +64,192 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     return { userId: users[1], source: source!, targetUrl: target, uuid, content: { content_key, content_md_key, content_word_count: 4 } }
   }
 
+  it('atomically admits a new Fork once and excludes ordinary capture while preserving its winner timestamp', async () => {
+    const targetUrl = `https://fork-admission.test/${crypto.randomUUID()}`
+    const args = { userId: users[1], source: source!, targetUrl, uuid: crypto.randomUUID() }
+    const results = await Promise.all([repo.admit(args), repo.admit({ ...args, uuid: crypto.randomUUID() })])
+    expect(results.map(result => result.disposition).sort()).toEqual(['already_saved', 'created'])
+    expect(results[0].relation.bookmark_id).toBe(results[1].relation.bookmark_id)
+    expect(results[0].relation.bookmark.updated_at).toEqual(results[1].relation.bookmark.updated_at)
+    const raw = results[0].relation.bookmark
+    expect(raw.status).toBe('parseing')
+    const bookmarks = Object.assign(Object.create(BookmarkRepo.prototype), { prismaPg: () => client }) as BookmarkRepo
+    const capture = await bookmarks.createBookmark(
+      { title: 'Must not replace', host_url: '', target_url: targetUrl, content_icon: '', content_cover: '', private_user: users[1] },
+      'pending'
+    )
+    expect(capture!.admitted).toBe(false)
+    expect(capture!.updated_at).toEqual(raw.updated_at)
+    expect(await repo.viewerStatus(users[1], source!.id, targetUrl)).toBe('pending')
+    expect(await repo.failWrite(raw.id, raw.updated_at)).toBe(true)
+    expect(await repo.viewerStatus(users[1], source!.id, targetUrl)).toBe('failed')
+    const retry = await repo.admit(args)
+    expect(retry.relation.bookmark.updated_at.getTime()).toBeGreaterThan(raw.updated_at.getTime())
+    expect(await repo.failWrite(raw.id, raw.updated_at)).toBe(false)
+  })
+
+  it('preserves previous provenance during refresh and failure, and scopes viewer success to the exact live source', async () => {
+    const targetUrl = `https://fork-refresh.test/${crypto.randomUUID()}`
+    const first = await repo.publish(input(targetUrl))
+    await client.sr_user_bookmark.update({ where: { id: first.relation.id }, data: { forked_from_id: 999999 } })
+    const admitted = await repo.admit({ userId: users[1], source: source!, targetUrl, uuid: crypto.randomUUID() })
+    expect(admitted.relation.forked_from_id).toBe(999999)
+    expect(await repo.viewerStatus(users[1], source!.id, targetUrl)).toBe('pending')
+    await repo.failWrite(admitted.relation.bookmark_id, admitted.relation.bookmark.updated_at)
+    expect((await client.sr_user_bookmark.findUniqueOrThrow({ where: { id: first.relation.id } })).forked_from_id).toBe(999999)
+    expect(await repo.viewerStatus(users[1], source!.id, targetUrl)).toBe('failed')
+    await client.sr_bookmark.update({ where: { id: first.relation.bookmark_id }, data: { status: 'success' } })
+    expect(await repo.viewerStatus(users[1], source!.id, targetUrl)).toBeNull()
+    await client.sr_user_bookmark.update({ where: { id: first.relation.id }, data: { forked_from_id: source!.id } })
+    expect(await repo.viewerStatus(users[1], source!.id, targetUrl)).toBe('success')
+    expect(await repo.viewerStatus(users[0], source!.id, targetUrl)).toBeNull()
+    await client.sr_user_bookmark.update({ where: { id: first.relation.id }, data: { deleted_at: new Date() } })
+    expect(await repo.viewerStatus(users[1], source!.id, targetUrl)).toBeNull()
+  })
+
+  it('cannot publish a Fork whose admitted relation was trashed or deleted during copy', async () => {
+    for (const deletion of ['trash', 'delete']) {
+      const targetUrl = `https://fork-deletion.test/${crypto.randomUUID()}`
+      const admitted = await repo.admit({ userId: users[1], source: source!, targetUrl, uuid: crypto.randomUUID() })
+      const relation = admitted.relation
+      const destination = { id: relation.id, bookmark_id: relation.bookmark_id, updated_at: relation.bookmark.updated_at, requireLive: true }
+      if (deletion === 'trash') await client.sr_user_bookmark.update({ where: { id: relation.id }, data: { deleted_at: new Date() } })
+      else await client.sr_user_bookmark.delete({ where: { id: relation.id } })
+      await expect(repo.publish({ ...input(targetUrl), uuid: relation.uuid, destination })).rejects.toMatchObject({ name: 'fork_destination_in_progress' })
+      expect((await repo.snapshot(relation.bookmark_id))!.status).toBe('parseing')
+    }
+  })
+
+  it.each(['before-execution', 'before-copy'])('fails an admission trashed %s so restore can retry, without failing a newer admission', async timing => {
+    const targetUrl = `https://fork-cancel.test/${crypto.randomUUID()}`
+    const ctx = { getUserId: () => users[1] } as any
+    const service = Object.assign(Object.create(BookmarkForkService.prototype), {
+      repo,
+      labs: { assertUrlAllowed: async () => {}, assertEnabled: async () => {} },
+      search: { clearSearchCache: async () => {} }
+    }) as BookmarkForkService
+    const accepted = await repo.admit({ userId: users[1], source: source!, targetUrl, uuid: crypto.randomUUID() })
+    const relation = accepted.relation
+    const job = {
+      sourceUuid: source!.uuid,
+      sourceId: source!.id,
+      sourceBookmarkId: source!.bookmark_id,
+      sourceRevision: source!.bookmark.updated_at.toISOString(),
+      sourceType: source!.type,
+      destinationUuid: relation.uuid,
+      destinationId: relation.id,
+      revision: relation.bookmark.updated_at.toISOString(),
+      created: true
+    }
+    const trash = () => client.sr_user_bookmark.update({ where: { id: relation.id }, data: { deleted_at: new Date() } })
+    if (timing === 'before-execution') await trash()
+    else {
+      const snapshot = repo.snapshot.bind(repo)
+      vi.spyOn(repo, 'snapshot').mockImplementationOnce(async id => {
+        await trash()
+        return snapshot(id)
+      })
+    }
+    await service.execute(ctx, relation.bookmark_id, job)
+    vi.restoreAllMocks()
+    expect((await repo.snapshot(relation.bookmark_id))!.status).toBe('failed')
+    await client.sr_user_bookmark.update({ where: { id: relation.id }, data: { deleted_at: null } })
+    const retry = await repo.admit({ userId: users[1], source: source!, targetUrl, uuid: crypto.randomUUID() })
+    expect(retry.disposition).toBe('updated')
+    expect(retry.relation.bookmark.updated_at.getTime()).toBeGreaterThan(relation.bookmark.updated_at.getTime())
+    await service.execute(ctx, relation.bookmark_id, job)
+    const current = (await repo.snapshot(relation.bookmark_id))!
+    expect(current.status).toBe('parseing')
+    expect(current.updated_at).toEqual(retry.relation.bookmark.updated_at)
+  })
+
+  it('keeps a lost-ACK Workflow claim while a fixed-key PUT blocks competing admission', async () => {
+    const sourceRaw = await client.sr_bookmark.create({
+      data: {
+        title: 'Lost acknowledgement source',
+        target_url: `https://fork-lost-ack.test/${crypto.randomUUID()}`,
+        private_user: users[0],
+        status: 'success',
+        content_key: 'source.html',
+        created_at: new Date(),
+        updated_at: new Date(),
+        published_at: new Date()
+      }
+    })
+    const sourceRelation = await client.sr_user_bookmark.create({ data: { user_id: users[0], bookmark_id: sourceRaw.id, updated_at: new Date() } })
+    const currentSource = (await repo.source(users[1], sourceRelation.uuid))!
+    const memory = memoryBucket()
+    await memory.bucket.put('source.html', '<html><body>Accepted source</body></html>')
+    let releasePut!: () => void
+    let enteredPut!: () => void
+    const blocked = new Promise<void>(resolve => {
+      releasePut = resolve
+    })
+    const entered = new Promise<void>(resolve => {
+      enteredPut = resolve
+    })
+    const put = memory.bucket.put.bind(memory.bucket)
+    vi.spyOn(memory.bucket, 'put').mockImplementationOnce(async (...args) => {
+      enteredPut()
+      await blocked
+      return put(...args)
+    })
+    let execution: Promise<void> | undefined
+    let acceptedId = ''
+    const ctx = {
+      getUserId: () => users[1],
+      getEncodeUserId: () => 1,
+      getlang: () => 'en',
+      env: {
+        CRAWL_WORKFLOW: {
+          create: async (request: any) => {
+            acceptedId = request.id
+            execution = service.execute(ctx, request.params.bookmarkId, request.params.fork)
+            await entered
+            throw new Error('create accepted, response lost')
+          },
+          get: async (id: string) => {
+            expect(id).toBe(acceptedId)
+            return { status: async () => ({ status: 'running' }) }
+          }
+        }
+      }
+    } as any
+    const service = Object.assign(Object.create(BookmarkForkService.prototype), {
+      repo,
+      labs: { assertUrlAllowed: async () => {}, assertEnabled: async () => {} },
+      search: { clearSearchCache: async () => {} },
+      bucket: () => ({ R2Bucket: memory.bucket }),
+      media: { copyForFork: async () => undefined },
+      afterCommit: async () => {}
+    }) as BookmarkForkService
+    try {
+      const admitted = await service.admit(ctx, currentSource.uuid)
+      const raw = (await repo.snapshot(admitted.bookmark_id))!
+      expect(raw.status).toBe('parseing')
+      const competing = await repo.admit({
+        userId: users[1],
+        source: currentSource,
+        targetUrl: currentSource.bookmark.target_url,
+        uuid: crypto.randomUUID()
+      })
+      expect(competing.disposition).toBe('already_saved')
+      expect(competing.relation.bookmark.updated_at).toEqual(raw.updated_at)
+      releasePut()
+      await execution
+      const published = (await repo.snapshot(admitted.bookmark_id))!
+      expect(published.status).toBe('success')
+      expect(await (await memory.bucket.get(published.content_key))!.text()).toContain('Accepted source')
+      const next = await repo.admit({ userId: users[1], source: currentSource, targetUrl: currentSource.bookmark.target_url, uuid: crypto.randomUUID() })
+      expect(next.disposition).toBe('updated')
+      expect(next.relation.bookmark.updated_at.getTime()).toBeGreaterThan(raw.updated_at.getTime())
+      await repo.failWrite(admitted.bookmark_id, next.relation.bookmark.updated_at)
+    } finally {
+      releasePut()
+      await execution?.catch(() => {})
+      vi.restoreAllMocks()
+    }
+  })
   it('deletes only the removed account managed bundles and tolerates R2 deletion failure', async () => {
     const user = await client.sr_user.create({ data: { email: `${crypto.randomUUID()}@delete.test`, name: 'Removed', created_at: new Date(), last_login_at: new Date() } })
     users.push(user.id)
@@ -346,7 +533,13 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     const { relation, before } = await recaptureFixture()
     const content = input().content
     expect(await repo.publishRevision(relation.bookmark_id, relation.bookmark.content_key, content, { expectedUpdatedAt: relation.bookmark.updated_at })).toBe(true)
-    expect(await client.sr_user_bookmark.findUnique({ where: { id: relation.id } })).toMatchObject({ forked_from_id: before.forked_from_id, uuid: before.uuid, alias_title: before.alias_title, is_starred: before.is_starred, archive_status: before.archive_status })
+    expect(await client.sr_user_bookmark.findUnique({ where: { id: relation.id } })).toMatchObject({
+      forked_from_id: before.forked_from_id,
+      uuid: before.uuid,
+      alias_title: before.alias_title,
+      is_starred: before.is_starred,
+      archive_status: before.archive_status
+    })
   })
 
   it('rolls back the content pointer if clearing attribution fails', async () => {
@@ -429,7 +622,12 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
   it('admits one concurrent sync create across devices without rejecting the busy replay', async () => {
     const sync = new DBSyncBatchOperation(() => client)
     const targetUrl = `https://sync-race.test/${crypto.randomUUID()}`
-    const operation = () => ({ type: 'create_bookmark' as const, userId: users[1], bookmarkUuid: crypto.randomUUID(), data: { targetUrl, title: 'Concurrent sync', isArchive: false, isNewBookmark: true } })
+    const operation = () => ({
+      type: 'create_bookmark' as const,
+      userId: users[1],
+      bookmarkUuid: crypto.randomUUID(),
+      data: { targetUrl, title: 'Concurrent sync', isArchive: false, isNewBookmark: true }
+    })
     const results = await Promise.all([sync.executeOrderedOperations([operation()]), sync.executeOrderedOperations([operation()])])
     expect(results.flat()).toHaveLength(1)
     const rows = await client.sr_bookmark.findMany({ where: { target_url: targetUrl, private_user: users[1] }, include: { userBookmarks: true } })
@@ -440,16 +638,35 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
 
   it('privatizes one historical owner while preserving identity and personal references', async () => {
     const now = new Date()
-    const shared = await client.sr_bookmark.create({ data: { target_url: `https://legacy.test/${crypto.randomUUID()}`, private_user: 0, title: 'Shared original', status: 'success', content_key: 'html/body/shared.html', content_md_key: 'text/body/shared.txt', created_at: now, updated_at: now, published_at: now } })
+    const shared = await client.sr_bookmark.create({
+      data: {
+        target_url: `https://legacy.test/${crypto.randomUUID()}`,
+        private_user: 0,
+        title: 'Shared original',
+        status: 'success',
+        content_key: 'html/body/shared.html',
+        content_md_key: 'text/body/shared.txt',
+        created_at: now,
+        updated_at: now,
+        published_at: now
+      }
+    })
     raws.push(shared.id)
-    const owner = await client.sr_user_bookmark.create({ data: { user_id: users[1], bookmark_id: shared.id, alias_title: 'My alias', is_starred: true, archive_status: 1, updated_at: now } })
+    const owner = await client.sr_user_bookmark.create({
+      data: { user_id: users[1], bookmark_id: shared.id, alias_title: 'My alias', is_starred: true, archive_status: 1, updated_at: now }
+    })
     const other = await client.sr_user_bookmark.create({ data: { user_id: users[0], bookmark_id: shared.id, updated_at: now } })
     const tag = await client.sr_user_tag.create({ data: { user_id: users[1], tag_name: `legacy-${crypto.randomUUID()}` } })
     const link = await client.sr_user_bookmark_tag.create({ data: { user_id: users[1], bookmark_id: shared.id, tag_id: tag.id, tag_name: tag.tag_name } })
     const share = await client.sr_bookmark_share.create({ data: { user_id: users[1], bookmark_id: shared.id, share_code: crypto.randomUUID() } })
-    const mark = await client.sr_bookmark_comment.create({ data: { user_id: users[1], bookmark_id: shared.id, user_bookmark_uuid: owner.uuid, type: 1, content: 'Saved highlight', updated_at: now } })
+    const mark = await client.sr_bookmark_comment.create({
+      data: { user_id: users[1], bookmark_id: shared.id, user_bookmark_uuid: owner.uuid, type: 1, content: 'Saved highlight', updated_at: now }
+    })
     const bookmarks = Object.assign(Object.create(BookmarkRepo.prototype), { prismaPg: () => client }) as BookmarkRepo
-    const admitted = await bookmarks.createBookmark({ title: 'Recapture', host_url: 'legacy.test', target_url: shared.target_url, content_icon: '', content_cover: '', private_user: users[1] }, 'pending')
+    const admitted = await bookmarks.createBookmark(
+      { title: 'Recapture', host_url: 'legacy.test', target_url: shared.target_url, content_icon: '', content_cover: '', private_user: users[1] },
+      'pending'
+    )
     expect(admitted!.admitted).toBe(true)
     expect(admitted!.id).not.toBe(shared.id)
     expect(admitted!.content_key).toMatch(/^html\/body\/[^/]+\.html$/)
@@ -466,15 +683,24 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
   it('rejects a sync create against a deleting raw while Reader replay does not block unrelated mutation', async () => {
     const sync = new DBSyncBatchOperation(() => client)
     const now = new Date()
-    const raw = await client.sr_bookmark.create({ data: { target_url: `https://deleting.test/${crypto.randomUUID()}`, private_user: users[1], status: 'success', created_at: now, updated_at: now, published_at: now } })
-    const create = (uuid: string, targetUrl: string, readerSourceUuid?: string) => ({ type: 'create_bookmark' as const, userId: users[1], bookmarkUuid: uuid, data: { targetUrl, title: 'Save', isArchive: false, isNewBookmark: true, ...(readerSourceUuid ? { readerSourceUuid } : {}) } })
+    const raw = await client.sr_bookmark.create({
+      data: { target_url: `https://deleting.test/${crypto.randomUUID()}`, private_user: users[1], status: 'success', created_at: now, updated_at: now, published_at: now }
+    })
+    const create = (uuid: string, targetUrl: string, readerSourceUuid?: string) => ({
+      type: 'create_bookmark' as const,
+      userId: users[1],
+      bookmarkUuid: uuid,
+      data: { targetUrl, title: 'Save', isArchive: false, isNewBookmark: true, ...(readerSourceUuid ? { readerSourceUuid } : {}) }
+    })
     await expect(sync.executeOrderedOperations([create(crypto.randomUUID(), raw.target_url)])).rejects.toThrow()
     expect(await client.sr_user_bookmark.count({ where: { bookmark_id: raw.id } })).toBe(0)
     const uuid = crypto.randomUUID()
     const queued = create(uuid, `https://reader.test/b/${source!.uuid}`, source!.uuid)
     await sync.executeOrderedOperations([queued])
     const saved = await client.sr_user_bookmark.findUniqueOrThrow({ where: { uuid } })
-    const unrelatedRaw = await client.sr_bookmark.create({ data: { target_url: `https://unrelated.test/${crypto.randomUUID()}`, private_user: users[1], status: 'success', created_at: now, updated_at: now, published_at: now } })
+    const unrelatedRaw = await client.sr_bookmark.create({
+      data: { target_url: `https://unrelated.test/${crypto.randomUUID()}`, private_user: users[1], status: 'success', created_at: now, updated_at: now, published_at: now }
+    })
     const unrelated = await client.sr_user_bookmark.create({ data: { user_id: users[1], bookmark_id: unrelatedRaw.id, updated_at: now } })
     await sync.executeOrderedOperations([queued, { type: 'update_bookmark', userId: users[1], bookmarkUuid: unrelated.uuid, data: { is_starred: true } } as any])
     const after = await client.sr_user_bookmark.findUniqueOrThrow({ where: { uuid }, include: { bookmark: true } })

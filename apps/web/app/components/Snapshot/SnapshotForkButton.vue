@@ -1,15 +1,17 @@
 <template>
   <div class="fork-action">
-    <button class="fork-button" :disabled="pending" :aria-busy="pending" @click="fork(bookmarkUid)">
-      {{ $t(pending ? 'bookmark_fork.copying' : 'bookmark_fork.action') }}
+    <button class="fork-button" :disabled="pending || saved" :aria-busy="pending" @click="fork(bookmarkUid)">
+      {{ $t(pending ? 'bookmark_fork.submitting' : saved ? 'bookmark_fork.saved' : 'bookmark_fork.action') }}
     </button>
     <span class="sr-only" role="status" aria-live="polite">{{ error }}</span>
   </div>
 </template>
 <script setup lang="ts">
-import { useBookmarkFork } from '~/composables/bookmark/useBookmarkFork'
+import { useBookmarkFork, useBookmarkForkMetadata } from '~/composables/bookmark/useBookmarkFork'
 const props = defineProps<{ bookmarkUid: string }>()
-const { fork, pending, error } = useBookmarkFork(toRef(props, 'bookmarkUid'))
+const source = toRef(props, 'bookmarkUid')
+const { fork, pending, saved, error } = useBookmarkFork(source)
+useBookmarkForkMetadata(source)
 </script>
 <style scoped>
 .fork-action {
@@ -26,11 +28,14 @@ const { fork, pending, error } = useBookmarkFork(toRef(props, 'bookmarkUid'))
   white-space: nowrap;
   cursor: pointer;
 }
-.fork-button:hover {
+.fork-button:hover:not(:disabled) {
   background: var(--slax-accent-bg);
 }
 .fork-button:disabled {
   opacity: 0.6;
+  cursor: default;
+}
+.fork-button[aria-busy="true"] {
   cursor: wait;
 }
 .fork-button:focus-visible {

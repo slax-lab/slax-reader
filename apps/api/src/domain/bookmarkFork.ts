@@ -15,6 +15,18 @@ import { SnapshotBundle, snapshotKeys } from '@/utils/snapshotBundle'
 import { MediaSnapshotService } from './mediaSnapshot'
 import { NotificationMessage } from '@/infra/message/notification'
 
+export type ForkWorkflowJob = {
+  sourceUuid: string
+  sourceId: number
+  sourceBookmarkId: number
+  sourceRevision: string
+  sourceType: number
+  destinationUuid: string
+  destinationId: number
+  revision: string
+  created: boolean
+}
+
 export type CompletedFork = ForkBookmarkResponse & { bookmark_id: number }
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -29,6 +41,131 @@ export class BookmarkForkService {
     @inject(MediaSnapshotService) private media: MediaSnapshotService,
     @inject(NotificationMessage) private notifications: NotificationMessage
   ) {}
+
+  async admit(ctx: ContextManager, sourceUuid: string): Promise<CompletedFork> {
+    const userId = ctx.getUserId()
+    if (!userId) throw UnauthorizedError()
+    if (typeof sourceUuid !== 'string' || !uuidPattern.test(sourceUuid)) throw ErrorParam()
+    const source = await this.repo.source(userId, sourceUuid.toLowerCase())
+    if (!source) throw BookmarkNotFoundError()
+    await this.labs.assertUrlAllowed(ctx, source.bookmark.target_url)
+    if (isPdfContentKey(source.bookmark.content_key)) await this.labs.assertEnabled(ctx, 'pdf')
+    await this.assertMediaAllowed(ctx, source.bookmark_id)
+    if (source.user_id === userId) return this.existingResult(ctx, await this.repo.ownSource(userId, sourceUuid))
+    if (source.bookmark.status !== 'success') throw forkError()
+    const admission = await this.repo.admit({ userId, source, targetUrl: this.destinationUrl(source, userId), uuid: crypto.randomUUID() })
+    const { relation, disposition } = admission
+    if (disposition !== 'already_saved') {
+      const revision = relation.bookmark.updated_at
+      const fork: ForkWorkflowJob = {
+        sourceUuid: source.uuid,
+        sourceId: source.id,
+        sourceBookmarkId: source.bookmark_id,
+        sourceRevision: source.bookmark.updated_at.toISOString(),
+        sourceType: source.type,
+        destinationUuid: relation.uuid,
+        destinationId: relation.id,
+        revision: revision.toISOString(),
+        created: disposition === 'created'
+      }
+      const workflowId = `fork-${relation.bookmark_id}-${revision.getTime()}`
+      try {
+        await ctx.env.CRAWL_WORKFLOW.create({
+          id: workflowId,
+          params: { url: relation.bookmark.target_url, bookmarkId: relation.bookmark_id, userId, enUserId: ctx.getEncodeUserId(), userLang: ctx.getlang(), fork }
+        })
+      } catch {
+        // Creation can succeed before its response is lost. An active or unknown
+        // instance may already have a fixed-key PUT in flight; retain its claim.
+        let status: string | undefined
+        try {
+          const instance = await ctx.env.CRAWL_WORKFLOW.get(workflowId)
+          status = (await instance.status()).status
+        } catch {
+          // Lookup failure cannot prove that creation was rejected.
+        }
+        if (status === 'errored' || status === 'terminated') await this.repo.failWrite(relation.bookmark_id, revision)
+        if (!status || !['queued', 'running', 'paused', 'waiting', 'waitingForPause', 'complete'].includes(status)) throw forkError(ErrorName.FORK_STORAGE_UNAVAILABLE)
+      }
+    }
+    await this.search.clearSearchCache(ctx, userId).catch(error => console.error('Fork cache clearing failed', error))
+    return this.result(relation, disposition)
+  }
+
+  /** Called only by the deterministic Workflow; retries retain the same admitted claim. */
+  async execute(ctx: ContextManager, bookmarkId: number, job: ForkWorkflowJob) {
+    const revision = new Date(job.revision)
+    const ownsWrite = () => this.repo.ownsWrite(bookmarkId, revision, { id: job.destinationId, uuid: job.destinationUuid, user_id: ctx.getUserId() })
+    if (!(await ownsWrite())) {
+      await this.repo.failWrite(bookmarkId, revision)
+      return
+    }
+    const source = await this.repo.source(ctx.getUserId(), job.sourceUuid)
+    if (
+      !source ||
+      source.id !== job.sourceId ||
+      source.bookmark_id !== job.sourceBookmarkId ||
+      source.bookmark.updated_at.toISOString() !== job.sourceRevision ||
+      source.bookmark.status !== 'success' ||
+      source.type !== job.sourceType
+    )
+      throw forkError()
+    await this.labs.assertUrlAllowed(ctx, source.bookmark.target_url)
+    const pdf = isPdfContentKey(source.bookmark.content_key)
+    if (pdf) await this.labs.assertEnabled(ctx, 'pdf')
+    await this.assertMediaAllowed(ctx, source.bookmark_id)
+    const raw = await this.repo.snapshot(bookmarkId)
+    if (!raw || !(await ownsWrite())) {
+      await this.repo.failWrite(bookmarkId, revision)
+      return
+    }
+    const storageUuid = raw.content_key?.match(/^(?:html|pdf)\/body\/([^/]+)\.(?:html|pdf)$/)?.[1] ?? job.destinationUuid
+    const bundle = new SnapshotBundle(this.bucket().R2Bucket, storageUuid, crypto.randomUUID(), {
+      deleteNewObjectsOnDiscard: job.created,
+      beforeWrite: async () => {
+        if (!(await ownsWrite())) throw forkError(ErrorName.FORK_DESTINATION_IN_PROGRESS)
+      }
+    })
+    let publishing = false
+    try {
+      const content =
+        source.type === 1
+          ? { content_key: '', content_md_key: '', content_word_count: 0 }
+          : pdf
+            ? await this.copyPdf(source, bundle)
+            : await bundle.copyHtml(source.bookmark.content_key)
+      const copiedMedia = source.type !== 1 && !pdf ? await this.media.copyForFork(source.bookmark, bundle) : undefined
+      if (copiedMedia) await this.labs.assertEnabled(ctx, copiedMedia.ref.media_kind === 'podcast' ? 'podcast' : 'youtube')
+      await bundle.assertUnchanged()
+      publishing = true
+      const result = await this.repo.publish({
+        userId: ctx.getUserId(),
+        source,
+        targetUrl: this.destinationUrl(source, ctx.getUserId()),
+        uuid: job.destinationUuid,
+        content,
+        destination: { id: job.destinationId, bookmark_id: bookmarkId, updated_at: revision, requireLive: true },
+        mediaRef: copiedMedia?.ref,
+        mediaInput: copiedMedia?.input,
+        pdfDocumentId: pdf ? this.documentId(source) : undefined
+      })
+      await this.afterCommit(ctx, result.relation).catch(error => console.error('Fork indexing failed', error))
+    } catch (error) {
+      // Unknown COMMIT outcomes may own these keys; only known rollback permits discard.
+      // The Workflow retries with the same claim; exhausted retries alone mark it failed.
+      if ((!publishing || error instanceof MultiLangError) && (await ownsWrite())) await bundle.discard().catch(() => {})
+      throw error
+    }
+  }
+
+  private async assertMediaAllowed(ctx: ContextManager, bookmarkId: number) {
+    const ref = await this.repo.mediaRef(bookmarkId)
+    if (ref) await this.labs.assertEnabled(ctx, ref.media_kind === 'podcast' ? 'podcast' : 'youtube')
+  }
+
+  async failExecution(bookmarkId: number, job: ForkWorkflowJob) {
+    await this.repo.failWrite(bookmarkId, new Date(job.revision))
+  }
 
   async fork(ctx: ContextManager, sourceUuid: string, personal?: ForkPersonalState): Promise<CompletedFork> {
     const userId = ctx.getUserId()
@@ -177,7 +314,15 @@ export class BookmarkForkService {
     const result: BookmarkForkMetadata = {
       has_fork: destination.forked_from_id !== null,
       can_fork: destination.user_id !== ctx.getUserId() && destination.bookmark.status === 'success',
-      fork: null
+      fork: null,
+      viewer_fork_status: null
+    }
+    if (ctx.getUserId() && destination.user_id !== ctx.getUserId()) {
+      try {
+        result.viewer_fork_status = await this.repo.viewerStatus(ctx.getUserId(), destination.id, this.destinationUrl(destination, ctx.getUserId()))
+      } catch (error) {
+        if (!(error instanceof MultiLangError)) throw error
+      }
     }
     if (!destination.forked_from_id) return result
     result.fork = { status: 'unavailable' }

@@ -55,7 +55,7 @@ export class SnapshotBundle {
     readonly bucket: R2Bucket,
     readonly uuid: string,
     readonly attempt = crypto.randomUUID(),
-    readonly options: { deleteNewObjectsOnDiscard?: boolean } = {}
+    readonly options: { deleteNewObjectsOnDiscard?: boolean; beforeWrite?: () => Promise<void> } = {}
   ) {}
 
   async read(key: string): Promise<R2ObjectBody> {
@@ -115,6 +115,7 @@ export class SnapshotBundle {
       if (await this.bucket.head(key)) this.existing.add(key)
       this.keys.push(key)
     }
+    await this.options.beforeWrite?.()
     const result = await this.bucket.put(key, value, {
       httpMetadata,
       customMetadata: { ...metadata, snapshot_owner: this.uuid, snapshot_attempt: this.attempt, snapshot_created: String(this.createdAt) }

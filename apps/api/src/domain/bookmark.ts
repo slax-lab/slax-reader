@@ -1355,7 +1355,7 @@ export class BookmarkService {
    */
   public async addBookmark(ctx: ContextManager, req: addBookmarkReq) {
     const source = readerBookmarkUuid(req?.target_url, [ctx.env.FRONT_END_URL])
-    if (source) return { kind: 'completed' as const, ...(await this.forkService.fork(ctx, source)) }
+    if (source) return { kind: 'completed' as const, ...(await this.forkService.admit(ctx, source)) }
     // Labs gate runs before any row is written; the crawl workflow starts too late to stop it
     await this.labService.assertUrlAllowed(ctx, req.target_url)
     try {
@@ -1479,7 +1479,8 @@ export class BookmarkService {
 
   public async addUrlBookmark(ctx: ContextManager, req: addUrlBookmarkReq, callback: callbackType, callbackPayload: any = {}) {
     const source = readerBookmarkUuid(req?.target_url, [ctx.env.FRONT_END_URL])
-    if (source) return { kind: 'completed' as const, ...(await this.forkService.fork(ctx, source)) }
+    if (source)
+      return { kind: 'completed' as const, ...(await (callback === callbackType.NOT_CALLBACK ? this.forkService.admit(ctx, source) : this.forkService.fork(ctx, source))) }
     // Covers /add_url, Telegram and the CLI; the extension and iOS share go through addBookmark
     await this.labService.assertUrlAllowed(ctx, req.target_url)
     try {

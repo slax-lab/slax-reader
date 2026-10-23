@@ -58,6 +58,7 @@ vi.mock('@/utils/hashids', () => ({
 import { CrawlWorkflow } from '@/entry/edge/workflows/crawlWorkflow'
 import { CrawlService } from '@/domain/crawl'
 import { BookmarkService } from '@/domain/bookmark'
+import { BookmarkForkService } from '@/domain/bookmarkFork'
 import { LabService } from '@/domain/lab'
 import { UrlParserHandler } from '@/domain/orchestrator/urlParser'
 import { TelegramBotService } from '@/domain/telegram'
@@ -865,18 +866,73 @@ describe('capture claim admission', () => {
 
   test('a normal fetch retry retains its durable claim and checks ownership again', async () => {
     const { wf, cs } = wireWorkflow()
-    cs.fetchRegular.mockRejectedValueOnce(new Error('temporary fetch failure')).mockResolvedValueOnce({ content: '<p>Recovered</p>', url: 'https://example.com/article', title: 'Recovered' })
+    cs.fetchRegular
+      .mockRejectedValueOnce(new Error('temporary fetch failure'))
+      .mockResolvedValueOnce({ content: '<p>Recovered</p>', url: 'https://example.com/article', title: 'Recovered' })
     cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
     const step = createMockStep()
     step.do.mockImplementation(async (name: string, optionsOrCallback: any, callback?: () => Promise<any>) => {
       const run = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback!
       if (name !== 'fetch') return run()
-      try { return await run() } catch { return run() }
+      try {
+        return await run()
+      } catch {
+        return run()
+      }
     })
     await runWorkflow(wf, {}, step)
     expect(cs.claimCapture).toHaveBeenCalledTimes(1)
     expect(cs.ownsCapture).toHaveBeenCalledTimes(2)
     expect(cs.fetchRegular).toHaveBeenCalledTimes(2)
     expect(cs.setCaptureStatus).not.toHaveBeenCalledWith(expect.anything(), 42, 'failed')
+  })
+})
+
+describe('Fork Workflow branch', () => {
+  const job = {
+    sourceUuid: 'source',
+    sourceId: 11,
+    sourceBookmarkId: 10,
+    sourceRevision: '2026-01-01T00:00:00.000Z',
+    destinationUuid: 'destination',
+    destinationId: 21,
+    revision: '2026-01-02T00:00:00.000Z',
+    created: true
+  }
+
+  test('copies through the Fork branch without claiming or fetching an ordinary URL', async () => {
+    const { wf, cs, bs } = wireWorkflow()
+    const execute = vi.fn(async () => {})
+    mockResolveMap.set(BookmarkForkService, { execute })
+    await runWorkflow(wf, { fork: job })
+    expect(execute).toHaveBeenCalledOnce()
+    expect(cs.claimCapture).not.toHaveBeenCalled()
+    expect(bs.getUserBookmark).not.toHaveBeenCalled()
+    expect(cs.resolveShortLink).not.toHaveBeenCalled()
+  })
+
+  test('keeps one admission through retry and marks only exhausted copy attempts failed', async () => {
+    const { wf, cs } = wireWorkflow()
+    const execute = vi.fn().mockRejectedValue(new Error('R2 unavailable'))
+    const failExecution = vi.fn(async () => {})
+    mockResolveMap.set(BookmarkForkService, { execute, failExecution })
+    const step = {
+      do: async (_name: string, options: any, callback?: any) => {
+        if (typeof options === 'function') return options()
+        let error
+        for (let attempt = 0; attempt <= options.retries.limit; attempt++) {
+          try {
+            return await callback()
+          } catch (caught) {
+            error = caught
+          }
+        }
+        throw error
+      }
+    }
+    await expect(runWorkflow(wf, { fork: job }, step)).rejects.toThrow('R2 unavailable')
+    expect(execute).toHaveBeenCalledTimes(3)
+    expect(failExecution).toHaveBeenCalledWith(42, job)
+    expect(cs.setCaptureStatus).not.toHaveBeenCalled()
   })
 })

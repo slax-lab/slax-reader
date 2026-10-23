@@ -89,4 +89,11 @@ Historical checked items describe the earlier implementation; immutable storage 
 - [x] R12 Preserve conventional R2 keys for all types; embed private media data in the saved HTML, remove replacement deletion, update readers/cache identity, and retain format/moderation and finite failure boundaries.
 - [x] R13 Reuse existing status admission and atomic Workflow claim, bind accepted requests, retain finite retries and rescue selection, and protect direct private writes without a version field.
 - [x] R14 Refresh an existing Fork in place, preserve historical shared personal identities/references, and fix old-client replay, legacy media isolation, missing body and frozen language fallback findings.
-- [ ] R15 Reuse Web/Extension submission guards and synced status, exercise regression/runtime scenarios, regenerate and validate, conduct independent review, and publish an updated explanatory document with flowcharts.
+- [x] R15 Reuse Web/Extension submission guards and synced status, exercise regression/runtime scenarios, regenerate and validate, conduct independent review, and publish an updated explanatory document with flowcharts.
+
+## Asynchronous Fork admission — 2026-10-23
+
+- [x] R16 Return after persisted admission for interactive Fork/Reader URL saves; reuse existing durable Workflow execution, fixed-key publication and bounded failure guards. Add viewer-scoped persisted Fork status without schema changes and preserve completed import/callback accounting.
+- [x] R17 Remove automatic navigation, show disabled persisted pending/success state on revisits, preserve failed retry and account/route isolation, and retain explicit Reader-URL refresh.
+- [x] R18 Exercise slow/failing copy, duplicate admission, lifecycle/stale execution and frontend states; regenerate, run checks and independent review, and record evidence.
+- [ ] R19 Obtain renewed owner hands-on acceptance for this UI behavior. The owner explicitly requested PR update before manual local testing on 2026-10-23; this handoff follows that order and does not claim acceptance.

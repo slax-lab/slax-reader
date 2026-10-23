@@ -8,11 +8,11 @@ Allow readers to save an authorized Reader snapshot as an independent personal b
 
 ### Requirement: Authorized online Fork
 
-The system SHALL let an authenticated active user copy a currently readable Reader snapshot through an online Fork command. It SHALL authorize the source and underlying acquisition feature before copying. The command SHALL return the committed destination bookmark UUID and a created, updated or already-saved disposition. It SHALL NOT crawl the Reader page, refetch the original website or regenerate provider content during Fork.
+The system SHALL let an authenticated active user copy a currently readable Reader snapshot through an online Fork command. It SHALL authorize the source and underlying acquisition feature before copying. Interactive commands SHALL return HTTP 200 with the committed destination bookmark UUID and a created, updated or already-saved disposition after admission, without waiting for R2 transfer or content success. Background copying SHALL use existing bounded Workflow execution and guarded status transitions. It SHALL NOT crawl the Reader page, refetch the original website or regenerate provider content during Fork.
 
 #### Scenario: Copy a shared article
 - **WHEN** a signed-in user Forks another user's accessible completed article
-- **THEN** the user receives an independently owned readable bookmark and its destination UUID without a capture workflow
+- **THEN** the user promptly receives a persisted personal bookmark UUID, and background copying makes its required artifacts readable before marking success without fetching the original website
 
 #### Scenario: Inaccessible source
 - **WHEN** a visitor attempts to Fork an unshared, trashed, moderated or deleted-owner snapshot
@@ -116,11 +116,11 @@ The reader SHALL preserve its original Source presentation and add a Fork marker
 
 ### Requirement: Mobile-friendly Fork action
 
-Visitor Reader pages SHALL provide a reachable Fork action on desktop and mobile Web. Anonymous use SHALL open the existing login flow and return to the source for an explicit click. The action SHALL prevent duplicate submission, show loading and actionable failure states, and open the returned destination on success. It SHALL follow existing themes, focus, touch and reduced-motion requirements.
+Visitor Reader pages SHALL provide a reachable Fork action on desktop and mobile Web. Anonymous use SHALL open the existing login flow and return to the source for an explicit click. The action SHALL prevent duplicate submission, show request loading and actionable failure states, and remain on the source after acceptance. On each visit the action SHALL use viewer-scoped persisted Fork status to disable an active or successful copy and permit explicit retry of a failed copy. It SHALL follow existing themes, focus, touch and reduced-motion requirements.
 
 #### Scenario: Phone without an Extension
 - **WHEN** a signed-in reader opens a supported shared snapshot at a 320px mobile width and activates Fork
-- **THEN** the action remains reachable, copies the item and navigates to the user's destination
+- **THEN** the action remains reachable, acknowledges the save without waiting for copying and stays on the source page with the Fork button disabled
 
 #### Scenario: Offline Fork attempt
 - **WHEN** a user activates Fork or submits a Reader URL without a connection
@@ -157,3 +157,15 @@ Older queued Reader-URL creates SHALL have a durable terminal failed-save outcom
 #### Scenario: Overlapping operations
 - **WHEN** Fork and ordinary capture address the same private destination concurrently
 - **THEN** only one operation may write its conventional destination keys and the other reports busy without changing active inputs
+
+#### Scenario: Revisiting a Forked source
+- **WHEN** a signed-in viewer revisits a source whose live personal Fork is pending or successful
+- **THEN** the Fork action is disabled from account-specific server metadata, even without local PowerSync data
+
+#### Scenario: Failed or deleted personal copy
+- **WHEN** copying has failed or the viewer deletes the personal copy
+- **THEN** fresh source metadata permits a new explicit Fork submission and never exposes another viewer's status
+
+#### Scenario: Slow copy and final failure
+- **WHEN** required R2 copying is delayed or eventually fails after bounded retries
+- **THEN** the already-admitted HTTP request is not held open, and the persisted destination remains processing until success or a guarded failed transition

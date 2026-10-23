@@ -1,7 +1,8 @@
 {
   "bookmark_fork": {
     "action": "Fork",
-    "copying": "Copying…",
+    "submitting": "Saving…",
+    "saved": "Forked",
     "label": "Fork:",
     "generic_source": "Reader snapshot",
     "unavailable": "Source unavailable",

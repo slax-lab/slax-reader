@@ -7,7 +7,7 @@ describe('Fork HTTP responses', () => {
   const ctx = {} as any
   it('uses real conflict status and no-store headers', async () => {
     const controller = new BookmarkForkController({
-      fork: async () => {
+      admit: async () => {
         throw forkError()
       }
     } as any)
@@ -17,7 +17,7 @@ describe('Fork HTTP responses', () => {
     expect(await response.json()).toMatchObject({ code: 409, data: 'fork_source_not_ready' })
   })
   it('returns only the public result contract', async () => {
-    const controller = new BookmarkForkController({ fork: async () => ({ bookmark_id: 99, bookmark_uid: 'destination', disposition: 'created' }) } as any)
+    const controller = new BookmarkForkController({ admit: async () => ({ bookmark_id: 99, bookmark_uid: 'destination', disposition: 'created' }) } as any)
     const response = await controller.fork(ctx, new Request('https://api.test/v1/bookmark/fork', { method: 'POST', body: JSON.stringify({ source_user_bookmark_uuid: 'source' }) }))
     const body = (await response.json()) as any
     expect(body).toMatchObject({ code: 200, data: { bookmark_uid: 'destination', disposition: 'created' } })
@@ -25,7 +25,7 @@ describe('Fork HTTP responses', () => {
   })
   it('rejects malformed JSON as 400 and uses 503 for transient copy failures', async () => {
     const controller = new BookmarkForkController({
-      fork: async () => {
+      admit: async () => {
         throw forkError(ErrorName.FORK_STORAGE_UNAVAILABLE)
       }
     } as any)

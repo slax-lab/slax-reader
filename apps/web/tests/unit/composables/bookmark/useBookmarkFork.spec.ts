@@ -1,8 +1,11 @@
 import { defineComponent, reactive, ref } from 'vue'
-import { mount, flushPromises } from '@vue/test-utils'
+
+import SnapshotForkButton from '~/components/Snapshot/SnapshotForkButton.vue'
+
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { flushPromises,mount } from '@vue/test-utils'
 import { useBookmarkFork, useBookmarkForkMetadata } from '~/composables/bookmark/useBookmarkFork'
+import { beforeEach, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), navigate: vi.fn(), login: vi.fn(), toast: vi.fn(), user: null as any }))
 vi.mock('~/stores/user', () => ({ useUserStore: () => mocks.user }))
@@ -19,7 +22,7 @@ beforeEach(() => {
 })
 const deferred = () => { let resolve!: (value: any) => void; const promise = new Promise(r => { resolve = r }); return { promise, resolve } }
 
-it('blocks offline/login saves and coalesces repeated clicks until navigation completes', async () => {
+it('blocks offline/login saves and coalesces repeated clicks until admission without navigating', async () => {
   const action = useBookmarkFork()
   Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
   await action.fork('source')
@@ -38,7 +41,7 @@ it('blocks offline/login saves and coalesces repeated clicks until navigation co
   expect(mocks.post).toHaveBeenCalledOnce()
   result.resolve({ bookmark_uid: 'destination', disposition: 'already_saved' })
   await pending
-  expect(mocks.navigate).toHaveBeenCalledWith('/b/destination')
+  expect(mocks.navigate).not.toHaveBeenCalled()
   expect(action.pending.value).toBe(false)
 })
 
@@ -82,7 +85,7 @@ it('shares same-source requests across entries while allowing other sources and 
   account.resolve({ bookmark_uid: 'current-account', disposition: 'updated' })
   await Promise.all([requestA, requestOther, requestAccount])
   expect(mocks.navigate).not.toHaveBeenCalledWith('/b/old-account')
-  expect(mocks.navigate).toHaveBeenCalledWith('/b/current-account')
+  expect(mocks.navigate).not.toHaveBeenCalled()
 })
 
 
@@ -100,4 +103,94 @@ it('reflects a shared source request in both entries and releases UI reentry aft
   expect(mocks.post).toHaveBeenCalledTimes(2)
   source.value = 'other-source'
   expect(b.pending.value).toBe(false)
+})
+
+const mountButton = (source = 'source') => mount(SnapshotForkButton, {
+  props: { bookmarkUid: source },
+  global: { mocks: { $t: (key: string) => key } }
+})
+const metadataFor = (viewerStatus: 'pending' | 'success' | 'failed' | null) => ({
+  has_fork: false, can_fork: true, fork: null, viewer_fork_status: viewerStatus
+})
+
+it.each(['pending', 'success'] as const)('disables a revisited source from persisted %s status without local sync', async status => {
+  mocks.get.mockResolvedValue(metadataFor(status))
+  const wrapper = mountButton()
+  await flushPromises()
+  expect(wrapper.get('button').element.disabled).toBe(true)
+  await wrapper.get('button').trigger('click')
+  expect(mocks.post).not.toHaveBeenCalled()
+  expect(wrapper.text()).toContain('bookmark_fork.saved')
+  wrapper.unmount()
+})
+
+it('stays on source and disables all source buttons immediately after admission', async () => {
+  mocks.get.mockResolvedValue(metadataFor(null))
+  const a = mountButton(), b = mountButton()
+  await flushPromises()
+  const admission = deferred(), status = deferred()
+  mocks.post.mockReturnValueOnce(admission.promise)
+  await a.get('button').trigger('click')
+  expect(b.get('button').element.disabled).toBe(true)
+  mocks.get.mockReturnValue(status.promise)
+  admission.resolve({ bookmark_uid: 'destination', disposition: 'created' })
+  await flushPromises()
+  expect(a.get('button').element.disabled).toBe(true)
+  expect(b.get('button').element.disabled).toBe(true)
+  expect(mocks.navigate).not.toHaveBeenCalled()
+  expect(a.get('button').attributes('aria-busy')).toBe('false')
+  status.resolve(metadataFor('pending'))
+  await flushPromises()
+  expect(a.get('button').element.disabled).toBe(true)
+  a.unmount(); b.unmount()
+})
+
+it('allows explicit retry after failure and a new fork after deletion on revisits', async () => {
+  mocks.get.mockResolvedValue(metadataFor('success'))
+  const previous = mountButton()
+  await flushPromises()
+  expect(previous.get('button').element.disabled).toBe(true)
+  previous.unmount()
+  mocks.get.mockResolvedValue(metadataFor('failed'))
+  const failed = mountButton()
+  await flushPromises()
+  expect(failed.get('button').element.disabled).toBe(false)
+  mocks.post.mockRejectedValueOnce(new Error('network failure'))
+  await failed.get('button').trigger('click')
+  await flushPromises()
+  expect(failed.get('button').element.disabled).toBe(false)
+  failed.unmount()
+  mocks.get.mockResolvedValue(metadataFor(null))
+  const deleted = mountButton()
+  await flushPromises()
+  expect(deleted.get('button').element.disabled).toBe(false)
+  deleted.unmount()
+})
+
+it('keeps deliberate Reader URL refresh available even when the source button is disabled', async () => {
+  mocks.get.mockResolvedValue(metadataFor('success'))
+  const button = mountButton()
+  await flushPromises()
+  mocks.post.mockResolvedValue({ bookmark_uid: 'destination', disposition: 'updated' })
+  const result = await useBookmarkFork().fork('source')
+  expect(result?.disposition).toBe('updated')
+  expect(mocks.post).toHaveBeenCalledOnce()
+  expect(mocks.navigate).not.toHaveBeenCalled()
+  button.unmount()
+})
+
+it('does not apply a late accepted request or metadata to another account or route', async () => {
+  const oldMetadata = deferred(), accepted = deferred()
+  mocks.get.mockReturnValueOnce(oldMetadata.promise).mockResolvedValue(metadataFor(null))
+  mocks.post.mockReturnValueOnce(accepted.promise)
+  const wrapper = mountButton('old-source')
+  await wrapper.get('button').trigger('click')
+  mocks.user.userInfo.userId = 2
+  await wrapper.setProps({ bookmarkUid: 'new-source' })
+  oldMetadata.resolve(metadataFor('success'))
+  accepted.resolve({ bookmark_uid: 'old-destination', disposition: 'created' })
+  await flushPromises()
+  expect(wrapper.get('button').element.disabled).toBe(false)
+  expect(mocks.navigate).not.toHaveBeenCalled()
+  wrapper.unmount()
 })

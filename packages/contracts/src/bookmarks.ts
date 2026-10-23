@@ -91,6 +91,8 @@ export type BookmarkForkAttribution =
   | { status: 'unavailable' }
 
 export interface BookmarkForkMetadata {
+  /** Viewer-only availability: active/failed same-resource saves; success requires exact Fork provenance. */
+  viewer_fork_status?: 'pending' | 'success' | 'failed' | null
   has_fork: boolean
   can_fork: boolean
   fork: BookmarkForkAttribution | null

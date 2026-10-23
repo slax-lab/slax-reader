@@ -24,7 +24,7 @@ export class BookmarkForkController {
         throw ErrorParam()
       }
       if (!body || typeof body !== 'object') throw ErrorParam()
-      const result = await this.service.fork(ctx, body.source_user_bookmark_uuid)
+      const result = await this.service.admit(ctx, body.source_user_bookmark_uuid)
       return { bookmark_uid: result.bookmark_uid, disposition: result.disposition }
     })
   }
