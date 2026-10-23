@@ -4,7 +4,7 @@ import { forkError } from './bookmarkForkError'
 
 export const SNAPSHOT_PUBLICATION_MS = 5 * 60_000
 
-export function snapshotKeys(uuid: string, _attempt?: string, pdf = false) {
+export function snapshotKeys(uuid: string, pdf = false) {
   return pdf
     ? {
         content_key: `pdf/body/${uuid}.pdf`,
@@ -38,7 +38,7 @@ export function snapshotBundleMembers(key: string): string[] | null {
   const html = /^html\/body\/([^/]+)\.html$/.exec(key)
   if (html) return Object.values(snapshotKeys(html[1]))
   const pdf = /^pdf\/body\/([^/]+)\.pdf$/.exec(key)
-  return pdf ? Object.values(snapshotKeys(pdf[1], undefined, true)) : null
+  return pdf ? Object.values(snapshotKeys(pdf[1], true)) : null
 }
 
 /** Writes one destination using its existing UUID filenames; updates never delete live keys. */
@@ -105,8 +105,15 @@ export class SnapshotBundle {
     return key
   }
 
+  async writeBody(body: { html: string; text: string }, manifest: unknown) {
+    this.manifest = JSON.stringify(manifest)
+    const content_md_key = await this.write('body.txt', body.text, 'text/plain; charset=utf-8')
+    const content_key = await this.write('body.html', body.html, 'text/html; charset=utf-8')
+    return { content_key, content_md_key, content_word_count: body.text.length }
+  }
+
   async put(key: string, value: string | ReadableStream, httpMetadata?: R2HTTPMetadata, metadata: Record<string, string> = {}) {
-    const members = Object.values(snapshotKeys(this.uuid, this.attempt, key.startsWith('pdf/') || key.startsWith('text/pdf/')))
+    const members = Object.values(snapshotKeys(this.uuid, key.startsWith('pdf/') || key.startsWith('text/pdf/')))
     if (!members.includes(key) || Date.now() - this.createdAt >= SNAPSHOT_PUBLICATION_MS) throw forkError()
     if (this.bundleKey && this.bundleKey !== members[0]) throw forkError()
     this.bundleKey = members[0]

@@ -1,17 +1,22 @@
 <template>
   <div class="fork-action">
-    <button class="fork-button" :disabled="pending || saved" :aria-busy="pending" @click="fork(bookmarkUid)">
+    <button class="fork-button" :disabled="pending || saved || !ready" :aria-busy="pending" @click="submit">
       {{ $t(pending ? 'bookmark_fork.submitting' : saved ? 'bookmark_fork.saved' : 'bookmark_fork.action') }}
     </button>
     <span class="sr-only" role="status" aria-live="polite">{{ error }}</span>
   </div>
 </template>
 <script setup lang="ts">
-import { useBookmarkFork, useBookmarkForkMetadata } from '~/composables/bookmark/useBookmarkFork'
-const props = defineProps<{ bookmarkUid: string }>()
+import type { BookmarkForkMetadata } from '@slax-reader/contracts'
+import { useBookmarkFork } from '~/composables/bookmark/useBookmarkFork'
+const props = withDefaults(defineProps<{ bookmarkUid: string; viewerForkStatus?: BookmarkForkMetadata['viewer_fork_status']; ready?: boolean }>(), { ready: true })
+const emit = defineEmits<{ accepted: [] }>()
 const source = toRef(props, 'bookmarkUid')
-const { fork, pending, saved, error } = useBookmarkFork(source)
-useBookmarkForkMetadata(source)
+const { fork, pending, saved, error } = useBookmarkFork(source, toRef(props, 'viewerForkStatus'))
+async function submit() {
+  if (!props.ready) return
+  if (await fork(props.bookmarkUid)) emit('accepted')
+}
 </script>
 <style scoped>
 .fork-action {

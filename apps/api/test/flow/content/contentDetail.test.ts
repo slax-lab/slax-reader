@@ -33,6 +33,7 @@ const share = (o: Record<string, any> = {}) => ({
 
 function wire() {
   const bs = {
+    getForkMetadata: vi.fn().mockResolvedValue({ has_fork: false, fork: null, viewer_fork_status: null }),
     getPdfDescriptor: vi.fn().mockResolvedValue(undefined),
     getUserBookmarkByUuidWithDetail: vi.fn(),
     getBookmarkOutline: vi.fn().mockResolvedValue(null)

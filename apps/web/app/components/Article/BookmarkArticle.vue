@@ -10,7 +10,7 @@
         :host-url="detail.host_url"
       />
       <PdfDocumentSource v-if="isPdf && detail.pdf" :pdf="detail.pdf" :url="detail.target_url" :site-name="detail.site_name" :host-url="detail.host_url" :author="pdfAuthor" />
-      <SnapshotForkAttribution v-if="!isPdf || detail.pdf" :has-fork="forkMetadata?.has_fork ?? hasForkMarker" :attribution="forkMetadata?.fork" />
+      <SnapshotForkAttribution v-if="!isPdf || detail.pdf" :has-fork="detail.has_fork === true" :attribution="detail.fork" />
       <div v-if="!isPdf || detail.pdf" class="article-divider" />
       <h1 class="article-title" :title="title">{{ title }}</h1>
       <BookmarkTags
@@ -45,14 +45,16 @@
 </template>
 
 <script lang="ts" setup>
-import type { ReaderSelection } from './Selection/ReaderSelection'
 import PdfDocumentSource from './Pdf/PdfDocumentSource.vue'
+
+import type { ReaderSelection } from './Selection/ReaderSelection'
 const PdfReader = defineAsyncComponent(() => import('./Pdf/PdfReader.client.vue'))
 import BookmarkTags from '~/components/BookmarkTags.vue'
 import SnapshotArticleFooter from '~/components/Snapshot/SnapshotArticleFooter.vue'
 import SnapshotArticleSource from '~/components/Snapshot/SnapshotArticleSource.vue'
 import SnapshotForkAttribution from '~/components/Snapshot/SnapshotForkAttribution.vue'
-import { useBookmarkForkMetadata } from '~/composables/bookmark/useBookmarkFork'
+
+import { applyArticleImageLoading } from '~/utils/articleImageLoading'
 
 import 'katex/dist/katex.css'
 import { registerComponents } from './CEComponents'
@@ -64,7 +66,6 @@ import CursorToast from '~/components/CursorToast'
 import Toast, { ToastType } from '~/components/Toast'
 import { useArticleDetail } from '~/composables/bookmark/useArticle'
 import { useArticleSelection } from '~/composables/bookmark/useArticleSelection'
-import { applyArticleImageLoading } from '~/utils/articleImageLoading'
 
 const props = defineProps({
   detail: {
@@ -135,15 +136,6 @@ const pdfCollection = computed(() =>
 
 // 仅调用一次，模板与 composable 共用
 const { bookmarkId, shareCode, bookmarkUid, title, allowTagged, allowAction, bookmarkUserId, updateStarred } = useArticleDetail(detail)
-const forkMetadata = useBookmarkForkMetadata(
-  computed(() => {
-    const current = props.detail
-    if ('bookmark_user_uuid' in current && typeof current.bookmark_user_uuid === 'string') return current.bookmark_user_uuid
-    return isSnapshotBookmarkDetail(current) ? current.bookmark_uuid || '' : ''
-  })
-)
-const hasForkMarker = computed(() => 'has_fork' in props.detail && props.detail.has_fork === true)
-
 // inject 可覆盖，回退 allowTagged
 const effAllowTagged = computed(() => adapters.allowActionOverride ?? allowTagged.value)
 

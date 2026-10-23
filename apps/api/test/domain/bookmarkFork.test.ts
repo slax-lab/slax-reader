@@ -156,7 +156,7 @@ describe('Fork service publication boundary', () => {
     const destination = { ...source, forked_from_id: 10, bookmark: { ...source.bookmark, target_url: `slax-pdf://2/${'b'.repeat(64)}` } }
     repo.source.mockResolvedValue(destination)
     repo.sourceById = vi.fn(async () => ({ ...source, metadata: {}, bookmark: { ...source.bookmark, target_url: `slax-pdf://1/${'b'.repeat(64)}` } }))
-    expect(await service.metadata(ctx, source.uuid)).toMatchObject({ has_fork: true, fork: { status: 'unavailable' } })
+    expect(await service.metadata(ctx, destination)).toMatchObject({ has_fork: true, fork: { status: 'unavailable' } })
   })
   function admission() {
     source.bookmark.updated_at = new Date('2026-01-01T00:00:00Z')
@@ -235,13 +235,13 @@ describe('Fork service publication boundary', () => {
   it.each(['pending', 'pending_retry', 'parseing', 'success', 'failed'])('projects viewer Fork state for %s', async status => {
     repo.viewerStatus = vi.fn(async () => (status === 'success' || status === 'failed' ? status : 'pending'))
     source.forked_from_id = null
-    expect(await service.metadata(ctx, source.uuid)).toMatchObject({ viewer_fork_status: status === 'success' || status === 'failed' ? status : 'pending' })
+    expect(await service.metadata(ctx, source)).toMatchObject({ viewer_fork_status: status === 'success' || status === 'failed' ? status : 'pending' })
   })
 
   it('never queries another viewer state for an anonymous request', async () => {
     repo.viewerStatus = vi.fn()
     source.forked_from_id = null
-    expect(await service.metadata({ ...ctx, getUserId: () => 0 }, source.uuid)).toMatchObject({ viewer_fork_status: null })
+    expect(await service.metadata({ ...ctx, getUserId: () => 0 }, source)).toMatchObject({ viewer_fork_status: null })
     expect(repo.viewerStatus).not.toHaveBeenCalled()
   })
 

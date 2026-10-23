@@ -474,9 +474,14 @@ export class YoutubeArticleService {
   public async publishBodies(ctx: ContextManager, articleId: number): Promise<number> {
     const row = await this.repo.findById(articleId)
     if (!row) return 0
+    const failures: unknown[] = []
+    const complete = (count: number) => {
+      if (failures.length) throw new AggregateError(failures, 'Media body publication incomplete')
+      return count
+    }
     const loaded = new Map<number, LoadedMediaSnapshot | null>()
-    const settled = await this.snapshots.settleSource(ctx, 'youtube', row.source_id, loaded)
-    if (row.status !== 'ready') return settled
+    const settled = await this.snapshots.settleSource(ctx, 'youtube', row.source_id, loaded, failures)
+    if (row.status !== 'ready') return complete(settled)
     let rendered: { html: string; text: string } | null | undefined
     let count = settled
     for (const ref of await this.repo.listRefs(row.source_id, row.source_hash)) {
@@ -484,13 +489,14 @@ export class YoutubeArticleService {
         if (!(await this.wantsBody(ref.bookmark_id, ref.user_id, row, loaded.has(ref.bookmark_id) ? loaded.get(ref.bookmark_id) : undefined))) continue
         // Rendered once for all bookmarks, and only when one of them takes it
         if (rendered === undefined) rendered = await this.renderBody(row)
-        if (!rendered) return count
+        if (!rendered) throw new Error('YouTube publication artifacts missing')
         if (await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered)) count++
-      } catch {
+      } catch (error) {
+        failures.push(error)
         console.error(`YouTube article publication failed for bookmark ${ref.bookmark_id}`)
       }
     }
-    return count
+    return complete(count)
   }
 
   public async settleSnapshots(ctx: ContextManager, sourceId: string) {

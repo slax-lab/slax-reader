@@ -1,6 +1,6 @@
 # Private bookmark snapshots and Fork feasibility
 
-> Status: historical feasibility analysis. See the [fixed-path baseline and pending simplification proposal](bookmark-fork-fixed-paths.md) for the current code and the separately labeled plan awaiting construction approval. The immutable-path, repeat-Fork no-op and maintenance choices below must not be read as the new pending design.
+> Status: historical feasibility analysis. See the [current implementation report](bookmark-fork-fixed-paths.md) for the approved and implemented fixed-path/add_url/detail design. Immutable paths, repeat-Fork no-op behavior, dedicated endpoints and scheduled maintenance below are historical decisions, superseded by that report.
 
 Date: 2026-10-22. Status: revised after review and user scope decisions; formal proposal awaits review. No business implementation or migration has been performed.
 

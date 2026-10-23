@@ -1,10 +1,14 @@
 import { isServerTimingEnabled } from '../utils/serverTiming'
-import { canUseVisitorCache, getEdgeCache, matchesCurrentSnapshot, OWNER_UID_HEADER, ownerKey, SHARE_PATH, viewerId, visitorKey } from '../utils/shareCache'
+import { getEdgeCache, hasSnapshotCredentials, matchesCurrentSnapshot, SHARE_PATH, visitorKey } from '../utils/shareCache'
 
 export default defineEventHandler(async event => {
   if (event.method !== 'GET') return
   const uuid = SHARE_PATH.exec(getRequestURL(event).pathname)?.[1]
   if (!uuid) return
+  if (hasSnapshotCredentials(event, String(useRuntimeConfig(event).public.COOKIE_TOKEN_NAME))) {
+    setResponseHeader(event, 'Cache-Control', 'private, no-store')
+    return
+  }
 
   const lookupStartedAt = performance.now()
   const setLookupTiming = () => {
@@ -20,36 +24,14 @@ export default defineEventHandler(async event => {
     return
   }
 
-  const config = useRuntimeConfig(event)
-  const tokenCookieName = config.public.COOKIE_TOKEN_NAME as string
-  const token = getCookie(event, tokenCookieName) || undefined
-  const vid = viewerId(token)
   const backend = event.context.cloudflare?.env.BACKEND as unknown as Parameters<typeof matchesCurrentSnapshot>[1]
-
-  if (vid) {
-    const ownerCached = await cache.match(new Request(ownerKey(uuid)))
-    if (ownerCached && ownerCached.headers.get(OWNER_UID_HEADER) === vid && (await matchesCurrentSnapshot(ownerCached, backend, uuid, token, 'owner'))) {
-      event.context.__isOwner = true
-      setResponseHeader(event, 'content-type', ownerCached.headers.get('content-type') || 'text/html; charset=utf-8')
-      setResponseHeader(event, 'x-bcache', 'hit')
-      setResponseHeader(event, 'x-bcache-type', 'owner')
-      setLookupTiming()
-      removeResponseHeader(event, OWNER_UID_HEADER)
-      return await ownerCached.text()
-    }
-  }
 
   const visitorCached = await cache.match(new Request(visitorKey(uuid)))
   if (!visitorCached) {
     setLookupTiming()
     return
   }
-  if (!canUseVisitorCache(vid, visitorCached.headers.get(OWNER_UID_HEADER))) {
-    setLookupTiming()
-    return
-  }
-
-  if (!(await matchesCurrentSnapshot(visitorCached, backend, uuid, token, 'visitor'))) {
+  if (!(await matchesCurrentSnapshot(visitorCached, backend, uuid, undefined, 'visitor'))) {
     setLookupTiming()
     return
   }
@@ -59,6 +41,5 @@ export default defineEventHandler(async event => {
   setResponseHeader(event, 'x-bcache', 'hit')
   setResponseHeader(event, 'x-bcache-type', 'visitor')
   setLookupTiming()
-  removeResponseHeader(event, OWNER_UID_HEADER)
   return await visitorCached.text()
 })

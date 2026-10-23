@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import * as h3 from 'h3'
 import { loadContent } from '../../../server/utils/loadContent'
+
+import * as h3 from 'h3'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('#app/nuxt', async original => ({
   ...(await original<Record<string, unknown>>()),
@@ -78,13 +79,13 @@ describe('SSR PDF content', () => {
     bucket.get.mockImplementation(async (key: string) => ({
       text: async () => (key.startsWith('snapshots/') ? 'Current private body' : 'Old body')
     }))
-    const event = h3.createEvent({ headers: {} } as never, {} as never)
+    const event = h3.createEvent({ headers: {} } as never, { setHeader: vi.fn(), getHeader: vi.fn() } as never)
     event.context = context()
     expect((await loadContent(event, 'saved')).body).toBe('Current private body')
   })
   it('returns metadata with no HTML body and never reads PDF bytes through text()', async () => {
     bucket.get.mockResolvedValue(null)
-    const event = h3.createEvent({ headers: {} } as never, {} as never)
+    const event = h3.createEvent({ headers: {} } as never, { setHeader: vi.fn(), getHeader: vi.fn() } as never)
     event.context = context()
     const result = await loadContent(event, 'saved')
     expect(result).toEqual({

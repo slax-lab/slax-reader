@@ -173,7 +173,7 @@ export class BookmarkForkRepo {
       (
         await this.client().sr_bookmark.updateMany({
           where: { id: bookmarkId, updated_at: revision, status: 'parseing' },
-          data: { status: 'success' }
+          data: { status: 'success', updated_at: new Date(Math.max(Date.now(), revision.getTime() + 1)) }
         })
       ).count === 1
     )
@@ -471,20 +471,6 @@ export class BookmarkForkRepo {
 
   async snapshot(bookmarkId: number) {
     return this.client().sr_bookmark.findUnique({ where: { id: bookmarkId }, include: { userBookmarks: { take: 1, select: { uuid: true, user_id: true } } } })
-  }
-
-  async listSnapshots(afterId: number, limit: number) {
-    return this.client().sr_bookmark.findMany({
-      where: {
-        id: { gt: afterId },
-        private_user: { gt: 0 },
-        content_key: { startsWith: 'html/body/' },
-        status: 'success'
-      },
-      orderBy: { id: 'asc' },
-      take: limit,
-      select: { id: true }
-    })
   }
 
   async setCaptureStatus(bookmarkId: number, revision: Date, status: string) {

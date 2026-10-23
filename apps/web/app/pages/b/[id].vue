@@ -18,7 +18,7 @@
             <ClientOnly><ThemeSwitcher /></ClientOnly>
           </template>
           <template #right>
-            <ClientOnly><SnapshotForkButton v-if="!isOwner && bookmarkUid" :bookmark-uid="bookmarkUid" /></ClientOnly>
+            <ClientOnly><SnapshotForkButton v-if="!isOwner && bookmarkUid" :bookmark-uid="bookmarkUid" :viewer-fork-status="detail.viewer_fork_status" :ready="detail.viewer_fork_status !== undefined" @accepted="refreshForkDetail" /></ClientOnly>
             <SnapshotSharePopover :bookmark-uid="bookmarkUid" :can-manage-share="isOwner" :twitter-text="twitterShareText" />
             <div v-if="menuLoading" class="i-svg-spinners:90-ring w-1em text-txt"></div>
             <SnapshotMoreMenu v-else-if="moreMenuActions.length" :actions="moreMenuActions" @action="moreMenuClick" />
@@ -196,10 +196,10 @@ import SnapshotBottomToolbar, { type BottomToolbarAction } from '~/components/Sn
 import SnapshotChatPanel from '~/components/Snapshot/SnapshotChatPanel.vue'
 import SnapshotCommentComposer from '~/components/Snapshot/SnapshotCommentComposer.vue'
 import SnapshotCommentList from '~/components/Snapshot/SnapshotCommentList.vue'
+import SnapshotForkButton from '~/components/Snapshot/SnapshotForkButton.vue'
 import SnapshotMoreMenu, { type MoreMenuAction } from '~/components/Snapshot/SnapshotMoreMenu.vue'
 import SnapshotRightEdgeToolbar from '~/components/Snapshot/SnapshotRightEdgeToolbar.vue'
 import SnapshotSharePopover from '~/components/Snapshot/SnapshotSharePopover.vue'
-import SnapshotForkButton from '~/components/Snapshot/SnapshotForkButton.vue'
 import SnapshotTopBar from '~/components/Snapshot/SnapshotTopBar.vue'
 import SnapshotTranscriptPanel from '~/components/Snapshot/SnapshotTranscriptPanel.vue'
 import YoutubeAiArticle from '~/components/Snapshot/YoutubeAiArticle.vue'
@@ -209,6 +209,8 @@ import { eventLog } from '@/utils/analytics'
 import { extractFirstContentImage } from '@/utils/ogImage'
 import { sortBookmarkTags } from '@/utils/tags'
 import { youtubeArticleView as pickYoutubeArticleView, youtubeBodyHasArticle as bodyHasYoutubeArticle } from '@/utils/youtubeBody'
+import type { PdfTitlePreview } from '~/utils/pdfPreview'
+import { pdfTitlePreview } from '~/utils/pdfPreview'
 
 import { useLocalBookmarks } from '@/composables/bookmark/useLocalBookmarks'
 import { useLocalMarks } from '@/composables/bookmark/useLocalMarks'
@@ -230,10 +232,11 @@ import { useCommentPanel } from '~/composables/useCommentPanel'
 import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
 import type { IconKey } from '~/icons/registry'
 import { useUserStore } from '~/stores/user'
-import { pdfTitlePreview } from '~/utils/pdfPreview'
-import type { PdfTitlePreview } from '~/utils/pdfPreview'
 
 const { t, locale } = useI18n()
+definePageMeta({ key: route => String(route.params.id) })
+const account = useAccountContext()
+const accountGeneration = computed(() => account.context.value.generation)
 const route = useRoute()
 const uuid = String(route.params.id)
 
@@ -249,15 +252,19 @@ useRobotsRule('noindex, follow, noarchive')
 
 let contentResponseHeaders = new Headers()
 let articleProcessDuration: number | undefined
-const contentRequestHeaders = import.meta.server ? useRequestHeaders(['cookie']) : undefined
+const contentRequestHeaders = import.meta.server ? useRequestHeaders(['cookie', 'authorization']) : undefined
 const contentRequestEvent = import.meta.server ? useRequestEvent() : undefined
 const fetchContent = useRequestFetch()
+const authenticatedSsr = import.meta.server && (!!useCookie(String(useRuntimeConfig().public.COOKIE_TOKEN_NAME)).value || !!contentRequestHeaders?.authorization)
 
 const {
-  data: pageData,
+  data: storedPageData,
   error,
-  refresh: refreshContent
+  refresh: refreshContent,
+  clear: clearContent
 } = await useAsyncData(`content-${uuid}`, async () => {
+  account.sync()
+  const generation = accountGeneration.value
   const res = await fetchContent<{
     metadata: SnapshotMetadata
     body: string | null
@@ -284,17 +291,21 @@ const {
         event.context.__ownerUid = res.metadata.user_id == null ? '' : String(res.metadata.user_id)
       }
       // Only the title/type placeholder is serialized for PDF hydration.
-      return { metadata: title as SnapshotMetadata, body: null }
+      return { metadata: title as SnapshotMetadata, body: null, generation }
     }
   }
 
-  return res
+  if (import.meta.server && !authenticatedSsr && res.metadata) res.metadata = { ...res.metadata, fork: null, viewer_fork_status: res.metadata.viewer_fork_status ?? null }
+  return { ...res, generation }
 })
+// A response for an earlier session is never exposed, even before a watcher runs.
+const pageData = computed(() => storedPageData.value?.generation === accountGeneration.value ? storedPageData.value : undefined)
+
 
 const clientReady = import.meta.client ? new Promise<void>(resolve => onNuxtReady(resolve)) : undefined
 const pdfPlaceholder = ref<PdfTitlePreview>()
 watch(() => pageData.value?.metadata, metadata => {
-  if (metadata) pdfPlaceholder.value = pdfTitlePreview(metadata)
+  pdfPlaceholder.value = metadata ? pdfTitlePreview(metadata) : undefined
 }, { immediate: true })
 
 let pdfTextPoll: ReturnType<typeof setTimeout> | undefined
@@ -347,6 +358,21 @@ const local = import.meta.client && isLocalFirstEnabled() ? useLocalBookmarks() 
 const localMarksQuery = local ? useLocalMarks().watchMarkDetail(uuid, localFirst) : null
 const canActOnMarks = computed(() => isOwner.value)
 const localRow = local ? local.watchDetail(uuid, localFirst) : null
+
+if (import.meta.client) watch(accountGeneration, () => {
+  clearContent()
+  pdfPlaceholder.value = undefined
+  restMarks.value = { mark_list: [], user_list: {} }
+  localFirst.value = false
+  localReady.value = false
+  if (navigator.onLine) void refreshContent().then(() => initializeClientDetail(false)).catch(() => {})
+}, { flush: 'sync' })
+onBeforeUnmount(() => clearContent())
+
+// Admission succeeds independently of this optional detail refresh.
+async function refreshForkDetail() {
+  await refreshContent().catch(() => {})
+}
 
 useReadingPosition(uuid, {
   enabled: () => localFirst.value && !detail.value?.pdf,
@@ -446,6 +472,7 @@ const noteOwner = computed(() => {
 })
 
 const loadMarks = async () => {
+  const generation = accountGeneration.value
   if (!bookmarkUid.value) return
   try {
     // 免登录 mark_list 接口
@@ -453,9 +480,9 @@ const loadMarks = async () => {
       url: RESTMethodPath.SHARE_BOOKMARK_MARK_LIST,
       query: { bookmark_uid: bookmarkUid.value }
     })
-    if (res) restMarks.value = res
+    if (generation === accountGeneration.value && res) restMarks.value = res
   } catch {
-    restMarks.value = { mark_list: [], user_list: {} }
+    if (generation === accountGeneration.value) restMarks.value = { mark_list: [], user_list: {} }
   }
 }
 
@@ -495,30 +522,36 @@ const { isSubscriptionExpired, showAnalyzed, showChatbot, chatBotQuote, showFeed
   }
 })
 
-async function initializeClientDetail() {
+async function initializeClientDetail(refreshIdentity = true) {
   if (!isClient) return
+  const generation = accountGeneration.value
   const userStore = useUserStore()
-  if (pageData.value?.metadata.type === 'pdf' && !pageData.value.metadata.pdf) {
+  if (!pageData.value || (pageData.value?.metadata.type === 'pdf' && !pageData.value.metadata.pdf) || (pageData.value?.metadata.has_fork && pageData.value.metadata.fork == null)) {
     await clientReady
     await refreshContent()
     if (error.value) return
   }
   // 划线/评论归属依赖真实 userId
   // upstream 取不到，这里刷新兜底
-  if (userStore.isLogin && !userStore.userInfo) {
+  // Generation invalidation must not recursively retry a failed profile request.
+  if (refreshIdentity && userStore.isLogin && !userStore.userInfo) {
     try {
       await userStore.refreshUserInfo()
     } catch (e) {
       console.error('[b] load user failed:', e)
     }
   }
+  if (generation !== accountGeneration.value) return
   if (local) {
     try {
-      if (isOwner.value && (await local.exists(uuid))) localFirst.value = true
+      const exists = isOwner.value && (await local.exists(uuid))
+      if (generation !== accountGeneration.value) return
+      if (exists && isOwner.value) localFirst.value = true
     } catch (e) {
       console.error('[b] local-first takeover failed:', e)
     }
   }
+  if (generation !== accountGeneration.value) return
   localReady.value = true
   if (!localFirst.value) await loadMarks()
 }

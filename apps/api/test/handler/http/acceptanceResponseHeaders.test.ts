@@ -22,7 +22,7 @@ describe('acceptance response contracts', () => {
     expect(response!.headers.get('Access-Control-Allow-Origin')).toBe('*')
   })
 
-  test.each(['/v1/bookmark/fork', '/v1/bookmark/fork_metadata'])('Fork middleware failures remain no-store at %s', path => {
+  test.each(['/v1/bookmark/detail'])('Private detail middleware failures remain no-store at %s', path => {
     const response = applyApiResponseHeaders(Failed(UnauthorizedError()), new Request(`https://reader-api.slax.dev${path}`))
     expect(response.headers.get('Cache-Control')).toBe('private, no-store')
     expect(response.status).toBe(401)

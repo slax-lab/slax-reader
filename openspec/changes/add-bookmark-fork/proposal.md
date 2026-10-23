@@ -1,8 +1,8 @@
 # Proposal
 
-## Pending simplification review — 2026-10-23
+## Implemented simplification — 2026-10-23
 
-The owner selected the direction of removing the added snapshot maintenance schedule, reusing `add_url`, and merging Fork metadata into existing detail projections with account/cache isolation. They requested a reviewed plan and updated PR/report **before deciding whether to implement**. The detailed [simplification proposal](../../../docs/api/bookmark-fork-fixed-paths.md#proposed-scope) is pending construction approval; it is not an implemented contract change. The current implementation and normative delta specs below remain the `af32ec74` baseline until approval. Existing human acceptance applies only to that baseline. No schema, R2-layout or application-version change is proposed. After approval, reconcile the affected delta-spec clauses before implementation; do not treat this planning update as permission to execute the new tasks.
+The owner approved construction. The [implementation report](../../../docs/api/bookmark-fork-fixed-paths.md) and current delta specs describe the final contract: reuse `add_url` and existing details, remove the added maintenance schedule, preserve original bounded retries, and isolate authenticated detail/cache state. This refinement adds no schema, R2-layout or version change. Prior human acceptance applies to the earlier implementation; the owner requested this PR update before their next local test.
 
 ## Why
 
@@ -16,7 +16,7 @@ Readers need to save another user's Reader snapshot as their own durable copy, i
 - Clear current Fork attribution only when the owner independently acquires and publishes replacement content. Keep provenance for failures, metadata changes and saves that reuse existing content; retain the same bookmark UUID and personal state without another schema change.
 - Preserve one personal copy per original resource. Refresh an existing completed or failed copy in place on each accepted Fork; reject overlapping work, restore a completed trashed copy, and preserve personal identity/state, including historical shared relations.
 - Make new private media captures and Forks own their stored content. Shared generation remains a computation cache; later actions by another user cannot replace a completed private snapshot. Explicit owner refresh remains supported for ordinary captures.
-- Use best-effort immediate deletion for confirmed failed new copies and permanent deletion. Do not add automatic orphan reclamation, a cleanup table or cleanup state fields; interrupted or failed deletion may leave R2 objects. Keep bounded media settlement and index repair.
+- Use best-effort immediate deletion for confirmed failed new copies and permanent deletion. Do not add automatic orphan reclamation, a cleanup table or cleanup state fields; interrupted or failed deletion may leave R2 objects. Retain immediate best-effort indexing and the original bounded media retry/republish triggers; add no scheduled repair.
 - Cover Extension/REST, Web, Telegram and supported bookmark imports. Give older queued Reader-URL sync operations a terminal visible failure without crawling the Reader shell or blocking unrelated sync work.
 
 ## Capabilities
@@ -33,7 +33,7 @@ Readers need to save another user's Reader snapshot as their own durable copy, i
 
 ## Impact
 
-- API: new Fork and uncached Fork-metadata endpoints; existing add adapters; bookmark/media orchestration, R2 publication/cleanup, sync compatibility, search and notification effects.
+- API: existing add_url/add adapters and uncached detail projections; bookmark/media orchestration, R2 publication/cleanup, sync compatibility, search and notification effects.
 - PostgreSQL: one additive nullable provenance column; no provenance table, JSON provenance or mandatory historical backfill. Existing media references remain for moderation/takedown and retention.
 - Web/contracts: online command, typed responses, Source/Fork display, media content cache invalidation, SSR cache safety and Reader URL saved-state resolution. Extension integration requires release-impact assessment.
 - Delivery: additive migration first, API and client rollout, agent-driven runtime verification and human UI acceptance. No new external service or package is proposed.

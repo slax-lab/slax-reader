@@ -63,7 +63,6 @@ import { MonitoringOrchestrator } from '../../domain/orchestrator/monitor'
 import { AigcBatchOrchestrator } from '../../domain/orchestrator/aigc'
 import { PodcastService } from '../../domain/podcast'
 import { RssService } from '../../domain/rss'
-import { SnapshotMaintenanceService } from '../../domain/snapshotMaintenance'
 import { SubscriptionOrchestrator } from '../../domain/orchestrator/subscription'
 import { SubscriptionAppleService } from '../../domain/subscriptionApple'
 import { UserDeletionService } from '../../domain/userDeletion'
@@ -84,7 +83,6 @@ import { BookmarkJob } from '../../handler/cron/bookmarkJob'
 import { CollectionJob } from '../../handler/cron/collectionJob'
 import { PodcastJob } from '../../handler/cron/podcastJob'
 import { RssJob } from '../../handler/cron/rssJob'
-import { SnapshotMaintenanceJob } from '../../handler/cron/snapshotMaintenanceJob'
 import { SubscriptionJob } from '../../handler/cron/subscriptionJob'
 import { UserDeletionJob } from '../../handler/cron/userDeletionJob'
 import { YoutubeArticleJob } from '../../handler/cron/youtubeArticleJob'
@@ -98,7 +96,6 @@ import { RedisClient } from '../../infra/repository/redisClient'
 import { AigcController } from '../../handler/http/aigcController'
 import { ApiKeyController } from '../../handler/http/apiKeyController'
 import { BookmarkController } from '../../handler/http/bookmarkController'
-import { BookmarkForkController } from '../../handler/http/bookmarkForkController'
 import { CallbackController } from '../../handler/http/callbackController'
 import { CollectionController } from '../../handler/http/collectionController'
 import { EventsController } from '../../handler/http/eventsController'
@@ -285,10 +282,6 @@ container.register(SearchService, {
 
 container.register(ShareService, {
   useFactory: container => new ShareService(container.resolve(BookmarkRepo), container.resolve(UserRepo))
-})
-
-container.register(SnapshotMaintenanceService, {
-  useFactory: container => new SnapshotMaintenanceService(container.resolve(BookmarkForkRepo), container.resolve(MediaSnapshotService))
 })
 
 container.register(SubscriptionService, {
@@ -527,10 +520,6 @@ container.register(RssJob, {
   useFactory: container => new RssJob(container.resolve(RssService))
 })
 
-container.register(SnapshotMaintenanceJob, {
-  useFactory: container => new SnapshotMaintenanceJob(container.resolve(SnapshotMaintenanceService))
-})
-
 container.register(SubscriptionJob, {
   useFactory: container => new SubscriptionJob(container.resolve(SubscriptionOrchestrator), container.resolve(SubscriptionAppleService), container.resolve(SubscriptionRepo))
 })
@@ -698,10 +687,6 @@ container.register(BookmarkController, {
       container.resolve(CrawlService),
       container.resolve(LogsService)
     )
-})
-
-container.register(BookmarkForkController, {
-  useFactory: container => new BookmarkForkController(container.resolve(BookmarkForkService))
 })
 
 container.register(CallbackController, {

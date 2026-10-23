@@ -75,12 +75,12 @@ export class MediaBodyService {
         { expectedUpdatedAt: bookmark.updated_at, force: opts.force }
       )
       if (!published) {
-        await this.forkRepo.failWrite(bookmarkId, bookmark.updated_at)
+        await this.forkRepo.releaseWrite(bookmarkId, bookmark.updated_at)
         return false
       }
     } catch (error) {
       // Existing fixed objects survive failed or uncertain publication acknowledgements.
-      await this.forkRepo.failWrite(bookmarkId, bookmark.updated_at).catch(() => {})
+      await this.forkRepo.releaseWrite(bookmarkId, bookmark.updated_at).catch(() => {})
       throw error
     }
     await this.bookmarkRepo.deleteBookmarkSummary(bookmarkId, userId)

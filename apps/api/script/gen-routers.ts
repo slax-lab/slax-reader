@@ -28,7 +28,6 @@ const routeConfigurations: RouteConfig[] = [
     controllers: [
       'src/handler/http/aigcController.ts',
       'src/handler/http/bookmarkController.ts',
-      'src/handler/http/bookmarkForkController.ts',
       'src/handler/http/callbackController.ts',
       'src/handler/http/collectionController.ts',
       'src/handler/http/markController.ts',

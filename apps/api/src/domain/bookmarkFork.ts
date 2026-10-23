@@ -1,6 +1,6 @@
 import { inject, injectable } from '@/decorators/di'
 import type { LazyInstance } from '@/decorators/lazy'
-import { ErrorName, type BookmarkForkMetadata, type ForkBookmarkResponse } from '@slax-reader/contracts'
+import { ErrorName, type BookmarkForkMetadata } from '@slax-reader/contracts'
 import { isPdfContentKey } from '@slax-reader/contracts/pdf'
 import { BookmarkNotFoundError, ErrorParam, UnauthorizedError } from '@/const/err'
 import { MultiLangError } from '@/utils/multiLangError'
@@ -27,7 +27,7 @@ export type ForkWorkflowJob = {
   created: boolean
 }
 
-export type CompletedFork = ForkBookmarkResponse & { bookmark_id: number }
+export type CompletedFork = { bookmark_uid: string; disposition: 'created' | 'already_saved' | 'updated'; bookmark_id: number }
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 @injectable()
@@ -263,7 +263,7 @@ export class BookmarkForkService {
     return this.result(relation, 'already_saved')
   }
 
-  private result(relation: { uuid: string; bookmark_id: number }, disposition: ForkBookmarkResponse['disposition']): CompletedFork {
+  private result(relation: { uuid: string; bookmark_id: number }, disposition: CompletedFork['disposition']): CompletedFork {
     return { bookmark_uid: relation.uuid, bookmark_id: relation.bookmark_id, disposition }
   }
 
@@ -281,14 +281,14 @@ export class BookmarkForkService {
     }
   }
 
-  private documentId(source: ForkSource) {
+  private documentId(source: Pick<ForkSource, 'metadata'>) {
     const metadata = source.metadata as Record<string, unknown>
     const value = metadata?.pdf_document_id
     if (typeof value !== 'string' || !/^[a-f0-9]{64}$/.test(value)) throw forkError()
     return value
   }
 
-  private destinationUrl(source: ForkSource, userId: number) {
+  private destinationUrl(source: Pick<ForkSource, 'bookmark' | 'metadata'>, userId: number) {
     if (!source.bookmark.target_url.startsWith('slax-pdf:')) return source.bookmark.target_url
     const documentId = this.documentId(source)
     if (!new RegExp(`^slax-pdf://[0-9]+/${documentId}$`).test(source.bookmark.target_url)) throw forkError()
@@ -297,7 +297,7 @@ export class BookmarkForkService {
 
   private async copyPdf(source: ForkSource, bundle: SnapshotBundle): Promise<ForkContent> {
     const key = source.bookmark.content_key
-    const keys = snapshotKeys(bundle.uuid, bundle.attempt, true)
+    const keys = snapshotKeys(bundle.uuid, true)
     const binary = await bundle.copy(key, keys.content_key)
     if (binary.customMetadata?.sha256 !== this.documentId(source)) throw forkError()
     const state = await (await bundle.read(key.replace('pdf/body/', 'pdf/meta/').replace(/\.pdf$/, '.json'))).json<{ text_status: string; pages: number }>()
@@ -307,13 +307,9 @@ export class BookmarkForkService {
     return { content_key: keys.content_key, content_md_key: state.text_status === 'ready' ? keys.content_md_key : '', content_word_count: source.bookmark.content_word_count }
   }
 
-  async metadata(ctx: ContextManager, uuid: string): Promise<BookmarkForkMetadata> {
-    if (!uuidPattern.test(uuid)) throw ErrorParam()
-    const destination = await this.repo.source(ctx.getUserId(), uuid)
-    if (!destination) throw BookmarkNotFoundError()
+  async metadata(ctx: ContextManager, destination: Pick<ForkSource, 'id' | 'user_id' | 'forked_from_id' | 'bookmark' | 'metadata'>): Promise<BookmarkForkMetadata> {
     const result: BookmarkForkMetadata = {
-      has_fork: destination.forked_from_id !== null,
-      can_fork: destination.user_id !== ctx.getUserId() && destination.bookmark.status === 'success',
+      has_fork: destination.forked_from_id != null,
       fork: null,
       viewer_fork_status: null
     }
@@ -347,7 +343,7 @@ export class BookmarkForkService {
     await this.bookmarks.deleteBookmarkSummary(raw.id, ctx.getUserId())
     const changedAt = new Date()
     const outcomes = await Promise.allSettled([
-      this.media.repairIndex(ctx, raw.id),
+      this.media.indexSnapshot(ctx, raw.id),
       this.search.clearSearchCache(ctx, ctx.getUserId()),
       this.bookmarks.createBookmarkChangeLog(ctx.getUserId(), raw.target_url, raw.id, 'add', changedAt),
       this.notifications.sendBookmarkChange(ctx.env, {

@@ -1,4 +1,61 @@
-# Planning-only follow-up — 2026-10-23 (Asia/Shanghai)
+# Current simplification verification — 2026-10-23 (Asia/Shanghai)
+
+The owner approved construction and explicitly requested implementation, review, PR/report update, and the primary checkout remaining on `feat/add-bookmark-fork` before their next local test. This record supersedes the historical planning-only status below. It does **not** extend the earlier owner's acceptance to this new endpoint/detail/cache implementation. Renewed human hands-on acceptance is pending; combined task S26 remains open for that reason. No merge or deployment is authorized or performed.
+
+## Implemented and removed
+
+- Removed SnapshotMaintenanceJob/Service, snapshot enumeration/cursor and periodic index markers. Original cron jobs, bounded Workflow retries, YouTube owner catch-up and capped podcast republish remain. Immediate indexing remains best effort.
+- Fork button/Reader dialog reuse `add_url`, including its empty `bmId` acknowledgement. Dedicated `fork`/`fork_metadata` routes, metadata composable and unused public-only fields/types are removed; internal import/callback completion results remain.
+- Existing public/private details return safe attribution and viewer status. Credential-bearing requests bypass shared-cache lookup/storage, including invalid or empty credential headers/cookies; proxies return private/no-store. Anonymous permission/revision validation and PDF title-only SSR remain.
+- Account/session changes invalidate old detail/local-owner/mark state. Late local lookups cannot restore old ownership; profile failure invalidation cannot recursively fetch the same failing profile.
+- Supplemental media write failures propagate to existing retry callers, conditionally release only their own claim, and advance existing updated_at to exclude stale releases. Text precedes one combined HTML/manifest write; fixed paths and ordinary capture ordering remain.
+
+## Checks and results
+
+| Command/check | Result |
+| --- | --- |
+| `pnpm api -- gen:cron`, `gen:router`, `gen:di` | Passed; generated registration/routes removed; generated files formatted with the existing API formatter |
+| `pnpm api -- test` | 190 files passed, 13 conditional files skipped; 2,481 tests passed, 102 skipped |
+| `pnpm web -- test --maxWorkers=4` | 224 files passed, 1 skipped; 2,544 tests passed, 3 skipped |
+| Default-concurrency Web test run | One existing `useSlaxRoutes` auto-import case timed out under concurrent tool workloads; its isolated rerun passed 6/6, then the full bounded-worker run above passed. No timeout threshold or product code was changed to hide the failure |
+| API and Web typecheck | Passed |
+| `pnpm extension -- typecheck`, `pnpm cli -- typecheck` | Passed; additive detail contract remains compatible |
+| Final focused Web action/attribution/cache/PDF suites | 5 files, 38 tests passed after import-order corrections |
+| `SLAX_API_CONFIG=deploy/cloudflare/api.toml.example pnpm api -- build` | Passed offline using the nonsecret template |
+| `pnpm web -- build` | Passed |
+| `pnpm api -- lint` | 0 errors, 344 existing warnings |
+| Changed Web TypeScript/Vue ESLint | 0 errors, 3 test-only explicit-any warnings |
+| Whole-Web lint | Still fails baseline debt outside the changed paths: 100 import-order errors, 436 warnings; no unrelated formatting sweep |
+| `pnpm exec openspec validate --all --strict` | 74 items passed, 0 failed |
+| `git diff --check` | Passed |
+
+Focused action/detail/cache tests cover add_url acknowledgement/error conventions, ready/pending/failed state, no navigation, deliberate URL refresh, concurrent submission, offline/login and late account/session/route results. Cache tests execute the actual middleware and render/store plugin against local H3 events with fake Cache/BACKEND boundaries: both credential bypass paths, anonymous permission revocation and neutral visitor storage are checked. These do not claim deployed Cloudflare Cache API verification.
+
+## Running-environment exercise
+
+`FORK_SMOKE=1 pnpm api -- test:http` passed using isolated Edge/Core Workers, a local Crawl Workflow, PostgreSQL, R2, KV and D1. The fixture invokes real `add_url` and the actual ContentEntry detail binding. All six formats were copied; repeated saves preserved UUID/keys; source deletion/revocation, PDF range reads, ready media variants, legacy adapters, restored search, owner recapture/provenance clearing and immediate permanent deletion were exercised. A missing source body acknowledged admission first, then exhausted finite retries to failed; explicit retry succeeded after the body was restored. No real provider generation was called.
+
+A real PostgreSQL/R2 supplemental-publication exercise covers both YouTube and podcast. An injected first text-put failure leaves the saved manifest pending and releases only the matching claim back to success with a newer timestamp. Reloading and republishing that same capture succeeds. A later claim survives an attempted release with the old timestamp. Domain tests separately verify per-reference failure aggregation into the original publishers. This is controlled R2 failure injection, not a process-kill or lost-COMMIT test.
+
+The ContentEntry proxy initially used the default Wrangler registry and received 503. The test launcher now explicitly selects its own isolated worker registry and restores the environment override after proxy construction; reruns passed. It never connects to or stops the owner's running Workers. Fixture services, database and storage are owned and removed by the harness; the owner's local database/configuration are untouched.
+
+The agent exercised the actual current Fork button and Add URL component in a running local Vite fixture (`http://127.0.0.1:13101/`) with simulated account, HTTP and synchronization boundaries. Observed: same-source buttons share a single submitting state; the other source remains usable; `{bmId:''}` acceptance disables both buttons without navigation; another account sees its own state; request rejection releases the button; persisted pending state disables the action on revisit; repeated Enter in Add URL sends one request and acceptance closes the dialog without navigation. Light/dark/e-ink at 320/768/1280 widths retained ready/submitting/saved/retry states, 44px action height and viewport containment. The fixture loads actual app theme styles. It is not full authenticated browser-to-PowerSync integration or renewed human acceptance.
+
+## Final file-count audit
+
+Rename-aware staged PR diff against merge base `18f0dd6c`: **155 files**, down from **162** at `e70bfb2e`. API production/config/migration 39 (was 44), API generated 1 (3), Web 19 (19), Extension 2 (2), shared contracts 3 (2), tests 62 (63), documentation/OpenSpec 29 (29). Generated routes/cron that now match dev disappear from the PR diff; this is not deletion of the underlying generated infrastructure. Endpoint/job-specific tests were removed or migrated; a new cache-boundary suite remains. No test was removed just to reach a file-count target.
+
+## Review and delivery boundary
+
+OpenSpec change-id: `add-bookmark-fork`. Independent Bugs/Security/Compliance review identified two Important issues in page initialization: an old account's delayed local.exists result could restore owner state; failed profile refresh could invalidate generation and trigger an unbounded refresh loop. Both were corrected. Final inspection additionally caught a generation change during the initial awaited detail request, before watcher installation: initialization now refreshes absent/currently hidden detail through its existing refresh branch, preventing a blank page. The independent reviewer confirmed this narrow fix. The independent reviewer rechecked current source with a read-only initializer harness and reported no remaining Important findings; the parent reviewed final docs/spec/evidence alignment before pushing. The unused retiredKey and periodic-scan nits from the earlier remote review are removed; existing owner catch-up is deliberately retained under the approved plan.
+
+Remaining gaps: production rollout/cache behavior, live providers/playback, full authenticated browser/PowerSync transport, native Mobile/duplicate-PDF/new-highlight flows, process-kill/lost-COMMIT recovery, and renewed human local UI acceptance. Those require external services/devices or the owner's next test and are not inferred from unit tests or prior acceptance. Fixed-key partial writes and exceptional retained objects/active claims remain accepted design limits, not automatic-recovery guarantees.
+
+The primary checkout remains `/Users/yjc/Documents/Company/slax-reader-v2`, branch `feat/add-bookmark-fork`. No database reset, setup, version bump or remote deployment was performed in this round. The existing no-version-bump decision persists. The current report is [Bookmark Fork: current implementation](../../../docs/api/bookmark-fork-fixed-paths.md).
+
+---
+
+# Historical planning-only follow-up — 2026-10-23 (Asia/Shanghai)
 
 The owner requested a reviewed simplification proposal and PR/report update before deciding whether to implement. This update changes documentation only. Application baseline `af32ec74` has passing CI and a remote review with no Important findings ([review](https://github.com/slax-lab/slax-reader/pull/354#pullrequestreview-5627917075)). Prior human acceptance remains evidence for that baseline only. The new scheduler/API/detail/cache changes have **not** been implemented or exercised.
 
@@ -8,7 +65,7 @@ Verification for this documentation-only update: `pnpm exec openspec validate --
 
 ---
 
-# Current acceptance status — 2026-10-23 (Asia/Shanghai)
+# Historical baseline acceptance — 2026-10-23 (Asia/Shanghai)
 
 ## Sharing-access review verification
 

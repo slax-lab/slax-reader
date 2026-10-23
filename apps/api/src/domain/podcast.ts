@@ -440,26 +440,32 @@ export class PodcastService {
    * the body" fallback. Marks on the show notes lose their anchor; that is the accepted trade-off.
    */
   public async publishBodies(ctx: ContextManager, sourceId: string): Promise<number> {
+    const failures: unknown[] = []
+    const complete = (count: number) => {
+      if (failures.length) throw new AggregateError(failures, 'Media body publication incomplete')
+      return count
+    }
     const loaded = new Map<number, LoadedMediaSnapshot | null>()
-    const settled = await this.snapshots.settleSource(ctx, 'podcast', sourceId, loaded)
+    const settled = await this.snapshots.settleSource(ctx, 'podcast', sourceId, loaded, failures)
     const ep = await this.episodes.findBySourceId(sourceId)
     const lang = podcastLanguage(ep?.language)
-    if (!ep || ep.transcript_status !== 'ready' || !ep.transcript_hash || !lang) return settled
+    if (!ep || ep.transcript_status !== 'ready' || !ep.transcript_hash || !lang) return complete(settled)
     const row = await this.articles.findVersion(sourceId, ep.transcript_hash, lang)
-    if (row?.status !== 'ready') return settled
+    if (row?.status !== 'ready') return complete(settled)
     const rendered = await this.renderBody(ep, row)
-    if (!rendered) return 0
+    if (!rendered) throw new Error('Podcast publication artifacts missing')
     let count = settled
     for (const ref of await this.articles.listEpisodeRefs(sourceId)) {
       try {
         if ((loaded.has(ref.bookmark_id) ? loaded.get(ref.bookmark_id) : await this.snapshots.load(ref.bookmark_id))?.managed) continue
         if (ref.source_hash !== ep.transcript_hash) continue
         if (await this.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered)) count++
-      } catch {
+      } catch (error) {
+        failures.push(error)
         console.error(`Podcast publication failed for bookmark ${ref.bookmark_id}`)
       }
     }
-    return count
+    return complete(count)
   }
 
   public async setRefsHash(sourceId: string, sourceHash: string): Promise<number> {

@@ -13,7 +13,6 @@ const whiteEmailExemptPaths = ['/static/image']
 const whiteList = [
   '/v1/user/login',
   '/v1/share/detail',
-  '/v1/bookmark/fork_metadata',
   '/v1/youtube_article/status',
   '/v1/youtube_article/content',
   '/v1/podcast/status',

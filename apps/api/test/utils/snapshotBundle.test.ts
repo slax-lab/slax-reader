@@ -12,7 +12,7 @@ describe('fixed storage bundles', () => {
     await second.assertUnchanged()
     await second.discard()
     expect(objects.has('html/body/owner.html')).toBe(true)
-    expect(snapshotKeys('owner', 'one', true)).toEqual({ content_key: 'pdf/body/owner.pdf', content_md_key: 'text/pdf/owner.txt', sidecar: 'pdf/meta/owner.json' })
+    expect(snapshotKeys('owner', true)).toEqual({ content_key: 'pdf/body/owner.pdf', content_md_key: 'text/pdf/owner.txt', sidecar: 'pdf/meta/owner.json' })
   })
 
   it('embeds inert escaped metadata without adding a sidecar object', async () => {

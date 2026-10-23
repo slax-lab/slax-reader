@@ -1,3 +1,4 @@
+import { parseHTML } from 'linkedom'
 import { inject, injectable } from '@/decorators/di'
 import type { LazyInstance } from '@/decorators/lazy'
 import { BookmarkNotFoundError } from '@/const/err'
@@ -261,7 +262,8 @@ export class MediaSnapshotService {
     return published
   }
 
-  async settleSource(ctx: ContextManager, kind: 'youtube' | 'podcast', sourceId: string, loaded?: Map<number, LoadedMediaSnapshot | null>) {
+  async settleSource(ctx: ContextManager, kind: 'youtube' | 'podcast', sourceId: string, loaded?: Map<number, LoadedMediaSnapshot | null>, failures?: unknown[]) {
+    const errors = failures ?? []
     const refs = kind === 'youtube' ? await this.youtube.listRefs(sourceId) : await this.podcasts.listEpisodeRefs(sourceId)
     let count = 0
     for (const ref of refs) {
@@ -273,6 +275,7 @@ export class MediaSnapshotService {
           if (loaded) loaded.set(ref.bookmark_id, await this.load(ref.bookmark_id))
         }
       } catch (error) {
+        errors.push(error)
         loaded?.set(ref.bookmark_id, null)
         console.error('Private media settlement failed', {
           bookmarkId: ref.bookmark_id,
@@ -280,6 +283,7 @@ export class MediaSnapshotService {
         })
       }
     }
+    if (!failures && errors.length) throw new AggregateError(errors, 'Private media publication incomplete')
     return count
   }
 
@@ -385,26 +389,27 @@ export class MediaSnapshotService {
                 : undefined
         }
       }
-      const content = body
-        ? {
-            content_key: await bundle.write('body.html', body.html, 'text/html; charset=utf-8'),
-            content_md_key: await bundle.write('body.txt', body.text, 'text/plain; charset=utf-8'),
-            content_word_count: body.text.length
-          }
-        : await bundle.copyHtml(raw.content_key)
-      await bundle.write('media.json', JSON.stringify(media ?? { schema: 1, kind: 'html' }), 'application/json')
+      if (!body) {
+        const html = await bundle.readHtml(raw.content_key)
+        const { document } = parseHTML(html)
+        document.querySelectorAll('script,style,noscript').forEach(node => node.remove())
+        body = { html, text: (document.querySelector('article') || document.body || document.documentElement).textContent?.trim() || '' }
+      }
+      const content = await bundle.writeBody(body, media ?? { schema: 1, kind: 'html' })
       await bundle.assertUnchanged()
       const published = await this.repo.publishRevision(raw.id, raw.content_key, content, {
         ...options,
         expectedUpdatedAt: raw.updated_at,
         mediaRef: media ? this.ref(media) : undefined
       })
-      if (!published && !options.clearForkProvenance) await this.repo.failWrite(raw.id, raw.updated_at)
+      if (!published && !options.clearForkProvenance) await this.repo.releaseWrite(raw.id, raw.updated_at)
       return published ? content : null
     } catch (error) {
       // A fixed-key write cannot be rolled back or inferred committed from its path.
+      // Supplemental publication restores the completed base to eligibility for the original
+      // publisher retry. The timestamp guard cannot release a newer owner acquisition.
       // Workflow acquisition retains its claim until its finite retries are exhausted.
-      if (!options.clearForkProvenance) await this.repo.failWrite(raw.id, raw.updated_at).catch(() => {})
+      if (!options.clearForkProvenance) await this.repo.releaseWrite(raw.id, raw.updated_at).catch(() => {})
       throw error
     }
   }
@@ -413,15 +418,12 @@ export class MediaSnapshotService {
     const current = await this.repo.snapshot(bookmarkId)
     if (!current) return
     await this.bookmarks.deleteBookmarkSummary(bookmarkId, current.private_user)
-    await this.repairIndex(ctx, bookmarkId)
+    await this.indexSnapshot(ctx, bookmarkId)
   }
 
-  async repairIndex(ctx: ContextManager, bookmarkId: number, managedOnly = false) {
+  async indexSnapshot(ctx: ContextManager, bookmarkId: number, managedOnly = false) {
     const current = await this.repo.snapshot(bookmarkId)
     if (!current || !current.userBookmarks.length || (managedOnly && !(await loadEmbeddedSnapshot(this.bucket().R2Bucket, current.content_key)).managed)) return false
-    const revision = `${current.content_key}:${current.updated_at.toISOString()}`
-    const marker = `snapshot-index:${bookmarkId}`
-    if ((await ctx.env.KV.get(marker)) === revision) return true
     await this.searchRepo.upsertUserBookmark(current.private_user, bookmarkId)
     const text = current.content_md_key ? await (await this.bucket().R2Bucket.get(current.content_md_key))?.text() : ''
     if (current.content_md_key && text === undefined) throw new Error('Private text missing during indexing')
@@ -429,11 +431,9 @@ export class MediaSnapshotService {
     if (results.some(result => result.status === 'rejected')) throw new Error('Private snapshot indexing incomplete')
     const fresh = await this.repo.snapshot(bookmarkId)
     if (fresh?.content_key !== current.content_key || fresh?.updated_at.getTime() !== current.updated_at.getTime()) {
-      await ctx.env.KV.delete(marker)
       if (!fresh) await Promise.all([this.searchRepo.deleteUserBookmark(current.private_user, bookmarkId), this.searchRepo.deleteBookmarkRaw(bookmarkId)])
       return true
     }
-    await ctx.env.KV.put(marker, revision)
     return true
   }
 

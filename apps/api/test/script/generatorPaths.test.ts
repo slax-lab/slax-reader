@@ -146,7 +146,6 @@ describe('repository-root generator paths', () => {
       [
         'aigc',
         'bookmark',
-        'bookmarkFork',
         'callback',
         'collection',
         'mark',

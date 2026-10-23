@@ -136,6 +136,10 @@ export class BookmarkService {
     this.userData = userRepo
   }
 
+  public getForkMetadata(ctx: ContextManager, destination: Parameters<BookmarkForkService['metadata']>[1]) {
+    return this.forkService.metadata(ctx, destination)
+  }
+
   public async createBookmarkBase(options: {
     ctx: ContextManager
     targetUrl: string
@@ -419,7 +423,6 @@ export class BookmarkService {
       try {
         const promiseList = [
           this.bucket().R2Bucket.delete(snapshotBundleMembers(bmPO.content_key || '') ?? [bmPO.content_key || '', bmPO.content_md_key || ''].filter(Boolean)),
-          ctx.env.KV.delete(`snapshot-index:${bmId}`),
           ...(isPdfContentKey(bmPO.content_key) ? [this.bucket().R2Bucket.delete(bmPO.content_key!.replace('pdf/body/', 'pdf/meta/').replace(/\.pdf$/, '.json'))] : []),
           this.bookmarkSearchRepo.deleteBookmarkRaw(bmId)
         ]
@@ -1113,7 +1116,7 @@ export class BookmarkService {
   }
 
   public async updateBookmark(bmId: number, info: bookmarkParsePO) {
-    const { bookmark, retiredKey } = await this.bookmarkRepo.updateBookmark(bmId, info)
+    const bookmark = await this.bookmarkRepo.updateBookmark(bmId, info)
 
     return bookmark
   }

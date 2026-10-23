@@ -1,29 +1,14 @@
+import { getCookie, getHeader, type H3Event } from 'h3'
+
 export const SHARE_PATH = /^\/b\/([^/]+)\/?$/
 export const BCACHE_MAX_AGE = 600 // 10 分钟
-export const OWNER_UID_HEADER = 'x-owner-uid'
-
-export function viewerId(token: string | undefined): string {
-  if (!token) return ''
-  try {
-    const payload = token.split('.')[1]
-    if (!payload) return ''
-    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
-    return typeof json.id === 'string' ? json.id : ''
-  } catch {
-    return ''
-  }
+/** Presence matters even when a credential is invalid; JWT decoding is not authorization. */
+export function hasSnapshotCredentials(event: H3Event, cookieName: string): boolean {
+  return getCookie(event, cookieName) !== undefined || getHeader(event, 'authorization') !== undefined
 }
 
-export function ownerKey(uuid: string): string {
-  return `https://__bcache.slax__/b/${uuid}?t=owner`
-}
 export function visitorKey(uuid: string): string {
   return `https://__bcache.slax__/b/${uuid}?t=visitor`
-}
-
-export function canUseVisitorCache(viewerUid: string, ownerUid: string | null): boolean {
-  if (!viewerUid) return true
-  return !!ownerUid && ownerUid !== viewerUid
 }
 
 export function getEdgeCache(): Cache | null {

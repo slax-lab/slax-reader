@@ -1,19 +1,16 @@
-import { canUseVisitorCache, matchesCurrentSnapshot, SNAPSHOT_REVISION_HEADER, snapshotMetadataRevision } from '../../../server/utils/shareCache'
+import { hasSnapshotCredentials, matchesCurrentSnapshot, SNAPSHOT_REVISION_HEADER, snapshotMetadataRevision } from '../../../server/utils/shareCache'
 
+import { createEvent } from 'h3'
 import { describe, expect, it, vi } from 'vitest'
 
-describe('share visitor cache identity', () => {
-  it('lets anonymous and known non-owner visitors use the visitor cache', () => {
-    expect(canUseVisitorCache('', null)).toBe(true)
-    expect(canUseVisitorCache('viewer-2', 'owner-1')).toBe(true)
+describe('shared cache credential boundary', () => {
+  it.each([{ cookie: 'token=invalid' }, { cookie: 'token=' }, { authorization: 'Bearer expired' }, { authorization: '' }])('bypasses shared cache for any credential: %j', headers => {
+    const event = createEvent({ headers } as never, {} as never)
+    expect(hasSnapshotCredentials(event, 'token')).toBe(true)
   })
-
-  it('keeps the owner out of the visitor cache', () => {
-    expect(canUseVisitorCache('owner-1', 'owner-1')).toBe(false)
-  })
-
-  it('bypasses legacy visitor entries without an owner id for logged-in users', () => {
-    expect(canUseVisitorCache('viewer-2', null)).toBe(false)
+  it('keeps anonymous requests and unrelated cookies eligible', () => {
+    const event = createEvent({ headers: { cookie: 'theme=dark' } } as never, {} as never)
+    expect(hasSnapshotCredentials(event, 'token')).toBe(false)
   })
 })
 

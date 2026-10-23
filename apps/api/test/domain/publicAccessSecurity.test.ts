@@ -37,6 +37,7 @@ function wire() {
   const so = new ShareOrchestrator(ss, users as never, tags as never, marks as never, bs)
   const cs = new CollectionService(collectionRepo as never, userRepo as never, repo as never)
   const co = new (CollectionOrchestrator as any)(cs, bs, marks, tags, users)
+  vi.spyOn(bs, 'getForkMetadata').mockResolvedValue({ has_fork: false, fork: null, viewer_fork_status: null })
   const content = new ContentOrchestrator(bs, users as never, tags as never, marks as never, { getBookmarkCollectionRef: vi.fn().mockResolvedValue(null) } as never)
   return { row, share, owner, collection, repo, userRepo, collectionRepo, bs, marks, tags, content, cs, sc: new ShareController(ss, so), cc: new CollectionController(cs, co), markService: new MarkService(repo as never, {} as never, collectionRepo as never, userRepo as never) }
 }

@@ -8,7 +8,6 @@ import { Container } from '../../decorators/di'
 import { NotFound, Successed } from '../../utils/responseUtils'
 import { AigcController } from '../../handler/http/aigcController'
 import { BookmarkController } from '../../handler/http/bookmarkController'
-import { BookmarkForkController } from '../../handler/http/bookmarkForkController'
 import { CallbackController } from '../../handler/http/callbackController'
 import { CollectionController } from '../../handler/http/collectionController'
 import { MarkController } from '../../handler/http/markController'
@@ -182,14 +181,6 @@ export function getRouter(container: Container) {
   router.post('/v1/bookmark/outline', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(BookmarkController)
     return await controller.handlerUserGetBookmarkOutlineRequest(ctx, req)
-  })
-  router.post('/v1/bookmark/fork', async (req: Request, ctx: ContextManager) => {
-    const controller = container.resolve(BookmarkForkController)
-    return await controller.fork(ctx, req)
-  })
-  router.get('/v1/bookmark/fork_metadata', async (req: Request, ctx: ContextManager) => {
-    const controller = container.resolve(BookmarkForkController)
-    return await controller.metadata(ctx, req)
   })
   router.post('/callback/telegram', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(CallbackController)

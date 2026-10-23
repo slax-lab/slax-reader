@@ -8,11 +8,11 @@ Allow readers to save an authorized Reader snapshot as an independent personal b
 
 ### Requirement: Authorized online Fork
 
-The system SHALL let an authenticated active user copy a currently readable Reader snapshot through an online Fork command. It SHALL authorize the source and underlying acquisition feature before copying. Interactive commands SHALL return HTTP 200 with the committed destination bookmark UUID and a created, updated or already-saved disposition after admission, without waiting for R2 transfer or content success. Background copying SHALL use existing bounded Workflow execution and guarded status transitions. It SHALL NOT crawl the Reader page, refetch the original website or regenerate provider content during Fork.
+The system SHALL let an authenticated active user copy a currently readable Reader snapshot through an online Fork command. It SHALL authorize the source and underlying acquisition feature before copying. Interactive commands SHALL reuse POST /v1/bookmark/add_url and return its existing HTTP/envelope success and empty bmId acknowledgement after persisted admission, without waiting for R2 transfer or content success. Background copying SHALL use existing bounded Workflow execution and guarded status transitions. It SHALL NOT crawl the Reader page, refetch the original website or regenerate provider content during Fork.
 
 #### Scenario: Copy a shared article
 - **WHEN** a signed-in user Forks another user's accessible completed article
-- **THEN** the user promptly receives a persisted personal bookmark UUID, and background copying makes its required artifacts readable before marking success without fetching the original website
+- **THEN** the user promptly receives the existing add_url acknowledgement, and background copying makes its required artifacts readable before marking success without fetching the original website
 
 #### Scenario: Inaccessible source
 - **WHEN** a visitor attempts to Fork an unshared, trashed, moderated or deleted-owner snapshot
@@ -169,3 +169,27 @@ Older queued Reader-URL creates SHALL have a durable terminal failed-save outcom
 #### Scenario: Slow copy and final failure
 - **WHEN** required R2 copying is delayed or eventually fails after bounded retries
 - **THEN** the already-admitted HTTP request is not held open, and the persisted destination remains processing until success or a guarded failed transition
+
+### Requirement: Shared detail projection and account isolation
+
+Existing public and authenticated private detail queries SHALL supply safe Fork attribution and viewer_fork_status. The button and article SHALL consume the same page detail rather than dedicated Fork metadata requests. The button SHALL submit a configured Reader URL through add_url. Explicit URL submission SHALL retain refresh semantics even when a completed copy disables the button.
+
+#### Scenario: Authenticated SSR cache isolation
+- **WHEN** a Reader request carries a token cookie or Authorization header, including invalid credentials
+- **THEN** both shared-cache lookup and storage are bypassed with private, no-store, and the backend authenticates the viewer
+
+#### Scenario: Anonymous shared cache
+- **WHEN** an anonymous Reader page is cached
+- **THEN** it contains neutral Fork attribution and null viewer status, with existing permission/revision revalidation retained
+
+#### Scenario: Account changes during detail loading
+- **WHEN** login, logout, account or route changes while detail is loading
+- **THEN** prior privileged detail is cleared immediately and late responses cannot populate the new context, including while offline
+
+#### Scenario: PDF hydration
+- **WHEN** PDF details render on the server
+- **THEN** hydration retains the title/type-only placeholder and the existing client detail refresh supplies the descriptor and Fork projection
+
+#### Scenario: Accepted save followed by detail refresh failure
+- **WHEN** add_url accepts a Fork but refreshing detail fails
+- **THEN** the page stays on the source with its account/source action disabled and does not report the accepted save as failed

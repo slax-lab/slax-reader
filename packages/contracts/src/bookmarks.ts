@@ -73,15 +73,6 @@ export interface AddBookmarkResponse {
   bmId: number | ''
 }
 
-export interface ForkBookmarkRequest {
-  source_user_bookmark_uuid: string
-}
-
-export interface ForkBookmarkResponse {
-  bookmark_uid: string
-  disposition: 'created' | 'already_saved' | 'updated'
-}
-
 export type BookmarkForkAttribution =
   | {
       status: 'available'
@@ -94,7 +85,6 @@ export interface BookmarkForkMetadata {
   /** Viewer-only availability: active/failed same-resource saves; success requires exact Fork provenance. */
   viewer_fork_status?: 'pending' | 'success' | 'failed' | null
   has_fork: boolean
-  can_fork: boolean
   fork: BookmarkForkAttribution | null
 }
 

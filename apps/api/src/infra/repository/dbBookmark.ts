@@ -573,16 +573,9 @@ export class BookmarkRepo {
   }
 
   public async updateBookmark(bmId: number, info: bookmarkParsePO) {
-    return this.prismaPg().$transaction(async tx => {
-      await tx.$queryRaw`SELECT id FROM sr_bookmark WHERE id = ${bmId} FOR UPDATE`
-      const before = await tx.sr_bookmark.findUniqueOrThrow({
-        where: { id: bmId }
-      })
-      const updated = await tx.sr_bookmark.update({
-        where: { id: bmId },
-        data: { updated_at: new Date(), ...info }
-      })
-      return { bookmark: updated, retiredKey: before.content_key !== updated.content_key ? before.content_key : undefined }
+    return this.prismaPg().sr_bookmark.update({
+      where: { id: bmId },
+      data: { updated_at: new Date(), ...info }
     })
   }
 

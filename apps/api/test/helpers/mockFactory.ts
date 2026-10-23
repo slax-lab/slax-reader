@@ -9,7 +9,7 @@ export function createMockMediaSnapshots(put?: (key: string, value: string) => P
     settle: vi.fn(async () => false),
     settleSource: vi.fn(async () => 0),
     openRequest: vi.fn(),
-    repairIndex: vi.fn(async () => false),
+    indexSnapshot: vi.fn(async () => false),
     denyYoutube: vi.fn(),
     denyPodcast: vi.fn(),
     initialize: vi.fn(async (ref: any, userId: number, player?: any) => ({
@@ -83,6 +83,7 @@ export function createMockEnv(runType = 'dev') {
 
 export function createMockBookmarkService() {
   return {
+    getForkMetadata: vi.fn().mockResolvedValue({ has_fork: false, fork: null, viewer_fork_status: null }),
     capturePdf: vi.fn().mockResolvedValue(false),
     getPdfDescriptor: vi.fn().mockResolvedValue(undefined),
     addUrlBookmark: vi.fn(),

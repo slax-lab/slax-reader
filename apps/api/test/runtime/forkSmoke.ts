@@ -7,7 +7,7 @@ import { getPlatformProxy } from 'wrangler'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/hyperdrive-client'
 import { BookmarkForkRepo } from '../../src/infra/repository/dbBookmarkFork'
-import { readEmbeddedSnapshot } from '../../src/utils/snapshotBundle'
+import { readEmbeddedSnapshot, SnapshotBundle } from '../../src/utils/snapshotBundle'
 import { MediaSnapshotService } from '../../src/domain/mediaSnapshot'
 import { renderMediaArticle, renderPodcastBody, type PodcastPlayerInfo } from '../../src/utils/podcastArticle'
 import type { YoutubeArticleDocument } from '../../src/utils/youtubeArticle'
@@ -35,6 +35,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
     remoteBindings: false,
     persist: { path: resolve(state, 'v3') }
   })
+  let contentProxy: Awaited<ReturnType<typeof getPlatformProxy<{ BACKEND: Fetcher }>>> | undefined
   try {
     const bucket = proxy.env.OSS
     const withMedia = (html: string, media: unknown) =>
@@ -126,7 +127,13 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
       )
     }
     return {
-      dispose: () => proxy.dispose(),
+      dispose: async () => {
+        try {
+          await contentProxy?.dispose()
+        } finally {
+          await proxy.dispose()
+        }
+      },
       sources,
       async exercise(fetch: (path: string, init?: RequestInit) => Promise<Response>, headers: Record<string, string>, readerOrigin: string, encodeId: (id: number) => string) {
         const settled = async (uuid: string, expected = 'success') => {
@@ -138,21 +145,57 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           }
           throw new Error(`Fork ${uuid} did not settle to ${expected}`)
         }
-        const call = async (path: string, body?: unknown, asGuest = false, wait = true) => {
+        const call = async (path: string, body?: unknown, asGuest = false) => {
           const response = await fetch(path, { headers: asGuest ? {} : headers, ...(body !== undefined ? { method: 'POST', body: JSON.stringify(body) } : {}) })
           const result = (await response.json()) as any
-          if (wait && path === '/v1/bookmark/fork' && result.code === 200) await settled(result.data.bookmark_uid)
           return { response, result }
+        }
+        const contentConfig = resolve(resources.workspace, 'fork-content.json')
+        writeFileSync(
+          contentConfig,
+          JSON.stringify({
+            name: 'fork-content-client',
+            compatibility_date: '2025-05-05',
+            services: [{ binding: 'BACKEND', service: 'root-tooling-local-edge', entrypoint: 'ContentEntry' }]
+          })
+        )
+        // Connect only to this harness's isolated Wrangler registry, never the user's dev workers.
+        const previousRegistry = process.env.WRANGLER_REGISTRY_PATH
+        process.env.WRANGLER_REGISTRY_PATH = resolve(resources.workspace, 'worker-home/config/.wrangler/registry')
+        try {
+          contentProxy = await getPlatformProxy<{ BACKEND: Fetcher }>({ configPath: contentConfig, envFiles: [resources.emptyEnv], remoteBindings: false })
+        } finally {
+          if (previousRegistry === undefined) delete process.env.WRANGLER_REGISTRY_PATH
+          else process.env.WRANGLER_REGISTRY_PATH = previousRegistry
+        }
+        const backend = contentProxy.env.BACKEND
+        const detail = async (uuid: string, guest = false) => {
+          const response = await backend.fetch(`https://content.internal/content/meta?uuid=${uuid}`, { headers: guest ? {} : headers })
+          assert.equal(response.status, 200)
+          return { response, result: { data: (await response.json()) as any } }
+        }
+        const fork = async (sourceUuid: string, wait = true) => {
+          const response = await call('/v1/bookmark/add_url', { target_url: `${readerOrigin}/b/${sourceUuid}`, tags: [] })
+          let destinationUuid = ''
+          if (response.result.code === 200) {
+            assert.deepEqual(response.result.data, { bmId: '' })
+            const target = sql(`SELECT b.target_url FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id=ub.bookmark_id WHERE ub.uuid=${sqlString(sourceUuid)}`).replace(
+              /^slax-pdf:\/\/[0-9]+\//,
+              'slax-pdf://1/'
+            )
+            destinationUuid = sql(`SELECT ub.uuid FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id=ub.bookmark_id WHERE ub.user_id=1 AND b.target_url=${sqlString(target)}`)
+            assert.ok(destinationUuid)
+            if (wait) await settled(destinationUuid)
+          }
+          return { ...response, destinationUuid }
         }
         const saved: Record<string, any> = {}
         for (const [name, src] of Object.entries(sources)) {
           console.log(`Fork HTTP exercise: ${name}`)
-          const { response, result } = await call('/v1/bookmark/fork', { source_user_bookmark_uuid: src.uuid })
+          const { response, result, destinationUuid } = await fork(src.uuid)
           assert.equal(response.status, 200, `${name}: ${JSON.stringify(result)}`)
-          assert.equal(result.data.disposition, 'created')
-          assert.match(response.headers.get('cache-control') || '', /no-store/)
           const dest = json(
-            `SELECT ub.uuid,ub.bookmark_id,ub.forked_from_id,ub.is_starred,ub.alias_title,b.private_user,b.target_url,b.content_key,b.content_md_key FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id=ub.bookmark_id WHERE ub.uuid=${sqlString(result.data.bookmark_uid)}`
+            `SELECT ub.uuid,ub.bookmark_id,ub.forked_from_id,ub.is_starred,ub.alias_title,b.private_user,b.target_url,b.content_key,b.content_md_key FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id=ub.bookmark_id WHERE ub.uuid=${sqlString(destinationUuid)}`
           )
           assert.equal(dest.private_user, 1)
           assert.equal(dest.is_starred, false)
@@ -175,36 +218,34 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
             }
           }
           saved[name] = dest
-          const duplicate = await call('/v1/bookmark/fork', { source_user_bookmark_uuid: src.uuid })
-          assert.equal(duplicate.result.data.bookmark_uid, dest.uuid)
-          assert.equal(duplicate.result.data.disposition, 'updated')
+          const duplicate = await fork(src.uuid)
+          assert.equal(duplicate.destinationUuid, dest.uuid)
           assert.equal(sql(`SELECT content_key FROM sr_bookmark WHERE id=${dest.bookmark_id}`), dest.content_key)
         }
         // A missing copy object cannot prevent HTTP admission. The durable Workflow exhausts
         // its finite retries, then an explicit retry succeeds once the source becomes available.
         const deferred = source('deferred', 'https://fixture.invalid/deferred', 'legacy/deferred.html', '')
-        const accepted = await call('/v1/bookmark/fork', { source_user_bookmark_uuid: deferred.uuid }, false, false)
+        const accepted = await fork(deferred.uuid, false)
         assert.equal(accepted.response.status, 200)
-        const admittedUuid = accepted.result.data.bookmark_uid
+        const admittedUuid = accepted.destinationUuid
         assert.notEqual(sql(`SELECT b.status FROM sr_bookmark b JOIN sr_user_bookmark ub ON ub.bookmark_id=b.id WHERE ub.uuid=${sqlString(admittedUuid)}`), 'success')
         await settled(admittedUuid, 'failed')
-        const failedState = await call(`/v1/bookmark/fork_metadata?bookmark_uid=${deferred.uuid}`)
+        const failedState = await detail(deferred.uuid)
         assert.equal(failedState.result.data.viewer_fork_status, 'failed')
         await bucket.put(deferred.key, '<article>Recovered deferred source</article>')
-        const retried = await call('/v1/bookmark/fork', { source_user_bookmark_uuid: deferred.uuid })
-        assert.equal(retried.result.data.bookmark_uid, admittedUuid)
+        const retried = await fork(deferred.uuid)
+        assert.equal(retried.destinationUuid, admittedUuid)
         saved.deferred = json(
           `SELECT ub.uuid,ub.bookmark_id,b.content_key,b.content_md_key FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id=ub.bookmark_id WHERE ub.uuid=${sqlString(admittedUuid)}`
         )
         assert.match(await (await bucket.get(saved.deferred.content_key))!.text(), /Recovered deferred source/)
-        assert.equal((await call(`/v1/bookmark/fork_metadata?bookmark_uid=${deferred.uuid}`)).result.data.viewer_fork_status, 'success')
-        assert.equal((await call(`/v1/bookmark/fork_metadata?bookmark_uid=${deferred.uuid}`, undefined, true)).result.data.viewer_fork_status, null)
+        assert.equal((await detail(deferred.uuid)).result.data.viewer_fork_status, 'success')
+        assert.equal((await detail(deferred.uuid, true)).result.data.viewer_fork_status, null)
         const originalHtmlKey = saved.html.content_key
         const refreshedHtml = '<article><h1>Independent article</h1><p>Original source body.</p><p>Refreshed source body.</p></article>'
         await bucket.put(html.key, refreshedHtml)
-        const refresh = await call('/v1/bookmark/fork', { source_user_bookmark_uuid: html.uuid })
-        assert.equal(refresh.result.data.disposition, 'updated')
-        assert.equal(refresh.result.data.bookmark_uid, saved.html.uuid)
+        const refresh = await fork(html.uuid)
+        assert.equal(refresh.destinationUuid, saved.html.uuid)
         assert.equal(sql(`SELECT content_key FROM sr_bookmark WHERE id=${saved.html.bookmark_id}`), originalHtmlKey)
         assert.match(await (await bucket.get(originalHtmlKey))!.text(), /Refreshed source body/)
         assert.equal(saved.uploadedPdf.target_url, `slax-pdf://1/${digest}`)
@@ -213,11 +254,8 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         for (const sourceUuid of [html.uuid, saved.html.uuid]) {
           sql(`UPDATE sr_user_bookmark SET deleted_at=now() WHERE uuid=${sqlString(saved.html.uuid)}`)
           await proxy.env.KV.put('search:valid_bm_ids:1', '[]')
-          const restored = await call('/v1/bookmark/fork', {
-            source_user_bookmark_uuid: sourceUuid
-          })
-          assert.equal(restored.result.data.bookmark_uid, saved.html.uuid)
-          assert.equal(restored.result.data.disposition, sourceUuid === saved.html.uuid ? 'already_saved' : 'updated')
+          const restored = await fork(sourceUuid)
+          assert.equal(restored.destinationUuid, saved.html.uuid)
           assert.equal(sql(`SELECT deleted_at IS NULL FROM sr_user_bookmark WHERE uuid=${sqlString(saved.html.uuid)}`), 't')
           assert.equal(await proxy.env.KV.get('search:valid_bm_ids:1'), null)
         }
@@ -408,15 +446,15 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           await settled(saved.html.uuid)
           assert.equal(sql(`SELECT count(*) FROM sr_bookmark WHERE private_user=1 AND target_url=${sqlString(html.url)}`), '1')
         }
-        const visible = await call(`/v1/bookmark/fork_metadata?bookmark_uid=${saved.html.uuid}`)
+        const visible = await detail(saved.html.uuid)
         assert.equal(visible.result.data.fork.display_name, 'Owner')
         sql(`INSERT INTO sr_bookmark_share(user_id,bookmark_id,is_enable,show_userinfo) VALUES(2,${html.id},true,false)`)
-        const hidden = await call(`/v1/bookmark/fork_metadata?bookmark_uid=${saved.html.uuid}`, undefined, true)
+        const hidden = await detail(saved.html.uuid, true)
         assert.equal(hidden.result.data.fork.display_name, null)
         sql(`UPDATE sr_bookmark_share SET is_enable=false WHERE bookmark_id=${html.id}`)
-        const revoked = await call('/v1/bookmark/fork', { source_user_bookmark_uuid: html.uuid })
-        assert.equal(revoked.response.status, 404)
-        assert.equal((await call(`/v1/bookmark/fork_metadata?bookmark_uid=${saved.html.uuid}`)).result.data.fork.status, 'unavailable')
+        const revoked = await fork(html.uuid)
+        assert.equal(revoked.result.code, 404)
+        assert.equal((await detail(saved.html.uuid)).result.data.fork.status, 'unavailable')
         for (const src of [...Object.values(sources), ...recoverySources]) {
           if (src.key) await bucket.delete([src.key, src.textKey].filter(Boolean))
           sql(
@@ -492,7 +530,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
             assert.equal(after.forked_from_id, null)
             assert.equal(after.id, before.id)
             assert.equal(after.alias_title, before.alias_title)
-            const metadata = await call(`/v1/bookmark/fork_metadata?bookmark_uid=${dest.uuid}`)
+            const metadata = await detail(dest.uuid)
             assert.equal(metadata.result.data.has_fork, false)
             assert.equal(metadata.result.data.fork, null)
             assert.equal(metadata.response.headers.get('Cache-Control'), 'private, no-store')
@@ -503,6 +541,48 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           for (const kind of ['html', 'youtube', 'podcast']) {
             assert.ok(await bucket.head(saved[kind].content_key), 'recapture keeps the fixed live body key')
           }
+          // A transient supplemental write must leave this exact capture retryable, without
+          // letting an old release steal a newer writer. Exercise real PostgreSQL and R2.
+          for (const kind of ['youtube', 'podcast'] as const) {
+            const dest = saved[kind]
+            const initial = (await capture.load(dest.bookmark_id))!
+            const pending = { ...initial.media!, variants: { en: { status: 'pending' as const } } }
+            await putMedia(dest.content_key, pending)
+            const loaded = (await capture.load(dest.bookmark_id))!
+            const ready = {
+              ...pending,
+              variants: { en: { status: 'ready' as const, content: { language: 'en' as const, format: 'article' as const, lede: 'Published after retry', sections: [] } } }
+            }
+            let failOnce = true
+            const faultyBucket = new Proxy(nativeBucket, {
+              get(target, property) {
+                if (property === 'put')
+                  return async (...args: Parameters<R2Bucket['put']>) => {
+                    if (failOnce && args[0] === dest.content_md_key) {
+                      failOnce = false
+                      throw new Error('Injected supplemental R2 failure')
+                    }
+                    return target.put(...args)
+                  }
+                const value = Reflect.get(target, property)
+                return typeof value === 'function' ? value.bind(target) : value
+              }
+            }) as R2Bucket
+            const body = { html: '<article>Published after retry</article>', text: 'Published after retry' }
+            await assert.rejects(capture.publish(loaded, ready, body, new SnapshotBundle(faultyBucket, dest.uuid)), /Injected supplemental R2 failure/)
+            const retry = (await capture.load(dest.bookmark_id))!
+            assert.equal(retry.raw.status, 'success')
+            assert.equal(retry.media?.variants.en?.status, 'pending')
+            assert.ok(retry.raw.updated_at.getTime() > loaded.raw.updated_at.getTime())
+            assert.equal(await capture.publish(retry, ready, body), true)
+            const complete = (await capture.load(dest.bookmark_id))!
+            assert.equal(complete.media?.variants.en?.status, 'ready')
+            assert.equal(await repo.claimWrite(dest.bookmark_id, complete.raw.updated_at), true)
+            assert.equal(await repo.releaseWrite(dest.bookmark_id, loaded.raw.updated_at), false)
+            assert.equal(await repo.ownsWrite(dest.bookmark_id, complete.raw.updated_at), true)
+            assert.equal(await repo.releaseWrite(dest.bookmark_id, complete.raw.updated_at), true)
+          }
+
           const deleted = saved.uploadedPdf
           const deletion = await call('/v1/bookmark/del', { bookmark_id: encodeId(deleted.bookmark_id) })
           assert.equal(deletion.result.code, 200)
@@ -532,6 +612,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           formats: Object.keys(sources),
           asynchronousAdmission: true,
           workflowFailureAndRetry: true,
+          supplementalWriteRetryAndStaleRelease: true,
           viewerStatusIsolation: true,
           independent: true,
           repeatedRefresh: true,

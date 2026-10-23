@@ -351,7 +351,7 @@ export class UrlParserHandler {
     const searchCallback = async () => {
       try {
         console.log(`add search record, bookmarkId: ${taskInfo.info.bookmarkId}`)
-        if (!(await this.snapshots.repairIndex(ctx, bookmarkId, true))) {
+        if (!(await this.snapshots.indexSnapshot(ctx, bookmarkId, true))) {
           const results = await this.searchSvc.addSearchRecord(ctx, bookmarkId, parseRes.title, parseRes.textContent)
           const rejected = (results || []).filter((r): r is PromiseRejectedResult => r.status === 'rejected')
           if (rejected.length > 0) {

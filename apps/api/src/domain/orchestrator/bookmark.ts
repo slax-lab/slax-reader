@@ -106,6 +106,7 @@ export class BookmarkOrchestrator {
       ...bookmarkWithoutId,
       bookmark_id: ctx.hashIds.encodeId(res.bookmark.id),
       bookmark_user_uuid: res.uuid,
+      ...(await this.bookmarkService.getForkMetadata(ctx, res)),
       pdf: await this.bookmarkService.getPdfDescriptor(res.bookmark.content_key, res.uuid),
       content: contentResult.status === 'fulfilled' ? contentResult.value : undefined,
       archived: res.archive_status === 1 ? 'archive' : res.archive_status === 2 ? 'later' : 'inbox',

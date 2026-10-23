@@ -49,7 +49,7 @@ A successful snapshot SHALL expose a coherent set of required content artifacts.
 
 ### Requirement: Best-effort snapshot lifecycle deletion
 
-The system SHALL retain existing R2 directories and UUID filenames for HTML, text, PDF and PDF metadata, and attempt immediate content deletion after permanent bookmark/account deletion. Failed deletion SHALL NOT undo the successful database operation. It SHALL NOT add a cleanup table, cleanup state fields, R2 inventory scans or scheduled orphan reclamation. Existing bounded media settlement and index repair SHALL remain available.
+The system SHALL retain existing R2 directories and UUID filenames for HTML, text, PDF and PDF metadata, and attempt immediate content deletion after permanent bookmark/account deletion. Failed deletion SHALL NOT undo the successful database operation. It SHALL NOT add a cleanup table, cleanup state fields, R2 inventory scans or scheduled orphan reclamation. Immediate best-effort indexing and original bounded media publication/status/republish triggers SHALL remain available; no added periodic snapshot maintenance or index repair SHALL run.
 
 #### Scenario: Pointer replacement or permanent deletion rolls back
 - **WHEN** the database transaction fails or its outcome remains uncertain
@@ -63,9 +63,13 @@ The system SHALL retain existing R2 directories and UUID filenames for HTML, tex
 - **WHEN** R2 deletion fails or the worker exits after the database operation
 - **THEN** the completed operation remains successful and residual objects may persist without a cleanup retry record
 
-#### Scenario: Scheduled maintenance
-- **WHEN** snapshot maintenance runs
-- **THEN** it performs bounded media settlement and index repair without collecting orphan objects
+#### Scenario: Publication retry
+- **WHEN** a matching private media capture or legacy body write fails transiently
+- **THEN** the failure reaches the original bounded publication retry or podcast republish trigger while independent references continue; only its matching claim may be released for retry
+
+#### Scenario: Index failure after publication
+- **WHEN** immediate search indexing fails after successful content publication
+- **THEN** content remains saved, the failure is reported, and no periodic index repair is scheduled
 
 ### Requirement: Article and shortcut fidelity
 

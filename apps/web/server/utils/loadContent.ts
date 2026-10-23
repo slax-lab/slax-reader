@@ -1,6 +1,6 @@
-import { isPdfContentKey } from '@slax-reader/contracts/pdf'
 import { isServerTimingEnabled } from './serverTiming'
-import { createError, getCookie, getResponseHeader, type H3Event, setResponseHeader } from 'h3'
+import { isPdfContentKey } from '@slax-reader/contracts/pdf'
+import { createError, getCookie, getHeader, getResponseHeader, type H3Event, setResponseHeader } from 'h3'
 
 export interface ContentResult {
   metadata: ContentMeta
@@ -21,6 +21,7 @@ function appendServerTiming(event: H3Event, step: string, durationMs: number): v
 }
 
 export async function loadContent(event: H3Event, uuid: string): Promise<ContentResult> {
+  setResponseHeader(event, 'Cache-Control', 'private, no-store')
   const totalStartedAt = performance.now()
   const timingEnabled = isServerTimingEnabled(event)
   const timings: Record<string, number> = {}
@@ -33,7 +34,9 @@ export async function loadContent(event: H3Event, uuid: string): Promise<Content
   const token = getCookie(event, config.public.COOKIE_TOKEN_NAME as string)
 
   const backendHeaders: Record<string, string> = {}
-  if (token) backendHeaders.Authorization = `Bearer ${token}`
+  const authorization = getHeader(event, 'authorization')
+  if (authorization) backendHeaders.Authorization = authorization
+  else if (token) backendHeaders.Authorization = `Bearer ${token}`
 
   const backendPromise = (async (): Promise<ContentMeta | null> => {
     const fetchStartedAt = performance.now()

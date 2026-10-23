@@ -100,6 +100,12 @@ async function fixture(kind: 'youtube' | 'podcast') {
       return true
     }),
     ownsWrite: vi.fn(async (id: number, revision: Date) => id === raw.id && revision.getTime() === raw.updated_at.getTime() && raw.status === 'parseing'),
+    releaseWrite: vi.fn(async (id: number, revision: Date) => {
+      if (id !== raw.id || revision.getTime() !== raw.updated_at.getTime() || raw.status !== 'parseing') return false
+      raw.status = 'success'
+      raw.updated_at = new Date(raw.updated_at.getTime() + 1)
+      return true
+    }),
     failWrite: vi.fn(async (id: number, revision: Date) => {
       if (id !== raw.id || revision.getTime() !== raw.updated_at.getTime() || raw.status !== 'parseing') return false
       raw.status = 'failed'
@@ -179,8 +185,33 @@ describe('managed media owner recovery', () => {
     expect(kind === 'youtube' ? (status as any).status : (status as any).article).toBe('pending')
     expect(f.raw.content_key).toBe('html/body/owner.html')
     expect(f.repo.publishRevision).toHaveBeenCalled()
-    expect(f.repo.failWrite).toHaveBeenCalledWith(1, expect.any(Date))
-    expect(f.raw.status).toBe('failed')
+    expect(f.repo.releaseWrite).toHaveBeenCalledWith(1, expect.any(Date))
+    expect(f.raw.status).toBe('success')
+  })
+
+  it.each(['youtube', 'podcast'] as const)('%s retries a failed R2 write through the original publication trigger', async kind => {
+    const f = await fixture(kind)
+    if (kind === 'podcast') Object.assign(f.ep, { transcript_status: 'ready', transcript_hash: 'hash', transcript_key: 'transcript.json' })
+    const initialRevision = new Date(f.raw.updated_at)
+    vi.spyOn(f.memory.bucket, 'put').mockRejectedValueOnce(new Error('transient R2 failure'))
+    await expect(f.snapshots.settleSource(f.ctx, kind, 'source')).rejects.toThrow('Private media publication incomplete')
+    expect(f.raw.status).toBe('success')
+    expect((await f.snapshots.load(1))?.media?.variants.en?.status).toBe('pending')
+    expect(await f.snapshots.settleSource(f.ctx, kind, 'source')).toBe(1)
+    expect((await f.snapshots.load(1))?.media?.variants.en?.status).toBe('ready')
+    expect(f.raw.updated_at.getTime()).toBeGreaterThan(initialRevision.getTime())
+    expect(await f.snapshots.settleSource(f.ctx, kind, 'source')).toBe(0)
+  })
+
+  it('cannot release or write a newer owner acquisition after supplemental failure', async () => {
+    const f = await fixture('youtube')
+    vi.spyOn(f.memory.bucket, 'put').mockImplementationOnce(async () => {
+      f.raw.updated_at = new Date(f.raw.updated_at.getTime() + 100)
+      throw new Error('stale publication')
+    })
+    await expect(f.snapshots.settleSource(f.ctx, 'youtube', 'source')).rejects.toThrow()
+    expect(f.raw.status).toBe('parseing')
+    expect(await f.snapshots.settleSource(f.ctx, 'youtube', 'source')).toBe(0)
   })
 
   it.each(['youtube', 'podcast'] as const)('%s fails closed on a missing manifest and on denied policy', async kind => {
@@ -194,7 +225,7 @@ describe('managed media owner recovery', () => {
     expect(f.repo.publishRevision).not.toHaveBeenCalled()
   })
 
-  it('indexes the stored managed capture once across completion and the repair sweep', async () => {
+  it('indexes the stored managed capture immediately without periodic deduplication markers', async () => {
     const f = await fixture('youtube')
     f.raw.title = 'Stored title'
     f.raw.content_md_key = 'text/body/owner.txt'
@@ -247,10 +278,10 @@ describe('managed media owner recovery', () => {
       { title: 'Stale parse title', textContent: 'Stale parse text' }
     )
     await background
-    await f.snapshots.repairIndex(f.ctx, 1)
-    expect(indexed).toEqual(['Stored title:Stored text'])
+    await f.snapshots.indexSnapshot(f.ctx, 1)
+    expect(indexed).toEqual(['Stored title:Stored text', 'Stored title:Stored text'])
     expect(legacy).toEqual([])
-    expect(markers.get('snapshot-index:1')).toBe(`${f.raw.content_key}:${f.raw.updated_at.toISOString()}`)
+    expect(markers.size).toBe(0)
   })
 
   it('allows only explicit owner retry to adopt changed podcast inputs and consume the ready result', async () => {
@@ -385,7 +416,7 @@ describe('managed media owner recovery', () => {
         }
       }
     })
-    await f.snapshots.repairIndex(f.ctx, 1)
+    await f.snapshots.indexSnapshot(f.ctx, 1)
     expect(markers.has('snapshot-index:1')).toBe(false)
   })
 

@@ -33,6 +33,7 @@ describe('private media publication', () => {
       claimWrite: vi.fn(async () => true),
       ownsWrite: vi.fn(async () => true),
       failWrite: vi.fn(async () => true),
+      releaseWrite: vi.fn(async () => true),
       publishRevision: vi.fn(async (_id: number, expected: string, content: any) => {
         if (raw.content_key !== expected) return false
         Object.assign(raw, content)
@@ -59,7 +60,7 @@ describe('private media publication', () => {
     expect(await fixture.service.settle({} as any, 1)).toBe(false)
     expect(await fixture.memory.bucket.head('html/body/owner.html')).not.toBeNull()
     expect(deletion).not.toHaveBeenCalled()
-    expect(fixture.repo.failWrite).toHaveBeenCalledWith(1, fixture.raw.updated_at)
+    expect(fixture.repo.releaseWrite).toHaveBeenCalledWith(1, fixture.raw.updated_at)
   })
 
   it('claims the DB request before any fixed-key writes', async () => {
@@ -189,7 +190,8 @@ describe('private media publication', () => {
       return load(id)
     })
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
-    expect(await fixture.service.settleSource({} as any, 'youtube', 'video')).toBe(1)
+    await expect(fixture.service.settleSource({} as any, 'youtube', 'video')).rejects.toThrow('Private media publication incomplete')
+    expect(fixture.repo.publishRevision).toHaveBeenCalledOnce()
     log.mockRestore()
   })
 })

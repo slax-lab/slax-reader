@@ -632,7 +632,7 @@ describe('fixed body reference filtering', () => {
       if (id === 201) throw new Error('broken manifest')
       return null
     })
-    expect(await w.service.publishBodies(w.ctx(OWNER), SOURCE)).toBe(1)
+    await expect(w.service.publishBodies(w.ctx(OWNER), SOURCE)).rejects.toThrow('Media body publication incomplete')
     expect(w.objects.get('html/body/u1.html')).toContain('slax-pod-article')
   })
 })

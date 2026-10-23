@@ -20,7 +20,8 @@ import { BookmarkService } from '@/domain/bookmark'
 import { LabService } from '@/domain/lab'
 import { BookmarkAddOrchestrator } from '@/domain/orchestrator/bookmarkAdd'
 import { BookmarkController } from '@/handler/http/bookmarkController'
-import { ErrorName } from '@/const/err'
+import { ErrorName, BookmarkNotFoundError } from '@/const/err'
+import { forkError } from '@/utils/bookmarkForkError'
 import { createMockCtx, createMockBookmarkService, createMockCrawlService, createMockRequest } from '@test/helpers/mockFactory'
 
 const YOUTUBE = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
@@ -123,6 +124,25 @@ describe('POST /v1/bookmark/add_url', () => {
     expect(body).toMatchObject({ code: 400, data: 'LAB_FEATURE_DISABLED' })
     expect(body.message).toContain('Labs')
     expect(logs.track).toHaveBeenCalledWith(1, 'bookmark_add', { channel: 'add_url', status: 'lab_disabled' })
+  })
+
+  test.each([forkError(), BookmarkNotFoundError()])('preserves Reader-source error envelopes through add_url', async failure => {
+    const { ctrl } = wireController(failure)
+    const ctx = createMockCtx()
+    ctx.env.FRONT_END_URL = 'https://reader.test'
+    const resp = await ctrl.handleUserAddUrlBookmarkRequest(ctx, createMockRequest({ target_url: 'https://reader.test/b/11111111-1111-4111-8111-111111111111' }))
+    expect(await resp.json()).toMatchObject({ code: failure.errCode, data: failure.name })
+  })
+
+  test('acknowledges Fork admission with the existing empty bmId and never starts another crawl', async () => {
+    const { ctrl } = wireController(null)
+    const orch = (ctrl as any).bookmarkAddOrchestrator
+    orch.addByUrl.mockResolvedValue({ bookmarkId: 42, isShortcut: false })
+    vi.spyOn(ctrl as any, 'submitBookmarkEvent').mockResolvedValue(undefined)
+    const resp = await ctrl.handleUserAddUrlBookmarkRequest(createMockCtx(), createMockRequest({ target_url: 'https://reader.test/b/11111111-1111-4111-8111-111111111111' }))
+    expect(resp.status).toBe(200)
+    expect(await resp.json()).toMatchObject({ code: 200, data: { bmId: '' } })
+    expect(orch.kickoffWorkflow).not.toHaveBeenCalled()
   })
 
   test('any other error is still squashed to ERROR_PARAM', async () => {
