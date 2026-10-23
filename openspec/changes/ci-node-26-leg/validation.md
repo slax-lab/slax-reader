@@ -55,10 +55,15 @@ The original mission base (`feat/branch-protection-model`) predated PR #368, so 
 
 ## Running-environment exercise
 
-The changed behavior is the GitHub Actions matrix itself, which only runs on GitHub. Local runs above execute the exact commands each leg runs; the pull request's own CI run exercises the new legs end to end (new contexts `check (26.12.1)` in both `CLI CI` and `Tooling CI`, aggregated by the unchanged gates). The final PR check state is reported in the mission completion report.
+The changed behavior is the GitHub Actions matrix itself, which only runs on GitHub. Local runs above execute the exact commands each leg runs; the pull request's own CI run exercised the new legs end to end on PR #373:
+
+- `check (26.12.1)` passed in both `CLI CI` and `Tooling CI`; `check (22.22.2)` passed in both; `check (24.15.0)` passed in `CLI CI`.
+- `CLI CI gate`, `Tooling CI gate`, `Web CI gate`, `Extension CI gate`, `API CI gate`, and `Mobile CI gate` all passed (`tooling/ci-*` selects every scope, so the full suites ran).
+- `PR review gate` passed with "no Important findings"; `agent-config drift check` passed.
+- `cli-release` and `extension-release` passed on their unchanged Node 24.15.0 runtime.
 
 ## Not verified (declared gaps)
 
-- The Node 24.15.0 CLI leg was not re-run locally (that leg is unchanged and CI covers it; the local run focused on the new Node 26 leg plus the Node 22 floor).
-- GitHub Actions scheduling of the new matrix legs cannot be exercised before the PR exists; the PR check run is the exercise and its result is recorded in the completion report.
-- `docs/CI.md` and `docs/cli/RELEASE.md` still describe CLI validation on Node 22.22.2 and 24.15.0 only. Those files are outside this mission's file scope; the drift is filed as a follow-up finding for the tower.
+- The Node 24.15.0 CLI leg was not re-run locally (that leg is unchanged and CI covers it; the local run focused on the new Node 26 leg plus the Node 22 floor). CI passed it on PR #373.
+- GitHub Actions scheduling of the new matrix legs cannot be exercised before the PR exists; the PR #373 run was the exercise and passed as listed above.
+- `docs/CI.md` (lines 51, 54, 106) and `docs/cli/RELEASE.md` (line 3) still describe CLI validation on Node 22.22.2 and 24.15.0 only. Those files are outside this mission's file scope; the drift is filed as a follow-up finding for the tower.

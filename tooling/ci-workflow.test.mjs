@@ -224,6 +224,7 @@ test('CLI retains compatibility suites and publication/deployment retain their o
   for (const cmd of ['pnpm test:preflight', 'pnpm test:cli-tooling']) assert.ok(!cli.steps.some(s => s.run === cmd))
   const tooling = workflow('tooling-ci').jobs
   assert.deepEqual(tooling.check.strategy.matrix.node, ['22.22.2', '26.12.1'])
+  assert.ok(tooling.check.steps.some(s => s.run === 'pnpm test:preflight'))
   for (const job of [cli, tooling.check]) assert.equal(job.steps.find(s => s.uses?.startsWith('actions/setup-node@')).with['node-version'], '${{ matrix.node }}')
   assert.ok(tooling['cli-release'].steps.some(s => s.run === 'pnpm test:cli-tooling'))
   assert.ok(tooling['extension-release'].steps.some(s => s.run === 'pnpm test:extension-tooling'))
