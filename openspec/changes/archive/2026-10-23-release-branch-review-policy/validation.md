@@ -18,8 +18,9 @@
 
 - Round 1 (PR #365, run 39926019036): one Important finding — the `pull-requests: read` permission removal broke the beta → main provenance lookup (`commits/{sha}/pulls`, `tooling/promotion-gate.mjs:193`), which would 403 and fail the gate closed on every promotion to `main`. Fixed by restoring the permission in `promotion-gate.yml`, its workflow-test expectation, and the `docs/CI.md` permissions note (with the correct rationale). Three Nits fixed in the same pass: stale hotfix-review sentence in the workflow header, discarded `allowedHead` return now carries an intent comment, and the PR body was restructured to the repository template. After fixes: `node --test tooling/promotion-gate.test.mjs tooling/rulesets.test.mjs` — 43/43 pass.
 
+- Live ruleset mutation (task 4.3, human-authorized 2026-10-23 after PR #365 merged): `node tooling/rulesets.mjs apply` — "updated ruleset release-beta / unchanged ruleset release-branches / updated ruleset release-main; 2 changed, 1 unchanged"; `node tooling/rulesets.mjs check` — "No ruleset drift: 3 codified rulesets match slax-lab/slax-reader."
+
 ## Not verified here
 
-- Live ruleset mutation: `rulesets.mjs apply` is task 4.3, a human-authorized post-merge operation; until it runs, the drift check intentionally reports the pending diff.
 - End-to-end behavior of the gate on a real promotion/hotfix pull request after the ruleset change; first real exercise happens on the next `dev` → `beta` promotion.
-- The 2 pre-existing tooling test failures above are out of scope for this change and reported to the human separately.
+- The 2 pre-existing tooling test failures noted during this change are fixed in PR #368 (`test(tooling): make env parser assertions Node >= 25 proof`, open at archive time).
