@@ -1,3 +1,4 @@
+import { createMockMediaSnapshots } from '@test/helpers/mockFactory'
 /**
  * YoutubeArticleService: who sees which article version, the three ways a generation starts, the
  * daily and budget limits, the sweep and takedown. The repository is an in-memory stand-in with
@@ -208,6 +209,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
     // No copy of the bookmark counts as marked, like the real query
     bodyHasMarks: vi.fn(async (bmId: number) => !bookmarks.has(bmId) || [bmId + 1000, bmId + 2000].some(id => (marks.get(id) ?? []).some(m => !m.is_deleted)))
   }
+  const forkRepo = { claimWrite: vi.fn(async () => true), releaseWrite: vi.fn(async () => true), failWrite: vi.fn(async () => true), publishRevision: vi.fn(async () => true) }
   const searchService = { addSearchRecord: vi.fn(async () => [{ status: 'fulfilled', value: [] }]) }
   const labService = {
     isEnabled: vi.fn(async (userId: number) => labOn.has(userId)),
@@ -223,8 +225,11 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
   const objects = new Map<string, string>()
   const bucket = {
     R2Bucket: {
-      get: vi.fn(async (k: string) => (objects.has(k) ? { text: async () => objects.get(k)! } : null)),
-      put: vi.fn(async (k: string, v: string) => void objects.set(k, v)),
+      get: vi.fn(async (k: string) => (objects.has(k) ? { body: new ReadableStream(), text: async () => objects.get(k)! } : null)),
+      put: vi.fn(async (k: string, v: string) => {
+        objects.set(k, v)
+        return { key: k }
+      }),
       delete: vi.fn(async (k: string | string[]) => {
         for (const key of Array.isArray(k) ? k : [k]) objects.delete(key)
       }),
@@ -247,7 +252,8 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
     () => bucket,
     alertBot,
     crawlService,
-    new MediaBodyService(bookmarkService as any, bookmarkRepo as any, searchService as any, markRepo as any, (() => bucket) as any)
+    new MediaBodyService(bookmarkService as any, bookmarkRepo as any, searchService as any, markRepo as any, (() => bucket) as any, forkRepo as any),
+    createMockMediaSnapshots()
   ) as YoutubeArticleService
   const create = vi.fn(async () => ({}))
   const ctx = (userId: number) => {
@@ -256,7 +262,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
     return c
   }
   repo.refs.push({ id: 1, bookmark_id: BOOKMARK, user_id: OWNER, source_id: VIDEO, source_hash: HASH, created_at: new Date(), updated_at: new Date() })
-  return { service, repo, redis, bookmark, labOn, users, objects, create, ctx, alertBot, crawlService, bookmarks, marks, bookmarkRepo, searchService }
+  return { service, repo, redis, bookmark, labOn, users, objects, create, ctx, alertBot, crawlService, bookmarks, marks, bookmarkRepo, forkRepo, searchService }
 }
 
 const today = () => new Date().toISOString().slice(0, 10).replace(/-/g, '')
@@ -770,7 +776,7 @@ describe('the article as the bookmark body', () => {
     const text = w.objects.get('text/body/u1.txt')!
     expect(text).toContain('And world, and more.')
     expect(text).not.toContain('so um')
-    expect(w.bookmarkRepo.updateBookmarkWordCount).toHaveBeenCalledWith(BOOKMARK, text.length)
+    expect(w.forkRepo.publishRevision).toHaveBeenCalledWith(BOOKMARK, 'html/body/u1.html', expect.objectContaining({ content_word_count: text.length }), expect.anything())
     expect(w.bookmarkRepo.deleteBookmarkSummary).toHaveBeenCalledWith(BOOKMARK, OWNER)
     expect(w.searchService.addSearchRecord).toHaveBeenCalledWith(expect.anything(), BOOKMARK, 'Attention', text)
   })
@@ -781,7 +787,7 @@ describe('the article as the bookmark body', () => {
     w.marks.set(BOOKMARK + 1000, [{ is_deleted: false }])
     expect(await w.service.publishBodies(w.ctx(0), row.id)).toBe(0)
     expect(w.objects.get('html/body/u1.html')).toBe(RAW_BODY)
-    expect(w.bookmarkRepo.updateBookmarkWordCount).not.toHaveBeenCalled()
+    expect(w.forkRepo.publishRevision).not.toHaveBeenCalled()
 
     w.marks.set(BOOKMARK + 1000, [{ is_deleted: true }])
     expect(await w.service.publishBodies(w.ctx(0), row.id)).toBe(1)
@@ -816,6 +822,7 @@ describe('the article as the bookmark body', () => {
       w.bookmarks.set(bm, { title: 't', content_key: `html/body/${bm}.html`, content_md_key: null, moderation_result: moderation })
       w.repo.refs.push({ id: bm, bookmark_id: bm, user_id: user, source_id: VIDEO, source_hash: HASH, created_at: new Date(), updated_at: new Date() } as any)
     }
+    w.objects.set('html/body/200.html', '<p>Original captions</p>')
     // a bookmark of an older caption version is not touched
     w.repo.refs.push({ id: 300, bookmark_id: 300, user_id: 20, source_id: VIDEO, source_hash: 'old', created_at: new Date(), updated_at: new Date() } as any)
     expect(await w.service.publishBodies(w.ctx(0), row.id)).toBe(2)
@@ -849,9 +856,9 @@ describe('the article as the bookmark body', () => {
     expect(w.objects.get('html/body/u1.html')).toContain('data-slax-derived="youtube-article"')
 
     // already there: read only
-    w.bookmarkRepo.updateBookmarkWordCount.mockClear()
+    w.forkRepo.publishRevision.mockClear()
     expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ body_ready: true })
-    expect(w.bookmarkRepo.updateBookmarkWordCount).not.toHaveBeenCalled()
+    expect(w.forkRepo.publishRevision).not.toHaveBeenCalled()
   })
 
   test('status: a visitor reads the body state but never writes it', async () => {
@@ -880,7 +887,7 @@ describe('the article as the bookmark body', () => {
   test('status: a failed body write answers body_ready false instead of failing the request', async () => {
     const w = wire()
     ready(w)
-    w.bookmarkRepo.updateBookmarkWordCount.mockRejectedValueOnce(new Error('pg blip'))
+    w.forkRepo.publishRevision.mockRejectedValueOnce(new Error('pg blip'))
     expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'ready', body_mode: 'article', body_ready: false })
   })
 
@@ -929,5 +936,95 @@ describe('the article as the bookmark body', () => {
     expect(html).not.toContain('slax-pod-article')
     expect(playerCues(html)).toHaveLength(2)
     expect(w.objects.get('text/body/u1.txt')).toBe('so um <b>hello</b> and "world" & more')
+  })
+})
+
+describe('private capture requests', () => {
+  test('an owner can retry a failed private variant using an already ready canonical result', async () => {
+    const w = wire()
+    w.repo.add({ status: 'ready', article_key: 'ready.json' })
+    const snapshots = (w.service as any).snapshots
+    snapshots.load.mockResolvedValue({
+      media: {
+        kind: 'youtube',
+        mode: 'capture',
+        revision: 'r',
+        sourceId: VIDEO,
+        sourceHash: HASH,
+        defaultLanguage: 'en',
+        bodyLanguage: null,
+        variants: { en: { status: 'failed' } }
+      }
+    })
+    await w.service.request(w.ctx(OWNER), UUID, 'retry')
+    expect(snapshots.openRequest).toHaveBeenCalledWith(BOOKMARK, 'en')
+    expect(w.repo.requeue).not.toHaveBeenCalled()
+    expect(w.create).not.toHaveBeenCalled()
+  })
+
+  test('a pending private capture held by the daily limit exposes that status', async () => {
+    const w = wire()
+    w.repo.add({ status: 'pending' })
+    w.redis.store.set(`yt_article:${OWNER}:${today()}:auto`, 20)
+    const snapshots = (w.service as any).snapshots
+    snapshots.load.mockResolvedValue({
+      media: {
+        kind: 'youtube',
+        mode: 'capture',
+        revision: 'r',
+        sourceId: VIDEO,
+        sourceHash: HASH,
+        defaultLanguage: 'en',
+        bodyLanguage: null,
+        variants: { en: { status: 'pending' } }
+      }
+    })
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'limit_reached' })
+    expect(w.create).not.toHaveBeenCalled()
+  })
+})
+
+describe('frozen copied languages', () => {
+  test('a fork owner can read an available copied language when their preferred language is absent', async () => {
+    const w = wire()
+    w.users[OWNER] = { ai_lang: 'zh', lang: 'zh' }
+    const snapshots = (w.service as any).snapshots
+    snapshots.load.mockResolvedValue({
+      managed: true,
+      media: {
+        kind: 'youtube',
+        mode: 'fork',
+        revision: 'r',
+        sourceId: VIDEO,
+        sourceHash: HASH,
+        defaultLanguage: 'zh',
+        bodyLanguage: 'en',
+        variants: { en: { status: 'ready', content: {} } }
+      }
+    })
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'ready', language: 'en', requested_language: 'zh' })
+    expect(w.create).not.toHaveBeenCalled()
+  })
+})
+
+describe('fixed body media compatibility', () => {
+  test('managed bodies at conventional keys stay unchanged during legacy publication', async () => {
+    const w = wire()
+    const html = '<p>Frozen</p><script id="slax-private-snapshot" type="application/json">{}</script>'
+    w.objects.set('html/body/u1.html', html)
+    const bodies = (w.service as any).bodies as MediaBodyService
+    expect(await bodies.writeBody(w.ctx(OWNER), BOOKMARK, OWNER, { html: '<p>Replacement</p>', text: 'Replacement' })).toBe(false)
+    expect(w.objects.get('html/body/u1.html')).toBe(html)
+    expect(w.forkRepo.publishRevision).not.toHaveBeenCalled()
+  })
+
+  test('backfill skips managed snapshots before fetching captions', async () => {
+    const w = wire()
+    w.repo.listBackfillCandidates.mockResolvedValue([
+      { user_bookmark_id: 1, bookmark_id: BOOKMARK, user_id: OWNER, target_url: `https://youtube.com/watch?v=${VIDEO}`, lang: 'en', ai_lang: '' }
+    ])
+    ;(w.service as any).snapshots.load.mockResolvedValue({ managed: true })
+    expect(await w.service.backfill(w.ctx(OWNER), 10)).toMatchObject({ processed: 1, linked: 0, failed: 0 })
+    expect(w.crawlService.fetchYoutubeData).not.toHaveBeenCalled()
   })
 })

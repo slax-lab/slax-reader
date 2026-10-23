@@ -14,6 +14,7 @@ import { bookmarkEventProperties, getEventContext, submitServerEvent } from '@/d
 import { ErrorMarkTypeError, ErrorParam, SyncTableRuleError, SyncTableTagNameError, UserNotFoundError } from '@/const/err'
 import { SignJWT } from 'jose'
 import { markType } from '@/infra/repository/dbMark'
+import { readerBookmarkUuid } from '@slax-reader/contracts'
 
 export type SyncExecOperation = 'PUT' | 'PATCH' | 'DELETE'
 
@@ -36,6 +37,8 @@ export interface CreateTagData {
 }
 
 export interface CreateBookmarkData {
+  /** Set by the server classifier, never accepted from uploaded metadata. */
+  readerSourceUuid?: string
   targetUrl: string
   title: string
   thumbnail?: string
@@ -188,6 +191,11 @@ export class SyncOrchestrator {
       }
     }
 
+    for (const operation of orderedOperations) {
+      if (operation.type !== 'create_bookmark') continue
+      const source = readerBookmarkUuid(operation.data.targetUrl, [ctx.env.FRONT_END_URL])
+      if (source) operation.data.readerSourceUuid = source
+    }
     const observer = this.syncCommitObserver(ctx)
     const result = observer ? await this.dbSyncBatch.executeOrderedOperations(orderedOperations, observer) : await this.dbSyncBatch.executeOrderedOperations(orderedOperations)
     for (const newBookmark of result) {
@@ -233,7 +241,10 @@ export class SyncOrchestrator {
       let parentUuid = ''
       if (change.data['metadata']) {
         try {
-          const metadata = JSON.parse(change.data['metadata']) as { root_id?: string; parent_id?: string }
+          const metadata = JSON.parse(change.data['metadata']) as {
+            root_id?: string
+            parent_id?: string
+          }
           rootUuid = metadata.root_id || ''
           parentUuid = metadata.parent_id || ''
         } catch {
@@ -454,7 +465,10 @@ export class SyncOrchestrator {
     if (change.op !== 'PUT' || operations.length === operationCount || !change.data?.metadata) return
 
     try {
-      const metadata = JSON.parse(change.data.metadata) as { source_type?: string; source_id?: string }
+      const metadata = JSON.parse(change.data.metadata) as {
+        source_type?: string
+        source_id?: string
+      }
       const operation = operations.at(-1)
       if (operation?.type === 'create_comment' && metadata.source_type === 'collection' && metadata.source_id) {
         operation.data.sourceType = 'collection'
@@ -481,7 +495,16 @@ export class SyncOrchestrator {
     })
   }
 
-  public async sendRetryParseEvent(ctx: ContextManager, newBookmark: { bookmarkId: number; targetUrl: string; userId: number }) {
+  public async sendRetryParseEvent(
+    ctx: ContextManager,
+    newBookmark: {
+      bookmarkId: number
+      targetUrl: string
+      userId: number
+      captureRevision?: string
+    }
+  ) {
+    if (readerBookmarkUuid(newBookmark.targetUrl, [ctx.env.FRONT_END_URL])) return
     try {
       await this.bookmarkSearchRepo.upsertUserBookmark(newBookmark.userId, newBookmark.bookmarkId)
       await this.searchService.clearSearchCache(ctx, newBookmark.userId)
@@ -507,6 +530,7 @@ export class SyncOrchestrator {
         {
           url: newBookmark.targetUrl,
           bookmarkId: newBookmark.bookmarkId,
+          captureRevision: newBookmark.captureRevision,
           userId: newBookmark.userId,
           enUserId: ctx.getEncodeUserId(),
           userLang: ctx.getlang(),

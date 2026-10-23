@@ -1,7 +1,7 @@
 import { ContextManager } from '@/utils/context'
 import { Consumer } from '../../decorators/queue'
 import { inject, injectable } from '../../decorators/di'
-import { UrlParserHandler } from '../../domain/orchestrator/urlParser'
+import { CrawlService } from '../../domain/crawl'
 import { ImportOrchestrator } from '../../domain/orchestrator/import'
 import { receiveThirdPartyMessage } from '../../domain/orchestrator/urlParser'
 import { importBookmarkMessage } from '../../infra/queue/queueClient'
@@ -9,7 +9,7 @@ import { importBookmarkMessage } from '../../infra/queue/queueClient'
 @injectable()
 export class BookmarkConsumer {
   constructor(
-    @inject(UrlParserHandler) private urlParserHandler: UrlParserHandler,
+    @inject(CrawlService) private crawlService: CrawlService,
     @inject(ImportOrchestrator) private importOrchestrator: ImportOrchestrator
   ) {}
   /**
@@ -18,7 +18,25 @@ export class BookmarkConsumer {
   @Consumer({ channel: 'slax-reader-parser-twitter', batch: true })
   @Consumer({ channel: 'slax-reader-parser-twitter-beta', batch: true })
   public async handleParseThirdPartyURL(ctx: ContextManager, info: receiveThirdPartyMessage[]) {
-    await this.urlParserHandler.processThirdPartyMessages(ctx, info)
+    // Drain legacy queue messages through the same guarded workflow as new saves.
+    for (const { info: message } of info) {
+      await this.crawlService.createWorkflow(
+        ctx.env,
+        {
+          url: message.targetUrl,
+          bookmarkId: message.bookmarkId,
+          userId: message.userId,
+          enUserId: ctx.hashIds.encodeId(message.userId),
+          userLang: ctx.get('user_lang') || 'en',
+          captureRevision: message.captureRevision,
+          callbackChatId: message.callback === 1 ? message.callbackPayload?.chat_id : undefined,
+          callbackOriginMessageId: message.callback === 1 ? message.callbackPayload?.origin_message_id : undefined,
+          ignoreGenerateTag: message.ignoreGenerateTag
+        },
+        3,
+        ctx
+      )
+    }
   }
 
   /**

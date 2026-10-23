@@ -48,6 +48,7 @@ export const fetchImportContent = async (env: Env, input: string): Promise<fetch
 }
 
 export interface ImportParseWorkflowParams {
+  captureRevision?: string
   eventContext?: EventRequestContext
   url: string
   bookmarkId: number
@@ -71,6 +72,7 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
     ctxManager.setUserInfo(event.payload.userId, event.payload.enUserId, '', event.payload.userLang)
     ctxManager.setHashIds(hashids)
     if (event.payload.eventContext) ctxManager.set(EVENT_CONTEXT_KEY, event.payload.eventContext)
+    ctxManager.set('snapshotCaptureRevision', event.payload.captureRevision)
     initializeInfrastructure(ctxManager, currentContainer)
 
     const bookmarkService = currentContainer.resolve(BookmarkService)
@@ -82,6 +84,18 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
     const userBookmark = await bookmarkService.getUserBookmark(bookmarkId, userId)
     if (!userBookmark) throw new Error(`user_bookmark not found: bookmark=${bookmarkId} user=${userId}`)
     const userBookmarkUuid = userBookmark.uuid
+    if (!event.payload.captureRevision) {
+      const revision = await step.do('legacy-capture-revision', async () => {
+        const raw = await bookmarkService.getBookmarkById(bookmarkId)
+        if (!raw || !['pending', 'pending_retry'].includes(raw.status)) return null
+        return raw.updated_at.toISOString()
+      })
+      if (!revision) return
+      ctxManager.set('snapshotCaptureRevision', revision)
+    }
+    const claimed = await step.do('claim-capture', () => crawlService.claimCapture(ctxManager, bookmarkId))
+    if (!claimed) return
+
     const hostname = (() => {
       try {
         return new URL(url).hostname || 'unknown'
@@ -107,6 +121,7 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
           timeout: '2 minutes'
         },
         async (): Promise<CrawlResult & { pdf?: boolean }> => {
+          if (!(await crawlService.ownsCapture(ctxManager, bookmarkId))) throw new NonRetryableError('Capture revision superseded')
           publicTarget(url)
           try {
             if (await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, url)) {
@@ -128,8 +143,6 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
             }
           }
 
-          await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.PARSEING)
-
           const fetchRes = await fetchImportContent(this.env, url)
           return await crawlService.parseAndSaveContent(ctxManager, fetchRes, bookmarkId, userBookmarkUuid)
         }
@@ -137,7 +150,7 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
       console.error(`ImportParse workflow fetch failed for bookmark ${bookmarkId}: ${errMsg}`)
-      await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.FAILED)
+      if (!(await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.FAILED))) return
       if (!errMsg.startsWith('pdf_lab_disabled:'))
         await crawlService.pushBookmarkFailureAlert(userId, 'import_parse_workflow.fetch', {
           bookmark_id: bookmarkId,

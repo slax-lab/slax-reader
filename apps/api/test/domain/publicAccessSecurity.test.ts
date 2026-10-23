@@ -11,7 +11,7 @@ import { CollectionRepo } from '@/infra/repository/dbCollection'
 import { DBSyncBatchOperation } from '@/infra/repository/dbSyncBatch'
 import { MarkService } from '@/domain/mark'
 import { markType } from '@/infra/repository/dbMark'
-import { createMockCtx } from '@test/helpers/mockFactory'
+import { createMockCtx, createMockMediaSnapshots } from '@test/helpers/mockFactory'
 
 function wire() {
   const row = { id: 100, uuid: 'bookmark', user_id: 42, bookmark_id: 200, deleted_at: null, is_starred: true, bookmark: { id: 200, moderation_result: 0, content_key: 'secret-key', content_md_key: 'md-key', title: 'public title', created_at: new Date(), published_at: new Date(), updated_at: new Date() } }
@@ -27,6 +27,7 @@ function wire() {
   const userRepo = { getInfoByUserId: vi.fn().mockResolvedValue(owner), getInfo: vi.fn().mockResolvedValue(owner) }
   const collectionRepo = { getUserShareCollectByCode: vi.fn().mockResolvedValue(collection), getUserSubscribeCollectionRecord: vi.fn().mockResolvedValue(null), getCollectionStats: vi.fn().mockResolvedValue({ starred_count: 1 }) }
   const bs = new (BookmarkService as any)(repo, undefined, undefined, undefined, undefined, userRepo) as BookmarkService
+  ;(bs as any).snapshots = createMockMediaSnapshots()
   bs.getBookmarkContent = vi.fn().mockResolvedValue('body')
   bs.getBookmarkOutline = vi.fn().mockResolvedValue('outline')
   const users = { getUserBriefInfo: vi.fn().mockImplementation(async show => ({ nick_name: show ? 'Owner' : '', avatar: show ? 'avatar' : '' })), getOwnerShareInfo: vi.fn().mockResolvedValue({ nick_name: 'Owner', avatar: 'avatar' }) }
@@ -36,6 +37,7 @@ function wire() {
   const so = new ShareOrchestrator(ss, users as never, tags as never, marks as never, bs)
   const cs = new CollectionService(collectionRepo as never, userRepo as never, repo as never)
   const co = new (CollectionOrchestrator as any)(cs, bs, marks, tags, users)
+  vi.spyOn(bs, 'getForkMetadata').mockResolvedValue({ has_fork: false, fork: null, viewer_fork_status: null })
   const content = new ContentOrchestrator(bs, users as never, tags as never, marks as never, { getBookmarkCollectionRef: vi.fn().mockResolvedValue(null) } as never)
   return { row, share, owner, collection, repo, userRepo, collectionRepo, bs, marks, tags, content, cs, sc: new ShareController(ss, so), cc: new CollectionController(cs, co), markService: new MarkService(repo as never, {} as never, collectionRepo as never, userRepo as never) }
 }
@@ -43,27 +45,30 @@ function wire() {
 const request = (url: string) => new Request(`https://test/${url}`)
 
 describe('public controller authorization', () => {
-  test.each(['owner-deleted', 'deleted', 'moderated', 'disabled', 'global-off'])('rejects %s in legacy share, collection and content before loading content or traces', async reason => {
-    const w = wire()
-    if (reason === 'owner-deleted') {
-      w.userRepo.getInfoByUserId.mockResolvedValue({ ...w.owner, deleted_at: new Date() })
-      w.userRepo.getInfo.mockResolvedValue({ ...w.owner, deleted_at: new Date() })
+  test.each(['owner-deleted', 'deleted', 'moderated', 'disabled', 'global-off'])(
+    'rejects %s in legacy share, collection and content before loading content or traces',
+    async reason => {
+      const w = wire()
+      if (reason === 'owner-deleted') {
+        w.userRepo.getInfoByUserId.mockResolvedValue({ ...w.owner, deleted_at: new Date() })
+        w.userRepo.getInfo.mockResolvedValue({ ...w.owner, deleted_at: new Date() })
+      }
+      if (reason === 'deleted') w.repo.getUserBookmarkByUuidWithDetail.mockResolvedValue({ ...w.row, deleted_at: new Date() })
+      if (reason === 'moderated') w.repo.getUserBookmarkByUuidWithDetail.mockResolvedValue({ ...w.row, bookmark: { ...w.row.bookmark, moderation_result: 1 } })
+      if (reason === 'disabled') w.repo.getBookmarkShareByBookmarkId.mockResolvedValue({ ...w.share, is_enable: false })
+      if (reason === 'global-off') {
+        w.repo.getBookmarkShareByBookmarkId.mockResolvedValue(null)
+        w.userRepo.getInfoByUserId.mockResolvedValue({ ...w.owner, snapshot_sharing: false })
+      }
+      const ctx = createMockCtx({ userId: 0 })
+      for (const method of ['getShare', 'getInlineShare', 'getMarkList'] as const) await expect(w.sc[method](ctx, request('v1/share/detail?share_code=code'))).rejects.toBeTruthy()
+      await expect(w.cc.handleUserCollectionSubscribedDetailRequest(ctx, request('v1/collection/bookmark?collection_code=collection&cb_id=100'))).rejects.toBeTruthy()
+      await expect(w.content.getContentMeta(ctx, 'bookmark')).rejects.toBeTruthy()
+      expect(w.bs.getBookmarkContent).not.toHaveBeenCalled()
+      expect(w.marks.getFirstComment).not.toHaveBeenCalled()
+      expect(w.marks.getBookmarkMarkList).not.toHaveBeenCalled()
     }
-    if (reason === 'deleted') w.repo.getUserBookmarkByUuidWithDetail.mockResolvedValue({ ...w.row, deleted_at: new Date() })
-    if (reason === 'moderated') w.repo.getUserBookmarkByUuidWithDetail.mockResolvedValue({ ...w.row, bookmark: { ...w.row.bookmark, moderation_result: 1 } })
-    if (reason === 'disabled') w.repo.getBookmarkShareByBookmarkId.mockResolvedValue({ ...w.share, is_enable: false })
-    if (reason === 'global-off') {
-      w.repo.getBookmarkShareByBookmarkId.mockResolvedValue(null)
-      w.userRepo.getInfoByUserId.mockResolvedValue({ ...w.owner, snapshot_sharing: false })
-    }
-    const ctx = createMockCtx({ userId: 0 })
-    for (const method of ['getShare', 'getInlineShare', 'getMarkList'] as const) await expect(w.sc[method](ctx, request('v1/share/detail?share_code=code'))).rejects.toBeTruthy()
-    await expect(w.cc.handleUserCollectionSubscribedDetailRequest(ctx, request('v1/collection/bookmark?collection_code=collection&cb_id=100'))).rejects.toBeTruthy()
-    await expect(w.content.getContentMeta(ctx, 'bookmark')).rejects.toBeTruthy()
-    expect(w.bs.getBookmarkContent).not.toHaveBeenCalled()
-    expect(w.marks.getFirstComment).not.toHaveBeenCalled()
-    expect(w.marks.getBookmarkMarkList).not.toHaveBeenCalled()
-  })
+  )
 
   test('explicit share still overrides global defaults for an active owner', async () => {
     const w = wire()

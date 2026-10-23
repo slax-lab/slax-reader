@@ -250,6 +250,8 @@ function setup(
     moderate: vi.fn(async () => o.moderation ?? 0),
     flagBookmarks: vi.fn(async () => 2),
     publishBodies: vi.fn(async () => 2),
+    settleSnapshots: vi.fn(async () => 0),
+    setRefsHash: articles.setRefsHash,
     translationTargets: vi.fn(async () => o.targets ?? []),
     addCost: vi.fn(async () => {})
   }
@@ -260,6 +262,17 @@ const VTT_REF = [{ url: 'https://feeds.example.com/t.vtt', type: 'text/vtt', lan
 const words = parseVtt(VTT).map(s => ({ start_ms: s.start_ms, end_ms: s.end_ms, text: s.text, speaker: s.speaker === 'SPEAKER_02' ? 'A' : 'B' }))
 
 describe('publisher transcript path', () => {
+  test('a failed private settlement does not block ready articles or translations', async () => {
+    const { deps, articles } = setup({ episode: { publisher_transcripts: VTT_REF }, targets: ['zh'] })
+    deps.settleSnapshots.mockRejectedValue(new Error('broken private ref'))
+    expect(await runPodcastEpisode(deps, P, engine().step, 'run-settle-failure')).toBe('ready')
+    expect(articles.rows.map(r => [r.target_language, r.status])).toEqual([
+      ['en', 'ready'],
+      ['zh', 'ready']
+    ])
+    expect(deps.publishBodies).toHaveBeenCalled()
+  })
+
   test('transcript, article, bodies and a translation; no AssemblyAI, no sleep', async () => {
     const { deps, episodes, articles, bucket } = setup({ episode: { publisher_transcripts: VTT_REF }, targets: ['zh', 'en'] })
     const { step, sleeps } = engine()
