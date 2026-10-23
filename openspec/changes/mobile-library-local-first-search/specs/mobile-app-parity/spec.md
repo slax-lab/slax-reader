@@ -72,3 +72,9 @@ Inbox, Starred, and Archived SHALL retain the source-ordered flat list without d
 - **AND** deep scrolling and Reader return preserve the list position and existing actions
 - **AND** performance optimization does not remove rows from the selected list
 
+#### Scenario: Several automatic downloads run at once
+- **WHEN** multiple library rows are cached concurrently
+- **THEN** each row keeps its status indicator in the same position and the list does not reorder
+- **AND** an indicator never oscillates between uncached, downloading, and cached states
+- **AND** a download that finishes before its downloading state was presented goes directly from uncached to cached without a visible intermediate flash
+
