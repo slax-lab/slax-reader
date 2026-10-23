@@ -13,6 +13,7 @@ Node majors do change observable behavior. Node 25 made `assert.deepStrictEqual`
 - Pin the exact latest Node 26 patch release (`26.12.1`, the newest on nodejs.org/dist at the time of the change), matching the existing exact-version style; no floating `26.x`.
 - Keep the required gate job names (`CLI CI gate`, `Tooling CI gate`) unchanged. A matrix job aggregates its legs into one job result, so the gates keep aggregating the whole matrix and `.github/rulesets.expected.json` needs no change; the extra legs appear as additional check contexts (e.g. `check (26.12.1)`).
 - Do not add Node 26 legs to `frontend-ci.yml`, `api-ci.yml`, or `mobile-ci.yml`: their artifacts run in browsers, Cloudflare Workers, and mobile runtimes, and Node is only the build toolchain there.
+- Update `docs/CI.md` and `docs/cli/RELEASE.md` so the documented Node coverage matches the new matrices, including the Tooling CI check matrix.
 - Fix any newly exposed Node 26 failures inside this change, applying the prototype-comparison pattern where that is the root cause.
 - Record the CI Node coverage contract as a new capability, `ci-test-matrix`.
 
@@ -29,6 +30,7 @@ Node majors do change observable behavior. Node 25 made `assert.deepStrictEqual`
 ## Impact
 
 - `.github/workflows/cli-ci.yml`, `.github/workflows/tooling-ci.yml`; `tooling/ci-workflow.test.mjs` contract assertions.
+- `docs/CI.md` and `docs/cli/RELEASE.md` Node-coverage statements.
 - `openspec/changes/ci-node-26-leg/` artifacts.
 - No application code, shipped UI/assets, runtime dependencies, or package output changes; CLI, Extension, and Mobile versions are unaffected.
 - CI cost: one additional CLI matrix leg and one additional tooling check leg per pull request whose scope selects those suites.

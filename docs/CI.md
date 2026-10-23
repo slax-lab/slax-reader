@@ -16,6 +16,8 @@ Every long-lived branch rejects direct pushes, force-pushes, and deletion, and a
 
 Each application CI workflow ends in a terminal gate job whose name is a ruleset-referenced contract: `Web CI gate` and `Extension CI gate` in `frontend-ci.yml`, `API CI gate` in `api-ci.yml`, `Mobile CI gate` in `mobile-ci.yml`, `CLI CI gate` in `cli-ci.yml`, and `Tooling CI gate` in `tooling-ci.yml`. The gate fails when any job in its suite failed and succeeds otherwise, so a suite that `ci-scope` skipped reports success and never blocks. `tooling/ci-workflow.test.mjs` asserts the exact gate names and their `if: always()` wiring; renaming one without updating the rulesets strands its required context at "Expected" and blocks the branch.
 
+Node.js runtime coverage is part of that contract: `cli-ci.yml` runs the CLI typecheck, tests, and package smoke on Node 22.22.2, 24.15.0, and the pinned Node 26 release (26.12.1), and the `tooling-ci.yml` `check` job runs the root preflight and CI tooling suites on Node 22.22.2 and 26.12.1. Every version is an exact patch pin, and changing the declared `engines` support range requires the matching matrix change.
+
 Every pull request to `beta` or `main` requires one approving review from a reviewer other than its author, enforced by the rulesets. For a promotion the content was reviewed when it entered `dev`, so the approval acts as the explicit release decision rather than a repeated content review; for a `hotfix/*` head, which never passed through `dev`, the approval is the content review itself. On `main` the six suite gates are required through `promotion integrity` rather than as separate ruleset contexts; the promotion pull request still reports them because every pull request runs the application CI workflows.
 
 ## Promotion integrity check
@@ -48,7 +50,7 @@ The expected ruleset state is codified in `.github/rulesets.expected.json`, and 
 | Extension implementation/config/tests | Extension compile and tests, shared type prerequisites, controlled release-tooling checks |
 | API implementation/config/tests | Generation, lint, typecheck, tests, offline Worker build |
 | Mobile implementation/config/tests | Mobile checks and JavaScript bundle |
-| CLI implementation/config/tests | CLI typecheck, tests, and package smoke on Node 22.22.2 and 24.15.0; CLI tooling checks |
+| CLI implementation/config/tests | CLI typecheck, tests, and package smoke on Node 22.22.2, 24.15.0, and 26.12.1; CLI tooling checks |
 | `packages/contracts/**` | All five application consumers |
 | Shared frontend packages | Web and Extension |
 | Unclassified shared workspace packages | Conservative coverage of all application consumers |
@@ -103,7 +105,7 @@ Frontend, API, Mobile, CLI, Tooling, and agent-config use the caller workflow na
 
 The Full CI workflow also supports Actions **Run workflow**, selecting **dev**, or `gh workflow run full-ci.yml --ref dev`. A manual run targeting another ref fails its source guard with an explicit error.
 
-Full CI calls the six existing validation workflows with `full_validation: true`. It skips scope detection entirely and runs Web, Extension, API, Mobile, both CLI Node versions, all root tooling suites, design/icon validation, rulesync, strict OpenSpec validation, and full pinned gh-aw compilation with orphan detection. Standalone icon jobs are unnecessary because full Web and Mobile validation already includes them. A stale path rule cannot suppress these checks, even if every scope output would be false.
+Full CI calls the six existing validation workflows with `full_validation: true`. It skips scope detection entirely and runs Web, Extension, API, Mobile, all three CLI Node versions, all root tooling suites, design/icon validation, rulesync, strict OpenSpec validation, and full pinned gh-aw compilation with orphan detection. Standalone icon jobs are unnecessary because full Web and Mobile validation already includes them. A stale path rule cannot suppress these checks, even if every scope output would be false.
 
 Results and failures are visible in Actions. Daily and manual full runs serialize by ref without canceling an executing run; their child suites remain independent of each other and of PR validation. This workflow has read-only repository permissions and does not call deployment, publication, or AI review. Native Mobile builds remain outside the existing CI suite; the separate EAS cloud trigger below submits a build to EAS without running native build steps on a GitHub runner. No extra notification channel is configured.
 

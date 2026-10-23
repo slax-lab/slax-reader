@@ -62,8 +62,13 @@ The changed behavior is the GitHub Actions matrix itself, which only runs on Git
 - `PR review gate` passed with "no Important findings"; `agent-config drift check` passed.
 - `cli-release` and `extension-release` passed on their unchanged Node 24.15.0 runtime.
 
+## Documentation
+
+- `docs/CI.md` now names Node 22.22.2, 24.15.0, and 26.12.1 in the CLI coverage row, states the Tooling CI `check` matrix (22.22.2 + 26.12.1) and the exact-pin/`engines` rule, and says "all three CLI Node versions" in the Full CI description.
+- `docs/cli/RELEASE.md` now names Node 22.22.2, 24.15.0, and 26.12.1 for CLI pull-request validation.
+- Every statement matches the workflow files in this diff; no other Node-coverage statement was found in either file.
+
 ## Not verified (declared gaps)
 
 - The Node 24.15.0 CLI leg was not re-run locally (that leg is unchanged and CI covers it; the local run focused on the new Node 26 leg plus the Node 22 floor). CI passed it on PR #373.
 - GitHub Actions scheduling of the new matrix legs cannot be exercised before the PR exists; the PR #373 run was the exercise and passed as listed above.
-- `docs/CI.md` (lines 51, 54, 106) and `docs/cli/RELEASE.md` (line 3) still describe CLI validation on Node 22.22.2 and 24.15.0 only. Those files are outside this mission's file scope; the drift is filed as a follow-up finding for the tower.

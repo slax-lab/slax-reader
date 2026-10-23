@@ -24,6 +24,7 @@
 
 - [x] 5.1 Confirm `CLI CI gate` and `Tooling CI gate` still aggregate the whole matrix and `.github/rulesets.expected.json` needs no change; confirm no other workflow or contract test asserts the old matrix
 - [x] 5.2 Record commands, results, and any evidence gaps in `openspec/changes/ci-node-26-leg/validation.md`
+- [x] 5.3 Update `docs/CI.md` (coverage table, Tooling CI matrix, Full CI wording) and `docs/cli/RELEASE.md` so every Node-coverage statement matches the new matrices
 
 ## 6. Pull request
 
