@@ -1,6 +1,6 @@
 # Private bookmark snapshots and Fork feasibility
 
-> Current implementation: [fixed-path design and flowcharts](bookmark-fork-fixed-paths.md). The earlier immutable storage and repeat-Fork no-op choices below are superseded by the approved 2026-10-23 simplification.
+> Status: historical feasibility analysis. See the [fixed-path baseline and pending simplification proposal](bookmark-fork-fixed-paths.md) for the current code and the separately labeled plan awaiting construction approval. The immutable-path, repeat-Fork no-op and maintenance choices below must not be read as the new pending design.
 
 Date: 2026-10-22. Status: revised after review and user scope decisions; formal proposal awaits review. No business implementation or migration has been performed.
 

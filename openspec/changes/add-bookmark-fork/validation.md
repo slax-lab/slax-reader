@@ -1,3 +1,13 @@
+# Planning-only follow-up — 2026-10-23 (Asia/Shanghai)
+
+The owner requested a reviewed simplification proposal and PR/report update before deciding whether to implement. This update changes documentation only. Application baseline `af32ec74` has passing CI and a remote review with no Important findings ([review](https://github.com/slax-lab/slax-reader/pull/354#pullrequestreview-5627917075)). Prior human acceptance remains evidence for that baseline only. The new scheduler/API/detail/cache changes have **not** been implemented or exercised.
+
+Code-informed local plan review used `REVIEW.md` Bugs, Security and Compliance with change-id `add-bookmark-fork`. It traced baseline media retry/republish behavior, add_url response consumers, public/private detail paths, both SSR cache boundaries and PDF title-only hydration. Risks and required controls are recorded in the [plan review](../../../docs/api/bookmark-fork-fixed-paths.md#6-plan-review-and-implementation-acceptance); actual retry and cache behavior remains an implementation acceptance requirement. No independent subagent review is claimed. Existing normative specs remain unchanged until construction approval; S20–S26 are intentionally unchecked.
+
+Verification for this documentation-only update: `pnpm exec openspec validate --all --strict` passed (74 items, 0 failed); `git diff --check` passed. A file-scope check confirmed only six Markdown files changed, and fenced-block balance checks passed. No new application tests/runtime/UI exercise is claimed because application code is unchanged. The proposed implementation will require new runtime evidence and human hands-on acceptance. No secrets, database state, running services, application versions, deployment or merge were changed.
+
+---
+
 # Current acceptance status — 2026-10-23 (Asia/Shanghai)
 
 ## Sharing-access review verification

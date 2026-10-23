@@ -1,5 +1,16 @@
 # Design
 
+## Pending simplification design — 2026-10-23
+
+The [reviewed proposal and flowcharts](../../../docs/api/bookmark-fork-fixed-paths.md#proposed-scope) are the next proposed refinement, awaiting the owner's construction decision. They do not supersede the implemented contract below yet. The intended changes are:
+
+- Remove the added maintenance job/cursor and periodic index repair; retain immediate indexing and the original YouTube owner catch-up and capped podcast republish. Verify actual failure propagation **and** write-claim retry eligibility instead of only deleting the scheduler.
+- Route the button and Reader URL dialog through existing `add_url`, preserving its response shape; keep the Fork domain copy service, durable dispatch, source checks and concurrency guards.
+- Project attribution and viewer status through existing public/private detail logic, remove the separate metadata route and duplicate component requests, bypass authenticated shared-cache lookup/storage, retain neutral anonymous HTML and PDF title/type-only SSR, and clear stale account/route state.
+- Remove proven unused public types, `can_fork`, `retiredKey`, KV markers and formatting noise. Retain meaningful tests, fixed-key ownership protection, all-format media isolation and existing compatibility paths.
+
+Plan review identified retry swallowing/failed-claim eligibility, add_url empty-result semantics, cache hit/store/account leakage and PDF hydration as mandatory acceptance boundaries. Detailed file disposition, tests, tradeoffs and the 131-to-162 file audit are in the report. Normative specs must be updated after approval: the current UUID/disposition response and scheduled-maintenance clauses intentionally describe the still-running baseline, not the pending proposal. No new UI acceptance or runtime result is claimed for the proposal.
+
 ## Current implementation contract — 2026-10-23
 
 This approved simplification supersedes the historical design below wherever they conflict.

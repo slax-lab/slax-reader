@@ -97,3 +97,15 @@ Historical checked items describe the earlier implementation; immutable storage 
 - [x] R17 Remove automatic navigation, show disabled persisted pending/success state on revisits, preserve failed retry and account/route isolation, and retain explicit Reader-URL refresh.
 - [x] R18 Exercise slow/failing copy, duplicate admission, lifecycle/stale execution and frontend states; regenerate, run checks and independent review, and record evidence.
 - [x] R19 Obtain renewed owner hands-on acceptance for this UI behavior. Following the explicitly requested push-first/test-later handoff, the owner tested the primary local checkout on 2026-10-23 and confirmed it meets expectations, with no further functional/UI adjustments requested. See the current acceptance record in validation.md.
+
+## Proposed simplification — awaiting construction approval (2026-10-23)
+
+These tasks describe the next proposed implementation, not work performed by this planning-only update. See the [report](../../../docs/api/bookmark-fork-fixed-paths.md). Previous acceptance and checks remain scoped to the baseline.
+
+- [ ] S20 Obtain the owner's construction decision, then reconcile public acknowledgement, maintenance and detail/cache delta-spec scenarios with the approved proposal.
+- [ ] S21 Remove the new maintenance service/job/cursor and periodic index markers; preserve immediate search updates and original media retry/republish semantics. Verify failure propagation and same-request claim recovery without admitting stale or unrelated failed writes.
+- [ ] S22 Move button/Reader-dialog submissions to existing add_url, preserve its response/error convention, no-navigation acceptance and explicit URL refresh; remove unused public command plumbing after auditing all consumers.
+- [ ] S23 Merge safe attribution and viewer state into existing public/private detail projections; remove fork_metadata and duplicate client fetches. Cover PDF title-only SSR, legacy/private article consumers and local-first overlays.
+- [ ] S24 Bypass both shared-cache lookup/storage for credential-bearing requests, retain neutral anonymous caching and access revalidation, and invalidate account/route-specific client state including late responses and offline account changes.
+- [ ] S25 Remove only proven unused retiredKey/marker/types/parameters and unrelated formatting; retain source validation, fixed-key concurrency, all-format isolation, deletion and compatibility guards. Record final production/test/doc file counts without targeting an arbitrary total.
+- [ ] S26 Run focused regressions, real API/R2/database retry/cache exercises, affected builds/typechecks and strict OpenSpec validation; conduct Bugs/Security/Compliance review, record renewed UI acceptance, and update PR/report with actual implementation evidence.

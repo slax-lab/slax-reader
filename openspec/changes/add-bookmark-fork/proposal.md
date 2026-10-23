@@ -1,5 +1,9 @@
 # Proposal
 
+## Pending simplification review — 2026-10-23
+
+The owner selected the direction of removing the added snapshot maintenance schedule, reusing `add_url`, and merging Fork metadata into existing detail projections with account/cache isolation. They requested a reviewed plan and updated PR/report **before deciding whether to implement**. The detailed [simplification proposal](../../../docs/api/bookmark-fork-fixed-paths.md#proposed-scope) is pending construction approval; it is not an implemented contract change. The current implementation and normative delta specs below remain the `af32ec74` baseline until approval. Existing human acceptance applies only to that baseline. No schema, R2-layout or application-version change is proposed. After approval, reconcile the affected delta-spec clauses before implementation; do not treat this planning update as permission to execute the new tasks.
+
 ## Why
 
 Readers need to save another user's Reader snapshot as their own durable copy, including from a phone without the Extension. Current capture rows are already private per user, but there is no Fork operation and shared media generation can still replace multiple users' saved bodies.

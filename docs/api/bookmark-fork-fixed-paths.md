@@ -1,4 +1,172 @@
-# Bookmark Fork: fixed-path implementation
+# Bookmark Fork: proposed simplification
+
+**Status: plan for owner review, not implemented (2026-10-23, Asia/Shanghai).** Application baseline: `af32ec74` (application code unchanged since `5b0f503c`). The owner requested a reviewed plan and PR/report update before deciding whether to implement. The existing implementation report follows this proposal. Existing acceptance and CI results apply to that baseline, not to the proposed changes below. Do not merge as though this simplification has shipped.
+
+## Proposed scope
+
+Remove the added snapshot maintenance schedule, use `POST /v1/bookmark/add_url` for the Fork button, and return Fork attribution/viewer state through existing detail queries. Keep fixed R2 keys, one nullable provenance column, all six formats, asynchronous admission, repeat-URL refresh, finite retries, write exclusion and source authorization. No new table, version field, lease, background scan or general recovery framework.
+
+## 1. Remove maintenance; preserve original recovery
+
+Comparison with `dev` at `18f0dd6c`:
+
+| Failure | Original behavior | Proposed behavior |
+| --- | --- | --- |
+| Ordinary save: search/embedding fails after content success | Log/track/alert; no general repair scan | Keep immediate indexing and existing failure reporting; no scheduled repair |
+| Media body: indexing fails | Log failed parts; body remains saved | Same best-effort boundary; never fail a completed copy solely for indexing |
+| YouTube body publication fails | Finite `publish-body` step retries, then owner status catch-up | Reuse those same triggers for matching pending private captures |
+| Podcast body publication fails | Finite step retries, then `markRepublish`/`listRepublish` through the existing podcast sweep, with its existing cap | Preserve that recovery for legacy and matching pending private captures |
+| Fork copy fails | Existing bounded Crawl Workflow execution | Retain it; no source-generation subscription and no new periodic rescue |
+
+Delete `SnapshotMaintenanceJob`, `SnapshotMaintenanceService`, `BookmarkForkRepo.listSnapshots`, the maintenance cursor and their generated registrations. Remove the periodic index-repair role and `snapshot-index:*` KV markers. Keep a narrow immediate indexing operation using the existing search services, including user-search relation updates and existing deletion/concurrent-update safeguards. Do not remove successful-copy indexing, cache invalidation or summary invalidation with the scheduler. Old KV marker values need no migration or scanning cleanup.
+
+**Retry correctness is a required implementation checkpoint.** Current `settleSource()` and per-reference publishers catch write failures; this can prevent `publish-body` retries and podcast republish from observing them. Process independent references, then surface genuine incomplete publication to the existing bounded caller. Deleted, superseded, frozen or input-mismatched references must not create endless retries. Status reads retain their existing non-throwing behavior. Do not classify a required write failure as successful merely because another reference succeeded.
+
+Also verify claim lifecycle, not just exception propagation: `writeRevision()` currently changes its matching claim to `failed`, while ordinary settlement claims only `success`. A later retry must demonstrably recover the same eligible pending capture through existing ownership checks. Do not globally admit all failed bookmarks or allow a stale media publisher to replace a new owner capture. The implementation must prove transient write failure -> retry -> publication for the same request, and stale/newer-owner requests remaining excluded. If this requires a new persistent state, lease or recovery subsystem, stop and revisit the plan instead of expanding scope. A partial fixed-key write still has the accepted no-rollback limitation.
+
+Frozen Forks remain excluded from media catch-up. Existing canonical-media retention, recycle-bin/account deletion and ordinary pending rescue jobs retain their original purposes. Immediate best-effort file deletion on permanent removal remains; no orphan reclamation is reintroduced.
+
+```mermaid
+flowchart TD
+    A[Media generation completes] --> B[Existing bounded publish-body step]
+    B --> C[Publish legacy bodies and matching pending private captures]
+    C --> D{Required writes complete?}
+    D -- Yes --> E[Best-effort immediate search indexing]
+    D -- No --> F[Surface failure to existing step retries]
+    F --> G{Retry budget exhausted?}
+    G -- No --> B
+    G -- YouTube --> H[Existing owner status catch-up]
+    G -- Podcast --> I[Existing capped republish marker and podcast sweep]
+    I --> B
+    C --> J[Frozen Fork or superseded request: skip safely]
+```
+
+## 2. One public save endpoint
+
+The Fork button and online Reader URL dialog submit the existing request:
+
+```json
+{"target_url":"https://<configured-reader-origin>/b/<source-uuid>","tags":[]}
+```
+
+Use `POST /v1/bookmark/add_url`; preserve its success envelope and `{ "bmId": "" }` data convention. HTTP/envelope success means the bookmark was admitted and the durable Workflow accepted dispatch, not that R2 transfer completed. Keep the existing special handling of uncertain dispatch. No new response UUID is needed because the page does not navigate. Keep `bookmark_uid`/disposition in internal domain results where import, callbacks or other internal callers still require them; remove only unused public command types after checking consumers.
+
+The existing Reader URL classifier calls the same Fork domain service before normal URL crawling. Construct the Reader URL from a configured trusted origin plus the source UUID, not the original website URL. Preserve the ordinary external-URL local-first path, Extension `/add`, Telegram/import actual-completion accounting and old queued-client compatibility. Keep existing `add_url` response/error conventions; preserve meaningful source/permission/busy/Labs failures without globally rewriting HTTP error behavior. A failed response envelope must never be treated as admission success.
+
+Remove the unpublished `/fork` route and its public request/response-only plumbing after every repository caller is migrated. The dedicated controller can disappear after its metadata route is also moved. Regenerate routes/DI; do not hand-edit generated files. API-first deployment is still required. If a dedicated route has reached an external deployed consumer before implementation, reassess a temporary compatibility alias rather than silently breaking that consumer; no external deployment is claimed by this task.
+
+Keep a small account/source request guard. A button is disabled for a pending request or persisted pending/success Fork, but explicit Add URL submission can refresh a completed copy. On acceptance, optimistically disable only this account/source action; refresh the existing detail query once. A refresh failure must not turn the accepted save into a failed submission. No new polling loop or persistent client queue. Discard stale responses after account/route changes and preserve the request-versus-background-completion distinction.
+
+```mermaid
+flowchart TD
+    A[Fork button or Reader URL input] --> B[POST existing add_url with Reader URL]
+    B --> C{Trusted Reader URL?}
+    C -- No --> D[Existing ordinary capture]
+    C -- Yes --> E[Existing Fork permission and admission service]
+    E --> F[Commit destination and dispatch existing Workflow]
+    F --> G[Return existing add_url success envelope]
+    G --> H[Stay on source; disable account/source action]
+    F --> I[Copy fixed R2 keys with bounded retries]
+    I --> J[Publish success or matching failure; PowerSync syncs result]
+```
+
+## 3. Detail data and cache isolation
+
+Reuse `ContentOrchestrator.getContentMeta()` (`/content/meta` through Web `/api/content/<uuid>`) for public Reader details, and `BookmarkOrchestrator.bookmarkDetail()` for authenticated legacy/private-detail consumers. Return the existing `has_fork`, safe `fork` projection and `viewer_fork_status` as additive detail fields; remove the unused `can_fork` field if consumer search confirms it has no remaining use. Reuse one projection helper with the already-authorized destination relation, avoiding a duplicate destination lookup. Reauthorize the exact source integer relation and preserve identity visibility, resource consistency and unavailable-source behavior. Never trust client-supplied provenance or a decoded JWT for authorization.
+
+Remove `/fork_metadata`, its anonymous auth exception and its separate component fetches. The button and attribution consume the same detail result. An ordinary non-Fork detail with no relevant signed-in visitor should not issue an unnecessary provenance/status query. Private details need attribution but not a viewer-copy lookup for their owner.
+
+| Request | Shared HTML cache | Detail state |
+| --- | --- | --- |
+| No authentication credential | Anonymous visitor cache only | `viewer_fork_status = null`; viewer-independent neutral Fork marker |
+| Token cookie or supported authorization header present, including invalid/expired credentials | Bypass both cache lookup and cache storage; `private, no-store` | Backend-authenticated viewer projection; invalid auth cannot acquire privileged data |
+| Client login/logout/account switch | Invalidate account-specific detail state before refresh | Ignore old account responses; refresh existing detail route |
+| PDF SSR | Preserve title/type-only hydration payload | Existing client detail refresh loads descriptor, attribution and viewer status |
+
+The cache bypass must cover both the early-hit middleware and the render/store plugin, including raw credential presence rather than a successful client-side JWT parse. Preserve backend permission/revision revalidation for anonymous cached pages and existing moderation checks. Do not introduce per-user edge cache keys. Authenticated detail responses/proxies must not become publicly cacheable.
+
+Keep anonymous SSR Fork attribution neutral, as today. After hydration, load permitted attribution through the existing detail route only when needed, once at page level; do not embed a source-owner-only name/link into shared HTML. Logged-in HTML details can use their uncached SSR result. PDF details reuse the existing post-hydration refresh rather than serializing private descriptors or adding a new request. Account changes clear old attribution immediately, including while offline; suppress actions until the relevant authenticated detail is available. Key or invalidate Nuxt detail state by route and account/session generation, not only `content-<uuid>`. Do not serialize an auth token into state/cache keys. Include REST detail, local-first overlays and SPA navigation in the consumer audit so a separately rendered article never loses attribution.
+
+The deliberate tradeoff is fewer specialized interfaces, at the cost of bypassing shared SSR cache for authenticated page requests. Anonymous traffic keeps its current cache. A single existing detail refresh may include body data; do not add a new metadata-only transport merely to optimize that before measurement.
+
+```mermaid
+flowchart TD
+    A[Reader page request] --> B{Authentication credential present?}
+    B -- Yes --> C[Bypass shared cache read and write]
+    C --> D[Backend authenticates; existing detail includes viewer Fork state]
+    B -- No --> E[Existing anonymous cache with access and revision check]
+    E --> F[Neutral attribution; no viewer Fork state]
+    D --> G[Button and source area share page detail]
+    F --> H[If attribution is needed, refresh existing detail after hydration]
+    H --> G
+    I[PDF title-only SSR] --> J[Existing client detail refresh]
+    J --> G
+    K[Login, logout, account or route change] --> L[Clear privileged state; discard stale responses]
+    L --> D
+```
+
+## 4. Further reductions and retained safeguards
+
+| Area | Planned action | Reason |
+| --- | --- | --- |
+| Snapshot maintenance service/job/cursor and scan tests | Remove; retain regression tests proving no new scheduler is registered | Original retry triggers are sufficient for the selected reliability boundary |
+| Dedicated Fork controller, route-generator entry, metadata auth exception and route-specific headers | Remove after endpoint migration; retain headers where existing details need privacy | Reuse save and detail interfaces |
+| `useBookmarkForkMetadata`, component-local duplicate reads, unused `can_fork` and public-only command types | Remove/consolidate into detail state | One source of viewer/attribution state |
+| `repairIndex` marker/revision cache | Reduce to immediate indexing; remove KV-only marker deletion | No scheduled retry guarantee; keep necessary search updates |
+| Unused `retiredKey` return/destructure | Remove if remaining caller audit confirms no use | Fixed-key replacement has no retired bundle |
+| Unrelated formatting and comments describing deleted cleanup/recovery | Revert or correct only within this PR | Reduce review noise without a formatting sweep |
+| Fixed-key `SnapshotBundle` attempt/staging-shaped arguments | Remove only proven inert parameters/branches after call-site audit | Keep source ETag checks, metadata allowlists and failure ownership; no helper rewrite for aesthetics |
+| Atomic admission, accepted timestamps, stale-write guards and source checks | Keep | Necessary because updates reuse the same R2 keys |
+| Media input/variant freezing, policy references, PDF identity and legacy adapters | Keep | Required by all-format independence and existing access/moderation behavior |
+| Local-only Workflow test launcher and meaningful tests | Keep | Needed to exercise real asynchronous behavior; do not chase a lower file count |
+| Immediate permanent-delete file removal | Keep narrow | Requested lifecycle behavior, unrelated to periodic scanning |
+
+Do not merge services merely to reduce file count, remove old-client compatibility, replace fixed keys, redesign canonical media generation or add provider dependencies. Preserve the settled no-version-bump decision. Reassess only if implementation introduces a new affected app beyond the agreed scope.
+
+## 5. File-count audit
+
+Git rename-aware comparison: initial implementation `a1be9217` versus current `af32ec74`, each against its `origin/dev` merge base. This is the implementation baseline, not a prediction for this documentation-only planning update.
+
+| Category | Initial | Current | Change |
+| --- | ---: | ---: | ---: |
+| API implementation/config/schema | 35 | 44 | +9 |
+| API generated files | 3 | 3 | 0 |
+| Web implementation/locales | 16 | 19 | +3 |
+| Extension implementation | 1 | 2 | +1 |
+| Shared contracts | 2 | 2 | 0 |
+| Tests across apps | 46 | 63 | +17 |
+| Documentation/OpenSpec | 28 | 29 | +1 |
+| Total | 131 | 162 | +31 |
+
+The 17 media-archive dependency files from PR #353 were already in the initial count. Later additions came from media recovery (+6 files), independent-recapture provenance (+2), cleanup addition/removal (+1 net), fixed-path/concurrency/frontend guards (+19), asynchronous runtime launcher coverage (+2), and permission regression coverage (+1). Production/config changes grew by 13 files; testing does not explain all growth. This proposal removes redundant production paths while preserving meaningful tests. Exact final counts will be measured after implementation; detail/type/cache integration may touch existing files not currently in the diff, so a promised absolute file-count reduction would be misleading.
+
+## 6. Plan review and implementation acceptance
+
+Reviewed under `REVIEW.md` Bugs, Security and Compliance passes; change-id `add-bookmark-fork`. This is a code-informed plan review, not a new runtime verification or an independent subagent review.
+
+| Review issue | Required resolution in the plan |
+| --- | --- |
+| Removing the job while swallowing publication errors disables original retries | Propagate genuine publish failures; test legacy/private retries and claim lifecycle, including retry after a matching failed write |
+| Reusing add_url can accidentally require its empty `bmId`, lose error meaning, or confuse refresh with a disabled button | Preserve existing response shape; use admission success only, preserve deliberate Reader-URL refresh and error handling |
+| Personalized SSR can leak through an early cache hit, render cache write or stale Nuxt state | Bypass both authenticated cache paths, retain neutral anonymous SSR, clear account state and reject stale responses |
+| PDF title-only SSR and shared article consumers could lose Fork UI | Reuse client PDF refresh and both existing detail projections; test all formats and private/public consumers |
+| Plans could be reported as shipped | Keep normative specs and prior acceptance as baseline until approval; proposed tasks remain unchecked; PR explicitly awaits a construction decision |
+
+These risks have concrete controls in the proposed design; runtime proof remains required before completion. Implement only after the owner approves construction. Then reconcile the existing delta specs: remove the maintenance requirement/scenario, replace the public UUID/disposition response requirement with the add_url acknowledgement, and add detail/cache/account/PDF scenarios. Keep media and no-rollback semantics intact.
+
+Acceptance before marking the simplification complete:
+
+- No maintenance registration, R2 inventory scan, new repair table, cursor or recurring snapshot-index work.
+- Inject transient media body failures: original Workflow retries recover; exhausted podcast publication reaches its existing capped republish; owner status catch-up remains; frozen and completed unrelated captures are not changed. Verify claim status/timestamp behavior with a real database, including concurrent owner refresh.
+- Inject search failures after successful content publication: content and provenance remain successful; log/alert as applicable; no periodic retry is scheduled.
+- Exercise real add_url admission/copy for HTML, shortcut, uploaded/downloaded PDF, YouTube and podcast; duplicate clicks, failed source, failed dispatch, offline entry, ordinary URL regression, and explicit same-UUID refresh. No client calls the deleted endpoints.
+- Exercise anonymous -> user A -> user B -> logout, source-owner privileged attribution -> anonymous, stale responses, invalid credentials, source revocation, cache hit/store and SPA transitions. Assert both response contents and cache behavior; credentials must not enter logs or serialized keys.
+- Preserve PDF title-only SSR and verify its existing client refresh supplies Fork state/attribution. One page-owned projection supplies both components without duplicate metadata fetches.
+- Keep focused tests plus API/Web typecheck/build, affected integration/runtime and UI checks, strict OpenSpec validation and all review passes. Obtain renewed hands-on acceptance for changed UI data flow; earlier acceptance is not a claim of testing this future implementation. Record precise gaps instead of fabricating coverage.
+
+---
+
+# Existing implementation baseline: fixed paths
 
 This is the current implementation summary for OpenSpec `add-bookmark-fork` (2026-10-23). It supersedes the earlier immutable-path and repeated-Fork no-op design. The original nullable `sr_user_bookmark.forked_from_id` remains; this follow-up adds no database columns, tables, content counters, or version history.
 
