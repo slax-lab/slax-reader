@@ -119,7 +119,7 @@ Fixed-key replacement is not an atomic transaction across R2 and PostgreSQL. Fai
 
 Frontend guards cover in-flight requests and currently synced pending states. The Fork action stays on the source after HTTP acceptance, without automatic navigation. Fresh no-store metadata provides the viewer’s Fork status on every visit: active or successful copies disable the button; failed or deleted copies permit explicit retry. The viewed article’s own Fork attribution is separate from this viewer-specific status. Request locks release on settlement and never retry automatically; account/route changes discard stale responses. Deliberate Reader-URL submission can still refresh a completed copy. The backend remains authoritative across devices and ambiguous network outcomes.
 
-Verification and pending hands-on acceptance are recorded in [validation.md](../../openspec/changes/add-bookmark-fork/validation.md). Production deployment and real third-party provider execution are not claimed by local fixtures.
+Verification and completed owner hands-on acceptance are recorded in [validation.md](../../openspec/changes/add-bookmark-fork/validation.md). Production deployment and real third-party provider execution are not claimed by local fixtures.
 
 ## Handoff and deployment
 
@@ -127,4 +127,4 @@ Apply the existing additive Fork-provenance migration before deploying the updat
 
 The primary checkout uses `feat/add-bookmark-fork`. Start the API with `pnpm api -- dev` and Web with `pnpm web -- dev` from the repository root; setup and local migration were already completed for this checkout. Do not rerun destructive reset merely to test this follow-up.
 
-The owner explicitly requested updating the existing PR before performing their new local hands-on test on 2026-10-23. This changes the usual acceptance order for this handoff; it does not constitute acceptance. Check no-navigation, duplicate clicks, revisit-disabled state, failed/deleted retry, explicit Add URL refresh, all supported formats and normal URL capture before merging. No deployment or merge is part of this handoff.
+The owner explicitly requested updating the existing PR before performing their new local hands-on test on 2026-10-23. The owner subsequently tested the primary local checkout on the same date and confirmed that the current implementation meets expectations, with no further UI/functional adjustments requested. The confirmation and remaining verification gaps are recorded in validation.md. No deployment or merge is part of this handoff.
