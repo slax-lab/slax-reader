@@ -1,7 +1,7 @@
 # frontend-preflight Specification
 
 ## Purpose
-Provide a safe root command that explains whether a contributor can start frontend checks and which required configuration is missing.
+Provide a safe repository-root command that explains whether a contributor can work locally: dependency and toolchain state, required configuration sourced from the deploy directories, API local prerequisites including Docker and service health, and complete Web and Extension readiness. It never prints secret values and distinguishes startup blockers from functionality gaps.
 
 ## Requirements
 

@@ -1,7 +1,7 @@
 # frontend-local-environment Specification
 
 ## Purpose
-Centralizes the Web and Extension configuration that contributors need for local commands, while keeping secrets out of source control and making the root dispatchers and preflight checks agree on the same environment source.
+Centralizes the Web and Extension configuration that contributors need for local commands, alongside the API's own `deploy/local` files, while keeping secrets out of source control and making the root dispatchers and preflight checks agree on the same environment source.
 
 ## Requirements
 
