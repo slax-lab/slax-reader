@@ -54,6 +54,7 @@ Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comme
 This repo uses OpenSpec for spec-driven development. Living specs live in `openspec/specs/` (organized by product capability, not by package); in-flight work lives in `openspec/changes/`.
 
 - Any change that alters observable behavior (features, API changes, behavior fixes) MUST go through the OpenSpec flow: propose → human reviews the proposal → implement the tasks → archive after merge.
+- The proposal is reviewed in the conversation or on local files, never through a pull request: one task is one branch and one PR, so the task's PR opens only after implementation and validation are complete. A PR opened for a proposal alone spends CI and review cycles on unfinished work and breaks the one-PR-per-task rule.
 - Starting a proposal, per tool:
   - Claude Code: `/opsx:propose`
   - Kimi Code: `/skill:openspec-propose`
