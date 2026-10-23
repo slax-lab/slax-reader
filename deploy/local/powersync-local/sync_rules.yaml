@@ -107,7 +107,6 @@ streams:
               AND collection.status = 1
               AND collection.owner_deleted = false
           )
-          AND sr_sharer_setting.status = 1
           AND connection.parameter('schema_version') = '2'
 
       ## 订阅的合集的书签列表

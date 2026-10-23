@@ -27,6 +27,8 @@ The original rules failed on the same fixture with `PSYNC_S2305 Too many paramet
 
 RSS was exercised separately with 1,101 RSS-enabled users and four feeds: the RSS stream produced 8 parameter results on its own and 17 with the default streams, versus 2,208 for the original rules. Disabling the RSS Lab left the stream with zero buckets.
 
+A second fixture with 1,101 active users and 1,101 collection subscription rows (1,100 unrelated to the test user) produced 7 parameter results for the default streams. This confirms that the remaining `subscribed_collection_ids` join is anchored by `authenticated_user.uuid = auth.user_id()` and does not scan the subscriber table.
+
 The migration integration test additionally confirmed that `owner_deleted` is filled on collection insert, becomes `true` immediately when the owner is marked deleted, stays `true` for a collection created while the owner is deleted, and returns to `false` when the owner is restored.
 
 ## Not verified

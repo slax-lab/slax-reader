@@ -5,7 +5,8 @@ ALTER TABLE "sr_user_collection" ADD COLUMN     "owner_deleted" BOOLEAN NOT NULL
 UPDATE "sr_user_collection" AS c
 SET "owner_deleted" = (u."deleted_at" IS NOT NULL)
 FROM "sr_user" AS u
-WHERE u."id" = c."owner_id";
+WHERE u."id" = c."owner_id"
+  AND c."owner_deleted" IS DISTINCT FROM (u."deleted_at" IS NOT NULL);
 
 -- Fill the denormalized flag on insert or when the owner changes.
 CREATE OR REPLACE FUNCTION "sr_user_collection_fill_owner_deleted"()

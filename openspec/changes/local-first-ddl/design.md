@@ -64,6 +64,8 @@ WHERE user_id IN current_user_id
 
 Feed and entry queries use the same subscription/lab subquery for `feed_id`. This preserves the RSS Labs gate and the 20-subscription server cap. With 1,101 RSS-enabled users the stream produced 8 parameter results instead of 2,208.
 
+The active `rss-local-first` change still describes the earlier `rss_user_ids`/`rss_feed_ids` CTE shape. This change supersedes that implementation detail while preserving the same lab gate, field allowlist, and subscription cap.
+
 ## Compatibility and rollout
 
 - Apply the migration before deploying the rules: the rules reference `owner_deleted`.
