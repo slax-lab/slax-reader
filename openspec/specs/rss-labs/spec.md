@@ -131,6 +131,8 @@ Web SHALL 在顶部以 Collection 风格的来源头像呈现全部订阅和单�
 
 APP SHALL 使用原生 Compose 实现实验室设置、订阅管理和文章列表。每个 RSS 订阅源 SHALL 在 Inbox 顶部来源栏中与我的 Inbox、Collection 平级，以圆形图标直接切换内容，不使用独立 RSS 首页路由。文章 SHALL 通过现有 BookmarkRoutes / DetailScreen 的 RSS 来源模式打开，复用现有阅读器排版、平台滚动容器及图片查看；预览不创建书签，收藏仅由用户显式触发。
 
+来源栏 SHALL 在存在订阅时以固定首位提供“全部”来源，表示所有订阅的合并时间线，并作为默认选择；用户选择任一单一订阅后 SHALL 仍可返回“全部”。切换来源时，APP SHALL 在显示新来源前清除上一来源的滚动位置，新来源 SHALL 从顶部开始，且来源栏自身的横向位置不得因切换而重置。
+
 #### Scenario: Shared bookmark reader
 - **WHEN** 用户在 Android 或 iOS 上从 RSS 列表打开含图片的文章
 - **THEN** 系统将后端净化的缓存 HTML 交给现有书签详情阅读器，复用正文渲染及图片查看，不启动书签同步、划线或 AI 操作
@@ -138,6 +140,15 @@ APP SHALL 使用原生 Compose 实现实验室设置、订阅管理和文章列�
 #### Scenario: Select an RSS source beside collections
 - **WHEN** 用户在 Android 或 iOS 首页点击顶部某个 RSS 圆形来源图标
 - **THEN** 在同一首页显示该源文章，图标呈选中状态；点击我的 Inbox 或 Collection 直接切回对应内容，顶部不再出现第二排 RSS 来源选择，也不在 Inbox 下拉菜单增加 RSS 项
+
+#### Scenario: Return to all sources after selecting one
+- **WHEN** 用户先选择某个 RSS 订阅，再点击来源栏首位的“全部”
+- **THEN** 页面显示所有订阅的合并时间线，“全部”图标呈选中状态，单一订阅图标不再选中
+
+#### Scenario: Switch sources while the previous source is scrolled
+- **WHEN** 用户在一个已滚动的 RSS 来源中点击另一个来源或“全部”
+- **THEN** 新来源从列表顶部开始显示，不恢复上一来源的滚动位置
+- **AND** 来源栏保持在用户当前的水平位置，不因列表切换而跳动
 
 #### Scenario: Add a source from the shared rail
 - **WHEN** 用户点击顶部来源栏末尾的添加 RSS
