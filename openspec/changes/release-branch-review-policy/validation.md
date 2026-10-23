@@ -14,6 +14,10 @@
 - Bugs: removed review code has no remaining callers (`reviewApprovers`/`reviewEvidence`/`ReviewApprovalRequired`/`PR_AUTHOR` grep-clean outside the archived change record); `allowedHead` still returns the hotfix boolean its own tests assert; workflow permissions and env vars match the workflow test's expectations.
 - Security: the change only removes a permission (`pull-requests: read`) and an env var; no new dependencies, network calls, or secret handling.
 
+## Review rounds
+
+- Round 1 (PR #365, run 39926019036): one Important finding — the `pull-requests: read` permission removal broke the beta → main provenance lookup (`commits/{sha}/pulls`, `tooling/promotion-gate.mjs:193`), which would 403 and fail the gate closed on every promotion to `main`. Fixed by restoring the permission in `promotion-gate.yml`, its workflow-test expectation, and the `docs/CI.md` permissions note (with the correct rationale). Three Nits fixed in the same pass: stale hotfix-review sentence in the workflow header, discarded `allowedHead` return now carries an intent comment, and the PR body was restructured to the repository template. After fixes: `node --test tooling/promotion-gate.test.mjs tooling/rulesets.test.mjs` — 43/43 pass.
+
 ## Not verified here
 
 - Live ruleset mutation: `rulesets.mjs apply` is task 4.3, a human-authorized post-merge operation; until it runs, the drift check intentionally reports the pending diff.

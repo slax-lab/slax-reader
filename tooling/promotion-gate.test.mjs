@@ -335,7 +335,7 @@ test('the workflow uses the trusted pull_request_target trigger and reports a di
   assert.equal(workflow.on.pull_request, undefined)
   assert.equal(workflow.on.pull_request_review, undefined)
   assert.deepEqual(workflow.on.pull_request_target, { types: ['opened', 'synchronize', 'reopened'], branches: ['beta', 'main'] })
-  assert.deepEqual(workflow.permissions, { actions: 'read', checks: 'write', contents: 'read', deployments: 'read' })
+  assert.deepEqual(workflow.permissions, { actions: 'read', checks: 'write', contents: 'read', deployments: 'read', 'pull-requests': 'read' })
   assert.deepEqual(Object.keys(workflow.jobs), ['gate'])
   assert.equal(workflow.jobs.gate.name, 'Promotion gate runner')
   assert.notEqual(workflow.jobs.gate.name, checkRunName)

@@ -302,7 +302,7 @@ export async function pollPromotionEvidence(inputs, { token, fetchImpl, wait = d
 
 export async function runPromotionGate(inputs, { token, fetchImpl = fetch, wait = delay, intervalMs = pollIntervalMs, timeoutMs = defaultTimeoutMs, deployRunGraceMs = defaultDeployRunGraceMs, log = () => {} } = {}) {
   if (typeof token !== 'string' || !token) fail('Missing GitHub token')
-  allowedHead(inputs)
+  allowedHead(inputs) // throws on an unsanctioned source; the hotfix flag is no longer needed here
   log(`source allowed: ${inputs.head} -> ${inputs.base}`)
 
   const requireDeployment = inputs.base === 'main' && inputs.head === 'beta'

@@ -5,8 +5,9 @@ name: Promotion gate
 # Rulesets cannot restrict a pull request's head branch and cannot express "the
 # head already passed the previous stage's validation", so one companion gate
 # asserts both: the head is a sanctioned source for the target branch (dev or
-# hotfix/* for beta; beta or hotfix/* for main), the six application CI gates
-# succeeded on the head, and a hotfix carries a non-author approving review.
+# hotfix/* for beta; beta or hotfix/* for main) and the six application CI gates
+# succeeded on the head. Review approval is not asserted here: the beta/main
+# rulesets require one approving review on every pull request.
 #
 # Trust model: this workflow runs on `pull_request_target`. Its workflow file
 # and the checked-out script both come from the default branch, so the only code
@@ -30,10 +31,7 @@ name: Promotion gate
 # beta deployment records. Both deploy workflows are paths-filtered, so evidence
 # is required only from a workflow that registered a run for that head SHA; a
 # batch that triggered no deploy workflow needs none. See
-# tooling/promotion-gate.mjs. Review approval is not asserted here: the
-# beta/main rulesets require one approving review on every pull request, so the
-# gate only checks evidence, and no `pull_request_review` re-evaluation is ever
-# needed.
+# tooling/promotion-gate.mjs.
 
 on:
   pull_request_target:
@@ -45,6 +43,7 @@ permissions:
   checks: write
   contents: read
   deployments: read
+  pull-requests: read
 
 concurrency:
   group: promotion-gate-${{ github.event.pull_request.number }}

@@ -28,7 +28,7 @@ Every pull request to `beta` or `main` requires one approving review from a revi
 
 The suite gates and beta deploys trigger around the same time as the gate, so the script polls the evidence every 30 seconds up to a 45-minute deadline (`PROMOTION_GATE_TIMEOUT_MS`); a completed failure fails immediately, and a timeout names the contexts still outstanding.
 
-The workflow uses the repository `GITHUB_TOKEN` with `actions: read`, `checks: write`, `contents: read`, and `deployments: read`; it does not need the administration permission that drift detection uses.
+The workflow uses the repository `GITHUB_TOKEN` with `actions: read`, `checks: write`, `contents: read`, `deployments: read`, and `pull-requests: read` (the beta → main provenance lookup reads `commits/{sha}/pulls`); it does not need the administration permission that drift detection uses.
 
 ## Ruleset state and drift detection
 
