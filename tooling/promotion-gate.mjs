@@ -38,6 +38,11 @@ export const suiteGates = ['Web CI gate', 'Extension CI gate', 'API CI gate', 'M
 export const deployWorkflows = ['.github/workflows/api-deploy.yml', '.github/workflows/web-deploy.yml']
 export { defaultTimeoutMs, pollIntervalMs, defaultDeployRunGraceMs }
 
+// The workflow-runs endpoint takes a workflow id or the workflow file name;
+// the repo-relative path's slashes 404. deployWorkflows stays repo-relative
+// because run.path comes back in that form and is matched against it.
+const workflowFileName = path => path.split('/').pop()
+
 export class GateError extends Error {}
 export class ReviewApprovalRequired extends GateError {}
 
@@ -199,7 +204,7 @@ export async function inspectDeploymentEvidence(inputs, { token, fetchImpl, grac
 
   const triggered = new Map()
   for (const path of deployWorkflows) {
-    const body = await github(fetchImpl, token, `/repos/${inputs.repository}/actions/workflows/${path}/runs?head_sha=${sourceSha}&per_page=100`)
+    const body = await github(fetchImpl, token, `/repos/${inputs.repository}/actions/workflows/${workflowFileName(path)}/runs?head_sha=${sourceSha}&per_page=100`)
     const workflowRuns = body?.workflow_runs
     if (!Array.isArray(workflowRuns)) fail('GitHub API returned an unexpected workflow-runs response')
     if (workflowRuns.length >= 100) fail('GitHub API workflow-runs list exceeds the page budget')
