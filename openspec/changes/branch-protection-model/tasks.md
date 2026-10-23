@@ -24,7 +24,7 @@
 
 ## 5. Human-authorized application and verification (Definition of Done)
 
-- [ ] 5.1 Human creates a fine-grained PAT with repository Administration read and stores it as the `RULESETS_READ_TOKEN` Actions secret; verify the secret exists (do not print it)
-- [ ] 5.2 After the PR merges to `dev`, human runs `node tooling/rulesets.mjs apply` with admin `gh` auth; verify `node tooling/rulesets.mjs check` reports no drift
+- [x] 5.1 Human creates a fine-grained PAT with repository Administration read and stores it as the `RULESETS_READ_TOKEN` Actions secret; verify the secret exists (do not print it)
+- [x] 5.2 After the PR merges to `dev`, human runs `node tooling/rulesets.mjs apply` with admin `gh` auth; verify `node tooling/rulesets.mjs check` reports no drift
 - [ ] 5.3 Exercise the protections and record everything in `openspec/changes/branch-protection-model/validation.md`: a test promotion PR `dev`→`beta` shows `promotion integrity` and gate contexts reporting and gating; a direct push attempt to `beta` is rejected (even for the admin, whose bypass is `pull_request`-mode); the GitHub merge UI on the test PR offers only merge-commit; the first scheduled `ruleset-drift` run reports no drift. Note what was not verified and why
 - [x] 5.4 Run the local pre-push review defined in `REVIEW.md` (all three passes) before pushing; verify Important findings are resolved and the PR body carries `OpenSpec: branch-protection-model`
