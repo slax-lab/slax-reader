@@ -60,6 +60,15 @@ This repo uses OpenSpec for spec-driven development. Living specs live in `opens
 - Implementation-only changes (refactors, typos, comment/doc tweaks) MAY skip the proposal.
 - After editing specs or changes, run `openspec validate --all --strict`; it must pass before merge.
 
+## Archiving OpenSpec Changes
+
+Archiving is the task's closing step, not an optional cleanup, and the task merge alone triggers it — do not wait for the change to reach `beta` or `main`.
+
+- Archive through a `docs`-type pull request. One archive pull request MAY carry several changes; changes that touch the same capability must be archived together or sequenced, because two active deltas for one capability collide.
+- The change's author agent owns opening the archive pull request after the task pull request merges, and every `tasks.md` ends with an "Archive this change in a follow-up PR" item so the follow-up is tracked rather than remembered (`mobile-eas-cloud-delivery` task 2.2 is the existing example).
+- Before archiving, classify every unchecked task instead of archiving around it: a task whose work is done but was never ticked gets ticked; a historical acceptance gap stays unchecked with the reason recorded in `validation.md`; a genuinely unfinished task means the change does not archive yet.
+- Before archiving, check whether a still-active change carries a delta for the same capability. If one does, either sequence this archive after that change, or reconcile that change's `MODIFIED` blocks in the same archive pull request — the tree-wide `openspec validate --all --strict` gate fails on an unreconciled collision.
+
 ## Definition of Done
 
 A change that alters observable behavior is done only when the changed behavior has been exercised in a running environment; automated checks (typecheck, lint, unit and integration tests) must also run, but never substitute for the exercise. What to exercise derives from the change's delta-spec WHEN/THEN scenarios and proposal intent — they are the acceptance criteria — plus the affected app's smoke flows in its development doc; a change without an OpenSpec proposal derives smoke-level verification from its diff's touched surface and the affected app's documented smoke flows, and documentation- or typo-scale changes are exempt when they say so.
@@ -98,7 +107,7 @@ Self-approval never counts, so a hotfix or promotion authored by an administrato
 - One task = one branch = one PR: branch `<type>/<task-name>` cut from `origin/dev`, where `<type>` is the commit type of the work, e.g. `feat`, `fix`, `docs`, `chore`, `ci`. The task's pull request targets `dev`. `<task-name>` is one string, used verbatim for the branch suffix and — when a change is required — the OpenSpec change-id.
 - Never commit on a long-lived branch (`dev`, `beta`, or `main`): a pre-commit hook rejects the commit locally, and the repository ruleset rejects the push remotely. Trivial fixes (typo scale, single file) also go through a branch + PR.
 - Before the first file edit of a session, check where you are: if `git branch --show-current` is a long-lived branch, cut the task branch first — `git switch -c <type>/<task-name> --no-track origin/dev` — asking the human first when the checkout carries uncommitted changes.
-- Parallel tasks MUST NOT carry delta specs for the same capability (`openspec/specs/<capability>/`); sequence such tasks instead. Archive a merged change promptly, via its own small PR.
+- Parallel tasks MUST NOT carry delta specs for the same capability (`openspec/specs/<capability>/`); sequence such tasks instead.
 
 ## Code Review
 
