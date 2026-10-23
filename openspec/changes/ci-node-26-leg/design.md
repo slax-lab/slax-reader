@@ -37,7 +37,7 @@ Repository tooling executes on whatever supported Node the operator chose, and t
 
 ### D3: Matrix under the existing `check` job; gate jobs untouched
 
-A GitHub Actions matrix job reports one job result: failure if any leg fails, success only if every leg succeeds or is skipped. `cli-gate`/`tooling-gate` already `needs:` the job and fail closed, so the matrix needs no gate changes and the required context names stay stable. Matrix legs appear as additional contexts (`check (22.22.2)`, `check (26.12.1)`), which are informational, not required. Renaming or splitting the gate jobs would strand required contexts, so that is explicitly avoided.
+A GitHub Actions matrix job reports one job result: failure if any leg fails, success only if every leg succeeds or is skipped. `cli-gate`/`tooling-gate` already `needs:` the job and fail closed, so the matrix needs no gate changes and the required context names stay stable. Matrix legs appear as additional contexts (`check (22.22.2)`, `check (26.12.1)`), which are informational, not required. Renaming or splitting the gate jobs would strand required contexts, so that is explicitly avoided. Both matrices set `fail-fast: false` so one failing Node line does not cancel the remaining legs' results; a compatibility matrix is useful only when it reports every line in one run.
 
 ### D4: No Node 26 legs for frontend, API, or mobile
 

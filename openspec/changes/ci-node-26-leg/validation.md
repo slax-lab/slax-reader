@@ -50,7 +50,7 @@ The original mission base (`feat/branch-protection-model`) predated PR #368, so 
 
 - `cli-gate` still `needs: [changes, check]` and `tooling-gate` still `needs: [changes, check, cli-release, extension-release]`, both `if: always()` with the fail-closed result loop. A matrix job reports one result (failure if any leg fails), so the gates aggregate the whole matrix and keep their exact names `CLI CI gate` / `Tooling CI gate`.
 - `.github/rulesets.expected.json` references only those gate context names (lines 55, 67, 142, 158) and contains no Node version or matrix data — **no change required**.
-- `tooling/ci-workflow.test.mjs` now asserts the CLI matrix `['22.22.2', '24.15.0', '26.12.1']`, the tooling `check` matrix `['22.22.2', '26.12.1']`, and that both jobs wire `node-version: ${{ matrix.node }}`. `pnpm test:ci` passes with these assertions on both Node 22.22.2 and Node 26.12.1.
+- `tooling/ci-workflow.test.mjs` now asserts the CLI matrix `['22.22.2', '24.15.0', '26.12.1']`, the tooling `check` matrix `['22.22.2', '26.12.1']`, `fail-fast: false` on both matrices, and that both jobs wire `node-version: ${{ matrix.node }}`. `pnpm test:ci` passes with these assertions on both Node 22.22.2 and Node 26.12.1.
 - No other workflow or contract test asserts the old CLI/tooling matrix. Release lanes (`cli-release`, `extension-release`, `cli-release.yml`, `extension-release.yml`) keep Node 24.15.0; frontend, API, mobile, and ruleset-drift keep 22.22.2, all unchanged by design.
 
 ## Running-environment exercise
