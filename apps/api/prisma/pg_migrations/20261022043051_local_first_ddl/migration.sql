@@ -11,11 +11,18 @@ WHERE u."id" = c."owner_id"
 -- Fill the denormalized flag on insert or when the owner changes.
 CREATE OR REPLACE FUNCTION "sr_user_collection_fill_owner_deleted"()
 RETURNS TRIGGER AS $$
+DECLARE
+  owner_is_deleted BOOLEAN;
 BEGIN
-  NEW."owner_deleted" := COALESCE(
-    (SELECT "deleted_at" IS NOT NULL FROM "sr_user" WHERE "id" = NEW."owner_id"),
-    false
-  );
+  -- Serialize with a concurrent sr_user.deleted_at change so the insert cannot
+  -- read a stale owner state.
+  SELECT (u."deleted_at" IS NOT NULL)
+  INTO owner_is_deleted
+  FROM "sr_user" AS u
+  WHERE u."id" = NEW."owner_id"
+  FOR SHARE;
+
+  NEW."owner_deleted" := COALESCE(owner_is_deleted, false);
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

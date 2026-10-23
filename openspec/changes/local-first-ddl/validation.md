@@ -14,20 +14,19 @@
 
 ## Running-environment exercise
 
-An isolated `journeyapps/powersync-service` 1.26.1 instance with a PostgreSQL source and a dedicated storage database was used to exercise the final rules and the `owner_deleted` migration. The fixture had 1,101 active users, one open collection, one active subscription, one starred bookmark, and one collection comment.
+An isolated `journeyapps/powersync-service` 1.26.1 instance with a PostgreSQL source and a dedicated storage database was used to exercise the final rules and the `owner_deleted` migration. A fresh database applied all 53 migrations, including `20261022043051_local_first_ddl`, before the fixture was loaded. The fixture had 1,101 active users, 1,100 collections, 1,101 collection subscription rows (1,100 unrelated to the test user), one starred bookmark/comment, 1,101 RSS-enabled users, and four RSS feeds.
 
 | Scenario | Default stream buckets | Default stream `param_results` | Collection comment buckets | Collection comment `param_results` |
 | --- | --- | --- | --- | --- |
-| Owner active, collection open | 4 (owner bucket present) | 7 | 1 | 3 |
+| Owner active, collection open, RSS enabled | 9 (owner bucket present) | 17 | 1 | 3 |
 | Owner soft-deleted | 3 (owner bucket removed) | 6 | 0 | 1 |
 | Owner restored | 4 (owner bucket restored) | 7 | 1 | 3 |
 | Collection closed | 3 (owner bucket removed) | 6 | 0 | 1 |
+| RSS Lab disabled (RSS-only request) | 0 | 4 | n/a | n/a |
 
-The original rules failed on the same fixture with `PSYNC_S2305 Too many parameter query results (limit of 1000)` because `open_collection_owner_ids` evaluated `sr_user AS owner` over every active user. The final rules kept every tested request below the 1,000 limit.
+The original rules failed on a 1,101-user fixture with `PSYNC_S2305 Too many parameter query results (limit of 1000)` because `open_collection_owner_ids` evaluated `sr_user AS owner` over every active user. The final rules kept every tested request below the 1,000 limit, including the 1,100 unrelated subscription rows, which confirms the `subscribed_collection_ids` join is anchored by `authenticated_user.uuid = auth.user_id()`.
 
-RSS was exercised separately with 1,101 RSS-enabled users and four feeds: the RSS stream produced 8 parameter results on its own and 17 with the default streams, versus 2,208 for the original rules. Disabling the RSS Lab left the stream with zero buckets.
-
-A second fixture with 1,101 active users and 1,101 collection subscription rows (1,100 unrelated to the test user) produced 7 parameter results for the default streams. This confirms that the remaining `subscribed_collection_ids` join is anchored by `authenticated_user.uuid = auth.user_id()` and does not scan the subscriber table.
+A concurrency check with two PostgreSQL sessions exercised the `FOR SHARE` guard: while one transaction held `sr_user.deleted_at` for a new owner, an insert into `sr_user_collection` for that owner blocked for three seconds and then returned `owner_deleted = true`. Restoring the owner set the flag back to `false`.
 
 The migration integration test additionally confirmed that `owner_deleted` is filled on collection insert, becomes `true` immediately when the owner is marked deleted, stays `true` for a collection created while the owner is deleted, and returns to `false` when the owner is restored.
 
