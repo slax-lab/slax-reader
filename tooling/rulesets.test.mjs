@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import {
   applyRulesets,
   compareRulesets,
+  describeGhFailure,
   fetchRulesets,
   normalizeRuleset,
   normalizeRulesets,
@@ -152,6 +153,19 @@ test('fetches paginated ruleset lists and every ruleset detail', () => {
     ['api', 'repos/example/reader/rulesets/7'],
     ['api', 'repos/example/reader/rulesets/9']
   ])
+})
+
+test('gh failure output carries token renewal guidance only for authentication failures', () => {
+  const args = ['api', '--paginate', '--slurp', 'repos/example/reader/rulesets?includes_parents=false']
+  for (const detail of ['gh: Bad credentials (HTTP 401)', 'gh: Resource not accessible by personal access token (HTTP 403)']) {
+    const message = describeGhFailure(args, detail)
+    assert.match(message, /RULESETS_READ_TOKEN/)
+    assert.match(message, /Administration read/)
+    assert.match(message, /gh auth login/)
+  }
+  const plain = describeGhFailure(args, 'gh: Not Found (HTTP 404)')
+  assert.equal(plain, `gh api --paginate --slurp failed: gh: Not Found (HTTP 404)`)
+  assert.doesNotMatch(plain, /RULESETS_READ_TOKEN/)
 })
 
 test('apply leaves matching rulesets unchanged, updates drift, creates missing ones, and warns about extras', () => {

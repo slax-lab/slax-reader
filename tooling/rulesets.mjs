@@ -197,12 +197,24 @@ export const renderDrift = drift => {
   return `${lines.join('\n').trimEnd()}\n`
 }
 
+const AUTH_FAILURE = /Bad credentials|\(HTTP 401\)|Resource not accessible by personal access token/i
+
+const AUTH_GUIDANCE =
+  'GitHub API authentication failed. In CI this means the RULESETS_READ_TOKEN secret is missing or expired: ' +
+  'create a fine-grained token with repository Administration read permission and update the secret (see docs/CI.md). ' +
+  'Locally, refresh your gh authentication (`gh auth login`) or GH_TOKEN.'
+
+export const describeGhFailure = (args, detail) => {
+  const message = `gh ${args.slice(0, 3).join(' ')} failed: ${detail}`
+  return AUTH_FAILURE.test(detail) ? `${message}\n${AUTH_GUIDANCE}` : message
+}
+
 export const defaultRunGh = (args, options = {}) => {
   try {
     return execFileSync('gh', args, { encoding: 'utf8', input: options.input, maxBuffer: 16 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'] })
   } catch (error) {
     const stderr = typeof error.stderr === 'string' ? error.stderr : error.stderr?.toString() ?? ''
-    throw new Error(`gh ${args.slice(0, 3).join(' ')} failed: ${stderr.trim() || error.message}`)
+    throw new Error(describeGhFailure(args, stderr.trim() || error.message))
   }
 }
 
