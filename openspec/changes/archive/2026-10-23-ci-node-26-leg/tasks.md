@@ -30,4 +30,4 @@
 
 - [x] 6.1 Run the local pre-push review defined in `REVIEW.md`; resolve Important findings
 - [x] 6.2 Open the PR targeting `dev` with the repository pull-request template, the line `OpenSpec: ci-node-26-leg`, and a Test plan summarizing the local Node 26.12.1 runs and the CI matrix outcome
-- [ ] 6.3 Watch the PR checks to completion and report the final state; the human merges
+- [x] 6.3 Watch the PR checks to completion and report the final state; the human merges
