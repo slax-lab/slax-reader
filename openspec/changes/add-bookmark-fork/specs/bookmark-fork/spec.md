@@ -68,7 +68,7 @@ Fork SHALL preserve the existing one-copy-per-user resource identity. A successf
 
 ### Requirement: Stable direct provenance
 
-Fork provenance SHALL be persisted in a dedicated nullable database field identifying the exact source user-bookmark relation. Client-supplied provenance SHALL NOT be trusted. Ordinary edits and re-saves SHALL preserve it. Source deletion SHALL preserve the fact that the destination was Forked. A Fork of a Fork SHALL record its immediate source.
+Fork provenance SHALL be persisted in a dedicated nullable database field identifying the exact source user-bookmark relation. Client-supplied provenance SHALL NOT be trusted. Ordinary metadata edits and saves that reuse existing content SHALL preserve it. A successful independent owner acquisition SHALL clear provenance atomically with publishing its replacement content, retaining the destination identity and personal state. Source deletion SHALL preserve the fact that the destination was Forked. A Fork of a Fork SHALL record its immediate source.
 
 #### Scenario: Source UUID reused
 - **WHEN** the original relation is deleted and a different relation later uses the same public UUID
@@ -79,8 +79,20 @@ Fork provenance SHALL be persisted in a dedicated nullable database field identi
 - **THEN** attribution becomes unavailable instead of linking to the unrelated resource
 
 #### Scenario: Ordinary mutation after Fork
-- **WHEN** the destination user changes tags, title alias, sharing, trash state or saves the resource again
+- **WHEN** the destination user changes tags, title alias, sharing, trash state or saves without independently acquiring replacement content
 - **THEN** the provenance mapping is neither cleared nor replaced by client metadata
+
+#### Scenario: Owner independently saves the original resource
+- **WHEN** an owner's external-URL or inline acquisition successfully publishes replacement content for their Fork
+- **THEN** the same destination UUID retains its personal state, its provenance becomes null in the publication transaction, and subsequent reader metadata has no Fork attribution
+
+#### Scenario: Independent acquisition does not publish
+- **WHEN** acquisition is pending, fails to fetch/write/commit, or loses the expected-revision publication guard
+- **THEN** the previous Fork provenance is retained and no uncommitted content is presented as independently acquired
+
+#### Scenario: Cached PDF save
+- **WHEN** a save reuses a Fork's existing PDF binary, including duplicate native upload, title repair or text extraction
+- **THEN** it retains provenance because no independently acquired replacement file is published
 
 ### Requirement: Safe Source and Fork attribution
 

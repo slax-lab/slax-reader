@@ -22,6 +22,11 @@ New Extension, URL, import and synchronized captures and new Forks SHALL own the
 - **WHEN** A explicitly refreshes or retries A's ordinary media capture
 - **THEN** only A's selected capture can advance and a late completion for its previous revision cannot overwrite the new revision
 
+#### Scenario: Owner independently recaptures a media Fork
+- **WHEN** the owner saves the original media URL and the independent acquisition publishes successfully
+- **THEN** the destination becomes an ordinary private capture with newly pinned inputs/components, clears Fork provenance in the same transaction, and retains its UUID and personal state
+- **AND** ordinary status settlement, policy updates and repeated Reader-URL Fork commands do not perform this conversion
+
 ### Requirement: Coherent publication and recovery
 
 A successful snapshot SHALL expose a coherent set of required content artifacts. Partial copies, missing required objects or mixed revisions SHALL NOT be published as success. Uncertainty about database commit SHALL NOT cause deletion of potentially committed content. Post-commit indexing or notification failures SHALL NOT destroy the snapshot. Cleanup SHALL delete only artifacts proven unreferenced and outside active attempts.

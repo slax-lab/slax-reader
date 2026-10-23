@@ -642,7 +642,8 @@ export class BookmarkService {
           published_at: new Date(),
           site_name: ''
         },
-        documentId
+        documentId,
+        { clearForkProvenance: !existingKey, expectedRevision: existingKey ? undefined : ctx.get('snapshotCaptureRevision') }
       )
     } catch (error) {
       if (!previous) await bucket.delete([key, textKey, stateKey]).catch(() => {})

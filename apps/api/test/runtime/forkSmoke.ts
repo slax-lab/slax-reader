@@ -4,6 +4,10 @@ import { createHash, randomUUID } from 'node:crypto'
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { getPlatformProxy } from 'wrangler'
+import { PrismaPg } from '@prisma/adapter-pg'
+import { PrismaClient } from '@prisma/hyperdrive-client'
+import { BookmarkForkRepo } from '../../src/infra/repository/dbBookmarkFork'
+import { MediaSnapshotService } from '../../src/domain/mediaSnapshot'
 import { renderMediaArticle, renderPodcastBody, type PodcastPlayerInfo } from '../../src/utils/podcastArticle'
 import type { YoutubeArticleDocument } from '../../src/utils/youtubeArticle'
 import { normalizedMediaContent, podcastInputFingerprint } from '../../src/utils/mediaSnapshot'
@@ -13,7 +17,7 @@ import type { LocalResources } from './localResources'
 type Source = { id: number; uuid: string; url: string; key: string; textKey: string; type: number }
 const sqlString = (value: string) => `'${value.replace(/'/g, "''")}'`
 
-export async function prepareForkSmoke(resources: LocalResources, container: string, state: string) {
+export async function prepareForkSmoke(resources: LocalResources, container: string, state: string, databaseUrl: string) {
   const config = resolve(resources.workspace, 'fork-r2.json')
   writeFileSync(
     config,
@@ -380,6 +384,35 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         const translation = await call(`/v1/podcast/translation?bookmark_uid=${saved.podcast.uuid}&version=${manifest.revision}-zh`)
         assert.equal(translation.result.data.lede, 'podcast zh saved article')
         assert.equal(translation.result.data.sections[0].paragraphs[0].start_ms, 5000)
+        // Exercise publication with real local PostgreSQL/R2, then read through Edge/Core HTTP.
+        // The fixture has no crawl workflow or external provider connection.
+        const client = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl }) })
+        try {
+          const repo = new BookmarkForkRepo(() => client)
+          const capture = Object.assign(Object.create(MediaSnapshotService.prototype), { repo, bucket: () => ({ R2Bucket: bucket }) }) as MediaSnapshotService
+          for (const kind of ['html', 'youtube', 'podcast'] as const) {
+            const dest = saved[kind]
+            const before = await client.sr_user_bookmark.findUniqueOrThrow({ where: { uuid: dest.uuid } })
+            assert.notEqual(before.forked_from_id, null)
+            const previous = await capture.load(dest.bookmark_id)
+            const media = previous?.media ? { ...previous.media, mode: 'capture' as const, variants: {}, bodyLanguage: null } : null
+            const text = `Independently acquired ${kind}`
+            await capture.capture(dest.bookmark_id, dest.uuid, { html: `<article>${text}</article>`, text }, {}, media)
+            const after = await client.sr_user_bookmark.findUniqueOrThrow({ where: { uuid: dest.uuid } })
+            assert.equal(after.forked_from_id, null)
+            assert.equal(after.id, before.id)
+            assert.equal(after.alias_title, before.alias_title)
+            const metadata = await call(`/v1/bookmark/fork_metadata?bookmark_uid=${dest.uuid}`)
+            assert.equal(metadata.result.data.has_fork, false)
+            assert.equal(metadata.result.data.fork, null)
+            assert.equal(metadata.response.headers.get('Cache-Control'), 'private, no-store')
+            const ownBody = await fetch('/v1/bookmark/content', { method: 'POST', headers, body: JSON.stringify({ bookmark_uid: dest.uuid }) })
+            assert.match(await ownBody.text(), new RegExp(text))
+            assert.equal((await capture.load(dest.bookmark_id))?.media?.mode ?? 'html', kind === 'html' ? 'html' : 'capture')
+          }
+        } finally {
+          await client.$disconnect()
+        }
         // Remove only this fixture's records to preserve the original CRUD smoke's list-empty contract.
         for (const dest of Object.values(saved)) {
           sql(
@@ -398,7 +431,8 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           catchUpFailure: true,
           podcastOwnerRecovery: true,
           podcastDurationCompletion: true,
-          youtubePromotionEligibility: true
+          youtubePromotionEligibility: true,
+          independentRecaptureAttribution: true
         }
       }
     }

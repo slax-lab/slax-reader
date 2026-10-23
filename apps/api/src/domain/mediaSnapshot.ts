@@ -442,7 +442,8 @@ export class MediaSnapshotService {
     if (!raw || (expectedRevision && raw.updated_at.toISOString() !== expectedRevision)) throw new Error('Capture revision superseded')
     const content = await this.writeRevision(raw, media, body, new SnapshotBundle(this.bucket().R2Bucket, uuid), {
       fields: { ...fields, status: 'success' },
-      expectedUpdatedAt: raw.updated_at
+      expectedUpdatedAt: raw.updated_at,
+      clearForkProvenance: true
     })
     if (!content) throw new Error('Capture revision superseded')
     return content

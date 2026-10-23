@@ -519,14 +519,26 @@ export class BookmarkRepo {
     return await this.prismaPg().sr_bookmark.update({ where: { id: bookmarkId }, data: { ...info, updated_at: new Date() } })
   }
 
-  public async completePdfBookmark(bookmarkId: number, info: Pick<bookmarkParsePO, 'status'> & Partial<bookmarkParsePO>, documentId: string) {
+  public async completePdfBookmark(
+    bookmarkId: number,
+    info: Pick<bookmarkParsePO, 'status'> & Partial<bookmarkParsePO>,
+    documentId: string,
+    publication: { clearForkProvenance?: boolean; expectedRevision?: string } = {}
+  ) {
     return this.prismaPg().$transaction(async tx => {
-      await tx.sr_bookmark.update({ where: { id: bookmarkId }, data: { ...info, updated_at: new Date() } })
-      const relations = await tx.sr_user_bookmark.findMany({ where: { bookmark_id: bookmarkId }, select: { id: true, metadata: true } })
+      const raw = await tx.sr_bookmark.update({
+        where: { id: bookmarkId, ...(publication.expectedRevision ? { updated_at: new Date(publication.expectedRevision) } : {}) },
+        data: { ...info, updated_at: new Date() }
+      })
+      const relations = await tx.sr_user_bookmark.findMany({ where: { bookmark_id: bookmarkId }, select: { id: true, user_id: true, metadata: true } })
       for (const relation of relations) {
         await tx.sr_user_bookmark.update({
           where: { id: relation.id },
-          data: { type: 2, metadata: { ...(relation.metadata as Record<string, Prisma.JsonValue>), pdf_document_id: documentId } }
+          data: {
+            type: 2,
+            metadata: { ...(relation.metadata as Record<string, Prisma.JsonValue>), pdf_document_id: documentId },
+            ...(publication.clearForkProvenance && raw.private_user === relation.user_id ? { forked_from_id: null, updated_at: new Date() } : {})
+          }
         })
       }
     })

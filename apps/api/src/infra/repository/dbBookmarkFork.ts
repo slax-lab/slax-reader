@@ -238,6 +238,8 @@ export class BookmarkForkRepo {
       force?: boolean
       expectedUpdatedAt?: Date
       fields?: Prisma.sr_bookmarkUpdateManyMutationInput
+      /** Only independent owner acquisition may replace the content's provenance. */
+      clearForkProvenance?: boolean
     } = {}
   ) {
     return this.client().$transaction(async db => {
@@ -253,13 +255,21 @@ export class BookmarkForkRepo {
         data: { ...options.fields, ...content, updated_at: new Date() }
       })
       if (updated.count !== 1) return false
-      if (options.mediaRef) {
+      if (options.mediaRef || options.clearForkProvenance) {
         const raw = await db.sr_bookmark.findUniqueOrThrow({ where: { id: bookmarkId } })
-        await db.sr_media_article_ref.upsert({
-          where: { bookmark_id: bookmarkId },
-          create: { ...options.mediaRef, bookmark_id: bookmarkId, user_id: raw.private_user },
-          update: options.mediaRef
-        })
+        if (options.clearForkProvenance && raw.private_user > 0) {
+          await db.sr_user_bookmark.updateMany({
+            where: { bookmark_id: bookmarkId, user_id: raw.private_user, forked_from_id: { not: null } },
+            data: { forked_from_id: null, updated_at: new Date() }
+          })
+        }
+        if (options.mediaRef) {
+          await db.sr_media_article_ref.upsert({
+            where: { bookmark_id: bookmarkId },
+            create: { ...options.mediaRef, bookmark_id: bookmarkId, user_id: raw.private_user },
+            update: options.mediaRef
+          })
+        }
       }
       return true
     })

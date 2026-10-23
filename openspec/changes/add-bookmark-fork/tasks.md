@@ -1,5 +1,11 @@
 # Tasks
 
+## Owner recapture follow-up — 2026-10-23
+
+- [x] R5 Record the approved provenance rule: clear only on successful independent owner publication, preserving failed/pending/no-op saves and metadata edits.
+- [x] R6 Add failing regressions, implement atomic provenance clearing for ordinary capture and newly acquired PDF publication, and verify frozen media conversion, revision guards and personal-state preservation.
+- [x] R7 Run API checks and isolated PostgreSQL/R2/HTTP exercises, review Bugs/Security/Compliance, record evidence and update the existing PR without changing package versions.
+
 ## Review follow-up — 2026-10-22
 
 - [x] R1 Restore search visibility after existing/own-source Fork restores without repeating creation notifications; verify both paths against a cached trashed-bookmark candidate set.
@@ -40,7 +46,7 @@
 - [x] 4.3 Route `/add` and `/add_url` through the classifier and a completed-Fork result while retaining legacy response shapes; verify supplied Reader HTML is ignored, no workflow starts and ordinary URL tests pass.
 - [x] 4.4 Add Telegram preflight/domain and import item adapters; verify callbacks and per-item counts, bounded copy concurrency, destination-requested metadata, and no crawl of a completed Fork.
 - [ ] 4.5 Implement guarded terminal failed placeholders with deterministic per-client URL-fragment identities for old Reader-URL sync creates and suppress crawl/manual shell retry/rescue; verify same-source/different-UUID uploads, mixed batches, delayed dependent edits, UUID collision protection and lost-ack replay on Web/Mobile uploader behavior.
-- [x] 4.6 Preserve provenance through ordinary re-save, sync, trash/share and metadata updates without exposing it as client-writable state; verify attempts to forge or clear it fail and existing PowerSync projections remain compatible.
+- [x] 4.6 Preserve provenance through saves reusing existing content, sync, trash/share and metadata updates without exposing it as client-writable state; clear only on successful server-side independent acquisition under R5–R7 and keep existing PowerSync projections compatible.
 
 ## 5. Web and Extension integration
 
@@ -62,4 +68,4 @@
 
 ## Handoff status
 
-All implementation work is present. Rows 3.2, 4.5 and 6.3 remain unchecked because their combined verification wording includes runtime scenarios not exercised in this desktop fixture; the exact automated coverage and remaining gaps are recorded in `validation.md`. Human hands-on UI acceptance in 6.4 was confirmed by the requesting project owner on 2026-10-22 with no further adjustments. Version decision 6.6 is settled: the user explicitly declined a bump. The repository-template PR body is prepared locally and is not published.
+All implementation work is present. Rows 3.2, 4.5 and 6.3 remain unchecked because their combined verification wording includes runtime scenarios not exercised in this desktop fixture; the exact automated coverage and remaining gaps are recorded in `validation.md`. Human hands-on UI acceptance in 6.4 was confirmed by the requesting project owner on 2026-10-22 with no further adjustments. Version decision 6.6 is settled: the user explicitly declined a bump. PR #354 is open against dev; the owner-recapture follow-up and its validation are recorded above and in validation.md.

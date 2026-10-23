@@ -191,7 +191,7 @@ async function main() {
       INSERT INTO sr_bookmark_share (user_id,bookmark_id,share_code) VALUES (2,1,'SmokeA1');
     `
     )
-    if (process.env.FORK_SMOKE === '1') forks = await prepareForkSmoke(resources, pg.id, state)
+    if (process.env.FORK_SMOKE === '1') forks = await prepareForkSmoke(resources, pg.id, state, url('http_reader'))
     const token = await new Auth(vars as Env).sign({ id: String(new Hashid(vars as Env).encodeId(1)), email: 'saver@smoke.invalid', lang: 'en' })
     worker = spawn(
       'pnpm',

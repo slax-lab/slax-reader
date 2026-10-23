@@ -4,6 +4,9 @@ import { PrismaClient } from '@prisma/hyperdrive-client'
 import { BookmarkForkRepo } from '@/infra/repository/dbBookmarkFork'
 import { podcastInputFingerprint } from '@/utils/mediaSnapshot'
 import { DBSyncBatchOperation } from '@/infra/repository/dbSyncBatch'
+import { BookmarkRepo } from '@/infra/repository/dbBookmark'
+import { MediaSnapshotService } from '@/domain/mediaSnapshot'
+import { memoryBucket } from '../utils/snapshotBucket'
 
 const url = process.env.FORK_TEST_DATABASE_URL
 describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
@@ -162,6 +165,129 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     } finally {
       await client.sr_podcast_episode.delete({ where: { id: ep.id } })
     }
+  })
+
+  async function recaptureFixture() {
+    const { relation } = await repo.publish(input(`https://example.com/recapture-${crypto.randomUUID()}`))
+    await client.sr_user_bookmark.update({ where: { id: relation.id }, data: { alias_title: 'My title', is_starred: true, archive_status: 1 } })
+    const before = await client.sr_user_bookmark.findUniqueOrThrow({ where: { id: relation.id } })
+    const memory = memoryBucket()
+    await memory.bucket.put(relation.bookmark.content_key, '<article>Forked body</article>')
+    const service = Object.assign(Object.create(MediaSnapshotService.prototype), {
+      repo,
+      bucket: () => ({ R2Bucket: memory.bucket })
+    }) as MediaSnapshotService
+    return { relation, before, memory, service }
+  }
+
+  it.each(['html', 'youtube', 'podcast'] as const)('clears attribution only when an independent %s capture publishes, preserving personal state', async kind => {
+    const { relation, before, memory, service } = await recaptureFixture()
+    const media =
+      kind === 'html'
+        ? null
+        : {
+            schema: 1 as const,
+            kind,
+            mode: 'capture' as const,
+            revision: 'new',
+            sourceId: `recapture-${relation.id}`,
+            sourceHash: 'new-input',
+            inputFingerprint: 'new-input',
+            defaultLanguage: 'en' as const,
+            transcript: 'ready' as const,
+            bodyLanguage: null,
+            variants: { en: { status: 'pending' as const } }
+          }
+    const content = await service.capture(relation.bookmark_id, relation.uuid, { html: '<article>My capture</article>', text: 'My capture' }, {}, media)
+    const after = await client.sr_user_bookmark.findUniqueOrThrow({ where: { id: relation.id } })
+    expect(after).toMatchObject({
+      ...before,
+      metadata: { ...(before.metadata as Record<string, unknown>), bookmark: expect.objectContaining({ content_word_count: 10 }) },
+      forked_from_id: null,
+      updated_at: expect.any(Date)
+    })
+    expect(after.updated_at.getTime()).toBeGreaterThanOrEqual(before.updated_at.getTime())
+    expect((await repo.snapshot(relation.bookmark_id))?.content_key).toBe(content.content_key)
+    expect(await (await memory.bucket.get(content.content_key))!.text()).toContain('My capture')
+    const manifest = await (await memory.bucket.get(content.content_key.replace('body.html', 'media.json')))!.json<any>()
+    expect(manifest).toMatchObject(kind === 'html' ? { kind: 'html' } : { kind, mode: 'capture', variants: { en: { status: 'pending' } } })
+    expect((await repo.source(users[1], source!.uuid))?.bookmark.content_key).toBe(source!.bookmark.content_key)
+  })
+
+  it('retains attribution when a write fails or a later acquisition supersedes publication', async () => {
+    const { relation, before, memory, service } = await recaptureFixture()
+    const put = memory.bucket.put.bind(memory.bucket)
+    memory.bucket.put = async () => {
+      throw new Error('R2 unavailable')
+    }
+    await expect(service.capture(relation.bookmark_id, relation.uuid, { html: 'New', text: 'New' }, {}, null)).rejects.toThrow('R2 unavailable')
+    memory.bucket.put = async (...args: Parameters<R2Bucket['put']>) => {
+      const result = await put(...args)
+      if (args[0].endsWith('media.json')) {
+        await client.sr_bookmark.update({ where: { id: relation.bookmark_id }, data: { updated_at: new Date(Date.now() + 1000) } })
+      }
+      return result
+    }
+    await expect(service.capture(relation.bookmark_id, relation.uuid, { html: 'New', text: 'New' }, {}, null)).rejects.toThrow('Capture revision superseded')
+    expect(await client.sr_user_bookmark.findUnique({ where: { id: relation.id } })).toEqual(before)
+    expect((await repo.snapshot(relation.bookmark_id))?.content_key).toBe(relation.bookmark.content_key)
+    expect([...memory.objects.keys()]).toEqual([relation.bookmark.content_key])
+  })
+
+  it('keeps attribution during media settlement or policy publication', async () => {
+    const { relation, before } = await recaptureFixture()
+    expect(await repo.publishRevision(relation.bookmark_id, relation.bookmark.content_key, input().content)).toBe(true)
+    expect(await client.sr_user_bookmark.findUnique({ where: { id: relation.id } })).toEqual(before)
+  })
+
+  it('rolls back the content pointer if clearing attribution fails', async () => {
+    const { relation, before, service } = await recaptureFixture()
+    await client.$executeRawUnsafe(`CREATE FUNCTION reject_fork_clear() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+      IF OLD.id = ${relation.id} AND OLD.forked_from_id IS NOT NULL AND NEW.forked_from_id IS NULL THEN RAISE EXCEPTION 'fixture provenance failure'; END IF;
+      RETURN NEW; END $$`)
+    await client.$executeRawUnsafe('CREATE TRIGGER reject_fork_clear BEFORE UPDATE ON sr_user_bookmark FOR EACH ROW EXECUTE FUNCTION reject_fork_clear()')
+    try {
+      await expect(service.capture(relation.bookmark_id, relation.uuid, { html: 'New', text: 'New' }, {}, null)).rejects.toThrow('fixture provenance failure')
+      expect((await repo.snapshot(relation.bookmark_id))?.content_key).toBe(relation.bookmark.content_key)
+      expect(await client.sr_user_bookmark.findUnique({ where: { id: relation.id } })).toEqual(before)
+    } finally {
+      await client.$executeRawUnsafe('DROP TRIGGER reject_fork_clear ON sr_user_bookmark')
+      await client.$executeRawUnsafe('DROP FUNCTION reject_fork_clear()')
+    }
+  })
+
+  it('clears PDF provenance for new bytes but preserves it for cached extraction', async () => {
+    const { relation, before } = await recaptureFixture()
+    const bookmarks = Object.assign(Object.create(BookmarkRepo.prototype), { prismaPg: () => client }) as BookmarkRepo
+    await bookmarks.completePdfBookmark(relation.bookmark_id, { status: 'success' }, 'document')
+    expect((await client.sr_user_bookmark.findUniqueOrThrow({ where: { id: relation.id } })).forked_from_id).toBe(before.forked_from_id)
+    await bookmarks.completePdfBookmark(relation.bookmark_id, { status: 'success', content_key: 'pdf/body/independent.pdf' }, 'new-document', {
+      clearForkProvenance: true,
+      expectedRevision: (await repo.snapshot(relation.bookmark_id))!.updated_at.toISOString()
+    })
+    const after = await client.sr_user_bookmark.findUniqueOrThrow({ where: { id: relation.id } })
+    expect(after).toMatchObject({
+      uuid: before.uuid,
+      forked_from_id: null,
+      alias_title: before.alias_title,
+      is_starred: before.is_starred,
+      metadata: { pdf_document_id: 'new-document' }
+    })
+  })
+
+  it('rejects stale PDF acquisition before changing content or provenance', async () => {
+    const { relation, before } = await recaptureFixture()
+    const bookmarks = Object.assign(Object.create(BookmarkRepo.prototype), { prismaPg: () => client }) as BookmarkRepo
+    const expectedRevision = relation.bookmark.updated_at.toISOString()
+    await client.sr_bookmark.update({ where: { id: relation.bookmark_id }, data: { updated_at: new Date(relation.bookmark.updated_at.getTime() + 1000) } })
+    await expect(
+      bookmarks.completePdfBookmark(relation.bookmark_id, { status: 'success', content_key: 'pdf/body/stale.pdf' }, 'stale-document', {
+        clearForkProvenance: true,
+        expectedRevision
+      })
+    ).rejects.toMatchObject({ code: 'P2025' })
+    expect((await repo.snapshot(relation.bookmark_id))?.content_key).toBe(relation.bookmark.content_key)
+    expect(await client.sr_user_bookmark.findUnique({ where: { id: relation.id } })).toEqual(before)
   })
 
   it('cannot publish or mark failed using an earlier acquisition revision', async () => {
