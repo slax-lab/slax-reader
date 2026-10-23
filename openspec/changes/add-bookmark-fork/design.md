@@ -22,6 +22,10 @@ The existing no-store metadata response adds optional `viewer_fork_status: 'pend
 
 Exhausted copy retries and definitively stopped dispatches reach a guarded failed state. An ambiguous dispatch retains its active claim: a deterministic Workflow lookup can confirm acceptance, but a missing or failed lookup cannot prove that no worker is writing. This exceptional uncertainty shares the existing manual-recovery boundary. Cancelling a matching soft-trashed destination releases only that request to failed, allowing restore and explicit retry; superseded work cannot mutate the newer request. Source permissions and immutable relation identity are rechecked before copying/publication. Preserve the accepted lack of automatic takeover for crashed active writes; never allow ordinary rescue to fetch the external original URL for an unfinished Fork. Do not use a short-lived request `waitUntil` alone to perform unbounded R2 copies.
 
+### Historical conversion availability
+
+Historical shared conversion reserves a new private content key before the first copy. If dispatch or copying fails, that user may temporarily lose readable content through the preserved relation until a retry succeeds; the former shared object and other owners remain intact. This availability tradeoff is not a promise of rollback.
+
 ## Historical design (superseded where noted above)
 
 

@@ -1,6 +1,6 @@
 # Fixed-path follow-up verification — 2026-10-23
 
-This section supersedes older immutable-path and no-op repeat-Fork evidence below. Branch: `feat/add-bookmark-fork`; implementation base: `bce93416a49ec2bc736ee256b802a737164a580c`. On 2026-10-23 the user explicitly requested a local commit and transfer to the primary checkout for hands-on development testing, with a fresh local database setup. This does not constitute acceptance of the new UI guards or authorization to mark the follow-up ready for push. No production deployment was performed. The existing user decision not to bump application versions still applies.
+This section supersedes older immutable-path and no-op repeat-Fork evidence below. Branch: `feat/add-bookmark-fork`; implementation base: `bce93416a49ec2bc736ee256b802a737164a580c`. On 2026-10-23 the user explicitly requested a local commit and transfer to the primary checkout for hands-on development testing, with a fresh local database setup. That earlier instruction did not constitute acceptance of the new UI guards. A later explicit owner instruction on the same date authorized pushing before their manual test; the current handoff and pending R19 acceptance are recorded below. No production deployment was performed. The existing user decision not to bump application versions still applies.
 
 ## Implemented and exercised
 
@@ -35,7 +35,7 @@ Independent review used `REVIEW.md` Bugs, Security and Compliance passes with ch
 
 Final independent review found no remaining Important code findings. Bugs/Security passed; Compliance matches the approved change subject to the acceptance gate below. The report is `.superpowers/sdd/fork-fixed-paths/final-review.md`.
 
-**Follow-up human acceptance is pending.** The requesting project owner's 2026-10-22 acceptance applies to the previous UI, not these new guards. The new fixture is ready for hands-on duplicate submission / retry / account-switch verification; this follow-up must not be marked ready for push until acceptance and any requested adjustments are recorded. R15 remains unchecked for that reason.
+**Follow-up human acceptance is pending.** The requesting project owner's 2026-10-22 acceptance applies to the previous UI, not these new guards. The fixture supplied agent-driven duplicate submission / retry / account-switch evidence. The owner subsequently requested pushing first and testing manually in the primary checkout. R15 now records completed implementation and machine verification; R19 separately retains the pending human acceptance. This permission changes the handoff order, not the requirement to record actual acceptance before merge.
 
 Remaining scope limits: no production rollout, real provider acquisition/generation, complete ordinary Workflow execution with all remote services, full browser-to-PowerSync-to-API transport, Mobile uploader exercise, or process-kill/ambiguous-commit fault injection was performed in this round. State/retry boundaries are covered by regression suites, real database races and the local API exercise as described, not claimed as those unperformed scenarios. Fixed-key partial writes, retained uncertain files and a crashed active claim are explicit accepted design limits, not an automatic recovery guarantee.
 
@@ -346,3 +346,10 @@ Fixed paths cannot provide cross-object or R2/SQL atomic rollback. A failed upda
 **New human hands-on acceptance remains pending.** Earlier acceptance on 2026-10-22 does not cover the changed no-navigation/asynchronous UX. On 2026-10-23 the owner explicitly instructed: finish the changes, commit and push them to the existing PR, leave the primary checkout on this branch, then let the owner run local dev and test manually. This direct instruction supersedes the default pre-push acceptance order for this handoff. No acceptance is inferred or fabricated; R19 stays unchecked.
 
 The primary checkout is `/Users/yjc/Documents/Company/slax-reader-v2` on `feat/add-bookmark-fork`. Its earlier local reset/setup and provenance migration were already completed with owner authorization. This follow-up did not reset or seed it. Agent-owned dev servers are stopped for manual startup via `pnpm api -- dev` and `pnpm web -- dev`. The implementation report and current flowcharts are in `docs/api/bookmark-fork-fixed-paths.md`; a Chinese companion report is delivered outside the repository. No production deployment or merge is performed.
+
+
+#### Remote review feedback on `5b0f503c`
+
+[Automated review](https://github.com/slax-lab/slax-reader/pull/354#pullrequestreview-5627343500) found no Important Bugs or Security findings. Its Important Compliance finding is the still-pending human acceptance; this remains a merge prerequisite, consistent with the owner's explicit push-first/test-later instruction. The stale earlier sentence saying R15 remained unchecked was corrected; R15 machine work is complete and R19 human acceptance is pending. No human acceptance was fabricated and no merge was attempted.
+
+The review's historical-shared-conversion availability Nit is now explicitly documented: conversion retains the personal relation but reserves a new private content key before copying, so a failed/undispatched copy can temporarily remove access to the previously shared body through that relation until retry succeeds. Other owners' shared content remains intact. The remaining naming/busy-import/missing-object observations are nonblocking Nits, not changes implemented in this handoff. The technical CI checks on `5b0f503c` passed; the review gate remains blocked on acceptance.
