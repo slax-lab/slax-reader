@@ -17,6 +17,6 @@
 
 ## 4. Validation and rollout
 
-- [ ] 4.1 Run the local pre-push review from `REVIEW.md` on the full diff and resolve Important findings before pushing; verify the review's conclusion is recorded.
+- [x] 4.1 Run the local pre-push review from `REVIEW.md` on the full diff and resolve Important findings before pushing; verify the review's conclusion is recorded.
 - [ ] 4.2 Open the pull request to `dev` with `OpenSpec: release-branch-review-policy` and a Test plan carrying the command outputs above; verify CI is green. (This pull request must merge after the `branch-protection-model` archive pull request.)
 - [ ] 4.3 After merge, with human authorization: run `node tooling/rulesets.mjs apply` to raise the review requirement on the live `beta`/`main` rulesets, then `node tooling/rulesets.mjs check`; verify zero drift and record both outputs in `validation.md`.
