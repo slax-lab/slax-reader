@@ -8,8 +8,8 @@
 </template>
 <script setup lang="ts">
 import { useBookmarkFork } from '~/composables/bookmark/useBookmarkFork'
-defineProps<{ bookmarkUid: string }>()
-const { fork, pending, error } = useBookmarkFork()
+const props = defineProps<{ bookmarkUid: string }>()
+const { fork, pending, error } = useBookmarkFork(toRef(props, 'bookmarkUid'))
 </script>
 <style scoped>
 .fork-action {

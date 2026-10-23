@@ -42,12 +42,14 @@ export class BookmarkForkService {
     if (source.user_id === userId) return this.existingResult(ctx, await this.repo.ownSource(userId, sourceUuid))
 
     const targetUrl = this.destinationUrl(source, userId)
-    const existing = await this.repo.existing(userId, targetUrl)
-    if (existing) return this.existingResult(ctx, existing)
     if (source.bookmark.status !== 'success') throw forkError()
+    const existing = await this.repo.existing(userId, targetUrl)
 
-    const uuid = crypto.randomUUID()
-    const bundle = new SnapshotBundle(this.bucket().R2Bucket, uuid)
+    if (existing && !(await this.repo.claimWrite(existing.bookmark_id, existing.bookmark.updated_at, ['success', 'failed'], true)))
+      throw forkError(ErrorName.FORK_DESTINATION_IN_PROGRESS)
+    const uuid = existing?.uuid ?? crypto.randomUUID()
+    const storageUuid = existing?.bookmark.content_key?.match(/^(?:html|pdf)\/body\/([^/]+)\.(?:html|pdf)$/)?.[1] ?? uuid
+    const bundle = new SnapshotBundle(this.bucket().R2Bucket, storageUuid, crypto.randomUUID(), { deleteNewObjectsOnDiscard: !existing })
     let publicationStarted = false
     let result: Awaited<ReturnType<BookmarkForkRepo['publish']>>
     try {
@@ -68,11 +70,23 @@ export class BookmarkForkService {
         uuid,
         content,
         personal,
+        destination: existing
+          ? {
+              id: existing.id,
+              bookmark_id: existing.bookmark_id,
+              updated_at: existing.bookmark.updated_at
+            }
+          : undefined,
         mediaRef: copiedMedia?.ref,
         mediaInput: copiedMedia?.input,
         pdfDocumentId: pdf ? this.documentId(source) : undefined
       })
     } catch (error) {
+      if (existing) {
+        await this.repo.failWrite(existing.bookmark_id, existing.bookmark.updated_at).catch(() => {})
+        if (error instanceof MultiLangError) throw error
+        throw forkError(ErrorName.FORK_STORAGE_UNAVAILABLE)
+      }
       if (!publicationStarted || error instanceof MultiLangError) {
         await bundle.discard().catch(() => {})
         throw error
@@ -91,7 +105,7 @@ export class BookmarkForkService {
         const code = (error as { code?: string }).code
         if (code === 'P2002' || code === 'P2034') {
           await bundle.discard().catch(() => {})
-          if (winner) return this.existingResult(ctx, winner)
+          if (winner?.forked_from_id === source.id && winner.bookmark.status === 'success') return this.existingResult(ctx, winner)
         }
         throw forkError(ErrorName.FORK_STORAGE_UNAVAILABLE)
       }
@@ -99,6 +113,7 @@ export class BookmarkForkService {
 
     if (result.disposition === 'already_saved') {
       await bundle.discard().catch(() => {})
+      if (result.relation.forked_from_id !== source.id || result.relation.bookmark.status !== 'success') throw forkError(ErrorName.FORK_DESTINATION_IN_PROGRESS)
       return this.existingResult(ctx, result.relation)
     }
     // Side effects are outside the rollback scope. Failures must never delete a live bundle.
@@ -150,7 +165,7 @@ export class BookmarkForkService {
     if (binary.customMetadata?.sha256 !== this.documentId(source)) throw forkError()
     const state = await (await bundle.read(key.replace('pdf/body/', 'pdf/meta/').replace(/\.pdf$/, '.json'))).json<{ text_status: string; pages: number }>()
     if (!['ready', 'empty', 'failed'].includes(state.text_status) || (state.text_status === 'ready') !== !!source.bookmark.content_md_key) throw forkError()
-    await bundle.put(keys.sidecar, JSON.stringify({ text_status: state.text_status, pages: state.pages }), { contentType: 'application/json' })
+    await bundle.put(keys.sidecar!, JSON.stringify({ text_status: state.text_status, pages: state.pages }), { contentType: 'application/json' })
     if (state.text_status === 'ready') await bundle.copy(source.bookmark.content_md_key, keys.content_md_key)
     return { content_key: keys.content_key, content_md_key: state.text_status === 'ready' ? keys.content_md_key : '', content_word_count: source.bookmark.content_word_count }
   }
@@ -184,6 +199,7 @@ export class BookmarkForkService {
 
   private async afterCommit(ctx: ContextManager, relation: Awaited<ReturnType<BookmarkForkRepo['publish']>>['relation']) {
     const raw = relation.bookmark
+    await this.bookmarks.deleteBookmarkSummary(raw.id, ctx.getUserId())
     const changedAt = new Date()
     const outcomes = await Promise.allSettled([
       this.media.repairIndex(ctx, raw.id),

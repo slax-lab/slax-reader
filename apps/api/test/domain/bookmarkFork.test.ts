@@ -79,37 +79,34 @@ describe('Fork service publication boundary', () => {
     expect(bucket.objects.has(repo.publish.mock.calls[0][0].content.content_key)).toBe(true)
   })
 
-  it('returns a successful existing destination without reading source storage', async () => {
-    repo.existing.mockResolvedValue({ uuid: 'existing', bookmark_id: 20 })
-    bucket.objects.clear()
-    expect(await service.fork(ctx, source.uuid)).toMatchObject({ bookmark_uid: 'existing', disposition: 'already_saved' })
+  it('refreshes an existing destination using its fixed UUID and preserves identity', async () => {
+    const existing = { id: 21, uuid: 'existing', bookmark_id: 20,
+      bookmark: { ...source.bookmark, id: 20, private_user: 2, updated_at: new Date(), content_key: 'html/body/existing.html' } }
+    repo.existing.mockResolvedValue(existing)
+    repo.claimWrite = vi.fn(async () => true)
+    repo.failWrite = vi.fn(async () => true)
+    repo.publish.mockImplementation(async (input: any) => ({ disposition: 'updated', relation: { ...existing, bookmark: { ...existing.bookmark, ...input.content } } }))
+    await bucket.bucket.put('html/body/existing.html', 'previous')
+    expect(await service.fork(ctx, source.uuid)).toMatchObject({ bookmark_uid: 'existing', disposition: 'updated' })
+    expect(await (await bucket.bucket.get('html/body/existing.html'))!.text()).toContain('Original')
+    expect(repo.publish.mock.calls[0][0].destination).toMatchObject({ id: 21, bookmark_id: 20 })
+  })
+
+  it('does not overwrite files when another request owns the existing destination', async () => {
+    repo.existing.mockResolvedValue({ id: 21, uuid: 'existing', bookmark_id: 20, bookmark: { updated_at: new Date() } })
+    repo.claimWrite = vi.fn(async () => false)
+    await expect(service.fork(ctx, source.uuid)).rejects.toMatchObject({ name: 'fork_destination_in_progress' })
     expect(repo.publish).not.toHaveBeenCalled()
   })
 
-  it.each(['existing', 'ownSource'])('clears cached search visibility after %s restores a successful copy', async path => {
-    const cache = new Map([['search:valid_bm_ids:2', '[]']])
-    const restore = async () => ({ uuid: 'restored', bookmark_id: 20 })
-    repo[path] = vi.fn(restore)
-    if (path === 'ownSource') source.user_id = 2
-    const search = Object.create(SearchService.prototype)
-    Object.assign(service, { search })
-    const result = await service.fork(
-      {
-        ...ctx,
-        env: {
-          ...ctx.env,
-          KV: { delete: async (key: string) => cache.delete(key) }
-        }
-      },
-      source.uuid
-    )
-    expect(result).toMatchObject({
-      bookmark_uid: 'restored',
-      disposition: 'already_saved'
-    })
-    expect(cache.has('search:valid_bm_ids:2')).toBe(false)
-    expect(effects).not.toHaveBeenCalled()
-    expect(repo.publish).not.toHaveBeenCalled()
+  it('keeps fixed files after an existing update fails', async () => {
+    repo.existing.mockResolvedValue({ id: 21, uuid: 'existing', bookmark_id: 20, bookmark: { updated_at: new Date() } })
+    repo.claimWrite = vi.fn(async () => true)
+    repo.failWrite = vi.fn(async () => true)
+    repo.publish.mockRejectedValue(new Error('commit unavailable'))
+    await bucket.bucket.put('html/body/existing.html', 'previous')
+    await expect(service.fork(ctx, source.uuid)).rejects.toMatchObject({ name: 'fork_storage_unavailable' })
+    expect(bucket.objects.has('html/body/existing.html')).toBe(true)
   })
 
   it('does not disclose or copy an inaccessible source', async () => {

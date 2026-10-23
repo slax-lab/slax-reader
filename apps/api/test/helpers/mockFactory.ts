@@ -106,6 +106,9 @@ export function createMockBookmarkService() {
 
 export function createMockCrawlService() {
   return {
+    claimCapture: vi.fn().mockResolvedValue(true),
+    ownsCapture: vi.fn().mockResolvedValue(true),
+    setCaptureStatus: vi.fn().mockResolvedValue(true),
     resolveFinalUrl: vi.fn().mockImplementation((_ctx: any, url: string) => Promise.resolve(url)),
     resolveShortLink: vi.fn().mockImplementation((_ctx: any, url: string) => Promise.resolve(url)),
     pushBookmarkFailureAlert: vi.fn().mockResolvedValue(undefined),
@@ -265,7 +268,8 @@ export function createMockUserRepo() {
 
 export function createMockStep() {
   return {
-    do: vi.fn(async (_name: string, _opts: any, fn: () => Promise<any>) => fn())
+    do: vi.fn(async (_name: string, optionsOrCallback: any, callback?: () => Promise<any>) =>
+      (typeof optionsOrCallback === 'function' ? optionsOrCallback : callback)())
   }
 }
 

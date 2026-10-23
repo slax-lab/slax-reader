@@ -8,7 +8,7 @@ Allow readers to save an authorized Reader snapshot as an independent personal b
 
 ### Requirement: Authorized online Fork
 
-The system SHALL let an authenticated active user copy a currently readable Reader snapshot through an online Fork command. It SHALL authorize the source and underlying acquisition feature before copying. The command SHALL return the committed destination bookmark UUID and a created or already-saved disposition. It SHALL NOT crawl the Reader page, refetch the original website or regenerate provider content during Fork.
+The system SHALL let an authenticated active user copy a currently readable Reader snapshot through an online Fork command. It SHALL authorize the source and underlying acquisition feature before copying. The command SHALL return the committed destination bookmark UUID and a created, updated or already-saved disposition. It SHALL NOT crawl the Reader page, refetch the original website or regenerate provider content during Fork.
 
 #### Scenario: Copy a shared article
 - **WHEN** a signed-in user Forks another user's accessible completed article
@@ -48,7 +48,7 @@ Web URL entry, Extension HTML submission, REST URL submission, Telegram collecti
 
 ### Requirement: One personal copy per resource
 
-Fork SHALL preserve the existing one-copy-per-user resource identity. A successful existing copy SHALL be returned without replacing content or provenance; a successful trashed copy SHALL be restored. An unfinished, failed or deletion-in-progress destination SHALL produce a distinguishable recovery outcome. A raw record without a live destination relation SHALL NOT be adopted.
+Fork SHALL preserve the existing one-copy-per-user resource identity. Each accepted Fork of another source SHALL refresh an existing successful or failed private copy in place and update direct provenance after all necessary writes. A successful trashed copy SHALL be restored. An unfinished or deletion-in-progress destination SHALL report a distinguishable conflict without overwriting active work. Historical shared relations SHALL convert to private content without changing the user relation identity or losing personal state. A raw record without a live destination relation SHALL NOT be adopted.
 
 #### Scenario: Repeated or concurrent Fork
 - **WHEN** repeated clicks, concurrent saves or a lost-response retry address the same resource for one user
@@ -56,15 +56,15 @@ Fork SHALL preserve the existing one-copy-per-user resource identity. A successf
 
 #### Scenario: Existing copy came from another source
 - **WHEN** the user already has a successful original-URL capture or a Fork from another reader
-- **THEN** Fork returns that copy unchanged, retaining its original body and provenance
+- **THEN** Fork updates that same personal copy from the newly selected source, preserving its UUID and personal state
 
 #### Scenario: Own snapshot
 - **WHEN** the owner Forks their own successful snapshot
 - **THEN** the existing item is returned without creating a self-reference or another copy
 
 #### Scenario: Pending, failed and deleting destinations
-- **WHEN** the matching destination is parsing, terminally failed, or has lost its user relation during permanent deletion
-- **THEN** the caller receives the corresponding in-progress, failed or deleting outcome without overwrite, resurrection or endless automatic retry
+- **WHEN** the matching destination is pending, parsing, or has lost its user relation during permanent deletion
+- **THEN** the caller receives the corresponding in-progress or deleting outcome without overwrite, resurrection or endless automatic retry
 
 ### Requirement: Stable direct provenance
 
@@ -149,3 +149,11 @@ Older queued Reader-URL creates SHALL have a durable terminal failed-save outcom
 #### Scenario: Two devices queued the same Reader URL
 - **WHEN** two devices upload valid creates for the same source URL with different local bookmark UUIDs
 - **THEN** each UUID retains its own terminal failed placeholder and dependent edits, without violating resource uniqueness, blocking unrelated changes or merging notes into the other placeholder
+
+#### Scenario: Deliberate repeat after completion
+- **WHEN** the owner Forks a source again after the previous request completes
+- **THEN** the existing destination is refreshed even when source bytes are unchanged, without creating another personal bookmark or adding version fields
+
+#### Scenario: Overlapping operations
+- **WHEN** Fork and ordinary capture address the same private destination concurrently
+- **THEN** only one operation may write its conventional destination keys and the other reports busy without changing active inputs

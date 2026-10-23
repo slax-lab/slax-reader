@@ -80,4 +80,13 @@ The implementation and evidence below are historical; automatic reclamation is r
 
 ## Handoff status
 
-All implementation work is present. Rows 3.2, 4.5 and 6.3 remain unchecked because their combined verification wording includes runtime scenarios not exercised in this desktop fixture; the exact automated coverage and remaining gaps are recorded in `validation.md`. Human hands-on UI acceptance in 6.4 was confirmed by the requesting project owner on 2026-10-22 with no further adjustments. Version decision 6.6 is settled: the user explicitly declined a bump. PR #354 is open against dev; the owner-recapture follow-up and its validation are recorded above and in validation.md.
+The original implementation is present; the approved fixed-path simplification below remains in progress. Rows 3.2, 4.5 and 6.3 remain unchecked because their combined verification wording includes runtime scenarios not exercised in this desktop fixture; the exact automated coverage and remaining gaps are recorded in `validation.md`. Human hands-on UI acceptance in 6.4 was confirmed by the requesting project owner on 2026-10-22 with no further adjustments. Version decision 6.6 is settled: the user explicitly declined a bump. PR #354 is open against dev; the owner-recapture follow-up and its validation are recorded above and in validation.md.
+
+## Approved fixed-path and repeat-Fork simplification — 2026-10-23
+
+Historical checked items describe the earlier implementation; immutable storage and existing-Fork no-op behavior are superseded by these tasks.
+
+- [x] R12 Preserve conventional R2 keys for all types; embed private media data in the saved HTML, remove replacement deletion, update readers/cache identity, and retain format/moderation and finite failure boundaries.
+- [x] R13 Reuse existing status admission and atomic Workflow claim, bind accepted requests, retain finite retries and rescue selection, and protect direct private writes without a version field.
+- [x] R14 Refresh an existing Fork in place, preserve historical shared personal identities/references, and fix old-client replay, legacy media isolation, missing body and frozen language fallback findings.
+- [ ] R15 Reuse Web/Extension submission guards and synced status, exercise regression/runtime scenarios, regenerate and validate, conduct independent review, and publish an updated explanatory document with flowcharts.

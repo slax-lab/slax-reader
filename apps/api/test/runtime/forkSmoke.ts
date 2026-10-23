@@ -7,7 +7,7 @@ import { getPlatformProxy } from 'wrangler'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/hyperdrive-client'
 import { BookmarkForkRepo } from '../../src/infra/repository/dbBookmarkFork'
-import { snapshotBundleMembers } from '../../src/utils/snapshotBundle'
+import { readEmbeddedSnapshot } from '../../src/utils/snapshotBundle'
 import { MediaSnapshotService } from '../../src/domain/mediaSnapshot'
 import { renderMediaArticle, renderPodcastBody, type PodcastPlayerInfo } from '../../src/utils/podcastArticle'
 import type { YoutubeArticleDocument } from '../../src/utils/youtubeArticle'
@@ -37,6 +37,10 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
   })
   try {
     const bucket = proxy.env.OSS
+    const withMedia = (html: string, media: unknown) =>
+      `${html.replace(/<script[^>]*id="slax-private-snapshot"[^>]*>[\s\S]*?<\/script>/g, '')}<script id="slax-private-snapshot" type="application/json">${JSON.stringify(media).replace(/</g, '\\u003c')}</script>`
+    const readMedia = async (key: string) => readEmbeddedSnapshot(await (await bucket.get(key))!.text()).manifest as any
+    const putMedia = async (key: string, media: unknown) => bucket.put(key, withMedia(await (await bucket.get(key))!.text(), media))
     const sql = (query: string) => resources.sql(container, 'http_reader', query)
     const json = (query: string) => JSON.parse(sql(`SELECT row_to_json(r) FROM (${query}) r`))
     sql(
@@ -52,6 +56,11 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
       const uuid = sql(
         `INSERT INTO sr_user_bookmark(user_id,bookmark_id,type,is_starred,alias_title,updated_at) VALUES(2,${id},${type},true,'Personal alias',now()) RETURNING uuid`
       )
+      if (key.startsWith('html/body/')) {
+        key = `html/body/${uuid}.html`
+        textKey = `text/body/${uuid}.txt`
+        sql(`UPDATE sr_bookmark SET content_key=${sqlString(key)},content_md_key=${sqlString(textKey)} WHERE id=${id}`)
+      }
       return (sources[name] = { id, uuid, url, key, textKey, type })
     }
     const html = source('html', 'https://fixture.invalid/article', 'legacy/article.html', 'legacy/article.txt')
@@ -68,13 +77,8 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
       sql(`UPDATE sr_user_bookmark SET metadata=metadata || jsonb_build_object('pdf_document_id',${sqlString(digest)}::text) WHERE uuid=${sqlString(item.uuid)}`)
     }
     for (const kind of ['youtube', 'podcast'] as const) {
-      const item = source(
-        kind,
-        kind === 'youtube' ? 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' : 'https://fixture.invalid/episode',
-        `snapshots/${randomUUID()}/source/body.html`,
-        ''
-      )
-      item.textKey = item.key.replace('body.html', 'body.txt')
+      const item = source(kind, kind === 'youtube' ? 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' : 'https://fixture.invalid/episode', `html/body/${randomUUID()}.html`, '')
+      item.textKey = item.key.replace('html/body/', 'text/body/').replace(/\.html$/, '.txt')
       sql(`UPDATE sr_bookmark SET content_md_key=${sqlString(item.textKey)} WHERE id=${item.id}`)
       const content = (language: 'en' | 'zh'): YoutubeArticleDocument => ({
         schema_version: 1,
@@ -115,9 +119,8 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         kind === 'podcast'
           ? renderPodcastBody({ info: player, article: { doc: content('en'), version: 'source-en', cues } })
           : `<youtube-player data-video-id="dQw4w9WgXcQ" data-cues="[{&quot;t&quot;:5,&quot;text&quot;:&quot;Saved paragraph&quot;}]"></youtube-player>\n${renderMediaArticle(content('en'), 'source-en', cues, 'youtube')}`
-      await bucket.put(item.key, body)
+      await bucket.put(item.key, withMedia(body, media))
       await bucket.put(item.textKey, `${kind} saved body`)
-      await bucket.put(item.key.replace('body.html', 'media.json'), JSON.stringify(media))
       sql(
         `INSERT INTO sr_youtube_article_ref(bookmark_id,user_id,media_kind,video_id,source_hash,updated_at) VALUES(${item.id},2,${sqlString(kind)},${sqlString(media.sourceId)},'saved-hash',now())`
       )
@@ -146,18 +149,36 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           assert.equal(Number(sql(`SELECT id FROM sr_user_bookmark WHERE uuid=${sqlString(src.uuid)}`)), dest.forked_from_id)
           if (src.key) {
             assert.notEqual(dest.content_key, src.key)
-            assert.equal(
-              await (await bucket.get(dest.content_key))!.arrayBuffer().then(b => Buffer.from(b).toString('base64')),
-              await (await bucket.get(src.key))!.arrayBuffer().then(b => Buffer.from(b).toString('base64'))
-            )
+            if (name === 'youtube' || name === 'podcast') {
+              const copied = await readMedia(dest.content_key)
+              assert.equal(copied.mode, 'fork')
+              assert.deepEqual(copied.variants.en.content, (await readMedia(src.key)).variants.en.content)
+            } else if (src.type === 2) {
+              assert.equal(
+                await (await bucket.get(dest.content_key))!.arrayBuffer().then(b => Buffer.from(b).toString('base64')),
+                await (await bucket.get(src.key))!.arrayBuffer().then(b => Buffer.from(b).toString('base64'))
+              )
+            } else {
+              assert.match(await (await bucket.get(dest.content_key))!.text(), /Original source body/)
+              assert.equal((await readMedia(dest.content_key)).kind, 'html')
+            }
           }
           saved[name] = dest
           const duplicate = await call('/v1/bookmark/fork', { source_user_bookmark_uuid: src.uuid })
           assert.equal(duplicate.result.data.bookmark_uid, dest.uuid)
-          assert.equal(duplicate.result.data.disposition, 'already_saved')
+          assert.equal(duplicate.result.data.disposition, 'updated')
+          assert.equal(sql(`SELECT content_key FROM sr_bookmark WHERE id=${dest.bookmark_id}`), dest.content_key)
         }
+        const originalHtmlKey = saved.html.content_key
+        const refreshedHtml = '<article><h1>Independent article</h1><p>Original source body.</p><p>Refreshed source body.</p></article>'
+        await bucket.put(html.key, refreshedHtml)
+        const refresh = await call('/v1/bookmark/fork', { source_user_bookmark_uuid: html.uuid })
+        assert.equal(refresh.result.data.disposition, 'updated')
+        assert.equal(refresh.result.data.bookmark_uid, saved.html.uuid)
+        assert.equal(sql(`SELECT content_key FROM sr_bookmark WHERE id=${saved.html.bookmark_id}`), originalHtmlKey)
+        assert.match(await (await bucket.get(originalHtmlKey))!.text(), /Refreshed source body/)
         assert.equal(saved.uploadedPdf.target_url, `slax-pdf://1/${digest}`)
-        assert.equal(await (await bucket.get(saved.html.content_md_key))!.text(), 'Independent articleOriginal source body.')
+        assert.equal(await (await bucket.get(saved.html.content_md_key))!.text(), 'Independent articleOriginal source body.Refreshed source body.')
         // A cached search made while trashed must not hide either form of restored save.
         for (const sourceUuid of [html.uuid, saved.html.uuid]) {
           sql(`UPDATE sr_user_bookmark SET deleted_at=now() WHERE uuid=${sqlString(saved.html.uuid)}`)
@@ -166,7 +187,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
             source_user_bookmark_uuid: sourceUuid
           })
           assert.equal(restored.result.data.bookmark_uid, saved.html.uuid)
-          assert.equal(restored.result.data.disposition, 'already_saved')
+          assert.equal(restored.result.data.disposition, sourceUuid === saved.html.uuid ? 'already_saved' : 'updated')
           assert.equal(sql(`SELECT deleted_at IS NULL FROM sr_user_bookmark WHERE uuid=${sqlString(saved.html.uuid)}`), 't')
           assert.equal(await proxy.env.KV.get('search:valid_bm_ids:1'), null)
         }
@@ -182,10 +203,10 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           ['podcast', false, 'duration-estimate']
         ] as const) {
           const name = kind === 'youtube' ? `dQw4w9WgXc${['catchup', 'disabled', 'language', 'eligible'].indexOf(scenario)}` : `${kind}-recovery-${preserveTranscript}-${scenario}`
-          const item = source(name, `https://fixture.invalid/${name}`, `snapshots/${randomUUID()}/pending/body.html`, '')
+          const item = source(name, `https://fixture.invalid/${name}`, `html/body/${randomUUID()}.html`, '')
           delete sources[name]
           recoverySources.push(item)
-          item.textKey = item.key.replace('body.html', 'body.txt')
+          item.textKey = item.key.replace('html/body/', 'text/body/').replace(/\.html$/, '.txt')
           sql(
             `UPDATE sr_bookmark SET private_user=1,content_md_key=${sqlString(item.textKey)} WHERE id=${item.id}; UPDATE sr_user_bookmark SET user_id=1 WHERE bookmark_id=${
               item.id
@@ -226,9 +247,8 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
                 }
               : {})
           }
-          await bucket.put(item.key, '<article>Saved pending body</article>')
+          await bucket.put(item.key, withMedia('<article>Saved pending body</article>', media))
           await bucket.put(item.textKey, 'Saved pending body')
-          await bucket.put(item.key.replace('body.html', 'media.json'), JSON.stringify(media))
           sql(
             `INSERT INTO sr_youtube_article_ref(bookmark_id,user_id,media_kind,video_id,source_hash,updated_at) VALUES(${
               item.id
@@ -265,12 +285,12 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
             const status = await call(`/v1/youtube_article/status?bookmark_uid=${item.uuid}`)
             assert.equal(status.result.code, 200)
             const currentKey = sql(`SELECT content_key FROM sr_bookmark WHERE id=${item.id}`)
-            const settled = await (await bucket.get(currentKey.replace('body.html', 'media.json')))!.json<any>()
+            const settled = await readMedia(currentKey)
             assert.equal(settled.variants.en.status, 'ready')
             assert.equal(settled.bodyLanguage, scenario === 'eligible' ? 'en' : null)
             const body = await (await bucket.get(currentKey))!.text()
             if (scenario === 'eligible') assert.match(body, /Ready YouTube supplement/)
-            else assert.equal(body, '<article>Saved pending body</article>')
+            else assert.match(body, /Saved pending body/)
             sql("UPDATE sr_user_lab_feature SET enabled=true WHERE user_id=1 AND feature='youtube_article'; UPDATE sr_user SET ai_lang='en' WHERE id=1")
           } else {
             sql(
@@ -308,7 +328,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
               assert.equal(status.result.data.reason, 'input_changed')
               assert.equal(status.result.data.can_retry, true)
               const stoppedKey = sql(`SELECT content_key FROM sr_bookmark WHERE id=${item.id}`)
-              const stoppedMedia = await (await bucket.get(stoppedKey.replace('body.html', 'media.json')))!.json<any>()
+              const stoppedMedia = await readMedia(stoppedKey)
               assert.equal(stoppedMedia.variants.en.status, 'unavailable')
               assert.equal(stoppedMedia.variants.en.reason, 'input_changed')
               const retry = await call('/v1/podcast/retry', { bookmark_uid: item.uuid })
@@ -322,25 +342,25 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
               assert.equal(status.result.data.can_retry, false)
             }
             const currentKey = sql(`SELECT content_key FROM sr_bookmark WHERE id=${item.id}`)
-            assert.notEqual(currentKey, item.key)
+            assert.equal(currentKey, item.key)
             const recoveredBody = await (await bucket.get(currentKey))!.text()
             assert.match(recoveredBody, /Recovered body/)
             assert.match(recoveredBody, /class="slax-pod-p" data-start-ms="5000"/)
             if (preserveTranscript) {
-              const recovered = await (await bucket.get(currentKey.replace('body.html', 'media.json')))!.json<any>()
+              const recovered = await readMedia(currentKey)
               assert.equal(recovered.cues[0].start_ms, 100)
               assert.equal(recovered.player.title, 'Before refresh')
               // The caller's language can change between seeing a retry action and submitting it.
               const savedEnglish = structuredClone(recovered.variants.en)
               recovered.variants.zh = { status: 'pending' }
-              await bucket.put(currentKey.replace('body.html', 'media.json'), JSON.stringify(recovered))
+              await putMedia(currentKey, recovered)
               sql(`UPDATE sr_podcast_episode SET title='Another refresh',transcript_status='transcribing' WHERE source_id=${sqlString(name)}`)
               await call(`/v1/podcast/status?bookmark_uid=${item.uuid}`)
               const reattached = await call('/v1/podcast/retry', { bookmark_uid: item.uuid })
               assert.equal(reattached.result.code, 200)
               assert.equal(reattached.result.data.article, 'ready')
               const reattachedKey = sql(`SELECT content_key FROM sr_bookmark WHERE id=${item.id}`)
-              const reattachedMedia = await (await bucket.get(reattachedKey.replace('body.html', 'media.json')))!.json<any>()
+              const reattachedMedia = await readMedia(reattachedKey)
               assert.deepEqual(reattachedMedia.variants.en, savedEnglish)
               assert.equal(reattachedMedia.variants.zh.status, 'pending')
             }
@@ -367,7 +387,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         assert.equal(revoked.response.status, 404)
         assert.equal((await call(`/v1/bookmark/fork_metadata?bookmark_uid=${saved.html.uuid}`)).result.data.fork.status, 'unavailable')
         for (const src of [...Object.values(sources), ...recoverySources]) {
-          if (src.key) await bucket.delete([src.key, src.textKey, src.key.replace('body.html', 'media.json')].filter(Boolean))
+          if (src.key) await bucket.delete([src.key, src.textKey].filter(Boolean))
           sql(
             `DELETE FROM sr_youtube_article_ref WHERE bookmark_id=${src.id}; DELETE FROM sr_bookmark_share WHERE bookmark_id=${src.id}; DELETE FROM sr_user_bookmark WHERE bookmark_id=${src.id}; DELETE FROM sr_bookmark WHERE id=${src.id};`
           )
@@ -381,7 +401,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         assert.equal(youtube.result.data.status, 'ready')
         const article = await call(`/v1/youtube_article/content?bookmark_uid=${saved.youtube.uuid}&version=${youtube.result.data.version}`)
         assert.equal(article.result.data.lede, 'youtube en saved article')
-        const manifest = await (await bucket.get(saved.podcast.content_key.replace('body.html', 'media.json')))!.json<any>()
+        const manifest = await readMedia(saved.podcast.content_key)
         const translation = await call(`/v1/podcast/translation?bookmark_uid=${saved.podcast.uuid}&version=${manifest.revision}-zh`)
         assert.equal(translation.result.data.lede, 'podcast zh saved article')
         assert.equal(translation.result.data.sections[0].paragraphs[0].start_ms, 5000)
@@ -390,14 +410,49 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         const client = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl }) })
         try {
           const repo = new BookmarkForkRepo(() => client)
+          // The Node platform proxy exposes R2 bodies through RPC property access. Materialize each
+          // response before service code probes for `body`, as it does on native Worker R2 objects.
+          const nativeBucket = new Proxy(bucket, {
+            get(target, property) {
+              if (property !== 'get') {
+                const value = Reflect.get(target, property)
+                return typeof value === 'function' ? value.bind(target) : value
+              }
+              return async (...args: Parameters<R2Bucket['get']>) => {
+                const object = await target.get(...args)
+                if (!object) return null
+                const bytes = await (object as R2ObjectBody).arrayBuffer()
+                const response = new Response(bytes)
+                return {
+                  key: object.key,
+                  version: object.version,
+                  size: object.size,
+                  etag: object.etag,
+                  httpEtag: object.httpEtag,
+                  uploaded: object.uploaded,
+                  httpMetadata: object.httpMetadata,
+                  customMetadata: object.customMetadata,
+                  body: response.body,
+                  get bodyUsed() {
+                    return response.bodyUsed
+                  },
+                  text: () => response.text(),
+                  json: () => response.json(),
+                  arrayBuffer: () => response.arrayBuffer(),
+                  blob: () => response.blob()
+                }
+              }
+            }
+          }) as R2Bucket
           const capture = Object.assign(Object.create(MediaSnapshotService.prototype), {
             repo,
-            bucket: () => ({ R2Bucket: bucket })
+            bucket: () => ({ R2Bucket: nativeBucket })
           }) as MediaSnapshotService
           for (const kind of ['html', 'youtube', 'podcast'] as const) {
             const dest = saved[kind]
             const before = await client.sr_user_bookmark.findUniqueOrThrow({ where: { uuid: dest.uuid } })
             assert.notEqual(before.forked_from_id, null)
+            await client.sr_bookmark.update({ where: { id: dest.bookmark_id }, data: { status: 'parseing' } })
             const previous = await capture.load(dest.bookmark_id)
             const media = previous?.media ? { ...previous.media, mode: 'capture' as const, variants: {}, bodyLanguage: null } : null
             const text = `Independently acquired ${kind}`
@@ -415,7 +470,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
             assert.equal((await capture.load(dest.bookmark_id))?.media?.mode ?? 'html', kind === 'html' ? 'html' : 'capture')
           }
           for (const kind of ['html', 'youtube', 'podcast']) {
-            for (const key of snapshotBundleMembers(saved[kind].content_key)!) assert.equal(await bucket.head(key), null)
+            assert.ok(await bucket.head(saved[kind].content_key), 'recapture keeps the fixed live body key')
           }
           const deleted = saved.uploadedPdf
           const deletion = await call('/v1/bookmark/del', { bookmark_id: encodeId(deleted.bookmark_id) })
@@ -424,7 +479,8 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
             await new Promise(resolve => setTimeout(resolve, 100))
           }
           assert.equal(await client.sr_bookmark.findUnique({ where: { id: deleted.bookmark_id } }), null)
-          for (const key of snapshotBundleMembers(deleted.content_key)!) assert.equal(await bucket.head(key), null)
+          assert.equal(await bucket.head(deleted.content_key), null)
+          assert.equal(await bucket.head(deleted.content_md_key), null)
           const preserved = await fetch('/v1/bookmark/content', {
             method: 'POST',
             headers,
@@ -444,6 +500,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         return {
           formats: Object.keys(sources),
           independent: true,
+          repeatedRefresh: true,
           sourceDeletion: true,
           pdfRange: true,
           mediaVariants: true,
@@ -455,7 +512,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           podcastDurationCompletion: true,
           youtubePromotionEligibility: true,
           independentRecaptureAttribution: true,
-          bestEffortSnapshotLifecycle: true
+          fixedKeyRefreshAndDeletion: true
         }
       }
     }

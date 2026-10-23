@@ -96,6 +96,7 @@ export class CallbackController {
         await this.crawlService.createWorkflow(ctxManager.env, {
           url: res.url,
           bookmarkId: addRes.info.bookmarkId,
+          captureRevision: addRes.info.captureRevision,
           userId: res.userId,
           enUserId: ctxManager.getEncodeUserId(),
           userLang: ctxManager.getlang(),

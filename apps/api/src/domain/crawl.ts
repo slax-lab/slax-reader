@@ -59,7 +59,12 @@ import type { ToutiaoArticle } from '../const/moreapi/toutiao'
 
 export type TwitterFetched =
   | { kind: 'tweet'; tweetInfo: TweetInfo; quoteTweetHtml: string }
-  | { kind: 'article'; sourceUrl: string; viaFxEmbedHtml: string | null; fallbackTweetInfo: TweetArticleInfo | null }
+  | {
+      kind: 'article'
+      sourceUrl: string
+      viaFxEmbedHtml: string | null
+      fallbackTweetInfo: TweetArticleInfo | null
+    }
 
 export type ZhihuFetched = { title: string; content: string; author: string }
 
@@ -141,8 +146,17 @@ export class CrawlService {
     if (readerBookmarkUuid(params.url, [env.FRONT_END_URL])) throw forkError()
     const raw = await this.snapshotRepo.snapshot(params.bookmarkId)
     if (!raw) throw forkError()
-    params = { ...params, captureRevision: raw.updated_at.toISOString() }
-    if (trackingContext?.get(EVENT_CONTEXT_KEY)) params = { ...params, eventContext: { ...getEventContext(trackingContext) } }
+    if (params.captureRevision && params.captureRevision !== raw.updated_at.toISOString()) return
+    if (!['pending', 'pending_retry'].includes(raw.status)) return
+    params = {
+      ...params,
+      captureRevision: params.captureRevision ?? raw.updated_at.toISOString()
+    }
+    if (trackingContext?.get(EVENT_CONTEXT_KEY))
+      params = {
+        ...params,
+        eventContext: { ...getEventContext(trackingContext) }
+      }
     const hostname = (() => {
       try {
         return new URL(params.url).hostname || 'unknown'
@@ -159,7 +173,7 @@ export class CrawlService {
         console.log(`Failed to create workflow for bookmark ${params.bookmarkId} (attempt ${attempt}/${maxRetries}): ${err}`)
 
         if (attempt === maxRetries) {
-          await this.snapshotRepo.setCaptureStatus(params.bookmarkId, new Date(params.captureRevision!), queueStatus.FAILED)
+          await this.snapshotRepo.failDispatch(params.bookmarkId, new Date(params.captureRevision!))
           const errMsg = err instanceof MultiLangError ? err.message : err instanceof Error ? err.message : String(err)
           await this.sendAddBookmarkStepEvent(params.userId, params.bookmarkId, hostname, 'workflow_creation', 'failed', errMsg, trackingContext)
           await this.pushBookmarkFailureAlert(params.userId, 'workflow_creation', {
@@ -181,8 +195,17 @@ export class CrawlService {
   public async createImportParseWorkflow(env: Env, params: ImportParseWorkflowParams, maxRetries: number = 3, trackingContext?: ContextManager) {
     const raw = await this.snapshotRepo.snapshot(params.bookmarkId)
     if (!raw) throw forkError()
-    params = { ...params, captureRevision: raw.updated_at.toISOString() }
-    if (trackingContext?.get(EVENT_CONTEXT_KEY)) params = { ...params, eventContext: { ...getEventContext(trackingContext), source: 'import' } }
+    if (params.captureRevision && params.captureRevision !== raw.updated_at.toISOString()) return
+    if (!['pending', 'pending_retry'].includes(raw.status)) return
+    params = {
+      ...params,
+      captureRevision: params.captureRevision ?? raw.updated_at.toISOString()
+    }
+    if (trackingContext?.get(EVENT_CONTEXT_KEY))
+      params = {
+        ...params,
+        eventContext: { ...getEventContext(trackingContext), source: 'import' }
+      }
     const hostname = (() => {
       try {
         return new URL(params.url).hostname || 'unknown'
@@ -199,7 +222,7 @@ export class CrawlService {
         console.log(`Failed to create import parse workflow for bookmark ${params.bookmarkId} (attempt ${attempt}/${maxRetries}): ${err}`)
 
         if (attempt === maxRetries) {
-          await this.snapshotRepo.setCaptureStatus(params.bookmarkId, new Date(params.captureRevision!), queueStatus.FAILED)
+          await this.snapshotRepo.failDispatch(params.bookmarkId, new Date(params.captureRevision!))
           const errMsg = err instanceof MultiLangError ? err.message : err instanceof Error ? err.message : String(err)
           await this.sendAddBookmarkStepEvent(params.userId, params.bookmarkId, hostname, 'import_parse_workflow_creation', 'failed', errMsg, trackingContext)
           await this.pushBookmarkFailureAlert(params.userId, 'import_parse_workflow_creation', {
@@ -487,9 +510,20 @@ export class CrawlService {
     }
   }
 
+  public async claimCapture(ctx: ContextManager, bookmarkId: number) {
+    const revision = ctx.get('snapshotCaptureRevision') as string | undefined
+    return !!revision && this.snapshotRepo.claimWrite(bookmarkId, new Date(revision), ['pending', 'pending_retry'], true)
+  }
+
+  public async ownsCapture(ctx: ContextManager, bookmarkId: number) {
+    const revision = ctx.get('snapshotCaptureRevision') as string | undefined
+    return !!revision && this.snapshotRepo.ownsWrite(bookmarkId, new Date(revision))
+  }
+
   public async setCaptureStatus(ctx: ContextManager, bookmarkId: number, status: queueStatus) {
     const revision = ctx.get('snapshotCaptureRevision') as string | undefined
     if (!revision) throw new Error('Capture revision missing')
+    if (status === queueStatus.SUCCESS) return this.snapshotRepo.releaseWrite(bookmarkId, new Date(revision))
     return this.snapshotRepo.setCaptureStatus(bookmarkId, new Date(revision), status)
   }
 
@@ -1050,7 +1084,14 @@ export class CrawlService {
       originalUrl: string
       bookmarkId: number
       userBookmarkUuid: string
-      meta: { title: string; textContent: string; excerpt: string; byline: string; siteName: string; publishedTime: Date }
+      meta: {
+        title: string
+        textContent: string
+        excerpt: string
+        byline: string
+        siteName: string
+        publishedTime: Date
+      }
     }
   ): Promise<CrawlResult> {
     const { document } = parseHTML(opts.html)

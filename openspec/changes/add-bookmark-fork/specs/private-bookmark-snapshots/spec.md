@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Ensure new personal captures and Forks own coherent saved content that another user's later actions cannot replace, while preserving format fidelity, access policy and safe recovery from partial publication.
+Ensure new personal captures and Forks own coherent saved content that another user's later actions cannot replace, while preserving format fidelity, access policy and explicit failure boundaries for partial publication.
 
 ## ADDED Requirements
 
@@ -29,11 +29,11 @@ New Extension, URL, import and synchronized captures and new Forks SHALL own the
 
 ### Requirement: Coherent publication and recovery
 
-A successful snapshot SHALL expose a coherent set of required content artifacts. Partial copies, missing required objects or mixed revisions SHALL NOT be published as success. Uncertainty about database commit SHALL NOT cause deletion of potentially committed content. Post-commit indexing or notification failures SHALL NOT destroy the snapshot. Immediate deletion SHALL target only the confirmed failed attempt or a managed bundle retired by a confirmed replacement/deletion.
+A successful snapshot SHALL expose a coherent set of required content artifacts. All required writes SHALL finish before recording success. Failed in-place writes may leave partially replaced objects and SHALL NOT claim an automatic rollback. Uncertainty about database commit SHALL NOT cause deletion of potentially committed content. Post-commit indexing or notification failures SHALL NOT destroy the snapshot. Immediate deletion SHALL target only a confirmed unpublished new destination or a permanently deleted bookmark; failed updates SHALL NOT delete the live fixed keys.
 
 #### Scenario: Partial object copy
 - **WHEN** one required artifact cannot be read or written
-- **THEN** no completed destination is exposed and cleanup cannot delete source or competing-winner objects
+- **THEN** a new destination is not published; an existing destination reports failure without deleting its live files, source files or competing-winner files
 
 #### Scenario: Commit succeeds but acknowledgement is lost
 - **WHEN** the destination commits and the caller observes a database timeout
@@ -49,15 +49,15 @@ A successful snapshot SHALL expose a coherent set of required content artifacts.
 
 ### Requirement: Best-effort snapshot lifecycle deletion
 
-The system SHALL attempt immediate deletion of managed bundles after confirmed replacement or permanent bookmark/account deletion. Failed deletion SHALL NOT undo the successful database operation. It SHALL NOT add a cleanup table, cleanup state fields, R2 inventory scans or scheduled orphan reclamation. Existing bounded media settlement and index repair SHALL remain available.
+The system SHALL retain existing R2 directories and UUID filenames for HTML, text, PDF and PDF metadata, and attempt immediate content deletion after permanent bookmark/account deletion. Failed deletion SHALL NOT undo the successful database operation. It SHALL NOT add a cleanup table, cleanup state fields, R2 inventory scans or scheduled orphan reclamation. Existing bounded media settlement and index repair SHALL remain available.
 
 #### Scenario: Pointer replacement or permanent deletion rolls back
 - **WHEN** the database transaction fails or its outcome remains uncertain
 - **THEN** potentially live content is retained
 
 #### Scenario: Successful replacement
-- **WHEN** a new immutable bundle is confirmed published
-- **THEN** the previous managed bundle is deleted on a best-effort basis and the new bundle remains readable
+- **WHEN** an in-place update is confirmed published
+- **THEN** the same fixed keys remain readable and no retired-bundle deletion is performed
 
 #### Scenario: Immediate deletion fails
 - **WHEN** R2 deletion fails or the worker exits after the database operation
@@ -158,3 +158,27 @@ Source deletion, ordinary editing or sharing revocation SHALL NOT delete or repl
 #### Scenario: Delete a destination
 - **WHEN** the destination owner permanently deletes a Fork
 - **THEN** its private bundle and policy reference are cleaned without deleting any source or competing destination artifacts
+
+### Requirement: Existing-state write admission
+
+Content updates SHALL reuse existing status fields without a database version, lease or cleanup table. Accepted ordinary saves SHALL transition completed records to pending and failed records to pending_retry. Busy submissions SHALL NOT change the running request timestamp or payload. A Workflow SHALL atomically claim pending/pending_retry as parseing, binding the accepted request timestamp, in a separate durable step. Duplicate or stale executions SHALL return before content side effects. In-step finite retries SHALL remain supported. Rescue SHALL preserve the pending state until claimed, retain its existing selection window, and SHALL NOT steal parseing tasks. Fork and private media publication SHALL use conditional state admission at their direct write boundary.
+
+#### Scenario: Resave a completed article
+- **WHEN** an owner submits an existing completed external URL
+- **THEN** it is admitted as pending, fetched/parsed again and written to the same private conventional keys before success
+
+#### Scenario: Original and rescued Workflow race
+- **WHEN** normal and rescue Workflows run for the same accepted pending request
+- **THEN** only one claims it and the other exits without altering status, R2 or import counts
+
+#### Scenario: Same execution retries
+- **WHEN** a claimed Workflow's fetch step fails transiently
+- **THEN** its existing finite step retries may continue despite parseing, while a separate duplicate execution cannot claim it
+
+#### Scenario: Interrupted fixed-key update
+- **WHEN** execution stops after claiming or after writing only some required objects
+- **THEN** the system does not delete the live fixed keys or promise automatic restoration, and does not add timeout takeover or orphan recovery infrastructure
+
+#### Scenario: Frontend submission guard
+- **WHEN** a save has been accepted but its content work remains pending or parsing
+- **THEN** the relevant frontend entry rejects re-entry for that resource, using existing loading and synced status; unrelated resources remain usable and the backend remains authoritative across devices

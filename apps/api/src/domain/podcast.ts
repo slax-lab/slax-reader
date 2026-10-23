@@ -11,7 +11,7 @@ import { RedisClient } from '@/infra/repository/redisClient'
 import { BucketClient } from '@/infra/repository/bucketClient'
 import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
 import { isFinalError, type mediaArticlePO } from '@/infra/repository/dbMediaArticle'
-import { PodcastArticleRepo, PodcastEpisodeRepo, isPodcastFinalError, type podcastEpisodePO } from '@/infra/repository/dbPodcastArticle'
+import { PodcastArticleRepo, PodcastEpisodeRepo, isPodcastFinalError, type podcastEpisodePO, type InspectedPodcastRef } from '@/infra/repository/dbPodcastArticle'
 import { podcastLanguage, type PodcastLanguage } from '@/utils/podcastSource'
 import type { PodcastTranscriptDocument } from '@/utils/podcastTranscript'
 import {
@@ -47,7 +47,11 @@ export interface PodcastStatusResponse {
   language: PodcastLanguage | null
   /** Why the episode or article stopped: too_long, no_speech, limit_reached, ... */
   reason: string | null
-  translation: { status: PodcastArticleApiStatus; language: PodcastLanguage; version: string | null } | null
+  translation: {
+    status: PodcastArticleApiStatus
+    language: PodcastLanguage
+    version: string | null
+  } | null
   can_retry: boolean
 }
 
@@ -55,7 +59,11 @@ export interface PodcastTranslationResponse {
   version: string
   language: PodcastLanguage
   lede: string
-  sections: { heading: string; start_ms: number; paragraphs: { speaker: string | null; text: string; start_ms: number }[] }[]
+  sections: {
+    heading: string
+    start_ms: number
+    paragraphs: { speaker: string | null; text: string; start_ms: number }[]
+  }[]
 }
 
 type StartResult = 'started' | 'locked' | 'busy' | 'over_budget' | 'failed'
@@ -443,11 +451,30 @@ export class PodcastService {
     if (!rendered) return 0
     let count = settled
     for (const ref of await this.articles.listEpisodeRefs(sourceId)) {
-      if ((loaded.has(ref.bookmark_id) ? loaded.get(ref.bookmark_id) : await this.snapshots.load(ref.bookmark_id))?.managed) continue
-      if (ref.source_hash !== ep.transcript_hash) continue
-      if (await this.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered)) count++
+      try {
+        if ((loaded.has(ref.bookmark_id) ? loaded.get(ref.bookmark_id) : await this.snapshots.load(ref.bookmark_id))?.managed) continue
+        if (ref.source_hash !== ep.transcript_hash) continue
+        if (await this.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered)) count++
+      } catch {
+        console.error(`Podcast publication failed for bookmark ${ref.bookmark_id}`)
+      }
     }
     return count
+  }
+
+  public async setRefsHash(sourceId: string, sourceHash: string): Promise<number> {
+    const eligible: InspectedPodcastRef[] = []
+    for (const ref of await this.articles.listEpisodeRefs(sourceId)) {
+      try {
+        const loaded = await this.snapshots.load(ref.bookmark_id)
+        if (loaded && !loaded.managed && loaded.raw.status === 'success') {
+          eligible.push({ bookmarkId: loaded.raw.id, updatedAt: loaded.raw.updated_at, contentKey: loaded.raw.content_key })
+        }
+      } catch {
+        console.error(`Podcast reference inspection failed for bookmark ${ref.bookmark_id}`)
+      }
+    }
+    return this.articles.setRefsHash(sourceId, sourceHash, eligible)
   }
 
   public async settleSnapshots(ctx: ContextManager, sourceId: string) {

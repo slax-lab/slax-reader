@@ -223,7 +223,8 @@ container.register(MediaBodyService, {
       container.resolve(BookmarkRepo),
       container.resolve(SearchService),
       container.resolve(MarkRepo),
-      lazy(() => container.resolve(BucketClient))
+      lazy(() => container.resolve(BucketClient)),
+      container.resolve(BookmarkForkRepo)
     )
 })
 
@@ -547,7 +548,7 @@ container.register(YoutubeArticleJob, {
 })
 
 container.register(BookmarkConsumer, {
-  useFactory: container => new BookmarkConsumer(container.resolve(UrlParserHandler), container.resolve(ImportOrchestrator))
+  useFactory: container => new BookmarkConsumer(container.resolve(CrawlService), container.resolve(ImportOrchestrator))
 })
 
 container.register(SubscriptionConsumer, {

@@ -1,4 +1,5 @@
 import { computed, type MaybeRef, toValue } from 'vue'
+import type { BookmarkSaveState } from './bookmarkSaveGuard'
 
 import { toUtcDate } from '@/utils/date'
 import { sortBookmarkTags } from '@/utils/tags'
@@ -157,6 +158,18 @@ export const useLocalBookmarks = () => {
   const { $powersync } = useNuxtApp()
   const db = $powersync as PowerSyncDatabase
   const nowIso = () => new Date().toISOString()
+
+  const getSaveState = async (url: string): Promise<BookmarkSaveState | null> => {
+    if (!db) return null
+    return (
+      (await db.getOptional<BookmarkSaveState>(
+        `SELECT id, JSON_EXTRACT(metadata, '$.bookmark.status') AS status, updated_at
+       FROM sr_user_bookmark WHERE deleted_at IS NULL AND JSON_EXTRACT(metadata, '$.bookmark.target_url') = ?
+       ORDER BY CASE WHEN JSON_EXTRACT(metadata, '$.bookmark.status') IN ('pending', 'pending_retry', 'parseing') THEN 0 ELSE 1 END, updated_at DESC LIMIT 1`,
+        [url]
+      )) ?? null
+    )
+  }
 
   // === 读（useQuery，响应式参数；必须在 setup 调用）===
 
@@ -342,7 +355,11 @@ export const useLocalBookmarks = () => {
   }
 
   const getReadingPosition = (uuid: string) =>
-    db.getOptional<{ anchor_index: number; anchor_ratio: number; percent: number }>('SELECT anchor_index, anchor_ratio, percent FROM local_reading_state WHERE id = ?', [uuid])
+    db.getOptional<{
+      anchor_index: number
+      anchor_ratio: number
+      percent: number
+    }>('SELECT anchor_index, anchor_ratio, percent FROM local_reading_state WHERE id = ?', [uuid])
 
   const setReadingPosition = (uuid: string, pos: { index: number; ratio: number; percent: number }) =>
     db.execute(
@@ -370,6 +387,7 @@ export const useLocalBookmarks = () => {
     addBookmarkTag,
     removeBookmarkTag,
     createBookmark,
+    getSaveState,
     createUserTag,
     getReadingPosition,
     setReadingPosition,

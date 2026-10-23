@@ -1,5 +1,7 @@
 # Private bookmark snapshots and Fork feasibility
 
+> Current implementation: [fixed-path design and flowcharts](bookmark-fork-fixed-paths.md). The earlier immutable storage and repeat-Fork no-op choices below are superseded by the approved 2026-10-23 simplification.
+
 Date: 2026-10-22. Status: revised after review and user scope decisions; formal proposal awaits review. No business implementation or migration has been performed.
 
 Implementation worktree: `/Users/yjc/.codex/worktrees/add-bookmark-fork/slax-reader-v2`, branch `feat/add-bookmark-fork`, based on `origin/dev` at `7089a16ef1fdacb91e89bbf3465b47ff10a5598a`. Original analysis used `6052b43eada65fe835154517f4ffac6c50c4390b`; relevant behavior was rechecked against the new baseline. Production deployment, data and migrations were not inspected.

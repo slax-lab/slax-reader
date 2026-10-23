@@ -12,7 +12,7 @@ import { PodcastArticleRepo, PodcastEpisodeRepo, type podcastEpisodePO } from '@
 import { eligibilityDecision, type mediaArticlePO } from '@/infra/repository/dbMediaArticle'
 import { LabService } from './lab'
 import { SearchService } from './search'
-import { SnapshotBundle, isManagedSnapshot, mediaSnapshotKey, deleteRetiredSnapshot } from '@/utils/snapshotBundle'
+import { SnapshotBundle, loadEmbeddedSnapshot, readEmbeddedSnapshot } from '@/utils/snapshotBundle'
 import {
   freezeMediaSnapshot,
   podcastInputFingerprint,
@@ -33,7 +33,11 @@ import { HtmlBuilder } from '@/utils/htmlBuilder'
 import type { ContextManager } from '@/utils/context'
 
 type RawSnapshot = NonNullable<Awaited<ReturnType<BookmarkForkRepo['snapshot']>>>
-export type LoadedMediaSnapshot = { raw: RawSnapshot; media: MediaSnapshot | null; managed: boolean }
+export type LoadedMediaSnapshot = {
+  raw: RawSnapshot
+  media: MediaSnapshot | null
+  managed: boolean
+}
 type Body = { html: string; text: string }
 
 @injectable()
@@ -55,10 +59,8 @@ export class MediaSnapshotService {
   async load(bookmarkId: number): Promise<LoadedMediaSnapshot | null> {
     const raw = await this.repo.snapshot(bookmarkId)
     if (!raw) return null
-    const managed = isManagedSnapshot(raw.content_key)
-    if (!managed) return { raw, media: null, managed }
-    const object = await this.bucket().R2Bucket.get(mediaSnapshotKey(raw.content_key))
-    const media = parseMediaSnapshot(object ? await object.json() : null)
+    const { managed, manifest } = await loadEmbeddedSnapshot(this.bucket().R2Bucket, raw.content_key)
+    const media = managed ? parseMediaSnapshot(manifest) : null
     return { raw, media, managed }
   }
 
@@ -141,8 +143,9 @@ export class MediaSnapshotService {
   async copyForFork(raw: Pick<RawSnapshot, 'id' | 'content_key' | 'private_user'>, bundle: SnapshotBundle) {
     let media: MediaSnapshot | null
     let input: PodcastSnapshotInput | undefined
-    if (isManagedSnapshot(raw.content_key)) {
-      media = parseMediaSnapshot(await (await bundle.read(mediaSnapshotKey(raw.content_key))).json())
+    const embedded = readEmbeddedSnapshot(await bundle.readHtml(raw.content_key))
+    if (embedded.managed) {
+      media = parseMediaSnapshot(embedded.manifest)
     } else {
       const ref = await this.repo.mediaRef(raw.id)
       media = ref ? await this.initialize(ref, raw.private_user || (await this.repo.snapshot(raw.id))!.userBookmarks[0].user_id) : null
@@ -152,7 +155,7 @@ export class MediaSnapshotService {
           media.variants = { en: { status: 'pending' }, zh: { status: 'pending' } }
           input = await this.collect(media, bundle)
         }
-        const html = await (await bundle.read(raw.content_key)).text()
+        const html = await bundle.readHtml(raw.content_key)
         for (const lang of ['en', 'zh'] as const) {
           if (media.variants[lang]?.status === 'ready' && html.includes(`data-article-version="${youtubeArticleVersion(media.sourceHash, lang, 1, 'v1')}"`))
             media.bodyLanguage = lang
@@ -240,7 +243,7 @@ export class MediaSnapshotService {
     if (!loaded?.media || loaded.media.mode !== 'capture' || !(await this.readable(loaded.media))) return false
     const media = structuredClone(loaded.media)
     if (media.transcript !== 'pending' && !Object.values(media.variants).some(v => v.status === 'pending')) return false
-    const bundle = new SnapshotBundle(this.bucket().R2Bucket, loaded.raw.userBookmarks[0].uuid)
+    const bundle = new SnapshotBundle(this.bucket().R2Bucket, loaded.raw.content_key.match(/^html\/body\/([^/]+)\.html$/)?.[1] ?? loaded.raw.userBookmarks[0].uuid)
     const input = await this.collect(media, bundle)
     if (JSON.stringify(media) === JSON.stringify(loaded.media)) return false
     const original = media.kind === 'podcast' ? media.player?.language : media.defaultLanguage
@@ -262,11 +265,19 @@ export class MediaSnapshotService {
     const refs = kind === 'youtube' ? await this.youtube.listRefs(sourceId) : await this.podcasts.listEpisodeRefs(sourceId)
     let count = 0
     for (const ref of refs) {
-      const snapshot = await this.load(ref.bookmark_id)
-      loaded?.set(ref.bookmark_id, snapshot)
-      if (await this.settle(ctx, ref.bookmark_id, snapshot)) {
-        count++
-        if (loaded) loaded.set(ref.bookmark_id, await this.load(ref.bookmark_id))
+      try {
+        const snapshot = await this.load(ref.bookmark_id)
+        loaded?.set(ref.bookmark_id, snapshot)
+        if (await this.settle(ctx, ref.bookmark_id, snapshot)) {
+          count++
+          if (loaded) loaded.set(ref.bookmark_id, await this.load(ref.bookmark_id))
+        }
+      } catch (error) {
+        loaded?.set(ref.bookmark_id, null)
+        console.error('Private media settlement failed', {
+          bookmarkId: ref.bookmark_id,
+          error
+        })
       }
     }
     return count
@@ -317,12 +328,12 @@ export class MediaSnapshotService {
     if (!(await this.publish(loaded, media, undefined, undefined, false, input))) throw new Error('Private request revision changed')
   }
 
-  /** Immutable body + manifest, then a short pointer CAS. Unknown commits retain their objects. */
+  /** Hold the existing write state while replacing the conventional body and embedded manifest. */
   async publish(
     loaded: Pick<LoadedMediaSnapshot, 'raw'>,
     media: MediaSnapshot | null,
     body?: Body,
-    bundle = new SnapshotBundle(this.bucket().R2Bucket, loaded.raw.userBookmarks[0].uuid),
+    bundle = new SnapshotBundle(this.bucket().R2Bucket, loaded.raw.content_key.match(/^html\/body\/([^/]+)\.html$/)?.[1] ?? loaded.raw.userBookmarks[0].uuid),
     force = false,
     input?: PodcastSnapshotInput
   ) {
@@ -339,10 +350,10 @@ export class MediaSnapshotService {
     bundle: SnapshotBundle,
     options: NonNullable<Parameters<BookmarkForkRepo['publishRevision']>[3]>
   ) {
-    let publishing = false
-    let contentKey = ''
-    const previousKey = raw.content_key
+    const claimed = options.clearForkProvenance ? await this.repo.ownsWrite(raw.id, raw.updated_at) : await this.repo.claimWrite(raw.id, raw.updated_at, ['success'], options.force)
+    if (!claimed) return null
     try {
+      if (media && !options.force && !(await this.readable(media))) throw BookmarkNotFoundError()
       if (media) {
         media.revision = bundle.attempt
         const variant = media.bodyLanguage ? media.variants[media.bodyLanguage] : undefined
@@ -381,27 +392,19 @@ export class MediaSnapshotService {
             content_word_count: body.text.length
           }
         : await bundle.copyHtml(raw.content_key)
-      contentKey = content.content_key
       await bundle.write('media.json', JSON.stringify(media ?? { schema: 1, kind: 'html' }), 'application/json')
       await bundle.assertUnchanged()
-      publishing = true
-      const published = await this.repo.publishRevision(raw.id, raw.content_key, content, { ...options, mediaRef: media ? this.ref(media) : undefined })
-      if (published) await deleteRetiredSnapshot(this.bucket().R2Bucket, previousKey)
-      else await bundle.discard()
+      const published = await this.repo.publishRevision(raw.id, raw.content_key, content, {
+        ...options,
+        expectedUpdatedAt: raw.updated_at,
+        mediaRef: media ? this.ref(media) : undefined
+      })
+      if (!published && !options.clearForkProvenance) await this.repo.failWrite(raw.id, raw.updated_at)
       return published ? content : null
     } catch (error) {
-      if (!publishing) await bundle.discard().catch(() => {})
-      else {
-        const current = await this.repo.snapshot(raw.id).catch(() => null)
-        if (current?.content_key === contentKey) {
-          await deleteRetiredSnapshot(this.bucket().R2Bucket, previousKey)
-          return {
-            content_key: current.content_key,
-            content_md_key: current.content_md_key,
-            content_word_count: current.content_word_count
-          }
-        }
-      }
+      // A fixed-key write cannot be rolled back or inferred committed from its path.
+      // Workflow acquisition retains its claim until its finite retries are exhausted.
+      if (!options.clearForkProvenance) await this.repo.failWrite(raw.id, raw.updated_at).catch(() => {})
       throw error
     }
   }
@@ -415,21 +418,22 @@ export class MediaSnapshotService {
 
   async repairIndex(ctx: ContextManager, bookmarkId: number, managedOnly = false) {
     const current = await this.repo.snapshot(bookmarkId)
-    if (!current || !current.userBookmarks.length || (managedOnly && !isManagedSnapshot(current.content_key))) return false
+    if (!current || !current.userBookmarks.length || (managedOnly && !(await loadEmbeddedSnapshot(this.bucket().R2Bucket, current.content_key)).managed)) return false
+    const revision = `${current.content_key}:${current.updated_at.toISOString()}`
     const marker = `snapshot-index:${bookmarkId}`
-    if ((await ctx.env.KV.get(marker)) === current.content_key) return true
+    if ((await ctx.env.KV.get(marker)) === revision) return true
     await this.searchRepo.upsertUserBookmark(current.private_user, bookmarkId)
     const text = current.content_md_key ? await (await this.bucket().R2Bucket.get(current.content_md_key))?.text() : ''
     if (current.content_md_key && text === undefined) throw new Error('Private text missing during indexing')
     const results = await this.search.addSearchRecord(ctx, bookmarkId, current.title, text || '')
     if (results.some(result => result.status === 'rejected')) throw new Error('Private snapshot indexing incomplete')
     const fresh = await this.repo.snapshot(bookmarkId)
-    if (fresh?.content_key !== current.content_key) {
+    if (fresh?.content_key !== current.content_key || fresh?.updated_at.getTime() !== current.updated_at.getTime()) {
       await ctx.env.KV.delete(marker)
       if (!fresh) await Promise.all([this.searchRepo.deleteUserBookmark(current.private_user, bookmarkId), this.searchRepo.deleteBookmarkRaw(bookmarkId)])
       return true
     }
-    await ctx.env.KV.put(marker, current.content_key)
+    await ctx.env.KV.put(marker, revision)
     return true
   }
 
@@ -444,7 +448,7 @@ export class MediaSnapshotService {
   ) {
     const raw = await this.repo.snapshot(bookmarkId)
     if (!raw || (expectedRevision && raw.updated_at.toISOString() !== expectedRevision)) throw new Error('Capture revision superseded')
-    const content = await this.writeRevision(raw, media, body, new SnapshotBundle(this.bucket().R2Bucket, uuid), {
+    const content = await this.writeRevision(raw, media, body, new SnapshotBundle(this.bucket().R2Bucket, raw.content_key.match(/^html\/body\/([^/]+)\.html$/)?.[1] ?? uuid), {
       fields: { ...fields, status: 'success' },
       expectedUpdatedAt: raw.updated_at,
       clearForkProvenance: true

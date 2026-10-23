@@ -233,7 +233,7 @@ describe('CrawlWorkflow fetch step 状态转换', () => {
 
     await runWorkflow(wf)
 
-    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'parseing')
+    expect(cs.claimCapture).toHaveBeenCalledWith(expect.anything(), 42)
   })
 
   test('regular URL 成功 → fetchRegular + parseAndSaveContent + post-processing', async () => {
@@ -292,9 +292,14 @@ describe('CrawlWorkflow 缓存命中 (shortCircuit)', () => {
   test('历史公开文章已有内容 → 跳过 fetch/parse，直接 post-processing', async () => {
     const { wf, cs, bs, uph } = wireWorkflow()
     bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ title: 'Cached', textContent: 'Cached body', byline: 'Author', privateUser: 0 })
+    const step = createMockStep()
 
-    await runWorkflow(wf)
+    await runWorkflow(wf, {}, step)
 
+    expect(step.do.mock.calls.map(call => call[0])).toContain('release-cached-capture')
+    expect(cs.setCaptureStatus).toHaveBeenCalledWith(expect.anything(), 42, 'success')
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'success')
+    expect(cs.setCaptureStatus.mock.invocationCallOrder[0]).toBeLessThan(uph.processPostHandler.mock.invocationCallOrder[0])
     expect(cs.fetchRegular).not.toHaveBeenCalled()
     expect(cs.fetchTwitterData).not.toHaveBeenCalled()
     expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'example.com', 'content_fetch_cached', 'success')
@@ -305,6 +310,18 @@ describe('CrawlWorkflow 缓存命中 (shortCircuit)', () => {
     )
   })
 
+  test('a superseded cached capture exits before post-processing or import progress', async () => {
+    const { wf, cs, bs, uph, imp } = wireWorkflow()
+    bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ title: 'Cached', textContent: 'Cached body', privateUser: 0 })
+    cs.setCaptureStatus.mockResolvedValue(false)
+    await runWorkflow(wf, { importTaskId: 77 })
+    expect(cs.setCaptureStatus).toHaveBeenCalledWith(expect.anything(), 42, 'success')
+    expect(uph.processPostHandler).not.toHaveBeenCalled()
+    expect(bs.updateBookmarkImportRelationStatus).not.toHaveBeenCalled()
+    expect(imp.incrImportTask).not.toHaveBeenCalled()
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+  })
+
   test('私有文章已有内容 → 重新 fetch/parse，不复用缓存', async () => {
     const { wf, cs, bs } = wireWorkflow()
     bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ title: 'Old', textContent: 'Old body', byline: 'Author', privateUser: 1 })
@@ -313,7 +330,7 @@ describe('CrawlWorkflow 缓存命中 (shortCircuit)', () => {
 
     await runWorkflow(wf)
 
-    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'parseing')
+    expect(cs.claimCapture).toHaveBeenCalledWith(expect.anything(), 42)
     expect(cs.fetchRegular).toHaveBeenCalled()
     expect(cs.parseAndSaveContent).toHaveBeenCalled()
     expect(cs.sendAddBookmarkStepEvent).not.toHaveBeenCalledWith(1, 42, 'example.com', 'content_fetch_cached', 'success')
@@ -830,5 +847,36 @@ describe('CrawlWorkflow → podcast route', () => {
     const { wf, lab } = wirePodcast(true)
     await runWorkflow(wf)
     expect(lab.isEnabled).not.toHaveBeenCalled()
+  })
+})
+
+describe('capture claim admission', () => {
+  test('duplicate claim exits without fetching, failing, or counting the import twice', async () => {
+    const { wf, cs, bs, imp, uph } = wireWorkflow()
+    cs.claimCapture.mockResolvedValue(false)
+    await runWorkflow(wf, { importTaskId: 77 })
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(cs.setCaptureStatus).not.toHaveBeenCalled()
+    expect(bs.updateBookmarkStatus).not.toHaveBeenCalled()
+    expect(bs.updateBookmarkImportRelationStatus).not.toHaveBeenCalled()
+    expect(imp.incrImportTask).not.toHaveBeenCalled()
+    expect(uph.processPostHandler).not.toHaveBeenCalled()
+  })
+
+  test('a normal fetch retry retains its durable claim and checks ownership again', async () => {
+    const { wf, cs } = wireWorkflow()
+    cs.fetchRegular.mockRejectedValueOnce(new Error('temporary fetch failure')).mockResolvedValueOnce({ content: '<p>Recovered</p>', url: 'https://example.com/article', title: 'Recovered' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+    const step = createMockStep()
+    step.do.mockImplementation(async (name: string, optionsOrCallback: any, callback?: () => Promise<any>) => {
+      const run = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback!
+      if (name !== 'fetch') return run()
+      try { return await run() } catch { return run() }
+    })
+    await runWorkflow(wf, {}, step)
+    expect(cs.claimCapture).toHaveBeenCalledTimes(1)
+    expect(cs.ownsCapture).toHaveBeenCalledTimes(2)
+    expect(cs.fetchRegular).toHaveBeenCalledTimes(2)
+    expect(cs.setCaptureStatus).not.toHaveBeenCalledWith(expect.anything(), 42, 'failed')
   })
 })

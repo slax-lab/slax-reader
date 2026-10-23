@@ -1,5 +1,22 @@
 # Design
 
+## Current implementation contract — 2026-10-23
+
+This approved simplification supersedes the historical design below wherever they conflict.
+
+- Keep conventional HTML/text/PDF keys and UUID filenames. Store private media supplements inside an inert data block in the same saved HTML, and PDF extraction metadata in its existing descriptor. No snapshots/forks/attempt directories or database content-version fields.
+- Each accepted repeated Fork refreshes the existing personal destination. Preserve the relation ID/UUID and all personal references. Convert a historical shared relation on explicit capture without editing another user's raw row or files.
+- Ordinary acquisition remains fetch/parse -> required R2 writes -> database content/success. Admission uses a short conditional database transition from terminal state to pending; busy requests do not mutate input/time. Workflows claim pending/pending_retry -> parseing once in a durable step, carrying the existing accepted-request timestamp. Keep in-step retries; rescue no longer changes pending to failed before scheduling and does not take over parseing.
+- Native PDF upload and legacy media publication use the same write claim; the old third-party queue drains into the guarded Workflow. Cached public-row short circuits release their claim. A single SQL UPDATE keeps admission atomic, and terminal timestamps advance monotonically.
+- Direct online Fork and private media final publication acquire the same existing-state exclusion at their write boundaries. Initial Fork still copies to its dedicated UUID before inserting; uniqueness chooses one winner. Never overwrite that winner after losing an initial race. Fixed-key update failures retain live keys and may leave partially written files; no automatic rollback or timeout stealing is promised.
+- Fixed-key publication does not delete a retired bundle. Missing reads fail explicitly. Successful changes invalidate summaries/search state; the index marker includes existing updated_at and media readers use their saved revision token rather than only a constant key. SSR continues reading the authorized R2 object directly.
+- The frontends reuse loading/pending guards and synced content status; API acknowledgement is not processing completion. Fork is online and its response represents completed copy. Browser timeout cannot release a server claim. UI request locks release after a response/error; synced active status prevents known reentry and backend admission covers delayed/unavailable sync. No indefinite local reservations or automatic retries are added.
+- Repair the reviewed old-sync replay, legacy podcast publication failure isolation, per-reference media isolation, historical shared deduplication, missing-body and frozen-language fallback issues within the same change.
+- No new app version bump, cleanup mechanism, cross-storage recovery framework or broad unrelated refactor.
+
+## Historical design (superseded where noted above)
+
+
 ## Context
 
 See [proposal.md](proposal.md) for motivation and [the feasibility review](../../../docs/api/bookmark-fork-feasibility.md) for source evidence. Planning baseline is `7089a16ef1fdacb91e89bbf3465b47ff10a5598a` on `origin/dev`.

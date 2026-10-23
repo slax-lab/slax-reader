@@ -61,6 +61,7 @@ export class ImportOrchestrator {
             {
               url: item.targetUrl,
               bookmarkId: item.bookmarkId,
+              captureRevision: item.captureRevision,
               userId: item.userId,
               enUserId,
               userLang: ctx.getlang() || 'en',
@@ -147,6 +148,7 @@ export class ImportOrchestrator {
             {
               url: item.targetUrl,
               bookmarkId: item.bookmarkId,
+              captureRevision: item.captureRevision,
               userId: item.userId,
               enUserId,
               userLang: ctx.getlang() || 'en',

@@ -73,11 +73,14 @@ export interface PodcastRunnerDeps {
   episodes: Pick<PodcastEpisodeRepo, 'findById' | 'claim' | 'renewLease' | 'setJob' | 'addAsrCost' | 'markReady' | 'finish' | 'markRepublish' | 'clearRepublish'>
   articles: Pick<
     PodcastArticleRepo,
-    'recordEvaluation' | 'findById' | 'findVersion' | 'listForSource' | 'claim' | 'renewLease' | 'addCost' | 'publish' | 'finishAttempt' | 'setRefsHash' | 'dropRequest'
+    'recordEvaluation' | 'findById' | 'findVersion' | 'listForSource' | 'claim' | 'renewLease' | 'addCost' | 'publish' | 'finishAttempt' | 'dropRequest'
   >
   bucket: Pick<R2Bucket, 'get' | 'put' | 'head' | 'delete' | 'list'>
   model: ArticleModel
-  asr: { submit(audioUrl: string, language: PodcastLanguage | null): Promise<string>; get(jobId: string): Promise<AssemblyJobState> }
+  asr: {
+    submit(audioUrl: string, language: PodcastLanguage | null): Promise<string>
+    get(jobId: string): Promise<AssemblyJobState>
+  }
   /** Fetch a publisher transcript file. Rejects non-public addresses and oversized files. */
   fetchTranscript(url: string): Promise<string>
   /** Content moderation of the transcript: 0 normal, 1 adult, 2 dangerous. */
@@ -87,6 +90,7 @@ export interface PodcastRunnerDeps {
   /** Write the ready article into the body of every bookmark of the episode. Returns the count. */
   publishBodies(sourceId: string): Promise<number>
   settleSnapshots(sourceId: string): Promise<number>
+  setRefsHash(sourceId: string, sourceHash: string): Promise<number>
   /** Article languages the episode's readers need besides the original. */
   translationTargets(sourceId: string, original: PodcastLanguage): Promise<PodcastLanguage[]>
   /** Adds an estimated cost to the site-wide daily podcast spend. */
@@ -322,7 +326,7 @@ async function transcribe(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
         return { kind: 'skip' as const, reason: 'moderation' }
       }
       // Refs first: if markReady then fails, the refs only point at a transcript that is not ready yet
-      await deps.articles.setRefsHash(p.sourceId, t.hash)
+      await deps.setRefsHash(p.sourceId, t.hash)
       if (!(await deps.episodes.markReady(p.episodeId, runId, t))) throw new PodcastStop('lease_lost')
       return { kind: 'ok' as const }
     })
@@ -633,7 +637,11 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
     )
     // Article keys are the same for every run of a version; a row that moved on keeps them only if it published them
     if (!published) return 'gone'
-    await step.do(`${prefix}-settle-private`, PUBLISH_STEP, () => deps.settleSnapshots(p.sourceId))
+    await step
+      .do(`${prefix}-settle-private`, PUBLISH_STEP, () => deps.settleSnapshots(p.sourceId))
+      .catch(() => {
+        log('private_settlement_failed', p, { mode: job.mode, lang: job.lang })
+      })
     await step.do(`${prefix}-drop-chunks`, DB_STEP, () => deletePrefix(deps, chunkPrefix))
     log('article_ready', p, { mode: job.mode, lang: job.lang, cost_usd: assembled.quality.cost_usd, paragraphs: assembled.quality.metrics.paragraphs })
     return 'ready'

@@ -79,11 +79,15 @@ export interface ForkBookmarkRequest {
 
 export interface ForkBookmarkResponse {
   bookmark_uid: string
-  disposition: 'created' | 'already_saved'
+  disposition: 'created' | 'already_saved' | 'updated'
 }
 
 export type BookmarkForkAttribution =
-  | { status: 'available'; source_bookmark_uid: string; display_name: string | null }
+  | {
+      status: 'available'
+      source_bookmark_uid: string
+      display_name: string | null
+    }
   | { status: 'unavailable' }
 
 export interface BookmarkForkMetadata {

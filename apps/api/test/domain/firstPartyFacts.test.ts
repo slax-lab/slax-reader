@@ -255,7 +255,7 @@ describe('REST and asynchronous failure boundaries', () => {
     const create = vi.fn().mockResolvedValue(undefined)
     f.ctx.env.CRAWL_WORKFLOW = { create } as never
     const service = Object.create(CrawlService.prototype)
-    service.snapshotRepo = { snapshot: vi.fn(async () => ({ updated_at: new Date('2026-10-22T00:00:00Z') })) }
+    service.snapshotRepo = { snapshot: vi.fn(async () => ({ status: 'pending', updated_at: new Date('2026-10-22T00:00:00Z') })) }
     service.logsService = { track: vi.fn().mockResolvedValue(undefined) }
     await service.createWorkflow(f.ctx.env, { url: 'https://example.test/article', bookmarkId: 12, userId: 7, enUserId: 70, userLang: 'en' }, 3, f.ctx)
     expect(create.mock.calls[0][0].params.eventContext).toMatchObject({ device_id: 'device-1', platform: 'web', locale: 'zh', client_version: '2.0.11', ua: 'test-browser' })
@@ -331,7 +331,7 @@ describe('REST and asynchronous failure boundaries', () => {
   test('step failure uses the original request metadata, never an anonymous workflow identity', async () => {
     const f = setup()
     const service = Object.create(CrawlService.prototype)
-    service.snapshotRepo = { snapshot: vi.fn(async () => ({ updated_at: new Date('2026-10-22T00:00:00Z') })) }
+    service.snapshotRepo = { snapshot: vi.fn(async () => ({ status: 'pending', updated_at: new Date('2026-10-22T00:00:00Z') })) }
     service.logsService = { track: vi.fn().mockResolvedValue(undefined) }
     service.bookmarkRepo = { getUserBookmarkWithDetail: vi.fn().mockResolvedValue(bookmark()) }
     await service.sendAddBookmarkStepEvent(7, 12, 'example.test', 'parsing', 'failed', 'parse failed', f.ctx)

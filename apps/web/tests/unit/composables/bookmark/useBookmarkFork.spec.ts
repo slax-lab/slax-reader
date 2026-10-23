@@ -63,3 +63,41 @@ it('clears account-scoped attribution and ignores stale route/account responses 
   expect(metadata!.value?.fork?.status).toBe('unavailable')
   wrapper.unmount()
 })
+
+
+it('shares same-source requests across entries while allowing other sources and accounts', async () => {
+  const first = deferred(), other = deferred(), account = deferred()
+  mocks.post.mockReturnValueOnce(first.promise).mockReturnValueOnce(other.promise).mockReturnValueOnce(account.promise)
+  const a = useBookmarkFork(), b = useBookmarkFork()
+  const requestA = a.fork('shared')
+  await b.fork('shared')
+  expect(mocks.post).toHaveBeenCalledTimes(1)
+  const requestOther = b.fork('other')
+  expect(mocks.post).toHaveBeenCalledTimes(2)
+  mocks.user.userInfo.userId = 2
+  const requestAccount = useBookmarkFork().fork('shared')
+  expect(mocks.post).toHaveBeenCalledTimes(3)
+  first.resolve({ bookmark_uid: 'old-account', disposition: 'updated' })
+  other.resolve(null)
+  account.resolve({ bookmark_uid: 'current-account', disposition: 'updated' })
+  await Promise.all([requestA, requestOther, requestAccount])
+  expect(mocks.navigate).not.toHaveBeenCalledWith('/b/old-account')
+  expect(mocks.navigate).toHaveBeenCalledWith('/b/current-account')
+})
+
+
+it('reflects a shared source request in both entries and releases UI reentry after a timeout without automatically retrying', async () => {
+  const source = ref('timeout-source')
+  const a = useBookmarkFork(source), b = useBookmarkFork(source)
+  const timeout = new Error('timeout'); timeout.name = 'TimeoutError'
+  mocks.post.mockRejectedValueOnce(timeout)
+  const result = a.fork(source.value)
+  expect(b.pending.value).toBe(true)
+  await result
+  expect(b.pending.value).toBe(false)
+  expect(mocks.post).toHaveBeenCalledOnce()
+  await b.fork(source.value)
+  expect(mocks.post).toHaveBeenCalledTimes(2)
+  source.value = 'other-source'
+  expect(b.pending.value).toBe(false)
+})

@@ -3,7 +3,7 @@ import type { LazyInstance } from '../decorators/lazy'
 import { PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
 import { PRISIMA_HYPERDRIVE_CLIENT } from '../const/symbol'
 import { UserRepo } from '../infra/repository/dbUser'
-import { deleteRetiredSnapshot } from '../utils/snapshotBundle'
+import { snapshotBundleMembers } from '../utils/snapshotBundle'
 import { BucketClient } from '../infra/repository/bucketClient'
 
 @injectable()
@@ -157,7 +157,13 @@ export class UserDeletionService {
     // Retain keys from the rows actually deleted, without a separate cleanup ledger.
     const deleted = await this.prismaPg().$queryRaw<{ content_key: string }[]>`
       DELETE FROM sr_bookmark WHERE private_user = ${userId} RETURNING content_key`
-    for (const { content_key } of deleted) await deleteRetiredSnapshot(this.bucket().R2Bucket, content_key)
+    for (const { content_key } of deleted) {
+      const keys = snapshotBundleMembers(content_key)
+      if (keys)
+        await this.bucket()
+          .R2Bucket.delete(keys)
+          .catch(error => console.error('Deleted bookmark file removal failed', error))
+    }
     console.log(`Deleted ${deleted.length} private bookmarks`)
   }
 

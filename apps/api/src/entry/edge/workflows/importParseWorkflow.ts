@@ -87,11 +87,15 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
     if (!event.payload.captureRevision) {
       const revision = await step.do('legacy-capture-revision', async () => {
         const raw = await bookmarkService.getBookmarkById(bookmarkId)
-        if (!raw || raw.status === 'success') throw new Error('Capture already completed')
+        if (!raw || !['pending', 'pending_retry'].includes(raw.status)) return null
         return raw.updated_at.toISOString()
       })
+      if (!revision) return
       ctxManager.set('snapshotCaptureRevision', revision)
     }
+    const claimed = await step.do('claim-capture', () => crawlService.claimCapture(ctxManager, bookmarkId))
+    if (!claimed) return
+
     const hostname = (() => {
       try {
         return new URL(url).hostname || 'unknown'
@@ -117,6 +121,7 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
           timeout: '2 minutes'
         },
         async (): Promise<CrawlResult & { pdf?: boolean }> => {
+          if (!(await crawlService.ownsCapture(ctxManager, bookmarkId))) throw new NonRetryableError('Capture revision superseded')
           publicTarget(url)
           try {
             if (await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, url)) {
@@ -138,8 +143,6 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
             }
           }
 
-          if (!(await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.PARSEING))) throw new Error('Capture revision superseded')
-
           const fetchRes = await fetchImportContent(this.env, url)
           return await crawlService.parseAndSaveContent(ctxManager, fetchRes, bookmarkId, userBookmarkUuid)
         }
@@ -147,7 +150,7 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
       console.error(`ImportParse workflow fetch failed for bookmark ${bookmarkId}: ${errMsg}`)
-      await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.FAILED)
+      if (!(await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.FAILED))) return
       if (!errMsg.startsWith('pdf_lab_disabled:'))
         await crawlService.pushBookmarkFailureAlert(userId, 'import_parse_workflow.fetch', {
           bookmark_id: bookmarkId,

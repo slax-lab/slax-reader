@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import { MediaSnapshotService } from '@/domain/mediaSnapshot'
 import { podcastInputFingerprint } from '@/utils/mediaSnapshot'
-import { SnapshotBundle } from '@/utils/snapshotBundle'
+import { SnapshotBundle, loadEmbeddedSnapshot } from '@/utils/snapshotBundle'
 import { memoryBucket } from '../utils/snapshotBucket'
 
 describe('private media publication', () => {
   async function captureFixture(marked = false) {
     const memory = memoryBucket()
-    const raw: any = { id: 1, content_key: 'snapshots/owner/old/body.html', private_user: 7, userBookmarks: [{ uuid: 'owner' }] }
+    const raw: any = { id: 1, content_key: 'html/body/owner.html', updated_at: new Date('2026-01-01'), private_user: 7, userBookmarks: [{ uuid: 'owner' }] }
     const manifest = {
       schema: 1,
       kind: 'youtube',
@@ -21,14 +21,18 @@ describe('private media publication', () => {
       bodyLanguage: null,
       variants: { en: { status: 'pending' } }
     }
-    await memory.bucket.put(raw.content_key, '<article>Original transcript</article>')
-    await memory.bucket.put(raw.content_key.replace('body.html', 'media.json'), JSON.stringify(manifest))
+    const initial = new SnapshotBundle(memory.bucket, 'owner')
+    await initial.write('body.html', '<article>Original transcript</article>', 'text/html')
+    await initial.write('media.json', JSON.stringify(manifest), 'application/json')
     const row = { status: 'failed', target_language: 'en', error_message: 'quality', article_key: 'canonical.json', caption_key: 'captions.json' }
     await memory.bucket.put('canonical.json', JSON.stringify({ schema_version: 1, language: 'en', format: 'article', lede: 'Ready article', sections: [] }))
     await memory.bucket.put('captions.json', JSON.stringify({ cues: [] }))
     const repo = {
       snapshot: vi.fn(async () => raw),
       mediaDenied: vi.fn(async () => false),
+      claimWrite: vi.fn(async () => true),
+      ownsWrite: vi.fn(async () => true),
+      failWrite: vi.fn(async () => true),
       publishRevision: vi.fn(async (_id: number, expected: string, content: any) => {
         if (raw.content_key !== expected) return false
         Object.assign(raw, content)
@@ -48,31 +52,22 @@ describe('private media publication', () => {
     return { service, repo, raw, row, memory, settings }
   }
 
-  it('deletes the retired bundle only after successful publication', async () => {
+  it('preserves the fixed live body on failed publication and never deletes it', async () => {
     const fixture = await captureFixture()
-    expect(await fixture.service.settle({} as any, 1)).toBe(true)
-    expect(await fixture.memory.bucket.head('snapshots/owner/old/body.html')).toBeNull()
-    expect(await fixture.memory.bucket.head('snapshots/owner/old/media.json')).toBeNull()
-    expect(await fixture.memory.bucket.head(fixture.raw.content_key)).not.toBeNull()
+    fixture.repo.publishRevision.mockResolvedValue(false)
+    const deletion = vi.spyOn(fixture.memory.bucket, 'delete')
+    expect(await fixture.service.settle({} as any, 1)).toBe(false)
+    expect(await fixture.memory.bucket.head('html/body/owner.html')).not.toBeNull()
+    expect(deletion).not.toHaveBeenCalled()
+    expect(fixture.repo.failWrite).toHaveBeenCalledWith(1, fixture.raw.updated_at)
   })
 
-  it('keeps a published revision successful when deletion of its predecessor fails', async () => {
+  it('claims the DB request before any fixed-key writes', async () => {
     const fixture = await captureFixture()
-    vi.spyOn(fixture.memory.bucket, 'delete').mockRejectedValue(new Error('R2 unavailable'))
-    expect(await fixture.service.settle({} as any, 1)).toBe(true)
-    expect(fixture.raw.content_key).not.toBe('snapshots/owner/old/body.html')
-    expect(await fixture.memory.bucket.head(fixture.raw.content_key)).not.toBeNull()
-  })
-
-  it('deletes the predecessor after reconciling an acknowledged-lost commit', async () => {
-    const fixture = await captureFixture()
-    fixture.repo.publishRevision.mockImplementationOnce(async (_id, _expected, content) => {
-      Object.assign(fixture.raw, content)
-      throw new Error('COMMIT acknowledgement lost')
-    })
-    expect(await fixture.service.settle({} as any, 1)).toBe(true)
-    expect(await fixture.memory.bucket.head('snapshots/owner/old/body.html')).toBeNull()
-    expect(await fixture.memory.bucket.head(fixture.raw.content_key)).not.toBeNull()
+    fixture.repo.claimWrite.mockResolvedValue(false)
+    const writes = vi.spyOn(fixture.memory.bucket, 'put')
+    expect(await fixture.service.settle({} as any, 1)).toBe(false)
+    expect(writes).not.toHaveBeenCalled()
   })
 
   it("pins a first terminal failure instead of consuming another user's later retry", async () => {
@@ -115,14 +110,6 @@ describe('private media publication', () => {
     expect(await (await fixture.memory.bucket.get(fixture.raw.content_key))?.text()).toContain('Ready article')
   })
 
-  it('discards only its own attempt when a newer owner revision wins the CAS', async () => {
-    const fixture = await captureFixture()
-    fixture.repo.publishRevision.mockResolvedValue(false)
-    expect(await fixture.service.settle({} as any, 1)).toBe(false)
-    expect([...fixture.memory.objects.keys()].filter(key => key.startsWith('snapshots/'))).toHaveLength(2)
-    expect(fixture.raw.content_key).toBe('snapshots/owner/old/body.html')
-  })
-
   it('pins the inputs returned by this acquisition rather than another save during initialization', async () => {
     const captured: any = { audio_url: 'audio', title: 'A', show_name: 'Show A', shownotes: 'Notes A', duration_sec: 10, publisher_transcripts: [], language: 'en' }
     const later = { ...captured, title: 'B', shownotes: 'Notes B' }
@@ -141,10 +128,11 @@ describe('private media publication', () => {
 
   it('copies a frozen manifest without subscribing to pending source variants', async () => {
     const { bucket } = memoryBucket()
-    const key = 'snapshots/source/first/body.html'
-    await bucket.put(key, '<article>Source transcript</article>')
-    await bucket.put(
-      key.replace('body.html', 'media.json'),
+    const key = 'html/body/source.html'
+    const source = new SnapshotBundle(bucket, 'source')
+    await source.write('body.html', '<article>Source transcript</article>', 'text/html')
+    await source.write(
+      'media.json',
       JSON.stringify({
         schema: 1,
         kind: 'youtube',
@@ -157,44 +145,51 @@ describe('private media publication', () => {
         transcript: 'ready',
         bodyLanguage: null,
         variants: { en: { status: 'pending' } }
-      })
+      }),
+      'application/json'
     )
     const service = Object.assign(Object.create(MediaSnapshotService.prototype), {
       bucket: () => ({ R2Bucket: bucket }),
       repo: { mediaDenied: vi.fn(async () => false) }
     }) as MediaSnapshotService
     const bundle = new SnapshotBundle(bucket, 'destination')
+    await bundle.copyHtml(key)
     const result = await service.copyForFork({ id: 1, content_key: key, private_user: 1 } as any, bundle)
     expect(result).toEqual({ ref: { media_kind: 'youtube', source_id: 'video', source_hash: 'hash' }, input: undefined })
     await bucket.delete([key, key.replace('body.html', 'media.json')])
-    const own = await (await bucket.get(`snapshots/destination/${bundle.attempt}/media.json`))!.json<any>()
+    const own = (await loadEmbeddedSnapshot(bucket, 'html/body/destination.html')).manifest as any
     expect(own.mode).toBe('fork')
     expect(own.variants.en.status).toBe('unavailable')
     expect(own.bodyLanguage).toBeNull()
   })
 
-  it('does not discard objects after an uncertain revision commit', async () => {
-    const memory = memoryBucket()
-    await memory.bucket.put('snapshots/owner/old/body.html', '<article>old</article>')
-    const repo = {
-      publishRevision: vi.fn(async () => {
-        throw new Error('COMMIT timeout')
-      }),
-      snapshot: vi.fn(async () => {
-        throw new Error('offline')
-      })
-    }
-    const service = Object.assign(Object.create(MediaSnapshotService.prototype), {
-      bucket: () => ({ R2Bucket: memory.bucket }),
-      repo
-    }) as MediaSnapshotService
-    await expect(
-      service.publish({ raw: { id: 1, content_key: 'snapshots/owner/old/body.html', userBookmarks: [{ uuid: 'owner' }] } } as any, null, {
-        html: '<article>new</article>',
-        text: 'new'
-      })
-    ).rejects.toThrow()
-    expect([...memory.objects.keys()].filter(key => !key.includes('/old/'))).toHaveLength(3)
-    expect(await memory.bucket.head('snapshots/owner/old/body.html')).not.toBeNull()
+  it('leaves a failed acquisition attempt owned so its finite Workflow retry can succeed', async () => {
+    const fixture = await captureFixture()
+    let owns = true
+    fixture.repo.ownsWrite.mockImplementation(async () => owns)
+    fixture.repo.failWrite.mockImplementation(async () => {
+      owns = false
+      return true
+    })
+    const put = vi.spyOn(fixture.memory.bucket, 'put')
+    put.mockRejectedValueOnce(new Error('temporary R2 failure'))
+    const args = [1, 'owner', { html: '<article>Captured</article>', text: 'Captured' }, {}, null, fixture.raw.updated_at.toISOString()] as const
+    await expect(fixture.service.capture(...args)).rejects.toThrow('temporary R2 failure')
+    expect(fixture.repo.failWrite).not.toHaveBeenCalled()
+    await expect(fixture.service.capture(...args)).resolves.toMatchObject({ content_key: 'html/body/owner.html' })
+    expect(fixture.repo.ownsWrite).toHaveBeenCalledTimes(2)
+  })
+
+  it('continues settling other refs after one invalid private manifest', async () => {
+    const fixture = await captureFixture()
+    ;(fixture.service as any).youtube.listRefs = async () => [{ bookmark_id: 2 }, { bookmark_id: 1 }]
+    const load = fixture.service.load.bind(fixture.service)
+    vi.spyOn(fixture.service, 'load').mockImplementation(async id => {
+      if (id === 2) throw new Error('invalid manifest')
+      return load(id)
+    })
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(await fixture.service.settleSource({} as any, 'youtube', 'video')).toBe(1)
+    log.mockRestore()
   })
 })

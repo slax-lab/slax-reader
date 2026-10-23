@@ -6,6 +6,8 @@ import { MediaArticleRepo, type MediaKind, type mediaArticleRefPO } from '@/infr
 import { PODCAST_ARTICLE_PROMPT_VERSION } from '@/utils/podcastArticle'
 import type { PodcastEpisodeInfo } from '@/utils/podcastSource'
 
+export type InspectedPodcastRef = { bookmarkId: number; updatedAt: Date; contentKey: string }
+
 /** Podcast rows of the media article tables: source_id is the episode's source id, source_hash its transcript hash. */
 @injectable()
 export class PodcastArticleRepo extends MediaArticleRepo {
@@ -21,14 +23,21 @@ export class PodcastArticleRepo extends MediaArticleRepo {
     return this.prismaPg().sr_media_article_ref.findMany({ where: { media_kind: this.kind, source_id: sourceId }, orderBy: { id: 'asc' } })
   }
 
-  /** The transcript is ready: point every bookmark of the episode at it. */
-  public async setRefsHash(sourceId: string, sourceHash: string): Promise<number> {
-    return this.prismaPg().$executeRaw(Prisma.sql`
-      UPDATE sr_youtube_article_ref r SET source_hash = ${sourceHash}
-      FROM sr_bookmark b WHERE b.id = r.bookmark_id AND r.media_kind = ${this.kind} AND r.video_id = ${sourceId}
-        AND b.content_key NOT LIKE 'snapshots/%'
-        AND NOT EXISTS (SELECT 1 FROM sr_user_bookmark ub WHERE ub.bookmark_id = b.id AND ub.forked_from_id IS NOT NULL)
-    `)
+  /** Advance only legacy references whose inspected bookmark is still unchanged and idle. */
+  public async setRefsHash(sourceId: string, sourceHash: string, inspected: InspectedPodcastRef[]): Promise<number> {
+    if (!inspected.length) return 0
+    const ids = [...new Set(inspected.map(ref => ref.bookmarkId))].sort((a, b) => a - b)
+    return this.prismaPg().$transaction(async db => {
+      // Serialize with capture/Fork claims; object reads finish before this short transaction.
+      await db.$queryRaw(Prisma.sql`SELECT id FROM sr_bookmark WHERE id IN (${Prisma.join(ids)}) ORDER BY id FOR UPDATE`)
+      const unchanged = inspected.map(ref => Prisma.sql`(b.id = ${ref.bookmarkId} AND b.updated_at = ${ref.updatedAt} AND b.content_key = ${ref.contentKey})`)
+      return db.$executeRaw(Prisma.sql`
+        UPDATE sr_youtube_article_ref r SET source_hash = ${sourceHash}
+        FROM sr_bookmark b WHERE b.id = r.bookmark_id AND r.media_kind = ${this.kind} AND r.video_id = ${sourceId}
+          AND b.status = 'success' AND (${Prisma.join(unchanged, ' OR ')})
+          AND NOT EXISTS (SELECT 1 FROM sr_user_bookmark ub WHERE ub.bookmark_id = b.id AND ub.forked_from_id IS NOT NULL)
+      `)
+    })
   }
 
   /** A pending row nobody needs any more (its reader left): the sweep must not start it again. */
@@ -160,7 +169,14 @@ export class PodcastEpisodeRepo {
   public async markReady(
     id: number,
     runId: string,
-    t: { source: 'publisher' | 'assemblyai'; key: string; hash: string; speakers: boolean; language: string; durationSec: number | null }
+    t: {
+      source: 'publisher' | 'assemblyai'
+      key: string
+      hash: string
+      speakers: boolean
+      language: string
+      durationSec: number | null
+    }
   ): Promise<boolean> {
     const res = await this.prismaPg().sr_podcast_episode.updateMany({
       where: { id, run_id: runId, transcript_status: 'transcribing' },
@@ -189,7 +205,12 @@ export class PodcastEpisodeRepo {
    */
   public async finish(
     id: number,
-    outcome: { kind: 'retry' | 'failed' | 'skipped'; error: string; retryDelayMs?: number; clearJob?: boolean },
+    outcome: {
+      kind: 'retry' | 'failed' | 'skipped'
+      error: string
+      retryDelayMs?: number
+      clearJob?: boolean
+    },
     guard: { runId?: string; expiredBefore?: Date } = {}
   ): Promise<PodcastTranscriptStatus | null> {
     const row = await this.findById(id)

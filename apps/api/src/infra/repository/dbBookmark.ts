@@ -1,3 +1,4 @@
+import { privatizeLegacyBookmark } from './dbBookmarkFork'
 import { Prisma, PrismaClient } from '@prisma/client'
 import { inject, injectable } from '@/decorators/di'
 import { PRISIMA_CLIENT, PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
@@ -328,11 +329,68 @@ export class BookmarkRepo {
   }
 
   public async createBookmark(info: bookmarkPO, status: string) {
-    return await this.prismaPg().sr_bookmark.upsert({
-      where: { target_url_private_user: { target_url: info.target_url, private_user: info.private_user || 0 } },
-      create: { ...info, created_at: new Date(), updated_at: new Date(), published_at: new Date(), status },
-      update: { ...info, updated_at: new Date() }
-    })
+    const create = () =>
+      this.prismaPg().$transaction(async db => {
+        if (
+          info.private_user &&
+          !(await db.sr_bookmark.findUnique({
+            where: {
+              target_url_private_user: {
+                target_url: info.target_url,
+                private_user: info.private_user
+              }
+            }
+          }))
+        )
+          await privatizeLegacyBookmark(db, info.private_user, info.target_url)
+        const uuid = crypto.randomUUID()
+        const now = new Date()
+        const current = await db.sr_bookmark.upsert({
+          where: {
+            target_url_private_user: {
+              target_url: info.target_url,
+              private_user: info.private_user || 0
+            }
+          },
+          create: {
+            ...info,
+            uuid,
+            created_at: now,
+            updated_at: now,
+            published_at: now,
+            status
+          },
+          update: {}
+        })
+        if (current.uuid === uuid) return { ...current, admitted: true }
+        if (!['success', 'failed'].includes(current.status)) return { ...current, admitted: false }
+        const relation = await db.sr_user_bookmark.findFirst({
+          where: { bookmark_id: current.id, user_id: info.private_user || 0 }
+        })
+        if (!relation) return { ...current, admitted: false }
+        const updatedAt = new Date(Math.max(Date.now(), current.updated_at.getTime() + 1))
+        const nextStatus = status === 'success' ? status : current.status === 'failed' ? 'pending_retry' : 'pending'
+        const changed = await db.sr_bookmark.updateMany({
+          where: {
+            id: current.id,
+            updated_at: current.updated_at,
+            status: current.status
+          },
+          data: { ...info, status: nextStatus, updated_at: updatedAt }
+        })
+        return {
+          ...current,
+          ...(changed.count ? { ...info, status: nextStatus, updated_at: updatedAt } : {}),
+          admitted: changed.count === 1
+        }
+      })
+    try {
+      return await create()
+    } catch (error) {
+      // Concurrent first saves can race Prisma's emulated upsert. Re-read the winner once.
+      if ((error as { code?: string }).code !== 'P2002') throw error
+      return create()
+    }
   }
 
   public async createBookmarkRelation(userId: number, bmId: number, type: number, isArchive: boolean, importMetadata?: { savedAt?: Date; starred: boolean }) {
@@ -536,7 +594,10 @@ export class BookmarkRepo {
     bookmarkId: number,
     info: Pick<bookmarkParsePO, 'status'> & Partial<bookmarkParsePO>,
     documentId: string,
-    publication: { clearForkProvenance?: boolean; expectedRevision?: string } = {}
+    publication: {
+      clearForkProvenance?: boolean
+      expectedRevision?: string
+    } = {}
   ) {
     return this.prismaPg().$transaction(async tx => {
       await tx.$queryRaw`SELECT id FROM sr_bookmark WHERE id = ${bookmarkId} FOR UPDATE`
@@ -544,8 +605,16 @@ export class BookmarkRepo {
         where: { id: bookmarkId }
       })
       const raw = await tx.sr_bookmark.update({
-        where: { id: bookmarkId, ...(publication.expectedRevision ? { updated_at: new Date(publication.expectedRevision) } : {}) },
-        data: { ...info, updated_at: new Date() }
+        where: {
+          id: bookmarkId,
+          ...(publication.expectedRevision
+            ? {
+                updated_at: new Date(publication.expectedRevision),
+                status: 'parseing'
+              }
+            : {})
+        },
+        data: { ...info, updated_at: new Date(Math.max(Date.now(), before.updated_at.getTime() + 1)) }
       })
       const relations = await tx.sr_user_bookmark.findMany({
         where: { bookmark_id: bookmarkId },
@@ -945,14 +1014,29 @@ export class BookmarkRepo {
   }
 
   public async getFilterBookmarkFetchRetries(options: { status: bookmarkFetchRetryStatus }) {
-    const res = await this.prismaPg().$queryRaw<{ bookmark_id: number; retry_counts: string; user_ids: string; created_at: string }[]>`
+    const res = await this.prismaPg().$queryRaw<
+      {
+        bookmark_id: number
+        retry_counts: string
+        user_ids: string
+        created_at: string
+      }[]
+    >`
     SELECT  bookmark_id, string_agg(retry_count::text, ',') as retry_counts, string_agg(user_id::text, ',') as user_ids, created_at FROM sr_bookmark_fetch_retry
       WHERE status = ${options.status}
       GROUP BY bookmark_id`
     return res || []
   }
 
-  public async updateBookmarkFetchRetry(bookmarkId: number, options: { retry_count?: number; last_retry_at?: Date; status?: bookmarkFetchRetryStatus; trace_id?: string }) {
+  public async updateBookmarkFetchRetry(
+    bookmarkId: number,
+    options: {
+      retry_count?: number
+      last_retry_at?: Date
+      status?: bookmarkFetchRetryStatus
+      trace_id?: string
+    }
+  ) {
     return await this.prismaPg().sr_bookmark_fetch_retry.updateMany({
       where: { bookmark_id: bookmarkId },
       data: { ...options }
@@ -1520,17 +1604,32 @@ export class BookmarkRepo {
     })
   }
 
-  public async findStuckBookmarks(opts: {
-    pendingThresholdMinutes: number
-    limit: number
-  }): Promise<{ id: number; target_url: string; status: string; created_at: Date; user_id: number }[]> {
+  public async findStuckBookmarks(opts: { pendingThresholdMinutes: number; limit: number }): Promise<
+    {
+      id: number
+      target_url: string
+      status: string
+      created_at: Date
+      updated_at: Date
+      user_id: number
+    }[]
+  > {
     const now = Date.now()
 
     const pendingCutoff = new Date(now - opts.pendingThresholdMinutes * 60_000)
     const dayFloor = new Date(now - 24 * 60 * 60_000)
 
-    return await this.clientPg().$queryRaw<{ id: number; target_url: string; status: string; created_at: Date; user_id: number }[]>`
-      SELECT b.id, b.target_url, b.status, b.created_at,
+    return await this.clientPg().$queryRaw<
+      {
+        id: number
+        target_url: string
+        status: string
+        created_at: Date
+        updated_at: Date
+        user_id: number
+      }[]
+    >`
+      SELECT b.id, b.target_url, b.status, b.created_at, b.updated_at,
              (SELECT ub.user_id FROM sr_user_bookmark ub
               WHERE ub.bookmark_id = b.id LIMIT 1) AS user_id
       FROM sr_bookmark b

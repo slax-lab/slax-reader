@@ -61,6 +61,7 @@ export class PodcastWorkflow extends WorkflowEntrypoint<Env, PodcastWorkflowPara
         },
         flagBookmarks: (sourceId, result) => service.flagBookmarks(sourceId, result),
         publishBodies: sourceId => service.publishBodies(ctxManager, sourceId),
+        setRefsHash: (sourceId, hash) => service.setRefsHash(sourceId, hash),
         settleSnapshots: sourceId => service.settleSnapshots(ctxManager, sourceId),
         translationTargets: (sourceId, original) => service.translationTargets(sourceId, original),
         // One retry: a missed amount lets the site-wide budget gate under-count

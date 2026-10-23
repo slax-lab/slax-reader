@@ -8,11 +8,15 @@ import { PodcastEpisodeRepo } from '@/infra/repository/dbPodcastArticle'
 import recoveryResponses from '../fixtures/podcast/recovery-status.json'
 import { memoryBucket } from '../utils/snapshotBucket'
 
+const embeddedBody = (manifest: unknown) => `<article>Original saved body A</article><script id="slax-private-snapshot" type="application/json">${JSON.stringify(manifest)}</script>`
+
 async function fixture(kind: 'youtube' | 'podcast') {
   const memory = memoryBucket()
   const raw: any = {
     id: 1,
-    content_key: 'snapshots/owner/old/body.html',
+    content_key: 'html/body/owner.html',
+    status: 'success',
+    updated_at: new Date('2026-10-22T00:00:00Z'),
     private_user: 7,
     userBookmarks: [{ uuid: 'owner' }]
   }
@@ -55,8 +59,7 @@ async function fixture(kind: 'youtube' | 'podcast') {
         }
       : {})
   }
-  await memory.bucket.put(raw.content_key, '<article>Original saved body A</article>')
-  await memory.bucket.put(raw.content_key.replace('body.html', 'media.json'), JSON.stringify(manifest))
+  await memory.bucket.put(raw.content_key, embeddedBody(manifest), { customMetadata: { snapshot_owner: 'owner' } })
   await memory.bucket.put(
     'article.json',
     JSON.stringify({
@@ -91,9 +94,20 @@ async function fixture(kind: 'youtube' | 'podcast') {
   const repo: any = {
     snapshot: async () => ({ ...raw }),
     mediaDenied: async () => false,
-    publishRevision: vi.fn(async (_id: number, expected: string, content: any) => {
-      if (raw.content_key !== expected) return false
-      Object.assign(raw, content)
+    claimWrite: vi.fn(async (id: number, revision: Date, statuses: string[] = ['success']) => {
+      if (id !== raw.id || revision.getTime() !== raw.updated_at.getTime() || !statuses.includes(raw.status)) return false
+      raw.status = 'parseing'
+      return true
+    }),
+    ownsWrite: vi.fn(async (id: number, revision: Date) => id === raw.id && revision.getTime() === raw.updated_at.getTime() && raw.status === 'parseing'),
+    failWrite: vi.fn(async (id: number, revision: Date) => {
+      if (id !== raw.id || revision.getTime() !== raw.updated_at.getTime() || raw.status !== 'parseing') return false
+      raw.status = 'failed'
+      return true
+    }),
+    publishRevision: vi.fn(async (_id: number, expected: string, content: any, options: any) => {
+      if (raw.content_key !== expected || raw.status !== 'parseing' || options.expectedUpdatedAt.getTime() !== raw.updated_at.getTime()) return false
+      Object.assign(raw, content, { status: 'success', updated_at: new Date(raw.updated_at.getTime() + 1) })
       return true
     })
   }
@@ -142,6 +156,16 @@ async function fixture(kind: 'youtube' | 'podcast') {
 }
 
 describe('managed media owner recovery', () => {
+  it('does not overwrite fixed keys when another revision owns publication', async () => {
+    const f = await fixture('youtube')
+    f.raw.status = 'parseing'
+    const before = f.memory.objects.get(f.raw.content_key)!.value
+    expect(await f.snapshots.settle(f.ctx, 1)).toBe(false)
+    expect(f.memory.objects.get(f.raw.content_key)!.value).toBe(before)
+    expect(f.repo.publishRevision).not.toHaveBeenCalled()
+    expect(f.repo.failWrite).not.toHaveBeenCalled()
+  })
+
   it.each(['youtube', 'podcast'] as const)('%s status retains its private state when publication fails transiently', async kind => {
     const f = await fixture(kind)
     if (kind === 'podcast')
@@ -153,15 +177,17 @@ describe('managed media owner recovery', () => {
     f.repo.publishRevision.mockRejectedValue(new Error('DB unavailable'))
     const status = await f.service.getStatus(f.ctx, 'owner')
     expect(kind === 'youtube' ? (status as any).status : (status as any).article).toBe('pending')
-    expect(f.raw.content_key).toBe('snapshots/owner/old/body.html')
+    expect(f.raw.content_key).toBe('html/body/owner.html')
     expect(f.repo.publishRevision).toHaveBeenCalled()
+    expect(f.repo.failWrite).toHaveBeenCalledWith(1, expect.any(Date))
+    expect(f.raw.status).toBe('failed')
   })
 
   it.each(['youtube', 'podcast'] as const)('%s fails closed on a missing manifest and on denied policy', async kind => {
     const f = await fixture(kind)
-    await f.memory.bucket.delete('snapshots/owner/old/media.json')
-    await expect(f.service.getStatus(f.ctx, 'owner')).rejects.toThrow('Invalid private snapshot manifest')
-    await f.memory.bucket.put('snapshots/owner/old/media.json', JSON.stringify(f.manifest))
+    await f.memory.bucket.put(f.raw.content_key, '<article>Missing manifest</article>', { customMetadata: { snapshot_owner: 'owner' } })
+    await expect(f.service.getStatus(f.ctx, 'owner')).rejects.toThrow()
+    await f.memory.bucket.put(f.raw.content_key, embeddedBody(f.manifest))
     f.repo.mediaDenied = async () => true
     const status = await f.service.getStatus(f.ctx, 'owner')
     expect(kind === 'youtube' ? (status as any).status : (status as any).article).toBe('unavailable')
@@ -171,7 +197,7 @@ describe('managed media owner recovery', () => {
   it('indexes the stored managed capture once across completion and the repair sweep', async () => {
     const f = await fixture('youtube')
     f.raw.title = 'Stored title'
-    f.raw.content_md_key = 'snapshots/owner/old/body.txt'
+    f.raw.content_md_key = 'text/body/owner.txt'
     await f.memory.bucket.put(f.raw.content_md_key, 'Stored text')
     const indexed: string[] = []
     const markers = new Map<string, string>()
@@ -224,14 +250,14 @@ describe('managed media owner recovery', () => {
     await f.snapshots.repairIndex(f.ctx, 1)
     expect(indexed).toEqual(['Stored title:Stored text'])
     expect(legacy).toEqual([])
-    expect(markers.get('snapshot-index:1')).toBe(f.raw.content_key)
+    expect(markers.get('snapshot-index:1')).toBe(`${f.raw.content_key}:${f.raw.updated_at.toISOString()}`)
   })
 
   it('allows only explicit owner retry to adopt changed podcast inputs and consume the ready result', async () => {
     const f = await fixture('podcast')
     const frozen = freezeMediaSnapshot(f.manifest, 'frozen')
-    await f.memory.bucket.put('snapshots/fork/frozen/media.json', JSON.stringify(frozen))
-    const frozenBefore = f.memory.objects.get('snapshots/fork/frozen/media.json')!.value
+    await f.memory.bucket.put('html/body/fork.html', embeddedBody(frozen))
+    const frozenBefore = f.memory.objects.get('html/body/fork.html')!.value
     Object.assign(f.ep, {
       title: 'B',
       transcript_status: 'ready',
@@ -258,7 +284,7 @@ describe('managed media owner recovery', () => {
     expect(recovered.inputFingerprint).toBe(await podcastInputFingerprint(f.ep))
     expect(recovered.sourceHash).toBe('hash-b')
     expect(await (await f.memory.bucket.get(f.raw.content_key))!.text()).toContain('New article B')
-    expect(f.memory.objects.get('snapshots/fork/frozen/media.json')!.value).toBe(frozenBefore)
+    expect(f.memory.objects.get('html/body/fork.html')!.value).toBe(frozenBefore)
     expect(f.articles.requeue).not.toHaveBeenCalled()
     expect(f.repo.publishRevision.mock.calls.some((call: any[]) => call[3]?.mediaInput?.fingerprint === recovered.inputFingerprint)).toBe(true)
   })
@@ -288,7 +314,7 @@ describe('managed media owner recovery', () => {
       cues: [{ id: 'c1', start_ms: 100, end_ms: 200, text: 'Old cue' }],
       variants: { en: original, zh: { status: 'pending' } }
     })
-    await f.memory.bucket.put('snapshots/owner/old/media.json', JSON.stringify(f.manifest))
+    await f.memory.bucket.put(f.raw.content_key, embeddedBody(f.manifest))
     Object.assign(f.service, {
       userRepo: { getInfoByUserId: async () => ({ lang: 'zh' }) }
     })
@@ -343,7 +369,7 @@ describe('managed media owner recovery', () => {
     expect(await (await f.memory.bucket.get(f.raw.content_key))!.text()).toContain('Saved original A')
   })
 
-  it('never marks a newer pointer as indexed by an earlier in-flight embedding', async () => {
+  it('never marks a newer revision at the same fixed key as indexed by an earlier in-flight embedding', async () => {
     const f = await fixture('youtube')
     const markers = new Map<string, string>()
     f.ctx.env.KV = {
@@ -354,7 +380,7 @@ describe('managed media owner recovery', () => {
     Object.assign(f.snapshots, {
       search: {
         addSearchRecord: async () => {
-          f.raw.content_key = 'snapshots/owner/new/body.html'
+          f.raw.updated_at = new Date(f.raw.updated_at.getTime() + 1)
           return []
         }
       }
@@ -381,7 +407,7 @@ describe('managed media owner recovery', () => {
     const f = await fixture('podcast')
     const oldCues = [{ id: 'c1', start_ms: 100, end_ms: 200, text: 'Saved transcript' }]
     Object.assign(f.manifest, { transcript: 'ready', sourceHash: 'old-hash', cues: oldCues })
-    await f.memory.bucket.put('snapshots/owner/old/media.json', JSON.stringify(f.manifest))
+    await f.memory.bucket.put(f.raw.content_key, embeddedBody(f.manifest))
     Object.assign(f.ep, { title: 'B', transcript_status: 'ready', transcript_hash: 'new-hash', transcript_key: 'transcript.json' })
     await f.memory.bucket.put('transcript.json', JSON.stringify({ language: 'en', cues: [{ id: 'c1', start_ms: 900, end_ms: 1000, text: 'New transcript' }] }))
     await f.memory.bucket.put(
@@ -414,7 +440,7 @@ describe('managed media owner recovery', () => {
       cues: [{ id: 'old', start_ms: 100, duration_ms: 200, text: 'Saved cue' }],
       variants: { en: original, zh: { status: 'unavailable', reason: 'input_changed' } }
     })
-    await f.memory.bucket.put('snapshots/owner/old/media.json', JSON.stringify(f.manifest))
+    await f.memory.bucket.put(f.raw.content_key, embeddedBody(f.manifest))
     Object.assign(f.ep, { title: 'B', transcript_status: phase === 'transcribing' ? 'transcribing' : 'pending', next_retry_at: phase === 'deferred' ? new Date() : null })
     const counter = { get: async () => 0, incrWithExpire: async () => 1, incrBy: async () => 0 }
     Object.assign(f.service, { redis: () => ({ podcastDaily: () => counter, podcastCost: () => counter, podcastStartLock: () => ({ setIfAbsent: async () => true }) }) })
@@ -451,7 +477,7 @@ describe('managed media owner recovery', () => {
       content: { language: 'en', format: 'article', lede: 'Saved original', sections: [] }
     }
     Object.assign(f.manifest, { transcript: 'ready', bodyLanguage: 'en', variants: { en: original, zh: { status: 'unavailable', reason: 'input_changed' } } })
-    await f.memory.bucket.put('snapshots/owner/old/media.json', JSON.stringify(f.manifest))
+    await f.memory.bucket.put(f.raw.content_key, embeddedBody(f.manifest))
     f.ep.title = 'B'
     await f.snapshots.openRequest(1, 'en', true, f.ep)
     const recovered = (await f.snapshots.load(1))!.media!
@@ -467,7 +493,7 @@ describe('managed media owner recovery', () => {
       content: { language: 'en', format: 'article', lede: 'Original', sections: [] }
     }
     Object.assign(f.manifest, { transcript: 'ready', variants: { en: original } })
-    await f.memory.bucket.put('snapshots/owner/old/media.json', JSON.stringify(f.manifest))
+    await f.memory.bucket.put(f.raw.content_key, embeddedBody(f.manifest))
     await f.snapshots.openRequest(1, 'en', false, kind === 'podcast' ? f.ep : undefined)
     expect((await f.snapshots.load(1))!.media!.variants.en).toEqual({ status: 'pending' })
   })
@@ -484,7 +510,7 @@ describe('managed media owner recovery', () => {
       bodyLanguage: 'en',
       variants: { en: original, zh: { status: 'unavailable', reason: 'input_changed' } }
     })
-    await f.memory.bucket.put('snapshots/owner/old/media.json', JSON.stringify(f.manifest))
+    await f.memory.bucket.put(f.raw.content_key, embeddedBody(f.manifest))
     Object.assign(f.ep, { title: 'B', transcript_status: 'ready', transcript_hash: 'new-hash', transcript_key: 'transcript.json' })
     const rows: any[] = [{ id: 3, target_language: 'en', status: 'ready', article_key: 'article.json' }]
     if (articleState === 'pending') rows.push({ id: 4, target_language: 'zh', status: 'pending', article_key: null, eligibility_json: { decision: 'generate', reason_codes: [] } })
@@ -526,7 +552,7 @@ describe('managed media owner recovery', () => {
       f.manifest.variants =
         stage === 'translation' ? { en: ready, zh: { status: 'unavailable', reason: 'input_changed' } } : { en: { status: 'unavailable', reason: 'input_changed' } }
       if (stage === 'translation') Object.assign(f.service, { userRepo: { getInfoByUserId: async () => ({ lang: 'zh' }) } })
-      await f.memory.bucket.put('snapshots/owner/old/media.json', JSON.stringify(f.manifest))
+      await f.memory.bucket.put(f.raw.content_key, embeddedBody(f.manifest))
       expect(await f.service.getStatus(f.ctx, 'owner')).toEqual(recoveryResponses[stage])
       const stored = (await f.snapshots.load(1))!.media!
       expect(stage === 'transcript' ? stored.transcript : stored.variants[stage === 'translation' ? 'zh' : 'en']?.status).toBe('unavailable')
@@ -548,7 +574,7 @@ describe('managed media owner recovery', () => {
       if (excluded === 'disabled') Object.assign(f.service, { labService: { isEnabled: async () => false } })
       if (excluded === 'visitor') f.ctx.getUserId = () => 8
       if (stage === 'translation') Object.assign(f.service, { userRepo: { getInfoByUserId: async () => ({ lang: 'zh' }) } })
-      await f.memory.bucket.put('snapshots/owner/old/media.json', JSON.stringify(f.manifest))
+      await f.memory.bucket.put(f.raw.content_key, embeddedBody(f.manifest))
       const status: any = await f.service.getStatus(f.ctx, 'owner')
       expect(status.can_retry).toBe(false)
       expect(stage === 'transcript' ? status.transcript : stage === 'translation' ? status.translation.status : status.article).toBe('unavailable')
@@ -560,7 +586,7 @@ describe('managed media owner recovery', () => {
     f.ep.duration_sec = initialDuration
     Object.assign(f.snapshots, { users: { getInfoByUserId: async () => ({ lang: 'en' }) }, labs: { isEnabled: async () => true } })
     const media = await f.snapshots.initialize({ media_kind: 'podcast', source_id: f.ep.source_id, source_hash: '' }, 7, undefined, f.ep)
-    await f.memory.bucket.put('snapshots/owner/old/media.json', JSON.stringify(media))
+    await f.memory.bucket.put(f.raw.content_key, embeddedBody(media))
     Object.assign(f.ep, { transcript_status: 'transcribing', run_id: 'run' })
     const episodes = new PodcastEpisodeRepo((() => ({
       sr_podcast_episode: {

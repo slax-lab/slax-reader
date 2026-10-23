@@ -196,7 +196,7 @@ describe('bookmark metadata persistence', () => {
 
   it('passes new import metadata into creation and crawls archived articles', async () => {
     const service = Object.create(BookmarkService.prototype) as BookmarkService
-    const createBookmarkBase = vi.fn().mockResolvedValue({ id: 42, private_user: 1 })
+    const createBookmarkBase = vi.fn().mockResolvedValue({ id: 42, private_user: 1, status: 'pending', updated_at: new Date('2026-10-22T00:00:00Z') })
     Object.assign(service, { bookmarkData: { getBookmark: vi.fn().mockResolvedValue(null) }, createBookmarkBase, labService })
     const result = await service.addUrlBookmarkItem(createMockCtx(), {
       target_url: 'https://example.com/a',

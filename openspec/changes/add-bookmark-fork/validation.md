@@ -1,3 +1,48 @@
+# Fixed-path follow-up verification — 2026-10-23
+
+This section supersedes older immutable-path and no-op repeat-Fork evidence below. Branch: `feat/add-bookmark-fork`; implementation base: `bce93416a49ec2bc736ee256b802a737164a580c`. On 2026-10-23 the user explicitly requested a local commit and transfer to the primary checkout for hands-on development testing, with a fresh local database setup. This does not constitute acceptance of the new UI guards or authorization to mark the follow-up ready for push. No production deployment was performed. The existing user decision not to bump application versions still applies.
+
+## Implemented and exercised
+
+- Conventional HTML/text/PDF/metadata keys, embedded private media supplements, same-destination repeat Fork, guarded updates and no retired-bundle cleanup.
+- Ordinary URL admission, one durable Workflow claim, accepted-request timestamps, finite retry ownership, pending rescue without stealing active writes, native PDF ownership/retry, legacy media write exclusion and old third-party queue routing.
+- Historical shared relation conversion preserves personal identity/state and other owners' content. Failed old-client Reader sync entries replay without blocking an unrelated mutation in the same batch.
+- Request-only frontend gates plus synced active states, account-change checks, unconditional settlement release, and no automatic client retries.
+
+## Automated checks
+
+- `pnpm api -- gen:all`: passed using process-only placeholder local PostgreSQL URLs and `SLAX_API_CONFIG=deploy/cloudflare/api.toml.example`. Generated DI changes were inspected; no schema or configuration change was introduced. An initial run without datasource placeholders stopped before completion; the configured rerun succeeded.
+- `pnpm api -- typecheck`: passed, including contracts.
+- `pnpm api -- lint`: passed with 0 errors and 344 existing/scoped warnings; no blanket warning cleanup was performed.
+- `pnpm api -- test`: final post-review run passed 191 files / 2,443 tests; 96 optional integration/sample tests were skipped. The changed Workflow cache-release behavior also passed its 79-test workflow/dispatch suite.
+- Task-owned PostgreSQL runner `.superpowers/sdd/fork-fixed-paths/pg-tests.ts`: 24 integration tests passed against migrated PostgreSQL 17, including simultaneous API and sync creation, one atomic claimant, monotonic terminal timestamps, stale claims, Fork uniqueness, shared conversion/personal-state preservation, deleting-row rejection and Reader-placeholder replay. Disposable container/workspace removed.
+- Podcast stale-reference race: 24 focused service tests and 2 real PostgreSQL reference tests passed after full isolated migrations; changed timestamp/key and active status cannot repoint a completed private capture. Disposable resources removed.
+- Web: documented `pnpm web -- typecheck` and `pnpm web -- build` passed. Five focused files / 36 tests passed.
+- Extension: documented `pnpm extension -- typecheck` and `pnpm extension -- build` passed. Two focused files / 6 tests passed. Versions unchanged.
+- `SLAX_API_CONFIG=deploy/cloudflare/api.toml.example pnpm api -- build`: offline Core, Edge, AI and Browser builds passed; Wrangler dry-run only.
+- `pnpm exec openspec validate --all --strict`: 74 items passed, 0 failed.
+- `git diff --check`: passed.
+
+## Running backend and browser evidence
+
+`FORK_SMOKE=1 pnpm api -- test:http` passed against task-owned local Workers, PostgreSQL, R2 and search storage after the fixed-state changes. It exercised article, shortcut, uploaded PDF, downloaded PDF, YouTube and podcast Forks; same-UUID/same-key repeated refresh after source mutation; source deletion; PDF range reads; media variants; attribution revocation; legacy entry points; restored search; media catch-up failures/recovery and owner recapture; fixed-key deletion; ordinary CRUD/fulltext. The runtime-only Node R2 bridge materializes response bodies for direct service checks; HTTP paths use Worker bindings. Resources were cleaned by the harness. No external provider call was made.
+
+The actual changed Web components were exercised in a running task-local Vite fixture at `http://127.0.0.1:3099/`, with account, HTTP and synced-row boundaries explicitly mocked. The existing application theme/reset styles were loaded. Eleven grouped browser checks passed with zero page errors across light/dark/e-ink and 320/768/1280 widths: same-source buttons share a gate; another source remains usable; duplicate Enter dispatches once; modal reopen respects all three active statuses; terminal success permits deliberate refresh; failed requests release; late account completion cannot navigate. Dialog/button containment and 44px action height were checked. The fixture does not reproduce the application-generated spinner glyph or real PowerSync transport. Machine-readable evidence and restart/manual steps are in the task-local frontend report.
+
+## Review and remaining gates
+
+Independent review used `REVIEW.md` Bugs, Security and Compliance passes with change-id `add-bookmark-fork`. Important issues found and repaired include native PDF write ownership, orphan PDF retry, reserved versus published missing PDF handling, sync deletion races, legacy media writer exclusion, old queue writer routing, cached public-row claim release, and podcast stale reference eligibility. Real PostgreSQL testing additionally caught the Prisma relational-claim race and concurrent emulated-upsert conflicts; atomic SQL admission and a single transaction retry were verified.
+
+Final independent review found no remaining Important code findings. Bugs/Security passed; Compliance matches the approved change subject to the acceptance gate below. The report is `.superpowers/sdd/fork-fixed-paths/final-review.md`.
+
+**Follow-up human acceptance is pending.** The requesting project owner's 2026-10-22 acceptance applies to the previous UI, not these new guards. The new fixture is ready for hands-on duplicate submission / retry / account-switch verification; this follow-up must not be marked ready for push until acceptance and any requested adjustments are recorded. R15 remains unchecked for that reason.
+
+Remaining scope limits: no production rollout, real provider acquisition/generation, complete ordinary Workflow execution with all remote services, full browser-to-PowerSync-to-API transport, Mobile uploader exercise, or process-kill/ambiguous-commit fault injection was performed in this round. State/retry boundaries are covered by regression suites, real database races and the local API exercise as described, not claimed as those unperformed scenarios. Fixed-key partial writes, retained uncertain files and a crashed active claim are explicit accepted design limits, not an automatic recovery guarantee.
+
+---
+
+## Earlier implementation evidence (superseded where noted above)
+
 # Validation
 
 ## Implementation authorization — 2026-10-22

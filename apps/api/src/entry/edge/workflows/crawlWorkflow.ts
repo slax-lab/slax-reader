@@ -44,14 +44,40 @@ export interface CrawlWorkflowParams {
 }
 
 type FetchedPayload =
-  | { kind: 'twitter' | 'twitter_article'; resolvedUrl: string; data: TwitterFetched; isSocialMedia: true }
+  | {
+      kind: 'twitter' | 'twitter_article'
+      resolvedUrl: string
+      data: TwitterFetched
+      isSocialMedia: true
+    }
   | { kind: 'xhs'; resolvedUrl: string; data: XHSData; isSocialMedia: true }
   | { kind: 'weibo'; resolvedUrl: string; data: WeiboData; isSocialMedia: true }
-  | { kind: 'reddit'; resolvedUrl: string; data: RedditData; isSocialMedia: true }
-  | { kind: 'zhihu'; resolvedUrl: string; data: ZhihuFetched; isSocialMedia: true }
+  | {
+      kind: 'reddit'
+      resolvedUrl: string
+      data: RedditData
+      isSocialMedia: true
+    }
+  | {
+      kind: 'zhihu'
+      resolvedUrl: string
+      data: ZhihuFetched
+      isSocialMedia: true
+    }
   | { kind: 'pdf'; resolvedUrl: string; isSocialMedia: false }
-  | { kind: 'parsed'; resolvedUrl: string; data: CrawlResult; isSocialMedia: boolean; podcast?: boolean }
-  | { kind: 'shortCircuit'; resolvedUrl: string; data: { title: string; textContent: string; byline: string }; isSocialMedia: false }
+  | {
+      kind: 'parsed'
+      resolvedUrl: string
+      data: CrawlResult
+      isSocialMedia: boolean
+      podcast?: boolean
+    }
+  | {
+      kind: 'shortCircuit'
+      resolvedUrl: string
+      data: { title: string; textContent: string; byline: string }
+      isSocialMedia: false
+    }
 
 export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> {
   async run(event: WorkflowEvent<CrawlWorkflowParams>, step: WorkflowStep) {
@@ -88,11 +114,15 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     if (!event.payload.captureRevision) {
       const revision = await step.do('legacy-capture-revision', async () => {
         const raw = await bookmarkService.getBookmarkById(bookmarkId)
-        if (!raw || raw.status === 'success') throw new Error('Capture already completed')
+        if (!raw || !['pending', 'pending_retry'].includes(raw.status)) return null
         return raw.updated_at.toISOString()
       })
+      if (!revision) return
       ctxManager.set('snapshotCaptureRevision', revision)
     }
+
+    const claimed = await step.do('claim-capture', () => crawlService.claimCapture(ctxManager, bookmarkId))
+    if (!claimed) return
 
     const alertFailure = (scope: string, meta: Record<string, unknown>) =>
       crawlService.pushBookmarkFailureAlert(userId, scope, meta).catch(e => console.error(`alertFailure ${scope} failed: ${e}`))
@@ -129,10 +159,11 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           timeout: '5 minutes'
         },
         async (): Promise<FetchedPayload> => {
+          if (!(await crawlService.ownsCapture(ctxManager, bookmarkId))) throw new NonRetryableError('Capture revision superseded')
           await assertUrlCaptureAllowed(url)
           const stored = await bookmarkService.getBookmarkById(bookmarkId)
           if (stored?.content_key?.startsWith('pdf/body/')) {
-            await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, url)
+            if (!(await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, url))) throw new Error('Stored PDF could not be acquired')
             return { kind: 'pdf', resolvedUrl: url, isSocialMedia: false }
           }
           // 检查是否已有内容
@@ -146,8 +177,6 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
               isSocialMedia: false
             }
           }
-
-          if (!(await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.PARSEING))) throw new Error('Capture revision superseded')
 
           const resolvedUrl = await crawlService.resolveShortLink(ctxManager, url)
           if (resolvedUrl !== url) {
@@ -246,7 +275,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
       const errMsg = err instanceof Error ? err.message : String(err)
       console.error(`Crawl workflow fetch failed for bookmark ${bookmarkId}: ${errMsg}`)
 
-      await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.FAILED)
+      if (!(await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.FAILED))) return
 
       const scope = err instanceof NonRetryableError ? 'workflow_fetch.business_terminal' : 'workflow_fetch.exhausted'
       if (!errMsg.startsWith('pdf_lab_disabled:') && !errMsg.startsWith('url_lab_disabled:'))
@@ -273,6 +302,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
       const stored = await bookmarkService.getBookmarkById(bookmarkId)
       crawlResult = { title: stored?.title || '', textContent: stored?.content_md_key ? (await bookmarkService.getBookmarkContent(stored.content_md_key)) || '' : '', byline: '' }
     } else if (fetched.kind === 'shortCircuit') {
+      if (!(await step.do('release-cached-capture', () => crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.SUCCESS)))) return
       // bookmark 已有内容，跳过 parse
       crawlResult = {
         title: fetched.data.title,
@@ -323,7 +353,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
         const errMsg = err instanceof Error ? err.message : String(err)
         console.error(`Crawl workflow parse failed for bookmark ${bookmarkId}: ${errMsg}`)
 
-        await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.FAILED)
+        if (!(await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.FAILED))) return
         await alertFailure('workflow_parse.error', {
           bookmark_id: bookmarkId,
           url,

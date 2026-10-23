@@ -51,7 +51,11 @@ export interface YoutubeArticleContentResponse {
   language: YoutubeArticleLanguage
   format: 'article' | 'dialogue'
   lede: string
-  sections: { heading: string; start_ms: number; paragraphs: { speaker: string | null; text: string }[] }[]
+  sections: {
+    heading: string
+    start_ms: number
+    paragraphs: { speaker: string | null; text: string }[]
+  }[]
 }
 
 export type YoutubeArticleApiStatus = 'unavailable' | 'limit_reached' | Exclude<YoutubeArticleStatus, 'stale' | 'takedown'>
@@ -60,7 +64,10 @@ export interface YoutubeArticleStatusResponse {
   status: YoutubeArticleApiStatus
   language: YoutubeArticleLanguage | null
   requested_language: YoutubeArticleLanguage
-  eligibility: { decision: 'generate' | 'skip' | 'review'; reason_codes: string[] } | null
+  eligibility: {
+    decision: 'generate' | 'skip' | 'review'
+    reason_codes: string[]
+  } | null
   version: string | null
   format: 'article' | 'dialogue' | null
   can_generate: boolean
@@ -275,7 +282,11 @@ export class YoutubeArticleService {
   }
 
   private privateStatus(snapshot: MediaSnapshot, requested: YoutubeArticleLanguage, access: Access, acquisitionEnabled: boolean): YoutubeArticleStatusResponse {
-    const language = snapshot.variants[requested]?.status === 'ready' || access.isOwner ? requested : snapshot.defaultLanguage
+    const preferred = snapshot.variants[requested]?.status === 'ready' || (access.isOwner && snapshot.mode !== 'fork') ? requested : snapshot.defaultLanguage
+    const language =
+      snapshot.mode === 'fork' && snapshot.variants[preferred]?.status !== 'ready'
+        ? ((['en', 'zh'] as const).find(lang => snapshot.variants[lang]?.status === 'ready') ?? preferred)
+        : preferred
     const variant = snapshot.variants[language]
     const ready = variant?.status === 'ready'
     const status = !access.isOwner && !ready ? 'unavailable' : (variant?.status ?? 'unavailable')
@@ -314,7 +325,10 @@ export class YoutubeArticleService {
         body_ready: false
       }
     }
-    const eligibility = row.eligibility_json as { decision?: string; reason_codes?: string[] } | null
+    const eligibility = row.eligibility_json as {
+      decision?: string
+      reason_codes?: string[]
+    } | null
     const status = row.status as YoutubeArticleApiStatus
     const version = this.versionOf(row)
     const ready = status === 'ready'
@@ -466,11 +480,15 @@ export class YoutubeArticleService {
     let rendered: { html: string; text: string } | null | undefined
     let count = settled
     for (const ref of await this.repo.listRefs(row.source_id, row.source_hash)) {
-      if (!(await this.wantsBody(ref.bookmark_id, ref.user_id, row, loaded.has(ref.bookmark_id) ? loaded.get(ref.bookmark_id) : undefined))) continue
-      // Rendered once for all bookmarks, and only when one of them takes it
-      if (rendered === undefined) rendered = await this.renderBody(row)
-      if (!rendered) return count
-      if (await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered)) count++
+      try {
+        if (!(await this.wantsBody(ref.bookmark_id, ref.user_id, row, loaded.has(ref.bookmark_id) ? loaded.get(ref.bookmark_id) : undefined))) continue
+        // Rendered once for all bookmarks, and only when one of them takes it
+        if (rendered === undefined) rendered = await this.renderBody(row)
+        if (!rendered) return count
+        if (await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered)) count++
+      } catch {
+        console.error(`YouTube article publication failed for bookmark ${ref.bookmark_id}`)
+      }
     }
     return count
   }
@@ -636,7 +654,12 @@ export class YoutubeArticleService {
    * unreferenced rows older than 7 days deleted together with their objects, and the objects of
    * newly taken-down videos deleted.
    */
-  public async sweep(ctx: ContextManager): Promise<{ expired: number; started: number; deleted: number; takenDown: number }> {
+  public async sweep(ctx: ContextManager): Promise<{
+    expired: number
+    started: number
+    deleted: number
+    takenDown: number
+  }> {
     const now = new Date()
     let expired = 0
     for (const row of await this.repo.listExpiredLeases(50, now)) {
@@ -715,7 +738,16 @@ export class YoutubeArticleService {
    * article switch on. Generates no article (that happens when the owner opens the bookmark) and
    * never touches html/body or text/body. Small batches: every bookmark is a caption fetch.
    */
-  public async backfill(ctx: ContextManager, limit: number, beforeId?: number): Promise<{ processed: number; linked: number; failed: number; next_before_id: number | null }> {
+  public async backfill(
+    ctx: ContextManager,
+    limit: number,
+    beforeId?: number
+  ): Promise<{
+    processed: number
+    linked: number
+    failed: number
+    next_before_id: number | null
+  }> {
     const rows = await this.repo.listBackfillCandidates(Math.min(Math.max(1, limit), 50), beforeId)
     let linked = 0
     let failed = 0
@@ -723,6 +755,7 @@ export class YoutubeArticleService {
       const itemCtx = new ContextManager(ctx.execution, ctx.env)
       itemCtx.setUserInfo(row.user_id, 0, '', row.lang || 'en')
       try {
+        if ((await this.snapshots.load(row.bookmark_id))?.managed) continue
         const fetched = await this.crawlService.fetchYoutubeData(itemCtx, normalizeYoutubeUrl(row.target_url))
         await this.crawlService.saveYoutubeCaptionArtifacts(itemCtx, fetched, row.bookmark_id)
         if (await this.repo.findRef(row.bookmark_id)) linked++

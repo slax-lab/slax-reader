@@ -241,7 +241,10 @@ export class SyncOrchestrator {
       let parentUuid = ''
       if (change.data['metadata']) {
         try {
-          const metadata = JSON.parse(change.data['metadata']) as { root_id?: string; parent_id?: string }
+          const metadata = JSON.parse(change.data['metadata']) as {
+            root_id?: string
+            parent_id?: string
+          }
           rootUuid = metadata.root_id || ''
           parentUuid = metadata.parent_id || ''
         } catch {
@@ -462,7 +465,10 @@ export class SyncOrchestrator {
     if (change.op !== 'PUT' || operations.length === operationCount || !change.data?.metadata) return
 
     try {
-      const metadata = JSON.parse(change.data.metadata) as { source_type?: string; source_id?: string }
+      const metadata = JSON.parse(change.data.metadata) as {
+        source_type?: string
+        source_id?: string
+      }
       const operation = operations.at(-1)
       if (operation?.type === 'create_comment' && metadata.source_type === 'collection' && metadata.source_id) {
         operation.data.sourceType = 'collection'
@@ -489,7 +495,15 @@ export class SyncOrchestrator {
     })
   }
 
-  public async sendRetryParseEvent(ctx: ContextManager, newBookmark: { bookmarkId: number; targetUrl: string; userId: number }) {
+  public async sendRetryParseEvent(
+    ctx: ContextManager,
+    newBookmark: {
+      bookmarkId: number
+      targetUrl: string
+      userId: number
+      captureRevision?: string
+    }
+  ) {
     if (readerBookmarkUuid(newBookmark.targetUrl, [ctx.env.FRONT_END_URL])) return
     try {
       await this.bookmarkSearchRepo.upsertUserBookmark(newBookmark.userId, newBookmark.bookmarkId)
@@ -516,6 +530,7 @@ export class SyncOrchestrator {
         {
           url: newBookmark.targetUrl,
           bookmarkId: newBookmark.bookmarkId,
+          captureRevision: newBookmark.captureRevision,
           userId: newBookmark.userId,
           enUserId: ctx.getEncodeUserId(),
           userLang: ctx.getlang(),

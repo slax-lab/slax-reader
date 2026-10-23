@@ -131,6 +131,7 @@ function articles() {
       return row
     },
     findRef: vi.fn(async (b: number) => refs.find(r => r.bookmark_id === b) ?? null),
+    setRefsHash: vi.fn(async () => 1),
     listEpisodeRefs: vi.fn(async (s: string) => refs.filter(r => r.source_id === s)),
     findVersion: vi.fn(async (s: string, h: string, l: string) => rows.find(r => r.source_id === s && r.source_hash === h && r.target_language === l) ?? null),
     listForSource: vi.fn(async (s: string, h: string) => rows.filter(r => r.source_id === s && r.source_hash === h)),
@@ -259,6 +260,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
     )
   }
   const bookmarkRepo = { updateBookmarkWordCount: vi.fn(async () => ({})), deleteBookmarkSummary: vi.fn(async () => ({})) }
+  const forkRepo = { claimWrite: vi.fn(async () => true), releaseWrite: vi.fn(async () => true), failWrite: vi.fn(async () => true), publishRevision: vi.fn(async () => true) }
   const searchService = { addSearchRecord: vi.fn(async () => [{ status: 'fulfilled', value: [] }]) }
   const labService = {
     isEnabled: vi.fn(async (userId: number) => labOn.has(userId)),
@@ -271,11 +273,14 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
       return { snapshot_sharing: true, ...u }
     })
   }
-  const objects = new Map<string, string>()
+  const objects = new Map<string, string>([['html/body/u1.html', '<p>Show notes</p>']])
   const bucket = {
     R2Bucket: {
-      get: vi.fn(async (k: string) => (objects.has(k) ? { text: async () => objects.get(k)! } : null)),
-      put: vi.fn(async (k: string, v: string) => void objects.set(k, v)),
+      get: vi.fn(async (k: string) => (objects.has(k) ? { body: new ReadableStream(), text: async () => objects.get(k)! } : null)),
+      put: vi.fn(async (k: string, v: string) => {
+        objects.set(k, v)
+        return { key: k }
+      }),
       delete: vi.fn(async (k: string | string[]) => {
         for (const key of Array.isArray(k) ? k : [k]) objects.delete(key)
       }),
@@ -287,7 +292,14 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
     eps,
     arts,
     bookmarkService,
-    new MediaBodyService(bookmarkService as any, bookmarkRepo as any, searchService as any, { bodyHasMarks: vi.fn(async () => false) } as any, (() => bucket) as any),
+    new MediaBodyService(
+      bookmarkService as any,
+      bookmarkRepo as any,
+      searchService as any,
+      { bodyHasMarks: vi.fn(async () => false) } as any,
+      (() => bucket) as any,
+      forkRepo as any
+    ),
     labService,
     userRepo,
     () => redis,
@@ -316,7 +328,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
     objects.set(en.article_key!, JSON.stringify(articleDoc('en')))
     return { ep, en }
   }
-  return { service, eps, arts, redis, ub, bookmarks, bookmarkService, bookmarkRepo, searchService, labOn, objects, create, ctx, alertBot, readyEpisode }
+  return { service, eps, arts, redis, ub, bookmarks, bookmarkService, bookmarkRepo, forkRepo, searchService, labOn, objects, create, ctx, alertBot, readyEpisode }
 }
 
 describe('triggerAfterCrawl', () => {
@@ -357,7 +369,7 @@ describe('triggerAfterCrawl', () => {
     await w.service.triggerAfterCrawl(w.ctx(OWNER), BOOKMARK, OWNER)
     expect(w.objects.get('html/body/u1.html')).toContain('<article class="slax-pod-article"')
     expect(w.objects.get('text/body/u1.txt')).toContain('Second.')
-    expect(w.bookmarkRepo.updateBookmarkWordCount).toHaveBeenCalledWith(BOOKMARK, expect.any(Number))
+    expect(w.forkRepo.publishRevision).toHaveBeenCalledWith(BOOKMARK, 'html/body/u1.html', expect.objectContaining({ content_word_count: expect.any(Number) }), expect.anything())
     expect(w.searchService.addSearchRecord).toHaveBeenCalledWith(expect.anything(), BOOKMARK, 'Ep', expect.stringContaining('Second.'))
     // the overview made from the show notes is dropped, so it is made again from the article
     expect(w.bookmarkRepo.deleteBookmarkSummary).toHaveBeenCalledWith(BOOKMARK, OWNER)
@@ -595,5 +607,32 @@ describe('private podcast requests', () => {
     })
     expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ reason: 'limit_reached', can_retry: true })
     expect(w.create).not.toHaveBeenCalled()
+  })
+})
+
+describe('fixed body reference filtering', () => {
+  test('only inspected legacy references advance to a new transcript hash', async () => {
+    const w = wire()
+    w.readyEpisode()
+    w.arts.refs.push(...[201, 202].map(bookmark_id => ({ bookmark_id, user_id: OWNER, source_id: SOURCE, source_hash: HASH }) as any))
+    ;(w.service as any).snapshots.load.mockImplementation(async (id: number) => {
+      if (id === 201) return { managed: true }
+      if (id === 202) throw new Error('broken manifest')
+      return { managed: false, raw: { id, updated_at: new Date('2026-10-23T00:00:00Z'), content_key: 'html/body/u1.html', status: 'success' } }
+    })
+    await w.service.setRefsHash(SOURCE, 'new-hash')
+    expect(w.arts.setRefsHash).toHaveBeenCalledWith(SOURCE, 'new-hash', [{ bookmarkId: BOOKMARK, updatedAt: new Date('2026-10-23T00:00:00Z'), contentKey: 'html/body/u1.html' }])
+  })
+
+  test('a broken reference cannot prevent publication to a later legacy bookmark', async () => {
+    const w = wire()
+    w.readyEpisode()
+    w.arts.refs.unshift({ bookmark_id: 201, user_id: OWNER, source_id: SOURCE, source_hash: HASH } as any)
+    ;(w.service as any).snapshots.load.mockImplementation(async (id: number) => {
+      if (id === 201) throw new Error('broken manifest')
+      return null
+    })
+    expect(await w.service.publishBodies(w.ctx(OWNER), SOURCE)).toBe(1)
+    expect(w.objects.get('html/body/u1.html')).toContain('slax-pod-article')
   })
 })
