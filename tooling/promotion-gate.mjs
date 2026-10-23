@@ -44,7 +44,6 @@ export { defaultTimeoutMs, pollIntervalMs, defaultDeployRunGraceMs }
 const workflowFileName = path => path.split('/').pop()
 
 export class GateError extends Error {}
-export class ReviewApprovalRequired extends GateError {}
 
 const fail = message => { throw new GateError(message) }
 const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
@@ -58,8 +57,7 @@ export function readInputs(env = process.env) {
     head: env.HEAD_REF ?? '',
     headSha: env.HEAD_SHA ?? '',
     headRepository: env.HEAD_REPOSITORY ?? '',
-    baseRepository: env.BASE_REPOSITORY ?? '',
-    author: env.PR_AUTHOR ?? ''
+    baseRepository: env.BASE_REPOSITORY ?? ''
   }
   if (!repositoryPattern.test(inputs.repository)) fail('Missing or invalid GITHUB_REPOSITORY')
   if (!Number.isSafeInteger(inputs.number) || inputs.number <= 0) fail('Missing or invalid PR_NUMBER')
@@ -67,7 +65,6 @@ export function readInputs(env = process.env) {
   if (typeof inputs.head !== 'string' || !inputs.head) fail('Missing HEAD_REF')
   if (!shaPattern.test(inputs.headSha)) fail('Missing or invalid HEAD_SHA')
   if (!repositoryPattern.test(inputs.headRepository) || !repositoryPattern.test(inputs.baseRepository)) fail('Missing pull request repository identity')
-  if (typeof inputs.author !== 'string' || !inputs.author || /\s/.test(inputs.author)) fail('Missing or invalid PR_AUTHOR')
   return inputs
 }
 
@@ -277,29 +274,6 @@ export async function inspectDeploymentEvidence(inputs, { token, fetchImpl, grac
   return { ready: true, pending: [] }
 }
 
-// One approving review by someone other than the pull request's author. A later
-// changes-requested or dismissed review revokes that user's approval; comments
-// do not. Any API failure fails the gate.
-export function reviewApprovers(reviews, author) {
-  if (!Array.isArray(reviews)) fail('GitHub API returned an unexpected reviews response')
-  const ordered = reviews
-    .filter(review => review && review.state !== 'PENDING')
-    .sort((a, b) => timestamp(a.submitted_at).localeCompare(timestamp(b.submitted_at)) || Number(a.id ?? 0) - Number(b.id ?? 0))
-  const decisions = new Map()
-  for (const review of ordered) {
-    const login = review?.user?.login
-    if (typeof login !== 'string' || !login) continue
-    if (review.state === 'APPROVED') decisions.set(login, true)
-    else if (review.state === 'CHANGES_REQUESTED' || review.state === 'DISMISSED') decisions.set(login, false)
-  }
-  return [...decisions].filter(([login, approved]) => approved && login !== author).map(([login]) => login)
-}
-
-export async function reviewEvidence(inputs, { token, fetchImpl }) {
-  const reviews = await list(fetchImpl, token, `/repos/${inputs.repository}/pulls/${inputs.number}/reviews`)
-  if (reviewApprovers(reviews, inputs.author).length === 0) throw new ReviewApprovalRequired('Hotfix pull request requires an approving review from someone other than its author')
-}
-
 // Shared poll: the suite gates and the beta deployment are independent, so one
 // deadline covers both and each poll re-checks whichever is still outstanding.
 export async function pollPromotionEvidence(inputs, { token, fetchImpl, wait = delay, intervalMs = pollIntervalMs, timeoutMs = defaultTimeoutMs, deployRunGraceMs = defaultDeployRunGraceMs, requireDeployment = false, log = () => {} }) {
@@ -328,7 +302,7 @@ export async function pollPromotionEvidence(inputs, { token, fetchImpl, wait = d
 
 export async function runPromotionGate(inputs, { token, fetchImpl = fetch, wait = delay, intervalMs = pollIntervalMs, timeoutMs = defaultTimeoutMs, deployRunGraceMs = defaultDeployRunGraceMs, log = () => {} } = {}) {
   if (typeof token !== 'string' || !token) fail('Missing GitHub token')
-  const hotfix = allowedHead(inputs)
+  allowedHead(inputs)
   log(`source allowed: ${inputs.head} -> ${inputs.base}`)
 
   const requireDeployment = inputs.base === 'main' && inputs.head === 'beta'
@@ -336,10 +310,6 @@ export async function runPromotionGate(inputs, { token, fetchImpl = fetch, wait 
   log(`application CI gates: ${suiteGates.length}/${suiteGates.length} succeeded`)
   if (requireDeployment) log('beta deployment evidence: api-deploy and web-deploy succeeded')
 
-  if (hotfix) {
-    await reviewEvidence(inputs, { token, fetchImpl })
-    log('hotfix review: non-author approval present')
-  }
   log(`promotion integrity passed for ${inputs.head} -> ${inputs.base}`)
 }
 
@@ -414,9 +384,7 @@ export async function runGateAndReport(env = process.env, { fetchImpl = fetch, w
     await runPromotionGate(inputs, { token: target.token, fetchImpl, wait, timeoutMs: readTimeout(env), log })
   } catch (error) {
     const message = error instanceof GateError ? error.message : 'Promotion gate failed unexpectedly'
-    const guidance = error instanceof ReviewApprovalRequired
-      ? 'After a non-author approving review lands, re-run this workflow (Actions → re-run all jobs) to re-evaluate.'
-      : 'Fix the failed condition and push a new commit, or re-run this workflow after the required approval lands; the check reports again on the current head.'
+    const guidance = 'Fix the failed condition and push a new commit, or re-run this workflow once the missing evidence exists; the check reports again on the current head.'
     errorLog(message)
     try {
       await createCheckRun({
@@ -434,7 +402,6 @@ export async function runGateAndReport(env = process.env, { fetchImpl = fetch, w
 
   const notes = [`Promotion ${inputs.head} -> ${inputs.base} passed on ${inputs.headSha}.`, `All ${suiteGates.length} application CI gates are green.`]
   if (inputs.base === 'main' && inputs.head === 'beta') notes.push('The beta environment deployment evidence is green.')
-  if (hotfixPattern.test(inputs.head)) notes.push('The hotfix carries an approving review from a non-author.')
   try {
     await createCheckRun({
       ...target,

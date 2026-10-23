@@ -16,7 +16,7 @@ Every long-lived branch rejects direct pushes, force-pushes, and deletion, and a
 
 Each application CI workflow ends in a terminal gate job whose name is a ruleset-referenced contract: `Web CI gate` and `Extension CI gate` in `frontend-ci.yml`, `API CI gate` in `api-ci.yml`, `Mobile CI gate` in `mobile-ci.yml`, `CLI CI gate` in `cli-ci.yml`, and `Tooling CI gate` in `tooling-ci.yml`. The gate fails when any job in its suite failed and succeeds otherwise, so a suite that `ci-scope` skipped reports success and never blocks. `tooling/ci-workflow.test.mjs` asserts the exact gate names and their `if: always()` wiring; renaming one without updating the rulesets strands its required context at "Expected" and blocks the branch.
 
-No approving review is required on `beta` or `main` for a promotion: the content was reviewed when it entered `dev`, and the administrator's merge is the designed release-decision act. A `hotfix/*` head never passed through `dev`, where reviews happen, so `promotion integrity` requires one approving review from an approver other than the hotfix author. On `main` the six suite gates are required through `promotion integrity` rather than as separate ruleset contexts; the promotion pull request still reports them because every pull request runs the application CI workflows.
+Every pull request to `beta` or `main` requires one approving review from a reviewer other than its author, enforced by the rulesets. For a promotion the content was reviewed when it entered `dev`, so the approval acts as the explicit release decision rather than a repeated content review; for a `hotfix/*` head, which never passed through `dev`, the approval is the content review itself. On `main` the six suite gates are required through `promotion integrity` rather than as separate ruleset contexts; the promotion pull request still reports them because every pull request runs the application CI workflows.
 
 ## Promotion integrity check
 
@@ -25,13 +25,10 @@ No approving review is required on `beta` or `main` for a promotion: the content
 - The head branch is an allowed source and lives in this repository: `dev` or `hotfix/*` for `beta`; `beta` or `hotfix/*` for `main`. A fork branch named `dev` is rejected.
 - The six application CI gates, reported by the GitHub Actions app, are present and completed successfully on the pull request's head commit. A skipped suite gate counts as success only because `ci-scope` did not select that suite for the diff.
 - For a `beta` → `main` promotion, the beta-environment deployment evidence is green. Deploy workflows attach their conclusions to the merged pull request's head SHA rather than the merge commit, so the gate resolves the promotion head through the merged pull request that produced the `beta` tip, then reads the `beta` deployments on that head SHA and the `api-deploy`/`web-deploy` run conclusions behind them. Both deploy workflows are paths-filtered, so evidence is required only from a workflow that registered a run for that head SHA — a batch that triggered no deploy workflow has nothing to deploy and passes without it. A `hotfix/*` head skips this evidence, because it never entered `beta`.
-- For a `hotfix/*` head, the pull request carries an approving review from someone other than its author; a later changes-requested or dismissed review revokes it, and self-approval does not count. This lives in the gate rather than in the ruleset because rulesets cannot condition on a pull request's head branch — a ruleset-level review requirement would force reviews onto every promotion.
 
 The suite gates and beta deploys trigger around the same time as the gate, so the script polls the evidence every 30 seconds up to a 45-minute deadline (`PROMOTION_GATE_TIMEOUT_MS`); a completed failure fails immediately, and a timeout names the contexts still outstanding.
 
-`pull_request_review` is deliberately not a trigger: that event would run the workflow file from the pull request's merge commit, which a same-repository head branch can edit, letting a hotfix self-certify the required check. After a non-author approving review lands on a hotfix, re-run the workflow (Actions → re-run all jobs) to re-evaluate the review assertion; the gate's failure message says the same.
-
-The workflow uses the repository `GITHUB_TOKEN` with `actions: read`, `checks: write`, `contents: read`, `deployments: read`, and `pull-requests: read`; it does not need the administration permission that drift detection uses.
+The workflow uses the repository `GITHUB_TOKEN` with `actions: read`, `checks: write`, `contents: read`, and `deployments: read`; it does not need the administration permission that drift detection uses.
 
 ## Ruleset state and drift detection
 

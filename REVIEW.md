@@ -36,6 +36,8 @@ Report at most five Nits per review; summarize the rest as a count. If everythin
 
 Run this pass both for local pre-push review and for pull request review.
 
+Pull requests between two long-lived branches — promotion pull requests (`dev` → `beta`, `beta` → `main`) and sync-back pull requests in the reverse direction — are exempt from this pass: their content was reviewed in the constituent task pull requests, the batch has no single change-id, and body references to in-flight evidence on such pull requests are not contradictions. They need no `OpenSpec:` line and no Test plan evidence trail. `hotfix/*` pull requests are not exempt: their content never passed a `dev` review, so they follow this pass like any task pull request.
+
 1. Decide whether the diff changes observable behavior (features, API changes, behavior fixes):
    - Implementation-only changes — refactors, typos, comment/doc tweaks — may skip the OpenSpec proposal, so this pass ends here for them.
    - For a pull request claiming to be implementation-only, verify that its `OpenSpec: n/a` line is present and that the claim is accurate; report an inaccurate `n/a` as an Important Compliance finding.

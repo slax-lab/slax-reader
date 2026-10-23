@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { allowedHead, assessSuiteGates, checkRunName, createCheckRun, defaultTimeoutMs, deployWorkflows, pollIntervalMs, readInputs, readTimeout, reviewApprovers, runGateAndReport, runPromotionGate, suiteGates } from './promotion-gate.mjs'
+import { allowedHead, assessSuiteGates, checkRunName, createCheckRun, defaultTimeoutMs, deployWorkflows, pollIntervalMs, readInputs, readTimeout, runGateAndReport, runPromotionGate, suiteGates } from './promotion-gate.mjs'
 
 const require = createRequire(import.meta.url)
 const { load } = createRequire(require.resolve('rulesync'))('js-yaml')
@@ -14,12 +14,12 @@ const otherSha = 'c'.repeat(40)
 
 const inputs = (overrides = {}) => ({
   repository, number: 42, base: 'beta', head: 'dev', headSha,
-  headRepository: repository, baseRepository: repository, author: 'author', ...overrides
+  headRepository: repository, baseRepository: repository, ...overrides
 })
 const env = (overrides = {}) => ({
   GITHUB_REPOSITORY: repository, GH_TOKEN: 'fixture-token', GITHUB_RUN_ID: '12345',
   PR_NUMBER: '42', BASE_REF: 'beta', HEAD_REF: 'dev', HEAD_SHA: headSha,
-  HEAD_REPOSITORY: repository, BASE_REPOSITORY: repository, PR_AUTHOR: 'author', ...overrides
+  HEAD_REPOSITORY: repository, BASE_REPOSITORY: repository, ...overrides
 })
 const options = (fetchImpl, overrides = {}) => ({ token: 'fixture-token', fetchImpl, wait: async () => {}, ...overrides })
 const response = body => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -40,7 +40,6 @@ const mergedPull = (overrides = {}) => ({ merged_at: '2026-10-22T03:18:30Z', mer
 const deployment = (id, createdAt = '2026-10-22T03:18:35Z') => ({ id, created_at: createdAt, environment: 'beta', sha: sourceSha })
 const deploymentStatus = (runId, state = 'success', createdAt = '2026-10-22T03:21:00Z') => ({ state, created_at: createdAt, log_url: `https://github.com/${repository}/actions/runs/${runId}/job/7` })
 const workflowRun = (path, overrides = {}) => ({ path, head_sha: sourceSha, status: 'completed', conclusion: 'success', ...overrides })
-const review = (login, state, submitted = '2026-10-22T05:00:00Z') => ({ id: 1, user: { login }, state, submitted_at: submitted })
 
 function checkRunRoute(posted, status = 201) {
   return [/\/check-runs$/, (url, request) => {
@@ -78,12 +77,12 @@ const defaultDeploymentRuns = () => ({ 1011: workflowRun(deployWorkflows[0]), 10
 test('inputs require a complete beta/main pull request identity', () => {
   const values = {
     GITHUB_REPOSITORY: repository, PR_NUMBER: '42', BASE_REF: 'beta', HEAD_REF: 'dev', HEAD_SHA: headSha,
-    HEAD_REPOSITORY: repository, BASE_REPOSITORY: repository, PR_AUTHOR: 'author'
+    HEAD_REPOSITORY: repository, BASE_REPOSITORY: repository
   }
   assert.deepEqual(readInputs(values), inputs())
   for (const [key, value] of [
     ['GITHUB_REPOSITORY', 'not-a-repository'], ['PR_NUMBER', '0'], ['PR_NUMBER', '1.5'], ['BASE_REF', 'dev'],
-    ['HEAD_REF', ''], ['HEAD_SHA', 'A'.repeat(40)], ['HEAD_REPOSITORY', ''], ['BASE_REPOSITORY', ''], ['PR_AUTHOR', '']
+    ['HEAD_REF', ''], ['HEAD_SHA', 'A'.repeat(40)], ['HEAD_REPOSITORY', ''], ['BASE_REPOSITORY', '']
   ]) {
     assert.throws(() => readInputs({ ...values, [key]: value }), /Missing|Invalid|only supports/, key)
   }
@@ -246,44 +245,9 @@ test('a batch that triggered only one deploy workflow requires evidence only fro
   await runPromotionGate(inputs({ base: 'main', head: 'beta' }), options(routed(routes), { deployRunGraceMs: 0 }))
 })
 
-test('a hotfix to main skips deploy evidence but requires a non-author approval', async () => {
-  const hotfix = inputs({ base: 'main', head: 'hotfix/urgent' })
-  const approved = routed([...checksRoute(greenGates()), [/\/pulls\/42\/reviews\?/, () => response([review('reviewer', 'APPROVED')])]])
-  await runPromotionGate(hotfix, options(approved))
-
-  const cases = [
-    ['no review', [], /approving review/],
-    ['author self-approval', [review('author', 'APPROVED')], /approving review/],
-    ['comment only', [review('reviewer', 'COMMENTED')], /approving review/],
-    ['approval revoked by changes requested', [review('reviewer', 'APPROVED', '2026-10-22T05:00:00Z'), review('reviewer', 'CHANGES_REQUESTED', '2026-10-22T06:00:00Z')], /approving review/],
-    ['approval dismissed', [review('reviewer', 'APPROVED'), review('reviewer', 'DISMISSED', '2026-10-22T06:00:00Z')], /approving review/]
-  ]
-  for (const [name, reviews, expected] of cases) {
-    const routes = [...checksRoute(greenGates()), [/\/pulls\/42\/reviews\?/, () => response(reviews)]]
-    await assert.rejects(runPromotionGate(hotfix, options(routed(routes))), expected, name)
-  }
-})
-
-test('a comment after approval does not revoke it, and a second approver counts', () => {
-  assert.deepEqual(reviewApprovers([review('reviewer', 'APPROVED'), review('reviewer', 'COMMENTED', '2026-10-22T06:00:00Z')], 'author'), ['reviewer'])
-  assert.deepEqual(reviewApprovers([review('author', 'APPROVED'), review('reviewer', 'APPROVED')], 'author'), ['reviewer'])
-  assert.deepEqual(reviewApprovers([review('reviewer', 'APPROVED'), review('reviewer', 'CHANGES_REQUESTED', '2026-10-22T06:00:00Z')], 'author'), [])
-  assert.deepEqual(reviewApprovers([review('reviewer', 'PENDING'), review('other', 'APPROVED')], 'author'), ['other'])
-})
-
-test('review pagination finds an approval beyond the first page', async () => {
-  const filler = Array.from({ length: 100 }, (_, index) => ({ id: index + 1, user: { login: `noise-${index}` }, state: 'COMMENTED', submitted_at: '2026-10-22T05:00:00Z' }))
-  const routes = [
-    ...checksRoute(greenGates()),
-    [/\/pulls\/42\/reviews\?per_page=100&page=1$/, () => response(filler)],
-    [/\/pulls\/42\/reviews\?per_page=100&page=2$/, () => response([review('reviewer', 'APPROVED')])]
-  ]
-  await runPromotionGate(inputs({ base: 'main', head: 'hotfix/urgent' }), options(routed(routes)))
-})
-
-test('review API errors fail the gate closed', async () => {
-  const routes = [...checksRoute(greenGates()), [/\/pulls\/42\/reviews\?/, () => httpFailure(500)]]
-  await assert.rejects(runPromotionGate(inputs({ base: 'main', head: 'hotfix/urgent' }), options(routed(routes))), /HTTP 500/)
+test('a hotfix to main skips deploy evidence and never reads reviews', async () => {
+  // No reviews route is registered: any attempt to read them throws inside routed().
+  await runPromotionGate(inputs({ base: 'main', head: 'hotfix/urgent' }), options(routed(checksRoute(greenGates()))))
 })
 
 test('a dev-to-beta promotion never reads reviews or deployments', async () => {
@@ -313,21 +277,6 @@ test('a failing verdict still reports a failing check run with an actionable sum
   assert.equal(posted[0].conclusion, 'failure')
   assert.match(posted[0].output.summary, /not an allowed source/)
   assert.match(posted[0].output.summary, /push a new commit|re-run this workflow/)
-})
-
-test('a hotfix review-only failure tells the approver exactly how to re-run the gate', async () => {
-  const posted = []
-  const routes = [
-    ...checksRoute(greenGates()),
-    [/\/pulls\/42\/reviews\?/, () => response([])],
-    checkRunRoute(posted)
-  ]
-  const result = await runGateAndReport(env({ BASE_REF: 'main', HEAD_REF: 'hotfix/urgent' }), { fetchImpl: routed(routes) })
-  assert.equal(result.reported, true)
-  assert.equal(result.passed, false)
-  assert.equal(posted[0].conclusion, 'failure')
-  assert.match(posted[0].output.summary, /approving review/)
-  assert.match(posted[0].output.summary, /After a non-author approving review lands, re-run this workflow \(Actions → re-run all jobs\) to re-evaluate\./)
 })
 
 test('an evidence API error still reports a failing check run', async () => {
@@ -386,7 +335,7 @@ test('the workflow uses the trusted pull_request_target trigger and reports a di
   assert.equal(workflow.on.pull_request, undefined)
   assert.equal(workflow.on.pull_request_review, undefined)
   assert.deepEqual(workflow.on.pull_request_target, { types: ['opened', 'synchronize', 'reopened'], branches: ['beta', 'main'] })
-  assert.deepEqual(workflow.permissions, { actions: 'read', checks: 'write', contents: 'read', deployments: 'read', 'pull-requests': 'read' })
+  assert.deepEqual(workflow.permissions, { actions: 'read', checks: 'write', contents: 'read', deployments: 'read' })
   assert.deepEqual(Object.keys(workflow.jobs), ['gate'])
   assert.equal(workflow.jobs.gate.name, 'Promotion gate runner')
   assert.notEqual(workflow.jobs.gate.name, checkRunName)
@@ -398,5 +347,5 @@ test('the workflow uses the trusted pull_request_target trigger and reports a di
   assert.equal(checkout.with['persist-credentials'], false)
   const step = workflow.jobs.gate.steps.find(step => step.run === 'node tooling/promotion-gate.mjs')
   assert.ok(step)
-  for (const key of ['GH_TOKEN', 'PR_NUMBER', 'PR_AUTHOR', 'BASE_REF', 'HEAD_REF', 'HEAD_SHA', 'HEAD_REPOSITORY', 'BASE_REPOSITORY']) assert.ok(step.env[key], key)
+  for (const key of ['GH_TOKEN', 'PR_NUMBER', 'BASE_REF', 'HEAD_REF', 'HEAD_SHA', 'HEAD_REPOSITORY', 'BASE_REPOSITORY']) assert.ok(step.env[key], key)
 })
