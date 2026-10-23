@@ -59,8 +59,12 @@ function betaDeploymentRoutes({ pulls = [mergedPull()], deployments = [deploymen
     ...checksRoute(greenGates()),
     [/\/commits\/[a-f0-9]{40}\/pulls\?/, () => response(pulls)],
     [/\/actions\/workflows\//, url => {
-      const path = deployWorkflows.find(candidate => url.includes(candidate))
-      const wasTriggered = path !== undefined && registered.includes(path)
+      // The live endpoint accepts only a workflow id or file name; a
+      // repo-relative path 404s. Match the request the way the API would.
+      const segment = url.match(/\/actions\/workflows\/([^/]+)\/runs\?head_sha=/)?.[1]
+      const path = deployWorkflows.find(candidate => segment === candidate.split('/').pop())
+      assert.ok(path, `workflow-runs request must use the workflow file name, got ${url}`)
+      const wasTriggered = registered.includes(path)
       return response({ total_count: wasTriggered ? 1 : 0, workflow_runs: wasTriggered ? [workflowRun(path)] : [] })
     }],
     [/\/deployments\?sha=/, () => response(deployments)],
