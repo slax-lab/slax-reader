@@ -78,6 +78,7 @@ The active `rss-local-first` change still describes the earlier `rss_user_ids`/`
 - A future PowerSync upgrade could change parameter-lookup planning; pin the service image and re-run the bounded-lookup checks on upgrade.
 - A user with hundreds of active collection subscriptions still contributes roughly two parameter rows per subscription and one bucket per owner/collection; the per-user limits remain, but they no longer depend on global table size.
 - `collection_bookmark_comment` still reads one owner's collection row by primary key through a subscription parameter; this is bounded by that single row, not the global collection count.
+- The fill trigger takes a share lock on the owner row while holding the collection row, while the propagation trigger holds the owner row and updates collections. A no-op `owner_id` update concurrent with owner deletion could deadlock. Nothing in the repository updates `owner_id`; keep it immutable or revisit the lock order before adding such a path.
 
 ## Verification
 

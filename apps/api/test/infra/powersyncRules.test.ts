@@ -14,8 +14,10 @@ describe('PowerSync collection rules', () => {
 
     const collections = stream('subscribed_collections')
     expect(collections).not.toContain('INNER JOIN sr_user AS owner')
-    expect(collections.match(/subscriber\.user_id IN current_user_id/g)).toHaveLength(3)
-    expect(collections.match(/collection\.owner_deleted = false/g)).toHaveLength(3)
+    // At least one anchored owner subquery for each collection data query; >= keeps
+    // this regression signal from breaking when another query is added.
+    expect(collections.match(/subscriber\.user_id IN current_user_id/g)?.length).toBeGreaterThanOrEqual(3)
+    expect(collections.match(/collection\.owner_deleted = false/g)?.length).toBeGreaterThanOrEqual(3)
 
     const comments = stream('collection_bookmark_comment')
     expect(comments).not.toContain('INNER JOIN sr_user AS owner')

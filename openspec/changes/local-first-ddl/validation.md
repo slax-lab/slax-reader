@@ -14,7 +14,7 @@
 
 ## Running-environment exercise
 
-An isolated `journeyapps/powersync-service` 1.26.1 instance with a PostgreSQL source and a dedicated storage database was used to exercise the final rules and the `owner_deleted` migration. A fresh database applied all 53 migrations, including `20261022043051_local_first_ddl`, before the fixture was loaded. The fixture had 1,101 active users, 1,100 collections, 1,101 collection subscription rows (1,100 unrelated to the test user), one starred bookmark/comment, 1,101 RSS-enabled users, and four RSS feeds.
+An isolated `journeyapps/powersync-service` 1.26.1 instance with a PostgreSQL source and a dedicated storage database was used to exercise the final rules and the `owner_deleted` migration. A fresh database applied all 53 migrations, including `20261022043051_local_first_ddl`, before the fixture was loaded. The fixture had 1,101 active users, 1,100 open collections, 1,101 collection subscription rows (1,100 unrelated to the test user), one starred bookmark/comment, 1,101 RSS-enabled users, and four RSS feeds. The open-collection count exceeded the 1,000 parameter limit while the test user subscribed to one collection.
 
 | Scenario | Default stream buckets | Default stream `param_results` | Collection comment buckets | Collection comment `param_results` |
 | --- | --- | --- | --- | --- |
