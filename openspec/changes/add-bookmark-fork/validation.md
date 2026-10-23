@@ -1,5 +1,13 @@
 # Current acceptance status — 2026-10-23 (Asia/Shanghai)
 
+## Sharing-access review verification
+
+The automated review of `c5bbed8a` incorrectly evaluated `!false` as `false` and reported an inverted sharing check. PostgreSQL defines `snapshot_sharing` as `BOOLEAN NOT NULL`; Prisma exposes it as `Boolean`. For both permitted values, `!owner.snapshot_sharing` and `owner.snapshot_sharing !== true` are equivalent. No production predicate change is required.
+
+Added `test/infra/bookmarkForkAccess.test.ts`, invoking the real `BookmarkForkRepo.source()` and `sourceById()` methods with database-result doubles. Eight cases cover anonymous and signed-in non-owners, global sharing enabled/disabled, and explicit per-bookmark overrides in both directions. These are repository-level permission checks, not live HTTP or database tests. `pnpm api -- test test/infra/bookmarkForkAccess.test.ts test/domain/bookmarkAccessSecurity.test.ts test/domain/bookmarkFork.test.ts test/handler/bookmarkForkController.test.ts` passed: 4 files, 66 tests. Local Bugs, Security and Compliance review found no Important issues in this test-only addition; the existing inaccessible-source scenario in `add-bookmark-fork` remains unchanged. The tested application code and human acceptance below remain unchanged.
+
+## Owner confirmation
+
 **Human hands-on acceptance is complete for the current fixed-path/asynchronous Fork implementation.** The requesting project owner tested the primary local checkout on `feat/add-bookmark-fork` at `21124615` (application code from `5b0f503c`) and confirmed in this task: “I tested it locally; it meets expectations.” No further functional or UI adjustment was requested; the follow-up request was to clear the CI failure. This acceptance covers the current implementation, including the previously requested asynchronous/no-navigation interaction, and closes R19. It is the owner's overall confirmation, not a claim that they individually enumerated every automated format/theme/device scenario.
 
 The owner had explicitly requested pushing first and testing locally afterward, so this acceptance occurred after that authorized PR update and before merge. The older pending-acceptance statements below are historical checkpoints superseded by this record. No business code changed after acceptance. The failure on head `21124615` was solely the review verdict's missing-acceptance Compliance finding; API/Web/Extension/CLI/Mobile and tooling checks had passed. This documentation-only correction updates the evidence and PR body, then requests fresh review without changing the gate or its rules. Remaining declared runtime gaps are unchanged.
