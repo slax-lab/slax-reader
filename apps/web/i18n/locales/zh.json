@@ -3,7 +3,32 @@
     "local_upload": "本地上传",
     "page_spacing": "显示页间距",
     "original_colors": "原色",
-    "reader": "PDF 阅读器", "controls": "PDF 阅读控制", "previous": "上一页", "next": "下一页", "page": "页码", "fit": "适合宽度", "zoom_out": "缩小", "zoom_in": "放大", "loading": "正在加载 PDF…", "retry": "重试", "load_failed": "无法打开此 PDF，请重试或上传有效文件。", "password": "暂不支持密码保护的 PDF。", "highlight": "划线", "remove_highlight": "删除划线", "comment": "评论", "ask_ai": "问 AI", "selection_actions": "选中文字操作", "selection_invalid": "无法定位选中文字，请重新选择。", "text_pending": "正在提取 PDF 文字以供 AI 分析…", "text_empty": "暂无可分析文字，扫描件仍可正常预览。", "text_failed": "PDF 文字提取失败，仍可正常预览文件。", "quote_not_found": "未能在 PDF 中定位这段引用。", "upload": "上传 PDF", "upload_limit": "单个 PDF，最大 50 MiB", "invalid_file": "请选择 PDF 文件。", "upload_failed": "PDF 上传失败，请重试。"
+    "reader": "PDF 阅读器",
+    "controls": "PDF 阅读控制",
+    "previous": "上一页",
+    "next": "下一页",
+    "page": "页码",
+    "fit": "适合宽度",
+    "zoom_out": "缩小",
+    "zoom_in": "放大",
+    "loading": "正在加载 PDF…",
+    "retry": "重试",
+    "load_failed": "无法打开此 PDF，请重试或上传有效文件。",
+    "password": "暂不支持密码保护的 PDF。",
+    "highlight": "划线",
+    "remove_highlight": "删除划线",
+    "comment": "评论",
+    "ask_ai": "问 AI",
+    "selection_actions": "选中文字操作",
+    "selection_invalid": "无法定位选中文字，请重新选择。",
+    "text_pending": "正在提取 PDF 文字以供 AI 分析…",
+    "text_empty": "暂无可分析文字，扫描件仍可正常预览。",
+    "text_failed": "PDF 文字提取失败，仍可正常预览文件。",
+    "quote_not_found": "未能在 PDF 中定位这段引用。",
+    "upload": "上传 PDF",
+    "upload_limit": "单个 PDF，最大 50 MiB",
+    "invalid_file": "请选择 PDF 文件。",
+    "upload_failed": "PDF 上传失败，请重试。"
   },
   "common": {
     "app": {
@@ -1281,6 +1306,10 @@
         "podcast": {
           "name": "播客文字稿",
           "desc": "收藏一集播客（小宇宙、Apple Podcasts、RSS 或音频链接），读整理好的文字稿：分段、说话人、时间戳。可以在页面里播放，从任意段落开始听。外语节目会附译文。只支持中文和英文，3 小时以内，每天 5 集新节目。"
+        },
+        "newsletter": {
+          "name": "Newsletter",
+          "desc": "用你的专属邮箱接收 Newsletter，在 Feed 中阅读。"
         }
       },
       "navigation": {
@@ -1350,10 +1379,10 @@
     }
   },
   "rss": {
-    "history_end": "目前收录 {count} 篇，未发现更多 RSS 分页链接。",
+    "history_end": "已收集 {count} 篇内容。",
     "history_retry": "较早文章暂时加载失败，请稍后重试。",
     "history_loading": "正在收录较早文章，请稍后继续加载。",
-    "title": "RSS 订阅",
+    "title": "Feed",
     "labs": "实验室",
     "description": "订阅感兴趣的内容，挑选值得细读的文章收藏到收件箱。",
     "empty_hint": "添加你喜欢的网站或博客，更新的文章会出现在这里。",
@@ -1374,7 +1403,7 @@
     "search_hint": "搜索当前已加载的文章，可加载更多继续查找。",
     "settings": "实验室设置",
     "inbox": "收件箱",
-    "enable_hint": "在实验室设置中开启 RSS，添加自己的订阅源。",
+    "enable_hint": "在 Labs 开启 RSS 或 Newsletter，让新内容汇集于此。",
     "url": "RSS / Atom 地址",
     "add": "添加订阅",
     "all": "全部订阅",
@@ -1425,5 +1454,29 @@
     "invalid": "此 KOC 邀请已失效。",
     "received": "你已经领取过 KOC 推荐奖励。",
     "unavailable": "当前订阅暂时无法领取此奖励，可稍后重新确认。"
+  },
+  "newsletter": {
+    "title": "你的 Newsletter 邮箱",
+    "description": "使用此地址订阅 Newsletter，新邮件会出现在 Feed 中。",
+    "account_label": "设置账户名称",
+    "account_hint": "账户名称将用于 {domain} 的邮箱地址。请谨慎选择，邮箱创建后地址保持不变。",
+    "create": "创建 Newsletter 邮箱",
+    "copy": "复制地址",
+    "copied": "已复制",
+    "address_stable": "之后修改账户名称，邮箱地址也不会改变。",
+    "privacy": "远程图片通过 Slax 图片代理加载。打开邮件仍可能被发件人记为已读。不导入附件。",
+    "content_hint": "通过邮件接收的内容。远程图片使用 Slax 图片代理。",
+    "errors": {
+      "account_taken": "这个用户名已被使用，请换一个名字。",
+      "address_reserved": "此 Newsletter 邮箱地址已被保留，请选择其他账户名称。",
+      "account_required": "请先设置账户名称，再创建邮箱。",
+      "invalid_account": "此账户名称无法用于 Newsletter 邮箱，请输入有效名称。",
+      "lab_disabled": "请在 Labs 开启 Newsletter 后创建邮箱。",
+      "unavailable": "暂时无法接收 Newsletter，请稍后重试。",
+      "copy_failed": "复制失败，请选中上方地址手动复制。"
+    },
+    "management_hint": "暂不支持管理 Newsletter 发件人、保存到收件箱或自动退订。",
+    "no_messages": "还没有 Newsletter",
+    "empty_hint": "使用上方邮箱订阅 Newsletter，新邮件会出现在这里。"
   }
 }

@@ -81,16 +81,18 @@ export class RssRepo {
   private async subscription(tx: Tx, userId: number, id: string): Promise<RssSubscriptionRow> {
     const [row] = await tx.$queryRaw<
       RssSubscriptionRow[]
-    >`SELECT f.*,s.id,s.feed_id,s.user_id,s.remark FROM sr_rss_subscription s JOIN sr_rss_feed f ON f.id=s.feed_id WHERE s.id=${id} AND s.user_id=${userId}`
+    >`SELECT f.*,s.id,s.feed_id,s.user_id,s.remark FROM sr_rss_subscription s JOIN sr_rss_feed f ON f.id=s.feed_id WHERE f.kind='rss' AND s.id=${id} AND s.user_id=${userId}`
     if (!row) throw new RssError('not_found', 404)
     return row
   }
   async subscriptions(userId: number): Promise<RssSubscriptionRow[]> {
     return this.prismaPg()
-      .$queryRaw`SELECT f.*,s.id,s.feed_id,s.user_id,s.remark FROM sr_rss_subscription s JOIN sr_rss_feed f ON f.id=s.feed_id WHERE s.user_id=${userId} AND EXISTS(SELECT 1 FROM sr_user u WHERE u.id=s.user_id AND u.deleted_at IS NULL) ORDER BY s.created_at,s.id`
+      .$queryRaw`SELECT f.*,s.id,s.feed_id,s.user_id,s.remark FROM sr_rss_subscription s JOIN sr_rss_feed f ON f.id=s.feed_id WHERE f.kind='rss' AND s.user_id=${userId} AND EXISTS(SELECT 1 FROM sr_user u WHERE u.id=s.user_id AND u.deleted_at IS NULL) ORDER BY s.created_at,s.id`
   }
   private async quota(tx: Tx, userId: number) {
-    const [row] = await tx.$queryRaw<{ count: bigint }[]>`SELECT count(*) FROM sr_rss_subscription WHERE user_id=${userId}`
+    const [row] = await tx.$queryRaw<
+      { count: bigint }[]
+    >`SELECT count(*) FROM sr_rss_subscription s JOIN sr_rss_feed f ON f.id=s.feed_id WHERE s.user_id=${userId} AND f.kind='rss'`
     if (Number(row.count) >= RSS_LIMITS.subscriptions) throw new RssError('limit_reached', 409)
   }
   private async attach(tx: Tx, userId: number, feedId: string, remark: string | null) {
@@ -106,10 +108,10 @@ export class RssRepo {
       await this.active(tx, userId)
       const [existing] = await tx.$queryRaw<
         { id: string }[]
-      >`SELECT s.id FROM sr_rss_subscription s JOIN sr_rss_feed f ON f.id=s.feed_id WHERE s.user_id=${userId} AND f.feed_url=${url}`
+      >`SELECT s.id FROM sr_rss_subscription s JOIN sr_rss_feed f ON f.id=s.feed_id WHERE f.kind='rss' AND s.user_id=${userId} AND f.feed_url=${url}`
       if (existing) return this.subscription(tx, userId, existing.id)
       await this.quota(tx, userId)
-      const [feed] = await tx.$queryRaw<RssFeedRow[]>`SELECT * FROM sr_rss_feed WHERE feed_url=${url} FOR UPDATE`
+      const [feed] = await tx.$queryRaw<RssFeedRow[]>`SELECT * FROM sr_rss_feed WHERE feed_url=${url} AND kind='rss' FOR UPDATE`
       if (feed?.last_success_at) return this.attach(tx, userId, feed.id, remark)
       if (feed?.lease_until && feed.lease_until > new Date()) throw new RssError('refresh_limited', 429, feed.lease_until)
       return null
@@ -121,11 +123,12 @@ export class RssRepo {
       await this.active(tx, userId)
       const [existing] = await tx.$queryRaw<
         { id: string }[]
-      >`SELECT s.id FROM sr_rss_subscription s JOIN sr_rss_feed f ON f.id=s.feed_id WHERE s.user_id=${userId} AND f.feed_url=${url}`
+      >`SELECT s.id FROM sr_rss_subscription s JOIN sr_rss_feed f ON f.id=s.feed_id WHERE f.kind='rss' AND s.user_id=${userId} AND f.feed_url=${url}`
       if (existing) return { subscription: await this.subscription(tx, userId, existing.id) }
       await this.quota(tx, userId)
-      await tx.$executeRaw`INSERT INTO sr_rss_feed(feed_url) VALUES(${url}) ON CONFLICT(feed_url) DO UPDATE SET feed_url=EXCLUDED.feed_url`
-      const [feed] = await tx.$queryRaw<RssFeedRow[]>`SELECT * FROM sr_rss_feed WHERE feed_url=${url} FOR UPDATE`
+      await tx.$executeRaw`INSERT INTO sr_rss_feed(feed_url) VALUES(${url}) ON CONFLICT(feed_url) DO NOTHING`
+      const [feed] = await tx.$queryRaw<RssFeedRow[]>`SELECT * FROM sr_rss_feed WHERE feed_url=${url} AND kind='rss' FOR UPDATE`
+      if (!feed) throw new RssError('not_found', 404)
       if (feed.last_success_at) return { subscription: await this.attach(tx, userId, feed.id, remark) }
       const now = new Date()
       if (feed.lease_until && feed.lease_until > now) throw new RssError('refresh_limited', 429, feed.lease_until)
@@ -147,6 +150,7 @@ export class RssRepo {
   async updateRemark(userId: number, id: string, remark: string | null) {
     return this.prismaPg().$transaction(async tx => {
       await this.active(tx, userId)
+      await this.subscription(tx, userId, id)
       await tx.$executeRaw`UPDATE sr_rss_subscription SET remark=${remark} WHERE id=${id} AND user_id=${userId}`
       return this.subscription(tx, userId, id)
     })
@@ -156,7 +160,7 @@ export class RssRepo {
       await this.active(tx, userId)
       const [feed] = await tx.$queryRaw<
         RssFeedRow[]
-      >`SELECT f.* FROM sr_rss_feed f JOIN sr_rss_subscription s ON s.feed_id=f.id WHERE s.id=${id} AND s.user_id=${userId} FOR UPDATE OF f`
+      >`SELECT f.* FROM sr_rss_feed f JOIN sr_rss_subscription s ON s.feed_id=f.id WHERE f.kind='rss' AND s.id=${id} AND s.user_id=${userId} FOR UPDATE OF f`
       if (!feed) return
       await tx.$executeRaw`DELETE FROM sr_rss_subscription WHERE id=${id} AND user_id=${userId}`
       await tx.$executeRaw`UPDATE sr_rss_feed f SET lease_token=NULL,lease_until=NULL WHERE f.id=${feed.id} AND NOT EXISTS (SELECT 1 FROM sr_rss_subscription s JOIN sr_user u ON u.id=s.user_id AND u.deleted_at IS NULL JOIN sr_user_lab_feature l ON l.user_id=s.user_id AND l.feature='rss' AND l.enabled WHERE s.feed_id=f.id)`
@@ -168,7 +172,7 @@ export class RssRepo {
       next = new Date(Date.now() + RSS_LIMITS.cooldownMs)
     const [row] = await tx.$queryRaw<
       RssFeedRow[]
-    >`UPDATE sr_rss_feed SET lease_token=${token},lease_until=${until},next_allowed_at=CASE WHEN ${history} THEN next_allowed_at ELSE ${next} END WHERE id=${id} RETURNING *`
+    >`UPDATE sr_rss_feed SET lease_token=${token},lease_until=${until},next_allowed_at=CASE WHEN ${history} THEN next_allowed_at ELSE ${next} END WHERE id=${id} AND kind='rss' RETURNING *`
     return { ...row, claimed: true }
   }
   async claim(userId: number, id: string): Promise<RssFeedRow> {
@@ -176,7 +180,7 @@ export class RssRepo {
       await this.active(tx, userId)
       const [row] = await tx.$queryRaw<
         RssFeedRow[]
-      >`SELECT f.* FROM sr_rss_feed f JOIN sr_rss_subscription s ON s.feed_id=f.id WHERE s.user_id=${userId} AND s.id=${id} FOR UPDATE OF f`
+      >`SELECT f.* FROM sr_rss_feed f JOIN sr_rss_subscription s ON s.feed_id=f.id WHERE f.kind='rss' AND s.user_id=${userId} AND s.id=${id} FOR UPDATE OF f`
       if (!row) throw new RssError('not_found', 404)
       const now = new Date()
       if (row.lease_token && row.lease_until && row.lease_until > now) return { ...row, claimed: false }
@@ -187,12 +191,12 @@ export class RssRepo {
   async hasActiveSubscribers(id: string, tx: Tx = this.prismaPg()): Promise<boolean> {
     const [row] = await tx.$queryRaw<
       { active: boolean }[]
-    >`SELECT EXISTS(SELECT 1 FROM sr_rss_subscription s JOIN sr_user u ON u.id=s.user_id AND u.deleted_at IS NULL JOIN sr_user_lab_feature l ON l.user_id=s.user_id AND l.feature='rss' AND l.enabled WHERE s.feed_id=${id}) AS active`
+    >`SELECT EXISTS(SELECT 1 FROM sr_rss_subscription s JOIN sr_rss_feed f ON f.id=s.feed_id AND f.kind='rss' JOIN sr_user u ON u.id=s.user_id AND u.deleted_at IS NULL JOIN sr_user_lab_feature l ON l.user_id=s.user_id AND l.feature='rss' AND l.enabled WHERE s.feed_id=${id}) AS active`
     return row.active
   }
   async historyFeeds(userId: number, subscription: string | null): Promise<RssFeedRow[]> {
     return this.prismaPg().$queryRaw`SELECT f.* FROM sr_rss_feed f JOIN sr_rss_subscription s ON s.feed_id=f.id
-      WHERE s.user_id=${userId} AND (${subscription}::text IS NULL OR s.id=${subscription})
+      WHERE f.kind='rss' AND s.user_id=${userId} AND (${subscription}::text IS NULL OR s.id=${subscription})
         AND EXISTS(SELECT 1 FROM sr_user u WHERE u.id=s.user_id AND u.deleted_at IS NULL)
       ORDER BY f.history_checked_at ASC NULLS FIRST,f.id`
   }
@@ -200,7 +204,7 @@ export class RssRepo {
     return this.prismaPg().$transaction(async tx => {
       await this.active(tx, userId)
       const [row] = await tx.$queryRaw<RssFeedRow[]>`SELECT f.* FROM sr_rss_feed f JOIN sr_rss_subscription s ON s.feed_id=f.id
-        WHERE s.user_id=${userId} AND f.id=${feedId} FOR UPDATE OF f`
+        WHERE f.kind='rss' AND s.user_id=${userId} AND f.id=${feedId} FOR UPDATE OF f`
       if (!row) throw new RssError('not_found', 404)
       const now = new Date()
       if (row.history_checked_at && !row.history_url) return null
@@ -213,12 +217,12 @@ export class RssRepo {
       async tx => {
         if (!(await this.lockLease(tx, row))) return false
         if (!(await this.hasActiveSubscribers(row.id, tx))) {
-          await tx.$executeRaw`UPDATE sr_rss_feed SET lease_token=NULL,lease_until=NULL WHERE id=${row.id}`
+          await tx.$executeRaw`UPDATE sr_rss_feed SET lease_token=NULL,lease_until=NULL WHERE kind='rss' AND id=${row.id}`
           return false
         }
         if (result instanceof RssError || result.unchanged) {
           const retry = new Date(Math.max(Date.now() + 60_000, result instanceof RssError ? result.nextAllowedAt?.valueOf() || 0 : 0))
-          await tx.$executeRaw`UPDATE sr_rss_feed SET history_retry_at=${retry},lease_token=NULL,lease_until=NULL WHERE id=${row.id}`
+          await tx.$executeRaw`UPDATE sr_rss_feed SET history_retry_at=${retry},lease_token=NULL,lease_until=NULL WHERE kind='rss' AND id=${row.id}`
           return false
         }
         const [oldest] = await tx.$queryRaw<{ at: Date | null }[]>`SELECT min(sort_at) AS at FROM sr_rss_entry WHERE feed_id=${row.id}`
@@ -227,7 +231,7 @@ export class RssRepo {
         const seen = [...new Set([...(row.history_seen || []), await hashSHA256(url)])]
         const nextUrl = result.feed.next_url || null
         const next = nextUrl && seen.length < RSS_LIMITS.historyPages && !seen.includes(await hashSHA256(nextUrl)) ? nextUrl : null
-        await tx.$executeRaw`UPDATE sr_rss_feed SET history_url=${next},history_seen=${seen}::text[],history_checked_at=${new Date()},history_retry_at=NULL,lease_token=NULL,lease_until=NULL WHERE id=${row.id}`
+        await tx.$executeRaw`UPDATE sr_rss_feed SET history_url=${next},history_seen=${seen}::text[],history_checked_at=${new Date()},history_retry_at=NULL,lease_token=NULL,lease_until=NULL WHERE kind='rss' AND id=${row.id}`
         return true
       },
       { timeout: 30_000 }
@@ -238,26 +242,26 @@ export class RssRepo {
       until = new Date(now.valueOf() + 90_000),
       next = new Date(now.valueOf() + RSS_LIMITS.cooldownMs)
     return this.prismaPg().$queryRaw`UPDATE sr_rss_feed SET lease_token=gen_random_uuid()::text,lease_until=${until},next_allowed_at=${next}
-      WHERE id IN (SELECT f.id FROM sr_rss_feed f WHERE f.next_fetch_at<=${now} AND f.next_allowed_at<=${now} AND (f.lease_until IS NULL OR f.lease_until<=${now})
+      WHERE id IN (SELECT f.id FROM sr_rss_feed f WHERE f.kind='rss' AND f.next_fetch_at<=${now} AND f.next_allowed_at<=${now} AND (f.lease_until IS NULL OR f.lease_until<=${now})
         AND EXISTS (SELECT 1 FROM sr_rss_subscription s JOIN sr_user u ON u.id=s.user_id AND u.deleted_at IS NULL JOIN sr_user_lab_feature l ON l.user_id=s.user_id AND l.feature='rss' AND l.enabled WHERE s.feed_id=f.id)
         ORDER BY f.next_fetch_at LIMIT 10 FOR UPDATE OF f SKIP LOCKED) RETURNING *`
   }
   private async lockLease(tx: Tx, row: RssFeedRow) {
-    const locked = await tx.$queryRaw`SELECT id FROM sr_rss_feed WHERE id=${row.id} AND lease_token=${row.lease_token} AND lease_until>${new Date()} FOR UPDATE`
+    const locked = await tx.$queryRaw`SELECT id FROM sr_rss_feed WHERE kind='rss' AND id=${row.id} AND lease_token=${row.lease_token} AND lease_until>${new Date()} FOR UPDATE`
     return (locked as unknown[]).length > 0
   }
   async failAdd(row: RssFeedRow, error: RssError) {
     await this.prismaPg().$transaction(async tx => {
       // A failed initial write can outlive its lease. Clean it only if no new owner took over.
-      const owned = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM sr_rss_feed WHERE id=${row.id} AND lease_token=${row.lease_token} FOR UPDATE`
+      const owned = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM sr_rss_feed WHERE kind='rss' AND id=${row.id} AND lease_token=${row.lease_token} FOR UPDATE`
       if (!owned.length) return
-      const deleted = await tx.$queryRaw<{ id: string }[]>`DELETE FROM sr_rss_feed f WHERE f.id=${row.id}
+      const deleted = await tx.$queryRaw<{ id: string }[]>`DELETE FROM sr_rss_feed f WHERE f.kind='rss' AND f.id=${row.id}
         AND f.last_success_at IS NULL AND NOT EXISTS(SELECT 1 FROM sr_rss_subscription s WHERE s.feed_id=f.id)
         AND NOT EXISTS(SELECT 1 FROM sr_rss_entry e WHERE e.feed_id=f.id) RETURNING id`
       if (deleted.length) return
       if (['lab_disabled', 'not_found', 'limit_reached'].includes(error.code)) {
         // A caller losing access or quota is not a failure of the shared source.
-        await tx.$executeRaw`UPDATE sr_rss_feed SET lease_token=NULL,lease_until=NULL,next_allowed_at=${new Date()} WHERE id=${row.id}`
+        await tx.$executeRaw`UPDATE sr_rss_feed SET lease_token=NULL,lease_until=NULL,next_allowed_at=${new Date()} WHERE kind='rss' AND id=${row.id}`
       } else await this.writeFailure(tx, row, error)
     })
   }
@@ -265,7 +269,7 @@ export class RssRepo {
     const now = new Date(),
       backoff = Math.min(24 * 3600_000, RSS_LIMITS.intervalMs * 2 ** Math.min(row.failure_count, 6))
     const next = new Date(Math.max(now.valueOf() + backoff, error.nextAllowedAt?.valueOf() || 0))
-    await tx.$executeRaw`UPDATE sr_rss_feed SET error=${error.code},failure_count=failure_count+1,last_checked_at=${now},next_fetch_at=${next},next_allowed_at=${next},lease_token=NULL,lease_until=NULL WHERE id=${row.id}`
+    await tx.$executeRaw`UPDATE sr_rss_feed SET error=${error.code},failure_count=failure_count+1,last_checked_at=${now},next_fetch_at=${next},next_allowed_at=${next},lease_token=NULL,lease_until=NULL WHERE kind='rss' AND id=${row.id}`
   }
   /** `icon` is the signed favicon URL for local clients; null keeps the stored value. */
   async finish(row: RssFeedRow, result: StoredFeedResult | RssError, icon: string | null = null): Promise<boolean> {
@@ -273,7 +277,7 @@ export class RssRepo {
       async tx => {
         if (!(await this.lockLease(tx, row))) return false
         if (!(await this.hasActiveSubscribers(row.id, tx))) {
-          await tx.$executeRaw`UPDATE sr_rss_feed SET lease_token=NULL,lease_until=NULL WHERE id=${row.id}`
+          await tx.$executeRaw`UPDATE sr_rss_feed SET lease_token=NULL,lease_until=NULL WHERE kind='rss' AND id=${row.id}`
           return false
         }
         if (result instanceof RssError) await this.writeFailure(tx, row, result)
@@ -300,16 +304,16 @@ export class RssRepo {
       next = new Date(now.valueOf() + RSS_LIMITS.intervalMs)
     if (!result.unchanged) {
       await this.writeItems(tx, id, result.feed.items)
-      await tx.$executeRaw`UPDATE sr_rss_feed SET title=${result.feed.title},site_url=${result.feed.site_url},etag=${result.etag},last_modified=${result.lastModified} WHERE id=${id}`
-      const [feed] = await tx.$queryRaw<RssFeedRow[]>`SELECT * FROM sr_rss_feed WHERE id=${id}`
+      await tx.$executeRaw`UPDATE sr_rss_feed SET title=${result.feed.title},site_url=${result.feed.site_url},etag=${result.etag},last_modified=${result.lastModified} WHERE kind='rss' AND id=${id}`
+      const [feed] = await tx.$queryRaw<RssFeedRow[]>`SELECT * FROM sr_rss_feed WHERE kind='rss' AND id=${id}`
       if (!feed.history_checked_at || (!feed.history_url && feed.history_seen.length <= 1)) {
         const seen = [await hashSHA256(feed.feed_url)]
         const candidate = result.feed.next_url || null
         const nextUrl = candidate && !seen.includes(await hashSHA256(candidate)) ? candidate : null
-        await tx.$executeRaw`UPDATE sr_rss_feed SET history_url=${nextUrl},history_seen=${seen}::text[],history_checked_at=${now},history_retry_at=NULL WHERE id=${id}`
+        await tx.$executeRaw`UPDATE sr_rss_feed SET history_url=${nextUrl},history_seen=${seen}::text[],history_checked_at=${now},history_retry_at=NULL WHERE kind='rss' AND id=${id}`
       }
     }
-    await tx.$executeRaw`UPDATE sr_rss_feed SET error=NULL,failure_count=0,last_checked_at=${now},last_success_at=${now},next_fetch_at=${next},lease_token=NULL,lease_until=NULL,icon_url=COALESCE(${icon}::text,icon_url) WHERE id=${id}`
+    await tx.$executeRaw`UPDATE sr_rss_feed SET error=NULL,failure_count=0,last_checked_at=${now},last_success_at=${now},next_fetch_at=${next},lease_token=NULL,lease_until=NULL,icon_url=COALESCE(${icon}::text,icon_url) WHERE kind='rss' AND id=${id}`
   }
   async prune() {
     const before = new Date(Date.now() - RSS_LIMITS.retentionDays * 24 * 3600_000),
@@ -325,9 +329,9 @@ export class RssRepo {
         await tx.$executeRaw`DELETE FROM sr_rss_feed WHERE id=${row.id} AND NOT EXISTS(SELECT 1 FROM sr_rss_subscription WHERE feed_id=${row.id})`
       }
       await tx.$executeRaw`UPDATE sr_rss_feed SET history_url=NULL,history_seen=ARRAY[]::text[],history_checked_at=NULL,history_retry_at=NULL
-        WHERE (history_checked_at<${before} OR id IN (SELECT feed_id FROM sr_rss_entry WHERE first_seen_at<${before}))
+        WHERE kind='rss' AND (history_checked_at<${before} OR id IN (SELECT feed_id FROM sr_rss_entry WHERE first_seen_at<${before}))
           AND (lease_until IS NULL OR lease_until<=${new Date()})`
-      await tx.$executeRaw`DELETE FROM sr_rss_entry e USING sr_rss_feed f WHERE f.id=e.feed_id AND e.first_seen_at<${before}
+      await tx.$executeRaw`DELETE FROM sr_rss_entry e USING sr_rss_feed f WHERE f.kind='rss' AND f.id=e.feed_id AND e.first_seen_at<${before}
         AND (f.lease_until IS NULL OR f.lease_until<=${new Date()})`
       await tx.$executeRaw`DELETE FROM sr_rss_save_job j WHERE NOT EXISTS(SELECT 1 FROM sr_bookmark b JOIN sr_user u ON u.id=j.user_id AND u.deleted_at IS NULL WHERE b.id=j.bookmark_id)`
     })
@@ -341,7 +345,7 @@ export class RssRepo {
       FROM sr_rss_entry e JOIN sr_rss_feed f ON f.id=e.feed_id JOIN sr_rss_subscription s ON s.feed_id=e.feed_id
       LEFT JOIN sr_bookmark b ON b.target_url=e.article_url AND b.private_user=${userId}
       LEFT JOIN sr_user_bookmark ub ON ub.bookmark_id=b.id AND ub.user_id=${userId} AND ub.deleted_at IS NULL
-      WHERE s.user_id=${userId} AND EXISTS(SELECT 1 FROM sr_user u WHERE u.id=s.user_id AND u.deleted_at IS NULL) AND (${subscription}::text IS NULL OR s.id=${subscription})
+      WHERE f.kind='rss' AND s.user_id=${userId} AND EXISTS(SELECT 1 FROM sr_user u WHERE u.id=s.user_id AND u.deleted_at IS NULL) AND (${subscription}::text IS NULL OR s.id=${subscription})
         AND (${cursor?.at || null}::timestamp IS NULL OR (e.sort_at,e.id)<(${cursor?.at || null}::timestamp,${cursor?.id || ''}::text) OR (${withHistory} AND e.is_history))
       ORDER BY e.sort_at DESC,e.id DESC LIMIT ${limit}`
   }
@@ -351,12 +355,14 @@ export class RssRepo {
     >`SELECT e.*,s.id AS subscription_id,COALESCE(NULLIF(s.remark,''),f.title) AS source_title,ub.uuid AS bookmark_user_uuid
       FROM sr_rss_entry e JOIN sr_rss_feed f ON f.id=e.feed_id JOIN sr_rss_subscription s ON s.feed_id=e.feed_id
       LEFT JOIN sr_bookmark b ON b.target_url=e.article_url AND b.private_user=${userId}
-      LEFT JOIN sr_user_bookmark ub ON ub.bookmark_id=b.id AND ub.user_id=${userId} AND ub.deleted_at IS NULL WHERE s.user_id=${userId} AND EXISTS(SELECT 1 FROM sr_user u WHERE u.id=s.user_id AND u.deleted_at IS NULL) AND e.id=${id}`
+      LEFT JOIN sr_user_bookmark ub ON ub.bookmark_id=b.id AND ub.user_id=${userId} AND ub.deleted_at IS NULL WHERE f.kind='rss' AND s.user_id=${userId} AND EXISTS(SELECT 1 FROM sr_user u WHERE u.id=s.user_id AND u.deleted_at IS NULL) AND e.id=${id}`
     if (!row) throw new RssError('not_found', 404)
     return row
   }
   async contentKeys(feedId: string): Promise<Map<string, string>> {
-    const rows = await this.prismaPg().$queryRaw<{ entry_key: string; content_key: string }[]>`SELECT entry_key,content_key FROM sr_rss_entry WHERE feed_id=${feedId}`
+    const rows = await this.prismaPg().$queryRaw<
+      { entry_key: string; content_key: string }[]
+    >`SELECT e.entry_key,e.content_key FROM sr_rss_entry e JOIN sr_rss_feed f ON f.id=e.feed_id WHERE f.kind='rss' AND e.feed_id=${feedId}`
     return new Map(rows.map(row => [row.entry_key, row.content_key]))
   }
   async referencedContent(keys: string[]): Promise<string[]> {
@@ -371,8 +377,8 @@ export class RssRepo {
   async save(userId: number, id: string, targetUrl: string): Promise<RssSaveResponse> {
     return this.prismaPg().$transaction(async tx => {
       await this.active(tx, userId)
-      const [entry] = await tx.$queryRaw<RssEntryRow[]>`SELECT e.* FROM sr_rss_entry e JOIN sr_rss_subscription s ON s.feed_id=e.feed_id
-        WHERE e.id=${id} AND s.user_id=${userId} AND e.article_url=${targetUrl} FOR SHARE OF e,s`
+      const [entry] = await tx.$queryRaw<RssEntryRow[]>`SELECT e.* FROM sr_rss_entry e JOIN sr_rss_feed f ON f.id=e.feed_id JOIN sr_rss_subscription s ON s.feed_id=e.feed_id
+        WHERE f.kind='rss' AND e.id=${id} AND s.user_id=${userId} AND e.article_url=${targetUrl} FOR SHARE OF e,s`
       if (!entry) throw new RssError('not_found', 404)
       const now = new Date()
       const bookmark = await tx.sr_bookmark.upsert({

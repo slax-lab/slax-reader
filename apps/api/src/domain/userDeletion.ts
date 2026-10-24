@@ -22,6 +22,10 @@ export class UserDeletionService {
     }
 
     try {
+      // Retire the reservation permanently; user deletion must never make an address reusable.
+      await this.prismaPg().$executeRaw`UPDATE sr_newsletter_address SET retired_at=COALESCE(retired_at,now()) WHERE user_id=${userId}`
+      await this.prismaPg()
+        .$executeRaw`UPDATE sr_newsletter_receipt SET state='cancelled',lease_token=NULL,lease_until=NULL,completed_at=now() WHERE user_id=${userId} AND state='pending'`
       await this.prismaPg().$executeRaw`DELETE FROM sr_rss_subscription WHERE user_id = ${userId}`
       await this.prismaPg().$executeRaw`DELETE FROM sr_rss_save_job WHERE user_id = ${userId}`
       await this.prismaPg().sr_user_api_key.deleteMany({ where: { user_id: userId } })

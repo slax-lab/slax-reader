@@ -1,7 +1,7 @@
 import { effectScope, nextTick, reactive, ref } from 'vue'
 
-import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { useRss } from '../../../app/composables/useRss'
+import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 let labs: any, user: any
@@ -25,7 +25,7 @@ const deferred = () => {
 }
 beforeEach(() => {
   const enabled = ref(true)
-  labs = { loaded: ref(true), features: ref([{ key: 'rss', enabled: true }]), isEnabled: () => enabled.value, fetch: vi.fn(), enabled }
+  labs = { loaded: ref(true), features: ref([{ key: 'rss', enabled: true }]), isEnabled: (key: string) => (key === 'rss' ? enabled.value : false), fetch: vi.fn(), enabled }
   user = reactive({ userInfo: { userId: 1 } })
   get.mockReset()
   get.mockImplementation(({ url }) => Promise.resolve(url.endsWith('/subscriptions') ? { items: [] } : { items: [], next_cursor: null }))
@@ -41,6 +41,59 @@ const create = () => {
   return scope.run(() => useRss())!
 }
 describe('RSS state', () => {
+  it('loads the unified Feed when only Newsletter is enabled and blocks RSS mutations', async () => {
+    labs.isEnabled = (key: string) => key === 'newsletter'
+    const rss = create()
+    const mail = {
+      ...entry,
+      id: 'mail',
+      kind: 'newsletter',
+      subscription_id: 'sender'
+    }
+    get
+      .mockResolvedValueOnce({
+        items: [{ id: 'sender', kind: 'newsletter', title: 'Daily' }]
+      })
+      .mockResolvedValueOnce({ items: [mail], next_cursor: null })
+    await rss.initialize()
+    expect(rss.enabled.value).toBe(true)
+    expect(rss.entries.value).toEqual([mail])
+    expect(get.mock.calls.map(([options]) => options.url)).toEqual(['/v1/feed/subscriptions', '/v1/feed/entries'])
+    await rss.open(mail as any)
+    expect(get.mock.calls.at(-1)![0].url).toBe('/v1/feed/entries/mail')
+    await rss.save(mail as any)
+    await rss.update('sender', 'Renamed')
+    await rss.remove('sender')
+    await rss.select('sender')
+    await rss.refresh()
+    await rss.add('https://example.com/rss')
+    expect(post).not.toHaveBeenCalled()
+  })
+  it('removes disabled Newsletter rows and preview while retaining RSS rows', async () => {
+    const newsletter = ref(true)
+    labs.isEnabled = (key: string) => key === 'rss' || newsletter.value
+    const rss = create()
+    const mail = { ...entry, id: 'mail', kind: 'newsletter' }
+    get.mockResolvedValueOnce({ items: [entry, mail], next_cursor: null })
+    await rss.reload()
+    rss.detail.value = mail as any
+    newsletter.value = false
+    await nextTick()
+    expect(rss.entries.value).toEqual([entry])
+    expect(rss.detail.value).toBeNull()
+  })
+
+  it('invalidates the combined cursor when a Lab is disabled', async () => {
+    const newsletter = ref(true)
+    labs.isEnabled = (key: string) => key === 'rss' || newsletter.value
+    const rss = create()
+    get.mockResolvedValueOnce({ items: [entry], next_cursor: 'mixed-kinds' })
+    await rss.reload()
+    newsletter.value = false
+    await nextTick()
+    await rss.reload(true)
+    expect(get.mock.calls[1][0].query.cursor).toBeUndefined()
+  })
   it('restores a cached feed immediately and ignores a late response from another feed', async () => {
     const rss = create(),
       late = deferred()

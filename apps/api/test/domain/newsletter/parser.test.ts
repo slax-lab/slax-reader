@@ -1,0 +1,92 @@
+import { describe, expect, test } from 'vitest'
+import { parseNewsletter, readNewsletterRaw, newsletterLocalPart, newsletterDomain } from '@/domain/newsletter/parser'
+
+const mail = (body: string, headers = '') =>
+  new TextEncoder().encode(
+    'From: =?UTF-8?B?5rWL6K+V?= <News@Example.com>\r\nSubject: Weekly\r\nMessage-ID: <one@example.com>\r\nDate: Thu, 22 Oct 2026 10:00:00 +0000\r\n' + headers + '\r\n' + body
+  )
+describe('bounded Newsletter input', () => {
+  test('canonical account and domain are validated without silently changing unsafe names', () => {
+    expect(newsletterLocalPart('Jane.Doe')).toBe('jane.doe')
+    for (const value of ['', '.jane', 'jane.', 'a..b', 'a+b', '你好', 'a'.repeat(65), ' a ']) expect(newsletterLocalPart(value)).toBeNull()
+    expect(newsletterDomain('Slax.Dev')).toBe('slax.dev')
+    for (const value of ['', 'https://slax.dev', 'slax.dev/path', 'a@slax.dev', 'slax.dev ', '-a.dev']) expect(newsletterDomain(value)).toBeNull()
+  })
+  test('parses encoded sender and keeps Message-ID separate from body fallback', async () => {
+    const value = await parseNewsletter(mail('hello <script>x</script>'))
+    expect(value.sender).toBe('news@example.com')
+    expect(value.sourceTitle).toBe('测试')
+    expect(value.title).toBe('Weekly')
+    expect(value.html).toContain('&lt;script&gt;')
+    expect(value.messageKey).toBe((await parseNewsletter(mail('changed'))).messageKey)
+  })
+  test('fallback identity includes stable body, sender, subject and date', async () => {
+    const raw = (body: string) => new TextEncoder().encode('From: Sender <a@example.com>\r\nSubject: Same\r\n\r\n' + body)
+    expect((await parseNewsletter(raw('one'))).messageKey).not.toBe((await parseNewsletter(raw('two'))).messageKey)
+    expect((await parseNewsletter(raw('one'))).messageKey).toBe((await parseNewsletter(raw('one'))).messageKey)
+  })
+  test('removes CID/relative images and unsafe embeds and reports truncation', async () => {
+    const value = await parseNewsletter(
+      mail(
+        '<script>x</script><img src="cid:one"><img src="/relative"><picture><source srcset="/tracker.png 1x"><img srcset="cid:part 2x"></picture><img src="https://example.com/a.png"><a href="/unsubscribe">relative</a><iframe src="https://bad.example"></iframe>',
+        'Content-Type: text/html\r\n'
+      )
+    )
+    expect(value.html).not.toMatch(/script|iframe|cid:|tracker\.png|rss\.invalid|\/relative|href="\/unsubscribe"/)
+    expect(value.html).toContain('https://example.com/a.png')
+    const big = await parseNewsletter(mail('<p>' + 'a'.repeat(250_000) + '</p>', 'Content-Type: text/html\r\n'))
+    expect(big.truncated).toBe(true)
+    expect(big.html).toContain('a'.repeat(100))
+  })
+  test('rejects oversized declared size before consuming raw and verifies actual streamed bytes', async () => {
+    let pulls = 0
+    const stream = () =>
+      new ReadableStream<Uint8Array>({
+        pull(c) {
+          pulls++
+          c.enqueue(new Uint8Array(3 * 1024 * 1024))
+          if (pulls > 3) c.close()
+        }
+      })
+    await expect(readNewsletterRaw({ rawSize: 6 * 1024 * 1024, raw: stream() })).rejects.toMatchObject({ code: 'invalid_message' })
+    const previous = pulls
+    await expect(readNewsletterRaw({ rawSize: 1, raw: stream() })).rejects.toMatchObject({ code: 'invalid_message' })
+    expect(pulls).toBeGreaterThan(previous)
+  })
+  test('rejects absent sender and excessive MIME part count', async () => {
+    await expect(parseNewsletter(new TextEncoder().encode('Subject: missing sender\r\n\r\nx'))).rejects.toMatchObject({ code: 'invalid_message' })
+    const parts = Array.from({ length: 210 }, () => '--b\r\nContent-Type: text/plain\r\n\r\nx\r\n').join('')
+    await expect(parseNewsletter(mail(parts + '--b--', 'Content-Type: multipart/mixed; boundary=b\r\n'))).rejects.toMatchObject({ code: 'invalid_message' })
+  })
+})
+
+import { receiveNewsletterEmail } from '@/domain/newsletter'
+import { NewsletterError } from '@/domain/newsletter/parser'
+import { vi } from 'vitest'
+test('SMTP wrapper uses a generic policy rejection and propagates sanitized infrastructure failure', async () => {
+  const setReject = vi.fn(),
+    message = { setReject } as unknown as ForwardableEmailMessage
+  await receiveNewsletterEmail(
+    message,
+    {} as Env,
+    {
+      receive: async () => {
+        throw new NewsletterError('not_found')
+      }
+    } as any
+  )
+  expect(setReject).toHaveBeenCalledWith('Newsletter delivery is not available for this message.')
+  setReject.mockClear()
+  await expect(
+    receiveNewsletterEmail(
+      message,
+      {} as Env,
+      {
+        receive: async () => {
+          throw new Error('postgres://private@example.com')
+        }
+      } as any
+    )
+  ).rejects.toThrow('Newsletter admission unavailable')
+  expect(setReject).not.toHaveBeenCalled()
+})

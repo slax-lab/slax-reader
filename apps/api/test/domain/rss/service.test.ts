@@ -160,8 +160,8 @@ describe('RSS service boundaries', () => {
       const detail = await service.detail(ctx, article().id)
       expect(detail.image_url).toBeNull()
       expect(detail.content_html).toContain('Readable text')
-      // The stored preview body still references the feed's own image.
-      expect(detail.content_html).toContain('src="https://example.com/body.png"')
+      // An invalid proxy must not turn the source image into a direct client request.
+      expect(detail.content_html).not.toContain('src="https://example.com/body.png"')
     }
   )
   test('isolates malformed thumbnail rows while retaining valid images', async () => {
@@ -230,6 +230,11 @@ describe('RSS service boundaries', () => {
     await expect(service.entries(ctx, { before: 'not-an-id' })).rejects.toMatchObject({ code: 'not_found', status: 400 })
     repo.entry.mockRejectedValue(new RssError('not_found', 404))
     await expect(service.entries(ctx, { before: anchor.id })).rejects.toMatchObject({ code: 'not_found', status: 404 })
+  })
+  test('rejects a local anchor from a different selected RSS subscription', async () => {
+    const { service, repo, ctx } = wire()
+    repo.entry.mockResolvedValue(article())
+    await expect(service.entries(ctx, { before: article().id, subscription_id: 'cccccccc-cccc-cccc-cccc-cccccccccccc' })).rejects.toMatchObject({ code: 'not_found', status: 404 })
   })
   test('explicit history after a local entry loads history and re-queries with the same anchor', async () => {
     const { service, repo, ctx } = wire()

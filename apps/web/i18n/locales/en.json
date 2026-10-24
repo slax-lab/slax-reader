@@ -3,7 +3,32 @@
     "local_upload": "Local upload",
     "page_spacing": "Show page gaps",
     "original_colors": "Original colors",
-    "reader": "PDF reader", "controls": "PDF controls", "previous": "Previous page", "next": "Next page", "page": "Page", "fit": "Fit width", "zoom_out": "Zoom out", "zoom_in": "Zoom in", "loading": "Loading PDF…", "retry": "Retry", "load_failed": "Unable to open this PDF. Retry or upload a valid file.", "password": "Password-protected PDFs are not supported yet.", "highlight": "Highlight", "remove_highlight": "Remove highlight", "comment": "Comment", "ask_ai": "Ask AI", "selection_actions": "Selected text actions", "selection_invalid": "Unable to locate the selected text. Please select it again.", "text_pending": "Preparing PDF text for AI…", "text_empty": "No analyzable text is available. Scanned PDFs can still be viewed.", "text_failed": "PDF text extraction failed. You can still view the file.", "quote_not_found": "This passage could not be located in the PDF.", "upload": "Upload PDF", "upload_limit": "One PDF, up to 50 MiB", "invalid_file": "Choose a PDF file.", "upload_failed": "PDF upload failed. Please retry."
+    "reader": "PDF reader",
+    "controls": "PDF controls",
+    "previous": "Previous page",
+    "next": "Next page",
+    "page": "Page",
+    "fit": "Fit width",
+    "zoom_out": "Zoom out",
+    "zoom_in": "Zoom in",
+    "loading": "Loading PDF…",
+    "retry": "Retry",
+    "load_failed": "Unable to open this PDF. Retry or upload a valid file.",
+    "password": "Password-protected PDFs are not supported yet.",
+    "highlight": "Highlight",
+    "remove_highlight": "Remove highlight",
+    "comment": "Comment",
+    "ask_ai": "Ask AI",
+    "selection_actions": "Selected text actions",
+    "selection_invalid": "Unable to locate the selected text. Please select it again.",
+    "text_pending": "Preparing PDF text for AI…",
+    "text_empty": "No analyzable text is available. Scanned PDFs can still be viewed.",
+    "text_failed": "PDF text extraction failed. You can still view the file.",
+    "quote_not_found": "This passage could not be located in the PDF.",
+    "upload": "Upload PDF",
+    "upload_limit": "One PDF, up to 50 MiB",
+    "invalid_file": "Choose a PDF file.",
+    "upload_failed": "PDF upload failed. Please retry."
   },
   "common": {
     "app": {
@@ -1280,6 +1305,10 @@
         "podcast": {
           "name": "Podcast transcripts",
           "desc": "Save a podcast episode (Xiaoyuzhou, Apple Podcasts, an RSS feed or an audio link) and read it as a clean transcript with speakers and time stamps. Play the audio on the page and listen from any paragraph. Episodes in another language get a translation. Chinese and English only, up to 3 hours, 5 new episodes a day."
+        },
+        "newsletter": {
+          "name": "Newsletter",
+          "desc": "Receive newsletters at your personal address and read them in Feed."
         }
       },
       "navigation": {
@@ -1348,10 +1377,10 @@
     }
   },
   "rss": {
-    "history_end": "{count} articles collected so far. No further RSS page links were found.",
+    "history_end": "{count} entries collected so far.",
     "history_retry": "Earlier articles could not be loaded. Please retry shortly.",
     "history_loading": "Earlier articles are being collected. Try loading again shortly.",
-    "title": "RSS feeds",
+    "title": "Feed",
     "labs": "Labs",
     "description": "Follow what interests you, then save articles worth reading to your Inbox.",
     "empty_hint": "Add a website or blog you like. New articles will appear here.",
@@ -1372,7 +1401,7 @@
     "search_hint": "Search loaded articles. Load more to keep looking.",
     "settings": "Labs settings",
     "inbox": "Inbox",
-    "enable_hint": "Enable RSS in Labs, then add your own feeds.",
+    "enable_hint": "Enable RSS or Newsletter in Labs to bring new reading here.",
     "url": "RSS / Atom URL",
     "add": "Add feed",
     "all": "All feeds",
@@ -1423,5 +1452,29 @@
     "invalid": "This KOC invitation is no longer valid.",
     "received": "You have already received a KOC reward.",
     "unavailable": "This reward is unavailable for your current subscription. You can check again later."
+  },
+  "newsletter": {
+    "title": "Your Newsletter address",
+    "description": "Use this address to subscribe to newsletters. New messages appear in Feed.",
+    "account_label": "Choose an account name",
+    "account_hint": "Your account name will be used for your address at {domain}. Choose carefully: the issued address stays the same.",
+    "create": "Create Newsletter address",
+    "copy": "Copy address",
+    "copied": "Copied",
+    "address_stable": "This address stays the same if you rename your account.",
+    "privacy": "Remote images load through Slax’s image proxy. Opening a message may still count as a read to its sender. Attachments are not imported.",
+    "content_hint": "Content received by email. Remote images use Slax’s image proxy.",
+    "errors": {
+      "account_taken": "This account name is already in use. Choose another name.",
+      "address_reserved": "This Newsletter address is already reserved. Choose another account name.",
+      "account_required": "Choose an account name to create your address.",
+      "invalid_account": "This account name cannot be used for a Newsletter address. Enter a valid account name.",
+      "lab_disabled": "Enable Newsletter in Labs to create your address.",
+      "unavailable": "Newsletter receiving is unavailable. Please try again later.",
+      "copy_failed": "Could not copy. Select and copy the address above."
+    },
+    "management_hint": "Newsletter sender management, saving to Inbox, and automatic unsubscribe are not available yet.",
+    "no_messages": "No newsletters yet",
+    "empty_hint": "Subscribe with your address above. New messages will appear here."
   }
 }

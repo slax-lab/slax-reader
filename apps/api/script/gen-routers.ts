@@ -35,6 +35,8 @@ const routeConfigurations: RouteConfig[] = [
       'src/handler/http/subscriptionController.ts',
       'src/handler/http/tagController.ts',
       'src/handler/http/rssController.ts',
+      'src/handler/http/feedController.ts',
+      'src/handler/http/newsletterController.ts',
       'src/handler/http/userController.ts',
       'src/handler/http/mcpController.ts',
       'src/handler/http/syncController.ts',

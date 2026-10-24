@@ -29,10 +29,11 @@
     "moment-timezone": "^0.5.45",
     "murmurhash3js-revisited": "^3.0.0",
     "pg": "^8.22.0",
+    "postal-mime": "4.1.3",
     "stripe": "^16.11.0",
     "turndown": "^7.2.4",
-    "zod": "^4.4.3",
-    "unpdf": "1.8.1"
+    "unpdf": "1.8.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.8.71",
@@ -53,6 +54,7 @@
     "eslint-config-prettier": "^10.1.0",
     "eslint-config-typescript": "^3.0.0",
     "eslint-plugin-prettier": "^5.2.1",
+    "openai": "^5.10.1",
     "prettier": "^3.3.3",
     "prisma": "^7.2.0",
     "smol-toml": "^1.8.0",
@@ -61,8 +63,7 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.26.0",
     "vitest": "^3.2.7",
-    "wrangler": "^4.127.1",
-    "openai": "^5.10.1"
+    "wrangler": "^4.127.1"
   },
   "engines": {
     "node": "^22.22.2 || ^24.15.0 || >=26.0.0"

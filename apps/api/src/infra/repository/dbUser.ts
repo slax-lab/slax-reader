@@ -1,5 +1,13 @@
 import { PrismaClient } from '@prisma/client'
-import { AccountNotAllowRegisterError, UserAccountDeletedError, UserNotFoundError, ErrorParam, UnknownBindUserError, PlatformAccountBoundToOtherUserError } from '@/const/err'
+import {
+  AccountNotAllowRegisterError,
+  UserAccountDeletedError,
+  UserNotFoundError,
+  ErrorParam,
+  UnknownBindUserError,
+  PlatformAccountBoundToOtherUserError,
+  ExistsUserNameError
+} from '@/const/err'
 import { inject, injectable, singleton } from '@/decorators/di'
 import { PRISIMA_CLIENT, PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
@@ -140,13 +148,17 @@ export class UserRepo {
   }
 
   public async updateUserName(userId: number, account: string): Promise<userInfoPO> {
-    if (!userId || !account) throw ErrorParam()
-    const res = await this.prismaPg().sr_user.update({
-      data: { account },
-      where: { id: userId }
+    if (!userId || !/^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?$/.test(account) || account.includes('..')) throw ErrorParam()
+    const canonical = account.toLowerCase()
+    return this.prismaPg().$transaction(async tx => {
+      const users = await tx.$queryRaw<userInfoPO[]>`SELECT * FROM sr_user WHERE id=${userId} AND deleted_at IS NULL FOR UPDATE`
+      if (!users.length) throw UserNotFoundError()
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${'account:' + canonical},0))`
+      const taken = await tx.$queryRaw`SELECT id FROM sr_user WHERE lower(account)=${canonical} AND id<>${userId} AND deleted_at IS NULL`
+      if ((taken as unknown[]).length) throw ExistsUserNameError()
+      const [user] = await tx.$queryRaw<userInfoPO[]>`UPDATE sr_user SET account=${canonical} WHERE id=${userId} RETURNING *`
+      return user
     })
-    if (!res) throw UserNotFoundError()
-    return res as userInfoPO
   }
 
   public async updateUserLang(userId: number, lang: string): Promise<userInfoPO> {
@@ -336,6 +348,8 @@ export class UserRepo {
       if (!users[0]) throw UserNotFoundError()
       if (!users[0].deleted_at) await tx.sr_user.update({ where: { id: userId }, data: { deleted_at: new Date() } })
       await tx.sr_user_api_key.deleteMany({ where: { user_id: userId } })
+      await tx.$executeRaw`UPDATE sr_newsletter_address SET retired_at=COALESCE(retired_at,now()) WHERE user_id=${userId}`
+      await tx.$executeRaw`UPDATE sr_newsletter_receipt SET state='cancelled',lease_token=NULL,lease_until=NULL,completed_at=now() WHERE user_id=${userId} AND state='pending'`
     })
   }
 
