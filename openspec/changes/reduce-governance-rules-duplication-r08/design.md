@@ -8,7 +8,7 @@ Facts at the revision base (`recovery/base` at `773d6093`, ten commits ahead of 
 
 - `docs/BRANCHING.md`, `docs/README.md`, `docs/DEFINITION-OF-DONE.md`, and `docs/release/VERSIONING.md` do not exist.
 - `DESIGN.md` has `## 10. Change workflow` but no §10.1 or §10.2. The material-UX demo checkpoint and the hands-on acceptance procedure exist only on the D06 branch.
-- `REVIEW.md`'s compliance pass points at `"Definition of Done" in AGENTS.md` and has no material-UX step. Step 6 exists only on the D06 branch.
+- `REVIEW.md`'s compliance pass points at `"Definition of Done" in AGENTS.md` and has no material-UX step. Step 6 exists only on the pre-approval D06 branch; the final approved D06 form adds the no-finding clause, not a review step.
 - `README.md` line 25 says the monorepo hosts "all non-mobile Slax Reader code" and the repository table has no `apps/mobile` row. F05 corrects both.
 - `docs/CI.md` is 134 lines, titled `# CI scope selection`, and owns the branch-protection section (`docs/CI.md:7-21`) plus the CI mechanics.
 - `docs/web/deployment.md:5-13` states the merged-target-branch release destinations. `docs/api/DEV-AND-CI-EN.md:52-54` states that only a merged PR into `dev`, `beta`, or `main` with API-related changes deploys the API.
@@ -102,7 +102,7 @@ The target root outline is:
 | --- | --- | --- |
 | Intro | Product one-liner; "this file carries non-delegable obligations and pointers only" | `README.md` for the repository map |
 | OpenSpec workflow | Proposal before observable behavior; human review outside pull requests; strict validation; implementation-only exemption; archive obligation and same-capability sequencing | `openspec/config.yaml`, `openspec/specs/` |
-| Design checkpoints | Material-UX demo before UI implementation; UI hands-on acceptance before the pull request; demo authorizes implementation only; missing record is Important | `DESIGN.md` §10.1/§10.2, `REVIEW.md` |
+| Design checkpoints | Optional material-UX requirements-discovery demo before dependent implementation; UI hands-on acceptance before the pull request; demo approval authorizes implementation only; an absent demo or record is not a finding | `DESIGN.md` §10.1/§10.2, `REVIEW.md` |
 | Branches and pull requests | One task/branch/PR from `origin/dev`; no commits on long-lived branches; agents never merge promotion/sync-back/hotfix; same-capability link | `docs/BRANCHING.md` |
 | Verification evidence | Behavior change done only when exercised and recorded; automated checks do not substitute; declared-gap rule; exemption sentence | `docs/DEFINITION-OF-DONE.md`, `openspec/specs/change-verification/spec.md` |
 | Review | Read `REVIEW.md`; local pre-push review; `OpenSpec:` line; close the loop | `REVIEW.md` |
@@ -216,7 +216,7 @@ F05 → D06 → R08
 ```
 
 - **F05** corrects the README repository map, including the `apps/mobile` row. R08's root deletes its own map and points at README, so without F05 Mobile disappears from the map.
-- **D06** adds `DESIGN.md` §10.1/§10.2, `REVIEW.md` step 6, the PR-template material-UX item, the root checkpoint, and a `change-verification` delta. R08 delegates the UI checkpoint and acceptance there; without D06 those pointers dangle and the "missing record is Important" enforcement has no executor.
+- **D06** adds `DESIGN.md` §10.1/§10.2 in the archived optional form, the root optional-demo checkpoint, the `REVIEW.md` no-finding clause, and a `change-verification` delta (approved and implemented in PR #393; archived in PR #394). R08 delegates the UI checkpoint and acceptance there; without D06 those pointers dangle.
 - **R08** is this change. It creates `docs/BRANCHING.md`, the DoD, and VERSIONING; splits CI; rewrites root and scoped rules; and adds the `change-verification` delta.
 - **I09** is an independent follow-up, not part of the chain. It adds `docs/README.md` as a human documentation entry point. R08 does not depend on it. If I09 is re-authored on the delivery base, adding a `docs/BRANCHING.md` row and splitting the CI/branch routes is editorial work verified by human review.
 
@@ -332,7 +332,7 @@ No `Material UX changes` section, no `Mobile changes` section. Those owners are 
 
 ### `DESIGN.md`
 
-D06 supplies §10.1 (material-UX trigger, demo coverage, approval record, review enforcement) and §10.2 (hands-on acceptance). R08 adds two sentences to §10.2:
+D06 supplies §10.1 (material-UX trigger, demo coverage, approval record, and the review no-finding rule) and §10.2 (hands-on acceptance) in their archived optional form. R08 adds two sentences to §10.2:
 
 > This acceptance step has no declared-gap path.
 
@@ -340,7 +340,7 @@ and
 
 > `docs/DEFINITION-OF-DONE.md` records the acceptance evidence; this section owns the procedure.
 
-R08 does not re-author §10.1 or the §6 matrix. It adds the H4 scope block after the H1. If D06 is not on the base, R08 stops; it must not point at sections that do not exist.
+R08 does not re-author §10.1 or the §6 matrix. It adds the H4 scope block after the H1. D06 is on the base, so the cited sections exist.
 
 ### `docs/release/VERSIONING.md` (new)
 
@@ -384,7 +384,7 @@ R08 changes only:
 - the `Do not report` generated list from the blanket `.claude/`, `.codex/`, `.agents/` directories to the specific generator-owned sets in D8;
 - the H4 scope block.
 
-It does not add the material-UX step; D06 owns step 6. If D06 is applied first, R08's edits compose without touching step 6.
+It does not add a material-UX review step; D06 owns the `Do not report` no-finding clause and the archived `change-verification` requirements. R08's edits compose without touching that clause.
 
 ### Root `.rulesync/rules/overview.md` → `AGENTS.md`
 
@@ -496,7 +496,7 @@ A is recommended because a refactor's living specs are the best statement of the
 | Repository map | `README.md` (F05) | Nothing; intro pointer | The map |
 | Local environment | `docs/LOCAL-SETUP.md`, app guides | Nothing; the app guide is named in the intro | `pnpm` commands, TOML/env rules, setup phases |
 | OpenSpec workflow | `openspec/config.yaml`, `openspec/specs/` | Proposal-before-behavior, review location, validation, archive obligations | Per-tool commands, archive step-by-step |
-| Design checkpoints | `DESIGN.md` §10.1/§10.2, `REVIEW.md` | Trigger, record location, no-gap rule, Important consequence | Demo coverage fields, acceptance procedure |
+| Design checkpoints | `DESIGN.md` §10.1/§10.2, `REVIEW.md` | Optional-demo trigger, record location, no-gap rule, no-finding rule | Demo coverage fields, acceptance procedure |
 | Branches | `docs/BRANCHING.md`, `release-branching` spec | One task/branch/PR, no long-lived commits, agents never merge, same-capability link | Protection table, promotion/sync-back/hotfix steps, gate rationale |
 | Verification | `docs/DEFINITION-OF-DONE.md`, `change-verification` spec | Done condition, recording location, declared-gap rule, exemption sentence | Derivation checklist, evidence fields, per-app list |
 | Review | `REVIEW.md` | Read it, local pre-push duty, `OpenSpec:` line, close the loop | Pass definitions, Important/Nit calibration, automation operations |
@@ -552,10 +552,10 @@ The comparison is the old R08 target (`e8d7c422`) against this revision, with th
 
 | Change | Branch and commit | What R08 uses | If absent |
 | --- | --- | --- | --- |
-| F05 | `feat/fix-governance-documentation-facts-f05` at `c8e34890` | README repository map with `apps/mobile` and `packages/reader-embed`; "all Slax Reader code" wording; removed duplicate API paragraph | The root deletes its map and README lacks the Mobile row, so Mobile disappears from the map |
-| D06 | `feat/add-material-ux-demo-review-d06` at `02f80058` | `DESIGN.md` §10.1/§10.2; `REVIEW.md` step 6; PR-template material-UX item; root checkpoint; `change-verification` ADDED requirements | Root and DoD pointers dangle; the Important-review consequence has no executor |
+| F05 | `feat/fix-governance-documentation-facts-f05` at `c8e34890`; merged in PR #392 | README repository map with `apps/mobile` and `packages/reader-embed`; "all Slax Reader code" wording; removed duplicate API paragraph | The root deletes its map and README lacks the Mobile row, so Mobile disappears from the map |
+| D06 | Preserved pre-approval branch `feat/add-material-ux-demo-review-d06` at `02f80058`; approved and implemented in PR #393, archived in PR #394 | `DESIGN.md` §10.1/§10.2 in the archived optional form; the `REVIEW.md` no-finding clause; the root optional-demo checkpoint; the archived `change-verification` requirements | Root and DoD pointers dangle; the optional-demo semantics are missing |
 
-F05's diff: `README.md` (`apps/mobile`, `packages/reader-embed`, `deploy/`, `docs/`, `tests/e2e`, `tooling/` rows; "all Slax Reader code") and four API docs (Node range). D06's diff: `.rulesync/rules/overview.md` and generated files, `DESIGN.md` (±51 lines), `REVIEW.md` (+5), `.github/PULL_REQUEST_TEMPLATE.md`, `openspec/config.yaml`, `openspec/specs/change-verification/spec.md`, and its own change directory.
+F05's diff: `README.md` (`apps/mobile`, `packages/reader-embed`, `deploy/`, `docs/`, `tests/e2e`, `tooling/` rows; "all Slax Reader code") and four API docs (Node range). D06's approved implementation (PR #393): `.rulesync/rules/overview.md` and generated files, `DESIGN.md` (§10.1/§10.2), `REVIEW.md` (the no-finding clause), `.github/PULL_REQUEST_TEMPLATE.md` (removes the pre-approval mandatory item), `openspec/config.yaml` (optional-demo guidance), `openspec/specs/change-verification/spec.md` (four added requirements), and its own change directory.
 
 ### I09 documentation index (independent)
 
@@ -579,7 +579,7 @@ The branch table is verified by human review against `.github/rulesets.expected.
 
 R08 must not be implemented on the old chain (`4ed2618f`..`e8d7c422`). It is re-authored on the delivery base after F05/D06.
 
-H3: if the human chooses the self-contained option, R08 absorbs the minimal F05/D06 edits. That means two README lines, `DESIGN.md` §10.1/§10.2, `REVIEW.md` step 6, the PR-template item, and the root checkpoint. Those are substantial; sequencing is recommended because it avoids a second copy that must be removed when D06 lands.
+**Rejected alternative (history).** H3 was decided as sequencing; the self-contained option was not chosen. It would have absorbed the minimal F05/D06 edits: two README lines, `DESIGN.md` §10.1/§10.2 in their pre-approval mandatory form, the pre-approval `REVIEW.md` step and PR-template item, and the root checkpoint. Sequencing was chosen because it avoids a second copy that must be removed when D06 lands.
 
 ## Risks / Trade-offs
 
@@ -606,7 +606,7 @@ H3: if the human chooses the self-contained option, R08 absorbs the minimal F05/
 ## Migration Plan
 
 1. The human approved the revision on 2026-10-26 with H1–H4 as recommended. The record is in `proposal.md` § "Approval record".
-2. Confirm F05 and D06 are separately approved and on the delivery base. D06 has no human plan approval yet; do not start section 3 until it is separately approved and delivered/archived as required.
+2. Prerequisites: F05 merged in PR #392; D06 was separately approved, implemented in PR #393 with the optional requirements-discovery form, and archived in PR #394. Both are on the delivery base (`dev` at `751e337b`), so section 3 is satisfied.
 3. Re-author the root and scoped rules, create `docs/BRANCHING.md`, the DoD, and VERSIONING, split `docs/CI.md`, update `REVIEW.md`/PR template/`openspec/config.yaml`, and add the H4 blocks.
 4. Run `pnpm agent:sync`, `pnpm agent:check`, `pnpm exec openspec validate --all --strict`, and `git diff --check`; record the results in `validation.md`.
 5. If I09 is re-authored, update the index rows as editorial work; no automated checker is planned.
@@ -615,4 +615,4 @@ H3: if the human chooses the self-contained option, R08 absorbs the minimal F05/
 
 ## Open Questions
 
-None. H1–H4 were decided on 2026-10-26; the exact wording for each choice is in § "Verification policy decisions" and D9. D06's own plan approval remains a prerequisite, not an R08 open question.
+None. H1–H4 were decided on 2026-10-26; the exact wording for each choice is in § "Verification policy decisions" and D9. D06's approval was recorded separately and its implementation and archive completed (PR #393, archive PR #394); no prerequisite remains open.

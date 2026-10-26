@@ -39,11 +39,13 @@ This change began as a retrospective record of an implementation that predated i
 | R08 (first attempt) | `feat/reduce-governance-rules-duplication-r08` at `e8d7c422` (`828cc730`, `e8d7c422`; old merge `a4b12fe6`) | First deduplication attempt, framed as A1–A11 | No | Superseded by this revision |
 | I09 | `feat/build-canonical-documentation-index-i09` at `d7057cf6` | `docs/README.md` documentation index, mobile release docs | No | Independent follow-up; not required by R08 |
 
+The D06 row records the preserved pre-approval branch content. D06's approved implementation (PR #393, archive PR #394) uses the optional requirements-discovery form described under "Implementation base": `DESIGN.md` §10.1/§10.2 in the optional form, the `REVIEW.md` no-finding clause, and no PR-template mandatory item.
+
 The dependency chain is F05 → D06 → R08. I09 remains an independent follow-up, not a prerequisite and not a dependent of R08.
 
 ### Dependencies and delivery sequence
 
-- **Prerequisites.** F05 (`c8e34890`) supplies the README repository map, including `apps/mobile`. D06 (`02f80058`) supplies `DESIGN.md` §10.1/§10.2, `REVIEW.md` step 6, the PR-template material-UX item, the root checkpoint, and a `change-verification` delta. H3 is decided: sequence F05 → D06 → R08. R08 implementation starts only after both are separately approved and on the delivery base, and D06 is delivered/archived as its own change requires. R08 does not absorb their content.
+- **Prerequisites.** F05 (`c8e34890`, merged in PR #392) supplies the README repository map, including `apps/mobile`. D06 (approved and implemented in PR #393, archived in PR #394) supplies `DESIGN.md` §10.1/§10.2 in the archived optional form, the root optional-demo checkpoint, the `REVIEW.md` no-finding clause, and a `change-verification` delta. H3 is decided: sequence F05 → D06 → R08. Both prerequisites are on the delivery base (`dev` at `751e337b`), and D06 is archived. R08 does not absorb their content.
 - **Independent follow-up.** I09 (`d7057cf6`) adds `docs/README.md` as a human documentation entry point. R08 does not depend on it. If I09 is re-authored, adding a `docs/BRANCHING.md` row and splitting the CI and branch routes is an editorial improvement, verified by human review.
 - **Archive gate.** D06's `change-verification` delta and R08's delta target the same capability. D06 must be archived first, or both must be archived in one docs pull request with reconciled blocks.
 - **No re-application.** R08 is re-authored on the delivery base; it does not cherry-pick or merge `e8d7c422`.
@@ -79,8 +81,8 @@ Duplication has two costs: a policy drifts between copies, and an edit in one do
 - Keep the imperative in scoped application rules and add the `DESIGN.md` section reference: the Web theme, raw-color, and SVG rules and the Extension semantic-variable and SVG rules are restored as requirements, not pointer-only summaries.
 - Unify the verification-policy texts. Four policy texts state the exemption scope and the no-proposal smoke inputs; the PR template mirrors them. The direction is the approved H1 choice; the no-proposal "related living specs" input is the approved H2 choice.
 - Add a short scope-and-change-policy block to each long-lived governance document this change creates or edits. The block names Owns / Does not own / Intake / Outflow; the documentation index routes without restating it. H4 was approved on 2026-10-26.
-- Declare the prerequisites: H3 sequences F05 → D06 → R08; both must be separately approved and on the delivery base before R08 implementation. I09's documentation index remains an independent follow-up; R08 does not depend on it.
-- Keep `REVIEW.md`, `.github/PULL_REQUEST_TEMPLATE.md`, and `openspec/config.yaml` as pointers to the owners; do not duplicate D06's material-UX step or the DoD procedure there.
+- Record the prerequisites: H3 sequences F05 → D06 → R08. Both landed on the delivery base on 2026-10-26 (F05 PR #392; D06 PR #393, archive PR #394). I09's documentation index remains an independent follow-up; R08 does not depend on it.
+- Keep `REVIEW.md`, `.github/PULL_REQUEST_TEMPLATE.md`, and `openspec/config.yaml` as pointers to the owners; do not duplicate D06's material-UX treatment or the DoD procedure there.
 
 Non-goals:
 
@@ -109,10 +111,10 @@ Non-goals:
 | --- | --- | --- | --- |
 | `docs/BRANCHING.md` (new) | Operational | Operational branch responsibilities (one line per branch), protection table, approvals and merge methods, task branches, promotion, sync-back, hotfix, promotion-gate troubleshooting | The normative branch rules; the enforced ruleset state; CI workflow mechanics |
 | `docs/CI.md` (rescoped) | Operational | CI scope selection, workflow and gate mechanics, promotion-integrity check, ruleset drift workflow, review readiness, daily validation, Mobile EAS, release verification, local commands | Branch protection, promotion, sync-back, or hotfix policy |
-| `docs/DEFINITION-OF-DONE.md` (new) | Operational | When verification applies, deriving it, recording it, per-application verification guides | UI demo approval and hands-on acceptance procedure (`DESIGN.md` §10.1/§10.2), the design matrix (§6), review enforcement (`REVIEW.md`), Mobile acceptance details (`apps/mobile/AGENTS.md`) |
+| `docs/DEFINITION-OF-DONE.md` (new) | Operational | When verification applies, deriving it, recording it, per-application verification guides | The optional UI demo checkpoint and hands-on acceptance procedure (`DESIGN.md` §10.1/§10.2), the design matrix (§6), review enforcement (`REVIEW.md`), Mobile acceptance details (`apps/mobile/AGENTS.md`) |
 | `docs/release/VERSIONING.md` (new) | Operational | The version-decision protocol and manifest table | Per-application channel mechanics (their release docs); Web/API deployment conditions (their deployment docs) |
-| `DESIGN.md` | Normative design contract | Design intent, profiles, tokens, §6 matrix, §10.1 demo approval, §10.2 hands-on acceptance | Repository workflow, review policy, verification evidence recording |
-| `REVIEW.md` | Operational | Review passes, Important/Nit calibration, compliance pass, material-UX enforcement (D06) | Review automation operations; the DoD procedure |
+| `DESIGN.md` | Normative design contract | Design intent, profiles, tokens, §6 matrix, §10.1 optional demo checkpoint, §10.2 hands-on acceptance | Repository workflow, review policy, verification evidence recording |
+| `REVIEW.md` | Operational | Review passes, Important/Nit calibration, compliance pass, the material-UX no-finding rule (D06) | Review automation operations; the DoD procedure |
 | Root `AGENTS.md` (from `.rulesync/rules/overview.md`) | Agent entry | Non-delegable obligations, pointers, generated-output summary | Procedures, repository map, setup commands, manifest table, branch mechanics |
 | `apps/web/AGENTS.md`, `apps/extension/AGENTS.md` | Agent entry (scoped) | App-specific design deltas as imperatives, with `DESIGN.md` section references | The full `DESIGN.md` rule |
 | `apps/mobile/AGENTS.md` | Agent entry (scoped) | Mobile architecture, lifecycle, native acceptance details | The central evidence-recording procedure |
@@ -211,7 +213,7 @@ The human decided every item on 2026-10-26 as part of the implementation approva
 | H3 | Prerequisite strategy | Sequence F05 → D06 → R08; do not absorb their content inside R08. | `design.md` § "Dependencies and delivery sequence"; § "Approval record" |
 | H4 | Document scope headers | Adopt the four-field Owns / Does not own / Intake / Outflow block for the six documents R08 creates or edits; human review checks presence and accuracy. | `design.md` § "Document scope headers"; the `agent-rule-governance` delta carries it |
 
-No other decision is open. The old A1–A11 items are either resolved above, mapped to a preserved constraint, or covered by the H1–H4 decisions. **D06 is not approved by this record**; it must be separately approved and delivered/archived as required before section 3 starts.
+No other decision is open. The old A1–A11 items are either resolved above, mapped to a preserved constraint, or covered by the H1–H4 decisions. **D06 is not approved by this record**; it was separately approved, implemented in PR #393, and archived in PR #394 on 2026-10-26, so section 3's gate is satisfied.
 
 ## Capabilities
 
