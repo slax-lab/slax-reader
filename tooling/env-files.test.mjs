@@ -19,7 +19,9 @@ function temporaryDirectory() {
 }
 
 test('parser supports comments, empty values, export syntax and multiline quoted values', () => {
-  assert.deepEqual(parseEnvironmentText('\uFEFF# fixture\nexport A="two\nlines" # note\nB=\nC=value # note\nD="literal # hash"\n'), {
+  // util.parseEnv returns a null-prototype object; deepStrictEqual compares
+  // prototypes since Node 25, so spread into a plain object before comparing.
+  assert.deepEqual({ ...parseEnvironmentText('\uFEFF# fixture\nexport A="two\nlines" # note\nB=\nC=value # note\nD="literal # hash"\n') }, {
     A: 'two\nlines', B: '', C: 'value', D: 'literal # hash'
   })
   for (const text of ['MISSING_EQUALS', 'A="unclosed', '1A=value', 'A="closed" extra', 'A=bad\0value']) {

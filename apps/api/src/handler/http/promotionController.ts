@@ -78,6 +78,11 @@ export class PromotionController {
       name: 'Sidereal Education',
       avatar: 'https://reader-img.slax.com/koc/siderealedu.jpg',
       activity_id: 'siderealedu'
+    },
+    chloemanilay: {
+      name: 'Chloe',
+      avatar: 'https://reader-img.slax.com/koc/chloemanilay.jpg',
+      activity_id: 'chloemanilay'
     }
   }
 

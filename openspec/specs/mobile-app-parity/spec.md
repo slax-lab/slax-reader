@@ -27,6 +27,8 @@ The application SHALL preserve Google sign-in on Android and iOS and Apple sign-
 
 Inbox, Starred, and Archived SHALL retain the source-ordered flat list without date section headers, row status, star/archive swipe actions, contextual menus, title editing, direct deletion from the Library context menu without an added confirmation, add-link validation, pending/failed parsing flow, and continue-reading behavior. Reader, comment, and account-deletion confirmations SHALL retain their existing behavior. Subscribed collection feeds SHALL preserve active-feed selection, unread status, expiry/closed/error states, owner context, and permission restrictions. User-owned write actions MUST NOT become available on read-only collection content.
 
+The Library row status indicator SHALL occupy a stable slot and present a stable state while automatic caching runs. Concurrent downloads MUST NOT make indicators oscillate between uncached, downloading, and cached states; a download that completes before its downloading state has been presented SHALL change the indicator directly from uncached to cached. Status updates MUST NOT move rows or change list order.
+
 #### Scenario: A URL is saved without connectivity
 - **WHEN** a user submits a valid HTTP or HTTPS URL while offline
 - **THEN** a pending bookmark appears optimistically in the library
@@ -57,6 +59,12 @@ Inbox, Starred, and Archived SHALL retain the source-ordered flat list without d
 - **WHEN** the selected collection closes, expires, or disappears
 - **THEN** the application displays the appropriate source state or returns to the own feed
 - **AND** it does not expose unauthorized owner actions
+
+#### Scenario: Several automatic downloads run at once
+- **WHEN** multiple library rows are cached concurrently
+- **THEN** each row keeps its status indicator in the same position and the list does not reorder
+- **AND** an indicator never oscillates between uncached, downloading, and cached states
+- **AND** a download that finishes before its downloading state was presented goes directly from uncached to cached without a visible intermediate flash
 
 ### Requirement: Active RSS functionality is fully migrated
 
