@@ -1,26 +1,34 @@
-# CI scope selection
+# Continuous Integration (CI)
+
+## Scope and change policy
+
+- **Owns:** CI scope selection, workflow and gate mechanics, the promotion-integrity check,
+  ruleset drift detection, the required configuration check, review readiness, daily full
+  validation, Mobile EAS builds, release verification, and local verification commands.
+- **Does not own:** branch protection, approvals, promotion, sync-back, or hotfix policy
+  (`docs/BRANCHING.md`); review policy (`REVIEW.md`); the verification-evidence procedure
+  (`docs/DEFINITION-OF-DONE.md`); the normative CI and branch requirements
+  (`openspec/specs/ci-scope-selection/spec.md`, `openspec/specs/release-branching/spec.md`).
+- **Intake:** CI mechanics, workflow behavior, and troubleshooting. A new required context or
+  merge-method restriction enters the codified ruleset and its owning spec first.
+- **Outflow:** branch policy moves to `docs/BRANCHING.md`; verification policy moves to
+  `docs/DEFINITION-OF-DONE.md`. Update inbound links and keep old links working.
 
 Application validation runs on pull requests, including promotion PRs, and through independent daily full validation on dev. Each PR CI workflow first checks the complete PR merge-base/head diff with `tooling/ci-scope.mjs`. Detection checks out full history and needs no pnpm installation. Unrelated workflows can therefore appear with a small detection job, while their build and test jobs are skipped. Application suites do not run again solely because the PR merged into dev, beta, or main; the separate Mobile EAS release gate is the only exception and runs only after a committed Mobile build-number increase.
 
 The detector uses the PR's actual base branch and includes earlier PR commits, removed files, and both sides of a rename. It does not depend on GitHub's limited path-filter file window. Missing revisions, shallow history, and failed comparisons fail visibly rather than return an empty selection. The job summary lists selected and skipped scopes; detector output records the input paths that selected each scope.
 
-## Branch protection and required contexts
+Branch responsibilities, the protection table, approvals, promotion, sync-back, and hotfix steps live in `docs/BRANCHING.md`. This page owns how CI selects and enforces its checks.
 
-Every long-lived branch rejects direct pushes, force-pushes, and deletion, and administrator bypass actors are configured in `pull_request` mode — an administrator can merge an exceptional pull request, but a direct push stays rejected even for them. The branches gate different decisions, so their entry conditions and required contexts differ:
-
-| Branch | Entry rule | Required contexts | Merge methods |
-| --- | --- | --- | --- |
-| `dev` | Any pull request | `agent-config drift check`, `PR review gate`, `Web CI gate`, `Extension CI gate`, `API CI gate`, `Mobile CI gate`, `CLI CI gate`, `Tooling CI gate` | merge, squash, rebase |
-| `beta` | Head is `dev` or `hotfix/*` | `promotion integrity`, `Web CI gate`, `Extension CI gate`, `API CI gate`, `Mobile CI gate`, `CLI CI gate`, `Tooling CI gate` | merge commit only |
-| `main` | Head is `beta` or `hotfix/*` | `promotion integrity` | merge commit only |
+## Gate job contract
 
 Each application CI workflow ends in a terminal gate job whose name is a ruleset-referenced contract: `Web CI gate` and `Extension CI gate` in `frontend-ci.yml`, `API CI gate` in `api-ci.yml`, `Mobile CI gate` in `mobile-ci.yml`, `CLI CI gate` in `cli-ci.yml`, and `Tooling CI gate` in `tooling-ci.yml`. The gate fails when any job in its suite failed and succeeds otherwise, so a suite that `ci-scope` skipped reports success and never blocks. `tooling/ci-workflow.test.mjs` asserts the exact gate names and their `if: always()` wiring; renaming one without updating the rulesets strands its required context at "Expected" and blocks the branch.
 
 Node.js runtime coverage is part of that contract: `cli-ci.yml` runs the CLI typecheck, tests, and package smoke on Node 22.22.2, 24.15.0, and the pinned Node 26 release (26.12.1), and the `tooling-ci.yml` `check` job runs `pnpm test:preflight` and `pnpm test:ci` on Node 22.22.2 and 26.12.1; the CLI and Extension release-tooling suites keep Node 24.15.0 in their own jobs. Both matrices disable `fail-fast`, so a failure on one Node line does not cancel the others. Every version is an exact patch pin, and changing the declared `engines` support range requires the matching matrix change.
 
-Every pull request to `beta` or `main` requires one approving review from a reviewer other than its author, enforced by the rulesets. For a promotion the content was reviewed when it entered `dev`, so the approval acts as the explicit release decision rather than a repeated content review; for a `hotfix/*` head, which never passed through `dev`, the approval is the content review itself. On `main` the six suite gates are required through `promotion integrity` rather than as separate ruleset contexts; the promotion pull request still reports them because every pull request runs the application CI workflows.
-
 ## Promotion integrity check
+
+On `main` the six suite gates are required through `promotion integrity` rather than as separate ruleset contexts; the promotion pull request still reports them because every pull request runs the application CI workflows.
 
 `.github/workflows/promotion-gate.yml` runs on `pull_request_target` for pull requests targeting `beta` and `main`. The workflow file and the gate script both come from the default branch — pinning the script to the pull request's base commit was rejected because the script does not exist on `beta`/`main` until the first promotion lands, which would leave the required context silently missing exactly when the gate first matters — so the only code that runs comes from a reviewed, protected branch (for a `dev` → `beta` promotion the head *is* the default branch; the trust boundary there is `dev`'s review process itself). The required `promotion integrity` context is a check run the script explicitly creates on the head SHA through the Checks API — not the conclusion of the workflow job itself (the job is named `Promotion gate runner` so it cannot collide with the required context). Every failure path still reports a failing check run; only an unreportable verdict fails the job, which leaves the context missing and blocks the merge. One residual is inherent to the required-context model: GitHub matches required checks by name, so any workflow that lands on a protected branch with `checks: write` runs as the same GitHub Actions app and could mint a same-named success on a head SHA. Landing such a workflow requires passing `dev` review in the first place, the gate re-asserts on every `synchronize`, and the administrator's merge remains the designed backstop. The check fails closed on any API shape it does not recognize and asserts:
 
