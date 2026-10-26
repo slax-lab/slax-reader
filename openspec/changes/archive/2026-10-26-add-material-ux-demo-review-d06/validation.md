@@ -13,6 +13,7 @@ Change type: proposal revision plus its approved implementation alignment (docum
 5. **Approval.** Alex Lee approved the revised direction on 2026-10-26 in the Slax Reader product-owner role; the record and the approved semantics are in `proposal.md` § Status. Conditions recorded with the approval: the superseded mandatory-gate implementation is amended rather than delivered as-is; `reduce-governance-rules-duplication-r08` is reconciled in its own follow-up; archiving follows the task pull request.
 6. **Implementation alignment.** The superseded mandatory-gate implementation was amended: `DESIGN.md` (§1 reading order, §10 workflow, §10.1 optional requirements-discovery checkpoint, §10.2 independent acceptance, §11 checklist); `.rulesync/rules/overview.md` and the regenerated `AGENTS.md`/`CLAUDE.md`; `REVIEW.md` (mandatory approval step removed, absent demo/record added to the non-reporting scope, hands-on acceptance check kept); `.github/PULL_REQUEST_TEMPLATE.md` (restored to its pre-D06 content); `openspec/config.yaml` (apply guidance); and the living `change-verification` Purpose. R08 and archive remain follow-ups.
 7. **Rebase and rebased-tip verification.** After F05 PR #392 merged, the branch was rebased cleanly onto current `origin/dev` (`75c6d274`), producing tip `38c1ca4`; neither the approved semantics nor the implementation text changed. The tower re-ran the full gate on that tip — `pnpm agent:check` (OpenSpec 76/76, rulesync and gh-aw clean), `pnpm test:ci` (67/67), `pnpm design:check` (33 files), and `git diff --check origin/dev...HEAD` — and all passed.
+8. **Archive.** After the implementation pull request merged (`74d87c18`), `openspec archive add-material-ux-demo-review-d06 --yes --json` moved this change to `openspec/changes/archive/2026-10-26-add-material-ux-demo-review-d06/` and added the four delta requirements to the living `change-verification` spec. The spawn snapshot's untracked `test-results/` reading copies were dropped per the tower's scope correction before the archive commit.
 
 ## Provenance and branch hygiene
 
@@ -64,7 +65,7 @@ Change type: proposal revision plus its approved implementation alignment (docum
 - The review policy: `REVIEW.md` no longer contains the mandatory approval step; the absent demo/record is listed under "Do not report"; the UI-visible hands-on acceptance check remains in the evidence trail.
 - The living spec Purpose: describes the optional requirements-discovery checkpoint and the done contract without claiming a mandatory pre-implementation gate.
 - The scenario mapping above, checked line by line against the amended rule text.
-- The task/status split: import, initial revision, D3 correction, approval (4.1), and implementation alignment (5.1–5.5) are checked; R08 reconciliation (6.1–6.2) and archive (7.1) remain unchecked follow-ups.
+- The task/status split: import, initial revision, D3 correction, approval (4.1), implementation alignment (5.1–5.5), and archive (7.1) are checked; R08 reconciliation (6.1–6.2) remains an unchecked follow-up owned by the R08 change.
 
 ## Diff scope
 
@@ -88,17 +89,27 @@ The net diff no longer names `.github/PULL_REQUEST_TEMPLATE.md`: the D06 commit 
 
 No path under `apps/` or `packages/` appears, no R08 file is touched, and the spawn snapshot's reading copies are not in the branch.
 
+The archive branch's net diff against `origin/dev` (`74d87c18`) contains only the change directory moved under `openspec/changes/archive/2026-10-26-add-material-ux-demo-review-d06/`, the four requirements added to `openspec/specs/change-verification/spec.md`, and this archive record. No R08 path and no other active change directory changes.
+
+## Archive
+
+- `openspec archive add-material-ux-demo-review-d06 --yes --json` → exit 0. `archivedAs: 2026-10-26-add-material-ux-demo-review-d06`, `specsUpdated: true`, totals `added: 4, modified: 0, removed: 0, renamed: 0`.
+- Requirements added to `openspec/specs/change-verification/spec.md`: "Material UX changes offer an optional requirements-discovery demo", "An accepted demo is a requirements-discovery step that gates dependent implementation", "An accepted demo is covered and approved as specified", and "The demo checkpoint does not gate review and does not replace hands-on acceptance". Their text and scenarios match the archived delta spec, the living-spec diff deletes or modifies no existing line, and the Purpose already described the optional checkpoint from the implementation, so the archive left it unchanged.
+- `openspec validate --all --strict` → `Totals: 75 passed, 0 failed (75 items)`, exit 0. `openspec validate --specs` → `Totals: 58 passed, 0 failed (58 items)`, exit 0. `git diff --check` → no output, exit 0.
+- Remaining unchecked tasks are 6.1–6.2 only. They describe the R08 reconciliation that `design.md` § "R08 dependency reconciliation" assigns to `reduce-governance-rules-duplication-r08`'s own follow-up; that change is not present in this worktree and is deliberately not edited, so those tasks stay unchecked here and the archive proceeds with them classified as outside this change's scope. Task 7.1 is completed by this archive.
+- The spawn snapshot commit contained only untracked `test-results/material-ux-review/` and `test-results/r08-review/` reading copies. Per the tower's scope correction the branch was reset to the base merge commit `74d87c18` before the archive commit, and those files are not in the branch; the main checkout copies were not modified.
+
 ## Local pre-push review (REVIEW.md, three passes)
 
-- **Bugs**: no code or runtime behavior. The artifacts are internally consistent: `DESIGN.md` §10.1, the rules source, the regenerated agent files, `REVIEW.md`, the apply guidance, and the living Purpose describe the same offer/recommend/dependent-wait/feedback-first/opt-out sequence and the same non-blocking review behavior. The scenario mapping above found no gap.
+- **Bugs**: no code or runtime behavior. The artifacts are internally consistent: `DESIGN.md` §10.1, the rules source, the regenerated agent files, `REVIEW.md`, the apply guidance, and the living Purpose describe the same offer/recommend/dependent-wait/feedback-first/opt-out sequence and the same non-blocking review behavior. The scenario mapping above found no gap, and the archived delta is identical to the four requirements the archive added to the living spec.
 - **Security**: no secrets, credentials, PII, dependency, network, permission, or file-access change. `pnpm agent:sync` regenerated rules only; no permission file changed.
-- **Compliance**: the approval record is present in `proposal.md`; tasks 1.1–5.5 are implemented by this diff and this file records the evidence; R08 (6.1–6.2) and archive (7.1) stay open by design. This is a documentation/rule change, so the running-environment and hands-on acceptance clauses do not apply and the exemption is stated here. No Important findings.
+- **Compliance**: the approval record is present in `proposal.md`; tasks 1.1–5.5 are implemented by the archived diff and this file records the evidence; the archive pass is recorded in § Archive above; R08 (6.1–6.2) remains open by design and owned by the R08 change. This is a documentation/rule change, so the running-environment and hands-on acceptance clauses do not apply and the exemption is stated here. No Important findings.
 
 ## Not validated (declared gaps)
 
 - **Review behavior on a future material UX pull request** — whether a reviewer honors the non-blocking rule is observable only after this policy lands. The policy text is checked against the delta spec; its enforcement quality is unverified.
 - **Demo offer in a real material UX change** — this diff changes no product UI, so there is no live demo to offer or exercise; the behavior of the offer/recommendation/wait sequence will be observable in the next material UX change that applies it.
-- **R08 reconciliation** — tasks 6.1–6.2 are open; R08 is not edited in this change, so its mandatory-gate references remain until its own follow-up.
-- **Archive** — task 7.1 is open; archiving follows this change's task pull request.
+- **R08 reconciliation** — tasks 6.1–6.2 are open; R08 is not edited in this change, so its mandatory-gate references remain until its own follow-up in `reduce-governance-rules-duplication-r08`.
+- **Archive pull request** — the archive itself is complete and recorded in § Archive; creating, reviewing, and merging the follow-up docs pull request is the delivery step outside this branch.
 - **Running environment** — no runtime behavior, product UI, or active rule execution changes in this diff, so no running-environment exercise applies; the Definition of Done documentation-change exemption is stated here.
 - **gh-aw advisory output** — the drift check's `i recommend using ecosystem identifiers…` lines are pre-existing informational messages; the compiled-workflow comparison itself passes.
