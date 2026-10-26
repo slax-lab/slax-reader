@@ -1,5 +1,20 @@
 # Slax Reader Design Contract
 
+## Scope and change policy
+
+- **Owns:** UI design intent, application profiles, token and icon rules, the theme-support
+  matrix (§6), the material-UX demo checkpoint (§10.1), the hands-on acceptance procedure
+  (§10.2), and the design change workflow.
+- **Does not own:** repository workflow and review policy (`REVIEW.md`, root agent rules);
+  verification evidence recording (`docs/DEFINITION-OF-DONE.md`); executable token values
+  (application-owned token and style files).
+- **Intake:** design intent, permitted variants, accessibility requirements, profiles, and
+  documented exceptions. A visible change still follows the repository OpenSpec workflow; a
+  new normative threshold belongs in this contract.
+- **Outflow:** operational verification or review steps move to their owning document;
+  executable values move to the application's token files. Update inbound links and keep old
+  section references working.
+
 Status: **normative for UI design and implementation**
 
 This document is the single design contract for Slax Reader. It defines the visual intent, application profiles, semantic boundaries, exceptions, and maintenance workflow that humans and coding agents must follow when changing user interfaces.
@@ -320,6 +335,8 @@ Exempt: token or color corrections, copy changes, bug fixes that restore already
 ### 10.2 Hands-on acceptance after implementation
 
 An accepted demo's approval authorizes implementation, not shipment. A UI-visible change still completes the post-implementation human acceptance required by the repository's Definition of Done: the human exercises the implemented change in the agent-prepared running environment before the pull request opens, requested adjustments are implemented and re-verified first, and the acceptance is recorded with who, when, and what was adjusted. Neither record substitutes for the other, and a declined demo changes nothing here.
+
+This acceptance step has no declared-gap path. `docs/DEFINITION-OF-DONE.md` records the acceptance evidence; this section owns the procedure.
 
 ## 11. Agent checklist
 

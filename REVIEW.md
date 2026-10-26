@@ -1,8 +1,20 @@
 # Review instructions
 
-This file is the single source of truth for review policy in this repo. It is read by automated review services, by agents asked to review code, and by human reviewers.
+## Scope and change policy
 
-Scope: this file carries review instructions only. Operational documentation for the review automation (triggers, gates, pausing, budget, troubleshooting) does not belong here; keep it next to the workflows or in `docs/`. Report pull requests that add such content to this file as a Compliance finding.
+- **Owns:** review passes, Important-versus-Nit calibration, the OpenSpec compliance pass, and
+  the review treatment of material-UX changes (`DESIGN.md` §10.1).
+- **Does not own:** review automation operations — triggers, gates, pausing, budget,
+  troubleshooting — which live next to the workflows or in `docs/CI.md`; the
+  verification-evidence procedure (`docs/DEFINITION-OF-DONE.md`); the normative verification
+  rules (`openspec/specs/change-verification/spec.md`).
+- **Intake:** review instructions only. A new normative threshold enters its owning spec first.
+  Operational automation documentation does not belong here; report a pull request that adds
+  it to this file as a Compliance finding.
+- **Outflow:** automation documentation moves next to the workflows or to `docs/CI.md`;
+  normative content moves to its owning spec. Update inbound links and keep old links working.
+
+This file is the single source of truth for review policy in this repo. It is read by automated review services, by agents asked to review code, and by human reviewers.
 
 In CI this file is read **from the pull request's head branch**, so a pull request can adjust the policy it is reviewed under — call out any change to this file that weakens the policy as a finding.
 
@@ -48,16 +60,17 @@ Pull requests between two long-lived branches — promotion pull requests (`dev`
    - If no change-id can be determined for a behavior-changing diff, report that as an Important Compliance finding.
 3. Read `openspec/changes/<change-id>/`: `proposal.md`, `tasks.md`, `design.md` (if present), and the delta specs under `specs/`.
 4. Verify the implementation matches the change's stated intent and that tasks marked complete are actually implemented. Report divergences as Compliance findings.
-5. For a behavior-changing diff, check the verification-evidence trail (see "Definition of Done" in `AGENTS.md`):
+5. For a behavior-changing diff, check the verification-evidence trail (see `docs/DEFINITION-OF-DONE.md`):
    - For a pull request: the body must follow the repository template and its Test plan must carry a real evidence trail — what was run, what was exercised in a running environment, and what was not verified and why — linking `openspec/changes/<change-id>/validation.md` when the details live there.
    - For a local pre-push review: hold the change directory's `validation.md` (or the diff's stated exemption) to the same standard before pushing.
    - A missing Test plan section, an empty or boilerplate evidence trail, or evidence contradicting observable facts (for example claiming a check that CI shows failing) is an Important Compliance finding.
    - A declared gap ("X was not verified, because Y") is not a finding; whether the declared gap is acceptable is the human reviewer's decision. This clause covers agent-executable verification only — the human acceptance in the next bullet admits no declared gap.
    - For UI-visible changes, the trail must also record the human hands-on acceptance that preceded the pull request (who, when, what was adjusted); its absence is an Important Compliance finding.
+
 ## Do not report
 
 - A material UX change's missing demo or demo approval record — the demo is optional and chosen by the human (`DESIGN.md` §10.1); its absence is not a finding and does not block the merge. The UI-visible hands-on acceptance check in the Compliance pass still applies, and an accepted demo's approval does not substitute for it.
-- Generated agent files: `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.codex/`, `.agents/` — rulesync drift is enforced in CI
+- Generated outputs owned by a generator: rulesync outputs (`AGENTS.md`, `CLAUDE.md`, `apps/*/AGENTS.md`, `.claude/settings.json`, `.codex/*`), `openspec update` outputs (`.agents/skills/.openspec-target`, `.agents/skills/openspec-*`, `.claude/skills/openspec-*`, `.claude/commands/opsx/*`), and `gh aw compile` outputs (`.github/workflows/*.lock.yml`, `.github/aw/**`) — their drift is enforced in CI
 - OpenSpec structural validity — `openspec validate --all --strict` runs in CI
 - `pnpm-lock.yaml`, `node_modules/`, build outputs (e.g. `dist/`)
 - Anything else CI already enforces
