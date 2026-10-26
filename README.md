@@ -22,20 +22,24 @@ Follow [@SlaxReader](https://x.com/SlaxReader) on X for updates.
 
 ## Repository structure
 
-This monorepo hosts all non-mobile Slax Reader code:
+This monorepo hosts all Slax Reader code:
 
 | Path                      | Description                                                          |
 | ------------------------- | -------------------------------------------------------------------- |
 | `apps/web`                | Web frontend ([r.slax.com](https://r.slax.com/))                     |
 | `apps/extension`          | Browser extension (Chrome/Edge)                                      |
+| `apps/mobile`             | Expo / React Native Android and iOS app                              |
 | `apps/api`                | API server (Cloudflare Workers: Core, Edge, AI and Browser)          |
 | `apps/cli`                | Command-line client                                                  |
 | `packages/contracts`      | Shared API, domain and event contracts (`@slax-reader/contracts`)    |
 | `packages/frontend-types` | Shared Web/Extension implementation types                            |
 | `packages/frontend-utils` | Shared frontend utilities                                            |
+| `packages/reader-embed`   | Portable reader assets and PDF runtime for mobile hosts              |
 | `packages/selection`      | Shared highlighting and annotation engine                            |
-| `deploy/`                 | Public API templates and local Web, Extension and API infrastructure |
-| `docs/`                   | Web, Extension and API development documentation                     |
+| `deploy/`                 | Public API template and local app infrastructure                     |
+| `docs/`                   | Web, Extension, API, CLI and mobile development docs                 |
+| `tests/e2e`               | End-to-end tests                                                     |
+| `tooling/`                | Command dispatchers and repository tooling                           |
 
 Shared libraries belong in `packages` when at least two apps use them. See the
 [Web architecture](docs/web/architecture.md) for the current application and package boundaries.
@@ -75,8 +79,6 @@ pnpm api -- typecheck
 pnpm api -- test
 pnpm api -- build
 ```
-
-The API's `setup` command prepares local dependencies and exits; `dev` starts Workers separately. Remote deployment and migrations remain explicit operations with their safety checks. See the [API development guide](docs/api/DEVELOPMENT-DOCUMENT-EN.md) ([中文](docs/api/DEVELOPMENT-DOCUMENT-CN.md), [日本語](docs/api/DEVELOPMENT-DOCUMENT-JP.md)).
 
 Shared HTTP types live in [`packages/contracts`](packages/contracts/README.md). Web, Extension, API and CLI code import the contract package and do not import application internals.
 
