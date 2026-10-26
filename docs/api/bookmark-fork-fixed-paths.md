@@ -37,6 +37,14 @@ One nullable `sr_user_bookmark.forked_from_id` stores the immediate source relat
 
 A repeated Reader URL submission refreshes the same personal bookmark and keeps its UUID/personal state. The page button is disabled for a pending request or an active/successful Fork; explicit Add URL remains the deliberate refresh entry. Fork requires a connection. The page stays on the source after acceptance; PowerSync delivers the destination row normally.
 
+## Admission query optimization — 2026-10-26
+
+Source-owner and per-bookmark sharing reads run together after resolving the source relation. URL, PDF and resolved-media acquisition checks also run together before admission. Both groups use `Promise.allSettled` and explicitly inspect failures in the original validation order; missing/deleted owners remain inaccessible and no failed gate admits a write.
+
+Admission reads the private destination once, without loading the unused `userBookmarks` relation. When converting a legacy shared save, it reuses the private bookmark returned by the existing conversion helper. Serializable isolation, source-policy locks/rechecks, destination locking and bounded conflict retries remain in place. Queries inside one interactive transaction still share one connection; wrapping those locks in promises would not parallelize SQL execution.
+
+The pre-Fork ordinary-save implementation already awaited search-cache invalidation and bookmark-event attribute lookup. These remain unchanged: the three KV deletions run in parallel and are awaited; event delivery uses the existing background mechanism after attributes have been loaded. Workflow acceptance is still confirmed before response, and R2 copying stays in the Workflow. There is no PowerSync submission change in this optimization. Reduced query dependencies are verified locally; a deployed response-time improvement requires before/after browser and Worker timing measurements.
+
 ## Existing save endpoint and workflow
 
 The button and Reader URL dialog submit:

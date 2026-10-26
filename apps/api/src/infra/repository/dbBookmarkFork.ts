@@ -115,9 +115,15 @@ export class BookmarkForkRepo {
   async source(viewer: number, uuid: string, db: Database = this.client()) {
     const relation = await db.sr_user_bookmark.findUnique({ where: { uuid }, include: { bookmark: true } })
     if (!relation?.bookmark) return null
-    const owner = await db.sr_user.findUnique({ where: { id: relation.user_id } })
+    const [ownerResult, shareResult] = await Promise.allSettled([
+      db.sr_user.findUnique({ where: { id: relation.user_id } }),
+      db.sr_bookmark_share.findUnique({ where: { bookmark_id_user_id: { bookmark_id: relation.bookmark_id, user_id: relation.user_id } } })
+    ])
+    if (ownerResult.status === 'rejected') throw ownerResult.reason
+    const owner = ownerResult.value
     if (!owner || owner.deleted_at) return null
-    const share = await db.sr_bookmark_share.findUnique({ where: { bookmark_id_user_id: { bookmark_id: relation.bookmark_id, user_id: relation.user_id } } })
+    if (shareResult.status === 'rejected') throw shareResult.reason
+    const share = shareResult.value
     if (viewer !== relation.user_id && (relation.deleted_at || relation.bookmark.moderation_result > 0 || (share ? !share.is_enable : !owner.snapshot_sharing))) return null
     return { ...relation, owner, share }
   }
@@ -259,13 +265,8 @@ export class BookmarkForkRepo {
         return await this.client().$transaction(
           async db => {
             const source = await this.validateSource(db, input.userId, input.source)
-            const find = () =>
-              db.sr_bookmark.findUnique({ where: { target_url_private_user: { target_url: input.targetUrl, private_user: input.userId } }, include: { userBookmarks: true } })
-            let raw = await find()
-            if (!raw) {
-              await privatizeLegacyBookmark(db, input.userId, input.targetUrl)
-              raw = await find()
-            }
+            let raw = await db.sr_bookmark.findUnique({ where: { target_url_private_user: { target_url: input.targetUrl, private_user: input.userId } } })
+            if (!raw) raw = (await privatizeLegacyBookmark(db, input.userId, input.targetUrl))?.bookmark ?? null
             if (raw) {
               await db.$queryRaw`SELECT id FROM sr_bookmark WHERE id = ${raw.id} FOR UPDATE`
               const relation = await db.sr_user_bookmark.findUnique({ where: { user_id_bookmark_id: { user_id: input.userId, bookmark_id: raw.id } }, include: { bookmark: true } })

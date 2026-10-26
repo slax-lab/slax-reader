@@ -48,9 +48,13 @@ export class BookmarkForkService {
     if (typeof sourceUuid !== 'string' || !uuidPattern.test(sourceUuid)) throw ErrorParam()
     const source = await this.repo.source(userId, sourceUuid.toLowerCase())
     if (!source) throw BookmarkNotFoundError()
-    await this.labs.assertUrlAllowed(ctx, source.bookmark.target_url)
-    if (isPdfContentKey(source.bookmark.content_key)) await this.labs.assertEnabled(ctx, 'pdf')
-    await this.assertMediaAllowed(ctx, source.bookmark_id)
+    const checks = await Promise.allSettled([
+      this.labs.assertUrlAllowed(ctx, source.bookmark.target_url),
+      isPdfContentKey(source.bookmark.content_key) ? this.labs.assertEnabled(ctx, 'pdf') : Promise.resolve(),
+      this.assertMediaAllowed(ctx, source.bookmark_id)
+    ])
+    // Preserve validation priority and require every gate before creating a write claim.
+    for (const check of checks) if (check.status === 'rejected') throw check.reason
     if (source.user_id === userId) return this.existingResult(ctx, await this.repo.ownSource(userId, sourceUuid))
     if (source.bookmark.status !== 'success') throw forkError()
     const admission = await this.repo.admit({ userId, source, targetUrl: this.destinationUrl(source, userId), uuid: crypto.randomUUID() })
