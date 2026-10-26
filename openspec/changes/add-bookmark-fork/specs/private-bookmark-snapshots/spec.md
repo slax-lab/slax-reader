@@ -199,3 +199,18 @@ Content updates SHALL reuse existing status fields without a database version, l
 #### Scenario: Cached shared capture completes
 - **WHEN** a historical shared capture reuses its stored body and releases its claim successfully
 - **THEN** the durable release result supplies the new stored timestamp to moderation, and current content continues through post-processing and import success accounting
+
+#### Scenario: Ordinary tweet publication reaches moderation
+- **WHEN** an ordinary tweet is published successfully
+- **THEN** its durable parse result carries the exact publication timestamp into moderation, and flagged content loses sharing through the guarded policy transaction
+
+#### Scenario: Moderation notification fails after commit
+- **WHEN** moderation and share revocation commit but the notification webhook fails
+- **THEN** only notification is retried, without repeating the consumed-revision policy write
+- **AND** post-processing, the completion event and successful import accounting still run after notification succeeds or its bounded retries are exhausted, preserving the committed policy
+
+#### Scenario: Global podcast policy arrives during capture
+- **WHEN** an episode-wide moderation hit arrives while a referenced capture is pending, pending_retry or parseing
+- **THEN** the policy and share restriction still apply, while the active capture timestamp and status are preserved
+- **AND** denied content cannot publish, and the original bounded capture failure path can mark its owned attempt failed
+- **AND** completed references advance their timestamp so earlier capture moderation cannot clear the new global policy

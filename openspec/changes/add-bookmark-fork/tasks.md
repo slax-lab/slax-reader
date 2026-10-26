@@ -118,3 +118,7 @@ The owner approved these implementation tasks on 2026-10-23. See the [report](..
 - [x] R30 Run regression and isolated runtime checks, review Bugs/Security/Compliance, record actual evidence, and update PR #354 and its implementation report.
 
 - [x] R31 Correct cached shared-content moderation to use the durable release result, verify post-processing/import accounting with composed real methods and PostgreSQL, and prepare the reviewed PR follow-up.
+
+- [x] R32 Propagate the ordinary-tweet publication timestamp into Workflow moderation and test the real tweet publisher at that boundary.
+- [x] R33 Separate post-commit moderation notifications from guarded-write retries; test transient and exhausted webhook failures without losing policy, completion events or import accounting.
+- [x] R34 Preserve active capture timestamps during global podcast moderation while still enforcing policy/share revocation; verify pending, pending_retry and parseing transitions with real PostgreSQL and existing finite failure handling.

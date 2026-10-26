@@ -1038,7 +1038,8 @@ export class CrawlService {
       byline,
       siteName: 'Twitter',
       publishedTime: new Date(tweetInfo.createdAt),
-      contentKey
+      contentKey,
+      publishedRevision: content.publishedRevision
     }
   }
 

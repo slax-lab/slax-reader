@@ -7,6 +7,9 @@ import { podcastInputFingerprint } from '@/utils/mediaSnapshot'
 import { DBSyncBatchOperation } from '@/infra/repository/dbSyncBatch'
 import { BookmarkRepo, queueStatus } from '@/infra/repository/dbBookmark'
 import { CrawlService } from '@/domain/crawl'
+import { PodcastService } from '@/domain/podcast'
+import { BookmarkService } from '@/domain/bookmark'
+import { PodcastArticleRepo } from '@/infra/repository/dbPodcastArticle'
 import { UserDeletionService } from '@/domain/userDeletion'
 import { MediaSnapshotService } from '@/domain/mediaSnapshot'
 import { memoryBucket } from '../utils/snapshotBucket'
@@ -96,6 +99,55 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
       expect(await repo.failWrite(raw.id, admitted!.updated_at!)).toBe(true)
     }
     expect((await repo.snapshot(raw.id))!.status).toBe(outcome === 'publish' ? 'success' : 'failed')
+  })
+
+  it.each(['pending', 'pending_retry', 'parseing'])('global podcast moderation preserves the active %s revision and finite failure path', async status => {
+    const destination = await publish(input(`https://podcast-moderation-race.test/${crypto.randomUUID()}`))
+    const idle = await publish(input(`https://podcast-moderation-idle.test/${crypto.randomUUID()}`))
+    const raw = destination.relation.bookmark
+    const sourceId = `moderation-${crypto.randomUUID()}`
+    const mediaRef = { media_kind: 'podcast' as const, source_id: sourceId, source_hash: 'transcript-A' }
+    const bookmarks = new BookmarkRepo({} as any, () => client)
+    const bookmarkService = Object.assign(Object.create(BookmarkService.prototype), { bookmarkData: bookmarks }) as BookmarkService
+    const snapshots = Object.assign(Object.create(MediaSnapshotService.prototype), { repo }) as MediaSnapshotService
+    const podcasts = Object.assign(Object.create(PodcastService.prototype), {
+      snapshots,
+      bookmarkService,
+      articles: new PodcastArticleRepo(() => client),
+      alertBot: { crawl: { pushMessage: vi.fn().mockResolvedValue(undefined) } }
+    }) as PodcastService
+    await client.sr_podcast_episode.create({ data: { source_id: sourceId, audio_url: 'https://example.test/audio.mp3', transcript_status: 'ready' } })
+    try {
+      for (const saved of [destination, idle]) {
+        await client.sr_media_article_ref.create({ data: { ...mediaRef, bookmark_id: saved.relation.bookmark_id, user_id: users[1] } })
+      }
+      const admitted = await bookmarks.createBookmark(
+        { title: 'B', host_url: '', target_url: raw.target_url, content_icon: '', content_cover: '', private_user: users[1] },
+        'pending'
+      )
+      expect(admitted!.admitted).toBe(true)
+      if (status === 'pending_retry') await client.sr_bookmark.update({ where: { id: raw.id }, data: { status, updated_at: admitted!.updated_at } })
+      if (status === 'parseing') expect(await repo.claimWrite(raw.id, admitted!.updated_at!, ['pending'], true)).toBe(true)
+      expect(await podcasts.flagBookmarks(sourceId, 1)).toBe(2)
+      expect(await repo.snapshot(raw.id)).toMatchObject({ status, moderation_result: 1, updated_at: admitted!.updated_at })
+      expect(await repo.mediaDenied(mediaRef)).toBe(true)
+      for (const saved of [destination, idle]) {
+        expect(await client.sr_bookmark_share.findUnique({ where: { bookmark_id_user_id: { bookmark_id: saved.relation.bookmark_id, user_id: users[1] } } })).toMatchObject({
+          is_enable: false
+        })
+      }
+      // Completed copies invalidate old moderation results, while active captures keep their claim.
+      expect((await repo.snapshot(idle.relation.bookmark_id))!.updated_at.getTime()).toBeGreaterThan(idle.relation.bookmark.updated_at.getTime())
+      expect(await bookmarks.updateBookmarkModerationResult(idle.relation.bookmark_id, 0, { revision: idle.relation.bookmark.updated_at, userId: users[1] })).toBe(false)
+      if (status !== 'parseing') expect(await repo.claimWrite(raw.id, admitted!.updated_at!, [status], true)).toBe(true)
+      expect(await repo.publishRevision(raw.id, raw.content_key, input().content, { expectedUpdatedAt: admitted!.updated_at })).toBe(false)
+      await expect(repo.publishRevision(raw.id, raw.content_key, input().content, { expectedUpdatedAt: admitted!.updated_at, mediaRef })).rejects.toThrow()
+      const crawl = Object.assign(Object.create(CrawlService.prototype), { snapshotRepo: repo }) as CrawlService
+      expect(await crawl.setCaptureStatus({ get: () => admitted!.updated_at!.toISOString() } as any, raw.id, queueStatus.FAILED)).toBe(true)
+      expect(await repo.snapshot(raw.id)).toMatchObject({ status: 'failed', moderation_result: 1 })
+    } finally {
+      await client.sr_podcast_episode.delete({ where: { source_id: sourceId } })
+    }
   })
 
   it('applies current moderation and share revocation atomically, rejecting stale replay', async () => {

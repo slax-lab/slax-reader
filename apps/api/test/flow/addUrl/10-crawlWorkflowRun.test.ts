@@ -57,7 +57,7 @@ vi.mock('@/utils/hashids', () => ({
 }))
 
 import { CrawlWorkflow } from '@/entry/edge/workflows/crawlWorkflow'
-import { CrawlService } from '@/domain/crawl'
+import { CrawlService, type TwitterFetched } from '@/domain/crawl'
 import { BookmarkForkRepo } from '@/infra/repository/dbBookmarkFork'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
 import { BookmarkService } from '@/domain/bookmark'
@@ -782,6 +782,102 @@ describe('CrawlWorkflow hostname 提取', () => {
     await runWorkflow(wf, { url: 'not-a-url' })
 
     expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'unknown', expect.any(String), expect.any(String))
+  })
+})
+
+describe('published capture moderation boundaries', () => {
+  function wirePublishedCapture() {
+    const w = wireWorkflow()
+    const revision = new Date('2026-01-01T00:00:00.000Z')
+    const row = { id: 42, status: 'success', updated_at: revision, moderation_result: 0 }
+    const share = { is_enable: true }
+    const db: any = {
+      sr_bookmark: {
+        updateMany: vi.fn(async ({ where, data }) => {
+          if (where.id !== row.id || where.updated_at.getTime() !== row.updated_at.getTime() || where.status !== row.status) return { count: 0 }
+          Object.assign(row, data)
+          return { count: 1 }
+        })
+      },
+      sr_bookmark_share: { upsert: vi.fn(async ({ update }) => Object.assign(share, update)) }
+    }
+    db.$transaction = (run: any) => run(db)
+    const repo = new BookmarkRepo({} as any, () => db)
+    ;(w.bs as any).updateBookmarkModerationResult = repo.updateBookmarkModerationResult.bind(repo)
+    const pushMessage = vi.fn().mockResolvedValue(undefined)
+    mockResolveMap.set(SlaxAlertBotClient, { crawl: { pushMessage } })
+    w.cs.fetchRegular.mockResolvedValue({ content: '<p>An ordinary article with enough text.</p>', url: 'https://example.com/article', title: 'Article' })
+    w.cs.parseAndSaveContent.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, publishedRevision: revision.toISOString() })
+    return { ...w, row, share, db, revision, pushMessage }
+  }
+
+  test('the real ordinary-tweet publisher passes its revision into Workflow moderation and sharing revocation', async () => {
+    const { wf, cs, db, row, share, revision } = wirePublishedCapture()
+    const fetched: TwitterFetched = {
+      kind: 'tweet',
+      tweetInfo: {
+        text: 'An ordinary tweet that must be moderated.',
+        url: 'https://x.com/u/status/1',
+        author: { name: 'User', userName: 'u', profilePicture: '' },
+        createdAt: '2026-01-01T00:00:00Z',
+        quoted_tweet: null
+      } as any,
+      quoteTweetHtml: ''
+    }
+    cs.fetchTwitterData.mockResolvedValue(fetched)
+    const capture = vi.fn().mockResolvedValue({ content_key: 'html/body/tweet.html', publishedRevision: revision.toISOString() })
+    const publisher = Object.assign(Object.create(CrawlService.prototype), { snapshots: { capture } }) as CrawlService
+    cs.parseAndSaveTwitter.mockImplementation(publisher.parseAndSaveTwitter.bind(publisher))
+    const moderate = vi.spyOn(OpenAIModerationClient.prototype, 'moderateContent').mockResolvedValue(ModerationResult.PORN)
+    try {
+      await runWorkflow(wf, { url: fetched.tweetInfo.url })
+      expect(capture).toHaveBeenCalledOnce()
+      expect(moderate).toHaveBeenCalledWith(expect.objectContaining({ text: fetched.tweetInfo.text }))
+      expect(db.sr_bookmark.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 42, updated_at: revision, status: 'success' } }))
+      expect(row.moderation_result).toBe(ModerationResult.PORN)
+      expect(share.is_enable).toBe(false)
+    } finally {
+      moderate.mockRestore()
+    }
+  })
+
+  test.each([false, true])('alert failure retries independently and preserves completion (exhausted=%s)', async exhausted => {
+    const { wf, cs, bs, imp, uph, env, row, share, db, pushMessage } = wirePublishedCapture()
+    const moderate = vi.spyOn(OpenAIModerationClient.prototype, 'moderateContent').mockResolvedValue(ModerationResult.PORN)
+    pushMessage.mockImplementation(async () => {
+      // The first webhook fails only after the real guarded moderation transaction committed.
+      expect(row.moderation_result).toBe(ModerationResult.PORN)
+      expect(share.is_enable).toBe(false)
+      if (exhausted || pushMessage.mock.calls.length === 1) throw new Error('webhook unavailable')
+    })
+    const attempts = new Map<string, number>()
+    const step = {
+      do: vi.fn(async (name: string, options: any, callback?: () => Promise<any>) => {
+        const run = typeof options === 'function' ? options : callback!
+        for (let attempt = 0; ; attempt++) {
+          attempts.set(name, (attempts.get(name) ?? 0) + 1)
+          try {
+            return await run()
+          } catch (error) {
+            if (attempt >= (options.retries?.limit ?? 0)) throw error
+          }
+        }
+      })
+    }
+    try {
+      await runWorkflow(wf, { importTaskId: 77 }, step)
+      expect(db.sr_bookmark.updateMany).toHaveBeenCalledOnce()
+      expect(attempts.get('content-moderation')).toBe(1)
+      expect(attempts.get('content-moderation-alert')).toBe(exhausted ? 3 : 2)
+      expect(pushMessage).toHaveBeenCalledTimes(exhausted ? 3 : 2)
+      expect(env.CONTENT_VALIDATION_WORKFLOW.create).not.toHaveBeenCalled()
+      expect(uph.processPostHandler).toHaveBeenCalledOnce()
+      expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'example.com', 'complete', 'success')
+      expect(bs.updateBookmarkImportRelationStatus).toHaveBeenCalledWith(1, 42, 77, 1)
+      expect(imp.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 77, 1, 0)
+    } finally {
+      moderate.mockRestore()
+    }
   })
 })
 

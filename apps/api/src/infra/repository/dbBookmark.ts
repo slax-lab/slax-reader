@@ -1338,7 +1338,17 @@ export class BookmarkRepo {
         return true
       })
     }
-    return await this.clientPg().sr_bookmark.update({ where: { id: bmId }, data: { moderation_result: moderationResult, updated_at: new Date() } })
+    // Global episode policy still applies to active captures. Preserve their claim timestamp
+    // so the existing bounded Workflow can reject publication and mark its own attempt failed.
+    // Idle rows advance time to invalidate an older capture's pending moderation result.
+    return (
+      (await this.clientPg().$executeRaw`
+        UPDATE sr_bookmark SET moderation_result = ${moderationResult},
+          updated_at = CASE WHEN status IN ('pending', 'pending_retry', 'parseing') THEN updated_at
+            ELSE GREATEST(${new Date()}::timestamp, updated_at + INTERVAL '1 millisecond') END
+        WHERE id = ${bmId}
+      `) === 1
+    )
   }
 
   public async disableBookmarkShareUpsert(bmId: number, userId: number, db: Pick<HyperdrivePrismaClient, 'sr_bookmark_share'> = this.clientPg()) {

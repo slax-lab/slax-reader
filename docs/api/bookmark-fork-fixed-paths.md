@@ -13,9 +13,19 @@ PR reviewer boxcounter identified four bugs in the legacy queue and asynchronous
 | A duplicate Fork acknowledges admission without durable dispatch | Confirm the deterministic Workflow before returning success for an active duplicate. Lookup uncertainty returns the existing storage error and retains the active claim. |
 | Late moderation from A strands capture B | Carry the exact content publication timestamp through durable results. Update moderation only while that timestamp still identifies a successful capture; revoke sharing in the same transaction. Stale moderation performs no write and stops its remaining post-processing. |
 
+The follow-up [boxcounter review 5649104321](https://github.com/slax-lab/slax-reader/pull/354#pullrequestreview-5649104321) identified three remaining boundaries, corrected in three production files:
+
+| Finding | Correction |
+| --- | --- |
+| Ordinary tweets omitted the publication timestamp and skipped moderation | `domain/crawl.ts` returns `content.publishedRevision` from the ordinary-tweet publisher; Workflow moderation and share revocation now run for this path too. |
+| A webhook failure replayed a committed moderation write and skipped completion | `entry/edge/workflows/crawlWorkflow.ts` commits moderation first, then retries the alert in a separate bounded step. An exhausted alert is logged; the committed policy, post-processing, completion event and import accounting remain intact. |
+| Global podcast moderation invalidated an active capture's claim | `infra/repository/dbBookmark.ts` applies global policy in one SQL update. Pending/pending_retry/parseing rows retain their timestamp and status, so denied publication can reach the original guarded failure cleanup. Idle rows advance the timestamp to reject older moderation results. All references still lose sharing. |
+
+These changes add no recovery job, table, schema field, endpoint or R2 key convention. PostgreSQL regressions exercise all three active states; Workflow regressions cover ordinary-tweet moderation and both transient/exhausted alert failures. They do not provide general crash or lost-COMMIT recovery.
+
 Historical shared-body cache hits also use the exact timestamp returned by their durable release step, so moderation does not skip post-processing or import completion because of the earlier claim timestamp.
 
-The internal `publishedRevision` is the existing `updated_at` from the successful HTML/media/PDF publication. It adds no version counter, table, migration, scheduled recovery or R2 path. The global podcast moderation path retains its existing policy behavior. This correction prevents the identified stale-capture race; it does not introduce general automatic recovery of interrupted `parseing` work.
+The internal `publishedRevision` is the existing `updated_at` from the successful HTML/media/PDF publication. It adds no version counter, table, migration, scheduled recovery or R2 path. Global podcast moderation continues to reach every episode reference, preserving active capture timestamps so the original finite failure path can finish; completed references still invalidate stale moderation. This correction prevents the identified stale-capture race; it does not introduce general automatic recovery of interrupted `parseing` work.
 
 Current evidence and remaining runtime boundaries are recorded in [validation.md](../../openspec/changes/add-bookmark-fork/validation.md#review-corrections--2026-10-26).
 

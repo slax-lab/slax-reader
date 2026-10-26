@@ -443,16 +443,6 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
             })
             if (!applied) return null
 
-            if (result !== ModerationResult.NORMAL) {
-              // 命中审核内容：关闭分享（无记录则创建全关闭记录），并推飞书。=1 色情=提醒(蓝)，=2 极度危险=警告(橙)
-              const isDanger = result === ModerationResult.DANGEROUS
-              const header = isDanger ? '⚠️ **Content Moderation 警告**' : '🔍 **Content Moderation 提醒**'
-              const label = isDanger ? '极度危险内容(2)' : '色情内容(1)'
-              await alertBot.crawl.pushMessage(
-                `${header}\n**级别**: ${label}\n**Title**: ${crawlResult!.title}\n**URL**: ${url}\n**处理**: 已禁止分享、仅创建者可访问` +
-                  (isDanger ? '（危险内容待人工确认是否删除）' : '')
-              )
-            }
             return result
           }
         )
@@ -462,6 +452,24 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
         const errMsg = moderationErr instanceof Error ? moderationErr.message : String(moderationErr)
         console.error(`Content moderation failed for bookmark ${bookmarkId}: ${errMsg}`)
         await crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, hostname, 'content_moderation', 'failed', errMsg, ctxManager)
+      }
+    }
+
+    // Persist the policy result before retrying notification; a webhook failure must not
+    // replay the guarded write with its now-consumed publication timestamp.
+    if (moderationResult !== ModerationResult.NORMAL) {
+      try {
+        await step.do('content-moderation-alert', { retries: { limit: 2, delay: '30 seconds' as const, backoff: 'constant' as const }, timeout: '3 minutes' }, async () => {
+          const isDanger = moderationResult === ModerationResult.DANGEROUS
+          const header = isDanger ? '⚠️ **Content Moderation 警告**' : '🔍 **Content Moderation 提醒**'
+          const label = isDanger ? '极度危险内容(2)' : '色情内容(1)'
+          await alertBot.crawl.pushMessage(
+            `${header}\n**级别**: ${label}\n**Title**: ${crawlResult!.title}\n**URL**: ${url}\n**处理**: 已禁止分享、仅创建者可访问` +
+              (isDanger ? '（危险内容待人工确认是否删除）' : '')
+          )
+        })
+      } catch (error) {
+        console.error(`Content moderation alert failed for bookmark ${bookmarkId}: ${error}`)
       }
     }
 

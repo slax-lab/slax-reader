@@ -1,3 +1,37 @@
+# Remaining moderation boundaries — 2026-10-26
+
+The owner requested fixes for [boxcounter review 5649104321](https://github.com/slax-lab/slax-reader/pull/354#pullrequestreview-5649104321) against `9d7d8d01`. All three Important Bugs were confirmed and corrected within `add-bookmark-fork`. Production changes are confined to three existing files; no schema, R2 key, endpoint, scheduled job, version or UI change is added.
+
+## Corrections and evidence
+
+1. **Ordinary tweets:** the real `CrawlService.parseAndSaveTwitter` result now carries the snapshot publisher's timestamp into `CrawlWorkflow.run`. The regression injects the snapshot publication receipt but executes the real tweet return path and real guarded moderation repository method with conditional database doubles. Before the fix, moderation was never called; afterward the policy is stored and sharing is disabled.
+2. **Post-commit alert failure:** moderation commits in its original durable step, followed by a separate bounded alert step (two retries). A retry-aware step harness executes the real Workflow and guarded repository method: the webhook first fails after policy/share commit, then either recovers or exhausts retries. Previously the policy update ran twice, rejected its own timestamp and skipped completion. Now it runs once; the alert retries independently, the policy remains effective, and post-processing, completion event and import-success accounting run in both cases. The existing stale-capture regression still passes. The harness simulates webhook failures and step retries; it does not exercise Cloudflare durable replay or a live webhook/provider.
+3. **Global podcast policy:** one parameterized SQL update applies policy while preserving active `pending`/`pending_retry`/`parseing` timestamps and statuses. Completed rows advance time to invalidate older moderation results. A disposable PostgreSQL 17 test composes the real PodcastService, BookmarkService, BookmarkRepo, PodcastArticleRepo, media denial barrier and CrawlService failure path. It reproduces A-published/B-admitted/late-global-moderation, verifies every reference loses sharing, denied publication fails, and B can still enter its guarded failed state. Before the fix, the active timestamp changed; afterward all three active-state cases pass. Only the alert delivery is stubbed in this database test. Task-owned containers and the temporary runner were removed; operator databases were not touched.
+
+## Checks
+
+| Check | Result |
+| --- | --- |
+| Red/green Workflow regressions | Three failures reproduced before correction; all 72 Workflow tests pass afterward |
+| `pnpm api -- test` | 191 files passed / 13 conditional files skipped; **2,490 tests passed / 109 conditional skips** |
+| Isolated PostgreSQL 17 with repository migrations | **37 Fork integration tests passed**, including three new global-podcast-policy interleavings |
+| `pnpm api -- gen:all` | Passed with the public template and unused process-only loopback database URLs; generated files unchanged |
+| `pnpm api -- typecheck` | Passed |
+| `pnpm api -- lint` | 0 errors / 344 existing warnings |
+| `SLAX_API_CONFIG=deploy/cloudflare/api.toml.example pnpm api -- build` | Passed offline dry run |
+| `pnpm exec openspec validate --all --strict` | 74 passed / 0 failed |
+| `git diff --check` | Passed |
+
+## Local pre-push review
+
+- **Bugs:** traced every CrawlService snapshot-return constructor and both moderation call sites, policy/share transaction ordering, the independent alert retry and exhaustion paths, and the SQL status-dependent timestamp update. Active policy denial prevents publication without invalidating owned failure cleanup; completed references reject stale policy clearing. No remaining Important findings in this follow-up.
+- **Security:** all SQL values remain parameterized; global policy and sharing restrictions are retained. No dependency, credentials, public API or authorization changes. No Important findings.
+- **Compliance:** change-id `add-bookmark-fork`; the added regression scenarios enforce the approved independent-capture and bounded-failure behavior. No new recovery infrastructure or UI acceptance requirement is introduced. No Important findings.
+
+Not exercised this round: real provider moderation, a live alert webhook, full Cloudflare retry/replay, process-kill/lost-COMMIT recovery, or a new end-to-end UI run. Earlier real local Edge/Core/R2/Workflow six-format smoke and owner UI acceptance remain historical evidence for their named checkpoints, not a claim that these new moderation fault sequences ran end to end. General recovery of already-stuck captures remains outside scope. The primary checkout and its running services were left unchanged.
+
+---
+
 # Cached shared-content follow-up — 2026-10-26
 
 Remote review [5647488049](https://github.com/slax-lab/slax-reader/pull/354#pullrequestreview-5647488049) found one Important regression in the first correction: cached shared-content release advanced updated_at but moderation received the old claim timestamp, skipping post-processing/import completion. This finding was confirmed and corrected; the earlier local review statement below applies to that checkpoint and did not catch it.
