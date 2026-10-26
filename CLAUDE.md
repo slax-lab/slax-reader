@@ -63,6 +63,17 @@ This repo uses OpenSpec for spec-driven development. Living specs live in `opens
 - Implementation-only changes (refactors, typos, comment/doc tweaks) MAY skip the proposal.
 - After editing specs or changes, run `openspec validate --all --strict`; it must pass before merge.
 
+### Material UX changes offer an optional requirements-discovery demo
+
+A change is material UX when it restructures information architecture, the navigation model, a multi-step flow, a core interaction, primary-action placement, or a whole-screen layout. Before dependent implementation begins, ask the human whether they want a static mockup or clickable demo of the intended structure; the demo is never required. Recommend it, naming the specific reason, when requirements or intended behavior are vague, incomplete, or contested and visualization or interaction would give the human something concrete to react to, or when reversing the structural decision after implementation would rebuild multiple screens, flows, or tests. `DESIGN.md` §10.1 owns the trigger definitions, recommendation criteria, coverage dimensions, and exemptions.
+
+- When the human accepts, all implementation whose requirements or design depends on the unresolved UX decisions waits — UI implementation, backend behavior, data models, API contracts, and test expectations. Only demonstrably independent work proceeds: environment setup, technical research or spikes, independent benchmarks, and generic tooling.
+- Demo feedback updates the requirements first — `proposal.md` always, and the delta spec or design when requirements or design change — before dependent implementation. Feedback that changes the approved structure, scope, or requirements direction returns to a revised demo and approval.
+- Record an accepted demo's approval in `openspec/changes/<change-id>/proposal.md` after the feedback is incorporated: who approved and their role, the date, the demonstrated scope, the covered states/themes/widths, the feedback that changed the requirements and the resulting changes, requested adjustments or conditions, and the decision that the updated requirements may be implemented. Write it to stand alone — demos and their links are often temporary.
+- When the human declines, no demo, record, or decision note is required; do not repeat the offer for the same change, and treat the conversation as the decision record.
+- Token or color corrections, copy changes, bug fixes restoring already-approved behavior, and local component adjustments inside an existing approved pattern are exempt; no offer is required.
+- A missing demo or approval record is not a Compliance finding under `REVIEW.md` and never blocks a pull request. An accepted demo's approval does not replace the post-implementation hands-on acceptance in the Definition of Done below.
+
 ## Archiving OpenSpec Changes
 
 Archiving is the task's closing step, not an optional cleanup, and the task merge alone triggers it — do not wait for the change to reach `beta` or `main`.
@@ -80,6 +91,7 @@ A change that alters observable behavior is done only when the changed behavior 
 - Record verification in `openspec/changes/<change-id>/validation.md`: commands run and results, what was exercised in the running environment, and what was not verified with the reason. Summarize it in the pull request's Test plan with a link to that file; pull request bodies follow `.github/PULL_REQUEST_TEMPLATE.md`, never free text. A change without an OpenSpec proposal has no change directory — its Test plan entry is the record.
 - Screenshots and recordings upload with `gh --attach` (requires gh v2.99.0+) and are never committed to git. The text record must stand alone without the media — the automated review evaluates text only, and attachment links rot.
 - UI-visible changes additionally satisfy `DESIGN.md`'s verification matrix (themes, responsive widths, recorded states), and a human exercises the change hands-on in the agent-prepared running environment before the pull request opens: requested adjustments are implemented and re-verified first, the acceptance (who, when, what was adjusted) is recorded in `validation.md`, and this step has no declared-gap path.
+- Material UX changes may pass an earlier human-chosen checkpoint: when the human accepts the offered demo, dependent implementation waits until its feedback is in the requirements and the approval is recorded in `proposal.md`; a decline leaves no record and is not a finding (see "Material UX changes offer an optional requirements-discovery demo"). Neither checkpoint replaces the other.
 
 Per-app check commands and smoke flows: `docs/web/development.md`, `docs/extension/development.md`, `docs/api/DEVELOPMENT-DOCUMENT-EN.md`, `docs/cli/DEVELOPMENT.md`.
 

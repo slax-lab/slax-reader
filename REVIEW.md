@@ -54,9 +54,9 @@ Pull requests between two long-lived branches — promotion pull requests (`dev`
    - A missing Test plan section, an empty or boilerplate evidence trail, or evidence contradicting observable facts (for example claiming a check that CI shows failing) is an Important Compliance finding.
    - A declared gap ("X was not verified, because Y") is not a finding; whether the declared gap is acceptable is the human reviewer's decision. This clause covers agent-executable verification only — the human acceptance in the next bullet admits no declared gap.
    - For UI-visible changes, the trail must also record the human hands-on acceptance that preceded the pull request (who, when, what was adjusted); its absence is an Important Compliance finding.
-
 ## Do not report
 
+- A material UX change's missing demo or demo approval record — the demo is optional and chosen by the human (`DESIGN.md` §10.1); its absence is not a finding and does not block the merge. The UI-visible hands-on acceptance check in the Compliance pass still applies, and an accepted demo's approval does not substitute for it.
 - Generated agent files: `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.codex/`, `.agents/` — rulesync drift is enforced in CI
 - OpenSpec structural validity — `openspec validate --all --strict` runs in CI
 - `pnpm-lock.yaml`, `node_modules/`, build outputs (e.g. `dist/`)
