@@ -60,6 +60,14 @@ This repo uses OpenSpec for spec-driven development. Living specs live in `opens
 - Implementation-only changes (refactors, typos, comment/doc tweaks) MAY skip the proposal.
 - After editing specs or changes, run `openspec validate --all --strict`; it must pass before merge.
 
+### Material UX changes need an approved demo before implementation
+
+A change is material UX when it restructures information architecture, the navigation model, a multi-step flow, a core interaction, primary-action placement, or a whole-screen layout. For those changes, present a static mockup or clickable demo and obtain human approval before UI implementation begins; non-UI work may continue meanwhile. `DESIGN.md` §10.1 owns the trigger definitions, demo coverage, and exemptions, and lists the coverage dimensions: main flow, key states, and the themes and responsive widths that contract requires, with any inapplicable dimension named and explained.
+
+- Record the approval in `openspec/changes/<change-id>/proposal.md` before implementation: who approved and their role, the date, the demonstrated scope, the covered states/themes/widths, requested adjustments or conditions, and the decision that implementation may start. Write it to stand alone — demos and their links are often temporary.
+- Token or color corrections, copy changes, bug fixes restoring already-approved behavior, and local component adjustments inside an existing approved pattern are exempt.
+- A material UX change without a substantive approval record is an Important Compliance finding under `REVIEW.md`. Demo approval does not replace the post-implementation hands-on acceptance in the Definition of Done below.
+
 ## Archiving OpenSpec Changes
 
 Archiving is the task's closing step, not an optional cleanup, and the task merge alone triggers it — do not wait for the change to reach `beta` or `main`.
@@ -77,6 +85,7 @@ A change that alters observable behavior is done only when the changed behavior 
 - Record verification in `openspec/changes/<change-id>/validation.md`: commands run and results, what was exercised in the running environment, and what was not verified with the reason. Summarize it in the pull request's Test plan with a link to that file; pull request bodies follow `.github/PULL_REQUEST_TEMPLATE.md`, never free text. A change without an OpenSpec proposal has no change directory — its Test plan entry is the record.
 - Screenshots and recordings upload with `gh --attach` (requires gh v2.99.0+) and are never committed to git. The text record must stand alone without the media — the automated review evaluates text only, and attachment links rot.
 - UI-visible changes additionally satisfy `DESIGN.md`'s verification matrix (themes, responsive widths, recorded states), and a human exercises the change hands-on in the agent-prepared running environment before the pull request opens: requested adjustments are implemented and re-verified first, the acceptance (who, when, what was adjusted) is recorded in `validation.md`, and this step has no declared-gap path.
+- Material UX changes pass an earlier human checkpoint first: the approved demo recorded in `proposal.md` before UI implementation (see "Material UX changes need an approved demo before implementation"). Neither checkpoint replaces the other.
 
 Per-app check commands and smoke flows: `docs/web/development.md`, `docs/extension/development.md`, `docs/api/DEVELOPMENT-DOCUMENT-EN.md`, `docs/cli/DEVELOPMENT.md`.
 

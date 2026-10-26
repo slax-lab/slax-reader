@@ -1,7 +1,7 @@
 # change-verification Specification
 
 ## Purpose
-Defines when a change counts as done: a behavior change must be exercised in a running environment with the verification recorded as evidence, that evidence travels with the pull request, and review policy enforces the contract so unverified changes cannot merge silently.
+Defines what proves a change may be implemented and when it counts as done: a material UX change needs a human-approved demo before implementation, a behavior change must be exercised in a running environment with the verification recorded as evidence, that evidence travels with the pull request, and review policy enforces both gates so neither unapproved design nor unverified behavior can merge silently.
 
 ## Requirements
 

@@ -54,6 +54,11 @@ Pull requests between two long-lived branches — promotion pull requests (`dev`
    - A missing Test plan section, an empty or boilerplate evidence trail, or evidence contradicting observable facts (for example claiming a check that CI shows failing) is an Important Compliance finding.
    - A declared gap ("X was not verified, because Y") is not a finding; whether the declared gap is acceptable is the human reviewer's decision. This clause covers agent-executable verification only — the human acceptance in the next bullet admits no declared gap.
    - For UI-visible changes, the trail must also record the human hands-on acceptance that preceded the pull request (who, when, what was adjusted); its absence is an Important Compliance finding.
+6. For a material UX change — one that restructures information architecture, the navigation model, a multi-step flow, a core interaction, primary-action placement, or a whole-screen layout, as defined in `DESIGN.md` §10.1 — check that `openspec/changes/<change-id>/proposal.md` carries the demo approval record: who approved and their role, the date, the demonstrated scope, the covered states/themes/widths, any requested adjustments or conditions, and the authorization to implement.
+   - A missing record, or one that omits any of those elements, is an Important Compliance finding. Treat a material UX diff with no record as unreviewed design, not as an exemption.
+   - Scope: material UX designed and implemented before this policy took effect is judged under step 5 rather than blocked for a record it could not have produced; material UX scope added after the policy took effect is in scope.
+   - Verify the record against the change's material scope; do not re-review the demo's design quality — judging the design belongs to the human approval the record documents.
+   - Demo approval does not replace the post-implementation hands-on acceptance in step 5, and an acceptance record does not substitute for a missing demo approval.
 
 ## Do not report
 

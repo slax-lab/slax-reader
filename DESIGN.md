@@ -22,9 +22,10 @@ Before changing UI code:
 
 1. Read this contract.
 2. Identify the application profile and renderer involved.
-3. Inspect that application's runtime tokens and nearby components.
-4. Check the theme-support matrix and documented exceptions.
-5. Use the archived prototype only for visual context or provenance.
+3. Decide whether the change is material UX (§10.1); if it is, present the demo and record the human approval before writing UI code.
+4. Inspect that application's runtime tokens and nearby components.
+5. Check the theme-support matrix and documented exceptions.
+6. Use the archived prototype only for visual context or provenance.
 
 Public article content, third-party iframes, email markup, Open Graph/Satori output, charts, and Shadow DOM surfaces may have renderer-specific constraints. They still follow the semantic intent where practical, but must not inherit global application CSS blindly.
 
@@ -259,17 +260,50 @@ Avoid generic escape hatches such as `misc`, `special`, or `temporary-color`.
 
 ## 10. Change workflow
 
+Design intent has two human checkpoints: a demo approved before implementation for material UX changes (§10.1), and hands-on acceptance of the implemented change (§10.2).
+
 For every design-related change:
 
 1. Identify the application profile and renderer.
 2. Confirm the intended semantic role in this contract.
-3. Reuse or update the application-owned runtime token.
-4. Add an UnoCSS bridge only when utility consumption benefits.
-5. Check all required states, viewport transitions, and themes for the affected surface.
-6. Update this contract when semantic intent or an allowed exception changes.
-7. Update the reference snapshot only from a fixed source commit and regenerate its manifest.
+3. Decide whether the change is material UX (§10.1). If it is, present the demo and record the human approval in the change's `proposal.md` before writing UI code.
+4. Reuse or update the application-owned runtime token.
+5. Add an UnoCSS bridge only when utility consumption benefits.
+6. Check all required states, viewport transitions, and themes for the affected surface.
+7. Update this contract when semantic intent or an allowed exception changes.
+8. Update the reference snapshot only from a fixed source commit and regenerate its manifest.
 
 Documentation, reference snapshots, agent rules, and non-behavioral validation may use `OpenSpec: n/a`. Any visible change to color, spacing, icon rendering, accessible naming, interaction, or theme behavior requires the repository's OpenSpec proposal and review flow before implementation.
+
+### 10.1 Material UX changes need an approved demo before implementation
+
+A change is **material UX** when it restructures any of:
+
+- information architecture — which content groups or surfaces exist and how they are organized;
+- the navigation model — how users move between surfaces and return, including entry points and back behavior;
+- a multi-step flow — the number, order, or composition of steps in a task;
+- a core interaction — the primary gesture or control through which users perform a central product action;
+- primary-action placement — which control is the main call to action on a surface and where it sits;
+- a whole-screen layout — the arrangement of a screen's main regions.
+
+Before UI implementation of such a change, present a static mockup or a clickable demo and obtain human approval. A clickable demo is the stronger artifact when the decision depends on motion, gesture, or transition; a static mockup is sufficient when the interaction is conventional. The demo covers:
+
+- the main flow from entry to completion, with at least one representative branch;
+- the key states the surface can present — empty, loading, error, disabled or unavailable, selected — plus the interactive states in §8;
+- the themes the theme-support matrix (§6) requires for the surface;
+- the responsive widths in §5.5 — desktop, the primary `768px` transition, and the component's narrowest supported width.
+
+Name any inapplicable state, theme, or width with its reason instead of omitting it silently.
+
+Record the approval in the change's `proposal.md` before implementation: who approved and their role, the date, the demonstrated scope, the covered states/themes/widths, requested adjustments or conditions, and the decision that implementation may start. Write the record to stand alone — demos are often temporary, and the archived change must still describe the approved structure. Demo screenshots and recordings follow the repository's media rule: attached, never committed. A requested adjustment that changes the approved structure returns to the human before that part is implemented.
+
+Exempt: token or color corrections, copy changes, bug fixes that restore already-approved behavior, and local component adjustments inside an existing approved pattern. Non-UI work in a material change may proceed while approval is pending.
+
+`REVIEW.md` treats a material UX change without a substantive approval record as an Important Compliance finding.
+
+### 10.2 Hands-on acceptance after implementation
+
+Demo approval authorizes implementation, not shipment. A UI-visible change still completes the post-implementation human acceptance required by the repository's Definition of Done: the human exercises the implemented change in the agent-prepared running environment before the pull request opens, requested adjustments are implemented and re-verified first, and the acceptance is recorded with who, when, and what was adjusted. Neither record substitutes for the other.
 
 ## 11. Agent checklist
 
@@ -283,6 +317,7 @@ Before completing UI work, an agent must be able to answer:
 - Does imported SVG content pass the active-content boundary?
 - Is the archived prototype being used only as reference?
 - Does the change alter observable behavior and therefore require OpenSpec?
+- Is this a material UX change, and where is its approved demo recorded?
 
 ## 12. Related files
 
