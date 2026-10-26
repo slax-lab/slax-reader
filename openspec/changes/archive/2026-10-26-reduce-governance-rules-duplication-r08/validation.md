@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation of `reduce-governance-rules-duplication-r08` is complete on `feat/implement-layered-governance-r23`, cut from `dev` at `751e337b` (F05 PR #392, D06 PR #393, D06 archive PR #394). This file records the prerequisite verification, the implementation checks, the reconciliation with D06's archived optional material-UX semantics, the document exercise, the local pre-push review, and the declared gaps. The task pull request and the archive follow-up are pending (tasks 6.3 and 7.1).
+Implementation of `reduce-governance-rules-duplication-r08` is complete on `feat/implement-layered-governance-r23`, cut from `dev` at `751e337b` (F05 PR #392, D06 PR #393, D06 archive PR #394). This file records the prerequisite verification, the implementation checks, the reconciliation with D06's archived optional material-UX semantics, the document exercise, the local pre-push review, the declared gaps, and the archive. The task pull request merged in PR #395 at `867cc773`; the archive followed on 2026-10-26 (tasks 6.3 and 7.1).
 
 The earlier revision-time record of the proposal artifacts remains valid; its key results are retained in § 7 rather than repeated command by command. It verified the R18 plan, not an implementation.
 
@@ -96,10 +96,21 @@ The R18 revision was validated before implementation: `openspec validate --all -
 - No package-version decision applies: this is a documentation and agent-rule change with no shipped behavior, runtime dependency, native integration, or build/package output.
 - CI: the `agent-config drift check` is the only gate whose input changes. No required context or merge method changes.
 
-## 9. Declared gaps
+## 9. Delivery status and declared gaps
 
-- **Task pull request not opened.** Task 6.3 stays unchecked: the mission commits the implementation for independent review and does not push or open the pull request until the tower reports the reviewed result.
-- **Archive pending.** Task 7.1 waits for the task pull request to merge; D06's delta is already archived, so no active delta collision remains.
+- **Task pull request delivered.** Task 6.3 is checked: PR #395 followed `.github/PULL_REQUEST_TEMPLATE.md`, carried the `OpenSpec: reduce-governance-rules-duplication-r08` line and a Test plan linking this file, and merged into `dev` at `867cc773`.
+- **Archive delivered.** Task 7.1 is checked: D06's delta was already archived, so no active same-capability collision remained; the archive moved this change and applied both deltas (see § 10).
 - **Human review of H4 accuracy and the branch table is pending.** Presence and mechanical table equality were verified here; the approved H4 record assigns the accuracy judgment to human review.
 - **No browser rendering.** See § 5: Markdown was inspected structurally, not rendered in a browser. The documentation exemption applies, and the structural exercise was performed anyway.
 - **I09 not implemented.** The documentation index remains an independent follow-up; task 5.1 is not applicable in this change.
+
+## 10. Archive (task 7.1)
+
+`openspec archive reduce-governance-rules-duplication-r08 --yes --json` ran on 2026-10-26 from the archive branch cut from `dev` at `867cc773`. It reported `specsUpdated: true` with `7` added, `1` modified, `0` removed, and `0` renamed.
+
+- The change moved to `openspec/changes/archive/2026-10-26-reduce-governance-rules-duplication-r08/` with `.openspec.yaml` and all six artifact files.
+- `openspec/specs/agent-rule-governance/spec.md` was created from the seven ADDED requirements and the delta Purpose; it carries a single `## Requirements` section and no delta operation headers.
+- `openspec/specs/change-verification/spec.md` changed only the first requirement and its `Non-behavioral code change is smoke-tested from its diff` scenario: the approved H1 exemption wording adds comments and the H2 input adds related living specs. A sentence-level diff against the pre-archive file shows no other change; every other scenario and D06's four material-UX requirements are intact.
+- `openspec validate --all --strict` → `Totals: 76 passed, 0 failed (76 items)`, exit 0. `git diff --check` → no output, exit 0. `openspec list --json` no longer lists this change as active.
+- No other active change, archive entry, or C10 artifact changed; the C10 cancellation note in `proposal.md` remains historical text.
+- The archive pull request is opened after independent review and names `Archive: reduce-governance-rules-duplication-r08`.
