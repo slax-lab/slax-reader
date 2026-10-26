@@ -12,12 +12,14 @@ Change type: proposal revision plus its approved implementation alignment (docum
 4. **Opt-out note removed.** A decline leaves no record and is not re-asked; the conversation is the decision record. Only an accepted demo records feedback and the resulting requirements/approval.
 5. **Approval.** Alex Lee approved the revised direction on 2026-10-26 in the Slax Reader product-owner role; the record and the approved semantics are in `proposal.md` § Status. Conditions recorded with the approval: the superseded mandatory-gate implementation is amended rather than delivered as-is; `reduce-governance-rules-duplication-r08` is reconciled in its own follow-up; archiving follows the task pull request.
 6. **Implementation alignment.** The superseded mandatory-gate implementation was amended: `DESIGN.md` (§1 reading order, §10 workflow, §10.1 optional requirements-discovery checkpoint, §10.2 independent acceptance, §11 checklist); `.rulesync/rules/overview.md` and the regenerated `AGENTS.md`/`CLAUDE.md`; `REVIEW.md` (mandatory approval step removed, absent demo/record added to the non-reporting scope, hands-on acceptance check kept); `.github/PULL_REQUEST_TEMPLATE.md` (restored to its pre-D06 content); `openspec/config.yaml` (apply guidance); and the living `change-verification` Purpose. R08 and archive remain follow-ups.
+7. **Rebase and rebased-tip verification.** After F05 PR #392 merged, the branch was rebased cleanly onto current `origin/dev` (`75c6d274`), producing tip `38c1ca4`; neither the approved semantics nor the implementation text changed. The tower re-ran the full gate on that tip — `pnpm agent:check` (OpenSpec 76/76, rulesync and gh-aw clean), `pnpm test:ci` (67/67), `pnpm design:check` (33 files), and `git diff --check origin/dev...HEAD` — and all passed.
 
 ## Provenance and branch hygiene
 
 - The revised proposal artifacts were imported from `feat/make-material-ux-demo-optional-d20` (commit `250006f1`); a diff of the change directory against that branch showed no differences at import. The approval record, Impact section, and migration plan were then updated for this change.
 - The spawn snapshot commit contained only untracked `test-results/material-ux-review/` and `test-results/r08-review/` reading copies. Per the tower's scope correction, the branch was reset to `02f80058` before any mission edit, dropping the snapshot. The main checkout copies were not modified or removed.
-- No push and no pull request were performed. The F05 task pull request and this change's task pull request and archive remain sequential delivery steps.
+- No push and no pull request were performed by the agent. F05 PR #392 is merged in the base as the F05 prerequisite; this change's task pull request and archive remain sequential delivery steps.
+- After F05 PR #392 merged, the branch was rebased cleanly onto current `origin/dev` (`75c6d274`). The rebase replayed the D06 rule commit and the implementation commit without conflict or content change, producing tip `38c1ca4`.
 
 ## Commands run
 
@@ -30,7 +32,8 @@ Change type: proposal revision plus its approved implementation alignment (docum
 - `pnpm exec openspec instructions apply --change add-material-ux-demo-review-d06 --json` → `operationGuidance` carries the offer/recommend/dependent-wait/feedback-first/no-repeat text and names `DESIGN.md` section 10.1.
 - Wording sweep over `DESIGN.md`, `REVIEW.md`, `.rulesync/rules/overview.md`, `AGENTS.md`, `CLAUDE.md`, `openspec/config.yaml`, and the living spec: no remaining sentence makes a demo or approval mandatory, pauses only UI, or reports a missing demo/record as Important. The remaining `Important Compliance finding` hits are the verification-evidence and UI hands-on acceptance checks, which must stay.
 - Link and path exercise: the local Markdown link in the changed files resolves. 60 referenced repository paths were checked; all exist except pre-existing references not introduced here — `deploy/local/api.toml`, `deploy/local/.env`, `deploy/local/.dev.vars` (gitignored operator files) and the illustrative `apps/api/prisma/migrations/` example in `REVIEW.md`.
-- `git diff --name-only 02f80058` before the commit lists only the paths in "Diff scope" below.
+- `git diff --name-only 02f80058` before the pre-rebase commit listed only the paths in "Diff scope" below.
+- On the rebased tip `38c1ca4`, the tower ran and passed: `pnpm agent:check` (OpenSpec `Totals: 76 passed, 0 failed`, rulesync and gh-aw clean), `pnpm test:ci` (67/67), `pnpm design:check` (`Validated 33 design reference files`), and `git diff --check origin/dev...HEAD` (no output). The rebase did not change any implementation or approval text.
 
 ## Delta-spec scenarios traced to the amended text
 
@@ -65,14 +68,14 @@ Change type: proposal revision plus its approved implementation alignment (docum
 
 ## Diff scope
 
-`git diff --name-only 02f80058` lists exactly:
+`git diff --name-only origin/dev...HEAD` on the rebased branch lists exactly:
 
-- `.github/PULL_REQUEST_TEMPLATE.md`
 - `.rulesync/rules/overview.md`
 - `AGENTS.md`
 - `CLAUDE.md`
 - `DESIGN.md`
 - `REVIEW.md`
+- `openspec/changes/add-material-ux-demo-review-d06/.openspec.yaml`
 - `openspec/changes/add-material-ux-demo-review-d06/design.md`
 - `openspec/changes/add-material-ux-demo-review-d06/proposal.md`
 - `openspec/changes/add-material-ux-demo-review-d06/specs/change-verification/spec.md`
@@ -80,6 +83,8 @@ Change type: proposal revision plus its approved implementation alignment (docum
 - `openspec/changes/add-material-ux-demo-review-d06/validation.md`
 - `openspec/config.yaml`
 - `openspec/specs/change-verification/spec.md`
+
+The net diff no longer names `.github/PULL_REQUEST_TEMPLATE.md`: the D06 commit added the demo item and this branch restored the pre-D06 content, which already matches `origin/dev`. The restoration is still part of the branch's second commit; only the net change against `origin/dev` is empty.
 
 No path under `apps/` or `packages/` appears, no R08 file is touched, and the spawn snapshot's reading copies are not in the branch.
 
