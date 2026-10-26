@@ -438,7 +438,7 @@ The root does not contain a repository map, setup commands, per-branch contracts
 
 ### Pull-request surface and OpenSpec config
 
-- `.github/PULL_REQUEST_TEMPLATE.md`: the Test plan comment points at `docs/DEFINITION-OF-DONE.md`; the exemption line includes comments; the refactor line includes related living specs; the generated-files checklist says "change generated outputs only through their generators", not the blanket directory list. D06's material-UX checklist item stays if D06 is applied.
+- `.github/PULL_REQUEST_TEMPLATE.md`: the Test plan comment points at `docs/DEFINITION-OF-DONE.md`; the exemption line includes comments; the refactor line includes related living specs; the generated-files checklist says "change generated outputs only through their generators", not the blanket directory list. D06 is already applied on this base in its approved optional form and adds no material-UX pull-request-template checklist item.
 - `openspec/config.yaml`: the apply guidance pointer changes from "the Definition of Done in AGENTS.md" to `docs/DEFINITION-OF-DONE.md`.
 - `REVIEW.md`: see above.
 
