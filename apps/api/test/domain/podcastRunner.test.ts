@@ -402,6 +402,13 @@ describe('articles', () => {
     expect(first.deps.publishBodies).toHaveBeenCalledTimes(1)
   })
 
+  test('bounds model thinking so a long transcript cannot truncate on thinking tokens', async () => {
+    const { deps } = setup({ episode: { publisher_transcripts: VTT_REF } })
+    expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('ready')
+    expect(deps.model.chat).toHaveBeenCalled()
+    for (const call of deps.model.chat.mock.calls) expect(call[1]).toMatchObject({ thinkingConfig: { thinkingBudget: 2048 } })
+  })
+
   test('another run holds the episode → not_claimed', async () => {
     const { deps } = setup({ episode: { transcript_status: 'transcribing', run_id: 'other' } })
     expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('not_claimed')

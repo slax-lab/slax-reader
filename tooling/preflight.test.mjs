@@ -27,7 +27,9 @@ import {
 test('parseEnvText reads export syntax and quoted values without exposing values', () => {
   const values = parseEnvText(`\n# comment\nexport PUBLIC_BASE_URL="http://localhost:3000"\nCOOKIE_DOMAIN=localhost\n`)
 
-  assert.deepEqual(values, {
+  // util.parseEnv returns a null-prototype object; deepStrictEqual compares
+  // prototypes since Node 25, so spread into a plain object before comparing.
+  assert.deepEqual({ ...values }, {
     PUBLIC_BASE_URL: 'http://localhost:3000',
     COOKIE_DOMAIN: 'localhost'
   })

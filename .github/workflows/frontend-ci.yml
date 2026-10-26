@@ -108,6 +108,46 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm icons:test
       - run: pnpm icons:check
+  web-gate:
+    # The dev and beta rulesets require this exact job name.
+    name: Web CI gate
+    if: always()
+    needs: [changes, web, extension, design, icons]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail when a suite job did not pass
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            case "$result" in
+              success|skipped) ;;
+              *)
+                echo "::error::Web CI gate fails closed: a needed job concluded '$result'."
+                exit 1
+                ;;
+            esac
+          done
+  extension-gate:
+    # The dev and beta rulesets require this exact job name.
+    name: Extension CI gate
+    if: always()
+    needs: [changes, web, extension, design, icons]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail when a suite job did not pass
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            case "$result" in
+              success|skipped) ;;
+              *)
+                echo "::error::Extension CI gate fails closed: a needed job concluded '$result'."
+                exit 1
+                ;;
+            esac
+          done
 concurrency:
   group: ${{ github.workflow }}-frontend-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true

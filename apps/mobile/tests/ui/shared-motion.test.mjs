@@ -77,6 +77,50 @@ for (const reducedMotion of [false, true]) test(`drawer fences delayed UI-to-JS 
   assert.equal(motion.pending(), 0); assert.deepEqual(changes, [true, false, true]);
 }));
 
+test('a gesture that supersedes the first close still publishes the close and restores feed interaction', nativeBoundary, async () => withNativeHost(async host => {
+  let overlay, surface, lock, openState = false;
+  const changes = [];
+  const View = props => {
+    if ('accessibilityViewIsModal' in props) overlay = props;
+    else if ('collapsable' in props) surface = props;
+    return React.createElement(host.native.View, props);
+  };
+  const motion = installedMotionHost(View, {deferJS: true});
+  const {SourceDrawer, useDrawerInput} = loadWorkletComponent(new URL('../../src/components/SourceDrawer.tsx', import.meta.url), {
+    react: React, 'react-native': {...host.native, View, BackHandler: {addEventListener: () => ({remove() {}})}},
+    'react-native-reanimated': motion.reanimated, 'react-native-gesture-handler': motion.gestures,
+    '@react-navigation/native': {useFocusEffect: callback => React.useEffect(callback, [callback])},
+  });
+  function Feed() {lock = useDrawerInput(); return null;}
+  function Harness() {const [open, setOpen] = React.useState(false); openState = open; return React.createElement(SourceDrawer, {open, width: 320, onOpenChange: next => {changes.push(next); setOpen(next);}, drawer: 'Drawer', children: React.createElement(Feed)});}
+  const render = () => host.render(React.createElement(Harness));
+  const drag = (gesture, dx, velocity = 0, success = true) => {gesture.handlers.onStart(); gesture.handlers.onUpdate({translationX: dx}); gesture.handlers.onEnd({velocityX: velocity}, success); gesture.handlers.onFinalize({}, success);};
+  await render();
+  assert.equal(lock.value, false, 'The closed drawer leaves row input unlocked');
+  await act(async () => {drag(motion.detectors()[0], 40); motion.advance(300); motion.flushJS();});
+  assert.equal(openState, false, 'A short opening pan settles closed');
+  assert.equal(lock.value, false, 'A cancelled short open restores row input');
+  assert.deepEqual(changes, []);
+  const openingGesture = motion.detectors()[0];
+  await act(async () => {openingGesture.handlers.onStart(); motion.flushJS();});
+  assert.equal(openState, false, 'Visibility alone does not publish an open');
+  assert.equal(openingGesture.config.enabled, true, 'The active opening pan is not disabled by its own visibility update');
+  await act(async () => {openingGesture.handlers.onUpdate({translationX: 240}); openingGesture.handlers.onEnd({velocityX: 500}, true); openingGesture.handlers.onFinalize({}, true); motion.advance(300); motion.flushJS();});
+  assert.equal(openState, true);
+  await act(async () => {
+    drag(motion.detectors()[1], -240, -500); // close result still queued for JS
+    drag(motion.detectors()[1], -20, -500); // a newer gesture supersedes it before JS runs
+  });
+  await act(async () => {motion.flushJS(); motion.advance(300); motion.flushJS();});
+  assert.equal(openState, false, 'A newer gesture must not swallow the close the parent still needs');
+  assert.equal(overlay.pointerEvents, 'none', 'The closed drawer no longer intercepts touches');
+  assert.notEqual(surface.pointerEvents, 'none', 'The closed drawer leaves the feed interactive');
+  const beforeReopen = changes.length;
+  await act(async () => {drag(motion.detectors()[0], 240, 500); motion.advance(300); motion.flushJS();});
+  assert.equal(openState, true, 'A later opening gesture still opens the drawer');
+  assert.deepEqual(changes.slice(beforeReopen), [true]);
+}));
+
 test('row cancellation cannot finish a newer drag and reduced motion skips title pulses without changing swipe arbitration', nativeBoundary, async () => withNativeHost(async host => {
   const motion = installedMotionHost(host.native.View), presses = [], pulses = [];
   let preference;
@@ -90,6 +134,7 @@ test('row cancellation cannot finish a newer drag and reduced motion skips title
     './SourceDrawer': {useDrawerGesture: () => null, useDrawerInput: () => null}, 'expo-haptics': {impactAsync: async () => {}, ImpactFeedbackStyle: {Medium: 'medium'}},
     '../data/repositories': {bookmarkDisplayTitle: item => item.title}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}},
     './SourceUI': {SourceIcon: () => null}, './SourceLine': {SourceLine: () => null}, './SourceMenu': {SourceMenu: () => null},
+    './BookmarkStatusIcon': {BookmarkStatusIcon: () => null, bookmarkDownloadStatus: value => value === 1 ? 'DOWNLOADING' : value === 2 ? 'COMPLETED' : value === 3 ? 'FAILED' : 'NONE'},
   });
   let item = {id: 'one', title: 'Before', status: 'success'};
   const opens = [], props = {owned: true, sort: 'inbox', t: value => value, onOpen: value => opens.push(value.id), onEdit() {}, onError() {}, repositories: {}, telemetry: {element() {}, firebase() {}}};

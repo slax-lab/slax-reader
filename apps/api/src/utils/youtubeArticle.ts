@@ -22,7 +22,10 @@ export const YOUTUBE_ARTICLE_LIMITS = {
   overlapRatio: 0.08,
   maxChunks: 40,
   maxOutputTokens: 16_000,
-  maxCostUsd: 0.3,
+  // Must cover the most expensive plan the other limits allow: 40 chunks of
+  // chunkTargetTokens each cost about $0.95 at the list price. $0.30 silently
+  // turned every video longer than about 1.5 hours into a "too_long" skip.
+  maxCostUsd: 1,
   dailyCostUsd: 20,
   maxConcurrent: 4,
   leaseMs: 10 * 60 * 1000
@@ -204,7 +207,7 @@ export function buildSystemInstruction(lang: YoutubeArticleLanguage, chunk: Yout
     '3. Add punctuation, paragraph breaks and a small number of section headings.',
     '4. Do not summarize, comment, add facts, or add context that is not in the transcript.',
     `5. Write everything in ${name}. If the transcript is in another language, translate faithfully:`,
-    '   keep numbers, dates, units and quantities exactly as digits; keep person, company and product names in their',
+    '   write every number, date, unit and quantity exactly as digits, never as a word or a Chinese numeral; keep person, company and product names in their',
     `   original script, and add a ${name} rendering in parentheses the first time only.`,
     '6. If a name, number or term is unclear in the transcript, keep it as it appears. Do not guess.',
     '7. Set "speaker" only when the transcript names the speaker. Otherwise use null.',
@@ -217,7 +220,12 @@ export function buildSystemInstruction(lang: YoutubeArticleLanguage, chunk: Yout
 
 export function buildUserMessage(title: string, cues: YoutubeCaptionCue[]): string {
   const lines = cues.map(c => `${c.id} [${formatTimestamp(c.start_ms)}] ${c.text}`)
-  return [`Video title: ${title || '(untitled)'}`, '', 'Transcript cues:', ...lines].join('\n')
+  // Repeating the chunk's numeric tokens makes the "keep numbers as digits" rule concrete: the
+  // model otherwise tends to render 10,000 as 一万 in Chinese, which fails number_coverage.
+  // Capped at 40 so the list cannot push a 40-chunk plan past the per-article budget.
+  const required = [...new Set(cues.flatMap(c => [...numberTokens(c.text)]))].slice(0, 40)
+  const requiredLine = required.length ? `Required numbers (write each exactly as digits, never as a word): ${required.join(', ')}` : ''
+  return [`Video title: ${title || '(untitled)'}`, ...(requiredLine ? [requiredLine] : []), '', 'Transcript cues:', ...lines].join('\n')
 }
 
 /** Gemini response schema (OpenAPI subset). Keeps the model inside the article shape. */

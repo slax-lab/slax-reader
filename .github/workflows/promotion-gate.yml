@@ -1,0 +1,81 @@
+name: Promotion gate
+
+# The single required `promotion integrity` context for beta and main (design D2).
+#
+# Rulesets cannot restrict a pull request's head branch and cannot express "the
+# head already passed the previous stage's validation", so one companion gate
+# asserts both: the head is a sanctioned source for the target branch (dev or
+# hotfix/* for beta; beta or hotfix/* for main) and the six application CI gates
+# succeeded on the head. Review approval is not asserted here: the beta/main
+# rulesets require one approving review on every pull request.
+#
+# Trust model: this workflow runs on `pull_request_target`. Its workflow file
+# and the checked-out script both come from the default branch, so the only code
+# that runs comes from a reviewed, protected branch — for a dev -> beta
+# promotion the head IS the default branch, so the trust boundary is dev's
+# review process itself, not this checkout. The verdict is an explicitly created
+# check run
+# named `promotion integrity` on the pull request's head SHA (see the script), not
+# this job's own conclusion — the job is intentionally named differently. Every
+# error path still creates a failing check run, so a broken gate blocks the merge
+# instead of leaving the required context missing.
+#
+# The suite gates and the beta deployment are triggered around the same time as
+# this job, so the script polls both to a bounded deadline. Any completed
+# failure fails immediately; a timeout names the contexts still outstanding.
+#
+# Beta deployment evidence for beta -> main goes through the merged pull request
+# that produced the beta tip. Deploy workflows triggered by `pull_request_target`
+# attach their conclusions to the merged pull request's head SHA, not to the
+# merge commit, so the script resolves beta tip -> merged PR -> its head SHA ->
+# beta deployment records. Both deploy workflows are paths-filtered, so evidence
+# is required only from a workflow that registered a run for that head SHA; a
+# batch that triggered no deploy workflow needs none. See
+# tooling/promotion-gate.mjs.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    branches: [beta, main]
+
+permissions:
+  actions: read
+  checks: write
+  contents: read
+  deployments: read
+  pull-requests: read
+
+concurrency:
+  group: promotion-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Promotion gate runner
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      # The script is checked out from the default branch — the same source the
+      # workflow file itself comes from under pull_request_target, so pinning the
+      # script to the base commit bought no trust. It also could not work: the
+      # script does not exist on beta/main until the first promotion lands, so a
+      # base-pinned checkout would fail with "Cannot find module" and leave the
+      # required context unreported exactly when the gate first matters. The
+      # script reads everything through the API; this checkout only provides it.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.2
+      - name: Report the promotion integrity verdict
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPOSITORY: ${{ github.event.pull_request.base.repo.full_name }}
+        run: node tooling/promotion-gate.mjs

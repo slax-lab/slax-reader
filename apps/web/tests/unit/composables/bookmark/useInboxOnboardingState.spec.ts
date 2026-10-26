@@ -1,7 +1,7 @@
-import { enableAutoUnmount } from '@vue/test-utils'
 // useInboxOnboardingState 单元测试
 import { computed, defineComponent, ref } from 'vue'
 
+import { enableAutoUnmount } from '@vue/test-utils'
 import { useInboxOnboardingState } from '~~/app/composables/bookmark/useInboxOnboardingState'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'

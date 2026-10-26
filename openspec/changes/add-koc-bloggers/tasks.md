@@ -24,3 +24,10 @@
 - [x] 3.1 Verify the supplied profile and unchanged existing records, confirm a single active `blogger-promotions` delta, run strict OpenSpec validation, and repeat the Bugs, Security, and Compliance review.
 
 This extension uses `add-koc-bloggers` as the sole active change for `blogger-promotions`. The separate `add-sidereal-education-blogger` proposal, specs, and tasks are folded into this change to resolve the duplicate capability finding on PR #243.
+
+## Chloe extension
+
+- [x] 4.1 Add `chloemanilay` with the supplied name (`Chloe`), avatar URL, and activity ID while preserving all 13 profiles present before this extension.
+- [x] 4.2 Run API typecheck and lint, confirm `add-koc-bloggers` remains the sole active change for `blogger-promotions`, and run strict OpenSpec validation.
+
+This extension keeps `add-koc-bloggers` as the sole active change for `blogger-promotions` to avoid a second concurrent delta for the same capability.

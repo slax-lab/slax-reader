@@ -1,6 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
-import { createPromotionFlow, initialPromotionState, parsePromotionStatus } from '~~/app/utils/promotionFlow'
 import { reactive } from 'vue'
+
+import { createPromotionFlow, initialPromotionState, parsePromotionStatus } from '~~/app/utils/promotionFlow'
+
+import { describe, expect, it, vi } from 'vitest'
 
 function setup(storage = new Map<string, string>()) {
   const state = reactive(initialPromotionState())
@@ -55,6 +57,22 @@ describe('KOC continuity', () => {
     await flow.enter({})
     expect(state.pending).toBeNull()
     expect(state.phase).toBe('idle')
+  })
+  it('restores a legacy numeric invitation through a verified account alias without authorizing it', async () => {
+    const accountKey = 'acct-legacy'
+    const storage = new Map([['slax_koc_pending_v1_7', JSON.stringify({ version: 1, blogger: 'daguang', capturedAt: 1, deferred: true })]])
+    localStorage.setItem(`slax_account_server_alias_v1_${accountKey}`, '7')
+    const { flow, state } = setup(storage)
+    flow.setAccount(null, accountKey)
+    await flow.enter({})
+    expect(state.pending?.blogger).toBe('daguang')
+    expect(state.phase).toBe('deferred')
+    expect(state.userId).toBeNull()
+    flow.setAccount(7, accountKey)
+    await flow.check()
+    expect(state.phase).toBe('deferred')
+    expect(storage.has('slax_koc_pending_v2_acct-legacy')).toBe(true)
+    localStorage.removeItem(`slax_account_server_alias_v1_${accountKey}`)
   })
   it('preserves URL fallback and deferral when storage is denied', async () => {
     const state = reactive(initialPromotionState())
