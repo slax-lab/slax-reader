@@ -195,3 +195,7 @@ Content updates SHALL reuse existing status fields without a database version, l
 #### Scenario: Older moderation finishes after a new admission
 - **WHEN** capture A has published and capture B is admitted before A's moderation finishes
 - **THEN** A's moderation cannot change B's status, timestamp, policy or sharing, and B retains its ability to publish or enter its guarded failed state
+
+#### Scenario: Cached shared capture completes
+- **WHEN** a historical shared capture reuses its stored body and releases its claim successfully
+- **THEN** the durable release result supplies the new stored timestamp to moderation, and current content continues through post-processing and import success accounting

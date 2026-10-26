@@ -324,14 +324,15 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
         byline: ''
       }
     } else if (fetched.kind === 'shortCircuit') {
-      if (!(await step.do('release-cached-capture', () => crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.SUCCESS)))) return
+      const publishedRevision = await step.do('release-cached-capture', () => crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.SUCCESS))
+      if (!publishedRevision) return
       // bookmark 已有内容，跳过 parse
       crawlResult = {
         title: fetched.data.title,
         textContent: fetched.data.textContent,
         byline: fetched.data.byline,
         siteName: '',
-        publishedRevision: ctxManager.get('snapshotCaptureRevision')
+        publishedRevision
       }
     } else if (fetched.kind === 'parsed') {
       // dajiala/regular 已在 fetch step 内完成 parse+save

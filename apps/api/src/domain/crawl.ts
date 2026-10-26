@@ -525,10 +525,15 @@ export class CrawlService {
     return !!revision && this.snapshotRepo.ownsWrite(bookmarkId, new Date(revision))
   }
 
+  public setCaptureStatus(ctx: ContextManager, bookmarkId: number, status: queueStatus.SUCCESS): Promise<string | false>
+  public setCaptureStatus(ctx: ContextManager, bookmarkId: number, status: queueStatus): Promise<string | boolean>
   public async setCaptureStatus(ctx: ContextManager, bookmarkId: number, status: queueStatus) {
     const revision = ctx.get('snapshotCaptureRevision') as string | undefined
     if (!revision) throw new Error('Capture revision missing')
-    if (status === queueStatus.SUCCESS) return this.snapshotRepo.releaseWrite(bookmarkId, new Date(revision))
+    if (status === queueStatus.SUCCESS) {
+      const publishedUpdatedAt = new Date(Math.max(Date.now(), new Date(revision).getTime() + 1))
+      return (await this.snapshotRepo.releaseWrite(bookmarkId, new Date(revision), publishedUpdatedAt)) ? publishedUpdatedAt.toISOString() : false
+    }
     return this.snapshotRepo.setCaptureStatus(bookmarkId, new Date(revision), status)
   }
 

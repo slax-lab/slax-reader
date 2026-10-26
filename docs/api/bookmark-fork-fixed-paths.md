@@ -13,6 +13,8 @@ PR reviewer boxcounter identified four bugs in the legacy queue and asynchronous
 | A duplicate Fork acknowledges admission without durable dispatch | Confirm the deterministic Workflow before returning success for an active duplicate. Lookup uncertainty returns the existing storage error and retains the active claim. |
 | Late moderation from A strands capture B | Carry the exact content publication timestamp through durable results. Update moderation only while that timestamp still identifies a successful capture; revoke sharing in the same transaction. Stale moderation performs no write and stops its remaining post-processing. |
 
+Historical shared-body cache hits also use the exact timestamp returned by their durable release step, so moderation does not skip post-processing or import completion because of the earlier claim timestamp.
+
 The internal `publishedRevision` is the existing `updated_at` from the successful HTML/media/PDF publication. It adds no version counter, table, migration, scheduled recovery or R2 path. The global podcast moderation path retains its existing policy behavior. This correction prevents the identified stale-capture race; it does not introduce general automatic recovery of interrupted `parseing` work.
 
 Current evidence and remaining runtime boundaries are recorded in [validation.md](../../openspec/changes/add-bookmark-fork/validation.md#review-corrections--2026-10-26).

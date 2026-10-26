@@ -38,14 +38,15 @@ vi.mock('@/di/generated/dependency', () => ({
 vi.mock('@/utils/context', () => ({
   ContextManager: vi.fn().mockImplementation((_ctx: any, env: any) => {
     let userId = 0
+    const values = new Map<string, unknown>()
     return {
       setUserInfo: vi.fn((id: number) => {
         userId = id
       }),
       getUserId: () => userId,
       setHashIds: vi.fn(),
-      set: vi.fn(),
-      get: vi.fn(),
+      set: vi.fn((key: string, value: unknown) => values.set(key, value)),
+      get: vi.fn((key: string) => values.get(key)),
       env,
       execution: { waitUntil: vi.fn((p: Promise<any>) => p.catch(() => {})) }
     }
@@ -57,6 +58,8 @@ vi.mock('@/utils/hashids', () => ({
 
 import { CrawlWorkflow } from '@/entry/edge/workflows/crawlWorkflow'
 import { CrawlService } from '@/domain/crawl'
+import { BookmarkForkRepo } from '@/infra/repository/dbBookmarkFork'
+import { BookmarkRepo } from '@/infra/repository/dbBookmark'
 import { BookmarkService } from '@/domain/bookmark'
 import { BookmarkForkService } from '@/domain/bookmarkFork'
 import { LabService } from '@/domain/lab'
@@ -290,6 +293,40 @@ describe('Toutiao workflow', () => {
 })
 
 describe('CrawlWorkflow 缓存命中 (shortCircuit)', () => {
+  test('real cached release and moderation preserve post-processing and import completion', async () => {
+    const { wf, cs, bs, uph, imp } = wireWorkflow()
+    const captureRevision = '2026-01-01T00:00:00.000Z'
+    const row = { id: 42, status: 'parseing', updated_at: new Date(captureRevision), moderation_result: 0 }
+    const db: any = {
+      sr_bookmark: {
+        updateMany: vi.fn(async ({ where, data }) => {
+          if (where.id !== row.id || where.updated_at.getTime() !== row.updated_at.getTime() || where.status !== row.status) return { count: 0 }
+          Object.assign(row, data)
+          return { count: 1 }
+        })
+      }
+    }
+    db.$transaction = (run: any) => run(db)
+    const forkRepo = new BookmarkForkRepo(() => db)
+    cs.setCaptureStatus = CrawlService.prototype.setCaptureStatus.bind({ snapshotRepo: forkRepo } as any) as any
+    const bookmarks = new BookmarkRepo({} as any, () => db)
+    ;(bs as any).updateBookmarkModerationResult = bookmarks.updateBookmarkModerationResult.bind(bookmarks)
+    bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ title: 'Cached', textContent: 'Cached body with enough text for moderation', privateUser: 0 })
+    mockResolveMap.set(SlaxAlertBotClient, { crawl: { pushMessage: vi.fn() } })
+    const spy = vi.spyOn(OpenAIModerationClient.prototype, 'moderateContent').mockResolvedValue(ModerationResult.NORMAL)
+    try {
+      await runWorkflow(wf, { captureRevision, importTaskId: 77 })
+      expect(row.status).toBe('success')
+      expect(row.updated_at.getTime()).toBeGreaterThan(new Date(captureRevision).getTime())
+      expect(uph.processPostHandler).toHaveBeenCalledOnce()
+      expect(bs.updateBookmarkImportRelationStatus).toHaveBeenCalledWith(1, 42, 77, 1)
+      expect(imp.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 77, 1, 0)
+      expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'example.com', 'complete', 'success')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
   test('历史公开文章已有内容 → 跳过 fetch/parse，直接 post-processing', async () => {
     const { wf, cs, bs, uph } = wireWorkflow()
     bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ title: 'Cached', textContent: 'Cached body', byline: 'Author', privateUser: 0 })

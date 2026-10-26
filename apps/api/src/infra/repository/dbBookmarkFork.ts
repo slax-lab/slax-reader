@@ -168,12 +168,12 @@ export class BookmarkForkRepo {
     }))
   }
 
-  async releaseWrite(bookmarkId: number, revision: Date) {
+  async releaseWrite(bookmarkId: number, revision: Date, publishedUpdatedAt = new Date(Math.max(Date.now(), revision.getTime() + 1))) {
     return (
       (
         await this.client().sr_bookmark.updateMany({
           where: { id: bookmarkId, updated_at: revision, status: 'parseing' },
-          data: { status: 'success', updated_at: new Date(Math.max(Date.now(), revision.getTime() + 1)) }
+          data: { status: 'success', updated_at: publishedUpdatedAt }
         })
       ).count === 1
     )

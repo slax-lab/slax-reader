@@ -5,7 +5,8 @@ import { BookmarkForkRepo } from '@/infra/repository/dbBookmarkFork'
 import { BookmarkForkService } from '@/domain/bookmarkFork'
 import { podcastInputFingerprint } from '@/utils/mediaSnapshot'
 import { DBSyncBatchOperation } from '@/infra/repository/dbSyncBatch'
-import { BookmarkRepo } from '@/infra/repository/dbBookmark'
+import { BookmarkRepo, queueStatus } from '@/infra/repository/dbBookmark'
+import { CrawlService } from '@/domain/crawl'
 import { UserDeletionService } from '@/domain/userDeletion'
 import { MediaSnapshotService } from '@/domain/mediaSnapshot'
 import { memoryBucket } from '../utils/snapshotBucket'
@@ -63,6 +64,18 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     const { content_key, content_md_key } = snapshotKeys(uuid)
     return { userId: users[1], source: source!, targetUrl: target, uuid, content: { content_key, content_md_key, content_word_count: 4 } }
   }
+
+  it('returns the committed cached-release timestamp for later moderation', async () => {
+    const destination = await publish(input(`https://cached-release.test/${crypto.randomUUID()}`))
+    const raw = destination.relation.bookmark
+    expect(await repo.claimWrite(raw.id, raw.updated_at, ['success'], true)).toBe(true)
+    const crawl = Object.assign(Object.create(CrawlService.prototype), { snapshotRepo: repo }) as CrawlService
+    const revision = await crawl.setCaptureStatus({ get: () => raw.updated_at.toISOString() } as any, raw.id, queueStatus.SUCCESS)
+    expect(revision).toBe((await repo.snapshot(raw.id))!.updated_at.toISOString())
+    const bookmarks = new BookmarkRepo({} as any, () => client)
+    expect(await bookmarks.updateBookmarkModerationResult(raw.id, 0, { revision: raw.updated_at, userId: users[1] })).toBe(false)
+    expect(await bookmarks.updateBookmarkModerationResult(raw.id, 0, { revision: new Date(revision as string), userId: users[1] })).toBe(true)
+  })
 
   it.each(['publish', 'fail'])('late moderation from A leaves admitted B able to %s', async outcome => {
     const destination = await publish(input(`https://moderation-race.test/${crypto.randomUUID()}`))

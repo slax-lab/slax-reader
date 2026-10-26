@@ -1,3 +1,16 @@
+# Cached shared-content follow-up — 2026-10-26
+
+Remote review [5647488049](https://github.com/slax-lab/slax-reader/pull/354#pullrequestreview-5647488049) found one Important regression in the first correction: cached shared-content release advanced updated_at but moderation received the old claim timestamp, skipping post-processing/import completion. This finding was confirmed and corrected; the earlier local review statement below applies to that checkpoint and did not catch it.
+
+The existing successful setCaptureStatus now returns its exact committed timestamp (typed string-or-false), and the durable release-cached-capture step persists that value. The cached CrawlResult consumes the step result directly, without reading a possibly newer row or reusing the request-context timestamp. releaseWrite retains its Boolean contract for other media callers and accepts the chosen publication time as an optional argument.
+
+- Red/green regression: real CrawlService.setCaptureStatus, BookmarkForkRepo.releaseWrite and BookmarkRepo.updateBookmarkModerationResult are composed inside CrawlWorkflow.run with conditional database doubles. The test failed before the correction (post-processing called zero times), then passed, asserting post-processing, complete event, import relation success and successful import counters.
+- A separate running PostgreSQL 17 regression checks that the returned release timestamp exactly equals the stored row and allows moderation, while the old timestamp is rejected. All 34 Fork integration tests passed after migrations; owned resources were removed.
+- Full API suite: **2,487 passed, 106 conditional skips**, 191 files passed/13 skipped. The focused Workflow suite passed 69 tests. gen:all and typecheck passed; lint passed with 0 errors/344 existing warnings. The earlier f1224036 real HTTP/six-format smoke remains evidence for the unchanged paths; this small cached-path correction was exercised at Workflow/repository boundaries, not through an end-to-end legacy import HTTP fixture.
+- Local pre-push review repeated Bugs, Security and Compliance against add-bookmark-fork: release timestamp is serialized by the durable step; failed releases still stop; no mutable-row re-read, schema change, UI change or new recovery infrastructure. No remaining Important findings in this correction.
+
+---
+
 # Review corrections — 2026-10-26
 
 The owner requested fixes for [boxcounter review 5647029007](https://github.com/slax-lab/slax-reader/pull/354#pullrequestreview-5647029007). All four findings were confirmed against the real code paths and corrected within `add-bookmark-fork`. This follow-up changes backend behavior and tests only; the frontend design and the earlier human acceptance remain unchanged and scoped to that UI. No application versions, schema, production configuration, R2 naming or scheduled jobs changed. The primary checkout is currently used by another task (`feat/add-blogger-chloe`), so this work uses the existing attached Fork worktree rather than switching it.

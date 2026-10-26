@@ -116,3 +116,5 @@ The owner approved these implementation tasks on 2026-10-23. See the [report](..
 - [x] R28 Require confirmed deterministic Workflow dispatch before acknowledging an active duplicate Fork; preserve the uncertain-dispatch claim boundary.
 - [x] R29 Carry the actual content-publication timestamp through durable Workflow results and atomically guard moderation/share revocation against newer captures, including PDF publication.
 - [x] R30 Run regression and isolated runtime checks, review Bugs/Security/Compliance, record actual evidence, and update PR #354 and its implementation report.
+
+- [x] R31 Correct cached shared-content moderation to use the durable release result, verify post-processing/import accounting with composed real methods and PostgreSQL, and prepare the reviewed PR follow-up.
