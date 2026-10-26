@@ -2,58 +2,98 @@
 
 Date: 2026-10-26
 
-Change type: process and policy (agent rules, design contract, review policy, pull request template, OpenSpec apply guidance, capability spec). No application runtime behavior and no product UI changed, so there is no demo to produce and no UI hands-on acceptance to record — the running environment exercised here is the repository's agent toolchain itself. The material-UX demo gate this change defines applies to future changes, not to this documentation change.
+Change type: proposal revision plus its approved implementation alignment (documentation, agent rules, and review policy). No product UI, token, application code, runtime behavior, API contract, dependency, deployment, or package-version change. This change itself is not a material UX change — it defines the policy for future UI work — so no demo or hands-on UI acceptance applies to this diff; that exemption is stated here.
+
+## Revision history
+
+1. **Import.** The six change-directory files were imported verbatim from `feat/add-material-ux-demo-review-d06` (implementation commit `02f80058`) without that branch's implementation edits.
+2. **Optional checkpoint.** The mandatory demo gate was replaced with an optional, user-selected checkpoint; missing demo or approval records became explicitly non-blocking.
+3. **D3 correction — requirements discovery.** The demo is defined as a requirements-discovery tool, not visual sign-off. When the human opts in, all implementation whose requirements or design depends on the unresolved UX decisions waits — UI, backend behavior, data models, API contracts, and test expectations — and only demonstrably independent work proceeds. Feedback updates the requirements before implementation, and the recommendation trigger covers requirement uncertainty as well as high rework risk.
+4. **Opt-out note removed.** A decline leaves no record and is not re-asked; the conversation is the decision record. Only an accepted demo records feedback and the resulting requirements/approval.
+5. **Approval.** Alex Lee approved the revised direction on 2026-10-26 in the Slax Reader product-owner role; the record and the approved semantics are in `proposal.md` § Status. Conditions recorded with the approval: the superseded mandatory-gate implementation is amended rather than delivered as-is; `reduce-governance-rules-duplication-r08` is reconciled in its own follow-up; archiving follows the task pull request.
+6. **Implementation alignment.** The superseded mandatory-gate implementation was amended: `DESIGN.md` (§1 reading order, §10 workflow, §10.1 optional requirements-discovery checkpoint, §10.2 independent acceptance, §11 checklist); `.rulesync/rules/overview.md` and the regenerated `AGENTS.md`/`CLAUDE.md`; `REVIEW.md` (mandatory approval step removed, absent demo/record added to the non-reporting scope, hands-on acceptance check kept); `.github/PULL_REQUEST_TEMPLATE.md` (restored to its pre-D06 content); `openspec/config.yaml` (apply guidance); and the living `change-verification` Purpose. R08 and archive remain follow-ups.
+
+## Provenance and branch hygiene
+
+- The revised proposal artifacts were imported from `feat/make-material-ux-demo-optional-d20` (commit `250006f1`); a diff of the change directory against that branch showed no differences at import. The approval record, Impact section, and migration plan were then updated for this change.
+- The spawn snapshot commit contained only untracked `test-results/material-ux-review/` and `test-results/r08-review/` reading copies. Per the tower's scope correction, the branch was reset to `02f80058` before any mission edit, dropping the snapshot. The main checkout copies were not modified or removed.
+- No push and no pull request were performed. The F05 task pull request and this change's task pull request and archive remain sequential delivery steps.
 
 ## Commands run
 
-- `pnpm install --frozen-lockfile` in the worktree → `Done in 20.6s using pnpm v11.25.0`. A fresh worktree has no `node_modules`; this also installed the lefthook hooks through the root `prepare` script.
-- `pnpm agent:sync` → regenerated `AGENTS.md` and `CLAUDE.md` from the edited `.rulesync/rules/overview.md`. `git status --short` shows no change under `.claude/`, `.codex/`, `.agents/`, or `apps/mobile/AGENTS.md`.
-- `pnpm agent:check` → exit 0. Its parts: `rulesync doctor --strict` reported `No problems found (0 error(s), 0 warning(s), 0 info(s))`; `rulesync generate --check` reported `All files are up to date`; `openspec validate --all --strict` reported `76 passed, 0 failed`; `bash tooling/check-gh-aw-drift.sh` reported `Compiled workflows match their sources.`
+- `pnpm agent:check` → exit 0. `rulesync doctor --strict` and `rulesync generate --check` pass; `openspec validate --all --strict` reports `Totals: 76 passed, 0 failed (76 items)`; the gh-aw drift check reports `Compiled workflows match their sources.`
+- `pnpm exec openspec validate add-material-ux-demo-review-d06 --strict` → `Change 'add-material-ux-demo-review-d06' is valid`, exit 0.
 - `pnpm exec openspec validate --all --strict` → `Totals: 76 passed, 0 failed (76 items)`, exit 0.
-- `pnpm exec openspec instructions apply --change add-material-ux-demo-review-d06 --json` → `state: ready`, 13 tasks, and `operationGuidance` contains the new material-UX line.
-- `pnpm design:check` → `Validated 33 design reference files`, exit 0 (the `DESIGN.md` edits leave the reference snapshot valid).
+- `pnpm test:ci` → 67 tests, 67 pass, 0 fail.
+- `pnpm design:check` → `Validated 33 design reference files`, exit 0.
 - `git diff --check` → no output, exit 0.
+- `pnpm exec openspec instructions apply --change add-material-ux-demo-review-d06 --json` → `operationGuidance` carries the offer/recommend/dependent-wait/feedback-first/no-repeat text and names `DESIGN.md` section 10.1.
+- Wording sweep over `DESIGN.md`, `REVIEW.md`, `.rulesync/rules/overview.md`, `AGENTS.md`, `CLAUDE.md`, `openspec/config.yaml`, and the living spec: no remaining sentence makes a demo or approval mandatory, pauses only UI, or reports a missing demo/record as Important. The remaining `Important Compliance finding` hits are the verification-evidence and UI hands-on acceptance checks, which must stay.
+- Link and path exercise: the local Markdown link in the changed files resolves. 60 referenced repository paths were checked; all exist except pre-existing references not introduced here — `deploy/local/api.toml`, `deploy/local/.env`, `deploy/local/.dev.vars` (gitignored operator files) and the illustrative `apps/api/prisma/migrations/` example in `REVIEW.md`.
+- `git diff --name-only 02f80058` before the commit lists only the paths in "Diff scope" below.
 
-## Rule text checked against every delta-spec scenario
-
-The implementation is policy text, so the exercise is a line-by-line check that each WHEN/THEN scenario is satisfied by a reader-facing rule.
+## Delta-spec scenarios traced to the amended text
 
 | Scenario | Where it is satisfied |
 | --- | --- |
-| Material UX implementation waits for demo approval | `DESIGN.md:280` (trigger list), `DESIGN.md:289` (approval before UI implementation), `.rulesync/rules/overview.md:65`, generated `AGENTS.md:68` / `CLAUDE.md:68` |
-| Demo covers the material surface | `DESIGN.md:291-296` (main flow, key states, themes, responsive widths, inapplicable dimensions named) |
-| Non-material UI change is exempt | `DESIGN.md:300`, `.rulesync/rules/overview.md:68` |
-| Approval record is complete | `DESIGN.md:298` (approver and role, date, scope, coverage, conditions, authorization), `.rulesync/rules/overview.md:67` |
-| Record survives a temporary demo | `DESIGN.md:298` ("write the record to stand alone"), `.rulesync/rules/overview.md:67` |
-| Conditional approval is carried into implementation | `DESIGN.md:298` (conditions recorded; a structural adjustment returns to the human), delta spec |
-| Missing approval record blocks the merge | `REVIEW.md:57-58` (Important Compliance finding; "unreviewed design, not an exemption") |
-| Incomplete approval record is a finding | `REVIEW.md:58` ("or one that omits any of those elements") |
-| Approval does not replace hands-on acceptance | `REVIEW.md:61`, `DESIGN.md:304-306` (§10.2), `.rulesync/rules/overview.md:69,88` |
-| Review scope for pre-policy work | `REVIEW.md:59` (material UX implemented before the policy is judged under step 5; later material UX scope is in scope) |
+| Material UX change offers the demo | `DESIGN.md` §10.1 offer paragraph; `.rulesync/rules/overview.md` material-UX section; `AGENTS.md`/`CLAUDE.md` (generated); `openspec/config.yaml` apply guidance |
+| Requirement uncertainty carries a recommendation | `DESIGN.md` §10.1 recommendation bullets; rules section; apply guidance |
+| High-rework-risk change carries a recommendation | `DESIGN.md` §10.1 recommendation bullets; rules section; apply guidance |
+| Human declines the demo | `DESIGN.md` §10.1 decline paragraph; rules bullet on decline; `REVIEW.md` "Do not report" entry; apply guidance |
+| Non-material UI change is exempt | `DESIGN.md` §10.1 exempt paragraph; rules exemption bullet |
+| Dependent implementation waits for the demo feedback | `DESIGN.md` §10.1 accepted-demo bullets; rules acceptance bullet |
+| Independent work proceeds | `DESIGN.md` §10.1 accepted-demo bullets (demonstrably-independent allowance); rules acceptance bullet |
+| Demo feedback updates the requirements first | `DESIGN.md` §10.1 feedback bullet; rules feedback bullet |
+| Scope-changing feedback repeats the demo | `DESIGN.md` §10.1 feedback bullet; rules feedback bullet |
+| Offer is unanswered | `DESIGN.md` §10.1 accepted-demo bullets ("While the offer is unanswered…") |
+| Accepted demo covers the material surface | `DESIGN.md` §10.1 coverage list |
+| Opt-in approval record is complete | `DESIGN.md` §10.1 record paragraph; rules record bullet |
+| Record survives a temporary demo | `DESIGN.md` §10.1 record paragraph ("Write the record to stand alone"); rules record bullet |
+| Conditional approval is carried into implementation | `DESIGN.md` §10.1 record and feedback paragraphs; rules record and feedback bullets |
+| Missing demo record does not block | `REVIEW.md` "Do not report" entry; `DESIGN.md` §10.1 final paragraph; rules non-blocking bullet |
+| Approval does not replace hands-on acceptance | `DESIGN.md` §10.2; `REVIEW.md` step 5 UI-visible acceptance bullet and "Do not report" entry; rules non-blocking bullet; `change-verification` Purpose |
 
 ## What was exercised
 
-- The rulesync regeneration path end to end: source edit → `pnpm agent:sync` → `generate --check` → the rule appears in both generated root files and in no unintended output.
-- The OpenSpec apply loop for this change: `openspec instructions apply` surfaces the new guidance before implementation, which is the point where an agent would otherwise start coding.
-- Strict spec validation across the whole tree, including the edited living spec Purpose and the new delta.
-- The review policy as a reviewer would read it: step 6 catches a missing record and an incomplete record, verifies the record rather than the demo, and keeps step 5's acceptance independent.
-- The staged diff contains no product code (recorded below).
+- The regenerated artifacts: `pnpm agent:sync` wrote `AGENTS.md` and `CLAUDE.md` only; both contain the new material-UX section and the Definition of Done bullet, and the old missing-record-as-Important sentence is absent.
+- The template restore: `.github/PULL_REQUEST_TEMPLATE.md` is byte-identical to its content at `02f80058^`, so no checklist item or Test plan guidance demands a demo.
+- The apply guidance: the generated instruction payload returns the new text, confirming `openspec/config.yaml` is parsed and consumed.
+- The review policy: `REVIEW.md` no longer contains the mandatory approval step; the absent demo/record is listed under "Do not report"; the UI-visible hands-on acceptance check remains in the evidence trail.
+- The living spec Purpose: describes the optional requirements-discovery checkpoint and the done contract without claiming a mandatory pre-implementation gate.
+- The scenario mapping above, checked line by line against the amended rule text.
+- The task/status split: import, initial revision, D3 correction, approval (4.1), and implementation alignment (5.1–5.5) are checked; R08 reconciliation (6.1–6.2) and archive (7.1) remain unchecked follow-ups.
 
 ## Diff scope
 
-- `git add -A && git diff --cached --stat` → 14 files: `.github/PULL_REQUEST_TEMPLATE.md`, `.rulesync/rules/overview.md`, `AGENTS.md`, `CLAUDE.md`, `DESIGN.md`, `REVIEW.md`, `openspec/changes/add-material-ux-demo-review-d06/**` (`.openspec.yaml`, `proposal.md`, `design.md`, `tasks.md`, `validation.md`, `specs/change-verification/spec.md`), `openspec/config.yaml`, and `openspec/specs/change-verification/spec.md`.
-- No path under `apps/` or `packages/` appears; the generated files are `AGENTS.md` and `CLAUDE.md` only, both from `.rulesync/rules/overview.md`.
-- After the commit, `git diff --stat origin/dev...HEAD` lists the same 14 paths, so the committed range matches what was reviewed here.
+`git diff --name-only 02f80058` lists exactly:
+
+- `.github/PULL_REQUEST_TEMPLATE.md`
+- `.rulesync/rules/overview.md`
+- `AGENTS.md`
+- `CLAUDE.md`
+- `DESIGN.md`
+- `REVIEW.md`
+- `openspec/changes/add-material-ux-demo-review-d06/design.md`
+- `openspec/changes/add-material-ux-demo-review-d06/proposal.md`
+- `openspec/changes/add-material-ux-demo-review-d06/specs/change-verification/spec.md`
+- `openspec/changes/add-material-ux-demo-review-d06/tasks.md`
+- `openspec/changes/add-material-ux-demo-review-d06/validation.md`
+- `openspec/config.yaml`
+- `openspec/specs/change-verification/spec.md`
+
+No path under `apps/` or `packages/` appears, no R08 file is touched, and the spawn snapshot's reading copies are not in the branch.
 
 ## Local pre-push review (REVIEW.md, three passes)
 
-- **Bugs**: no logic or regression risk — the diff is documentation and policy text. Cross-references checked: `DESIGN.md` §10.1/§10.2, `REVIEW.md` step 6, `.rulesync` rule, generated `AGENTS.md`/`CLAUDE.md`, `openspec/config.yaml`, and the pull request template all name the same triggers, coverage, record fields, and exemptions. One gap found and fixed during this review: `REVIEW.md` step 6 initially had no boundary for material UX implemented before the policy existed; added the scope bullet at `REVIEW.md:59`.
-- **Security**: no secrets, credentials, or PII introduced; no dependency, network, or file-access change. Approval records name a human approver, which matches existing proposal practice and public commit metadata.
-- **Compliance**: local change-id determined from `openspec/changes/` — several changes are active, but only this change carries a `change-verification` delta and its proposal matches the diff, so the change-id is `add-material-ux-demo-review-d06`. Tasks 1.1–3.3 are implemented in the diff; the validation-evidence trail is this file; the diff changes no `apps/**` or `packages/**` path, so the UI hands-on-acceptance clause is exempt with this reason. No Important findings.
+- **Bugs**: no code or runtime behavior. The artifacts are internally consistent: `DESIGN.md` §10.1, the rules source, the regenerated agent files, `REVIEW.md`, the apply guidance, and the living Purpose describe the same offer/recommend/dependent-wait/feedback-first/opt-out sequence and the same non-blocking review behavior. The scenario mapping above found no gap.
+- **Security**: no secrets, credentials, PII, dependency, network, permission, or file-access change. `pnpm agent:sync` regenerated rules only; no permission file changed.
+- **Compliance**: the approval record is present in `proposal.md`; tasks 1.1–5.5 are implemented by this diff and this file records the evidence; R08 (6.1–6.2) and archive (7.1) stay open by design. This is a documentation/rule change, so the running-environment and hands-on acceptance clauses do not apply and the exemption is stated here. No Important findings.
 
 ## Not validated (declared gaps)
 
-- The review gate's behavior on a future material UX pull request — whether the automated review actually reports an Important finding for a missing record — is observable only after merge, on a real change. The policy text was checked against the delta spec; its enforcement quality is unverified.
-- No demo was produced, because this change has no UI. The demo gate is verified as rule text, not exercised through a live material UX change.
-- The authenticity of an approval record cannot be machine-verified. The rule requires the record; a fabricated record is a trust failure outside automated enforcement (recorded in `design.md` as a residual risk).
-- The grandfathering boundary in `REVIEW.md:59` depends on reviewer judgment about when material UI was implemented; no automated check exists.
+- **Review behavior on a future material UX pull request** — whether a reviewer honors the non-blocking rule is observable only after this policy lands. The policy text is checked against the delta spec; its enforcement quality is unverified.
+- **Demo offer in a real material UX change** — this diff changes no product UI, so there is no live demo to offer or exercise; the behavior of the offer/recommendation/wait sequence will be observable in the next material UX change that applies it.
+- **R08 reconciliation** — tasks 6.1–6.2 are open; R08 is not edited in this change, so its mandatory-gate references remain until its own follow-up.
+- **Archive** — task 7.1 is open; archiving follows this change's task pull request.
+- **Running environment** — no runtime behavior, product UI, or active rule execution changes in this diff, so no running-environment exercise applies; the Definition of Done documentation-change exemption is stated here.
+- **gh-aw advisory output** — the drift check's `i recommend using ecosystem identifiers…` lines are pre-existing informational messages; the compiled-workflow comparison itself passes.

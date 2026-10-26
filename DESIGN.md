@@ -22,7 +22,7 @@ Before changing UI code:
 
 1. Read this contract.
 2. Identify the application profile and renderer involved.
-3. Decide whether the change is material UX (§10.1); if it is, present the demo and record the human approval before writing UI code.
+3. Decide whether the change is material UX (§10.1); if it is, offer the optional requirements-discovery demo and, when the human accepts, record the approval before writing dependent code.
 4. Inspect that application's runtime tokens and nearby components.
 5. Check the theme-support matrix and documented exceptions.
 6. Use the archived prototype only for visual context or provenance.
@@ -260,13 +260,13 @@ Avoid generic escape hatches such as `misc`, `special`, or `temporary-color`.
 
 ## 10. Change workflow
 
-Design intent has two human checkpoints: a demo approved before implementation for material UX changes (§10.1), and hands-on acceptance of the implemented change (§10.2).
+Design intent has two human checkpoints: an optional requirements-discovery demo for material UX changes, used when the human chooses it (§10.1), and hands-on acceptance of the implemented change (§10.2).
 
 For every design-related change:
 
 1. Identify the application profile and renderer.
 2. Confirm the intended semantic role in this contract.
-3. Decide whether the change is material UX (§10.1). If it is, present the demo and record the human approval in the change's `proposal.md` before writing UI code.
+3. Decide whether the change is material UX (§10.1). If it is, offer the demo; when the human accepts, wait for dependent implementation, update the requirements from the feedback, and record the approval in the change's `proposal.md`.
 4. Reuse or update the application-owned runtime token.
 5. Add an UnoCSS bridge only when utility consumption benefits.
 6. Check all required states, viewport transitions, and themes for the affected surface.
@@ -275,7 +275,7 @@ For every design-related change:
 
 Documentation, reference snapshots, agent rules, and non-behavioral validation may use `OpenSpec: n/a`. Any visible change to color, spacing, icon rendering, accessible naming, interaction, or theme behavior requires the repository's OpenSpec proposal and review flow before implementation.
 
-### 10.1 Material UX changes need an approved demo before implementation
+### 10.1 Material UX changes offer an optional requirements-discovery demo
 
 A change is **material UX** when it restructures any of:
 
@@ -286,7 +286,23 @@ A change is **material UX** when it restructures any of:
 - primary-action placement — which control is the main call to action on a surface and where it sits;
 - a whole-screen layout — the arrangement of a screen's main regions.
 
-Before UI implementation of such a change, present a static mockup or a clickable demo and obtain human approval. A clickable demo is the stronger artifact when the decision depends on motion, gesture, or transition; a static mockup is sufficient when the interaction is conventional. The demo covers:
+For such a change, before dependent implementation begins, ask the human whether they want a static mockup or clickable demo of the intended structure. The demo is never mandatory. Ask while requirements are still being shaped, so the demo can inform them rather than sign off a settled design.
+
+Recommend the demo, naming the specific reason, when either:
+
+- **requirement uncertainty** — the requirements or intended behavior are vague, incomplete, or contested, and a demo would give the human something concrete to react to, exposing missing or conflicting requirements;
+- **high rework risk** — reversing the structural decision after implementation would rebuild multiple screens, flows, or tests.
+
+The human decides. When they decline, implementation proceeds with no demo, approval record, or decision note; do not repeat the offer for the same change, and treat the conversation as the decision record.
+
+When the human accepts, the demo is a requirements-discovery step, not a visual sign-off:
+
+- All implementation whose requirements or design depends on the unresolved UX decisions waits — UI implementation, backend behavior, data models, API contracts, and test expectations. While the offer is unanswered, dependent implementation does not begin.
+- Only work that is demonstrably independent may proceed — environment setup, technical research or spikes, independent benchmarks, generic tooling. Independence must be demonstrable: the work's outcome cannot change based on the UX result, and it is not enough that the work touches another layer or directory.
+- Demo feedback updates the requirements first: the change's `proposal.md` always, and the delta spec or design when requirements or design change. Those updated artifacts are the implementation target.
+- Feedback that changes the approved structure, scope, or requirements direction returns to a revised demo and approval for the changed part before that part is implemented.
+
+An accepted demo covers:
 
 - the main flow from entry to completion, with at least one representative branch;
 - the key states the surface can present — empty, loading, error, disabled or unavailable, selected — plus the interactive states in §8;
@@ -295,15 +311,15 @@ Before UI implementation of such a change, present a static mockup or a clickabl
 
 Name any inapplicable state, theme, or width with its reason instead of omitting it silently.
 
-Record the approval in the change's `proposal.md` before implementation: who approved and their role, the date, the demonstrated scope, the covered states/themes/widths, requested adjustments or conditions, and the decision that implementation may start. Write the record to stand alone — demos are often temporary, and the archived change must still describe the approved structure. Demo screenshots and recordings follow the repository's media rule: attached, never committed. A requested adjustment that changes the approved structure returns to the human before that part is implemented.
+After the feedback is incorporated, record the approval in the change's `proposal.md`: who approved and their role, the date, the demonstrated scope, the covered states/themes/widths, the feedback that changed the requirements and the resulting changes, requested adjustments or conditions, and the decision that the updated requirements may be implemented. Write the record to stand alone — demos are often temporary, and the archived change must still describe the approved structure. Demo screenshots and recordings follow the repository's media rule: attached, never committed.
 
-Exempt: token or color corrections, copy changes, bug fixes that restore already-approved behavior, and local component adjustments inside an existing approved pattern. Non-UI work in a material change may proceed while approval is pending.
+Exempt: token or color corrections, copy changes, bug fixes that restore already-approved behavior, and local component adjustments inside an existing approved pattern. No offer is required for them, and implementation may proceed.
 
-`REVIEW.md` treats a material UX change without a substantive approval record as an Important Compliance finding.
+`REVIEW.md` does not require a demo or an approval record: their absence is not a Compliance finding and never blocks a pull request. The review does not re-review a demo's design quality.
 
 ### 10.2 Hands-on acceptance after implementation
 
-Demo approval authorizes implementation, not shipment. A UI-visible change still completes the post-implementation human acceptance required by the repository's Definition of Done: the human exercises the implemented change in the agent-prepared running environment before the pull request opens, requested adjustments are implemented and re-verified first, and the acceptance is recorded with who, when, and what was adjusted. Neither record substitutes for the other.
+An accepted demo's approval authorizes implementation, not shipment. A UI-visible change still completes the post-implementation human acceptance required by the repository's Definition of Done: the human exercises the implemented change in the agent-prepared running environment before the pull request opens, requested adjustments are implemented and re-verified first, and the acceptance is recorded with who, when, and what was adjusted. Neither record substitutes for the other, and a declined demo changes nothing here.
 
 ## 11. Agent checklist
 
@@ -317,7 +333,7 @@ Before completing UI work, an agent must be able to answer:
 - Does imported SVG content pass the active-content boundary?
 - Is the archived prototype being used only as reference?
 - Does the change alter observable behavior and therefore require OpenSpec?
-- Is this a material UX change, and where is its approved demo recorded?
+- Is this a material UX change; if so, was the demo offered, and when accepted, is the feedback in the requirements and the approval recorded?
 
 ## 12. Related files
 

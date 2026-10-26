@@ -25,6 +25,6 @@ schema: spec-driven
 operations:
   apply:
     guidance:
-      - "For a material UX change (information architecture, navigation model, multi-step flow, core interaction, primary-action placement, or whole-screen layout), obtain the human's approval of a static mockup or clickable demo and record that approval in openspec/changes/<change-id>/proposal.md before starting UI implementation; see DESIGN.md section 10.1."
+      - "For a material UX change (information architecture, navigation model, multi-step flow, core interaction, primary-action placement, or whole-screen layout), offer the human an optional static mockup or clickable demo, and recommend it when requirements or intended behavior are uncertain or reversing the structure would rebuild multiple screens, flows, or tests; see DESIGN.md section 10.1. When the human accepts, let dependent implementation wait, update the requirements from the demo feedback first, and record the approval in openspec/changes/<change-id>/proposal.md. When the human declines, proceed without a demo, a record, or a repeated offer."
       - "Before suggesting a pull request, record verification in openspec/changes/<change-id>/validation.md and summarize it in the pull request's Test plan (see the Definition of Done in AGENTS.md)."
       - "When all tasks are checked off, run the local pre-push review defined in REVIEW.md (all three passes) and resolve Important findings before suggesting archive or a pull request."

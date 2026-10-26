@@ -1,7 +1,7 @@
 # change-verification Specification
 
 ## Purpose
-Defines what proves a change may be implemented and when it counts as done: a material UX change needs a human-approved demo before implementation, a behavior change must be exercised in a running environment with the verification recorded as evidence, that evidence travels with the pull request, and review policy enforces both gates so neither unapproved design nor unverified behavior can merge silently.
+Defines what proves a change may be implemented and when it counts as done: a material UX change may use an optional, human-chosen requirements-discovery demo whose accepted feedback updates the requirements before dependent implementation and whose approval authorizes implementation only, a behavior change must be exercised in a running environment with the verification recorded as evidence, that evidence travels with the pull request, and review policy enforces the verification contract so unverified behavior cannot merge silently.
 
 ## Requirements
 
