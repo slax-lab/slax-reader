@@ -20,7 +20,7 @@ const operation: OrderedSyncOperation = {
 }
 
 function createService() {
-  const createBookmarkBase = vi.fn().mockResolvedValue({ id: 11, private_user: userId })
+  const createBookmarkBase = vi.fn().mockResolvedValue({ id: 11, private_user: userId, updated_at: new Date() })
   const bookmarkRepo = { getBookmark: vi.fn().mockResolvedValue(null) }
   const labService = { assertUrlAllowed: vi.fn().mockResolvedValue(undefined) }
   const service = Object.create(BookmarkService.prototype) as BookmarkService
@@ -35,11 +35,14 @@ function createCtx() {
 function syncTx(privateUser = userId) {
   return {
     sr_bookmark: {
-      upsert: vi.fn().mockResolvedValue({ id: 11, target_url: targetUrl, private_user: privateUser }),
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn(async ({create}) => ({ ...create, id: 11, private_user: privateUser })),
+      updateMany: vi.fn().mockResolvedValue({count:1}),
       update: vi.fn()
     },
     sr_user_bookmark: {
-      findUnique: vi.fn().mockResolvedValue(null),
+      findUnique: vi.fn().mockImplementation(async ({where}) => where.user_id_bookmark_id ? {id:12,user_id:userId,bookmark_id:11} : null),
+      findFirst: vi.fn().mockResolvedValue(null),
       update: vi.fn(),
       upsert: vi.fn()
     },
@@ -114,7 +117,7 @@ describe('bookmark save privacy', () => {
 
   test('a cached extensionless PDF does not block unrelated pending mutations', async () => {
     const tx = syncTx()
-    tx.sr_bookmark.upsert.mockResolvedValue({ id: 11, private_user: userId, content_key: 'pdf/body/saved.pdf' } as never)
+    tx.sr_bookmark.upsert.mockResolvedValue({ id: 11, private_user: userId, content_key: 'pdf/body/saved.pdf', updated_at:new Date(),status:'success' } as never)
     const transaction = vi.fn(async callback => callback(tx))
     const repo = new DBSyncBatchOperation((() => ({ $transaction: transaction })) as never)
     const result = await repo.executeOrderedOperations([

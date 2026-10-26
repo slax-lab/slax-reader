@@ -157,7 +157,7 @@ function setup(opts: { cues?: number; model?: ArticleModel; row?: Partial<youtub
   const model = opts.model ?? faithfulModel()
   const addCost = vi.fn(async () => {})
   const publishBodies = vi.fn(async (_articleId: number) => 2)
-  const deps: RunnerDeps = { repo, bucket: bucket as any, model, addCost, publishBodies }
+  const deps: RunnerDeps = { repo, bucket: bucket as any, model, addCost, publishBodies, settleSnapshots: vi.fn(async () => 0) }
   const params: YoutubeArticleWorkflowParams = { articleId: 1, videoId: VIDEO, sourceHash: HASH, targetLanguage: 'en', promptVersion: 'v1', title: 'Attention', trigger: 'open' }
   const { step, calls } = engine({ rewrap: opts.rewrap })
   const runId = opts.runId ?? 'run-1'

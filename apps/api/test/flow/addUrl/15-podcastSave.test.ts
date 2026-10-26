@@ -1,3 +1,4 @@
+import { createMockMediaSnapshots } from '@test/helpers/mockFactory'
 /**
  * /add_url Layer 15: podcast links. Reading the episode from each source with the real pages and
  * feeds saved on 2026-10-14, the first body (player and notes), the episode row and the reference.
@@ -19,6 +20,7 @@ function wire() {
   const episodes = { upsertFromInfo: vi.fn().mockResolvedValue({ id: 3, transcript_hash: null, transcript_status: 'pending' }) }
   const articles = { linkBookmark: vi.fn().mockResolvedValue({ id: 1 }) }
   const svc = new (CrawlService as any)()
+  svc.snapshots = createMockMediaSnapshots(putIfKeyExists, br.updateBookmark)
   Object.assign(svc, {
     bucketClient: bc,
     bookmarkRepo: br,
@@ -204,30 +206,31 @@ describe('parseAndSavePodcast', () => {
     const { svc, putIfKeyExists, br, episodes, articles } = wire()
     const ctx = createMockCtx({ userId: 5 })
     const result = await svc.parseAndSavePodcast(ctx, info, 10, 'ub-10')
-    expect(result.contentKey).toBe('html/body/ub-10.html')
-    const html = putIfKeyExists.mock.calls.find(c => c[0] === 'html/body/ub-10.html')![1] as string
+    expect(result.contentKey).toBe('snapshots/ub-10/test/body.html')
+    const html = putIfKeyExists.mock.calls.find(c => c[0] === 'snapshots/ub-10/test/body.html')![1] as string
     expect(html).toContain('<slax-media data-kind="audio" data-src="https://cdn.example.com/ep.mp3"')
     expect(html).toContain('<h2>Show notes</h2>')
     expect(br.updateBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ title: 'Ep 1', site_name: 'Show', byline: 'Host', status: 'success' }))
     const sourceId = await podcastSourceId(info.audioUrl)
     expect(episodes.upsertFromInfo).toHaveBeenCalledWith(sourceId, info)
-    expect(articles.linkBookmark).toHaveBeenCalledWith({ bookmark_id: 10, user_id: 5, source_id: sourceId, source_hash: '' })
+    expect(articles.linkBookmark).not.toHaveBeenCalled()
+    expect((svc as any).snapshots.capture.mock.calls[0][4]).toMatchObject({ sourceId, sourceHash: '' })
   })
 
   test('an episode already transcribed: the reference points at its transcript', async () => {
     const { svc, episodes, articles } = wire()
     episodes.upsertFromInfo.mockResolvedValue({ id: 3, transcript_hash: 'abc', transcript_status: 'ready' })
     await svc.parseAndSavePodcast(createMockCtx({ userId: 5 }), info, 10, 'ub-10')
-    expect(articles.linkBookmark).toHaveBeenCalledWith(expect.objectContaining({ source_hash: 'abc' }))
+    expect((svc as any).snapshots.capture.mock.calls[0][4].sourceHash).toBe('abc')
   })
 
   test('Spotify: embed body, no episode row; a database error never fails the save', async () => {
     const { svc, putIfKeyExists, episodes } = wire()
     await svc.parseAndSavePodcast(createMockCtx(), { ...info, kind: 'spotify', audioUrl: '', embedUrl: 'https://open.spotify.com/embed/episode/x' }, 10, 'ub-10')
-    expect(putIfKeyExists.mock.calls.find(c => c[0] === 'html/body/ub-10.html')![1]).toContain('slax-pod-embed')
+    expect(putIfKeyExists.mock.calls.find(c => c[0] === 'snapshots/ub-10/test/body.html')![1]).toContain('slax-pod-embed')
     expect(episodes.upsertFromInfo).not.toHaveBeenCalled()
 
     episodes.upsertFromInfo.mockRejectedValue(new Error('pg down'))
-    await expect(svc.parseAndSavePodcast(createMockCtx(), info, 11, 'ub-11')).resolves.toMatchObject({ contentKey: 'html/body/ub-11.html' })
+    await expect(svc.parseAndSavePodcast(createMockCtx(), info, 11, 'ub-11')).resolves.toMatchObject({ contentKey: 'snapshots/ub-11/test/body.html' })
   })
 })

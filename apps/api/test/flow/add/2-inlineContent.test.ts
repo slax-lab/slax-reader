@@ -5,7 +5,7 @@
 import { describe, test, expect, vi } from 'vitest'
 import { CrawlService } from '@/domain/crawl'
 import { detectRoute, isSocialMediaRoute } from '@/utils/platformDetector'
-import { createMockCtx, createMockBucketClient, createMockBookmarkRepo, createMockLogsService, createMockAlertBot } from '@test/helpers/mockFactory'
+import { createMockMediaSnapshots, createMockCtx, createMockBucketClient, createMockBookmarkRepo, createMockLogsService, createMockAlertBot } from '@test/helpers/mockFactory'
 
 function wireCrawl() {
   const { factory: bc, putIfKeyExists } = createMockBucketClient()
@@ -13,8 +13,11 @@ function wireCrawl() {
   const ls = createMockLogsService()
   const ab = createMockAlertBot()
   const svc = new (CrawlService as any)()
-  ;(svc as any).bucketClient = bc; ;(svc as any).bookmarkRepo = br
-  ;(svc as any).logsService = ls; ;(svc as any).alertBot = ab
+  ;(svc as any).bucketClient = bc
+  ;(svc as any).bookmarkRepo = br
+  ;(svc as any).logsService = ls
+  ;(svc as any).alertBot = ab
+  ;(svc as any).snapshots = createMockMediaSnapshots(putIfKeyExists, br.updateBookmark)
   return { svc: svc as CrawlService, putIfKeyExists, br }
 }
 
@@ -24,20 +27,15 @@ describe('inlineContent + regular URL → 直接 parseAndSaveContent', () => {
     const inline = '<html><head><title>Client</title></head><body><article><p>Client-provided content long enough for parsing by Readability engine.</p></article></body></html>'
     const result = await svc.parseAndSaveContent(createMockCtx(), { content: inline, url: 'https://example.com/page', title: '' }, 88, 'ub-uuid-88')
     expect(result.title).toBeTruthy()
-    expect(result.contentKey).toBe('html/body/ub-uuid-88.html')
+    expect(result.contentKey).toBe('snapshots/ub-uuid-88/test/body.html')
     expect(putIfKeyExists).toHaveBeenCalledTimes(2)
     expect(br.updateBookmark).toHaveBeenCalledWith(88, expect.objectContaining({ status: 'success' }))
   })
 })
 
 describe('inlineContent + 社交媒体 URL → 忽略 inline', () => {
-  const socialUrls = [
-    'https://x.com/user/status/123',
-    'https://www.xiaohongshu.com/explore/abc',
-    'https://weibo.com/1/a',
-    'https://reddit.com/r/t/comments/a/b',
-  ]
-  test.each(socialUrls)('%s → isSocialMedia=true, 不使用 inline', (url) => {
+  const socialUrls = ['https://x.com/user/status/123', 'https://www.xiaohongshu.com/explore/abc', 'https://weibo.com/1/a', 'https://reddit.com/r/t/comments/a/b']
+  test.each(socialUrls)('%s → isSocialMedia=true, 不使用 inline', url => {
     const route = detectRoute(url)
     const isSocial = isSocialMediaRoute(route)
     expect(isSocial).toBe(true)

@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from 'vitest'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
 import { BookmarkService } from '@/domain/bookmark'
-import { createMockCtx } from '@test/helpers/mockFactory'
+import { createMockCtx, createMockMediaSnapshots } from '@test/helpers/mockFactory'
 
 function wire(status = 0) {
   const article = { id: 42, title: 'Article', moderation_result: 0, content_md_key: 'md', target_url: 'https://example.test', private_user: 10 }
@@ -10,12 +10,15 @@ function wire(status = 0) {
     sr_user_bookmark: { findFirst: vi.fn().mockResolvedValue(row) },
     sr_user_collection: { findFirst: vi.fn().mockResolvedValue({ id: 1, status, amount: 0, owner_id: 10 }) },
     sr_user: { findFirst: vi.fn().mockResolvedValue({ id: 10 }) },
-    sr_user_collection_subscriber: { findFirst: vi.fn().mockImplementation(async ({ where }) => where.user_id === 20 ? { subscription_end_time: new Date(Date.now() + 60000), is_deleted: false } : null) },
+    sr_user_collection_subscriber: {
+      findFirst: vi.fn().mockImplementation(async ({ where }) => (where.user_id === 20 ? { subscription_end_time: new Date(Date.now() + 60000), is_deleted: false } : null))
+    },
     sr_bookmark_share: { findFirst: vi.fn().mockResolvedValue({ is_enable: true }) }
   }
   const repo = Object.create(BookmarkRepo.prototype) as BookmarkRepo
   ;(repo as any).prismaPg = () => db
   const service = new (BookmarkService as any)(repo, undefined, undefined, undefined, undefined, { getInfoByUserId: async () => ({ snapshot_sharing: true }) }) as BookmarkService
+  ;(service as any).snapshots = createMockMediaSnapshots()
   service.getBookmarkById = vi.fn().mockResolvedValue(article)
   service.getBookmarkContent = vi.fn().mockResolvedValue('markdown')
   return { db, service }

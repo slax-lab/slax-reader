@@ -20,7 +20,8 @@ import { BookmarkService } from '@/domain/bookmark'
 import { LabService } from '@/domain/lab'
 import { BookmarkAddOrchestrator } from '@/domain/orchestrator/bookmarkAdd'
 import { BookmarkController } from '@/handler/http/bookmarkController'
-import { ErrorName } from '@/const/err'
+import { ErrorName, BookmarkNotFoundError } from '@/const/err'
+import { forkError } from '@/utils/bookmarkForkError'
 import { createMockCtx, createMockBookmarkService, createMockCrawlService, createMockRequest } from '@test/helpers/mockFactory'
 
 const YOUTUBE = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
@@ -32,7 +33,7 @@ function labService(enabled: boolean) {
 }
 
 function wireService(enabled: boolean) {
-  const createBookmarkBase = vi.fn().mockResolvedValue({ id: 11, private_user: 7 })
+  const createBookmarkBase = vi.fn().mockResolvedValue({ id: 11, private_user: 7, status: 'pending', updated_at: new Date('2026-10-22T00:00:00Z') })
   const bookmarkRepo = { getBookmark: vi.fn().mockResolvedValue(null) }
   const service = Object.create(BookmarkService.prototype) as BookmarkService
   Object.assign(service, { createBookmarkBase, bookmarkRepo, bookmarkData: bookmarkRepo, labService: labService(enabled) })
@@ -125,9 +126,54 @@ describe('POST /v1/bookmark/add_url', () => {
     expect(logs.track).toHaveBeenCalledWith(1, 'bookmark_add', { channel: 'add_url', status: 'lab_disabled' })
   })
 
+  test.each([forkError(), BookmarkNotFoundError()])('preserves Reader-source error envelopes through add_url', async failure => {
+    const { ctrl } = wireController(failure)
+    const ctx = createMockCtx()
+    ctx.env.FRONT_END_URL = 'https://reader.test'
+    const resp = await ctrl.handleUserAddUrlBookmarkRequest(ctx, createMockRequest({ target_url: 'https://reader.test/b/11111111-1111-4111-8111-111111111111' }))
+    expect(await resp.json()).toMatchObject({ code: failure.errCode, data: failure.name })
+  })
+
+  test('acknowledges Fork admission with the existing empty bmId and never starts another crawl', async () => {
+    const { ctrl } = wireController(null)
+    const orch = (ctrl as any).bookmarkAddOrchestrator
+    orch.addByUrl.mockResolvedValue({ bookmarkId: 42, isShortcut: false })
+    vi.spyOn(ctrl as any, 'submitBookmarkEvent').mockResolvedValue(undefined)
+    const resp = await ctrl.handleUserAddUrlBookmarkRequest(createMockCtx(), createMockRequest({ target_url: 'https://reader.test/b/11111111-1111-4111-8111-111111111111' }))
+    expect(resp.status).toBe(200)
+    expect(await resp.json()).toMatchObject({ code: 200, data: { bmId: '' } })
+    expect(orch.kickoffWorkflow).not.toHaveBeenCalled()
+  })
+
   test('any other error is still squashed to ERROR_PARAM', async () => {
     const { ctrl } = wireController(new Error('boom'))
     const resp = await ctrl.handleUserAddUrlBookmarkRequest(createMockCtx(), createMockRequest({ target_url: ARTICLE }))
     expect((await resp.json()).data).toBe('ERROR_PARAM')
   })
+})
+
+describe('busy save admission', () => {
+  test('an existing busy save returns its ID without a new workflow payload or timestamp mutation', async () => {
+    const { service, createBookmarkBase } = wireService(true)
+    const revision = new Date('2026-10-22T00:00:00Z')
+    const busy = { id: 11, private_user: 7, status: 'parseing', updated_at: revision, admitted: false }
+    createBookmarkBase.mockResolvedValue(busy)
+    const result = await service.addUrlBookmark(createMockCtx({ userId: 7 }), { target_url: ARTICLE, tags: [] }, 0 as any)
+    expect(result).toBe(11)
+    expect(busy.updated_at).toBe(revision)
+    expect(busy.status).toBe('parseing')
+  })
+})
+
+test('busy repository admission skips relation, search, and change-log writes', async () => {
+  const service = Object.create(BookmarkService.prototype) as BookmarkService
+  const busy = { id: 11, status: 'parseing', updated_at: new Date('2026-10-22T00:00:00Z'), admitted: false }
+  const repo = { createBookmark: vi.fn().mockResolvedValue(busy), createBookmarkRelation: vi.fn(), createBookmarkChangeLog: vi.fn(), updateBookmark: vi.fn() }
+  const search = { upsertUserBookmark: vi.fn() }
+  Object.assign(service, { bookmarkRepo: repo, bookmarkSearchRepo: search })
+  expect(await service.createBookmarkBase({ ctx: createMockCtx(), targetUrl: ARTICLE, hostUrl: 'example.com', title: 'New title', type: 0 })).toBe(busy)
+  expect(repo.createBookmarkRelation).not.toHaveBeenCalled()
+  expect(repo.createBookmarkChangeLog).not.toHaveBeenCalled()
+  expect(repo.updateBookmark).not.toHaveBeenCalled()
+  expect(search.upsertUserBookmark).not.toHaveBeenCalled()
 })

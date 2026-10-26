@@ -120,15 +120,16 @@ const handleMessages = async (exec: ExecutionContext, env: Env, messages: readon
   }
 }
 
-const handleBatchMessages = async (exec: ExecutionContext, env: Env, messages: readonly Message[], processFunction: (ctx: ContextManager, body: any) => Promise<void>) => {
+const handleBatchMessages = async (exec: ExecutionContext, env: Env, messages: readonly Message[], processFunction: (ctx: ContextManager, body: any) => Promise<void | string[]>) => {
   const processParams = []
   for (const item of messages) {
     const param = { id: item.id, info: item.body }
     processParams.push(param)
   }
-  await processFunction(new ContextManager(exec, env), processParams)
+  const retryIds = new Set((await processFunction(new ContextManager(exec, env), processParams)) ?? [])
   for (const item of messages) {
-    item.ack()
+    if (retryIds.has(item.id)) item.retry()
+    else item.ack()
   }
 }
 

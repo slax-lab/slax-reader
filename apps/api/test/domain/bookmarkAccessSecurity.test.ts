@@ -3,7 +3,7 @@ import { BookmarkService } from '@/domain/bookmark'
 import { MarkService } from '@/domain/mark'
 import { BookmarkController } from '@/handler/http/bookmarkController'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
-import { createMockCtx } from '@test/helpers/mockFactory'
+import { createMockCtx, createMockMediaSnapshots } from '@test/helpers/mockFactory'
 
 function wire() {
   const bookmark = { id: 5, uuid: 'uuid', bookmark_id: 42, user_id: 10, deleted_at: null, bookmark: { private_user: 10, moderation_result: 0, content_key: 'secret' } }
@@ -16,6 +16,7 @@ function wire() {
   const userRepo = { getInfoByUserId: vi.fn().mockResolvedValue({ snapshot_sharing: true }), getUserInfoList: vi.fn().mockResolvedValue([{ uuid: 'person', name: 'name', picture: 'avatar' }]) }
   const bucket = { R2Bucket: { get: vi.fn().mockImplementation(async () => ({ body: new Blob(['public content']).stream() })) } }
   const service = new (BookmarkService as any)(repo, () => bucket, undefined, undefined, undefined, userRepo) as BookmarkService
+  ;(service as any).snapshots = createMockMediaSnapshots()
   const markRepo = { getDistinctUserIdsByUserBookmarkUuid: vi.fn().mockResolvedValue([10]) }
   const markService = new MarkService(repo as any, markRepo as any, {} as any, userRepo as any)
   return { service, markService, repo, userRepo, bucket, bookmark, markRepo }

@@ -1,4 +1,14 @@
 {
+  "bookmark_fork": {
+    "action": "Fork",
+    "submitting": "Saving…",
+    "saved": "Forked",
+    "label": "Fork:",
+    "generic_source": "Reader snapshot",
+    "unavailable": "Source unavailable",
+    "offline": "Connect to the internet to Fork this snapshot.",
+    "failed": "Could not copy this snapshot. Please try again."
+  },
   "pdf": {
     "local_upload": "Local upload",
     "page_spacing": "Show page gaps",
