@@ -654,7 +654,7 @@ export class BookmarkService {
         httpMetadata: { contentType: 'text/plain; charset=utf-8' }
       })
     await bucket.put(stateKey, JSON.stringify({ text_status: result.status, pages: result.pages }), { httpMetadata: { contentType: 'application/json' } })
-    await this.bookmarkRepo.completePdfBookmark(
+    const publishedRevision = await this.bookmarkRepo.completePdfBookmark(
       bookmarkId,
       {
         title,
@@ -672,6 +672,7 @@ export class BookmarkService {
         expectedRevision: ctx.get('snapshotCaptureRevision')
       }
     )
+    ctx.set('snapshotPublishedRevision', publishedRevision?.toISOString())
     await this.searchService.clearSearchCache(ctx, ctx.getUserId())
     return title
   }
@@ -703,7 +704,7 @@ export class BookmarkService {
           const metadata = await readPdfBody(object.body, String(object.size))
             .then(extractPdfMetadata)
             .catch(() => ({}) as { title?: string; author?: string })
-          await this.bookmarkRepo.completePdfBookmark(
+          const publishedRevision = await this.bookmarkRepo.completePdfBookmark(
             bookmarkId,
             {
               ...(metadata.title ? { title: metadata.title } : {}),
@@ -715,6 +716,7 @@ export class BookmarkService {
             object.customMetadata?.sha256 || '',
             { expectedRevision: ctx.get('snapshotCaptureRevision') }
           )
+          ctx.set('snapshotPublishedRevision', publishedRevision?.toISOString())
           if (metadata.title && metadata.title !== bookmark.title) await this.searchService.clearSearchCache(ctx, ctx.getUserId())
         }
         return true
@@ -1516,8 +1518,8 @@ export class BookmarkService {
     }
   }
 
-  public async updateBookmarkModerationResult(bmId: number, moderationResult: number) {
-    return this.bookmarkData.updateBookmarkModerationResult(bmId, moderationResult)
+  public async updateBookmarkModerationResult(bmId: number, moderationResult: number, capture?: { revision: Date; userId: number }) {
+    return this.bookmarkData.updateBookmarkModerationResult(bmId, moderationResult, capture)
   }
 
   public async disableBookmarkShare(bmId: number, userId: number) {

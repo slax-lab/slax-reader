@@ -547,6 +547,7 @@ export class BookmarkForkRepo {
       mediaInput?: PodcastSnapshotInput
       force?: boolean
       expectedUpdatedAt?: Date
+      publishedUpdatedAt?: Date
       fields?: Prisma.sr_bookmarkUpdateManyMutationInput
       /** Only independent owner acquisition may replace the content's provenance. */
       clearForkProvenance?: boolean
@@ -569,7 +570,7 @@ export class BookmarkForkRepo {
           ...options.fields,
           ...content,
           status: 'success',
-          updated_at: new Date(Math.max(Date.now(), (options.expectedUpdatedAt?.getTime() ?? 0) + 1))
+          updated_at: options.publishedUpdatedAt ?? new Date(Math.max(Date.now(), (options.expectedUpdatedAt?.getTime() ?? 0) + 1))
         }
       })
       if (updated.count !== 1) return false

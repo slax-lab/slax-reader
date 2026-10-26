@@ -623,7 +623,7 @@ export class BookmarkRepo {
           }
         })
       }
-      return before.content_key !== raw.content_key ? before.content_key : undefined
+      return raw.updated_at
     })
   }
 
@@ -1325,12 +1325,24 @@ export class BookmarkRepo {
     })
   }
 
-  public async updateBookmarkModerationResult(bmId: number, moderationResult: number) {
+  public async updateBookmarkModerationResult(bmId: number, moderationResult: number, capture?: { revision: Date; userId: number }) {
+    if (capture) {
+      return this.clientPg().$transaction(async db => {
+        const updated = await db.sr_bookmark.updateMany({
+          where: { id: bmId, updated_at: capture.revision, status: 'success' },
+          data: { moderation_result: moderationResult, updated_at: new Date(Math.max(Date.now(), capture.revision.getTime() + 1)) }
+        })
+        if (updated.count !== 1) return false
+        // Keep the policy update and share revocation under the same row lock.
+        if (moderationResult > 0) await this.disableBookmarkShareUpsert(bmId, capture.userId, db)
+        return true
+      })
+    }
     return await this.clientPg().sr_bookmark.update({ where: { id: bmId }, data: { moderation_result: moderationResult, updated_at: new Date() } })
   }
 
-  public async disableBookmarkShareUpsert(bmId: number, userId: number) {
-    return await this.clientPg().sr_bookmark_share.upsert({
+  public async disableBookmarkShareUpsert(bmId: number, userId: number, db: Pick<HyperdrivePrismaClient, 'sr_bookmark_share'> = this.clientPg()) {
+    return await db.sr_bookmark_share.upsert({
       where: { bookmark_id_user_id: { bookmark_id: bmId, user_id: userId } },
       create: {
         share_code: '',

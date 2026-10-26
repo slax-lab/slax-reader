@@ -397,13 +397,15 @@ export class MediaSnapshotService {
       }
       const content = await bundle.writeBody(body, media ?? { schema: 1, kind: 'html' })
       await bundle.assertUnchanged()
+      const publishedUpdatedAt = new Date(Math.max(Date.now(), raw.updated_at.getTime() + 1))
       const published = await this.repo.publishRevision(raw.id, raw.content_key, content, {
         ...options,
+        publishedUpdatedAt,
         expectedUpdatedAt: raw.updated_at,
         mediaRef: media ? this.ref(media) : undefined
       })
       if (!published && !options.clearForkProvenance) await this.repo.releaseWrite(raw.id, raw.updated_at)
-      return published ? content : null
+      return published ? { ...content, publishedRevision: publishedUpdatedAt.toISOString() } : null
     } catch (error) {
       // A fixed-key write cannot be rolled back or inferred committed from its path.
       // Supplemental publication restores the completed base to eligibility for the original

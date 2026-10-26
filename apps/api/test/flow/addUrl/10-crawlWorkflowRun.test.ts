@@ -756,10 +756,10 @@ describe('CrawlWorkflow → YouTube AI article trigger', () => {
     const yt = { triggerAfterCrawl: vi.fn().mockResolvedValue(undefined) }
     mockResolveMap.set(YoutubeArticleService, yt)
     mockResolveMap.set(SlaxAlertBotClient, { crawl: { pushMessage: vi.fn().mockResolvedValue(undefined) } })
-    ;(w.bs as any).updateBookmarkModerationResult = vi.fn().mockResolvedValue(undefined)
+    ;(w.bs as any).updateBookmarkModerationResult = vi.fn().mockResolvedValue(true)
     ;(w.bs as any).disableBookmarkShare = vi.fn().mockResolvedValue(undefined)
     ;(w.cs as any).fetchYoutubeData = vi.fn().mockResolvedValue({ videoId: 'dQw4w9WgXcQ', title: 'Attention', cues: [] })
-    ;(w.cs as any).parseAndSaveYoutube = vi.fn().mockResolvedValue({ ...STANDARD_CRAWL_RESULT, title: 'Attention' })
+    ;(w.cs as any).parseAndSaveYoutube = vi.fn().mockResolvedValue({ ...STANDARD_CRAWL_RESULT, title: 'Attention', publishedRevision: '2026-01-01T00:00:00.000Z' })
     return { ...w, yt }
   }
 
@@ -769,6 +769,21 @@ describe('CrawlWorkflow → YouTube AI article trigger', () => {
     await runWorkflow(wf, { url: YT }, step)
     expect(yt.triggerAfterCrawl).toHaveBeenCalledWith(expect.anything(), 42, 1, 'Attention')
     expect(step.do.mock.calls.map((c: any[]) => c[0])).toContain('youtube-article-trigger')
+  })
+
+  test('late moderation uses the published revision and stops stale post-processing', async () => {
+    const { wf, bs, yt, uph } = wireYoutube()
+    ;(bs as any).updateBookmarkModerationResult.mockResolvedValue(false)
+    const spy = vi.spyOn(OpenAIModerationClient.prototype, 'moderateContent').mockResolvedValue(ModerationResult.PORN)
+    try {
+      await runWorkflow(wf, { url: YT })
+      expect((bs as any).updateBookmarkModerationResult).toHaveBeenCalledWith(42, ModerationResult.PORN, { revision: new Date('2026-01-01'), userId: 1 })
+      expect((bs as any).disableBookmarkShare).not.toHaveBeenCalled()
+      expect(yt.triggerAfterCrawl).not.toHaveBeenCalled()
+      expect(uph.processPostHandler).not.toHaveBeenCalled()
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   test('other routes never trigger it', async () => {
@@ -808,10 +823,10 @@ describe('CrawlWorkflow → podcast route', () => {
     mockResolveMap.set(PodcastService, pod)
     mockResolveMap.set(LabService, lab)
     mockResolveMap.set(SlaxAlertBotClient, { crawl: { pushMessage: vi.fn().mockResolvedValue(undefined) } })
-    ;(w.bs as any).updateBookmarkModerationResult = vi.fn().mockResolvedValue(undefined)
+    ;(w.bs as any).updateBookmarkModerationResult = vi.fn().mockResolvedValue(true)
     ;(w.bs as any).disableBookmarkShare = vi.fn().mockResolvedValue(undefined)
     ;(w.cs as any).fetchPodcastData = vi.fn().mockResolvedValue(INFO)
-    ;(w.cs as any).parseAndSavePodcast = vi.fn().mockResolvedValue({ ...STANDARD_CRAWL_RESULT, title: 'E255' })
+    ;(w.cs as any).parseAndSavePodcast = vi.fn().mockResolvedValue({ ...STANDARD_CRAWL_RESULT, title: 'E255', publishedRevision: '2026-01-01T00:00:00.000Z' })
     w.cs.fetchRegular.mockResolvedValue({ content: '<p>page</p>', url: XYZ, title: 'T' })
     w.cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
     return { ...w, pod, lab }

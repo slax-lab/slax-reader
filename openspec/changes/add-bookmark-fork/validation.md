@@ -1,3 +1,40 @@
+# Review corrections — 2026-10-26
+
+The owner requested fixes for [boxcounter review 5647029007](https://github.com/slax-lab/slax-reader/pull/354#pullrequestreview-5647029007). All four findings were confirmed against the real code paths and corrected within `add-bookmark-fork`. This follow-up changes backend behavior and tests only; the frontend design and the earlier human acceptance remain unchanged and scoped to that UI. No application versions, schema, production configuration, R2 naming or scheduled jobs changed. The primary checkout is currently used by another task (`feat/add-blogger-chloe`), so this work uses the existing attached Fork worktree rather than switching it.
+
+## Corrections and regression evidence
+
+1. **Queue identity:** tests invoke the generated consumer with the real ContextManager. Before the fix, valid deliveries throw at `ctx.hashIds.encodeId`. Each delivery now receives its own user identity and owner-scoped encoder; two different owners are asserted independently.
+2. **Batch isolation:** a rejected dispatch no longer prevents the following valid delivery. Generated code explicitly retries the rejected ID and acknowledges only the accepted sibling. Existing configured retry limits are retained; no new retry queue or dead-letter guarantee is claimed. Reader-shell legacy dispatch records a timestamp-guarded failed state before rejection. Missing rows/storage errors are rejected, not silently acknowledged as successful captures.
+3. **Duplicate admission:** a controlled A-admitted/B-duplicate/A-create-rejected interleaving reproduced the former false acknowledgement. Both uncertain requests now return `fork_storage_unavailable`, neither clears a possibly active claim, and only A attempts create. Confirmed running duplicates remain accepted.
+4. **Moderation:** a regression reproduced an unconditional old moderation write replacing a newer active timestamp. Publication now supplies its actual timestamp in the durable result, including PDFs. The guarded moderation update and sharing revocation are transactional; stale results change neither state nor policy. Real PostgreSQL tests demonstrate B can subsequently publish or reach its own guarded failed state. Current moderation still flags content and disables sharing; an old replay cannot clear it. Workflow tests verify stale moderation also skips downstream post-processing.
+
+## Checks
+
+| Check | Result |
+| --- | --- |
+| Red tests before implementation | Queue-context exception, false duplicate acknowledgement, stale moderation mutation and missing Reader-shell terminal transition reproduced |
+| Focused regression suites | 436 passed before the final Reader-shell test; final complete suite below includes that test |
+| `pnpm api -- test` | 191 files passed; 2,486 tests passed; 105 conditional tests skipped |
+| Isolated PostgreSQL 17 plus all repository migrations | 33 Fork integration tests passed, including the new moderation races; task-owned container and temporary runner removed |
+| `FORK_SMOKE=1 pnpm --filter slax-reader-backend exec tsx --tsconfig tsconfig.json test/runtime/httpSmoke.ts` | Passed against isolated running Edge/Core, Workflow, local R2/KV/D1 and PostgreSQL: HTML, shortcuts, uploaded/downloaded PDFs, YouTube, podcast, refresh, access/deletion and failure/retry exercises |
+| `pnpm api -- gen:all` | Passed using the public template and process-only unused loopback database URLs; inspected generated consumer changes, other generated outputs unchanged |
+| `pnpm api -- typecheck` | Passed, including shared contracts |
+| `pnpm api -- lint` | 0 errors; 344 existing warnings |
+| `SLAX_API_CONFIG=deploy/cloudflare/api.toml.example pnpm api -- build` | Passed offline dry run |
+| `pnpm exec openspec validate --all --strict` | 74 passed, 0 failed |
+| `git diff --check` | Passed |
+
+## Local pre-push review
+
+- **Bugs:** traced the real generated batch wiring, per-user identity, deterministic duplicate confirmation, all capture result constructors, PDF timestamp propagation, the moderation transaction and stale publication/failure guards. No remaining Important findings in this follow-up.
+- **Security:** no new unauthenticated entry point, dependency, secret, public payload field or storage namespace. Stale moderation cannot revoke a newer capture's share; source authorization remains unchanged. No Important findings.
+- **Compliance:** change-id `add-bookmark-fork`; these fixes enforce the existing dispatch, independent-capture and finite-failure contracts, now represented by explicit regression scenarios. No automatic cleanup/recovery or UI redesign was introduced. No Important findings.
+
+Not verified: a production queue/Workflow redelivery or platform outage, real provider moderation/playback, and process-kill/lost-COMMIT recovery. Queue failure injection and the duplicate-create interleaving use controlled bindings; the integration test uses real PostgreSQL with an in-memory R2 fixture, while the separate HTTP smoke uses real local R2/Workflow. The tests do not claim general automatic recovery of already-stuck `parseing` records. No operator database was reset, no production operation or merge was performed.
+
+---
+
 # Current simplification verification — 2026-10-23 (Asia/Shanghai)
 
 The owner approved construction and explicitly requested the implementation/PR handoff before their next local test, with the primary checkout remaining on `feat/add-bookmark-fork`. The owner has now completed that test and confirmed successful human hands-on acceptance. This closes S26 for the current simplification; it is a new confirmation, not an extension of the earlier acceptance at `21124615`. No merge or deployment is authorized or performed.

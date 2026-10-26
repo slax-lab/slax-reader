@@ -69,6 +69,8 @@ export type TwitterFetched =
 export type ZhihuFetched = { title: string; content: string; author: string }
 
 export interface CrawlResult {
+  /** Timestamp returned by this content publication, never a later row lookup. */
+  publishedRevision?: string
   title: string
   textContent: string
   excerpt?: string
@@ -143,11 +145,14 @@ export class CrawlService {
   }
 
   public async createWorkflow(env: Env, params: CrawlWorkflowParams, maxRetries: number = 3, trackingContext?: ContextManager) {
-    if (readerBookmarkUuid(params.url, [env.FRONT_END_URL])) throw forkError()
     const raw = await this.snapshotRepo.snapshot(params.bookmarkId)
     if (!raw) throw forkError()
     if (params.captureRevision && params.captureRevision !== raw.updated_at.toISOString()) return
     if (!['pending', 'pending_retry'].includes(raw.status)) return
+    if (readerBookmarkUuid(params.url, [env.FRONT_END_URL])) {
+      await this.snapshotRepo.failDispatch(params.bookmarkId, raw.updated_at)
+      throw forkError()
+    }
     params = {
       ...params,
       captureRevision: params.captureRevision ?? raw.updated_at.toISOString()
@@ -936,6 +941,7 @@ export class CrawlService {
       siteName: parseRes.siteName,
       publishedTime: parseRes.publishedTime,
       contentKey,
+      publishedRevision: content.publishedRevision,
       qualityReview
     }
   }
@@ -1120,6 +1126,7 @@ export class CrawlService {
       byline: opts.meta.byline,
       siteName: opts.meta.siteName,
       publishedTime: opts.meta.publishedTime,
+      publishedRevision: content.publishedRevision,
       contentKey
     }
   }

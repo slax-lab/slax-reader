@@ -64,6 +64,39 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     return { userId: users[1], source: source!, targetUrl: target, uuid, content: { content_key, content_md_key, content_word_count: 4 } }
   }
 
+  it.each(['publish', 'fail'])('late moderation from A leaves admitted B able to %s', async outcome => {
+    const destination = await publish(input(`https://moderation-race.test/${crypto.randomUUID()}`))
+    const raw = destination.relation.bookmark
+    const bookmarks = new BookmarkRepo({} as any, () => client)
+    const admitted = await bookmarks.createBookmark(
+      { title: 'B', host_url: '', target_url: raw.target_url, content_icon: '', content_cover: '', private_user: users[1] },
+      'pending'
+    )
+    expect(admitted!.admitted).toBe(true)
+    expect(await repo.claimWrite(raw.id, admitted!.updated_at!, ['pending'], true)).toBe(true)
+    expect(await bookmarks.updateBookmarkModerationResult(raw.id, 1, { revision: raw.updated_at, userId: users[1] })).toBe(false)
+    expect(await repo.snapshot(raw.id)).toMatchObject({ status: 'parseing', moderation_result: 0, updated_at: admitted!.updated_at })
+    expect(await client.sr_bookmark_share.findUnique({ where: { bookmark_id_user_id: { bookmark_id: raw.id, user_id: users[1] } } })).toBeNull()
+    if (outcome === 'publish') {
+      expect(await repo.publishRevision(raw.id, raw.content_key, input().content, { expectedUpdatedAt: admitted!.updated_at })).toBe(true)
+    } else {
+      expect(await repo.failWrite(raw.id, admitted!.updated_at!)).toBe(true)
+    }
+    expect((await repo.snapshot(raw.id))!.status).toBe(outcome === 'publish' ? 'success' : 'failed')
+  })
+
+  it('applies current moderation and share revocation atomically, rejecting stale replay', async () => {
+    const destination = await publish(input(`https://moderation-current.test/${crypto.randomUUID()}`))
+    const raw = destination.relation.bookmark
+    const bookmarks = new BookmarkRepo({} as any, () => client)
+    const capture = { revision: raw.updated_at, userId: users[1] }
+    expect(await bookmarks.updateBookmarkModerationResult(raw.id, 1, capture)).toBe(true)
+    expect((await repo.snapshot(raw.id))!.moderation_result).toBe(1)
+    expect(await client.sr_bookmark_share.findUnique({ where: { bookmark_id_user_id: { bookmark_id: raw.id, user_id: users[1] } } })).toMatchObject({ is_enable: false })
+    expect(await bookmarks.updateBookmarkModerationResult(raw.id, 0, capture)).toBe(false)
+    expect((await repo.snapshot(raw.id))!.moderation_result).toBe(1)
+  })
+
   it('atomically admits a new Fork once and excludes ordinary capture while preserving its winner timestamp', async () => {
     const targetUrl = `https://fork-admission.test/${crypto.randomUUID()}`
     const args = { userId: users[1], source: source!, targetUrl, uuid: crypto.randomUUID() }

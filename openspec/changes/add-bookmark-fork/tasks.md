@@ -109,3 +109,10 @@ The owner approved these implementation tasks on 2026-10-23. See the [report](..
 - [x] S24 Bypass both shared-cache lookup/storage for credential-bearing requests, retain neutral anonymous caching and access revalidation, and invalidate account/route-specific client state including late responses and offline account changes.
 - [x] S25 Remove only proven unused retiredKey/marker/types/parameters and unrelated formatting; retain source validation, fixed-key concurrency, all-format isolation, deletion and compatibility guards. Record final production/test/doc file counts without targeting an arbitrary total.
 - [x] S26 Complete verification and handoff. Automated/regression/runtime evidence and independent Bugs/Security/Compliance review are recorded in validation.md. Following the owner-authorized PR-first/local-test handoff, the owner confirmed successful renewed human acceptance on 2026-10-23 at 21:42 (Asia/Shanghai), supplying screenshots of the Forked source state and the owned copy with Source/Fork attribution. No further functional/UI adjustments were requested. The current acceptance record covers `b5138b59` and closes this combined task; declared external-service/device gaps remain explicit.
+
+## Review follow-up — 2026-10-26
+
+- [x] R27 Initialize a real per-message queue identity and isolate legacy dispatch failures, retrying only rejected deliveries and recording a terminal failure for queued Reader shells.
+- [x] R28 Require confirmed deterministic Workflow dispatch before acknowledging an active duplicate Fork; preserve the uncertain-dispatch claim boundary.
+- [x] R29 Carry the actual content-publication timestamp through durable Workflow results and atomically guard moderation/share revocation against newer captures, including PDF publication.
+- [x] R30 Run regression and isolated runtime checks, review Bugs/Security/Compliance, record actual evidence, and update PR #354 and its implementation report.

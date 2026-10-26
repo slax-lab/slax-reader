@@ -1,3 +1,4 @@
+import { Hashid } from '@/utils/hashids'
 import { ContextManager } from '@/utils/context'
 import { Consumer } from '../../decorators/queue'
 import { inject, injectable } from '../../decorators/di'
@@ -18,25 +19,36 @@ export class BookmarkConsumer {
   @Consumer({ channel: 'slax-reader-parser-twitter', batch: true })
   @Consumer({ channel: 'slax-reader-parser-twitter-beta', batch: true })
   public async handleParseThirdPartyURL(ctx: ContextManager, info: receiveThirdPartyMessage[]) {
-    // Drain legacy queue messages through the same guarded workflow as new saves.
-    for (const { info: message } of info) {
-      await this.crawlService.createWorkflow(
-        ctx.env,
-        {
-          url: message.targetUrl,
-          bookmarkId: message.bookmarkId,
-          userId: message.userId,
-          enUserId: ctx.hashIds.encodeId(message.userId),
-          userLang: ctx.get('user_lang') || 'en',
-          captureRevision: message.captureRevision,
-          callbackChatId: message.callback === 1 ? message.callbackPayload?.chat_id : undefined,
-          callbackOriginMessageId: message.callback === 1 ? message.callbackPayload?.origin_message_id : undefined,
-          ignoreGenerateTag: message.ignoreGenerateTag
-        },
-        3,
-        ctx
-      )
+    // Failed deliveries use the queue's configured retry policy, never a success ack.
+    const retryIds: string[] = []
+    for (const { id, info: message } of info) {
+      const messageCtx = new ContextManager(ctx.execution, ctx.env)
+      const enUserId = new Hashid(ctx.env).encodeId(message.userId)
+      messageCtx.setHashIds(new Hashid(ctx.env, message.userId))
+      messageCtx.setUserInfo(message.userId, enUserId, '', 'en')
+      try {
+        await this.crawlService.createWorkflow(
+          ctx.env,
+          {
+            url: message.targetUrl,
+            bookmarkId: message.bookmarkId,
+            userId: message.userId,
+            enUserId,
+            userLang: messageCtx.getlang(),
+            captureRevision: message.captureRevision,
+            callbackChatId: message.callback === 1 ? message.callbackPayload?.chat_id : undefined,
+            callbackOriginMessageId: message.callback === 1 ? message.callbackPayload?.origin_message_id : undefined,
+            ignoreGenerateTag: message.ignoreGenerateTag
+          },
+          3,
+          messageCtx
+        )
+      } catch (error) {
+        console.error('Legacy capture dispatch failed', { messageId: id, bookmarkId: message.bookmarkId, error })
+        retryIds.push(String(id))
+      }
     }
+    return retryIds
   }
 
   /**

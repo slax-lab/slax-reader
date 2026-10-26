@@ -80,6 +80,16 @@ describe('kickoffWorkflow 错误处理', () => {
 })
 
 describe('CrawlService.createWorkflow 重试', () => {
+  test('a legacy Reader URL becomes failed without crawling the Reader shell', async () => {
+    const { svc, br } = wireCrawlService()
+    const env = { ...createMockCtx().env, FRONT_END_URL: 'https://reader.test' }
+    await expect(svc.createWorkflow(env, { url: 'https://reader.test/b/11111111-1111-4111-8111-111111111111', bookmarkId: 42, userId: 1 } as any)).rejects.toMatchObject({
+      name: 'fork_source_not_ready'
+    })
+    expect(br.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(env.CRAWL_WORKFLOW.create).not.toHaveBeenCalled()
+  })
+
   test('首次成功 → 只调 1 次 + 发送 success event', async () => {
     const { svc, ls } = wireCrawlService()
     const env = createMockCtx().env

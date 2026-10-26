@@ -2,6 +2,21 @@
 
 Implemented on 2026-10-23 in `feat/add-bookmark-fork`, [PR #354](https://github.com/slax-lab/slax-reader/pull/354), following the owner's approved simplification. This report supersedes earlier immutable-path, dedicated-endpoint and scheduled-maintenance proposals. [Validation](../../openspec/changes/add-bookmark-fork/validation.md) records actual checks and remaining gaps. After the requested PR-first/local-test handoff, the owner confirmed successful human acceptance at `b5138b59` on 2026-10-23 at 21:42 (Asia/Shanghai), with screenshots showing the Forked source state and Source/Fork attribution on the owned copy. No further adjustments were requested; [acceptance evidence](https://github.com/slax-lab/slax-reader/pull/354#issuecomment-6366331919).
 
+## Review corrections — 2026-10-26
+
+PR reviewer boxcounter identified four bugs in the legacy queue and asynchronous publication boundaries. The follow-up fixes preserve the approved API, database and R2 layout:
+
+| Finding | Correction |
+| --- | --- |
+| Real queue contexts lack `hashIds` | Construct a fresh context per delivery, with global encoded user identity and that owner's scoped bookmark encoder. |
+| A failed delivery blocks the rest of the batch | Dispatch each message independently; generated wiring retries failed IDs and acknowledges successful siblings. Existing retry limits remain unchanged. Pending Reader-shell messages are marked failed under their existing timestamp guard. |
+| A duplicate Fork acknowledges admission without durable dispatch | Confirm the deterministic Workflow before returning success for an active duplicate. Lookup uncertainty returns the existing storage error and retains the active claim. |
+| Late moderation from A strands capture B | Carry the exact content publication timestamp through durable results. Update moderation only while that timestamp still identifies a successful capture; revoke sharing in the same transaction. Stale moderation performs no write and stops its remaining post-processing. |
+
+The internal `publishedRevision` is the existing `updated_at` from the successful HTML/media/PDF publication. It adds no version counter, table, migration, scheduled recovery or R2 path. The global podcast moderation path retains its existing policy behavior. This correction prevents the identified stale-capture race; it does not introduce general automatic recovery of interrupted `parseing` work.
+
+Current evidence and remaining runtime boundaries are recorded in [validation.md](../../openspec/changes/add-bookmark-fork/validation.md#review-corrections--2026-10-26).
+
 ## Behavior and scope
 
 Every new capture belongs to its user. Fork copies the source's saved presentation into the current user's own bookmark, including ordinary articles, shortcuts, uploaded/downloaded PDFs, YouTube and podcasts. Ready media supplements are copied; pending source generation does not subscribe a Fork to future updates. External images/video/audio keep their existing resource behavior. Source deletion does not delete the recipient's copy.

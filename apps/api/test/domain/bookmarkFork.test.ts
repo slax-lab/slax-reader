@@ -203,8 +203,33 @@ describe('Fork service publication boundary', () => {
   it('returns a concurrent accepted winner without dispatching a second Workflow', async () => {
     const relation = admission()
     repo.admit.mockResolvedValue({ disposition: 'already_saved', relation })
+    ctx.env.CRAWL_WORKFLOW.get = vi.fn(async () => ({ status: async () => ({ status: 'running' }) }))
     expect(await service.admit(ctx, source.uuid)).toMatchObject({ bookmark_uid: 'destination', disposition: 'already_saved' })
     expect(ctx.env.CRAWL_WORKFLOW.create).not.toHaveBeenCalled()
+  })
+
+  it('does not acknowledge duplicate B while admitted A has no confirmed durable dispatch', async () => {
+    const relation = admission()
+    let rejectDispatch!: (error: Error) => void
+    let entered!: () => void
+    const dispatchEntered = new Promise<void>(resolve => {
+      entered = resolve
+    })
+    ctx.env.CRAWL_WORKFLOW.create.mockImplementation(() => {
+      entered()
+      return new Promise((_, reject) => {
+        rejectDispatch = reject
+      })
+    })
+    ctx.env.CRAWL_WORKFLOW.get = vi.fn().mockRejectedValue(new Error('instance not found'))
+    repo.admit.mockResolvedValueOnce({ disposition: 'created', relation }).mockResolvedValue({ disposition: 'already_saved', relation })
+    const first = service.admit(ctx, source.uuid).catch(error => error)
+    await dispatchEntered
+    await expect(service.admit(ctx, source.uuid)).rejects.toMatchObject({ name: 'fork_storage_unavailable' })
+    rejectDispatch(new Error('creation rejected'))
+    expect(await first).toMatchObject({ name: 'fork_storage_unavailable' })
+    expect(ctx.env.CRAWL_WORKFLOW.create).toHaveBeenCalledOnce()
+    expect(repo.failWrite).not.toHaveBeenCalled()
   })
 
   it('exits stale background work before reading or overwriting any files', async () => {

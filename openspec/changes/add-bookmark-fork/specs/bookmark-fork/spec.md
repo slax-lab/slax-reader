@@ -170,6 +170,10 @@ Older queued Reader-URL creates SHALL have a durable terminal failed-save outcom
 - **WHEN** required R2 copying is delayed or eventually fails after bounded retries
 - **THEN** the already-admitted HTTP request is not held open, and the persisted destination remains processing until success or a guarded failed transition
 
+#### Scenario: Duplicate arrives before durable dispatch is confirmed
+- **WHEN** a concurrent duplicate finds an admitted active destination whose deterministic Workflow is not confirmed
+- **THEN** it reports the existing dispatch-uncertainty error instead of success, retains the claim, and does not create a second Workflow
+
 ### Requirement: Shared detail projection and account isolation
 
 Existing public and authenticated private detail queries SHALL supply safe Fork attribution and viewer_fork_status. The button and article SHALL consume the same page detail rather than dedicated Fork metadata requests. The button SHALL submit a configured Reader URL through add_url. Explicit URL submission SHALL retain refresh semantics even when a completed copy disables the button.

@@ -186,3 +186,12 @@ Content updates SHALL reuse existing status fields without a database version, l
 #### Scenario: Frontend submission guard
 - **WHEN** a save has been accepted but its content work remains pending or parsing
 - **THEN** the relevant frontend entry rejects re-entry for that resource, using existing loading and synced status; unrelated resources remain usable and the backend remains authoritative across devices
+
+#### Scenario: Legacy queue batch includes a rejected delivery
+- **WHEN** one legacy capture cannot dispatch and later deliveries are valid
+- **THEN** each message has its own initialized owner context, later deliveries still dispatch, and only rejected deliveries use the existing queue retry policy
+- **AND** a pending Reader-shell capture receives a guarded terminal failure without crawling that shell
+
+#### Scenario: Older moderation finishes after a new admission
+- **WHEN** capture A has published and capture B is admitted before A's moderation finishes
+- **THEN** A's moderation cannot change B's status, timestamp, policy or sharing, and B retains its ability to publish or enter its guarded failed state

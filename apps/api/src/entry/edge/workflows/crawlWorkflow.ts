@@ -66,7 +66,7 @@ type FetchedPayload =
       data: ZhihuFetched
       isSocialMedia: true
     }
-  | { kind: 'pdf'; resolvedUrl: string; isSocialMedia: false }
+  | { kind: 'pdf'; resolvedUrl: string; isSocialMedia: false; publishedRevision?: string }
   | {
       kind: 'parsed'
       resolvedUrl: string
@@ -180,7 +180,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           const stored = await bookmarkService.getBookmarkById(bookmarkId)
           if (stored?.content_key?.startsWith('pdf/body/')) {
             if (!(await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, url))) throw new Error('Stored PDF could not be acquired')
-            return { kind: 'pdf', resolvedUrl: url, isSocialMedia: false }
+            return { kind: 'pdf', resolvedUrl: url, isSocialMedia: false, publishedRevision: ctxManager.get('snapshotPublishedRevision') }
           }
           // 检查是否已有内容
           const existingData = await bookmarkService.getBookmarkTitleAndTextContentTry(bookmarkId)
@@ -203,7 +203,8 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           const route = detectRoute(resolvedUrl)
           if (route === 'regular') {
             try {
-              if (await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, resolvedUrl)) return { kind: 'pdf', resolvedUrl, isSocialMedia: false }
+              if (await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, resolvedUrl))
+                return { kind: 'pdf', resolvedUrl, isSocialMedia: false, publishedRevision: ctxManager.get('snapshotPublishedRevision') }
             } catch (error) {
               if (error instanceof MultiLangError && error.name === ErrorName.LAB_FEATURE_DISABLED) throw new NonRetryableError(`pdf_lab_disabled:${error.getMessage}`)
               throw error
@@ -316,7 +317,12 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
 
     if (fetched.kind === 'pdf') {
       const stored = await bookmarkService.getBookmarkById(bookmarkId)
-      crawlResult = { title: stored?.title || '', textContent: stored?.content_md_key ? (await bookmarkService.getBookmarkContent(stored.content_md_key)) || '' : '', byline: '' }
+      crawlResult = {
+        publishedRevision: fetched.publishedRevision,
+        title: stored?.title || '',
+        textContent: stored?.content_md_key ? (await bookmarkService.getBookmarkContent(stored.content_md_key)) || '' : '',
+        byline: ''
+      }
     } else if (fetched.kind === 'shortCircuit') {
       if (!(await step.do('release-cached-capture', () => crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.SUCCESS)))) return
       // bookmark 已有内容，跳过 parse
@@ -324,7 +330,8 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
         title: fetched.data.title,
         textContent: fetched.data.textContent,
         byline: fetched.data.byline,
-        siteName: ''
+        siteName: '',
+        publishedRevision: ctxManager.get('snapshotCaptureRevision')
       }
     } else if (fetched.kind === 'parsed') {
       // dajiala/regular 已在 fetch step 内完成 parse+save
@@ -404,15 +411,15 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     // 命中黄网域名直接标记为色情；否则投递「标题 + 正文文本 + 前 20 张图片 URL」做分级并落库。
     // 命中（>0）：关闭分享 + 推飞书告警；审核失败不阻塞后续（默认 moderation_result=0）。
     let moderationResult: ModerationResult = ModerationResult.NORMAL
-    if (crawlResult && !isSoft404) {
+    if (crawlResult?.publishedRevision && !isSoft404) {
       try {
-        moderationResult = await step.do(
+        const moderated = await step.do(
           'content-moderation',
           {
             retries: { limit: 2, delay: '30 seconds' as const, backoff: 'constant' as const },
             timeout: '3 minutes'
           },
-          async (): Promise<ModerationResult> => {
+          async (): Promise<ModerationResult | null> => {
             let result: ModerationResult
             if (isProhibitedContentUrl(url)) {
               result = ModerationResult.PORN
@@ -429,11 +436,14 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
               console.log(`Moderation result for bookmark ${bookmarkId}: ${result} (images=${imageUrls.length})`)
             }
 
-            await bookmarkService.updateBookmarkModerationResult(bookmarkId, result)
+            const applied = await bookmarkService.updateBookmarkModerationResult(bookmarkId, result, {
+              revision: new Date(crawlResult!.publishedRevision!),
+              userId
+            })
+            if (!applied) return null
 
             if (result !== ModerationResult.NORMAL) {
               // 命中审核内容：关闭分享（无记录则创建全关闭记录），并推飞书。=1 色情=提醒(蓝)，=2 极度危险=警告(橙)
-              await bookmarkService.disableBookmarkShare(bookmarkId, userId)
               const isDanger = result === ModerationResult.DANGEROUS
               const header = isDanger ? '⚠️ **Content Moderation 警告**' : '🔍 **Content Moderation 提醒**'
               const label = isDanger ? '极度危险内容(2)' : '色情内容(1)'
@@ -445,6 +455,8 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
             return result
           }
         )
+        if (moderated === null) return
+        moderationResult = moderated
       } catch (moderationErr) {
         const errMsg = moderationErr instanceof Error ? moderationErr.message : String(moderationErr)
         console.error(`Content moderation failed for bookmark ${bookmarkId}: ${errMsg}`)

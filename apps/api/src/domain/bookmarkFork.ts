@@ -55,8 +55,11 @@ export class BookmarkForkService {
     if (source.bookmark.status !== 'success') throw forkError()
     const admission = await this.repo.admit({ userId, source, targetUrl: this.destinationUrl(source, userId), uuid: crypto.randomUUID() })
     const { relation, disposition } = admission
-    if (disposition !== 'already_saved') {
-      const revision = relation.bookmark.updated_at
+    const revision = relation.bookmark.updated_at
+    const workflowId = `fork-${relation.bookmark_id}-${revision.getTime()}`
+    if (disposition === 'already_saved') {
+      await this.confirmDispatch(ctx, workflowId, relation.bookmark_id, revision)
+    } else {
       const fork: ForkWorkflowJob = {
         sourceUuid: source.uuid,
         sourceId: source.id,
@@ -68,28 +71,28 @@ export class BookmarkForkService {
         revision: revision.toISOString(),
         created: disposition === 'created'
       }
-      const workflowId = `fork-${relation.bookmark_id}-${revision.getTime()}`
       try {
         await ctx.env.CRAWL_WORKFLOW.create({
           id: workflowId,
           params: { url: relation.bookmark.target_url, bookmarkId: relation.bookmark_id, userId, enUserId: ctx.getEncodeUserId(), userLang: ctx.getlang(), fork }
         })
       } catch {
-        // Creation can succeed before its response is lost. An active or unknown
-        // instance may already have a fixed-key PUT in flight; retain its claim.
-        let status: string | undefined
-        try {
-          const instance = await ctx.env.CRAWL_WORKFLOW.get(workflowId)
-          status = (await instance.status()).status
-        } catch {
-          // Lookup failure cannot prove that creation was rejected.
-        }
-        if (status === 'errored' || status === 'terminated') await this.repo.failWrite(relation.bookmark_id, revision)
-        if (!status || !['queued', 'running', 'paused', 'waiting', 'waitingForPause', 'complete'].includes(status)) throw forkError(ErrorName.FORK_STORAGE_UNAVAILABLE)
+        await this.confirmDispatch(ctx, workflowId, relation.bookmark_id, revision)
       }
     }
     await this.search.clearSearchCache(ctx, userId).catch(error => console.error('Fork cache clearing failed', error))
     return this.result(relation, disposition)
+  }
+
+  private async confirmDispatch(ctx: ContextManager, workflowId: string, bookmarkId: number, revision: Date) {
+    // Neither a duplicate admission nor a lost create response proves dispatch.
+    // An unavailable lookup cannot prove that no fixed-key writer is active.
+    let status: string | undefined
+    try {
+      status = (await (await ctx.env.CRAWL_WORKFLOW.get(workflowId)).status()).status
+    } catch {}
+    if (status === 'errored' || status === 'terminated') await this.repo.failWrite(bookmarkId, revision)
+    if (!status || !['queued', 'running', 'paused', 'waiting', 'waitingForPause', 'complete'].includes(status)) throw forkError(ErrorName.FORK_STORAGE_UNAVAILABLE)
   }
 
   /** Called only by the deterministic Workflow; retries retain the same admitted claim. */

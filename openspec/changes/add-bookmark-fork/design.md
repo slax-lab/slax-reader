@@ -1,3 +1,11 @@
+## Review corrections — 2026-10-26
+
+The four boxcounter findings are corrected within the approved behavior; no schema, storage layout, recovery cron or frontend flow is added.
+
+- Legacy queue batches initialize an independent ContextManager and owner-specific Hashid for every message. The consumer returns failed delivery IDs; generated wiring explicitly retries those messages and acknowledges successful siblings. Existing configured retry limits remain authoritative (the public template sets zero additional retries for the legacy Twitter queue; this is not a new dead-letter guarantee). Reader-shell captures are conditionally marked failed before rejection; exhausted ordinary dispatch already uses its existing failed transition. Missing rows or unavailable storage remain rejected deliveries, never success acknowledgements.
+- Active duplicate Forks use the same deterministic Workflow lookup as a lost create response. A confirmed accepted instance permits acknowledgement. Missing/unknown/unavailable instances return the existing storage uncertainty error without clearing a potentially active writer. No duplicate performs a second create or reconstructs the winning payload from provenance.
+- HTML/media and PDF publication return the exact successful updated_at value into the durable fetch/parse result. This is an internal timestamp, not a database version column or public contract. Moderation updates require that timestamp and success status. A stale result returns without changing content, status, time or sharing; its remaining post-processing is skipped. The policy update and share disable occur in one transaction so admission cannot interleave between them. Episode-wide podcast policy enforcement retains its separate existing behavior. Legacy cached Workflow results lacking a publication timestamp cannot perform an unguarded moderation write.
+
 # Design
 
 ## Implemented endpoint and maintenance simplification — 2026-10-23
