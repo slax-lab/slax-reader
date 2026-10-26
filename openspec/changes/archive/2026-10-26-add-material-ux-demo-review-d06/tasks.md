@@ -36,4 +36,4 @@
 
 ## 7. Archive
 
-- [ ] 7.1 Archive this change in a follow-up pull request after the implementation task pull request merges. Verify: `openspec archive add-material-ux-demo-review-d06` moves the delta into `openspec/specs/change-verification/spec.md` and `openspec validate --all --strict` passes afterwards.
+- [x] 7.1 Archive this change in a follow-up pull request after the implementation task pull request merges. Verify: `openspec archive add-material-ux-demo-review-d06` moves the delta into `openspec/specs/change-verification/spec.md` and `openspec validate --all --strict` passes afterwards. — done; `openspec archive add-material-ux-demo-review-d06 --yes --json` archived it as `2026-10-26-add-material-ux-demo-review-d06` and reported four added requirements; `openspec validate --all --strict` reports `Totals: 75 passed, 0 failed (75 items)`. Results are recorded in `validation.md` § Archive. The follow-up archive pull request is this branch's delivery step.
