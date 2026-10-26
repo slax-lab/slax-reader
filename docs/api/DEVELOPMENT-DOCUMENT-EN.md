@@ -1,6 +1,6 @@
 # API development
 
-Use Node.js >= 22.13.0 and the root-pinned pnpm version. Run commands at the repository root. The root manifest owns only the generic `api` dispatcher; concrete scripts and dependencies live in `apps/api/package.json` and run in that workspace. API-only TypeScript, Vitest, ESLint, Prettier and EditorConfig files live in `apps/api/`. Prisma configs live beside schemas and migrations in `apps/api/prisma/`; their schema/migration paths resolve relative to the config, independently of command cwd.
+Use Node.js `^22.22.2 || ^24.15.0 || >=26.0.0` (the root `engines` requirement) and the root-pinned pnpm version. Run commands at the repository root. The root manifest owns only the generic `api` dispatcher; concrete scripts and dependencies live in `apps/api/package.json` and run in that workspace. API-only TypeScript, Vitest, ESLint, Prettier and EditorConfig files live in `apps/api/`. Prisma configs live beside schemas and migrations in `apps/api/prisma/`; their schema/migration paths resolve relative to the config, independently of command cwd.
 
 ```bash
 pnpm install --frozen-lockfile
