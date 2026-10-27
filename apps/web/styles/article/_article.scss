@@ -1,3 +1,4 @@
+@use 'youtube-reading' as *;
 @use 'content-mixin' as *;
 
 @mixin article {
@@ -129,6 +130,8 @@
       margin-top: 0;
     }
   }
+
+  @include youtube-reading;
 
   /* 播客整理稿：段首时间戳可点跳转，播放中的段落高亮；正文真实 HTML，便于划线评论 */
   .slax-pod-lede {

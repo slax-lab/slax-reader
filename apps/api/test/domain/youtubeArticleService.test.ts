@@ -350,6 +350,18 @@ describe('owner opens a bookmark', () => {
     expect(w.alertBot.crawl.pushMessage).toHaveBeenCalledTimes(1)
   })
 
+  test('ready articles remain readable with Labs disabled without starting generation', async () => {
+    w.labOn.clear()
+    w.repo.add({ target_language: 'en', status: 'ready', article_key: 'ready.json' })
+    w.objects.set('ready.json', JSON.stringify({ schema_version: 1, language: 'en', format: 'article', lede: 'A saved article.', sections: [] }))
+    const status = await w.service.getStatus(w.ctx(OWNER), UUID)
+    expect(status.status).toBe('ready')
+    expect((await w.service.getContent(w.ctx(OWNER), UUID, status.version!)).lede).toBe('A saved article.')
+    expect((await w.service.getStatus(w.ctx(VISITOR), UUID)).status).toBe('ready')
+    expect(w.create).not.toHaveBeenCalled()
+    expect(w.repo.ensureLanguageRow).not.toHaveBeenCalled()
+  })
+
   test('Labs switch off: unavailable, nothing created or started', async () => {
     w.labOn.clear()
     w.repo.add({})

@@ -46,7 +46,7 @@ The Web reader SHALL present saved YouTube caption cues as continuous reading pa
 Paragraph breaks SHALL follow sentence endings, explicit speaker changes, or long pauses, with bounded length for unpunctuated runs.
 Each reading paragraph SHALL expose one quiet, keyboard-operable timestamp. Intermediate timestamps SHALL leave the focus order.
 The renderer SHALL preserve all cue text, existing cue elements, and stored highlight selectors and offsets.
-The detailed transcript panel SHALL retain all cue timestamps. Existing generated article bodies SHALL remain unchanged.
+The detailed transcript panel SHALL retain all cue timestamps. Raw-caption formatting SHALL NOT rewrite generated article content.
 
 #### Scenario: Visitor reads the reported saved transcript
 - **WHEN** a visitor opens a saved YouTube body without a generated article
@@ -61,3 +61,35 @@ The detailed transcript panel SHALL retain all cue timestamps. Existing generate
 #### Scenario: Responsive transcript reading
 - **WHEN** the same transcript appears at narrow and desktop widths in each supported theme
 - **THEN** paragraphs wrap naturally, retain visible focus, and avoid horizontal overflow
+
+### Requirement: Faithful edited YouTube reading
+
+New YouTube articles SHALL edit the source before translation. They SHALL preserve meaningful source content and chronological order.
+Each paragraph SHALL retain source cue references. Translation SHALL preserve section and paragraph structure.
+The introduction SHALL use the complete article. Caption reference coverage SHALL be checked before publication.
+The reading page SHALL provide contents links, topic headings, readable paragraphs, playback controls, and method notes.
+Existing annotations SHALL remain valid. All Web themes and supported widths SHALL remain readable.
+
+#### Scenario: Source passage omitted
+- **WHEN** an edited article omits source cue references
+- **THEN** generation rejects the incomplete article before publication
+
+#### Scenario: Translated article
+- **WHEN** the requested language differs from the source
+- **THEN** translation uses the edited source and preserves its section, paragraph, and source reference structure
+
+#### Scenario: Complete introduction
+- **WHEN** the system generates the introduction
+- **THEN** the input includes every final article section
+
+#### Scenario: Navigation and playback
+- **WHEN** a reader opens an edited article
+- **THEN** contents links reach the matching headings and playback controls seek to their source time
+
+#### Scenario: Published article with generation disabled
+- **WHEN** an authorized reader opens an existing ready article with Labs disabled
+- **THEN** the article remains readable without initiating generation
+
+#### Scenario: Body publication failure
+- **WHEN** canonical generation succeeds but body publication fails
+- **THEN** the canonical article remains available and the runner reports incomplete publication

@@ -33,7 +33,7 @@ The merged bookmark-fork change also carries YouTube deltas. Archive that change
 
 ## Non-goals
 
-Do not enable Labs silently, regenerate content for visitors, change budgets, or rewrite transcripts as editorial essays. Production account diagnosis requires an authenticated owner session or server records.
+Do not enable Labs silently, regenerate content for visitors, change budgets, or add unsupported claims to transcripts. Production account diagnosis requires an authenticated owner session or server records.
 
 ## Verification correction — 2026-10-27
 
@@ -48,3 +48,18 @@ The reader must present continuous transcript paragraphs without requiring owner
 Group adjacent cues at sentence boundaries, speaker changes, and long pauses. Show one quiet seek control per reading paragraph.
 Preserve caption text, cue nodes, highlight paths, and the detailed transcript panel.
 This is a formatting correction within the existing reading surface. It does not add a new navigation flow or invent section headings.
+
+## Approved YouTube expansion — 2026-10-27
+
+Luca approved the Papears-based plan in conversation and requested implementation followed by screenshots.
+The prior preview recommendation does not require a separate preview before implementation under this instruction.
+This expansion is a material Web reading change. Human acceptance of the implemented page remains pending.
+
+- Edit the complete source transcript before translating it. Preserve claims, examples, chronology, and source references.
+- Generate a short introduction from the complete edited article.
+- Add topic navigation, readable paragraphs, quiet playback controls, and source notes.
+- Verify complete caption coverage and distinguish generation from body publication.
+- Keep published content readable when generation is disabled. Preserve access checks and existing annotations.
+
+Keep this expansion in the existing change because both touch the same YouTube capability.
+Podcast presentation is outside this expansion. No production regeneration or deployment is authorized by this work.

@@ -36,3 +36,18 @@ Only paragraph-start timestamps remain visible and focusable. The detailed trans
 This preserves stored highlight selectors and text offsets. No source rewrite, capture rerun, or generation request is needed.
 The check must use the reported production body in the running local application and verify real text, layout, seeking, and highlight paths.
 Screenshots will identify the local build and real saved content. They will not imply production deployment.
+
+## Edited YouTube articles
+
+New generation uses a versioned editing stage followed by translation when required.
+Reuse the existing structured article, caption references, object storage, workflow retries, leases, and cost limits.
+Cache each stage separately. Carry the previous edited section into the next chunk as context.
+Translate each edited chunk without changing its paragraph references or section structure.
+Generate the introduction from all final sections. Reject omitted caption references before publication.
+These checks detect structural loss; they do not establish semantic fidelity alone.
+
+The saved article has an introduction label, contents links, topic headings, full paragraphs, and method notes.
+Use Reader tokens in light, dark, and e-ink themes. Keep timestamps secondary and keyboard accessible.
+Do not rewrite previously annotated bodies. The separate article view uses the same reading structure.
+Generation switches control new work, not access to already published articles.
+A body publication failure retains canonical content and returns an explicit incomplete outcome.

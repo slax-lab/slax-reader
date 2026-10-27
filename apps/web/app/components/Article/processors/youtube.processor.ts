@@ -28,10 +28,28 @@ export class YoutubeProcessor implements DOMProcessor {
       if (!videoId) return
 
       const element = new YoutubePlayerElement({ videoId })
+      if (context.container.querySelector('[data-slax-derived="youtube-article"]')) {
+        element.style.display = 'block'
+        element.style.maxWidth = '440px'
+        element.style.margin = '0 auto 24px'
+      }
       node.parentElement?.replaceChild(element, node)
     })
 
     if (context.container.querySelector('.slax-pod-article')) bindMediaText(context)
+    for (const contents of context.container.querySelectorAll<HTMLDetailsElement>('.slax-yt-contents')) {
+      contents.open = window.matchMedia('(min-width: 768px)').matches
+      const navigate = (event: Event) => {
+        const link = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>('a[href^="#yt-topic-"]')
+        if (!link) return
+        const heading = context.container.querySelector(link.getAttribute('href')!)
+        if (!heading) return
+        event.preventDefault()
+        heading.scrollIntoView({ block: 'start' })
+      }
+      contents.addEventListener('click', navigate)
+      context.cleanups.push(() => contents.removeEventListener('click', navigate))
+    }
 
     // 正文平铺字幕：时间戳点击/回车跳转。委托绑在容器上，避免逐条监听
     const transcript = context.container.querySelector('.slax-yt-transcript')

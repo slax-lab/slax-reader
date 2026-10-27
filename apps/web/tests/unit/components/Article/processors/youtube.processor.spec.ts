@@ -3,6 +3,7 @@
 import { listenStartOf, PLAYING_CLASS, PODCAST_EVENTS } from '~~/app/utils/podcastMedia'
 
 import { getElementFullSelector } from '@commons/frontend-utils/dom'
+import { DetailsProcessor } from '~~/app/components/Article/processors/details.processor'
 import type { WebProcessorContext } from '~~/app/components/Article/processors/types'
 import { ArticleStyle } from '~~/app/components/Article/processors/types'
 import { YoutubeProcessor } from '~~/app/components/Article/processors/youtube.processor'
@@ -156,6 +157,22 @@ describe('YoutubeProcessor', () => {
     expect(cues.map(cue => cue.hasAttribute('data-yt-paragraph-start'))).toEqual([true, true, false, true])
     expect(cues).toHaveLength(4)
     ctx.cleanups.forEach(fn => fn())
+  })
+
+  it('keeps mobile contents collapsed and navigates without changing article nodes', () => {
+    const ctx = context(ARTICLE_BODY.replace('<p class="slax-pod-lede">', '<details class="slax-yt-contents"><summary>Contents</summary><nav><a href="#yt-topic-0">Intro</a></nav></details><p class="slax-pod-lede">').replace('<h2 class="slax-pod-heading"', '<h2 id="yt-topic-0" class="slax-pod-heading"'))
+    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false } as MediaQueryList)
+    const heading = ctx.container.querySelector<HTMLElement>('h2')!
+    const scroll = vi.fn()
+    heading.scrollIntoView = scroll
+    processor.process(ctx)
+    new DetailsProcessor().process(ctx)
+    expect(ctx.container.querySelector('details')!.open).toBe(false)
+    ctx.container.querySelector<HTMLAnchorElement>('nav a')!.click()
+    expect(scroll).toHaveBeenCalledWith({ block: 'start' })
+    expect(ctx.container.querySelector('h2')).toBe(heading)
+    ctx.cleanups.forEach(fn => fn())
+    vi.restoreAllMocks()
   })
 
   it('raw body keeps the old transcript seek in whole seconds, and no follower', () => {

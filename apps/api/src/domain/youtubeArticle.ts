@@ -213,17 +213,17 @@ export class YoutubeArticleService {
       }
       return result
     }
-    if (!(await this.labService.isEnabled(access.ownerId, YOUTUBE_ARTICLE_LAB))) return access.isOwner ? { ...unavailable, unavailable_reason: 'labs_disabled' } : unavailable
+    const enabled = await this.labService.isEnabled(access.ownerId, YOUTUBE_ARTICLE_LAB)
     const ref = await this.repo.findRef(access.bookmarkId)
-    if (!ref) return access.isOwner ? { ...unavailable, unavailable_reason: 'source_missing' } : unavailable
+    if (!ref) return access.isOwner ? { ...unavailable, unavailable_reason: enabled ? 'source_missing' : 'labs_disabled' } : unavailable
 
     let row = await this.repo.findVersion(ref.source_id, ref.source_hash, requested)
-    if (!row && access.isOwner) {
+    if (!row && access.isOwner && enabled) {
       const base = (await this.repo.listForSource(ref.source_id, ref.source_hash))[0]
       if (base) row = await this.repo.ensureLanguageRow(base, requested)
     }
 
-    if (access.isOwner && row && row.status === 'pending' && !row.next_retry_at && eligibilityDecision(row) === 'generate') {
+    if (enabled && access.isOwner && row && row.status === 'pending' && !row.next_retry_at && eligibilityDecision(row) === 'generate') {
       const counted = await this.takeDaily(viewerId, 'auto')
       if (!counted) return { ...this.response(requested, row, access, await this.manualLeft(viewerId)), status: 'limit_reached' }
       const started = await this.start(ctx, row, access.title, 'open')
@@ -241,6 +241,7 @@ export class YoutubeArticleService {
       row = fallback?.status === 'ready' ? fallback : null
     }
 
+    if (!enabled && row?.status !== 'ready') return access.isOwner ? { ...unavailable, unavailable_reason: 'labs_disabled' } : unavailable
     if (!row) return access.isOwner ? { ...unavailable, unavailable_reason: 'source_missing' } : unavailable
     const res = this.response(requested, row, access, access.isOwner ? await this.manualLeft(viewerId) : false)
     return { ...res, ...(await this.bodyState(ctx, access, row)) }
@@ -261,10 +262,9 @@ export class YoutubeArticleService {
       if (!language) throw BookmarkNotFoundError()
       return { ...snapshot.variants[language]!.content!, version }
     }
-    if (!(await this.labService.isEnabled(access.ownerId, YOUTUBE_ARTICLE_LAB))) throw BookmarkNotFoundError()
     const ref = await this.repo.findRef(access.bookmarkId)
     if (!ref) throw BookmarkNotFoundError()
-    const rows = await this.repo.listForSource(ref.source_id, ref.source_hash)
+    const rows = [...(await this.repo.listForSource(ref.source_id, ref.source_hash)), ...(await this.repo.listForSource(ref.source_id, ref.source_hash, 'v1'))]
     const row = rows.find(r => r.status === 'ready' && r.article_key && this.versionOf(r) === version)
     if (!row) throw BookmarkNotFoundError()
     const obj = await this.bucket().R2Bucket.get(row.article_key!)

@@ -156,3 +156,83 @@ Screenshots show the real saved transcript in the changed local application. The
 
 The screenshots now support visual review of paragraph formatting. Human acceptance remains pending; PR #405 stays draft.
 Production deployment and generated-article publication remain outside this verification result.
+
+
+## Edited article expansion — 2026-10-27
+
+Luca approved the Papears-based plan and requested implementation followed by screenshots.
+The scope now includes source editing, translation, a complete-article introduction, and the reading page.
+Podcast presentation remains outside this expansion. The existing draft PR carries the same YouTube capability.
+
+### Implementation and regression findings
+
+- New generation uses prompt version `v2`. Existing `v1` articles remain readable without automatic replacement.
+- Source editing precedes translation. The application retains source references and speaker fields during translation.
+- Every source cue must appear exactly once in each edited chunk. Final assembly also checks coverage.
+- Source editing rejects length ratios below 0.72 or above 1.15 before translation. This is a structural guard, not semantic proof.
+- The introduction receives every final section. The page separates it from the spoken content.
+- Saved and separate article views provide contents links, section headings, paragraphs, timestamps, and method notes.
+- Ready legacy content remains readable with Labs disabled. Generation still requires the existing authorization and limits.
+- A failed body write returns `publication_pending` while retaining canonical content.
+
+The initial new regression run failed two checks: omitted cue coverage and ready reads with Labs disabled.
+The real model run then exposed changed translation references and excessive source shortening.
+Translation now returns text only. The application preserves references and checks paragraph counts.
+A later browser run exposed the article shell's font specificity. The final reading rules explicitly select 18 px sans-serif text.
+
+### Evidence boundaries
+
+The local exercise uses the actual 941-cue capture of video `Jv5B5CEaPJI` and real Vertex model responses.
+The publication exercise uses the real `MediaBodyService`, `BookmarkForkRepo`, local PostgreSQL, and local R2.
+It checks the saved HTML through a separate read. The model and article text are not fixtures.
+The test creates a local bookmark and relation. It does not modify the reported production bookmark.
+Search indexing, global daily spend recording, and managed snapshot settlement use test callbacks.
+The test step adapter retries callbacks but does not reproduce Cloudflare Workflow scheduling or timeout enforcement.
+
+The browser uses the actual Nuxt app. It reads real public metadata and the article saved in local R2.
+The route adapter substitutes that locally saved body into the public bookmark response for preview.
+Production status responses remain real. No simulated ready status or sample article establishes success.
+These screenshots establish local presentation and saved-body reading, not production deployment or owner recovery.
+
+Human acceptance, deployment, and recovery of the original production bookmark remain pending.
+No packaged CLI, Extension, or Mobile code, contract, dependency, or asset changes in this expansion.
+Web and API changes do not require package-version increments.
+
+
+### Final local verification
+
+The final generation completed five chunks and published the saved article through `MediaBodyService`.
+The article contains 14 sections and 65 paragraphs. All 941 source references match the captured cue order exactly.
+The quality result has no failed checks. Numeric coverage is 0.941; language coverage is 1.0.
+Source references and length checks do not prove semantic fidelity. Manual inspection covered the introduction, opening, middle examples, and ending.
+
+An earlier attempt returned `MAX_TOKENS` in the third source chunk. Another response omitted a question and failed the length check.
+Neither attempt replaced the saved body. The final attempt reused two validated chunks and completed the remaining three.
+The prompt now explicitly preserves questions and original sentences. Gemini 3 uses `thinkingLevel: LOW` instead of the older budget setting.
+The supported setting follows [Google's thinking documentation](https://ai.google.dev/gemini-api/docs/generate-content/thinking.md).
+The failed provider responses do not establish whether reasoning alone caused truncation. Truncation remains a checked failure, not success.
+The final local resume used one callback attempt per step; it did not rely on automatic retry to pass.
+
+| Check | Result |
+| --- | --- |
+| `pnpm --dir apps/api exec vitest run` | 193 files passed; 2,525 tests passed; 112 integration/environment tests skipped |
+| Focused Web regression run | 12 files passed; 99 tests passed |
+| API `tsc --noEmit`; Web `typecheck` | Passed |
+| ESLint on changed TypeScript and Vue files | Passed |
+| `pnpm api -- gen:all` | Passed; no generated changes |
+| `pnpm exec openspec validate --all --strict` | 79 passed; zero failures |
+| `node apps/web/tests/fixtures/media-recovery/20261027-edited-youtube-check.mjs` | Passed; 12 theme/width combinations |
+| `git diff --check` | Passed |
+
+The browser checked light, dark, and e-ink at 320, 375, 768, and 1,200 pixels.
+All 65 rendered paragraphs matched the saved article. A new visitor page read the same saved body.
+Contents navigation and Enter/Space seeking passed. Touch targets measured at least 44 pixels.
+The page had no horizontal overflow or uncaught errors. The body used 18 px sans-serif text.
+Screenshots show the actual locally generated text. They are attached to PR #405, not committed as repository assets.
+
+### Final local review
+
+- Bugs: regression checks cover incomplete or reordered references, excessive shortening, translation structure, old versions, Labs reads, and failed publication.
+- Security: model text remains escaped or text-bound. Access and moderation checks remain. No new dependency or secret is introduced.
+- Compliance: the change follows `restore-media-article-recovery` and Luca's approved expansion. Local verification has the limits stated above.
+- Human acceptance remains pending. Luca authorized the draft PR before acceptance; this does not mark acceptance complete.

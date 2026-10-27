@@ -302,6 +302,10 @@ describe('rendering', () => {
 
   test('YouTube body: the same article markup, named youtube, after the player; a bad video id is dropped', () => {
     const article = renderMediaArticle(cleanedDoc(), 'v1', transcript.cues, 'youtube')
+    expect(article).toContain('class="slax-yt-contents"')
+    expect(article).toContain('href="#yt-topic-0"')
+    expect(article).toContain('id="yt-topic-0"')
+    expect(article).toContain('Method and source')
     expect(article).toContain('<article class="slax-pod-article" data-slax-derived="youtube-article" data-article-version="v1"')
     expect(article).toContain('<span class="slax-pod-time" data-media-seek="160" role="button" tabindex="0">00:00</span>')
     const body = HtmlBuilder.buildYoutubeArticleBody('abc_DEF-123', [{ t: 1, text: 'a "b"' }], article)

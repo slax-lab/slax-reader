@@ -565,6 +565,11 @@
       "title": "字幕"
     },
     "youtube_article": {
+      "edited_transcript": "视频整理稿",
+      "introduction": "导读 · 自动生成",
+      "contents": "本文目录",
+      "method": "方法与来源",
+      "method_note": "正文根据视频字幕整理，保留原有顺序。导读单独生成。字幕和整理稿可能存在错误，请通过时间戳核对原视频。",
       "title": "AI 整理稿",
       "preparing": "整理稿生成中，通常需要 1 到 3 分钟",
       "timeout": "整理稿比平时慢，稍后回来查看。",

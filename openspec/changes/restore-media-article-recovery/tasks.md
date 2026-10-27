@@ -15,6 +15,15 @@
 - [x] 2A.1 Reproduce fragmented caption layout; group cues without changing source text or highlight paths.
 - [x] 2A.2 Verify the real reported transcript in the local reader across themes and widths; show screenshots.
 
+## 2B. Edited YouTube reading
+
+- [x] 2B.1 Add failing checks for omitted cues, translation structure, full-article introduction, and disabled-generation reads.
+- [x] 2B.2 Implement versioned editing, translation, complete coverage, and introduction generation within existing limits.
+- [x] 2B.3 Add article navigation, reading styles, and source notes to saved and separate article views.
+- [x] 2B.4 Distinguish failed body publication from complete generation and preserve ready reads.
+- [x] 2B.5 Exercise real generation and saved local article reading; inspect desktop and mobile screenshots.
+- [x] 2B.6 Run focused regression checks and record verification limits.
+
 ## 3. Review and delivery
 
 - [x] 3.1 Run focused tests, type checks, lint, strict OpenSpec validation, and the three local review passes; record results.

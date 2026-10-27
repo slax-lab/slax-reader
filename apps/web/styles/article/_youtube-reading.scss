@@ -1,0 +1,78 @@
+@mixin youtube-reading {
+  // Edited YouTube content keeps the existing paragraph nodes and highlight targets.
+  [data-slax-derived='youtube-article'] {
+    font-family: var(--slax-font-sans);
+    font-size: 18px;
+    line-height: 1.85;
+    text-align: start;
+    hyphens: none;
+    .slax-yt-edition, .slax-yt-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--slax-text-light);
+    }
+    .slax-yt-edition { margin: 24px 0 12px; }
+    .slax-yt-introduction {
+      padding: 20px 0 24px;
+      border-top: 1px solid var(--slax-border);
+      border-bottom: 1px solid var(--slax-border);
+      p { margin: 10px 0 0; font-family: var(--slax-font-sans); font-size: 18px; line-height: 1.85; }
+    }
+    .slax-yt-contents {
+      margin: 20px 0 40px;
+      font-size: 14px;
+      summary { min-height: 44px; cursor: pointer; font-weight: 500; }
+      summary span { margin-left: 8px; color: var(--slax-text-light); }
+      nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; }
+      a { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-height: 44px; padding: 8px 0; color: var(--slax-text); text-decoration: none; }
+      time { flex-shrink: 0; color: var(--slax-text-light); font-size: 12px; font-variant-numeric: tabular-nums; }
+      a::after { content: none; }
+      a:hover { color: var(--slax-accent); }
+      a:focus-visible, summary:focus-visible { outline: 2px solid var(--slax-accent); outline-offset: 3px; }
+      @media (max-width: 767px) { nav { grid-template-columns: 1fr; } }
+    }
+    h2.slax-pod-heading {
+      margin: 44px 0 20px;
+      font-family: var(--slax-font-serif);
+      font-size: 26px;
+      line-height: 1.4;
+      font-weight: 600;
+      scroll-margin-top: 88px;
+    }
+    p.slax-pod-p {
+      margin: 0 0 20px;
+      padding: 0;
+      font-family: var(--slax-font-sans);
+      font-size: 18px;
+      line-height: inherit;
+      text-align: start;
+      hyphens: none;
+    }
+    .slax-pod-speaker { font-family: inherit; font-size: inherit; font-weight: 500; }
+    .slax-pod-time {
+      float: right;
+      justify-content: center;
+      min-width: 44px;
+      min-height: 44px;
+      margin: 0 0 0 14px;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--slax-text-light);
+      font-size: 12px;
+      &::before { display: none; }
+      &:hover { background: transparent; color: var(--slax-accent); }
+    }
+    .slax-yt-method {
+      margin: 48px 0 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--slax-border);
+      font-size: 13px;
+      color: var(--slax-text-light);
+      strong { font-weight: 500; }
+      p { margin: 8px 0; font-size: inherit; line-height: 1.7; }
+    }
+  }
+
+}

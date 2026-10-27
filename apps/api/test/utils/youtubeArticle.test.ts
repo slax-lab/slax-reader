@@ -467,3 +467,12 @@ describe('keys, ids and cost', () => {
     expect(estimateCostUsd(3000, 4000)).toBeCloseTo(0.0135)
   })
 })
+
+
+describe('edited transcript coverage', () => {
+  test('rejects a missing source passage even when the length is sufficient', () => {
+    const cues = [cue(0, 'A first claim.'), cue(1, 'A missing example.'), cue(2, 'A final claim.')]
+    const doc: YoutubeArticleDocument = { schema_version: 1, language: 'en', format: 'article', lede: 'Introduction.', sections: [{ heading: 'Claims', start_ms: 0, end_ms: 10000, paragraphs: [{ speaker: null, text: 'A first claim. A final claim with more words.', source_cue_ids: ['c0000', 'c0002'] }] }] }
+    expect(checkArticleQuality(doc, cues, cues.map(c => c.text).join(' '), { requireCompleteCoverage: true }).failed).toContain('cue_coverage')
+  })
+})
