@@ -17,6 +17,7 @@ The blogger information endpoint SHALL recognize these additional blogger identi
 | `hopeseventeen` | Hope Seventeen | `https://reader-img.slax.com/koc/hopeseventeen.jpg` |
 | `senl` | Sen | `https://reader-img.slax.com/koc/senl.jpg` |
 | `siderealedu` | Sidereal Education | `https://reader-img.slax.com/koc/siderealedu.jpg` |
+| `chloemanilay` | Chloe | `https://reader-img.slax.com/koc/chloemanilay.jpg` |
 
 #### Scenario: Look up a newly registered blogger
 
@@ -25,7 +26,7 @@ The blogger information endpoint SHALL recognize these additional blogger identi
 
 ### Requirement: Additional KOC activity validation
 
-The subscription promotion claim endpoint SHALL accept the five additional identifiers as recognized blogger activity IDs while retaining existing eligibility checks and production Turnstile verification.
+The subscription promotion claim endpoint SHALL accept the six additional identifiers as recognized blogger activity IDs while retaining existing eligibility checks and production Turnstile verification.
 
 #### Scenario: Claim through a newly registered blogger
 

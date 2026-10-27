@@ -14,6 +14,7 @@ import OnboardingTopBar from '~/components/BookmarkList/OnboardingTopBar.vue'
 import { showFeedbackModal } from '~/components/Modal'
 import { useOnboardingPending } from '~/composables/bookmark/useOnboardingPending'
 import { useKocPromotionFlow } from '~/composables/promotion/useKocPromotionFlow'
+import { useAccountContext } from '~/composables/useAccountContext'
 import { useUserStore } from '~/stores/user'
 
 const { t } = useI18n()
@@ -24,15 +25,17 @@ useHead({
 })
 
 const kocFlow = useKocPromotionFlow()
+const account = useAccountContext()
 const route = useRoute()
-const userId = kocFlow.userId
-const { isPending, setDismissed } = useOnboardingPending(userId)
+const onboardingIdentity = computed(() => (account.context.value.accountKey ? account.context.value : kocFlow.userId.value))
+const { isPending, setDismissed } = useOnboardingPending(onboardingIdentity)
 
 // Return to the root Inbox when no onboarding session is pending.
 watch(
-  [userId, isPending, kocFlow.blocksOnboarding],
+  [onboardingIdentity, isPending, kocFlow.blocksOnboarding],
   ([info, pending, blocked]) => {
-    if (route.path === '/onboarding' && info && !pending && !blocked) navigateTo(kocFlow.returnTarget('/'), { replace: true })
+    const hasIdentity = typeof info === 'number' ? info > 0 : !!(info && (info.accountKey || info.serverUserId))
+    if (route.path === '/onboarding' && hasIdentity && !pending && !blocked) navigateTo(kocFlow.returnTarget('/'), { replace: true })
   },
   { immediate: true }
 )

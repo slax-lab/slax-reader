@@ -1,3 +1,4 @@
+import { createMockMediaSnapshots } from '@test/helpers/mockFactory'
 /**
  * Import progress must survive a Redis outage, up to MAX_ACTIVE_IMPORT_TASKS imports may run
  * at once (a stuck task never blocks the next one), and parsing an imported bookmark must not
@@ -203,6 +204,7 @@ describe('parse post-processing keeps the imported saved time', () => {
     const bs = createMockBookmarkService()
     const handler = new (UrlParserHandler as any)()
     Object.assign(handler, {
+      snapshots: createMockMediaSnapshots(),
       bookmarkSvc: bs,
       telegramBotSvc: createMockTelegramBotService(),
       searchSvc: createMockSearchService(),

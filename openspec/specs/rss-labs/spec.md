@@ -131,6 +131,8 @@ Web SHALL 在顶部以 Collection 风格的来源头像呈现全部订阅和单�
 
 APP SHALL 使用原生 Compose 实现实验室设置、订阅管理和文章列表。每个 RSS 订阅源 SHALL 在 Inbox 顶部来源栏中与我的 Inbox、Collection 平级，以圆形图标直接切换内容，不使用独立 RSS 首页路由。文章 SHALL 通过现有 BookmarkRoutes / DetailScreen 的 RSS 来源模式打开，复用现有阅读器排版、平台滚动容器及图片查看；预览不创建书签，收藏仅由用户显式触发。
 
+来源栏 SHALL 在存在订阅时以固定首位提供“全部”来源，表示所有订阅的合并时间线，并作为默认选择；用户选择任一单一订阅后 SHALL 仍可返回“全部”。切换来源时，APP SHALL 在显示新来源前清除上一来源的滚动位置，新来源 SHALL 从顶部开始，且来源栏自身的横向位置不得因切换而重置。
+
 #### Scenario: Shared bookmark reader
 - **WHEN** 用户在 Android 或 iOS 上从 RSS 列表打开含图片的文章
 - **THEN** 系统将后端净化的缓存 HTML 交给现有书签详情阅读器，复用正文渲染及图片查看，不启动书签同步、划线或 AI 操作
@@ -138,6 +140,15 @@ APP SHALL 使用原生 Compose 实现实验室设置、订阅管理和文章列�
 #### Scenario: Select an RSS source beside collections
 - **WHEN** 用户在 Android 或 iOS 首页点击顶部某个 RSS 圆形来源图标
 - **THEN** 在同一首页显示该源文章，图标呈选中状态；点击我的 Inbox 或 Collection 直接切回对应内容，顶部不再出现第二排 RSS 来源选择，也不在 Inbox 下拉菜单增加 RSS 项
+
+#### Scenario: Return to all sources after selecting one
+- **WHEN** 用户先选择某个 RSS 订阅，再点击来源栏首位的“全部”
+- **THEN** 页面显示所有订阅的合并时间线，“全部”图标呈选中状态，单一订阅图标不再选中
+
+#### Scenario: Switch sources while the previous source is scrolled
+- **WHEN** 用户在一个已滚动的 RSS 来源中点击另一个来源或“全部”
+- **THEN** 新来源从列表顶部开始显示，不恢复上一来源的滚动位置
+- **AND** 来源栏保持在用户当前的水平位置，不因列表切换而跳动
 
 #### Scenario: Add a source from the shared rail
 - **WHEN** 用户点击顶部来源栏末尾的添加 RSS
@@ -165,11 +176,15 @@ APP SHALL 使用原生 Compose 实现实验室设置、订阅管理和文章列�
 
 ### Requirement: Web 在 Inbox 中显示 RSS 并保留列表缓存
 
-Web SHALL 在 Inbox 侧栏紧接 Inbox 下方显示已启用的 RSS 入口，复用现有页面布局、搜索与列表模式切换组件。切换 RSS 与 Inbox SHALL 保留各自的列表状态，不重新挂载整个页面。RSS SHALL 按来源保存当前会话的列表、分页游标及已加载页数；定时检查和手动重新加载 SHALL 保留旧列表直到新数据成功返回，失败保留旧缓存。退出账号或关闭功能 SHALL 清除缓存。
+Web SHALL 在 Inbox 侧栏紧接 Inbox 下方显示已启用的 RSS 入口，复用现有页面布局、搜索与列表模式切换组件。切换 RSS 与 Inbox SHALL 保留各自的列表状态，不重新挂载整个页面。When the local database is available, Web SHALL render subscriptions and latest entries from the local-first RSS list data, and the list SHALL survive reloads and be visible without a network round trip. When the local database is unavailable, RSS SHALL 按来源保存当前会话的列表、分页游标及已加载页数；定时检查和手动重新加载 SHALL 保留旧列表直到新数据成功返回，失败保留旧缓存。退出账号或关闭功能 SHALL 清除缓存。
 
 #### Scenario: 切换与刷新期间保留列表
 - **WHEN** 用户切换来源、切回 Inbox，或者定时和手动更新 RSS 列表
 - **THEN** 已缓存列表立即可见，更新期间不清空列表，过期响应不会覆盖后来选择的来源
+
+#### Scenario: Reload with local data
+- **WHEN** a user with local RSS data reloads the page or opens it while offline
+- **THEN** the subscriptions and latest entries are shown from local data; article detail, add, rename, remove, refresh and save report the existing network errors instead of silently failing
 
 ### Requirement: 自定义订阅显示名称
 
@@ -200,7 +215,7 @@ Web SHALL 在 Inbox 侧栏紧接 Inbox 下方显示已启用的 RSS 入口，复
 - **THEN** 旧 RSS 订阅、条目和正文被丢弃，用户需重新添加订阅；已有 Inbox 收藏关系不受影响，新正文只写入 R2
 
 ### Requirement: 按需混合读取历史
-系统 SHALL 定时更新最新页，普通列表查询 SHALL 只读共享缓存。显式 fetch_history=1 的 Load more 请求在当前游标后缓存不足一页时 SHALL 沿源提供的 next 或 prev-archive 链接补抓、共享保存并重新查询。一次请求 SHALL 最多补抓三个源，每源一页历史，旧订阅允许额外读取最新页发现历史入口。共享租约 SHALL 排除并发重复抓取，历史修订 SHALL 不覆盖已缓存的新版本。历史抓取 SHALL 保留 URL 校验、内容净化和图片缓存流程。
+系统 SHALL 定时更新最新页，普通列表查询 SHALL 只读共享缓存。显式 fetch_history=1 的 Load more 请求在当前游标后缓存不足一页时 SHALL 沿源提供的 next 或 prev-archive 链接补抓、共享保存并重新查询。一次请求 SHALL 最多补抓三个源，每源一页历史，旧订阅允许额外读取最新页发现历史入口。共享租约 SHALL 排除并发重复抓取，历史修订 SHALL 不覆盖已缓存的新版本。历史抓取 SHALL 保留 URL 校验、内容净化和图片缓存流程。A list request MAY identify its position with an entry id the user is authorized to read instead of an opaque cursor; the first response SHALL contain, in timeline order, the entries after that entry plus any history entries newer than it that local synchronization does not deliver, and each entry SHALL carry its timeline position so clients can merge it with local rows. An unknown or unauthorized entry SHALL be rejected without revealing whether it exists.
 
 #### Scenario: 最新页只有十条且有历史入口
 - **WHEN** 用户点击 Load more 且缓存已读完
@@ -213,6 +228,10 @@ Web SHALL 在 Inbox 侧栏紧接 Inbox 下方显示已启用的 RSS 入口，复
 #### Scenario: 自动列表检查
 - **WHEN** 客户端定时校验缓存窗口
 - **THEN** 请求不包含 fetch_history，不触发源站历史抓取，只有所有缓存页成功返回后才替换现有列表
+
+#### Scenario: Continue after a local entry
+- **WHEN** a client whose list is rendered from local data requests more entries after its last local entry
+- **THEN** the client shows, in one timeline without duplicates or gaps, the local entries and the returned entries, including history entries of another feed that are newer than the requested position, and an explicit history request follows the same history rules
 
 ### Requirement: 首次失败不保留无效 Feed
 新地址 SHALL 在抓取与解析成功后才创建 Feed 占位。首次正文写入或提交失败 SHALL 清理本次持有租约且无成功缓存、无订阅和无条目的占位；失败处理 SHALL 不删除新租约持有者的记录或既有成功缓存。
@@ -246,3 +265,59 @@ RSS 抓取 SHALL 优先直连；识别 Cloudflare 挑战后 SHALL 在已有 Zyte
 #### Scenario: 供应商重定向与资源限制
 - **WHEN** Zyte 返回重定向、超限响应或非法目标地址
 - **THEN** 系统逐跳校验公共 URL、最多跟随五次跳转，跨源清除条件头，不向源发送商业凭据；超限或非法目标失败且不发布条目
+
+### Requirement: Local-first RSS list data
+
+Web and the native app SHALL keep the user's RSS subscriptions, the metadata of their subscribed feeds, and each subscribed feed's latest-page entries in their local database while the RSS laboratory is enabled. Only clients that explicitly request this data SHALL receive it; existing clients SHALL keep their current behavior. The server SHALL deliver the data only to authenticated, non-deleted accounts with the RSS laboratory enabled, SHALL deliver a subscription row only to its owner, and SHALL deliver shared feed and entry rows only to users subscribed to that feed. Article HTML, fetch validators, lease tokens and entries obtained from history pages SHALL NOT be delivered through local synchronization. Display names, refresh state and saved state SHALL be derived on the client from the delivered rows and the user's local bookmarks. Changes to the shared cache SHALL be delivered only when a delivered field changes.
+
+#### Scenario: Enabled user opens RSS on a new client
+- **WHEN** a user with the RSS laboratory enabled opens RSS on a client that supports local RSS data
+- **THEN** the client shows a loading state until the first local synchronization and local queries complete, then shows the same subscriptions and latest entries as the REST API without an empty-state flash; initialization, source selection and automatic checks do not request REST subscription or entry lists while synchronization is pending
+
+#### Scenario: Shared feed does not leak other subscribers
+- **WHEN** two users subscribe to the same feed with different display names
+- **THEN** each user's local data contains the shared feed and its entries but only their own subscription and display name
+
+#### Scenario: Laboratory disabled or account deleted
+- **WHEN** the RSS laboratory is disabled for the user, or the account is deleted, while a client is connected
+- **THEN** the local RSS subscriptions, feeds and entries are removed from that client without requiring a reconnect, and bookmarks created from RSS remain
+
+#### Scenario: Older client
+- **WHEN** a client version without local RSS support connects
+- **THEN** it receives no RSS rows and its RSS experience behaves as before
+
+#### Scenario: Write while local data is pending
+- **WHEN** the user adds, renames, removes, refreshes or saves through the existing endpoints
+- **THEN** the client reflects the confirmed server result immediately and converges with local data once synchronization delivers it, without duplicating or resurrecting rows
+
+#### Scenario: Native database created before local RSS
+- **WHEN** a native installation whose local database predates the RSS tables is upgraded
+- **THEN** the app opens its existing database without recovery or data loss and starts receiving local RSS data
+
+#### Scenario: Fresh React Native database reaches synchronization
+- **WHEN** the current SDK initializes a native-created format-14 database with SQLite `user_version=0`, or reopens that verified installation
+- **THEN** the app admits the database after checking its exact supported tables, canonical location and owner, without resetting it or rewriting its version marker; Kotlin-adopted databases continue to require `user_version=1`
+
+#### Scenario: Native All view has no empty source-action row
+- **WHEN** the native user views all RSS sources without selecting a subscription
+- **THEN** the first article follows the source strip with normal row padding and no empty source-action toolbar; selecting a subscription restores its refresh and menu controls with their existing hit areas
+
+#### Scenario: Cached native list while network readiness is pending
+- **WHEN** the native client has admitted local RSS data and its stream or Labs request is pending or fails due to network unavailability
+- **THEN** the client shows its cached list and permits local source selection without waiting for that network work; a confirmed later disabled Labs response clears the list, and stale responses after cancellation or account replacement cannot alter the active account
+
+#### Scenario: Save synchronization precedes its REST response
+- **WHEN** a save has already synchronized before its REST response or reader notification arrives, and the bookmark is subsequently deleted
+- **THEN** the temporary save overlay is retired and the RSS list reflects the synchronized deletion instead of keeping a stale saved state
+
+#### Scenario: A later rename skips the intermediate synchronized value
+- **WHEN** a confirmed rename is followed by a different synchronized remark from another device before the client observes the intermediate remark
+- **THEN** the later synchronized remark is displayed and a temporary rename overlay cannot hide it
+
+#### Scenario: Add a subscription on a local client
+- **WHEN** an owned local RSS client receives a confirmed subscription addition before its latest entries synchronize
+- **THEN** the client immediately shows the confirmed subscription and receives its latest entries through local synchronization, without requesting a REST entry list to seed the source; explicit history loading continues to use the history API
+
+#### Scenario: Repeated RSS activation and automatic checks
+- **WHEN** the sidebar and RSS panel initialize for the same account, the user switches sources, or automatic list checks run
+- **THEN** concurrent Labs consumers share one request and a successful response is reused for that browser account instead of polling Labs; explicit settings refresh and account changes may obtain a new response, and a late response from a replaced account cannot alter the active account

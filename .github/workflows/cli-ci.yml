@@ -26,10 +26,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
         node:
           - 22.22.2
           - 24.15.0
+          - 26.12.1
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,6 +47,26 @@ jobs:
       - run: pnpm cli -- test:package
     needs: changes
     if: ${{ !cancelled() && (inputs.full_validation || (needs.changes.result == 'success' && needs.changes.outputs.cli == 'true')) }}
+  cli-gate:
+    # The dev and beta rulesets require this exact job name.
+    name: CLI CI gate
+    if: always()
+    needs: [changes, check]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail when a suite job did not pass
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            case "$result" in
+              success|skipped) ;;
+              *)
+                echo "::error::CLI CI gate fails closed: a needed job concluded '$result'."
+                exit 1
+                ;;
+            esac
+          done
 concurrency:
   group: ${{ github.workflow }}-cli-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true

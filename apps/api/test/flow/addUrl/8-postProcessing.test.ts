@@ -13,7 +13,7 @@ vi.mock('@/decorators/di', () => ({
 
 import { UrlParserHandler } from '@/domain/orchestrator/urlParser'
 import {
-  createMockSearchService, createMockUserService, createMockTagService,
+  createMockMediaSnapshots, createMockSearchService, createMockUserService, createMockTagService,
   createMockAigcService, createMockTelegramBotService, createMockBookmarkService,
   createMockCrawlService, createMockLogsService, createMockCtx
 } from '@test/helpers/mockFactory'
@@ -29,6 +29,7 @@ function wireHandler() {
   const logs = createMockLogsService()
 
   const handler = new (UrlParserHandler as any)()
+  ;(handler as any).snapshots = createMockMediaSnapshots()
   ;(handler as any).bookmarkSvc = bs
   ;(handler as any).telegramBotSvc = tg
   ;(handler as any).searchSvc = search

@@ -1,6 +1,6 @@
 # CLI releases
 
-Relevant pull requests run full CLI validation on Node 22.22.2 and 24.15.0 in `.github/workflows/cli-ci.yml`. After a merge into `dev`, `beta`, or `main`, `.github/workflows/cli-release.yml` evaluates the complete push diff and the destination branch's previous CLI version. It releases only when `apps/cli/**` changes and `apps/cli/package.json` increases to a new stable SemVer. A version-only edit qualifies; CLI edits without a version increase and unrelated merges are successful skips.
+Relevant pull requests run full CLI validation on Node 22.22.2, 24.15.0, and 26.12.1 in `.github/workflows/cli-ci.yml`. After a merge into `dev`, `beta`, or `main`, `.github/workflows/cli-release.yml` evaluates the complete push diff and the destination branch's previous CLI version. It releases only when `apps/cli/**` changes and `apps/cli/package.json` increases to a new stable SemVer. A version-only edit qualifies; CLI edits without a version increase and unrelated merges are successful skips.
 
 ## Channels and versions
 

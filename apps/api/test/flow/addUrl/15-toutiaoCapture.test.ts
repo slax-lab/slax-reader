@@ -6,7 +6,7 @@ import { parseHTML } from 'linkedom'
 import { SocialMediaApi } from '@/infra/external/socialMedia'
 import { SlaxFetch } from '@/infra/external/remoteFetcher'
 import { buildToutiaoArticle } from '@/utils/toutiaoArticle'
-import { createMockBookmarkRepo, createMockBucketClient, createMockCtx } from '@test/helpers/mockFactory'
+import { createMockMediaSnapshots, createMockBookmarkRepo, createMockBucketClient, createMockCtx } from '@test/helpers/mockFactory'
 
 const id = '7694114872820384290'
 const canonicalUrl = `https://www.toutiao.com/article/${id}/`
@@ -15,7 +15,11 @@ const paragraph = 'A complete article paragraph describes the report and contain
 function wire() {
   const bucket = createMockBucketClient()
   const repo = createMockBookmarkRepo()
-  const service = Object.assign(Object.create(CrawlService.prototype), { bucketClient: bucket.factory, bookmarkRepo: repo }) as CrawlService
+  const service = Object.assign(Object.create(CrawlService.prototype), {
+    bucketClient: bucket.factory,
+    bookmarkRepo: repo,
+    snapshots: createMockMediaSnapshots(bucket.putIfKeyExists, repo.updateBookmark)
+  }) as CrawlService
   const ctx = createMockCtx()
   const images = vi.spyOn(Imager.prototype, 'batchReplaceImage').mockImplementation(async (_url, document) => {
     document.querySelectorAll('img').forEach(img => img.setAttribute('src', 'https://reader-img.slax.dev/proxied.jpg'))
@@ -45,12 +49,12 @@ describe('Toutiao bookmark capture', () => {
       byline: fetched.author,
       siteName: 'Toutiao',
       publishedTime: new Date(fetched.publishedAt!),
-      contentKey: 'html/body/toutiao-test.html'
+      contentKey: 'snapshots/toutiao-test/test/body.html'
     })
     expect(result.textContent).toContain(paragraph.trim())
     expect(images).toHaveBeenCalledOnce()
-    expect(bucket.putIfKeyExists).toHaveBeenCalledWith('text/body/toutiao-test.txt', expect.stringContaining(paragraph.trim()))
-    expect(bucket.putIfKeyExists).toHaveBeenCalledWith('html/body/toutiao-test.html', expect.stringContaining('https://reader-img.slax.dev/proxied.jpg'))
+    expect(bucket.putIfKeyExists).toHaveBeenCalledWith('snapshots/toutiao-test/test/body.txt', expect.stringContaining(paragraph.trim()))
+    expect(bucket.putIfKeyExists).toHaveBeenCalledWith('snapshots/toutiao-test/test/body.html', expect.stringContaining('https://reader-img.slax.dev/proxied.jpg'))
     expect(repo.updateBookmark).toHaveBeenCalledWith(
       42,
       expect.objectContaining({ title: fetched.title, byline: fetched.author, published_at: new Date(fetched.publishedAt!), site_name: 'Toutiao', status: 'success' })

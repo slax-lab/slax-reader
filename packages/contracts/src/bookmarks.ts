@@ -39,6 +39,7 @@ export interface BookmarkExistsResponse {
   exists: boolean
   parse_type: number
   bookmark_id?: number
+  bookmark_uid?: string
 }
 
 export interface BookmarkRef {
@@ -70,4 +71,59 @@ export interface RemoveBookmarkTagRequest extends BookmarkRef {
 /** Existing create responses return an empty string when no bookmark was created. */
 export interface AddBookmarkResponse {
   bmId: number | ''
+}
+
+export type BookmarkForkAttribution =
+  | {
+      status: 'available'
+      source_bookmark_uid: string
+      display_name: string | null
+    }
+  | { status: 'unavailable' }
+
+export interface BookmarkForkMetadata {
+  /** Viewer-only availability: active/failed same-resource saves; success requires exact Fork provenance. */
+  viewer_fork_status?: 'pending' | 'success' | 'failed' | null
+  has_fork: boolean
+  fork: BookmarkForkAttribution | null
+}
+
+/** Accept only snapshot paths at explicitly configured Reader origins. */
+// WHATWG URL is available in every supported runtime. Keep its type local so
+// contracts do not add browser or Node globals to their consumers.
+declare const URL: new (value: string) => {
+  protocol: string
+  username: string
+  password: string
+  origin: string
+  pathname: string
+  search: string
+  hash: string
+  href: string
+}
+
+export function readerBookmarkUuid(target: string, readerOrigins: readonly string[]): string | null {
+  try {
+    const url = new URL(target)
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null
+    const trusted = readerOrigins.some(value => {
+      try {
+        const configured = new URL(value)
+        return !configured.username && !configured.password && !configured.search && !configured.hash && configured.origin === url.origin
+      } catch {
+        return false
+      }
+    })
+    if (!trusted) return null
+    return /^\/b\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i.exec(url.pathname)?.[1]?.toLowerCase() ?? null
+  } catch {
+    return null
+  }
+}
+
+/** Keep old queued failures addressable by each device's local UUID. */
+export function failedReaderSaveUrl(target: string, clientUuid: string): string {
+  const url = new URL(target)
+  url.hash = `slax-failed-save=${encodeURIComponent(clientUuid)}`
+  return url.href
 }

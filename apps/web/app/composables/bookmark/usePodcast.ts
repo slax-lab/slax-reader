@@ -19,6 +19,7 @@ export const podcastPhase = (s: PodcastState | null): PodcastPhase => {
   if (s.transcript === 'pending') return 'queued'
   if (s.transcript === 'transcribing') return 'transcribing'
   if (s.transcript === 'failed' || s.transcript === 'skipped') return 'failed'
+  if (s.article === 'unavailable') return 'hidden'
   if (s.article === 'ready') return 'done'
   if (s.article === 'failed' || s.article === 'skipped') return 'failed'
   return 'writing'
@@ -87,6 +88,11 @@ export const usePodcast = (bookmarkUid: () => string) => {
 
   const apply = async (next: PodcastState | null | undefined) => {
     if (!next || stopped) return
+    if (next.translation?.version !== state.value?.translation?.version) {
+      translation.value = null
+      loadedVersion = ''
+      translationFailures = 0
+    }
     state.value = next
     if (next.translation?.status === 'ready' && next.translation.version) await loadTranslation(next.translation.version)
     schedule()

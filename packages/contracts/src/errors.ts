@@ -1,4 +1,9 @@
 export enum ErrorName {
+  FORK_SOURCE_NOT_READY = 'fork_source_not_ready',
+  FORK_DESTINATION_IN_PROGRESS = 'fork_destination_in_progress',
+  FORK_DESTINATION_DELETING = 'fork_destination_deleting',
+  FORK_DESTINATION_FAILED = 'fork_destination_failed',
+  FORK_STORAGE_UNAVAILABLE = 'fork_storage_unavailable',
   PDF_TEXT_UNAVAILABLE = 'PDF_TEXT_UNAVAILABLE',
   PROHIBITED_CONTENT = 'PROHIBITED_CONTENT',
   SHARE_CONTENT_NOT_SUPPORTED = 'SHARE_CONTENT_NOT_SUPPORTED',

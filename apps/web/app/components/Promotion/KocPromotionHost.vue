@@ -1,7 +1,7 @@
 <template>
   <template
     v-if="
-      active && (modalOpen || state.pending || route.query.activity_type === 'blogger' || state.phase === 'unavailable' || state.phase === 'invalid' || state.phase === 'error')
+      active && (modalOpen || hasPromotionContext(state, route.query))
     "
   >
     <div v-if="state.phase === 'checking' || state.phase === 'resolving'" class="promotion-notice" role="status">{{ t('promotion.checking') }}</div>
@@ -26,13 +26,14 @@
 <script setup lang="ts">
 import GetSubscribeModal from '~/components/GetSubscribeModal.vue'
 
-import { isPromotionSurface, promotionStorageKey } from '~/utils/promotionFlow'
+import { readAccountServerAlias } from '~/utils/accountContext'
+import { hasPromotionContext, isPromotionSurface, promotionLegacyStorageKey, promotionStorageKey } from '~/utils/promotionFlow'
 
 import { useKocPromotionController } from '~/composables/promotion/useKocPromotionFlow'
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const { flow, state, identify, refreshProfile, sessionIsCurrent } = useKocPromotionController()
+const { flow, state, identify, refreshProfile, sessionIsCurrent, account } = useKocPromotionController()
 const active = computed(() => isPromotionSurface(route.path))
 const modalBlogger = ref('')
 const modalKey = ref(0)
@@ -100,8 +101,29 @@ const sync = async () => {
   const fullPath = route.fullPath
   const query = { ...route.query }
   try {
+    account.sync()
     if (!sessionIsCurrent()) modalOpen.value = false
-    if (!(await identify()) || !alive || !active.value || route.fullPath !== fullPath) return
+    flow.setAccount(account.context.value.serverUserId, account.accountKey.value)
+    // An explicit invitation is authoritative over any older stored invite.
+    // Capture it before restoring the ordinary pending record so a slow legacy
+    // validation cannot delay the URL the user just followed.
+    if (query.activity_type === 'blogger') await flow.enter(query)
+    else await flow.enter({})
+    const hasContext = hasPromotionContext(state.value, query)
+    if (!state.value.userId && getUserToken()) {
+      if (hasContext) {
+        if (!(await identify())) {
+          if (state.value.pending) state.value.phase = 'error'
+          return
+        }
+      } else {
+        void identify().then(verified => {
+          if (verified && alive && active.value) void sync()
+        })
+      }
+    }
+    if (hasContext && state.value.pending && state.value.phase === 'resolving') await flow.check()
+    if (!alive || !active.value || route.fullPath !== fullPath) return
     // The request owns its attribution until settlement, even if its modal was disposed.
     if (submissionIsCurrent()) return
     if (['submitting', 'success'].includes(state.value.phase)) return
@@ -109,7 +131,7 @@ const sync = async () => {
       storageChanged = false
       // An explicit route remains authoritative over another tab's pending invite.
       await flow.restore(query)
-    } else await flow.enter(query)
+    }
     // Reconcile storage before presenting or consuming this route's invitation.
     if (storageChanged) return
     if (!alive || !active.value || !sessionIsCurrent() || route.fullPath !== fullPath) return
@@ -243,7 +265,11 @@ const focus = () => {
   })
 }
 const storage = (event: StorageEvent) => {
-  if (state.value.userId && (event.key === null || event.key === promotionStorageKey(state.value.userId)) && sessionIsCurrent()) {
+  const legacyId = state.value.userId ?? readAccountServerAlias(account.accountKey.value)
+  const keys = [account.accountKey.value ? promotionStorageKey(account.accountKey.value) : null, legacyId ? promotionLegacyStorageKey(legacyId) : null].filter(
+    (key): key is string => !!key
+  )
+  if ((event.key === null || keys.includes(event.key)) && sessionIsCurrent()) {
     storageChanged = true
     if (route.query.activity_type !== 'blogger' && !['submitting', 'success'].includes(state.value.phase)) flow.invalidate()
     void sync()

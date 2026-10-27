@@ -27,7 +27,7 @@
               autocomplete="off"
               @keydown.enter="topModalClick"
               @keydown.esc="closeModal"
-              @input="showError = false; pdfFile = null; pdfError = ''"
+              @input="resetInputState"
             />
           </div>
           <p class="modal-error" v-if="showError">
@@ -64,6 +64,10 @@
 import { PDF_MAX_BYTES } from '@slax-reader/contracts/pdf'
 import { isClient } from '@commons/frontend-utils/is'
 import { haveRequestToken } from '~/utils/request'
+import { readerBookmarkUuid } from '@slax-reader/contracts'
+import { useUserStore } from '~/stores/user'
+import { bookmarkSaveGuardFor } from '~/composables/bookmark/useBookmarkSaveGuard'
+import { useBookmarkFork } from '~/composables/bookmark/useBookmarkFork'
 
 import { useLocalBookmarks } from '@/composables/bookmark/useLocalBookmarks'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -74,15 +78,24 @@ const show = defineModel('show')
 const emits = defineEmits(['addUrlSuccess'])
 
 const { t } = useI18n()
+const forkAction = useBookmarkFork()
+const readerConfig = useRuntimeConfig().public
 const pdfInput = ref<HTMLInputElement>()
 const pdfFile = shallowRef<File | null>(null)
 const pdfError = ref('')
 const addUrlText = ref('')
 const searchModalLoading = ref(false)
 const showError = ref(false)
+function resetInputState() {
+  showError.value = false
+  pdfFile.value = null
+  pdfError.value = ''
+}
 
 // 未启用时不触发查询，安全
 const local = useLocalBookmarks()
+const user = useUserStore()
+const saveGuard = bookmarkSaveGuardFor(user)
 // 客户端+登录+PowerSync 可用
 const useLocalFirst = () => isClient && haveRequestToken() && isLocalFirstEnabled()
 // 实验室开关：local-first 分支不经过服务端，写本地行之前先在这里拦
@@ -121,19 +134,32 @@ const selectPdf = (event: Event) => {
   pdfError.value = ''
   if (!file) return
   pdfFile.value = null
-  if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') { pdfError.value = t('pdf.invalid_file'); return }
-  if (!file.size || file.size > PDF_MAX_BYTES) { pdfError.value = t('pdf.upload_limit'); return }
+  if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') {
+    pdfError.value = t('pdf.invalid_file')
+    return
+  }
+  if (!file.size || file.size > PDF_MAX_BYTES) {
+    pdfError.value = t('pdf.upload_limit')
+    return
+  }
   pdfFile.value = file
   addUrlText.value = ''
 }
 const uploadPdf = async () => {
   if (!pdfFile.value || searchModalLoading.value) return
-  if (!pdfUploadEnabled.value) { labs.showBlockedToast(t('page.user.labs.pdf.blocked')); return }
+  if (!pdfUploadEnabled.value) {
+    labs.showBlockedToast(t('page.user.labs.pdf.blocked'))
+    return
+  }
   searchModalLoading.value = true
   pdfError.value = ''
   try {
-    const result = await request().post<{ bookmark_id: number; bookmark_uid: string }>({
-      url: `/v1/bookmark/upload_pdf?filename=${encodeURIComponent(pdfFile.value.name)}`, body: pdfFile.value,
+    const result = await request().post<{
+      bookmark_id: number
+      bookmark_uid: string
+    }>({
+      url: `/v1/bookmark/upload_pdf?filename=${encodeURIComponent(pdfFile.value.name)}`,
+      body: pdfFile.value,
       headers: { 'Content-Type': 'application/pdf' },
       errorInterceptors: err => { if (!labs.handleSaveError(err)) pdfError.value = t('pdf.upload_failed') }
     })
@@ -145,12 +171,30 @@ const uploadPdf = async () => {
   finally { searchModalLoading.value = false }
 }
 const topModalClick = async () => {
-  if (pdfFile.value) { await uploadPdf(); return }
+  if (searchModalLoading.value) return
+  if (pdfFile.value) {
+    await uploadPdf()
+    return
+  }
   if (!addUrlButtonEnable.value) {
     showError.value = true
     return
   }
   const targetUrl = trimmedUrl.value
+  const sourceUuid = readerBookmarkUuid(targetUrl, [String(readerConfig.PUBLIC_BASE_URL), String(readerConfig.SHARE_BASE_URL)])
+  if (sourceUuid) {
+    searchModalLoading.value = true
+    try {
+      if (await forkAction.fork(sourceUuid)) {
+        show.value = false
+        addUrlText.value = ''
+        emits('addUrlSuccess', targetUrl)
+      }
+    } finally {
+      searchModalLoading.value = false
+    }
+    return
+  }
   if (useLocalFirst() && labs.isBlocked(targetUrl)) {
     // 不写本地行：写了会同步上去、被服务端标失败，用户只看到一条失败书签
     labs.showBlockedToast(labs.blockedMessage(targetUrl))
@@ -158,19 +202,38 @@ const topModalClick = async () => {
   }
   searchModalLoading.value = true
   try {
-    if (useLocalFirst()) {
-      // 本地写入，列表即时出现
-      await local.createBookmark(targetUrl)
-    } else {
-      await request().post<{ bookmark_id: number; status: string }>({
-        url: RESTMethodPath.ADD_URL_BOOKMARK,
-        body: { target_url: targetUrl },
-        // 替换全局的错误 toast：实验室拦截给一个带“去打开”的 toast，其余照旧只显示文案
-        errorInterceptors: err => {
-          if (labs.handleSaveError(err)) return
-          Toast.showToast({ text: err instanceof Error ? err.message : String(err), type: ToastType.Error })
+    const accountId = user.userInfo?.userId
+    const saved = await saveGuard.run(
+      String(accountId ?? ''),
+      targetUrl,
+      () => local.getSaveState(targetUrl),
+      async () => {
+        if (user.userInfo?.userId !== accountId) throw new Error('Account changed during save')
+        if (useLocalFirst()) {
+          // 本地写入，列表即时出现
+          await local.createBookmark(targetUrl)
+        } else {
+          await request().post<{ bookmark_id: number; status: string }>({
+            url: RESTMethodPath.ADD_URL_BOOKMARK,
+            body: { target_url: targetUrl },
+            // 替换全局的错误 toast：实验室拦截给一个带“去打开”的 toast，其余照旧只显示文案
+            errorInterceptors: err => {
+              if (labs.handleSaveError(err)) return
+              Toast.showToast({
+                text: err instanceof Error ? err.message : String(err),
+                type: ToastType.Error
+              })
+            }
+          })
         }
+      }
+    )
+    if (!saved) {
+      Toast.showToast({
+        text: t('common.operate.loading'),
+        type: ToastType.Normal
       })
+      return
     }
   } catch {
     // 失败时弹窗留着，用户可以改链接再试

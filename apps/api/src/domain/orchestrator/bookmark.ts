@@ -95,6 +95,9 @@ export class BookmarkOrchestrator {
       this.bookmarkService.getUserBookmarkOverview(userId, bmId)
     ])
 
+    if (res.bookmark.status === 'success' && res.bookmark.content_key?.startsWith('html/') && (contentResult.status === 'rejected' || !contentResult.value))
+      throw new Error('Stored bookmark content is unavailable')
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, content_key, content_md_key, private_user, ...bookmarkWithoutId } = res.bookmark
     const { overview, key_takeaways } = this.parseOverviewRes(overviewResult.status === 'fulfilled' ? (overviewResult.value ?? null) : null)
@@ -103,6 +106,7 @@ export class BookmarkOrchestrator {
       ...bookmarkWithoutId,
       bookmark_id: ctx.hashIds.encodeId(res.bookmark.id),
       bookmark_user_uuid: res.uuid,
+      ...(await this.bookmarkService.getForkMetadata(ctx, res)),
       pdf: await this.bookmarkService.getPdfDescriptor(res.bookmark.content_key, res.uuid),
       content: contentResult.status === 'fulfilled' ? contentResult.value : undefined,
       archived: res.archive_status === 1 ? 'archive' : res.archive_status === 2 ? 'later' : 'inbox',
@@ -218,7 +222,11 @@ export class BookmarkOrchestrator {
   private async resolveBookmarkAiAccess(
     ctx: ContextManager,
     params: { bookmarkId?: number; bookmarkUid?: string }
-  ): Promise<{ bookmarkId: number; ownerId: number; readOnly: boolean } | null> {
+  ): Promise<{
+    bookmarkId: number
+    ownerId: number
+    readOnly: boolean
+  } | null> {
     const userId = ctx.getUserId()
     if (params.bookmarkUid) {
       const access = await this.bookmarkSvc.getBookmarkReadAccess(ctx, params.bookmarkUid)
@@ -361,7 +369,13 @@ export class BookmarkOrchestrator {
 
   private async generateOverviewStream(
     ctx: ContextManager,
-    params: { writer: WritableStreamDefaultWriter<Uint8Array>; encoder: TextEncoder; userId: number; bmId: number; bookmarkTags: BookmarkTag[] }
+    params: {
+      writer: WritableStreamDefaultWriter<Uint8Array>
+      encoder: TextEncoder
+      userId: number
+      bmId: number
+      bookmarkTags: BookmarkTag[]
+    }
   ) {
     const { writer, encoder, userId, bmId, bookmarkTags } = params
     const [user, bookmark, userTags, userBookmark] = await Promise.all([
@@ -423,7 +437,15 @@ export class BookmarkOrchestrator {
     }
   }
 
-  private async generateOutlineStream(ctx: ContextManager, params: { writer: WritableStreamDefaultWriter<Uint8Array>; encoder: TextEncoder; userId: number; bmId: number }) {
+  private async generateOutlineStream(
+    ctx: ContextManager,
+    params: {
+      writer: WritableStreamDefaultWriter<Uint8Array>
+      encoder: TextEncoder
+      userId: number
+      bmId: number
+    }
+  ) {
     const { writer, encoder, userId, bmId } = params
     const [user, bookmark, userBookmark] = await Promise.all([
       this.userSvc.getUserInfo(ctx),

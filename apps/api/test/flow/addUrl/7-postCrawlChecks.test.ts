@@ -12,7 +12,10 @@ vi.mock('cloudflare:workers', () => ({
 }))
 vi.mock('cloudflare:workflows', () => ({
   NonRetryableError: class NonRetryableError extends Error {
-    constructor(msg: string) { super(msg); this.name = 'NonRetryableError' }
+    constructor(msg: string) {
+      super(msg)
+      this.name = 'NonRetryableError'
+    }
   }
 }))
 
@@ -26,7 +29,11 @@ vi.mock('@/decorators/di', () => ({
 vi.mock('@/di/generated/dependency', () => ({ initializeCore: vi.fn(), initializeInfrastructure: vi.fn() }))
 vi.mock('@/utils/context', () => ({
   ContextManager: vi.fn().mockImplementation((_ctx: any, env: any) => ({
-    setUserInfo: vi.fn(), setHashIds: vi.fn(), env,
+    setUserInfo: vi.fn(),
+    setHashIds: vi.fn(),
+    set: vi.fn(),
+    get: vi.fn(),
+    env,
     execution: { waitUntil: vi.fn((p: Promise<any>) => p.catch(() => {})) }
   }))
 }))
@@ -50,6 +57,12 @@ import {
 function wireAndRun(eventOverrides: Record<string, unknown> = {}, crawlResultOverrides: Record<string, unknown> = {}) {
   const cs = createMockCrawlService()
   const bs = createMockBookmarkService()
+  Object.assign(cs, {
+    setCaptureStatus: vi.fn(async (_ctx, id, status) => {
+      await bs.updateBookmarkStatus(id, status)
+      return true
+    })
+  })
   const uph = createMockUrlParserHandler()
   const tg = createMockTelegramBotService()
   const imp = createMockImportService()
@@ -106,6 +119,12 @@ describe('软 404 检测', () => {
   test('社交媒体 textContent 短 → 不触发 soft 404', async () => {
     const cs = createMockCrawlService()
     const bs = createMockBookmarkService()
+    Object.assign(cs, {
+      setCaptureStatus: vi.fn(async (_ctx, id, status) => {
+        await bs.updateBookmarkStatus(id, status)
+        return true
+      })
+    })
     const uph = createMockUrlParserHandler()
     const tg = createMockTelegramBotService()
     const imp = createMockImportService()
