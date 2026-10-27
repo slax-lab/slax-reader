@@ -45,9 +45,15 @@ async function main() {
         .replaceAll('dev-powersync', `${project}-sync`)
         .replaceAll('127.0.0.1:15432:', '127.0.0.1:0:')
         .replaceAll('127.0.0.1:18080:', '127.0.0.1:0:')
+        // The PowerSync port is published on all interfaces for mobile LAN development.
+        .replaceAll('"18080:8080"', '"127.0.0.1:0:8080"')
         .replaceAll('127.0.0.1:18081:', '127.0.0.1:0:')
         .replace('      - ./init-scripts:/docker-entrypoint-initdb.d\n', '')
     )
+    // A fixed host port would collide with a developer's running local stack.
+    for (const mapping of readFileSync(composeFile, 'utf8').match(/^\s+- "?[\d.:]+:\d+"?$/gm) ?? []) {
+      assert.match(mapping, /127\.0\.0\.1:0:\d+/, `fixed host port in ${mapping.trim()}`)
+    }
     writeFileSync(script, readFileSync(resolve(ROOT, 'deploy/local/powersync-local/init.sh'), 'utf8').replace('PG_CONTAINER="dev-postgres"', `PG_CONTAINER="${project}-pg"`))
     assert.equal(await resources.run('postgres', 'bash', [script, '--postgres-only']), 0)
     const address = resources.command('docker', [...compose, 'port', 'postgres', '5432'])

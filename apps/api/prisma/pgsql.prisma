@@ -525,6 +525,9 @@ model sr_user_collection {
     // 0- 暂停（无法继续订阅新的、续订，但是旧的可以继续看，price变为0）, 1- 正常
     status Int @default(0)
 
+    // Maintained by database triggers from sr_user.deleted_at; read by sync rules.
+    owner_deleted Boolean @default(false)
+
     created_at DateTime @default(now())
     updated_at DateTime
 
