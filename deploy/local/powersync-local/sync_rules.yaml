@@ -212,7 +212,7 @@ streams:
           AND feed_id IN (
           SELECT subscription.feed_id
           FROM sr_rss_subscription AS subscription
-          INNER JOIN sr_rss_feed AS source ON source.id = subscription.feed_id
+          INNER JOIN sr_feed AS source ON source.id = subscription.feed_id
           WHERE subscription.user_id IN current_user_id
             AND source.kind = 'rss'
             AND subscription.user_id IN (
@@ -228,11 +228,11 @@ streams:
         SELECT id, feed_url, title, site_url, icon_url,
           last_checked_at, last_success_at, next_fetch_at, next_allowed_at,
           error, lease_until AS refreshing_until
-        FROM sr_rss_feed
+        FROM sr_feed AS sr_rss_feed
         WHERE id IN (
           SELECT subscription.feed_id
           FROM sr_rss_subscription AS subscription
-          INNER JOIN sr_rss_feed AS source ON source.id = subscription.feed_id
+          INNER JOIN sr_feed AS source ON source.id = subscription.feed_id
           WHERE subscription.user_id IN current_user_id
             AND source.kind = 'rss'
             AND subscription.user_id IN (
@@ -251,7 +251,7 @@ streams:
         WHERE feed_id IN (
           SELECT subscription.feed_id
           FROM sr_rss_subscription AS subscription
-          INNER JOIN sr_rss_feed AS source ON source.id = subscription.feed_id
+          INNER JOIN sr_feed AS source ON source.id = subscription.feed_id
           WHERE subscription.user_id IN current_user_id
             AND source.kind = 'rss'
             AND subscription.user_id IN (

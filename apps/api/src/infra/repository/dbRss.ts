@@ -328,6 +328,17 @@ export class RssRepo {
         await tx.$executeRaw`DELETE FROM sr_rss_entry WHERE feed_id=${row.id} AND NOT EXISTS(SELECT 1 FROM sr_rss_subscription WHERE feed_id=${row.id})`
         await tx.$executeRaw`DELETE FROM sr_rss_feed WHERE id=${row.id} AND NOT EXISTS(SELECT 1 FROM sr_rss_subscription WHERE feed_id=${row.id})`
       }
+      // Generic-only Newsletter sources have no legacy row for the RSS orphan scan.
+      // Lock their source before deleting entries, matching publication's source lock.
+      const newsletters = await tx.$queryRaw<{ id: string }[]>`SELECT f.id FROM sr_feed f
+        WHERE f.kind='newsletter' AND f.created_at<${orphanBefore}
+          AND NOT EXISTS(SELECT 1 FROM sr_rss_feed legacy WHERE legacy.id=f.id)
+          AND NOT EXISTS(SELECT 1 FROM sr_rss_subscription s WHERE s.feed_id=f.id)
+        LIMIT 100 FOR UPDATE OF f SKIP LOCKED`
+      for (const row of newsletters) {
+        await tx.$executeRaw`DELETE FROM sr_rss_entry WHERE feed_id=${row.id} AND NOT EXISTS(SELECT 1 FROM sr_rss_subscription WHERE feed_id=${row.id})`
+        await tx.$executeRaw`DELETE FROM sr_feed WHERE kind='newsletter' AND id=${row.id} AND NOT EXISTS(SELECT 1 FROM sr_rss_subscription WHERE feed_id=${row.id})`
+      }
       await tx.$executeRaw`UPDATE sr_rss_feed SET history_url=NULL,history_seen=ARRAY[]::text[],history_checked_at=NULL,history_retry_at=NULL
         WHERE kind='rss' AND (history_checked_at<${before} OR id IN (SELECT feed_id FROM sr_rss_entry WHERE first_seen_at<${before}))
           AND (lease_until IS NULL OR lease_until<=${new Date()})`

@@ -41,8 +41,8 @@
     <p v-else-if="state?.status === 'unavailable'" role="status">
       {{ $t('newsletter.errors.unavailable') }}
     </p>
-    <p v-if="error" class="newsletter-error" role="alert">
-      {{ $t('newsletter.errors.' + error) }}
+    <p v-if="setupError" class="newsletter-error" role="alert">
+      {{ $t('newsletter.errors.' + setupError) }}
       <button v-if="!state" type="button" @click="load">
         {{ $t('rss.retry') }}
       </button>
@@ -67,8 +67,12 @@ const loading = ref(true),
 const needsAccount = computed(
   () =>
     !state.value?.address &&
-    (state.value?.status === 'account_required' || state.value?.status === 'invalid_account' || ['address_reserved', 'account_taken', 'account_required', 'invalid_account'].includes(error.value))
+    (state.value?.status === 'account_required' ||
+      state.value?.status === 'invalid_account' ||
+      state.value?.status === 'address_reserved' ||
+      ['address_reserved', 'account_taken', 'account_required', 'invalid_account'].includes(error.value))
 )
+const setupError = computed(() => error.value || (state.value?.status === 'address_reserved' ? 'address_reserved' : ''))
 const quiet = () => {}
 let generation = 0
 const errorCode = (value: unknown) => {
@@ -82,7 +86,9 @@ const errorCode = (value: unknown) => {
   const name = failure?.name
   const candidates = [typeof name === 'object' && name ? (name as { error?: string }).error : name, failure?.data?.error, failure?.message]
   return (
-    candidates.find((code): code is string => typeof code === 'string' && ['address_reserved', 'account_required', 'invalid_account', 'lab_disabled', 'unavailable'].includes(code)) || 'unavailable'
+    candidates.find(
+      (code): code is string => typeof code === 'string' && ['address_reserved', 'account_required', 'invalid_account', 'lab_disabled', 'unavailable'].includes(code)
+    ) || 'unavailable'
   )
 }
 const load = async () => {
@@ -126,7 +132,13 @@ const provision = async () => {
       await user.refreshServerUserInfo()
       if (stamp !== generation) return
     }
-    const result = await request().post<NewsletterAddressResponse>({
+    await request().post({
+      url: '/v1/user/setting/enable',
+      body: { key: 'lab:newsletter' },
+      errorInterceptors: quiet
+    })
+    if (stamp !== generation) return
+    const result = await request().get<NewsletterAddressResponse>({
       url: '/v1/user/newsletter_address',
       errorInterceptors: quiet
     })

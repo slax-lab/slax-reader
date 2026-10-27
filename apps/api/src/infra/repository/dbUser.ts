@@ -51,7 +51,8 @@ export enum platformBindType {
   EMAIL = 'email',
   APPLE = 'apple',
   TWITTER = 'twitter',
-  GOOGLE = 'google'
+  GOOGLE = 'google',
+  NEWSLETTER = 'newsletter'
 }
 
 export enum noticeType {
@@ -223,6 +224,7 @@ export class UserRepo {
   }
 
   public async unbindPlatform(userId: number, platform: platformBindType) {
+    if (platform === platformBindType.NEWSLETTER) throw ErrorParam()
     return await this.prismaPg().sr_platform_bind.deleteMany({ where: { user_id: userId, platform: platform } })
   }
 
@@ -348,6 +350,7 @@ export class UserRepo {
       if (!users[0]) throw UserNotFoundError()
       if (!users[0].deleted_at) await tx.sr_user.update({ where: { id: userId }, data: { deleted_at: new Date() } })
       await tx.sr_user_api_key.deleteMany({ where: { user_id: userId } })
+      await tx.$executeRaw`UPDATE sr_platform_bind SET retired_at=COALESCE(retired_at,now()) WHERE user_id=${userId} AND platform='newsletter'`
       await tx.$executeRaw`UPDATE sr_newsletter_address SET retired_at=COALESCE(retired_at,now()) WHERE user_id=${userId}`
       await tx.$executeRaw`UPDATE sr_newsletter_receipt SET state='cancelled',lease_token=NULL,lease_until=NULL,completed_at=now() WHERE user_id=${userId} AND state='pending'`
     })

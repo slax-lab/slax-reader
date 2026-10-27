@@ -5,9 +5,10 @@ import { BucketClient } from '@/infra/repository/bucketClient'
 import type { LazyInstance } from '@/decorators/lazy'
 import { ContextManager } from '@/utils/context'
 import { hashSHA256 } from '@/utils/strings'
-import { configuredNewsletterDomain, newsletterRecipientPart, NewsletterError, parseNewsletter, readNewsletterRaw } from './newsletter/parser'
+import { configuredNewsletterDomain, newsletterRecipientPart, NewsletterError, parseNewsletter, readNewsletterRaw, serializeNewsletterContent } from './newsletter/parser'
 
 const RAW_PREFIX = 'newsletter-raw/'
+const STAGED_PREFIX = 'newsletter-staged/'
 const RAW_CURSOR = 'newsletter-maintenance/raw-gc-cursor'
 @injectable()
 export class NewsletterService {
@@ -35,30 +36,37 @@ export class NewsletterService {
     const raw = await readNewsletterRaw(message),
       parsed = await parseNewsletter(raw)
     const source = await hashSHA256(recipient.uuid + '\n' + parsed.sender)
-    // A stable identity lookup avoids writing another raw object for common retries.
-    if (await this.repo.checkAdmission(recipient, source, parsed.messageKey)) return
-    const key = RAW_PREFIX + crypto.randomUUID()
-    const stored = await this.bucket().R2Bucket.put(key, raw, { httpMetadata: { contentType: 'message/rfc822' } })
-    if (!stored) throw new NewsletterError('unavailable', 503)
-    let admitted
-    try {
-      admitted = await this.repo.admit(recipient, source, parsed.messageKey, key)
-    } catch (error) {
-      // No durable receipt was published. The unreferenced object is reclaimed by the raw sweep.
-      throw error
+    const existing = await this.repo.checkAdmission(recipient, source, parsed.messageKey)
+    if (existing && existing.state !== 'pending') return
+    let receipt = existing
+    if (!receipt) {
+      // Store cleaned content only: raw MIME can contain private binary attachments.
+      // This bounded recovery payload is temporary until hosted SMTP retries are proven.
+      const key = STAGED_PREFIX + crypto.randomUUID()
+      const stored = await this.bucket().R2Bucket.put(key, serializeNewsletterContent(parsed), { httpMetadata: { contentType: 'message/rfc822' } })
+      if (!stored) throw new NewsletterError('unavailable', 503)
+      receipt = (await this.repo.admit(recipient, source, parsed.messageKey, key)).receipt
     }
-    if (admitted.created) {
-      // Once admission commits, the raw object + pending receipt survive publication failure.
-      for (const row of await this.repo.claim(admitted.receipt.id)) await this.process(row, env)
+    if (receipt.state !== 'pending') return
+    const [claimed] = await this.repo.claim(receipt.id)
+    if (!claimed) {
+      // A concurrent processor may have completed while this delivery waited.
+      const current = await this.repo.checkAdmission(recipient, source, parsed.messageKey)
+      if (current && current.state !== 'pending') return
+      throw new NewsletterError('unavailable', 503)
     }
+    // The email event does not finish successfully before publication completes.
+    await this.process(claimed, env)
   }
+
   private async process(row: NewsletterReceipt, env: Env) {
     try {
       const object = await this.bucket().R2Bucket.get(row.raw_key)
       if (!object) throw new Error('Raw receipt object unavailable')
+      // Cleaned MIME remains readable by overlapping workers; it contains no original attachment bytes.
       const parsed = await parseNewsletter(new Uint8Array(await object.arrayBuffer()))
       const stored = await this.content.storeItem(env, row.source_key, { content_html: parsed.html, image_url: null, article_url: null })
-      await this.repo.complete(row, {
+      const completed = await this.repo.complete(row, {
         sourceTitle: parsed.sourceTitle,
         title: parsed.title,
         summary: parsed.summary,
@@ -66,24 +74,34 @@ export class NewsletterService {
         contentKey: stored.content_key,
         truncated: parsed.truncated || stored.content_truncated
       })
+      if (!completed) throw new NewsletterError('unavailable', 503)
     } catch (error) {
       const cancelled = error instanceof NewsletterError && ['not_found', 'lab_disabled', 'invalid_message'].includes(error.code)
       await this.repo.defer(row, cancelled)
-      if (!cancelled) console.error('Newsletter publication deferred')
+      throw error
     }
   }
   async tick(ctx: ContextManager) {
     if (!configuredNewsletterDomain(ctx.env)) return
-    for (const row of await this.repo.claim()) await this.process(row, ctx.env)
-    const bucket = this.bucket().R2Bucket,
-      state = await bucket.get(RAW_CURSOR),
-      cursor = state ? await state.text() : ''
-    const page = await bucket.list({ prefix: RAW_PREFIX, limit: 200, ...(cursor ? { cursor } : {}) })
-    const keys = page.objects.filter(row => row.uploaded.valueOf() < Date.now() - 24 * 3600_000).map(row => row.key)
-    const keep = new Set(await this.repo.rawReferenced(keys)),
-      garbage = keys.filter(key => !keep.has(key))
-    if (garbage.length) await bucket.delete(garbage)
-    await bucket.put(RAW_CURSOR, page.truncated ? page.cursor : '')
+    for (const row of await this.repo.claim()) {
+      try {
+        await this.process(row, ctx.env)
+      } catch {
+        console.error('Newsletter recovery deferred')
+      }
+    }
+    const bucket = this.bucket().R2Bucket
+    for (const prefix of [RAW_PREFIX, STAGED_PREFIX]) {
+      const cursorKey = prefix === RAW_PREFIX ? RAW_CURSOR : 'newsletter-maintenance/staged-gc-cursor'
+      const state = await bucket.get(cursorKey),
+        cursor = state ? await state.text() : ''
+      const page = await bucket.list({ prefix, limit: 200, ...(cursor ? { cursor } : {}) })
+      const keys = page.objects.filter(row => row.uploaded.valueOf() < Date.now() - 24 * 3600_000).map(row => row.key)
+      const keep = new Set(await this.repo.rawReferenced(keys)),
+        garbage = keys.filter(key => !keep.has(key))
+      if (garbage.length) await bucket.delete(garbage)
+      await bucket.put(cursorKey, page.truncated ? page.cursor : '')
+    }
   }
 }
 

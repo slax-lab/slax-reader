@@ -38,19 +38,23 @@ beforeAll(async () => {
     parsers: { 1114: x => new Date(x.replace(' ', 'T') + 'Z') }
   })
   await db.exec(`CREATE TABLE sr_user(id INT PRIMARY KEY, uuid TEXT DEFAULT gen_random_uuid()::text, account TEXT DEFAULT '', deleted_at TIMESTAMP);
-    CREATE TABLE sr_user_lab_feature(user_id INT,feature TEXT,enabled BOOLEAN,UNIQUE(user_id,feature));`)
+    CREATE TABLE sr_user_lab_feature(user_id INT,feature TEXT,enabled BOOLEAN,UNIQUE(user_id,feature));
+    CREATE TABLE sr_platform_bind(id SERIAL PRIMARY KEY,uuid TEXT UNIQUE DEFAULT gen_random_uuid()::text,user_id INT,platform TEXT,platform_id TEXT,user_name TEXT,created_at TIMESTAMP DEFAULT now(),UNIQUE(user_id,platform));`)
   for (const path of [
     '20260923042657_reset_rss_labs_shared_feed',
     '20260923044137_add_rss_timeline_index',
     '20260923065020',
     '20261019090000_rss_local_first',
-    '20261022090000_newsletter_feed'
+    '20261022090000_newsletter_feed',
+    '20261027100000_newsletter_review_revision',
+    '20261027141709_newsletter_review_revision_check',
+    '20261027150000_newsletter_overlap_projection'
   ])
     await db.exec(await readFile(new URL('../../../prisma/pg_migrations/' + path + '/migration.sql', import.meta.url), 'utf8'))
   repo = new NewsletterRepo(() => adapter(db))
 })
 beforeEach(async () => {
-  await db.exec(`TRUNCATE sr_user,sr_user_lab_feature,sr_newsletter_address,sr_newsletter_receipt,sr_rss_entry,sr_rss_feed,sr_rss_subscription;
+  await db.exec(`TRUNCATE sr_user,sr_user_lab_feature,sr_platform_bind,sr_newsletter_address,sr_newsletter_receipt,sr_rss_entry,sr_rss_feed,sr_feed,sr_rss_subscription;
     INSERT INTO sr_user(id,account) VALUES(1,'Jane.Doe'),(2,'other');
     INSERT INTO sr_user_lab_feature VALUES(1,'newsletter',true),(2,'newsletter',true);`)
 })
@@ -78,21 +82,19 @@ describe('Newsletter PostgreSQL boundaries', () => {
   })
   test('retired addresses never transfer and full domain controls ownership', async () => {
     await recipient()
-    await db.exec("UPDATE sr_newsletter_address SET retired_at=now() WHERE user_id=1; UPDATE sr_user SET account='JANE.DOE' WHERE id=2")
+    await db.exec("UPDATE sr_platform_bind SET retired_at=now() WHERE user_id=1 AND platform='newsletter'; UPDATE sr_user SET account='JANE.DOE' WHERE id=2")
     await expect(repo.address(2, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({
       code: 'address_reserved'
     })
     expect(await repo.recipient('slax.com', 'jane.doe')).toBeNull()
     expect(await repo.recipient('newsletterreader.slax.dev', 'jane.doe')).toBeNull()
   })
-  test('daguang receives an isolated prefixed address in each Newsletter subdomain', async () => {
+  test('a Newsletter binding is immutable across domain changes and distinct from business mail', async () => {
     await db.exec("UPDATE sr_user SET account='DaGuAnG' WHERE id=1")
-    for (const domain of ['newsletterreader.slax.dev', 'newsletterreader.slax.com']) {
-      expect(await repo.address(1, domain, false)).toMatchObject({ address: null, status: 'not_provisioned' })
-      expect(await repo.address(1, domain, true)).toMatchObject({ address: 'feed+daguang@' + domain, status: 'ready' })
-      expect(await repo.recipient(domain, 'daguang')).toMatchObject({ user_id: 1 })
-    }
-    expect((await db.query('SELECT local_part FROM sr_newsletter_address')).rows).toEqual([{ local_part: 'daguang' }, { local_part: 'daguang' }])
+    expect(await repo.address(1, 'newsletterreader.slax.dev', true)).toMatchObject({ address: 'feed+daguang@newsletterreader.slax.dev', status: 'ready' })
+    expect(await repo.recipient('newsletterreader.slax.dev', 'daguang')).toMatchObject({ user_id: 1 })
+    await expect(repo.address(1, 'newsletterreader.slax.com', true)).rejects.toMatchObject({ code: 'unavailable' })
+    expect((await db.query("SELECT platform_id FROM sr_platform_bind WHERE platform='newsletter'")).rows).toEqual([{ platform_id: 'feed+daguang@newsletterreader.slax.dev' }])
   })
   test('a stored token renders the selected prefix and survives a later rename', async () => {
     await db.exec("INSERT INTO sr_newsletter_address(user_id,domain,local_part) VALUES(1,'newsletterreader.slax.com','jane.doe'); UPDATE sr_user SET account='daguang' WHERE id=1")
@@ -106,7 +108,7 @@ describe('Newsletter PostgreSQL boundaries', () => {
     await db.query('UPDATE sr_user SET account=$1 WHERE id=2', ['b'.repeat(60)])
     expect(await repo.address(2, 'newsletterreader.slax.dev', false)).toMatchObject({ address: null, status: 'invalid_account' })
     await expect(repo.address(2, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({ code: 'invalid_account' })
-    expect((await db.query('SELECT user_id FROM sr_newsletter_address')).rows).toEqual([{ user_id: 1 }])
+    expect((await db.query("SELECT user_id FROM sr_platform_bind WHERE platform='newsletter'")).rows).toEqual([{ user_id: 1 }])
     await db.query("INSERT INTO sr_newsletter_address(user_id,domain,local_part) VALUES(2,'newsletterreader.slax.dev',$1)", ['b'.repeat(60)])
     for (const provision of [false, true]) await expect(repo.address(2, 'newsletterreader.slax.dev', provision)).rejects.toMatchObject({ code: 'invalid_account' })
     expect((await db.query('SELECT local_part FROM sr_newsletter_address WHERE user_id=2')).rows[0].local_part).toHaveLength(60)
@@ -145,13 +147,13 @@ describe('Newsletter PostgreSQL boundaries', () => {
     expect(await repo.complete(claimed, item)).toBe(true)
     expect(await repo.complete(claimed, { ...item, title: 'Changed' })).toBe(false)
     expect((await db.query('SELECT title FROM sr_rss_entry')).rows).toEqual([{ title: 'One' }])
-    expect((await db.query('SELECT kind,feed_url FROM sr_rss_feed')).rows).toEqual([{ kind: 'newsletter', feed_url: 'newsletter:source' }])
+    expect((await db.query('SELECT kind,feed_url FROM sr_feed')).rows).toEqual([{ kind: 'newsletter', feed_url: 'newsletter:source' }])
   })
   test('post-admission failure remains pending and can be recovered', async () => {
     const first = await reserve()
     const [claim] = await repo.claim(first.receipt.id)
     await repo.defer(claim)
-    expect(await repo.claim(first.receipt.id)).toHaveLength(0)
+    expect(await repo.claim()).toHaveLength(0)
     await db.exec("UPDATE sr_newsletter_receipt SET retry_at=now()-interval '1 minute'")
     const [retry] = await repo.claim(first.receipt.id)
     expect(retry.lease_token).not.toBe(claim.lease_token)
@@ -185,7 +187,7 @@ describe('Newsletter PostgreSQL boundaries', () => {
   test('daily and source limits count pending obligations, while duplicates consume no new slot', async () => {
     await reserve()
     const r = await recipient()
-    await db.query(`INSERT INTO sr_newsletter_receipt(user_id,address_id,source_key,message_key,raw_key) SELECT 1,$1,'source','seed-'||i,'raw' FROM generate_series(1,199) i`, [
+    await db.query(`INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key,raw_key) SELECT 1,$1,'source','seed-'||i,'raw' FROM generate_series(1,199) i`, [
       r.id
     ])
     expect((await reserve()).created).toBe(false)
@@ -237,7 +239,6 @@ const pipeline = () => {
   }
   const service = new NewsletterService(repo, new RssContent(() => client as never), () => client as never)
   const env = {
-    NEWSLETTER_ENABLED: 'true',
     NEWSLETTER_DOMAIN: 'newsletterreader.slax.dev'
   } as Env
   const message = (id = '<live@example.com>', to = 'feed+jane.doe@newsletterreader.slax.dev') => {
@@ -293,7 +294,7 @@ describe('Newsletter service real database and object pipeline', () => {
     const p = pipeline()
     await p.service.receive(p.message(), p.env)
     await p.service.receive(p.message(), p.env)
-    const rows = (await db.query<any>('SELECT e.*,f.kind FROM sr_rss_entry e JOIN sr_rss_feed f ON f.id=e.feed_id')).rows
+    const rows = (await db.query<any>('SELECT e.*,f.kind FROM sr_rss_entry e JOIN sr_feed f ON f.id=e.feed_id')).rows
     expect(rows).toHaveLength(1)
     expect(rows[0].kind).toBe('newsletter')
     const html = new TextDecoder().decode(p.objects.get(rows[0].content_key)!.bytes)
@@ -301,9 +302,9 @@ describe('Newsletter service real database and object pipeline', () => {
     expect(html).not.toMatch(/script|cid:/)
     expect((await db.query('SELECT state FROM sr_newsletter_receipt')).rows).toEqual([{ state: 'done' }])
     await expect(p.service.receive(p.message('<other>', 'jane.doe@other.example'), p.env)).rejects.toMatchObject({ code: 'not_found' })
-    await expect(p.service.receive(p.message(), { ...p.env, NEWSLETTER_ENABLED: 'false' })).rejects.toMatchObject({ code: 'not_found' })
+    await expect(p.service.receive(p.message(), { ...p.env, NEWSLETTER_DOMAIN: '' })).rejects.toMatchObject({ code: 'not_found' })
   })
-  test('accepted raw receipt recovers after body write failure, and unpersisted raw never creates a receipt', async () => {
+  test('synchronous publication propagates failure and durable sanitized content recovers without another delivery', async () => {
     await recipient()
     const p = pipeline(),
       write = p.bucket.put.getMockImplementation()!
@@ -311,7 +312,7 @@ describe('Newsletter service real database and object pipeline', () => {
       if (key.startsWith('rss-content/')) throw new Error('body store failure')
       return write(key, body)
     })
-    await p.service.receive(p.message(), p.env)
+    await expect(p.service.receive(p.message(), p.env)).rejects.toThrow()
     expect((await db.query('SELECT state FROM sr_newsletter_receipt')).rows).toEqual([{ state: 'pending' }])
     expect((await db.query('SELECT * FROM sr_rss_entry')).rows).toHaveLength(0)
     p.bucket.put.mockImplementation(write)
@@ -355,7 +356,7 @@ test('account deletion retires its address immediately and cancels admitted work
     () => adapter(db)
   )
   await users.markUserAsDeleted(1)
-  expect((await db.query<any>('SELECT retired_at FROM sr_newsletter_address')).rows[0].retired_at).not.toBeNull()
+  expect((await db.query<any>("SELECT retired_at FROM sr_platform_bind WHERE platform='newsletter'")).rows[0].retired_at).not.toBeNull()
   expect((await db.query('SELECT state FROM sr_newsletter_receipt')).rows).toEqual([{ state: 'cancelled' }])
   await db.exec('UPDATE sr_user SET deleted_at=NULL WHERE id=1')
   expect(await repo.recipient('newsletterreader.slax.dev', 'jane.doe')).toBeNull()
@@ -364,7 +365,7 @@ test('account deletion retires its address immediately and cancels admitted work
 test('over-quota admission does not perform expensive raw object writes', async () => {
   const r = await recipient(),
     p = pipeline()
-  await db.query(`INSERT INTO sr_newsletter_receipt(user_id,address_id,source_key,message_key,raw_key) SELECT 1,$1,'source','seed-'||i,'raw' FROM generate_series(1,200) i`, [r.id])
+  await db.query(`INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key,raw_key) SELECT 1,$1,'source','seed-'||i,'raw' FROM generate_series(1,200) i`, [r.id])
   await expect(p.service.receive(p.message(), p.env)).rejects.toMatchObject({
     code: 'limit_reached'
   })
@@ -388,4 +389,53 @@ test('disable then re-enable cannot resurrect a pending delivery or its lease', 
     })
   ).toBe(false)
   expect((await db.query('SELECT state FROM sr_newsletter_receipt')).rows).toEqual([{ state: 'cancelled' }])
+})
+
+test('new incoming MIME is not retained as raw mail and pending duplicates resume publication', async () => {
+  await recipient()
+  const p = pipeline()
+  const write = p.bucket.put.getMockImplementation()!
+  p.bucket.put.mockImplementation(async (key, body) => {
+    if (key.startsWith('rss-content/')) throw new Error('temporary body failure')
+    return write(key, body)
+  })
+  await expect(p.service.receive(p.message(), p.env)).rejects.toThrow()
+  expect([...p.objects.keys()].some(key => key.startsWith('newsletter-raw/'))).toBe(false)
+  p.bucket.put.mockImplementation(write)
+  await p.service.receive(p.message(), p.env)
+  expect((await db.query('SELECT state FROM sr_newsletter_receipt')).rows).toEqual([{ state: 'done' }])
+  expect((await db.query('SELECT id FROM sr_rss_entry')).rows).toHaveLength(1)
+})
+
+test('settings enable provisions once and keeps missing/reserved accounts repairable', async () => {
+  const { UserController } = await import('@/handler/http/userController')
+  const p = pipeline()
+  const labs = new LabRepo(() => adapter(db))
+  const user = {
+    enableUserSetting: async (_ctx: unknown, _key: string, enabled: boolean) => {
+      await labs.upsert(1, 'newsletter', enabled)
+      return 'ok'
+    }
+  }
+  const controller = new UserController(user as never, null as never, null as never, null as never, null as never, null as never, null as never, p.service)
+  const ctx = { getUserId: () => 1, env: p.env } as any
+  const enable = () =>
+    controller.handleEnableUserSettingRequest(
+      ctx,
+      new Request('http://localhost/v1/user/setting/enable', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: 'lab:newsletter' }) })
+    )
+  await db.exec("UPDATE sr_user SET account='' WHERE id=1")
+  expect((await enable()).status).toBe(200)
+  expect(await p.service.address(ctx, false)).toMatchObject({ status: 'account_required' })
+  await db.exec("UPDATE sr_user SET account='other' WHERE id=1")
+  await repo.address(2, 'newsletterreader.slax.dev', true)
+  expect((await enable()).status).toBe(200)
+  expect(await p.service.address(ctx, false)).toMatchObject({ status: 'address_reserved' })
+  await db.exec("UPDATE sr_user SET account='fixed' WHERE id=1")
+  expect((await enable()).status).toBe(200)
+  expect((await enable()).status).toBe(200)
+  expect(await p.service.address(ctx, false)).toMatchObject({ status: 'ready', address: 'feed+fixed@newsletterreader.slax.dev' })
+  const response = await controller.newsletterAddress(ctx, new Request('http://localhost/v1/user/newsletter_address'))
+  expect(response.headers.get('Cache-Control')).toBe('private, no-store')
+  expect((await db.query("SELECT id FROM sr_platform_bind WHERE user_id=1 AND platform='newsletter'")).rows).toHaveLength(1)
 })

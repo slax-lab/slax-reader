@@ -585,13 +585,15 @@ export class UserService {
       avatar: user.picture,
       uuid: user.uuid,
       id: ctx.hashIds.encodeId(ctx.getUserId()),
-      platform: bindList.map(item => {
-        return {
-          platform: item.platform,
-          user_name: item.user_name,
-          created_at: item.created_at
-        }
-      }),
+      platform: bindList
+        .filter(item => item.platform !== platformBindType.NEWSLETTER)
+        .map(item => {
+          return {
+            platform: item.platform,
+            user_name: item.user_name,
+            created_at: item.created_at
+          }
+        }),
       // 上线一周后，再把它删除
       share_collect: {
         show_name: shareCollect?.display_name || '',

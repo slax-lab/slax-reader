@@ -32,6 +32,16 @@ const setDocumentUri = (document: Document, url: string) => {
 }
 
 export class ContentParser {
+  /** Extract untrusted standalone content without host hooks, network access, or logging. */
+  public static parseContentOnly(content: string): string | null {
+    try {
+      const document = this.getDocument('<html><body>' + this.getCleanHtml(content) + '</body></html>')
+      return readabilityParse(document)?.content || null
+    } catch {
+      return null
+    }
+  }
+
   public static async parse(options: { url: URL; content: string; title?: string }): Promise<Preparse> {
     const content = this.getCleanHtml(options.content)
 

@@ -109,7 +109,6 @@ import { ImageController } from '../../handler/http/imageController'
 import { MarkController } from '../../handler/http/markController'
 import { McpServerController } from '../../handler/http/mcpController'
 import { MetricsController } from '../../handler/http/metricsController'
-import { NewsletterController } from '../../handler/http/newsletterController'
 import { PodcastController } from '../../handler/http/podcastController'
 import { PromotionController } from '../../handler/http/promotionController'
 import { RssController } from '../../handler/http/rssController'
@@ -764,10 +763,6 @@ container.register(MetricsController, {
   useFactory: container => new MetricsController(container.resolve(DashboardService), container.resolve(LogsService))
 })
 
-container.register(NewsletterController, {
-  useFactory: container => new NewsletterController(container.resolve(NewsletterService))
-})
-
 container.register(PodcastController, {
   useFactory: container => new PodcastController(container.resolve(PodcastService))
 })
@@ -811,7 +806,8 @@ container.register(UserController, {
       container.resolve(BookmarkOrchestrator),
       container.resolve(QueueClient),
       container.resolve(UserDeletionService),
-      container.resolve(LabService)
+      container.resolve(LabService),
+      container.resolve(NewsletterService)
     )
 })
 

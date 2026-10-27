@@ -26,6 +26,7 @@ export class UserDeletionService {
 
     try {
       // Retire the reservation permanently; user deletion must never make an address reusable.
+      await this.prismaPg().$executeRaw`UPDATE sr_platform_bind SET retired_at=COALESCE(retired_at,now()) WHERE user_id=${userId} AND platform='newsletter'`
       await this.prismaPg().$executeRaw`UPDATE sr_newsletter_address SET retired_at=COALESCE(retired_at,now()) WHERE user_id=${userId}`
       await this.prismaPg()
         .$executeRaw`UPDATE sr_newsletter_receipt SET state='cancelled',lease_token=NULL,lease_until=NULL,completed_at=now() WHERE user_id=${userId} AND state='pending'`
@@ -139,7 +140,7 @@ export class UserDeletionService {
 
   private async deletePlatformBinds(userId: number): Promise<void> {
     const result = await this.prismaPg().sr_platform_bind.deleteMany({
-      where: { user_id: userId }
+      where: { user_id: userId, platform: { not: 'newsletter' } }
     })
     console.log(`Deleted ${result.count} platform bindings`)
   }

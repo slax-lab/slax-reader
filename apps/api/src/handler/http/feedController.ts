@@ -4,7 +4,7 @@ import { inject } from '@/decorators/di'
 import { ContextManager } from '@/utils/context'
 import { Failed, Successed } from '@/utils/responseUtils'
 import { RequestUtils } from '@/utils/requestUtils'
-import { FeedService } from '@/domain/feed'
+import { FeedService, FEED_UUID } from '@/domain/feed'
 import { RssError } from '@/domain/rss/feed'
 import type { FeedEntriesQuery } from '@slax-reader/contracts'
 
@@ -18,6 +18,7 @@ export class FeedController {
       response.headers.set('Cache-Control', 'private, no-store')
       return response
     } catch (error) {
+      if (!(error instanceof RssError)) console.error('Feed request failed', { category: 'unexpected_infrastructure_failure' })
       const failure = error instanceof RssError ? error : new RssError('source_unavailable', 503)
       const response = Failed({ error: failure.code }, failure.status, failure.code)
       response.headers.set('Cache-Control', 'private, no-store')
@@ -39,7 +40,7 @@ export class FeedController {
   async entry(ctx: ContextManager, request: Request) {
     return this.respond(() => {
       const id = new URL(request.url).pathname.split('/')[4]
-      if (!id || !/^[a-f\d-]{36}$/.test(id)) throw new RssError('not_found', 404)
+      if (!id || !FEED_UUID.test(id)) throw new RssError('not_found', 404)
       return this.feed.detail(ctx, id)
     })
   }

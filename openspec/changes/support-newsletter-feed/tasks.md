@@ -49,6 +49,15 @@ Remote dev deployment, hosted RSS compatibility-rule publication and real SMTP a
 - [x] 7.3 Verify complete API/Web suites, running REST Feed/Worker behavior, types and strict OpenSpec validation; complete Bugs/Security/Compliance review and update evidence.
 - [x] 7.4 Update both existing draft PR descriptions and current operator/test guides; clarify composite email fields and Worker deployment prerequisites, without adding assignees/reviewers.
 
-## 8. After merge
+## 8. Approved review revision (2026-10-27)
 
-- [ ] 8.1 After the task PR merges, classify every remaining unchecked task and archive this OpenSpec change through a separate documentation PR.
+- [x] 8.1 Add generic physical Feed sources with a transactional old-to-new write mirror and explicit backfill; preserve legacy RSS writes and sync client aliases.
+- [x] 8.2 Move immutable Newsletter addresses into platform bindings, retain overlap tombstones, and add a BIGINT receipt primary key without destroying legacy processing identities.
+- [x] 8.3 Remove deployment boolean admission, consolidate address setup into user settings, and await synchronous publication with pending dedupe and durable cancellation.
+- [x] 8.4 Reuse quiet pure content extraction, preserve attachment metadata/existing links, filter explicit tracking pixels and provide offline EML preview/local replay tooling.
+- [x] 8.5 Update Web setup calls and repair states, verify actual browser behavior and obtain renewed human hands-on acceptance.
+- [ ] 8.6 Update private pilot configuration and rollout/test guides, run generation/full checks/local Worker verification and three-pass review, then update the original PRs. Record hosted SMTP and real EML gaps explicitly.
+
+## 9. Archive after merge
+
+- [ ] 9.1 After the task PR merges, classify every remaining unchecked task and archive this OpenSpec change through a separate documentation PR.

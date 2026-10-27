@@ -1,3 +1,5 @@
+> Current implementation decision (2026-10-27 review revision): immutable Newsletter platform bindings and BIGINT receipt primary keys replace the runtime registry/UUID-key design. New email awaits publication; sanitized MIME staging plus historical raw recovery remain until an SMTP retry experiment permits removal. NEWSLETTER_ENABLED is removed; non-dev domains are explicitly empty during the pilot. The review-revision record below supersedes earlier implementation details.
+
 > Current rollout decision (2026-10-27): Newsletter synchronization is deferred. The REST-first revision at the end of this record supersedes earlier Newsletter stream/publication acceptance requirements. RSS compatibility filtering and existing collection synchronization still apply.
 
 > Current routing decision: feed+account@newsletterreader.slax.dev for dev and feed+account@newsletterreader.slax.com for production, confirmed on 2026-10-27. Earlier records below are historical; the latest subaddress revision and operator guide supersede their routing instructions.
@@ -209,3 +211,49 @@ The English [dev operator guide](../../../docs/api/NEWSLETTER-DEV-PILOT.md), Chi
 ### REST-first local pre-push review
 
 The requesting-code-review reviewer independently examined the complete revision against `8f59762cfb5c47d62f6fafbbeabdcd47e3fc8eed`, then re-read the completed validation/operator evidence, and reported **no Important findings or Nits** in Bugs, Security or Compliance. The parent also checked stale-row exclusion, RSS-only legacy overlays/history, REST mode transitions and receipt/body ownership from the real HTTP exercise. The private repository's current diff contains README only; its approved TOML values are untouched. No dependency, covert external call, private-file read/copy, email-data log or weakened authorization was added. No newly authored CLI, Extension or Mobile shipped/package behavior or consumed contract change requires a version decision. Draft PR updates preserve their existing review/assignment state; the archive task remains deferred until merge.
+
+## Approved review revision (2026-10-27)
+
+### Scope and safety decisions
+
+The user approved the revised plan and requested implementation in the existing worktree and PRs. This revision consolidates address GET into UserController and provisioning into user setting enable, stores immutable Newsletter platform bindings, adds a BIGINT receipt primary key while preserving UUID compatibility, and expands sources into physical sr_feed with old RSS write authority and transactional mirroring/backfill. The runtime registry is replaced; guarded legacy projections remain for old Workers. Source IDs and legacy client projections are preserved.
+
+Review identified a gap in the requested cron removal: arbitrary Worker errors do not establish sender retries. The event now awaits publication and propagates failures, while cleaned HTML/metadata is staged as MIME readable by old processors. No new original EML or binary attachment is persisted. The bounded five-minute recovery and old receipt compatibility columns stay until SMTP evidence and drain permit a later simplification. Generic-only Newsletter orphan cleanup now removes entries/body references after subscription deletion.
+
+Private config changes remove the obsolete boolean, retain the dev newsletterreader.slax.dev domain, and explicitly clear beta/prod/legacy-main domains. A byte-for-byte selected-key comparison confirms all unrelated TOML bytes remain unchanged. Explicit empty values are required because --keep-vars otherwise preserves omitted remote bindings. No private config, SMTP, DNS or remote database has been deployed/changed by this revision.
+
+### Automated checks
+
+- Regression-first tests reproduced synchronous failure being swallowed, pending duplicate non-resumption, strict cursor/unknown-anchor behavior, missing diagnostics, generic Newsletter orphan retention, zero-axis trackers and old address/projection gaps; fixes were verified GREEN.
+- Full API suite: **2576 passed / 112 skipped**, 197 files passed / 14 skipped. Existing opt-in integration/sample skips remain; changed persistence also ran against native PostgreSQL below.
+- Full Web suite with explicit public fixture configuration: **2566 passed / 3 skipped**, 225 files passed / 1 skipped. An earlier run without required public configuration failed two locale tests; the configured complete run supersedes it. A non-fatal existing api.test DNS diagnostic was printed without a failed/unhandled-error summary.
+- Focused persistence/Feed/RSS/parser/PowerSync tests: **107 passed**, six files. Additional EML script tests pass; the content/parser/script focused run passed **17 tests**.
+- gen:diff generated an unapplied index-name correction for the cloned Feed unique index; it is reviewed and retained as a separate migration. migration:local applied PostgreSQL and worktree-local D1/fulltext migrations using disposable PostgreSQL. gen:all regenerated Prisma/router/DI and runtime types; manually maintained Env bindings no longer contain the obsolete flag.
+- API/contracts and clean Web typechecks passed. The first Web typecheck overlapped the temporary preview and picked up its plugin declarations; stopping the preview and regenerating normal Nuxt types resolved that cache contamination without product changes. Scoped API and Web ESLint have **0 errors** (existing any/unused/ignored-test warnings remain). git diff --check passed.
+- Strict OpenSpec: **79 passed / 0 failed**. A task group numbering warning during documentation editing was corrected before the final validation.
+
+### Native PostgreSQL migration exercise
+
+PostgreSQL 17.6 ran in the owned disposable slax-newsletter-revision-pg container. A separate temporary database applied the actual old binding/RSS/Newsletter DDL and actual three revision migrations. Three independent clients attempted INSERT/UPDATE/DELETE while the migration held SHARE ROW EXCLUSIVE through trigger installation and backfill. pg_locks showed all three RowExclusiveLock requests ungranted and blocked by the migration connection. After commit all writers completed; exact old/new source row equality included lease, retry, history, metadata and timestamps, and the deleted row stayed absent.
+
+Old UUID and new BIGINT receipt queries, new binding→old recipient lookup, old address→binding, owner-checked receipt joins, and both old/new retirement/delete paths passed. The temporary database was dropped. Detailed local report: /tmp/newsletter-postgres-race-report.md; only synthetic data was used.
+
+### Running Workers and EML tool
+
+The HTTP harness applied full historical PostgreSQL/logs/D1 migrations and ran actual local Edge/Core/R2. It passed authentication/bookmark smoke, settings-based address creation, exact prefixed addresses, malformed/foreign envelope rejection before receipts, mixed-case envelope matching, A/B body isolation, repeat Message-ID dedupe, and body reads. It additionally invoked the actual newsletter:test delivery command twice against Wrangler; one receipt/entry remained. This establishes local Worker dispatch/storage, not hosted SMTP/routing.
+
+Synthetic offline EML preview produced HTML/text/report with CSP preventing external image/resource loads and a tracker removal report. Preview has no database/R2/network path. Real user EML was not yet supplied; keep it outside Git. The replay script permits localhost HTTP only, encodes plus with URLSearchParams and rejects redirects.
+
+### Web and human acceptance
+
+Actual components/composables ran in an isolated Nuxt fixture with synthetic HTTP data: 1440px light, 390px dark and 768px e-ink, reduced motion, keyboard Tab/Enter and clipboard. Each case exercised missing account → reserved account error → repair to alex → setting enable then read-only GET → exact feed+alex@newsletterreader.slax.dev copy. No address POST, page errors or document overflow. Preview displays attachment metadata and the no-file-storage notice. Temporary fixture repairs were outside product code.
+
+On 2026-10-27 the user personally completed the prepared preview steps (reserved account error, alex repair, address creation/copy and attachment explanation) and answered “已操作，可以接受”. No further adjustment was requested. This renews acceptance for the changed setup flow; earlier acceptance alone was not reused.
+
+### Review and remaining hosted work
+
+Fresh independent Bugs/Security/Compliance review of the whole branch found no remaining Important findings or Nits. Earlier Important findings (zero-axis images, staged JSON being cancelled by old MIME processors, missing reverse address projection, and generic-only Newsletter orphan retention) were fixed with regression tests and scoped re-review. Change-id: support-newsletter-feed.
+
+Not verified: hosted receiving DNS/base rule/Subaddressing, actual third-party Newsletter confirmation/content, the user's real EML, actual hosted PowerSync physical-table alias delivery/A-B isolation, and original sender SMTP retry after infrastructure failure. These need operator access or later input and are listed in docs/api/NEWSLETTER-DEV-PILOT.md. Existing recovery remains rather than assuming SMTP retry. No production activation, merges or remote migrations performed.
+
+Version assessment: Web/API do not use package increments. CLI/Extension/Mobile source/dependencies/package output and their consumed RSS projection remain unchanged; the server table is aliased back to the same client name and fields. No application version bump is required for this revision.

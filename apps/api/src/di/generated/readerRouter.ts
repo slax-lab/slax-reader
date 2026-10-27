@@ -16,7 +16,6 @@ import { SubscriptionController } from '../../handler/http/subscriptionControlle
 import { TagController } from '../../handler/http/tagController'
 import { RssController } from '../../handler/http/rssController'
 import { FeedController } from '../../handler/http/feedController'
-import { NewsletterController } from '../../handler/http/newsletterController'
 import { UserController } from '../../handler/http/userController'
 import { McpServerController } from '../../handler/http/mcpController'
 import { SyncController } from '../../handler/http/syncController'
@@ -392,14 +391,6 @@ export function getRouter(container: Container) {
     const controller = container.resolve(FeedController)
     return await controller.entry(ctx, req)
   })
-  router.get('/v1/user/newsletter_address', async (req: Request, ctx: ContextManager) => {
-    const controller = container.resolve(NewsletterController)
-    return await controller.address(ctx, req)
-  })
-  router.post('/v1/user/newsletter_address', async (req: Request, ctx: ContextManager) => {
-    const controller = container.resolve(NewsletterController)
-    return await controller.provision(ctx, req)
-  })
   router.post('/v1/user/login', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(UserController)
     return await controller.handleUserLoginRequest(ctx, req)
@@ -427,6 +418,10 @@ export function getRouter(container: Container) {
   router.post('/v1/user/setting/enable', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(UserController)
     return await controller.handleEnableUserSettingRequest(ctx, req)
+  })
+  router.get('/v1/user/newsletter_address', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(UserController)
+    return await controller.newsletterAddress(ctx, req)
   })
   router.post('/v1/user/setting/disable', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(UserController)

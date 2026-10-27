@@ -6,6 +6,8 @@ import { RssContent } from './rss/content'
 import { RssError } from './rss/feed'
 import type { FeedEntriesQuery, FeedEntriesResponse, FeedEntry, FeedEntryDetail, FeedKind, FeedSubscription, FeedSubscriptionsResponse } from '@slax-reader/contracts'
 
+export const FEED_UUID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i
+
 const kindSet = (kinds: FeedKind[]) => [...new Set(kinds)].sort().join(',')
 
 export function encodeFeedCursor(userId: number, subscription: string | null, kinds: FeedKind[], row: Pick<FeedEntryRow, 'sort_at' | 'id'>): string {
@@ -17,7 +19,7 @@ export function decodeFeedCursor(raw: string | undefined, userId: number, subscr
   try {
     if (raw.length > 1024) throw new Error()
     const cursor = JSON.parse(atob(raw))
-    if (cursor.userId !== userId || cursor.subscription !== subscription || cursor.kinds !== kindSet(kinds) || !/^[a-f\d-]{36}$/.test(cursor.id) || typeof cursor.at !== 'string')
+    if (cursor.userId !== userId || cursor.subscription !== subscription || cursor.kinds !== kindSet(kinds) || !FEED_UUID.test(cursor.id) || typeof cursor.at !== 'string')
       throw new Error()
     const at = new Date(cursor.at)
     if (!Number.isFinite(at.valueOf())) throw new Error()
@@ -74,9 +76,11 @@ export class FeedService {
     const limit = query.limit === undefined ? 20 : Number(query.limit)
     if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new RssError('not_found', 400)
     if (query.fetch_history !== undefined && query.fetch_history !== '1') throw new RssError('not_found', 400)
-    if (query.before !== undefined && (query.cursor !== undefined || !/^[a-f\d-]{36}$/.test(query.before))) throw new RssError('not_found', 400)
+    if (query.before !== undefined && (query.cursor !== undefined || !FEED_UUID.test(query.before))) throw new RssError('not_found', 400)
     const subscription = query.subscription_id || null
+    if (subscription && !FEED_UUID.test(subscription)) throw new RssError('not_found', 400)
     const anchor = query.before ? await this.repo.entry(ctx.getUserId(), query.before, kinds) : null
+    if (query.before && !anchor) throw new RssError('not_found', 404)
     if (anchor && (!kinds.includes(anchor.kind) || (subscription && anchor.subscription_id !== subscription))) throw new RssError('not_found', 404)
     const cursor = anchor ? { at: anchor.sort_at, id: anchor.id } : decodeFeedCursor(query.cursor, ctx.getUserId(), subscription, kinds)
     if (!kinds.length) return { items: [], next_cursor: null, has_more: false, cached_more: false, history_status: 'exhausted', retry_at: null }

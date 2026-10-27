@@ -128,7 +128,6 @@ async function main() {
     const vars = {
       RUN_ENV: 'development',
       RUN_TYPE: 'dev',
-      NEWSLETTER_ENABLED: 'true',
       NEWSLETTER_DOMAIN: newsletterDomain,
       IMAGER_CHECK_DIGST_SALT: 'isolated-newsletter-images',
       JWT_ALGORITHMS: 'HS256',
@@ -342,12 +341,9 @@ async function main() {
         200
       )
     }
-    for (const method of ['GET', 'POST']) {
-      const result = await request('daguang-address-' + method, '/v1/user/newsletter_address', { method, headers: secondHeaders })
-      assert.equal(result.body.code, 200)
-      if (method === 'POST') assert.equal(result.body.data.address, `feed+daguang@${newsletterDomain}`)
-      else assert.equal(result.body.data.status, 'not_provisioned')
-    }
+    const daguangAddress = await request('daguang-address-GET', '/v1/user/newsletter_address', { headers: secondHeaders })
+    assert.equal(daguangAddress.body.code, 200)
+    assert.equal(daguangAddress.body.data.address, `feed+daguang@${newsletterDomain}`)
     const rejectionEvidence = []
     for (const to of [
       `feed@${newsletterDomain}`,
@@ -395,7 +391,7 @@ async function main() {
       ).body.code,
       200
     )
-    const address = await request('newsletter-address', '/v1/user/newsletter_address', { method: 'POST', headers: mailHeaders })
+    const address = await request('newsletter-address', '/v1/user/newsletter_address', { headers: mailHeaders })
     assert.equal(address.body.data.address, `feed+newsletter-smoke@${newsletterDomain}`)
     const rawMail =
       'From: Smoke Weekly <weekly@example.com>\r\nTo: ignored@other.example\r\nSubject: Newsletter runtime smoke\r\nMessage-ID: <newsletter-runtime-smoke@example.com>\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Runtime newsletter body</p><script>throw 1</script><img src="cid:part">'
@@ -411,6 +407,26 @@ async function main() {
       assert.equal(response.status, 200, await response.text())
     }
     await poll(() => resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_newsletter_receipt WHERE state='done'") === '1', 'newsletter publication')
+    const emlFile = resolve(resources.workspace, 'synthetic-newsletter.eml')
+    writeFileSync(emlFile, rawMail)
+    assert.equal(
+      await resources.run('newsletter-eml-replay', 'pnpm', [
+        'newsletter:test',
+        '--mode',
+        'deliver',
+        '--eml',
+        emlFile,
+        '--edge',
+        `http://localhost:${httpPort}`,
+        '--to',
+        `feed+newsletter-smoke@${newsletterDomain}`,
+        '--repeat',
+        '2'
+      ]),
+      0
+    )
+    assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_newsletter_receipt'), '1')
+
     const feed = await request('newsletter-feed', '/v1/feed/entries', {
       headers: mailHeaders
     })

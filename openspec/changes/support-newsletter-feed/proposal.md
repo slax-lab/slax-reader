@@ -6,8 +6,8 @@ Users need a dedicated Newsletter receiving address and one Feed destination for
 
 ## What Changes
 
-- Add an independently gated Newsletter feature with an account-derived, permanent receiving address and user-isolated sender sources.
-- Receive bounded MIME messages through the Edge Worker, sanitize the body, and store it in R2 with durable receipt recovery and duplicate suppression.
+- Add a user-Lab-gated Newsletter feature with an account-derived, permanent receiving address and user-isolated sender sources.
+- Receive bounded MIME messages through the Edge Worker, process content quietly, and store HTML in R2 with synchronous publication and duplicate suppression.
 - Add authenticated Feed read APIs. Newsletter uses REST in the initial rollout; remove its PowerSync stream and client subscription while retaining RSS-only legacy APIs and sync projections.
 - Always display Feed in Web, including setup and disabled states, address provisioning, merged reading, and existing RSS management. With Newsletter enabled, read the whole unified Feed through REST for one ordered cursor; RSS-only sessions retain existing local-first PowerSync behavior.
 - Use dev feed+account@newsletterreader.slax.dev and production feed+account@newsletterreader.slax.com, one literal feed route plus Subaddressing per environment, and dev-first admission. Preserve existing root-domain mail services and business forwarding.
@@ -25,3 +25,7 @@ Users need a dedicated Newsletter receiving address and one Feed destination for
 ## Impact
 
 API Workers, PostgreSQL schema and migration, R2 objects, shared TypeScript contracts, PowerSync rules and Web local schema/UI. Introduces pinned postal-mime. Mobile, CLI and Extension continue using unchanged RSS contracts. The user explicitly deferred Newsletter PowerSync on 2026-10-27 to simplify initial debugging. The user superseded the root-domain pilot on 2026-10-27 and explicitly selected the fixed feed+ prefix and newsletterreader subdomains. Production activation still requires the compatibility release on all Workers sharing the database, a verified production Worker target, and preservation of existing business forwarding. Only newsletterreader.slax.com receives production mail; root slax.com Feishu MX and slax.app forwarding remain outside this change.
+
+## Approved review revision
+
+The user approved the 2026-10-27 plan revision and implementation in the existing worktree. Replace the dedicated address registry at runtime with immutable Newsletter platform bindings; provision through user setting enable and retain read-only address GET. Expand RSS sources into physical `sr_feed` with a transactionally installed old-to-new write mirror and ID-preserving backfill. Remove `NEWSLETTER_ENABLED`; only dev has a domain during the pilot. New receives await publication, preserve attachment metadata and existing external links, filter explicit tracking pixels and use quiet shared extraction. Real EML is supplied later. Existing pending raw-mail obligations retain compatibility recovery until drained; hosted SMTP retry behavior is a release gate rather than an assumed guarantee.

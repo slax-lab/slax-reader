@@ -85,6 +85,7 @@ beforeAll(async () => {
   })
   await db.exec(`
     CREATE TABLE sr_user(id INT PRIMARY KEY, deleted_at TIMESTAMP, lang TEXT DEFAULT 'en');
+    CREATE TABLE sr_platform_bind(id SERIAL PRIMARY KEY,uuid TEXT UNIQUE DEFAULT gen_random_uuid()::text,user_id INT,platform TEXT,platform_id TEXT,user_name TEXT,created_at TIMESTAMP DEFAULT now(),UNIQUE(user_id,platform));
     CREATE TABLE sr_user_lab_feature(user_id INT, feature TEXT, enabled BOOLEAN, UNIQUE(user_id,feature));
     CREATE TABLE sr_bookmark(id SERIAL PRIMARY KEY,target_url TEXT,private_user INT,host_url TEXT,title TEXT,description TEXT,created_at TIMESTAMP,updated_at TIMESTAMP,published_at TIMESTAMP,status TEXT,UNIQUE(target_url,private_user));
     CREATE TABLE sr_user_bookmark(id SERIAL PRIMARY KEY,uuid TEXT DEFAULT gen_random_uuid()::text,user_id INT,bookmark_id INT,updated_at TIMESTAMP,deleted_at TIMESTAMP,archive_status INT DEFAULT 0,archived_at TIMESTAMP,UNIQUE(user_id,bookmark_id));
@@ -99,10 +100,13 @@ beforeAll(async () => {
   const localFirst = new URL('../../../prisma/pg_migrations/20261019090000_rss_local_first/migration.sql', import.meta.url)
   await db.exec(await readFile(localFirst, 'utf8'))
   await db.exec(await readFile(new URL('../../../prisma/pg_migrations/20261022090000_newsletter_feed/migration.sql', import.meta.url), 'utf8'))
+  await db.exec(await readFile(new URL('../../../prisma/pg_migrations/20261027100000_newsletter_review_revision/migration.sql', import.meta.url), 'utf8'))
+  await db.exec(await readFile(new URL('../../../prisma/pg_migrations/20261027141709_newsletter_review_revision_check/migration.sql', import.meta.url), 'utf8'))
+  await db.exec(await readFile(new URL('../../../prisma/pg_migrations/20261027150000_newsletter_overlap_projection/migration.sql', import.meta.url), 'utf8'))
   repo = new RssRepo(() => adapter(db))
 }, 30_000)
 beforeEach(async () => {
-  await db.exec(`TRUNCATE sr_rss_feed,sr_rss_entry,sr_rss_subscription,sr_rss_save_job,sr_user_bookmark,sr_user_delete_bookmark,sr_bookmark,sr_user_lab_feature,sr_user CASCADE;
+  await db.exec(`TRUNCATE sr_feed,sr_rss_feed,sr_rss_entry,sr_rss_subscription,sr_rss_save_job,sr_user_bookmark,sr_user_delete_bookmark,sr_bookmark,sr_user_lab_feature,sr_user CASCADE;
   INSERT INTO sr_user(id) VALUES(1),(2);
   INSERT INTO sr_user_lab_feature VALUES(1,'rss',true),(2,'rss',true);`)
 })
@@ -632,4 +636,13 @@ describe('Feed HTTP exercise with PostgreSQL and cached content', () => {
       await new Promise<void>((resolve, reject) => server.close(error => (error ? reject(error) : resolve())))
     }
   })
+})
+
+test('generic Newsletter orphans lose entries while subscribed old mail survives RSS retention', async () => {
+  await db.exec(`INSERT INTO sr_feed(id,feed_url,kind,created_at) VALUES ('new-mail-orphan','newsletter:orphan','newsletter','2000-01-01'),('new-mail-active','newsletter:active','newsletter','2000-01-01');
+    INSERT INTO sr_rss_entry(feed_id,entry_key,title,summary,content_key,sort_at,first_seen_at) VALUES ('new-mail-orphan','one','Orphan','','rss-content/private-orphan','2000-01-01','2000-01-01'),('new-mail-active','two','Active','','rss-content/active','2000-01-01','2000-01-01');
+    INSERT INTO sr_rss_subscription(user_id,feed_id) VALUES (1,'new-mail-active');`)
+  await repo.prune()
+  expect((await db.query("SELECT feed_id FROM sr_rss_entry WHERE feed_id LIKE 'new-mail-%' ORDER BY feed_id")).rows).toEqual([{ feed_id: 'new-mail-active' }])
+  expect((await db.query("SELECT id FROM sr_feed WHERE id LIKE 'new-mail-%' ORDER BY id")).rows).toEqual([{ id: 'new-mail-active' }])
 })

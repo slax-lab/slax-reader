@@ -1,7 +1,6 @@
 /* eslint-disable */
 // Env bindings are maintained manually without configuration values; pnpm types refreshes runtime types only.
 interface __BaseEnv_Env {
-  NEWSLETTER_ENABLED?: string
   NEWSLETTER_DOMAIN?: string
   API_QUEUE_CHANNELS?: string
   KV: KVNamespace

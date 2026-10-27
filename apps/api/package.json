@@ -92,6 +92,7 @@
     "types": "tsx --tsconfig tsconfig.json script/generate-worker-types.ts",
     "typecheck": "pnpm --filter @slax-reader/contracts typecheck && tsc --project tsconfig.json --noEmit",
     "test": "vitest run --config vitest.config.ts",
+    "newsletter:test": "tsx --tsconfig tsconfig.json script/newsletter-test.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "test:http": "tsx --tsconfig tsconfig.json test/runtime/httpSmoke.ts",
     "test:integration:local": "tsx --tsconfig tsconfig.json test/runtime/integrationSmoke.ts",

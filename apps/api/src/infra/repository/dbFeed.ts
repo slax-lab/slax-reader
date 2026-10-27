@@ -27,7 +27,7 @@ export class FeedRepo {
 
   async subscriptions(userId: number, kinds: FeedKind[]): Promise<FeedSubscriptionRow[]> {
     return this.prismaPg().$queryRaw`SELECT f.*,s.id,s.feed_id,s.user_id,s.remark
-      FROM sr_rss_subscription s JOIN sr_rss_feed f ON f.id=s.feed_id
+      FROM sr_rss_subscription s JOIN sr_feed f ON f.id=s.feed_id
       JOIN sr_user u ON u.id=s.user_id AND u.deleted_at IS NULL
       JOIN sr_user_lab_feature l ON l.user_id=s.user_id AND l.feature=f.kind AND l.enabled
       WHERE s.user_id=${userId} AND f.kind=ANY(${kinds}::text[]) ORDER BY s.created_at,s.id`
@@ -35,7 +35,7 @@ export class FeedRepo {
 
   async entries(userId: number, kinds: FeedKind[], subscription: string | null, cursor: RssCursor | null, limit: number, withHistory = false): Promise<FeedEntryRow[]> {
     return this.prismaPg().$queryRaw`SELECT e.*,f.kind,s.id AS subscription_id,COALESCE(NULLIF(s.remark,''),f.title) AS source_title,ub.uuid AS bookmark_user_uuid
-      FROM sr_rss_entry e JOIN sr_rss_feed f ON f.id=e.feed_id JOIN sr_rss_subscription s ON s.feed_id=e.feed_id
+      FROM sr_rss_entry e JOIN sr_feed f ON f.id=e.feed_id JOIN sr_rss_subscription s ON s.feed_id=e.feed_id
       JOIN sr_user u ON u.id=s.user_id AND u.deleted_at IS NULL
       JOIN sr_user_lab_feature l ON l.user_id=s.user_id AND l.feature=f.kind AND l.enabled
       LEFT JOIN sr_bookmark b ON f.kind='rss' AND b.target_url=e.article_url AND b.private_user=${userId}
@@ -49,7 +49,7 @@ export class FeedRepo {
     const [row] = await this.prismaPg().$queryRaw<
       FeedEntryRow[]
     >`SELECT e.*,f.kind,s.id AS subscription_id,COALESCE(NULLIF(s.remark,''),f.title) AS source_title,ub.uuid AS bookmark_user_uuid
-      FROM sr_rss_entry e JOIN sr_rss_feed f ON f.id=e.feed_id JOIN sr_rss_subscription s ON s.feed_id=e.feed_id
+      FROM sr_rss_entry e JOIN sr_feed f ON f.id=e.feed_id JOIN sr_rss_subscription s ON s.feed_id=e.feed_id
       JOIN sr_user u ON u.id=s.user_id AND u.deleted_at IS NULL
       JOIN sr_user_lab_feature l ON l.user_id=s.user_id AND l.feature=f.kind AND l.enabled
       LEFT JOIN sr_bookmark b ON f.kind='rss' AND b.target_url=e.article_url AND b.private_user=${userId}
@@ -60,7 +60,7 @@ export class FeedRepo {
   }
 
   async historyFeeds(userId: number, subscription: string | null): Promise<RssFeedRow[]> {
-    return this.prismaPg().$queryRaw`SELECT f.* FROM sr_rss_feed f JOIN sr_rss_subscription s ON s.feed_id=f.id
+    return this.prismaPg().$queryRaw`SELECT f.* FROM sr_feed f JOIN sr_rss_subscription s ON s.feed_id=f.id
       JOIN sr_user u ON u.id=s.user_id AND u.deleted_at IS NULL
       JOIN sr_user_lab_feature l ON l.user_id=s.user_id AND l.feature='rss' AND l.enabled
       WHERE f.kind='rss' AND s.user_id=${userId} AND (${subscription}::text IS NULL OR s.id=${subscription})

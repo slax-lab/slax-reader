@@ -1472,7 +1472,7 @@
     "copy": "Copy address",
     "copied": "Copied",
     "address_stable": "This address stays the same if you rename your account.",
-    "privacy": "Remote images load through Slax’s image proxy. Opening a message may still count as a read to its sender. Attachments are not imported.",
+    "privacy": "Remote images load through Slax’s image proxy. Opening a message may still count as a read to its sender. Only attachment names and existing download links are kept; attachment files are not stored.",
     "content_hint": "Content received by email. Remote images use Slax’s image proxy.",
     "errors": {
       "account_taken": "This account name is already in use. Choose another name.",

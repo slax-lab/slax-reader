@@ -168,6 +168,8 @@ model sr_platform_bind {
     user_name   String   @default("")
     created_at  DateTime @default(now())
 
+    retired_at DateTime?
+
     @@unique([user_id, platform])
     @@index([platform, platform_id])
 }
@@ -813,6 +815,32 @@ model sr_rss_feed {
     @@index([next_fetch_at], map: "sr_rss_feed_due")
 }
 
+model sr_feed {
+    kind            String    @default("rss")
+    id              String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+    feed_url        String    @unique
+    title           String    @default("")
+    site_url        String?
+    etag            String?
+    last_modified   String?
+    last_checked_at DateTime?
+    last_success_at DateTime?
+    next_fetch_at   DateTime  @default(now())
+    next_allowed_at DateTime  @default(now())
+    error           String?
+    failure_count   Int       @default(0)
+    lease_token     String?
+    lease_until     DateTime?
+    history_url     String?
+    history_seen    String[]  @default([])
+    history_checked_at DateTime?
+    history_retry_at DateTime?
+    icon_url        String?
+    created_at      DateTime  @default(now())
+
+    @@index([next_fetch_at], map: "sr_feed_due")
+}
+
 model sr_rss_subscription {
     id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
     user_id    Int
@@ -906,9 +934,11 @@ model sr_newsletter_address {
 
 // Pending receipts are durable processing obligations, independent of SMTP retries.
 model sr_newsletter_receipt {
-    id          String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+    id          BigInt    @id @default(autoincrement()) @map("receipt_id")
+    legacy_id   String    @unique @default(dbgenerated("(gen_random_uuid())::text")) @map("id")
+    binding_id  Int?
     user_id     Int
-    address_id  String
+    address_id  String?
     source_key  String
     message_key String
     raw_key     String

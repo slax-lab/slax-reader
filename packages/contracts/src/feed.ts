@@ -36,7 +36,7 @@ export interface FeedEntriesResponse extends Omit<RssEntriesResponse, "items"> {
 export interface NewsletterAddressResponse {
   address: string | null;
   domain: string | null;
-  status: "ready" | "account_required" | "invalid_account" | "unavailable" | "not_provisioned";
+  status: "ready" | "account_required" | "invalid_account" | "unavailable" | "not_provisioned" | "address_reserved";
 }
 export type NewsletterErrorCode = "account_required" | "invalid_account" | "address_reserved" | "lab_disabled" | "unavailable" | "not_found" | "invalid_message" | "limit_reached";
 export interface NewsletterErrorData { error: NewsletterErrorCode; }

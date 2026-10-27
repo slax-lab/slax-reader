@@ -149,15 +149,22 @@ describe('Feed facade', () => {
     repo.enabledKinds.mockResolvedValueOnce(['rss', 'newsletter']).mockResolvedValue(['newsletter'])
     await expect(service.entries(ctx, { fetch_history: '1' })).rejects.toMatchObject({ code: 'not_found', status: 400 })
   })
-  test.each([{ limit: '0' }, { limit: '51' }, { fetch_history: 'true' }, { before: 'bad' }])('rejects malformed queries %j', async query => {
-    const { service, ctx } = wire()
-    await expect(service.entries(ctx, query)).rejects.toMatchObject({ code: 'not_found', status: 400 })
-  })
+  test.each([{ limit: '0' }, { limit: '51' }, { fetch_history: 'true' }, { before: 'bad' }, { before: '-'.repeat(36) }, { subscription_id: '-'.repeat(36) }])(
+    'rejects malformed queries %j',
+    async query => {
+      const { service, ctx } = wire()
+      await expect(service.entries(ctx, query)).rejects.toMatchObject({ code: 'not_found', status: 400 })
+    }
+  )
   test('unexpected infrastructure failures produce a private generic response', async () => {
     const { service, repo, ctx } = wire()
+    const diagnostics = vi.spyOn(console, 'error').mockImplementation(() => {})
     repo.enabledKinds.mockRejectedValue(new Error('private database diagnostics'))
     const response = await new FeedController(service).listSubscriptions(ctx, new Request('https://api.example/v1/feed/subscriptions'))
     expect(response.status).toBe(503)
+    expect(diagnostics).toHaveBeenCalled()
+    expect(JSON.stringify(diagnostics.mock.calls)).not.toContain('private database diagnostics')
+    diagnostics.mockRestore()
     expect(response.headers.get('Cache-Control')).toBe('private, no-store')
     expect(await response.json()).toMatchObject({ message: 'source_unavailable', data: { error: 'source_unavailable' } })
   })
@@ -174,4 +181,10 @@ describe('Feed facade', () => {
     const malformed = await controller.entry(ctx, new Request('https://api.example/v1/feed/entries/not-an-id'))
     expect(malformed.status).toBe(404)
   })
+})
+
+test('an unknown before anchor cannot silently become the first page', async () => {
+  const { service, repo, ctx } = wire()
+  repo.entry.mockResolvedValue(undefined as never)
+  await expect(service.entries(ctx, { before: id })).rejects.toMatchObject({ code: 'not_found', status: 404 })
 })

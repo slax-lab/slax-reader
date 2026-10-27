@@ -38,17 +38,23 @@ beforeEach(() => {
   post.mockReset()
 })
 afterEach(() => {
-  wrappers.splice(0).forEach((wrapper) => wrapper.unmount())
+  wrappers.splice(0).forEach(wrapper => wrapper.unmount())
   vi.restoreAllMocks()
 })
 describe('Newsletter address setup', () => {
-  it('sets the account inline, refreshes the profile, and then provisions the address', async () => {
-    get.mockResolvedValue({
-      address: null,
-      domain: 'newsletterreader.slax.dev',
-      status: 'account_required'
-    })
-    post.mockImplementation(({ url }) => Promise.resolve(url.endsWith('newsletter_address') ? { address: 'feed+reader@newsletterreader.slax.dev', domain: 'newsletterreader.slax.dev', status: 'ready' } : {}))
+  it('sets the account inline, repeats Lab enable, and reads the issued address', async () => {
+    get
+      .mockResolvedValueOnce({
+        address: null,
+        domain: 'newsletterreader.slax.dev',
+        status: 'account_required'
+      })
+      .mockResolvedValueOnce({
+        address: 'feed+reader@newsletterreader.slax.dev',
+        domain: 'newsletterreader.slax.dev',
+        status: 'ready'
+      })
+    post.mockResolvedValue('ok')
     const wrapper = create()
     await flushPromises()
     await wrapper.get('#newsletter-account').setValue('reader')
@@ -59,10 +65,92 @@ describe('Newsletter address setup', () => {
         url: '/v1/user/setting',
         body: { key: 'account', value: 'reader' }
       }),
-      expect.objectContaining({ url: '/v1/user/newsletter_address' })
+      expect.objectContaining({
+        url: '/v1/user/setting/enable',
+        body: { key: 'lab:newsletter' }
+      })
     ])
     expect(user.refreshServerUserInfo).toHaveBeenCalledOnce()
+    expect(get).toHaveBeenCalledTimes(2)
     expect(wrapper.get('.newsletter-address').text()).toBe('feed+reader@newsletterreader.slax.dev')
+  })
+
+  it('keeps the account form accessible when enable succeeds without issuing an address', async () => {
+    get
+      .mockResolvedValueOnce({
+        address: null,
+        domain: 'newsletterreader.slax.dev',
+        status: 'not_provisioned'
+      })
+      .mockResolvedValueOnce({
+        address: null,
+        domain: 'newsletterreader.slax.dev',
+        status: 'account_required'
+      })
+    post.mockResolvedValue('ok')
+    const wrapper = create()
+    await flushPromises()
+    await wrapper.get('[data-provision-address]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('#newsletter-account').exists()).toBe(true)
+    expect(wrapper.find('[data-copy-address]').exists()).toBe(false)
+    expect(post).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: '/v1/user/setting/enable',
+        body: { key: 'lab:newsletter' }
+      })
+    )
+  })
+  it('repairs a binding conflict through account setting, repeated enable, and a fresh address read', async () => {
+    get
+      .mockResolvedValueOnce({
+        address: null,
+        domain: 'newsletterreader.slax.com',
+        status: 'not_provisioned'
+      })
+      .mockResolvedValueOnce({
+        address: 'feed+another@newsletterreader.slax.com',
+        domain: 'newsletterreader.slax.com',
+        status: 'ready'
+      })
+    post.mockRejectedValueOnce({ name: { error: 'address_reserved' } }).mockResolvedValue('ok')
+    const wrapper = create()
+    await flushPromises()
+    await wrapper.get('[data-provision-address]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-copy-address]').exists()).toBe(false)
+    await wrapper.get('#newsletter-account').setValue('another')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(post.mock.calls.map(([options]) => [options.url, options.body])).toEqual([
+      ['/v1/user/setting/enable', { key: 'lab:newsletter' }],
+      ['/v1/user/setting', { key: 'account', value: 'another' }],
+      ['/v1/user/setting/enable', { key: 'lab:newsletter' }]
+    ])
+    expect(wrapper.get('.newsletter-address').text()).toBe('feed+another@newsletterreader.slax.com')
+    expect(wrapper.find('[role=alert]').exists()).toBe(false)
+  })
+  it.each(['account_required', 'invalid_account', 'address_reserved'])('repairs read-only setup status %s after successful Lab enable', async status => {
+    get
+      .mockResolvedValueOnce({
+        address: null,
+        domain: 'newsletterreader.slax.dev',
+        status
+      })
+      .mockResolvedValueOnce({
+        address: 'feed+repaired@newsletterreader.slax.dev',
+        domain: 'newsletterreader.slax.dev',
+        status: 'ready'
+      })
+    post.mockResolvedValue('ok')
+    const wrapper = create()
+    await flushPromises()
+    expect(wrapper.find('[data-copy-address]').exists()).toBe(false)
+    if (status === 'address_reserved') expect(wrapper.get('[role=alert]').text()).toContain('newsletter.errors.address_reserved')
+    await wrapper.get('#newsletter-account').setValue('repaired')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('.newsletter-address').text()).toBe('feed+repaired@newsletterreader.slax.dev')
   })
   it('preserves an issued address even if the current account is empty and exposes copy', async () => {
     get.mockResolvedValue({
@@ -114,15 +202,22 @@ describe('Newsletter address setup', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain('newsletter.errors.invalid_account')
     expect(wrapper.find('#newsletter-account').exists()).toBe(true)
   })
-  it.each([['EXISTS_USER_NAME_ERROR', 'account_taken'], ['ERROR_PARAM', 'invalid_account']])('shows actionable account-setting error %s', async (name, code) => {
-    get.mockResolvedValue({address:null,domain:'newsletterreader.slax.dev',status:'account_required'})
-    post.mockRejectedValue({name})
-    const wrapper=create()
+  it.each([
+    ['EXISTS_USER_NAME_ERROR', 'account_taken'],
+    ['ERROR_PARAM', 'invalid_account']
+  ])('shows actionable account-setting error %s', async (name, code) => {
+    get.mockResolvedValue({
+      address: null,
+      domain: 'newsletterreader.slax.dev',
+      status: 'account_required'
+    })
+    post.mockRejectedValue({ name })
+    const wrapper = create()
     await flushPromises()
     await wrapper.get('#newsletter-account').setValue('reader')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-    expect(wrapper.get('[role="alert"]').text()).toContain('newsletter.errors.'+code)
+    expect(wrapper.get('[role="alert"]').text()).toContain('newsletter.errors.' + code)
     expect(wrapper.find('#newsletter-account').exists()).toBe(true)
     expect(post).toHaveBeenCalledOnce()
   })
@@ -130,7 +225,7 @@ describe('Newsletter address setup', () => {
     let resolve!: (value: any) => void
     get
       .mockReturnValueOnce(
-        new Promise((r) => {
+        new Promise(r => {
           resolve = r
         })
       )

@@ -13,6 +13,8 @@ import { BookmarkOrchestrator } from '../../domain/orchestrator/bookmark'
 import { QueueClient } from '../../infra/queue/queueClient'
 import { UserDeletionService } from '../../domain/userDeletion'
 import { LabService } from '../../domain/lab'
+import { NewsletterService } from '@/domain/newsletter'
+import { NewsletterError } from '@/domain/newsletter/parser'
 
 @Controller('/v1/user')
 export class UserController {
@@ -25,7 +27,8 @@ export class UserController {
     @inject(BookmarkOrchestrator) private bmOrch: BookmarkOrchestrator,
     @inject(QueueClient) private queueClient: QueueClient,
     @inject(UserDeletionService) private userDeletionService: UserDeletionService,
-    @inject(LabService) private labService: LabService
+    @inject(LabService) private labService: LabService,
+    @inject(NewsletterService) private newsletter: NewsletterService
   ) {
     this.bookmarkOrchestrator = bmOrch
   }
@@ -135,8 +138,34 @@ export class UserController {
     const req = await RequestUtils.json<{ key: string }>(request)
     if (!req) return Failed(ErrorParam())
 
-    const res = await this.userService.enableUserSetting(ctx, req.key, true)
-    return Successed(res)
+    try {
+      const res = await this.userService.enableUserSetting(ctx, req.key, true)
+      if (req.key === 'lab:newsletter') {
+        try {
+          await this.newsletter.address(ctx, true)
+        } catch (error) {
+          // The enabled Lab exposes account repair even before an address can be issued.
+          if (!(error instanceof NewsletterError) || !['account_required', 'invalid_account', 'address_reserved'].includes(error.code)) throw error
+        }
+      }
+      return Successed(res)
+    } catch (error) {
+      if (!(error instanceof NewsletterError)) throw error
+      return Failed({ error: error.code }, error.status, error.code)
+    }
+  }
+
+  @Get('/newsletter_address')
+  public async newsletterAddress(ctx: ContextManager, _request: Request) {
+    let response: Response
+    try {
+      response = Successed(await this.newsletter.address(ctx, false))
+    } catch (error) {
+      if (!(error instanceof NewsletterError)) throw error
+      response = Failed({ error: error.code }, error.status, error.code)
+    }
+    response.headers.set('Cache-Control', 'private, no-store')
+    return response
   }
 
   /**
