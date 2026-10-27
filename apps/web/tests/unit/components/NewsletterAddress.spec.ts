@@ -45,10 +45,10 @@ describe('Newsletter address setup', () => {
   it('sets the account inline, refreshes the profile, and then provisions the address', async () => {
     get.mockResolvedValue({
       address: null,
-      domain: 'slax.dev',
+      domain: 'newsletterreader.slax.dev',
       status: 'account_required'
     })
-    post.mockImplementation(({ url }) => Promise.resolve(url.endsWith('newsletter_address') ? { address: 'reader@slax.dev', domain: 'slax.dev', status: 'ready' } : {}))
+    post.mockImplementation(({ url }) => Promise.resolve(url.endsWith('newsletter_address') ? { address: 'feed+reader@newsletterreader.slax.dev', domain: 'newsletterreader.slax.dev', status: 'ready' } : {}))
     const wrapper = create()
     await flushPromises()
     await wrapper.get('#newsletter-account').setValue('reader')
@@ -62,12 +62,12 @@ describe('Newsletter address setup', () => {
       expect.objectContaining({ url: '/v1/user/newsletter_address' })
     ])
     expect(user.refreshServerUserInfo).toHaveBeenCalledOnce()
-    expect(wrapper.get('.newsletter-address').text()).toBe('reader@slax.dev')
+    expect(wrapper.get('.newsletter-address').text()).toBe('feed+reader@newsletterreader.slax.dev')
   })
   it('preserves an issued address even if the current account is empty and exposes copy', async () => {
     get.mockResolvedValue({
-      address: 'original@slax.dev',
-      domain: 'slax.dev',
+      address: 'feed+original@newsletterreader.slax.dev',
+      domain: 'newsletterreader.slax.dev',
       status: 'ready'
     })
     const copy = vi.fn().mockResolvedValue(undefined)
@@ -80,14 +80,14 @@ describe('Newsletter address setup', () => {
     expect(wrapper.find('form').exists()).toBe(false)
     await wrapper.get('[data-copy-address]').trigger('click')
     await flushPromises()
-    expect(copy).toHaveBeenCalledWith('original@slax.dev')
+    expect(copy).toHaveBeenCalledWith('feed+original@newsletterreader.slax.dev')
     expect(wrapper.text()).toContain('newsletter.address_stable')
     expect(wrapper.text()).toContain('newsletter.privacy')
   })
   it('renders the reservation error inline and keeps setup available for retry', async () => {
     get.mockResolvedValue({
       address: null,
-      domain: 'slax.dev',
+      domain: 'newsletterreader.slax.dev',
       status: 'not_provisioned'
     })
     post.mockRejectedValue({ name: { error: 'address_reserved' } })
@@ -103,7 +103,7 @@ describe('Newsletter address setup', () => {
   it('opens the inline account form if provisioning reports a changed invalid account', async () => {
     get.mockResolvedValue({
       address: null,
-      domain: 'slax.dev',
+      domain: 'newsletterreader.slax.dev',
       status: 'not_provisioned'
     })
     post.mockRejectedValue(new Error('invalid_account'))
@@ -115,7 +115,7 @@ describe('Newsletter address setup', () => {
     expect(wrapper.find('#newsletter-account').exists()).toBe(true)
   })
   it.each([['EXISTS_USER_NAME_ERROR', 'account_taken'], ['ERROR_PARAM', 'invalid_account']])('shows actionable account-setting error %s', async (name, code) => {
-    get.mockResolvedValue({address:null,domain:'slax.dev',status:'account_required'})
+    get.mockResolvedValue({address:null,domain:'newsletterreader.slax.dev',status:'account_required'})
     post.mockRejectedValue({name})
     const wrapper=create()
     await flushPromises()
@@ -143,11 +143,11 @@ describe('Newsletter address setup', () => {
     user.userInfo.userId = 2
     await nextTick()
     resolve({
-      address: 'private@slax.dev',
-      domain: 'slax.dev',
+      address: 'feed+private@newsletterreader.slax.dev',
+      domain: 'newsletterreader.slax.dev',
       status: 'ready'
     })
     await flushPromises()
-    expect(wrapper.text()).not.toContain('private@slax.dev')
+    expect(wrapper.text()).not.toContain('feed+private@newsletterreader.slax.dev')
   })
 })

@@ -5,7 +5,7 @@ Enable private Newsletter delivery and reading through permanent account-derived
 ## ADDED Requirements
 
 ### Requirement: Permanent account-derived receiving address
-The system SHALL provision a Newsletter address only for an authenticated active user with Newsletter enabled and explicit deployment admission configuration. The first local part SHALL be the validated lowercase account. GET SHALL have no provisioning side effect; POST SHALL be idempotent. An issued address SHALL remain stable after account changes and SHALL never be reassigned after retirement or user deletion.
+The system SHALL provision a Newsletter address only for an authenticated active user with Newsletter enabled and explicit deployment admission configuration. The receiving local part SHALL be feed+ followed by the first validated lowercase account token of at most 59 ASCII characters. The registry SHALL retain the account token, and Web SHALL display/copy the complete prefixed address. GET SHALL have no provisioning side effect; POST SHALL be idempotent. An issued address SHALL remain stable after account changes and SHALL never be reassigned after retirement or user deletion.
 
 #### Scenario: Provision and rename
 - **WHEN** a user provisions an address and later changes account or display name
@@ -19,16 +19,20 @@ The system SHALL provision a Newsletter address only for an authenticated active
 - **WHEN** competing requests attempt the same prefix or a deleted user previously held it
 - **THEN** at most one owner receives it and the reservation remains unavailable to others
 
-#### Scenario: Production business address reservation
-- **WHEN** a user queries or provisions daguang@slax.app, including an existing stale binding for that address
-- **THEN** the operation returns address_reserved without issuing or exposing a Newsletter address, while daguang@slax.dev remains eligible and an already issued different address survives a later rename to daguang
+#### Scenario: Fixed prefix and length boundary
+- **WHEN** a user provisions with a 59-character safe account or a 60-character account
+- **THEN** the former receives a 64-octet local part and the latter receives invalid_account without creating a binding; no truncation or extra suffix occurs
 
-#### Scenario: Delivery to the business address
-- **WHEN** a message targeting daguang@slax.app reaches the Newsletter receiver, even with a stale address registry row
-- **THEN** it is rejected without writing a raw object, admitting a receipt or publishing a Newsletter entry
+#### Scenario: Existing canonical registry token
+- **WHEN** a valid account token is already bound in the configured domain and the user later renames
+- **THEN** GET and repeated POST render feed+ followed by the original stored token, while an oversized legacy token remains reserved and is not exposed as an invalid mailbox
+
+#### Scenario: Existing business mail service
+- **WHEN** the account is daguang in the selected Newsletter subdomain
+- **THEN** it can receive a prefixed Newsletter address without claiming daguang@slax.app, and root/foreign-domain mail cannot enter its Newsletter
 
 ### Requirement: Bounded private incoming Newsletter
-The Edge Worker SHALL accept email through a dedicated email handler. Ownership SHALL derive from the full SMTP envelope recipient, configured domain and active registry, never header To. Newsletter Lab and active user SHALL be checked at admission and final commit. The system SHALL bound raw mail to 5 MiB, MIME nesting, part count and headers, admit at most 200 sources per user and 200 new messages per UTC day, and omit attachments. It SHALL not log private email data.
+The Edge Worker SHALL accept email through a dedicated email handler. Ownership SHALL derive from the full SMTP envelope recipient, configured domain and active registry, never header To. Dispatch SHALL require feed+ and exactly one valid non-empty account token, accepting case variations but rejecting bare feed, unprefixed accounts, other prefixes and additional plus details before raw storage. Newsletter Lab and active user SHALL be checked at admission and final commit. The system SHALL bound raw mail to 5 MiB, MIME nesting, part count and headers, admit at most 200 sources per user and 200 new messages per UTC day, and omit attachments. It SHALL not log private email data.
 
 #### Scenario: Valid message and MIME variants
 - **WHEN** an enabled user's bound envelope address receives HTML, plain text or multipart mail
@@ -76,7 +80,7 @@ The system SHALL expose additive private no-store Feed read APIs returning an ex
 - **THEN** the request is rejected without revealing another user's content
 
 ### Requirement: Always-visible Web Feed and dev pilot
-Web SHALL always show Feed in navigation, support stable address provisioning/copy with a first-time account form, and combine independently gated RSS and Newsletter local data or REST fallback. Newsletter sender names SHALL use a local avatar fallback. It SHALL explain lazy remote image privacy and unsupported first-version actions. Local cache and body state SHALL follow account and per-kind enablement. Dev rollout SHALL use account@slax.dev and a root-domain Catch-all to reader-backend. The production address SHALL use account@slax.app; beta/production admission SHALL remain disabled during dev acceptance. Existing literal business address rules SHALL be preserved.
+Web SHALL always show Feed in navigation, support stable address provisioning/copy with a first-time account form, and combine independently gated RSS and Newsletter local data or REST fallback. Newsletter sender names SHALL use a local avatar fallback. It SHALL explain lazy remote image privacy and unsupported first-version actions. Local cache and body state SHALL follow account and per-kind enablement. Dev rollout SHALL use feed+account@newsletterreader.slax.dev and one literal feed@newsletterreader.slax.dev routing rule to reader-backend with Cloudflare Subaddressing enabled. The production address SHALL use feed+account@newsletterreader.slax.com; beta/production admission SHALL remain disabled during dev acceptance. Existing root-domain mail records, Catch-all rules and literal business forwarding SHALL be preserved.
 
 #### Scenario: Both Labs disabled
 - **WHEN** the user opens Feed with both features disabled
@@ -91,5 +95,5 @@ Web SHALL always show Feed in navigation, support stable address provisioning/co
 - **THEN** controls remain usable by keyboard, address text does not overflow and reader content follows existing tokens
 
 #### Scenario: Dev activation and rollback
-- **WHEN** an operator enables the dev root-domain Catch-all after Worker readiness and later stops the pilot
-- **THEN** registered enabled dev users receive mail without per-user routes, unknown addresses are rejected by the Worker, and rollback restores the previous Catch-all action while preserving reservations and content
+- **WHEN** an operator enables the dev literal feed route and Subaddressing after Worker readiness and later stops the pilot
+- **THEN** registered enabled dev users receive mail without per-user routes, unknown feed+ details and the bare feed address are rejected by the Worker, and rollback disables/restores only the pilot feed route while preserving reservations and content

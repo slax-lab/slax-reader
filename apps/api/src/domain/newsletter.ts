@@ -5,7 +5,7 @@ import { BucketClient } from '@/infra/repository/bucketClient'
 import type { LazyInstance } from '@/decorators/lazy'
 import { ContextManager } from '@/utils/context'
 import { hashSHA256 } from '@/utils/strings'
-import { configuredNewsletterDomain, newsletterLocalPart, NewsletterError, parseNewsletter, readNewsletterRaw } from './newsletter/parser'
+import { configuredNewsletterDomain, newsletterRecipientPart, NewsletterError, parseNewsletter, readNewsletterRaw } from './newsletter/parser'
 
 const RAW_PREFIX = 'newsletter-raw/'
 const RAW_CURSOR = 'newsletter-maintenance/raw-gc-cursor'
@@ -28,7 +28,7 @@ export class NewsletterService {
   async receive(message: ForwardableEmailMessage, env: Env): Promise<void> {
     const domain = configuredNewsletterDomain(env)
     const at = message.to.lastIndexOf('@'),
-      part = newsletterLocalPart(message.to.slice(0, at))
+      part = newsletterRecipientPart(message.to.slice(0, at))
     if (!domain || at < 1 || message.to.slice(at + 1).toLowerCase() !== domain || !part) throw new NewsletterError('not_found', 404)
     const recipient = await this.repo.recipient(domain, part)
     if (!recipient) throw new NewsletterError('not_found', 404)

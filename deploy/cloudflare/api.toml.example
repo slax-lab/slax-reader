@@ -19,8 +19,8 @@ cpu_ms = 300000
 
 [vars]
 # Receiving is opt-in after RSS kind isolation and matching sync rules are live.
-# Dev uses slax.dev; production uses slax.app and remains disabled during dev acceptance.
-# daguang@slax.app is a business forwarding address reserved by the application policy.
+# Dev uses newsletterreader.slax.dev; production uses newsletterreader.slax.com and stays disabled.
+# User addresses use feed+account; enable Subaddressing and route the literal feed address.
 NEWSLETTER_ENABLED = "false"
 NEWSLETTER_DOMAIN = ""
 # Local defaults. For remote deployment set RUN_ENV = "prod".

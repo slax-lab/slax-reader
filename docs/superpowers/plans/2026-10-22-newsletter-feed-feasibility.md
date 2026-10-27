@@ -1,6 +1,7 @@
+> Routing decision updated on 2026-10-27: the user selected feed+account@newsletterreader.slax.dev for dev and feed+account@newsletterreader.slax.com for production. Use one literal feed route with Cloudflare Subaddressing. Earlier exact-per-user and root Catch-all notes below are historical; see docs/api/NEWSLETTER-DEV-PILOT.md for current operator instructions.
+
 > Implementation update: `openspec/changes/support-newsletter-feed/design.md` is authoritative for construction. The implementation uses durable raw-message receipts and cron recovery, explicit deployment admission flags, and the dev defaults accepted on 2026-10-22. This feasibility review remains background evidence.
 
-> Superseded routing decision (2026-10-27): the user approved `<account>@slax.dev` for dev and `<account>@slax.app` for production, using root-domain Catch-all routing. The subdomain and exact-address pilot discussions below are historical research, not current operator instructions. `daguang@slax.app` remains a business forwarding address. Follow the current OpenSpec design and [dev rollout guide](../../api/NEWSLETTER-DEV-PILOT.md); production stays disabled during dev acceptance.
 
 # Newsletter and unified Feed feasibility assessment
 

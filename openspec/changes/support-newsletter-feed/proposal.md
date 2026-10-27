@@ -10,8 +10,7 @@ Users need a dedicated Newsletter receiving address and one Feed destination for
 - Receive bounded MIME messages through the Edge Worker, sanitize the body, and store it in R2 with durable receipt recovery and duplicate suppression.
 - Add authenticated Feed read APIs and a Newsletter PowerSync stream while retaining RSS-only legacy APIs and sync projections.
 - Always display Feed in Web, including setup and disabled states, address provisioning, merged reading, and existing RSS management.
-- Use `<account>@slax.dev` for dev and `<account>@slax.app` for production, with one root-domain Catch-all per installation. Start on dev through reader-backend; keep beta/production admission disabled until their separate compatibility and routing acceptance.
-- Reserve `daguang@slax.app` for its existing business forwarding rule. Reject Newsletter provisioning and delivery for this address without blocking the same account on slax.dev or changing an already issued different address.
+- Use dev feed+account@newsletterreader.slax.dev and production feed+account@newsletterreader.slax.com, one literal feed route plus Subaddressing per environment, and dev-first admission. Preserve existing root-domain mail services and business forwarding.
 
 ## Capabilities
 
@@ -25,4 +24,4 @@ Users need a dedicated Newsletter receiving address and one Feed destination for
 
 ## Impact
 
-API Workers, PostgreSQL schema and migration, R2 objects, shared TypeScript contracts, PowerSync rules and Web local schema/UI. Introduces pinned postal-mime. Mobile, CLI and Extension continue using unchanged RSS contracts. The user confirmed the root-domain decision and business reservation on 2026-10-27. Production activation still requires the compatibility release on all Workers sharing the database, a verified production Worker target, and preservation of the existing business forwarding rule. The slax.com Feishu mail service is outside this change.
+API Workers, PostgreSQL schema and migration, R2 objects, shared TypeScript contracts, PowerSync rules and Web local schema/UI. Introduces pinned postal-mime. Mobile, CLI and Extension continue using unchanged RSS contracts. The user superseded the root-domain pilot on 2026-10-27 and explicitly selected the fixed feed+ prefix and newsletterreader subdomains. Production activation still requires the compatibility release on all Workers sharing the database, a verified production Worker target, and preservation of existing business forwarding. Only newsletterreader.slax.com receives production mail; root slax.com Feishu MX and slax.app forwarding remain outside this change.

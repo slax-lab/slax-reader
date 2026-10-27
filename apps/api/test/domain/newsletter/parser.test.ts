@@ -8,7 +8,8 @@ const mail = (body: string, headers = '') =>
 describe('bounded Newsletter input', () => {
   test('canonical account and domain are validated without silently changing unsafe names', () => {
     expect(newsletterLocalPart('Jane.Doe')).toBe('jane.doe')
-    for (const value of ['', '.jane', 'jane.', 'a..b', 'a+b', '你好', 'a'.repeat(65), ' a ']) expect(newsletterLocalPart(value)).toBeNull()
+    expect(newsletterLocalPart('a'.repeat(59))).toHaveLength(59)
+    for (const value of ['', '.jane', 'jane.', 'a..b', 'a+b', '你好', 'a'.repeat(60), ' a ']) expect(newsletterLocalPart(value)).toBeNull()
     expect(newsletterDomain('Slax.Dev')).toBe('slax.dev')
     for (const value of ['', 'https://slax.dev', 'slax.dev/path', 'a@slax.dev', 'slax.dev ', '-a.dev']) expect(newsletterDomain(value)).toBeNull()
   })

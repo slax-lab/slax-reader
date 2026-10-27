@@ -20,9 +20,9 @@
 - [x] 4.1 Generate models/router/DI/types; verify API/contracts/Web typechecks, Edge/Web builds, scoped API lint and strict OpenSpec validation.
 - [x] 4.2 Exercise actual local Workers, PostgreSQL/Prisma and R2 plus Web UI; record outcomes, skipped checks and live deployment gaps in validation.md.
 - [x] 4.3 Review Bugs/Security/Compliance, fix Important findings and obtain human hands-on acceptance before PR; verify independent review and acceptance record.
-- [x] 4.4 Deliver the original dev console/release and human test guide; its exact-address pilot was superseded by the approved root-domain rollout below.
+- [x] 4.4 Deliver the original dev console/release and human test guide; its exact-address pilot was superseded by later approved routing revisions.
 
-## 5. Approved root-domain rollout revision (2026-10-27)
+## 5. Superseded root-domain revision (2026-10-27, never deployed)
 
 - [x] 5.1 Enforce the daguang@slax.app business reservation for provisioning, reads and receipt lookup; verify dev eligibility, stale bindings, case handling and rename stability with regression tests.
 - [x] 5.2 Update private deployment configuration to slax.dev for enabled dev and slax.app for disabled beta/production; preserve all other configuration bytes and existing Worker identities.
@@ -33,6 +33,13 @@
 
 Remote dev deployment, hosted PowerSync publication and real SMTP acceptance are operator work described in docs/api/NEWSLETTER-DEV-PILOT.md, not claims of this local implementation. Do not activate beta/main until the documented compatibility rollout is complete.
 
-## 6. After merge
+## 6. Approved feed+ subaddress revision (2026-10-27)
 
-- [ ] 6.1 After the task PR merges, classify every remaining unchecked task and archive this OpenSpec change through a separate documentation PR.
+- [x] 6.1 Implement prefixed address rendering and strict envelope parsing over stable account-token reservations; verify length, rename, malformed/foreign recipients and daguang namespace separation with regression-first tests.
+- [x] 6.2 Update private dev and disabled beta/production domains, preserving unrelated configuration; document subdomain onboarding, Subaddressing, one literal feed route and scoped rollback.
+- [x] 6.3 Run generation, API/Web checks and actual local Workers in both selected domains; record evidence, operator gaps and Bugs/Security/Compliance review.
+- [x] 6.4 Update both existing draft PRs without adding assignees or reviewers and deliver the revised human test guide.
+
+## 7. After merge
+
+- [ ] 7.1 After the task PR merges, classify every remaining unchecked task and archive this OpenSpec change through a separate documentation PR.

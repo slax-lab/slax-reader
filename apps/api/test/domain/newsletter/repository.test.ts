@@ -58,74 +58,73 @@ afterAll(async () => {
   await db?.close()
 })
 const recipient = async () => {
-  await repo.address(1, 'slax.dev', true)
-  return (await repo.recipient('slax.dev', 'jane.doe'))!
+  await repo.address(1, 'newsletterreader.slax.dev', true)
+  return (await repo.recipient('newsletterreader.slax.dev', 'jane.doe'))!
 }
 const reserve = async (source = 'source', message = 'message', key = 'newsletter-raw/test') => repo.admit(await recipient(), source, message, key)
 describe('Newsletter PostgreSQL boundaries', () => {
   test('GET is pure, provision is canonical and idempotent, and rename preserves address', async () => {
-    expect(await repo.address(1, 'slax.dev', false)).toMatchObject({
+    expect(await repo.address(1, 'newsletterreader.slax.dev', false)).toMatchObject({
       status: 'not_provisioned',
       address: null
     })
-    const first = await repo.address(1, 'slax.dev', true)
+    const first = await repo.address(1, 'newsletterreader.slax.dev', true)
     expect(first).toMatchObject({
       status: 'ready',
-      address: 'jane.doe@slax.dev'
+      address: 'feed+jane.doe@newsletterreader.slax.dev'
     })
     await db.query('UPDATE sr_user SET account=$1 WHERE id=1', ['你好'])
-    expect(await repo.address(1, 'slax.dev', true)).toEqual(first)
+    expect(await repo.address(1, 'newsletterreader.slax.dev', true)).toEqual(first)
   })
   test('retired addresses never transfer and full domain controls ownership', async () => {
     await recipient()
     await db.exec("UPDATE sr_newsletter_address SET retired_at=now() WHERE user_id=1; UPDATE sr_user SET account='JANE.DOE' WHERE id=2")
-    await expect(repo.address(2, 'slax.dev', true)).rejects.toMatchObject({
+    await expect(repo.address(2, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({
       code: 'address_reserved'
     })
     expect(await repo.recipient('slax.com', 'jane.doe')).toBeNull()
-    expect(await repo.recipient('slax.dev', 'jane.doe')).toBeNull()
+    expect(await repo.recipient('newsletterreader.slax.dev', 'jane.doe')).toBeNull()
   })
-  test('the production business address cannot be provisioned, but the same dev account remains available', async () => {
+  test('daguang receives an isolated prefixed address in each Newsletter subdomain', async () => {
     await db.exec("UPDATE sr_user SET account='DaGuAnG' WHERE id=1")
-    for (const provision of [false, true]) await expect(repo.address(1, 'slax.app', provision)).rejects.toMatchObject({ code: 'address_reserved', status: 409 })
-    expect((await db.query('SELECT * FROM sr_newsletter_address')).rows).toHaveLength(0)
-    expect(await repo.address(1, 'slax.dev', true)).toMatchObject({
-      address: 'daguang@slax.dev',
-      status: 'ready'
-    })
-    expect(await repo.recipient('slax.dev', 'daguang')).toMatchObject({
-      user_id: 1
-    })
-    expect(await repo.address(2, 'slax.app', true)).toMatchObject({
-      address: 'other@slax.app',
-      status: 'ready'
-    })
+    for (const domain of ['newsletterreader.slax.dev', 'newsletterreader.slax.com']) {
+      expect(await repo.address(1, domain, false)).toMatchObject({ address: null, status: 'not_provisioned' })
+      expect(await repo.address(1, domain, true)).toMatchObject({ address: 'feed+daguang@' + domain, status: 'ready' })
+      expect(await repo.recipient(domain, 'daguang')).toMatchObject({ user_id: 1 })
+    }
+    expect((await db.query('SELECT local_part FROM sr_newsletter_address')).rows).toEqual([{ local_part: 'daguang' }, { local_part: 'daguang' }])
   })
-  test('a business reservation blocks a stale issued binding without invalidating a different address after rename', async () => {
-    const issued = await repo.address(1, 'slax.app', true)
-    await db.exec("UPDATE sr_user SET account='daguang' WHERE id=1")
-    expect(await repo.address(1, 'slax.app', false)).toEqual(issued)
-    expect(await repo.address(1, 'slax.app', true)).toEqual(issued)
-    await db.exec("UPDATE sr_newsletter_address SET local_part='daguang' WHERE user_id=1")
-    for (const provision of [false, true]) await expect(repo.address(1, 'slax.app', provision)).rejects.toMatchObject({ code: 'address_reserved' })
-    expect(await repo.recipient('slax.app', 'daguang')).toBeNull()
-    expect(await repo.recipient('SLAX.APP', 'DAGUANG')).toBeNull()
-    expect((await db.query('SELECT local_part FROM sr_newsletter_address')).rows).toEqual([{ local_part: 'daguang' }])
+  test('a stored token renders the selected prefix and survives a later rename', async () => {
+    await db.exec("INSERT INTO sr_newsletter_address(user_id,domain,local_part) VALUES(1,'newsletterreader.slax.com','jane.doe'); UPDATE sr_user SET account='daguang' WHERE id=1")
+    for (const provision of [false, true])
+      expect(await repo.address(1, 'newsletterreader.slax.com', provision)).toMatchObject({ address: 'feed+jane.doe@newsletterreader.slax.com', status: 'ready' })
+  })
+  test('the fixed prefix fits the SMTP local-part limit without silently truncating accounts', async () => {
+    await db.query('UPDATE sr_user SET account=$1 WHERE id=1', ['a'.repeat(59)])
+    const issued = await repo.address(1, 'newsletterreader.slax.dev', true)
+    expect(issued.address).toBe('feed+' + 'a'.repeat(59) + '@newsletterreader.slax.dev')
+    await db.query('UPDATE sr_user SET account=$1 WHERE id=2', ['b'.repeat(60)])
+    expect(await repo.address(2, 'newsletterreader.slax.dev', false)).toMatchObject({ address: null, status: 'invalid_account' })
+    await expect(repo.address(2, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({ code: 'invalid_account' })
+    expect((await db.query('SELECT user_id FROM sr_newsletter_address')).rows).toEqual([{ user_id: 1 }])
+    await db.query("INSERT INTO sr_newsletter_address(user_id,domain,local_part) VALUES(2,'newsletterreader.slax.dev',$1)", ['b'.repeat(60)])
+    for (const provision of [false, true]) await expect(repo.address(2, 'newsletterreader.slax.dev', provision)).rejects.toMatchObject({ code: 'invalid_account' })
+    expect((await db.query('SELECT local_part FROM sr_newsletter_address WHERE user_id=2')).rows[0].local_part).toHaveLength(60)
   })
   test('missing account and disabled/deleted users cannot provision or receive', async () => {
     await db.exec("UPDATE sr_user SET account='' WHERE id=1")
-    expect(await repo.address(1, 'slax.dev', false)).toMatchObject({
+    expect(await repo.address(1, 'newsletterreader.slax.dev', false)).toMatchObject({
       status: 'account_required'
     })
-    await expect(repo.address(1, 'slax.dev', true)).rejects.toMatchObject({
+    await expect(repo.address(1, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({
       code: 'account_required'
     })
     await db.exec('UPDATE sr_user_lab_feature SET enabled=false WHERE user_id=1')
-    await expect(repo.address(1, 'slax.dev', true)).rejects.toMatchObject({
+    await expect(repo.address(1, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({
       code: 'lab_disabled'
     })
     await db.exec('UPDATE sr_user SET deleted_at=now() WHERE id=2')
-    await expect(repo.address(2, 'slax.dev', true)).rejects.toMatchObject({
+    await expect(repo.address(2, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({
       code: 'not_found'
     })
   })
@@ -239,9 +238,9 @@ const pipeline = () => {
   const service = new NewsletterService(repo, new RssContent(() => client as never), () => client as never)
   const env = {
     NEWSLETTER_ENABLED: 'true',
-    NEWSLETTER_DOMAIN: 'slax.dev'
+    NEWSLETTER_DOMAIN: 'newsletterreader.slax.dev'
   } as Env
-  const message = (id = '<live@example.com>', to = 'jane.doe@slax.dev') => {
+  const message = (id = '<live@example.com>', to = 'feed+jane.doe@newsletterreader.slax.dev') => {
     const raw = new TextEncoder().encode(
       'From: Weekly <mail@example.com>\r\nTo: wrong@other.example\r\nSubject: Received\r\nMessage-ID: ' +
         id +
@@ -261,18 +260,33 @@ const pipeline = () => {
   return { objects, bucket, service, env, message }
 }
 describe('Newsletter service real database and object pipeline', () => {
-  test('production business mail is rejected before object writes even when a stale registry row exists', async () => {
-    await db.exec("INSERT INTO sr_newsletter_address(user_id,domain,local_part) VALUES(1,'slax.app','daguang')")
+  test('bare, wrong-prefix, multi-detail and foreign envelopes cannot write objects or receipts', async () => {
+    await recipient()
     const p = pipeline()
-    await expect(
-      p.service.receive(p.message('<business>', 'DaGuAnG@SLAX.APP'), {
-        ...p.env,
-        NEWSLETTER_DOMAIN: 'slax.app'
-      })
-    ).rejects.toMatchObject({ code: 'not_found' })
-    expect(p.bucket.put).not.toHaveBeenCalled()
+    for (const to of [
+      'feed@newsletterreader.slax.dev',
+      'feed+@newsletterreader.slax.dev',
+      'jane.doe@newsletterreader.slax.dev',
+      'r+jane.doe@newsletterreader.slax.dev',
+      'feed+jane.doe+extra@newsletterreader.slax.dev',
+      'feed+unknown@newsletterreader.slax.dev',
+      'feed+jane.doe@newsletterreader.slax.com',
+      'feed+jane.doe@newsletterreader.slax.dev.attacker.test',
+      'daguang@slax.app',
+      'feed+jane.doe@slax.dev',
+      'feed%2Bjane.doe@newsletterreader.slax.dev',
+      'feed+ jane.doe@newsletterreader.slax.dev'
+    ])
+      await expect(p.service.receive(p.message('<rejected>', to), p.env)).rejects.toMatchObject({ code: 'not_found' })
+    expect(p.objects.size).toBe(0)
     expect((await db.query('SELECT * FROM sr_newsletter_receipt')).rows).toHaveLength(0)
     expect((await db.query('SELECT * FROM sr_rss_entry')).rows).toHaveLength(0)
+  })
+  test('mixed-case prefixed envelope resolves the bound token independently of header To', async () => {
+    await recipient()
+    const p = pipeline()
+    await p.service.receive(p.message('<case>', 'FeEd+JaNe.DoE@NEWSLETTERREADER.SLAX.DEV'), p.env)
+    expect((await db.query('SELECT user_id,state FROM sr_newsletter_receipt')).rows).toEqual([{ user_id: 1, state: 'done' }])
   })
   test('envelope delivery publishes sanitized private content and repeated Message-ID is a no-op', async () => {
     await recipient()
@@ -330,7 +344,7 @@ describe('Newsletter service real database and object pipeline', () => {
     await expect(users.updateUserName(1, 'bad+name')).rejects.toMatchObject({
       name: 'ERROR_PARAM'
     })
-    expect((await repo.address(1, 'slax.dev', false)).address).toBe('jane.doe@slax.dev')
+    expect((await repo.address(1, 'newsletterreader.slax.dev', false)).address).toBe('feed+jane.doe@newsletterreader.slax.dev')
   })
 })
 
@@ -344,7 +358,7 @@ test('account deletion retires its address immediately and cancels admitted work
   expect((await db.query<any>('SELECT retired_at FROM sr_newsletter_address')).rows[0].retired_at).not.toBeNull()
   expect((await db.query('SELECT state FROM sr_newsletter_receipt')).rows).toEqual([{ state: 'cancelled' }])
   await db.exec('UPDATE sr_user SET deleted_at=NULL WHERE id=1')
-  expect(await repo.recipient('slax.dev', 'jane.doe')).toBeNull()
+  expect(await repo.recipient('newsletterreader.slax.dev', 'jane.doe')).toBeNull()
 })
 
 test('over-quota admission does not perform expensive raw object writes', async () => {

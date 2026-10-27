@@ -3,7 +3,7 @@ import { PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
 import type { Prisma, PrismaClient } from '@prisma/hyperdrive-client'
 import type { NewsletterAddressResponse } from '@slax-reader/contracts'
-import { NEWSLETTER_LIMITS, NewsletterError, newsletterLocalPart, isReservedNewsletterAddress } from '@/domain/newsletter/parser'
+import { NEWSLETTER_LIMITS, NEWSLETTER_LOCAL_PREFIX, NewsletterError, newsletterLocalPart } from '@/domain/newsletter/parser'
 
 type Tx = Prisma.TransactionClient
 export interface NewsletterRecipient {
@@ -49,11 +49,11 @@ export class NewsletterRepo {
         { local_part: string; retired_at: Date | null }[]
       >`SELECT local_part,retired_at FROM sr_newsletter_address WHERE user_id=${userId} AND domain=${domain}`
       if (existing?.retired_at) throw new NewsletterError('not_found', 404)
-      const part = existing?.local_part ?? newsletterLocalPart(user.account)
-      if (part && isReservedNewsletterAddress(domain, part)) throw new NewsletterError('address_reserved', 409)
+      const part = newsletterLocalPart(existing?.local_part ?? user.account)
+      if (existing && !part) throw new NewsletterError('invalid_account')
       if (existing)
         return {
-          address: existing.local_part + '@' + domain,
+          address: NEWSLETTER_LOCAL_PREFIX + part + '@' + domain,
           domain,
           status: 'ready'
         }
@@ -65,11 +65,10 @@ export class NewsletterRepo {
       const [reserved] = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM sr_newsletter_address WHERE domain=${domain} AND local_part=${part}`
       if (reserved) throw new NewsletterError('address_reserved', 409)
       await tx.$executeRaw`INSERT INTO sr_newsletter_address(user_id,domain,local_part) VALUES(${userId},${domain},${part})`
-      return { address: part + '@' + domain, domain, status: 'ready' }
+      return { address: NEWSLETTER_LOCAL_PREFIX + part + '@' + domain, domain, status: 'ready' }
     })
   }
   async recipient(domain: string, part: string): Promise<NewsletterRecipient | null> {
-    if (isReservedNewsletterAddress(domain, part)) return null
     const [row] = await this.pg().$queryRaw<NewsletterRecipient[]>`SELECT a.id,a.user_id,u.uuid FROM sr_newsletter_address a
       JOIN sr_user u ON u.id=a.user_id AND u.deleted_at IS NULL
       JOIN sr_user_lab_feature l ON l.user_id=u.id AND l.feature='newsletter' AND l.enabled

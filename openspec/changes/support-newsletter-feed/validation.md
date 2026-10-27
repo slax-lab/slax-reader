@@ -1,3 +1,5 @@
+> Current routing decision: feed+account@newsletterreader.slax.dev for dev and feed+account@newsletterreader.slax.com for production, confirmed on 2026-10-27. Earlier records below are historical; the latest subaddress revision and operator guide supersede their routing instructions.
+
 # Validation
 
 ## Original implementation (2026-10-22)
@@ -75,7 +77,7 @@ Bugs, Security and Compliance passes resolve to OpenSpec `support-newsletter-fee
 Operator steps and human test cases: [Newsletter dev pilot](../../../docs/api/NEWSLETTER-DEV-PILOT.md). Beta/main admission stays off until all shared-database readers and sync rules have RSS kind isolation.
 
 
-## Approved root-domain revision (2026-10-27)
+## Historical root-domain revision (2026-10-27, superseded before deployment)
 
 ### Scope and configuration
 
@@ -110,3 +112,41 @@ No new authored CLI, Extension or Mobile runtime/package behavior or consumed co
 No hosted deployment, DNS/Email Routing mutation, production enablement, hosted PowerSync publication or real SMTP send was performed during this update. Start with dev only. After config/app deployment and sync readiness, the operator changes **slax.dev Catch-all: Drop -> Send to a Worker -> reader-backend**, preserving literal routes. The production Catch-all is not changed; the active daguang forwarding rule remains untouched. External delivery/confirmation, sender failure behavior and hosted cross-user sync isolation require the dev acceptance sequence. The local production-domain simulation does not prove hosted production routing or business forwarding.
 
 Current guide: [Newsletter dev pilot](../../../docs/api/NEWSLETTER-DEV-PILOT.md). The root-domain guide supersedes historical exact-address instructions above; completed content and permanent reservations remain intact.
+
+
+## Selected feed+ subaddress revision (2026-10-27)
+
+### Requirements and implementation
+
+The user explicitly selected fixed prefix feed and restored newsletterreader.slax.dev / newsletterreader.slax.com. Dev remains enabled in reviewed private configuration; beta/prod and the legacy main copy remain explicitly disabled. No hosted deployment or mail-routing mutation was made. This revision supersedes the root-domain plan rather than activating it.
+
+Provisioning/rendering adds feed+ to the stable canonical account token stored in local_part. The token is scoped by domain, never recomputed after account rename, and never released on retirement. Eligibility is at most 59 ASCII characters so the full local part fits SMTP's 64-octet bound. Global account rules stay unchanged. Invalid long accounts are not truncated; oversized legacy stored tokens remain reserved and fail explicitly rather than exposing an invalid mailbox. No new schema, public DTO or environment variable is introduced.
+
+Incoming mail requires the complete configured domain, feed+ and one valid non-empty account token. Bare feed, missing/wrong prefixes, extra plus details, whitespace, unknown and foreign-domain recipients are rejected before raw storage. The envelope is not URL-decoded again; local query builders encode plus as %2B. The previous root-address daguang reservation is removed because feed+daguang@newsletterreader.slax.com does not claim daguang@slax.app. Existing root mail services/forwarding and Catch-all rules remain untouched.
+
+### Verification
+
+- Regression-first Newsletter run: **11 expected failures / 15 passes** after changing address expectations and adding length/envelope scenarios, before implementing the format. After implementation: **26 passed** (parser 7 / repository-service 19). The failures demonstrated missing prefix rendering, old length eligibility and missing strict envelope parsing rather than fixture startup errors.
+- Full API suite: **2552 passed / 112 skipped**, 195 files passed / 13 skipped. Existing opt-in and fixture skips remain. Embedded PostgreSQL exercises stable bindings, 59/60-character boundaries, legacy long-token reservation, mixed-case dispatch and no storage on invalid envelopes.
+- Full Web suite with the public fixture environment above and --maxWorkers=2: **2559 passed / 3 skipped**, 225 files passed / 1 skipped. Existing fixture stderr includes ENOTFOUND api.test; exit status is zero. After normalizing the remaining copy/privacy fixtures to the final plus address, the address component suite separately passed **7 tests**, including literal plus-address copy behavior.
+- API/contracts and Web typechecks passed. No site key is provided in the local Web fixture; its Turnstile warning remains non-fatal.
+- pnpm api -- gen:all passed with public example configuration and loopback generation-only PostgreSQL/log placeholders. Generator outputs were unchanged; none were hand-edited.
+- Edge offline dry-run build passed; changed production API ESLint passed with no output. Strict OpenSpec validation: **78 passed / 0 failed**. git diff --check passed.
+- Default actual local HTTP smoke with the public Corepack archive: **passed** for newsletterreader.slax.dev. It provisions feed+ addresses for two users (including daguang), rejects nine invalid/bare/foreign envelopes with zero receipts, accepts mixed-case plus recipients, deduplicates the first delivery to one entry, publishes a separate second user's body, denies that user the first user's body, and preserves existing bookmark/auth/CORS/D1 smoke flows. Actual Edge/Core, full historical migrations, Prisma/PostgreSQL and local R2 run; only owned synthetic resources are created and cleaned up.
+- Production-domain actual local HTTP smoke with NEWSLETTER_SMOKE_DOMAIN=newsletterreader.slax.com and the same public Corepack archive: **passed**, including both prefixed users, malformed/foreign rejection, duplicate suppression and cross-user body denial. No hosted production resource was activated.
+
+### Review and acceptance scope
+
+No Vue presentation, styles, labels, navigation or client API DTO changed. The original 2026-10-22 human acceptance remains recorded above for the unchanged setup/copy/reader UI; updated component fixtures verify the complete plus address is displayed/copied. Long-address/responsive checks and real provider behavior are also explicit hosted dev acceptance items, not claims of new human testing in this revision.
+
+No authored CLI/Extension/Mobile logic, dependency graph or consumed contract changes are introduced; their versions need no increment. The private TOMLs were parsed and checked against origin/main: only the two approved Newsletter keys differ, and all unrelated bytes are identical after excluding those key lines. README and both operator guides explain the selected format and rollback.
+
+### Independent and local pre-push review
+
+The requesting-code-review reviewer independently inspected all 16 revised app/docs/spec/test files against 8f1375d4 in read-only mode and reported **no Important findings and no Nits** across Bugs, Security and Compliance. The parent also checked the private configuration's selected values and exact unrelated bytes. Review confirmed canonical token/rename preservation, the 59-character limit, strict envelope gating before MIME/R2, parameterized SQL, no new external calls/dependencies/PII logs, matching OpenSpec intent and scoped literal-route rollback. Production simulation was still running during the independent review and subsequently passed as recorded above. No excluded behavior was silently dropped: hosted routing, platform acceptance and sync isolation remain explicit operator work; unchanged visual presentation retains its earlier acceptance.
+
+### Operator acceptance still required
+
+No Cloudflare DNS/base-route/Subaddressing matching, real SMTP, hosted PowerSync publication/isolation or real Newsletter subscription was exercised locally. After deployment readiness, add the receiving newsletterreader subdomain in slax.dev, enable Subaddressing, and add only feed@newsletterreader.slax.dev -> reader-backend. Preserve existing Catch-all and literal/plus-detail rules. Test two actual plus recipients, bare/unknown detail rejection, real confirmation/content delivery and sender failure status. Later production setup must preserve root slax.com Feishu MX and slax.app business forwarding. Scope rollback to the pilot's literal route/admission; do not disable zone-wide Subaddressing if other routes depend on it.
+
+See [current dev operator guide](../../../docs/api/NEWSLETTER-DEV-PILOT.md). Local injection bypasses Cloudflare routing and does not establish external platform compatibility; the guide explicitly requires representative real Newsletter tests.

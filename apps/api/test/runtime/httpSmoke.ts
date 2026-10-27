@@ -108,8 +108,8 @@ async function main() {
     return { status: response.status, body }
   }
   try {
-    const newsletterDomain = process.env.NEWSLETTER_SMOKE_DOMAIN ?? 'slax.dev'
-    assert.ok(['slax.dev', 'slax.app'].includes(newsletterDomain), 'Only isolated dev/production address formats may be simulated')
+    const newsletterDomain = process.env.NEWSLETTER_SMOKE_DOMAIN ?? 'newsletterreader.slax.dev'
+    assert.ok(['newsletterreader.slax.dev', 'newsletterreader.slax.com'].includes(newsletterDomain), 'Only isolated dev/production address formats may be simulated')
     // Optional offline Corepack cache seed contains only the public package-manager distribution.
     if (process.argv[2] === '--corepack-archive' && process.argv[3]) resources.command('corepack', ['install', '--global', '--cache-only', resolve(process.argv[3])])
     resources.command('pnpm', ['exec', 'wrangler', '--version'])
@@ -318,13 +318,13 @@ async function main() {
       assert.equal(response.headers.get('Access-Control-Allow-Origin'), origin === vars.FRONT_END_URL ? origin : '*')
     }
     evidence.customFrontendCors = 'exact configured origin allowed; attacker suffix rejected'
-    const businessToken = await new Auth(vars as Env).sign({
+    const secondToken = await new Auth(vars as Env).sign({
       id: String(new Hashid(vars as Env).encodeId(2)),
       email: 'owner@smoke.invalid',
       lang: 'en'
     })
-    const businessHeaders = {
-      Authorization: `Bearer ${businessToken}`,
+    const secondHeaders = {
+      Authorization: `Bearer ${secondToken}`,
       'Content-Type': 'application/json'
     }
     for (const [path, body] of [
@@ -333,9 +333,9 @@ async function main() {
     ] as const) {
       assert.equal(
         (
-          await request('business-setup-' + body.key, path, {
+          await request('second-user-setup-' + body.key, path, {
             method: 'POST',
-            headers: businessHeaders,
+            headers: secondHeaders,
             body: JSON.stringify(body)
           })
         ).body.code,
@@ -343,26 +343,36 @@ async function main() {
       )
     }
     for (const method of ['GET', 'POST']) {
-      const result = await request('business-address-' + method, '/v1/user/newsletter_address', { method, headers: businessHeaders })
-      assert.equal(result.body.code, newsletterDomain === 'slax.app' ? 409 : 200)
-      if (newsletterDomain === 'slax.app') assert.equal(result.body.message, 'address_reserved')
-      else if (method === 'POST') assert.equal(result.body.data.address, 'daguang@slax.dev')
+      const result = await request('daguang-address-' + method, '/v1/user/newsletter_address', { method, headers: secondHeaders })
+      assert.equal(result.body.code, 200)
+      if (method === 'POST') assert.equal(result.body.data.address, `feed+daguang@${newsletterDomain}`)
+      else assert.equal(result.body.data.status, 'not_provisioned')
     }
-    if (newsletterDomain === 'slax.app') {
-      resources.sql(pg.id, 'http_reader', "INSERT INTO sr_newsletter_address(user_id,domain,local_part) VALUES(2,'slax.app','daguang')")
-      assert.equal((await request('business-stale-binding', '/v1/user/newsletter_address', { headers: businessHeaders })).body.code, 409)
-      const rejected = await localFetch(`http://localhost:${httpPort}/cdn-cgi/local/email?from=sender%40example.com&to=DaGuAnG%40SLAX.APP`, {
+    const rejectionEvidence = []
+    for (const to of [
+      `feed@${newsletterDomain}`,
+      `feed+@${newsletterDomain}`,
+      `daguang@${newsletterDomain}`,
+      `r+daguang@${newsletterDomain}`,
+      `feed+daguang+extra@${newsletterDomain}`,
+      `feed+unknown@${newsletterDomain}`,
+      'daguang@slax.app',
+      'feed+daguang@slax.dev',
+      `feed+daguang@${newsletterDomain}.attacker.test`
+    ]) {
+      const rejected = await localFetch(`http://localhost:${httpPort}/cdn-cgi/local/email?from=sender%40example.com&to=${encodeURIComponent(to)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'message/rfc822' },
-        body: 'From: Sender <sender@example.com>\r\nMessage-ID: <reserved-business-smoke@example.com>\r\nSubject: Business reservation\r\n\r\nNot a Newsletter recipient.'
+        body: 'From: Sender <sender@example.com>\r\nMessage-ID: <invalid-envelope-smoke@example.com>\r\nSubject: Envelope policy\r\n\r\nNot a Newsletter recipient.'
       })
-      const rejectionBody = await rejected.text()
-      evidence.businessAddressRejection = { status: rejected.status, body: rejectionBody }
-      assert.equal(rejected.status, 400)
-      assert.ok(rejectionBody.includes('Newsletter delivery is not available for this message.'), rejectionBody)
-      assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_newsletter_receipt'), '0')
+      const body = await rejected.text()
+      assert.equal(rejected.status, 400, body)
+      assert.ok(body.includes('Newsletter delivery is not available for this message.'), body)
+      rejectionEvidence.push({ to, status: rejected.status })
     }
-    evidence.businessAddressPolicy = newsletterDomain === 'slax.app' ? 'GET/POST reserved; stale binding and mixed-case email rejected' : 'daguang is available on slax.dev'
+    assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_newsletter_receipt'), '0')
+    evidence.envelopePolicy = rejectionEvidence
+    evidence.businessAddressPolicy = 'feed+daguang is eligible in the Newsletter subdomain; existing root business mail is outside its namespace'
     // Exercise actual Edge email dispatch, generated DI/router, Prisma transactions and local R2.
     const mailHeaders = { Authorization: `Bearer ${token}` }
     assert.equal(
@@ -386,15 +396,18 @@ async function main() {
       200
     )
     const address = await request('newsletter-address', '/v1/user/newsletter_address', { method: 'POST', headers: mailHeaders })
-    assert.equal(address.body.data.address, `newsletter-smoke@${newsletterDomain}`)
+    assert.equal(address.body.data.address, `feed+newsletter-smoke@${newsletterDomain}`)
     const rawMail =
       'From: Smoke Weekly <weekly@example.com>\r\nTo: ignored@other.example\r\nSubject: Newsletter runtime smoke\r\nMessage-ID: <newsletter-runtime-smoke@example.com>\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Runtime newsletter body</p><script>throw 1</script><img src="cid:part">'
     for (let repeat = 0; repeat < 2; repeat++) {
-      const response = await localFetch(`http://localhost:${httpPort}/cdn-cgi/local/email?from=bounce%40example.com&to=newsletter-smoke%40${newsletterDomain}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'message/rfc822' },
-        body: rawMail
-      })
+      const response = await localFetch(
+        `http://localhost:${httpPort}/cdn-cgi/local/email?from=bounce%40example.com&to=${encodeURIComponent((repeat ? 'feed+newsletter-smoke@' : 'FeEd+NeWsLeTtEr-SmOkE@') + newsletterDomain)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'message/rfc822' },
+          body: rawMail
+        }
+      )
       assert.equal(response.status, 200, await response.text())
     }
     await poll(() => resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_newsletter_receipt WHERE state='done'") === '1', 'newsletter publication')
@@ -409,6 +422,24 @@ async function main() {
     assert.ok(!/script|cid:/.test(detail.body.data.content_html))
     const subscriptions = await request('newsletter-sources', '/v1/feed/subscriptions', { headers: mailHeaders })
     assert.equal(subscriptions.body.data.items[0].kind, 'newsletter')
+    const secondDelivery = await localFetch(
+      `http://localhost:${httpPort}/cdn-cgi/local/email?from=bounce%40example.com&to=${encodeURIComponent('feed+daguang@' + newsletterDomain)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'message/rfc822' },
+        body: rawMail.replace('newsletter-runtime-smoke@example.com', 'newsletter-runtime-second@example.com').replace('Runtime newsletter body', 'Second reader private body')
+      }
+    )
+    assert.equal(secondDelivery.status, 200, await secondDelivery.text())
+    await poll(() => resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_newsletter_receipt WHERE state='done'") === '2', 'second reader publication')
+    const secondFeed = await request('second-user-feed', '/v1/feed/entries', { headers: secondHeaders })
+    assert.equal(secondFeed.body.data.items.length, 1)
+    assert.notEqual(secondFeed.body.data.items[0].id, entryId)
+    const secondBody = await request('second-user-body', `/v1/feed/entries/${secondFeed.body.data.items[0].id}`, { headers: secondHeaders })
+    assert.ok(secondBody.body.data.content_html.includes('Second reader private body'))
+    assert.ok(!secondBody.body.data.content_html.includes('Runtime newsletter body'))
+    assert.equal((await request('second-user-denied-first-body', `/v1/feed/entries/${entryId}`, { headers: secondHeaders })).body.code, 404)
+    evidence.twoUserDelivery = 'one literal route format, distinct registered details and private bodies; cross-user body denied'
     const disabled = await request('newsletter-disable', '/v1/user/setting/disable', {
       method: 'POST',
       headers: { ...mailHeaders, 'Content-Type': 'application/json' },
@@ -431,7 +462,7 @@ async function main() {
       ).body.code,
       404
     )
-    const rejection = await localFetch(`http://localhost:${httpPort}/cdn-cgi/local/email?from=bounce%40example.com&to=unknown%40${newsletterDomain}`, {
+    const rejection = await localFetch(`http://localhost:${httpPort}/cdn-cgi/local/email?from=bounce%40example.com&to=feed%2Bunknown%40${newsletterDomain}`, {
       method: 'POST',
       headers: { 'Content-Type': 'message/rfc822' },
       body: rawMail
@@ -440,7 +471,7 @@ async function main() {
       status: rejection.status,
       body: await rejection.text()
     }
-    assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_newsletter_receipt'), '1')
+    assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_newsletter_receipt'), '2')
     evidence.newsletterDomain = newsletterDomain
     evidence.newsletterRuntime = 'actual local Edge email twice -> one receipt/entry; R2 body through Core; disabled reads denied; unknown recipient creates no receipt'
 
