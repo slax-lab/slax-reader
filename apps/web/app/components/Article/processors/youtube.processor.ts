@@ -37,6 +37,32 @@ export class YoutubeProcessor implements DOMProcessor {
     const transcript = context.container.querySelector('.slax-yt-transcript')
     if (!transcript) return
 
+    // Keep the cue elements and text nodes intact for stored highlight selectors.
+    const cues = Array.from(transcript.querySelectorAll<HTMLElement>(':scope > .slax-yt-cue'))
+    let paragraphLength = 0
+    let previousText = ''
+    let previousTime = 0
+    for (const [index, cue] of cues.entries()) {
+      const text = cue.querySelector('.slax-yt-cue-text')?.textContent?.trim() ?? ''
+      const stamp = cue.querySelector<HTMLElement>('.slax-yt-cue-time')
+      const time = Number(stamp?.dataset['ytSeek'])
+      const sentenceEnded = /[.!?。！？]["'”’)]?$/.test(previousText)
+      const startsParagraph = index === 0 || /^>>/.test(text) ||
+        (sentenceEnded && paragraphLength >= 360) || paragraphLength >= 900 ||
+        (Number.isFinite(time) && time - previousTime >= 12)
+      cue.toggleAttribute('data-yt-paragraph-start', startsParagraph)
+      if (stamp) {
+        stamp.hidden = !startsParagraph
+        stamp.tabIndex = startsParagraph ? 0 : -1
+        if (startsParagraph) stamp.removeAttribute('aria-hidden')
+        else stamp.setAttribute('aria-hidden', 'true')
+      }
+      paragraphLength = (startsParagraph ? 0 : paragraphLength) + text.length
+      previousText = text
+      previousTime = time
+    }
+    transcript.setAttribute('data-yt-reading', '')
+
     const seekFromTarget = (target: EventTarget | null) => {
       const el = (target as HTMLElement | null)?.closest('[data-yt-seek]')
       if (!el) return

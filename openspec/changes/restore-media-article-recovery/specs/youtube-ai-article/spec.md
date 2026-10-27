@@ -39,3 +39,25 @@ The status API SHALL distinguish disabled Labs and missing source records for an
 #### Scenario: Unknown recovery reason
 - **WHEN** the server returns a reason the Web reader does not recognize
 - **THEN** the reader does not display a raw translation key
+
+### Requirement: Readable transcript without generation
+
+The Web reader SHALL present saved YouTube caption cues as continuous reading paragraphs for owners and visitors.
+Paragraph breaks SHALL follow sentence endings, explicit speaker changes, or long pauses, with bounded length for unpunctuated runs.
+Each reading paragraph SHALL expose one quiet, keyboard-operable timestamp. Intermediate timestamps SHALL leave the focus order.
+The renderer SHALL preserve all cue text, existing cue elements, and stored highlight selectors and offsets.
+The detailed transcript panel SHALL retain all cue timestamps. Existing generated article bodies SHALL remain unchanged.
+
+#### Scenario: Visitor reads the reported saved transcript
+- **WHEN** a visitor opens a saved YouTube body without a generated article
+- **THEN** the reader shows continuous paragraphs instead of a separate visible line and button for every cue
+- **AND** the page does not require login or a generation request
+
+#### Scenario: Existing highlight and seek controls
+- **WHEN** the reader formats a previously saved caption body
+- **THEN** the original text nodes and highlight selectors remain valid
+- **AND** each paragraph timestamp seeks to its original cue time by click, Enter, or Space
+
+#### Scenario: Responsive transcript reading
+- **WHEN** the same transcript appears at narrow and desktop widths in each supported theme
+- **THEN** paragraphs wrap naturally, retain visible focus, and avoid horizontal overflow

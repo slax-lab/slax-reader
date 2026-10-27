@@ -26,3 +26,13 @@ Preserve response defaults and reuse existing status presentation. Do not change
 ## Migration Plan
 
 No migration is needed. Deploy the API and Web changes through normal branch promotion. The optional field allows either deployment order. Revert the task commit to roll back.
+
+## Transcript reading layout
+
+The saved HTML uses one paragraph element for every short caption cue. This causes fragmented reading even when capture succeeds.
+The Web processor will mark paragraph boundaries without replacing or moving cue nodes. CSS will flow adjacent cue text continuously.
+Sentence endings, explicit speaker changes, and pauses determine boundaries. Long runs receive a bounded paragraph break.
+Only paragraph-start timestamps remain visible and focusable. The detailed transcript panel retains every cue.
+This preserves stored highlight selectors and text offsets. No source rewrite, capture rerun, or generation request is needed.
+The check must use the reported production body in the running local application and verify real text, layout, seeking, and highlight paths.
+Screenshots will identify the local build and real saved content. They will not imply production deployment.

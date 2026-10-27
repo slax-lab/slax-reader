@@ -40,3 +40,11 @@ Do not enable Labs silently, regenerate content for visitors, change budgets, or
 The original user outcome includes a readable generated article. Request recovery tests alone do not establish that outcome.
 Luca requested visitor transcript access as the immediate minimum after owner login proved difficult.
 Verify the real public transcript independently. Keep production article publication and human acceptance explicitly unresolved.
+
+## Readability correction — 2026-10-27
+
+Luca rejected the caption-line screenshots as unreadable and requested an implemented fix with screenshots.
+The reader must present continuous transcript paragraphs without requiring owner login or AI article availability.
+Group adjacent cues at sentence boundaries, speaker changes, and long pauses. Show one quiet seek control per reading paragraph.
+Preserve caption text, cue nodes, highlight paths, and the detailed transcript panel.
+This is a formatting correction within the existing reading surface. It does not add a new navigation flow or invent section headings.

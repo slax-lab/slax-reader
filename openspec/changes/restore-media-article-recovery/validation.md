@@ -115,3 +115,44 @@ Bugs review confirmed that source guidance now distinguishes a missing language 
 Security review confirmed that owner-only reasons, access checks, and generation gates remain unchanged.
 Compliance review confirmed both corrections match the added recovery scenarios.
 The Important human-acceptance finding remains open. Luca authorized review before acceptance; this does not establish acceptance or authorize merge.
+
+## Transcript readability correction — 2026-10-27
+
+Luca rejected the earlier transcript screenshots because each short cue remained a separate visible paragraph.
+The earlier 925-entry check proved content presence. It did not prove a usable reading layout.
+
+The Web processor now marks reading paragraph boundaries without moving or replacing cue nodes.
+The stylesheet flows adjacent cue text continuously. Paragraphs break at sentence endings, speaker changes, long pauses, or bounded unpunctuated runs.
+One quiet timestamp appears at the right of each paragraph. Its touch target remains at least 44 by 44 pixels.
+Intermediate timestamps leave the visual layout and keyboard focus order. The detailed transcript data remains unchanged.
+
+The reported input produced 78 reading paragraphs from all 925 original cues.
+No words were removed or rewritten. This is transcript formatting, not AI editing or invented chapter headings.
+Existing generated article bodies use separate markup and remain unchanged.
+
+### Checks
+
+- Initial regression: one failed and five passed before implementation.
+- `pnpm web -- test tests/unit/components/Article/processors/youtube.processor.spec.ts tests/unit/components/Snapshot/YoutubeArticleBar.spec.ts tests/unit/components/Snapshot/YoutubeAiArticle.spec.ts`: 45 passed.
+- The processor tests verify sentence boundaries, explicit speaker changes, long pauses, bounded runs, unchanged text nodes, and unchanged highlight selectors.
+- Web type check and focused ESLint passed.
+- Strict OpenSpec validation: 79 passed. `git diff --check` passed.
+- `node apps/web/tests/fixtures/media-recovery/20261027-readable-transcript-check.mjs`: passed against the local Nuxt application.
+
+The browser used real public production content, status, and mark-list responses through a local test proxy.
+The proxy supplied transport CORS headers for the local origin. No sample transcript or simulated article status was used.
+The public content response identified the reader as `visitor`. No login, generation request, or production write occurred.
+
+The browser compared every rendered cue with the public saved body: all 925 matched.
+All nine light/dark/E-ink and 375/768/1,200-pixel combinations passed layout and touch-target checks.
+No horizontal overflow or uncaught page errors occurred. Enter and Space dispatched the original paragraph seek time.
+Screenshots show the real saved transcript in the changed local application. They do not show a production deployment.
+
+### Local review
+
+- Bugs: cue nodes, text offsets, and selector paths remain stable; formatting affects only raw YouTube transcripts.
+- Security: no new request, dependency, HTML insertion, or access-rule change exists in product code.
+- Compliance: the readability correction follows Luca's explicit request and the revised transcript scenarios.
+
+The screenshots now support visual review of paragraph formatting. Human acceptance remains pending; PR #405 stays draft.
+Production deployment and generated-article publication remain outside this verification result.
