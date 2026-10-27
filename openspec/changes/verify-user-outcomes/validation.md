@@ -37,3 +37,8 @@ The existing rules already required real verification. This change cannot excuse
 It makes the missing distinction explicit and gives reviewers a specific check.
 
 Archive remains pending until this PR merges.
+
+## Review handoff
+
+PR #409 targets `dev`. DGuang21 and Whyjsee received review requests.
+The PR explains the false completion claim from #405 and links both media repair PRs.
