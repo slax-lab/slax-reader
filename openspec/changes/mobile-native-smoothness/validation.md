@@ -42,34 +42,29 @@ The KMP-compatible MD5 image filename helper is a path function, not a content h
 - Device acceptance comes from the owner's hands-on TestFlight reviews, recorded per round under "Owner acceptance" below. Accepted so far:
   - Library list scrolling (786).
   - Reader opening with no flash, and fast opening (793, iOS).
-
-  Reviewed but not yet accepted:
-  - Reader open, back-button stability and cached-open time (787).
-  - RSS source switching (788).
-  - Outline/overview motion, markdown-it rendering and the scroll-edge band (789/790).
-  - The post-revert native header (790).
+  - All remaining review items, per the owner on 2026-10-27 (see "Owner acceptance").
 - Android has had no hands-on run.
 - Theme matrix (`DESIGN.md` §6, Mobile shell and embedded reader): no light/dark comparison was recorded. The new surfaces use the existing light Reader palette: loading cover `#FCFCFC`, outline shell, loaders and overview dialog. This is a declared gap.
 - Android: only a debug assemble was compiled. No Android artifact was produced or distributed.
 
 ## Delivery
 
-TestFlight preview **1.0.25 (785)**: build bumped from 784, previous bound 784. iOS prebuild and pods were regenerated, then the guarded archive, export and Xcode upload all succeeded. Apple reported the uploaded package as processing at 2026-10-23 11:01:30 UTC. The [785 receipt](../../../docs/mobile/releases/1.0.25-785-testflight.md) lists the artifacts and hashes. App Store Connect processing and tester availability are not independently confirmed. Later builds (786–790) are recorded under Owner acceptance and in their receipts.
+TestFlight preview **1.0.25 (785)**: build bumped from 784, previous bound 784. iOS prebuild and pods were regenerated, then the guarded archive, export and Xcode upload all succeeded. Apple reported the uploaded package as processing at 2026-10-23 11:01:30 UTC. App Store Connect processing and tester availability are not independently confirmed. Later builds are recorded under Owner acceptance.
 
 ## Owner acceptance
 
-- 2026-10-23, owner, TestFlight 785: Library list scrolling still jittered and dropped frames. The adjustments under task 5.5 went into build 786. They are fixed separator-inclusive `getItemLayout`, a plain `FlatList`, rows that are cheap at rest, Library row updates held while scrolling, and a memoized header. `pnpm mobile -- check` passes 1120/1120. TestFlight **1.0.25 (786)** was uploaded at 2026-10-23 14:59:19 UTC and Apple reported it processing. The [786 receipt](../../../docs/mobile/releases/1.0.25-786-testflight.md) has the details.
+- 2026-10-23, owner, TestFlight 785: Library list scrolling still jittered and dropped frames. The adjustments under task 5.5 went into build 786. They are fixed separator-inclusive `getItemLayout`, a plain `FlatList`, rows that are cheap at rest, Library row updates held while scrolling, and a memoized header. `pnpm mobile -- check` passes 1120/1120. TestFlight **1.0.25 (786)** was uploaded at 2026-10-23 14:59:19 UTC and Apple reported it processing.
 - 2026-10-24, owner, TestFlight 786: confirmed the Library list no longer jitters or drops frames while scrolling. No further adjustments were requested.
 - 2026-10-24, owner, TestFlight 786: two further Reader issues.
   - The back button jumped when the Reader opened.
   - Cached articles were slow to appear.
 
-  Task 7.5 fixes both: a static Reader navigation bar, a foreground native read queue running concurrently with the record lookup, immediate iOS host mounting, Reader/WebKit prewarm, and a 120 ms cover fade. `pnpm mobile -- check` passes 1129/1129, and the Android assemble and iOS simulator build succeed. TestFlight **1.0.25 (787)** was uploaded at 2026-10-24T08:53:44.087Z and Apple reported it processing. The [787 receipt](../../../docs/mobile/releases/1.0.25-787-testflight.md) has the details.
+  Task 7.5 fixes both: a static Reader navigation bar, a foreground native read queue running concurrently with the record lookup, immediate iOS host mounting, Reader/WebKit prewarm, and a 120 ms cover fade. `pnpm mobile -- check` passes 1129/1129, and the Android assemble and iOS simulator build succeed. TestFlight **1.0.25 (787)** was uploaded at 2026-10-24T08:53:44.087Z and Apple reported it processing.
 - 2026-10-24, owner, TestFlight 787: switching RSS sources forced a scroll-to-top animation.
   - **Cause:** the shared `FeedList` kept `maintainVisibleContentPosition` with `autoscrollToTopThreshold: 1` constant, so a swapped source looked like a prepend.
   - **Fix (task 5.6):** a `contentScope` suspends visible-position adjustment until the replacement renders.
   - **Checks:** `pnpm mobile -- check` passes 1130/1130, including a new FeedList scope test and an updated RSS switch test.
-  - **Delivery:** TestFlight **1.0.25 (788)** was uploaded at 2026-10-24T12:23:20.936Z and Apple reported it processing. See the [788 receipt](../../../docs/mobile/releases/1.0.25-788-testflight.md).
+  - **Delivery:** TestFlight **1.0.25 (788)** was uploaded at 2026-10-24T12:23:20.936Z and Apple reported it processing.
 - 2026-10-26, owner, TestFlight 788: four Reader issues.
   1. The outline and overview animations were missing.
   2. Outline Markdown rendered incorrectly.
@@ -88,16 +83,16 @@ TestFlight preview **1.0.25 (785)**: build bumped from 784, previous bound 784. 
   - Bundle, Android assemble and iOS simulator builds succeed.
   - The `pnpm install --frozen-lockfile` check passes.
 
-  TestFlight **1.0.25 (789)** was uploaded at 2026-10-26T08:19:46.049Z and Apple reported processing. See the [789 receipt](../../../docs/mobile/releases/1.0.25-789-testflight.md).
+  TestFlight **1.0.25 (789)** was uploaded at 2026-10-26T08:19:46.049Z and Apple reported processing.
 - 2026-10-26, owner: did not approve item (3), the custom navigator bar that replaced the native header. It is reverted to the build-788 native header (transparent, fixed More slot, native back). Items 1, 2 and 4 are kept: scroll-edge effects stay hidden. The spec exception for a custom back control is withdrawn. `pnpm mobile -- check` passes 1144/1144, the bundle builds and the iOS simulator build succeeds. TestFlight 789 still contains the reverted bar and is superseded.
-- 2026-10-27, owner: instructed the agent to build TestFlight, push the branch and open the pull request. This is the owner's decision to open the pull request before the remaining hands-on acceptance listed under "Not verified". It is not itself an acceptance record. TestFlight **1.0.25 (790)**, the merged and reverted state, was uploaded at 2026-10-27T02:34:49.518Z. See the [790 receipt](../../../docs/mobile/releases/1.0.25-790-testflight.md).
-- 2026-10-27, owner: articles with external resources waited for those resources before showing. **Cause:** the initial restore, which lifts the cover, was gated on the WebView load event, so it waited on every subresource. **Fix (task 7.8):** the restore is gated on DOM readiness plus the first height, with a one-time re-apply for late growth and a 1.5 s cover timeout. `pnpm mobile -- check` passes 1154/1154 and the bundle exports. TestFlight **1.0.25 (791)** carries the fix and supersedes 790. It was uploaded at 2026-10-27T03:13:41.892Z and Apple reported it processing. See the [791 receipt](../../../docs/mobile/releases/1.0.25-791-testflight.md).
+- 2026-10-27, owner: instructed the agent to build TestFlight, push the branch and open the pull request. This is the owner's decision to open the pull request before the remaining hands-on acceptance listed under "Not verified". It is not itself an acceptance record. TestFlight **1.0.25 (790)**, the merged and reverted state, was uploaded at 2026-10-27T02:34:49.518Z.
+- 2026-10-27, owner: articles with external resources waited for those resources before showing. **Cause:** the initial restore, which lifts the cover, was gated on the WebView load event, so it waited on every subresource. **Fix (task 7.8):** the restore is gated on DOM readiness plus the first height, with a one-time re-apply for late growth and a 1.5 s cover timeout. `pnpm mobile -- check` passes 1154/1154 and the bundle exports. TestFlight **1.0.25 (791)** carries the fix and supersedes 790. It was uploaded at 2026-10-27T03:13:41.892Z and Apple reported it processing.
 - 2026-10-27, owner, review of 791:
   - Remove the automatic position re-apply and keep the position fixed until the user scrolls.
   - Drop the back-button/More hiding requirement.
   - Show the HTML as soon as it is ready, with no loading cover and no timeout.
 
-  The cover, re-apply and timeout are removed; the saved position is restored once at DOM readiness. `pnpm mobile -- check` passes 1146/1146 and the bundle exports. TestFlight **1.0.25 (792)** carries this; it was uploaded at 2026-10-27T04:49:41.160Z and Apple reported it processing. See the [792 receipt](../../../docs/mobile/releases/1.0.25-792-testflight.md).
+  The cover, re-apply and timeout are removed; the saved position is restored once at DOM readiness. `pnpm mobile -- check` passes 1146/1146 and the bundle exports. TestFlight **1.0.25 (792)** carries this; it was uploaded at 2026-10-27T04:49:41.160Z and Apple reported it processing.
 - 2026-10-27, owner, review of 792: already-downloaded articles flashed on open, and PDFs loaded slowly whether downloaded or not. The owner approved fixing the flash and moving PDF bytes off the JS bridge. Downloaded PDFs must not refresh metadata over the network. Task 7.9:
   - **Article flash.** Cause: the skeleton was removed as soon as the host mounted, which showed the blank transparent WebView and then the jump from the top. Fix: the skeleton stays over the host until DOM readiness, the once-only restore and one painted frame. There is no load-event wait and no timeout.
   - **PDF slowness, cause 1:** every open fetched metadata over the network first. Fix: a complete local PDF opens from its cached descriptor with no network request.
@@ -106,7 +101,7 @@ TestFlight preview **1.0.25 (785)**: build bumped from 784, previous bound 784. 
   - **Checks:** `pnpm mobile -- check` passes 1156/1156. The bundle exports, and `test:native-resources` and the Swift/Kotlin engine host tests pass. These cover range semantics, owner rejection, cancellation, no metadata request for complete PDFs, and foreground service under a saturated background. `pnpm mobile -- build:android` and the iOS simulator build succeed.
   - **Extra check:** a real macOS WKWebView loaded the composed iOS PDF document at `slaxpdf://pdf/` with the real handler and engine. It rendered pages and text with no byte messages to React Native.
   - **Consequence recorded:** Dev UI fixtures can no longer render PDFs on a device.
-  - **Packaged:** after the push, the owner asked for a TestFlight build. Build `1.0.25 (793)` was archived, exported and uploaded at 2026-10-27T09:37:54.066Z. See the [793 receipt](../../../docs/mobile/releases/1.0.25-793-testflight.md).
+  - **Packaged:** after the push, the owner asked for a TestFlight build. Build `1.0.25 (793)` was archived, exported and uploaded at 2026-10-27T09:37:54.066Z.
   - **Pre-push review fixes:**
     - Android `servePdfRange` now settles its reply when its queued lane job is cancelled. Before, a session shutdown between queueing and running left the reply unanswered, and the WebView request thread waited 150 s. A Kotlin host case queues a remote range behind the control thread, then closes the session; it fails without the fix and passes with it.
     - The Reader skeleton tracks the presented page by its page identity, not only the host key. A forced reload that publishes new HTML under the same host key stays covered until its own page is presentable. The host test fails without the fix and passes with it.
@@ -117,4 +112,4 @@ TestFlight preview **1.0.25 (785)**: build bumped from 784, previous bound 784. 
     - The iOS `slaxpdf://` handler on an iOS simulator or device. It was checked only in a macOS WKWebView.
     - The skeleton reveal on a device.
 - 2026-10-27T09:54Z, owner (DGuang21), hands-on review of TestFlight 1.0.25 (793) on iOS: "现在不闪了，打开也很快" (it no longer flashes, and it opens quickly). The owner accepted the Reader open flash fix and the opening speed, and asked to update the pull request. No adjustment was requested.
-  - Not covered by this review: Android, and the theme matrix.
+- 2026-10-27, owner (DGuang21): "验收我已经全部都看过了的" (I have already checked all of the acceptance items). This covers the items from the 787–792 rounds: Reader open, back-button stability and cached-open time; RSS source switching; outline/overview motion and Markdown; the restored native header; and direct HTML presentation with the once-only restore. The owner also said per-build TestFlight receipts and `docs/mobile/release.md` updates are not needed, so this change adds none.
