@@ -177,6 +177,39 @@ describe('Fork service publication boundary', () => {
     return relation
   }
 
+  it('runs independent acquisition checks together and waits for all of them before admission', async () => {
+    admission()
+    source.bookmark.content_key = 'pdf/body/source.pdf'
+    let releaseUrl!: () => void
+    const urlResult = new Promise<void>(resolve => {
+      releaseUrl = resolve
+    })
+    ;(service as any).labs.assertUrlAllowed.mockReturnValue(urlResult)
+    const result = service.admit(ctx, source.uuid)
+    try {
+      await Promise.resolve()
+      expect((service as any).labs.assertEnabled).toHaveBeenCalledWith(ctx, 'pdf')
+      expect(repo.mediaRef).toHaveBeenCalledWith(10)
+      expect(repo.admit).not.toHaveBeenCalled()
+      expect(ctx.env.CRAWL_WORKFLOW.create).not.toHaveBeenCalled()
+    } finally {
+      releaseUrl()
+    }
+    expect(await result).toMatchObject({
+      disposition: 'created',
+      bookmark_id: 20
+    })
+  })
+
+  it('preserves acquisition-error priority and does not admit after any check fails', async () => {
+    admission()
+    ;(service as any).labs.assertUrlAllowed.mockRejectedValue(new Error('URL disabled'))
+    repo.mediaRef.mockRejectedValue(new Error('media unavailable'))
+    await expect(service.admit(ctx, source.uuid)).rejects.toThrow('URL disabled')
+    expect(repo.admit).not.toHaveBeenCalled()
+    expect(ctx.env.CRAWL_WORKFLOW.create).not.toHaveBeenCalled()
+  })
+
   it('acknowledges admission before blocked R2 work and binds the Workflow to the accepted revision', async () => {
     admission()
     const read = vi.spyOn(bucket.bucket, 'get').mockImplementation(() => new Promise(() => {}))

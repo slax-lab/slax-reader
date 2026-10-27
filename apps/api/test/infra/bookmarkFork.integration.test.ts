@@ -162,6 +162,38 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     expect((await repo.snapshot(raw.id))!.moderation_result).toBe(1)
   })
 
+  it('admits a fresh destination with one private-URL lookup', async () => {
+    const targetUrl = `https://fork-query-budget.test/${crypto.randomUUID()}`
+    let lookups = 0
+    const observed = client.$extends({
+      query: {
+        sr_bookmark: {
+          findUnique({ args, query }) {
+            if (args.where.target_url_private_user?.target_url === targetUrl) lookups++
+            return query(args)
+          }
+        }
+      }
+    })
+    const result = await new BookmarkForkRepo(() => observed as typeof client).admit({
+      userId: users[1],
+      source: source!,
+      targetUrl,
+      uuid: crypto.randomUUID()
+    })
+    expect(result).toMatchObject({
+      disposition: 'created',
+      relation: {
+        bookmark: {
+          target_url: targetUrl,
+          private_user: users[1],
+          status: 'parseing'
+        }
+      }
+    })
+    expect(lookups).toBe(1)
+  })
+
   it('atomically admits a new Fork once and excludes ordinary capture while preserving its winner timestamp', async () => {
     const targetUrl = `https://fork-admission.test/${crypto.randomUUID()}`
     const args = { userId: users[1], source: source!, targetUrl, uuid: crypto.randomUUID() }
@@ -734,7 +766,7 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     expect(rows[0].status).toBe('pending')
   })
 
-  it('privatizes one historical owner while preserving identity and personal references', async () => {
+  it.each(['capture', 'fork'])('%s privatizes one historical owner while preserving identity and personal references', async kind => {
     const now = new Date()
     const shared = await client.sr_bookmark.create({
       data: {
@@ -761,11 +793,29 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
       data: { user_id: users[1], bookmark_id: shared.id, user_bookmark_uuid: owner.uuid, type: 1, content: 'Saved highlight', updated_at: now }
     })
     const bookmarks = Object.assign(Object.create(BookmarkRepo.prototype), { prismaPg: () => client }) as BookmarkRepo
-    const admitted = await bookmarks.createBookmark(
-      { title: 'Recapture', host_url: 'legacy.test', target_url: shared.target_url, content_icon: '', content_cover: '', private_user: users[1] },
-      'pending'
-    )
-    expect(admitted!.admitted).toBe(true)
+    const admitted =
+      kind === 'fork'
+        ? (
+            await repo.admit({
+              userId: users[1],
+              source: source!,
+              targetUrl: shared.target_url,
+              uuid: crypto.randomUUID()
+            })
+          ).relation.bookmark
+        : await bookmarks.createBookmark(
+            {
+              title: 'Recapture',
+              host_url: 'legacy.test',
+              target_url: shared.target_url,
+              content_icon: '',
+              content_cover: '',
+              private_user: users[1]
+            },
+            'pending'
+          )
+    expect(admitted!.status).toBe(kind === 'fork' ? 'parseing' : 'pending_retry')
+    if (admitted && 'admitted' in admitted) expect(admitted.admitted).toBe(true)
     expect(admitted!.id).not.toBe(shared.id)
     expect(admitted!.content_key).toMatch(/^html\/body\/[^/]+\.html$/)
     expect(admitted!.content_key).not.toBe(shared.content_key)
