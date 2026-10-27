@@ -3,7 +3,7 @@
     <SnapshotDetailLayout
       v-if="detail"
       class="bookmark-detail"
-      :class="{ 'is-pdf': !!detail.pdf, 'yt-transcript-folded': youtubeArticleReady && !youtubeTranscriptShown, 'podcast-translated': podcastShowsTranslation }"
+      :class="{ 'has-save-action': !isOwner && bookmarkUid, 'is-pdf': !!detail.pdf, 'yt-transcript-folded': youtubeArticleReady && !youtubeTranscriptShown, 'podcast-translated': podcastShowsTranslation }"
       @close-panel="onUserPanelChange(null)"
     >
       <template #topbar>
@@ -1153,6 +1153,29 @@ renderServerData()
     img {
       flex-shrink: 0;
       display: block;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .bookmark-detail.has-save-action {
+    :deep(.topbar-inner) {
+      padding-inline: 12px;
+    }
+
+    :deep(.topbar-left),
+    :deep(.topbar-right) {
+      gap: 8px;
+    }
+
+    .app-name {
+      min-width: 44px;
+      min-height: 44px;
+      justify-content: center;
+
+      span {
+        display: none;
+      }
     }
   }
 }

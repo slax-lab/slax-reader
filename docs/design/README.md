@@ -22,6 +22,18 @@ The design contract, reference snapshot, and approved Web icon migrations form t
 
 Remaining icon migrations and theme-token debt stay in the backlog and can be addressed alongside relevant feature work.
 
+## Public-reader save action
+
+[`DESIGN.md` §7.5](../../DESIGN.md#75-public-reader-save-state-icons) defines the
+outline/filled star mapping for the public-reader save button. The
+[`snapshot.save` / `snapshot.saved` registry entries](../../apps/web/app/icons/registry.json)
+reuse the curated [outline SVG](../../apps/web/app/assets/icons/bookmark-action-star.svg)
+and [filled SVG](../../apps/web/app/assets/icons/bookmark-action-star-active.svg),
+with 14px defaults, `currentColor` paint, and control-labelled accessibility.
+[`SnapshotForkButton.vue`](../../apps/web/app/components/Snapshot/SnapshotForkButton.vue)
+renders them through `AppIcon`; generate registry changes with `pnpm icons:write`
+and verify them with `pnpm icons:check`. The archived reference snapshot is unchanged.
+
 ## Maintenance
 
 - Change semantic design decisions in the root `DESIGN.md`.
