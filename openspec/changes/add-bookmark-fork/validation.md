@@ -1,3 +1,48 @@
+# PowerSync submission follow-up — 2026-10-27
+
+Approved scope: reuse ordinary Add URL's local insertion, connector and queue; route Reader PUTs to existing Fork admission/Workflow; preserve inherited ordinary-save boundaries. No schema, bucket, migration, public contract, `forked_from_id` projection, R2 path, version or maintenance changes. Base: `origin/dev` at `0e39dc6c` (merged performance PR #396). Work is isolated on `feat/fork-powersync`; the primary checkout remains untouched.
+
+## Checks and executed behavior
+
+| Check | Result |
+| --- | --- |
+| API unit suite, `pnpm api -- test` | 193 files passed; 2,510 tests passed, 119 conditional tests skipped. PostgreSQL coverage below runs the relevant conditional tests explicitly. |
+| Web unit suite, `pnpm web -- test` | 224 files passed, one skipped; 2,548 tests passed, three skipped. Public local runtime configuration supplied. |
+| `pnpm api -- gen:all` | Generated through the normal generator; only intended DI registration changed. Public example config and unused local connection strings supplied. |
+| API and Web typecheck | Passed. Initial Web typecheck without complete public configuration reported unrelated `ext-bridge.vue` unknown runtime values; rerun with complete public config passed. |
+| API build and Web build | Passed using public example/local configuration; API build is a dry run, no deployment. |
+| API lint | Passed with zero errors and 344 existing warnings. |
+| Web lint | Full tree has 99 import-order errors in 99 untouched files. Changed Web files pass with zero errors and two existing-style test `any` warnings. No repository-wide formatting changes were made. |
+| Strict OpenSpec validation | `pnpm exec openspec validate --all --strict`: all 76 changes/specs pass. |
+| Real PostgreSQL | 46 tests passed: 39 existing publication/isolation tests plus seven new sync admission tests. Fresh owned PostgreSQL 17 container, historical migrations, fixture-only data, cleanup afterward. Test files run serially to avoid the existing contention-sensitive publication fixture. |
+| Real HTTP/Workflow/R2 | `FORK_SMOKE=1 pnpm api -- test:http` passed. Six content types created through `/v1/sync/changes` with their local UUID; real Edge/Core/Workflow/PostgreSQL/D1/R2 copied and published content. Existing repeated HTTP Fork, ordinary add/list/delete and source-access checks also pass. |
+| Running browser exercise | Headless Chrome, real Vue button/modal/hook/local save guard and real browser PowerSync SQLite/CRUD queue, at 1280/768/320px in light/dark themes. Immediate saved state while upload is paused, modal closure, same-URL duplicate prevention, failed local write followed by retry, loading/disabled state during a delayed local insert, and no premature detail refresh all pass. |
+
+The Web runtime used `PUBLIC_BASE_URL`, `AUTH_BASE_URL`, `SHARE_BASE_URL` as `http://localhost:3099`, `DWEB_API_BASE_URL=http://localhost:8787`, `COOKIE_DOMAIN=localhost`, `COOKIE_TOKEN_NAME=slax_test`, and a public fixture OAuth client name. No real account secrets or production data were used.
+
+New PostgreSQL cases verify client UUID commitment before Workflow creation, dependent personal edits, active replay, deliberate terminal refresh retaining canonical UUID/personal state, stable failed placeholders after permission changes, concurrent device uniqueness, foreign-owned UUID rejection without orphan rows, and persisted-create replay after source revocation/deletion.
+
+## Review and corrections
+
+Independent Bugs/Security/Compliance review selected `add-bookmark-fork`. One Important introduced bug was found and reproduced: after a Reader create persisted, a lost-response replay following source deletion/revocation could incorrectly invoke the failed-placeholder writer and block upload. The correction checks the submitted UUID against both relation ownership and private-resource ownership before readmission. Existing private rows are acknowledged; new explicit saves still receive new UUIDs and can refresh. Both real PostgreSQL regressions failed before the correction and pass afterward. No schema, alias or command receipt was added. The independent follow-up review checked the final diff, regressions and evidence and reported no remaining Important findings or nits across Bugs, Security and Compliance.
+
+Ordinary-only batches remain one transaction. Mixed batches commit contiguous ordinary operations, then a Reader admission, then dependent edits; partial commit/replay is deliberate and does not promise exactly-once processing. Source rejection reuses the existing terminal failure writer. Infrastructure failures still reject upload. Busy/uncertain dispatch acknowledges a persisted resource while retaining its active writer claim; no replacement crawl or new rescue is started.
+
+## Human acceptance
+
+The requesting owner exercised the prepared UI and replied on 2026-10-27 (Asia/Shanghai): “体验通过，可以创建 Draft PR”. Scope: Fork button, Reader Add URL and retry after a simulated local write failure; local insertion ends waiting with uploads paused. No changes were requested. This acceptance precedes the new Draft PR. It is distinct from the original Fork's 2026-10-23 HTTP-flow acceptance.
+
+## Boundaries and gaps
+
+- The browser exercise used simulated authentication and paused upload. The API exercise used real local databases/Workers/R2; a single browser-to-live-PowerSync-server round trip and production latency were not measured. The connector/schema/buckets themselves are unchanged.
+- Browser theme/width checks cover the changed controls, not every article renderer. Component presentation is unchanged. PDF/media capture is covered by the six-type server exercise; no external provider was fetched for this follow-up.
+- Accepted ordinary-save limitations remain: temporary versus canonical UUID on an existing destination, edits against that temporary ID, replay/deletion/account lifecycle behavior, and potential refresh replay of an existing destination. Catastrophic interrupted/uncertain dispatch can remain processing; no automatic recovery guarantee is added.
+- Full Web lint's untouched import-order errors remain an explicit baseline gap. Changed files, builds, typechecks and suites pass.
+- Local UI fixture/scripts/screenshots stay ignored and are not committed. After the implementation PR merges, archive the active change in its required documentation PR.
+
+
+---
+
 # Remaining moderation boundaries — 2026-10-26
 
 The owner requested fixes for [boxcounter review 5649104321](https://github.com/slax-lab/slax-reader/pull/354#pullrequestreview-5649104321) against `9d7d8d01`. All three Important Bugs were confirmed and corrected within `add-bookmark-fork`. Production changes are confined to three existing files; no schema, R2 key, endpoint, scheduled job, version or UI change is added.

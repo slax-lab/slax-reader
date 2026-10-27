@@ -1,5 +1,9 @@
 # Proposal
 
+## Approved PowerSync follow-up — 2026-10-27
+
+The owner approved implementation in conversation: reuse ordinary local insertion, upload, UUID reconciliation and retry semantics; do not fix inherited ordinary-save limitations. Reader URL entry and the page action now enqueue the same local bookmark PUT and use `/sync/changes`. The server reuses existing Fork admission and copy Workflows. Do not add tables, columns, bucket changes, local schema fields, provenance synchronization, R2 conventions or maintenance. Existing HTTP clients keep their current behavior. Click-time connectivity is retained; temporary disconnection after local insertion is handled by the existing queue. This amendment supersedes earlier HTTP-only Web and blanket queued-Reader-rejection requirements. It continues the merged feature's still-open change artifacts rather than creating overlapping capability deltas. The owner accepted the implemented interaction in conversation on 2026-10-27 (Asia/Shanghai): “体验通过，可以创建 Draft PR”. The prepared environment used the real Fork button, Add URL modal, local insertion/save guard and browser PowerSync SQLite with upload paused; it covered immediate acknowledgement, duplicate prevention and failed local writes followed by retry. No adjustments were requested. Agent checks additionally covered light/dark themes at 1280, 768 and 320px. Authentication and remote synchronization in this UI fixture were simulated; real server/Workflow/R2 behavior was exercised separately.
+
 ## Implemented simplification — 2026-10-23
 
 The owner approved construction. The [implementation report](../../../docs/api/bookmark-fork-fixed-paths.md) and current delta specs describe the final contract: reuse `add_url` and existing details, remove the added maintenance schedule, preserve original bounded retries, and isolate authenticated detail/cache state. This refinement adds no schema, R2-layout or version change. Prior human acceptance applies to the earlier implementation; the owner requested this PR update before their next local test.
@@ -17,7 +21,7 @@ Readers need to save another user's Reader snapshot as their own durable copy, i
 - Preserve one personal copy per original resource. Refresh an existing completed or failed copy in place on each accepted Fork; reject overlapping work, restore a completed trashed copy, and preserve personal identity/state, including historical shared relations.
 - Make new private media captures and Forks own their stored content. Shared generation remains a computation cache; later actions by another user cannot replace a completed private snapshot. Explicit owner refresh remains supported for ordinary captures.
 - Use best-effort immediate deletion for confirmed failed new copies and permanent deletion. Do not add automatic orphan reclamation, a cleanup table or cleanup state fields; interrupted or failed deletion may leave R2 objects. Retain immediate best-effort indexing and the original bounded media retry/republish triggers; add no scheduled repair.
-- Cover Extension/REST, Web, Telegram and supported bookmark imports. Give older queued Reader-URL sync operations a terminal visible failure without crawling the Reader shell or blocking unrelated sync work.
+- Cover Extension/REST, Web, Telegram and supported bookmark imports. Process queued Reader URLs through existing Fork admission. Preserve already persisted failed placeholders and use that same terminal outcome for denied sources, without crawling the Reader shell or blocking unrelated sync work.
 
 ## Capabilities
 

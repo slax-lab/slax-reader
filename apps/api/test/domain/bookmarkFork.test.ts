@@ -177,6 +177,19 @@ describe('Fork service publication boundary', () => {
     return relation
   }
 
+  it('uses the supplied local UUID only when reserving a new destination', async () => {
+    admission()
+    const localUuid = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+    await service.admit(ctx, source.uuid, localUuid)
+    expect(repo.admit).toHaveBeenCalledWith(expect.objectContaining({ uuid: localUuid }))
+  })
+
+  it('rejects a malformed client UUID before admission', async () => {
+    admission()
+    await expect(service.admit(ctx, source.uuid, 'not-a-uuid')).rejects.toThrow()
+    expect(repo.admit).not.toHaveBeenCalled()
+  })
+
   it('runs independent acquisition checks together and waits for all of them before admission', async () => {
     admission()
     source.bookmark.content_key = 'pdf/body/source.pdf'

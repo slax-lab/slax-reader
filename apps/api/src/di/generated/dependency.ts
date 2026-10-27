@@ -475,6 +475,7 @@ container.register(SyncOrchestrator, {
       container.resolve(QueueClient),
       container.resolve(SearchService),
       container.resolve(CrawlService),
+      container.resolve(BookmarkForkService),
       container.resolve(GA4AnalyticsClient),
       container.resolve(LogsService),
       container.resolve(CollectionRepo),

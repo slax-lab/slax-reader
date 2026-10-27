@@ -1,3 +1,16 @@
+# PowerSync follow-up — 2026-10-27
+
+This approved amendment is authoritative for Web submission and queued Reader operations; the earlier design below is historical wherever it describes HTTP-only Web saves or mandatory failure for every queued Reader URL.
+
+- The existing Fork hook calls `useLocalBookmarks.createBookmark()` under the same save guard used by ordinary Add URL. Reader URL entry already calls this hook. Retain online/login checks and the HTTP fallback when local-first is unavailable.
+- The local UUID is passed by the unchanged connector in the bookmark PUT. The server classifies the trusted Reader URL and calls existing Fork admission with that UUID for new destinations. Existing destinations retain their UUID and personal state.
+- `/sync/changes` commits contiguous ordinary operation runs through the existing batch transaction, then processes each Reader create in its existing Serializable admission transaction. Subsequent operations run after that admission. Ordinary-only batches are unchanged. A mixed batch can partially commit before a later error; replay follows ordinary save semantics, not exactly-once commands.
+- Before source validation, acknowledge a relation at the submitted UUID only when both the relation and private resource belong to this user. This makes a persisted create replay independent of later source deletion, permission or Labs changes. Previously persisted failed Reader placeholders also remain stable. Explicit user resubmission generates a fresh UUID and can still refresh the canonical destination. Explicit missing/denied/not-ready/deleting/Labs outcomes use the existing failed-placeholder writer; personal edits still target their submitted UUID. Infrastructure failures remain upload errors. An existing busy destination or uncertain Workflow dispatch acknowledges the persisted save without resetting its write claim, matching ordinary sync's separation of saved rows from downstream processing. A catastrophic interrupted dispatch may remain processing; there is no new rescue mechanism.
+- Copying, finite Workflow retries, provenance publication, permission revalidation and R2 paths are unchanged. Ordinary capture must never receive a Reader shell URL.
+- Local acceptance stops loading and disables the action. It does not emit the server-accepted detail refresh, because the server may not have received the PUT yet. Subsequent visits use existing viewer-scoped detail. Copy failures follow the existing status/revisit behavior.
+- `forked_from_id` remains server-owned. Do not add it to the local schema or streams. Do not add command metadata, aliases, versions, cleanup jobs, retries outside existing mechanisms, or edit restrictions for pending rows.
+- Accepted inherited boundaries: client/server UUID mismatch on an existing destination, dependent edits against a temporary UUID, repeated terminal saves on lost-response replay, deletion-versus-replay and existing queue/account lifecycle behavior are not expanded or repaired here.
+
 ## Review corrections — 2026-10-26
 
 The four boxcounter findings are corrected within the approved behavior; no schema, storage layout, recovery cron or frontend flow is added.

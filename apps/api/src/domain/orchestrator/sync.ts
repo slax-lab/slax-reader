@@ -5,6 +5,8 @@ import { QueueClient, queueRetryParseMessage, callbackType } from '@/infra/queue
 import { ContextManager } from '@/utils/context'
 import { parserType, URLPolicie } from '@/utils/urlPolicie'
 import { CrawlService } from '@/domain/crawl'
+import { BookmarkForkService } from '@/domain/bookmarkFork'
+import { MultiLangError } from '@/utils/multiLangError'
 import { GA4AnalyticsClient } from '@/infra/external/ga4Analytics'
 import { LogsService } from '@/domain/logs'
 import { CollectionRepo } from '@/infra/repository/dbCollection'
@@ -14,7 +16,7 @@ import { bookmarkEventProperties, getEventContext, submitServerEvent } from '@/d
 import { ErrorMarkTypeError, ErrorParam, SyncTableRuleError, SyncTableTagNameError, UserNotFoundError } from '@/const/err'
 import { SignJWT } from 'jose'
 import { markType } from '@/infra/repository/dbMark'
-import { readerBookmarkUuid } from '@slax-reader/contracts'
+import { ErrorName, readerBookmarkUuid } from '@slax-reader/contracts'
 
 export type SyncExecOperation = 'PUT' | 'PATCH' | 'DELETE'
 
@@ -145,6 +147,7 @@ export class SyncOrchestrator {
     @inject(QueueClient) private queueClient: QueueClient,
     @inject(SearchService) protected searchService: SearchService,
     @inject(CrawlService) private crawlService: CrawlService,
+    @inject(BookmarkForkService) private forkService: BookmarkForkService,
     @inject(GA4AnalyticsClient) private ga4Client: GA4AnalyticsClient,
     @inject(LogsService) private logsService: LogsService,
     @inject(CollectionRepo) private collectionRepo: CollectionRepo,
@@ -197,14 +200,56 @@ export class SyncOrchestrator {
       if (source) operation.data.readerSourceUuid = source
     }
     const observer = this.syncCommitObserver(ctx)
-    const result = observer ? await this.dbSyncBatch.executeOrderedOperations(orderedOperations, observer) : await this.dbSyncBatch.executeOrderedOperations(orderedOperations)
-    for (const newBookmark of result) {
-      await this.sendRetryParseEvent(ctx, newBookmark)
+    let pending: OrderedSyncOperation[] = []
+    const flush = async () => {
+      if (!pending.length) return
+      const result = await this.dbSyncBatch.executeOrderedOperations(pending, observer)
+      pending = []
+      for (const newBookmark of result) await this.sendRetryParseEvent(ctx, newBookmark)
     }
+    // Fork keeps its existing admission transaction. Commit each preceding run first
+    // so a later edit of a newly created local UUID sees the admitted destination.
+    for (const operation of orderedOperations) {
+      if (operation.type === 'create_bookmark' && operation.data.readerSourceUuid) {
+        await flush()
+        await this.commitReaderSave(ctx, operation, observer)
+      } else pending.push(operation)
+    }
+    await flush()
 
     // 同步删除/恢复需补清缓存
     if (orderedOperations.some(op => op.type === 'delete_bookmark' || op.type === 'restore_bookmark')) {
       await this.searchService.clearSearchCache(ctx, userId)
+    }
+  }
+
+  private async commitReaderSave(ctx: ContextManager, operation: Extract<OrderedSyncOperation, { type: 'create_bookmark' }>, observer: SyncCommitObserver) {
+    if (await this.dbSyncBatch.hasPersistedReaderSave(operation)) return
+    try {
+      await this.forkService.admit(ctx, operation.data.readerSourceUuid!, operation.bookmarkUuid)
+    } catch (error) {
+      // As with ordinary sync saves, an existing write/uncertain dispatch does not
+      // keep a persisted bookmark in the upload queue. Never release its claim.
+      if (error instanceof MultiLangError && [ErrorName.FORK_DESTINATION_IN_PROGRESS, ErrorName.FORK_STORAGE_UNAVAILABLE].includes(error.name as ErrorName)) {
+        console.error('Reader sync retained existing save', { name: error.name })
+        return
+      }
+      if (
+        !(error instanceof MultiLangError) ||
+        ![
+          ErrorName.BOOKMARK_NOT_FOUND,
+          ErrorName.SHARE_ACTION_NOT_ALLOWED,
+          ErrorName.LAB_FEATURE_DISABLED,
+          ErrorName.BLOCK_TARGET_URL,
+          ErrorName.FORK_SOURCE_NOT_READY,
+          ErrorName.FORK_DESTINATION_DELETING,
+          ErrorName.FORK_DESTINATION_FAILED
+        ].includes(error.name as ErrorName)
+      )
+        throw error
+      // Reuse the existing terminal Reader placeholder; later queued personal edits
+      // still have a row to target and a denied source does not block other uploads.
+      await this.dbSyncBatch.executeOrderedOperations([operation], observer)
     }
   }
 

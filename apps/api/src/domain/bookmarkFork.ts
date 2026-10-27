@@ -42,10 +42,11 @@ export class BookmarkForkService {
     @inject(NotificationMessage) private notifications: NotificationMessage
   ) {}
 
-  async admit(ctx: ContextManager, sourceUuid: string): Promise<CompletedFork> {
+  async admit(ctx: ContextManager, sourceUuid: string, clientUuid?: string): Promise<CompletedFork> {
     const userId = ctx.getUserId()
     if (!userId) throw UnauthorizedError()
     if (typeof sourceUuid !== 'string' || !uuidPattern.test(sourceUuid)) throw ErrorParam()
+    if (clientUuid !== undefined && !uuidPattern.test(clientUuid)) throw ErrorParam()
     const source = await this.repo.source(userId, sourceUuid.toLowerCase())
     if (!source) throw BookmarkNotFoundError()
     const checks = await Promise.allSettled([
@@ -57,7 +58,7 @@ export class BookmarkForkService {
     for (const check of checks) if (check.status === 'rejected') throw check.reason
     if (source.user_id === userId) return this.existingResult(ctx, await this.repo.ownSource(userId, sourceUuid))
     if (source.bookmark.status !== 'success') throw forkError()
-    const admission = await this.repo.admit({ userId, source, targetUrl: this.destinationUrl(source, userId), uuid: crypto.randomUUID() })
+    const admission = await this.repo.admit({ userId, source, targetUrl: this.destinationUrl(source, userId), uuid: clientUuid ?? crypto.randomUUID() })
     const { relation, disposition } = admission
     const revision = relation.bookmark.updated_at
     const workflowId = `fork-${relation.bookmark_id}-${revision.getTime()}`

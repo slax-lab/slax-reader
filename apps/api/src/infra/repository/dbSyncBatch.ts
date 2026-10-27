@@ -161,6 +161,18 @@ export class DBSyncBatchOperation {
     })
   }
 
+  /** A persisted local create remains acknowledged even if its source is later unavailable. */
+  async hasPersistedReaderSave(operation: Extract<OrderedSyncOperation, { type: 'create_bookmark' }>): Promise<boolean> {
+    return !!(await this.prismaHyperdrive().sr_user_bookmark.findFirst({
+      where: {
+        uuid: operation.bookmarkUuid,
+        user_id: operation.userId,
+        bookmark: { private_user: operation.userId }
+      },
+      select: { id: true }
+    }))
+  }
+
   /** create bookmark */
   public async executeCreateBookmark(
     tx: prismaTx,
@@ -188,8 +200,8 @@ export class DBSyncBatchOperation {
           target_url: targetUrl,
           host_url: new URL(targetUrl).origin,
           private_user: operation.userId,
-          title: 'Open this Reader link and use Fork while online',
-          description: 'This queued save could not copy the snapshot. Open its Reader link and use Fork while connected.',
+          title: 'Could not save this Reader article',
+          description: 'This queued save could not copy the snapshot. Open the Reader link and try saving it again.',
           status: 'failed',
           created_at: now,
           updated_at: now,

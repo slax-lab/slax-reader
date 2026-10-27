@@ -191,9 +191,15 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         }
         const saved: Record<string, any> = {}
         for (const [name, src] of Object.entries(sources)) {
-          console.log(`Fork HTTP exercise: ${name}`)
-          const { response, result, destinationUuid } = await fork(src.uuid)
+          console.log(`Fork PowerSync upload exercise: ${name}`)
+          const destinationUuid = randomUUID()
+          const { response, result } = await call('/v1/sync/changes', [{
+            table: 'sr_user_bookmark', id: destinationUuid, op: 'PUT',
+            data: { metadata: JSON.stringify({ bookmark: { title: 'Queued Reader link', target_url: `${readerOrigin}/b/${src.uuid}` } }) }
+          }])
           assert.equal(response.status, 200, `${name}: ${JSON.stringify(result)}`)
+          assert.deepEqual(result.data, { status: true })
+          await settled(destinationUuid)
           const dest = json(
             `SELECT ub.uuid,ub.bookmark_id,ub.forked_from_id,ub.is_starred,ub.alias_title,b.private_user,b.target_url,b.content_key,b.content_md_key FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id=ub.bookmark_id WHERE ub.uuid=${sqlString(destinationUuid)}`
           )
