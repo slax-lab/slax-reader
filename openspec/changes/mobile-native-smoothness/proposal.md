@@ -18,7 +18,9 @@ The Expo mobile app feels markedly less smooth than the previous Kotlin Multipla
   - Non-critical work starts when the Library is presented.
   - Preference writes no longer re-render the whole tree.
 - Reader:
-  - **Open:** the native document host mounts after the push transition, behind the skeleton, and stays covered until the first content and position restore. Static bridge/host scripts are installed once.
+  - **Open:** on Android the native document host mounts after the push transition. On iOS it mounts immediately, because the push is Core Animation driven. In both cases a loading cover hides the host until the first content and position restore. Static bridge/host scripts are installed once, and cached bodies are read on a foreground native queue concurrently with the record lookup. The Reader module and WebKit are prewarmed after the Library is presented.
+  - **Header:** the native Reader header options are static from the first frame, and iOS 26 scroll-edge effects are hidden.
+  - **AI surfaces:** the outline mounts its Markdown after its motion settles. KMP's loading animations are ported, the overview grows from its excerpt, and outline Markdown is rendered by `markdown-it` with `markdown-it-cjk-friendly`, at the versions the Web app already uses.
   - **Platform fixes:** Android measures document height natively instead of round-tripping through React layout. iOS inset updates no longer reset the offset or stop deceleration when unchanged or while scrolling.
 - Archive the prior mobile performance, search, Spotlight and RSS-gesture changes before this work. Their remaining device acceptance is re-exercised here.
 
@@ -33,11 +35,12 @@ None.
 - `mobile-performance-lifecycle`: adds native offline-engine thread ownership, batched progress persistence, key-based identities without hashing, KMP-aligned background/foreground behavior and post-transition Reader host mounting with native Android height and iOS inset guards.
 - `mobile-app-parity`: the drawer no longer locks the covered list. Its scrim owns input while the drawer is visible, and PDF completion no longer requires a full-file hash.
 - `mobile-visual-parity`: drawer, row swipe and list motion follow the single-gesture, UI-thread model, with no feed input lock.
-- `mobile-reader-parity`: PDF completion is verified by size, range/length and descriptor identity instead of SHA-256.
+- `mobile-reader-parity`: PDF completion is verified by size, range/length and descriptor identity instead of SHA-256. Article presentation allows a loading cover only until the document is presentable.
 
 ## Impact
 
 - Native modules: `apps/mobile/modules/slax-platform` (new offline engine on iOS and Android, Reader host height/inset/script changes) and `slax-legacy` (hash helpers removed).
+- Dependencies: `markdown-it` 15.0.2 and `markdown-it-cjk-friendly` 3.0.0, already resolved in the lockfile for the Web app.
 - JavaScript: `src/data/*` (the cache pipeline is replaced by an engine facade; SHA helpers deleted), `src/system-actions/*`, `src/components/{SourceDrawer,BookmarkRow,RssFeed,feed-scroll}`, `src/screens/LibraryScreen.tsx`, `src/runtime.tsx`, `src/data/runtime.ts`, `src/reader/*`.
 - Rules: `.rulesync/rules/mobile-architecture.md` PDF verification sentence (regenerated with `pnpm agent:sync`).
 - Existing offline article caches are invalidated once and re-acquired in the new layout.

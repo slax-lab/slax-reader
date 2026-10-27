@@ -16,6 +16,12 @@ import {READER_ORIGIN, readerProtectedHosts, readerAllowsUrl, readerAllowsImage,
 // The header lives inside the Android outer scroller, so article JS only needs sampled metrics while
 // moving plus the exact drag/fling end offset. The PDF host keeps per-frame metrics for virtualization.
 const ANDROID_ARTICLE_SCROLL_SAMPLE_MS = 48
+/** The article is uncovered at most this long after DOM readiness, even if the initial restore has not completed. */
+export const READER_PRESENTABLE_FALLBACK_MS = 1500
+/** After the initial restore, late layout (images, fonts) re-applies a non-zero saved position until the load event or this deadline. */
+export const READER_RESTORE_SETTLE_MS = 2000
+/** Quiet period that coalesces a burst of height changes into one re-apply. */
+const READER_RESTORE_SETTLE_QUIET_MS = 150
 const protectedHosts = readerProtectedHosts(mobileConfig)
 const imageProxyOrigins = readerImageProxyOrigins(mobileConfig)
 import type { ReaderDocumentHeightHandle, ReaderNativeAdapter, ReaderNativeContext } from './native.ts'
@@ -99,7 +105,10 @@ export interface ReaderWebViewProps {
   onPositionFlush?: (positionPixels: number, reason: PositionFlushReason, pageId: string) => Promise<void> | void
   onExternalUrl?: (url: string) => void
   onError?: (error: Error) => void
-  /** Called once per page after its first content is ready and the initial position restore was consumed. */
+  /**
+   * Called once per page after DOM readiness, the first document height and the initial position restore; it never waits for
+   * the window load event (external images, iframes, fonts). A bounded fallback reports it if the restore cannot complete.
+   */
   onPresentable?: (pageId: string) => void
   /** Detect committed route removal when React unmounts before the state event. */
   isRouteRemoved?: () => boolean
@@ -138,6 +147,11 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
   const processGone = useRef(false)
   const initialPositionConsumed = useRef(false)
   const initialPositionInFlight = useRef(false)
+  const presented = useRef(false)
+  const presentFallback = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Any touch, drag or programmatic navigation hands the scroll position to the user; restore never moves it afterwards.
+  const interacted = useRef(false)
+  const restoreSettle = useRef<{target: number; deadline: number; grown: boolean; timer: ReturnType<typeof setTimeout> | null} | null>(null)
   const nativeInsetWork = useRef<Promise<void>>(Promise.resolve())
   const appliedInsets = useRef<{tag: number; top: number; bottom: number; work: Promise<void>} | null>(null)
   const observedPosition = useRef<{scrollPoints: number; contentHeightPoints: number; viewportHeightPoints: number} | null>(null)
@@ -269,7 +283,7 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
     clearSelection: async () => { await request({ operation: 'clearSelection' }) },
     captureSelection: async () => parseReaderSelection(await request({ operation: 'captureSelection' })),
     drawMarks: async marks => { await request({ operation: 'drawMarks', argument: marks }) },
-    scrollToAnchor: async anchor => Boolean(await request({ operation: 'scrollToAnchor', argument: anchor })),
+    scrollToAnchor: async anchor => {userInteracted(); return Boolean(await request({ operation: 'scrollToAnchor', argument: anchor }))},
     seekYoutube: async seconds => {
       if (!Number.isFinite(seconds) || seconds < 0) throw new Error('Invalid YouTube seek position')
       await request({ operation: 'seekYoutube', argument: Math.floor(seconds) })
@@ -297,7 +311,7 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
   useEffect(() => {
     exited.current = false
     if (props.nativeAdapter) nativeAttachment.current = new ReaderNativeAttachment(props.nativeAdapter,
-      screenY => {nativeTouchScreenY.current = screenY}, value => {tag.current = value; setAttachedNativeTag(value)})
+      screenY => {nativeTouchScreenY.current = screenY; userInteracted()}, value => {tag.current = value; setAttachedNativeTag(value)})
     session.current = new ReaderBridgeSession(props.pageId, (script, pageId) => {
       const native = webView.current as unknown as ReaderEvaluationHandle | null
       if (!native?.evaluateJavaScript) return Promise.reject(new Error('Reader native evaluation is unavailable'))
@@ -313,6 +327,8 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
     })
     return () => {
       subscription.remove()
+      closeRestoreSettle()
+      if (presentFallback.current !== null) {clearTimeout(presentFallback.current); presentFallback.current = null}
       observeLifecycle({kind: 'unmount'})
       if (!exited.current && callbacks.current.isRouteRemoved?.()) {
         void commitExit().catch(reportError)
@@ -390,6 +406,45 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
     callbacks.current.onPositionChange?.(positionPixels, readerNearBottom(platform, y, totalHeight, viewHeight, geometryRef.current))
   }
 
+  const present = () => {
+    if (presented.current || exited.current) return
+    presented.current = true
+    if (presentFallback.current !== null) {clearTimeout(presentFallback.current); presentFallback.current = null}
+    callbacks.current.onPresentable?.(props.pageId)
+  }
+  function closeRestoreSettle() {
+    const settle = restoreSettle.current
+    restoreSettle.current = null
+    if (settle?.timer) clearTimeout(settle.timer)
+  }
+  function userInteracted() {
+    interacted.current = true
+    closeRestoreSettle()
+  }
+  /** Re-applies the saved position once late layout above it has grown, unless the reader has taken over or the window closed. */
+  const reapplyRestore = () => {
+    const settle = restoreSettle.current
+    if (!settle || exited.current || processGone.current || interacted.current || Date.now() > settle.deadline) {closeRestoreSettle(); return}
+    if (!settle.grown) return
+    settle.grown = false
+    void scrollTo(legacyPositionToScrollPoints(platform, settle.target, geometryRef.current), false).catch(reportError)
+  }
+  const restoreLayoutGrew = () => {
+    const settle = restoreSettle.current
+    if (!settle) return
+    settle.grown = true
+    if (settle.timer) clearTimeout(settle.timer)
+    settle.timer = setTimeout(() => {if (restoreSettle.current === settle) {settle.timer = null; reapplyRestore()}}, READER_RESTORE_SETTLE_QUIET_MS)
+  }
+  const documentLoadFinished = () => {
+    reapplyRestore()
+    const settle = restoreSettle.current
+    if (!settle) return
+    // Android may commit the outer scroller's final height just after the load event; keep one quiet period for it.
+    if (settle.timer) clearTimeout(settle.timer)
+    settle.timer = setTimeout(() => {if (restoreSettle.current === settle) {settle.timer = null; reapplyRestore(); closeRestoreSettle()}}, READER_RESTORE_SETTLE_QUIET_MS)
+  }
+
   const consumeInitialPosition = async () => {
     if (initialPositionConsumed.current || initialPositionInFlight.current || documentHeight <= 1 || (props.header && headerHeight === 0) || viewportHeight === 0) return
     // The JS document-height message can precede native ScrollView layout. A
@@ -402,16 +457,28 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
       await applyNativeInsets()
       if (exited.current || tag.current !== nativeTag) return
       const initial = callbacks.current.initialPosition
-      if (initial !== null && initial !== undefined && Number.isFinite(initial) && initial >= 0) {
-        await scrollTo(legacyPositionToScrollPoints(platform, initial, geometryRef.current), false)
+      const restorable = initial !== null && initial !== undefined && Number.isFinite(initial) && initial >= 0
+      // The fallback may already have uncovered the article; a reader who touched it keeps their own position.
+      if (restorable && !interacted.current) await scrollTo(legacyPositionToScrollPoints(platform, initial, geometryRef.current), false)
+      if (!exited.current) {
+        initialPositionConsumed.current = true; observePosition('restore')
+        if (restorable && initial > 0 && !interacted.current && !documentState.current.documentLoaded) restoreSettle.current = {target: initial, deadline: Date.now() + READER_RESTORE_SETTLE_MS, grown: false, timer: null}
+        present()
       }
-      if (!exited.current) {initialPositionConsumed.current = true; observePosition('restore'); callbacks.current.onPresentable?.(props.pageId)}
     } finally {initialPositionInFlight.current = false}
   }
 
+  // Restore needs DOM readiness, the first document height and the measured header/viewport (plus Android's committed scroller
+  // height), never the window load event, so slow external resources do not keep the article covered.
   useEffect(() => {
-    if (ready && active && documentLoaded) void consumeInitialPosition().catch(reportError)
-  }, [ready, active, documentLoaded, documentHeight, headerHeight, footerHeight, viewportHeight, attachedNativeTag, androidContentHeight, androidViewportHeight])
+    if (ready && active) void consumeInitialPosition().catch(reportError)
+  }, [ready, active, documentHeight, headerHeight, footerHeight, viewportHeight, attachedNativeTag, androidContentHeight, androidViewportHeight])
+
+  // Safety net: the article is never left covered once its DOM is ready (or its load finished without a bridge).
+  useEffect(() => {
+    if (presented.current || presentFallback.current !== null || (!ready && !documentLoaded)) return
+    presentFallback.current = setTimeout(() => {presentFallback.current = null; present()}, READER_PRESENTABLE_FALLBACK_MS)
+  }, [ready, documentLoaded])
 
   const receive = (message: WebViewMessageEvent) => {
     nativeEventCounts.current.messages++
@@ -432,15 +499,18 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
     } else if (event.type === 'contentHeight') {
       const previous = documentHeightPoints.current
       documentHeightPoints.current = event.height
+      if (platform === 'ios' && initialPositionConsumed.current && event.height > previous) restoreLayoutGrew()
       // The natively sized host keeps this as a UI-thread fallback until its own measurement arrives.
       if (nativeDocumentHeight) (webView.current as unknown as Partial<ReaderDocumentHeightHandle> | null)?.applyDocumentHeight?.(event.height)
       // A natively sized Android host renders only while restore or footer placement still depends on the height.
       if (!nativeDocumentHeight || !initialPositionConsumed.current || (props.footerOnlyForLongDocument && shortDocument(event.height) !== shortDocument(previous))) setDocumentHeight(event.height)
     } else if (event.type === 'scrollToPosition') {
+      userInteracted()
       void scrollTo(anchorToScrollPoints(platform, documentHeightPoints.current * event.percentage, geometryRef.current), true).catch(reportError)
     } else if (event.type === 'scrollToTop') {
       // Source iOS scrollToTop uses document zero, which differs from revealing
       // the inset-backed header after the document has already scrolled.
+      userInteracted()
       void scrollTo(0, true).catch(reportError)
     } else if (event.type === 'textSelected') {
       const clientY = event.selectionGeometry?.touchClientY ?? event.selectionGeometry?.bottom
@@ -472,6 +542,7 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
   }
   // Content growth (image loads) only gates the initial restore; afterwards it no longer rerenders the page.
   const contentSizeChanged = (height: number) => {
+    if (initialPositionConsumed.current && height > androidContent.current) restoreLayoutGrew()
     androidContent.current = height; androidScrollLayout.current.contentHeightPoints = height
     if (!initialPositionConsumed.current) setAndroidContentHeight(height)
   }
@@ -496,7 +567,7 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
     containerStyle={documentContainerStyle}
     onMessage={receive}
     onLoadStart={onNativeLoad}
-    onLoadEnd={() => {nativeEventCounts.current.loadEnds++; setDocumentLoaded(true)}}
+    onLoadEnd={() => {nativeEventCounts.current.loadEnds++; documentState.current.documentLoaded = true; setDocumentLoaded(true); documentLoadFinished()}}
     onScroll={onNativeScroll}
     onShouldStartLoadWithRequest={allowNavigation}
     onError={event => reportError(readerDocumentError(event.nativeEvent.code, event.nativeEvent.description))}
@@ -531,8 +602,9 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
   const NativeOverlay = props.nativeAdapter?.OverlayComponent
   const overlayProps = {pageId: props.pageId, topInsetPoints: geometry.topInsetPoints, headerHeightPoints: geometry.headerHeightPoints}
 
-  return <View ref={container} style={[styles.root, props.style]} onLayout={onContainerLayout} testID="reader-container">
+  return <View ref={container} style={[styles.root, props.style]} onLayout={onContainerLayout} onTouchStart={userInteracted} testID="reader-container">
     {platform === 'android' ? <ScrollView ref={outerScroll} showsVerticalScrollIndicator={false} scrollEventThrottle={ANDROID_ARTICLE_SCROLL_SAMPLE_MS}
+      onScrollBeginDrag={userInteracted}
       onLayout={event => setAndroidViewportHeight(event.nativeEvent.layout.height)}
       onContentSizeChange={(_width, height) => contentSizeChanged(height)}
       onScroll={nativeScrollMetrics} onScrollEndDrag={nativeScrollMetrics} onMomentumScrollEnd={nativeScrollMetrics}>

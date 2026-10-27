@@ -171,7 +171,7 @@ test('Android Reader content keeps one skeleton cover from loading until the mou
   })
 })
 
-async function readerPage(host, platform, adapterOverrides = {}, handleOverrides = {}) {
+async function readerPage(host, platform, adapterOverrides = {}, handleOverrides = {}, globals = {}) {
   let documentProps, outerProps, headerProps, renders = 0
   const insets = [], presentable = []
   const View = React.forwardRef((props, ref) => {
@@ -184,10 +184,11 @@ async function readerPage(host, platform, adapterOverrides = {}, handleOverrides
     React.useImperativeHandle(ref, () => ({scrollTo: value => scrolls.push(value)}), [])
     return React.createElement(host.native.ScrollView, props)
   })
+  const commands = []
   const WebView = React.forwardRef((props, ref) => {
     documentProps = props; renders++
     React.useImperativeHandle(ref, () => ({stopLoading() {}, evaluateJavaScript: async script => vm.runInNewContext(script, {
-      window: {__SlaxReaderHost: {execute: command => JSON.stringify({pageId: command.pageId, requestId: command.requestId, status: 'fulfilled', value: null})}},
+      window: {__SlaxReaderHost: {execute: command => {commands.push(command); return JSON.stringify({pageId: command.pageId, requestId: command.requestId, status: 'fulfilled', value: null})}}},
     }), ...handleOverrides}), [])
     return null
   })
@@ -199,14 +200,14 @@ async function readerPage(host, platform, adapterOverrides = {}, handleOverrides
     'react-native-webview': {WebView}, './bridge.ts': bridge, './coordinates.ts': coordinates, './document.ts': documentComposer, './host/geometry.ts': hostGeometry,
     './security.ts': security, '../config': {mobileConfig: {webUrl: 'https://r.slax.com', webDomain: '.slax.com', apiUrl: 'https://api-reader.slax.com', betaApiUrl: 'https://api-reader-beta.slax.com'}},
     './input.ts': input, './native-attachment.ts': {ReaderNativeAttachment}, './recovery.ts': recovery, './position.ts': {ReaderPositionWriter},
-  }, {Error})
+  }, {Error, ...globals})
   const ref = React.createRef()
   const element = props => React.createElement(ReaderWebView, {ref, cacheKey: 'fixture', cacheDirectory: '/cache/slax-ui-fixtures/scroll/', html: '<p>Article</p>', currentUserId: 7,
     nativeAdapter: adapter, header: React.createElement('div', null, 'Header'), headerSafeAreaPoints: 62, initialPosition: 300, onPresentable: pageId => presentable.push(pageId), ...props})
   await host.render(element({}))
   const pageId = /"pageId":"([^"]+)"/.exec(documentProps.source.html)[1]
   const send = payload => documentProps.onMessage({nativeEvent: {data: envelope(pageId, payload)}})
-  return {ref, insets, presentable, scrolls, pageId, send, element, renders: () => renders, documentProps: () => documentProps, outerProps: () => outerProps,
+  return {ref, insets, presentable, scrolls, commands, pageId, send, element, renders: () => renders, documentProps: () => documentProps, outerProps: () => outerProps,
     header: () => headerProps}
 }
 
@@ -313,5 +314,196 @@ test('android without native sizing keeps the React height path', nativeBoundary
     await act(async () => page.send({type: 'contentHeight', height: 1200}))
     assert.equal(page.documentProps().style.height, 1200)
     assert.equal(page.documentProps().containerStyle.height, 1200)
+  })
+})
+
+// Controlled clock and timers for the restore/presentable windows; Date.now drives the settle deadline.
+function controlledTime() {
+  let now = 1000, sequence = 0
+  const timers = new Map()
+  const clock = {now: () => now}
+  const DateShim = new Proxy(Date, {get: (target, key) => key === 'now' ? clock.now : Reflect.get(target, key)})
+  return {
+    globals: {Date: DateShim, setTimeout: (callback, ms) => {const id = ++sequence; timers.set(id, {callback, at: now + ms}); return id}, clearTimeout: id => {timers.delete(id)}},
+    pending: () => [...timers.values()].map(timer => timer.at - now),
+    advance: async ms => {
+      const end = now + ms
+      for (;;) {
+        const next = [...timers.entries()].filter(([, timer]) => timer.at <= end).sort((a, b) => a[1].at - b[1].at)[0]
+        if (!next) break
+        timers.delete(next[0]); now = next[1].at
+        await act(async () => {next[1].callback()})
+      }
+      now = end
+    },
+  }
+}
+const iosScrolls = page => page.commands.filter(command => command.operation === 'scrollTo').map(command => command.argument.y)
+async function iosDomReady(page, host, height = 1200) {
+  await act(async () => {
+    host.props.get('reader-container').onLayout({nativeEvent: {layout: {height: 600}}})
+    page.documentProps().onLoadStart({nativeEvent: {target: 47}})
+    page.send({type: 'contentHeight', height})
+    page.send({type: 'domReady'})
+  })
+  await act(async () => page.header().onLayout({nativeEvent: {layout: {height: 200}}}))
+  await host.settle(10)
+}
+
+test('iOS Reader restores and becomes presentable on DOM readiness and height without waiting for the load event', nativeBoundary, async () => {
+  await withNativeHost(async host => {
+    const page = await readerPage(host, 'ios')
+    await iosDomReady(page, host)
+    assert.equal(page.ref.current.inspectFixturePosition().bridge.documentLoaded, false, 'Slow external resources have not finished loading')
+    assert.equal(page.ref.current.inspectFixturePosition().consumed, true)
+    assert.deepEqual(page.presentable, [page.pageId], 'The cover lifts before onLoadEnd')
+    assert.deepEqual(iosScrolls(page), [300 / 3 - 200], 'The saved position was applied once')
+    await act(async () => page.documentProps().onLoadEnd())
+    assert.equal(page.ref.current.inspectFixturePosition().bridge.documentLoaded, true, 'Diagnostics still record the load event')
+    assert.deepEqual(page.presentable, [page.pageId], 'A later load event never reports presentable again')
+  })
+})
+
+test('android Reader restores before the load event once the outer scroller holds header and document', nativeBoundary, async () => {
+  await withNativeHost(async host => {
+    const page = await readerPage(host, 'android')
+    await act(async () => {
+      host.props.get('reader-container').onLayout({nativeEvent: {layout: {height: 600}}})
+      page.header().onLayout({nativeEvent: {layout: {height: 200}}})
+      page.documentProps().onLoadStart({nativeEvent: {target: 47}})
+      page.send({type: 'contentHeight', height: 1200})
+      page.send({type: 'domReady'})
+    })
+    await act(async () => {page.outerProps().onLayout({nativeEvent: {layout: {height: 600}}}); page.outerProps().onContentSizeChange(390, 1300)})
+    await host.settle(10)
+    assert.equal(page.ref.current.inspectFixturePosition().consumed, false, 'The committed scroller is still shorter than header + document')
+    assert.deepEqual(page.scrolls, [])
+    await act(async () => page.outerProps().onContentSizeChange(390, 1400))
+    await host.settle(10)
+    assert.equal(page.ref.current.inspectFixturePosition().consumed, true, 'The guard passes on committed layout, not on onLoadEnd')
+    assert.equal(page.scrolls.at(-1).y, 100)
+    assert.deepEqual(page.presentable, [page.pageId])
+  })
+})
+
+for (const platform of ['ios', 'android']) test(`${platform} late image layout re-applies a saved position once at the load event while the reader has not interacted`, nativeBoundary, async () => {
+  await withNativeHost(async host => {
+    const time = controlledTime()
+    const page = await readerPage(host, platform, {}, {}, time.globals)
+    const scrolls = () => platform === 'ios' ? iosScrolls(page) : page.scrolls.map(value => value.y)
+    if (platform === 'ios') await iosDomReady(page, host)
+    else {
+      await act(async () => {
+        host.props.get('reader-container').onLayout({nativeEvent: {layout: {height: 600}}})
+        page.header().onLayout({nativeEvent: {layout: {height: 200}}})
+        page.documentProps().onLoadStart({nativeEvent: {target: 47}})
+        page.send({type: 'contentHeight', height: 1200}); page.send({type: 'domReady'})
+      })
+      await act(async () => {page.outerProps().onLayout({nativeEvent: {layout: {height: 600}}}); page.outerProps().onContentSizeChange(390, 1400)})
+      await host.settle(10)
+    }
+    assert.equal(scrolls().length, 1)
+    // Images above the saved position expand, then the window load event arrives.
+    await act(async () => {page.send({type: 'contentHeight', height: 2400}); if (platform === 'android') page.outerProps().onContentSizeChange(390, 2600)})
+    await act(async () => page.documentProps().onLoadEnd())
+    await host.settle(10)
+    assert.equal(scrolls().length, 2, 'Grown layout re-applies the saved position at the load event')
+    assert.equal(scrolls()[1], scrolls()[0], 'The same saved position is re-applied')
+    await time.advance(3000); await host.settle(10)
+    await act(async () => {page.send({type: 'contentHeight', height: 3000}); if (platform === 'android') page.outerProps().onContentSizeChange(390, 3200)})
+    await time.advance(3000); await host.settle(10)
+    assert.equal(scrolls().length, 2, 'The settle window closed with the load event; later growth never moves the reader')
+  })
+})
+
+for (const platform of ['ios', 'android']) test(`${platform} late layout never moves a reader who already scrolled`, nativeBoundary, async () => {
+  await withNativeHost(async host => {
+    const time = controlledTime()
+    const page = await readerPage(host, platform, {}, {}, time.globals)
+    const scrolls = () => platform === 'ios' ? iosScrolls(page) : page.scrolls.map(value => value.y)
+    await act(async () => {
+      host.props.get('reader-container').onLayout({nativeEvent: {layout: {height: 600}}})
+      page.header().onLayout({nativeEvent: {layout: {height: 200}}})
+      page.documentProps().onLoadStart({nativeEvent: {target: 47}})
+      page.send({type: 'contentHeight', height: 1200}); page.send({type: 'domReady'})
+    })
+    if (platform === 'android') await act(async () => {page.outerProps().onLayout({nativeEvent: {layout: {height: 600}}}); page.outerProps().onContentSizeChange(390, 1400)})
+    await host.settle(10)
+    assert.equal(scrolls().length, 1)
+    await act(async () => {
+      if (platform === 'android') page.outerProps().onScrollBeginDrag({nativeEvent: {contentOffset: {y: 100}}})
+      else host.props.get('reader-container').onTouchStart({nativeEvent: {}})
+    })
+    await act(async () => {page.send({type: 'contentHeight', height: 2400}); if (platform === 'android') page.outerProps().onContentSizeChange(390, 2600)})
+    await time.advance(500)
+    await act(async () => page.documentProps().onLoadEnd())
+    await time.advance(500); await host.settle(10)
+    assert.equal(scrolls().length, 1, 'A touch or drag hands the position to the reader')
+  })
+})
+
+test('iOS late growth before the load event re-applies once after a quiet period, then stops at the 2 s deadline', nativeBoundary, async () => {
+  await withNativeHost(async host => {
+    const time = controlledTime()
+    const page = await readerPage(host, 'ios', {}, {}, time.globals)
+    await iosDomReady(page, host)
+    for (const height of [1600, 2000, 2400]) await act(async () => page.send({type: 'contentHeight', height}))
+    await time.advance(200); await host.settle(10)
+    assert.equal(iosScrolls(page).length, 2, 'A burst of image growth is coalesced into one re-apply')
+    await time.advance(2500)
+    await act(async () => page.send({type: 'contentHeight', height: 3000}))
+    await time.advance(500); await host.settle(10)
+    assert.equal(iosScrolls(page).length, 2, 'Growth after the bounded window is ignored')
+  })
+})
+
+test('a top-of-article position is never re-applied after late layout', nativeBoundary, async () => {
+  await withNativeHost(async host => {
+    const time = controlledTime()
+    const page = await readerPage(host, 'ios', {}, {}, time.globals)
+    await host.render(page.element({initialPosition: 0}))
+    await iosDomReady(page, host)
+    const restored = iosScrolls(page).length
+    await act(async () => page.send({type: 'contentHeight', height: 2400}))
+    await act(async () => page.documentProps().onLoadEnd())
+    await time.advance(500); await host.settle(10)
+    assert.equal(iosScrolls(page).length, restored)
+  })
+})
+
+test('the article is uncovered 1500 ms after DOM readiness even when the restore cannot complete', nativeBoundary, async () => {
+  await withNativeHost(async host => {
+    const time = controlledTime()
+    const page = await readerPage(host, 'ios', {}, {}, time.globals)
+    await act(async () => {
+      host.props.get('reader-container').onLayout({nativeEvent: {layout: {height: 600}}})
+      page.documentProps().onLoadStart({nativeEvent: {target: 47}})
+      page.send({type: 'domReady'})
+    })
+    await host.settle(10)
+    assert.deepEqual(page.presentable, [], 'No document height yet, so the restore is still pending')
+    await time.advance(1499); await host.settle(10)
+    assert.deepEqual(page.presentable, [])
+    await time.advance(1); await host.settle(10)
+    assert.deepEqual(page.presentable, [page.pageId], 'The bounded fallback lifts the cover')
+    await act(async () => host.props.get('reader-container').onTouchStart({nativeEvent: {}}))
+    await act(async () => page.send({type: 'contentHeight', height: 1200}))
+    await act(async () => page.header().onLayout({nativeEvent: {layout: {height: 200}}}))
+    await host.settle(10)
+    assert.equal(page.ref.current.inspectFixturePosition().consumed, true)
+    assert.deepEqual(iosScrolls(page), [], 'A late restore never moves a reader who already touched the uncovered article')
+    assert.deepEqual(page.presentable, [page.pageId], 'Presentable is reported once')
+    assert.deepEqual(time.pending(), [], 'No fallback timer remains')
+  })
+})
+
+test('a restore that completes in time cancels the presentable fallback', nativeBoundary, async () => {
+  await withNativeHost(async host => {
+    const time = controlledTime()
+    const page = await readerPage(host, 'ios', {}, {}, time.globals)
+    await iosDomReady(page, host)
+    assert.deepEqual(page.presentable, [page.pageId])
+    await time.advance(5000); await host.settle(10)
+    assert.deepEqual(page.presentable, [page.pageId])
   })
 })

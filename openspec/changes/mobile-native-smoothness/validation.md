@@ -1,16 +1,16 @@
 # Validation
 
-Branch `feat/mobile-native-smoothness`, local only and not pushed, on 2026-10-23. The owner asked for a TestFlight build first and said not to push yet.
+Branch `feat/mobile-native-smoothness`. From 2026-10-23 to 2026-10-26 the work stayed local, and each round went to the owner as a TestFlight build. On 2026-10-27 the owner instructed: build TestFlight 790, push the branch and open the pull request against `dev`. The branch merges `origin/dev` at `79491af2`. The checks below were re-run on that merged commit.
 
 ## Automated checks (agent-run)
 
 | Command | Result |
 |---|---|
-| `pnpm exec openspec validate --all --strict` | 75 passed, 0 failed |
+| `pnpm exec openspec validate --all --strict` | 79 passed, 0 failed (after the `origin/dev` merge) |
 | `pnpm exec rulesync generate --check` (after `pnpm agent:sync`) | up to date |
 | `pnpm mobile -- typecheck` | pass |
 | `node apps/mobile/tooling/architecture-check.mjs` | 0 violations, 3 existing exceptions |
-| `pnpm mobile -- check` (architecture, assets, fixtures, RSS verify, typecheck, unit/mounted/native-host suites) | 1112 tests, 1112 pass, 0 fail, 0 skipped |
+| `pnpm mobile -- check` (architecture, assets, fixtures, RSS verify, typecheck, unit/mounted/native-host suites) | Merged commit: 1144 tests, 1144 pass, 0 fail, 0 skipped. Earlier rounds: 1112, 1118, 1120, 1129, 1130, 1146 |
 | `pnpm mobile -- bundle` | Android and iOS JS export succeeded |
 | `pnpm mobile -- test:native-resources` (Kotlin + Swift host resources) | pass, using local Kotlin/OkHttp jars supplied through `SLAX_KOTLIN_COMPILER_CLASSPATH`, `SLAX_KOTLIN_STDLIB`, `SLAX_OKHTTP_CLASSPATH` |
 | `pnpm mobile -- build:android` (assembleDebug) | BUILD SUCCESSFUL |
@@ -39,12 +39,22 @@ The KMP-compatible MD5 image filename helper is a path function, not a content h
 ## Not verified in a running environment
 
 - No simulator, emulator or physical device was driven by the agent. The owner said not to run simulators or devices after an earlier device session froze the test phone. Smoothness, gesture feel, Reader opening, offline reading, cold/warm start and cache migration on upgrade are therefore not verified by the agent.
-- Device acceptance is the owner's hands-on review of the TestFlight build listed below. It has not been recorded yet. This is a UI-visible change, so that acceptance (who, when, what was adjusted) must be recorded here before a pull request is opened.
+- Device acceptance comes from the owner's hands-on TestFlight reviews, recorded per round under "Owner acceptance" below. Accepted so far:
+  - Library list scrolling (786).
+
+  Reviewed but not yet accepted:
+  - Reader open, back-button stability and cached-open time (787).
+  - RSS source switching (788).
+  - Outline/overview motion, markdown-it rendering and the scroll-edge band (789/790).
+  - The post-revert native header (790).
+- Android has had no hands-on run.
+- Theme matrix (`DESIGN.md` §6, Mobile shell and embedded reader): no light/dark comparison was recorded. The new surfaces use the existing light Reader palette: loading cover `#FCFCFC`, outline shell, loaders and overview dialog. This is a declared gap.
+- Owner requirement 7.7 (the back button hides together with More) is not met by this pull request. The owner's chosen approach is pending.
 - Android: only a debug assemble was compiled. No Android artifact was produced or distributed.
 
 ## Delivery
 
-TestFlight preview **1.0.25 (785)**: build bumped from 784, previous bound 784. iOS prebuild and pods were regenerated, then the guarded archive, export and Xcode upload all succeeded. Apple reported the uploaded package as processing at 2026-10-23 11:01:30 UTC. The [785 receipt](../../../docs/mobile/releases/1.0.25-785-testflight.md) lists the artifacts and hashes. App Store Connect processing and tester availability are not independently confirmed. Nothing was committed or pushed.
+TestFlight preview **1.0.25 (785)**: build bumped from 784, previous bound 784. iOS prebuild and pods were regenerated, then the guarded archive, export and Xcode upload all succeeded. Apple reported the uploaded package as processing at 2026-10-23 11:01:30 UTC. The [785 receipt](../../../docs/mobile/releases/1.0.25-785-testflight.md) lists the artifacts and hashes. App Store Connect processing and tester availability are not independently confirmed. Later builds (786–790) are recorded under Owner acceptance and in their receipts.
 
 ## Owner acceptance
 
@@ -80,4 +90,6 @@ TestFlight preview **1.0.25 (785)**: build bumped from 784, previous bound 784. 
 
   TestFlight **1.0.25 (789)** was uploaded at 2026-10-26T08:19:46.049Z and Apple reported processing. See the [789 receipt](../../../docs/mobile/releases/1.0.25-789-testflight.md).
 - 2026-10-26, owner: did not approve item (3), the custom navigator bar that replaced the native header. It is reverted to the build-788 native header (transparent, fixed More slot, native back). Items 1, 2 and 4 are kept: scroll-edge effects stay hidden. The spec exception for a custom back control is withdrawn. `pnpm mobile -- check` passes 1144/1144, the bundle builds and the iOS simulator build succeeds. TestFlight 789 still contains the reverted bar and is superseded.
-- Pending: requirement 7.7 (back button hides with More) remains open. Earlier items still awaiting owner feedback: RSS switching (788) and cached-open time (787). Record who, when, the observations and any adjustments here before a pull request.
+- 2026-10-27, owner: instructed the agent to build TestFlight, push the branch and open the pull request. This is the owner's decision to open the pull request before the remaining hands-on acceptance listed under "Not verified". It is not itself an acceptance record. TestFlight **1.0.25 (790)**, the merged and reverted state, was uploaded at 2026-10-27T02:34:49.518Z. See the [790 receipt](../../../docs/mobile/releases/1.0.25-790-testflight.md).
+- 2026-10-27, owner: articles with external resources waited for those resources before showing. **Cause:** the initial restore, which lifts the cover, was gated on the WebView load event, so it waited on every subresource. **Fix (task 7.8):** the restore is gated on DOM readiness plus the first height, with a one-time re-apply for late growth and a 1.5 s cover timeout. `pnpm mobile -- check` passes 1154/1154 and the bundle exports. TestFlight **1.0.25 (791)** carries the fix and supersedes 790. It was uploaded at 2026-10-27T03:13:41.892Z and Apple reported it processing. See the [791 receipt](../../../docs/mobile/releases/1.0.25-791-testflight.md).
+- Pending: the owner's hands-on review of TestFlight 791, plus requirement 7.7 (back button hides with More), which remains open. Record who, when, the observations and any adjustments here before a pull request.

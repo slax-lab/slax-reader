@@ -51,6 +51,12 @@ On Android, where the push transition runs on the UI thread, the HTML Reader's n
 - **THEN** on Android the push transition runs without concurrent WebView creation or document composition
 - **AND** the skeleton fades out only after content is presentable at its restored position
 
+#### Scenario: An article references slow external resources
+- **WHEN** a cached article contains images, frames or fonts that load slowly or never finish
+- **THEN** the loading cover lifts once the document's DOM and first height are known, without waiting for the page load event
+- **AND** if content above the restored position grows before the user interacts, the saved position is reapplied once
+- **AND** the article is never kept covered beyond a bounded timeout
+
 #### Scenario: A cached article is opened while background caching runs
 - **WHEN** automatic downloads are in progress and the user opens an article that is already cached
 - **THEN** its body is read without waiting for the background downloads or a network request

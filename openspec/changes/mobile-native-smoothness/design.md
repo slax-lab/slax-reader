@@ -129,6 +129,7 @@ JavaScript then clears obsolete `_slax_offline*` JSON fields, resets the downloa
   - Cached bodies are read on a dedicated user-initiated native queue, not the shared background IO queue. The record lookup and the cache read start concurrently.
   - Once the Library is presented, an idle callback preloads the Reader module. On iOS it also compiles the content rule list and creates and discards one WKWebView to warm WebKit; that view is never reused for a document.
   - The cover fade is 120 ms.
+  - The initial restore, and therefore the cover, waits for `domReady` and the first document height, not the WebView load event. Slow external images, frames or fonts no longer hold the article covered. A saved position above 0 is reapplied once if the document grows before the user interacts, until the load event or 2 s. A 1.5 s timeout lifts the cover in any case.
   - A skeleton overlay covers the host until `documentReady` and the initial position restore, then fades out (reduced-motion aware).
 - **Document composition:** `composeReaderDocument` precomputes the constant template prefix and suffix at module scope, so each open only concatenates the article.
 - **iOS `SlaxReaderView.updateInsets`:**
@@ -162,7 +163,7 @@ JavaScript then clears obsolete `_slax_offline*` JSON fields, resets the downloa
 3. Apply the Reader and lifecycle changes.
 4. Update the rules (the `.rulesync` PDF verification sentence) and docs.
 5. Run the checks, bundle and native builds.
-6. Bump `buildNumber` and upload a TestFlight build for the owner's hands-on review. Nothing is pushed until the owner approves.
+6. Bump `buildNumber` and upload a TestFlight build for the owner's hands-on review. On 2026-10-27 the owner instructed: build TestFlight, push, and open the pull request.
 
 Rollback: revert the branch. The cache layout transition only deletes rebuildable cache data.
 

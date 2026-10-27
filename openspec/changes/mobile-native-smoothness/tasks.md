@@ -64,6 +64,7 @@
   - restore the KMP outline and overview animations (settle-gated Markdown mount, skeleton/dots loaders, overview grow);
   - render outline Markdown with markdown-it;
   - hide iOS 26 scroll-edge effects.
+- [x] 7.8 After the build-790 review: the Reader's initial restore and presentation depend on DOM readiness and the first height, not the page load event. A one-time re-apply covers late image growth before user interaction, and a 1.5 s cover timeout is added (with tests).
 - [ ] 7.7 Owner requirement (build-788 review): the Reader's top-left back button hides and shows together with the top-right More button. The build-789 attempt, which replaced the native header with a custom bar, was not approved and is reverted to the build-788 header. The implementation approach is pending the owner.
 
 ## 8. Verification and delivery
@@ -71,7 +72,7 @@
 - [x] 8.1 Run `pnpm mobile -- check`, `pnpm mobile -- bundle`, `pnpm mobile -- test:native-resources`, `pnpm exec openspec validate --all --strict` and `git diff --check`.
 - [x] 8.2 Run `pnpm mobile -- build:android` and `pnpm mobile -- build:ios` to compile both native targets.
 - [x] 8.3 Run the local `REVIEW.md` review and resolve Important findings.
-- [x] 8.4 Increment the Mobile `buildNumber`, regenerate native metadata, then archive, export and upload an iOS build to TestFlight for the owner's hands-on review. Nothing is pushed until the owner approves.
+- [x] 8.4 Increment the Mobile `buildNumber`, regenerate native metadata, then archive, export and upload an iOS build to TestFlight for the owner's hands-on review. Push and open the pull request when the owner instructs (2026-10-27).
 - [x] 8.5 Record the commands, the build number and the device acceptance that is still pending in `validation.md`. The owner tests the TestFlight build hands-on; no simulator or device is driven by the agent at the owner's instruction.
 
 ## 9. Archive
