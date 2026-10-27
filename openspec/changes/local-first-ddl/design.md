@@ -76,7 +76,7 @@ The archived `rss-local-first` change (now the living `rss-labs` spec) used `rss
 - After publishing the rules, `Loaded sync config` is not sufficient evidence. Confirm that a connection with an open collection subscription lists its owner bucket (`subscribed_collections|2[<owner_id>]`) in the checkpoint log and that `param_results` stays small.
 - The first migration's timestamp precedes migrations already merged on `dev`; `prisma migrate deploy` applies it on a database that already has those later migrations.
 - Creating the triggers briefly locks `sr_user` and `sr_user_collection`; run the migration outside peak traffic.
-- The migration only adds a column with a default and creates functions/triggers; it does not rewrite or drop existing data.
+- The migrations add a column with a default and create functions and triggers; they drop nothing. Their only writes to existing rows are the `owner_deleted` backfills, limited to collections whose owner is deleted or missing.
 - Old sync rules ignore `owner_deleted`; rollback is limited to restoring the previous rules file.
 - The nested-subquery form depends on the PowerSync service supporting data-query subqueries that reference a global CTE. It was validated on `journeyapps/powersync-service` 1.26.1; beta should load the config and check the service log before clients are released.
 
@@ -89,4 +89,4 @@ The archived `rss-local-first` change (now the living `rss-labs` spec) used `rss
 
 ## Verification
 
-The final rules were exercised on the branch merged with current `dev` (55 migrations) in an isolated PowerSync 1.26.1 + PostgreSQL instance; see `validation.md` for the scenario matrix, the per-subscription scaling, the original-rules baseline, and the wrong-deployment-order check.
+The final rules were exercised on the branch merged with current `dev` (56 migrations) in an isolated PowerSync 1.26.1 + PostgreSQL instance; see `validation.md` for the scenario matrix, the per-subscription scaling, the original-rules baseline, and the wrong-deployment-order check.
