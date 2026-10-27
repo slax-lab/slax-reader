@@ -56,7 +56,7 @@ Remote dev deployment, hosted RSS compatibility-rule publication and real SMTP a
 - [x] 8.3 Remove deployment boolean admission, consolidate address setup into user settings, and await synchronous publication with pending dedupe and durable cancellation.
 - [x] 8.4 Reuse quiet pure content extraction, preserve attachment metadata/existing links, filter explicit tracking pixels and provide offline EML preview/local replay tooling.
 - [x] 8.5 Update Web setup calls and repair states, verify actual browser behavior and obtain renewed human hands-on acceptance.
-- [ ] 8.6 Update private pilot configuration and rollout/test guides, run generation/full checks/local Worker verification and three-pass review, then update the original PRs. Record hosted SMTP and real EML gaps explicitly.
+- [x] 8.6 Update private pilot configuration and rollout/test guides, run generation/full checks/local Worker verification and three-pass review, then update the original PRs. Record hosted SMTP and real EML gaps explicitly.
 
 ## 9. Archive after merge
 

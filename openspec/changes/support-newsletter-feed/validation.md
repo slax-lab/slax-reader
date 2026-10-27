@@ -257,3 +257,9 @@ Fresh independent Bugs/Security/Compliance review of the whole branch found no r
 Not verified: hosted receiving DNS/base rule/Subaddressing, actual third-party Newsletter confirmation/content, the user's real EML, actual hosted PowerSync physical-table alias delivery/A-B isolation, and original sender SMTP retry after infrastructure failure. These need operator access or later input and are listed in docs/api/NEWSLETTER-DEV-PILOT.md. Existing recovery remains rather than assuming SMTP retry. No production activation, merges or remote migrations performed.
 
 Version assessment: Web/API do not use package increments. CLI/Extension/Mobile source/dependencies/package output and their consumed RSS projection remain unchanged; the server table is aliased back to the same client name and fields. No application version bump is required for this revision.
+
+### PR handoff and local cleanup
+
+Application commit 9ca18131 was pushed to the existing feat/support-newsletter-feed branch and PR #349. Private configuration commit 23ffcf5 was pushed to the existing codex/enable-newsletter-dev branch and PR #7. Both descriptions now explain the final implementation, recovery gate, migration compatibility, dev console work and EML commands; the application screenshots show the latest selected subdomain and repaired setup/attachment UI. No new assignees or reviewer requests were added; existing human-owned review state is preserved. PRs remain unmerged.
+
+The temporary UI/API preview listeners and owned revision PostgreSQL container were stopped/removed after acceptance. The managed worktree and all project data remain. Historical/full test artifacts and private preview files stay local; real EML is still awaited. Archiving remains a separate documentation PR after merge.
