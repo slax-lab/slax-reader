@@ -572,6 +572,8 @@
       "failed": "Could not generate the article.",
       "retry": "Retry",
       "load_failed": "Could not load the article.",
+      "labs_disabled": "Enable YouTube AI articles in Settings → Labs. Then open this bookmark again.",
+      "source_missing": "The article source data is missing. Save the source link again to capture it.",
       "limit_reached": "Daily limit reached, try again tomorrow.",
       "language_note": "This article is in {language}",
       "lang": {

@@ -393,6 +393,8 @@ export interface LabFeature {
 export type YoutubeArticleStatus = 'unavailable' | 'limit_reached' | 'pending' | 'skipped' | 'generating' | 'validating' | 'ready' | 'failed'
 
 export interface YoutubeArticleState {
+  /** Recovery guidance for the owner only. */
+  unavailable_reason?: 'labs_disabled' | 'source_missing'
   status: YoutubeArticleStatus
   language: 'en' | 'zh' | null
   requested_language: 'en' | 'zh'

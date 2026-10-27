@@ -357,6 +357,18 @@ describe('owner opens a bookmark', () => {
     expect(w.create).not.toHaveBeenCalled()
   })
 
+  test('unavailable reasons belong only to the owner', async () => {
+    w.labOn.clear()
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'unavailable', unavailable_reason: 'labs_disabled' })
+    expect((await w.service.getStatus(w.ctx(VISITOR), UUID)).unavailable_reason).toBeUndefined()
+    w.labOn.add(OWNER)
+    w.repo.refs.length = 0
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'unavailable', unavailable_reason: 'source_missing' })
+    expect((await w.service.getStatus(w.ctx(VISITOR), UUID)).unavailable_reason).toBeUndefined()
+    w.bookmark.moderation_result = 2
+    expect((await w.service.getStatus(w.ctx(OWNER), UUID)).unavailable_reason).toBeUndefined()
+  })
+
   test('bookmark saved before P0 (no ref): unavailable', async () => {
     w.repo.refs.length = 0
     expect((await w.service.getStatus(w.ctx(OWNER), UUID)).status).toBe('unavailable')
@@ -1026,5 +1038,37 @@ describe('fixed body media compatibility', () => {
     ;(w.service as any).snapshots.load.mockResolvedValue({ managed: true })
     expect(await w.service.backfill(w.ctx(OWNER), 10)).toMatchObject({ processed: 1, linked: 0, failed: 0 })
     expect(w.crawlService.fetchYoutubeData).not.toHaveBeenCalled()
+  })
+})
+
+describe('private capture recovery guidance', () => {
+  test.each([true, false])('an empty capture explains acquisition with Labs %s', async enabled => {
+    const w = wire({ labOn: enabled ? [OWNER] : [] })
+    const snapshots = (w.service as any).snapshots
+    snapshots.load.mockResolvedValue({ media: { kind: 'youtube', mode: 'capture', sourceId: VIDEO, sourceHash: HASH, defaultLanguage: 'en', bodyLanguage: null, variants: {} } })
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'unavailable', unavailable_reason: enabled ? 'source_missing' : 'labs_disabled' })
+    expect((await w.service.getStatus(w.ctx(VISITOR), UUID)).unavailable_reason).toBeUndefined()
+    expect(w.create).not.toHaveBeenCalled()
+  })
+
+  test('a ready capture stays readable with Labs disabled', async () => {
+    const w = wire({ labOn: [] })
+    const snapshots = (w.service as any).snapshots
+    snapshots.load.mockResolvedValue({
+      media: {
+        kind: 'youtube',
+        mode: 'capture',
+        revision: 'r',
+        sourceId: VIDEO,
+        sourceHash: HASH,
+        defaultLanguage: 'en',
+        bodyLanguage: 'en',
+        variants: { en: { status: 'ready', content: {} } }
+      }
+    })
+    const state = await w.service.getStatus(w.ctx(OWNER), UUID)
+    expect(state.status).toBe('ready')
+    expect(state.unavailable_reason).toBeUndefined()
+    expect(w.create).not.toHaveBeenCalled()
   })
 })

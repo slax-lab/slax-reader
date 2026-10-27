@@ -61,6 +61,8 @@ export interface YoutubeArticleContentResponse {
 export type YoutubeArticleApiStatus = 'unavailable' | 'limit_reached' | Exclude<YoutubeArticleStatus, 'stale' | 'takedown'>
 
 export interface YoutubeArticleStatusResponse {
+  /** Recovery guidance for the owner only. */
+  unavailable_reason?: 'labs_disabled' | 'source_missing'
   status: YoutubeArticleApiStatus
   language: YoutubeArticleLanguage | null
   requested_language: YoutubeArticleLanguage
@@ -196,6 +198,9 @@ export class YoutubeArticleService {
       }
       const enabled = await this.labService.isEnabled(access.ownerId, YOUTUBE_ARTICLE_LAB)
       const result = this.privateStatus(snapshot, requested, access, enabled)
+      if (access.isOwner && snapshot.mode === 'capture' && !snapshot.variants[requested]) {
+        result.unavailable_reason = enabled ? 'source_missing' : 'labs_disabled'
+      }
       // Only the pending request owned by this capture may initiate acquisition on open.
       if (enabled && access.isOwner && snapshot.mode === 'capture' && snapshot.variants[requested]?.status === 'pending') {
         const row = await this.repo.findVersion(snapshot.sourceId, snapshot.sourceHash, requested)
@@ -207,9 +212,9 @@ export class YoutubeArticleService {
       }
       return result
     }
-    if (!(await this.labService.isEnabled(access.ownerId, YOUTUBE_ARTICLE_LAB))) return unavailable
+    if (!(await this.labService.isEnabled(access.ownerId, YOUTUBE_ARTICLE_LAB))) return access.isOwner ? { ...unavailable, unavailable_reason: 'labs_disabled' } : unavailable
     const ref = await this.repo.findRef(access.bookmarkId)
-    if (!ref) return unavailable
+    if (!ref) return access.isOwner ? { ...unavailable, unavailable_reason: 'source_missing' } : unavailable
 
     let row = await this.repo.findVersion(ref.source_id, ref.source_hash, requested)
     if (!row && access.isOwner) {
@@ -235,7 +240,7 @@ export class YoutubeArticleService {
       row = fallback?.status === 'ready' ? fallback : null
     }
 
-    if (!row) return unavailable
+    if (!row) return access.isOwner ? { ...unavailable, unavailable_reason: 'source_missing' } : unavailable
     const res = this.response(requested, row, access, access.isOwner ? await this.manualLeft(viewerId) : false)
     return { ...res, ...(await this.bodyState(ctx, access, row)) }
   }

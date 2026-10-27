@@ -64,6 +64,29 @@ describe('YoutubeAiArticle', () => {
     document.body.innerHTML = ''
   })
 
+  it('shows an initial request failure and restarts status polling', async () => {
+    mockGet.mockRejectedValue(new Error('network'))
+    const w = await mount()
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(6000)
+    expect(w.text()).toContain('Could not load the article.')
+    mockGet.mockResolvedValue(state({ status: 'generating' }))
+    await w.find('.yt-status-action').trigger('click')
+    await flushPromises()
+    expect(w.text()).toContain('Preparing the article')
+    expect(w.text()).not.toContain('Could not load the article.')
+    expect(mockPost).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it.each(['labs_disabled', 'source_missing'])('shows owner recovery guidance for %s', async reason => {
+    routeGet([state({ status: 'unavailable', unavailable_reason: reason })])
+    const w = await mount()
+    await flushPromises()
+    expect(w.text()).toContain(reason === 'labs_disabled' ? 'Enable YouTube AI articles' : 'Save the source link again')
+    w.unmount()
+  })
+
   it('unavailable → renders nothing and does not poll', async () => {
     routeGet([state({ status: 'unavailable', language: null })])
     const wrapper = mount()
@@ -270,7 +293,7 @@ describe('YoutubeAiArticle', () => {
     await flushPromises()
     await vi.advanceTimersByTimeAsync(60_000)
     expect(statusCalls()).toBe(3)
-    expect(wrapper.find('.youtube-ai-article').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Could not load the article.')
 
     vi.clearAllMocks()
     routeGet([new Error('down'), ready()])

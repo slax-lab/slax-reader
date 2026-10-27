@@ -63,7 +63,7 @@ const { state, article, acting, timedOut, loadFailed, isWorking, start, stop, ge
 
 const status = computed(() => state.value?.status ?? 'unavailable')
 const isReady = computed(() => status.value === 'ready' && !!article.value)
-const visible = computed(() => !!state.value && status.value !== 'unavailable')
+const visible = computed(() => loadFailed.value || (!!state.value && (status.value !== 'unavailable' || !!state.value.unavailable_reason)))
 
 // A visitor may get the owner's language when theirs is not ready
 const languageNote = computed(() => {

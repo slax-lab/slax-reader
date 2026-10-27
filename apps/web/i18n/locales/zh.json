@@ -573,6 +573,8 @@
       "failed": "整理失败。",
       "retry": "重试",
       "load_failed": "整理稿加载失败。",
+      "labs_disabled": "请在设置的实验功能中启用 YouTube AI 整理稿。然后重新打开此收藏。",
+      "source_missing": "整理稿缺少来源数据。请重新收藏来源链接。",
       "limit_reached": "今天的生成次数已用完，明天再试。",
       "language_note": "此整理稿为{language}",
       "lang": {

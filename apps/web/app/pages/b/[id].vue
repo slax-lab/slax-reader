@@ -46,34 +46,38 @@
       >
         <template #before-body>
           <ClientOnly>
-            <PodcastBar
-              v-if="isPodcast && bookmarkUid"
-              v-model:mode="podcastMode"
-              :bookmark-uid="bookmarkUid"
-              :body-has-article="podcastBodyHasArticle"
-              @translation="podcastTranslation = $event"
-              @refresh-body="refreshBody"
-            />
-            <YoutubeArticleBar
-              v-if="youtubeArticleView === 'bar'"
-              :bookmark-uid="bookmarkUid"
-              :body-has-article="youtubeBodyHasArticle"
-              @refresh-body="refreshBody"
-              @fallback="youtubeArticleBelow = true"
-            />
+            <div>
+              <PodcastBar
+                v-if="isPodcast && bookmarkUid"
+                v-model:mode="podcastMode"
+                :bookmark-uid="bookmarkUid"
+                :body-has-article="podcastBodyHasArticle"
+                @translation="podcastTranslation = $event"
+                @refresh-body="refreshBody"
+              />
+              <YoutubeArticleBar
+                v-if="youtubeArticleView === 'bar'"
+                :bookmark-uid="bookmarkUid"
+                :body-has-article="youtubeBodyHasArticle"
+                @refresh-body="refreshBody"
+                @fallback="youtubeArticleBelow = true"
+              />
+            </div>
           </ClientOnly>
         </template>
         <template #after-body>
           <ClientOnly>
-            <PodcastTranslation v-if="podcastShowsTranslation && podcastTranslation" :content="podcastTranslation" />
-            <YoutubeAiArticle
-              v-if="youtubeArticleView === 'below'"
-              :bookmark-uid="bookmarkUid"
-              :transcript-shown="youtubeTranscriptShown"
-              :has-transcript="youtubeCues.length > 0"
-              @ready="youtubeArticleReady = $event"
-              @toggle-transcript="youtubeTranscriptPref = !youtubeTranscriptShown"
-            />
+            <div>
+              <PodcastTranslation v-if="podcastShowsTranslation && podcastTranslation" :content="podcastTranslation" />
+              <YoutubeAiArticle
+                v-if="youtubeArticleView === 'below'"
+                :bookmark-uid="bookmarkUid"
+                :transcript-shown="youtubeTranscriptShown"
+                :has-transcript="youtubeCues.length > 0"
+                @ready="youtubeArticleReady = $event"
+                @toggle-transcript="youtubeTranscriptPref = !youtubeTranscriptShown"
+              />
+            </div>
           </ClientOnly>
         </template>
       </BookmarkArticleLocalFirst>
