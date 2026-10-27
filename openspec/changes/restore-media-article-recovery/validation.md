@@ -41,7 +41,7 @@ Local browser scripts: `/tmp/media-browser-check.mjs`, `/tmp/media-expanded-chec
 - Bugs: checked header overrides, HTML responses, initial failures, retry, and both presentation modes. Fixed the detached-fragment issue found during browser verification.
 - Security: owner reasons follow access and moderation checks. Visitors receive no owner reason. No new dependency, credential access, or generation bypass exists.
 - Compliance: this diff implements `restore-media-article-recovery`. The proposal approval covers the recovery behavior. The stable containers correct a failure within that behavior.
-- No unresolved Important code findings. Human acceptance remains a delivery gate. Do not open the PR before that acceptance.
+- No unresolved Important code findings. Human hands-on acceptance remains pending. Luca authorized PR creation for colleague review on 2026-10-27.
 
 ## Limits and remaining acceptance
 
@@ -49,6 +49,10 @@ The browser status responses were fixtures. Production owner settings, source ro
 
 The API and Web change. The optional contract field has no CLI, Extension, or Mobile consumer. No native package or version changes are included.
 
-Human hands-on acceptance is pending under `DESIGN.md` section 10.2. Two local preview tabs exist in a dedicated Chrome preview window on M2-MBP: `YouTube retry preview` and `Pocket Casts player preview`. Status responses are fixtures; podcast audio is real. Exercise Retry and podcast playback before opening the PR. Record the reviewer, date, and requested adjustments here.
+Human hands-on acceptance is pending under `DESIGN.md` section 10.2. Two local preview tabs exist in a dedicated Chrome preview window on M2-MBP: `YouTube retry preview` and `Pocket Casts player preview`. Status responses are fixtures; podcast audio is real. Reviewers must exercise Retry and podcast playback. Record the reviewer, date, and requested adjustments here.
 
 Archive after the task PR merges. Sequence archive after the already-merged bookmark-fork delta for `youtube-ai-article`.
+
+## Review handoff — 2026-10-27
+
+Luca explicitly requested PR creation and colleague review with the test results. This instruction overrides the usual pre-PR acceptance order for this task. It does not establish hands-on acceptance or authorize merge or deployment. The PR records the pending checks for reviewers.
