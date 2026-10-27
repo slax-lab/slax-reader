@@ -1,6 +1,6 @@
 # Validation
 
-All results below were produced on the task branch merged with current `dev`. The scenario matrix, scaling, and deployment-order checks ran with 55 PostgreSQL migrations (`c817d0bb`); the commands and the hard-delete checks ran again after adding `20261027040000_collection_owner_hard_delete` (56 migrations).
+All results below were produced on the task branch merged with current `dev`, with 56 PostgreSQL migrations including `20261022043051_local_first_ddl` and `20261027040000_collection_owner_hard_delete`. Database work ran in a disposable PostgreSQL 17 container, separate from the developer's local stack, which kept running throughout.
 
 ## Commands
 
@@ -8,16 +8,21 @@ All results below were produced on the task branch merged with current `dev`. Th
 | --- | --- |
 | `pnpm install --frozen-lockfile` | Passed |
 | `SLAX_API_CONFIG=<local api.toml> pnpm api -- gen:all` | Passed; no tracked generated-file drift |
-| `pnpm api -- typecheck` | Passed (56 migrations) |
-| `pnpm api -- test` | Passed (56 migrations); 192 files, 2,503 tests passed, 112 skipped by their environment gate |
-| `pnpm api -- test test/infra/powersyncRules.test.ts` | Passed; 13 tests |
-| `RUN_PG_INTEGRATION_TESTS=1 HYPERDRIVE_DATABASE_URL=<disposable migrated database> pnpm api -- test test/infra/collectionSyncOwnerState.integration.test.ts test/infra/collectionTriggers.integration.test.ts` | Passed on 56 migrations; 2 tests: the new owner-state test (insert fill, `owner_id` reassignment, soft deletion, restoration, collection created for a deleted owner, hard deletion of the owner row, collection pointing at a missing owner) and the existing Collection trigger test |
+| `pnpm api -- typecheck` | Passed |
+| `pnpm api -- lint` | Passed; 0 errors, no warnings in changed files |
+| `pnpm api -- test` | Passed; 192 files, 2,503 tests passed, 112 skipped by their environment gate |
+| `RUN_PG_INTEGRATION_TESTS=1 RUN_COLLECTION_READ_SQL=1 HYPERDRIVE_DATABASE_URL=… LOGS_DATABASE_URL=… FORK_TEST_DATABASE_URL=… pnpm api -- test test/infra` | Passed; 39 files, 292 tests, including all ten PostgreSQL integration files (new owner-state test, Collection triggers and telemetry, lab, mark, tag, podcast, YouTube article, Collection read pagination, and 39 bookmark-fork tests). Only the payment and account-revocation files skipped here; they run under `test:integration:local` below |
+| `pnpm api -- test:setup:local` | Passed while the local `dev-powersync` held port 18080: migrated databases, both PowerSync services healthy, isolated ports and volumes |
+| `pnpm api -- test:integration:local` | Passed; pgsql and logs migrations plus all eight suites, including `paymentPostgres` (19) and `accountRevocationPostgres` (12) |
+| `FORK_SMOKE=1 pnpm api -- test:http` | Passed; migrations, readiness, CORS, 401 cases, every fork format and lifecycle check, and bookmark add/list/delete through PostgreSQL, logs, and D1 |
 | `pnpm exec openspec validate --all --strict` | Passed; 78 items |
-| `pnpm api -- test:setup:local` | Not completed; see Not verified |
+| `pnpm agent:check` | Passed |
+
+`test:setup:local` previously failed with "port is already allocated" whenever a developer's PowerSync was running: the smoke rewrote only `127.0.0.1:18080:`, while `deploy/local/dockerfile-local-pgsql.yaml` publishes `"18080:8080"` on all interfaces for mobile LAN development. The smoke now rewrites that binding to an ephemeral loopback port and asserts that no fixed host port remains; the assertion fails on the old rewrite and passes on the new one.
 
 ## Running-environment exercise
 
-An isolated `journeyapps/powersync-service` 1.26.1 instance with a disposable PostgreSQL source and storage database exercised the final rules. The fixture had 1,101 active users, 1,100 open collections, 1,100 subscription rows unrelated to the test user plus the test user's own subscriptions, one starred bookmark with a comment, 1,101 RSS-enabled users, and four RSS feeds with 100 entries. Both the open-collection count and the active-user count exceed the 1,000 parameter limit.
+PowerSync 1.26.1 ran against the disposable PostgreSQL. The fixture had 1,101 active users, 1,100 open collections, 1,100 subscription rows unrelated to the test user plus the test user's own subscriptions, one starred bookmark with a comment, 1,101 RSS-enabled users, and four RSS feeds with 100 entries. Both the open-collection count and the active-user count exceed the 1,000 parameter limit.
 
 | Scenario | Default stream buckets | Default stream `param_results` | Collection comment buckets | Collection comment `param_results` |
 | --- | --- | --- | --- | --- |
@@ -27,8 +32,9 @@ An isolated `journeyapps/powersync-service` 1.26.1 instance with a disposable Po
 | Owner restored | 4 (owner bucket restored) | 7 | 1 | 3 |
 | Collection closed | 3 (owner bucket removed) | 6 | 0 | 1 |
 | RSS Lab disabled (RSS-only request) | 0 | 4 | n/a | n/a |
+| Owner row hard-deleted | 3 (owner bucket removed) | 6 | 0 | 1 |
 
-The owner bucket was identified as `subscribed_collections|2[<owner_id>]` in the checkpoint log. The backfill marked no rows on the fixture because no owner was deleted; soft deletion and restoration flipped `owner_deleted` through the trigger.
+The owner bucket was identified as `subscribed_collections|2[<owner_id>]` in the checkpoint log. Toggling the owner's deletion state left the `sr_user_collection_stats` row unchanged, confirming the stats trigger ignores `owner_deleted`-only updates.
 
 ### Per-subscription cost
 
@@ -45,25 +51,17 @@ This fits `param_results = 3N + 4` and `buckets = 2N + 2`: one user reaches the 
 
 ### Deployment order
 
-The final rules were loaded against a database with every migration except the `owner_deleted` column and triggers. PowerSync logged `Loaded sync config` with no error. The default streams returned 3 buckets with no owner bucket, and the collection comment stream returned no buckets: collection content is hidden silently, not rejected. The migration must be applied first, and the post-deploy check must look for the owner bucket rather than only the config-load log.
+The final rules were loaded against a database without the `owner_deleted` column and triggers. PowerSync logged `Loaded sync config` with no error, the default streams returned 3 buckets with no owner bucket, and the collection comment stream returned no buckets: collection content is hidden silently, not rejected. The migrations must be applied first, and the post-deploy check must look for the owner bucket rather than only the config-load log.
 
-A separate check applied all `dev` migrations without this one, then ran `prisma migrate deploy` with the full set; the older-timestamped `20261022043051_local_first_ddl` was applied and created the column and both triggers.
+### Migrations
 
-### Missing and hard-deleted owners
-
-On a fully migrated database (56 migrations), PowerSync 1.26.1 with the final rules returned the owner bucket and the collection comment while the owner was active (4 buckets / 7 parameter results; comment 1 / 3), removed both on soft deletion (3 / 6; comment 0 / 1), restored both on restoration, and removed both again after `DELETE FROM sr_user` for the owner (3 / 6; comment 0 / 1, `owner_deleted = true`). This matches the former `INNER JOIN sr_user AS owner` behavior.
-
-A database at 55 migrations received a collection whose owner row does not exist; it kept `owner_deleted = false`. Applying `20261027040000_collection_owner_hard_delete` changed it to `true` and extended `sr_user_sync_owner_deleted` to `UPDATE` and `DELETE` events.
-
-### Triggers
-
-- Toggling an owner's `deleted_at` left the existing `sr_user_collection_stats` row unchanged, confirming the stats trigger ignores `owner_deleted`-only updates.
-- On commit `bf4c7a0f`, two PostgreSQL sessions exercised the `FOR SHARE` guard: while one transaction held an owner's `deleted_at` update, an insert into `sr_user_collection` for that owner blocked for three seconds and then returned `owner_deleted = true`.
+- Beta-like state: every `dev` migration except the two new ones (54), with a live owner's collection, a soft-deleted owner's collection, and a collection whose owner row is missing. `prisma migrate deploy` with the full set applied both older-timestamped migrations and backfilled `live = false`, `soft = true`, `orphan = true`; the propagation trigger covers `UPDATE` and `DELETE`; re-running deploy was a no-op.
+- Development database that had applied only the first migration: an orphaned collection stayed `false`, and deploying the second migration changed it to `true`.
+- Concurrency: while one session held an owner's `deleted_at` update, an insert into `sr_user_collection` for that owner blocked for three seconds and then returned `owner_deleted = true`.
 
 ## Not verified
 
-- `pnpm api -- test:setup:local` applied every migration, including this one, but could not start PowerSync: the developer's running `dev-powersync` holds port 18080, and the smoke only rewrites `127.0.0.1:18080:` while `deploy/local/dockerfile-local-pgsql.yaml` publishes `"18080:8080"`. This is a pre-existing tooling limitation. The local development stack was not stopped; the isolated PowerSync exercise above covers the same rules file on a fully migrated database.
-- The migration and rules were not applied to beta or production; the operator applies the migration first and then publishes the rules.
+- The migrations and rules were not applied to beta or production; the operator applies both migrations first and then publishes the rules.
 - The beta counts (4,225 active users, 45 open collections, 7 RSS-enabled users) were reported by the operator and not observed here; the fixture exceeds them on users and open collections.
 - Only PowerSync 1.26.1 was exercised.
 - No UI-visible change; no human hands-on acceptance is required.

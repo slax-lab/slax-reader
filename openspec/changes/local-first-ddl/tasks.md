@@ -17,6 +17,7 @@
 
 - [x] Update `apps/api/test/infra/powersyncRules.test.ts` for the anchored rules and add regression assertions against global joins.
 - [x] Add a PostgreSQL integration test for the `owner_deleted` fill and propagation triggers.
+- [x] Make `test:setup:local` rewrite the all-interfaces PowerSync port binding and assert that no fixed host port remains, so the smoke runs while a local stack is up.
 
 ## 4. Verification
 
