@@ -1,6 +1,6 @@
 import {DrawerScrollBoundary} from './SourceDrawer';
 import type {ViewInstance} from 'react-native';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, PixelRatio, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import type { RssEntry, RssSubscription } from '@slax-reader/contracts';
 import { useMobile } from '../runtime';
@@ -43,8 +43,12 @@ function RssImageTransport({uri, size, sourceName}: {uri: string | null; size: n
   </View>;
 }
 export function RssFeedSwitcher({state, controller, onAdd}: {state: RssState; controller: RssController; onAdd(): void}) {
-  const {t} = useMobile();
+  const {t} = useMobile(), all = state.selected === null;
   return <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow: 0, height: 96}} contentContainerStyle={styles.switcher}>
+    {state.subscriptions.length ? <Pressable accessibilityRole="tab" accessibilityLabel={t('rss_all')} accessibilityState={{selected: all, disabled: state.busy}} disabled={state.busy} onPress={() => void controller.select(null)} style={styles.source}>
+      <View style={[styles.sourceCircle, {borderColor: all ? C.rssSelectedBorder : 'transparent'}]}><View style={styles.allImage}><SourceIcon name="ic_rss" size={24} style={{tintColor: C.rssAccent}} /></View></View>
+      <SourceText numberOfLines={1} ellipsizeMode="middle" style={[T.rssSourceLabel, {marginTop: 6, fontWeight: all ? '500' : '400', color: all ? C.text : C.mutedText}]}>{t('rss_all')}</SourceText>
+    </Pressable> : null}
     {state.subscriptions.map(source => <Pressable key={source.id} accessibilityRole="tab" accessibilityState={{selected: state.selected === source.id, disabled: state.busy}} disabled={state.busy} onPress={() => void controller.select(source.id)} style={styles.source}>
       <View style={[styles.sourceCircle, {borderColor: state.selected === source.id ? C.rssSelectedBorder : 'transparent'}]}><SafeRssImage url={source.icon_url} size={41} sourceName={rssDisplayName(source)} /></View>
       <SourceText numberOfLines={1} ellipsizeMode="middle" style={[T.rssSourceLabel, {marginTop: 6, fontWeight: state.selected === source.id ? '500' : '400', color: state.selected === source.id ? C.text : C.mutedText}]}>{rssDisplayName(source)}</SourceText>
@@ -67,7 +71,7 @@ export function RssFeed({state, controller, adding, onDismissAdd, onRequestAdd, 
     if (![refreshAt, retryAt].some(deadline => deadline > Date.now())) return;
     const timer = setInterval(update, 5000); return () => clearInterval(timer);
   }, [active, state.enabled, refreshAt, retryAt]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const changed = scrollPosition.source !== undefined && scrollPosition.source !== state.selected;
     scrollPosition.select(state.selected);
     if (changed) scroll.reset();
@@ -86,7 +90,7 @@ export function RssFeed({state, controller, adding, onDismissAdd, onRequestAdd, 
     });
   }, [fixtureOnly, current]);
   return <View style={{flex: 1, backgroundColor: C.readerBackground}}>
-    <DrawerScrollBoundary><FlatList key={state.selected} ref={list} {...scroll.events} maintainVisibleContentPosition={{minIndexForVisible: 0}} data={state.enabled ? state.entries : []} keyExtractor={entry => entry.id} contentContainerStyle={{paddingBottom: 16}}
+    <DrawerScrollBoundary><FlatList ref={list} {...scroll.events} maintainVisibleContentPosition={scroll.maintainVisibleContentPosition} data={state.enabled ? state.entries : []} keyExtractor={entry => entry.id} contentContainerStyle={{paddingBottom: 16}}
       ListHeaderComponent={<>
         {header}
         {state.busy || state.enabled && !state.ready ? <SourceProgress height={2} color={C.rssAccent} /> : null}
@@ -133,4 +137,4 @@ function RssOutlinedField({label, value, onChangeText, maxLength, busy, placehol
     {supportingText ? <SourceText style={{fontSize: 12, lineHeight: 16, color: C.rssIconMuted, marginTop: 4, marginHorizontal: 16}}>{supportingText}</SourceText> : null}
   </View>;
 }
-const styles = StyleSheet.create({switcher: {paddingLeft: 20, paddingRight: 20, paddingTop: 12, paddingBottom: 16, gap: 12}, source: {width: 72, alignItems: 'center'}, sourceCircle: {width: 48, height: 48, borderRadius: 24, borderWidth: 0.5, padding: 3, alignItems: 'center', justifyContent: 'center'}, image: {backgroundColor: '#F3EAE0', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'}, toolbar: {minHeight: 48, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingLeft: 24, paddingRight: 12}, empty: {alignItems: 'center', gap: 16, paddingHorizontal: 32, paddingVertical: 48}, article: {paddingHorizontal: 24, paddingVertical: 14}, articleMain: {flexDirection: 'row', gap: 12}, meta: {fontSize: 11, color: C.mutedText}, save: {flexDirection: 'row', alignItems: 'center'}, field: {minHeight: 56, borderRadius: 12, justifyContent: 'center'}, fieldLabel: {position: 'absolute'}, input: {...T.body, color: C.text, paddingHorizontal: 16, paddingVertical: 16, includeFontPadding: false}});
+const styles = StyleSheet.create({switcher: {paddingLeft: 20, paddingRight: 20, paddingTop: 12, paddingBottom: 16, gap: 12}, source: {width: 72, alignItems: 'center'}, sourceCircle: {width: 48, height: 48, borderRadius: 24, borderWidth: 0.5, padding: 3, alignItems: 'center', justifyContent: 'center'}, allImage: {width: 41, height: 41, borderRadius: 20.5, backgroundColor: '#F3EAE0', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'}, image: {backgroundColor: '#F3EAE0', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'}, toolbar: {minHeight: 48, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingLeft: 24, paddingRight: 12}, empty: {alignItems: 'center', gap: 16, paddingHorizontal: 32, paddingVertical: 48}, article: {paddingHorizontal: 24, paddingVertical: 14}, articleMain: {flexDirection: 'row', gap: 12}, meta: {fontSize: 11, color: C.mutedText}, save: {flexDirection: 'row', alignItems: 'center'}, field: {minHeight: 56, borderRadius: 12, justifyContent: 'center'}, fieldLabel: {position: 'absolute'}, input: {...T.body, color: C.text, paddingHorizontal: 16, paddingVertical: 16, includeFontPadding: false}});

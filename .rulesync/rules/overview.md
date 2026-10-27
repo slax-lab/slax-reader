@@ -1,115 +1,56 @@
 ---
 root: true
 targets: ["*"]
-description: "Slax Reader monorepo: repository map, development workflow, and repository hygiene rules"
+description: "Slax Reader non-delegable agent obligations, scoped pointers, and repository hygiene rules"
 globs: ["**/*"]
 ---
 
-# Slax Reader Monorepo
+# Slax Reader Agent Rules
 
-Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comment, and discuss. This monorepo brings together the Web, browser extension, API, CLI, mobile apps, and shared packages; migration work remains tracked in OpenSpec.
+Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comment, and discuss. This file carries non-delegable obligations and pointers only; each obligation names its owner, and `README.md` owns the repository map and setup entry points.
 
-## Repository Map
+## OpenSpec workflow
 
-- `apps/web` — web frontend (the reader at r.slax.com)
-- `apps/extension` — browser extension (Chrome/Edge)
-- `apps/mobile` — Expo / React Native Android and iOS app; scoped engineering rules live in its generated `AGENTS.md`
-- `apps/api` — API server (Cloudflare Workers: Core, Edge, AI, Browser)
-- `apps/api/script/deploy` — backend deployment, setup, and resource provisioning commands
-- `deploy/cloudflare` — public Cloudflare Worker template
-- `deploy/local` — local api.toml/.env/.dev.vars, PostgreSQL / PowerSync Compose and shared Wrangler state
-- `apps/cli` — command-line client (reader-cli)
-- `packages/contracts` — shared API contracts and types used across apps
-- `docs/` — documentation
-- `tests/e2e` — end-to-end tests
-- `tooling/` — internal tooling
+Observable behavior goes through propose → human review of the proposal → implement → archive after merge. Implementation-only changes (refactors, typos, comment or documentation tweaks) may skip the proposal. Review proposals in conversation or local files, never in a pull request. Run `openspec validate --all --strict` before merge; it must pass.
 
-## Local Development
+The author archives through a docs pull request after the task pull request merges, and every `tasks.md` ends with that item. Before archiving, classify every unchecked task instead of archiving around it. Parallel tasks must not carry delta specs for the same capability; changes touching one capability are archived together or sequenced.
 
-- Package manager: **pnpm** (pinned via `packageManager` in `package.json`; Node.js `^22.22.2 || ^24.15.0 || >=26` required — use an LTS line, Node 25 is not supported)
-- New team members set up their machine with the agent-executable runbook at `docs/LOCAL-SETUP.md`.
-- Install dependencies once at the repository root: `pnpm install --frozen-lockfile`.
-- Per-app scripts live with their app. The backend exposes its concrete commands from `apps/api/package.json`; the repository root provides the abstract entry `pnpm api -- <command>` so users do not need to change directories.
-- CLI commands use `pnpm cli -- <command>` (`build`, `dev`, `start`, `typecheck`, `test`, `test:package`). The CLI remains the public `@slax-lab/reader-cli` package, needs no deploy environment files for build/tests, and retains its existing user config namespace. See `docs/cli/DEVELOPMENT.md` and `docs/cli/RELEASE.md`; merges into `dev`, `beta`, and `main` that change `apps/cli` and increase its stable package version automatically create channel tags and distribute validated archives. Dev/beta tags use `-dev`/`-beta` and GitHub Pre-Releases; main uses `cli-v<version>` with npm OIDC publication and matching stable GitHub Release assets.
-- Reusable repository tooling stays at the root. API-specific configuration, Prisma schemas and migrations, generated runtime types, source and tests stay in `apps/api/`; deployment templates and local infrastructure remain in `deploy/`.
-- The only public API template is `deploy/cloudflare/api.toml.example`; initialize ignored `deploy/local/api.toml` with `pnpm api -- config:init`. Dev, deploy, build and runtime types use that native Wrangler configuration (name/services/env, no custom workers tables). Local commands select env.dev if present; --env or SLAX_API_ENV explicitly selects a named environment. API-specific Prisma configs live in `apps/api/prisma/`.
-- Prisma and Cloudflare operational tools automatically load ignored `deploy/local/.env` (database URLs and CLI credentials), using this fixed repository-relative path. Existing process values take precedence; setup pins local database URLs. Build/types and dry-run plans do not load this file. Worker runtime secrets belong in ignored `deploy/local/.dev.vars` or Worker secrets, never TOML or generated Env types.
-- `pnpm api -- setup` validates operator-provided native Wrangler configuration and keys, runs pnpm exec wrangler login once in apps/api, then runs local infrastructure setup/migrations/generation through `apps/api/script/deploy/setup-backend.sh`, waits for PowerSync health and exits. Start Workers separately with pnpm api -- dev; setup never launches them. The combined dev:full command is removed. The root `pnpm setup:all` command runs API setup, Web setup, and Extension setup in order. setup never writes, migrates or backs up configuration or generates keys; missing files must be supplied by the operator. The local PowerSync public key is derived from POWERSYNC_JWK_PRIVATE_KEY in .dev.vars and passed to Compose in memory; obsolete separate key files are not required or rewritten. Invalid signing keys and service failures stop startup. `--check` is read-only and does not invoke login. Cloud services still require dedicated development resources. All deployment tools honor `SLAX_API_CONFIG` (root-relative or absolute), including types, D1 and resource tools; config:init only creates the default local file. CI may check out an independent configuration repository and use the manual/reusable API deploy workflow.
-- Backend validation and deployment commands must be documented through the root abstraction and preserve the distinction between local setup, offline checks and explicitly authorized remote operations.
-- The runtime Worker type generator may use an isolated temporary directory to prevent secret/configuration discovery; this is an internal safety boundary, not a developer-facing working-directory requirement.
+## Design checkpoints
 
-## Package Version Decisions
+A material UX change offers an optional requirements-discovery demo before dependent implementation: ask the human, recommend it with a specific reason when requirements are uncertain or structural rework is likely, and never treat it as required. When the human accepts, dependent implementation waits, feedback updates the requirements first, and the approval is recorded in the change's `proposal.md` (`DESIGN.md` §10.1); an absent demo or record is not a finding. A UI-visible change needs human hands-on acceptance before the pull request opens (`DESIGN.md` §10.2), and that step has no declared-gap path. Demo approval authorizes implementation only.
 
-- For changes to CLI, Extension, or Mobile logic, shipped UI/assets, runtime dependencies, native integration, or build/package output, assess which applications are affected. Include indirect effects from shared packages, API contracts, tooling, and configuration outside the application directory. Documentation-only or test-only changes that do not affect shipped behavior or package output are exempt.
-- After preparing and validating the changes, before committing, pushing, or handing them off as ready, ask the human whether to increment the affected application's `package.json` version: CLI uses `apps/cli/package.json`, Extension uses `apps/extension/package.json`, and Mobile uses `apps/mobile/package.json`. Combine affected applications into one question, giving each current version, recommended new version/bump type, and reason. Follow an explicit version decision already given for this task without asking again.
-- Continue implementation and independent checks while the decision is pending, but wait for an explicit answer before changing version metadata or finalizing the task. Do not assume either approval or refusal. If no answer is available, report the version decision as pending.
-- If approved, update the affected manifests in the same task branch and PR, following each application's release constraints. CLI and Extension keep their stable source versions; CI derives channel suffixes. For Mobile, include `buildNumber` and `previousBuildNumber` in the decision as appropriate, follow `docs/mobile/RELEASE.md`, and regenerate native metadata through the existing tooling. If declined, preserve the versions and record that decision in the task/PR summary.
-- Verify the relevant CI release conditions when explaining the effect of a bump. Version approval authorizes the agreed metadata change; signing, uploading, and store publication still follow their existing authorization requirements. Mobile CI currently performs checks and JavaScript bundle validation only.
+## Branches and pull requests
 
-## Development Workflow — OpenSpec Required
+One task is one branch and one pull request: cut `<type>/<task-name>` from `origin/dev` and target `dev`. Never commit on `dev`, `beta`, or `main`. Agents never merge promotion, sync-back, or hotfix pull requests. Same-capability delta sequencing: see the OpenSpec obligation above. Mechanics: `docs/BRANCHING.md`.
 
-This repo uses OpenSpec for spec-driven development. Living specs live in `openspec/specs/` (organized by product capability, not by package); in-flight work lives in `openspec/changes/`.
+## Verification evidence
 
-- Any change that alters observable behavior (features, API changes, behavior fixes) MUST go through the OpenSpec flow: propose → human reviews the proposal → implement the tasks → archive after merge.
-- Starting a proposal, per tool:
-  - Claude Code: `/opsx:propose`
-  - Kimi Code: `/skill:openspec-propose`
-  - Codex: `$openspec-propose`
-  - Any tool: drive the OpenSpec CLI directly (`openspec list`, `openspec validate`, `openspec archive`).
-- Implementation-only changes (refactors, typos, comment/doc tweaks) MAY skip the proposal.
-- After editing specs or changes, run `openspec validate --all --strict`; it must pass before merge.
+A behavior change is done only when it has been exercised in a running environment and the evidence is recorded per `docs/DEFINITION-OF-DONE.md`. Automated checks must run but never substitute. A refactor records smoke-level verification derived from its diff's touched surface, any related living specs, and the affected app's documented smoke flows. A declared gap is acceptable evidence for agent-executable verification; UI hands-on acceptance is not. Documentation-, comment-, and typo-scale changes are exempt when the change states the exemption.
 
-## Definition of Done
+## Review
 
-A change that alters observable behavior is done only when the changed behavior has been exercised in a running environment; automated checks (typecheck, lint, unit and integration tests) must also run, but never substitute for the exercise. What to exercise derives from the change's delta-spec WHEN/THEN scenarios and proposal intent — they are the acceptance criteria — plus the affected app's smoke flows in its development doc; a change without an OpenSpec proposal derives smoke-level verification from its diff's touched surface and the affected app's documented smoke flows, and documentation- or typo-scale changes are exempt when they say so.
+Read and follow `REVIEW.md`. Run its local pre-push review before pushing any behavior-changing diff. Behavior-changing pull requests carry `OpenSpec: <change-id>`. Close the review loop without waiting for a reminder.
 
-- Drive the exercise with an agent wherever an agent can operate the environment (browser-use, computer-use, API calls); human verification is reserved for what an agent cannot judge. Declaring a gap — "not verified, because …" — is acceptable evidence; silence is not.
-- Record verification in `openspec/changes/<change-id>/validation.md`: commands run and results, what was exercised in the running environment, and what was not verified with the reason. Summarize it in the pull request's Test plan with a link to that file; pull request bodies follow `.github/PULL_REQUEST_TEMPLATE.md`, never free text. A change without an OpenSpec proposal has no change directory — its Test plan entry is the record.
-- Screenshots and recordings upload with `gh --attach` (requires gh v2.99.0+) and are never committed to git. The text record must stand alone without the media — the automated review evaluates text only, and attachment links rot.
-- UI-visible changes additionally satisfy `DESIGN.md`'s verification matrix (themes, responsive widths, recorded states), and a human exercises the change hands-on in the agent-prepared running environment before the pull request opens: requested adjustments are implemented and re-verified first, the acceptance (who, when, what was adjusted) is recorded in `validation.md`, and this step has no declared-gap path.
+## Package versions
 
-Per-app check commands and smoke flows: `docs/web/development.md`, `docs/extension/development.md`, `docs/api/DEVELOPMENT-DOCUMENT-EN.md`, `docs/cli/DEVELOPMENT.md`.
+Before committing, pushing, or handing off a change that affects CLI, Extension, or Mobile logic, shipped UI/assets, runtime dependencies, native integration, or build/package output — including indirect effects through shared packages, API contracts, tooling, and configuration outside the application directory — ask the human whether to increment each affected application's version. Documentation-only and test-only changes that do not affect shipped behavior or package output are exempt. See `docs/release/VERSIONING.md`.
 
-## Branching and Promotion
+## Generated artifacts
 
-The repository has three long-lived environment branches: `dev` (the default branch), `beta`, and `main`. Changes flow `dev` → `beta` → `main` through promotion pull requests, and all three reject direct pushes. Promotion pull requests merge with a **merge commit**, never rebase or squash: rebase and squash forge new SHAs for patches the source branch already carries, and once the histories diverge GitHub's trial-merge gate blocks every merge method until a sync-back merge re-converges them. If a promotion PR reports conflicts from such divergence, merge the target branch back into the source branch first (resolving in favor of the source branch's content), then merge the promotion. Sync-back pull requests merge with a **merge commit** too: a sync-back's entire purpose is making the target branch's tip an ancestor of the source branch, and squash or rebase would forge a new SHA for that tip instead, leaving the divergence — and the blocked promotion — exactly as it was.
+Change generated outputs only through their generator; hand edits are rejected by the pre-commit hook and the drift checks. The machine configuration is authoritative for the exact output paths.
 
-Two structural wrinkles when running promotions. First, the required `PR review gate` status can hang at "Expected" when a pull request is opened with conflicts: the review workflow does not fire for a conflicted pull request, so no run reports on the head. The review triggers include `synchronize`, so the sync-back merge that resolves the conflicts re-triggers the review automatically; if the gate still shows no real status (for example the pull request is still conflicted, so no run fires), posting a `/review` comment runs the on-demand review, after which the gate reports a real status. Second, the required approving review is unobtainable when the author is the repository's only active administrator — self-approval does not count, and rulesets cannot exempt by a pull request's head branch. The human administrator therefore merges promotion and sync-back pull requests from the GitHub UI with the merge-commit method once the required checks are green; agents never merge promotion or sync-back pull requests themselves.
+- rulesync generates `AGENTS.md`, `CLAUDE.md`, `apps/*/AGENTS.md`, `.claude/settings.json`, and `.codex/*` from `.rulesync/**` and `rulesync.jsonc`; edit the source and run `pnpm agent:sync`, then commit both. `pnpm agent:check` and the `agent-config drift check` verify them.
+- `openspec update` generates `.agents/skills/.openspec-target`, `.agents/skills/openspec-*`, `.claude/skills/openspec-*`, and `.claude/commands/opsx/*` from the pinned `@fission-ai/openspec`; they change only in deliberate tool-upgrade pull requests, and the `agent-config drift check` verifies them.
+- `gh aw compile` generates `.github/workflows/*.lock.yml` and `.github/aw/**` from the workflow Markdown, `shared/**`, and `aw.json`; `tooling/check-gh-aw-drift.sh` verifies them.
 
-- One task = one branch = one PR: branch `<type>/<task-name>` cut from `origin/dev`, where `<type>` is the commit type of the work, e.g. `feat`, `fix`, `docs`, `chore`, `ci`. The task's pull request targets `dev`. `<task-name>` is one string, used verbatim for the branch suffix and — when a change is required — the OpenSpec change-id.
-- Never commit on a long-lived branch (`dev`, `beta`, or `main`): a pre-commit hook rejects the commit locally, and the repository ruleset rejects the push remotely. Trivial fixes (typo scale, single file) also go through a branch + PR.
-- Before the first file edit of a session, check where you are: if `git branch --show-current` is a long-lived branch, cut the task branch first — `git switch -c <type>/<task-name> --no-track origin/dev` — asking the human first when the checkout carries uncommitted changes.
-- Parallel tasks MUST NOT carry delta specs for the same capability (`openspec/specs/<capability>/`); sequence such tasks instead. Archive a merged change promptly, via its own small PR.
+## Sensitive files
 
-## Code Review
+Never read, print, copy, or exfiltrate secret files: `.env`, `.env.*`, `.dev.vars`, credentials, private keys. This is enforced by tooling where the tool supports it (Claude Code and Codex via generated permission rules; Kimi Code blocks `.env*` natively), and by this rule everywhere else. If you need configuration values, ask the human; they can paste the relevant non-secret shape of the config.
 
-`REVIEW.md` at the repo root is the single source of truth for review policy: review passes, Important-vs-Nit calibration, and the compliance pass against the PR's linked OpenSpec change. Any agent asked to review code or a PR MUST read and follow it. Behavior-changing PRs must name their change via an `OpenSpec: <change-id>` line in the PR body. `REVIEW.md` carries review instructions only — when editing it, never add operational documentation (triggers, gates, pausing, budget, troubleshooting); that belongs next to the workflows or in `docs/`.
+## Documentation language
 
-Agents MUST run the local pre-push review defined in `REVIEW.md` before pushing any behavior-changing diff — on every path, not only when explicitly asked to review. Follow its compliance pass to determine the change-id without a PR body, and resolve Important findings before pushing. This is a prompt-level duty: no hook or gate verifies it, so skipping it silently is a process violation.
+Author all durable project documentation in English: OpenSpec artifacts, files under `docs/`, code comments, commit messages, and pull request bodies. Conversation with the user is unaffected. Legacy non-English documents under `docs/` (the `*_CN` / `*_JP` files migrated from the polyrepos) stay as-is; when substantially revising one that has no English counterpart, add the English version rather than only extending the translated file.
 
-The author agent closes the review-feedback loop without waiting for a human IM reminder: poll the pull request's review comments (`gh pr view --comments`), resolve or explicitly answer every Important finding, and push the fixes. Pushing re-triggers the automated review; when no run fires for the pushed head, comment `/review` on the pull request. Human IM reminders are a fallback, not the mechanism.
+## Personal local instructions
 
-Review findings that recur are tracked in `REVIEW.md`'s "Recurring findings" section. When a human confirms a repeat, the pattern is promoted into these rules (edit `.rulesync/`, then `pnpm agent:sync`) so authoring agents avoid it from the next session. Agents must never promote patterns into the rules on their own.
-
-## Generated Files — Do Not Hand-Edit
-
-`AGENTS.md`, `CLAUDE.md`, `.claude/`, `.codex/`, and `.agents/` are GENERATED artifacts. Hand edits are blocked by a pre-commit hook (lefthook, auto-installed via the root `prepare` script on `pnpm install`), rejected by CI, and overwritten on the next sync.
-
-- To change agent rules or permissions: edit `.rulesync/`, then run `pnpm agent:sync`, and commit the source and the regenerated files in the same commit.
-- To change the spec workflow: edit `openspec/config.yaml`.
-- OpenSpec skill/command files (e.g. `.claude/skills/openspec-*`) are owned by `openspec update`; they are refreshed only in tool-upgrade PRs, never edited by hand.
-
-## Sensitive Files
-
-Never read, print, copy, or exfiltrate secret files: `.env`, `.env.*`, `.dev.vars`, credentials, private keys.
-
-- This is enforced by tooling where the tool supports it (Claude Code and Codex via generated permission rules; Kimi Code blocks `.env*` natively), and by this rule everywhere else.
-- If you need configuration values, ask the human; they can paste the relevant non-secret shape of the config.
-
-## Documentation Language
-
-Author all durable project documentation in English: OpenSpec artifacts (proposals, designs, tasks, specs), files under `docs/`, code comments, commit messages, and pull request bodies. Conversation with the user is unaffected. Legacy non-English documents under `docs/` (the `*_CN` / `*_JP` files migrated from the polyrepos) stay as-is; when substantially revising one that has no English counterpart, add the English version rather than only extending the translated file.
-
-## Personal Local Instructions
-
-At the start of every session, before any other work: if `AGENTS.local.md` exists at the repository root, read it and follow it. Its presence is visible in the working-directory listing injected into your context, so checking costs no tool call. This file holds personal, machine-local instructions and is gitignored, so it usually does not exist — that is normal. Where it conflicts with this file, it wins.
+At the start of every session, before any other work: if `AGENTS.local.md` exists at the repository root, read it and follow it. It is gitignored and usually absent, which is normal. Where it conflicts with this file, it wins.

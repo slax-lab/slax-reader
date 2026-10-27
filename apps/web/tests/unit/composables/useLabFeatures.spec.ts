@@ -2,7 +2,6 @@
 // fetch → useState；toggle 乐观切换 + 失败回滚；isBlocked 只在拉过列表后才拦；
 // handleSaveError 只认 LAB_FEATURE_DISABLED，弹带“去打开”的 toast
 import { RequestError } from '@commons/frontend-utils/request'
-
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { useLabFeatures } from '~~/app/composables/useLabFeatures'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -20,17 +19,14 @@ const { mockGet, mockPost, mockRequest, mockToastShowToast, mockNavigateTo, mock
   }
 })
 
+// Keep both exports in one Nuxt-generated module mock; a second vi.mock can race it.
 mockNuxtImport('request', () => mockRequest)
+mockNuxtImport('getUserToken', () => mockGetUserToken)
 mockNuxtImport('navigateTo', () => mockNavigateTo)
 
 vi.mock('~/components/Toast', () => ({
   default: { showToast: mockToastShowToast },
   ToastType: { Success: 'success', Error: 'error', Normal: 'normal' }
-}))
-vi.mock('~/utils/request', async importOriginal => ({
-  ...(await importOriginal<typeof import('~/utils/request')>()),
-  request: mockRequest,
-  getUserToken: mockGetUserToken
 }))
 
 const youtube = () => ({ key: 'youtube', status: 'active' as const, enabled: false, enabled_at: null })

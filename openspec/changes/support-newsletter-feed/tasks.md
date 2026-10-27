@@ -20,8 +20,19 @@
 - [x] 4.1 Generate models/router/DI/types; verify API/contracts/Web typechecks, Edge/Web builds, scoped API lint and strict OpenSpec validation.
 - [x] 4.2 Exercise actual local Workers, PostgreSQL/Prisma and R2 plus Web UI; record outcomes, skipped checks and live deployment gaps in validation.md.
 - [x] 4.3 Review Bugs/Security/Compliance, fix Important findings and obtain human hands-on acceptance before PR; verify independent review and acceptance record.
-- [x] 4.4 Deliver the dev console/release and human test guide; verify explicit routing preserves Catch-all Drop and activation remains off by default.
+- [x] 4.4 Deliver the original dev console/release and human test guide; its exact-address pilot was superseded by the approved root-domain rollout below.
+
+## 5. Approved root-domain rollout revision (2026-10-27)
+
+- [x] 5.1 Enforce the daguang@slax.app business reservation for provisioning, reads and receipt lookup; verify dev eligibility, stale bindings, case handling and rename stability with regression tests.
+- [x] 5.2 Update private deployment configuration to slax.dev for enabled dev and slax.app for disabled beta/production; preserve all other configuration bytes and existing Worker identities.
+- [x] 5.3 Replace the exact-address pilot instructions with root-domain Catch-all readiness, console actions, rollback and multi-user test steps; preserve the existing production business forwarding rule.
+- [x] 5.4 Run generated-code checks, API tests/typecheck, affected Web tests, actual local Worker exercises and Bugs/Security/Compliance review; record evidence and update the existing draft PRs without adding assignees or reviewers.
 
 ## Deferred operational acceptance
 
 Remote dev deployment, hosted PowerSync publication and real SMTP acceptance are operator work described in docs/api/NEWSLETTER-DEV-PILOT.md, not claims of this local implementation. Do not activate beta/main until the documented compatibility rollout is complete.
+
+## 6. After merge
+
+- [ ] 6.1 After the task PR merges, classify every remaining unchecked task and archive this OpenSpec change through a separate documentation PR.

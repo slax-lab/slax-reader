@@ -1,6 +1,6 @@
 # API 開発
 
-Node.js >= 22.13.0 とルートで固定された pnpm を使用します。コマンドはリポジトリルートから実行します。ルート manifest は汎用 `api` エントリのみを持ち、具体的な scripts・依存関係は `apps/api/package.json` が所有します。実行 cwd は workspace が API に設定します。API 専用の TypeScript・Vitest・ESLint・Prettier・EditorConfig は `apps/api/`、Prisma config は schema と履歴マイグレーションと同じ `apps/api/prisma/` に置きます。Prisma の相対パスは config ファイル基準です。
+Node.js `^22.22.2 || ^24.15.0 || >=26.0.0`（ルート `engines` の要件）とルートで固定された pnpm を使用します。コマンドはリポジトリルートから実行します。ルート manifest は汎用 `api` エントリのみを持ち、具体的な scripts・依存関係は `apps/api/package.json` が所有します。実行 cwd は workspace が API に設定します。API 専用の TypeScript・Vitest・ESLint・Prettier・EditorConfig は `apps/api/`、Prisma config は schema と履歴マイグレーションと同じ `apps/api/prisma/` に置きます。Prisma の相対パスは config ファイル基準です。
 
 ```bash
 pnpm install --frozen-lockfile

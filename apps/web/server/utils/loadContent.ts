@@ -1,6 +1,6 @@
-import { isPdfContentKey } from '@slax-reader/contracts/pdf'
 import { isServerTimingEnabled } from './serverTiming'
-import { createError, getCookie, getResponseHeader, type H3Event, setResponseHeader } from 'h3'
+import { isPdfContentKey } from '@slax-reader/contracts/pdf'
+import { createError, getCookie, getHeader, getResponseHeader, type H3Event, setResponseHeader } from 'h3'
 
 export interface ContentResult {
   metadata: ContentMeta
@@ -21,6 +21,7 @@ function appendServerTiming(event: H3Event, step: string, durationMs: number): v
 }
 
 export async function loadContent(event: H3Event, uuid: string): Promise<ContentResult> {
+  setResponseHeader(event, 'Cache-Control', 'private, no-store')
   const totalStartedAt = performance.now()
   const timingEnabled = isServerTimingEnabled(event)
   const timings: Record<string, number> = {}
@@ -33,23 +34,9 @@ export async function loadContent(event: H3Event, uuid: string): Promise<Content
   const token = getCookie(event, config.public.COOKIE_TOKEN_NAME as string)
 
   const backendHeaders: Record<string, string> = {}
-  if (token) backendHeaders.Authorization = `Bearer ${token}`
-
-  const bodyPromise = (async (): Promise<string | null> => {
-    const startedAt = performance.now()
-    const contentBody = await OSS.get(`html/body/${uuid}.html`).finally(() => {
-      timings['r2-get'] = elapsedMs(startedAt)
-    })
-
-    if (!contentBody) return null
-
-    const bodyStartedAt = performance.now()
-    try {
-      return await contentBody.text()
-    } finally {
-      timings['r2-body'] = elapsedMs(bodyStartedAt)
-    }
-  })()
+  const authorization = getHeader(event, 'authorization')
+  if (authorization) backendHeaders.Authorization = authorization
+  else if (token) backendHeaders.Authorization = `Bearer ${token}`
 
   const backendPromise = (async (): Promise<ContentMeta | null> => {
     const fetchStartedAt = performance.now()
@@ -73,7 +60,7 @@ export async function loadContent(event: H3Event, uuid: string): Promise<Content
   })()
 
   try {
-    const [bodyResult, metaResult] = await Promise.allSettled([bodyPromise, backendPromise])
+    const [metaResult] = await Promise.allSettled([backendPromise])
 
     if (metaResult.status === 'rejected') {
       console.error(`[content] get ${uuid} failed to load metadata from BACKEND:`, metaResult.reason)
@@ -86,24 +73,19 @@ export async function loadContent(event: H3Event, uuid: string): Promise<Content
 
     if (isPdfContentKey(metadata.content_key)) return { metadata, body: null }
 
-    let body = bodyResult.status === 'fulfilled' ? bodyResult.value : null
-    if (bodyResult.status === 'rejected') {
-      console.error(`[content] get ${uuid} failed to load body from R2:`, bodyResult.reason)
-    }
-
-    if (!body && metadata.content_key) {
-      try {
-        const fallbackStartedAt = performance.now()
-        const contentBody = await OSS.get(metadata.content_key)
-        timings['r2-fallback-get'] = elapsedMs(fallbackStartedAt)
-        if (contentBody) {
-          const fallbackBodyStartedAt = performance.now()
-          body = await contentBody.text()
-          timings['r2-fallback-body'] = elapsedMs(fallbackBodyStartedAt)
-        }
-      } catch (error) {
-        console.error(`[content] get ${uuid} failed to load body from content_key ${metadata.content_key}:`, error)
+    let body: string | null = null
+    const contentKey = metadata.content_key || `html/body/${uuid}.html`
+    try {
+      const startedAt = performance.now()
+      const contentBody = await OSS.get(contentKey)
+      timings['r2-get'] = elapsedMs(startedAt)
+      if (contentBody) {
+        const bodyStartedAt = performance.now()
+        body = await contentBody.text()
+        timings['r2-body'] = elapsedMs(bodyStartedAt)
       }
+    } catch (error) {
+      console.error(`[content] get ${uuid} failed to load its authorized body:`, error)
     }
 
     return { metadata, body }

@@ -1,20 +1,29 @@
 import { outboundUrlProblem } from '@/utils/podcastSource'
 
-const USER_AGENT = 'Mozilla/5.0 (compatible; SlaxReaderBot/1.0; +https://slax.com)'
+const BOT_USER_AGENT = 'Mozilla/5.0 (compatible; SlaxReaderBot/1.0; +https://slax.com)'
+// Only the page fallback opts into browser impersonation: publisher pages can answer a bot UA with
+// HTTP 403 even from Cloudflare. Feeds, lookup APIs and transcripts keep the identifying bot UA.
+const BROWSER_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
 
 /**
  * Fetch a podcast page, feed, lookup answer or transcript file from an address that came from a
  * user or a feed. Every hop (redirects are followed by hand) must pass the outbound screen, the
  * body is capped, and the whole request has a time limit.
  */
-export async function fetchPublicText(url: string, opts: { maxBytes?: number; timeoutMs?: number; accept?: string } = {}): Promise<string> {
+export async function fetchPublicText(url: string, opts: { maxBytes?: number; timeoutMs?: number; accept?: string; browser?: boolean } = {}): Promise<string> {
   const maxBytes = opts.maxBytes ?? 5 * 1024 * 1024
   const signal = AbortSignal.timeout(opts.timeoutMs ?? 20_000)
+  const headers: Record<string, string> = {
+    'User-Agent': opts.browser ? BROWSER_USER_AGENT : BOT_USER_AGENT,
+    Accept: opts.accept ?? '*/*'
+  }
+  // The page fallback asks for the publisher's Chinese render; JSON/XML endpoints ignore this.
+  if (opts.browser) headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
   let current = url
   for (let hop = 0; hop < 5; hop++) {
     const problem = outboundUrlProblem(current)
     if (problem) throw new Error(`blocked_url:${problem}`)
-    const resp = await fetch(current, { redirect: 'manual', signal, headers: { 'User-Agent': USER_AGENT, Accept: opts.accept ?? '*/*' } })
+    const resp = await fetch(current, { redirect: 'manual', signal, headers })
     if (resp.status >= 300 && resp.status < 400) {
       const location = resp.headers.get('location')
       if (!location) throw new Error(`http_${resp.status}`)

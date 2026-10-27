@@ -1,4 +1,14 @@
 {
+  "bookmark_fork": {
+    "action": "Save for later",
+    "submitting": "Saving…",
+    "saved": "Saved",
+    "label": "Fork:",
+    "generic_source": "Reader snapshot",
+    "unavailable": "Source unavailable",
+    "offline": "Connect to the internet to save this article.",
+    "failed": "Could not save this article. Please try again."
+  },
   "pdf": {
     "local_upload": "Local upload",
     "page_spacing": "Show page gaps",

@@ -3,8 +3,9 @@
 </template>
 
 <script lang="ts" setup>
-
 import { isAllowedExtensionOrigin, parseExtensionBridgeIds } from '~/utils/extensionBridge'
+import { readerBookmarkUuid } from '@slax-reader/contracts'
+import { lookupExtensionReaderBookmark } from '~/utils/extensionBridgeBookmark'
 
 import type { UserInfo } from '@slax-reader/contracts/interface'
 import type { PowerSyncDatabase } from '@powersync/web'
@@ -71,7 +72,11 @@ type CommentRow = {
 }
 
 type UserRow = { id: string; name: string | null; picture: string | null }
-type TagRow = { id: string; tag_name: string | null; display: string | number | null }
+type TagRow = {
+  id: string
+  tag_name: string | null
+  display: string | number | null
+}
 
 type AddMarkBody = {
   bookmark_uid?: string
@@ -94,7 +99,7 @@ const BOOKMARK_URL_SQL = `
 
 const asRecord = (value: unknown): JsonRecord => (value && typeof value === 'object' && !Array.isArray(value) ? (value as JsonRecord) : {})
 
-const parseJson = <T>(value: unknown, fallback: T): T => {
+const parseJson = <T,>(value: unknown, fallback: T): T => {
   if (typeof value !== 'string') return (value as T) ?? fallback
   try {
     return JSON.parse(value) as T
@@ -336,7 +341,23 @@ const handlers: Record<string, (params?: Record<string, unknown>) => Promise<unk
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new Error('lookup only accepts HTTP(S) URLs')
 
     const state = await getBridgeState()
-    const rows = await db!.getAll<BookmarkRow>(BOOKMARK_URL_SQL, [targetUrl])
+    const readerUuid = readerBookmarkUuid(targetUrl, [runtimeConfig.PUBLIC_BASE_URL, runtimeConfig.SHARE_BASE_URL])
+    let rows: BookmarkRow[]
+    if (readerUuid) {
+      if (!navigator.onLine) return { ...state, bookmark: null }
+      const saved = await lookupExtensionReaderBookmark({
+        apiBaseUrl: runtimeConfig.DWEB_API_BASE_URL,
+        targetUrl,
+        userKey: state.userKey,
+        getUserKey: () => localStorage.getItem('slax:powersync:lastUser'),
+        sessionPolicy: { clientId: bridgeClientId, configuredIds: configuredExtensionIds, environment: runtimeConfig.slaxEnv }
+      })
+      if (state.userKey !== localStorage.getItem('slax:powersync:lastUser')) return { ...(await getBridgeState()), bookmark: null }
+      rows =
+        saved?.exists && saved.bookmark_uid
+          ? await db!.getAll<BookmarkRow>(BOOKMARK_URL_SQL.replace("JSON_EXTRACT(metadata, '$.bookmark.target_url') = ?", 'id = ?'), [saved.bookmark_uid])
+          : []
+    } else rows = await db!.getAll<BookmarkRow>(BOOKMARK_URL_SQL, [targetUrl])
     const row = rows[0]
     const bookmark = row?.id ? await toBookmarkPayload(row) : null
     return {

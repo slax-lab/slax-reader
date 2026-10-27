@@ -4,7 +4,7 @@
 
 ## 本地开发
 
-安装 Node.js >= 22.13、仓库固定的 pnpm 和 Docker Compose（支持 `up --wait`），启动 Docker，首次检出后执行 `pnpm install --frozen-lockfile`。配置准备好后，初始化与项目启动分开执行：
+安装 Node.js `^22.22.2 || ^24.15.0 || >=26.0.0`（根 `engines` 要求）、仓库固定的 pnpm 和 Docker Compose（支持 `up --wait`），启动 Docker，首次检出后执行 `pnpm install --frozen-lockfile`。配置准备好后，初始化与项目启动分开执行：
 
 ```bash
 pnpm api -- setup

@@ -3,14 +3,16 @@ import assert from 'node:assert/strict'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { request as nodeRequest } from 'node:http'
-import { mkdirSync, writeFileSync, symlinkSync, readFileSync } from 'node:fs'
-import { relative, resolve } from 'node:path'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, relative, resolve } from 'node:path'
+import { createRequire } from 'node:module'
 import { setTimeout as delay } from 'node:timers/promises'
 import { Auth } from '../../src/utils/jwt'
 import { Hashid } from '../../src/utils/hashids'
-import { ROOT } from '../../script/deploy/dev-local'
+import { ROOT, localDevOptions } from '../../script/deploy/dev-local'
 import { LocalResources } from './localResources'
-import { API_ROOT } from '../../script/root'
+import { prepareForkSmoke } from './forkSmoke'
 
 let httpPort = 8787
 
@@ -39,7 +41,12 @@ const localFetch = (url: string, options: RequestInit = {}) =>
               for (const item of Array.isArray(value) ? value : value === undefined ? [] : [value]) responseHeaders.append(name, item)
             }
             const noBody = options.method === 'HEAD' || [204, 205, 304].includes(res.statusCode ?? 200)
-            done(new Response(noBody ? null : Buffer.concat(chunks), { status: res.statusCode, headers: responseHeaders }))
+            done(
+              new Response(noBody ? null : Buffer.concat(chunks), {
+                status: res.statusCode,
+                headers: responseHeaders
+              })
+            )
           } catch (error) {
             reject(error)
           }
@@ -54,9 +61,13 @@ const localFetch = (url: string, options: RequestInit = {}) =>
 
 async function main() {
   const resources = new LocalResources()
+  // macOS Unix socket paths are limited to 104 bytes; worktree paths can exceed it.
+  const ipcTemp = mkdtempSync(resolve(tmpdir(), 'slax-http-'))
+  resources.env.TMPDIR = ipcTemp
   const evidence: Record<string, unknown> = {}
   let worker: ChildProcess | undefined
   let workerLog = ''
+  let forks: Awaited<ReturnType<typeof prepareForkSmoke>> | undefined
   const state = resolve(resources.workspace, 'state')
   const coreConfig = resolve(resources.workspace, 'core.json')
   const edgeConfig = resolve(resources.workspace, 'edge.json')
@@ -65,7 +76,10 @@ async function main() {
   const d1Args = ['--config', coreConfig, '--local', '--env-file', resources.emptyEnv, '--persist-to', state]
   const d1 = (binding: string, sql: string) => {
     const output = resources.command('pnpm', ['exec', 'wrangler', 'd1', 'execute', binding, ...d1Args, '--command', sql, '--json'])
-    const result = JSON.parse(output) as { success: boolean; results: Record<string, unknown>[] }[]
+    const result = JSON.parse(output) as {
+      success: boolean
+      results: Record<string, unknown>[]
+    }[]
     assert.ok(
       result.every(item => item.success),
       output
@@ -80,13 +94,22 @@ async function main() {
     throw new Error(`Timed out: ${description}`)
   }
   const request = async (label: string, path: string, options: RequestInit = {}) => {
-    const response = await localFetch(`http://localhost:${httpPort}${path}`, { ...options, signal: AbortSignal.timeout(10000) })
-    const body = (await response.json()) as { code: number; data: any; message?: string }
+    const response = await localFetch(`http://localhost:${httpPort}${path}`, {
+      ...options,
+      signal: AbortSignal.timeout(10000)
+    })
+    const body = (await response.json()) as {
+      code: number
+      data: any
+      message?: string
+    }
     evidence[label] = { status: response.status, body }
     console.log(`${label}: HTTP ${response.status} ${JSON.stringify(body)}`)
     return { status: response.status, body }
   }
   try {
+    const newsletterDomain = process.env.NEWSLETTER_SMOKE_DOMAIN ?? 'slax.dev'
+    assert.ok(['slax.dev', 'slax.app'].includes(newsletterDomain), 'Only isolated dev/production address formats may be simulated')
     // Optional offline Corepack cache seed contains only the public package-manager distribution.
     if (process.argv[2] === '--corepack-archive' && process.argv[3]) resources.command('corepack', ['install', '--global', '--cache-only', resolve(process.argv[3])])
     resources.command('pnpm', ['exec', 'wrangler', '--version'])
@@ -106,7 +129,7 @@ async function main() {
       RUN_ENV: 'development',
       RUN_TYPE: 'dev',
       NEWSLETTER_ENABLED: 'true',
-      NEWSLETTER_DOMAIN: 'slax.dev',
+      NEWSLETTER_DOMAIN: newsletterDomain,
       IMAGER_CHECK_DIGST_SALT: 'isolated-newsletter-images',
       JWT_ALGORITHMS: 'HS256',
       JWT_EXPIRES: '3600',
@@ -134,11 +157,24 @@ async function main() {
           name: 'root-tooling-local-core',
           main: localPath('apps/api/src/entry/core/index.ts'),
           hyperdrive: [
-            { binding: 'HYPERDRIVE', id: '00000000000000000000000000000002', localConnectionString: url('http_reader') },
-            { binding: 'HYPERDRIVE_LOGS', id: '00000000000000000000000000000003', localConnectionString: url('http_logs') }
+            {
+              binding: 'HYPERDRIVE',
+              id: '00000000000000000000000000000002',
+              localConnectionString: url('http_reader')
+            },
+            {
+              binding: 'HYPERDRIVE_LOGS',
+              id: '00000000000000000000000000000003',
+              localConnectionString: url('http_logs')
+            }
           ],
           d1_databases: [
-            { binding: 'DB', database_name: 'http-reader', database_id: '00000000-0000-0000-0000-000000000001', migrations_dir: localPath('apps/api/prisma/d1_migrations') },
+            {
+              binding: 'DB',
+              database_name: 'http-reader',
+              database_id: '00000000-0000-0000-0000-000000000001',
+              migrations_dir: localPath('apps/api/prisma/d1_migrations')
+            },
             {
               binding: 'DB_FULLTEXT',
               database_name: 'http-fulltext',
@@ -148,7 +184,17 @@ async function main() {
           ],
           kv_namespaces: [{ binding: 'KV', id: '00000000000000000000000000000001' }],
           r2_buckets: [{ binding: 'OSS', bucket_name: 'http-reader' }],
-          durable_objects: { bindings: [{ name: 'WEBSOCKET_SERVER', class_name: 'SlaxWebSocketServer' }] },
+          workflows: [
+            {
+              binding: 'CRAWL_WORKFLOW',
+              name: 'fork-smoke-crawl',
+              class_name: 'CrawlWorkflow',
+              script_name: 'root-tooling-local-edge'
+            }
+          ],
+          durable_objects: {
+            bindings: [{ name: 'WEBSOCKET_SERVER', class_name: 'SlaxWebSocketServer' }]
+          },
           migrations: [{ tag: 'v1', new_classes: ['SlaxWebSocketServer'] }]
         },
         null,
@@ -160,15 +206,37 @@ async function main() {
       JSON.stringify(
         {
           ...shared,
+          ...JSON.parse(readFileSync(coreConfig, 'utf8')),
           name: 'root-tooling-local-edge',
+          workflows: [
+            {
+              binding: 'CRAWL_WORKFLOW',
+              name: 'fork-smoke-crawl',
+              class_name: 'CrawlWorkflow'
+            }
+          ],
           main: localPath('apps/api/src/entry/edge/index.ts'),
           services: [{ binding: 'CORE', service: 'root-tooling-local-core' }],
           hyperdrive: [
-            { binding: 'HYPERDRIVE', id: '00000000000000000000000000000002', localConnectionString: url('http_reader') },
-            { binding: 'HYPERDRIVE_LOGS', id: '00000000000000000000000000000003', localConnectionString: url('http_logs') }
+            {
+              binding: 'HYPERDRIVE',
+              id: '00000000000000000000000000000002',
+              localConnectionString: url('http_reader')
+            },
+            {
+              binding: 'HYPERDRIVE_LOGS',
+              id: '00000000000000000000000000000003',
+              localConnectionString: url('http_logs')
+            }
           ],
           r2_buckets: [{ binding: 'OSS', bucket_name: 'http-reader' }],
-          ratelimits: [{ name: 'BOOKMARK_ADD_RATE_LIMITER', namespace_id: '1001', simple: { limit: 30, period: 60 } }]
+          ratelimits: [
+            {
+              name: 'BOOKMARK_ADD_RATE_LIMITER',
+              namespace_id: '1001',
+              simple: { limit: 30, period: 60 }
+            }
+          ]
         },
         null,
         2
@@ -196,40 +264,22 @@ async function main() {
       INSERT INTO sr_bookmark_share (user_id,bookmark_id,share_code) VALUES (2,1,'SmokeA1');
     `
     )
-    const token = await new Auth(vars as Env).sign({ id: String(new Hashid(vars as Env).encodeId(1)), email: 'saver@smoke.invalid', lang: 'en' })
-    // Use the loader API: the tsx CLI IPC socket exceeds macOS path limits in long worktrees.
-    const toolchain = resolve(resources.workspace, 'toolchain')
-    mkdirSync(toolchain)
-    const version = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8'))
-      .packageManager.split('@')
-      .at(-1)
-      .split('+')[0]
-    const cachedPnpm = resolve(resources.home, 'cache/node/corepack/v1/pnpm', version, 'bin/pnpm.cjs')
-    if (process.argv[2] === '--corepack-archive') symlinkSync(cachedPnpm, resolve(toolchain, 'pnpm'))
-    worker = spawn(
-      process.execPath,
-      [
-        '--import',
-        'tsx',
-        'script/deploy/dev-local.ts',
-        '--edge-config',
-        edgeConfig,
-        '--core-config',
-        coreConfig,
-        '--state',
-        state,
-        '--env-file',
-        resources.emptyEnv,
-        '--port',
-        String(httpPort)
-      ],
-      {
-        cwd: API_ROOT,
-        env: { ...resources.env, PATH: toolchain + ':' + resources.env.PATH, TSX_TSCONFIG_PATH: resolve(API_ROOT, 'tsconfig.json'), SLAX_API_INHERIT_PROCESS_GROUP: '1' },
-        detached: true,
-        stdio: ['ignore', 'pipe', 'pipe']
-      }
-    )
+    if (process.env.FORK_SMOKE === '1') forks = await prepareForkSmoke(resources, pg.id, state, url('http_reader'))
+    const token = await new Auth(vars as Env).sign({
+      id: String(new Hashid(vars as Env).encodeId(1)),
+      email: 'saver@smoke.invalid',
+      lang: 'en'
+    })
+    const options = localDevOptions(['--edge-config', edgeConfig, '--core-config', coreConfig, '--state', state, '--env-file', resources.emptyEnv, '--port', String(httpPort)])
+    // Run the installed CLI directly: the guarded launcher uses a second, empty Corepack home.
+    const wranglerManifest = createRequire(import.meta.url).resolve('wrangler/package.json')
+    const wrangler = JSON.parse(readFileSync(wranglerManifest, 'utf8')) as { bin: { wrangler: string } }
+    worker = spawn(process.execPath, [resolve(dirname(wranglerManifest), wrangler.bin.wrangler), ...options.args.slice(2)], {
+      cwd: options.cwd,
+      env: { ...options.env, TMPDIR: ipcTemp },
+      detached: true,
+      stdio: ['ignore', 'pipe', 'pipe']
+    })
     if (worker.pid) resources.ownProcessGroup(worker.pid)
     worker.stdout?.on('data', chunk => {
       workerLog += chunk
@@ -248,7 +298,10 @@ async function main() {
           evidence.readiness = 'ready'
           return true
         }
-        evidence.readiness = { status: response.status, body: await response.text() }
+        evidence.readiness = {
+          status: response.status,
+          body: await response.text()
+        }
         return false
       } catch (error) {
         evidence.readiness = String(error)
@@ -256,12 +309,60 @@ async function main() {
       }
     }, 'local Edge ready')
     for (const origin of [vars.FRONT_END_URL, vars.FRONT_END_URL + '.attacker.invalid']) {
-      const response = await localFetch(`http://localhost:${httpPort}/events`, { method: 'OPTIONS', headers: { Origin: origin } })
+      const response = await localFetch(`http://localhost:${httpPort}/events`, {
+        method: 'OPTIONS',
+        headers: { Origin: origin }
+      })
       assert.equal(response.status, 204)
       assert.equal(response.headers.get('Access-Control-Allow-Credentials'), origin === vars.FRONT_END_URL ? 'true' : null)
       assert.equal(response.headers.get('Access-Control-Allow-Origin'), origin === vars.FRONT_END_URL ? origin : '*')
     }
     evidence.customFrontendCors = 'exact configured origin allowed; attacker suffix rejected'
+    const businessToken = await new Auth(vars as Env).sign({
+      id: String(new Hashid(vars as Env).encodeId(2)),
+      email: 'owner@smoke.invalid',
+      lang: 'en'
+    })
+    const businessHeaders = {
+      Authorization: `Bearer ${businessToken}`,
+      'Content-Type': 'application/json'
+    }
+    for (const [path, body] of [
+      ['/v1/user/setting', { key: 'account', value: 'DaGuAnG' }],
+      ['/v1/user/setting/enable', { key: 'lab:newsletter' }]
+    ] as const) {
+      assert.equal(
+        (
+          await request('business-setup-' + body.key, path, {
+            method: 'POST',
+            headers: businessHeaders,
+            body: JSON.stringify(body)
+          })
+        ).body.code,
+        200
+      )
+    }
+    for (const method of ['GET', 'POST']) {
+      const result = await request('business-address-' + method, '/v1/user/newsletter_address', { method, headers: businessHeaders })
+      assert.equal(result.body.code, newsletterDomain === 'slax.app' ? 409 : 200)
+      if (newsletterDomain === 'slax.app') assert.equal(result.body.message, 'address_reserved')
+      else if (method === 'POST') assert.equal(result.body.data.address, 'daguang@slax.dev')
+    }
+    if (newsletterDomain === 'slax.app') {
+      resources.sql(pg.id, 'http_reader', "INSERT INTO sr_newsletter_address(user_id,domain,local_part) VALUES(2,'slax.app','daguang')")
+      assert.equal((await request('business-stale-binding', '/v1/user/newsletter_address', { headers: businessHeaders })).body.code, 409)
+      const rejected = await localFetch(`http://localhost:${httpPort}/cdn-cgi/local/email?from=sender%40example.com&to=DaGuAnG%40SLAX.APP`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'message/rfc822' },
+        body: 'From: Sender <sender@example.com>\r\nMessage-ID: <reserved-business-smoke@example.com>\r\nSubject: Business reservation\r\n\r\nNot a Newsletter recipient.'
+      })
+      const rejectionBody = await rejected.text()
+      evidence.businessAddressRejection = { status: rejected.status, body: rejectionBody }
+      assert.equal(rejected.status, 400)
+      assert.ok(rejectionBody.includes('Newsletter delivery is not available for this message.'), rejectionBody)
+      assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_newsletter_receipt'), '0')
+    }
+    evidence.businessAddressPolicy = newsletterDomain === 'slax.app' ? 'GET/POST reserved; stale binding and mixed-case email rejected' : 'daguang is available on slax.dev'
     // Exercise actual Edge email dispatch, generated DI/router, Prisma transactions and local R2.
     const mailHeaders = { Authorization: `Bearer ${token}` }
     assert.equal(
@@ -285,11 +386,11 @@ async function main() {
       200
     )
     const address = await request('newsletter-address', '/v1/user/newsletter_address', { method: 'POST', headers: mailHeaders })
-    assert.equal(address.body.data.address, 'newsletter-smoke@slax.dev')
+    assert.equal(address.body.data.address, `newsletter-smoke@${newsletterDomain}`)
     const rawMail =
       'From: Smoke Weekly <weekly@example.com>\r\nTo: ignored@other.example\r\nSubject: Newsletter runtime smoke\r\nMessage-ID: <newsletter-runtime-smoke@example.com>\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Runtime newsletter body</p><script>throw 1</script><img src="cid:part">'
     for (let repeat = 0; repeat < 2; repeat++) {
-      const response = await localFetch(`http://localhost:${httpPort}/cdn-cgi/local/email?from=bounce%40example.com&to=newsletter-smoke%40slax.dev`, {
+      const response = await localFetch(`http://localhost:${httpPort}/cdn-cgi/local/email?from=bounce%40example.com&to=newsletter-smoke%40${newsletterDomain}`, {
         method: 'POST',
         headers: { 'Content-Type': 'message/rfc822' },
         body: rawMail
@@ -297,7 +398,9 @@ async function main() {
       assert.equal(response.status, 200, await response.text())
     }
     await poll(() => resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_newsletter_receipt WHERE state='done'") === '1', 'newsletter publication')
-    const feed = await request('newsletter-feed', '/v1/feed/entries', { headers: mailHeaders })
+    const feed = await request('newsletter-feed', '/v1/feed/entries', {
+      headers: mailHeaders
+    })
     assert.equal(feed.body.data.items.length, 1)
     assert.equal(feed.body.data.items[0].kind, 'newsletter')
     const entryId = feed.body.data.items[0].id
@@ -312,15 +415,33 @@ async function main() {
       body: JSON.stringify({ key: 'lab:newsletter' })
     })
     assert.equal(disabled.body.code, 200)
-    assert.equal((await request('newsletter-hidden', '/v1/feed/entries', { headers: mailHeaders })).body.data.items.length, 0)
-    assert.equal((await request('newsletter-denied', `/v1/feed/entries/${entryId}`, { headers: mailHeaders })).body.code, 404)
-    const rejection = await localFetch(`http://localhost:${httpPort}/cdn-cgi/local/email?from=bounce%40example.com&to=unknown%40slax.dev`, {
+    assert.equal(
+      (
+        await request('newsletter-hidden', '/v1/feed/entries', {
+          headers: mailHeaders
+        })
+      ).body.data.items.length,
+      0
+    )
+    assert.equal(
+      (
+        await request('newsletter-denied', `/v1/feed/entries/${entryId}`, {
+          headers: mailHeaders
+        })
+      ).body.code,
+      404
+    )
+    const rejection = await localFetch(`http://localhost:${httpPort}/cdn-cgi/local/email?from=bounce%40example.com&to=unknown%40${newsletterDomain}`, {
       method: 'POST',
       headers: { 'Content-Type': 'message/rfc822' },
       body: rawMail
     })
-    evidence.newsletterRejection = { status: rejection.status, body: await rejection.text() }
+    evidence.newsletterRejection = {
+      status: rejection.status,
+      body: await rejection.text()
+    }
     assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_newsletter_receipt'), '1')
+    evidence.newsletterDomain = newsletterDomain
     evidence.newsletterRuntime = 'actual local Edge email twice -> one receipt/entry; R2 body through Core; disabled reads denied; unknown recipient creates no receipt'
 
     const listPath = '/v1/bookmark/list?page=1&size=20'
@@ -331,7 +452,15 @@ async function main() {
         'spoofed-edge-identity',
         {
           'x-slax-edge-secret': vars.EDGE_SHARED_SECRET,
-          'x-slax-edge-identity': btoa(JSON.stringify({ deId: 1, enId: 1, email: 'saver@smoke.invalid', lang: 'en', audience: 'reader' }))
+          'x-slax-edge-identity': btoa(
+            JSON.stringify({
+              deId: 1,
+              enId: 1,
+              email: 'saver@smoke.invalid',
+              lang: 'en',
+              audience: 'reader'
+            })
+          )
         }
       ]
     ] as [string, Record<string, string>][]) {
@@ -339,7 +468,17 @@ async function main() {
       assert.equal(response.status, 401)
       assert.equal(response.body.code, 401)
     }
-    const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+    if (forks)
+      evidence.fork = await forks.exercise(
+        (path, init) => localFetch(`http://localhost:${httpPort}${path}`, init),
+        headers,
+        vars.FRONT_END_URL,
+        id => new Hashid(vars as Env, 1).encodeId(id)
+      )
     const before = await request('list-before', listPath, { headers })
     assert.equal(before.status, 200)
     assert.equal(before.body.code, 200)
@@ -348,7 +487,12 @@ async function main() {
     const added = await request('bookmark-add', '/v1/bookmark/add', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ target_url: targetUrl, target_title: 'Smoke', content: '', tags: [] })
+      body: JSON.stringify({
+        target_url: targetUrl,
+        target_title: 'Smoke',
+        content: '',
+        tags: []
+      })
     })
     assert.equal(added.status, 200)
     assert.equal(added.body.code, 200)
@@ -363,7 +507,12 @@ async function main() {
         `SELECT row_to_json(b) FROM (SELECT ub.user_id,ub.type,b.title,b.target_url FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id=ub.bookmark_id WHERE ub.user_id=1 AND ub.bookmark_id=${id}) b`
       )
     )
-    assert.deepEqual(stored, { user_id: 1, type: 1, title: 'Isolated HTTP source', target_url: targetUrl })
+    assert.deepEqual(stored, {
+      user_id: 1,
+      type: 1,
+      title: 'Isolated HTTP source',
+      target_url: targetUrl
+    })
     evidence.pgAfterAdd = stored
     assert.equal(d1('DB_FULLTEXT', `SELECT count(*) AS n FROM slax_user_bookmark WHERE user_id=1 AND bookmark_id=${id}`)[0].n, 1)
     assert.equal(d1('DB', `SELECT count(*) AS n FROM slax_user_bookmark_change WHERE user_id=1 AND bookmark_id=${id} AND action='add'`)[0].n, 1)
@@ -381,7 +530,11 @@ async function main() {
       'bookmark_add log persisted'
     )
     evidence.logsBookmarkAdd = 'one persisted success event for the created bookmark'
-    const deleted = await request('bookmark-delete', '/v1/bookmark/del', { method: 'POST', headers, body: JSON.stringify({ bookmark_id: encodedId }) })
+    const deleted = await request('bookmark-delete', '/v1/bookmark/del', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ bookmark_id: encodedId })
+    })
     assert.equal(deleted.status, 200)
     assert.equal(deleted.body.code, 200)
     await poll(() => resources.sql(pg.id, 'http_reader', `SELECT count(*) FROM sr_user_bookmark WHERE user_id=1 AND bookmark_id=${id}`) === '0', 'PG relation deleted')
@@ -420,12 +573,15 @@ async function main() {
         /* already exited */
       }
     }
+    await forks?.dispose()
     resources.cleanup()
     writeFileSync(resolve(resources.workspace, 'worker.log'), workerLog)
     writeFileSync(resolve(resources.workspace, 'http-results.json'), JSON.stringify(evidence, null, 2))
+    if (evidence.status === 'failed') console.error(workerLog.slice(-16000))
     console.log(`HTTP acceptance: ${evidence.status}`)
     console.log(JSON.stringify(evidence, null, 2))
     resources.removeWorkspace()
+    rmSync(ipcTemp, { recursive: true, force: true })
   }
 }
 void main()

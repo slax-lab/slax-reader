@@ -19,6 +19,14 @@ The system SHALL provision a Newsletter address only for an authenticated active
 - **WHEN** competing requests attempt the same prefix or a deleted user previously held it
 - **THEN** at most one owner receives it and the reservation remains unavailable to others
 
+#### Scenario: Production business address reservation
+- **WHEN** a user queries or provisions daguang@slax.app, including an existing stale binding for that address
+- **THEN** the operation returns address_reserved without issuing or exposing a Newsletter address, while daguang@slax.dev remains eligible and an already issued different address survives a later rename to daguang
+
+#### Scenario: Delivery to the business address
+- **WHEN** a message targeting daguang@slax.app reaches the Newsletter receiver, even with a stale address registry row
+- **THEN** it is rejected without writing a raw object, admitting a receipt or publishing a Newsletter entry
+
 ### Requirement: Bounded private incoming Newsletter
 The Edge Worker SHALL accept email through a dedicated email handler. Ownership SHALL derive from the full SMTP envelope recipient, configured domain and active registry, never header To. Newsletter Lab and active user SHALL be checked at admission and final commit. The system SHALL bound raw mail to 5 MiB, MIME nesting, part count and headers, admit at most 200 sources per user and 200 new messages per UTC day, and omit attachments. It SHALL not log private email data.
 
@@ -68,7 +76,7 @@ The system SHALL expose additive private no-store Feed read APIs returning an ex
 - **THEN** the request is rejected without revealing another user's content
 
 ### Requirement: Always-visible Web Feed and dev pilot
-Web SHALL always show Feed in navigation, support stable address provisioning/copy with a first-time account form, and combine independently gated RSS and Newsletter local data or REST fallback. Newsletter sender names SHALL use a local avatar fallback. It SHALL explain lazy remote image privacy and unsupported first-version actions. Local cache and body state SHALL follow account and per-kind enablement. Dev rollout SHALL use exact slax.dev routes to reader-backend while preserving Catch-all Drop; admission SHALL be off by default elsewhere.
+Web SHALL always show Feed in navigation, support stable address provisioning/copy with a first-time account form, and combine independently gated RSS and Newsletter local data or REST fallback. Newsletter sender names SHALL use a local avatar fallback. It SHALL explain lazy remote image privacy and unsupported first-version actions. Local cache and body state SHALL follow account and per-kind enablement. Dev rollout SHALL use account@slax.dev and a root-domain Catch-all to reader-backend. The production address SHALL use account@slax.app; beta/production admission SHALL remain disabled during dev acceptance. Existing literal business address rules SHALL be preserved.
 
 #### Scenario: Both Labs disabled
 - **WHEN** the user opens Feed with both features disabled
@@ -83,5 +91,5 @@ Web SHALL always show Feed in navigation, support stable address provisioning/co
 - **THEN** controls remain usable by keyboard, address text does not overflow and reader content follows existing tokens
 
 #### Scenario: Dev activation and rollback
-- **WHEN** an operator pilots exact address rules and later disables admission or those rules
-- **THEN** only explicitly routed dev addresses receive messages during the pilot, Catch-all Drop remains intact, and existing reservations and content are preserved
+- **WHEN** an operator enables the dev root-domain Catch-all after Worker readiness and later stops the pilot
+- **THEN** registered enabled dev users receive mail without per-user routes, unknown addresses are rejected by the Worker, and rollback restores the previous Catch-all action while preserving reservations and content

@@ -3,9 +3,11 @@ import type { LazyInstance } from '@/decorators/lazy'
 import { ContextManager } from '@/utils/context'
 import { BookmarkService } from '@/domain/bookmark'
 import { SearchService } from '@/domain/search'
+import { BookmarkForkRepo } from '@/infra/repository/dbBookmarkFork'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
 import { MarkRepo } from '@/infra/repository/dbMark'
 import { BucketClient } from '@/infra/repository/bucketClient'
+import { loadEmbeddedSnapshot } from '@/utils/snapshotBundle'
 
 /**
  * Writes a cleaned media article (podcast episode, YouTube video) into a bookmark body. Shared by
@@ -19,7 +21,8 @@ export class MediaBodyService {
     @inject(BookmarkRepo) private bookmarkRepo: BookmarkRepo,
     @inject(SearchService) private searchService: SearchService,
     @inject(MarkRepo) private markRepo: MarkRepo,
-    @inject(BucketClient) private bucket: LazyInstance<BucketClient>
+    @inject(BucketClient) private bucket: LazyInstance<BucketClient>,
+    @inject(BookmarkForkRepo) private forkRepo: BookmarkForkRepo
   ) {}
 
   /**
@@ -49,12 +52,38 @@ export class MediaBodyService {
     const bookmark = await this.bookmarkService.getBookmarkById(bookmarkId)
     if (!bookmark?.content_key || (bookmark.moderation_result > 0 && !opts.force)) return false
     const bucket = this.bucket().R2Bucket
-    // The HTML goes last: it carries the version marker that says the body is written, so a failure
-    // before it leaves the old body in place and the next status read or run writes everything again
-    if (bookmark.content_md_key) await bucket.put(bookmark.content_md_key, body.text)
-    await this.bookmarkRepo.updateBookmarkWordCount(bookmarkId, body.text.length)
+    if (!(await this.forkRepo.claimWrite(bookmarkId, bookmark.updated_at, ['success'], opts.force))) return false
+    try {
+      // Inspect under the shared write claim: a concurrent acquisition cannot replace this body.
+      if ((await loadEmbeddedSnapshot(bucket, bookmark.content_key)).managed) {
+        if (!(await this.forkRepo.releaseWrite(bookmarkId, bookmark.updated_at))) throw new Error('Media body claim changed')
+        return false
+      }
+      const textKey = bookmark.content_md_key || bookmark.content_key.replace(/^html\//, 'text/').replace(/\.html$/, '.txt')
+      if (textKey === bookmark.content_key) throw new Error('Media body text key missing')
+      // HTML carries the rendered version marker; both required files precede DB success.
+      if (!(await bucket.put(textKey, body.text))) throw new Error('Media text write failed')
+      if (!(await bucket.put(bookmark.content_key, body.html))) throw new Error('Media HTML write failed')
+      const published = await this.forkRepo.publishRevision(
+        bookmarkId,
+        bookmark.content_key,
+        {
+          content_key: bookmark.content_key,
+          content_md_key: textKey,
+          content_word_count: body.text.length
+        },
+        { expectedUpdatedAt: bookmark.updated_at, force: opts.force }
+      )
+      if (!published) {
+        await this.forkRepo.releaseWrite(bookmarkId, bookmark.updated_at)
+        return false
+      }
+    } catch (error) {
+      // Existing fixed objects survive failed or uncertain publication acknowledgements.
+      await this.forkRepo.releaseWrite(bookmarkId, bookmark.updated_at).catch(() => {})
+      throw error
+    }
     await this.bookmarkRepo.deleteBookmarkSummary(bookmarkId, userId)
-    await bucket.put(bookmark.content_key, body.html)
     const results = await this.searchService.addSearchRecord(ctx, bookmarkId, bookmark.title || '', body.text).catch(err => [{ status: 'rejected' as const, reason: err }])
     const rejected = (results ?? []).filter(r => r.status === 'rejected')
     if (rejected.length) console.error(`Media body search index failed for bookmark ${bookmarkId}: ${rejected.length} part(s)`)

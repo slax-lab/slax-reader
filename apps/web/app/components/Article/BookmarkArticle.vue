@@ -9,8 +9,8 @@
         :author="detail.byline"
         :host-url="detail.host_url"
       />
-      <PdfDocumentSource v-if="isPdf && detail.pdf" :pdf="detail.pdf" :url="detail.target_url"
-        :site-name="detail.site_name" :host-url="detail.host_url" :author="pdfAuthor" />
+      <PdfDocumentSource v-if="isPdf && detail.pdf" :pdf="detail.pdf" :url="detail.target_url" :site-name="detail.site_name" :host-url="detail.host_url" :author="pdfAuthor" />
+      <SnapshotForkAttribution v-if="!isPdf || detail.pdf" :has-fork="detail.has_fork === true" :attribution="detail.fork" />
       <div v-if="!isPdf || detail.pdf" class="article-divider" />
       <h1 class="article-title" :title="title">{{ title }}</h1>
       <BookmarkTags
@@ -45,12 +45,16 @@
 </template>
 
 <script lang="ts" setup>
-import type { ReaderSelection } from './Selection/ReaderSelection'
 import PdfDocumentSource from './Pdf/PdfDocumentSource.vue'
+
+import type { ReaderSelection } from './Selection/ReaderSelection'
 const PdfReader = defineAsyncComponent(() => import('./Pdf/PdfReader.client.vue'))
 import BookmarkTags from '~/components/BookmarkTags.vue'
 import SnapshotArticleFooter from '~/components/Snapshot/SnapshotArticleFooter.vue'
 import SnapshotArticleSource from '~/components/Snapshot/SnapshotArticleSource.vue'
+import SnapshotForkAttribution from '~/components/Snapshot/SnapshotForkAttribution.vue'
+
+import { applyArticleImageLoading } from '~/utils/articleImageLoading'
 
 import 'katex/dist/katex.css'
 import { registerComponents } from './CEComponents'
@@ -62,7 +66,6 @@ import CursorToast from '~/components/CursorToast'
 import Toast, { ToastType } from '~/components/Toast'
 import { useArticleDetail } from '~/composables/bookmark/useArticle'
 import { useArticleSelection } from '~/composables/bookmark/useArticleSelection'
-import { applyArticleImageLoading } from '~/utils/articleImageLoading'
 
 const props = defineProps({
   detail: {
@@ -115,13 +118,24 @@ const pdfSelection = shallowRef<ReaderSelection | null>(null)
 const isPdf = computed(() => !!props.detail.pdf || ('type' in props.detail && props.detail.type === 'pdf'))
 const pdfMetadata = shallowRef<{ author?: string }>()
 const pdfAuthor = computed(() => props.detail.byline?.trim() || pdfMetadata.value?.author)
-watch(() => props.detail.pdf?.document_id, () => { pdfMetadata.value = undefined })
-const pdfMarks = computed(() => adapters.markSource === 'props' ? props.marks : props.detail.marks ?? props.marks)
-const pdfCollection = computed(() => 'collection_info' in props.detail && props.detail.collection_info ? { code: props.detail.collection_info.collection_code, cb_id: props.detail.collection_info.cb_id } : undefined)
+watch(
+  () => props.detail.pdf?.document_id,
+  () => {
+    pdfMetadata.value = undefined
+  }
+)
+const pdfMarks = computed(() => (adapters.markSource === 'props' ? props.marks : (props.detail.marks ?? props.marks)))
+const pdfCollection = computed(() =>
+  'collection_info' in props.detail && props.detail.collection_info
+    ? {
+        code: props.detail.collection_info.collection_code,
+        cb_id: props.detail.collection_info.cb_id
+      }
+    : undefined
+)
 
 // 仅调用一次，模板与 composable 共用
 const { bookmarkId, shareCode, bookmarkUid, title, allowTagged, allowAction, bookmarkUserId, updateStarred } = useArticleDetail(detail)
-
 // inject 可覆盖，回退 allowTagged
 const effAllowTagged = computed(() => adapters.allowActionOverride ?? allowTagged.value)
 
@@ -202,8 +216,8 @@ const starBookmark = async (event: MouseEvent, isStar: boolean) => {
   }
 }
 
-const activeSelection = computed<ReaderSelection | null>(() => props.detail.pdf ? pdfSelection.value : articleSelectionRef.value)
-const findQuote = (quote: QuoteData) => props.detail.pdf ? pdfSelection.value?.findQuote(quote) : findHtmlQuote(quote)
+const activeSelection = computed<ReaderSelection | null>(() => (props.detail.pdf ? pdfSelection.value : articleSelectionRef.value))
+const findQuote = (quote: QuoteData) => (props.detail.pdf ? pdfSelection.value?.findQuote(quote) : findHtmlQuote(quote))
 defineExpose({ findQuote, articleSelection: activeSelection })
 </script>
 

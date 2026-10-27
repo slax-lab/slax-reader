@@ -141,7 +141,7 @@ export class MonitoringOrchestrator {
         isArchive: false
       })
 
-      if (!bmInfo) {
+      if (!bmInfo || bmInfo.admitted === false) {
         console.error(`Failed to create bookmark for ${targetUrl}`)
         return
       }
@@ -151,6 +151,7 @@ export class MonitoringOrchestrator {
       await this.crawlService.createWorkflow(ctx.env, {
         url: processedUrl,
         bookmarkId: bmInfo.id,
+        captureRevision: bmInfo.updated_at.toISOString(),
         userId: userId,
         enUserId: userId,
         userLang: ctx.getlang(),

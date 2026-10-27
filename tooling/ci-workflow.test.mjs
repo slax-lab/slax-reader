@@ -9,9 +9,21 @@ import { compareMobileVersion, validateMobileAppConfig } from './mobile-eas-rele
 const require = createRequire(import.meta.url)
 const { load } = createRequire(require.resolve('rulesync'))('js-yaml')
 const validationWorkflows = ['frontend-ci', 'api-ci', 'mobile-ci', 'cli-ci', 'tooling-ci', 'agent-config']
+// Terminal gate job ids and exact names per application workflow: the names are
+// required status contexts in the dev and beta rulesets, so renaming one strands
+// the context at "Expected" until the ruleset is updated.
+const gateContracts = {
+  'frontend-ci': { 'web-gate': 'Web CI gate', 'extension-gate': 'Extension CI gate' },
+  'api-ci': { 'api-gate': 'API CI gate' },
+  'mobile-ci': { 'mobile-gate': 'Mobile CI gate' },
+  'cli-ci': { 'cli-gate': 'CLI CI gate' },
+  'tooling-ci': { 'tooling-gate': 'Tooling CI gate' },
+}
+const applicationWorkflows = Object.keys(gateContracts)
+const gateIds = name => Object.keys(gateContracts[name])
 const workflow = name => load(readFileSync(new URL(`../.github/workflows/${name}.yml`, import.meta.url), 'utf8'))
 const evaluate = (expression, context) => {
-  const values = { inputs: { full_validation: false }, cancelled: () => false, ...context }
+  const values = { inputs: { full_validation: false }, cancelled: () => false, always: () => true, ...context }
   return Function(...Object.keys(values), `return (${expression.replace(/^\$\{\{\s*|\s*\}\}$/g, '')})`)(...Object.values(values))
 }
 const needs = paths => ({ changes: { result: 'success', outputs: Object.fromEntries(Object.entries(selectScopes(paths).scopes).map(([k, v]) => [k, String(v)])) } })
@@ -38,7 +50,7 @@ test('new pushes share a cancellation group while other PRs and workflows remain
 })
 
 test('application workflows always detect full PR differences and cancel obsolete read-only runs', () => {
-  for (const name of ['frontend-ci', 'api-ci', 'mobile-ci', 'cli-ci', 'tooling-ci']) {
+  for (const name of applicationWorkflows) {
     const w = workflow(name)
     assertValidationTriggers(w)
     assert.equal(w.concurrency['cancel-in-progress'], true)
@@ -50,7 +62,8 @@ test('application workflows always detect full PR differences and cancel obsolet
     assert.equal(steps[0].with['persist-credentials'], false)
     assert.equal(steps[1].uses, './.github/actions/ci-scope')
     assert.ok(!JSON.stringify(steps).includes('pnpm install'))
-    for (const job of Object.values(w.jobs).slice(1)) {
+    for (const [id, job] of Object.entries(w.jobs)) {
+      if (id === 'changes' || gateIds(name).includes(id)) continue
       assert.equal(job.needs, 'changes')
       assert.match(job.if, /needs.changes.outputs/)
     }
@@ -58,6 +71,34 @@ test('application workflows always detect full PR differences and cancel obsolet
   const action = load(readFileSync(new URL('../.github/actions/ci-scope/action.yml', import.meta.url), 'utf8'))
   for (const name of scopeNames) assert.equal(action.outputs[name].value, `\${{ steps.detect.outputs.${name} }}`)
   assert.equal(action.runs.steps[0].run, 'node tooling/ci-scope.mjs')
+})
+
+test('suite gate jobs expose the required contexts and fail closed unless every needed job passed or was skipped', () => {
+  const names = []
+  for (const [name, contracts] of Object.entries(gateContracts)) {
+    const w = workflow(name)
+    const suiteJobs = Object.keys(w.jobs).filter(id => !gateIds(name).includes(id))
+    for (const [id, expected] of Object.entries(contracts)) {
+      const job = w.jobs[id]
+      assert.ok(job, `${name}/${id} must exist`)
+      assert.equal(job.name, expected)
+      assert.equal(job.if, 'always()')
+      assert.equal(evaluate(job.if, { cancelled: () => true }), true, `${name}/${id} must run after a cancel`)
+      assert.deepEqual([...job.needs].sort(), suiteJobs.filter(other => other !== id).sort(), `${name}/${id} must need every suite job`)
+      assert.equal(job['runs-on'], 'ubuntu-latest')
+      assert.equal(job.steps.length, 1)
+      const [step] = job.steps
+      assert.deepEqual(step.env, { RESULTS: "${{ join(needs.*.result, ' ') }}" })
+      const status = results => spawnSync('bash', ['-e', '-c', step.run], { env: { ...process.env, RESULTS: results }, encoding: 'utf8' }).status
+      assert.equal(status('success skipped success'), 0, `${name}/${id} accepts skipped scopes`)
+      assert.equal(status('skipped skipped'), 0, `${name}/${id} accepts an unselected suite`)
+      assert.equal(status('success failure success'), 1, `${name}/${id} rejects a failed job`)
+      assert.equal(status('cancelled'), 1, `${name}/${id} fails closed on cancellation`)
+      names.push(job.name)
+    }
+  }
+  assert.deepEqual(names.sort(), ['API CI gate', 'CLI CI gate', 'Extension CI gate', 'Mobile CI gate', 'Tooling CI gate', 'Web CI gate'])
+  assert.equal(new Set(names).size, names.length, 'required contexts must be unique across workflows')
 })
 
 test('daily and manual full validation call every read-only suite on dev without publication permissions', () => {
@@ -97,7 +138,7 @@ test('full mode skips detection and enables every scope even when the detector h
     for (const [name, selected] of Object.entries(expected)) {
       const w = workflow(name)
       assert.equal(evaluate(w.jobs.changes.if, context), false, name)
-      const actual = Object.entries(w.jobs).filter(([id, job]) => id !== 'changes' && evaluate(job.if, context)).map(([id]) => id)
+      const actual = Object.entries(w.jobs).filter(([id, job]) => id !== 'changes' && !gateIds(name).includes(id) && evaluate(job.if, context)).map(([id]) => id)
       assert.deepEqual(actual, selected, name)
       for (const id of selected) {
         assert.match(w.jobs[id].if, /!cancelled\(\)/, 'Override the implicit success condition after skipped detection')
@@ -118,13 +159,13 @@ test('full mode skips detection and enables every scope even when the detector h
 })
 
 test('failed PR detection and cancellation never accept dependent validation', () => {
-  for (const name of validationWorkflows.filter(name => name !== 'agent-config')) {
+  for (const name of applicationWorkflows) {
     for (const result of ['failure', 'cancelled', 'skipped']) {
       const dependencies = needs(['package.json'])
       dependencies.changes.result = result
-      for (const [id, job] of Object.entries(workflow(name).jobs)) if (id !== 'changes') assert.equal(evaluate(job.if, { needs: dependencies }), false, `${name}/${id}/${result}`)
+      for (const [id, job] of Object.entries(workflow(name).jobs)) if (id !== 'changes' && !gateIds(name).includes(id)) assert.equal(evaluate(job.if, { needs: dependencies }), false, `${name}/${id}/${result}`)
     }
-    for (const [id, job] of Object.entries(workflow(name).jobs)) if (id !== 'changes') assert.equal(evaluate(job.if, { needs: needs(['package.json']), cancelled: () => true }), false, `${name}/${id}`)
+    for (const [id, job] of Object.entries(workflow(name).jobs)) if (id !== 'changes' && !gateIds(name).includes(id)) assert.equal(evaluate(job.if, { needs: needs(['package.json']), cancelled: () => true }), false, `${name}/${id}`)
   }
 })
 
@@ -178,11 +219,16 @@ test('required configuration context performs detection directly and gates all e
 
 test('CLI retains compatibility suites and publication/deployment retain their own safety checks', () => {
   const cli = workflow('cli-ci').jobs.check
-  assert.deepEqual(cli.strategy.matrix.node, ['22.22.2', '24.15.0'])
+  assert.deepEqual(cli.strategy.matrix.node, ['22.22.2', '24.15.0', '26.12.1'])
   for (const cmd of ['pnpm cli -- typecheck', 'pnpm cli -- test', 'pnpm cli -- test:package']) assert.ok(cli.steps.some(s => s.run === cmd))
   for (const cmd of ['pnpm test:preflight', 'pnpm test:cli-tooling']) assert.ok(!cli.steps.some(s => s.run === cmd))
   const tooling = workflow('tooling-ci').jobs
+  assert.deepEqual(tooling.check.strategy.matrix.node, ['22.22.2', '26.12.1'])
   assert.ok(tooling.check.steps.some(s => s.run === 'pnpm test:preflight'))
+  for (const job of [cli, tooling.check]) {
+    assert.equal(job.strategy['fail-fast'], false)
+    assert.equal(job.steps.find(s => s.uses?.startsWith('actions/setup-node@')).with['node-version'], '${{ matrix.node }}')
+  }
   assert.ok(tooling['cli-release'].steps.some(s => s.run === 'pnpm test:cli-tooling'))
   assert.ok(tooling['extension-release'].steps.some(s => s.run === 'pnpm test:extension-tooling'))
   assert.equal(evaluate(tooling['extension-release'].if, { needs: needs(['.github/workflows/extension-release.yml']) }), true)

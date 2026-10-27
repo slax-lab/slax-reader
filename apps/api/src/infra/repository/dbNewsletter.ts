@@ -3,7 +3,7 @@ import { PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
 import type { Prisma, PrismaClient } from '@prisma/hyperdrive-client'
 import type { NewsletterAddressResponse } from '@slax-reader/contracts'
-import { NEWSLETTER_LIMITS, NewsletterError, newsletterLocalPart } from '@/domain/newsletter/parser'
+import { NEWSLETTER_LIMITS, NewsletterError, newsletterLocalPart, isReservedNewsletterAddress } from '@/domain/newsletter/parser'
 
 type Tx = Prisma.TransactionClient
 export interface NewsletterRecipient {
@@ -48,9 +48,15 @@ export class NewsletterRepo {
       const [existing] = await tx.$queryRaw<
         { local_part: string; retired_at: Date | null }[]
       >`SELECT local_part,retired_at FROM sr_newsletter_address WHERE user_id=${userId} AND domain=${domain}`
-      if (existing && !existing.retired_at) return { address: existing.local_part + '@' + domain, domain, status: 'ready' }
-      if (existing) throw new NewsletterError('not_found', 404)
-      const part = newsletterLocalPart(user.account)
+      if (existing?.retired_at) throw new NewsletterError('not_found', 404)
+      const part = existing?.local_part ?? newsletterLocalPart(user.account)
+      if (part && isReservedNewsletterAddress(domain, part)) throw new NewsletterError('address_reserved', 409)
+      if (existing)
+        return {
+          address: existing.local_part + '@' + domain,
+          domain,
+          status: 'ready'
+        }
       const status = !user.account ? 'account_required' : !part ? 'invalid_account' : 'not_provisioned'
       if (!provision) return { address: null, domain, status }
       if (!part) throw new NewsletterError(status === 'account_required' ? 'account_required' : 'invalid_account')
@@ -63,6 +69,7 @@ export class NewsletterRepo {
     })
   }
   async recipient(domain: string, part: string): Promise<NewsletterRecipient | null> {
+    if (isReservedNewsletterAddress(domain, part)) return null
     const [row] = await this.pg().$queryRaw<NewsletterRecipient[]>`SELECT a.id,a.user_id,u.uuid FROM sr_newsletter_address a
       JOIN sr_user u ON u.id=a.user_id AND u.deleted_at IS NULL
       JOIN sr_user_lab_feature l ON l.user_id=u.id AND l.feature='newsletter' AND l.enabled
@@ -124,7 +131,9 @@ export class NewsletterRepo {
       if (!feed) throw new NewsletterError('unavailable', 503)
       await tx.$executeRaw`INSERT INTO sr_rss_subscription(user_id,feed_id) VALUES(${receipt.user_id},${feed.id}) ON CONFLICT(user_id,feed_id) DO NOTHING`
       await tx.$executeRaw`INSERT INTO sr_rss_entry(feed_id,entry_key,title,author,summary,content_key,content_truncated,first_seen_at,sort_at,published_at)
-        VALUES(${feed.id},${row.message_key},${item.title},${item.sourceTitle},${item.summary},${item.contentKey},${item.truncated},${now},${item.publishedAt || now},${item.publishedAt})
+        VALUES(${feed.id},${row.message_key},${item.title},${item.sourceTitle},${item.summary},${item.contentKey},${item.truncated},${now},${
+          item.publishedAt || now
+        },${item.publishedAt})
         ON CONFLICT(feed_id,entry_key) DO NOTHING`
       await tx.$executeRaw`UPDATE sr_newsletter_receipt SET state='done',lease_token=NULL,lease_until=NULL,completed_at=${now} WHERE id=${row.id}`
       return true

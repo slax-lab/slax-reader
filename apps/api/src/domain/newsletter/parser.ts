@@ -4,7 +4,11 @@ import { DOMParser } from 'linkedom'
 import { sanitizeFeedHtml } from '@/domain/rss/feed'
 import { hashSHA256 } from '@/utils/strings'
 
-export const NEWSLETTER_LIMITS = { rawBytes: 5 * 1024 * 1024, sources: 200, daily: 200 } as const
+export const NEWSLETTER_LIMITS = {
+  rawBytes: 5 * 1024 * 1024,
+  sources: 200,
+  daily: 200
+} as const
 export class NewsletterError extends Error {
   constructor(
     public code: NewsletterErrorCode,
@@ -21,6 +25,8 @@ export const newsletterLocalPart = (value: string): string | null =>
   value.length > 0 && value.length <= 64 && /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/.test(value) && !value.includes('..') ? value.toLowerCase() : null
 export const newsletterDomain = (value: string): string | null =>
   value.length <= 253 && /^(?:[a-z\d](?:[a-z\d-]{0,61}[a-z\d])?\.)+[a-z](?:[a-z\d-]{0,61}[a-z\d])?$/i.test(value) ? value.toLowerCase() : null
+// This mailbox has a separate Cloudflare forwarding rule and cannot belong to a Reader user.
+export const isReservedNewsletterAddress = (domain: string, part: string): boolean => domain.toLowerCase() === 'slax.app' && part.toLowerCase() === 'daguang'
 export const configuredNewsletterDomain = (env: NewsletterConfig): string | null => (env.NEWSLETTER_ENABLED === 'true' ? newsletterDomain(env.NEWSLETTER_DOMAIN || '') : null)
 
 export async function readNewsletterRaw(message: { rawSize: number; raw: ReadableStream<Uint8Array> }): Promise<Uint8Array> {

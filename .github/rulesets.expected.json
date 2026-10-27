@@ -1,0 +1,237 @@
+[
+  {
+    "bypass_actors": [
+      {
+        "actor_id": 5,
+        "actor_type": "RepositoryRole",
+        "bypass_mode": "pull_request"
+      }
+    ],
+    "conditions": {
+      "ref_name": {
+        "exclude": [],
+        "include": [
+          "refs/heads/beta"
+        ]
+      }
+    },
+    "enforcement": "active",
+    "name": "release-beta",
+    "rules": [
+      {
+        "type": "deletion"
+      },
+      {
+        "type": "non_fast_forward"
+      },
+      {
+        "parameters": {
+          "allowed_merge_methods": [
+            "merge"
+          ],
+          "dismiss_stale_reviews_on_push": false,
+          "dismissal_restriction": {
+            "allowed_actors": [],
+            "enabled": false
+          },
+          "require_code_owner_review": false,
+          "require_extra_approval_for_unattributed_changes": false,
+          "require_last_push_approval": false,
+          "required_approving_review_count": 1,
+          "required_review_thread_resolution": false,
+          "required_reviewers": []
+        },
+        "type": "pull_request"
+      },
+      {
+        "parameters": {
+          "do_not_enforce_on_create": false,
+          "required_status_checks": [
+            {
+              "context": "API CI gate",
+              "integration_id": 15368
+            },
+            {
+              "context": "CLI CI gate",
+              "integration_id": 15368
+            },
+            {
+              "context": "Extension CI gate",
+              "integration_id": 15368
+            },
+            {
+              "context": "Mobile CI gate",
+              "integration_id": 15368
+            },
+            {
+              "context": "Tooling CI gate",
+              "integration_id": 15368
+            },
+            {
+              "context": "Web CI gate",
+              "integration_id": 15368
+            },
+            {
+              "context": "promotion integrity",
+              "integration_id": 15368
+            }
+          ],
+          "strict_required_status_checks_policy": false
+        },
+        "type": "required_status_checks"
+      }
+    ],
+    "target": "branch"
+  },
+  {
+    "bypass_actors": [
+      {
+        "actor_id": 5,
+        "actor_type": "RepositoryRole",
+        "bypass_mode": "pull_request"
+      }
+    ],
+    "conditions": {
+      "ref_name": {
+        "exclude": [],
+        "include": [
+          "refs/heads/dev",
+          "~DEFAULT_BRANCH"
+        ]
+      }
+    },
+    "enforcement": "active",
+    "name": "release-branches",
+    "rules": [
+      {
+        "type": "deletion"
+      },
+      {
+        "type": "non_fast_forward"
+      },
+      {
+        "parameters": {
+          "allowed_merge_methods": [
+            "merge",
+            "rebase",
+            "squash"
+          ],
+          "dismiss_stale_reviews_on_push": true,
+          "dismissal_restriction": {
+            "allowed_actors": [],
+            "enabled": false
+          },
+          "require_code_owner_review": true,
+          "require_extra_approval_for_unattributed_changes": true,
+          "require_last_push_approval": true,
+          "required_approving_review_count": 1,
+          "required_review_thread_resolution": false,
+          "required_reviewers": []
+        },
+        "type": "pull_request"
+      },
+      {
+        "parameters": {
+          "do_not_enforce_on_create": false,
+          "required_status_checks": [
+            {
+              "context": "API CI gate",
+              "integration_id": 15368
+            },
+            {
+              "context": "CLI CI gate",
+              "integration_id": 15368
+            },
+            {
+              "context": "Extension CI gate",
+              "integration_id": 15368
+            },
+            {
+              "context": "Mobile CI gate",
+              "integration_id": 15368
+            },
+            {
+              "context": "PR review gate",
+              "integration_id": 15368
+            },
+            {
+              "context": "Tooling CI gate",
+              "integration_id": 15368
+            },
+            {
+              "context": "Web CI gate",
+              "integration_id": 15368
+            },
+            {
+              "context": "agent-config drift check",
+              "integration_id": 15368
+            }
+          ],
+          "strict_required_status_checks_policy": false
+        },
+        "type": "required_status_checks"
+      }
+    ],
+    "target": "branch"
+  },
+  {
+    "bypass_actors": [
+      {
+        "actor_id": 5,
+        "actor_type": "RepositoryRole",
+        "bypass_mode": "pull_request"
+      }
+    ],
+    "conditions": {
+      "ref_name": {
+        "exclude": [],
+        "include": [
+          "refs/heads/main"
+        ]
+      }
+    },
+    "enforcement": "active",
+    "name": "release-main",
+    "rules": [
+      {
+        "type": "deletion"
+      },
+      {
+        "type": "non_fast_forward"
+      },
+      {
+        "parameters": {
+          "allowed_merge_methods": [
+            "merge"
+          ],
+          "dismiss_stale_reviews_on_push": false,
+          "dismissal_restriction": {
+            "allowed_actors": [],
+            "enabled": false
+          },
+          "require_code_owner_review": false,
+          "require_extra_approval_for_unattributed_changes": false,
+          "require_last_push_approval": false,
+          "required_approving_review_count": 1,
+          "required_review_thread_resolution": false,
+          "required_reviewers": []
+        },
+        "type": "pull_request"
+      },
+      {
+        "parameters": {
+          "do_not_enforce_on_create": false,
+          "required_status_checks": [
+            {
+              "context": "promotion integrity",
+              "integration_id": 15368
+            }
+          ],
+          "strict_required_status_checks_policy": false
+        },
+        "type": "required_status_checks"
+      }
+    ],
+    "target": "branch"
+  }
+]

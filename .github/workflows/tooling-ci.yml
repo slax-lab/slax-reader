@@ -29,6 +29,12 @@ jobs:
         uses: ./.github/actions/ci-scope
   check:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - 22.22.2
+          - 26.12.1
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,7 +42,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22.22.2
+          node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:preflight
@@ -73,3 +79,23 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:extension-tooling
+  tooling-gate:
+    # The dev and beta rulesets require this exact job name.
+    name: Tooling CI gate
+    if: always()
+    needs: [changes, check, cli-release, extension-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail when a suite job did not pass
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            case "$result" in
+              success|skipped) ;;
+              *)
+                echo "::error::Tooling CI gate fails closed: a needed job concluded '$result'."
+                exit 1
+                ;;
+            esac
+          done

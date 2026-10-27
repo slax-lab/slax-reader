@@ -70,12 +70,26 @@ export function localDevOptions(args: string[]) {
     'hyperdrive',
     'durable_objects',
     'migrations',
-    'ratelimits'
+    'ratelimits',
+    'workflows'
   ])
   configs.forEach((config, index) => {
     if (Object.keys(config).some(key => !allowed.has(key))) throw new Error('Only the minimal local binding configuration is supported')
     if (resolve(workspace, config.main) !== resolve(ROOT, `apps/api/src/entry/${index === 0 ? 'edge' : 'core'}/index.ts`)) throw new Error('Use the actual Edge/Core entrypoints')
     if (resolve(workspace, config.tsconfig) !== resolve(ROOT, 'apps/api/tsconfig.json')) throw new Error('Use the root API tsconfig')
+    const workflows = config.workflows ?? []
+    if (
+      !Array.isArray(workflows) ||
+      workflows.length > 1 ||
+      workflows.some(
+        workflow =>
+          workflow.binding !== 'CRAWL_WORKFLOW' ||
+          workflow.class_name !== 'CrawlWorkflow' ||
+          Object.keys(workflow).some(key => !['binding', 'name', 'class_name', 'script_name'].includes(key)) ||
+          (index === 0 ? workflow.script_name !== undefined : workflow.script_name !== configs[0].name || workflow.name !== configs[0].workflows?.[0]?.name)
+      )
+    )
+      throw new Error('Only the declared local Crawl Workflow is supported')
     const walk = (value: unknown): void => {
       if (!value || typeof value !== 'object') return
       for (const [key, item] of Object.entries(value)) {
@@ -83,7 +97,9 @@ export function localDevOptions(args: string[]) {
         walk(item)
       }
     }
-    walk(config)
+    // Validated Workflow script_name can refer only to this launcher's local Edge.
+    const { workflows: _workflows, ...otherBindings } = config
+    walk(otherBindings)
     for (const binding of config.hyperdrive ?? []) {
       const url = new URL(binding.localConnectionString)
       if (url.protocol !== 'postgresql:' || url.hostname !== '127.0.0.1' || !url.port) throw new Error('Hyperdrive requires an explicit loopback PostgreSQL URL')

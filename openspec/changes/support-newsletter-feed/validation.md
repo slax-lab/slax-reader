@@ -1,8 +1,10 @@
 # Validation
 
-## Environment and scope
+## Original implementation (2026-10-22)
 
-Branch `feat/support-newsletter-feed`, based on `origin/dev` `4fa9ff08`, in a new Codex-managed worktree. No remote deployment, DNS, Email Routing, private configuration edit or remote database mutation has been performed. Synthetic local resources were created and removed by the HTTP smoke harness. A subsequent user-requested local integration environment applied the additive Newsletter migration to the existing local development PostgreSQL database and initialized worktree-local D1/R2 state. Existing operator configuration is loaded through normal application startup; secret file contents were not printed or copied by the agent.
+### Environment and scope
+
+Branch `feat/support-newsletter-feed`, based on `origin/dev` `4fa9ff08`, in a new Codex-managed worktree. At the original validation date, no remote deployment, DNS, Email Routing, private configuration edit or remote database mutation had been performed. Synthetic local resources were created and removed by the HTTP smoke harness. A subsequent user-requested local integration environment applied the additive Newsletter migration to the existing local development PostgreSQL database and initialized worktree-local D1/R2 state. Existing operator configuration is loaded through normal application startup; secret file contents were not printed or copied by the agent.
 
 ## Automated checks
 
@@ -65,9 +67,46 @@ Bugs, Security and Compliance passes resolve to OpenSpec `support-newsletter-fee
 
 ## Gaps and operator work
 
-- **Not deployed to slax.dev.** Matching real Edge/Core PostgreSQL/R2 bindings, private CI configuration, live hosted PowerSync rule publication and Cloudflare exact address rules require the dev release/operator sequence.
+- **Not deployed to slax.dev.** Matching real Edge/Core PostgreSQL/R2 bindings, private CI configuration, live hosted PowerSync rule publication and Cloudflare root-domain Catch-all activation require the dev release/operator sequence. The exact-address pilot has been superseded by the approved 2026-10-27 revision.
 - **No real external SMTP test.** Local email dispatch and application rejection are verified; sender bounce/delivery status and Cloudflare's behavior on an infrastructure failure before durable admission require a dedicated dev test. Post-admission publication recovery is covered locally.
 - **No hosted PowerSync acceptance.** The separate local server replicated successfully and the user accepted local integration testing, but hosted rule publication and explicit cross-user/kind isolation with real synchronization remain dev rollout checks before expanding the pilot.
 - Newsletter source management/automatic unsubscribe/Inbox save/attachments are deliberately absent. Subscribed mail has no 30-day expiration; monitor storage and pending-receipt age. The retry batch is capped at five per five-minute tick.
 
 Operator steps and human test cases: [Newsletter dev pilot](../../../docs/api/NEWSLETTER-DEV-PILOT.md). Beta/main admission stays off until all shared-database readers and sync rules have RSS kind isolation.
+
+
+## Approved root-domain revision (2026-10-27)
+
+### Scope and configuration
+
+The user approved dev `<account>@slax.dev`, production `<account>@slax.app`, and preservation of the existing production business mailbox. The feature branch was synchronized with `origin/dev` (`79491af2` at the start of the update); conflict resolution retained the upstream fork smoke harness, generator controller inventory and API development documentation. No UI template, style or translation changed in this revision, so the pre-PR human acceptance above still covers the unchanged presentation.
+
+Application policy rejects `daguang@slax.app` case-insensitively on address GET/POST and recipient lookup, including stale bindings. It leaves `daguang@slax.dev` eligible and preserves a different issued address after a later rename to daguang. Registry ownership is neither deleted nor reassigned. The existing `address_reserved` contract/UI is reused; no new runtime variable, migration or public DTO is introduced by this revision.
+
+Private configuration PR #7 changes only `NEWSLETTER_ENABLED`/`NEWSLETTER_DOMAIN` plus README guidance: dev is true/slax.dev; beta, prod and the legacy main copy are false/slax.app. All four TOMLs parse; a selected-key comparison and exact-byte comparison after removing only those two key lines confirm that all unrelated configuration remains unchanged. No sensitive file was printed or copied. Configuration is prepared for review, not deployed. Main application deployment consumes api/prod.toml.
+
+### Automated and running-environment evidence
+
+- Regression-first check: baseline Newsletter tests **21 passed**; the three added reservation tests failed for the missing policy before implementation, then parser/repository suites passed **24 tests** after implementation.
+- `pnpm api -- gen:all` with the public example config and explicit loopback generation-only database placeholders: passed. Generated outputs were produced through the generator.
+- Full API suite: **2550 passed, 112 skipped**, 195 files passed / 13 skipped. Existing opt-in/fixture skips remain; changed repository scenarios also run with embedded PostgreSQL and real PostgreSQL in the Worker smoke.
+- API/contracts typecheck: passed. Web typecheck with the public fixture environment documented above: passed; the missing local Turnstile site-key warning is non-fatal.
+- Full Web suite, sequential preparation with public fixture environment and `--maxWorkers=2`: **2559 passed, 3 skipped**, 225 files passed / 1 skipped. Existing fixture stderr includes `getaddrinfo ENOTFOUND api.test`; the process exited successfully without a failed-test/unhandled-error summary.
+- Edge build with `SLAX_API_CONFIG=deploy/cloudflare/api.toml.example`: passed as an offline dry run; no publication occurred. Scoped changed production API ESLint: passed with no output.
+- Strict OpenSpec validation: **78 passed, 0 failed**. Existing informational notices remain.
+- Production-domain HTTP smoke with `NEWSLETTER_SMOKE_DOMAIN=slax.app` and the same public Corepack archive: passed. Actual Worker GET/POST return code 409/address_reserved, a seeded stale binding remains blocked, and a mixed-case envelope reaches the application handler and receives its generic policy rejection with zero receipts. Normal slax.app delivery/deduplication/body reads and existing bookmark smoke flows also pass. This is entirely local and does not enable production.
+- Default HTTP smoke with `--corepack-archive /tmp/slax-newsletter-pnpm.tgz`: passed. Actual local Edge/Core, historical PostgreSQL/logs/D1 migrations, Prisma transactions and local R2 proved that daguang@slax.dev can be issued, normal delivery deduplicates to one receipt/entry, Core reads the body, disabled/unknown recipients are rejected and existing bookmark/auth/CORS flows still work.
+
+The smoke launcher now passes guarded `localDevOptions` into the installed Wrangler CLI directly. The former nested launcher created another empty Corepack home, bypassing the pre-seeded public pnpm cache and failing before Worker startup. The direct invocation retains local-only configuration validation, an isolated environment, short IPC paths and owned-resource cleanup. An initial production-domain fixture lacked Message-ID, so Miniflare rejected it before application dispatch; the fixture was corrected to ensure the test reaches the handler. These startup/fixture failures are not claimed as application acceptance.
+
+### Local pre-push review
+
+Bugs: checked full-domain/case handling, GET purity, POST idempotence, stale registry refusal, no R2/receipt/entry writes on policy rejection, stable issued addresses after rename, and retention of upstream smoke behavior during synchronization. Security: no new dependency, external service call, operator credential, private configuration copy or email-data logging is introduced by this revision; SQL remains parameterized and the reservation is enforced before MIME reading/storage. Compliance: implementation and configuration match `support-newsletter-feed`, the user's approved dev-first scope and the unchanged UI acceptance; operational work remains explicitly deferred. No Important finding remains from these three passes.
+
+No new authored CLI, Extension or Mobile runtime/package behavior or consumed contract change results from this revision. Upstream changes synchronized from dev keep their original release/version decisions; no additional application version increment is needed here.
+
+### Remaining operator acceptance
+
+No hosted deployment, DNS/Email Routing mutation, production enablement, hosted PowerSync publication or real SMTP send was performed during this update. Start with dev only. After config/app deployment and sync readiness, the operator changes **slax.dev Catch-all: Drop -> Send to a Worker -> reader-backend**, preserving literal routes. The production Catch-all is not changed; the active daguang forwarding rule remains untouched. External delivery/confirmation, sender failure behavior and hosted cross-user sync isolation require the dev acceptance sequence. The local production-domain simulation does not prove hosted production routing or business forwarding.
+
+Current guide: [Newsletter dev pilot](../../../docs/api/NEWSLETTER-DEV-PILOT.md). The root-domain guide supersedes historical exact-address instructions above; completed content and permanent reservations remain intact.

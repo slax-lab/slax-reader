@@ -8,6 +8,7 @@ import { runYoutubeArticle, type ArticleModel, type RunnerDeps, type StepLike } 
 import type { YoutubeArticleWorkflowParams } from '@/domain/youtubeArticle'
 import type { youtubeArticlePO } from '@/infra/repository/dbYoutubeArticle'
 import { buildYoutubeCaptionDocument, type YoutubeCaptionDocument } from '@/utils/youtubeCaption'
+import { YOUTUBE_ARTICLE_LIMITS } from '@/utils/youtubeArticle'
 
 const VIDEO = 'dQw4w9WgXcQ'
 const HASH = 'a'.repeat(64)
@@ -156,7 +157,7 @@ function setup(opts: { cues?: number; model?: ArticleModel; row?: Partial<youtub
   const model = opts.model ?? faithfulModel()
   const addCost = vi.fn(async () => {})
   const publishBodies = vi.fn(async (_articleId: number) => 2)
-  const deps: RunnerDeps = { repo, bucket: bucket as any, model, addCost, publishBodies }
+  const deps: RunnerDeps = { repo, bucket: bucket as any, model, addCost, publishBodies, settleSnapshots: vi.fn(async () => 0) }
   const params: YoutubeArticleWorkflowParams = { articleId: 1, videoId: VIDEO, sourceHash: HASH, targetLanguage: 'en', promptVersion: 'v1', title: 'Attention', trigger: 'open' }
   const { step, calls } = engine({ rewrap: opts.rewrap })
   const runId = opts.runId ?? 'run-1'
@@ -204,6 +205,13 @@ describe('happy path', () => {
     expect(logged).not.toContain('transformer')
     expect(logged).not.toContain('attention')
     logs.mockRestore()
+  })
+
+  test('bounds model thinking so a chunk cannot truncate on thinking tokens', async () => {
+    const s = setup()
+    await s.run()
+    expect(s.model.chat).toHaveBeenCalled()
+    for (const call of s.model.chat.mock.calls) expect(call[1]).toMatchObject({ thinkingConfig: { thinkingBudget: 2048 } })
   })
 
   test('step results stay small: no transcript or article text crosses a step boundary', async () => {
@@ -354,22 +362,22 @@ describe('model failures', () => {
 
 describe('limits and gates', () => {
   test('the per-video budget stops before the call that could cross it, not after', async () => {
-    // each call reports 99,000 output tokens = $0.297 + input; the second call would cross $0.30
-    const s = setup({ model: faithfulModel({ outputTokens: 99_000 }) })
+    // each call reports 340,000 output tokens = $1.02 + input; the first call already crosses $1
+    const s = setup({ model: faithfulModel({ outputTokens: 340_000 }) })
     expect(await s.run()).toBe('failed')
     expect(s.model.chat).toHaveBeenCalledTimes(1)
     expect(s.repo.row).toMatchObject({ status: 'failed', error_message: 'budget_exceeded' })
   })
 
   test('the budget counts across attempts: a version that already spent it never calls the model again', async () => {
-    const s = setup({ row: { cost_usd: 0.29 } })
+    const s = setup({ row: { cost_usd: 0.99 } })
     expect(await s.run()).toBe('failed')
     expect(s.model.chat).not.toHaveBeenCalled()
     expect(s.repo.row.error_message).toBe('budget_exceeded')
   })
 
   test('money spent by earlier attempts counts before the run starts: no call if the rest cannot pay', async () => {
-    const s = setup({ row: { cost_usd: 0.25 } })
+    const s = setup({ row: { cost_usd: 0.98 } })
     expect(await s.run()).toBe('failed')
     expect(s.repo.row.error_message).toBe('budget_exceeded')
     expect(s.model.chat).not.toHaveBeenCalled()
@@ -383,15 +391,38 @@ describe('limits and gates', () => {
     expect(s.repo.row.cost_usd).toBeGreaterThan(0)
   })
 
-  test('a video whose expected cost does not fit the budget is skipped before any call', async () => {
-    const s = setup({ cues: 1600 })
-    expect(await s.run()).toBe('skipped')
-    expect(s.repo.row.error_message).toBe('too_long')
-    expect(s.model.chat).not.toHaveBeenCalled()
+  test('a long video within the duration and chunk limits starts instead of being skipped as too_long', async () => {
+    // About 22 chunks: over the old $0.30 per-video budget, well inside the new $1.00 one.
+    const s = setup({ cues: 3000 })
+    expect(await s.run()).toBe('ready')
+    expect(s.model.chat.mock.calls.length).toBeGreaterThan(1)
+  })
+
+  test('a plan over the cap is skipped with the diagnostic fields', async () => {
+    const original = YOUTUBE_ARTICLE_LIMITS.maxCostUsd
+    ;(YOUTUBE_ARTICLE_LIMITS as any).maxCostUsd = 0.0001
+    const logs = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      const s = setup()
+      expect(await s.run()).toBe('skipped')
+      expect(s.repo.row.error_message).toBe('too_long')
+      const line = logs.mock.calls.map(c => String(c[0])).find(l => l.includes('youtube_article_skipped'))
+      expect(JSON.parse(line!)).toMatchObject({
+        reason: 'too_long',
+        chunks: expect.any(Number),
+        input_chars: expect.any(Number),
+        duration_ms: expect.any(Number),
+        expected_cost_usd: expect.any(Number),
+        max_cost_usd: 0.0001
+      })
+    } finally {
+      ;(YOUTUBE_ARTICLE_LIMITS as any).maxCostUsd = original
+      logs.mockRestore()
+    }
   })
 
   test('the stop is still final when the engine rewraps the error', async () => {
-    const s = setup({ model: faithfulModel({ outputTokens: 99_000 }), rewrap: true })
+    const s = setup({ model: faithfulModel({ outputTokens: 340_000 }), rewrap: true })
     expect(await s.run()).toBe('failed')
     expect(s.repo.row.error_message).toBe('budget_exceeded')
   })
