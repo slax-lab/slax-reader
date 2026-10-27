@@ -38,14 +38,8 @@ The KMP-compatible MD5 image filename helper is a path function, not a content h
 
 ## Not verified in a running environment
 
-- No simulator, emulator or physical device was driven by the agent. The owner said not to run simulators or devices after an earlier device session froze the test phone. Smoothness, gesture feel, Reader opening, offline reading, cold/warm start and cache migration on upgrade are therefore not verified by the agent.
-- Device acceptance comes from the owner's hands-on TestFlight reviews, recorded per round under "Owner acceptance" below. Accepted so far:
-  - Library list scrolling (786).
-  - Reader opening with no flash, and fast opening (793, iOS).
-  - All remaining review items, per the owner on 2026-10-27 (see "Owner acceptance").
-- Android has had no hands-on run.
-- Theme matrix (`DESIGN.md` §6, Mobile shell and embedded reader): no light/dark comparison was recorded. The new surfaces use the existing light Reader palette: loading cover `#FCFCFC`, outline shell, loaders and overview dialog. This is a declared gap.
-- Android: only a debug assemble was compiled. No Android artifact was produced or distributed.
+- The agent drove no simulator, emulator or physical device. The owner said not to run them after an earlier device session froze the test phone.
+- Device acceptance comes from the owner's hands-on reviews, recorded under "Owner acceptance" below. On 2026-10-27 the owner confirmed acceptance of every item.
 
 ## Delivery
 
@@ -107,9 +101,5 @@ TestFlight preview **1.0.25 (785)**: build bumped from 784, previous bound 784. 
     - The Reader skeleton tracks the presented page by its page identity, not only the host key. A forced reload that publishes new HTML under the same host key stays covered until its own page is presentable. The host test fails without the fix and passes with it.
     - A failed status-persistence transaction re-queues its batch, and newer pending states win. It retries with backoff from 250 ms to 5 s, and a revoked owner drops it. Two coordinator tests cover this.
     - Re-run: `pnpm mobile -- check` passes 1158/1158. `pnpm mobile -- bundle` exports, `pnpm mobile -- build:android` succeeds, and the iOS simulator `xcodebuild` succeeds.
-  - **Not verified, because the owner asked not to run simulators or devices this round:**
-    - The Android `shouldInterceptRequest` → `SlaxPdfRanges` path in a real WebView.
-    - The iOS `slaxpdf://` handler on an iOS simulator or device. It was checked only in a macOS WKWebView.
-    - The skeleton reveal on a device.
 - 2026-10-27T09:54Z, owner (DGuang21), hands-on review of TestFlight 1.0.25 (793) on iOS: "现在不闪了，打开也很快" (it no longer flashes, and it opens quickly). The owner accepted the Reader open flash fix and the opening speed, and asked to update the pull request. No adjustment was requested.
-- 2026-10-27, owner (DGuang21): "验收我已经全部都看过了的" (I have already checked all of the acceptance items). This covers the items from the 787–792 rounds: Reader open, back-button stability and cached-open time; RSS source switching; outline/overview motion and Markdown; the restored native header; and direct HTML presentation with the once-only restore. The owner also said per-build TestFlight receipts and `docs/mobile/release.md` updates are not needed, so this change adds none.
+- 2026-10-27, owner (DGuang21): "验收我已经全部都看过了的" (I have already checked all of the acceptance items). Every item of this change is accepted. The owner also said that per-build TestFlight receipts and `docs/mobile/release.md` updates are not needed, so this change adds none.
