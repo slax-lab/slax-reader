@@ -23,3 +23,8 @@
 - [x] Run the PostgreSQL trigger integration test against the local database.
 - [x] Run `openspec validate --all --strict`.
 - [x] Record the running-environment sync evidence in `openspec/changes/local-first-ddl/validation.md`.
+- [x] Re-verify on the branch merged with current `dev`, measure per-subscription parameter cost and the out-of-order deployment behavior, and correct `design.md` and `validation.md`.
+
+## 5. Archive
+
+- [ ] After this pull request merges, archive `local-first-ddl` through a docs pull request.

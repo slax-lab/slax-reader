@@ -29,4 +29,4 @@ None. The RSS Labs behavior is unchanged; its rules only move to the same bounde
 - `apps/api/test/infra/powersyncRules.test.ts` plus a new PostgreSQL trigger integration test
 - OpenSpec artifacts under `openspec/changes/local-first-ddl/`
 
-The migration is additive and backward compatible: existing code ignores `owner_deleted`, and the column defaults to `false` with a backfill. Sync rules must be deployed after the migration.
+The migration is additive and backward compatible: existing code ignores `owner_deleted`, and the column defaults to `false` with a backfill. Sync rules must be deployed after the migration; deployed first, they load without an error and silently hide all collection content (see `design.md`).
