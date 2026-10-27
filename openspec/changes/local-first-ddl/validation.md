@@ -11,7 +11,7 @@ All results below were produced on the task branch merged with current `dev` (`c
 | `pnpm api -- typecheck` | Passed |
 | `pnpm api -- test` | Passed; 192 files, 2,503 tests passed, 112 skipped by their environment gate |
 | `pnpm api -- test test/infra/powersyncRules.test.ts` | Passed; 13 tests |
-| `RUN_PG_INTEGRATION_TESTS=1 HYPERDRIVE_DATABASE_URL=<disposable migrated database> pnpm api -- test test/infra/collectionSyncOwnerState.integration.test.ts test/infra/collectionTriggers.integration.test.ts` | Passed; 2 tests: the new owner-state test (insert fill, deletion, restoration, collection created for a deleted owner) and the existing Collection trigger test |
+| `RUN_PG_INTEGRATION_TESTS=1 HYPERDRIVE_DATABASE_URL=<disposable migrated database> pnpm api -- test test/infra/collectionSyncOwnerState.integration.test.ts test/infra/collectionTriggers.integration.test.ts` | Passed; 2 tests: the new owner-state test (insert fill, `owner_id` reassignment, deletion, restoration, collection created for a deleted owner) and the existing Collection trigger test |
 | `pnpm exec openspec validate --all --strict` | Passed; 78 items |
 | `pnpm api -- test:setup:local` | Not completed; see Not verified |
 

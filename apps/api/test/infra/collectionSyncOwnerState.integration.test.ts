@@ -17,7 +17,7 @@ describePg('Collection owner deletion state', () => {
     await client?.end()
   })
 
-  test('fills owner_deleted on insert and follows owner deletion and restoration', async () => {
+  test('fills owner_deleted on insert and owner change, and follows owner deletion and restoration', async () => {
     await client.query('BEGIN')
 
     try {
@@ -72,6 +72,25 @@ describePg('Collection owner deletion state', () => {
         [deletedOwnerId]
       )
       expect(restoredDeletedOwner.rows.map(row => row.owner_deleted)).toEqual([false])
+
+      // Reassigning a collection re-derives the flag from the new owner.
+      const reassignTarget = await client.query<{ id: number }>(
+        `INSERT INTO sr_user (email, last_login_at, created_at, deleted_at)
+         VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         RETURNING id`,
+        [`owner-state-reassign-${token}@example.test`]
+      )
+      const reassigned = await client.query<{ owner_deleted: boolean }>(
+        'UPDATE sr_user_collection SET owner_id = $1 WHERE id = $2 RETURNING owner_deleted',
+        [reassignTarget.rows[0].id, collectionId]
+      )
+      expect(reassigned.rows[0].owner_deleted).toBe(true)
+
+      const reassignedBack = await client.query<{ owner_deleted: boolean }>(
+        'UPDATE sr_user_collection SET owner_id = $1 WHERE id = $2 RETURNING owner_deleted',
+        [activeOwnerId, collectionId]
+      )
+      expect(reassignedBack.rows[0].owner_deleted).toBe(false)
     } finally {
       await client.query('ROLLBACK')
     }

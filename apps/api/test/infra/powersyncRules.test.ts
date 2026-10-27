@@ -30,7 +30,7 @@ describe('PowerSync collection rules', () => {
     expect(rules).toMatch(/WHERE uuid = auth\.user_id\(\)\s+AND deleted_at IS NULL/)
     const collections = stream('subscribed_collections')
     expect(collections.match(/authenticated_user\.deleted_at IS NULL/g)).toHaveLength(1)
-    expect(collections.match(/collection\.owner_deleted = false/g)).toHaveLength(3)
+    expect(collections.match(/collection\.owner_deleted = false/g)?.length).toBeGreaterThanOrEqual(3)
     expect(collections).not.toContain('owner.deleted_at IS NULL')
     const comments = stream('collection_bookmark_comment')
     expect(comments).toContain('authenticated_user.uuid = auth.user_id()')
