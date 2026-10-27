@@ -123,16 +123,96 @@ fun main(args: Array<String>) {
   precondition(document.size == pdfSize && document.withIndex().all { (it.value.toInt() and 255) == it.index % 251 })
   precondition(SlaxOfflineJson.decode(File(root, "pdf/v2/$scopeId/pdf-a/part.json").readText()) == mapOf("document_id" to documentId, "size" to pdfSize.toDouble(), "committed" to pdfSize.toDouble()))
   precondition(!exists("pdf/v2/$scopeId/pdf-a/document.pdf.part") && manifest("pdf-a")?.get("kind") == "pdf" && manifest("pdf-a")?.get("size") == pdfSize.toDouble())
-  fun range(key: String, begin: Int, end: Int, id: String) = mapOf("key" to key, "id" to key, "documentId" to documentId, "size" to pdfSize.toDouble(), "begin" to begin.toDouble(), "end" to end.toDouble(), "requestId" to id)
-  precondition((value { engine.readPdfRange("acct", range("pdf-a", 1000, 5000, "p1"), it) } as ByteArray).contentEquals(document.copyOfRange(1000, 5000)))
-  val cached = value { engine.pdfMetadata("acct", mapOf("key" to "pdf-a", "id" to "pdf-a", "requestId" to "p2", "allowNetwork" to false), it) } as Map<*, *>
-  precondition(cached["document_id"] == documentId && cached["url"] == "/v1/bookmark/pdf?bookmark_uid=pdf-a") { "Cached $cached" }
   precondition(counts()["pdf:pdf-a"] == 3) { "Expected three resumable windows, got ${counts()["pdf:pdf-a"]}" }
-  precondition((value { engine.readPdfRange("acct", range("pdf-full", 70_000, 70_100, "p3"), it) } as ByteArray).contentEquals(document.copyOfRange(70_000, 70_100)))
-  val remote = value { engine.pdfMetadata("acct", mapOf("key" to "pdf-full", "id" to "pdf-full", "requestId" to "p4", "allowNetwork" to true), it) } as Map<*, *>
-  precondition(remote["size"] == pdfSize.toLong())
+
+  // A complete PDF answers its descriptor locally without any network request; an incomplete one still fetches it.
+  val metadataBefore = counts()["metadata:pdf-a"] ?: 0
+  val complete = value { engine.pdfMetadata("acct", mapOf("key" to "pdf-a", "id" to "pdf-a", "requestId" to "p2", "allowNetwork" to true), it) } as Map<*, *>
+  precondition(complete["document_id"] == documentId && complete["url"] == "/v1/bookmark/pdf?bookmark_uid=pdf-a") { "Complete $complete" }
+  val cached = value { engine.pdfMetadata("acct", mapOf("key" to "pdf-a", "id" to "pdf-a", "requestId" to "p2b", "allowNetwork" to false), it) } as Map<*, *>
+  precondition(cached["document_id"] == documentId) { "Cached $cached" }
+  precondition((counts()["metadata:pdf-a"] ?: 0) == metadataBefore) { "A complete PDF requested metadata" }
+
+  // Byte ranges reach the page only through the PDF host's interceptor, scoped to its bound document and owner.
+  fun source(key: String) = SlaxPdfSource.parse(mapOf("id" to key, "documentId" to documentId, "size" to pdfSize.toDouble()))!!
+  var bound: Pair<SlaxPdfSource, String>? = source("pdf-a") to "acct"
+  val page = SlaxReaderSecurity.PDF_ORIGIN.removeSuffix("/")
+  val ranges = SlaxPdfRanges({ engine }, SlaxReaderSecurity.PDF_ORIGIN) { bound }
+  class Served(val response: SlaxPdfResponse) {
+    val body = response.body.readBytes()
+    val status get() = response.status
+    fun header(name: String) = response.headers[name]
+    val code get() = runCatching { (SlaxOfflineJson.decode(String(body)) as Map<*, *>)["code"] }.getOrNull()
+  }
+  fun fetch(path: String, range: String? = null, method: String = "GET", header: String = "X-Slax-Range") =
+    Served(ranges.handle(page + path, method, range?.let { mapOf(header to it) }.orEmpty()) ?: error("Not a PDF request: $path"))
+  fun path(key: String) = "/pdf/$key/$documentId/$pdfSize"
+  precondition(ranges.handle("$page/elsewhere", "GET", emptyMap()) == null && ranges.handle("https://other.invalid${path("pdf-a")}", "GET", emptyMap()) == null)
+  val local = fetch(path("pdf-a") + "?request=r1", "bytes=1000-4999")
+  precondition(local.status == 206 && local.body.contentEquals(document.copyOfRange(1000, 5000))) { "Local range ${local.status}" }
+  precondition(local.header("Content-Range") == "bytes 1000-4999/$pdfSize" && local.header("Content-Length") == "4000" && local.header("Accept-Ranges") == "bytes" && local.response.mimeType == "application/pdf" && local.response.reason == "Partial Content")
+  // A standard `Range` header is applied by WebView itself (available() then skip(begin)); the stream yields the slice after that skip.
+  val standard = ranges.handle(page + path("pdf-a") + "?request=r1b", "GET", mapOf("Range" to "bytes=1000-4999"))!!
+  precondition(standard.status == 206 && standard.body.available() == 5000 && standard.body.skip(1000) == 1000L && standard.body.readBytes().contentEquals(document.copyOfRange(1000, 5000)))
+  val tail = fetch(path("pdf-a") + "?request=r2", "bytes=${pdfSize - 10}-")
+  precondition(tail.status == 206 && tail.body.contentEquals(document.copyOfRange(pdfSize - 10, pdfSize)) && tail.header("Content-Range") == "bytes ${pdfSize - 10}-${pdfSize - 1}/$pdfSize")
+  precondition(fetch(path("pdf-a") + "?request=r3", "bytes=${pdfSize - 4}-${pdfSize + 100}").body.size == 4)
+  for (range in listOf(null, "bytes=$pdfSize-${pdfSize + 5}", "bytes=0-${2 * 1024 * 1024}", "bytes=0-1,4-5", "bytes=-10", "bytes=9-3")) {
+    val rejected = fetch(path("pdf-a") + "?request=r4", range)
+    precondition(rejected.status == 416 && rejected.code == "http_range_not_satisfiable") { "Range $range gave ${rejected.status}" }
+    if (range == null || range.startsWith("bytes=$pdfSize")) precondition(rejected.header("Content-Range") == "bytes */$pdfSize")
+  }
+  val head = fetch(path("pdf-a"), method = "HEAD")
+  precondition(head.status == 200 && head.header("Content-Length") == pdfSize.toString() && head.body.isEmpty())
+  for (other in listOf("/pdf/pdf-a/${"c".repeat(64)}/$pdfSize?request=r5", "/pdf/pdf-a/$documentId/${pdfSize + 1}?request=r5", path("pdf-full") + "?request=r5")) {
+    val rejected = fetch(other, "bytes=0-9")
+    precondition(rejected.status == 404 && rejected.code == "invalid_request") { "Unbound path $other gave ${rejected.status}" }
+  }
+  precondition(fetch(path("pdf-a"), "bytes=0-9").status == 400)
+  precondition(fetch(path("pdf-a") + "?request=r6", "bytes=0-9", "POST").status == 404)
+  bound = null
+  val unowned = fetch(path("pdf-a") + "?request=r7", "bytes=0-9")
+  precondition(unowned.status == 403 && unowned.code == "session_changed") { "Unscoped host was served" }
+  bound = source("pdf-a") to "other"
+  val foreign = fetch(path("pdf-a") + "?request=r8", "bytes=0-9")
+  precondition(foreign.status == 403 && foreign.code == "session_changed") { "Another owner was served" }
+  precondition(counts()["pdf:pdf-a"] == 3) { "Local ranges used the network" }
+
+  // Missing ranges are fetched remotely at foreground priority, even with background acquisition saturated.
+  val ioSaturated = java.util.concurrent.CountDownLatch(1)
+  repeat(96) { kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { ioSaturated.await(10, TimeUnit.SECONDS) } }
+  val background = (0 until 8).map { SlaxPdfTransfers.begin("acct", origin, true) }
+  precondition(runCatching { SlaxPdfTransfers.begin("acct", origin, true) }.isFailure) { "Background transfers are not bounded" }
+  bound = source("pdf-full") to "acct"
+  val remoteStart = System.nanoTime()
+  val remote = fetch(path("pdf-full") + "?request=r9", "bytes=70000-70099")
+  precondition(remote.status == 206 && remote.body.contentEquals(document.copyOfRange(70_000, 70_100))) { "Remote range ${remote.status} ${remote.code}" }
+  precondition(System.nanoTime() - remoteStart < 3_000_000_000L) { "A foreground range waited behind background PDF work" }
+  background.forEach { SlaxPdfTransfers.end("acct", it) }; ioSaturated.countDown()
+  precondition(counts()["pdf:pdf-full"] == 1)
+  val fetched = value { engine.pdfMetadata("acct", mapOf("key" to "pdf-full", "id" to "pdf-full", "requestId" to "p4", "allowNetwork" to true), it) } as Map<*, *>
+  precondition(fetched["size"] == pdfSize.toLong() && counts()["metadata:pdf-full"] == 1) { "Fetched $fetched ${counts()}" }
+  value { engine.pdfMetadata("acct", mapOf("key" to "pdf-full", "id" to "pdf-full", "requestId" to "p4b", "allowNetwork" to true), it) }
+  precondition(counts()["metadata:pdf-full"] == 2) { "An incomplete PDF must refresh its descriptor" }
   precondition(rejection { engine.pdfMetadata("acct", mapOf("key" to "pdf-gone", "id" to "pdf-gone", "requestId" to "p5"), it) } == "http_not_found")
-  precondition(rejection { engine.readPdfRange("acct", range("pdf-a", 0, 2 * 1024 * 1024, "p6"), it) } == "invalid_request")
+  bound = source("pdf-etag") to "acct"
+  val mismatch = fetch(path("pdf-etag") + "?request=r10", "bytes=0-99")
+  precondition(mismatch.status == 502 && mismatch.code == "pdf_identity_mismatch") { "Identity mismatch gave ${mismatch.status} ${mismatch.code}" }
+
+  // An aborted page request (cancel ping or host release) cancels its native network work.
+  bound = source("pdf-slow") to "acct"
+  val slow = CompletableFuture.supplyAsync { fetch(path("pdf-slow") + "?request=slow-1", "bytes=0-99") }
+  until("slow range request") { counts()["pdf:pdf-slow"] == 1 }
+  precondition(fetch("/pdf-cancel/slow-1", method = "POST").status == 204)
+  val cancelled = slow.get(10, TimeUnit.SECONDS)
+  precondition(cancelled.status == 503 && cancelled.code == "operation_cancelled") { "Cancelled range gave ${cancelled.status} ${cancelled.code}" }
+  until("slow range aborted") { counts()["pdf-slow:aborted"] == 1 }
+  val released = CompletableFuture.supplyAsync { fetch(path("pdf-slow") + "?request=slow-2", "bytes=0-99") }
+  until("second slow range request") { counts()["pdf:pdf-slow"] == 2 }
+  ranges.close()
+  precondition(released.get(10, TimeUnit.SECONDS).code == "operation_cancelled")
+  until("released slow range aborted") { counts()["pdf-slow:aborted"] == 2 }
+  precondition(fetch(path("pdf-slow") + "?request=slow-3", "bytes=0-99").status == 403)
 
   val usage = value { engine.usage("acct", listOf("article-a", "pdf-a"), it) } as Map<*, *>
   precondition((usage["article"] as Double) > pdfSize + articleHtml.toByteArray().size && usage["images"] == 7.0) { "Usage $usage" }
@@ -186,6 +266,19 @@ fun main(args: Array<String>) {
   precondition(outcome { reply -> lane.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) { reply.resolve(null) }.settles(reply) } == "operation_cancelled")
   val started = java.util.concurrent.CountDownLatch(1)
   precondition(outcome { reply -> lane.launch { reply.cancellable { started.countDown(); kotlinx.coroutines.awaitCancellation() } }.also { started.await() } } == "operation_cancelled")
+  // A remote PDF range still queued behind the control thread is rejected as soon as its session shuts down, never left unanswered.
+  SlaxStorageOwner.activate("acct")
+  value { engine.open(scope, it) }
+  val gate = java.util.concurrent.CountDownLatch(1)
+  engine.scope.launch { gate.await(10, TimeUnit.SECONDS) }
+  val closing = CompletableFuture<Any?>()
+  engine.close("acct", SlaxOfflineReply({ closing.complete(it) }, { code, _ -> closing.complete(code) }))
+  val queued = CompletableFuture<String>()
+  engine.servePdfRange("acct", SlaxPdfRange("pdf-queued", "pdf-queued", null, documentId, pdfSize.toLong(), 0, 100), "queued-1",
+    SlaxOfflineReply({ queued.complete("resolved") }, { code, _ -> queued.complete(code) }))
+  gate.countDown()
+  precondition(queued.get(5, TimeUnit.SECONDS) == "operation_cancelled") { "A queued range was not rejected on shutdown" }
+  closing.get(5, TimeUnit.SECONDS)
   println("Kotlin offline engine passed")
   kotlin.system.exitProcess(0)
 }

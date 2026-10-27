@@ -8,7 +8,9 @@ const coded = (code: string, message = code) => Object.assign(new Error(message)
  * Development-only stand-in for the native `SlaxOfflineEngine`, so fixtures drive the production OfflineCoordinator.
  * It keeps acquired copies in memory, never opens the database and never computes content hashes.
  */
-export function createFixtureOfflineEngine(options: {fetch: typeof globalThis.fetch; articles?: (key: string) => Promise<string | null>}): OfflineEngine & {settled(): Promise<void>} {
+/** Test inspection of acquired bytes; the app itself never reads PDF bytes through JavaScript. */
+type FixturePdfInspection = {readPdfRange(owner: string, request: {key: string; id: string; documentId: string; size: number; begin: number; end: number; requestId: string}): Promise<Uint8Array>};
+export function createFixtureOfflineEngine(options: {fetch: typeof globalThis.fetch; articles?: (key: string) => Promise<string | null>}): OfflineEngine & FixturePdfInspection & {settled(): Promise<void>} {
   let scope: OfflineScope | null = null, token: string | null = null, online = true, suspended = false, closed = false, worker: Promise<void> = Promise.resolve();
   const status = new Set<(event: OfflineStatusEvent) => void>(), rejected = new Set<(event: {owner: string; generation: number}) => void>();
   const tasks = new Map<string, OfflineTask>(), pdfs = new Map<string, Pdf>(), articles = new Map<string, string>(), requests = new Map<string, AbortController>();
@@ -152,5 +154,5 @@ export function createFixtureOfflineEngine(options: {fetch: typeof globalThis.fe
       set.add(listener); return {remove() {set.delete(listener);}};
     },
     settled: () => worker,
-  } as OfflineEngine & {settled(): Promise<void>};
+  } as OfflineEngine & FixturePdfInspection & {settled(): Promise<void>};
 }

@@ -4,7 +4,7 @@ import type {ViewProps, NativeSyntheticEvent} from 'react-native';
 import {requireNativeView} from 'expo';
 import Animated, {useAnimatedStyle, useEvent, useSharedValue} from 'react-native-reanimated';
 import type {WebView, WebViewProps} from 'react-native-webview';
-import type {ReaderNativeAdapter, ReaderNativeContext, ReaderNativeOverlayProps} from '../reader/native';
+import type {ReaderNativeAdapter, ReaderNativeContext, ReaderNativeOverlayProps, ReaderPdfSource} from '../reader/native';
 
 const NativeOverlay = Platform.OS === 'ios' ? requireNativeView<ReaderNativeOverlayProps>('SlaxPlatform', 'SlaxReaderOverlayView') : undefined;
 
@@ -22,6 +22,7 @@ interface NativeReaderProps extends ViewProps {
   html: string; baseUrl?: string; cacheKey: string; pageId: string; scrollsToTop: boolean;
   cacheDirectory?: string;
   pdfMode: boolean;
+  pdfSource: ReaderPdfSource | null;
   scrollEnabled: boolean;
   protectedHosts: string[];
   imageProxyOrigins: string[];
@@ -96,7 +97,7 @@ const NativeReaderHost = forwardRef<WebView<unknown>, WebViewProps>(function Nat
   const Host = sizesDocument ? animatedNativeView() : NativeView;
   const host = <Host ref={(instance: NativeReaderRef | null) => { nativeRef.current = instance; if (instance) attachedRef.current = instance; }}
     style={[styles.document, props.style]} testID={props.testID} html={source?.html ?? ''} baseUrl={source?.baseUrl}
-    pdfMode={nativeProps.pdfMode === true} scrollEnabled={props.scrollEnabled !== false} protectedHosts={nativeProps.protectedHosts} imageProxyOrigins={nativeProps.imageProxyOrigins} cacheKey={nativeProps.cacheKey} cacheDirectory={nativeProps.cacheDirectory} resourceOwner={nativeProps.resourceOwner ?? null} pageId={nativeProps.pageId} scrollsToTop={nativeProps.scrollsToTop} onEvent={receive}
+    pdfMode={nativeProps.pdfMode === true} pdfSource={nativeProps.pdfMode === true ? nativeProps.pdfSource ?? null : null} scrollEnabled={props.scrollEnabled !== false} protectedHosts={nativeProps.protectedHosts} imageProxyOrigins={nativeProps.imageProxyOrigins} cacheKey={nativeProps.cacheKey} cacheDirectory={nativeProps.cacheDirectory} resourceOwner={nativeProps.resourceOwner ?? null} pageId={nativeProps.pageId} scrollsToTop={nativeProps.scrollsToTop} onEvent={receive}
     {...(sizesDocument ? {onContentHeight: contentHeight} : {})}/>;
   return sizesDocument ? <Animated.View style={[styles.document, props.containerStyle, documentHeightStyle]}>{host}</Animated.View> : <View style={[styles.document, props.containerStyle]}>{host}</View>;
 });

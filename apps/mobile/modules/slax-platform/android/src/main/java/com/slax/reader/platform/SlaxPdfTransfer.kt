@@ -26,11 +26,14 @@ internal object SlaxPdfTransfers {
   internal val client: OkHttpClient = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).cookieJar(CookieJar.NO_COOKIES)
     .retryOnConnectionFailure(false).callTimeout(120, TimeUnit.SECONDS).connectTimeout(30, TimeUnit.SECONDS).readTimeout(120, TimeUnit.SECONDS).build()
 
-  fun begin(owner: String, origin: String, allowHttp: Boolean): String = synchronized(lock) {
-    if (active.size >= MAX_TRANSFERS) throw SlaxPdfTransferError("busy")
+  /** Background acquisition never takes the transfers reserved for an open Reader's foreground ranges. */
+  private const val FOREGROUND_TRANSFERS = 4
+  fun begin(owner: String, origin: String, allowHttp: Boolean, foreground: Boolean = false): String = synchronized(lock) {
+    val running = active.values.count { it.foreground == foreground }
+    if (running >= if (foreground) FOREGROUND_TRANSFERS else MAX_TRANSFERS - FOREGROUND_TRANSFERS) throw SlaxPdfTransferError("busy")
     val lease = SlaxStorageOwner.capture(owner)
     val id = java.util.UUID.randomUUID().toString()
-    val transfer = SlaxPdfTransfer(owner, origin, allowHttp, lease, client) { active.remove(id) }
+    val transfer = SlaxPdfTransfer(owner, origin, allowHttp, lease, client, foreground) { active.remove(id) }
     active[id] = transfer
     val timer = expiry.schedule({ end(owner, id) }, 120, TimeUnit.SECONDS)
     transfer.finished = { timer.cancel(false) }
@@ -66,6 +69,7 @@ internal class SlaxPdfTransfer(
   private val allowHttp: Boolean,
   private val lease: SlaxStorageLease,
   private val client: OkHttpClient,
+  val foreground: Boolean,
   private val released: () -> Unit,
 ) {
   private val io = Any()

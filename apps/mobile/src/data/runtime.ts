@@ -7,7 +7,6 @@ import {CredentialReadiness, ReauthenticationRequiredError, CredentialsUnavailab
 import { createMobileApi } from './api.ts';
 import type { MobileApiOptions } from './api.ts';
 import { ArticleFileCache } from './cache.ts';
-import type {PdfDescriptor} from '@slax-reader/contracts/pdf';
 import { clearAccountData } from './account-cleanup.ts';
 import { AccountDatabaseLease, AccountInactiveError } from './account-lease.ts';
 import {OfflineCoordinator, type OfflineCredentialSource} from './offline-coordinator.ts';
@@ -328,7 +327,6 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     beginArticleAccess: (key: string) => offline?.beginForeground(key) ?? (() => {}),
     getArticleContent: (bookmarkId: string, ownerId?: string, signal?: AbortSignal, force?: boolean) => offline ? offline.getArticleContent(bookmarkId, ownerId, signal, force) : Promise.reject(new AccountInactiveError()),
     getPdfMetadata: (bookmarkId: string, ownerId?: string, signal?: AbortSignal) => offline ? offline.getPdfMetadata(bookmarkId, ownerId, signal) : Promise.reject(new AccountInactiveError()),
-    readPdfRange: (bookmarkId: string, descriptor: PdfDescriptor, begin: number, end: number, ownerId?: string, signal?: AbortSignal) => offline ? offline.readPdfRange(bookmarkId, descriptor, begin, end, ownerId, signal) : Promise.reject(new AccountInactiveError()),
     cachePdf: (bookmarkId: string, ownerId?: string) => offline ? offline.cachePdf(bookmarkId, ownerId) : Promise.reject(new AccountInactiveError()),
     pdfCacheStatus: (bookmarkId: string, ownerId?: string) => offline ? offline.pdfCacheStatus(bookmarkId, ownerId) : Promise.reject(new AccountInactiveError()),
     markLibraryPresented() {

@@ -169,7 +169,7 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
       reload={reload} retryPdf={document.retryPdf} retryNative={retryNative}
       pdfProps={pdf ? {...hostShared, ref: document.attachPdfHost, style: {flex: 1}, descriptor: pdf, cacheDirectory: fixtureOnly?.pdfNativeOwner ? undefined : fixtureOnly?.dataDirectory,
         adaptivePdf: {enabled: Boolean(__DEV__ && fixtureOnly && isIos && dualPagePrototypeEnabled)},
-        readRange: document.readPdfRange, labels: {loading: t('pdf_loading'), error: t('pdf_load_failed'), mark: t('pdf_notes')},
+        bookmarkId, collectionOwnerId, labels: {loading: t('pdf_loading'), error: t('pdf_load_failed'), mark: t('pdf_notes')},
         // PDF callbacks stay per-render closures: each captures its own host lease, which keeps a retired host's late callbacks inert.
         onEvent: (value, pageId) => {if (document.isPdfHostCurrent()) event(value, pageId)},
         onOperationError: error => {if (!document.contentErrorSnapshot.current && document.isPdfHostCurrent()) fail(error)}, onError: document.pdfError,

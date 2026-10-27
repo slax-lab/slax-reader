@@ -121,6 +121,7 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
   }
   let onEvent = EventDispatcher()
   let resources: SlaxResourceHandler
+  let pdfRanges: SlaxPdfSchemeHandler
   private let message: SlaxWeakMessage
   private let sourceMessage: SlaxWeakSourceMessage
   let webView: WKWebView
@@ -130,6 +131,14 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
   func setPdfMode(_ value: Bool) {
     if pdfMode != value && (loaded != nil || security != nil) { detach(); return }
     pdfMode = value
+  }
+  /// The document whose byte ranges this PDF host serves to its page; immutable once a document is loaded.
+  private var pdfSource: SlaxPdfSource?
+  func setPdfSource(_ raw: [String: Any]?) {
+    let next = SlaxPdfSource(raw)
+    if raw != nil && next == nil { emit("error", ["message": "Invalid PDF source", "code": "pdfSource"]); detach(); return }
+    if pdfSource != nil && pdfSource != next { detach(); return }
+    pdfSource = next
   }
   private var security: SlaxReaderSecurity?
   private var rulesReady = false
@@ -216,13 +225,14 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
     loadedGeneration = nil
     pendingSourceReady = nil
     cancelEvaluations("E_READER_INACTIVE")
-    resources.cancelAll()
+    resources.cancelAll(); pdfRanges.cancelAll()
     emit("error", ["message": "Reader process interrupted", "code": "renderProcessGone"])
   }
 
   required init(appContext: AppContext? = nil) {
     Self.sequence += 1; identifier = Self.sequence
     let resources = SlaxResourceHandler()
+    let pdfRanges = SlaxPdfSchemeHandler()
     let message = SlaxWeakMessage()
     let sourceMessage = SlaxWeakSourceMessage()
     let configuration = WKWebViewConfiguration()
@@ -234,14 +244,21 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
     configuration.setURLSchemeHandler(resources, forURLScheme: "slaxstatics")
     configuration.setURLSchemeHandler(resources, forURLScheme: "slaxmedia")
     configuration.setURLSchemeHandler(resources, forURLScheme: "slaxmedias")
+    // Registration precedes knowing the mode; the handler serves nothing unless this is a current PDF host (see `pdfRanges.scope`).
+    configuration.setURLSchemeHandler(pdfRanges, forURLScheme: SlaxPdfSchemeHandler.scheme)
     configuration.userContentController.add(message, name: "slaxReader")
     configuration.userContentController.add(sourceMessage, name: "NativeBridge")
     configuration.userContentController.addUserScript(WKUserScript(source: "window.ReactNativeWebView={postMessage:function(data){window.webkit.messageHandlers.slaxReader.postMessage(String(data));}};", injectionTime: .atDocumentStart, forMainFrameOnly: true))
     webView = SlaxNoMenuWebView(frame: .zero, configuration: configuration)
-    self.resources = resources; self.message = message; self.sourceMessage = sourceMessage
+    self.resources = resources; self.pdfRanges = pdfRanges; self.message = message; self.sourceMessage = sourceMessage
     super.init(appContext: appContext)
     Self.activeViews.add(self)
     resources.hasResourceOwnership = { [weak self] in self?.ownsResources == true }
+    pdfRanges.scope = { [weak self] in
+      guard let self, self.pdfMode, !self.resources.isFixture, self.ownsResources, self.loaded != nil, self.loadedOwner == self.resourceOwner,
+        let owner = self.resourceOwner, Self.activeOwner == owner, let source = self.pdfSource else { return nil }
+      return (source, owner)
+    }
     message.owner = self
     sourceMessage.owner = self
     webView.navigationDelegate = self; webView.uiDelegate = self; webView.scrollView.delegate = self
@@ -312,7 +329,7 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
     let generation = UUID().uuidString
     loaded = html; loadedPageId = pageId; loadedGeneration = generation; loadedOwner = resourceOwner
     sourceMessage.bind(pageId: pageId, generation: generation)
-    resources.cancelAll()
+    resources.cancelAll(); pdfRanges.cancelAll()
     var document: String
     if pdfMode {
       guard let pdfDocument = try? SlaxReaderSecurity.pdfDocument(html, pageId: pageId) else { detach(); return }
@@ -376,7 +393,7 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
     let bottom = max(top, scrollView.contentSize.height + scrollView.contentInset.bottom - scrollView.bounds.height)
     scrollView.setContentOffset(CGPoint(x: 0, y: min(max(y, top), bottom)), animated: false)
   }
-  func detach() { guard !detached else { return }; detached = true; trailingScroll?.cancel(); trailingScroll = nil; navigationGate.invalidate(); loadedGeneration = nil; cancelEvaluations(); pendingSourceReady = nil; contentSizeObservation = nil; NotificationCenter.default.removeObserver(self); Self.activeViews.remove(self); resources.close(); webView.stopLoading(); webView.configuration.userContentController.removeScriptMessageHandler(forName: "slaxReader"); webView.configuration.userContentController.removeScriptMessageHandler(forName: "NativeBridge"); webView.navigationDelegate = nil; webView.uiDelegate = nil; webView.scrollView.delegate = nil }
+  func detach() { guard !detached else { return }; detached = true; trailingScroll?.cancel(); trailingScroll = nil; navigationGate.invalidate(); loadedGeneration = nil; cancelEvaluations(); pendingSourceReady = nil; contentSizeObservation = nil; NotificationCenter.default.removeObserver(self); Self.activeViews.remove(self); resources.close(); pdfRanges.close(); webView.stopLoading(); webView.configuration.userContentController.removeScriptMessageHandler(forName: "slaxReader"); webView.configuration.userContentController.removeScriptMessageHandler(forName: "NativeBridge"); webView.navigationDelegate = nil; webView.uiDelegate = nil; webView.scrollView.delegate = nil }
   private func unexpectedNavigation() {
     guard !processGone else { return }
     emit("error", ["message": "Reader document navigation was rejected", "code": "documentNavigation"])

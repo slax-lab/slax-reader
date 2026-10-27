@@ -32,12 +32,12 @@ Mobile SHALL consume the existing authenticated `/v1/bookmark/metadata` response
 
 ### Requirement: Article presentation preserves source content and states
 
-The reader SHALL preserve the existing article HTML, scoped styles, title/date/original-link/tags, AI overview, scroll-responsive tools, and source error/refresh feedback. Following the user's explicit performance-first revision, initial loading feedback SHALL reflect actual unavailable content rather than an artificial mount delay; cached readable content and known headers SHALL become available without a mandatory skeleton interval. The article host SHALL NOT be covered by a loading overlay once its HTML is ready. Where host creation is deferred until the native push transition ends (Android), the deferral SHALL follow the real transition event, with a bounded fallback only when no event arrives. Personal and shared collection articles SHALL retain their distinct ownership context. A plain-text or paragraph-only rendering MUST NOT substitute for source rich content.
+The reader SHALL preserve the existing article HTML, scoped styles, title/date/original-link/tags, AI overview, scroll-responsive tools, and source error/refresh feedback. Following the user's explicit performance-first revision, initial loading feedback SHALL reflect actual unavailable content rather than an artificial mount delay; cached readable content and known headers SHALL become available without a mandatory skeleton interval. The skeleton MAY remain over the HTML host only until DOM readiness, the initial restore and its first paint; it SHALL NOT wait for external resources or impose a timeout. Where host creation is deferred until the native push transition ends (Android), the deferral SHALL follow the real transition event, with a bounded fallback only when no event arrives. Personal and shared collection articles SHALL retain their distinct ownership context. A plain-text or paragraph-only rendering MUST NOT substitute for source rich content.
 
 #### Scenario: Cached content is opened
 - **WHEN** a valid account-owned cached article is available
 - **THEN** content preparation does not wait for a fixed animation timer, optional AI/profile loading, or unrelated cache bookkeeping
-- **AND** the article is shown as soon as its HTML is ready, and the saved position is restored once without later automatic adjustment
+- **AND** the article appears at its restored position once DOM-ready, and the position is never adjusted again automatically
 - **AND** saved position, annotations and account isolation remain correct
 
 #### Scenario: A cached outline is scrolled

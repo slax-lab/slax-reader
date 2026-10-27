@@ -71,6 +71,8 @@ export class OfflineCoordinator {
   private timer: unknown;
   private timerDue = 0;
   private flushing: Promise<void> = Promise.resolve();
+  private flushRetryDelay = 0;
+  private flushRetryAt = 0;
   private opening?: Promise<void>;
   /** Settles when the native owner of the current open attempt has started, before the JavaScript layout acknowledgement. */
   private nativeOpen?: Promise<unknown>;
@@ -314,7 +316,7 @@ export class OfflineCoordinator {
     if (this.closed || this.suspended || !this.pending.size && !this.pendingEvictions.size) return;
     if (!this.pendingSince) this.pendingSince = this.now();
     const idle = this.options.flushDelayMs ?? 50, deadline = this.pendingSince + (this.options.maxDeferMs ?? 1500);
-    const due = this.busy.size ? deadline : Math.min(this.now() + idle, deadline);
+    const due = Math.max(this.busy.size ? deadline : Math.min(this.now() + idle, deadline), this.flushRetryAt);
     if (this.timer !== undefined && this.timerDue <= due) return;
     if (this.timer !== undefined) (this.options.clearTimer ?? clearTimeout)(this.timer as ReturnType<typeof setTimeout>);
     this.timerDue = due;
@@ -324,7 +326,10 @@ export class OfflineCoordinator {
     if (this.timer !== undefined) (this.options.clearTimer ?? clearTimeout)(this.timer as ReturnType<typeof setTimeout>);
     this.timer = undefined; this.timerDue = 0;
   }
-  /** One lease-checked transaction per batch: download starts/resolutions and eviction row resets. Per-image progress is never written. */
+  /**
+   * One lease-checked transaction per batch: download starts/resolutions and eviction row resets. Per-image progress is never written.
+   * A failed transaction re-queues its batch (newer pending states win) and retries with bounded backoff; a revoked owner drops it.
+   */
   private flush() {
     if (this.closed || this.suspended) return;
     const items = [...this.pending.values()].filter(item => this.changes(item)), evicted = [...this.pendingEvictions];
@@ -337,8 +342,18 @@ export class OfflineCoordinator {
         for (const item of items) await this.write(tx, item);
         for (const key of evicted) await this.writeEviction(tx, key);
       });
-    }).catch(() => undefined);
+      this.flushRetryDelay = 0; this.flushRetryAt = 0;
+    }).catch(() => this.requeue(items, evicted));
     this.flushing = work;
+  }
+  private requeue(items: OfflineStatusItem[], evicted: string[]) {
+    try {this.active();} catch {return;}
+    if (!this.pending.size && !this.pendingEvictions.size) this.pendingSince = this.now();
+    for (const item of items) if (!this.pending.has(item.key)) this.pending.set(item.key, item);
+    for (const key of evicted) this.pendingEvictions.add(key);
+    this.flushRetryDelay = Math.min(Math.max(this.flushRetryDelay * 2, 250), 5000);
+    this.flushRetryAt = this.now() + this.flushRetryDelay;
+    this.scheduleFlush();
   }
   private changes(item: OfflineStatusItem) {
     const status = STATUS[item.state], local = this.locals.get(item.key);
@@ -394,7 +409,7 @@ export class OfflineCoordinator {
       this.schedule();
     };
   }
-  private async call<T>(stage: 'api' | 'pdf-metadata' | 'pdf-range', signal: AbortSignal | undefined, work: (requestId: string) => Promise<T>, cached = false): Promise<T> {
+  private async call<T>(stage: 'api' | 'pdf-metadata', signal: AbortSignal | undefined, work: (requestId: string) => Promise<T>, cached = false): Promise<T> {
     this.active(); throwIfAborted(signal);
     await this.open(true); this.active(); throwIfAborted(signal);
     if (this.suspended) throw cancelled();
@@ -432,16 +447,6 @@ export class OfflineCoordinator {
     const key = bookmarkCacheKey(id, owner);
     const value = await this.call('pdf-metadata', signal, requestId => this.engine.pdfMetadata(this.owner, {key, id, ...(owner ? {collectionOwner: owner} : {}), requestId, allowNetwork: this.online}), true);
     return offlinePdfDescriptor(id, value);
-  }
-  readPdfRange(id: string, descriptor: PdfDescriptor, begin: number, end: number, owner?: string, signal?: AbortSignal): Promise<Uint8Array> {
-    if (!id || !validId(id) || !validId(owner)) return Promise.reject(new Error('Invalid PDF access context'));
-    if (!Number.isSafeInteger(begin) || !Number.isSafeInteger(end) || begin < 0 || end <= begin || end > descriptor.size || end - begin > 1024 * 1024) return Promise.reject(new Error('Invalid PDF byte range'));
-    const key = bookmarkCacheKey(id, owner);
-    return this.call('pdf-range', signal, async requestId => {
-      const bytes = await this.engine.readPdfRange(this.owner, {key, id, ...(owner ? {collectionOwner: owner} : {}), documentId: descriptor.document_id, size: descriptor.size, begin, end, requestId});
-      if (!(bytes instanceof Uint8Array) || bytes.byteLength !== end - begin) throw Object.assign(new Error('Invalid PDF range length'), {code: 'pdf_length_invalid'});
-      return bytes;
-    }, true);
   }
   async pdfCacheStatus(id: string, owner?: string) {
     if (!id || !validId(id) || !validId(owner)) throw new Error('Invalid PDF access context');

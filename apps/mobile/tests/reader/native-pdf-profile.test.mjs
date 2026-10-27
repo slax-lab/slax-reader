@@ -5,11 +5,19 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {spawnSync} from 'node:child_process'
 import {READER_CSP} from '../../src/reader/security.ts'
+import {pdfCsp as composedPdfCsp} from '../../src/reader/pdf-types.ts'
 import {React, nativeBoundary, loadComponent, withNativeHost} from './parity-host.mjs'
 
 const root = new URL('../../modules/slax-platform/', import.meta.url)
 const read = relative => readFile(new URL(relative, root), 'utf8')
-const pdfCsp = "default-src 'none'; script-src 'nonce-slax-pdf-pdf-1' blob: 'wasm-unsafe-eval'; worker-src blob:; connect-src blob:; img-src blob: data:; font-src blob: data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'"
+const pdfPolicy = origin => `default-src 'none'; script-src 'nonce-slax-pdf-pdf-1' blob: 'wasm-unsafe-eval'; worker-src blob:; connect-src blob: ${origin}; img-src blob: data:; font-src blob: data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'`
+const iosPdfCsp = pdfPolicy('slaxpdf://pdf'), androidPdfCsp = pdfPolicy('https://pdf.reader.slax.invalid')
+
+test('composed PDF documents only connect to their own byte origin', () => {
+  assert.equal(composedPdfCsp('slax-pdf-pdf-1', 'ios'), iosPdfCsp)
+  assert.equal(composedPdfCsp('slax-pdf-pdf-1', 'android'), androidPdfCsp)
+  assert.equal(composedPdfCsp('slax-pdf-pdf-1'), androidPdfCsp)
+})
 
 test('PDF uses the same owned native no-menu subclass and cannot change profiles after document binding', async () => {
   const [swift, kotlin, swiftModule, kotlinModule, pdf, native] = await Promise.all([
@@ -22,6 +30,12 @@ test('PDF uses the same owned native no-menu subclass and cannot change profiles
   assert.doesNotMatch(pdf, /menuItems=|pdf-bridge-state|import \{WebView\}/)
   assert.match(native, /pdfMode=\{nativeProps\.pdfMode === true\}/)
   assert.match(native, /cacheDirectory=\{nativeProps\.cacheDirectory\}/)
+  assert.match(native, /pdfSource=\{nativeProps\.pdfMode === true \? nativeProps\.pdfSource \?\? null : null\}/)
+  assert.doesNotMatch(pdf, /readRange|rangeChunk|btoa|encode\(/, 'PDF bytes never cross the React Native bridge')
+  assert.match(swift, /setURLSchemeHandler\(pdfRanges, forURLScheme: SlaxPdfSchemeHandler\.scheme\)/)
+  assert.match(swift, /pdfRanges\.scope = \{[^}]*self\.pdfMode, !self\.resources\.isFixture, self\.ownsResources/)
+  assert.match(kotlin, /if \(pdfMode && !request\.isForMainFrame\) pdfRanges\.handle/)
+  assert.match(kotlin, /if \(!pdfMode \|\| resourceHandler\.isFixture \|\| detached \|\| owner == null \|\| owner != activeOwner/)
   assert.match(swift, /webView = SlaxNoMenuWebView/)
   assert.match(swift, /override func canPerformAction[^\n]+false/)
   assert.match(swift, /builder\.replaceChildren\(ofMenu: \.root\) \{ _ in \[\] \}/)
@@ -35,6 +49,8 @@ test('PDF uses the same owned native no-menu subclass and cannot change profiles
   }
   assert.match(swiftModule, /Prop\("pdfMode"\)[^\n]+value: Bool/)
   assert.match(kotlinModule, /Prop\("pdfMode"\)[^\n]+value: Boolean/)
+  assert.match(swiftModule, /Prop\("pdfSource"\)[^\n]+setPdfSource/)
+  assert.match(kotlinModule, /Prop\("pdfSource"\)[^\n]+setPdfSource/)
   assert.match(kotlinModule, /Prop\("scrollEnabled"\)[^\n]+setDocumentScrollEnabled/)
   assert.match(swiftModule, /Prop\("scrollEnabled"\)[^\n]+isScrollEnabled/)
   assert.match(native, /scrollEnabled=\{props\.scrollEnabled !== false\}/)
@@ -54,17 +70,18 @@ test('PDF uses the same owned native no-menu subclass and cannot change profiles
 const policyCompilers = process.platform === 'darwin' && spawnSync('xcrun', ['--find', 'swiftc']).status === 0 && ['kotlinc', 'java'].every(command => spawnSync('which', [command]).status === 0)
 test('compiled Swift and Kotlin PDF policies retain nonce workers while rejecting network and HTML profile escalation', {timeout: 120000, skip: !policyCompilers && 'Installed Swift and Kotlin compilers are required'}, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'slax-pdf-policy-'))
-  const html = `<html><head><meta http-equiv="Content-Security-Policy" content="${pdfCsp}"></head><body>PDF</body></html>`
+  const page = csp => `<html><head><meta http-equiv="Content-Security-Policy" content="${csp}"></head><body>PDF</body></html>`
   const run = (command, args) => {
     const result = spawnSync(command, args, {encoding: 'utf8', timeout: 60000})
     assert.equal(result.status, 0, `${command}: ${result.error ?? ''}\n${result.stdout}\n${result.stderr}`)
   }
   try {
+    const pdfCsp = iosPdfCsp
     const swift = `import Foundation
-let html = ${JSON.stringify(html)}
+let html = ${JSON.stringify(page(iosPdfCsp))}
 let pdf = try SlaxReaderSecurity(["slax.com"], pdfMode: true)
 let article = try SlaxReaderSecurity(["slax.com"])
-precondition(pdf.documentOrigin.absoluteString == "https://pdf.reader.slax.invalid/")
+precondition(pdf.documentOrigin.absoluteString == "slaxpdf://pdf/" && pdf.documentOrigin == URL(string: "slaxpdf://pdf/")!)
 precondition(article.documentOrigin == SlaxReaderSecurity.origin)
 precondition(SlaxReaderSecurity.csp == ${JSON.stringify(READER_CSP)})
 precondition(try SlaxReaderSecurity.pdfCsp("pdf-1") == ${JSON.stringify(pdfCsp)})
@@ -88,15 +105,15 @@ precondition((rules.first?["trigger"] as? [String: Any])?["url-filter"] as? Stri
     run(join(directory, 'swift-policy'), [])
     const kotlin = `package com.slax.reader.platform
 fun main() {
-  val html = ${JSON.stringify(html)}
+  val html = ${JSON.stringify(page(androidPdfCsp))}
   val pdf = SlaxReaderSecurity(listOf("slax.com"), pdfMode = true)
   val article = SlaxReaderSecurity(listOf("slax.com"))
   check(pdf.documentOrigin == "https://pdf.reader.slax.invalid/")
   check(article.documentOrigin == SlaxReaderSecurity.ORIGIN)
   check(SlaxReaderSecurity.CSP == ${JSON.stringify(READER_CSP)})
-  check(SlaxReaderSecurity.pdfCsp("pdf-1") == ${JSON.stringify(pdfCsp)})
+  check(SlaxReaderSecurity.pdfCsp("pdf-1") == ${JSON.stringify(androidPdfCsp)})
   val document = SlaxReaderSecurity.pdfDocument(html, "pdf-1")
-  check(document.split(${JSON.stringify(pdfCsp)}).size == 3)
+  check(document.split(${JSON.stringify(androidPdfCsp)}).size == 3)
   check(!document.contains("worker-src 'none'"))
   check(SlaxReaderSecurity.document(html).contains("worker-src 'none'"))
   for (url in listOf("https://public.example/file", "slaxstatics://public.example/file", "https://slax.com/static/image")) {
@@ -192,16 +209,19 @@ for (const platform of ['ios', 'android']) test(`${platform} native adapter forw
     })
     const {readerNativeAdapter} = await loadComponent('../../src/native/reader.tsx', {react: React, 'react-native': host.native,
       'expo': {requireNativeView: (_module, name) => name === 'SlaxReaderView' ? NativeView : host.native.View}, 'react-native-reanimated': nativeHeightMotion(host).module})
-    const context = {pageId: 'pdf-1', cacheKey: 'cache', cacheDirectory: '/controlled/slax-ui-fixtures/fixture', resourceOwner: 'account-owner', pdfMode: true, protectedHosts: ['slax.com'], imageProxyOrigins: [], suppressSelectionMenu: true, scrollsToTop: true}
-    await host.render(React.createElement(readerNativeAdapter.HostComponent, {source: {html: '<html></html>', baseUrl: 'https://pdf.reader.slax.invalid/'}, nativeConfig: readerNativeAdapter.nativeConfig(context), onMessage: event => messages.push(event.nativeEvent)}))
+    const pdfSource = {id: 'doc', collectionOwner: 'owner', documentId: 'a'.repeat(64), size: 1024}
+    const origin = platform === 'ios' ? 'slaxpdf://pdf/' : 'https://pdf.reader.slax.invalid/'
+    const context = {pageId: 'pdf-1', cacheKey: 'collection-owner-doc', cacheDirectory: '/controlled/slax-ui-fixtures/fixture', resourceOwner: 'account-owner', pdfMode: true, pdfSource, protectedHosts: ['slax.com'], imageProxyOrigins: [], suppressSelectionMenu: true, scrollsToTop: true}
+    await host.render(React.createElement(readerNativeAdapter.HostComponent, {source: {html: '<html></html>', baseUrl: origin}, nativeConfig: readerNativeAdapter.nativeConfig(context), onMessage: event => messages.push(event.nativeEvent)}))
     assert.equal(nativeProps.pdfMode, true)
+    assert.deepEqual(nativeProps.pdfSource, pdfSource)
     assert.equal(nativeProps.onContentHeight, undefined, 'PDF keeps its own document-height path')
     assert.equal(nativeProps.resourceOwner, context.resourceOwner)
     assert.equal(nativeProps.cacheDirectory, context.cacheDirectory)
     nativeProps.onEvent({nativeEvent: {type: 'message', target: 1, pageId: 'stale', data: '{}'}})
     assert.equal(messages.length, 0)
     nativeProps.onEvent({nativeEvent: {type: 'message', target: 1, pageId: 'pdf-1', data: '{}'}})
-    assert.equal(messages[0].url, 'https://pdf.reader.slax.invalid/')
+    assert.equal(messages[0].url, origin)
     const lateEvent = nativeProps.onEvent
     await host.unmount()
     assert.equal(detached, 1)

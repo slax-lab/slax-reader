@@ -5,11 +5,14 @@ final class SlaxOfflineReply {
   private let lock = NSLock()
   private var settled = false
   private let resolver: (Any?) -> Void
-  private let rejecter: (String, String) -> Void
-  init(resolve: @escaping (Any?) -> Void, reject: @escaping (String, String) -> Void) { resolver = resolve; rejecter = reject }
+  private let failer: (SlaxOfflineError) -> Void
+  init(resolve: @escaping (Any?) -> Void, reject: @escaping (String, String) -> Void) { resolver = resolve; failer = { reject($0.code, $0.message) } }
+  /// Native callers (the PDF scheme handlers) that need the structured error.
+  init(_ done: @escaping (Result<Any?, SlaxOfflineError>) -> Void) { resolver = { done(.success($0)) }; failer = { done(.failure($0)) } }
   private func settle() -> Bool { lock.lock(); defer { lock.unlock() }; if settled { return false }; settled = true; return true }
+  var isSettled: Bool { lock.lock(); defer { lock.unlock() }; return settled }
   func resolve(_ value: Any?) { if settle() { resolver(value) } }
-  func fail(_ error: SlaxOfflineError) { if settle() { rejecter(error.code, error.message) } }
+  func fail(_ error: SlaxOfflineError) { if settle() { failer(error) } }
 }
 
 struct SlaxOfflineEnvironment {
@@ -38,6 +41,8 @@ final class SlaxOfflineEngine {
   let pdf = SlaxOfflineEngine.queue("SlaxOfflineEngine.pdf", 6)
   /// Committed-copy reads for an open Reader; never shared with acquisition, migration or entry loading.
   let foreground = SlaxOfflineEngine.queue("SlaxOfflineEngine.foreground", 2, qos: .userInitiated)
+  /// Network work of an open PDF Reader (metadata, missing byte ranges); never waits behind background PDF acquisition on `pdf`.
+  let pdfForeground = SlaxOfflineEngine.queue("SlaxOfflineEngine.pdfForeground", 4, qos: .userInitiated)
   let http = SlaxOfflineHttp()
   let environment: SlaxOfflineEnvironment
   private var sessions: [String: SlaxOfflineSession] = [:]
@@ -131,8 +136,15 @@ final class SlaxOfflineEngine {
   }
   /// Hands foreground request bookkeeping to the control queue ahead of utility-priority work items.
   func foregroundControl(_ work: @escaping () -> Void) { control.async(qos: .userInitiated, flags: .enforceQoS, execute: work) }
-  func pdfMetadata(_ owner: String, _ raw: [String: Any], reply: SlaxOfflineReply) { on(owner, reply) { $0.pdfMetadata(raw, reply: reply) } }
-  func readPdfRange(_ owner: String, _ raw: [String: Any], reply: SlaxOfflineReply) { on(owner, reply) { $0.readPdfRange(raw, reply: reply) } }
+  func pdfMetadata(_ owner: String, _ raw: [String: Any], reply: SlaxOfflineReply) {
+    if let session = readableSession(owner) { session.pdfMetadata(raw, reply: reply); return }
+    on(owner, reply, foreground: true) { $0.pdfMetadata(raw, reply: reply) }
+  }
+  /// Byte range for an open PDF Reader host of `owner`; served natively to its page, never through JavaScript.
+  func servePdfRange(_ owner: String, _ range: SlaxPdfRange, requestId: String, reply: SlaxOfflineReply) {
+    guard let session = readableSession(owner) else { reply.fail(.revoked); return }
+    session.servePdfRange(range, requestId: requestId, reply: reply)
+  }
   func pdfStatus(_ owner: String, _ key: String, reply: SlaxOfflineReply) { on(owner, reply) { $0.pdfStatus(key, reply: reply) } }
   func cancel(_ owner: String, _ requestId: String) { on(owner) { $0.cancelRequest(requestId, .cancelled) } }
   func usage(_ owner: String, _ keys: [String], reply: SlaxOfflineReply) { on(owner, reply) { $0.usage(keys, reply: reply) } }

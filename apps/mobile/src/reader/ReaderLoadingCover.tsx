@@ -4,8 +4,8 @@ import Animated, {cancelAnimation, Easing, ReduceMotion, runOnJS, useAnimatedSty
 import {motionDuration} from '../motion/policy'
 
 /**
- * Covers the PDF host with the article skeleton until its first page is painted, then fades out once and unmounts.
- * The cover is hidden from assistive technology; the host's own header stays reachable beneath it.
+ * Covers a Reader document host with the article skeleton until it is presentable, then fades out once and unmounts.
+ * The cover is hidden from assistive technology; the caller hides the covered host from it too, so nothing is reachable until reveal.
  */
 export function ReaderLoadingCover({covered, testID, children}: {covered: boolean; testID: string; children: React.ReactNode}) {
   const [mounted, setMounted] = useState(covered)

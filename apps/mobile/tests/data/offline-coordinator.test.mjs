@@ -47,7 +47,6 @@ function fakeEngine(owner = 'owner-a') {
     async readArticle(value, key) {calls.push(['readArticle', key]); return key === 'cached' ? '<p>cached</p>' : null;},
     async fetchArticle(value, request) {calls.push(['fetchArticle', request]); return '<p>fetched</p>';},
     async pdfMetadata(value, request) {calls.push(['pdfMetadata', request]); return {filename: 'a.pdf', size: 10, document_id: 'opaque-doc', source: 'upload', text_status: 'ready', pages: 1};},
-    async readPdfRange(value, request) {calls.push(['readPdfRange', request]); return new Uint8Array(request.end - request.begin);},
     async pdfStatus() {return {downloadedBytes: 0, totalBytes: 10, complete: false};},
     cancel(value, requestId) {calls.push(['cancel', requestId]);},
     async usage() {return {article: 0, images: 0};}, async clear() {return [];},
@@ -113,6 +112,32 @@ test('status batches are written in one lease-checked transaction, at most start
   assert.equal(f.stats.transactions, before + 1, 'A repeated resolution is not rewritten');
   f.e.status([{key: 'b', state: 'failed', manual: false, retryAt: 5000, code: 'HTTP_503'}]); f.advance(100); await tick();
   assert.deepEqual(f.row('b'), {is_downloaded: 3, is_auto_cached: 1}); assert.equal(f.stats.transactions, before + 2);
+});
+
+test('a failed status transaction re-queues its batch behind newer states and retries with backoff', async t => {
+  const f = setup(); t.after(() => f.db.close());
+  f.bookmark('a', {createdAt: '2026-10-02'}); f.bookmark('b', {createdAt: '2026-10-01'});
+  await f.start(); const before = f.stats.transactions, write = f.raw.writeTransaction;
+  let failures = 1;
+  f.raw.writeTransaction = async work => {if (failures > 0) {failures--; f.stats.transactions++; throw new Error('SQLITE_BUSY');} return write(work);};
+  f.e.status([{key: 'a', state: 'downloading', manual: false}, {key: 'b', state: 'downloading', manual: false}]);
+  f.advance(60); await tick();
+  assert.equal(f.stats.transactions, before + 1); assert.equal(f.row('a'), null, 'The failed batch wrote nothing');
+  f.e.status([{key: 'a', state: 'complete', manual: false}]);
+  f.advance(60); await tick(); assert.equal(f.stats.transactions, before + 1, 'The retry waits for its backoff');
+  f.advance(200); await tick();
+  assert.equal(f.stats.transactions, before + 2);
+  assert.deepEqual(f.row('a'), {is_downloaded: 2, is_auto_cached: 1}, 'A newer state supersedes the re-queued one');
+  assert.deepEqual(f.row('b'), {is_downloaded: 1, is_auto_cached: 1}, 'The failed batch is not lost');
+});
+
+test('a failed status transaction after revocation is dropped, not retried', async t => {
+  const f = setup(); t.after(() => f.db.close());
+  f.bookmark('a'); await f.start(); const before = f.stats.transactions;
+  f.raw.writeTransaction = async () => {f.stats.transactions++; f.coordinator.cancel(); throw new Error('revoked');};
+  f.e.status([{key: 'a', state: 'downloading', manual: false}]);
+  f.advance(60); await tick(); f.advance(10000); await tick();
+  assert.equal(f.stats.transactions, before + 1); assert.equal(f.timers.length, 0);
 });
 
 test('an interaction defers status persistence until it ends or the maximum delay elapses', async t => {
@@ -378,16 +403,15 @@ test('foreground reads go through the engine with cancellation, descriptor norma
   const descriptor = await f.coordinator.getPdfMetadata('doc');
   assert.deepEqual(descriptor, {filename: 'a.pdf', size: 10, document_id: 'opaque-doc', source: 'upload', text_status: 'ready', pages: 1, url: '/v1/bookmark/pdf?bookmark_uid=doc'});
   assert.equal(f.e.calls.find(call => call[0] === 'pdfMetadata')[1].allowNetwork, true);
-  assert.equal((await f.coordinator.readPdfRange('doc', descriptor, 2, 6)).byteLength, 4);
-  await assert.rejects(f.coordinator.readPdfRange('doc', descriptor, 0, 11), /Invalid PDF byte range/);
+  assert.equal('readPdfRange' in f.coordinator, false, 'PDF bytes are served natively to the Reader page, not through JavaScript');
   const controller = new AbortController();
   f.e.engine.fetchArticle = () => new Promise(() => {});
   const pending = f.coordinator.getArticleContent('slow', undefined, controller.signal); await tick(); controller.abort();
   await assert.rejects(pending, {name: 'AbortError'}); assert.ok(f.e.calls.some(call => call[0] === 'cancel'));
   f.e.engine.pdfMetadata = async () => {throw Object.assign(new Error('denied'), {code: 'ERR_HTTP_404'});};
   await assert.rejects(f.coordinator.getPdfMetadata('doc'), error => error.name === 'ApiError' && error.status === 404 && error.stage === 'pdf-metadata');
-  f.e.engine.readPdfRange = async () => {throw Object.assign(new Error('offline'), {code: 'NETWORK'});};
-  await assert.rejects(f.coordinator.readPdfRange('doc', descriptor, 0, 4), error => error.name === 'DataTransportError' && error.kind === 'network' && error.stage === 'pdf-range');
+  f.e.engine.pdfMetadata = async () => {throw Object.assign(new Error('offline'), {code: 'NETWORK'});};
+  await assert.rejects(f.coordinator.getPdfMetadata('doc'), error => error.name === 'DataTransportError' && error.kind === 'network' && error.stage === 'pdf-metadata');
   f.coordinator.setOnline(false); await f.coordinator.getPdfMetadata('doc').catch(() => undefined);
   assert.deepEqual(f.e.calls.filter(call => call[0] === 'setConditions').at(-1)[1], {online: false, downloadImages: true});
 });

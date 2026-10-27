@@ -44,10 +44,24 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
   var html = ""
     set(value) { field = if (detached) "" else value }
   var pageId = ""
-  private var pdfMode = false
+  @Volatile private var pdfMode = false
   fun setPdfMode(value: Boolean) {
     if (pdfMode != value && (loaded != null || security != null)) { detach(); return }
     pdfMode = value
+  }
+  /** The document whose byte ranges this PDF host serves to its page; immutable once set. */
+  @Volatile private var pdfSource: SlaxPdfSource? = null
+  fun setPdfSource(raw: Map<*, *>?) {
+    val next = SlaxPdfSource.parse(raw)
+    if (raw != null && next == null) { emit("error", mapOf("message" to "Invalid PDF source", "code" to "pdfSource")); detach(); return }
+    if (pdfSource != null && pdfSource != next) { detach(); return }
+    pdfSource = next
+  }
+  // Requests arrive on WebView worker threads; the scope reads only volatile state of this view.
+  private val pdfRanges = SlaxPdfRanges({ SlaxOfflineEngines.engine(context) }, SlaxReaderSecurity.PDF_ORIGIN) {
+    val owner = resourceOwner
+    val source = pdfSource
+    if (!pdfMode || resourceHandler.isFixture || detached || owner == null || owner != activeOwner || loadedOwner != owner || source == null) null else source to owner
   }
   private var security: SlaxReaderSecurity? = null
   private var protectedHosts: List<String>? = null
@@ -59,7 +73,7 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
   }
   private var loaded: String? = null
   private var loadedPageId: String? = null
-  private var loadedOwner: String? = null
+  @Volatile private var loadedOwner: String? = null
   private var generation = 0
   private var navigationStarted = false
   private var evaluationSequence = 0
@@ -155,6 +169,9 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
       }
       override fun onPageFinished(view: WebView, url: String?) { emit("loadEnd") }
       override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+        if (pdfMode && !request.isForMainFrame) pdfRanges.handle(request.url.toString(), request.method, request.requestHeaders.orEmpty())?.let {
+          return WebResourceResponse(it.mimeType, null, it.status, it.reason, it.headers, it.body)
+        }
         if (pdfMode && !request.isForMainFrame && request.url.scheme in listOf("blob", "data")) return null
         if (pdfMode || request.isForMainFrame || request.url.scheme in listOf("slaxmedia", "slaxmedias", "slaxstatic", "slaxstatics") && request.method != "GET") return WebResourceResponse("text/plain", "UTF-8", java.io.ByteArrayInputStream(ByteArray(0)))
         return resourceHandler.intercept(request.url.toString(), request.requestHeaders)
@@ -214,7 +231,7 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
       return
     }
     if (html.isNotEmpty() && pageId.isNotEmpty()) {
-      resourceHandler.cancelAll(); loaded = html; loadedPageId = pageId; loadedOwner = resourceOwner; generation++
+      resourceHandler.cancelAll(); pdfRanges.cancelAll(); loaded = html; loadedPageId = pageId; loadedOwner = resourceOwner; generation++
       var document = try { if (pdfMode) SlaxReaderSecurity.pdfDocument(html, pageId) else SlaxReaderSecurity.document(html) } catch (_: Exception) { detach(); return }
       if (resourceHandler.isFixture && !pdfMode) {
         val policy = "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob: slaxstatic: slaxstatics:; media-src data: blob:; connect-src 'none'; frame-src 'none'; child-src 'none'; base-uri 'none'; form-action 'none'\">"
@@ -229,7 +246,7 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
     detached = true; generation++
     val pending = evaluations.values.toList(); evaluations.clear()
     pending.forEach { it.reject("E_READER_RELEASED", "Reader page was released", null) }
-    activeViews.remove(this); resourceHandler.close()
+    activeViews.remove(this); resourceHandler.close(); pdfRanges.close()
     html = ""; loaded = null; loadedPageId = null; loadedOwner = null
     val released = retainedWebView
     retainedWebView = null

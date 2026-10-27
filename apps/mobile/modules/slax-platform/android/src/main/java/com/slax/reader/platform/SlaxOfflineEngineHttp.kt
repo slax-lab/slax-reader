@@ -16,10 +16,10 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Runs blocking IO on Dispatchers.IO; coroutine cancellation interrupts the thread and invokes [cancel] to close sockets. */
-internal suspend fun <T> slaxBlocking(cancel: () -> Unit = {}, work: () -> T): T = coroutineScope {
+internal suspend fun <T> slaxBlocking(cancel: () -> Unit = {}, dispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO, work: () -> T): T = coroutineScope {
   val finished = AtomicBoolean(false)
   val watcher = launch(start = CoroutineStart.UNDISPATCHED) { try {awaitCancellation()} finally {if (!finished.get()) cancel()} }
-  try {runInterruptible(Dispatchers.IO) { work() }} finally {finished.set(true); watcher.cancel()}
+  try {runInterruptible(dispatcher) { work() }} finally {finished.set(true); watcher.cancel()}
 }
 
 internal class SlaxOfflineResponse(val status: Int, val headers: Map<String, String>, val body: ByteArray)

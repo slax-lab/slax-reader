@@ -1,5 +1,6 @@
 import Foundation
 import CryptoKit
+import WebKit
 
 struct Failure: Error { let code: String }
 final class Recorder {
@@ -26,6 +27,27 @@ func value(_ body: (SlaxOfflineReply) -> Void) -> Any? {
 }
 func rejection(_ body: (SlaxOfflineReply) -> Void) -> String {
   switch settle(body) { case .success: fatalError("Expected rejection"); case .failure(let failure): return failure.code }
+}
+/// Runs the main queue, where scheme-handler replies are delivered, until [condition] holds.
+func pump(_ label: String, seconds: Double = 20, _ condition: () -> Bool) {
+  let end = Date().addingTimeInterval(seconds)
+  while !condition() { if Date() >= end { precondition(seconds < 1, "Timed out waiting for " + label); return }; RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+}
+final class SchemeTask: NSObject, WKURLSchemeTask {
+  let request: URLRequest
+  var response: HTTPURLResponse?
+  var body = Data()
+  var finished = false
+  var failure: Error?
+  init(_ request: URLRequest) { self.request = request }
+  func didReceive(_ response: URLResponse) { self.response = response as? HTTPURLResponse }
+  func didReceive(_ data: Data) { body.append(data) }
+  func didFinish() { finished = true }
+  func didFailWithError(_ error: Error) { failure = error }
+  var done: Bool { finished || failure != nil }
+  var status: Int { response?.statusCode ?? 0 }
+  func header(_ name: String) -> String? { response?.value(forHTTPHeaderField: name) }
+  var code: String? { (try? JSONSerialization.jsonObject(with: body)) .flatMap { $0 as? [String: Any] }?["code"] as? String }
 }
 func until(_ label: String, seconds: Double = 20, _ condition: () -> Bool) {
   let end = Date().addingTimeInterval(seconds)
@@ -134,17 +156,93 @@ func until(_ label: String, seconds: Double = 20, _ condition: () -> Bool) {
     let documentId = String(repeating: "a", count: 64)
     let document = try Data(contentsOf: root.appendingPathComponent("pdf/v2/" + Data(("[\"\(origin)\",\"user-1\"]").utf8).base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "") + "/pdf-a/document.pdf"))
     precondition(document.count == pdfSize && document.enumerated().allSatisfy { Int($0.element) == $0.offset % 251 })
-    let local = value { engine.readPdfRange("acct", ["key": "pdf-a", "id": "pdf-a", "documentId": documentId, "size": pdfSize, "begin": 1000, "end": 5000, "requestId": "p1"], reply: $0) } as! Data
-    precondition(local == document.subdata(in: 1000..<5000))
-    let cached = value { engine.pdfMetadata("acct", ["key": "pdf-a", "id": "pdf-a", "requestId": "p2", "allowNetwork": false], reply: $0) } as! [String: Any]
-    precondition(cached["document_id"] as? String == documentId && cached["url"] as? String == "/v1/bookmark/pdf?bookmark_uid=pdf-a")
-    let pdfRequests = counts()["pdf:pdf-a"]
-    precondition(pdfRequests == 3, "Expected three resumable windows, got \(String(describing: pdfRequests))")
-    let full = value { engine.readPdfRange("acct", ["key": "pdf-full", "id": "pdf-full", "documentId": documentId, "size": pdfSize, "begin": 70_000, "end": 70_100, "requestId": "p3"], reply: $0) } as! Data
-    precondition(full == document.subdata(in: 70_000..<70_100))
-    let remote = value { engine.pdfMetadata("acct", ["key": "pdf-full", "id": "pdf-full", "requestId": "p4", "allowNetwork": true], reply: $0) } as! [String: Any]
-    precondition(remote["size"] as? Int64 == Int64(pdfSize))
+    precondition(counts()["pdf:pdf-a"] == 3, "Expected three resumable windows, got \(String(describing: counts()["pdf:pdf-a"]))")
+
+    // A complete PDF answers its descriptor locally without any network request; an incomplete one still fetches it.
+    let metadataBefore = counts()["metadata:pdf-a"] ?? 0
+    let complete = value { engine.pdfMetadata("acct", ["key": "pdf-a", "id": "pdf-a", "requestId": "p2", "allowNetwork": true], reply: $0) } as! [String: Any]
+    precondition(complete["document_id"] as? String == documentId && complete["url"] as? String == "/v1/bookmark/pdf?bookmark_uid=pdf-a")
+    let cached = value { engine.pdfMetadata("acct", ["key": "pdf-a", "id": "pdf-a", "requestId": "p2b", "allowNetwork": false], reply: $0) } as! [String: Any]
+    precondition(cached["document_id"] as? String == documentId)
+    precondition((counts()["metadata:pdf-a"] ?? 0) == metadataBefore, "A complete PDF requested metadata")
+
+    // Byte ranges reach the page only through the PDF host's scheme handler, scoped to its bound document and owner.
+    func source(_ key: String) -> SlaxPdfSource { SlaxPdfSource(["id": key, "documentId": documentId, "size": pdfSize])! }
+    var bound: (source: SlaxPdfSource, owner: String)? = (source("pdf-a"), "acct")
+    let handler = SlaxPdfSchemeHandler(); handler.engine = { engine }; handler.scope = { bound }
+    func fetch(_ path: String, range: String? = nil, method: String = "GET", wait: Bool = true) -> SchemeTask {
+      var request = URLRequest(url: URL(string: "slaxpdf://pdf" + path)!); request.httpMethod = method
+      if let range { request.setValue(range, forHTTPHeaderField: "Range") }
+      let task = SchemeTask(request); handler.start(task)
+      if wait { pump("scheme response \(path)") { task.done } }
+      return task
+    }
+    let path = { (key: String) in "/pdf/\(key)/\(documentId)/\(pdfSize)" }
+    let local = fetch(path("pdf-a") + "?request=r1", range: "bytes=1000-4999")
+    precondition(local.status == 206 && local.body == document.subdata(in: 1000..<5000) && local.finished, "Local range \(local.status)")
+    precondition(local.header("Content-Range") == "bytes 1000-4999/\(pdfSize)" && local.header("Content-Length") == "4000" && local.header("Accept-Ranges") == "bytes" && local.header("Content-Type") == "application/pdf")
+    let tail = fetch(path("pdf-a") + "?request=r2", range: "bytes=\(pdfSize - 10)-")
+    precondition(tail.status == 206 && tail.body == document.suffix(10) && tail.header("Content-Range") == "bytes \(pdfSize - 10)-\(pdfSize - 1)/\(pdfSize)")
+    let clamped = fetch(path("pdf-a") + "?request=r3", range: "bytes=\(pdfSize - 4)-\(pdfSize + 100)")
+    precondition(clamped.status == 206 && clamped.body.count == 4)
+    for range in [nil, "bytes=\(pdfSize)-\(pdfSize + 5)", "bytes=0-\(2 * 1024 * 1024)", "bytes=0-1,4-5", "bytes=-10", "bytes=9-3"] {
+      let rejected = fetch(path("pdf-a") + "?request=r4", range: range)
+      precondition(rejected.status == 416 && rejected.code == "http_range_not_satisfiable", "Range \(String(describing: range)) gave \(rejected.status)")
+      if range == nil || range!.hasPrefix("bytes=\(pdfSize)") { precondition(rejected.header("Content-Range") == "bytes */\(pdfSize)") }
+    }
+    let head = fetch(path("pdf-a"), method: "HEAD")
+    precondition(head.status == 200 && head.header("Content-Length") == String(pdfSize) && head.body.isEmpty)
+    for other in ["/pdf/pdf-a/\(String(repeating: "c", count: 64))/\(pdfSize)?request=r5", "/pdf/pdf-a/\(documentId)/\(pdfSize + 1)?request=r5", path("pdf-full") + "?request=r5", "/other?request=r5"] {
+      let rejected = fetch(other, range: "bytes=0-9")
+      precondition(rejected.status == 404 && rejected.code == "invalid_request", "Unbound path \(other) gave \(rejected.status)")
+    }
+    precondition(fetch(path("pdf-a"), range: "bytes=0-9").status == 400)
+    precondition(fetch(path("pdf-a") + "?request=r6", range: "bytes=0-9", method: "POST").status == 404)
+    bound = nil
+    let unowned = fetch(path("pdf-a") + "?request=r7", range: "bytes=0-9")
+    precondition(unowned.status == 403 && unowned.code == "session_changed", "Unscoped host was served")
+    bound = (source("pdf-a"), "other")
+    let foreign = fetch(path("pdf-a") + "?request=r8", range: "bytes=0-9")
+    precondition(foreign.status == 403 && foreign.code == "session_changed", "Another owner was served")
+    precondition(counts()["pdf:pdf-a"] == 3, "Local ranges used the network")
+
+    // Missing ranges are fetched remotely at foreground priority, even with background acquisition saturated.
+    let pdfHeld = DispatchSemaphore(value: 0)
+    for _ in 0..<6 { engine.pdf.addOperation { _ = pdfHeld.wait(timeout: .now() + 10) } }
+    let background = try (0..<SlaxPdfTransfers.backgroundSlots).map { _ in try SlaxPdfTransfers.begin(owner: "acct", origin: origin, allowHTTP: true) }
+    precondition((try? SlaxPdfTransfers.begin(owner: "acct", origin: origin, allowHTTP: true)) == nil, "Background transfers are not bounded")
+    bound = (source("pdf-full"), "acct")
+    let remoteStart = Date()
+    let remote = fetch(path("pdf-full") + "?request=r9", range: "bytes=70000-70099")
+    precondition(remote.status == 206 && remote.body == document.subdata(in: 70_000..<70_100), "Remote range \(remote.status) \(remote.code ?? "")")
+    precondition(Date().timeIntervalSince(remoteStart) < 3, "A foreground range waited behind background PDF work")
+    background.forEach { SlaxPdfTransfers.end(owner: "acct", id: $0) }; for _ in 0..<6 { pdfHeld.signal() }
+    precondition(counts()["pdf:pdf-full"] == 1)
+    let fetched = value { engine.pdfMetadata("acct", ["key": "pdf-full", "id": "pdf-full", "requestId": "p4", "allowNetwork": true], reply: $0) } as! [String: Any]
+    precondition(fetched["size"] as? Int64 == Int64(pdfSize) && counts()["metadata:pdf-full"] == 1)
+    _ = value { engine.pdfMetadata("acct", ["key": "pdf-full", "id": "pdf-full", "requestId": "p4b", "allowNetwork": true], reply: $0) }
+    precondition(counts()["metadata:pdf-full"] == 2, "An incomplete PDF must refresh its descriptor")
     precondition(rejection { engine.pdfMetadata("acct", ["key": "pdf-gone", "id": "pdf-gone", "requestId": "p5"], reply: $0) } == "http_not_found")
+    bound = (source("pdf-etag"), "acct")
+    let mismatch = fetch(path("pdf-etag") + "?request=r10", range: "bytes=0-99")
+    precondition(mismatch.status == 502 && mismatch.code == "pdf_identity_mismatch", "Identity mismatch gave \(mismatch.status) \(mismatch.code ?? "")")
+
+    // An aborted page request (cancel ping or WebKit stop) cancels its native network work.
+    bound = (source("pdf-slow"), "acct")
+    let slow = fetch(path("pdf-slow") + "?request=slow-1", range: "bytes=0-99", wait: false)
+    until("slow range request") { counts()["pdf:pdf-slow"] == 1 }
+    precondition(fetch("/pdf-cancel/slow-1", method: "POST").status == 204)
+    pump("cancelled slow range") { slow.failure != nil }
+    until("slow range aborted") { counts()["pdf-slow:aborted"] == 1 }
+    let stopped = fetch(path("pdf-slow") + "?request=slow-2", range: "bytes=0-99", wait: false)
+    until("second slow range request") { counts()["pdf:pdf-slow"] == 2 }
+    handler.stop(stopped)
+    until("stopped slow range aborted") { counts()["pdf-slow:aborted"] == 2 }
+    let settleEnd = Date().addingTimeInterval(0.5)
+    pump("late callbacks", seconds: 0.6) { Date() >= settleEnd }
+    precondition(!stopped.done, "A stopped task received callbacks")
+    handler.close()
+    precondition(fetch(path("pdf-slow") + "?request=slow-3", range: "bytes=0-99").status == 403)
 
     let usage = value { engine.usage("acct", ["article-a", "pdf-a"], reply: $0) } as! [String: Any]
     precondition((usage["article"] as! Int64) > Int64(pdfSize + articleHtml.utf8.count) && usage["images"] as? Int64 == 7, "Usage \(usage)")

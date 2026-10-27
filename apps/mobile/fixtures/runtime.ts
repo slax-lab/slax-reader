@@ -216,7 +216,6 @@ export async function createFixtureRuntime(scenario: string, payload: FixturePay
         return queue ? queue.getArticleContent(id, owner, signal) : owner ? api.getCollectionBookmarkRawContent(id, owner, signal) : api.getBookmarkRawContent(id, signal);
       },
       getPdfMetadata: (id, owner, signal) => worker().getPdfMetadata(id, owner, signal),
-      readPdfRange: (id, descriptor, begin, end, owner, signal) => worker().readPdfRange(id, descriptor, begin, end, owner, signal),
       cachePdf: (id, owner) => worker().cachePdf(id, owner), pdfCacheStatus: (id, owner) => worker().pdfCacheStatus(id, owner),
       getDatabase: () => database, getRepositories: () => repositories, getCache: () => cache, getUpgradeSnapshot: () => upgrade, subscribeUpgrade: () => () => undefined};
     const network = payload.network;

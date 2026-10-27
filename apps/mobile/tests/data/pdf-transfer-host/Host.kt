@@ -37,7 +37,10 @@ fun main(args: Array<String>) {
   val forbiddenHeader = begin(); rejects {transfer(forbiddenHeader).open(url("full"), headers + ("Cookie" to "forbidden"))}; SlaxPdfTransfers.end("account-a", forbiddenHeader); drained()
   rejects {SlaxPdfTransfers.begin("account-a", "http://remote.test", true)}
   rejects {SlaxPdfTransfers.begin("account-a", origin, false)}
-  val capacity = (1..12).map {begin()}; rejects {begin()}; capacity.forEach {SlaxPdfTransfers.end("account-a", it)}; drained()
+  // Background acquisition is bounded below the total so an open Reader's foreground ranges always have transfers.
+  val capacity = (1..8).map {begin()}; rejects {begin()}
+  val reserved = (1..4).map {SlaxPdfTransfers.begin("account-a", origin, true, foreground = true)}; rejects {SlaxPdfTransfers.begin("account-a", origin, true, foreground = true)}
+  (capacity + reserved).forEach {SlaxPdfTransfers.end("account-a", it)}; drained()
   val slow = begin(); val slowTransfer = transfer(slow); slowTransfer.open(url("slow"), headers)
   val entered = CountDownLatch(1); var cancelled = false
   val reading = thread {entered.countDown(); cancelled = runCatching {while (slowTransfer.read() != null) {}}.isFailure}

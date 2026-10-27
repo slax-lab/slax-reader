@@ -74,8 +74,12 @@ function server() {
       if (request.headers.accept !== 'application/pdf' || request.headers['accept-encoding'] !== 'identity' || !match) problems.push('pdf range request');
       if (uid === 'pdf-full') {response.writeHead(200, {'Content-Type': 'application/pdf', 'Content-Length': PDF_SIZE}); response.end(pdfBytes(0, PDF_SIZE)); return;}
       const begin = Number(match[1]), end = Number(match[2]) + 1;
-      response.writeHead(206, {'Content-Type': 'application/pdf', 'Content-Length': end - begin, 'Content-Range': `bytes ${begin}-${end - 1}/${PDF_SIZE}`, ETag: `"${DOCUMENT}"`});
-      response.end(pdfBytes(begin, end));
+      const send = () => {
+        response.writeHead(206, {'Content-Type': 'application/pdf', 'Content-Length': end - begin, 'Content-Range': `bytes ${begin}-${end - 1}/${PDF_SIZE}`, ETag: `"${uid === 'pdf-etag' ? 'b'.repeat(64) : DOCUMENT}"`});
+        response.end(pdfBytes(begin, end));
+      };
+      if (uid === 'pdf-slow') {held.set('pdf-slow', send); response.on('close', () => {if (!response.writableEnded) count('pdf-slow:aborted');}); return;}
+      send();
       return;
     }
     response.writeHead(404); response.end();
@@ -91,7 +95,7 @@ test('actual Kotlin offline engine matches HTML extraction fixtures and acquires
   fake.http.listen(0); await once(fake.http, 'listening');
   try {
     const sources = ['SlaxFileStore.kt', 'SlaxReaderSecurity.kt', 'SlaxImageRegistry.kt', 'SlaxCachePaths.kt', 'SlaxImageModule.kt', 'SlaxPdfTransfer.kt',
-      'SlaxOfflineEngine.kt', 'SlaxOfflineEngineStore.kt', 'SlaxOfflineEngineHttp.kt', 'SlaxOfflineEngineHtml.kt', 'SlaxOfflineEngineJson.kt', 'SlaxOfflineEngineSession.kt', 'SlaxOfflineEnginePlan.kt', 'SlaxOfflineEngineArticles.kt', 'SlaxOfflineEnginePdf.kt'];
+      'SlaxOfflineEngine.kt', 'SlaxOfflineEngineStore.kt', 'SlaxOfflineEngineHttp.kt', 'SlaxOfflineEngineHtml.kt', 'SlaxOfflineEngineJson.kt', 'SlaxOfflineEngineSession.kt', 'SlaxOfflineEnginePlan.kt', 'SlaxOfflineEngineArticles.kt', 'SlaxOfflineEnginePdf.kt', 'SlaxPdfRanges.kt'];
     await run(process.env.SLAX_KOTLINC ?? 'kotlinc', ['-classpath', classpath, '-include-runtime', '-d', compiled, ...sources.map(file => resolve(source, file)),
       ...['ExpoModule.kt', 'Promise.kt'].map(file => resolve(root, 'tests/data/file-store-host', file)),
       ...['Context.kt', 'ApplicationInfo.kt', 'JSONObject.kt'].map(file => resolve(root, 'tests/reader/native-resources-host', file)), resolve(root, 'tests/data/offline-engine-host/Host.kt')]);

@@ -10,11 +10,11 @@ import {composeReaderError} from '../index'
 import {jsonArray, jsonObject} from '../model'
 import type {ReaderHandle} from '../ReaderWebView'
 import {ReaderCrashRecovery} from '../recovery'
-import {pdfFailureMessage, pdfMustInvalidate, rssReaderErrorCode} from './document-errors'
+import {pdfFailureMessage, pdfMustInvalidate, pdfRangeError, rssReaderErrorCode} from './document-errors'
 import type {MobileContext, ReaderDocumentTransitions, ReaderScope} from './types'
 
 interface DocumentPorts {
-  runtime: Pick<MobileContext['runtime'], 'beginArticleAccess' | 'getArticleContent' | 'getPdfMetadata' | 'readPdfRange'>
+  runtime: Pick<MobileContext['runtime'], 'beginArticleAccess' | 'getArticleContent' | 'getPdfMetadata'>
   api: Pick<MobileContext['api'], 'rssDetail' | 'rssSave'>
   repositories: Pick<NonNullable<MobileContext['repositories']>, 'getBookmark' | 'local'> | null
   cache: MobileContext['cache']
@@ -200,14 +200,6 @@ export function useReaderDocument(scope: ReaderScope, ports: DocumentPorts) {
     timer = setTimeout(() => void poll(), 5000)
     return () => {controller.abort(); if (timer !== undefined) clearTimeout(timer)}
   }, [runtime, bookmarkId, collectionOwnerId, pdf?.document_id, pdf?.text_status, appActive, scope.routeVisible, pdfPollGeneration, isAccountActive, load])
-  const readPdfRange = useCallback(async (begin: number, end: number, signal: AbortSignal) => {
-    if (!pdf || !isPdfHostCurrent()) throw Object.assign(new Error('PDF reader is inactive'), {name: 'ReaderOperationCancelled'})
-    try {return await runtime.readPdfRange(bookmarkId, pdf, begin, end, collectionOwnerId, signal)}
-    catch (error) {
-      if (!signal.aborted && isPdfHostCurrent() && pdfMustInvalidate(error)) {setContentError(previous => previous || pdfFailureMessage(error, t, 'pdf-range')); revokePdfAccess()}
-      throw error
-    }
-  }, [runtime, bookmarkId, collectionOwnerId, pdf, isPdfHostCurrent, t, revokePdfAccess])
   const saveRss = async () => {
     if (!rssEntryId || loading || rss?.bookmark_user_uuid || !rss?.article_url || !isAccountActive()) return
     setLoading(true); setRssError(null)
@@ -232,7 +224,13 @@ export function useReaderDocument(scope: ReaderScope, ports: DocumentPorts) {
     if (!isPdfHostCurrent() || contentErrorSnapshot.current) return
     if (error.name === 'ReaderProcessGone') {fail(error); return}
     if (error.name === 'AbortError' || error.name === 'ReaderOperationCancelled' || error.name === 'SessionChangedError') return
-    const message = pdfFailureMessage(error, t)
+    const range = pdfRangeError(error)
+    if (range !== error) {
+      const diagnostic = getDataErrorDiagnostic(range)
+      if (diagnostic.kind === 'cancelled' || diagnostic.kind === 'session') return
+      if (pdfMustInvalidate(range)) {const message = pdfFailureMessage(range, t, 'pdf-range'); contentErrorSnapshot.current = message; setContentError(previous => previous || message); revokePdfAccess(); return}
+    }
+    const message = pdfFailureMessage(range, t)
     contentErrorSnapshot.current = message; setContentError(message); setDocumentReady(false); transitions.current?.clearSelection()
   }
   const persistPdf = async (position: number, reason: string) => {
@@ -241,7 +239,7 @@ export function useReaderDocument(scope: ReaderScope, ports: DocumentPorts) {
   }
   const persistHtml = async (position: number) => {if (!isPreview && isAccountActive() && repositories) await repositories.local.update(cacheKey, {read_position: String(position)})}
   return {html, pdf, pdfSnapshot, rss, rssError, isPdf, pdfTextState, pdfTextMessage, loading, documentReady, initialPosition, contentError, contentErrorSnapshot, nativeFailure, readerGeneration,
-    scrollInfo, pdfPosition, attachPdfHost, isPdfHostCurrent, readPdfRange, load, saveRss, retryNative, handleNativeFailure, pdfError, persistPdf, persistHtml, abort,
+    scrollInfo, pdfPosition, attachPdfHost, isPdfHostCurrent, load, saveRss, retryNative, handleNativeFailure, pdfError, persistPdf, persistHtml, abort,
     ready: () => setDocumentReady(true), persist: () => {void pendingCacheWrite.current?.()},
     retryPdf: () => {setInitialPosition(pdfPosition.current); advanceReaderGeneration(); void load(true)}}
 }

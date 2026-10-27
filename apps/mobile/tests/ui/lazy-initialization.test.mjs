@@ -53,12 +53,12 @@ test('PDF helper import does not initialize resources until a PDF document is co
   let reads = 0;
   const {composePdfDocument} = moduleAt('../../src/reader/pdf-document.ts', name => {
     if (name === '../theme/index.ts') return theme;
-    if (name === './pdf-types.ts') return {PDF_ORIGIN: 'https://pdf.reader.slax.invalid/', PDF_BRIDGE_CHUNK_BYTES: 131072};
+    if (name === './pdf-types.ts') return {PDF_ORIGIN: 'https://pdf.reader.slax.invalid/', pdfCsp: nonce => `script-src 'nonce-${nonce}'`};
     assert.equal(name, '../../assets/pdf/bundle.json');
     reads++; return {script: '', worker: '', resources: {}};
   });
   assert.equal(reads, 0);
-  const html = composePdfDocument({pageId: 'synthetic', descriptor: {filename: 'synthetic.pdf', size: 1, document_id: 'a'.repeat(64)}, currentUserId: 1});
+  const html = composePdfDocument({pageId: 'synthetic', descriptor: {filename: 'synthetic.pdf', size: 1, document_id: 'a'.repeat(64)}, source: `/pdf/synthetic/${'a'.repeat(64)}/1`, currentUserId: 1});
   assert.equal(reads, 1);
   assert.match(html, /__SLAX_PDF_ASSETS__/);
 });

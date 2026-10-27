@@ -66,6 +66,12 @@
   - hide iOS 26 scroll-edge effects.
 - [x] 7.8 After the build-790/791 review: the HTML article shows as soon as its HTML is ready, with no loading cover and no wait for external resources. The saved position is restored once at DOM readiness and the first height, and is never adjusted again before the user scrolls (with tests).
 
+- [x] 7.9 After the build-792 review:
+  - Keep the skeleton over the HTML host until DOM readiness, restore and first paint, with no load-event wait and no timeout.
+  - Serve PDF bytes through a native scheme handler instead of the JS bridge, with a foreground queue.
+  - Open completely downloaded PDFs without any metadata network request.
+  - Add tests for all three.
+
 ## 8. Verification and delivery
 
 - [x] 8.1 Run `pnpm mobile -- check`, `pnpm mobile -- bundle`, `pnpm mobile -- test:native-resources`, `pnpm exec openspec validate --all --strict` and `git diff --check`.

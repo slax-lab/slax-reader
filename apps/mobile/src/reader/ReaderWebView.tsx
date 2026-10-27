@@ -99,6 +99,11 @@ export interface ReaderWebViewProps {
   onPositionFlush?: (positionPixels: number, reason: PositionFlushReason, pageId: string) => Promise<void> | void
   onExternalUrl?: (url: string) => void
   onError?: (error: Error) => void
+  /**
+   * Called once per page after DOM readiness, the once-only initial restore and one more frame, so the restored first screen has
+   * painted. It never waits for the window load event (external images, iframes, fonts).
+   */
+  onPresentable?: (pageId: string) => void
   /** Detect committed route removal when React unmounts before the state event. */
   isRouteRemoved?: () => boolean
   /** Invoked only in a controlled debug fixture; normal application renders omit it. */
@@ -136,6 +141,7 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
   const processGone = useRef(false)
   const initialPositionConsumed = useRef(false)
   const initialPositionInFlight = useRef(false)
+  const presentFrame = useRef<number | null>(null)
   const nativeInsetWork = useRef<Promise<void>>(Promise.resolve())
   const appliedInsets = useRef<{tag: number; top: number; bottom: number; work: Promise<void>} | null>(null)
   const observedPosition = useRef<{scrollPoints: number; contentHeightPoints: number; viewportHeightPoints: number} | null>(null)
@@ -311,6 +317,7 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
     })
     return () => {
       subscription.remove()
+      if (presentFrame.current !== null) {cancelAnimationFrame(presentFrame.current); presentFrame.current = null}
       observeLifecycle({kind: 'unmount'})
       if (!exited.current && callbacks.current.isRouteRemoved?.()) {
         void commitExit().catch(reportError)
@@ -403,7 +410,10 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
       if (initial !== null && initial !== undefined && Number.isFinite(initial) && initial >= 0) {
         await scrollTo(legacyPositionToScrollPoints(platform, initial, geometryRef.current), false)
       }
-      if (!exited.current) {initialPositionConsumed.current = true; observePosition('restore')}
+      if (!exited.current) {
+        initialPositionConsumed.current = true; observePosition('restore')
+        presentFrame.current = requestAnimationFrame(() => {presentFrame.current = null; if (!exited.current) callbacks.current.onPresentable?.(props.pageId)})
+      }
     } finally {initialPositionInFlight.current = false}
   }
 

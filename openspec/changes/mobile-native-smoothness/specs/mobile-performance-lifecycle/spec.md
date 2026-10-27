@@ -44,16 +44,16 @@ Only a true background transition SHALL engage the storage-safety pause. Transie
 
 ### Requirement: Reader document host mounts after the route transition
 
-On Android, where the push transition runs on the UI thread, the HTML Reader's native document host SHALL be created after the native push transition completes, or immediately when no transition occurs. On iOS, where the push is Core Animation driven, the host MAY be created during the transition. A skeleton SHALL show only while the article HTML is unavailable. Once the HTML is ready and the host is mounted, the article SHALL be shown directly, with no loading cover over the host and no wait for external resources. The saved reading position SHALL be restored once, when the document reports DOM readiness and its first height, and SHALL NOT be adjusted again by the application before the user scrolls. Cached article bodies SHALL be read on a foreground-priority native path that does not wait behind background acquisition, concurrently with the bookmark record lookup. The Reader route's navigation-bar configuration SHALL be final from the first frame (transparent bar, fixed-size trailing slot), so opening the Reader never re-lays out the back button. Static bridge and host scripts SHALL be installed without being rebuilt per article. On Android, document height SHALL be measured by the native host and applied to the outer native scroller without a React layout round trip per height change. On iOS, inset updates SHALL be ignored when unchanged and SHALL NOT reset the scroll offset or stop deceleration while the user is dragging or the view is decelerating.
+On Android, where the push transition runs on the UI thread, the HTML Reader's native document host SHALL be created after the native push transition completes, or immediately when no transition occurs. On iOS, where the push is Core Animation driven, the host MAY be created during the transition. The skeleton SHALL remain over the mounted HTML host until the document reports DOM readiness, its once-only initial position restore has been applied and the restored first screen has painted. It SHALL then be removed, without waiting for external resources or the page load event and without any timeout. A content or native failure SHALL remove it immediately. The saved reading position SHALL be restored once, when the document reports DOM readiness and its first height, and SHALL NOT be adjusted again by the application before the user scrolls. Cached article bodies SHALL be read on a foreground-priority native path that does not wait behind background acquisition, concurrently with the bookmark record lookup. The Reader route's navigation-bar configuration SHALL be final from the first frame (transparent bar, fixed-size trailing slot), so opening the Reader never re-lays out the back button. Static bridge and host scripts SHALL be installed without being rebuilt per article. On Android, document height SHALL be measured by the native host and applied to the outer native scroller without a React layout round trip per height change. On iOS, inset updates SHALL be ignored when unchanged and SHALL NOT reset the scroll offset or stop deceleration while the user is dragging or the view is decelerating.
 
 #### Scenario: A cached article is opened
 - **WHEN** the user taps a cached article in the Library
 - **THEN** on Android the push transition runs without concurrent WebView creation or document composition
-- **AND** the article is shown as soon as its HTML is ready, without a loading cover
+- **AND** the article appears at its restored position without a blank frame or a visible jump from the top
 
 #### Scenario: An article references slow external resources
 - **WHEN** a cached article contains images, frames or fonts that load slowly or never finish
-- **THEN** the article is shown without waiting for those resources or the page load event
+- **THEN** the article is presented without waiting for those resources or the page load event
 - **AND** the saved position is restored once when the DOM and first height are known
 - **AND** the application does not move the position again when late resources change the layout
 
@@ -69,3 +69,17 @@ On Android, where the push transition runs on the UI thread, the HTML Reader's n
 #### Scenario: Images load while scrolling on Android
 - **WHEN** document height changes repeatedly as images load during an outer-scroller fling
 - **THEN** height is applied natively without re-rendering the Reader screen for each change
+
+### Requirement: PDF bytes and metadata stay native and local-first
+
+PDF document bytes SHALL be delivered to the PDF reader page by a native same-origin resource handler that answers range requests from the offline engine. Committed local bytes SHALL be served first, and remote ranges fetched with the existing credential, identity and caching rules. Bytes SHALL NOT be transported through the JavaScript application runtime. Foreground PDF reads SHALL NOT wait behind background PDF acquisition. When a PDF is completely downloaded, opening it SHALL use the cached descriptor and SHALL NOT make a metadata network request. An incomplete PDF SHALL keep fetching its descriptor, falling back to the cached descriptor on network or credential failure.
+
+#### Scenario: A downloaded PDF is opened online
+- **WHEN** the user opens a PDF whose document is completely cached
+- **THEN** no metadata or byte request is sent to the network
+- **AND** pages render from the local file without passing bytes through the JavaScript runtime
+
+#### Scenario: A partially cached PDF is read
+- **WHEN** the reader requests a range that is not yet cached
+- **THEN** the native handler fetches that range at foreground priority, even while background PDF downloads run
+- **AND** a request for a different account owner, or a document whose identity changed, is rejected

@@ -30,7 +30,6 @@ export interface SlaxOfflineEngineNative {
   readArticle(owner: string, key: string): Promise<string | null>;
   fetchArticle(owner: string, request: OfflineContentRequest & {force: boolean}): Promise<string>;
   pdfMetadata(owner: string, request: OfflineContentRequest & {allowNetwork: boolean}): Promise<PdfDescriptor>;
-  readPdfRange(owner: string, request: OfflineContentRequest & {documentId: string; size: number; begin: number; end: number}): Promise<Uint8Array>;
   pdfStatus(owner: string, key: string): Promise<OfflinePdfStatus>;
   cancel(owner: string, requestId: string): void;
   usage(owner: string, keys: string[]): Promise<{article: number; images: number}>;
@@ -51,7 +50,7 @@ export function unavailableOfflineEngine(): OfflineEngine {
   return {
     open: async () => ({adopted: [], dropped: [], migrationPending: false}), commitMigration: async () => {}, suspend: async () => {}, resume() {}, close: async () => {},
     setCredential() {}, setConditions() {}, applyPlan() {}, evict: async () => [], protect: (_owner, key) => key, release() {},
-    readArticle: async () => null, fetchArticle: unavailable, pdfMetadata: unavailable, readPdfRange: unavailable,
+    readArticle: async () => null, fetchArticle: unavailable, pdfMetadata: unavailable,
     pdfStatus: async () => ({downloadedBytes: 0, totalBytes: 0, complete: false}), cancel() {},
     usage: async () => ({article: 0, images: 0}), clear: async () => [],
     addListener: () => ({remove() {}}),

@@ -37,7 +37,7 @@ internal sealed class SlaxPdfBody {class Range(val bytes: ByteArray) : SlaxPdfBo
 
 /** `GET /v1/bookmark/pdf` through `SlaxPdfTransfer`, validated like `SlaxApi.transferPdf`. Full 200 bodies are streamed to [sink] on an IO thread. */
 internal suspend fun transferPdf(scope: SlaxOfflineScope, token: String, id: String, documentId: String, size: Long, begin: Long, end: Long, work: SlaxOfflineWork,
-  sink: (ByteArray, Long) -> Unit): SlaxPdfBody {
+  foreground: kotlinx.coroutines.CoroutineDispatcher? = null, sink: (ByteArray, Long) -> Unit): SlaxPdfBody {
   if (!Regex("^[A-Za-z0-9_-]+$").matches(id)) throw SlaxOfflineError.invalid
   val url = "${scope.origin}/v1/bookmark/pdf?bookmark_uid=$id"
   val headers = mapOf("Authorization" to "Bearer $token", "Accept" to "application/pdf", "Range" to "bytes=$begin-${end - 1}", "X-CLIENT-TYPE" to scope.clientType, "X-CLIENT-VERSION" to scope.clientVersion)
@@ -45,8 +45,8 @@ internal suspend fun transferPdf(scope: SlaxOfflineScope, token: String, id: Str
     work.check()
     val handle = AtomicReference<String?>()
     val outcome = try {
-      Result.success(slaxBlocking({ handle.get()?.let { SlaxPdfTransfers.end(scope.owner, it) } }) {
-        val transferId = SlaxPdfTransfers.begin(scope.owner, scope.origin, scope.allowHttp); handle.set(transferId)
+      Result.success(slaxBlocking({ handle.get()?.let { SlaxPdfTransfers.end(scope.owner, it) } }, foreground ?: kotlinx.coroutines.Dispatchers.IO) {
+        val transferId = SlaxPdfTransfers.begin(scope.owner, scope.origin, scope.allowHttp, foreground != null); handle.set(transferId)
         val hook = work.attach { SlaxPdfTransfers.end(scope.owner, transferId) }
         try {
           val transfer = SlaxPdfTransfers.get(scope.owner, transferId)
@@ -143,10 +143,22 @@ private suspend fun SlaxOfflineSession.cachedDescriptor(key: String, request: Sl
   if (!current(request)) return
   if (descriptor != null) finish(request, descriptor.result(id)) else finish(request, SlaxOfflineError.network)
 }
+/** The stored descriptor and whether `document.pdf` is the complete copy of exactly that identity. */
+internal fun SlaxOfflineSession.localDescriptor(store: SlaxFileStore, key: String): Pair<SlaxPdfDescriptor, Boolean>? {
+  val descriptor = layout.readDescriptor(store, key) ?: return null
+  val complete = layout.readPart(store, key)?.matches(descriptor) == true && layout.completeDocument(store, key) != null
+  return descriptor to complete
+}
+/** A complete local copy answers from its stored descriptor without any network request; otherwise the current behavior applies. */
 internal fun SlaxOfflineSession.pdfMetadata(raw: Map<*, *>, reply: SlaxOfflineReply) {
   val access = try {SlaxOfflineTask.access(raw)} catch (error: SlaxOfflineError) {reply.fail(error); return}
   val request = register(raw["requestId"], access.key, reply) ?: return
-  launch(request) { if (raw["allowNetwork"] == false) cachedDescriptor(access.key, request, access.id) else remoteMetadata(access, request, null) }
+  launch(request) {
+    if (raw["allowNetwork"] == false) return@launch cachedDescriptor(access.key, request, access.id)
+    val local = try {io { localDescriptor(it, access.key) }} catch (error: SlaxOfflineError) {if (error.code == SlaxOfflineError.revoked.code) throw error; null}
+    if (!current(request)) return@launch
+    if (local?.second == true) finish(request, local.first.result(access.id)) else remoteMetadata(access, request, null)
+  }
 }
 private suspend fun SlaxOfflineSession.remoteMetadata(access: SlaxOfflineTask.Access, request: SlaxOfflineSession.Request, rejected: Long?) {
   val credential = awaitCredential { rejected == null || it.generation != rejected }
@@ -169,6 +181,9 @@ private suspend fun SlaxOfflineSession.remoteMetadata(access: SlaxOfflineTask.Ac
 
 // Range reads
 
+/** One byte range `[begin, end)` of the document [documentId]/[size] of bookmark [key] ([id], collection [owner]). */
+internal data class SlaxPdfRange(val key: String, val id: String, val owner: String?, val documentId: String, val size: Long, val begin: Long, val end: Long)
+
 /** Bytes from the complete document or the committed prefix of the resumable part. */
 private fun localRange(store: SlaxFileStore, layout: SlaxOfflineLayout, key: String, documentId: String, size: Long, begin: Long, end: Long): ByteArray? {
   val part = layout.readPart(store, key)?.takeIf { it.documentId == documentId && it.size == size && it.committed >= end } ?: return null
@@ -180,25 +195,27 @@ private fun localRange(store: SlaxFileStore, layout: SlaxOfflineLayout, key: Str
   if (store.size(layout.document(key)) != size) return null
   return store.readRange(layout.document(key), begin, length)
 }
-internal fun SlaxOfflineSession.readPdfRange(raw: Map<*, *>, reply: SlaxOfflineReply) {
-  val access = try {SlaxOfflineTask.access(raw)} catch (error: SlaxOfflineError) {reply.fail(error); return}
-  val documentId = SlaxOfflineValues.text(raw["documentId"], 256); val size = SlaxOfflineValues.int(raw["size"])
-  val begin = SlaxOfflineValues.int(raw["begin"]); val end = SlaxOfflineValues.int(raw["end"])
-  if (documentId == null || size == null || begin == null || end == null || raw["requestId"] !is String || size !in 1..SlaxPdfDescriptor.MAX_BYTES || begin < 0 || end <= begin || end > size || end - begin > PDF_WINDOW) {
+/**
+ * Callable from any thread (the WebView request thread): committed bytes are read on the caller; only a miss registers on the
+ * control thread and fetches the remote range (credential handling, identity and length validation) on `pdfForeground`.
+ * A reply the caller already settled (an aborted page request) never starts network work.
+ */
+internal fun SlaxOfflineSession.servePdfRange(range: SlaxPdfRange, requestId: String, reply: SlaxOfflineReply) {
+  if (range.size !in 1..SlaxPdfDescriptor.MAX_BYTES || range.begin < 0 || range.end <= range.begin || range.end > range.size || range.end - range.begin > PDF_WINDOW) {
     reply.fail(SlaxOfflineError.invalid); return
   }
-  val request = register(raw["requestId"], access.key, reply) ?: return
-  launch(request) {
-    val local = try {Result.success(io { localRange(store(request.work.lease), layout, access.key, documentId, size, begin, end) })} catch (error: SlaxOfflineError) {Result.failure(error)}
-    if (!current(request)) return@launch
-    val bytes = local.getOrNull()
-    val error = local.exceptionOrNull() as? SlaxOfflineError
-    when {
-      bytes != null -> finish(request, bytes)
-      error != null && error.code in listOf(SlaxOfflineError.revoked.code, SlaxOfflineError.cancelled.code) -> finish(request, error)
-      else -> remoteRange(access, request, documentId, size, begin, end, null)
-    }
+  val local = try {localRange(store(), layout, range.key, range.documentId, range.size, range.begin, range.end)} catch (error: Exception) {
+    val failure = SlaxOfflineError.from(error, lease)
+    if (failure.code == SlaxOfflineError.revoked.code || failure.code == SlaxOfflineError.cancelled.code) return reply.fail(failure)
+    null
   }
+  if (local != null) return reply.resolve(local)
+  lane.launch {
+    if (closed) return@launch reply.fail(SlaxOfflineError.revoked)
+    if (reply.isSettled) return@launch
+    val request = register(requestId, range.key, reply) ?: return@launch
+    launch(request) { remoteRange(SlaxOfflineTask.Access(range.key, range.id, range.owner), request, range.documentId, range.size, range.begin, range.end, null) }
+  }.settles(reply)
 }
 private suspend fun SlaxOfflineSession.remoteRange(access: SlaxOfflineTask.Access, request: SlaxOfflineSession.Request, documentId: String, size: Long, begin: Long, end: Long, rejected: Long?) {
   val credential = awaitCredential { rejected == null || it.generation != rejected }
@@ -206,7 +223,7 @@ private suspend fun SlaxOfflineSession.remoteRange(access: SlaxOfflineTask.Acces
   if (credential == null) {finish(request, SlaxOfflineError.credential); return}
   val slice = ByteArray((end - begin).toInt())
   val bytes = try {
-    when (val body = transferPdf(scope, credential.token, access.id, documentId, size, begin, end, request.work) { chunk, offset ->
+    when (val body = transferPdf(scope, credential.token, access.id, documentId, size, begin, end, request.work, engine.pdfForeground) { chunk, offset ->
       val left = maxOf(begin, offset); val right = minOf(end, offset + chunk.size)
       if (right > left) System.arraycopy(chunk, (left - offset).toInt(), slice, (left - begin).toInt(), (right - left).toInt())
     }) {is SlaxPdfBody.Range -> body.bytes; SlaxPdfBody.Full -> slice}

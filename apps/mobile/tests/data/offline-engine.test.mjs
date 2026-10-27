@@ -52,6 +52,7 @@ test('hosts without the native engine cache nothing and reject network reads exp
   assert.deepEqual(await engine.open({owner: 'o'}), {adopted: [], dropped: [], migrationPending: false});
   assert.equal(await engine.readArticle('o', 'k'), null); assert.deepEqual(await engine.evict('o', ['k']), []);
   await assert.rejects(engine.fetchArticle('o', {key: 'k', id: 'k', requestId: 'r', force: false}), OfflineEngineUnavailableError);
-  await assert.rejects(engine.readPdfRange('o', {}), OfflineEngineUnavailableError);
+  await assert.rejects(engine.pdfMetadata('o', {key: 'k', id: 'k', requestId: 'r', allowNetwork: true}), OfflineEngineUnavailableError);
+  assert.equal('readPdfRange' in engine, false, 'PDF bytes are served natively to the Reader page, not through JavaScript');
   const subscription = engine.addListener('onStatus', () => assert.fail('No events')); subscription.remove();
 });

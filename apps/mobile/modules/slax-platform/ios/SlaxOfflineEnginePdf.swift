@@ -1,5 +1,16 @@
 import Foundation
 
+/// One byte range `[begin, end)` of the document `documentId`/`size` of bookmark `key` (`id`, collection `owner`).
+struct SlaxPdfRange: Equatable {
+  let key: String
+  let id: String
+  let owner: String?
+  let documentId: String
+  let size: Int64
+  let begin: Int64
+  let end: Int64
+}
+
 /// PDF metadata, range reads and resumable acquisition under `pdf/v2/<scopeId>/<key>/`.
 extension SlaxOfflineSession {
   enum PdfBody { case range(Data), full }
@@ -39,7 +50,7 @@ extension SlaxOfflineSession {
 
   /// `GET /v1/bookmark/pdf` through `SlaxPdfTransfer`, validated like `SlaxApi.transferPdf`. Full 200 bodies are streamed to `sink`.
   static func transfer(_ scope: SlaxOfflineScope, token: String, id: String, documentId: String, size: Int64, begin: Int64, end: Int64, work: SlaxOfflineWork,
-    allowHTTP: Bool, sink: (Data, Int64) throws -> Void) throws -> PdfBody {
+    allowHTTP: Bool, foreground: Bool = false, sink: (Data, Int64) throws -> Void) throws -> PdfBody {
     guard id.range(of: "^[A-Za-z0-9_-]+$", options: .regularExpression) != nil else { throw SlaxOfflineError.invalid }
     let url = scope.origin + "/v1/bookmark/pdf?bookmark_uid=" + id
     let headers = ["Authorization": "Bearer " + token, "Accept": "application/pdf", "Range": "bytes=\(begin)-\(end - 1)", "X-CLIENT-TYPE": scope.clientType, "X-CLIENT-VERSION": scope.clientVersion]
@@ -47,7 +58,7 @@ extension SlaxOfflineSession {
       try work.check()
       var handle: String?
       do {
-        let transferId = try SlaxPdfTransfers.begin(owner: scope.owner, origin: scope.origin, allowHTTP: allowHTTP); handle = transferId
+        let transferId = try SlaxPdfTransfers.begin(owner: scope.owner, origin: scope.origin, allowHTTP: allowHTTP, foreground: foreground); handle = transferId
         let hook = work.attach { SlaxPdfTransfers.end(owner: scope.owner, id: transferId) }
         defer { work.detach(hook); SlaxPdfTransfers.end(owner: scope.owner, id: transferId) }
         let transfer = try SlaxPdfTransfers.get(owner: scope.owner, id: transferId)
@@ -144,19 +155,39 @@ extension SlaxOfflineSession {
       if case .success(let descriptor?) = result { self.finish(request, .success(descriptor.result(id: id))) } else { self.finish(request, .failure(.network)) }
     }
   }
+  /// The stored descriptor and whether `document.pdf` is the complete copy of exactly that identity.
+  static func localDescriptor(_ store: SlaxFileStore, _ layout: SlaxOfflineLayout, _ key: String) throws -> (SlaxPdfDescriptor, Bool)? {
+    guard let descriptor = try layout.readDescriptor(store, key) else { return nil }
+    guard let part = try layout.readPart(store, key), part.matches(descriptor), try layout.completeDocument(store, key) != nil else { return (descriptor, false) }
+    return (descriptor, true)
+  }
+  /// Callable from any queue. A complete local copy answers from its stored descriptor without any network request;
+  /// otherwise the descriptor is fetched at foreground priority, falling back to the stored one when offline or unauthenticated.
   func pdfMetadata(_ raw: [String: Any], reply: SlaxOfflineReply) {
     guard let access = try? SlaxOfflineTask.access(raw), let requestId = raw["requestId"] as? String else { reply.fail(.invalid); return }
-    guard let request = register(requestId, key: access.key, reply: reply) else { return }
-    if raw["allowNetwork"] as? Bool == false { cachedDescriptor(access.key, request, access.id); return }
-    remoteMetadata(access, request, rejected: nil)
+    let allowNetwork = raw["allowNetwork"] as? Bool != false, store = store(lease), layout = layout
+    engine.foreground.addOperation {
+      let local = Result { try Self.localDescriptor(store, layout, access.key) }.mapError(SlaxOfflineError.from)
+      switch local {
+      case .success(let found?) where found.1 || !allowNetwork: reply.resolve(found.0.result(id: access.id)); return
+      case .success(nil) where !allowNetwork: reply.fail(.network); return
+      case .failure(let error) where error.code == SlaxOfflineError.revoked.code: reply.fail(error); return
+      default: break
+      }
+      self.engine.foregroundControl {
+        guard !self.closed, !reply.isSettled else { reply.fail(.revoked); return }
+        guard let request = self.register(requestId, key: access.key, reply: reply) else { return }
+        self.remoteMetadata(access, request, rejected: nil)
+      }
+    }
   }
   private func remoteMetadata(_ access: Access, _ request: Request, rejected: Int?) {
     awaitCredential(timeout: 20, accept: { rejected == nil || $0.generation != rejected }) { credential in
       guard self.requests[request.id] === request else { return }
       guard let credential else { self.cachedDescriptor(access.key, request, access.id); return }
-      self.engine.pdf.addOperation(self.foreground {
+      self.engine.pdfForeground.addOperation {
         let result = Result { try self.fetchDescriptor(access, token: credential.token, work: request.work) }.mapError(SlaxOfflineError.from)
-        self.engine.control.async {
+        self.engine.foregroundControl {
           guard self.requests[request.id] === request else { return }
           switch result {
           case .success(let (descriptor, changed)):
@@ -171,11 +202,8 @@ extension SlaxOfflineSession {
           case .failure(let error): self.finish(request, .failure(error))
           }
         }
-      })
+      }
     }
-  }
-  private func foreground(_ block: @escaping () -> Void) -> Operation {
-    let operation = BlockOperation(block: block); operation.queuePriority = .high; operation.qualityOfService = .userInitiated; return operation
   }
 
   // MARK: Range reads
@@ -190,40 +218,44 @@ extension SlaxOfflineSession {
     guard try store.size(layout.document(key)) == size else { return nil }
     return try store.readRange(layout.document(key), offset: begin, length: length)
   }
-  func readPdfRange(_ raw: [String: Any], reply: SlaxOfflineReply) {
-    guard let access = try? SlaxOfflineTask.access(raw), let documentId = SlaxOfflineJson.text(raw["documentId"], limit: 256), let size = SlaxOfflineJson.int(raw["size"]),
-      let begin = SlaxOfflineJson.int(raw["begin"]), let end = SlaxOfflineJson.int(raw["end"]), let requestId = raw["requestId"] as? String,
-      (1...SlaxPdfDescriptor.maxBytes).contains(size), begin >= 0, end > begin, end <= size, end - begin <= Self.pdfWindow else { reply.fail(.invalid); return }
-    guard let request = register(requestId, key: access.key, reply: reply) else { return }
-    let store = store(request.work.lease), layout = layout
-    engine.pdf.addOperation(foreground {
-      let local = Result { try Self.localRange(store, layout, key: access.key, documentId: documentId, size: size, begin: begin, end: end) }.mapError(SlaxOfflineError.from)
-      self.engine.control.async {
-        guard self.requests[request.id] === request else { return }
-        switch local {
-        case .success(let bytes?): self.finish(request, .success(bytes))
-        case .failure(let error) where [SlaxOfflineError.revoked.code, SlaxOfflineError.cancelled.code].contains(error.code): self.finish(request, .failure(error))
-        default: self.remoteRange(access, request, documentId: documentId, size: size, begin: begin, end: end, rejected: nil)
-        }
+  /// Callable from any queue: committed bytes are read on the foreground queue; only a miss registers on the control queue
+  /// and fetches the remote range (credential handling, identity and length validation) on `pdfForeground`.
+  /// A reply the caller already settled (an aborted page request) never starts network work.
+  func servePdfRange(_ range: SlaxPdfRange, requestId: String, reply: SlaxOfflineReply) {
+    guard (1...SlaxPdfDescriptor.maxBytes).contains(range.size), range.begin >= 0, range.end > range.begin, range.end <= range.size,
+      range.end - range.begin <= Self.pdfWindow else { reply.fail(.invalid); return }
+    let store = store(lease), layout = layout
+    engine.foreground.addOperation {
+      guard !reply.isSettled else { return }
+      let local = Result { try Self.localRange(store, layout, key: range.key, documentId: range.documentId, size: range.size, begin: range.begin, end: range.end) }.mapError(SlaxOfflineError.from)
+      switch local {
+      case .success(let bytes?): reply.resolve(bytes); return
+      case .failure(let error) where [SlaxOfflineError.revoked.code, SlaxOfflineError.cancelled.code].contains(error.code): reply.fail(error); return
+      default: break
       }
-    })
+      self.engine.foregroundControl {
+        guard !self.closed else { reply.fail(.revoked); return }
+        guard !reply.isSettled, let request = self.register(requestId, key: range.key, reply: reply) else { return }
+        self.remoteRange((range.key, range.id, range.owner), request, documentId: range.documentId, size: range.size, begin: range.begin, end: range.end, rejected: nil)
+      }
+    }
   }
   private func remoteRange(_ access: Access, _ request: Request, documentId: String, size: Int64, begin: Int64, end: Int64, rejected: Int?) {
     awaitCredential(timeout: 20, accept: { rejected == nil || $0.generation != rejected }) { credential in
       guard self.requests[request.id] === request else { return }
       guard let credential else { self.finish(request, .failure(.credential)); return }
       let scope = self.scope, allowHTTP = self.engine.environment.allowHTTP
-      self.engine.pdf.addOperation(self.foreground {
+      self.engine.pdfForeground.addOperation {
         var slice = Data(count: Int(end - begin))
         let result = Result { () -> Data in
-          let body = try Self.transfer(scope, token: credential.token, id: access.id, documentId: documentId, size: size, begin: begin, end: end, work: request.work, allowHTTP: allowHTTP) { chunk, offset in
+          let body = try Self.transfer(scope, token: credential.token, id: access.id, documentId: documentId, size: size, begin: begin, end: end, work: request.work, allowHTTP: allowHTTP, foreground: true) { chunk, offset in
             let left = max(begin, offset), right = min(end, offset + Int64(chunk.count))
             if right > left { slice.replaceSubrange(Int(left - begin)..<Int(right - begin), with: chunk[chunk.startIndex + Int(left - offset)..<chunk.startIndex + Int(right - offset)]) }
           }
           if case .range(let bytes) = body { return bytes }
           return slice
         }.mapError(SlaxOfflineError.from)
-        self.engine.control.async {
+        self.engine.foregroundControl {
           guard self.requests[request.id] === request else { return }
           switch result {
           case .success(let bytes): self.finish(request, .success(bytes))
@@ -235,7 +267,7 @@ extension SlaxOfflineSession {
           case .failure(let error): self.finish(request, .failure(error))
           }
         }
-      })
+      }
     }
   }
   func pdfStatus(_ key: String, reply: SlaxOfflineReply) {

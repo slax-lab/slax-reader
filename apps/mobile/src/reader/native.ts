@@ -9,6 +9,8 @@ export interface ReaderNativeOverlayProps extends ViewProps {
   headerHeightPoints: number
 }
 
+export interface ReaderPdfSource {id: string; collectionOwner?: string; documentId: string; size: number}
+
 export interface ReaderNativeContext {
   cacheKey: string
   pageId: string
@@ -19,6 +21,8 @@ export interface ReaderNativeContext {
   /** Development fixture roots are accepted only after native marker and cache-path validation. */
   cacheDirectory?: string
   pdfMode?: boolean
+  /** PDF hosts only: the one document whose byte ranges the native host serves to this page (`/pdf/<cacheKey>/<documentId>/<size>`). */
+  pdfSource?: ReaderPdfSource
   suppressSelectionMenu: true
   scrollsToTop: boolean
 }

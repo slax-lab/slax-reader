@@ -26,17 +26,19 @@ const descriptor = {url: '/v1/bookmark/pdf?bookmark_uid=book', document_id: docu
 const bookmark = {id: 'book', title: '', aliasTitle: '', metadata: '{}', url: 'slax-pdf://upload', contentType: 'pdf'}
 const find = (node, predicate) => Array.isArray(node) ? node.map(child => find(child, predicate)).find(Boolean) : React.isValidElement(node) ? predicate(node) ? node : find(node.props.children, predicate) : undefined
 const deferred = () => {let resolve, reject; const promise = new Promise((yes, no) => {resolve = yes; reject = no}); return {promise, resolve, reject}}
-const failure = status => Object.assign(new Error(`Denied ${status}`), {name: 'ApiError', status, stage: 'pdf-range'})
+/** A byte-range failure as the PDF page reports it: the native range server's engine code and status. */
+const rangeError = (code, status) => pdfErrors.pdfFailureError({code, ...(status ? {status} : {}), stage: 'pdf-range'}, 'pdf-range')
+const httpCode = {401: 'http_unauthorized', 403: 'http_forbidden', 404: 'http_not_found'}
 
 async function screenFixture(host, options, run) {
   const nil = () => null, writes = [], markWrites = [], calls = [], copied = [], dialogs = new Map(), listeners = new Map(), appListeners = new Set(), timers = new Map()
   host.native.Platform.OS = options.platform ?? 'ios'
   let timerId = 0, record = options.missingRecord ? null : {...bookmark, ...options.bookmark}, pdf = {...descriptor, ...options.pdf}
-  let owner = 'owner', recordChanged, settingsChanged, pdfProps, panelProps, menuProps, outlineProps, overviewProps, floatingProps, toolbarProps, headerOptions, back, capture = captured, metadataFailure = options.metadataFailure, rangeFailure
+  let owner = 'owner', recordChanged, settingsChanged, pdfProps, panelProps, menuProps, outlineProps, overviewProps, floatingProps, toolbarProps, headerOptions, back, capture = captured, metadataFailure = options.metadataFailure
   let local = {read_position: '999', pdf_read_position: JSON.stringify({document_id: documentId, position: 3.25}), ...options.local}
   let session = {status: 'authenticated', session: {userId: 'user', token: 'synthetic', refreshedAt: 0}}
   const sessions = {getSnapshot: () => session}, preferences = new PreferenceStore(new MemoryPreferences({user_id: 'user'}))
-  const download = deferred(), range = options.range ?? null, metadataRequests = [], mounts = [], cacheStatusRequests = []
+  const download = deferred(), metadataRequests = [], mounts = [], cacheStatusRequests = []
   const repositories = {
     local: {read: async key => {calls.push(['local', key]); return local}, update: async (key, value) => {writes.push([key, value]); local = {...local, ...value}}},
     getBookmark: async () => {calls.push('record'); return record},
@@ -50,7 +52,6 @@ async function screenFixture(host, options, run) {
     getNativeResourceOwner: () => owner, beginArticleAccess: () => nil,
     getPdfMetadata: async (id, collectionOwner, signal) => {metadataRequests.push({id, collectionOwner, signal}); if (metadataFailure) throw metadataFailure; return pdf},
     pdfCacheStatus: async (...args) => {cacheStatusRequests.push(args); return options.status ?? {downloadedBytes: 250, totalBytes: 1000, complete: false}},
-    readPdfRange: async (...args) => {calls.push(['range', ...args]); if (rangeFailure) throw rangeFailure; return range ? range.promise : new Uint8Array(args[3] - args[2])},
     cachePdf: (...args) => {calls.push(['download', ...args]); return download.promise},
     cancelCache: () => assert.fail('Reader must not cancel independently retained cache work'),
   }
@@ -117,7 +118,7 @@ async function screenFixture(host, options, run) {
     openToolbar: () => withRenderedElement(headerOptions.headerRight(), () => act(async () => host.props.get('reader-header-more').onPress())),
     toolbarAction: async id => {await act(async () => host.props.get(`reader-toolbar-${id}`).onPress()); if (host.native.Platform.OS === 'ios') await act(async () => toolbarProps.onDidDismiss())},
     arrive: async () => {record = {...bookmark, ...options.bookmark}; await act(async () => recordChanged()); await host.settle()},
-    setPdf: value => {pdf = {...pdf, ...value}}, setCapture: value => {capture = value}, denyMetadata: value => {metadataFailure = value}, denyRange: value => {rangeFailure = value},
+    setPdf: value => {pdf = {...pdf, ...value}}, setCapture: value => {capture = value}, denyMetadata: value => {metadataFailure = value},
     emit: async event => act(async () => pdfProps.onEvent(event, 'pdf-page')),
     select: async () => act(async () => pdfProps.onEvent({type: 'textSelected', mark: fresh, text: captured.text, containerYPoints: 120}, 'pdf-page')),
     state: async state => act(async () => [...appListeners].forEach(callback => callback(state))),
@@ -271,9 +272,11 @@ test('PDF background and cancelled range reads preserve drafts; native back reta
   await fixture.state('background')
   assert.equal(fixture.panel().draft, 'Keep this draft')
   assert.equal(fixture.panel().autoFocus, false)
-  fixture.denyRange(failure(403))
-  const controller = new AbortController(); controller.abort()
-  await act(async () => assert.rejects(fixture.reader().readRange(0, 10, controller.signal)))
+  assert.equal(fixture.reader().readRange, undefined, 'PDF bytes are served natively to the page, not through the Reader')
+  assert.deepEqual([fixture.reader().bookmarkId, fixture.reader().cacheKey], ['book', 'book'])
+  // A native pause cancels in-flight ranges and an account change ends the host; neither is a document failure.
+  await act(async () => fixture.reader().onError(rangeError('operation_cancelled')))
+  await act(async () => fixture.reader().onError(rangeError('session_changed')))
   assert.ok(fixture.reader())
   assert.equal(fixture.panel().draft, 'Keep this draft')
   await fixture.state('active'); await act(async () => fixture.back().callback())
@@ -288,9 +291,9 @@ for (const status of [401, 403, 404]) test(`background PDF authorization denial 
   await fixture.emit({type: 'markItemInfosChanged', marks: [{...fresh, id: 'pdf-note'}]})
   await fixture.select(); await act(async () => fixture.selection().onComment())
   await act(async () => fixture.panel().onDraft('Private draft'))
-  const activeReader = fixture.reader(), controller = new AbortController()
-  await fixture.state('background'); fixture.denyRange(failure(status))
-  await act(async () => assert.rejects(activeReader.readRange(0, 10, controller.signal)))
+  const activeReader = fixture.reader()
+  await fixture.state('background')
+  await act(async () => activeReader.onError(rangeError(httpCode[status], status)))
   assert.equal(host.window.document.querySelector('[data-testid="pdf-boundary"]'), null)
   assert.equal(fixture.panel().visible, false)
   assert.equal(fixture.panel().draft, '')
@@ -303,18 +306,14 @@ for (const status of [401, 403, 404]) test(`background PDF authorization denial 
 test('PDF transient byte failure waits for the renderer load decision and preserves the draft through one error/retry panel', nativeBoundary, async () => withNativeHost(async host => screenFixture(host, {}, async fixture => {
   await fixture.select(); await act(async () => fixture.selection().onComment())
   await act(async () => fixture.panel().onDraft('Retry this draft'))
-  const error = new transportErrors.DataTransportError('network', 'pdf-range'), active = fixture.reader()
-  fixture.denyRange(error)
-  await act(async () => assert.rejects(active.readRange(0, 10, new AbortController().signal), error))
-  assert.equal(fixture.panel().draft, 'Retry this draft')
-  assert.ok(fixture.reader())
+  const active = fixture.reader()
   assert.equal(host.window.document.querySelector('[data-testid="reader-pdf-loading-or-error"]'), null)
-  await act(async () => active.onError(error))
+  await act(async () => active.onError(rangeError('network_unavailable')))
   assert.match(fixture.text(), /pdf_offline_missing \(pdf-range\/network_unavailable\)/)
   assert.equal((fixture.text().match(/pdf_offline_missing/g) ?? []).length, 1)
   await act(async () => active.onError(new Error('Generic later failure')))
   assert.doesNotMatch(fixture.text(), /renderer\/unknown/)
-  fixture.denyRange(null); await fixture.retry()
+  await fixture.retry()
   assert.ok(fixture.reader())
   assert.equal(fixture.panel().draft, 'Retry this draft')
 })))
@@ -328,7 +327,7 @@ test('PDF metadata denial clears a private draft while a changed document reject
   assert.equal(fixture.panel().draft, 'Do not attach to another document')
   await act(async () => fixture.panel().onSubmit())
   assert.equal(fixture.markWrites.length, 0)
-  fixture.denyMetadata(failure(403)); await fixture.tick(5000)
+  fixture.denyMetadata(new ApiError(403, 'Denied 403', undefined, {stage: 'pdf-metadata'})); await fixture.tick(5000)
   assert.equal(fixture.panel().visible, false)
   assert.equal(fixture.panel().draft, '')
   assert.equal(host.window.document.querySelector('[data-testid="pdf-boundary"]'), null)
@@ -511,14 +510,12 @@ test('PDF same-document replacement ignores deferred old cleanup after the new h
 })))
 
 test('PDF retired range callback cannot revoke the replacement host', nativeBoundary, async () => withNativeHost(async host => {
-  const range = deferred()
-  await screenFixture(host, {range}, async fixture => {
-    const retired = fixture.reader(), pending = retired.readRange(0, 10, new AbortController().signal)
-    const checked = assert.rejects(pending)
+  await screenFixture(host, {}, async fixture => {
+    const retired = fixture.reader()
     await act(async () => retired.onError(Object.assign(new Error('Native process gone'), {name: 'ReaderProcessGone'})))
     assert.equal(fixture.mounts.length, 2)
-    await act(async () => {range.reject(failure(403)); await checked})
-    await act(async () => assert.rejects(retired.readRange(0, 10, new AbortController().signal), {name: 'ReaderOperationCancelled'}))
+    await act(async () => retired.onError(rangeError('http_forbidden', 403)))
+    assert.equal(fixture.mounts.length, 2)
     assert.ok(fixture.reader())
     assert.equal(fixture.dialogs.get('load_bookmark_content_error').visible, false)
   })
@@ -526,9 +523,7 @@ test('PDF retired range callback cannot revoke the replacement host', nativeBoun
 
 test('PDF identity protocol failure removes inaccessible content and draft immediately', nativeBoundary, async () => withNativeHost(async host => screenFixture(host, {}, async fixture => {
   await fixture.select(); await act(async () => fixture.selection().onComment()); await act(async () => fixture.panel().onDraft('Private'))
-  const error = new ApiError(0, 'Invalid PDF identity', undefined, {stage: 'pdf-range', code: 'pdf_identity_mismatch'})
-  fixture.denyRange(error)
-  await act(async () => assert.rejects(fixture.reader().readRange(0, 10, new AbortController().signal)))
+  await act(async () => fixture.reader().onError(rangeError('pdf_identity_mismatch')))
   assert.equal(fixture.panel().draft, '')
   assert.equal(host.window.document.querySelector('[data-testid="pdf-boundary"]'), null)
   assert.match(fixture.text(), /pdf-range\/pdf_identity_mismatch/)

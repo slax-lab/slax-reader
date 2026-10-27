@@ -97,4 +97,22 @@ TestFlight preview **1.0.25 (785)**: build bumped from 784, previous bound 784. 
   - Show the HTML as soon as it is ready, with no loading cover and no timeout.
 
   The cover, re-apply and timeout are removed; the saved position is restored once at DOM readiness. `pnpm mobile -- check` passes 1146/1146 and the bundle exports. TestFlight **1.0.25 (792)** carries this; it was uploaded at 2026-10-27T04:49:41.160Z and Apple reported it processing. See the [792 receipt](../../../docs/mobile/releases/1.0.25-792-testflight.md).
-- Pending: the owner's hands-on review of TestFlight 792. Record who, when, the observations and any adjustments here before a pull request.
+- 2026-10-27, owner, review of 792: already-downloaded articles flashed on open, and PDFs loaded slowly whether downloaded or not. The owner approved fixing the flash and moving PDF bytes off the JS bridge. Downloaded PDFs must not refresh metadata over the network. Task 7.9:
+  - **Article flash.** Cause: the skeleton was removed as soon as the host mounted, which showed the blank transparent WebView and then the jump from the top. Fix: the skeleton stays over the host until DOM readiness, the once-only restore and one painted frame. There is no load-event wait and no timeout.
+  - **PDF slowness, cause 1:** every open fetched metadata over the network first. Fix: a complete local PDF opens from its cached descriptor with no network request.
+  - **PDF slowness, cause 2:** every byte passed through the RN bridge with base64. Fix: ranges are served natively and same-origin, via `slaxpdf://` on iOS and the intercepted https origin on Android.
+  - **PDF slowness, cause 3:** foreground reads shared the background PDF queue. Fix: dedicated foreground queues and transfer slots.
+  - **Checks:** `pnpm mobile -- check` passes 1156/1156. The bundle exports, and `test:native-resources` and the Swift/Kotlin engine host tests pass. These cover range semantics, owner rejection, cancellation, no metadata request for complete PDFs, and foreground service under a saturated background. `pnpm mobile -- build:android` and the iOS simulator build succeed.
+  - **Extra check:** a real macOS WKWebView loaded the composed iOS PDF document at `slaxpdf://pdf/` with the real handler and engine. It rendered pages and text with no byte messages to React Native.
+  - **Consequence recorded:** Dev UI fixtures can no longer render PDFs on a device.
+  - **Not packaged:** the owner asked to push and update the pull request without a new TestFlight build, so this head has no TestFlight build yet.
+  - **Pre-push review fixes:**
+    - Android `servePdfRange` now settles its reply when its queued lane job is cancelled. Before, a session shutdown between queueing and running left the reply unanswered, and the WebView request thread waited 150 s. A Kotlin host case queues a remote range behind the control thread, then closes the session; it fails without the fix and passes with it.
+    - The Reader skeleton tracks the presented page by its page identity, not only the host key. A forced reload that publishes new HTML under the same host key stays covered until its own page is presentable. The host test fails without the fix and passes with it.
+    - A failed status-persistence transaction re-queues its batch, and newer pending states win. It retries with backoff from 250 ms to 5 s, and a revoked owner drops it. Two coordinator tests cover this.
+    - Re-run: `pnpm mobile -- check` passes 1158/1158. `pnpm mobile -- bundle` exports, `pnpm mobile -- build:android` succeeds, and the iOS simulator `xcodebuild` succeeds.
+  - **Not verified, because the owner asked not to run simulators or devices this round:**
+    - The Android `shouldInterceptRequest` → `SlaxPdfRanges` path in a real WebView.
+    - The iOS `slaxpdf://` handler on an iOS simulator or device. It was checked only in a macOS WKWebView.
+    - The skeleton reveal on a device.
+- Pending: the owner's hands-on review of a build of this head. Record who, when, the observations and any adjustments here before a pull request.

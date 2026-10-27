@@ -13,10 +13,16 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Settles one JavaScript promise at most once, from any thread. */
-internal class SlaxOfflineReply(private val resolver: (Any?) -> Unit, private val rejecter: (String, String) -> Unit) {
+internal class SlaxOfflineReply private constructor(private val resolver: (Any?) -> Unit, private val failer: (SlaxOfflineError) -> Unit, @Suppress("UNUSED_PARAMETER") marker: Unit) {
+  constructor(resolver: (Any?) -> Unit, rejecter: (String, String) -> Unit) : this(resolver, { error: SlaxOfflineError -> rejecter(error.code, error.message) }, Unit)
   private val settled = AtomicBoolean(false)
+  val isSettled get() = settled.get()
   fun resolve(value: Any?) {if (settled.compareAndSet(false, true)) resolver(value)}
-  fun fail(error: SlaxOfflineError) {if (settled.compareAndSet(false, true)) rejecter(error.code, error.message)}
+  fun fail(error: SlaxOfflineError) {if (settled.compareAndSet(false, true)) failer(error)}
+  companion object {
+    /** Native callers (the PDF range server) that need the structured error. */
+    fun native(done: (Any?, SlaxOfflineError?) -> Unit) = SlaxOfflineReply({ done(it, null) }, { error: SlaxOfflineError -> done(null, error) }, Unit)
+  }
 }
 /** A reply-owning lane job that is cancelled (shutdown, revocation), even before it starts, still rejects its promise. */
 internal fun Job.settles(reply: SlaxOfflineReply): Job = apply { invokeOnCompletion { if (it is CancellationException) reply.fail(SlaxOfflineError.cancelled) } }
@@ -43,6 +49,8 @@ internal class SlaxOfflineEngine(val environment: SlaxOfflineEnvironment) {
   val scope = CoroutineScope(SupervisorJob() + control)
   /** Committed-copy reads for an open Reader; never shared with the control thread or background IO work. */
   val foreground = Executors.newFixedThreadPool(2) { Thread(it, "SlaxOfflineEngine.foreground").apply { isDaemon = true } }
+  /** Network transfers of an open PDF Reader (missing byte ranges); never waits behind background PDF acquisition. */
+  val pdfForeground = Executors.newFixedThreadPool(4) { Thread(it, "SlaxOfflineEngine.pdfForeground").apply { isDaemon = true } }.asCoroutineDispatcher()
   private val sessions = HashMap<String, SlaxOfflineSession>()
   private val readable = ConcurrentHashMap<String, SlaxOfflineSession>()
   private val emitLock = Any()
@@ -109,7 +117,11 @@ internal class SlaxOfflineEngine(val environment: SlaxOfflineEnvironment) {
     on(owner, reply) { it.fetchArticle(raw, reply) }
   }
   fun pdfMetadata(owner: String, raw: Map<*, *>, reply: SlaxOfflineReply) = on(owner, reply) { it.pdfMetadata(raw, reply) }
-  fun readPdfRange(owner: String, raw: Map<*, *>, reply: SlaxOfflineReply) = on(owner, reply) { it.readPdfRange(raw, reply) }
+  /** Byte range for an open PDF Reader host of [owner]; served natively to its page, never through JavaScript. Callable from any thread. */
+  fun servePdfRange(owner: String, range: SlaxPdfRange, requestId: String, reply: SlaxOfflineReply) {
+    val session = readable[owner] ?: return reply.fail(SlaxOfflineError.revoked)
+    session.servePdfRange(range, requestId, reply)
+  }
   fun pdfStatus(owner: String, key: String, reply: SlaxOfflineReply) = on(owner, reply) { it.pdfStatus(key, reply) }
   fun cancel(owner: String, requestId: String) = on(owner) { it.cancelRequest(requestId, SlaxOfflineError.cancelled) }
   fun usage(owner: String, keys: List<String>, reply: SlaxOfflineReply) = on(owner, reply) { it.usage(keys, reply) }

@@ -118,8 +118,9 @@ test('actual fixture runtime seeds a PDF, uses production API/File upload, and p
   assert.equal(diagnostic().synchronization, 'published'); assert.equal(diagnostic().synchronizationMechanism, 'simulated-local-database'); assert.equal(diagnostic().nativeInteractionVerified, false);
   assert.equal((await h.value.repositories.getBookmark(id)).contentType, 'pdf'); assert.ok(observed.includes(1));
   const descriptor = await h.value.runtime.getPdfMetadata(id);
-  assert.equal(descriptor.document_id, diagnostic().expectedDocumentId);
-  assert.equal(new TextDecoder().decode(await h.value.runtime.readPdfRange(id, descriptor, 0, 8)), '%PDF-1.4');
+  assert.equal(descriptor.document_id, diagnostic().expectedDocumentId); assert.equal(descriptor.size, diagnostic().expectedBytes);
+  assert.equal('readPdfRange' in h.value.runtime, false, 'PDF bytes are served natively to the Reader page, not through JavaScript');
+  await h.value.runtime.cachePdf(id); assert.equal((await h.value.runtime.pdfCacheStatus(id)).complete, true);
 });
 
 test('native-storage scenario runs the production offline coordinator through partial pause/resume without a JavaScript PDF store', {timeout: 35000}, async t => {
@@ -152,7 +153,8 @@ test('HTTP fixture composes real HTTP with the production offline coordinator an
   assert.equal(h.value.fixtureOnly.pdfNativeOwner, true); assert.equal(h.value.config.apiUrl, 'http://127.0.0.1:8093');
   assert.ok(h.value.nativeResourceOwner); assert.ok(h.value.fixtureOnly.dataDirectory.includes('/slax-ui-fixtures/'));
   const descriptor = await h.value.runtime.getPdfMetadata(id);
-  assert.equal(new TextDecoder().decode(await h.value.runtime.readPdfRange(id, descriptor, 0, 8)), '%PDF-1.4');
+  assert.equal(descriptor.size, server.document.bytes.length);
+  await h.value.runtime.cachePdf(id); assert.equal((await h.value.runtime.pdfCacheStatus(id)).complete, true);
   assert.ok(h.events.some(event => event[0] === 'expo-fetch')); assert.equal(h.events.some(event => event[0] === 'pdf-path'), false);
   const evidence = JSON.parse(new h.File(h.run.scopeUri, 'pdf-http.json').textSync());
   assert.equal(evidence.nativeOwnerRequired, true); assert.ok(evidence.events.some(event => event.path === '/v1/bookmark/pdf' && event.status === 206));

@@ -39,7 +39,6 @@ class SlaxOfflineEngineModule : Module() {
     AsyncFunction("readArticle") { owner: String, key: String, promise: Promise -> engine().readArticle(owner, key, reply(promise)) }
     AsyncFunction("fetchArticle") { owner: String, request: Map<String, Any?>, promise: Promise -> engine().fetchArticle(owner, request, reply(promise)) }
     AsyncFunction("pdfMetadata") { owner: String, request: Map<String, Any?>, promise: Promise -> engine().pdfMetadata(owner, request, reply(promise)) }
-    AsyncFunction("readPdfRange") { owner: String, request: Map<String, Any?>, promise: Promise -> engine().readPdfRange(owner, request, reply(promise)) }
     AsyncFunction("pdfStatus") { owner: String, key: String, promise: Promise -> engine().pdfStatus(owner, key, reply(promise)) }
     Function("cancel") { owner: String, requestId: String -> engine().cancel(owner, requestId) }
     AsyncFunction("usage") { owner: String, keys: List<String>, promise: Promise -> engine().usage(owner, keys, reply(promise)) }

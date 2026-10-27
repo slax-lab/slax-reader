@@ -82,6 +82,7 @@ class SlaxPlatformModule : Module() {
       Prop("html") { view: SlaxReaderView, value: String -> view.html = value }
       Prop("baseUrl") { _view: SlaxReaderView, _value: String? -> }
       Prop("pdfMode") { view: SlaxReaderView, value: Boolean -> view.setPdfMode(value) }
+      Prop("pdfSource") { view: SlaxReaderView, value: Map<String, Any?>? -> view.setPdfSource(value) }
       Prop("protectedHosts") { view: SlaxReaderView, value: List<String> -> view.setProtectedHosts(value) }
       Prop("imageProxyOrigins") { view: SlaxReaderView, value: List<String> -> view.imageProxyOrigins = value }
       Prop("cacheKey") { view: SlaxReaderView, value: String -> view.resourceHandler.cacheKey = value }

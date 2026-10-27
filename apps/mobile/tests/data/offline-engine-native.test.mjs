@@ -63,8 +63,12 @@ function server() {
       if (request.headers.accept !== 'application/pdf' || request.headers['accept-encoding'] !== 'identity' || !match) problems.push('pdf range request');
       if (uid === 'pdf-full') {response.writeHead(200, {'Content-Type': 'application/pdf', 'Content-Length': PDF_SIZE}); response.end(pdfBytes(0, PDF_SIZE)); return;}
       const begin = Number(match[1]), end = Number(match[2]) + 1;
-      response.writeHead(206, {'Content-Type': 'application/pdf', 'Content-Length': end - begin, 'Content-Range': `bytes ${begin}-${end - 1}/${PDF_SIZE}`, ETag: `"${DOCUMENT}"`});
-      response.end(pdfBytes(begin, end));
+      const send = () => {
+        response.writeHead(206, {'Content-Type': 'application/pdf', 'Content-Length': end - begin, 'Content-Range': `bytes ${begin}-${end - 1}/${PDF_SIZE}`, ETag: `"${uid === 'pdf-etag' ? 'b'.repeat(64) : DOCUMENT}"`});
+        response.end(pdfBytes(begin, end));
+      };
+      if (uid === 'pdf-slow') {held.set('pdf-slow', send); response.on('close', () => {if (!response.writableEnded) count('pdf-slow:aborted');}); return;}
+      send();
       return;
     }
     response.writeHead(404); response.end();
@@ -80,7 +84,7 @@ test('actual Swift offline engine matches HTML extraction fixtures and acquires,
   try {
     await run('xcrun', ['swiftc', '-swift-version', '5', '-emit-module', '-emit-library', '-module-name', 'ExpoModulesCore', resolve(root, 'tests/data/file-store-host/ExpoModulesCore.swift'), '-o', resolve(output, 'libExpoModulesCore.dylib')]);
     const sources = ['SlaxFileStore.swift', 'SlaxReaderSecurity.swift', 'SlaxImageRegistry.swift', 'SlaxCachePaths.swift', 'SlaxImageModule.swift', 'SlaxPdfTransfer.swift',
-      'SlaxOfflineEngine.swift', 'SlaxOfflineEngineStore.swift', 'SlaxOfflineEngineHttp.swift', 'SlaxOfflineEngineHtml.swift', 'SlaxOfflineEngineSession.swift', 'SlaxOfflineEnginePlan.swift', 'SlaxOfflineEngineArticles.swift', 'SlaxOfflineEnginePdf.swift'];
+      'SlaxOfflineEngine.swift', 'SlaxOfflineEngineStore.swift', 'SlaxOfflineEngineHttp.swift', 'SlaxOfflineEngineHtml.swift', 'SlaxOfflineEngineSession.swift', 'SlaxOfflineEnginePlan.swift', 'SlaxOfflineEngineArticles.swift', 'SlaxOfflineEnginePdf.swift', 'SlaxPdfSchemeHandler.swift'];
     await run('xcrun', ['swiftc', '-swift-version', '5', '-I', output, '-L', output, '-lExpoModulesCore', '-Xlinker', '-rpath', '-Xlinker', output,
       ...sources.map(file => resolve(source, file)), resolve(root, 'tests/data/offline-engine-host/Host.swift'), '-o', executable]);
     const port = fake.http.address().port;

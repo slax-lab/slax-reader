@@ -123,7 +123,7 @@ JavaScript then clears obsolete `_slax_offline*` JSON fields, resets the downloa
 
 - **Route transition:**
   - `useReaderLifecycle` removes the `requestAnimationFrame` shortcut. `transitionReady` comes from `transitionEnd` (not closing), `gestureCancel` or the first route, with a 600 ms fallback.
-  - On Android, `ReaderContent` mounts the native host only after `transitionReady`. On iOS it mounts at once, because the push is Core Animation driven. In both cases the article is shown as soon as its HTML is ready; there is no loading cover over the HTML host.
+  - On Android, `ReaderContent` mounts the native host only after `transitionReady`. On iOS it mounts at once, because the push is Core Animation driven. In both cases the skeleton stays over the host until DOM readiness, the once-only restore and one painted frame, then fades out. It never waits for external resources and has no timeout.
   - The Reader route's native header options (transparent bar, no shadow, fixed 48×44 trailing slot) are static from the first frame, so the back button never moves during the push.
   - `scrollEdgeEffects` are hidden on every edge of the route, and `SlaxReaderView` also hides its own scroll view's iOS 26 edge effects. This removes the scroll-edge band under the bar.
   - Cached bodies are read on a dedicated user-initiated native queue, not the shared background IO queue. The record lookup and the cache read start concurrently.
@@ -145,6 +145,16 @@ JavaScript then clears obsolete `_slax_offline*` JSON fields, resets the downloa
 - **Loading animations.** KMP's skeleton, dots-line and dots-ring loading animations are ported with Reanimated.
 - **Overview dialog.** It grows from the excerpt's frame, a 250 ms FastOutSlowIn scale with a 300 ms fade, and reverses before it closes.
 - **Markdown.** Outline Markdown is rendered by `markdown-it` with `markdown-it-cjk-friendly`, at the versions the Web app already resolves, instead of a hand-written regex converter. Settings are `html: false`, links limited to http(s) and `#`, and block-level incremental DOM updates during streaming.
+
+### 8. PDF transport
+
+- PDF.js keeps a `PDFDataRangeTransport`, but the page `fetch()`es ranges from its own origin (256 KiB chunks, wide requests split into parallel windows of at most 1 MiB). The native side answers those `Range` requests from the offline engine: committed local bytes first on the foreground queue, otherwise a remote range on a dedicated foreground queue. Background downloads cannot take foreground transfer slots.
+  - **iOS:** the PDF page moves to `slaxpdf://pdf/`, served by `SlaxPdfSchemeHandler` (`WKURLSchemeHandler`). WebKit blocks an https page from fetching a custom scheme as mixed content, so the page must share the scheme's origin.
+  - **Android:** Chromium refuses `fetch()` to unknown schemes. The page stays on `https://pdf.reader.slax.invalid/` and fetches `/pdf/...` on that origin. `shouldInterceptRequest` answers through `SlaxPdfRanges`, with `X-Slax-Range` because WebView applies a standard `Range` to intercepted streams itself.
+  - **Both:** responses are `206` with `Content-Range`/`Content-Length`/`Accept-Ranges`, `416` when unsatisfiable, and `404` for anything other than the bound document. An unscoped host or another owner gets `403 session_changed`. The page pings a cancel path on abort, and an engine pause is retried.
+- The RN JavaScript bridge path is removed: no `readRange` messages, no base64 encoding, no `injectJavaScript` of bytes.
+- URLs carry only opaque ids, and the handler resolves the PDF host's current resource owner.
+- A completely downloaded PDF opens from its cached descriptor with no metadata request.
 
 ## Risks / Trade-offs
 
@@ -190,8 +200,7 @@ export interface SlaxOfflineEngineNative {
   readArticle(owner: string, key: string): Promise<string | null>;
   fetchArticle(owner: string, r: {key: string; id: string; collectionOwner?: string; requestId: string; force: boolean}): Promise<string>;
   pdfMetadata(owner: string, r: {key: string; id: string; collectionOwner?: string; requestId: string; allowNetwork: boolean}): Promise<PdfDescriptor>;
-  readPdfRange(owner: string, r: {key: string; id: string; collectionOwner?: string; documentId: string; size: number; begin: number; end: number; requestId: string}): Promise<Uint8Array>;
-  pdfStatus(owner: string, key: string): Promise<{downloadedBytes: number; totalBytes: number; complete: boolean}>;
+    pdfStatus(owner: string, key: string): Promise<{downloadedBytes: number; totalBytes: number; complete: boolean}>;
   cancel(owner: string, requestId: string): void;
   usage(owner: string, keys: string[]): Promise<{article: number; images: number}>;
   clear(owner: string, keys: string[], categories: ('article'|'images')[]): Promise<string[]>;

@@ -82,35 +82,44 @@ test('Reader host readiness settles on a cancelled back gesture, on the fallback
 })
 
 async function contentHarness(host, platform = 'android') {
+  const {installedMotionHost} = await import('../ui/installed-motion-host.mjs')
+  const motion = installedMotionHost(host.native.View)
+  const timing = motion.reanimated.withTiming, timings = []
+  motion.reanimated = {...motion.reanimated, withTiming: (value, config, callback) => {timings.push(config); return timing(value, config, callback)}}
   const hosts = []
   const ReaderWebView = props => {hosts.push(props); return React.createElement(host.native.View, {testID: 'reader-document-host'})}
   const {ReaderContent} = await loadComponent('../../src/reader/components/ReaderContent.tsx', {react: React, 'react-native': {...host.native, Platform: {OS: platform}},
-    '../../components': {SourceText: host.native.View, TextAction: host.native.View},
+    'react-native-reanimated': motion.reanimated, '../../components': {SourceText: host.native.View, TextAction: host.native.View},
     '../../components/SourceRing': {SourceCircularProgress: () => null}, '../../theme': {mobileColors: {}, mobileTypography: {}},
     '../index': {ReaderWebView}, '../ReaderSkeleton': {ReaderSkeleton: props => React.createElement(host.native.View, {testID: 'skeleton-content'}, props.header)},
     '../PdfWebView': {PdfWebView: () => assert.fail('An article never mounts the PDF renderer')}})
   const base = {isPdf: false, isPreview: false, pdfProps: null, htmlProps: {html: '<p>Article</p>'}, top: 62, header: React.createElement('header'), title: 'Title',
     contentError: null, nativeFailure: null, rssError: null, t: key => key, reload() {}, retryPdf() {}, retryNative() {}}
   const render = props => host.render(React.createElement(ReaderContent, {...base, ...props}))
-  const query = id => host.window.document.querySelector(`[data-testid="${id}"]`)
-  const mounted = () => query('reader-document-host') !== null
-  const skeleton = () => query('skeleton-content')
-  return {hosts, render, mounted, skeleton, query}
+  const cover = () => host.window.document.querySelector('[data-testid="reader-loading-cover"]')
+  const mounted = () => host.window.document.querySelector('[data-testid="reader-document-host"]') !== null
+  return {motion, hosts, render, cover, mounted, timings}
 }
 
-test('iOS Reader content shows the article host directly as soon as its HTML is ready, with no overlay', nativeBoundary, async () => {
+test('iOS Reader content creates its host beneath the skeleton during the push and reveals it only when presentable, with no overlay afterwards', nativeBoundary, async () => {
   await withNativeHost(async host => {
     const content = await contentHarness(host, 'ios')
     await content.render({loading: true, html: null, hostKey: 'k:1', transitionReady: false})
     assert.equal(content.mounted(), false, 'No host exists before the document is composed')
-    assert.ok(content.skeleton()?.querySelector('header'), 'Loading shows the skeleton with the known header')
+    const loadingCover = content.cover()
     await content.render({loading: false, html: '<p>Article</p>', hostKey: 'k:1', transitionReady: false})
-    assert.equal(content.mounted(), true, 'iOS creates the native host immediately, before transitionEnd')
-    assert.equal(content.skeleton(), null, 'The skeleton is gone once the host exists')
-    assert.equal(content.query('reader-loading-cover'), null, 'No loading cover sits over the article')
-    assert.equal(content.hosts.at(-1).onPresentable, undefined, 'The article does not wait for a presentable report')
+    assert.equal(content.mounted(), true, 'iOS creates the native host before transitionEnd')
+    assert.equal(content.cover(), loadingCover, 'The same skeleton keeps covering the new host')
+    assert.equal(host.props.get('reader-loading-cover').pointerEvents, 'auto')
+    const mountedHosts = content.hosts.length
     await content.render({loading: false, html: '<p>Article</p>', hostKey: 'k:1', transitionReady: true})
     assert.equal(content.mounted(), true)
+    assert.equal(content.cover(), loadingCover, 'The settled transition neither remounts the host nor reveals it')
+    assert.ok(content.hosts.length >= mountedHosts)
+    await act(async () => content.hosts.at(-1).onPresentable('page-1'))
+    assert.equal(host.props.get('reader-loading-cover').pointerEvents, 'none', 'Only presentable reveals the document')
+    await act(async () => content.motion.advance(1000))
+    assert.equal(content.cover(), null, 'After the fade no overlay remains to take touches')
     await content.render({loading: false, html: '<p>Preview</p>', hostKey: 'rss:1', transitionReady: false, isPreview: true})
     assert.equal(content.mounted(), true, 'An iOS RSS preview host is also created during the push')
   })
@@ -126,28 +135,61 @@ test('Android preview waits for the push transition before creating its host', n
   })
 })
 
-test('Android Reader content keeps the skeleton until the post-transition host mounts, then shows it directly', nativeBoundary, async () => {
+test('Android Reader content keeps one skeleton cover from loading until the mounted host is presentable, then fades it out', nativeBoundary, async () => {
   await withNativeHost(async host => {
     const content = await contentHarness(host)
     await content.render({loading: true, html: null, hostKey: 'k:1', transitionReady: false})
-    assert.ok(content.skeleton()?.querySelector('header'), 'Loading shows the skeleton with the known header')
+    assert.ok(content.cover()?.querySelector('[data-testid="skeleton-content"] header'), 'Loading shows the skeleton with the known header')
+    assert.equal(content.mounted(), false)
     await content.render({loading: false, html: '<p>Article</p>', hostKey: 'k:1', transitionReady: false})
     assert.equal(content.mounted(), false, 'An Android composed document still waits for the push transition before creating its native host')
-    assert.ok(content.skeleton(), 'The skeleton stays until then')
+    const loadingCover = content.cover()
     await content.render({loading: false, html: '<p>Article</p>', hostKey: 'k:1', transitionReady: true})
     assert.equal(content.mounted(), true)
-    assert.equal(content.skeleton(), null)
-    assert.equal(content.query('reader-loading-cover'), null, 'The mounted article is visible immediately, with no overlay or fade')
+    assert.equal(content.cover(), loadingCover, 'The skeleton is not remounted when the host appears beneath it')
+    assert.equal(host.props.get('reader-loading-cover').pointerEvents, 'auto')
+    assert.equal(host.props.get('reader-loading-cover').accessibilityElementsHidden, true)
+    const presentable = content.hosts.at(-1).onPresentable
+    assert.equal(typeof presentable, 'function')
+    content.motion.setReducedMotion(true)
+    await act(async () => presentable('page-1'))
+    assert.ok(content.cover(), 'The cover fades instead of disappearing in one frame')
+    assert.equal(host.props.get('reader-loading-cover').pointerEvents, 'none', 'A fading cover never blocks the revealed document')
+    assert.equal(content.motion.started.at(-1).toValue, 0)
+    assert.equal(content.motion.started.at(-1).reduceMotion, true, 'The fade resolves the system reduced-motion setting')
+    assert.equal(content.timings.at(-1).duration, 120, 'The reveal is a short fade')
+    await act(async () => content.motion.advance(1000))
+    assert.equal(content.cover(), null)
+    const renders = content.hosts.length
+    await content.render({loading: false, html: '<p>Article</p>', hostKey: 'k:1', transitionReady: true})
+    assert.equal(content.hosts.at(-1).onPresentable, presentable, 'The memoized document host receives a stable presentable callback')
+    assert.ok(content.hosts.length >= renders)
+    await content.render({loading: false, html: '<p>Article</p>', hostKey: 'k:2', transitionReady: true})
+    assert.ok(content.cover(), 'A replacement document host is covered again until it is presentable')
+    await act(async () => presentable('late-page'))
+    assert.equal(host.props.get('reader-loading-cover').pointerEvents, 'auto', 'A retired host cannot reveal its replacement')
     await content.render({loading: false, html: '<p>Article</p>', hostKey: 'k:2', transitionReady: true, nativeFailure: 'Interrupted'})
-    assert.ok(content.query('reader-native-retry'), 'A native failure still shows its retry banner')
-    await content.render({loading: false, html: '<p>Article</p>', hostKey: 'k:2', transitionReady: true, contentError: 'Stale'})
-    assert.equal(content.mounted(), true, 'A refresh error keeps the article visible beneath its banner')
+    assert.equal(host.props.get('reader-loading-cover').pointerEvents, 'none', 'A native failure reveals the retry surface instead of an endless skeleton')
+    assert.ok(host.window.document.querySelector('[data-testid="reader-native-retry"]'), 'Its retry banner is shown')
+    await content.render({loading: false, html: '<p>Article</p>', hostKey: 'k:3', transitionReady: true})
+    assert.equal(host.props.get('reader-loading-cover').pointerEvents, 'auto')
+    await content.render({loading: false, html: '<p>Article</p>', hostKey: 'k:3', transitionReady: true, contentError: 'Refresh failed'})
+    assert.equal(host.props.get('reader-loading-cover').pointerEvents, 'none', 'A content error uncovers the article at once beneath its banner')
+    await content.render({loading: false, html: '<p>Article</p>', hostKey: 'k:3', transitionReady: true})
+    await act(async () => content.hosts.at(-1).onPresentable('page-3'))
+    await act(async () => content.motion.advance(1000))
+    assert.equal(content.cover(), null)
+    await content.render({loading: false, html: '<p>Refreshed article</p>', htmlProps: {html: '<p>Refreshed article</p>'}, hostKey: 'k:3', transitionReady: true})
+    assert.ok(content.cover(), 'A forced reload publishing new HTML under the same host key is covered again')
+    assert.equal(host.props.get('reader-loading-cover').pointerEvents, 'auto')
+    await act(async () => content.hosts.at(-1).onPresentable('page-3b'))
+    assert.equal(host.props.get('reader-loading-cover').pointerEvents, 'none', 'The new page reveals itself once presentable')
   })
 })
 
 async function readerPage(host, platform, adapterOverrides = {}, handleOverrides = {}, globals = {}) {
   let documentProps, outerProps, headerProps, renders = 0
-  const insets = []
+  const insets = [], presentable = []
   const View = React.forwardRef((props, ref) => {
     if (props.onLayout && !props.testID) headerProps = props
     return React.createElement(host.native.View, {...props, ref})
@@ -177,11 +219,11 @@ async function readerPage(host, platform, adapterOverrides = {}, handleOverrides
   }, {Error, ...globals})
   const ref = React.createRef()
   const element = props => React.createElement(ReaderWebView, {ref, cacheKey: 'fixture', cacheDirectory: '/cache/slax-ui-fixtures/scroll/', html: '<p>Article</p>', currentUserId: 7,
-    nativeAdapter: adapter, header: React.createElement('div', null, 'Header'), headerSafeAreaPoints: 62, initialPosition: 300, ...props})
+    nativeAdapter: adapter, header: React.createElement('div', null, 'Header'), headerSafeAreaPoints: 62, initialPosition: 300, onPresentable: pageId => presentable.push(pageId), ...props})
   await host.render(element({}))
   const pageId = /"pageId":"([^"]+)"/.exec(documentProps.source.html)[1]
   const send = payload => documentProps.onMessage({nativeEvent: {data: envelope(pageId, payload)}})
-  return {ref, insets, scrolls, commands, pageId, send, element, renders: () => renders, documentProps: () => documentProps, outerProps: () => outerProps,
+  return {ref, insets, presentable, scrolls, commands, pageId, send, element, renders: () => renders, documentProps: () => documentProps, outerProps: () => outerProps,
     header: () => headerProps}
 }
 
@@ -334,5 +376,87 @@ test('android Reader restores once the outer scroller holds header and document,
     await act(async () => page.documentProps().onLoadEnd())
     await host.settle(200)
     assert.deepEqual(page.scrolls.map(value => value.y), [100], 'Later growth and the load event never move the position')
+  })
+})
+
+// Controlled frames: work scheduled for the next frame runs only when the test paints it.
+function controlledFrames() {
+  const frames = new Map(), timers = []
+  let sequence = 0
+  return {
+    globals: {requestAnimationFrame: callback => {const id = ++sequence; frames.set(id, callback); return id}, cancelAnimationFrame: id => {frames.delete(id)},
+      setTimeout: (callback, ms) => {timers.push(ms); return setTimeout(callback, ms)}, clearTimeout},
+    pending: () => frames.size, timers,
+    paint: async () => {const pending = [...frames.values()]; frames.clear(); await act(async () => {for (const callback of pending) callback(0)})},
+  }
+}
+async function iosReady(page, host) {
+  await act(async () => {
+    host.props.get('reader-container').onLayout({nativeEvent: {layout: {height: 600}}})
+    page.documentProps().onLoadStart({nativeEvent: {target: 47}})
+    page.send({type: 'contentHeight', height: 1200})
+    page.send({type: 'domReady'})
+  })
+  await act(async () => page.header().onLayout({nativeEvent: {layout: {height: 200}}}))
+  await host.settle(10)
+}
+
+for (const initialPosition of [300, 0, null]) test(`iOS Reader becomes presentable one frame after DOM readiness and the restore, without the load event (position ${initialPosition})`, nativeBoundary, async () => {
+  await withNativeHost(async host => {
+    const frames = controlledFrames()
+    const page = await readerPage(host, 'ios', {}, {}, frames.globals)
+    await host.render(page.element({initialPosition}))
+    await act(async () => {host.props.get('reader-container').onLayout({nativeEvent: {layout: {height: 600}}}); page.documentProps().onLoadStart({nativeEvent: {target: 47}})})
+    await act(async () => page.send({type: 'contentHeight', height: 1200}))
+    await act(async () => page.header().onLayout({nativeEvent: {layout: {height: 200}}}))
+    await host.settle(10); await frames.paint()
+    assert.deepEqual(page.presentable, [], 'Height and geometry alone do not present before DOM readiness')
+    await act(async () => page.send({type: 'domReady'}))
+    await host.settle(10)
+    assert.equal(page.ref.current.inspectFixturePosition().consumed, true, 'The restore was applied')
+    assert.deepEqual(iosScrolls(page), initialPosition === 300 ? [300 / 3 - 200] : initialPosition === 0 ? [-200] : [], 'The saved position is applied once')
+    assert.deepEqual(page.presentable, [], 'The restored first screen has not painted yet')
+    await frames.paint()
+    assert.deepEqual(page.presentable, [page.pageId], 'Presentable follows one frame after the restore')
+    assert.equal(page.ref.current.inspectFixturePosition().bridge.documentLoaded, false, 'The window load event never gated it')
+    assert.deepEqual(frames.timers.filter(ms => ms >= 100), [], 'No presentation timeout is armed')
+    await act(async () => {page.send({type: 'contentHeight', height: 2400}); page.documentProps().onLoadEnd()})
+    await host.settle(50); await frames.paint()
+    assert.deepEqual(page.presentable, [page.pageId], 'Presentable is reported once')
+    assert.equal(iosScrolls(page).length, initialPosition === null ? 0 : 1, 'Late images and the load event never move the position again')
+  })
+})
+
+test('android Reader becomes presentable one frame after the guarded restore, without the load event', nativeBoundary, async () => {
+  await withNativeHost(async host => {
+    const frames = controlledFrames()
+    const page = await readerPage(host, 'android', {}, {}, frames.globals)
+    await act(async () => {
+      host.props.get('reader-container').onLayout({nativeEvent: {layout: {height: 600}}})
+      page.header().onLayout({nativeEvent: {layout: {height: 200}}})
+      page.documentProps().onLoadStart({nativeEvent: {target: 47}})
+      page.send({type: 'contentHeight', height: 1200}); page.send({type: 'domReady'})
+    })
+    await act(async () => {page.outerProps().onLayout({nativeEvent: {layout: {height: 600}}}); page.outerProps().onContentSizeChange(390, 1300)})
+    await host.settle(10); await frames.paint()
+    assert.deepEqual(page.presentable, [], 'The scroller guard still holds back restore and presentation')
+    await act(async () => page.outerProps().onContentSizeChange(390, 1400))
+    await host.settle(10)
+    assert.deepEqual(page.scrolls.map(value => value.y), [100])
+    assert.deepEqual(page.presentable, [])
+    await frames.paint()
+    assert.deepEqual(page.presentable, [page.pageId])
+  })
+})
+
+test('a page unmounted between its restore and the next frame never reports presentable', nativeBoundary, async () => {
+  await withNativeHost(async host => {
+    const frames = controlledFrames()
+    const page = await readerPage(host, 'ios', {}, {}, frames.globals)
+    await iosReady(page, host)
+    assert.equal(frames.pending(), 1)
+    await host.render(null)
+    assert.equal(frames.pending(), 0, 'Unmount cancels the pending presentation frame')
+    assert.deepEqual(page.presentable, [])
   })
 })
