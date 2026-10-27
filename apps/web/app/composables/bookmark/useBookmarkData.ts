@@ -297,13 +297,13 @@ export const useBookmarkData = (
   })
 
   // === REST 查询 ===
-  const queryBookmarks = async () => {
+  const queryBookmarks = async (pageNumber = page.value) => {
     const collectionId = isRestCollectionTab.value ? String(toValue(activeCollectionId)) : String(filter.filterCollectionId.value) || ''
     const source = toValue(sourceDomain)
     return await request().get<BookmarkItem[]>({
       url: RESTMethodPath.BOOKMARK_LIST,
       query: {
-        page: page.value,
+        page: pageNumber,
         size: 20,
         filter: isRestCollectionTab.value ? 'collections' : `${filter.filterStatus.value}`,
         topic_ids: filter.filterTopicIds.value.join(','),
@@ -316,13 +316,19 @@ export const useBookmarkData = (
 
   // 每次 reset 递增；请求回来时代数变了就是过期响应，直接丢，不碰 loading/page/ending
   let loadSeq = 0
+  let refreshRevision = 0
+  let refreshPending = false
+  let refreshSeq = -1
+  let alive = true
+  const refreshing = ref(false)
   const loadData = async <T extends any[]>(query: () => Promise<T | undefined>) => {
     const seq = loadSeq
+    const revision = refreshRevision
     const token = getUserToken()
     restLoading.value = true
     try {
       const data = await query()
-      if (seq !== loadSeq || token !== getUserToken()) return
+      if (seq !== loadSeq || revision !== refreshRevision || token !== getUserToken()) return
       if (!Array.isArray(data)) return
       if (data.length < 1) {
         ending.value = true
@@ -339,6 +345,8 @@ export const useBookmarkData = (
 
   const resetBookmarks = () => {
     loadSeq += 1
+    refreshRevision += 1
+    refreshPending = false
     restReady.value = false
     restBookmarks.value = []
     restHighlights.value = []
@@ -375,7 +383,7 @@ export const useBookmarkData = (
       return
     }
 
-    if (restLoading.value || ending.value) return
+    if (restLoading.value || (refreshing.value && refreshSeq === loadSeq) || ending.value) return
     if ((type === 'topics' && filter.filterTopicIds.value.length < 1) || (type === 'collections' && filter.filterCollectionId.value < 1)) {
       resetBookmarks()
       ending.value = true
@@ -402,6 +410,78 @@ export const useBookmarkData = (
     onLoadMore()
   }
 
+  const isPersonalBookmarkList = () => !isLocalCollectionTab.value && !isRestCollectionTab.value &&
+    (LOCAL_TABS.includes(filter.filterStatus.value) || (filter.filterStatus.value === 'topics' && filter.filterTopicIds.value.length > 0))
+  const canRefresh = () => alive && isActivated.value && (visible?.value ?? true) && !searchText.value &&
+    document.visibilityState !== 'hidden' && !!getUserToken() && isPersonalBookmarkList()
+
+  // Keep the loaded range visible until every replacement page is ready.
+  const refreshList = async () => {
+    if (!refreshPending || !canRefresh() || refreshing.value || restLoading.value) return
+    refreshPending = false
+    refreshing.value = true
+    refreshSeq = loadSeq
+    const revision = refreshRevision
+    const seq = loadSeq
+    const token = getUserToken()
+    const owner = account.accountKey.value
+    const selection = () => [filter.filterStatus.value, filter.filterTopicIds.value.join(','), toValue(sourceDomain), toValue(activeCollectionId), toValue(activeCollectionCode)].join('|')
+    const selected = selection()
+    const current = () => alive && revision === refreshRevision && seq === loadSeq && token === getUserToken() && owner === account.accountKey.value && selected === selection()
+    try {
+      if (isLocalBookmarkTab.value) {
+        await localList?.refresh?.()
+        return
+      }
+      const loadedPages = Math.max(1, page.value - 1)
+      const rows: BookmarkItem[] = []
+      let nextPage = 1
+      let reachedEnd = false
+      for (let number = 1; number <= loadedPages; number++) {
+        const data = await queryBookmarks(number)
+        if (!current() || !Array.isArray(data)) return
+        rows.push(...data)
+        nextPage = number + 1
+        if (!data.length) {
+          nextPage = number
+          reachedEnd = true
+          break
+        }
+      }
+      if (!current()) return
+      restBookmarks.value = rows
+      page.value = nextPage
+      ending.value = reachedEnd
+      restSession.value = token
+      restOwner.value = account.context.value.serverUserId
+      restReady.value = true
+    } catch {
+      // Retain the list. The next foreground event can retry.
+    } finally {
+      refreshing.value = false
+      if (refreshPending) scheduleRefresh()
+    }
+  }
+  const scheduleRefresh = useDebounceFn(() => { void refreshList() }, 100)
+  const requestRefresh = () => {
+    if (!canRefresh()) return
+    refreshPending = true
+    scheduleRefresh()
+  }
+  const invalidateRefresh = () => {
+    if (!isPersonalBookmarkList()) return
+    refreshRevision++
+    refreshPending = true
+    scheduleRefresh()
+  }
+  watch(restLoading, loading => { if (!loading && refreshPending) scheduleRefresh() })
+  if (isClient) {
+    useEventListener(window, 'focus', requestRefresh)
+    useEventListener(window, 'online', requestRefresh)
+    useEventListener(document, 'visibilitychange', requestRefresh)
+  }
+  onUnmounted(() => { alive = false; refreshRevision++ })
+
   if (!local && sourceDomain) {
     watch(sourceDomain, (domain, previousDomain) => {
       if (domain === previousDomain || filter.filterStatus.value !== 'inbox') return
@@ -419,7 +499,7 @@ export const useBookmarkData = (
     { flush: 'sync' }
   )
 
-  const canLoadMoreList = () => (visible?.value ?? true) && !restLoading.value && !ending.value && isActivated.value && !searchText.value
+  const canLoadMoreList = () => (visible?.value ?? true) && !restLoading.value && !(refreshing.value && refreshSeq === loadSeq) && !ending.value && isActivated.value && !searchText.value
   const { reset } = useInfiniteScroll(isClient ? window : null, () => onLoadMore(), { distance: 100, canLoadMore: canLoadMoreList })
   const resetInfiniteScroll = useDebounceFn(() => reset(), 1000)
 
@@ -428,7 +508,12 @@ export const useBookmarkData = (
     if (window.visualViewport) useEventListener(window.visualViewport, 'resize', resetInfiniteScroll)
   }
 
-  onActivated(() => (isActivated.value = true))
+  let firstActivation = true
+  onActivated(() => {
+    isActivated.value = true
+    if (firstActivation) firstActivation = false
+    else requestRefresh()
+  })
   onDeactivated(() => (isActivated.value = false))
 
   // === cell handlers：local tab 走本地，否则改 REST 数组 ===
@@ -438,6 +523,7 @@ export const useBookmarkData = (
       local!.setArchive(id as unknown as string, archive)
       return
     }
+    invalidateRefresh()
     if (filter.filterStatus.value === 'inbox' && archive) restBookmarks.value = restBookmarks.value.filter(b => b.id !== id)
     else if (filter.filterStatus.value === 'archive' && !archive) restBookmarks.value = restBookmarks.value.filter(b => b.id !== id)
     else {
@@ -451,6 +537,7 @@ export const useBookmarkData = (
       local!.setAliasTitle(id as unknown as string, aliasTitle)
       return
     }
+    invalidateRefresh()
     const b = restBookmarks.value.find(b => b.id === id)
     b && (b.alias_title = aliasTitle)
   }
@@ -460,6 +547,7 @@ export const useBookmarkData = (
       if (bookmark.starred) local!.setStar(id as unknown as string, bookmark.starred === 'star')
       return
     }
+    invalidateRefresh()
     const index = restBookmarks.value.findIndex(b => b.id === id)
     if (index > -1) restBookmarks.value.splice(index, 1, bookmark)
   }
@@ -469,6 +557,7 @@ export const useBookmarkData = (
       local!.setTrashed(id as unknown as string, true)
       return
     }
+    invalidateRefresh()
     isTransitioning.value = true
     restBookmarks.value = restBookmarks.value.filter(b => b.id !== id)
     await nextTick()
@@ -477,8 +566,22 @@ export const useBookmarkData = (
 
   // === 频道同步：local 模式下 computed 自动刷新，无需接管 ===
   const channelMessageHandler = (name: keyof ChannelMessageData, data: Partial<ChannelMessageData>) => {
+    if (name === 'bookmarkArchive') {
+      const change = data.bookmarkArchive
+      if (!isPersonalBookmarkList() || !change || !change.accountKey || change.accountKey !== account.accountKey.value || typeof change.uuid !== 'string' || typeof change.archived !== 'boolean') return
+      invalidateRefresh()
+      if (!local && !isRestCollectionTab.value) {
+        restBookmarks.value = restBookmarks.value.flatMap(item => {
+          if (item.bookmark_user_uuid !== change.uuid) return [item]
+          if ((filter.filterStatus.value === 'inbox' && change.archived) || (filter.filterStatus.value === 'archive' && !change.archived)) return []
+          return [{ ...item, archived: change.archived ? 'archive' as const : 'inbox' as const }]
+        })
+      }
+      return
+    }
     if (local) return
     if ((restBookmarks.value.length === 0 && restLoading.value) || !data[name]) return
+    if (name === 'archive' || name === 'star' || name === 'trashed') invalidateRefresh()
     if (name === 'archive') {
       const { id, cancel } = data[name]
       if ((!cancel && filter.filterStatus.value === 'inbox') || (cancel && filter.filterStatus.value === 'archive'))

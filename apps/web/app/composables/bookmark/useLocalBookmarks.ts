@@ -1,9 +1,9 @@
 import { computed, type MaybeRef, toValue } from 'vue'
-import type { BookmarkSaveState } from './bookmarkSaveGuard'
 
 import { toUtcDate } from '@/utils/date'
 import { sortBookmarkTags } from '@/utils/tags'
 
+import type { BookmarkSaveState } from './bookmarkSaveGuard'
 import type { BookmarkItem, BookmarkTag } from '@commons/frontend-types/models'
 import { useQuery } from '@powersync/vue'
 import type { PowerSyncDatabase } from '@powersync/web'
@@ -186,9 +186,9 @@ export const useLocalBookmarks = () => {
     })
     const params = computed(() => [...ids.value])
     // Query loading does not imply initial server synchronization has completed.
-    const { data, isLoading, isFetching, error } = useQuery<LocalBookmarkRow>(sql, params)
+    const { data, isLoading, isFetching, error, refresh } = useQuery<LocalBookmarkRow>(sql, params)
     const items = computed(() => data.value.map(r => rowToItem(r as LocalBookmarkRow)))
-    return { items, isLoading, isFetching, error }
+    return { items, isLoading, isFetching, error, refresh }
   }
 
   // 详情单条：enabled=false（owner 未判定）时 WHERE 0

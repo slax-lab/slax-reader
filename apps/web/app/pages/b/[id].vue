@@ -209,6 +209,7 @@ import { eventLog } from '@/utils/analytics'
 import { extractFirstContentImage } from '@/utils/ogImage'
 import { sortBookmarkTags } from '@/utils/tags'
 import { youtubeArticleView as pickYoutubeArticleView, youtubeBodyHasArticle as bodyHasYoutubeArticle } from '@/utils/youtubeBody'
+import { deriveAccountKey } from '~/utils/accountContext'
 import type { PdfTitlePreview } from '~/utils/pdfPreview'
 import { pdfTitlePreview } from '~/utils/pdfPreview'
 
@@ -992,13 +993,21 @@ const showSuccessToast = (text: string, trackDom: HTMLElement | null) => {
 
 const archiveBookmark = async (trackDom: HTMLElement | null) => {
   const status = isArchived.value ? 'inbox' : 'archive'
+  const token = getUserToken()
+  const generation = accountGeneration.value
+  const accountKey = deriveAccountKey(token)
+  const bookmarkUuid = bookmarkUid.value
+  const current = () => token === getUserToken() && generation === accountGeneration.value
   try {
     if (localFirst.value && local) {
       await local.setArchive(uuid, status === 'archive')
     } else {
       await request().post({ url: RESTMethodPath.BOOKMARK_ARCHIVE, body: { bookmark_uid: bookmarkUid.value, status } })
+      if (!current()) return
       restArchived.value = status
     }
+    if (!current()) return
+    if (accountKey) postChannelMessage('bookmarkArchive', { accountKey, uuid: bookmarkUuid, archived: status === 'archive' })
     showSuccessToast(t(status === 'archive' ? 'common.tips.archive_success' : 'common.tips.unarchive_success'), trackDom)
   } catch {
     Toast.showToast({ text: t('common.tips.operate_failed'), type: ToastType.Error })
