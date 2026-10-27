@@ -1,6 +1,6 @@
 # Validation
 
-All results below were produced on the task branch merged with current `dev` (`c817d0bb`, 55 PostgreSQL migrations) unless a row says otherwise.
+All results below were produced on the task branch merged with current `dev`. The scenario matrix, scaling, and deployment-order checks ran with 55 PostgreSQL migrations (`c817d0bb`); the commands and the hard-delete checks ran again after adding `20261027040000_collection_owner_hard_delete` (56 migrations).
 
 ## Commands
 
@@ -8,10 +8,10 @@ All results below were produced on the task branch merged with current `dev` (`c
 | --- | --- |
 | `pnpm install --frozen-lockfile` | Passed |
 | `SLAX_API_CONFIG=<local api.toml> pnpm api -- gen:all` | Passed; no tracked generated-file drift |
-| `pnpm api -- typecheck` | Passed |
-| `pnpm api -- test` | Passed; 192 files, 2,503 tests passed, 112 skipped by their environment gate |
+| `pnpm api -- typecheck` | Passed (56 migrations) |
+| `pnpm api -- test` | Passed (56 migrations); 192 files, 2,503 tests passed, 112 skipped by their environment gate |
 | `pnpm api -- test test/infra/powersyncRules.test.ts` | Passed; 13 tests |
-| `RUN_PG_INTEGRATION_TESTS=1 HYPERDRIVE_DATABASE_URL=<disposable migrated database> pnpm api -- test test/infra/collectionSyncOwnerState.integration.test.ts test/infra/collectionTriggers.integration.test.ts` | Passed; 2 tests: the new owner-state test (insert fill, `owner_id` reassignment, deletion, restoration, collection created for a deleted owner) and the existing Collection trigger test |
+| `RUN_PG_INTEGRATION_TESTS=1 HYPERDRIVE_DATABASE_URL=<disposable migrated database> pnpm api -- test test/infra/collectionSyncOwnerState.integration.test.ts test/infra/collectionTriggers.integration.test.ts` | Passed on 56 migrations; 2 tests: the new owner-state test (insert fill, `owner_id` reassignment, soft deletion, restoration, collection created for a deleted owner, hard deletion of the owner row, collection pointing at a missing owner) and the existing Collection trigger test |
 | `pnpm exec openspec validate --all --strict` | Passed; 78 items |
 | `pnpm api -- test:setup:local` | Not completed; see Not verified |
 
@@ -48,6 +48,12 @@ This fits `param_results = 3N + 4` and `buckets = 2N + 2`: one user reaches the 
 The final rules were loaded against a database with every migration except the `owner_deleted` column and triggers. PowerSync logged `Loaded sync config` with no error. The default streams returned 3 buckets with no owner bucket, and the collection comment stream returned no buckets: collection content is hidden silently, not rejected. The migration must be applied first, and the post-deploy check must look for the owner bucket rather than only the config-load log.
 
 A separate check applied all `dev` migrations without this one, then ran `prisma migrate deploy` with the full set; the older-timestamped `20261022043051_local_first_ddl` was applied and created the column and both triggers.
+
+### Missing and hard-deleted owners
+
+On a fully migrated database (56 migrations), PowerSync 1.26.1 with the final rules returned the owner bucket and the collection comment while the owner was active (4 buckets / 7 parameter results; comment 1 / 3), removed both on soft deletion (3 / 6; comment 0 / 1), restored both on restoration, and removed both again after `DELETE FROM sr_user` for the owner (3 / 6; comment 0 / 1, `owner_deleted = true`). This matches the former `INNER JOIN sr_user AS owner` behavior.
+
+A database at 55 migrations received a collection whose owner row does not exist; it kept `owner_deleted = false`. Applying `20261027040000_collection_owner_hard_delete` changed it to `true` and extended `sr_user_sync_owner_deleted` to `UPDATE` and `DELETE` events.
 
 ### Triggers
 

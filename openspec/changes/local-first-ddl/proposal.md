@@ -25,8 +25,8 @@ None. The RSS Labs behavior is unchanged; its rules only move to the same bounde
 ## Impact
 
 - `deploy/local/powersync-local/sync_rules.yaml`
-- `apps/api/prisma/pgsql.prisma` and a new PostgreSQL migration with the `owner_deleted` column, backfill, and triggers
+- `apps/api/prisma/pgsql.prisma` and two PostgreSQL migrations: the `owner_deleted` column, backfill, and triggers, then missing-owner and hard-delete handling
 - `apps/api/test/infra/powersyncRules.test.ts` plus a new PostgreSQL trigger integration test
 - OpenSpec artifacts under `openspec/changes/local-first-ddl/`
 
-The migration is additive and backward compatible: existing code ignores `owner_deleted`, and the column defaults to `false` with a backfill. Sync rules must be deployed after the migration; deployed first, they load without an error and silently hide all collection content (see `design.md`).
+The migration is additive and backward compatible: existing code ignores `owner_deleted`, and the column defaults to `false` with a backfill. Sync rules must be deployed after the migrations; deployed first, they load without an error and silently hide all collection content (see `design.md`).

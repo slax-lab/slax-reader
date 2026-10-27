@@ -55,9 +55,14 @@ The `collection_bookmark_comment` stream SHALL return comments only for the requ
 
 ### Requirement: Owner deletion state maintenance
 
-The database SHALL maintain each collection's owner-deletion state transactionally with the owner's deletion state, and SHALL backfill it for existing collections. New collections SHALL inherit the current owner state.
+The database SHALL maintain each collection's owner-deletion state transactionally with the owner's deletion state, and SHALL backfill it for existing collections. New collections SHALL inherit the current owner state. A collection whose owner row does not exist SHALL be treated as having a deleted owner.
 
 #### Scenario: Owner state changes
 
-- **WHEN** a user is marked deleted or restored, or a collection is created for an owner
+- **WHEN** a user is marked deleted or restored, or a collection is created for or reassigned to an owner
 - **THEN** the collection owner-deletion state reflects the current owner state without a separate application write
+
+#### Scenario: Owner row removed
+
+- **WHEN** an owner's `sr_user` row is hard-deleted, or a collection references an owner row that does not exist
+- **THEN** the collection is treated as having a deleted owner and its content stops syncing

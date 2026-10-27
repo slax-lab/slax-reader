@@ -4,6 +4,7 @@
 
 - [x] Add `owner_deleted Boolean @default(false)` to the `sr_user_collection` model in `apps/api/prisma/pgsql.prisma`.
 - [x] Create the PostgreSQL migration with the column, backfill, fill trigger, and owner-state propagation trigger.
+- [x] Add a follow-up migration that treats a missing owner row as deleted, propagates hard deletion, and backfills orphaned collections.
 - [x] Apply the migration locally and regenerate Prisma and runtime types.
 
 ## 2. Sync rules

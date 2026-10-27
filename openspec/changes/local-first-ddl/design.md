@@ -30,10 +30,12 @@ A correlated subquery such as `collection.owner_id IN (SELECT owner.id FROM sr_u
 
 Instead, `sr_user_collection.owner_deleted` is maintained by two triggers:
 
-- `sr_user_collection_fill_owner_deleted` fills the flag on insert or when `owner_id` changes.
-- `sr_user_sync_owner_deleted` propagates `sr_user.deleted_at` changes to every collection owned by that user.
+- `sr_user_collection_fill_owner_deleted` fills the flag on insert or when `owner_id` changes. A missing owner row counts as deleted.
+- `sr_user_sync_owner_deleted` propagates `sr_user.deleted_at` changes and hard deletion of an `sr_user` row to every collection owned by that user.
 
-The migration backfills existing rows. This is an additive expand migration: old rules and old application code ignore the column, and the trigger keeps it correct without an API write. `cleanupUserData` can still hard-delete collections later.
+A missing owner row is treated like a deleted owner so the flag matches the `INNER JOIN sr_user AS owner ... owner.deleted_at IS NULL` the rules used before: a collection is visible only when its owner row exists and is not soft-deleted. Two migrations implement this: `20261022043051_local_first_ddl` adds the column, backfill, and triggers, and `20261027040000_collection_owner_hard_delete` adds the missing-owner and hard-delete handling and backfills collections whose owner row is already gone. The second is a separate migration because the first has already been applied to development databases.
+
+The migrations backfill existing rows. This is an additive expand migration: old rules and old application code ignore the column, and the trigger keeps it correct without an API write. `cleanupUserData` can still hard-delete collections later.
 
 Propagation updates also fire the existing `sr_user_collection_stats_maintain_collection` trigger. Its UPDATE branch acts only on `status`, `display_name`, and `description` changes, so an `owner_deleted`-only update leaves collection statistics unchanged.
 
@@ -70,9 +72,9 @@ The archived `rss-local-first` change (now the living `rss-labs` spec) used `rss
 
 ## Compatibility and rollout
 
-- Apply the migration before deploying the rules. The order is not enforced: PowerSync loads rules that reference a missing column without an error and evaluates the column as NULL, so `collection.owner_deleted = false` never matches. Deployed out of order, the config logs `Loaded sync config` while every subscriber silently loses collection bookmarks, statistics, share settings, and collection comments.
+- Apply both migrations before deploying the rules. The order is not enforced: PowerSync loads rules that reference a missing column without an error and evaluates the column as NULL, so `collection.owner_deleted = false` never matches. Deployed out of order, the config logs `Loaded sync config` while every subscriber silently loses collection bookmarks, statistics, share settings, and collection comments.
 - After publishing the rules, `Loaded sync config` is not sufficient evidence. Confirm that a connection with an open collection subscription lists its owner bucket (`subscribed_collections|2[<owner_id>]`) in the checkpoint log and that `param_results` stays small.
-- The migration timestamp precedes migrations already merged on `dev`; `prisma migrate deploy` applies it on a database that already has those later migrations.
+- The first migration's timestamp precedes migrations already merged on `dev`; `prisma migrate deploy` applies it on a database that already has those later migrations.
 - Creating the triggers briefly locks `sr_user` and `sr_user_collection`; run the migration outside peak traffic.
 - The migration only adds a column with a default and creates functions/triggers; it does not rewrite or drop existing data.
 - Old sync rules ignore `owner_deleted`; rollback is limited to restoring the previous rules file.
@@ -82,7 +84,6 @@ The archived `rss-local-first` change (now the living `rss-labs` spec) used `rss
 
 - A future PowerSync upgrade could change parameter-lookup planning; pin the service image and re-run the bounded-lookup checks on upgrade.
 - Per-user cost is measured, not global: with N active subscriptions to distinct open collections, the default streams use `3N + 4` parameter results and `2N + 2` buckets. One user therefore reaches the 1,000 parameter limit at about 332 subscriptions, before the bucket limit at about 499. This bound no longer depends on global table size.
-- A hard `DELETE` of an `sr_user` row does not fire the propagation trigger, so a surviving collection would keep `owner_deleted = false`. The application only soft-deletes users and the cleanup job deletes their collections; add a delete trigger before introducing hard user deletion.
 - `collection_bookmark_comment` still reads one owner's collection row by primary key through a subscription parameter; this is bounded by that single row, not the global collection count.
 - The fill trigger takes a share lock on the owner row while holding the collection row, while the propagation trigger holds the owner row and updates collections. A no-op `owner_id` update concurrent with owner deletion could deadlock. Nothing in the repository updates `owner_id`; keep it immutable or revisit the lock order before adding such a path.
 

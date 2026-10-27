@@ -17,7 +17,7 @@ describePg('Collection owner deletion state', () => {
     await client?.end()
   })
 
-  test('fills owner_deleted on insert and owner change, and follows owner deletion and restoration', async () => {
+  test('fills owner_deleted on insert and owner change, and follows soft deletion, restoration, and hard deletion', async () => {
     await client.query('BEGIN')
 
     try {
@@ -91,6 +91,21 @@ describePg('Collection owner deletion state', () => {
         [activeOwnerId, collectionId]
       )
       expect(reassignedBack.rows[0].owner_deleted).toBe(false)
+
+      // Hard-deleting the owner row hides the collection, like the former INNER JOIN on sr_user.
+      await client.query('DELETE FROM sr_user WHERE id = $1', [activeOwnerId])
+      const hardDeleted = await client.query<{ owner_deleted: boolean }>(
+        'SELECT owner_deleted FROM sr_user_collection WHERE id = $1',
+        [collectionId]
+      )
+      expect(hardDeleted.rows[0].owner_deleted).toBe(true)
+
+      // A collection written for an owner row that does not exist is treated as deleted.
+      const orphan = await client.query<{ owner_deleted: boolean }>(
+        'UPDATE sr_user_collection SET owner_id = $1 WHERE id = $2 RETURNING owner_deleted',
+        [2147483000, collectionId]
+      )
+      expect(orphan.rows[0].owner_deleted).toBe(true)
     } finally {
       await client.query('ROLLBACK')
     }
