@@ -1,5 +1,10 @@
 # Tasks
 
+## Atomic sync correction — 2026-10-27
+
+- [x] A1 Restore one ordered database transaction including Reader admission and own-source restore; dispatch only after commit.
+- [x] A2 Prove whole-batch rollback, retry, conflict-attempt cleanup and post-commit behavior; update review, PR and reports.
+
 ## PowerSync submission follow-up — 2026-10-27
 
 - [x] P1 Record approved reuse-first scope; retain ordinary-save limitations and no schema/bucket/R2 changes.

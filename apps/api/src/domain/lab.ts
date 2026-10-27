@@ -4,6 +4,7 @@ import { detectRoute, type RouteKind } from '@/utils/platformDetector'
 import { ErrorName, ErrorParam, LabFeatureDisabledError } from '@/const/err'
 import { MultiLangError, Language } from '@/utils/multiLangError'
 import { ContextManager } from '@/utils/context'
+import type { Prisma } from '@prisma/hyperdrive-client'
 
 export type LabFeatureStatus = 'active' | 'graduated' | 'retired'
 
@@ -72,15 +73,15 @@ export class LabService {
     await this.labRepo.upsert(userId, key, enabled)
   }
 
-  public async isEnabled(userId: number, key: string): Promise<boolean> {
+  public async isEnabled(userId: number, key: string, transaction?: Prisma.TransactionClient): Promise<boolean> {
     const def = this.features()[key]
     if (!def || def.status === 'retired') return false
     if (def.status === 'graduated') return true
-    return this.labRepo.isEnabled(userId, key)
+    return this.labRepo.isEnabled(userId, key, transaction)
   }
 
   /** Throws LAB_FEATURE_DISABLED when the URL needs a Labs feature the user has not turned on. */
-  public async assertUrlAllowed(ctx: ContextManager, url: string): Promise<void> {
+  public async assertUrlAllowed(ctx: ContextManager, url: string, transaction?: Prisma.TransactionClient): Promise<void> {
     let parsed: URL
     try {
       parsed = new URL(url)
@@ -89,11 +90,11 @@ export class LabService {
     }
     const key = this.gatedFeatureForUrl(parsed.toString())
     if (!key) return
-    await this.assertEnabled(ctx, key)
+    await this.assertEnabled(ctx, key, transaction)
   }
 
-  public async assertEnabled(ctx: ContextManager, key: string): Promise<void> {
-    if (!(await this.isEnabled(ctx.getUserId(), key))) throw this.disabledError(key)
+  public async assertEnabled(ctx: ContextManager, key: string, transaction?: Prisma.TransactionClient): Promise<void> {
+    if (!(await this.isEnabled(ctx.getUserId(), key, transaction))) throw this.disabledError(key)
   }
 
   public disabledError(key: string): MultiLangError {

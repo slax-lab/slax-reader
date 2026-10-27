@@ -1,6 +1,6 @@
 import { inject, injectable } from '@/decorators/di'
 import { UserService } from '@/domain/user'
-import { DBSyncBatchOperation, type SyncCommitObserver } from '@/infra/repository/dbSyncBatch'
+import { DBSyncBatchOperation, type SyncCommitObserver, type prismaTx, type SyncReaderSave } from '@/infra/repository/dbSyncBatch'
 import { QueueClient, queueRetryParseMessage, callbackType } from '@/infra/queue/queueClient'
 import { ContextManager } from '@/utils/context'
 import { parserType, URLPolicie } from '@/utils/urlPolicie'
@@ -200,22 +200,13 @@ export class SyncOrchestrator {
       if (source) operation.data.readerSourceUuid = source
     }
     const observer = this.syncCommitObserver(ctx)
-    let pending: OrderedSyncOperation[] = []
-    const flush = async () => {
-      if (!pending.length) return
-      const result = await this.dbSyncBatch.executeOrderedOperations(pending, observer)
-      pending = []
-      for (const newBookmark of result) await this.sendRetryParseEvent(ctx, newBookmark)
-    }
-    // Fork keeps its existing admission transaction. Commit each preceding run first
-    // so a later edit of a newly created local UUID sees the admitted destination.
-    for (const operation of orderedOperations) {
-      if (operation.type === 'create_bookmark' && operation.data.readerSourceUuid) {
-        await flush()
-        await this.commitReaderSave(ctx, operation, observer)
-      } else pending.push(operation)
-    }
-    await flush()
+    const hasReaderSave = orderedOperations.some(operation => operation.type === 'create_bookmark' && operation.data.readerSourceUuid)
+    const result = await this.dbSyncBatch.executeOrderedOperations(
+      orderedOperations,
+      observer,
+      hasReaderSave ? (tx, operation) => this.commitReaderSave(ctx, tx, operation) : undefined
+    )
+    for (const newBookmark of result) await this.sendRetryParseEvent(ctx, newBookmark)
 
     // 同步删除/恢复需补清缓存
     if (orderedOperations.some(op => op.type === 'delete_bookmark' || op.type === 'restore_bookmark')) {
@@ -223,14 +214,25 @@ export class SyncOrchestrator {
     }
   }
 
-  private async commitReaderSave(ctx: ContextManager, operation: Extract<OrderedSyncOperation, { type: 'create_bookmark' }>, observer: SyncCommitObserver) {
-    if (await this.dbSyncBatch.hasPersistedReaderSave(operation)) return
+  private async commitReaderSave(ctx: ContextManager, tx: prismaTx, operation: Extract<OrderedSyncOperation, { type: 'create_bookmark' }>): ReturnType<SyncReaderSave> {
+    if (await this.dbSyncBatch.hasPersistedReaderSave(operation, tx)) return
     try {
-      await this.forkService.admit(ctx, operation.data.readerSourceUuid!, operation.bookmarkUuid)
+      const admission = await this.forkService.reserve(ctx, operation.data.readerSourceUuid!, operation.bookmarkUuid, tx)
+      if (admission.disposition === 'created' && operation.data.isArchive) {
+        await tx.sr_user_bookmark.update({ where: { id: admission.relation.id }, data: { archive_status: 1 } })
+      }
+      return async () => {
+        try {
+          await this.forkService.dispatch(ctx, admission)
+        } catch (error) {
+          // Match ordinary sync: dispatch failure does not replay committed mutations.
+          // Keep uncertain claims; existing Workflow retries/failure handling still apply.
+          console.error('Reader sync dispatch failed', { name: error instanceof Error ? error.name : 'unknown' })
+        }
+      }
     } catch (error) {
-      // As with ordinary sync saves, an existing write/uncertain dispatch does not
-      // keep a persisted bookmark in the upload queue. Never release its claim.
-      if (error instanceof MultiLangError && [ErrorName.FORK_DESTINATION_IN_PROGRESS, ErrorName.FORK_STORAGE_UNAVAILABLE].includes(error.name as ErrorName)) {
+      // An existing active destination needs no second failure placeholder or writer.
+      if (error instanceof MultiLangError && error.name === ErrorName.FORK_DESTINATION_IN_PROGRESS) {
         console.error('Reader sync retained existing save', { name: error.name })
         return
       }
@@ -249,7 +251,7 @@ export class SyncOrchestrator {
         throw error
       // Reuse the existing terminal Reader placeholder; later queued personal edits
       // still have a row to target and a denied source does not block other uploads.
-      await this.dbSyncBatch.executeOrderedOperations([operation], observer)
+      await this.dbSyncBatch.executeCreateBookmark(tx, operation)
     }
   }
 

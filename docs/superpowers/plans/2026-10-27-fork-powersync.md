@@ -1,5 +1,7 @@
 # Fork PowerSync Implementation Plan
 
+The segmented-transaction architecture below is historical. The owner approved its replacement with one whole-batch transaction; [the atomicity correction](2026-10-27-fork-sync-atomicity.md) and the current implementation report supersede that part of this plan.
+
 > **For agentic workers:** Use superpowers:executing-plans with test-driven-development. The owner approved implementation in conversation on 2026-10-27.
 
 **Goal:** Submit Reader saves through the same local insertion and PowerSync upload path as ordinary URL saves.

@@ -1,3 +1,37 @@
+# Atomic PowerSync batch correction — 2026-10-27
+
+The owner requested restoring one transaction for ordinary mutations and Reader admission, with Workflows dispatched only after successful commit. This corrects the new partial-commit risk introduced by the earlier segmented implementation below. No schema, stream/bucket, R2 rule, public payload, frontend interaction, package version or recovery infrastructure changed in this correction.
+
+## Executed regressions and runtime behavior
+
+- **Mixed rollback and replay:** real PostgreSQL tests first failed for ordinary new/success/failed captures and completed Fork refresh when a later mutation failed. With the correction, all prior mutations and failed-source placeholders roll back, no task starts, and the identical batch succeeds after repairing the failing target. Personal state and content remain intact after rollback.
+- **Conflict retries and ordering:** injected P2002/P2034 conflicts run through real transactions. Only the final committed attempt dispatches; stale job IDs/effects are discarded. Workflow creation reads the committed later star/title/archive edits. Own-source restoration rolls back with the batch, and a source inserted earlier in that transaction is visible to subsequent Reader processing.
+- **Single connection:** the first real HTTP attempt timed out on PDF because a Labs permission query used the global client while the transaction occupied the sole runtime pool connection. Three real single-connection PDF/YouTube/podcast tests reproduced that timeout. Existing Labs reads now accept the caller transaction; all three pass. No pool size/configuration change or duplicate authorization implementation was introduced.
+- **Review correction:** a new Reader PUT's destination-requested archive flag was ignored. A real PostgreSQL regression first observed 0 instead of 1. The sync admission now applies that flag only to a newly created destination in the same transaction; a subsequent PATCH still wins before dispatch. No source personal state is copied.
+- **Post-commit uncertainty:** a dispatch failure and failed lookup leave committed personal state and the active writer claim intact; sync acknowledges the saved row instead of replaying committed mutations solely to retry dispatch. This matches the ordinary sync boundary and adds no recovery guarantee.
+
+| Check | Result |
+| --- | --- |
+| `pnpm api -- test` | 193 files passed, 14 conditional files skipped; **2,509 tests passed, 134 conditional skips**. Relevant conditional database tests are explicitly run below. One previous redundant unit case moved to real integration coverage. |
+| Owned PostgreSQL 17 with repository migrations | **61 tests passed:** 39 existing publication tests and 22 sync tests. Only external scheduling/telemetry boundaries are doubled; SQL, rollback and retry are real. Labs pool cases use real LabService/LabRepo. Owned resources cleaned afterward. |
+| `FORK_SMOKE=1 pnpm api -- test:http` | Passed again on the final code including the archive-state fix. Real local Edge/Core/Workflow/PostgreSQL/D1/R2; HTML, shortcut, uploaded/downloaded PDF, YouTube and podcast, repeated HTTP saves and ordinary add/list/delete. |
+| `pnpm api -- gen:all` | Passed with public example configuration and unused loopback DB URLs; no additional generated diff this round. |
+| API typecheck, lint, dry-run build | Passed; lint has zero errors and 344 existing warnings. No deployment. |
+| `pnpm exec openspec validate --all --strict` | **77 passed, zero failed.** |
+| Prior Web/UI evidence | Web source unchanged in this correction; 2,548 passing Web tests and the real SQLite browser exercise below remain evidence for the initial implementation. Owner hands-on acceptance remains unchanged. |
+
+## Review and limits
+
+Independent Bugs/Security/Compliance review selected `add-bookmark-fork`, reviewed the entire PR from `79491af2` through the working changes, and found the archive-state omission above. It found no other Bugs or Security issues in transaction ownership, retry cleanup, deferred dispatch, HTTP behavior or access checks. The independent final recheck verified the correction, regression logs, implementation evidence and proposed PR body, and reported no remaining Important findings or Nits across Bugs, Security and Compliance.
+
+Ordinary-only batches retain their original isolation and retry policy. Reader-containing batches use the existing Fork Serializable/10-second/three-attempt conflict policy across the whole batch. A later database failure cannot leave earlier operations committed; after a genuinely successful commit, lost-response replay retains ordinary-save semantics. Existing-target canonical UUID versus local UUID, dependent edits to an unpersisted temporary UUID, process interruption between commit and dispatch, and uncertain/stuck processing remain accepted boundaries. No exactly-once receipt, outbox, cleanup or rescue mechanism is added.
+
+The HTTP smoke and PostgreSQL tests run in isolated owned resources, not the operator's database. No remote PowerSync-service/browser end-to-end run, production latency, process-kill/lost-COMMIT recovery or provider fetch was measured. Earlier UI acceptance is still valid because this correction has no UI change. The primary checkout and its services remain untouched.
+
+---
+
+The following entries describe earlier checkpoints. Where they differ, the atomic correction above is authoritative.
+
 # PowerSync submission follow-up — 2026-10-27
 
 Approved scope: reuse ordinary Add URL's local insertion, connector and queue; route Reader PUTs to existing Fork admission/Workflow; preserve inherited ordinary-save boundaries. No schema, bucket, migration, public contract, `forked_from_id` projection, R2 path, version or maintenance changes. Initial base: `origin/dev` at `0e39dc6c` (merged performance PR #396); rebased before publication onto `79491af2`, retaining merged #398 Save-button presentation. Work is isolated on `feat/fork-powersync`; the primary checkout remains untouched.
@@ -26,7 +60,7 @@ New PostgreSQL cases verify client UUID commitment before Workflow creation, dep
 
 Independent Bugs/Security/Compliance review selected `add-bookmark-fork`. One Important introduced bug was found and reproduced: after a Reader create persisted, a lost-response replay following source deletion/revocation could incorrectly invoke the failed-placeholder writer and block upload. The correction checks the submitted UUID against both relation ownership and private-resource ownership before readmission. Existing private rows are acknowledged; new explicit saves still receive new UUIDs and can refresh. Both real PostgreSQL regressions failed before the correction and pass afterward. No schema, alias or command receipt was added. The independent follow-up review checked the final diff, regressions and evidence and reported no remaining Important findings or nits across Bugs, Security and Compliance.
 
-Ordinary-only batches remain one transaction. Mixed batches commit contiguous ordinary operations, then a Reader admission, then dependent edits; partial commit/replay is deliberate and does not promise exactly-once processing. Source rejection reuses the existing terminal failure writer. Infrastructure failures still reject upload. Busy/uncertain dispatch acknowledges a persisted resource while retaining its active writer claim; no replacement crawl or new rescue is started.
+Historical initial implementation: ordinary-only batches remained one transaction, while mixed batches committed contiguous runs separately. The owner rejected the resulting partial-commit replay risk; the atomic correction recorded above supersedes this behavior. Source rejection reuses the existing terminal failure writer. Infrastructure failures still reject upload. Busy/uncertain dispatch acknowledges a persisted resource while retaining its active writer claim; no replacement crawl or new rescue is started.
 
 After rebasing onto #398, 17 focused Web tests, changed-file lint and all six browser theme/width checks passed. Published [Draft PR #399](https://github.com/slax-lab/slax-reader/pull/399) after human acceptance. The independent reviewer confirmed the new Save presentation and existing page refresh handler remain compatible: local queue acceptance suppresses refresh while HTTP acceptance still emits it.
 

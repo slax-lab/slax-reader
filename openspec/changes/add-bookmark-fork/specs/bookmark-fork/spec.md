@@ -132,7 +132,7 @@ Visitor Reader pages SHALL provide a reachable Fork action on desktop and mobile
 
 ### Requirement: PowerSync Reader submission
 
-Reader-URL creates SHALL use the existing local bookmark shape, connector and sync endpoint. The server SHALL resolve the trusted source and reuse existing authorized Fork admission and copying. Newly created relations SHALL use the submitted client UUID; existing destinations SHALL retain their UUID and personal state under ordinary-save semantics. No additional schema, bucket or provenance-sync field SHALL be required. Ordinary-only sync batches SHALL retain their existing transaction and retry behavior.
+Reader-URL creates SHALL use the existing local bookmark shape, connector and sync endpoint. The server SHALL resolve the trusted source and reuse existing authorized Fork admission and copying. Newly created relations SHALL use the submitted client UUID; existing destinations SHALL retain their UUID and personal state under ordinary-save semantics. No additional schema, bucket or provenance-sync field SHALL be required. All ordered bookmark operations, including Reader reservations and permanent Reader-failure placeholders, SHALL share one database transaction. Workflow dispatch SHALL occur only after successful commit, and rolled-back attempts SHALL not dispatch. Reader-containing transactions SHALL retain existing Fork isolation and bounded conflict retries. Ordinary-only sync batches SHALL retain their existing transaction and retry behavior.
 
 #### Scenario: Local acceptance before slow upload
 - **WHEN** a connected user submits a Reader URL or activates Fork while the upload endpoint is slow
@@ -140,7 +140,25 @@ Reader-URL creates SHALL use the existing local bookmark shape, connector and sy
 
 #### Scenario: Mixed batch and dependent edit
 - **WHEN** a Reader create appears between ordinary operations, including a personal edit of its newly created UUID
-- **THEN** preceding operations commit first, the existing Fork admission commits next, and the later edit sees that destination
+- **THEN** operations execute in order within one transaction, the later edit sees that new destination, and all database mutations commit before any Workflow dispatch
+
+#### Scenario: New Reader PUT requests archive state
+- **WHEN** a new Reader PUT includes the ordinary archive flag, optionally followed by an archive PATCH
+- **THEN** the new destination retains the requested flag and a later PATCH wins in queue order, before Workflow dispatch
+- **AND** this does not import the source owner's personal archive state
+
+#### Scenario: Later operation fails in a mixed batch
+- **WHEN** an ordinary create or refresh, Reader reservation, and later mutation share an upload and the later mutation fails
+- **THEN** the entire ordered transaction rolls back, including prior ordinary and Reader writes; no Workflow is started
+- **AND** retrying the same upload after the failure is removed performs one committed set of mutations and dispatches only that successful attempt
+
+#### Scenario: Retryable transaction conflict
+- **WHEN** a Reader-containing transaction encounters a retryable uniqueness or serialization conflict
+- **THEN** the existing bounded conflict policy retries the whole transaction, discards prior attempt effects, and only the committed attempt dispatches
+
+#### Scenario: Post-commit dispatch failure
+- **WHEN** the database transaction commits but a Reader Workflow cannot be confirmed
+- **THEN** retain the committed changes and uncertain write claim, acknowledge upload like ordinary post-commit scheduling, and introduce no new recovery guarantee
 
 #### Scenario: Source rejected during upload
 - **WHEN** a queued source is missing, unavailable, denied or blocked by an acquisition gate

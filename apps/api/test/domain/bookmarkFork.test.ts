@@ -181,7 +181,7 @@ describe('Fork service publication boundary', () => {
     admission()
     const localUuid = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
     await service.admit(ctx, source.uuid, localUuid)
-    expect(repo.admit).toHaveBeenCalledWith(expect.objectContaining({ uuid: localUuid }))
+    expect(repo.admit).toHaveBeenCalledWith(expect.objectContaining({ uuid: localUuid }), undefined)
   })
 
   it('rejects a malformed client UUID before admission', async () => {
@@ -201,8 +201,8 @@ describe('Fork service publication boundary', () => {
     const result = service.admit(ctx, source.uuid)
     try {
       await Promise.resolve()
-      expect((service as any).labs.assertEnabled).toHaveBeenCalledWith(ctx, 'pdf')
-      expect(repo.mediaRef).toHaveBeenCalledWith(10)
+      expect((service as any).labs.assertEnabled).toHaveBeenCalledWith(ctx, 'pdf', undefined)
+      expect(repo.mediaRef).toHaveBeenCalledWith(10, undefined)
       expect(repo.admit).not.toHaveBeenCalled()
       expect(ctx.env.CRAWL_WORKFLOW.create).not.toHaveBeenCalled()
     } finally {
