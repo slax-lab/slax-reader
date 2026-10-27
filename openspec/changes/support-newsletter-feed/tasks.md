@@ -40,6 +40,8 @@ Remote dev deployment, hosted PowerSync publication and real SMTP acceptance are
 - [x] 6.3 Run generation, API/Web checks and actual local Workers in both selected domains; record evidence, operator gaps and Bugs/Security/Compliance review.
 - [x] 6.4 Update both existing draft PRs without adding assignees or reviewers and deliver the revised human test guide.
 
+- [x] 6.5 Synchronize the newly merged local-first-ddl dev changes; preserve anchored queries, kind isolation and legacy projections, verify generated artifacts/full API tests/actual local Workers/PowerSync setup, and re-review before pushing the conflict resolution.
+
 ## 7. After merge
 
 - [ ] 7.1 After the task PR merges, classify every remaining unchecked task and archive this OpenSpec change through a separate documentation PR.
