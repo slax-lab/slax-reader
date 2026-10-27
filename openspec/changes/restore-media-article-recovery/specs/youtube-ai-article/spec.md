@@ -31,3 +31,11 @@ The status API SHALL distinguish disabled Labs and missing source records for an
 #### Scenario: Visitor opens an unavailable article
 - **WHEN** a visitor opens the same bookmark
 - **THEN** no owner recovery reason or action is disclosed
+
+#### Scenario: Preferred language has no saved variant
+- **WHEN** another saved language exists but the owner's preferred language has no variant
+- **THEN** the API does not report that the source is missing
+
+#### Scenario: Unknown recovery reason
+- **WHEN** the server returns a reason the Web reader does not recognize
+- **THEN** the reader does not display a raw translation key

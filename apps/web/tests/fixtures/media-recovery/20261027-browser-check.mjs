@@ -27,6 +27,7 @@ try {
           return route.fulfill({ json: { code: 200, message: 'ok', data: { ...state, status: 'generating', body_mode: 'transcript' } } })
         }
         if (mode === 'failure') return route.abort()
+        if (mode === 'unknown') return route.fulfill({ json: { code: 200, message: 'ok', data: { ...state, unavailable_reason: 'future_reason' } } })
         return route.fulfill({ json: { code: 200, message: 'ok', data: { ...state, status: 'generating' } } })
       }
       return route.fulfill({ json: { code: 200, message: 'ok', data: { mark_list: [], comment_list: [], user_list: {} } } })
@@ -57,6 +58,9 @@ try {
     mode = 'working'
     await view.getByRole('button', { name: 'Retry' }).click()
     await view.getByText('Preparing the article', { exact: false }).waitFor()
+    mode = 'unknown'
+    await view.getByText('Preparing the article', { exact: false }).waitFor({ state: 'hidden' })
+    assert(!(await page.locator('body').innerText()).includes('component.youtube_article.future_reason'))
     assert.deepEqual(errors, [])
     console.log(`${expanded ? 'Expanded' : 'Compact'}: retry and nine theme/width checks passed`)
     await context.close()

@@ -199,7 +199,8 @@ export class YoutubeArticleService {
       const enabled = await this.labService.isEnabled(access.ownerId, YOUTUBE_ARTICLE_LAB)
       const result = this.privateStatus(snapshot, requested, access, enabled)
       if (access.isOwner && snapshot.mode === 'capture' && !snapshot.variants[requested]) {
-        result.unavailable_reason = enabled ? 'source_missing' : 'labs_disabled'
+        if (!enabled) result.unavailable_reason = 'labs_disabled'
+        else if (Object.keys(snapshot.variants).length === 0) result.unavailable_reason = 'source_missing'
       }
       // Only the pending request owned by this capture may initiate acquisition on open.
       if (enabled && access.isOwner && snapshot.mode === 'capture' && snapshot.variants[requested]?.status === 'pending') {

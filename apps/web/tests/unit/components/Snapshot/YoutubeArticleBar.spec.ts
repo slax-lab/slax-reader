@@ -76,6 +76,14 @@ describe('YoutubeArticleBar', () => {
     w.unmount()
   })
 
+  it('does not render a translation key for an unknown recovery reason', async () => {
+    routeGet([state({ status: 'unavailable', unavailable_reason: 'future_reason' })])
+    const w = await mount()
+    await flushPromises()
+    expect(w.text()).not.toContain('component.youtube_article.future_reason')
+    w.unmount()
+  })
+
   it('shows the work in progress, then asks for the body once it is written; never loads the article itself', async () => {
     routeGet([state(), state({ status: 'generating' }), ready()])
     const w = await mount()

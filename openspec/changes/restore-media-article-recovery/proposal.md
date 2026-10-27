@@ -34,3 +34,9 @@ The merged bookmark-fork change also carries YouTube deltas. Archive that change
 ## Non-goals
 
 Do not enable Labs silently, regenerate content for visitors, change budgets, or rewrite transcripts as editorial essays. Production account diagnosis requires an authenticated owner session or server records.
+
+## Verification correction — 2026-10-27
+
+The original user outcome includes a readable generated article. Request recovery tests alone do not establish that outcome.
+Luca requested visitor transcript access as the immediate minimum after owner login proved difficult.
+Verify the real public transcript independently. Keep production article publication and human acceptance explicitly unresolved.

@@ -56,3 +56,62 @@ Archive after the task PR merges. Sequence archive after the already-merged book
 ## Review handoff — 2026-10-27
 
 Luca explicitly requested PR creation and colleague review with the test results. This instruction overrides the usual pre-PR acceptance order for this task. It does not establish hands-on acceptance or authorize merge or deployment. The PR records the pending checks for reviewers.
+
+## Corrected outcome evidence — 2026-10-27
+
+The earlier task completion claim exceeded the evidence. Fixture error and retry checks did not prove successful article generation.
+The original request included readable generated articles. Luca later requested visitor transcript access as the immediate minimum, without owner login.
+This check does not remove the generated-article requirement or establish full task completion.
+
+| Outcome | Environment and role | Real dependencies | Substitutions | Result |
+| --- | --- | --- | --- | --- |
+| Read the reported transcript | Production public page, anonymous visitor | Reader, public content API, saved body, browser rendering | None | Verified: 925 entries rendered with matching text and timestamps |
+| Compare the saved transcript with current source captions | Local Worker and production saved body | TikHub caption provider, application caption parser | Local R2 storage | Verified: all 925 compatible entries match exactly |
+| Generate an article from the reported video | Local Worker and disposable PostgreSQL | TikHub captions, Vertex AI, article runner, repository, R2 object writes | Local R2, direct step execution, no-op site cost recorder and bookmark publication callbacks | Partial: canonical article saved and read separately; bookmark publication unverified |
+| Read the generated article from the live bookmark | Production visitor | Reader status API | None | Unverified: status remains unavailable and the page contains the transcript |
+| Recover a failed status request | Local Nuxt application | Web components and polling code | Bookmark and status response fixtures | Verified only for request recovery; not generation |
+
+Public bookmark: `7bfac4d4-b662-4194-a6f9-1fb29d018d9a`.
+Source video: `Jv5B5CEaPJI`, “Robot-Use Agents: Why General-Purpose Models May Win in Robotics”.
+
+Reproducible public check:
+
+```sh
+node apps/web/tests/fixtures/media-recovery/20261027-public-transcript-check.mjs
+```
+
+The check starts a fresh browser context without authentication or response interception.
+HTTP status was 200 and the returned role was `visitor`.
+All 925 saved entries appeared in order with matching text and timestamps, from 0:00 through 29:38.
+The page had no uncaught JavaScript errors. Screenshots at 375 and 1,200 pixels showed the transcript without horizontal overflow.
+This check does not verify playback, article generation, or caption accuracy against the spoken audio.
+
+The current provider returned 941 caption cues. The existing compatibility converter merges cues within each whole second into 925 entries.
+Every merged entry matched the saved entry exactly. The count difference did not indicate missing text.
+
+The isolated generation run used `gemini-3-flash-preview` and five chunks.
+The repository reached `ready`. A separate R2 read returned a Chinese article with 14 sections and 47 paragraphs.
+The built-in quality checks passed. Recorded model cost was USD 0.0567.
+Durable workflow scheduling, production configuration, global cost recording, and bookmark publication were not exercised by that isolated run.
+It does not prove that the production bookmark has a published article.
+
+No owner session, production write, merge, or deployment occurred.
+PR #405 remains a draft while full article publication and human hands-on acceptance remain unresolved.
+
+## Review corrections — 2026-10-27
+
+A missing preferred language no longer produces `source_missing` when another saved variant exists.
+Unknown server reasons no longer render raw translation keys.
+
+- API regression: one failure before the correction; all 67 service tests passed afterward.
+- Web regression: one failure before the correction; all 38 tests across both YouTube views passed afterward.
+- API and Web type checks passed. API generation completed with no generated diff.
+- Focused lint passed with no errors; the API test path has an existing ignore warning.
+- The local fixture browser check passed both views and all nine theme/width combinations per view.
+- The same browser check exercised an unknown reason after polling and found no raw translation key or page error.
+- Strict OpenSpec validation passed all 79 items. `git diff --check` passed.
+
+Bugs review confirmed that source guidance now distinguishes a missing language from an empty capture.
+Security review confirmed that owner-only reasons, access checks, and generation gates remain unchanged.
+Compliance review confirmed both corrections match the added recovery scenarios.
+The Important human-acceptance finding remains open. Luca authorized review before acceptance; this does not establish acceptance or authorize merge.

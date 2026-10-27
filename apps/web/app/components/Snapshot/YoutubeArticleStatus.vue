@@ -2,7 +2,7 @@
   <!-- The status lines shared by the article block and the bar. One line at most: `first` wins over
        the article states, `last` shows only when none of them applies. -->
   <p v-if="first" class="yt-status" :class="{ 'is-compact': compact }"><slot name="first" /></p>
-  <p v-else-if="state?.status === 'unavailable' && state.unavailable_reason" class="yt-status" :class="{ 'is-compact': compact }">
+  <p v-else-if="state?.status === 'unavailable' && (state.unavailable_reason === 'labs_disabled' || state.unavailable_reason === 'source_missing')" class="yt-status" :class="{ 'is-compact': compact }">
     {{ $t(`component.youtube_article.${state.unavailable_reason}`) }}
   </p>
   <p v-else-if="isWorking && !timedOut" class="yt-status" :class="{ 'is-compact': compact }">
