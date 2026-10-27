@@ -60,5 +60,5 @@
 - [x] Run API/Web suites, typechecks, generation, builds and strict OpenSpec validation.
 - [x] Review Bugs, Security and Compliance with a fresh reviewer; fix introduced Important findings only.
 - [x] Record human UI acceptance before opening the new Draft PR; original performance PR #396 is already merged.
-- [ ] Update the report and PR with actual evidence and accepted inherited limitations.
+- [x] Update the report and PR with actual evidence and accepted inherited limitations.
 - [ ] After the implementation PR merges, classify unfinished tasks and archive this change through the required documentation PR.

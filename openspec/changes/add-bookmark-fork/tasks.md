@@ -6,7 +6,7 @@
 - [x] P2 Route Reader sync creates to existing Fork admission with client UUID; preserve ordering, terminal source failures and ordinary-only batches.
 - [x] P3 Reuse local insertion/save guard in the shared Fork hook; retain HTTP fallback, online checks and component presentation.
 - [x] P4 Complete focused/full checks, real PostgreSQL and HTTP/Workflow/R2 exercises, UI smoke and final review; record evidence.
-- [ ] P5 Record human acceptance and publish a new Draft PR because performance PR #396 is merged.
+- [x] P5 Record human acceptance and publish [Draft PR #399](https://github.com/slax-lab/slax-reader/pull/399) because performance PR #396 is merged.
 
 
 ## Remove automatic cleanup — 2026-10-23

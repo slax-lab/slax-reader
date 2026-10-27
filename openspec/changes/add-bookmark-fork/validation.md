@@ -28,7 +28,7 @@ Independent Bugs/Security/Compliance review selected `add-bookmark-fork`. One Im
 
 Ordinary-only batches remain one transaction. Mixed batches commit contiguous ordinary operations, then a Reader admission, then dependent edits; partial commit/replay is deliberate and does not promise exactly-once processing. Source rejection reuses the existing terminal failure writer. Infrastructure failures still reject upload. Busy/uncertain dispatch acknowledges a persisted resource while retaining its active writer claim; no replacement crawl or new rescue is started.
 
-After rebasing onto #398, 17 focused Web tests and changed-file lint passed. The independent reviewer confirmed the new Save presentation and existing page refresh handler remain compatible: local queue acceptance suppresses refresh while HTTP acceptance still emits it.
+After rebasing onto #398, 17 focused Web tests, changed-file lint and all six browser theme/width checks passed. Published [Draft PR #399](https://github.com/slax-lab/slax-reader/pull/399) after human acceptance. The independent reviewer confirmed the new Save presentation and existing page refresh handler remain compatible: local queue acceptance suppresses refresh while HTTP acceptance still emits it.
 
 ## Human acceptance
 
