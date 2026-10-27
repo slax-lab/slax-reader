@@ -679,6 +679,34 @@ export const GENERATED_ICON_REGISTRY = {
       "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6"
     }
   },
+  "snapshot.save": {
+    "kind": "inline",
+    "source": "bookmark-action-star.svg",
+    "viewBox": "0 0 24 24",
+    "defaultSize": 14,
+    "paint": "currentColor",
+    "accessibility": "control-labelled",
+    "geometry": "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><polygon points=\"12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2\" xmlns=\"http://www.w3.org/2000/svg\"/></g>",
+    "sourceHash": "53357a30f9f9420ffb674b8aab2aeaa6290a60bc888ae3a94d55a194c64a9581",
+    "provenance": {
+      "sourcePath": "apps/web/app/pages/b/[id].vue#star",
+      "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6"
+    }
+  },
+  "snapshot.saved": {
+    "kind": "inline",
+    "source": "bookmark-action-star-active.svg",
+    "viewBox": "0 0 24 24",
+    "defaultSize": 14,
+    "paint": "currentColor",
+    "accessibility": "control-labelled",
+    "geometry": "<g fill=\"currentColor\" stroke=\"currentColor\" stroke-width=\"1.5\"><polygon points=\"12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2\" xmlns=\"http://www.w3.org/2000/svg\"/></g>",
+    "sourceHash": "7383d0d1f6ba13aa9fe6739178054a1703fb323f016c2da8f84f4e1efa22d65e",
+    "provenance": {
+      "sourcePath": "apps/web/app/pages/b/[id].vue#star-active",
+      "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6"
+    }
+  },
   "theme.light": {
     "kind": "inline",
     "source": "theme-light.svg",

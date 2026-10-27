@@ -246,6 +246,23 @@ The common reference sizes are 12, 14, 15, 16, 17, 18, 20, 24, and 32 pixels. Fi
 - Avoid duplicate screen-reader output from both an icon title and its labelled control.
 - Verify stroke weight and optical alignment at the actual rendered size.
 
+### 7.5 Public-reader save-state icons
+
+The `/b/[id]` save action uses the Web registry's `snapshot.save` (outline star)
+and `snapshot.saved` (filled star). Both reuse the curated `bookmark-action-star`
+SVG pair, preserve its `0 0 24 24` view box and provenance, and render at 14px with
+`currentColor` paint. The surrounding localized button labels the action; both
+icons use `control-labelled` accessibility and remain hidden from the accessibility
+tree. The saved state contains no trailing checkmark.
+
+This star pair represents saving a shared snapshot as a personal copy in this
+placement. It does not toggle the separate starred-bookmark flag. The saved
+button keeps its accent treatment at full opacity while preventing duplicate
+activation; unavailable metadata and an in-flight request have separate visual
+states. Use Web semantic tokens for all themes, preserve the 44px minimum hit-area
+height and visible keyboard focus, and keep the resting surface transparent and
+borderless. The runtime files own exact executable values.
+
 ## 8. Components and states
 
 Every changed interactive component must account for:
