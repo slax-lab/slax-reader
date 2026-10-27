@@ -41,6 +41,7 @@ The KMP-compatible MD5 image filename helper is a path function, not a content h
 - No simulator, emulator or physical device was driven by the agent. The owner said not to run simulators or devices after an earlier device session froze the test phone. Smoothness, gesture feel, Reader opening, offline reading, cold/warm start and cache migration on upgrade are therefore not verified by the agent.
 - Device acceptance comes from the owner's hands-on TestFlight reviews, recorded per round under "Owner acceptance" below. Accepted so far:
   - Library list scrolling (786).
+  - Reader opening with no flash, and fast opening (793, iOS).
 
   Reviewed but not yet accepted:
   - Reader open, back-button stability and cached-open time (787).
@@ -115,4 +116,5 @@ TestFlight preview **1.0.25 (785)**: build bumped from 784, previous bound 784. 
     - The Android `shouldInterceptRequest` → `SlaxPdfRanges` path in a real WebView.
     - The iOS `slaxpdf://` handler on an iOS simulator or device. It was checked only in a macOS WKWebView.
     - The skeleton reveal on a device.
-- Pending: the owner's hands-on review of a build of this head. Record who, when, the observations and any adjustments here before a pull request.
+- 2026-10-27T09:54Z, owner (DGuang21), hands-on review of TestFlight 1.0.25 (793) on iOS: "现在不闪了，打开也很快" (it no longer flashes, and it opens quickly). The owner accepted the Reader open flash fix and the opening speed, and asked to update the pull request. No adjustment was requested.
+  - Not covered by this review: Android, and the theme matrix.
