@@ -80,15 +80,23 @@ The system SHALL expose additive private no-store Feed read APIs returning an ex
 - **THEN** the request is rejected without revealing another user's content
 
 ### Requirement: Always-visible Web Feed and dev pilot
-Web SHALL always show Feed in navigation, support stable address provisioning/copy with a first-time account form, and combine independently gated RSS and Newsletter local data or REST fallback. Newsletter sender names SHALL use a local avatar fallback. It SHALL explain lazy remote image privacy and unsupported first-version actions. Local cache and body state SHALL follow account and per-kind enablement. Dev rollout SHALL use feed+account@newsletterreader.slax.dev and one literal feed@newsletterreader.slax.dev routing rule to reader-backend with Cloudflare Subaddressing enabled. The production address SHALL use feed+account@newsletterreader.slax.com; beta/production admission SHALL remain disabled during dev acceptance. Existing root-domain mail records, Catch-all rules and literal business forwarding SHALL be preserved.
+Web SHALL always show Feed in navigation, support stable address provisioning/copy with a first-time account form, and combine independently gated RSS and Newsletter through REST whenever Newsletter is enabled. RSS-only sessions SHALL retain existing local-first reads and REST fallback. Newsletter SHALL have no PowerSync stream or client subscription in this rollout. Newsletter sender names SHALL use a local avatar fallback. It SHALL explain lazy remote image privacy and unsupported first-version actions. Local cache and body state SHALL follow account and per-kind enablement. Dev rollout SHALL use feed+account@newsletterreader.slax.dev and one literal feed@newsletterreader.slax.dev routing rule to reader-backend with Cloudflare Subaddressing enabled. The production address SHALL use feed+account@newsletterreader.slax.com; beta/production admission SHALL remain disabled during dev acceptance. Existing root-domain mail records, Catch-all rules and literal business forwarding SHALL be preserved.
 
 #### Scenario: Both Labs disabled
 - **WHEN** the user opens Feed with both features disabled
 - **THEN** Feed remains visible with setup guidance and no disabled content
 
-#### Scenario: Reload and partial sync failure
-- **WHEN** owned local data exists and one stream is unavailable
-- **THEN** the healthy enabled kind stays readable and cached rows remain isolated by account and kind
+#### Scenario: Newsletter with healthy or pending local synchronization
+- **WHEN** Newsletter is enabled and a local PowerSync database is healthy, pending or unavailable
+- **THEN** Feed subscriptions, entries and body use authenticated REST without subscribing to a Newsletter stream or waiting for its first sync; mixed list order and pagination come from the server
+
+#### Scenario: Switch between REST Feed and RSS-only local mode
+- **WHEN** Newsletter is enabled or disabled while RSS remains enabled
+- **THEN** the Feed switches between REST and RSS-only local mode, fences obsolete requests/previews/cursors, and never exposes stale local Newsletter rows as RSS
+
+#### Scenario: Refresh and retained REST pages
+- **WHEN** Newsletter content changes or a REST refresh fails
+- **THEN** an explicit refresh/reload can retrieve new mail, existing loaded pages remain visible until replacement succeeds, and a new offline session does not promise Newsletter persistence
 
 #### Scenario: Narrow and themed reading
 - **WHEN** a user provisions and reads on narrow or wide Web in light, dark or eink theme

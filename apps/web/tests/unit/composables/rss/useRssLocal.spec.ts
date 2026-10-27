@@ -145,43 +145,74 @@ const restList = () =>
   get.mockImplementation(({ url }) => Promise.resolve(url.endsWith('/subscriptions') ? { items: [restSub('a')] } : page([restEntry('rest')], { has_more: true, next_cursor: 'r2' })))
 
 describe('RSS local mode', () => {
-  it('subscribes each kind independently and keeps healthy RSS cache when Newsletter fails', async () => {
-    const newsletter = ref(true)
-    labs.isEnabled = (key: string) => key === 'rss' || newsletter.value
-    const mailHandle = {
-      waitForFirstSync: () => Promise.reject(new Error('offline')),
-      unsubscribe: vi.fn()
-    }
-    database.syncStream = vi.fn((name: string) => (name === 'newsletter_v1' ? { subscribe: async () => mailHandle } : { subscribe: stream.subscribe }))
-    const rss = create()
-    tables.subscriptions.value = [sub('a'), sub('mail', { kind: 'newsletter' })]
-    tables.entries.value = [row('one'), { ...row('mail', 'mail'), kind: 'newsletter' }]
+  it('uses unified REST results with Newsletter enabled even when owned local rows are healthy', async () => {
+    labs.isEnabled = (key: string) => key === 'rss' || key === 'newsletter'
+    const mail = restEntry('fresh-mail', 'sender', undefined, { kind: 'newsletter' })
+    get.mockImplementation(({ url }) => Promise.resolve(url.endsWith('/subscriptions') ? { items: [{ ...restSub('a'), kind: 'rss' }, { ...restSub('sender'), kind: 'newsletter' }] } : page([mail, { ...restEntry('rest-rss'), kind: 'rss' }])))
+    const feed = create()
+    tables.subscriptions.value = [sub('a'), sub('stale-mail', { kind: 'newsletter' })]
+    tables.entries.value = [row('local-rss'), { ...row('stale-local-mail'), kind: 'newsletter' }]
     stream.firstSync.resolve()
+    await feed.initialize()
     await flushPromises()
-    expect(database.syncStream.mock.calls.map(([name]: any[]) => name)).toEqual(['rss_v1', 'newsletter_v1'])
-    expect(rss.entries.value.map(row => row.id)).toEqual(['one', 'mail'])
-    expect(get).not.toHaveBeenCalled()
-    newsletter.value = false
-    await flushPromises()
-    expect(mailHandle.unsubscribe).toHaveBeenCalledOnce()
-    expect(stream.handles[0].unsubscribe).not.toHaveBeenCalled()
-    expect(rss.entries.value.map(row => row.id)).toEqual(['one'])
+    expect(feed.subscriptions.value.map(item => item.id)).toEqual(['a', 'sender'])
+    expect(feed.entries.value.map(item => item.id)).toEqual(['fresh-mail', 'rest-rss'])
+    expect(database.syncStream).not.toHaveBeenCalled()
   })
 
-  it('retains loaded RSS history when only Newsletter is disabled', async () => {
-    const newsletter = ref(true)
-    labs.isEnabled = (key: string) => key === 'rss' || newsletter.value
-    const rss = create()
-    tables.subscriptions.value = [sub('a'), sub('mail', { kind: 'newsletter' })]
-    tables.entries.value = [row('one')]
+  it('does not wait for local first sync before reading a Newsletter-only REST list', async () => {
+    labs.isEnabled = (key: string) => key === 'newsletter'
+    const mail = restEntry('rest-mail', 'sender', undefined, { kind: 'newsletter' })
+    get.mockImplementation(({ url }) => Promise.resolve(url.endsWith('/subscriptions') ? { items: [{ ...restSub('sender'), kind: 'newsletter' }] } : page([mail])))
+    const feed = create()
+    await feed.initialize()
+    await flushPromises()
+    expect(feed.entries.value.map(item => item.id)).toEqual(['rest-mail'])
+    expect(feed.initializing.value).toBe(false)
+    expect(database.syncStream).not.toHaveBeenCalled()
+  })
+
+  it('stops RSS synchronization for mixed REST mode and restores RSS-only reads without stale Newsletter rows', async () => {
+    const newsletter = ref(false)
+    labs.isEnabled = (key: string) => key === 'rss' || (key === 'newsletter' && newsletter.value)
+    const feed = create()
+    tables.subscriptions.value = [sub('a'), sub('stale', { kind: 'newsletter' })]
+    tables.entries.value = [row('local-rss'), { ...row('stale-mail', 'stale'), kind: 'newsletter' }]
     stream.firstSync.resolve()
     await flushPromises()
-    get.mockResolvedValueOnce(page([restEntry('older'), restEntry('mail-old', 'mail', undefined, { kind: 'newsletter' })]))
-    await rss.reload(true)
+    expect(feed.entries.value.map(item => item.id)).toEqual(['local-rss'])
+    get.mockImplementation(({ url }) => Promise.resolve(url.endsWith('/subscriptions') ? { items: [{ ...restSub('sender'), kind: 'newsletter' }] } : page([restEntry('new-mail', 'sender', undefined, { kind: 'newsletter' })])))
+    newsletter.value = true
+    await flushPromises()
+    expect(feed.entries.value.map(item => item.id)).toEqual(['new-mail'])
+    expect(stream.handles[0].unsubscribe).toHaveBeenCalledOnce()
     newsletter.value = false
     await flushPromises()
-    expect(rss.entries.value.map(row => row.id)).toEqual(['one', 'older'])
+    expect(feed.entries.value.map(item => item.id)).toEqual(['local-rss'])
+    expect(database.syncStream.mock.calls.every(([name]: any[]) => name === 'rss_v1')).toBe(true)
   })
+
+  it('fences the previous account REST response while an owned local database is present', async () => {
+    labs.isEnabled = (key: string) => key === 'newsletter'
+    let release!: (value: any) => void
+    const previous = new Promise<any>(done => { release = done })
+    let subscriptions = 0
+    get.mockImplementation(({ url }) => {
+      if (url.endsWith('/subscriptions') && subscriptions++ === 0) return previous
+      return Promise.resolve(url.endsWith('/subscriptions') ? { items: [{ ...restSub('new-owner'), kind: 'newsletter' }] } : page([restEntry('owned-mail', 'new-owner', undefined, { kind: 'newsletter' })]))
+    })
+    const feed = create()
+    const old = feed.initialize()
+    await flushPromises()
+    user.userInfo = { userId: 2 }
+    await flushPromises()
+    release({ items: [{ ...restSub('old-owner'), kind: 'newsletter' }] })
+    await old
+    await flushPromises()
+    expect(feed.subscriptions.value.map(item => item.id)).toEqual(['new-owner'])
+    expect(feed.entries.value.map(item => item.id)).toEqual(['owned-mail'])
+  })
+
   it('keeps an owned empty local database loading without list REST until first sync', async () => {
     const rss = create()
     expect(database.syncStream).toHaveBeenCalledWith('rss_v1')
@@ -269,7 +300,7 @@ describe('RSS local mode', () => {
     get.mockResolvedValueOnce(page([restEntry('one'), restEntry('older', 'a', '2026-10-02T00:00:00.000Z')], { next_cursor: 'c2', has_more: true, cached_more: true, history_status: 'available' }))
     await rss.reload(true)
     expect(get).toHaveBeenCalledOnce()
-    expect(get.mock.lastCall![0]).toMatchObject({ url: '/v1/feed/entries', query: { fetch_history: '1', limit: '20', subscription_id: 'a', before: 'one' } })
+    expect(get.mock.lastCall![0]).toMatchObject({ url: '/v1/rss/entries', query: { fetch_history: '1', limit: '20', subscription_id: 'a', before: 'one' } })
     expect(rss.entries.value.map(x => x.id)).toEqual(['one', 'older'])
     get.mockClear()
     get

@@ -1,3 +1,5 @@
+> REST-first scope update (2026-10-27): Newsletter PowerSync is deferred by the user. Newsletter-enabled Feed uses authenticated REST for both kinds; RSS-only sessions keep existing local-first reads. No newsletter_v1 stream or client subscription ships. Retain RSS kind isolation to protect existing clients. Earlier Newsletter sync instructions below are historical; the current OpenSpec design and dev operator guide take precedence.
+
 > Routing decision updated on 2026-10-27: the user selected feed+account@newsletterreader.slax.dev for dev and feed+account@newsletterreader.slax.com for production. Use one literal feed route with Cloudflare Subaddressing. Earlier exact-per-user and root Catch-all notes below are historical; see docs/api/NEWSLETTER-DEV-PILOT.md for current operator instructions.
 
 > Implementation update: `openspec/changes/support-newsletter-feed/design.md` is authoritative for construction. The implementation uses durable raw-message receipts and cron recovery, explicit deployment admission flags, and the dev defaults accepted on 2026-10-22. This feasibility review remains background evidence.

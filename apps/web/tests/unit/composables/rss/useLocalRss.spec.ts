@@ -62,20 +62,16 @@ afterEach(() => {
 })
 
 describe('useLocalRss', () => {
-  it('filters disabled kinds in memory and defaults legacy rows to RSS', () => {
-    const kinds = ref<any[]>(['rss'])
+  it('excludes stale experimental Newsletter cache rows from RSS-only local reads', () => {
     const scope = effectScope()
     scopes.push(scope)
-    const local = scope.run(() => useLocalRss(ref(''), ref(true), Infinity, new Set(), kinds))!
+    const local = scope.run(() => useLocalRss(ref(''), ref(true), Infinity, new Set()))!
     const [subscriptions, entries] = queries.slice(-3)
     subscriptions!.data.value = [source, { ...source, id: 'mail', kind: 'newsletter' }]
     entries!.data.value = [article('rss'), { ...article('mail', 'mail'), kind: 'newsletter' }]
     expect(local.subscriptions.value.map(row => row.id)).toEqual(['sub-1'])
     expect(local.entries.value.map(row => row.id)).toEqual(['rss'])
-    kinds.value = ['newsletter']
-    expect(local.subscriptions.value.map(row => row.id)).toEqual(['mail'])
-    expect(local.entries.value.map(row => row.id)).toEqual(['mail'])
-    expect(local.entries.value[0].kind).toBe('newsletter')
+
   })
 
   it('joins feeds and subscriptions in timeline order and resolves saved state from local bookmarks', () => {

@@ -3,7 +3,7 @@ import { computed, type MaybeRef, onScopeDispose, ref, toValue, watch } from 'vu
 import { toUtcDate } from '~/utils/date'
 
 import { useQuery } from '@powersync/vue'
-import type { FeedEntry, FeedKind, FeedSubscription, RssErrorCode } from '@slax-reader/contracts'
+import type { FeedEntry, FeedSubscription, RssErrorCode } from '@slax-reader/contracts'
 
 export interface LocalSubscriptionRow {
   id: string
@@ -61,8 +61,7 @@ const SAVED_SQL = `
   WHERE deleted_at IS NULL AND JSON_EXTRACT(metadata, '$.bookmark.target_url') IS NOT NULL
   GROUP BY 1`
 
-const presenceSql = (kind: FeedKind) => `SELECT 1 AS present FROM sr_rss_subscription s JOIN sr_rss_feed f ON f.id = s.feed_id WHERE COALESCE(f.kind, 'rss') = '${kind}' LIMIT 1`
-export const feedRowKind = (row: { kind?: string | null }): FeedKind => (row.kind === 'newsletter' ? 'newsletter' : 'rss')
+const PRESENCE_SQL = `SELECT 1 AS present FROM sr_rss_subscription s JOIN sr_rss_feed f ON f.id = s.feed_id WHERE COALESCE(f.kind, 'rss') = 'rss' LIMIT 1`
 
 const MAX_TIMEOUT = 2_147_483_647
 const off = (sql: string) => `SELECT * FROM (${sql}) WHERE 0`
@@ -75,7 +74,7 @@ export const rssLocalIso = (value: string | null) => {
 
 export const rssSubscriptionFromRow = (row: LocalSubscriptionRow, now: number): FeedSubscription => ({
   id: row.id,
-  kind: feedRowKind(row),
+  kind: 'rss',
   feed_url: row.feed_url ?? '',
   title: row.title ?? '',
   remark: row.remark,
@@ -94,7 +93,7 @@ export const rssEntryFromRow = (row: LocalEntryRow, saved: Map<string, string>):
     seen = rssLocalIso(row.first_seen_at) ?? row.first_seen_at ?? ''
   return {
     id: row.id,
-    kind: feedRowKind(row),
+    kind: 'rss',
     subscription_id: row.subscription_id,
     source_title: row.source_title ?? '',
     title: row.title ?? '',
@@ -110,8 +109,7 @@ export const rssEntryFromRow = (row: LocalEntryRow, saved: Map<string, string>):
 }
 
 /** Whether the local database holds any RSS subscription row; only queried while `enabled`. */
-export function useLocalRssPresence(enabled: MaybeRef<boolean>, kind: FeedKind = 'rss') {
-  const PRESENCE_SQL = presenceSql(kind)
+export function useLocalRssPresence(enabled: MaybeRef<boolean>) {
   const rows = useQuery<{ present: number }>(
     computed(() => (toValue(enabled) ? PRESENCE_SQL : off(PRESENCE_SQL))),
     []
@@ -124,8 +122,7 @@ export function useLocalRss(
   selected: MaybeRef<string>,
   enabled: MaybeRef<boolean>,
   limit: MaybeRef<number> = Infinity,
-  excluded: MaybeRef<ReadonlySet<string>> = new Set(),
-  kinds: MaybeRef<readonly FeedKind[]> = ['rss']
+  excluded: MaybeRef<ReadonlySet<string>> = new Set()
 ) {
   const sql = (query: string) => computed(() => (toValue(enabled) ? query : off(query)))
   const sources = useQuery<LocalSubscriptionRow>(sql(SUBSCRIPTIONS_SQL), [])
@@ -148,7 +145,8 @@ export function useLocalRss(
   onScopeDispose(() => timer && clearTimeout(timer))
 
   const savedUrls = computed(() => new Map(bookmarks.data.value.filter(row => row.article_url).map(row => [row.article_url!, row.id])))
-  const allowed = (row: { kind?: string | null }) => toValue(enabled) && toValue(kinds).includes(feedRowKind(row))
+  // Exclude rows left by experimental Newsletter sync; missing kinds are legacy RSS rows.
+  const allowed = (row: { kind?: string | null }) => toValue(enabled) && (!row.kind || row.kind === 'rss')
   const subscriptions = computed(() => sources.data.value.filter(allowed).map(row => rssSubscriptionFromRow(row, now.value)))
   const allEntries = computed(() => articles.data.value.filter(allowed).map(row => rssEntryFromRow(row, savedUrls.value)))
   const entries = computed(() => {

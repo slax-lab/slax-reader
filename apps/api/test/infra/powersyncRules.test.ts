@@ -132,24 +132,13 @@ describe('PowerSync collection rules', () => {
     for (const internal of ['etag', 'last_modified', 'lease_token', 'content_key', 'entry_key', 'history_url']) expect(rss).not.toContain(internal)
   })
 
-  test('RSS and newsletter streams use disjoint source sets without expanding legacy RSS columns', () => {
+  test('RSS keeps its kind filter and legacy projection while Newsletter synchronization is deferred', () => {
     const rss = stream('rss_v1')
-    const newsletter = stream('newsletter_v1')
     expect(rss).toContain("source.kind = 'rss'")
     expect(rss).toMatch(/AND feed_id IN \(/)
-    const legacyQueries = rss.split('    queries:')[1]
-    expect(legacyQueries).not.toMatch(/SELECT id, kind, feed_url/)
-    expect(newsletter).toContain('auto_subscribe: false')
-    expect(newsletter).toContain("source.kind = 'newsletter'")
-    expect(newsletter.match(/lab\.feature = 'newsletter'/g)).toHaveLength(3)
-    expect(newsletter.match(/lab\.user_id IN current_user_id/g)).toHaveLength(3)
-    expect(newsletter).toMatch(/FROM sr_rss_subscription\s+WHERE user_id IN current_user_id\s+AND feed_id IN \(/)
-    expect(newsletter).toMatch(/SELECT id, kind, feed_url, title, site_url, icon_url/)
-    expect(newsletter).toMatch(/FROM sr_rss_feed\s+WHERE id IN \(/)
-    expect(newsletter).toMatch(/FROM sr_rss_entry\s+WHERE feed_id IN \(/)
-    expect(newsletter).toContain('AND is_history = false')
-    for (const internal of ['etag', 'last_modified', 'lease_token', 'content_key', 'entry_key', 'history_url', 'sr_newsletter_address', 'sr_newsletter_message'])
-      expect(newsletter).not.toContain(internal)
+    expect(rss.split('    queries:')[1]).not.toMatch(/SELECT id, kind, feed_url/)
+    expect(rules).not.toContain('newsletter_v1:')
+    expect(rules).not.toContain("lab.feature = 'newsletter'")
   })
 
   test('never compares a connection parameter with an IN list', () => {

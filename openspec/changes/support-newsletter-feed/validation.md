@@ -1,3 +1,5 @@
+> Current rollout decision (2026-10-27): Newsletter synchronization is deferred. The REST-first revision at the end of this record supersedes earlier Newsletter stream/publication acceptance requirements. RSS compatibility filtering and existing collection synchronization still apply.
+
 > Current routing decision: feed+account@newsletterreader.slax.dev for dev and feed+account@newsletterreader.slax.com for production, confirmed on 2026-10-27. Earlier records below are historical; the latest subaddress revision and operator guide supersede their routing instructions.
 
 # Validation
@@ -163,3 +165,47 @@ After the first subaddress push, dev merged PR #341 (local-first-ddl), making th
 - A second independent read-only review reported **no Important findings or Nits** for the conflict resolution: all three per-kind queries retain owner/Lab/source-kind gates; RSS columns and upstream owner tombstones are preserved. The parent accepted both review limitations: apply all merged migrations before rules, and do not infer actual bucket isolation/parameter-result bounds from source assertions, HTTP smoke or service liveness.
 
 The operator guides now explicitly require both collection-owner migrations and Newsletter kind DDL before publishing rules, because a missing owner_deleted column can silently filter collection content even when PowerSync reports configuration loading. Hosted stream/bucket isolation and parameter-result counts for the merged joined feed queries remain explicit dev acceptance before wider rollout. Do not claim the upstream runtime parameter-count result establishes the new Newsletter query shape.
+
+
+## REST-first revision (2026-10-27)
+
+### Scope and requirement approval
+
+The user explicitly approved removing Newsletter PowerSync for the initial rollout and revisiting it later. The revised proposal/design/delta specs describe the agreed boundary: Newsletter-enabled Feed reads both kinds through the existing authenticated REST facade, with one server ordering/cursor; RSS-only sessions preserve the established single-stream local-first implementation and REST fallback. Bookmark/collection synchronization is untouched. No new UI template, style, translation, navigation or API contract is authored in this revision; the human's pre-PR hands-on acceptance above continues to cover the unchanged presentation.
+
+Removed `newsletter_v1`, its client subscription, Newsletter local presence gating, and multi-kind stream lifecycle/history plumbing. RSS history uses its existing `/v1/rss/entries` endpoint. The optional local `kind` column remains only to reject stale experimental Newsletter cache rows while accepting legacy null/missing RSS kinds. The generic REST kind helper no longer lives in the PowerSync reader. Entering Newsletter REST mode releases RSS's Feed subscription; returning to RSS-only restores it. Mode/account/Lab changes fence obsolete requests and previews. Newsletter has no promised new-session offline cache or incoming-mail push; online reload/explicit REST refresh obtains new content, and per-source in-memory cache reuse remains bounded by 60 seconds.
+
+Receiving formats remain `feed+account@newsletterreader.slax.dev` / `feed+account@newsletterreader.slax.com`; production admission stays disabled. Private configuration values are unchanged in this revision: only its README is edited to remove Newsletter sync instructions. Operator guides distinguish RSS compatibility filtering from deferred Newsletter sync, remove the fictitious separate complete-address Dashboard field, and document deployment of the email handler before selecting the Worker. No merge, deployment or Cloudflare mutation was performed.
+
+### Automated checks
+
+- Regression-first Web run: **5 expected failures / 30 passes** before changing implementation. Four new cases proved that healthy/pending local storage incorrectly controlled Newsletter reads or account results; the fifth proved that RSS-only local history still used the generic Feed endpoint. After implementation, the focused two-file run passed **35 tests**. The final three-file REST/local regression run after type/import fixes passed **53 tests**.
+- Full API suite, `pnpm api -- test`: **2553 passed / 113 skipped**, 195 files passed / 14 skipped. Existing opt-in/fixture skips remain. The rule suite asserts that Newsletter streams/Lab queries are absent while RSS source-kind filtering and legacy projection remain.
+- Full Web suite with the public fixture environment recorded above and `--maxWorkers=2`: **2561 passed / 3 skipped**, 225 files passed / 1 skipped. The existing fixture `ENOTFOUND api.test` stderr remains non-fatal; process exit status is zero.
+- API/contracts typecheck and Web typecheck passed. The first Web typecheck caught inferred FeedSubscription map types after restoring legacy RSS overlays; explicit RSS map types corrected this without changing runtime behavior. Scoped changed Web production ESLint passed after import sorting. No tracked generator-owned files changed.
+- Strict OpenSpec validation: **79 passed / 0 failed**. Its first run required retaining the existing `Reload with local data` scenario name in the modified delta; its conditions now explicitly describe RSS-only sessions. `git diff --check` passed.
+
+### Running-environment exercise
+
+An isolated Vite/Vue browser harness at loopback port 3061 imported the actual modified `useRss`, RSS local-state, local-row reader and enablement modules. A headless Chrome session clicked rendered controls and inspected rendered state. Only the authenticated user/Labs, PowerSync query/stream boundary and REST server responses were synthetic. No provider credential or real user data was loaded. This is client data-flow runtime evidence, not hosted synchronization or a new human acceptance claim.
+
+Observed results:
+
+1. RSS-only startup showed the cached RSS article, excluded seeded stale Newsletter rows and subscribed only to `rss_v1`.
+2. Enabling Newsletter with healthy local RSS unsubscribed that handle and fetched mixed REST subscriptions/entries without any Newsletter stream. Server order was preserved.
+3. Load more expanded the REST window without duplicates; switching to the mail source cleared its old preview, and returning to All restored the expanded source cache.
+4. Injecting a new fixture mail then explicitly refreshing showed the new first item while retaining the loaded history window.
+5. Account B replaced A's REST subscriptions/entries and body state. Returning to RSS-only restored only the RSS stream; no browser page error occurred. Account ownership of a real replicated database was not simulated by this fixture.
+
+Fresh `pnpm api -- test:http --corepack-archive /tmp/slax-newsletter-pnpm.tgz` also **passed** against actual disposable Edge/Core Workers, PostgreSQL/log migrations, D1 and R2. It provisioned plus addresses, admitted isolated messages for two users, rejected malformed/unknown/foreign recipients before receipts, deduplicated replays, denied cross-user bodies, and preserved existing bookmark/auth/CORS flows. It used owned synthetic resources and cleaned them up. This run validates backend HTTP/email behavior independently of the client boundary fixture. No API handler changed in the REST-first revision.
+
+### Remaining acceptance and operator work
+
+Newsletter has no PowerSync publication/subscription acceptance step now. Before admitting shared-table mail rows, still publish/verify RSS-only compatibility filtering on every existing sync consumer, with upstream owner migrations completed before publishing the combined RSS/collection file. Hosted RSS parameter-result bounds and cross-user isolation are not established by static assertions or this browser fixture. Real Cloudflare subdomain/Subaddressing/base-rule matching, external SMTP and actual Newsletter platform confirmation/content delivery still require dev operator acceptance. Production remains off. The temporary browser service is stopped after verification; no local integration service is intentionally left running.
+
+The English [dev operator guide](../../../docs/api/NEWSLETTER-DEV-PILOT.md), Chinese Desktop test guide and private configuration README have been revised together. Earlier dated stream-related evidence is historical and does not imply a Newsletter stream remains in this rollout.
+
+
+### REST-first local pre-push review
+
+The requesting-code-review reviewer independently examined the complete revision against `8f59762cfb5c47d62f6fafbbeabdcd47e3fc8eed`, then re-read the completed validation/operator evidence, and reported **no Important findings or Nits** in Bugs, Security or Compliance. The parent also checked stale-row exclusion, RSS-only legacy overlays/history, REST mode transitions and receipt/body ownership from the real HTTP exercise. The private repository's current diff contains README only; its approved TOML values are untouched. No dependency, covert external call, private-file read/copy, email-data log or weakened authorization was added. No newly authored CLI, Extension or Mobile shipped/package behavior or consumed contract change requires a version decision. Draft PR updates preserve their existing review/assignment state; the archive task remains deferred until merge.

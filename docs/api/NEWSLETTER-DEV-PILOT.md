@@ -1,6 +1,6 @@
 # Newsletter subaddress rollout and dev acceptance
 
-OpenSpec: `support-newsletter-feed`. Selected format confirmed by the user on 2026-10-27; this supersedes the unshipped root-domain pilot.
+OpenSpec: `support-newsletter-feed`. Selected format and REST-first rollout confirmed by the user on 2026-10-27; this supersedes the unshipped root-domain pilot and earlier Newsletter PowerSync plan.
 
 ## Address and activation policy
 
@@ -19,7 +19,7 @@ The dev Edge Worker is **reader-backend**, serving **reader-api.slax.dev**. The 
 
 1. Review and merge private configuration PR #7 before application PR #349. Dev: `NEWSLETTER_ENABLED="true"`, `NEWSLETTER_DOMAIN="newsletterreader.slax.dev"`. Beta/prod and the legacy main copy: `NEWSLETTER_ENABLED="false"`, `NEWSLETTER_DOMAIN="newsletterreader.slax.com"`. Main releases consume `api/prod.toml`. Config merge alone does not deploy.
 2. Merge the reviewed application PR into dev. Wait for **both API and Web deployments**. Verify additive migration `20261022090000_newsletter_feed`, matching dev Edge/Core PostgreSQL/R2 bindings, generated routes/DI and the Edge `email()` handler. Preserve Worker identities and existing scheduled triggers; recovery uses the existing five-minute tick, with at most five pending receipts per tick.
-3. Publish `deploy/local/powersync-local/sync_rules.yaml` to the matching hosted dev PowerSync service through its operator workflow. API deployment does not publish these rules. Apply upstream collection-owner migrations 20261022043051_local_first_ddl and 20261027040000_collection_owner_hard_delete before publishing the merged rules; owner_deleted must exist and be backfilled, or collection rows can silently disappear from synchronization. Verify RSS-only `rss_v1` and disjoint `newsletter_v1`; a working REST fallback does not prove hosted synchronization. Verify actual newsletter_v1 bucket rows and cross-user isolation, and inspect parameter-result counts before widening the pilot; source assertions and service liveness alone do not prove those properties.
+3. Publish the RSS compatibility rules in `deploy/local/powersync-local/sync_rules.yaml` to the matching hosted dev PowerSync service before admitting Newsletter rows. There is **no Newsletter stream to publish or subscribe to**. The remaining requirement excludes Newsletter rows from existing RSS clients because both kinds share server tables; API deployment does not publish rules. Keep upstream collection rules intact. Apply collection-owner migrations `20261022043051_local_first_ddl` and `20261027040000_collection_owner_hard_delete` before publishing the merged file; `owner_deleted` must exist and be backfilled. Check actual RSS-only rows and cross-user isolation; inspect parameter-result counts before widening the pilot. Service health and REST reads do not prove RSS synchronization correctness.
 4. Enable Newsletter in Labs for one or two controlled dev users, generate/copy their addresses and verify the exact `feed+...@newsletterreader.slax.dev` format before routing external mail.
 
 The stable registry stores the original canonical account token in `local_part`; rendering adds `feed+`. It does not derive a new token after a user rename. Eligible account tokens are 1–59 safe ASCII characters, because `feed+` uses five of the SMTP local part's 64 octets. Global account rules are unchanged. A 60-character account is rejected for Newsletter without truncation. An oversized legacy stored token remains reserved and needs operator remediation; it is not silently rewritten.
@@ -28,7 +28,7 @@ The approved format/domain transition changes old test addresses. Old unprefixed
 
 ## Dev Cloudflare console steps
 
-After deployment and sync readiness:
+After API/Web deployment and RSS compatibility readiness:
 
 1. Open the **slax.dev** zone, then **Compute → Email Service → Email Routing → Settings** (older navigation may omit Compute). Record existing routes, Catch-all and Subaddressing state first.
 2. Under **Subdomains**, add `newsletterreader` if it is not already configured for receiving. Cloudflare adds the required DNS records to **newsletterreader.slax.dev**. Wait for its DNS checks to become healthy. This is receiving configuration, not Email Sending onboarding; do not replace root MX or unrelated DNS records.
@@ -39,10 +39,11 @@ After deployment and sync readiness:
    | --- | --- |
    | Local part / email pattern | `feed` |
    | Domain | `newsletterreader.slax.dev` |
-   | Complete literal address | `feed@newsletterreader.slax.dev` |
    | Action | Send to a Worker |
    | Destination | reader-backend |
    | Status | Active |
+
+The first two fields compose **feed@newsletterreader.slax.dev**; “complete address” is an example, not a separate Dashboard control. If **reader-backend** is absent with **Send to a Worker** selected, first confirm the matching dev deployment includes its exported `email()` handler, is in the same Cloudflare account, and has completed successfully. The new handler is part of application PR #349; an older deployed HTTP-only Worker may not be eligible. Reopen the selector after deployment; if still absent, inspect the deployed Worker and console/API error rather than selecting another environment.
 
 5. Do **not** enter literal `feed+account`, `feed+*` or `*@newsletterreader.slax.dev`. Do not create one rule per user. Subdomain Catch-all is not supported in this setup; the base literal rule plus Subaddressing supplies uniform routing.
 6. Confirm no missing-Worker warning. Keep root Catch-all and unrelated literal routes unchanged. Open Email Routing Activity and Worker observability for acceptance; never add private mailbox/body/tracking data to application logs.
@@ -57,15 +58,17 @@ Use two Reader accounts you control, with distinct short safe account names such
 | --- | --- | --- |
 | 1 | With both Labs off, open Feed; then enable Newsletter | Feed stays visible, shows setup guidance, then allows generating the receiving address. |
 | 2 | Generate/copy addresses for A and B, refresh and provision again | Each has its own `feed+account@newsletterreader.slax.dev`; repeated provisioning preserves its address. |
-| 3 | Send ordinary mail with a unique title to A | One sender source and entry appear in A's Feed; Inbox is unchanged. Activity should show the complete plus recipient. |
-| 4 | Send another message from the same sender to B | B sees B's message; A's content is inaccessible to B. Both addresses use the one literal Cloudflare route. |
+| 3 | Send ordinary mail with a unique title to A, then reload the Feed page | One sender source and entry appear in A's Feed; Inbox is unchanged. Activity should show the complete plus recipient. |
+| 4 | Send another message from the same sender to B, then reload | B sees B's message; A's content is inaccessible to B. Both addresses use the one literal Cloudflare route. |
 | 5 | Send to `feed+<unique-unregistered-token>@newsletterreader.slax.dev`, then bare `feed@newsletterreader.slax.dev` | The base route invokes the Worker, which rejects both without storing receipts or entries. Check Activity and the sender's eventual status. |
 | 6 | Send to a wrong prefix such as `r+<A-token>@newsletterreader.slax.dev` | It must not enter A's Feed. Without a matching literal route Cloudflare may reject it before invoking the Worker. Local injection separately proves the Worker also rejects it. |
 | 7 | Send plain text, HTML and multipart mail containing a link and attachment | Safe body is readable, links work, scripts do not execute, and attachments/CID resources are omitted. Remote images use the signed proxy; the origin may observe its first proxy fetch. |
 | 8 | Subscribe A and B to the same real Newsletter and complete confirmation | Both confirmation and actual content arrive independently. Retiring A's external subscription does not affect B. Try team-relevant Substack, beehiiv, Kit, Mailchimp or MailerLite sources. Valid syntax alone does not prove every platform accepts plus addresses. |
-| 9 | Enable RSS, then disable/re-enable each Lab separately | Both types coexist; switches and RSS management/Save to Inbox remain isolated. Disabled Newsletter delivery is rejected; completed old entries return on re-enable. |
+| 9 | Enable RSS, then disable/re-enable each Lab separately | Newsletter on: the whole Feed reads `/v1/feed/subscriptions`, `/v1/feed/entries` and authenticated bodies through REST, including with a healthy local database. Newsletter off and RSS on: existing RSS local-first resumes. Switching clears obsolete previews/cursors; other accounts and stale local Newsletter rows never appear. RSS management/Save to Inbox remain isolated. Disabled Newsletter delivery is rejected; completed old entries return on re-enable/reload. |
 | 10 | Change A's account/display name; send to A's original issued address | Original token/address stays bound and continues delivering to A. |
 | 11 | Check phone, 768px and desktop; light/dark/eink and keyboard | The full plus address, copy control, sources and body remain usable without overflow. |
+
+Newsletter arrival does not push a local list update in this version: reload the page after delivery, or use an existing explicit refresh action that revalidates REST. Source switching may reuse the per-source in-memory cache for up to 60 seconds; an online page reload starts fresh. RSS and Newsletter share one server ordering/cursor whenever Newsletter is on. Load more, source switching, slow responses and account changes should retain the correct rows without duplicates or stale bodies. No new-session offline Newsletter list/body availability is promised. Bookmark and collection PowerSync continue independently.
 
 A new composed message or manual forward normally gets a new Message-ID and should be a new entry. Deduplication requires replaying the same raw message and Message-ID. Limits remain 5 MiB per raw email including MIME/base64 overhead, 200 sources per user and 200 newly admitted messages per UTC day. Begin with one or two users and monitor backlog age/storage. Do not disrupt shared dev infrastructure to force failures.
 
@@ -98,4 +101,4 @@ To stop, disable/restore the pilot's **literal feed@newsletterreader.slax.dev ro
 
 Production stays off until every serving release and sync rule sharing PostgreSQL has RSS-kind isolation. Its later operator rollout uses newsletterreader.slax.com receiving DNS, Subaddressing and **feed@newsletterreader.slax.com** to the verified production Edge Worker. Keep root slax.com Feishu MX and daguang@slax.app forwarding intact. Only operate the selected subdomain; do not repoint the old broken slax.app Catch-all as part of this plan.
 
-Before widening the pilot, finish hosted PowerSync cross-user/kind acceptance, real Newsletter confirmation/content tests and SMTP infrastructure-failure behavior. Subscribed bodies are not pruned by RSS's 30-day rule. Attachments, automatic unsubscribe and Newsletter saving to Inbox remain out of scope.
+Before widening the pilot, finish existing RSS synchronization compatibility/isolation acceptance, real Newsletter confirmation/content tests and SMTP infrastructure-failure behavior. Subscribed bodies are not pruned by RSS's 30-day rule. Attachments, automatic unsubscribe and Newsletter saving to Inbox remain out of scope.

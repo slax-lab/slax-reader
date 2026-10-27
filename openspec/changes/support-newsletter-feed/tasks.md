@@ -31,7 +31,7 @@
 
 ## Deferred operational acceptance
 
-Remote dev deployment, hosted PowerSync publication and real SMTP acceptance are operator work described in docs/api/NEWSLETTER-DEV-PILOT.md, not claims of this local implementation. Do not activate beta/main until the documented compatibility rollout is complete.
+Remote dev deployment, hosted RSS compatibility-rule publication and real SMTP acceptance are operator work described in docs/api/NEWSLETTER-DEV-PILOT.md, not claims of this local implementation. Do not activate beta/main until the documented compatibility rollout is complete.
 
 ## 6. Approved feed+ subaddress revision (2026-10-27)
 
@@ -42,6 +42,13 @@ Remote dev deployment, hosted PowerSync publication and real SMTP acceptance are
 
 - [x] 6.5 Synchronize the newly merged local-first-ddl dev changes; preserve anchored queries, kind isolation and legacy projections, verify generated artifacts/full API tests/actual local Workers/PowerSync setup, and re-review before pushing the conflict resolution.
 
-## 7. After merge
+## 7. Approved REST-first Newsletter revision (2026-10-27)
 
-- [ ] 7.1 After the task PR merges, classify every remaining unchecked task and archive this OpenSpec change through a separate documentation PR.
+- [x] 7.1 Remove newsletter_v1 and Newsletter client synchronization; retain RSS kind isolation, RSS-only local-first behavior and stale-row guards.
+- [x] 7.2 Route unified Feed reads through REST whenever Newsletter is enabled; verify healthy/pending database independence, pagination/cache retention and mode/account/Lab transition fences with regression-first tests.
+- [x] 7.3 Verify complete API/Web suites, running REST Feed/Worker behavior, types and strict OpenSpec validation; complete Bugs/Security/Compliance review and update evidence.
+- [x] 7.4 Update both existing draft PR descriptions and current operator/test guides; clarify composite email fields and Worker deployment prerequisites, without adding assignees/reviewers.
+
+## 8. After merge
+
+- [ ] 8.1 After the task PR merges, classify every remaining unchecked task and archive this OpenSpec change through a separate documentation PR.

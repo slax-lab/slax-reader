@@ -5,12 +5,11 @@ import { getTokenUserId } from '~/utils/sessionOwner'
 
 import { RequestError } from '@commons/frontend-utils/request'
 import type { SyncStream, SyncStreamSubscription } from '@powersync/web'
-import type { FeedEntriesResponse, FeedEntry, FeedKind, FeedSubscription } from '@slax-reader/contracts'
-import { feedRowKind, useLocalRss } from '~/composables/rss/useLocalRss'
+import type { RssEntriesResponse, RssEntry, RssSubscription } from '@slax-reader/contracts'
+import { useLocalRss } from '~/composables/rss/useLocalRss'
 import { isLocalFirstEnabled } from '~/composables/useLocalFirst'
 
 export const RSS_STREAM = 'rss_v1'
-export const NEWSLETTER_STREAM = 'newsletter_v1'
 export const RSS_STREAM_TTL = 7 * 24 * 3600
 export const RSS_LOCAL_PAGE = 50
 
@@ -18,7 +17,7 @@ export interface RssLocalDatabase {
   syncStream(name: string): SyncStream
 }
 
-type Page = Pick<FeedEntriesResponse, 'items' | 'next_cursor' | 'has_more' | 'history_status' | 'retry_at'> & {
+type Page = Pick<RssEntriesResponse, 'items' | 'next_cursor' | 'has_more' | 'history_status' | 'retry_at'> & {
   /** Local row the REST window starts after (`before`); null walks from the top. */
   anchor: string | null
   pages: number
@@ -26,9 +25,9 @@ type Page = Pick<FeedEntriesResponse, 'items' | 'next_cursor' | 'has_more' | 'hi
 type RefreshOverlay = { nextAllowedAt: string; lastCheckedAt: string | null; lastSuccessAt: string | null }
 
 const sameTime = (a: string | null, b: string | null) => (a && b ? Date.parse(a) === Date.parse(b) : a === b)
-const displayName = (row: FeedSubscription) => row.remark?.trim() || row.title
-const position = (row: FeedEntry) => Date.parse(row.sort_at || row.published_at || row.first_seen_at) || 0
-const timeline = (a: FeedEntry, b: FeedEntry) => position(b) - position(a) || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0)
+const displayName = (row: RssSubscription) => row.remark?.trim() || row.title
+const position = (row: RssEntry) => Date.parse(row.sort_at || row.published_at || row.first_seen_at) || 0
+const timeline = (a: RssEntry, b: RssEntry) => position(b) - position(a) || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0)
 const missing = (error: unknown) => error instanceof RequestError && error.code === 404
 const silent = () => {}
 
@@ -38,38 +37,35 @@ const silent = () => {}
  * `active` or the account changes. Rows already in the local database are shown before the stream's first sync, so a
  * reload or an offline visit does not wait for the network.
  */
-export function useRssLocalState(db: RssLocalDatabase, active: Ref<boolean>, account: Ref<unknown>, selected: Ref<string>, kinds: Ref<FeedKind[]> = ref(['rss'])) {
+export function useRssLocalState(db: RssLocalDatabase, active: Ref<boolean>, account: Ref<unknown>, selected: Ref<string>) {
   const pages = reactive(new Map<string, Page>())
   const limits = reactive(new Map<string, number>())
   const removed = reactive(new Map<string, boolean>())
   const limit = computed(() => (pages.has(selected.value) ? Infinity : limits.get(selected.value) || RSS_LOCAL_PAGE))
-  const local = useLocalRss(selected, active, limit, computed(() => new Set(removed.keys())),
-    kinds
-  )
-  const synced = reactive(new Set<FeedKind>())
-  const failed = reactive(new Set<FeedKind>())
-  const ready = computed(() => active.value && (synced.size > 0 || local.subscriptions.value.length > 0) && !local.isLoading.value && !local.error.value)
-  const unavailable = computed(() => !!local.error.value || (kinds.value.length > 0 && kinds.value.every(kind => failed.has(kind)) && !ready.value))
+  const local = useLocalRss(selected, active, limit, computed(() => new Set(removed.keys())))
+  const synced = ref(false)
+  const streamUnavailable = ref(false)
+  const ready = computed(() => active.value && (synced.value || local.subscriptions.value.length > 0) && !local.isLoading.value && !local.error.value)
+  const unavailable = computed(() => !!local.error.value || (streamUnavailable.value && !ready.value))
 
-  const added = reactive(new Map<string, FeedSubscription>())
+  const added = reactive(new Map<string, RssSubscription>())
   const renamed = reactive(new Map<string, { remark: string | null; previous: string | null | undefined }>())
   const refreshed = reactive(new Map<string, RefreshOverlay>())
   const saved = reactive(new Map<string, string>())
   const tokens = new Map<string, number>()
 
-  const streams = new Map<FeedKind, { handle?: SyncStreamSubscription; controller: AbortController }>()
+  let handle: SyncStreamSubscription | undefined
+  let abort: AbortController | undefined
   let generation = 0
-  const stopStream = (kind: FeedKind) => {
-    const stream = streams.get(kind)
-    streams.delete(kind)
-    stream?.controller.abort()
-    stream?.handle?.unsubscribe()
-    synced.delete(kind)
-    failed.delete(kind)
-  }
+
   const stop = () => {
     generation++
-    for (const kind of streams.keys()) stopStream(kind)
+    abort?.abort()
+    abort = undefined
+    handle?.unsubscribe()
+    handle = undefined
+    synced.value = false
+    streamUnavailable.value = false
     added.clear()
     renamed.clear()
     removed.clear()
@@ -79,70 +75,37 @@ export function useRssLocalState(db: RssLocalDatabase, active: Ref<boolean>, acc
     limits.clear()
     tokens.clear()
   }
-  const start = async (kind: FeedKind) => {
-    const stream = { controller: new AbortController() } as {
-      handle?: SyncStreamSubscription
-      controller: AbortController
-    }
-    streams.set(kind, stream)
-    const current = () => streams.get(kind) === stream
+  const start = async () => {
+    const stamp = generation
+    const controller = new AbortController()
+    abort = controller
     try {
-      const subscription = await db.syncStream(kind === 'rss' ? RSS_STREAM : NEWSLETTER_STREAM).subscribe({ ttl: RSS_STREAM_TTL })
-      if (!current()) return subscription.unsubscribe()
-      stream.handle = subscription
-      await subscription.waitForFirstSync(stream.controller.signal)
-      if (!current()) return
+      const subscription = await db.syncStream(RSS_STREAM).subscribe({ ttl: RSS_STREAM_TTL })
+      if (stamp !== generation) return subscription.unsubscribe()
+      handle = subscription
+      // Resolves (rather than rejects) on abort, so the generation is checked again afterwards.
+      await subscription.waitForFirstSync(controller.signal)
+      if (stamp !== generation) return
       await local.refresh()
-      if (current()) synced.add(kind)
+      if (stamp === generation) synced.value = true
     } catch {
-      if (current()) failed.add(kind)
+      if (stamp === generation) streamUnavailable.value = true
     }
-  }
-  const reconcileStreams = () => {
-    const allowed = active.value ? kinds.value : []
-    for (const kind of streams.keys()) if (!allowed.includes(kind)) stopStream(kind)
-    for (const kind of allowed) if (!streams.has(kind)) void start(kind)
   }
   watch(
     [active, account],
-    () => {
+    ([on]) => {
       stop()
-      reconcileStreams()
+      if (on) void start()
     },
     { immediate: true, flush: 'sync' }
-  )
-  watch(
-    kinds,
-    () => {
-      generation++
-      // Keep the other kind's loaded history, but re-anchor requests because cursors bind the effective kinds.
-      for (const [source, page] of pages) {
-        if (source && !local.subscriptions.value.some(row => row.id === source)) {
-          pages.delete(source)
-          continue
-        }
-        page.items = page.items.filter(row => kinds.value.includes(feedRowKind(row)))
-        page.next_cursor = null
-        if (page.anchor && !local.allEntries.value.some(row => row.id === page.anchor)) page.anchor = oldestLocal(source)
-      }
-      tokens.clear()
-      if (!kinds.value.includes('rss')) {
-        added.clear()
-        renamed.clear()
-        removed.clear()
-        refreshed.clear()
-        saved.clear()
-      }
-      reconcileStreams()
-    },
-    { flush: 'sync' }
   )
   onScopeDispose(stop)
 
   // Drop overlays once the synced rows reflect the confirmed server state.
   const retireOverlays = () => {
     if (!ready.value) return
-    const rows = new Map(local.subscriptions.value.map(row => [row.id, row]))
+    const rows = new Map<string, RssSubscription>(local.subscriptions.value.map(row => [row.id, row]))
     for (const id of added.keys()) if (rows.has(id)) added.delete(id)
     for (const [id, overlay] of renamed) {
       const row = rows.get(id)
@@ -174,11 +137,11 @@ export function useRssLocalState(db: RssLocalDatabase, active: Ref<boolean>, acc
   }
   watch([local.subscriptions, local.savedUrls, ready], retireOverlays)
 
-  const subscriptions = computed<FeedSubscription[]>(() => {
-    const rows = new Map(local.subscriptions.value.map(row => [row.id, row]))
+  const subscriptions = computed<RssSubscription[]>(() => {
+    const rows = new Map<string, RssSubscription>(local.subscriptions.value.map(row => [row.id, row]))
     for (const [id, row] of added) if (!rows.has(id)) rows.set(id, row)
     return [...rows.values()]
-      .filter(row => !removed.has(row.id) && kinds.value.includes(feedRowKind(row)))
+      .filter(row => !removed.has(row.id))
       .map(row => {
         const refresh = refreshed.get(row.id)
         return {
@@ -190,12 +153,12 @@ export function useRssLocalState(db: RssLocalDatabase, active: Ref<boolean>, acc
   })
   const page = computed(() => pages.get(selected.value))
   // Saved state always comes from local bookmarks plus confirmed saves, never from a REST page.
-  const decorate = (rows: FeedEntry[]) => {
+  const decorate = (rows: RssEntry[]) => {
     const sources = new Map(subscriptions.value.map(row => [row.id, row]))
-    const result: FeedEntry[] = []
+    const result: RssEntry[] = []
     for (const row of rows) {
       const source = sources.get(row.subscription_id)
-      if (!source || !kinds.value.includes(feedRowKind(row))) continue
+      if (!source) continue
       const bookmark = row.article_url ? saved.get(row.article_url) || local.savedUrls.value.get(row.article_url) : null
       result.push({ ...row, source_title: displayName(source), bookmark_user_uuid: bookmark || null })
     }
@@ -205,19 +168,19 @@ export function useRssLocalState(db: RssLocalDatabase, active: Ref<boolean>, acc
   // Only the first local rows are rendered until Load more reveals the rest; once REST pages are merged in, every
   // local row is shown so the combined timeline has no gaps.
   const hidden = computed(() => localRows.value.length > limit.value)
-  const entries = computed<FeedEntry[]>(() => {
+  const entries = computed<RssEntry[]>(() => {
     if (!page.value) return hidden.value ? localRows.value.slice(0, limit.value) : localRows.value
     const ids = new Set(localRows.value.map(row => row.id))
     return [...localRows.value, ...decorate(page.value.items.filter(row => !ids.has(row.id)))].sort(timeline)
   })
   const hasMore = computed(() => page.value?.has_more ?? (localRows.value.length > 0 || subscriptions.value.length > 0))
-  const historyStatus = computed<FeedEntriesResponse['history_status']>(() => page.value?.history_status || 'available')
+  const historyStatus = computed<RssEntriesResponse['history_status']>(() => page.value?.history_status || 'available')
   const retryAt = computed(() => page.value?.retry_at || null)
   const cursor = computed(() => page.value?.next_cursor || null)
 
   const read = (source: string, query: Record<string, string>, quiet = false) =>
-    request().get<FeedEntriesResponse>({
-      url: '/v1/feed/entries',
+    request().get<RssEntriesResponse>({
+      url: '/v1/rss/entries',
       query: { ...(source ? { subscription_id: source } : {}), ...query, limit: '20' },
       ...(quiet ? { errorInterceptors: silent } : {})
     })
@@ -228,10 +191,10 @@ export function useRssLocalState(db: RssLocalDatabase, active: Ref<boolean>, acc
   }
   // `first` extends the first request. A pruned anchor answers 404; that request stays silent so the caller can re-anchor.
   const walk = async (source: string, anchor: string | null, target: number, current: () => boolean, first: Record<string, string> = {}, quiet = false) => {
-    const items = new Map<string, FeedEntry>()
+    const items = new Map<string, RssEntry>()
     let next: string | null = null,
       count = 0,
-      result: FeedEntriesResponse | undefined
+      result: RssEntriesResponse | undefined
     do {
       const query: Record<string, string> = next ? { cursor: next } : { ...(anchor ? { before: anchor } : {}), ...first }
       result = await read(source, query, quiet || (!next && !!anchor))
@@ -301,13 +264,13 @@ export function useRssLocalState(db: RssLocalDatabase, active: Ref<boolean>, acc
     retryAt,
     cursor,
     loadMore,
-    add: (row: FeedSubscription) => {
+    add: (row: RssSubscription) => {
       removed.delete(row.id)
       added.set(row.id, row)
       retireOverlays()
     },
     remark: (id: string) => local.subscriptions.value.find(row => row.id === id)?.remark,
-    rename: (row: FeedSubscription, previous: string | null | undefined) => {
+    rename: (row: RssSubscription, previous: string | null | undefined) => {
       renamed.set(row.id, { remark: row.remark ?? null, previous })
       if (added.has(row.id)) added.set(row.id, row)
       retireOverlays()

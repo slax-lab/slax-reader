@@ -1,7 +1,8 @@
 import { computed, onScopeDispose, type Ref, ref, watch } from 'vue'
 
+import { feedRowKind } from '~/utils/feed'
+
 import type { FeedEntriesResponse, FeedEntry, FeedEntryDetail, FeedKind, FeedSubscription, FeedSubscriptionsResponse, RssRefreshResponse, RssSaveResponse, RssSubscription } from '@slax-reader/contracts'
-import { feedRowKind } from '~/composables/rss/useLocalRss'
 import { useRssEnabled } from '~/composables/rss/useRssEnabled'
 import { rssLocalDatabase, rssLocalOwned, useRssLocalState } from '~/composables/rss/useRssLocalState'
 import { useLabFeatures } from '~/composables/useLabFeatures'
@@ -22,8 +23,8 @@ export const rssSourceText = (name: string) => name.normalize('NFKC').match(/\p{
 
 /**
  * Owned by the kept-alive Inbox panel; caches are never shared between accounts or SSR requests.
- * An owned local database supplies the lists, showing loading until its first sync or cached rows are ready. REST lists
- * are used only without owned local storage or after a local failure. Writes and explicit history still use REST.
+ * Newsletter-enabled sessions read the entire Feed through REST. RSS-only sessions use an owned local database,
+ * falling back to REST without usable local storage. Writes and explicit history still use REST.
  */
 export function useRss() {
   const labs = useLabFeatures(),
@@ -55,22 +56,22 @@ export function useRss() {
     session = 0
   const database = rssLocalDatabase()
   const rssEnabled = database ? useRssEnabled(labs) : computed(() => labs.loaded.value && labs.isEnabled('rss'))
-  const newsletterEnabled = database ? useRssEnabled(labs, 'newsletter') : computed(() => labs.loaded.value && labs.isEnabled('newsletter'))
+  const newsletterEnabled = computed(() => labs.loaded.value && labs.isEnabled('newsletter'))
   const kinds = computed<FeedKind[]>(() => [...(rssEnabled.value ? ['rss' as const] : []), ...(newsletterEnabled.value ? ['newsletter' as const] : [])])
   const enabled = computed(() => kinds.value.length > 0)
   const allowed = (row: { kind?: string | null }) => kinds.value.includes(feedRowKind(row))
   const owned = database ? rssLocalOwned() : null
+  const localActive = computed(() => rssEnabled.value && !newsletterEnabled.value && !!user.userInfo?.userId && !!owned?.value)
   const local = database
     ? useRssLocalState(
         database,
-        computed(() => enabled.value && !!user.userInfo?.userId && !!owned?.value),
+        localActive,
         computed(() => user.userInfo?.userId),
-        selected,
-        kinds
+        selected
       )
     : null
   const live = computed(() => !!local?.ready.value)
-  const localMode = computed(() => enabled.value && !!local && !!owned?.value && !local.unavailable.value)
+  const localMode = computed(() => localActive.value && !!local && !local.unavailable.value)
   // Pending synchronization stays local; writes on the fallback path target only the REST cache.
   const view = <T>(rest: Ref<T>, synced: () => T) =>
     computed<T>({
@@ -79,8 +80,8 @@ export function useRss() {
         rest.value = value
       }
     })
-  const subscriptions = view(restSubscriptions, () => local!.subscriptions.value),
-    entries = view(restEntries, () => (live.value ? local!.entries.value : [])),
+  const subscriptions = view(restSubscriptions, () => local!.subscriptions.value.map(row => ({ ...row, kind: 'rss' as const }))),
+    entries = view(restEntries, () => (live.value ? local!.entries.value.map(row => ({ ...row, kind: 'rss' as const })) : [])),
     cursor = view(restCursor, () => local!.cursor.value),
     hasMore = view(restHasMore, () => live.value && local!.hasMore.value),
     historyStatus = view(restHistoryStatus, () => local!.historyStatus.value),
@@ -150,7 +151,7 @@ export function useRss() {
     }
   })
   watch([live, () => local?.subscriptions.value], () => {
-    if (live.value && selected.value && !local!.subscriptions.value.some(row => row.id === selected.value)) void select('')
+    if (localMode.value && live.value && selected.value && !local!.subscriptions.value.some(row => row.id === selected.value)) void select('')
   })
   onScopeDispose(clear)
 
@@ -246,7 +247,7 @@ export function useRss() {
       } catch (e) {
         // A failed laboratory request (e.g. offline) keeps the local list without reporting an error; only a confirmed
         // response can disable RSS.
-        if (local && enabled.value && (live.value || !labs.loaded.value)) return
+        if (localMode.value && (live.value || !labs.loaded.value)) return
         throw e
       }
       if (!enabled.value || initialization !== initializeGeneration || account !== session || localMode.value) return
@@ -307,7 +308,7 @@ export function useRss() {
       const row = await request().post<RssSubscription>({ url: '/v1/rss/subscriptions', body: { url, remark: remark.trim() || null } })
       if (account !== session || !rssEnabled.value) return
       if (!row) throw new Error('source_unavailable')
-      local?.add({ ...row, kind: 'rss' })
+      local?.add(row)
       restSubscriptions.value = [...restSubscriptions.value.filter(item => item.id !== row.id), { ...row, kind: 'rss' }]
       cache.delete('')
       await select(row.id)
@@ -320,7 +321,7 @@ export function useRss() {
       const row = await request().post<RssSubscription>({ url: `/v1/rss/subscriptions/${encodeURIComponent(id)}/update`, body: { remark: remark.trim() || null } })
       if (account !== session || !rssEnabled.value) return
       if (!row) throw new Error('source_unavailable')
-      local?.rename({ ...row, kind: 'rss' }, previous)
+      local?.rename(row, previous)
       restSubscriptions.value = restSubscriptions.value.map(sub => (sub.id === row.id ? { ...row, kind: 'rss' } : sub))
       const renamed = (entry: FeedEntry) => (entry.subscription_id === row.id ? { ...entry, source_title: rssSubscriptionName(row) } : entry)
       for (const snapshot of cache.values()) snapshot.items = snapshot.items.map(renamed)
