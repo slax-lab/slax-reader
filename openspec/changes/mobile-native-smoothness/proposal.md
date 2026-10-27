@@ -18,7 +18,7 @@ The Expo mobile app feels markedly less smooth than the previous Kotlin Multipla
   - Non-critical work starts when the Library is presented.
   - Preference writes no longer re-render the whole tree.
 - Reader:
-  - **Open:** on Android the native document host mounts after the push transition. On iOS it mounts immediately, because the push is Core Animation driven. In both cases a loading cover hides the host until the first content and position restore. Static bridge/host scripts are installed once, and cached bodies are read on a foreground native queue concurrently with the record lookup. The Reader module and WebKit are prewarmed after the Library is presented.
+  - **Open:** on Android the native document host mounts after the push transition. On iOS it mounts immediately, because the push is Core Animation driven. In both cases the article shows as soon as its HTML is ready, with no loading cover, and the saved position is restored once at DOM readiness. Static bridge/host scripts are installed once, and cached bodies are read on a foreground native queue concurrently with the record lookup. The Reader module and WebKit are prewarmed after the Library is presented.
   - **Header:** the native Reader header options are static from the first frame, and iOS 26 scroll-edge effects are hidden.
   - **AI surfaces:** the outline mounts its Markdown after its motion settles. KMP's loading animations are ported, the overview grows from its excerpt, and outline Markdown is rendered by `markdown-it` with `markdown-it-cjk-friendly`, at the versions the Web app already uses.
   - **Platform fixes:** Android measures document height natively instead of round-tripping through React layout. iOS inset updates no longer reset the offset or stop deceleration when unchanged or while scrolling.
@@ -35,7 +35,7 @@ None.
 - `mobile-performance-lifecycle`: adds native offline-engine thread ownership, batched progress persistence, key-based identities without hashing, KMP-aligned background/foreground behavior and post-transition Reader host mounting with native Android height and iOS inset guards.
 - `mobile-app-parity`: the drawer no longer locks the covered list. Its scrim owns input while the drawer is visible, and PDF completion no longer requires a full-file hash.
 - `mobile-visual-parity`: drawer, row swipe and list motion follow the single-gesture, UI-thread model, with no feed input lock.
-- `mobile-reader-parity`: PDF completion is verified by size, range/length and descriptor identity instead of SHA-256. Article presentation allows a loading cover only until the document is presentable.
+- `mobile-reader-parity`: PDF completion is verified by size, range/length and descriptor identity instead of SHA-256. Article presentation shows the HTML host directly once ready, without a loading cover or waiting for external resources.
 
 ## Impact
 

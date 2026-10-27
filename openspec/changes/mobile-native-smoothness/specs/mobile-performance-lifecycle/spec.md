@@ -44,18 +44,18 @@ Only a true background transition SHALL engage the storage-safety pause. Transie
 
 ### Requirement: Reader document host mounts after the route transition
 
-On Android, where the push transition runs on the UI thread, the HTML Reader's native document host SHALL be created after the native push transition completes, or immediately when no transition occurs. On iOS, where the push is Core Animation driven, the host MAY be created during the transition. On both platforms a skeleton SHALL cover the host until the document reports its first content and initial position restore. Cached article bodies SHALL be read on a foreground-priority native path that does not wait behind background acquisition, concurrently with the bookmark record lookup. The Reader route's navigation-bar configuration SHALL be final from the first frame (transparent bar, fixed-size trailing slot), so opening the Reader never re-lays out the back button. Static bridge and host scripts SHALL be installed without being rebuilt per article. On Android, document height SHALL be measured by the native host and applied to the outer native scroller without a React layout round trip per height change. On iOS, inset updates SHALL be ignored when unchanged and SHALL NOT reset the scroll offset or stop deceleration while the user is dragging or the view is decelerating.
+On Android, where the push transition runs on the UI thread, the HTML Reader's native document host SHALL be created after the native push transition completes, or immediately when no transition occurs. On iOS, where the push is Core Animation driven, the host MAY be created during the transition. A skeleton SHALL show only while the article HTML is unavailable. Once the HTML is ready and the host is mounted, the article SHALL be shown directly, with no loading cover over the host and no wait for external resources. The saved reading position SHALL be restored once, when the document reports DOM readiness and its first height, and SHALL NOT be adjusted again by the application before the user scrolls. Cached article bodies SHALL be read on a foreground-priority native path that does not wait behind background acquisition, concurrently with the bookmark record lookup. The Reader route's navigation-bar configuration SHALL be final from the first frame (transparent bar, fixed-size trailing slot), so opening the Reader never re-lays out the back button. Static bridge and host scripts SHALL be installed without being rebuilt per article. On Android, document height SHALL be measured by the native host and applied to the outer native scroller without a React layout round trip per height change. On iOS, inset updates SHALL be ignored when unchanged and SHALL NOT reset the scroll offset or stop deceleration while the user is dragging or the view is decelerating.
 
 #### Scenario: A cached article is opened
 - **WHEN** the user taps a cached article in the Library
 - **THEN** on Android the push transition runs without concurrent WebView creation or document composition
-- **AND** the skeleton fades out only after content is presentable at its restored position
+- **AND** the article is shown as soon as its HTML is ready, without a loading cover
 
 #### Scenario: An article references slow external resources
 - **WHEN** a cached article contains images, frames or fonts that load slowly or never finish
-- **THEN** the loading cover lifts once the document's DOM and first height are known, without waiting for the page load event
-- **AND** if content above the restored position grows before the user interacts, the saved position is reapplied once
-- **AND** the article is never kept covered beyond a bounded timeout
+- **THEN** the article is shown without waiting for those resources or the page load event
+- **AND** the saved position is restored once when the DOM and first height are known
+- **AND** the application does not move the position again when late resources change the layout
 
 #### Scenario: A cached article is opened while background caching runs
 - **WHEN** automatic downloads are in progress and the user opens an article that is already cached

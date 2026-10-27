@@ -123,14 +123,12 @@ JavaScript then clears obsolete `_slax_offline*` JSON fields, resets the downloa
 
 - **Route transition:**
   - `useReaderLifecycle` removes the `requestAnimationFrame` shortcut. `transitionReady` comes from `transitionEnd` (not closing), `gestureCancel` or the first route, with a 600 ms fallback.
-  - On Android, `ReaderContent` mounts the native host only after `transitionReady`. On iOS it mounts at once, because the push is Core Animation driven; the cover hides it in both cases.
+  - On Android, `ReaderContent` mounts the native host only after `transitionReady`. On iOS it mounts at once, because the push is Core Animation driven. In both cases the article is shown as soon as its HTML is ready; there is no loading cover over the HTML host.
   - The Reader route's native header options (transparent bar, no shadow, fixed 48×44 trailing slot) are static from the first frame, so the back button never moves during the push.
   - `scrollEdgeEffects` are hidden on every edge of the route, and `SlaxReaderView` also hides its own scroll view's iOS 26 edge effects. This removes the scroll-edge band under the bar.
   - Cached bodies are read on a dedicated user-initiated native queue, not the shared background IO queue. The record lookup and the cache read start concurrently.
   - Once the Library is presented, an idle callback preloads the Reader module. On iOS it also compiles the content rule list and creates and discards one WKWebView to warm WebKit; that view is never reused for a document.
-  - The cover fade is 120 ms.
-  - The initial restore, and therefore the cover, waits for `domReady` and the first document height, not the WebView load event. Slow external images, frames or fonts no longer hold the article covered. A saved position above 0 is reapplied once if the document grows before the user interacts, until the load event or 2 s. A 1.5 s timeout lifts the cover in any case.
-  - A skeleton overlay covers the host until `documentReady` and the initial position restore, then fades out (reduced-motion aware).
+  - The initial restore runs once at `domReady` and the first document height, not the WebView load event. Slow external images, frames or fonts are not waited for. After that the application never moves the position by itself before the user scrolls.
 - **Document composition:** `composeReaderDocument` precomputes the constant template prefix and suffix at module scope, so each open only concatenates the article.
 - **iOS `SlaxReaderView.updateInsets`:**
   - Returns early when the insets are unchanged.

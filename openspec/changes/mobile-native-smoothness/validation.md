@@ -25,7 +25,7 @@ New or rewritten suites cover these areas:
 - the single-pan drawer (edge vs full hit areas, no list relations, scrim released on resolved close, interrupted close);
 - row swipe (haptic once, velocity settle, taps never swallowed);
 - FeedList sampling and constant list settings;
-- Reader transition gating, cover lifecycle, template byte parity, inset dedupe and Android UI-thread height;
+- Reader transition gating, direct HTML presentation, once-only restore, template byte parity, inset dedupe and Android UI-thread height;
 - context split identity, background-only pause and system-surface deferral.
 
 ## Runtime hashing
@@ -49,7 +49,6 @@ The KMP-compatible MD5 image filename helper is a path function, not a content h
   - The post-revert native header (790).
 - Android has had no hands-on run.
 - Theme matrix (`DESIGN.md` §6, Mobile shell and embedded reader): no light/dark comparison was recorded. The new surfaces use the existing light Reader palette: loading cover `#FCFCFC`, outline shell, loaders and overview dialog. This is a declared gap.
-- Owner requirement 7.7 (the back button hides together with More) is not met by this pull request. The owner's chosen approach is pending.
 - Android: only a debug assemble was compiled. No Android artifact was produced or distributed.
 
 ## Delivery
@@ -92,4 +91,10 @@ TestFlight preview **1.0.25 (785)**: build bumped from 784, previous bound 784. 
 - 2026-10-26, owner: did not approve item (3), the custom navigator bar that replaced the native header. It is reverted to the build-788 native header (transparent, fixed More slot, native back). Items 1, 2 and 4 are kept: scroll-edge effects stay hidden. The spec exception for a custom back control is withdrawn. `pnpm mobile -- check` passes 1144/1144, the bundle builds and the iOS simulator build succeeds. TestFlight 789 still contains the reverted bar and is superseded.
 - 2026-10-27, owner: instructed the agent to build TestFlight, push the branch and open the pull request. This is the owner's decision to open the pull request before the remaining hands-on acceptance listed under "Not verified". It is not itself an acceptance record. TestFlight **1.0.25 (790)**, the merged and reverted state, was uploaded at 2026-10-27T02:34:49.518Z. See the [790 receipt](../../../docs/mobile/releases/1.0.25-790-testflight.md).
 - 2026-10-27, owner: articles with external resources waited for those resources before showing. **Cause:** the initial restore, which lifts the cover, was gated on the WebView load event, so it waited on every subresource. **Fix (task 7.8):** the restore is gated on DOM readiness plus the first height, with a one-time re-apply for late growth and a 1.5 s cover timeout. `pnpm mobile -- check` passes 1154/1154 and the bundle exports. TestFlight **1.0.25 (791)** carries the fix and supersedes 790. It was uploaded at 2026-10-27T03:13:41.892Z and Apple reported it processing. See the [791 receipt](../../../docs/mobile/releases/1.0.25-791-testflight.md).
-- Pending: the owner's hands-on review of TestFlight 791, plus requirement 7.7 (back button hides with More), which remains open. Record who, when, the observations and any adjustments here before a pull request.
+- 2026-10-27, owner, review of 791:
+  - Remove the automatic position re-apply and keep the position fixed until the user scrolls.
+  - Drop the back-button/More hiding requirement.
+  - Show the HTML as soon as it is ready, with no loading cover and no timeout.
+
+  The cover, re-apply and timeout are removed; the saved position is restored once at DOM readiness. `pnpm mobile -- check` passes 1146/1146 and the bundle exports. TestFlight **1.0.25 (792)** carries this; it was uploaded at 2026-10-27T04:49:41.160Z and Apple reported it processing. See the [792 receipt](../../../docs/mobile/releases/1.0.25-792-testflight.md).
+- Pending: the owner's hands-on review of TestFlight 792. Record who, when, the observations and any adjustments here before a pull request.

@@ -1,10 +1,9 @@
-import React, {useCallback, useState} from 'react'
+import React from 'react'
 import {Platform, StyleSheet, View} from 'react-native'
 import {SourceText, TextAction} from '../../components'
 import {SourceCircularProgress} from '../../components/SourceRing'
 import {mobileColors as C, mobileTypography as T} from '../../theme'
 import {ReaderWebView} from '../index'
-import {ReaderLoadingCover} from '../ReaderLoadingCover'
 import {ReaderSkeleton} from '../ReaderSkeleton'
 import type {Translate} from '../state/types'
 
@@ -20,26 +19,17 @@ interface ContentProps {
   hostKey: string; top: number; header: React.ReactNode; title: string
   /**
    * Android creates the native document host only after the route's push transition settled (its transition shares the UI thread).
-   * iOS creates it immediately beneath the skeleton cover, since its push animation runs in Core Animation.
+   * iOS creates it immediately, since its push animation runs in Core Animation.
    */
   transitionReady: boolean
   contentError: string | null; nativeFailure: string | null; rssError: string | null; t: Translate
   reload(force?: boolean): void; retryPdf(): void; retryNative(): void
 }
 export function ReaderContent({isPdf, isPreview, loading, html, pdfProps, htmlProps, hostKey, top, header, title, transitionReady, contentError, nativeFailure, rssError, t, reload, retryPdf, retryNative}: ContentProps) {
-  const [presentedHost, setPresentedHost] = useState<string | null>(null)
-  const presentable = useCallback(() => setPresentedHost(hostKey), [hostKey])
   const skeleton = <ReaderSkeleton topSpacer={top + 44} header={title ? header : undefined} />
   const hostReady = transitionReady || Platform.OS === 'ios'
-  const htmlHost = html !== null && hostReady
-  // Loading and a mounted-but-unrestored article share one skeleton, so its header never remounts while the host appears beneath it.
-  const covered = !htmlHost || (presentedHost !== hostKey && !contentError && !nativeFailure)
-  const article = <View style={styles.layer}>
-    {htmlHost ? <View style={styles.layer} accessibilityElementsHidden={covered} importantForAccessibility={covered ? 'no-hide-descendants' : 'auto'}>
-      <ReaderWebView key={hostKey} {...htmlProps} onPresentable={presentable} />
-    </View> : null}
-    <ReaderLoadingCover testID="reader-loading-cover" covered={covered}>{skeleton}</ReaderLoadingCover>
-  </View>
+  // The skeleton shows only until the article host exists; the mounted article is shown directly, without an overlay.
+  const article = html !== null && hostReady ? <ReaderWebView key={hostKey} {...htmlProps} /> : skeleton
   return <>
     {/* A PDF opens like an article: the same header + skeleton covers the host until its first visible page is painted. */}
     {isPdf ? pdfProps && !contentError ? <PdfWebView key={hostKey} {...pdfProps} placeholder={skeleton} /> :
@@ -54,7 +44,6 @@ export function ReaderContent({isPdf, isPreview, loading, html, pdfProps, htmlPr
   </>
 }
 const styles = StyleSheet.create({
-  layer: {flex: 1},
   center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20},
   errorBanner: {position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: C.background, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center'},
 })

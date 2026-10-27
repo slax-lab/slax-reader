@@ -53,7 +53,7 @@
 
 ## 7. Reader
 
-- [x] 7.1 Derive `transitionReady` from `transitionEnd`/`gestureCancel`/the first route with a fallback. Mount the native host only after it, keeping the skeleton overlay until the document is presentable.
+- [x] 7.1 Derive `transitionReady` from `transitionEnd`/`gestureCancel`/the first route with a fallback. Mount the native host only after it (Android).
 - [x] 7.2 Precompute the constant Reader template once per module, and dedupe identical `applyNativeInsets` calls.
 - [x] 7.3 Guard iOS `updateInsets`: return early when unchanged, and defer the offset correction while tracking, dragging or decelerating.
 - [x] 7.4 Measure Android content height natively and apply it on the UI thread without a per-change React render. Stop emitting a JS touch event on every `ACTION_MOVE`.
@@ -64,8 +64,7 @@
   - restore the KMP outline and overview animations (settle-gated Markdown mount, skeleton/dots loaders, overview grow);
   - render outline Markdown with markdown-it;
   - hide iOS 26 scroll-edge effects.
-- [x] 7.8 After the build-790 review: the Reader's initial restore and presentation depend on DOM readiness and the first height, not the page load event. A one-time re-apply covers late image growth before user interaction, and a 1.5 s cover timeout is added (with tests).
-- [ ] 7.7 Owner requirement (build-788 review): the Reader's top-left back button hides and shows together with the top-right More button. The build-789 attempt, which replaced the native header with a custom bar, was not approved and is reverted to the build-788 header. The implementation approach is pending the owner.
+- [x] 7.8 After the build-790/791 review: the HTML article shows as soon as its HTML is ready, with no loading cover and no wait for external resources. The saved position is restored once at DOM readiness and the first height, and is never adjusted again before the user scrolls (with tests).
 
 ## 8. Verification and delivery
 
@@ -77,4 +76,4 @@
 
 ## 9. Archive
 
-- [ ] 9.1 After the task pull request merges, archive this change through a docs pull request. Classify every unchecked task, including 7.7, before archiving.
+- [ ] 9.1 After the task pull request merges, archive this change through a docs pull request. Classify every unchecked task before archiving.
