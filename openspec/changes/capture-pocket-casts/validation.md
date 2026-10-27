@@ -45,7 +45,7 @@ Local evidence: `/tmp/pocket-live-result.json`, `/tmp/pocket-body.html`, `/tmp/p
 - Bugs: verified short and canonical episode recognition, show-page exclusion, missing audio, shared source identity, and existing bookmark identity. Capture tests verified annotation refusal before writes.
 - Security: audio, cover, and transcript URLs use the existing outbound URL screen. Credential-bearing, private, and non-HTTP media URLs are rejected. The parser does not execute source scripts.
 - Compliance: this diff implements `capture-pocket-casts`. Review found that untyped transcript links could be mistaken for VTT. The parser now requires a supported type, except native caption tracks. The regression test passes.
-- No unresolved Important code findings. Human acceptance remains a delivery gate.
+- No unresolved Important code findings. Human hands-on acceptance remains pending. Luca authorized PR creation for colleague review on 2026-10-27.
 
 ## Limits and remaining acceptance
 
@@ -57,6 +57,10 @@ Annotation refusal uses the existing pre-write mark check. It does not add a tra
 
 After deployment, enable podcast Labs and save the original source link again. The existing save flow retains the bookmark identity. A bookmark with annotations must keep its current body.
 
-Human hands-on acceptance is pending under `DESIGN.md` section 10.2. The `Pocket Casts player preview` tab exists in a dedicated Chrome preview window on M2-MBP. Exercise playback before opening the PR. Record the reviewer, date, and adjustments here. Final production transcription remains a separate verification gap.
+Human hands-on acceptance is pending under `DESIGN.md` section 10.2. The `Pocket Casts player preview` tab exists in a dedicated Chrome preview window on M2-MBP. Reviewers must exercise playback. Record the reviewer, date, and adjustments here. Final production transcription remains a separate verification gap.
 
 Archive after the task PR merges. Sequence archive after the already-merged bookmark-fork delta for `podcast-article`.
+
+## Review handoff — 2026-10-27
+
+Luca explicitly requested PR creation and colleague review with the test results. This instruction overrides the usual pre-PR acceptance order for this task. It does not establish hands-on acceptance or authorize merge or deployment. The PR records the pending checks for reviewers.
