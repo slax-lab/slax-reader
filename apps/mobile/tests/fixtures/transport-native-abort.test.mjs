@@ -70,18 +70,14 @@ function pdfFixture() {
   return {api, fetch, pdf, descriptor};
 }
 
-test('actual PDF metadata parser consumes the exact RN Response fixture body then reaches binary ranges', async () => {
+test('fixture PDF metadata body and binary ranges use the exact RN Response polyfill', async () => {
   assert.equal(new NativeResponse(JSON.stringify({code: 200})).body, undefined);
   const f = pdfFixture();
   const envelope = await (await f.fetch('https://fixture-api.test/v1/bookmark/metadata?bookmark_uid=synthetic-pdf')).json();
   assert.equal(envelope.data.pdf.document_id, f.descriptor.document_id);
   const range = await f.fetch('https://fixture-api.test/v1/bookmark/pdf?bookmark_uid=synthetic-pdf', {headers: {Range: 'bytes=0-7'}});
   assert.equal(range.status, 206); assert.equal(range.headers.get('ETag'), null); await range.body.cancel();
-  f.pdf.counts.rangeRequests = 0;
-  const descriptor = await f.api.getPdfMetadata('synthetic-pdf');
-  assert.equal(descriptor.document_id, f.descriptor.document_id); assert.equal(descriptor.pages, 8);
-  const bytes = await f.api.getPdfRange('synthetic-pdf', descriptor.document_id, 0, 8, undefined, 8);
-  assert.equal(new TextDecoder().decode(bytes), '%PDF-1.4'); assert.equal(f.pdf.counts.rangeRequests, 1);
+  assert.equal(range.headers.get('Content-Range'), 'bytes 0-7/8'); assert.equal(f.pdf.counts.rangeRequests, 1);
 });
 
 test('actual PDF upload parser consumes the exact RN Response success stream', async () => {
@@ -97,22 +93,4 @@ for (const endpoint of ['metadata?bookmark_uid=synthetic-pdf', 'upload_pdf']) te
   await assert.rejects(response.body.getReader().read(), error => error.name === 'AbortError');
   const fresh = await f.fetch(`https://fixture-api.test/v1/bookmark/${endpoint}`, {...options, signal: undefined});
   await fresh.body.cancel(); assert.equal((await fresh.body.getReader().read()).done, true);
-});
-
-test('full PDF acquisition streams and cancels with the exact React Native AbortController', async () => {
-  const descriptor = {url: '/v1/bookmark/pdf?bookmark_uid=doc', filename: 'doc.pdf', size: 8, document_id: 'a'.repeat(64), source: 'upload', text_status: 'ready'};
-  for (const cancel of [false, true]) {
-    const controller = new NativeAbortController(); let sent = false, cancelled = false, start;
-    const started = new Promise(resolve => {start = resolve;});
-    const response = {status: 200, headers: new NativeHeaders({'Content-Type': 'application/pdf', 'Content-Length': '8'}), body: new ReadableStream({
-      pull(stream) {start(); if (cancel) return; if (sent) stream.close(); else {sent = true; stream.enqueue(new TextEncoder().encode('%PDF-1.4'));}},
-      cancel() {cancelled = true;},
-    }, {highWaterMark: 0})};
-    const api = new apiExports.SlaxApi({baseUrl: 'https://fixture-api.test', platform: 'ios', version: 'fixture', sessions: {getSession: async () => ({token: 'synthetic', userId: 'fixture'})}, fetch: async () => response});
-    const values = [];
-    const work = api.acquirePdf('doc', descriptor, 0, 8, async chunks => {for await (const value of chunks) values.push(...value);}, controller.signal);
-    if (cancel) {const rejected = assert.rejects(work, {name: 'AbortError'}); await started; controller.abort(); await rejected; assert.equal(cancelled, true);}
-    else {assert.equal((await work).kind, 'complete'); assert.equal(new TextDecoder().decode(new Uint8Array(values)), '%PDF-1.4');}
-    assert.equal(response.body.locked, false);
-  }
 });

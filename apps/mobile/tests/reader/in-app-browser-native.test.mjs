@@ -70,6 +70,8 @@ test('Expo Reader imperative evaluation returns native completion and errors wit
       useImperativeHandle: (_ref, create) => {imperative = create()}}
     if (name === 'react-native') return {Platform: {OS: 'ios'}, StyleSheet: {create: value => value}, View: 'View'}
     if (name === 'expo') return {requireNativeView: () => 'NativeView'}
+    if (name === 'react-native-reanimated') return {__esModule: true, default: {View: 'AnimatedView', createAnimatedComponent: component => component},
+      useSharedValue: value => ({value}), useEvent: handler => handler, useAnimatedStyle: callback => callback()}
     throw new Error(name)
   }})
   module.exports.readerNativeAdapter.HostComponent({nativeConfig: {props: {pageId: 'page', cacheKey: 'key'}}, source: {html: '<p>body</p>'}}, {})

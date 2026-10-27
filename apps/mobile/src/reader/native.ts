@@ -23,11 +23,16 @@ export interface ReaderNativeContext {
   scrollsToTop: boolean
 }
 
+/** Android natively sized hosts accept the bridge-reported document height until the first native measurement arrives. */
+export interface ReaderDocumentHeightHandle { applyDocumentHeight(heightPoints: number): void }
+
 /** Implemented by application-owned native WebView extensions, not package patches. */
 export interface ReaderNativeAdapter {
   /** Expo host preserves the public WebView imperative/event contract in the new architecture. */
   HostComponent?: ForwardRefExoticComponent<WebViewProps & RefAttributes<WebView<unknown>>>
   OverlayComponent?: ComponentType<ReaderNativeOverlayProps>
+  /** Android: the host measures document height natively and sizes its own container on the UI thread. */
+  appliesContentHeight?: boolean
   /** Scheme handlers/interception and selection subclassing must exist before view creation. */
   nativeConfig(context: ReaderNativeContext): WebViewProps['nativeConfig']
   attach(reactTag: number, context: ReaderNativeContext): void | Promise<void>

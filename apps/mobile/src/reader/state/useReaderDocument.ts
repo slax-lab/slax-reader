@@ -25,6 +25,8 @@ interface DocumentPorts {
   record: BookmarkRecord | null
   transitions: RefObject<ReaderDocumentTransitions | null>
 }
+/** Starts a read now; its rejection is observed when the result is awaited, and dropped when it is not needed. */
+function speculative<T>(work: () => Promise<T>): Promise<T> {const value = Promise.resolve().then(work); void value.catch(() => undefined); return value}
 export function useReaderDocument(scope: ReaderScope, ports: DocumentPorts) {
   const {cacheKey, bookmarkId, collectionOwnerId, rssEntryId, currentUserId, isCollection, isPreview, isAccountActive, mounted, foreground, appActive, reader, fail, t} = scope
   const {runtime, api, repositories, cache, fixtureOnly, resourceOwnerAtMount, nativeResourceOwner, stableUserId, record, transitions} = ports
@@ -33,7 +35,8 @@ export function useReaderDocument(scope: ReaderScope, ports: DocumentPorts) {
   const waitingForRecord = useRef(false), hydrationRevision = useRef(0)
   const [rss, setRss] = useState<RssEntryDetail | null>(null), [rssError, setRssError] = useState<string | null>(null)
   const [html, setHtml] = useState<string | null>(null), [pdf, setPdf] = useState<PdfDescriptor | null>(null)
-  const pdfSnapshot = useRef(pdf), contentSnapshot = useRef(html)
+  const pdfSnapshot = useRef(pdf), contentSnapshot = useRef(html), knownType = useRef(record?.contentType)
+  knownType.current = record?.contentType
   pdfSnapshot.current = pdf; contentSnapshot.current = html
   const [pdfPollGeneration, setPdfPollGeneration] = useState(0)
   const [initialPosition, setInitialPosition] = useState<number | null>(null)
@@ -102,12 +105,15 @@ export function useReaderDocument(scope: ReaderScope, ports: DocumentPorts) {
         publish(entry.content_html || `<p>${escape(entry.summary || '')}</p>`, 0); return
       }
       if (!repositories || !cache || !bookmarkId || isCollection && !collectionOwnerId) throw new Error(t('load_bookmark_content_error'))
+      // The committed body and local state are read alongside the record; a PDF record ignores the speculative article read.
+      const localRead = speculative(() => repositories.local.read(cacheKey))
+      const articleRead = knownType.current === 'pdf' ? null : speculative(() => cache.readArticle(cacheKey))
       const bookmark = await repositories.getBookmark(bookmarkId, collectionOwnerId)
       if (controller.signal.aborted || !isAccountActive()) return
       if (!bookmark) {waitingForRecord.current = true; setContentError(t('load_bookmark_content_error')); return}
       waitingForRecord.current = false; transitions.current?.acceptRecord(bookmark)
       const pdfDocument = bookmark.contentType === 'pdf'; contentKind = pdfDocument ? 'pdf' : 'html'
-      const [local, cached] = await Promise.all([repositories.local.read(cacheKey), pdfDocument ? Promise.resolve(null) : cache.readArticle(cacheKey)])
+      const [local, cached] = await Promise.all([localRead, pdfDocument ? null : articleRead ?? cache.readArticle(cacheKey)])
       if (controller.signal.aborted || !isAccountActive()) return
       transitions.current?.hydrateAi({revision: ++hydrationRevision.current, values: local})
       transitions.current?.hydrateProfiles(jsonArray<MarkCommentProfile>(local.mark_users))
@@ -136,15 +142,14 @@ export function useReaderDocument(scope: ReaderScope, ports: DocumentPorts) {
       if (!network.isConnected || network.isInternetReachable === false) {if (!cached) throw new Error('No network connection'); return}
       remoteAttempted = true
       downloadStarted = repositories.local.update(cacheKey, {is_downloaded: 1, is_auto_cached: 0}).catch(() => undefined)
-      const content = await runtime.getArticleContent(bookmarkId, collectionOwnerId, controller.signal)
+      // The offline engine serves or fetches the body at foreground priority and commits it before resolving.
+      const content = await runtime.getArticleContent(bookmarkId, collectionOwnerId, controller.signal, force)
       if (controller.signal.aborted || !isAccountActive()) return
       publish(content, scrollInfo.current.position)
       let writing: Promise<void> | null = null
       const persist = (): Promise<void> => writing ??= (async () => {
         try {
           await downloadStarted
-          if (!isAccountActive()) return
-          await cache.writeArticle(cacheKey, content)
           if (isAccountActive()) await repositories.local.update(cacheKey, {is_downloaded: 2, is_auto_cached: 0})
         } catch {if (isAccountActive()) await repositories.local.update(cacheKey, {is_downloaded: 3, is_auto_cached: 0}).catch(() => undefined)}
         finally {releaseArticleAccess(); if (pendingCacheWrite.current === persist) pendingCacheWrite.current = null}

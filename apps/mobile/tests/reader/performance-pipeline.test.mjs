@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import vm from 'node:vm'
 import {DatabaseSync} from 'node:sqlite'
-import {BackgroundArticleCache} from '../../src/data/background-cache.ts'
+import {OfflineCoordinator} from '../../src/data/offline-coordinator.ts'
 import {LocalBookmarkRepository} from '../../src/data/repositories/local-metadata.ts'
 import {React, act, nativeBoundary, loadComponent, withNativeHost} from './parity-host.mjs'
 import {PreferenceStore, PREFERENCE_KEYS} from '../../src/data/preferences.ts'
@@ -29,17 +29,17 @@ const mark = {id: '', source: [], approx: {}, stroke: [], comments: []}
 
 function automaticArticle(owner, persist) {
   const db = new DatabaseSync(':memory:'), watchers = new Set(), files = new Map(), started = deferred(), response = deferred(), writing = deferred(), requests = []
-  db.exec(`CREATE TABLE sr_user_bookmark(id TEXT PRIMARY KEY, metadata TEXT, archive_status INTEGER, deleted_at TEXT, created_at TEXT, type INTEGER);
+  db.exec(`CREATE TABLE sr_user_bookmark(id TEXT PRIMARY KEY, metadata TEXT, archive_status INTEGER, deleted_at TEXT, created_at TEXT, type INTEGER, updated_at TEXT);
     CREATE TABLE sr_user_collection(id TEXT PRIMARY KEY, owner_id TEXT);
     CREATE TABLE sr_user_collection_subscriber(collection_id TEXT);
-    CREATE TABLE sr_collection_bookmark(id TEXT, owner_id TEXT, metadata TEXT, starred_at TEXT, created_at TEXT);
+    CREATE TABLE sr_collection_bookmark(id TEXT, owner_id TEXT, metadata TEXT, starred_at TEXT, created_at TEXT, updated_at TEXT);
     CREATE TABLE ps_data_local__local_bookmark_info(id TEXT PRIMARY KEY, data TEXT);`)
   const key = bookmarkCacheKey('book', owner)
   if (owner) {
     db.prepare('INSERT INTO sr_user_collection VALUES (?, ?)').run('collection', owner)
     db.prepare('INSERT INTO sr_user_collection_subscriber VALUES (?)').run('collection')
-    db.prepare('INSERT INTO sr_collection_bookmark VALUES (?, ?, ?, NULL, ?)').run('book', owner, '{"bookmark":{"status":"success"}}', '2026-10-01')
-  } else db.prepare('INSERT INTO sr_user_bookmark VALUES (?, ?, 0, NULL, ?, 0)').run('book', '{"bookmark":{"status":"success"}}', '2026-10-01')
+    db.prepare('INSERT INTO sr_collection_bookmark VALUES (?, ?, ?, NULL, ?, ?)').run('book', owner, '{"bookmark":{"status":"success"}}', '2026-10-01', 'v1')
+  } else db.prepare('INSERT INTO sr_user_bookmark VALUES (?, ?, 0, NULL, ?, 0, ?)').run('book', '{"bookmark":{"status":"success"}}', '2026-10-01', 'v1')
   db.prepare('INSERT INTO ps_data_local__local_bookmark_info VALUES (?, ?)').run(key, '{"read_position":"240","overview":"Cached","outline":"Cached","future":"keep"}')
   let tail = Promise.resolve()
   const transaction = {execute: async (sql, args = []) => db.prepare(sql).run(...args), getOptional: async (sql, args = []) => db.prepare(sql).get(...args) ?? null}
@@ -57,12 +57,43 @@ function automaticArticle(owner, persist) {
       watchers.add(notify); signal.addEventListener('abort', () => watchers.delete(notify), {once: true}); notify()
     },
   }
-  const worker = new BackgroundArticleCache({database, preferences: new PreferenceStore(new MemoryPreferences({cache_count: 1, download_images: 0})), assertActive() {},
-    cache: {writeArticle: async (key, html) => {writing.resolve(); await persist?.promise; files.set(key, html)}, removeArticle: key => files.delete(key), ensureImage: async () => assert.fail('No fixture images')},
-    content: async (id, owner, signal) => {requests.push({id, owner, signal}); started.resolve(); await response.promise; return '<p>Shared automatic body</p>'}, image: async () => assert.fail('No fixture images'),
-  })
+  // A minimal stand-in for the native engine: one shared acquisition per key, committed before any reader resolves.
+  const listeners = new Set(), flights = new Map(), cancels = new Map(), emit = items => {for (const listener of listeners) listener({owner: 'engine-owner', items})}
+  const acquire = (key, id, collectionOwner, manual) => {
+    let flight = flights.get(key)
+    if (!flight) {
+      const controller = new AbortController(), request = {id, owner: collectionOwner, signal: controller.signal}
+      flight = {controller, waiters: 0, background: false, promise: (async () => {
+        requests.push(request); started.resolve(); emit([{key, state: 'downloading', manual}])
+        await response.promise; if (controller.signal.aborted) throw Object.assign(new Error('cancelled'), {code: 'CANCELLED'})
+        writing.resolve(); await persist?.promise; files.set(key, '<p>Shared automatic body</p>')
+        emit([{key, state: 'complete', manual}]); return files.get(key)
+      })().finally(() => flights.delete(key))}
+      flights.set(key, flight)
+    }
+    return flight
+  }
+  const engine = {
+    async open() {return {adopted: [], dropped: [], migrationPending: false}}, async commitMigration() {}, async suspend() {}, resume() {}, async close() {for (const flight of flights.values()) flight.controller.abort()},
+    setCredential() {}, setConditions() {}, protect: (_owner, value) => value, release() {}, async evict() {return []},
+    cancel(_owner, requestId) {const cancel = cancels.get(requestId); cancels.delete(requestId); cancel?.()},
+    applyPlan(_owner, plan) {for (const task of plan.upsert) {const flight = acquire(task.key, task.id, task.collectionOwner, task.manual); flight.background = true; flight.promise.catch(() => undefined)}},
+    async readArticle(_owner, value) {return files.get(value) ?? null},
+    async fetchArticle(_owner, request) {
+      if (files.has(request.key) && !request.force) return files.get(request.key)
+      const flight = acquire(request.key, request.id, request.collectionOwner, true); flight.waiters++
+      let detached = false
+      const detach = () => {if (detached) return; detached = true; if (--flight.waiters === 0 && !flight.background) flight.controller.abort()}
+      cancels.set(request.requestId, detach)
+      try {return await flight.promise} finally {cancels.delete(request.requestId); detach()}
+    },
+    addListener(event, listener) {if (event !== 'onStatus') return {remove() {}}; listeners.add(listener); return {remove() {listeners.delete(listener)}}},
+  }
+  const worker = new OfflineCoordinator({engine, database, preferences: new PreferenceStore(new MemoryPreferences({cache_count: 1, download_images: 0})), assertActive() {}, flushDelayMs: 0,
+    scope: {owner: 'engine-owner', scope: '["fixture","user"]', origin: 'https://fixture.test', directory: '/fixture', userAgent: 'fixture', clientType: 'ios', clientVersion: 'fixture'},
+    credentials: {current: () => ({token: 'synthetic', reject: async () => false}), subscribe: () => () => {}}})
   return {worker, local: new LocalBookmarkRepository(database), files, key, requests, started, response, writing,
-    async close() {response.resolve(); persist?.resolve(); await worker.stop(); await tail; db.close()}}
+    async close() {response.resolve(); persist?.resolve(); await worker.close(); await worker.settled(); await tail; db.close()}}
 }
 
 async function screenFixture(host, options, run) {
@@ -76,18 +107,18 @@ async function screenFixture(host, options, run) {
   const repositories = {
     local: {read: async key => {calls.push('local-read'); return options.local ? await options.local.promise : options.storage ? options.storage.local.read(key) : {read_position: '240', outline_read_position: '120', overview: 'Cached', outline: 'Cached'}},
       update: async (key, value) => {writes.push(value); if (options.storage) await options.storage.local.update(key, value); if (value.is_downloaded === 2 && options.metadataWrite) await options.metadataWrite.promise}},
-    getBookmark: async () => ({id: 'book', title: 'Known title', aliasTitle: '', metadata: '{}'}),
+    getBookmark: async () => {calls.push('record'); if (options.record) await options.record.promise; return {id: 'book', title: 'Known title', aliasTitle: '', metadata: '{}'}},
     watchUser: callback => {callback([]); return nil}, watchSubscription: callback => {callback([]); return nil}, watchTags: callback => {callback([]); return nil},
     watchRows: () => nil, watchComments: (_id, callback) => {callback([]); return nil},
     watchCollectionSettings: (_owner, callback) => {callback([{allow_highlight: true, show_highlight: true, allow_access: true}]); return nil}, markCollectionRead: async () => {},
     addMark: async value => {calls.push(['addMark', value]); if (options.addMark) await options.addMark.promise},
   }
   const cache = {readArticle: async key => {calls.push('cache-read'); return options.cacheRead ? await options.cacheRead.promise : options.storage ? options.storage.files.get(key) ?? null : options.remote ? null : '<p>Cached body</p>'},
-    writeArticle: async (key, html) => {calls.push(['cache-write', html]); if (options.cacheWrite) await options.cacheWrite.promise; options.storage?.files.set(key, html)}}
+    writeArticle: async () => assert.fail('The offline engine commits article bodies; the Reader never writes them')}
   const api = {getBookmarkRawContent: async () => assert.fail('Reader must acquire HTML through its account resource scheduler'),
     streamAi: async function* (kind) {calls.push(['ai', kind]); yield {type: 'done'}}, getMarkUsers: async () => []}
   const runtime = {getNativeResourceOwner: () => currentOwner, beginArticleAccess: key => {leases++; accessEvents.push(`+${key}`); const release = options.background?.beginForeground(key); return () => {release?.(); leases--; accessEvents.push(`-${key}`)}},
-    getArticleContent: async (id, owner, signal) => {calls.push('download'); return options.background ? options.background.getArticleContent(id, owner, signal) : '<p>Downloaded body</p>'}}
+    getArticleContent: async (id, owner, signal, force) => {calls.push('download'); return options.background ? options.background.getArticleContent(id, owner, signal, force) : '<p>Downloaded body</p>'}}
   const ReaderWebView = React.forwardRef((props, ref) => {
     reader = props; renders++
     React.useEffect(() => {mounts++}, [])
@@ -114,6 +145,7 @@ async function screenFixture(host, options, run) {
   const mobile = {...boundaries['../runtime'].useMobile(), sessions, t}
   boundaries['../runtime'].useMobile = () => mobile
   boundaries['../runtime'].useReadingMobile = () => mobile
+  boundaries['../runtime'].useMobileSettings = select => select ? select(mobile.settings) : mobile.settings
   const {ReaderScreen} = await loadComponent('../../src/screens/ReaderScreen.tsx', boundaries, {Error, setTimeout: (callback, ms) => {timers.push(ms); return setTimeout(callback, ms)}})
   const listeners = new Map()
   const navigation = {isFocused: () => true, addListener: (name, callback) => {listeners.set(name, callback); return () => listeners.delete(name)}, setOptions() {}, getState: () => ({routes: [{key: 'reader'}]})}
@@ -129,7 +161,7 @@ async function screenFixture(host, options, run) {
 test('warm reader starts local/cache reads together, reveals known title, and mounts with no minimum timer', nativeBoundary, async () => withNativeHost(async host => {
   const local = deferred(), cacheRead = deferred()
   await screenFixture(host, {local, cacheRead}, async fixture => {
-    assert.deepEqual(fixture.calls, ['local-read', 'cache-read'])
+    assert.deepEqual(fixture.calls.filter(value => value !== 'record'), ['local-read', 'cache-read'])
     assert.ok(fixture.skeleton().header, 'Known source header is available before cache IO resolves')
     await act(async () => cacheRead.resolve('<p>Warm body</p>'))
     assert.equal(fixture.reader(), undefined, 'Saved position must resolve before the first document mount')
@@ -151,19 +183,32 @@ test('warm reader starts local/cache reads together, reveals known title, and mo
   })
 }))
 
-test('downloaded content and source restore are usable before slow cache persistence, which retains its lease', nativeBoundary, async () => withNativeHost(async host => {
-  const cacheWrite = deferred(), metadataWrite = deferred()
-  await screenFixture(host, {remote: true, cacheWrite, metadataWrite}, async fixture => {
+test('cached article and local reads start before the bookmark record resolves', nativeBoundary, async () => withNativeHost(async host => {
+  const record = deferred(), cacheRead = deferred()
+  await screenFixture(host, {record, cacheRead}, async fixture => {
+    assert.deepEqual(fixture.calls.filter(value => value !== 'record'), ['local-read', 'cache-read'], 'The committed body is requested concurrently with the record lookup')
+    assert.ok(fixture.calls.includes('record'))
+    await act(async () => cacheRead.resolve('<p>Early body</p>'))
+    assert.equal(fixture.reader(), undefined, 'The body is not published before the record confirms an HTML document')
+    await act(async () => record.resolve())
+    assert.equal(fixture.reader().html, '<p>Early body</p>')
+    assert.equal(fixture.calls.filter(value => value === 'cache-read').length, 1)
+    assert.ok(!fixture.calls.includes('download'), 'A cached body never reaches the network path')
+  })
+}))
+
+test('downloaded content and source restore are usable before the deferred download-state write, which retains its lease', nativeBoundary, async () => withNativeHost(async host => {
+  const metadataWrite = deferred()
+  await screenFixture(host, {remote: true, metadataWrite}, async fixture => {
     assert.equal(fixture.reader().html, '<p>Downloaded body</p>')
     assert.equal(fixture.reader().initialPosition, 240)
-    assert.equal(fixture.calls.some(value => Array.isArray(value) && value[0] === 'cache-write'), false)
+    assert.equal(fixture.writes.some(value => value.is_downloaded === 2), false, 'The resolved download state waits until the document is presentable')
     assert.deepEqual(fixture.accessEvents(), ['+book', '+book'], 'The mounted Reader holds its global reading lease alongside the active document load')
     assert.equal(fixture.leases(), 2)
     await act(async () => fixture.reader().onEvent({type: 'domReady'}, 'page'))
-    assert.equal(fixture.calls.filter(value => Array.isArray(value) && value[0] === 'cache-write').length, 1)
+    assert.equal(fixture.writes.filter(value => value.is_downloaded === 2).length, 1)
     assert.equal(fixture.reader().html, '<p>Downloaded body</p>')
-    await act(async () => cacheWrite.resolve())
-    assert.equal(fixture.leases(), 2, 'A held cache commit keeps the document lease until its metadata write completes')
+    assert.equal(fixture.leases(), 2, 'A held download-state write keeps the document lease until it completes')
     await act(async () => metadataWrite.resolve())
     assert.equal(fixture.leases(), 1, 'The completed document load releases its own lease while the mounted Reader retains the global one')
     assert.equal(fixture.mounts(), 1)
@@ -291,7 +336,6 @@ for (const end of ['background', 'exit', 'unmount', 'revoke']) test(`pending cac
     else if (end === 'background') await fixture.state('background')
     else if (end === 'exit') await fixture.exit()
     else await host.unmount()
-    assert.equal(fixture.calls.filter(value => Array.isArray(value) && value[0] === 'cache-write').length, end === 'revoke' ? 0 : 1)
     if (end === 'unmount') assert.equal(fixture.leases(), 0, 'Unmounting releases every reading lease')
     else assert.equal(fixture.leases(), 1, 'The document load releases its own lease while the still-mounted Reader retains the global one')
     assert.equal(fixture.writes.some(value => value.is_downloaded === 2), end !== 'revoke')
@@ -362,7 +406,6 @@ test('unmounting a Reader detaches its shared body consumer while the automatic 
       storage.response.resolve(); await storage.worker.settled()
       assert.equal(storage.requests.length, 1); assert.equal(storage.files.get(storage.key), '<p>Shared automatic body</p>')
       assert.equal((await storage.local.read(storage.key)).is_downloaded, 2)
-      assert.equal(fixture.calls.some(value => Array.isArray(value) && value[0] === 'cache-write'), false)
     })
   } finally {await storage.close()}
 }))
@@ -376,42 +419,6 @@ test('a Reader-only body request aborts the actual transport on unmount with no 
       storage.response.resolve(); await storage.worker.settled()
       assert.equal(storage.files.size, 0); assert.notEqual((await storage.local.read(storage.key)).is_downloaded, 2)
       assert.equal(fixture.mounts(), 0)
-    })
-  } finally {await storage.close()}
-}))
-
-test('Reader reuses a completed automatic response while its file commit is still held', nativeBoundary, async () => withNativeHost(async host => {
-  const persist = deferred(), storage = automaticArticle(undefined, persist)
-  try {
-    storage.worker.start(); await storage.started.promise; storage.response.resolve(); await storage.writing.promise
-    assert.equal(storage.files.size, 0)
-    await screenFixture(host, {remote: true, background: storage.worker, storage}, async fixture => {
-      assert.equal(fixture.reader().html, '<p>Shared automatic body</p>'); assert.equal(storage.requests.length, 1)
-      assert.equal(fixture.mounts(), 1); assert.equal(fixture.reader().initialPosition, 240)
-      await act(async () => {persist.resolve(); await storage.worker.settled()})
-      await act(async () => fixture.reader().onEvent({type: 'domReady'}, 'page'))
-      assert.equal(storage.requests.length, 1); assert.equal(fixture.leases(), 1, 'The reused shared body releases the document lease while the mounted Reader retains the global one')
-      await host.unmount()
-      assert.equal(fixture.leases(), 0, 'Unmounting the Reader releases the retained global reading lease')
-    })
-  } finally {await storage.close()}
-}))
-
-test('mounted Reader promotes an already queued body into reserved foreground capacity', nativeBoundary, async () => withNativeHost(async host => {
-  const storage = automaticArticle()
-  try {
-    const occupied = ['busy-a', 'busy-b'].map(id => storage.worker.getArticleContent(id, undefined, undefined, false))
-    await storage.started.promise; storage.worker.start()
-    for (let attempt = 0; attempt < 100 && (await storage.local.read(storage.key)).is_downloaded !== 1; attempt++) await new Promise(resolve => setImmediate(resolve))
-    assert.equal((await storage.local.read(storage.key)).is_downloaded, 1)
-    assert.deepEqual(storage.requests.map(request => request.id), ['busy-a', 'busy-b'])
-    await screenFixture(host, {remote: true, background: storage.worker, storage}, async fixture => {
-      assert.deepEqual(storage.requests.map(request => request.id), ['busy-a', 'busy-b', 'book'])
-      await act(async () => {storage.response.resolve(); await Promise.all(occupied); await storage.worker.settled()})
-      assert.equal(fixture.reader().html, '<p>Shared automatic body</p>')
-      assert.equal(storage.requests.filter(request => request.id === 'book').length, 1)
-      await act(async () => fixture.reader().onEvent({type: 'domReady'}, 'page'))
-      await host.unmount()
     })
   } finally {await storage.close()}
 }))

@@ -34,6 +34,7 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
   }
   override val shouldUseAndroidLayout = true
   val onEvent by EventDispatcher()
+  val onContentHeight by EventDispatcher()
   val resourceHandler: SlaxResources = SlaxResources(context) { ownsResources() }
   @Volatile private var resourceOwner: String? = null
   fun setResourceOwner(owner: String?) {
@@ -99,7 +100,7 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
   private val identity = View.generateViewId()
   private var retainedWebView: WebView? = object : WebView(context) {
     private fun suppress(callback: ActionMode.Callback): ActionMode.Callback = object : ActionMode.Callback {
-      override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean { val created = callback.onCreateActionMode(mode, menu); menu.clear(); emit("touch", mapOf("screenY" to screenY)); return created }
+      override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean { val created = callback.onCreateActionMode(mode, menu); menu.clear(); emitTouch(); return created }
       override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean { callback.onPrepareActionMode(mode, menu); menu.clear(); return false }
       override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean = false
       override fun onDestroyActionMode(mode: ActionMode) { callback.onDestroyActionMode(mode) }
@@ -113,7 +114,8 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
     }
     override fun onTouchEvent(event: MotionEvent): Boolean {
       screenY = event.rawY / resourceHandler.displayDensity
-      if (event.actionMasked == MotionEvent.ACTION_DOWN || event.actionMasked == MotionEvent.ACTION_MOVE || event.actionMasked == MotionEvent.ACTION_UP) emit("touch", mapOf("screenY" to screenY))
+      // Selection placement only needs the press and release points; moves stay native.
+      if (event.actionMasked == MotionEvent.ACTION_DOWN || event.actionMasked == MotionEvent.ACTION_UP) emitTouch()
       return super.onTouchEvent(event)
     }
   }
@@ -135,7 +137,12 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
     webView.overScrollMode = View.OVER_SCROLL_NEVER
     webView.addJavascriptInterface(object { @JavascriptInterface fun postMessage(data: String) {
       if (data.length > 8 * 1024 * 1024) return
-      post { if (permitsEvaluation()) emit("message", mapOf("data" to data)) }
+      val height = documentHeight(data)
+      post {
+        if (!permitsEvaluation()) return@post
+        if (height != null && height.first == pageId) scheduleContentHeight(height.second)
+        emit("message", mapOf("data" to data))
+      }
     } }, "ReactNativeWebView")
     webView.webChromeClient = WebChromeClient()
     webView.webViewClient = object : WebViewClient() {
@@ -165,6 +172,34 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
     addView(webView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
   }
   private fun emit(type: String, fields: Map<String, Any> = emptyMap()) { if (!detached) onEvent(fields + mapOf("type" to type, "target" to identity, "pageId" to pageId)) }
+  private fun emitTouch() = emit("touch", mapOf("screenY" to screenY))
+
+  // The article host measures its document height (scrollHeight, CSS px == dp) and reports it through its own bridge
+  // message. The value is applied to this view's container on the UI thread, deduplicated and at most once per frame.
+  private var appliedContentHeight = -1.0
+  private var pendingContentHeight: Double? = null
+  private fun documentHeight(data: String): Pair<String, Double>? {
+    if (pdfMode || data.length > 512 || !data.contains("\"contentHeight\"")) return null
+    return try {
+      val envelope = org.json.JSONObject(data)
+      val payload = envelope.optJSONObject("payload") ?: return null
+      if (envelope.optString("channel") != "slax-reader" || payload.optString("type") != "contentHeight") return null
+      val height = payload.optDouble("height", Double.NaN)
+      if (height.isFinite() && height > 0) envelope.optString("pageId") to height else null
+    } catch (_: Exception) { null }
+  }
+  private fun scheduleContentHeight(height: Double) {
+    val scheduled = pendingContentHeight != null
+    pendingContentHeight = height
+    if (scheduled) return
+    postOnAnimation {
+      val next = pendingContentHeight ?: return@postOnAnimation
+      pendingContentHeight = null
+      if (detached || kotlin.math.abs(next - appliedContentHeight) < 1.0) return@postOnAnimation
+      appliedContentHeight = next
+      onContentHeight(mapOf("height" to next))
+    }
+  }
   fun loadPendingDocument() {
     if (detached || !ownsResources()) return
     val hosts = protectedHosts ?: return

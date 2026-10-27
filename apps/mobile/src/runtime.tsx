@@ -6,6 +6,7 @@ import {File} from 'expo-file-system';
 import { createMobileDataRuntime, type MobileDataRuntime, type MobileRepositories, type PreferenceValues } from './data';
 import { createTranslator, normalizeLocale, type MobileLocale } from './i18n';
 import { mobileConfig } from './config';
+import {readerImageProxyOrigins, readerProtectedHosts} from './reader/security.ts';
 import {PaymentController} from './payments/controller';
 import {createExpoStore} from './payments/expo-store';
 import {setWebSessionCookie} from './native/platform';
@@ -50,9 +51,33 @@ export interface MobileContextValue {
   fixtureOnly?: {network: {isConnected: boolean; isInternetReachable: boolean|null}; dataDirectory: string; pdfNativeOwner?: true; nativePdfImport?: 'seeded-synthetic-only'; deleteNoticeHtml?: string; agreementHtml?: Partial<Record<'terms'|'privacy', string>>; subscriptionHtml?: string; authenticate?(provider: LoginProvider): Promise<LoginRequest|null>};
   retryStart(): Promise<void>;
 }
-const MobileContext = createContext<MobileContextValue | null>(null);
-const ReadingContext = createContext<MobileContextValue | null>(null);
-const unpreparedWebSession = {ready: false, error: null};
+/** Account and runtime services; preference values and web-session readiness have their own contexts. */
+export type MobileServices = Omit<MobileContextValue, 'settings' | 'webSession'>;
+export type MobileWebSession = MobileContextValue['webSession'];
+type SettingsStore = {getSnapshot(): PreferenceValues; subscribe(listener: () => void): () => void};
+const MobileContext = createContext<MobileServices | null>(null);
+const ReadingContext = createContext<MobileServices | null>(null);
+const SettingsContext = createContext<SettingsStore | null>(null);
+const WebSessionContext = createContext<MobileWebSession | null>(null);
+const unpreparedWebSession: MobileWebSession = {ready: false, error: null};
+function createSettingsStore(initial: PreferenceValues) {
+  let values = initial;
+  const listeners = new Set<() => void>();
+  return {
+    getSnapshot: () => values,
+    subscribe(listener: () => void) {listeners.add(listener); return () => {listeners.delete(listener);};},
+    set(next: PreferenceValues) {if (next !== values) {values = next; listeners.forEach(listener => listener());}},
+  };
+}
+const staticSubscription = () => () => {};
+function MobileContexts({services, reading, settings, webSession, children}: {services: MobileServices; reading: MobileServices; settings: SettingsStore; webSession: MobileWebSession; children: React.ReactNode}) {
+  return <MobileContext.Provider value={services}><ReadingContext.Provider value={reading}><SettingsContext.Provider value={settings}><WebSessionContext.Provider value={webSession}>{children}</WebSessionContext.Provider></SettingsContext.Provider></ReadingContext.Provider></MobileContext.Provider>;
+}
+function FixtureContexts({value, children}: {value: MobileContextValue; children: React.ReactNode}) {
+  const settings = useMemo<SettingsStore>(() => ({getSnapshot: () => value.settings, subscribe: staticSubscription}), [value.settings]);
+  return <MobileContexts services={value} reading={value} settings={settings} webSession={value.webSession}>{children}</MobileContexts>;
+}
+
 
 /** Numeric and boolean observations only; no document, selection, session or credential data. */
 export type ControlledUpgradeReaderObservation = (
@@ -70,7 +95,7 @@ export function useControlledUpgradeReaderObserver(): ControlledUpgradeReaderObs
 export function FixtureMobileProvider({value, children}: {value: MobileContextValue; children: React.ReactNode}) {
   if (!__DEV__) throw new Error('UI fixtures are unavailable in production builds');
   if (!value.fixtureOnly?.dataDirectory.includes('/slax-ui-fixtures/')) throw new Error('UI fixtures require an isolated cache scope');
-  return <MobileContext.Provider value={value}><ReadingContext.Provider value={value}>{children}</ReadingContext.Provider></MobileContext.Provider>;
+  return <FixtureContexts value={value}>{children}</FixtureContexts>;
 }
 
 /** Only an original synthetic native installation may render its actual migrated services. */
@@ -98,13 +123,13 @@ export function ControlledUpgradeFixtureProvider({value, device, onReaderObserva
     validatePreReconnectVisibility(source, request, read('native-upgrade-offline-report.json'), value.nativeResourceOwner);
   } else validatePostServiceVisibility(Platform.OS, device, read('native-service-report.json'), read('native-runtime-start-report.json'));
   return <ControlledUpgradeReaderContext.Provider value={onReaderObservation}>
-    <MobileContext.Provider value={value}><ReadingContext.Provider value={value}>{children}</ReadingContext.Provider></MobileContext.Provider>
+    <FixtureContexts value={value}>{children}</FixtureContexts>
   </ControlledUpgradeReaderContext.Provider>;
 }
 
 type AppIntentsRuntimePort = Pick<typeof import('expo-app-intents'), 'isAvailable' | 'useAppIntents' | 'removePendingInvocationAsync' | 'setEntityCatalogAsync' | 'deleteDonationsAsync' | 'donateIntentAsync'>;
 export function MobileProvider({children, appIntents}: {children: React.ReactNode; appIntents?: AppIntentsRuntimePort}) {
-  const [runtime] = useState(() => createMobileDataRuntime({baseUrl: mobileConfig.apiUrl, betaBaseUrl: mobileConfig.betaApiUrl, platform: mobileConfig.platform, version: `${mobileConfig.version} (${mobileConfig.buildNumber})`}));
+  const [runtime] = useState(() => createMobileDataRuntime({baseUrl: mobileConfig.apiUrl, betaBaseUrl: mobileConfig.betaApiUrl, platform: mobileConfig.platform, version: `${mobileConfig.version} (${mobileConfig.buildNumber})`, readerHosts: {protectedHosts: readerProtectedHosts(mobileConfig), imageProxyOrigins: readerImageProxyOrigins(mobileConfig)}}));
   const [systemActions] = useState(() => createSaveURLController(runtime, appIntents?.removePendingInvocationAsync ?? (async () => {})));
   const unavailableIntentAction = async (): Promise<never> => {throw new Error('System App Intents are unavailable on this platform');};
   const [systemSurfaces] = useState(() => createSystemSurfacesController(runtime, {
@@ -116,7 +141,9 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
   const session = useSyncExternalStore(runtime.sessions.subscribe, runtime.sessions.getSnapshot);
   const upgrade = useSyncExternalStore(runtime.subscribeUpgrade, runtime.getUpgradeSnapshot);
   const credentialState = useSyncExternalStore(runtime.credentials?.subscribe ?? noCredentialSubscription, runtime.credentials?.getSnapshot ?? idleCredentialSnapshot);
-  const [settings, setSettings] = useState<PreferenceValues>({});
+  const [settingsStore] = useState(() => createSettingsStore({}));
+  const settings = useSyncExternalStore(settingsStore.subscribe, settingsStore.getSnapshot);
+  const libraryPresented = useSyncExternalStore(runtime.subscribeLibraryPresented, runtime.isLibraryPresented);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [payments] = useState(() => new PaymentController(createExpoStore(), runtime.sessions, runtime.preferences, runtime.api.checkIapResult));
   const [webSession, setWebSession] = useState<{ready: boolean; error: Error|null; token: string|null; owner: string|null}>({ready: false, error: null, token: null, owner: null});
@@ -142,7 +169,8 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
   useEffect(() => {void systemActions.contextChanged();}, [systemActions, userId, runtime.api.options.baseUrl, nativeResourceOwner, upgrade.status, credentialState.status]);
   const surfaceCapabilities = systemSurfaceCapabilities(Platform.OS, Platform.Version, Boolean(appIntents?.isAvailable()));
   const surfacesReady = preferencesLoaded && Boolean(surfaceCapabilities.intents && userId && nativeResourceOwner && upgrade.status === 'ready' && credentialState.status === 'ready');
-  const surfacesKnown = preferencesLoaded && (session.status === 'unauthenticated' || (session.status === 'authenticated' && Boolean(nativeResourceOwner) && upgrade.status === 'ready'));
+  // Signed-out revocation runs immediately; signed-in reconciliation and publishing wait for the Library.
+  const surfacesKnown = preferencesLoaded && (session.status === 'unauthenticated' || (session.status === 'authenticated' && Boolean(nativeResourceOwner) && upgrade.status === 'ready' && libraryPresented));
   const surfacePreferences = systemSurfacePreferences(preferencesLoaded ? settings : null);
   const discoveryEnabled = surfacePreferences.discovery && surfaceCapabilities.discovery;
   const donationsEnabled = surfacePreferences.donations && surfaceCapabilities.donations;
@@ -155,12 +183,11 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
   // The router outlives readiness changes; disposing it on a credential transition drops pending Spotlight opens.
   useEffect(() => {
     systemEntry.router.activate();
-    void systemEntry.router.contextChanged();
     return () => systemEntry.router.dispose();
   }, [systemEntry, userId, runtime.api.options.baseUrl]);
   useEffect(() => {
-    void systemEntry.router.contextChanged();
-  }, [systemEntry, nativeResourceOwner, upgrade.status, credentialState.status]);
+    if (libraryPresented) void systemEntry.router.contextChanged();
+  }, [systemEntry, nativeResourceOwner, upgrade.status, credentialState.status, libraryPresented]);
   useEffect(() => {
     let mounted = true;
     const current = () => mounted && runtime.sessions.getSnapshot() === session && runtime.getNativeResourceOwner() === nativeResourceOwner;
@@ -184,18 +211,19 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
     return () => {void payments.stop().catch(() => undefined);};
   }, [payments, userId, nativeResourceOwner, upgrade.status, reauthenticationRequired]);
   useEffect(() => {
-    const update = (state: string) => {void runtime.setForeground(state === 'active').catch(() => undefined);};
+    // Only a true background transition pauses storage work; transient `inactive` keeps sync and acquisition running.
+    const update = (state: string) => {void runtime.setForeground(state !== 'background').catch(() => undefined);};
     if (AppState.currentState) update(AppState.currentState);
     const subscription = AppState.addEventListener('change', update);
     return () => subscription.remove();
   }, [runtime]);
   useEffect(() => {
-    const updateSettings = (value: PreferenceValues) => {setSettings(value); setPreferencesLoaded(true);};
+    const updateSettings = (value: PreferenceValues) => {settingsStore.set(value); setPreferencesLoaded(true);};
     const unsubscribe = runtime.preferences.subscribe(updateSettings);
     let mounted = true;
     runtime.start().catch(() => undefined).then(() => runtime.preferences.read()).then(value => { if (mounted) updateSettings(value); }).catch(() => undefined);
     return () => { mounted = false; unsubscribe(); void runtime.stop(); };
-  }, [runtime]);
+  }, [runtime, settingsStore]);
   const locale = normalizeLocale(typeof settings.user_language === 'string' ? settings.user_language : getLocales()[0]?.languageTag);
   const t = useMemo(() => createTranslator(locale), [locale]);
   const apiUrl = runtime.api.options.baseUrl;
@@ -203,34 +231,48 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
   const retryFlight = useRef<Promise<void> | null>(null);
   const retryStart = useCallback(() => {
     if (retryFlight.current) return retryFlight.current;
-    const attempt = (async () => {setPreferencesLoaded(false); await runtime.stop(); await runtime.start(); setSettings(await runtime.preferences.read()); setPreferencesLoaded(true);})()
+    const attempt = (async () => {setPreferencesLoaded(false); await runtime.stop(); await runtime.start(); settingsStore.set(await runtime.preferences.read()); setPreferencesLoaded(true);})()
       .finally(() => {if (retryFlight.current === attempt) retryFlight.current = null;});
     retryFlight.current = attempt;
     return attempt;
-  }, [runtime]);
+  }, [runtime, settingsStore]);
   const preferences = runtime.getAccountPreferences() ?? runtime.preferences;
   const dataReady = upgrade.status === 'ready' && nativeResourceOwner !== null;
   const repositories = dataReady ? runtime.getRepositories() : null, cache = dataReady ? runtime.getCache() : null;
-  const visibleWebSession = useMemo(() => webSession.token === token && webSession.owner === nativeResourceOwner ? webSession : {ready: false, error: null}, [webSession, token, nativeResourceOwner]);
-  const value = useMemo<MobileContextValue>(() => ({
+  const visibleWebSession = useMemo<MobileWebSession>(() => webSession.token === token && webSession.owner === nativeResourceOwner ? {ready: webSession.ready, error: webSession.error} : unpreparedWebSession, [webSession, token, nativeResourceOwner]);
+  const value = useMemo<MobileServices>(() => ({
     runtime, api: runtime.api, preferences, sessions: runtime.sessions, nativeResourceOwner, systemSurfaces, systemEntry,
-    repositories, cache, session, upgrade, credentialState, settings, locale, t, config, payments, systemIntentsAvailable: surfaceCapabilities.intents, systemDiscoveryAvailable: surfaceCapabilities.discovery,
-    webSession: visibleWebSession, acquireWebSession, retryStart,
-  }), [runtime, preferences, nativeResourceOwner, systemSurfaces, systemEntry, repositories, cache, session, upgrade, credentialState, settings, locale, t, config, payments, surfaceCapabilities.intents, surfaceCapabilities.discovery, visibleWebSession, acquireWebSession, retryStart]);
-  const reading = useMemo<MobileContextValue>(() => ({runtime, api: runtime.api, preferences, sessions: runtime.sessions, nativeResourceOwner, systemSurfaces, systemEntry,
-    repositories, cache, session, upgrade, settings, locale, t, config, payments, webSession: unpreparedWebSession, retryStart}),
-  [runtime, preferences, nativeResourceOwner, systemSurfaces, systemEntry, repositories, cache, session, upgrade, settings, locale, t, config, payments, retryStart]);
+    repositories, cache, session, upgrade, credentialState, locale, t, config, payments, systemIntentsAvailable: surfaceCapabilities.intents, systemDiscoveryAvailable: surfaceCapabilities.discovery,
+    acquireWebSession, retryStart,
+  }), [runtime, preferences, nativeResourceOwner, systemSurfaces, systemEntry, repositories, cache, session, upgrade, credentialState, locale, t, config, payments, surfaceCapabilities.intents, surfaceCapabilities.discovery, acquireWebSession, retryStart]);
+  const reading = useMemo<MobileServices>(() => ({runtime, api: runtime.api, preferences, sessions: runtime.sessions, nativeResourceOwner, systemSurfaces, systemEntry,
+    repositories, cache, session, upgrade, locale, t, config, payments, retryStart}),
+  [runtime, preferences, nativeResourceOwner, systemSurfaces, systemEntry, repositories, cache, session, upgrade, locale, t, config, payments, retryStart]);
   const saveOwner = session.status === 'authenticated' && nativeResourceOwner ? {userId: session.session.userId, origin: apiUrl, generation: nativeResourceOwner} : null;
   const saveReady = Boolean(saveOwner && upgrade.status === 'ready' && credentialState.status === 'ready' && repositories);
-  return <MobileContext.Provider value={value}><ReadingContext.Provider value={reading}><AvatarResourcesContext.Provider value={dataReady ? runtime.getAvatarCache?.() ?? null : null}>{children}<SaveURLHost controller={systemActions} router={systemEntry.router} owner={saveOwner} ready={saveReady} appIntents={appIntents} t={t}/></AvatarResourcesContext.Provider></ReadingContext.Provider></MobileContext.Provider>;
+  return <MobileContexts services={value} reading={reading} settings={settingsStore} webSession={visibleWebSession}><AvatarResourcesContext.Provider value={dataReady ? runtime.getAvatarCache?.() ?? null : null}>{children}<SaveURLHost controller={systemActions} router={systemEntry.router} owner={saveOwner} ready={saveReady} appIntents={appIntents} t={t}/></AvatarResourcesContext.Provider></MobileContexts>;
 }
-export function useReadingMobile(): MobileContextValue {
+export function useReadingMobile(): MobileServices {
   const context = useContext(ReadingContext);
   if (!context) throw new Error('MobileProvider is missing');
   return context;
 }
-export function useMobile(): MobileContextValue {
+export function useMobile(): MobileServices {
   const context = useContext(MobileContext);
+  if (!context) throw new Error('MobileProvider is missing');
+  return context;
+}
+/** Re-renders only when the selected preference value changes; without a selector, on every preference write. */
+export function useMobileSettings(): PreferenceValues;
+export function useMobileSettings<T>(select: (settings: PreferenceValues) => T): T;
+export function useMobileSettings<T>(select?: (settings: PreferenceValues) => T): T | PreferenceValues {
+  const store = useContext(SettingsContext);
+  if (!store) throw new Error('MobileProvider is missing');
+  const snapshot = useCallback(() => select ? select(store.getSnapshot()) : store.getSnapshot(), [store, select]);
+  return useSyncExternalStore(store.subscribe, snapshot);
+}
+export function useWebSession(): MobileWebSession {
+  const context = useContext(WebSessionContext);
   if (!context) throw new Error('MobileProvider is missing');
   return context;
 }

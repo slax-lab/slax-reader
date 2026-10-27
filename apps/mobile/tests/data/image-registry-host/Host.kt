@@ -108,7 +108,7 @@ fun main(args: Array<String>) {
       }, 1)} catch (error: Throwable) {streamFailure = error}
     }
     await(heldInput)
-    check(store.read(destination, false, 20)!!.toString(Charsets.UTF_8) == "prior")
+    check(store.read(destination, 20)!!.toString(Charsets.UTF_8) == "prior")
     finishInput.countDown(); streamWorker.join(5000); check(!streamWorker.isAlive && streamFailure == null)
 
     val capacity = registry("capacity"); val capacityGate = CountDownLatch(1); routes["/capacity"] = Route(bytes, hold = capacityGate)

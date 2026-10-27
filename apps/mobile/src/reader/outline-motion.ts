@@ -16,3 +16,13 @@ export function outlineMotion(from: OutlineStatus, to: OutlineStatus): OutlineMo
       : [{toValue: 0, duration: 0}],
   }
 }
+
+/** The track whose last step ends the transition, mirroring the source `transitionState.isIdle`. */
+export function outlineSettleTrack(motion: OutlineMotion): {key: keyof OutlineMotion; duration: number} {
+  let settle: {key: keyof OutlineMotion; duration: number} = {key: 'background', duration: -1}
+  for (const key of Object.keys(motion) as (keyof OutlineMotion)[]) {
+    const duration = motion[key].reduce((total, step) => total + (step.delay ?? 0) + step.duration, 0)
+    if (duration > settle.duration) settle = {key, duration}
+  }
+  return settle
+}

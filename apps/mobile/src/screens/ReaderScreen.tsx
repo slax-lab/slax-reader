@@ -2,13 +2,14 @@ import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import {Platform, Pressable, StyleSheet, View} from 'react-native'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {SourceText} from '../components'
-import {bookmarkCacheKey, type PreferenceValues} from '../data'
+import {bookmarkCacheKey, PREFERENCE_KEYS, type PreferenceValues} from '../data'
 import type {MobileScreenProps} from '../navigation/types'
-import {useReadingMobile, useControlledUpgradeReaderObserver} from '../runtime'
+import {useReadingMobile, useMobileSettings, useControlledUpgradeReaderObserver} from '../runtime'
 import {mobileColors as C, mobileTypography as T} from '../theme'
 import {readerNativeAdapter} from '../native/reader'
 import {useTelemetry} from '../telemetry'
 import type {ReaderEvent} from '../reader'
+import type {OverviewBounds} from '../reader/OverviewViews'
 import {FloatingActions, ImageActionNotice, ImageActionSheet, ReaderToolbar, SelectionMenu, TranscriptSheet} from '../reader/ReaderOverlays'
 import {imageActionPort} from '../native/image-actions'
 import type {ImageActionSurface} from '../reader/state/useImageActions'
@@ -18,6 +19,7 @@ import {ReaderTagSheet} from '../reader/TagSheet'
 import {sourceStableId} from '../reader/model'
 import {readerAccountActive, updateReaderPreferences} from '../reader/account'
 import {ReaderHeader, ReaderHeaderMore, RssReaderHeader, RssSaveButton} from '../reader/components/ReaderHeader'
+import {ReaderHeaderSlot} from '../reader/components/ReaderHeaderSlot'
 import {PdfNotesSheet} from '../reader/components/PdfNotesSheet'
 import {ReaderDialogs} from '../reader/components/ReaderDialogs'
 import {ReaderContent} from '../reader/components/ReaderContent'
@@ -38,8 +40,17 @@ function useEvent<A extends unknown[], R>(handler: (...args: A) => R): (...args:
   return useCallback((...args: A) => latest.current(...args), [])
 }
 
+const selectDetailDoNotAlert = (values: PreferenceValues) => values[PREFERENCE_KEYS.detailDoNotAlert]
+const selectDualPagePrototype = (values: PreferenceValues) => values.pdf_dual_page_prototype
+/** Subscribes to the two preferences the Reader reads, so unrelated writes such as continue-reading do not re-render it. */
+function useReaderSettings(): PreferenceValues {
+  const detailDoNotAlert = useMobileSettings(selectDetailDoNotAlert), dualPagePrototype = useMobileSettings(selectDualPagePrototype)
+  return useMemo(() => ({[PREFERENCE_KEYS.detailDoNotAlert]: detailDoNotAlert, pdf_dual_page_prototype: dualPagePrototype}), [detailDoNotAlert, dualPagePrototype])
+}
+
 export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
-  const {runtime, api, repositories, cache, preferences, settings, session, sessions, t, config, fixtureOnly, nativeResourceOwner} = useReadingMobile()
+  const {runtime, api, repositories, cache, preferences, session, sessions, t, config, fixtureOnly, nativeResourceOwner} = useReadingMobile()
+  const settings = useReaderSettings()
   const observer = useControlledUpgradeReaderObserver(), safeArea = useSafeAreaInsets(), telemetry = useTelemetry()
   const markInteractive = useObserveMarkInteractive()
   const isIos = Platform.OS === 'ios', controlledFixture = Boolean(__DEV__ && fixtureOnly)
@@ -55,7 +66,8 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
   const selectionCommand = useRef<() => void>(() => {})
   const clearSelection = useCallback(() => selectionCommand.current(), [])
   const subscriptionCommand = useRef<() => void>(() => {})
-  const life = useReaderLifecycle(identity, {navigation, routeKey: route.key, t, isAccountActive, writePreferences})
+  const setInteractionBusy = useCallback((busy: boolean, source: string) => runtime.setInteractionBusy?.(busy, source), [runtime])
+  const life = useReaderLifecycle(identity, {navigation, routeKey: route.key, t, isAccountActive, writePreferences, setInteractionBusy})
   const scope = {...identity, mounted: life.mounted, foreground: life.foreground, appActive: life.appActive, routeVisible: life.routeVisible, transitionReady: life.transitionReady, reader: life.reader, isAccountActive, fail: life.fail, t}
   const {reader, appActive, fail} = life
   useLayoutEffect(() => {
@@ -94,16 +106,17 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
   const dualPagePrototypeEnabled = Boolean(__DEV__ && fixtureOnly && isIos && settings.pdf_dual_page_prototype === true)
   const showPdfPrototypeControl = Boolean(__DEV__ && fixtureOnly && isIos && isPdf)
   const togglePdfPrototype = useCallback(() => {void writePreferences(values => {values.pdf_dual_page_prototype = values.pdf_dual_page_prototype !== true}).catch(fail)}, [writePreferences, fail])
-  const headerMore = useCallback(() => <View style={{flexDirection: 'row', alignItems: 'center'}}>
+  const headerMore = useCallback(() => <ReaderHeaderSlot>
     {showPdfPrototypeControl ? <Pressable accessibilityRole="switch" accessibilityLabel={`Dual-page prototype: ${dualPagePrototypeEnabled ? 'On' : 'Off'}`} accessibilityState={{checked: dualPagePrototypeEnabled}} testID="pdf-dual-page-prototype-toggle" onPress={togglePdfPrototype} style={({pressed}) => [styles.pdfPrototypeControl, pressed && {opacity: .5}]}>
       <SourceText style={{fontSize: 13}}>{`Dual-page prototype: ${dualPagePrototypeEnabled ? 'On' : 'Off'}`}</SourceText>
     </Pressable> : null}
     <ReaderHeaderMore visibility={interactions.headerMoreVisible} offset={interactions.headerMoreOffset} t={t} onPress={interactions.showToolbar} />
-  </View>, [showPdfPrototypeControl, dualPagePrototypeEnabled, togglePdfPrototype, interactions.headerMoreVisible, interactions.headerMoreOffset, interactions.showToolbar, t])
-  useLayoutEffect(() => navigation.setOptions({title: '', headerShadowVisible: false, headerTransparent: true,
-    headerStyle: {backgroundColor: 'transparent'}, headerRight: isPreview ? undefined : headerMore,
-    unstable_headerRightItems: isPreview ? undefined : () => [{type: 'custom', element: headerMore(), hidesSharedBackground: true}],
-  }), [navigation, headerMore, isPreview])
+  </ReaderHeaderSlot>, [showPdfPrototypeControl, dualPagePrototypeEnabled, togglePdfPrototype, interactions.headerMoreVisible, interactions.headerMoreOffset, interactions.showToolbar, t])
+  // Transparent chrome and the same-size right slot are static route options (navigation/reader-route); only the slot's content is filled here.
+  useLayoutEffect(() => {
+    if (isPreview) return
+    navigation.setOptions({headerRight: headerMore, unstable_headerRightItems: () => [{type: 'custom', element: headerMore(), hidesSharedBackground: true}]})
+  }, [navigation, headerMore, isPreview])
   const [containerHeight, setContainerHeight] = useState(1)
   const infoPack = useMemo(() => ({metadataUrl: originalUrl, bookmarkId, platform: config.platform, version: config.version}), [originalUrl, bookmarkId, config.platform, config.version])
   // Header, footer and HTML host callbacks keep their identity across toolbar/selection/panel/AI updates so the
@@ -111,7 +124,7 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
   // Its live-only callbacks (events, scroll, links) are never invoked after unmount, so they may read the latest render.
   const saveRss = useEvent(() => run(document.saveRss()))
   const openOriginal = useEvent(() => bookmark.openOriginal(originalUrl))
-  const showOverview = useEvent(() => interactions.showOverview())
+  const showOverview = useEvent((source?: OverviewBounds | null) => interactions.showOverview(source))
   const showTags = useEvent(() => interactions.showTags())
   const saveButton = useMemo(() => <RssSaveButton loading={document.loading} rss={document.rss} t={t} onSave={saveRss} />, [document.loading, document.rss, t, saveRss])
   const overview = useMemo(() => <ReaderAiExcerpt state={ai.overview} prefix={t('overview_prefix')} onPress={showOverview} />, [ai.overview, t, showOverview])
@@ -152,7 +165,7 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
 
   return <View style={[styles.root, {marginLeft: safeArea.left, marginRight: safeArea.right}]} testID="reader-screen" onLayout={event => setContainerHeight(event.nativeEvent.layout.height)}>
     <ReaderContent isPdf={isPdf} isPreview={isPreview} loading={document.loading} html={html} hostKey={`${cacheKey}:${pdf?.document_id ?? ''}:${document.readerGeneration}`}
-      top={safeArea.top} title={title} header={header} contentError={contentError} nativeFailure={document.nativeFailure} rssError={document.rssError} t={t}
+      top={safeArea.top} title={title} header={header} transitionReady={life.transitionReady} contentError={contentError} nativeFailure={document.nativeFailure} rssError={document.rssError} t={t}
       reload={reload} retryPdf={document.retryPdf} retryNative={retryNative}
       pdfProps={pdf ? {...hostShared, ref: document.attachPdfHost, style: {flex: 1}, descriptor: pdf, cacheDirectory: fixtureOnly?.pdfNativeOwner ? undefined : fixtureOnly?.dataDirectory,
         adaptivePdf: {enabled: Boolean(__DEV__ && fixtureOnly && isIos && dualPagePrototypeEnabled)},
@@ -190,7 +203,7 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
       onImageLongPress={openGalleryImageAction}>{imageActionSheet('gallery')}{imageActionNotice('gallery')}</ImageGallery> : null}
     <PdfNotesSheet visible={isPdf && annotations.pdfNotesVisible && appActive && life.routeVisible && policy.showMarks} marks={annotations.pdfMarkInfos} bottom={safeArea.bottom} t={t} onClose={annotations.closeNotes} onSelect={mark => run(annotations.openNote(mark))} />
     <ReaderAiOverview state={ai.overview} visible={interactions.overlay === 'overview'} isPdf={isPdf} pdfTextMessage={document.pdfTextMessage} loadingLabel={t('pdf_loading')}
-      title={t('overview_dialog_title')} closeLabel={t('btn_close')} onClose={interactions.closeOverview} />
+      title={t('overview_dialog_title')} closeLabel={t('btn_close')} sourceBounds={interactions.overviewSource} onClose={interactions.closeOverview} />
     <ReaderTagSheet visible={interactions.overlay === 'tags'} tags={bookmark.tags} remoteIds={bookmark.selectedTagIds} t={t} onDismiss={interactions.closeOverlay} onError={fail}
       onConfirm={ids => {run(bookmark.updateTags(ids)); interactions.closeOverlay()}} onCreate={bookmark.createTag} />
     <ReaderDialogs active={appActive && isAccountActive()} overlay={interactions.overlay} t={t} closeOverlay={interactions.closeOverlay}

@@ -18,7 +18,7 @@ import {READER_ORIGIN, readerProtectedHosts, readerAllowsUrl, readerAllowsImage,
 const ANDROID_ARTICLE_SCROLL_SAMPLE_MS = 48
 const protectedHosts = readerProtectedHosts(mobileConfig)
 const imageProxyOrigins = readerImageProxyOrigins(mobileConfig)
-import type { ReaderNativeAdapter, ReaderNativeContext } from './native.ts'
+import type { ReaderDocumentHeightHandle, ReaderNativeAdapter, ReaderNativeContext } from './native.ts'
 import {ReaderNativeAttachment} from './native-attachment.ts'
 import {readerDocumentError, READER_PROCESS_GONE} from './recovery.ts'
 import { ReaderPositionWriter } from './position.ts'
@@ -99,6 +99,8 @@ export interface ReaderWebViewProps {
   onPositionFlush?: (positionPixels: number, reason: PositionFlushReason, pageId: string) => Promise<void> | void
   onExternalUrl?: (url: string) => void
   onError?: (error: Error) => void
+  /** Called once per page after its first content is ready and the initial position restore was consumed. */
+  onPresentable?: (pageId: string) => void
   /** Detect committed route removal when React unmounts before the state event. */
   isRouteRemoved?: () => boolean
   /** Invoked only in a controlled debug fixture; normal application renders omit it. */
@@ -137,12 +139,14 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
   const initialPositionConsumed = useRef(false)
   const initialPositionInFlight = useRef(false)
   const nativeInsetWork = useRef<Promise<void>>(Promise.resolve())
+  const appliedInsets = useRef<{tag: number; top: number; bottom: number; work: Promise<void>} | null>(null)
   const observedPosition = useRef<{scrollPoints: number; contentHeightPoints: number; viewportHeightPoints: number} | null>(null)
   const fixtureScrollTrace = useRef<ReaderFixturePosition['scrollTrace']>([])
   const [active, setActive] = useState(AppState.currentState == null || AppState.currentState === 'active')
   const [ready, setReady] = useState(false)
   const [documentLoaded, setDocumentLoaded] = useState(false)
   const [documentHeight, setDocumentHeight] = useState(1)
+  const documentHeightPoints = useRef(1)
   const [headerHeight, setHeaderHeight] = useState(0)
   const [footerHeight, setFooterHeight] = useState(0)
   const [viewportHeight, setViewportHeight] = useState(0)
@@ -158,11 +162,12 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
   androidScrollLayout.current = {contentHeightPoints: androidContent.current, viewportHeightPoints: androidViewportHeight}
   const nativeEventCounts = useRef({loadStarts: 0, loadEnds: 0, messages: 0, rejectedMessages: 0})
   const documentState = useRef({ready, documentLoaded, documentHeightPoints: documentHeight})
-  documentState.current = {ready, documentLoaded, documentHeightPoints: documentHeight}
+  documentState.current = {ready, documentLoaded, documentHeightPoints: documentHeightPoints.current}
   const geometry = readerHostGeometry(platform, {pixelRatio: PixelRatio.get(), headerHeight,
     headerSafeArea: props.headerSafeAreaPoints ?? 0, screenTop, viewportHeight, scrollPoints: scrollPoints.current}, props.platformGeometry)
   const geometryRef = useRef(geometry)
   geometryRef.current = geometry
+  const nativeDocumentHeight = platform === 'android' && props.nativeAdapter?.appliesContentHeight === true
   const nativeContext: ReaderNativeContext = {
     cacheKey: props.cacheKey, pageId: props.pageId, resourceOwner: props.resourceOwner ?? null, suppressSelectionMenu: true,
     scrollsToTop: !props.commentPanelVisible, protectedHosts, imageProxyOrigins,
@@ -172,7 +177,8 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
   nativeContextRef.current = nativeContext
   const observesInput = __DEV__ && Boolean(props.onObservation)
   const document = useMemo(() => composeReaderDocument(props.html, { pageId: props.pageId, platform, imageProxyOrigins, rewriteImageTransports: props.rewriteImageTransports, controlledFixture: __DEV__ && Boolean(props.cacheDirectory), observeInput: observesInput }), [props.html, props.pageId, platform, props.rewriteImageTransports, props.cacheDirectory, observesInput])
-  const footer = props.footerOnlyForLongDocument && headerHeight + documentHeight <= viewportHeight ? null : props.footer
+  const shortDocument = (height: number) => headerHeight + height <= viewportHeight
+  const footer = props.footerOnlyForLongDocument && shortDocument(documentHeightPoints.current) ? null : props.footer
   useEffect(() => {if (!footer) setFooterHeight(0)}, [Boolean(footer)])
   const reportError = useCallback((error: unknown) => {
     if (exited.current || isReaderOperationCancelled(error)) return
@@ -196,7 +202,7 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
     return {requestedPixels: callbacks.current.initialPosition ?? null, consumed: initialPositionConsumed.current,
       observed: observed ? {...observed, positionPixels: scrollPointsToLegacyPosition(platform, observed.scrollPoints, geometry)} : null,
       geometry: {...geometry}, scrollContainer: platform === 'android' ? {...androidScrollLayout.current} : null,
-      bridge: {pageId: props.pageId, ...documentState.current, nativeTag: tag.current, ...nativeEventCounts.current},
+      bridge: {pageId: props.pageId, ...documentState.current, documentHeightPoints: documentHeightPoints.current, nativeTag: tag.current, ...nativeEventCounts.current},
       scrollTrace: fixtureScrollTrace.current.map(value => ({...value}))}
   }, [platform, props.pageId])
   const observePosition = useCallback((type: 'native-scroll' | 'ready' | 'restore') => {
@@ -341,12 +347,17 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
     const nativeTag = tag.current, adapter = callbacks.current.nativeAdapter
     if (nativeTag === null || !adapter) return Promise.resolve()
     const top = platform === 'ios' ? geometryRef.current.topInsetPoints : 0
+    // An identical request for the same native view joins the last one; restore still awaits it.
+    const applied = appliedInsets.current
+    if (applied && applied.tag === nativeTag && applied.top === top && applied.bottom === footerHeight) return applied.work
     // Restore uses the same queue, so its negative iOS offset cannot run ahead
     // of native header insets or be consumed while the view is unattached.
-    const work = nativeInsetWork.current.catch(() => {}).then(async () => {
+    const work: Promise<void> = nativeInsetWork.current.catch(() => {}).then(async () => {
       if (exited.current || tag.current !== nativeTag) return
-      await adapter.updateInsets(nativeTag, top, footerHeight)
+      try {await adapter.updateInsets(nativeTag, top, footerHeight)}
+      catch (error) {if (appliedInsets.current?.work === work) appliedInsets.current = null; throw error}
     })
+    appliedInsets.current = {tag: nativeTag, top, bottom: footerHeight, work}
     nativeInsetWork.current = work
     return work
   }, [footerHeight, platform])
@@ -394,7 +405,7 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
       if (initial !== null && initial !== undefined && Number.isFinite(initial) && initial >= 0) {
         await scrollTo(legacyPositionToScrollPoints(platform, initial, geometryRef.current), false)
       }
-      if (!exited.current) {initialPositionConsumed.current = true; observePosition('restore')}
+      if (!exited.current) {initialPositionConsumed.current = true; observePosition('restore'); callbacks.current.onPresentable?.(props.pageId)}
     } finally {initialPositionInFlight.current = false}
   }
 
@@ -419,9 +430,14 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
     if (event.type === 'domReady') {
       setReady(true)
     } else if (event.type === 'contentHeight') {
-      setDocumentHeight(event.height)
+      const previous = documentHeightPoints.current
+      documentHeightPoints.current = event.height
+      // The natively sized host keeps this as a UI-thread fallback until its own measurement arrives.
+      if (nativeDocumentHeight) (webView.current as unknown as Partial<ReaderDocumentHeightHandle> | null)?.applyDocumentHeight?.(event.height)
+      // A natively sized Android host renders only while restore or footer placement still depends on the height.
+      if (!nativeDocumentHeight || !initialPositionConsumed.current || (props.footerOnlyForLongDocument && shortDocument(event.height) !== shortDocument(previous))) setDocumentHeight(event.height)
     } else if (event.type === 'scrollToPosition') {
-      void scrollTo(anchorToScrollPoints(platform, documentHeight * event.percentage, geometryRef.current), true).catch(reportError)
+      void scrollTo(anchorToScrollPoints(platform, documentHeightPoints.current * event.percentage, geometryRef.current), true).catch(reportError)
     } else if (event.type === 'scrollToTop') {
       // Source iOS scrollToTop uses document zero, which differs from revealing
       // the inset-backed header after the document has already scrolled.
@@ -470,8 +486,8 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
   }
   const DocumentWebView = props.nativeAdapter?.HostComponent ?? WebView<unknown>
   const documentSource = useMemo(() => ({html: document, baseUrl: READER_ORIGIN}), [document])
-  const documentStyle = useMemo(() => platform === 'android' ? {height: documentHeight, backgroundColor: 'transparent'} : styles.document, [platform, documentHeight])
-  const documentContainerStyle = useMemo(() => platform === 'android' ? {flex: 0, height: documentHeight} : styles.document, [platform, documentHeight])
+  const documentStyle = useMemo(() => platform !== 'android' || nativeDocumentHeight ? styles.document : {height: documentHeight, backgroundColor: 'transparent'}, [platform, nativeDocumentHeight, documentHeight])
+  const documentContainerStyle = useMemo(() => platform !== 'android' ? styles.document : nativeDocumentHeight ? styles.nativeContainer : {flex: 0, height: documentHeight}, [platform, nativeDocumentHeight, documentHeight])
   const articleView = <DocumentWebView
     ref={webView}
     source={documentSource}
@@ -539,5 +555,6 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FCFCFC' },
   document: { flex: 1, backgroundColor: 'transparent' },
+  nativeContainer: { flex: 0 },
   header: { position: 'absolute', top: 0, left: 0, right: 0 },
 })

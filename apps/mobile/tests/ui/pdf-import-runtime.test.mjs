@@ -118,15 +118,15 @@ test('actual fixture runtime seeds a PDF, uses production API/File upload, and p
   assert.equal(diagnostic().synchronization, 'published'); assert.equal(diagnostic().synchronizationMechanism, 'simulated-local-database'); assert.equal(diagnostic().nativeInteractionVerified, false);
   assert.equal((await h.value.repositories.getBookmark(id)).contentType, 'pdf'); assert.ok(observed.includes(1));
   const descriptor = await h.value.runtime.getPdfMetadata(id);
-  assert.equal(descriptor.document_id, diagnostic().expectedSha256);
+  assert.equal(descriptor.document_id, diagnostic().expectedDocumentId);
   assert.equal(new TextDecoder().decode(await h.value.runtime.readPdfRange(id, descriptor, 0, 8)), '%PDF-1.4');
 });
 
-test('native-storage scenario runs production file adapter and real queue through partial pause/resume', {timeout: 35000}, async t => {
+test('native-storage scenario runs the production offline coordinator through partial pause/resume without a JavaScript PDF store', {timeout: 35000}, async t => {
   const h = await host(t, 'reader-pdf-native-storage'), id = 'fixture-pdf-native';
   await h.run.perform({kind: 'pdf-production-storage'});
   const proof = JSON.parse(new h.File(h.run.scopeUri, 'pdf-production-storage.json').textSync());
-  assert.equal(proof.adapter, 'PdfFileStorage'); assert.equal(proof.remove, true); assert.equal(proof.nativeInteractionVerified, false);
+  assert.equal(proof.adapter, 'SlaxOfflineEngine'); assert.equal(proof.jsAdapter, false); assert.equal(proof.nativeInteractionVerified, false);
   const transport = () => JSON.parse(new h.File(h.run.scopeUri, 'pdf-transport.json').textSync());
   const until = async predicate => {const deadline = Date.now() + 5000; while (!predicate() && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20)); assert.ok(predicate());};
   let completed = false; const fill = h.run.perform({kind: 'pdf-fill-cache'}).then(() => {completed = true;});
@@ -137,23 +137,23 @@ test('native-storage scenario runs production file adapter and real queue throug
   for (const listener of h.appListeners) listener('active');
   await h.run.perform({kind: 'pdf-cache-status'});
   const partial = JSON.parse(new h.File(h.run.scopeUri, 'pdf-cache-partial.json').textSync());
-  assert.equal(partial.storageAdapter, 'PdfFileStorage'); assert.equal(partial.states[0].downloadedBytes, 262144); assert.equal(partial.states[0].complete, false);
+  assert.equal(partial.storageAdapter, 'fixture-offline-engine'); assert.equal(partial.states[0].downloadedBytes, 262144); assert.equal(partial.states[0].complete, false);
   await fill;
   const status = await h.value.runtime.pdfCacheStatus(id); assert.equal(status.complete, true);
   const complete = JSON.parse(new h.File(h.run.scopeUri, 'pdf-cache-complete.json').textSync());
   assert.equal(complete.states[0].downloadedBytes, complete.states[0].totalBytes);
   assert.equal(transport().rangeEvents.filter(event => event.begin === 0 && event.state === 'requested').length, 1);
-  assert.ok(h.events.some(event => event[0] === 'pdf-path'));
+  assert.equal(h.events.some(event => event[0] === 'pdf-path'), false, 'PDF files are never addressed from JavaScript');
 });
 
-test('HTTP fixture composes real HTTP and production storage and requires native PDF owner context', async t => {
+test('HTTP fixture composes real HTTP with the production offline coordinator and requires native PDF owner context', async t => {
   const server = await startPdfHttpFixture(); t.after(() => server.close());
   const h = await host(t, 'reader-pdf-http'), id = 'fixture-pdf-http';
   assert.equal(h.value.fixtureOnly.pdfNativeOwner, true); assert.equal(h.value.config.apiUrl, 'http://127.0.0.1:8093');
   assert.ok(h.value.nativeResourceOwner); assert.ok(h.value.fixtureOnly.dataDirectory.includes('/slax-ui-fixtures/'));
   const descriptor = await h.value.runtime.getPdfMetadata(id);
   assert.equal(new TextDecoder().decode(await h.value.runtime.readPdfRange(id, descriptor, 0, 8)), '%PDF-1.4');
-  assert.ok(h.events.some(event => event[0] === 'expo-fetch')); assert.ok(h.events.some(event => event[0] === 'pdf-path'));
+  assert.ok(h.events.some(event => event[0] === 'expo-fetch')); assert.equal(h.events.some(event => event[0] === 'pdf-path'), false);
   const evidence = JSON.parse(new h.File(h.run.scopeUri, 'pdf-http.json').textSync());
   assert.equal(evidence.nativeOwnerRequired, true); assert.ok(evidence.events.some(event => event.path === '/v1/bookmark/pdf' && event.status === 206));
   await h.run.perform({kind: 'pdf-http-mode', mode: 'metadata-404'});

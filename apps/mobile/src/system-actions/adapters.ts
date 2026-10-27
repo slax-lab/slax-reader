@@ -3,6 +3,7 @@ import {SaveURLController, type SaveReceipt} from './controller';
 import {SystemSurfacesController, type SurfaceState} from './system-surfaces';
 import type {SystemCatalogBookmark} from '../data/repositories/types';
 import {SystemEntryRouter, type SystemEntryReceipt} from './entry-router';
+import {resolveSystemBookmarkId} from './catalog-policy';
 
 const JOURNAL_KEY = '_slax_system_action_save_url_v1';
 function decodeJournal(value: unknown): SaveReceipt[] {
@@ -73,10 +74,11 @@ export function createSystemEntryRouter(runtime: MobileDataRuntime, systemSurfac
     async getBookmark(id) {
       const preferences = await runtime.preferences.read();
       const value = preferences[SURFACE_STATE_KEY];
-      let mapped: string | undefined, ownerKey = '';
+      let legacy: Record<string, string> | undefined, ownerKey = '';
       const session = runtime.sessions.getSnapshot(), generation = runtime.getNativeResourceOwner();
       if (session.status === 'authenticated' && generation) ownerKey = JSON.stringify([session.session.userId, runtime.api.options.baseUrl]);
-      if (typeof value === 'string') {try {const state = JSON.parse(value) as SurfaceState; if (state.catalogOwner === ownerKey || state.donationOwner === ownerKey) mapped = state.catalogIdMap?.[id];} catch {}}
+      if (typeof value === 'string') {try {const state = JSON.parse(value) as SurfaceState; if (state.catalogOwner === ownerKey || state.donationOwner === ownerKey) legacy = state.catalogIdMap;} catch {}}
+      const mapped = ownerKey ? resolveSystemBookmarkId(id, legacy) : null;
       return mapped ? runtime.getRepositories()?.getSystemBookmark(mapped) ?? null : null;
     },
     navigate(id) {navigate?.(id);}, removeInvocation,

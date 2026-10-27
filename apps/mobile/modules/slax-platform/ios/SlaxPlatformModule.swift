@@ -22,6 +22,9 @@ public final class SlaxPlatformModule: Module {
     AsyncFunction("readerResourceOwner") { SlaxReaderView.currentOwner() }.runOnQueue(.main)
     AsyncFunction("revokeReaderResources") { SlaxReaderView.revokeAllResources() }.runOnQueue(.main)
     AsyncFunction("activateReaderResources") { (owner: String) in try SlaxReaderView.activateResources(owner) }.runOnQueue(.main)
+    AsyncFunction("prewarmReader") { (protectedHosts: [String], imageProxyOrigins: [String]) in
+      SlaxReaderPrewarm.run(protectedHosts: protectedHosts, imageProxyOrigins: imageProxyOrigins)
+    }.runOnQueue(.main)
     AsyncFunction("setWebSessionCookie") { (origin: URL, token: String?, domain: String, promise: Promise) in
       guard origin.scheme == "https", let host = origin.host, token?.contains(";") != true, token?.contains("\n") != true, token?.contains("\r") != true else { throw NSError(domain: "SlaxPlatform", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid HTTPS session origin"] ) }
       let root = domain.hasPrefix(".") ? String(domain.dropFirst()).lowercased() : domain.lowercased()

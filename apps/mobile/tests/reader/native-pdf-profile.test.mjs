@@ -114,6 +114,72 @@ fun main() {
   } finally {await rm(directory, {recursive: true, force: true})}
 })
 
+function nativeHeightMotion(host) {
+  const values = [], handlers = []
+  const AnimatedView = React.forwardRef((props, ref) => React.createElement(host.native.View, {...props, ref, testID: props.testID ?? 'animated-document-container'}))
+  return {values, handlers, module: {__esModule: true, default: {View: AnimatedView, createAnimatedComponent: component => component},
+    useSharedValue(initial) {return React.useMemo(() => {const value = {value: initial}; values.push(value); return value}, [])},
+    useEvent(handler, names) {return React.useMemo(() => {const registered = {worklet: handler, names}; handlers.push(registered); return registered}, [])},
+    useAnimatedStyle: callback => ({animated: callback})}}
+}
+
+test('android article host applies native content height on the UI thread without rerendering the document host', nativeBoundary, async () => {
+  await withNativeHost(async host => {
+    host.native.Platform.OS = 'android'
+    let nativeProps, renders = 0
+    const NativeView = React.forwardRef((props, ref) => {
+      nativeProps = props; renders++
+      React.useImperativeHandle(ref, () => ({detach: async () => {}, setScrollsToTop: async () => {}}))
+      return React.createElement('div')
+    })
+    const motion = nativeHeightMotion(host)
+    const {readerNativeAdapter} = await loadComponent('../../src/native/reader.tsx', {react: React, 'react-native': host.native,
+      'expo': {requireNativeView: (_module, name) => name === 'SlaxReaderView' ? NativeView : host.native.View}, 'react-native-reanimated': motion.module})
+    assert.equal(readerNativeAdapter.appliesContentHeight, true)
+    const context = {pageId: 'article-1', cacheKey: 'cache', resourceOwner: 'account-owner', protectedHosts: ['slax.com'], imageProxyOrigins: [], suppressSelectionMenu: true, scrollsToTop: true}
+    await host.render(React.createElement(readerNativeAdapter.HostComponent, {source: {html: '<p>Article</p>'}, nativeConfig: readerNativeAdapter.nativeConfig(context), containerStyle: {flex: 0}}))
+    const [handler] = motion.handlers
+    assert.deepEqual([...handler.names], ['onContentHeight'])
+    assert.equal(nativeProps.onContentHeight, handler, 'The native view event is bound to the worklet handler, not a React callback')
+    const container = host.props.get('animated-document-container')
+    const animated = container.style.find(value => value && value.animated).animated
+    assert.equal(animated().height, 1)
+    const settled = renders
+    for (const height of [1200, 1800, 2400]) handler.worklet({height})
+    handler.worklet({height: Number.NaN})
+    assert.equal(animated().height, 2400)
+    assert.equal(renders, settled, 'Height changes never rerender the document host')
+  })
+})
+
+test('android article host sizes from the bridge height when no native content-height event ever fires', nativeBoundary, async () => {
+  await withNativeHost(async host => {
+    host.native.Platform.OS = 'android'
+    let renders = 0
+    const NativeView = React.forwardRef((props, ref) => {
+      renders++
+      React.useImperativeHandle(ref, () => ({detach: async () => {}, setScrollsToTop: async () => {}}))
+      return React.createElement('div')
+    })
+    const motion = nativeHeightMotion(host)
+    const {readerNativeAdapter} = await loadComponent('../../src/native/reader.tsx', {react: React, 'react-native': host.native,
+      'expo': {requireNativeView: (_module, name) => name === 'SlaxReaderView' ? NativeView : host.native.View}, 'react-native-reanimated': motion.module})
+    const context = {pageId: 'article-1', cacheKey: 'cache', resourceOwner: 'account-owner', protectedHosts: ['slax.com'], imageProxyOrigins: [], suppressSelectionMenu: true, scrollsToTop: true}
+    const ref = React.createRef()
+    await host.render(React.createElement(readerNativeAdapter.HostComponent, {ref, source: {html: '<p>Article</p>'}, nativeConfig: readerNativeAdapter.nativeConfig(context), containerStyle: {flex: 0}}))
+    const animated = host.props.get('animated-document-container').style.find(value => value && value.animated).animated
+    const settled = renders
+    ref.current.applyDocumentHeight(1200)
+    assert.equal(animated().height, 1200, 'Without a native measurement the bridge height sizes the document')
+    ref.current.applyDocumentHeight(Number.NaN); ref.current.applyDocumentHeight(0)
+    assert.equal(animated().height, 1200)
+    motion.handlers[0].worklet({height: 1500})
+    ref.current.applyDocumentHeight(1300)
+    assert.equal(animated().height, 1500, 'The first native measurement takes over from the bridge height')
+    assert.equal(renders, settled, 'The bridge fallback never rerenders the document host')
+  })
+})
+
 for (const platform of ['ios', 'android']) test(`${platform} native adapter forwards the locked PDF profile, owner, fixture root and page-bound messages`, nativeBoundary, async () => {
   await withNativeHost(async host => {
     host.native.Platform.OS = platform
@@ -125,10 +191,11 @@ for (const platform of ['ios', 'android']) test(`${platform} native adapter forw
       return React.createElement('div')
     })
     const {readerNativeAdapter} = await loadComponent('../../src/native/reader.tsx', {react: React, 'react-native': host.native,
-      'expo': {requireNativeView: (_module, name) => name === 'SlaxReaderView' ? NativeView : host.native.View}})
+      'expo': {requireNativeView: (_module, name) => name === 'SlaxReaderView' ? NativeView : host.native.View}, 'react-native-reanimated': nativeHeightMotion(host).module})
     const context = {pageId: 'pdf-1', cacheKey: 'cache', cacheDirectory: '/controlled/slax-ui-fixtures/fixture', resourceOwner: 'account-owner', pdfMode: true, protectedHosts: ['slax.com'], imageProxyOrigins: [], suppressSelectionMenu: true, scrollsToTop: true}
     await host.render(React.createElement(readerNativeAdapter.HostComponent, {source: {html: '<html></html>', baseUrl: 'https://pdf.reader.slax.invalid/'}, nativeConfig: readerNativeAdapter.nativeConfig(context), onMessage: event => messages.push(event.nativeEvent)}))
     assert.equal(nativeProps.pdfMode, true)
+    assert.equal(nativeProps.onContentHeight, undefined, 'PDF keeps its own document-height path')
     assert.equal(nativeProps.resourceOwner, context.resourceOwner)
     assert.equal(nativeProps.cacheDirectory, context.cacheDirectory)
     nativeProps.onEvent({nativeEvent: {type: 'message', target: 1, pageId: 'stale', data: '{}'}})

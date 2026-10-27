@@ -86,7 +86,7 @@ async function screenFixture(host, options, run) {
     '../theme': {mobileColors, mobileTypography}, './coordinates.ts': coordinates, './model.ts': model, './outline-motion.ts': outlineMotion, './MarkdownView.tsx': {MarkdownView: nil},
   })
   const telemetry = {element() {}, firebase() {}}, t = key => key
-  const mobile = {runtime, api, repositories, cache: {readArticle: async () => assert.fail('PDF must not read the HTML cache')}, preferences, settings: {}, session, sessions, t,
+  const mobile = {runtime, api, repositories, cache: {readArticle: async () => {calls.push('html-cache'); return '<p>Speculative HTML must not render</p>'}}, preferences, settings: {}, session, sessions, t,
     config: {platform: host.native.Platform.OS}, nativeResourceOwner: owner}
   const boundaries = {
     react: React, 'react-native': {...host.native, ScrollView: props => React.createElement(host.native.View, {...props, testID: props.testID ?? 'screen-scroll-view'}), AppState: {currentState: 'active', addEventListener: (_name, callback) => {appListeners.add(callback); return {remove: () => appListeners.delete(callback)}}}},
@@ -94,7 +94,7 @@ async function screenFixture(host, options, run) {
     '@react-navigation/native': {usePreventRemove: (blocked, callback) => {back = {blocked, callback}}}, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})},
     '@slax-reader/contracts/pdf': pdfContracts, '../reader/PdfWebView': {PdfWebView}, '../data/transport-errors': transportErrors, '../reader/pdf-errors': pdfErrors,
     '../components': {...host.components, SourceDialog: props => {dialogs.set(props.title, props); return null}}, '../components/SourceRing': {SourceCircularProgress: nil},
-    '../data': {...repositoriesModule, PREFERENCE_KEYS}, '../runtime': {useReadingMobile: () => mobile, useMobile: () => mobile, useControlledUpgradeReaderObserver: () => undefined}, '../rss/controller': {},
+    '../data': {...repositoriesModule, PREFERENCE_KEYS}, '../runtime': {useReadingMobile: () => mobile, useMobile: () => mobile, useMobileSettings: select => select ? select(mobile.settings ?? {}) : mobile.settings ?? {}, useControlledUpgradeReaderObserver: () => undefined}, '../rss/controller': {},
     '../theme': {mobileColors, mobileTypography}, '../native/reader': {}, '../native/image-actions': {imageActionPort: {save: async () => {}, share: async () => {}}}, '../native/platform': {}, '../telemetry': {useTelemetry: () => telemetry}, '../reader/share': {},
     '../reader': {ReaderWebView: () => assert.fail('PDF must not mount the HTML reader'), composeReaderError: () => assert.fail('PDF must not compose an HTML error'), toolbarVisible: coordinates.toolbarVisible}, '../reader/input': input,
     '../reader/ReaderOverlays': {CommentPanel: props => {panelProps = props; return null}, SelectionMenu: props => {menuProps = props; return null}, OutlineSheet: props => {outlineProps = props; return null}, FloatingActions: props => {floatingProps = props; return null}, ReaderToolbar, TranscriptSheet: nil},
@@ -133,13 +133,15 @@ async function screenFixture(host, options, run) {
 for (const platform of ['ios', 'android']) test(`${platform} PDF waits for the repository type without exposing filenames or raw source metadata`, nativeBoundary, async () => withNativeHost(async host => screenFixture(host, {platform, missingRecord: true}, async fixture => {
   assert.equal(fixture.reader(), undefined)
   assert.equal(fixture.metadataRequests.length, 0)
-  assert.ok(fixture.calls.every(value => value === 'record'))
+  assert.ok(fixture.calls.every(value => value === 'record' || value === 'html-cache' || value[0] === 'local'), 'Only the record and speculative local reads run before the type is known')
   await fixture.arrive()
   assert.ok(fixture.reader())
   assert.match(fixture.text(), /pdf_reader/)
   assert.doesNotMatch(fixture.text(), /local\.pdf|pdf_source_upload|slax-pdf|detail_view_original/)
   assert.equal(fixture.reader().initialPosition, 3.25)
   assert.ok(fixture.calls.findIndex(value => Array.isArray(value) && value[0] === 'local') > fixture.calls.indexOf('record'))
+  assert.equal(fixture.calls.filter(value => value === 'html-cache').length, 1, 'Once the record is known as a PDF no HTML read is issued')
+  assert.doesNotMatch(fixture.text(), /Speculative HTML/)
 })))
 
 test('PDF URL source retains the original link and complete offline cache permits exact marks', nativeBoundary, async () => withNativeHost(async host => screenFixture(host, {offline: true, pdf: {source: 'url'}, bookmark: {url: 'https://example.test/paper.pdf'}, status: {downloadedBytes: 1000, totalBytes: 1000, complete: true}}, async fixture => {

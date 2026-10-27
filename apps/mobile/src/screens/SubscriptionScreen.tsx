@@ -2,14 +2,14 @@ import React, {useEffect, useRef, useState, useSyncExternalStore} from 'react';
 import {ActivityIndicator, Alert, Modal, Platform, StyleSheet, Text, View} from 'react-native';
 import {usePreventRemove} from '@react-navigation/native';
 import {WebView} from 'react-native-webview';
-import {useMobile} from '../runtime';
+import {useMobile, useWebSession} from '../runtime';
 import {parsePurchaseMessage} from '../payments/controller';
 import {mobileColors as C} from '../theme';
 import {useTelemetry} from '../telemetry';
 import {fixtureDocument} from '../native/fixture-document';
 
 export function SubscriptionScreen() {
-  const {payments: controller, webSession, acquireWebSession, api, runtime, nativeResourceOwner, sessions, config, fixtureOnly} = useMobile();
+  const {payments: controller, acquireWebSession, api, runtime, nativeResourceOwner, sessions, config, fixtureOnly} = useMobile(), webSession = useWebSession();
   useEffect(() => acquireWebSession?.(), [acquireWebSession]);
   useEffect(() => {
     if (Platform.OS !== 'ios' || fixtureOnly || !nativeResourceOwner) return;

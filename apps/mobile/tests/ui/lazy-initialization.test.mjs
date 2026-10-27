@@ -31,7 +31,7 @@ for (const loggedIn of [false, true]) test(`route registration initializes only 
     'react-native-safe-area-context': {SafeAreaProvider: primitive, SafeAreaView: primitive},
     './runtime': {useMobile: () => context, MobileProvider: Screen}, './theme': theme,
     './telemetry': {useTelemetry: () => ({identify() {}})}, './components/SourceLine': {SourceLine: Screen},
-    './screens/AppRecoveryScreen': {AppRecoveryScreen: Screen},
+    './screens/AppRecoveryScreen': {AppRecoveryScreen: Screen}, './navigation/reader-route': {readerScreenOptions: () => ({}), useReaderPrewarm() {}},
   };
   const {ApplicationRoutes} = moduleAt('../../src/App.tsx', name => {
     if (name === './observe') return {ObserveRoot: {wrap: component => component}, ObserveNavigationContainer: primitive};

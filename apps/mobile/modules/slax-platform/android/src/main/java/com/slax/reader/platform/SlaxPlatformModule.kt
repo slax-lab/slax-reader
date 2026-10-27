@@ -78,7 +78,7 @@ class SlaxPlatformModule : Module() {
       activity.startActivity(android.content.Intent.createChooser(intent, null))
     }.runOnQueue(expo.modules.kotlin.functions.Queues.MAIN)
     View(SlaxReaderView::class) {
-      Events("onEvent")
+      Events("onEvent", "onContentHeight")
       Prop("html") { view: SlaxReaderView, value: String -> view.html = value }
       Prop("baseUrl") { _view: SlaxReaderView, _value: String? -> }
       Prop("pdfMode") { view: SlaxReaderView, value: Boolean -> view.setPdfMode(value) }

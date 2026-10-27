@@ -21,11 +21,6 @@ export class DataTransportError extends Error {
     this.code = kind === 'timeout' ? 'request_timeout' : 'network_unavailable';
   }
 }
-export class NativePdfTransportError extends Error {
-  readonly code: 'pdf_body_invalid' | 'resource_busy';
-  readonly kind: 'protocol' | 'unknown';
-  constructor(code: 'pdf_body_invalid' | 'resource_busy') {super('PDF transfer rejected'); this.code = code; this.kind = code === 'pdf_body_invalid' ? 'protocol' : 'unknown';}
-}
 export const isNetworkTransportError = (error: unknown): error is DataTransportError => error instanceof DataTransportError && error.kind === 'network';
 export const httpErrorCode = (status: number): DataErrorCode => {
   switch (status) {
