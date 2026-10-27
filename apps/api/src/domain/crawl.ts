@@ -1,3 +1,4 @@
+import { MarkRepo } from '@/infra/repository/dbMark'
 import { SocialMediaApi } from '../infra/external/socialMedia'
 import { readerBookmarkUuid } from '@slax-reader/contracts'
 import { forkError } from '@/utils/bookmarkForkError'
@@ -16,6 +17,7 @@ import { fetchPublicText } from '@/infra/external/podcastFetch'
 import {
   appleLookupUrl,
   classifyPodcastUrl,
+  parsePocketCastsPage,
   directAudioInfo,
   enrichFromFeed,
   findFeedItem,
@@ -130,7 +132,8 @@ export class CrawlService {
     @inject(YoutubeArticleRepo) private youtubeArticleRepo: YoutubeArticleRepo,
     @inject(PodcastEpisodeRepo) private podcastEpisodeRepo: PodcastEpisodeRepo,
     @inject(MediaSnapshotService) private snapshots: MediaSnapshotService,
-    @inject(BookmarkForkRepo) private snapshotRepo: BookmarkForkRepo
+    @inject(BookmarkForkRepo) private snapshotRepo: BookmarkForkRepo,
+    @inject(MarkRepo) private markRepo: MarkRepo
   ) {}
 
   public async pushBookmarkFailureAlert(userId: number, scope: string, meta: Record<string, unknown>) {
@@ -730,6 +733,10 @@ export class CrawlService {
       const info = parseXiaoyuzhouPage(page.url, page.content)
       return info.audioUrl ? info : null
     }
+    if (kind === 'pocketcasts') {
+      const page = await pageFetcher()
+      return parsePocketCastsPage(page.url, page.content)
+    }
     if (kind === 'apple') {
       const ids = parseAppleUrl(url)
       if (!ids) return null
@@ -768,6 +775,9 @@ export class CrawlService {
 
   /** First body of a podcast bookmark (player and notes), the episode row and the bookmark's reference to it. */
   public async parseAndSavePodcast(ctx: ContextManager, info: PodcastEpisodeInfo, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+    if (info.kind === 'pocketcasts' && (await this.markRepo.bodyHasMarks(bookmarkId, ctx.getUserId()))) {
+      throw new Error('Cannot replace annotated Pocket Casts content')
+    }
     const html = HtmlBuilder.buildPodcast({ ...info })
     const textContent = renderPodcastText({ info })
     const ref = await this.savePodcastEpisode(info, bookmarkId)

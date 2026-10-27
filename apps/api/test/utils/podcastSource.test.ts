@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import {
   classifyPodcastUrl,
+  parsePocketCastsPage,
   directAudioInfo,
   enrichFromFeed,
   findFeedItem,
@@ -223,5 +224,51 @@ describe('direct audio and Spotify', () => {
       title: 'Ep',
       coverUrl: 'https://i.scdn.co/x'
     })
+  })
+})
+
+describe('Pocket Casts', () => {
+  const short = 'https://pca.st/episode/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'
+  const canonical = 'https://pocketcasts.com/podcast/show/642bf450-e9fa-013a-da18-0acc26574db2/episode/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'
+  const html = () => fixture('20261027-pocket-casts.html')
+
+  test.each([short, canonical, canonical + '?utm_source=share'])('recognizes %s', url => {
+    expect(classifyPodcastUrl(url)).toBe('pocketcasts')
+  })
+
+  test.each([
+    'https://pocketcasts.com/podcast/show/642bf450-e9fa-013a-da18-0acc26574db2',
+    'https://pca.st/podcast/123',
+    'https://pca.st.evil.test/episode/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'
+  ])('rejects non-episode %s', url => {
+    expect(classifyPodcastUrl(url)).toBeNull()
+  })
+
+  test('reads rendered metadata without treating the site language as the audio language', async () => {
+    const info = parsePocketCastsPage(short, html())!
+    expect(info).toMatchObject({
+      kind: 'pocketcasts',
+      audioUrl: 'https://media.example.com/episode.m4a',
+      showName: '高能量',
+      durationSec: 5160,
+      language: null,
+      languageTag: null,
+      shownotes: 'Episode notes.',
+      transcripts: []
+    })
+    expect(await podcastSourceId(info.audioUrl)).toBe(await podcastSourceId(parsePocketCastsPage(canonical, html())!.audioUrl))
+  })
+
+  test.each(['http://127.0.0.1/private.mp3', 'https://user:pass@example.com/episode.mp3', 'javascript:alert(1)', 'file:///episode.mp3'])('rejects unsafe media %s', url => {
+    expect(parsePocketCastsPage(short, html().replace('https://media.example.com/episode.m4a', url))).toBeNull()
+  })
+
+  test('reads typed publisher transcripts and ignores the HTML viewer', () => {
+    const page = html().replace('</head>', '<link rel="transcript" type="text/vtt" href="https://publisher.example/episode.vtt" hreflang="zh"><link rel="transcript" href="https://publisher.example/viewer"></head>')
+    expect(parsePocketCastsPage(short, page)!.transcripts).toEqual([{ url: 'https://publisher.example/episode.vtt', type: 'text/vtt', language: 'zh' }])
+  })
+
+  test('missing audio remains a normal page', () => {
+    expect(parsePocketCastsPage(short, '<html><h1>Episode</h1></html>')).toBeNull()
   })
 })

@@ -27,6 +27,7 @@ function wire() {
     logsService: createMockLogsService(),
     alertBot: createMockAlertBot(),
     podcastEpisodeRepo: episodes,
+    markRepo: { bodyHasMarks: vi.fn().mockResolvedValue(false) },
     podcastArticleRepo: articles
   })
   return { svc: svc as CrawlService, putIfKeyExists, br, episodes, articles }
@@ -232,5 +233,31 @@ describe('parseAndSavePodcast', () => {
 
     episodes.upsertFromInfo.mockRejectedValue(new Error('pg down'))
     await expect(svc.parseAndSavePodcast(createMockCtx(), info, 11, 'ub-11')).resolves.toMatchObject({ contentKey: 'snapshots/ub-11/test/body.html' })
+  })
+})
+
+describe('Pocket Casts capture and recovery', () => {
+  const url = 'https://pca.st/episode/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'
+  test('uses browser fetching and saves the player for the existing bookmark', async () => {
+    const { svc, putIfKeyExists, episodes } = wire()
+    const ctx = createMockCtx()
+    const page = vi.spyOn(svc, 'fetchPodcastPage').mockResolvedValue({ content: fixture('20261027-pocket-casts.html'), url })
+    const info = await svc.fetchPodcastData(url, ctx)
+    expect(page).toHaveBeenCalledWith(ctx, url)
+    expect(info?.kind).toBe('pocketcasts')
+    await svc.parseAndSavePodcast(ctx, info!, 42, 'existing-uuid')
+    expect(episodes.upsertFromInfo).toHaveBeenCalledWith(await podcastSourceId(info!.audioUrl), info)
+    expect(putIfKeyExists.mock.calls.some(call => String(call[1]).includes('slax-media'))).toBe(true)
+  })
+
+  test('does not replace an annotated Pocket Casts body', async () => {
+    const { svc, putIfKeyExists, episodes } = wire()
+    const ctx = createMockCtx()
+    vi.spyOn(svc, 'fetchPodcastPage').mockResolvedValue({ content: fixture('20261027-pocket-casts.html'), url })
+    ;(svc as any).markRepo.bodyHasMarks.mockResolvedValue(true)
+    const info = await svc.fetchPodcastData(url, ctx)
+    await expect(svc.parseAndSavePodcast(ctx, info!, 42, 'existing-uuid')).rejects.toThrow('annotated')
+    expect(episodes.upsertFromInfo).not.toHaveBeenCalled()
+    expect(putIfKeyExists).not.toHaveBeenCalled()
   })
 })
