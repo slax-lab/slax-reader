@@ -1,6 +1,6 @@
 # PowerSync submission follow-up — 2026-10-27
 
-Approved scope: reuse ordinary Add URL's local insertion, connector and queue; route Reader PUTs to existing Fork admission/Workflow; preserve inherited ordinary-save boundaries. No schema, bucket, migration, public contract, `forked_from_id` projection, R2 path, version or maintenance changes. Base: `origin/dev` at `0e39dc6c` (merged performance PR #396). Work is isolated on `feat/fork-powersync`; the primary checkout remains untouched.
+Approved scope: reuse ordinary Add URL's local insertion, connector and queue; route Reader PUTs to existing Fork admission/Workflow; preserve inherited ordinary-save boundaries. No schema, bucket, migration, public contract, `forked_from_id` projection, R2 path, version or maintenance changes. Initial base: `origin/dev` at `0e39dc6c` (merged performance PR #396); rebased before publication onto `79491af2`, retaining merged #398 Save-button presentation. Work is isolated on `feat/fork-powersync`; the primary checkout remains untouched.
 
 ## Checks and executed behavior
 
@@ -13,7 +13,7 @@ Approved scope: reuse ordinary Add URL's local insertion, connector and queue; r
 | API build and Web build | Passed using public example/local configuration; API build is a dry run, no deployment. |
 | API lint | Passed with zero errors and 344 existing warnings. |
 | Web lint | Full tree has 99 import-order errors in 99 untouched files. Changed Web files pass with zero errors and two existing-style test `any` warnings. No repository-wide formatting changes were made. |
-| Strict OpenSpec validation | `pnpm exec openspec validate --all --strict`: all 76 changes/specs pass. |
+| Strict OpenSpec validation | `pnpm exec openspec validate --all --strict`: all 77 changes/specs pass after integration with #398. |
 | Real PostgreSQL | 46 tests passed: 39 existing publication/isolation tests plus seven new sync admission tests. Fresh owned PostgreSQL 17 container, historical migrations, fixture-only data, cleanup afterward. Test files run serially to avoid the existing contention-sensitive publication fixture. |
 | Real HTTP/Workflow/R2 | `FORK_SMOKE=1 pnpm api -- test:http` passed. Six content types created through `/v1/sync/changes` with their local UUID; real Edge/Core/Workflow/PostgreSQL/D1/R2 copied and published content. Existing repeated HTTP Fork, ordinary add/list/delete and source-access checks also pass. |
 | Running browser exercise | Headless Chrome, real Vue button/modal/hook/local save guard and real browser PowerSync SQLite/CRUD queue, at 1280/768/320px in light/dark themes. Immediate saved state while upload is paused, modal closure, same-URL duplicate prevention, failed local write followed by retry, loading/disabled state during a delayed local insert, and no premature detail refresh all pass. |
@@ -27,6 +27,8 @@ New PostgreSQL cases verify client UUID commitment before Workflow creation, dep
 Independent Bugs/Security/Compliance review selected `add-bookmark-fork`. One Important introduced bug was found and reproduced: after a Reader create persisted, a lost-response replay following source deletion/revocation could incorrectly invoke the failed-placeholder writer and block upload. The correction checks the submitted UUID against both relation ownership and private-resource ownership before readmission. Existing private rows are acknowledged; new explicit saves still receive new UUIDs and can refresh. Both real PostgreSQL regressions failed before the correction and pass afterward. No schema, alias or command receipt was added. The independent follow-up review checked the final diff, regressions and evidence and reported no remaining Important findings or nits across Bugs, Security and Compliance.
 
 Ordinary-only batches remain one transaction. Mixed batches commit contiguous ordinary operations, then a Reader admission, then dependent edits; partial commit/replay is deliberate and does not promise exactly-once processing. Source rejection reuses the existing terminal failure writer. Infrastructure failures still reject upload. Busy/uncertain dispatch acknowledges a persisted resource while retaining its active writer claim; no replacement crawl or new rescue is started.
+
+After rebasing onto #398, 17 focused Web tests and changed-file lint passed. The independent reviewer confirmed the new Save presentation and existing page refresh handler remain compatible: local queue acceptance suppresses refresh while HTTP acceptance still emits it.
 
 ## Human acceptance
 
