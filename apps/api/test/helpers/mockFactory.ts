@@ -1,5 +1,41 @@
 import { vi } from 'vitest'
 
+/** Adapter fixture; bundle atomicity and manifests are covered by the snapshot service tests. */
+export function createMockMediaSnapshots(put?: (key: string, value: string) => Promise<unknown>, update?: (id: number, fields: any) => Promise<unknown>) {
+  return {
+    load: vi.fn(async () => null),
+    readable: vi.fn(async () => true),
+    allowsBody: vi.fn(async () => true),
+    settle: vi.fn(async () => false),
+    settleSource: vi.fn(async () => 0),
+    openRequest: vi.fn(),
+    indexSnapshot: vi.fn(async () => false),
+    denyYoutube: vi.fn(),
+    denyPodcast: vi.fn(),
+    initialize: vi.fn(async (ref: any, userId: number, player?: any) => ({
+      schema: 1,
+      kind: ref.media_kind,
+      mode: 'capture',
+      revision: '',
+      sourceId: ref.source_id,
+      sourceHash: ref.source_hash,
+      inputFingerprint: ref.source_hash,
+      defaultLanguage: 'en',
+      transcript: 'pending',
+      bodyLanguage: null,
+      variants: { en: { status: 'pending' } },
+      player
+    })),
+    capture: vi.fn(async (id: number, uuid: string, body: { html: string; text: string }, fields: any, _media: any) => {
+      const content = { content_key: `snapshots/${uuid}/test/body.html`, content_md_key: `snapshots/${uuid}/test/body.txt`, content_word_count: body.text.length }
+      await put?.(content.content_md_key, body.text)
+      await put?.(content.content_key, body.html)
+      await update?.(id, { ...fields, ...content, status: 'success' })
+      return content
+    })
+  }
+}
+
 // ---- ContextManager ----
 
 export function createMockCtx(overrides: { userId?: number; encodeUserId?: number; lang?: string; envType?: string; platform?: string; hashIds?: Record<string, any> } = {}) {
@@ -47,6 +83,7 @@ export function createMockEnv(runType = 'dev') {
 
 export function createMockBookmarkService() {
   return {
+    getForkMetadata: vi.fn().mockResolvedValue({ has_fork: false, fork: null, viewer_fork_status: null }),
     capturePdf: vi.fn().mockResolvedValue(false),
     getPdfDescriptor: vi.fn().mockResolvedValue(undefined),
     addUrlBookmark: vi.fn(),
@@ -70,6 +107,9 @@ export function createMockBookmarkService() {
 
 export function createMockCrawlService() {
   return {
+    claimCapture: vi.fn().mockResolvedValue(true),
+    ownsCapture: vi.fn().mockResolvedValue(true),
+    setCaptureStatus: vi.fn().mockResolvedValue(true),
     resolveFinalUrl: vi.fn().mockImplementation((_ctx: any, url: string) => Promise.resolve(url)),
     resolveShortLink: vi.fn().mockImplementation((_ctx: any, url: string) => Promise.resolve(url)),
     pushBookmarkFailureAlert: vi.fn().mockResolvedValue(undefined),
@@ -229,7 +269,8 @@ export function createMockUserRepo() {
 
 export function createMockStep() {
   return {
-    do: vi.fn(async (_name: string, _opts: any, fn: () => Promise<any>) => fn())
+    do: vi.fn(async (_name: string, optionsOrCallback: any, callback?: () => Promise<any>) =>
+      (typeof optionsOrCallback === 'function' ? optionsOrCallback : callback)())
   }
 }
 
@@ -246,6 +287,7 @@ export function createMockWorkflowEvent(overrides: Record<string, unknown> = {})
       callbackChatId: 0,
       callbackOriginMessageId: 0,
       ignoreGenerateTag: false,
+      captureRevision: '2026-10-22T00:00:00.000Z',
       ...overrides
     }
   }

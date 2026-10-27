@@ -26,10 +26,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
         node:
           - 22.22.2
           - 24.15.0
+          - 26.12.1
     steps:
       - uses: actions/checkout@v4
         with:

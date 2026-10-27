@@ -78,6 +78,7 @@ model sr_user_bookmark {
 
     user_id        Int      @default(0)
     bookmark_id    Int      @default(0)
+    forked_from_id Int?
     is_read        Boolean  @default(false)
     archive_status Int      @default(0)
     is_starred     Boolean  @default(false)

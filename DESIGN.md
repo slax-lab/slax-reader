@@ -1,5 +1,20 @@
 # Slax Reader Design Contract
 
+## Scope and change policy
+
+- **Owns:** UI design intent, application profiles, token and icon rules, the theme-support
+  matrix (§6), the material-UX demo checkpoint (§10.1), the hands-on acceptance procedure
+  (§10.2), and the design change workflow.
+- **Does not own:** repository workflow and review policy (`REVIEW.md`, root agent rules);
+  verification evidence recording (`docs/DEFINITION-OF-DONE.md`); executable token values
+  (application-owned token and style files).
+- **Intake:** design intent, permitted variants, accessibility requirements, profiles, and
+  documented exceptions. A visible change still follows the repository OpenSpec workflow; a
+  new normative threshold belongs in this contract.
+- **Outflow:** operational verification or review steps move to their owning document;
+  executable values move to the application's token files. Update inbound links and keep old
+  section references working.
+
 Status: **normative for UI design and implementation**
 
 This document is the single design contract for Slax Reader. It defines the visual intent, application profiles, semantic boundaries, exceptions, and maintenance workflow that humans and coding agents must follow when changing user interfaces.
@@ -22,9 +37,10 @@ Before changing UI code:
 
 1. Read this contract.
 2. Identify the application profile and renderer involved.
-3. Inspect that application's runtime tokens and nearby components.
-4. Check the theme-support matrix and documented exceptions.
-5. Use the archived prototype only for visual context or provenance.
+3. Decide whether the change is material UX (§10.1); if it is, offer the optional requirements-discovery demo and, when the human accepts, record the approval before writing dependent code.
+4. Inspect that application's runtime tokens and nearby components.
+5. Check the theme-support matrix and documented exceptions.
+6. Use the archived prototype only for visual context or provenance.
 
 Public article content, third-party iframes, email markup, Open Graph/Satori output, charts, and Shadow DOM surfaces may have renderer-specific constraints. They still follow the semantic intent where practical, but must not inherit global application CSS blindly.
 
@@ -230,6 +246,23 @@ The common reference sizes are 12, 14, 15, 16, 17, 18, 20, 24, and 32 pixels. Fi
 - Avoid duplicate screen-reader output from both an icon title and its labelled control.
 - Verify stroke weight and optical alignment at the actual rendered size.
 
+### 7.5 Public-reader save-state icons
+
+The `/b/[id]` save action uses the Web registry's `snapshot.save` (outline star)
+and `snapshot.saved` (filled star). Both reuse the curated `bookmark-action-star`
+SVG pair, preserve its `0 0 24 24` view box and provenance, and render at 14px with
+`currentColor` paint. The surrounding localized button labels the action; both
+icons use `control-labelled` accessibility and remain hidden from the accessibility
+tree. The saved state contains no trailing checkmark.
+
+This star pair represents saving a shared snapshot as a personal copy in this
+placement. It does not toggle the separate starred-bookmark flag. The saved
+button keeps its accent treatment at full opacity while preventing duplicate
+activation; unavailable metadata and an in-flight request have separate visual
+states. Use Web semantic tokens for all themes, preserve the 44px minimum hit-area
+height and visible keyboard focus, and keep the resting surface transparent and
+borderless. The runtime files own exact executable values.
+
 ## 8. Components and states
 
 Every changed interactive component must account for:
@@ -259,17 +292,68 @@ Avoid generic escape hatches such as `misc`, `special`, or `temporary-color`.
 
 ## 10. Change workflow
 
+Design intent has two human checkpoints: an optional requirements-discovery demo for material UX changes, used when the human chooses it (§10.1), and hands-on acceptance of the implemented change (§10.2).
+
 For every design-related change:
 
 1. Identify the application profile and renderer.
 2. Confirm the intended semantic role in this contract.
-3. Reuse or update the application-owned runtime token.
-4. Add an UnoCSS bridge only when utility consumption benefits.
-5. Check all required states, viewport transitions, and themes for the affected surface.
-6. Update this contract when semantic intent or an allowed exception changes.
-7. Update the reference snapshot only from a fixed source commit and regenerate its manifest.
+3. Decide whether the change is material UX (§10.1). If it is, offer the demo; when the human accepts, wait for dependent implementation, update the requirements from the feedback, and record the approval in the change's `proposal.md`.
+4. Reuse or update the application-owned runtime token.
+5. Add an UnoCSS bridge only when utility consumption benefits.
+6. Check all required states, viewport transitions, and themes for the affected surface.
+7. Update this contract when semantic intent or an allowed exception changes.
+8. Update the reference snapshot only from a fixed source commit and regenerate its manifest.
 
 Documentation, reference snapshots, agent rules, and non-behavioral validation may use `OpenSpec: n/a`. Any visible change to color, spacing, icon rendering, accessible naming, interaction, or theme behavior requires the repository's OpenSpec proposal and review flow before implementation.
+
+### 10.1 Material UX changes offer an optional requirements-discovery demo
+
+A change is **material UX** when it restructures any of:
+
+- information architecture — which content groups or surfaces exist and how they are organized;
+- the navigation model — how users move between surfaces and return, including entry points and back behavior;
+- a multi-step flow — the number, order, or composition of steps in a task;
+- a core interaction — the primary gesture or control through which users perform a central product action;
+- primary-action placement — which control is the main call to action on a surface and where it sits;
+- a whole-screen layout — the arrangement of a screen's main regions.
+
+For such a change, before dependent implementation begins, ask the human whether they want a static mockup or clickable demo of the intended structure. The demo is never mandatory. Ask while requirements are still being shaped, so the demo can inform them rather than sign off a settled design.
+
+Recommend the demo, naming the specific reason, when either:
+
+- **requirement uncertainty** — the requirements or intended behavior are vague, incomplete, or contested, and a demo would give the human something concrete to react to, exposing missing or conflicting requirements;
+- **high rework risk** — reversing the structural decision after implementation would rebuild multiple screens, flows, or tests.
+
+The human decides. When they decline, implementation proceeds with no demo, approval record, or decision note; do not repeat the offer for the same change, and treat the conversation as the decision record.
+
+When the human accepts, the demo is a requirements-discovery step, not a visual sign-off:
+
+- All implementation whose requirements or design depends on the unresolved UX decisions waits — UI implementation, backend behavior, data models, API contracts, and test expectations. While the offer is unanswered, dependent implementation does not begin.
+- Only work that is demonstrably independent may proceed — environment setup, technical research or spikes, independent benchmarks, generic tooling. Independence must be demonstrable: the work's outcome cannot change based on the UX result, and it is not enough that the work touches another layer or directory.
+- Demo feedback updates the requirements first: the change's `proposal.md` always, and the delta spec or design when requirements or design change. Those updated artifacts are the implementation target.
+- Feedback that changes the approved structure, scope, or requirements direction returns to a revised demo and approval for the changed part before that part is implemented.
+
+An accepted demo covers:
+
+- the main flow from entry to completion, with at least one representative branch;
+- the key states the surface can present — empty, loading, error, disabled or unavailable, selected — plus the interactive states in §8;
+- the themes the theme-support matrix (§6) requires for the surface;
+- the responsive widths in §5.5 — desktop, the primary `768px` transition, and the component's narrowest supported width.
+
+Name any inapplicable state, theme, or width with its reason instead of omitting it silently.
+
+After the feedback is incorporated, record the approval in the change's `proposal.md`: who approved and their role, the date, the demonstrated scope, the covered states/themes/widths, the feedback that changed the requirements and the resulting changes, requested adjustments or conditions, and the decision that the updated requirements may be implemented. Write the record to stand alone — demos are often temporary, and the archived change must still describe the approved structure. Demo screenshots and recordings follow the repository's media rule: attached, never committed.
+
+Exempt: token or color corrections, copy changes, bug fixes that restore already-approved behavior, and local component adjustments inside an existing approved pattern. No offer is required for them, and implementation may proceed.
+
+`REVIEW.md` does not require a demo or an approval record: their absence is not a Compliance finding and never blocks a pull request. The review does not re-review a demo's design quality.
+
+### 10.2 Hands-on acceptance after implementation
+
+An accepted demo's approval authorizes implementation, not shipment. A UI-visible change still completes the post-implementation human acceptance required by the repository's Definition of Done: the human exercises the implemented change in the agent-prepared running environment before the pull request opens, requested adjustments are implemented and re-verified first, and the acceptance is recorded with who, when, and what was adjusted. Neither record substitutes for the other, and a declined demo changes nothing here.
+
+This acceptance step has no declared-gap path. `docs/DEFINITION-OF-DONE.md` records the acceptance evidence; this section owns the procedure.
 
 ## 11. Agent checklist
 
@@ -283,6 +367,7 @@ Before completing UI work, an agent must be able to answer:
 - Does imported SVG content pass the active-content boundary?
 - Is the archived prototype being used only as reference?
 - Does the change alter observable behavior and therefore require OpenSpec?
+- Is this a material UX change; if so, was the demo offered, and when accepted, is the feedback in the requirements and the approval recorded?
 
 ## 12. Related files
 

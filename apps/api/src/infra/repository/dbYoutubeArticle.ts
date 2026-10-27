@@ -38,7 +38,16 @@ export class YoutubeArticleRepo extends MediaArticleRepo {
   public async listBackfillCandidates(
     limit: number,
     beforeId?: number
-  ): Promise<{ user_bookmark_id: number; bookmark_id: number; user_id: number; target_url: string; lang: string; ai_lang: string }[]> {
+  ): Promise<
+    {
+      user_bookmark_id: number
+      bookmark_id: number
+      user_id: number
+      target_url: string
+      lang: string
+      ai_lang: string
+    }[]
+  > {
     return this.prismaPg().$queryRaw(Prisma.sql`
       SELECT ub."id" AS user_bookmark_id, ub."bookmark_id", ub."user_id", b."target_url", u."lang", u."ai_lang"
       FROM "sr_user_bookmark" ub
@@ -46,6 +55,7 @@ export class YoutubeArticleRepo extends MediaArticleRepo {
       JOIN "sr_user" u ON u."id" = ub."user_id"
       JOIN "sr_user_lab_feature" l ON l."user_id" = ub."user_id" AND l."feature" = 'youtube_article' AND l."enabled" = true
       WHERE ub."deleted_at" IS NULL
+        AND ub."forked_from_id" IS NULL
         AND (b."site_name" = 'YouTube' OR b."target_url" ~ 'youtu\.be/|youtube\.com/(watch|shorts|live|embed)')
         AND NOT EXISTS (SELECT 1 FROM "sr_youtube_article_ref" r WHERE r."bookmark_id" = ub."bookmark_id")
         ${beforeId ? Prisma.sql`AND ub."id" < ${beforeId}` : Prisma.empty}

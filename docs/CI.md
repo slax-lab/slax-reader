@@ -1,37 +1,44 @@
-# CI scope selection
+# Continuous Integration (CI)
+
+## Scope and change policy
+
+- **Owns:** CI scope selection, workflow and gate mechanics, the promotion-integrity check,
+  ruleset drift detection, the required configuration check, review readiness, daily full
+  validation, Mobile EAS builds, release verification, and local verification commands.
+- **Does not own:** branch protection, approvals, promotion, sync-back, or hotfix policy
+  (`docs/BRANCHING.md`); review policy (`REVIEW.md`); the verification-evidence procedure
+  (`docs/DEFINITION-OF-DONE.md`); the normative CI and branch requirements
+  (`openspec/specs/ci-scope-selection/spec.md`, `openspec/specs/release-branching/spec.md`).
+- **Intake:** CI mechanics, workflow behavior, and troubleshooting. A new required context or
+  merge-method restriction enters the codified ruleset and its owning spec first.
+- **Outflow:** branch policy moves to `docs/BRANCHING.md`; verification policy moves to
+  `docs/DEFINITION-OF-DONE.md`. Update inbound links and keep old links working.
 
 Application validation runs on pull requests, including promotion PRs, and through independent daily full validation on dev. Each PR CI workflow first checks the complete PR merge-base/head diff with `tooling/ci-scope.mjs`. Detection checks out full history and needs no pnpm installation. Unrelated workflows can therefore appear with a small detection job, while their build and test jobs are skipped. Application suites do not run again solely because the PR merged into dev, beta, or main; the separate Mobile EAS release gate is the only exception and runs only after a committed Mobile build-number increase.
 
 The detector uses the PR's actual base branch and includes earlier PR commits, removed files, and both sides of a rename. It does not depend on GitHub's limited path-filter file window. Missing revisions, shallow history, and failed comparisons fail visibly rather than return an empty selection. The job summary lists selected and skipped scopes; detector output records the input paths that selected each scope.
 
-## Branch protection and required contexts
+Branch responsibilities, the protection table, approvals, promotion, sync-back, and hotfix steps live in `docs/BRANCHING.md`. This page owns how CI selects and enforces its checks.
 
-Every long-lived branch rejects direct pushes, force-pushes, and deletion, and administrator bypass actors are configured in `pull_request` mode — an administrator can merge an exceptional pull request, but a direct push stays rejected even for them. The branches gate different decisions, so their entry conditions and required contexts differ:
-
-| Branch | Entry rule | Required contexts | Merge methods |
-| --- | --- | --- | --- |
-| `dev` | Any pull request | `agent-config drift check`, `PR review gate`, `Web CI gate`, `Extension CI gate`, `API CI gate`, `Mobile CI gate`, `CLI CI gate`, `Tooling CI gate` | merge, squash, rebase |
-| `beta` | Head is `dev` or `hotfix/*` | `promotion integrity`, `Web CI gate`, `Extension CI gate`, `API CI gate`, `Mobile CI gate`, `CLI CI gate`, `Tooling CI gate` | merge commit only |
-| `main` | Head is `beta` or `hotfix/*` | `promotion integrity` | merge commit only |
+## Gate job contract
 
 Each application CI workflow ends in a terminal gate job whose name is a ruleset-referenced contract: `Web CI gate` and `Extension CI gate` in `frontend-ci.yml`, `API CI gate` in `api-ci.yml`, `Mobile CI gate` in `mobile-ci.yml`, `CLI CI gate` in `cli-ci.yml`, and `Tooling CI gate` in `tooling-ci.yml`. The gate fails when any job in its suite failed and succeeds otherwise, so a suite that `ci-scope` skipped reports success and never blocks. `tooling/ci-workflow.test.mjs` asserts the exact gate names and their `if: always()` wiring; renaming one without updating the rulesets strands its required context at "Expected" and blocks the branch.
 
-No approving review is required on `beta` or `main` for a promotion: the content was reviewed when it entered `dev`, and the administrator's merge is the designed release-decision act. A `hotfix/*` head never passed through `dev`, where reviews happen, so `promotion integrity` requires one approving review from an approver other than the hotfix author. On `main` the six suite gates are required through `promotion integrity` rather than as separate ruleset contexts; the promotion pull request still reports them because every pull request runs the application CI workflows.
+Node.js runtime coverage is part of that contract: `cli-ci.yml` runs the CLI typecheck, tests, and package smoke on Node 22.22.2, 24.15.0, and the pinned Node 26 release (26.12.1), and the `tooling-ci.yml` `check` job runs `pnpm test:preflight` and `pnpm test:ci` on Node 22.22.2 and 26.12.1; the CLI and Extension release-tooling suites keep Node 24.15.0 in their own jobs. Both matrices disable `fail-fast`, so a failure on one Node line does not cancel the others. Every version is an exact patch pin, and changing the declared `engines` support range requires the matching matrix change.
 
 ## Promotion integrity check
+
+On `main` the six suite gates are required through `promotion integrity` rather than as separate ruleset contexts; the promotion pull request still reports them because every pull request runs the application CI workflows.
 
 `.github/workflows/promotion-gate.yml` runs on `pull_request_target` for pull requests targeting `beta` and `main`. The workflow file and the gate script both come from the default branch — pinning the script to the pull request's base commit was rejected because the script does not exist on `beta`/`main` until the first promotion lands, which would leave the required context silently missing exactly when the gate first matters — so the only code that runs comes from a reviewed, protected branch (for a `dev` → `beta` promotion the head *is* the default branch; the trust boundary there is `dev`'s review process itself). The required `promotion integrity` context is a check run the script explicitly creates on the head SHA through the Checks API — not the conclusion of the workflow job itself (the job is named `Promotion gate runner` so it cannot collide with the required context). Every failure path still reports a failing check run; only an unreportable verdict fails the job, which leaves the context missing and blocks the merge. One residual is inherent to the required-context model: GitHub matches required checks by name, so any workflow that lands on a protected branch with `checks: write` runs as the same GitHub Actions app and could mint a same-named success on a head SHA. Landing such a workflow requires passing `dev` review in the first place, the gate re-asserts on every `synchronize`, and the administrator's merge remains the designed backstop. The check fails closed on any API shape it does not recognize and asserts:
 
 - The head branch is an allowed source and lives in this repository: `dev` or `hotfix/*` for `beta`; `beta` or `hotfix/*` for `main`. A fork branch named `dev` is rejected.
 - The six application CI gates, reported by the GitHub Actions app, are present and completed successfully on the pull request's head commit. A skipped suite gate counts as success only because `ci-scope` did not select that suite for the diff.
 - For a `beta` → `main` promotion, the beta-environment deployment evidence is green. Deploy workflows attach their conclusions to the merged pull request's head SHA rather than the merge commit, so the gate resolves the promotion head through the merged pull request that produced the `beta` tip, then reads the `beta` deployments on that head SHA and the `api-deploy`/`web-deploy` run conclusions behind them. Both deploy workflows are paths-filtered, so evidence is required only from a workflow that registered a run for that head SHA — a batch that triggered no deploy workflow has nothing to deploy and passes without it. A `hotfix/*` head skips this evidence, because it never entered `beta`.
-- For a `hotfix/*` head, the pull request carries an approving review from someone other than its author; a later changes-requested or dismissed review revokes it, and self-approval does not count. This lives in the gate rather than in the ruleset because rulesets cannot condition on a pull request's head branch — a ruleset-level review requirement would force reviews onto every promotion.
 
 The suite gates and beta deploys trigger around the same time as the gate, so the script polls the evidence every 30 seconds up to a 45-minute deadline (`PROMOTION_GATE_TIMEOUT_MS`); a completed failure fails immediately, and a timeout names the contexts still outstanding.
 
-`pull_request_review` is deliberately not a trigger: that event would run the workflow file from the pull request's merge commit, which a same-repository head branch can edit, letting a hotfix self-certify the required check. After a non-author approving review lands on a hotfix, re-run the workflow (Actions → re-run all jobs) to re-evaluate the review assertion; the gate's failure message says the same.
-
-The workflow uses the repository `GITHUB_TOKEN` with `actions: read`, `checks: write`, `contents: read`, `deployments: read`, and `pull-requests: read`; it does not need the administration permission that drift detection uses.
+The workflow uses the repository `GITHUB_TOKEN` with `actions: read`, `checks: write`, `contents: read`, `deployments: read`, and `pull-requests: read` (the beta → main provenance lookup reads `commits/{sha}/pulls`); it does not need the administration permission that drift detection uses.
 
 ## Ruleset state and drift detection
 
@@ -51,7 +58,7 @@ The expected ruleset state is codified in `.github/rulesets.expected.json`, and 
 | Extension implementation/config/tests | Extension compile and tests, shared type prerequisites, controlled release-tooling checks |
 | API implementation/config/tests | Generation, lint, typecheck, tests, offline Worker build |
 | Mobile implementation/config/tests | Mobile checks and JavaScript bundle |
-| CLI implementation/config/tests | CLI typecheck, tests, and package smoke on Node 22.22.2 and 24.15.0; CLI tooling checks |
+| CLI implementation/config/tests | CLI typecheck, tests, and package smoke on Node 22.22.2, 24.15.0, and 26.12.1; CLI tooling checks |
 | `packages/contracts/**` | All five application consumers |
 | Shared frontend packages | Web and Extension |
 | Unclassified shared workspace packages | Conservative coverage of all application consumers |
@@ -106,7 +113,7 @@ Frontend, API, Mobile, CLI, Tooling, and agent-config use the caller workflow na
 
 The Full CI workflow also supports Actions **Run workflow**, selecting **dev**, or `gh workflow run full-ci.yml --ref dev`. A manual run targeting another ref fails its source guard with an explicit error.
 
-Full CI calls the six existing validation workflows with `full_validation: true`. It skips scope detection entirely and runs Web, Extension, API, Mobile, both CLI Node versions, all root tooling suites, design/icon validation, rulesync, strict OpenSpec validation, and full pinned gh-aw compilation with orphan detection. Standalone icon jobs are unnecessary because full Web and Mobile validation already includes them. A stale path rule cannot suppress these checks, even if every scope output would be false.
+Full CI calls the six existing validation workflows with `full_validation: true`. It skips scope detection entirely and runs Web, Extension, API, Mobile, all three CLI Node versions, all root tooling suites, design/icon validation, rulesync, strict OpenSpec validation, and full pinned gh-aw compilation with orphan detection. Standalone icon jobs are unnecessary because full Web and Mobile validation already includes them. A stale path rule cannot suppress these checks, even if every scope output would be false.
 
 Results and failures are visible in Actions. Daily and manual full runs serialize by ref without canceling an executing run; their child suites remain independent of each other and of PR validation. This workflow has read-only repository permissions and does not call deployment, publication, or AI review. Native Mobile builds remain outside the existing CI suite; the separate EAS cloud trigger below submits a build to EAS without running native build steps on a GitHub runner. No extra notification channel is configured.
 

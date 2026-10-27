@@ -176,9 +176,27 @@ describe('bookmark metadata persistence', () => {
     expect(createBookmarkBase).not.toHaveBeenCalled()
   })
 
+  it('passes requested personal state into atomic Fork creation', async () => {
+    const service = Object.create(BookmarkService.prototype) as BookmarkService
+    const fork = vi.fn(async () => ({ bookmark_id: 42, disposition: 'created' }))
+    Object.assign(service, { forkService: { fork } })
+    const ctx = createMockCtx()
+    ctx.env.FRONT_END_URL = 'https://reader.test'
+    const uuid = 'fad74b04-85c7-470c-a31b-13c2f3963fe2'
+    await service.addUrlBookmarkItem(ctx, {
+      target_url: `https://reader.test/b/${uuid}`,
+      tags: [],
+      import_only: true,
+      saved_at: '2020-01-02T03:04:05Z',
+      is_starred: true,
+      is_archive: true
+    })
+    expect(fork).toHaveBeenCalledWith(ctx, uuid, { savedAt: new Date('2020-01-02T03:04:05Z'), starred: true, archived: true })
+  })
+
   it('passes new import metadata into creation and crawls archived articles', async () => {
     const service = Object.create(BookmarkService.prototype) as BookmarkService
-    const createBookmarkBase = vi.fn().mockResolvedValue({ id: 42, private_user: 1 })
+    const createBookmarkBase = vi.fn().mockResolvedValue({ id: 42, private_user: 1, status: 'pending', updated_at: new Date('2026-10-22T00:00:00Z') })
     Object.assign(service, { bookmarkData: { getBookmark: vi.fn().mockResolvedValue(null) }, createBookmarkBase, labService })
     const result = await service.addUrlBookmarkItem(createMockCtx(), {
       target_url: 'https://example.com/a',

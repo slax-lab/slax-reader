@@ -166,7 +166,10 @@ const updateTitle = () => {
   title.value = document.title || document.querySelector('meta[property="og:title"]')?.getAttribute('content') || `${location.href}${location.pathname}`
 }
 
+let addBookmarkInFlight = false
 const addBookmark = async () => {
+  if (loading.value || addBookmarkInFlight) return
+  addBookmarkInFlight = true
   labBlocked.value = false
   keepPopupOpen = false
   showLoading('collection_in_progress')
@@ -209,6 +212,7 @@ const addBookmark = async () => {
 
     showTips({ kind: 'message', key: 'collection_failed' })
   } finally {
+    addBookmarkInFlight = false
     // 实验室拦截时留着弹窗，用户要点链接去打开
     if (!keepPopupOpen) {
       setTimeout(() => {

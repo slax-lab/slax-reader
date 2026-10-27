@@ -1,6 +1,6 @@
 # API 开发
 
-要求 Node.js >= 22.13.0 和根 packageManager 固定的 pnpm 版本。从仓库根执行以下命令。根 `package.json` 只声明通用 `api` 转发入口；具体命令与依赖在 `apps/api/package.json`，运行 cwd 由 workspace 自动切到 API。
+要求 Node.js `^22.22.2 || ^24.15.0 || >=26.0.0`（根 `engines` 要求）和根 packageManager 固定的 pnpm 版本。从仓库根执行以下命令。根 `package.json` 只声明通用 `api` 转发入口；具体命令与依赖在 `apps/api/package.json`，运行 cwd 由 workspace 自动切到 API。
 
 API 独有的 TypeScript、Vitest、ESLint、Prettier、EditorConfig 都在 `apps/api/`，四份 Prisma config 在 `apps/api/prisma/`，与 schema 和历史迁移一起维护。Prisma 的 schema/migrations 路径相对 config 文件，而非调用命令的位置；不需要为从根执行命令而把配置搬到根目录。
 

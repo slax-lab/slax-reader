@@ -1,6 +1,6 @@
 # API development
 
-Use Node.js >= 22.13.0 and the root-pinned pnpm version. Run commands at the repository root. The root manifest owns only the generic `api` dispatcher; concrete scripts and dependencies live in `apps/api/package.json` and run in that workspace. API-only TypeScript, Vitest, ESLint, Prettier and EditorConfig files live in `apps/api/`. Prisma configs live beside schemas and migrations in `apps/api/prisma/`; their schema/migration paths resolve relative to the config, independently of command cwd.
+Use Node.js `^22.22.2 || ^24.15.0 || >=26.0.0` (the root `engines` requirement) and the root-pinned pnpm version. Run commands at the repository root. The root manifest owns only the generic `api` dispatcher; concrete scripts and dependencies live in `apps/api/package.json` and run in that workspace. API-only TypeScript, Vitest, ESLint, Prettier and EditorConfig files live in `apps/api/`. Prisma configs live beside schemas and migrations in `apps/api/prisma/`; their schema/migration paths resolve relative to the config, independently of command cwd.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -75,3 +75,12 @@ The endpoint searches only the caller's saved titles and bodies. Unsaved RSS and
 Mobile Search runs local metadata retrieval while typing and invokes this API on explicit keyword submission. The optional filters and additive `bookmark_user_uuid` plus action-state fields in bookmark metadata support not-yet-synchronized saved hits without creating a second synchronized record.
 
 Search hits also return additive `target_url` and `created_at` metadata. `created_at` is the authenticated user's save time in ISO format, not an article publication date. These values are read in the final batched current-ownership/tag admission lookup; initial candidate enumeration still selects only IDs. Existing identifiers, rank and highlight fields remain unchanged, and newer clients tolerate older servers omitting the additive metadata. No schema migration or per-hit detail request is required.
+
+
+## Private bookmark and Fork runtime verification
+
+New captures use per-user private raw bookmarks. Saving a configured Reader `/b/<uuid>` URL delegates to the same copy operation as `POST /v1/bookmark/fork`; it does not parse the Reader page shell. The nullable `sr_user_bookmark.forked_from_id` references the immediate source user-bookmark row. See [the feasibility and implementation design](bookmark-fork-feasibility.md) for duplicate, access and all-format semantics.
+
+Run `FORK_SMOKE=1 pnpm api -- test:http` from the repository root to exercise all existing content formats through local Edge/Core, PostgreSQL and R2. It uses disposable resources and historical migrations, requires the documented local Docker/prerequisite tools, and performs no remote deployment. `FORK_TEST_DATABASE_URL=<disposable PostgreSQL URL> pnpm api -- test test/infra/bookmarkFork.integration.test.ts` additionally exercises publication concurrency, source-policy rechecks and sync placeholder lifecycle. Never point these fixture tests at a shared or production database.
+
+Apply the additive migration before deploying the updated API, then publish compatible Web/Extension clients. Preserve the provenance column and managed-content guards during rollback; old shared-media writers cannot safely write new private bundles. Runtime evidence and release gates are maintained in [the change validation record](../../openspec/changes/add-bookmark-fork/validation.md).

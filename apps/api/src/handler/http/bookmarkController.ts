@@ -1,4 +1,4 @@
-import { parseBookmarkSearchRequest } from '@slax-reader/contracts'
+import { parseBookmarkSearchRequest, readerBookmarkUuid } from '@slax-reader/contracts'
 import type {
   AddBookmarkRequest,
   AddUrlBookmarkRequest,
@@ -37,6 +37,7 @@ import { LabService } from '../../domain/lab'
 import { ImportFormatError, isNewImportSource, readImportBody } from '@/utils/importFormats'
 import { submitServerEvent, bookmarkEventProperties as propertiesForBookmark, getEventContext, type BookmarkEventProperties } from '../../domain/events'
 import { URLPolicie } from '@/utils/urlPolicie'
+import { MultiLangError } from '@/utils/multiLangError'
 
 @Controller('/v1/bookmark')
 export class BookmarkController {
@@ -205,6 +206,7 @@ export class BookmarkController {
         return Failed(e)
       }
       // orchestrator 内部已推飞书 'pre_workflow.invalid_input'
+      if (e instanceof MultiLangError && (e.name.startsWith('fork_') || readerBookmarkUuid(req.target_url, [ctx.env.FRONT_END_URL]))) return Failed(e)
       ctx.execution.waitUntil(this.logsService.track(ctx.getUserId(), 'bookmark_add', { channel: 'add_url', status: 'failed' }))
       return Failed(ErrorParam())
     }

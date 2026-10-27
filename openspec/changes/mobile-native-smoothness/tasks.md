@@ -73,3 +73,7 @@
 - [x] 8.3 Run the local `REVIEW.md` review and resolve Important findings.
 - [x] 8.4 Increment the Mobile `buildNumber`, regenerate native metadata, then archive, export and upload an iOS build to TestFlight for the owner's hands-on review. Nothing is pushed until the owner approves.
 - [x] 8.5 Record the commands, the build number and the device acceptance that is still pending in `validation.md`. The owner tests the TestFlight build hands-on; no simulator or device is driven by the agent at the owner's instruction.
+
+## 9. Archive
+
+- [ ] 9.1 After the task pull request merges, archive this change through a docs pull request. Classify every unchecked task, including 7.7, before archiving.

@@ -52,7 +52,7 @@ function run(root: string, script: string, args: string[], status = 0, env: Node
   return spawnSync(path.join(API_ROOT, 'node_modules/.bin/tsx'), [path.join(root, filename), ...args], {
     cwd: root,
     encoding: 'utf8',
-    env: { PATH: `${path.join(root, 'bin')}:${process.env.PATH}`, HOME: root, MOCK_LOG: path.join(root, 'calls.jsonl'), MOCK_EXIT: String(status), ...env }
+    env: { PATH: `${path.join(root, 'bin')}:${process.env.PATH}`, HOME: root, SLAX_API_SKIP_DEV_PORT_GUARD: '1', MOCK_LOG: path.join(root, 'calls.jsonl'), MOCK_EXIT: String(status), ...env }
   })
 }
 function calls(root: string): any[] {

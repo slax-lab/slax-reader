@@ -1,7 +1,7 @@
 # mobile-system-surface-persistence Specification
 
 ## Purpose
-Keep the iOS Spotlight catalog, App Intents entities and open-bookmark donations published for the active account across transient background and credential pauses, and revoke them only on explicit opt-out, sign-out or account/API-origin change.
+Defines how Mobile keeps user-published system surfaces — the Spotlight catalog, donations and pending receipts — available across transient publication-readiness loss, and when those surfaces are actually revoked.
 
 ## Requirements
 

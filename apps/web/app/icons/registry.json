@@ -578,6 +578,30 @@
         "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6"
       }
     },
+    "snapshot.save": {
+      "kind": "inline",
+      "source": "bookmark-action-star.svg",
+      "viewBox": "0 0 24 24",
+      "defaultSize": 14,
+      "paint": "currentColor",
+      "accessibility": "control-labelled",
+      "provenance": {
+        "sourcePath": "apps/web/app/pages/b/[id].vue#star",
+        "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6"
+      }
+    },
+    "snapshot.saved": {
+      "kind": "inline",
+      "source": "bookmark-action-star-active.svg",
+      "viewBox": "0 0 24 24",
+      "defaultSize": 14,
+      "paint": "currentColor",
+      "accessibility": "control-labelled",
+      "provenance": {
+        "sourcePath": "apps/web/app/pages/b/[id].vue#star-active",
+        "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6"
+      }
+    },
     "theme.light": {
       "kind": "inline",
       "source": "theme-light.svg",
