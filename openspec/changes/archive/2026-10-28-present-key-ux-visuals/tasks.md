@@ -62,5 +62,12 @@
 
 ## 5. Archive
 
-- [ ] After this change's pull request merges, archive `present-key-ux-visuals` through a docs
-  pull request.
+- [x] After this change's pull request merges, archive `present-key-ux-visuals` through a docs
+  pull request. Verify: pull request #426 is merged into `dev`, and the docs pull request moves
+  the change to `openspec/changes/archive/2026-10-28-present-key-ux-visuals/` with
+  `.openspec.yaml` preserved, merges no spec delta (`skip_specs: true` and no `specs/`
+  directory, so no requirement moves into `openspec/specs/`), and leaves both
+  `openspec validate --all --strict` and `git diff --check` passing — done; the archive command,
+  its `archivedAs` result, the validation totals, and the diff checks are recorded in
+  `validation.md` § Archive. This branch is that docs pull request's delivery step, so the task
+  is completed here rather than left open beside finished work.
