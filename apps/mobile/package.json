@@ -36,7 +36,7 @@
     "fixture:project": "node tooling/fixture-project.mjs",
     "bundle": "expo export --platform all --output-dir dist",
     "preupdate:publish": "node tooling/pdf-assets.mjs",
-    "update:publish": "SLAX_MOBILE_NO_LOCAL_CONFIG=1 EXPO_NO_DOTENV=1 eas update --channel production --environment production --platform all",
+    "update:publish": "SLAX_MOBILE_OTA=1 SLAX_MOBILE_NO_LOCAL_CONFIG=1 EXPO_NO_DOTENV=1 eas update --channel production --environment production --platform all",
     "check": "node tooling/check.mjs"
   },
   "dependencies": {

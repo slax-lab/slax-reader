@@ -7,11 +7,11 @@ Fixing a JavaScript-only production bug currently requires a new native build an
 ## What Changes
 
 - Add the SDK 58-compatible `expo-updates` native dependency.
-- Production builds check the EAS `production` channel on every cold start without delaying startup; a downloaded update applies on the next cold start.
+- Only EAS Build `production` builds enable updates (the profile sets `SLAX_MOBILE_OTA=1`); they check the EAS `production` channel on every cold start without delaying startup, and a downloaded update applies on the next cold start. Committed native projects and every local build keep updates disabled, so local testing never downloads production bundles.
 - Use the `nativeVersion` runtime policy, so an update reaches only installations with the same `version(buildNumber)`.
-- Assign the `production` channel in the EAS `production` build profile and in the embedded request header, so EAS-built and locally archived production builds share the channel.
+- Assign the `production` channel in the EAS `production` build profile and in the embedded request header.
 - Disable updates for fixture builds and for builds generated with non-production `EXPO_PUBLIC_SLAX_*` origins.
-- Add `pnpm mobile -- update:publish` (publishes to `production` with the EAS `production` environment and without local operator configuration) and document eligibility, staged rollout, rollback, quota and store-policy limits.
+- Add `pnpm mobile -- update:publish` (sets `SLAX_MOBILE_OTA=1`; publishes to `production` with the EAS `production` environment and without local operator configuration) and document eligibility, staged rollout, rollback, quota and store-policy limits.
 
 Non-goals: automatic publishing from CI, in-app update UI or immediate reload, update code signing, and a custom publish guard; the operator decides what to publish following the documented rules.
 

@@ -3,7 +3,7 @@
 ## 1. Integration
 
 - [x] 1.1 Install SDK 58-compatible `expo-updates`; verify `pnpm install --frozen-lockfile`.
-- [x] 1.2 Configure `app.config.ts` (`runtimeVersion: nativeVersion`, `updates` URL, `ON_LOAD`, `fallbackToCacheTimeout: 0`, `production` channel header; disabled for fixtures and non-production origins) and the `production` channel in `eas.json`; add a configuration test.
+- [x] 1.2 Configure `app.config.ts` (`runtimeVersion: nativeVersion`, `updates` URL, `ON_LOAD`, `fallbackToCacheTimeout: 0`, `production` channel header; enabled only for the EAS `production` profile through `SLAX_MOBILE_OTA=1`; disabled for local builds, fixtures and non-production origins) and the `production` channel in `eas.json`; add a configuration test.
 - [x] 1.3 Regenerate the native projects with operator inputs and run pods; verify the generated update metadata and that nothing else changed.
 - [x] 1.4 Add `update:publish` and document publishing, eligibility, rollout, rollback, quota and policy limits.
 

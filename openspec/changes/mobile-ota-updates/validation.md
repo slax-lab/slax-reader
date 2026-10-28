@@ -33,3 +33,21 @@ The EAS `production` channel was created by the operator and maps to branch `pro
 ## Version 1.0.25 (794)
 
 `apps/mobile/package.json` now has `buildNumber: 794`, `previousBuildNumber: 793`. iOS and Android were regenerated with `pnpm mobile -- prebuild` and `pnpm mobile -- pods`: main and share `CFBundleVersion`, Android `versionCode` and both runtimes (`EXUpdatesRuntimeVersion`, `expo_runtime_version`) are `794` / `1.0.25(794)`. The generator's one-line rewrite of `SlaxShare/Info.plist` was replaced by the established layout with only the build number changed; both parse to identical property lists. `npx expo config` reports `1.0.25`, iOS 794, Android 794, updates enabled. `pnpm mobile -- check` (1,160 tests, 0 failures, 0 skips), `pnpm mobile -- bundle`, `openspec validate --all --strict` (82 items) and `git diff --check` passed again. The iOS Release simulator launch above used build 793; only version metadata changed for 794, which was not relaunched.
+
+## Local builds isolated from production updates
+
+Owner review found that the committed native projects enabled updates, so a local Release build (or local archive) would fetch and apply a published production bundle for the same runtime, replacing the local JavaScript. Updates are now enabled only when `SLAX_MOBILE_OTA=1`: the EAS `production` build profile sets it in `eas.json` `env`, and `update:publish` sets it for `eas update`. EAS Build ignores the committed `ios/` and `android/` directories (`.easignore`) and regenerates them with the profile environment.
+
+| Command | Result |
+| --- | --- |
+| `npx expo config --type public` (no `SLAX_MOBILE_OTA`) | `updates: {enabled: false}`. |
+| `eas config --profile production --platform ios|android` | `updates.enabled: true`, project URL, `ON_LOAD`, wait 0, `production` channel header, `nativeVersion`. |
+| `pnpm mobile -- prebuild` and `pods` (local, no flag) | Committed `Expo.plist` and `AndroidManifest.xml` keep updates disabled with no URL or channel; only the runtime `1.0.25(794)` entries and the version metadata differ from `origin/dev`. |
+| `SLAX_MOBILE_OTA=1 pnpm mobile -- prebuild` (simulating the EAS production prebuild; reverted afterwards) | Generated iOS and Android metadata enable updates with the project URL, `production` channel and runtime `1.0.25(794)`. |
+| `node --test apps/mobile/tests/release/eas-updates-config.test.mjs` | 2 tests passed; removing the `SLAX_MOBILE_OTA` condition makes a test fail. |
+| `pnpm mobile -- check` | 1,160 tests passed, 0 failures, 0 skips. |
+| `pnpm mobile -- bundle`, `openspec validate --all --strict` (82 items), `git diff --check` | Passed. |
+| Export with the `update:publish` environment (`SLAX_MOBILE_OTA=1 SLAX_MOBILE_NO_LOCAL_CONFIG=1 EXPO_NO_DOTENV=1`) | Both bundles contain only the production API origin. |
+| Local iOS Release build at 794, two cold launches on a task-owned simulator | Embedded `EXUpdatesEnabled = false`; no request to `u.expo.dev`; the app reached the Login screen. Simulator and DerivedData deleted. |
+
+The earlier "Native Release startup" section shows the enabled configuration as an EAS production build now generates it; that path is no longer produced by local builds.

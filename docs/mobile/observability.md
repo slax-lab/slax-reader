@@ -6,7 +6,7 @@ The mobile application reports production performance metrics through [EAS Obser
 
 - Cold and warm launch, time to first render, time to interactive, and bundle load.
 - Per-route cold/warm first render and interactive timing for `Login`, `Library`, `Reader`, and `Reauthenticate`.
-- EAS Update download timing for builds that embed `expo-updates` once an update is published to their runtime (see [release](release.md#over-the-air-javascript-updates-eas-update)).
+- EAS Update download timing for EAS production builds once an update is published to their runtime (see [release](release.md#over-the-air-javascript-updates-eas-update)).
 - Optional user-defined events and preview JS/native error reporting only when explicitly added.
 
 The app marks interactive when the entry route is usable: Login and Reauthenticate after their first interactive render, Library when the initial list state is renderable (including a legitimate empty or error state), and Reader when the document is ready or the normal error UI is interactive. Full PowerSync synchronization and automatic cache completion are not prerequisites. Each screen mount marks interactive at most once; returning to a still-mounted screen is reported through `warm_ttr`, not a second interactive marker.

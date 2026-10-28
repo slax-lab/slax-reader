@@ -21,8 +21,10 @@ const productionOrigins = {
   EXPO_PUBLIC_SLAX_WEB_URL: 'https://r.slax.com',
   EXPO_PUBLIC_SLAX_WEB_DOMAIN: '.slax.com',
 };
-const productionBuild = !fixtureMode && Object.entries(productionOrigins).every(([key, value]) => (process.env[key] ?? value) === value);
-// Only production builds receive EAS Updates, and only those built with the same version(buildNumber).
+// Only EAS production builds and `update:publish` set SLAX_MOBILE_OTA, so locally generated projects and
+// local Release builds never fetch production bundles. Updates reach only the same version(buildNumber).
+const productionBuild = process.env.SLAX_MOBILE_OTA === '1' && !fixtureMode
+  && Object.entries(productionOrigins).every(([key, value]) => (process.env[key] ?? value) === value);
 const updates: ExpoConfig['updates'] = productionBuild ? {
   enabled: true,
   url: `https://u.expo.dev/${easProjectId}`,
