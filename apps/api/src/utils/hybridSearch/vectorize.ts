@@ -19,12 +19,8 @@ export interface vectorizeData {
 const vectorizerURL = 'https://api.jina.ai/v1/embeddings'
 const vectorizerModel = 'jina-clip-v2'
 
-export async function embedding(env: Env, content: string[], options: { strictPrivate?: boolean } = {}): Promise<vectorizeData[]> {
-  if (content.length < 1) return []
-  if (!env.JINA_API_KEY) {
-    if (options.strictPrivate) throw new Error('Private embeddings unavailable')
-    return []
-  }
+export async function embedding(env: Env, content: string[]): Promise<vectorizeData[]> {
+  if (content.length < 1 || !env.JINA_API_KEY) return []
   const resp = (await fetch(vectorizerURL, {
     method: 'POST',
     body: JSON.stringify({
@@ -43,17 +39,8 @@ export async function embedding(env: Env, content: string[], options: { strictPr
     }
   })) as Response
   if (!resp.ok) {
-    if (options.strictPrivate) throw new Error('Private embeddings unavailable')
     console.log(`vectorize failed: ${await resp.text()}`)
     return []
   }
-  const data = ((await resp.json()) as vectorizeResult).data
-  if (
-    options.strictPrivate &&
-    (!Array.isArray(data) ||
-      data.length !== content.length ||
-      data.some(row => !Array.isArray(row.embedding) || !row.embedding.length || row.embedding.some(value => !Number.isFinite(value))))
-  )
-    throw new Error('Private embeddings unavailable')
-  return data
+  return ((await resp.json()) as vectorizeResult).data
 }

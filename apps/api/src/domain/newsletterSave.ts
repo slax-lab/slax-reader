@@ -69,9 +69,10 @@ export class NewsletterSaveService {
     const tasks: Promise<unknown>[] = [
       (async () => {
         await this.searchRepo.upsertUserBookmark(ctx.getUserId(), row.bookmark_id)
+        if (result !== 'created') return
         const text = await (await this.bucket().R2Bucket.get(row.content_md_key))?.text()
         if (text === undefined) throw new Error('Private snapshot text unavailable')
-        const outcomes = await this.search.addSearchRecord(ctx, row.bookmark_id, row.title, text, { strictPrivate: true })
+        const outcomes = await this.search.addSearchRecord(ctx, row.bookmark_id, row.title, text)
         if (outcomes.some(item => item.status === 'rejected')) throw new Error('Private snapshot indexing incomplete')
       })(),
       this.search.clearSearchCache(ctx, ctx.getUserId())

@@ -2,9 +2,9 @@ import { beforeEach, test, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { db, adapter } from './fixture'
 import { NewsletterSaveRepo } from '@/infra/repository/dbNewsletterSave'
-import { NewsletterContent } from '@/domain/newsletter/content'
-import { parseNewsletter } from '@/domain/newsletter/parser'
-import { NewsletterSaveService } from '@/domain/newsletter/save'
+import { NewsletterContent } from '@/domain/newsletterContent'
+import { parseNewsletter } from '@/utils/newsletter'
+import { NewsletterSaveService } from '@/domain/newsletterSave'
 import { memoryBucket } from '../../utils/snapshotBucket'
 import { readEmbeddedSnapshot } from '@/utils/snapshotBundle'
 let indexing: ReturnType<typeof vi.fn>, service: NewsletterSaveService, repo: NewsletterSaveRepo, storage: ReturnType<typeof memoryBucket>
@@ -62,6 +62,7 @@ test.each([true, false])('copies mail into an owned HTML/text snapshot and follo
   expect(row.content_key).toMatch(/^html\/body\//)
   expect(row.content_key).not.toBe('newsletter-content/original')
   const html = await (await storage.bucket.get(row.content_key))!.text()
+  expect(indexing.mock.calls[0]).toEqual([ctx, row.id, 'Private subject', expect.stringContaining('Private message for reader')])
   expect(html).toContain('Private message')
   expect(readEmbeddedSnapshot(html)).toMatchObject({ managed: true, manifest: { schema: 1, kind: 'html' } })
   expect(await (await storage.bucket.get(row.content_md_key))!.text()).toContain('Private message')
@@ -82,6 +83,7 @@ test.each([true, false])('repeat and Trash restore preserve identity, annotation
   ])
   expect((await db.query('SELECT * FROM sr_user_delete_bookmark')).rows).toEqual([])
   expect((await db.query('SELECT is_enable FROM sr_bookmark_share')).rows).toEqual([{ is_enable: explicitSharing }])
+  expect(indexing).toHaveBeenCalledTimes(1)
 })
 test('second-member storage failure publishes no bookmark and cleans only its own files', async () => {
   const put = storage.bucket.put.bind(storage.bucket)
@@ -112,13 +114,13 @@ test('foreign or disabled mail cannot create pending bookmarks or copy content',
   expect([...storage.objects.keys()]).toEqual(['newsletter-content/original'])
 })
 
-test('index failure leaves a committed readable copy and repeat saving repairs without more objects', async () => {
+test('ordinary indexing failure keeps a readable copy and unchanged repeat does not rebuild content', async () => {
   indexing.mockRejectedValueOnce(new Error('external unavailable'))
   const first = await service.save(ctx, 1n),
     keys = [...storage.objects.keys()]
   expect((await repo.existing(1, 1n))?.uuid).toBe(first.bookmark_user_uuid)
   expect(await service.save(ctx, 1n)).toMatchObject({ result: 'already_saved', bookmark_user_uuid: first.bookmark_user_uuid })
-  expect(indexing).toHaveBeenCalledTimes(2)
+  expect(indexing).toHaveBeenCalledTimes(1)
   expect([...storage.objects.keys()]).toEqual(keys)
 })
 test('disabling during copying prevents publication and cleans unpublished copy members', async () => {
