@@ -613,23 +613,32 @@ export async function verifyReleaseEvidence({ evidence, diff, headSha, headRef =
     return { number, baseSha: pull.baseSha }
   }
   const usesCurrentPull = surface === 'pull-request' && Number.isSafeInteger(currentPullRequest) && currentPullRequest > 0
+  // Resolved only when a current migration with a valid declaration actually
+  // needs ownership evidence: an empty or historical-only diff must not depend
+  // on the pull-request endpoint, so a 503 there cannot block a release that
+  // asks nothing of it. One resolution serves every path in the diff.
   let currentIntroducing
-  if (usesCurrentPull) {
-    try {
-      currentIntroducing = await openIntroducing(currentPullRequest)
-    } catch (error) {
-      if (!(error instanceof EvidenceError)) throw error
-      findings.push({ stage: error.stage ?? 'ownership', reference: error.reference ?? `#${currentPullRequest}`, message: error.message })
+  let currentResolved = false
+  const resolveCurrentIntroducer = async () => {
+    if (!currentResolved) {
+      currentResolved = true
+      try {
+        currentIntroducing = await openIntroducing(currentPullRequest)
+      } catch (error) {
+        if (!(error instanceof EvidenceError)) throw error
+        findings.push({ stage: error.stage ?? 'ownership', reference: error.reference ?? `#${currentPullRequest}`, message: error.message })
+      }
     }
+    return currentIntroducing
   }
   const codeowners = new Map()
   const reviewStates = new Map()
   for (const path of released.map(entry => entry.path)) {
     const declaration = declarations.get(path)
     if (!declaration || skipEvidence) continue
-    if (usesCurrentPull && !currentIntroducing) continue
     await attempt('ownership', path, async () => {
-      const introducing = usesCurrentPull ? currentIntroducing : await evidence.introducingPullRequest(path, headSha)
+      const introducing = usesCurrentPull ? await resolveCurrentIntroducer() : await evidence.introducingPullRequest(path, headSha)
+      if (!introducing) return
       if (!codeowners.has(introducing.baseSha)) codeowners.set(introducing.baseSha, await evidence.codeowners(introducing.baseSha))
       const owners = ownersForPath(codeowners.get(introducing.baseSha), path)
       if (owners.length === 0) fail('ownership', path, 'no named user owner covers the migration path; team handles cannot satisfy the check')

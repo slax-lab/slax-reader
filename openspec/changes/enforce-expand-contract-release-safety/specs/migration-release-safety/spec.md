@@ -44,7 +44,7 @@ A migration file present in the pinned `dev` adoption tree, on `main`, or on `be
 
 Every migration file added by the release diff MUST have an `APPROVED` review from a named user owner on the pull request that introduced it. This requirement applies to `expand`, `migrate`, and `contract` alike, because the approval is the evidence that an accountable API owner accepted both the class and the author's semantic claim.
 
-On API pull-request CI the check runs before the merge, so the introducing pull request MUST be the current open pull request: its head MUST be the release head and its base MUST be the release branch, and its `APPROVED` review MUST already exist. On the promotion and deploy surfaces, which run after a merge, the check MUST resolve the introducing commit and exactly one merged introducing pull request instead.
+On API pull-request CI the check runs before the merge, so the introducing pull request MUST be the current open pull request: its head MUST be the release head and its base MUST be the release branch, and its `APPROVED` review MUST already exist. That pull request MUST be read only when a current migration with a valid declaration needs ownership evidence; a release diff with no current migration MUST NOT read it and MUST NOT be blocked when it is unavailable. On the promotion and deploy surfaces, which run after a merge, the check MUST resolve the introducing commit and exactly one merged introducing pull request instead.
 
 The check MUST read `CODEOWNERS` from the introducing pull request's base commit, resolve named user owners for the migration path, and use each reviewer's latest review state. Team handles MUST NOT satisfy the check, because the workflow token cannot resolve team membership. Ambiguous provenance or an unreadable review list MUST fail closed.
 
@@ -57,6 +57,10 @@ The check MUST read `CODEOWNERS` from the introducing pull request's base commit
 #### Scenario: The open pull request has no named-owner approval
 - **WHEN** API CI checks a migration added by the current open pull request and only an outsider, a team, or no reviewer approved it
 - **THEN** the ownership check fails and the pull request cannot merge
+
+#### Scenario: No current migration needs ownership evidence
+- **WHEN** the release diff adds no current migration, because it is empty or every added path is historical
+- **THEN** the check does not read the current pull request and stays green when that endpoint is unavailable
 
 #### Scenario: The current pull request is not the release under test
 - **WHEN** the current pull request is closed, merged, at another head, or targeting another branch

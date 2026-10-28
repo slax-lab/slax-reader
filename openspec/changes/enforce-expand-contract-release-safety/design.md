@@ -87,7 +87,7 @@ Every migration file added by the release diff requires an `APPROVED` review fro
 
 Resolution:
 
-1. On API pull-request CI, take the **current open pull request** as the introducer: the added path is part of its own diff, and its head and base must equal the release head and target branch. Its approval must already exist, because the check runs before the merge.
+1. On API pull-request CI, take the **current open pull request** as the introducer: the added path is part of its own diff, and its head and base must equal the release head and target branch. Its approval must already exist, because the check runs before the merge. It is read only when a current migration actually needs ownership evidence, so an empty or historical-only diff never depends on that endpoint.
 2. On the promotion and deploy surfaces, find the commit that added the path (`commits?path=<path>&sha=<release head>`, oldest adding commit) and map it to exactly one **merged** pull request (`commits/{sha}/pulls`). Ambiguity fails closed.
 3. Read `CODEOWNERS` at that pull request's **base** commit and resolve named user owners for the migration path. Team handles are ignored: `GITHUB_TOKEN` cannot resolve membership, so a team entry would pass without a specific person.
 4. Read the pull request's reviews with pagination, use each reviewer's latest state, and require at least one named-user owner in state `APPROVED`.

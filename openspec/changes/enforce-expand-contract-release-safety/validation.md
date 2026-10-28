@@ -32,8 +32,8 @@ Six decisions were made during implementation and recorded in the artifacts:
 
 | Command | Result |
 | --- | --- |
-| `node --test tooling/migration-release-evidence.test.mjs` | 52 passed, 0 failed |
-| `pnpm test:ci` | 133 passed, 0 failed |
+| `node --test tooling/migration-release-evidence.test.mjs` | 56 passed, 0 failed |
+| `pnpm test:ci` | 137 passed, 0 failed |
 | `pnpm test:preflight` | 104 passed, 0 failed, 2 skipped (win32-only cases) |
 | `pnpm exec openspec validate --all --strict` | 79 passed, 0 failed |
 | `pnpm agent:check` | `rulesync doctor --strict` and `generate --check` clean; OpenSpec 79/79; compiled agentic workflows match their sources |
@@ -129,6 +129,16 @@ Two findings, both fixed.
 *Regressions.* `a same-commit web success never hides a newer API failure` (web success newest, API failure for the same commit, older API success → freezes on the failure) and `a same-commit web record does not consume the commit before the API record is read` (web success then API success for the same commit → resolves that commit).
 
 **Artifacts updated.** `design.md` §3 (open current pull request on API CI) and §4 (attribute and evaluate before deduplicating), `docs/CI.md`, the `migration-release-safety` delta (ownership scenarios for the open pull request and a same-commit web deployment scenario), and `tooling/ci-workflow.test.mjs` (the job passes `--pull-request` and `PR_NUMBER`).
+
+### Review round 5 (independent review)
+
+**Finding.** `verifyReleaseEvidence` resolved `currentPullRequest` before iterating the diff, so an empty or historical-only migration diff still called the pull-request endpoint and failed closed when it was unavailable — a release that asked nothing of that endpoint was blocked by its outage.
+
+**Fix.** The resolution moved inside the ownership loop and is memoized: it runs on the first current migration that has a valid declaration and needs ownership evidence, and one result serves every path. An empty diff, a historical-only diff, and a dev deploy that skips ownership never call it; a failing call is still recorded once and fails closed when a current migration does need it.
+
+**Regressions.** `an empty or historical-only diff never reads the current pull request` (the fixture throws if called), `the current pull request is read once for every current migration` (two current migrations, one call), and two CLI cases: `the CLI never reads the current pull request for an empty diff` (a fetch stub that throws is never reached) and `the CLI stays green when the pull-request endpoint is down and the diff is historical` (503 on `/pulls/`, an adoption copy served from contents, `ok: true`, no `/pulls/` request).
+
+**Artifacts updated.** `design.md` §3, `docs/CI.md`, and the `migration-release-safety` delta (lazy read plus the "no current migration needs ownership evidence" scenario).
 
 ## Machine facts versus owner judgment
 

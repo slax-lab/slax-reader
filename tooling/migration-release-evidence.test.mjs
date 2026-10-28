@@ -305,6 +305,29 @@ test('API CI accepts the current open pull request as the introducing pull reque
   assert.deepEqual(stages(unapproved.result), ['ownership'])
 })
 
+test('an empty or historical-only diff never reads the current pull request', async () => {
+  // The fixture throws when the method is called without a fixture, so these
+  // pass only when the endpoint is never touched.
+  const empty = await verify({}, { diff: [], currentPullRequest: 731 })
+  assert.equal(empty.result.ok, true)
+  assert.ok(!empty.calls.some(([name]) => name === 'currentPullRequest'))
+
+  const path = d1('0002')
+  const historical = await verify({ files: { [path]: expandText }, existing: { [adoptionCommit]: { [path]: expandText } } }, { diff: [{ path, status: 'added' }], currentPullRequest: 731 })
+  assert.equal(historical.result.ok, true)
+  assert.deepEqual(historical.result.frozen, [path])
+  assert.deepEqual(historical.result.current, [])
+  assert.ok(!historical.calls.some(([name]) => name === 'currentPullRequest'))
+})
+
+test('the current pull request is read once for every current migration', async () => {
+  const current = { number: 731, state: 'open', merged: false, headSha, baseRef: 'beta', baseSha: ownerBase }
+  const files = { [pg('one')]: expandText, [pg('two')]: expandText }
+  const { result, calls } = await verify({ files, current }, { diff: [{ path: pg('one'), status: 'added' }, { path: pg('two'), status: 'added' }], currentPullRequest: 731 })
+  assert.equal(result.ok, true)
+  assert.equal(calls.filter(([name]) => name === 'currentPullRequest').length, 1)
+})
+
 test('the current pull request must be open, at the release head, and target the base', async () => {
   const path = pg('add_value')
   const current = overrides => ({ number: 731, state: 'open', merged: false, headSha, baseRef: 'beta', baseSha: ownerBase, ...overrides })
@@ -872,6 +895,59 @@ test('the CLI fails an undeclared, deleted, or re-released migration on a synthe
     })
     assert.equal(removal.ok, false)
     assert.deepEqual(stages(removal), ['immutability'])
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('the CLI never reads the current pull request for an empty diff', async () => {
+  const { directory, base, run } = cliRepository()
+  try {
+    writeFileSync(join(directory, 'README.md'), 'docs only\n')
+    run(['add', '.'])
+    run(['commit', '-q', '-m', 'docs'])
+    const head = run(['rev-parse', 'HEAD']).trim()
+    let calls = 0
+    const fetchImpl = async () => {
+      calls++
+      throw new Error('must not call the API')
+    }
+    const result = await runCli({
+      argv: ['--surface', 'pull-request', '--base', base, '--head', head, '--base-ref', 'dev', '--head-ref', 'feat/docs-only', '--pull-request', '731'],
+      env: cliEnv, cwd: directory, fetchImpl, log: () => {}, errorLog: () => {}
+    })
+    assert.equal(result.ok, true)
+    assert.equal(calls, 0)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('the CLI stays green when the pull-request endpoint is down and the diff is historical', async () => {
+  const { directory, base, run } = cliRepository()
+  try {
+    const path = d1('0002_add')
+    writeFileSync(join(directory, path), expandText)
+    run(['add', '.'])
+    run(['commit', '-q', '-m', 'add'])
+    const head = run(['rev-parse', 'HEAD']).trim()
+    const blob = run(['hash-object', path]).trim()
+    const requests = []
+    const fetchImpl = async url => {
+      requests.push(url)
+      if (url.includes('/pulls/')) return new Response('unavailable', { status: 503 })
+      if (url.includes('/contents/') && url.includes(`ref=${adoptionCommit}`)) {
+        return new Response(JSON.stringify({ type: 'file', encoding: 'base64', sha: blob, content: Buffer.from(expandText).toString('base64') }), { status: 200, headers: { 'content-type': 'application/json' } })
+      }
+      return new Response('{"message":"Not Found"}', { status: 404, headers: { 'content-type': 'application/json' } })
+    }
+    const result = await runCli({
+      argv: ['--surface', 'pull-request', '--base', base, '--head', head, '--base-ref', 'dev', '--head-ref', 'feat/add', '--pull-request', '731'],
+      env: cliEnv, cwd: directory, fetchImpl, log: () => {}, errorLog: () => {}
+    })
+    assert.equal(result.ok, true)
+    assert.deepEqual(result.frozen, [path])
+    assert.ok(!requests.some(url => url.includes('/pulls/')), requests.join('\n'))
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
