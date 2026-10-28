@@ -52,7 +52,7 @@ beforeAll(async () => {
 })
 beforeEach(async () => {
   await db.exec(`TRUNCATE sr_user,sr_user_lab_feature,sr_platform_bind,sr_newsletter_feed,sr_rss_entry,sr_rss_feed,sr_rss_subscription;
-    INSERT INTO sr_user(id,account) VALUES(1,'Jane.Doe'),(2,'other');
+    INSERT INTO sr_user(id,account) VALUES(1,'jane01'),(2,'other');
     INSERT INTO sr_user_lab_feature VALUES(1,'newsletter',true),(2,'newsletter',true);`)
 })
 afterAll(async () => {
@@ -60,5 +60,5 @@ afterAll(async () => {
 })
 export const recipient = async () => {
   await repo.address(1, 'newsletterreader.slax.dev', true)
-  return (await repo.recipient('newsletterreader.slax.dev', 'jane.doe'))!
+  return (await repo.recipient('newsletterreader.slax.dev', 'jane01'))!
 }

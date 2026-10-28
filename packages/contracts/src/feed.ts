@@ -69,3 +69,8 @@ export interface NewsletterErrorData {
 }
 
 export type FeedSaveResponse = import("./rss.js").RssSaveResponse;
+
+/** First Newsletter configuration only; issued addresses and general Reader accounts keep their policy. */
+export function isNewsletterAccount(value: unknown): value is string {
+  return typeof value === "string" && /^[a-z0-9]{6,15}$/.test(value);
+}

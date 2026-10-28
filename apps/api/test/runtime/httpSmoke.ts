@@ -392,7 +392,7 @@ async function main() {
         await request('newsletter-account', '/v1/user/setting', {
           method: 'POST',
           headers: { ...mailHeaders, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: 'account', value: 'newsletter-smoke' })
+          body: JSON.stringify({ key: 'account', value: 'newslettersmoke' })
         })
       ).body.code,
       200
@@ -413,7 +413,7 @@ async function main() {
     const changed = await request('newsletter-stale-confirmation', '/v1/user/setting/enable', {
       method: 'POST',
       headers: confirmationHeaders,
-      body: JSON.stringify({ key: 'lab:newsletter', newsletter_address: `feed+stale@${newsletterDomain}` })
+      body: JSON.stringify({ key: 'lab:newsletter', newsletter_address: `feed+stale01@${newsletterDomain}` })
     })
     assert.equal(changed.body.data.error, 'address_changed')
     assert.equal(resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_platform_bind WHERE platform='newsletter' AND user_id=1"), '0')
@@ -422,18 +422,18 @@ async function main() {
         await request('newsletter-confirm-address', '/v1/user/setting/enable', {
           method: 'POST',
           headers: confirmationHeaders,
-          body: JSON.stringify({ key: 'lab:newsletter', newsletter_address: `feed+newsletter-smoke@${newsletterDomain}` })
+          body: JSON.stringify({ key: 'lab:newsletter', newsletter_address: `feed+newslettersmoke@${newsletterDomain}` })
         })
       ).body.code,
       200
     )
     address = await request('newsletter-address-confirmed', '/v1/user/newsletter_address', { headers: mailHeaders })
-    assert.equal(address.body.data.address, `feed+newsletter-smoke@${newsletterDomain}`)
+    assert.equal(address.body.data.address, `feed+newslettersmoke@${newsletterDomain}`)
     const rawMail =
       'From: Smoke Weekly <weekly@example.com>\r\nTo: ignored@other.example\r\nSubject: Newsletter runtime smoke\r\nMessage-ID: <newsletter-runtime-smoke@example.com>\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Runtime newsletter body</p><script>throw 1</script><img src="cid:part">'
     for (let repeat = 0; repeat < 2; repeat++) {
       const response = await localFetch(
-        `http://localhost:${httpPort}/cdn-cgi/local/email?from=bounce%40example.com&to=${encodeURIComponent((repeat ? 'feed+newsletter-smoke@' : 'FeEd+NeWsLeTtEr-SmOkE@') + newsletterDomain)}`,
+        `http://localhost:${httpPort}/cdn-cgi/local/email?from=bounce%40example.com&to=${encodeURIComponent((repeat ? 'feed+newslettersmoke@' : 'FeEd+NeWsLeTtErSmOkE@') + newsletterDomain)}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'message/rfc822' },
@@ -455,7 +455,7 @@ async function main() {
         '--edge',
         `http://localhost:${httpPort}`,
         '--to',
-        `feed+newsletter-smoke@${newsletterDomain}`,
+        `feed+newslettersmoke@${newsletterDomain}`,
         '--repeat',
         '2'
       ]),

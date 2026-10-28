@@ -75,26 +75,34 @@ afterEach(() => {
 })
 
 describe('confirmed Newsletter setup', () => {
+  it.each(['alex', 'abcde', 'Reader01', 'jane.doe', 'reader-1', ' reader01', 'reader01 ', '读者reader', 'abcdefghijklmnop'])('does not confirm an invalid first-configuration token %j', async name => {
+    const w = create()
+    await flushPromises()
+    await submit(w, name)
+    expect(w.find('dialog[open]').exists()).toBe(false)
+    expect(w.get('#newsletter-account-error').text()).toContain('newsletter.errors.invalid_account')
+    expect(post).not.toHaveBeenCalled()
+  })
   it('shows the complete candidate before writes and cancellation leaves the draft unchanged', async () => {
     const w = create()
     await flushPromises()
-    await submit(w, 'Reader')
+    await submit(w, 'reader')
     expect(post).not.toHaveBeenCalled()
     expect(w.get('dialog').attributes('open')).toBeDefined()
     expect(w.get('[data-confirm-candidate]').text()).toBe('feed+reader@newsletterreader.slax.dev')
     expect(w.get('dialog').text()).toContain('newsletter.confirm_permanent')
     await w.get('[data-cancel-address]').trigger('click')
     expect(post).not.toHaveBeenCalled()
-    expect(w.get('#newsletter-account').element).toHaveProperty('value', 'Reader')
+    expect(w.get('#newsletter-account').element).toHaveProperty('value', 'reader')
   })
   it('confirms the frozen candidate and reads the actual issued address', async () => {
     get.mockResolvedValueOnce(empty).mockResolvedValueOnce(ready)
     const w = create()
     await flushPromises()
-    await submit(w, 'Reader')
+    await submit(w, 'reader')
     await confirm(w)
     expect(post.mock.calls.map(([p]) => [p.url, p.body])).toEqual([
-      ['/v1/user/setting', { key: 'account', value: 'Reader' }],
+      ['/v1/user/setting', { key: 'account', value: 'reader' }],
       [
         '/v1/user/setting/enable',
         {
@@ -141,10 +149,10 @@ describe('confirmed Newsletter setup', () => {
     post.mockResolvedValueOnce('ok').mockRejectedValueOnce(new Error('creation failed'))
     const w = create()
     await flushPromises()
-    await submit(w, 'new-reader')
+    await submit(w, 'newreader')
     await confirm(w)
     expect(user.refreshServerUserInfo).not.toHaveBeenCalled()
-    expect(w.get('#newsletter-account').element).toHaveProperty('value', 'new-reader')
+    expect(w.get('#newsletter-account').element).toHaveProperty('value', 'newreader')
     expect(w.get('.setup-error').text()).toContain('newsletter.errors.unavailable')
   })
   it.each(['EXISTS_USER_NAME_ERROR', 'address_reserved'])('shows field feedback without raw errors for %s', async code => {
@@ -158,12 +166,12 @@ describe('confirmed Newsletter setup', () => {
     )
     const w = create()
     await flushPromises()
-    await submit(w, 'taken')
+    await submit(w, 'taken01')
     await confirm(w)
     expect(w.get('#newsletter-account-error').text()).toContain('newsletter.errors.' + (code === 'EXISTS_USER_NAME_ERROR' ? 'account_taken' : code))
     expect(w.get('#newsletter-account').attributes('aria-invalid')).toBe('true')
     expect(w.get('#newsletter-account').attributes('aria-describedby')).toContain('newsletter-account-error')
-    expect(w.get('#newsletter-account').element).toHaveProperty('value', 'taken')
+    expect(w.get('#newsletter-account').element).toHaveProperty('value', 'taken01')
     expect(w.text()).not.toContain('private raw error')
     await w.get('#newsletter-account').setValue('available')
     expect(w.find('#newsletter-account-error').exists()).toBe(false)
@@ -219,10 +227,10 @@ describe('confirmed Newsletter setup', () => {
     get.mockResolvedValueOnce(empty).mockResolvedValueOnce(ready)
     const w = create()
     await flushPromises()
-    await submit(w, 'old')
+    await submit(w, 'older01')
     await confirm(w)
     expect(w.get('.newsletter-address').text()).toBe(ready.address)
-    expect(w.text()).not.toContain('feed+old@')
+    expect(w.text()).not.toContain('feed+older01@')
   })
   it.each(['..invalid', '-invalid', 'a'.repeat(60)])('does not confirm invalid account %s', async name => {
     const w = create()

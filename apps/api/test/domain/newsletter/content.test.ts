@@ -9,7 +9,7 @@ const setup = () => {
     content = new NewsletterContent(() => bucket.client as never)
   const service = new NewsletterService(repo, content),
     env = { NEWSLETTER_DOMAIN: 'newsletterreader.slax.dev' } as Env
-  const message = (id = 'one', to = 'feed+jane.doe@newsletterreader.slax.dev') => {
+  const message = (id = 'one', to = 'feed+jane01@newsletterreader.slax.dev') => {
     const raw = new TextEncoder().encode(
       `From: Sender <sender@example.com>\r\nTo: foreign@example.com\r\nSubject: Subject\r\nMessage-ID: <${id}@example.com>\r\nContent-Type: text/html\r\n\r\n<p>Private safe body</p><script>bad()</script>`
     )
@@ -69,7 +69,7 @@ test('disable and re-enable during R2 storage fences the pending message', async
 test('invalid envelope cannot store body or admit mail', async () => {
   await recipient()
   const p = setup()
-  for (const to of ['feed@newsletterreader.slax.dev', 'r+jane.doe@newsletterreader.slax.dev', 'feed+jane.doe+extra@newsletterreader.slax.dev', 'feed+jane.doe@slax.dev'])
+  for (const to of ['feed@newsletterreader.slax.dev', 'r+jane01@newsletterreader.slax.dev', 'feed+jane01+extra@newsletterreader.slax.dev', 'feed+jane01@slax.dev'])
     await expect(p.service.receive(p.message('bad', to), p.env)).rejects.toMatchObject({ code: 'not_found' })
   expect(p.objects.size).toBe(0)
   expect((await db.query('SELECT * FROM sr_newsletter_feed')).rows).toEqual([])

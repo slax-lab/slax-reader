@@ -57,7 +57,7 @@
               ref="accountInput"
               v-model="account"
               type="text"
-              maxlength="59"
+              maxlength="15"
               autocomplete="username"
               autocapitalize="none"
               :spellcheck="false"
@@ -145,7 +145,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onScopeDispose, ref, watch } from 'vue'
 
-import type { NewsletterAddressResponse, NewsletterEnableSettingRequest } from '@slax-reader/contracts'
+import { isNewsletterAccount, type NewsletterAddressResponse, type NewsletterEnableSettingRequest } from '@slax-reader/contracts'
 import type { UserDetailInfo } from '@slax-reader/contracts/interface'
 import { useAccountContext } from '~/composables/useAccountContext'
 import { useUserStore } from '~/stores/user'
@@ -185,9 +185,8 @@ const fieldError = computed(() => (fieldCodes.includes(error.value) ? error.valu
 const globalError = computed(() => (!fieldError.value ? error.value || (state.value?.status === 'unavailable' ? 'unavailable' : '') : ''))
 const canConfigure = computed(() => !loading.value && !!state.value?.domain && !state.value.address && state.value.status !== 'unavailable')
 const candidate = computed(() => {
-  const token = account.value.trim()
-  if (!state.value?.domain || token.length > 59 || !/^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/.test(token) || token.includes('..')) return ''
-  return 'feed+' + token.toLowerCase() + '@' + state.value.domain
+  if (!state.value?.domain || !isNewsletterAccount(account.value)) return ''
+  return 'feed+' + account.value + '@' + state.value.domain
 })
 const quiet = () => {}
 const errorCode = (value: unknown) => {
@@ -298,7 +297,7 @@ const openConfirmation = async () => {
   }
   error.value = ''
   confirmation.value = {
-    account: account.value.trim(),
+    account: account.value,
     address: candidate.value,
     stamp: stamp(),
     originalAccount: currentAccount.value

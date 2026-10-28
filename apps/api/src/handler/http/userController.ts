@@ -14,8 +14,8 @@ import { QueueClient } from '../../infra/queue/queueClient'
 import { UserDeletionService } from '../../domain/userDeletion'
 import { LabService } from '../../domain/lab'
 import { NewsletterService } from '@/domain/newsletter'
-import { NewsletterError } from '@/domain/newsletter/parser'
-import type { NewsletterEnableSettingRequest } from '@slax-reader/contracts'
+import { configuredNewsletterDomain, NEWSLETTER_LOCAL_PREFIX, NewsletterError } from '@/domain/newsletter/parser'
+import { isNewsletterAccount, type NewsletterEnableSettingRequest } from '@slax-reader/contracts'
 
 @Controller('/v1/user')
 export class UserController {
@@ -125,7 +125,8 @@ export class UserController {
   @Post('/setting')
   public async handleUserSettingRequest(ctx: ContextManager, request: Request) {
     const req = await RequestUtils.json<{ key: string; value: string }>(request)
-    if (!req) return Failed(ErrorParam())
+    if (!req || typeof req.key !== 'string' || typeof req.value !== 'string') return Failed(ErrorParam())
+    if (req.key === 'account' && (!/^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?$/.test(req.value) || req.value.includes('..'))) return Failed(ErrorParam())
 
     await this.userService.saveUserSetting(ctx, req)
     return Successed('ok')
@@ -137,11 +138,16 @@ export class UserController {
   @Post('/setting/enable')
   public async handleEnableUserSettingRequest(ctx: ContextManager, request: Request) {
     const req = await RequestUtils.json<{ key: string } & Pick<NewsletterEnableSettingRequest, 'newsletter_address'>>(request)
-    if (!req) return Failed(ErrorParam())
+    if (!req || typeof req.key !== 'string') return Failed(ErrorParam())
 
     try {
-      if (req.key === 'lab:newsletter' && req.newsletter_address !== undefined && (typeof req.newsletter_address !== 'string' || !req.newsletter_address)) {
-        throw new NewsletterError('invalid_account')
+      if (req.key === 'lab:newsletter' && req.newsletter_address !== undefined) {
+        const domain = configuredNewsletterDomain(ctx.env)
+        if (!domain) throw new NewsletterError('unavailable', 503)
+        const address = req.newsletter_address
+        if (typeof address !== 'string' || !address.startsWith(NEWSLETTER_LOCAL_PREFIX) || !address.endsWith('@' + domain) || !isNewsletterAccount(address.slice(NEWSLETTER_LOCAL_PREFIX.length, -(domain.length + 1)))) {
+          throw new NewsletterError('invalid_account')
+        }
       }
       const res = await this.userService.enableUserSetting(ctx, req.key, true)
       if (req.key === 'lab:newsletter' && req.newsletter_address !== undefined) {

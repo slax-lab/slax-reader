@@ -17,7 +17,7 @@ native('independent Newsletter native transactions', () => {
   let recipient: NewsletterRecipient
   const hash = (value: number) => value.toString(16).padStart(64, '0')
   beforeAll(async () => {
-    const account = 'native-' + crypto.randomUUID().slice(0, 8)
+    const account = 'native' + crypto.randomUUID().replaceAll('-', '').slice(0, 8)
     const user = await pg.sr_user.create({ data: { email: account + '@fixture.invalid', account, created_at: new Date(), last_login_at: new Date() } })
     await lab.upsert(user.id, 'newsletter', true)
     await repo.address(user.id, 'newsletterreader.slax.dev', true)

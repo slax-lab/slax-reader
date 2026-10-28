@@ -149,7 +149,7 @@ export class UserRepo {
   }
 
   public async updateUserName(userId: number, account: string): Promise<userInfoPO> {
-    if (!userId || !/^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?$/.test(account) || account.includes('..')) throw ErrorParam()
+    if (!userId || !account) throw ErrorParam()
     const canonical = account.toLowerCase()
     return this.prismaPg().$transaction(async tx => {
       const users = await tx.$queryRaw<userInfoPO[]>`SELECT * FROM sr_user WHERE id=${userId} AND deleted_at IS NULL FOR UPDATE`

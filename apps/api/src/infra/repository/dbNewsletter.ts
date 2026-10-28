@@ -2,7 +2,7 @@ import { inject, injectable } from '@/decorators/di'
 import { PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
 import type { Prisma, PrismaClient } from '@prisma/hyperdrive-client'
-import type { NewsletterAddressResponse } from '@slax-reader/contracts'
+import { isNewsletterAccount, type NewsletterAddressResponse } from '@slax-reader/contracts'
 import { NEWSLETTER_LIMITS, NEWSLETTER_LOCAL_PREFIX, NewsletterError, newsletterLocalPart } from '@/domain/newsletter/parser'
 
 type Tx = Prisma.TransactionClient
@@ -61,7 +61,7 @@ export class NewsletterRepo {
         if (!part) throw new NewsletterError('invalid_account')
         return { address, domain, status: 'ready' }
       }
-      const part = newsletterLocalPart(user.account)
+      const part = isNewsletterAccount(user.account) ? user.account : null
       const status = !user.account ? 'account_required' : !part ? 'invalid_account' : 'not_provisioned'
       if (!part) {
         if (provision) throw new NewsletterError(status === 'account_required' ? 'account_required' : 'invalid_account')
