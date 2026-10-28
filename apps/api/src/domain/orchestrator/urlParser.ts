@@ -265,7 +265,6 @@ export class UrlParserHandler {
 
   async processParseTask(ctx: ContextManager, taskInfo: receiveQueueParseMessage) {
     const { id, info } = taskInfo
-    if (isNewsletterTarget(info.targetUrl)) return
 
     try {
       const callbacks: PostHandler[] = [

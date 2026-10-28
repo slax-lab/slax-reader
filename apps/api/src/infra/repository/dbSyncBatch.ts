@@ -1,4 +1,3 @@
-import { isNewsletterTarget } from '@/utils/newsletterTarget'
 import { privatizeLegacyBookmark } from './dbBookmarkFork'
 import { validatePdfSources, isPdfContentKey } from '@slax-reader/contracts/pdf'
 import { inject, injectable } from '@/decorators/di'
@@ -173,19 +172,6 @@ export class DBSyncBatchOperation {
     captureRevision?: string
   } | null> {
     if (operation.type !== 'create_bookmark') return null
-    if (isNewsletterTarget(operation.data.targetUrl)) {
-      const current = await tx.sr_user_bookmark.findUnique({ where: { uuid: operation.bookmarkUuid }, include: { bookmark: true } })
-      if (
-        !current ||
-        current.user_id !== operation.userId ||
-        current.bookmark.private_user !== operation.userId ||
-        current.bookmark.target_url !== operation.data.targetUrl ||
-        current.bookmark.status !== 'success'
-      )
-        throw ShareActionNotAllowedError()
-      // Replayed owned PUTs do not re-acquire content; PATCH personal changes use their normal path.
-      return null
-    }
     if (operation.data.readerSourceUuid) {
       const targetUrl = failedReaderSaveUrl(operation.data.targetUrl, operation.bookmarkUuid)
       const existing = await tx.sr_user_bookmark.findUnique({ where: { uuid: operation.bookmarkUuid }, include: { bookmark: true } })
